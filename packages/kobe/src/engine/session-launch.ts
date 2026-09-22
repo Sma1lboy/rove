@@ -15,33 +15,25 @@ export const SIGINT_GUARD = "trap ':' INT; "
  * True when the repo-init marker records a FINISHED run — the ONE reader of
  * this file, shared by every caller that asks "has `.rove/init.sh` stopped?".
  *
- * The launch script below writes init's exit code into the marker and deletes
- * it before re-running, so "finished" means "holds a recorded code", not
- * "exists". Pre-0.9.101 launches left an EMPTY marker on success; the shell's
- * own guard (`[ "$(cat m)" != "0" ]`) re-runs init on one of those, while
- * readers that only asked `existsSync` concluded the engine had already
- * started. On any worktree path carrying a stale marker the two answers were
- * exactly opposite: the shell reinstalled dependencies while the CLI spent its
- * 3s engine probe, then reported SESSION_FAILED with `bun install`'s progress
- * bar as the reason — for a task that went on to start normally.
+ * The launch script writes init's exit code into the marker and deletes it
+ * before re-running, so "finished" means "holds a recorded code", not
+ * "exists". An EMPTY marker (left by pre-0.9.101 launches) is re-run by the
+ * shell's own guard (`[ "$(cat m)" != "0" ]`), so an `existsSync` reader would
+ * wrongly conclude the engine had started while init is still running.
  */
 export function initMarkerSaysFinished(markerPath: string): boolean {
   try {
     return readFileSync(markerPath, "utf8").trim().length > 0
   } catch {
-    // Missing (init never ran, or this run deleted it to re-run) — and any
-    // unreadable shape, which is likewise not a recorded outcome.
+    // Missing (never ran, or deleted to re-run) or unreadable: no recorded outcome.
     return false
   }
 }
 
 /**
- * The {@link keepAlive} banner, as a matcher.
- *
- * Lives beside the `printf` that emits it so the two cannot drift: this is
- * how a caller OUTSIDE the PTY — the automation runner, which has to explain
- * a dispatch that produced no engine — reads the exit code back out of the
- * session's own output. Capture group 1 is that code.
+ * The {@link keepAlive} banner as a matcher, kept beside its `printf` so they
+ * cannot drift. Lets callers outside the PTY (the automation runner) read the
+ * engine exit code from session output. Capture group 1 is that code.
  */
 export const ENGINE_EXIT_BANNER = /Engine exited \(code (\d+)\)/
 
@@ -55,9 +47,8 @@ export interface EngineInitLaunch {
   readonly initScript?: string
   readonly markerPath?: string
   readonly timeoutSeconds?: number
-  /** Which shell dialect the marker path is written for. Defaults to the real
-   *  platform; injected so the Windows conversion is assertable on a POSIX
-   *  runner, where it would otherwise be an identity no-op. */
+  /** Shell dialect for the marker path; defaults to the real platform.
+   *  Injectable so the Windows conversion is testable on POSIX. */
   readonly platform?: NodeJS.Platform
 }
 
@@ -74,18 +65,14 @@ export function resolveRepoInitTimeoutSeconds(raw?: string | number | null): num
 /**
  * Run repo init without allowing a hung setup command to block engine entry.
  *
- * Leaves the caller two things: `$__kobe_init_rc` (the outcome — `124` on
- * timeout) and, on success only, an env dump at `$__kobe_init_env` for the
- * caller to source. The caller owns both the path and the sourcing, because
- * the dump outlives this run — see {@link engineLaunchLine}.
+ * Leaves `$__kobe_init_rc` (`124` on timeout) and, on success only, an env
+ * dump at `$__kobe_init_env`; the caller owns that path and the sourcing,
+ * since the dump outlives this run — see {@link engineLaunchLine}.
  *
- * The dump is the DELTA of `export -p` across the script, not the whole
- * environment. It is sourced by EVERY session in the worktree, and a whole
- * dump would re-export the first session's `ROVE_TASK_ID` / `ROVE_TAB_ID`
- * over each later tab's own identity — hooks would then attribute every
- * tab's events to tab-1 — besides carrying its `PWD`/`SHLVL` along. Written
- * under `umask 077`: an init script's exports are exactly where an API key
- * would be.
+ * The dump is the DELTA of `export -p` across the script: every session in the
+ * worktree sources it, and a whole dump would overwrite each later tab's
+ * `ROVE_TASK_ID` / `ROVE_TAB_ID` (hooks would attribute events to tab-1) and
+ * `PWD`/`SHLVL`. Written under `umask 077` since exports may hold API keys.
  */
 function boundedInitGroup(script: string, timeoutSeconds: number): string {
   const seconds = String(timeoutSeconds)
@@ -127,27 +114,22 @@ export function engineLaunchLine(engineCommand: string, init?: EngineInitLaunch)
   const script = init?.initScript?.trim()
   if (!script) return tail
   const group = boundedInitGroup(script, resolveRepoInitTimeoutSeconds(init?.timeoutSeconds))
-  // Restoring the init script's exports sits OUTSIDE the once-per-worktree
-  // marker guard. The marker is per-WORKTREE, so keeping the restore inside it
-  // meant only the first session in a worktree ever saw what `.rove/init.sh`
-  // exported — every later tab, and every restart of the first one, exec'd the
-  // engine with none of its PATH/venv/API-key exports and no banner saying why.
-  // `repo-init.ts`'s own contract says the exports reach the engine; this is
-  // the half of it the guard was eating.
+  // Restore sits OUTSIDE the once-per-worktree marker guard: every tab and
+  // restart must get init's exports (the `repo-init.ts` contract), not only
+  // the session that ran init.
   const restore = `[ -f "$__kobe_init_env" ] && . "$__kobe_init_env" 2>/dev/null`
   // The marker is interpolated INTO the script, so it must be in the form the
   // shell reads paths in — Git Bash rejects a backslash path in `[ -f ]`.
   const markerPath = init?.markerPath && toPosixPath(init.markerPath, init.platform)
   if (!markerPath) {
-    // No durable home for the dump — keep it per-shell and drop it after the
-    // restore. Only reachable from direct callers; every spawner passes a marker.
+    // No durable home: per-shell dump, dropped after restore. Only direct
+    // callers reach this; every spawner passes a marker.
     const tmpEnv = `__kobe_init_env="\${TMPDIR:-/tmp}/kobe-init-env.$$"`
     return SIGINT_GUARD + [tmpEnv, group, restore, `rm -f "$__kobe_init_env" 2>/dev/null`, tail].join("\n")
   }
   const marker = quoteShellArg(markerPath)
   const markerDir = quoteShellArg(markerDirOf(markerPath))
-  // Beside the marker, so it inherits the same per-worktree keying and the
-  // same `mkdir -p` above.
+  // Beside the marker: same per-worktree keying and `mkdir -p`.
   const lock = quoteShellArg(`${markerPath}.lock`)
   // The winner's own ceiling plus slack for the shell around it: a loser that
   // gave up earlier would start its engine while init was still writing.
@@ -155,53 +137,37 @@ export function engineLaunchLine(engineCommand: string, init?: EngineInitLaunch)
   return (
     SIGINT_GUARD +
     [
-      // Durable and per-worktree, next to the marker — NOT `$TMPDIR/…$$`,
-      // which is per-shell and was deleted the moment the first session's
-      // init finished, leaving later sessions nothing to source.
+      // Durable and per-worktree, NOT per-shell `$TMPDIR/…$$`, so later
+      // sessions still have it to source.
       `__kobe_init_env=${quoteShellArg(`${markerPath}.env`)}`,
-      // The marker RECORDS the outcome instead of only existing on success.
-      // "Init never ran" and "init finished badly" used to look identical from
-      // outside, and the paste-delivery spawner that waits on this file
-      // therefore burned its whole 120s budget on any repo whose init.sh exits
-      // non-zero. Re-run gating is unchanged in effect: a recorded non-zero
-      // code retries, exactly as a missing marker did.
+      // The marker RECORDS the exit code so the paste-delivery spawner can
+      // tell "never ran" from "finished badly". A recorded non-zero code
+      // retries, same as a missing marker.
       `if [ ! -f ${marker} ] || [ "$(cat ${marker} 2>/dev/null)" != "0" ]; then`,
       `mkdir -p ${markerDir} 2>/dev/null`,
-      // The marker is a RECEIPT, not a lock: it is deleted for the whole run
-      // (below), so between the test above and the write below it does not
-      // exist — and it is keyed by WORKTREE, which every tab of a task
-      // shares. Two tabs opening before the first init finished, or any
-      // worktree whose last init exited non-zero, therefore both passed the
-      // test and both ran `.rove/init.sh` — two `bun install`s in one
-      // directory, against a contract that says "once per worktree"
+      // The marker is a RECEIPT, not a lock: absent for the whole run and
+      // shared by every tab of the worktree, so concurrent tabs would both
+      // pass the test above and run init twice, breaking "once per worktree"
       // (`state/repo-init.ts`, `docs/CONFIGURATION.md`).
       //
-      // `set -C` makes `> file` fail when the file exists, which is POSIX
-      // sh's atomic create-or-fail — no `flock`, which not every target
-      // platform ships. The winner runs; the loser waits for the winner's
-      // marker rather than racing it, so it also sources a COMPLETE env dump
-      // (the dump is written inside the group, before the marker).
+      // `set -C` makes `> file` POSIX sh's atomic create-or-fail (`flock`
+      // isn't on every platform). The loser waits for the winner, so it
+      // sources a COMPLETE env dump (written in the group, before the marker).
       `if (set -C; : > ${lock}) 2>/dev/null; then`,
-      // This run owns the marker while it runs: absent means "init is still
-      // going", which is the question the spawner is asking. Without the
-      // delete a retry would leave the previous run's code on disk and the
-      // spawner would paste into an engine that has not started yet.
+      // Absent marker means "init still running" to the spawner; a stale code
+      // left by a retry would make it paste before the engine starts.
       `rm -f ${marker} 2>/dev/null`,
       group,
       `printf '%s' "$__kobe_init_rc" > ${marker}`,
       `rm -f ${lock} 2>/dev/null`,
       "else",
-      // Wait on the LOCK, not on the marker. The winner deletes the marker as
-      // its first act, so a loser polling for the marker can still see the
-      // PREVIOUS run's one in the instant before that delete and walk on while
-      // init is running. The lock has no such window: it exists from before
-      // the marker is deleted until after the new one is written.
+      // Wait on the LOCK, not the marker: a loser could see the PREVIOUS run's
+      // marker just before the winner deletes it. The lock spans from before
+      // that delete until after the new marker is written.
       //
-      // Bounded by the same budget the init itself gets, so a crashed winner
-      // costs one wait and not a permanent stall. Falling through is the
-      // honest outcome then: the engine starts without the exports, exactly as
-      // it would have if init had failed, and clearing the stale lock lets the
-      // next launch try again.
+      // Bounded by init's own budget so a crashed winner costs one wait, not a
+      // stall; the engine then starts without exports (as if init failed) and
+      // clearing the stale lock lets the next launch retry.
       "__kobe_init_w=0",
       `while [ -f ${lock} ] && [ "$__kobe_init_w" -lt ${waitSeconds} ]; do sleep 1; __kobe_init_w=$((__kobe_init_w+1)); done`,
       `rm -f ${lock} 2>/dev/null`,
@@ -241,10 +207,9 @@ export interface EngineSessionLaunchInput {
   /** Which engine TAB this session is (defaults to tab-1, the key's tab). */
   readonly tabId?: string
   /**
-   * Override the registry's first-message delivery for this launch. Spawners
-   * normally leave it unset so the registry contract applies — a "paste"
-   * vendor (kimi) gets its prompt back as `firstMessage` for the spawner to
-   * paste post-spawn. The override survives for tests pinning the argv path.
+   * Override the registry's first-message delivery. Spawners leave it unset (a
+   * "paste" vendor like kimi gets `firstMessage` back to paste post-spawn);
+   * tests use it to pin the argv path.
    */
   readonly firstMessageDelivery?: "argv" | "paste"
 }
@@ -253,23 +218,17 @@ export interface EngineSessionLaunch {
   readonly key: string
   readonly command: readonly string[]
   /**
-   * First message the SPAWNER must deliver itself after the engine process
-   * is up (paste-delivery vendors — see the registry's
-   * `firstMessageDelivery`). Undefined when the message already rode the
-   * launch argv or there is none.
+   * First message the SPAWNER must paste once the engine is up (registry
+   * `firstMessageDelivery: "paste"`). Undefined when it rode argv or is absent.
    */
   readonly firstMessage?: string
   /**
-   * When the launch includes a repo-init script, this is the marker file the
-   * script writes when init FINISHES — carrying its exit code, so a failed or
-   * timed-out init still marks completion. Paste-delivery spawners wait for it
-   * before starting the engine-startup timer.
+   * With a repo-init script: the marker written when init FINISHES, holding
+   * its exit code (failure/timeout still marks completion). Paste-delivery
+   * spawners wait for it before starting the engine-startup timer.
    */
   readonly initMarkerPath?: string
-  /**
-   * How long to wait for {@link initMarkerPath} to appear (ms). Mirrors the
-   * bounded init timeout woven into the launch script.
-   */
+  /** Wait budget for {@link initMarkerPath} (ms); mirrors the script's init timeout. */
   readonly initTimeoutMs?: number
 }
 
@@ -279,14 +238,9 @@ export function engineSessionKey(taskId: string, tabId = "tab-1"): string {
 }
 
 /**
- * A launch refused because the task lives on an SSH-backed remote project.
- *
- * The experimental remote-projects feature routes git through an exec host,
- * but the PTY host spawns locally against a raw cwd — so a remote task's
- * worktree path, which exists on the OTHER machine, gets an engine started
- * here against a directory that is not there. `rove add --remote` and the
- * Settings toggle both say SSH engine launch is unimplemented; this is the
- * guard that makes the code agree with the copy instead of failing obscurely.
+ * A launch refused because the task lives on an SSH-backed remote project: git
+ * goes through an exec host, but the PTY host spawns locally against a cwd
+ * that only exists on the other machine. SSH engine launch is unimplemented.
  */
 export class RemoteEngineLaunchError extends Error {
   readonly code = "REMOTE_ENGINE_LAUNCH_UNSUPPORTED"
@@ -298,21 +252,16 @@ export class RemoteEngineLaunchError extends Error {
 
 /** Build one PTY Host spawn spec shared by interactive and headless entry. */
 export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): EngineSessionLaunch {
-  // ONE guard, here, because this is the single spawn-spec builder every entry
-  // point funnels through — the Workspace host's tab open, `rove api send`,
-  // and a prompted `add` alike (docs/ARCHITECTURE.md names it the canonical
-  // launch builder). A per-caller check would leave whichever caller came next.
+  // Guarded here: every entry point (tab open, `rove api send`, prompted
+  // `add`) funnels through this canonical builder.
   const remoteKey = remoteKeyForRepo(input.task.repo) ?? remoteKeyForRepo(input.worktreePath)
   if (remoteKey) throw new RemoteEngineLaunchError(remoteKey)
   const protocolTaskId = input.task.kind === "main" ? undefined : input.task.id
   const dispatcherTaskId = input.task.kind === "main" ? input.task.id : undefined
   const gates = input.protocolGates
   const launchInit = resolveEngineLaunchInit(input.task.repo ?? "", input.worktreePath, input.promptIntent)
-  // The repo's accumulated field notes ride along in the same
-  // --append-system-prompt as the filing protocol, so a fresh worktree
-  // session starts with what earlier sessions already learned. Read only for
-  // worktree (card) sessions — the main session is the dispatcher and gets
-  // notes pushed to it live.
+  // Field notes ride the protocol's --append-system-prompt. Worktree sessions
+  // only — the main (dispatcher) session gets notes pushed live.
   const notes = protocolTaskId ? (input.readNotes ?? readFieldNotes)(input.task.repo ?? "") : []
   let argv = withDispatcherProtocol(
     withWorktreeProtocol(
@@ -329,10 +278,8 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
     dispatcherTaskId,
     gates?.dispatcher,
   )
-  // Paste-delivery vendors (kimi) must NOT see the first message
-  // in their argv: their positional slot is a subcommand, so the text would
-  // kill the launch as an unknown command. The spawner pastes it instead
-  // (see EngineSessionLaunch.firstMessage).
+  // Paste-delivery vendors (kimi) read the positional slot as a subcommand, so
+  // the first message stays out of argv; the spawner pastes it instead.
   const delivery = input.firstMessageDelivery ?? protocolEntry(input.task.vendor).firstMessageDelivery ?? "argv"
   const pasteFirstMessage = delivery === "paste" ? launchInit.firstMessage?.text : undefined
   if (launchInit.firstMessage && !pasteFirstMessage) argv = [...argv, launchInit.firstMessage.text]
@@ -343,11 +290,8 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
     markerPath,
     timeoutSeconds: input.initTimeoutSeconds,
   })
-  // Session identity as exported env, ahead of everything: the engine's hook
-  // subprocesses inherit it, so `kobe hook` reports EXACTLY which task+tab an
-  // event came from — a task's tabs share one worktree, so cwd can't tell
-  // them apart. The keepAlive fallback shell inherits it too, so a manual
-  // `claude` run in that tab after an engine exit is still attributed.
+  // Exported identity, inherited by hook subprocesses and the keepAlive shell:
+  // tabs share one worktree, so cwd can't tell which task+tab an event is from.
   const taskId = quoteShellArg(input.task.id)
   const tabId = quoteShellArg(input.tabId ?? "tab-1")
   const identity = `export ROVE_TASK_ID=${taskId} KOBE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId} KOBE_TAB_ID=${tabId}\n`

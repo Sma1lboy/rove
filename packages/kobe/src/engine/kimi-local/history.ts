@@ -1,22 +1,17 @@
 /**
  * Kimi Code's transcript store — PATHS ONLY, no message parsing.
  *
- * The wire format (`agents/<agent>/wire.jsonl`, a protocol stream rather
- * than a message log) is still unverified against a real conversation, so
- * Rove does not parse it: `readHistory` stays empty and auto-title keeps
- * the placeholder rather than guessing. What IS verified is the layout, and
- * that is all a cross-engine handoff needs
- * — it hands the next agent the transcript's PATH and lets it read the
- * file in whatever format it finds (see `session-handoff.ts`).
+ * The wire format (a protocol stream, not a message log) is unverified
+ * against a real conversation, so `readHistory` stays empty and auto-title
+ * keeps its placeholder. Only the layout is verified, which is all a
+ * handoff needs: it passes the transcript's PATH (see `session-handoff.ts`).
  *
  *   ~/.kimi-code/session_index.jsonl   one line per session:
  *                                      {sessionId, sessionDir, workDir}
  *   <sessionDir>/agents/main/wire.jsonl   the main agent's stream
  *                                         (sub-agents get their own dirs)
  *
- * The index is the worktree map — `workDir` is the cwd kimi was launched
- * in, matched against the task's worktree exactly like copilot's
- * `workspace.yaml` `cwd`.
+ * `workDir` (kimi's launch cwd) is matched against the task's worktree.
  */
 
 import { stat } from "node:fs/promises"
@@ -36,8 +31,7 @@ const defaultDeps: KimiHistoryDeps = {
     return vendorConfigHome("kimi")
   },
   async readFile(p) {
-    // Size-bounded like the other readers: a corrupt index degrades to ""
-    // rather than slurping an unbounded file.
+    // Size-bounded: a corrupt index degrades to "" instead of an unbounded read.
     return await readTextFileBounded(p)
   },
   stat,
@@ -88,11 +82,9 @@ function wirePath(sessionDir: string): string {
 }
 
 /**
- * Session ids rooted at `worktree`, OLDEST-FIRST per the registry
- * contract. Ordered by `wire.jsonl` mtime (last activity) rather than the
- * index's append order, so `.at(-1)` — what the handoff forks from — is the
- * conversation actually worked in most recently, not merely created last.
- * Sessions whose stream is missing are dropped: nothing to hand over.
+ * Session ids rooted at `worktree`, OLDEST-FIRST per the registry contract,
+ * by `wire.jsonl` mtime rather than index order, so `.at(-1)` (the handoff's
+ * fork point) is the most recently worked-in session. Missing streams drop.
  */
 async function worktreeSessionFiles(
   worktree: string,

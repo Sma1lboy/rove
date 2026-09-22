@@ -1,41 +1,25 @@
 /**
- * ExecHost — the local/remote execution seam for remote projects.
+ * ExecHost — the local/remote execution seam. Everything on the "worktree
+ * side" (git, fs reads, the engine launch) goes through it, so a REMOTE project
+ * runs the same logic over SSH:
  *
- * Everything kobe runs on the "worktree side" (git, fs reads, the engine
- * launch) goes through an ExecHost so a REMOTE project runs the exact same
- * logic over SSH while a LOCAL project keeps today's behavior verbatim:
- *
- *   - LocalExecHost  — async `spawn` + node `fs` (the default; zero regression).
+ *   - LocalExecHost  — async `spawn` + node `fs` (the default).
  *   - RemoteExecHost — wraps every command in `ssh … 'cd <cwd> && <cmd>'`,
  *     reusing ONE multiplexed connection per remote project (ControlMaster).
  *
- * A task resolves its ExecHost once from its project's remote config (see
- * `state/repos.ts` remoteRepos). See `docs/design/remote-projects.md`.
+ * See `docs/design/remote-projects.md`.
  *
- * Blocking discipline (KOB — daemon event-loop freeze):
- *   The DAEMON runs worktree git operations through this seam. A
- *   `git worktree add` on a big repo is a minutes-long checkout, and a remote
- *   call is an ssh round-trip — neither may freeze the daemon's event loop
- *   (every TUI client's RPCs and pushes stall while it's blocked). So the
- *   members that do real work are ASYNC:
+ * Blocking discipline: the DAEMON runs worktree git through this seam, and a
+ * `git worktree add` on a big repo takes minutes while every TUI client's RPCs
+ * stall behind a blocked event loop. So `run` / `exists` / `mkdirp` /
+ * `readFile` / `readdir` are ASYNC; `isRemote` and `wrapCommand` (pure string
+ * building) are sync.
  *
- *     - `run` / `exists` / `mkdirp` / `readFile` / `readdir` → Promise-based,
- *       backed by async `spawn` locally and an async ssh spawn remotely.
- *
- *   The cheap/metadata members stay sync:
- *
- *     - `isRemote`, `wrapCommand` (pure string building), and `ensureReady`
- *       (ControlMaster bring-up; sync ssh, see caveat below).
- *
- *
- *   `ensureReady()` remains sync: it's called from TUI processes
- *   (tmux engine launch) and from `RemoteExecHost.run`'s first call per host
- *   instance. That first ControlMaster bring-up is the one remaining sync ssh
- *   on the daemon path (experimental remote-projects). `exec/resolve.ts`
- *   caches ONE `RemoteExecHost` per `controlPath` (not one per call), so this
- *   sync `-O check` pays once per master lifetime rather than once per git
- *   operation — see that file's cache + the `exitCode === 255` self-heal in
- *   `run()` below (a dropped/expired ControlPersist socket un-caches itself).
+ * `ensureReady()` stays sync (called from TUI engine launch and from
+ * `RemoteExecHost.run`'s first call) — the one remaining sync ssh on the daemon
+ * path. `exec/resolve.ts` caches ONE host per `controlPath`, so the sync
+ * `-O check` pays once per master lifetime; the `exitCode === 255` reset in
+ * `run()` re-arms it when a ControlPersist socket drops.
  *
  * Security (non-negotiable, see the design doc):
  *   - The password is NEVER in the command string, in `state.json`, or in
@@ -83,65 +67,40 @@ export interface ExecOpts {
   readonly signal?: AbortSignal
 }
 
-/**
- * The local/remote execution seam. `run` matches `orchestrator/worktree/git.ts`'s
- * result shape so the worktree manager routes through it unchanged; fs helpers
- * cover the direct `fs` reads the manager / slug allocator also do.
- *
- * ASYNC members (`run`, `exists`, `mkdirp`, `readFile`, `readdir`) are the
- * ones that do real subprocess / ssh / disk work — awaiting them keeps the
- * daemon's event loop free. SYNC members are metadata (`isRemote`), pure
- * string building (`wrapCommand`), and `ensureReady` (see file header).
- */
+/** `run` matches `orchestrator/worktree/git.ts`'s result shape so the worktree
+ *  manager routes through it unchanged. Sync/async split: see file header. */
 export interface ExecHost {
   readonly isRemote: boolean
-  /** Run argv on the host. ASYNC — never blocks the caller's event loop. */
   run(argv: readonly string[], opts?: ExecOpts): Promise<ExecResult>
-  /** Whether `path` exists on the host. ASYNC (remote = ssh round-trip). */
   exists(path: string): Promise<boolean>
-  /** `mkdir -p`. ASYNC (remote = ssh round-trip). */
+  /** `mkdir -p`. */
   mkdirp(path: string): Promise<void>
-  /** Read a file as utf8, or null when unreadable. ASYNC. */
+  /** utf8 contents, or null when unreadable. */
   readFile(path: string): Promise<string | null>
-  /** List directory entries (empty on failure). ASYNC. */
+  /** Directory entries (empty on failure). */
   readdir(path: string): Promise<string[]>
   /**
-   * Wrap a command STRING so it runs on the host — used by the tmux engine
-   * launch (the result lands in the pane command). Local → returned as-is;
-   * remote → `ssh -tt … '<cd cwd && cmd>'` reusing the control socket (no
-   * secret in the string). The caller must `ensureReady()` first for remote.
-   * SYNC — pure string building.
+   * Wrap a command STRING to run on the host (the tmux pane command). Local →
+   * as-is; remote → `ssh -tt … '<cd cwd && cmd>'` over the control socket, no
+   * secret in the string. Remote callers must `ensureReady()` first.
    */
   wrapCommand(command: string, opts?: { readonly tty?: boolean; readonly cwd?: string }): string
-  /**
-   * Bring up the connection (no-op locally; opens the ControlMaster remotely).
-   * SYNC — the one remaining sync-ssh site; called from TUI engine launch and
-   * once per RemoteExecHost instance before the first async `run`.
-   */
+  /** No-op locally; opens the ControlMaster remotely (sync — see file header). */
   ensureReady(): void
 }
 
 // ── pure shell / ssh construction (exported for tests) ───────────────────────
 
-/** Single-quote a string for a POSIX shell — the shared {@link quoteShellArg}. */
 export const shQuote = quoteShellArg
 
-/** Quote each argv element and join — the shared {@link quoteShellArgv}. */
 export const shJoin = quoteShellArgv
 
-/** Single-quote a token only if it contains characters that aren't safe to
- *  leave bare in a POSIX shell word. Keeps flags / `user@host` readable while
- *  still protecting paths with spaces or metachars. */
+/** Quote only tokens unsafe as a bare shell word, so flags / `user@host` stay readable. */
 function shToken(s: string): string {
   return /^[A-Za-z0-9_@%+=:,./-]+$/.test(s) ? s : quoteShellArg(s)
 }
 
-/**
- * The remote command string: `cd <cwd> && <command>` (or just `<command>` with
- * no cwd). Takes an already-composed command STRING, not argv, because the two
- * callers compose it differently — `run` joins argv behind an env prefix, while
- * `wrapCommand` is handed a command string it never had the argv for.
- */
+/** `cd <cwd> && <command>`. Takes a STRING because `wrapCommand` never has the argv. */
 export function remoteShellCommand(command: string, cwd?: string): string {
   return cwd ? `cd ${shQuote(cwd)} && ${command}` : command
 }
@@ -153,12 +112,8 @@ function remoteEnvPrefix(env: Readonly<Record<string, string>> | undefined): str
   return `${pairs.map(([key, value]) => `${key}=${shQuote(value)}`).join(" ")} `
 }
 
-/**
- * The `ssh` connection argv (program + flags + `user@host`), WITHOUT the
- * remote command and WITHOUT any sshpass prefix. `tty` adds `-tt` (force a
- * PTY for the interactive engine); `batch` adds `BatchMode=yes` so a
- * non-interactive call fails fast instead of prompting.
- */
+/** `ssh` argv up to `user@host` (no remote command, no sshpass). `batch` makes a
+ *  non-interactive call fail fast instead of prompting. */
 export function sshConnectArgs(spec: RemoteSpec, opts: { tty?: boolean; batch?: boolean } = {}): string[] {
   const argv = ["ssh"]
   if (opts.tty) argv.push("-tt")
@@ -173,13 +128,8 @@ export function sshConnectArgs(spec: RemoteSpec, opts: { tty?: boolean; batch?: 
   return argv
 }
 
-/**
- * Async spawn that collects stdout/stderr and resolves with `spawnSync`'s
- * result contract (`status ?? -1`, `stdout/stderr ?? ""`):
- *   - non-zero exit → resolved result with that exitCode (never rejects);
- *   - spawn failure (ENOENT, bad cwd, …) → `{ stdout: "", stderr: "", exitCode: -1 }`,
- *     the same shape `SpawnSyncReturns` yields.
- */
+/** Async spawn with `spawnSync`'s result contract: never rejects; spawn failure
+ *  (ENOENT, bad cwd) → exitCode -1. */
 function spawnCollect(
   argv: readonly string[],
   opts: { cwd?: string; env?: NodeJS.ProcessEnv; signal?: AbortSignal } = {},
@@ -214,7 +164,6 @@ function spawnCollect(
     child.stderr?.on("data", (d: string) => {
       stderr += d
     })
-    // ENOENT and friends: spawnSync reported status null → -1; mirror that.
     child.on("error", () => finish(-1))
     child.on("close", (code) => finish(code ?? -1))
   })
@@ -222,7 +171,6 @@ function spawnCollect(
 
 // ── Local ────────────────────────────────────────────────────────────────────
 
-/** Run things on the local machine — today's behavior, made non-blocking. */
 export class LocalExecHost implements ExecHost {
   readonly isRemote = false
 
@@ -262,10 +210,7 @@ export class LocalExecHost implements ExecHost {
 
 // ── Remote ─────────────────────────────────────────────────────────────────
 
-/**
- * Spawn seam so tests can assert the ssh argv without a real connection.
- * SYNC — used by `ensureReady` (ControlMaster bring-up).
- */
+/** Sync spawn seam (tests assert the ssh argv); used by `ensureReady`. */
 export type Spawner = (argv: readonly string[], env?: Record<string, string>) => ExecResult
 
 /** ASYNC spawn seam — used by `run` (and everything built on it). */
@@ -291,15 +236,8 @@ const defaultAsyncSpawner: AsyncSpawner = (argv, env, opts) =>
     signal: opts?.signal,
   })
 
-/**
- * Run things on a remote host over SSH. Every `run`/fs call becomes
- * `ssh … 'cd <cwd> && <cmd>'` over a multiplexed control socket; `ensureReady`
- * opens that socket once (with sshpass for the password path, which is read
- * from the keychain and used exactly once — never in a later command).
- *
- * `run` and the fs helpers are ASYNC (the per-call ssh spawn never blocks the
- * event loop). `ensureReady` stays sync — see the file header.
- */
+/** `ensureReady` opens the control socket once; the keychain password feeds
+ *  sshpass exactly then and never reaches a later command. */
 export class RemoteExecHost implements ExecHost {
   readonly isRemote = true
   private masterUp = false
@@ -310,8 +248,7 @@ export class RemoteExecHost implements ExecHost {
     private readonly spawn: Spawner = defaultSpawner,
     spawnAsync?: AsyncSpawner,
   ) {
-    // A test that injects only a sync fake spawner gets it for async calls
-    // too (wrapped), so argv-recording fakes keep observing every call.
+    // An injected sync fake also serves async calls, so it observes every call.
     this.spawnAsync =
       spawnAsync ?? (this.spawn === defaultSpawner ? defaultAsyncSpawner : async (argv, env) => this.spawn(argv, env))
   }
@@ -341,22 +278,15 @@ export class RemoteExecHost implements ExecHost {
   }
 
   async run(argv: readonly string[], opts: ExecOpts = {}): Promise<ExecResult> {
-    // Sync ControlMaster bring-up on the FIRST call per host instance (see
-    // file header — the remaining sync-ssh site); later calls are a no-op.
     this.ensureReady()
-    // No sshpass here — the multiplexed master carries the channel with no
-    // re-auth, so no secret ever reaches a per-call command.
+    // No sshpass: the master carries the channel with no re-auth.
     const remote = remoteShellCommand(`${remoteEnvPrefix(opts.env)}${shJoin(argv)}`, opts.cwd)
     const result = await this.spawnAsync([...sshConnectArgs(this.spec, { batch: true }), remote], undefined, {
       signal: opts.signal,
     })
-    // ssh itself (not the remote command) reports failure as exit 255 — the
-    // one exit code the remote command can never produce (`exitCode` in the
-    // 0-254 range always passes through from the far side). A stale
-    // ControlPersist socket (master timed out, network dropped) shows up this
-    // way: reset `masterUp` so the CALLER's cached host instance (see
-    // `exec/resolve.ts`) re-runs `ensureReady()` next call instead of staying
-    // confidently wrong for the rest of the process lifetime.
+    // 255 is ssh's own failure code (0-254 pass through from the far side),
+    // e.g. a stale ControlPersist socket. Reset so the cached host instance
+    // (`exec/resolve.ts`) re-runs `ensureReady()` instead of staying wrong.
     if (result.exitCode === 255) this.masterUp = false
     return result
   }
@@ -378,16 +308,11 @@ export class RemoteExecHost implements ExecHost {
   }
 
   wrapCommand(command: string, opts: { tty?: boolean; cwd?: string } = {}): string {
-    // A string for the LOCAL shell tmux runs the pane in: ssh (reusing the
-    // master) + the remote command, single-quoted so the local shell hands it
-    // to ssh as one arg and the REMOTE shell parses it. No sshpass → no secret.
+    // Parsed by the LOCAL shell tmux runs the pane in; the remote command is
+    // single-quoted so ssh gets it as one arg. No sshpass → no secret.
     const remote = remoteShellCommand(command, opts.cwd)
-    // Quote each connection arg that needs it before joining: this string is
-    // parsed by the local shell (tmux's pane launch), and the argv carries
-    // paths (ControlPath, `-i` keyPath) and `user@host` that can contain spaces
-    // or metachars. Shell-safe tokens (ssh, -tt, user@host) stay bare for
-    // readability; anything else is single-quoted. Every other caller hands the
-    // argv straight to spawn (no shell), so only this string-join path needs it.
+    // Only this string-join path goes through a shell, and ControlPath / `-i`
+    // keyPath can contain spaces or metachars.
     const connect = sshConnectArgs(this.spec, { tty: opts.tty }).map(shToken).join(" ")
     return `${connect} ${shQuote(remote)}`
   }

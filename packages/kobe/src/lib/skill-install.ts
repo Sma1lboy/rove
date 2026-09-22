@@ -1,29 +1,16 @@
 /**
- * Install + detect the kobe agent skill.
+ * Install + detect the agent skill that teaches a coding agent to drive
+ * `kobe api`. Installation goes through `npx skills add`, which owns the
+ * registry of ~75 agents and where each reads skills from; we don't
+ * reimplement it.
  *
- * The skill teaches a coding agent when and how to drive `kobe api` (the
- * full task-lifecycle CLI). Installation runs through the Vercel Labs
- * agent-skills CLI (`npx skills add`), which owns the part that is genuinely
- * hard to maintain: the registry of ~75 coding agents, where each one reads
- * its skills from, which get a real directory vs a symlink into the shared
- * `.agents/skills`. kobe does NOT reimplement any of that.
+ * Source is the skill bundled in the npm package ({@link bundledSkillDir}):
+ * cloning `Sma1lboy/rove` to deliver one SKILL.md is effectively
+ * un-installable on a slow connection. {@link SKILL_SOURCE_SLUG} is the
+ * fallback for people without Rove.
  *
- * What Rove changes is the packaged SOURCE. The public fallback is the
- * canonical `Sma1lboy/rove` repository; `--skill rove` selects the skill.
- * Cloning the repository
- * (`git clone --depth 1`) means a huge working tree just to deliver one
- * SKILL.md, which is effectively un-installable on a slow connection. But a
- * user running `kobe skill install` already HAS kobe, and the skill ships
- * inside the npm package, so the CLI is pointed at that local copy instead:
- * {@link bundledSkillDir}. No clone, no network. The published repo slug
- * stays available as {@link SKILL_SOURCE_SLUG} for people without kobe.
- *
- * Reliable check: `kobe skill status`. The startup hint
- * here is best-effort (the opentui screen takeover can scroll it off).
- * Absent skill → one-shot hint, never nags. Stale skill on an interactive
- * terminal → a yes / no / don't-notify-this-version prompt (runs before the
- * screen takeover); "no" re-asks next launch, "don't notify" mutes that
- * skill version, non-TTY falls back to the one-shot hint.
+ * `kobe skill status` is the reliable check; the startup hint is best-effort
+ * (the opentui screen takeover can scroll it off).
  */
 
 import { accessSync, existsSync, constants as fsConstants, readFileSync, statSync } from "node:fs"
@@ -35,32 +22,25 @@ import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { getPersistedString, setPersistedString } from "../state/repos.ts"
 
 /**
- * Version of the SKILL.md guidance THIS Rove build expects. Bump it (in
- * lockstep with the `<!-- rove-skill-version: N -->` marker in
- * `.agents/skills/kobe/SKILL.md`, retained as the repository compatibility
- * source path) whenever the skill's instructions change
- * meaningfully — e.g. the `kobe api` surface grows. An installed skill whose
- * marker is below this number is STALE: the binary moved on, the skill
- * didn't, so we prompt the developer to re-run the active CLI's
- * `skill install` command.
+ * SKILL.md guidance version this build expects. Bump in lockstep with the
+ * `<!-- rove-skill-version: N -->` marker in `.agents/skills/kobe/SKILL.md`
+ * whenever the instructions change meaningfully. An installed marker below
+ * this is STALE and prompts a re-install.
  *
- * Editing the skill's TEXT without bumping this is invisible at runtime —
- * staleness compares markers, never content — so
- * `test/architecture/skill-version-bump.test.ts` goes red on any content
- * change that skips the bump, and prints the exact edit to make.
+ * Staleness compares markers, never content, so
+ * `test/architecture/skill-version-bump.test.ts` fails any content change
+ * that skips the bump.
  */
 export const KOBE_SKILL_VERSION = 50
 
 /**
- * Where an installed kobe skill can be FOUND, relative to a home/project
- * root. Not kobe's `KOBE_HOME_DIR` — agents read skills from the real
- * project/home regardless of kobe's state-dir.
+ * Where an installed skill can be found, relative to a home/project root —
+ * not `KOBE_HOME_DIR`, since agents read the real home/project.
  *
- * Two locations because the agent-skills CLI writes the real file into the
- * shared `.agents/skills` and SYMLINKS agent-specific dirs at it (that's its
- * default; `--copy` opts out). `existsSync` follows symlinks, so either path
- * answering is a genuine install. `.claude` stays in the list so skills
- * installed by older kobe versions still register as present.
+ * The agent-skills CLI writes the real file into `.agents/skills` and
+ * symlinks agent dirs at it (`--copy` opts out); `existsSync` follows
+ * symlinks, so either path is a genuine install. `.claude` also catches
+ * skills installed by older kobe versions.
  */
 const ROVE_SKILL_REL_PATHS = [".agents/skills/rove/SKILL.md", ".claude/skills/rove/SKILL.md"] as const
 const LEGACY_SKILL_REL_PATHS = [".agents/skills/kobe/SKILL.md", ".claude/skills/kobe/SKILL.md"] as const
@@ -71,17 +51,12 @@ export function skillInstallCommand(env: NodeJS.ProcessEnv = process.env): strin
   return `${activeCliName(env)} skill install`
 }
 
-/**
- * The public repo slug. Only a FALLBACK now (and the documented route for
- * people who don't have Rove installed): resolving it means a large clone.
- */
+/** Fallback source (and the route for people without Rove); resolving it means a large clone. */
 const SKILL_SOURCE_SLUG = "Sma1lboy/rove"
 
 /**
- * The skill directory shipped inside this install, or null in an environment
- * where it isn't present (an unbuilt source checkout). Candidates mirror
- * `web-cmd.ts`'s dist-asset lookup: repo layout first, then the packaged
- * copy the build emits into `dist/skills`.
+ * The skill directory shipped inside this install, or null (e.g. an unbuilt
+ * checkout). Repo layout first, then the packaged `dist/skills` copy.
  */
 export function bundledSkillDir(): string | null {
   const here = fileURLToPath(import.meta.url)
@@ -101,20 +76,15 @@ export interface NpxSkillsOpts {
 }
 
 /**
- * Build the `npx skills add …` argv. `source` is the bundled directory when
- * we have one (a local path — the CLI validates it and skips the network
- * entirely) and the repo slug otherwise.
+ * Build the `npx skills add …` argv. `source` defaults to the bundled dir (a
+ * local path skips the network), else the repo slug.
  *
- * GLOBAL by default: the skill drives `kobe api`, which is machine-wide
- * (one daemon, one task store), and a per-project copy re-prompts staleness
- * in every repo separately. `global: false` opts back into project-level.
+ * Global by default: `kobe api` is machine-wide (one daemon, one task
+ * store), and per-project copies re-prompt staleness in every repo.
  *
- * Agent SELECTION is deliberately left to the agent-skills CLI: omitting
- * `--agent` makes it detect the installed agents and prompt, which is the
- * one part of this we never want to reimplement — that registry covers ~75
- * agents and changes constantly. Pass `agent` only when the user asked for
- * a specific one. Note the CLI wants a repeated flag per agent, not a
- * comma-joined list (it rejects `--agent claude-code,codex`).
+ * Omitting `--agent` lets the CLI detect agents and prompt; pass `agent` only
+ * when the user asked for one. The CLI wants one flag per agent — it rejects
+ * `--agent claude-code,codex`.
  */
 export function npxSkillsArgv(opts: NpxSkillsOpts = {}): string[] {
   const source = opts.source !== undefined ? opts.source : bundledSkillDir()
@@ -135,20 +105,13 @@ export function npxSkillsCommand(opts: NpxSkillsOpts = {}): string {
   return `npx ${npxSkillsArgv(opts).join(" ")}`
 }
 
-/**
- * Exit code {@link runNpxSkillsInstall} returns when `npx` isn't on PATH.
- * 127 is the shell's own "command not found" code, so callers that only
- * print `exited ${code}` still say something true.
- */
+/** Exit code when `npx` isn't on PATH — the shell's "command not found", so `exited ${code}` stays true. */
 export const NPX_MISSING_EXIT = 127
 
 /**
- * True when `npx` is absent from PATH. The install.sh path the QUICKSTART
- * recommends installs Bun and Rove but never Node, so this is the DEFAULT
- * state for anyone who followed it — not an edge case.
- *
- * Walks PATH directly rather than using `Bun.which`, so the same code runs
- * (and is testable) under the vitest/node track as under Bun.
+ * True when `npx` is absent from PATH — the default after the QUICKSTART's
+ * install.sh, which installs Bun and Rove but never Node. Walks PATH instead
+ * of `Bun.which` so it also runs under vitest/node.
  */
 export function isNpxMissing(): boolean {
   const parts = (process.env.PATH ?? "").split(delimiter).filter(Boolean)
@@ -170,14 +133,10 @@ function npxMissingMessage(): string {
 }
 
 /**
- * Run the `npx skills add …` install flow, inheriting stdio (so the CLI's
- * own agent picker is fully interactive). Returns the npx exit code.
- *
- * Checks for `npx` FIRST: `Bun.spawn` THROWS on a missing binary (unlike
- * `spawnSync`, which returns `status: undefined`), and no caller on this path
- * catches — the throw would escape all the way to `main().catch` and print
- * `rove failed to start: Executable not found in $PATH: "npx"`. Returning
- * {@link NPX_MISSING_EXIT} keeps the callers' existing exit-code contract.
+ * Run `npx skills add …` with inherited stdio (the CLI's agent picker is
+ * interactive); returns the exit code. Checks for `npx` first: `Bun.spawn`
+ * throws on a missing binary and no caller catches, so it would surface as
+ * `rove failed to start`.
  */
 export async function runNpxSkillsInstall(agent?: string | readonly string[], global?: boolean): Promise<number> {
   if (isNpxMissing()) {
@@ -195,22 +154,12 @@ export async function runNpxSkillsInstall(agent?: string | readonly string[], gl
 /** Persisted flag: the one-time startup hint has already been shown. */
 const HINT_SEEN_KEY = "skillHintSeen"
 
-/**
- * Record that the user has already answered the "install the skill?" question,
- * so {@link maybeHintSkillInstall} never re-asks it on the next launch. The
- * onboarding wizard's DECLINE branch calls this: the user said no seconds ago,
- * and nagging them on stderr on the very next `rove` is the same question
- * asked twice.
- */
+/** Record that the user already answered "install the skill?" (onboarding decline), so {@link maybeHintSkillInstall} doesn't re-ask. */
 export function markSkillHintSeen(): void {
   setPersistedString(HINT_SEEN_KEY, "1")
 }
 
-/**
- * Candidate install locations, in priority order: the user's home dir,
- * then the current project. `home`/`cwd` are injectable for tests; they
- * default to the OS home and the current working directory.
- */
+/** Candidate install locations in priority order: home, then the current project. */
 export function kobeSkillPaths(opts: { home?: string; cwd?: string } = {}): string[] {
   const home = opts.home ?? homedir()
   const cwd = opts.cwd ?? process.cwd()
@@ -232,10 +181,9 @@ export interface SkillState {
   /** Installed, stamped, and behind the binary → re-install recommended. */
   readonly stale: boolean
   /**
-   * `kobe`-named copies sitting BESIDE the reported install. Agents load every
-   * skill directory they find, so one of these keeps teaching an old `kobe api`
-   * surface no matter how current the `rove` copy is — and reporting only the
-   * first path found made the whole thing invisible.
+   * `kobe`-named copies beside the reported install. Agents load every skill
+   * dir they find, so one keeps teaching an old `kobe api` surface however
+   * current the `rove` copy is.
    */
   readonly legacyCopies: readonly SkillCopy[]
   /** Where the reported copy lives (null when nothing is installed). */
@@ -285,20 +233,15 @@ function distinctSkillFiles(roots: readonly string[], rels: readonly string[]): 
 }
 
 /**
- * Skill DIRECTORIES present under one home, canonical and legacy names alike,
- * deduplicated by inode. The plugin migration gate uses this: with the plugin
- * enabled every hand-installed copy is a double registration, whatever it is
- * called and whichever agent dir it landed in.
+ * Skill dirs under one home, canonical and legacy, deduplicated by inode. For
+ * the plugin migration gate: with the plugin enabled every hand-installed
+ * copy is a double registration.
  */
 export function installedSkillDirs(home: string = homedir()): string[] {
   return distinctSkillFiles([home], SKILL_REL_PATHS).map((path) => dirname(path))
 }
 
-/**
- * Inspect the installed skill vs the version this binary expects. An
- * UNSTAMPED installed skill (pre-versioning) is treated as stale so it gets
- * refreshed once. An absent skill is "not installed" (not stale).
- */
+/** Installed skill vs the version this binary expects. Unstamped = stale (refreshed once); absent = not installed, not stale. */
 export function kobeSkillState(opts: { home?: string; cwd?: string } = {}): SkillState {
   const roots = [opts.home ?? homedir(), opts.cwd ?? process.cwd()]
   const roveCopies = distinctSkillFiles(roots, ROVE_SKILL_REL_PATHS).map((path) => ({
@@ -309,9 +252,8 @@ export function kobeSkillState(opts: { home?: string; cwd?: string } = {}): Skil
     path,
     version: skillVersionAt(path),
   }))
-  // Report from the BEST canonical copy — highest marker version — so a stale
-  // duplicate can never make a current install look out of date. Falling back
-  // to a legacy copy keeps a pre-rename-only install reporting as installed.
+  // Highest-version canonical copy, so a stale duplicate can't make a current
+  // install look out of date; a legacy-only install still reports installed.
   const best = [...roveCopies].sort((a, b) => (b.version ?? -1) - (a.version ?? -1))[0] ?? legacy[0]
   if (!best) {
     return {
@@ -335,12 +277,9 @@ export function kobeSkillState(opts: { home?: string; cwd?: string } = {}): Skil
 }
 
 /**
- * True when an installed SKILL.md's TEXT differs from the one bundled in this
- * build. The marker version is the only thing staleness looks at, so a skill
- * edited without a version bump installs as "current" and stays wrong
- * forever; this is the second opinion `skill status` reports. Unknown
- * (`false`) when there is no bundled copy to compare against — an unbuilt
- * checkout must not manufacture a warning.
+ * True when an installed SKILL.md's text differs from the bundled one — the
+ * second opinion `skill status` reports, since staleness only reads the
+ * marker. `false` with no bundled copy, so an unbuilt checkout can't warn.
  */
 export function installedSkillDiffersFromBundled(installedPath: string): boolean {
   const bundled = bundledSkillDir()
@@ -386,13 +325,9 @@ function promptLine(): Promise<string> {
  * Safe to call on every startup.
  */
 export async function maybeHintSkillInstall(io: SkillHintIO = {}): Promise<void> {
-  // Plugin takeover: when the Rove Claude Code plugin is enabled
-  // it BUNDLES the skill, and that copy versions with the plugin — not with
-  // KOBE_SKILL_VERSION. Both the install nudge and the staleness prompt step
-  // aside: nagging the user to `skill install` alongside the plugin's copy
-  // would create exactly the double registration the migration gate warns
-  // about. `kobe skill status` still reports the npx-installed state for
-  // anyone running both deliberately (e.g. for non-Claude agents).
+  // The enabled Rove Claude Code plugin bundles its own skill (versioned with
+  // the plugin); nudging `skill install` beside it would create the double
+  // registration the migration gate warns about. `skill status` still reports.
   const { isRovePluginEnabled } = await import("../engine/claude-code-local/plugin-migration.ts")
   if (isRovePluginEnabled()) return
   const cliName = activeCliName()
@@ -408,10 +343,8 @@ export async function maybeHintSkillInstall(io: SkillHintIO = {}): Promise<void>
   }
   const key = `${HINT_SEEN_KEY}:v${state.currentVersion}`
   const duplicates = state.legacyCopies
-  // A leftover `kobe` copy is as actionable as staleness — agents load every
-  // skill dir they find, so it keeps teaching an old `api` surface next to the
-  // current one. Same one-per-version gate; no prompt, since there is nothing
-  // to install, only something to delete.
+  // A leftover `kobe` copy: same one-per-version gate, no prompt — nothing to
+  // install, only something to delete.
   if (!state.stale) {
     if (duplicates.length === 0) return
     if (getPersistedString(key) === "1") return

@@ -1,12 +1,8 @@
 /**
- * Engine-owned turn completion detection for hosted PTY sessions.
- *
- * Warp's reliable status model comes from structured response-stream
- * lifecycle events. kobe hosts engines in interactive CLIs inside a PTY,
- * so we cannot observe the live stream directly. The next-best contract is
- * engine-owned transcript markers: each vendor adapter knows which persisted
- * record means "a turn completed"; UI code only asks this abstraction and
- * combines it with pane quiescence.
+ * Engine-owned turn completion detection for hosted PTY sessions. The live
+ * response stream is invisible inside a PTY, so each vendor adapter names the
+ * persisted transcript record that means "a turn completed"; UI code combines
+ * that with pane quiescence.
  */
 
 import { stat } from "node:fs/promises"
@@ -16,16 +12,13 @@ import type { VendorId } from "@/types/vendor"
 import { isJsonlLineWithinBound, readTextFileIfRegular } from "./file-bounds"
 import { engineEntry } from "./registry.ts"
 
-/** `needs_input` comes from hooks (permission prompt / question dialog via
- *  `turn-state-merge.ts`) or, for marker-less engines with a screen
- *  manifest, from the poll's screen classifier (`engine/screen-state.ts`).
+/** `needs_input` comes from hooks (`turn-state-merge.ts`) or, for marker-less
+ *  engines with a screen manifest, the screen classifier (`engine/screen-state.ts`).
  *
- *  `rate_limited` and `dead` are hook/registry-only (the poll cannot see
- *  either) and are deliberately NOT folded into `error`: the three ask for
- *  opposite actions — a rate limit clears on its own, an error wants you to
- *  look, and a dead engine needs restarting. The sidebar has always drawn
- *  them apart; collapsing them here made the tab strip disagree with the rail
- *  about the same tab. */
+ *  `rate_limited` and `dead` are hook/registry-only and deliberately NOT folded
+ *  into `error`: a rate limit clears on its own, an error wants you to look, a
+ *  dead engine needs restarting — and the sidebar draws them apart, so the tab
+ *  strip must too. */
 export type ChatTabTurnState =
   | "idle"
   | "running"
@@ -38,16 +31,12 @@ export type ChatTabTurnState =
 
 export interface TurnCompletionMarker {
   /**
-   * Opaque identity for "this exact completion". Callers (the Ops pane's
-   * turn poller) store it long-lived as a baseline across polls.
+   * Opaque identity for "this exact completion", stored long-lived across polls.
    *
-   * MEMORY INVARIANT: the id must NEVER be (or contain) a substring of the
-   * transcript file contents. In JSC (Bun) a `.slice`/`.match` of a string
-   * shares the parent's backing buffer, so a long-lived id sliced out of a
-   * whole-file JSONL read would pin the entire multi-MB transcript in
-   * memory between polls. The builders below construct ids from template
-   * literals over numbers + the file PATH (an independent small string) —
-   * keep it that way, or force-copy with `Buffer.from(s).toString()`.
+   * MEMORY INVARIANT: never (or contain) a substring of the transcript contents.
+   * In JSC a `.slice`/`.match` shares the parent's buffer, so such an id would
+   * pin the whole multi-MB transcript between polls. Build ids from numbers +
+   * the file PATH, or force-copy with `Buffer.from(s).toString()`.
    */
   readonly id: string
   readonly timestampMs: number
@@ -55,14 +44,8 @@ export interface TurnCompletionMarker {
   readonly source: VendorId
 }
 
-/**
- * The two fs-derived facts a single transcript-dir scan yields: the newest
- * completion marker AND the newest transcript mtime. The daemon collector
- * wants both per probe, and finding the completion already walks the dir
- * and stats its files — so one scan surfaces both instead of two callers
- * each doing their own readdir (the perf win). `mtimeMs` is `0` when the
- * worktree has no transcript yet (or the detector has no store to read).
- */
+/** Newest completion marker AND newest transcript mtime from one dir scan.
+ *  `mtimeMs` is `0` when there is no transcript (or no store to read). */
 export interface TranscriptScan {
   readonly marker: TurnCompletionMarker | null
   readonly mtimeMs: number
@@ -76,11 +59,6 @@ export abstract class EngineTurnDetector {
     return true
   }
 
-  /**
-   * Newest completion marker AND newest transcript mtime for `worktree`
-   * from ONE directory scan. Callers that want both (the daemon's activity
-   * collector) use this so the transcript dir is listed once, not twice.
-   */
   abstract latestActivity(worktree: string): Promise<TranscriptScan>
 
   /** Newest persisted completion marker for `worktree`, or null when absent. */
@@ -89,14 +67,11 @@ export abstract class EngineTurnDetector {
   }
 
   /**
-   * {@link latestActivity} scoped to ONE session transcript. The worktree
-   * scan answers "did ANY session here complete a turn" — wrong question for
-   * the activity lapse watchdog when several sessions share a worktree (the
-   * kobe main task runs many tabs in one checkout): a sibling's Stop read as
-   * "this turn ended" and idled a genuinely mid-turn engine at the TTL.
-   * `null` means there is no trustworthy scan: unsupported, missing,
-   * unreadable, non-regular, or oversized. An empty readable file produces
-   * a scan with a null marker. A known path must never fall back to a sibling.
+   * {@link latestActivity} scoped to ONE session transcript: when sessions share
+   * a worktree (a main task's tabs), a sibling's Stop must not idle a mid-turn
+   * engine. `null` = no trustworthy scan (unsupported, missing, unreadable,
+   * non-regular, oversized); an empty readable file gives a null marker. A
+   * known path must never fall back to a sibling.
    */
   async latestActivityInFile(_transcriptPath: string): Promise<TranscriptScan | null> {
     return null
@@ -104,14 +79,9 @@ export abstract class EngineTurnDetector {
 }
 
 /**
- * Resolve the turn detector for a vendor — a thin delegate to the engine
- * registry, which owns the per-vendor choice (one entry per engine; see
- * `registry.ts`). Kept exported here so call sites (`tui/ops/host.tsx`)
- * keep their import. NB: registry.ts imports the detector classes below,
- * so this pair is an intentional import cycle (same pattern as
- * `hook-adapter.ts`) — both sides only dereference the other's bindings
- * inside function bodies, never at module top-level, which keeps the cycle
- * safe under ESM evaluation order.
+ * Delegates to the engine registry. Intentional import cycle with
+ * `registry.ts`: safe only because both sides dereference each other's
+ * bindings inside function bodies, never at module top level.
  */
 export function createEngineTurnDetector(vendor: VendorId): EngineTurnDetector {
   return engineEntry(vendor).createTurnDetector()
@@ -240,34 +210,24 @@ export class UnknownTurnDetector extends EngineTurnDetector {
     return false
   }
 
-  // No transcript store this detector can read — no marker, no mtime. The
-  // daemon collector falls back to the vendor's own `latestTranscriptMtime`
-  // (e.g. copilot's) when `supportsCompletionMarkers()` is false.
+  // The daemon collector falls back to the vendor's own `latestTranscriptMtime`.
   async latestActivity(): Promise<TranscriptScan> {
     return { marker: null, mtimeMs: 0 }
   }
 }
 
 /**
- * Assistant `stop_reason` values that END the turn. Claude Code appends one
- * assistant record per STEP, and the overwhelming majority are
- * `stop_reason: "tool_use"` — mid-turn, the exact opposite of a completion
- * (measured over 8 real transcripts: 1965 of 2036 assistant records).
- * Treating any assistant record as a completion made the daemon's lapse
- * watchdog (`activity-registry.ts` → `stillWorking`) idle a working engine at
- * the TTL, and made its heartbeat re-arm unreachable for Claude: the
- * `completedAt >= at` branch always won.
+ * Assistant `stop_reason` values that END the turn. Claude Code writes one
+ * assistant record per STEP, mostly `tool_use` (mid-turn; 1965 of 2036 records
+ * over 8 real transcripts); counting those as completions makes the lapse
+ * watchdog (`activity-registry.ts` → `stillWorking`) idle a working engine.
  *
- * Allowlist, not a `!== "tool_use"` denylist, for the same reason
- * {@link CODEX_ROLLOUT_DONE_EVENTS} is one: `pause_turn` (long-running server
- * tools) is also mid-turn, and the next mid-turn value the API adds must
- * default to "still working" rather than silently idling the badge again.
+ * Allowlist, not a `!== "tool_use"` denylist: `pause_turn` is also mid-turn,
+ * and a future mid-turn value must default to "still working".
  *
- * A MISSING or null `stop_reason` is NOT a completion. Real transcripts always
- * carry one on assistant records (0 absent in the 2036 above), so the only
- * records this drops are malformed or synthetic ones — and for those,
- * "the turn is still running" is the recoverable guess: the watchdog just
- * re-arms, whereas a wrong completion idles a live engine for good.
+ * A missing/null `stop_reason` is NOT a completion (0 of the 2036 lacked one):
+ * a wrong "running" just re-arms the watchdog, a wrong completion idles a
+ * live engine for good.
  */
 const CLAUDE_TURN_END_STOP_REASONS = new Set(["end_turn", "stop_sequence", "max_tokens", "refusal"])
 
@@ -298,20 +258,15 @@ export function latestClaudeCompletionMarkerFromJsonl(
 }
 
 /**
- * Rollout `event_msg` payload types that mean "this turn is done". Codex's
- * real on-disk rollout (codex-cli) never writes a top-level `turn.completed`
- * record — that shape is the `codex exec --json` STREAM event. A rollout wraps
- * each agent event as `{ type: "event_msg", payload: { type: ... } }`, and the
- * completion signal is the flattened EventMsg tag: `task_complete` (v1 wire),
- * `turn_complete` (v2 alias), or `turn_aborted` (interrupted). Sourced from the
- * codex protocol enum (`EventMsg` #[serde(rename_all="snake_case")], with
- * `task_complete`/`turn_complete` aliased on the same variant).
+ * Rollout `event_msg` payload types that mean "turn done". The on-disk rollout
+ * never writes top-level `turn.completed` (that is the `codex exec --json`
+ * STREAM shape); it wraps events as `{ type: "event_msg", payload: { type } }`
+ * with the codex `EventMsg` snake_case tag: `task_complete` (v1),
+ * `turn_complete` (v2 alias), `turn_aborted` (interrupted).
  */
 const CODEX_ROLLOUT_DONE_EVENTS = new Set(["task_complete", "turn_complete", "turn_aborted"])
 
-/** True when `record` is a rollout completion marker — either the real
- *  rollout `event_msg` (task_complete / turn_complete / turn_aborted) or the
- *  legacy top-level `turn.completed` from a `codex exec --json` stream dump. */
+/** Also accepts top-level `turn.completed` from a `codex exec --json` stream dump. */
 function isCodexCompletionRecord(record: Record<string, unknown>): boolean {
   if (record.type === "turn.completed") return true
   if (record.type !== "event_msg") return false

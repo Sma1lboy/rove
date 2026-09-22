@@ -1,15 +1,7 @@
 /**
- * pi-family session content → neutral content blocks.
- *
- * The pi family's on-disk message shape is its own: a `content` array of
- * `text` / `thinking` / `toolCall` blocks on the assistant side, and a
- * separate `toolResult` message whose `content` is text plus a
- * `toolCallId`/`isError` pair. claude's `tool_use`/`tool_result` spelling is
- * close enough that the mapping is mechanical, which is the point — the
- * neutral union is the contract, the vendor spelling dies here.
- *
- * Dropped silently, same policy as claude's normalizer: `image` blocks (Rove
- * renders no images from history) and any unknown block type.
+ * pi-family session content → neutral content blocks (`text` / `thinking` /
+ * `toolCall`; claude's `tool_use`/`tool_result` spellings also accepted).
+ * `image` and unknown blocks are dropped silently, as in claude's normalizer.
  */
 
 import type { ContentBlock } from "@/types/content"
@@ -56,7 +48,6 @@ export function normalizePiContent(content: unknown): ContentBlock[] {
         isError: b.isError === true || b.is_error === true,
       })
     }
-    // Unknown / image blocks — drop.
   }
   return out
 }

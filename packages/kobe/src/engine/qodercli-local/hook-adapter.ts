@@ -1,13 +1,7 @@
 /**
- * Qoder CLI hook adapter.
- *
- * Qodercli reads `~/.qoder/settings.json` (`$QODERCLI_CONFIG_DIR` under its own
- * override), and its hook schema mirrors Claude's settings.json — a top-level
- * `hooks` object keyed by event name, each entry a matcher plus a list of
- * `{type: "command", command, timeout?}` invocations, per its own docs
- * (docs.qoder.com/cli/hooks). Everything but the id, the
- * table and the path comes from {@link SessionStartHookAdapter} — read its
- * module doc for why the table has one entry.
+ * Qoder CLI hook adapter. Its hook schema mirrors Claude's settings.json
+ * (docs.qoder.com/cli/hooks); everything but the id, table and path comes
+ * from {@link SessionStartHookAdapter}, whose doc explains the one-entry table.
  */
 
 import { homedir } from "node:os"
@@ -18,9 +12,8 @@ import { SessionStartHookAdapter, sessionStartOnly } from "../session-hook-adapt
  *  matcher the way Claude's does, and `"*"` is the no-op value. */
 export const QODERCLI_HOOK_EVENT_MAP = sessionStartOnly("*")
 
-/** Qodercli's config directory: its own `QODERCLI_CONFIG_DIR` override, else
- *  `~/.qoder`. Not in `../vendor-home.ts` because this is the only reader of
- *  it in Rove — one call site, one derivation, same as cursor's. */
+/** `$QODERCLI_CONFIG_DIR/settings.json`, else `~/.qoder/settings.json`. Not in
+ *  `../vendor-home.ts`: this is its only reader. */
 export function qodercliSettingsPath(home: string = homedir()): string {
   const override = process.env.QODERCLI_CONFIG_DIR?.trim()
   return join(override || join(home, ".qoder"), "settings.json")

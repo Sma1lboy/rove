@@ -47,15 +47,13 @@ export async function ensureHostedSessionHost(): Promise<HostedSessionClient> {
 }
 
 /**
- * `pty.list`, keeping the ASKING distinct from the ANSWER: `null` means the
- * host could not be asked (gone, wedged, any RPC failure), `[]` means it
- * answered and holds nothing.
+ * `pty.list` as a tri-state: `null` = the host could not be asked (gone,
+ * wedged, any RPC failure), `[]` = it answered and holds nothing.
  *
- * A liveness READ needs that difference and nothing else can recover it —
- * connecting to a stopped host SUCCEEDS (the kernel accepts into the listen
- * backlog) and only the request times out, so "the socket opened" is not
- * evidence the host is answering. Collapsing the two is how four running
- * engines rendered as a stopped task with every tab `alive: false`.
+ * Liveness reads need the difference: connecting to a stopped host succeeds
+ * (the kernel accepts into the listen backlog) and only the request times
+ * out, so an open socket is no evidence the host answers. Collapsing them
+ * renders running engines as a stopped task.
  */
 export async function listHostedSessionsOrNull(rpc: HostedSessionRpc): Promise<PtySessionInfo[] | null> {
   try {
@@ -66,12 +64,7 @@ export async function listHostedSessionsOrNull(rpc: HostedSessionRpc): Promise<P
   }
 }
 
-/**
- * {@link listHostedSessionsOrNull} collapsed for callers that ACT on the
- * inventory (deliver into a key, kill a task's sessions, resolve a tab):
- * "couldn't ask" and "nothing there" both mean there is nothing to act on.
- * Readers must use the tri-state version instead.
- */
+/** {@link listHostedSessionsOrNull} collapsed for callers that ACT on the inventory; readers must use the tri-state version. */
 export async function listHostedSessions(rpc: HostedSessionRpc): Promise<PtySessionInfo[]> {
   return (await listHostedSessionsOrNull(rpc)) ?? []
 }
@@ -86,11 +79,9 @@ export function hostedTaskKeys(sessions: readonly PtySessionInfo[], taskId: stri
 
 export interface KillHostedSessionsOpts {
   /**
-   * Hold the reply until the child has actually ended (bounded by the host's
-   * own SIGTERM → SIGKILL grace), instead of the default "request taken".
-   * A caller about to unlink the session's working directory needs this: a
-   * kill that is still in flight leaves a process holding that directory as
-   * its cwd, which Windows refuses to delete.
+   * Reply only once the child has ended (bounded by the host's SIGTERM →
+   * SIGKILL grace). Needed before unlinking the session's cwd: Windows
+   * refuses to delete a directory a live process holds as cwd.
    */
   readonly wait?: boolean
 }
@@ -101,19 +92,16 @@ export async function killHostedSessions(
   opts?: KillHostedSessionsOpts,
 ): Promise<void> {
   const payload = opts?.wait === true ? { wait: true } : {}
-  // Concurrent, so a waited teardown costs one child's grace (≤1s), not one
-  // per tab. Every request is still issued, in key order, whatever any one
-  // of them answers.
+  // Concurrent, so a waited teardown costs one grace (≤1s), not one per tab;
+  // every request is issued in key order whatever any one answers.
   await Promise.all(keys.map((key) => rpc.request("pty.kill", { key, ...payload }).catch(() => {})))
 }
 
 /**
- * True when a session's spawn argv contains `engineBin` as a standalone
- * word. Hosted engine tabs launch via `<shell> -ilc '…<engineBin> …'`
- * (`buildEngineSessionLaunch`), so `command[0]` is ALWAYS the shell — an
- * argv[0] comparison against the engine binary never matches in production
- * (a dead fallback there makes delivery silently spawn a duplicate
- * engine). Bare shell tabs (`[shell, "-il"]`) carry no engine word.
+ * True when a session's spawn argv contains `engineBin` as a standalone word.
+ * Engine tabs launch via `<shell> -ilc '…<engineBin> …'`, so `command[0]` is
+ * always the shell and an argv[0] match never fires. Bare shell tabs
+ * (`[shell, "-il"]`) carry no engine word.
  */
 function commandHasEngineWord(command: readonly string[], engineBin: string): boolean {
   for (const part of command) {
@@ -125,9 +113,8 @@ function commandHasEngineWord(command: readonly string[], engineBin: string): bo
   return false
 }
 
-/** Every launch binary a REGISTERED built-in engine may show as — the
- *  vendor-agnostic half of engine identity, same pair the foreground walk
- *  matches (`defaultCommand[0]` plus post-launch renames like `kimi-co`). */
+/** Every launch binary a built-in engine may show as: `defaultCommand[0]` plus
+ *  post-launch renames like `kimi-co` — the same pair the foreground walk matches. */
 function builtinEngineBins(): string[] {
   return BUILTIN_VENDORS.flatMap((vendor) => {
     const entry = engineEntry(vendor)
@@ -137,15 +124,12 @@ function builtinEngineBins(): string[] {
 
 /**
  * Does this session's launch argv name an engine — the ONE argv judgement.
- *
- * Two callers ask it about the same sessions and must not disagree:
- * {@link findHostedEngineKey} picks the tab `send` delivers to, and
- * `hasLiveEngineTab` decides whether the task reports `running`. When those
- * drift, `send` finds an engine on a task `get-task` calls stopped, and an
+ * {@link findHostedEngineKey} (which tab `send` targets) and
+ * `hasLiveEngineTab` (whether the task reports `running`) must agree, or an
  * unattended loop cleans up live work.
  *
- * `engineBin` is the task's OWN launch binary, which is how a custom engine
- * (a wrapper script no vendor table names) is recognised at all.
+ * `engineBin` is the task's own launch binary — the only way a custom engine
+ * (a wrapper script no vendor table names) is recognised.
  */
 export function sessionArgvNamesEngine(command: readonly string[] | undefined, engineBin?: string): boolean {
   if (!command || command.length === 0) return false
@@ -166,15 +150,11 @@ function tabOrder(key: string): number {
  * lowest-numbered alive tab running ANY registered engine. Bare shell tabs
  * never match — they must never receive a prompt.
  *
- * That last rung is vendor-AGNOSTIC on purpose: `engineBin` comes from the
- * task's recorded vendor, which drifts from what its tabs actually run — a
- * task pinned to the custom preset `claudecpa` (a zsh wrapper) whose live
- * tabs launch plain `claude` would resolve to null, and a bare `send` would
- * refuse with NO_ENGINE_TAB while its engine sat right there.
- * The delivery gate (`engineProcessIn`) accepts any live engine
- * and `--tab tab-N` has always allowed cross-vendor send; this makes the
- * resolver agree with both. Safety is unchanged: the caller still re-checks
- * the pick against a live `ps` walk before writing a single byte.
+ * The last rung is vendor-agnostic on purpose: the recorded vendor drifts
+ * from what tabs run (a `claudecpa` wrapper preset whose tabs launch plain
+ * `claude` would otherwise refuse with NO_ENGINE_TAB). It matches the
+ * delivery gate (`engineProcessIn`) and cross-vendor `--tab tab-N`; the
+ * caller still re-checks the pick against a live `ps` walk before writing.
  */
 export function findHostedEngineKey(
   sessions: readonly PtySessionInfo[],
@@ -203,11 +183,7 @@ export interface HostedPromptDeliveryOpts {
   readonly pasteReadyTimeoutMs?: number
 }
 
-/**
- * What one prompt write actually did. `delivered` is the honest answer to
- * "did this reach the engine", and it is now OBSERVED rather than assumed:
- * every field below is measured, not defaulted to true.
- */
+/** What one prompt write did; every field is observed, never defaulted to true. */
 export interface PromptWriteOutcome {
   /** Bytes handed to the pty (prompt plus any bracketed-paste wrapper). */
   readonly bytes: number
@@ -236,15 +212,11 @@ function flatten(text: string): string {
 
 /**
  * Look for the prompt's tail in everything the engine emitted since
- * `sinceOffset`. Confirms delivery the way the `delivered` contract always
- * claimed to — by capture, not by assumption.
+ * `sinceOffset`.
  *
- * KNOWN CEILING, and the reason `confirmed: false` is reported rather than
- * treated as failure: an engine may not echo the text at all. Claude Code
- * collapses a large paste to a `[Pasted text #1]` placeholder, so a big
- * prompt that arrived perfectly still fails this check. That makes a
- * positive a proof and a negative merely inconclusive — which is exactly how
- * the caller reports it.
+ * KNOWN CEILING: an engine may not echo the text at all — Claude Code
+ * collapses a large paste to `[Pasted text #1]` — so a positive is proof and
+ * a negative merely inconclusive, never a failure.
  */
 async function confirmPromptLanded(
   rpc: HostedSessionRpc,
@@ -291,12 +263,10 @@ export async function writeHostedPromptIfLive(
 }
 
 /**
- * Wait until the engine has taken its pty into raw mode and started reading,
- * reported by DECSET 2004 in the ring (see `paste-readiness.ts`). Returns
- * whether bracketed paste is on — which is BOTH the readiness verdict and
- * the wrapping decision. `false` means the wait timed out: the caller still
- * delivers (best effort beats refusing), but sends the prompt bare, exactly
- * as the interactive backend does for an app that never asked for 2004.
+ * Wait until the engine is reading its pty, signalled by DECSET 2004 in the
+ * ring. The result is both the readiness verdict and the wrapping decision:
+ * `false` (timed out) means the caller still delivers, but bare — as the
+ * interactive backend does for an app that never asked for 2004.
  */
 export async function awaitPasteReady(
   rpc: HostedSessionRpc,
@@ -318,19 +288,16 @@ export async function awaitPasteReady(
  * Paste the prompt, wait, then submit it with Enter — the pty twin of
  * `pasteAndSubmit`.
  *
- * Waits for the engine to be READING before writing a single byte. Skipping
- * that wait is what silently truncated 8.6KB prompts to their first 1024
- * bytes: a pty in canonical mode discards past `MAX_INPUT` instead of
- * blocking, and `pty.write` returns void, so nothing downstream could tell.
+ * Waits for the engine to be READING first: a pty in canonical mode discards
+ * past `MAX_INPUT` instead of blocking (an 8.6KB prompt truncated to 1024
+ * bytes), and `pty.write` returns void, so nothing downstream could tell.
  *
- * The adapter's preparatory keys run outside the paste wrapper, immediately
- * before Enter. They finish input processing in engines that buffer a paste
- * burst; the submit key is never chosen from a footer redraw.
+ * The adapter's preparatory keys run outside the paste wrapper, right before
+ * Enter, to finish input processing in engines that buffer a paste burst;
+ * the submit key is never chosen from a footer redraw.
  *
- * Returns the bytes written, so callers can report what they actually did
- * rather than assuming. Note this counts bytes HANDED TO the pty; whether
- * the engine's composer shows them is a separate question that
- * {@link confirmPromptLanded} answers.
+ * Returns bytes handed to the pty; whether the composer shows them is
+ * {@link confirmPromptLanded}'s question.
  */
 export async function writeHostedPrompt(
   rpc: HostedSessionRpc,
@@ -342,12 +309,9 @@ export async function writeHostedPrompt(
   const capabilities = opts?.vendor ? engineEntry(opts.vendor).capabilities : undefined
   const prepared = capabilities?.preparePromptSubmission?.(prompt)
   const data = encodePaste(prepared ?? prompt, bracketed)
-  // The paste and the submit key are ONE act, and two `rove api send`
-  // processes aimed at the same tab would otherwise interleave their halves —
-  // see `delivery-lock.ts` for the interleaving and what the engine does with
-  // it. The lock spans both writes and nothing else: the echo confirmation
-  // that follows is a read, and holding the key through its poll would make
-  // every sender in a fan-out round wait out the one before it.
+  // Paste + submit are one act; two `rove api send`s to one tab would
+  // otherwise interleave halves (see `delivery-lock.ts`). The lock spans only
+  // the writes — holding it through the echo poll would serialize a fan-out.
   await withDeliveryLock(key, async () => {
     await rpc.request("pty.write", { key, data })
     await new Promise((resolve) => setTimeout(resolve, SUBMIT_DELAY_MS))
@@ -360,12 +324,10 @@ export async function writeHostedPrompt(
  * Deliver `prompt` into an existing hosted engine session and submit it.
  * Returns whether the session was alive to receive it.
  *
- * `pty.peek`, NOT `pty.open`: an open from this headless client would
- * last-attach-wins resize a live session out from under the attached TUI
- * (the engine repaints at the delivery client's size and the pane garbles),
- * and an open for a key that just died would spawn a bare shell and paste
- * the prompt into it. Peek never attaches, spawns, or
- * resizes — delivery is pure `pty.write`, exactly like keyboard input.
+ * `pty.peek`, NOT `pty.open`: an open would last-attach-wins resize the live
+ * session under the attached TUI (the pane garbles), and for a just-died key
+ * would spawn a bare shell and paste into it. Peek never attaches, spawns,
+ * or resizes.
  */
 export const deliverToHostedKey = writeHostedPromptIfLive
 
@@ -388,11 +350,9 @@ export async function ensureHostedEngine(
   return result
 }
 
-// Engine-readiness probing lives in its own module (see its header for the
-// seam), re-exported here because every caller reaches these THROUGH a hosted
-// session and several tests mock this module as a whole.
-/** @public — `PasteFirstMessageOptions` is re-exported for callers that reach
- *  it through a hosted session; knip sees the re-export, not those importers. */
+// Re-exported because callers reach these through a hosted session and
+// several tests mock this module as a whole.
+/** @public — knip sees the re-export, not the importers of `PasteFirstMessageOptions`. */
 export {
   awaitEngineProcess,
   hostedSessionFailureLine,

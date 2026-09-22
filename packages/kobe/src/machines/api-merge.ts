@@ -1,17 +1,9 @@
 /**
- * `rove api` across machines, PR 1: merged READS, refused writes.
+ * `rove api` across machines: merged READS, refused writes.
  *
- * Two entry points, both no-ops when no machine is registered — which is the
- * regression guard the whole feature is built around. `mergeTaskList` hands
- * back the daemon's own response OBJECT when there is nothing to merge, so
- * `rove api list` on a single-machine install prints the bytes it always did.
- *
- * Reaching a machine from the CLI means dialing the forwarded socket that a
- * TUI's {@link import("./hub").MachineHub} keeps alive. A CLI process does not
- * start tunnels of its own: it is short-lived, and spawning an ssh master per
- * `rove api list` would be a connection storm. So a machine whose socket is
- * not there right now is simply reported as offline — the same thing the
- * sidebar says.
+ * Both entry points are no-ops when no machine is registered; `mergeTaskList`
+ * then returns the daemon's own response OBJECT, so single-machine output is
+ * byte-identical.
  */
 
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
@@ -21,13 +13,7 @@ import { type MachineEntry, dedupeMachines, listMachines } from "./registry.ts"
 import { localDaemonSocketPath } from "./ssh-args.ts"
 import { ensureForwards } from "./tunnel.ts"
 
-/**
- * Refusal for a verb aimed at a task on another machine.
- *
- * An {@link ApiError} so it travels in the same `{error:{message,code,…}}`
- * envelope every other refusal uses, carrying the recovery command: the verb
- * is not wrong, only its address is.
- */
+/** An {@link ApiError} so it travels in the standard error envelope with a recovery command. */
 function remoteTaskUnsupported(taskId: string, machineId: string): ApiError {
   return new ApiError(
     `task ${taskId} lives on machine "${machineId}". Rove can list it, but acting on a remote task is not supported yet.`,
@@ -42,13 +28,9 @@ function remoteTaskUnsupported(taskId: string, machineId: string): ApiError {
 }
 
 /**
- * A machine's tasks, opening its forwarded socket first if nothing is
- * listening there yet.
- *
- * The forward rides the shared ssh connection (`ensureForwards`), so the first
- * CLI call after a quiet period pays one connect and the next few minutes of
- * calls find it already up. A machine that cannot be reached answers null —
- * the caller reports it as offline rather than failing the whole command.
+ * A machine's tasks, bringing up its forward first if nothing listens. The
+ * forward rides the shared ssh connection, so only the first call after a
+ * quiet period pays a connect. Unreachable → null (reported offline).
  */
 async function machineTasks(entry: MachineEntry): Promise<SerializedTask[] | null> {
   const socketPath = localDaemonSocketPath(entry.alias)
@@ -77,17 +59,9 @@ async function tasksOf(socketPath: string): Promise<SerializedTask[] | null> {
   }
 }
 
-/**
- * Add every reachable machine's tasks to a local `task.list` response.
- *
- * Returns `local` UNCHANGED (same object) when no machine is registered.
- * Otherwise every task — local ones included — carries an `origin`, so a
- * consumer never has to read an absent field as "this one is local".
- */
+/** With machines registered every task, local ones included, carries an `origin`. */
 export async function mergeTaskList(local: { tasks?: SerializedTask[] }): Promise<{ tasks: SerializedTask[] }> {
-  // Two aliases for one machine list its tasks ONCE — the same rule the
-  // sidebar renders by, so the two surfaces can never disagree about how many
-  // machines there are.
+  // Same dedupe as the sidebar, so the two surfaces agree on the machine count.
   const machines = dedupeMachines(listMachines())
   if (machines.length === 0) return local as { tasks: SerializedTask[] }
   const tasks: SerializedTask[] = (local.tasks ?? []).map((task) => ({
@@ -105,15 +79,9 @@ export async function mergeTaskList(local: { tasks?: SerializedTask[] }): Promis
 }
 
 /**
- * Refuse a verb aimed at a remote task instead of letting it land on the local
- * daemon, where the id simply does not exist.
- *
- * The distinction matters: a bare `TASK_NOT_FOUND` for a task the user can SEE
- * in the sidebar reads as data loss. Naming the machine says the task is fine
- * and the command is early.
- *
- * No machines registered → returns immediately without opening a socket, so
- * every existing verb pays nothing.
+ * Refuse a verb aimed at a remote task: a bare `TASK_NOT_FOUND` for a task the
+ * user can SEE in the sidebar reads as data loss. No machines → returns
+ * without opening a socket.
  */
 export async function assertLocalTask(taskId: string | undefined): Promise<void> {
   if (!taskId) return

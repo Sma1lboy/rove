@@ -1,20 +1,15 @@
 /**
  * Devin CLI hook adapter.
  *
- * Devin reads `~/.config/devin/config.json` — an XDG path, and the only one of
- * these four engines whose hook file is not called `settings.json` — with the
- * nested Claude-shaped hook document. Everything
- * but the id, the table and the path comes from
+ * Devin reads the Claude-shaped hook document from `~/.config/devin/config.json`
+ * (XDG, and not named `settings.json`). All but id, table and path comes from
  * {@link SessionStartHookAdapter}.
  *
- * Devin exposes SIX events that can carry session identity (`SessionStart`,
- * `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`,
- * `Stop`) — but they all re-report the identity of a session already known.
- * Rove wires only `SessionStart`: the daemon needs a session's identity once, and
- * firing `session-start` again on every tool call would re-reduce the task's
- * activity state all turn long for no new information. The other five stay
- * unhooked, `PermissionRequest` also because it is a DECISION hook whose
- * answer gates the agent — the same one Codex and Cursor leave alone.
+ * Of Devin's six identity-carrying events (`SessionStart`, `UserPromptSubmit`,
+ * `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Stop`), Rove wires only
+ * `SessionStart`: identity is needed once, and re-firing on every tool call
+ * would re-reduce activity state all turn. `PermissionRequest` is also a
+ * DECISION hook that gates the agent — Codex and Cursor leave it alone too.
  */
 
 import { homedir } from "node:os"

@@ -1,31 +1,21 @@
 /**
- * Kimi Code hook adapter (docs/design/plugin-events.md "Kimi adapter") — the
- * third real {@link EngineHookAdapter}.
+ * Kimi Code hook adapter (docs/design/plugin-events.md "Kimi adapter").
  *
- * Kimi's hook store is NOT the shared settings.json shape: it's TOML
- * `[[hooks]]` tables in `~/.kimi-code/config.toml` (keys: event, matcher?,
- * command, timeout; JSON payload via stdin with `session_id` + `cwd`;
- * MoonshotAI kimi-cli docs/en/customization/hooks.md, verified against the
- * installed 0.37.2 binary). So this adapter can't extend {@link JsonHookAdapter};
- * it implements the same contract over a marker-delimited TOML block —
- * remove-then-append between `# >>> rove hooks` / `# <<< rove hooks`, which is
- * merge-safe (the user's config outside the block is never parsed or
- * rewritten) and idempotent (identical content skips the write).
+ * Kimi's hooks are TOML `[[hooks]]` tables in `~/.kimi-code/config.toml`
+ * (keys: event, matcher?, command, timeout; JSON payload on stdin with
+ * `session_id` + `cwd`; verified against the 0.37.2 binary), so this can't
+ * extend {@link JsonHookAdapter}. It remove-then-appends a block between
+ * `# >>> rove hooks` / `# <<< rove hooks`: config outside the block is never
+ * parsed or rewritten, and identical content skips the write.
  *
  * Event map notes (vs Claude's):
  *   - `Interrupt` → turn-interrupted: Kimi does NOT fire Stop after a user
- *     interrupt, so without this an interrupted Kimi turn strands in
- *     `running` (the reducer already handles the verb; plugin-events.md §B).
- *   - `PermissionRequest` → awaiting-input: unlike Codex (where the same
- *     event is a synchronous allow/deny decision hook kobe stays away from),
- *     Kimi runs it as a plain command hook — an exit-0 observer is safe.
- *   - `Notification` is NOT wired: Kimi's notification types are
- *     undocumented, and an unfiltered install would mark every idle prompt
- *     as needs-input (the exact trap Claude's `permission_prompt` matcher
- *     exists to avoid).
- *   - Worktree-watch is NOT wired: kobe's observer matches the `Bash` tool
- *     name, and Kimi's shell-tool naming is unverified. The daemon's
- *     session-start auto-adopt still covers Kimi-created worktrees.
+ *     interrupt, so without this the turn strands in `running`.
+ *   - `PermissionRequest` → awaiting-input: unlike Codex (a synchronous
+ *     allow/deny hook we avoid), Kimi runs it as a plain command hook, so an
+ *     exit-0 observer is safe.
+ *   - `Notification` is NOT wired: its types are undocumented, and unfiltered
+ *     it would mark every idle prompt as needs-input.
  */
 
 import { existsSync } from "node:fs"
@@ -142,24 +132,18 @@ export function mergeKimiHooks(
 }
 
 /**
- * Kimi StopFailure payload → the neutral failure class. Kimi vocabulary lives
- * here with the rest of the translation, never in `kobe hook`.
+ * Kimi StopFailure payload → neutral failure class. Two fields, because
+ * Kimi's two call sites disagree (verified against 0.37.2):
  *
- * Two fields, because Kimi's two StopFailure call sites disagree about what
- * they put in `error_type` (verified against the installed 0.37.2 binary):
+ *   - `error_type` is the JS error CLASS: `APIProviderRateLimitError` /
+ *     `APIProviderQuotaExhaustedError` for a limit, `APIStatusError` for
+ *     anything else with a status (a 429 included — class alone isn't enough).
+ *   - `error_message` carries a `[provider.*]` code: `provider.rate_limit`,
+ *     or `provider.auth_error` for the 403 "You've reached your 5-hour usage
+ *     limit" — filed under AUTH but a quota wall.
  *
- *   - `error_type` is the JS ERROR CLASS name, not a category —
- *     `APIProviderRateLimitError` / `APIProviderQuotaExhaustedError` for a
- *     limit, `APIStatusError` for anything else with a status code (a 429
- *     included, which is why the class name alone is not enough).
- *   - `error_message` carries a `[provider.*]` code prefix from Kimi's own
- *     ErrorCodes — `provider.rate_limit` for a limit, and
- *     `provider.auth_error` for the 403 that carries "You've reached your
- *     5-hour usage limit", which Kimi files under AUTH but is a quota wall.
- *
- * `billing`, not `rate_limit`, for the auth/quota-wall case: it needs a human
- * (re-auth, or a plan change), and the daemon deliberately does NOT arm a
- * resume timer for `billing`. A plain 429 IS `rate_limit` and does arm one.
+ * That case is `billing`: it needs a human, and the daemon arms no resume
+ * timer for `billing`. A plain 429 is `rate_limit` and does arm one.
  */
 function kimiFailureDetail(payload: Record<string, unknown>): EngineActivityDetail {
   const type = typeof payload.error_type === "string" ? payload.error_type : ""
@@ -187,21 +171,15 @@ export class KimiHookAdapter implements EngineHookAdapter {
     return kimiConfigPath()
   }
 
-  /** Kimi's stdin payload spells tool fields `tool_name`; the permission
-   *  event is always a permission (Kimi has no elicitation notification).
-   *  `turn-failed` classifies the StopFailure — without it every Kimi failure
-   *  reduces to `error` and Kimi can never reach `rate_limited`, so the user
-   *  sees a generic error instead of "waiting on the 5-hour window".
+  /** Tool fields are spelled `tool_name`; the permission event is always a
+   *  permission (no elicitation notification). `turn-failed` classifies the
+   *  StopFailure so Kimi can reach `rate_limited` rather than a generic error.
    *
-   *  The BADGE is all this buys, and that is not an oversight. Auto-resume
-   *  (`daemon/quota-resume.ts`) arms off a reset TIMESTAMP, which it gets from
-   *  the vendor's live usage API via `quotaUsage`. Kimi ships no such API, and
-   *  this payload carries only `error_type`/`error_message` — no reset time on
-   *  either path. The only remaining move would be guessing a reset for a
-   *  ROLLING 5-hour window whose start nobody recorded, and a resume that
-   *  fires early spends a turn to fail again. So: classify for the badge,
-   *  arm nothing. Pinned by "arms nothing for an engine with no quota probe"
-   *  in `test/daemon/quota-resume.test.ts`. */
+   *  That buys the badge only, deliberately: auto-resume
+   *  (`daemon/quota-resume.ts`) needs a reset timestamp from a vendor usage
+   *  API, Kimi has none and the payload carries no reset time, and guessing a
+   *  rolling 5-hour window would resume early and fail again. Pinned in
+   *  `test/daemon/quota-resume.test.ts`. */
   activityDetailFromPayload(
     kind: EngineActivityKind,
     payload: Record<string, unknown>,
@@ -221,9 +199,7 @@ export class KimiHookAdapter implements EngineHookAdapter {
   }
 
   async installActivityHooks(settingsFilePath: string, opts: { toolEvents?: boolean } = {}): Promise<HookEditOutcome> {
-    // Don't materialize ~/.kimi-code for a user who never installed Kimi —
-    // no config dir means no Kimi to read the hooks anyway. Not a refusal:
-    // there is no engine here whose badges could go missing.
+    // No config dir = no Kimi; don't materialize ~/.kimi-code. Not a refusal.
     if (!existsSync(dirname(settingsFilePath))) return { ok: true }
     await editTomlConfig(settingsFilePath, (cur) => mergeKimiHooks(cur, true, undefined, opts))
     return { ok: true }

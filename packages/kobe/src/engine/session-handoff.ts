@@ -1,17 +1,12 @@
 /**
  * Cross-engine session handoff: continue a conversation in a DIFFERENT
- * engine (claude ⇄ codex) with its context intact — the "I hit my usage
- * limit mid-task" move.
+ * engine (claude ⇄ codex), e.g. after hitting a usage limit.
  *
- * Structure lifted from Orca's `agent-session-continuation`
- * (`refs/orca/src/renderer/src/lib/agent-session-continuation.ts`), whose
- * key decision is the one worth copying: DON'T convert transcripts between
- * vendor formats. Hand the next agent the previous transcript's PATH and
- * let it read its predecessor's file itself — every engine can read JSONL,
- * and a converter would rot with every format change on either side.
- *
- * Pure string building so vitest pins the wording; the caller supplies the
- * path (`EngineHistoryReader.transcriptPath`).
+ * Structure from Orca's `agent-session-continuation`
+ * (`refs/orca/src/renderer/src/lib/agent-session-continuation.ts`): don't
+ * convert transcripts between vendor formats — pass the transcript PATH and
+ * let the next engine read the JSONL; a converter would rot with every
+ * format change.
  */
 
 export interface SessionHandoff {
@@ -22,19 +17,14 @@ export interface SessionHandoff {
   /** The worktree both sessions run in. */
   readonly worktree: string
   /**
-   * "full" tells the next agent to read the whole transcript before doing
-   * anything; "focused" lets it read only what it needs, starting from the
-   * workspace. Focused is the default — cheaper, and the working tree is
-   * the more reliable record of where things actually stand.
+   * "full": read the whole transcript first. "focused" (default): read only
+   * what's needed, starting from the workspace — cheaper, and the working
+   * tree is the more reliable record.
    */
   readonly mode?: "focused" | "full"
 }
 
-/**
- * First prompt for the receiving engine. Deliberately ends by asking it to
- * state where the previous session stopped: that one sentence is how the
- * user verifies the handoff actually landed before trusting it.
- */
+/** First prompt for the receiving engine. Ends by asking where the previous session stopped, so the user can verify the handoff landed. */
 export function buildHandoffPrompt(handoff: SessionHandoff): string {
   const readInstruction =
     handoff.mode === "full"

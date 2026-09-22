@@ -1,24 +1,19 @@
 /**
  * Terminal display width — how many CELLS a string / code point occupies,
- * as opposed to `String.length` (UTF-16 units) or code-point count. kobe is
- * Simplified-Chinese-default, so wide (CJK / fullwidth) glyphs are the common
- * case: measuring by length under-counts them and shoves everything to their
- * right out of alignment.
+ * not `String.length` (UTF-16 units) or code-point count. Wide CJK / fullwidth
+ * glyphs are common (Chinese-default UI), and length under-counts them.
  *
- * Framework-free (no opentui/Solid) so both the `kobe export` table renderer
- * and the embedded-terminal cursor overlay (`terminal-render.ts`, which must
- * map a cell-column cursor onto code-point-indexed chunk text) share ONE
- * width table.
+ * Framework-free so the `kobe export` table renderer and the embedded-terminal
+ * cursor overlay (`terminal-render.ts`, mapping a cell column onto
+ * code-point-indexed text) share ONE width table.
  */
 
 /** Cell width of a single Unicode code point: 0 (zero-width), 2 (wide), or 1. */
 export function charWidth(cp: number): number {
   // Non-printing controls: C0 (U+0000–U+001F), DEL (U+007F), C1 (U+0080–U+009F).
-  // wcwidth treats these as non-printing — a stray control byte in a task
-  // title or exported cell must not shove every column to its right one over.
-  // Callers must NOT re-floor this to 1 (`|| 1`): every zero here is a code
-  // point a terminal does not advance the cursor for, and flooring it breaks
-  // the embedded terminal's cell math the same way counting it did.
+  // Non-printing per wcwidth. Callers must NOT re-floor to 1 (`|| 1`): the
+  // terminal doesn't advance the cursor for these, and flooring breaks the
+  // embedded terminal's cell math.
   if (cp < 0x20 || (cp >= 0x7f && cp <= 0x9f)) return 0
   // Zero-width: combining marks + bidi/format controls + variation selectors.
   if (
@@ -76,13 +71,10 @@ export function displayWidth(s: string): number {
 }
 
 /**
- * FAST over-counting variant of {@link charWidth}: every code point at or
- * above U+1100 counts 2 cells, everything below counts 1. It never
- * under-counts CJK but has no zero-width class and doubles some narrow
- * high-plane glyphs — fine for sizing hover tooltips and legend columns,
- * where a slightly-too-wide box beats a clipped label. Use
- * {@link charWidth}/{@link displayWidth} when exact cell math matters
- * (cursor mapping, table alignment).
+ * FAST over-counting variant of {@link charWidth}: ≥ U+1100 counts 2, below
+ * counts 1. Never under-counts CJK, but has no zero-width class and doubles
+ * some narrow glyphs — fine for tooltips/legends where too-wide beats clipped.
+ * Use {@link charWidth}/{@link displayWidth} for exact cell math.
  */
 export function approxCharCells(cp: number): 1 | 2 {
   return cp >= 0x1100 ? 2 : 1

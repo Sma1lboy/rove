@@ -1,13 +1,9 @@
 /**
- * Live cwd of a process — the scratch-task adoption read: a
- * scratch shell "settles" wherever the user cd'd, and that directory (plus
- * a detected harness) decides which project group the row migrates into.
+ * Live cwd of a process — where a scratch shell "settled", which (plus a
+ * detected harness) picks the project group the row migrates into.
  *
- * macOS has no /proc, so the portable answer is `lsof -a -p <pid> -d cwd
- * -Fn` (one line per field, `n<path>` carries the directory). On Linux the
- * same lsof invocation works where installed; /proc/<pid>/cwd is tried
- * first as the cheap path. Null on any failure — an unknown cwd is "not
- * settled", never a guess.
+ * /proc/<pid>/cwd first, else `lsof -a -p <pid> -d cwd -Fn` (macOS has no
+ * /proc). Null on any failure: an unknown cwd is "not settled", never a guess.
  */
 
 import { readlinkSync } from "node:fs"

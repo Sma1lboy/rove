@@ -13,26 +13,19 @@
  *
  * Failure modes:
  *
- *   - **Holder is alive** — `acquire()` rejects. The other instance gets a
- *     clear "another kobe is running" error. (Higher layers can decide
- *     whether to retry or surface to the user.)
+ *   - **Holder is alive**: `acquire()` rejects; retry is the caller's call.
  *
- *   - **Holder crashed** (process gone, lockfile remains stale) — we
- *     test the recorded PID with `process.kill(pid, 0)` (signal 0 is
- *     "test only"). If it throws ESRCH, the holder is dead; we log a
- *     warning, remove the stale lockfile, and re-acquire.
+ *   - **Holder crashed**: the recorded PID fails the signal-0 liveness
+ *     probe, so we warn, remove the stale lockfile, and re-acquire.
  *
- *   - **Holder is a different program reusing the PID** — false positive,
- *     we'd wait forever. Acceptable: PID reuse on the same machine in
- *     the same minute is rare, and the cost of a false negative (corrupted
- *     index) is much worse than the cost of a false positive (kobe refuses
- *     to start, user kills the lockfile manually).
+ *   - **PID reused by another program**: false positive, the lock is refused
+ *     until the user removes it. Acceptable: same-minute PID reuse is rare,
+ *     and a false negative (corrupted index) is far worse.
  *
- * {@link acquireSync}/{@link releaseSync} are the blocking twins, for callers
- * that cannot be async (worktree pre-trust runs inside a React render path).
- * They write the SAME `pid:token` format through the same link-or-fail dance,
- * so a sync holder blocks an async acquirer and vice versa — the two variants
- * are one lock, not two.
+ * {@link acquireSync}/{@link releaseSync} are blocking twins for callers
+ * that cannot be async (worktree pre-trust runs in a React render path).
+ * Same `pid:token` format and link-or-fail protocol, so sync and async are
+ * one lock, not two.
  *
  * Not goals: cross-machine locking (NFS-safe), advisory POSIX locks
  * (flock — Bun coverage uneven), retry/backoff (caller's choice).
@@ -108,27 +101,22 @@ export async function acquire(lockPath: string, opts: LockfileOptions = {}): Pro
       throw new LockfileError(`task index is locked by another Rove instance (pid ${holderPid})`, holderPid)
     }
 
-    // Stale (or stolen): remove and loop back to the atomic create. If a
-    // rival waiter wins the takeover race, the next iteration observes their
-    // live lock and rejects. We log to stderr so the user sees the takeover
-    // happen — silent takeovers are scary in concurrent contexts.
+    // Stale (or stolen): remove and loop back to the atomic create; if a
+    // rival wins the takeover, the next iteration rejects against its live
+    // lock. Warned so a takeover is never silent.
     console.warn(
       `[rove] removing stale lockfile at ${lockPath} (was held by pid ${holderPid}` +
         `${alive ? ", forced" : ", process gone"})`,
     )
-    // Delete only the lock we JUDGED. An unconditional unlink here was the
-    // whole bug: between our read of `holder` and this line a rival can win
-    // the takeover and link its own lock in, and unlinking that admits a
-    // second holder into the critical section. `releaseSync` is that check —
-    // re-read, unlink only on a byte-identical match — so a lock that
-    // changed hands is left alone and the next loop rejects against it.
+    // Delete only the lock we JUDGED: between reading `holder` and here a
+    // rival can link its own lock in, and unlinking that admits a second
+    // holder. `releaseSync` re-reads and unlinks only on a byte-identical
+    // match.
     //
-    // SYNC on purpose inside an async function: the async `release` awaits
-    // between its read and its unlink, and that await is a scheduling point
-    // a rival's entire takeover fits inside, so the verify still passed for
-    // two acquirers at once (measured: N=50 concurrent acquires still
-    // produced 2-5 double owners per 20 rounds). Nothing in this process can
-    // interleave the sync pair.
+    // SYNC on purpose: the async `release` awaits between read and unlink,
+    // and a rival's whole takeover fits in that await (measured: N=50
+    // concurrent acquires gave 2-5 double owners per 20 rounds). Nothing in
+    // this process can interleave the sync pair.
     //
     // ponytail: cross-process this is two back-to-back syscalls, not an
     // atomic compare-and-unlink — POSIX has no unlink-if-unchanged, and the
@@ -213,10 +201,7 @@ export function acquireSync(lockPath: string, timeoutMs = 5_000): string {
       sleepSync(25)
       continue
     }
-    // Stale holder — same takeover as the async path, warned for the same
-    // reason (a silent takeover in a concurrent context is scary), and
-    // verified for the same reason: never unlink a lock that changed hands
-    // since we judged it.
+    // Stale holder: same warned, verified takeover as the async path.
     console.warn(`[rove] removing stale lockfile at ${lockPath} (was held by pid ${holderPid}, process gone)`)
     releaseSync(lockPath, holder)
   }

@@ -25,9 +25,7 @@ import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import { WorktreeCoordinator } from "./worktree-coordinator.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
-// The create-task input type lives in its own module so it can be imported
-// without importing this class. Re-exported here so callers still name it
-// through the orchestrator.
+// Lives in its own module so it can be imported without this class.
 export type { CreateTaskInput } from "./create-task-input.ts"
 
 export type Unsubscribe = () => void
@@ -53,25 +51,18 @@ export interface OrchestratorDeps {
    *  unmerged branch, one another worktree has checked out). The deletion still
    *  succeeds; this is what keeps the audit line from claiming otherwise. */
   readonly onBranchKept?: (taskId: TaskId, kept: { readonly branch: string; readonly reason: string }) => void
-  /**
-   * Kill a task's engine session. Bound by the composition root to the hosted
-   * session host; a TUI-local orchestrator leaves it unset. `landTask` calls
-   * it before removing a landed worktree — an engine still writing into a
-   * directory that is about to be unlinked loses everything it writes next.
-   */
+  /** Kill a task's engine session (unset in a TUI-local orchestrator). `landTask`
+   *  calls it before removing a landed worktree — an engine still writing into
+   *  a directory about to be unlinked loses everything it writes next. */
   readonly tearDownSession?: (taskId: TaskId | string) => Promise<void>
 }
 
-// Re-exported from `title.ts` (its single source of truth) so existing
-// importers of `PLACEHOLDER_TASK_TITLE` from `core.ts` keep working.
 export { PLACEHOLDER_TASK_TITLE }
 
 /**
- * Owner of the task lifecycle.
- *
- * Single source of truth for: which tasks exist, which worktree each
- * lives in, what its status / pinned flag is. The TUI
- * subscribes via {@link tasksSignal} or {@link subscribeTasks}.
+ * Owner of the task lifecycle: which tasks exist, which worktree each lives
+ * in, its status / pinned flag. Subscribe via {@link tasksSignal} or
+ * {@link subscribeTasks}.
  */
 export class Orchestrator {
   private readonly store: TaskIndexStore
@@ -110,10 +101,8 @@ export class Orchestrator {
       deps.onBranchKept,
     )
     this.tasksAcc = createStateCell<Task[]>(this.store.list())
-    // Seed focus from the persisted `lastActive` record (state/last-active
-    // .ts) so a daemon restart or fresh TUI opens on the last-focused task
-    // instead of "first in the list". Dropped silently when the task is
-    // gone (deleted since) — the UI's own fallback picks a survivor.
+    // Restarts reopen on the last-focused task; a since-deleted id is dropped
+    // silently and the UI's fallback picks a survivor.
     const persistedFocus = readLastActiveTaskId()
     this.activeTaskAcc = createStateCell<string | null>(
       persistedFocus && this.store.get(persistedFocus) ? persistedFocus : null,
@@ -124,20 +113,15 @@ export class Orchestrator {
   }
 
   /**
-   * Pre-flight hook for the TUI to await before the first render.
+   * Awaited before the first render. Absorbs `dir` rows sitting on a repo root
+   * into that repo's `main` row: such a row renders as a bare path, outside
+   * every project-row behaviour (ordering, pin, the fold on a closed last tab),
+   * and `ensure` only runs when somebody names the repo, so without this sweep
+   * it stays wrong forever. The promoted row keeps its task id, so its terminal
+   * tabs come with it.
    *
-   * One job: absorb `dir` rows that are sitting on a repository root into
-   * that repo's `main` row. `rove .` routes a repo root to `ensureMainTask`,
-   * so nothing new lands mis-shaped — but a `dir` row already on disk renders
-   * as a bare path, outside every behaviour written for a project row
-   * (ordering, pin, the fold on a closed last tab). `ensure` only runs when
-   * somebody names the repo, so without a sweep those rows stay wrong forever.
-   *
-   * Best-effort by construction: it runs before the first frame, and a repo
-   * that has moved or a git that will not answer must not stop the TUI from
-   * starting. `ensureIfEligible` reuses the same admission gate and the same
-   * adoption branch as every other caller — the promoted row keeps its task
-   * id, so its terminal tabs come with it.
+   * Best-effort: a moved repo or an unresponsive git must not stop the TUI
+   * from starting.
    */
   async init(): Promise<void> {
     try {
@@ -147,17 +131,12 @@ export class Orchestrator {
       })
       for (const task of promotable) await this.mainTasks.ensureIfEligible(task.repo, "explicit")
     } catch {
-      // A promotion that cannot happen is a row that renders the way it did
-      // yesterday, not a boot failure.
+      // A failed promotion leaves the row as it was, not a boot failure.
     }
   }
 
-  /**
-   * The active-task focus, in-process. Mirrors {@link RemoteOrchestrator}'s
-   * daemon-backed `active-task` channel so the `KobeOrchestrator` union has
-   * one API; in this local (no-daemon) mode there are no sibling panes to
-   * sync, so it's just an in-process signal.
-   */
+  /** In-process active-task focus; mirrors {@link RemoteOrchestrator}'s
+   *  daemon-backed `active-task` channel so the `KobeOrchestrator` union has one API. */
   activeTaskSignal(): ReadableState<string | null> {
     return this.activeTaskAcc
   }
@@ -168,17 +147,13 @@ export class Orchestrator {
     if (next && this.store.get(next)?.deletion) throw new TaskDeletingError(next)
     this.activeTaskAcc.set(next)
     if (next && this.store.get(next)) {
-      // Global last-writer-wins focus record — see state/last-active.ts. This
-      // eagerly persists the ONE last-focused id, so a daemon/TUI restart
-      // reopens on it regardless of the lazy recency flush below.
+      // Global last-writer-wins, persisted eagerly so a restart reopens on it
+      // regardless of the lazy recency flush below.
       writeLastActiveTaskId(next)
-      // Recency bump for the sidebar's `recent` sort ONLY. Deliberately NOT a
-      // `store.update(next, {})`: that empty patch still ran a full fsync'd
-      // read-merge-write on every focus switch (the single most frequent
-      // action) to move `updatedAt`, which the DEFAULT sort never reads.
-      // `touchRecency` bumps `updatedAt` in-cache + notifies listeners (so
-      // `recent` reorders live) but flushes lazily on the next real mutation —
-      // dropping the per-switch fsync'd disk rewrite + full-list broadcast churn.
+      // Not `store.update(next, {})`: an empty patch still does a full fsync'd
+      // read-merge-write on every focus switch (the most frequent action).
+      // `touchRecency` bumps `updatedAt` in-cache and notifies (so the `recent`
+      // sort reorders live), flushing on the next real mutation.
       this.store.touchRecency(next)
     }
   }
@@ -189,15 +164,11 @@ export class Orchestrator {
   }
 
   /**
-   * Subscribe to task-list updates. Fires once with the current snapshot as
-   * soon as it's available — eagerly here if the store is already loaded, else
-   * from the store's own `load()` notification — then again after every
-   * mutation.
+   * Fires once with the current snapshot when available (eagerly if the store
+   * is loaded, else from its `load()`), then after every mutation.
    *
-   * We must NOT also fire the listener directly: the store already delivers
-   * that first snapshot (eagerly on subscribe when loaded, via load() otherwise).
-   * A direct fire on top double-published `task.snapshot` on daemon boot, and on
-   * the not-yet-loaded path it threw (the store's `list()` asserts loaded).
+   * Must NOT also fire the listener directly: that double-publishes
+   * `task.snapshot` on daemon boot, and throws before load (`list()` asserts loaded).
    */
   subscribeTasks(listener: TaskListListener): Unsubscribe {
     return this.store.subscribe(listener)
@@ -219,11 +190,7 @@ export class Orchestrator {
 
   // --- write ---
 
-  /**
-   * Create a new task row — body in `core-create.ts`. Row minting is the one
-   * cluster here that is not already a coordinator delegation, so it is where
-   * this file splits; the class stays the thin delegator its doc claims.
-   */
+  /** Create a new task row — body in `core-create.ts`. */
   createTask = (input: CreateTaskInput): Promise<Task> =>
     createTaskRow(
       {
@@ -248,12 +215,10 @@ export class Orchestrator {
   }
 
   /**
-   * Materialise the worktree on disk for `task`. Idempotent: if the recorded
-   * worktree still exists, fast-path it. If the recorded dir vanished (a UI/web
-   * delete that didn't clear the index, a manual `rm`, a crash mid-`deleteTask`),
-   * self-heal: prune git's stale registration, drop the dead path, and
-   * re-materialise onto the task's OWN branch — committed work recovered, not a
-   * permanently-dead task. Returns the worktree path.
+   * Materialise the task's worktree; returns its path. Idempotent. If the
+   * recorded dir vanished (a delete that didn't clear the index, a manual `rm`,
+   * a crash mid-`deleteTask`), prune git's stale registration and re-materialise
+   * onto the task's OWN branch, so committed work is recovered.
    */
   async ensureWorktree(id: TaskId | string): Promise<string> {
     const task = this.requireTask(id)
@@ -263,14 +228,11 @@ export class Orchestrator {
     if (task.kind === "dir") return task.worktreePath
     if (task.worktreePath) {
       if (await this.worktrees.pathExists(task.worktreePath)) return task.worktreePath
-      // Recorded path is gone: prune git's dangling registration (else `worktree
-      // add` on the same path errors), clear the dead pointer, re-materialise.
+      // Prune first, else `worktree add` on the same path errors.
       await this.worktrees.pruneWorktrees(task.repo)
       await this.store.update(task.id, { worktreePath: "" })
       return this.worktreeCoordinator.ensure({ ...task, worktreePath: "" })
     }
-    // Lazy materialise via the coordinator; the short-circuits above read the
-    // task index, not the worktree side, so they stay here.
     return this.worktreeCoordinator.ensure(task)
   }
 
@@ -282,21 +244,15 @@ export class Orchestrator {
   async clearWorktreePath(id: TaskId | string): Promise<void> {
     const task = this.store.get(id)
     if (!task || !task.worktreePath) return
-    // Only a Rove-created worktree is ours to forget: a `dir` task's path IS
-    // the user's directory (blanking it makes `ensureWorktree` return "" for
-    // good), a `main` task's is the checkout, and `handlers-worktree.ts`
-    // matches both by exact path.
+    // Only a Rove-created worktree is ours to forget: a `dir` task's path IS the
+    // user's directory (blanking it makes `ensureWorktree` return "" for good),
+    // a `main` task's is the checkout.
     if (task.kind === "main" || task.kind === "dir") return
     await this.store.update(task.id, { worktreePath: "" })
     this.worktreeCoordinator.forget(task.id)
   }
 
-  // In-place task-field edits (title / branch / engine / pinned / status /
-  // PR-status / move) live in the TaskEditor collaborator.
-  // Terse one-liners below on purpose: they are PURE forwarding, so anything
-  // written here would be a second copy of a rule that lives on TaskEditor's
-  // own methods — read them there. Same shape `remote-orchestrator.ts` uses
-  // for its own write delegates.
+  // Pure forwarding to TaskEditor; the rules are documented on its methods.
 
   setTitle = (id: TaskId | string, title: string): Promise<void> => this.editor.setTitle(id, title)
   setBranch = (id: TaskId | string, branch: string): Promise<void> => this.editor.setBranch(id, branch)
@@ -324,18 +280,14 @@ export class Orchestrator {
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => this.editor.setPrompt(id, prompt)
 
   /**
-   * Permanently remove a task. Refuses to delete `kind: "main"`
-   * tasks (the user removes the repo from saved repos instead).
+   * Permanently remove a task. Refuses `kind: "main"` (remove the saved repo instead).
    *
-   * Worktree safety: without `opts.force` a worktree with
-   * uncommitted / untracked changes is NOT destroyed — we throw
-   * {@link DirtyWorktreeError} so the UI can re-prompt for explicit
-   * force confirmation. And if `git worktree remove` itself fails
-   * (locked / permission / corrupt git-dir) we throw
-   * {@link WorktreeRemoveFailedError} and KEEP the index entry, so the
-   * orphaned worktree stays visible + re-deletable instead of becoming
-   * invisible on-disk debris. The index entry is dropped only after the
-   * worktree is genuinely gone.
+   * Worktree safety: without `opts.force` a worktree with uncommitted /
+   * untracked changes is NOT destroyed — throws {@link DirtyWorktreeError} so
+   * the UI can re-prompt for force. If `git worktree remove` fails (locked /
+   * permission / corrupt git-dir) throws {@link WorktreeRemoveFailedError} and
+   * KEEPS the index entry, so the orphan stays visible and re-deletable. The
+   * index entry is dropped only after the worktree is genuinely gone.
    */
   async deleteTask(id: TaskId | string, opts?: TaskDeletionOpts): Promise<void> {
     await this.deletions.deleteNow(id, opts)
@@ -356,11 +308,7 @@ export class Orchestrator {
     return this.deletions.finish(id)
   }
 
-  /**
-   * Read-only "may this land, and into what" — the same probes `landTask` runs
-   * before its merge, with nothing written. Behind the land confirm's
-   * destination + commit count and `rove api land --dry-run`.
-   */
+  /** Read-only "may this land, and into what": `landTask`'s pre-merge probes, nothing written. */
   async landPreflight(id: TaskId | string): Promise<LandPreflight> {
     const task = this.requireTask(id)
     if (task.kind === "main") throw new Error("landTask: a main task has no branch to land")
@@ -372,8 +320,7 @@ export class Orchestrator {
   /** Land a task's branch back into its base repo — executor + cleanup in `land.ts`. */
   async landTask(id: TaskId | string, opts?: LandTaskOpts): Promise<LandResult> {
     const task = this.requireTask(id)
-    // The refusal every other worktree entry point makes (`setActiveTask`,
-    // `ensureWorktree`): without it a land races the deletion runner.
+    // Without it a land races the deletion runner.
     if (task.deletion) throw new TaskDeletingError(String(task.id))
     return landTaskWithCleanup(task, opts ?? {}, {
       worktrees: this.worktrees,
@@ -388,11 +335,9 @@ export class Orchestrator {
   }
 
   /**
-   * Discover git worktrees on `repo` that exist on disk but aren't yet
-   * linked to any task — candidates for adoption. Includes
-   * worktrees outside the kobe convention root (the user's own
-   * `git worktree add`). De-dupes against the task store by canonical
-   * path so an already-adopted worktree never reappears.
+   * Worktrees of `repo` on disk not yet linked to any task, including ones
+   * outside the convention root. De-duped by canonical path so an adopted
+   * worktree never reappears.
    */
   async discoverAdoptableWorktrees(repo: string): Promise<readonly AdoptableWorktree[]> {
     if (!repo) throw new Error("discoverAdoptableWorktrees: repo is required")
@@ -400,12 +345,9 @@ export class Orchestrator {
   }
 
   /**
-   * Adopt an existing git worktree as a new task. The worktree
-   * already exists on disk, so we record the task with its real path +
-   * branch directly — `ensureWorktree` then short-circuits (non-empty
-   * `worktreePath`) and never touches the filesystem. Validates the path
-   * is a real worktree of `repo` and isn't already a task. The dedupe lock +
-   * validation + main-task provisioning live in the coordinator.
+   * Adopt an existing git worktree as a new task, recording its real path +
+   * branch so `ensureWorktree` never touches the filesystem. Validates it is a
+   * real worktree of `repo` and not already a task.
    */
   async adoptWorktree(input: {
     readonly repo: string
@@ -413,12 +355,8 @@ export class Orchestrator {
     readonly branch?: string
     readonly vendor?: VendorId
     readonly title?: string
-    /**
-     * What to do when a task already tracks this worktree. `"error"` (default,
-     * the user-facing `kobe api adopt` path) throws; `"return"` (the
-     * WorktreeCreate hook path) returns the existing task, making sync
-     * idempotent — a re-fired hook or a worktree kobe already owns is a no-op.
-     */
+    /** When a task already tracks this worktree: `"error"` (default, `api adopt`)
+     *  throws; `"return"` (WorktreeCreate hook) returns it, so a re-fired hook is a no-op. */
     readonly ifExists?: "error" | "return"
   }): Promise<Task> {
     if (!input.repo) throw new Error("adoptWorktree: repo is required")

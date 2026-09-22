@@ -1,15 +1,11 @@
 /**
- * The `listModels` half of the built-in engine table — what each first-party
- * engine can NAME as a model, in the neutral {@link EngineModel} shape.
+ * What each built-in engine can NAME as a model.
  *
- * Two kinds of engine live here. Claude and codex ship no list verb, so their
- * entries are short static alias lists copied from the CLI's own docs (dated
- * below — refresh them when the CLI does; they are suggestions, never a
- * closed set). Pi and omp DO have one, run here with a deadline so a hung
- * binary cannot wedge `engine-list` or a dialog. Any failure rejects; the
- * callers (`engine-list` → `models: null`, the pickers → free text) own the
- * degradation, so nothing here swallows an error into an empty list — an
- * empty list means "listed, found none", which is a different fact.
+ * Claude and codex have no list verb: static aliases from the CLI docs (dated
+ * below; refresh with the CLI; suggestions, never a closed set). Pi and omp's
+ * list verbs run under a deadline so a hung binary can't wedge `engine-list`.
+ * Failures reject — callers own degradation — because an empty list means
+ * "listed, found none".
  *
  * Must stay importable from vitest (node `child_process`, not `Bun.spawn`)
  * and MUST NOT import from `src/tui/`.
@@ -45,11 +41,8 @@ export const CODEX_MODELS: readonly EngineModel[] = [
 ]
 
 /**
- * Parse `pi --list-models`: a whitespace-aligned table whose header is
- * `provider  model  context  max-out  thinking  images`. Two providers can
- * carry the same model name (a proxy re-exporting `openai`'s), so the id is
- * the unambiguous `provider/model` form pi's `--model` accepts, and the label
- * is the bare model name.
+ * `pi --list-models`: whitespace table, header `provider  model  context …`.
+ * Id is `provider/model` (two providers can share a model name), label the bare name.
  */
 export function parsePiModelTable(stdout: string): readonly EngineModel[] {
   const out: EngineModel[] = []
@@ -67,10 +60,7 @@ export async function listPiModels(): Promise<readonly EngineModel[]> {
   return parsePiModelTable(await stdoutOf("pi", ["--list-models"]))
 }
 
-/**
- * Parse `omp models --json`: `{ models: [{ selector, name, … }] }`, where
- * `selector` is the `provider/id` string `--model=` matches exactly.
- */
+/** `omp models --json`: `{ models: [{ selector, name }] }`; `--model=` matches `selector` exactly. */
 export function parseOmpModelJson(stdout: string): readonly EngineModel[] {
   const parsed: unknown = JSON.parse(stdout)
   const models = (parsed as { models?: unknown }).models

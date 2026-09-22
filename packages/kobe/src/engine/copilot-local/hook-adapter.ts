@@ -1,28 +1,17 @@
 /**
- * GitHub Copilot CLI hook adapter — copilot's A layer (hooks), which until now
- * was a {@link import("../hook-adapter.ts").NoopHookAdapter}.
+ * GitHub Copilot CLI hook adapter. Wires `SessionStart` only, for session
+ * identity: the other events aren't a verified authority for turn state, so
+ * {@link COPILOT_SCREEN_MANIFEST} keeps owning working/blocked/idle.
  *
- * What it wires, and what it deliberately doesn't: `SessionStart` only, which
- * reports WHICH copilot session is live in a worktree. Copilot's remaining hook
- * events (`userPromptSubmitted`, `preToolUse`, `postToolUse`, `agentStop`, …)
- * are available, but Rove does not claim state from them here: they are not a
- * verified authority for turn state. So {@link COPILOT_SCREEN_MANIFEST} keeps
- * owning working/blocked/idle, exactly as before; the hook adds session
- * identity on top. Same split cursor landed on.
- *
- * File shape, from GitHub's own hooks reference (docs.github.com/copilot/
- * reference/hooks-reference): user settings are `~/.copilot/settings.json`
- * (`$COPILOT_HOME/settings.json` under the override) and the document is
+ * Settings are `~/.copilot/settings.json` (`$COPILOT_HOME/settings.json`),
+ * per docs.github.com/copilot/reference/hooks-reference:
  *
  *   { "version": 1, "hooks": { "<event>": [ { "type": "command", "command": … } ] } }
  *
- * — FLAT entries, like cursor's and unlike Claude's/Codex's nested groups, so
- * this adapter shares `../flat-hooks.ts` with cursor instead of extending
- * {@link import("../json-hook-adapter.ts").JsonHookAdapter}. The entry may
- * carry the command in `bash`/`powershell` (per-platform) or in `command`
- * (documented as the cross-platform fallback); Rove writes `command`, which is
- * the one form that needs no platform branch and that `isRoveHook` already
- * recognizes.
+ * Flat entries like cursor's, so this shares `../flat-hooks.ts` rather than
+ * {@link import("../json-hook-adapter.ts").JsonHookAdapter}. Rove writes
+ * `command` (the cross-platform fallback to `bash`/`powershell`): no platform
+ * branch, and `isRoveHook` already recognizes it.
  */
 
 import { existsSync } from "node:fs"
@@ -35,11 +24,8 @@ import type { HookEditOutcome, HookEventSpec, HookSettingsParse } from "../json-
 import { vendorConfigHome } from "../vendor-home.ts"
 
 /**
- * Copilot hook event → normalized Rove verb.
- *
- * PascalCase `SessionStart`, not the camelCase `sessionStart` the reference
- * lists first: copilot accepts both (PascalCase "for VS Code compatibility"),
- * and the camelCase spelling has a standing report of not firing
+ * Copilot hook event → normalized Rove verb. PascalCase: copilot accepts both
+ * spellings, and camelCase `sessionStart` is reported not to fire
  * (github/copilot-cli#1730).
  */
 export const COPILOT_HOOK_EVENT_MAP: readonly HookEventSpec[] = [{ event: "SessionStart", verb: "session-start" }]
@@ -47,8 +33,7 @@ export const COPILOT_HOOK_EVENT_MAP: readonly HookEventSpec[] = [{ event: "Sessi
 /** Copilot keys the entry by `type` (command / http / prompt); Rove's is a command. */
 const COPILOT_FORMAT: FlatHookFormat = { vendor: "copilot", eventMap: COPILOT_HOOK_EVENT_MAP, withType: true }
 
-/** Copilot's user-level settings file. `COPILOT_HOME` is copilot's own
- *  override and is already derived once in `../vendor-home.ts`. */
+/** Copilot's user-level settings file (honors `COPILOT_HOME`). */
 export function copilotSettingsPath(): string {
   return join(vendorConfigHome("copilot"), "settings.json")
 }
@@ -79,9 +64,7 @@ export class CopilotHookAdapter implements EngineHookAdapter {
     return undefined
   }
 
-  /** Copilot spells the id `session_id`, with a `sessionId` camelCase variant
-   *  on some events — both are read, in that order, and the adapter gives up
-   *  rather than guessing when neither is a non-empty string. */
+  /** `session_id`, else the `sessionId` variant some events use; neither → no guess. */
   sessionFromPayload(payload: Record<string, unknown>): EngineSessionRef | undefined {
     const sessionId = firstString(payload.session_id, payload.sessionId)
     if (!sessionId) return undefined
@@ -90,10 +73,8 @@ export class CopilotHookAdapter implements EngineHookAdapter {
   }
 
   async installActivityHooks(settingsFilePath: string, opts: { quiet?: boolean } = {}): Promise<HookEditOutcome> {
-    // No `~/.copilot` means copilot CLI was never installed here. Creating the
-    // directory would leave a config tree for a CLI that will never read it,
-    // and reporting a refusal would print on every launch of every machine
-    // without copilot. Same call cursor, Kimi and pi make: nothing is missing.
+    // No `~/.copilot` = no copilot: don't create it, and don't report a
+    // refusal (it would print on every launch of every machine without copilot).
     if (!existsSync(dirname(settingsFilePath))) return { ok: true }
     const outcome = await editJsonSettings(settingsFilePath, (cur) => mergeCopilotHooks(cur, true), parseFlatHooks)
     if (!outcome.ok && !opts.quiet) {

@@ -1,14 +1,7 @@
 /**
- * The process's one {@link MachineHub}, and the hooks that read it.
- *
- * A module-level singleton, like `getDefaultPtyRegistry()`: the hub is a
- * process-lifetime resource created during boot, and threading it as a prop
- * would mean widening every component between the workspace root and the
- * sidebar for something none of them use.
- *
- * Absent by default. Every read below answers "no machines" when nothing has
- * been set, so a pane host, a test render and any process that never boots the
- * workspace behave exactly as they did before machines existed.
+ * The process's one {@link MachineHub} — a module singleton so it isn't threaded
+ * through every component to the sidebar. Absent by default: every read then
+ * answers "no machines" (pane hosts, test renders).
  */
 
 import { useSyncExternalStore } from "react"
@@ -25,11 +18,7 @@ export function setMachineHub(next: MachineHub | null): void {
 
 const NO_MACHINES: readonly MachineLayerEntry[] = []
 
-/**
- * The task list to render: the hub's merged one when machines are registered,
- * the orchestrator's own signal otherwise — the SAME cell, so nothing
- * downstream can tell the hub exists.
- */
+/** Without a hub, the orchestrator's own signal (same cell). */
 export function useMergedTasks(orchestrator: RemoteOrchestrator): readonly Task[] {
   const state = hub ? hub.tasksSignal() : orchestrator.tasksSignal()
   return useSyncExternalStore(state.subscribe, state.get, state.get)

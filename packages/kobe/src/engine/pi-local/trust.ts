@@ -7,17 +7,13 @@
  *   This allows pi to load .pi settings and resources, …
  *   → Trust / Trust parent folder / Trust (this session only) / Do not trust …
  *
- * Captured from pi 0.80.6 on 2026-09-11. A hosted Rove session has nobody to
- * answer it, so the tab sits on the dialog instead of starting the turn — and
- * the trigger is not exotic: any repo shipping `.agents/skills/` (kobe does)
- * stops every Rove worktree of it.
+ * (pi 0.80.6). Nobody answers it in a hosted session, and any repo shipping
+ * `.agents/skills/` (kobe does) triggers it.
  *
- * The store is `<agentDir>/trust.json`, a flat map of canonical path →
- * boolean, and pi resolves a cwd by walking ANCESTORS until it finds an entry.
- * So one record for the worktree covers it.
+ * The store is `<agentDir>/trust.json`, canonical path → boolean; pi walks a
+ * cwd's ANCESTORS for an entry, so one record covers the worktree.
  *
- * `omp` has no such gate (verified: a session in a never-seen directory starts
- * straight into the composer), which is why only pi declares a trust writer.
+ * `omp` has no such gate (verified in a never-seen directory).
  */
 
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
@@ -40,10 +36,8 @@ function piTrustPath(deps?: VendorHomeDeps): string {
 }
 
 /**
- * Pre-trust `worktreePath` for pi. Merge-preserving and idempotent: an
- * existing store keeps every other decision it holds, and a store Rove cannot
- * parse is left untouched rather than replaced. Never throws — a Rove worktree
- * that fails to pre-trust simply shows the dialog it would have shown anyway.
+ * Pre-trust `worktreePath` for pi. Merge-preserving and idempotent; an
+ * unparseable store is left untouched. Never throws.
  */
 export function trustPiWorktree(worktreePath: string, deps?: VendorHomeDeps): void {
   const file = piTrustPath(deps)

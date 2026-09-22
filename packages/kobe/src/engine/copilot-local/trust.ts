@@ -1,12 +1,9 @@
 /**
- * Copilot CLI workspace trust. Copilot gates a first launch in a never-seen
- * directory behind a "Confirm folder trust" dialog whose cursor sits on
- * "1. Yes" — session-only, so it comes back every launch — with
- * "2. Yes, and remember this folder for future sessions" one row below. A
- * hosted session can answer neither, so a Rove worktree without pre-trust sits
- * at the dialog. Rove created that worktree from a repo the user already runs
- * sessions in; pre-accepting is the same trust domain and the only
- * headless-viable answer, exactly as for claude/codex/kimi.
+ * Copilot CLI workspace trust. A first launch in a new directory shows a
+ * "Confirm folder trust" dialog (cursor on session-only "1. Yes"; "2. Yes, and
+ * remember this folder" below) that a hosted session can't answer. The
+ * worktree comes from a repo the user already runs sessions in, so
+ * pre-accepting is the same trust domain — as for claude/codex/kimi.
  *
  * The store is `<COPILOT_HOME>/config.json` (default `~/.copilot/config.json`)
  * → `trustedFolders`, an array of absolute paths. Verified against Copilot CLI
@@ -15,14 +12,12 @@
  *
  * Two wrinkles the siblings do not have:
  *
- *   - The file is JSONC. Copilot writes a two-line `//` header ("User settings
- *     belong in settings.json. / This file is managed automatically."), so a
- *     plain `JSON.parse` throws on a config copilot itself wrote. The header is
- *     stripped to parse and replayed verbatim on write, so the note copilot
- *     puts there for the user survives our merge.
- *   - Copilot rewrites the whole document on its own saves, which is the same
- *     race `~/.claude.json` has — hence `updateSharedJsonSync`. Read that
- *     module's doc before changing this write.
+ *   - The file is JSONC: copilot writes a two-line `//` header ("User settings
+ *     belong in settings.json. / This file is managed automatically."), so
+ *     `JSON.parse` throws. The header is stripped to parse and replayed
+ *     verbatim on write.
+ *   - Copilot rewrites the whole document on its own saves (the `~/.claude.json`
+ *     race) — hence `updateSharedJsonSync`; read its doc before changing this.
  */
 
 import { homedir } from "node:os"
@@ -40,9 +35,8 @@ function splitJsoncHeader(raw: string): { header: string; body: string } {
 }
 
 export function trustCopilotWorktree(worktreePath: string, home: string = homedir()): void {
-  // Carried from load to build so the JSON we emit stays JSONC-shaped the way
-  // copilot wrote it. Per call, not module-level: a retry re-runs load first,
-  // so the header always matches the bytes this attempt is merging onto.
+  // Per call, not module-level: a retry re-runs load, so the header always
+  // matches the bytes this attempt merges onto.
   let carriedHeader = ""
   updateSharedJsonSync(
     copilotConfigPath((name) => process.env[name], home),
@@ -54,9 +48,8 @@ export function trustCopilotWorktree(worktreePath: string, home: string = homedi
       try {
         return JSON.parse(body) as Record<string, unknown>
       } catch {
-        // Corrupt — start from an empty doc, as claude's trust does. Copilot
-        // rewrites this file wholesale on every save, so it recovers the same
-        // way.
+        // Corrupt — start empty, as claude's trust does; copilot rewrites the
+        // file wholesale on every save anyway.
         return {}
       }
     },

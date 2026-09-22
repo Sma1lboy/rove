@@ -1,26 +1,14 @@
 /**
- * Which interactive engine CLI to launch in a task's hosted PTY.
+ * Which interactive engine CLI (not the headless path, e.g. not `codex
+ * exec`) to launch in a task's hosted PTY. Defaults live on the registry's
+ * `defaultCommand`; this layers the user's per-vendor override on top, and
+ * every launch site goes through it.
  *
- * The "middle" pane of a task session runs a vendor's *interactive* CLI
- * (the same binary a human would run in a terminal) — not the headless
- * path. The vendor → default-argv mapping itself lives on the engine
- * registry (`registry.ts` `defaultCommand`); this module layers the
- * user's per-vendor override on top. Every launch site (the outer
- * monitor's Handover and the Tasks-pane switch) goes through this.
- *
- * Codex's bare `codex` (no subcommand) opens its interactive TUI, the
- * same way bare `claude` does — `codex exec` is the headless path we
- * deliberately don't use here.
- *
- * Per-vendor OVERRIDE: the launch command is configurable in
- * Settings → Engines, so a user whose binary isn't on PATH as `claude`
- * (e.g. it's `cl`) or who wants default flags (`claude --model …`) can
- * set their own. The override is a shell-ish command STRING persisted in
- * the shared `state.json` under {@link engineCommandKey}; we read it with
- * the cross-process {@link getPersistedString} (the Tasks-pane runs in
- * its own process, so it can't share the TUI's reactive KV — both read
- * the same file instead). Empty / unset →
- * the built-in default.
+ * The override (Settings → Engines) is a shell-ish command STRING in the
+ * shared `state.json` under {@link engineCommandKey}, read via the
+ * cross-process {@link getPersistedString} because the Tasks pane runs in
+ * its own process and can't share the TUI's reactive KV. Empty/unset → the
+ * built-in default.
  */
 
 import { roveCliInvocation } from "@/cli/invocation"
@@ -35,21 +23,17 @@ export function engineCommandKey(vendor: VendorId): string {
 }
 
 /**
- * state.json key holding a vendor's custom DISPLAY-NAME override.
- * Parallel to {@link engineCommandKey}; an empty/unset value means "use the
- * engine registry's display name", so resetting an engine to default is just
- * clearing both keys — no sentinel value.
+ * state.json key holding a vendor's DISPLAY-NAME override. Empty/unset → the
+ * registry's display name, so resetting an engine is clearing both keys.
  */
 export function engineNameKey(vendor: VendorId): string {
   return `engineName.${vendor}`
 }
 
 /**
- * Display name for an engine id, resolved cross-process from the shared
- * state.json: the user's custom name override (`engineName.<id>`) when set,
- * else the built-in {@link VENDOR_LABEL}, else the id itself (a custom
- * engine with no name set). Used where the reactive settings kv isn't
- * available — e.g. the quick-task composer's engine chips.
+ * Display name for an engine id, read cross-process from state.json (for
+ * places without the reactive settings kv): the `engineName.<id>` override,
+ * else the registry's display name.
  */
 export function engineDisplayName(vendor: VendorId): string {
   const override = getPersistedString(engineNameKey(vendor))?.trim()
@@ -59,15 +43,11 @@ export function engineDisplayName(vendor: VendorId): string {
 }
 
 /**
- * Turn a custom-engine slug into a presentable display name: split on
- * `-`/`_` and title-case each word. `my-local-agent` → `My Local Agent`.
- * Used so a custom engine added with no name still reads like the
- * title-cased built-ins instead of its raw lowercase-hyphenated id.
+ * `my-local-agent` → `My Local Agent`, for a custom engine added with no name.
  *
- * Deliberately a PURE string transform, unlike {@link engineDisplayName}: this
- * is the fallback written INTO `engineName.<id>` when the user typed no name,
- * so consulting the override here would overwrite a user-typed name with the
- * title-cased slug on the next write.
+ * PURE, unlike {@link engineDisplayName}: this is the fallback written INTO
+ * `engineName.<id>`, so consulting the override would clobber a user-typed
+ * name on the next write.
  */
 export function humanizeSlug(id: string): string {
   return id
@@ -78,28 +58,21 @@ export function humanizeSlug(id: string): string {
 }
 
 /**
- * Built-in default launch argv for a vendor (undefined → claude), read
- * from the engine registry. A custom engine id has no built-in default —
- * its command lives in the `engineCommand.<id>` override the user set when
- * adding it, which {@link interactiveEngineCommand} reads first; the
- * registry's custom entry only fires if that override is somehow empty, in
- * which case we run a bare binary named after the id rather than silently
- * launching claude.
+ * Built-in default launch argv (undefined → claude). A custom engine's
+ * command is its `engineCommand.<id>` override, read first by
+ * {@link interactiveEngineCommand}; if that is empty the registry runs a bare
+ * binary named after the id rather than silently launching claude.
  */
 export function defaultEngineCommand(vendor: VendorId | undefined): readonly string[] {
   return engineEntry(coerceVendorId(vendor)).defaultCommand
 }
 
 /**
- * Split a command string into argv, honouring single/double quotes so a
- * flag value with a space survives — in BOTH the separated form
- * (`claude --append-system-prompt "be terse"`) and the attached form
- * (`claude --append-system-prompt="be terse"`, the common CLI idiom).
- * Whitespace-separated otherwise. A quote may open anywhere in a token and
- * its content concatenates with the surrounding unquoted text, matching a
- * shell's word-splitting; the other quote kind is literal inside a quoted
- * span (`--x='a "b" c'` → `--x=a "b" c`). An unterminated quote runs to the
- * end of the string. Pure, total, never throws. Returns `[]` for blank input.
+ * Split a command string into argv with shell-like quoting: a quote may open
+ * anywhere in a token (`--x="be terse"` and `--x "be terse"` both work) and
+ * concatenates with adjacent text; the other quote kind is literal inside
+ * (`--x='a "b" c'` → `--x=a "b" c`); an unterminated quote runs to the end.
+ * Total, never throws; `[]` for blank input.
  */
 export function parseEngineCommand(command: string): string[] {
   const out: string[] = []
@@ -160,22 +133,15 @@ export function withEngineTerminalTitle(argv: readonly string[], vendor: VendorI
 }
 
 /**
- * Apply the engine's own reasoning/effort argv when `effort` is set AND valid
- * for it (per the registry's {@link EngineRegistryEntry.effortLevels}). Both
- * halves are DECLARED by the adapter: the levels it accepts and the argv that
- * carries one ({@link EngineRegistryEntry.effortArgv}). An unknown level is
- * dropped rather than passed through — a bogus value makes the engine refuse
- * to launch.
+ * Apply the engine's adapter-declared effort argv
+ * ({@link EngineRegistryEntry.effortArgv}) when `effort` is one of its
+ * {@link EngineRegistryEntry.effortLevels}. An unknown level is dropped: a
+ * bogus value makes the engine refuse to launch. Never key this off a literal
+ * vendor id, or a declared level passes every picker and is silently dropped
+ * at launch.
  *
- * Keying the argv off a literal vendor id instead would let an engine that
- * declares `effortLevels` have its level accepted by the gate, shown in the
- * TUI and web pickers, threaded through `/api/engines`, and then silently
- * dropped at launch — the user picks "high" and gets the default, with no
- * error.
- *
- * `vendor` must already be PROTOCOL-RESOLVED by the caller (both call sites
- * do): a preset `mycodex` declaring the codex protocol is a codex launch and
- * takes codex's effort argv.
+ * `vendor` must be PROTOCOL-RESOLVED by the caller: a preset `mycodex` on the
+ * codex protocol takes codex's effort argv.
  */
 export function withEngineEffort(
   argv: readonly string[],
@@ -190,14 +156,11 @@ export function withEngineEffort(
 }
 
 /**
- * Apply the engine's own model argv when `model` is set — the model twin of
- * {@link withEngineEffort}, minus the closed-set check: a model is a free
- * string (pi takes a fuzzy pattern, claude a full id its alias list never
- * spells), so the only thing to validate is that the engine declares a flag
- * at all, and the gates (`assertEngineAcceptsModel`) do that before a record
- * ever carries one. Here an engine without {@link EngineRegistryEntry.modelArgv}
- * drops the model rather than guessing a flag — the same contract effort has.
- * `vendor` must already be PROTOCOL-RESOLVED, as for effort.
+ * Model twin of {@link withEngineEffort}, minus the closed-set check: a model
+ * is a free string (pi takes a fuzzy pattern). `assertEngineAcceptsModel`
+ * gates records upstream; here an engine without
+ * {@link EngineRegistryEntry.modelArgv} drops the model rather than guessing a
+ * flag. `vendor` must be PROTOCOL-RESOLVED.
  */
 export function withEngineModel(
   argv: readonly string[],
@@ -209,17 +172,13 @@ export function withEngineModel(
   return engineEntry(coerceVendorId(vendor)).modelArgv?.(argv, trimmed) ?? argv
 }
 
-// `argvHasFlag` lives in `../cli/argv.ts` (neutral, no engine import) so the
-// CLI value-flag parsers share it; re-exported here for the engine callers.
 export { argvHasFlag } from "../cli/argv.ts"
 
 /**
- * Shell-ready `… api` command prefix for protocol prompts. Packaged builds
- * bake plain `kobe api`; a source checkout bakes the dev invocation
- * (`bun --preload … src/cli/kobe.ts api`) — the same {@link
- * roveCliInvocation} every kobe-owned pane uses. Without this, a protocol
- * agent in a dev sandbox resolves `kobe` to whatever STALE global install
- * is on PATH, and any verb newer than that install dies with BAD_VERB.
+ * Shell-ready `… api` prefix for protocol prompts, from {@link
+ * roveCliInvocation}: packaged builds bake the bare CLI name, a source
+ * checkout the dev entry. Otherwise a dev-sandbox agent would hit a STALE
+ * global install on PATH and newer verbs would die with BAD_VERB.
  */
 export function kobeApiInvocation(): string {
   const quote = (a: string): string => (/^[A-Za-z0-9_/.:=-]+$/.test(a) ? a : `'${a.replace(/'/g, "'\\''")}'`)
@@ -233,14 +192,10 @@ export function kobeApiInvocation(): string {
 }
 
 /**
- * The system-prompt PROTOCOLS (`statusReportProtocol` / `noteFilingProtocol` /
- * `noteRecallProtocol` / `worktreeProtocol` / `dispatcherProtocol` and their
- * `with*` injectors) live in `./worktree-protocol.ts`, not here. They resolve
- * a launch's protocol through `sessionProtocol()` in `engine-presets.ts`, and
- * that module imports THIS one, so resolving a protocol here would close an
- * import cycle. Keeping the block one file over also keeps both files under
- * the size cap.
+ * The system-prompt protocols live in `./worktree-protocol.ts`: they resolve
+ * through `sessionProtocol()` in `engine-presets.ts`, which imports THIS
+ * module, so putting them here would close an import cycle.
  *
- * Anything that gates on "is this launch a claude launch" belongs behind
+ * Anything gating on "is this a claude launch" belongs behind
  * `sessionProtocol()`, never a literal id compare.
  */

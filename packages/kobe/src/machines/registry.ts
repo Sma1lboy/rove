@@ -2,17 +2,14 @@
  * The machine registry: what `rove machine add|remove|list` persists, and the
  * one place that parses an SSH target string.
  *
- * A "machine" is another computer running its own Rove daemon. Rove reaches it
- * by forwarding that daemon's unix socket over SSH — no TCP listener, no
- * auth protocol of Rove's own (`docs/MACHINES.md`). So everything stored here
- * is addressing plus the same `RemoteAuthConfig` shape `remoteRepos` already
- * uses: a key path, or a keychain POINTER. A password never lands in
- * state.json.
+ * A "machine" is another computer running its own Rove daemon, reached by
+ * forwarding its unix socket over SSH — no TCP listener, no auth protocol of
+ * Rove's own (`docs/MACHINES.md`). Stored: addressing plus `RemoteAuthConfig`
+ * (a key path or a keychain POINTER). A password never lands in state.json.
  *
- * Distinct from `state/remote-repos.ts`, which registers a remote PROJECT for
- * the experimental `rove add --remote` path — that one assumes the far side
- * has no Rove and drives git over SSH itself. This module assumes the far side
- * runs Rove and speaks the daemon protocol.
+ * Unlike `state/remote-repos.ts` (`rove add --remote`, far side has no Rove,
+ * git over SSH), this assumes the far side runs Rove and speaks the daemon
+ * protocol.
  *
  * Imports `store.ts` only (same cycle rule as `remote-repos.ts`).
  */
@@ -37,9 +34,8 @@ export interface MachineConfig {
    */
   readonly identity?: MachineIdentity
   /**
-   * The remote socket paths, as that machine last reported them. Cached so a
-   * reconnect does not need a second SSH round-trip before it can forward
-   * anything — never derived locally (see `discover.ts`).
+   * The remote socket paths as that machine last reported them, cached to skip
+   * an SSH round-trip on reconnect. Never derived locally (see `discover.ts`).
    */
   readonly sockets?: { readonly daemon: string; readonly pty: string }
   /** ISO timestamp of registration, for `machine list` ordering. */
@@ -47,10 +43,9 @@ export interface MachineConfig {
 }
 
 /**
- * What makes two aliases the SAME machine. All three must match: a hostname
- * alone repeats across cloned VMs, a homeDir alone repeats across every mac,
- * and a pid alone recycles. Together they name one running daemon serving one
- * state root on one host, which is exactly the thing a machine row stands for.
+ * What makes two aliases the SAME machine. All three must match: hostnames
+ * repeat across cloned VMs, homeDirs across macs, and pids recycle. Together
+ * they name one daemon serving one state root on one host.
  */
 export interface MachineIdentity {
   readonly hostname: string
@@ -68,11 +63,8 @@ export function isValidMachineAlias(alias: string): boolean {
 }
 
 /**
- * Parse `[user@]host[:port]` as `rove machine add` accepts it.
- *
- * A bare `host` is the intended shape: it lets ssh_config own the user, the
- * port and the identity file, which is what makes `rove machine add narwhal`
- * work off an existing `Host narwhal` block with nothing else configured.
+ * Parse `[user@]host[:port]` as `rove machine add` accepts it. A bare `host` is
+ * the intended shape, letting ssh_config own user, port and identity file.
  * Returns null for an empty or malformed target rather than guessing.
  */
 export function parseSshTarget(target: string): { host: string; user?: string; port?: number } | null {
@@ -82,11 +74,9 @@ export function parseSshTarget(target: string): { host: string; user?: string; p
   const user = at >= 0 ? trimmed.slice(0, at) : undefined
   const rest = at >= 0 ? trimmed.slice(at + 1) : trimmed
   if (at >= 0 && !user) return null
-  // Port parsing follows ssh's own rule rather than "split on the last colon":
-  // an IPv6 literal is colons all the way down, so `::1` would otherwise read
-  // as host `:` on port 1 — a silently WRONG target, which is worse than a
-  // refusal. So a bare address keeps every colon it has, and an IPv6 address
-  // that wants a port must be bracketed, exactly as `ssh [::1]:2222` requires.
+  // ssh's rule, not "split on the last colon" (which reads `::1` as host `:`
+  // port 1): a bare address keeps every colon; IPv6 with a port must be
+  // bracketed, as `ssh [::1]:2222` requires.
   const bracketed = /^\[([^\]]+)\](?::(\d{1,5}))?$/.exec(rest)
   const portMatch = bracketed ? null : /^([^:]*):(\d{1,5})$/.exec(rest)
   const host = bracketed ? (bracketed[1] ?? "") : portMatch ? (portMatch[1] ?? "") : rest
@@ -100,18 +90,15 @@ export function parseSshTarget(target: string): { host: string; user?: string; p
 /**
  * What to call a machine when the user did not pass `--alias`.
  *
- * A BARE host — `rove machine add narwhal`, no user, no port — is already a
- * name the user chose, almost always an `ssh_config` `Host` they picked
- * precisely because it is short. Replacing it with the machine's own hostname
- * overwrites a chosen name with one they never picked, and hostnames are long
- * enough to fill the sidebar rail (`Nahuels-Mac-mini.local`).
+ * A BARE host (`rove machine add narwhal`) is a name the user chose, usually a
+ * short `ssh_config` `Host`; keep it rather than a long hostname that fills the
+ * sidebar rail (`Nahuels-Mac-mini.local`).
  *
- * Anything else is addressing rather than a name — `user@host`, an explicit
- * port, a bare IP — so the remote hostname is the better answer there, and an
- * IP would in any case survive {@link sanitizeAlias} as its first octet.
+ * Anything else (`user@host`, explicit port, bare IP) is addressing, so the
+ * remote hostname wins — an IP would survive {@link sanitizeAlias} only as its
+ * first octet.
  *
- * Pure: `remoteHostname` is passed in, because it is only knowable after the
- * probe.
+ * Pure: `remoteHostname` is passed in, known only after the probe.
  */
 export function defaultMachineAlias(args: {
   readonly typedHost: string
@@ -211,11 +198,8 @@ export function removeMachine(alias: string): boolean {
  * Registered machines with the duplicates dropped: when two aliases name one
  * machine, the FIRST in stored order survives.
  *
- * One rule, shared by the sidebar and by `rove api list`, because the two
- * disagreeing is exactly the bug it exists to prevent — a machine that renders
- * as one row while the CLI lists its tasks twice. An entry that has never
- * connected has no identity to compare and is always kept: it may turn out to
- * be a machine of its own.
+ * Shared by the sidebar and `rove api list` so they never disagree (one row vs
+ * tasks listed twice). A never-connected entry has no identity and is always kept.
  */
 export function dedupeMachines(entries: readonly MachineEntry[]): MachineEntry[] {
   const kept: MachineEntry[] = []
@@ -238,11 +222,8 @@ function sameMachine(a: MachineIdentity, b: MachineIdentity): boolean {
 
 /**
  * The already-registered alias that names the SAME machine as `identity`, or
- * null. `self` is excluded so re-connecting an alias never reports itself as
- * its own duplicate.
- *
- * Pure over an explicit map so the merge rule is unit-testable without a state
- * file.
+ * null. `self` is excluded so an alias is never its own duplicate. Pure over an
+ * explicit map for unit tests.
  */
 export function duplicateAliasOf(
   machines: Readonly<Record<string, MachineConfig>>,

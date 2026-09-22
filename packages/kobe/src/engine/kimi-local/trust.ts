@@ -1,16 +1,13 @@
 /**
- * Kimi Code workspace trust. Kimi shows a "Trust this folder?" dialog on
- * first launch in a directory, and a hosted session has no one to answer it:
- * the pane sits on the dialog instead of starting the turn. (Which option the
- * cursor rests on is version-specific — 0.39.1 defaulted to "Don't trust", so
- * a pasted first message's submit Enter exited the engine; 0.40.1 defaults to
- * "Trust this folder". Don't rely on either.) Pre-writing the record is what
- * skips the dialog outright, and a Rove-created worktree is the same trust
- * domain as the repo the user already runs sessions in.
+ * Kimi Code workspace trust. Kimi's first-launch "Trust this folder?" dialog
+ * has no one to answer it in a hosted session. The default option is
+ * version-specific (0.39.1 "Don't trust", so the first message's Enter exited
+ * the engine; 0.40.1 "Trust") — pre-writing the record skips the dialog. A
+ * Rove worktree is the same trust domain as its repo.
  *
- * The store is one file per workspace:
- * `~/.kimi-code/workspace-trust/wd_<dirname>_<sha256(path)[:12]>` containing
- * {"root": <path>, "trustedAt": <ms epoch>}.
+ * One file per workspace:
+ * `~/.kimi-code/workspace-trust/wd_<lowercased basename>_<sha256(realpath)[:12]>`
+ * containing {"root": <realpath>, "trustedAt": <ms epoch>}.
  */
 
 import { createHash } from "node:crypto"
@@ -19,15 +16,10 @@ import path from "node:path"
 import { vendorConfigHome, vendorWriteHomeDeps } from "../vendor-home.ts"
 
 /**
- * Reproduce kimi's own filename for a workspace. Two details are load-bearing,
- * both read off records kimi wrote itself (0.40.1, 2026-09-04): it hashes the
- * RESOLVED path, and it LOWERCASES the basename segment. For a worktree at
- * `/tmp/x-B` (macOS `/tmp` is a symlink to `/private/tmp`) kimi writes
- * `wd_x-b_<sha256("/private/tmp/x-B")[:12]>` — a record keyed on the literal
- * path suppresses no dialog at all.
- *
- * `realpathSync` throws on a path that isn't there yet; fall back to the given
- * one so this stays a pure function the caller can test.
+ * Kimi hashes the RESOLVED path and LOWERCASES the basename (read off records
+ * kimi 0.40.1 wrote): `/tmp/x-B` on macOS → `wd_x-b_<sha256("/private/tmp/x-B")[:12]>`.
+ * A record keyed on the literal path suppresses nothing. Falls back to the
+ * given path when it doesn't exist yet.
  */
 function resolvedWorktree(worktreePath: string): string {
   try {
@@ -47,8 +39,7 @@ export function kimiTrustFilePath(worktreePath: string, home?: string): string {
 export function trustKimiWorktree(worktreePath: string, home?: string): void {
   const file = kimiTrustFilePath(worktreePath, home)
   mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
-  // `root` carries the resolved path too, so the record is shaped exactly like
-  // one kimi writes for itself rather than only being FILED where kimi looks.
+  // `root` is resolved too, matching the records kimi writes itself.
   try {
     writeFileSync(file, JSON.stringify({ root: resolvedWorktree(worktreePath), trustedAt: Date.now() }), {
       mode: 0o600,

@@ -1,10 +1,8 @@
 /**
- * JSON read/merge/write transactions for configuration shared with engines.
- * The existing Rove lock serializes cooperating processes. A byte reread before
- * staging-file rename retries changes from engine writers that ignore our lock.
- * The reread/rename window is still a race; vendor cooperation would be needed
- * to close it. Lock format and the current Rove state-home override are shared
- * with the orchestrator's existing lock implementation.
+ * JSON read/merge/write transactions for config shared with engines. The Rove
+ * lock serializes cooperating processes; a byte reread before the staging
+ * rename retries on engine writers that ignore it. The reread/rename window
+ * is still a race only vendor cooperation could close.
  */
 
 import { createHash, randomBytes } from "node:crypto"
@@ -20,32 +18,25 @@ import { readTextFileIfRegular, readTextFileIfRegularSync } from "./file-bounds.
 export const MAX_SHARED_CONFIG_BYTES = 8 * 1024 * 1024
 
 /**
- * Staging path, unique per CALL rather than per process. A shared `<file>.tmp`
- * — or a pid-only one, the moment a caller gains an `await` — lets a second
- * writer clobber the first's staging file and fail the survivor's rename with
- * ENOENT. The task index (`orchestrator/index/store.ts`) stages the same way
- * for the same reason.
+ * Staging path unique per CALL: a shared or pid-only name lets a second
+ * writer clobber the first's staging file and fail its rename with ENOENT.
  */
 function stagingPath(file: string): string {
   return `${file}.rove-${process.pid}-${randomBytes(6).toString("hex")}.tmp`
 }
 
 /**
- * Lock file for `file`, flat in Rove's own state dir beside `tasks.json.lock` —
- * these targets live in the ENGINE's home (`~/.claude.json`,
- * `~/.claude/settings.json`) and we do not scatter Rove sidecars there. Keyed by
- * a hash of the absolute path so two targets never share a lock and the name
- * stays filesystem-safe.
+ * Lock for `file`, in Rove's state dir: targets live in the ENGINE's home and
+ * we scatter no sidecars there. Keyed by a path hash so targets never share a
+ * lock and the name stays filesystem-safe.
  */
 function sharedConfigLockPath(file: string): string {
   return join(roveStateDir(), `shared-config-${createHash("sha256").update(file).digest("hex").slice(0, 16)}.lock`)
 }
 
 /**
- * Attempts before giving up. Each retry means a real concurrent write landed;
- * more than a handful in a row means the file is under sustained rewrite and
- * blocking a launch any longer is worse than surfacing to the caller (both
- * callers treat a throw as best-effort and continue).
+ * Each retry means a real concurrent write landed; beyond this, blocking a
+ * launch is worse than throwing (callers treat a throw as best-effort).
  */
 const MAX_ATTEMPTS = 5
 

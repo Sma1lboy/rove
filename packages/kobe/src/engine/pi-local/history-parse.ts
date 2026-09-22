@@ -1,21 +1,13 @@
 /**
- * pi-family session JSONL → `Message[]`.
+ * pi-family session JSONL → `Message[]`. The format is versioned and
+ * append-only (`docs/session-format.md` in the installed package); only
+ * `message` records carry conversation.
  *
- * The on-disk format is documented as versioned and append-only
- * (`docs/session-format.md` in the installed package): one JSON object per
- * line, `type` discriminating the record. Only `message` records carry
- * conversation; `title`, `model_change`, `thinking_level_change` and `custom`
- * records are metadata Rove reads elsewhere or not at all.
+ * The `id`/`parentId` tree is deliberately NOT walked: readers want FILE
+ * order, which is the order the session happened.
  *
- * The tree structure (`id`/`parentId`) is deliberately NOT walked: every
- * reader of this module wants the linear transcript in FILE order, which is
- * the order the session actually happened — the same choice claude's reader
- * makes for its own branched store.
- *
- * Parsing reuses the append-aware cache (`../history-cache.ts`) because
- * `readHistory` is polled (~2.5s) and a long session is tens of MB of JSONL —
- * re-parsing the unchanged prefix every tick was exactly what that cache
- * exists to prevent.
+ * Uses the append-aware cache: `readHistory` polls every ~2.5s and a long
+ * session is tens of MB.
  */
 
 import type { ContentBlock } from "@/types/content"
@@ -24,10 +16,8 @@ import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
 import { normalizePiContent } from "./normalize"
 
-/** Roles pi persists that belong in a transcript. `toolResult` is folded into
- *  the assistant side (it is part of the model's tool loop, not a user turn),
- *  and pi's synthetic roles (`custom`, `hookMessage`, `bashExecution`) are
- *  dropped: they are extension state, not conversation. */
+/** `toolResult` is part of the model's tool loop, so assistant-side; synthetic
+ *  roles (`custom`, `hookMessage`, `bashExecution`) are extension state, dropped. */
 const ROLE_MAP: Readonly<Record<string, Message["role"]>> = {
   user: "user",
   assistant: "assistant",
@@ -47,13 +37,12 @@ const cache = createAppendParseCache<PiParseState, string>({
   parseChunk: foldChunk,
 })
 
-/** Cached parse of a session file's full current contents. */
 export function parsePiSessionRaw(filePath: string, raw: string, sessionId: string): EngineHistory {
   const state = cache(filePath, raw, sessionId)
   return { messages: sortByTimestamp(state.messages), ...(state.usage ? { usageMetrics: state.usage } : {}) }
 }
 
-/** Uncached message-only parse. Exported for unit testing. */
+/** Uncached; exported for tests. */
 export function parsePiSessionJsonl(raw: string, sessionId: string): readonly Message[] {
   return sortByTimestamp(foldChunk(raw, emptyState, sessionId).messages)
 }
@@ -80,10 +69,8 @@ function foldChunk(chunk: string, prev: PiParseState, sessionId: string): PiPars
     const role = typeof m.role === "string" ? ROLE_MAP[m.role] : undefined
     if (!role) continue
 
-    // A tool result is its own MESSAGE in this format (role `toolResult`,
-    // with the call id and the error flag OUTSIDE the content array), so it
-    // becomes one neutral `tool_result` block whose output is the whole
-    // content — the shape the chat renderer pairs with its `tool_call`.
+    // A tool result is its own MESSAGE here (call id and error flag OUTSIDE
+    // the content array) → one `tool_result` block carrying the whole content.
     const blocks: ContentBlock[] =
       m.role === "toolResult"
         ? [
@@ -112,20 +99,14 @@ function foldChunk(chunk: string, prev: PiParseState, sessionId: string): PiPars
   return messages ? { messages, usage } : { messages: prev.messages, usage }
 }
 
-/** ISO-8601, which is what the neutral shape carries. The record's own
- *  `timestamp` is ISO; the message's is epoch ms. */
+/** The record's `timestamp` is ISO; the message's is epoch ms. */
 function timestampOf(entry: Record<string, unknown>, message: Record<string, unknown>): string {
   if (typeof entry.timestamp === "string") return entry.timestamp
   const ms = typeof message.timestamp === "number" ? message.timestamp : undefined
   return ms === undefined ? new Date(0).toISOString() : new Date(ms).toISOString()
 }
 
-/**
- * Per-message token usage, in the neutral shape the cost dashboard reads. pi
- * families report Anthropic-style counters on the assistant message; a
- * provider that reports none yields `undefined` ("not reported"), never a
- * zeroed snapshot.
- */
+/** A provider reporting no counters yields `undefined` ("not reported"), never zeros. */
 function usageFromMessage(message: Record<string, unknown>): EngineUsageSnapshot | undefined {
   const usage = message.usage
   if (!usage || typeof usage !== "object") return undefined

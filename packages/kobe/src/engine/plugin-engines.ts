@@ -1,15 +1,9 @@
 /**
  * Load `[[engines]]` from enabled plugin manifests into the contrib-engine
- * table — the plugin half of the engine seam. Read-only over the plugin
- * registry (the daemon's plugins.json) + each enabled plugin's manifest;
- * translation is manifest `PluginEngine` → `ContribEngineSpec` (the same
- * data shape the shipped catalog uses, so everything downstream — selector
- * gating, launch, screen badges, display names — is already wired).
- *
- * Called at process start (TUI boot, next to hook install) and again from
- * the Settings → Plugins toggle so enabling/disabling an engine plugin
- * takes effect without a restart. Best-effort by contract: a broken plugin
- * manifest must never block a launch — it just contributes no engine.
+ * table, as `ContribEngineSpec` (the shipped catalog's shape, so everything
+ * downstream is already wired). Read-only over the plugin registry and
+ * manifests. Best-effort: a broken manifest contributes no engine, never
+ * blocks a launch.
  */
 
 import { readPluginManifest } from "@sma1lboy/kobe-daemon/plugins/manifest"
@@ -18,11 +12,7 @@ import { getCustomEngineIds } from "../state/repos.ts"
 import { resetAvailableVendorsCache } from "./account-detect.ts"
 import { CONTRIB_ENGINE_IDS, clearPluginEngines, registerPluginEngine } from "./contrib-engines.ts"
 
-/**
- * Load engines from every enabled plugin. Returns the registered ids.
- * `homeDir` is a test seam (a throwaway plugin registry); production reads
- * the user's registry.
- */
+/** Load engines from every enabled plugin; returns the registered ids. */
 export function loadPluginEngines(homeDir?: string): readonly string[] {
   const registered: string[] = []
   try {
@@ -31,8 +21,6 @@ export function loadPluginEngines(homeDir?: string): readonly string[] {
       try {
         const { manifest } = readPluginManifest(entry.root)
         for (const engine of manifest.engines) {
-          // shortName falls back to the engine's display name — a plugin
-          // declaring nothing still gets a sensible label.
           const identity = {
             shortName: engine.identity?.shortName ?? engine.name,
           }
@@ -47,8 +35,7 @@ export function loadPluginEngines(homeDir?: string): readonly string[] {
           if (ok) {
             registered.push(engine.id)
           } else {
-            // Without this the engine vanishes with no trace — the user sees
-            // the shipped engine of the same name and thinks the plugin works.
+            // Otherwise the shipped engine of the same name masks the plugin silently.
             console.warn(
               `[rove] plugin ${entry.id}: engine id \`${engine.id}\` shadows a built-in or shipped engine — skipped`,
             )
@@ -66,10 +53,8 @@ export function loadPluginEngines(homeDir?: string): readonly string[] {
 
 /**
  * Re-read plugin engines after the registry changed under a running TUI
- * (the Settings → Plugins toggle). The contrib table and the selector's
- * binary-discovery memo are both per-process state, so a stale entry would
- * otherwise survive until restart — in BOTH directions (newly enabled
- * engines missing, newly disabled ones still offered).
+ * (Settings → Plugins). The contrib table and the binary-discovery memo are
+ * per-process, so stale entries would otherwise survive until restart.
  */
 export function reloadPluginEngines(homeDir?: string): readonly string[] {
   clearPluginEngines()
@@ -83,10 +68,9 @@ export function reloadPluginEngines(homeDir?: string): readonly string[] {
 let loadedOnce: readonly string[] | undefined
 
 /**
- * Load plugin engines once per process. The TUI does it eagerly at boot; the
- * CLI has no such step, so every `api` surface that must AGREE with
- * `engine-list` — the flag gates, `schema`, and the protocol a `--command`
- * resolves to — goes through this instead of re-reading the registry each time.
+ * Load plugin engines once per process. The CLI has no boot step like the
+ * TUI's, so every `api` surface that must agree with `engine-list` (flag
+ * gates, `schema`, `--command` protocol resolution) goes through this.
  */
 export function ensurePluginEnginesLoaded(): readonly string[] {
   loadedOnce ??= loadPluginEngines()
@@ -99,21 +83,13 @@ export function ensurePluginEnginesLoaded(): readonly string[] {
  * contribute.
  *
  * The `api` flag gates consult this so `--vendor` / `--agents` / `schema`
- * accept exactly what `engine-list` advertises. They used to read only the
- * custom presets, so a plugin engine was rejected by an error message that
- * told the agent to go look at `engine-list` — where it was listed. The
- * shipped contrib ids had the same bug for the same reason.
+ * accept exactly what `engine-list` advertises.
  *
- * Contrib ids are listed WITHOUT probing PATH, which `engine-list` does do.
- * The gates are synchronous and the probe is not, but the wider reason is
- * that `--vendor` names the adapter, not an installed binary — `--vendor
- * kimi` is accepted on a machine with no kimi too. A missing CLI fails at
- * spawn, with a better error than a flag gate can give.
+ * No PATH probe (unlike `engine-list`): `--vendor` names the adapter, not an
+ * installed binary, and a missing CLI fails at spawn with a better error.
  *
- * Loading plugin engines is a deliberate side effect: unlike the TUI, the CLI
- * has no boot step that registers them, and registering makes the protocol
- * resolver name the engine too, so a task created with one records that engine
- * instead of `generic`.
+ * Loading plugin engines is a deliberate side effect: registering makes the
+ * protocol resolver name the engine, so a task records it instead of `generic`.
  */
 export function registeredEngineIds(): readonly string[] {
   return [...new Set([...CONTRIB_ENGINE_IDS, ...getCustomEngineIds(), ...ensurePluginEnginesLoaded()])]

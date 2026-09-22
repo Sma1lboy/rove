@@ -1,27 +1,19 @@
 /**
- * The OTHER shared JSON-hooks shape — flat entries.
- *
- * `./json-hooks.ts` owns the shape Claude Code and Codex share, where each
- * event holds GROUPS and the commands live one level down:
- *
- *   { "hooks": { "<Event>": [ { matcher?, hooks: [ { type, command } ] } ] } }
- *
- * Cursor and GitHub Copilot CLI both read a flatter one — the entry IS the
- * command:
+ * The flat JSON-hooks shape (Cursor, GitHub Copilot CLI), where the entry IS
+ * the command:
  *
  *   { "version": 1, "hooks": { "<event>": [ { type?, command } ] } }
  *
- * Two engines, one shape, so the merge lives here rather than once per
- * adapter. It is the same three guarantees the nested merge makes: idempotent
- * (a second install replaces rather than appends), merge-safe (a third party's
- * entry, every other event and every other top-level key survive), and
- * ownership decided by {@link isRoveHook} rather than string equality — a dev
- * checkout spells the command `bun /…/src/cli/rove.ts hook …` where a released
- * build spells it `rove hook …`, so literal matching would stack a second
- * entry on the next launch.
+ * vs the grouped Claude/Codex shape in `./json-hooks.ts`:
  *
- * Pure (no I/O): the read→lock→tmp+rename half is `editJsonSettings` in
- * `./json-hook-adapter.ts`, which both adapters call with the validator below.
+ *   { "hooks": { "<Event>": [ { matcher?, hooks: [ { type, command } ] } ] } }
+ *
+ * Same guarantees as the nested merge: idempotent, merge-safe (third-party
+ * entries, other events and keys survive), and ownership by {@link isRoveHook}
+ * rather than string equality — a dev checkout spells the command
+ * `bun /…/src/cli/rove.ts hook …`, a release `rove hook …`.
+ *
+ * Pure: the I/O half is `editJsonSettings` in `./json-hook-adapter.ts`.
  */
 
 import { kobeHookInvocation } from "../cli/invocation.ts"
@@ -41,18 +33,12 @@ export interface FlatHookFormat {
   readonly vendor: string
   /** This engine's hook event → neutral verb table. */
   readonly eventMap: readonly HookEventSpec[]
-  /** Write `"type": "command"` on the entry. Copilot's schema keys the entry
-   *  by type (command / http / prompt) and Rove's is a command; cursor's file
-   *  has no type field at all. */
+  /** Write `"type": "command"` (Copilot keys entries by type; cursor has no type field). */
   readonly withType?: boolean
 }
 
-/**
- * Validate the bytes of a flat hook file for the merge. Same contract as
- * `json-hooks.ts#parseHookSettings`: a missing file is an EMPTY document (the
- * first-install case), and anything we cannot understand is refused with a
- * reason naming the path rather than overwritten.
- */
+/** Same contract as `json-hooks.ts#parseHookSettings`: missing file = EMPTY
+ *  document; anything not understood is refused with a reason, never overwritten. */
 export function parseFlatHooks(raw: string | undefined): HookSettingsParse {
   if (raw === undefined) return { ok: true, doc: {} }
   let parsed: unknown
@@ -70,10 +56,7 @@ export function parseFlatHooks(raw: string | undefined): HookSettingsParse {
   return { ok: true, doc: parsed }
 }
 
-/**
- * Pure merge: add (`install`) or remove Rove's entries in a flat hooks
- * document. `inv` is injectable for tests.
- */
+/** Add (`install`) or remove Rove's entries. */
 export function mergeFlatHooks(
   format: FlatHookFormat,
   current: Record<string, unknown>,
@@ -94,7 +77,6 @@ export function mergeFlatHooks(
     if (kept.length > 0) hooks[event] = kept
     else delete hooks[event]
   }
-  // Both engines read `version` as the file's schema marker; a document that
-  // lost it (or never had one) is not ours to leave unlabelled.
+  // Both engines read `version` as the schema marker.
   return { version: 1, ...rest, hooks }
 }

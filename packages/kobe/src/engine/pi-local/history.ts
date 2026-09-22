@@ -15,16 +15,14 @@
  *        (its `getDefaultSessionDirPath`, verbatim).
  *   omp  writes a HOME-relative form when the cwd is under `$HOME`
  *        (`-<rel>`) or the temp root (`-tmp-<rel>`), and falls back to the
- *        absolute form outside both — but its own store still contains
- *        absolute-named dirs written by earlier versions (verified against
- *        `~/.omp/agent/sessions` on 2026-09-11, where a session made in
- *        `/tmp/...` landed in `--private-tmp-...--`), and 17.2.5–17.2.8 used
+ *        absolute form outside both — but its store still holds absolute-named
+ *        dirs from earlier versions (observed in `~/.omp/agent/sessions`: a
+ *        `/tmp/...` session in `--private-tmp-...--`), and 17.2.5–17.2.8 used
  *        a hashed name it later migrated away from.
  *
- * So the reader derives EVERY name those rules can produce for one worktree
- * and unions them. All candidates describe the SAME directory, so this cannot
- * mix two worktrees together; it can only miss one written by a future
- * encoder, which degrades to "no history" rather than to wrong history.
+ * So the reader unions EVERY name those rules produce for one worktree. All
+ * candidates describe the SAME directory, so worktrees never mix; a future
+ * encoder can only degrade to "no history", never wrong history.
  */
 
 import { realpathSync } from "node:fs"
@@ -200,10 +198,9 @@ export async function transcriptPath(
 }
 
 /**
- * Locate `sessionId` anywhere in the store. The history contract's
- * `readHistory` carries no worktree (a session outlives the path it was made
- * in), so the search walks the session root — one `readdir` per directory and
- * a filename comparison, no file reads.
+ * Locate `sessionId` anywhere in the store: `readHistory` carries no worktree
+ * (a session outlives its path), so walk the root — one `readdir` per
+ * directory, filename compare, no file reads.
  */
 export async function findSessionFile(
   vendor: PiStoreVendor,

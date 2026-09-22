@@ -2,11 +2,9 @@
  * Repo-convention branch naming.
  *
  * A managed task's auto branch must not bake the tool's brand into the user's
- * git history (`rove/<slug>-<id6>` and the like). Instead we scan the target
- * repo's existing branch names (local + origin) and infer its dominant
- * naming style — conventional type prefixes (`feat/`, `fix/`, `chore/`, …)
- * or bare kebab slugs — then apply that style to a slug derived from the
- * task title. Guarantees:
+ * git history. We infer the repo's dominant style from its branch names
+ * (local + origin) — conventional type prefixes (`feat/`, `fix/`, …) or bare
+ * kebab slugs — and apply it to a slug of the task title. Guarantees:
  *
  *   - The generated name NEVER contains "rove" or "kobe" (brand tokens are
  *     stripped from the slug; prefixes only come from the conventional set).
@@ -100,19 +98,10 @@ function capSlug(tokens: readonly string[]): string {
 }
 
 /**
- * Fallback slug for a title that kebab-cases down to nothing.
- *
- * `slugTokens` keeps only `[a-z0-9]`, so EVERY title written in a non-Latin
- * script — Chinese, Japanese, Korean, Cyrillic — plus emoji-only and
- * punctuation-only titles reduce to zero tokens. The old fallback was the
- * constant `"task"`, so those titles didn't just lose their meaning, they
- * all collided: `uniqueBranchName` handed the second one `task-2` and the
- * third `task-3`, and a sidebar of Chinese-titled tasks read as a numbered
- * pile whose branch names said nothing about which was which.
- *
- * The task id is the one thing that distinguishes them without inventing a
- * transliteration. Same 6-char suffix `uniqueBranchName` already falls back
- * to, so the two last resorts read alike.
+ * Fallback slug for a title that kebab-cases to nothing — every non-Latin
+ * (CJK, Cyrillic), emoji-only or punctuation-only title. A constant would
+ * make them collide as `task-2`, `task-3`; the task id distinguishes them
+ * without transliteration, using the same 6-char suffix as `uniqueBranchName`.
  */
 function identitySlug(taskId: string): string {
   return `task-${taskId.slice(-6).toLowerCase()}`
@@ -122,10 +111,8 @@ function identitySlug(taskId: string): string {
  * Derive a convention-following branch name from a task title. In a typed
  * repo, a leading type word in the title becomes the prefix ("Fix login
  * flow" → `fix/login-flow`); otherwise the repo's most common prefix is
- * used. In a bare repo the slug stands alone. A title with no slug-able
- * characters falls back to {@link identitySlug}, which is why `taskId` is
- * required rather than optional — a caller that could omit it would get the
- * colliding constant back.
+ * used. In a bare repo the slug stands alone. `taskId` is required for the
+ * {@link identitySlug} fallback.
  */
 export function deriveConventionBranch(title: string, style: BranchStyle, taskId: string): string {
   const tokens = slugTokens(title)

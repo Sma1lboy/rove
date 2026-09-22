@@ -5,20 +5,13 @@
  * lines to, one per spawn. Off (the default) every call is a single boolean
  * test, so the calls can sit in the paths that actually fork.
  *
- * What it answers: WHO is forking, how often, and against which directory.
- * `ps` cannot answer it — a `git` that lives a few milliseconds is caught
- * mid-exec, and macOS reports its argv as `(git)`; sampling a whole burst
- * yields names and no arguments. `git`'s own `trace2` sees every invocation
- * on the machine but records no parent, so on a box running several agents
- * it cannot say which process asked. The call site can, which is why this
- * records a site NAME chosen by the caller rather than a stack trace: a
- * stack through an async poller is a scheduler frame, not the feature that
- * wanted the data.
+ * Answers WHO forks, how often, in which directory. `ps` can't: a
+ * short-lived `git` shows on macOS as `(git)` with no args. `trace2` records
+ * no parent. So the caller names its site; a stack through an async poller
+ * is a scheduler frame.
  *
- * Monkey-patching `node:child_process` was tried first and is a silent
- * no-op: assigning to the module object succeeds under Bun, and a module
- * that did `import { spawnSync }` keeps calling the original. An
- * instrument that reports nothing looks exactly like a quiet system.
+ * Not a `node:child_process` monkey-patch: under Bun that is a silent no-op
+ * for modules that did `import { spawnSync }`.
  *
  * Writes to a FILE, never stdout — stdout belongs to the renderer.
  */
@@ -29,9 +22,9 @@ const target = process.env.ROVE_SPAWN_PROFILE
 export const spawnProfileOn = Boolean(target)
 
 /**
- * Record one spawn. `site` is a stable dotted name for the code that wanted
- * the child (`sidebar.worktreeChanges`, `engine.foregroundWalk`), NOT the
- * binary — two callers of `git status` are the thing this has to tell apart.
+ * Record one spawn. `site` is a stable dotted caller name
+ * (`engine.foregroundWalk`), NOT the binary: two `git status` callers must
+ * be told apart.
  */
 export function recordSpawn(site: string, argv: readonly string[], cwd?: string): void {
   if (!spawnProfileOn) return

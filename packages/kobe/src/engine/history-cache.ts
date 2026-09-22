@@ -1,27 +1,18 @@
 /**
- * Append-aware per-file transcript parse cache, shared by the engine
- * history readers (claude-code-local, codex-local, copilot-local).
+ * Append-aware per-file transcript parse cache for the engine history readers.
  *
- * Why it exists: the history pane polls transcript mtime and re-reads the
- * file every ~2.5s. A full re-parse builds a completely fresh `Message[]`
- * with new object identities each call — React keys rows by reference, so
- * all-new identities destroy + recreate every rendered row's DOM subtree
- * per poll, and the re-parse itself is O(n²) allocation over
- * a session's lifetime. Transcripts are append-only in the common case, so
- * we cache the parsed prefix and only parse the appended slice, returning
- * the SAME object refs for already-seen records.
+ * The history pane re-reads transcripts every ~2.5s; a full re-parse yields
+ * all-new object identities (React then recreates every row) and is O(n²)
+ * allocation over a session. So the parsed prefix is cached and only the
+ * appended slice parsed, keeping the SAME refs for seen records.
  *
- * Soundness: the cache boundary always sits on a `\n` so a partially
- * flushed trailing line is never split across prefix/suffix — the
- * un-terminated tail is re-parsed fresh every call and never cached.
- * Rewrite/truncation (compaction, resume-branch rewrites) is detected by
- * validating the cached prefix: previous prefix length + a SHA-256 of that
- * prefix (we never retain the previous file content itself). Any mismatch
- * falls back to a full re-parse and replaces the cache entry.
+ * Soundness: the boundary always sits on a `\n`, so a partially flushed tail
+ * is re-parsed each call and never cached. Rewrite/truncation (compaction,
+ * resume-branch rewrites) is detected by prefix length + SHA-256 of the prefix
+ * (content itself is not retained); any mismatch re-parses in full.
  *
- * Vendors with cross-line parse state (copilot's session.start id)
- * cache that state alongside the messages: `S` is whatever
- * fold state the vendor's `parseChunk` threads through.
+ * `S` is the vendor's fold state, including cross-line state (copilot's
+ * session.start id).
  */
 
 import { createHash } from "node:crypto"
@@ -31,12 +22,9 @@ export interface AppendParseCacheOptions<S, C> {
   /** Fold state for an empty transcript (before any complete line). */
   initial: (ctx: C) => S
   /**
-   * Fold a chunk of transcript lines onto `prev`, returning NEW state
-   * WITHOUT mutating `prev` — the cached prefix state is shared across
-   * calls (clone arrays/maps before appending). Must fold associatively
-   * over line boundaries: `parseChunk(b, parseChunk(a, s))` must equal
-   * `parseChunk(a + b, s)` when `a` ends at a `\n`, so a cached prefix
-   * can be extended one appended slice at a time.
+   * Return NEW state WITHOUT mutating `prev` (the cached prefix state is shared;
+   * clone before appending). Must be associative over line boundaries:
+   * `parseChunk(b, parseChunk(a, s))` === `parseChunk(a + b, s)` when `a` ends at `\n`.
    */
   parseChunk: (chunk: string, prev: S, ctx: C) => S
   /** Cap on cached files; evict the least recently updated prefix (default 8). */
@@ -53,12 +41,7 @@ interface CacheEntry<S, C> {
   state: S
 }
 
-/**
- * Create a per-file append-aware parse cache. Call the returned function
- * with the full current contents of `filePath`; it reuses the cached fold
- * of the unchanged prefix when the file only appended since the last call,
- * so objects for already-seen records keep their identity across calls.
- */
+/** Call the result with the full current contents of `filePath`. */
 export function createAppendParseCache<S, C = void>(
   opts: AppendParseCacheOptions<S, C>,
 ): (filePath: string, raw: string, ctx: C) => S {
@@ -75,8 +58,6 @@ export function createAppendParseCache<S, C = void>(
   }
 
   return function parseCached(filePath: string, raw: string, ctx: C): S {
-    // Complete-line boundary: everything past the last `\n` may be a
-    // partially flushed record — parse it fresh each call, never cache it.
     const stableLength = raw.lastIndexOf("\n") + 1
     const entry = cache.get(filePath)
     const verifiedLength = Math.min(entry?.prefixLength ?? 0, stableLength)
@@ -90,13 +71,11 @@ export function createAppendParseCache<S, C = void>(
       hash.copy().digest("hex") === entry.prefixHash
     let prefixState: S
     if (unchanged) {
-      // Append-only since last read: fold just the new complete lines.
       prefixState =
         entry.prefixLength < stableLength
           ? opts.parseChunk(raw.slice(entry.prefixLength, stableLength), entry.state, ctx)
           : entry.state
     } else {
-      // First read, rewrite, or truncation: full re-fold of the stable prefix.
       prefixState = opts.parseChunk(raw.slice(0, stableLength), opts.initial(ctx), ctx)
     }
 
@@ -115,17 +94,9 @@ export function createAppendParseCache<S, C = void>(
 }
 
 /**
- * Sort messages by their `timestamp` ASC (oldest first → newest last).
- *
- * Vendor transcripts aren't strictly chronological in file order (e.g.
- * Claude's JSONL is a DAG — records carry `parentUuid` for branching
- * resumes, so a resumed session can interleave records from different
- * branches). The chat pane relies on `past[]` being chronological so
- * newest messages render at the bottom; readers sort at the engine
- * boundary so every consumer gets the same shape.
- *
- * Stable sort: ties (same ISO timestamp) keep file-order, which roughly
- * preserves causal ordering even at sub-millisecond ties.
+ * Timestamp ASC. File order isn't chronological (Claude's JSONL is a DAG via
+ * `parentUuid`, so resumes interleave branches) and the chat pane needs
+ * `past[]` chronological. Stable: ties keep file order, roughly causal.
  */
 const sortedMessages = new WeakMap<readonly Message[], readonly Message[]>()
 

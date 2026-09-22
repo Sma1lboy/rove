@@ -1,13 +1,12 @@
 /**
  * Resolve an `ExecHost` for a repo (project) key.
  *
- * A LOCAL project (an ordinary path) → `LocalExecHost` (today's behavior). A
- * REMOTE project (`ssh://…` key with a `remoteRepos` entry) → `RemoteExecHost`
- * wired to its host/user/port, the ControlMaster socket under the Rove home, and
- * the keychain-backed password (read lazily, never persisted in state.json).
+ * A LOCAL project (an ordinary path) → `LocalExecHost`. A REMOTE project
+ * (`ssh://…` key with a `remoteRepos` entry) → `RemoteExecHost` with its
+ * host/user/port, the ControlMaster socket under the Rove home, and the
+ * keychain password (read lazily, never persisted in state.json).
  *
- * Remoteness is DERIVED from the repo key, never stored on the Task — mirrors
- * the `repoConfigs` init-override discipline.
+ * Remoteness is DERIVED from the repo key, never stored on the Task.
  */
 
 import { existsSync } from "node:fs"
@@ -33,17 +32,11 @@ export function remoteSpecFromConfig(config: RemoteRepoConfig): RemoteSpec {
 }
 
 /**
- * `RemoteExecHost` instances, cached by `controlPath` — one ControlMaster
- * socket per remote project, so its `ensureReady()` sync `ssh -O check`
- * (see `exec-host.ts`) pays once per master lifetime instead of once per
- * `execHostForRepo`/`execHostForWorktreePath` call. Before this cache, every
- * git operation on a remote project built a FRESH instance (masterUp is
- * instance-private state), so the sync check ran — and on a cold/dropped
- * master, blocked the daemon's event loop on a full ssh connection — on every
- * single call. `RemoteExecHost.run()` resets its own `masterUp` on an
- * ssh-level failure (exit 255), so a cached instance self-heals after a
- * dropped/expired ControlPersist socket instead of staying confidently wrong
- * for the rest of the process.
+ * `RemoteExecHost` instances, cached by `controlPath` so the sync `ssh -O check`
+ * in `ensureReady()` (`masterUp` is per-instance) runs once per master
+ * lifetime, not per call — on a cold master it blocks the daemon's event loop
+ * on a full ssh connect. `run()` resets `masterUp` on exit 255, so a cached
+ * instance self-heals after a dropped ControlPersist socket.
  */
 const remoteHostCache = new Map<string, RemoteExecHost>()
 
@@ -72,8 +65,7 @@ export function execHostForRepo(repoKey: string): ExecHost {
  * The ExecHost for a WORKTREE path (a path, not a project key). The
  * worktree-side manager methods (`isDirty`, `currentBranch`, `remove`, …)
  * receive only a path, so remoteness is recovered by matching the path
- * against each remote project's `basePath`. A local path matches nothing and
- * gets a `LocalExecHost` — zero regression for local tasks.
+ * against each remote project's `basePath`; a local path gets `LocalExecHost`.
  */
 export function execHostForWorktreePath(worktreePath: string): ExecHost {
   for (const config of Object.values(getRemoteRepos())) {
@@ -90,36 +82,29 @@ export function execHostForWorktreePath(worktreePath: string): ExecHost {
 // adapter only needs changes inside `exec/`.
 
 /**
- * A task's remote-project key (`ssh://…`), or `undefined` for a local repo.
- * THE one place "is this task's repo remote?" is derived from a repo key —
- * callers hand `task.repo` to the session/spawn seams as-is instead of
- * computing this ternary per call site.
+ * A task's remote-project key (`ssh://…`), or `undefined` for a local repo —
+ * THE one place "is this repo remote?" is derived from a repo key.
  */
 export function remoteKeyForRepo(repo: string | undefined): string | undefined {
   return repo && isRemoteRepoKey(repo) ? repo : undefined
 }
 
 /**
- * Whether a worktree path is usable as a session cwd. A REMOTE worktree lives
- * on another host, so a local `existsSync` would (wrongly) say "missing" and
- * block opening the task — for a remote path we trust it exists remotely (the
- * orchestrator created it over SSH, and probing here would cost an SSH
- * round-trip per render). Local paths keep the real on-disk check.
+ * Whether a worktree path is usable as a session cwd. A REMOTE path is trusted
+ * (created over SSH; a local `existsSync` would wrongly say "missing", and
+ * probing remotely costs an SSH round-trip per render). Local paths are checked
+ * on disk.
  */
 export function worktreeUsable(worktreePath: string): boolean {
-  // `isRemote` short-circuits BEFORE the on-disk probe — a remote worktree is
-  // trusted (see above), and the cheap sync `fs.existsSync` only ever runs for
-  // a LOCAL path.
+  // `isRemote` short-circuits BEFORE the on-disk probe.
   return execHostForWorktreePath(worktreePath).isRemote || existsSync(worktreePath)
 }
 
 /**
  * The LOCAL directory a pane/process serving a worktree can be spawned in
- * (tmux `-c`). For a LOCAL task this is the worktree itself. For a REMOTE
- * task the worktree path lives on another host and can't be `cd`'d locally —
- * tmux would refuse to spawn — so panes spawn in the local home dir while the
- * engine pane's wrapped `ssh … 'cd <wt>'` carries the real remote dir. Pure
- * for local paths → zero regression.
+ * (tmux `-c`): the worktree itself when local. A REMOTE worktree can't be
+ * `cd`'d locally (tmux would refuse to spawn), so panes use the local home dir
+ * and the engine pane's wrapped `ssh … 'cd <wt>'` carries the remote dir.
  */
 export function localSpawnCwd(worktreePath: string): string {
   return execHostForWorktreePath(worktreePath).isRemote ? homeDir() : worktreePath

@@ -1,20 +1,12 @@
 /**
- * Foreground-process identity for a terminal tab — "what engine is
- * actually running in this shell right now", answered from the process
- * tree instead of the OSC window title.
+ * Which engine is running in a tab's shell, answered from the process tree,
+ * not the OSC title: a title is free-form text for humans, so a claude
+ * session whose summary mentions "codex" would read as codex.
  *
- * The OSC title is structurally wrong for this: an engine's title is
- * free-form activity text it writes for HUMANS ("✳ Claude Code" at launch,
- * then a summary of what it's doing), so a claude session whose summary
- * mentions "codex" identifies as codex — a substring collision, not an
- * identity.
- *
- * A process tree can't collide like that: we walk the PTY shell's
- * descendants and ask each one's ARGV[0] (the executable, never its
- * arguments) whether it is a registered engine binary. That also sees
- * through user wrappers — `claudecpa` is a zsh function running
- * `cc-switch start claude …`, whose own argv[0] is `cc-switch`, but its
- * child is the real `claude.exe`, and the walk keeps going.
+ * The walk asks each descendant's ARGV[0] (never its arguments) whether it is
+ * a registered engine binary, and sees through wrappers: `claudecpa` runs
+ * `cc-switch start claude …` (argv[0] `cc-switch`), whose child is the real
+ * `claude.exe`.
  */
 
 import { basename } from "node:path"
@@ -58,16 +50,11 @@ function executableNameFromArgv(argv: readonly string[]): string | null {
 }
 
 /**
- * The vendor a command line IS, or null. Only the executable position
- * counts — scanning arguments is what made the title heuristic wrong
- * (`cc-switch start claude …` is cc-switch, not claude; its claude CHILD
- * is what identifies, and the tree walk finds that one).
+ * The vendor a command line IS, or null. Only the executable position counts
+ * (`cc-switch start claude …` is cc-switch; its claude CHILD identifies).
  *
- * Asks about every id the registry can name state-free
- * ({@link identifiableEngineIds}), not just the built-ins: a running
- * OpenCode answering `null` here is not "no engine", it is this function
- * not having been asked about OpenCode — and every consumer of the walk
- * reads that `null` as a POSITIVE no-engine verdict.
+ * Covers every id {@link identifiableEngineIds} can name, not just the
+ * built-ins: consumers read `null` as a POSITIVE no-engine verdict.
  */
 export function vendorFromArgv(commandLine: string): VendorId | null {
   const name = executableNameFromArgv(commandLine.trim().split(/\s+/))
@@ -105,15 +92,12 @@ function childrenIndex(rows: readonly ProcRow[]): Map<number, ProcRow[]> {
 /**
  * Is `ancestorPid` anywhere on `pid`'s parent chain (or `pid` itself)?
  *
- * The lineage half of "am I really running inside this tab":
- * `$KOBE_TASK_ID` is an ordinary env var and inherits down the whole
- * process tree, so a background daemon forked out of an engine tab keeps
- * that identity for as long as it lives. A pid chain can't be inherited —
- * a process that detached (ppid reparented to 1) simply stops reaching the
- * tab's shell, which is exactly the case we must refuse.
+ * The lineage half of "am I really inside this tab": `$KOBE_TASK_ID`
+ * inherits into anything forked from the tab, including a detached daemon; a
+ * pid chain does not (reparented to 1 → stops reaching the shell), which is
+ * the case we must refuse.
  *
- * The walk is bounded by the row count: a `ps` snapshot is a forest, but a
- * malformed/racy one could still hand us a ppid cycle.
+ * Bounded by row count: a racy snapshot can hold a ppid cycle.
  */
 export function hasAncestor(rows: readonly ProcRow[], pid: number, ancestorPid: number): boolean {
   const parents = new Map(rows.map((r) => [r.pid, r.ppid]))
@@ -131,18 +115,15 @@ export function hasAncestor(rows: readonly ProcRow[], pid: number, ancestorPid: 
  * Launch binaries of the user's CUSTOM engine presets, keyed by the
  * executable name a `ps` row would carry.
  *
- * {@link vendorFromArgv} deliberately stops at {@link identifiableEngineIds}
- * — what the registry can name without reading state — so a preset the user
- * registered themselves (id in `customEngineIds`, command in
- * `engineCommand.<id>`) was invisible to the walk. Every consumer reads a
- * null walk as a POSITIVE "no engine here", so a live custom-engine tab lost
- * its turn detector, its sidebar state dot, and its name: `tabTitleStable`
- * demoted it to `shell N` while the engine was still running in it.
+ * {@link vendorFromArgv} stops at {@link identifiableEngineIds} (state-free),
+ * so user presets (`customEngineIds` + `engineCommand.<id>`) need this; a
+ * null walk would cost a live custom-engine tab its turn detector, state dot
+ * and name.
  *
- * Read straight from state.json rather than pushed in at boot because the
- * walk runs in three processes (TUI probe, daemon activity observer, `api
- * inspect`) and none of them shares a registration step. One small
- * `readFileSync` per walk that finds no built-in engine — never per `ps` row.
+ * Read from state.json, not registered at boot, because the walk runs in
+ * three processes (TUI probe, daemon activity observer, `api inspect`) with
+ * no shared registration step. One `readFileSync` per walk that finds no
+ * built-in, never per `ps` row.
  */
 function customEngineBinaries(): ReadonlyMap<string, VendorId> {
   const state = loadStateFile()
@@ -183,11 +164,10 @@ function walkDescendants(
  * engine's own helper processes (claude spawns `claude bg-pty-host`
  * subprocesses; the session itself is nearer the shell).
  *
- * Custom presets are a SECOND pass, not another arm of the first: a preset
- * is usually a wrapper around a real engine (`claudecpa` ends up running
- * claude), and the built-in underneath is the identity that carries adapter
- * knowledge — history, status-prefix rules, turn hints. Only when the whole
- * tree names no built-in does the preset's own binary answer.
+ * Custom presets are a SECOND pass: a preset usually wraps a real engine, and
+ * the built-in underneath carries the adapter knowledge (history,
+ * status-prefix rules, turn hints). The preset's binary answers only when the
+ * tree names no built-in.
  */
 export function foregroundEngineIn(rows: readonly ProcRow[], rootPid: number): ForegroundEngine | null {
   const builtin = walkDescendants(rows, rootPid, vendorFromArgv)
@@ -202,15 +182,12 @@ export function foregroundEngineIn(rows: readonly ProcRow[], rootPid: number): F
 }
 
 /**
- * Is ANY engine process running under `rootPid`? The delivery gate's
- * question — is an agent still the pane's foreground process? kobe's
- * keepAlive wrapper keeps a tab's PTY alive after its engine exits,
- * so "session alive" never proves an engine is there — and pasting a prompt
- * into the fallback SHELL executes it as commands. Vendor-agnostic on
- * purpose: any engine may receive text (cross-vendor send is legitimate);
- * only a bare shell must not. `extraLaunch` supplies a custom engine's full
- * launch argv; both it and the process row are normalized through the same
- * wrapper/path parser before comparison.
+ * Is ANY engine process running under `rootPid`? The delivery gate: the
+ * keepAlive wrapper keeps a PTY alive after its engine exits, and a prompt
+ * pasted into the fallback SHELL runs as commands. Vendor-agnostic on
+ * purpose (cross-vendor send is legitimate); only a bare shell must not
+ * receive text. `extraLaunch` is a custom engine's launch argv, normalized by
+ * the same wrapper/path parser as the rows.
  */
 export function engineProcessIn(
   rows: readonly ProcRow[],
@@ -237,21 +214,16 @@ export function engineProcessIn(
 /**
  * Injectable so tests never shell out.
  *
- * `anchors` are the pids whose consoles the caller's walk runs through: each
- * tab shell it descends from, plus the caller itself when it is checking its
- * own ancestry. POSIX ignores them — a `ps` forest already carries every
- * parent link there is. Windows needs them: an npm shim exits mid-chain and
- * takes a link with it (the engine's `cmd.exe`, the CLI's forked bash), so
- * the snapshot has to ask each CONSOLE who is on it before the tree is
- * walkable (see `win-process-snapshot.ts`). Optional so every existing
- * zero-argument stub still satisfies the type.
+ * `anchors`: each tab shell the walk descends from, plus the caller when it
+ * checks its own ancestry. POSIX ignores them; Windows needs them to repair
+ * links an exited npm shim took with it (see `win-process-snapshot.ts`).
+ * Optional so zero-argument stubs still satisfy the type.
  */
 export type PsSnapshot = (anchors?: readonly number[]) => Promise<string>
 
 /**
- * A running `ps`: the text it will produce, and the kill the deadline needs.
- * Injectable separately from {@link PsSnapshot} so a test can stand up a child
- * that never exits — the failure this deadline exists for.
+ * A running `ps` and the kill the deadline needs; injectable so a test can
+ * stand up a child that never exits.
  */
 export interface PsProcess {
   readonly text: Promise<string>
@@ -261,13 +233,9 @@ export interface PsProcess {
 export type PsSpawn = () => PsProcess
 
 /**
- * `ps -A` answers in ~20ms on a healthy machine, so 5s only fires on a
- * genuinely stuck process table — wide enough to never cost a true answer.
- *
- * It has to be bounded at all because nothing downstream can time this out:
- * every caller wraps the probe in try/catch, which catches a THROW and not a
- * hang, so an unbounded await here freezes whichever gate asked until the
- * process is restarted.
+ * `ps -A` answers in ~20ms, so 5s only fires on a stuck process table.
+ * Bounded because callers' try/catch catches a throw, not a hang: an
+ * unbounded await freezes the asking gate until restart.
  */
 export const PS_PROBE_TIMEOUT_MS = 5_000
 
@@ -280,14 +248,10 @@ const bunPsSpawn: PsSpawn = () => {
 /**
  * {@link psSnapshot} with its two seams exposed, for tests.
  *
- * A snapshot with no parseable rows in it is a FAILED probe, not an empty
- * machine — `ps` itself is always in there. It joins the timeout as an
- * "unknown", which every reader already publishes as such and no reporting
- * gate may restate as "no engine". Windows is where this bites: the `ps` on
- * PATH is Git for Windows' Cygwin build, which rejects `-A` and exits 1 with
- * EMPTY stdout, and zero rows were read as a confident "no engine in any
- * tab". Unreachable on macOS/Linux, where a healthy `ps -A` returns hundreds
- * of rows.
+ * Zero parseable rows is a FAILED probe, not an empty machine (`ps` itself is
+ * always listed): it throws like the timeout, an "unknown" no gate may
+ * restate as "no engine". Guards e.g. Git for Windows' Cygwin `ps`, which
+ * rejects `-A` with empty stdout.
  */
 export async function psSnapshotWith(spawn: PsSpawn, timeoutMs = PS_PROBE_TIMEOUT_MS): Promise<string> {
   const proc = spawn()
@@ -316,19 +280,13 @@ export async function psSnapshotWith(spawn: PsSpawn, timeoutMs = PS_PROBE_TIMEOU
 }
 
 /**
- * One process-table snapshot, in the `pid ppid args` text every walk parses.
- *
- * Two implementations, chosen by platform and nothing else: POSIX runs the
- * `ps` this file has always run, win32 runs the CIM + ConPTY walk in
- * `win-process-snapshot.ts` (there is no working `ps` there, and no intact
- * parent chain to the engine either).
+ * One process-table snapshot, in `pid ppid args` text. POSIX runs `ps`;
+ * win32 runs the CIM + ConPTY walk in `win-process-snapshot.ts`.
  */
 export const psSnapshot: PsSnapshot = async (anchors) => {
   if (process.platform !== "win32") return psSnapshotWith(bunPsSpawn)
   const { defaultWinProcessProbe, winProcessSnapshot } = await import("./win-process-snapshot.ts")
-  // Its own budget, not PS_PROBE_TIMEOUT_MS: PowerShell + CIM is ~0.8s where
-  // `ps` is ~20ms, so the POSIX cap fires on merely-slow probes. See
-  // `WIN_PROBE_TIMEOUT_MS`.
+  // Own budget (`WIN_PROBE_TIMEOUT_MS`): PowerShell + CIM is ~0.8s vs ~20ms.
   return winProcessSnapshot(anchors ?? [], defaultWinProcessProbe())
 }
 

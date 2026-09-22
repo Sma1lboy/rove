@@ -3,16 +3,12 @@
  * would have their hook merge REFUSED right now, and why.
  *
  * The installer abandons a document it cannot understand
- * (`json-hooks.ts#parseHookSettings`) so a best-effort write never clobbers an
- * engine configuration — correct, but it means a hand-edited
- * `~/.claude/settings.json` permanently stops receiving hooks. The only
- * symptom is latency: every badge falls back to the daemon's ~10s activity
- * poll. This is the module that lets `rove doctor` name the file instead.
+ * (`json-hooks.ts#parseHookSettings`), so a hand-edited `~/.claude/settings.json`
+ * silently stops receiving hooks — badges just fall back to the daemon's ~10s
+ * activity poll. This lets `rove doctor` name the file.
  *
- * Its own file rather than `cli/hook-cmd.ts` so `doctor-cmd` does not take a
- * runtime edge on another CLI verb's module — that class of import lands as a
- * bundle-only TDZ crash in a neighbouring verb, invisible to tsc and unit
- * tests.
+ * Not in `cli/hook-cmd.ts`: a runtime import between CLI verb modules can land
+ * as a bundle-only TDZ crash, invisible to tsc and unit tests.
  */
 
 import { readFileSync } from "node:fs"
@@ -27,13 +23,10 @@ export interface HookConfigIssue {
 /**
  * Each adapter judges its OWN file: `hookConfigRefusal` is the read-only half
  * of that adapter's install, so doctor and the installer never disagree about
- * one file. An adapter that declares no such check (Kimi's TOML block, the pi
- * family's extension module) is simply not checked — the alternative, running
- * one JSON validator over every hook file whose name ends `.json`, reported
- * Cursor's perfectly valid `hooks.json` as broken for having its own shape.
+ * one file. An adapter with no such check (Kimi's TOML, the pi extension) is
+ * skipped — one generic JSON validator would flag Cursor's valid `hooks.json`.
  *
- * A missing file is the first-launch case, and one that cannot be read at all
- * is a permissions problem the install reports itself — neither is an issue.
+ * Missing (first launch) or unreadable (install reports it) files aren't issues.
  */
 export function hookConfigIssues(): HookConfigIssue[] {
   const issues: HookConfigIssue[] = []

@@ -1,25 +1,15 @@
 /**
- * One rigorous, shared parser for `git status --porcelain` and
- * `git diff --numstat -z` output, with correct C-string unquoting.
+ * Shared parser for `git status --porcelain` and `git diff --numstat -z`,
+ * with C-string unquoting.
  *
- * Why this module exists: the file-tree pane (`tui/panes/filetree/git.ts`)
- * and the sidebar's per-row change chip (`tui/panes/sidebar/worktree-changes.ts`)
- * both parsed the SAME two git formats, with different rigor and neither
- * unquoting paths. Git emits any filename containing a space (porcelain
- * renames), a tab/newline/quote, or a non-ASCII byte as a double-quoted,
- * C-escaped string (e.g. `"a\tb.txt"`, `"\303\274.txt"`). Without unquoting:
- *   - those files render with the wrong (still-escaped) path, and
- *   - a renamed-or-modified file whose name has a space loses its +/- line
- *     counts, because porcelain quotes the path (`"a b.txt"`) while numstat
- *     does NOT (`a b.txt`), so the two never key-match on join.
- * Unquoting BOTH sides to one canonical path is exactly what makes the
- * numstat counts join their porcelain status row.
+ * Git emits a filename with a space (porcelain only), tab/newline/quote, or
+ * non-ASCII byte as a double-quoted C-escaped string (`"a\tb.txt"`,
+ * `"\303\274.txt"`). Unquoting BOTH sides to one canonical path is what lets
+ * numstat counts join their porcelain row: porcelain quotes `"a b.txt"`,
+ * numstat does not.
  *
- * The two consumers want different shapes (the file tree wants per-file
- * rows, the sidebar wants aggregate +/- counts), so this module exposes the
- * lowest common denominator: typed ROWS that preserve the raw `XY` status
- * pair and the canonical (post-rename, unquoted) path. Each consumer derives
- * its own headline/aggregate from those rows.
+ * Exposes typed ROWS (raw `XY` pair + canonical post-rename path); consumers
+ * derive their own per-file or aggregate views.
  *
  * Quoting/rename facts this parser encodes (verified against real git):
  *   - Porcelain rename: `XY orig -> new`. Each side is quoted INDEPENDENTLY
@@ -34,13 +24,7 @@
  *     so octal runs must be decoded as bytes, then UTF-8 decoded.
  */
 
-/**
- * The porcelain half of this module now lives in
- * `@sma1lboy/kobe-daemon/daemon/git-porcelain` — the daemon's worktree-changes
- * collector parses the same format and had grown its own, laxer copy. Both
- * consumers import the one parser; this re-export keeps kobe's callers (and
- * `test/lib/git-parsers.test.ts`) addressing it here.
- */
+/** The porcelain half lives in the daemon package so both share one parser. */
 export { parsePorcelainRows, unquoteGitPath } from "@sma1lboy/kobe-daemon/daemon/git-porcelain"
 import { unquoteGitPath } from "@sma1lboy/kobe-daemon/daemon/git-porcelain"
 
@@ -68,10 +52,8 @@ function parseCount(token: string): number | null {
  *   - non-rename: `<added>\t<deleted>\t<path>\0`
  *   - rename:     `<added>\t<deleted>\t\0<old>\0<new>\0`
  *
- * Binary files use `-` for the counts (→ `null`). Paths are unquoted so the
- * counts key by the same canonical path the porcelain `R` row reports. With
- * `-z`, git emits raw paths (no C-quoting), but `unquoteGitPath` is kept as a
- * harmless no-op for extra robustness. Blank / malformed fields are skipped.
+ * Binary counts are `-` (→ `null`). `-z` paths are raw, so `unquoteGitPath`
+ * is a defensive no-op. Malformed fields are skipped.
  */
 export function parseNumstatRows(raw: string): NumstatRow[] {
   const rows: NumstatRow[] = []

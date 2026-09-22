@@ -3,19 +3,13 @@
  * status self-report (`experimental.autoStatus`), field-note filing +
  * recall, and the repo main session's dispatcher brief.
  *
- * Its own module for two reasons, the second load-bearing: the protocol text
- * and its injection gates belong together, and this file may import
- * `engine-presets.ts` for protocol resolution while `interactive-command.ts`
- * may not — `engine-presets.ts` imports IT, so asking that file to resolve a
- * protocol would close an import cycle. Moving this code back would break the
- * build, not just crowd a file.
+ * Separate from `interactive-command.ts` because resolving a protocol needs
+ * `engine-presets.ts`, which imports `interactive-command.ts` — a cycle.
  *
- * Injection rides `--append-system-prompt`, per-invocation and scoped
- * exactly to Rove-spawned sessions. Why a flag and not a file: a dropped
- * CLAUDE.local.md would sit untracked in the worktree and permanently dirty
- * it (polluting the board's ± counts), manual `claude` runs in the same
- * worktree must stay untouched, and a system prompt survives context
- * compaction where a first message may not.
+ * Injection rides `--append-system-prompt`, scoped to Rove-spawned sessions,
+ * not a file: a dropped CLAUDE.local.md would permanently dirty the worktree
+ * (polluting the board's ± counts), manual `claude` runs must stay untouched,
+ * and a system prompt survives compaction where a first message may not.
  */
 
 import { autoStatusEnabled } from "@/state/auto-status"
@@ -23,23 +17,13 @@ import { dispatcherEnabled } from "@/state/dispatcher"
 import { sessionProtocol } from "./engine-presets.ts"
 import { argvHasFlag, kobeApiInvocation } from "./interactive-command.ts"
 
-/**
- * The engine protocol whose `--append-system-prompt` flag these injections
- * use. Resolved rather than compared to a raw id: a custom preset
- * (`claudecpa`) declaring the claude protocol launches the claude binary and
- * takes the same flag.
- */
+/** The engine protocol whose `--append-system-prompt` flag these injections use. */
 const SYSTEM_PROMPT_PROTOCOL = "claude"
 
 /**
- * True when a launch of `vendor` accepts Rove's system-prompt injection —
- * i.e. it speaks the claude protocol, natively or by declaration.
- *
- * PROTOCOL-resolved, not id-compared. A raw
- * `coerceVendorId(vendor) !== "claude"` would pass only an engine literally
- * NAMED claude, so a wrapper preset would silently get no status protocol
- * (its card never leaving `in_progress` under `experimental.autoStatus`) and
- * no field notes — with no error anywhere.
+ * True when `vendor` speaks the claude protocol, natively or by declaration.
+ * Protocol-resolved, not id-compared: a wrapper preset (`claudecpa`) would
+ * otherwise silently get no status protocol or field notes.
  */
 function acceptsSystemPrompt(vendor: string | undefined): boolean {
   return sessionProtocol(vendor) === SYSTEM_PROMPT_PROTOCOL
@@ -51,14 +35,10 @@ function hasOwnSystemPrompt(argv: readonly string[]): boolean {
 }
 
 /**
- * The status self-report protocol injected into a session's system prompt
- * (docs/design/web-kanban.md M5): the agent itself reports `in_review` when
- * its work is done — it is the one party that KNOWS whether the turn ended
- * "complete" or "asking the user", information the hook layer cannot carry
- * (Stop fires identically for both). The concrete task id is baked in at
- * spawn time (ids are immutable), so the agent never has to guess which
- * task it is. `api` defaults to the environment-correct CLI invocation —
- * tests pass a literal.
+ * Status self-report protocol (docs/design/web-kanban.md M5): the agent
+ * reports `in_review` itself, since only it knows whether the turn ended
+ * "complete" or "asking the user" (Stop fires identically for both). The
+ * task id is baked in at spawn (ids are immutable).
  */
 export function statusReportProtocol(taskId: string, api: string = kobeApiInvocation()): string {
   return [
@@ -72,11 +52,9 @@ export function statusReportProtocol(taskId: string, api: string = kobeApiInvoca
 }
 
 /**
- * The note-FILING protocol for worktree (card) sessions (docs/design/
- * dispatcher.md): when a session resolves a non-obvious repo-level gotcha,
- * it files a one-line note that the daemon forwards to the repo's
- * dispatcher for routing. Knowledge flows up; the dispatcher decides who
- * needs it.
+ * Note-filing protocol for worktree sessions (docs/design/dispatcher.md): a
+ * resolved repo-level gotcha becomes a one-line note the daemon forwards to
+ * the repo's dispatcher for routing.
  */
 export function noteFilingProtocol(taskId: string, api: string = kobeApiInvocation()): string {
   return [
@@ -84,24 +62,17 @@ export function noteFilingProtocol(taskId: string, api: string = kobeApiInvocati
     "When you RESOLVE a non-obvious, repo-level gotcha (a build flag, a flaky test, an environment quirk, an API trap), file it:",
     `  ${api} note --task-id ${taskId} --text "<one line: the verified conclusion>"`,
     "File only verified conclusions another session could act on — never progress logs, opinions, or details specific to your own task. A handful per session at most.",
-    // A pointer, not a curriculum: the injected protocol must stay small
-    // (every session pays for it in context), so the coordination verbs are
-    // taught by the Rove agent skill / the active CLI's `api schema`, and this line only
-    // says where to look.
+    // A pointer, not a curriculum: every session pays for this in context, so
+    // the verbs are taught by the agent skill / `api schema`.
     `For delegating or parallelizing WORK from this session, prefer Rove's own verbs (add --prompt, add --count N for parallel attempts, send, dispatch) over ad-hoc subprocesses — discover them via \`${api} schema\` or the Rove agent skill.`,
   ].join("\n")
 }
 
 /**
- * The note-RECALL block: the accumulated field notes for this repo, injected
- * so a fresh session starts where the last one left off instead of re-paying
- * for the same discovery. This is the half that makes note filing worth
- * doing — v1 relayed notes only to sessions that happened to be in flight at
- * the time, so a gotcha learned on Monday was invisible to Tuesday's worktree.
- *
- * Presented as claims with provenance, never as instructions: a note is what
- * one session concluded, and a stale one must lose to what the session
- * observes itself. Empty list ⇒ no block at all (no "you have no notes" noise).
+ * Note-recall block: this repo's accumulated field notes, so a fresh session
+ * doesn't re-pay for a discovery. Presented as claims with provenance, never
+ * instructions — a stale note must lose to what the session observes. Empty
+ * list ⇒ no block.
  */
 function noteRecallProtocol(notes: readonly { text: string; author: string }[]): string | null {
   if (notes.length === 0) return null
@@ -113,12 +84,10 @@ function noteRecallProtocol(notes: readonly { text: string; author: string }[]):
 }
 
 /**
- * Compose the protocols a WORKTREE (board-card) session gets, each behind
- * its own switch: status self-report (`experimental.autoStatus`) plus note
- * filing AND note recall (`experimental.dispatcher`). One composed string
- * because claude takes a single `--append-system-prompt` — two sequential
- * with* wrappers would trip each other's existing-flag guard. `null` =
- * nothing enabled.
+ * Protocols a worktree session gets: status self-report
+ * (`experimental.autoStatus`) plus note filing and recall
+ * (`experimental.dispatcher`). One string because claude takes a single
+ * `--append-system-prompt`. `null` = nothing enabled.
  */
 export function worktreeProtocol(
   taskId: string,
@@ -137,18 +106,10 @@ export function worktreeProtocol(
 }
 
 /**
- * Append the composed worktree protocol to a CLAUDE launch argv via
- * `--append-system-prompt` — per-invocation injection scoped exactly to
- * kobe-spawned sessions. Why a flag and not a file: a dropped
- * CLAUDE.local.md would sit untracked in the worktree and permanently
- * dirty it (polluting the board's ± counts), manual `claude` runs in the
- * same worktree must stay untouched, and a system prompt survives context
- * compaction where a first-message blurb may not.
- *
- * Gates, in order: there is a task to report, the launch targets claude
- * (other vendors have no equivalent flag yet — their cards move by hand
- * until their adapters grow an injection point), a custom command that
- * already sets the flag is left alone (the user-flag-wins precedent), and at least one protocol switch is on.
+ * Append the worktree protocol to a claude-protocol launch argv. Gates, in
+ * order: a task id; the claude protocol (other vendors have no equivalent
+ * flag, so their cards move by hand); no user-set system-prompt flag (user
+ * flag wins); at least one protocol switch on.
  */
 export function withWorktreeProtocol(
   argv: readonly string[],
@@ -166,16 +127,11 @@ export function withWorktreeProtocol(
 }
 
 /**
- * The DISPATCHER protocol (docs/design/dispatcher.md) — injected into a
- * repo's MAIN session (the complement of the worktree protocol's main-task
- * exclusion). The main session sits in the repo root with no board card of
- * its own, which makes it the natural per-repo knowledge-routing seat:
- * worktree sessions file field notes, the daemon forwards each note here,
- * and this prompt tells the agent how to relay them. Fully autonomous by
- * design (v1 decision: no approval gate) — its only effectors are read
- * (`kobe api collect`) and message (`kobe api dispatch`), so the blast
- * radius of a bad call is a stray FYI, never a mutated worktree. It takes
- * NO action on merge conflicts: the conflict radar is display-only.
+ * Dispatcher protocol (docs/design/dispatcher.md), injected into a repo's
+ * MAIN session — the per-repo seat the daemon forwards field notes to.
+ * Autonomous with no approval gate because its only effectors are read
+ * (`collect`) and message (`dispatch`): a bad call costs a stray FYI, never
+ * a mutated worktree. No action on merge conflicts (the radar is display-only).
  */
 export function dispatcherProtocol(taskId: string, api: string = kobeApiInvocation()): string {
   return [
@@ -193,14 +149,11 @@ export function dispatcherProtocol(taskId: string, api: string = kobeApiInvocati
 }
 
 /**
- * Append the dispatcher protocol to a MAIN session's claude launch argv —
- * the same `--append-system-prompt` mechanics (and rationale) as
- * {@link withStatusProtocol}. Gates: the `experimental.dispatcher` switch
- * is on, the launch is a main session (callers pass `taskId` only for
- * main, mirroring how they pass the status protocol's taskId only for
- * board cards — the two injections are mutually exclusive by construction,
- * so the existing-flag guard below never trips between them), the vendor
- * is claude, and a custom command that already sets the flag wins.
+ * Append the dispatcher protocol to a MAIN session's launch argv, same
+ * mechanics as {@link withWorktreeProtocol}. Gates: `experimental.dispatcher`
+ * on; a main session (callers pass `taskId` only for main, so this and the
+ * worktree injection are mutually exclusive and the existing-flag guard never
+ * trips between them); the claude protocol; no user-set flag.
  */
 export function withDispatcherProtocol(
   argv: readonly string[],
