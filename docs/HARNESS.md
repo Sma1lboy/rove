@@ -90,6 +90,19 @@ Visible terminal snapshots use the renderer's frame callback and commit React up
 
 `bun scripts/terminal-paint-bench.ts` from `packages/kobe` compares whole-content replacement with retained row buffers using the real OpenTUI renderer. This measures conversion and rendering cost, and supplements the browser journey rather than replacing it.
 
+## Performance measurement
+
+`bun run perf:measure` from `packages/kobe-harness` measures the TUI's user paths on this machine and compares them with `packages/kobe-harness/perf/baseline.json`. It starts a cold, isolated fixture on port base 5373, seeds two tasks that run a plain `bash` (no engine), and drives the real OpenTUI through the browser harness: 10 s idle, 10 task switches, 30 typed keys. It then appends `perf:golden --fast`. Exit 1 means a metric moved past its tolerance (counts: 10% or 1, whichever is larger; timings: 50% or 15 ms). `--update-baseline` rewrites the baseline; `--out=<dir>` keeps the run's `report.md`, `metrics.json`, raw profiles and one screenshot per phase (default `.scratch/perf/<timestamp>`).
+
+It is not a CI gate: wall-clock numbers depend on the machine, so the numbers only compare against a baseline taken on the same machine.
+
+The counts come from two env-gated sinks, off by default (each hook is one boolean test when off):
+
+- `ROVE_RENDER_PROFILE=<file>`: once a second, a JSON line per process with `t`, `pid` and counters: `commit.<pane>` (React commits of `root`, `sidebar`, `workspace`, `files`), `frame` (frames drawn), `key` (key events dispatched), `stateNotify` / `stateListener` (state-cell changes and the listeners they woke), and the terminal stages `feed`, `publish`, `paintRow`. `profileMark` lines record one-off moments, such as `firstFrame` in ms since process start.
+- `ROVE_SPAWN_PROFILE=<file>`: one line per child process, with the call site.
+
+Set either variable on any Rove process to record the same data by hand. Add a counter with `profileTick` from `src/lib/render-profile.ts`, or wrap a subtree in `RenderProfiler` (`src/tui-react/lib/render-profiler.tsx`).
+
 ## Behavioral self-test
 
 `test/behavior/harness.ts` runs the published `dist/cli/kobe.js` and

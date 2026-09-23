@@ -5,6 +5,8 @@
  * daemon channels don't invalidate each other.
  */
 
+import { profileTick } from "./render-profile"
+
 export interface ReadableState<T> {
   (): T
   /** Stable snapshot reader. */
@@ -62,6 +64,8 @@ export function createStateCell<T>(initial: T, debugLabel?: string): StateCell<T
     if (Object.is(next, snapshot)) return
     if (debugLabel) recordStateChange(debugLabel, snapshot, next)
     snapshot = next
+    profileTick("stateNotify")
+    profileTick("stateListener", listeners.size)
     for (const listener of [...listeners]) listener()
   }
   state.update = (fn) => state.set(fn(snapshot))

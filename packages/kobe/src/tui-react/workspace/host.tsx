@@ -17,6 +17,7 @@ import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
+import { RenderProfiler } from "../lib/render-profiler"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useWelcomeDialog } from "../onboarding/host"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
@@ -320,42 +321,44 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           carries no border prop at all. The workspace frame's left edge is
           the only boundary; sidebar focus shows on the KOBE brand text. */}
       {pageRender.showSidebar ? (
-        <HostSidebarMount
-          terminalWidth={dims.width}
-          showContent={pageRender.showContent}
-          recentTask={pageRender.recentTask}
-          tasks={tasks}
-          selectedId={selectedId}
-          selectedTabId={selectedTabId}
-          selectTask={selectTask}
-          activateTask={activateTask}
-          daemon={{
-            sidebarEngineState,
-            engineTabState,
-            engineLifecycle,
-            taskJobs,
-            rowTokens,
-            worktreeChanges,
-          }}
-          actions={taskActions}
-          pages={pages}
-          focus={focus}
-          inbox={inbox}
-          update={banner.update}
-          onFixChecks={editor.onFixChecks}
-          runAgain={quickFork.runAgain}
-          activePane={activePane}
-          zen={zen}
-          toggleZen={toggleZen}
-          sortMode={sortMode}
-          moveMode={moveMode}
-          exitMoveMode={() => setMoveMode(false)}
-          onLocalMergeRequest={onLocalMergeRequest}
-          onSearchActiveChange={setSearchActive}
-          cursorTaskIdRef={cursorTaskIdRef}
-          openTaskWorktree={openTaskWorktree}
-          t={t}
-        />
+        <RenderProfiler id="sidebar">
+          <HostSidebarMount
+            terminalWidth={dims.width}
+            showContent={pageRender.showContent}
+            recentTask={pageRender.recentTask}
+            tasks={tasks}
+            selectedId={selectedId}
+            selectedTabId={selectedTabId}
+            selectTask={selectTask}
+            activateTask={activateTask}
+            daemon={{
+              sidebarEngineState,
+              engineTabState,
+              engineLifecycle,
+              taskJobs,
+              rowTokens,
+              worktreeChanges,
+            }}
+            actions={taskActions}
+            pages={pages}
+            focus={focus}
+            inbox={inbox}
+            update={banner.update}
+            onFixChecks={editor.onFixChecks}
+            runAgain={quickFork.runAgain}
+            activePane={activePane}
+            zen={zen}
+            toggleZen={toggleZen}
+            sortMode={sortMode}
+            moveMode={moveMode}
+            exitMoveMode={() => setMoveMode(false)}
+            onLocalMergeRequest={onLocalMergeRequest}
+            onSearchActiveChange={setSearchActive}
+            cursorTaskIdRef={cursorTaskIdRef}
+            openTaskWorktree={openTaskWorktree}
+            t={t}
+          />
+        </RenderProfiler>
       ) : null}
 
       {pageRender.showContent ? (
@@ -370,23 +373,25 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
             the left stays live, so selecting a task is how you get back to
             its terminal. */}
           {pageRender.contentPage ?? (
-            <ShowWorkspace
-              task={selectedTask}
-              worktree={worktree}
-              orchestrator={orch}
-              focused={activePane === "workspace"}
-              onRequestFocus={() => focus.setFocused("workspace")}
-              onEditorTabReady={editor.onEditorTabReady}
-              onEngineSendReady={editor.onEngineSendReady}
-              onEnginePasteReady={editor.onEnginePasteReady}
-              onDiffTabReady={editor.onDiffTabReady}
-              onQuickFork={quickFork.onQuickFork}
-              initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
-              onTabVisited={inbox.resolveVisited}
-              onScratchExit={scratch.onScratchExit}
-              onOpenScratch={scratch.openScratchShell}
-              onEngineChosen={taskActions.setVendor}
-            />
+            <RenderProfiler id="workspace">
+              <ShowWorkspace
+                task={selectedTask}
+                worktree={worktree}
+                orchestrator={orch}
+                focused={activePane === "workspace"}
+                onRequestFocus={() => focus.setFocused("workspace")}
+                onEditorTabReady={editor.onEditorTabReady}
+                onEngineSendReady={editor.onEngineSendReady}
+                onEnginePasteReady={editor.onEnginePasteReady}
+                onDiffTabReady={editor.onDiffTabReady}
+                onQuickFork={quickFork.onQuickFork}
+                initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
+                onTabVisited={inbox.resolveVisited}
+                onScratchExit={scratch.onScratchExit}
+                onOpenScratch={scratch.openScratchShell}
+                onEngineChosen={taskActions.setVendor}
+              />
+            </RenderProfiler>
           )}
         </box>
       ) : null}
@@ -396,23 +401,25 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           would be showing an unrelated tree beside it. Hidden, same as zen
           (and always in narrow — three panes don't fit 46 cols). */}
       {!zen && pageRender.contentPage == null && pageRender.showSidebar && pageRender.showContent ? (
-        <HostFilesPane
-          sidebarWidth={sidebarWidth.width}
-          worktree={worktree}
-          prBaseRef={selectedTask?.prStatus?.baseRef}
-          focused={activePane === "files"}
-          onOpenFile={(relPath) => void editor.onOpenFile(relPath)}
-          onOpenDiff={editor.onOpenDiff}
-          onMention={editor.onMention}
-          onZenToggle={toggleZen}
-          onCreatePR={() => void editor.onCreatePR()}
-          taskKind={selectedTask?.kind}
-          remoteHost={
-            selectedTask?.origin && selectedTask.origin.machineId !== "local"
-              ? selectedTask.origin.hostLabel
-              : undefined
-          }
-        />
+        <RenderProfiler id="files">
+          <HostFilesPane
+            sidebarWidth={sidebarWidth.width}
+            worktree={worktree}
+            prBaseRef={selectedTask?.prStatus?.baseRef}
+            focused={activePane === "files"}
+            onOpenFile={(relPath) => void editor.onOpenFile(relPath)}
+            onOpenDiff={editor.onOpenDiff}
+            onMention={editor.onMention}
+            onZenToggle={toggleZen}
+            onCreatePR={() => void editor.onCreatePR()}
+            taskKind={selectedTask?.kind}
+            remoteHost={
+              selectedTask?.origin && selectedTask.origin.machineId !== "local"
+                ? selectedTask.origin.hostLabel
+                : undefined
+            }
+          />
+        </RenderProfiler>
       ) : null}
 
       {/* Cross-task attention toasts. `useAttention` above fires

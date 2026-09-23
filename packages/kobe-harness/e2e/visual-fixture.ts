@@ -106,6 +106,10 @@ export const VISUAL_PTY_COMMAND = `${[
   // wizard's not-ready verdict needs. Absent by default — a fixture with no
   // engines is not the state most journeys want.
   ...(process.env.KOBE_VISUAL_MIN_PATH ? [`PATH=${process.env.KOBE_VISUAL_MIN_PATH}`] : []),
+  // Opt-in profile sinks for `perf:measure`; absent, the TUI records nothing.
+  ...["ROVE_RENDER_PROFILE", "ROVE_SPAWN_PROFILE"].flatMap((name) =>
+    process.env[name] ? [`${name}=${process.env[name]}`] : [],
+  ),
 ].join(" ")} bun run dev:sandbox`
 
 /** Bump when the fixture shape changes so warm reuse rebuilds. */
