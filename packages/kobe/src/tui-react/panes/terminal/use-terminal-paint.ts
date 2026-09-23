@@ -4,10 +4,10 @@
 
  */
 
+import { profileSpan } from "@/lib/render-profile"
 import type { BoxRenderable } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { useLayoutEffect, useMemo, useState } from "react"
-import { profileSpan } from "../../../tui/lib/render-profile"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import { type TerminalRenderColors, overlayCursor } from "../../../tui/panes/terminal/terminal-render"
 import { type SelectionRange, overlaySelection } from "../../../tui/panes/terminal/terminal-selection"

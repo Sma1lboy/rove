@@ -10,6 +10,7 @@
  * `modalOwner` and settled by `insertRegistration`, not by order.
  */
 
+import { profileTick } from "@/lib/render-profile"
 import type { KeyEvent, KeyHandler } from "@opentui/core"
 import { flushSync, useRenderer } from "@opentui/react"
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
@@ -77,6 +78,7 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
     onHide: prefixHudHideDirect,
   })
   listener = (evt: KeyEvent) => {
+    profileTick("key")
     ctrlHoldDetector?.keypress(evt)
     dispatchKeyEvent(stack, evt, Date.now(), {
       // OpenTUI renders synchronously on input; batched updates from this

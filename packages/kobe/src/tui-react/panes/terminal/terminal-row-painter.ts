@@ -1,5 +1,5 @@
+import { profileSpan, profileTick } from "@/lib/render-profile"
 import { type BoxRenderable, RGBA, type RenderContext, StyledText, TextRenderable } from "@opentui/core"
-import { profileSpan, profileTick } from "../../../tui/lib/render-profile"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty-types"
 import { rowsToStyledText } from "../../../tui/panes/terminal/sgr-to-text-chunk"
 import {

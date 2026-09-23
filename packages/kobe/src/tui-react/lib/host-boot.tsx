@@ -10,6 +10,7 @@
  *     implicitly would silently change them.
  */
 
+import { profileMark, profileTick, renderProfileOn } from "@/lib/render-profile"
 import { createCliRenderer } from "@opentui/core"
 import { createRoot } from "@opentui/react"
 import {
@@ -57,6 +58,7 @@ import {
 import { DEFAULT_THEME, useTheme } from "../context/theme"
 import { isLocaleId, setLocaleLang, t } from "../i18n"
 import { DialogProvider } from "../ui/dialog"
+import { RenderProfiler } from "./render-profiler"
 
 /** Theme used when `state.json` is missing/stale. */
 const FALLBACK_THEME = DEFAULT_THEME
@@ -233,12 +235,20 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
   // on Windows stale geometry survives every diffed frame. No-op off win32;
   // lives as long as the renderer.
   installScreenSelfHeal({ renderer })
+  if (renderProfileOn) {
+    renderer.setFrameCallback(async () => {
+      profileMark("firstFrame")
+      profileTick("frame")
+    })
+  }
 
   const body = (
     <>
       <UiPrefsSync />
       <KvWriteErrorToasts />
-      <PaneErrorBoundary>{screen.root()}</PaneErrorBoundary>
+      <PaneErrorBoundary>
+        <RenderProfiler id="root">{screen.root()}</RenderProfiler>
+      </PaneErrorBoundary>
     </>
   )
   // Fixed order Theme > KV > Focus > Dialog > Notifications; only membership varies.

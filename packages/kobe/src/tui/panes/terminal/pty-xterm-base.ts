@@ -1,11 +1,11 @@
 /** Shared xterm-headless emulation for local and daemon-hosted PTYs.
  * Subclasses supply {@link feed}; VT behavior and snapshots live here once. */
 
+import { profileSpan, profileTick } from "@/lib/render-profile"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
 import { hostTargetFps } from "../../lib/host-render-options"
-import { profileSpan, profileTick } from "../../lib/render-profile"
 import type { TerminalInputModes } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
 import {
