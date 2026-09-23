@@ -182,6 +182,7 @@ describe("API surface (full CRUD)", () => {
       "routine-set-enabled",
       "routine-delete",
       "routine-run-now",
+      "routine-respond",
       "routine-runs",
       "workitem-list",
       "workitem-start",

@@ -10,10 +10,16 @@ export type {
   AutomationPrecheck,
   AutomationPrecheckResult,
   AutomationRun,
+  AutomationRunResponse,
   AutomationRunStatus,
   TaskRoutineLink,
 } from "./automation-contracts.ts"
-export { automationRunNeedsAttention } from "./automation-contracts.ts"
+export {
+  ROUTINE_RESPONSE_MAX_CHARS,
+  ROUTINE_RESPONSE_WINDOW_MS,
+  automationRunNeedsAttention,
+  routineRunResponseState,
+} from "./automation-contracts.ts"
 
 // Engine activity + the attention Inbox, likewise.
 export type {
@@ -23,7 +29,12 @@ export type {
   EngineActivityKind,
   TaskActivityState,
 } from "./attention-contracts.ts"
-export { ATTENTION_INBOX_STATES, attentionInboxItemKey, isAttentionInboxState } from "./attention-contracts.ts"
+export {
+  ATTENTION_INBOX_STATES,
+  attentionInboxItemKey,
+  isAttentionInboxState,
+  isRoutineInboxState,
+} from "./attention-contracts.ts"
 
 /** Engine id (kobe `VendorId`), opaque to the daemon. Plain `string`: a
  *  literal union with `(string & {})` drifts from kobe's list and hides the

@@ -14,6 +14,7 @@ import {
   type TabRenamePayload,
   type UiPromptPayload,
   isAttentionInboxState,
+  isRoutineInboxState,
   parseDaemonStopReason,
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
@@ -205,7 +206,7 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       const p = item as Partial<AttentionInboxItem>
       // Matches the daemon's `normalizeItem`: `null` only for a routine
       // episode, which may also name a task (see `AttentionInboxItem.taskId`).
-      const taskIdOk = typeof p.taskId === "string" || (p.taskId === null && p.state === "routine_failed")
+      const taskIdOk = typeof p.taskId === "string" || (p.taskId === null && isRoutineInboxState(p.state))
       return (
         taskIdOk &&
         (p.tabId === null || typeof p.tabId === "string") &&

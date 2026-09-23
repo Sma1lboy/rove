@@ -74,7 +74,8 @@ export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "ge
 export type AutomationRuntime = Pick<
   DaemonRuntimeAdapter,
   "startTaskSessionWithPrompt" | "deliverPromptToLiveEngineDetailed" | "deliverPromptToLiveEngineTabDetailed"
->
+> &
+  Partial<Pick<DaemonRuntimeAdapter, "kobeApiInvocation">>
 
 interface RunnerDeps {
   readonly store: AutomationsStore
@@ -100,7 +101,7 @@ export interface RunnerInbox {
     at: number,
   ): Promise<void>
   /** Optional so a daemon booted with only the dispatch slice still runs. */
-  deleteRoutineEpisode?(automationId: string): Promise<void>
+  deleteRoutineEpisode?(automationId: string, state?: "routine_failed"): Promise<void>
 }
 
 type PluginRunReport = {
@@ -170,7 +171,8 @@ async function raiseOrClearInboxEpisode(
         extra.taskId ?? null,
         now(),
       )
-    : inbox.deleteRoutineEpisode?.(automation.id)
+    : // Failure episode only: an unread response to an earlier run stays.
+      inbox.deleteRoutineEpisode?.(automation.id, "routine_failed")
   await write?.catch((err: unknown) => logDaemonError("automation-inbox", err))
 }
 
@@ -207,6 +209,19 @@ function droppedOccurrences(automation: Automation, scheduledFor: number): { cou
   return count > 0 ? { count, firstMs: armedAt } : null
 }
 
+/**
+ * The delivered prompt: a one-line header naming the run and the verb that
+ * answers it, then the routine's prompt unchanged. The prompt goes LAST: a
+ * model replies in the language of the tokens nearest its turn.
+ */
+export function withRoutineRunHeader(
+  automation: Pick<Automation, "name" | "prompt">,
+  run: { id: string; runNumber: number },
+  api: string,
+): string {
+  return `[ROVE ROUTINE] "${automation.name}" run #${run.runNumber} — when done, report with: ${api} routine-respond --run ${run.id} --prompt-file -\n\n${automation.prompt}`
+}
+
 /** Execute one automation now, recording exactly one run. A manual trigger
  *  (`automation.runNow`) skips the precheck. */
 export async function runAutomationOnce(
@@ -215,6 +230,7 @@ export async function runAutomationOnce(
   args: { scheduledFor: number; trigger: "scheduled" | "manual" },
 ): Promise<AutomationRunStatus> {
   const now = deps.now ?? Date.now
+  const reserved = deps.store.reserveRun(automation.id)
   const record = async (
     status: AutomationRunStatus,
     extra: {
@@ -224,14 +240,17 @@ export async function runAutomationOnce(
       precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>>
     } = {},
   ): Promise<AutomationRunStatus> => {
-    await deps.store.recordRun({
-      automationId: automation.id,
-      scheduledFor: new Date(args.scheduledFor).toISOString(),
-      status,
-      trigger: args.trigger,
-      at: new Date(now()).toISOString(),
-      ...extra,
-    })
+    await deps.store.recordRun(
+      {
+        automationId: automation.id,
+        scheduledFor: new Date(args.scheduledFor).toISOString(),
+        status,
+        trigger: args.trigger,
+        at: new Date(now()).toISOString(),
+        ...extra,
+      },
+      reserved,
+    )
     emitRunEvent(deps, automation, status, args, extra)
     await raiseOrClearInboxEpisode(deps, automation, status, extra)
     return status
@@ -270,6 +289,7 @@ export async function runAutomationOnce(
         ...(deps.now ? { now: deps.now } : {}),
       },
       automation,
+      withRoutineRunHeader(automation, reserved, deps.runtime.kobeApiInvocation?.() ?? "rove api"),
     )
   } catch (err) {
     // A moved or forgotten repo: the target is gone, not the schedule.

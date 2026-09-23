@@ -46,6 +46,8 @@ export interface EngineActivityDetail {
     readonly name: string
     readonly status: string
     readonly error?: string
+    /** Set on a `routine_responded` episode: the run the response answers. */
+    readonly runNumber?: number
   }
 }
 
@@ -78,7 +80,15 @@ export const ATTENTION_INBOX_STATES = [
    *  The only episode whose subject isn't a task: a routine on a moved repo
    *  never creates one. */
   "routine_failed",
+  /** An agent answered a routine run (`routine-respond`). Same subject rule as
+   *  `routine_failed`: it opens the Routines page. */
+  "routine_responded",
 ] as const
+
+/** Episodes whose subject is a routine, not a task. */
+export function isRoutineInboxState(state: unknown): boolean {
+  return state === "routine_failed" || state === "routine_responded"
+}
 
 export type AttentionInboxState = (typeof ATTENTION_INBOX_STATES)[number]
 
@@ -94,8 +104,8 @@ export function attentionInboxItemKey(item: {
 }): string {
   // Keyed on the ROUTINE: a fresh-task routine mints a task per firing, so a
   // task key would file 1,440 episodes a day for one broken per-minute schedule.
-  if (item.state === "routine_failed" && item.detail?.routine)
-    return `\u0000routine\u0000${item.detail.routine.automationId}`
+  if (isRoutineInboxState(item.state) && item.detail?.routine)
+    return `\u0000${item.state}\u0000${item.detail.routine.automationId}`
   // Engine episodes: one per tab, the fresh one replacing the stale.
   return `${item.taskId}\0${item.tabId ?? ""}`
 }

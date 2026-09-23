@@ -7,6 +7,7 @@
  * `docs/design/automations.md`.
  */
 
+import { ROUTINE_RESPONSE_MAX_CHARS } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { requirePromptText } from "./handlers-tasks.ts"
@@ -222,10 +223,59 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
     handler: (ctx) => simpleRpc(ctx, "automation.runNow", { id: ctx.args.require("id") }),
   },
   {
+    name: "routine-respond",
+    group: "routine",
+    summary: `Report this run's result. Every delivered routine prompt starts with a [ROVE ROUTINE] line naming its run id; answer it here once you're done. One response per run — responding again replaces it. Cap ${ROUTINE_RESPONSE_MAX_CHARS} characters; markdown renders on the Routines page.`,
+    flags: [
+      {
+        name: "run",
+        type: "string",
+        required: true,
+        placeholder: "RUN_ID",
+        description: "Run id from the [ROVE ROUTINE] line.",
+      },
+      {
+        name: "text",
+        type: "string",
+        placeholder: "TEXT",
+        description: "The response. Exactly one of --text / --prompt-file.",
+      },
+      {
+        ...F.promptFile(),
+        description:
+          "Read the response from this file (`-` = stdin) — use it for anything multi-line or with backticks/$vars.",
+      },
+    ],
+    handler: async (ctx) => {
+      const runId = ctx.args.require("run")
+      const inline = ctx.args.str("text")
+      const file = ctx.args.promptText()
+      if (inline !== undefined && file !== undefined) {
+        throw new ApiError("pass --text or --prompt-file, not both", "BAD_FLAG")
+      }
+      const text = inline ?? file
+      if (text === undefined) throw new ApiError("--text (or --prompt-file) is required", "MISSING_FLAG")
+      if (text.length > ROUTINE_RESPONSE_MAX_CHARS) {
+        throw new ApiError(
+          `response is ${text.length} characters; the cap is ${ROUTINE_RESPONSE_MAX_CHARS}`,
+          "RESPONSE_TOO_LARGE",
+          { hint: "Summarize: lead with the conclusion, link or name the files that hold the detail." },
+        )
+      }
+      const res = (await simpleRpc(ctx, "automation.respond", { runId, text })) as { run: unknown }
+      if (res.run === null) {
+        throw new ApiError(`no routine run ${runId}`, "RUN_NOT_FOUND", {
+          hint: "Copy the id from the [ROVE ROUTINE] line of the prompt you were given; `routine-runs --id <routine>` lists run ids.",
+        })
+      }
+      return res
+    },
+  },
+  {
     name: "routine-runs",
     group: "routine",
     summary:
-      "Run history, newest first. Statuses: dispatched, revived (standing session respawned — files kept, conversation did not), skipped_cancelled (disabled, changed or stopped before delivery), skipped_precheck (nothing to do), skipped_missed, skipped_unavailable, dispatch_failed.",
+      "Run history, newest first. Statuses: dispatched, revived (standing session respawned — files kept, conversation did not), skipped_cancelled (disabled, changed or stopped before delivery), skipped_precheck (nothing to do), skipped_missed, skipped_unavailable, dispatch_failed. Each run carries `response` ({text, at}) once its agent called routine-respond.",
     flags: [{ name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." }],
     handler: (ctx) => simpleRpc(ctx, "automation.runs", { id: ctx.args.require("id") }),
   },

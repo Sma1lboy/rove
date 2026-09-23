@@ -1,3 +1,4 @@
+import { isRoutineInboxState } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { useCallback, useEffect, useMemo, useRef } from "react"
 import type { AttentionInboxItem, RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { Task } from "../../types/task"
@@ -93,7 +94,7 @@ export function useInboxHost(args: {
   function openItem(item: AttentionInboxItem, knownAvailable?: boolean): void {
     // routine_failed: the subject is a SCHEDULE, so land on the Routines page
     // (run history, `run now`), not a task that may not exist.
-    if (item.state === "routine_failed") {
+    if (isRoutineInboxState(item.state)) {
       notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
       if (args.dialog.stack.length > 0) args.dialog.clear({ refocus: false })
       args.openAutomations()

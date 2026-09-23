@@ -16,6 +16,7 @@ import {
   type EngineActivityKind,
   attentionInboxItemKey,
   isAttentionInboxState,
+  isRoutineInboxState,
 } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
@@ -48,7 +49,7 @@ function normalizeItem(value: unknown): AttentionInboxItem | null {
   const item = value as Partial<AttentionInboxItem>
   // `null` is legal only for a routine episode, which has no task by nature.
   const taskless = item.taskId === null || item.taskId === undefined
-  if (taskless ? item.state !== "routine_failed" : typeof item.taskId !== "string" || item.taskId.length === 0) {
+  if (taskless ? !isRoutineInboxState(item.state) : typeof item.taskId !== "string" || item.taskId.length === 0) {
     return null
   }
   if (item.tabId !== null && typeof item.tabId !== "string") return null
@@ -222,13 +223,32 @@ export class AttentionInboxStore {
     })
   }
 
-  /** Drop a deleted routine's episode; nothing else would ever clear it. */
-  async deleteRoutineEpisode(automationId: string): Promise<void> {
+  /** Record (or refresh) a routine's `routine_responded` episode, one per
+   *  routine: the newest response replaces the previous episode. */
+  async recordRoutineResponse(
+    routine: { automationId: string; name: string; status: string; runNumber: number },
+    taskId: string | null,
+    at: number,
+  ): Promise<void> {
+    await this.enqueue(async () => {
+      const detail: EngineActivityDetail = { routine }
+      const key = attentionInboxItemKey({ taskId, tabId: null, state: "routine_responded", detail })
+      const next = new Map(this.items)
+      next.delete(key)
+      next.set(key, { taskId, tabId: null, state: "routine_responded", detail, unread: true, at })
+      await this.commit(next)
+    })
+  }
+
+  /** Drop a routine's episodes (only `state`'s, when given). A deleted
+   *  routine's episodes: nothing else would ever clear them. */
+  async deleteRoutineEpisode(automationId: string, state?: AttentionInboxState): Promise<void> {
     await this.enqueue(async () => {
       const next = new Map(this.items)
       let changed = false
       for (const [key, item] of next) {
         if (item.detail?.routine?.automationId !== automationId) continue
+        if (state !== undefined && item.state !== state) continue
         next.delete(key)
         changed = true
       }

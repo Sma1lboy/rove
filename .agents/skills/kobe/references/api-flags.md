@@ -267,6 +267,7 @@ routine-update       --id(REQ) --name --prompt|--prompt-file --schedule --vendor
 routine-set-enabled  --id(REQ) --enabled(REQ)
 routine-delete       --id(REQ)
 routine-run-now      --id(REQ)
+routine-respond      --run(REQ) --text --prompt-file
 routine-runs         --id(REQ)
 ```
 <!-- generated:end -->
@@ -298,6 +299,12 @@ A bare `--enabled` means true, so pausing a routine is
 `routine-run-now` skips the precheck deliberately (asking for it IS the answer)
 and does not shift the schedule. `routine-delete` leaves already-created tasks
 alone.
+
+A delivered routine prompt starts with `[ROVE ROUTINE] "<name>" run #<n> — when
+done, report with: … routine-respond --run <runId> --prompt-file -`. When you
+received one, finish by answering THAT run: lead with the conclusion, markdown
+welcome, 32,000 characters max. Responding again replaces the answer. Nothing
+is inferred if you skip it; the run just shows "no response".
 
 Run statuses from `routine-runs`: `dispatched`, `revived` (standing session
 respawned — files kept, conversation did not), `skipped_precheck` (nothing to do),

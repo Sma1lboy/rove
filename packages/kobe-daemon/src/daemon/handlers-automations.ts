@@ -8,7 +8,13 @@ import {
   mergeAutomationTargetOptions,
   readAutomationTarget,
 } from "./automation-target.ts"
-import type { AutomationPatch, AutomationPrecheck, AutomationRunStatus } from "./contracts.ts"
+import {
+  type AutomationPatch,
+  type AutomationPrecheck,
+  type AutomationRunStatus,
+  ROUTINE_RESPONSE_MAX_CHARS,
+} from "./contracts.ts"
+import { logDaemonError } from "./crash-log.ts"
 import { isValidCron } from "./cron.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
@@ -164,6 +170,30 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       // agent wait instead of fixing the id.
       if (!ctx.automations.get(automationId)) throw new Error(`automation not found: ${automationId}`)
       return { runs: ctx.automations.runsFor(automationId) }
+    },
+  },
+  {
+    name: "automation.respond",
+    async handle(payload, ctx) {
+      const runId = requireString(payload, "runId")
+      const text = requireString(payload, "text")
+      if (text.length > ROUTINE_RESPONSE_MAX_CHARS) {
+        throw new Error(`response is ${text.length} characters; the cap is ${ROUTINE_RESPONSE_MAX_CHARS}`)
+      }
+      const run = await ctx.automations.setRunResponse(runId, text)
+      if (!run) return { run: null }
+      const automation = ctx.automations.get(run.automationId)
+      if (automation) {
+        await ctx.inbox
+          .recordRoutineResponse(
+            { automationId: automation.id, name: automation.name, status: run.status, runNumber: run.runNumber },
+            run.taskId ?? null,
+            Date.now(),
+          )
+          // The response is already stored; an Inbox write must not fail the verb.
+          .catch((err: unknown) => logDaemonError("automation-respond-inbox", err))
+      }
+      return { run }
     },
   },
   {

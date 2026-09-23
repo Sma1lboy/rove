@@ -45,8 +45,13 @@ function buildReleaseNotesStyle(theme: Theme): SyntaxStyle {
 }
 
 export function ReleaseNotesBody(props: { body: string }) {
+  const content = useMemo(() => releaseNotesMarkdown(props.body), [props.body])
+  return <MarkdownText content={content} />
+}
+
+/** Markdown in the theme's release-notes styling; also routine responses. */
+export function MarkdownText(props: { content: string }) {
   const { theme } = useTheme()
   const syntaxStyle = useMemo(() => buildReleaseNotesStyle(theme), [theme])
-  const content = useMemo(() => releaseNotesMarkdown(props.body), [props.body])
-  return <markdown content={content} syntaxStyle={syntaxStyle} fg={theme.text} />
+  return <markdown content={props.content} syntaxStyle={syntaxStyle} fg={theme.text} />
 }

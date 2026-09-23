@@ -125,6 +125,9 @@ function normalizeRun(value: unknown): AutomationRun | null {
     ...(str(raw.tabId) ? { tabId: raw.tabId } : {}),
     ...(raw.precheckResult ? { precheckResult: raw.precheckResult } : {}),
     ...(str(raw.error) ? { error: raw.error } : {}),
+    ...(typeof raw.response?.text === "string" && str(raw.response.at)
+      ? { response: { text: raw.response.text, at: raw.response.at } }
+      : {}),
     at,
   }
 }
@@ -182,6 +185,8 @@ export function pruneRuns(
 export class AutomationsStore {
   private automations: Automation[] = []
   private runs: AutomationRun[] = []
+  /** Highest run number handed out per automation, recorded or not yet. */
+  private readonly reserved = new Map<string, number>()
 
   constructor(
     private readonly path: string,
@@ -311,15 +316,50 @@ export class AutomationsStore {
     })
   }
 
-  async recordRun(input: Omit<AutomationRun, "id" | "runNumber">): Promise<AutomationRun> {
+  /**
+   * Claim a run's id and number BEFORE dispatch, so the delivered prompt can
+   * name the run it belongs to. Pass the result to {@link recordRun}.
+   */
+  reserveRun(automationId: string): { id: string; runNumber: number } {
+    // From the highest number, NOT the retained count, or pruning reissues numbers.
+    const recorded = this.runs.reduce(
+      (n, run) => (run.automationId === automationId ? Math.max(n, run.runNumber) : n),
+      0,
+    )
+    const runNumber = Math.max(recorded, this.reserved.get(automationId) ?? 0) + 1
+    this.reserved.set(automationId, runNumber)
+    return { id: randomUUID(), runNumber }
+  }
+
+  async recordRun(
+    input: Omit<AutomationRun, "id" | "runNumber">,
+    reserved?: { id: string; runNumber: number },
+  ): Promise<AutomationRun> {
     return await this.enqueue(async () => {
-      // From the highest number, NOT the retained count, or pruning reissues numbers.
-      const runNumber =
-        this.runs.reduce((n, run) => (run.automationId === input.automationId ? Math.max(n, run.runNumber) : n), 0) + 1
-      const run: AutomationRun = { ...input, id: randomUUID(), runNumber }
+      const { id, runNumber } = reserved ?? this.reserveRun(input.automationId)
+      const run: AutomationRun = { ...input, id, runNumber }
       this.runs = [...this.runs, run]
       await this.commit()
       return run
+    })
+  }
+
+  getRun(runId: string): AutomationRun | undefined {
+    return this.runs.find((run) => run.id === runId)
+  }
+
+  /** Store (or replace) a run's response. Null for an unknown or pruned run id. */
+  async setRunResponse(runId: string, text: string): Promise<AutomationRun | null> {
+    return await this.enqueue(async () => {
+      const index = this.runs.findIndex((run) => run.id === runId)
+      if (index === -1) return null
+      const next: AutomationRun = {
+        ...(this.runs[index] as AutomationRun),
+        response: { text, at: new Date(this.now()).toISOString() },
+      }
+      this.runs = this.runs.map((run, i) => (i === index ? next : run))
+      await this.commit()
+      return next
     })
   }
 

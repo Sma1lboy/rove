@@ -16,7 +16,7 @@ export type {
   PtySessionExit,
 } from "./pty-protocol.ts"
 
-export { attentionInboxItemKey, isAttentionInboxState } from "./contracts.ts"
+export { attentionInboxItemKey, isAttentionInboxState, isRoutineInboxState } from "./contracts.ts"
 export type { EngineQuotaUsage, EngineQuotaWindow } from "./contracts.ts"
 
 export {
@@ -133,6 +133,8 @@ export type DaemonRequestName =
   | "automation.delete"
   | "automation.runs"
   | "automation.runNow"
+  // One agent-reported response per run; `{run:null}` for an unknown run id.
+  | "automation.respond"
   // GitHub issues via `gh` (docs/design/work-items.md): READ-ONLY, plus start a
   // task on one. Never mirrored into the local issue store.
   | "workitem.list"
