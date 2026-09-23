@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.226
+
+### Patch Changes
+
+- [#1127](https://github.com/Sma1lboy/rove/pull/1127) [`aecf378`](https://github.com/Sma1lboy/rove/commit/aecf378b2dafa08d6ed527eafa237cf0c2ab1544) Routine runs now carry a response. Every routine prompt Rove delivers starts with a `[ROVE ROUTINE]` line naming its run, and the agent answers that run with `rove api routine-respond --run <id> (--text T | --prompt-file PATH|-)` (one response per run, 32,000-character cap). The Routines page splits the selected routine into run history and its responses, rendered as markdown; a delivered run with no answer shows "awaiting response", then "no response" after two hours, and a new response lands in the Inbox. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.225
 
 ### Patch Changes
