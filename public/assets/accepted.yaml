@@ -3,7 +3,7 @@ owner:
   kind: repo
   id: kobe
 domain: promo
-revision: 9
+revision: 10
 accepted:
   - id: cursor-block
     concept: "cursor block"
@@ -206,4 +206,28 @@ accepted:
     size: [1920, 1080]
     duration_seconds: 50.7
     checksum_sha256: ced09eac9c9e4c901d9722029c5d3117136ba6e964d533a3161e85e731616f43
+    accepted_at: "2026-09-22"
+  - id: rove-life
+    concept: "Rove draws its own life — a drafting sheet inked revision by revision, day 0 to 0.9.223, with a synthesised score"
+    round: "rove-life · round 3"
+    modality: video
+    asset_type: promo-video
+    path: docs/assets/brand/rove-life.mp4
+    source: packages/branding/src/life/RoveLife.tsx
+    mime_type: video/mp4
+    size: [1920, 1080]
+    duration_seconds: 41.0
+    checksum_sha256: 2dc87e15ade9b6d04f3ac76e8d1b4bd9d964c5bfcb101484134fb2f72a6feea6
+    accepted_at: "2026-09-22"
+  - id: rove-life-cyanotype
+    concept: "The same film on the rove.run cyanotype sheet (dark)"
+    round: "rove-life · round 3"
+    modality: video
+    asset_type: promo-video
+    path: docs/assets/brand/rove-life-cyanotype.mp4
+    source: packages/branding/src/life/RoveLife.tsx
+    mime_type: video/mp4
+    size: [1920, 1080]
+    duration_seconds: 41.0
+    checksum_sha256: 98998a66f2410f8d42ff8a73202d810fbcef6deab35e45d14f1aeeb76a5b1dcb
     accepted_at: "2026-09-22"
