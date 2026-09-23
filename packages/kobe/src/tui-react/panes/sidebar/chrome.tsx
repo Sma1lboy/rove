@@ -2,13 +2,13 @@
 /** Shared sidebar chrome (brand header, create row, search, nav rail, section header, zen chip), so every sidebar surface renders the same thing. */
 
 import { MouseButton, TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { legendCap } from "../../../tui/lib/help-groups"
 import { SIDEBAR_NAV_ITEMS, type SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { dividerRule } from "../../lib/rule-divider"
+import { useTerminalDimensions } from "../../lib/use-terminal-dimensions"
 import { zenChipGlyph } from "./zen-glyph"
 
 export function SectionHeader(props: {

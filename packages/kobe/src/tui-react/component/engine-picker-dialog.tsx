@@ -13,7 +13,6 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useState } from "react"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { engineEntry } from "../../engine/registry"
@@ -23,6 +22,7 @@ import type { VendorId } from "../../types/vendor"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { ChipRow, DialogSection } from "../ui/dialog-parts"
 import { ModelSection, engineAcceptsModel, useModelField } from "./model-field"

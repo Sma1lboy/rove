@@ -164,6 +164,14 @@ async function drive(): Promise<void> {
     metrics["typing.echo.p50.ms"] = median(echoes)
     await pg.keyboard.press("Control+u")
 
+    // Each viewport change refits xterm and resizes the PTY, so the TUI sees one resize.
+    await phase("resize", 4, async () => {
+      for (const [width, height] of [[1200, 752], [1280, 800], [1200, 752], [1280, 800]] as const) {
+        await pg.setViewportSize({ width, height })
+        await pg.waitForTimeout(800)
+      }
+    })
+
     await pg.request
       .post(`http://127.0.0.1:${fixture.VISUAL_PTY_PORT}/pty/close`, {
         data: { tab: `visual-perf-${bootStart}` },

@@ -7,7 +7,6 @@
 
 import type { VendorId } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
-import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   type NewTaskInput,
@@ -19,6 +18,7 @@ import {
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
 import { t } from "../../i18n"
+import { useTerminalDimensions } from "../../lib/use-terminal-dimensions"
 import { toggleInSet, toggleSelectAll } from "./pure"
 
 export function useAdoptState(args: {

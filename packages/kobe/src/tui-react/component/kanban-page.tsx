@@ -13,7 +13,6 @@
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import type { Issue, IssueStatus } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
@@ -31,6 +30,7 @@ import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useCursorFollow } from "../lib/use-cursor-follow"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 import { ContextMenu } from "../ui/context-menu"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"

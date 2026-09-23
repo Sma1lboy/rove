@@ -7,9 +7,9 @@
 
 import type { BoxRenderable, RGBA } from "@opentui/core"
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import type { ReactNode } from "react"
 import { useTheme } from "../context/theme"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 import { useDialogFocus } from "./dialog-body"
 import { FRAME } from "./frame"
 

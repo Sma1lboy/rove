@@ -6,7 +6,7 @@
  * Settings, worktrees, and update surfaces swap in-process instead of exiting.
  */
 
-import { useRenderer, useTerminalDimensions } from "@opentui/react"
+import { useRenderer } from "@opentui/react"
 import { useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { PrefixHud } from "../component/prefix-hud"
@@ -19,6 +19,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { RenderProfiler } from "../lib/render-profiler"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 import { useWelcomeDialog } from "../onboarding/host"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"

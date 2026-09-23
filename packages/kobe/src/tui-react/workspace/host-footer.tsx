@@ -9,7 +9,6 @@
  * (`buildFooterChips`), so 80 columns degrade to compact chips.
  */
 
-import { useTerminalDimensions } from "@opentui/react"
 import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { engineDisplayName } from "../../engine/interactive-command"
@@ -25,6 +24,7 @@ import { ShortcutRevealProvider } from "../component/shortcut-reveal"
 import { useTheme } from "../context/theme"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useAccessor } from "../lib/use-accessor"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 
 /**
  * Context-window meter. Resolved by `WorkspaceFrame`, which decides whether

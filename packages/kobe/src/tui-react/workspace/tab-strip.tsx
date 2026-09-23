@@ -8,7 +8,6 @@
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState } from "react"
 import type { ChatTabTurnState } from "../../engine/turn-detector"
 import { approxCharCells, displayWidth } from "../../lib/display-width"
@@ -25,6 +24,7 @@ import type { VendorId } from "../../types/vendor"
 import { useKV } from "../context/kv"
 import { type Theme, useTheme } from "../context/theme"
 import { isNarrowWidth } from "../lib/narrow-mode"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 
 export { tabTitle }
 

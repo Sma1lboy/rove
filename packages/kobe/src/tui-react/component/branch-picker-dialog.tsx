@@ -10,7 +10,6 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useMemo, useState } from "react"
 import {
   type PickerWindow,
@@ -25,6 +24,7 @@ import { listLocalBranches } from "../../tui/lib/git-snapshot"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { DialogField, DialogSection } from "../ui/dialog-parts"
 import { PickerList } from "./new-task-dialog/picker-list"
