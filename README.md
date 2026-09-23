@@ -67,6 +67,10 @@ Press `n`, choose a repository, base branch, and agent, then enter a prompt. `F1
 
 ## Why Rove
 
+<p align="center">
+  <img src="docs/assets/brand/promo-engines.png" alt="Every agent CLI, each in its own worktree. Built in: Claude Code, Codex, GitHub Copilot, Kimi Code, Pi, OMP. From the catalog, when the CLI is on your PATH: Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp, Devin, Qoder CLI, Cline, Kiro CLI, Maki, Antigravity. Yours: any command you register, or an engine from a plugin." />
+</p>
+
 - **Parallel tasks.** Keep a refactor, a bug fix, a test investigation, and a review moving at the same time.
 - **Git isolation.** Each managed task owns a worktree and branch, so agents on different tasks never overwrite each other's files.
 - **Persistent sessions.** Quit the TUI or drop SSH, then reattach without stopping the work.
@@ -87,6 +91,10 @@ Managed task
 ```
 
 Tabs inside one task share its files, so work that needs isolation gets its own managed task. Project-main tasks and `rove .` directory tasks deliberately reuse an existing directory. Sessions keep running in the background when the TUI detaches, and Rove restores them when you return.
+
+<p align="center">
+  <img src="docs/assets/brand/promo-detach.png" alt="Close the terminal. They keep working. Sessions run on the host, not inside your terminal window: press ctrl+q twice to quit the TUI, then run rove to pick it all back up." />
+</p>
 
 The loop: start several tasks, switch between their live sessions, review each worktree's diff and checks, send follow-up instructions, then merge the branches that worked out. [Concepts](./docs/CONCEPTS.md) and [Sessions](./docs/SESSIONS.md) cover the full lifecycle.
 
@@ -113,6 +121,10 @@ A task created from inside another Rove session remembers which task and tab dis
 Every verb, flag, and exit code is in the [Agent API reference](https://docs.rove.run/rove/api).
 
 ## Plugins
+
+<p align="center">
+  <img src="docs/assets/brand/promo-plugins.jpg" alt="Make it yours: rove plugin search lists the first-party plugins notify, github-start, worktree-include, linear-start, lazygit, and browser." />
+</p>
 
 A plugin is a directory with a `rove-plugin.toml` manifest and commands in any language. It can add panes, react to events such as a finished agent turn, register commands and settings, and contribute whole engines. Browse and install from the terminal:
 

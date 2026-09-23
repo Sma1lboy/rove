@@ -66,6 +66,23 @@ Override at render time with `--width`, `--height`, `--frames`. For a transparen
 suitable for compositing into docs / screenshots, render with `--image-format=png` and
 `--codec=png-sequence`.
 
+## Promo stills
+
+Single-frame compositions in `src/promo/`, drawn in the launch film's palette and type (Instrument Sans
+for statements, JetBrains Mono for anything you type). `bun run still:promo` renders all four into
+`docs/assets/brand/`:
+
+| id | output | used by |
+|---|---|---|
+| `promo-engines` | `promo-engines.png` 1600×900 | README, top of "Why Rove" |
+| `promo-detach` | `promo-detach.png` 1600×900 | README, "How it works" |
+| `promo-plugins` | `promo-plugins.jpg` 1600×900 | README, "Plugins" |
+| `promo-social` | `promo-social.png` 1280×640 | the repository's social preview, uploaded in GitHub Settings |
+
+The engine roster in `src/promo/promo-theme.tsx` copies the engine registry by hand, so re-render
+when an engine joins or leaves. The plugin list is `rove plugin search` output, so re-copy it the
+same way.
+
 ## Picking one
 
 `bracket-chip` already has the README-hero slot, and `glyph-k` is its companion for the square
@@ -93,7 +110,8 @@ branding/
     ├── BracketChip.tsx      ← the first banner direction
     ├── PaneGrid.tsx
     ├── TaskStreams.tsx
-    └── GlyphK.tsx
+    ├── GlyphK.tsx
+    └── promo/               ← the promo stills
 ```
 
 The branding subproject has its own `package.json`, `tsconfig.json`, and `node_modules` so it stays

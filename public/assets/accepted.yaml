@@ -3,7 +3,7 @@ owner:
   kind: repo
   id: kobe
 domain: promo
-revision: 7
+revision: 8
 accepted:
   - id: cursor-block
     concept: "cursor block"
@@ -151,3 +151,47 @@ accepted:
     duration_seconds: 38.2
     checksum_sha256: bba25fbea074f6f662992df72ebcad9ef6da67f97f9187798b1f14c281b3ae54
     accepted_at: "2026-08-25"
+  - id: promo-engines
+    concept: "Every agent CLI, each in its own worktree — built-in, catalog, and your own engines"
+    round: "rove-promo-stills · round 1"
+    modality: image
+    asset_type: promo-image
+    path: docs/assets/brand/promo-engines.png
+    source: packages/branding/src/promo/PromoEngines.tsx
+    mime_type: image/png
+    size: [1600, 900]
+    checksum_sha256: d5118c72bdd7ca733826e085e499f1a090c57062fc7337991011423bc3873101
+    accepted_at: "2026-09-22"
+  - id: promo-detach
+    concept: "Close the terminal. They keep working. — persistent sessions over the film's deep-clay cells"
+    round: "rove-promo-stills · round 1"
+    modality: image
+    asset_type: promo-image
+    path: docs/assets/brand/promo-detach.png
+    source: packages/branding/src/promo/PromoDetach.tsx
+    mime_type: image/png
+    size: [1600, 900]
+    checksum_sha256: 869d67b4d32aef94834935e5da48f0b3bee9632ee827a61aa973c540185d6e2f
+    accepted_at: "2026-09-22"
+  - id: promo-plugins
+    concept: "Make it yours — real rove plugin search output over the Martian-dusk wallpaper"
+    round: "rove-promo-stills · round 1"
+    modality: image
+    asset_type: promo-image
+    path: docs/assets/brand/promo-plugins.jpg
+    source: packages/branding/src/promo/PromoPlugins.tsx
+    mime_type: image/jpeg
+    size: [1600, 900]
+    checksum_sha256: eff8a6168e8962901faef3329755b29720f411d2bc6c9716303baca18ce41501
+    accepted_at: "2026-09-22"
+  - id: promo-social
+    concept: "GitHub social preview — the film's end card with the engine ids"
+    round: "rove-promo-stills · round 1"
+    modality: image
+    asset_type: promo-image
+    path: docs/assets/brand/promo-social.png
+    source: packages/branding/src/promo/PromoSocial.tsx
+    mime_type: image/png
+    size: [1280, 640]
+    checksum_sha256: 4563875216a9719328d2dba38ccef46df18692a2775be228c6f7067b37019284
+    accepted_at: "2026-09-22"

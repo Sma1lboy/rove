@@ -10,6 +10,10 @@ import { DocsFanOut } from "./docs/DocsFanOut"
 import { DocsTaskModel } from "./docs/DocsTaskModel"
 import { GlyphK } from "./GlyphK"
 import { PaneGrid } from "./PaneGrid"
+import { PromoDetach } from "./promo/PromoDetach"
+import { PromoEngines } from "./promo/PromoEngines"
+import { PromoPlugins } from "./promo/PromoPlugins"
+import { PromoSocial } from "./promo/PromoSocial"
 import { QuickLookReplay } from "./quicklook/QuickLookReplay"
 import quicklookCapture from "./quicklook/frames.json"
 import quicklookSpec from "./quicklook/quicklook.replay.json"
@@ -58,6 +62,10 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="docs-fan-out" component={DocsFanOut} durationInFrames={1} fps={30} width={1600} height={900} />
       <Composition id="docs-task-model" component={DocsTaskModel} durationInFrames={1} fps={30} width={1600} height={900} />
       <Composition id="docs-detach-survives" component={DocsDetachSurvives} durationInFrames={1} fps={30} width={1600} height={900} />
+      <Composition id="promo-social" component={PromoSocial} durationInFrames={1} fps={30} width={1280} height={640} />
+      <Composition id="promo-engines" component={PromoEngines} durationInFrames={1} fps={30} width={1600} height={900} />
+      <Composition id="promo-plugins" component={PromoPlugins} durationInFrames={1} fps={30} width={1600} height={900} />
+      <Composition id="promo-detach" component={PromoDetach} durationInFrames={1} fps={30} width={1600} height={900} />
       {/* The README screencast with narration. `captureSeconds` is the raw
           capture's length — re-shoot it and update this one number plus the
           beat timings in `DemoNarrated`. */}
