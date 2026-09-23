@@ -1,6 +1,8 @@
 /**
- * `bun run perf:measure [--out=dir] [--update-baseline]` — counts and timings
- * for the TUI's user paths, compared against `perf/baseline.json`.
+ * `bun run perf:measure [--out=dir] [--baseline=file] [--update-baseline]` —
+ * counts and timings for the TUI's user paths. With `--baseline`, compares
+ * against that file; a missing file is created from this run, so the first
+ * run of a series is its baseline.
  *
  * Starts its own isolated fixture on port base 5373 (so a warm `visual:serve`
  * on 5273 is left alone), drives the real OpenTUI through the browser harness,
@@ -11,13 +13,14 @@
  */
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { chromium, type Page } from "@playwright/test"
 
 const HARNESS_DIR = resolve(import.meta.dirname, "..")
 const REPO_ROOT = resolve(HARNESS_DIR, "..", "..")
-const BASELINE = join(HARNESS_DIR, "perf", "baseline.json")
 const args = process.argv.slice(2)
+const baselineArg = args.find((a) => a.startsWith("--baseline="))?.slice(11)
+const BASELINE = baselineArg ? resolve(baselineArg) : undefined
 const updateBaseline = args.includes("--update-baseline")
 const out = resolve(
   args.find((a) => a.startsWith("--out="))?.slice(6) ??
@@ -268,12 +271,13 @@ try {
 summarize()
 golden()
 writeFileSync(join(out, "metrics.json"), `${JSON.stringify(metrics, null, 2)}\n`)
-const base = existsSync(BASELINE) ? (JSON.parse(readFileSync(BASELINE, "utf8")) as Record<string, number>) : {}
+const hasBase = BASELINE !== undefined && existsSync(BASELINE)
+const base = hasBase ? (JSON.parse(readFileSync(BASELINE, "utf8")) as Record<string, number>) : {}
 const failures = compare(base)
-if (updateBaseline) {
-  mkdirSync(join(HARNESS_DIR, "perf"), { recursive: true })
+if (BASELINE && (updateBaseline || !hasBase)) {
+  mkdirSync(dirname(BASELINE), { recursive: true })
   writeFileSync(BASELINE, `${JSON.stringify(metrics, null, 2)}\n`)
-  console.log(`baseline written: ${BASELINE}`)
+  console.log(`baseline ${hasBase ? "updated" : "created"}: ${BASELINE}`)
 } else if (failures.length > 0) {
   appendFileSync(join(out, "report.md"), `\nRegressed:\n${failures.map((f) => `- ${f}`).join("\n")}\n`)
   console.error(`regressed: ${failures.join("; ")}`)

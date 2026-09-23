@@ -92,9 +92,9 @@ Visible terminal snapshots use the renderer's frame callback and commit React up
 
 ## Performance measurement
 
-`bun run perf:measure` from `packages/kobe-harness` measures the TUI's user paths on this machine and compares them with `packages/kobe-harness/perf/baseline.json`. It starts a cold, isolated fixture on port base 5373, seeds two tasks that run a plain `bash` (no engine), and drives the real OpenTUI through the browser harness: 10 s idle, 10 task switches, 30 typed keys. It then appends `perf:golden --fast`. Exit 1 means a metric moved past its tolerance (counts: 10% or 1, whichever is larger; timings: 50% or 15 ms). `--update-baseline` rewrites the baseline; `--out=<dir>` keeps the run's `report.md`, `metrics.json`, raw profiles and one screenshot per phase (default `.scratch/perf/<timestamp>`).
+`bun run perf:measure` from `packages/kobe-harness` measures the TUI's user paths on this machine. With `--baseline=<file>` it compares against that file; when the file does not exist yet, this run is written to it, so the first run of a series is its baseline. It starts a cold, isolated fixture on port base 5373, seeds two tasks that run a plain `bash` (no engine), and drives the real OpenTUI through the browser harness: 10 s idle, 10 task switches, 30 typed keys. It then appends `perf:golden --fast`. Exit 1 means a metric moved past its tolerance (counts: 10% or 1, whichever is larger; timings: 50% or 15 ms). `--update-baseline` rewrites the `--baseline` file with this run; `--out=<dir>` keeps the run's `report.md`, `metrics.json`, raw profiles and one screenshot per phase (default `.scratch/perf/<timestamp>`).
 
-It is not a CI gate: wall-clock numbers depend on the machine, so the numbers only compare against a baseline taken on the same machine.
+It is not a CI gate: wall-clock numbers depend on the machine, so a baseline only means something for machines of the same spec. The nightly cloud routine keeps its baseline, run history and failed attempts on the `perf-data` branch.
 
 The counts come from two env-gated sinks, off by default (each hook is one boolean test when off):
 
