@@ -85,11 +85,10 @@ disagree, the repo wins. The conflicts that actually come up:
 - **Deletion.** pstack says bias to deletion. This repo requires the user to
   say "delete"/"删" **in the same turn** before you remove files, branches, or
   worktrees. Surface the deletion you want; do not take it.
-- **Never Block on the Human.** Scoped to *reversible* work. Releases, direct
-  pushes to `main`, and new or moved keybindings need the owner's word in that
-  turn regardless of what this principle says.
-- **File size cap.** ~500 lines on any file you touch, CI-gated. That is a hard
-  rule, not a principle to weigh.
+- **Never Block on the Human.** Scoped to *reversible* work. Direct pushes to
+  `main` and new or moved keybindings need the owner's word in that turn
+  regardless of what this principle says.
+- **File size.** Governed by AGENTS.md's file-size section.
 - **Verification.** "Prove It Works" here means the repo's real gates:
   `bun run lint`, `bun run test:fast` (vitest) or `bun test test/render` (bun's
   runner — picking the wrong one looks like a broken environment), and for
@@ -97,8 +96,9 @@ disagree, the repo wins. The conflicts that actually come up:
 
 ## Autonomy
 
-Reversible work proceeds without asking. Always pause for irreversible writes:
-force-push to shared branches, deploys, data deletion, messages to people.
+Reversible work proceeds without asking. Always pause for irreversible writes
+AGENTS.md does not already authorize: force-push to shared branches, deploys,
+data deletion, messages to people.
 
 ## What was left behind
 

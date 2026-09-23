@@ -29,9 +29,7 @@ Open a todolist with one entry per phase before launching anything.
 
 ## Phase B: Fan out
 
-Spawn all N workers in one message with `subagent_type: generalPurpose`, `environment: "cloud"`, `run_in_background: true`, and the configured model. Use `environment: "local"` only when the worker needs access to something on the user's computer.
-
-When a worker must start from a non-default pushed branch, pass `cloud_base_branch`.
+Spawn all N workers in one message with the Agent tool, `subagent_type: general-purpose`, and `isolation: "worktree"` for every worker that writes, so their edits cannot collide. Inside a Rove session (`$ROVE_TASK_ID` set), workers that edit files are Rove tasks instead — `rove api add --count N`, or one `add` per slice (see the rove skill) — so the user can see and steer them.
 
 Every brief stands alone. Include the goal, scope, exact slice or race arm, how to verify, and what to report. Reports use `PASS`, `ISSUES`, or `BLOCKED` with evidence.
 

@@ -31,7 +31,7 @@ import { getPersistedString, setPersistedString } from "../state/repos.ts"
  * `test/architecture/skill-version-bump.test.ts` fails any content change
  * that skips the bump.
  */
-export const KOBE_SKILL_VERSION = 50
+export const KOBE_SKILL_VERSION = 51
 
 /**
  * Where an installed skill can be found, relative to a home/project root —

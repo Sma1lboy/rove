@@ -42,9 +42,10 @@ Pick the mode, then follow the per-issue steps below for each issue.
 
 ## Hard rules (non-negotiable)
 
-- **Filing is an outward-facing publish.** Draft first, then confirm the set before
-  `gh issue create` — don't create silently. Editing an already-filed issue is fine
-  without re-asking.
+- **Filing is an outward-facing publish.** Show the draft(s) and labels before
+  `gh issue create` — never create silently. A batch needs one explicit
+  confirmation; a single obvious issue can be filed right after you show it.
+  Editing an already-filed issue is fine without re-asking.
 - **No AI / Anthropic / Claude / Codex attribution** anywhere in the title, body, or
   comments (per CLAUDE.md). No "Generated with…" footers.
 - **Never invent file paths, line numbers, flags, or function names.** Every pointer in

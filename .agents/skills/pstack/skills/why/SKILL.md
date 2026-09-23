@@ -179,9 +179,8 @@ If your scope assessment suggests a single-commit trivial target where the PR de
 
 Spawn one synthesizer subagent:
 
-- `subagent_type`: `generalPurpose`
-- `model`: your configured why-synthesizer model (default `claude-fable-5-thinking-max`)
-- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. Readonly/Ask mode strips MCPs and defeats that.
+- `subagent_type`: `general-purpose` (full tool access: its quality check spot-verifies citations)
+- `model`: omit — the synthesizer inherits the session model, like the investigators
 
 The synthesizer gets:
 1. The investigator findings, including any null results and any categories skipped with justification
