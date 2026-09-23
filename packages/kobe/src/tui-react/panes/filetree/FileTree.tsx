@@ -11,7 +11,6 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
-import { useTerminalDimensions } from "@opentui/react"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
@@ -45,6 +44,7 @@ import { type TreeNode, buildTree } from "../../../tui/panes/filetree/tree"
 import { PaneKeyHint, usePaneHintMark } from "../../component/keyboard-hints"
 import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
+import { useTerminalDimensions } from "../../lib/use-terminal-dimensions"
 import { FileTreeBodyView } from "./body-view"
 import { FileTreeHeaderView } from "./header-view"
 

@@ -12,12 +12,13 @@
  */
 
 import type { Renderable } from "@opentui/core"
-import { useRenderer, useTerminalDimensions } from "@opentui/react"
+import { useRenderer } from "@opentui/react"
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "../context/theme"
 import { ModalScopeContext, useBindings } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useLatest } from "../lib/use-latest"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 
 /** Dialog BODY horizontal padding: 2 cells, 1 below the narrow breakpoint. Follows live resize. */
 export function useDialogPaddingX(): number {

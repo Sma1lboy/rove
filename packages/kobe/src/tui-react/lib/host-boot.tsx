@@ -240,6 +240,8 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
       profileMark("firstFrame")
       profileTick("frame")
     })
+    // Listeners one resize wakes, this counter's own included.
+    renderer.on("resize", () => profileTick("resizeListener", renderer.listenerCount("resize")))
   }
 
   const body = (

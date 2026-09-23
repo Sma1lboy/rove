@@ -11,7 +11,6 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import {
   type Automation,
   type AutomationRun,
@@ -30,6 +29,7 @@ import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { dividerRule } from "../lib/rule-divider"
 import { useCursorFollow } from "../lib/use-cursor-follow"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { FRAME } from "../ui/frame"

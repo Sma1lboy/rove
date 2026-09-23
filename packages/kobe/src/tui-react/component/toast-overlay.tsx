@@ -7,12 +7,12 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { charWidth } from "../../lib/display-width"
 import type { Toast } from "../../tui/lib/notify-state"
 import { truncateEndCells } from "../../tui/lib/truncate"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 
 const MAX_VISIBLE = 3
 const CARD_WIDTH = 44

@@ -7,7 +7,6 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useMemo } from "react"
 import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { engineDisplayName } from "../../../engine/interactive-command"
@@ -27,6 +26,7 @@ import { keyHintsToggleOn, toggleKeyHints } from "../../../tui/lib/keyboard-hint
 import { useKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { useTerminalDimensions } from "../../lib/use-terminal-dimensions"
 import { useDialogPaddingX } from "../../ui/dialog"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
 import { AppearanceSettingsSection } from "./sections-appearance"

@@ -1,9 +1,9 @@
 /** @jsxImportSource @opentui/react */
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import type { AppearanceSetting, AppearanceSnapshot } from "../../../tui/component/settings-dialog/appearance"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { useTerminalDimensions } from "../../lib/use-terminal-dimensions"
 import { COLLAPSED_RAIL_WIDTH } from "../../panes/sidebar/collapsed-rail"
 
 export function AppearancePreview(props: { current: AppearanceSnapshot; active?: AppearanceSetting }) {

@@ -2,10 +2,10 @@
 /** The host's right rail (FileTree). Width: a third of what's left beside the
  *  sidebar, clamped to the worktree-tools convention [22, 34]. */
 
-import { useTerminalDimensions } from "@opentui/react"
 import { useFocus } from "../context/focus"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 import { FileTree } from "../panes/filetree/FileTree"
 
 const WORKTREE_TOOLS_MIN_WIDTH = 22

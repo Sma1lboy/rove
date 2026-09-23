@@ -8,7 +8,6 @@
  * stay timer-free.
  */
 
-import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useState } from "react"
 import { charWidth, displayWidth } from "../../lib/display-width"
 import { KobeKeymap, findBinding } from "../../tui/context/keybindings"
@@ -22,6 +21,7 @@ import { tKeys, useT } from "../i18n"
 import { invokeArmedPrefixActionFromCurrentStack } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useAccessor } from "../lib/use-accessor"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 import { FRAME } from "../ui/frame"
 import { useShortcutRevealPresentation } from "./shortcut-reveal"
 

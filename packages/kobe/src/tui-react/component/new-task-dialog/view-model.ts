@@ -11,7 +11,6 @@ import { AUTO_ROUTING_TIERS, readAutoRoutingTable } from "@/engine/auto-routing"
 import { engineEntry } from "@/engine/registry"
 import { type VendorId, nextVendorWithin, prevVendorWithin } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
-import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   type DialogTab,
@@ -28,6 +27,7 @@ import {
 import { t } from "../../../tui/i18n"
 import { DEFAULT_BASE_REF, validateRepoPath } from "../../../tui/lib/git-snapshot"
 import { useBindings } from "../../lib/keymap"
+import { useTerminalDimensions } from "../../lib/use-terminal-dimensions"
 import { useDialog } from "../../ui/dialog"
 import { engineAcceptsModel, useModelField } from "../model-field"
 import { resolveInitialVendor, resolveVendorSet } from "./pure"

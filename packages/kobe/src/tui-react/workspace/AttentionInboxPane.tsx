@@ -1,7 +1,6 @@
 /** @jsxImportSource @opentui/react */
 
 import { type RGBA, TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import type { AttentionInboxItem, RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
 import { DEFAULT_SPINNER_FRAMES } from "../../engine/spinner-frames"
@@ -19,6 +18,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { useAccessor } from "../lib/use-accessor"
+import { useTerminalDimensions } from "../lib/use-terminal-dimensions"
 import { type DialogContext, useDialog } from "../ui/dialog"
 import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
 import {

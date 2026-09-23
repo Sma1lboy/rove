@@ -14,8 +14,8 @@
  */
 
 import type { BoxRenderable } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useState } from "react"
+import { useTerminalDimensions } from "../../lib/use-terminal-dimensions"
 
 export interface UseTerminalGeometryResult {
   bodyEl: BoxRenderable | null

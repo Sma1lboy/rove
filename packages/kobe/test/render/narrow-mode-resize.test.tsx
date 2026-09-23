@@ -7,9 +7,11 @@
  */
 
 import { expect, test } from "bun:test"
-import { useTerminalDimensions } from "@opentui/react"
 import { isNarrowWidth } from "../../src/tui-react/lib/narrow-mode"
+import { useTerminalDimensions } from "../../src/tui-react/lib/use-terminal-dimensions"
 import { act, renderComponent } from "./harness"
+
+const PROBES = Array.from({ length: 12 }, (_, i) => `probe-${i}`)
 
 function NarrowProbe() {
   const dims = useTerminalDimensions()
@@ -17,8 +19,17 @@ function NarrowProbe() {
 }
 
 test("narrow flag flips live on resize across the breakpoint", async () => {
-  const { frame, resize } = await renderComponent(<NarrowProbe />, { width: 80, height: 24 })
+  const { frame, resize, renderer } = await renderComponent(
+    <box>
+      {PROBES.map((id) => (
+        <NarrowProbe key={id} />
+      ))}
+    </box>,
+    { width: 80, height: 24 },
+  )
   expect(await frame()).toContain("layout:wide")
+  // Twelve callers, one renderer listener: past ten, Node prints a warning over the TUI.
+  expect(renderer.listenerCount("resize")).toBeLessThan(10)
 
   // Phone-SSH target viewport (~46×70 cells).
   await act(async () => {
