@@ -9,6 +9,8 @@ import { DocsDetachSurvives } from "./docs/DocsDetachSurvives"
 import { DocsFanOut } from "./docs/DocsFanOut"
 import { DocsTaskModel } from "./docs/DocsTaskModel"
 import { GlyphK } from "./GlyphK"
+import { RoveLife } from "./life/RoveLife"
+import { LIFE } from "./life/timeline"
 import { PaneGrid } from "./PaneGrid"
 import { PromoDetach } from "./promo/PromoDetach"
 import { PromoEngines } from "./promo/PromoEngines"
@@ -59,6 +61,9 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="pane-grid" component={PaneGrid} durationInFrames={150} fps={30} width={1200} height={800} />
       <Composition id="task-streams" component={TaskStreams} durationInFrames={120} fps={30} width={1200} height={630} />
       <Composition id="glyph-k" component={GlyphK} durationInFrames={150} fps={30} width={800} height={800} />
+      {/* Rove's history inked stroke by stroke, day 0 to the current release, with its score. */}
+      <Composition id="rove-life" component={RoveLife} {...LIFE} />
+      <Composition id="rove-life-cyanotype" component={RoveLife} {...LIFE} defaultProps={{ theme: "cyanotype" }} />
       <Composition id="docs-fan-out" component={DocsFanOut} durationInFrames={1} fps={30} width={1600} height={900} />
       <Composition id="docs-task-model" component={DocsTaskModel} durationInFrames={1} fps={30} width={1600} height={900} />
       <Composition id="docs-detach-survives" component={DocsDetachSurvives} durationInFrames={1} fps={30} width={1600} height={900} />

@@ -83,6 +83,27 @@ The engine roster in `src/promo/promo-theme.tsx` copies the engine registry by h
 when an engine joins or leaves. The plugin list is `rove plugin search` output, so re-copy it the
 same way.
 
+## Promo film: `rove-life`
+
+41 seconds of the sheet drawing Rove's own history, from the first commit (2026-05-08) to 0.9.223:
+one revision per milestone, the revision table and the commits-per-month timeline filling in, and the
+title block counting days, version and commits. The drawing field is a viewport (`src/life/camera.ts`)
+that opens at 2.57 : 1 on day 0 and pulls back every revision, landing on the downbeat. No images and
+no samples: strokes are polylines from `src/life/pen.tsx`, and `scripts/life-score.ts` synthesises the
+score (instruments and drums in `scripts/score-dsp.ts`) from the same frame timeline,
+`src/life/timeline.ts`.
+
+| id | output | sheet |
+|---|---|---|
+| `rove-life` | `rove-life.mp4` 1920×1080, 41s | rove.run plot (light) |
+| `rove-life-cyanotype` | `rove-life-cyanotype.mp4` 1920×1080, 41s | rove.run cyanotype (dark) |
+
+`bun run mp4:life` and `bun run mp4:life:cyanotype` regenerate the score, then render. Before
+`bun run studio`, run `bun run score:life` once: `public/life/score.wav` is generated, not committed.
+The score script prints each bus's RMS and the final loudness (-14 LUFS); the target ratios are
+written above `MIX`. The milestones, versions and commit counts in `src/life/RoveLife.tsx` were read
+from `git log` on 2026-09-22 — re-read them before rendering for a later release.
+
 ## Picking one
 
 `bracket-chip` already has the README-hero slot, and `glyph-k` is its companion for the square
@@ -111,7 +132,8 @@ branding/
     ├── PaneGrid.tsx
     ├── TaskStreams.tsx
     ├── GlyphK.tsx
-    └── promo/               ← the promo stills
+    ├── promo/               ← the promo stills
+    └── life/                ← the rove-life film: sheet, pen, camera, timeline
 ```
 
 The branding subproject has its own `package.json`, `tsconfig.json`, and `node_modules` so it stays
