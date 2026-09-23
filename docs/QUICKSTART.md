@@ -6,7 +6,7 @@ each other. Extra tabs inside one Task share that Task's directory.
 
 You need git and at least one engine CLI on your `PATH`. Rove ships built-in
 support for `claude`, `codex`, `copilot`, `kimi`, `pi` and `omp`, and launches `gemini`,
-`opencode`, `cursor-agent`, `grok`, `droid`, `amp`, `cline`, `kiro-cli`, `maki`
+`opencode`, `cursor-agent`, `grok`, `droid`, `amp`, `devin`, `qodercli`, `cline`, `kiro-cli`, `maki`
 and `agy` (Antigravity) too — the full list, and
 how to add your own, is in [Engines](ENGINES.md).
 
