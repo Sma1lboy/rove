@@ -82,8 +82,12 @@ describe("runAutomationOnce", () => {
 
     expect(status).toBe("dispatched")
     expect(created).toEqual([{ repo: REPO, title: "audit" }])
-    expect(prompts).toEqual(["run the audit"])
-    expect(store.runsFor(a.id)[0]).toMatchObject({ status: "dispatched", taskId: "task-1" })
+    const run = store.runsFor(a.id)[0]
+    expect(run).toMatchObject({ status: "dispatched", taskId: "task-1" })
+    // The header names THIS run, and the routine's prompt comes last, unchanged.
+    expect(prompts).toEqual([
+      `[ROVE ROUTINE] "audit" run #1 — when done, report with: rove api routine-respond --run ${run?.id} --prompt-file -\n\nrun the audit`,
+    ])
   })
 
   it("skips without creating a task when the precheck fails", async () => {
@@ -221,7 +225,7 @@ describe("sweepAutomations", () => {
     await sweepAutomations(deps)
 
     // Fired purely off the persisted nextRunAt — no re-arm pass exists.
-    expect(prompts).toEqual(["p"])
+    expect(prompts).toEqual([expect.stringMatching(/\n\np$/)])
     expect(second.get(created.id)).toBeDefined()
   })
 })

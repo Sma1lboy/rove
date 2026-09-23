@@ -236,7 +236,8 @@ export class VerbArgs {
   private promptMemo: { value: string | undefined } | undefined
 
   private readPromptText(): string | undefined {
-    const inline = this.str("prompt")
+    // `routine-respond` takes `--text` + `--prompt-file`, no `--prompt`.
+    const inline = this.verb.flags.some((f) => f.name === "prompt") ? this.str("prompt") : undefined
     const file = this.str("prompt-file")
     if (inline !== undefined && file !== undefined) {
       throw new ApiError("pass --prompt or --prompt-file, not both", "BAD_FLAG", helpStep(this.verb.name))

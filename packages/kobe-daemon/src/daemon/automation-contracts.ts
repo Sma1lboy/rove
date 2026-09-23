@@ -109,6 +109,34 @@ export interface AutomationRun {
   readonly error?: string
   /** ISO-8601 event time. */
   readonly at: string
+  /** What the agent reported for THIS run via `routine-respond`. Never
+   *  inferred from a transcript: no call, no response. */
+  readonly response?: AutomationRunResponse
+}
+
+export interface AutomationRunResponse {
+  readonly text: string
+  /** ISO-8601 time the response was stored. */
+  readonly at: string
+}
+
+/** Stored response cap, in characters. Over it the verb refuses rather than truncating. */
+export const ROUTINE_RESPONSE_MAX_CHARS = 32_000
+
+/** A delivered run with no response turns from awaiting to missing after this. */
+export const ROUTINE_RESPONSE_WINDOW_MS = 2 * 60 * 60_000
+
+/**
+ * Where a run stands on its response. `null` for a run that never delivered a
+ * prompt (nothing to respond to).
+ */
+export function routineRunResponseState(
+  run: Pick<AutomationRun, "status" | "at" | "response">,
+  nowMs: number,
+): "responded" | "awaiting" | "missing" | null {
+  if (run.response) return "responded"
+  if (run.status !== "dispatched" && run.status !== "revived") return null
+  return nowMs - Date.parse(run.at) > ROUTINE_RESPONSE_WINDOW_MS ? "missing" : "awaiting"
 }
 
 /** Mutable fields of an automation. `schedule` changes recompute `nextRunAt`. */

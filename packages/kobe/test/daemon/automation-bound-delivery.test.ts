@@ -59,7 +59,7 @@ describe("existing-tab routine delivery", () => {
     expect(f.deliverTab).toHaveBeenCalledTimes(1)
     expect(f.deliverTab).toHaveBeenCalledWith(
       expect.objectContaining({ id: TASK.id, tabId: "tab-2" }),
-      f.routine.prompt,
+      expect.stringContaining(`--run ${f.store.runsFor(f.routine.id)[0]?.id} `),
     )
     expect(f.created).toEqual([])
     expect(f.prompts).toEqual([])

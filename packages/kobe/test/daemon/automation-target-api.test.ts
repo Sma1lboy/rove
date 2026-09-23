@@ -45,7 +45,10 @@ describe("routine target through real daemon RPC", () => {
       }
       expect(await c.request("automation.runNow", { id: a.id })).toEqual({ status: "dispatched" })
       expect(deliveries).toEqual([
-        { target: expect.objectContaining({ id: TASK.id, tabId: "tab-2" }), prompt: "sentinel" },
+        {
+          target: expect.objectContaining({ id: TASK.id, tabId: "tab-2" }),
+          prompt: expect.stringMatching(/^\[ROVE ROUTINE\][^\n]*\n\nsentinel$/),
+        },
       ])
       const { automation: cleared } = await c.request<{ automation: Automation }>("automation.update", {
         id: a.id,

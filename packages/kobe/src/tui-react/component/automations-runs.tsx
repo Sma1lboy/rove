@@ -6,11 +6,12 @@
  */
 
 import { type RGBA, TextAttributes } from "@opentui/core"
-import type { AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
+import { type AutomationRun, routineRunResponseState } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { ReactNode } from "react"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { formatRunStatus, formatWhen } from "./automations-format"
+import { MarkdownText } from "./release-notes"
 
 /** Run-status → glance tone. The "didn't run" reasons stay distinct:
  *  `skipped_precheck` is healthy, `dispatch_failed` wants a human. */
@@ -121,14 +122,50 @@ export function RunHistory(props: { runs: readonly AutomationRun[]; now: number 
         <text fg={theme.textMuted}>{t("automations.noRuns")}</text>
       ) : (
         runs.slice(0, 5).map((run) => {
+          // A delivered run still owing its response reads as such; missing is a warning.
+          const pending = routineRunResponseState(run, props.now)
+          const note =
+            pending === "awaiting"
+              ? ` · ${t("automations.responseAwaiting")}`
+              : pending === "missing"
+                ? ` · ${t("automations.responseMissing")}`
+                : ""
           return (
-            <text key={run.id} fg={runToneColor(run.status, theme)}>
-              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.tabId ? ` · ${run.tabId}` : ""}${run.error ? ` \u2014 ${run.error}` : ""}  ${formatWhen(run.at, props.now)}`}
+            <text key={run.id} fg={pending === "missing" ? theme.warning : runToneColor(run.status, theme)}>
+              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.tabId ? ` · ${run.tabId}` : ""}${run.error ? ` \u2014 ${run.error}` : ""}${note}  ${formatWhen(run.at, props.now)}`}
             </text>
           )
         })
       )}
       <PrecheckDetail run={runs[0]} />
+    </>
+  )
+}
+
+/** Responses newest first, each headed by the run it answers. Markdown body. */
+export function RunResponses(props: { runs: readonly AutomationRun[]; now: number }): ReactNode {
+  const { theme } = useTheme()
+  const t = useT()
+  const answered = props.runs.filter((run) => run.response)
+  return (
+    <>
+      <text attributes={TextAttributes.BOLD} fg={theme.text} flexShrink={0}>
+        {t("automations.responses")}
+      </text>
+      {answered.length === 0 ? (
+        <text fg={theme.textMuted}>{t("automations.noResponses")}</text>
+      ) : (
+        <scrollbox flexGrow={1} flexShrink={1} flexBasis={0}>
+          {answered.map((run) => (
+            <box key={run.id} flexDirection="column" marginBottom={1} flexShrink={0}>
+              <text fg={runToneColor(run.status, theme)} wrapMode="none">
+                {`#${run.runNumber} ${formatRunStatus(run.status, t)} · ${formatWhen(run.response?.at, props.now)}`}
+              </text>
+              <MarkdownText content={run.response?.text ?? ""} />
+            </box>
+          ))}
+        </scrollbox>
+      )}
     </>
   )
 }

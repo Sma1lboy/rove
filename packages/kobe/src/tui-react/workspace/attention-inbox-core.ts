@@ -1,4 +1,4 @@
-import { attentionInboxItemKey } from "@sma1lboy/kobe-daemon/daemon/protocol"
+import { attentionInboxItemKey, isRoutineInboxState } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { AttentionInboxItem } from "../../client/remote-orchestrator"
 import { compareRecent } from "../../tui/panes/sidebar/groups"
 import type { Task } from "../../types/task"
@@ -31,7 +31,7 @@ export function isAttentionInboxItemAvailable(
 ): boolean {
   // A routine episode targets the SCHEDULE, which exists even when the firing
   // produced no task; the task lookup would mark it garbage and delete it.
-  if (item.state === "routine_failed") return true
+  if (isRoutineInboxState(item.state)) return true
   if (item.taskId === null || task === undefined || task.deletion) return false
   if (item.tabId === null) return true
   return hasTab(item.tabId) !== false
@@ -251,7 +251,7 @@ export function nextAttentionInboxTarget(
     // A routine episode targets the SCHEDULE (opens the Routines page), so a
     // live task must not gate it, or F7 skips a listed episode forever.
     (item) =>
-      (item.state === "routine_failed" || item.taskId === null || liveTasks.has(item.taskId)) && isAvailable(item),
+      (isRoutineInboxState(item.state) || item.taskId === null || liveTasks.has(item.taskId)) && isAvailable(item),
   )
   if (ordered.length === 0) return null
   const currentKey = current.taskId === null ? null : attentionInboxItemKey(current)

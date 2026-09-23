@@ -140,6 +140,8 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
+| `RUN_NOT_FOUND` | `routine-respond --run` names no routine run (unknown, or pruned from the last 100). |
+| `RESPONSE_TOO_LARGE` | A `routine-respond` response over the 32,000-character cap. |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
 | `NOT_A_REPO` | `--repo` does not point at a git repository. |
 | `INVALID_BRANCH` | `--branch` is a name git will not accept (`git check-ref-format --branch`). |
@@ -931,7 +933,14 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-set-enabled --id ID --enabled BOOL`: pause / resume.
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
-- `routine-runs --id ID`: run history, newest first. `revived` describes a
+- `routine-respond --run RUN_ID (--text T | --prompt-file PATH|-)`: store the
+  agent's response on one run. Each delivered routine prompt starts with a
+  `[ROVE ROUTINE] "<name>" run #<n> — when done, report with: … routine-respond --run <runId> --prompt-file -`
+  line, then the prompt. One response per run, a second call replaces it; cap
+  32,000 characters (`RESPONSE_TOO_LARGE`, never truncated); an unknown run id
+  is `RUN_NOT_FOUND`. No response is ever inferred from a transcript.
+- `routine-runs --id ID`: run history, newest first. Answered runs carry
+  `response: { text, at }`. `revived` describes a
   respawned standing session; `skipped_cancelled` means disabled, changed or stopped before delivery. Bound deliveries include `taskId`/`tabId`. An unknown id is an error
   (`automation not found`), not an empty history.
 - `routine-delete --id ID`: delete it and its history (tasks it already

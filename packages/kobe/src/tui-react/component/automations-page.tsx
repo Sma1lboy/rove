@@ -35,7 +35,7 @@ import { DialogConfirm } from "../ui/dialog-confirm"
 import { FRAME } from "../ui/frame"
 import { AutomationComposer } from "./automation-composer-dialog"
 import { formatWhen } from "./automations-format"
-import { RunHistory, runGlyph, runToneColor } from "./automations-runs"
+import { RunHistory, RunResponses, runGlyph, runToneColor } from "./automations-runs"
 
 /** Agent-driven edits land within a poll; `automation.list` is a local read. */
 const POLL_MS = 5_000
@@ -383,40 +383,54 @@ export function AutomationsPage(props: {
       {/* The detail frame is always mounted, even with nothing selected: a
           panel that appears and disappears makes the page jump, and the empty
           frame is where a first-time user reads what a routine even carries. */}
-      <box flexDirection="column" marginTop={1} {...FRAME} borderColor={theme.border} padding={1} flexShrink={0}>
+      <box
+        flexDirection="row"
+        marginTop={1}
+        {...FRAME}
+        borderColor={theme.border}
+        padding={1}
+        gap={2}
+        // Shares height with the list once a routine is selected: responses scroll inside it.
+        {...(selected ? { flexGrow: 1, flexShrink: 1, flexBasis: 0 } : { flexShrink: 0 })}
+      >
         {selected ? (
           <>
-            <box flexDirection="row" justifyContent="space-between" gap={2}>
-              <text fg={theme.text} wrapMode="none" flexShrink={1} flexGrow={1}>
-                {selected.prompt}
-              </text>
-              {/* Running one on demand is how you find out a routine works
+            <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0}>
+              <box flexDirection="row" justifyContent="space-between" gap={2}>
+                <text fg={theme.text} wrapMode="none" flexShrink={1} flexGrow={1}>
+                  {selected.prompt}
+                </text>
+                {/* Running one on demand is how you find out a routine works
                   without waiting for its schedule — the reason it is a button
                   and not only the `s` key. */}
-              <text
-                fg={busyId === selected.id ? theme.textMuted : theme.primary}
-                attributes={TextAttributes.BOLD}
-                wrapMode="none"
-                flexShrink={0}
-                onMouseUp={() => void runNow()}
-              >
-                {t("automations.runNow")}
+                <text
+                  fg={busyId === selected.id ? theme.textMuted : theme.primary}
+                  attributes={TextAttributes.BOLD}
+                  wrapMode="none"
+                  flexShrink={0}
+                  onMouseUp={() => void runNow()}
+                >
+                  {t("automations.runNow")}
+                </text>
+              </box>
+              <text fg={theme.textMuted} wrapMode="word">
+                {selected.target
+                  ? t("automations.targetExisting", {
+                      task:
+                        props.orchestrator?.listTasks().find((task) => task.id === selected.target?.taskId)?.title ??
+                        selected.target.taskId,
+                      tab: selected.target.tabId,
+                    })
+                  : t(selected.persistentSession ? "automations.targetStanding" : "automations.targetFresh")}
               </text>
+              {selected.precheck ? (
+                <text fg={theme.textMuted}>{t("automations.precheck", { command: selected.precheck.command })}</text>
+              ) : null}
+              <RunHistory runs={runs} now={now} />
             </box>
-            <text fg={theme.textMuted} wrapMode="word">
-              {selected.target
-                ? t("automations.targetExisting", {
-                    task:
-                      props.orchestrator?.listTasks().find((task) => task.id === selected.target?.taskId)?.title ??
-                      selected.target.taskId,
-                    tab: selected.target.tabId,
-                  })
-                : t(selected.persistentSession ? "automations.targetStanding" : "automations.targetFresh")}
-            </text>
-            {selected.precheck ? (
-              <text fg={theme.textMuted}>{t("automations.precheck", { command: selected.precheck.command })}</text>
-            ) : null}
-            <RunHistory runs={runs} now={now} />
+            <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0}>
+              <RunResponses runs={runs} now={now} />
+            </box>
           </>
         ) : (
           <text fg={theme.textMuted}>{t("automations.noSelection")}</text>

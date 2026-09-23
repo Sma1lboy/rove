@@ -201,6 +201,42 @@ alive either way; a run that ends that way records `dispatch_failed` with the
 engine's own `Engine exited (code 127)` line in `error`. That check costs a
 firing nothing when the engine is fine and a few seconds when it is not.
 
+## What each run concluded
+
+A run record says the prompt was delivered. What the agent *concluded* is its
+**response**, and every delivered run can carry one. The daemon prefixes each
+routine prompt it delivers (new task, standing session, or bound tab) with one
+line naming the run, then a blank line, then your prompt unchanged:
+
+```text
+[ROVE ROUTINE] "morning audit" run #12 — when done, report with: rove api routine-respond --run <runId> --prompt-file -
+
+<your prompt>
+```
+
+The agent answers that run:
+
+```bash
+rove api routine-respond --run <runId> --text "No new failures since yesterday."
+rove api routine-respond --run <runId> --prompt-file report.md   # `-` reads stdin
+```
+
+- One response per run. Responding again replaces it.
+- The cap is 32,000 characters. Over it the verb refuses (`RESPONSE_TOO_LARGE`)
+  instead of truncating.
+- An unknown or pruned run id is `RUN_NOT_FOUND`.
+- There is no fallback. An agent that never calls the verb leaves the run
+  without a response; Rove does not read transcripts to guess one.
+
+A delivered run (`dispatched` or `revived`) with no response reads as
+**awaiting response** for two hours, then **no response**, in the warning
+colour. A response raises an Inbox entry (one per routine, the newest
+replacing the last) that opens the Routines page. On the page, the selected
+routine's detail splits in two: run history on the left, its responses on the
+right, newest first, each headed by its run number, status and time, with the
+text rendered as markdown. `routine-runs` includes `response` (`{text, at}`)
+on every answered run.
+
 ### You do not have to go looking
 
 The two statuses marked **Needs you** raise an entry in your **Inbox**, and the

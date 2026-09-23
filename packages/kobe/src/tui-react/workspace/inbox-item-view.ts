@@ -27,6 +27,8 @@ export function itemGlyph(state: AttentionInboxItem["state"]): string {
   if (state === "dead") return "†"
   // A schedule that could not do its work — `↻`, a cycle that keeps failing.
   if (state === "routine_failed") return "↻"
+  // A routine run answered — same done mark as a finished turn.
+  if (state === "routine_responded") return "✓"
   return "!"
 }
 
@@ -37,6 +39,7 @@ export function itemStateKey(state: AttentionInboxItem["state"]): string {
   if (state === "rate_limited") return "workspace.inbox.state.rateLimited"
   if (state === "dead") return "workspace.inbox.state.dead"
   if (state === "routine_failed") return "workspace.inbox.state.routineFailed"
+  if (state === "routine_responded") return "workspace.inbox.state.routineResponded"
   return "workspace.inbox.state.error"
 }
 

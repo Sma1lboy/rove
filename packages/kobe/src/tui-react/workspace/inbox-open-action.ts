@@ -1,3 +1,4 @@
+import { isRoutineInboxState } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { AttentionInboxItem, RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { notifyInboxRpcFailure } from "./inbox-rpc-errors"
 
@@ -27,7 +28,7 @@ export function requestInboxItemOpen(
  */
 export function dismissEpisode(item: AttentionInboxItem, rpc: InboxOpenRpc): Promise<boolean> {
   const automationId = item.detail?.routine?.automationId
-  if (item.state === "routine_failed" && automationId) return rpc.dismissRoutineAttention(automationId)
+  if (isRoutineInboxState(item.state) && automationId) return rpc.dismissRoutineAttention(automationId)
   // A task-shaped episode always carries its task; the guard is for the type.
   return item.taskId === null ? Promise.resolve(false) : rpc.dismissAttention(item.taskId, item.tabId, item.at)
 }
