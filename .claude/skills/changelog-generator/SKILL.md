@@ -5,14 +5,11 @@ metadata:
   internal: true
 ---
 
-<!--
-Source (originally): https://github.com/ComposioHQ/awesome-claude-skills/blob/master/changelog-generator/SKILL.md
-Vendored + heavily Rove-overridden. As of the Changesets migration (docs/RELEASING.md) Rove no longer hand-edits a `## [Unreleased]` section — pending notes live as `.changeset/*.md` files and `changeset version` generates the CHANGELOG at release time. The Rove section below takes precedence over anything generic.
--->
+<!-- Adapted from https://github.com/ComposioHQ/awesome-claude-skills/blob/master/changelog-generator/SKILL.md -->
 
 # Changelog Generator (Rove)
 
-Drafts release notes as **Changesets** — one `.changeset/<name>.md` file per change — in Rove's house style. `scripts/release.sh` (via `changeset version`) later consumes them into [`packages/kobe/CHANGELOG.md`](../../../packages/kobe/CHANGELOG.md) and the GitHub release body. See [`docs/RELEASING.md`](../../../docs/RELEASING.md) for the full flow.
+Drafts release notes as **Changesets** — one `.changeset/<name>.md` file per change — in Rove's house style. The release (via `changeset version`) later consumes them into [`packages/kobe/CHANGELOG.md`](../../../packages/kobe/CHANGELOG.md) and the GitHub release body. See [`docs/RELEASING.md`](../../../docs/RELEASING.md) for the full flow.
 
 ## When to use
 
@@ -21,8 +18,6 @@ Drafts release notes as **Changesets** — one `.changeset/<name>.md` file per c
 - Before cutting a release tag — to backfill changesets for anything user-facing that slipped through, so the generated notes are complete.
 
 ## Rove project conventions (load-bearing)
-
-Every rule in this section overrides the generic guidance further down.
 
 ### File format — a changeset, not a CHANGELOG edit
 
@@ -46,7 +41,7 @@ Every rule in this section overrides the generic guidance further down.
 
 Every bullet, every paragraph in a changeset body must be on a **single line**. Do not wrap at column 70/80/whatever. The line can be 400 chars long; that's fine.
 
-**Why:** GitHub renders release bodies with GFM's hard-break extension. Each newline inside a list item or paragraph becomes a `<br>` tag. Soft-wrapped text renders as a narrow column broken every ~70 chars on the live release page, which looks broken (KOB-13).
+**Why:** GitHub renders release bodies with GFM's hard-break extension. Each newline inside a list item or paragraph becomes a `<br>` tag. Soft-wrapped text renders as a narrow column broken every ~70 chars on the live release page, which looks broken.
 
 ### Voice
 
@@ -69,7 +64,7 @@ When in doubt, ask "would a Rove user reading this on github.com/Sma1lboy/rove/r
 2. Run `git log --no-merges <last-tag>..HEAD --pretty=format:'%h %s%n%b%n---'` to get the commit set, and check `.changeset/*.md` for changes that already have one (don't duplicate).
 3. Group the *un-covered* user-facing changes. Write one changeset file per coherent change, each with the right bump type and a single-line summary per the rules above.
 4. Prefer `bun run changeset` so the CLI writes the file; only hand-author the `.changeset/<name>.md` if scripting a batch.
-5. Surface the new changeset file(s) and ask the user to skim before committing them.
+5. Commit each changeset with the change it describes, and list the files in your report.
 
 ## Example output (a changeset file)
 
@@ -87,8 +82,8 @@ Note: the summary is one long line. No newlines inside it. That's the only relia
 
 ## What to avoid
 
-- ❌ Hand-editing `packages/kobe/CHANGELOG.md` or recreating a `## [Unreleased]` section — it's generated from changesets now.
+- ❌ Hand-editing `packages/kobe/CHANGELOG.md` or recreating a `## [Unreleased]` section — it's generated from changesets.
 - ❌ Soft-wrapping a changeset summary at column 70 because "it looks nicer in the editor". Render-time soft-wrap exists for a reason.
 - ❌ Changesets like "Refactor X to use Y pattern" — internal change, skip (or `--empty`).
 - ❌ Auto-generating from `git log` without filtering. Most commits are noise.
-- ❌ Touching the version number in `package.json` — `changeset version` (run by `scripts/release.sh`) owns that.
+- ❌ Touching the version number in `package.json` — `changeset version` (run at release time) owns that.

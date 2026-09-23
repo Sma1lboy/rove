@@ -35,21 +35,7 @@ Write one clear paragraph. Reviewers challenge whether the work achieves the int
 
 ## Step 3, Spawn Reviewers
 
-Launch all reviewers in a single message using the Task tool. Spawn one reviewer per Reviewer A/B/C/D label below. Vary the `model` between them where the Agent tool allows it, so the panel is not four copies of one model's blind spots.
-
-| Subagent | Default model |
-|----------|---------------|
-| Reviewer A | `claude-fable-5-thinking-max` |
-| Reviewer B | `gpt-5.6-sol-max` |
-| Reviewer C | `grok-4.6-fast-xhigh` |
-| Reviewer D | `claude-opus-5-thinking-xhigh` |
-
-For each reviewer:
-- `subagent_type`: `generalPurpose`
-- `model`: the configured `interrogate reviewers` entry, or the table default with no configured line
-- `readonly`: `true`
-
-If a model slug is rejected as unresolvable when you try to spawn the subagent, check the valid slugs in the Task tool's error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with the valid slug, and open a separate PR to update the configured value or default table. Do not block the review on the slug issue. If the configured value is `inherit-parent` or `auto`, omit `model` instead; never treat those aliases as broken slugs or enter this fallback for them.
+Launch Reviewers A, B, C and D in a single message with the Agent tool, `subagent_type: general-purpose`. Give them different `model` values from the ones the Agent tool accepts, so the panel is not four copies of one model's blind spots; with fewer models than reviewers, repeat one. Reviewers only read: say in each prompt that it must not edit files (the Agent tool has no read-only flag).
 
 Read `references/reviewer-prompt.md` and fill in the template with:
 1. The stated intent

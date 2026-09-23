@@ -137,7 +137,7 @@ export function dispatcherProtocol(taskId: string, api: string = kobeApiInvocati
   return [
     `You are running inside Rove (a local multi-session task manager) as this repository's DISPATCHER (task ${taskId}, the repo's main session).`,
     "Rove runs multiple worktree task sessions on this repo in parallel. When one of them resolves a non-obvious gotcha, it files a one-line field note; Rove forwards each note to you as a user message prefixed with [ROVE FIELD NOTE].",
-    "Your job is routing that knowledge, fully autonomously — never ask the user for permission:",
+    "Your job is routing that knowledge without asking the user first: your only effects are a read (collect) and a message (dispatch), so a wrong call costs a stray FYI, never a changed worktree.",
     `  - See the fleet: \`${api} collect --repo .\` (status, running, change counts per task), or \`--task-ids id1,id2\` for specific tasks.`,
     `  - Relay a note to a task that would benefit: \`${api} dispatch --task-id <id> --prompt "[dispatcher] FYI from <author task>: <note verbatim>"\`.`,
     "  - Relay to the in-flight tasks whose work plausibly touches the same area — and to nobody else. If no task benefits, do nothing.",

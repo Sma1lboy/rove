@@ -27,7 +27,7 @@ Follow these steps to create a PR:
 - Run \`git diff\` to review uncommitted changes.
 - Commit them. Follow any instructions the user gave you about writing commit messages.
 - Push to origin.
-- Use \`gh pr create --base {{targetBranch}}\` to create a PR onto the target branch. Keep the title under 80 characters. Keep the description under five sentences. Describe not just changes made in this session but ALL changes since the branch diverged from the target.
+- Use \`gh pr create --base {{targetBranch}}\` to create a PR onto the target branch. Keep the title under 80 characters. If the repository has a pull request template, fill it in. Describe every change since the branch diverged from the target, not only the ones made in this session.
 
 If any of these steps fail, ask the user for help.`
 

@@ -1,6 +1,6 @@
 ---
 name: release
-description: Autonomously cut a Rove (`@sma1lboy/rove`) release end-to-end — detect the semver bump from pending changesets (flagging an upstream `minor` you didn't intend), run the release gates, bump/tag/push via `scripts/release.sh`, then poll the GitHub Actions Release workflow with `gh` until npm publish completes, diagnosing CI failures (npm token, registry 404, lint, branch mismatch) instead of leaving them silent. Use when the user says "cut a release", "ship a version", "release Rove", "release kobe", "发版", "release.sh", or "bump the version". Never force-pushes; always verifies the release landed on `main`.
+description: Autonomously cut a Rove (`@sma1lboy/rove`) release end-to-end — detect the semver bump from pending changesets (flagging an upstream `minor` you didn't intend), run the release gates, dispatch the Changesets workflow (or run `scripts/release.sh` locally), then poll the GitHub Actions Release workflow with `gh` until npm publish completes, diagnosing CI failures (npm token, registry 404, lint, branch mismatch) instead of leaving them silent. Use when the user says "cut a release", "ship a version", "release Rove", "release kobe", "发版", "release.sh", or "bump the version". Never force-pushes; always verifies the release landed on `main`.
 metadata:
   internal: true
 ---
@@ -12,16 +12,16 @@ manual flow in [`docs/RELEASING.md`](../../../docs/RELEASING.md) describes — r
 that doc once if anything here is ambiguous; it is the source of truth and this
 skill must never contradict it.
 
-> **Releases are automatic** (`.github/workflows/changesets.yml`, since
-> 2026-08-12): any push to `main` carrying pending changesets triggers the
-> full chain in Actions — CI-green wait → version+commit → tag → publish.
-> When the user asks to release, FIRST check whether that workflow already
-> has it: `gh run list --workflow=changesets.yml --limit 3`. If a run is
-> mid-flight or completed for the relevant push, jump to Step 4 (watch the
-> publish pipeline / verify npm). Run the `scripts/release.sh` flow below
-> only when the automatic path is unavailable (Actions down) or the user
-> explicitly asks for the local flow — and never while a changesets.yml
-> run is mid-flight on the same version (they'd race to tag it).
+> **Releases are on demand.** Merging a PR only banks its changeset;
+> nothing ships until someone runs `.github/workflows/changesets.yml`
+> (CI-green wait → version + commit → tag → dispatch `release.yml`). That
+> workflow is the default path: do Step 1 against `origin/main` (the workflow
+> releases whatever is banked there), then `gh workflow run changesets.yml
+> --ref main`, find the run with `gh run list --workflow=changesets.yml
+> --limit 1`, watch it with `gh run watch <run-id> --exit-status`, and go to
+> Step 4. Use the local `scripts/release.sh` flow (Steps 0–3) only when
+> Actions is unavailable or the user asks for it, and never while a
+> changesets.yml run is in flight on the same version (they'd race to tag it).
 
 The job is: **detect the bump → gate → bump/tag/push → watch CI → confirm
 published, or stop with a precise report.** Do the whole chain without
@@ -93,9 +93,9 @@ applied with the detected bump) so you can verify it later.
 
 ## Step 2 — Run the gates locally (abort on failure)
 
-`scripts/release.sh` now enforces `lint && typecheck && (cd packages/kobe && bun
-run test)` itself before touching version/CHANGELOG, and the push-triggered
-`release.yml` re-runs lint + typecheck + test + build + the behavior suite before
+`scripts/release.sh` enforces `lint && typecheck && (cd packages/kobe && bun
+run test)` itself before touching version/CHANGELOG, and `release.yml`
+re-runs lint + typecheck + test + build + the behavior suite before
 `npm publish`. Running the same set here first just fails fast, before burning a
 `changeset version` cycle:
 
@@ -174,7 +174,7 @@ gh run watch <run-id> --exit-status                    # blocks until done; nonz
 # or poll:  gh run view <run-id> --json status,conclusion,jobs
 ```
 
-On success, verify the canonical package and its compatibility alias actually landed (don't trust the green check alone):
+On success, verify the packages actually landed (don't trust the green check alone):
 
 ```bash
 npm view @sma1lboy/rove@<new-version> version          # the published package; must echo the new version

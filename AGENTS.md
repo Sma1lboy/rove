@@ -15,19 +15,19 @@ a user-owned directory; neither owns a Rove-created worktree or branch.
 
 The TUI is the product; engine adapters are execution backends (Claude Code is the default, Codex lives behind the same engine-owned contract). This file is a lean operator manual — **boundaries and orientation only**. Mechanics live in `docs/`; the current version + shipped behavior live in [`packages/kobe/package.json`](./packages/kobe/package.json) and [`packages/kobe/CHANGELOG.md`](./packages/kobe/CHANGELOG.md). Don't duplicate those here.
 
-**Read in order before doing anything:**
-1. [`HANDOFF.md`](./HANDOFF.md) — freshest handoff, current risks, open follow-ups. Local + gitignored; absent on a fresh clone is fine, just skip it.
-2. [`docs/DESIGN.md`](./docs/DESIGN.md) — design philosophy, decisions, tech-stack lock-in.
-3. [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — source-tree map, ownership boundaries, and the `refs/` reference projects (§7).
-4. [`docs/HARNESS.md`](./docs/HARNESS.md) — agent self-test contract. **Load-bearing.**
-5. [`docs/KEYBINDINGS.md`](./docs/KEYBINDINGS.md) — pane-scope rules; read before adding/moving any chord.
-6. [`packages/kobe/CHANGELOG.md`](./packages/kobe/CHANGELOG.md) — shipped behavior + release-note style.
+**Read what the task needs:**
+- [`HANDOFF.md`](./HANDOFF.md) — the last handoff on this machine (local, gitignored, may be absent). Check its date: an old one describes shipped work.
+- [`docs/DESIGN.md`](./docs/DESIGN.md) — design philosophy, decisions, tech-stack lock-in.
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — source-tree map, ownership boundaries, and the `refs/` reference projects (§7).
+- [`docs/HARNESS.md`](./docs/HARNESS.md) — agent self-test contract. **Load-bearing.**
+- [`docs/KEYBINDINGS.md`](./docs/KEYBINDINGS.md) — pane-scope rules; read before adding/moving any chord.
+- [`packages/kobe/CHANGELOG.md`](./packages/kobe/CHANGELOG.md) — shipped behavior + release-note style. Over 1 MB: grep it or read the newest entries.
 
 The docs are the source of truth. **If docs and implementation disagree, surface the mismatch before widening scope.**
 
 ## Orientation
 
-- **Monorepo (Bun workspaces), source under `packages/`:** `kobe/` (the TUI/CLI, published canonically as `@sma1lboy/rove` and compatibly as `@sma1lboy/kobe`), `kobe-daemon/` (daemon server + protocol + socket client), `kobe-harness/` (the `/harness` capture page + PTY sidecar), `branding/` (Remotion pipeline), `kobe-docs/` (public docs site, Fumadocs on Next.js, static export; content synced from `docs/`). Unqualified `src/…`/`test/…` paths in docs are relative to `packages/kobe/`. Full source-tree map: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+- **Monorepo (Bun workspaces), source under `packages/`:** `kobe/` (the TUI/CLI, published as `@sma1lboy/rove`; the old `@sma1lboy/kobe` name is frozen at 0.9.64), `kobe-daemon/` (daemon server + protocol + socket client), `kobe-harness/` (the `/harness` capture page + PTY sidecar), `branding/` (Remotion pipeline), `kobe-docs/` (public docs site, Fumadocs on Next.js, static export; content synced from `docs/`). Unqualified `src/…`/`test/…` paths in docs are relative to `packages/kobe/`. Full source-tree map: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 - **Three test runners, and picking the wrong one looks like a broken environment.** `test/render/**` runs under bun's own runner (`bun test test/render`) because OpenTUI needs bun; `test/daemon/**` needs `KOBE_INCLUDE_SOCKET=1` (`bun run test:socket`) and without it vitest prints "No test files found" and exits 1 — a SILENT skip that reads like a missing file, not a wrong command; **everything else runs under vitest** (`bun run test:fast`, or `bun x vitest run <file>` for one file). Running a vitest file with `bun test` fails on vitest-only APIs — `vi.hoisted is not a function` is the usual signature, and it reads like a missing dependency rather than the wrong command. If a test "can't run", check the runner before concluding anything about the environment.
 - **Run scripts** via `bun --filter @sma1lboy/rove <script>` or `cd packages/kobe && bun <script>`. Two dev flavours: `dev` (real engines, **production** Rove state) and `dev:sandbox` (real engines + your real `HOME`, throwaway Rove state under `packages/kobe/.dev-sandbox/home`) — use the sandbox so you never touch the real `~/.rove/tasks.json`.
 - **Tech stack is locked:** TypeScript + `@opentui/core` + `@opentui/react` + React 19 + Bun. Do not re-litigate. React is the only UI; orchestrator/client reactivity is framework-free observable state — don't add UI-framework state primitives to the core.
@@ -42,7 +42,7 @@ The docs are the source of truth. **If docs and implementation disagree, surface
 
 No Linear. Backlog/open issues live in the daemon-owned issue store (`rove api issue-*`, see [`docs/WORK-TRACKING.md`](./docs/WORK-TRACKING.md)); shipped behavior in [`packages/kobe/CHANGELOG.md`](./packages/kobe/CHANGELOG.md) (one Changeset per change, see [`docs/RELEASING.md`](./docs/RELEASING.md)); current risks/follow-ups in [`HANDOFF.md`](./HANDOFF.md); durable design decisions as Markdown in `docs/`. If a requirement needs external tracking, surface it first instead of filing it automatically.
 
-## Hard rules (non-negotiable)
+## Hard rules
 
 ### How work lands on `main`
 - **Default: PR → merge → release, none of it needs fresh approval.** Feature branch → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap) → `gh pr merge --squash --delete-branch`. Green CI IS the gate; don't stop to ask, and don't park a shipped fix waiting for someone to say "release" — a fix nobody can install isn't fixed. Cut the release the same turn unless the change is mid-stack or the owner is still deciding. (Standing authorization, owner 2026-09-01.)
