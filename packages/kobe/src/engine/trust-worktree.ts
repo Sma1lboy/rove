@@ -15,7 +15,7 @@
  *     unusable for an interactive launch, and it has no `trustWorktree` — a
  *     real gap. (Not observed live: the probe machine stopped at its login
  *     wall, which the CURSOR manifest reports as `blocked`.)
- *   - gemini / grok / droid / amp / cline / kiro / maki / antigravity:
+ *   - gemini / grok / droid / amp / devin / qodercli / cline / kiro / maki / antigravity:
  *     UNVERIFIED. Don't assume either way.
  *
  * A declarative `trustRecord: { file, jsonPath, value }` can't replace this

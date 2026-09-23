@@ -13,6 +13,7 @@
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { installedEngineIds } from "../../engine/account-detect.ts"
+import { CONTRIB_ENGINE_IDS } from "../../engine/contrib-engines.ts"
 import {
   GENERIC_PROTOCOL,
   describePreset,
@@ -72,8 +73,7 @@ export async function engineListIds(): Promise<readonly string[]> {
 export const ENGINE_LIST_VERB: VerbSpec = {
   name: "engine-list",
   group: "discover",
-  summary:
-    "List every engine Rove can launch — built-ins, registered presets, the shipped contrib engines whose CLI is on PATH (gemini, opencode, cursor, grok, droid, amp, cline, kiro, maki, antigravity), and engines contributed by enabled plugins — each with its RAW launch command, exactly as it runs. Copy one into `add --command` / `send --tab new --command` verbatim, or edit its flags first. `protocol` is the adapter Rove speaks to it (history, trust, delivery); `generic` = none, which still runs fine but loses transcript reads. `models` is what the engine can name for `--model` (suggestions, not a closed set); null = Rove cannot list them for this engine. Returns { engines }.",
+  summary: `List every engine Rove can launch — built-ins, registered presets, the shipped contrib engines whose CLI is on PATH (${CONTRIB_ENGINE_IDS.join(", ")}), and engines contributed by enabled plugins — each with its RAW launch command, exactly as it runs. Copy one into \`add --command\` / \`send --tab new --command\` verbatim, or edit its flags first. \`protocol\` is the adapter Rove speaks to it (history, trust, delivery); \`generic\` = none, which still runs fine but loses transcript reads. \`models\` is what the engine can name for \`--model\` (suggestions, not a closed set); null = Rove cannot list them for this engine. Returns { engines }.`,
   flags: [],
   // Presets live in state.json + plugin manifests, not the daemon — no RPC, no daemon needed.
   offline: true,
