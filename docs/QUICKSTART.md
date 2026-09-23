@@ -4,6 +4,13 @@ Rove runs many AI coding sessions side by side in your terminal. Each managed
 Task gets its own git worktree and branch, so parallel Tasks never step on
 each other. Extra tabs inside one Task share that Task's directory.
 
+<video controls playsInline preload="metadata" poster="assets/launch-film.jpg" style={{ width: "100%" }}>
+  <source src="assets/launch-film.mp4" type="video/mp4" />
+  Your browser cannot play this video. [Download the MP4](assets/launch-film.mp4).
+</video>
+
+*The launch film, 50 s. Parts of its UI are a design preview that Rove doesn't ship yet: the island layout and its colors, the one-line launch bar, the six-agent grid, the lanes timeline, and the glance pill.*
+
 You need git and at least one engine CLI on your `PATH`. Rove ships built-in
 support for `claude`, `codex`, `copilot`, `kimi`, `pi` and `omp`, and launches `gemini`,
 `opencode`, `cursor-agent`, `grok`, `droid`, `amp`, `devin`, `qodercli`, `cline`, `kiro-cli`, `maki`

@@ -3,7 +3,7 @@ owner:
   kind: repo
   id: kobe
 domain: promo
-revision: 8
+revision: 9
 accepted:
   - id: cursor-block
     concept: "cursor block"
@@ -194,4 +194,16 @@ accepted:
     mime_type: image/png
     size: [1280, 640]
     checksum_sha256: 4563875216a9719328d2dba38ccef46df18692a2775be228c6f7067b37019284
+    accepted_at: "2026-09-22"
+  - id: rove-launch-film
+    concept: "Rove launch film — Shotbase-style cut with the Daylight · Islands design preview"
+    round: "rove-daylight-film · round 3"
+    modality: video
+    asset_type: promo-video
+    path: docs/assets/launch-film.mp4
+    source: .studio/out/rove-daylight/renders/rove-daylight-r3.mp4
+    mime_type: video/mp4
+    size: [1920, 1080]
+    duration_seconds: 50.7
+    checksum_sha256: ced09eac9c9e4c901d9722029c5d3117136ba6e964d533a3161e85e731616f43
     accepted_at: "2026-09-22"
