@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.225
+
+### Patch Changes
+
+- [#1123](https://github.com/Sma1lboy/rove/pull/1123) [`00a4a21`](https://github.com/Sma1lboy/rove/commit/00a4a216d494b95a7bc773cd03aa231086e27314) **The PR action fills in the repository's pull request template** — the default PR prompt no longer caps the description at five sentences, a limit that pushed agents to drop required template sections such as a UI evidence block. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1123](https://github.com/Sma1lboy/rove/pull/1123) [`00a4a21`](https://github.com/Sma1lboy/rove/commit/00a4a216d494b95a7bc773cd03aa231086e27314) **The rove agent skill shows model pinning as the user's own id** — its `--model` example passes the id exactly as the user wrote it instead of a fixed `claude-fable-5`, matching the skill's own "pass it verbatim" rule (skill version 51; `rove skill install` refreshes it). — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.224
 
 ### Patch Changes
