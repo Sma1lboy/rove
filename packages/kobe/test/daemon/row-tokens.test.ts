@@ -57,6 +57,15 @@ describe("row-token clamps", () => {
     expect(normalizeRowTokenText("  a\n\tb  ")).toBe("a b")
     expect(normalizeRowTokenText("x".repeat(80))).toHaveLength(ROW_TOKEN_MAX_TEXT)
   })
+
+  it("clips on a code-point boundary so an astral char at the cap is not bisected", () => {
+    // 23 ASCII + 😀 lands the emoji's surrogate pair astride the 24-unit cap.
+    const clipped = normalizeRowTokenText(`${"x".repeat(23)}😀yyy`)
+    expect([...clipped]).toHaveLength(ROW_TOKEN_MAX_TEXT)
+    expect(clipped.endsWith("😀")).toBe(true)
+    // No lone (unpaired) surrogate survives the clip.
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(clipped)).toBe(false)
+  })
 })
 
 describe("RowTokenStore", () => {
