@@ -63,9 +63,14 @@ export function clampRowTokenTtl(ms: number | undefined): number {
 }
 
 /** Trim to {@link ROW_TOKEN_MAX_TEXT}, collapsing the whitespace a multi-line
- *  label would otherwise smuggle into a single row. */
+ *  label would otherwise smuggle into a single row. Clips on a code-POINT
+ *  boundary: a raw unit slice can bisect a surrogate pair (an emoji or CJK-Ext
+ *  label near the cap) into a lone surrogate that renders as U+FFFD. */
 export function normalizeRowTokenText(text: string): string {
-  return text.replace(/\s+/g, " ").trim().slice(0, ROW_TOKEN_MAX_TEXT)
+  const collapsed = text.replace(/\s+/g, " ").trim()
+  if (collapsed.length <= ROW_TOKEN_MAX_TEXT) return collapsed
+  const points = [...collapsed]
+  return points.length <= ROW_TOKEN_MAX_TEXT ? collapsed : points.slice(0, ROW_TOKEN_MAX_TEXT).join("")
 }
 
 export interface RowTokenWrite {
