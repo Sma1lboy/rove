@@ -93,4 +93,15 @@ describe("image placeholders in the body", () => {
   test("pdfs get the pdf label; multiple pastes number sequentially", () => {
     expect(withImagePlaceholders("x", ["/a.pdf", "/b.png"])).toBe("x\npdf[0]: /a.pdf\nimages[1]: /b.png")
   })
+
+  test("a body with a deleted middle placeholder resumes past the highest index, not the count", () => {
+    // images[1] was edited out of the draft, so two lines remain at indices 0 and 2.
+    const body = "images[0]: /a.png\nimages[2]: /c.png"
+    expect(nextPlaceholderIndex(body)).toBe(3)
+    expect(withImagePlaceholders(body, ["/d.png"])).toBe("images[0]: /a.png\nimages[2]: /c.png\nimages[3]: /d.png")
+  })
+
+  test("the shared counter reads the max across both prefixes", () => {
+    expect(nextPlaceholderIndex("pdf[0]: /a.pdf\nimages[4]: /b.png")).toBe(5)
+  })
 })
