@@ -56,6 +56,19 @@ describe("resolveLoginShell", () => {
     expect(shell).toBe(custom)
   })
 
+  test("Windows ignores a native $SHELL that cannot run the POSIX launch script", () => {
+    // PowerShell passes the spawnable-and-present test, then reads the launch
+    // script as its own syntax: `trap ':' INT` wants a body, `[ ! -f … ]` is a
+    // type literal, and the tab fills with parse errors instead of an engine.
+    const pwsh = "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+    const shell = resolveLoginShell({
+      platform: "win32",
+      env: { SHELL: pwsh, ProgramFiles: "C:\\Program Files" },
+      exists: diskWith(pwsh, GIT_BASH),
+    })
+    expect(shell).toBe(GIT_BASH)
+  })
+
   test("Windows names the expected Git bash path when nothing is installed", () => {
     // Not bare `bash.exe` — that resolves to System32's WSL launcher, which
     // would open a Linux filesystem with no view of the Windows worktree.
