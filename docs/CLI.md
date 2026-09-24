@@ -108,6 +108,7 @@ Commands:
   repo <verb>             Per-repo init script + first prompt (show|set|unset)
   api <verb>              Scriptable RPC surface for agents (see `rove api --help`)
   daemon <verb>           Manage the daemon (start|stop|status|restart)
+  machine <verb>          Other computers running Rove (add|remove|list)
   doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
   config [--path]         Open rove's config file (state.json) in your editor
   reset [--hard]          Stop runtimes; optionally wipe task/UI state
@@ -202,16 +203,17 @@ Completes two levels: the subcommand, then its verb.
 ```text
 rove <TAB>          completions add remove adopt export repo api daemon …
 rove daemon <TAB>   status start stop restart
+rove machine <TAB>  add remove list
 rove theme <TAB>    list add remove
 rove api routine-<TAB>   routine-list routine-create routine-update …
 ```
 
-`api`, `daemon`, `plugin`, `repo`, `skill` and `theme` carry verbs; the rest
-take flags only, and get no second level rather than an invented one. Flags
-are never completed — each subcommand owns its own.
+`api`, `daemon`, `machine`, `plugin`, `repo`, `skill` and `theme` carry verbs;
+the rest take flags only, and get no second level rather than an invented one.
+Flags are never completed — each subcommand owns its own.
 
 Both levels are derived, not transcribed. The `api` verbs come from the same
-registry `rove api schema` enumerates, and the other five from a table each
+registry `rove api schema` enumerates, and the other six from a table each
 command validates its own argv against — so a verb the CLI accepts but the
 completion script omits is not a state the two can reach. Regenerate the
 script after upgrading Rove to pick up new verbs.

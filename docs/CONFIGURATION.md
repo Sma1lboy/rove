@@ -378,6 +378,7 @@ for background consumers, but the current PureTUI tree does not consume it.
 | `port` | SSH port, or absent for the `ssh_config` default |
 | `auth` | `{"kind":"key"}` (agent / default identities), `{"kind":"key","keyPath":"…"}`, or `{"kind":"password","keychainRef":{…}}` — a password is never stored here, only a pointer to it |
 | `identity` | `{hostname, homeDir, daemonPid}` learned from the machine's last handshake. Two aliases whose triples match are one machine |
+| `sockets` | `{daemon, pty}` remote socket paths the machine last reported, cached so a reconnect skips a second SSH round-trip. Absent until the first successful connect; never derived locally |
 | `addedAt` | ISO timestamp of registration |
 
 ### Experimental
