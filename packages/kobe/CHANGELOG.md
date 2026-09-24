@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.227
+
+### Patch Changes
+
+- [#1128](https://github.com/Sma1lboy/rove/pull/1128) [`991a5c0`](https://github.com/Sma1lboy/rove/commit/991a5c016639f25c4a068e63a7c7b0d168eb4b7a) Windows: engine tabs no longer fill with PowerShell parse errors when `$SHELL` points at a native shell. Rove's launch script is POSIX sh, so `$SHELL` is now honoured only when it names a POSIX shell; anything else falls back to Git for Windows bash. `rove api send` picked its shell without that check at all, and now shares it. — [@NarwhalChen](https://github.com/NarwhalChen)
+
 ## 0.9.226
 
 ### Patch Changes
