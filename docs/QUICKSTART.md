@@ -12,8 +12,9 @@ each other. Extra tabs inside one Task share that Task's directory.
 *The launch film, 50 s. Parts of its UI are a design preview that Rove doesn't ship yet: the island layout and its colors, the one-line launch bar, the six-agent grid, the lanes timeline, and the glance pill.*
 
 You need git and at least one engine CLI on your `PATH`. Rove ships built-in
-support for `claude`, `codex`, `copilot`, `kimi`, `pi` and `omp`, and launches `gemini`,
-`opencode`, `cursor-agent`, `grok`, `droid`, `amp`, `devin`, `qodercli`, `cline`, `kiro-cli`, `maki`
+support for `claude`, `codex`, `copilot`, `kimi`, `pi`, `omp` and `bob` (IBM
+Bob), and launches `gemini`,
+`opencode`, `cursor-agent`, `grok`, `droid`, `amp`, `devin`, `qodercli`, `cline`, `kiro-cli`, `maki`,
 and `agy` (Antigravity) too — the full list, and
 how to add your own, is in [Engines](ENGINES.md).
 
