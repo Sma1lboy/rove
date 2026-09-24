@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { ExecHost, ExecResult } from "../../src/exec/exec-host.ts"
-import { readWorktreeFile, runWorktreeGit } from "../../src/worktree/content.ts"
+import { readWorktreeFile, runWorktreeGit, worktreeFilePath } from "../../src/worktree/content.ts"
 
 function fakeExecHost(result: ExecResult = { stdout: "", stderr: "", exitCode: 0 }) {
   const runs: Array<{
@@ -100,6 +100,37 @@ describe("runWorktreeGit", () => {
       stderr: "ssh failed",
       status: -1,
     })
+  })
+})
+
+describe("worktreeFilePath", () => {
+  it("joins a relative path onto the worktree root", () => {
+    expect(worktreeFilePath("/srv/wt/", "src/app.ts")).toBe("/srv/wt/src/app.ts")
+    expect(worktreeFilePath("/srv/wt", "a//b/./c")).toBe("/srv/wt/a/b/./c")
+  })
+
+  it("rejects empty inputs and POSIX-absolute paths", () => {
+    expect(worktreeFilePath("", "src/app.ts")).toBeNull()
+    expect(worktreeFilePath("/srv/wt", "")).toBeNull()
+    expect(worktreeFilePath("/srv/wt", "/etc/passwd")).toBeNull()
+    expect(worktreeFilePath("/srv/wt", "../secret")).toBeNull()
+    expect(worktreeFilePath("/srv/wt", "a/../../secret")).toBeNull()
+  })
+
+  it("rejects Windows-separator escapes the way it rejects their POSIX forms", () => {
+    // A local host on Windows treats `\` as a separator, so these traverse
+    // out of the worktree exactly as `../` and `/foo` do on POSIX.
+    expect(worktreeFilePath("/srv/wt", "..\\secret")).toBeNull()
+    expect(worktreeFilePath("/srv/wt", "a\\..\\..\\secret")).toBeNull()
+    expect(worktreeFilePath("/srv/wt", "\\etc\\hosts")).toBeNull()
+    expect(worktreeFilePath("/srv/wt", "C:\\Windows\\system32")).toBeNull()
+    expect(worktreeFilePath("/srv/wt", "c:/Windows/system32")).toBeNull()
+  })
+
+  it("does not mangle a POSIX filename that legitimately contains a backslash", () => {
+    // `\` is an ordinary filename byte on POSIX, so a name that merely
+    // contains one (with no `..` segment) is kept, not split into directories.
+    expect(worktreeFilePath("/srv/wt", "weird\\name.txt")).toBe("/srv/wt/weird\\name.txt")
   })
 })
 
