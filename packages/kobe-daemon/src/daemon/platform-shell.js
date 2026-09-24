@@ -43,6 +43,20 @@ function isWindowsSpawnable(shellPath) {
   return /^[A-Za-z]:[\\/]/.test(shellPath) || shellPath.startsWith("\\\\")
 }
 
+/** Shells that can run the POSIX launch script above. */
+const POSIX_SHELL_NAMES = new Set(["bash", "sh", "zsh", "dash", "ash", "ksh", "mksh"])
+
+/**
+ * Windows-only gate on `$SHELL`. A native shell there (PowerShell, pwsh, cmd,
+ * nu) is perfectly spawnable and present, so shape and existence alone let it
+ * through — and it then parses `trap ':' INT` / `[ ! -f … ]` as its OWN syntax
+ * and fills the engine tab with parse errors instead of starting the engine.
+ */
+function isPosixShell(shellPath) {
+  const base = (shellPath.split(/[\\/]/).pop() ?? "").toLowerCase()
+  return POSIX_SHELL_NAMES.has(base.endsWith(".exe") ? base.slice(0, -4) : base)
+}
+
 /** @type {Map<string, string>} */
 const cache = new Map()
 
@@ -77,9 +91,9 @@ export function resolveLoginShell(options = {}) {
 function resolveUncached(fallback, platform, env, exists) {
   const explicit = env.SHELL?.trim()
   if (platform !== "win32") return explicit || fallback
-  // Honour an explicit SHELL only when it is BOTH shaped like something
-  // CreateProcess can launch and actually present.
-  if (explicit && isWindowsSpawnable(explicit) && exists(explicit)) return explicit
+  // Honour an explicit SHELL only when it is a POSIX shell that is BOTH shaped
+  // like something CreateProcess can launch and actually present.
+  if (explicit && isPosixShell(explicit) && isWindowsSpawnable(explicit) && exists(explicit)) return explicit
   for (const candidate of windowsBashCandidates(env)) {
     if (exists(candidate)) return candidate
   }
