@@ -1,7 +1,7 @@
 # Rove: the agent multiplexer for your terminal
 
 <p align="center">
-  <img src="docs/assets/brand/bracket-chip.gif" alt="Rove, the agent multiplexer for your terminal — compatible with Claude Code, Codex, Copilot and Kimi" />
+  <img src="docs/assets/brand/bracket-chip.gif" alt="Rove, the agent multiplexer for your terminal. Works with Claude Code, Codex, Copilot, and Kimi." />
 </p>
 
 Rove is a terminal-native workspace for running multiple coding tasks in parallel with [Claude Code](https://claude.com/claude-code), [Codex](https://github.com/openai/codex), [Copilot](https://github.com/github/copilot-cli), Kimi, Gemini CLI, OpenCode, Cursor Agent, [and more](./docs/ENGINES.md), or any CLI you register.
