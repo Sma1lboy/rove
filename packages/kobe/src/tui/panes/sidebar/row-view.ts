@@ -25,10 +25,10 @@ export interface SidebarRowView {
 /** Attention tone; beats `loading`'s `primary` so a spinning row that needs a human stays coloured. */
 function activityToneFor(state: TaskActivityState | undefined): SidebarTone | null {
   if (!ATTENTION_STATES.has(state)) return null
-  // Amber for a quota wall (clears on its own), red for states that stay
+  // Amber for a quota wall or a waiting prompt, red for states that stay
   // broken until you act — same split as `tab-strip.tsx` `turnColor` and the
   // Inbox `itemColor`, so one tab reads the same colour everywhere.
-  return state === "rate_limited" ? "warning" : "error"
+  return state === "rate_limited" || state === "permission_needed" ? "warning" : "error"
 }
 
 /** Alias of the default frames for existing consumers/tests. */
@@ -46,11 +46,12 @@ export const SPINNER_TICK_CYCLE = 600
 export const DONE_PULSE_MS = 600
 
 /**
- * The rail's four states; only `!` asks the reader to act:
+ * The rail's states; `?` and `!` ask the reader to act:
  *
  *   spinner  working
- *   `!`      needs you (permission, rate limit, error, dead engine, failed
- *            deletion) — the tab says which
+ *   `?`      blocked on your answer (permission prompt or question dialog),
+ *            the same glyph the tab strip and Inbox use for it
+ *   `!`      needs you (rate limit, error, dead engine, failed deletion)
  *   `●`      a turn finished and you have not looked
  *   `○`      quiet (idle, unobserved, shell tab, untracked custom engine)
  *
@@ -59,6 +60,7 @@ export const DONE_PULSE_MS = 600
  */
 export const NO_STATE_GLYPH = "○"
 export const ATTENTION_GLYPH = "!"
+export const AWAITING_INPUT_GLYPH = "?"
 
 const ATTENTION_STATES: ReadonlySet<TaskActivityState | undefined> = new Set([
   "rate_limited",
@@ -67,7 +69,7 @@ const ATTENTION_STATES: ReadonlySet<TaskActivityState | undefined> = new Set([
   "dead",
 ])
 
-/** Whether the rail marks this `!` (stopped until somebody acts); lets renderers skip re-listing the states. */
+/** Whether the rail marks this `?`/`!` (stopped until somebody acts); lets renderers skip re-listing the states. */
 export function isAttentionActivity(state: TaskActivityState | undefined): boolean {
   return ATTENTION_STATES.has(state)
 }
@@ -247,7 +249,7 @@ export function withSpinnerFrame(view: SidebarRowView, frame: () => number): Sid
 }
 
 /**
- * `!` needs a human, `●` unseen completion, null quiet. A seen completion is
+ * `?` blocked on an answer, `!` needs a human, `●` unseen completion, null quiet. A seen completion is
  * consumed: back to quiet, no lingering ✓. Tone comes from
  * {@link activityToneFor} so the attention test has one copy.
  */
@@ -256,7 +258,8 @@ function activityBadgeFor(
   completionSeen: boolean,
 ): { glyph: string; tone: SidebarTone } | null {
   const attention = activityToneFor(state)
-  if (attention !== null) return { glyph: ATTENTION_GLYPH, tone: attention }
+  if (attention !== null)
+    return { glyph: state === "permission_needed" ? AWAITING_INPUT_GLYPH : ATTENTION_GLYPH, tone: attention }
   if (state === "turn_complete" && !completionSeen) return { glyph: "●", tone: "primary" }
   return null
 }

@@ -6,6 +6,7 @@ import {
   type TerminalRenderColors,
   resolveInverseAttributes,
   sealRowEndAttributes,
+  textPresentationRow,
 } from "../../../tui/panes/terminal/terminal-render"
 
 type PaintedRow = { source: TerminalRow; text: TextRenderable }
@@ -33,7 +34,7 @@ export class TerminalRowPainter {
       let painted = this.rows[y]
       if (painted && painted.source === row && !invalidate) continue
       const content = profileSpan("styled", () => {
-        const resolved = resolveInverseAttributes([row], colors.foreground, colors.background)
+        const resolved = resolveInverseAttributes([textPresentationRow(row)], colors.foreground, colors.background)
         const sealed = sealRowEndAttributes(resolved, cols, colors.foreground, colors.background)
         return new StyledText(rowsToStyledText(sealed))
       })

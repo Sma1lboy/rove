@@ -122,6 +122,7 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
     ["○", "U+25CB — quiet; in every mono font checked"],
     ["●", "U+25CF — unread completion; ditto"],
     ["!", "ASCII — needs you"],
+    ["?", "ASCII — blocked on your answer"],
     ["◇", "U+25C7 — subagent count prefix"],
     ["▴", "U+25B4 — pinned marker"],
     ["✓", "U+2713 — PR checks passing; the one dingbat-adjacent glyph both fonts carry"],

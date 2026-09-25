@@ -4,6 +4,7 @@ import {
   overlayCursor,
   resolveInverseAttributes,
   sealRowEndAttributes,
+  textPresentationRow,
 } from "../../src/tui/panes/terminal/terminal-render"
 
 const CURSOR_FG: RGB = [20, 20, 19]
@@ -222,5 +223,20 @@ describe("sealRowEndAttributes — opentui row-end attribute leak workaround", (
   it("is a no-op for unstyled rows", () => {
     const rows = [[{ text: "abcde" } as Chunk]]
     expect(sealRowEndAttributes(rows, 5, FG, BG)[0]).toBe(rows[0])
+  })
+})
+
+describe("textPresentationRow", () => {
+  const row: Chunk[] = [{ text: "⏸ plan mode on", fg: [1, 2, 3] }, { text: " (shift+tab)" }]
+
+  it("swaps claude's emoji-prone mode glyph off macOS, keeping style and width", () => {
+    expect(textPresentationRow(row, "win32")).toEqual([
+      { text: "‖ plan mode on", fg: [1, 2, 3] },
+      { text: " (shift+tab)" },
+    ])
+  })
+
+  it("leaves macOS rows untouched", () => {
+    expect(textPresentationRow(row, "darwin")).toBe(row)
   })
 })
