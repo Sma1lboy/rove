@@ -24,8 +24,7 @@ Rove isolates parallel work in git worktrees and branches, while agent and shell
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="Rove demo: two tasks running at once, each on its own worktree and branch" /><br />
-  <a href="docs/assets/demo.mp4">Watch the full-quality MP4</a>
+  <img src="docs/assets/demo.gif" alt="Rove demo: three repos, two engines, three agents running at once, each on its own worktree and branch" />
 </p>
 
 The sidebar tracks tasks and their sessions. The workspace embeds the active agent or shell. The files pane shows what changed in the worktree. Switch tasks to read output, inspect a diff, run tests, or send the next instruction.
