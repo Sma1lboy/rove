@@ -31,6 +31,8 @@ The sidebar tracks tasks and their sessions. The workspace embeds the active age
 
 ## Quick start
 
+Install Rove, then launch it in a repository. Rove runs on [Bun](https://bun.sh) ≥ 1.3.11, and the install script sets Bun up if you don't have it.
+
 ```bash
 curl -fsSL https://rove.run/install.sh | sh
 cd your-repo
