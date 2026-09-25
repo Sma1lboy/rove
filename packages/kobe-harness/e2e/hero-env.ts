@@ -42,7 +42,9 @@ const PORTS: FixturePorts = fixturePortBase(HERO_PORT_BASE)
 export const HERO_WEB_PORT = PORTS.webPort!
 export const HERO_PTY_PORT = PORTS.ptyPort!
 
-export const HERO_ROOT: string = join(REPO_ROOT, ".scratch", "hero")
+/** `HERO_ROOT` relocates the fixture — its paths are on camera (engine banners,
+ *  folder-trust prompts), and the default one carries the operator's home. */
+export const HERO_ROOT: string = process.env.HERO_ROOT ? resolve(process.env.HERO_ROOT) : join(REPO_ROOT, ".scratch", "hero")
 const PATHS: FixturePaths = fixturePaths(HERO_ROOT, "orbit-sdk")
 export const HERO_HOME: string = PATHS.home
 /** Settings blob path derives from the Rove home, not from `XDG_CONFIG_HOME`. */
@@ -166,6 +168,9 @@ export function heroPtyCommand(): string {
     "KOBE_TASK_ID=",
     "ROVE_TAB_ID=",
     "KOBE_TAB_ID=",
-  ].join(" ")
+  ]
+    // Single-quoted: a Windows path's backslashes are escapes to an unquoted sh word.
+    .map((pair) => pair.replace(/=(.+)$/, (_, value: string) => `='${value}'`))
+    .join(" ")
   return `unset ${CLAUDE_MARKERS.join(" ")}; ${inline} bun run dev:sandbox`
 }

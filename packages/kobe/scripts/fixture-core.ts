@@ -14,6 +14,7 @@ import { readlinkSync } from "node:fs"
 import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, join, resolve, sep } from "node:path"
 import { setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
+import { windowsPipePath } from "@sma1lboy/kobe-daemon/daemon/paths"
 
 type HomePolicy = "redirect" | "keep"
 
@@ -78,7 +79,9 @@ export function fixtureRuntimePaths(home: string): Omit<FixturePaths, "root" | "
     home,
     configDir: join(home, ".config"),
     daemonSocket: join(runtime, "daemon.sock"),
-    ptySocket: join(runtime, "pty.sock"),
+    // The Windows PTY host runs under node, which cannot bind AF_UNIX there;
+    // pin the same per-home named pipe the product would pick on its own.
+    ptySocket: process.platform === "win32" ? windowsPipePath(home, "pty") : join(runtime, "pty.sock"),
     daemonPidPath: join(runtime, "daemon.pid"),
     ptyPidPath: join(runtime, "pty.pid"),
   }
@@ -216,7 +219,7 @@ export function buildFixtureEnv(config: FixtureEnvConfig): Record<string, string
   // process bound last — sometimes the operator's real socket. An explicit
   // *_SOCKET_PATH override bypasses `runtimePath()` entirely.
   setRoveEnv("DAEMON_SOCKET_PATH", join(runtime, "daemon.sock"), env)
-  setRoveEnv("PTY_SOCKET_PATH", join(runtime, "pty.sock"), env)
+  setRoveEnv("PTY_SOCKET_PATH", fixtureRuntimePaths(config.home).ptySocket, env)
   setRoveEnv("DAEMON_PID_PATH", join(runtime, "daemon.pid"), env)
   setRoveEnv("PTY_PID_PATH", join(runtime, "pty.pid"), env)
 

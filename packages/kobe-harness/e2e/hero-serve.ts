@@ -37,6 +37,12 @@ const child = Bun.spawn(["bun", "run", "dev.ts"], {
     ROVE_PTY_PORT: String(HERO_PTY_PORT),
     KOBE_PTY_DEV_CWD: KOBE_DIR,
     KOBE_PTY_DEV_COMMAND: heroPtyCommand(),
+    // The capture runs this branch's build, which is usually a release behind
+    // npm, and the sidebar would film an "↑ <next version>" badge. A fake
+    // latest BELOW any real version reads as "no update" (see `version.ts`).
+    KOBE_FAKE_UPDATE: "0.0.0",
+    // Git Bash's login profile cd's to $HOME unless told the caller chose the cwd.
+    ...(process.platform === "win32" ? { KOBE_PTY_DEV_SHELL: "C:/Program Files/Git/bin/sh.exe", CHERE_INVOKING: "1" } : {}),
   },
 })
 
