@@ -300,8 +300,13 @@ function coerceOverride(entry: unknown): RepoInitOverride {
 /** Read the per-user state.json override for a repo (by git toplevel). */
 export function getRepoInitOverride(repoRoot: string): RepoInitOverride {
   const configs = readRepoConfigs(loadStateFile())
+  // Runs on every terminal-tab render: spawn git only when a direct match can't answer.
+  const keys = Object.keys(configs)
+  if (keys.length === 0) return {}
+  const direct = keys.find((key) => samePath(key, repoRoot))
+  if (direct) return coerceOverride(configs[direct])
   const normalized = resolveRepoRoot(repoRoot)
-  const key = Object.keys(configs).find((key) => samePath(key, normalized)) ?? normalized
+  const key = keys.find((key) => samePath(key, normalized)) ?? normalized
   return coerceOverride(configs[key])
 }
 

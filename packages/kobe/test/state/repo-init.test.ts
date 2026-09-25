@@ -5,9 +5,10 @@
  * Priority is the load-bearing rule: in-repo `.rove/` files win, `.kobe/`
  * files remain fallbacks, and both beat the per-user state.json override,
  * resolved PER FIELD. Paths used here are plain tmpdirs (not git repos), so
- * `resolveRepoRoot` returns them verbatim — no git shelling, deterministic.
+ * `resolveRepoRoot` returns them verbatim, except the one toplevel-lookup test.
  */
 
+import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
@@ -54,6 +55,13 @@ describe("repo init override (state.json)", () => {
     expect(getRepoInitOverride("/repo/x")).toEqual({ initPrompt: "b" })
     setRepoInitOverride("/repo/x", { initPrompt: "" })
     expect(getRepoInitOverride("/repo/x")).toEqual({})
+  })
+
+  test("a subdirectory reads its git toplevel's override", () => {
+    const repo = makeWorktree({ "pkg/a/file.txt": "x" })
+    execFileSync("git", ["init", "-q"], { cwd: repo })
+    setRepoInitOverride(repo, { initPrompt: "from top" })
+    expect(getRepoInitOverride(path.join(repo, "pkg", "a"))).toEqual({ initPrompt: "from top" })
   })
 })
 

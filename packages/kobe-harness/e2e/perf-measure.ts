@@ -125,13 +125,29 @@ async function drive(): Promise<void> {
       await pg.mouse.click(40, row * CELL_H + CELL_H / 2)
       await pg.keyboard.press("Enter")
     }
+    // The echoed command contains the prompt too, so "set" means cleared and showing it. A key sent
+    // before the click's focus commits lands on the sidebar (`P` pins the row), hence the settle and retry.
     const setPrompt = async (title: string, prompt: string) => {
       await openTask(title)
       await pg.waitForTimeout(1500)
-      await pg.mouse.click(600, 300)
-      await pg.keyboard.type(`PS1='${prompt}'; clear`)
-      await pg.keyboard.press("Enter")
-      await waitForText(pg, prompt)
+      for (let attempt = 1; ; attempt++) {
+        await pg.mouse.click(600, 300)
+        await pg.waitForTimeout(300)
+        await pg.keyboard.type(`PS1='${prompt}'; clear`)
+        await pg.keyboard.press("Enter")
+        const set = await pg
+          .waitForFunction(
+            (p) => {
+              const text = document.querySelector('[data-testid="opentui-buffer"]')?.textContent ?? ""
+              return text.includes(p) && !text.includes("PS1=")
+            },
+            prompt,
+            { timeout: 5000 },
+          )
+          .then(() => true, () => false)
+        if (set) return
+        if (attempt === 3) throw new Error(`${title}: prompt ${JSON.stringify(prompt)} never took effect`)
+      }
     }
     await setPrompt("perf-a", "A> ")
     await setPrompt("perf-b", "B> ")
