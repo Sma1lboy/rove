@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.229
+
+### Patch Changes
+
+- [#1141](https://github.com/Sma1lboy/rove/pull/1141) [`0d86cb3`](https://github.com/Sma1lboy/rove/commit/0d86cb32c717db668232acf8a25626bfb59160ef) The folded task rail shows one numbered cell per chat tab, coloured by that tab's own state, so a second chat finishing or waiting is visible while folded. `ctrl+1`…`ctrl+9` switch to that tab of the current task (needs a kitty-protocol terminal). — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.228
 
 ### Patch Changes
