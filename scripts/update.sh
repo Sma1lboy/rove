@@ -210,6 +210,50 @@ if [ "$MIGRATING" = "1" ]; then
   "$MANAGER" uninstall -g $NPM_PREFIX_ARGS "$LEGACY_PACKAGE" >>"$LOG" 2>&1 || true
 fi
 
+# npm retires the old package dir to a sibling `.rove-<hash>` before it
+# unpacks the new one, then deletes the retired copy. On Windows that delete
+# cannot finish while a Rove is running: a DLL a process has mapped
+# (opentui.dll in the TUI and daemon, conpty.node in the PTY host) is
+# undeletable, and a running Rove is the NORMAL state during an update —
+# the daemon and the PTY host are long-lived by design. npm swallows the
+# failure, reports success, and leaves the retire dir behind with the
+# mapped files in it. The hash is derived from the package path, so the
+# NEXT update targets the very same retire dir: `rename` fails because the
+# destination exists, npm falls back to a file-by-file copy, and copying
+# onto the still-mapped DLL dies with EBUSY. Every second update on Windows
+# failed this way while Rove was open.
+#
+# Clear the leftovers before npm runs: delete what can be deleted (Git
+# Bash's rm uses POSIX delete semantics and usually manages even a mapped
+# file; everything goes once the old build has exited) and move the rest
+# out of npm's way — Windows allows renaming a mapped file even when it
+# refuses to delete it. Anything moved aside is caught by the same glob on
+# a later run and deleted then. Only npm has retire dirs; a bun install
+# never enters this block.
+clear_retired_installs() {
+  scope="$1"
+  [ -d "$scope" ] || return 0
+  for retired in "$scope"/.rove-* "$scope"/.kobe-*; do
+    [ -d "$retired" ] || continue
+    rm -rf "$retired" 2>/dev/null || true
+    [ -d "$retired" ] || continue
+    case "$retired" in
+      *.stale-*) continue ;;
+    esac
+    mv "$retired" "${retired}.stale-$$" 2>/dev/null || true
+  done
+}
+
+if [ "$MANAGER" = "npm" ] && [ -n "$BIN" ]; then
+  if [ -n "$PREFIX" ]; then
+    clear_retired_installs "$PREFIX/lib/node_modules/@sma1lboy"
+  fi
+  # npm on Windows keeps no `lib/` and its bins are shims, not symlinks, so
+  # PREFIX stays empty there: the shims sit at the prefix root with
+  # node_modules beside them. A no-op wherever that layout does not exist.
+  clear_retired_installs "$(dirname "$BIN")/node_modules/@sma1lboy"
+fi
+
 # bun caches the package manifest, so a version published minutes ago is
 # "not found" until that cache expires — `bun add` reports it as
 # `No version matching "X" found ... (but package exists)`, which names
@@ -249,6 +293,16 @@ if ! wait "$PID"; then
     printf '%bThat version IS published — this is a stale package-manager cache.%b\n' "$DIM" "$RESET" >&2
     printf '%bTry: rm -rf ~/.bun/install/cache && %s install -g %s@%s%b\n' \
       "$DIM" "$MANAGER" "$PACKAGE" "${VERSION:-latest}" "$RESET" >&2
+  fi
+  # EBUSY is npm's spelling of Windows' sharing violation: something has a
+  # file in the old install open in a way the install cannot get past.
+  # After the retire-dir sweep above that is a running Rove itself — name
+  # the remedy rather than leaving an errno the user cannot act on.
+  if grep -q 'EBUSY' "$LOG" 2>/dev/null; then
+    printf '%bA running Rove is holding files in the old install (Windows cannot replace a file a process has loaded).%b\n' \
+      "$DIM" "$RESET" >&2
+    printf '%bQuit Rove, run `rove daemon stop`, then retry. Engine sessions live in the PTY host and survive both.%b\n' \
+      "$DIM" "$RESET" >&2
   fi
   # We removed the legacy package to free the bin names, so a failed
   # install would otherwise leave the user with no kobe at all. Put it
