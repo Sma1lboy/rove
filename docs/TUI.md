@@ -50,6 +50,13 @@ comes from the header the expanded rail prints, so two repos whose folders
 share a name (`work/api`, `oss/api`) fold to `w──` and `o──` rather than to
 `a──` twice.
 
+Under a section, a task with open tabs folds to one cell per tab: the tab's
+number, coloured by that tab's own state, so a second chat that finishes or
+waits shows up folded. The numbering starts again at `1` for the next task,
+and the number is the key that reaches it: `ctrl+1`…`ctrl+9` switch to tab N
+of the current task, with a `·` past the ninth. The `hairline` fold has no room
+for a digit and keeps one cell per task.
+
 Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate
 [narrow-terminal layout](#narrow-terminals-phone-ssh) takes over instead.

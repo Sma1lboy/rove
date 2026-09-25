@@ -8,6 +8,28 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## `ctrl+<digit>` is tab N of the current task
+
+**2026-09-25 — `ctrl+1`…`ctrl+9` switch to the current task's Nth tab, and the
+folded rail prints that number on each tab.** Owner call.
+
+**Why.** The folded rail's cell stood for a task, so a task with several chat
+tabs could show only one state: a second chat finishing or waiting was
+invisible folded. The fold now draws one cell per tab, coloured by that tab's
+state, and the cell's digit is the tab's position. `ctrl+[` / `ctrl+]` already
+step through the same list; the digit is the direct form of that cycle.
+
+**Why this address holds where the task jump did not.** The removed task
+digits counted a list that reordered and outgrew nine slots. A task's tab order
+is its own, only moves when the user moves a tab, and rarely passes nine. The
+number means the same thing folded, expanded and in the tab strip.
+
+**Cost.** The chords are reserved out of terminal passthrough again, taking
+`ctrl+<digit>` from the engine and shell under kitty. On a legacy terminal
+nothing is lost: `ctrl+1` / `ctrl+9` send nothing and `ctrl+2`…`ctrl+8` arrive
+as other keys (`ctrl+3` = `Escape`), which keep passing through. The hold-ctrl
+guide shows the run as one `1-9` row.
+
 ## Task jump digits removed
 
 **2026-09-22 — `ctrl+2`…`ctrl+0` and the per-row digits are gone, in both the

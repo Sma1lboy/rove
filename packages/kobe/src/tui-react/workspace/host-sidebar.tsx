@@ -107,8 +107,11 @@ export function HostSidebar(props: HostSidebarProps) {
         sortMode={props.sortMode}
         selectedId={props.selectedId}
         engineState={props.engineState}
+        engineTabState={props.engineTabState}
+        engineLifecycle={props.engineLifecycle}
         taskJobs={props.taskJobs}
         onSelect={props.onSelect}
+        onSelectTab={props.onSelectTab}
         onExpand={() => props.onToggleCollapsed?.()}
       />
     )
@@ -148,13 +151,16 @@ function CollapsedSidebar(props: {
   readonly sortMode?: TaskSortMode
   readonly selectedId: string | null
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
+  readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
+  readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly onSelect: (taskId: string) => void
+  readonly onSelectTab: (taskId: string, tabId: string) => void
   readonly onExpand: () => void
 }) {
   // No KV provider: tabs unknown, which the hide rules read as "never mounted".
   const kv = useOptionalKV()
-  const { groups } = useSidebarGroups({
+  const { groups, tabsByTask } = useSidebarGroups({
     tasks: props.tasks,
     kv,
     sortMode: props.sortMode,
@@ -164,10 +170,14 @@ function CollapsedSidebar(props: {
     <CollapsedRail
       style={props.style}
       groups={groups}
+      tabsByTask={tabsByTask}
       selectedId={props.selectedId}
       engineState={props.engineState}
+      engineTabState={props.engineTabState}
+      engineLifecycle={props.engineLifecycle}
       taskJobs={props.taskJobs}
       onSelect={props.onSelect}
+      onSelectTab={props.onSelectTab}
       onExpand={props.onExpand}
     />
   )

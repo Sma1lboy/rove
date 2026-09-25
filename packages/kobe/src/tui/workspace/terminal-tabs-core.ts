@@ -264,6 +264,12 @@ export function cycleTab(state: TabsState, delta: 1 | -1): TabsState {
   return { ...state, activeId: next.id }
 }
 
+/** Activate the tab at `index`; out of range (or already active) returns the SAME state. */
+export function gotoTab(state: TabsState, index: number): TabsState {
+  const target = state.tabs[index]
+  return target && target.id !== state.activeId ? { ...state, activeId: target.id } : state
+}
+
 /**
  * Move a tab up/down (sidebar move mode). Edge-stops return the SAME state
  * (no wrap), so callers persist nothing. Order IS the persisted `tabs` array

@@ -117,6 +117,7 @@ for terminal support.
 | `ctrl+w` | Close the active split, otherwise the tab — closing the last tab leaves the task open with no session |
 | `enter` | Reopen a session in a task whose tabs are all closed (only while that empty pane is showing; `ctrl+e` does the same there) |
 | `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |
+| `ctrl+1` … `ctrl+9` | Tab N of the current task — the number the folded rail prints on it (needs kitty — see below) |
 | `ctrl+\` | Split right |
 | `ctrl+=` | Split down |
 | `F2` | Rename the active split, otherwise the tab |
@@ -147,6 +148,11 @@ simply unavailable there, with no second binding to fall back on. `ctrl+]`
 has its own byte and works everywhere. The consolation is that the ambiguity
 resolves in favour of the engine: `ctrl+[` keeps working as `Escape` inside
 the embedded terminal, which is what vim and every CLI's cancel key need.
+
+`ctrl+<digit>` needs kitty too. Legacy terminals send nothing for `ctrl+1` and
+`ctrl+9`, and `ctrl+2`…`ctrl+8` arrive as control bytes that read as other
+keys (`ctrl+3` is `Escape`, `ctrl+8` is Backspace), so those keep their old
+meaning there and tab N is reached with `ctrl+]` instead.
 
 ## Sidebar and Files
 

@@ -49,12 +49,12 @@ export function shortcutCaption(input: ShortcutCaptionInput): string | null {
 
 /** Ctrl follow-up keys runnable in the current Binding Stack, in live keymap order. */
 export function directGuideOptions(reachability: BindingReachability, prefixKey: string | null): PrefixHudOption[] {
-  const options = KobeKeymap.filter((binding) => reachability.direct.has(binding.id)).flatMap((binding) =>
-    binding.keys.flatMap((chord) => {
-      const stroke = ctrlFollowUpKey(chord)
-      return stroke ? [{ stroke, action: binding.id }] : []
-    }),
-  )
+  const options = KobeKeymap.filter((binding) => reachability.direct.has(binding.id)).flatMap((binding) => {
+    const strokes = binding.keys.flatMap((chord) => ctrlFollowUpKey(chord) ?? [])
+    // A numbered run (`chat.tab.goto`) is one row, `1-9`, not nine.
+    if (strokes.length > 2) return [{ stroke: `${strokes[0]}-${strokes.at(-1)}`, action: binding.id }]
+    return strokes.map((stroke) => ({ stroke, action: binding.id }))
+  })
   const prefixStroke = prefixKey ? ctrlFollowUpKey(prefixKey) : null
   if (prefixStroke && reachability.prefix.size > 0) {
     options.push({ stroke: prefixStroke, action: DIRECT_GUIDE_PREFIX_ACTION_ID })
