@@ -1,0 +1,191 @@
+{
+  "beats": [
+    {
+      "name": "tui-up",
+      "t": 5.118
+    },
+    {
+      "name": "dialog-0",
+      "t": 8.605
+    },
+    {
+      "name": "repo-0",
+      "t": 12.09
+    },
+    {
+      "name": "created-0",
+      "t": 15.266
+    },
+    {
+      "name": "ready-0",
+      "t": 26.4
+    },
+    {
+      "name": "prompted-0",
+      "t": 27.349
+    },
+    {
+      "name": "dialog-1",
+      "t": 31.966
+    },
+    {
+      "name": "repo-1",
+      "t": 35.943
+    },
+    {
+      "name": "created-1",
+      "t": 39.179
+    },
+    {
+      "name": "hooks-1",
+      "t": 49.902
+    },
+    {
+      "name": "ready-1",
+      "t": 52.503
+    },
+    {
+      "name": "prompted-1",
+      "t": 53.59
+    },
+    {
+      "name": "dialog-2",
+      "t": 58.236
+    },
+    {
+      "name": "repo-2",
+      "t": 62.56
+    },
+    {
+      "name": "created-2",
+      "t": 65.812
+    },
+    {
+      "name": "ready-2",
+      "t": 77.47
+    },
+    {
+      "name": "prompted-2",
+      "t": 78.539
+    },
+    {
+      "name": "all-running",
+      "t": 81.547
+    },
+    {
+      "name": "close",
+      "t": 86.548
+    },
+    {
+      "name": "closed",
+      "t": 89.591
+    },
+    {
+      "name": "reopen",
+      "t": 93.612
+    },
+    {
+      "name": "reopened",
+      "t": 96.331
+    },
+    {
+      "name": "task-open",
+      "t": 105.723
+    },
+    {
+      "name": "changes",
+      "t": 110.646
+    },
+    {
+      "name": "diff",
+      "t": 113.57
+    },
+    {
+      "name": "end",
+      "t": 122.574
+    }
+  ],
+  "tasks": [
+    {
+      "id": "01M3BD0V2GKY9PGY4MXWFNGZ84",
+      "title": "orbit-sdk",
+      "repo": "C:/dev-demo/orbit-sdk",
+      "branch": "",
+      "worktreePath": "C:/dev-demo/orbit-sdk",
+      "kind": "main",
+      "status": "backlog",
+      "pinned": false,
+      "vendor": "claude",
+      "createdAt": "2026-09-25T04:26:18.576Z",
+      "updatedAt": "2026-09-25T04:26:18.576Z"
+    },
+    {
+      "id": "01M3BD0V2WZ968PYAYMKG7TCFV",
+      "title": "Add a configurable request timeout (defa…",
+      "repo": "C:/dev-demo/orbit-sdk",
+      "branch": "add-a-configurable-request-timeo",
+      "worktreePath": "C:\\dev-demo\\home\\.rove\\worktrees\\orbit-sdk-80d294d45434\\dolphin",
+      "kind": "task",
+      "status": "backlog",
+      "pinned": false,
+      "vendor": "claude",
+      "baseRef": "master",
+      "createdAt": "2026-09-25T04:26:18.588Z",
+      "updatedAt": "2026-09-25T04:27:50.135Z"
+    },
+    {
+      "id": "01M3BD1JCZHRKPT0KHRWFNX41G",
+      "title": "atlas-web",
+      "repo": "C:/dev-demo/atlas-web",
+      "branch": "",
+      "worktreePath": "C:/dev-demo/atlas-web",
+      "kind": "main",
+      "status": "backlog",
+      "pinned": false,
+      "vendor": "codex",
+      "createdAt": "2026-09-25T04:26:42.463Z",
+      "updatedAt": "2026-09-25T04:26:42.463Z"
+    },
+    {
+      "id": "01M3BD1JD8P7N144GBFHN3W7XT",
+      "title": "Make formatBytes handle KB, MB, GB and T…",
+      "repo": "C:/dev-demo/atlas-web",
+      "branch": "make-formatbytes-handle-kb-mb-gb",
+      "worktreePath": "C:\\dev-demo\\home\\.rove\\worktrees\\atlas-web-1de3a5a14378\\grayling",
+      "kind": "task",
+      "status": "backlog",
+      "pinned": false,
+      "vendor": "codex",
+      "baseRef": "master",
+      "createdAt": "2026-09-25T04:26:42.472Z",
+      "updatedAt": "2026-09-25T04:27:02.499Z"
+    },
+    {
+      "id": "01M3BD2CEQBAMN85B52CPRRGG1",
+      "title": "ledger-api",
+      "repo": "C:/dev-demo/ledger-api",
+      "branch": "",
+      "worktreePath": "C:/dev-demo/ledger-api",
+      "kind": "main",
+      "status": "backlog",
+      "pinned": false,
+      "vendor": "claude",
+      "createdAt": "2026-09-25T04:27:09.143Z",
+      "updatedAt": "2026-09-25T04:27:09.143Z"
+    },
+    {
+      "id": "01M3BD2CF5PK3HT54R0RH9PSXN",
+      "title": "Make transfer() reject non-positive amou…",
+      "repo": "C:/dev-demo/ledger-api",
+      "branch": "make-transfer-reject-non-positiv",
+      "worktreePath": "C:\\dev-demo\\home\\.rove\\worktrees\\ledger-api-c23817a61b03\\kingfisher",
+      "kind": "task",
+      "status": "backlog",
+      "pinned": false,
+      "vendor": "claude",
+      "baseRef": "master",
+      "createdAt": "2026-09-25T04:27:09.157Z",
+      "updatedAt": "2026-09-25T04:27:26.555Z"
+    }
+  ]
+}

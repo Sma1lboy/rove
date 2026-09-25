@@ -75,6 +75,18 @@
 #installWrap:has(#copyBtn.is-copied) .rev-cloud{opacity:1}
 #installWrap:has(#copyBtn.is-copied) .rev-cloud path{stroke-dashoffset:0!important}
 
+/* 4. the hero: the recording takes the half the subject block used to hold */
+.hero{grid-template-columns:minmax(0,1fr) minmax(0,1.08fr)}
+.hero h1{max-width:none;font-size:clamp(2.4rem,5.1vw,4.4rem)}
+.hero .lede{margin-bottom:26px}
+.hero .engines{margin-top:14px;font-size:13.5px;color:var(--ink-2)}
+.hero .platform{margin-top:8px;font-size:11px;color:var(--ink-3)}
+.demo{margin:0;border:1px solid var(--ink);background:var(--paper-2)}
+.demo .cap{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--rule);padding:7px 12px}
+.demo .rec{color:var(--accent-text)}
+.demo video{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:#0b0d10}
+@media (max-width:1080px){.hero{grid-template-columns:minmax(0,1fr)}}
+
 /* long prose URLs must not push the sheet past a 390px viewport */
 .txt-col p,.gnotes li,.t-note{overflow-wrap:anywhere}
 </style>
@@ -293,8 +305,8 @@
   <!-- ══ HERO ════════════════════════════════════════════════════════════ -->
   <section class="hero" data-zone="A">
     <div class="hero-l">
-      <h1 data-i18n-html="hero.title">The agent multiplexer <span class="thin">in your shell</span></h1>
-      <p class="lede" data-i18n-html="hero.sub">Rove is a terminal UI for running many AI coding agents at once. Every attempt gets <b>its own git worktree and its own branch</b>, so two agents working the same prompt can never write the same file.</p>
+      <h1 data-i18n-html="hero.title">Parallel coding agents <span class="thin">in your terminal.</span></h1>
+      <p class="lede" data-i18n-html="hero.sub">One task, one worktree, one branch. Run ten at once, close your laptop, pick them back up from any machine over SSH.</p>
 
       <div id="install">
         <div class="install-wrap" data-measure="ONE LINE TO INSTALL" id="installWrap">
@@ -311,32 +323,18 @@
           <button class="alt" type="button" data-cmd="bun install -g @sma1lboy/rove" title="bun install -g @sma1lboy/rove">bun</button>
           <button class="alt" type="button" data-cmd="npx @sma1lboy/rove" title="npx @sma1lboy/rove">npx</button>
         </p>
+        <p class="engines" data-i18n="hero.engines">Works with Claude Code, Codex, Copilot, Gemini CLI, OpenCode and more.</p>
         <p class="platform" data-i18n="hero.requirements">macOS · Linux · Windows — ships its own Bun runtime. Needs git and one engine CLI on PATH.</p>
       </div>
     </div>
 
     <div class="hero-r">
-      <div class="subject" data-measure="1 MANAGED TASK" data-measure-axis="y">
-        <div class="cap micro" data-i18n="ga.subjCap">Subject of drawing</div>
-        <div class="body">
-          <div class="eq">
-            <div class="row"><span class="op"></span><span class="lhs" data-i18n="ga.subjTask">Managed task</span></div>
-            <div class="row"><span class="op">=</span><span class="bl">1</span><span>git worktree</span></div>
-            <div class="row"><span class="op">+</span><span class="bl">2</span><span data-i18n="ga.subjBranch">branch</span></div>
-            <div class="row"><span class="op">+</span><span class="bl">3</span><span data-i18n="ga.subjTabs">terminal tabs</span></div>
-          </div>
-        </div>
-        <div class="foot micro"><span data-i18n="ga.subjSee">See Fig. 1</span><span data-i18n="ga.subjParts">3 parts</span></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:14px">
-        <svg width="62" height="30" viewBox="0 0 62 30" aria-hidden="true">
-          <circle cx="13" cy="15" r="10" class="thin"/><circle cx="13" cy="15" r="4.5" class="thin"/>
-          <path d="M36 6 L58 10 L58 20 L36 24 Z" class="thin"/>
-          <line x1="36" y1="6" x2="36" y2="24" class="thin"/>
-          <line x1="1" y1="15" x2="25" y2="15" class="ctr"/>
-        </svg>
-        <span class="micro" data-i18n="ga.projection">First-angle projection</span>
-      </div>
+      <!-- Demo slot. To swap the recording, change the one src below. -->
+      <figure class="demo" data-measure="1 SESSION, RECORDED">
+        <div class="cap micro"><span data-i18n="hero.demoCap">Fig. 0 — Rove, running</span><span class="rec" aria-hidden="true">● REC</span></div>
+        <video src="/assets/hero-multirepo.mp4" autoplay muted loop playsinline preload="metadata"
+               aria-label="Screen recording of Rove: a task started in each of three repos, running Claude Code and Codex at once; the terminal is closed and reopened with all three still running, then one task's diff"></video>
+      </figure>
     </div>
   </section>
 
@@ -354,7 +352,7 @@
         <line class="thin" x1="1" y1="41" x2="1199" y2="41"/>
         <line class="thin" x1="1" y1="557" x2="1199" y2="557"/>
         <text class="tx-s" x="18" y="28">ROVE</text>
-        <text class="tx-m" x="86" y="28">3 PROJECTS · 4 TASKS · NONE ATTACHED</text>
+        <text class="tx-m" x="86" y="28">3 REPOS · 4 TASKS · RUNNING IN THE BACKGROUND</text>
 
         <!-- ── column divisions, centre lines, dimension chain ───────── -->
         <line class="ctr" x1="280" y1="41" x2="280" y2="557"/>
@@ -762,7 +760,7 @@
 
     <div class="txt-col">
       <p data-i18n="ga.n4.p1">The engines run in PTYs hosted by the daemon, not by your terminal. Quitting the TUI only detaches. Drop the SSH connection, close the lid, reboot — the work keeps going, and the screens come back on attach with up to 64 MB of scrollback restored, newest first.</p>
-      <p data-i18n-html="ga.n4.p2"><b>Machines.</b> <span class="mono">rove machine add narwhal</span> registers another computer. Its tasks appear in the same sidebar under a row of their own — no ports opened, no new auth, SSH just forwards the remote daemon's unix socket. Every machine is connected at once.</p>
+      <p data-i18n-html="ga.n4.p2"><b>Machines.</b> Got a second computer — a desktop at home, a box in the cloud? Add it once with <span class="mono">rove machine add</span> and its tasks show up in the same sidebar as your local ones. It rides on the SSH access you already have: no ports to open, no new login.</p>
     </div>
   </section>
 

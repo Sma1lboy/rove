@@ -11,6 +11,7 @@ import { DocsTaskModel } from "./docs/DocsTaskModel"
 import { GlyphK } from "./GlyphK"
 import { RoveLife } from "./life/RoveLife"
 import { LIFE } from "./life/timeline"
+import { FPS as MULTIREPO_FPS, MultiRepoCut, TOTAL_SECONDS as MULTIREPO_SECONDS } from "./multirepo/MultiRepoCut"
 import { PaneGrid } from "./PaneGrid"
 import { PromoDetach } from "./promo/PromoDetach"
 import { PromoEngines } from "./promo/PromoEngines"
@@ -63,6 +64,16 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="glyph-k" component={GlyphK} durationInFrames={150} fps={30} width={800} height={800} />
       {/* Rove's history inked stroke by stroke, day 0 to the current release, with its score. */}
       <Composition id="rove-life" component={RoveLife} {...LIFE} />
+      {/* The landing hero: three repos, three agents, detach and reattach. Cut
+          from the real take `kobe-harness/e2e/hero-multirepo.ts` records. */}
+      <Composition
+        id="multirepo-cut"
+        component={MultiRepoCut}
+        durationInFrames={Math.round(MULTIREPO_SECONDS * MULTIREPO_FPS)}
+        fps={MULTIREPO_FPS}
+        width={1920}
+        height={1080}
+      />
       <Composition id="rove-life-cyanotype" component={RoveLife} {...LIFE} defaultProps={{ theme: "cyanotype" }} />
       <Composition id="docs-fan-out" component={DocsFanOut} durationInFrames={1} fps={30} width={1600} height={900} />
       <Composition id="docs-task-model" component={DocsTaskModel} durationInFrames={1} fps={30} width={1600} height={900} />
