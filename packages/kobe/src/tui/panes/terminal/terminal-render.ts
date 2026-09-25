@@ -188,3 +188,22 @@ export function sealRowEndAttributes(
     return row
   })
 }
+
+/**
+ * Engine glyphs with the Unicode Emoji property (claude's `⏸ plan mode on`)
+ * that Windows/Linux font fallback draws as colored emoji. Terminals there
+ * ignore a VS15 text-presentation request, so swap in a one-cell look-alike
+ * that has no emoji mapping. Paint-only: selection copies the PTY snapshot.
+ */
+const TEXT_PRESENTATION: Readonly<Record<string, string>> = { "⏸": "‖", "⏹": "■", "⏺": "●" }
+const EMOJI_PRONE = /[⏸⏹⏺]/u
+
+export function textPresentationRow(
+  row: readonly Chunk[],
+  platform: NodeJS.Platform = process.platform,
+): readonly Chunk[] {
+  if (platform === "darwin" || !row.some((c) => EMOJI_PRONE.test(c.text))) return row
+  return row.map((c) =>
+    EMOJI_PRONE.test(c.text) ? { ...c, text: c.text.replace(/[⏸⏹⏺]/gu, (g) => TEXT_PRESENTATION[g] ?? g) } : c,
+  )
+}

@@ -185,7 +185,7 @@ describe("golden: session events → sidebar running state", () => {
     const perm = track(harness())
     perm.registry.report(TASK_ID, "awaiting-input", { waiting: "permission" }, "tab-1")
     const permRow = perm.row("tab-1")
-    expect(permRow).toMatchObject({ loading: false, glyph: "!", tone: "error" })
+    expect(permRow).toMatchObject({ loading: false, glyph: "?", tone: "warning" })
     // Sticky: no lapse watchdog armed — an engine blocked on the user writes
     // nothing, so a watchdog here would idle exactly the tasks needing a human.
     expect(perm.registry.debugSnapshot().tasks[TASK_ID]?.lapseArmed).toBe(false)

@@ -11,7 +11,7 @@
 |                              |
 | rove ─────────────────────── |
 |  feat/alpha                ? |
-|▌ ! build                 22m |
+|▌ ? build                 22m |
 |  ○ review                    |
 |  feat/bravo                ? |
 |  ○ tests                     |

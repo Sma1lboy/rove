@@ -124,13 +124,19 @@ describe("activity pipeline — vendor hook payload to sidebar badge", () => {
     expect(row.subtitleText).toBe("feature/sidebar")
   })
 
+  it("question dialog: AskUserQuestion shows `?`, not the `!` of a failure", () => {
+    const row = rowAfterClaudeHook("Notification", { notification_type: "elicitation_dialog" })
+    expect(row.loading).toBe(false)
+    expect(row.stateGlyph).toBe("?")
+  })
+
   it("waiting on permission: the Notification permission hook shows the attention badge", () => {
     const row = rowAfterClaudeHook("Notification", {
       message: "Claude needs your permission to use Bash",
     })
     expect(row.loading).toBe(false)
-    expect(row.stateGlyph).toBe("!")
-    expect(row.tone).toBe("error")
+    expect(row.stateGlyph).toBe("?")
+    expect(row.tone).toBe("warning")
     expect(row.subtitleText).toBe("feature/sidebar")
   })
 
