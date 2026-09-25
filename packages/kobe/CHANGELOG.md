@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.228
+
+### Patch Changes
+
+- [#1131](https://github.com/Sma1lboy/rove/pull/1131) [`b36cfb6`](https://github.com/Sma1lboy/rove/commit/b36cfb6861c3f542e4f3cb36fcbb60c234f7fc0c) The sidebar marks an engine waiting on your answer (a question or a permission prompt) with an amber `?`, matching the tab strip and Inbox, instead of the red `!` used for failures. Off macOS, Claude's `⏸ plan mode on` line no longer renders as a colored emoji in the terminal pane. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.227
 
 ### Patch Changes
