@@ -7,6 +7,11 @@
  * `glyphs` is the default: the row's own status glyph in its state colour is
  * the most a four-cell strip can say about a task. The rest stay as a
  * preference.
+ *
+ * A task whose tabs are known folds to ONE CELL PER TAB instead: the tab's
+ * number (what `ctrl+<N>` reaches) in that tab's own state colour, so a second
+ * chat's turn is visible folded. The count restarting at 1 marks the next task.
+ * `hairline` has no room for a digit and stays one cell per task.
  */
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
@@ -16,11 +21,13 @@ import { Fragment, useMemo } from "react"
 import { displayWidth } from "../../../lib/display-width"
 import { type SidebarGroup, ownTasks } from "../../../tui/panes/sidebar/project-groups"
 import { buildSidebarRowView, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
+import type { TreeTab } from "../../../tui/panes/sidebar/tree-core"
 import { toneColor } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import { CollapseButton } from "./collapse-button"
 import { useSpinnerFrame } from "./row-cards"
+import { useTabStateCell } from "./tree-rows"
 
 export type CollapsedRailStyle = "hairline" | "glyphs" | "initials"
 
@@ -52,6 +59,13 @@ interface RailRow {
   readonly glyph: string
   readonly tone: Parameters<typeof toneColor>[1]
   readonly selected: boolean
+  /** Set when the task folds to one cell per tab (see the file header). */
+  readonly tabs?: readonly TreeTab[]
+}
+
+/** The digit a tab cell prints: its `ctrl+<N>` slot, `·` past the ninth. */
+export function railTabDigit(index: number): string {
+  return index < 9 ? String(index + 1) : "·"
 }
 
 /** One divider plus the rows under it — a project, or the scratch bench. */
@@ -62,7 +76,9 @@ interface RailSection {
 }
 
 function useRailSections(props: {
+  style: CollapsedRailStyle
   groups: readonly SidebarGroup[]
+  tabsByTask?: ReadonlyMap<string, readonly TreeTab[]>
   selectedId: string | null
   engineState?: ReadonlyMap<string, TaskEngineState>
   taskJobs?: ReadonlyMap<string, TaskJobState>
@@ -89,11 +105,13 @@ function useRailSections(props: {
           truncateBranch: (branch) => branch,
         })
         const view = withSpinnerFrame(base, () => frame)
+        const tabs = props.style === "hairline" ? undefined : props.tabsByTask?.get(task.id)
         return {
           task,
           glyph: view.stateGlyph,
           tone: view.tone,
           selected: task.id === props.selectedId,
+          tabs: tabs && tabs.length > 0 ? tabs : undefined,
         }
       }),
     }))
@@ -103,10 +121,17 @@ export interface CollapsedRailProps {
   readonly style: CollapsedRailStyle
   /** The very sections the expanded tree renders. */
   readonly groups: readonly SidebarGroup[]
+  /** Each task's tabs; absent (or no entry) keeps that task one cell. */
+  readonly tabsByTask?: ReadonlyMap<string, readonly TreeTab[]>
   readonly selectedId: string | null
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
+  /** Per-tab activity, keyed taskId → tabId: colours the tab cells. */
+  readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
+  readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly onSelect: (taskId: string) => void
+  /** Clicking a tab cell; absent falls back to selecting its task. */
+  readonly onSelectTab?: (taskId: string, tabId: string) => void
   readonly onExpand: () => void
 }
 
@@ -131,9 +156,15 @@ export function CollapsedRail(props: CollapsedRailProps) {
           <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
             {projectHeading(section.label, width)}
           </text>
-          {section.rows.map((row) => (
-            <RailRowView key={row.task.id} row={row} style={props.style} onSelect={props.onSelect} />
-          ))}
+          {section.rows.map((row) =>
+            row.tabs ? (
+              row.tabs.map((tab, index) => (
+                <RailTabRowView key={`${row.task.id}:${tab.id}`} row={row} tab={tab} index={index} rail={props} />
+              ))
+            ) : (
+              <RailRowView key={row.task.id} row={row} style={props.style} onSelect={props.onSelect} />
+            ),
+          )}
         </Fragment>
       ))}
       <CollapseButton collapsed onToggle={props.onExpand} />
@@ -202,4 +233,47 @@ function RailCell(props: { row: RailRow; style: CollapsedRailStyle; fg: string |
         </box>
       )
   }
+}
+
+/** One tab of a task folded to per-tab cells: the digit takes the glyph's cell. */
+function RailTabRowView(props: { row: RailRow; tab: TreeTab; index: number; rail: CollapsedRailProps }) {
+  const { theme } = useTheme()
+  const { row, tab, rail } = props
+  const taskId = row.task.id
+  const cell = useTabStateCell({
+    task: row.task,
+    tab,
+    tabStates: rail.engineTabState?.get(taskId),
+    lifecycle: rail.engineLifecycle?.get(taskId),
+    job: rail.taskJobs?.get(taskId),
+    viewing: row.selected && tab.active === true,
+  })
+  const selected = row.selected && tab.active === true
+  const chrome = resolveRowSelectionChrome(theme, { cursor: selected })
+  const bold = selected || cell.pulsing ? TextAttributes.BOLD : undefined
+  const onSelect = () => (rail.onSelectTab ? rail.onSelectTab(taskId, tab.id) : rail.onSelect(taskId))
+  return (
+    <box flexShrink={0} flexDirection="row" backgroundColor={chrome.backgroundColor} onMouseUp={onSelect}>
+      <text fg={chrome.markerColor ?? cell.fg} wrapMode="none" flexShrink={0}>
+        {selected ? chrome.marker : " "}
+      </text>
+      <text fg={cell.fg} attributes={bold} wrapMode="none" flexShrink={0}>
+        {`${railTabDigit(props.index)} `}
+      </text>
+      {rail.style === "initials" ? (
+        <text
+          fg={row.selected ? theme.text : theme.textMuted}
+          attributes={row.selected ? TextAttributes.BOLD : undefined}
+          wrapMode="none"
+          flexShrink={0}
+        >
+          {props.index === 0 ? railInitials(row.task.title ?? "") : "  "}
+        </text>
+      ) : (
+        <text wrapMode="none" flexShrink={0}>
+          {" "}
+        </text>
+      )}
+    </box>
+  )
 }

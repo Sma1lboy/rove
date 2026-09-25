@@ -82,6 +82,10 @@ describe("directGuideOptions", () => {
     ])
   })
 
+  it("folds the numbered tab chords into one 1-9 row", () => {
+    expect(directGuideOptions(reachable(["chat.tab.goto"]), null)).toEqual([{ stroke: "1-9", action: "chat.tab.goto" }])
+  })
+
   it("omits the prefix entry when it is disabled or no prefix action is reachable", () => {
     expect(directGuideOptions(reachable(["focus.sidebar"]), null)).toEqual([{ stroke: "q", action: "focus.sidebar" }])
     expect(directGuideOptions(reachable(["focus.sidebar"]), "ctrl+a")).toEqual([

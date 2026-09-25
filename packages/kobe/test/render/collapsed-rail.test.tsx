@@ -115,3 +115,27 @@ test("project headings fit every fold, including wide project initials", async (
     expect(lines[3]?.trim().length).toBeGreaterThan(0)
   }
 })
+
+/**
+ * A task with several chats folds to one numbered cell per tab, so the second
+ * chat's turn stays visible folded, and the digit is the `ctrl+<N>` it answers
+ * to. A task with no known tabs keeps its single glyph.
+ */
+test("a task with tabs folds to one numbered cell per tab", async () => {
+  const tab = (id: string, active = false) => ({ id, label: id, active, engine: true, liveVendor: null })
+  const picked: string[] = []
+  const { frame, mockMouse } = await renderComponent(
+    <Rail
+      {...railProps({
+        tabsByTask: new Map([["t1", [tab("a", true), tab("b"), tab("c")]]]),
+        onSelectTab: (taskId: string, tabId: string) => picked.push(`${taskId}:${tabId}`),
+      })}
+    />,
+    { width: 10, height: 10 },
+  )
+  const lines = (await frame()).split("\n")
+  expect(lines.slice(1, 4).map((line) => line.trim())).toEqual(["▌1", "2", "3"])
+
+  await mockMouse.click(1, 3)
+  expect(picked).toEqual(["t1:c"])
+})

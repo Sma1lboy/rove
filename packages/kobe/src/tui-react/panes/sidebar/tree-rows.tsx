@@ -208,6 +208,66 @@ export function useTabRowBaseView(args: {
   }, [task, activity, lifecycle, job, completionSeen, t])
 }
 
+/**
+ * A tab's state cell — glyph and colour — as the tree's tab row draws it. The
+ * folded rail colours its tab digit from the same hook, so fold and tree agree.
+ */
+export function useTabStateCell(args: {
+  readonly task: Task
+  readonly tab: TreeTab
+  readonly tabStates: ReadonlyMap<string, TaskEngineState> | undefined
+  readonly lifecycle: { readonly subagents: number } | undefined
+  readonly job: TaskJobState | undefined
+  /** This tab is on screen: sitting in it digests ● to ✓. */
+  readonly viewing: boolean
+}) {
+  const { theme } = useTheme()
+  const { task, tab, viewing } = args
+  // Only an AGENT tab with daemon-reported activity wears a live state glyph.
+  const isAgent = tab.engine === true
+  const activity = isAgent ? tabRowActivity({ tabId: tab.id, tabActivities: args.tabStates }) : undefined
+  // Own activity only; counting "is the active tab" would leak the task rollup.
+  const carriesState = activity !== undefined
+  // ONLY a row carrying activity may run the completion bookkeeping: a
+  // sibling's state=undefined would wipe the bit the active row just recorded
+  // (✓ → ● flip on task switch). The durable half survives a restart, as the
+  // daemon's activity entry does.
+  const durableSeen = useDurableCompletionSeen(
+    task.id,
+    tab.id,
+    carriesState ? completionStampOf(activity) : undefined,
+    viewing,
+  )
+  const completionSeen = carriesState
+    ? completionSeenFor(task.id, activity?.state, viewing, tab.id, durableSeen)
+    : false
+  const baseView = useTabRowBaseView({
+    task,
+    activity,
+    lifecycle: carriesState ? args.lifecycle : undefined,
+    job: carriesState ? args.job : undefined,
+    completionSeen,
+  })
+  const frame = useSpinnerFrame(carriesState && baseView.loading)
+  const rowView = withSpinnerFrame(baseView, () => frame)
+  // A freeze-restored tab's process is dead and OPENING it re-runs the launch
+  // command, first prompt and all. It must not read `○` ("nothing to do");
+  // it takes the dead-engine `!`.
+  const restored = tab.restored === true
+  // No daemon signal rests at the same `○` as known-idle. See NO_STATE_GLYPH.
+  const glyph = restored ? ATTENTION_GLYPH : isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
+  // Gated on `carriesState`, or a sibling would flash for another tab's turn.
+  const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
+  const fg = pulsing
+    ? theme.success
+    : restored
+      ? theme.error
+      : carriesState
+        ? toneColor(theme, rowView.tone)
+        : theme.textMuted
+  return { activity, carriesState, rowView, glyph, fg, pulsing }
+}
+
 export function TabTreeRow(props: {
   readonly rowId: string
   readonly flatIndex: number
@@ -220,68 +280,25 @@ export function TabTreeRow(props: {
   const { theme } = useTheme()
   const t = useT()
   const shared = props.shared
-  // Only an AGENT tab with daemon-reported activity wears a live state glyph.
-  const isAgent = props.tab.engine === true
-  const taskTabStates = isAgent ? shared.engineTabState?.get(props.task.id) : undefined
-  const activity = isAgent ? tabRowActivity({ tabId: props.tab.id, tabActivities: taskTabStates }) : undefined
-  // Own activity only; counting "is the active tab" would leak the task rollup.
-  const carriesState = activity !== undefined
-  // Sitting in the tab digests ● to ✓ on the same render. ONLY a row carrying
-  // activity may run the bookkeeping: a sibling's state=undefined would wipe
-  // the bit the active row just recorded (✓ → ● flip on task switch).
-  const viewing = shared.selectedTaskId === props.task.id && props.tab.active === true
-  // The durable half survives a restart, as the daemon's activity entry does.
-  const durableSeen = useDurableCompletionSeen(
-    props.task.id,
-    props.tab.id,
-    carriesState ? completionStampOf(activity) : undefined,
-    viewing,
-  )
-  const completionSeen = carriesState
-    ? completionSeenFor(props.task.id, activity?.state, viewing, props.tab.id, durableSeen)
-    : false
-  const baseView = useTabRowBaseView({
+  const { activity, carriesState, rowView, glyph, fg, pulsing } = useTabStateCell({
     task: props.task,
-    activity,
-    lifecycle: carriesState ? shared.engineLifecycle?.get(props.task.id) : undefined,
-    job: carriesState ? shared.taskJobs?.get(props.task.id) : undefined,
-    completionSeen,
+    tab: props.tab,
+    tabStates: shared.engineTabState?.get(props.task.id),
+    lifecycle: shared.engineLifecycle?.get(props.task.id),
+    job: shared.taskJobs?.get(props.task.id),
+    viewing: shared.selectedTaskId === props.task.id && props.tab.active === true,
   })
-  const frame = useSpinnerFrame(carriesState && baseView.loading)
-  const rowView = withSpinnerFrame(baseView, () => frame)
-  // A freeze-restored tab's process is dead and OPENING it re-runs the launch
-  // command, first prompt and all. It must not read `○` ("nothing to do");
-  // it takes the dead-engine `!`.
-  const restored = props.tab.restored === true
-  // No daemon signal rests at the same `○` as known-idle. See NO_STATE_GLYPH.
-  const glyph = restored ? ATTENTION_GLYPH : isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
   const age = carriesState ? activityAgeLabel(activity, rowView.loading) : null
-  // Gated on `carriesState`, or a sibling would flash for another tab's turn.
-  const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
   // Second line, agent tabs only: the engine RUNNING, probed from the pty's
   // process tree (`TreeTab.liveVendor`), not task config (usually unset).
   // No answer → no second line. No KV provider → default height.
   const kv = useOptionalKV()
   const twoCell = normalizeTabRowHeight(kv?.get(TAB_ROW_HEIGHT_KEY, 1)) === 2
   const liveVendor = props.tab.liveVendor ?? null
-  const modelLine = isAgent && twoCell && liveVendor ? engineDisplayName(liveVendor) : null
+  const modelLine = props.tab.engine === true && twoCell && liveVendor ? engineDisplayName(liveVendor) : null
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={props.shared}>
-      <text
-        fg={
-          pulsing
-            ? theme.success
-            : restored
-              ? theme.error
-              : carriesState
-                ? toneColor(theme, rowView.tone)
-                : theme.textMuted
-        }
-        attributes={pulsing ? TextAttributes.BOLD : undefined}
-        wrapMode="none"
-        width={2}
-        flexShrink={0}
-      >
+      <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" width={2} flexShrink={0}>
         {`${glyph} `}
       </text>
       <box flexDirection="column" flexGrow={1}>

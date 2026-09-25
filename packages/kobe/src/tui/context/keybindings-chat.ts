@@ -117,6 +117,17 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
+    // Slot N = the task's Nth tab, the number the folded rail prints on it.
+    // ctrl+1/9 need kitty (legacy encodes only ctrl+2…ctrl+8, as C0 bytes).
+    id: "chat.tab.goto",
+    scope: "workspace",
+    keys: ["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => `ctrl+${digit}`),
+    category: "Workspace",
+    description: "Go to chat tab N",
+    hint: { keys: "ctrl+1-9" },
+    presentation: "onePress",
+  },
+  {
     // CONTENT-NEUTRAL ids: the split tree (`workspace/split-core.ts`) is
     // generic over leaf content. `ctrl+\` reads as a vertical divider → leaf
     // RIGHT; `ctrl+=` as horizontal strokes → leaf BELOW. Both need the kitty

@@ -35,6 +35,7 @@ import {
   addTab,
   cycleTab,
   engineTabSpawnFor,
+  gotoTab,
   initialShellTabs,
   initialTabs,
   isTabSplit,
@@ -328,6 +329,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       "chat.tab.fork": prefixAction(() => requestNewChat({ context: "continue" })),
       "chat.tab.cycle-next": () => update(cycleTab(state, 1)),
       "chat.tab.cycle-prev": () => update(cycleTab(state, -1)),
+      "chat.tab.goto": (_evt, slot) => update(gotoTab(state, slot ?? 0)),
       "chat.fork.new": prefixAction(() => requestNewChat({ destination: "fork" })),
     }),
   }))

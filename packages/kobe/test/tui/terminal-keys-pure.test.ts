@@ -233,6 +233,8 @@ describe("key routing tables", () => {
       [
         "ctrl+[",
         "ctrl+]",
+        // chat.tab.goto: tab N of the task, the rail's printed digit.
+        ..."123456789".split("").map((digit) => `ctrl+${digit}`),
         "ctrl+e",
         "ctrl+f",
         "ctrl+q",
@@ -273,8 +275,8 @@ describe("key routing tables", () => {
     for (const chord of ["a", "ctrl+c", "ctrl+h", "ctrl+j", "ctrl+k", "ctrl+l", "shift+tab", "ctrl+alt+f1"]) {
       expect(PASSTHROUGH_CHORDS).toContain(chord)
     }
-    // ctrl+2…ctrl+8 are the C0 control bytes engines and shells read.
-    for (const digit of "2345678") expect(PASSTHROUGH_CHORDS).toContain(`ctrl+${digit}`)
+    // ctrl+<digit> switches chat tab from inside the engine pane.
+    for (const digit of "123456789") expect(PASSTHROUGH_CHORDS).not.toContain(`ctrl+${digit}`)
   })
 
   it("derives the reservation from KobeKeymap DEFAULTS, immune to live overrides", () => {

@@ -277,6 +277,8 @@ const RESERVED_SPEC: ReadonlyArray<string | { id: string }> = [
   { id: "chat.tab.close" }, // ctrl+w
   { id: "chat.tab.cycle-next" }, // ctrl+]
   { id: "chat.tab.cycle-prev" }, // ctrl+[
+  // Costs the shell its ctrl+digit bytes; real esc/backspace are untouched.
+  { id: "chat.tab.goto" }, // ctrl+1 … ctrl+9
   { id: "chat.tab.rename" }, // f2
   // ctrl+e opens the new-conversation dialog. ctrl+f has no direct binding
   // but stays reserved: it's that dialog's context toggle, and releasing it
