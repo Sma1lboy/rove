@@ -15,6 +15,9 @@
  *     unusable for an interactive launch, and it has no `trustWorktree` — a
  *     real gap. (Not observed live: the probe machine stopped at its login
  *     wall, which the CURSOR manifest reports as `blocked`.)
+ *   - bob 2.0.4 DOES gate ("Do you trust this folder?"), and its `bob chat
+ *     --trust` covers the interactive launch, so its catalog entry carries the
+ *     flag instead of needing a hook here.
  *   - gemini / grok / droid / amp / devin / qodercli / cline / kiro / maki / antigravity:
  *     UNVERIFIED. Don't assume either way.
  *

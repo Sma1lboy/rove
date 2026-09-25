@@ -22,6 +22,7 @@ import { errorMessage } from "@/lib/error-message"
 import { getCustomEngineIds, getDisabledEngineIds } from "@/state/repos"
 import type { VendorId } from "@/types/vendor"
 import { BinaryNotFoundError } from "./binary-discovery"
+import { findBobBinary } from "./bob-local/binary"
 import { findClaudeBinary } from "./claude-code-local/binary"
 import { findCodexBinary } from "./codex-local/binary"
 import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS, pluginEngineIds } from "./contrib-engines"
@@ -29,7 +30,13 @@ import { findCopilotBinary } from "./copilot-local/binary"
 import { readTextFileSyncBounded } from "./file-bounds"
 import { findKimiBinary } from "./kimi-local/binary"
 import { findOmpBinary, findPiBinary } from "./pi-local/binary"
-import { claudeGlobalConfigPath, codexAuthPath, copilotConfigPath, kimiCredentialsPath } from "./vendor-home"
+import {
+  bobAuthSecretsPath,
+  claudeGlobalConfigPath,
+  codexAuthPath,
+  copilotConfigPath,
+  kimiCredentialsPath,
+} from "./vendor-home"
 
 export type ClaudeAccount =
   | {
@@ -54,6 +61,14 @@ export type CopilotAccount =
  */
 export type KimiAccount = { kind: "oauth" } | { kind: "none" }
 
+/**
+ * Bob reports PRESENCE only. Its store holds a bearer token keyed
+ * `bob.auth.tokens-<api host>` and nothing in plain text — the email the TUI
+ * shows would have to be decoded out of the token, which Rove does not do to
+ * credential material.
+ */
+export type BobAccount = { kind: "signed-in" } | { kind: "none" }
+
 export type BinaryStatus = { found: true; path: string } | { found: false; error: string }
 
 export interface EngineAccountStatus<A> {
@@ -70,6 +85,7 @@ export interface DetectDeps {
   home(): string
   findClaudeBinary(): Promise<string>
   findCodexBinary(): Promise<string>
+  findBobBinary(): Promise<string>
   findCopilotBinary(): Promise<string>
   findKimiBinary(): Promise<string>
   findPiBinary(): Promise<string>
@@ -93,6 +109,9 @@ const defaultDeps: DetectDeps = {
   },
   findCodexBinary() {
     return findCodexBinary()
+  },
+  findBobBinary() {
+    return findBobBinary()
   },
   findCopilotBinary() {
     return findCopilotBinary()
@@ -379,6 +398,34 @@ export async function detectCopilotAccount(
     return { binary, account: { kind: "oauth" } }
   }
   return { binary, account: { kind: "none" } }
+}
+
+/**
+ * Logged in or not, never who. The token key's PREFIX is matched because it
+ * carries the API host (`bob.auth.tokens-https://api.us-east.bob.ibm.com`),
+ * which differs per region.
+ */
+export async function detectBobAccount(deps: DetectDeps = defaultDeps): Promise<EngineAccountStatus<BobAccount>> {
+  const binary = await probeBinary(() => deps.findBobBinary())
+  const secretsPath = bobAuthSecretsPath(deps.home())
+  let raw: string | null
+  try {
+    raw = deps.readFile(secretsPath)
+  } catch (err) {
+    return { binary, account: { kind: "none" }, accountError: `read ${secretsPath}: ${errorMessage(err)}` }
+  }
+  if (raw === null) return { binary, account: { kind: "none" } }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (err) {
+    return { binary, account: { kind: "none" }, accountError: `parse ${secretsPath}: ${errorMessage(err)}` }
+  }
+  if (!isRecord(parsed)) return { binary, account: { kind: "none" } }
+  const signedIn = Object.entries(parsed).some(
+    ([key, value]) => key.startsWith("bob.auth.tokens-") && typeof value === "string" && value.length > 0,
+  )
+  return { binary, account: signedIn ? { kind: "signed-in" } : { kind: "none" } }
 }
 
 export async function detectKimiAccount(deps: DetectDeps = defaultDeps): Promise<EngineAccountStatus<KimiAccount>> {

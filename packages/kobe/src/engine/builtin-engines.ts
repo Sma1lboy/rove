@@ -9,7 +9,16 @@
  */
 
 import type { BuiltinVendorId } from "@/types/vendor"
-import { detectClaudeAccount, detectCodexAccount, detectCopilotAccount, detectKimiAccount } from "./account-detect.ts"
+import {
+  detectBobAccount,
+  detectClaudeAccount,
+  detectCodexAccount,
+  detectCopilotAccount,
+  detectKimiAccount,
+} from "./account-detect.ts"
+import { bobHistoryReader } from "./bob-local/history.ts"
+import { BOB_SCREEN_MANIFEST } from "./bob-local/screen.ts"
+import { trustBobWorktree } from "./bob-local/trust.ts"
 import { claudeCapabilities, claudeIdentity } from "./claude-code-local/capabilities.ts"
 import { ClaudeHookAdapter } from "./claude-code-local/hook-adapter.ts"
 import { fetchClaudeQuotaUsage } from "./claude-code-local/quota.ts"
@@ -32,6 +41,7 @@ import {
   ompHistoryReader,
   piHistoryReader,
 } from "./history-readers.ts"
+import { NoopHookAdapter } from "./hook-adapter.ts"
 import { KimiHookAdapter } from "./kimi-local/hook-adapter.ts"
 import { KIMI_SCREEN_MANIFEST } from "./kimi-local/screen.ts"
 import { trustKimiWorktree } from "./kimi-local/trust.ts"
@@ -144,6 +154,37 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
       },
     },
     quotaUsage: () => fetchCodexQuotaUsage(),
+  },
+  /**
+   * IBM Bob Shell. `bob` alone prints help — the TUI is `bob chat`. It is
+   * built-in for its history and account reads, not for hooks: Bob's bundle
+   * carries Claude's nested hook schema but nothing fired from either the
+   * workspace (`<workspace>/.bob/settings.json`) or the global
+   * (`~/.bob/settings/settings.json`) document on 2.0.5, and no feature flag
+   * names one. Session identity therefore comes from the history store keyed
+   * by worktree, the same origin kimi uses.
+   *
+   * `--trust` stays in the command even though `trustWorktree` writes the
+   * same record: the hook is best-effort and must never block a launch, and a
+   * folder gate nobody can answer is what breaks a parallel round.
+   *
+   * "paste", not "argv": `bob chat` declares no positional, and Bob 2.0.5
+   * SILENTLY DROPS one rather than failing — an argv first message would
+   * leave every sibling of a fan-out sitting at an empty composer.
+   */
+  bob: {
+    vendor: "bob",
+    builtin: true,
+    displayName: "IBM Bob",
+    defaultCommand: ["bob", "chat", "--trust"],
+    firstMessageDelivery: "paste",
+    history: bobHistoryReader,
+    detectAccount: (deps) => detectBobAccount(deps),
+    trustWorktree: trustBobWorktree,
+    // Bob persists no per-turn completion marker kobe can read.
+    createHookAdapter: () => new NoopHookAdapter("bob"),
+    createTurnDetector: () => new UnknownTurnDetector("bob"),
+    screenManifest: BOB_SCREEN_MANIFEST,
   },
   copilot: {
     vendor: "copilot",

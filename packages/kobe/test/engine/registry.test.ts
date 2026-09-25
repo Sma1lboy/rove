@@ -31,6 +31,7 @@ function deps(over: Partial<DetectDeps> = {}): DetectDeps {
     home: () => "/home/u",
     findClaudeBinary: async () => "/bin/claude",
     findCodexBinary: async () => "/bin/codex",
+    findBobBinary: async () => "/usr/local/bin/bob",
     findCopilotBinary: async () => "/bin/copilot",
     findKimiBinary: async () => "/bin/kimi",
     findPiBinary: async () => "/bin/pi",

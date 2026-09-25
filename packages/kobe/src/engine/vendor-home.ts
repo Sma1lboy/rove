@@ -102,6 +102,30 @@ export function copilotConfigPath(env: (k: string) => string | undefined, home: 
   return path.join(vendorConfigHome("copilot", depsOf(env, home)), "config.json")
 }
 
+/**
+ * Bob Shell's state directory. Unlike its siblings it has NO env override:
+ * bob 2.0.5 joins `homedir()` with `.bob` directly, so an isolated profile has
+ * to be produced by moving HOME.
+ */
+export function bobHome(home: string = homedir()): string {
+  return path.join(home, ".bob")
+}
+
+/** Bob's workspace-trust store — `{ version, folders: { <abs path>: "TRUST_FOLDER" } }`. */
+export function bobTrustPath(home?: string): string {
+  return path.join(bobHome(home), "trustedFolders.json")
+}
+
+/** Bob keeps every task and message in ONE SQLite database, not per-session files. */
+export function bobDbPath(home?: string): string {
+  return path.join(bobHome(home), "db", "bob.db")
+}
+
+/** Bob's credential store. Only the PRESENCE of a token key is ever read. */
+export function bobAuthSecretsPath(home?: string): string {
+  return path.join(bobHome(home), "settings", "auth-secrets.json")
+}
+
 /** kimi's OAuth credential file (`~/.kimi-code/credentials/kimi-code.json`). */
 export function kimiCredentialsPath(env: (k: string) => string | undefined, home: string): string {
   return path.join(vendorConfigHome("kimi", depsOf(env, home)), "credentials", "kimi-code.json")
