@@ -39,6 +39,12 @@ rove
 
 Press `n` to create your first task. You need git and at least one supported agent CLI on `PATH`; other install methods are under [Install](#install).
 
+To let a coding agent drive Rove itself, install the skill:
+
+```bash
+rove skill install
+```
+
 ## What you get
 
 <p align="center">
