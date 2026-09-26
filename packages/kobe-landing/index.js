@@ -5,8 +5,10 @@ var KOBE_I18N = (function () {
     'meta.title': 'Rove — 装在你 shell 里的 agent 多路复用器',
     'meta.desc': 'Rove 是终端里的编码代理多路复用器：N 个彼此隔离的尝试，各自拥有 git worktree 和托管引擎会话，互相发消息协作——而这一整套就跑在一个你随时能关掉的 SSH 会话里。',
     'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.docs': '--文档', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
-    'hero.title': 'agent <span class="nb">多路复用器</span><span class="thin">，装在你 <span class="nb">shell 里</span></span>',
-    'hero.sub': 'Rove 是一个终端界面，让你同时跑很多个 AI 编码代理。每个尝试都<b>独占自己的 git worktree 和分支</b>，所以两个代理跑同一条 prompt 也永远写不到同一个文件。',
+    'hero.title': '并行编码 agent<span class="thin">，<span class="nb">就在终端里。</span></span>',
+    'hero.sub': '一个任务，一个 worktree，一条分支。同时跑十个，合上笔记本，再从任何一台机器通过 SSH 接着干。',
+    'hero.engines': '支持 Claude Code、Codex、Copilot、Gemini CLI、OpenCode 等。',
+    'hero.demoCap': '图 0 — Rove 运行中',
     'hero.requirements': 'macOS · Linux · Windows —— 自带 Bun 运行时。只需 git 和 PATH 上任意一个引擎 CLI。',
     'copy.hint': '点击复制', 'copy.done': '✓ 已复制',
 
@@ -79,7 +81,7 @@ var KOBE_I18N = (function () {
     'ga.f4.dim': '最多恢复 64 MB 回滚，从最新开始',
     'ga.f4.cap': '图 5 —— 断开态运行 · 虚线 = 可能缺席的那个零件',
     'ga.n4.p1': '引擎跑在 daemon 托管的 PTY 里，不在你的终端里。退出 TUI 只是脱离——断 SSH、合盖、重启，活儿照跑，重新接上时最多 64 MB 回滚缓冲还在。',
-    'ga.n4.p2': '<b>机器</b>——<span class="mono">rove machine add narwhal</span> 把另一台电脑的任务放进同一个侧栏；SSH 转发它的 daemon socket，不开端口也不加认证。<b>例程</b>——一条 cron 规则，生成的是你能打开、能反驳的真任务，不是隐藏的后台作业。<b>收件箱</b>——一份列表，卡住的排前面；F7 跳到所有项目里最早那条。',
+    'ga.n4.p2': '<b>机器</b>——家里的台式机、云上的服务器？用 <span class="mono">rove machine add</span> 加一次，它的任务就和本机的出现在同一个侧栏里。走的是你已有的 SSH，不用开端口，也不用再登录一次。<b>例程</b>——一条 cron 规则，生成的是你能打开、能反驳的真任务，不是隐藏的后台作业。<b>收件箱</b>——一份列表，卡住的排前面；F7 跳到所有项目里最早那条。',
 
     'ga.n5.h': '符号图例', 'ga.n5.sub': '侧栏状态标记',
 
@@ -94,7 +96,7 @@ var KOBE_I18N = (function () {
     'ga.n5.sub': '不是截图 · 点一个任务',
     'ga.n5.p1': '这就是整个产品，在跑。下面几条注释把它拆开。',
     'ga.n5.p3': '每个字形都是侧栏真会画的，每个引擎名都真发布了。完整清单在<a href="https://docs.rove.run">文档</a>里。',
-    'ga.fig5cap': '图 1 —— 实物视图 · 三个仓库、四个任务、无人接管',
+    'ga.fig5cap': '图 1 —— 实物视图 · 三个仓库、四个任务、都在后台运行',
     'fleet.eyebrow': '四个任务在跑，没人接管',
     'fleet.cue': '点一个任务 →',
     'fleet.note': '三个仓库、四个任务，<strong>没有一个有人接管</strong>——每个引擎都在 daemon 背后的 hosted PTY 里。',
@@ -105,8 +107,10 @@ var KOBE_I18N = (function () {
     'meta.title': 'Rove: the agent multiplexer in your shell',
     'meta.desc': 'Rove multiplexes AI coding agents in your terminal. N isolated attempts, each with its own git worktree and hosted engine session, messaging each other as peers, all inside an SSH session you can close.',
     'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.docs': '--docs', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
-    'hero.title': 'The agent multiplexer <span class="thin">in your shell</span>',
-    'hero.sub': 'Rove is a terminal UI for running many AI coding agents at once. Every attempt gets <b>its own git worktree and its own branch</b>, so two agents working the same prompt can never write the same file.',
+    'hero.title': 'Parallel coding agents <span class="thin">in your terminal.</span>',
+    'hero.sub': 'One task, one worktree, one branch. Run ten at once, close your laptop, pick them back up from any machine over SSH.',
+    'hero.engines': 'Works with Claude Code, Codex, Copilot, Gemini CLI, OpenCode and more.',
+    'hero.demoCap': 'Fig. 0 — Rove, running',
     'hero.requirements': 'macOS · Linux · Windows — ships its own Bun runtime. Needs git and one engine CLI on PATH.',
     'copy.hint': 'click to copy', 'copy.done': '✓ copied',
 
@@ -179,7 +183,7 @@ var KOBE_I18N = (function () {
     'ga.f4.dim': '≤ 64 MB scrollback restored, newest first',
     'ga.f4.cap': 'Fig. 5 — Detached operation · Hidden line = the part that may be absent',
     'ga.n4.p1': 'Engines run in PTYs hosted by the daemon, not your terminal. Quitting the TUI only detaches — drop the SSH connection, close the lid, reboot; the work keeps going, and up to 64 MB of scrollback comes back on attach.',
-    'ga.n4.p2': '<b>Machines</b> — <span class="mono">rove machine add narwhal</span> puts another computer’s tasks in the same sidebar; SSH forwards its daemon socket, so no ports and no new auth. <b>Routines</b> — a cron rule that creates real tasks you can open and argue with, not a hidden job. <b>Inbox</b> — one list, blocked items first; F7 jumps to the oldest across every project.',
+    'ga.n4.p2': '<b>Machines</b> — got a second computer, a desktop at home or a box in the cloud? Add it once with <span class="mono">rove machine add</span> and its tasks show up in the same sidebar as your local ones. It rides on the SSH access you already have: no ports to open, no new login. <b>Routines</b> — a cron rule that creates real tasks you can open and argue with, not a hidden job. <b>Inbox</b> — one list, blocked items first; F7 jumps to the oldest across every project.',
 
     'ga.n5.h': 'Symbol legend', 'ga.n5.sub': 'Sidebar status marks',
 
@@ -194,7 +198,7 @@ var KOBE_I18N = (function () {
     'ga.n5.sub': 'Not a screenshot · pick a task',
     'ga.n5.p1': 'The whole product, running. The notes below take it apart.',
     'ga.n5.p3': 'Every glyph is one the sidebar really draws; every engine name ships. The full schedule is in the <a href="https://docs.rove.run">docs</a>.',
-    'ga.fig5cap': 'Fig. 1 — Physical view · three repositories, four tasks, none attached',
+    'ga.fig5cap': 'Fig. 1 — Physical view · three repos, four tasks, running in the background',
     'fleet.eyebrow': 'four tasks running, nobody attached',
     'fleet.cue': 'pick a task →',
     'fleet.note': 'Three repositories, four tasks, <strong>nobody attached to any of them</strong> — every engine in a hosted PTY behind the daemon.',

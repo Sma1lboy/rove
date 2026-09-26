@@ -230,7 +230,17 @@ bun e2e/hero-routines.ts          # routines.mp4 + routines.gif (3× cut)
 
 bun e2e/hero-plugins.ts           # link the five SDK examples (BEFORE serve)
 bun e2e/hero-plugin-demos.ts      # docs/assets/plugins/*.{mp4,gif} (2× cut)
+
+# landing hero: three repos, Claude Code + Codex, detach/reattach, a diff
+node --experimental-strip-types e2e/hero-multirepo.ts --setup   # its own 3-repo fixture
+node --experimental-strip-types e2e/hero-multirepo.ts           # raw take + beats.json
 ```
+
+The multi-repo take is raw and edited afterwards: `packages/branding`'s
+`multirepo-cut` composition cuts `public/multirepo/take.mp4` at the times in
+`beats.json`. Point `HERO_ROOT` at a neutral directory for both the take and
+`hero-serve.ts` — fixture paths are on camera. Run it under node: on Windows,
+Playwright under bun never gets a Chromium launched.
 
 `hero-capture.ts` holds what the recorders share — the `/harness` browser PTY,
 the typed-and-verified input helpers, and the encode — so a storyboard file is

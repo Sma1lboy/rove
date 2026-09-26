@@ -43,7 +43,8 @@ export function createSpecFetcher({ env = process.env } = {}) {
     }
     return {
       cwd: env.KOBE_PTY_DEV_CWD ?? process.cwd(),
-      command: ["/bin/sh", "-lc", env.KOBE_PTY_DEV_COMMAND],
+      // `/bin/sh` does not exist to a native Windows spawn; Git Bash's sh does.
+      command: [env.KOBE_PTY_DEV_SHELL ?? "/bin/sh", "-lc", env.KOBE_PTY_DEV_COMMAND],
     }
   }
 }
