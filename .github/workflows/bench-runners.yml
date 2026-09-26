@@ -1,0 +1,63 @@
+# Throwaway A/B: the release critical path on GitHub-hosted vs Blacksmith runners.
+name: Bench runners
+
+on:
+  push:
+    branches: [bench/blacksmith]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    # publish job's gate steps (lint → typecheck → unit tests → build)
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, blacksmith-4vcpu-ubuntu-2404, blacksmith-8vcpu-ubuntu-2404]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - working-directory: packages/kobe
+        run: bun run test
+      - run: bun run build
+
+  behavior:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, blacksmith-4vcpu-ubuntu-2404]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run --filter @sma1lboy/rove test:behavior
+
+  render-track:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-14, blacksmith-6vcpu-macos-15]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      - run: bun install --frozen-lockfile
+      - working-directory: packages/kobe
+        run: bun run test:render
