@@ -1,7 +1,7 @@
 # Rove: the agent multiplexer for your terminal
 
 <p align="center">
-  <img src="docs/assets/brand/bracket-chip.gif" alt="Rove, the agent multiplexer for your terminal — compatible with Claude Code, Codex, Copilot and Kimi" />
+  <img src="docs/assets/brand/bracket-chip.gif" alt="Rove, the agent multiplexer for your terminal. Works with Claude Code, Codex, Copilot, and Kimi." />
 </p>
 
 Rove is a terminal-native workspace for running multiple coding tasks in parallel with [Claude Code](https://claude.com/claude-code), [Codex](https://github.com/openai/codex), [Copilot](https://github.com/github/copilot-cli), Kimi, Gemini CLI, OpenCode, Cursor Agent, [and more](./docs/ENGINES.md), or any CLI you register.
@@ -24,27 +24,22 @@ Rove isolates parallel work in git worktrees and branches, while agent and shell
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="Rove demo: two tasks running at once, each on its own worktree and branch" /><br />
-  <a href="docs/assets/demo.mp4">Watch the full-quality MP4</a>
+  <img src="docs/assets/demo.gif" alt="Rove demo: three repos, two engines, three agents running at once, each on its own worktree and branch" />
 </p>
 
 The sidebar tracks tasks and their sessions. The workspace embeds the active agent or shell. The files pane shows what changed in the worktree. Switch tasks to read output, inspect a diff, run tests, or send the next instruction.
 
 ## Quick start
 
-One line on a machine with nothing installed. It sets up the Bun runtime Rove needs, then Rove itself:
+Install Rove, then launch it in a repository. Rove runs on [Bun](https://bun.sh) ≥ 1.3.11, and the install script sets Bun up if you don't have it.
 
 ```bash
 curl -fsSL https://rove.run/install.sh | sh
+cd your-repo
+rove
 ```
 
-Or use the package manager you already have:
-
-```bash
-npm install -g @sma1lboy/rove   # offers to install Bun on first launch
-bun install -g @sma1lboy/rove   # if you already run Bun
-npx @sma1lboy/rove              # try it without installing
-```
+Press `n` to create your first task. You need git and at least one supported agent CLI on `PATH`; other install methods are under [Install](#install).
 
 To let a coding agent drive Rove itself, install the skill:
 
@@ -52,30 +47,16 @@ To let a coding agent drive Rove itself, install the skill:
 rove skill install
 ```
 
-Then launch it in a repository:
-
-```bash
-cd your-repo
-rove
-```
-
-Rove needs git and at least one supported agent CLI on `PATH`. It runs on macOS, Linux, and Windows; Windows also requires Node.js and Git for Windows/Git Bash. The CLI itself runs on [Bun](https://bun.sh) ≥ 1.3.11, which every install route above brings along. If your Bun lives somewhere unusual, point Rove at it with `ROVE_BUN=/path/to/bun`.
-
-Press `n`, choose a repository, base branch, and agent, then enter a prompt. `F1` shows the live keybinding reference. `ctrl+q` returns to the sidebar, and quits from there without stopping sessions.
-
-`rove` is the canonical command. The package also installs `kobe` as a compatibility alias. On first launch, supported legacy state is copied into `~/.rove`; existing files and worktrees stay where they are.
-
-## Why Rove
+## What you get
 
 <p align="center">
   <img src="docs/assets/brand/promo-engines.png" alt="Every agent CLI, each in its own worktree. Built in: Claude Code, Codex, GitHub Copilot, Kimi Code, Pi, OMP. From the catalog, when the CLI is on your PATH: Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp, Devin, Qoder CLI, Cline, Kiro CLI, Maki, Antigravity. Yours: any command you register, or an engine from a plugin." />
 </p>
 
-- **Parallel tasks.** Keep a refactor, a bug fix, a test investigation, and a review moving at the same time.
-- **Git isolation.** Each managed task owns a worktree and branch, so agents on different tasks never overwrite each other's files.
-- **Persistent sessions.** Quit the TUI or drop SSH, then reattach without stopping the work.
-- **Every agent CLI, side by side.** Each task picks its engine: Claude Code, Codex, Copilot, Kimi, Pi, OMP, Gemini CLI, OpenCode, Cursor Agent, [and more](./docs/ENGINES.md), or a CLI you register. Rove runs the real CLI, with its own auth, permissions, models, and access to the local machine.
-- **Terminal-native.** Run Rove where the code lives: laptop, devbox, VPS, or a narrow mobile SSH session.
+- **Parallel tasks, isolated in git.** Each task owns a worktree and branch, so a refactor, a bug fix, and a review move at the same time without agents overwriting each other's files.
+- **Every agent CLI, side by side.** Each task picks its engine: Claude Code, Codex, Copilot, Kimi, Pi, OMP, Gemini CLI, OpenCode, Cursor Agent, [and more](./docs/ENGINES.md), or a CLI you register. Rove runs the real CLI, with its own auth, permissions, and models.
+- **Sessions that outlive the terminal.** Quit the TUI or drop SSH, then reattach later. The agents keep working on the host.
+- **Terminal-native.** No desktop app. Run Rove where the code lives: laptop, devbox, VPS, or a narrow mobile SSH session.
 - **Scriptable.** Scripts and coding agents create, inspect, message, and land tasks through `rove api`.
 
 ## How it works
@@ -90,13 +71,21 @@ Managed task
     └── shell
 ```
 
-Tabs inside one task share its files, so work that needs isolation gets its own managed task. Project-main tasks and `rove .` directory tasks deliberately reuse an existing directory. Sessions keep running in the background when the TUI detaches, and Rove restores them when you return.
+Tabs inside one task share its files, so work that needs isolation gets its own managed task; project-main tasks and `rove .` directory tasks deliberately reuse an existing directory. Sessions run on the host rather than in your terminal window, so they keep going when the TUI detaches and come back when you run `rove` again. The loop: start several tasks, switch between their live sessions, review each worktree's diff and checks, send follow-up instructions, then merge the branches that worked out. [Concepts](./docs/CONCEPTS.md) and [Sessions](./docs/SESSIONS.md) cover the full lifecycle.
 
-<p align="center">
-  <img src="docs/assets/brand/promo-detach.png" alt="Close the terminal. They keep working. Sessions run on the host, not inside your terminal window: press ctrl+q twice to quit the TUI, then run rove to pick it all back up." />
-</p>
+## Install
 
-The loop: start several tasks, switch between their live sessions, review each worktree's diff and checks, send follow-up instructions, then merge the branches that worked out. [Concepts](./docs/CONCEPTS.md) and [Sessions](./docs/SESSIONS.md) cover the full lifecycle.
+The install script above sets up the Bun runtime Rove needs, then Rove itself. Or use the package manager you already have:
+
+```bash
+npm install -g @sma1lboy/rove   # offers to install Bun on first launch
+bun install -g @sma1lboy/rove   # if you already run Bun
+npx @sma1lboy/rove              # try it without installing
+```
+
+Rove runs on macOS, Linux, and Windows; Windows also requires Node.js and Git for Windows/Git Bash. The CLI runs on [Bun](https://bun.sh) ≥ 1.3.11, which every install route brings along. If your Bun lives somewhere unusual, point Rove at it with `ROVE_BUN=/path/to/bun`.
+
+`rove` is the canonical command. The package also installs `kobe` as a compatibility alias. On first launch, supported legacy state is copied into `~/.rove`; existing files and worktrees stay where they are.
 
 ## Scripting and Agent API
 
@@ -134,17 +123,6 @@ rove plugin install owner/repo
 ```
 
 The same catalog is on [rove.run/plugins](https://rove.run/plugins) and under Settings → Marketplace. Any public GitHub repo tagged `rove-plugin` shows up there; [plugin authoring](./docs/PLUGIN-AUTHORING.md) covers the manifest, the event catalog, and the optional TypeScript SDK.
-
-## Built for the terminal
-
-Rove runs the interactive agent CLIs you already have, keeps their sessions alive on the host, and lets you manage parallel coding tasks from the terminal, including over SSH.
-
-- **Terminal TUI.** No desktop app.
-- **SSH-native.** The same workflow on remote machines.
-- **Persistent sessions.** Disconnect and come back without losing running agents.
-- **Existing agent CLIs.** Claude Code, Codex, Copilot, Kimi, Gemini CLI, Cursor Agent, and more, or your own.
-- **Git-native isolation.** Parallel tasks live in separate worktrees and branches.
-- **Programmable.** Orchestrate tasks through `rove api`.
 
 ## More features
 
