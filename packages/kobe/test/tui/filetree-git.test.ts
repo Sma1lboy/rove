@@ -31,6 +31,7 @@ import {
   parseNameStatus,
   parseNumstat,
   parseStatusEntries,
+  resetBaseCache,
   resolveBase,
   statusFiles,
   statusFilesBranch,
@@ -48,6 +49,7 @@ function fail(stderr = "boom"): { stdout: string; stderr: string; status: number
 }
 
 beforeEach(() => {
+  resetBaseCache()
   runGit.mockReset()
   readFile.mockReset()
 })
@@ -330,5 +332,34 @@ describe("resolveBase", () => {
       return fail("nope")
     })
     expect(await resolveBase("/repo")).toBeNull()
+  })
+  // Every task switch remounts the pane; the ladder was six `git` spawns each time.
+  test("reuses a base across mounts until HEAD moves", async () => {
+    let head = "samesha\n"
+    runGit.mockImplementation(async (_cwd, args) => {
+      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
+      if (args.includes("origin/main") || args.includes("origin/master")) return fail("no such ref")
+      if (args.includes("HEAD")) return ok(head)
+      if (args.includes("main")) return ok("samesha\n")
+      return fail("nope")
+    })
+    expect(await resolveBase("/repo")).toBeNull()
+    runGit.mockClear()
+    expect(await resolveBase("/repo")).toBeNull()
+    expect(runGit).toHaveBeenCalledTimes(1)
+
+    head = "newcommit\n"
+    expect(await resolveBase("/repo")).toBe("main")
+  })
+
+  test("does not remember a ladder that was aborted mid-way", async () => {
+    const controller = new AbortController()
+    runGit.mockImplementation(async () => {
+      controller.abort()
+      return fail("aborted")
+    })
+    expect(await resolveBase("/repo", undefined, controller.signal)).toBeNull()
+    runGit.mockImplementation(async (_cwd, args) => (args.includes("symbolic-ref") ? ok("origin/main\n") : fail()))
+    expect(await resolveBase("/repo")).toBe("origin/main")
   })
 })

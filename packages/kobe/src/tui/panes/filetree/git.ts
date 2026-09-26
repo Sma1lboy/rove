@@ -175,6 +175,22 @@ export function attachUntrackedChildren(entries: StatusEntry[], others: readonly
   }
 }
 
+/** How long a resolved base is reused across pane mounts, i.e. task switches. */
+const BASE_TTL_MS = 5 * 60_000
+
+type ResolvedBase = {
+  base: string | null
+  /** HEAD sha the answer was computed against; `undefined` when it came from an `origin/*` rung, which HEAD can't change. */
+  head?: string | null
+}
+
+const baseCache = new Map<string, ResolvedBase & { at: number }>()
+
+/** Test seam. */
+export function resetBaseCache(): void {
+  baseCache.clear()
+}
+
 /**
  * Base ref for the Branch scope. Order: `prBaseRef` (from `task.prStatus`, the
  * only persisted base), `origin/HEAD`, `origin/main` / `origin/master` (as
@@ -182,6 +198,11 @@ export function attachUntrackedChildren(entries: StatusEntry[], others: readonly
  * remoteless repo's committed work is still reachable. `null` when nothing
  * resolves (orphan branch, or the default branch is checked out here); the
  * caller stays in working scope and says so.
+ *
+ * Memoised per worktree for {@link BASE_TTL_MS}: the pane resolves on every
+ * mount, and the ladder is up to six `git` spawns. A local answer depends on
+ * HEAD (a first commit makes `main` a base), so it is reused only while
+ * `rev-parse HEAD` still matches.
  */
 export async function resolveBase(
   worktreePath: string,
@@ -189,16 +210,28 @@ export async function resolveBase(
   signal?: AbortSignal,
 ): Promise<string | null> {
   if (prBaseRef && prBaseRef.trim().length > 0) return prBaseRef.trim()
+  const hit = baseCache.get(worktreePath)
+  if (hit && Date.now() - hit.at < BASE_TTL_MS) {
+    if (hit.head === undefined) return hit.base
+    if ((await revParse("HEAD", worktreePath, signal)) === hit.head) return hit.base
+  }
+  const resolved = await resolveBaseUncached(worktreePath, signal)
+  // An aborted ladder reads every rung as absent; its answer is not an answer.
+  if (!signal?.aborted) baseCache.set(worktreePath, { ...resolved, at: Date.now() })
+  return resolved.base
+}
+
+async function resolveBaseUncached(worktreePath: string, signal?: AbortSignal): Promise<ResolvedBase> {
   try {
     const head = (await runGit(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], worktreePath, signal)).trim()
-    if (head.length > 0) return head
+    if (head.length > 0) return { base: head }
   } catch {
     // No origin/HEAD (never fetched, or no remote) — fall through to guesses.
   }
   for (const guess of ["origin/main", "origin/master"]) {
     try {
       await runGit(["rev-parse", "--verify", "--quiet", guess], worktreePath, signal)
-      return guess
+      return { base: guess }
     } catch {
       // rev-parse --verify exits non-zero when the ref is absent; try next.
     }
@@ -207,9 +240,9 @@ export async function resolveBase(
   for (const guess of ["main", "master"]) {
     const sha = await revParse(guess, worktreePath, signal)
     // A local default that IS HEAD makes `main...HEAD` empty by construction.
-    if (sha != null && sha !== head) return guess
+    if (sha != null && sha !== head) return { base: guess, head }
   }
-  return null
+  return { base: null, head }
 }
 
 /** `git rev-parse --verify <ref>`, or `null` when the ref does not resolve. */
