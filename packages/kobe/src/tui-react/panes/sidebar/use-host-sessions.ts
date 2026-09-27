@@ -8,7 +8,7 @@
  * being wrong costs a missing row, never a phantom one.
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { getSharedPtyClient } from "../../../tui/panes/terminal/pty-hosted-client"
 import type { LiveSession } from "./orphan-tabs"
 
@@ -49,18 +49,26 @@ function pollingAllowed(): boolean {
 
 export function useHostSessions(enabled = pollingAllowed()): readonly LiveSession[] {
   const [sessions, setSessions] = useState<readonly LiveSession[]>(EMPTY)
+  // Compared outside setState: an updater returning `prev` still renders, commits and paints
+  // when React can't bail out eagerly, as right after the sidebar's 2s branch tick.
+  const currentRef = useRef(sessions)
 
   useEffect(() => {
     if (!enabled) return
     let cancelled = false
+    const publish = (next: readonly LiveSession[]): void => {
+      if (cancelled || sameSessions(currentRef.current, next)) return
+      currentRef.current = next
+      setSessions(next)
+    }
     const poll = async (): Promise<void> => {
       try {
         const client = await getSharedPtyClient()
         const { sessions: live = [] } = await client.request<{ sessions?: LiveSession[] }>("pty.list", {})
-        if (!cancelled) setSessions((prev) => (sameSessions(prev, live) ? prev : live))
+        publish(live)
       } catch {
         // No host / no verb / socket died: no orphans; retry next tick.
-        if (!cancelled) setSessions((prev) => (prev.length === 0 ? prev : EMPTY))
+        publish(EMPTY)
       }
     }
     void poll()

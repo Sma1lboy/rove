@@ -20,9 +20,11 @@ test("inventory polling publishes PID changes, skips identical snapshots, and st
   const first = { key: "task::tab-1", alive: true, title: "shell", pid: 101 }
   request.mockResolvedValue({ sessions: [first] })
   const snapshots: Array<readonly LiveSession[]> = []
+  let renders = 0
   let unmount = () => {}
   function Reader() {
     const sessions = useHostSessions(true)
+    renders++
     useEffect(() => {
       snapshots.push(sessions)
     }, [sessions])
@@ -37,9 +39,13 @@ test("inventory polling publishes PID changes, skips identical snapshots, and st
   try {
     await until(() => snapshots.at(-1)?.[0]?.pid === 101)
     const published = snapshots.length
+    const rendersAtPublish = renders
     request.mockResolvedValue({ sessions: [{ ...first }] })
     await until(() => request.mock.calls.length >= 2)
+    await act(async () => Bun.sleep(50))
     expect(snapshots).toHaveLength(published)
+    // An identical poll must not render at all: each render is a sidebar commit and a frame.
+    expect(renders).toBe(rendersAtPublish)
 
     request.mockResolvedValue({ sessions: [{ ...first, pid: 202 }] })
     await until(() => snapshots.at(-1)?.[0]?.pid === 202)
