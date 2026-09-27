@@ -13,3 +13,11 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Before retrying:** find out why perf-b's shell restarts (fixture daemon.log and pty-host log, kept past teardown). Don't retry the same diff blind.
 
 **Update 2026-09-25.** The 09-24 typing-phase timeout was not caused by the attempt. It reproduces on unmodified main (4/9 runs passed). Root cause: `setPrompt` clicks the terminal and types right away, and the first key (`P`) can land on the sidebar before focus moves (`shift+p` pins the row). bash then runs `S1='A> '; clear`, and `waitForText` still passes on the echoed command. The fix is in PR #1133 (settle after the click, verify the prompt, retry). With that merged, the 09-24 poll-registry diff can be re-measured instead of being written off.
+
+## 2026-09-27 — note, not a failed attempt (main 9e40475)
+
+**Idle counts are 10 or 12 by window alignment, not by code.** The idle tick flushes one render-profile row every 2 s, and the idle window is `(start, end + 1000]`, 11 s long. So it catches 5 or 6 rows depending on phase. Main read 12, 12 and 10 tonight with no code change, and 09-23 read 12. A 10 → 12 "regression" on idle counts alone is this artefact. Re-measure before bisecting.
+
+**Typing-phase timeout still hits unmodified main.** It failed 2 of 2 runs tonight. #1133 (harness settle and retry) is still unmerged, so tonight's numbers were taken with its `perf-measure.ts` applied locally.
+
+**Landed tonight as PR #1144:** `useHostSessions` compared inside a `setState` updater. Returning `prev` still re-rendered the sidebar (commit plus frame) right after each branch tick. Idle commits/frames went 10–12 → 5.
