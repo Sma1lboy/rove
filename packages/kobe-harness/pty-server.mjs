@@ -6,7 +6,8 @@
  * PTY is spawned lazily on first attach (launch spec fetched from daemon web
  * transport by taskId + mode) and kept alive across WebSocket reconnects, so a
  * page refresh re-attaches to the same process. Closing a tab (POST
- * /pty/close) kills its PTY.
+ * /pty/close) kills its PTY, and so does no socket re-attaching within the
+ * detach grace window. The sidecar exits with its parent process.
  *
  *   ws  /pty?tab=<id>&taskId=<id>&mode=engine|shell&cols=<n>&rows=<n>
  *   POST /pty/close   { tab }                          kill the tab process
@@ -20,6 +21,7 @@ import { allowedHostForBindHost, originAllowed } from "./origin-policy.mjs"
 import { ptyRequestAuthorized } from "./pty-auth.mjs"
 import { ptyEnv } from "./pty-env.mjs"
 import { createScrollback } from "./pty-scrollback.mjs"
+import { watchParent } from "./pty-parent-watch.mjs"
 import { createPtySessionManager } from "./pty-session-lifecycle.mjs"
 import { createSpecFetcher } from "./pty-spec.mjs"
 
@@ -210,3 +212,4 @@ const shutdown = () => {
 }
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
+watchParent({ onGone: shutdown })

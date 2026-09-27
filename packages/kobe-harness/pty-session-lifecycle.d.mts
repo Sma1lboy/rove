@@ -44,6 +44,7 @@ export interface PtySessionManagerOptions {
   scrollbackCap: number
   env: NodeJS.ProcessEnv | Record<string, string> | (() => NodeJS.ProcessEnv | Record<string, string>)
   setTimeoutFn?: (cb: () => void, ms: number) => unknown
+  clearTimeoutFn?: (handle: unknown) => void
   setIntervalFn?: (cb: () => void, ms: number) => unknown
   clearIntervalFn?: (handle: unknown) => void
   submitDelays?: {
@@ -52,6 +53,8 @@ export interface PtySessionManagerOptions {
     enterMs: number
   }
   maxSessions?: number
+  /** Kill a session after this long with no attached socket. */
+  detachGraceMs?: number
   backpressure?: {
     highWaterBytes: number
     lowWaterBytes: number

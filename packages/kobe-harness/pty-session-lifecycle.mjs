@@ -18,6 +18,11 @@ const DEFAULT_SUBMIT_DELAYS = {
 // session is being actively viewed.
 const DEFAULT_MAX_SESSIONS = 64
 
+// The page never POSTs /pty/close when a browser tab just closes, so a session
+// nobody re-attaches to within this window is killed. Long enough to ride out a
+// refresh or a laptop lid, short enough that abandoned TUIs don't pile up.
+const DEFAULT_DETACH_GRACE_MS = 10 * 60 * 1000
+
 // PTY→WebSocket backpressure: a flooding pty (`yes`) outruns a slow browser, so
 // node buffers the unsent bytes (ws.bufferedAmount) without bound. Pause the pty
 // once any socket's buffer crosses the high-water mark and resume once every
@@ -68,10 +73,12 @@ export function createPtySessionManager({
   scrollbackCap,
   env,
   setTimeoutFn = setTimeout,
+  clearTimeoutFn = clearTimeout,
   setIntervalFn = setInterval,
   clearIntervalFn = clearInterval,
   submitDelays = DEFAULT_SUBMIT_DELAYS,
   maxSessions = DEFAULT_MAX_SESSIONS,
+  detachGraceMs = DEFAULT_DETACH_GRACE_MS,
   backpressure = DEFAULT_BACKPRESSURE,
 }) {
   /** @type {Map<string, { pty: any, scrollback: ReturnType<createScrollback>, sockets: Set<any> }>} */
@@ -110,6 +117,22 @@ export function createPtySessionManager({
     }
   }
 
+  /** Start the reap countdown for a session no socket is watching. */
+  function armDetachTimer(tabId, entry) {
+    if (entry.detachTimer !== null || entry.sockets.size > 0) return
+    entry.detachTimer = setTimeoutFn(() => {
+      entry.detachTimer = null
+      if (sessions.get(tabId) === entry && entry.sockets.size === 0) closeSession(tabId)
+    }, detachGraceMs)
+  }
+
+  function clearDetachTimer(entry) {
+    if (entry.detachTimer !== null) {
+      clearTimeoutFn(entry.detachTimer)
+      entry.detachTimer = null
+    }
+  }
+
   function spawnSession(tabId, spec, cols, rows) {
     // Enforce the session cap before allocating another process: evict the
     // oldest unwatched session, or reject when every session is in active use.
@@ -141,6 +164,7 @@ export function createPtySessionManager({
       sockets: new Set(),
       paused: false,
       drainTimer: null,
+      detachTimer: null,
     }
     pty.onData((data) => {
       entry.scrollback.push(data)
@@ -154,9 +178,13 @@ export function createPtySessionManager({
       for (const ws of entry.sockets) {
         if (ws.readyState === ws.OPEN) ws.close(1000, "engine exited")
       }
+      // After the socket loop: a synchronous close re-arms the reap timer.
+      clearDetachTimer(entry)
       if (sessions.get(tabId) === entry) sessions.delete(tabId)
     })
     sessions.set(tabId, entry)
+    // A spawn-on-send with no viewer is reaped too; an attach cancels this.
+    armDetachTimer(tabId, entry)
     return entry
   }
 
@@ -216,8 +244,12 @@ export function createPtySessionManager({
 
   async function attachSocket({ ws, tabId, taskId, mode, cols, rows }) {
     const entry = await ensureSession(tabId, taskId, mode, cols, rows)
+    // The browser can leave during the spawn; its close event already fired,
+    // so tracking the socket would pin the session as watched forever.
+    if (ws.readyState !== ws.OPEN) return entry
     const replay = entry.scrollback.length() > 0 ? entry.scrollback.replay() : ""
     entry.sockets.add(ws)
+    clearDetachTimer(entry)
     if (replay && ws.readyState === ws.OPEN) ws.send(replay)
     safePty(tabId, entry, (pty) => pty.resize(cols, rows))
 
@@ -239,6 +271,7 @@ export function createPtySessionManager({
 
     ws.on("close", () => {
       entry.sockets.delete(ws)
+      if (sessions.get(tabId) === entry) armDetachTimer(tabId, entry)
     })
 
     return entry
@@ -248,6 +281,7 @@ export function createPtySessionManager({
     const entry = sessions.get(tabId)
     if (!entry) return false
     clearDrainTimer(entry)
+    clearDetachTimer(entry)
     try {
       entry.pty.kill()
     } catch {
@@ -275,6 +309,7 @@ export function createPtySessionManager({
   function shutdown() {
     for (const entry of sessions.values()) {
       clearDrainTimer(entry)
+      clearDetachTimer(entry)
       try {
         entry.pty.kill()
       } catch {

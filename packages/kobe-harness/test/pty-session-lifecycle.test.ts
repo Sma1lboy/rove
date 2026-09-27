@@ -356,6 +356,62 @@ describe("createPtySessionManager", () => {
     expect(manager.closeSession("b")).toBe(true)
   })
 
+  it("kills a session no socket re-attaches to within the detach grace", async () => {
+    vi.useFakeTimers()
+    const { manager, ptys } = setup({ detachGraceMs: 1000 })
+    const ws = new FakeSocket()
+    await manager.attachSocket({ ws, tabId: "tab", taskId: "task", mode: "engine", cols: 80, rows: 24 })
+
+    ws.close()
+    await vi.advanceTimersByTimeAsync(999)
+    expect(ptys[0].killed).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(ptys[0].killed).toBe(true)
+    expect(manager.sessionCount()).toBe(0)
+  })
+
+  it("a re-attach inside the grace keeps the session alive", async () => {
+    vi.useFakeTimers()
+    const { manager, ptys } = setup({ detachGraceMs: 1000 })
+    const first = new FakeSocket()
+    await manager.attachSocket({ ws: first, tabId: "tab", taskId: "task", mode: "engine", cols: 80, rows: 24 })
+
+    first.close()
+    await vi.advanceTimersByTimeAsync(500)
+    const second = new FakeSocket()
+    await manager.attachSocket({ ws: second, tabId: "tab", taskId: "task", mode: "engine", cols: 80, rows: 24 })
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(ptys).toHaveLength(1)
+    expect(ptys[0].killed).toBe(false)
+    expect(manager.sessionCount()).toBe(1)
+  })
+
+  it("reaps a spawn-on-send session nobody ever attaches to", async () => {
+    vi.useFakeTimers()
+    const { manager, ptys } = setup({ detachGraceMs: 1000 })
+    await manager.sendText({ tabId: "tab", taskId: "task", text: "hi" })
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(ptys[0].killed).toBe(true)
+    expect(manager.sessionCount()).toBe(0)
+  })
+
+  it("does not pin a session on a socket that closed during the spawn", async () => {
+    vi.useFakeTimers()
+    const spec = deferred<{ cwd: string; command: string[] }>()
+    const { manager, ptys } = setup({ detachGraceMs: 1000, fetchSpec: async () => spec.promise })
+    const ws = new FakeSocket()
+    const attached = manager.attachSocket({ ws, tabId: "tab", taskId: "task", mode: "engine", cols: 80, rows: 24 })
+    ws.close()
+    spec.resolve({ cwd: "/repo", command: ["engine"] })
+    await attached
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(ptys[0].killed).toBe(true)
+    expect(manager.sessionCount()).toBe(0)
+  })
+
   it("pauses the pty when a socket saturates and resumes once it drains", async () => {
     vi.useFakeTimers()
     const { manager, ptys } = setup({
