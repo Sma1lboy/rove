@@ -1,6 +1,6 @@
 # terminal-browser: plugin or core tab kind?
 
-**Verdict: build it as a PLUGIN in `Sma1lboy/kobe-plugins`, plus ONE
+**Verdict: build it as a PLUGIN in `Sma1lboy/rove-plugins`, plus ONE
 product-neutral verb in Rove core — a daemon broadcast that hands opaque
 graphics bytes to every attached TUI to write to its own tty, and answers with
 the cell pixel size and the image id to use.**
@@ -34,7 +34,7 @@ produced its numbers and what that probe does when the thing under test breaks.
 
 ```mermaid
 flowchart LR
-  subgraph plugin["plugin pane — kobe-plugins"]
+  subgraph plugin["plugin pane — rove-plugins"]
     TB["terminal-browser"]
   end
   subgraph core["Rove core"]

@@ -9,14 +9,14 @@ import { activeCliName } from "./rename-compat.ts"
 const SEARCH_TIMEOUT_MS = 5_000
 const CLI_NAME = activeCliName()
 
-/** First-party examples under Sma1lboy/kobe-plugins/ — also the offline fallback. */
+/** First-party examples under Sma1lboy/rove-plugins/ — also the offline fallback. */
 const FIRST_PARTY: readonly { ref: string; desc: string }[] = [
-  { ref: "Sma1lboy/kobe-plugins/notify", desc: "Desktop/ntfy notifications when an agent finishes or needs input" },
-  { ref: "Sma1lboy/kobe-plugins/github-start", desc: "Start a Rove task from a GitHub issue or PR" },
-  { ref: "Sma1lboy/kobe-plugins/worktree-include", desc: "Copy .worktreeinclude-matched files into new worktrees" },
-  { ref: "Sma1lboy/kobe-plugins/linear-start", desc: "Pick a Linear issue (fzf) and start a task on its branch" },
-  { ref: "Sma1lboy/kobe-plugins/lazygit", desc: "lazygit on the task worktree, as a pane tab" },
-  { ref: "Sma1lboy/kobe-plugins/browser", desc: "Chromium rendered as terminal cells (carbonyl) in a pane tab" },
+  { ref: "Sma1lboy/rove-plugins/notify", desc: "Desktop/ntfy notifications when an agent finishes or needs input" },
+  { ref: "Sma1lboy/rove-plugins/github-start", desc: "Start a Rove task from a GitHub issue or PR" },
+  { ref: "Sma1lboy/rove-plugins/worktree-include", desc: "Copy .worktreeinclude-matched files into new worktrees" },
+  { ref: "Sma1lboy/rove-plugins/linear-start", desc: "Pick a Linear issue (fzf) and start a task on its branch" },
+  { ref: "Sma1lboy/rove-plugins/lazygit", desc: "lazygit on the task worktree, as a pane tab" },
+  { ref: "Sma1lboy/rove-plugins/browser", desc: "Chromium rendered as terminal cells (carbonyl) in a pane tab" },
 ]
 
 export interface MarketEntry {

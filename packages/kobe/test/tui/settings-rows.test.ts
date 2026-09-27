@@ -45,7 +45,7 @@ function input(overrides: Partial<SettingsRowsInput> = {}): SettingsRowsInput {
       { id: "example.notify", settingKeys: ["KOBE_NOTIFY_SOUND"] },
       { id: "acme.layout", settingKeys: [] },
     ],
-    marketplace: ["Sma1lboy/kobe-plugins/notify", "you/rove-thing"],
+    marketplace: ["Sma1lboy/rove-plugins/notify", "you/rove-thing"],
     hasDaemon: true,
     keybindingsFileExists: true,
     ...overrides,

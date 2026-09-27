@@ -58,8 +58,8 @@ reuse their directory and do not own a Rove-created worktree or branch.
   (frontmatter injection + link rewriting); edit the source in `docs/`,
   never the generated copies.
 - Official plugins live in the separate
-  [Sma1lboy/kobe-plugins](https://github.com/Sma1lboy/kobe-plugins) repo
-  (`rove plugin install Sma1lboy/kobe-plugins/<name>`). New plugins use
+  [Sma1lboy/rove-plugins](https://github.com/Sma1lboy/rove-plugins) repo
+  (`rove plugin install Sma1lboy/rove-plugins/<name>`). New plugins use
   `rove-plugin.toml` and `@sma1lboy/rove-plugin-sdk`; legacy Kobe spellings
   remain accepted.
 

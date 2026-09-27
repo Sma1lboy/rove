@@ -32,7 +32,7 @@ function plugin(overrides: Partial<PluginRowView>): PluginRowView {
 
 const LISTING: readonly MarketEntry[] = [
   { ref: "you/rove-thing", desc: "a thing", stars: 12 },
-  { ref: "Sma1lboy/kobe-plugins/notify", desc: "notifications", firstParty: true },
+  { ref: "Sma1lboy/rove-plugins/notify", desc: "notifications", firstParty: true },
 ]
 
 describe("marketplace row views", () => {
@@ -41,7 +41,7 @@ describe("marketplace row views", () => {
 
     expect(rows.map((r) => [r.ref, r.installedId])).toEqual([
       ["you/rove-thing", "acme.thing"],
-      ["Sma1lboy/kobe-plugins/notify", null],
+      ["Sma1lboy/rove-plugins/notify", null],
     ])
   })
 
@@ -49,6 +49,12 @@ describe("marketplace row views", () => {
     const rows = marketplaceRowViews([{ ref: "You/Rove-Thing", desc: "" }], [plugin({ source: "you/rove-thing" })])
 
     expect(rows[0]?.installedId).toBe("example.plugin")
+  })
+
+  it("counts a plugin installed under the old kobe-plugins repo name as installed", () => {
+    const rows = marketplaceRowViews(LISTING, [plugin({ id: "kobe.notify", source: "Sma1lboy/kobe-plugins/notify" })])
+
+    expect(rows[1]?.installedId).toBe("kobe.notify")
   })
 
   it("ignores linked plugins, whose source is a directory and never a ref", () => {

@@ -28,7 +28,8 @@ export function installedSpecIds(plugins: readonly PluginRowView[]): Map<string,
   const map = new Map<string, string>()
   for (const plugin of plugins) {
     if (plugin.linked) continue
-    map.set(plugin.source.toLowerCase(), plugin.id)
+    // The first-party repo was renamed from kobe-plugins; old installs keep the old spec.
+    map.set(plugin.source.toLowerCase().replace(/^sma1lboy\/kobe-plugins\//, "sma1lboy/rove-plugins/"), plugin.id)
   }
   return map
 }

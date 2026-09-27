@@ -16,19 +16,19 @@
   // never carry a GitHub topic, so they are seeded here — and the parent repo, which
   // DOES carry the topic, is dropped from the community results below (it would be a
   // seventh card duplicating these six) after lending them its stars and push date.
-  var FIRST_PARTY_REPO = 'Sma1lboy/kobe-plugins';
+  var FIRST_PARTY_REPO = 'Sma1lboy/rove-plugins';
   var SEED = [
-    { ref: 'Sma1lboy/kobe-plugins/notify', name: 'notify', owner: 'Sma1lboy', firstParty: true,
+    { ref: 'Sma1lboy/rove-plugins/notify', name: 'notify', owner: 'Sma1lboy', firstParty: true,
       desc: { en: 'Desktop or ntfy notifications when an agent finishes a turn or needs your input.', zh: '代理跑完一轮或需要你介入时，发桌面通知 / ntfy 推送。' } },
-    { ref: 'Sma1lboy/kobe-plugins/github-start', name: 'github-start', owner: 'Sma1lboy', firstParty: true,
+    { ref: 'Sma1lboy/rove-plugins/github-start', name: 'github-start', owner: 'Sma1lboy', firstParty: true,
       desc: { en: 'Start a Rove task straight from a GitHub issue or pull request.', zh: '直接从一个 GitHub issue 或 PR 起一个 Rove 任务。' } },
-    { ref: 'Sma1lboy/kobe-plugins/worktree-include', name: 'worktree-include', owner: 'Sma1lboy', firstParty: true,
+    { ref: 'Sma1lboy/rove-plugins/worktree-include', name: 'worktree-include', owner: 'Sma1lboy', firstParty: true,
       desc: { en: 'Copy gitignored files matching .worktreeinclude into every new worktree.', zh: '把 .worktreeinclude 匹配到的 gitignore 文件复制进每个新建的 worktree。' } },
-    { ref: 'Sma1lboy/kobe-plugins/linear-start', name: 'linear-start', owner: 'Sma1lboy', firstParty: true,
+    { ref: 'Sma1lboy/rove-plugins/linear-start', name: 'linear-start', owner: 'Sma1lboy', firstParty: true,
       desc: { en: 'Pick a Linear issue (fzf) and start a Rove task on its branch with the issue as the prompt.', zh: '用 fzf 选一个 Linear issue，在它的分支上起一个 Rove 任务，issue 内容作为首条提示词。' } },
-    { ref: 'Sma1lboy/kobe-plugins/lazygit', name: 'lazygit', owner: 'Sma1lboy', firstParty: true,
+    { ref: 'Sma1lboy/rove-plugins/lazygit', name: 'lazygit', owner: 'Sma1lboy', firstParty: true,
       desc: { en: 'Open lazygit on the task worktree as a terminal-tab pane in the running TUI.', zh: '在运行中的 TUI 里以终端 tab 面板打开任务 worktree 的 lazygit。' } },
-    { ref: 'Sma1lboy/kobe-plugins/browser', name: 'browser', owner: 'Sma1lboy', firstParty: true,
+    { ref: 'Sma1lboy/rove-plugins/browser', name: 'browser', owner: 'Sma1lboy', firstParty: true,
       desc: { en: 'A real Chromium browser rendered as terminal cells (carbonyl) in a pane tab.', zh: '真 Chromium 以终端字符渲染（carbonyl）跑在 pane tab 里。' } },
   ];
 

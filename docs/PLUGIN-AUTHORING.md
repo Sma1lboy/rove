@@ -513,6 +513,6 @@ Runnable example: [`examples/row-tokens/`](../packages/kobe-plugin-sdk/examples/
   Marketplace alike — but nothing is sandboxed.
   Keep your repo auditable. That's what gets you installed.
 - Reference implementations: the first-party plugins in
-  [Sma1lboy/kobe-plugins](https://github.com/Sma1lboy/kobe-plugins)
+  [Sma1lboy/rove-plugins](https://github.com/Sma1lboy/rove-plugins)
   (notifications, GitHub/Linear task starters, lazygit pane, Chromium pane,
   the character-cell video player).

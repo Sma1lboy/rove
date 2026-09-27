@@ -3,12 +3,12 @@ import { MONO, Marked, P, SANS, Wordmark, statement } from "./promo-theme"
 
 // `rove plugin search` output copied verbatim, minus its trailing row for the repo itself.
 const SEARCH: readonly [string, string][] = [
-  ["Sma1lboy/kobe-plugins/notify", "Desktop/ntfy notifications when an agent finishes or needs input"],
-  ["Sma1lboy/kobe-plugins/github-start", "Start a Rove task from a GitHub issue or PR"],
-  ["Sma1lboy/kobe-plugins/worktree-include", "Copy .worktreeinclude-matched files into new worktrees"],
-  ["Sma1lboy/kobe-plugins/linear-start", "Pick a Linear issue (fzf) and start a task on its branch"],
-  ["Sma1lboy/kobe-plugins/lazygit", "lazygit on the task worktree, as a pane tab"],
-  ["Sma1lboy/kobe-plugins/browser", "Chromium rendered as terminal cells (carbonyl) in a pane tab"],
+  ["Sma1lboy/rove-plugins/notify", "Desktop/ntfy notifications when an agent finishes or needs input"],
+  ["Sma1lboy/rove-plugins/github-start", "Start a Rove task from a GitHub issue or PR"],
+  ["Sma1lboy/rove-plugins/worktree-include", "Copy .worktreeinclude-matched files into new worktrees"],
+  ["Sma1lboy/rove-plugins/linear-start", "Pick a Linear issue (fzf) and start a task on its branch"],
+  ["Sma1lboy/rove-plugins/lazygit", "lazygit on the task worktree, as a pane tab"],
+  ["Sma1lboy/rove-plugins/browser", "Chromium rendered as terminal cells (carbonyl) in a pane tab"],
 ]
 
 const onWallpaper: React.CSSProperties = { color: "#FFFAF5", textShadow: "0 4px 28px rgba(60,18,6,.35)" }
@@ -76,7 +76,7 @@ export const PromoPlugins: React.FC = () => (
           install: rove plugin install &lt;owner/repo[/subdir]&gt; — browse: https://rove.run/plugins
         </div>
         <div>
-          {prompt} rove plugin install Sma1lboy/kobe-plugins/lazygit
+          {prompt} rove plugin install Sma1lboy/rove-plugins/lazygit
           <span
             style={{ display: "inline-block", width: 11, height: 23, background: P.accent, verticalAlign: -4 }}
           />

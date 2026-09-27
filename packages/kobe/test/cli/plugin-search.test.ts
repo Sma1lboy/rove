@@ -47,6 +47,6 @@ describe("plugin marketplace compatibility", () => {
 
     await searchMarketplace(undefined)
 
-    expect(log.mock.calls.map(([line]) => String(line)).join("\n")).toContain("Sma1lboy/kobe-plugins/notify")
+    expect(log.mock.calls.map(([line]) => String(line)).join("\n")).toContain("Sma1lboy/rove-plugins/notify")
   })
 })

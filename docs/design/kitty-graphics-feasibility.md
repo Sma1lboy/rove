@@ -253,7 +253,7 @@ unblocked.** Its embedded-mode contract needs the host to (a) report cell pixel 
 (b) print `U+10EEEE` placeholder cells with the image id in the fg channels, and
 (c) leave those cells alone across repaints. Q1 proves (b) byte-for-byte, Q2 proves (c)
 with no new machinery, and (a) is a `CSI 16 t` query. That plugin lives in
-`Sma1lboy/kobe-plugins`, so its actual replacement is a report to that repo, not a
+`Sma1lboy/rove-plugins`, so its actual replacement is a report to that repo, not a
 change here.
 
 **Not blocked on the opentui upgrade.** The upgrade buys native image rendering and a
