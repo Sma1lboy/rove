@@ -12,7 +12,7 @@
  */
 
 import { parseNumstatRows, parsePorcelainRows, unquoteGitPath } from "@/lib/git-parsers"
-import { readWorktreeFile, runWorktreeGit } from "../../../worktree/content.ts"
+import { readLocalWorktreeHead, readWorktreeFile, runWorktreeGit } from "../../../worktree/content.ts"
 
 /**
  * Which diff the Changes tab shows:
@@ -202,7 +202,7 @@ export function resetBaseCache(): void {
  * Memoised per worktree for {@link BASE_TTL_MS}: the pane resolves on every
  * mount, and the ladder is up to six `git` spawns. A local answer depends on
  * HEAD (a first commit makes `main` a base), so it is reused only while
- * `rev-parse HEAD` still matches.
+ * HEAD (read from the git dir files when local) still matches.
  */
 export async function resolveBase(
   worktreePath: string,
@@ -213,7 +213,8 @@ export async function resolveBase(
   const hit = baseCache.get(worktreePath)
   if (hit && Date.now() - hit.at < BASE_TTL_MS) {
     if (hit.head === undefined) return hit.base
-    if ((await revParse("HEAD", worktreePath, signal)) === hit.head) return hit.base
+    const head = readLocalWorktreeHead(worktreePath) ?? (await revParse("HEAD", worktreePath, signal))
+    if (head === hit.head) return hit.base
   }
   const resolved = await resolveBaseUncached(worktreePath, signal)
   // An aborted ladder reads every rung as absent; its answer is not an answer.

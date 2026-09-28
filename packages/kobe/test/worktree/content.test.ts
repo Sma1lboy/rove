@@ -1,6 +1,15 @@
+import { execFileSync } from "node:child_process"
+import { mkdtempSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 import type { ExecHost, ExecResult } from "../../src/exec/exec-host.ts"
-import { readWorktreeFile, runWorktreeGit, worktreeFilePath } from "../../src/worktree/content.ts"
+import {
+  readLocalWorktreeHead,
+  readWorktreeFile,
+  runWorktreeGit,
+  worktreeFilePath,
+} from "../../src/worktree/content.ts"
 
 function fakeExecHost(result: ExecResult = { stdout: "", stderr: "", exitCode: 0 }) {
   const runs: Array<{
@@ -153,5 +162,31 @@ describe("readWorktreeFile", () => {
     await expect(readWorktreeFile("/srv/wt", "../secret", { execForPath: () => exec })).resolves.toBeNull()
 
     expect(reads).toEqual([])
+  })
+})
+
+describe("readLocalWorktreeHead", () => {
+  it("matches `git rev-parse HEAD` in a linked worktree, and moves with it", () => {
+    const root = mkdtempSync(join(tmpdir(), "rove-head-"))
+    try {
+      const git = (cwd: string, ...args: string[]) =>
+        execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd, encoding: "utf8" }).trim()
+      const repo = join(root, "repo")
+      const wt = join(root, "wt")
+      execFileSync("git", ["init", "-q", "-b", "main", repo])
+      git(repo, "commit", "-q", "--allow-empty", "-m", "one")
+      git(repo, "worktree", "add", "-q", "-b", "feat", wt)
+      expect(readLocalWorktreeHead(wt)).toBe(git(wt, "rev-parse", "HEAD"))
+      git(wt, "commit", "-q", "--allow-empty", "-m", "two")
+      git(wt, "pack-refs", "--all")
+      expect(readLocalWorktreeHead(wt)).toBe(git(wt, "rev-parse", "HEAD"))
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it("never reads a remote Worktree from the local disk", () => {
+    const { exec } = fakeExecHost()
+    expect(readLocalWorktreeHead(process.cwd(), { execForPath: () => exec })).toBeNull()
   })
 })

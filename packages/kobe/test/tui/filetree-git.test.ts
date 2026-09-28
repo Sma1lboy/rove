@@ -22,6 +22,7 @@ vi.mock("../../src/worktree/content", async (importOriginal) => {
     ...actual,
     runWorktreeGit: vi.fn(),
     readWorktreeFile: vi.fn(),
+    readLocalWorktreeHead: vi.fn(() => null),
   }
 })
 
@@ -36,10 +37,11 @@ import {
   statusFiles,
   statusFilesBranch,
 } from "../../src/tui/panes/filetree/git"
-import { readWorktreeFile, runWorktreeGit } from "../../src/worktree/content"
+import { readLocalWorktreeHead, readWorktreeFile, runWorktreeGit } from "../../src/worktree/content"
 
 const runGit = vi.mocked(runWorktreeGit)
 const readFile = vi.mocked(readWorktreeFile)
+const localHead = vi.mocked(readLocalWorktreeHead)
 
 function ok(stdout: string): { stdout: string; stderr: string; status: number } {
   return { stdout, stderr: "", status: 0 }
@@ -52,6 +54,8 @@ beforeEach(() => {
   resetBaseCache()
   runGit.mockReset()
   readFile.mockReset()
+  localHead.mockReset()
+  localHead.mockReturnValue(null)
 })
 
 describe("parseNumstat", () => {
@@ -349,6 +353,30 @@ describe("resolveBase", () => {
     expect(runGit).toHaveBeenCalledTimes(1)
 
     head = "newcommit\n"
+    expect(await resolveBase("/repo")).toBe("main")
+  })
+
+  test("a remount with HEAD readable from disk spawns no git", async () => {
+    localHead.mockReturnValue("samesha")
+    runGit.mockImplementation(async (_cwd, args) => {
+      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
+      if (args.includes("origin/main") || args.includes("origin/master")) return fail("no such ref")
+      if (args.includes("HEAD") || args.includes("main")) return ok("samesha\n")
+      return fail("nope")
+    })
+    expect(await resolveBase("/repo")).toBeNull()
+    runGit.mockClear()
+    expect(await resolveBase("/repo")).toBeNull()
+    expect(runGit).not.toHaveBeenCalled()
+
+    localHead.mockReturnValue("newcommit")
+    runGit.mockImplementation(async (_cwd, args) => {
+      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
+      if (args.includes("origin/main") || args.includes("origin/master")) return fail("no such ref")
+      if (args.includes("HEAD")) return ok("newcommit\n")
+      if (args.includes("main")) return ok("samesha\n")
+      return fail("nope")
+    })
     expect(await resolveBase("/repo")).toBe("main")
   })
 

@@ -1,6 +1,7 @@
 /** Soft-failing Worktree reads (git output, file text); local vs SSH stays behind ExecHost. */
 
 import { errorMessage } from "@/lib/error-message"
+import { readHeadSha, resolveGitDirs } from "@sma1lboy/kobe-daemon/daemon/worktree-probe"
 import type { ExecResult } from "../exec/exec-host.ts"
 import { execHostForWorktreePath } from "../exec/resolve.ts"
 import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
@@ -68,6 +69,17 @@ export async function runWorktreeGit(
     stdout: result.stdout,
     stderr: result.stderr,
     status: result.exitCode,
+  }
+}
+
+/** HEAD sha read from the git dir files, no spawn; `null` for a remote Worktree or an unreadable/unborn HEAD. */
+export function readLocalWorktreeHead(worktreePath: string, deps: WorktreeContentDeps = {}): string | null {
+  if (!worktreePath || (deps.execForPath ?? execHostForWorktreePath)(worktreePath).isRemote) return null
+  try {
+    const dirs = resolveGitDirs(worktreePath)
+    return dirs ? readHeadSha(dirs) : null
+  } catch {
+    return null
   }
 }
 
