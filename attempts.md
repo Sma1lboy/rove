@@ -21,3 +21,11 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Typing-phase timeout still hits unmodified main.** It failed 2 of 2 runs tonight. #1133 (harness settle and retry) is still unmerged, so tonight's numbers were taken with its `perf-measure.ts` applied locally.
 
 **Landed tonight as PR #1144:** `useHostSessions` compared inside a `setState` updater. Returning `prev` still re-rendered the sidebar (commit plus frame) right after each branch tick. Idle commits/frames went 10–12 → 5.
+
+## 2026-09-28 — notes (main 7effc65)
+
+**Landed tonight as a PR from `perf/nightly-2026-09-28`:** the Files pane's `resolveBase` revalidated its cached base with `git rev-parse HEAD` on every task switch; a local worktree now reads HEAD from its git dir files. switch.perOp.spawns 2.6 → 1.6.
+
+**Remaining per-switch spawn:** `git ls-files` from `listFiles` (the All tab wipes and re-lists on every worktree change). A per-worktree cache is not safe as-is: the fs watch only covers the shown worktree, so an away worktree's list can go stale. Needs an invalidation signal (e.g. `worktreeFingerprint` from kobe-daemon's worktree-probe, which misses untracked-file adds) before it is worth trying.
+
+**Noise:** `golden.daemon-connect-replay-ms` read 32.1 once (7.9 baseline) and 9.5 on the re-run. `golden.mem-per-tab-mb` swings 4.8–9.6 across nights with no related change.
