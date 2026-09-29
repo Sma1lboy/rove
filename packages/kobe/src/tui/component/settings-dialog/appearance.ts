@@ -1,5 +1,6 @@
 import type { SplitStyle } from "../../../state/split-style"
 import type { TabRowHeight } from "../../../state/tab-row-height"
+import { WORKING_BORDERS, type WorkingBorder } from "../../../state/working-border"
 import type { CollapsedRailStyle } from "../../../tui-react/panes/sidebar/collapsed-rail"
 import { type FocusAccentSlot, THEME_MODE_PREFERENCES, type ThemeModePreference } from "../../context/theme-core"
 
@@ -11,6 +12,7 @@ export const APPEARANCE_SETTINGS = [
   "splitStyle",
   "railFold",
   "tabRowHeight",
+  "workingBorder",
 ] as const
 export type AppearanceSetting = (typeof APPEARANCE_SETTINGS)[number]
 
@@ -22,6 +24,7 @@ export type AppearanceSnapshot = {
   splitStyle: SplitStyle
   railFoldStyle: CollapsedRailStyle
   tabRowHeight: TabRowHeight
+  workingBorder: WorkingBorder
 }
 export type AppearanceChoice =
   | { kind: "theme"; value: string }
@@ -31,6 +34,7 @@ export type AppearanceChoice =
   | { kind: "splitStyle"; value: SplitStyle }
   | { kind: "railFold"; value: CollapsedRailStyle }
   | { kind: "tabRowHeight"; value: TabRowHeight }
+  | { kind: "workingBorder"; value: WorkingBorder }
 
 export function appearanceChoices(setting: AppearanceSetting, themes: readonly string[]): AppearanceChoice[] {
   switch (setting) {
@@ -48,6 +52,8 @@ export function appearanceChoices(setting: AppearanceSetting, themes: readonly s
       return (["glyphs", "initials", "hairline"] as const).map((value) => ({ kind: setting, value }))
     case "tabRowHeight":
       return ([1, 2] as const).map((value) => ({ kind: setting, value }))
+    case "workingBorder":
+      return WORKING_BORDERS.map((value) => ({ kind: setting, value }))
   }
 }
 
@@ -67,6 +73,8 @@ export function applyAppearanceChoice(current: AppearanceSnapshot, choice: Appea
       return { ...current, railFoldStyle: choice.value }
     case "tabRowHeight":
       return { ...current, tabRowHeight: choice.value }
+    case "workingBorder":
+      return { ...current, workingBorder: choice.value }
   }
 }
 
@@ -86,5 +94,7 @@ export function currentAppearanceChoice(current: AppearanceSnapshot, setting: Ap
       return { kind: setting, value: current.railFoldStyle }
     case "tabRowHeight":
       return { kind: setting, value: current.tabRowHeight }
+    case "workingBorder":
+      return { kind: setting, value: current.workingBorder }
   }
 }

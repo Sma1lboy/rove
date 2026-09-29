@@ -9,6 +9,7 @@
 import { useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
+import { DEFAULT_WORKING_BORDER, WORKING_BORDER_KEY, normalizeWorkingBorder } from "../../state/working-border"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
 import { useWhatsNewDialog } from "../component/whats-new-dialog"
@@ -111,8 +112,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     notifyError,
   })
   const worktree = selectedTask?.worktreePath || null
-  const selectedRunning = selectedId !== null && engineState?.get(selectedId)?.state === "running"
-  const breath = useSpinnerFrame(selectedRunning)
+  const workingFlow =
+    selectedId !== null &&
+    engineState?.get(selectedId)?.state === "running" &&
+    normalizeWorkingBorder(kv.get(WORKING_BORDER_KEY, DEFAULT_WORKING_BORDER)) === "flow"
+  const breath = useSpinnerFrame(workingFlow)
 
   const { sortMode, toggleSortMode, moveMode, setMoveMode, onLocalMergeRequest } = useSidebarHostState({
     kv,
@@ -372,12 +376,12 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           borderStyle="rounded"
           borderColor={focus.focused === "workspace" ? theme.focusAccent : inactiveBorder}
           renderAfter={
-            selectedRunning
+            workingFlow
               ? runningPaneFlow(theme.focusAccent, inactiveBorder, focus.focused === "workspace", breath)
               : undefined
           }
           title={
-            selectedRunning && selectedTask
+            workingFlow && selectedTask
               ? runningPaneTitle(selectedTask.title, t("workspace.inbox.state.running"))
               : undefined
           }

@@ -109,7 +109,7 @@ retired worktree-sync hook was once installed so the next launch (or
 ### Appearance
 
 Settings → General groups theme, mode, transparency, focus accent, split style,
-folded rail, and tab row height below a workspace preview. Each row opens a selection
+folded rail, tab row height, and working border below a workspace preview. Each row opens a selection
 list with the same preview above it. Use `j`/`k` or arrows to preview a choice,
 `enter` to save it, or `esc` to cancel. Previewing never changes saved settings.
 Clicking an option saves it immediately. The preview uses sample tasks and
@@ -122,6 +122,7 @@ files; it does not show your sessions.
 | `transparentBackground` | boolean | `true`, `false` on Windows | Let the terminal background show through. In transparent mode Rove detects the terminal's actual background (OSC 11) and adjusts body, muted, and host-backed warning text to stay readable on it. Warning text on opaque dialogs and controls keeps the theme color. No setting is needed. Windows starts opaque because Windows Terminal ships acrylic and background images on by default, and a transparent Rove has no opaque surface to scrub stale glyphs against — set it to `true` to turn transparency on there, and a value you have already chosen is never overwritten |
 | `focusAccent` | `primary` \| `success` \| `info` | `primary` | Color of the focused-pane indicator |
 | `appearance.splitStyle` | `box` \| `line` | `box` | `box` frames each split; `line` is the minimal tmux-style look |
+| `appearance.workingBorder` | `flow` \| `still` | `flow` | While the selected task's engine is running, `flow` runs a colour gradient around the workspace pane's border (derived from the theme accent) and names the task on its top edge; `still` keeps the plain focus border |
 | `locale` | `en` \| `zh` | `en` | UI language |
 | `hints.keyboard.enabled` | boolean | `true` | Keyboard discoverability hints |
 | `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | One tap of the prefix key always opens the full keyboard guide. This picks what comes with it: `local` also shows shortcut badges beside the clickable controls already on screen, `guide` hides those badges |

@@ -31,6 +31,12 @@ import {
   resolveTabStripMode,
 } from "../../../state/tab-strip"
 import {
+  DEFAULT_WORKING_BORDER,
+  WORKING_BORDER_KEY,
+  type WorkingBorder,
+  normalizeWorkingBorder,
+} from "../../../state/working-border"
+import {
   PROJECT_DIR_TOKEN,
   PROJECT_SIBLING_BASE,
   WORKTREE_BASE_CUSTOM_KEY,
@@ -164,6 +170,12 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function selectTabRowHeight(height: TabRowHeight): void {
     kv.set(TAB_ROW_HEIGHT_KEY, height)
+  }
+  function workingBorder(): WorkingBorder {
+    return normalizeWorkingBorder(kv.get(WORKING_BORDER_KEY, DEFAULT_WORKING_BORDER))
+  }
+  function selectWorkingBorder(style: WorkingBorder): void {
+    kv.set(WORKING_BORDER_KEY, style)
   }
   // Editor preference: which editor the file tree's `e` key launches.
   function editorKind(): EditorKind {
@@ -311,6 +323,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     selectRailFoldStyle,
     tabRowHeight,
     selectTabRowHeight,
+    workingBorder,
+    selectWorkingBorder,
     remoteProjectsEnabled,
     toggleRemoteProjects,
     autoStatusOn,

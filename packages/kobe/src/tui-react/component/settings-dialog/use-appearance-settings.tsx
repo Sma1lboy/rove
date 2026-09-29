@@ -20,6 +20,7 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
     splitStyle: prefs.splitStyle(),
     railFoldStyle: prefs.railFoldStyle(),
     tabRowHeight: prefs.tabRowHeight(),
+    workingBorder: prefs.workingBorder(),
   }
   function commit(choice: AppearanceChoice): void {
     switch (choice.kind) {
@@ -46,6 +47,9 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
         break
       case "tabRowHeight":
         prefs.selectTabRowHeight(choice.value)
+        break
+      case "workingBorder":
+        prefs.selectWorkingBorder(choice.value)
         break
     }
   }
