@@ -6,7 +6,7 @@ import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
 import { hostTargetFps } from "../../lib/host-render-options"
-import type { TerminalInputModes } from "./keys-pure"
+import type { MouseTransition, TerminalInputModes } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
 import {
   type CursorPos,
@@ -178,7 +178,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   }
 
   click(
-    kind: "down" | "up" | "drag",
+    kind: MouseTransition,
     button: 0 | 1 | 2,
     col: number,
     row: number,

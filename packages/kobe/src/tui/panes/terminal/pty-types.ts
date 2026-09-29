@@ -2,7 +2,7 @@ import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
 import { parse } from "@ansi-tools/parser"
 import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
-import type { TerminalInputModes } from "./keys-pure"
+import type { MouseTransition, TerminalInputModes } from "./keys-pure"
 import type { Chunk } from "./sgr"
 import type { RowWrapFlags } from "./terminal-wrap"
 
@@ -152,11 +152,12 @@ export interface TaskPtyLike {
    */
   wheel(direction: "up" | "down", col: number, row: number): boolean
   /**
-   * Mouse tracking on → forward an SGR press/release/drag and return true (the
-   * app owns the click). False → the caller keeps it for local selection.
+   * Mouse tracking on → forward an SGR press/release/drag/hover and return
+   * true (the app owns the gesture). False → the caller keeps it for local
+   * selection. `move` (no button held) reaches the app only under mode 1003.
    */
   click(
-    kind: "down" | "up" | "drag",
+    kind: MouseTransition,
     button: 0 | 1 | 2,
     col: number,
     row: number,

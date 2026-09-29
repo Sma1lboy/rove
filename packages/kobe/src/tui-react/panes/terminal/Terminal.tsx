@@ -143,9 +143,9 @@ function TerminalSession(props: TerminalProps) {
     setScrollState((current) => moveViewportScroll(current, snapshot.length, bodyRows, lines, snapshotWindow))
   }
 
-  // Pointer → PTY routing in emulator order (wheel and buttons); the pane
+  // Pointer → PTY routing in emulator order (wheel, buttons, hover); the pane
   // only scrolls its local viewport when the app wants neither.
-  const { scrollFromPointer, forwardMouse } = useTerminalPointerForward({ pty, bodyEl, scrollBy })
+  const { scrollFromPointer, forwardMouse, forwardHover } = useTerminalPointerForward({ pty, bodyEl, scrollBy })
 
   /* --------- viewport slicing ---------- */
 
@@ -311,6 +311,7 @@ function TerminalSession(props: TerminalProps) {
         // opentui captures the drag, so coordinates stay real off-pane.
         selection.dragTo(evt)
       }}
+      onMouseMove={forwardHover}
       onMouseUp={(evt) => {
         setFocusedLocal(true)
         if (forwardMouse("up", evt)) return

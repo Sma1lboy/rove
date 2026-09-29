@@ -386,15 +386,18 @@ export function encodeWheel(
   return null
 }
 
+/** Pointer transitions a PTY program can ask to receive. */
+export type MouseTransition = "down" | "up" | "drag" | "move"
+
 /**
- * Encode one mouse button transition (SGR 1006). Null when the app didn't ask
- * for the mouse, so the caller keeps the click for its own selection.
- * Modifier bits: shift 4, alt 8, ctrl 16. `drag` (button-held motion) is
- * reported only under mode 1002/1003.
+ * Encode one mouse transition (SGR 1006). Null when the app didn't ask for
+ * it, so the caller keeps the gesture for its own selection. Modifier bits:
+ * shift 4, alt 8, ctrl 16. `drag` (button-held motion) is reported only under
+ * mode 1002/1003; `move` (no button held, i.e. hover) only under 1003.
  */
 export function encodeMouseButton(
   modes: { mouseTracking: "none" | "x10" | "vt200" | "drag" | "any" },
-  kind: "down" | "up" | "drag",
+  kind: MouseTransition,
   button: 0 | 1 | 2,
   col: number,
   row: number,
@@ -402,7 +405,9 @@ export function encodeMouseButton(
 ): string | null {
   if (modes.mouseTracking === "none") return null
   if (kind === "drag" && modes.mouseTracking !== "drag" && modes.mouseTracking !== "any") return null
-  let code: number = button
+  if (kind === "move" && modes.mouseTracking !== "any") return null
+  // Motion sets bit 32; hover has no button, which SGR spells as button 3.
+  let code: number = kind === "move" ? 35 : button
   if (kind === "drag") code += 32
   if (modifiers?.shift) code += 4
   if (modifiers?.alt) code += 8

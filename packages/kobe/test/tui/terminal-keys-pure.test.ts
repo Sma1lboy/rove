@@ -327,4 +327,9 @@ describe("encodeMouseButton", () => {
     expect(encodeMouseButton({ mouseTracking: "drag" }, "drag", 0, 2, 2)).toBe("\x1b[<32;2;2M")
     expect(encodeMouseButton({ mouseTracking: "any" }, "drag", 0, 2, 2)).toBe("\x1b[<32;2;2M")
   })
+
+  it("reports hover (no button) only under any-event tracking", () => {
+    expect(encodeMouseButton({ mouseTracking: "drag" }, "move", 0, 2, 2)).toBeNull()
+    expect(encodeMouseButton({ mouseTracking: "any" }, "move", 0, 4, 9)).toBe("\x1b[<35;4;9M")
+  })
 })

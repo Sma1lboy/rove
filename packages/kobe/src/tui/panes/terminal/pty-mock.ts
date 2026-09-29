@@ -1,4 +1,4 @@
-import type { TerminalInputModes } from "./keys-pure"
+import type { MouseTransition, TerminalInputModes } from "./keys-pure"
 import {
   type CursorPos,
   DEFAULT_COLS,
@@ -28,7 +28,7 @@ export class MockTaskPty implements TaskPtyLike {
    *  (see `TaskPtyLike.deadOnAttach`). */
   deadOnAttach = false
   readonly wheels: { direction: "up" | "down"; col: number; row: number }[] = []
-  readonly clicks: { kind: "down" | "up" | "drag"; button: number; col: number; row: number }[] = []
+  readonly clicks: { kind: MouseTransition; button: number; col: number; row: number }[] = []
   /** Flip to make the mock claim the app owns the mouse (mouse tracking on). */
   appOwnsMouse = false
   /** Flip to make the mock claim the child is on the alternate screen. */
@@ -158,7 +158,7 @@ export class MockTaskPty implements TaskPtyLike {
     return false
   }
 
-  click(kind: "down" | "up" | "drag", button: 0 | 1 | 2, col: number, row: number): boolean {
+  click(kind: MouseTransition, button: 0 | 1 | 2, col: number, row: number): boolean {
     if (this._killed) return false
     this.clicks.push({ kind, button, col, row })
     return this.appOwnsMouse

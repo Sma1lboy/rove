@@ -8,7 +8,7 @@
  */
 
 import type { Terminal as XtermHeadless } from "@xterm/headless"
-import { type TerminalInputModes, encodeMouseButton, encodeWheel } from "./keys-pure"
+import { type MouseTransition, type TerminalInputModes, encodeMouseButton, encodeWheel } from "./keys-pure"
 
 /** Derived from xterm's type, not restated, so a widened `mouseTrackingMode` union can't slip past `keys-pure`. */
 export type XtermModeSource = Pick<XtermHeadless, "modes" | "buffer">
@@ -69,7 +69,7 @@ export function wheelSequence(
 /** Bytes for a mouse button event, or null when the program wants none. */
 export function mouseButtonSequence(
   term: XtermModeSource,
-  kind: "down" | "up" | "drag",
+  kind: MouseTransition,
   button: 0 | 1 | 2,
   col: number,
   row: number,

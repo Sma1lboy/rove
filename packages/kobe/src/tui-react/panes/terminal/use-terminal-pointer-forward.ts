@@ -65,5 +65,18 @@ export function useTerminalPointerForward(opts: {
     return forwarded || mouseOwnedByApp.current
   }
 
-  return { scrollFromPointer, forwardMouse }
+  /** Hover (no button held): reaches the app only under any-motion tracking
+   *  (1003), which is how claude highlights the row under the pointer. One
+   *  report per cell, as terminals do; each one is a PTY write. */
+  const lastHoverCell = useRef("")
+  const forwardHover = (evt: PointerEvent): void => {
+    if (!pty || pty.killed || !bodyEl || evt.modifiers?.shift) return
+    const { col, row } = paneCell(evt.x, evt.y, bodyEl)
+    const cell = `${col},${row}`
+    if (cell === lastHoverCell.current) return
+    lastHoverCell.current = cell
+    pty.click("move", 0, col, row, evt.modifiers)
+  }
+
+  return { scrollFromPointer, forwardMouse, forwardHover }
 }
