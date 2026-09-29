@@ -23,7 +23,7 @@
  * land.
  */
 
-import { describe, expect, it } from "bun:test"
+import { afterEach, describe, expect, it } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -110,6 +110,14 @@ async function withEngineSettings(
   handle.destroy()
   return (key: string) => kv.get(key, undefined)
 }
+
+// Each run points KOBE_HOME_DIR at a fresh dir; a leaked value would send the
+// next file's state.json writes somewhere its readers never look.
+const originalHome = process.env.KOBE_HOME_DIR
+afterEach(() => {
+  if (originalHome === undefined) delete process.env.KOBE_HOME_DIR
+  else process.env.KOBE_HOME_DIR = originalHome
+})
 
 describe("Settings → Engines protocol declaration", () => {
   it("records a declared protocol alongside the command and name", async () => {
