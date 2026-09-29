@@ -81,9 +81,10 @@ function fromOklch({ l: L, c, h }: Oklch, alpha: number): RGBA {
   )
 }
 
-/** `accent` with its OKLCH hue turned by `deg` and lightness scaled by `lightness`. */
-export function turnHue(accent: RGBA, deg: number, lightness = 1): RGBA {
+/** `accent` with its OKLCH hue turned by `deg`, lightness and chroma scaled. */
+export function turnHue(accent: RGBA, deg: number, lightness = 1, chroma = 1): RGBA {
   if (accent.intent !== "rgb") return accent
   const base = toOklch(accent)
-  return fromOklch({ l: base.l * lightness, c: base.c, h: base.h + (deg * Math.PI) / 180 }, accent.toInts()[3])
+  const turned = { l: base.l * lightness, c: base.c * chroma, h: base.h + (deg * Math.PI) / 180 }
+  return fromOklch(turned, accent.toInts()[3])
 }

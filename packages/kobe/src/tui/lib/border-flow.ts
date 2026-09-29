@@ -10,9 +10,9 @@ import { turnHue } from "./breathe"
 /** Ramp advance per shared spinner tick (80ms): ~31 cells/s. */
 export const FLOW_CELLS_PER_TICK = 2.5
 /** Times the ramp repeats per lap, so a long border shows every colour at once. */
-const WAVES = 2
-/** Partner hue: orange accents flow through rose into violet. */
-const PARTNER_HUE_DEG = -90
+const WAVES = 3
+/** Partner hue: orange accents flow through magenta and violet into blue. */
+const PARTNER_HUE_DEG = -160
 const LEVELS = 48
 
 /** Offsets of a `width`×`height` box's border cells, clockwise from the top-left corner. */
@@ -41,7 +41,7 @@ export function flowPalette(accent: RGBA): readonly RGBA[] {
   const steps = Array.from({ length: LEVELS }, (_, i) => {
     // 0 at the accent, 1 at the partner, back to 0: a seamless loop.
     const away = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / LEVELS)
-    return turnHue(accent, PARTNER_HUE_DEG * away, 1.12 - 0.17 * away)
+    return turnHue(accent, PARTNER_HUE_DEG * away, 1.18 - 0.28 * away, 1.3)
   })
   paletteCache.set(key, steps)
   return steps
