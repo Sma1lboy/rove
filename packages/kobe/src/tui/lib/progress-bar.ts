@@ -35,7 +35,7 @@ export function ratioBar(ratio: number, width = SWEEP_WIDTH): string {
  * One frame of the indeterminate sweep: a 3-cell comet crossing a
  * `width`-cell track left→right, fully exiting before it wraps (the
  * `+ COMET.length` overshoot), so the motion reads as repeated passes
- * rather than a loop snap. Pure — drive it with the shared 10Hz spinner
+ * rather than a loop snap. Pure — drive it with the shared spinner
  * tick. Always returns exactly `width` chars.
  */
 export function sweepBar(frame: number, width = SWEEP_WIDTH): string {

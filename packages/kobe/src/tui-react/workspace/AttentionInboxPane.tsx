@@ -7,6 +7,7 @@ import type { AttentionInboxItem, RemoteOrchestrator, TaskEngineState } from "..
 import { DEFAULT_SPINNER_FRAMES } from "../../engine/spinner-frames"
 import { approxCharCells } from "../../lib/display-width"
 import { relativeAge } from "../../lib/relative-time"
+import { breathGlyph } from "../../tui/lib/breathe"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../tui/lib/spinner-frame-store"
 import { truncateEndCells } from "../../tui/lib/truncate"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
@@ -81,7 +82,7 @@ function runningBadge(opts: {
   if (opts.activity?.state !== "running") return undefined
   const frames = DEFAULT_SPINNER_FRAMES
   return {
-    glyph: frames[opts.frame % frames.length] ?? frames[0] ?? "⠋",
+    glyph: breathGlyph(frames, opts.frame),
     label: opts.t("workspace.inbox.state.running"),
     color: opts.theme.textMuted,
   }
@@ -90,7 +91,7 @@ function runningBadge(opts: {
 const NOOP_SUBSCRIBE = () => () => {}
 const ZERO_FRAME = () => 0
 
-/** Shared 10Hz pulse, subscribed only while a row actually animates. */
+/** Shared spinner pulse, subscribed only while a row actually animates. */
 function useSpinnerFrame(active: boolean): number {
   return useSyncExternalStore(
     active ? subscribeSpinnerFrame : NOOP_SUBSCRIBE,
@@ -204,7 +205,7 @@ export function AttentionInboxPane(props: {
   // Every episode is pending (opening removes it), so ATTENTION always leads.
   // Unavailable targets hide here; the Workspace host dismisses them. RECENT
   // follows the visit log; memoized on KV identity (changes only on a real
-  // write) so `rows` survives the 10Hz spinner tick.
+  // write) so `rows` survives the spinner tick.
   const visits = useMemo(() => readInboxVisits(props.kv), [props.kv])
   // Drop only the tab you're on; its sibling tabs are what RECENT is for.
   const selectedTabId = props.selectedId ? activeTabIdFor(props.selectedId) : null

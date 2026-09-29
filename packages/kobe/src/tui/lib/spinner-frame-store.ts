@@ -1,5 +1,5 @@
 /**
- * Shared spinner pulse — one process-wide 10Hz frame counter that runs ONLY
+ * Shared spinner pulse — one process-wide frame counter (SPINNER_FRAME_MS) that runs ONLY
  * while at least one subscriber is attached. Extracted from the Sidebar's
  * component-level interval (issue: a single loading row re-rendered the whole
  * rail 10×/s); with a store, only the rows that actually animate subscribe,

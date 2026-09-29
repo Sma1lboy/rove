@@ -18,6 +18,7 @@ import { engineDisplayName } from "../../../engine/interactive-command"
 import { charWidth } from "../../../lib/display-width"
 import { relativeAge } from "../../../lib/relative-time"
 import { TAB_ROW_HEIGHT_KEY, normalizeTabRowHeight } from "../../../state/tab-row-height"
+import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
@@ -129,8 +130,8 @@ export function WorktreeTreeRow(props: {
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
       {spinning ? (
-        <text fg={theme.primary} wrapMode="none" width={2} flexShrink={0}>
-          {`${IN_PROGRESS_SPINNER[frame % IN_PROGRESS_SPINNER.length] ?? IN_PROGRESS_SPINNER[0]} `}
+        <text fg={breathColor(theme.primary, theme.textMuted, frame)} wrapMode="none" width={2} flexShrink={0}>
+          {`${breathGlyph(IN_PROGRESS_SPINNER, frame)} `}
         </text>
       ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
@@ -263,7 +264,9 @@ export function useTabStateCell(args: {
     : restored
       ? theme.error
       : carriesState
-        ? toneColor(theme, rowView.tone)
+        ? rowView.loading && rowView.tone === "primary"
+          ? breathColor(theme.primary, theme.textMuted, frame)
+          : toneColor(theme, rowView.tone)
         : theme.textMuted
   return { activity, carriesState, rowView, glyph, fg, pulsing }
 }

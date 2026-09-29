@@ -1,5 +1,5 @@
 /**
- * Shared spinner-frame store — the Sidebar's 10Hz pulse. Pins the lifecycle
+ * Shared spinner-frame store — the Sidebar's shared pulse. Pins the lifecycle
  * that makes it cheap: the interval exists only while someone subscribes, an
  * all-idle rail keeps zero timers, and unsubscribing the last row rewinds the
  * frame so a later loading row starts from a deterministic 0.

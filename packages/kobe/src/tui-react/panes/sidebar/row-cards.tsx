@@ -22,7 +22,7 @@ import { completionSeenAt, completionSeenKey, markCompletionSeen } from "../../w
 const NOOP_SUBSCRIBE = () => () => {}
 const ZERO_FRAME = () => 0
 
-/** Subscribes to the shared 10Hz frame store ONLY while this row animates,
+/** Subscribes to the shared spinner frame store ONLY while this row animates,
  *  so a tick re-renders the loading rows, not the whole Sidebar. */
 export function useSpinnerFrame(active: boolean): number {
   return useSyncExternalStore(

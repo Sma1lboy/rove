@@ -22,6 +22,7 @@ beforeAll(() => {
   return () => vi.unstubAllEnvs()
 })
 import { computeNextAllowedAt, shouldPoll } from "../../src/lib/poll-scheduling"
+import { breathGlyph } from "../../src/tui/lib/breathe"
 import { type Binding, type RegisteredBinding, dispatchKeyEvent } from "../../src/tui/lib/keymap-dispatch"
 import { buildSidebarRowView, withSpinnerFrame } from "../../src/tui/panes/sidebar/row-view"
 import {
@@ -92,8 +93,8 @@ describe("idle sidebar tick frame-accessor budget", () => {
     expect(out[0]).toBe(views[0])
     expect(out[2]).toBe(views[2])
     expect(out[4]).toBe(views[4])
-    expect(out[1]?.stateGlyph).toBe(views[1]?.spinnerFrames[3])
-    expect(out[3]?.stateGlyph).toBe(views[3]?.spinnerFrames[3])
+    expect(out[1]?.stateGlyph).toBe(breathGlyph(views[1]?.spinnerFrames ?? [], 3))
+    expect(out[3]?.stateGlyph).toBe(breathGlyph(views[3]?.spinnerFrames ?? [], 3))
   })
 })
 

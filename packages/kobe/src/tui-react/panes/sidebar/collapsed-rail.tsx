@@ -19,6 +19,7 @@ import type { Task } from "@/types/task"
 import { type RGBA, TextAttributes } from "@opentui/core"
 import { Fragment, useMemo } from "react"
 import { displayWidth } from "../../../lib/display-width"
+import { breathColor } from "../../../tui/lib/breathe"
 import { type SidebarGroup, ownTasks } from "../../../tui/panes/sidebar/project-groups"
 import { buildSidebarRowView, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
 import type { TreeTab } from "../../../tui/panes/sidebar/tree-core"
@@ -58,6 +59,8 @@ interface RailRow {
   readonly task: Task
   readonly glyph: string
   readonly tone: Parameters<typeof toneColor>[1]
+  /** Shared spinner tick while the row runs; its accent breathes on it. */
+  readonly breath?: number
   readonly selected: boolean
   /** Set when the task folds to one cell per tab (see the file header). */
   readonly tabs?: readonly TreeTab[]
@@ -110,6 +113,7 @@ function useRailSections(props: {
           task,
           glyph: view.stateGlyph,
           tone: view.tone,
+          breath: spinning && view.loading ? frame : undefined,
           selected: task.id === props.selectedId,
           tabs: tabs && tabs.length > 0 ? tabs : undefined,
         }
@@ -175,7 +179,10 @@ export function CollapsedRail(props: CollapsedRailProps) {
 function RailRowView(props: { row: RailRow; style: CollapsedRailStyle; onSelect: (taskId: string) => void }) {
   const { theme } = useTheme()
   const { row } = props
-  const fg = toneColor(theme, row.tone)
+  const fg =
+    row.breath !== undefined && row.tone === "primary"
+      ? breathColor(theme.primary, theme.textMuted, row.breath)
+      : toneColor(theme, row.tone)
   // The same `▌` marker as the expanded rows: under a transparent theme there
   // is no selection background, so the marker is the only signal. It takes a
   // cell the fold already had, so no style gets wider.

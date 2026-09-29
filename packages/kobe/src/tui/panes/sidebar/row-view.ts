@@ -2,6 +2,7 @@ import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator
 import type { TaskActivityState } from "@/engine/hook-events"
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import { t } from "@/tui/i18n"
+import { breathGlyph } from "@/tui/lib/breathe"
 import type { Task } from "@/types/task"
 import { isBuiltinVendor } from "@/types/vendor"
 import { repoBasename } from "./groups"
@@ -34,12 +35,9 @@ function activityToneFor(state: TaskActivityState | undefined): SidebarTone | nu
 /** Alias of the default frames for existing consumers/tests. */
 export const IN_PROGRESS_SPINNER: readonly string[] = DEFAULT_SPINNER_FRAMES
 
-export const SPINNER_FRAME_MS = 100
+export const SPINNER_FRAME_MS = 80
 
-/**
- * Shared 10Hz counter cycle: a common multiple of every frame-set length
- * (8/10/12/15/20/24/25), so each row's `% frames.length` loops seamlessly.
- */
+/** Shared tick cycle: a multiple of `BREATH_TICKS`, so the breath wraps without a jump. */
 export const SPINNER_TICK_CYCLE = 600
 
 /** Post-turn emphasis; shared by the tab strip and sidebar tab rows so one landing reads as one event. */
@@ -195,7 +193,7 @@ export function buildSidebarRowView(opts: {
   })
   // Frames must not reuse a badge glyph (`●`, `○`), or a running row reads as finished.
   const spinnerFrames = DEFAULT_SPINNER_FRAMES
-  const spinner = spinnerFrames[opts.spinnerFrame % spinnerFrames.length] ?? spinnerFrames[0]
+  const spinner = breathGlyph(spinnerFrames, opts.spinnerFrame)
   const tone = deleteFailed
     ? "error"
     : deleting || materializing
@@ -236,14 +234,14 @@ export function buildSidebarRowView(opts: {
 
 /**
  * Overlay the live frame onto a view built with `spinnerFrame: 0`. `frame` is
- * an accessor read only when loading, so inside a memo the 10Hz tick is a
+ * an accessor read only when loading, so inside a memo the spinner tick is a
  * conditional dependency and idle rows never re-derive. Output equals
  * `buildSidebarRowView` with the live frame.
  */
 export function withSpinnerFrame(view: SidebarRowView, frame: () => number): SidebarRowView {
   if (!view.loading) return view
   const frames = view.spinnerFrames
-  const spinner = frames[frame() % frames.length] ?? frames[0] ?? "⠋"
+  const spinner = breathGlyph(frames, frame())
   if (spinner === view.stateGlyph) return view
   return { ...view, stateGlyph: spinner }
 }
