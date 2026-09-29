@@ -30,6 +30,7 @@ import {
   type TabStripMode,
   resolveTabStripMode,
 } from "../../../state/tab-strip"
+import { DEFAULT_TASK_COLORS, TASK_COLORS_KEY, type TaskColors, normalizeTaskColors } from "../../../state/task-colors"
 import {
   DEFAULT_WORKING_BORDER,
   WORKING_BORDER_KEY,
@@ -176,6 +177,12 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function selectWorkingBorder(style: WorkingBorder): void {
     kv.set(WORKING_BORDER_KEY, style)
+  }
+  function taskColors(): TaskColors {
+    return normalizeTaskColors(kv.get(TASK_COLORS_KEY, DEFAULT_TASK_COLORS))
+  }
+  function selectTaskColors(value: TaskColors): void {
+    kv.set(TASK_COLORS_KEY, value)
   }
   // Editor preference: which editor the file tree's `e` key launches.
   function editorKind(): EditorKind {
@@ -325,6 +332,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     selectTabRowHeight,
     workingBorder,
     selectWorkingBorder,
+    taskColors,
+    selectTaskColors,
     remoteProjectsEnabled,
     toggleRemoteProjects,
     autoStatusOn,

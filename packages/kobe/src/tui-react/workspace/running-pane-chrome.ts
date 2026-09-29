@@ -15,8 +15,8 @@ const UNFOCUSED_SHARE = 0.55
 const CLEAR = RGBA.fromInts(0, 0, 0, 0)
 
 /** `renderAfter` for the pane box: re-inks every border cell from the moving gradient. */
-export function runningPaneFlow(accent: RGBA, inactive: RGBA, focused: boolean, tick: number) {
-  const ramp = flowPalette(accent)
+export function runningPaneFlow(accent: RGBA, inactive: RGBA, focused: boolean, tick: number, partnerDeg?: number) {
+  const ramp = flowPalette(accent, partnerDeg)
   const palette = focused ? ramp : ramp.map((ink) => mixInk(ink, inactive, UNFOCUSED_SHARE))
   return function paint(this: Renderable, buffer: OptimizedBuffer): void {
     const cells = perimeter(this.width, this.height)

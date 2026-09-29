@@ -61,6 +61,7 @@ describe("appearance choices", () => {
     { row: 4, key: "transparentBackground", next: true, label: "Transparent background" },
     { row: 7, key: "sidebar.foldStyle", next: "initials", label: "Folded task rail" },
     { row: 8, key: "sidebar.tabRowHeight", next: 2, label: "Tab row height" },
+    { row: 10, key: "appearance.taskColors", next: "off", label: "Task colors" },
   ]
   for (const example of cases) {
     it(`${example.label}: preview and cancel do not persist; Enter applies exactly one field`, async () => {

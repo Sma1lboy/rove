@@ -10,11 +10,11 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|  feat/alpha                ? |
-|▌ ○ build                     |
-|  ○ review                    |
-|  feat/bravo                ? |
-|  ○ tests                     |
+| ▎feat/alpha                ? |
+|▌▎○ build                     |
+| ▎○ review                    |
+| ▎feat/bravo                ? |
+| ▎○ tests                     |
 |                              |
 |                              |
 |                              |

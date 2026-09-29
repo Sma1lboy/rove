@@ -10,12 +10,12 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|▌ feat/review             ✓ ? |
-|  feat/stuck              ≠ ? |
-|  feat/shipped              ? |
-|  feat/dropped              ? |
-|  feat/broke                ? |
-|  feat/quiet                ? |
+|▌▎feat/review             ✓ ? |
+| ▎feat/stuck              ≠ ? |
+| ▎feat/shipped              ? |
+| ▎feat/dropped              ? |
+| ▎feat/broke                ? |
+| ▎feat/quiet                ? |
 |                              |
 |                              |
 |                              |

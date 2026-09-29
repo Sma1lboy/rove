@@ -50,12 +50,13 @@ export function breathColor(accent: RGBA, muted: RGBA, tick: number): RGBA {
   return mixInk(accent, muted, INK_FLOOR + (1 - INK_FLOOR) * breathLevel(tick))
 }
 
+/** OKLCH; `h` in radians. */
 type Oklch = { l: number; c: number; h: number }
 
 const toLinear = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
 const toGamma = (v: number) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055)
 
-function toOklch(color: RGBA): Oklch {
+export function toOklch(color: RGBA): Oklch {
   const [r, g, b] = color.toInts().map((v) => toLinear(v / 255))
   const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
   const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
@@ -66,19 +67,23 @@ function toOklch(color: RGBA): Oklch {
   return { l: L, c: Math.hypot(A, B), h: Math.atan2(B, A) }
 }
 
-function fromOklch({ l: L, c, h }: Oklch, alpha: number): RGBA {
+function linearRgb({ l: L, c, h }: Oklch): [number, number, number] {
   const A = c * Math.cos(h)
   const B = c * Math.sin(h)
   const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3
   const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3
   const s = (L - 0.0894841775 * A - 1.291485548 * B) ** 3
+  return [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ]
+}
+
+function fromOklch(color: Oklch, alpha: number): RGBA {
   const ch = (v: number) => Math.round(Math.min(1, Math.max(0, toGamma(v))) * 255)
-  return RGBA.fromInts(
-    ch(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
-    ch(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
-    ch(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
-    alpha,
-  )
+  const [r, g, b] = linearRgb(color)
+  return RGBA.fromInts(ch(r), ch(g), ch(b), alpha)
 }
 
 /** `accent` with its OKLCH hue turned by `deg`, lightness and chroma scaled. */
@@ -88,3 +93,36 @@ export function turnHue(accent: RGBA, deg: number, lightness = 1, chroma = 1): R
   const turned = { l: base.l * lightness, c: base.c * chroma, h: base.h + (deg * Math.PI) / 180 }
   return fromOklch(turned, accent.toInts()[3])
 }
+
+const inGamut = (color: Oklch) => linearRgb(color).every((v) => v >= -1e-4 && v <= 1 + 1e-4)
+
+/** An ink at OKLCH `lightness`, hue `deg`; chroma shrinks until it fits sRGB, so the hue survives. */
+export function inkAtHue(deg: number, lightness: number, chroma: number, alpha = 255): RGBA {
+  const h = (deg * Math.PI) / 180
+  let c = chroma
+  while (c > 0 && !inGamut({ l: lightness, c, h })) c -= 0.005
+  return fromOklch({ l: lightness, c: Math.max(0, c), h }, alpha)
+}
+
+/** Where hue `deg` peaks in sRGB chroma: yellow near l 0.97, blue near 0.45. Memoized per whole degree. */
+export function oklchCusp(deg: number): { l: number; c: number } {
+  const key = Math.round(deg) % 360
+  const hit = cuspCache.get(key)
+  if (hit) return hit
+  const h = (key * Math.PI) / 180
+  let best = { l: 1, c: 0 }
+  for (let l = 0.2; l <= 1; l += 0.01) {
+    let lo = 0
+    let hi = 0.4
+    for (let i = 0; i < 16; i++) {
+      const mid = (lo + hi) / 2
+      if (inGamut({ l, c: mid, h })) lo = mid
+      else hi = mid
+    }
+    if (lo > best.c) best = { l, c: lo }
+  }
+  cuspCache.set(key, best)
+  return best
+}
+
+const cuspCache = new Map<number, { l: number; c: number }>()

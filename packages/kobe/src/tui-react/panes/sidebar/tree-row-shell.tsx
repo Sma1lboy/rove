@@ -5,7 +5,7 @@
  */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
-import { type BoxRenderable, MouseButton } from "@opentui/core"
+import { type BoxRenderable, MouseButton, type RGBA } from "@opentui/core"
 import type { ReactNode } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
@@ -16,6 +16,8 @@ import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
 /** One cell per depth level: the rail is narrow and the glyph column already separates levels. */
 const INDENT_CELLS = 1
+/** The task-colour mark; it takes the indent's last cell, so it never pushes the label. */
+const TASK_MARK = "▎"
 
 export type TreeRowShared = {
   /** Rail width in cells; the label budget derives from it. */
@@ -81,6 +83,8 @@ export function RowShell(props: {
   readonly flatIndex: number
   readonly depth: number
   readonly shared: TreeRowShared
+  /** The row's task colour (`useTaskColor`); absent keeps a plain indent. */
+  readonly mark?: RGBA
   readonly children: ReactNode
 }) {
   const { theme } = useTheme()
@@ -116,9 +120,15 @@ export function RowShell(props: {
       <text fg={selection.markerColor} wrapMode="none">
         {selection.marker}
       </text>
-      <text wrapMode="none" flexShrink={0}>
-        {" ".repeat(props.depth * INDENT_CELLS)}
-      </text>
+      {props.mark && props.depth > 0 ? (
+        <text fg={props.mark} wrapMode="none" flexShrink={0}>
+          {`${" ".repeat(props.depth * INDENT_CELLS - 1)}${TASK_MARK}`}
+        </text>
+      ) : (
+        <text wrapMode="none" flexShrink={0}>
+          {" ".repeat(props.depth * INDENT_CELLS)}
+        </text>
+      )}
       {props.children}
     </box>
   )

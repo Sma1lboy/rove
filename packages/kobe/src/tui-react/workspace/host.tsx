@@ -10,6 +10,7 @@ import { useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { DEFAULT_WORKING_BORDER, WORKING_BORDER_KEY, normalizeWorkingBorder } from "../../state/working-border"
+import { TASK_PARTNER_HUE_DEG } from "../../tui/lib/border-flow"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
 import { useWhatsNewDialog } from "../component/whats-new-dialog"
@@ -20,6 +21,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { RenderProfiler } from "../lib/render-profiler"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
+import { useTaskColor } from "../lib/use-task-color"
 import { useWelcomeDialog } from "../onboarding/host"
 import { useSpinnerFrame } from "../panes/sidebar/row-cards"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
@@ -117,6 +119,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     engineState?.get(selectedId)?.state === "running" &&
     normalizeWorkingBorder(kv.get(WORKING_BORDER_KEY, DEFAULT_WORKING_BORDER)) === "flow"
   const breath = useSpinnerFrame(workingFlow)
+  const taskInk = useTaskColor(selectedId)
 
   const { sortMode, toggleSortMode, moveMode, setMoveMode, onLocalMergeRequest } = useSidebarHostState({
     kv,
@@ -377,7 +380,13 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           borderColor={focus.focused === "workspace" ? theme.focusAccent : inactiveBorder}
           renderAfter={
             workingFlow
-              ? runningPaneFlow(theme.focusAccent, inactiveBorder, focus.focused === "workspace", breath)
+              ? runningPaneFlow(
+                  taskInk ?? theme.focusAccent,
+                  inactiveBorder,
+                  focus.focused === "workspace",
+                  breath,
+                  taskInk ? TASK_PARTNER_HUE_DEG : undefined,
+                )
               : undefined
           }
           title={

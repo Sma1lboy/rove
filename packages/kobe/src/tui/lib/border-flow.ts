@@ -13,6 +13,8 @@ export const FLOW_CELLS_PER_TICK = 2.5
 const WAVES = 3
 /** Partner hue: orange accents flow through magenta and violet into blue. */
 const PARTNER_HUE_DEG = -160
+/** A task-coloured flow stays in its hue family, so the border still names the task. */
+export const TASK_PARTNER_HUE_DEG = -40
 const LEVELS = 48
 
 /** Offsets of a `width`×`height` box's border cells, clockwise from the top-left corner. */
@@ -34,14 +36,14 @@ export function flowPhase(index: number, loop: number, tick: number): number {
 }
 
 /** The ramp, sampled; cached per accent since it only changes with the theme. */
-export function flowPalette(accent: RGBA): readonly RGBA[] {
-  const key = accent.toInts().join()
+export function flowPalette(accent: RGBA, partnerDeg = PARTNER_HUE_DEG): readonly RGBA[] {
+  const key = `${accent.toInts().join()}|${partnerDeg}`
   const hit = paletteCache.get(key)
   if (hit) return hit
   const steps = Array.from({ length: LEVELS }, (_, i) => {
     // 0 at the accent, 1 at the partner, back to 0: a seamless loop.
     const away = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / LEVELS)
-    return turnHue(accent, PARTNER_HUE_DEG * away, 1.18 - 0.28 * away, 1.3)
+    return turnHue(accent, partnerDeg * away, 1.18 - 0.28 * away, 1.3)
   })
   paletteCache.set(key, steps)
   return steps

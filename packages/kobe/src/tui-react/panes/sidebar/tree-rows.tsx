@@ -35,6 +35,7 @@ import { rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { useTaskColor } from "../../lib/use-task-color"
 import {
   ChangeStats,
   UNKNOWN_CHANGES_MARK,
@@ -127,8 +128,9 @@ export function WorktreeTreeRow(props: {
     ((changes?.deleted ?? 0) > 0 ? clusterCells(`−${changes?.deleted}`) : 0) +
     ((changes?.behind ?? 0) > 0 ? clusterCells(`↓${changes?.behind}`) : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
+  const mark = useTaskColor(task.id)
   return (
-    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared} mark={mark}>
       {spinning ? (
         <text fg={breathColor(theme.primary, theme.textMuted, frame)} wrapMode="none" width={2} flexShrink={0}>
           {`${breathGlyph(IN_PROGRESS_SPINNER, frame)} `}
@@ -299,8 +301,15 @@ export function TabTreeRow(props: {
   const twoCell = normalizeTabRowHeight(kv?.get(TAB_ROW_HEIGHT_KEY, 1)) === 2
   const liveVendor = props.tab.liveVendor ?? null
   const modelLine = props.tab.engine === true && twoCell && liveVendor ? engineDisplayName(liveVendor) : null
+  const mark = useTaskColor(props.task.id)
   return (
-    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={props.shared}>
+    <RowShell
+      rowId={props.rowId}
+      flatIndex={props.flatIndex}
+      depth={props.depth ?? 1}
+      shared={props.shared}
+      mark={mark}
+    >
       <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" width={2} flexShrink={0}>
         {`${glyph} `}
       </text>

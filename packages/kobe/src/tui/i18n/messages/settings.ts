@@ -84,6 +84,8 @@ export const en = {
     tabRowHeightRowHint: "enter cycles",
     /** The workspace pane border while the selected task is working. */
     workingBorder: "Working border",
+    /** Each task's own hue on the working border and its sidebar rows. */
+    taskColors: "Task colors",
     splitBox: "Box frames",
     splitLine: "Divider line",
     notifications: "Notifications",
@@ -315,6 +317,7 @@ export const zh: typeof en = {
     tabRowHeightRow: "引擎 tab 行占 {cells} 格",
     tabRowHeightRowHint: "enter 切换",
     workingBorder: "运行中边框",
+    taskColors: "任务配色",
     splitBox: "方框边框",
     splitLine: "单线分隔",
     notifications: "通知",
