@@ -40,6 +40,16 @@ export const CODEX_MODELS: readonly EngineModel[] = [
   { id: "gpt-5.5" },
 ]
 
+/** Anthropic model spellings: full ids and the claude CLI's aliases. */
+export function isClaudeFamilyModel(model: string): boolean {
+  return /^(claude-|anthropic\/)|^(fable|opus|sonnet|haiku)(\[|$)/i.test(model.trim())
+}
+
+/** OpenAI model spellings codex takes: `gpt-*`, the `o<N>` line, `codex-*`. */
+export function isOpenAiFamilyModel(model: string): boolean {
+  return /^(gpt-|o\d|codex-|openai\/)/i.test(model.trim())
+}
+
 /**
  * `pi --list-models`: whitespace table, header `provider  model  context …`.
  * Id is `provider/model` (two providers can share a model name), label the bare name.

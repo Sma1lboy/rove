@@ -5,12 +5,10 @@
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { submitFeedback } from "../../lib/feedback.ts"
+import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { daemonOf, repoFilter } from "./handler-helpers.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext } from "./types.ts"
-
-/** One entry of the daemon activity registry's task dump (`debug.inspect`). */
-type ActivityEntry = { state: string; at: number }
 
 export async function collect(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
@@ -48,16 +46,10 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     throw new ApiError("collect needs --task-ids id1,id2, --group GROUPID, or --repo PATH", "MISSING_TARGET")
   }
 
-  // Per-task engine state + last-transition ms, one debug.inspect per round.
-  // `null` = couldn't ask / no entry — an honest unknown, never a fabricated
-  // "idle". Diverging from `running` (pty-host truth) IS the signal.
-  let registry: Record<string, ActivityEntry> | null = null
-  try {
-    const dbg = await daemon.request<{ activity?: { tasks?: Record<string, ActivityEntry> } }>("debug.inspect")
-    registry = dbg?.activity?.tasks ?? {}
-  } catch {
-    registry = null
-  }
+  // Per-task engine state, one debug.inspect per round. `null` = couldn't ask
+  // / no entry — an honest unknown, never a fabricated "idle". Diverging from
+  // `running` (pty-host truth) IS the signal.
+  const registry = await readActivityRegistry(daemon)
 
   const out: unknown[] = []
   for (const taskId of taskIds) {
@@ -73,12 +65,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     const base = task.worktreePath
       ? await runtime.readBranchSignals(task.worktreePath, task.baseRef)
       : { baseRef: null, ahead: null, behind: null, diff: null }
-    const entry = registry?.[task.id]
-    // `forMs` = time in the CURRENT state ("idle for 40min" when state is
-    // idle). Clock skew between daemon and CLI clamps to 0, never negative.
-    const activity = entry
-      ? { state: entry.state, at: new Date(entry.at).toISOString(), forMs: Math.max(0, Date.now() - entry.at) }
-      : null
+    const activity = await activityView(registry, task)
     out.push({
       taskId: task.id,
       title: task.title,

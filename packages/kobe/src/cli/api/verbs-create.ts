@@ -15,7 +15,7 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
   {
     name: "add",
     group: "create",
-    summary: `Create a task (shows in the sidebar immediately). With --prompt it also starts the engine and delivers it. PARALLEL ATTEMPTS: --count N spawns N sibling tasks of the SAME prompt, each in its own worktree/branch (--agents claude:2,codex:1 for a mixed fleet); capped at ${FANOUT_CAP}, prefer 3-4. Does NOT steal focus — pass --activate to make it the active task. The sidebar shows .task.title and .task.branch — name a task by those (or its id), never by the directory in .task.worktreePath, which the UI never renders. Alias: spawn-task.`,
+    summary: `Create a task (shows in the sidebar immediately). With --prompt it also starts the engine and delivers it. PARALLEL ATTEMPTS: --count N spawns N sibling tasks of the SAME prompt, each in its own worktree/branch (--agents claude:2,codex:1 for a mixed fleet); capped at ${FANOUT_CAP}, prefer 3-4. Does NOT steal focus — pass --activate to make it the active task. The sidebar shows .task.title and .task.branch — name a task by those (or its id), never by the directory in .task.worktreePath, which the UI never renders. \`.engine\` ({ vendor, command, model, effort }; per row with --count/--agents) is what the task actually launches once the flags and the repo default are resolved — check it before trusting the run. \`.warnings\` flags a --model that plainly belongs to another engine's vendor (e.g. codex given a claude-* id); the task is still created. Alias: spawn-task.`,
     flags: [
       F.repo(),
       F.title(),

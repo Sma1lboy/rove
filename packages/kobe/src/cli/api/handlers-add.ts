@@ -23,6 +23,8 @@ import {
   effortFor,
   engineChoice,
   enginePayload,
+  foreignModelWarnings,
+  launchedEngine,
   modelFor,
   tierFields,
   withTierNote,
@@ -102,6 +104,8 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const picked = await tierFields(ctx, prompt)
   const fields = picked.fields ?? (await typedEngineFields(ctx, repo))
   const tierNote: Record<string, string> = picked.note ? { tierAuto: picked.note } : {}
+  const warnings = foreignModelWarnings([fields.choice.vendor ?? DEFAULT_VENDOR], fields.model)
+  const warned = warnings.length > 0 ? { warnings } : {}
   const payload: Record<string, string> = {
     repo,
     ...(await dispatcherEnvPayload()),
@@ -129,7 +133,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
 
   // No `tierNote` here on purpose: `--tier auto` refuses a create with nothing
   // to classify, so a note and an absent prompt cannot coexist.
-  if (!prompt) return { taskId, task, home: homeDir(), started: false }
+  if (!prompt) return { taskId, task, engine: launchedEngine(task), home: homeDir(), started: false, ...warned }
   // Same provenance prefix `send` carries: the `dispatcher` row field is data
   // a receiver must think to read; this puts the reply address in the brief.
   // No-op for a create from a plain shell.
@@ -164,7 +168,9 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       "NOT_DELIVERED",
       {
         taskId,
+        engine: launchedEngine(task),
         ...tierNote,
+        ...warned,
       },
     )
   }
@@ -177,6 +183,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   return {
     taskId,
     task,
+    engine: launchedEngine(task),
     // The home actually written to — otherwise a collapsed isolation
     // override reads identically to the intended one.
     home: homeDir(),
@@ -191,6 +198,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     ...(delivered.reason ? { reason: delivered.reason } : {}),
     ...(promptPersisted ? {} : { promptPersisted: false }),
     ...tierNote,
+    ...warned,
   }
 }
 
@@ -284,6 +292,7 @@ async function addParallel(
   }
   const effort = tier ? tier.effort : effortFor(ctx, plan)
   const model = tier ? tier.model : modelFor(ctx, plan)
+  const warnings = foreignModelWarnings(plan, model)
   const groupId = ulid()
 
   // Create serially (a pure store write; worktrees are lazy) so `#i/N`
@@ -354,6 +363,7 @@ async function addParallel(
         title: task.title,
         branch: task.branch,
         vendor,
+        engine: launchedEngine(task),
         started: r.value.started,
         engineReady: r.value.engineReady,
         session: r.value.session,
@@ -376,7 +386,7 @@ async function addParallel(
         : new ApiError(`prompt was not confirmed in ${taskId}'s engine`, "NOT_DELIVERED")
     const code = err instanceof ApiError ? err.code : "DELIVER_FAILED"
     const message = err instanceof Error ? err.message : String(err)
-    failures.push({ ok: false, taskId, vendor, error: { message, code } })
+    failures.push({ ok: false, taskId, vendor, engine: launchedEngine(task), error: { message, code } })
   })
 
   // A create-stage failure row has no taskId (nothing was created for it).
@@ -391,6 +401,7 @@ async function addParallel(
     tasks,
     failures,
     ...(picked.note ? { tierAuto: picked.note } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
   }
   // Any failure must not exit 0: the dispatcher emits the whole result
   // (created taskIds included) to stdout and exits 3.

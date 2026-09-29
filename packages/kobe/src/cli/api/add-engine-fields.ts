@@ -14,7 +14,7 @@ import {
   readAutoRoutingTable,
   tierBlock,
 } from "../../engine/auto-routing.ts"
-import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { protocolEntry, resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { detectEngineStatus } from "../../engine/engine-status.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { assertEngineAcceptsEffort, assertEngineAcceptsModel, engineListIds } from "./handlers-engines.ts"
@@ -258,4 +258,34 @@ export function effortFor(ctx: VerbContext, engines: readonly VendorId[]): strin
     assertEngineAcceptsEffort(engine, level, ["api", "engine-list"])
   }
   return level
+}
+
+/**
+ * A warning per planned engine whose `foreignModel` claims `model` — e.g.
+ * codex handed `claude-sonnet-5-5`. Not a refusal (see the registry field);
+ * the create goes ahead and the caller reads why it may fail on turn one.
+ */
+export function foreignModelWarnings(engines: readonly VendorId[], model: string | undefined): string[] {
+  if (!model) return []
+  return [...new Set(engines)]
+    .filter((engine) => protocolEntry(engine).foreignModel?.(model))
+    .map(
+      (engine) =>
+        `engine ${engine} is unlikely to run model ${JSON.stringify(model)} — that spelling belongs to another vendor; \`engine-list\` shows ${engine}'s models`,
+    )
+}
+
+/** What a created task will actually launch — the resolved engine, not the flags. */
+export function launchedEngine(task: {
+  readonly vendor?: string
+  readonly command?: string
+  readonly model?: string
+  readonly modelEffort?: string
+}): Record<string, string | null> {
+  return {
+    vendor: task.vendor ?? null,
+    command: task.command ?? null,
+    model: task.model ?? null,
+    effort: task.modelEffort ?? null,
+  }
 }

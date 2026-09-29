@@ -295,10 +295,16 @@ replacement in `nextCommandArgs`.
     `null` as `false`**: a cleanup loop that does will delete worktrees
     holding live work. Still process truth, not the cached status field
     `list` reports, which lags and will happily call a working fleet idle.
-  - `.activity` — `{state, at, forMs}` from the daemon's activity registry:
-    the engine's state (`running` / `idle` / `permission_needed` /
-    `rate_limited` / `error` / `turn_complete`) and how long it has been in
-    it. `forMs` is the "stuck for 40 minutes" number. `null` when the
+  - `.activity` — `{state, at, forMs, detail?, source?}` from the daemon's
+    activity registry: the engine's state and how long it has been in it.
+    States: `idle` and `turn_complete` are both at rest (a precheck asking
+    "is it free?" must accept either); `running`; `permission_needed`;
+    `rate_limited` (clears on its own); `error` (the last turn failed,
+    `.detail.note` carries the engine's text); `dead` (the engine process
+    exited). An engine with no failure hook (codex) can die on its first turn
+    without telling the daemon; when its own error row is at the bottom of
+    its screen, the state reads `error` with `source: "screen"` instead of
+    `idle`. `forMs` is the "stuck for 40 minutes" number. `null` when the
     registry cannot answer (daemon restarted, task never observed) — an
     honest unknown, never a fabricated idle. `.activity.state` disagreeing
     with `.running` is itself the signal: `running: false` with a
@@ -422,7 +428,9 @@ replacement in `nextCommandArgs`.
   returns `SOURCE_CHANGED` if that moved. `--tab tab-N` reads exactly that
   tab's hosted terminal session (terminal-only; `TAB_NOT_FOUND` when the tab
   has no session). A dead session's terminal page includes `terminal.exit`
-  (`code`/`signal`/`at`) while the PTY host still runs.
+  (`code`/`signal`/`at`) while the PTY host still runs. A history page also
+  carries `engineError` when the engine's screen ends on its own error row:
+  a turn that failed before replying leaves nothing in the transcript.
 - `watch (--task-ids a,b,c | --group GROUPID) --until STATE[,STATE]
   [--timeout MS]`: block until a watched task's engine reaches one of
   `--until`'s states, streaming every transition on the way. This is the
@@ -487,7 +495,13 @@ replacement in `nextCommandArgs`.
   [--pin] [--activate] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
   sidebar immediately). With `--prompt` it also materializes the worktree,
   starts the engine, and delivers the prompt. Does not steal focus unless
-  `--activate`. Alias: `spawn-task`. Without `--branch`, the branch name is
+  `--activate`. Alias: `spawn-task`. The result's `.engine`
+  (`{vendor, command, model, effort}`, per row for `--count`/`--agents`) is
+  what the task actually launches after the flags and the repo's default
+  engine are resolved. `.warnings` names a `--model` that plainly belongs to
+  another vendor (codex handed a `claude-*` id); the task is still created,
+  since a wrapper command can point an engine at a gateway that serves
+  foreign models. Without `--branch`, the branch name is
   auto-derived from the title following the repo's own branch-naming
   convention (inferred from its existing local + origin branches, e.g.
   `feat/login-flow` in a type-prefixed repo, `login-flow` in a bare-slug or
@@ -606,7 +620,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   Otherwise the default is the active task and its canonical engine tab.
   From another Rove task, the message includes `[ROVE PEER]` provenance and
   a tab-precise reply command (`--task-id <sender> --tab <sender's tab>`);
-  `--plain` skips that prefix. `--tab new` spawns a fresh engine tab, while
+  `--plain` skips that prefix. `delivered: true` says the bytes landed and
+  nothing more: when the target was already in `error` or `dead`, the
+  result carries `targetState` (and `targetDetail`), so a prompt sent into a
+  failed session is visible as such. `--tab new` spawns a fresh engine tab, while
   `--tab tab-N` targets that exact tab (`TAB_NOT_FOUND` if it is dead or
   absent). A tab a **pty-host restart froze** is neither: it is listed by
   `pty-list` with its scrollback and launch command intact, and it refuses

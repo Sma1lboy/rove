@@ -21,13 +21,13 @@
  * session and is terminal-only (history is worktree-scoped).
  */
 
-import type { PtyPeekResult, SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
+import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { protocolEntry, sessionProtocol } from "../../engine/engine-presets.ts"
 import { type EngineHistoryReader, supportsStructuredHistory } from "../../engine/registry.ts"
 import type { Message } from "../../types/engine.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { engineScreenError, peekTaskTerminal } from "./engine-screen.ts"
 import { daemonOf } from "./handler-helpers.ts"
-import { findEngineKey, listSessionsOrNull, openPtyHost } from "./pty-delivery.ts"
 import {
   DEFAULT_PAGE_MESSAGES,
   type FallbackReason,
@@ -268,63 +268,6 @@ async function continueTerminal(
 
 // ── Real deps + the verb ─────────────────────────────────────────────────────
 
-/** Read-only `pty.peek`; never spawns. A failed host connect/list/peek RPC is
- *  "host-unreachable"; any other non-ApiError failure reads as null.
- *
- *  An explicit unknown `tab` is TAB_NOT_FOUND, not empty. Without one:
- *  findEngineKey matches only ALIVE sessions, so fall back to `tab-1` (the
- *  engine tab the TUI mints first) to read a dead engine's scrollback. */
-async function peekTaskTerminal(
-  taskId: string,
-  engineBin: string | undefined,
-  tab: string | undefined,
-  sinceOffset?: number,
-): Promise<TerminalPeekPage | null | "host-unreachable"> {
-  const host = await openPtyHost()
-  if (!host) return "host-unreachable"
-  try {
-    let key: string | undefined
-    if (tab) {
-      key = `${taskId}::${tab}`
-    } else {
-      // Tri-state: an unaskable host is not "no sessions".
-      const sessions = await listSessionsOrNull(host.rpc)
-      if (sessions === null) return "host-unreachable"
-      key = findEngineKey(sessions, taskId, engineBin) ?? sessions.find((s) => s.key === `${taskId}::tab-1`)?.key
-    }
-    if (!key) return null
-    // With --tab this is the first RPC; its failure means unreachable, not empty.
-    let res: PtyPeekResult
-    try {
-      res = await host.rpc.request<PtyPeekResult>("pty.peek", { key, sinceOffset })
-    } catch {
-      return "host-unreachable"
-    }
-    if (!res.exists) {
-      if (tab) {
-        throw new ApiError(
-          `tab ${tab} has no hosted session on task ${taskId} — see \`rove api pty-list\` for live tabs`,
-          "TAB_NOT_FOUND",
-        )
-      }
-      return null
-    }
-    return {
-      pid: res.pid,
-      offset: res.offset,
-      text: Buffer.from(res.data, "base64").toString("utf8"),
-      sinceValid: res.sinceValid,
-      live: res.alive,
-      exit: res.exit ?? null,
-    }
-  } catch (err) {
-    if (err instanceof ApiError) throw err
-    return null
-  } finally {
-    host.close()
-  }
-}
-
 async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   let taskId = ctx.args.str("task-id")
@@ -357,14 +300,17 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
     deps,
   )
   const running = await ctx.runtime.isTaskRunning(taskId, taskEngineArgv(task))
-  return { vendor: vendor ?? null, running, ...envelope }
+  // A history page can't show a turn that failed before the engine wrote
+  // anything; the engine's own error row on screen can.
+  const engineError = envelope.source === "history" ? await engineScreenError(task) : undefined
+  return { vendor: vendor ?? null, running, ...envelope, ...(engineError ? { engineError } : {}) }
 }
 
 export const READ_OUTPUT_VERB: VerbSpec = {
   name: "read-output",
   group: "read",
   summary:
-    "Read a task's engine output as bounded, cursor-paged JSON: the engine's own structured history when available, else a labeled terminal tail (typed fallbackReason). --tab tab-N reads one exact terminal tab. Read-only; the cursor stays pinned to one source/session/tab (SOURCE_CHANGED when it moved).",
+    "Read a task's engine output as bounded, cursor-paged JSON: the engine's own structured history when available, else a labeled terminal tail (typed fallbackReason). --tab tab-N reads one exact terminal tab. Read-only; the cursor stays pinned to one source/session/tab (SOURCE_CHANGED when it moved). A history read also carries `engineError` when the engine's screen ends on an error row it never wrote to its transcript (a turn that failed before replying).",
   flags: [
     {
       name: "task-id",

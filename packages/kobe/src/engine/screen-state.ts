@@ -68,3 +68,36 @@ export function classifyScreen(
   }
   return null
 }
+
+/** Rows a wrapped error may span below its marker row. */
+const MAX_ERROR_ROWS = 6
+
+/**
+ * The newest error an engine drew (registry `errorLine`) within the bottom of
+ * the screen, its wrapped continuation rows joined — or undefined. Bottom-only
+ * so an error the engine has since recovered from is not pinned on a later,
+ * healthy turn. `last` additionally requires the error to be the final thing
+ * on screen: a turn still claimed as running has ended in that error only if
+ * nothing was drawn after it.
+ */
+export function screenErrorLine(
+  errorLine: RegExp,
+  rows: readonly string[],
+  opts: { readonly last?: boolean } = {},
+): string | undefined {
+  const filled = rows.flatMap((row, index) => (row.trim() ? [index] : []))
+  const window = filled.slice(-DEFAULT_BOTTOM_LINES)
+  for (let k = window.length - 1; k >= 0; k--) {
+    const start = window[k] as number
+    if (!errorLine.test(rows[start] ?? "")) continue
+    // A wrapped error continues on the rows directly below it, up to a blank row.
+    let end = start + 1
+    while (end < rows.length && end - start < MAX_ERROR_ROWS && rows[end]?.trim()) end++
+    if (opts.last && filled.some((index) => index >= end)) return undefined
+    return rows
+      .slice(start, end)
+      .map((row) => row.trim())
+      .join(" ")
+  }
+  return undefined
+}

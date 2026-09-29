@@ -176,6 +176,19 @@ export interface EngineRegistryEntry {
    * so a screen rule would never be consulted.
    */
   readonly screenManifest?: EngineScreenManifest
+  /**
+   * A screen row that means "the last turn failed", for engines whose failure
+   * reaches neither a hook nor the transcript (codex: no failure hook, and its
+   * rollout drops `Error` events). `rove api` reads it off the terminal tail so
+   * a turn that died on screen doesn't read as a finished one.
+   */
+  readonly errorLine?: RegExp
+  /**
+   * True when `model` plainly belongs to another vendor's family, so `add`
+   * can warn before launch. A warning, not a refusal: a wrapper command can
+   * point the engine at a gateway that serves foreign models.
+   */
+  readonly foreignModel?: (model: string) => boolean
 }
 
 // Re-exported so `@/engine/registry` stays the one import site.

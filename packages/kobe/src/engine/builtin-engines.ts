@@ -35,7 +35,14 @@ import {
 import { KimiHookAdapter } from "./kimi-local/hook-adapter.ts"
 import { KIMI_SCREEN_MANIFEST } from "./kimi-local/screen.ts"
 import { trustKimiWorktree } from "./kimi-local/trust.ts"
-import { CLAUDE_MODELS, CODEX_MODELS, listOmpModels, listPiModels } from "./model-lists.ts"
+import {
+  CLAUDE_MODELS,
+  CODEX_MODELS,
+  isClaudeFamilyModel,
+  isOpenAiFamilyModel,
+  listOmpModels,
+  listPiModels,
+} from "./model-lists.ts"
 import { ompCapabilities, ompIdentity, piCapabilities, piIdentity } from "./pi-local/capabilities.ts"
 import { PiFamilyHookAdapter } from "./pi-local/hook-adapter.ts"
 import { OMP_SCREEN_MANIFEST, PI_SCREEN_MANIFEST } from "./pi-local/screen.ts"
@@ -62,6 +69,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // documented aliases (`model-lists.ts`).
     listModels: async () => CLAUDE_MODELS,
     modelArgv: (base, model) => [...base, "--model", model],
+    foreignModel: isOpenAiFamilyModel,
     history: claudeHistoryReader,
     detectAccount: (deps) => detectClaudeAccount(deps),
     createHookAdapter: () => new ClaudeHookAdapter(),
@@ -106,6 +114,9 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // `-m, --model <MODEL>`; no list verb (`model-lists.ts` for the slugs).
     listModels: async () => CODEX_MODELS,
     modelArgv: (base, model) => [...base, "--model", model],
+    foreignModel: isClaudeFamilyModel,
+    // codex-tui `new_error_event`: every turn error is one red `■ <message>` row.
+    errorLine: /^\s*■\s+\S/,
     history: codexHistoryReader,
 
     detectAccount: (deps) => detectCodexAccount(deps),

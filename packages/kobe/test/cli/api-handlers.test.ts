@@ -35,7 +35,13 @@ describe("add handler", () => {
     const result = await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
     expect(client.requestNames).toEqual(["task.create"])
     expect(client.requests[0].payload).toEqual({ repo: "/repo/x" })
-    expect(result).toEqual({ taskId: "t1", task, home: homeDir(), started: false })
+    expect(result).toEqual({
+      taskId: "t1",
+      task,
+      engine: { vendor: "claude", command: null, model: null, effort: null },
+      home: homeDir(),
+      started: false,
+    })
   })
 
   it("refuses a --repo that is not a git repository instead of succeeding emptily", async () => {

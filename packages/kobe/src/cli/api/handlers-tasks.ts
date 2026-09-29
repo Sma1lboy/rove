@@ -9,6 +9,7 @@ import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
+import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { readOwnDispatcher, resolveDispatcherTab, verifiedSelfSession, withPeerProvenance } from "./dispatcher.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
@@ -163,6 +164,9 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)
   const text = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
+  // Read BEFORE delivery: a paste into a failed session still "lands", and the
+  // caller has to be told what it landed in.
+  const target = tab === "new" ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
   const delivered = await ctx.runtime.deliverPrompt(
     daemon,
     {
@@ -207,8 +211,15 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     // where `delivered: true` would otherwise hide the frozen real ones. See
     // `DeliveredPrompt.frozenTabs`.
     ...(delivered.frozenTabs?.length ? { frozenTabs: delivered.frozenTabs } : {}),
+    // The session was in `error`/`dead` when this prompt went in: `delivered`
+    // only says the bytes landed, not that anything is there to act on them.
+    ...(target && TARGET_FAILED.has(target.state)
+      ? { targetState: target.state, ...(target.detail ? { targetDetail: target.detail } : {}) }
+      : {}),
   }
 }
+
+const TARGET_FAILED = new Set(["error", "dead"])
 
 async function dispatch(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)

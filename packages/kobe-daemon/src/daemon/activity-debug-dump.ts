@@ -28,6 +28,8 @@ export interface ActivityDebugTask {
   readonly at: number
   readonly vendor?: string
   readonly lapseArmed: boolean
+  /** Why a sticky state holds (failure class + text, exit record), when the engine said. */
+  readonly detail?: EngineActivityDetail
 }
 
 export interface ActivityDebugTab extends ActivityDebugTask {
@@ -53,6 +55,7 @@ export function buildActivityDebugSnapshot(
       at: e.at,
       ...(e.vendor ? { vendor: e.vendor } : {}),
       lapseArmed: e.lapse !== undefined,
+      ...(e.detail ? { detail: e.detail } : {}),
     }
   }
   const tabs: Record<string, Record<string, ActivityDebugTab>> = {}
@@ -65,6 +68,7 @@ export function buildActivityDebugSnapshot(
         ...(e.effective.vendor ? { vendor: e.effective.vendor } : {}),
         ...(e.effective.source === "observed" ? { observed: true as const } : {}),
         ...(e.effective.detail?.exit ? { exit: e.effective.detail.exit } : {}),
+        ...(e.effective.detail ? { detail: e.effective.detail } : {}),
         lapseArmed: e.hook?.lapse !== undefined,
         source: e.effective.source,
       }
