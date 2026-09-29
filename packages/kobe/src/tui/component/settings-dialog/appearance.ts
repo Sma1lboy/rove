@@ -1,4 +1,4 @@
-import type { SplitStyle } from "../../../state/split-style"
+import { SPLIT_STYLES, type SplitStyle } from "../../../state/split-style"
 import type { TabRowHeight } from "../../../state/tab-row-height"
 import { WORKING_BORDERS, type WorkingBorder } from "../../../state/working-border"
 import type { CollapsedRailStyle } from "../../../tui-react/panes/sidebar/collapsed-rail"
@@ -47,7 +47,7 @@ export function appearanceChoices(setting: AppearanceSetting, themes: readonly s
     case "focusAccent":
       return (["primary", "success", "info"] as const).map((value) => ({ kind: setting, value }))
     case "splitStyle":
-      return (["box", "line"] as const).map((value) => ({ kind: setting, value }))
+      return SPLIT_STYLES.map((value) => ({ kind: setting, value }))
     case "railFold":
       return (["glyphs", "initials", "hairline"] as const).map((value) => ({ kind: setting, value }))
     case "tabRowHeight":

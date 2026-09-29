@@ -2,6 +2,7 @@
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import type { AppearanceSetting, AppearanceSnapshot } from "../../../tui/component/settings-dialog/appearance"
+import { paneBoxProps, paneChrome } from "../../../tui/workspace/split-chrome"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { COLLAPSED_RAIL_WIDTH } from "../../panes/sidebar/collapsed-rail"
@@ -18,8 +19,12 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
     { id: "api", label: { glyphs: " ✓", initials: " ✓ API", hairline: "▎" }[fold] },
     { id: "review", label: { glyphs: " ○", initials: " ○ QA", hairline: "▎" }[fold] },
   ]
-  const box = current.splitStyle === "box"
   const railActive = props.active === "tabRowHeight"
+  // The three columns stand in for split panes, each after its left sibling.
+  const pane = (divider: "left" | undefined, edge: typeof theme.border, name: string, nameInk: typeof theme.border) =>
+    paneBoxProps(paneChrome(current.splitStyle, divider), { edge, name, nameInk })
+  const namesOnRule = paneChrome(current.splitStyle, undefined).nameOnRule
+  const tasksInk = railActive ? theme.focusAccent : theme.textMuted
   return (
     <box flexDirection="column" flexShrink={0} border borderColor={theme.border} backgroundColor={theme.background}>
       <box
@@ -61,13 +66,17 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
             flexBasis={0}
             flexShrink={1}
             flexDirection="column"
-            border={box ? true : ["right"]}
-            borderColor={railActive ? theme.focusAccent : theme.border}
+            {...pane(
+              undefined,
+              railActive ? theme.focusAccent : theme.border,
+              t("settings.appearance.tasks"),
+              tasksInk,
+            )}
             paddingLeft={1}
             paddingRight={1}
             backgroundColor={theme.backgroundPanel}
           >
-            <text fg={railActive ? theme.focusAccent : theme.textMuted}>{t("settings.appearance.tasks")}</text>
+            {!namesOnRule && <text fg={tasksInk}>{t("settings.appearance.tasks")}</text>}
             <text fg={theme.textMuted} wrapMode="none">
               demo / workspace
             </text>
@@ -103,14 +112,15 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
           flexBasis={0}
           flexShrink={1}
           flexDirection="column"
-          border={box ? true : ["right"]}
-          borderColor={theme.focusAccent}
+          {...pane("left", theme.focusAccent, t("settings.appearance.terminal"), theme.focusAccent)}
           paddingLeft={1}
           paddingRight={1}
         >
-          <text fg={theme.focusAccent} attributes={TextAttributes.BOLD} wrapMode="none">
-            ▌ {t("settings.appearance.terminal")}
-          </text>
+          {!namesOnRule && (
+            <text fg={theme.focusAccent} attributes={TextAttributes.BOLD} wrapMode="none">
+              ▌ {t("settings.appearance.terminal")}
+            </text>
+          )}
           <text fg={theme.textMuted} wrapMode="none">
             UI polish / main
           </text>
@@ -138,14 +148,15 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
             flexBasis={0}
             flexShrink={1}
             flexDirection="column"
-            border={box}
-            borderColor={theme.border}
+            {...pane("left", theme.border, t("settings.appearance.files"), theme.textMuted)}
             paddingLeft={1}
             paddingRight={1}
           >
-            <text fg={theme.textMuted} wrapMode="none">
-              {t("settings.appearance.files")}
-            </text>
+            {!namesOnRule && (
+              <text fg={theme.textMuted} wrapMode="none">
+                {t("settings.appearance.files")}
+              </text>
+            )}
             <text fg={theme.text} wrapMode="none">
               ▾ src
             </text>
