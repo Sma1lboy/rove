@@ -81,15 +81,9 @@ function fromOklch({ l: L, c, h }: Oklch, alpha: number): RGBA {
   )
 }
 
-/**
- * Two-hue breath: the peak is `accent`, the exhale turns its hue by
- * `swingDeg` (and dims slightly), so the colour pairing is derived from the
- * theme instead of hard-coded — orange pairs with rose, blue with violet.
- */
-export function hueBreathColor(accent: RGBA, tick: number, swingDeg: number): RGBA {
+/** `accent` with its OKLCH hue turned by `deg` and lightness scaled by `lightness`. */
+export function turnHue(accent: RGBA, deg: number, lightness = 1): RGBA {
   if (accent.intent !== "rgb") return accent
   const base = toOklch(accent)
-  const away = 1 - breathLevel(tick)
-  const color = { l: base.l * (1 - 0.18 * away), c: base.c, h: base.h + (swingDeg * Math.PI * away) / 180 }
-  return fromOklch(color, accent.toInts()[3])
+  return fromOklch({ l: base.l * lightness, c: base.c, h: base.h + (deg * Math.PI) / 180 }, accent.toInts()[3])
 }
