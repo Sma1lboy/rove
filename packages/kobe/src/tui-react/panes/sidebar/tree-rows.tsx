@@ -15,10 +15,12 @@ import type { Task } from "@/types/task"
 import { TextAttributes } from "@opentui/core"
 import { useEffect, useMemo } from "react"
 import { engineDisplayName } from "../../../engine/interactive-command"
-import { charWidth } from "../../../lib/display-width"
+import { engineEntry } from "../../../engine/registry"
+import { charWidth, displayWidth } from "../../../lib/display-width"
 import { relativeAge } from "../../../lib/relative-time"
 import { TAB_ROW_HEIGHT_KEY, normalizeTabRowHeight } from "../../../state/tab-row-height"
-import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
+import { breathColor, breathGlyph, mixInk } from "../../../tui/lib/breathe"
+import { effortMark } from "../../../tui/lib/effort-glyph"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
@@ -299,6 +301,12 @@ export function TabTreeRow(props: {
   const twoCell = normalizeTabRowHeight(kv?.get(TAB_ROW_HEIGHT_KEY, 1)) === 2
   const liveVendor = props.tab.liveVendor ?? null
   const modelLine = props.tab.engine === true && twoCell && liveVendor ? engineDisplayName(liveVendor) : null
+  // The task's pinned level rides along only when the live engine declares
+  // it (the launch path drops any other), and only if the whole line fits.
+  const level = props.task.modelEffort?.trim() ?? ""
+  const effort = modelLine && liveVendor ? effortMark(engineEntry(liveVendor).effortLevels, level) : null
+  const captionBudget = treeLabelBudget(shared, 2)
+  const showEffort = effort !== null && displayWidth(`${modelLine} · ${effort.glyph} ${level}`) <= captionBudget
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={props.shared}>
       <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" width={2} flexShrink={0}>
@@ -335,8 +343,17 @@ export function TabTreeRow(props: {
         </box>
         {modelLine ? (
           // Flush with the title (owner call): the pair reads as one block.
-          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" paddingRight={1}>
-            {truncateEndCells(modelLine, treeLabelBudget(shared, 2), charWidth)}
+          // DIM on spans, not the text: span attributes OR into the parent's,
+          // and the level glyph brightens toward the accent undimmed.
+          <text fg={theme.textMuted} wrapMode="none" paddingRight={1}>
+            <span attributes={TextAttributes.DIM}>
+              {truncateEndCells(modelLine, captionBudget, charWidth)}
+              {showEffort ? " · " : ""}
+            </span>
+            {showEffort ? (
+              <span fg={mixInk(theme.primary, theme.textMuted, effort.fraction)}>{effort.glyph}</span>
+            ) : null}
+            {showEffort ? <span attributes={TextAttributes.DIM}>{` ${level}`}</span> : null}
           </text>
         ) : null}
       </box>

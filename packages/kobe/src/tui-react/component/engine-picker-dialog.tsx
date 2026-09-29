@@ -19,6 +19,7 @@ import { engineDisplayName } from "../../engine/interactive-command"
 import { engineEntry } from "../../engine/registry"
 import type { PickerWindow } from "../../tui/component/new-task-dialog/state"
 import { clampCursor, pickerVisibleRows } from "../../tui/component/new-task-dialog/state"
+import { effortLabel } from "../../tui/lib/effort-glyph"
 import type { VendorId } from "../../types/vendor"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -179,7 +180,9 @@ export function EnginePickerDialogView(props: {
           <ChipRow
             choices={effortChoices}
             selected={effort}
-            display={(choice) => (choice === NO_EFFORT ? t("tasks.changeEngine.noEffort") : choice)}
+            display={(choice) =>
+              choice === NO_EFFORT ? t("tasks.changeEngine.noEffort") : effortLabel(levels, choice)
+            }
             onPick={(choice) => setEffort(choice)}
           />
         </DialogSection>

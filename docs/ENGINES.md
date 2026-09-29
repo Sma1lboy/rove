@@ -98,6 +98,12 @@ Three places select one:
   that declare no levels show no row;
 - `rove api set-effort --task-id ID --level LEVEL` from a shell.
 
+Wherever Rove shows a level it puts a fill glyph in front of it, `○` for
+the engine's lowest through `◔ ◑ ◕ ●` to `◉` for its highest, placed by the
+level's position in that engine's own list (Codex's `high` reads `◕ high`).
+With two-cell tab rows (`sidebar.tabRowHeight`), an agent tab's second line
+shows the pinned level after the engine name.
+
 The board's start-a-task-from-an-issue picker chooses an engine but not a
 level, so a task started that way runs its first session on the engine's
 default until you set one.
