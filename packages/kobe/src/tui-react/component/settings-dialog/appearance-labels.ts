@@ -31,5 +31,7 @@ export function appearanceChoiceLabel(choice: AppearanceChoice, t: ReturnType<ty
       return t(choice.value === 1 ? "settings.appearance.singleRow" : "settings.appearance.doubleRow")
     case "workingBorder":
       return t(choice.value === "flow" ? "settings.appearance.borderFlow" : "settings.appearance.borderStill")
+    case "colorblind":
+      return t(choice.value === "on" ? "settings.appearance.enabled" : "settings.appearance.disabled")
   }
 }

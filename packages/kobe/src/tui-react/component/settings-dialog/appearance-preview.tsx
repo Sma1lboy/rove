@@ -2,6 +2,7 @@
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import type { AppearanceSetting, AppearanceSnapshot } from "../../../tui/component/settings-dialog/appearance"
+import { diffInks } from "../../../tui/context/theme-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { COLLAPSED_RAIL_WIDTH } from "../../panes/sidebar/collapsed-rail"
@@ -20,6 +21,7 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
   ]
   const box = current.splitStyle === "box"
   const railActive = props.active === "tabRowHeight"
+  const inks = diffInks(theme, current.colorblind === "on")
   return (
     <box flexDirection="column" flexShrink={0} border borderColor={theme.border} backgroundColor={theme.background}>
       <box
@@ -149,13 +151,13 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
             <text fg={theme.text} wrapMode="none">
               ▾ src
             </text>
-            <text fg={theme.success} wrapMode="none">
+            <text fg={inks.added} wrapMode="none">
               {" "}
               app.ts +8
             </text>
-            <text fg={theme.text} wrapMode="none">
+            <text fg={inks.removed} wrapMode="none">
               {" "}
-              ui.tsx
+              ui.tsx −3
             </text>
             {!short && (
               <text fg={theme.textMuted} wrapMode="none">

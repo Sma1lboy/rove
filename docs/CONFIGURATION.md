@@ -109,7 +109,7 @@ retired worktree-sync hook was once installed so the next launch (or
 ### Appearance
 
 Settings → General groups theme, mode, transparency, focus accent, split style,
-folded rail, tab row height, and working border below a workspace preview. Each row opens a selection
+folded rail, tab row height, working border, and colorblind diff colours below a workspace preview. Each row opens a selection
 list with the same preview above it. Use `j`/`k` or arrows to preview a choice,
 `enter` to save it, or `esc` to cancel. Previewing never changes saved settings.
 Clicking an option saves it immediately. The preview uses sample tasks and
@@ -123,6 +123,7 @@ files; it does not show your sessions.
 | `focusAccent` | `primary` \| `success` \| `info` | `primary` | Color of the focused-pane indicator |
 | `appearance.splitStyle` | `box` \| `line` | `box` | `box` frames each split; `line` is the minimal tmux-style look |
 | `appearance.workingBorder` | `flow` \| `still` | `flow` | While the selected task's engine is running, `flow` runs a colour gradient around the workspace pane's border (derived from the theme accent) and names the task on its top edge; `still` keeps the plain focus border |
+| `appearance.colorblind` | `off` \| `on` | `off` | `on` turns the theme's added colour 60° around the hue wheel toward blue, at lower chroma, so added and removed stop being a red/green pair. Applies to the diff view, the Files pane's `A`/`D` letters and `+N`/`-M` counts, and the sidebar's `+N −M` chips; removed keeps the theme colour |
 | `locale` | `en` \| `zh` | `en` | UI language |
 | `hints.keyboard.enabled` | boolean | `true` | Keyboard discoverability hints |
 | `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | One tap of the prefix key always opens the full keyboard guide. This picks what comes with it: `local` also shows shortcut badges beside the clickable controls already on screen, `guide` hides those badges |

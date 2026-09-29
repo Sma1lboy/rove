@@ -12,6 +12,7 @@ import { memo } from "react"
 import { displayWidth } from "../../../lib/display-width"
 import { type StatWidths, statCell, statusToken } from "../../../tui/panes/filetree/pane-core"
 import { type Row, truncatePathTail } from "../../../tui/panes/filetree/rows"
+import { useDiffInks } from "../../context/diff-inks"
 import { useTheme } from "../../context/theme"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
@@ -30,6 +31,7 @@ export type FileTreeRowProps = {
 
 export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowProps) {
   const { theme } = useTheme()
+  const inks = useDiffInks()
   const selection = resolveRowSelectionChrome(theme, { cursor: props.cursor })
   const bar = (
     <text fg={selection.markerColor} wrapMode="none">
@@ -87,12 +89,12 @@ export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowP
   const pathBudget = props.pathBudget - displayWidth(marker) - displayWidth(countSuffix) - displayWidth(indent)
   const tone = statusToken(row.status)
   const statusColor =
-    tone === "success"
-      ? theme.success
+    tone === "added"
+      ? inks.added
       : tone === "warning"
         ? theme.warning
-        : tone === "error"
-          ? theme.error
+        : tone === "removed"
+          ? inks.removed
           : tone === "info"
             ? theme.info
             : theme.textMuted
@@ -107,12 +109,12 @@ export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowP
           {`${indent}${marker}${truncatePathTail(row.path, pathBudget)}${countSuffix}`}
         </text>
         {props.statWidths.added > 0 ? (
-          <text fg={theme.success} wrapMode="none">
+          <text fg={inks.added} wrapMode="none">
             {statCell(row.added, props.statWidths.added, "+")}
           </text>
         ) : null}
         {props.statWidths.deleted > 0 ? (
-          <text fg={theme.error} wrapMode="none">
+          <text fg={inks.removed} wrapMode="none">
             {statCell(row.deleted, props.statWidths.deleted, "-")}
           </text>
         ) : null}

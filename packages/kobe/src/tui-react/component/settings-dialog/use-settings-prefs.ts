@@ -7,6 +7,7 @@
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
+import { COLORBLIND_KEY, type ColorblindMode, DEFAULT_COLORBLIND, normalizeColorblind } from "../../../state/colorblind"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
 import { RAIL_FOLD_STYLE_KEY } from "../../../state/sidebar-collapsed.ts"
@@ -177,6 +178,12 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function selectWorkingBorder(style: WorkingBorder): void {
     kv.set(WORKING_BORDER_KEY, style)
   }
+  function colorblind(): ColorblindMode {
+    return normalizeColorblind(kv.get(COLORBLIND_KEY, DEFAULT_COLORBLIND))
+  }
+  function selectColorblind(mode: ColorblindMode): void {
+    kv.set(COLORBLIND_KEY, mode)
+  }
   // Editor preference: which editor the file tree's `e` key launches.
   function editorKind(): EditorKind {
     return normalizeEditorKind(kv.get(EDITOR_KIND_KEY, DEFAULT_EDITOR_KIND))
@@ -325,6 +332,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     selectTabRowHeight,
     workingBorder,
     selectWorkingBorder,
+    colorblind,
+    selectColorblind,
     remoteProjectsEnabled,
     toggleRemoteProjects,
     autoStatusOn,

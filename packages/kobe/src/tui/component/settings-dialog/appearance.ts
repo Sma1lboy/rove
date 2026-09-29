@@ -1,3 +1,4 @@
+import { COLORBLIND_MODES, type ColorblindMode } from "../../../state/colorblind"
 import type { SplitStyle } from "../../../state/split-style"
 import type { TabRowHeight } from "../../../state/tab-row-height"
 import { WORKING_BORDERS, type WorkingBorder } from "../../../state/working-border"
@@ -13,6 +14,7 @@ export const APPEARANCE_SETTINGS = [
   "railFold",
   "tabRowHeight",
   "workingBorder",
+  "colorblind",
 ] as const
 export type AppearanceSetting = (typeof APPEARANCE_SETTINGS)[number]
 
@@ -25,6 +27,7 @@ export type AppearanceSnapshot = {
   railFoldStyle: CollapsedRailStyle
   tabRowHeight: TabRowHeight
   workingBorder: WorkingBorder
+  colorblind: ColorblindMode
 }
 export type AppearanceChoice =
   | { kind: "theme"; value: string }
@@ -35,6 +38,7 @@ export type AppearanceChoice =
   | { kind: "railFold"; value: CollapsedRailStyle }
   | { kind: "tabRowHeight"; value: TabRowHeight }
   | { kind: "workingBorder"; value: WorkingBorder }
+  | { kind: "colorblind"; value: ColorblindMode }
 
 export function appearanceChoices(setting: AppearanceSetting, themes: readonly string[]): AppearanceChoice[] {
   switch (setting) {
@@ -54,6 +58,8 @@ export function appearanceChoices(setting: AppearanceSetting, themes: readonly s
       return ([1, 2] as const).map((value) => ({ kind: setting, value }))
     case "workingBorder":
       return WORKING_BORDERS.map((value) => ({ kind: setting, value }))
+    case "colorblind":
+      return COLORBLIND_MODES.map((value) => ({ kind: setting, value }))
   }
 }
 
@@ -75,6 +81,8 @@ export function applyAppearanceChoice(current: AppearanceSnapshot, choice: Appea
       return { ...current, tabRowHeight: choice.value }
     case "workingBorder":
       return { ...current, workingBorder: choice.value }
+    case "colorblind":
+      return { ...current, colorblind: choice.value }
   }
 }
 
@@ -96,5 +104,7 @@ export function currentAppearanceChoice(current: AppearanceSnapshot, setting: Ap
       return { kind: setting, value: current.tabRowHeight }
     case "workingBorder":
       return { kind: setting, value: current.workingBorder }
+    case "colorblind":
+      return { kind: setting, value: current.colorblind }
   }
 }
