@@ -20,6 +20,7 @@ import { useT } from "../i18n"
 import { RenderProfiler } from "../lib/render-profiler"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useWelcomeDialog } from "../onboarding/host"
+import { useSpinnerFrame } from "../panes/sidebar/row-cards"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
@@ -32,6 +33,7 @@ import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
+import { runningPaneBorder, runningPaneTitle } from "./running-pane-chrome"
 import { selfRefreshAction } from "./self-refresh-action"
 import { ShowWorkspace } from "./show-workspace"
 import { useSidebarResizeGesture } from "./sidebar-resize-gesture"
@@ -109,6 +111,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     notifyError,
   })
   const worktree = selectedTask?.worktreePath || null
+  const selectedRunning = selectedId !== null && engineState?.get(selectedId)?.state === "running"
+  const breath = useSpinnerFrame(selectedRunning)
 
   const { sortMode, toggleSortMode, moveMode, setMoveMode, onLocalMergeRequest } = useSidebarHostState({
     kv,
@@ -366,7 +370,18 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           flexGrow={1}
           flexShrink={1}
           borderStyle="rounded"
-          borderColor={focus.focused === "workspace" ? theme.focusAccent : inactiveBorder}
+          borderColor={
+            selectedRunning
+              ? runningPaneBorder(theme.focusAccent, inactiveBorder, focus.focused === "workspace", breath)
+              : focus.focused === "workspace"
+                ? theme.focusAccent
+                : inactiveBorder
+          }
+          title={
+            selectedRunning && selectedTask
+              ? runningPaneTitle(selectedTask.title, t("workspace.inbox.state.running"))
+              : undefined
+          }
           onMouseUp={() => focus.setFocused("workspace")}
         >
           {/* The rail swaps THIS pane, not the whole window — the task list on

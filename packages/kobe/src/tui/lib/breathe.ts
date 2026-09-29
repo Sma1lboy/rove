@@ -36,12 +36,60 @@ export function breathGlyph(frames: readonly string[], tick: number): string {
   return frames[index] ?? frames[0] ?? ""
 }
 
-/** `accent` faded toward `muted` by the breath; palette/default inks pass through unmixed. */
-export function breathColor(accent: RGBA, muted: RGBA, tick: number): RGBA {
+/** `share` of `accent` over `muted`; palette/default inks pass through unmixed. */
+export function mixInk(accent: RGBA, muted: RGBA, share: number): RGBA {
   if (accent.intent !== "rgb" || muted.intent !== "rgb") return accent
-  const share = INK_FLOOR + (1 - INK_FLOOR) * breathLevel(tick)
   const [ar, ag, ab, aa] = accent.toInts()
   const [mr, mg, mb] = muted.toInts()
   const mix = (a: number, m: number) => Math.round(m + (a - m) * share)
   return RGBA.fromInts(mix(ar, mr), mix(ag, mg), mix(ab, mb), aa)
+}
+
+/** `accent` faded toward `muted` by the breath. */
+export function breathColor(accent: RGBA, muted: RGBA, tick: number): RGBA {
+  return mixInk(accent, muted, INK_FLOOR + (1 - INK_FLOOR) * breathLevel(tick))
+}
+
+type Oklch = { l: number; c: number; h: number }
+
+const toLinear = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+const toGamma = (v: number) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055)
+
+function toOklch(color: RGBA): Oklch {
+  const [r, g, b] = color.toInts().map((v) => toLinear(v / 255))
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s
+  const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
+  const B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+  return { l: L, c: Math.hypot(A, B), h: Math.atan2(B, A) }
+}
+
+function fromOklch({ l: L, c, h }: Oklch, alpha: number): RGBA {
+  const A = c * Math.cos(h)
+  const B = c * Math.sin(h)
+  const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3
+  const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3
+  const s = (L - 0.0894841775 * A - 1.291485548 * B) ** 3
+  const ch = (v: number) => Math.round(Math.min(1, Math.max(0, toGamma(v))) * 255)
+  return RGBA.fromInts(
+    ch(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    ch(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    ch(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+    alpha,
+  )
+}
+
+/**
+ * Two-hue breath: the peak is `accent`, the exhale turns its hue by
+ * `swingDeg` (and dims slightly), so the colour pairing is derived from the
+ * theme instead of hard-coded — orange pairs with rose, blue with violet.
+ */
+export function hueBreathColor(accent: RGBA, tick: number, swingDeg: number): RGBA {
+  if (accent.intent !== "rgb") return accent
+  const base = toOklch(accent)
+  const away = 1 - breathLevel(tick)
+  const color = { l: base.l * (1 - 0.18 * away), c: base.c, h: base.h + (swingDeg * Math.PI * away) / 180 }
+  return fromOklch(color, accent.toInts()[3])
 }
