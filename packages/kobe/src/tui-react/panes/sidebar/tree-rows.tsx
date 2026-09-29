@@ -22,19 +22,13 @@ import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
-import {
-  ATTENTION_GLYPH,
-  IN_PROGRESS_SPINNER,
-  NO_STATE_GLYPH,
-  buildSidebarRowView,
-  isAttentionActivity,
-  withSpinnerFrame,
-} from "../../../tui/panes/sidebar/row-view"
+import { buildSidebarRowView, isAttentionActivity, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
 import { rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { useGlyphs } from "../../lib/use-glyphs"
 import {
   ChangeStats,
   UNKNOWN_CHANGES_MARK,
@@ -83,10 +77,11 @@ export function WorktreeTreeRow(props: {
 }) {
   const { theme } = useTheme()
   const t = useT()
+  const glyphs = useGlyphs()
   const shared = props.shared
   const task = props.task
   const changes = useChanges(shared, task)
-  const chip = prChip(task)
+  const chip = prChip(task, glyphs)
   // Named by BRANCH (`worktreeRowLabel`). Main checkouts and directory/scratch
   // tasks store none and move freely, so they poll their own HEAD.
   const livePath = rowLiveBranchPath(task)
@@ -131,7 +126,7 @@ export function WorktreeTreeRow(props: {
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
       {spinning ? (
         <text fg={breathColor(theme.primary, theme.textMuted, frame)} wrapMode="none" width={2} flexShrink={0}>
-          {`${breathGlyph(IN_PROGRESS_SPINNER, frame)} `}
+          {`${breathGlyph(glyphs.spinner, frame)} `}
         </text>
       ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
@@ -192,6 +187,7 @@ export function useTabRowBaseView(args: {
   readonly completionSeen: boolean
 }): ReturnType<typeof buildSidebarRowView> {
   const t = useT()
+  const glyphs = useGlyphs()
   const { task, activity, lifecycle, job, completionSeen } = args
   return useMemo(() => {
     // Rebuild on language change: buildSidebarRowView reads the global `t`.
@@ -205,8 +201,9 @@ export function useTabRowBaseView(args: {
       subtitleBudget: 0,
       truncateBranch: truncateBranchLabel,
       completionSeen,
+      glyphs,
     })
-  }, [task, activity, lifecycle, job, completionSeen, t])
+  }, [task, activity, lifecycle, job, completionSeen, t, glyphs])
 }
 
 /**
@@ -223,6 +220,7 @@ export function useTabStateCell(args: {
   readonly viewing: boolean
 }) {
   const { theme } = useTheme()
+  const glyphs = useGlyphs()
   const { task, tab, viewing } = args
   // Only an AGENT tab with daemon-reported activity wears a live state glyph.
   const isAgent = tab.engine === true
@@ -255,8 +253,8 @@ export function useTabStateCell(args: {
   // command, first prompt and all. It must not read `○` ("nothing to do");
   // it takes the dead-engine `!`.
   const restored = tab.restored === true
-  // No daemon signal rests at the same `○` as known-idle. See NO_STATE_GLYPH.
-  const glyph = restored ? ATTENTION_GLYPH : isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
+  // No daemon signal rests at the same `○` as known-idle.
+  const glyph = restored ? glyphs.attention : isAgent && carriesState ? rowView.stateGlyph : glyphs.idle
   // Gated on `carriesState`, or a sibling would flash for another tab's turn.
   const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
   const fg = pulsing

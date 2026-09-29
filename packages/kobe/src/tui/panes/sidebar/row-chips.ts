@@ -14,16 +14,17 @@
  * Font, Menlo, Monaco): U+2260, U+2713, U+2717 are one cell in all of them.
  */
 
+import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
 import type { Task } from "@/types/task"
 import type { SidebarTone } from "./row-view.ts"
 
-export function prChip(task: Task): { glyph: string; tone: SidebarTone } | null {
+export function prChip(task: Task, glyphs: GlyphSet = DEFAULT_GLYPHS): { glyph: string; tone: SidebarTone } | null {
   const pr = task.prStatus
   if (!pr) return null
   const stale = pr.lastError !== undefined
   if ((pr.mergeable ?? "").toUpperCase() === "CONFLICTING")
-    return { glyph: "\u2260", tone: stale ? "textMuted" : "error" }
-  if (pr.checkState === "failing") return { glyph: "✗", tone: stale ? "textMuted" : "error" }
-  if (pr.checkState === "passing") return { glyph: "✓", tone: stale ? "textMuted" : "success" }
+    return { glyph: glyphs.conflict, tone: stale ? "textMuted" : "error" }
+  if (pr.checkState === "failing") return { glyph: glyphs.checksFailing, tone: stale ? "textMuted" : "error" }
+  if (pr.checkState === "passing") return { glyph: glyphs.checksPassing, tone: stale ? "textMuted" : "success" }
   return null
 }

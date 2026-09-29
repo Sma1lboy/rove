@@ -1,8 +1,8 @@
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { TaskActivityState } from "@/engine/hook-events"
-import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import { t } from "@/tui/i18n"
 import { breathGlyph } from "@/tui/lib/breathe"
+import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
 import type { Task } from "@/types/task"
 import { isBuiltinVendor } from "@/types/vendor"
 import { repoBasename } from "./groups"
@@ -32,9 +32,6 @@ function activityToneFor(state: TaskActivityState | undefined): SidebarTone | nu
   return state === "rate_limited" || state === "permission_needed" ? "warning" : "error"
 }
 
-/** Alias of the default frames for existing consumers/tests. */
-export const IN_PROGRESS_SPINNER: readonly string[] = DEFAULT_SPINNER_FRAMES
-
 export const SPINNER_FRAME_MS = 80
 
 /** Shared tick cycle: a multiple of `BREATH_TICKS`, so the breath wraps without a jump. */
@@ -44,7 +41,8 @@ export const SPINNER_TICK_CYCLE = 600
 export const DONE_PULSE_MS = 600
 
 /**
- * The rail's states; `?` and `!` ask the reader to act:
+ * The rail's states (braille glyphs; the preset is `GlyphSet`); `?` and `!`
+ * ask the reader to act:
  *
  *   spinner  working
  *   `?`      blocked on your answer (permission prompt or question dialog),
@@ -56,10 +54,6 @@ export const DONE_PULSE_MS = 600
  * `!` and `○` are one cell in every monospace font; `◌` (U+25CC, oversized
  * fallback) and `✕` (U+2715, dingbat block) are not.
  */
-export const NO_STATE_GLYPH = "○"
-export const ATTENTION_GLYPH = "!"
-export const AWAITING_INPUT_GLYPH = "?"
-
 const ATTENTION_STATES: ReadonlySet<TaskActivityState | undefined> = new Set([
   "rate_limited",
   "permission_needed",
@@ -169,13 +163,16 @@ export function buildSidebarRowView(opts: {
    * drops back to quiet. Callers track it; absent means unseen.
    */
   readonly completionSeen?: boolean
+  /** The glyph preset; braille when absent. */
+  readonly glyphs?: GlyphSet
 }): SidebarRowView {
   const { task } = opts
   const isMain = task.kind === "main"
   const branch = isMain ? (opts.mainBranch ?? "") : task.branch
   const activityState = opts.activity?.state
   const hasActivity = activityState !== undefined
-  const activityBadge = activityBadgeFor(activityState, opts.completionSeen === true)
+  const glyphs = opts.glyphs ?? DEFAULT_GLYPHS
+  const activityBadge = activityBadgeFor(activityState, opts.completionSeen === true, glyphs)
   const activityTone = activityToneFor(activityState)
   // No activity for a custom engine means untracked, not idle: a spinner
   // would lie. Hook-driven states are engine-agnostic, so any that fired
@@ -191,8 +188,7 @@ export function buildSidebarRowView(opts: {
     activity: opts.activity,
     job: opts.job,
   })
-  // Frames must not reuse a badge glyph (`●`, `○`), or a running row reads as finished.
-  const spinnerFrames = DEFAULT_SPINNER_FRAMES
+  const spinnerFrames = glyphs.spinner
   const spinner = breathGlyph(spinnerFrames, opts.spinnerFrame)
   const tone = deleteFailed
     ? "error"
@@ -209,7 +205,7 @@ export function buildSidebarRowView(opts: {
   // arrived can't caption a quiet row. No compaction word: its end event is
   // cancellable (esc during /compact), so it has no reliable clearing edge.
   const subagents = loading ? (opts.lifecycle?.subagents ?? 0) : 0
-  const branchWithMarks = subagents > 0 && branch.length > 0 ? `◇${subagents} ${branch}` : branch
+  const branchWithMarks = subagents > 0 && branch.length > 0 ? `${glyphs.subagent}${subagents} ${branch}` : branch
   const subtitleText =
     deleting || deleteFailed
       ? opts.truncateBranch(deletionSubtitle(deleteFailed), opts.subtitleBudget)
@@ -219,7 +215,7 @@ export function buildSidebarRowView(opts: {
           ? opts.truncateBranch(branchWithMarks, opts.subtitleBudget)
           : opts.truncateBranch(fallbackSubtitle, opts.subtitleBudget)
   // The client drops `idle` entries, so absence means quiet.
-  const restGlyph = deleteFailed ? ATTENTION_GLYPH : (activityBadge?.glyph ?? NO_STATE_GLYPH)
+  const restGlyph = deleteFailed ? glyphs.attention : (activityBadge?.glyph ?? glyphs.idle)
   return {
     isMain,
     titleText: isMain ? repoBasename(task.repo) : task.title,
@@ -254,10 +250,11 @@ export function withSpinnerFrame(view: SidebarRowView, frame: () => number): Sid
 function activityBadgeFor(
   state: TaskActivityState | undefined,
   completionSeen: boolean,
+  glyphs: GlyphSet,
 ): { glyph: string; tone: SidebarTone } | null {
   const attention = activityToneFor(state)
   if (attention !== null)
-    return { glyph: state === "permission_needed" ? AWAITING_INPUT_GLYPH : ATTENTION_GLYPH, tone: attention }
-  if (state === "turn_complete" && !completionSeen) return { glyph: "●", tone: "primary" }
+    return { glyph: state === "permission_needed" ? glyphs.needsInput : glyphs.attention, tone: attention }
+  if (state === "turn_complete" && !completionSeen) return { glyph: glyphs.unseen, tone: "primary" }
   return null
 }

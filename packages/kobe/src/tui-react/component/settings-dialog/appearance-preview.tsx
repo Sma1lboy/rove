@@ -2,6 +2,7 @@
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import type { AppearanceSetting, AppearanceSnapshot } from "../../../tui/component/settings-dialog/appearance"
+import { GLYPH_SETS } from "../../../tui/lib/glyphs"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { COLLAPSED_RAIL_WIDTH } from "../../panes/sidebar/collapsed-rail"
@@ -13,10 +14,11 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
   const narrow = useTerminalDimensions().width < 75
   const short = useTerminalDimensions().height < 30
   const fold = current.railFoldStyle
+  const { unseen, done, idle } = GLYPH_SETS[current.glyphSet]
   const folded = [
-    { id: "ui", label: { glyphs: "▌●", initials: "▌● UI", hairline: "█" }[fold] },
-    { id: "api", label: { glyphs: " ✓", initials: " ✓ API", hairline: "▎" }[fold] },
-    { id: "review", label: { glyphs: " ○", initials: " ○ QA", hairline: "▎" }[fold] },
+    { id: "ui", label: { glyphs: `▌${unseen}`, initials: `▌${unseen} UI`, hairline: "█" }[fold] },
+    { id: "api", label: { glyphs: ` ${done}`, initials: ` ${done} API`, hairline: "▎" }[fold] },
+    { id: "review", label: { glyphs: ` ${idle}`, initials: ` ${idle} QA`, hairline: "▎" }[fold] },
   ]
   const box = current.splitStyle === "box"
   const railActive = props.active === "tabRowHeight"
@@ -72,7 +74,7 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
               demo / workspace
             </text>
             <text fg={theme.focusAccent} attributes={TextAttributes.BOLD} wrapMode="none">
-              ▌ UI polish ●
+              ▌ UI polish {unseen}
             </text>
             {current.tabRowHeight === 2 && (
               <text fg={theme.textMuted} wrapMode="none">
@@ -82,7 +84,7 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
             )}
             <text fg={theme.text} wrapMode="none">
               {" "}
-              API tests ✓
+              API tests {done}
             </text>
             {current.tabRowHeight === 2 && (
               <text fg={theme.textMuted} wrapMode="none">
@@ -93,7 +95,7 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
             {!short && (
               <text fg={theme.textMuted} wrapMode="none">
                 {" "}
-                Review ○
+                Review {idle}
               </text>
             )}
           </box>

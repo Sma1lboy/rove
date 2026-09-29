@@ -21,6 +21,7 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
     railFoldStyle: prefs.railFoldStyle(),
     tabRowHeight: prefs.tabRowHeight(),
     workingBorder: prefs.workingBorder(),
+    glyphSet: prefs.glyphSet(),
   }
   function commit(choice: AppearanceChoice): void {
     switch (choice.kind) {
@@ -50,6 +51,9 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
         break
       case "workingBorder":
         prefs.selectWorkingBorder(choice.value)
+        break
+      case "glyphSet":
+        prefs.selectGlyphSet(choice.value)
         break
     }
   }
