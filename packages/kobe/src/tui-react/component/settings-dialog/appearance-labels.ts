@@ -31,5 +31,7 @@ export function appearanceChoiceLabel(choice: AppearanceChoice, t: ReturnType<ty
       return t(choice.value === 1 ? "settings.appearance.singleRow" : "settings.appearance.doubleRow")
     case "workingBorder":
       return t(choice.value === "flow" ? "settings.appearance.borderFlow" : "settings.appearance.borderStill")
+    case "runningTitle":
+      return t(choice.value === "shimmer" ? "settings.appearance.titleShimmer" : "settings.appearance.titleStill")
   }
 }

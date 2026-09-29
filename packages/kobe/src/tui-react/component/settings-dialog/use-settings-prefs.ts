@@ -8,6 +8,12 @@ import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
+import {
+  DEFAULT_RUNNING_TITLE,
+  RUNNING_TITLE_KEY,
+  type RunningTitle,
+  normalizeRunningTitle,
+} from "../../../state/running-title"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
 import { RAIL_FOLD_STYLE_KEY } from "../../../state/sidebar-collapsed.ts"
 import {
@@ -177,6 +183,12 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function selectWorkingBorder(style: WorkingBorder): void {
     kv.set(WORKING_BORDER_KEY, style)
   }
+  function runningTitle(): RunningTitle {
+    return normalizeRunningTitle(kv.get(RUNNING_TITLE_KEY, DEFAULT_RUNNING_TITLE))
+  }
+  function selectRunningTitle(style: RunningTitle): void {
+    kv.set(RUNNING_TITLE_KEY, style)
+  }
   // Editor preference: which editor the file tree's `e` key launches.
   function editorKind(): EditorKind {
     return normalizeEditorKind(kv.get(EDITOR_KIND_KEY, DEFAULT_EDITOR_KIND))
@@ -325,6 +337,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     selectTabRowHeight,
     workingBorder,
     selectWorkingBorder,
+    runningTitle,
+    selectRunningTitle,
     remoteProjectsEnabled,
     toggleRemoteProjects,
     autoStatusOn,
