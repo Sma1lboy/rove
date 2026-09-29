@@ -107,15 +107,18 @@ async function withEngineSettings(
   const [api, kv] = await ready
   await run(api)
   await settle()
+  // The kv write is debounced and resolves its path from KOBE_HOME_DIR when it
+  // fires; flush now so no late write lands in whatever home runs next.
+  kv.flush()
   handle.destroy()
   return (key: string) => kv.get(key, undefined)
 }
 
-// Each run points KOBE_HOME_DIR at a fresh dir; a leaked value would send the
-// next file's state.json writes somewhere its readers never look.
+// Each run points KOBE_HOME_DIR at a fresh dir; restore it so the next file's
+// state.json lives where its readers look.
 const originalHome = process.env.KOBE_HOME_DIR
 afterEach(() => {
-  if (originalHome === undefined) delete process.env.KOBE_HOME_DIR
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
   else process.env.KOBE_HOME_DIR = originalHome
 })
 
