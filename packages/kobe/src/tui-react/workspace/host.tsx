@@ -33,7 +33,7 @@ import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
-import { runningPaneFlow, runningPaneRest, runningPaneTitle } from "./running-pane-chrome"
+import { runningPaneFlow, runningPaneTitle } from "./running-pane-chrome"
 import { selfRefreshAction } from "./self-refresh-action"
 import { ShowWorkspace } from "./show-workspace"
 import { useSidebarResizeGesture } from "./sidebar-resize-gesture"
@@ -370,13 +370,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           flexGrow={1}
           flexShrink={1}
           borderStyle="rounded"
-          borderColor={
-            selectedRunning
-              ? runningPaneRest(theme.focusAccent, inactiveBorder, focus.focused === "workspace")
-              : focus.focused === "workspace"
-                ? theme.focusAccent
-                : inactiveBorder
-          }
+          borderColor={focus.focused === "workspace" ? theme.focusAccent : inactiveBorder}
           renderAfter={
             selectedRunning
               ? runningPaneFlow(theme.focusAccent, inactiveBorder, focus.focused === "workspace", breath)

@@ -1,21 +1,19 @@
 /**
- * A light that travels around a box border: comets run clockwise, the head in
- * the accent, the tail turning hue toward a partner colour as it fades into
- * the resting border. Pure — the caller paints the returned inks per cell.
+ * A colour gradient that flows around a box border: every border cell takes
+ * its ink from a looping accent → partner → accent ramp, and the ramp slides
+ * clockwise with the shared tick. Pure — the caller paints the inks per cell.
  */
 
 import type { RGBA } from "@opentui/core"
-import { mixInk, turnHue } from "./breathe"
+import { turnHue } from "./breathe"
 
-/** Head advance per shared spinner tick (80ms): ~31 cells/s. */
+/** Ramp advance per shared spinner tick (80ms): ~31 cells/s. */
 export const FLOW_CELLS_PER_TICK = 2.5
-/** Comets spaced evenly around the loop, so a long border never goes dark for long. */
-const COMETS = 2
-const MAX_TAIL = 36
-/** Tail end's hue turn: orange heads trail through rose into violet. */
-const TAIL_HUE_DEG = -90
-const LEVELS = 24
-const HEAD_LIFT = 0.3
+/** Times the ramp repeats per lap, so a long border shows every colour at once. */
+const WAVES = 2
+/** Partner hue: orange accents flow through rose into violet. */
+const PARTNER_HUE_DEG = -90
+const LEVELS = 48
 
 /** Offsets of a `width`×`height` box's border cells, clockwise from the top-left corner. */
 export function perimeter(width: number, height: number): ReadonlyArray<readonly [number, number]> {
@@ -28,32 +26,22 @@ export function perimeter(width: number, height: number): ReadonlyArray<readonly
   return cells
 }
 
-/** 1 at a comet's head, falling off quadratically along its tail, 0 elsewhere. */
-export function flowIntensity(index: number, loop: number, tick: number): number {
+/** Where border cell `index` sits on the ramp at `tick`, in [0, 1). */
+export function flowPhase(index: number, loop: number, tick: number): number {
   if (loop === 0) return 0
-  const tail = Math.min(MAX_TAIL, Math.floor(loop / (COMETS * 1.5)))
-  const spacing = loop / COMETS
-  const head = (tick * FLOW_CELLS_PER_TICK) % loop
-  let best = 0
-  for (let c = 0; c < COMETS; c++) {
-    const behind = (head + c * spacing - index + 2 * loop) % loop
-    if (behind < tail) best = Math.max(best, (1 - behind / tail) ** 2)
-  }
-  return best
+  const phase = ((index - tick * FLOW_CELLS_PER_TICK) * WAVES) / loop
+  return ((phase % 1) + 1) % 1
 }
 
-/**
- * Inks by intensity step: 0 is the resting border, the last step the head.
- * Cached per colour set — the palette is fixed while the theme is.
- */
-export function flowPalette(accent: RGBA, resting: RGBA): readonly RGBA[] {
-  const key = `${accent.toInts().join()}|${resting.toInts().join()}`
+/** The ramp, sampled; cached per accent since it only changes with the theme. */
+export function flowPalette(accent: RGBA): readonly RGBA[] {
+  const key = accent.toInts().join()
   const hit = paletteCache.get(key)
   if (hit) return hit
-  const steps = Array.from({ length: LEVELS + 1 }, (_, i) => {
-    const k = i / LEVELS
-    // The head outshines the accent; the tail keeps its colour longer than its light.
-    return mixInk(turnHue(accent, TAIL_HUE_DEG * (1 - k), 0.95 + HEAD_LIFT * k), resting, k ** 0.6)
+  const steps = Array.from({ length: LEVELS }, (_, i) => {
+    // 0 at the accent, 1 at the partner, back to 0: a seamless loop.
+    const away = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / LEVELS)
+    return turnHue(accent, PARTNER_HUE_DEG * away, 1.12 - 0.17 * away)
   })
   paletteCache.set(key, steps)
   return steps
@@ -61,7 +49,6 @@ export function flowPalette(accent: RGBA, resting: RGBA): readonly RGBA[] {
 
 const paletteCache = new Map<string, readonly RGBA[]>()
 
-export function flowInk(palette: readonly RGBA[], intensity: number): RGBA | undefined {
-  if (intensity <= 0) return undefined
-  return palette[Math.round(intensity * LEVELS)]
+export function flowInk(palette: readonly RGBA[], phase: number): RGBA | undefined {
+  return palette[Math.round(phase * palette.length) % palette.length]
 }
