@@ -253,6 +253,9 @@ export class AutomationsStore {
       assertAutomationTargetOptions(targetOptions)
       const nowMs = this.now()
       const schedule = patch.schedule ?? current.schedule
+      // A paused routine's nextRunAt froze when it was paused (the sweep skips
+      // disabled ones); left as is, resuming reads the pause as missed runs.
+      const reanchor = patch.schedule !== undefined || (patch.enabled === true && !current.enabled)
       const next: Automation = {
         ...current,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
@@ -268,7 +271,7 @@ export class AutomationsStore {
             ? { precheck: patch.precheck }
             : {}),
         // Re-anchor, else a stale nextRunAt fires on the replaced rule.
-        ...(patch.schedule !== undefined ? { nextRunAt: new Date(nextCronAfter(schedule, nowMs)).toISOString() } : {}),
+        ...(reanchor ? { nextRunAt: new Date(nextCronAfter(schedule, nowMs)).toISOString() } : {}),
         updatedAt: new Date(nowMs).toISOString(),
       }
       this.automations = this.automations.map((a, i) => (i === index ? next : a))

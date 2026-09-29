@@ -361,6 +361,10 @@ back at 09:20 with a 60-minute grace → it runs. Back at 14:00 → `skipped_mis
 Only the **most recent** missed occurrence is ever considered. Three days
 offline produces one run, not three: a stampede at boot is worse than a gap.
 
+A pause is not downtime. Resuming a paused routine arms it for its next
+occurrence after the resume; the occurrences that fell inside the pause neither
+run nor record `skipped_missed`.
+
 ## The daemon stays awake for you
 
 Rove's daemon normally stops a few seconds after the last GUI detaches. **An

@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { runAutomationOnce, sweepAutomations } from "../../../kobe-daemon/src/daemon/automation-runner.ts"
-import { NOW, REPO, automation, fakeDeps, tempStore } from "./automation-runner-fixtures.ts"
+import { HOUR, NOW, REPO, automation, fakeDeps, tempStore } from "./automation-runner-fixtures.ts"
 
 /**
  * A schedule is the only thing in Rove that acts with nobody watching, so the
@@ -115,5 +115,23 @@ describe("occurrences the sweep never reached", () => {
     const { deps } = fakeDeps({ store })
     await sweepAutomations(deps as never)
     expect(store.runsFor(created.id).map((run) => run.status)).toEqual(["dispatched"])
+  })
+})
+
+describe("a routine resumed after a pause", () => {
+  it("waits for its next occurrence instead of reporting the pause as missed runs", async () => {
+    // Daily 09:00, paused Monday 10:00, resumed Friday 09:30, swept at 10:00:
+    // Tue–Fri 09:00 were never due, so nothing fires and nothing is "missed".
+    let clock = NOW - 4 * 24 * HOUR
+    const store = await tempStore(() => clock)
+    const created = await store.create(automation())
+    await store.update(created.id, { enabled: false })
+    clock = NOW - HOUR / 2
+    await store.update(created.id, { enabled: true })
+
+    const { deps, prompts } = fakeDeps({ store })
+    await sweepAutomations(deps as never)
+    expect(store.runsFor(created.id)).toEqual([])
+    expect(prompts).toEqual([])
   })
 })
