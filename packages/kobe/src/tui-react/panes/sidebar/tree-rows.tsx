@@ -20,10 +20,9 @@ import { charWidth, displayWidth } from "../../../lib/display-width"
 import { relativeAge } from "../../../lib/relative-time"
 import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
 import { TAB_ROW_HEIGHT_KEY, normalizeTabRowHeight } from "../../../state/tab-row-height"
-import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
-import { SHIMMER_CREST, shimmerInk, shimmerIntensity } from "../../../tui/lib/shimmer"
 import { breathColor, breathGlyph, mixInk } from "../../../tui/lib/breathe"
 import { effortMark } from "../../../tui/lib/effort-glyph"
+import { SHIMMER_CREST, shimmerInk, shimmerIntensity } from "../../../tui/lib/shimmer"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
@@ -33,8 +32,8 @@ import { rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { useTaskColor } from "../../lib/use-task-color"
 import { useGlyphs } from "../../lib/use-glyphs"
+import { useTaskColor } from "../../lib/use-task-color"
 import {
   ChangeStats,
   UNKNOWN_CHANGES_MARK,

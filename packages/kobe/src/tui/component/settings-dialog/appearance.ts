@@ -1,7 +1,6 @@
-import { GLYPH_SET_NAMES, type GlyphSetName } from "../../../state/glyph-set"
 import { COLORBLIND_MODES, type ColorblindMode } from "../../../state/colorblind"
+import { GLYPH_SET_NAMES, type GlyphSetName } from "../../../state/glyph-set"
 import { RUNNING_TITLES, type RunningTitle } from "../../../state/running-title"
-import type { SplitStyle } from "../../../state/split-style"
 import { SPLIT_STYLES, type SplitStyle } from "../../../state/split-style"
 import type { TabRowHeight } from "../../../state/tab-row-height"
 import { TASK_COLORS, type TaskColors } from "../../../state/task-colors"
