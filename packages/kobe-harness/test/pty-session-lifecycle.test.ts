@@ -1,112 +1,11 @@
-import { EventEmitter } from "node:events"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { createCast } from "../pty-cast.mjs"
 import { createScrollback } from "../pty-scrollback.mjs"
 import {
   createPtySessionManager,
   shouldPausePty,
   shouldResumePty,
 } from "../pty-session-lifecycle.mjs"
-
-class FakePty {
-  data: ((data: string) => void) | null = null
-  exit: (() => void) | null = null
-  writes: string[] = []
-  resizes: Array<{ cols: number; rows: number }> = []
-  killed = false
-  paused = false
-  pauseCount = 0
-  resumeCount = 0
-
-  onData(cb: (data: string) => void): void {
-    this.data = cb
-  }
-
-  onExit(cb: () => void): void {
-    this.exit = cb
-  }
-
-  write(data: string): void {
-    this.writes.push(data)
-  }
-
-  resize(cols: number, rows: number): void {
-    this.resizes.push({ cols, rows })
-  }
-
-  pause(): void {
-    this.paused = true
-    this.pauseCount += 1
-  }
-
-  resume(): void {
-    this.paused = false
-    this.resumeCount += 1
-  }
-
-  kill(): void {
-    this.killed = true
-  }
-
-  emitData(data: string): void {
-    this.data?.(data)
-  }
-
-  emitExit(): void {
-    this.exit?.()
-  }
-}
-
-class FakeSocket extends EventEmitter {
-  OPEN = 1
-  readyState = this.OPEN
-  bufferedAmount = 0
-  sent: string[] = []
-  closes: Array<{ code?: number; reason?: string }> = []
-
-  send(data: string): void {
-    this.sent.push(data)
-  }
-
-  close(code?: number, reason?: string): void {
-    this.closes.push({ code, reason })
-    this.readyState = 3
-    this.emit("close")
-  }
-
-  message(data: string): void {
-    this.emit("message", Buffer.from(data))
-  }
-}
-
-function deferred<T>() {
-  let resolve!: (value: T) => void
-  const promise = new Promise<T>((r) => {
-    resolve = r
-  })
-  return { promise, resolve }
-}
-
-function setup(over: Partial<Parameters<typeof createPtySessionManager>[0]> = {}) {
-  const ptys: FakePty[] = []
-  const fetchCalls: Array<{ taskId: string; mode: string }> = []
-  const manager = createPtySessionManager({
-    fetchSpec: async (taskId, mode) => {
-      fetchCalls.push({ taskId, mode })
-      return { cwd: `/repo/${taskId}`, command: ["engine", "--mode", mode] }
-    },
-    spawnPty: () => {
-      const pty = new FakePty()
-      ptys.push(pty)
-      return pty
-    },
-    createScrollback,
-    scrollbackCap: 1024,
-    env: {},
-    ...over,
-  })
-  return { manager, ptys, fetchCalls }
-}
+import { deferred, FakePty, FakeSocket, setup } from "./pty-fakes.ts"
 
 describe("createPtySessionManager", () => {
   beforeEach(() => {
@@ -439,49 +338,6 @@ describe("createPtySessionManager", () => {
     vi.advanceTimersByTime(10)
     expect(ptys[0].paused).toBe(false)
     expect(ptys[0].resumeCount).toBe(1)
-  })
-
-  it("records one cast per tab across a respawn and hands it over once", async () => {
-    let clock = 0
-    const { manager, ptys } = setup({
-      createCast: ({ cols, rows }) => createCast({ cols, rows, now: () => clock }),
-    })
-    const attach = (ws: FakeSocket) =>
-      manager.attachSocket({ ws, tabId: "tab", taskId: "task", mode: "shell", cols: 80, rows: 24 })
-
-    const first = new FakeSocket()
-    await attach(first)
-    clock = 500
-    ptys[0].emitData("hello")
-    first.message(JSON.stringify({ type: "resize", cols: 100, rows: 30 }))
-    clock = 1_250
-    expect(manager.markCast("tab", "beat")).toBe(true)
-    ptys[0].emitExit()
-
-    // The TUI quit and the page reattached: same tab, fresh process.
-    await attach(new FakeSocket())
-    clock = 2_000
-    ptys[1].emitData("again")
-
-    const [header, ...events] = (manager.takeCast("tab") ?? "").trim().split("\n").map((l) => JSON.parse(l))
-    expect(header).toEqual({ version: 2, width: 80, height: 24 })
-    expect(events).toEqual([
-      [0.5, "o", "hello"],
-      [0.5, "r", "100x30"],
-      [1.25, "m", "beat"],
-      [1.25, "o", "\x1bc"],
-      [1.25, "r", "80x24"],
-      [2, "o", "again"],
-    ])
-    expect(manager.takeCast("tab")).toBeNull()
-  })
-
-  it("records nothing without a cast factory", async () => {
-    const { manager, ptys } = setup()
-    await manager.attachSocket({ ws: new FakeSocket(), tabId: "tab", taskId: "task", mode: "shell", cols: 80, rows: 24 })
-    ptys[0].emitData("hello")
-    expect(manager.markCast("tab", "beat")).toBe(false)
-    expect(manager.takeCast("tab")).toBeNull()
   })
 })
 
