@@ -41,6 +41,8 @@ const child = Bun.spawn(["bun", "run", "dev.ts"], {
     // npm, and the sidebar would film an "↑ <next version>" badge. A fake
     // latest BELOW any real version reads as "no update" (see `version.ts`).
     KOBE_FAKE_UPDATE: "0.0.0",
+    // Every tab is recorded as an asciicast; `e2e/film.ts take` reads it back.
+    KOBE_PTY_CAST: "1",
     // Git Bash's login profile cd's to $HOME unless told the caller chose the cwd.
     ...(process.platform === "win32" ? { KOBE_PTY_DEV_SHELL: "C:/Program Files/Git/bin/sh.exe", CHERE_INVOKING: "1" } : {}),
   },

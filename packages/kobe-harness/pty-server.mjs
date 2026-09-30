@@ -12,6 +12,10 @@
  *   ws  /pty?tab=<id>&taskId=<id>&mode=engine|shell&cols=<n>&rows=<n>
  *   POST /pty/close   { tab }                          kill the tab process
  *   POST /pty/send    { tab, taskId, text }            paste text + Enter into the tab's engine
+ *
+ * With KOBE_PTY_CAST=1 (film capture) every tab is also recorded:
+ *   POST /pty/mark    { tab, label }                   storyboard marker into the recording
+ *   GET  /pty/cast?tab=<id>                            the recording (asciicast v2), then dropped
  */
 
 import { createServer } from "node:http"
@@ -24,6 +28,7 @@ import { createScrollback } from "./pty-scrollback.mjs"
 import { watchParent } from "./pty-parent-watch.mjs"
 import { createPtySessionManager } from "./pty-session-lifecycle.mjs"
 import { createSpecFetcher } from "./pty-spec.mjs"
+import { createCast } from "./pty-cast.mjs"
 
 const PORT = Number.parseInt(process.env.KOBE_PTY_PORT ?? "5175", 10)
 const SCROLLBACK_CAP = 256 * 1024 // bytes of recent output replayed on (re)attach
@@ -40,6 +45,7 @@ const ptySessions = createPtySessionManager({
   createScrollback,
   scrollbackCap: SCROLLBACK_CAP,
   env: ptyEnv,
+  createCast: process.env.KOBE_PTY_CAST === "1" ? createCast : null,
 })
 
 /**
@@ -121,6 +127,44 @@ const server = createServer((req, res) => {
       }
       respond(200, { sent: true, spawned: result.spawned })
     })
+    return
+  }
+  if (req.method === "POST" && url.pathname === "/pty/mark") {
+    const denial = ptyRouteDenial(req, url)
+    if (denial) {
+      res.writeHead(denial)
+      res.end()
+      return
+    }
+    let body = ""
+    req.on("data", (c) => {
+      body += c
+    })
+    req.on("end", () => {
+      let tab
+      let label
+      try {
+        ;({ tab, label } = JSON.parse(body || "{}"))
+      } catch {
+        /* ignore */
+      }
+      const ok = typeof tab === "string" && typeof label === "string" && ptySessions.markCast(tab, label)
+      res.writeHead(ok ? 200 : 404, { "content-type": "application/json" })
+      res.end(JSON.stringify({ marked: ok }))
+    })
+    return
+  }
+  if (req.method === "GET" && url.pathname === "/pty/cast") {
+    // The recording is everything the tab displayed — same gate as attaching.
+    const denial = ptyRouteDenial(req, url)
+    if (denial) {
+      res.writeHead(denial)
+      res.end()
+      return
+    }
+    const cast = ptySessions.takeCast(url.searchParams.get("tab") ?? "")
+    res.writeHead(cast === null ? 404 : 200, { "content-type": "application/x-asciicast" })
+    res.end(cast ?? "")
     return
   }
   if (req.method === "POST" && url.pathname === "/pty/close") {

@@ -225,7 +225,8 @@ bun e2e/hero-serve.ts             # warm capture stack on :5323 (keep running)
 bun e2e/hero-stills.ts            # docs/assets/*.png (workspace, kanban, routines…)
 bun e2e/hero-shot.ts --out=/tmp/probe.png ctrl+a l   # one ad-hoc frame
 bun e2e/hero-record.ts            # demo.mp4 + demo.gif (4× cut)
-bun e2e/hero-kanban.ts            # kanban.mp4 + kanban.gif (3× cut)
+bun e2e/film.ts take kanban       # records e2e/films/kanban.cast.gz (no quota)
+bun e2e/film.ts render kanban     # kanban.mp4 + kanban.gif from the cast — no stack needed
 bun e2e/hero-routines.ts          # routines.mp4 + routines.gif (3× cut)
 
 bun e2e/hero-plugins.ts           # link the five SDK examples (BEFORE serve)
@@ -246,6 +247,17 @@ Playwright under bun never gets a Chromium launched.
 the typed-and-verified input helpers, and the encode — so a storyboard file is
 only its beats. `--encode-only` re-encodes the take already on disk.
 
+**Films** (`e2e/film.ts`, one definition per film in `e2e/films/`) split a
+video into a TAKE and a RENDER. The take drives the live TUI like any other
+capture, but records nothing but the PTY's output: `hero-serve.ts` runs the
+sidecar with `KOBE_PTY_CAST=1`, the storyboard drops named cues, and the
+recording lands as a committed asciicast (`<name>.cast.gz`), redacted and
+verified clean (`film/redact.ts`). The render replays that cast into the same
+`/harness` xterm (`?replay`) and screenshots one frame per output time, so
+speed, cut points and encoding change by editing the film's `cut` — re-running
+`render`, never the take. A 64s kanban take replayed at 1× matches a WebM of
+the same take to encoder noise.
+
 - **`HOME` stays the operator's** (as in `dev:sandbox`), alone among the
   isolation knobs: the engine under capture is the real `claude`, and a
   redirected home photographs a login screen. `ROVE_HOME_DIR` and the settings blob still land in
@@ -256,12 +268,12 @@ only its beats. `--encode-only` re-encodes the take already on disk.
 - **Turns are real, so the output is not reproducible** — expect the
   transcript, and so the framing, to differ every run. Seeding is idempotent:
   a re-shoot reuses the sessions it already paid quota for.
-- **The kanban capture is the exception: no engine, fully deterministic.** A
+- **The kanban film is the exception: no engine, fully deterministic.** A
   card reaches In progress by being LINKED to a task or by its own `doing`
   status; the take is about the link, so `hero-issues.ts`
-  seeds the board off the fixture's idle tasks, and `hero-kanban.ts` fires a
+  seeds the board off the fixture's idle tasks, and `films/kanban.ts` fires a
   real `rove api issue-update --task` mid-take to move a card on camera. It
-  files a story and creates a task, so it is NOT idempotent — re-shoot from
+  files a story and creates a task, so it is NOT idempotent — re-take from
   `hero-fixture.ts --fresh && hero-issues.ts`. It also stops short of the
   drawer's Start: a story started into its own worktree boots the engine in a
   directory Claude Code has never seen, and the folder-trust prompt would be

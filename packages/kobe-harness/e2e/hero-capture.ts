@@ -1,7 +1,7 @@
 /**
- * Shared driver for the hero VIDEO captures — the browser/PTY plumbing and
- * the ffmpeg encode that `hero-record.ts` (README demo) and `hero-kanban.ts`
- * (the kanban feature demo) both ride. Stills stay in `hero-shot.ts`.
+ * Shared driver for the hero captures — the browser/PTY plumbing, the input
+ * helpers every storyboard (films included) drives the TUI with, and the
+ * ffmpeg encode `hero-record.ts` rides. Stills stay in `hero-shot.ts`.
  *
  * A storyboard file is then only its beats: what to click, what to type, and
  * how long to hold on each. Everything below is the part that must not drift
@@ -53,6 +53,31 @@ export async function press(page: Page, ...tokens: string[]): Promise<void> {
 export async function click(page: Page, x: number, y: number): Promise<void> {
   await page.getByTestId("opentui-terminal").click({ position: { x, y } })
   await page.waitForTimeout(800)
+}
+
+/** The 12px harness font's cell at DPR 1. */
+const CELL = { width: 7, height: 16 } as const
+
+/**
+ * Click the first on-screen occurrence of `needle` at or right of column
+ * `minCol`, found in the buffer mirror. Rows are never pixel constants: one
+ * sidebar row added above shifts every hard-coded y onto its neighbour, and
+ * the take films the wrong page with nothing failing.
+ */
+export async function clickText(page: Page, needle: string, minCol = 0): Promise<void> {
+  const hit = await page.getByTestId("opentui-buffer").evaluate(
+    (el, [text, min]) => {
+      const lines = (el.textContent ?? "").split("\n")
+      for (const [row, line] of lines.entries()) {
+        const col = line.indexOf(text as string, min as number)
+        if (col >= 0) return { row, col }
+      }
+      return null
+    },
+    [needle, minCol] as const,
+  )
+  if (!hit) throw new Error(`no ${JSON.stringify(needle)} on screen right of column ${minCol}`)
+  await click(page, (hit.col + 1) * CELL.width, hit.row * CELL.height + CELL.height / 2)
 }
 
 /**

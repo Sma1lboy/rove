@@ -80,11 +80,17 @@ export function createPtySessionManager({
   maxSessions = DEFAULT_MAX_SESSIONS,
   detachGraceMs = DEFAULT_DETACH_GRACE_MS,
   backpressure = DEFAULT_BACKPRESSURE,
+  /** Film capture only (`KOBE_PTY_CAST=1`): record each tab as an asciicast. */
+  createCast = null,
 }) {
   /** @type {Map<string, { pty: any, scrollback: ReturnType<createScrollback>, sockets: Set<any> }>} */
   const sessions = new Map()
   /** @type {Map<string, Promise<any>>} */
   const pendingSpawns = new Map()
+  // Keyed by tab and kept past the process's exit: a take that quits and
+  // reattaches the TUI is still one recording, and the cast is read after close.
+  /** @type {Map<string, ReturnType<NonNullable<typeof createCast>>>} */
+  const casts = new Map()
 
   /** Pause the pty once a socket is saturated and poll for drain to resume.
    *  Idempotent: a second saturation while already paused is a no-op. */
@@ -158,6 +164,12 @@ export function createPtySessionManager({
       const path = typeof spawnEnv.PATH === "string" && spawnEnv.PATH ? "set" : "missing"
       throw new Error(`PTY spawn failed (command ${cmd}, cwd ${spec.cwd}, PATH ${path}): ${error instanceof Error ? error.message : String(error)}`)
     }
+    let cast = null
+    if (createCast) {
+      cast = casts.get(tabId) ?? null
+      if (cast) cast.respawn(cols, rows)
+      else casts.set(tabId, (cast = createCast({ cols, rows })))
+    }
     const entry = {
       pty,
       scrollback: createScrollback(scrollbackCap),
@@ -165,9 +177,11 @@ export function createPtySessionManager({
       paused: false,
       drainTimer: null,
       detachTimer: null,
+      cast,
     }
     pty.onData((data) => {
       entry.scrollback.push(data)
+      entry.cast?.output(data)
       for (const ws of entry.sockets) {
         if (ws.readyState === ws.OPEN) ws.send(data)
       }
@@ -242,6 +256,13 @@ export function createPtySessionManager({
     }
   }
 
+  function resizePty(tabId, entry, cols, rows) {
+    safePty(tabId, entry, (pty) => {
+      pty.resize(cols, rows)
+      entry.cast?.resize(cols, rows)
+    })
+  }
+
   async function attachSocket({ ws, tabId, taskId, mode, cols, rows }) {
     const entry = await ensureSession(tabId, taskId, mode, cols, rows)
     // The browser can leave during the spawn; its close event already fired,
@@ -251,7 +272,7 @@ export function createPtySessionManager({
     entry.sockets.add(ws)
     clearDetachTimer(entry)
     if (replay && ws.readyState === ws.OPEN) ws.send(replay)
-    safePty(tabId, entry, (pty) => pty.resize(cols, rows))
+    resizePty(tabId, entry, cols, rows)
 
     ws.on("message", (raw) => {
       const text = raw.toString()
@@ -259,7 +280,7 @@ export function createPtySessionManager({
         try {
           const msg = JSON.parse(text)
           if (msg && msg.type === "resize" && Number.isFinite(msg.cols) && Number.isFinite(msg.rows)) {
-            safePty(tabId, entry, (pty) => pty.resize(Math.max(1, msg.cols | 0), Math.max(1, msg.rows | 0)))
+            resizePty(tabId, entry, Math.max(1, msg.cols | 0), Math.max(1, msg.rows | 0))
             return
           }
         } catch {
@@ -306,6 +327,22 @@ export function createPtySessionManager({
     return { sent: true, spawned }
   }
 
+  /** Append a storyboard marker; false when the tab never recorded. */
+  function markCast(tabId, label) {
+    const cast = casts.get(tabId)
+    if (!cast) return false
+    cast.mark(label)
+    return true
+  }
+
+  /** Hand the tab's recording over (asciicast v2) and forget it. */
+  function takeCast(tabId) {
+    const cast = casts.get(tabId)
+    if (!cast) return null
+    casts.delete(tabId)
+    return cast.serialize()
+  }
+
   function shutdown() {
     for (const entry of sessions.values()) {
       clearDrainTimer(entry)
@@ -325,6 +362,8 @@ export function createPtySessionManager({
     closeSession,
     ensureSession,
     sendText,
+    markCast,
+    takeCast,
     shutdown,
     sessionCount: () => sessions.size,
     pendingSpawnCount: () => pendingSpawns.size,

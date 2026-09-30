@@ -14,7 +14,7 @@
  * a hung capture.
  *
  * Browser/PTY plumbing and the ffmpeg encode live in `hero-capture.ts`; this
- * file is only the storyboard. The kanban feature demo is `hero-kanban.ts`.
+ * file is only the storyboard. The kanban feature demo is `films/kanban.ts`.
  */
 
 import { mkdir, rm } from "node:fs/promises"

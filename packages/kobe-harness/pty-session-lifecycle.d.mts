@@ -1,3 +1,4 @@
+import type { Cast } from "./pty-cast.mjs"
 import type { Scrollback } from "./pty-scrollback.mjs"
 
 export type PtyMode = "engine" | "shell"
@@ -60,6 +61,8 @@ export interface PtySessionManagerOptions {
     lowWaterBytes: number
     drainPollMs: number
   }
+  /** Record every tab as an asciicast (film capture). Absent → no recording. */
+  createCast?: ((opts: { cols: number; rows: number }) => Cast) | null
 }
 
 export interface AttachSocketInput {
@@ -82,6 +85,10 @@ export interface PtySessionManager {
   closeSession(tabId: string): boolean
   ensureSession(tabId: string, taskId: string, mode: PtyMode, cols: number, rows: number): Promise<unknown>
   sendText(input: SendTextInput): Promise<{ sent: boolean; spawned: boolean; missing?: boolean }>
+  /** Append a marker to the tab's recording; false when it has none. */
+  markCast(tabId: string, label: string): boolean
+  /** The tab's recording as asciicast v2, removed from the manager; null when none. */
+  takeCast(tabId: string): string | null
   shutdown(): void
   sessionCount(): number
   pendingSpawnCount(): number

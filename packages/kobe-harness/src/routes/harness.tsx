@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import { ChatTerminal, type WsStatus } from "../components/ChatTerminal.tsx"
+import { ReplayTerminal } from "../components/ReplayTerminal.tsx"
 import { resolveHarnessRenderer } from "../lib/harness-renderer.ts"
 
 /**
@@ -36,6 +37,9 @@ function PtyHarness() {
   const hostbg =
     hostbgParam && /^#[0-9a-fA-F]{6}$/.test(hostbgParam) ? hostbgParam : null
   const sessionId = `visual-${runId}`
+  // `?replay` renders a recorded take for the film renderer (`e2e/film.ts`)
+  // instead of attaching a PTY; the page is otherwise identical.
+  const replay = new URLSearchParams(window.location.search).has("replay")
   const [status, setStatus] = useState<WsStatus>("connecting")
   const [buffer, setBuffer] = useState("")
 
@@ -71,20 +75,30 @@ function PtyHarness() {
           {".xterm-viewport{background-color:transparent !important}"}
         </style>
       ) : null}
-      <ChatTerminal
-        tabId={sessionId}
-        taskId={sessionId}
-        mode="shell"
-        testId="opentui-terminal"
-        renderer={renderer}
-        transparent={wallpaper !== null || hostbg !== null}
-        hostBackground={hostbg ?? undefined}
-        onStatusChange={setStatus}
-        onBufferChange={setBuffer}
-      />
-      <pre data-testid="opentui-buffer" style={{ display: "none" }}>
-        {buffer}
-      </pre>
+      {replay ? (
+        <ReplayTerminal
+          renderer={renderer}
+          transparent={wallpaper !== null || hostbg !== null}
+          hostBackground={hostbg ?? undefined}
+        />
+      ) : (
+        <>
+          <ChatTerminal
+            tabId={sessionId}
+            taskId={sessionId}
+            mode="shell"
+            testId="opentui-terminal"
+            renderer={renderer}
+            transparent={wallpaper !== null || hostbg !== null}
+            hostBackground={hostbg ?? undefined}
+            onStatusChange={setStatus}
+            onBufferChange={setBuffer}
+          />
+          <pre data-testid="opentui-buffer" style={{ display: "none" }}>
+            {buffer}
+          </pre>
+        </>
+      )}
     </div>
   )
 }

@@ -17,7 +17,7 @@
  * worktree Claude Code has never seen, which raises the first-run folder-trust
  * prompt (see `hero-seed.ts`) and would film a modal instead of the product.
  *
- * Idempotent, unlike `hero-kanban.ts`: the routine composed on camera is
+ * Idempotent, unlike `films/kanban.ts`: the routine composed on camera is
  * deleted through `rove api routine-delete` after the take, so a re-shoot
  * starts from the same three rows the stills were framed on.
  */

@@ -74,7 +74,7 @@ describe("active product copy", () => {
     // renderings and may be published: `demo.*`, `workspace.png`,
     // `diff-review.png`, `narrow-sidebar.png`, `routines.png`, and the kanban
     // set (`kanban.png`, `kanban-story.png`, `kanban.gif`/`.mp4`, shot by
-    // `hero-issues.ts` + `hero-kanban.ts`). What stays barred is every still
+    // `hero-issues.ts` + `films/kanban.ts`). What stays barred is every still
     // nobody has re-shot: those still photograph the kobe-era TUI, wordmark
     // and all.
     const stale = ["inbox.png", "new-session-dialog.png"]
