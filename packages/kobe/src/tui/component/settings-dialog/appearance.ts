@@ -2,6 +2,7 @@ import { GLYPH_SET_NAMES, type GlyphSetName } from "../../../state/glyph-set"
 import { COLORBLIND_MODES, type ColorblindMode } from "../../../state/colorblind"
 import { RUNNING_TITLES, type RunningTitle } from "../../../state/running-title"
 import type { SplitStyle } from "../../../state/split-style"
+import { SPLIT_STYLES, type SplitStyle } from "../../../state/split-style"
 import type { TabRowHeight } from "../../../state/tab-row-height"
 import { TASK_COLORS, type TaskColors } from "../../../state/task-colors"
 import { WORKING_BORDERS, type WorkingBorder } from "../../../state/working-border"
@@ -63,7 +64,7 @@ export function appearanceChoices(setting: AppearanceSetting, themes: readonly s
     case "focusAccent":
       return (["primary", "success", "info"] as const).map((value) => ({ kind: setting, value }))
     case "splitStyle":
-      return (["box", "line"] as const).map((value) => ({ kind: setting, value }))
+      return SPLIT_STYLES.map((value) => ({ kind: setting, value }))
     case "railFold":
       return (["glyphs", "initials", "hairline"] as const).map((value) => ({ kind: setting, value }))
     case "tabRowHeight":

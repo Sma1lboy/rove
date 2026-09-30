@@ -11,12 +11,13 @@
  */
 
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
-import { type RGBA, TextAttributes } from "@opentui/core"
+import { TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "../../state/split-style"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
+import { type SplitDivider, groupChrome, paneBoxProps, paneChrome } from "../../tui/workspace/split-chrome"
 import {
   type SplitLeaf,
   type SplitNode,
@@ -43,7 +44,6 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { Terminal } from "../panes/terminal/Terminal"
 import { useDialog } from "../ui/dialog"
-import { FRAME } from "../ui/frame"
 import { useTitleSubscriptions } from "./title-subscriptions"
 
 /** What a terminal leaf shows: null = the tab's own command (`leaf-1`). */
@@ -116,9 +116,9 @@ export function TerminalSplit(props: {
   }
 
   const isSplit = isTabSplit(state)
-  // `box` frames every leaf, `line` draws dividers; only while ACTUALLY split,
-  // or a lone leaf double-frames inside the bordered column.
-  const useBoxFrames = normalizeSplitStyle(kv.get(SPLIT_STYLE_KEY)) === "box" && isSplit
+  // Chrome only while ACTUALLY split, or a lone leaf double-frames inside the
+  // bordered column; `line` with no sibling draws nothing.
+  const splitStyle = isSplit ? normalizeSplitStyle(kv.get(SPLIT_STYLE_KEY)) : "line"
   // Only a pristine leaf-1 (what `collapseSplit` folds to null) takes the fast path.
   const renderViaTree = collapseSplit(state) !== null
 
@@ -193,21 +193,17 @@ export function TerminalSplit(props: {
   /** id → display name: F2 rename wins, else basename of what it runs ("zsh 2"). */
   const leafNames = splitLeafNames(leaves(state.root), props.command, props.engineTitle, liveTitles)
 
-  /* Dividers, not frames: a node draws ONLY the single edge it shares with
-   * its previous sibling (`left` in a row, `top` in a column) — tmux's
-   * separator-line look, zero padding, no outer wrapping. The divider a
-   * focused LEAF owns lights up in the focus accent. */
+  /* `line` draws dividers, not frames: a node draws ONLY the single edge it
+   * shares with its previous sibling (`left` in a row, `top` in a column) —
+   * tmux's separator-line look, zero padding, no outer wrapping. Whatever
+   * edge a focused LEAF draws lights up in the focus accent. */
 
-  // `borderColor` must be ABSENT (not undefined) on divider-less boxes:
-  // opentui coerces `border: false` to a full frame whenever any border
-  // styling lands, and the setter fires even for undefined. Hence the spread.
-  const dividerProps = (divider: "left" | "top" | undefined, color: RGBA) =>
-    divider ? { border: [divider] as ("left" | "top")[], borderColor: color } : { border: false as const }
-
-  const renderLeaf = (leaf: SplitLeaf<LeafCommand>, divider?: "left" | "top"): ReactNode => {
+  const renderLeaf = (leaf: SplitLeaf<LeafCommand>, divider?: SplitDivider): ReactNode => {
     const focusThis = (): void => setActiveLeaf(leaf.id)
     const imeAnchorActive = activeLeaf === leaf.id
     const focused = leafFocused(leaf.id)
+    const name = leafNames.get(leaf.id) ?? ""
+    const chrome = paneChrome(splitStyle, divider)
     const body = (
       <>
         <Terminal
@@ -231,49 +227,32 @@ export function TerminalSplit(props: {
         {/* Corner name tag — ONLY while there's more than one leaf to tell
             apart: a solo survivor already shows this name on the tab
             strip. */}
-        {isSplit ? (
+        {isSplit && !chrome.nameOnRule ? (
           <box position="absolute" right={0} top={0} zIndex={10} backgroundColor={theme.backgroundElement}>
             <text
               fg={focused ? theme.focusAccent : theme.textMuted}
               attributes={focused ? TextAttributes.BOLD : TextAttributes.DIM}
               wrapMode="none"
             >
-              {` ${leafNames.get(leaf.id) ?? ""} `}
+              {` ${name} `}
             </text>
           </box>
         ) : null}
       </>
     )
-    if (useBoxFrames) {
-      // Box style: every leaf is its own frame; no shared-edge dividers.
-      return (
-        <box
-          key={leaf.id}
-          flexGrow={1}
-          flexShrink={1}
-          flexBasis={0}
-          {...FRAME}
-          borderColor={focused ? theme.focusAccent : inactiveBorder}
-          onMouseUp={focusThis}
-        >
-          {body}
-        </box>
-      )
-    }
-    return divider ? (
+    return (
       <box
         key={leaf.id}
         flexGrow={1}
         flexShrink={1}
         flexBasis={0}
-        border={[divider]}
-        borderColor={focused ? theme.focusAccent : inactiveBorder}
+        {...paneBoxProps(chrome, {
+          edge: focused ? theme.focusAccent : inactiveBorder,
+          name,
+          nameInk: focused ? theme.focusAccent : theme.textMuted,
+        })}
         onMouseUp={focusThis}
       >
-        {body}
-      </box>
-    ) : (
-      <box key={leaf.id} flexGrow={1} flexShrink={1} flexBasis={0} border={false} onMouseUp={focusThis}>
         {body}
       </box>
     )
@@ -281,7 +260,7 @@ export function TerminalSplit(props: {
 
   // Key AT THE PARENT: leaves by id, nested groups by sibling INDEX (stable:
   // split-core returns whole new trees, never reorders in place).
-  const renderNode = (node: SplitNode<LeafCommand>, groupKey: string, divider?: "left" | "top"): ReactNode =>
+  const renderNode = (node: SplitNode<LeafCommand>, groupKey: string, divider?: SplitDivider): ReactNode =>
     node.kind === "leaf" ? (
       renderLeaf(node, divider)
     ) : (
@@ -291,7 +270,7 @@ export function TerminalSplit(props: {
         flexGrow={1}
         flexShrink={1}
         flexBasis={0}
-        {...dividerProps(useBoxFrames ? undefined : divider, inactiveBorder)}
+        {...paneBoxProps(groupChrome(splitStyle, divider), { edge: inactiveBorder })}
       >
         {node.children.map((child, i) =>
           renderNode(
