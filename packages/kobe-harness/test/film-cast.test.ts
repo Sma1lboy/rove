@@ -1,3 +1,4 @@
+import { homedir } from "node:os"
 import { describe, expect, it } from "vitest"
 import { assertCastClean, redactCast } from "../e2e/film/redact.ts"
 import { frameTimes } from "../e2e/film/film.ts"
@@ -70,6 +71,15 @@ describe("redactCast", () => {
     ])
   })
 
+  it("drops off-screen OSC strings, even split across chunks, and keeps what the screen shows", () => {
+    const raw = cast([
+      [0.1, "o", "a\x1b]7;file://host/home/op"],
+      [0.2, "o", "/repo\x07b\x1b]12;#fff\x07"],
+      [0.3, "o", "\x1b]0;title\x1b\\c"],
+    ])
+    expect(outputs(redactCast(raw))).toEqual(["a", "b\x1b]12;#fff\x07", "c"])
+  })
+
   it("rejects a recording whose screen still shows an address", async () => {
     // Painted in cursor-positioned fragments, as a diffing TUI may: no run of
     // the stream contains it, the screen does.
@@ -79,5 +89,10 @@ describe("redactCast", () => {
     ])
     await expect(assertCastClean(redactCast(raw))).rejects.toThrow(/0\.2s/)
     await expect(assertCastClean(cast([[0.1, "o", "clean screen"]]))).resolves.toBeUndefined()
+  })
+
+  it("rejects a recording that names the operator's home anywhere in its bytes", async () => {
+    const leaked = cast([[0.1, "o", `\x1b]1337;CurrentDir=${homedir()}\x07`]])
+    await expect(assertCastClean(leaked)).rejects.toThrow(/HERO_ROOT/)
   })
 })
