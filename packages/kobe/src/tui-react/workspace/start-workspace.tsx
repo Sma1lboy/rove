@@ -8,6 +8,7 @@
 import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { queryCellPixelSize } from "../../tui/lib/cell-pixel-size"
+import { createTerminalGraphics, installTerminalGraphics } from "../../tui/lib/terminal-graphics"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { bootPaneHost } from "../lib/host-boot"
 import { WorkspaceRoot } from "./host"
@@ -26,6 +27,16 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       const orchestrator = new RemoteOrchestrator(client, { role: "gui", cellPixelSize })
       await orchestrator.init()
       process.env.KOBE_DAEMON_SOCKET_PATH = client.socketPath
+      // Pane emulators read this lazily: the cell size answers `CSI 16 t`, and the
+      // Kitty writer (only on a kitty-capable tty) carries their graphics to fd 1.
+      installTerminalGraphics(
+        createTerminalGraphics({
+          env: process.env,
+          stdoutIsTTY: process.stdout.isTTY === true,
+          cellPixelSize,
+          write: (data) => orchestrator.writeGraphics(data),
+        }),
+      )
       // Other machines running Rove. `attach()` is sync and a no-op when none
       // are registered; lazy imports keep machine-free installs from loading any of it.
       const { MachineHub } = await import("../../machines/hub.ts")
@@ -45,6 +56,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
           setMachineHub(null)
           machines.dispose()
           orchestrator.dispose()
+          installTerminalGraphics(null)
           // Detach, don't kill: hosted PTYs (`kobe pty-host`) keep sessions
           // running and reattach next boot. Local-backend PTYs (no detach())
           // still die with this process.

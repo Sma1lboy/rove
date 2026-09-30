@@ -15,6 +15,7 @@ import { interactiveEngineCommand } from "@/engine/interactive-command"
 import type { VendorId } from "@/types/vendor"
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { issueWorktreePrompt } from "../../state/issue-chat"
+import { terminalDrawsKitty } from "../lib/terminal-graphics"
 import { defaultShell } from "../panes/terminal/pty-types"
 import {
   type EngineTab,
@@ -60,6 +61,7 @@ export function buildIssueChatBackgroundSpawn(input: {
     prompt: issueWorktreePrompt(input.issue, input.api),
     task: { id: input.taskId, kind: "task", vendor: input.vendor, repo: input.repoRoot },
     worktreePath: input.worktreePath,
+    inlineImages: terminalDrawsKitty(),
   })
   return {
     ptyKey: tabPtyKey(input.taskId, tab.id),
@@ -101,6 +103,7 @@ export function buildIssueTabSpawn(input: {
     prompt: input.prompt,
     task: { id: input.taskId, kind: "main", vendor: input.vendor, repo: input.repoRoot },
     worktreePath: input.worktreePath,
+    inlineImages: terminalDrawsKitty(),
   })
   return {
     ptyKey: tabPtyKey(input.taskId, fresh.id),

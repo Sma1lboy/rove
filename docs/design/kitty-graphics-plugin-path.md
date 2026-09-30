@@ -309,6 +309,37 @@ CGWindowID — without the isolated config macOS window restoration reopens the
 owner's live session in the probe's tabs; without CGWindowID capture an area
 capture picks up whatever app is in front of that rectangle.
 
+## Status: pane passthrough is built
+
+A child's own graphics commands now reach the real terminal without the
+`pane-graphics` verb. `XtermTaskPty.feedInternal`
+([`pty-xterm-base.ts`](../../packages/kobe/src/tui/panes/terminal/pty-xterm-base.ts))
+runs every chunk, live and replay, through
+[`KittyGraphicsFilter`](../../packages/kobe/src/tui/panes/terminal/kitty-graphics.ts)
+before `term.write`, and hands the APCs it keeps to the GUI's `graphics.write`
+stdout sink. The sink and the measured cell size are installed by
+`start-workspace.tsx` only when stdout is a TTY and the env names Ghostty or
+kitty (not under tmux/screen/zellij); any other process leaves the emulator
+untouched. `CSI 16 t` is answered from the same measured size, never guessed.
+omp is told to emit placeholders through `EngineCapabilities.inlineImageEnv`,
+exported only by GUI-initiated launches.
+
+Forwarded: transmits (`a=t`, `a=T` with `U=1`), virtual placements (`a=p`,
+`U=1`), deletes by image id (`d=i|I`). Every command is rewritten with `q=2`.
+Dropped: delete-all and any other delete (would wipe other panes' pictures),
+direct placements (they draw at the GUI's cursor), queries, animation, and
+non-direct mediums (`t=f|t=t|t=s` make the terminal read local paths on the
+strength of untrusted output).
+
+Limits:
+
+- **Direct placements are unsupported**; a program must use the placeholder path (`U=1`).
+- Images are re-sent from the byte ring on reattach, but a parked-and-woken tab restores its screen from a serialized stream that holds no APCs, so its images come back only if they reappear in the delta.
+- Images reach only GUIs attached while the bytes are fed; a session started elsewhere shows raw placeholder cells in a GUI that does not draw them.
+- Image ids are the program's own; two panes that pick the same id overwrite each other.
+- The cell size is measured once at boot; a font change needs a restart.
+- Engines launched by the daemon or `rove api` (routines, `send --tab new`) and bare shell tabs get no image env.
+
 <a id="prior-work"></a>
 
 ## Prior work

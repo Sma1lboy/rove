@@ -12,7 +12,11 @@
 import type { EngineCapabilities, EngineIdentity } from "@/types/engine"
 
 export const piCapabilities: EngineCapabilities = { interruptSequence: "\u001b" }
-export const ompCapabilities: EngineCapabilities = { interruptSequence: "\u001b" }
+export const ompCapabilities: EngineCapabilities = {
+  interruptSequence: "\u001b",
+  // Its own terminal detection sees a scrubbed TERM inside a pane, so the protocol is forced.
+  inlineImageEnv: { PI_FORCE_IMAGE_PROTOCOL: "kitty", PI_KITTY_PLACEHOLDERS: "1", PI_FORCE_HYPERLINKS: "1" },
+}
 
 export const piIdentity: EngineIdentity = { shortName: "Pi" }
 export const ompIdentity: EngineIdentity = { shortName: "OMP" }

@@ -6,6 +6,7 @@ import {
   parseTerminalDefaultColors,
 } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 import type { Terminal as XtermHeadless } from "@xterm/headless"
+import type { CellPixelSize } from "../../lib/cell-pixel-size"
 import type { CursorPos, TerminalRow } from "./pty-types"
 import { type XtermLineLike, xtermLineMatchesChunks } from "./xterm-chunks"
 
@@ -37,6 +38,21 @@ export function wireXtermDefaultColorQueries(
       return true
     })
   }
+}
+
+/** Answer `CSI 16 t` (cell size in pixels) with the GUI's measured size; unanswered when unknown, never guessed. */
+export function wireXtermCellSizeQuery(
+  term: XtermHeadless,
+  cellPixelSize: () => CellPixelSize | null,
+  reply: (data: string) => void,
+): void {
+  term.parser.registerCsiHandler({ final: "t" }, (params) => {
+    if (params.length !== 1 || params[0] !== 16) return false
+    const size = cellPixelSize()
+    if (!size) return false
+    reply(`\x1b[6;${size.height};${size.width}t`)
+    return true
+  })
 }
 
 export type SnapshotMeta = {

@@ -6,7 +6,9 @@ import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
 import { hostTargetFps } from "../../lib/host-render-options"
+import { terminalGraphics } from "../../lib/terminal-graphics"
 import type { MouseTransition, TerminalInputModes } from "./keys-pure"
+import { KittyGraphicsFilter } from "./kitty-graphics"
 import { PtyListeners } from "./pty-listeners"
 import {
   type CursorPos,
@@ -28,7 +30,12 @@ import {
   readInputModes,
   wheelSequence,
 } from "./xterm-input-modes"
-import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
+import {
+  XtermRefreshTracker,
+  wireXtermCellSizeQuery,
+  wireXtermChannels,
+  wireXtermDefaultColorQueries,
+} from "./xterm-refresh"
 
 /** Coalesce non-visual consumers that have no renderer to schedule work. */
 export const SNAPSHOT_COALESCE_MS = Math.round(1000 / hostTargetFps())
@@ -65,6 +72,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   private readonly refreshTracker: XtermRefreshTracker
   /** From Settings → General → Terminal at construction; fixed for this PTY's lifetime. */
   private readonly scrollbackRows: number
+  private readonly graphicsFilter = new KittyGraphicsFilter()
 
   constructor(opts: TaskPtyOpts, options: { respondToDefaultColorQueries?: boolean } = {}) {
     this.taskId = opts.taskId
@@ -81,6 +89,8 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       cols: this.cols,
       rows: this.rows,
       scrollback: this.scrollbackRows,
+      // xterm only runs a custom `CSI t` handler for ops enabled here; ours is the sole responder.
+      windowOptions: { getCellSizePixels: true },
     })
     this.snapshotEngine = new XtermSnapshotEngine(opts.alternateScreenStyleRewrites)
     // Unicode 11 width tables: the default (Unicode 6) measures emoji as ONE
@@ -112,6 +122,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     if (options.respondToDefaultColorQueries !== false) {
       wireXtermDefaultColorQueries(this.term, opts.defaultColors, reply)
     }
+    wireXtermCellSizeQuery(this.term, () => terminalGraphics()?.cellPixelSize ?? null, reply)
   }
 
   /** Send input bytes to the child over this backend's transport. */
@@ -320,11 +331,17 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     if (this._killed) return
     if (muteReplies) this.muteReplies = true
     profileTick("feed")
-    this.term.write(data, () => {
+    this.term.write(this.liftGraphics(data), () => {
       if (muteReplies) this.muteReplies = false
       if (!this.refreshTracker.supported) this.refreshTracker.markAll()
       this.queueRefresh()
     })
+  }
+
+  /** Graphics APCs go to the GUI's terminal (live and replay alike, so a reattach redraws); xterm gets the rest. */
+  private liftGraphics(data: string | Uint8Array): string | Uint8Array {
+    const write = terminalGraphics()?.writeKitty
+    return write ? this.graphicsFilter.push(data, write) : data
   }
 
   private queueRefresh(): void {

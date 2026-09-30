@@ -38,6 +38,13 @@ export interface EngineCapabilities {
    * kills the session instead of pausing it.
    */
   readonly interruptSequence?: string
+  /**
+   * Env that makes the engine draw inline images as Kitty Unicode placeholders,
+   * which is the only form that survives a pane's emulator. Exported into the
+   * launch only when the GUI's terminal draws Kitty graphics. Absent = the
+   * engine gets nothing.
+   */
+  readonly inlineImageEnv?: Readonly<Record<string, string>>
 }
 
 /** How the engine wants to be named, so TUI code never hard-codes vendor strings. */

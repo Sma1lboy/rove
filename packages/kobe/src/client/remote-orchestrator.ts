@@ -213,6 +213,11 @@ export class RemoteOrchestrator {
     return task
   }
 
+  /** Write graphics bytes to this GUI's terminal through the same sink `graphics.write` events use. */
+  writeGraphics(data: Buffer): void {
+    this.signals.writeGraphics(data)
+  }
+
   /** Open the daemon socket, hello, subscribe to the task snapshot stream. */
   async init(): Promise<void> {
     await performInit(

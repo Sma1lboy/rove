@@ -212,6 +212,11 @@ export interface EngineSessionLaunchInput {
    * tests use it to pin the argv path.
    */
   readonly firstMessageDelivery?: "argv" | "paste"
+  /**
+   * The launching GUI's terminal draws Kitty graphics. Only that GUI knows, so
+   * daemon/CLI launches leave it unset and the engine gets no image env.
+   */
+  readonly inlineImages?: boolean
 }
 
 export interface EngineSessionLaunch {
@@ -294,7 +299,9 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   // tabs share one worktree, so cwd can't tell which task+tab an event is from.
   const taskId = quoteShellArg(input.task.id)
   const tabId = quoteShellArg(input.tabId ?? "tab-1")
-  const identity = `export ROVE_TASK_ID=${taskId} KOBE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId} KOBE_TAB_ID=${tabId}\n`
+  const imageEnv = input.inlineImages ? protocolEntry(input.task.vendor).capabilities?.inlineImageEnv : undefined
+  const imageExports = Object.entries(imageEnv ?? {}).map(([name, value]) => ` ${name}=${quoteShellArg(value)}`)
+  const identity = `export ROVE_TASK_ID=${taskId} KOBE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId} KOBE_TAB_ID=${tabId}${imageExports.join("")}\n`
   return {
     key: engineSessionKey(input.task.id, input.tabId),
     command: [input.shell, "-ilc", identity + script],

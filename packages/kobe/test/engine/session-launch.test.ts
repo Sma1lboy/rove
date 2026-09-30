@@ -50,6 +50,33 @@ describe("hosted engine session launch", () => {
     expect(launch.command[2]).toContain('exec "${SHELL:-/bin/sh}"')
   })
 
+  describe("inline image env", () => {
+    const launchFor = (vendor: "omp" | "claude", inlineImages?: boolean) =>
+      buildEngineSessionLaunch({
+        task: { id: "task-1", kind: "task", vendor, repo: "/repo" },
+        worktreePath: "/repo/.worktrees/task-1",
+        shell: "/bin/zsh",
+        argv: [vendor],
+        promptIntent: { kind: "none" },
+        protocolGates: { status: () => false, notes: () => false, dispatcher: () => false },
+        inlineImages,
+      }).command[2] as string
+
+    test("omp launched from a Kitty-capable GUI gets the placeholder env", () => {
+      const script = launchFor("omp", true)
+      expect(script).toContain("PI_FORCE_IMAGE_PROTOCOL='kitty' PI_KITTY_PLACEHOLDERS='1' PI_FORCE_HYPERLINKS='1'")
+    })
+
+    test("a launch that never learned the outer terminal (daemon, CLI) gets none", () => {
+      expect(launchFor("omp")).not.toContain("PI_")
+      expect(launchFor("omp", false)).not.toContain("PI_")
+    })
+
+    test("engines that do not declare it get none even from a Kitty-capable GUI", () => {
+      expect(launchFor("claude", true)).not.toContain("PI_")
+    })
+  })
+
   test("new-task intent puts the user's prompt on the argv, with nothing appended", () => {
     // Standing worker instructions (name your branch, report home) moved to
     // the Rove agent skill; the first prompt is now the user's text plus only

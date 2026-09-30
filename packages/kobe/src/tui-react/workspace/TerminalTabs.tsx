@@ -23,6 +23,7 @@ import { resolvePreferredVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
+import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
 import { buildDiffReview } from "../../tui/ops/diff-comments"
 import { warmHostedShell } from "../../tui/panes/terminal/pty-hosted"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
@@ -191,6 +192,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
         repo: props.repo,
       },
       worktreePath: props.worktree,
+      inlineImages: terminalDrawsKitty(),
     })
   }
   const engineTabSpawnRef = useLatest(engineTabSpawn)

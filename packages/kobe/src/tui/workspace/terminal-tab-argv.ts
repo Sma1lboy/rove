@@ -64,6 +64,8 @@ export function engineTabSpawnFor(
     task: EngineSessionLaunchTask
     worktreePath: string
     protocolGates?: EngineSessionProtocolGates
+    /** The GUI's terminal draws Kitty graphics ({@link EngineSessionLaunchInput.inlineImages}). */
+    inlineImages?: boolean
   },
 ): TabSpawn {
   const { live, shell, prompt } = opts
@@ -95,6 +97,7 @@ export function engineTabSpawnFor(
     argv: engineTabArgv(tab, base, live, opts.task.vendor),
     promptIntent,
     protocolGates: opts.protocolGates,
+    inlineImages: opts.inlineImages,
     // No firstMessageDelivery override: a paste vendor's (kimi) message
     // returns as `launch.firstMessage` (its positional slot is a subcommand)
     // and the hosted backend pastes it post-spawn (`pastePromptWhenEngineUp`).
