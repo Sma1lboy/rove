@@ -3,6 +3,7 @@
  *
  *  1. Rising-edge notify for any NON-selected task crossing into an attention
  *     state ({@link attentionKindFor}), gated by `notifications.crossTask.enabled`.
+ *     A dispatched task (`.dispatcher`) is silent: Inbox episode, no chime.
  *     Diffs the PER-TAB map: the task rollup is last-event-wins, so two tabs
  *     finishing in a row leave it at `turn_complete` and the second never
  *     fires. Inbox episodes are keyed `(taskId, tabId)` too. Tasks with no tab
@@ -113,6 +114,9 @@ export function useAttention(args: {
         tabId: target.tabId,
         title: task?.title ?? target.taskId,
         body: tabLabel ? `${project} › ${tabLabel}` : project || undefined,
+        // A dispatched sub-task's completion lands in the Inbox without a
+        // chime: it is fleet work, not the task you are on.
+        silent: task?.dispatcher !== undefined,
       })
     }
   }, [engineState, engineTabState, selectedId, tasks, kv, notif])

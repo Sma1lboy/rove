@@ -4,7 +4,8 @@
  * over `useTurnPolls` (which also supplies `liveTitles`/`turnVendors`).
  *
  * Owns background-tab notifications: a rising edge into done/error/needs_input
- * on a NON-active tab toasts + marks unread. `attentionEdges`' seed rule keeps a
+ * on a NON-active tab toasts + marks unread (a dispatched task's tabs stay
+ * silent — see `taskDispatched`). `attentionEdges`' seed rule keeps a
  * replayed sticky `turn_complete` from re-toasting; TerminalTabs remounts per
  * task, so switches re-seed.
  *
@@ -44,6 +45,9 @@ export function useTabTurnState(deps: {
   hookTabStates?: ReadonlyMap<string, HookTabState>
   /** The toast's context line under the tab label. */
   taskTitle?: string
+  /** The task was dispatched by another Rove session (`.dispatcher`): its tabs
+   *  toast and mark unread, but never ring. */
+  taskDispatched?: boolean
   notif: NotificationsContext
   /** RECORDS each tab's latest live title. */
   update?: (next: TabsState) => void
@@ -131,6 +135,7 @@ export function useTabTurnState(deps: {
   const vendorRef = useLatest(deps.vendor)
   const taskIdRef = useLatest(deps.taskId)
   const taskTitleRef = useLatest(deps.taskTitle)
+  const dispatchedRef = useLatest(deps.taskDispatched)
   useEffect(() => {
     const next = new Map<string, string>()
     for (const [tabId, turn] of turnStates) next.set(tabId, turn)
@@ -146,6 +151,7 @@ export function useTabTurnState(deps: {
         // Mirrors the Inbox card: tab label leads, task title is the body.
         title: tabTitle(tab, vendorRef.current),
         body: taskTitleRef.current,
+        silent: dispatchedRef.current,
       })
     }
   }, [turnStates])

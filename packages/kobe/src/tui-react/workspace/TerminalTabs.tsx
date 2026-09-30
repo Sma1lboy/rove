@@ -105,6 +105,8 @@ export interface TerminalTabsProps {
   hookTabStates?: ReadonlyMap<string, HookTabState>
   /** Task title — background-toast context line (under the tab label). */
   taskTitle?: string
+  /** Dispatched by another Rove session: its tabs toast but never ring. */
+  taskDispatched?: boolean
   /** User landed on a tab; the host resolves Inbox episodes targeting it. */
   onTabVisited?: (tabId: string) => void
   /** Confirmed ESC interrupt; the host reports `turn-interrupted`. */
@@ -227,6 +229,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     state,
     hookTabStates: props.hookTabStates,
     taskTitle: props.taskTitle,
+    taskDispatched: props.taskDispatched,
     notif,
     update,
     onEngineInterrupt: props.onEngineInterrupt,

@@ -16,6 +16,7 @@ import {
   chipAttentionKind,
   osc9,
   removeUnread,
+  shouldPlaySound,
   shouldShowToast,
   unreadKey,
 } from "../../src/tui/lib/notify-state"
@@ -69,6 +70,21 @@ describe("shouldShowToast", () => {
     // Error toasts are failure feedback — disabling the completion-toast
     // preference must never silence them (silent-failure regression).
     expect(shouldShowToast("error", false)).toBe(true)
+  })
+})
+
+describe("shouldPlaySound", () => {
+  it("rings by default and respects the sound toggle", () => {
+    expect(shouldPlaySound({}, true)).toBe(true)
+    expect(shouldPlaySound({}, false)).toBe(false)
+  })
+
+  // The point of the rule: a task Rove dispatched announces itself in the
+  // Inbox, so the chime is noise even with sound on.
+  it("never rings for a silent source", () => {
+    expect(shouldPlaySound({ silent: true }, true)).toBe(false)
+    expect(shouldPlaySound({ silent: true }, false)).toBe(false)
+    expect(shouldPlaySound({ silent: false }, true)).toBe(true)
   })
 })
 

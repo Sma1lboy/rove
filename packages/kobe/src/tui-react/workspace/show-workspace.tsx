@@ -134,6 +134,7 @@ export function ShowWorkspace(props: {
       // source (polling stays as fallback).
       hookTabStates={props.task ? engineTabStates.get(props.task.id) : undefined}
       taskTitle={props.task?.title}
+      taskDispatched={props.task?.dispatcher !== undefined}
       onTabVisited={(tabId) => {
         const taskId = props.task?.id
         if (taskId) props.onTabVisited?.(taskId, tabId)

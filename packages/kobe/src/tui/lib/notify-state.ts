@@ -23,6 +23,10 @@ export interface NotifyInput {
   readonly title: string
   /** Optional context line under the title (task title, project…). */
   readonly body?: string
+  /** Skip the audible half (BEL + OSC 9 + chime) for a session Rove
+   *  dispatched: a sub-task finishing is an Inbox episode, not news you must
+   *  hear. The toast and the unread mark are unaffected. */
+  readonly silent?: boolean
 }
 
 export const TOAST_DURATION_MS = 4500
@@ -62,6 +66,15 @@ export function removeUnread(
  */
 export function shouldShowToast(kind: NotificationKind, toastEnabled: boolean): boolean {
   return kind === "error" || toastEnabled
+}
+
+/**
+ * Whether the audible half plays: the sound preference AND a non-silent
+ * source. A dispatched task's completion is what the Inbox is for — it never
+ * rings, whatever the sound toggle says.
+ */
+export function shouldPlaySound(input: Pick<NotifyInput, "silent">, soundEnabled: boolean): boolean {
+  return soundEnabled && input.silent !== true
 }
 
 /**

@@ -3,9 +3,9 @@
  * Per-ChatTab completion notifications: sound, toast, unread mark. Pure
  * transforms and the "error toasts always show" invariant live in
  * `src/tui/lib/notify-state.ts`. Toggles come from KV, else (render tests,
- * mock host) a one-time `state.json` snapshot.
+ * mock host) a one-time `state.json` snapshot. A `silent` input keeps the
+ * toast and the unread mark but skips the audible half (dispatched tasks).
  */
-
 import { useRenderer } from "@opentui/react"
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { loadStateFile } from "../../state/store"
@@ -17,6 +17,7 @@ import {
   addUnread,
   osc9,
   removeUnread,
+  shouldPlaySound,
   shouldShowToast,
 } from "../../tui/lib/notify-state"
 import { writeThroughRenderer } from "../../tui/lib/screen-refresh"
@@ -75,7 +76,8 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
       // the stream to the LOCAL terminal (iTerm2/kitty/WezTerm/Ghostty raise
       // an OS notification; others ignore it), unlike `afplay`, which rings
       // on the remote box.
-      if ((prefs["notifications.sound.enabled"] as boolean | undefined) !== false) {
+      const soundEnabled = (prefs["notifications.sound.enabled"] as boolean | undefined) !== false
+      if (shouldPlaySound(input, soundEnabled)) {
         // Through the renderer: its native thread owns fd 1 while `useThread`
         // is on (all but Linux), so a bare write could split a frame's escapes.
         writeThroughRenderer(renderer, `\x07${osc9(`Rove — ${input.title}`)}`)
