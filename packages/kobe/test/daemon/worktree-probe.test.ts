@@ -148,5 +148,4 @@ describe("ref reads", () => {
     git(repo, "pack-refs", "--all")
     expect(readRefSha(probeDirs, "main")).toBe(expected)
   })
-
 })
