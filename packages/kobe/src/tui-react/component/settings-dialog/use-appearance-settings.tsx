@@ -24,6 +24,7 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
     taskColors: prefs.taskColors(),
     glyphSet: prefs.glyphSet(),
     colorblind: prefs.colorblind(),
+    runningTitle: prefs.runningTitle(),
   }
   function commit(choice: AppearanceChoice): void {
     switch (choice.kind) {
@@ -62,6 +63,9 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
         break
       case "colorblind":
         prefs.selectColorblind(choice.value)
+        break
+      case "runningTitle":
+        prefs.selectRunningTitle(choice.value)
         break
     }
   }

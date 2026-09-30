@@ -43,5 +43,7 @@ export function appearanceChoiceLabel(choice: AppearanceChoice, t: ReturnType<ty
       )
     case "colorblind":
       return t(choice.value === "on" ? "settings.appearance.enabled" : "settings.appearance.disabled")
+    case "runningTitle":
+      return t(choice.value === "shimmer" ? "settings.appearance.titleShimmer" : "settings.appearance.titleStill")
   }
 }

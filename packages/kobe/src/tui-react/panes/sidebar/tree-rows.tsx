@@ -12,13 +12,15 @@
 
 import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
-import { TextAttributes } from "@opentui/core"
+import { type RGBA, TextAttributes } from "@opentui/core"
 import { useEffect, useMemo } from "react"
 import { engineDisplayName } from "../../../engine/interactive-command"
 import { charWidth } from "../../../lib/display-width"
 import { relativeAge } from "../../../lib/relative-time"
+import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
 import { TAB_ROW_HEIGHT_KEY, normalizeTabRowHeight } from "../../../state/tab-row-height"
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
+import { SHIMMER_CREST, shimmerInk, shimmerIntensity } from "../../../tui/lib/shimmer"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
@@ -268,7 +270,39 @@ export function useTabStateCell(args: {
           ? breathColor(theme.primary, theme.textMuted, frame)
           : toneColor(theme, rowView.tone)
         : theme.textMuted
-  return { activity, carriesState, rowView, glyph, fg, pulsing }
+  return { activity, carriesState, rowView, glyph, fg, pulsing, frame }
+}
+
+/** `label` as per-glyph spans lit by the shimmer band at `tick`; wide glyphs count by cells. */
+function ShimmerLabel(props: {
+  readonly label: string
+  readonly tick: number
+  readonly muted: RGBA
+  readonly accent: RGBA
+}) {
+  const glyphs: { text: string; cell: number; width: number }[] = []
+  let cells = 0
+  for (const ch of props.label) {
+    const width = charWidth(ch.codePointAt(0) ?? 0)
+    const last = glyphs[glyphs.length - 1]
+    // A zero-width mark rides on the glyph it combines with.
+    if (width === 0 && last) last.text += ch
+    else glyphs.push({ text: ch, cell: cells, width })
+    cells += width
+  }
+  return glyphs.map((glyph, i) => {
+    const intensity = shimmerIntensity(glyph.cell + (glyph.width - 1) / 2, cells, props.tick)
+    return (
+      <span
+        // biome-ignore lint/suspicious/noArrayIndexKey: glyph order is the identity
+        key={i}
+        fg={shimmerInk(props.muted, props.accent, intensity)}
+        attributes={intensity >= SHIMMER_CREST ? TextAttributes.BOLD : undefined}
+      >
+        {glyph.text}
+      </span>
+    )
+  })
 }
 
 export function TabTreeRow(props: {
@@ -283,7 +317,7 @@ export function TabTreeRow(props: {
   const { theme } = useTheme()
   const t = useT()
   const shared = props.shared
-  const { activity, carriesState, rowView, glyph, fg, pulsing } = useTabStateCell({
+  const { activity, carriesState, rowView, glyph, fg, pulsing, frame } = useTabStateCell({
     task: props.task,
     tab: props.tab,
     tabStates: shared.engineTabState?.get(props.task.id),
@@ -300,6 +334,21 @@ export function TabTreeRow(props: {
   const liveVendor = props.tab.liveVendor ?? null
   const modelLine = props.tab.engine === true && twoCell && liveVendor ? engineDisplayName(liveVendor) : null
   const mark = useTaskColor(props.task.id)
+  const label = truncateEndCells(
+    props.tab.label,
+    // + the 2-cell state-glyph column.
+    treeLabelBudget(
+      shared,
+      2 +
+        (age ? clusterCells(age) : 0) +
+        (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
+    ),
+    charWidth,
+  )
+  const shimmer =
+    rowView.loading &&
+    !pulsing &&
+    normalizeRunningTitle(kv?.get(RUNNING_TITLE_KEY, DEFAULT_RUNNING_TITLE)) === "shimmer"
   return (
     <RowShell
       rowId={props.rowId}
@@ -321,16 +370,10 @@ export function TabTreeRow(props: {
             flexGrow={1}
             flexShrink={1}
           >
-            {truncateEndCells(
-              props.tab.label,
-              // + the 2-cell state-glyph column.
-              treeLabelBudget(
-                shared,
-                2 +
-                  (age ? clusterCells(age) : 0) +
-                  (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
-              ),
-              charWidth,
+            {shimmer ? (
+              <ShimmerLabel label={label} tick={frame} muted={theme.textMuted} accent={theme.primary} />
+            ) : (
+              label
             )}
           </text>
           {age ? (
