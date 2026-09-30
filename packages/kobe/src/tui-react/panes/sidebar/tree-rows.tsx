@@ -12,7 +12,7 @@
 
 import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
-import { type RGBA, TextAttributes } from "@opentui/core"
+import { TextAttributes } from "@opentui/core"
 import { useEffect, useMemo } from "react"
 import { engineDisplayName } from "../../../engine/interactive-command"
 import { engineEntry } from "../../../engine/registry"
@@ -22,7 +22,6 @@ import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from 
 import { TAB_ROW_HEIGHT_KEY, normalizeTabRowHeight } from "../../../state/tab-row-height"
 import { breathColor, breathGlyph, mixInk } from "../../../tui/lib/breathe"
 import { effortMark } from "../../../tui/lib/effort-glyph"
-import { SHIMMER_CREST, shimmerInk, shimmerIntensity } from "../../../tui/lib/shimmer"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
@@ -32,6 +31,7 @@ import { rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { ShimmerLabel } from "../../lib/shimmer-label"
 import { useGlyphs } from "../../lib/use-glyphs"
 import { useTaskColor } from "../../lib/use-task-color"
 import {
@@ -273,38 +273,6 @@ export function useTabStateCell(args: {
           : toneColor(theme, rowView.tone)
         : theme.textMuted
   return { activity, carriesState, rowView, glyph, fg, pulsing, frame }
-}
-
-/** `label` as per-glyph spans lit by the shimmer band at `tick`; wide glyphs count by cells. */
-function ShimmerLabel(props: {
-  readonly label: string
-  readonly tick: number
-  readonly muted: RGBA
-  readonly accent: RGBA
-}) {
-  const glyphs: { text: string; cell: number; width: number }[] = []
-  let cells = 0
-  for (const ch of props.label) {
-    const width = charWidth(ch.codePointAt(0) ?? 0)
-    const last = glyphs[glyphs.length - 1]
-    // A zero-width mark rides on the glyph it combines with.
-    if (width === 0 && last) last.text += ch
-    else glyphs.push({ text: ch, cell: cells, width })
-    cells += width
-  }
-  return glyphs.map((glyph, i) => {
-    const intensity = shimmerIntensity(glyph.cell + (glyph.width - 1) / 2, cells, props.tick)
-    return (
-      <span
-        // biome-ignore lint/suspicious/noArrayIndexKey: glyph order is the identity
-        key={i}
-        fg={shimmerInk(props.muted, props.accent, intensity)}
-        attributes={intensity >= SHIMMER_CREST ? TextAttributes.BOLD : undefined}
-      >
-        {glyph.text}
-      </span>
-    )
-  })
 }
 
 export function TabTreeRow(props: {

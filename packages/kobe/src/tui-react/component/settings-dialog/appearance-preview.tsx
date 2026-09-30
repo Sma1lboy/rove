@@ -3,12 +3,17 @@ import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import type { AppearanceSetting, AppearanceSnapshot } from "../../../tui/component/settings-dialog/appearance"
 import { diffInks } from "../../../tui/context/theme-core"
+import { TASK_PARTNER_HUE_DEG } from "../../../tui/lib/border-flow"
+import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { GLYPH_SETS } from "../../../tui/lib/glyphs"
 import { taskColor } from "../../../tui/lib/task-color"
 import { paneBoxProps, paneChrome } from "../../../tui/workspace/split-chrome"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { ShimmerLabel } from "../../lib/shimmer-label"
 import { COLLAPSED_RAIL_WIDTH } from "../../panes/sidebar/collapsed-rail"
+import { useSpinnerFrame } from "../../panes/sidebar/row-cards"
+import { runningPaneFlow, runningPaneTitle } from "../../workspace/running-pane-chrome"
 
 export function AppearancePreview(props: { current: AppearanceSnapshot; active?: AppearanceSetting }) {
   const { current } = props
@@ -17,9 +22,14 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
   const narrow = useTerminalDimensions().width < 75
   const short = useTerminalDimensions().height < 30
   const fold = current.railFoldStyle
-  const { unseen, done, idle } = GLYPH_SETS[current.glyphSet]
+  const { spinner, done, idle } = GLYPH_SETS[current.glyphSet]
+  // "UI polish" is a working sample: it animates exactly as a live row would, on
+  // the shared tick, which runs only while this preview is mounted.
+  const tick = useSpinnerFrame(true)
+  const working = breathGlyph(spinner, tick)
+  const workingInk = breathColor(theme.primary, theme.textMuted, tick)
   const folded = [
-    { id: "ui", label: { glyphs: `▌${unseen}`, initials: `▌${unseen} UI`, hairline: "█" }[fold] },
+    { id: "ui", label: { glyphs: `▌${working}`, initials: `▌${working} UI`, hairline: "█" }[fold] },
     { id: "api", label: { glyphs: ` ${done}`, initials: ` ${done} API`, hairline: "▎" }[fold] },
     { id: "review", label: { glyphs: ` ${idle}`, initials: ` ${idle} QA`, hairline: "▎" }[fold] },
   ]
@@ -27,6 +37,8 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
   // Sample ids; the mark sits where the real rail's indent cell does.
   const marked = current.taskColors === "on"
   const mark = (id: string) => (marked ? <text fg={taskColor(`preview-${id}`, theme)}>▎</text> : null)
+  const flowing = current.workingBorder === "flow"
+  const workingTaskInk = marked ? taskColor("preview-ui", theme) : undefined
   const inks = diffInks(theme, current.colorblind === "on")
   // The three columns stand in for split panes, each after its left sibling.
   const pane = (divider: "left" | undefined, edge: typeof theme.border, name: string, nameInk: typeof theme.border) =>
@@ -59,11 +71,7 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
         >
           <text fg={props.active === "railFold" ? theme.focusAccent : theme.textMuted}>‹</text>
           {folded.map((row, i) => (
-            <text
-              key={row.id}
-              fg={i === 0 ? theme.focusAccent : i === 1 ? theme.success : theme.textMuted}
-              wrapMode="none"
-            >
+            <text key={row.id} fg={i === 0 ? workingInk : i === 1 ? theme.success : theme.textMuted} wrapMode="none">
               {row.label}
             </text>
           ))}
@@ -93,8 +101,15 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
                 {marked ? "▌" : "▌ "}
               </text>
               {mark("ui")}
-              <text fg={theme.focusAccent} attributes={TextAttributes.BOLD} wrapMode="none">
-                UI polish {unseen}
+              <text fg={workingInk} wrapMode="none">
+                {`${working} `}
+              </text>
+              <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
+                {current.runningTitle === "shimmer" ? (
+                  <ShimmerLabel label="UI polish" tick={tick} muted={theme.textMuted} accent={theme.primary} />
+                ) : (
+                  "UI polish"
+                )}
               </text>
             </box>
             {current.tabRowHeight === 2 && (
@@ -133,6 +148,18 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
           flexShrink={1}
           flexDirection="column"
           {...pane("left", theme.focusAccent, t("settings.appearance.terminal"), theme.focusAccent)}
+          {...(flowing
+            ? {
+                renderAfter: runningPaneFlow(
+                  workingTaskInk ?? theme.focusAccent,
+                  theme.border,
+                  true,
+                  tick,
+                  workingTaskInk ? TASK_PARTNER_HUE_DEG : undefined,
+                ),
+                ...(namesOnRule ? {} : { title: runningPaneTitle("UI polish", t("workspace.inbox.state.running")) }),
+              }
+            : {})}
           paddingLeft={1}
           paddingRight={1}
         >
