@@ -8,7 +8,6 @@
  * stay timer-free.
  */
 
-import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useState } from "react"
 import { charWidth, displayWidth } from "../../lib/display-width"
 import { KobeKeymap, findBinding } from "../../tui/context/keybindings"
@@ -22,6 +21,7 @@ import { tKeys, useT } from "../i18n"
 import { invokeArmedPrefixActionFromCurrentStack } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useAccessor } from "../lib/use-accessor"
+import { useTerminalSize } from "../lib/use-terminal-size"
 import { FRAME } from "../ui/frame"
 import { useShortcutRevealPresentation } from "./shortcut-reveal"
 
@@ -72,7 +72,7 @@ function groupPrefixGuideOptions(options: readonly { stroke: string; action: str
 export function PrefixHud(props: { left: number; width: number }) {
   const { theme } = useTheme()
   const t = useT()
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
   const hud = useAccessor(prefixHudState)
   const guide = hud.guide
   const { activeSurface } = useShortcutRevealPresentation()

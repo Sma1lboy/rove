@@ -10,7 +10,6 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useMemo, useState } from "react"
 import {
   type PickerWindow,
@@ -25,6 +24,7 @@ import { listLocalBranches } from "../../tui/lib/git-snapshot"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
+import { useTerminalSize } from "../lib/use-terminal-size"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { DialogField, DialogSection } from "../ui/dialog-parts"
 import { PickerList } from "./new-task-dialog/picker-list"
@@ -48,7 +48,7 @@ export function BranchPickerDialogView(props: {
   // One-shot enumeration on open (repo is fixed for the dialog's lifetime).
   const branches = useMemo(() => listLocalBranches(props.repo), [props.repo])
   const filtered = useMemo(() => filterBranches(branches, value), [branches, value])
-  const window: PickerWindow = windowAround(filtered, cursor, pickerVisibleRows(useTerminalDimensions().height))
+  const window: PickerWindow = windowAround(filtered, cursor, pickerVisibleRows(useTerminalSize().height))
 
   function move(delta: 1 | -1): void {
     if (filtered.length === 0) return

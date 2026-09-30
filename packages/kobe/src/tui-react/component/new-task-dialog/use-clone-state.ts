@@ -5,7 +5,6 @@
  */
 
 import type { VendorId } from "@/types/vendor"
-import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useState } from "react"
 import {
   cloneRepo,
@@ -28,6 +27,7 @@ import {
 import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
 import { expandHome, joinPicked } from "../../../tui/lib/path-helpers"
 import { t } from "../../i18n"
+import { useTerminalSize } from "../../lib/use-terminal-size"
 import { useDerivedDir } from "./use-derived-dir"
 
 export function useCloneState(args: {
@@ -57,7 +57,7 @@ export function useCloneState(args: {
   const cloneParentWindow: PickerWindow = windowAround(
     cloneParentFiltered,
     cloneParentCursor,
-    pickerVisibleRows(useTerminalDimensions().height),
+    pickerVisibleRows(useTerminalSize().height),
   )
 
   // Folder name follows the URL until manually edited; auto-suffixes on

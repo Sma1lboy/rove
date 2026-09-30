@@ -7,12 +7,12 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { charWidth } from "../../lib/display-width"
 import type { Toast } from "../../tui/lib/notify-state"
 import { truncateEndCells } from "../../tui/lib/truncate"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
+import { useTerminalSize } from "../lib/use-terminal-size"
 
 const MAX_VISIBLE = 3
 const CARD_WIDTH = 44
@@ -25,7 +25,7 @@ function cardRows(toast: Toast): number {
 
 export function ToastOverlay() {
   const { theme } = useTheme()
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
   const notif = useNotifications()
 
   if (notif.toasts.length === 0) return null

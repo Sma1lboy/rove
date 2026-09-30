@@ -13,7 +13,6 @@
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import type { Issue, IssueStatus } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
@@ -31,6 +30,7 @@ import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useCursorFollow } from "../lib/use-cursor-follow"
+import { useTerminalSize } from "../lib/use-terminal-size"
 import { ContextMenu } from "../ui/context-menu"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
@@ -69,7 +69,7 @@ export function KanbanPage(props: {
     notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
   }
   // Full screen, not the page box: the card menu is clamped against it.
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
   const narrow = isNarrowWidth(dims.width)
   // The sidebar takes width first, so measure the page root — mounted in both
   // layouts; measuring the four-lane box would unmount it and oscillate.

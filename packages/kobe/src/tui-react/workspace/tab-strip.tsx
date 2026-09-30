@@ -8,7 +8,6 @@
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState } from "react"
 import type { ChatTabTurnState } from "../../engine/turn-detector"
 import { approxCharCells, displayWidth } from "../../lib/display-width"
@@ -27,6 +26,7 @@ import { useKV } from "../context/kv"
 import { type Theme, useTheme } from "../context/theme"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useGlyphs } from "../lib/use-glyphs"
+import { useTerminalSize } from "../lib/use-terminal-size"
 
 export { tabTitle }
 
@@ -101,7 +101,7 @@ export function TabStrip(props: {
   const { theme } = themeCtx
   const kv = useKV()
   const glyphs = turnGlyphs(useGlyphs())
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
   // Off by default: the sidebar tree already lists every worktree's tabs.
   // Late bail so hooks run in the same order.
   const stripMode = resolveTabStripMode(

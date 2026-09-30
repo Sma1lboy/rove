@@ -1,7 +1,6 @@
 /** @jsxImportSource @opentui/react */
 
 import { type RGBA, TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import type { AttentionInboxItem, RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
 import { approxCharCells } from "../../lib/display-width"
@@ -21,6 +20,7 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { useAccessor } from "../lib/use-accessor"
 import { useGlyphs } from "../lib/use-glyphs"
+import { useTerminalSize } from "../lib/use-terminal-size"
 import { type DialogContext, useDialog } from "../ui/dialog"
 import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
 import {
@@ -115,7 +115,7 @@ function InboxCard(props: {
   onOpen: () => void
 }) {
   const { theme } = useTheme()
-  const dimensions = useTerminalDimensions()
+  const dimensions = useTerminalSize()
   // Dialog medium = 80 cols (maxWidth terminal-2); pane padding (2) +
   // marker column (2) + trailing padding (2) leave the row's cell budget.
   const rowCells = Math.min(80, dimensions.width - 2) - 6
@@ -192,7 +192,7 @@ export function AttentionInboxPane(props: {
 }) {
   const { theme } = useTheme()
   const t = useT()
-  const dimensions = useTerminalDimensions()
+  const dimensions = useTerminalSize()
   const [cursor, setCursor] = useState(0)
   const [now, setNow] = useState(() => Date.now())
   const { availableItems } = useMemo(

@@ -7,7 +7,6 @@
 
 import type { Task } from "@/types/task"
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useMachineRows } from "../../../machines/hub-singleton"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
@@ -17,6 +16,7 @@ import { usePaneHintMark } from "../../component/keyboard-hints"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useLatest } from "../../lib/use-latest"
+import { useTerminalSize } from "../../lib/use-terminal-size"
 import { ContextMenu } from "../../ui/context-menu"
 import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchInput, SidebarZenChip } from "./chrome"
 import { CollapseButton } from "./collapse-button"
@@ -54,7 +54,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   // Optional: kv only adds tasks not mounted since restart; without it the tree is restart-blind.
   const kv = useOptionalKV()
   const focused = props.focused ?? true
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
 
   // The ~2s branch/changes poll tick the row cards' effects key on.
   const [branchTick, setBranchTick] = useState(0)

@@ -11,7 +11,6 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
-import { useTerminalDimensions } from "@opentui/react"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
@@ -45,6 +44,7 @@ import { type TreeNode, buildTree } from "../../../tui/panes/filetree/tree"
 import { PaneKeyHint, usePaneHintMark } from "../../component/keyboard-hints"
 import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
+import { useTerminalSize } from "../../lib/use-terminal-size"
 import { FileTreeBodyView } from "./body-view"
 import { FileTreeHeaderView } from "./header-view"
 
@@ -76,7 +76,7 @@ export type FileTreeProps = {
 }
 
 export function FileTree(props: FileTreeProps) {
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
 
   const [tab, setTab] = useState<FileTreeTab>("all")
   // Until the user presses `b` (`scopeManual`), a clean working tree

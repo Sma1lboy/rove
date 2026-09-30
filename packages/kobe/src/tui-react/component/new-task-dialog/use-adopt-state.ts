@@ -7,7 +7,6 @@
 
 import type { VendorId } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
-import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   type NewTaskInput,
@@ -19,6 +18,7 @@ import {
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
 import { t } from "../../i18n"
+import { useTerminalSize } from "../../lib/use-terminal-size"
 import { toggleInSet, toggleSelectAll } from "./pure"
 
 export function useAdoptState(args: {
@@ -41,7 +41,7 @@ export function useAdoptState(args: {
   const adoptWindow: PickerWindow = windowAround(
     adoptList.map((w) => w.path),
     adoptCursor,
-    pickerVisibleRows(useTerminalDimensions().height),
+    pickerVisibleRows(useTerminalSize().height),
   )
   const adoptVisible = adoptList.slice(adoptWindow.start, adoptWindow.start + adoptWindow.items.length)
   const adoptDiscoveredCount = (adoptable ?? []).length

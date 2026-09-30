@@ -8,10 +8,10 @@
  * folded).
  */
 
-import { useTerminalDimensions } from "@opentui/react"
 import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
 import { resolveSidebarWidth } from "../../tui/panes/sidebar/view-core"
 import { useKV } from "../context/kv"
+import { useTerminalSize } from "../lib/use-terminal-size"
 
 /** A stored pin that isn't a usable number falls back to the derived width. */
 function storedOverride(raw: unknown): number | null {
@@ -31,7 +31,7 @@ export interface SidebarWidthHandle {
 
 export function useSidebarWidth(): SidebarWidthHandle {
   const kv = useKV()
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
   const override = storedOverride(kv.get(SIDEBAR_WIDTH_KEY, null))
   return {
     width: resolveSidebarWidth(dims.width, override),

@@ -6,7 +6,7 @@
  * Settings, worktrees, and update surfaces swap in-process instead of exiting.
  */
 
-import { useRenderer, useTerminalDimensions } from "@opentui/react"
+import { useRenderer } from "@opentui/react"
 import { useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { DEFAULT_WORKING_BORDER, WORKING_BORDER_KEY, normalizeWorkingBorder } from "../../state/working-border"
@@ -22,6 +22,7 @@ import { useT } from "../i18n"
 import { RenderProfiler } from "../lib/render-profiler"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useTaskColor } from "../lib/use-task-color"
+import { useTerminalSize } from "../lib/use-terminal-size"
 import { useWelcomeDialog } from "../onboarding/host"
 import { useSpinnerFrame } from "../panes/sidebar/row-cards"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
@@ -62,7 +63,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   const dialog = useDialog()
   const kv = useKV()
   const focus = useFocus()
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
   const sidebarWidth = useSidebarWidth()
   const [sidebarCollapsed] = useSidebarCollapsed()
   const sidebarResize = useSidebarResizeGesture({

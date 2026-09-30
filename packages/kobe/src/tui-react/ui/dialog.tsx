@@ -12,16 +12,17 @@
  */
 
 import type { Renderable } from "@opentui/core"
-import { useRenderer, useTerminalDimensions } from "@opentui/react"
+import { useRenderer } from "@opentui/react"
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "../context/theme"
 import { ModalScopeContext, useBindings } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useLatest } from "../lib/use-latest"
+import { useTerminalSize } from "../lib/use-terminal-size"
 
 /** Dialog BODY horizontal padding: 2 cells, 1 below the narrow breakpoint. Follows live resize. */
 export function useDialogPaddingX(): number {
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
   return isNarrowWidth(dims.width) ? 1 : 2
 }
 
@@ -37,7 +38,7 @@ function Dialog(props: {
   placement?: DialogPlacement
   onClose: () => void
 }) {
-  const dimensions = useTerminalDimensions()
+  const dimensions = useTerminalSize()
   const { theme } = useTheme()
   const renderer = useRenderer()
 

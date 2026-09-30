@@ -14,8 +14,8 @@
  */
 
 import type { BoxRenderable } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useState } from "react"
+import { useTerminalSize } from "../../lib/use-terminal-size"
 
 export interface UseTerminalGeometryResult {
   bodyEl: BoxRenderable | null
@@ -33,7 +33,7 @@ export function useTerminalGeometry(): UseTerminalGeometryResult {
   const [bodyEl, setBodyEl] = useState<BoxRenderable | null>(null)
   const [bodyRows, setBodyRows] = useState(4)
   const [bodyGeometry, setBodyGeometry] = useState<{ cols: number; rows: number } | null>(null)
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
 
   // Bumped by `onSizeChange`: catches layout changes with no React state (splitter drags).
   const [geomTick, setGeomTick] = useState(0)

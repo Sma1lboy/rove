@@ -11,7 +11,6 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import {
   type Automation,
   type AutomationRun,
@@ -30,6 +29,7 @@ import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { dividerRule } from "../lib/rule-divider"
 import { useCursorFollow } from "../lib/use-cursor-follow"
+import { useTerminalSize } from "../lib/use-terminal-size"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { FRAME } from "../ui/frame"
@@ -56,7 +56,7 @@ export function AutomationsPage(props: {
   const { theme } = useTheme()
   const dialog = useDialog()
   const t = useT()
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
   /**
    * Failures go to the toast queue, not the muted notice line (which reads as
    * a hint); error toasts show even with toasts disabled. Empty taskId/tabId:

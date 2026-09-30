@@ -1,18 +1,18 @@
 /** @jsxImportSource @opentui/react */
 /**
  * Narrow-mode breakpoint under a REAL opentui renderer:
- * proves the flag consumers derive from `useTerminalDimensions().width`
+ * proves the flag consumers derive from `useTerminalSize().width`
  * flips live when the terminal resizes across the 70-col boundary — the
  * same reactive path the workspace host will branch its layout on.
  */
 
 import { expect, test } from "bun:test"
-import { useTerminalDimensions } from "@opentui/react"
 import { isNarrowWidth } from "../../src/tui-react/lib/narrow-mode"
+import { useTerminalSize } from "../../src/tui-react/lib/use-terminal-size"
 import { act, renderComponent } from "./harness"
 
 function NarrowProbe() {
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
   return <text>{isNarrowWidth(dims.width) ? "layout:narrow" : "layout:wide"}</text>
 }
 

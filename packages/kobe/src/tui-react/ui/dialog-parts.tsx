@@ -7,9 +7,9 @@
 
 import type { BoxRenderable, RGBA } from "@opentui/core"
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import type { ReactNode } from "react"
 import { useTheme } from "../context/theme"
+import { useTerminalSize } from "../lib/use-terminal-size"
 import { useDialogFocus } from "./dialog-body"
 import { FRAME } from "./frame"
 
@@ -19,7 +19,7 @@ const FRAMED_DIALOG_MIN_ROWS = 34
 
 /** Is the viewport too short to spend two rows per field on a border? */
 function useDialogCompact(): boolean {
-  return useTerminalDimensions().height < FRAMED_DIALOG_MIN_ROWS
+  return useTerminalSize().height < FRAMED_DIALOG_MIN_ROWS
 }
 
 /** Field-well fill; transparent in transparent mode too. */

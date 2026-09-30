@@ -13,7 +13,6 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useState } from "react"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { engineEntry } from "../../engine/registry"
@@ -24,6 +23,7 @@ import type { VendorId } from "../../types/vendor"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
+import { useTerminalSize } from "../lib/use-terminal-size"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { ChipRow, DialogSection } from "../ui/dialog-parts"
 import { ModelSection, engineAcceptsModel, useModelField } from "./model-field"
@@ -84,7 +84,7 @@ export function EnginePickerDialogView(props: {
   const modelRow = engineAcceptsModel(cursorEngine)
   const model = useModelField({
     vendor: cursorEngine,
-    pickerRows: pickerVisibleRows(useTerminalDimensions().height),
+    pickerRows: pickerVisibleRows(useTerminalSize().height),
     initial: props.currentModel,
     initialVendor: props.current,
   })

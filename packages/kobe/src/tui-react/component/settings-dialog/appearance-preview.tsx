@@ -1,6 +1,5 @@
 /** @jsxImportSource @opentui/react */
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import type { AppearanceSetting, AppearanceSnapshot } from "../../../tui/component/settings-dialog/appearance"
 import { diffInks } from "../../../tui/context/theme-core"
 import { TASK_PARTNER_HUE_DEG } from "../../../tui/lib/border-flow"
@@ -11,6 +10,7 @@ import { paneBoxProps, paneChrome } from "../../../tui/workspace/split-chrome"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { ShimmerLabel } from "../../lib/shimmer-label"
+import { useTerminalSize } from "../../lib/use-terminal-size"
 import { COLLAPSED_RAIL_WIDTH } from "../../panes/sidebar/collapsed-rail"
 import { useSpinnerFrame } from "../../panes/sidebar/row-cards"
 import { runningPaneFlow, runningPaneTitle } from "../../workspace/running-pane-chrome"
@@ -19,8 +19,9 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
   const { current } = props
   const theme = useTheme().preview(current)
   const t = useT()
-  const narrow = useTerminalDimensions().width < 75
-  const short = useTerminalDimensions().height < 30
+  const size = useTerminalSize()
+  const narrow = size.width < 75
+  const short = size.height < 30
   const fold = current.railFoldStyle
   const { spinner, done, idle } = GLYPH_SETS[current.glyphSet]
   // "UI polish" is a working sample: it animates exactly as a live row would, on

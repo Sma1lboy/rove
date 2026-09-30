@@ -2,10 +2,10 @@
 /** The host's right rail (FileTree). Width: a third of what's left beside the
  *  sidebar, clamped to the worktree-tools convention [22, 34]. */
 
-import { useTerminalDimensions } from "@opentui/react"
 import { useFocus } from "../context/focus"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
+import { useTerminalSize } from "../lib/use-terminal-size"
 import { FileTree } from "../panes/filetree/FileTree"
 
 const WORKTREE_TOOLS_MIN_WIDTH = 22
@@ -34,7 +34,7 @@ export function HostFilesPane(props: {
   const { theme } = useTheme()
   const t = useT()
   const focus = useFocus()
-  const dims = useTerminalDimensions()
+  const dims = useTerminalSize()
   const inactiveBorder = theme.borderActive
   const available = Math.max(WORKTREE_TOOLS_MIN_WIDTH, dims.width - props.sidebarWidth)
   const width = Math.max(WORKTREE_TOOLS_MIN_WIDTH, Math.min(WORKTREE_TOOLS_MAX_WIDTH, Math.floor(available / 3)))

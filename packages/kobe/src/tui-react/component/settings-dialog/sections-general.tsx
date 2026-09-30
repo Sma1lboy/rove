@@ -7,7 +7,6 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useMemo } from "react"
 import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { engineDisplayName } from "../../../engine/interactive-command"
@@ -27,6 +26,7 @@ import { keyHintsToggleOn, toggleKeyHints } from "../../../tui/lib/keyboard-hint
 import { useKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { useTerminalSize } from "../../lib/use-terminal-size"
 import { useDialogPaddingX } from "../../ui/dialog"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
 import { AppearanceSettingsSection } from "./sections-appearance"
@@ -131,7 +131,7 @@ export function GeneralSettingsSection(
     action()
   }
   // Computed per render: opentui re-renders on resize.
-  const { labelColumn, showHint } = generalLabelLayout(useTerminalDimensions().width, useDialogPaddingX())
+  const { labelColumn, showHint } = generalLabelLayout(useTerminalSize().width, useDialogPaddingX())
   /** Inline hint, dropped entirely when the row can't hold both: a clipped
    *  half-sentence is worse than none; the SubSection paragraph still explains. */
   const hint = (key: string): string | undefined => (showHint ? t(key) : undefined)
