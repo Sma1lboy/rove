@@ -4,10 +4,10 @@ import { type RGBA, TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import type { AttentionInboxItem, RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
-import { DEFAULT_SPINNER_FRAMES } from "../../engine/spinner-frames"
 import { approxCharCells } from "../../lib/display-width"
 import { relativeAge } from "../../lib/relative-time"
 import { breathGlyph } from "../../tui/lib/breathe"
+import type { GlyphSet } from "../../tui/lib/glyphs"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../tui/lib/spinner-frame-store"
 import { truncateEndCells } from "../../tui/lib/truncate"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
@@ -20,6 +20,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { useAccessor } from "../lib/use-accessor"
+import { useGlyphs } from "../lib/use-glyphs"
 import { type DialogContext, useDialog } from "../ui/dialog"
 import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
 import {
@@ -76,13 +77,13 @@ function runningBadge(opts: {
   activity: TaskEngineState | undefined
   task: Task
   frame: number
+  glyphs: GlyphSet
   theme: ReturnType<typeof useTheme>["theme"]
   t: ReturnType<typeof useT>
 }): { glyph: string; label: string; color: RGBA } | undefined {
   if (opts.activity?.state !== "running") return undefined
-  const frames = DEFAULT_SPINNER_FRAMES
   return {
-    glyph: breathGlyph(frames, opts.frame),
+    glyph: breathGlyph(opts.glyphs.spinner, opts.frame),
     label: opts.t("workspace.inbox.state.running"),
     color: opts.theme.textMuted,
   }
@@ -224,6 +225,7 @@ export function AttentionInboxPane(props: {
     (row) => row.kind === "recent" && props.engineStates?.get(row.task.id)?.state === "running",
   )
   const spinnerFrame = useSpinnerFrame(anyRunning)
+  const glyphs = useGlyphs()
   const maxVisibleCards = Math.max(
     1,
     Math.min(MAX_VISIBLE_CARDS, Math.floor((dimensions.height - DIALOG_CHROME_ROWS) / CARD_ROWS_WITH_GAP)),
@@ -331,6 +333,7 @@ export function AttentionInboxPane(props: {
                     activity: props.engineStates?.get(row.task.id),
                     task: row.task,
                     frame: spinnerFrame,
+                    glyphs,
                     theme,
                     t,
                   })}
@@ -364,7 +367,7 @@ export function AttentionInboxPane(props: {
                 }
                 subtitle={routine ? (routine.error ?? routine.status) : contextLine}
                 badge={{
-                  glyph: itemGlyph(item.state),
+                  glyph: itemGlyph(item.state, glyphs),
                   label: t(itemStateKey(item.state)),
                   color: itemColor(item.state, theme),
                 }}

@@ -19,11 +19,13 @@ import { expect, test } from "bun:test"
 import type { BoxRenderable } from "@opentui/core"
 import type { TreeRowShared } from "../../src/tui-react/panes/sidebar/tree-row-shell"
 import { TabTreeRow } from "../../src/tui-react/panes/sidebar/tree-rows"
-import { ATTENTION_GLYPH, NO_STATE_GLYPH } from "../../src/tui/panes/sidebar/row-view"
+import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 import type { TreeTab } from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent, settle } from "./harness"
+
+const { idle: NO_STATE_GLYPH, attention: ATTENTION_GLYPH } = DEFAULT_GLYPHS
 
 const TASK: Task = {
   id: toTaskId("alpha"),

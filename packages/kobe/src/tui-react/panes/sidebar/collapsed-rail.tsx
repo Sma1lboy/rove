@@ -25,6 +25,7 @@ import { buildSidebarRowView, withSpinnerFrame } from "../../../tui/panes/sideba
 import type { TreeTab } from "../../../tui/panes/sidebar/tree-core"
 import { toneColor } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
+import { useGlyphs } from "../../lib/use-glyphs"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import { CollapseButton } from "./collapse-button"
 import { useSpinnerFrame } from "./row-cards"
@@ -92,6 +93,7 @@ function useRailSections(props: {
   // One spinner clock: per-row hooks would put rows out of phase.
   const spinning = tasks.some((task) => props.taskJobs?.get(task.id) !== undefined)
   const frame = useSpinnerFrame(spinning)
+  const glyphs = useGlyphs()
   // An all-routine project has nothing to draw, so no divider either.
   return props.groups
     .filter((group) => ownTasks(group).length > 0)
@@ -106,6 +108,7 @@ function useRailSections(props: {
           spinnerFrame: frame,
           subtitleBudget: 0,
           truncateBranch: (branch) => branch,
+          glyphs,
         })
         const view = withSpinnerFrame(base, () => frame)
         const tabs = props.style === "hairline" ? undefined : props.tabsByTask?.get(task.id)

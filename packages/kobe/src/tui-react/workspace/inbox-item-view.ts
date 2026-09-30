@@ -5,6 +5,7 @@
  */
 
 import { intlLocale } from "@/tui/i18n"
+import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
 import type { Task } from "@/types/task"
 import type { RGBA } from "@opentui/core"
 import type { AttentionInboxItem } from "@sma1lboy/kobe-daemon/daemon/contracts"
@@ -18,18 +19,18 @@ export function itemColor(state: AttentionInboxItem["state"], theme: ThemeColors
   return theme.error
 }
 
-export function itemGlyph(state: AttentionInboxItem["state"]): string {
-  if (state === "permission_needed") return "?"
-  if (state === "turn_complete") return "✓"
+export function itemGlyph(state: AttentionInboxItem["state"], glyphs: GlyphSet = DEFAULT_GLYPHS): string {
+  if (state === "permission_needed") return glyphs.needsInput
+  if (state === "turn_complete") return glyphs.done
   // Not `⌛`: U+231B resolves to AppleColorEmoji on macOS, a 2.13-cell glyph in a 1-cell column.
-  if (state === "rate_limited") return "◷"
-  // The engine PROCESS is gone (DEAD_GLYPH).
-  if (state === "dead") return "†"
-  // A schedule that could not do its work — `↻`, a cycle that keeps failing.
-  if (state === "routine_failed") return "↻"
+  if (state === "rate_limited") return glyphs.rateLimited
+  // The engine PROCESS is gone.
+  if (state === "dead") return glyphs.dead
+  // A schedule that could not do its work — a cycle that keeps failing.
+  if (state === "routine_failed") return glyphs.routineFailed
   // A routine run answered — same done mark as a finished turn.
-  if (state === "routine_responded") return "✓"
-  return "!"
+  if (state === "routine_responded") return glyphs.done
+  return glyphs.attention
 }
 
 /** i18n key for the state word shown next to the glyph. */

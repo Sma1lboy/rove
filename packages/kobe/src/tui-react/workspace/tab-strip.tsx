@@ -18,6 +18,7 @@ import {
   resolveTabStripMode,
   tabStripVisible,
 } from "../../state/tab-strip"
+import { DEFAULT_GLYPHS, type GlyphSet } from "../../tui/lib/glyphs"
 import { truncateEndCells } from "../../tui/lib/truncate"
 import { DONE_PULSE_MS } from "../../tui/panes/sidebar/row-view"
 import { type TerminalTab, tabTitle, visibleNativeStatus } from "../../tui/workspace/terminal-tabs-core"
@@ -25,24 +26,30 @@ import type { VendorId } from "../../types/vendor"
 import { useKV } from "../context/kv"
 import { type Theme, useTheme } from "../context/theme"
 import { isNarrowWidth } from "../lib/narrow-mode"
+import { useGlyphs } from "../lib/use-glyphs"
 
 export { tabTitle }
 
-/** Turn-state glyphs mirrored on the tab strip. */
-export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
-  running: "●",
-  done: "✓",
-  error: "!",
-  // Same glyphs as the sidebar rail (row-view.ts): `◷` a limit that clears
-  // itself, `†` a gone engine process. Distinct because they demand opposite actions.
-  rate_limited: "◷",
-  dead: "†",
-  // Hook-only "blocked on the user", paired like the sidebar's
-  // permission_needed badge. `unknown` is never rendered, so no collision.
-  needs_input: "?",
-  unknown: "?",
-  idle: "○",
+/** Turn-state glyphs mirrored on the tab strip, in the given preset. */
+export function turnGlyphs(glyphs: GlyphSet): Record<ChatTabTurnState, string> {
+  return {
+    running: glyphs.running,
+    done: glyphs.done,
+    error: glyphs.attention,
+    // Same marks as the Inbox: a limit that clears itself vs a gone engine
+    // process. Distinct because they demand opposite actions.
+    rate_limited: glyphs.rateLimited,
+    dead: glyphs.dead,
+    // Hook-only "blocked on the user", paired like the sidebar's
+    // permission_needed badge. `unknown` is never rendered, so no collision.
+    needs_input: glyphs.needsInput,
+    unknown: glyphs.needsInput,
+    idle: glyphs.idle,
+  }
 }
+
+/** The default preset's turn glyphs. */
+export const TURN_GLYPHS: Record<ChatTabTurnState, string> = turnGlyphs(DEFAULT_GLYPHS)
 
 /**
  * Semantic activity color, never `focusAccent`: several tabs can run at once
@@ -93,6 +100,7 @@ export function TabStrip(props: {
   const themeCtx = useTheme()
   const { theme } = themeCtx
   const kv = useKV()
+  const glyphs = turnGlyphs(useGlyphs())
   const dims = useTerminalDimensions()
   // Off by default: the sidebar tree already lists every worktree's tabs.
   // Late bail so hooks run in the same order.
@@ -205,7 +213,7 @@ export function TabStrip(props: {
             surface all seven states stay tellable apart. */}
         {active.chipShown ? (
           <text fg={turnColor(theme, active.turn)} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
-            {TURN_GLYPHS[active.turn]}
+            {glyphs[active.turn]}
           </text>
         ) : null}
         <box flexDirection="row" flexShrink={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.focusAccent}>
@@ -261,7 +269,7 @@ export function TabStrip(props: {
                   frame, so tone colors survive on every tab. */}
               {chipShown ? (
                 <text fg={turnColor(theme, turn)} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
-                  {`${TURN_GLYPHS[turn]} `}
+                  {`${glyphs[turn]} `}
                 </text>
               ) : null}
               <text

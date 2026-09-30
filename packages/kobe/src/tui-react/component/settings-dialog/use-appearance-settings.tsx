@@ -22,6 +22,7 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
     tabRowHeight: prefs.tabRowHeight(),
     workingBorder: prefs.workingBorder(),
     taskColors: prefs.taskColors(),
+    glyphSet: prefs.glyphSet(),
   }
   function commit(choice: AppearanceChoice): void {
     switch (choice.kind) {
@@ -54,6 +55,9 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
         break
       case "taskColors":
         prefs.selectTaskColors(choice.value)
+        break
+      case "glyphSet":
+        prefs.selectGlyphSet(choice.value)
         break
     }
   }

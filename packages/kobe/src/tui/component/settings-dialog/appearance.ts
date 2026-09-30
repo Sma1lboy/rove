@@ -1,3 +1,4 @@
+import { GLYPH_SET_NAMES, type GlyphSetName } from "../../../state/glyph-set"
 import type { SplitStyle } from "../../../state/split-style"
 import type { TabRowHeight } from "../../../state/tab-row-height"
 import { TASK_COLORS, type TaskColors } from "../../../state/task-colors"
@@ -15,6 +16,7 @@ export const APPEARANCE_SETTINGS = [
   "tabRowHeight",
   "workingBorder",
   "taskColors",
+  "glyphSet",
 ] as const
 export type AppearanceSetting = (typeof APPEARANCE_SETTINGS)[number]
 
@@ -28,6 +30,7 @@ export type AppearanceSnapshot = {
   tabRowHeight: TabRowHeight
   workingBorder: WorkingBorder
   taskColors: TaskColors
+  glyphSet: GlyphSetName
 }
 export type AppearanceChoice =
   | { kind: "theme"; value: string }
@@ -39,6 +42,7 @@ export type AppearanceChoice =
   | { kind: "tabRowHeight"; value: TabRowHeight }
   | { kind: "workingBorder"; value: WorkingBorder }
   | { kind: "taskColors"; value: TaskColors }
+  | { kind: "glyphSet"; value: GlyphSetName }
 
 export function appearanceChoices(setting: AppearanceSetting, themes: readonly string[]): AppearanceChoice[] {
   switch (setting) {
@@ -60,6 +64,8 @@ export function appearanceChoices(setting: AppearanceSetting, themes: readonly s
       return WORKING_BORDERS.map((value) => ({ kind: setting, value }))
     case "taskColors":
       return TASK_COLORS.map((value) => ({ kind: setting, value }))
+    case "glyphSet":
+      return GLYPH_SET_NAMES.map((value) => ({ kind: setting, value }))
   }
 }
 
@@ -83,6 +89,8 @@ export function applyAppearanceChoice(current: AppearanceSnapshot, choice: Appea
       return { ...current, workingBorder: choice.value }
     case "taskColors":
       return { ...current, taskColors: choice.value }
+    case "glyphSet":
+      return { ...current, glyphSet: choice.value }
   }
 }
 
@@ -106,5 +114,7 @@ export function currentAppearanceChoice(current: AppearanceSnapshot, setting: Ap
       return { kind: setting, value: current.workingBorder }
     case "taskColors":
       return { kind: setting, value: current.taskColors }
+    case "glyphSet":
+      return { kind: setting, value: current.glyphSet }
   }
 }

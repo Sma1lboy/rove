@@ -67,6 +67,7 @@ describe("generalRows", () => {
         "tabRowHeight",
         "workingBorder",
         "taskColors",
+        "glyphSet",
       ].map((setting) => ({
         id: `appearance:${setting}`,
         kind: "appearance",

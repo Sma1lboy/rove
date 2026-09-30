@@ -33,5 +33,13 @@ export function appearanceChoiceLabel(choice: AppearanceChoice, t: ReturnType<ty
       return t(choice.value === "flow" ? "settings.appearance.borderFlow" : "settings.appearance.borderStill")
     case "taskColors":
       return t(choice.value === "on" ? "settings.appearance.enabled" : "settings.appearance.disabled")
+    case "glyphSet":
+      return t(
+        {
+          braille: "settings.appearance.glyphsBraille",
+          starburst: "settings.appearance.glyphsStarburst",
+          ascii: "settings.appearance.glyphsAscii",
+        }[choice.value],
+      )
   }
 }

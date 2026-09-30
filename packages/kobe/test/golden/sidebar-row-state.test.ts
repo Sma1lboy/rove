@@ -24,7 +24,8 @@
 
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import { currentLang, setLocaleLang } from "@/tui/i18n"
-import { ATTENTION_GLYPH, NO_STATE_GLYPH, buildSidebarRowView } from "@/tui/panes/sidebar/row-view"
+import { DEFAULT_GLYPHS } from "@/tui/lib/glyphs"
+import { buildSidebarRowView } from "@/tui/panes/sidebar/row-view"
 import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
 import { type Task, toTaskId } from "@/types/task"
 import { afterAll, beforeAll, expect, test } from "vitest"
@@ -42,6 +43,8 @@ import {
   subtitleBudgetBlock,
   tabActivityBlock,
 } from "./sidebar-state-matrix"
+
+const { idle: NO_STATE_GLYPH, attention: ATTENTION_GLYPH } = DEFAULT_GLYPHS
 
 const GOLDEN = goldenPath(import.meta.url, "sidebar-row-state.golden.txt")
 

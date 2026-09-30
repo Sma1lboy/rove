@@ -8,6 +8,7 @@ import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
+import { DEFAULT_GLYPH_SET, GLYPH_SET_KEY, type GlyphSetName, normalizeGlyphSet } from "../../../state/glyph-set"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
 import { RAIL_FOLD_STYLE_KEY } from "../../../state/sidebar-collapsed.ts"
 import {
@@ -184,6 +185,12 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function selectTaskColors(value: TaskColors): void {
     kv.set(TASK_COLORS_KEY, value)
   }
+  function glyphSet(): GlyphSetName {
+    return normalizeGlyphSet(kv.get(GLYPH_SET_KEY, DEFAULT_GLYPH_SET))
+  }
+  function selectGlyphSet(name: GlyphSetName): void {
+    kv.set(GLYPH_SET_KEY, name)
+  }
   // Editor preference: which editor the file tree's `e` key launches.
   function editorKind(): EditorKind {
     return normalizeEditorKind(kv.get(EDITOR_KIND_KEY, DEFAULT_EDITOR_KIND))
@@ -334,6 +341,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     selectWorkingBorder,
     taskColors,
     selectTaskColors,
+    glyphSet,
+    selectGlyphSet,
     remoteProjectsEnabled,
     toggleRemoteProjects,
     autoStatusOn,
