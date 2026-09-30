@@ -15,19 +15,20 @@
 
 import { join, resolve } from "node:path"
 import { chromium } from "@playwright/test"
+import { clickText } from "./hero-capture.ts"
 import { fixtureAuthHeaders, HERO_PTY_PORT, HERO_WEB_PORT } from "./hero-env.ts"
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
 const ASSETS = join(REPO_ROOT, "docs", "assets")
 
-/** Sidebar row centres at 1280×800 — shared with the video storyboards. */
 /**
- * Sidebar row centres at 1280×800. `seededTab` is the CHAT TAB nested under a
- * seeded task, not the task row: clicking the task selects it but leaves the
- * pane on whatever tab was last focused, which is how this still first came
- * back showing an empty composer.
+ * The seeded task whose CHAT TAB the workspace still opens. The tab row sits
+ * directly under its task row and has no text of its own, so it is found by
+ * the task's title and clicked one row down: clicking the task alone selects
+ * it but leaves the pane on whatever tab was last focused, which is how this
+ * still first came back showing an empty composer.
  */
-const ROW = { kanban: 87, routines: 104, main: 152, seededTab: 264 } as const
+const SEEDED_TASK = "add-a-request-timeout"
 
 type Still = {
   readonly name: string
@@ -79,11 +80,6 @@ async function press(page: Page, ...tokens: string[]): Promise<void> {
   }
 }
 
-async function click(page: Page, x: number, y: number): Promise<void> {
-  await page.getByTestId("opentui-terminal").click({ position: { x, y } })
-  await page.waitForTimeout(800)
-}
-
 async function look(page: Page, needle: string, timeout = 20_000): Promise<void> {
   const buffer = await page.getByTestId("opentui-buffer").elementHandle()
   try {
@@ -108,7 +104,7 @@ const STILLS: readonly Still[] = [
       // which now focuses a pane rather than arranging one: it lands in zen
       // mode and photographs a SINGLE column, contradicting the caption.
       // Clicking a seeded task is what the reader would do anyway.
-      await click(page, 40, ROW.seededTab)
+      await clickText(page, SEEDED_TASK, 0, { below: 1 })
       await look(page, "Worked for")
       await page.waitForTimeout(3_000)
     },
@@ -117,16 +113,12 @@ const STILLS: readonly Still[] = [
     name: "kanban",
     subject: "Backlog / In progress / Done with the cursor on an in-progress story",
     drive: async (page) => {
-      await click(page, 40, ROW.kanban)
+      await clickText(page, "Kanban")
       await look(page, "In progress")
       await page.waitForTimeout(1_200)
-      // The board opens with NO card selected (`selectedId` starts null), so
-      // the caption's "cursor on a story" needs a keypress to exist. `down`
-      // takes the first card of the leftmost column (Backlog); `right` moves
-      // to In progress, which is the column the caption names.
-      await press(page, "down")
-      await page.waitForTimeout(600)
-      await press(page, "right")
+      // The board opens with the cursor already on its In-progress column (a
+      // card moves there because an agent linked a session), which is the
+      // column the caption names — no keypress needed.
       await page.waitForTimeout(1_500)
     },
   },
@@ -134,11 +126,15 @@ const STILLS: readonly Still[] = [
     name: "kanban-story",
     subject: "the story drawer: editable fields above the engine/workspace choices",
     drive: async (page) => {
-      await click(page, 40, ROW.kanban)
+      await clickText(page, "Kanban")
       await look(page, "In progress")
       await page.waitForTimeout(1_200)
-      // `enter` on an unselected board is a no-op — it photographed the plain
-      // board twice before this. Select a card first.
+      // `enter` on an unselected board is a no-op. The cursor starts in In
+      // progress, whose cards are linked to a session: their drawer shows the
+      // SESSION actions, not the WORKSPACE choices this still is of. `left`
+      // then `down` lands on a Backlog story, the one that can still be started.
+      await press(page, "left")
+      await page.waitForTimeout(700)
       await press(page, "down")
       await page.waitForTimeout(800)
       await press(page, "enter")
@@ -151,7 +147,7 @@ const STILLS: readonly Still[] = [
     height: 560,
     subject: "three scheduled prompts with next-run times and the selected one's detail",
     drive: async (page) => {
-      await click(page, 40, ROW.routines)
+      await clickText(page, "Routines")
       await look(page, "Nightly dependency audit")
       await page.waitForTimeout(2_000)
     },
@@ -161,7 +157,7 @@ const STILLS: readonly Still[] = [
     height: 560,
     subject: "the New routine composer with the hour cell selected and the schedule restated",
     drive: async (page) => {
-      await click(page, 40, ROW.routines)
+      await clickText(page, "Routines")
       await look(page, "Nightly dependency audit")
       await page.waitForTimeout(1_000)
       await press(page, "n")
@@ -172,6 +168,7 @@ const STILLS: readonly Still[] = [
       await page.keyboard.type("Weekday dependency audit", { delay: 30 })
       await page.waitForTimeout(500)
       await press(page, "tab") // → repo
+      await press(page, "tab") // → deliver to
       await press(page, "tab") // → prompt
       await page.keyboard.type("Audit dependencies and summarize risky changes.", { delay: 30 })
       await page.waitForTimeout(500)

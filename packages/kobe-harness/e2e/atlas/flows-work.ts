@@ -6,7 +6,7 @@
  * in `flows-shared.ts`; the traps are in `.scratch/atlas/README.md`.
  */
 
-import { ROW, type Flow, click, look, press } from "./flows-shared.ts"
+import { type Flow, click, look, openSeededTab, press } from "./flows-shared.ts"
 
 export const FLOWS_WORK: readonly Flow[] = [
   {
@@ -22,7 +22,7 @@ export const FLOWS_WORK: readonly Flow[] = [
         name: "live-session",
         subject: "a seeded task's engine tab — transcript, composer, engine status line",
         drive: async (page) => {
-          await click(page, 40, ROW.seededTab)
+          await openSeededTab(page)
           await look(page, "Worked for", 30_000)
           await page.waitForTimeout(2_500)
         },
@@ -64,7 +64,7 @@ export const FLOWS_WORK: readonly Flow[] = [
         name: "changed-files",
         subject: "the Changes rail after a real engine turn — what the task actually touched",
         drive: async (page) => {
-          await click(page, 40, ROW.seededTab)
+          await openSeededTab(page)
           await look(page, "Worked for", 30_000)
           // Focus must actually REACH the files pane before any pane-scoped
           // key. `ctrl+u` clears a composer but does not reclaim focus from a
@@ -116,7 +116,7 @@ export const FLOWS_WORK: readonly Flow[] = [
         name: "single",
         subject: "one pane, before splitting",
         drive: async (page) => {
-          await click(page, 40, ROW.seededTab)
+          await openSeededTab(page)
           await look(page, "Worked for", 30_000)
           await press(page, "ctrl+u")
           await page.waitForTimeout(2_000)
@@ -148,7 +148,7 @@ export const FLOWS_WORK: readonly Flow[] = [
         name: "on-task",
         subject: "a seeded task with real commits, before the PR verb",
         drive: async (page) => {
-          await click(page, 40, ROW.seededTab)
+          await openSeededTab(page)
           await look(page, "Worked for", 30_000)
           await press(page, "ctrl+u")
           await page.waitForTimeout(1_500)

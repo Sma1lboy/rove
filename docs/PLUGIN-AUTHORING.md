@@ -78,7 +78,7 @@ Module-by-module SDK reference: [PLUGIN-SDK.md](./PLUGIN-SDK.md).
 Five runnable examples live under `packages/kobe-plugin-sdk/examples/`, one
 per surface. Each clip below is the real TUI — recorded through the same
 browser-PTY path the README assets use, against a throwaway home with the
-example already linked (`packages/kobe-harness/e2e/hero-plugin-demos.ts`), so what
+example already linked (`packages/kobe-harness/e2e/films/`), so what
 you see is where your plugin actually shows up.
 
 ![task-board](./assets/plugins/task-board.gif)
@@ -110,13 +110,15 @@ cd packages/kobe-harness
 bun e2e/hero-fixture.ts --fresh   # throwaway home + a real repo
 bun e2e/hero-plugins.ts           # link every example (BEFORE the TUI boots)
 bun e2e/hero-serve.ts             # warm capture stack (keep running)
-bun e2e/hero-plugin-demos.ts      # every recorded take, or name one
+bun e2e/film.ts take task-board   # also contrib-engine, settings-demo, hello-events, turn-notify
+bun e2e/film.ts render task-board # re-encode from the committed cast; no stack needed
 ```
 
 Linking has to happen before the harness starts: the TUI reads the plugin
 registry once at boot, so a plugin linked mid-session contributes nothing a
-running TUI can see. The takes create real records and do not clean up after
-themselves, so re-shoot from a fresh fixture rather than a used one.
+running TUI can see. A take resets the state the previous one left (split
+panes, run logs, the settings values) and removes the task or story it filed,
+but a fresh fixture is still the safest start.
 
 Publish: push a public GitHub repo (one plugin per subdirectory is fine),
 add the topic **`rove-plugin`** → it appears in the marketplace

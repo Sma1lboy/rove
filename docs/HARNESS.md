@@ -227,10 +227,12 @@ bun e2e/hero-shot.ts --out=/tmp/probe.png ctrl+a l   # one ad-hoc frame
 bun e2e/hero-record.ts            # demo.mp4 + demo.gif (4× cut)
 bun e2e/film.ts take kanban       # records e2e/films/kanban.cast.gz (no quota)
 bun e2e/film.ts render kanban     # kanban.mp4 + kanban.gif from the cast — no stack needed
-bun e2e/hero-routines.ts          # routines.mp4 + routines.gif (3× cut)
+bun e2e/film.ts take routines     # routines.cast.gz (no quota; idempotent)
+bun e2e/film.ts render            # every film that has a cast, 3× (routines) / 2× (plugin demos)
 
 bun e2e/hero-plugins.ts           # link the five SDK examples (BEFORE serve)
-bun e2e/hero-plugin-demos.ts      # docs/assets/plugins/*.{mp4,gif} (2× cut)
+bun e2e/film.ts take task-board   # also contrib-engine, settings-demo, hello-events, turn-notify
+                                  # → docs/assets/plugins/<name>.gif (render [name…] to re-encode)
 
 # landing hero: three repos, Claude Code + Codex, detach/reattach, a diff
 node --experimental-strip-types e2e/hero-multirepo.ts --setup   # its own 3-repo fixture
@@ -278,12 +280,20 @@ the same take to encoder noise.
   drawer's Start: a story started into its own worktree boots the engine in a
   directory Claude Code has never seen, and the folder-trust prompt would be
   what got filmed.
-- **The routines capture costs no quota either, and IS idempotent.** A routine
-  is a daemon record and the fixture seeds three, so `hero-routines.ts` only
+- **The routines film costs no quota either, and IS idempotent.** A routine
+  is a daemon record and the fixture seeds three, so `films/routines.ts` only
   needs the page; it composes one on camera and removes it through
-  `rove api routine-delete` after the take, leaving the same three rows the
+  `rove api routine-delete` in its `afterTake`, leaving the same three rows the
   stills were framed on. It stops short of `run now` for the same folder-trust
   reason the kanban take stops short of Start.
+- **`auto-routing` is the one film that spends real money, so it has a
+  stand-in mode.** The take calls the real classifier (needs
+  `TYPESAFE_API_KEY`, or one stored in `~/.rove/secrets.json`) and then four
+  engine sessions. `ROUTING_DRY_RUN=1 bun e2e/film.ts take auto-routing`
+  points `deep` at an engine that only echoes, so every beat can be checked
+  without the engine half; copy that cast out of `e2e/films/` and delete it.
+  A plain `render` skips a film with no committed cast and prints one line
+  for it; `render auto-routing` by name fails until one exists.
 - **Stills ship at 1×, and `--scale=2` is currently broken.** `--scale` should
   raise only raster density while the viewport — and so the terminal's cell
   grid — stays fixed. At 2 the TUI now comes back ONE column wide, with larger
@@ -306,22 +316,24 @@ the same take to encoder noise.
   If opaque WebGL cannot initialize or loses its context, `ChatTerminal` tries
   Canvas before it falls back to DOM. Transparent Canvas failures fall back to
   DOM rather than failing the take.
-- **The plugin takes need their plugins linked BEFORE the harness boots.** The
+- **The plugin films need their plugins linked BEFORE the harness boots.** The
   TUI reads the plugin registry once at start (`loadPluginEngines()`, and the
   pane/settings sections alongside it), so a plugin linked mid-take contributes
   nothing the running TUI can see — `hero-plugins.ts` runs before
   `hero-serve.ts`, and the storyboards only ever USE what is installed. They
-  are also NOT idempotent (a story filed, a task created, neither cleaned up),
-  so re-shoot from `hero-fixture.ts --fresh && hero-plugins.ts`; `resetTakeState()`
-  clears what accumulates BETWEEN takes (a leaf pane, run logs, edited
-  settings) but cannot undo a second pass over a used fixture.
+  file real records (a story, a task), so each one's `afterTake` removes
+  what it made; `resetTakeState()` (`films/plugin-shared.ts`, run at the start
+  of each take AND as `afterTake`) also clears what accumulates BETWEEN takes
+  (a leaf pane, run logs, edited settings). A fresh
+  `hero-fixture.ts --fresh && hero-plugins.ts` is still the safest start.
 - **Settings → Engines must never be filmed.** `HOME` stays the operator's, so
   that page renders their real engine accounts — e-mail address, login state,
-  subscription. Selecting a section renders it immediately, and `SECTIONS`
-  orders general → engines → plugins, so stepping DOWN to Plugins films it in
-  passing; the plugin takes walk UP instead (general → dev → feedback → keys →
-  plugins), which crosses nothing personal. `hero-capture.ts` polls the buffer
-  during every take and aborts on an e-mail address, so this is enforced rather
+  subscription. Selecting a section renders it immediately, so stepping DOWN
+  the rail from General films Engines in passing; the plugin films click the
+  Plugins row by its text instead (`openPluginsSection`), which crosses
+  nothing personal and survives new rail entries. `hero-capture.ts` polls the
+  buffer during `record` takes and aborts on an e-mail address, and a film's
+  take refuses to save a cast that contains one, so this is enforced rather
   than remembered.
 - **The hero home's socket is PINNED, not derived.** `.kobe/` is the pre-rename
   runtime dir and every daemon bind drops a compatibility symlink there

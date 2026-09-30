@@ -12,7 +12,7 @@
  * `/harness` boot focused on the sidebar.
  */
 
-import { click, look, type as typeText } from "../hero-capture.ts"
+import { click, clickText, look, type as typeText } from "../hero-capture.ts"
 
 const KEYS: Record<string, string> = {
   enter: "Enter",
@@ -54,11 +54,20 @@ export async function press(page: Page, ...tokens: string[]): Promise<void> {
 }
 
 // Re-exported so a flow file imports its whole vocabulary from one place.
-export { click, look, typeText }
+export { click, clickText, look, typeText }
 
 
-/** Sidebar row centres at 1280×800, shared with the stills + video storyboards. */
-export const ROW = { kanban: 87, routines: 104, project: 136, main: 152, seededTab: 264 } as const
+/**
+ * The seeded task whose CHAT TAB the live-session flows open. The tab row sits
+ * directly under its task row and has no text of its own, so it is found by
+ * the task's title and clicked one row down.
+ */
+const SEEDED_TASK = "add-a-request-timeout"
+
+/** Open the seeded task's chat tab (`hero-seed.ts` must have run). */
+export async function openSeededTab(page: Page): Promise<void> {
+  await clickText(page, SEEDED_TASK, 0, { below: 1 })
+}
 
 export type Step = {
   /** File-name suffix; `<flow>-<n>-<name>.png`. */
@@ -90,7 +99,7 @@ export type Flow = {
  * `ctrl+u` first clears any composer debris a previous step typed.
  */
 export async function intoSidebar(page: Page): Promise<void> {
-  await click(page, 40, ROW.main)
+  await clickText(page, "▎main")
   await press(page, "ctrl+u")
   await press(page, "ctrl+a", "h")
   // The prefix HUD lingers after the sequence resolves, and a chord pressed

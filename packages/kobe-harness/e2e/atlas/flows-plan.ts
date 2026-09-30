@@ -6,7 +6,7 @@
  * in `flows-shared.ts`; the traps are in `.scratch/atlas/README.md`.
  */
 
-import { ROW, type Flow, click, intoSidebar, look, press, typeText } from "./flows-shared.ts"
+import { type Flow, clickText, intoSidebar, look, press, typeText } from "./flows-shared.ts"
 
 export const FLOWS_PLAN: readonly Flow[] = [
   {
@@ -18,7 +18,7 @@ export const FLOWS_PLAN: readonly Flow[] = [
         subject: "Backlog / In progress / Done columns with no selection",
         drive: async (page) => {
           await intoSidebar(page)
-          await click(page, 40, ROW.kanban)
+          await clickText(page, "Kanban")
           await look(page, "In progress", 20_000)
           await page.waitForTimeout(1_200)
         },
@@ -67,7 +67,7 @@ export const FLOWS_PLAN: readonly Flow[] = [
         subject: "the board, before intake",
         drive: async (page) => {
           await intoSidebar(page)
-          await click(page, 40, ROW.kanban)
+          await clickText(page, "Kanban")
           await look(page, "In progress", 20_000)
           await page.waitForTimeout(1_000)
         },
@@ -109,7 +109,7 @@ export const FLOWS_PLAN: readonly Flow[] = [
         subject: "three routines with next-run times and the selected one's detail",
         drive: async (page) => {
           await intoSidebar(page)
-          await click(page, 40, ROW.routines)
+          await clickText(page, "Routines")
           await look(page, "Nightly dependency audit", 20_000)
           await page.waitForTimeout(1_500)
         },

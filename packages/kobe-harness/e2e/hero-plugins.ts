@@ -18,9 +18,9 @@
  * harness — and the storyboards only ever USE what is already installed.
  */
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
-import { HERO_CLI, HERO_HOME, KOBE_DIR, assertHeroIsolation, heroEnv } from "./hero-env.ts"
+import { HERO_CLI, HERO_HOME, HERO_ROOT, KOBE_DIR, assertHeroIsolation, heroEnv } from "./hero-env.ts"
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
 const EXAMPLES = join(REPO_ROOT, "packages", "kobe-plugin-sdk", "examples")
@@ -59,9 +59,20 @@ function seedSettingsDemoConfig(): void {
 if (!existsSync(HERO_HOME)) throw new Error(`no hero fixture at ${HERO_HOME} — run \`bun e2e/hero-fixture.ts --fresh\``)
 assertHeroIsolation()
 
+/**
+ * Settings → Plugins prints each plugin's linked path, and a path under the
+ * operator's checkout carries their user name — a film take refuses to save a
+ * cast that shows it. So the examples are linked from a copy under the
+ * (neutral) hero root; re-run this script to pick up an edited example.
+ */
+const LINKED = join(HERO_ROOT, "plugin-examples")
+
 for (const plugin of EXAMPLE_PLUGINS) {
-  const root = join(EXAMPLES, plugin.dir)
-  if (!existsSync(root)) throw new Error(`missing example: ${root}`)
+  const source = join(EXAMPLES, plugin.dir)
+  if (!existsSync(source)) throw new Error(`missing example: ${source}`)
+  const root = join(LINKED, plugin.dir)
+  rmSync(root, { recursive: true, force: true })
+  cpSync(source, root, { recursive: true })
   run(["plugin", "link", root])
   console.log(`[hero:plugins] linked ${plugin.id}`)
 }

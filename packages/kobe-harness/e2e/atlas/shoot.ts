@@ -61,7 +61,7 @@ mkdirSync(OUT, { recursive: true })
  * clears the layout; the engine session (`::tab-N`, no `::leaf-`) is left alone
  * so the workspace still photographs as a live Claude Code.
  *
- * Borrowed from `hero-plugin-demos.ts`'s `resetTakeState`, which found this the
+ * Borrowed from `films/plugin-shared.ts`'s `resetTakeState`, which found this the
  * same way — by photographing a previous take's leftovers.
  */
 function closeStalePanes(): void {

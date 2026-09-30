@@ -22,15 +22,18 @@ bun dev:sandbox --name demo run plugin action invoke examples.task-board.snapsho
 ## Demo clips
 
 Each example is recorded in the real TUI — where the surface it declares
-actually appears — by `packages/kobe-harness/e2e/hero-plugin-demos.ts`; the clips
+actually appears — as a film in `packages/kobe-harness/e2e/films/`; the clips
 are embedded in [`docs/PLUGIN-AUTHORING.md`](../../../docs/PLUGIN-AUTHORING.md).
-Re-shoot from a fresh fixture (the takes create real records and do not clean
-up), and note that every example must be linked BEFORE the harness boots: the
-TUI reads the plugin registry once at start.
+A take records the PTY once (`<name>.cast.gz`, committed) and `render` turns
+it into the GIF, so re-encoding never needs the stack. Each take removes the
+task or story it filed, but a fresh fixture is still the safest start. Every
+example must be linked BEFORE the harness boots: the TUI reads the plugin
+registry once at start.
 
 ```bash
 cd packages/kobe-harness
 bun e2e/hero-fixture.ts --fresh && bun e2e/hero-plugins.ts
 bun e2e/hero-serve.ts             # keep running
-bun e2e/hero-plugin-demos.ts      # every recorded take, or name one
+bun e2e/film.ts take task-board   # also contrib-engine, settings-demo, hello-events, turn-notify
+bun e2e/film.ts render task-board # re-encode only; no stack needed
 ```

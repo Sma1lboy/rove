@@ -10,7 +10,6 @@ import { FLOWS_NAV } from "./flows-nav.ts"
 import { FLOWS_PLAN } from "./flows-plan.ts"
 import { FLOWS_WORK } from "./flows-work.ts"
 
-export { ROW } from "./flows-shared.ts"
 export type { Flow, Step } from "./flows-shared.ts"
 
 export const FLOWS: readonly Flow[] = [...FLOWS_WORK, ...FLOWS_PLAN, ...FLOWS_NAV]

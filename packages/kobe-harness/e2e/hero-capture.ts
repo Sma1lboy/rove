@@ -63,21 +63,33 @@ const CELL = { width: 7, height: 16 } as const
  * `minCol`, found in the buffer mirror. Rows are never pixel constants: one
  * sidebar row added above shifts every hard-coded y onto its neighbour, and
  * the take films the wrong page with nothing failing.
+ *
+ * `nth` picks a later match when several rows share the text (sibling tasks
+ * with one title); `below` clicks that many rows under the match — the chat
+ * tab nested under a task has no text of its own to find.
  */
-export async function clickText(page: Page, needle: string, minCol = 0): Promise<void> {
+export async function clickText(
+  page: Page,
+  needle: string,
+  minCol = 0,
+  { nth = 0, below = 0 }: { nth?: number; below?: number } = {},
+): Promise<void> {
   const hit = await page.getByTestId("opentui-buffer").evaluate(
-    (el, [text, min]) => {
+    (el, [text, min, skip]) => {
       const lines = (el.textContent ?? "").split("\n")
+      let seen = 0
       for (const [row, line] of lines.entries()) {
         const col = line.indexOf(text as string, min as number)
-        if (col >= 0) return { row, col }
+        if (col < 0) continue
+        if (seen === skip) return { row, col }
+        seen += 1
       }
       return null
     },
-    [needle, minCol] as const,
+    [needle, minCol, nth] as const,
   )
-  if (!hit) throw new Error(`no ${JSON.stringify(needle)} on screen right of column ${minCol}`)
-  await click(page, (hit.col + 1) * CELL.width, hit.row * CELL.height + CELL.height / 2)
+  if (!hit) throw new Error(`no ${JSON.stringify(needle)} (match ${nth}) on screen right of column ${minCol}`)
+  await click(page, (hit.col + 1) * CELL.width, (hit.row + below) * CELL.height + CELL.height / 2)
 }
 
 /**
