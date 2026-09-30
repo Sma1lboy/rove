@@ -23,6 +23,7 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
     workingBorder: prefs.workingBorder(),
     taskColors: prefs.taskColors(),
     glyphSet: prefs.glyphSet(),
+    colorblind: prefs.colorblind(),
   }
   function commit(choice: AppearanceChoice): void {
     switch (choice.kind) {
@@ -58,6 +59,9 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
         break
       case "glyphSet":
         prefs.selectGlyphSet(choice.value)
+        break
+      case "colorblind":
+        prefs.selectColorblind(choice.value)
         break
     }
   }

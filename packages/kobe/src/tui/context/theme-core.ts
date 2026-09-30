@@ -6,6 +6,7 @@
 
 import { RGBA } from "@opentui/core"
 
+import { turnHue } from "../lib/breathe"
 import { ensureContrast } from "./contrast-guard"
 import { BUNDLED_THEME_JSONS } from "./theme/bundled"
 import { parseRgbLiteral } from "./theme/color-literal"
@@ -193,5 +194,22 @@ export function applyDisplayOverlay(
     text: ensureContrast(transparent.text, hostBackground),
     textMuted: ensureContrast(transparent.textMuted, hostBackground),
     warningOnHost: ensureContrast(transparent.warning, hostBackground),
+  }
+}
+
+/** Inks for anything shown as an added/removed pair. */
+export type DiffInks = { added: RGBA; removed: RGBA; addedBg: RGBA; removedBg: RGBA }
+
+/**
+ * `colorblind` turns the added hue +60° and its chroma ×0.71, toward blue, so
+ * the pair stops being red/green; removed keeps the theme's own ink.
+ */
+export function diffInks(theme: Theme, colorblind: boolean): DiffInks {
+  const added = (ink: RGBA) => (colorblind ? turnHue(ink, 60, 1, 0.71) : ink)
+  return {
+    added: added(theme.diffAdded),
+    removed: theme.diffRemoved,
+    addedBg: added(theme.diffAddedBg),
+    removedBg: theme.diffRemovedBg,
   }
 }

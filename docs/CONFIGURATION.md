@@ -109,7 +109,7 @@ retired worktree-sync hook was once installed so the next launch (or
 ### Appearance
 
 Settings → General groups theme, mode, transparency, focus accent, split style,
-folded rail, tab row height, working border, task colors, and state glyphs below a workspace preview. Each row opens a selection
+folded rail, tab row height, working border, task colors, state glyphs, and colorblind diff colours below a workspace preview. Each row opens a selection
 list with the same preview above it. Use `j`/`k` or arrows to preview a choice,
 `enter` to save it, or `esc` to cancel. Previewing never changes saved settings.
 Clicking an option saves it immediately. The preview uses sample tasks and
@@ -125,6 +125,7 @@ files; it does not show your sessions.
 | `appearance.workingBorder` | `flow` \| `still` | `flow` | While the selected task's engine is running, `flow` runs a colour gradient around the workspace pane's border (derived from the theme accent) and names the task on its top edge; `still` keeps the plain focus border |
 | `appearance.taskColors` | `on` \| `off` | `on` | `on` gives every task its own hue, picked from the task id so it stays the same across restarts: the flowing working border runs in the selected task's hue, and each task's sidebar rows carry a one-cell mark in it. The hue takes its lightness and strength from the theme accent and keeps away from the success, warning and error hues. `off` uses the theme accent everywhere |
 | `appearance.glyphSet` | `braille` \| `starburst` \| `ascii` | `braille` | The marks the task rail, tab strip, Inbox and PR chip draw: `braille` spins `⠋⠙⠹…` beside `○ ● ? !`; `starburst` spins `✻✼❉❊✺✹✸✶` beside `✧ ✦ ? ❢` and needs a font with the Dingbats block (without one, macOS falls back to glyphs of different widths and the rows jitter); `ascii` uses `\| / - \` beside `o * ? !` for terminals and fonts without Unicode symbols |
+| `appearance.colorblind` | `off` \| `on` | `off` | `on` turns the theme's added colour 60° around the hue wheel toward blue, at lower chroma, so added and removed stop being a red/green pair. Applies to the diff view, the Files pane's `A`/`D` letters and `+N`/`-M` counts, and the sidebar's `+N −M` chips; removed keeps the theme colour |
 | `locale` | `en` \| `zh` | `en` | UI language |
 | `hints.keyboard.enabled` | boolean | `true` | Keyboard discoverability hints |
 | `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | One tap of the prefix key always opens the full keyboard guide. This picks what comes with it: `local` also shows shortcut badges beside the clickable controls already on screen, `guide` hides those badges |

@@ -41,5 +41,7 @@ export function appearanceChoiceLabel(choice: AppearanceChoice, t: ReturnType<ty
           ascii: "settings.appearance.glyphsAscii",
         }[choice.value],
       )
+    case "colorblind":
+      return t(choice.value === "on" ? "settings.appearance.enabled" : "settings.appearance.disabled")
   }
 }

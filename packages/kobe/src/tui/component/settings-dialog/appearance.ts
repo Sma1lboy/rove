@@ -1,4 +1,5 @@
 import { GLYPH_SET_NAMES, type GlyphSetName } from "../../../state/glyph-set"
+import { COLORBLIND_MODES, type ColorblindMode } from "../../../state/colorblind"
 import type { SplitStyle } from "../../../state/split-style"
 import type { TabRowHeight } from "../../../state/tab-row-height"
 import { TASK_COLORS, type TaskColors } from "../../../state/task-colors"
@@ -17,6 +18,7 @@ export const APPEARANCE_SETTINGS = [
   "workingBorder",
   "taskColors",
   "glyphSet",
+  "colorblind",
 ] as const
 export type AppearanceSetting = (typeof APPEARANCE_SETTINGS)[number]
 
@@ -31,6 +33,7 @@ export type AppearanceSnapshot = {
   workingBorder: WorkingBorder
   taskColors: TaskColors
   glyphSet: GlyphSetName
+  colorblind: ColorblindMode
 }
 export type AppearanceChoice =
   | { kind: "theme"; value: string }
@@ -43,6 +46,7 @@ export type AppearanceChoice =
   | { kind: "workingBorder"; value: WorkingBorder }
   | { kind: "taskColors"; value: TaskColors }
   | { kind: "glyphSet"; value: GlyphSetName }
+  | { kind: "colorblind"; value: ColorblindMode }
 
 export function appearanceChoices(setting: AppearanceSetting, themes: readonly string[]): AppearanceChoice[] {
   switch (setting) {
@@ -66,6 +70,8 @@ export function appearanceChoices(setting: AppearanceSetting, themes: readonly s
       return TASK_COLORS.map((value) => ({ kind: setting, value }))
     case "glyphSet":
       return GLYPH_SET_NAMES.map((value) => ({ kind: setting, value }))
+    case "colorblind":
+      return COLORBLIND_MODES.map((value) => ({ kind: setting, value }))
   }
 }
 
@@ -91,6 +97,8 @@ export function applyAppearanceChoice(current: AppearanceSnapshot, choice: Appea
       return { ...current, taskColors: choice.value }
     case "glyphSet":
       return { ...current, glyphSet: choice.value }
+    case "colorblind":
+      return { ...current, colorblind: choice.value }
   }
 }
 
@@ -116,5 +124,7 @@ export function currentAppearanceChoice(current: AppearanceSnapshot, setting: Ap
       return { kind: setting, value: current.taskColors }
     case "glyphSet":
       return { kind: setting, value: current.glyphSet }
+    case "colorblind":
+      return { kind: setting, value: current.colorblind }
   }
 }

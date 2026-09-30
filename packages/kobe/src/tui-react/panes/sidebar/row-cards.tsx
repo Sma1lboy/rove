@@ -15,6 +15,7 @@ import type { SidebarRow } from "../../../tui/panes/sidebar/groups"
 import { DONE_PULSE_MS } from "../../../tui/panes/sidebar/row-view"
 import { type WorktreeChanges, pickPushedChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { pollWorktreeChanges, worktreeChanges } from "../../../tui/panes/sidebar/worktree-changes-poller"
+import { useDiffInks } from "../../context/diff-inks"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { completionSeenAt, completionSeenKey, markCompletionSeen } from "../../workspace/completion-seen"
@@ -71,6 +72,7 @@ export const UNKNOWN_CHANGES_MARK = "?"
  * `↑`/`↓` (U+2191/U+2193) are single-width in every targeted monospace font. */
 export function ChangeStats(props: { readonly changes: WorktreeChanges | null }) {
   const { theme } = useTheme()
+  const inks = useDiffInks()
   // `null` = read failed or pending. Must NOT render like a clean row, or an
   // unreadable worktree reads as "nothing uncommitted" before a delete.
   if (props.changes === null) {
@@ -91,12 +93,12 @@ export function ChangeStats(props: { readonly changes: WorktreeChanges | null })
         </text>
       ) : null}
       {props.changes.added > 0 ? (
-        <text fg={theme.success} wrapMode="none" flexShrink={0}>
+        <text fg={inks.added} wrapMode="none" flexShrink={0}>
           +{props.changes.added}
         </text>
       ) : null}
       {props.changes.deleted > 0 ? (
-        <text fg={theme.error} wrapMode="none" flexShrink={0}>
+        <text fg={inks.removed} wrapMode="none" flexShrink={0}>
           −{props.changes.deleted}
         </text>
       ) : null}

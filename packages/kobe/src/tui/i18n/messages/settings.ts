@@ -91,6 +91,8 @@ export const en = {
     taskColors: "Task colors",
     /** The preset the rail, tab strip and Inbox draw state marks with. */
     glyphSet: "State glyphs",
+    /** Added/removed shown as blue/red instead of green/red. */
+    colorblind: "Colorblind diff colours",
     splitBox: "Box frames",
     splitLine: "Divider line",
     notifications: "Notifications",
@@ -327,6 +329,7 @@ export const zh: typeof en = {
     workingBorder: "运行中边框",
     taskColors: "任务配色",
     glyphSet: "状态符号",
+    colorblind: "色盲友好的增删配色",
     splitBox: "方框边框",
     splitLine: "单线分隔",
     notifications: "通知",

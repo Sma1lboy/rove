@@ -4,15 +4,15 @@ import { watch } from "node:fs"
 import type { FileStatus } from "./git"
 import type { Row } from "./rows"
 
-/** Theme token, not a color, so a theme switch recolours existing rows. */
-export function statusToken(s: FileStatus): "warning" | "success" | "error" | "textMuted" | "info" {
+/** Colour role, not a color, so a theme switch recolours existing rows; `added`/`removed` are the diff pair. */
+export function statusToken(s: FileStatus): "warning" | "added" | "removed" | "textMuted" | "info" {
   switch (s) {
     case "M":
       return "warning"
     case "A":
-      return "success"
+      return "added"
     case "D":
-      return "error"
+      return "removed"
     case "?":
       return "textMuted"
     case "R":

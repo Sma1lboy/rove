@@ -24,6 +24,7 @@ import {
 } from "../../tui/ops/preview-core"
 import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
 import { worktreeFilePath } from "../../worktree/content"
+import { useDiffInks } from "../context/diff-inks"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
@@ -48,6 +49,14 @@ export interface OpsPreviewArgs {
 
 export function PreviewScreen(props: OpsPreviewArgs) {
   const { theme } = useTheme()
+  const inks = useDiffInks()
+  // `<diff>` otherwise paints its own built-in green/red, not the theme's.
+  const pair = {
+    addedSignColor: inks.added,
+    removedSignColor: inks.removed,
+    addedBg: inks.addedBg,
+    removedBg: inks.removedBg,
+  }
   const t = useT()
   const style = useMemo(() => buildSyntaxStyle(theme), [theme])
   const filetype = filetypeOf(props.relPath)
@@ -229,6 +238,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
                 ) : (
                   <box height={file.lines} flexShrink={0}>
                     <diff
+                      {...pair}
                       diff={file.text}
                       view="unified"
                       wrapMode="none"
@@ -245,6 +255,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
           // wrapMode "none" pins visual rows to logical diff lines — the
           // review overlay's row↔line mapping depends on it.
           <diff
+            {...pair}
             ref={(r: DiffRenderable | null) => {
               diffRef.current = r
             }}

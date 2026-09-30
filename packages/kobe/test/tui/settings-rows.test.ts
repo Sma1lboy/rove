@@ -68,6 +68,7 @@ describe("generalRows", () => {
         "workingBorder",
         "taskColors",
         "glyphSet",
+        "colorblind",
       ].map((setting) => ({
         id: `appearance:${setting}`,
         kind: "appearance",
