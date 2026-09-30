@@ -17,7 +17,9 @@
 import { TextAttributes } from "@opentui/core"
 import { type AutoRoutingTier, describeTierBlock } from "../../../engine/auto-routing"
 import { engineDisplayName } from "../../../engine/interactive-command"
+import { engineEntry } from "../../../engine/registry"
 import { autoRoutingRows, rowIndex } from "../../../tui/component/settings-dialog/model"
+import { effortLabel } from "../../../tui/lib/effort-glyph"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
@@ -57,7 +59,9 @@ export function AutoRoutingSettingsSection(
             ? [
                 engineDisplayName(target.engine),
                 target.model ?? t("settings.autoRouting.engineDefault"),
-                target.effort ?? t("settings.autoRouting.engineDefault"),
+                target.effort
+                  ? effortLabel(engineEntry(target.engine).effortLevels, target.effort)
+                  : t("settings.autoRouting.engineDefault"),
               ].join(" · ")
             : "—"
           return (
