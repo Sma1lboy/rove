@@ -99,7 +99,7 @@ test("an engine config written by an older Rove reads outdated, and the install 
   expect(after).toContain("--hook-version")
   expect((JSON.parse(after) as { model: string }).model).toBe("opus")
   // …and the panel re-read it rather than showing the state it booted with.
-  expect(await frame()).toContain("hooks installed")
+  expect(await frame()).toContain("hooks written")
 })
 
 test("an engine with no hook adapter says so instead of reading as broken", async () => {

@@ -98,8 +98,12 @@ export async function runCompletionsSubcommand(
   if (flags[0] === "--install") {
     // Lazy: a static import would make every `completions <shell>` load i18n
     // and the onboarding graph.
-    const [{ installCompletions }, { t }] = await Promise.all([import("./onboarding.ts"), import("../tui/i18n")])
+    const [{ installCompletions, settleWelcomeInstall }, { t }] = await Promise.all([
+      import("./onboarding.ts"),
+      import("../tui/i18n"),
+    ])
     const completion = installCompletions(shell, deps.home, cliName, shipped)
+    settleWelcomeInstall("completions", shell)
     const line = completion.installed ? "onboarding.appliedCompletions" : "onboarding.keptCompletions"
     process.stdout.write(`${t(line, { path: completion.path })}\n`)
     return

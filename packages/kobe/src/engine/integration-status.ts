@@ -73,6 +73,7 @@ export interface EngineIntegration {
   readonly vendor: VendorId
   /** False when this engine has no hook adapter at all (contrib, custom). */
   readonly hooksSupported: boolean
+  readonly setupCommand?: string
   /** `not-installed` both for "never written" and for an unsupported engine. */
   readonly hookState: HookInstallState
   /** The engine config the hooks live in; `""` when the engine has none. */
@@ -116,6 +117,7 @@ function integrationFor(
   return {
     vendor,
     hooksSupported,
+    ...(adapter?.setupCommand ? { setupCommand: adapter.setupCommand } : {}),
     hookState,
     hookFile,
     markers: entry.createTurnDetector().supportsCompletionMarkers(),

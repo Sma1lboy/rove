@@ -3,6 +3,7 @@ import { parse } from "@ansi-tools/parser"
 import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 import type { MouseTransition, TerminalInputModes } from "./keys-pure"
+import type { SessionRecovery } from "./session-recovery"
 import type { Chunk } from "./sgr"
 import type { RowWrapFlags } from "./terminal-wrap"
 
@@ -115,6 +116,9 @@ export type DataListener = (
 export type CursorPos = { x: number; y: number }
 
 export interface TaskPtyLike {
+  /** Attach facts from the host, independent of transcript or screen contents. */
+  onRecovery?: (listener: (state: SessionRecovery) => void) => () => void
+
   readonly taskId: string
   readonly cwd: string
   readonly killed: boolean

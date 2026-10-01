@@ -51,6 +51,7 @@ export function codexHooksPath(): string {
 
 export class CodexHookAdapter extends JsonHookAdapter {
   readonly vendor = "codex" as const
+  readonly setupCommand = "/hooks"
   protected readonly eventMap = EVENT_MAP
 
   globalSettingsPath(): string {

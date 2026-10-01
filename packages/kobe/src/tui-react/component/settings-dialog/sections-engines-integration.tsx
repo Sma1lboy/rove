@@ -46,22 +46,29 @@ export function EngineIntegrationLine(props: {
   const hook = row.hooksSupported && !absent ? HOOK_STATES[row.hookState] : null
   const hookLabel = hook ? t(hook.key) : absent ? t("settings.engines.hookUnavailable") : t("settings.engines.hookNone")
   return (
-    <box flexDirection="row" gap={2} paddingLeft={6} overflow="hidden">
-      <text fg={hook === null ? theme.textMuted : hook.warn ? theme.warning : theme.success} wrapMode="none">
-        {hookLabel}
-      </text>
-      <text fg={row.markers ? theme.text : theme.textMuted} wrapMode="none">
-        {row.markers ? t("settings.engines.markersYes") : t("settings.engines.markersNo")}
-      </text>
-      <text fg={row.screen ? theme.text : theme.textMuted} wrapMode="none">
-        {row.screen ? t("settings.engines.screenYes") : t("settings.engines.screenNo")}
-      </text>
-      {/* The refused-merge line. Today this failure's only symptom is that
+    <box flexDirection="column" paddingLeft={6}>
+      <box flexDirection="row" gap={2} overflow="hidden">
+        <text fg={hook === null ? theme.textMuted : hook.warn ? theme.warning : theme.success} wrapMode="none">
+          {hookLabel}
+        </text>
+        <text fg={row.markers ? theme.text : theme.textMuted} wrapMode="none">
+          {row.markers ? t("settings.engines.markersYes") : t("settings.engines.markersNo")}
+        </text>
+        <text fg={row.screen ? theme.text : theme.textMuted} wrapMode="none">
+          {row.screen ? t("settings.engines.screenYes") : t("settings.engines.screenNo")}
+        </text>
+        {/* The refused-merge line. Today this failure's only symptom is that
           every badge for the engine falls back to the daemon's ~10s poll,
           with nothing on screen naming the file responsible. */}
-      {row.configIssue ? (
-        <text fg={theme.error} wrapMode="none" flexShrink={1}>
-          {t("settings.engines.hookRefused", { file: tildify(row.hookFile), reason: row.configIssue })}
+        {row.configIssue ? (
+          <text fg={theme.error} wrapMode="none" flexShrink={1}>
+            {t("settings.engines.hookRefused", { file: tildify(row.hookFile), reason: row.configIssue })}
+          </text>
+        ) : null}
+      </box>
+      {row.setupCommand ? (
+        <text fg={theme.warning} wrapMode="word">
+          {t("settings.engines.hookTrustHint", { command: row.setupCommand })}
         </text>
       ) : null}
     </box>

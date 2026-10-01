@@ -6,10 +6,11 @@ var KOBE_I18N = (function () {
     'meta.desc': 'Rove 是终端里的编码代理多路复用器：N 个彼此隔离的尝试，各自拥有 git worktree 和托管引擎会话，互相发消息协作——而这一整套就跑在一个你随时能关掉的 SSH 会话里。',
     'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.docs': '--文档', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
     'hero.title': '并行编码 agent<span class="thin">，<span class="nb">就在终端里。</span></span>',
-    'hero.sub': '一个任务，一个 worktree，一条分支。同时跑十个，合上笔记本，再从任何一台机器通过 SSH 接着干。',
+    'hero.sub': '一个托管任务，一个 worktree，一条分支。并行工作在保持唤醒的主机上运行；断开终端后，再通过 SSH 接回来。',
     'hero.engines': '支持 Claude Code、Codex、Copilot、Gemini CLI、OpenCode 等。',
     'hero.demoCap': '图 0 — Rove 运行中',
-    'hero.requirements': 'macOS · Linux · Windows —— 自带 Bun 运行时。只需 git 和 PATH 上任意一个引擎 CLI。',
+    'hero.firstTasks': '下一步：完成前两个任务 →',
+    'hero.requirements': '需要 git 和已登录的引擎 CLI；Bun ≥ 1.3.11 可随安装配置。原生 Windows 还需 Node.js 和 Git for Windows。',
     'copy.hint': '点击复制', 'copy.done': '✓ 已复制',
 
     // ── 图纸公用（四张图共用）
@@ -27,7 +28,7 @@ var KOBE_I18N = (function () {
     'tb.drawn': '制图', 'tb.checked': '校核', 'tb.date': '日期', 'tb.scale': '比例',
     'tb.onboard': '在图板上', 'tb.material': '材料', 'tb.materialVal': 'TypeScript · 自带 Bun',
     'tb.finish': '表面处理', 'tb.units': '单位', 'tb.unitsVal': '任务',
-    'tb.platform': '平台', 'tb.platformVal': 'macOS · Linux · Windows —— 需要 git 和 PATH 上一个引擎 CLI',
+    'tb.platform': '平台', 'tb.platformVal': 'macOS · Linux · Windows —— git + 引擎 CLI；原生 Windows 另需 Node.js + Git Bash',
 
     // ── 第 1 张图：总装
     'ga.installTag': '安装',
@@ -74,13 +75,13 @@ var KOBE_I18N = (function () {
 
     'ga.n4.h': '持续运行',
     'ga.f4.tui': '你的 TUI', 'ga.f4.tuiSub': '可能已断开',
-    'ga.f4.dmn1': 'PTY 宿主 · 长驻', 'ga.f4.dmn2': '重启也还在',
+    'ga.f4.dmn1': 'PTY 宿主 · 长驻', 'ga.f4.dmn2': '脱离后继续运行',
     'ga.f4.remote': '远端 daemon',
     'ga.f4.ssh1': 'SSH 转发的 socket', 'ga.f4.ssh2': '不开端口，不加新认证',
     'ga.f4.back': '接回来时屏幕原样恢复',
     'ga.f4.dim': '最多恢复 64 MB 回滚，从最新开始',
     'ga.f4.cap': '图 5 —— 断开态运行 · 虚线 = 可能缺席的那个零件',
-    'ga.n4.p1': '引擎跑在 daemon 托管的 PTY 里，不在你的终端里。退出 TUI 只是脱离——断 SSH、合盖、重启，活儿照跑，重新接上时最多 64 MB 回滚缓冲还在。',
+    'ga.n4.p1': '引擎运行在独立 PTY 宿主中。退出 TUI 或断开 SSH 只是脱离；主机保持唤醒时任务继续运行。本机睡眠会暂停计算，远端主机保持唤醒时不受客户端合盖影响。主机重启会结束进程；重新连接后恢复已保存的画面并重新启动命令，对话是否续接取决于引擎。恢复画面不代表任务已完成。',
     'ga.n4.p2': '<b>机器</b>——家里的台式机、云上的服务器？用 <span class="mono">rove machine add</span> 加一次，它的任务就和本机的出现在同一个侧栏里。走的是你已有的 SSH，不用开端口，也不用再登录一次。<b>例程</b>——一条 cron 规则，生成的是你能打开、能反驳的真任务，不是隐藏的后台作业。<b>收件箱</b>——一份列表，卡住的排前面；F7 跳到所有项目里最早那条。',
 
     'ga.n5.h': '符号图例', 'ga.n5.sub': '侧栏状态标记',
@@ -108,10 +109,11 @@ var KOBE_I18N = (function () {
     'meta.desc': 'Rove multiplexes AI coding agents in your terminal. N isolated attempts, each with its own git worktree and hosted engine session, messaging each other as peers, all inside an SSH session you can close.',
     'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.docs': '--docs', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
     'hero.title': 'Parallel coding agents <span class="thin">in your terminal.</span>',
-    'hero.sub': 'One task, one worktree, one branch. Run ten at once, close your laptop, pick them back up from any machine over SSH.',
+    'hero.sub': 'One managed task, one worktree, one branch. Run parallel work on a host that stays awake; disconnect your terminal and pick it back up over SSH.',
     'hero.engines': 'Works with Claude Code, Codex, Copilot, Gemini CLI, OpenCode and more.',
     'hero.demoCap': 'Fig. 0 — Rove, running',
-    'hero.requirements': 'macOS · Linux · Windows — ships its own Bun runtime. Needs git and one engine CLI on PATH.',
+    'hero.firstTasks': 'Next: complete your first two tasks →',
+    'hero.requirements': 'Needs git and a signed-in engine CLI; installation can set up Bun ≥ 1.3.11. Native Windows also needs Node.js and Git for Windows.',
     'copy.hint': 'click to copy', 'copy.done': '✓ copied',
 
     // ── sheet furniture (shared by all four sheets)
@@ -129,7 +131,7 @@ var KOBE_I18N = (function () {
     'tb.drawn': 'Drawn by', 'tb.checked': 'Checked', 'tb.date': 'Date', 'tb.scale': 'Scale',
     'tb.onboard': 'On board', 'tb.material': 'Material', 'tb.materialVal': 'TypeScript · ships its own Bun',
     'tb.finish': 'Finish', 'tb.units': 'Units', 'tb.unitsVal': 'Tasks',
-    'tb.platform': 'Platform', 'tb.platformVal': 'macOS · Linux · Windows — requires git and one engine CLI on PATH',
+    'tb.platform': 'Platform', 'tb.platformVal': 'macOS · Linux · Windows — git + engine CLI; native Windows also needs Node.js + Git Bash',
 
     // ── sheet 1: general assembly
     'ga.installTag': 'Install',
@@ -176,13 +178,13 @@ var KOBE_I18N = (function () {
 
     'ga.n4.h': 'Continuous operation',
     'ga.f4.tui': 'Your TUI', 'ga.f4.tuiSub': 'May detach',
-    'ga.f4.dmn1': 'PTY host · long-lived', 'ga.f4.dmn2': 'Survives restarts',
+    'ga.f4.dmn1': 'PTY host · long-lived', 'ga.f4.dmn2': 'Survives detach',
     'ga.f4.remote': 'Remote daemon',
     'ga.f4.ssh1': 'SSH-forwarded socket', 'ga.f4.ssh2': 'No ports opened, no new auth',
     'ga.f4.back': 'Screens come back on attach',
     'ga.f4.dim': '≤ 64 MB scrollback restored, newest first',
     'ga.f4.cap': 'Fig. 5 — Detached operation · Hidden line = the part that may be absent',
-    'ga.n4.p1': 'Engines run in PTYs hosted by the daemon, not your terminal. Quitting the TUI only detaches — drop the SSH connection, close the lid, reboot; the work keeps going, and up to 64 MB of scrollback comes back on attach.',
+    'ga.n4.p1': 'Engines run in a separate PTY host. Quitting the TUI or dropping SSH only detaches: work continues while that host stays awake. Host sleep pauses local work; closing an SSH client laptop leaves an awake remote host working. Reboot ends processes. Reattach restores saved screens and relaunches commands; conversation resume depends on the engine. Restored output does not mean the task completed.',
     'ga.n4.p2': '<b>Machines</b> — got a second computer, a desktop at home or a box in the cloud? Add it once with <span class="mono">rove machine add</span> and its tasks show up in the same sidebar as your local ones. It rides on the SSH access you already have: no ports to open, no new login. <b>Routines</b> — a cron rule that creates real tasks you can open and argue with, not a hidden job. <b>Inbox</b> — one list, blocked items first; F7 jumps to the oldest across every project.',
 
     'ga.n5.h': 'Symbol legend', 'ga.n5.sub': 'Sidebar status marks',
@@ -229,6 +231,7 @@ var KOBE_I18N = (function () {
       var v = t(el.getAttribute('data-i18n-html'));
       if (v) el.innerHTML = v;
     });
+    document.dispatchEvent(new Event('rove:language'));
     var label = document.getElementById('copyLabel');
     if (label) label.textContent = t('copy.hint');
     var toggle = document.getElementById('langToggle');
@@ -250,21 +253,6 @@ var KOBE_I18N = (function () {
   apply(); // first paint: honors ?lang= / stored pref / browser language
 
   return { t: t };
-})();
-
-// copy-to-clipboard for the install command
-(function () {
-  var btn = document.getElementById('copyBtn');
-  var label = document.getElementById('copyLabel');
-  var timer;
-  btn.addEventListener('click', function () {
-    try {
-      if (navigator.clipboard) navigator.clipboard.writeText('curl -fsSL https://rove.run/install.sh | sh');
-    } catch (e) {}
-    label.textContent = KOBE_I18N.t('copy.done');
-    clearTimeout(timer);
-    timer = setTimeout(function () { label.textContent = KOBE_I18N.t('copy.hint'); }, 1800);
-  });
 })();
 
 // live GitHub star count (cache for instant first paint, refresh each load, graceful fallback)

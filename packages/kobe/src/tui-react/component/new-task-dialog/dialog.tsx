@@ -14,6 +14,7 @@ import { useT } from "../../i18n"
 import { useDialogPaddingX } from "../../ui/dialog"
 import { DialogBody } from "../../ui/dialog-body"
 import { ChipRow, DialogActions, DialogFooter, DialogHeader, DialogSection } from "../../ui/dialog-parts"
+import { EngineHookReadiness } from "../engine-hook-readiness"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
 import { ExistingTab } from "./tab-existing"
@@ -82,6 +83,7 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
             }}
           />
         </DialogSection>
+        <EngineHookReadiness vendor={vm.vendor} />
         {vm.tab === "existing" ? <ExistingTab vm={vm} /> : null}
         {vm.tab === "clone" ? <CloneTab vm={vm} /> : null}
         {vm.tab === "adopt" ? <AdoptTab vm={vm} /> : null}

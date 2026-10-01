@@ -173,5 +173,9 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
     }
     process.exit(code || 1)
   }
+  if (global) {
+    const { settleWelcomeInstall } = await import("./onboarding.ts")
+    settleWelcomeInstall("skill")
+  }
   process.stdout.write(`${CLI_NAME} skill: installed.\n`)
 }

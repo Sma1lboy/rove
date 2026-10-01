@@ -21,6 +21,16 @@ their commands on attach. Closing a tab, deleting a managed/directory Task,
 resetting a terminal, or running `rove reset` is an intentional teardown
 instead.
 
+**Sleep is not detach.** If the machine hosting the engines sleeps, local
+computation pauses and network connections may need recovery after wake.
+Closing the lid of a laptop used only as an SSH client can leave work running
+on a separate, awake remote host. Rove does not keep a sleeping host awake.
+
+A restored screen is saved output, not a running process or proof of completion.
+A relaunched command is a new process; resuming its conversation depends on the
+engine and an available session identity (see [Resuming a conversation](#resuming-a-conversation)).
+Review the engine's output before assuming an interrupted turn continued.
+
 During recovery, an engine tab keeps its saved conversation while its shell
 starts. Rove converts it to a shell tab only after observing the engine run
 and then exit in the current TUI session. On Windows, engine history lookup
