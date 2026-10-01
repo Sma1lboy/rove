@@ -126,7 +126,10 @@ async function isolation() {
   await withFixture("isolation", 5473, false, async (f, page) => {
     await open(f, page, "empty", "Welcome to Rove")
     await expect(page.getByTestId("opentui-buffer")).toContainText("not signed in")
-    if (after) await expect(page.getByTestId("opentui-buffer")).toContainText("Directory and project tasks")
+    if (after) {
+      await expect(page.getByTestId("opentui-buffer")).toContainText("Managed tasks create isolated worktrees")
+      await expect(page.getByTestId("opentui-buffer")).toContainText("project tasks reuse existing files")
+    }
     await shot(page, "empty-workspace", "No tasks; Codex fixture binary, no account; managed-task isolation explanation")
     await closeTui(f, page, "empty")
   })
