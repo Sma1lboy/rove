@@ -258,10 +258,40 @@ describe("runPendingWelcomeInstalls", () => {
     mocks.loadStateFile.mockReturnValue({ welcomePendingCompletions: "zsh", welcomePendingSkillInstall: true })
     const { runPendingWelcomeInstalls } = await import("../../src/cli/onboarding.ts")
     runPendingWelcomeInstalls()
-    expect(mocks.patchStateFile).toHaveBeenCalledWith({
-      welcomePendingCompletions: undefined,
-      welcomePendingSkillInstall: undefined,
+    expect(mocks.patchStateFile).toHaveBeenCalledWith(expect.objectContaining({ welcomePendingCompletions: undefined }))
+    expect(mocks.patchStateFile).toHaveBeenCalledWith(
+      expect.objectContaining({ welcomePendingSkillInstall: undefined }),
+    )
+  })
+  it("rejects a corrupted queued shell without writing a shell config", async () => {
+    mocks.loadStateFile.mockReturnValue({ welcomePendingCompletions: "../../invalid" })
+    const { runPendingWelcomeInstalls } = await import("../../src/cli/onboarding.ts")
+    runPendingWelcomeInstalls()
+    expect(existsSync(join(mocks.home as string, ".bashrc"))).toBe(false)
+    expect(mocks.patchStateFile).toHaveBeenCalledWith(expect.objectContaining({ welcomePendingCompletions: undefined }))
+    expect(stdoutLines(stdoutSpy).join("\n")).toContain("invalid pending completion shell")
+  })
+
+  it("retains only failed work for retry, without repeating completed setup", async () => {
+    let state: Record<string, unknown> = { welcomePendingCompletions: "zsh", welcomePendingSkillInstall: true }
+    mocks.loadStateFile.mockImplementation(() => state)
+    mocks.patchStateFile.mockImplementation((patch: Record<string, unknown>) => {
+      state = { ...state, ...patch }
     })
+    mocks.spawnSync.mockReturnValueOnce({ status: 7 }).mockReturnValue({ status: 0 })
+    const { runPendingWelcomeInstalls } = await import("../../src/cli/onboarding.ts")
+    runPendingWelcomeInstalls()
+    expect(state.welcomePendingCompletions).toBeUndefined()
+    expect(state.welcomePendingSkillInstall).toBe(true)
+    expect(state["welcomeInstall.skill"]).toEqual({ status: "failed", reason: "exit 7" })
+    const rc = readFileSync(join(mocks.home as string, ".zshrc"), "utf8")
+    runPendingWelcomeInstalls()
+    expect(state.welcomePendingSkillInstall).toBeUndefined()
+    expect(state["welcomeInstall.skill"]).toEqual({ status: "succeeded" })
+    expect(readFileSync(join(mocks.home as string, ".zshrc"), "utf8")).toBe(rc)
+    runPendingWelcomeInstalls()
+    expect(mocks.spawnSync).toHaveBeenCalledTimes(2)
+    mocks.patchStateFile.mockReset()
   })
 })
 
@@ -280,5 +310,21 @@ describe("shouldWelcome", () => {
   it("never greets an existing user who onboarded before the key existed", async () => {
     const { shouldWelcome } = await import("../../src/cli/welcome.ts")
     expect(shouldWelcome({ "app.lastRunVersion": "0.9.200" })).toBe(false)
+  })
+})
+
+describe("manual setup retry reconciliation", () => {
+  it("clears only the matching successful request", async () => {
+    mocks.patchStateFile.mockReset()
+    mocks.loadStateFile.mockReturnValue({ welcomePendingSkillInstall: true, welcomePendingCompletions: "zsh" })
+    const { settleWelcomeInstall } = await import("../../src/cli/onboarding.ts")
+    settleWelcomeInstall("completions", "bash")
+    expect(mocks.patchStateFile).not.toHaveBeenCalled()
+    settleWelcomeInstall("completions", "zsh")
+    expect(mocks.patchStateFile).toHaveBeenCalledWith(expect.objectContaining({ welcomePendingCompletions: undefined }))
+    settleWelcomeInstall("skill")
+    expect(mocks.patchStateFile).toHaveBeenCalledWith(
+      expect.objectContaining({ welcomePendingSkillInstall: undefined }),
+    )
   })
 })

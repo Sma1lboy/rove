@@ -17,7 +17,7 @@ import type { ProductCliName } from "../product.ts"
 import { loadStateFile, patchStateFile } from "../state/store.ts"
 import type { OnboardingChoices } from "../tui-react/onboarding/host.tsx"
 import { t } from "../tui/i18n"
-import { type ShellKind, shippedCompletionsPath } from "./completion-scripts.ts"
+import { type ShellKind, isShellKind, shippedCompletionsPath } from "./completion-scripts.ts"
 import { activeCliName } from "./rename-compat.ts"
 import { PENDING_SKILL_KEY } from "./welcome.ts"
 
@@ -111,6 +111,8 @@ export function recordWelcomeChoices(choices: OnboardingChoices, shell: ShellKin
     patchStateFile({
       [PENDING_COMPLETIONS_KEY]: choices.completions && shell !== null ? shell : undefined,
       [PENDING_SKILL_KEY]: choices.skill ? true : undefined,
+      "welcomeInstall.completions": choices.completions ? { status: "queued" } : undefined,
+      "welcomeInstall.skill": choices.skill ? { status: "queued" } : undefined,
     })
   } catch {
     // A read-only home loses the deferred install, not the session.
@@ -122,35 +124,88 @@ export function runPendingWelcomeInstalls(): void {
   const state = loadStateFile()
   const shell = state[PENDING_COMPLETIONS_KEY]
   const wantsSkill = state[PENDING_SKILL_KEY] === true
-  const pendingShell = typeof shell === "string" ? (shell as ShellKind) : null
-  if (pendingShell === null && !wantsSkill) return
-
-  try {
-    patchStateFile({ [PENDING_COMPLETIONS_KEY]: undefined, [PENDING_SKILL_KEY]: undefined })
-  } catch {
-    // Clearing is best-effort; a failed clear re-runs an idempotent install.
+  const pendingShell = typeof shell === "string" && isShellKind(shell) ? shell : null
+  if (shell !== undefined && pendingShell === null) {
+    process.stdout.write(
+      "! Ignoring invalid pending completion shell; run rove completions --help to choose a supported shell.\n",
+    )
+    try {
+      patchStateFile({
+        [PENDING_COMPLETIONS_KEY]: undefined,
+        "welcomeInstall.completions": { status: "failed", reason: "Unsupported shell" },
+      })
+    } catch {
+      /* Read-only settings must not block the remaining setup. */
+    }
   }
+  if (pendingShell === null && !wantsSkill) return
 
   const cli = activeCliName()
   const out = (line: string) => process.stdout.write(`${line}\n`)
+  const save = (patch: Record<string, unknown>) => {
+    try {
+      patchStateFile(patch)
+    } catch {
+      out("! Could not save setup results; check permissions before retrying.")
+    }
+  }
+  const failed = (item: string, reason: string, command: string) => {
+    save({ [`welcomeInstall.${item}`]: { status: "failed", reason } })
+    out(t("onboarding.installFailed", { item, reason, command }))
+  }
   if (pendingShell !== null) {
-    const completion = installCompletions(pendingShell)
-    out(
-      t(completion.installed ? "onboarding.appliedCompletions" : "onboarding.keptCompletions", {
-        path: completion.path,
-      }),
-    )
+    try {
+      const completion = installCompletions(pendingShell)
+      save({
+        [PENDING_COMPLETIONS_KEY]: undefined,
+        "welcomeInstall.completions": { status: "succeeded" },
+      })
+      out(
+        t(completion.installed ? "onboarding.appliedCompletions" : "onboarding.keptCompletions", {
+          path: completion.path,
+        }),
+      )
+    } catch (error) {
+      failed(
+        "completions",
+        error instanceof Error ? error.message : String(error),
+        `${cli} completions ${pendingShell} --install`,
+      )
+    }
   }
   if (wantsSkill) {
-    const skillInstall = `${cli} skill install`
+    const command = `${cli} skill install`
     if (isNpxMissing()) {
-      // install.sh never installs Node, so no `npx` is ordinary; don't point
-      // at `rove skill install`, which needs it too.
-      out(t("onboarding.skillNeedsNode", { command: skillInstall }))
+      failed("skill", "npx is missing (install Node.js from https://nodejs.org)", command)
     } else {
       out(t("onboarding.installingSkill", { command: npxSkillsCommand() }))
-      const result = spawnSync("npx", npxSkillsArgv(), { stdio: "inherit" })
-      if (result.status !== 0) out(t("onboarding.skillFailed", { command: skillInstall }))
+      try {
+        const result = spawnSync("npx", npxSkillsArgv(), { stdio: "inherit" })
+        if (result.status !== 0) {
+          failed(
+            "skill",
+            result.error?.message ?? (result.signal ? `signal ${result.signal}` : `exit ${result.status}`),
+            command,
+          )
+        } else {
+          save({ [PENDING_SKILL_KEY]: undefined, "welcomeInstall.skill": { status: "succeeded" } })
+          out(t("onboarding.skillSucceeded"))
+        }
+      } catch (error) {
+        failed("skill", error instanceof Error ? error.message : String(error), command)
+      }
     }
+  }
+}
+
+/** A successful explicit retry satisfies the matching queued setup request. */
+export function settleWelcomeInstall(item: "skill" | "completions", shell?: ShellKind): void {
+  const state = loadStateFile()
+  const key = item === "skill" ? PENDING_SKILL_KEY : PENDING_COMPLETIONS_KEY
+  if (item === "skill" ? state[key] !== true : state[key] !== shell) return
+  try {
+    patchStateFile({ [key]: undefined, [`welcomeInstall.${item}`]: { status: "succeeded" } })
+  } catch {
+    process.stderr.write("! Setup succeeded, but its queued state could not be saved. Check settings permissions.\n")
   }
 }

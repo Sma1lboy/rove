@@ -18,7 +18,14 @@ function fakeDialog() {
     },
     setSize: () => {},
   } as unknown as DialogContext
-  return { dialog, view: () => entry?.thunk() as ReactElement<{ onDone: (c: OnboardingChoices) => void }> }
+  return {
+    dialog,
+    view: () =>
+      entry?.thunk() as ReactElement<{
+        onDone: (c: OnboardingChoices) => void
+        onAnswers: (c: OnboardingChoices) => void
+      }>,
+  }
 }
 
 test("accepting in the welcome dialog settles once, with the accepted answer", () => {
@@ -36,3 +43,18 @@ test("closing without answering settles as declined", () => {
   dialog.clear()
   expect(calls).toEqual([{ completions: false, skill: false }])
 })
+
+for (const choices of [
+  { completions: true, skill: false },
+  { completions: true, skill: true },
+]) {
+  test(`dismissal preserves confirmed choices ${JSON.stringify(choices)}`, () => {
+    const { dialog, view } = fakeDialog()
+    const calls: OnboardingChoices[] = []
+    WelcomeDialog.show(dialog, { shell: "zsh", onDone: (c) => calls.push(c) })
+    view().props.onAnswers(choices)
+    dialog.clear()
+    dialog.clear()
+    expect(calls).toEqual([choices])
+  })
+}
