@@ -30,7 +30,8 @@ describe("WelcomePane", () => {
     // Default keymap: task.new = n, help.open = F1 — resolved live, not hardcoded.
     expect(out).toContain("creates your first task")
     expect(out).toContain("shows every shortcut")
-    expect(out).toContain("Each task creates its own git worktree")
+    expect(out).toContain("Managed tasks create isolated worktrees")
+    expect(out.replace(/\s+/g, " ")).toContain("Directory and project tasks reuse existing files")
     expect(out).toContain("claude · codex")
     // Healthy environment → no doctor escalation.
     expect(out).not.toContain("rove doctor")

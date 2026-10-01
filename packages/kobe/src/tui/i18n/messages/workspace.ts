@@ -23,10 +23,10 @@ export const en = {
   /** Zero-tasks welcome panel (first launch) */
   welcome: {
     title: "Welcome to Rove",
-    tagline: "Run several AI coding sessions side by side — each task gets its own git worktree and branch.",
-    /** What a worktree is and why every task has one. */
+    tagline: "Run several AI coding sessions side by side — use managed tasks for isolated worktrees.",
+    /** The task kind determines the isolation boundary. */
     worktreeExplain:
-      "Each task creates its own git worktree directory and branch, so multiple AI sessions can edit the same codebase in parallel without colliding.",
+      "Managed tasks create isolated worktrees and branches. Directory and project tasks reuse existing files; tabs within a task share its directory.",
     /** {key} is the live new-task chord */
     stepNew: "creates your first task — pick a repo, a base branch, an engine",
     /** {key} is the live help chord */
@@ -88,8 +88,8 @@ export const zh: typeof en = {
   },
   welcome: {
     title: "欢迎使用 Rove",
-    tagline: "并行运行多个 AI 编码会话——每个任务都有自己的 git worktree 和分支。",
-    worktreeExplain: "每个任务都会创建独立的 git worktree 目录和分支，多个 AI 会话可以并行修改同一份代码库，互不干扰。",
+    tagline: "并行运行多个 AI 编码会话——使用托管任务获得独立的 worktree。",
+    worktreeExplain: "托管任务创建独立的 worktree 和分支。目录与项目任务复用现有文件；同一任务内的标签页共享目录。",
     stepNew: "创建你的第一个任务——选仓库、基础分支和引擎",
     stepHelp: "查看当前焦点下的全部快捷键",
     stepPrefix: "打开命令菜单",

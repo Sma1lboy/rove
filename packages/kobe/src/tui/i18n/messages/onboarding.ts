@@ -14,7 +14,7 @@ export const en = {
   /** Dialog header */
   title: "Welcome to Rove",
   /** One-liner under the header: what Rove actually does, before any question. */
-  subtitle: "Every task gets its own git worktree and branch, so parallel sessions never collide.",
+  subtitle: "Managed tasks get isolated worktrees and branches. Directory and project tasks reuse existing files.",
   /** Step 1 question; {shell} is the detected shell name (zsh/bash/fish) */
   completionsQuestion: "Install shell completions for {shell}?",
   /** Step 1 explanation */
@@ -58,7 +58,7 @@ export const en = {
 
 export const zh: typeof en = {
   title: "欢迎使用 Rove",
-  subtitle: "每个任务都有自己的 git worktree 和分支，所以并行的会话不会互相干扰。",
+  subtitle: "托管任务使用独立的 worktree 和分支；目录与项目任务复用现有文件。",
   completionsQuestion: "为 {shell} 安装 shell 补全吗？",
   completionsExplain: "让 rove 子命令支持 Tab 补全，会在你的 shell 配置里加一行。",
   skillQuestion: "安装 Rove agent skill 吗？",
