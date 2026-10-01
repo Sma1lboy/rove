@@ -3,9 +3,11 @@
  *
  * Owns the raw PTY child (via a `PtyDriver`) plus a capped byte ring per
  * session key, so an engine session outlives the TUI and replays on
- * reattach. VT emulation stays in the TUI; the host only answers the OSC
- * 10/11 color query so headless engines learn default colors. All output
- * bytes enter the ring and cross the socket unchanged.
+ * reattach. VT emulation stays in the TUI; the host answers the OSC 10/11
+ * color query always, and DA1/DECRQM while no emulator is attached
+ * (`terminal-modes.ts`), so headless engines still detect features.
+ * All output bytes enter the ring and cross the socket unchanged; a full
+ * replay is prefixed with the modes set by bytes already trimmed.
  *
  * Delivery is TARGETED, not pub/sub: output goes only to a session's
  * attached sinks as `pty.data` frames, which must never be dropped or
@@ -43,6 +45,7 @@ import {
 } from "./pty-observability.ts"
 import { WarmSpare } from "./pty-warm.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
+import { terminalModePreamble } from "./terminal-modes.ts"
 
 export type { PtyHostStats, PtySessionInfo } from "./pty-observability.ts"
 // Re-exported for the cross-chunk title-boundary tests (pure fold).
@@ -136,7 +139,8 @@ export class PtyHost {
    * Attach `token`'s connection to the session for `key`, spawning the
    * child on first open (adopting the warm spare when it matches). On
    * reattach the spec is IGNORED — an existing session wins — and the
-   * caller gets the ring replay either way.
+   * caller gets the ring replay either way. `answersQueries`: the caller
+   * runs an emulator that replies to DA1/DECRQM itself.
    */
   open(
     key: string,
@@ -145,6 +149,7 @@ export class PtyHost {
     sink: PtySink,
     sinceOffset?: number,
     sincePid?: number,
+    answersQueries = false,
   ): PtyAttachResult {
     let session = this.sessions.get(key)
     let created = false
@@ -172,6 +177,8 @@ export class PtyHost {
     const defaultColors = parseTerminalDefaultColors(spec.defaultColors)
     if (defaultColors) session.defaultColors = defaultColors
     session.sinks.set(token, sink)
+    if (answersQueries) session.emulatorSinks.add(token)
+    else session.emulatorSinks.delete(token)
     session.parked = false
     session.parkedScreenBytes = 0
     // Delta replay: when the parked client's offset is still in the ring
@@ -197,6 +204,11 @@ export class PtyHost {
       if (sinceValid) this.parkRestoreDeltas++
       else this.parkRestoreFallbacks++
     }
+    // A full replay starts mid-stream: re-set what the trimmed bytes had set
+    // (an engine's startup mouse tracking, above all). A delta lands on a
+    // parked screen that already holds the current modes.
+    if (!sinceValid)
+      replay = Buffer.concat([Buffer.from(terminalModePreamble(session.ringModes.modes), "latin1"), replay])
     return {
       replay: replay.toString("base64"),
       alive: session.alive,
@@ -295,6 +307,7 @@ export class PtyHost {
     const session = this.sessions.get(key)
     if (!session) return
     session.sinks.delete(token)
+    session.emulatorSinks.delete(token)
     // One socket has one sink per key. Only the final detach describes the
     // session's current visibility; a second attached client is still live.
     this.applyParkedOnDetach(session, parked, parkedScreenBytes)
@@ -306,6 +319,7 @@ export class PtyHost {
       // Only sessions this token held: an already-parked session has no sinks,
       // so an unrelated socket close (`ptyHostHasLiveSessions` polls every
       // 15s) would otherwise wipe every tab's parked bookkeeping.
+      session.emulatorSinks.delete(token)
       if (!session.sinks.delete(token)) continue
       // No explicit park detach, so no client is guaranteed a restorable screen.
       this.applyParkedOnDetach(session)

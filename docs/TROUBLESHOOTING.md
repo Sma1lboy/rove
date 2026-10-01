@@ -660,6 +660,13 @@ The wheel follows real terminal-emulator semantics, in order:
 If scrolling "does nothing" inside an app, that app received the events and
 chose not to scroll. Check its own mouse setting (e.g. `:set mouse=a`).
 
+An app may turn mouse tracking on once at startup and never send it again.
+When you reopen a tab, the Hosted PTY host replays only the last 512 KB of
+output, so it first re-sends the modes that earlier output had set: mouse
+tracking, bracketed paste, cursor keys, alternate screen. Before 0.9.238 such
+an app lost the wheel after a reopen. A running host only picks this up after
+it restarts: `rove reset`, or closing every session so the host exits when idle.
+
 ## Memory stays high after upgrading from a pre-0.8 build
 
 rove 0.8 replaced the old tmux runtime with the PureTUI + Hosted PTY backend,

@@ -7,6 +7,7 @@ import type { PtyChild, PtyDriver } from "./pty-driver.ts"
 import type { PtyFreezeSink } from "./pty-freeze-store.ts"
 import type { PtySessionEndInfo } from "./pty-observability.ts"
 import { DEFAULT_TERMINAL_COLORS, type TerminalDefaultColors, parseTerminalDefaultColors } from "./terminal-colors.ts"
+import { type TerminalModeTrack, freshModeTrack } from "./terminal-modes.ts"
 
 /** Everything `pty.open` needs to spawn a session's child on first open. */
 export interface PtySpawnSpec {
@@ -69,6 +70,14 @@ export interface PtySessionState {
   colorQueryCarry: string
   /** Colors this terminal reports to applications running in the child. */
   defaultColors: TerminalDefaultColors
+  /** The child's terminal modes as of its latest output (answers DECRQM). */
+  modes: TerminalModeTrack
+  /** Modes at the ring's first byte: the state a full replay must re-set,
+   *  since the bytes that set it were trimmed. Advanced as chunks drop. */
+  ringModes: TerminalModeTrack
+  /** Attached connections whose emulator answers terminal queries itself;
+   *  with none, the host answers DA1/DECRQM. Subset of {@link sinks}' keys. */
+  readonly emulatorSinks: Set<object>
   /** Attached connections, keyed by connection identity (the server's ClientState). */
   readonly sinks: Map<object, PtySink>
   /** A detached TUI still holds a serialized screen for an exact-delta wake. */
@@ -128,7 +137,10 @@ export function freshSessionState(key: string, spec: PtySpawnSpec, argv: readonl
     titleDecoder: new StringDecoder("utf8"),
     colorQueryCarry: "",
     defaultColors: parseTerminalDefaultColors(spec.defaultColors) ?? DEFAULT_TERMINAL_COLORS,
+    modes: freshModeTrack(),
+    ringModes: freshModeTrack(),
     sinks: new Map(),
+    emulatorSinks: new Set(),
     parked: false,
     parkedScreenBytes: 0,
     exit: null,

@@ -95,6 +95,8 @@ export class HostedTaskPty extends XtermTaskPty {
         defaultColors: opts.defaultColors,
         sinceOffset: opts.restore?.byteOffset,
         sincePid: opts.restore?.pid ?? undefined,
+        // Our xterm replies to DA1/DECRQM; the host must not answer twice.
+        answersQueries: true,
       })
       if (this.killed) return
       this.sessionPid = res.pid ?? null

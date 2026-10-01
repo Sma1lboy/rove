@@ -56,6 +56,7 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
         (frame) => deps.writeFrame(client, frame),
         typeof payload.sinceOffset === "number" ? payload.sinceOffset : undefined,
         typeof payload.sincePid === "number" ? payload.sincePid : undefined,
+        payload.answersQueries === true,
       )
     }
     case "pty.write": {

@@ -13,6 +13,7 @@ import { type PtySessionState, type PtySpawnSpec, freshSessionState } from "./pt
 import { scanOscTitle } from "./pty-observability.ts"
 import { terminatePtyChild } from "./pty-termination.ts"
 import { foldDefaultColorQueries, formatDefaultColorReply } from "./terminal-colors.ts"
+import { scanTerminalModes } from "./terminal-modes.ts"
 
 export interface PtyChildControllerDeps {
   /** How children spawn. Default Bun's; the Windows host injects node-pty's. */
@@ -114,11 +115,19 @@ export class PtyChildController {
 
   private onData(session: PtySessionState, data: string | Uint8Array): void {
     const buf = typeof data === "string" ? Buffer.from(data, "utf8") : Buffer.from(data)
-    const colorQueries = foldDefaultColorQueries(session.colorQueryCarry, buf.toString("latin1"))
+    const text = buf.toString("latin1")
+    const colorQueries = foldDefaultColorQueries(session.colorQueryCarry, text)
     session.colorQueryCarry = colorQueries.carry
-    for (const slot of colorQueries.slots) {
+    // Color replies go first: an app's DA1 sentinel after an OSC 11 query
+    // must never overtake the color reply, or the app reads "unsupported".
+    const replies = colorQueries.slots.map((slot) => formatDefaultColorReply(slot, session.defaultColors))
+    const modeReplies = scanTerminalModes(session.modes, text)
+    // An attached emulator answers DA1/DECRQM itself; a second answer would
+    // desync an app pairing replies to queries.
+    if (session.emulatorSinks.size === 0) replies.push(...modeReplies)
+    if (replies.length > 0) {
       try {
-        session.proc?.write(formatDefaultColorReply(slot, session.defaultColors))
+        session.proc?.write(replies.join(""))
       } catch {
         /* child may have exited between emitting the query and our reply */
       }
@@ -131,7 +140,9 @@ export class PtyChildController {
     // only needs the recent tail; xterm re-derives the screen from it.
     while (session.bytes > this.deps.scrollbackCap && session.chunks.length > 1) {
       const dropped = session.chunks.shift()
-      if (dropped) session.bytes -= dropped.byteLength
+      if (!dropped) break
+      session.bytes -= dropped.byteLength
+      scanTerminalModes(session.ringModes, dropped.toString("latin1"))
     }
     this.deps.onOutput?.(session, buf)
   }

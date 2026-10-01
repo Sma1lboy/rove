@@ -31,6 +31,7 @@ import { defaultPtyFreezeDir } from "./paths.ts"
 import type { PtySessionExit } from "./protocol.ts"
 import type { PtySessionState } from "./pty-host-types.ts"
 import { DEFAULT_TERMINAL_COLORS } from "./terminal-colors.ts"
+import { type TerminalModeTrack, freshModeTrack, normalizeTerminalModes, scanTerminalModes } from "./terminal-modes.ts"
 
 /** Record format version — unknown versions read as absent (forward-safe). */
 const FREEZE_VERSION = 1
@@ -50,6 +51,9 @@ export interface FrozenPtySession {
   /** How the child died when it did; null for a host-death casualty. */
   readonly exit: PtySessionExit | null
   readonly ringB64: string
+  /** Terminal modes at the ring's first byte. Optional: older records read
+   *  as defaults, and older hosts ignore it. */
+  readonly ringModes?: unknown
   readonly updatedAt: string
 }
 
@@ -72,6 +76,7 @@ export interface FreezeableSession {
   readonly exit: PtySessionExit | null
   readonly chunks: readonly Buffer[]
   readonly bytes: number
+  readonly ringModes?: TerminalModeTrack
 }
 
 /** Session state → its durable record. Pure. */
@@ -87,24 +92,32 @@ export function freezeSession(session: FreezeableSession, now = new Date()): Fro
     totalBytes: session.totalBytes,
     exit: session.exit,
     ringB64: Buffer.concat(session.chunks as Buffer[]).toString("base64"),
+    ...(session.ringModes ? { ringModes: session.ringModes.modes } : {}),
     updatedAt: now.toISOString(),
   }
 }
 
 /**
  * Record → ring buffers, trimmed to `cap` bytes from the FRONT (the tail
- * is what a reattach repaints). Returns null for a malformed ring. A newer
- * host with a smaller cap than the freezing host still restores safely.
+ * is what a reattach repaints), and the modes at the trimmed ring's start.
+ * Returns null for a malformed ring. A newer host with a smaller cap than
+ * the freezing host still restores safely.
  */
-export function thawRing(record: FrozenPtySession, cap: number): { chunks: Buffer[]; bytes: number } | null {
+export function thawRing(
+  record: FrozenPtySession,
+  cap: number,
+): { chunks: Buffer[]; bytes: number; ringModes: TerminalModeTrack } | null {
   let ring: Buffer
   try {
     ring = Buffer.from(record.ringB64, "base64")
   } catch {
     return null
   }
-  const trimmed = ring.byteLength > cap ? ring.subarray(ring.byteLength - cap) : ring
-  return { chunks: trimmed.byteLength > 0 ? [trimmed] : [], bytes: trimmed.byteLength }
+  const cut = Math.max(0, ring.byteLength - cap)
+  const trimmed = ring.subarray(cut)
+  const ringModes = freshModeTrack(normalizeTerminalModes(record.ringModes))
+  if (cut > 0) scanTerminalModes(ringModes, ring.subarray(0, cut).toString("latin1"))
+  return { chunks: trimmed.byteLength > 0 ? [trimmed] : [], bytes: trimmed.byteLength, ringModes }
 }
 
 /**
@@ -115,6 +128,8 @@ export function thawRing(record: FrozenPtySession, cap: number): { chunks: Buffe
 export function thawSession(record: FrozenPtySession, cap: number): PtySessionState | null {
   const ring = thawRing(record, cap)
   if (!ring) return null
+  const modes = freshModeTrack({ ...ring.ringModes.modes })
+  for (const chunk of ring.chunks) scanTerminalModes(modes, chunk.toString("latin1"))
   return {
     key: record.key,
     generation: randomUUID(),
@@ -132,7 +147,10 @@ export function thawSession(record: FrozenPtySession, cap: number): PtySessionSt
     titleDecoder: new StringDecoder("utf8"),
     colorQueryCarry: "",
     defaultColors: DEFAULT_TERMINAL_COLORS,
+    modes,
+    ringModes: ring.ringModes,
     sinks: new Map(),
+    emulatorSinks: new Set(),
     parked: false,
     parkedScreenBytes: 0,
     exit: record.exit,
