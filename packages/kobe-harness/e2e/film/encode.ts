@@ -54,3 +54,30 @@ export async function encode(opts: {
     console.log(gif)
   }
 }
+
+/** Footage a composition re-encodes: near-lossless, so its own encode is the only lossy pass.
+ *  A keyframe every second: the composition seeks into clips, and sparse keyframes freeze it. */
+export function encodeClip(framesDir: string, fps: number, mp4: string): void {
+  ffmpeg([
+    "-framerate",
+    String(fps),
+    "-i",
+    join(framesDir, "%05d.png"),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "slow",
+    "-crf",
+    "12",
+    "-pix_fmt",
+    "yuv420p",
+    "-g",
+    String(fps),
+    "-keyint_min",
+    String(fps),
+    "-an",
+    "-movflags",
+    "+faststart",
+    mp4,
+  ])
+}

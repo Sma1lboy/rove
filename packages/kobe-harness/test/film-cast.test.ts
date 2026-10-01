@@ -44,6 +44,7 @@ describe("frameTimes", () => {
   it("samples each segment at its rate", () => {
     expect(frameTimes([{ from: "open", to: "end", rate: 3 }], markers, 2)).toEqual([1, 2.5])
     expect(frameTimes([{ from: 0, to: "open", rate: 1 }], markers, 2)).toEqual([0, 0.5])
+    expect(frameTimes([{ from: { cue: "open", offset: 0.5 }, to: { cue: "end", offset: -2 }, rate: 1 }], markers, 2)).toEqual([1.5])
   })
 
   it("refuses a cue the take never recorded", () => {

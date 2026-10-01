@@ -1,6 +1,7 @@
 /**
  * Docs and README films.
  *
+ *   bun e2e/film.ts setup <name>       rebuild a film's own fixture (films that have one)
  *   bun e2e/film.ts take <name>        record the take (live; `hero-serve.ts` must be running)
  *   bun e2e/film.ts render [name…]     render from the committed cast (every film that has one by default)
  *
@@ -16,6 +17,7 @@ import { autoRouting, prepareAutoRouting } from "./films/auto-routing.ts"
 import { contribEngine } from "./films/contrib-engine.ts"
 import { helloEvents } from "./films/hello-events.ts"
 import { kanban } from "./films/kanban.ts"
+import { multirepo } from "./films/multirepo.ts"
 import { routines } from "./films/routines.ts"
 import { settingsDemo } from "./films/settings-demo.ts"
 import { taskBoard } from "./films/task-board.ts"
@@ -30,6 +32,7 @@ const FILMS: Record<string, Film> = {
   "hello-events": helloEvents,
   "turn-notify": turnNotify,
   "auto-routing": autoRouting,
+  multirepo,
 }
 
 /** Fixture work a film needs done BEFORE the TUI boots, because the TUI reads
@@ -43,7 +46,11 @@ const pick = (name: string): Film => {
   return film
 }
 
-if (command === "take" && names.length === 1) {
+if (command === "setup" && names.length === 1) {
+  const film = pick(names[0] as string)
+  if (!film.setup) throw new Error(`${film.name} uses the shared hero fixture (hero-fixture.ts)`)
+  await film.setup()
+} else if (command === "take" && names.length === 1) {
   const film = pick(names[0] as string)
   await PREPARE[film.name]?.()
   console.log(await take(film))
@@ -59,5 +66,5 @@ if (command === "take" && names.length === 1) {
     await render(film)
   }
 } else {
-  throw new Error("usage: bun e2e/film.ts take <name> | render [name…]")
+  throw new Error("usage: bun e2e/film.ts setup <name> | take <name> | render [name…]")
 }

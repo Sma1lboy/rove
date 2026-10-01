@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Rove multi-repo hero</title>
+    <script src="vendor/gsap.min.js"></script>
+    <style>
+{{CSS}}
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="{{DURATION}}">
+      <div id="wall"></div>
+      <div id="win">
+        <div class="win-frame">
+          <div class="win-bar">
+            <i style="background: #ff5f57"></i><i style="background: #febc2e"></i><i style="background: #28c840"></i>
+            <span>rove</span>
+          </div>
+          <div class="win-body">
+            <div id="zoomer" data-layout-allow-overflow>
+{{VIDEOS}}
+              <div id="ring-sidebar"></div>
+{{KEY_RINGS}}
+            </div>
+          </div>
+        </div>
+      </div>
+{{LAYERS}}
+    </div>
+    <script>
+      window.FILM = {{FILM}};
+    </script>
+    <script>
+{{JS}}
+    </script>
+  </body>
+</html>

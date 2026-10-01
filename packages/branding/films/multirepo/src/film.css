@@ -1,0 +1,279 @@
+@font-face {
+  font-family: "Instrument Sans";
+  font-weight: 500 700;
+  src: url("fonts/InstrumentSans-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-weight: 400 700;
+  src: url("fonts/JetBrainsMono-latin.woff2") format("woff2");
+}
+* {
+  box-sizing: border-box;
+}
+
+/* Palette and type are the launch film's (see chrome.tsx in the Remotion cut). */
+:root {
+  --ink: #fff8f1;
+  --key-bg: #1e1b19;
+  --accent: #f2a57e;
+  --sans: "Instrument Sans", sans-serif;
+  --mono: "JetBrains Mono", monospace;
+}
+
+html,
+body {
+  margin: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: #4a3150;
+}
+
+#root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#wall {
+  position: absolute;
+  inset: 0;
+  --drift: 0;
+  background:
+    radial-gradient(ellipse 60% 55% at calc(78% - var(--drift) * 10%) calc(22% + var(--drift) * 6%), rgba(255, 224, 196, 0.55), rgba(255, 224, 196, 0) 70%),
+    radial-gradient(ellipse 70% 60% at calc(12% + var(--drift) * 8%) 95%, rgba(120, 40, 30, 0.55), rgba(120, 40, 30, 0) 70%),
+    linear-gradient(165deg, #4a3150 0%, #93445a 26%, #cf6a4a 55%, #e48a5e 74%, #b8523b 100%);
+}
+
+/* The window: the capture (1440x810) at 1.03x under a 34px title bar. */
+#win {
+  position: absolute;
+  left: 218.4px;
+  top: 176px;
+  width: 1483.2px;
+  height: 868.3px;
+  opacity: 0;
+}
+.win-frame {
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #141413;
+  box-shadow: 0 40px 90px rgba(40, 10, 10, 0.45), 0 8px 24px rgba(40, 10, 10, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.win-bar {
+  position: relative;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  background: #1f1d1b;
+  border-bottom: 1px solid #2e2b28;
+}
+.win-bar i {
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  margin-right: 8px;
+}
+.win-bar span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: #a9a39a;
+}
+.win-body {
+  position: relative;
+  width: 100%;
+  height: 834.3px;
+  overflow: hidden;
+}
+/* Camera: scales about the sidebar's vertical centre (capture y 104..376). */
+#zoomer {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 247.2px;
+}
+#zoomer video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+#ring-sidebar {
+  position: absolute;
+  left: 2px;
+  top: 107.12px;
+  width: 234.84px;
+  height: 280.16px;
+  border-radius: 8px;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 6px rgba(242, 165, 126, 0.18);
+  opacity: 0;
+}
+/* The sidebar's "New task + n" row lights up as n goes down. */
+.ring-key {
+  --pulse: 0;
+  position: absolute;
+  left: 2px;
+  top: 29.87px;
+  width: 234.84px;
+  height: 22.66px;
+  border-radius: 6px;
+  border: 2px solid var(--accent);
+  background: rgba(242, 165, 126, 0.14);
+  box-shadow: 0 0 0 calc(4px + var(--pulse) * 10px) rgba(242, 165, 126, calc(0.28 * (1 - var(--pulse))));
+  opacity: 0;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+}
+
+.caption {
+  position: absolute;
+  top: 38px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  opacity: 0;
+}
+/* The kicker line is always laid out, so every headline sits on one baseline. */
+.kicker {
+  position: relative;
+  height: 30px;
+  margin-bottom: 6px;
+  font-family: var(--mono);
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 244, 234, 0.78);
+}
+.kicker span {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.kicker span + span {
+  opacity: 0;
+}
+.headline {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 64px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1.05;
+}
+.headline .cap-key {
+  display: inline-block;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 52px;
+  background: var(--key-bg);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 2px 22px 8px;
+  margin: 0 2px 0 12px;
+  box-shadow: 0 6px 0 #0d0b0a;
+  transform: translateY(-6px);
+}
+
+.keys {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.keys-row {
+  display: flex;
+  gap: 18px;
+  margin-top: 40px;
+}
+.key {
+  --press: 0;
+  width: 118px;
+  height: 118px;
+  border-radius: 18px;
+  background: var(--key-bg);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--sans);
+  font-size: 54px;
+  font-weight: 600;
+  box-shadow: 0 calc(10px - var(--press) * 1px) 0 #0d0b0a, 0 22px 40px rgba(30, 8, 8, 0.35);
+  opacity: 0;
+}
+.key.wide {
+  width: 190px;
+  justify-content: flex-end;
+  padding: 0 28px 0 24px;
+}
+.ret {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.9px;
+  stroke-linejoin: miter;
+}
+
+.end {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.end-title {
+  opacity: 0;
+}
+.end-mark {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 132px;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.end-tag {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 52px;
+  color: var(--ink);
+  margin-top: 6px;
+  letter-spacing: -0.015em;
+}
+.end-cmd {
+  margin-top: 44px;
+  opacity: 0;
+  font-family: var(--mono);
+  font-size: 30px;
+  color: var(--ink);
+  background: rgba(30, 20, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  padding: 14px 26px;
+}
+.end-cmd b {
+  font-weight: 400;
+  color: var(--accent);
+}
+.end-site {
+  margin-top: 22px;
+  opacity: 0;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 40px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}

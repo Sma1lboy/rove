@@ -1,0 +1,11 @@
+{
+  "name": "rove-film-multirepo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs && npx --yes hyperframes@0.8.98 preview",
+    "check": "node scripts/build.mjs && npx --yes hyperframes@0.8.98 check",
+    "render": "node scripts/build.mjs && npx --yes hyperframes@0.8.98 render . --quality delivery --crf 20 --video-frame-format png --output renders/hero.mp4 && node scripts/publish.mjs"
+  }
+}

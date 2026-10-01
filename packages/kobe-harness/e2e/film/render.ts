@@ -8,10 +8,11 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { createServer } from "node:net"
 import { join, resolve } from "node:path"
 import { gunzipSync } from "node:zlib"
-import { chromium } from "@playwright/test"
+import { type Browser, chromium, type Page } from "@playwright/test"
+import type { CastMarker } from "../../src/lib/cast.ts"
 import { REPO_ROOT } from "../hero-capture.ts"
-import { encode } from "./encode.ts"
-import { castPath, type Film, FPS, frameTimes, VIEWPORT } from "./film.ts"
+import { encode, encodeClip } from "./encode.ts"
+import { castPath, type Film, FPS, frameTimes, type Segment, VIEWPORT } from "./film.ts"
 
 const HARNESS_DIR = resolve(import.meta.dirname, "../..")
 
@@ -42,35 +43,81 @@ async function startVite(): Promise<{ url: string; stop: () => void }> {
   throw new Error("vite never came up for the replay page")
 }
 
+/**
+ * A replay page with the take loaded. Always DPR 1: at a higher device scale
+ * xterm lays cells out at device size, overflows the viewport, and the frame
+ * shows a corner of the TUI (the same fault HARNESS.md records for stills).
+ */
+async function openReplay(
+  browser: Browser,
+  baseUrl: string,
+  film: Film,
+  cast: string,
+): Promise<{ page: Page; markers: CastMarker[] }> {
+  const page = await browser.newPage({ viewport: film.viewport ?? VIEWPORT })
+  const wallpaper = film.wallpaper ? `&wallpaper=${encodeURIComponent(film.wallpaper)}` : ""
+  await page.goto(`${baseUrl}/harness?replay${wallpaper}`)
+  await page.locator('[data-replay-ready="true"]').waitFor({ timeout: 30_000 })
+  const loaded = await page.evaluate((text) => window.__replay?.load(text), cast)
+  if (!loaded) throw new Error("the replay page never exposed window.__replay")
+  return { page, markers: loaded.markers }
+}
+
+/** One PNG per entry of `times` into `dir`. */
+async function shoot(page: Page, times: readonly number[], dir: string, label: string): Promise<void> {
+  await mkdir(dir, { recursive: true })
+  let frame: Buffer | null = null
+  for (const [i, t] of times.entries()) {
+    const changed = await page.evaluate((at) => window.__replay?.seek(at), t)
+    // An unchanged screen is the previous frame; skipping the screenshot is
+    // what makes idle stretches cheap.
+    if (changed || !frame) frame = await page.screenshot({ type: "png" })
+    await writeFile(join(dir, `${String(i).padStart(5, "0")}.png`), frame)
+    if ((i + 1) % 240 === 0) console.error(`[film:${label}] ${i + 1}/${times.length} frames`)
+  }
+  console.error(`[film:${label}] ${times.length} frames`)
+}
+
+function readClipCuts(path: string, raw: string): Record<string, readonly Segment[]> {
+  const parsed: unknown = JSON.parse(raw)
+  if (!parsed || typeof parsed !== "object" || !("clips" in parsed) || !parsed.clips || typeof parsed.clips !== "object") {
+    throw new Error(`${path}: expected { "clips": { <id>: Segment[] } }`)
+  }
+  return parsed.clips as Record<string, readonly Segment[]>
+}
+
 export async function render(film: Film): Promise<void> {
-  const text = gunzipSync(await readFile(castPath(film.name))).toString("utf8")
+  const cast = gunzipSync(await readFile(castPath(film.name))).toString("utf8")
   const workDir = join(REPO_ROOT, ".scratch", "film", film.name)
-  const framesDir = join(workDir, "frames")
   await rm(workDir, { recursive: true, force: true })
-  await mkdir(framesDir, { recursive: true })
+  const own = film.cut && (film.out.mp4 || film.out.gif) ? film.cut : null
+  const clips = film.out.clips
+  const clipCuts = clips ? readClipCuts(clips.cutFile, await readFile(join(REPO_ROOT, clips.cutFile), "utf8")) : {}
+  const clipIndex: Record<string, { duration: number; width: number; height: number }> = {}
 
   const vite = await startVite()
   const browser = await chromium.launch({ headless: true })
   try {
-    const page = await browser.newPage({ viewport: VIEWPORT })
-    const wallpaper = film.wallpaper ? `&wallpaper=${encodeURIComponent(film.wallpaper)}` : ""
-    await page.goto(`${vite.url}/harness?replay${wallpaper}`)
-    await page.locator('[data-replay-ready="true"]').waitFor({ timeout: 30_000 })
-    const { markers } = await page.evaluate((cast) => window.__replay?.load(cast), text) ?? { markers: [] }
-    const times = frameTimes(film.cut, markers, FPS)
-    let frame: Buffer | null = null
-    for (const [i, t] of times.entries()) {
-      const changed = await page.evaluate((at) => window.__replay?.seek(at), t)
-      // An unchanged screen is the previous frame; skipping the screenshot is
-      // what makes idle stretches cheap.
-      if (changed || !frame) frame = await page.screenshot({ type: "png" })
-      await writeFile(join(framesDir, `${String(i).padStart(5, "0")}.png`), frame)
-      if ((i + 1) % 240 === 0) console.error(`[film:${film.name}] ${i + 1}/${times.length} frames`)
+    const { page, markers } = await openReplay(browser, vite.url, film, cast)
+    if (own) await shoot(page, frameTimes(own, markers, FPS), join(workDir, "frames"), film.name)
+    if (clips) {
+      const { width, height } = film.viewport ?? VIEWPORT
+      for (const [id, cut] of Object.entries(clipCuts)) {
+        const times = frameTimes(cut, markers, clips.fps)
+        await shoot(page, times, join(workDir, "clips", id), `${film.name}/${id}`)
+        clipIndex[id] = { duration: times.length / clips.fps, width, height }
+      }
     }
-    console.error(`[film:${film.name}] ${times.length} frames, ${(times.length / FPS).toFixed(1)}s`)
   } finally {
     await browser.close()
     vite.stop()
   }
-  await encode({ framesDir, workDir, fps: FPS, out: film.out })
+  if (own) await encode({ framesDir: join(workDir, "frames"), workDir, fps: FPS, out: film.out })
+  if (clips) {
+    const dir = join(REPO_ROOT, clips.dir)
+    await mkdir(dir, { recursive: true })
+    for (const id of Object.keys(clipIndex)) encodeClip(join(workDir, "clips", id), clips.fps, join(dir, `${id}.mp4`))
+    await writeFile(join(dir, "clips.json"), `${JSON.stringify(clipIndex, null, 2)}\n`)
+    console.log(dir)
+  }
 }

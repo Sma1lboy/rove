@@ -12,7 +12,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { createTaskWithChatTab, runInFixture, runRoveApi, seedGitRepo, writeFixtureWebToken } from "../../kobe/scripts/fixture-core.ts"
-import { HERO_CLI, HERO_CONFIG, HERO_HOME, HERO_REPO, HERO_ROOT, KOBE_DIR, heroEnv } from "./hero-env.ts"
+import { HERO_CLI, HERO_CONFIG, HERO_HOME, HERO_REPO, HERO_ROOT, KOBE_DIR, heroEnv, stopHeroStack } from "./hero-env.ts"
 import { HERO_COMMITS, HERO_FILES } from "./hero-repo.ts"
 
 const env = heroEnv()
@@ -156,13 +156,7 @@ function seedRoutines(): void {
 async function main(): Promise<void> {
   const fresh = process.argv.includes("--fresh")
   if (fresh || !existsSync(HERO_REPO)) {
-    if (existsSync(HERO_HOME)) {
-      try {
-        heroRun("bun", [HERO_CLI, "daemon", "stop"], KOBE_DIR)
-      } catch {
-        // no daemon to stop
-      }
-    }
+    if (existsSync(HERO_HOME)) await stopHeroStack()
     await rm(HERO_ROOT, { recursive: true, force: true })
     await mkdir(HERO_HOME, { recursive: true })
     // Before anything can start the hero daemon: `ensureWebToken` reuses an

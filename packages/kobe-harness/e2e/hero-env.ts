@@ -16,6 +16,7 @@
  */
 
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { stopDaemonProcess } from "@sma1lboy/kobe-daemon/daemon/lifecycle"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import {
@@ -56,6 +57,17 @@ export const HERO_REPO: string = PATHS.repo
 
 /** Re-exported for callers that already used the hero-specific tripwire name. */
 export const assertHeroIsolation = (): void => assertFixtureIsolation(HERO_HOME, HERO_ROOT)
+
+/**
+ * Stop the fixture's daemon AND its PTY host before the fixture is rebuilt.
+ * The PTY host outlives the daemon by design; one left from the previous
+ * take, on exit, takes the shared pidfile with it, and the new host then
+ * reads its owner as gone and kills every engine mid-take.
+ */
+export async function stopHeroStack(): Promise<void> {
+  await stopDaemonProcess(PATHS.daemonSocket, PATHS.daemonPidPath)
+  await stopDaemonProcess(PATHS.ptySocket, PATHS.ptyPidPath)
+}
 
 /**
  * The tier classifier's key, for a capture that exercises auto routing.

@@ -9,7 +9,7 @@ import { gzipSync } from "node:zlib"
 import { chromium } from "@playwright/test"
 import { look } from "../hero-capture.ts"
 import { fixtureAuthHeaders, HERO_PTY_PORT, HERO_WEB_PORT } from "../hero-env.ts"
-import { castPath, type Film, VIEWPORT } from "./film.ts"
+import { castPath, type Film, type TakeSession, VIEWPORT } from "./film.ts"
 import { assertCastClean, redactCast } from "./redact.ts"
 
 /**
@@ -37,21 +37,31 @@ export async function take(film: Film): Promise<string> {
   const runId = `take-${film.name}-${Date.now()}`
   const tab = `visual-${runId}`
   const wallpaper = film.wallpaper ? `&wallpaper=${encodeURIComponent(film.wallpaper)}` : ""
+  const url = `http://localhost:${HERO_WEB_PORT}/harness?run=${runId}${wallpaper}`
   const browser = await chromium.launch({ headless: true })
   let cast: string | null = null
   try {
-    const page = await browser.newPage({ viewport: VIEWPORT })
-    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}${wallpaper}`)
+    const page = await browser.newPage({ viewport: film.viewport ?? VIEWPORT })
+    await page.goto(url)
     await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })
-    // The hero repo's sidebar row: until it renders, keys land in a shell.
-    await look(page, "orbit-sdk", 60_000)
+    // Until the TUI has taken the terminal over, keys land in a shell.
+    await look(page, film.ready ?? "orbit-sdk", 60_000)
     await page.getByTestId("opentui-terminal").click({ position: { x: 24, y: 400 } })
     await page.waitForTimeout(2_000)
     const cue = async (label: string): Promise<void> => {
       const res = await pty("/pty/mark", { method: "POST", body: JSON.stringify({ tab, label }) })
       if (res.status === 404) throw new Error("the PTY sidecar is not recording — restart hero-serve.ts")
     }
-    await film.take(page, cue)
+    const session: TakeSession = {
+      async close() {
+        await pty("/pty/close", { method: "POST", body: JSON.stringify({ tab }) })
+      },
+      async reopen() {
+        await page.goto(url)
+        await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })
+      },
+    }
+    await film.take(page, cue, session)
   } finally {
     // Read the recording before the close; the close must happen on EVERY exit
     // so a failed take cannot leave a TUI running on the fixture.
