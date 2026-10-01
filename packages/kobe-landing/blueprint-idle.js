@@ -171,7 +171,7 @@
   buildCloud();
 
   var copyTimers = new WeakMap();
-  document.querySelectorAll('[data-cmd]').forEach(function (btn) {
+  document.querySelectorAll('[data-cmd]:not([data-install-copy])').forEach(function (btn) {
     var hint = btn.querySelector('[data-hint]');
     var original = hint ? hint.textContent : null;
     btn.addEventListener('click', function () {

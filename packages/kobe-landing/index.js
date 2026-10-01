@@ -9,7 +9,8 @@ var KOBE_I18N = (function () {
     'hero.sub': '一个任务，一个 worktree，一条分支。同时跑十个，合上笔记本，再从任何一台机器通过 SSH 接着干。',
     'hero.engines': '支持 Claude Code、Codex、Copilot、Gemini CLI、OpenCode 等。',
     'hero.demoCap': '图 0 — Rove 运行中',
-    'hero.requirements': 'macOS · Linux · Windows —— 自带 Bun 运行时。只需 git 和 PATH 上任意一个引擎 CLI。',
+    'hero.firstTasks': '下一步：完成前两个任务 →',
+    'hero.requirements': '需要 git 和已登录的引擎 CLI；Bun ≥ 1.3.11 可随安装配置。原生 Windows 还需 Node.js 和 Git for Windows。',
     'copy.hint': '点击复制', 'copy.done': '✓ 已复制',
 
     // ── 图纸公用（四张图共用）
@@ -27,7 +28,7 @@ var KOBE_I18N = (function () {
     'tb.drawn': '制图', 'tb.checked': '校核', 'tb.date': '日期', 'tb.scale': '比例',
     'tb.onboard': '在图板上', 'tb.material': '材料', 'tb.materialVal': 'TypeScript · 自带 Bun',
     'tb.finish': '表面处理', 'tb.units': '单位', 'tb.unitsVal': '任务',
-    'tb.platform': '平台', 'tb.platformVal': 'macOS · Linux · Windows —— 需要 git 和 PATH 上一个引擎 CLI',
+    'tb.platform': '平台', 'tb.platformVal': 'macOS · Linux · Windows —— git + 引擎 CLI；原生 Windows 另需 Node.js + Git Bash',
 
     // ── 第 1 张图：总装
     'ga.installTag': '安装',
@@ -111,7 +112,8 @@ var KOBE_I18N = (function () {
     'hero.sub': 'One task, one worktree, one branch. Run ten at once, close your laptop, pick them back up from any machine over SSH.',
     'hero.engines': 'Works with Claude Code, Codex, Copilot, Gemini CLI, OpenCode and more.',
     'hero.demoCap': 'Fig. 0 — Rove, running',
-    'hero.requirements': 'macOS · Linux · Windows — ships its own Bun runtime. Needs git and one engine CLI on PATH.',
+    'hero.firstTasks': 'Next: complete your first two tasks →',
+    'hero.requirements': 'Needs git and a signed-in engine CLI; installation can set up Bun ≥ 1.3.11. Native Windows also needs Node.js and Git for Windows.',
     'copy.hint': 'click to copy', 'copy.done': '✓ copied',
 
     // ── sheet furniture (shared by all four sheets)
@@ -129,7 +131,7 @@ var KOBE_I18N = (function () {
     'tb.drawn': 'Drawn by', 'tb.checked': 'Checked', 'tb.date': 'Date', 'tb.scale': 'Scale',
     'tb.onboard': 'On board', 'tb.material': 'Material', 'tb.materialVal': 'TypeScript · ships its own Bun',
     'tb.finish': 'Finish', 'tb.units': 'Units', 'tb.unitsVal': 'Tasks',
-    'tb.platform': 'Platform', 'tb.platformVal': 'macOS · Linux · Windows — requires git and one engine CLI on PATH',
+    'tb.platform': 'Platform', 'tb.platformVal': 'macOS · Linux · Windows — git + engine CLI; native Windows also needs Node.js + Git Bash',
 
     // ── sheet 1: general assembly
     'ga.installTag': 'Install',
@@ -229,6 +231,7 @@ var KOBE_I18N = (function () {
       var v = t(el.getAttribute('data-i18n-html'));
       if (v) el.innerHTML = v;
     });
+    document.dispatchEvent(new Event('rove:language'));
     var label = document.getElementById('copyLabel');
     if (label) label.textContent = t('copy.hint');
     var toggle = document.getElementById('langToggle');
@@ -250,21 +253,6 @@ var KOBE_I18N = (function () {
   apply(); // first paint: honors ?lang= / stored pref / browser language
 
   return { t: t };
-})();
-
-// copy-to-clipboard for the install command
-(function () {
-  var btn = document.getElementById('copyBtn');
-  var label = document.getElementById('copyLabel');
-  var timer;
-  btn.addEventListener('click', function () {
-    try {
-      if (navigator.clipboard) navigator.clipboard.writeText('curl -fsSL https://rove.run/install.sh | sh');
-    } catch (e) {}
-    label.textContent = KOBE_I18N.t('copy.done');
-    clearTimeout(timer);
-    timer = setTimeout(function () { label.textContent = KOBE_I18N.t('copy.hint'); }, 1800);
-  });
 })();
 
 // live GitHub star count (cache for instant first paint, refresh each load, graceful fallback)
