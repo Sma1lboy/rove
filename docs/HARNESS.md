@@ -224,7 +224,6 @@ bun e2e/hero-serve.ts             # warm capture stack on :5323 (keep running)
 
 bun e2e/hero-stills.ts            # docs/assets/*.png (workspace, kanban, routines…)
 bun e2e/hero-shot.ts --out=/tmp/probe.png ctrl+a l   # one ad-hoc frame
-bun e2e/hero-record.ts            # demo.mp4 + demo.gif (4× cut)
 bun e2e/film.ts take kanban       # records e2e/films/kanban.cast.gz (no quota)
 bun e2e/film.ts render kanban     # kanban.mp4 + kanban.gif from the cast — no stack needed
 bun e2e/film.ts take routines     # routines.cast.gz (no quota; idempotent)
@@ -252,9 +251,9 @@ directory — fixture paths are on camera. Out of Claude quota? Set
 `HERO_ANTHROPIC_BASE_URL` + `HERO_ANTHROPIC_AUTH_TOKEN` at `setup` to route
 the Claude tasks through an Anthropic-compatible proxy.
 
-`hero-capture.ts` holds what the recorders share — the `/harness` browser PTY,
-the typed-and-verified input helpers, and the encode — so a storyboard file is
-only its beats. `--encode-only` re-encodes the take already on disk.
+`hero-capture.ts` holds the input helpers every storyboard drives the TUI with
+(typed-and-verified text, keys, clicks on on-screen text, waits), so a film
+file is only its beats.
 
 **Films** (`e2e/film.ts`, one definition per film in `e2e/films/`) split a
 video into a TAKE and a RENDER. The take drives the live TUI like any other
@@ -414,11 +413,9 @@ What silently produces a false result:
   `n`/`j`/Enter dispatch against disabled sidebar bindings and vanish without
   an error — the issue-#12 "keys are all dead" report; the injection path was
   never broken. Wait for the sidebar rows to hydrate (the focus flip rides the
-  same commit), then normalize with `focusLeftmostPane` (`C-a` `h`,
-  `packages/branding/src/quicklook/capture-core.ts`) before sidebar-scoped
-  keys, and settle between strokes — the focus flip is a React state update,
-  so a key sent in the same tick still hits the OLD gates.
-  `bun run test:replay:e2e` in `packages/branding` pins the recipe live.
+  same commit), then normalize focus with the `C-a` `h` prefix before
+  sidebar-scoped keys, and settle between strokes — the focus flip is a React
+  state update, so a key sent in the same tick still hits the OLD gates.
 - **`api read-output` for a vendor TUI.** Claude and Codex run on the alternate
   screen, so the text tail is escape-code noise (`">0q"`) no matter how healthy
   the session is. Absence of output is not absence of a dialog.

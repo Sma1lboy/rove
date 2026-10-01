@@ -1,7 +1,7 @@
 /**
  * `bun e2e/hero-serve.ts` — the warm capture stack for README/docs assets:
  * Vite + the PTY sidecar on the hero ports, wired to the isolated hero home.
- * Keep it running, then shoot with `hero-shot.ts` / `hero-record.ts`.
+ * Keep it running, then shoot with `film.ts take` / `hero-stills.ts` / `hero-shot.ts`.
  *
  * Deliberately does NOT rebuild its fixture on start (unlike `visual:serve`):
  * the hero home holds real engine transcripts that cost quota, and a capture
@@ -48,7 +48,7 @@ const child = Bun.spawn(["bun", "run", "dev.ts"], {
   },
 })
 
-console.error(`[hero:serve] warm on :${HERO_WEB_PORT} — hero-shot / hero-record; ctrl-c to stop`)
+console.error(`[hero:serve] warm on :${HERO_WEB_PORT} — film.ts take / hero-stills / hero-shot; ctrl-c to stop`)
 process.on("SIGINT", () => child.kill())
 process.on("SIGTERM", () => child.kill())
 process.exit(await child.exited)
