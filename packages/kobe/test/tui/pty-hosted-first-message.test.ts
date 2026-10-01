@@ -127,3 +127,15 @@ describe("HostedTaskPty first-message paste", () => {
     expect(pty.killed).toBe(true)
   })
 })
+
+it("publishes host-confirmed relaunch without repeating the first prompt", async () => {
+  openWith({ alive: true, created: false, respawned: true, replay: "", pid: 99, offset: 0 })
+  const pty = new HostedTaskPty({ taskId: "recovery", cwd: tmpHome, command: ["bash"], firstMessage: "never repeat" })
+  const seen: unknown[] = []
+  const unsubscribe = pty.onRecovery((state) => seen.push(state))
+  await vi.waitFor(() => expect(seen).toContain("relaunched"))
+  expect(pty.shellPid).toBe(99)
+  expect(mocks.paste).not.toHaveBeenCalled()
+  unsubscribe()
+  pty.detach()
+})

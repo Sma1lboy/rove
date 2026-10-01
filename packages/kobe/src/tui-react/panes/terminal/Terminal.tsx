@@ -8,9 +8,10 @@
 
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable } from "@opentui/core"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
+import type { SessionRecovery } from "../../../tui/panes/terminal/session-recovery"
 import { isShellMissing } from "../../../tui/panes/terminal/terminal-render"
 import {
   FOLLOW_VIEWPORT,
@@ -288,6 +289,12 @@ function TerminalSession(props: TerminalProps) {
     geomTick,
   })
 
+  const [recovery, setRecovery] = useState<SessionRecovery>(null)
+  useEffect(() => {
+    setRecovery(null)
+    return pty?.onRecovery?.(setRecovery)
+  }, [pty])
+
   /* --------- view ---------- */
 
   return (
@@ -342,6 +349,13 @@ function TerminalSession(props: TerminalProps) {
           one row on the first wheel tick, resize xterm, invalidate its
           absolute-line epoch, and put the stream back on a drifting
           relative offset. */}
+      {recovery !== null && (!exited || recovery === "restored") ? (
+        <box flexShrink={0} paddingLeft={1} paddingRight={1}>
+          <text fg={recovery === "live" ? theme.textMuted : theme.warning} wrapMode="word">
+            {t(`terminal.recovery.${recovery}`)}
+          </text>
+        </box>
+      ) : null}
       {exited ? (
         <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1}>
           <text fg={theme.error} wrapMode="none">

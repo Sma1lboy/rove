@@ -306,7 +306,7 @@
   <section class="hero" data-zone="A">
     <div class="hero-l">
       <h1 data-i18n-html="hero.title">Parallel coding agents <span class="thin">in your terminal.</span></h1>
-      <p class="lede" data-i18n-html="hero.sub">One task, one worktree, one branch. Run ten at once, close your laptop, pick them back up from any machine over SSH.</p>
+      <p class="lede" data-i18n-html="hero.sub">One managed task, one worktree, one branch. Run parallel work on a host that stays awake; disconnect your terminal and pick it back up over SSH.</p>
 
       <div id="install">
         <div class="install-wrap" data-measure="ONE LINE TO INSTALL" id="installWrap">
@@ -721,7 +721,7 @@
             <rect x="204" y="30" width="150" height="74" class="v" data-draw/>
             <text class="tx fade" x="216" y="56">Rove daemon</text>
             <text class="tx-s fade" x="216" y="74" data-i18n="ga.f4.dmn1">PTY host · long-lived</text>
-            <text class="tx-s fade" x="216" y="92" data-i18n="ga.f4.dmn2">Survives restarts</text>
+            <text class="tx-s fade" x="216" y="92" data-i18n="ga.f4.dmn2">Survives detach</text>
           </g>
           <!-- engines -->
           <g>
@@ -759,7 +759,7 @@
     </div>
 
     <div class="txt-col">
-      <p data-i18n="ga.n4.p1">The engines run in PTYs hosted by the daemon, not by your terminal. Quitting the TUI only detaches. Drop the SSH connection, close the lid, reboot — the work keeps going, and the screens come back on attach with up to 64 MB of scrollback restored, newest first.</p>
+      <p data-i18n="ga.n4.p1">Engines run in a separate PTY host. Quitting the TUI or dropping SSH only detaches: work continues while that host stays awake. Host sleep pauses local work; closing an SSH client laptop leaves an awake remote host working. Reboot ends processes. Reattach restores saved screens and relaunches commands; conversation resume depends on the engine. Restored output does not mean the task completed.</p>
       <p data-i18n-html="ga.n4.p2"><b>Machines.</b> Got a second computer — a desktop at home, a box in the cloud? Add it once with <span class="mono">rove machine add</span> and its tasks show up in the same sidebar as your local ones. It rides on the SSH access you already have: no ports to open, no new login.</p>
     </div>
   </section>

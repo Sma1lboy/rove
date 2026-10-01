@@ -23,6 +23,7 @@ import { pastePromptWhenEngineUp } from "../../../engine/hosted-session.ts"
 import { getSharedPtyClient, routeAdd, routeCount, routeRemove } from "./pty-hosted-client"
 import type { ParkedScreen, PtyDetachOpts, TaskPtyOpts } from "./pty-types"
 import { XtermTaskPty } from "./pty-xterm-base"
+import { type SessionRecovery, sessionRecovery } from "./session-recovery"
 import { xtermCursorHidden } from "./xterm-refresh"
 
 export { warmHostedShell } from "./pty-hosted-client"
@@ -34,6 +35,16 @@ const WIGGLE_MIN_GAP_MS = 150
 
 export class HostedTaskPty extends XtermTaskPty {
   private client: KobeDaemonClient | null = null
+  private recovery: SessionRecovery = null
+  private recoveryListeners = new Set<(state: SessionRecovery) => void>()
+  onRecovery(listener: (state: SessionRecovery) => void): () => void {
+    this.recoveryListeners.add(listener)
+    listener(this.recovery)
+    return () => {
+      this.recoveryListeners.delete(listener)
+    }
+  }
+
   private opened = false
   private pendingInput: string[] = []
   private pendingResize: { cols: number; rows: number } | null = null
@@ -99,6 +110,8 @@ export class HostedTaskPty extends XtermTaskPty {
         answersQueries: true,
       })
       if (this.killed) return
+      this.recovery = sessionRecovery(res)
+      for (const listener of this.recoveryListeners) listener(this.recovery)
       this.sessionPid = res.pid ?? null
       this.hostOffset = res.offset ?? null
       // Restore a parked screen only when the host proved the delta exact:

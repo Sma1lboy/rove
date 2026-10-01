@@ -8,6 +8,12 @@ export const en = {
   noTask: "(no task — press n to create)",
   exited: "process exited — F5 restarts it",
   restoring: "restoring session…",
+  recovery: {
+    live: "Live process reattached",
+    relaunched:
+      "Command relaunched in a new process. Any restored output is historical; check the engine to resume or continue your conversation.",
+    restored: "Historical screen restored; previous process ended. Restart and check the engine before continuing.",
+  },
   tab: {
     // A NORMAL (single) tab's default name is "$process $ordinal" —
     // built in code from the live process identity (e.g. "engine 3",
@@ -73,6 +79,11 @@ export const en = {
 }
 
 export const zh: typeof en = {
+  recovery: {
+    live: "已重新连接仍在运行的进程",
+    relaunched: "命令已在新进程中重启。如有恢复的输出，它属于历史记录；请在引擎内确认会话恢复或继续操作。",
+    restored: "已恢复历史画面；原进程已结束。请重启并确认引擎状态后继续。",
+  },
   noTask: "（无任务 —— 按 n 创建）",
   exited: "进程已退出 —— 按 F5 重启",
   restoring: "正在恢复会话…",
