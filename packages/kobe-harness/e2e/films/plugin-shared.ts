@@ -175,10 +175,10 @@ export function pluginFilm(spec: {
 }): Film {
   return {
     name: spec.name,
-    async take(page, cue) {
+    async take(page, cue, session) {
       await resetTakeState()
       await cue("open")
-      await spec.storyboard(page, cue)
+      await spec.storyboard(page, cue, session)
       await cue("end")
     },
     afterTake: resetTakeState,

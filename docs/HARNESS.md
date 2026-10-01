@@ -234,16 +234,23 @@ bun e2e/hero-plugins.ts           # link the five SDK examples (BEFORE serve)
 bun e2e/film.ts take task-board   # also contrib-engine, settings-demo, hello-events, turn-notify
                                   # → docs/assets/plugins/<name>.gif (render [name…] to re-encode)
 
-# landing hero: three repos, Claude Code + Codex, detach/reattach, a diff
-node --experimental-strip-types e2e/hero-multirepo.ts --setup   # its own 3-repo fixture
-node --experimental-strip-types e2e/hero-multirepo.ts           # raw take + beats.json
+# landing hero + README demo: three repos, Claude Code + Codex, detach/reattach, a diff
+HERO_ROOT=/tmp/rove-hero-multi bun e2e/film.ts setup multirepo   # its own 3-repo fixture (stops the old stack)
+HERO_ROOT=/tmp/rove-hero-multi bun e2e/hero-serve.ts             # keep running
+HERO_ROOT=/tmp/rove-hero-multi bun e2e/film.ts take multirepo    # REAL turns: quota
+bun e2e/film.ts render multirepo                                 # clips for the composition
+cd ../branding/films/multirepo && bun run render                 # hero-multirepo.mp4 + docs/assets/demo.gif
 ```
 
-The multi-repo take is raw and edited afterwards: `packages/branding`'s
-`multirepo-cut` composition cuts `public/multirepo/take.mp4` at the times in
-`beats.json`. Point `HERO_ROOT` at a neutral directory for both the take and
-`hero-serve.ts` — fixture paths are on camera. Run it under node: on Windows,
-Playwright under bun never gets a Chromium launched.
+The multi-repo take is raw: three real turns and first-run trust prompts.
+The edit is a HyperFrames project, `packages/branding/films/multirepo`. Its
+`cut.json` names each stretch of the take a scene shows, by cue (`ready-0`,
+`{ "cue": "diff", "offset": 5.9 }`), and `render` writes those stretches as
+clips plus `clips.json`; scene timing is generated from the clip durations,
+so a re-take changes nothing by hand. Point `HERO_ROOT` at a neutral
+directory — fixture paths are on camera. Out of Claude quota? Set
+`HERO_ANTHROPIC_BASE_URL` + `HERO_ANTHROPIC_AUTH_TOKEN` at `setup` to route
+the Claude tasks through an Anthropic-compatible proxy.
 
 `hero-capture.ts` holds what the recorders share — the `/harness` browser PTY,
 the typed-and-verified input helpers, and the encode — so a storyboard file is
