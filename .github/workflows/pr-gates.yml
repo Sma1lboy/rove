@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   file-size-cap:
-    # Hard rule (AGENTS.md "File size cap"): a PR may not grow a code file
+    # Hard rule (docs/agents/dev-loop.md "File size"): a PR may not grow a code file
     # past ~500 lines. Only growth is gated — a legacy oversized file stays
     # green when an edit leaves it the same length or shorter.
     runs-on: ubuntu-latest

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# File-size cap on touched code files (AGENTS.md "File size cap"), run by
+# File-size cap on touched code files (docs/agents/dev-loop.md "File size"), run by
 # the CI file-size-cap job. Lives as a script so the gate's behavior is
 # testable — see packages/kobe/test/architecture/file-size-check.test.ts.
 #
@@ -53,7 +53,7 @@ while IFS= read -r f; do
       echo "::notice file=$f::$f is $lines lines but exempted by the PR body."
       continue
     fi
-    echo "::error file=$f::$f is $lines lines (cap ~$CAP). This PR grew it past the cap — split it, or add a 'file-size-exemption: $f — <reason>' line to the PR body. See AGENTS.md 'File size cap'."
+    echo "::error file=$f::$f is $lines lines (cap ~$CAP). This PR grew it past the cap — split it, or add a 'file-size-exemption: $f — <reason>' line to the PR body. See docs/agents/dev-loop.md 'File size'."
     fail=1
   elif [ "$lines" -ge "$WARN_AT" ]; then
     echo "::warning file=$f::$f is $lines lines — $((CAP - lines)) from the ~$CAP cap. Consider splitting it now; the next edit may have no room left."
