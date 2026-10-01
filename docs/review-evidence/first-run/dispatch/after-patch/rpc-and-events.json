@@ -1,0 +1,343 @@
+{
+  "requests": [
+    {
+      "transport": "in-process daemon",
+      "name": "task.create",
+      "payload": {
+        "repo": "/tmp/rove-dispatch-hook-P6YmMO/repo",
+        "command": "codex",
+        "vendor": "codex",
+        "title": "Dispatch A"
+      }
+    },
+    {
+      "transport": "in-process daemon",
+      "name": "task.create",
+      "payload": {
+        "repo": "/tmp/rove-dispatch-hook-P6YmMO/repo",
+        "command": "codex",
+        "vendor": "codex",
+        "title": "Dispatch B"
+      }
+    },
+    {
+      "transport": "in-process daemon",
+      "name": "task.ensureWorktree",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95"
+      }
+    },
+    {
+      "transport": "in-process daemon",
+      "name": "task.ensureWorktree",
+      "payload": {
+        "taskId": "01M3TJP4KDCW34DE2YXR94QWKV"
+      }
+    },
+    {
+      "transport": "in-process daemon",
+      "name": "session.deliver",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "text": "NO RECEIVER",
+        "tabId": "tab-1",
+        "source": "dispatcher"
+      }
+    },
+    {
+      "transport": "in-process PTY",
+      "name": "pty.list",
+      "payload": {}
+    },
+    {
+      "transport": "in-process PTY",
+      "name": "pty.open",
+      "payload": {
+        "key": "01M3TJP4JTYAHRASTM86GNCM95::tab-1",
+        "cwd": "/tmp/rove-dispatch-hook-P6YmMO/home/.rove/worktrees/repo-28999cbd44af/peafowl",
+        "command": [
+          "codex"
+        ],
+        "answersQueries": true
+      }
+    },
+    {
+      "transport": "in-process PTY",
+      "name": "pty.open",
+      "payload": {
+        "key": "01M3TJP4KDCW34DE2YXR94QWKV::tab-1",
+        "cwd": "/tmp/rove-dispatch-hook-P6YmMO/home/.rove/worktrees/repo-28999cbd44af/antelope",
+        "command": [
+          "codex"
+        ],
+        "answersQueries": true
+      }
+    },
+    {
+      "transport": "in-process daemon",
+      "name": "session.deliver",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "text": "Inspect this task only. Reply DISPATCH_A_OK.",
+        "tabId": "tab-1",
+        "source": "dispatcher"
+      }
+    },
+    {
+      "transport": "in-process PTY",
+      "name": "pty.list",
+      "payload": {}
+    },
+    {
+      "transport": "in-process PTY",
+      "name": "pty.peek",
+      "payload": {
+        "key": "01M3TJP4JTYAHRASTM86GNCM95::tab-1"
+      }
+    },
+    {
+      "transport": "in-process PTY",
+      "name": "pty.peek",
+      "payload": {
+        "key": "01M3TJP4JTYAHRASTM86GNCM95::tab-1"
+      }
+    },
+    {
+      "transport": "in-process PTY",
+      "name": "pty.write",
+      "payload": {
+        "key": "01M3TJP4JTYAHRASTM86GNCM95::tab-1",
+        "data": "\u001b[200~Inspect this task only. Reply DISPATCH_A_OK. \u001b[201~"
+      }
+    },
+    {
+      "transport": "in-process PTY",
+      "name": "pty.write",
+      "payload": {
+        "key": "01M3TJP4JTYAHRASTM86GNCM95::tab-1",
+        "data": "\u001b[F\r"
+      }
+    },
+    {
+      "transport": "in-process PTY",
+      "name": "pty.peek",
+      "payload": {
+        "key": "01M3TJP4JTYAHRASTM86GNCM95::tab-1",
+        "sinceOffset": 8
+      }
+    },
+    {
+      "transport": "in-process daemon",
+      "name": "engine.reportEvent",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "kind": "session-start",
+        "engine": "codex",
+        "tabId": "tab-1",
+        "sessionId": "fixture-session-a"
+      }
+    },
+    {
+      "transport": "in-process daemon",
+      "name": "engine.reportEvent",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "kind": "turn-start",
+        "engine": "codex",
+        "tabId": "tab-1",
+        "sessionId": "fixture-session-a"
+      }
+    },
+    {
+      "transport": "in-process daemon",
+      "name": "engine.reportEvent",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "kind": "turn-complete",
+        "engine": "codex",
+        "tabId": "tab-1",
+        "sessionId": "fixture-session-a"
+      }
+    },
+    {
+      "transport": "in-process daemon",
+      "name": "engine.reportEvent",
+      "payload": {
+        "cwd": "/tmp/rove-dispatch-hook-P6YmMO/home/.rove/worktrees/repo-28999cbd44af/antelope",
+        "kind": "turn-start",
+        "engine": "codex",
+        "tabId": "tab-1",
+        "sessionId": "fixture-session-b"
+      }
+    },
+    {
+      "transport": "in-process daemon",
+      "name": "engine.reportEvent",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "kind": "turn-start",
+        "engine": "codex",
+        "tabId": "tab-1",
+        "sessionId": "fixture-session-a"
+      }
+    }
+  ],
+  "events": [
+    {
+      "channel": "task.jobs",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "kind": "ensureWorktree",
+        "phase": "running"
+      }
+    },
+    {
+      "channel": "task.jobs",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "kind": "ensureWorktree",
+        "phase": "done"
+      }
+    },
+    {
+      "channel": "task.jobs",
+      "payload": {
+        "taskId": "01M3TJP4KDCW34DE2YXR94QWKV",
+        "kind": "ensureWorktree",
+        "phase": "running"
+      }
+    },
+    {
+      "channel": "task.jobs",
+      "payload": {
+        "taskId": "01M3TJP4KDCW34DE2YXR94QWKV",
+        "kind": "ensureWorktree",
+        "phase": "done"
+      }
+    },
+    {
+      "channel": "session.deliver",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "text": "NO RECEIVER",
+        "tabId": "tab-1",
+        "at": 1790819635896,
+        "source": "dispatcher"
+      }
+    },
+    {
+      "channel": "engine-state",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "tabId": "tab-1",
+        "state": "idle",
+        "sessionId": "fixture-session-a",
+        "at": 1790819636059
+      }
+    },
+    {
+      "channel": "engine-state",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "state": "idle",
+        "at": 1790819636059
+      }
+    },
+    {
+      "channel": "engine-state",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "tabId": "tab-1",
+        "state": "running",
+        "sessionId": "fixture-session-a",
+        "at": 1790819636060
+      }
+    },
+    {
+      "channel": "engine-state",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "state": "running",
+        "sessionId": "fixture-session-a",
+        "at": 1790819636060
+      }
+    },
+    {
+      "channel": "engine-state",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "tabId": "tab-1",
+        "state": "turn_complete",
+        "sessionId": "fixture-session-a",
+        "at": 1790819636060
+      }
+    },
+    {
+      "channel": "engine-state",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "state": "turn_complete",
+        "sessionId": "fixture-session-a",
+        "at": 1790819636060
+      }
+    },
+    {
+      "channel": "attention.inbox",
+      "payload": {
+        "items": [
+          {
+            "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+            "tabId": "tab-1",
+            "state": "turn_complete",
+            "unread": true,
+            "at": 1790819636061
+          }
+        ]
+      }
+    },
+    {
+      "channel": "engine-state",
+      "payload": {
+        "taskId": "01M3TJP4KDCW34DE2YXR94QWKV",
+        "tabId": "tab-1",
+        "state": "running",
+        "sessionId": "fixture-session-b",
+        "at": 1790819636064
+      }
+    },
+    {
+      "channel": "engine-state",
+      "payload": {
+        "taskId": "01M3TJP4KDCW34DE2YXR94QWKV",
+        "state": "running",
+        "sessionId": "fixture-session-b",
+        "at": 1790819636064
+      }
+    },
+    {
+      "channel": "engine-state",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "tabId": "tab-1",
+        "state": "running",
+        "sessionId": "fixture-session-a",
+        "at": 1790819636065
+      }
+    },
+    {
+      "channel": "engine-state",
+      "payload": {
+        "taskId": "01M3TJP4JTYAHRASTM86GNCM95",
+        "state": "running",
+        "sessionId": "fixture-session-a",
+        "at": 1790819636065
+      }
+    },
+    {
+      "channel": "attention.inbox",
+      "payload": {
+        "items": []
+      }
+    }
+  ]
+}

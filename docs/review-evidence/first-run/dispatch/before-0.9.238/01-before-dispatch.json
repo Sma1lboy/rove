@@ -1,0 +1,51 @@
+{
+  "stage": "01-before-dispatch",
+  "tasks": [
+    {
+      "vendor": "claude",
+      "kind": "main",
+      "title": "repo",
+      "repo": "/tmp/rove-dispatch-hook-JktELU/repo",
+      "branch": "",
+      "worktreePath": "/tmp/rove-dispatch-hook-JktELU/repo",
+      "status": "backlog",
+      "id": "01M3TJP5A4ZWCK5NGN0MJ0SQ95",
+      "createdAt": "2026-10-01T01:53:56.548Z",
+      "updatedAt": "2026-10-01T01:53:56.548Z"
+    },
+    {
+      "vendor": "codex",
+      "repo": "/tmp/rove-dispatch-hook-JktELU/repo",
+      "title": "Dispatch A",
+      "branch": "dispatch-a",
+      "worktreePath": "/tmp/rove-dispatch-hook-JktELU/home/.rove/worktrees/repo-46d4268f2666/avocet",
+      "status": "backlog",
+      "kind": "task",
+      "command": "codex",
+      "id": "01M3TJP5A9V4CXKECD3TWCRHD6",
+      "createdAt": "2026-10-01T01:53:56.553Z",
+      "updatedAt": "2026-10-01T01:53:56.613Z"
+    },
+    {
+      "vendor": "codex",
+      "repo": "/tmp/rove-dispatch-hook-JktELU/repo",
+      "title": "Dispatch B",
+      "branch": "dispatch-b",
+      "worktreePath": "/tmp/rove-dispatch-hook-JktELU/home/.rove/worktrees/repo-46d4268f2666/badger",
+      "status": "backlog",
+      "kind": "task",
+      "command": "codex",
+      "id": "01M3TJP5AX51TB1ZQH734JTP2F",
+      "createdAt": "2026-10-01T01:53:56.573Z",
+      "updatedAt": "2026-10-01T01:53:56.666Z"
+    }
+  ],
+  "activity": {
+    "tasks": {},
+    "tabs": {}
+  },
+  "inbox": [],
+  "hosted": [],
+  "providerInput": [],
+  "extra": {}
+}

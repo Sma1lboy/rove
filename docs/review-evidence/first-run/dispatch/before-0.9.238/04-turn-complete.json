@@ -1,0 +1,111 @@
+{
+  "stage": "04-turn-complete",
+  "tasks": [
+    {
+      "vendor": "claude",
+      "kind": "main",
+      "title": "repo",
+      "repo": "/tmp/rove-dispatch-hook-JktELU/repo",
+      "branch": "",
+      "worktreePath": "/tmp/rove-dispatch-hook-JktELU/repo",
+      "status": "backlog",
+      "id": "01M3TJP5A4ZWCK5NGN0MJ0SQ95",
+      "createdAt": "2026-10-01T01:53:56.548Z",
+      "updatedAt": "2026-10-01T01:53:56.548Z"
+    },
+    {
+      "vendor": "codex",
+      "repo": "/tmp/rove-dispatch-hook-JktELU/repo",
+      "title": "Dispatch A",
+      "branch": "dispatch-a",
+      "worktreePath": "/tmp/rove-dispatch-hook-JktELU/home/.rove/worktrees/repo-46d4268f2666/avocet",
+      "status": "backlog",
+      "kind": "task",
+      "command": "codex",
+      "id": "01M3TJP5A9V4CXKECD3TWCRHD6",
+      "createdAt": "2026-10-01T01:53:56.553Z",
+      "updatedAt": "2026-10-01T01:53:56.613Z"
+    },
+    {
+      "vendor": "codex",
+      "repo": "/tmp/rove-dispatch-hook-JktELU/repo",
+      "title": "Dispatch B",
+      "branch": "dispatch-b",
+      "worktreePath": "/tmp/rove-dispatch-hook-JktELU/home/.rove/worktrees/repo-46d4268f2666/badger",
+      "status": "backlog",
+      "kind": "task",
+      "command": "codex",
+      "id": "01M3TJP5AX51TB1ZQH734JTP2F",
+      "createdAt": "2026-10-01T01:53:56.573Z",
+      "updatedAt": "2026-10-01T01:53:56.666Z"
+    }
+  ],
+  "activity": {
+    "tasks": {
+      "01M3TJP5A9V4CXKECD3TWCRHD6": {
+        "state": "turn_complete",
+        "at": 1790819636836,
+        "vendor": "codex",
+        "lapseArmed": false
+      }
+    },
+    "tabs": {
+      "01M3TJP5A9V4CXKECD3TWCRHD6": {
+        "tab-1": {
+          "state": "turn_complete",
+          "at": 1790819636836,
+          "vendor": "codex",
+          "lapseArmed": false,
+          "source": "hook"
+        }
+      }
+    }
+  },
+  "inbox": [
+    {
+      "taskId": "01M3TJP5A9V4CXKECD3TWCRHD6",
+      "tabId": "tab-1",
+      "state": "turn_complete",
+      "unread": true,
+      "at": 1790819636836
+    }
+  ],
+  "hosted": [
+    {
+      "key": "01M3TJP5A9V4CXKECD3TWCRHD6::tab-1",
+      "generation": "bd703201-4c05-4ffb-9098-2e450a50e348",
+      "alive": true,
+      "pid": 40000,
+      "command": [
+        "codex"
+      ],
+      "title": "",
+      "totalBytes": 69,
+      "parked": false,
+      "parkedScreenBytes": 0,
+      "exit": null
+    },
+    {
+      "key": "01M3TJP5AX51TB1ZQH734JTP2F::tab-1",
+      "generation": "ff7178c0-8b97-488f-b5d5-0772f3315590",
+      "alive": true,
+      "pid": 40001,
+      "command": [
+        "codex"
+      ],
+      "title": "",
+      "totalBytes": 8,
+      "parked": false,
+      "parkedScreenBytes": 0,
+      "exit": null
+    }
+  ],
+  "providerInput": [
+    [
+      "\u001b[200~Inspect this task only. Reply DISPATCH_A_OK. \u001b[201~",
+      "\u001b[F\r"
+    ],
+    []
+  ],
+  "extra": {}
+}

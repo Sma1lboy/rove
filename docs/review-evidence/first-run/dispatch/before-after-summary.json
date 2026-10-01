@@ -1,0 +1,175 @@
+{
+  "before": {
+    "01-before-dispatch": {
+      "activity": {},
+      "inbox": [],
+      "delivered": null,
+      "reason": null
+    },
+    "02-no-live-consumer": {
+      "activity": {},
+      "inbox": [],
+      "delivered": false,
+      "reason": "broadcast"
+    },
+    "03-after-dispatch-before-hook": {
+      "activity": {},
+      "inbox": [],
+      "delivered": true,
+      "reason": null
+    },
+    "04-session-start": {
+      "activity": {},
+      "inbox": [],
+      "delivered": null,
+      "reason": null
+    },
+    "04-turn-complete": {
+      "activity": {
+        "Dispatch A": "turn_complete"
+      },
+      "inbox": [
+        [
+          "Dispatch A",
+          "tab-1",
+          "turn_complete"
+        ]
+      ],
+      "delivered": null,
+      "reason": null
+    },
+    "04-turn-start": {
+      "activity": {
+        "Dispatch A": "running"
+      },
+      "inbox": [],
+      "delivered": null,
+      "reason": null
+    },
+    "05-after-hook-persisted": {
+      "activity": {
+        "Dispatch A": "turn_complete"
+      },
+      "inbox": [
+        [
+          "Dispatch A",
+          "tab-1",
+          "turn_complete"
+        ]
+      ],
+      "delivered": null,
+      "reason": null
+    },
+    "05b-cwd-matches-only-task-b": {
+      "activity": {
+        "Dispatch A": "turn_complete",
+        "Dispatch B": "running"
+      },
+      "inbox": [
+        [
+          "Dispatch A",
+          "tab-1",
+          "turn_complete"
+        ]
+      ],
+      "delivered": null,
+      "reason": null
+    },
+    "06-next-turn-clears-inbox": {
+      "activity": {
+        "Dispatch A": "running",
+        "Dispatch B": "running"
+      },
+      "inbox": [],
+      "delivered": null,
+      "reason": null
+    }
+  },
+  "after": {
+    "01-before-dispatch": {
+      "activity": {},
+      "inbox": [],
+      "delivered": null,
+      "reason": null
+    },
+    "02-no-live-consumer": {
+      "activity": {},
+      "inbox": [],
+      "delivered": false,
+      "reason": "broadcast"
+    },
+    "03-after-dispatch-before-hook": {
+      "activity": {},
+      "inbox": [],
+      "delivered": true,
+      "reason": null
+    },
+    "04-session-start": {
+      "activity": {},
+      "inbox": [],
+      "delivered": null,
+      "reason": null
+    },
+    "04-turn-complete": {
+      "activity": {
+        "Dispatch A": "turn_complete"
+      },
+      "inbox": [
+        [
+          "Dispatch A",
+          "tab-1",
+          "turn_complete"
+        ]
+      ],
+      "delivered": null,
+      "reason": null
+    },
+    "04-turn-start": {
+      "activity": {
+        "Dispatch A": "running"
+      },
+      "inbox": [],
+      "delivered": null,
+      "reason": null
+    },
+    "05-after-hook-persisted": {
+      "activity": {
+        "Dispatch A": "turn_complete"
+      },
+      "inbox": [
+        [
+          "Dispatch A",
+          "tab-1",
+          "turn_complete"
+        ]
+      ],
+      "delivered": null,
+      "reason": null
+    },
+    "05b-cwd-matches-only-task-b": {
+      "activity": {
+        "Dispatch A": "turn_complete",
+        "Dispatch B": "running"
+      },
+      "inbox": [
+        [
+          "Dispatch A",
+          "tab-1",
+          "turn_complete"
+        ]
+      ],
+      "delivered": null,
+      "reason": null
+    },
+    "06-next-turn-clears-inbox": {
+      "activity": {
+        "Dispatch A": "running",
+        "Dispatch B": "running"
+      },
+      "inbox": [],
+      "delivered": null,
+      "reason": null
+    }
+  },
+  "normalized_states_match": true
+}

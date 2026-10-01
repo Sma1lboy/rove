@@ -1,0 +1,33 @@
+{
+  "sha": "edd6514fe34cbc762fb5d9fdfe1184e00ad3ddac",
+  "requestedSha": "edd6514fe34cbc762fb5d9fdfe1184e00ad3ddac",
+  "label": "after",
+  "scope": "recovery",
+  "viewport": "1280x800",
+  "deviceScaleFactor": 1,
+  "capture": "/harness → xterm.js → node-pty sidecar → bun run dev:sandbox → real OpenTUI",
+  "theme": "claude / dark / opaque",
+  "locale": "en",
+  "fixture": "isolated HOME, scratch git repo, signed-out Codex fixture process; no account or model",
+  "toolingFiles": [
+    "pr-evidence.ts",
+    "pr-evidence-fixture.ts"
+  ],
+  "limitations": [
+    "Fixture hook payload proves UI reporting, not real vendor trust or conversation resumption",
+    "Historical-only dead-process frame is not captured by this recipe"
+  ],
+  "captures": [
+    {
+      "file": "after-recovery-live.png",
+      "scenario": "recovery-live",
+      "description": "CLI-started real hosted PTY reattached by a fresh TUI"
+    },
+    {
+      "file": "after-recovery-relaunched.png",
+      "scenario": "recovery-relaunched",
+      "description": "Real PTY host terminated after freeze; fresh TUI starts a new process with retained historical output"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,103 @@
+{
+  "stage": "04-turn-start",
+  "tasks": [
+    {
+      "vendor": "claude",
+      "kind": "main",
+      "title": "repo",
+      "repo": "/tmp/rove-dispatch-hook-P6YmMO/repo",
+      "branch": "",
+      "worktreePath": "/tmp/rove-dispatch-hook-P6YmMO/repo",
+      "status": "backlog",
+      "id": "01M3TJP4JM18NM6ZQ33D5VTM8R",
+      "createdAt": "2026-10-01T01:53:55.796Z",
+      "updatedAt": "2026-10-01T01:53:55.796Z"
+    },
+    {
+      "vendor": "codex",
+      "repo": "/tmp/rove-dispatch-hook-P6YmMO/repo",
+      "title": "Dispatch A",
+      "branch": "dispatch-a",
+      "worktreePath": "/tmp/rove-dispatch-hook-P6YmMO/home/.rove/worktrees/repo-28999cbd44af/peafowl",
+      "status": "backlog",
+      "kind": "task",
+      "command": "codex",
+      "id": "01M3TJP4JTYAHRASTM86GNCM95",
+      "createdAt": "2026-10-01T01:53:55.802Z",
+      "updatedAt": "2026-10-01T01:53:55.857Z"
+    },
+    {
+      "vendor": "codex",
+      "repo": "/tmp/rove-dispatch-hook-P6YmMO/repo",
+      "title": "Dispatch B",
+      "branch": "dispatch-b",
+      "worktreePath": "/tmp/rove-dispatch-hook-P6YmMO/home/.rove/worktrees/repo-28999cbd44af/antelope",
+      "status": "backlog",
+      "kind": "task",
+      "command": "codex",
+      "id": "01M3TJP4KDCW34DE2YXR94QWKV",
+      "createdAt": "2026-10-01T01:53:55.821Z",
+      "updatedAt": "2026-10-01T01:53:55.888Z"
+    }
+  ],
+  "activity": {
+    "tasks": {
+      "01M3TJP4JTYAHRASTM86GNCM95": {
+        "state": "running",
+        "at": 1790819636060,
+        "vendor": "codex",
+        "lapseArmed": true
+      }
+    },
+    "tabs": {
+      "01M3TJP4JTYAHRASTM86GNCM95": {
+        "tab-1": {
+          "state": "running",
+          "at": 1790819636060,
+          "vendor": "codex",
+          "lapseArmed": true,
+          "source": "hook"
+        }
+      }
+    }
+  },
+  "inbox": [],
+  "hosted": [
+    {
+      "key": "01M3TJP4JTYAHRASTM86GNCM95::tab-1",
+      "generation": "8b3073e4-b056-4f50-ab43-e6ad54b2cb2f",
+      "alive": true,
+      "pid": 40000,
+      "command": [
+        "codex"
+      ],
+      "title": "",
+      "totalBytes": 69,
+      "parked": false,
+      "parkedScreenBytes": 0,
+      "exit": null
+    },
+    {
+      "key": "01M3TJP4KDCW34DE2YXR94QWKV::tab-1",
+      "generation": "5fb54f51-fb2f-4c1e-af3b-b8525feb2401",
+      "alive": true,
+      "pid": 40001,
+      "command": [
+        "codex"
+      ],
+      "title": "",
+      "totalBytes": 8,
+      "parked": false,
+      "parkedScreenBytes": 0,
+      "exit": null
+    }
+  ],
+  "providerInput": [
+    [
+      "\u001b[200~Inspect this task only. Reply DISPATCH_A_OK. \u001b[201~",
+      "\u001b[F\r"
+    ],
+    []
+  ],
+  "extra": {}
+}

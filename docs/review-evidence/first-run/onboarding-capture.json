@@ -1,0 +1,38 @@
+{
+  "sha": "52cb1d8d7bc776125a8bd52d21ab525e306a3cf3",
+  "requestedSha": "52cb1d8d7bc776125a8bd52d21ab525e306a3cf3",
+  "label": "after",
+  "scope": "onboarding",
+  "viewport": "1280x800",
+  "deviceScaleFactor": 1,
+  "capture": "/harness → xterm.js → node-pty sidecar → bun run dev:sandbox → real OpenTUI",
+  "theme": "claude / dark / opaque",
+  "locale": "en",
+  "fixture": "isolated HOME, scratch git repo, signed-out Codex fixture process; no account or model",
+  "toolingFiles": [
+    "pr-evidence.ts",
+    "pr-evidence-fixture.ts"
+  ],
+  "limitations": [
+    "Fixture hook payload proves UI reporting, not real vendor trust or conversation resumption",
+    "Historical-only dead-process frame is not captured by this recipe"
+  ],
+  "captures": [
+    {
+      "file": "after-onboarding-completions.png",
+      "scenario": "onboarding-completions",
+      "description": "Fresh HOME; first-run completion question"
+    },
+    {
+      "file": "after-onboarding-skill.png",
+      "scenario": "onboarding-skill",
+      "description": "Completion accepted; skill question at its default selection; queued status visible after change"
+    },
+    {
+      "file": "after-onboarding-keys.png",
+      "scenario": "onboarding-keys",
+      "description": "Both optional installs skipped; final keyboard guidance"
+    }
+  ],
+  "errors": []
+}

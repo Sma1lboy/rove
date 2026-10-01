@@ -1,0 +1,88 @@
+{
+  "sha": "4ccfb9c9a6a3484b49b3f9628b3c2ddf0d9785bf",
+  "requestedSha": "4ccfb9c9a6a3484b49b3f9628b3c2ddf0d9785bf",
+  "label": "before",
+  "scope": "all",
+  "viewport": "1280x800",
+  "deviceScaleFactor": 1,
+  "capture": "/harness → xterm.js → node-pty sidecar → bun run dev:sandbox → real OpenTUI",
+  "theme": "claude / dark / opaque",
+  "locale": "en",
+  "fixture": "isolated HOME, scratch git repo, signed-out Codex fixture process; no account or model",
+  "toolingFiles": [
+    "pr-evidence.ts",
+    "pr-evidence-fixture.ts"
+  ],
+  "limitations": [
+    "Fixture hook payload proves UI reporting, not real vendor trust or conversation resumption",
+    "Historical-only dead-process frame is not captured by this recipe"
+  ],
+  "captures": [
+    {
+      "file": "before-onboarding-completions.png",
+      "scenario": "onboarding-completions",
+      "description": "Fresh HOME; first-run completion question"
+    },
+    {
+      "file": "before-onboarding-skill.png",
+      "scenario": "onboarding-skill",
+      "description": "Completion accepted; skill question at its default selection; queued status visible after change"
+    },
+    {
+      "file": "before-onboarding-keys.png",
+      "scenario": "onboarding-keys",
+      "description": "Both optional installs skipped; final keyboard guidance"
+    },
+    {
+      "file": "before-new-task-hooks.png",
+      "scenario": "new-task-hooks",
+      "description": "New task; Codex selected; fixture CLI installed and signed out"
+    },
+    {
+      "file": "before-settings-hooks.png",
+      "scenario": "settings-hooks",
+      "description": "Settings → Engines; isolated fixture HOME contains no private accounts"
+    },
+    {
+      "file": "before-engine-hooks-waiting.png",
+      "scenario": "engine-hooks-waiting",
+      "description": "Real fixture PTY attached; no vendor hook event emitted"
+    },
+    {
+      "file": "before-engine-hooks-received.png",
+      "scenario": "engine-hooks-received",
+      "description": "Fixture SessionStart payload sent through real hook CLI and daemon"
+    },
+    {
+      "file": "before-recovery-live.png",
+      "scenario": "recovery-live",
+      "description": "CLI-started real hosted PTY reattached by a fresh TUI"
+    },
+    {
+      "file": "before-recovery-relaunched.png",
+      "scenario": "recovery-relaunched",
+      "description": "Real PTY host terminated after freeze; fresh TUI starts a new process with retained historical output"
+    },
+    {
+      "file": "before-empty-workspace.png",
+      "scenario": "empty-workspace",
+      "description": "No tasks; Codex fixture binary, no account; managed-task isolation explanation"
+    },
+    {
+      "file": "before-install-posix.png",
+      "scenario": "install-posix",
+      "description": "Actual landing DOM; macOS/Linux entry point"
+    },
+    {
+      "file": "before-install-windows.png",
+      "scenario": "install-windows",
+      "description": "Windows selection after change; previous generic install entry point before change"
+    },
+    {
+      "file": "before-install-wsl.png",
+      "scenario": "install-wsl",
+      "description": "WSL selection after change; previous generic install entry point before change"
+    }
+  ],
+  "errors": []
+}

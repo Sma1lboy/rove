@@ -1,0 +1,43 @@
+{
+  "sha": "86e0e5b4bdf00ef25aed05ba0a04156fb068110a",
+  "requestedSha": "86e0e5b4bdf00ef25aed05ba0a04156fb068110a",
+  "label": "after",
+  "scope": "hooks",
+  "viewport": "1280x800",
+  "deviceScaleFactor": 1,
+  "capture": "/harness → xterm.js → node-pty sidecar → bun run dev:sandbox → real OpenTUI",
+  "theme": "claude / dark / opaque",
+  "locale": "en",
+  "fixture": "isolated HOME, scratch git repo, signed-out Codex fixture process; no account or model",
+  "toolingFiles": [
+    "pr-evidence.ts",
+    "pr-evidence-fixture.ts"
+  ],
+  "limitations": [
+    "Fixture hook payload proves UI reporting, not real vendor trust or conversation resumption",
+    "Historical-only dead-process frame is not captured by this recipe"
+  ],
+  "captures": [
+    {
+      "file": "after-new-task-hooks.png",
+      "scenario": "new-task-hooks",
+      "description": "New task; Codex selected; fixture CLI installed and signed out"
+    },
+    {
+      "file": "after-settings-hooks.png",
+      "scenario": "settings-hooks",
+      "description": "Settings → Engines; isolated fixture HOME contains no private accounts"
+    },
+    {
+      "file": "after-engine-hooks-waiting.png",
+      "scenario": "engine-hooks-waiting",
+      "description": "Real fixture PTY attached; no vendor hook event emitted"
+    },
+    {
+      "file": "after-engine-hooks-received.png",
+      "scenario": "engine-hooks-received",
+      "description": "Fixture SessionStart payload sent through real hook CLI and daemon"
+    }
+  ],
+  "errors": []
+}

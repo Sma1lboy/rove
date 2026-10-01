@@ -1,0 +1,28 @@
+{
+  "sha": "b8f0248fc673416930dccdf67fb234cd3a5bf17b",
+  "requestedSha": "b8f0248fc673416930dccdf67fb234cd3a5bf17b",
+  "label": "after",
+  "scope": "isolation",
+  "viewport": "1280x800",
+  "deviceScaleFactor": 1,
+  "capture": "/harness → xterm.js → node-pty sidecar → bun run dev:sandbox → real OpenTUI",
+  "theme": "claude / dark / opaque",
+  "locale": "en",
+  "fixture": "isolated HOME, scratch git repo, signed-out Codex fixture process; no account or model",
+  "toolingFiles": [
+    "pr-evidence.ts",
+    "pr-evidence-fixture.ts"
+  ],
+  "limitations": [
+    "Fixture hook payload proves UI reporting, not real vendor trust or conversation resumption",
+    "Historical-only dead-process frame is not captured by this recipe"
+  ],
+  "captures": [
+    {
+      "file": "after-empty-workspace.png",
+      "scenario": "empty-workspace",
+      "description": "No tasks; Codex fixture binary, no account; managed-task isolation explanation"
+    }
+  ],
+  "errors": []
+}
