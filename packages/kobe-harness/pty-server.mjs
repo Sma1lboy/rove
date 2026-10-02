@@ -247,15 +247,27 @@ wss.on("connection", (ws, req) => {
 // Bind loopback by default — a PTY is an arbitrary shell/engine in the
 // worktree, so it must never listen on all interfaces. KOBE_WEB_HOST overrides.
 server.listen(PORT, HOST, () => {
-  process.stdout.write(`Rove PTY server listening on ${HOST}:${PORT}\n`)
+  process.stdout.write(`Rove PTY server listening on ${HOST}:${server.address().port}\n`)
 })
 
+let stopping = false
 const shutdown = () => {
+  if (stopping) return
+  stopping = true
+  stopParentWatch()
   ptySessions.shutdown()
+  for (const ws of wss.clients) ws.terminate()
   wss.close()
   server.close()
-  process.exit(0)
+  server.closeAllConnections()
+  process.stdin.destroy()
+  // Let node-pty's asynchronous Windows console cleanup finish before exit.
+  process.exitCode = 0
 }
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
-watchParent({ onGone: shutdown })
+const stopParentWatch = watchParent({ onGone: shutdown })
+if (process.env.KOBE_PTY_PARENT_PIPE === "1") {
+  process.stdin.once("end", shutdown)
+  process.stdin.resume()
+}

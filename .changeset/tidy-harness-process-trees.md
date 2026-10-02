@@ -2,4 +2,4 @@
 "@sma1lboy/rove": patch
 ---
 
-Reclaim the full harness terminal process tree after the ten-minute reconnect grace period or harness shutdown.
+Reclaim harness terminal sessions after the ten-minute reconnect grace period or shutdown while preserving detached services. Let Windows console cleanup finish before the harness exits.

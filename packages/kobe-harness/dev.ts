@@ -53,8 +53,8 @@ const webToken = ensureWebToken(defaultWebTokenPath())
 
 // node: PTY terminal server — node-pty only works under node, not bun.
 const pty = Bun.spawn(["node", "pty-server.mjs"], {
-  stdio: ["inherit", "inherit", "inherit"],
-  env: { ...childEnv, KOBE_PTY_PORT: PTY_PORT },
+  stdio: ["pipe", "inherit", "inherit"],
+  env: { ...childEnv, KOBE_PTY_PORT: PTY_PORT, KOBE_PTY_PARENT_PIPE: "1" },
 })
 
 // node (via vite): the capture page, proxying /pty to the sidecar above.
@@ -67,8 +67,11 @@ const vite = Bun.spawn(["bun", "run", "vite", "dev", "--port", WEB_PORT, "--stri
   },
 })
 
+let stopping = false
 const shutdown = (): void => {
-  pty.kill()
+  if (stopping) return
+  stopping = true
+  pty.stdin.end()
   vite.kill()
 }
 process.on("SIGINT", shutdown)
@@ -76,7 +79,8 @@ process.on("SIGTERM", shutdown)
 process.on("exit", shutdown)
 
 // If any child exits, bring the whole dev session down.
-void Promise.race([pty.exited, vite.exited]).then(() => {
+void Promise.race([pty.exited, vite.exited]).then(async () => {
   shutdown()
+  await pty.exited
   process.exit(0)
 })

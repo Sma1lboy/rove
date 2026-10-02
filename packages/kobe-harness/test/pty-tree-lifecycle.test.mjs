@@ -28,7 +28,7 @@ function alive(pid) {
   }
 }
 
-it.skipIf(process.platform === "win32")("reconnects to a real PTY, then reaps its detached descendants after grace and on shutdown", async () => {
+it.skipIf(process.platform === "win32")("reconnects to a real PTY, then reaps session descendants but preserves detached services after grace and shutdown", async () => {
   let now = 0
   const timers = new Set()
   function advance(ms) {
@@ -41,7 +41,7 @@ it.skipIf(process.platform === "win32")("reconnects to a real PTY, then reaps it
   }
   const ptys = []
   const manager = createPtySessionManager({
-    fetchSpec: async () => ({ cwd: process.cwd(), command: [process.execPath, fixture] }),
+    fetchSpec: async () => ({ cwd: process.cwd(), command: ["/bin/bash", "-c", 'set -m; "$@" & wait', "fixture", process.execPath, fixture] }),
     spawnPty: (...args) => {
       const pty = spawn(...args)
       ptys.push(pty)
@@ -74,13 +74,18 @@ it.skipIf(process.platform === "win32")("reconnects to a real PTY, then reaps it
     const ws = new WebSocket(`ws://127.0.0.1:${server.address().port}`)
     clients.push(ws)
     ws.on("message", (chunk) => { output += chunk.toString() })
-    await until(() => attached > previous && [...output.matchAll(/TREE_PID=(\d+)/g)].length === 3)
-    return { ws, pids: [...output.matchAll(/TREE_PID=(\d+)/g)].map((match) => Number(match[1])) }
+    await until(() => attached > previous && [...output.matchAll(/TREE_PID=(\d+)/g)].length === 3 && /SERVICE_PID=\d+/.test(output))
+    return {
+      ws,
+      pids: [ptys.at(-1).pid, ...[...output.matchAll(/TREE_PID=(\d+)/g)].map((match) => Number(match[1]))],
+      service: Number(output.match(/SERVICE_PID=(\d+)/)[1]),
+    }
   }
   const owned = new Set()
   try {
     const first = await connect()
     first.pids.forEach((pid) => owned.add(pid))
+    owned.add(first.service)
     first.ws.terminate()
     await until(() => closed === 1)
     advance(60_000)
@@ -98,13 +103,16 @@ it.skipIf(process.platform === "win32")("reconnects to a real PTY, then reaps it
     advance(1)
     await until(() => first.pids.every((pid) => !alive(pid)))
     expect(manager.sessionCount()).toBe(0)
+    expect(alive(first.service)).toBe(true)
 
     const third = await connect()
     third.pids.forEach((pid) => owned.add(pid))
+    owned.add(third.service)
     expect(ptys).toHaveLength(2)
     manager.shutdown()
     await until(() => third.pids.every((pid) => !alive(pid)))
     expect(timers.size).toBe(0)
+    expect(alive(third.service)).toBe(true)
   } finally {
     manager.shutdown()
     for (const client of clients) client.terminate()

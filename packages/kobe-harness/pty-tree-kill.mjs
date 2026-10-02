@@ -8,37 +8,30 @@ function signal(pid, name) {
   }
 }
 
-/** Finish tree cleanup before the sidecar exits or the shell can orphan children. */
+/** Detached services belong to a different session, even while their PPID is ours. */
 export function killPtyTree(pty) {
   try {
-    if (process.platform === "win32") {
-      execFileSync("taskkill", ["/PID", String(pty.pid), "/T", "/F"], { stdio: "pipe" })
-    } else {
-      const rows = execFileSync("ps", ["-axo", "pid=,ppid="], { encoding: "utf8" })
-      const children = new Map()
-      for (const row of rows.trim().split("\n")) {
-        const [pid, parent] = row.trim().split(/\s+/).map(Number)
-        const siblings = children.get(parent) ?? []
-        siblings.push(pid)
-        children.set(parent, siblings)
+    if (process.platform !== "win32") {
+      // macOS masks `sess`; a PTY's controlling terminal identifies its session.
+      const scope = process.platform === "darwin" ? "tty" : "sess"
+      const rows = execFileSync("ps", ["-axo", `pid=,${scope}=`], { encoding: "utf8" })
+        .trim().split("\n").map((row) => row.trim().split(/\s+/))
+      const session = rows.find(([pid]) => Number(pid) === pty.pid)?.[1]
+      if (session && session !== "?" && session !== "??" && session !== "0") {
+        for (const [pid, candidate] of rows) {
+          if (candidate === session && Number(pid) !== pty.pid) signal(Number(pid), "SIGKILL")
+        }
       }
-      const descendants = []
-      function visit(pid) {
-        for (const child of children.get(pid) ?? []) visit(child)
-        descendants.push(pid)
-      }
-      visit(pty.pid)
-      // The PTY owns a session group; also walk PPIDs for children with new groups.
-      for (const pid of descendants) signal(pid, "SIGKILL")
       signal(-pty.pid, "SIGKILL")
     }
   } catch (error) {
-    console.error(`PTY tree cleanup failed for ${pty.pid}: ${error.message}`)
+    console.error(`PTY session cleanup failed for ${pty.pid}: ${error.message}`)
   } finally {
     try {
+      // Windows node-pty cleans its console; taskkill /T crosses service boundaries.
       pty.kill()
     } catch {
-      // The tree kill may already have closed the PTY.
+      // POSIX session cleanup may already have closed the PTY.
     }
   }
 }

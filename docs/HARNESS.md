@@ -25,15 +25,29 @@ the fast/unit track; it does not pretend Node can execute OpenTUI components.
 The PTY sidecar keeps a disconnected terminal for ten minutes. Reconnecting
 within that window attaches to the same process and replays its scrollback.
 After the last socket leaves and the grace expires, the sidecar kills the
-terminal's process tree. Explicit close and sidecar shutdown use the same
-cleanup. The parent watcher invokes shutdown when the launcher disappears.
-POSIX cleanup walks descendants, including separate process groups; Windows
-uses `taskkill /T /F` before disposing of the PTY.
+terminal's session. Explicit close and sidecar shutdown use the same cleanup.
+POSIX cleanup includes background process groups in that session, but preserves
+services that detach into another session, such as the shared daemon and PTY
+host. Linux uses session IDs; macOS uses the controlling terminal because its
+`ps sess` field is masked. PPID ancestry alone does not establish ownership.
+
+Windows delegates to node-pty's console cleanup, without `taskkill /T`, so a
+service launched into a separate console survives. The Windows detached
+launcher's direct-spawn fallback stays in the parent's console and still ends
+with that console, as documented by `spawnDetachedDaemon`. It does not provide
+independent service lifetime.
+
+`dev.ts` closes the sidecar's private parent pipe and waits for it to exit.
+The sidecar closes its servers and lets node-pty's asynchronous console cleanup
+drain. The parent watcher remains a fallback for other launchers. A hard kill
+of the sidecar itself cannot execute shutdown handlers.
 
 Run `bun run test test/pty-tree-lifecycle.test.mjs` in `packages/kobe-harness`
 on macOS or Linux to exercise a real PTY and WebSocket with an advanced grace
-clock. The test verifies reconnect survival, descendant cleanup after expiry,
-and shutdown cleanup.
+clock. The test verifies reconnect survival, session cleanup after expiry,
+and detached-service survival. `test/pty-sidecar-shutdown.test.mjs` drives the
+actual sidecar through explicit close and parent-pipe shutdown. CI runs it on
+Linux and Windows.
 
 ## PR screenshot evidence
 
