@@ -11,6 +11,7 @@
  */
 
 import { taskkillProcessTree } from "./process-tree.ts"
+import { PTY_JOB_ENV, PTY_JOB_OWNER_ENV, newPtyJobName } from "./win-pty-job.ts"
 
 /** How a PTY child ended. `code` XOR `signal` for a normal wait; both
  *  null when the runtime could not tell. */
@@ -129,24 +130,48 @@ export type NodePtySpawn = (
 ) => NodePtyChild
 
 /**
+ * Each session in its own Job Object (win-pty-job.ts): `launcher` is the
+ * compiled job launcher, `owner` this instance's daemon socket, so a Rove
+ * started from inside the tab can tell whether it is this one.
+ */
+export interface NodePtyJobOptions {
+  readonly launcher: string
+  readonly owner: string
+}
+
+/**
  * Async: node-pty is a napi module loaded only where needed, not in every
  * Bun daemon. `spawn` is injectable to test without the native binding.
  */
 export async function nodePtyDriver(
   spawn?: NodePtySpawn,
   endTree: (pid: number, shellFile?: string) => Promise<string> = taskkillProcessTree,
+  job?: NodePtyJobOptions,
 ): Promise<PtyDriver> {
   const spawnPty = spawn ?? ((await import("node-pty")).spawn as unknown as NodePtySpawn)
   return (request) => {
     const [file, ...args] = request.argv
-    const child = spawnPty(file ?? "", args, {
+    const env = Object.fromEntries(
+      Object.entries(request.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
+    )
+    // With a job, the launcher is the PTY child and the shell its child,
+    // inside the job. Killing the launcher (kill(), taskkill) closes the job:
+    // the whole tree ends.
+    const jobName = job ? newPtyJobName() : null
+    const [spawnFile, spawnArgs, spawnEnv] =
+      job && jobName
+        ? [
+            job.launcher,
+            [jobName, file ?? "", ...args],
+            { ...env, [PTY_JOB_ENV]: jobName, [PTY_JOB_OWNER_ENV]: job.owner },
+          ]
+        : [file ?? "", args, env]
+    const child = spawnPty(spawnFile, spawnArgs, {
       name: TERMINAL_NAME,
       cols: request.cols,
       rows: request.rows,
       cwd: request.cwd,
-      env: Object.fromEntries(
-        Object.entries(request.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
-      ),
+      env: spawnEnv,
     })
     let settle: (exit: PtyExit) => void = () => {}
     const exited = new Promise<PtyExit>((resolve) => {
