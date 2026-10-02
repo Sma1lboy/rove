@@ -104,13 +104,13 @@ export function SidebarTree(props: SidebarTreeProps) {
   // and engine push, and re-anchoring then would yank a j/k-walking cursor.
   // Clamps run on every list change so a shrunken list can't strand it.
   const prevActiveRef = useRef<string | null>(null)
-  // The row under the cursor LAST render; move mode re-anchors to it.
+  // The row under the cursor LAST render; reorders follow its identity.
   const cursorRowIdRef = useRef<string | null>(null)
   const moveMode = props.moveMode === true
   useEffect(() => {
     const ids = tree.flatIds
-    // Move mode: follow the ROW, not the index, or the next j/k moves the neighbour.
-    if (moveMode) {
+    // An external selection wins outside move mode; otherwise retain the cursor's row.
+    if (moveMode || tree.activeRowId === prevActiveRef.current) {
       const wanted = cursorRowIdRef.current
       const at = wanted === null ? -1 : ids.indexOf(wanted)
       if (at >= 0) {
