@@ -22,6 +22,22 @@ describe("PureTUI prefix settings", () => {
     expect(extracted.warnings).toEqual([])
   })
 
+  test("reads a list of prefix keys, first one primary, dropping invalid and duplicate entries", () => {
+    const extracted = extractPrefixKeybindings({ prefix: { key: ["ctrl+a", "s", "ctrl+s", "ctrl+a"] } }, "linux")
+
+    expect(extracted.configuration).toEqual({ key: "ctrl+a", extraKeys: ["ctrl+s"] })
+    expect(extracted.warnings.join("\n")).toContain("modifier")
+  })
+
+  test("an empty prefix key list disables the layer, and a platform string replaces a base list", () => {
+    expect(extractPrefixKeybindings({ prefix: { key: [] } }, "linux").configuration).toEqual({ key: null })
+    const overlaid = extractPrefixKeybindings(
+      { prefix: { key: ["ctrl+a", "ctrl+s"] }, darwin: { prefix: { key: "ctrl+b" } } },
+      "darwin",
+    )
+    expect(overlaid.configuration).toEqual({ key: "ctrl+b" })
+  })
+
   test("lets a platform prefix overlay replace only named fields", () => {
     const extracted = extractPrefixKeybindings(
       {

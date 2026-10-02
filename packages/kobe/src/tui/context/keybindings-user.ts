@@ -12,7 +12,12 @@
  */
 
 import { readKeybindingsFile, resetKeybindingsFileCache } from "../../state/keybindings-file"
-import { DEFAULT_PREFIX_CONFIGURATION, configurePrefix, resetPrefixConfiguration } from "../lib/keymap-dispatch"
+import {
+  DEFAULT_PREFIX_CONFIGURATION,
+  configurePrefix,
+  prefixFirstStrokes,
+  resetPrefixConfiguration,
+} from "../lib/keymap-dispatch"
 import { type AppliedOverride, applyKeymapOverrides, extractKeybindingOverrides } from "../lib/keymap-overrides"
 import { type PluginKeyBinding, extractPluginKeybindings } from "../lib/keymap-plugin-bindings"
 import { applyPrefixKeymapOverrides, extractPrefixKeybindings } from "../lib/keymap-prefix-overrides"
@@ -47,13 +52,14 @@ export function applyUserKeybindings(): UserKeybindingsReport {
   warnings.push(...extracted.warnings)
   const prefix = extractPrefixKeybindings(file.doc, process.platform)
   warnings.push(...prefix.warnings)
-  configurePrefix({ ...DEFAULT_PREFIX_CONFIGURATION, ...prefix.configuration })
+  const prefixConfiguration = { ...DEFAULT_PREFIX_CONFIGURATION, ...prefix.configuration }
+  configurePrefix(prefixConfiguration)
 
   const result = applyKeymapOverrides(KobeKeymap, extracted.entries)
   warnings.push(...result.warnings)
   const applied: AppliedOverride[] = [...result.applied]
-  const prefixKey = prefix.configuration.key
-  if (prefixKey !== null && prefixKey !== undefined) {
+  const customPrefix = prefix.configuration.key === undefined ? [] : prefixFirstStrokes(prefixConfiguration)
+  for (const prefixKey of customPrefix) {
     const directOwner = KobeKeymap.find((row) => row.keys.includes(prefixKey))
     if (directOwner) warnings.push(`prefix.key "${prefixKey}" collides with direct binding ${directOwner.id}`)
   }

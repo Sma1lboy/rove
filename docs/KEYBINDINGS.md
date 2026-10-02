@@ -349,7 +349,7 @@ Edit `~/.rove/settings/keybindings.yaml`. Changes reload live, no restart.
 
 ```yaml
 prefix:
-  key: ctrl+a          # null disables prefix bindings
+  key: ctrl+a          # or a list: [ctrl+a, ctrl+s]; null disables prefix bindings
   timeoutMs: 5000
   bindings:
     chat.fork.new: f
@@ -366,6 +366,8 @@ darwin:                  # platform overlays win per chord
 ```
 
 - A direct override **replaces** that binding's whole chord list.
+- `prefix.key` may list several first strokes. Each opens the same command
+  layer; hints and the guide print the first one.
 - Prefix overrides set second-stroke keys and keep the binding's pane scope.
 - Uppercase is a distinct chord: `shift+p` (or just `P`) can be bound apart
   from `p`. Shift with another modifier on a letter (`ctrl+shift+p`) is
