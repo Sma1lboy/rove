@@ -102,6 +102,23 @@ describe("TaskIndexStore rollback on a failed save", () => {
     expect(await diskTitles()).toEqual(["a", "b", "c"])
   })
 
+  it("restores the previous order of a move-to-front whose save failed", async () => {
+    const store = new TaskIndexStore({ homeDir: home })
+    await store.load()
+    const a = await store.create(input("a"))
+    const b = await store.create(input("b"))
+    const c = await store.create(input("c"))
+
+    await breakSaves()
+    await expect(store.moveToFront(c.id, [a.id, b.id, c.id])).rejects.toThrow()
+    expect(store.list().map((t) => t.title)).toEqual(["a", "b", "c"])
+    expect(store.list()[2]?.updatedAt).toBe(c.updatedAt)
+
+    await healSaves()
+    await store.create(input("d"))
+    expect(await diskTitles()).toEqual(["a", "b", "c", "d"])
+  })
+
   it("keeps a task whose delete failed, and no later save completes the deletion", async () => {
     const store = new TaskIndexStore({ homeDir: home })
     await store.load()

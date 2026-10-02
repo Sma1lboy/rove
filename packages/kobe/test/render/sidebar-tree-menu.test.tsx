@@ -141,6 +141,51 @@ test("a lower project's header moves it to the top; the topmost one isn't offere
   expect(await frame()).toContain("Reorder project")
 })
 
+test("Reorder project while already in move mode keeps it on, now dragging that project", async () => {
+  tabsByTask.clear()
+  const FOXY = task("f", { kind: "main", repo: "/repos/foxy", branch: "", worktreePath: "/repos/foxy" })
+  const toggles: string[] = []
+  const moves: Array<[string, number]> = []
+  const { frame, mockMouse, mockInput } = await renderComponent(
+    tree({
+      tasks: [MAIN, task("a"), FOXY],
+      moveMode: true,
+      onLocalMergeRequest: (id) => toggles.push(id),
+      onMoveRequest: (id, delta) => moves.push([id, delta]),
+    }),
+    { width: 40, height: 24 },
+  )
+  await settle()
+  await mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT)
+  await settle()
+  mockInput.typeText("jj")
+  await settle()
+  mockInput.pressEnter()
+  await settle()
+  // A toggle here would have LEFT move mode.
+  expect(toggles).toEqual([])
+
+  mockInput.typeText("k")
+  await settle()
+  expect(moves).toEqual([["f", -1]])
+})
+
+test("another machine's project offers no move verbs — its main isn't in this daemon's partition", async () => {
+  tabsByTask.clear()
+  const origin = { machineId: "mac", hostLabel: "mac" }
+  const REMOTE = task("r", { kind: "main", repo: "/repos/remote", branch: "", worktreePath: "/repos/remote", origin })
+  const { frame, mockMouse } = await renderComponent(tree({ tasks: [MAIN, task("a"), REMOTE] }), {
+    width: 40,
+    height: 24,
+  })
+  await settle()
+  await mockMouse.click(2, lineOf(await frame(), "remote"), RIGHT)
+  await settle()
+  expect(await frame()).toContain("New task")
+  expect(await frame()).not.toContain("Move to top")
+  expect(await frame()).not.toContain("Reorder project")
+})
+
 test("left-click still activates the row it lands on", async () => {
   // The right-click branch lives inside the row's existing onMouseUp, so a
   // regression here would silently kill click-to-switch.
