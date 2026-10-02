@@ -14,7 +14,7 @@ import { expect, test } from "bun:test"
 import type { TaskEngineState } from "../../src/client/remote-orchestrator-payloads"
 import { KanbanPage } from "../../src/tui-react/component/kanban-page"
 import { setTransparentBackground } from "../../src/tui-react/context/theme"
-import { renderComponent, settle } from "./harness"
+import { act, renderComponent, settle } from "./harness"
 
 const REPO = "/repos/rove"
 
@@ -60,6 +60,31 @@ async function board(
   await settle()
   return await frame()
 }
+
+test("h / l cycle projects on an empty board like the arrows", async () => {
+  const twoRepos = {
+    listTasks: () => [],
+    listIssueRepos: async () => ["/repos/a", "/repos/b"],
+    listIssues: async (repoRoot: string) => ({ repoRoot, exists: true, nextId: 1, issues: [] }),
+    activeTaskSignal: () => ({ get: () => null }),
+  } as never
+  const { frame, mockInput } = await renderComponent(
+    <KanbanPage
+      orchestrator={twoRepos}
+      focused={true}
+      onClose={() => {}}
+      onStartChat={async () => {}}
+      onOpenTask={() => {}}
+    />,
+    { width: 120, height: 30, providers: { dialog: true, kv: true, notifications: true } },
+  )
+  await settle()
+  expect(await frame()).toContain("1/2")
+  act(() => mockInput.pressKey("l"))
+  expect(await frame()).toContain("2/2")
+  act(() => mockInput.pressKey("h"))
+  expect(await frame()).toContain("1/2")
+})
 
 test("a linked hold story renders under Parked, not In progress", async () => {
   const text = await board([issue(1, { status: "hold", taskId: "T1" }), issue(2, { taskId: "T2" })])

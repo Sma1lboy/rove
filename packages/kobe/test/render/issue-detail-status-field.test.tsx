@@ -95,3 +95,27 @@ test("a DONE story can be sent back — the one card the drawer could not act on
 
   expect(outcomes[0]).toMatchObject({ kind: "close", status: "open" })
 })
+
+test("h / l step STATUS exactly like ←/→", async () => {
+  const outcomes: IssueDetailOutcome[] = []
+  const { frame, mockInput } = await renderComponent(
+    drawer(OPEN_ISSUE, (o) => outcomes.push(o)),
+    {
+      width: 120,
+      height: 60,
+      providers: { dialog: true },
+    },
+  )
+  expect(await frame()).toContain("STATUS")
+
+  for (let i = 0; i < 4; i++) act(() => mockInput.pressTab())
+  act(() => mockInput.pressKey("l"))
+  act(() => mockInput.pressKey("l"))
+  expect(await frame()).toContain("hold")
+  act(() => mockInput.pressKey("h"))
+  expect(await frame()).toContain("doing")
+
+  act(() => mockInput.pressEscape())
+  await settle()
+  expect(outcomes[0]).toMatchObject({ kind: "close", status: "doing" })
+})

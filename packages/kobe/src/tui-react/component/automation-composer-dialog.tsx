@@ -150,11 +150,13 @@ function AutomationComposerView(props: {
             { key: "down", cmd: () => pickRepoAt(repoCursor + 1) },
           ]
         : []),
-      // ←/→ walks the cells, ↑/↓ changes the one under the cursor.
+      // ←/→ (or h/l) walks the cells, ↑/↓ changes the one under the cursor.
       ...(field === "schedule"
         ? [
             { key: "left", cmd: () => setSegmentCursor((c) => moveSegmentCursor(c, -1)) },
             { key: "right", cmd: () => setSegmentCursor((c) => moveSegmentCursor(c, 1)) },
+            { key: "h", cmd: () => setSegmentCursor((c) => moveSegmentCursor(c, -1)) },
+            { key: "l", cmd: () => setSegmentCursor((c) => moveSegmentCursor(c, 1)) },
             {
               key: "up",
               cmd: () => {

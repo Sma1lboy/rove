@@ -208,12 +208,16 @@ export function IssueDetailDialogView(
         ? [
             { key: "left", cmd: () => stepStatus(-1) },
             { key: "right", cmd: () => stepStatus(1) },
+            { key: "h", cmd: () => stepStatus(-1) },
+            { key: "l", cmd: () => stepStatus(1) },
           ]
         : []),
       ...(field === "engine"
         ? [
             { key: "left", cmd: () => stepEngine(-1) },
             { key: "right", cmd: () => stepEngine(1) },
+            { key: "h", cmd: () => stepEngine(-1) },
+            { key: "l", cmd: () => stepEngine(1) },
             { key: "return", cmd: () => commit() },
           ]
         : []),
@@ -228,6 +232,8 @@ export function IssueDetailDialogView(
         ? [
             { key: "left", cmd: () => setJump((v) => !v) },
             { key: "right", cmd: () => setJump((v) => !v) },
+            { key: "h", cmd: () => setJump((v) => !v) },
+            { key: "l", cmd: () => setJump((v) => !v) },
             { key: "return", cmd: () => commit() },
           ]
         : []),

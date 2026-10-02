@@ -170,7 +170,7 @@ export function KanbanPage(props: {
     if (next != null) setSelectedId(next)
   }
 
-  // ←/→ move cards; on an empty board they cycle projects like tab.
+  // ←/→ (or h/l) move cards; on an empty board they cycle projects like tab.
   function moveOrCycle(dir: "left" | "right"): void {
     if (columns.some((column) => column.issues.length > 0)) moveCursor(dir)
     else cycleProject(dir === "left" ? -1 : 1)
@@ -333,6 +333,8 @@ export function KanbanPage(props: {
       { key: "down", cmd: () => moveCursor("down") },
       { key: "right", cmd: () => moveOrCycle("right") },
       { key: "left", cmd: () => moveOrCycle("left") },
+      { key: "l", cmd: () => moveOrCycle("right") },
+      { key: "h", cmd: () => moveOrCycle("left") },
       {
         key: "return",
         cmd: () => {

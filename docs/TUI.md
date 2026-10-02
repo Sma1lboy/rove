@@ -352,7 +352,7 @@ directory), where it first completes the highlighted suggestion in place,
 exactly as a shell would, and only moves on once there is nothing left to
 complete. `ctrl+e` cycles the detected engines from anywhere in
 the dialog. Use `ctrl+[` / `ctrl+]` to move between its three modes, or focus the
-mode selector and use the left/right arrows.
+mode selector and use the left/right arrows (or `h`/`l`).
 
 - **For Existing** picks a local repository and the ref to branch from. Rove
   creates a new task branch and worktree, then opens it ready for the first
@@ -560,7 +560,7 @@ worktree are never touched). The board refreshes every few seconds, so cards
 moved by agents move on screen too.
 
 The drawer's **STATUS** field is how a human moves a card between columns: tab
-to it and `←/→` steps through `open · doing · hold · done`. The board's own
+to it and `←/→` (or `h`/`l`) steps through `open · doing · hold · done`. The board's own
 keys steer the cursor and `d` deletes the story outright, so without this the
 only way to mark work finished was an agent running `rove api
 issue-set-status` — "I finished this" and "this never existed" were the same

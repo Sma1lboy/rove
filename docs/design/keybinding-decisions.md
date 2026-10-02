@@ -8,6 +8,31 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## `h` / `l` mirror `←` / `→` wherever they navigate
+
+**2026-10-02 — plain `h` / `l` are added as alternatives to `←` / `→` in every
+dialog and page where the arrows move you sideways. Owner request.** Owner
+asked for exactly this in the turn that produced it, so it is signed off.
+
+**Why.** Vim muscle memory: `j`/`k` already mirror `↑`/`↓` in the sidebar,
+files, inbox, diff review and every page, so the horizontal pair was the
+missing half. The chords are pure ADDITIONS — the arrow keys keep working and
+nothing is moved — so they cost no existing muscle memory.
+
+**Where.** The new-task selector fields, the engine/effort picker, the
+issue-detail status/engine/jump rows, the automation schedule segments, the
+Kanban board cursor, and the quick-task composer's attempts/engine chip rows.
+Several dialogs (new-conversation, run-again, confirm, Settings) already had
+the pair.
+
+**Guard.** Each chord sits behind the same scope as its arrow twin, so `h`/`l`
+are live only where `←`/`→` are and never while a text field, the composer, or
+`/`-search owns the keyboard — there they stay ordinary letters.
+
+**Exception.** The sidebar's `right` (focus the engine pane) gets no `l`: `l`
+is already the sidebar's "open the row under the cursor". There is no sidebar
+`left`, so no `h` either.
+
 ## `ctrl+<digit>` is tab N of the current task
 
 **2026-09-25 — `ctrl+1`…`ctrl+9` switch to the current task's Nth tab, and the
