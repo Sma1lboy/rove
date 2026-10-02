@@ -56,12 +56,12 @@ it("closes tab sessions and exits through the parent pipe without killing detach
     clients.push(ws)
     ws.on("message", (chunk) => {
       output += chunk
-      for (const match of output.matchAll(/(?:TREE|SERVICE)_PID=(\d+)/g)) owned.add(Number(match[1]))
+      for (const match of output.matchAll(/(?:TREE|SERVICE)_PID=(\d+)\r?\n/g)) owned.add(Number(match[1]))
     })
-    await until(() => [...output.matchAll(/TREE_PID=(\d+)/g)].length === 3 && /SERVICE_PID=\d+/.test(output))
+    await until(() => [...output.matchAll(/TREE_PID=(\d+)\r?\n/g)].length === 3 && /SERVICE_PID=\d+\r?\n/.test(output))
     return {
-      pids: [...output.matchAll(/TREE_PID=(\d+)/g)].map((match) => Number(match[1])),
-      service: Number(output.match(/SERVICE_PID=(\d+)/)[1]),
+      pids: [...output.matchAll(/TREE_PID=(\d+)\r?\n/g)].map((match) => Number(match[1])),
+      service: Number(output.match(/SERVICE_PID=(\d+)\r?\n/)[1]),
     }
   }
   try {

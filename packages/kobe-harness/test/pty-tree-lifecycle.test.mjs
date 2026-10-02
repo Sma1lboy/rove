@@ -74,11 +74,11 @@ it.skipIf(process.platform === "win32")("reconnects to a real PTY, then reaps se
     const ws = new WebSocket(`ws://127.0.0.1:${server.address().port}`)
     clients.push(ws)
     ws.on("message", (chunk) => { output += chunk.toString() })
-    await until(() => attached > previous && [...output.matchAll(/TREE_PID=(\d+)/g)].length === 3 && /SERVICE_PID=\d+/.test(output))
+    await until(() => attached > previous && [...output.matchAll(/TREE_PID=(\d+)\r?\n/g)].length === 3 && /SERVICE_PID=\d+\r?\n/.test(output))
     return {
       ws,
-      pids: [ptys.at(-1).pid, ...[...output.matchAll(/TREE_PID=(\d+)/g)].map((match) => Number(match[1]))],
-      service: Number(output.match(/SERVICE_PID=(\d+)/)[1]),
+      pids: [ptys.at(-1).pid, ...[...output.matchAll(/TREE_PID=(\d+)\r?\n/g)].map((match) => Number(match[1]))],
+      service: Number(output.match(/SERVICE_PID=(\d+)\r?\n/)[1]),
     }
   }
   const owned = new Set()
