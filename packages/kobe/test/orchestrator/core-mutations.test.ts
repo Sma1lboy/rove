@@ -289,6 +289,51 @@ describe("moveTask", () => {
   })
 })
 
+describe("moveTaskToTop", () => {
+  const mainOf = (repo: string) =>
+    store.create({ repo, title: repo, branch: "", worktreePath: repo, status: "backlog", kind: "main" })
+  const mainRepos = () =>
+    orch
+      .listTasks()
+      .filter((t) => t.kind === "main")
+      .map((t) => t.repo)
+
+  it("lifts a main above every other main in one write, leaving tasks in place", async () => {
+    const regular = await makeTask({ title: "reg" })
+    await mainOf("/repo-a")
+    await mainOf("/repo-b")
+    const last = await mainOf("/repo-c")
+    const before = mainRepos()
+
+    await orch.moveTaskToTop(last.id)
+    expect(mainRepos()).toEqual(["/repo-c", ...before.filter((repo) => repo !== "/repo-c")])
+    expect(orch.getTask(regular.id)?.title).toBe("reg")
+
+    // Already on top: a no-op, not a wrap.
+    const top = orch.listTasks().map((t) => t.id)
+    await orch.moveTaskToTop(last.id)
+    expect(orch.listTasks().map((t) => t.id)).toEqual(top)
+  })
+
+  it("keeps a regular task inside its repo group and pin partition", async () => {
+    const a = await makeTask({ title: "a" })
+    const other = await makeTask({ title: "other", repo: "/repo-b" })
+    const pinned = await makeTask({ title: "pinned" })
+    await orch.setPinned(pinned.id, true)
+    const c = await makeTask({ title: "c" })
+
+    await orch.moveTaskToTop(c.id)
+    const titles = orch
+      .listTasks()
+      .filter((t) => t.kind !== "main")
+      .map((t) => t.title)
+    // Lands just above `a`, its partition's head: `other` and `pinned` aren't passed over.
+    expect(titles).toEqual(["c", "a", "other", "pinned"])
+    expect(orch.getTask(a.id)).toBeDefined()
+    expect(orch.getTask(other.id)).toBeDefined()
+  })
+})
+
 describe("deleteTask — safety ladder", () => {
   it("silently no-ops for an unknown id", async () => {
     await expect(orch.deleteTask("nope")).resolves.toBeUndefined()

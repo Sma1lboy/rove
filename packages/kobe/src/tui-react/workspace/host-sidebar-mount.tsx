@@ -138,6 +138,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onRunAgainRequest={(id) => void actions.confirmRunAgain(id).then((task) => task && props.runAgain(task))}
       moveMode={props.moveMode}
       onMoveRequest={(id, delta) => void actions.moveTask(id, delta)}
+      onMoveToTopRequest={(id) => void actions.moveTaskToTop(id)}
       onMoveModeExit={props.exitMoveMode}
       onLocalMergeRequest={props.onLocalMergeRequest}
       onSearchActiveChange={props.onSearchActiveChange}

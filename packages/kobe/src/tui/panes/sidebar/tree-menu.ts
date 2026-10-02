@@ -6,7 +6,7 @@
  * the chords already walk up from a tab to its worktree (`withCursorTask`).
  *
  * Exceptions (`setStatus`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
- * `runAgain`) are menu-only until the owner agrees a chord (AGENTS.md,
+ * `runAgain`, `moveToTop`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
  * "New chat" routes to the row's workspace ctrl+e picker, like pressing the
@@ -30,6 +30,7 @@ export type TreeMenuAction =
   | "rename"
   | "pin"
   | "reorder"
+  | "moveToTop"
   | "runAgain"
   | "setStatus"
   | "copyBranch"
@@ -58,6 +59,10 @@ export interface TreeMenuItem {
 export interface TreeMenuContext {
   /** Tabs on the row's worktree. Closing the LAST is allowed (the task re-opens on ⏎ / ctrl+e). */
   readonly tabCount?: number
+  /** Project rows: it has a `main` checkout, the handle every project move goes through. */
+  readonly projectMovable?: boolean
+  /** Project rows: already the topmost movable project, so "Move to top" would be dead. */
+  readonly projectFirst?: boolean
 }
 
 /** The ctrl+e picker, plus a direct shell tab (what the picker's "shell" choice mints). */
@@ -123,11 +128,17 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
   if (row.kind === "project") {
     // `d` already forgets a project (behind a confirm). Field notes are
     // menu-only; agents file them with `rove api note`.
-    return [
-      { action: "newTask", labelKey: "tasks.menu.newTask", bindingId: "task.new" },
+    const items: TreeMenuItem[] = [{ action: "newTask", labelKey: "tasks.menu.newTask", bindingId: "task.new" }]
+    if (ctx.projectMovable) {
+      if (!ctx.projectFirst) items.push({ action: "moveToTop", labelKey: "tasks.menu.moveToTop" })
+      // Shift+M on the main row, which the menu puts the cursor on.
+      items.push({ action: "reorder", labelKey: "tasks.menu.reorderProject", bindingId: "sidebar.localMerge" })
+    }
+    items.push(
       { action: "fieldNotes", labelKey: "tasks.menu.fieldNotes" },
       { action: "forgetProject", labelKey: "tasks.menu.forgetProject", danger: true, bindingId: "sidebar.delete" },
-    ]
+    )
+    return items
   }
   if (row.kind === "worktree") {
     return [

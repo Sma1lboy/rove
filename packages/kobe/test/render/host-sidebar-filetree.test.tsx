@@ -62,6 +62,7 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
     onRunAgainRequest: NOOP,
     moveMode: false,
     onMoveRequest: NOOP,
+    onMoveToTopRequest: NOOP,
     onMoveModeExit: NOOP,
     onLocalMergeRequest: NOOP,
     onSearchActiveChange: NOOP,

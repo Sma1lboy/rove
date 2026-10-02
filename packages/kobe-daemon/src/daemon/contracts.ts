@@ -281,6 +281,7 @@ export interface DaemonOrchestrator {
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>
+  moveTaskToTop(id: string): Promise<void>
   setStatus(id: string, status: TaskStatus): Promise<void>
   /** Record what the worker says it delivered (`set-status --report-*`).
    *  Separate from `setStatus` because a report on an already-`done` task is

@@ -26,9 +26,11 @@ export interface SidebarHostState {
   readonly moveMode: boolean
   readonly setMoveMode: (next: boolean) => void
   /**
-   * `shift+m`: select a row and toggle move mode. j/k then move by the cursor
-   * row's LEVEL: a tab within its task, a task within its repo group, a `main`
-   * row its whole project.
+   * `shift+m` / the row menu's Reorder: toggle move mode on the cursor row.
+   * j/k then move by its LEVEL: a tab within its task, a task within its repo
+   * group, a `main` row its whole project. Focuses the sidebar (a menu click
+   * may come from the workspace) but selects nothing: selecting would open the
+   * row's session, and a tab-less `main` would spawn one just to be moved.
    */
   readonly onLocalMergeRequest: (id: string) => void
 }
@@ -45,9 +47,9 @@ function readSortMode(stored: unknown): TaskSortMode {
 export function useSidebarHostState(args: {
   readonly kv: KVContext
   readonly tasks: readonly Task[]
-  readonly setSelectedId: (id: string) => void
+  readonly focusSidebar: () => void
 }): SidebarHostState {
-  const { kv, tasks, setSelectedId } = args
+  const { kv, tasks, focusSidebar } = args
 
   // Seeding from `activeSortMode` is what makes the sort global: a new host
   // opens in the last sort. The live push is not applied (KNOWN GAP above).
@@ -62,8 +64,8 @@ export function useSidebarHostState(args: {
   const onLocalMergeRequest = (id: string): void => {
     const task = tasks.find((t) => t.id === id)
     if (!task) return
-    setSelectedId(id)
-    setMoveMode((cur) => !cur)
+    if (!moveMode) focusSidebar()
+    setMoveMode(!moveMode)
   }
 
   return { sortMode, setSortMode, toggleSortMode, moveMode, setMoveMode, onLocalMergeRequest }

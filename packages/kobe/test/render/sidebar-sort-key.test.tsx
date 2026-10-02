@@ -118,7 +118,7 @@ function SortHost() {
   const { sortMode, toggleSortMode } = useSidebarHostState({
     kv,
     tasks: [MAIN, OLDER, NEWER],
-    setSelectedId: () => {},
+    focusSidebar: () => {},
   })
   useWorkspaceKeybindings({
     focus,

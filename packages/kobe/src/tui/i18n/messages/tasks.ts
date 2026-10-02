@@ -36,6 +36,10 @@ export const en = {
     pin: "Pin",
     unpin: "Unpin",
     reorder: "Reorder row",
+    /** Project row: jump the project above every other. Menu-only. */
+    moveToTop: "Move to top",
+    /** Project row: move mode on its main row, so j/k move the project. */
+    reorderProject: "Reorder project",
     /** Re-fire the task's stored brief as a new task. Menu-only. */
     runAgain: "Run again",
     /** Menu-only, like `runAgain`, `land`, `fieldNotes` and the two copies —
@@ -316,6 +320,8 @@ export const zh: typeof en = {
     pin: "置顶",
     unpin: "取消置顶",
     reorder: "重新排序",
+    moveToTop: "移到顶部",
+    reorderProject: "调整项目顺序",
     runAgain: "重新运行",
     setStatus: "设置状态",
     copyBranch: "复制分支名",

@@ -129,6 +129,10 @@ export async function moveTaskOp(client: KobeDaemonClient, id: TaskId | string, 
   })
 }
 
+export async function moveTaskToTopOp(client: KobeDaemonClient, id: TaskId | string): Promise<void> {
+  await client.request("task.move", { taskId: String(id), direction: "top" })
+}
+
 /** Record a task's brief. "Run again" copies it onto the fork so the child can
  *  itself be re-run and `get-task` shows what its engine was handed. */
 export async function setPromptOp(client: KobeDaemonClient, id: TaskId | string, prompt: string): Promise<void> {

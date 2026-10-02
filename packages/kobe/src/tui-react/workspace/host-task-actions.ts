@@ -61,6 +61,8 @@ export type WorkspaceTaskActions = {
   setVendor: (id: string, vendor: VendorId) => Promise<void>
   togglePin: (id: string) => Promise<void>
   moveTask: (id: string, delta: -1 | 1) => Promise<void>
+  /** Project-row menu "Move to top", on the project's main. */
+  moveTaskToTop: (id: string) => Promise<void>
   /** Tree-menu "Set status" — a picker over the six board statuses. */
   setStatus: (id: string) => Promise<void>
   /** Tree-menu "Copy branch name" / "Copy path" — system clipboard + toast. */
@@ -122,6 +124,12 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
 
   async function moveTask(id: string, delta: -1 | 1): Promise<void> {
     await orchestrator.moveTask(id, delta).catch((err) => {
+      notifyError(t("tasks.toast.moveFailed", { error: userFacingErrorMessage(err) }))
+    })
+  }
+
+  async function moveTaskToTop(id: string): Promise<void> {
+    await orchestrator.moveTaskToTop(id).catch((err) => {
       notifyError(t("tasks.toast.moveFailed", { error: userFacingErrorMessage(err) }))
     })
   }
@@ -193,6 +201,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     },
     togglePin,
     moveTask,
+    moveTaskToTop,
     setStatus: (id) => setStatusFlow(taskActions, id),
     copyTaskField: (id, field) => {
       void copyTaskFieldFlow(taskActions, id, field)

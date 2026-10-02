@@ -18,6 +18,8 @@ export type SidebarTaskCallbacks = {
   moveMode?: boolean
   onMoveRequest?: (taskId: string, delta: -1 | 1) => void
   onMoveModeExit?: () => void
+  /** Project row menu only: move the project (via its main) above every other. */
+  onMoveToTopRequest?: (taskId: string) => void
   onRenameRequest?: (taskId: string) => void
   /** Shift+P only; a bare `p` binds nothing, so a mistype can't churn the pin flag. */
   onPinRequest?: (taskId: string) => void

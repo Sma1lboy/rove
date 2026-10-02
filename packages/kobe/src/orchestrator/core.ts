@@ -264,6 +264,7 @@ export class Orchestrator {
     this.editor.setCommand(id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)
+  moveTaskToTop = (id: TaskId | string): Promise<void> => this.editor.moveTaskToTop(id)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => this.editor.setStatus(id, status)
 
   /** Record the worker's own account of what it delivered — see

@@ -161,8 +161,18 @@ export class TaskEditor {
    */
   async moveTask(id: TaskId | string, delta: -1 | 1): Promise<void> {
     const task = this.requireTask(id)
+    await this.store.move(task.id, delta, this.movePartition(task))
+  }
+
+  /** {@link moveTask} to the head of the same partition; a main = project to the top. */
+  async moveTaskToTop(id: TaskId | string): Promise<void> {
+    const task = this.requireTask(id)
+    await this.store.moveToFront(task.id, this.movePartition(task))
+  }
+
+  private movePartition(task: Task): string[] {
     const isMain = task.kind === "main"
-    const groupIds = this.store
+    return this.store
       .list()
       .filter((t) =>
         isMain
@@ -172,7 +182,6 @@ export class TaskEditor {
             (t.pinned ?? false) === (task.pinned ?? false),
       )
       .map((t) => String(t.id))
-    await this.store.move(task.id, delta, groupIds)
   }
 
   /** Transitions are user-driven, not enforced, except `done` ↔ `error`

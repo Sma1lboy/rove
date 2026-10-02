@@ -321,6 +321,38 @@ export class TaskIndexStore {
   }
 
   /**
+   * {@link move} all the way up: lands just before the first of `withinIds`,
+   * which (in store order, like `move`'s) sits ahead of `id` in the cache.
+   */
+  async moveToFront(id: TaskId | string, withinIds: readonly string[]): Promise<Task> {
+    this.assertLoaded()
+    const task = this.cache.tasks.find((t) => t.id === id)
+    if (!task) throw new Error(`task not found: ${id}`)
+    if (!withinIds.includes(String(id))) throw new Error(`task not movable in current group: ${id}`)
+    const firstId = withinIds[0]
+    if (firstId === undefined || firstId === String(id)) return task
+
+    const fromIdx = this.cache.tasks.findIndex((t) => t.id === id)
+    const toIdx = this.cache.tasks.findIndex((t) => t.id === firstId)
+    if (fromIdx < 0 || toIdx < 0 || toIdx > fromIdx) return task
+
+    const [moved] = this.cache.tasks.splice(fromIdx, 1)
+    if (!moved) return task
+    const next: Task = { ...moved, updatedAt: new Date().toISOString() }
+    this.cache.tasks.splice(toIdx, 0, next)
+    this.dirtyIds.add(String(id))
+    await this.saveOrRollback(String(id), () => {
+      const at = this.cache.tasks.indexOf(next)
+      if (at < 0) return false
+      this.cache.tasks.splice(at, 1)
+      this.cache.tasks.splice(Math.min(fromIdx, this.cache.tasks.length), 0, moved)
+      return true
+    })
+    this.notifyListeners()
+    return next
+  }
+
+  /**
    * Returns whether there was a task to delete. Unlike `update`/`move`, an
    * unknown id doesn't throw: a daemon replaying a queued deletion after
    * restart finding nothing is success. The boolean lets a caller whose cache

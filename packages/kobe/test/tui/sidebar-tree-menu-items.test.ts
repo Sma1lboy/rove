@@ -3,7 +3,8 @@
  * list is a data assertion; the real right-click that produces it is covered
  * in the render track's `sidebar-tree-menu.test.tsx`).
  *
- * The rules worth locking: a project header offers exactly its three entries, the
+ * The rules worth locking: a project header offers its entries (move verbs only
+ * with a main checkout), the
  * per-task verbs reach a tab row too, `closeTab` appears only above one tab,
  * and the new-conversation pair rides both task-bearing row kinds.
  */
@@ -48,6 +49,22 @@ describe("treeMenuItems", () => {
     // routes to `forgetProject` behind a confirm). Field notes is menu-only,
     // like setStatus: the repo's durable note store had no in-product reader.
     expect(actions(projectRow)).toEqual(["newTask", "fieldNotes", "forgetProject"])
+  })
+
+  test("a project with a main checkout adds Move to top and Reorder; the topmost one drops Move to top", () => {
+    expect(actions(projectRow, { projectMovable: true })).toEqual([
+      "newTask",
+      "moveToTop",
+      "reorder",
+      "fieldNotes",
+      "forgetProject",
+    ])
+    expect(actions(projectRow, { projectMovable: true, projectFirst: true })).toEqual([
+      "newTask",
+      "reorder",
+      "fieldNotes",
+      "forgetProject",
+    ])
   })
 
   test("a worktree row opens, adds a session, then the task verbs", () => {

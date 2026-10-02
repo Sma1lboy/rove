@@ -100,6 +100,47 @@ test("right-click on a project header offers the project's own actions", async (
   expect(after).not.toContain("Delete")
 })
 
+test("a lower project's header moves it to the top; the topmost one isn't offered that", async () => {
+  tabsByTask.clear()
+  const FOXY = task("f", { kind: "main", repo: "/repos/foxy", branch: "", worktreePath: "/repos/foxy" })
+  const moved: string[] = []
+  const reordered: string[] = []
+  const { frame, mockMouse, mockInput } = await renderComponent(
+    tree({
+      tasks: [MAIN, task("a"), FOXY],
+      onMoveToTopRequest: (id) => moved.push(id),
+      onLocalMergeRequest: (id) => reordered.push(id),
+    }),
+    { width: 40, height: 24 },
+  )
+  await settle()
+  await mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT)
+  await settle()
+  expect(await frame()).toContain("Move to top")
+  expect(await frame()).toContain("Reorder project")
+
+  // New task → Move to top. Both verbs act on the project's MAIN.
+  mockInput.typeText("j")
+  await settle()
+  mockInput.pressEnter()
+  await settle()
+  expect(moved).toEqual(["f"])
+
+  await mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT)
+  await settle()
+  mockInput.typeText("jj")
+  await settle()
+  mockInput.pressEnter()
+  await settle()
+  expect(reordered).toEqual(["f"])
+
+  // Already first: only Reorder.
+  await mockMouse.click(2, lineOf(await frame(), "rove"), RIGHT)
+  await settle()
+  expect(await frame()).not.toContain("Move to top")
+  expect(await frame()).toContain("Reorder project")
+})
+
 test("left-click still activates the row it lands on", async () => {
   // The right-click branch lives inside the row's existing onMouseUp, so a
   // regression here would silently kill click-to-switch.

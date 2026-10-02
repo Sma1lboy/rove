@@ -388,6 +388,7 @@ export class RemoteOrchestrator {
     writes.setCommandOp(this.client, id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => writes.setPinnedOp(this.client, id, pinned)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => writes.moveTaskOp(this.client, id, delta)
+  moveTaskToTop = (id: TaskId | string): Promise<void> => writes.moveTaskToTopOp(this.client, id)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => writes.setStatusOp(this.client, id, status)
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => writes.setPromptOp(this.client, id, prompt)
   deleteTask = (id: TaskId | string, opts?: { force?: boolean; deleteBranch?: boolean }): Promise<void> =>

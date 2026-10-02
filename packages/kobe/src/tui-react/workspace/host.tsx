@@ -125,7 +125,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   const { sortMode, toggleSortMode, moveMode, setMoveMode, onLocalMergeRequest } = useSidebarHostState({
     kv,
     tasks,
-    setSelectedId,
+    focusSidebar: () => focus.setFocused("sidebar"),
   })
 
   const inbox = useInboxHost({

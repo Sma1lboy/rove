@@ -229,8 +229,9 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const direction = requireString(payload, "direction")
-      if (direction !== "up" && direction !== "down") throw new Error("direction must be up or down")
-      await ctx.orch.moveTask(taskId, direction === "up" ? -1 : 1)
+      if (direction === "top") await ctx.orch.moveTaskToTop(taskId)
+      else if (direction === "up" || direction === "down") await ctx.orch.moveTask(taskId, direction === "up" ? -1 : 1)
+      else throw new Error("direction must be up, down or top")
       return {}
     },
   },
