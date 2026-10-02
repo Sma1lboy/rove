@@ -153,7 +153,7 @@ The raw logs live under the active Rove home (normally your OS home):
 |---|---|
 | `~/.rove/daemon.log` | daemon startup, crashes, RPC failures, task-deletion audit |
 | `~/.rove/pty.log` | Hosted PTY startup and session-host failures |
-| `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
+| `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics; `[pane-crash]` render errors, tagged with the region (sidebar, workspace, files, page) that showed the error card |
 
 ## Rove is spawning more processes than it should
 

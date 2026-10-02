@@ -10,11 +10,20 @@ export const en = {
   /** Footer verb for a step that leads to another prompt. */
   create: "create",
   confirm: "Confirm",
-  /** Fallback shown when a pane's render tree throws, instead of dropping
-   *  the process to a raw shell. */
+  /** Fallback shown when a render tree throws, instead of dropping the
+   *  process to a raw shell. `region*` rows are one Workspace Host region. */
   paneCrash: {
     title: "This pane crashed",
-    hint: "Reload it from the Tasks pane (the error was logged to client.log).",
+    hint: "The error was logged to client.log. Retry, or restart Rove if it keeps happening.",
+    regionTitle: "The {region} hit an error",
+    regionHint: "The rest of Rove keeps working. The error was logged to client.log.",
+    retry: "[ retry ]",
+    region: {
+      sidebar: "task list",
+      workspace: "workspace",
+      files: "file tree",
+      page: "page",
+    },
   },
   rename: {
     defaultTitle: "Rename task",
@@ -38,7 +47,16 @@ export const zh: typeof en = {
   confirm: "确认",
   paneCrash: {
     title: "此面板已崩溃",
-    hint: "请从任务面板重新加载（错误已记录到 client.log）。",
+    hint: "错误已记录到 client.log。可重试；若反复出现请重启 Rove。",
+    regionTitle: "{region}出错了",
+    regionHint: "Rove 的其余部分仍可正常使用。错误已记录到 client.log。",
+    retry: "[ 重试 ]",
+    region: {
+      sidebar: "任务列表",
+      workspace: "工作区",
+      files: "文件树",
+      page: "页面",
+    },
   },
   rename: {
     defaultTitle: "重命名任务",
