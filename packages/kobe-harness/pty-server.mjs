@@ -29,6 +29,7 @@ import { watchParent } from "./pty-parent-watch.mjs"
 import { createPtySessionManager } from "./pty-session-lifecycle.mjs"
 import { createSpecFetcher } from "./pty-spec.mjs"
 import { createCast } from "./pty-cast.mjs"
+import { killPtyTree } from "./pty-tree-kill.mjs"
 
 const PORT = Number.parseInt(process.env.KOBE_PTY_PORT ?? "5175", 10)
 const SCROLLBACK_CAP = 256 * 1024 // bytes of recent output replayed on (re)attach
@@ -42,6 +43,7 @@ const fetchSpec = createSpecFetcher()
 const ptySessions = createPtySessionManager({
   fetchSpec,
   spawnPty: spawn,
+  terminatePty: killPtyTree,
   createScrollback,
   scrollbackCap: SCROLLBACK_CAP,
   env: ptyEnv,

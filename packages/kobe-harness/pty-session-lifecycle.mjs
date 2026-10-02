@@ -69,6 +69,7 @@ export function shouldResumePty(sockets, lowWaterBytes) {
 export function createPtySessionManager({
   fetchSpec,
   spawnPty,
+  terminatePty = (pty) => pty.kill(),
   createScrollback,
   scrollbackCap,
   env,
@@ -87,6 +88,7 @@ export function createPtySessionManager({
   const sessions = new Map()
   /** @type {Map<string, Promise<any>>} */
   const pendingSpawns = new Map()
+  let stopped = false
   // Keyed by tab and kept past the process's exit: a take that quits and
   // reattaches the TUI is still one recording, and the cast is read after close.
   /** @type {Map<string, ReturnType<NonNullable<typeof createCast>>>} */
@@ -223,12 +225,14 @@ export function createPtySessionManager({
   }
 
   async function ensureSession(tabId, taskId, mode, cols, rows) {
+    if (stopped) throw new Error("PTY server is shutting down")
     const existing = sessions.get(tabId)
     if (existing) return existing
     const inflight = pendingSpawns.get(tabId)
     if (inflight) return inflight
     const p = (async () => {
       const spec = await fetchSpec(taskId, mode)
+      if (stopped) throw new Error("PTY server is shutting down")
       let entry = sessions.get(tabId)
       const spawned = !entry
       if (!entry) entry = spawnSession(tabId, spec, cols, rows)
@@ -303,12 +307,12 @@ export function createPtySessionManager({
     if (!entry) return false
     clearDrainTimer(entry)
     clearDetachTimer(entry)
+    sessions.delete(tabId)
     try {
-      entry.pty.kill()
+      terminatePty(entry.pty)
     } catch {
       /* already gone */
     }
-    if (sessions.get(tabId) === entry) sessions.delete(tabId)
     return true
   }
 
@@ -344,16 +348,8 @@ export function createPtySessionManager({
   }
 
   function shutdown() {
-    for (const entry of sessions.values()) {
-      clearDrainTimer(entry)
-      clearDetachTimer(entry)
-      try {
-        entry.pty.kill()
-      } catch {
-        /* ignore */
-      }
-    }
-    sessions.clear()
+    stopped = true
+    for (const tabId of sessions.keys()) closeSession(tabId)
     pendingSpawns.clear()
   }
 

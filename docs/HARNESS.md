@@ -20,6 +20,21 @@ runs the committed browser journey on Linux, which compiles node-pty and can
 create a real PTY in the hosted environment. The Ubuntu V8 coverage job remains
 the fast/unit track; it does not pretend Node can execute OpenTUI components.
 
+## Harness terminal lifetime
+
+The PTY sidecar keeps a disconnected terminal for ten minutes. Reconnecting
+within that window attaches to the same process and replays its scrollback.
+After the last socket leaves and the grace expires, the sidecar kills the
+terminal's process tree. Explicit close and sidecar shutdown use the same
+cleanup. The parent watcher invokes shutdown when the launcher disappears.
+POSIX cleanup walks descendants, including separate process groups; Windows
+uses `taskkill /T /F` before disposing of the PTY.
+
+Run `bun run test test/pty-tree-lifecycle.test.mjs` in `packages/kobe-harness`
+on macOS or Linux to exercise a real PTY and WebSocket with an advanced grace
+clock. The test verifies reconnect survival, descendant cleanup after expiry,
+and shutdown cleanup.
+
 ## PR screenshot evidence
 
 Every PR changing Rove TUI or harness source keeps the template's `## UI evidence`

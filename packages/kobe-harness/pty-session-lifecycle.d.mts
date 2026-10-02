@@ -42,6 +42,7 @@ export interface PtySessionManagerOptions {
     },
   ): PtyLike
   createScrollback(cap: number): Scrollback
+  terminatePty?(pty: PtyLike): void
   scrollbackCap: number
   env: NodeJS.ProcessEnv | Record<string, string> | (() => NodeJS.ProcessEnv | Record<string, string>)
   setTimeoutFn?: (cb: () => void, ms: number) => unknown

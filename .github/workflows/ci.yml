@@ -326,6 +326,10 @@ jobs:
           })
           EOF
 
+      - name: Verify harness PTY reconnect and process-tree cleanup
+        working-directory: packages/kobe-harness
+        run: bun run test test/pty-session-lifecycle.test.ts test/pty-tree-lifecycle.test.mjs
+
       # Playwright re-downloaded Chromium every run (~10s). The browser build
       # is pinned by the playwright version in the lockfile, so that is the
       # cache key: a playwright bump misses the cache and re-downloads, which

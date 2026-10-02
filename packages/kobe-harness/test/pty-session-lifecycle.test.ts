@@ -217,6 +217,19 @@ describe("createPtySessionManager", () => {
     expect(manager.pendingSpawnCount()).toBe(0)
   })
 
+  it("does not spawn after shutdown while a launch spec is pending", async () => {
+    const spec = deferred<{ cwd: string; command: string[] }>()
+    const { manager, ptys } = setup({ fetchSpec: () => spec.promise })
+    const pending = manager.ensureSession("tab", "task", "engine", 80, 24)
+    manager.shutdown()
+    spec.resolve({ cwd: "/repo", command: ["engine"] })
+
+    await expect(pending).rejects.toThrow("PTY server is shutting down")
+    expect(ptys).toHaveLength(0)
+    await expect(manager.ensureSession("tab", "task", "engine", 80, 24))
+      .rejects.toThrow("PTY server is shutting down")
+  })
+
   it("evicts the oldest unwatched session when the cap is hit", async () => {
     const { manager, ptys } = setup({ maxSessions: 2 })
     await manager.ensureSession("a", "task-a", "engine", 80, 24)
