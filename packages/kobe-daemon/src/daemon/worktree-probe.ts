@@ -82,14 +82,7 @@ export function resolveGitDirs(worktreePath: string): GitDirs | null {
   return { gitDir, commonDir }
 }
 
-/**
- * The full ref NAMES a bare or qualified ref could resolve to, canonical
- * namespace first. A name already under `refs/` is taken as-is; a bare
- * `origin/main` becomes the remote-tracking `refs/remotes/origin/main` with
- * the local-branch `refs/heads/origin/main` as a fallback. These are the
- * exact keys `packed-refs` lists, so the packed lookup matches on them
- * directly rather than trying to recover a name from a joined path.
- */
+/** Qualified ref names, with remote-tracking refs before local branches. */
 function refNameCandidates(ref: string): string[] {
   if (ref.startsWith("refs/")) return [ref]
   return [`refs/remotes/${ref}`, `refs/heads/${ref}`]
@@ -118,12 +111,7 @@ export function readRefSha(dirs: GitDirs, ref: string): string | null {
   }
   const packed = readText(join(dirs.commonDir, "packed-refs"))
   if (!packed) return null
-  // Match packed-refs entries on the ref NAMES directly. Deriving them from
-  // the joined loose paths with a `/^.*?(refs\/)/` strip broke whenever the
-  // git-dir path itself contained a `refs/` substring (a repo under `prefs/`,
-  // a user dir like `andrefs/`, or a segment literally named `refs`): the
-  // non-greedy match stopped at that first `refs/`, so the key never matched
-  // the packed entry and a ref that plainly existed read as `null`.
+  // Match ref names directly; stripping a loose path broke when the git-dir path contained `refs/`.
   const wanted = new Set(refNameCandidates(ref))
   for (const line of packed.split("\n")) {
     if (!line || line.startsWith("#") || line.startsWith("^")) continue
