@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { DaemonActivityRegistry } from "@sma1lboy/kobe-daemon/daemon/activity-registry"
@@ -72,8 +72,6 @@ it("routes repository tasks through real dispatch, hosted paste, hook normalizat
   const root = mkdtempSync(join(tmpdir(), "rove-dispatch-hook-"))
   const home = join(root, "home")
   const repo = join(root, "repo")
-  const evidence = process.env.ACCEPTANCE_EVIDENCE_DIR ?? join(root, "evidence")
-  mkdirSync(evidence, { recursive: true })
   const init = spawnSync("bash", [resolve(__dirname, "../orchestrator/fixtures/repo-init.sh"), repo], {
     encoding: "utf8",
   })
@@ -91,9 +89,6 @@ it("routes repository tasks through real dispatch, hosted paste, hook normalizat
   const inboxPath = join(home, ".rove", "attention-inbox.json")
   const inbox = new AttentionInboxStore(inboxPath, bus)
   await inbox.init()
-  const requests: Array<{ transport: string; name: string; payload: unknown }> = []
-  const events: unknown[] = []
-  bus.onPublish((event) => events.push(event))
   const children: SimulatedProvider[] = []
   const host = new PtyHost({
     driver: (request) => {
@@ -106,36 +101,16 @@ it("routes repository tasks through real dispatch, hosted paste, hook normalizat
   const ctx = { ...fakeCtx().ctx, orch, bus, activity, inbox }
   const registry = createDaemonHandlerRegistry()
   bridge.daemon = async (name, payload) => {
-    requests.push({ transport: "in-process daemon", name, payload })
     return dispatchDaemonRequest(registry, name, payload, ctx)
   }
   bridge.pty = async (name, payload) => {
-    requests.push({ transport: "in-process PTY", name, payload })
-    const req = { type: "request", id: String(requests.length), name, payload } as PtyRequest
+    const req = { type: "request", id: "test-request", name, payload } as PtyRequest
     return dispatchPtyRequest(req, clientState, { ptys: host, writeFrame() {}, requestStop() {} })
   }
   const client: DaemonRpc = {
     request: async <T>(name: string, payload?: unknown) => (await bridge.daemon(name, payload)) as T,
     subscribe: async () => ({}),
     onChannel: () => () => {},
-  }
-  function snapshot(name: string, extra: unknown = {}) {
-    writeFileSync(
-      join(evidence, `${name}.json`),
-      JSON.stringify(
-        {
-          stage: name,
-          tasks: orch.listTasks(),
-          activity: activity.debugSnapshot(),
-          inbox: inbox.snapshot(),
-          hosted: host.list(),
-          providerInput: children.map((p) => p.input),
-          extra,
-        },
-        null,
-        2,
-      ),
-    )
   }
   try {
     const a = (await invokeVerb("add", ["--repo", repo, "--title", "Dispatch A", "--command", "codex"], {
@@ -150,13 +125,11 @@ it("routes repository tasks through real dispatch, hosted paste, hook normalizat
     expect(pathA).toBeTruthy()
     expect(pathB).toBeTruthy()
     expect(pathA).not.toBe(pathB)
-    snapshot("01-before-dispatch")
     const missing = await invokeVerb("dispatch", ["--task-id", a.taskId, "--tab", "tab-1", "--prompt", "NO RECEIVER"], {
       client,
     })
     expect(missing).toMatchObject({ delivered: false, reason: "broadcast" })
     expect(children).toHaveLength(0)
-    snapshot("02-no-live-consumer", missing)
     for (const taskId of [a.taskId, b.taskId]) {
       await bridge.pty("pty.open", {
         key: `${taskId}::tab-1`,
@@ -174,13 +147,11 @@ it("routes repository tasks through real dispatch, hosted paste, hook normalizat
     expect(children[0]?.input.join("")).toContain(prompt)
     expect(children[0]?.input.at(-1)).toContain("\r")
     expect(children[1]?.input.join("")).not.toContain(prompt)
-    snapshot("03-after-dispatch-before-hook", delivered)
     vi.stubEnv("KOBE_TAB_ID", "tab-1")
     vi.stubEnv("KOBE_TASK_ID", a.taskId)
     const hookPayload = JSON.stringify({ cwd: pathA, session_id: "fixture-session-a", transcript_path: null })
     for (const kind of ["session-start", "turn-start", "turn-complete"]) {
       await runHookSubcommand([kind, "--engine", "codex", "--payload", hookPayload])
-      snapshot(`04-${kind}`)
     }
     expect(activity.debugSnapshot().tabs[a.taskId]?.["tab-1"]?.state).toBe("turn_complete")
     expect(inbox.snapshot()).toMatchObject([{ taskId: a.taskId, tabId: "tab-1", state: "turn_complete" }])
@@ -191,24 +162,21 @@ it("routes repository tasks through real dispatch, hosted paste, hook normalizat
     await restoredInbox.init()
     expect(restoredInbox.snapshot()).toEqual(inbox.snapshot())
     expect(JSON.parse(readFileSync(inboxPath, "utf8")).items).toHaveLength(1)
-    snapshot("05-after-hook-persisted", { replay })
     vi.stubEnv("KOBE_TASK_ID", "")
     const hookB = JSON.stringify({ cwd: pathB, session_id: "fixture-session-b", transcript_path: null })
     await runHookSubcommand(["turn-start", "--engine", "codex", "--payload", hookB])
     expect(activity.debugSnapshot().tabs[b.taskId]?.["tab-1"]?.state).toBe("running")
     expect(activity.debugSnapshot().tabs[a.taskId]?.["tab-1"]?.state).toBe("turn_complete")
     expect(inbox.snapshot()).toHaveLength(1)
-    snapshot("05b-cwd-matches-only-task-b")
     vi.stubEnv("KOBE_TASK_ID", a.taskId)
     await runHookSubcommand(["turn-start", "--engine", "codex", "--payload", hookPayload])
     expect(inbox.snapshot()).toEqual([])
     expect(activity.debugSnapshot().tabs[a.taskId]?.["tab-1"]?.state).toBe("running")
-    snapshot("06-next-turn-clears-inbox")
-    writeFileSync(join(evidence, "rpc-and-events.json"), JSON.stringify({ requests, events }, null, 2))
   } finally {
     activity.close()
     orch.dispose()
     await host.killAll()
+    rmSync(root, { recursive: true, force: true })
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
   }
