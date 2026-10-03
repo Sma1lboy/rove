@@ -208,6 +208,10 @@ export type DaemonRequestName =
   // Pre-spawn an idle, rc-initialized shell for a cwd; the next bare-shell
   // `pty.open` there adopts it. Best-effort; older hosts reject the verb.
   | "pty.warm"
+  // Windows: launch a child of this Rove instance OUTSIDE every session's Job
+  // Object (win-pty-job.ts), so a daemon restarted from a tab outlives it.
+  // Older hosts reject it; the caller falls back to its own launcher.
+  | "spawn.detached"
 
 /**
  * Verbs whose CONTRACT is to block, so the client puts no wedge deadline on them.
