@@ -5,7 +5,7 @@
  */
 
 import path from "node:path"
-import { BinaryNotFoundError, createBinaryFinder } from "../binary-discovery.ts"
+import { BinaryNotFoundError, createBinaryFinder, npmStyleDirs } from "../binary-discovery.ts"
 
 export type { BinaryDiscoveryDeps } from "../binary-discovery.ts"
 
@@ -23,11 +23,7 @@ export class CodexBinaryNotFoundError extends BinaryNotFoundError {
 export const findCodexBinary = createBinaryFinder({
   name: "codex",
   candidates({ deps, home }) {
-    const out = ["/opt/homebrew/bin/codex", "/usr/local/bin/codex", "/usr/bin/codex", "/bin/codex"]
-    const nvmBin = deps.env("NVM_BIN")
-    if (nvmBin) out.push(path.join(nvmBin, "codex"))
-    for (const rel of [".local/bin", ".bun/bin", "bin"]) out.push(path.join(home, rel, "codex"))
-    return out
+    return npmStyleDirs({ deps, home }, ["system", "nvm", "local", "bun", "bin"]).map((dir) => path.join(dir, "codex"))
   },
   notFound: (checked) => new CodexBinaryNotFoundError(checked),
 })

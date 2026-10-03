@@ -8,6 +8,7 @@
 import { spawnSync } from "node:child_process"
 import { existsSync, statSync } from "node:fs"
 import { homedir } from "node:os"
+import path from "node:path"
 
 /** FS/env injection for tests. `readdir`/`platform` are optional: only claude/copilot consult them. */
 export interface BinaryDiscoveryDeps {
@@ -86,6 +87,55 @@ interface BinaryCandidateContext {
   readonly deps: BinaryDiscoveryDeps
   /** `deps.home()`, resolved once. */
   readonly home: string
+}
+
+/** Ordered install locations; callers select groups when their CLI uses a different order. */
+export function npmStyleDirs(
+  { deps, home }: BinaryCandidateContext,
+  locations: readonly (
+    | "system"
+    | "homebrew"
+    | "nvm"
+    | "windowsNpm"
+    | "npmGlobal"
+    | "local"
+    | "yarn"
+    | "bun"
+    | "bin"
+  )[] = ["system", "nvm", "windowsNpm", "npmGlobal", "local", "bun", "bin"],
+): string[] {
+  return locations.flatMap((location) => {
+    switch (location) {
+      case "system":
+        return ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
+      case "homebrew":
+        return ["/opt/homebrew/bin", "/usr/local/bin"]
+      case "nvm": {
+        const bin = deps.env("NVM_BIN")
+        return bin ? [bin] : []
+      }
+      case "windowsNpm": {
+        if ((deps.platform?.() ?? process.platform) !== "win32") return []
+        const appData = deps.env("APPDATA")
+        const localAppData = deps.env("LOCALAPPDATA")
+        return [
+          ...(localAppData ? [path.join(localAppData, "npm")] : []),
+          ...(appData ? [path.join(appData, "npm")] : []),
+          path.join(home, "AppData/Roaming/npm"),
+        ]
+      }
+      case "npmGlobal":
+        return [path.join(home, ".npm-global/bin")]
+      case "local":
+        return [path.join(home, ".local/bin")]
+      case "yarn":
+        return [path.join(home, ".yarn/bin")]
+      case "bun":
+        return [path.join(home, ".bun/bin")]
+      case "bin":
+        return [path.join(home, "bin")]
+    }
+  })
 }
 
 export interface BinaryFinderSpec {

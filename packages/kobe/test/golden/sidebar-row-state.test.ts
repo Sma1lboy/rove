@@ -42,6 +42,7 @@ import {
   subagentBlock,
   subtitleBudgetBlock,
   tabActivityBlock,
+  vendorBlock,
 } from "./sidebar-state-matrix"
 
 const { idle: NO_STATE_GLYPH, attention: ATTENTION_GLYPH } = DEFAULT_GLYPHS
@@ -60,9 +61,10 @@ afterAll(() => {
 test("sidebar row state matrix matches the committed golden", () => {
   const document = goldenDocument("sidebar row state — buildSidebarRowView over its full input space", [
     {
-      title: "activity x completionSeen x job x deletion x vendor x transcript (full cross product)",
+      title: "activity x completionSeen x job x deletion x transcript (claude cross product)",
       lines: activityCrossProduct(),
     },
+    { title: "vendor-sensitive subtitles", lines: vendorBlock() },
     { title: "project (main) rows — branch resolved from the repo checkout", lines: mainRowBlock() },
     { title: "engine-owned spinner frame sets + withSpinnerFrame overlay", lines: spinnerBlock() },
     { title: "turn-complete ignores directory transcript timestamps", lines: completionGraceBlock() },

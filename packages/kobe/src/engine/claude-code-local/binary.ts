@@ -6,7 +6,7 @@
  */
 
 import path from "node:path"
-import { BinaryNotFoundError, createBinaryFinder } from "../binary-discovery.ts"
+import { BinaryNotFoundError, createBinaryFinder, npmStyleDirs } from "../binary-discovery.ts"
 
 export type { BinaryDiscoveryDeps } from "../binary-discovery.ts"
 
@@ -23,19 +23,18 @@ export const findClaudeBinary = createBinaryFinder({
   candidates({ deps, home }) {
     const out = [path.join(home, ".claude", "local", "claude")]
 
-    const nvmBin = deps.env("NVM_BIN")
-    if (nvmBin) out.push(path.join(nvmBin, "claude"))
+    out.push(...npmStyleDirs({ deps, home }, ["nvm"]).map((dir) => path.join(dir, "claude")))
 
     // Newest first, numerically: a string sort puts "v8.17.0" after "v18.20.0".
     const nvmRoot = path.join(home, ".nvm", "versions", "node")
     const versions = (deps.readdir?.(nvmRoot) ?? []).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
     for (const v of versions) out.push(path.join(nvmRoot, v, "bin", "claude"))
 
-    out.push("/opt/homebrew/bin/claude", "/usr/local/bin/claude", "/usr/bin/claude", "/bin/claude")
-
-    for (const rel of [".local/bin", ".npm-global/bin", ".yarn/bin", ".bun/bin", "bin"]) {
-      out.push(path.join(home, rel, "claude"))
-    }
+    out.push(
+      ...npmStyleDirs({ deps, home }, ["system", "local", "npmGlobal", "yarn", "bun", "bin"]).map((dir) =>
+        path.join(dir, "claude"),
+      ),
+    )
     return out
   },
   notFound: (checked) => new ClaudeBinaryNotFoundError(checked),
