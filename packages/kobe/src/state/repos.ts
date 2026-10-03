@@ -288,6 +288,24 @@ function readRepoConfigs(state: StateSnapshot): Record<string, RepoInitOverride>
   return raw as Record<string, RepoInitOverride>
 }
 
+/**
+ * {@link samePath}, but symlink-aware: one directory spelled `/var/folders/…`
+ * (macOS tmpdir) and `/private/var/folders/…` (what `git rev-parse
+ * --show-toplevel` prints) compares equal. `resolveRepoRoot` keeps the caller's
+ * spelling when the input IS the toplevel but returns git's real path from a
+ * subdirectory, so the override key and its lookup can disagree in shape.
+ * Falls back to lexical identity when a path can't be realpath'd (remote
+ * `ssh://` key, vanished dir), matching {@link samePath}.
+ */
+function samePathResolved(left: string, right: string): boolean {
+  if (samePath(left, right)) return true
+  try {
+    return realpathSync(left) === realpathSync(right)
+  } catch {
+    return false
+  }
+}
+
 function coerceOverride(entry: unknown): RepoInitOverride {
   if (!entry || typeof entry !== "object") return {}
   const e = entry as Record<string, unknown>
@@ -303,10 +321,10 @@ export function getRepoInitOverride(repoRoot: string): RepoInitOverride {
   // Runs on every terminal-tab render: spawn git only when a direct match can't answer.
   const keys = Object.keys(configs)
   if (keys.length === 0) return {}
-  const direct = keys.find((key) => samePath(key, repoRoot))
+  const direct = keys.find((key) => samePathResolved(key, repoRoot))
   if (direct) return coerceOverride(configs[direct])
   const normalized = resolveRepoRoot(repoRoot)
-  const key = keys.find((key) => samePath(key, normalized)) ?? normalized
+  const key = keys.find((key) => samePathResolved(key, normalized)) ?? normalized
   return coerceOverride(configs[key])
 }
 
@@ -320,7 +338,7 @@ export function setRepoInitOverride(repoRoot: string, patch: RepoInitOverride): 
   let next: RepoInitOverride = {}
   updateStateFile((state) => {
     const configs = { ...readRepoConfigs(state) }
-    const normalized = Object.keys(configs).find((key) => samePath(key, resolved)) ?? resolved
+    const normalized = Object.keys(configs).find((key) => samePathResolved(key, resolved)) ?? resolved
     const cur = coerceOverride(configs[normalized])
     const nextScript = patch.initScript === undefined ? cur.initScript : patch.initScript || undefined
     const nextPrompt = patch.initPrompt === undefined ? cur.initPrompt : patch.initPrompt || undefined
