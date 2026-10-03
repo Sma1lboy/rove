@@ -242,6 +242,22 @@ describe("kobe remove", () => {
       expect(fake.forgetProject).toHaveBeenCalledWith(SSH)
     })
 
+    test("--purge-credentials=false keeps it", async () => {
+      withPassword()
+      await runCli("remove", SSH, "--purge-credentials=false")
+      expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
+      expect(fake.forgetProject).toHaveBeenCalledWith(SSH)
+    })
+
+    test("an unreadable --purge-credentials value exits 2 before forgetting anything", async () => {
+      withPassword()
+      await runCli("remove", SSH, "--purge-credentials=nope")
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(stderrText()).toContain("--purge-credentials takes true or false")
+      expect(fake.forgetProject).not.toHaveBeenCalled()
+      expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
+    })
+
     test("a key-auth remote has no password, so no note and no delete", async () => {
       fake.savedRepos = [SSH]
       fake.remoteRepos[SSH] = { auth: { kind: "key" } }

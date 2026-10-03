@@ -22,3 +22,28 @@ export function flagValue(argv: readonly string[], flag: string): string | undef
   }
   return undefined
 }
+
+/** `true/1/yes` → true, `false/0/no` → false, anything else → undefined. */
+export function parseBoolLiteral(raw: string): boolean | undefined {
+  if (["true", "1", "yes"].includes(raw)) return true
+  if (["false", "0", "no"].includes(raw)) return false
+  return undefined
+}
+
+/**
+ * An on/off switch: absent → false, bare `--flag` → true, `--flag=<bool>` →
+ * that literal. `undefined` for any other inline value, so a typo or
+ * `--flag=false` can never turn the switch ON.
+ */
+export function switchFlag(argv: readonly string[], flag: string): boolean | undefined {
+  let on = false
+  for (const a of argv) {
+    if (a === flag) on = true
+    else if (a.startsWith(`${flag}=`)) {
+      const value = parseBoolLiteral(a.slice(flag.length + 1))
+      if (value === undefined) return undefined
+      on = value
+    }
+  }
+  return on
+}

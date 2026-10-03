@@ -6,6 +6,7 @@ import { registeredEngineIds } from "../../engine/plugin-engines.ts"
 import { expandTilde } from "../../lib/path-home.ts"
 import { isRemoteRepoKey } from "../../state/repos.ts"
 import { ALL_VENDORS, type VendorId } from "../../types/vendor.ts"
+import { parseBoolLiteral } from "../argv.ts"
 import { ApiError, type FlagSpec, type Flags, type ParsedArgs, type VerbSpec, helpStep } from "./types.ts"
 
 /** Safety cap on a single `add --count` round so a typo can't spawn a runaway fleet. */
@@ -27,16 +28,6 @@ function parseNonNegativeInt(raw: string): number | undefined {
   if (!/^\d+$/.test(raw.trim())) return undefined
   const n = Number.parseInt(raw, 10)
   return Number.isSafeInteger(n) && n >= 0 ? n : undefined
-}
-
-/**
- * Shared by the parser (is `--pinned false` a value?) and {@link VerbArgs.bool}
- * so the two can never disagree about what counts as a boolean.
- */
-function parseBoolLiteral(raw: string): boolean | undefined {
-  if (["true", "1", "yes"].includes(raw)) return true
-  if (["false", "0", "no"].includes(raw)) return false
-  return undefined
 }
 
 /** Both parallel-plan parsers are only reachable from `add`, so their errors point at its help. */
