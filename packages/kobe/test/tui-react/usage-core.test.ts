@@ -101,6 +101,18 @@ describe("usageRows", () => {
     expect(rows[1]?.label).toBe("模型名称")
   })
 
+  it("preserves a narrow Unicode label that exactly fits the cell cap", () => {
+    const rows = usageRows(
+      {
+        windows: [{ kind: "weekly_scoped", label: "Opus–4.1", percent: 10, resetsAt: null }],
+        capturedAt: NOW,
+      },
+      NOW,
+    )
+    expect(rows[0]?.label).toBe("Opus–4.1")
+    expect(displayWidth(rows[0]?.label ?? "")).toBe(8)
+  })
+
   it("truncates an over-cap wide label on a glyph boundary without splitting", () => {
     const rows = usageRows(
       {
