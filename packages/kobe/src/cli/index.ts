@@ -9,7 +9,7 @@ import { BUILTIN_VENDORS, type VendorId, coerceVendorId, isBuiltinVendor } from 
 import type { AdoptableWorktree } from "../types/worktree.ts"
 // Static: open-dir-cmd's own imports are cheap (node builtins); the heavy
 // orchestrator/TUI imports stay dynamic inside runOpenDirectory itself.
-import { argvHasFlag } from "./argv.ts"
+import { switchFlag } from "./argv.ts"
 import { formatCliFailure } from "./cli-failure.ts"
 import { type CommandHandler, DYNAMIC_COMMANDS } from "./index-commands.ts"
 import { isPathLikeArg, runOpenDirectory } from "./open-dir-cmd.ts"
@@ -103,12 +103,17 @@ const REMOVE_USAGE = [
  * toplevel, then the resolved absolute path. No match prints the saved list.
  */
 async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
-  const purgeCredentials = argvHasFlag(rest, PURGE_FLAG)
+  const purgeCredentials = switchFlag(rest, PURGE_FLAG)
   const positional = rest.filter((a) => a !== PURGE_FLAG && !a.startsWith(`${PURGE_FLAG}=`))
   const arg = positional[0]
   if (arg === "--help" || arg === "-h" || arg === "help") {
     process.stdout.write(REMOVE_USAGE)
     return
+  }
+  // Checked before anything is forgotten: an unreadable value must not purge.
+  if (purgeCredentials === undefined) {
+    process.stderr.write(`${CLI_NAME} remove: ${PURGE_FLAG} takes true or false\n\n${REMOVE_USAGE}`)
+    process.exit(2)
   }
   if (arg?.startsWith("-")) {
     process.stderr.write(`${CLI_NAME} remove: unknown flag "${arg}"\n\n${REMOVE_USAGE}`)

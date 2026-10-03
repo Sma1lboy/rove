@@ -140,6 +140,13 @@ rove adopt [glob] [--repo <path>] [--vendor <engine>] [--yes]
                      # list/import existing git worktrees as tasks
 ```
 
+`rove remove` accepts `--purge-credentials=true`, `--purge-credentials=1`,
+and `--purge-credentials=yes` to purge the credential, just like the bare flag.
+`--purge-credentials=false`, `--purge-credentials=0`, and
+`--purge-credentials=no` preserve the credential while forgetting the project.
+Any other inline value exits with status 2 and displays usage before forgetting
+the project or deleting its credential.
+
 `rove add` needs a real git repo. It creates the project's sidebar row and
 folds in any existing unlinked worktrees as tasks.
 
