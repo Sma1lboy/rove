@@ -7,6 +7,7 @@
  */
 
 import path from "node:path"
+import { bobHistoryReaderFor } from "./bob-local/history.ts"
 import * as claudeHistory from "./claude-code-local/history.ts"
 import * as codexHistory from "./codex-local/history.ts"
 import * as copilotHistory from "./copilot-local/history.ts"
@@ -33,6 +34,10 @@ export const EMPTY_HISTORY: EngineHistoryReader = {
     return 0
   },
 }
+
+/** Bob keeps one SQLite database instead of per-session files, so the whole
+ *  reader is built there; this is the default-home instance. */
+export const bobHistoryReader: EngineHistoryReader = bobHistoryReaderFor()
 
 /** `listSessionFilesForWorktree` is NEWEST-first; the contract is oldest-first. */
 export const claudeHistoryReader: EngineHistoryReader = {

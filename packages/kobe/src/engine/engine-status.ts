@@ -21,6 +21,7 @@ import path from "node:path"
 import type { VendorId } from "@/types/vendor"
 import type {
   BinaryStatus,
+  BobAccount,
   ClaudeAccount,
   CodexAccount,
   CopilotAccount,
@@ -33,7 +34,7 @@ import { interactiveEngineCommand } from "./interactive-command"
 import { engineEntry } from "./registry"
 
 /** Any built-in engine's account shape (the union the Accounts view renders). */
-export type EngineAccount = ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
+export type EngineAccount = BobAccount | ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
 
 export interface EngineStatus {
   readonly vendor: VendorId

@@ -7,7 +7,7 @@
 export type VendorId = "claude" | "codex" | "copilot" | "kimi" | (string & {})
 
 /** The first-party engines that ship with kobe (cycle order). */
-export const BUILTIN_VENDORS = ["claude", "codex", "copilot", "kimi", "pi", "omp"] as const
+export const BUILTIN_VENDORS = ["claude", "codex", "copilot", "kimi", "pi", "omp", "bob"] as const
 export type BuiltinVendorId = (typeof BUILTIN_VENDORS)[number]
 
 /** Fresh-install default, and where `defaultVendor`/`lastSelectedVendor` land

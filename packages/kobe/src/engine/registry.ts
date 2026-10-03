@@ -16,6 +16,7 @@
 import type { EngineCapabilities, EngineIdentity, EngineQuotaUsage, EngineUsageSnapshot, Message } from "@/types/engine"
 import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
 import type {
+  BobAccount,
   ClaudeAccount,
   CodexAccount,
   CopilotAccount,
@@ -74,7 +75,7 @@ export interface EngineModel {
 }
 
 /** Any built-in engine's account shape (each union already has a `none` arm). */
-type EngineAccount = ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
+type EngineAccount = BobAccount | ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
 
 export interface EngineRegistryEntry {
   readonly vendor: VendorId

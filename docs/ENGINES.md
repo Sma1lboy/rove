@@ -24,6 +24,7 @@ you need git-level isolation and a separate branch.
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — | `--model` (an alias from its config) |
 | Pi | `pi` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` | `--model` (pattern or `provider/id`; listed by `pi --list-models`) |
 | OMP | `omp` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` | `--model=` (pattern or `provider/id`; listed by `omp models --json`) |
+| IBM Bob | `bob` | signed in / out | ✓ (screen-based) | ✓ | — | — |
 | Cursor Agent | `cursor` | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
 | Droid, Devin, Qoder CLI | contrib | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
 | Gemini CLI, OpenCode, Grok CLI, Amp, Cline, Kiro CLI, Maki, Antigravity | contrib | binary only | ✓ (screen-based) | — | — | — |
@@ -45,15 +46,29 @@ all rather than a stale number.
 
 **Contrib engines are launch + badge only.** Rove ships a catalog of
 well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
-`amp`, `devin`, `qodercli`, `cline`, `kiro`, `maki`, `antigravity`) so they appear in the engine selector whenever the binary is on your
+`amp`, `devin`, `qodercli`, `cline`, `kiro`, `maki`, `antigravity`) so they
+appear in the engine selector whenever the binary is on your
 PATH, with a proper name, a launch command, and screen-based activity
 badges. A catalog entry also declares how its CLI takes a first message:
 OpenCode's positional argument is a project directory, so Rove pastes the
 prompt after launch instead of appending it to the command line.
+
 Settings → Engines lists them (and your own registered engines) with their
 binary discovery, and that is all detection can answer for them. No
 login state, history, or model picker; those need a real adapter, which is
 what promotes an engine to built-in.
+
+**IBM Bob is built in**, for its history and account reads rather than for
+hooks: Bob ships Claude's nested hook schema but nothing fires from it on
+2.0.5, so session identity comes from its history store keyed by worktree,
+but Rove does not resume Bob conversations across tab restarts. Restarting
+a Bob tab launches a new conversation. Rove launches it as `bob chat --trust` — `chat`
+is Bob's TUI subcommand, and the first-run folder dialog would otherwise stop every
+task spawned into a fresh worktree, which is what breaks a parallel round.
+Its first message is pasted rather than appended: `bob chat` declares no
+positional and discards a stray one without an error. Account detection
+reports whether you are signed in, not who — Bob keeps only an opaque token,
+and Rove does not decode credential material.
 
 **Plugins can contribute engines too**: a plugin manifest's `[[engines]]`
 entries register engines with a display name, launch command, screen
@@ -451,6 +466,7 @@ Engines own their own history. Rove reads it, never writes it.
 | `codex` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl` |
 | `copilot` | `~/.copilot/session-state/<id>/events.jsonl` |
 | `kimi` | `~/.kimi-code/session_index.jsonl` maps each session to its dir; the stream is `<sessionDir>/agents/main/wire.jsonl` |
+| `bob` | one SQLite database, `~/.bob/db/bob.db` — `tasks` keyed by workspace, `messages` per task. No per-session file, so nothing to hand another engine in a handoff |
 | `pi`, `omp` | `<agent dir>/sessions/<encoded-cwd>/<timestamp>_<session id>.jsonl` — `~/.pi/agent` and `~/.omp/agent` unless `PI_CODING_AGENT_DIR` says otherwise. pi encodes the cwd as an absolute path, OMP as one relative to your home (or the temp root); Rove reads both spellings |
 
 That's why a crash never loses a conversation, and why history survives

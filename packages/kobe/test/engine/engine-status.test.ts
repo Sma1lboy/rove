@@ -13,6 +13,7 @@ function accountDeps(over: Partial<DetectDeps> = {}): DetectDeps {
     home: () => "/home/u",
     findClaudeBinary: missing,
     findCodexBinary: missing,
+    findBobBinary: async () => "/usr/local/bin/bob",
     findCopilotBinary: missing,
     findKimiBinary: missing,
     findPiBinary: missing,
