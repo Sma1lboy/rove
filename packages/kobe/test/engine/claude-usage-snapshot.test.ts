@@ -12,8 +12,9 @@ import { readUsageSnapshot } from "../../src/engine/claude-code-local/history.ts
  * (undefined) apart from a reported zero.
  */
 
-function record(ts: string, usage: Record<string, number> | undefined): string {
+function record(ts: string, usage: Record<string, number> | undefined, id?: string): string {
   const message: Record<string, unknown> = { role: "assistant", content: "turn" }
+  if (id) message.id = id
   if (usage) message.usage = usage
   return JSON.stringify({ type: "assistant", message, timestamp: ts, sessionId: "s1" })
 }
@@ -49,6 +50,36 @@ describe("readUsageSnapshot", () => {
       cache_creation_input_tokens: 50,
       // context = LAST turn only: 200 + 1000 + 50
       context_tokens: 1250,
+      context_tokens_approximate: true,
+    })
+  })
+
+  it("counts a message once even when Claude splits it across block records", async () => {
+    // One assistant message (id m1) persisted as three block records — thinking,
+    // tool_use, text — each carrying the IDENTICAL message.usage. A second
+    // message (id m2) is the final turn. Summing per record would triple m1;
+    // folding by message id counts each once, and context is m2's prompt alone.
+    const usage1 = { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 5000 }
+    const usage2 = {
+      input_tokens: 200,
+      output_tokens: 40,
+      cache_read_input_tokens: 6000,
+      cache_creation_input_tokens: 50,
+    }
+    const raw = [
+      record("2026-01-01T00:00:01.000Z", usage1, "m1"),
+      record("2026-01-01T00:00:01.100Z", usage1, "m1"),
+      record("2026-01-01T00:00:01.200Z", usage1, "m1"),
+      record("2026-01-01T00:00:02.000Z", usage2, "m2"),
+      record("2026-01-01T00:00:02.100Z", usage2, "m2"),
+    ].join("\n")
+    expect(await readUsageSnapshot("s1", fakeDeps("blocks", "s1", raw))).toEqual({
+      input_tokens: 300, // 100 + 200, not 3×100 + 2×200
+      output_tokens: 60,
+      cache_read_input_tokens: 11000,
+      cache_creation_input_tokens: 50,
+      // context = LAST message (m2) only: 200 + 6000 + 50
+      context_tokens: 6250,
       context_tokens_approximate: true,
     })
   })

@@ -21,7 +21,7 @@ import type { EngineUsageSnapshot, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
 import { isObject } from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home"
-import { parseSessionRaw } from "./history-parse"
+import { foldSessionUsage, parseSessionRaw } from "./history-parse"
 
 export { parseJsonl } from "./history-parse"
 
@@ -127,6 +127,18 @@ export async function latestTranscriptMtimeForWorktree(worktree: string): Promis
  * rewrite/truncation forces a full re-parse.
  */
 export async function readHistory(sessionId: string, deps: HistoryDeps = defaultDeps): Promise<readonly Message[]> {
+  const found = await findSessionRaw(sessionId, deps)
+  return found ? parseSessionRaw(found.path, found.raw, sessionId) : []
+}
+
+/**
+ * Return the first readable session JSONL and its path for the append cache.
+ * Read errors skip the candidate; an empty read stops the scan.
+ */
+async function findSessionRaw(
+  sessionId: string,
+  deps: HistoryDeps,
+): Promise<{ path: string; raw: string } | undefined> {
   const root = deps.projectsDir()
   const projectDirs = await deps.readdir(root)
 
@@ -138,13 +150,14 @@ export async function readHistory(sessionId: string, deps: HistoryDeps = default
     } catch {
       continue
     }
-    return parseSessionRaw(candidate, raw, sessionId)
+    return { path: candidate, raw }
   }
-  return []
+  return undefined
 }
 
 /**
  * Session-aggregate usage folded from per-turn usage on assistant records.
+ * {@link foldSessionUsage} counts usage once per assistant message id.
  * The ONE place Claude's context arithmetic lives: context = the LAST turn's
  * input + cache read + cache creation, derived (hence
  * `context_tokens_approximate`); neutral layers must not re-derive it.
@@ -154,24 +167,23 @@ export async function readUsageSnapshot(
   sessionId: string,
   deps: HistoryDeps = defaultDeps,
 ): Promise<EngineUsageSnapshot | undefined> {
-  const messages = await readHistory(sessionId, deps)
+  const found = await findSessionRaw(sessionId, deps)
+  if (!found) return undefined
+  const { byMessage, last } = foldSessionUsage(found.raw)
   let input = 0
   let output = 0
   let cacheRead = 0
   let cacheCreate = 0
-  let lastContext = 0
-  for (const message of messages) {
-    const usage = message.usage
-    if (!usage) continue
+  for (const usage of byMessage.values()) {
     input += usage.input_tokens
     output += usage.output_tokens
-    const read = usage.cache_read_input_tokens ?? 0
-    const create = usage.cache_creation_input_tokens ?? 0
-    cacheRead += read
-    cacheCreate += create
-    lastContext = usage.input_tokens + read + create
+    cacheRead += usage.cache_read_input_tokens ?? 0
+    cacheCreate += usage.cache_creation_input_tokens ?? 0
   }
   if (input === 0 && output === 0) return undefined
+  const lastContext = last
+    ? last.input_tokens + (last.cache_read_input_tokens ?? 0) + (last.cache_creation_input_tokens ?? 0)
+    : 0
   return {
     input_tokens: input,
     output_tokens: output,
