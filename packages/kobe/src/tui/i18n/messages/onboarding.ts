@@ -20,13 +20,18 @@ export const en = {
   /** Step 1 explanation */
   completionsExplain: "Tab-completes rove subcommands. One line is added to your shell config.",
   /** Step 2 question */
-  skillQuestion: "Install the Rove agent skill?",
+  skillQuestion: "Optional: install the Rove agent skill?",
   /** Step 2 explanation */
-  skillExplain: "Teaches coding agents to drive Rove from the shell via `rove api`.",
+  skillExplain:
+    "Not needed for your first tasks. After your first result, run `rove skill install` anytime. Choosing Yes queues installation until you quit Rove.",
   /** Recommended option */
-  optionYes: "Yes (recommended)",
+  optionYes: "Yes",
   /** Decline option */
-  optionNo: "No",
+  optionNo: "Not now",
+  queued: "Queued — installs when you quit Rove",
+  skipped: "Skipped",
+  skillSucceeded: "✓ Rove agent skill installed",
+  installFailed: "! {item} failed: {reason}. Retry: {command} (or quit Rove again).",
   /** Key legend at the bottom of the dialog */
   legend: "↑↓ select · enter confirm · esc close",
   /** Final informational page: heading. Every {placeholder} below is filled from the LIVE keymap. */
@@ -61,10 +66,14 @@ export const zh: typeof en = {
   subtitle: "托管任务使用独立的 worktree 和分支；目录与项目任务复用现有文件。",
   completionsQuestion: "为 {shell} 安装 shell 补全吗？",
   completionsExplain: "让 rove 子命令支持 Tab 补全，会在你的 shell 配置里加一行。",
-  skillQuestion: "安装 Rove agent skill 吗？",
-  skillExplain: "教会编码 agent 通过 `rove api` 在命令行驱动 Rove。",
-  optionYes: "安装（推荐）",
+  skillQuestion: "可选：安装 Rove agent skill 吗？",
+  skillExplain: "首次任务无需安装。得到第一个结果后，可随时运行 `rove skill install`。选择安装后将在退出 Rove 时执行。",
+  optionYes: "安装",
   optionNo: "跳过",
+  queued: "已排队 — 退出 Rove 后安装",
+  skipped: "已跳过",
+  skillSucceeded: "✓ Rove agent skill 已安装",
+  installFailed: "! {item} 安装失败：{reason}。重试：{command}（或再次退出 Rove）。",
   legend: "↑↓ 选择 · enter 确认 · esc 关闭",
   keysTitle: "键盘基础",
   keysBare: "裸键作用于当前聚焦面板 — {nav} 移动，{open} 打开。",

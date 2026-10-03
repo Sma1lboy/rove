@@ -9,8 +9,7 @@
  *     the same probe; a copy here could disagree.
  *   - Keyboard basics as the second page, ending at Settings → Engines.
  *
- * Completions is a filesystem write and applies immediately; the skill
- * installer wants a real terminal, so it runs after the TUI exits
+ * Accepted installs are queued until the TUI exits and releases the terminal
  * (`cli/welcome.ts`).
  */
 
@@ -18,6 +17,7 @@ import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import { useEffect, useRef, useState } from "react"
 import type { ShellKind } from "../../cli/completion-scripts.ts"
+import { trackWelcomeWrite } from "../../cli/launch-tui.ts"
 import type { WelcomeRequest } from "../../cli/welcome.ts"
 import { wizardKeyLines } from "../../tui/lib/keyboard-hints"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
@@ -26,7 +26,7 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, useDialog } from "../ui/dialog"
 
-/** The wizard's answers; a dismissed dialog (esc/q) declines everything. */
+/** Confirmed choices survive dismissal; unanswered questions default to No. */
 export interface OnboardingChoices {
   readonly completions: boolean
   readonly skill: boolean
@@ -42,13 +42,14 @@ const PAD_X = 2
 export function WelcomeDialogView(props: {
   shell: ShellKind | null
   onDone: (choices: OnboardingChoices) => void
+  onAnswers?: (choices: OnboardingChoices) => void
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
   // No shell detected → no completions question.
   const steps: readonly StepId[] = props.shell === null ? ["skill"] : ["completions", "skill"]
   const [stepIndex, setStepIndex] = useState(0)
-  const [yes, setYes] = useState(true)
+  const [yes, setYes] = useState(props.shell !== null)
   const [answers, setAnswers] = useState<Partial<Record<StepId, boolean>>>({})
   const [page, setPage] = useState<WelcomePageKind>("questions")
 
@@ -67,12 +68,13 @@ export function WelcomeDialogView(props: {
     }
     const next = { ...answers, [step]: choice }
     setAnswers(next)
+    props.onAnswers?.({ completions: next.completions ?? false, skill: next.skill ?? false })
     if (stepIndex + 1 >= steps.length) {
       setPage("keys")
       return
     }
     setStepIndex(stepIndex + 1)
-    setYes(true)
+    setYes(steps[stepIndex + 1] !== "skill")
   }
 
   useBindings(() => ({
@@ -107,14 +109,14 @@ export function WelcomeDialogView(props: {
       <box flexDirection="column" flexShrink={1}>
         {steps.slice(0, page === "questions" ? stepIndex : steps.length).map((answered) => (
           <box key={answered} flexDirection="row" gap={1}>
-            <text fg={theme.success} wrapMode="none">
-              ✓
+            <text fg={theme.textMuted} wrapMode="none">
+              ·
             </text>
             <text fg={theme.textMuted} wrapMode="none">
               {questionFor(answered)}
             </text>
             <text fg={theme.text} wrapMode="none">
-              {answers[answered] ? t("onboarding.optionYes") : t("onboarding.optionNo")}
+              {answers[answered] ? t("onboarding.queued") : t("onboarding.skipped")}
             </text>
           </box>
         ))}
@@ -178,6 +180,7 @@ function show(dialog: DialogContext, opts: { shell: ShellKind | null; onDone: (c
   // `dialog.clear()` runs this entry's onClose, so without the guard an
   // accepted answer is followed by a "declined everything" one that wins.
   let settled = false
+  let confirmed: OnboardingChoices = { completions: false, skill: false }
   const once = (choices: OnboardingChoices): void => {
     if (settled) return
     settled = true
@@ -187,14 +190,17 @@ function show(dialog: DialogContext, opts: { shell: ShellKind | null; onDone: (c
     () => (
       <WelcomeDialogView
         shell={opts.shell}
+        onAnswers={(choices) => {
+          confirmed = choices
+        }}
         onDone={(choices) => {
           once(choices)
           dialog.clear()
         }}
       />
     ),
-    // Every other route out (esc, ctrl+c, backdrop) is "declined everything".
-    () => once({ completions: false, skill: false }),
+    // Closing only skips questions the user has not answered.
+    () => once(confirmed),
   )
   dialog.setSize("medium")
 }
@@ -217,7 +223,7 @@ export function useWelcomeDialog(request: WelcomeRequest | null, onClosed: () =>
       shell,
       onDone: (choices) => {
         onClosed()
-        void import("../../cli/onboarding.ts").then((m) => m.recordWelcomeChoices(choices, shell))
+        trackWelcomeWrite(import("../../cli/onboarding.ts").then((m) => m.recordWelcomeChoices(choices, shell)))
       },
     })
   }, [request, dialog, onClosed, shell])

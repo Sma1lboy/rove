@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   writeLastActiveTaskId: vi.fn(),
   publishKobeTerminalTitle: vi.fn(),
   startTui: vi.fn(),
+  apply: vi.fn(),
   /** Git toplevel of the opened dir. Equal to the dir = it IS a repo root. */
   repoRootOf: vi.fn((p: string) => p),
   isGitRepo: vi.fn(() => false),
@@ -35,6 +36,7 @@ vi.mock("../../src/state/last-active.ts", () => ({
 vi.mock("../../src/tui/lib/outer-terminal-title.ts", () => ({
   publishKobeTerminalTitle: mocks.publishKobeTerminalTitle,
 }))
+vi.mock("../../src/cli/onboarding.ts", () => ({ runPendingWelcomeInstalls: mocks.apply }))
 vi.mock("../../src/tui/index.tsx", () => ({
   startTui: mocks.startTui,
 }))
@@ -206,3 +208,14 @@ describe("runOpenDirectory", () => {
     })
   })
 })
+
+it.each([".", "./project", "/tmp/rove-audit-project"])(
+  "finalizes accepted setup after directory launch %s",
+  async (path) => {
+    mocks.statSync.mockReturnValue({ isDirectory: () => true })
+    await runOpenDirectory(path)
+    expect(mocks.startTui).toHaveBeenCalledTimes(1)
+    expect(mocks.apply).toHaveBeenCalledTimes(1)
+    expect(mocks.startTui.mock.invocationCallOrder[0]).toBeLessThan(mocks.apply.mock.invocationCallOrder[0]!)
+  },
+)

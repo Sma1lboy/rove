@@ -374,14 +374,8 @@ async function main(): Promise<void> {
   const { publishKobeTerminalTitle } = await import("../tui/lib/outer-terminal-title.ts")
   publishKobeTerminalTitle()
 
-  // First launch greets via a dialog over the workspace (`cli/welcome.ts`).
-  const { startTui } = await import("../tui/index.tsx")
-  await startTui()
-
-  // Renderer gone: the only moment welcome installs can own stdout and npx
-  // can inherit a real terminal. No-op unless the dialog was answered.
-  const { runPendingWelcomeInstalls } = await import("./onboarding.ts")
-  runPendingWelcomeInstalls()
+  const { launchTui } = await import("./launch-tui.ts")
+  await launchTui()
 }
 
 main().catch((err) => {
