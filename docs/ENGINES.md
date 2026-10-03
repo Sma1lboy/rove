@@ -296,6 +296,34 @@ for Devin, and `$QODERCLI_CONFIG_DIR/settings.json` (else
 which session is live; the badge comes from the screen rules. If the settings
 file's directory does not exist, nothing is written.
 
+Grok installs the same single `SessionStart` observer, but into a file of its
+own: `hooks/rove.json` under `GROK_HOME` (unset or blank uses `~/.grok`). Grok
+merges every `*.json` in that directory, so Rove never edits a file you also
+write to; removal deletes only its own entries. If the config directory does
+not exist, nothing is written.
+
+OpenCode and Kilo have no hook table to edit. Rove writes one plugin module,
+`rove-agent-state.js`, into `~/.config/opencode/plugins/` and
+`~/.config/kilo/plugin/`; it reports the session lifecycle — turn started,
+waiting on a permission or a question, failed, finished — and cleanup deletes
+it. Sub-agent sessions are tracked so a nested agent finishing cannot mark your
+turn complete. Tool-call events are deliberately not subscribed: each one would
+cost a process spawn to re-state what the turn's start already said.
+
+Hermes needs two things, and both must land before a report arrives: a plugin
+package under `~/.hermes/plugins/rove-agent-state/`, and that name in the
+`plugins.enabled` list of `~/.hermes/config.yaml`. The config edit is
+line-based so your comments and key order survive it; a `plugins:` block Rove
+cannot add to without rewriting lines you wrote is reported by `rove doctor`
+and left untouched, and enabling the plugin by hand is then all that remains.
+
+MastraCode is the one catalog engine whose hooks own the badge outright. It
+reads `~/.mastracode/hooks.json` — the same flat entry shape cursor uses — and
+Rove installs the events that change state: session start, prompt submitted,
+agent start, permission request and result, interrupt, and the two that end a
+turn. `PreToolUse` and the subagent pair are skipped for the same
+spawn-per-event reason.
+
 Every hook Rove installs carries the version of the shape that wrote it, so
 Rove can tell its own current entry from one an older version left behind.
 Settings → Engines reads that back per engine as installed, outdated or not

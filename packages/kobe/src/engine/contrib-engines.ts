@@ -145,10 +145,7 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     processNames: ["antigravity", "antigravity-cli"],
     screenManifest: ANTIGRAVITY,
   },
-  // The three below each declare a hook adapter, and none of their CLIs was on
-  // the machine this was written on: the installed file shapes and payload
-  // fields are what each CLI's own configuration documents, not a capture, and
-  // the screen strings above come from the same reading.
+  // Hook schemas and screen strings below are documentation-derived, not captured.
   hermes: {
     displayName: "Hermes Agent",
     defaultCommand: ["hermes"],
@@ -156,10 +153,7 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     screenManifest: HERMES,
     createHookAdapter: () => new HermesHookAdapter(),
   },
-  // `paste`, not the `argv` default: kilo is an OpenCode fork, and OpenCode's
-  // positional is a project DIRECTORY, so an argv-delivered first message
-  // becomes a path and the launch dies on it. Pasting is the safe direction
-  // either way — it costs one keystroke round-trip and cannot mis-parse.
+  // Like OpenCode, Kilo takes a project directory as its positional argument.
   kilo: {
     displayName: "Kilo",
     defaultCommand: ["kilo"],

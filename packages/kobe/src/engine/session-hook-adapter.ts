@@ -37,16 +37,8 @@ export function sessionStartOnly(matcher?: string): readonly HookEventSpec[] {
 export abstract class SessionStartHookAdapter extends JsonHookAdapter {
   abstract override readonly vendor: VendorId
 
-  /**
-   * The directory whose absence means "this CLI was never installed here", so
-   * the install returns without creating anything.
-   *
-   * Default: the settings file's own parent, which is the CLI's config
-   * directory for an engine that keeps its hook document at the top of it.
-   * Override when the file sits one level deeper — the write itself creates
-   * intermediate directories, so guarding on a subdirectory the CLI only
-   * materializes once a hook exists would skip every first install.
-   */
+  /** Skip absent CLI homes. Override when the settings file lives in a
+   * subdirectory that the installer itself creates. */
   protected installGuardDir(settingsFilePath: string): string {
     return dirname(settingsFilePath)
   }
