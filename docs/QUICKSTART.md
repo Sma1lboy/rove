@@ -97,10 +97,10 @@ rove
 
 The welcome dialog asks about optional shell completions and the agent skill,
 then shows **Keyboard basics**. Choose with `j`/`k` or the arrow keys and confirm
-with `enter`. Choose **Not now** for the skill to start the exercise now;
-you can install it afterwards. Accepted installations are queued until you
-exit Rove, not ready merely because you answered Yes. `esc` skips unanswered
-questions while keeping choices already confirmed.
+with `enter`. Choose **No** for the skill to start the exercise now;
+you can install it afterwards. Accepted installations are queued for later;
+answering **Yes** does not make them available immediately. `esc` declines
+both installations, including any earlier **Yes** answers.
 
 The workspace welcome panel and `rove doctor` provide the environment check;
 it is not another wizard page. Settings → Engines lists installed CLIs and
@@ -122,7 +122,7 @@ work has finished. A short prompt below checks both output and activity;
    worktree**, not **the project itself**. Create the task.
 2. Expected: a new managed Task with its own branch and a directory under
    `~/.rove/worktrees/`. Rename the task **A — first result** with `r` from
-   its sidebar row. Open its engine tab with `enter` or right arrow.
+   its sidebar row. Open its engine tab with `enter`.
 3. Send this deliberately small prompt in the engine pane:
 
    ```text

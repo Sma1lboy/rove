@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { expect, it, vi } from "vitest"
@@ -8,7 +8,7 @@ import { TaskIndexStore } from "../../src/orchestrator/index/store"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager"
 
 it("the two-task tutorial isolates mock-provider output and restores selection from disk", async () => {
-  const root = mkdtempSync(join(tmpdir(), "rove-onboarding-acceptance-"))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "rove-onboarding-acceptance-")))
   const home = join(root, "home")
   const repo = join(root, "repo")
   const setup = spawnSync("bash", [resolve(__dirname, "fixtures/repo-init.sh"), repo], { encoding: "utf8" })
@@ -51,5 +51,6 @@ it("the two-task tutorial isolates mock-provider output and restores selection f
   } finally {
     orch.dispose()
     vi.unstubAllEnvs()
+    rmSync(root, { recursive: true, force: true })
   }
 })
