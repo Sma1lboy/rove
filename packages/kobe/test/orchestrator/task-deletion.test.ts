@@ -32,7 +32,7 @@ let home: string
 let store: TaskIndexStore
 let orch: Orchestrator
 let worktrees: {
-  isDirty: ReturnType<typeof vi.fn>
+  dirtyPaths: ReturnType<typeof vi.fn>
   ignoredWork: ReturnType<typeof vi.fn>
   remove: ReturnType<typeof vi.fn>
 }
@@ -42,7 +42,7 @@ beforeEach(async () => {
   store = new TaskIndexStore({ homeDir: home })
   await store.load()
   worktrees = {
-    isDirty: vi.fn(async () => false),
+    dirtyPaths: vi.fn(async () => []),
     ignoredWork: vi.fn(async () => []),
     remove: vi.fn(async () => {}),
   }
@@ -205,7 +205,7 @@ describe("durable background task deletion", { timeout: DURABLE_WRITE_TIMEOUT_MS
     for (const force of [false, true]) {
       const task = await orch.createTask({ repo: "/repo", title: "dir", vendor: "claude" })
       await store.update(task.id, { worktreePath: "/home/me/project", kind: "dir" })
-      worktrees.isDirty.mockResolvedValueOnce(true)
+      worktrees.dirtyPaths.mockResolvedValueOnce(["notes.md"])
 
       await expect(orch.prepareTaskDeletion(task.id, { force })).resolves.toBe(true)
       await orch.beginTaskDeletion(task.id)
@@ -220,7 +220,7 @@ describe("durable background task deletion", { timeout: DURABLE_WRITE_TIMEOUT_MS
 
   it("force does not escalate into branch deletion", async () => {
     const task = await makeTask("/wt/forced")
-    worktrees.isDirty.mockResolvedValue(true)
+    worktrees.dirtyPaths.mockResolvedValue(["notes.md"])
 
     await orch.prepareTaskDeletion(task.id, { force: true })
     await orch.beginTaskDeletion(task.id)
@@ -253,7 +253,7 @@ describe("durable background task deletion", { timeout: DURABLE_WRITE_TIMEOUT_MS
 
   it("runs the dirty-worktree guard before accepting and force bypasses it", async () => {
     const task = await makeTask("/wt/dirty")
-    worktrees.isDirty.mockResolvedValue(true)
+    worktrees.dirtyPaths.mockResolvedValue(["notes.md"])
 
     await expect(orch.prepareTaskDeletion(task.id)).rejects.toThrow(DirtyWorktreeError)
     expect(orch.getTask(task.id)?.deletion).toBeUndefined()
@@ -263,17 +263,17 @@ describe("durable background task deletion", { timeout: DURABLE_WRITE_TIMEOUT_MS
     // could have happened either.
     expect(worktrees.remove).not.toHaveBeenCalled()
     await expect(orch.prepareTaskDeletion(task.id, { force: true })).resolves.toBe(true)
-    expect(worktrees.isDirty).toHaveBeenCalledTimes(1)
+    expect(worktrees.dirtyPaths).toHaveBeenCalledTimes(1)
     expect(orch.getTask(task.id)?.deletion?.force).toBe(true)
   })
 
   it("orphaned worktree (dirty probe fails) still queues and completes cleanup", async () => {
-    // An orphan — the dir vanished out-of-band — makes `isDirty` throw
+    // An orphan — the dir vanished out-of-band — makes `dirtyPaths` throw
     // (ENOENT / "not a git repository"). That must NOT block deletion: the
     // probe failure is swallowed, the deletion queues, and `remove()`
     // resolves the missing path itself (best-effort metadata prune).
     const task = await makeTask("/wt/gone")
-    worktrees.isDirty.mockRejectedValue(new Error("ENOENT: no such file or directory"))
+    worktrees.dirtyPaths.mockRejectedValue(new Error("ENOENT: no such file or directory"))
 
     await expect(orch.prepareTaskDeletion(task.id)).resolves.toBe(true)
     await orch.beginTaskDeletion(task.id)
@@ -308,7 +308,7 @@ describe("dir tasks on the daemon's prepare→begin→finish path", { timeout: D
     try {
       const task = await orch.openDirectoryTask({ dir })
       // Dirty on purpose: a dir task must skip the gate rather than pass it.
-      worktrees.isDirty.mockResolvedValue(true)
+      worktrees.dirtyPaths.mockResolvedValue(["notes.md"])
 
       await expect(orch.prepareTaskDeletion(task.id)).resolves.toBe(true)
       await expect(orch.beginTaskDeletion(task.id)).resolves.toBe(true)
@@ -318,7 +318,7 @@ describe("dir tasks on the daemon's prepare→begin→finish path", { timeout: D
       expect(worktrees.remove).not.toHaveBeenCalled()
       // Delete it in prepare() and this goes red (a dirty dir would also
       // have thrown DirtyWorktreeError above, blocking a legitimate delete).
-      expect(worktrees.isDirty).not.toHaveBeenCalled()
+      expect(worktrees.dirtyPaths).not.toHaveBeenCalled()
       // The row is gone — dropping the index entry is the whole job.
       expect(orch.getTask(task.id)).toBeUndefined()
     } finally {

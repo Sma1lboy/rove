@@ -172,7 +172,8 @@ Dirty removal is deliberately two-stage:
 2. The daemon checks the worktree and refuses because it is dirty.
 3. Rove opens a second **Force delete worktree?** confirmation naming the
    branch and warning that modified and untracked files will be permanently
-   lost.
+   lost. It lists the files the refusal found — the first ten, then a count
+   of the rest — so you can see what is at stake before confirming.
 4. Confirm only after preserving anything you need.
 
 The first confirmation can never silently turn into a force deletion. The

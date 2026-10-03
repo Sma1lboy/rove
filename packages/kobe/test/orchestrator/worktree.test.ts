@@ -193,7 +193,10 @@ describe("GitWorktreeManager.remove", () => {
     await mgr.create(repo, "kobe/task-dirty-rm", target)
     fs.writeFileSync(path.join(target, "wip.txt"), "wip\n")
 
-    await expect(mgr.remove(target)).rejects.toThrow(/dirty/i)
+    // The refusal names the file, so whoever re-prompts for force can show it.
+    await expect(mgr.remove(target)).rejects.toThrow(
+      /DIRTY_WORKTREE: .* has uncommitted or untracked changes: wip\.txt /,
+    )
     // Defensive: make sure we didn't delete it anyway.
     expect(fs.existsSync(target)).toBe(true)
   })

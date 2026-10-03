@@ -81,9 +81,9 @@ export interface RemoveDeps {
   findRepoFor(exec: ExecHost, worktreePath: string): Promise<string | null>
   /** The worktree's checked-out branch. */
   currentBranch(worktreePath: string): Promise<string | null>
-  /** Whether the worktree has uncommitted or untracked changes. */
-  isDirty(worktreePath: string): Promise<boolean>
-  /** The gitignored paths a removal would destroy — work `isDirty` is blind to,
+  /** The worktree's uncommitted or untracked paths. */
+  dirtyPaths(worktreePath: string): Promise<readonly string[]>
+  /** The gitignored paths a removal would destroy — work `dirtyPaths` is blind to,
    *  or `"unknown"` when the listing did not run. */
   ignoredWork(worktreePath: string): Promise<IgnoredWorkProbe>
   /** Deps for the opt-in post-removal branch delete. */
@@ -158,8 +158,8 @@ async function deregisteredWorktreeResidue(exec: ExecHost, worktreePath: string)
  * No `{ force: true }` in the text: each surface offers the remedy in its own
  * vocabulary (force-delete re-prompt, `--force`).
  */
-function dirtyRefusal(worktreePath: string, ignored: IgnoredWorkProbe): string {
-  return `${DIRTY_WORKTREE_CODE}: ${worktreePath} has ${describeDirtyWorktreeWork(ignored)} — forcing the removal salvages it to a ref first`
+function dirtyRefusal(worktreePath: string, ignored: IgnoredWorkProbe, dirty: readonly string[] = []): string {
+  return `${DIRTY_WORKTREE_CODE}: ${worktreePath} has ${describeDirtyWorktreeWork(ignored, dirty)} — forcing the removal salvages it to a ref first`
 }
 
 /**
@@ -278,15 +278,16 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // Every refusal goes through `dirtyRefusal`: the RPC layer rebuilds errors
     // as `new Error(message)`, so the code prefix is all a remote caller can
     // match to offer the force-delete re-prompt.
-    if (await deps.isDirty(worktreePath)) {
-      throw new Error(dirtyRefusal(worktreePath, []))
+    const dirty = await deps.dirtyPaths(worktreePath)
+    if (dirty.length > 0) {
+      throw new Error(dirtyRefusal(worktreePath, [], dirty))
     }
     // `status --porcelain` is blind to `.gitignore`d entries, so a worktree
     // holding only `HANDOFF.md` or `.scratch/` reads clean and would be
     // destroyed with no salvage (only force takes one). Same rule as the
     // snapshot, so the refusal names what a `--force` retry would rescue.
     // NOT `.catch(() => [])`: an empty list is permission to destroy, so a
-    // failed probe must not grant it — same as `isDirty` letting its failure
+    // failed probe must not grant it — same as `dirtyPaths` letting its failure
     // throw.
     const ignored = await deps.ignoredWork(worktreePath)
     if (ignored === "unknown" || ignored.length > 0) {

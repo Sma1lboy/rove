@@ -85,7 +85,7 @@ export async function listWorktreeProjectsAdapter(network: boolean): Promise<Wor
           const judgement = judgeWorktree(
             {
               // Unreadable reads as not-dirty for staleness only. Safe: removal
-              // calls `isDirty` UNCAUGHT (`manager-remove.ts`) and throws; the
+              // calls `dirtyPaths` UNCAUGHT (`manager-remove.ts`) and throws; the
               // row still carries the honest `null`.
               dirty: worktree.dirty === true,
               prState: states?.get(worktree.branch) ?? null,

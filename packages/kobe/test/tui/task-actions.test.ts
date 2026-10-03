@@ -125,7 +125,7 @@ describe("deleteTaskFlow — dirty-worktree branch", () => {
     const tasks = [makeTask({ id: "t1", title: "dirty" }), makeTask({ id: "t2" })]
     const orch = makeOrch({
       deleteTask: vi.fn(async (_id: string, o?: { force?: boolean }) => {
-        if (!o?.force) throw new Error(`refused: ${DIRTY_WORKTREE_CODE}`)
+        if (!o?.force) throw new Error(`${DIRTY_WORKTREE_CODE}: task t1 worktree has uncommitted changes: src/a.ts`)
       }),
     })
     const { ctx, confirm, onTaskDeleted, reload } = makeCtx({ tasks, orch, confirms: [true, true] })
@@ -139,6 +139,8 @@ describe("deleteTaskFlow — dirty-worktree branch", () => {
       title: `"dirty" has uncommitted changes`,
       confirmLabel: "force delete",
     })
+    // The refusal's file list reaches the dialog — it's what the user weighs.
+    expect(confirm.mock.calls[1]?.[0].body).toContain("Refused because: worktree has uncommitted changes: src/a.ts")
     expect(orch.deleteTask).toHaveBeenNthCalledWith(1, "t1")
     expect(orch.deleteTask).toHaveBeenNthCalledWith(2, "t1", { force: true })
     // Successful force-delete proceeds to teardown + host selection hook.

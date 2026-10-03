@@ -55,7 +55,7 @@ async function boot(worktrees: Partial<GitWorktreeManager>): Promise<Fixture> {
   })
   const orch = new Orchestrator({
     store,
-    worktrees: { isDirty: async () => false, ignoredWork: async () => [], ...worktrees } as GitWorktreeManager,
+    worktrees: { dirtyPaths: async () => [], ignoredWork: async () => [], ...worktrees } as GitWorktreeManager,
   })
   const harness = await bootDaemonHarness({ orchestrator: orch })
   const client = harness.client()
@@ -150,7 +150,7 @@ describe("background deletion over the daemon socket", () => {
     // A dirty worktree without --force is refused synchronously, before the
     // acceptance is ever written — so no row may flash out and back.
     const remove = vi.fn(async () => {})
-    const f = await boot({ isDirty: async () => true, remove })
+    const f = await boot({ dirtyPaths: async () => ["notes.md"], remove })
 
     await expect(f.client.request("task.delete", { taskId: f.task.id })).rejects.toThrow()
 
