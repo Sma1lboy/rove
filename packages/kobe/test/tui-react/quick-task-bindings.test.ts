@@ -43,12 +43,14 @@ describe("quickTaskBindings registration gating", () => {
       expect(keysOn(field)).not.toContain("return")
       expect(keysOn(field)).not.toContain("left")
       expect(keysOn(field)).not.toContain("right")
+      expect(keysOn(field)).not.toContain("h")
+      expect(keysOn(field)).not.toContain("l")
     }
   })
 
   test("each chip row registers them, and steps its own value", () => {
     for (const field of ["attempts", "engine"] as const) {
-      expect(keysOn(field)).toEqual(expect.arrayContaining(["left", "right", "return"]))
+      expect(keysOn(field)).toEqual(expect.arrayContaining(["left", "right", "h", "l", "return"]))
     }
 
     const attempts = handlers()
@@ -58,6 +60,14 @@ describe("quickTaskBindings registration gating", () => {
     const engine = handlers()
     for (const b of quickTaskBindings("engine", engine.h)) if (b.key === "left" || b.key === "right") b.cmd(KEY)
     expect(engine.calls).toEqual(["engine-1", "engine1"])
+  })
+
+  test("h / l are the arrow twins on a chip row", () => {
+    const attempts = handlers()
+    for (const b of quickTaskBindings("attempts", attempts.h)) {
+      if (b.key === "h" || b.key === "l") b.cmd(KEY)
+    }
+    expect(attempts.calls).toEqual(["attempts-1", "attempts1"])
   })
 
   test("field-independent chords stay on every field", () => {

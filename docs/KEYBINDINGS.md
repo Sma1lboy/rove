@@ -154,6 +154,20 @@ the embedded terminal, which is what vim and every CLI's cancel key need.
 keys (`ctrl+3` is `Escape`, `ctrl+8` is Backspace), so those keep their old
 meaning there and tab N is reached with `ctrl+]` instead.
 
+## Horizontal keys: `h` / `l`
+
+Wherever `←` / `→` move you sideways — a dialog's engine picker, effort or
+status row, the new-task selector fields, the automation schedule segments, the
+Kanban board's card cursor — `h` and `l` do the same thing, vim-style. They are
+always an alternative, never a replacement: the arrow keys keep working.
+
+`h`/`l` are live only where `←`/`→` already are, and only while nothing is
+being typed. A focused text field, the composer, or the sidebar's `/` search
+keeps `h` and `l` as ordinary letters. The one deliberate exception is the
+sidebar itself: `right` focuses the engine pane, but `l` there already means
+"open the row under the cursor", so the sidebar keeps `right` alone. In the
+Files pane `h`/`l` already fold and unfold the tree, which is the same shape.
+
 ## Sidebar and Files
 
 Bare letters work only while that pane has focus and no dialog or text input
@@ -331,7 +345,7 @@ active only while the page has focus.
 
 | Page | Keys |
 |---|---|
-| Kanban | arrows move between cards; `tab` changes project; `enter` opens details; `n` creates; `d` deletes; `r` refreshes |
+| Kanban | arrows (or `h`/`l`) move between cards; `tab` changes project; `enter` opens details; `n` creates; `d` deletes; `r` refreshes |
 | Routines | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |
 | Worktrees | `j`/`k` or arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |

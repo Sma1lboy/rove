@@ -126,13 +126,15 @@ export function EnginePickerDialogView(props: {
     bindings: [
       { key: "up", cmd: () => (modelFocused ? model.moveCursor(-1) : move(-1)) },
       { key: "down", cmd: () => (modelFocused ? model.moveCursor(1) : move(1)) },
-      // ←/→, Enter: the input owns them while it has focus (cursor moves;
-      // Enter reaches `commit` through the input's onSubmit instead).
+      // ←/→ (or h/l), Enter: the input owns them while it has focus (cursor
+      // moves; Enter reaches `commit` through the input's onSubmit instead).
       ...(modelFocused
         ? []
         : [
             { key: "left", cmd: () => stepEffort(-1) },
             { key: "right", cmd: () => stepEffort(1) },
+            { key: "h", cmd: () => stepEffort(-1) },
+            { key: "l", cmd: () => stepEffort(1) },
             { key: "return", cmd: () => commit(engines[cursor] ?? props.current) },
           ]),
       // PROPOSED chord (owner sign-off pending): tab hops list ↔ model input.

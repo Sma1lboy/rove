@@ -3,8 +3,9 @@
  *
  * A matched binding consumes its keypress (`dispatchKeyEvent` calls
  * `preventDefault()`), so field-dependent chords are gated at REGISTRATION:
- * `return` / `left` / `right` exist ONLY while a chip row is focused. On the
- * text fields Enter reaches the input's `onSubmit` and ←/→ move its cursor.
+ * `return` / `left` / `right` (and their `h` / `l` twins) exist ONLY while a
+ * chip row is focused. On the text fields Enter reaches the input's
+ * `onSubmit` and ←/→/h/l type and move its cursor.
  */
 
 import type { Binding } from "../lib/keymap"
@@ -36,6 +37,8 @@ export function quickTaskBindings(field: QuickTaskField, h: QuickTaskBindingHand
       ? [
           { key: "left", cmd: () => h.stepAttempts(-1) },
           { key: "right", cmd: () => h.stepAttempts(1) },
+          { key: "h", cmd: () => h.stepAttempts(-1) },
+          { key: "l", cmd: () => h.stepAttempts(1) },
           { key: "return", cmd: () => h.commit() },
         ]
       : []),
@@ -43,6 +46,8 @@ export function quickTaskBindings(field: QuickTaskField, h: QuickTaskBindingHand
       ? [
           { key: "left", cmd: () => h.stepEngine(-1) },
           { key: "right", cmd: () => h.stepEngine(1) },
+          { key: "h", cmd: () => h.stepEngine(-1) },
+          { key: "l", cmd: () => h.stepEngine(1) },
           { key: "return", cmd: () => h.commit() },
         ]
       : []),

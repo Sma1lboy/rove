@@ -330,6 +330,15 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     if (tab === "adopt") adopt.moveAdoptCursor(delta)
   }
 
+  /** ←/→ (and their h/l twins) on a selector field: cycle its value. */
+  function stepSelector(dir: 1 | -1): void {
+    if (field === "tabs") cycleTab(dir)
+    else if (field === "tier") cycleTier(dir)
+    else if (field === "engine") cycleEngine(dir)
+    else if (field === "effort") stepEffort(dir)
+    else setIntent(dir === 1 ? "project" : "task")
+  }
+
   /* ── Key bindings (config re-evaluated per keypress — closures fresh) ── */
 
   useBindings(() => ({
@@ -347,30 +356,14 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       { key: "ctrl+e", cmd: () => cycleEngine(1) },
       { key: "up", cmd: () => moveCursor(-1) },
       { key: "down", cmd: () => moveCursor(1) },
-      // ←/→/Enter ONLY while a selector is focused — an always-on binding
-      // would preventDefault the keys away from focused text inputs.
+      // ←/→ (and h/l) / Enter ONLY while a selector is focused — an always-on
+      // binding would preventDefault the keys away from focused text inputs.
       ...(field === "tabs" || field === "tier" || field === "engine" || field === "effort" || field === "intent"
         ? [
-            {
-              key: "left",
-              cmd: () => {
-                if (field === "tabs") cycleTab(-1)
-                else if (field === "tier") cycleTier(-1)
-                else if (field === "engine") cycleEngine(-1)
-                else if (field === "effort") stepEffort(-1)
-                else setIntent("task")
-              },
-            },
-            {
-              key: "right",
-              cmd: () => {
-                if (field === "tabs") cycleTab(1)
-                else if (field === "tier") cycleTier(1)
-                else if (field === "engine") cycleEngine(1)
-                else if (field === "effort") stepEffort(1)
-                else setIntent("project")
-              },
-            },
+            { key: "left", cmd: () => stepSelector(-1) },
+            { key: "right", cmd: () => stepSelector(1) },
+            { key: "h", cmd: () => stepSelector(-1) },
+            { key: "l", cmd: () => stepSelector(1) },
             { key: "return", cmd: () => setField(advanceField) },
           ]
         : []),
