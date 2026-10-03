@@ -170,7 +170,7 @@
           "name": "How do I install Rove?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Install globally with npm i -g @sma1lboy/rove, or bun add -g @sma1lboy/rove, run it once with npx @sma1lboy/rove, or use the one-line installer: curl -fsSL https://rove.run/install.sh | sh. Rove ships its own Bun runtime, so no separate runtime install is needed."
+            "text": "Install globally with npm i -g @sma1lboy/rove, or bun add -g @sma1lboy/rove, run it once with npx @sma1lboy/rove, or use the one-line installer: curl -fsSL https://rove.run/install.sh | sh. The installer sets up Bun when needed. Native Windows uses npm and also requires Node.js and Git for Windows/Git Bash; WSL uses the Linux route inside WSL."
           }
         },
         {
@@ -211,6 +211,7 @@
 }
 </script>
 <script src="/index.js" defer></script>
+<script src="/install.js" defer></script>
 <script src="/blueprint-idle.js" defer></script>
 <script src="/blueprint-rev.js" defer></script>
 <script>
@@ -309,9 +310,18 @@
       <p class="lede" data-i18n-html="hero.sub">One task, one worktree, one branch. Run ten at once, close your laptop, pick them back up from any machine over SSH.</p>
 
       <div id="install">
+        <div class="install-platform">
+          <label id="installOsLabel" for="installOs">Install on</label>
+          <select id="installOs" aria-describedby="installHelp">
+            <option value="posix">macOS / Linux</option>
+            <option value="windows">Windows (PowerShell)</option>
+            <option value="wsl">WSL (Linux shell)</option>
+          </select>
+        </div>
+        <p id="installHelp" class="install-help" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in engine CLI. The installer sets up Bun if needed.</p>
         <div class="install-wrap" data-measure="ONE LINE TO INSTALL" id="installWrap">
           <svg class="rev-cloud" aria-hidden="true"><path id="cloudPath" d=""/></svg>
-          <button class="copy" id="copyBtn" type="button" data-cmd="curl -fsSL https://rove.run/install.sh | sh" aria-label="Copy install command: curl -fsSL https://rove.run/install.sh | sh">
+          <button class="copy" id="copyBtn" data-install-copy type="button" data-cmd="curl -fsSL https://rove.run/install.sh | sh" aria-label="Copy install command: curl -fsSL https://rove.run/install.sh | sh">
             <span class="tag" aria-hidden="true" data-i18n="ga.installTag">Install</span>
             <span class="cmd">curl -fsSL https://rove.run/install.sh | sh</span>
             <span class="hint" id="copyLabel" aria-live="polite">click to copy</span>
@@ -324,7 +334,8 @@
           <button class="alt" type="button" data-cmd="npx @sma1lboy/rove" title="npx @sma1lboy/rove">npx</button>
         </p>
         <p class="engines" data-i18n="hero.engines">Works with Claude Code, Codex, Copilot, Gemini CLI, OpenCode and more.</p>
-        <p class="platform" data-i18n="hero.requirements">macOS · Linux · Windows — ships its own Bun runtime. Needs git and one engine CLI on PATH.</p>
+        <p class="platform" data-i18n="hero.requirements">Needs git and a signed-in engine CLI; installation can set up Bun ≥ 1.3.11. Native Windows also needs Node.js and Git for Windows.</p>
+        <p class="install-help"><a href="https://docs.rove.run/rove/quick-start#your-first-task" data-i18n="hero.firstTasks">Next: complete your first two tasks →</a></p>
       </div>
     </div>
 
@@ -795,7 +806,7 @@
         <div class="tb span2"><span class="k" data-i18n="tb.material">Material</span><span class="v" data-i18n="tb.materialVal">TypeScript · ships its own Bun</span></div>
         <div class="tb"><span class="k" data-i18n="tb.finish">Finish</span><span class="v">MIT</span></div>
         <div class="tb wide-sm"><span class="k" data-i18n="tb.units">Units</span><span class="v" data-i18n="tb.unitsVal">Tasks</span></div>
-        <div class="tb span3"><span class="k" data-i18n="tb.platform">Platform</span><span class="v" data-i18n="tb.platformVal">macOS · Linux · Windows — requires git and one engine CLI on PATH</span></div>
+        <div class="tb span3"><span class="k" data-i18n="tb.platform">Platform</span><span class="v" data-i18n="tb.platformVal">macOS · Linux · Windows — git + engine CLI; native Windows also needs Node.js + Git Bash</span></div>
       </div>
     </div>
   </section>

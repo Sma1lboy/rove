@@ -439,3 +439,9 @@ svg .dot{fill:var(--ink);stroke:none}
 .brand .mark rect{fill:none;stroke:var(--rule);stroke-width:2}
 .brand .mark path{fill:none;stroke:var(--accent);stroke-linecap:round;stroke-linejoin:round}
 .brand .mark .r{fill:var(--ink);stroke:none}
+
+/* Platform choice owns the command and prerequisite text together. */
+.install-platform{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;font-family:var(--font-mono);font-size:13px}
+.install-platform select{max-width:100%;padding:8px;color:var(--ink);background:var(--paper);border:1px solid var(--rule);font:inherit}
+.install-platform select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.install-help{max-width:600px;font-size:14px;line-height:1.5;margin:0 0 12px;color:var(--ink-2)}
