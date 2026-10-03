@@ -5,6 +5,7 @@
 import { useFocus } from "../context/focus"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
+import { PaneErrorBoundary } from "../lib/pane-error-boundary"
 import { useTerminalSize } from "../lib/use-terminal-size"
 import { FileTree } from "../panes/filetree/FileTree"
 
@@ -46,29 +47,31 @@ export function HostFilesPane(props: {
       borderColor={focus.focused === "files" ? theme.focusAccent : inactiveBorder}
       onMouseUp={() => focus.setFocused("files")}
     >
-      {props.remoteHost ? (
-        <box flexDirection="column" padding={1} gap={1}>
-          <text fg={theme.textMuted} wrapMode="word">
-            {t("tasks.machine.filesElsewhere", { host: props.remoteHost })}
-          </text>
-          <text fg={theme.textMuted} wrapMode="word">
-            {t("tasks.machine.filesHint", { host: props.remoteHost })}
-          </text>
-        </box>
-      ) : (
-        <FileTree
-          worktreePath={props.worktree}
-          paneWidth={width - 2 /* box border */}
-          prBaseRef={props.prBaseRef}
-          focused={props.focused}
-          onOpenFile={props.onOpenFile}
-          onOpenDiff={props.onOpenDiff}
-          onMention={props.onMention}
-          onZenToggle={props.onZenToggle}
-          // prefix+P is GLOBAL, so it still fires here and explains itself with a toast.
-          onCreatePR={props.taskKind === "main" ? undefined : props.onCreatePR}
-        />
-      )}
+      <PaneErrorBoundary region="files" resetKeys={[props.worktree]}>
+        {props.remoteHost ? (
+          <box flexDirection="column" padding={1} gap={1}>
+            <text fg={theme.textMuted} wrapMode="word">
+              {t("tasks.machine.filesElsewhere", { host: props.remoteHost })}
+            </text>
+            <text fg={theme.textMuted} wrapMode="word">
+              {t("tasks.machine.filesHint", { host: props.remoteHost })}
+            </text>
+          </box>
+        ) : (
+          <FileTree
+            worktreePath={props.worktree}
+            paneWidth={width - 2 /* box border */}
+            prBaseRef={props.prBaseRef}
+            focused={props.focused}
+            onOpenFile={props.onOpenFile}
+            onOpenDiff={props.onOpenDiff}
+            onMention={props.onMention}
+            onZenToggle={props.onZenToggle}
+            // prefix+P is GLOBAL, so it still fires here and explains itself with a toast.
+            onCreatePR={props.taskKind === "main" ? undefined : props.onCreatePR}
+          />
+        )}
+      </PaneErrorBoundary>
     </box>
   )
 }

@@ -7,7 +7,7 @@
  */
 
 import { useRenderer } from "@opentui/react"
-import { useEffect, useRef, useState } from "react"
+import { isValidElement, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { DEFAULT_WORKING_BORDER, WORKING_BORDER_KEY, normalizeWorkingBorder } from "../../state/working-border"
 import { TASK_PARTNER_HUE_DEG } from "../../tui/lib/border-flow"
@@ -19,6 +19,7 @@ import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
+import { PaneErrorBoundary } from "../lib/pane-error-boundary"
 import { RenderProfiler } from "../lib/render-profiler"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useTaskColor } from "../lib/use-task-color"
@@ -309,10 +310,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   const activePane = dialog.stack.length > 0 ? null : focus.focused
 
   const fullWindow = pageRender.settingsPage ?? pageRender.fullWindowPage
+  const contentPageType = isValidElement(pageRender.contentPage) ? pageRender.contentPage.type : null
   if (fullWindow)
     return (
       <FullWindowPage banner={banner.element} background={theme.background}>
-        {fullWindow}
+        <PaneErrorBoundary region="page">{fullWindow}</PaneErrorBoundary>
       </FullWindowPage>
     )
 
@@ -334,42 +336,44 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           the only boundary; sidebar focus shows on the KOBE brand text. */}
       {pageRender.showSidebar ? (
         <RenderProfiler id="sidebar">
-          <HostSidebarMount
-            terminalWidth={dims.width}
-            showContent={pageRender.showContent}
-            recentTask={pageRender.recentTask}
-            tasks={tasks}
-            selectedId={selectedId}
-            selectedTabId={selectedTabId}
-            selectTask={selectTask}
-            activateTask={activateTask}
-            daemon={{
-              sidebarEngineState,
-              engineTabState,
-              engineLifecycle,
-              taskJobs,
-              rowTokens,
-              worktreeChanges,
-            }}
-            actions={taskActions}
-            pages={pages}
-            focus={focus}
-            inbox={inbox}
-            update={banner.update}
-            onFixChecks={editor.onFixChecks}
-            runAgain={quickFork.runAgain}
-            activePane={activePane}
-            zen={zen}
-            toggleZen={toggleZen}
-            sortMode={sortMode}
-            moveMode={moveMode}
-            exitMoveMode={() => setMoveMode(false)}
-            onLocalMergeRequest={onLocalMergeRequest}
-            onSearchActiveChange={setSearchActive}
-            cursorTaskIdRef={cursorTaskIdRef}
-            openTaskWorktree={openTaskWorktree}
-            t={t}
-          />
+          <PaneErrorBoundary region="sidebar" width={pageRender.showContent ? sidebarWidth.width : dims.width}>
+            <HostSidebarMount
+              terminalWidth={dims.width}
+              showContent={pageRender.showContent}
+              recentTask={pageRender.recentTask}
+              tasks={tasks}
+              selectedId={selectedId}
+              selectedTabId={selectedTabId}
+              selectTask={selectTask}
+              activateTask={activateTask}
+              daemon={{
+                sidebarEngineState,
+                engineTabState,
+                engineLifecycle,
+                taskJobs,
+                rowTokens,
+                worktreeChanges,
+              }}
+              actions={taskActions}
+              pages={pages}
+              focus={focus}
+              inbox={inbox}
+              update={banner.update}
+              onFixChecks={editor.onFixChecks}
+              runAgain={quickFork.runAgain}
+              activePane={activePane}
+              zen={zen}
+              toggleZen={toggleZen}
+              sortMode={sortMode}
+              moveMode={moveMode}
+              exitMoveMode={() => setMoveMode(false)}
+              onLocalMergeRequest={onLocalMergeRequest}
+              onSearchActiveChange={setSearchActive}
+              cursorTaskIdRef={cursorTaskIdRef}
+              openTaskWorktree={openTaskWorktree}
+              t={t}
+            />
+          </PaneErrorBoundary>
         </RenderProfiler>
       ) : null}
 
@@ -400,27 +404,30 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           {/* The rail swaps THIS pane, not the whole window — the task list on
             the left stays live, so selecting a task is how you get back to
             its terminal. */}
-          {pageRender.contentPage ?? (
-            <RenderProfiler id="workspace">
-              <ShowWorkspace
-                task={selectedTask}
-                worktree={worktree}
-                orchestrator={orch}
-                focused={activePane === "workspace"}
-                onRequestFocus={() => focus.setFocused("workspace")}
-                onEditorTabReady={editor.onEditorTabReady}
-                onEngineSendReady={editor.onEngineSendReady}
-                onEnginePasteReady={editor.onEnginePasteReady}
-                onDiffTabReady={editor.onDiffTabReady}
-                onQuickFork={quickFork.onQuickFork}
-                initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
-                onTabVisited={inbox.resolveVisited}
-                onScratchExit={scratch.onScratchExit}
-                onOpenScratch={scratch.openScratchShell}
-                onEngineChosen={taskActions.setVendor}
-              />
-            </RenderProfiler>
-          )}
+          {/* Keyed so picking another task, or opening/closing a page, clears a caught error. */}
+          <PaneErrorBoundary region="workspace" resetKeys={[selectedId, contentPageType]}>
+            {pageRender.contentPage ?? (
+              <RenderProfiler id="workspace">
+                <ShowWorkspace
+                  task={selectedTask}
+                  worktree={worktree}
+                  orchestrator={orch}
+                  focused={activePane === "workspace"}
+                  onRequestFocus={() => focus.setFocused("workspace")}
+                  onEditorTabReady={editor.onEditorTabReady}
+                  onEngineSendReady={editor.onEngineSendReady}
+                  onEnginePasteReady={editor.onEnginePasteReady}
+                  onDiffTabReady={editor.onDiffTabReady}
+                  onQuickFork={quickFork.onQuickFork}
+                  initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
+                  onTabVisited={inbox.resolveVisited}
+                  onScratchExit={scratch.onScratchExit}
+                  onOpenScratch={scratch.openScratchShell}
+                  onEngineChosen={taskActions.setVendor}
+                />
+              </RenderProfiler>
+            )}
+          </PaneErrorBoundary>
         </box>
       ) : null}
 

@@ -13,16 +13,11 @@
 import { profileMark, profileTick, renderProfileOn } from "@/lib/render-profile"
 import { createCliRenderer } from "@opentui/core"
 import { createRoot } from "@opentui/react"
-import {
-  installClientCrashHandlers,
-  logClientError,
-  setClientLogContext,
-} from "@sma1lboy/kobe-daemon/client/client-log"
+import { installClientCrashHandlers, setClientLogContext } from "@sma1lboy/kobe-daemon/client/client-log"
 import type { UiPrefsPayload } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { Component, type ErrorInfo, type ReactNode, useEffect } from "react"
+import { type ReactNode, useEffect } from "react"
 import { connectPaneOrchestrator } from "../../client/connect-pane-orchestrator"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import { recentStateChangesForDiagnostics } from "../../lib/external-store"
 import { applyUserKeybindings, reloadUserKeybindings } from "../../tui/context/keybindings-user"
 import { loadUserThemes } from "../../tui/context/theme/loader"
 import { type UiPrefsTarget, applyUiPrefs } from "../../tui/lib/apply-ui-prefs"
@@ -55,9 +50,10 @@ import {
   themeMode,
   transparentBackground,
 } from "../context/theme"
-import { DEFAULT_THEME, useTheme } from "../context/theme"
-import { isLocaleId, setLocaleLang, t } from "../i18n"
+import { DEFAULT_THEME } from "../context/theme"
+import { isLocaleId, setLocaleLang } from "../i18n"
 import { DialogProvider } from "../ui/dialog"
+import { PaneErrorBoundary } from "./pane-error-boundary"
 import { RenderProfiler } from "./render-profiler"
 
 /** Theme used when `state.json` is missing/stale. */
@@ -154,42 +150,6 @@ function UiPrefsSync() {
     }
   }, [])
   return null
-}
-
-/** Logging lives in componentDidCatch: the only callback with the component stack. */
-function PaneCrashFallback() {
-  const { theme } = useTheme()
-  return (
-    <box flexDirection="column" flexGrow={1} backgroundColor={theme.background} paddingLeft={1} paddingTop={1} gap={1}>
-      <text fg={theme.error}>{t("common.paneCrash.title")}</text>
-      <text fg={theme.textMuted}>{t("common.paneCrash.hint")}</text>
-    </box>
-  )
-}
-
-/** Error stack + component stack + recent state transitions (shapes/counts only). */
-function formatPaneCrashDiagnostic(error: unknown, info: ErrorInfo): string {
-  const base = error instanceof Error ? (error.stack ?? error.message) : String(error)
-  const componentStack = info.componentStack?.trim() || "(unavailable)"
-  const stateChanges = recentStateChangesForDiagnostics()
-  return `${base}\nReact component stack:\n${componentStack}\nRecent state changes:\n${
-    stateChanges.length > 0 ? stateChanges.join("\n") : "(none recorded)"
-  }`
-}
-
-/** Render errors only; fire-and-forget rejections go to `installClientCrashHandlers`. */
-export class PaneErrorBoundary extends Component<{ children?: ReactNode }, { error: unknown | null }> {
-  override state: { error: unknown | null } = { error: null }
-  static getDerivedStateFromError(error: unknown) {
-    return { error }
-  }
-  override componentDidCatch(error: unknown, info: ErrorInfo): void {
-    logClientError("pane-crash", formatPaneCrashDiagnostic(error, info))
-  }
-  override render() {
-    if (this.state.error !== null) return <PaneCrashFallback />
-    return this.props.children
-  }
 }
 
 /** Resolves once the root is mounted. */

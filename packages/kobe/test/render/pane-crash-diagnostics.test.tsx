@@ -12,7 +12,7 @@ import { join } from "node:path"
 import { flushClientLog, setClientLogContext } from "@sma1lboy/kobe-daemon/client/client-log"
 import { defaultClientLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { clearRecentStateChangesForTest, createStateCell } from "../../src/lib/external-store"
-import { PaneErrorBoundary } from "../../src/tui-react/lib/host-boot"
+import { PaneErrorBoundary } from "../../src/tui-react/lib/pane-error-boundary"
 import { renderComponent } from "./harness"
 
 let previousHome: string | undefined
