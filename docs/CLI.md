@@ -467,6 +467,7 @@ are set: `ROVE_HOME_DIR` beats `KOBE_HOME_DIR`, `ROVE_OPEN_EDITOR` beats
 | `ROVE_TASK_ID` / `ROVE_TAB_ID` | Set inside tabs Rove opens; how `rove api` verbs resolve the calling task |
 | `ROVE_FILETREE_WATCH=0` | Turn off the Files pane's worktree watcher; `r` becomes the only refresh |
 | `ROVE_RPC_TIMEOUT_MS` | Deadline for one daemon RPC (default 20000; `0` or negative waits forever) |
+| `ROVE_CONNECT_TIMEOUT_MS` | Deadline for opening a connection to the daemon or PTY host (default 5000; `0` or negative waits forever) |
 | `ROVE_DAEMON_IDLE_GRACE_MS` | Grace before a daemon with no attached GUI stops itself (default 3000ms) |
 | `ROVE_HOOK_DEBUG=1` | Print engine-hook failures to stderr instead of swallowing them |
 

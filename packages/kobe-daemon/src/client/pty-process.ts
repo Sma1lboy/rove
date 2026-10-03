@@ -192,7 +192,9 @@ export function childProbeCommand(deps: ChildProbeDeps = {}): readonly string[] 
   ]
 }
 
-/** Run a child to completion by deadline, or throw. Exported for tests. */
+/** Run a child to completion by deadline, or throw — including on a nonzero
+ *  exit or a signal, whose partial stdout may omit the host's children.
+ *  Exported for tests. */
 export function runChildProbe(command: readonly string[], timeoutMs: number): Promise<string> {
   return new Promise((done, fail) => {
     const proc = spawn(command[0] ?? "", command.slice(1), { stdio: ["ignore", "pipe", "ignore"] })
@@ -213,7 +215,9 @@ export function runChildProbe(command: readonly string[], timeoutMs: number): Pr
       out += String(chunk)
     })
     proc.on("error", (err) => finish(err))
-    proc.on("close", () => finish(null))
+    proc.on("close", (code, signal) =>
+      finish(code === 0 && signal === null ? null : new Error(`exited with ${signal ?? `code ${code}`}`)),
+    )
   })
 }
 
@@ -221,7 +225,8 @@ export function runChildProbe(command: readonly string[], timeoutMs: number): Pr
  * Live children of `pid` (each a session's shell leader). `null` means the
  * process table could not be read — never fold it into zero, or the refusal
  * below becomes a silent reap. A healthy `ps -A` has hundreds of rows, so an
- * empty table is a failed probe too. Exported for tests.
+ * empty table is a failed probe too, and so is any row that is not a pid.
+ * Exported for tests.
  */
 export async function liveChildCount(pid: number, deps: ChildProbeDeps = {}): Promise<number | null> {
   const timeoutMs = deps.timeoutMs ?? CHILD_PROBE_TIMEOUT_MS
@@ -237,7 +242,7 @@ export async function liveChildCount(pid: number, deps: ChildProbeDeps = {}): Pr
     .split("\n")
     .map((row) => row.trim())
     .filter((row) => row.length > 0)
-  if (rows.length === 0) return null
+  if (rows.length === 0 || rows.some((row) => !/^\d+$/.test(row))) return null
   return rows.filter((row) => Number(row) === pid).length
 }
 

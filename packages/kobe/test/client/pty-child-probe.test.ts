@@ -93,6 +93,20 @@ describe("liveChildCount", () => {
     ).toBeNull()
   })
 
+  it("answers null for a table with a row that is not a pid", async () => {
+    const { run } = table("4242\ninvalid table\n")
+    expect(await liveChildCount(4242, { platform: "linux", run })).toBeNull()
+  })
+
+  it("answers null when the probe fails after printing a partial table", async () => {
+    // A real child: the partial `1` omits the host's children, so accepting it
+    // would read as zero sessions and license killing a live host.
+    const command = [process.execPath, "-e", "process.stdout.write('1\\n'); process.exit(7)"]
+    await expect(runChildProbe(command, 10_000)).rejects.toThrow(/code 7/)
+    const run = (_: readonly string[], timeoutMs: number) => runChildProbe(command, timeoutMs)
+    expect(await liveChildCount(4242, { platform: "linux", run })).toBeNull()
+  })
+
   it("asks Windows for the same number, and reads it with the same parser", async () => {
     const { run, seen } = table("4242\n8\n")
     expect(await liveChildCount(4242, win({ run, exists: diskWith(PS) }))).toBe(1)
