@@ -27,9 +27,10 @@
  *      claim is ≥ `correctHookRunningAfterMs` old (PTY evidence trails the hook
  *      by one poll at a turn boundary) — then observation corrects it.
  *   3. any other hook entry wins.
- *   4. no hook → observed wins: `running` fills a restart's hole, `idle` is
+ *   4. no hook → a blocked attached screen wins until cleared.
+ *   5. otherwise observed wins: `running` fills a restart's hole, `idle` is
  *      known-idle.
- *   5. neither → undefined: unknown, distinct from known-idle.
+ *   6. no source → undefined: unknown, distinct from known-idle.
  *
  * Pure: the registry owns timers, bus and I/O.
  */
@@ -61,13 +62,14 @@ export interface ObservedSlot {
 export interface TabActivitySlots {
   hook?: HookSlot
   observed?: ObservedSlot
+  screen?: { readonly at: number }
 }
 
 /** The arbitrated result — what subscribers see. */
 export interface EffectiveActivity {
   readonly state: TaskActivityState
   readonly at: number
-  readonly source: "hook" | "observed"
+  readonly source: "hook" | "screen" | "observed"
   readonly detail?: EngineActivityDetail
   readonly vendor?: string
   readonly session?: EngineSessionInfo
@@ -126,6 +128,14 @@ export function recomputeTabActivity(
     }
     return fromHook(hook)
   }
+  if (slots.screen)
+    return {
+      state: "permission_needed",
+      at: slots.screen.at,
+      source: "screen",
+      vendor: observed?.vendor,
+      session: observed?.session,
+    }
   if (observed) return fromObserved(observed)
   return undefined
 }

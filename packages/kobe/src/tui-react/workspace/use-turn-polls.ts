@@ -26,6 +26,7 @@ export function useTurnPolls(deps: {
   vendor: VendorId
   state: TabsState
   hookTabStates?: ReadonlyMap<string, HookTabState>
+  onScreenInput?: (tabId: string, blocked: boolean) => Promise<void>
 }): {
   turnStates: ReadonlyMap<string, ChatTabTurnState>
   /** tabId → live OSC title minus the engine's status prefix; the tab strip's dynamic default names. */
@@ -48,6 +49,7 @@ export function useTurnPolls(deps: {
 
   // Latest-render mirrors for detector closures created once per attach.
   const hookTabStatesRef = useLatest(deps.hookTabStates)
+  const screenInputRef = useLatest(deps.onScreenInput)
   const stateRef = useLatest(deps.state)
   const taskIdRef = useLatest(deps.taskId)
   const vendorRef = useLatest(deps.vendor)
@@ -129,6 +131,7 @@ export function useTurnPolls(deps: {
           },
         },
         {
+          setScreenBlocked: (blocked) => screenInputRef.current?.(tabId, blocked) ?? Promise.resolve(),
           sessionAttached: async () => true,
           capturePane: async () => {
             const pty = getDefaultPtyRegistry().get(target.key)

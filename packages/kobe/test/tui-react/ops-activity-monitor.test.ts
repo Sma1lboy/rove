@@ -160,6 +160,7 @@ describe("per-session turn polling", () => {
   it("uses only the paired screen when the engine has no transcript identity", async () => {
     let pane = "ready"
     const published: string[] = []
+    const blocked: boolean[] = []
     const read = vi.fn(async () => null)
     const stop = startTurnStatusPoll(
       {
@@ -173,6 +174,9 @@ describe("per-session turn polling", () => {
         },
       },
       {
+        setScreenBlocked: async (value) => {
+          blocked.push(value)
+        },
         sessionAttached: async () => true,
         capturePane: async () => pane,
         setTurnState: async (state) => {
@@ -188,8 +192,16 @@ describe("per-session turn polling", () => {
       await vi.advanceTimersByTimeAsync(1500)
       expect(published).toEqual(["unknown", "running", "needs_input"])
       expect(read).not.toHaveBeenCalled()
+      pane = "approved"
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(published.at(-1)).toBe("unknown")
+      expect(blocked.at(-1)).toBe(false)
+      pane = "proceed?"
+      await vi.advanceTimersByTimeAsync(6000)
+      expect(blocked.at(-1)).toBe(true)
     } finally {
       stop()
+      expect(blocked.at(-1)).toBe(false)
     }
   })
 })

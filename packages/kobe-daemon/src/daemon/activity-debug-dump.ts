@@ -34,7 +34,7 @@ export interface ActivityDebugTask {
 
 export interface ActivityDebugTab extends ActivityDebugTask {
   readonly observed?: true
-  readonly source: "hook" | "observed"
+  readonly source: EffectiveActivity["source"]
   /** Present for a `dead` tab: how the engine process died. */
   readonly exit?: EngineActivityDetail["exit"]
 }

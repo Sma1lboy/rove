@@ -141,6 +141,9 @@ export function ShowWorkspace(props: {
       }}
       // A confirmed ESC interrupt (hook says running, title says rested) is
       // reported as the `turn-interrupted` the engine's abort path never fires.
+      onScreenInput={async (tabId, blocked) => {
+        if (props.task) await props.orchestrator.reportScreenInput(props.task.id, tabId, blocked)
+      }}
       onEngineInterrupt={(tabId) => {
         const taskId = props.task?.id
         if (taskId) props.orchestrator.reportEngineInterrupt(taskId, tabId)

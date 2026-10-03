@@ -348,8 +348,11 @@ export class RemoteOrchestrator {
   readonly reportUiEvent = (kind: string, taskId?: string, detail?: Record<string, unknown>): void =>
     writes.reportUiEventOp(this.client, kind, taskId, detail)
 
-  /** Confirmed ESC interrupt on a hook-running tab — see
-   *  {@link reportEngineInterruptOp}. */
+  readonly reportScreenInput = async (taskId: string, tabId: string, blocked: boolean): Promise<void> => {
+    await this.client.request("engine.reportEvent", { source: "screen", taskId, tabId, blocked })
+  }
+
+  /** Confirmed ESC interrupt on a hook-running tab — see {@link reportEngineInterruptOp}. */
   readonly reportEngineInterrupt = (taskId: TaskId | string, tabId: string): void =>
     writes.reportEngineInterruptOp(this.client, String(taskId), tabId)
 

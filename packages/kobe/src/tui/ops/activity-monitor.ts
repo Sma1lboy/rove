@@ -10,6 +10,7 @@ export interface TurnSession {
 }
 
 export interface TurnStatusIo {
+  readonly setScreenBlocked?: (blocked: boolean) => Promise<void>
   readonly sessionAttached: () => Promise<boolean>
   readonly capturePane: () => Promise<string>
   readonly setTurnState: (state: ChatTabTurnState) => Promise<void>
@@ -56,7 +57,7 @@ export function startTurnStatusPoll(opts: TurnStatusOpts, io: TurnStatusIo): () 
       case "idle":
         return "idle"
       default:
-        return published === null ? "unknown" : null
+        return published === null || published === "needs_input" ? "unknown" : null
     }
   }
 
@@ -66,6 +67,7 @@ export function startTurnStatusPoll(opts: TurnStatusOpts, io: TurnStatusIo): () 
       const current = opts.session()
       const text = await io.capturePane()
       if (disposed || !sameSession(current, opts.session())) return
+      if (opts.screenManifest) await io.setScreenBlocked?.(classifyScreen(opts.screenManifest, text) === "blocked")
       const markerMode = opts.detector.supportsCompletionMarkers() && current !== null
       const scan = markerMode ? await opts.detector.latestActivityInFile(current.transcriptPath) : null
       if (disposed || !sameSession(current, opts.session())) return
@@ -118,6 +120,7 @@ export function startTurnStatusPoll(opts: TurnStatusOpts, io: TurnStatusIo): () 
   void poll()
   return () => {
     disposed = true
+    if (opts.screenManifest) void io.setScreenBlocked?.(false).catch(() => {})
     if (timer) clearTimeout(timer)
   }
 }

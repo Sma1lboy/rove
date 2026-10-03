@@ -53,6 +53,7 @@ export function useTabTurnState(deps: {
   update?: (next: TabsState) => void
   /** Confirmed ESC interrupt on a hook-running tab; reported as `turn-interrupted`. */
   onEngineInterrupt?: (tabId: string) => void
+  onScreenInput?: (tabId: string, blocked: boolean) => Promise<void>
 }): {
   turnStates: ReadonlyMap<string, ChatTabTurnState>
   liveTitles: ReadonlyMap<string, string>

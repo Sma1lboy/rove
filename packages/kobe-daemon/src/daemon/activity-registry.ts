@@ -70,6 +70,7 @@ interface TabHookEntry extends HookSlot {
 interface TabEntry {
   hook?: TabHookEntry
   observed?: ObservedSlot
+  screen?: { readonly at: number }
   effective: EffectiveActivity
 }
 
@@ -240,6 +241,24 @@ export class DaemonActivityRegistry {
     return this.activity.get(target.taskId)
   }
 
+  /** Screen claims fill hookless tabs only; clearing reveals the latest PTY observation. */
+  reportScreen(taskId: string, tabId: string, blocked: boolean): boolean {
+    if (!this.taskExists(taskId)) return false
+    const tabs = this.tabActivity.get(taskId) ?? new Map<string, TabEntry>()
+    const entry = tabs.get(tabId)
+    if (entry?.hook || blocked === Boolean(entry?.screen)) return false
+    const at = this.now()
+    const screen = blocked ? { at } : undefined
+    const observed = entry?.observed ?? { state: "idle" as const, at }
+    const effective = recomputeTabActivity({ observed, screen }, at)
+    if (!effective) return false
+    tabs.set(tabId, { observed, screen, effective })
+    this.tabActivity.set(taskId, tabs)
+    this.bus.publish("engine-state", this.payload(taskId, effective, tabId))
+    this.publishRollup(taskId)
+    return true
+  }
+
   /**
    * Fold one OBSERVED fact (PTY output heartbeat / foreground walk) into the
    * tab's observed slot. Hook claims outrank observation except the one
@@ -267,7 +286,7 @@ export class DaemonActivityRegistry {
       session: entry?.observed?.session ?? entry?.hook?.session,
     }
     const effective = recomputeTabActivity(
-      { hook: entry?.hook, observed },
+      { hook: entry?.hook, observed, screen: entry?.screen },
       observed.at,
       opts.correctHookRunningAfterMs ?? Number.POSITIVE_INFINITY,
     )
@@ -286,12 +305,12 @@ export class DaemonActivityRegistry {
     }
     if (hook === undefined && entry?.hook?.lapse) clearTimeout(entry.hook.lapse)
 
-    tabs.set(tabId, { ...(hook ? { hook } : {}), observed, effective })
+    tabs.set(tabId, { ...(hook ? { hook } : {}), observed, screen: entry?.screen, effective })
     this.tabActivity.set(taskId, tabs)
     this.bus.publish("engine-state", this.payload(taskId, effective, tabId))
     this.publishRollup(taskId)
 
-    if (effective.source === "hook") return "noop" // the observation lost arbitration
+    if (effective.source !== "observed") return "noop" // the observation lost arbitration
     if (effective.state === "running") return "observed-running"
     return prev?.source === "hook" ? "corrected-hook-running" : "observed-idle"
   }
