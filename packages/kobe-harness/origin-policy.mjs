@@ -32,7 +32,7 @@ export function originAllowed(origin, opts = {}) {
   const allowedHost = opts.allowedHost?.trim()
   if (!allowedHost) return false
   const hostname = originHostname(origin)
-  return hostname !== null && hostname === allowedHost
+  return hostname !== null && hostname === allowedHost.toLowerCase()
 }
 
 export function allowedHostForBindHost(hostname) {
