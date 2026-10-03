@@ -148,4 +148,21 @@ describe("ref reads", () => {
     git(repo, "pack-refs", "--all")
     expect(readRefSha(probeDirs, "main")).toBe(expected)
   })
+
+  test("readRefSha reads a packed ref when the git-dir path contains a 'refs' substring", () => {
+    // `prefs/` places the misleading `refs/` substring before the ref namespace.
+    const parent = mkdtempSync(join(tmpdir(), "kobe-probe-andrefs-"))
+    dirs.push(parent)
+    const nested = join(parent, "prefs", "proj")
+    mkdirSync(nested, { recursive: true })
+    git(nested, "init", "-q", "-b", "main", ".")
+    writeFileSync(join(nested, "f.txt"), "x\n")
+    git(nested, "add", "-A")
+    git(nested, ...AUTHOR, "commit", "-qm", "init")
+    git(nested, "pack-refs", "--all") // move `main` out of its loose file
+
+    const probeDirs = resolveGitDirs(nested) as NonNullable<ReturnType<typeof resolveGitDirs>>
+    expect(probeDirs.gitDir).toContain("refs") // the trigger condition
+    expect(readRefSha(probeDirs, "main")).toBe(git(nested, "rev-parse", "main"))
+  })
 })

@@ -82,13 +82,16 @@ export function resolveGitDirs(worktreePath: string): GitDirs | null {
   return { gitDir, commonDir }
 }
 
+/** Qualified ref names, with remote-tracking refs before local branches. */
+function refNameCandidates(ref: string): string[] {
+  if (ref.startsWith("refs/")) return [ref]
+  return [`refs/remotes/${ref}`, `refs/heads/${ref}`]
+}
+
 /** Candidate files a ref could live in, loose, per-worktree first. */
 function looseRefPaths(dirs: GitDirs, ref: string): string[] {
-  const rel = ref.startsWith("refs/") ? ref : `refs/remotes/${ref}`
-  const alt = ref.startsWith("refs/") ? null : `refs/heads/${ref}`
-  const names = alt ? [rel, alt] : [rel]
   const out: string[] = []
-  for (const name of names) {
+  for (const name of refNameCandidates(ref)) {
     out.push(join(dirs.gitDir, name))
     if (dirs.commonDir !== dirs.gitDir) out.push(join(dirs.commonDir, name))
   }
@@ -108,7 +111,8 @@ export function readRefSha(dirs: GitDirs, ref: string): string | null {
   }
   const packed = readText(join(dirs.commonDir, "packed-refs"))
   if (!packed) return null
-  const wanted = new Set(looseRefPaths(dirs, ref).map((p) => p.replace(/^.*?(refs\/)/, "$1")))
+  // Match ref names directly; stripping a loose path broke when the git-dir path contained `refs/`.
+  const wanted = new Set(refNameCandidates(ref))
   for (const line of packed.split("\n")) {
     if (!line || line.startsWith("#") || line.startsWith("^")) continue
     const [sha, name] = line.split(" ", 2)
