@@ -4,7 +4,7 @@
  * aligned meter rows. Pure — the React component only maps rows to <text>.
  */
 
-import { approxCharCells, displayWidth } from "../../../lib/display-width.ts"
+import { approxCharCells, charWidth, displayWidth, padEndCells } from "../../../lib/display-width.ts"
 import { ratioBar } from "../../../tui/lib/progress-bar.ts"
 import { truncateEndCells } from "../../../tui/lib/truncate.ts"
 import type { EngineQuotaUsage } from "../../../types/engine.ts"
@@ -229,10 +229,10 @@ function humanTokens(total: number): string {
 export function usageRows(usage: EngineQuotaUsage, nowMs: number): UsageRowView[] {
   const labelWidth = Math.min(
     8,
-    usage.windows.reduce((w, win) => Math.max(w, win.label.length), 2),
+    usage.windows.reduce((w, win) => Math.max(w, displayWidth(win.label)), 2),
   )
   return usage.windows.map((w) => ({
-    label: (w.label.length > labelWidth ? w.label.slice(0, labelWidth) : w.label).padEnd(labelWidth),
+    label: padEndCells(truncateEndCells(w.label, labelWidth, charWidth), labelWidth),
     bar: ratioBar(w.percent / 100, USAGE_BAR_WIDTH),
     percentText: `${String(w.percent).padStart(3)}%`,
     resetText: formatReset(w.resetsAt, nowMs),
