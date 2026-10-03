@@ -44,6 +44,35 @@ function rpcTimeoutMs(): number {
 }
 
 /**
+ * The socket never accepted the connection — unlike {@link RpcTimeoutError},
+ * nothing was ever established. Without a deadline this is a HANG: on Windows
+ * the address is a named pipe, libuv waits for a free instance instead of
+ * failing, and `net.connect` exposes no connect timeout.
+ */
+export class ConnectTimeoutError extends Error {
+  constructor(socketPath: string, timeoutMs: number) {
+    super(
+      `connecting to ${socketPath} timed out after ${timeoutMs}ms — nothing accepted the connection (daemon or PTY host not listening at that address)`,
+    )
+    this.name = "ConnectTimeoutError"
+  }
+}
+
+/**
+ * Connect deadline; a local connect answers in microseconds, so 5s only fires
+ * on the hang above. `ROVE_CONNECT_TIMEOUT_MS` overrides it (0/negative
+ * disables); also the test seam.
+ */
+function connectTimeoutMs(): number {
+  const raw = readRoveEnv("CONNECT_TIMEOUT_MS")?.trim()
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return 5_000
+}
+
+/**
  * Fires when the socket goes open→closed for ANY reason (daemon died, kernel
  * drop, `forceDisconnect`). The client never auto-retries: the daemon only
  * self-stops once the LAST subscriber is gone, so a drop under a live client
@@ -218,7 +247,21 @@ export class KobeDaemonClient implements DaemonRpcClient {
     return new Promise((resolve, reject) => {
       const socket = connect(this.socketPath)
       this.socket = socket
+      // Both handlers clear the deadline; on expiry the half-open socket is
+      // destroyed so it does not outlive the promise.
+      const timeoutMs = connectTimeoutMs()
+      let timer: ReturnType<typeof setTimeout> | undefined
+      if (timeoutMs > 0) {
+        timer = setTimeout(() => {
+          socket.off("connect", onConnect)
+          socket.off("error", onError)
+          socket.destroy()
+          if (this.socket === socket) this.socket = null
+          reject(new ConnectTimeoutError(this.socketPath, timeoutMs))
+        }, timeoutMs)
+      }
       const onConnect = () => {
+        if (timer) clearTimeout(timer)
         socket.off("error", onError)
         // An un-listened 'error' (EPIPE, ECONNRESET) crashes the process;
         // destroy routes it through 'close', which rejects pending requests.
@@ -226,6 +269,7 @@ export class KobeDaemonClient implements DaemonRpcClient {
         resolve()
       }
       const onError = (err: Error) => {
+        if (timer) clearTimeout(timer)
         socket.off("connect", onConnect)
         if (this.socket === socket) this.socket = null
         reject(err)

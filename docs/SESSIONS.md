@@ -77,6 +77,14 @@ theme, default engine, language, onboarding. It still does not delete git
 worktrees or engine-owned transcripts. See
 [CLI → reset](./CLI.md#reset) for the full list.
 
+When the PTY host stops answering, Rove waits up to 15 seconds for it before
+replacing it, and only replaces a host that holds no live sessions. If it
+still has sessions, or Rove cannot read the machine's process table to count
+them, Rove refuses to restart it and says so; inspect it with
+`rove api pty-list`, or kill the host yourself once you accept losing those
+sessions. A connect that nothing accepts fails after
+`ROVE_CONNECT_TIMEOUT_MS` (default 5000ms) instead of hanging.
+
 ## Why: three processes, three lifetimes
 
 ```mermaid
