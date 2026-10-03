@@ -13,7 +13,7 @@
  *
  * Event → verb:
  *
- *   session.created / session.updated  → session-start   (identity)
+ *   session.created                    → session-start   (identity)
  *   chat.message, tool/permission/question replies, session.status(active)
  *                                      → turn-start      (running)
  *   permission.asked / question.asked  → awaiting-input   (blocked on a human)
@@ -135,7 +135,6 @@ export const RoveAgentState = async (input) => {
 
       switch (type) {
         case "session.created":
-        case "session.updated":
           if (sessionID) emit(cwd, "session-start", sessionID)
           break
         case "session.status": {
@@ -144,7 +143,6 @@ export const RoveAgentState = async (input) => {
           const lowered = typeof kind === "string" ? kind.toLowerCase() : undefined
           if (lowered === "idle") emit(cwd, "turn-complete", sessionID)
           else if (lowered && WORKING_STATUS.has(lowered)) emit(cwd, "turn-start", sessionID)
-          else if (sessionID) emit(cwd, "session-start", sessionID)
           break
         }
         case "permission.replied":
@@ -159,7 +157,7 @@ export const RoveAgentState = async (input) => {
           emit(cwd, "awaiting-input", sessionID, { waiting: "input" })
           break
         case "session.error":
-          emit(cwd, "turn-failed", sessionID, { error_message: text(properties.error) })
+          emit(cwd, "turn-failed", sessionID, { error_message: text(properties.error?.data?.message) || text(properties.error?.name) })
           break
         case "session.idle":
           emit(cwd, "turn-complete", sessionID)

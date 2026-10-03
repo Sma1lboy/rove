@@ -18,6 +18,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { type TaskActivityState, isEngineActivityKind, reduceActivity } from "@/engine/hook-events"
 import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import {
   OpencodeFamilyHookAdapter,
@@ -99,7 +100,10 @@ describe("generated opencode plugin behaviour", () => {
     await fire("permission.replied")
     await fire("session.idle")
     await fire("session.compacted")
-    await fire("session.error", { sessionID: "s1", error: "429 rate limit exceeded" })
+    await fire("session.error", {
+      sessionID: "s1",
+      error: { name: "APIError", data: { message: "429 rate limit exceeded", statusCode: 429 } },
+    })
 
     expect(spawns.map(verbOf)).toEqual([
       "session-start",
@@ -119,10 +123,52 @@ describe("generated opencode plugin behaviour", () => {
     const { hooks, spawns } = await loadPlugin("opencode", INPUT)
     await hooks.event({ event: { type: "session.status", properties: { sessionID: "s1", status: "Streaming" } } })
     await hooks.event({ event: { type: "session.status", properties: { sessionID: "s1", status: { type: "idle" } } } })
-    // An unrecognized status still identifies the session rather than guessing
-    // at a state.
     await hooks.event({ event: { type: "session.status", properties: { sessionID: "s1", status: "who-knows" } } })
-    expect(spawns.map(verbOf)).toEqual(["turn-start", "turn-complete", "session-start"])
+    expect(spawns.map(verbOf)).toEqual(["turn-start", "turn-complete"])
+  })
+
+  describe.each(["opencode", "kilo"] as const)("%s lifecycle regressions", (vendor) => {
+    it.each(["session.updated", "session.status"])("preserves turn completion across %s", async (type) => {
+      const { hooks, spawns } = await loadPlugin(vendor, INPUT)
+      await hooks["chat.message"]({ sessionID: "s1" })
+      await hooks.event({
+        event: { type, properties: { sessionID: "s1", info: { id: "s1" }, status: { type: "unknown" } } },
+      })
+      await hooks.event({ event: { type: "session.idle", properties: { sessionID: "s1" } } })
+
+      let state: TaskActivityState = "idle"
+      for (const call of spawns) {
+        const verb = verbOf(call)
+        if (!isEngineActivityKind(verb)) throw new Error(`Unexpected activity verb: ${verb}`)
+        state = reduceActivity(state, verb)
+      }
+      expect(state).toBe("turn_complete")
+      expect(spawns.map(verbOf)).toEqual(["turn-start", "turn-complete"])
+    })
+
+    it.each([
+      {
+        error: { name: "APIError", data: { message: "429 rate limit exceeded", statusCode: 429 } },
+        failure: "rate_limit",
+        note: "429 rate limit exceeded",
+      },
+      {
+        error: { name: "APIError", data: { message: "insufficient credits", statusCode: 402 } },
+        failure: "billing",
+        note: "insufficient credits",
+      },
+      { error: { name: "MessageOutputLengthError", data: {} }, failure: "other", note: "MessageOutputLengthError" },
+      { error: undefined, failure: "other", note: undefined },
+    ])("classifies emitted errors as $failure ($note)", async ({ error, failure, note }) => {
+      const { hooks, spawns } = await loadPlugin(vendor, INPUT)
+      await hooks.event({ event: { type: "session.error", properties: { sessionID: "s1", error } } })
+      expect(spawns.map(verbOf)).toEqual(["turn-failed"])
+      const adapter = new OpencodeFamilyHookAdapter(vendor)
+      expect(adapter.activityDetailFromPayload("turn-failed", payloadOf(spawns[0]))).toEqual({
+        failure,
+        ...(note ? { note } : {}),
+      })
+    })
   })
 
   /**
