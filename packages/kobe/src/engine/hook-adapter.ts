@@ -27,6 +27,8 @@ export interface EngineSessionRef {
 
 export interface EngineHookAdapter {
   readonly vendor: VendorId
+  /** User-run command required before this engine executes installed hooks. */
+  readonly setupCommand?: string
   /** Whether this engine has a wired hook mechanism (false → install is a no-op). */
   supportsHooks(): boolean
   /**

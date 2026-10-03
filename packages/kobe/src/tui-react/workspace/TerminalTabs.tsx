@@ -49,6 +49,7 @@ import {
   tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"
+import { EngineHookReadiness } from "../component/engine-hook-readiness"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { bindByIds } from "../context/keybindings"
 import { useKV } from "../context/kv"
@@ -369,6 +370,13 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
         turnVendors={turnVendors}
         seenTabs={seenTabs}
       />
+      {active.kind === "engine" ? (
+        <EngineHookReadiness
+          key={active.id}
+          vendor={active.vendor ?? props.vendor}
+          hookSessionId={props.hookTabStates?.get(active.id)?.sessionId}
+        />
+      ) : null}
       {/* Spawn gate: while restart verification runs (millisecond-scale
           transcript reads), nothing may spawn. */}
       {hydrating ? (
