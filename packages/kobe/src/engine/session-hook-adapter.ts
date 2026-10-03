@@ -37,11 +37,17 @@ export function sessionStartOnly(matcher?: string): readonly HookEventSpec[] {
 export abstract class SessionStartHookAdapter extends JsonHookAdapter {
   abstract override readonly vendor: VendorId
 
+  /** Skip absent CLI homes. Override when the settings file lives in a
+   * subdirectory that the installer itself creates. */
+  protected installGuardDir(settingsFilePath: string): string {
+    return dirname(settingsFilePath)
+  }
+
   override async installActivityHooks(
     settingsFilePath: string,
     opts: { toolEvents?: boolean; quiet?: boolean } = {},
   ): Promise<HookEditOutcome> {
-    if (!existsSync(dirname(settingsFilePath))) return { ok: true }
+    if (!existsSync(this.installGuardDir(settingsFilePath))) return { ok: true }
     return super.installActivityHooks(settingsFilePath, opts)
   }
 
