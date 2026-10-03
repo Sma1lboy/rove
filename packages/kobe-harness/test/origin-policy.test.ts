@@ -34,6 +34,12 @@ describe("origin policy", () => {
     expect(originAllowed("http://192.168.1.6:5173", { allowedHost: "192.168.1.5" })).toBe(false)
   })
 
+  it("matches a mixed-case bind host without allowing other hosts", () => {
+    const allowedHost = allowedHostForBindHost("MyMac.local")
+    expect(originAllowed("http://mymac.local:7777", { allowedHost })).toBe(true)
+    expect(originAllowed("http://mymac.local.attacker.example:7777", { allowedHost })).toBe(false)
+  })
+
   it("derives allowedHost from the bind host only for non-loopback binds", () => {
     expect(allowedHostForBindHost("127.0.0.1")).toBeUndefined()
     expect(allowedHostForBindHost("localhost")).toBeUndefined()
