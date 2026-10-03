@@ -132,12 +132,8 @@ export async function readHistory(sessionId: string, deps: HistoryDeps = default
 }
 
 /**
- * Locate the JSONL for `sessionId` and return its raw contents plus the path
- * (the append-cache key). Scans every `~/.claude/projects/<encoded-cwd>` dir
- * for `<sessionId>.jsonl` and returns the first readable one — a missing file
- * throws (see {@link readTextFileBounded}) and is skipped; an oversize/corrupt
- * one degrades to `""` and stops the scan, same as the history read. Returns
- * `undefined` when no project dir holds the session.
+ * Return the first readable session JSONL and its path for the append cache.
+ * Read errors skip the candidate; an empty read stops the scan.
  */
 async function findSessionRaw(
   sessionId: string,
@@ -161,6 +157,7 @@ async function findSessionRaw(
 
 /**
  * Session-aggregate usage folded from per-turn usage on assistant records.
+ * {@link foldSessionUsage} counts usage once per assistant message id.
  * The ONE place Claude's context arithmetic lives: context = the LAST turn's
  * input + cache read + cache creation, derived (hence
  * `context_tokens_approximate`); neutral layers must not re-derive it.

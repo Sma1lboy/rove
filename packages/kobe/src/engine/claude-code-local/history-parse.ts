@@ -73,19 +73,8 @@ function extractMessage(record: Record<string, unknown>, fallbackSessionId: stri
 }
 
 /**
- * Session usage folded by assistant `message.id`, straight from the raw JSONL.
- *
- * Claude Code writes one record per assistant content block (thinking,
- * tool_use, text) and stamps the SAME `message.usage` on every record of a
- * message, so summing usage per RECORD multiplies a message's cost by its
- * block count — the exact quirk {@link import("./turns").parseClaudeTurns}
- * already folds per turn. This folds it session-wide: one usage per id.
- * Records with no id (older transcript shapes) each get a distinct key, so
- * they still count exactly once rather than collapsing together.
- *
- * `last` is the usage of the newest record by timestamp (file order breaks
- * ties and covers records without a timestamp) — the final, largest prompt,
- * which the snapshot reports as the session's context window.
+ * Fold usage by assistant message id, last write wins; id-less records stay distinct.
+ * `last` follows the newest timestamp, with file order breaking ties or missing timestamps.
  */
 export function foldSessionUsage(raw: string): {
   byMessage: Map<string, NonNullable<Message["usage"]>>
