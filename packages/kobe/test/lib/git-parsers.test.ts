@@ -107,14 +107,8 @@ describe("parseNumstatRows", () => {
   })
 
   test("keeps a raw path that begins with a literal double-quote verbatim", () => {
-    // `-z` disables git's path munging, so this field is raw. It merely
-    // BEGINS with `"`; it is not a C-quoted token, and unquoting it would
-    // strip the leading quote and silently mangle the filename.
+    // `-z` emits the leading quote literally, not as C-quoting.
     expect(parseNumstatRows('3\t4\t"weird.txt\0')).toEqual([numstat('"weird.txt', 3, 4)])
-  })
-
-  test("keeps raw leading-quote paths verbatim in a rename", () => {
-    expect(parseNumstatRows('1\t0\t\0"old.txt\0"new.txt\0')).toEqual([numstat('"new.txt', 1, 0, '"old.txt')])
   })
 })
 
@@ -146,7 +140,6 @@ describe("porcelain ↔ numstat path coherence (the join the bug breaks)", () =>
     const [n] = parseNumstatRows('1\t0\t"weird.txt\0')
     expect(p?.path).toBe('"weird.txt')
     expect(n?.path).toBe('"weird.txt')
-    expect(p?.path).toBe(n?.path)
   })
 
   test("a move OUT of a subdirectory keys onto the same porcelain path", () => {

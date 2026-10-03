@@ -26,7 +26,6 @@
 
 /** The porcelain half lives in the daemon package so both share one parser. */
 export { parsePorcelainRows, unquoteGitPath } from "@sma1lboy/kobe-daemon/daemon/git-porcelain"
-import { unquoteGitPath } from "@sma1lboy/kobe-daemon/daemon/git-porcelain"
 
 /** One parsed row of `git diff --numstat`. */
 export interface NumstatRow {
