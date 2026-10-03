@@ -26,7 +26,6 @@
 
 /** The porcelain half lives in the daemon package so both share one parser. */
 export { parsePorcelainRows, unquoteGitPath } from "@sma1lboy/kobe-daemon/daemon/git-porcelain"
-import { unquoteGitPath } from "@sma1lboy/kobe-daemon/daemon/git-porcelain"
 
 /** One parsed row of `git diff --numstat`. */
 export interface NumstatRow {
@@ -52,8 +51,8 @@ function parseCount(token: string): number | null {
  *   - non-rename: `<added>\t<deleted>\t<path>\0`
  *   - rename:     `<added>\t<deleted>\t\0<old>\0<new>\0`
  *
- * Binary counts are `-` (→ `null`). `-z` paths are raw, so `unquoteGitPath`
- * is a defensive no-op. Malformed fields are skipped.
+ * Binary counts are `-` (→ `null`). `-z` paths are raw and used verbatim:
+ * unquoting would strip a literal leading `"`. Malformed fields are skipped.
  */
 export function parseNumstatRows(raw: string): NumstatRow[] {
   const rows: NumstatRow[] = []
@@ -79,15 +78,15 @@ export function parseNumstatRows(raw: string): NumstatRow[] {
     const deleted = parseCount(header.slice(tab1 + 1, tab2))
     const pathField = header.slice(tab2 + 1)
     if (pathField.length > 0) {
-      // Non-rename: the path is the third field.
-      rows.push({ path: unquoteGitPath(pathField), added, deleted })
+      // Non-rename: the path is the third field, raw (see the `-z` note above).
+      rows.push({ path: pathField, added, deleted })
       i++
     } else {
       // Rename: the next two fields are the source and destination paths.
       if (i + 2 >= fields.length) break
       rows.push({
-        path: unquoteGitPath(fields[i + 2] as string),
-        origPath: unquoteGitPath(fields[i + 1] as string),
+        path: fields[i + 2] as string,
+        origPath: fields[i + 1] as string,
         added,
         deleted,
       })

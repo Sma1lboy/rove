@@ -105,6 +105,11 @@ describe("parseNumstatRows", () => {
       numstat("src/c/f.txt", 0, 0, "src/{a{b/f.txt"),
     ])
   })
+
+  test("keeps a raw path that begins with a literal double-quote verbatim", () => {
+    // `-z` emits the leading quote literally, not as C-quoting.
+    expect(parseNumstatRows('3\t4\t"weird.txt\0')).toEqual([numstat('"weird.txt', 3, 4)])
+  })
 })
 
 describe("porcelain ↔ numstat path coherence (the join the bug breaks)", () => {
@@ -125,6 +130,16 @@ describe("porcelain ↔ numstat path coherence (the join the bug breaks)", () =>
     const [n] = parseNumstatRows("1\t0\ta b.txt\0")
     expect(p?.path).toBe("a b.txt")
     expect(n?.path).toBe("a b.txt")
+  })
+
+  test("a leading-quote-named modify resolves identically across formats", () => {
+    // A filename literally starting with `"`. Porcelain quotes it and escapes
+    // the leading quote (`"\"weird.txt"`); numstat with `-z` emits it raw. Both
+    // must resolve to `"weird.txt` or the numstat counts orphan the porcelain row.
+    const [p] = parsePorcelainRows(' M "\\"weird.txt"')
+    const [n] = parseNumstatRows('1\t0\t"weird.txt\0')
+    expect(p?.path).toBe('"weird.txt')
+    expect(n?.path).toBe('"weird.txt')
   })
 
   test("a move OUT of a subdirectory keys onto the same porcelain path", () => {
