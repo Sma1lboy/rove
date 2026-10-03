@@ -1,0 +1,92 @@
+name: PR UI evidence
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/pr-ui-evidence.yml
+      - packages/kobe-harness/e2e/pr-evidence*.ts
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-ui-evidence-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: before
+            scenario: all
+            ref: 4ccfb9c9a6a3484b49b3f9628b3c2ddf0d9785bf
+          - label: after
+            scenario: onboarding
+            ref: 52cb1d8d7bc776125a8bd52d21ab525e306a3cf3
+          - label: after
+            scenario: hooks
+            ref: 86e0e5b4bdf00ef25aed05ba0a04156fb068110a
+          - label: after
+            scenario: recovery
+            ref: edd6514fe34cbc762fb5d9fdfe1184e00ad3ddac
+          - label: after
+            scenario: isolation
+            ref: b8f0248fc673416930dccdf67fb234cd3a5bf17b
+          - label: after
+            scenario: install
+            ref: 54fda934c76b80bdbd41f7c12151e8c29cd2bef3
+    steps:
+      - name: Checkout capture tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: tooling
+          persist-credentials: false
+
+      - name: Checkout exact product revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ matrix.ref }}
+          path: subject
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install and build exact revision
+        working-directory: subject
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Install Chromium
+        working-directory: subject/packages/kobe-harness
+        run: bunx playwright install --with-deps chromium
+
+      - name: Copy the same capture recipe to both revisions
+        run: cp tooling/packages/kobe-harness/e2e/pr-evidence*.ts subject/packages/kobe-harness/e2e/
+
+      - name: Capture actual browser and OpenTUI frames
+        working-directory: subject/packages/kobe-harness
+        env:
+          EVIDENCE_LABEL: ${{ matrix.label }}
+          EVIDENCE_SHA: ${{ matrix.ref }}
+          EVIDENCE_SCENARIO: ${{ matrix.scenario }}
+        run: bun e2e/pr-evidence.ts
+
+      - name: Upload images, buffers, facts and diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-ui-evidence-${{ matrix.label }}-${{ matrix.scenario }}-${{ github.run_id }}
+          path: subject/packages/kobe-harness/test-results/pr-evidence
+          if-no-files-found: error
+          retention-days: 30
