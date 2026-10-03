@@ -10,7 +10,7 @@
  */
 
 import path from "node:path"
-import { BinaryNotFoundError, createBinaryFinder } from "../binary-discovery.ts"
+import { type BinaryFinderSpec, BinaryNotFoundError, createBinaryFinder, npmStyleDirs } from "../binary-discovery.ts"
 
 class PiFamilyBinaryNotFoundError extends BinaryNotFoundError {
   constructor(name: string, checkedPaths: readonly string[]) {
@@ -23,11 +23,9 @@ class PiFamilyBinaryNotFoundError extends BinaryNotFoundError {
   }
 }
 
-function candidatesFor(name: string, home: string): readonly string[] {
-  const bins = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
-  const out = [...bins, path.join(home, ".local/bin"), path.join(home, ".bun/bin"), path.join(home, "bin")].map((dir) =>
-    path.join(dir, name),
-  )
+function candidatesFor(name: string, ctx: Parameters<BinaryFinderSpec["candidates"]>[0]): readonly string[] {
+  const { home } = ctx
+  const out = npmStyleDirs(ctx, ["system", "local", "bun", "bin"]).map((dir) => path.join(dir, name))
   // The npm-global layout, for an install that never got symlinked onto PATH:
   // both packages ship the executable as `dist/cli.js`.
   const packageName = name === "omp" ? "@oh-my-pi/pi-coding-agent" : "@earendil-works/pi-coding-agent"
@@ -40,12 +38,12 @@ function candidatesFor(name: string, home: string): readonly string[] {
 
 export const findPiBinary = createBinaryFinder({
   name: "pi",
-  candidates: ({ home }) => candidatesFor("pi", home),
+  candidates: (ctx) => candidatesFor("pi", ctx),
   notFound: (checked) => new PiFamilyBinaryNotFoundError("pi", checked),
 })
 
 export const findOmpBinary = createBinaryFinder({
   name: "omp",
-  candidates: ({ home }) => candidatesFor("omp", home),
+  candidates: (ctx) => candidatesFor("omp", ctx),
   notFound: (checked) => new PiFamilyBinaryNotFoundError("omp", checked),
 })

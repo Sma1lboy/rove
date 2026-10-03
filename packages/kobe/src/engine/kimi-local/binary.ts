@@ -6,7 +6,7 @@
  */
 
 import path from "node:path"
-import { BinaryNotFoundError, createBinaryFinder } from "../binary-discovery.ts"
+import { BinaryNotFoundError, createBinaryFinder, npmStyleDirs } from "../binary-discovery.ts"
 
 /** @public — one of four identical per-engine re-exports (claude-code-local,
  *  codex-local, copilot-local, kimi-local). Tests import three of them; this
@@ -23,13 +23,9 @@ class KimiBinaryNotFoundError extends BinaryNotFoundError {
 
 export const findKimiBinary = createBinaryFinder({
   name: "kimi",
-  candidates: ({ home }) =>
-    [
-      path.join(home, ".kimi-code/bin"),
-      path.join(home, ".local/bin"),
-      path.join(home, "bin"),
-      "/opt/homebrew/bin",
-      "/usr/local/bin",
-    ].map((dir) => path.join(dir, "kimi")),
+  candidates: (ctx) =>
+    [path.join(ctx.home, ".kimi-code/bin"), ...npmStyleDirs(ctx, ["local", "bin", "homebrew"])].map((dir) =>
+      path.join(dir, "kimi"),
+    ),
   notFound: (checked) => new KimiBinaryNotFoundError(checked),
 })

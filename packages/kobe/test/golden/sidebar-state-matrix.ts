@@ -62,12 +62,7 @@ type _DeletionPhasesExhaustive = Exclude<TaskDeletionPhase, (typeof DELETION_PHA
 const _deletionPhasesExhaustive: _DeletionPhasesExhaustive = true
 void _deletionPhasesExhaustive
 
-/**
- * Every vendor, not a sample. `BUILTIN_VENDORS` is spread rather than listed:
- * each engine owns its own `spinnerFrames`, so a vendor added upstream changes
- * what these rows render — and a hand-written list would silently keep the new
- * one out of the "full cross product" this file claims to emit.
- */
+/** Vendor-specific subtitles and spinner frames are recorded separately. */
 const VENDORS: readonly string[] = [...BUILTIN_VENDORS, CUSTOM_VENDOR]
 
 export function task(over: Partial<Task> = {}): Task {
@@ -105,7 +100,7 @@ const JOB: TaskJobState = { kind: "ensureWorktree" }
  * fails loudly until someone decides where it belongs.
  *
  * `spinnerFrames` is the one deliberate omission: it is constant per vendor and
- * printed in full by {@link spinnerBlock}, so repeating it on all 1120 rows
+ * printed in full by {@link spinnerBlock}, so repeating it on every activity row
  * would be noise, not coverage.
  */
 export const RECORDED_FIELDS = [
@@ -161,7 +156,7 @@ function build(opts: {
 }
 
 /**
- * The full cross product of the six inputs that feed the priority ladder.
+ * The full cross product of the five vendor-independent priority inputs.
  *
  * Not a sampled selection: every combination is emitted, so a change that
  * reorders two rungs shows up as a block of moved lines instead of hiding in
@@ -169,47 +164,59 @@ function build(opts: {
  */
 export function activityCrossProduct(): string[] {
   const lines: string[] = []
+  const vendor = "claude"
   for (const state of ACTIVITY_STATES) {
     for (const seen of [false, true]) {
       for (const job of [false, true]) {
         for (const deletion of DELETION_PHASES) {
-          for (const vendor of VENDORS) {
-            for (const tx of [false, true]) {
-              const subject = task({
-                vendor: vendor as Task["vendor"],
-                deletion:
-                  deletion === undefined
-                    ? undefined
-                    : { phase: deletion, force: false, requestedAt: "2026-01-01T00:00:00.000Z" },
-              })
-              // Directory transcript changes must not override a tab's activity.
-              const view = build({
-                task: subject,
-                activity: activityOf(state),
-                job: job ? JOB : undefined,
-                transcript: tx ? { mtimeMs: NOW + 10_000 } : undefined,
-                completionSeen: seen,
-              })
-              lines.push(
-                row(
-                  [
-                    pad(`act=${state ?? "-"}`, 22),
-                    `seen=${seen ? 1 : 0}`,
-                    `job=${job ? 1 : 0}`,
-                    pad(`del=${deletion ?? "-"}`, 12),
-                    pad(`vendor=${vendor}`, 17),
-                    `tx=${tx ? "after" : "-"}`,
-                  ],
-                  view,
-                ),
-              )
-            }
+          for (const tx of [false, true]) {
+            const subject = task({
+              vendor,
+              deletion:
+                deletion === undefined
+                  ? undefined
+                  : { phase: deletion, force: false, requestedAt: "2026-01-01T00:00:00.000Z" },
+            })
+            // Directory transcript changes must not override a tab's activity.
+            const view = build({
+              task: subject,
+              activity: activityOf(state),
+              job: job ? JOB : undefined,
+              transcript: tx ? { mtimeMs: NOW + 10_000 } : undefined,
+              completionSeen: seen,
+            })
+            lines.push(
+              row(
+                [
+                  pad(`act=${state ?? "-"}`, 22),
+                  `seen=${seen ? 1 : 0}`,
+                  `job=${job ? 1 : 0}`,
+                  pad(`del=${deletion ?? "-"}`, 12),
+                  pad(`vendor=${vendor}`, 17),
+                  `tx=${tx ? "after" : "-"}`,
+                ],
+                view,
+              ),
+            )
           }
         }
       }
     }
   }
   return lines
+}
+
+/** Only the subtitle depends on vendor identity; spinnerBlock records the frame sets. */
+export function vendorBlock(): string[] {
+  return VENDORS.map((vendor) => {
+    const subtitles = [undefined, "idle", "running"] as const
+    return `${pad(`vendor=${vendor}`, 17)} ${subtitles
+      .map((state) => {
+        const view = build({ task: task({ vendor }), activity: activityOf(state) })
+        return `${state ?? "absent"}=${view.subtitleText}`
+      })
+      .join(" | ")}`
+  })
 }
 
 /** A project (`main`) row resolves its branch from the repo checkout, not from
