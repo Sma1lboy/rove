@@ -22,7 +22,7 @@ let dir: string
 let store: TaskIndexStore
 let orch: Orchestrator
 let worktrees: {
-  isDirty: ReturnType<typeof vi.fn>
+  dirtyPaths: ReturnType<typeof vi.fn>
   remove: ReturnType<typeof vi.fn>
   pathExists: ReturnType<typeof vi.fn>
 }
@@ -33,7 +33,7 @@ beforeEach(async () => {
   store = new TaskIndexStore({ homeDir: home })
   await store.load()
   worktrees = {
-    isDirty: vi.fn(async () => true),
+    dirtyPaths: vi.fn(async () => ["notes.md"]),
     remove: vi.fn(async () => {}),
     pathExists: vi.fn(async () => true),
   }
@@ -72,11 +72,11 @@ describe("openDirectoryTask", () => {
 
   it("delete drops the index entry and NEVER removes the directory", async () => {
     const task = await orch.openDirectoryTask({ dir })
-    // isDirty returns true — a dir task must skip the dirty gate entirely
+    // dirtyPaths reports changes — a dir task must skip the dirty gate entirely
     // (nothing on disk is at risk) and must never call worktrees.remove.
     await orch.deleteTask(task.id)
     expect(orch.getTask(task.id)).toBeUndefined()
-    expect(worktrees.isDirty).not.toHaveBeenCalled()
+    expect(worktrees.dirtyPaths).not.toHaveBeenCalled()
     expect(worktrees.remove).not.toHaveBeenCalled()
   })
 

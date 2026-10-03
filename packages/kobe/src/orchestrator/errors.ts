@@ -50,7 +50,11 @@ export const DIRTY_WORKTREE_CODE = "DIRTY_WORKTREE"
  * {@link describeDirtyWorktreeWork} is shared with `GitWorktreeManager.remove`'s
  * refusals — remote callers see only the message either way.
  */
-export function describeDirtyWorktreeWork(ignored: readonly string[] | "unknown"): string {
+export function describeDirtyWorktreeWork(
+  ignored: readonly string[] | "unknown",
+  dirty: readonly string[] = [],
+): string {
+  if (dirty.length > 0) return `uncommitted or untracked changes: ${namePaths(dirty)}`
   return ignored === "unknown"
     ? "gitignored work this check could not read (git status --ignored failed) — nothing here can confirm it is empty"
     : ignored.length > 0
@@ -58,12 +62,35 @@ export function describeDirtyWorktreeWork(ignored: readonly string[] | "unknown"
       : "uncommitted or untracked changes"
 }
 
+/** Paths a dirty refusal names before collapsing the rest into a count. */
+export const DIRTY_PATHS_SHOWN = 10
+
+function namePaths(paths: readonly string[]): string {
+  const shown = paths.slice(0, DIRTY_PATHS_SHOWN).join(", ")
+  const more = paths.length - DIRTY_PATHS_SHOWN
+  return more > 0 ? `${shown} (+${more} more)` : shown
+}
+
+/**
+ * What a {@link DIRTY_WORKTREE_CODE} refusal says after its code, or `null`
+ * when `err` is not one. Matches the message because `name` does not survive
+ * the daemon wire.
+ */
+export function dirtyRefusalReason(err: unknown): string | null {
+  const message = errorMessage(err)
+  const at = message.indexOf(DIRTY_WORKTREE_CODE)
+  if (at < 0) return null
+  return message.slice(at + DIRTY_WORKTREE_CODE.length).replace(/^:\s*/, "")
+}
+
 export class DirtyWorktreeError extends Error {
   constructor(
     public readonly taskId: string,
     public readonly ignored: readonly string[] | "unknown" = [],
+    /** Porcelain-dirty paths; empty when only gitignored work refused. */
+    public readonly dirty: readonly string[] = [],
   ) {
-    super(`${DIRTY_WORKTREE_CODE}: task ${taskId} worktree has ${describeDirtyWorktreeWork(ignored)}`)
+    super(`${DIRTY_WORKTREE_CODE}: task ${taskId} worktree has ${describeDirtyWorktreeWork(ignored, dirty)}`)
     this.name = "DirtyWorktreeError"
   }
 }

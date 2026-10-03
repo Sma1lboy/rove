@@ -44,14 +44,14 @@ export class TaskDeletionCoordinator {
     // A `dir` task's directory is user-owned and never touched; only the index
     // entry goes, so no dirty gate.
     if (task.worktreePath && !force && task.kind !== "dir") {
-      let dirty = false
+      let dirty: readonly string[] = []
       // Gitignored files aren't porcelain-dirty but don't survive removal
       // (`HANDOFF.md`, `.scratch/**`, `.env*` here). Porcelain alone let a
       // notes-only worktree delete with no force, confirm or salvage ref.
       let ignored: IgnoredWorkProbe = []
       let probed = true
       try {
-        dirty = await this.worktrees.isDirty(task.worktreePath)
+        dirty = await this.worktrees.dirtyPaths(task.worktreePath)
       } catch {
         // Missing/unreadable path: remove() resolves it. Skip the ignored
         // probe too — it would answer "unknown" for a hand-removed worktree
@@ -60,8 +60,10 @@ export class TaskDeletionCoordinator {
       }
       // Outside that catch, so a failed ignored listing stays "unknown" and
       // never reads as "nothing here".
-      if (probed && !dirty) ignored = await this.worktrees.ignoredWork(task.worktreePath)
-      if (dirty || ignored === "unknown" || ignored.length > 0) throw new DirtyWorktreeError(task.id, ignored)
+      if (probed && dirty.length === 0) ignored = await this.worktrees.ignoredWork(task.worktreePath)
+      if (dirty.length > 0 || ignored === "unknown" || ignored.length > 0) {
+        throw new DirtyWorktreeError(task.id, ignored, dirty)
+      }
     }
 
     await this.store.update(task.id, {

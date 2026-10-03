@@ -20,7 +20,7 @@ import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { relativeAge } from "../../lib/relative-time"
-import { DIRTY_WORKTREE_CODE } from "../../orchestrator/errors"
+import { dirtyRefusalReason } from "../../orchestrator/errors"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import type { WorktreeAuditRow, WorktreeProject } from "../../types/worktree"
 import { useNotifications } from "../context/notifications"
@@ -35,21 +35,6 @@ import { landTaskAction } from "../workspace/land-task-action"
 
 function flattenRows(projects: readonly WorktreeProject[]): readonly WorktreeAuditRow[] {
   return projects.flatMap((p) => p.worktrees)
-}
-
-/**
- * Read a dirty refusal out of a daemon error, or `null`. The RPC layer keeps
- * only the message, so match the CODE (as `tui/lib/task-actions.ts` does):
- * `GitWorktreeManager.remove` refuses three ways (porcelain-dirty, `git status
- * --ignored` failed, gitignored work present) and all must reach the force
- * re-prompt. The returned reason names the gitignored paths when those
- * refused — `git status` can't show them.
- */
-function dirtyRefusalReason(err: unknown): string | null {
-  if (!(err instanceof Error)) return null
-  const at = err.message.indexOf(DIRTY_WORKTREE_CODE)
-  if (at < 0) return null
-  return err.message.slice(at + DIRTY_WORKTREE_CODE.length).replace(/^:\s*/, "")
 }
 
 /** Match a worktree row's path to a tracked task id (loose realpath tolerance). */

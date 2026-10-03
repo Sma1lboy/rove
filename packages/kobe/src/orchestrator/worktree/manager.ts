@@ -16,7 +16,7 @@ import path from "node:path"
 import type { ExecHost } from "../../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
-import { isDirtyOutput } from "../dirty-paths.ts"
+import { parseDirtyPaths } from "../dirty-paths.ts"
 import { type ExecCtx, type WorktreeExecDeps, defaultExecDeps } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import {
@@ -144,7 +144,7 @@ export class GitWorktreeManager implements WorktreeManager {
         execForPath: (p) => this.execDeps.execForPath(p),
         findRepoFor: (exec, p) => this.findRepoFor(exec, p),
         currentBranch: (p) => this.currentBranch(p),
-        isDirty: (p) => this.isDirty(p),
+        dirtyPaths: (p) => this.dirtyPaths(p),
         ignoredWork: (p) => this.ignoredWork(p),
         branchDeps: () => this.branchDeps(),
       },
@@ -239,11 +239,16 @@ export class GitWorktreeManager implements WorktreeManager {
   /** `status --porcelain` non-empty. Untracked counts, so `remove()` never
    *  nukes a fresh worktree's uncommitted new files. */
   async isDirty(worktreePath: string): Promise<boolean> {
+    return (await this.dirtyPaths(worktreePath)).length > 0
+  }
+
+  /** The paths behind {@link isDirty}, in `git status` order. */
+  async dirtyPaths(worktreePath: string): Promise<string[]> {
     const out = await this.runGit(this.execAt(worktreePath), ["status", "--porcelain"], {
       cwd: worktreePath,
       readOnly: true,
     })
-    return isDirtyOutput(out.stdout)
+    return parseDirtyPaths(out.stdout)
   }
 
   /**

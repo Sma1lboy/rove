@@ -22,6 +22,7 @@ import {
   DirtyWorktreeError,
   IllegalTransitionError,
   WorktreeRemoveFailedError,
+  dirtyRefusalReason,
 } from "../../src/orchestrator/errors.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import type { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
@@ -31,7 +32,7 @@ let home: string
 let store: TaskIndexStore
 let orch: Orchestrator
 let fakeWorktrees: {
-  isDirty: ReturnType<typeof vi.fn>
+  dirtyPaths: ReturnType<typeof vi.fn>
   ignoredWork: ReturnType<typeof vi.fn>
   remove: ReturnType<typeof vi.fn>
 }
@@ -41,7 +42,7 @@ beforeEach(async () => {
   store = new TaskIndexStore({ homeDir: home })
   await store.load()
   fakeWorktrees = {
-    isDirty: vi.fn(async () => false),
+    dirtyPaths: vi.fn(async () => []),
     ignoredWork: vi.fn(async () => []),
     remove: vi.fn(async () => {}),
   }
@@ -343,20 +344,31 @@ describe("deleteTask — safety ladder", () => {
 
   it("throws DirtyWorktreeError for a dirty worktree without force, keeping everything", async () => {
     const t = await makeTask({ worktreePath: "/wt/dirty" })
-    fakeWorktrees.isDirty.mockResolvedValue(true)
+    fakeWorktrees.dirtyPaths.mockResolvedValue(["notes.md"])
 
     await expect(orch.deleteTask(t.id)).rejects.toThrow(DirtyWorktreeError)
     expect(fakeWorktrees.remove).not.toHaveBeenCalled()
     expect(orch.getTask(t.id)).toBeDefined()
   })
 
+  it("the dirty refusal names the changed files, collapsing past ten into a count", async () => {
+    const t = await makeTask({ worktreePath: "/wt/dirty" })
+    const paths = Array.from({ length: 12 }, (_, i) => `src/f${i}.ts`)
+    fakeWorktrees.dirtyPaths.mockResolvedValue(paths)
+
+    const err = await orch.deleteTask(t.id).catch((e: unknown) => e)
+    expect(dirtyRefusalReason(err)).toBe(
+      `task ${t.id} worktree has uncommitted or untracked changes: ${paths.slice(0, 10).join(", ")} (+2 more)`,
+    )
+  })
+
   it("force bypasses the dirty check and removes worktree + entry", async () => {
     const t = await makeTask({ worktreePath: "/wt/dirty" })
-    fakeWorktrees.isDirty.mockResolvedValue(true)
+    fakeWorktrees.dirtyPaths.mockResolvedValue(["notes.md"])
 
     await orch.deleteTask(t.id, { force: true })
 
-    expect(fakeWorktrees.isDirty).not.toHaveBeenCalled()
+    expect(fakeWorktrees.dirtyPaths).not.toHaveBeenCalled()
     expect(fakeWorktrees.remove).toHaveBeenCalledWith(
       "/wt/dirty",
       expect.objectContaining({ force: true, deleteBranch: false }),
@@ -364,9 +376,9 @@ describe("deleteTask — safety ladder", () => {
     expect(orch.getTask(t.id)).toBeUndefined()
   })
 
-  it("an isDirty failure is treated as clean (remove decides on the missing dir)", async () => {
+  it("a dirty-probe failure is treated as clean (remove decides on the missing dir)", async () => {
     const t = await makeTask({ worktreePath: "/wt/gone" })
-    fakeWorktrees.isDirty.mockRejectedValue(new Error("not a worktree"))
+    fakeWorktrees.dirtyPaths.mockRejectedValue(new Error("not a worktree"))
 
     await orch.deleteTask(t.id)
 
@@ -389,7 +401,7 @@ describe("deleteTask — safety ladder", () => {
   it("a lazily-created task (no worktree yet) skips git entirely", async () => {
     const t = await makeTask()
     await orch.deleteTask(t.id)
-    expect(fakeWorktrees.isDirty).not.toHaveBeenCalled()
+    expect(fakeWorktrees.dirtyPaths).not.toHaveBeenCalled()
     expect(fakeWorktrees.remove).not.toHaveBeenCalled()
     expect(orch.getTask(t.id)).toBeUndefined()
   })

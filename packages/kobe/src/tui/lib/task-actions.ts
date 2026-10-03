@@ -10,7 +10,7 @@ import { availableEngineIds } from "@/engine/account-detect"
 import { hostedTaskKeys, killHostedSessions, listHostedSessions, openHostedSessionHost } from "@/engine/hosted-session"
 import { engineDisplayName } from "@/engine/interactive-command"
 import { errorMessage } from "@/lib/error-message"
-import { DIRTY_WORKTREE_CODE } from "@/orchestrator/errors"
+import { dirtyRefusalReason } from "@/orchestrator/errors"
 import { t } from "@/tui/i18n"
 import { DEFAULT_TASK_VENDOR, type Task, type TaskStatus, type VendorId } from "@/types/task"
 import { nextVendorWithin } from "@/types/vendor"
@@ -169,13 +169,14 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
     await ctx.orch.deleteTask(taskId)
     deleted = true
   } catch (err) {
-    const message = errorMessage(err)
-    if (message.includes(DIRTY_WORKTREE_CODE)) {
+    const reason = dirtyRefusalReason(err)
+    if (reason !== null) {
       const forceOk = await ctx.confirm({
         title: t("tasks.confirm.forceDeleteTitle", { title: task.title }),
         // Shared with the worktrees page's force-remove; it names the salvage
-        // snapshot every force path takes.
-        body: t("worktrees.delete.forceBody", { branch: task.branch || task.title }),
+        // snapshot every force path takes, and the refusal names the files.
+        // The title above already names the task; its raw id is noise here.
+        body: `${t("worktrees.delete.forceBody", { branch: task.branch || task.title })}\n\n${t("worktrees.delete.forceReason", { reason: reason.replace(`task ${taskId} `, "") })}`,
         cancelLabel: t("tasks.confirm.cancel"),
         confirmLabel: t("tasks.confirm.forceDeleteConfirm"),
         danger: true,
