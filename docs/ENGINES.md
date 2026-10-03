@@ -230,6 +230,12 @@ rules, which still distinguishes working from waiting-on-you but can't see a
 completed turn the way a transcript marker can. Rove labels the gap honestly
 rather than guessing.
 
+Screen detection runs only for tabs attached to an open TUI. A matched
+`blocked` rule reaches the sidebar and attention inbox within one poll
+(up to six seconds), unless a hook claim takes precedence. The claim clears
+when the dialog disappears or polling detaches. Unopened tabs still need
+hooks to report approval requests.
+
 **Pi and OMP differ from each other on waiting.** They share one adapter and
 one hook file — OMP is Stencil Labs' fork of the pi coding agent, so both
 load a TypeScript extension from `<agent dir>/extensions/` and dispatch the

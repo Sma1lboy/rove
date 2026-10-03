@@ -406,7 +406,12 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
 - **Files pane**: `[[file_handlers]]` claims opens by pattern.
 - **Engines**: `[[engines]]` contributes a coding CLI to the engine
   selector: identity, launch command, and screen-state rules for
-  working / needs-input badges. Beyond screen scraping, a wrapper can
+  working / needs-input badges. For tabs attached to an open TUI, a `blocked`
+  screen rule also updates the sidebar and attention inbox within one screen
+  poll (up to six seconds). Hook claims take precedence. The screen claim
+  clears when the dialog disappears or polling detaches; unopened tabs need
+  hook reports. Screen reports do not emit plugin lifecycle events.
+  Beyond screen scraping, a wrapper can
   report PRECISE activity itself: `rove api engine-report --kind
   turn-complete --engine <id>` drives the same badge / attention-inbox /
   plugin-event pipeline the built-in hook adapters use (kinds:

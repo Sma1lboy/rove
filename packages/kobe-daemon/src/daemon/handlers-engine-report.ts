@@ -14,6 +14,15 @@ import { scheduleQuotaResume } from "./quota-resume.ts"
 export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
   name: "engine.reportEvent",
   async handle(payload, ctx) {
+    if (payload.source === "screen") {
+      const taskId = requireString(payload, "taskId")
+      const tabId = requireString(payload, "tabId")
+      if (typeof payload.blocked !== "boolean") throw new Error("blocked must be a boolean")
+      if (ctx.activity.reportScreen(taskId, tabId, payload.blocked)) {
+        await ctx.inbox.record(taskId, payload.blocked ? "awaiting-input" : "turn-start", undefined, tabId)
+      }
+      return {}
+    }
     // Global hooks carry no task id; their `cwd` maps to a task by worktree
     // path, and an unmatched cwd is silently dropped.
     const kind = requireString(payload, "kind")

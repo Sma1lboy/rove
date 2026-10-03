@@ -112,6 +112,7 @@ export interface TerminalTabsProps {
   onTabVisited?: (tabId: string) => void
   /** Confirmed ESC interrupt; the host reports `turn-interrupted`. */
   onEngineInterrupt?: (tabId: string) => void
+  onScreenInput?: (tabId: string, blocked: boolean) => Promise<void>
   focused: boolean
   /** Ask the host to focus the workspace pane (terminal click). */
   onRequestFocus?: () => void
@@ -235,6 +236,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     notif,
     update,
     onEngineInterrupt: props.onEngineInterrupt,
+    onScreenInput: props.onScreenInput,
   })
 
   // Visiting clears the unread mark and reports upstream (visited = handled).
