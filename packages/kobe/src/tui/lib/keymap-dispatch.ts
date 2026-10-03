@@ -104,6 +104,8 @@ let dispatching = false
 export type PrefixConfiguration = {
   /** First stroke; null disables PureTUI prefix dispatch. */
   key: string | null
+  /** More first strokes that open the same layer. Hints print only `key`. */
+  extraKeys?: readonly string[] | undefined
   /** Maximum elapsed milliseconds between the two strokes. */
   timeoutMs: number
 }
@@ -112,6 +114,8 @@ export const DEFAULT_PREFIX_CONFIGURATION: Readonly<PrefixConfiguration> = { key
 
 let prefixConfiguration: PrefixConfiguration = { ...DEFAULT_PREFIX_CONFIGURATION }
 let prefixArmedAt: number | null = null
+/** The first stroke that armed the layer, for the HUD's history line. */
+let prefixArmedKey = ""
 let prefixArmedOnPassthrough = false
 let prefixArmedOptions: readonly PrefixHudOption[] = []
 let prefixTimer: ReturnType<typeof setTimeout> | null = null
@@ -133,6 +137,12 @@ export function currentPrefixConfiguration(): Readonly<PrefixConfiguration> {
   return prefixConfiguration
 }
 
+/** Every chord that opens the command layer, `key` first; empty when disabled. */
+export function prefixFirstStrokes(config: Readonly<PrefixConfiguration> = prefixConfiguration): string[] {
+  if (config.key === null) return []
+  return [config.key, ...(config.extraKeys ?? [])]
+}
+
 /** Cancel a prefix sequence when reload, a modal, or teardown intervenes. */
 export function resetPrefixState(): void {
   if (prefixTimer !== null) clearTimeout(prefixTimer)
@@ -143,9 +153,15 @@ export function resetPrefixState(): void {
   prefixHudSetArmed(false)
 }
 
-function armPrefix(now: number, options: readonly PrefixHudOption[], inputPassthrough: boolean): void {
+function armPrefix(
+  now: number,
+  options: readonly PrefixHudOption[],
+  inputPassthrough: boolean,
+  armedKey: string = prefixConfiguration.key ?? "",
+): void {
   resetPrefixState()
   prefixArmedAt = now
+  prefixArmedKey = armedKey
   prefixArmedOnPassthrough = inputPassthrough
   prefixArmedOptions = options.slice()
   prefixTimer = setTimeout(resetPrefixState, prefixConfiguration.timeoutMs)
@@ -179,7 +195,7 @@ export function invokeArmedPrefixAction(
 ): boolean {
   if (dispatching || prefixArmedAt === null) return false
   const snapshot = bindingStack.slice()
-  const armedPrefixKey = prefixConfiguration.key ?? ""
+  const armedPrefixKey = prefixArmedKey
   const validOption = prefixArmedOptions.some((option) => option.action === actionId && option.stroke === stroke)
   const expired = now - prefixArmedAt > prefixConfiguration.timeoutMs
   const crossedBoundary = inputPassthroughReachable(snapshot) !== prefixArmedOnPassthrough
@@ -326,7 +342,7 @@ export function dispatchKeyEvent(
       resetPrefixState()
     }
     if (prefixArmedAt !== null) {
-      const armedPrefixKey = prefixConfiguration.key ?? ""
+      const armedPrefixKey = prefixArmedKey
       const expired = now - prefixArmedAt > prefixConfiguration.timeoutMs
       prefixArmedAt = null
       if (expired) {
@@ -352,12 +368,13 @@ export function dispatchKeyEvent(
       }
     }
 
-    if (prefixConfiguration.key !== null && candidates.includes(prefixConfiguration.key)) {
+    const firstStroke = prefixFirstStrokes().find((key) => candidates.includes(key))
+    if (firstStroke !== undefined) {
       // The first stroke is Kobe-global, even over the terminal. With no
       // reachable prefix row, direct dispatch below lets passthrough win.
       if (prefixReachable(snapshot)) {
         const reach = scanReachability(snapshot)
-        armPrefix(now, reach.prefixOptions, reach.inputPassthrough)
+        armPrefix(now, reach.prefixOptions, reach.inputPassthrough, firstStroke)
         evt.preventDefault()
         return true
       }

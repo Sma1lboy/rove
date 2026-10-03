@@ -20,7 +20,7 @@ const KEYBINDINGS_STARTER = `# Rove keybindings — every line below is an examp
 # Press F1 in Rove for the live keymap with every binding id.
 #
 # prefix:
-#   key: ${DEFAULT_PREFIX_CONFIGURATION.key}                 # first stroke (null disables the layer)
+#   key: ${DEFAULT_PREFIX_CONFIGURATION.key}                 # first stroke, or a list of them (null disables the layer)
 #   timeoutMs: ${DEFAULT_PREFIX_CONFIGURATION.timeoutMs}             # second-stroke deadline
 #   bindings:
 #     chat.tab.new: t           # ${DEFAULT_PREFIX_CONFIGURATION.key}, then t

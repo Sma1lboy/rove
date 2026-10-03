@@ -101,6 +101,18 @@ describe("PureTUI prefix dispatch", () => {
     expect(directCalls).toBe(1)
   })
 
+  test("every configured prefix key opens the same command layer", () => {
+    const calls: string[] = []
+    configurePrefix({ key: "ctrl+a", extraKeys: ["ctrl+s"], timeoutMs: 5000 })
+    const stack = [registration(1, true, "t", () => calls.push("t"))]
+
+    expect(dispatchKeyEvent(stack, event("s", true), 100)).toBe(true)
+    expect(dispatchKeyEvent(stack, event("t"), 101)).toBe(true)
+    expect(dispatchKeyEvent(stack, event("a", true), 102)).toBe(true)
+    expect(dispatchKeyEvent(stack, event("t"), 103)).toBe(true)
+    expect(calls).toEqual(["t", "t"])
+  })
+
   test("escape cancels an armed prefix without running its second stroke", () => {
     let calls = 0
     const stack = [registration(1, true, "t", () => calls++)]

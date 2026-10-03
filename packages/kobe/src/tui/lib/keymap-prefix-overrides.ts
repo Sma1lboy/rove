@@ -13,6 +13,7 @@ export type PrefixOverridableBinding = {
 
 type PrefixConfigurationOverride = {
   key?: string | null
+  extraKeys?: string[] | undefined
   timeoutMs?: number
 }
 
@@ -73,6 +74,42 @@ function collectEntries(source: unknown, warnings: string[]): Map<string, string
   return out
 }
 
+/** One prefix chord, or null with a warning when it can't be a first stroke. */
+function prefixChord(raw: string, warnings: string[]): string | null {
+  const normalized = normalizeChord(raw)
+  if ("error" in normalized) warnings.push(`prefix.key: ${normalized.error}`)
+  else if (!normalized.chord.includes("+")) warnings.push("prefix.key must include a modifier")
+  else return normalized.chord
+  return null
+}
+
+/**
+ * `prefix.key` is one chord, a list (every entry opens the same command layer;
+ * the first is the one hints print), or null / [] to disable.
+ */
+function mergePrefixKey(raw: unknown, configuration: PrefixConfigurationOverride, warnings: string[]): void {
+  if (raw === null || (Array.isArray(raw) && raw.length === 0)) {
+    configuration.key = null
+    configuration.extraKeys = undefined
+    return
+  }
+  const rawKeys = typeof raw === "string" ? [raw] : Array.isArray(raw) ? raw : null
+  if (!rawKeys || rawKeys.some((key) => typeof key !== "string")) {
+    warnings.push("prefix.key must be a modifier chord, a list of them, or null")
+    return
+  }
+  const keys: string[] = []
+  for (const rawKey of rawKeys as string[]) {
+    const chord = prefixChord(rawKey, warnings)
+    if (chord !== null && !keys.includes(chord)) keys.push(chord)
+  }
+  const [primary, ...extra] = keys
+  if (primary === undefined) return
+  configuration.key = primary
+  if (extra.length > 0) configuration.extraKeys = extra
+  else configuration.extraKeys = undefined
+}
+
 function mergePrefixBlock(
   raw: unknown,
   configuration: PrefixConfigurationOverride,
@@ -84,16 +121,7 @@ function mergePrefixBlock(
     warnings.push("prefix must be a mapping")
     return
   }
-  if ("key" in raw) {
-    if (raw.key === null) configuration.key = null
-    else if (typeof raw.key !== "string") warnings.push("prefix.key must be a modifier chord or null")
-    else {
-      const normalized = normalizeChord(raw.key)
-      if ("error" in normalized) warnings.push(`prefix.key: ${normalized.error}`)
-      else if (!normalized.chord.includes("+")) warnings.push("prefix.key must include a modifier")
-      else configuration.key = normalized.chord
-    }
-  }
+  if ("key" in raw) mergePrefixKey(raw.key, configuration, warnings)
   if ("timeoutMs" in raw) {
     if (
       typeof raw.timeoutMs !== "number" ||
