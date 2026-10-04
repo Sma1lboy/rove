@@ -5,7 +5,7 @@
  */
 
 import { execFile, spawn } from "node:child_process"
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
@@ -69,6 +69,8 @@ describe("the launcher source", () => {
 })
 
 const alive = (pid: number): boolean => {
+  // process.kill(0) is THIS process's group: a missing pid must not read as live.
+  if (!(pid > 0)) return false
   try {
     process.kill(pid, 0)
     return true
@@ -104,7 +106,11 @@ describe.skipIf(process.platform !== "win32")("the real launcher (Windows)", () 
       shellJs,
       `require("child_process").spawn(process.execPath, [${JSON.stringify(middleJs)}], { stdio: "ignore" }); setInterval(() => {}, 1e9)`,
     )
-    const session = spawn(exe, [newPtyJobName(), process.execPath, shellJs], { stdio: "ignore", windowsHide: true })
+    const session = spawn(exe, [process.execPath, shellJs], {
+      stdio: "ignore",
+      windowsHide: true,
+      env: { ...process.env, [PTY_JOB_ENV]: newPtyJobName() },
+    })
     let orphan = 0
     for (let i = 0; i < 100 && !orphan; i++) {
       await new Promise((r) => setTimeout(r, 100))
@@ -123,5 +129,29 @@ describe.skipIf(process.platform !== "win32")("the real launcher (Windows)", () 
     const survived = alive(orphan)
     if (survived) process.kill(orphan)
     expect(survived).toBe(false)
+  }, 60_000)
+
+  it("still runs the command, exit code intact, when no job is named", async () => {
+    const launcher = await ensurePtyJobLauncher(join(dir, "bin"))
+    const env = { ...process.env }
+    delete env[PTY_JOB_ENV]
+    const code = await new Promise((r) =>
+      spawn(launcher.path as string, [process.execPath, "-e", "process.exit(5)"], { stdio: "ignore", env }).on(
+        "exit",
+        r,
+      ),
+    )
+    expect(code).toBe(5)
+  }, 60_000)
+
+  it("rebuilds a cached launcher that will not run, instead of crashing the host or giving up", async () => {
+    const bin = join(dir, "broken-bin")
+    mkdirSync(bin, { recursive: true })
+    // A truncated or quarantined build: Windows refuses to start it, and
+    // execFile throws synchronously.
+    writeFileSync(join(bin, launcherFileName()), "MZ not a program")
+    const launcher = await ensurePtyJobLauncher(bin)
+    expect(launcher.reason).toBeUndefined()
+    expect(launcher.path).toBe(join(bin, launcherFileName()))
   }, 60_000)
 })

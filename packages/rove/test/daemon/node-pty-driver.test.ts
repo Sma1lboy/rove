@@ -77,32 +77,31 @@ describe("nodePtyDriver", () => {
     })
   })
 
-  test("with a job launcher, spawns the launcher with a fresh job name ahead of the real argv", async () => {
+  test("with a job launcher, spawns the launcher ahead of the unchanged argv, the job named in the env", async () => {
     const pty = fakeNodePty()
     const launcher = "C:\\home\\.rove\\bin\\rove-pty-job-abc.exe"
     const driver = await nodePtyDriver(pty.spawn, undefined, { launcher, owner: "C:\\home\\.rove\\daemon.sock" })
     driver(request())
 
     expect(pty.spawnArgs?.file).toBe(launcher)
-    const [job, ...rest] = pty.spawnArgs?.args ?? []
-    expect(job).toMatch(/^Local\\rove-pty-[0-9a-f-]{36}$/)
-    expect(rest).toEqual(["C:\\Program Files\\Git\\bin\\bash.exe", "-ilc", "claude"])
+    // Nothing but the launcher's own path is added to the command line: the
+    // first prompt can ride it, and its length is capped.
+    expect(pty.spawnArgs?.args).toEqual(["C:\\Program Files\\Git\\bin\\bash.exe", "-ilc", "claude"])
     // The tab learns its job and whose it is, so a Rove started inside it can
     // tell "outlive the tab" (same instance) from "end with it" (nested).
-    expect(pty.spawnArgs?.options.env).toMatchObject({
-      KOBE_TASK_ID: "t1",
-      ROVE_PTY_JOB: job,
-      ROVE_PTY_JOB_OWNER: "C:\\home\\.rove\\daemon.sock",
-    })
+    const env = pty.spawnArgs?.options.env as Record<string, string>
+    expect(env.ROVE_PTY_JOB).toMatch(/^Local\\rove-pty-[0-9a-f-]{36}$/)
+    expect(env).toMatchObject({ KOBE_TASK_ID: "t1", ROVE_PTY_JOB_OWNER: "C:\\home\\.rove\\daemon.sock" })
   })
 
   test("gives every session its own job", async () => {
     const pty = fakeNodePty()
     const driver = await nodePtyDriver(pty.spawn, undefined, { launcher: "L.exe", owner: "sock" })
+    const jobOf = () => (pty.spawnArgs?.options.env as Record<string, string>).ROVE_PTY_JOB
     driver(request())
-    const first = pty.spawnArgs?.args[0]
+    const first = jobOf()
     driver(request())
-    expect(pty.spawnArgs?.args[0]).not.toBe(first)
+    expect(jobOf()).not.toBe(first)
   })
 
   test("without a job launcher, sets no job env", async () => {

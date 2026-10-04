@@ -48,11 +48,14 @@ export const PTY_JOB_ENV = "ROVE_PTY_JOB"
 export const PTY_JOB_OWNER_ENV = "ROVE_PTY_JOB_OWNER"
 
 /**
- * The launcher. argv: `<exe> <jobName> <command line…>`; everything after the
- * job name is passed to CreateProcess VERBATIM (node-pty already quoted it).
- * Ctrl+C / Ctrl+Break reach every console process: the launcher swallows them
- * with a handler (inherited by nobody) so only the shell and its children see
- * the interrupt. A job it cannot create or join still runs the command.
+ * The launcher. argv: `<exe> <command line…>`; everything after its own path
+ * is passed to CreateProcess VERBATIM (node-pty already quoted it). The job's
+ * name comes from {@link PTY_JOB_ENV}, not argv: the first prompt can ride
+ * the command line, and every character here is one it loses (measured
+ * 32686 → 32461 with the name in argv). Ctrl+C / Ctrl+Break reach every
+ * console process: the launcher swallows them with a handler (inherited by
+ * nobody) so only the shell and its children see the interrupt. Without a
+ * name, or a job it cannot create or join, it still runs the command.
  */
 export const PTY_JOB_LAUNCHER_CS = `
 using System;
@@ -83,12 +86,10 @@ static class RovePtyJob {
   static int SkipSpace(string s, int i) { while (i < s.Length && (s[i] == ' ' || s[i] == '\\t')) i++; return i; }
   static int Main() {
     string raw = Marshal.PtrToStringUni(GetCommandLine());
-    int nameStart = SkipSpace(raw, SkipToken(raw, 0));
-    int nameEnd = SkipToken(raw, nameStart);
-    string name = raw.Substring(nameStart, nameEnd - nameStart);
-    string rest = raw.Substring(SkipSpace(raw, nameEnd));
-    if (name.Length == 0 || rest.Length == 0) { Console.Error.WriteLine("rove-pty-job: usage: <job-name> <command line>"); return 2; }
-    IntPtr job = CreateJobObject(IntPtr.Zero, name);
+    string rest = raw.Substring(SkipSpace(raw, SkipToken(raw, 0)));
+    if (rest.Length == 0) { Console.Error.WriteLine("rove-pty-job: usage: <command line> (job name in ${PTY_JOB_ENV})"); return 2; }
+    string name = Environment.GetEnvironmentVariable("${PTY_JOB_ENV}");
+    IntPtr job = String.IsNullOrEmpty(name) ? IntPtr.Zero : CreateJobObject(IntPtr.Zero, name);
     if (job != IntPtr.Zero) {
       EXT info = new EXT();
       info.Basic.LimitFlags = 0x2000; // KILL_ON_JOB_CLOSE; no BREAKAWAY_OK (see module doc)
@@ -117,12 +118,26 @@ const COMPILE_TIMEOUT_MS = 30_000
 const SELF_TEST_TIMEOUT_MS = 10_000
 const SELF_TEST_EXIT_CODE = 7
 
-function run(file: string, args: readonly string[], timeout: number): Promise<{ code: number | null; output: string }> {
+/**
+ * Never rejects or throws: a file Windows refuses to run (truncated,
+ * quarantined) makes `execFile` throw SYNCHRONOUSLY (`EUNKNOWN`, measured),
+ * which would otherwise take the PTY host's boot down with it.
+ */
+function run(
+  file: string,
+  args: readonly string[],
+  timeout: number,
+  env?: NodeJS.ProcessEnv,
+): Promise<{ code: number | null; output: string }> {
   return new Promise((done) => {
-    const child = execFile(file, [...args], { windowsHide: true, timeout }, (err, stdout, stderr) => {
-      const output = `${stdout}${stderr}`.trim() || err?.message || ""
-      done({ code: child.exitCode, output })
-    })
+    try {
+      const child = execFile(file, [...args], { windowsHide: true, timeout, env }, (err, stdout, stderr) => {
+        const output = `${stdout}${stderr}`.trim() || err?.message || ""
+        done({ code: child.exitCode, output })
+      })
+    } catch (err) {
+      done({ code: null, output: (err as Error).message })
+    }
   })
 }
 
@@ -150,45 +165,64 @@ export type PtyJobLauncher =
   | { readonly path: string; readonly reason?: undefined }
   | { readonly path: null; readonly reason: string }
 
+/** Compile into `exe`; the failure, or null. */
+async function compileLauncher(binDir: string, exe: string): Promise<string | null> {
+  const csc = findCsc()
+  if (!csc) return "no .NET Framework csc.exe"
+  mkdirSync(binDir, { recursive: true })
+  const tag = `${process.pid}-${randomUUID().slice(0, 8)}`
+  const src = join(binDir, `rove-pty-job-${tag}.cs`)
+  const tmp = join(binDir, `rove-pty-job-${tag}.exe`)
+  try {
+    writeFileSync(src, PTY_JOB_LAUNCHER_CS)
+    const built = await run(csc, ["/nologo", "/target:exe", "/optimize+", `/out:${tmp}`, src], COMPILE_TIMEOUT_MS)
+    if (built.code !== 0 || !existsSync(tmp)) return `csc failed: ${built.output}`
+    try {
+      renameSync(tmp, exe)
+    } catch (err) {
+      // A concurrent host won the rename; its build is identical.
+      if (!existsSync(exe)) return `could not place ${exe}: ${(err as Error).message}`
+    }
+    return null
+  } finally {
+    rmSync(src, { force: true })
+    rmSync(tmp, { force: true })
+  }
+}
+
+/** Run `cmd /c exit 7` through the launcher in a throwaway job; the failure, or null. */
+async function selfTest(exe: string): Promise<string | null> {
+  const comspec = process.env.ComSpec || "cmd.exe"
+  const probe = await run(exe, [comspec, "/d", "/c", `exit ${SELF_TEST_EXIT_CODE}`], SELF_TEST_TIMEOUT_MS, {
+    ...process.env,
+    [PTY_JOB_ENV]: newPtyJobName(),
+  })
+  return probe.code === SELF_TEST_EXIT_CODE ? null : `self-test exited ${probe.code}: ${probe.output}`
+}
+
 /**
- * The launcher exe in `binDir`, compiled on first use and proven by running
- * `cmd /c exit 7` through it. `path: null` (with why) means "don't wrap".
+ * The launcher exe in `binDir`, compiled on first use and proven by the
+ * self-test. A cached build that fails it (truncated, quarantined) is rebuilt
+ * once, not trusted forever. Never throws: `path: null` (with why) means
+ * "don't wrap" — sessions then run exactly as before.
  */
 export async function ensurePtyJobLauncher(binDir: string): Promise<PtyJobLauncher> {
-  const exe = join(binDir, launcherFileName())
-  if (!existsSync(exe)) {
-    const csc = findCsc()
-    if (!csc) return { path: null, reason: "no .NET Framework csc.exe" }
-    try {
-      mkdirSync(binDir, { recursive: true })
-    } catch (err) {
-      return { path: null, reason: `cannot create ${binDir}: ${(err as Error).message}` }
+  try {
+    const exe = join(binDir, launcherFileName())
+    let cachedFailure: string | null = null
+    if (existsSync(exe)) {
+      cachedFailure = await selfTest(exe)
+      if (cachedFailure === null) return { path: exe }
+      rmSync(exe, { force: true })
     }
-    const tag = `${process.pid}-${randomUUID().slice(0, 8)}`
-    const src = join(binDir, `rove-pty-job-${tag}.cs`)
-    const tmp = join(binDir, `rove-pty-job-${tag}.exe`)
-    try {
-      writeFileSync(src, PTY_JOB_LAUNCHER_CS)
-      const built = await run(csc, ["/nologo", "/target:exe", "/optimize+", `/out:${tmp}`, src], COMPILE_TIMEOUT_MS)
-      if (built.code !== 0 || !existsSync(tmp)) return { path: null, reason: `csc failed: ${built.output}` }
-      // A concurrent host may have won the rename; its build is identical.
-      if (!existsSync(exe)) renameSync(tmp, exe)
-    } catch (err) {
-      return { path: null, reason: `compile failed: ${(err as Error).message}` }
-    } finally {
-      rmSync(src, { force: true })
-      rmSync(tmp, { force: true })
-    }
+    const compileFailure = await compileLauncher(binDir, exe)
+    if (compileFailure) return { path: null, reason: compileFailure }
+    const failure = await selfTest(exe)
+    if (failure === null) return { path: exe }
+    return { path: null, reason: cachedFailure ? `${failure} (rebuilt after: ${cachedFailure})` : failure }
+  } catch (err) {
+    return { path: null, reason: `launcher setup failed: ${(err as Error).message}` }
   }
-  const comspec = process.env.ComSpec || "cmd.exe"
-  const probe = await run(
-    exe,
-    [newPtyJobName(), comspec, "/d", "/c", `exit ${SELF_TEST_EXIT_CODE}`],
-    SELF_TEST_TIMEOUT_MS,
-  )
-  if (probe.code !== SELF_TEST_EXIT_CODE)
-    return { path: null, reason: `self-test exited ${probe.code}: ${probe.output}` }
-  return { path: exe }
 }
 
 /** Same address, however each side spelled it. */

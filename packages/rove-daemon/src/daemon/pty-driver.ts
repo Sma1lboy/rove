@@ -155,17 +155,15 @@ export async function nodePtyDriver(
       Object.entries(request.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
     )
     // With a job, the launcher is the PTY child and the shell its child,
-    // inside the job. Killing the launcher (kill(), taskkill) closes the job:
-    // the whole tree ends.
-    const jobName = job ? newPtyJobName() : null
-    const [spawnFile, spawnArgs, spawnEnv] =
-      job && jobName
-        ? [
-            job.launcher,
-            [jobName, file ?? "", ...args],
-            { ...env, [PTY_JOB_ENV]: jobName, [PTY_JOB_OWNER_ENV]: job.owner },
-          ]
-        : [file ?? "", args, env]
+    // inside the job (named by the env, see win-pty-job.ts). Killing the
+    // launcher (kill(), taskkill) closes the job: the whole tree ends.
+    const [spawnFile, spawnArgs, spawnEnv] = job
+      ? [
+          job.launcher,
+          [file ?? "", ...args],
+          { ...env, [PTY_JOB_ENV]: newPtyJobName(), [PTY_JOB_OWNER_ENV]: job.owner },
+        ]
+      : [file ?? "", args, env]
     const child = spawnPty(spawnFile, spawnArgs, {
       name: TERMINAL_NAME,
       cols: request.cols,

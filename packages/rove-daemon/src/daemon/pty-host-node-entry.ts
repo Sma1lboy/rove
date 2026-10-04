@@ -29,7 +29,10 @@ async function main(): Promise<void> {
   const log = (event: string, message: string) => console.log(formatPtyHostLine(event, message))
   // Every session in its own Job Object, so ending it ends what it spawned
   // (win-pty-job.ts). Without the launcher, sessions run as before.
-  const launcher = await ensurePtyJobLauncher(join(resolveDaemonHomeDir(), ROVE_STATE_DIR_BASENAME, "bin"))
+  // ensurePtyJobLauncher never rejects; the catch is the boot's own guarantee.
+  const launcher = await ensurePtyJobLauncher(join(resolveDaemonHomeDir(), ROVE_STATE_DIR_BASENAME, "bin")).catch(
+    (err: unknown) => ({ path: null, reason: String(err) }) as const,
+  )
   log("pty", launcher.path ? `session job launcher ${launcher.path}` : `session jobs off: ${launcher.reason}`)
   const driver = await nodePtyDriver(
     undefined,
