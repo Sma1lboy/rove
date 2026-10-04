@@ -51,18 +51,15 @@ export async function listBranchNames(deps: ListDeps, repo: string): Promise<rea
   requireAbsolute("repo", ctx.dir)
   let stdout: string
   try {
-    stdout = await deps.runGitStdout(ctx, [
-      "for-each-ref",
-      "--format=%(refname:short)",
-      "refs/heads",
-      "refs/remotes/origin",
-    ])
+    stdout = await deps.runGitStdout(ctx, ["for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/origin"])
   } catch {
     return []
   }
+  // Full refnames: `:short` renders `refs/remotes/origin/HEAD` as a bare
+  // `origin`, which would vote "bare" in style inference.
   const names = new Set<string>()
   for (const line of stdout.split("\n")) {
-    const name = line.trim().replace(/^origin\//, "")
+    const name = line.trim().replace(/^refs\/(?:heads|remotes\/origin)\//, "")
     if (name && name !== "HEAD") names.add(name)
   }
   return [...names]

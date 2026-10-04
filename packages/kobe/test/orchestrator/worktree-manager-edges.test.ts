@@ -244,3 +244,19 @@ describe("remove({ deleteBranch }) — the branch actually lives or dies", () =>
     expect(branchExists("kobe/unmerged")).toBe(false)
   })
 })
+
+describe("listBranchNames()", () => {
+  it("never reports origin/HEAD as a branch named `origin` in a clone", async () => {
+    const upstream = join(root, "names-upstream")
+    mkdirSync(upstream)
+    execSync("git init -q -b main && git commit -q --allow-empty -m init && git branch feat/x", {
+      cwd: upstream,
+      env: gitEnv,
+    })
+    const clone = join(root, "names-clone")
+    execSync(`git clone -q "${upstream}" "${clone}"`, { env: gitEnv })
+
+    // A stray `origin` is a bare-style vote that flips `main` + `feat/x` from typed to bare.
+    expect([...(await manager.listBranchNames(clone))].sort()).toEqual(["feat/x", "main"])
+  })
+})
