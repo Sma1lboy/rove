@@ -37,3 +37,15 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Landed tonight as a PR from `perf/nightly-2026-10-04`:** a simpler take on the 09-24 idea. Rows poll from a shared clock store (`tui/lib/sidebar-poll-clock.ts`) instead of effects keyed on `branchTick`; `branchTick` bumps only on `subscribeBackgroundPolls` (a poller wrote a changed value). Age-label and row-token rows subscribe to the clock via `useClockTick`. idle commits/frames 6 → 0; typing.perOp.commit.sidebar 0.2 → 0. perf:measure completed 2/2 with it.
 
 **Pre-existing on main:** `bun run lint` fails on `test/client/pty-child-probe.test.ts` formatting (fixed in the PR); render test "the Clone tab's parent dir walks the same way" fails on unmodified main.
+
+## 2026-10-04 (second run) — notes (main 1bfc6c3)
+
+**Baseline moved:** #1200 landed, so idle commits/frames went 6 → 0. Counters that never tick are left out of metrics.json, and `compare` read the absent side as "no data", so the drop showed with no ✓. The baseline now carries explicit zeros for those keys. The compare fix (absent phase counter = 0) is on `perf/nightly-2026-10-04-zero-counters`. The first run read boot.ready.ms 5328 (cold first run); the re-run read 2147.
+
+**Landed tonight as a PR from `perf/nightly-2026-10-04b`:** the terminal body's inline ref callback (`Terminal.tsx`) re-attached on every render, and its `setBodyEl(null)` → `setBodyEl(el)` scheduled a second render after each one. It stays inline only until the first geometry measurement; after that it passes the stable setter. typing.perOp.commit.root/workspace 2 → 1; switch.perOp.commit.root 10.6 → 9.5. typing.echo.p50 read 142/148/150 on main and 158/153/142.5/152.5 with the change: overlapping, noise.
+
+**Remaining:** the per-switch `git ls-files` (see 09-28). `engine.foregroundWalk` (`ps -A`) runs every 2 s while a terminal tab is shown, so it is the source of typing.perOp.spawns 0.2. It is not covered by idle (no tab is shown yet during the idle phase).
+
+**Fixture:** after #1201 the visual fixture's PTY command repeats every `ROVE_*` variable twice (`e2e/visual-fixture.ts`). This is harmless, but it is leftover from the rename.
+
+**Pre-existing on main:** render tests "the Clone tab's parent dir walks the same way" and "a multi-line paste is delivered as one paste, never as Enter" fail on unmodified main.
