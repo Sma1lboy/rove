@@ -1,5 +1,12 @@
 # kobe-web
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @sma1lboy/rove-daemon@0.7.20
+
 ## 0.0.8
 
 ### Patch Changes

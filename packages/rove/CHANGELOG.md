@@ -1,5 +1,114 @@
 # Changelog
 
+## 0.9.239
+
+### Patch Changes
+
+- [#1198](https://github.com/Sma1lboy/rove/pull/1198) [`1964d02`](https://github.com/Sma1lboy/rove/commit/1964d027a30907363e55862a527e615e1e11e579) Auto-generated branch names follow a typed convention (`feat/…`, `fix/…`) in cloned repos again. Branch-style inference read `origin/HEAD` as an extra branch literally named `origin`, so every clone cast one phantom "bare" vote: a repo with only `main` and `feat/x` named a new task `add-login` instead of `feat/add-login`, and the phantom `origin` also counted as a taken name. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1196](https://github.com/Sma1lboy/rove/pull/1196) [`6fc6a00`](https://github.com/Sma1lboy/rove/commit/6fc6a002cdb6550aea07e51975737579053ed089) The configuration reference listed `appearance.splitStyle` twice, once with only `box` and `line`; the stale row is gone and the full `box | line | rail | rule` row remains. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#839](https://github.com/Sma1lboy/rove/pull/839) [`01812d3`](https://github.com/Sma1lboy/rove/commit/01812d331d68d14b0a74d54f3dd1c23dab1315ee) Order the durable PTY/engine death records by a proper strict-weak comparator so `rove api inspect` and the retention cap agree on "newest first". Both read sites sorted with a non-transitive `a.at < b.at ? 1 : -1` shorthand that claimed each of two same-instant records preceded the other; a burst of engine deaths the activity observer stamps in one sweep therefore landed in an engine-defined order, and at the 50-record cap which of that tied burst survived was arbitrary. A single shared comparator ties on equal timestamps and keeps the stable order, so the two sites can no longer drift. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1172](https://github.com/Sma1lboy/rove/pull/1172) [`158b04b`](https://github.com/Sma1lboy/rove/commit/158b04b583d7dfa6e744810d9a735290b65e3eac) Explain engine hook readiness using observed session evidence and engine-owned setup instructions. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1174](https://github.com/Sma1lboy/rove/pull/1174) [`6f5e4a1`](https://github.com/Sma1lboy/rove/commit/6f5e4a1b06315b63240cd526d10a7a6c3cae578f) Explain that managed tasks isolate worktrees while directory and project tasks reuse existing files. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1171](https://github.com/Sma1lboy/rove/pull/1171) [`1f522dc`](https://github.com/Sma1lboy/rove/commit/1f522dc582682a9f12fc5803976c354ea9ed6eed) Preserve accepted first-run setup choices and finalize installations consistently across launch paths, with explicit queued states and retryable failures. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1173](https://github.com/Sma1lboy/rove/pull/1173) [`e34aa6a`](https://github.com/Sma1lboy/rove/commit/e34aa6a565c52336d4b3d5776576080639e208b3) Distinguish live reattachment, historical output and newly relaunched commands; clarify sleep, detach and reboot behavior. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#942](https://github.com/Sma1lboy/rove/pull/942) [`9a7feb4`](https://github.com/Sma1lboy/rove/commit/9a7feb4cc09d64a4d655d6920f583661149433e9) Fix inflated token totals for Claude tasks. The session usage snapshot — the numbers behind the footer's token chip and the settings usage dashboard — summed usage once per transcript record, but Claude Code writes one record per assistant content block (thinking, tool_use, text) and stamps the same usage on each, so a single reply counted its cost two or three times over. Usage is now folded per assistant message id, so each message counts once; the reported context window (the last prompt's size) is unchanged. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1195](https://github.com/Sma1lboy/rove/pull/1195) [`a000d46`](https://github.com/Sma1lboy/rove/commit/a000d468409c502d2cffe2f5bca6fc0a5ae9e7a2) The force-delete confirm now lists the uncommitted files it would sweep into the salvage snapshot — the first ten, then a count of the rest — on the task row as well as the Worktrees page, and `rove api delete` names them in its `DIRTY_WORKTREE` refusal. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1186](https://github.com/Sma1lboy/rove/pull/1186) [`1439e8a`](https://github.com/Sma1lboy/rove/commit/1439e8ac6ae7e4828bf15a388f3075acbda61531) Plain `h` / `l` now move sideways wherever `←` / `→` already do, vim-style. The new-task selector fields, the engine/effort picker, the issue-detail status/engine/jump rows, the automation schedule segments, the Kanban board cursor, and the quick-task composer's attempts/engine chip rows all answer to `h`/`l`; the dialogs that already had the pair are unchanged. They are additions only — the arrow keys keep working — and each chord sits behind the same scope as its arrow twin, so a focused text field, the composer and `/`-search keep `h`/`l` as ordinary letters. The sidebar is the one deliberate exception: `l` there already opens the row under the cursor, so its `right` stays alone. — [@wisp-agent-ai](https://github.com/wisp-agent-ai)
+
+- [#1007](https://github.com/Sma1lboy/rove/pull/1007) [`23f4d29`](https://github.com/Sma1lboy/rove/commit/23f4d2990db34417bdbc055145c02f8dacafcd35) Keep a live task in the Inbox's RECENT list after you close the last tab you visited it through. Visiting a task records a per-tab entry, and a RECENT row whose tab has since closed is dropped so several closed tabs of one task don't read as duplicate rows — but when every visited tab of a task was closed, the task was still counted as "seen" and so fell out of the task-level fallback too, disappearing from the Inbox entirely even though it was still open. It now falls back to a single task-level RECENT row, exactly like a task you never visited. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1205](https://github.com/Sma1lboy/rove/pull/1205) [`de443e4`](https://github.com/Sma1lboy/rove/commit/de443e4d863a1c848bc39af3aa4b3263aaf468d1) Narrow terminals (below 70 columns) now show a clickable `‹ Tasks` row at the top-left of the workspace, with its key, so you can get back to the task list without already knowing `ctrl+q`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#698](https://github.com/Sma1lboy/rove/pull/698) [`8587651`](https://github.com/Sma1lboy/rove/commit/85876519fc6f861ddd5612949525d24179584746) A changed file whose name begins with a literal double-quote now keeps its +/- line counts in the file tree and sidebar instead of silently losing them. `git diff --numstat -z` emits raw paths, so such a name was being mistaken for a quoted one and mangled, orphaning its counts from the status row. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1147](https://github.com/Sma1lboy/rove/pull/1147) [`20ff740`](https://github.com/Sma1lboy/rove/commit/20ff740c8e48c1ca9049aa6c4d9f354b5610fdf3) Added IBM Bob as a built-in engine with conversation history, per-session token and context counts, worktree session discovery, and signed-in status from its local store. Rove checks for an opaque token without decoding credentials.
+
+  Rove launches `bob chat --trust`, pre-writes workspace trust, and pastes the first message because Bob does not accept a positional prompt. Bob can be selected for parallel rounds with `rove api add --agents bob:3 --prompt "…"`.
+
+  The screen manifest recognizes command approval, folder trust, and browser sign-in as blocked, streaming as working, and the resting composer as idle. Bob 2.0.5 does not fire the tested hooks, so Rove discovers sessions through history. Bob conversations do not resume across tab restarts. — [@PengyuChen01](https://github.com/PengyuChen01)
+
+- [#929](https://github.com/Sma1lboy/rove/pull/929) [`419af4b`](https://github.com/Sma1lboy/rove/commit/419af4b175e44b94d10ea55027fc04388a3570a4) Read a worktree's packed refs correctly when the checkout's own path contains a `refs` substring.
+
+  Match packed refs by ref name so paths such as `prefs/` no longer make existing refs appear absent to the base-ref and behind-count caches. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1185](https://github.com/Sma1lboy/rove/pull/1185) [`e1ea251`](https://github.com/Sma1lboy/rove/commit/e1ea251761419bfceaf50b888ee5b09b66bffd86) A render error in one part of the window no longer blanks all of Rove. The task list, the workspace, the file tree, and full-window pages each catch their own error and show a card naming what broke, while the rest keeps working. The card clears itself when you pick another task or open another page, and its `[ retry ]` button redraws that part in place. Each error still lands in `~/.rove/client.log` under `[pane-crash]`, now tagged with the part that failed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1184](https://github.com/Sma1lboy/rove/pull/1184) [`187a92e`](https://github.com/Sma1lboy/rove/commit/187a92edca56d713e948fe08e14847d706573420) `prefix.key` in keybindings.yaml takes a list, so `[ctrl+a, ctrl+s]` opens the command layer from either key; hints keep printing the first. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1181](https://github.com/Sma1lboy/rove/pull/1181) [`13b6b15`](https://github.com/Sma1lboy/rove/commit/13b6b15c768234eb61f8fa412fe132cb2b8e590c) Right-click a project header to move the project to the top of the sidebar in one step, or pick "Reorder project" to start reordering it with j/k right away. Entering reorder mode now keeps focus in the sidebar and no longer opens the row's session. — [@ZHallen122](https://github.com/ZHallen122)
+
+- [#1194](https://github.com/Sma1lboy/rove/pull/1194) [`02dddc8`](https://github.com/Sma1lboy/rove/commit/02dddc8b5633ca6ee0ce1abf196ec662771565d1) `rove remove <ssh-key> --purge-credentials=false` no longer deletes the remote project's SSH password from the OS keychain. Any `--purge-credentials=<value>` used to count as "purge", so the explicit opt-out did the irreversible delete; `=true/1/yes` and `=false/0/no` now mean what they say, and any other value exits 2 with the usage text before the project is forgotten. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1187](https://github.com/Sma1lboy/rove/pull/1187) [`d9653bd`](https://github.com/Sma1lboy/rove/commit/d9653bd16d2e58d6d7f600ca0e0a4aab275e7d96) A repo init override set from one spelling of a repository path is now found from another. On macOS the git toplevel is spelled `/private/var/…` when resolved from a subdirectory but kept as the caller's `/var/…` at the root, so an override written at the root was silently dropped by `rove repo show` run from a subdirectory. — [@wisp-agent-ai](https://github.com/wisp-agent-ai)
+
+- [#1201](https://github.com/Sma1lboy/rove/pull/1201) [`1bfc6c3`](https://github.com/Sma1lboy/rove/commit/1bfc6c30048a578bb1123fa3c9de1de9d3b97a00) Retire the former product namespace from packages, commands, configuration, and environment variables. Use `rove`, `@sma1lboy/rove`, and `@sma1lboy/rove-plugin-sdk` exclusively.
+
+  Removed compatibility interfaces, using `former` for the retired product spelling documented in the npm note in `docs/agents/dev-loop.md`:
+
+  - CLI: `former`, `dev:former`, `daemon:former`, `src/cli/former.ts`, and the invocation/environment compatibility wrapper.
+  - Packages: `@sma1lboy/former-daemon`, `@sma1lboy/former-docs`, `@sma1lboy/former-landing`, `former-harness`, `former-branding`, the SDK package alias, and all six `packages/former*` directories. Use their `rove` equivalents.
+  - Repository files: `.former/init.sh`, `init-prompt.md`, `pr-instructions.md`, and `ci-instructions.md`; `former-plugin.toml`; the `former-plugin` marketplace topic.
+  - SDK: `former()`, `formerJson()`, `FormerSocket`, `FormerSocketOptions`, `FormerRunOptions`, and `FormerRunResult`. Use the corresponding Rove exports.
+  - Fields: `formerVersion`, `formerManaged`, and `min_former_version`. Use `roveVersion`, `roveManaged`, and `min_rove_version`.
+  - Paths: `~/.former`, `~/.config/former/state.json`, `.agents/skills/former`, `.claude/skills/former`, former-named shell completions, runtime sockets, Windows named pipes, temporary sockets, logs, and developer fixtures. New processes create only Rove names; repository-file and skill fallbacks are removed.
+  - Environment: all variables with the retired uppercase product prefix are removed. The following observed suffixes now use only `ROVE_`; existing canonical twins are kept once:
+
+  ```text
+  ANTHROPIC_API_KEY, BIN_PATH, BRAND_THEME, CHAT_ENGINE, CLI, CODEX_HOOK_EVENTS, COMMAND,
+  CONFIG_DIR_BASENAME, COVERAGE_DAEMON, COVERAGE_MIN, DAEMON_AUTOSPAWNED, DAEMON_IDLE_GRACE_MS,
+  DAEMON_PID_PATH, DAEMON_SOCKET_PATH, DAEMON_SPAWN_REASON, DAEMON_WEB_PORT, DEBUG, DEV, DIR,
+  ENGINE_STATE_TTL_MS, ENV_PREFIX, FAKE_UPDATE, HOME, HOME_DIR, HOOK_DEBUG, HOOK_EVENTS, I18N,
+  INCLUDE_BEHAVIOR, INCLUDE_SOCKET, INVOKED_AS, ISSUES_TODAY, KEYCHAIN_SERVICE, KIMI_HOOK_EVENTS,
+  NOTIFY_DELAY, NOTIFY_QUIET, NOTIFY_SOUND, NOTIFY_TITLE, OPEN_EDITOR, PLUGIN_, PLUGIN_ACTION_ID,
+  PLUGIN_CONFIG_DIR, PLUGIN_ENTRYPOINT_ID, PLUGIN_EVENT, PLUGIN_EVENT_JSON, PLUGIN_ID,
+  PLUGIN_OPENAI_KEY, PLUGIN_ROOT, PLUGIN_STATE_DIR, PLUGIN_TASK_ID, PROBE, PRODUCT_NAME, PTY_CAST,
+  PTY_DEV_COMMAND, PTY_DEV_CWD, PTY_DEV_SHELL, PTY_IDLE_EXIT_MS, PTY_MAX_LIFETIME_MS, PTY_PARENT_PIPE,
+  PTY_PID_PATH, PTY_PORT, PTY_SOCKET_PATH, RENDER_COVERAGE, REPLAY_CLAUDE_COMMAND, REPLAY_E2E,
+  RESUME_CWD, SANDBOX_HOME_DIR, SKILL_VERSION, SKIP_DEP_CHECK, SOCKET_PATH, STATE_DIR_BASENAME,
+  TAB_ID, TASK_ID, TERMINAL_BACKEND, TERMINAL_PIPE, TERMINAL_PTY, TERMINAL_TITLE_SEQUENCE,
+  TEST_ENGINE, TEST_FAKE_PORT, TMUX, TMUX_SOCKET, TUI, UPDATE_GOLDEN, VISUAL, VISUAL_FRESH,
+  VISUAL_KEEP, VISUAL_MIN_PATH, VISUAL_PORT_BASE, WEB_HOST, WEB_PORT, WORKTREE_ROOT_SUBPATH
+  ```
+
+  Temporary compatibility, remove next minor: the internal `LEGACY_PRE_RENAME_RUNTIME_NAME` constant permits attachment to already-running pre-rename PTY hosts and access to their existing state. Canonical endpoints are tried first. Nothing creates a legacy listener or compatibility symlink. The running PTY host retains its boot-time build and sessions until it exits or `rove reset` runs.
+
+  Deployment owners must change the docs and landing Vercel projects' Root Directory settings to `packages/rove-docs` and `packages/rove-landing` respectively. Dashboard settings are not changed by this patch.
+
+  After import, non-live sources move out of the retired state directories. Conflicting bytes are preserved under `.rove/migration-conflicts`; live runtime files and existing Git worktrees retain their addresses. Retirement retries independently of import markers. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1190](https://github.com/Sma1lboy/rove/pull/1190) [`9a0991b`](https://github.com/Sma1lboy/rove/commit/9a0991b8d7e5edcfe80f2025210512b7737d6cb5) Show approval dialogs detected on attached engine screens in the sidebar and attention inbox. Clear the screen claim when the dialog disappears or the tab detaches, while preserving hook-reported activity. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1197](https://github.com/Sma1lboy/rove/pull/1197) [`7b6d10d`](https://github.com/Sma1lboy/rove/commit/7b6d10d4410979a0597086cc5d00bbb06cb573af) Internal: the kimi/pi trust writers, pi history and field notes share one symlink-resolving path helper. No behavior change. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1200](https://github.com/Sma1lboy/rove/pull/1200) [`9effc27`](https://github.com/Sma1lboy/rove/commit/9effc273c3da9d859967b0fb892cad755a31a7fc) An idle sidebar no longer repaints every two seconds. Rows still poll git on the same cadence, but the tree redraws only when a poll brings back a different branch or change count, and only rows showing an age label or an expiring plugin token tick on their own. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1204](https://github.com/Sma1lboy/rove/pull/1204) [`04c1300`](https://github.com/Sma1lboy/rove/commit/04c1300c90c9f8d4d6709f703bff05b071178db2) The sidebar's `t` sort cycle gains a `name` stop that lists each project's tasks A→Z by title, with numbers in numeric order. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1202](https://github.com/Sma1lboy/rove/pull/1202) [`adb8978`](https://github.com/Sma1lboy/rove/commit/adb8978605634755545d00317afabb59135fa8c1) Typing into a terminal tab does half the React work per key. The terminal body re-attached its measuring ref on every render, and each re-attach scheduled a second render; it now does that only until the pane has its first real size, so each keystroke's echo renders once instead of twice, and a task switch renders about once less. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1188](https://github.com/Sma1lboy/rove/pull/1188) [`8dbfbdd`](https://github.com/Sma1lboy/rove/commit/8dbfbdd449613982307b027d2683a97fd5b0d3a3) Reclaim harness terminal sessions after the ten-minute reconnect grace period or shutdown while preserving detached services. Let Windows console cleanup finish before the harness exits. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1189](https://github.com/Sma1lboy/rove/pull/1189) [`2123591`](https://github.com/Sma1lboy/rove/commit/2123591cdb42a2d2f81a29d610de544b1aef682b) Keep the sidebar cursor on the same row when projects or tasks reorder, including Move to top, without interrupting keyboard navigation on background refreshes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1017](https://github.com/Sma1lboy/rove/pull/1017) [`7fe6407`](https://github.com/Sma1lboy/rove/commit/7fe6407c8005b6d20a4847a8bf035aa30c079e1e) Align the Settings usage dashboard's quota rows by display width instead of character count. A scoped weekly window is labelled with its model display name, and the label column was measured and padded in UTF-16 code units, so a wide-glyph or CJK name (rove defaults to Simplified Chinese) was sized at half its real width and dragged every meter to its right out of alignment. The column now measures cells, pads to cells, and trims an over-long name on a glyph boundary with a trailing ellipsis instead of a silent hard cut — so "Extremely Long Model Name" reads as "Extreme…" rather than the misleading "Extremel". — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#421](https://github.com/Sma1lboy/rove/pull/421) [`86120d4`](https://github.com/Sma1lboy/rove/commit/86120d4ac6499d851c3f914c44f1ad2370ff8978) Fix the harness PTY sidecar rejecting browser requests with a 403 when `ROVE_WEB_HOST` contains uppercase letters, such as `MyMac.local`. Compare the allowed bind hostname case-insensitively with the URL parser's normalized Origin hostname while continuing to reject other hosts. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1182](https://github.com/Sma1lboy/rove/pull/1182) [`6cb83b8`](https://github.com/Sma1lboy/rove/commit/6cb83b8e79be0bf367d57a7f769a29ac50b68768) On Windows, closing a tab, deleting a task, or `rove reset` now ends everything the session started. Before, a process whose parent had already exited survived all three: a dev server an engine's Bash tool put in the background, `start /b`, a `detached` node child, or a nested Rove (`dev:sandbox`) an agent launched, with its daemon, PTY host and engine. Windows never reparents, so the `taskkill /T` tree walk could not reach them. Each hosted session now runs inside its own Job Object, and ending the session closes the job. A daemon of the same Rove instance started from inside a tab (an agent's `rove daemon restart`) still outlives the tab. macOS and Linux are unchanged. A running PTY host picks this up after `rove reset`. — [@ZHallen122](https://github.com/ZHallen122)
+
+- [#984](https://github.com/Sma1lboy/rove/pull/984) [`2d8bc76`](https://github.com/Sma1lboy/rove/commit/2d8bc764b3d173920fde7551493a18d885f7ca7c) Rove on Windows no longer hangs silently while opening a session. Connecting to the daemon or PTY host had no deadline, and on Windows that address is a named pipe: a connect waits for a free pipe instance instead of failing, so the first probe could hang forever with no output. It now gives up after five seconds and names the address it was waiting on. The guard that refuses to restart a PTY host still holding live sessions also works on Windows now. It used to read the process list through `/bin/ps`, which does not exist on Windows, and counted the failure as zero sessions, so Rove could kill the host and every engine in it. It now reads the list through PowerShell, and if it cannot read the list it refuses the restart instead of assuming zero. — [@wisp-agent-ai](https://github.com/wisp-agent-ai)
+
+- [#955](https://github.com/Sma1lboy/rove/pull/955) [`fccab85`](https://github.com/Sma1lboy/rove/commit/fccab850f4d5cc2a277a630750a3142f3183ef89) **`rove update` on Windows no longer dies with `EBUSY` on `opentui.dll` every second time.** npm moves the old package to a sibling `.rove-<hash>` directory before unpacking the new one and deletes it afterwards, but Windows refuses to delete a DLL a running process has mapped — and a running Rove (the daemon, the PTY host, an open TUI) is the normal state during an update. npm swallowed that, reported success, and left the directory behind; since the hash comes from the path, the next update targeted the same directory, fell back to a file-by-file copy, and failed copying onto the still-mapped DLL. The update script now sweeps those leftovers before npm runs: it deletes what can be deleted (all of it, once the old build has exited) and moves what cannot out of npm's way, since Windows allows renaming a mapped file. When npm still reports `EBUSY`, the script now says a running Rove is holding files and names the remedy (quit Rove, `rove daemon stop`, retry) instead of leaving a bare errno. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.238
 
 ### Patch Changes

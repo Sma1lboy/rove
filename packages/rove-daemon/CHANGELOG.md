@@ -1,5 +1,12 @@
 # @sma1lboy/kobe-daemon
 
+## 0.7.20
+
+### Patch Changes
+
+- Updated dependencies [[`1bfc6c3`](https://github.com/Sma1lboy/rove/commit/1bfc6c30048a578bb1123fa3c9de1de9d3b97a00)]:
+  - @sma1lboy/rove-plugin-sdk@0.1.9
+
 ## 0.7.19
 
 ### Patch Changes
