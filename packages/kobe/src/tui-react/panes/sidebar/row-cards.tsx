@@ -2,14 +2,15 @@
 /**
  * Shared per-row hooks for the sidebar's rows.
  *
- * Poller contract (async canon): `poll*` fires from an effect keyed on
- * `branchTick`, never in render; the cached read is a synchronous getter at
- * render time. A finished poll surfaces on the next tick re-render: the tick
- * pulls, nothing pushes.
+ * Poller contract (async canon): `poll*` fires from the shared poll clock
+ * (`usePollOnClock`), never in render; the cached read is a synchronous getter
+ * at render time. A poll that lands a CHANGED value bumps the Sidebar's
+ * `branchTick`, which re-renders the rows; an unchanged one renders nothing.
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { sidebarPollClockSnapshot, subscribeSidebarPollClock } from "../../../tui/lib/sidebar-poll-clock"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../../tui/lib/spinner-frame-store"
 import type { SidebarRow } from "../../../tui/panes/sidebar/groups"
 import { DONE_PULSE_MS } from "../../../tui/panes/sidebar/row-view"
@@ -32,24 +33,35 @@ export function useSpinnerFrame(active: boolean): number {
   )
 }
 
+/** Polls `key` now and on every poll-clock tick, without re-rendering. */
+export function usePollOnClock(key: string | null | undefined, poll: (key: string) => void): void {
+  useEffect(() => {
+    if (!key) return
+    poll(key)
+    return subscribeSidebarPollClock(() => poll(key))
+  }, [key, poll])
+}
+
+/** Re-renders this row on each poll-clock tick ONLY while `active`: for output read off `Date.now()`. */
+export function useClockTick(active: boolean): number {
+  return useSyncExternalStore(
+    active ? subscribeSidebarPollClock : NOOP_SUBSCRIBE,
+    active ? sidebarPollClockSnapshot : ZERO_FRAME,
+  )
+}
+
 /** Per-row `+N −M` counts: daemon-pushed when available, else the local poller cache. */
 const NO_CHANGES: WorktreeChanges = { added: 0, deleted: 0 }
 
 export function useChanges(
   sources: {
-    readonly branchTick: number
     readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
   },
   task: SidebarRow["task"],
 ): WorktreeChanges | null {
   const pushed = pickPushedChanges(sources.worktreeChanges, task.worktreePath)
   const hasPushed = pushed !== null
-  useEffect(() => {
-    // Re-poll on the sidebar's ~2s tick.
-    void sources.branchTick
-    if (hasPushed) return
-    pollWorktreeChanges(task.worktreePath)
-  }, [hasPushed, task.worktreePath, sources.branchTick])
+  usePollOnClock(hasPushed ? null : task.worktreePath, pollWorktreeChanges)
   // No worktree yet = no uncommitted work (a fact, not unknown): no chip. Only
   // an existing worktree that can't be read is unknown.
   if (!task.worktreePath) return NO_CHANGES
