@@ -1,0 +1,186 @@
+/** @jsxImportSource @opentui/react */
+/**
+ * Settings → Engines writes a custom engine's PROTOCOL.
+ *
+ * A custom engine is a named preset, and `engineProtocol.<id>` is the field
+ * that makes every later `--command <id>` dispatch deterministic instead of
+ * sniffed. Three rules are pinned here because getting any of them wrong is
+ * silent:
+ *
+ *   - the step ORDER (id → command → protocol → name), since the flow
+ *     assigns answers positionally;
+ *   - the generic adapter is a CHOSEN row that writes NOTHING rather than a
+ *     junk key, so the preset degrades to the generic protocol instead of
+ *     claiming an adapter that would point the history reader at another
+ *     vendor's files, and cancelling the picker aborts the whole add;
+ *   - removing a preset clears its protocol, so re-adding the same id later
+ *     cannot inherit a stale declaration.
+ *
+ * `useEngineSettings` is a real hook, so it runs inside a mounted component
+ * here; the dialog prompts are scripted and the kv is the real provider,
+ * read back through `kv.get` — the disk write behind it is debounced, and
+ * what this suite is about is which keys the flow commits, not when they
+ * land.
+ */
+
+import { afterEach, describe, expect, it } from "bun:test"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { useEffect, useRef } from "react"
+import { EngineProtocolPickerDialog } from "../../src/tui-react/component/engine-protocol-picker-dialog"
+import { RenameTaskDialog } from "../../src/tui-react/component/rename-task-dialog"
+import { useEngineSettings } from "../../src/tui-react/component/settings-dialog/use-engine-settings"
+import { type KVContext, useKV } from "../../src/tui-react/context/kv"
+import { useDialog } from "../../src/tui-react/ui/dialog"
+import { renderComponent, settle } from "./harness"
+
+const NOOP = (): void => {}
+
+/**
+ * Answer each step of the flow with the next scripted string (or `undefined`
+ * to cancel), recording what each step asked for so a changed step ORDER can't
+ * silently reassign answers to the wrong fields. The text fields answer by
+ * their field label; the protocol step is a picker, so it records `PROTOCOL`.
+ */
+function scriptDialog(answers: readonly (string | undefined)[]) {
+  const asked: string[] = []
+  let i = 0
+  const originalRename = RenameTaskDialog.show
+  const originalPicker = EngineProtocolPickerDialog.show
+  // A step past the end of the script means the flow grew a field this suite
+  // doesn't answer. Throw rather than return undefined-as-cancel, so it
+  // surfaces as a failure here instead of a silently shortened flow.
+  const answer = (label: string): string | undefined => {
+    asked.push(label)
+    if (i >= answers.length) throw new Error(`unscripted step for "${label}"`)
+    return answers[i++]
+  }
+  RenameTaskDialog.show = (async (_dialog: unknown, _current: string, opts?: { fieldLabel?: string }) =>
+    answer(opts?.fieldLabel ?? "?")) as typeof RenameTaskDialog.show
+  EngineProtocolPickerDialog.show = (async () => answer("PROTOCOL")) as typeof EngineProtocolPickerDialog.show
+  const restore = (): void => {
+    RenameTaskDialog.show = originalRename
+    EngineProtocolPickerDialog.show = originalPicker
+  }
+  return { asked, restore }
+}
+
+/** Mount the hook and run one action against it, once, on mount. */
+function Driver(props: { onReady: (api: ReturnType<typeof useEngineSettings>, kv: KVContext) => void }) {
+  const kv = useKV()
+  const dialog = useDialog()
+  const api = useEngineSettings(kv, dialog, NOOP)
+  const fired = useRef(false)
+  useEffect(() => {
+    if (fired.current) return
+    fired.current = true
+    props.onReady(api, kv)
+  })
+  return <text>engines</text>
+}
+
+/**
+ * Fresh $ROVE_HOME_DIR + a mounted hook, with `run` driven from OUTSIDE the
+ * component and fully awaited before the returned promise resolves.
+ *
+ * Deliberately not "fire it inside the mount effect and hope": that makes the
+ * flow depend on effect timing, and a `run` starting after the caller's
+ * `script.restore()` reaches the REAL `RenameTaskDialog.show`, which awaits a
+ * dialog nobody can answer — a hang that shows up only on a slow runner.
+ * Awaiting a ready-promise makes the order deterministic.
+ */
+async function withEngineSettings(
+  run: (api: ReturnType<typeof useEngineSettings>) => void | Promise<void>,
+): Promise<(key: string) => unknown> {
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-engine-settings-"))
+  let resolveReady: (pair: readonly [ReturnType<typeof useEngineSettings>, KVContext]) => void = () => {}
+  const ready = new Promise<readonly [ReturnType<typeof useEngineSettings>, KVContext]>((resolve) => {
+    resolveReady = resolve
+  })
+  const handle = await renderComponent(<Driver onReady={(api, kv) => resolveReady([api, kv])} />, {
+    width: 60,
+    height: 10,
+    providers: { kv: true, dialog: true },
+  })
+  await handle.rerender()
+  const [api, kv] = await ready
+  await run(api)
+  await settle()
+  // The kv write is debounced and resolves its path from ROVE_HOME_DIR when it
+  // fires; flush now so no late write lands in whatever home runs next.
+  kv.flush()
+  handle.destroy()
+  return (key: string) => kv.get(key, undefined)
+}
+
+// Each run points ROVE_HOME_DIR at a fresh dir; restore it so the next file's
+// state.json lives where its readers look.
+const originalHome = process.env.ROVE_HOME_DIR
+afterEach(() => {
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
+})
+
+describe("Settings → Engines protocol declaration", () => {
+  it("records a declared protocol alongside the command and name", async () => {
+    const script = scriptDialog(["mypi", "pi-cli --interactive", "claude", "My Pi"])
+    let read: (key: string) => unknown = () => undefined
+    try {
+      read = await withEngineSettings((api) => api.addEngineFlow())
+    } finally {
+      script.restore()
+    }
+    expect(script.asked).toEqual(["ID", "COMMAND", "PROTOCOL", "NAME"])
+    expect(read("customEngineIds")).toEqual(["mypi"])
+    expect(read("engineCommand.mypi")).toBe("pi-cli --interactive")
+    expect(read("engineProtocol.mypi")).toBe("claude")
+    expect(read("engineName.mypi")).toBe("My Pi")
+  })
+
+  it("writes no protocol key at all when the generic row is chosen", async () => {
+    const script = scriptDialog(["aider", "aider --model sonnet", "", ""])
+    let read: (key: string) => unknown = () => undefined
+    try {
+      read = await withEngineSettings((api) => api.addEngineFlow())
+    } finally {
+      script.restore()
+    }
+    // Absent, not empty-string: the preset reads as generic, and nothing here
+    // may look like a declaration.
+    expect(read("engineProtocol.aider")).toBeUndefined()
+    expect(read("customEngineIds")).toEqual(["aider"])
+  })
+
+  // Why: esc on the id and command steps already abandons the add. A picker
+  // esc that fell through instead would register an engine the user was in
+  // the middle of abandoning — with the generic adapter, silently.
+  it("registers nothing when the protocol picker is cancelled", async () => {
+    const script = scriptDialog(["aider", "aider --model sonnet", undefined])
+    let read: (key: string) => unknown = () => undefined
+    try {
+      read = await withEngineSettings((api) => api.addEngineFlow())
+    } finally {
+      script.restore()
+    }
+    expect(read("customEngineIds")).toBeUndefined()
+    expect(read("engineCommand.aider")).toBeUndefined()
+    expect(script.asked).toEqual(["ID", "COMMAND", "PROTOCOL"])
+  })
+
+  it("clears the protocol when the preset is removed, so a re-add starts clean", async () => {
+    const script = scriptDialog(["mypi", "pi-cli", "claude", "My Pi"])
+    let read: (key: string) => unknown = () => undefined
+    try {
+      read = await withEngineSettings(async (api) => {
+        await api.addEngineFlow()
+        api.resetEngine("mypi")
+      })
+    } finally {
+      script.restore()
+    }
+    expect(read("customEngineIds")).toEqual([])
+    expect(read("engineProtocol.mypi")).toBe("")
+    expect(read("engineCommand.mypi")).toBe("")
+  })
+})

@@ -18,7 +18,7 @@ bun add @sma1lboy/rove-plugin-sdk
 
 The package is zero-dependency and runs on Node ≥ 18 or Bun. It publishes the
 same files under both `@sma1lboy/rove-plugin-sdk` and the legacy
-`@sma1lboy/kobe-plugin-sdk` names.
+`@sma1lboy/rove-plugin-sdk` names.
 
 ## Context
 
@@ -27,7 +27,7 @@ exposes them as typed objects.
 
 | Export | Signature | Purpose |
 |---|---|---|
-| `pluginContext` | `(env?) => PluginContext` | Read `ROVE_PLUGIN_*` / `KOBE_PLUGIN_*` env. Throws if run off-host. |
+| `pluginContext` | `(env?) => PluginContext` | Read `ROVE_PLUGIN_*` / `ROVE_PLUGIN_*` env. Throws if run off-host. |
 | `pluginEvent` | `(env?) => PluginEventEnvelope \| null` | Parse `ROVE_PLUGIN_EVENT_JSON`; `null` outside `[[events]]`. |
 
 `PluginContext` fields: `pluginId`, `pluginRoot`, `configDir`, `stateDir`,
@@ -35,7 +35,7 @@ exposes them as typed objects.
 (`event`, `taskId`, `taskTitle`, `actionId`, `invokeCwd`, `entrypointId`).
 
 Runnable example:
-[`packages/kobe-plugin-sdk/examples/hello-events/`](https://github.com/Sma1lboy/rove/blob/main/packages/kobe-plugin-sdk/examples/hello-events/).
+[`packages/rove-plugin-sdk/examples/hello-events/`](https://github.com/Sma1lboy/rove/blob/main/packages/rove-plugin-sdk/examples/hello-events/).
 
 ```ts
 import { pluginContext, pluginEvent } from "@sma1lboy/rove-plugin-sdk"
@@ -74,7 +74,7 @@ declared as the `default` — that is what the `fallback` parameter is for.
 
 ## Calling Rove from code
 
-These helpers exec `$ROVE_BIN_PATH` (falling back to `$KOBE_BIN_PATH`). Use
+These helpers exec `$ROVE_BIN_PATH` (falling back to `$ROVE_BIN_PATH`). Use
 them for portable callbacks; reach for `RoveSocket` only when you need push
 channels.
 
@@ -125,7 +125,7 @@ Every helper above takes the same optional `RoveRunOptions`:
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `binPath` | string? | `$ROVE_BIN_PATH`, then `$KOBE_BIN_PATH` | The Rove binary to exec. Rejects when neither is set. |
+| `binPath` | string? | `$ROVE_BIN_PATH`, then `$ROVE_BIN_PATH` | The Rove binary to exec. Rejects when neither is set. |
 | `cwd` | string? | the process's cwd | Working directory for the child. |
 | `env` | `Record<string, string>`? | — | Merged **over** the inherited environment. |
 | `timeoutMs` | number? | `30_000` | Millis before the child is killed. |
@@ -152,7 +152,7 @@ They resolve with `RoveRunResult`:
 | `stdout` | string | Captured stdout (8 MB cap). |
 | `stderr` | string | Captured stderr. |
 
-`KobeRunOptions` and `KobeRunResult` are deprecated aliases of these two,
+`RoveRunOptions` and `RoveRunResult` are deprecated aliases of these two,
 kept for plugins written against the original package name.
 
 ## Socket client
@@ -166,8 +166,8 @@ call on an instance (`new RoveSocket().connect()`), not a named import.
 | Member | Signature | Purpose |
 |---|---|---|
 | `RoveSocket` | class (export) | Daemon socket client. |
-| `KobeSocket` | alias (export) | Deprecated alias of `RoveSocket`. |
-| `RoveSocketOptions` | type (export) | `{ socketPath?: string }` — `connect()`'s argument. Defaults to `$ROVE_SOCKET_PATH`, then `$KOBE_SOCKET_PATH`; rejects when neither is set. `KobeSocketOptions` is its deprecated alias. |
+| `RoveSocket` | alias (export) | Deprecated alias of `RoveSocket`. |
+| `RoveSocketOptions` | type (export) | `{ socketPath?: string }` — `connect()`'s argument. Defaults to `$ROVE_SOCKET_PATH`, then `$ROVE_SOCKET_PATH`; rejects when neither is set. `RoveSocketOptions` is its deprecated alias. |
 | `DaemonInfo` | type (export) | What `hello()` resolves with (fields below). |
 | `.connect` | method: `(opts?: RoveSocketOptions) => Promise<void>` | Connect to the daemon socket. |
 | `.request` | method: `<T>(name, payload?) => Promise<T>` | One request → response; rejects on daemon error frames. |
@@ -202,8 +202,8 @@ if (!info.capabilities.includes("usage.snapshot")) {
 }
 ```
 
-`DaemonInfo` carries `roveVersion` / `kobeVersion` (the same build version
-under both spellings; the wire field is `kobeVersion`), `capabilities`,
+`DaemonInfo` carries `roveVersion` / `roveVersion` (the same build version
+under both spellings; the wire field is `roveVersion`), `capabilities`,
 `protocolVersion` / `minProtocolVersion`, `daemonPid`, and `homeDir` — a
 `homeDir` that is not yours means you reached a foreign daemon. It is also
 the way to check `$ROVE_BIN_PATH --version` against the host: in a dev
@@ -217,7 +217,7 @@ thing it ever receives**. There is no reconnect: after it, the socket is
 dead. A crash is worse, because the daemon sends nothing at all.
 
 Its payload carries `reason` (`"restart"` / `"stop"` / `"idle"` /
-`"socket-lost"`) and `kobeVersion`, the outgoing daemon's build. Both are
+`"socket-lost"`) and `roveVersion`, the outgoing daemon's build. Both are
 optional: a daemon older than protocol v5 sends `{}`, and a future one may name
 a reason you have never heard of — treat anything you do not recognize as an
 ordinary stop. `"restart"` is the one worth branching on: it means the daemon
@@ -374,6 +374,6 @@ the per-event contract in the [plugin event reference](./PLUGIN-EVENTS.md).
 
 ## Compatibility aliases
 
-For plugins written against the original `@sma1lboy/kobe-plugin-sdk` naming,
-the SDK also exports `kobe`, `kobeJson`, and `KobeSocket` as aliases for
+For plugins written against the original `@sma1lboy/rove-plugin-sdk` naming,
+the SDK also exports `rove`, `roveJson`, and `RoveSocket` as aliases for
 `rove`, `roveJson`, and `RoveSocket`.

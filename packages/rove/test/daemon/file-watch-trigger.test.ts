@@ -1,0 +1,192 @@
+/**
+ * file-watch-trigger (shared file-change trigger backing the ui-prefs,
+ * keybindings, and pty-exit fan-outs). Why these tests matter: this module is
+ * the load-bearing half of "edit a file on disk → daemon refreshes the
+ * channel". The internals are a stat-poll (macOS FSEvents arms
+ * asynchronously and permanently drops writes landing in the arm window, so
+ * fs-event watching — fs.watch or chokidar — cannot be lossless); the
+ * EXTERNAL contract the callers depend on must be intact:
+ *
+ *   - it stamps by PATH, not inode, so the State Store's atomic tmp+rename
+ *     is still seen (an inode watch goes dead after rename);
+ *   - it filters by basename, so unrelated siblings in the dir don't trigger;
+ *   - it debounces bursts into a single trigger;
+ *   - `debounceMs <= 0` is a no-op (callers use it as the "watching disabled"
+ *     switch);
+ *   - `stop()` fully stops the poll — no further triggers, no leaked timers.
+ *
+ * These run against a real temp dir, with timeout-based assertions because
+ * poll + debounce delivery is async. The old test surface lived in the
+ * ui-prefs/keybindings watcher tests (also real-fs, kept green); this file
+ * pins the shared primitive directly.
+ */
+
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
+import { startFileWatchTrigger } from "@sma1lboy/rove-daemon/daemon/file-watch-trigger"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
+import { pokeUntil, waitUntil } from "./fs-watch-helpers.ts"
+
+// Poll + debounce delivery can stretch when the socket track runs
+// multi-worker under load; the polling waitFor needs headroom past
+// vitest's 5s default.
+vi.setConfig({ testTimeout: 20_000 })
+
+let tmpDir: string
+let filePath: string
+let stop: (() => void) | null
+
+beforeEach(() => {
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "rove-fwt-"))
+  filePath = path.join(tmpDir, "state.json")
+  stop = null
+})
+
+afterEach(() => {
+  stop?.()
+  stop = null
+  try {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  } catch {
+    // ignored
+  }
+})
+
+describe("startFileWatchTrigger", () => {
+  test("fires on a matching file add and on a later change", async () => {
+    let triggers = 0
+    let errors = 0
+    stop = startFileWatchTrigger({
+      filePath,
+      debounceMs: 25,
+      onTrigger: () => {
+        triggers += 1
+      },
+      onError: () => {
+        errors += 1
+      },
+    })
+
+    // Create the watched file (add). Poked until observed, so the test
+    // never depends on the watcher being ready at one instant.
+    await pokeUntil(
+      () => triggers >= 1,
+      () => fs.writeFileSync(filePath, "{}", "utf8"),
+    )
+    const afterAdd = triggers
+
+    // Modify it (change).
+    await pokeUntil(
+      () => triggers > afterAdd,
+      () => fs.writeFileSync(filePath, '{"x":1}', "utf8"),
+    )
+
+    expect(errors).toBe(0)
+  })
+
+  test("survives an atomic tmp+rename swap (dir watch, not inode watch)", async () => {
+    let triggers = 0
+    stop = startFileWatchTrigger({
+      filePath,
+      debounceMs: 25,
+      onTrigger: () => {
+        triggers += 1
+      },
+      onError: () => {},
+    })
+
+    // Production write path: write a tmp sibling, then rename it over the
+    // target. An inode watch on `state.json` would miss this.
+    const tmp = path.join(tmpDir, "state.json.tmp")
+    const swap = (body: string) => () => {
+      fs.writeFileSync(tmp, body, "utf8")
+      fs.renameSync(tmp, filePath)
+    }
+    await pokeUntil(() => triggers >= 1, swap("{}"))
+
+    // A second rename still lands — the watcher is alive after the first swap.
+    const before = triggers
+    await pokeUntil(() => triggers > before, swap('{"x":2}'))
+  })
+
+  test("ignores siblings that don't match the watched basename(s)", async () => {
+    let triggers = 0
+    stop = startFileWatchTrigger({
+      filePath,
+      matchBasenames: ["alias.json"],
+      debounceMs: 25,
+      onTrigger: () => {
+        triggers += 1
+      },
+      onError: () => {},
+    })
+
+    // An unrelated file in the same directory must NOT trigger.
+    fs.writeFileSync(path.join(tmpDir, "unrelated.txt"), "noise", "utf8")
+    await new Promise((r) => setTimeout(r, 300))
+    expect(triggers).toBe(0)
+
+    // An additional matched basename DOES trigger.
+    await pokeUntil(
+      () => triggers >= 1,
+      () => fs.writeFileSync(path.join(tmpDir, "alias.json"), "{}", "utf8"),
+    )
+  })
+
+  test("debounces a burst of events into a single trigger", async () => {
+    let triggers = 0
+    stop = startFileWatchTrigger({
+      filePath,
+      debounceMs: 80,
+      onTrigger: () => {
+        triggers += 1
+      },
+      onError: () => {},
+    })
+
+    // Prove the watcher is live BEFORE counting, so the coalescing
+    // assertion can't be satisfied vacuously by a watcher that never woke.
+    await pokeUntil(
+      () => triggers >= 1,
+      () => fs.writeFileSync(filePath, "{}", "utf8"),
+    )
+    await new Promise((r) => setTimeout(r, 200)) // let that window close
+    triggers = 0
+
+    for (let i = 0; i < 5; i++) {
+      fs.writeFileSync(filePath, `{"n":${i}}`, "utf8")
+    }
+    await waitUntil(() => triggers >= 1)
+    // Let the debounce window settle; the burst must not produce 5 triggers.
+    await new Promise((r) => setTimeout(r, 200))
+    expect(triggers).toBe(1)
+  })
+
+  test("stop() closes cleanly — no triggers after stop", async () => {
+    let triggers = 0
+    const localStop = startFileWatchTrigger({
+      filePath,
+      debounceMs: 25,
+      onTrigger: () => {
+        triggers += 1
+      },
+      onError: () => {},
+    })
+    // Confirm it's live first.
+    await pokeUntil(
+      () => triggers >= 1,
+      () => fs.writeFileSync(filePath, "{}", "utf8"),
+    )
+    const before = triggers
+
+    localStop()
+    // A pending debounce must not fire after stop, and later edits are ignored.
+    fs.writeFileSync(filePath, '{"x":9}', "utf8")
+    await new Promise((r) => setTimeout(r, 300))
+    expect(triggers).toBe(before)
+
+    // Double-stop is safe.
+    localStop()
+  })
+})

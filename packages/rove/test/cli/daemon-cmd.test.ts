@@ -1,0 +1,228 @@
+/**
+ * `rove daemon <status|start|stop|restart>` (`runDaemonSubcommand`).
+ * Daemon client / lifecycle / server / core are all mocked — a real one
+ * would dial sockets and spawn a daemon. paths resolve off a ROVE_HOME_DIR
+ * tempdir so readPidFile (kept real) reads a real pidfile.
+ */
+
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+const mocks = vi.hoisted(() => ({
+  daemonRequest: vi.fn(),
+  daemonClose: vi.fn(),
+  connectOrStartDaemon: vi.fn(),
+  probeDaemonSocket: vi.fn(),
+  stopDaemonProcess: vi.fn(),
+  installDaemonCrashHandlers: vi.fn(),
+  logDaemonInfo: vi.fn(),
+  startDaemonServer: vi.fn(),
+  createRoveCore: vi.fn(),
+}))
+
+vi.mock("@sma1lboy/rove-daemon/client", () => ({
+  RoveDaemonClient: vi.fn().mockImplementation(() => ({
+    request: mocks.daemonRequest,
+    close: mocks.daemonClose,
+  })),
+}))
+
+vi.mock("@sma1lboy/rove-daemon/client/daemon-process", async (importOriginal) => {
+  // `daemonSpawnReason` stays REAL: it reads the env the spawner stamped, and
+  // a stub would make the boot-line assertions test nothing.
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-daemon/client/daemon-process")>()
+  return { ...actual, connectOrStartDaemon: mocks.connectOrStartDaemon, probeDaemonSocket: mocks.probeDaemonSocket }
+})
+
+vi.mock("@sma1lboy/rove-daemon/daemon/crash-log", () => ({
+  installDaemonCrashHandlers: mocks.installDaemonCrashHandlers,
+  logDaemonInfo: mocks.logDaemonInfo,
+}))
+
+vi.mock("@sma1lboy/rove-daemon/daemon/lifecycle", () => ({
+  stopDaemonProcess: mocks.stopDaemonProcess,
+}))
+
+vi.mock("@sma1lboy/rove-daemon/daemon/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-daemon/daemon/server")>()
+  return { ...actual, startDaemonServer: mocks.startDaemonServer }
+})
+
+vi.mock("../../src/core/index.ts", () => ({
+  createRoveCore: mocks.createRoveCore,
+}))
+
+import { runDaemonSubcommand } from "../../src/cli/daemon-cmd.ts"
+
+let home: string
+let originalRoveHome: string | undefined
+let originalHome: string | undefined
+let originalSpawnReason: string | undefined
+let originalAutospawned: string | undefined
+let logSpy: MockInstance<typeof console.log>
+let errSpy: MockInstance<typeof process.stderr.write>
+let exitSpy: MockInstance<typeof process.exit>
+
+beforeEach(() => {
+  originalRoveHome = process.env.ROVE_HOME_DIR
+  originalHome = process.env.ROVE_HOME_DIR
+  home = mkdtempSync(join(tmpdir(), "rove-daemon-cmd-"))
+  process.env.ROVE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
+  mkdirSync(join(home, ".rove"), { recursive: true })
+  // An agent/dev shell can already be inside a spawned daemon's environment,
+  // which would make `daemonSpawnReason()` read "autospawn" for a `daemon
+  // start` this test typed itself.
+  originalSpawnReason = process.env.ROVE_DAEMON_SPAWN_REASON
+  originalAutospawned = process.env.ROVE_DAEMON_AUTOSPAWNED
+  Reflect.deleteProperty(process.env, "ROVE_DAEMON_SPAWN_REASON")
+  Reflect.deleteProperty(process.env, "ROVE_DAEMON_AUTOSPAWNED")
+
+  mocks.daemonRequest.mockReset()
+  mocks.daemonClose.mockReset()
+  mocks.connectOrStartDaemon.mockReset()
+  mocks.probeDaemonSocket.mockReset().mockResolvedValue("absent")
+  mocks.stopDaemonProcess.mockReset().mockResolvedValue({ pid: null, method: "absent" })
+  mocks.installDaemonCrashHandlers.mockReset()
+  mocks.logDaemonInfo.mockReset()
+  mocks.startDaemonServer.mockReset()
+  mocks.createRoveCore.mockReset()
+
+  logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined)
+  errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+  exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+    throw new Error(`exit ${code}`)
+  }) as never)
+  process.exitCode = undefined
+})
+
+afterEach(() => {
+  if (originalRoveHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalRoveHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
+  if (originalSpawnReason === undefined) Reflect.deleteProperty(process.env, "ROVE_DAEMON_SPAWN_REASON")
+  else process.env.ROVE_DAEMON_SPAWN_REASON = originalSpawnReason
+  if (originalAutospawned === undefined) Reflect.deleteProperty(process.env, "ROVE_DAEMON_AUTOSPAWNED")
+  else process.env.ROVE_DAEMON_AUTOSPAWNED = originalAutospawned
+  rmSync(home, { recursive: true, force: true })
+  logSpy.mockRestore()
+  errSpy.mockRestore()
+  exitSpy.mockRestore()
+  process.exitCode = undefined
+})
+
+function output(): string {
+  return logSpy.mock.calls.map((c) => String(c[0])).join("\n")
+}
+
+describe("rove daemon status", () => {
+  it("prints the daemon's status JSON and closes the socket", async () => {
+    mocks.daemonRequest.mockResolvedValue({ daemonPid: 7, taskCount: 2 })
+    await runDaemonSubcommand(["status"])
+    expect(mocks.daemonRequest).toHaveBeenCalledWith("daemon.status")
+    expect(JSON.parse(output())).toEqual({ daemonPid: 7, taskCount: 2 })
+    expect(mocks.daemonClose).toHaveBeenCalledTimes(1)
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it("reports a stale pidfile and sets exitCode 1 when the socket doesn't answer", async () => {
+    mocks.daemonRequest.mockRejectedValue(new Error("ECONNREFUSED"))
+    writeFileSync(join(home, ".rove", "daemon.pid"), "4242", "utf8")
+    await runDaemonSubcommand(["status"])
+    expect(output()).toContain("stale pidfile pid=4242")
+    expect(process.exitCode).toBe(1)
+    expect(mocks.daemonClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("rove daemon stop", () => {
+  it("requests daemon.stop and reports success", async () => {
+    mocks.daemonRequest.mockResolvedValue({})
+    await runDaemonSubcommand(["stop"])
+    expect(mocks.daemonRequest).toHaveBeenCalledWith("daemon.stop")
+    expect(output()).toContain("stop requested")
+    expect(mocks.daemonClose).toHaveBeenCalledTimes(1)
+  })
+
+  it("exits cleanly (no error) when no daemon is running", async () => {
+    mocks.daemonRequest.mockRejectedValue(new Error("ECONNREFUSED"))
+    await runDaemonSubcommand(["stop"])
+    expect(output()).toContain("no daemon running at")
+    expect(exitSpy).not.toHaveBeenCalled()
+    expect(process.exitCode).toBeUndefined()
+  })
+})
+
+describe("rove daemon restart", () => {
+  it("stops the old daemon, respawns detached, and closes the probe client", async () => {
+    const next = { close: vi.fn() }
+    mocks.connectOrStartDaemon.mockResolvedValue(next)
+    await runDaemonSubcommand(["restart"])
+    expect(mocks.stopDaemonProcess).toHaveBeenCalledTimes(1)
+    // The stop is labelled a RESTART, which the outgoing daemon relays to
+    // every attached TUI: that frame is how a running client learns its own
+    // build is about to be the stale one, before the socket even drops. An
+    // unlabelled stop here would leave it inferring that from a reconnect.
+    expect(mocks.stopDaemonProcess).toHaveBeenCalledWith(expect.any(String), expect.any(String), {
+      reason: "restart",
+    })
+    expect(mocks.connectOrStartDaemon).toHaveBeenCalledTimes(1)
+    expect(next.close).toHaveBeenCalledTimes(1)
+    expect(output()).toContain("restarted, listening on")
+  })
+
+  it("tags the respawn so the new daemon's boot line can say it was an explicit restart", async () => {
+    // Restart and a client's autospawn share `connectOrStartDaemon`, so
+    // without the tag both daemons write the same boot line and "did my
+    // restart end those sessions?" has no answer in daemon.log.
+    mocks.connectOrStartDaemon.mockResolvedValue({ close: vi.fn() })
+    await runDaemonSubcommand(["restart"])
+    expect(mocks.connectOrStartDaemon).toHaveBeenCalledWith("explicit-restart")
+  })
+})
+
+describe("rove daemon start", () => {
+  it("installs crash handlers, creates the core, and starts the server", async () => {
+    // `store.stateDir` is where boot sweeps a crashed predecessor's leftovers.
+    const core = {
+      orchestrator: { tag: "orch" },
+      homeDir: home,
+      store: { stateDir: join(home, ".rove") },
+      close: vi.fn(),
+    }
+    mocks.createRoveCore.mockResolvedValue(core)
+    mocks.startDaemonServer.mockImplementation(async (create: () => Promise<unknown>) => {
+      expect(mocks.createRoveCore).not.toHaveBeenCalled()
+      expect(await create()).toBe(core.orchestrator)
+      return { socketPath: "/tmp/x.sock", close: vi.fn() }
+    })
+
+    await runDaemonSubcommand(["start"])
+
+    expect(mocks.installDaemonCrashHandlers).toHaveBeenCalledTimes(1)
+    expect(mocks.startDaemonServer).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ socketPath: expect.any(String) }),
+    )
+    expect(output()).toContain("listening on /tmp/x.sock")
+    // A bare `daemon start` was nobody's autospawn and nobody's restart.
+    expect(mocks.logDaemonInfo).toHaveBeenCalledWith("boot", expect.stringContaining("manual"))
+  })
+
+  it("refuses to migrate stores while another daemon still owns the socket", async () => {
+    mocks.startDaemonServer.mockRejectedValue(new Error("daemon still owns home"))
+    await expect(runDaemonSubcommand(["start"])).rejects.toThrow("daemon still owns")
+    expect(mocks.createRoveCore).not.toHaveBeenCalled()
+  })
+})
+
+describe("usage", () => {
+  it("unknown command prints usage to stderr and exits 2", async () => {
+    await expect(runDaemonSubcommand(["bogus"])).rejects.toThrow("exit 2")
+    expect(errSpy.mock.calls.join("")).toContain('unknown command "bogus"')
+    expect(errSpy.mock.calls.join("")).toContain("Usage: rove daemon")
+  })
+})

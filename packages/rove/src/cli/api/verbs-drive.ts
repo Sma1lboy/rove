@@ -1,0 +1,254 @@
+/**
+ * `drive` verbs — prompts, notes, panes, UI notices: acting on a RUNNING task
+ * without changing what it is (`edit`) or whether it exists (`lifecycle`).
+ * Each spec's own `group` field decides where it lists in {@link VERBS}.
+ */
+
+import { ENGINE_ACTIVITY_KINDS } from "../../engine/hook-events.ts"
+import { F } from "./flags.ts"
+import { simpleRpc } from "./handler-helpers.ts"
+import { PANE_GRAPHICS_VERB } from "./handlers-graphics.ts"
+import { INTERRUPT_VERB } from "./handlers-interrupt.ts"
+import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB } from "./handlers-pane.ts"
+import { ROW_TOKEN_VERB } from "./handlers-row-token.ts"
+import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
+import { ApiError, helpStep } from "./types.ts"
+import type { VerbSpec } from "./types.ts"
+
+export const DRIVE_VERBS: readonly VerbSpec[] = [
+  {
+    name: "send",
+    group: "drive",
+    summary:
+      "Paste a follow-up prompt into a task's running engine (one full turn). Without --task-id, a task spawned from another Rove session replies to its dispatcher's tab (then that task's live canonical engine; nothing alive = DISPATCHER_UNREACHABLE, never a silent spawn); otherwise the active task. Sent from inside another Rove task ($ROVE_TASK_ID), the prompt is prefixed with [ROVE PEER] provenance — who sent it and how to reply (tab-precise) — so agent-to-agent messaging needs no coordinator. The prompt is pasted into the target composer and submitted; delivery is refused only when there is physically nothing to write to (no such tab, dead PTY, no engine process). A `succeeded:` report sent from a managed task whose branch has 0 commits is REFUSED (EMPTY_SUCCESS_REPORT) — commit first, or pass --allow-empty when the task genuinely produced no commits. `delivered: true` means the bytes landed, nothing more: when the target session was already in `error` or `dead`, the reply carries `targetState` (+ `targetDetail`) — read it before waiting on an answer.",
+    flags: [
+      F.taskId(false),
+      F.prompt(true, "Text pasted + submitted into the engine pane."),
+      F.promptFile(),
+      {
+        name: "tab",
+        type: "string",
+        required: false,
+        placeholder: "TAB",
+        description:
+          'Tab addressing: "new" spawns the prompt in a fresh engine tab; "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab.',
+      },
+      {
+        ...F.command(),
+        description:
+          "Engine launch command for a `--tab new` tab — the API twin of the TUI's ctrl+e pick. Lets one worktree run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; pinned to that tab, so it survives restarts and a later set-command on the task. Only valid with --tab new.",
+      },
+      {
+        name: "respawn",
+        type: "bool",
+        required: false,
+        description:
+          "Revive a FREEZE-RESTORED --tab tab-N before delivering. After a pty-host restart (reboot, crash) a tab keeps its scrollback and launch command but nothing runs in it; without this flag such a tab is refused (TAB_RESTORED) rather than silently re-run. With it, the tab is respawned in place and resumes its pinned conversation when it has one (`get-task` shows each tab's sessionId) — a tab with none replays its recorded launch command, which for claude carries the task's original first prompt. Only valid with --tab tab-N.",
+      },
+      {
+        name: "plain",
+        type: "bool",
+        required: false,
+        description: "Deliver the prompt verbatim — skip the [ROVE PEER] provenance prefix.",
+      },
+      {
+        name: "allow-empty",
+        type: "bool",
+        required: false,
+        description:
+          "Report success from a task with zero commits (EMPTY_SUCCESS_REPORT is refused otherwise). For work that legitimately produces no commits — an investigation, a review, a question answered.",
+      },
+    ],
+    handler: send,
+  },
+  DISPATCH_VERB,
+  INTERRUPT_VERB,
+  {
+    name: "note",
+    group: "drive",
+    summary:
+      "File a one-line field note — a resolved, repo-level gotcha worth sharing. Appended to the repo's durable note store (every future session on this repo starts with it) and forwarded to the dispatcher session for live relay (docs/design/dispatcher.md).",
+    flags: [
+      F.taskId(true),
+      {
+        name: "text",
+        type: "string",
+        required: true,
+        placeholder: "TEXT",
+        description: "One line: the verified conclusion another session could act on.",
+      },
+    ],
+    handler: note,
+  },
+  {
+    name: "note-list",
+    group: "drive",
+    summary:
+      "Read a repo's accumulated field notes, newest first. Returns { notes } — each with the `id` note-delete takes.",
+    flags: [F.repo(true)],
+    handler: (ctx) => simpleRpc(ctx, "note.list", { repo: ctx.args.requireRepo("repo") }),
+  },
+  {
+    name: "note-delete",
+    group: "drive",
+    summary:
+      "Retire one field note by the id `note-list` reports. The note store is not an archive: its newest entries are injected into every fresh session on the repo, so a note whose fact has stopped being true keeps being handed to agents as if it still were. Returns { deleted } — false (not an error) when the id names nothing, which is also what an already-evicted note answers.",
+    flags: [
+      F.repo(true),
+      { name: "id", type: "int", required: true, placeholder: "N", description: "Note id from `note-list`." },
+    ],
+    handler: (ctx) => simpleRpc(ctx, "note.delete", { repo: ctx.args.requireRepo("repo"), id: ctx.args.int("id") }),
+  },
+  PANE_VERB,
+  PANE_CLOSE_VERB,
+  PANE_GRAPHICS_VERB,
+  TAB_CLOSE_VERB,
+  {
+    name: "notify",
+    group: "drive",
+    summary:
+      "Show a toast in every attached Rove UI — broadcast over the daemon's notice.event channel. Agents/scripts use it to surface 'done / needs input / error' moments without touching the task's session. Returns `clients` (attached connections; 0 = no UI showed the toast).",
+    flags: [
+      {
+        name: "title",
+        type: "string",
+        required: true,
+        placeholder: "TEXT",
+        description: "Toast text (one line).",
+      },
+      {
+        name: "body",
+        type: "string",
+        placeholder: "TEXT",
+        description: "Optional second line under the title — context, not a second message.",
+      },
+      {
+        name: "kind",
+        type: "string",
+        default: "done",
+        placeholder: "KIND",
+        description:
+          'Free-form kind tag. "done", "needs_input" and "error" get the TUI\'s severity styling/unread mark; any other value renders neutrally.',
+      },
+      F.taskId(false),
+      {
+        name: "source",
+        type: "string",
+        placeholder: "TAG",
+        description: "Free-form origin tag (e.g. an agent name) recorded on the event.",
+      },
+    ],
+    handler: async (ctx) => {
+      return simpleRpc(ctx, "notice.send", {
+        title: ctx.args.str("title"),
+        body: ctx.args.str("body"),
+        kind: ctx.args.str("kind") ?? "done",
+        taskId: ctx.args.str("task-id"),
+        source: ctx.args.str("source"),
+      })
+    },
+  },
+  {
+    name: "prompt",
+    group: "drive",
+    summary:
+      "Ask the human for a line of text through the attached TUI's input dialog (plugins' host-provided prompt). Blocks until answered, cancelled, or timed out; returns { value } or { cancelled, reason }.",
+    flags: [
+      {
+        name: "title",
+        type: "string",
+        required: true,
+        placeholder: "TEXT",
+        description: "Dialog title (shown verbatim).",
+      },
+      { name: "placeholder", type: "string", placeholder: "TEXT", description: "Input placeholder." },
+      { name: "initial", type: "string", placeholder: "TEXT", description: "Pre-filled input value." },
+      {
+        name: "timeout",
+        type: "string",
+        placeholder: "MS",
+        description: "Give up after this many milliseconds (default 120000, max 600000).",
+      },
+    ],
+    handler: async (ctx) => {
+      const timeoutRaw = ctx.args.str("timeout")
+      const timeoutMs = timeoutRaw ? Number.parseInt(timeoutRaw, 10) : undefined
+      return simpleRpc(ctx, "ui.prompt", {
+        title: ctx.args.str("title"),
+        placeholder: ctx.args.str("placeholder"),
+        initial: ctx.args.str("initial"),
+        ...(timeoutMs && Number.isFinite(timeoutMs) ? { timeoutMs } : {}),
+      })
+    },
+  },
+  {
+    name: "engine-report",
+    group: "drive",
+    summary:
+      "Report a normalized engine-activity verb for a task — the public face of the same engine.reportEvent RPC the built-in hook adapters use. Lets a plugin-contributed engine (or any wrapper script) drive the sidebar badge, attention inbox, and plugin event stream without a built-in hook adapter. Kinds: session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end (state kinds) plus tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop (plugin-only).",
+    flags: [
+      F.taskId(false),
+      {
+        name: "kind",
+        // Enum: the daemon's own rejection arrives as an untyped `RPC_ERROR`;
+        // here it's a local flag error and `schema` lists the legal kinds.
+        type: "enum",
+        values: ENGINE_ACTIVITY_KINDS,
+        required: true,
+        placeholder: "KIND",
+        description: "Normalized activity verb (see summary). Unknown kinds are rejected.",
+      },
+      {
+        name: "engine",
+        type: "string",
+        placeholder: "ID",
+        description: "Engine id producing the report (a plugin engine id, or a built-in vendor).",
+      },
+      {
+        name: "tab",
+        type: "string",
+        placeholder: "TAB",
+        description: "Terminal tab id the session runs in (defaults to $ROVE_TAB_ID / $ROVE_TAB_ID).",
+      },
+      {
+        name: "detail",
+        type: "string",
+        placeholder: "JSON",
+        description: 'Optional detail JSON, e.g. \'{"failure":"rate_limit"}\' or \'{"waiting":"input"}\'.',
+      },
+    ],
+    handler: async (ctx) => {
+      const taskId = ctx.args.str("task-id") ?? process.env.ROVE_TASK_ID
+      const tabId = ctx.args.str("tab") ?? process.env.ROVE_TAB_ID
+      const detailRaw = ctx.args.str("detail")
+      let detail: unknown
+      if (detailRaw !== undefined) {
+        try {
+          detail = JSON.parse(detailRaw)
+        } catch {
+          throw new ApiError("--detail must be valid JSON", "BAD_FLAG", helpStep("engine-report"))
+        }
+      }
+      return simpleRpc(ctx, "engine.reportEvent", {
+        kind: ctx.args.str("kind"),
+        ...(taskId ? { taskId } : { cwd: process.cwd() }),
+        ...(ctx.args.str("engine") ? { engine: ctx.args.str("engine") } : {}),
+        ...(tabId ? { tabId } : {}),
+        ...(detail !== undefined ? { detail } : {}),
+      })
+    },
+  },
+  // Plugin-written row label, TTL-bounded. Spec + handler in
+  // ./handlers-row-token.ts.
+  ROW_TOKEN_VERB,
+  {
+    name: "set-active",
+    group: "drive",
+    summary: "Set the shared active task (the focus every Tasks pane highlights). Pass --none to clear.",
+    flags: [
+      F.taskId(false),
+      { name: "none", type: "bool", description: "Clear the active task instead of setting one." },
+    ],
+    handler: setActive,
+  },
+]

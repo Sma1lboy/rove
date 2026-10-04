@@ -9,7 +9,7 @@
 >
 > The material below is kept to explain earlier tradeoffs and migrations, not
 > to prescribe implementation. On-disk current types:
-> [`packages/kobe/src/types/task.ts`](../../packages/kobe/src/types/task.ts).
+> [`packages/rove/src/types/task.ts`](../../packages/rove/src/types/task.ts).
 
 ---
 
@@ -81,12 +81,12 @@ Concretely:
   `done`. The user removes worktrees explicitly, never as a side effect.
 - Rove owns its worktree root under its state dir (`~/.rove/worktrees/`,
   or `$ROVE_HOME_DIR/.rove/worktrees/` in isolated dev/test homes). Older
-  tasks created under global/repo-local `.kobe/worktrees/` or `.claude/worktrees/`
+  tasks created under global/repo-local `.rove/worktrees/` or `.claude/worktrees/`
   stay valid and are still listed/adopted, but new Rove-created worktrees
   no longer require a repo-level `.gitignore` entry.
 
 The single source of truth for the path is
-[`worktreePathFor(repo, slug)`](../../packages/kobe/src/orchestrator/worktree/paths.ts).
+[`worktreePathFor(repo, slug)`](../../packages/rove/src/orchestrator/worktree/paths.ts).
 Nothing else should concatenate a worktree root by hand.
 
 ### Boundary: the orchestrator does not coordinate writes inside a worktree
@@ -173,7 +173,7 @@ Claude Code's JSONL on disk and is reread via `engine.readHistory`.
 > The engine owns its own lifecycle; the orchestrator does not drive
 > `run`/`pause`/`cancel` transitions or count concurrent sessions. What's
 > actually enforced, in
-> [`orchestrator/task-editor.ts`](../../packages/kobe/src/orchestrator/task-editor.ts)
+> [`orchestrator/task-editor.ts`](../../packages/rove/src/orchestrator/task-editor.ts)
 > `setStatus()`:
 
 - Any `TaskStatus` → any other `TaskStatus` is legal, via `setStatus(id, status)`,
@@ -228,11 +228,11 @@ truth, the index is just a manifest.
 ### Resume cwd — removed (v0.5 `AIEngine.resume()` no longer exists)
 
 > **Superseded.** This subsection described the v0.5 `AIEngine.resume()` /
-> `SpawnOpts.cwd` / `KOBE_RESUME_CWD` env-var back-channel. That whole
+> `SpawnOpts.cwd` / `ROVE_RESUME_CWD` env-var back-channel. That whole
 > interface is gone as of v0.6 — see the explicit "don't drag the whole port
 > back" warning in
-> [`packages/kobe/src/types/engine.ts`](../../packages/kobe/src/types/engine.ts).
-> `KOBE_RESUME_CWD` has zero references left in the codebase. The engine CLI
+> [`packages/rove/src/types/engine.ts`](../../packages/rove/src/types/engine.ts).
+> `ROVE_RESUME_CWD` has zero references left in the codebase. The engine CLI
 > runs interactively in a Hosted PTY session that the shared session-launch
 > builder starts with `task.worktreePath` as its process cwd — there is no
 > separate "resume" RPC or cwd back-channel to get wrong.
@@ -266,7 +266,7 @@ When the schema changes again:
   Every task gets its own worktree.
 - **Hardcoding the worktree path.** Use `worktreePathFor`. New Rove
   worktrees use `~/.rove/worktrees/<repo-key>/`, while path recognition
-  also supports global/repo-local `.kobe/worktrees/` and legacy `.claude/worktrees/`.
+  also supports global/repo-local `.rove/worktrees/` and legacy `.claude/worktrees/`.
 - **Storing conversation history in `tasks.json`.** It's a manifest,
   not a database. JSONL via the engine is the source of truth.
 - **Auto-deleting worktrees on done / cancel.** Rove never deletes

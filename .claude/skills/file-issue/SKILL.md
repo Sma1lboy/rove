@@ -113,16 +113,16 @@ filing fiction:
 
 ```bash
 # file exists + size/shape is what you think
-ls -la packages/kobe/src/<path>
+ls -la packages/rove/src/<path>
 # the function/string/registry you're pointing at really lives there
-grep -rn "BUNDLED_THEMES" packages/kobe/src/tui/context/theme/
+grep -rn "BUNDLED_THEMES" packages/rove/src/tui/context/theme/
 # the thing you claim is MISSING really is absent (greenfield framing)
 find packages -iname '*completion*' | grep -v node_modules    # empty => "no completions exist"
 ```
 
 If you spawned an Explore agent to find candidates, **re-verify its file paths
 yourself** — exploration output can carry typo'd or doubled paths (e.g.
-`packages/kobe/packages/kobe/...`). Never paste an unverified path into an issue.
+`packages/rove/packages/rove/...`). Never paste an unverified path into an issue.
 
 For greenfield framing ("there is no X today"), prove the absence with a `find`/`grep`
 that comes back empty — that sentence is load-bearing for a contributor.

@@ -1,0 +1,183 @@
+import { describe, expect, it, vi } from "vitest"
+import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "../../../rove-daemon/src/daemon/contracts.ts"
+import {
+  dueQuotaResumes,
+  exhaustedResetAtMs,
+  quotaResumeContinuePrompt,
+  scheduleQuotaResume,
+  startQuotaResumeRunner,
+} from "../../../rove-daemon/src/daemon/quota-resume.ts"
+import type { QuotaUsageCache } from "../../../rove-daemon/src/daemon/quota-usage-cache.ts"
+import type { DaemonRuntimeAdapter } from "../../../rove-daemon/src/daemon/runtime.ts"
+import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
+import { vendorsWithQuotaProbe } from "../../src/engine/registry.ts"
+
+const NOW = Date.parse("2026-07-27T12:00:00.000Z")
+const PAST = new Date(NOW - 1000).toISOString()
+const FUTURE = new Date(NOW + 60 * 60 * 1000).toISOString()
+
+function task(id: string, overrides: Partial<DaemonTask> = {}): DaemonTask {
+  return {
+    id,
+    title: id,
+    repo: "/repo",
+    branch: "branch",
+    worktreePath: `/wt/${id}`,
+    kind: "task",
+    status: "in_progress",
+    vendor: "claude",
+    createdAt: PAST,
+    updatedAt: PAST,
+    ...overrides,
+  }
+}
+
+const schedule = (resumeAt: string) => ({ resumeAt, requestedAt: PAST })
+
+describe("dueQuotaResumes", () => {
+  it("selects only armed tasks whose resumeAt has passed", () => {
+    const due = dueQuotaResumes(
+      [task("due", { quotaResume: schedule(PAST) }), task("later", { quotaResume: schedule(FUTURE) }), task("unarmed")],
+      NOW,
+    )
+    expect(due.map((t) => t.id)).toEqual(["due"])
+  })
+
+  it("skips deleting, worktree-less, and unparseable schedules", () => {
+    const due = dueQuotaResumes(
+      [
+        task("deleting", {
+          quotaResume: schedule(PAST),
+          deletion: { phase: "queued", force: false, requestedAt: PAST },
+        }),
+        task("no-wt", { quotaResume: schedule(PAST), worktreePath: "" }),
+        task("garbage", { quotaResume: schedule("not-a-date") }),
+      ],
+      NOW,
+    )
+    expect(due).toEqual([])
+  })
+})
+
+function fakeOrch(tasks: DaemonTask[]): DaemonOrchestrator & { setQuotaResume: ReturnType<typeof vi.fn> } {
+  return {
+    listTasks: () => tasks,
+    getTask: (id: string) => tasks.find((t) => t.id === id),
+    setQuotaResume: vi.fn(async () => {}),
+  } as unknown as DaemonOrchestrator & { setQuotaResume: ReturnType<typeof vi.fn> }
+}
+
+const RUNTIME = { defaultTaskVendor: "claude" } as unknown as DaemonRuntimeAdapter
+
+function fakeCache(usage: EngineQuotaUsage | null): QuotaUsageCache & { get: ReturnType<typeof vi.fn> } {
+  return { get: vi.fn(async () => usage) } as unknown as QuotaUsageCache & { get: ReturnType<typeof vi.fn> }
+}
+
+const exhaustedUsage = (resetsAt: number): EngineQuotaUsage => ({
+  windows: [{ kind: "session", label: "5h", percent: 100, resetsAt }],
+  capturedAt: NOW,
+})
+
+describe("exhaustedResetAtMs", () => {
+  it("returns the earliest future reset among exhausted windows only", () => {
+    const usage: EngineQuotaUsage = {
+      windows: [
+        { kind: "session", label: "5h", percent: 40, resetsAt: NOW + 1000 },
+        { kind: "weekly_all", label: "7d", percent: 100, resetsAt: NOW + 5000 },
+        { kind: "weekly_scoped", label: "Fable", percent: 100, resetsAt: NOW + 2000 },
+      ],
+      capturedAt: NOW,
+    }
+    expect(exhaustedResetAtMs(usage, NOW)).toBe(NOW + 2000)
+  })
+})
+
+describe("scheduleQuotaResume", () => {
+  it("arms the schedule from the cached usage's exhausted reset time", async () => {
+    const orch = fakeOrch([task("t1")])
+    const cache = fakeCache(exhaustedUsage(NOW + 5000))
+    await scheduleQuotaResume(orch, RUNTIME, cache, "t1", () => NOW)
+    expect(cache.get).toHaveBeenCalledWith("claude", 0)
+    expect(orch.setQuotaResume).toHaveBeenCalledWith("t1", {
+      resumeAt: new Date(NOW + 5000).toISOString(),
+      requestedAt: new Date(NOW).toISOString(),
+    })
+  })
+
+  // Kimi's hook adapter classifies its 429s as `rate_limit` — that is what
+  // makes the sticky `rate_limited` badge light up, and it is the whole of what
+  // the classification buys. Arming a resume needs a RESET TIMESTAMP, and kimi
+  // publishes one nowhere: it ships no quota API, so no `quotaUsage` probe, and
+  // its `turn-failed` payload carries only `error_type`/`error_message`. The
+  // only way to arm one would be to guess a reset for a 5-hour ROLLING window
+  // whose start nobody recorded, and a resume that fires at the wrong time
+  // spends a turn to fail again. So this asserts the honest behavior rather
+  // than a wish: a kimi rate-limit arms nothing.
+  it("arms nothing for an engine with no quota probe (kimi), badge only", async () => {
+    const orch = fakeOrch([task("t1", { vendor: "kimi" })])
+    // The REAL adapter, not a stub — the point is what the registry answers.
+    const runtime = { defaultTaskVendor: "claude" } as unknown as DaemonRuntimeAdapter
+    const cache = {
+      get: vi.fn(async (vendor: string) => (await daemonRuntime.quotaUsage(vendor as never)) ?? null),
+    } as unknown as QuotaUsageCache & { get: ReturnType<typeof vi.fn> }
+
+    await scheduleQuotaResume(orch, runtime, cache, "t1", () => NOW)
+
+    expect(cache.get).toHaveBeenCalledWith("kimi", 0)
+    expect(orch.setQuotaResume).not.toHaveBeenCalled()
+    // The reason, stated where a future reader will look: kimi is absent from
+    // the probe list, so there is nothing to ask when the limit lands.
+    expect(vendorsWithQuotaProbe()).toEqual(["claude", "codex"])
+  })
+})
+
+describe("startQuotaResumeRunner", () => {
+  it("clears the schedule before delivering the continue prompt into the live session", async () => {
+    const order: string[] = []
+    const due = task("t1", { quotaResume: schedule(PAST) })
+    const orch = fakeOrch([due])
+    orch.setQuotaResume.mockImplementation(async () => {
+      order.push("clear")
+    })
+    const deliverPromptToLiveEngine = vi.fn(async () => {
+      order.push("deliver")
+      return true
+    })
+    const runtime = { deliverPromptToLiveEngine } as unknown as DaemonRuntimeAdapter
+
+    const stop = startQuotaResumeRunner(orch, runtime, 5, () => NOW)
+    try {
+      await vi.waitFor(() => expect(deliverPromptToLiveEngine).toHaveBeenCalled())
+    } finally {
+      stop()
+    }
+
+    expect(order.slice(0, 2)).toEqual(["clear", "deliver"])
+    expect(orch.setQuotaResume).toHaveBeenCalledWith("t1", null)
+    expect(deliverPromptToLiveEngine).toHaveBeenCalledWith(
+      { id: "t1", vendor: "claude", worktreePath: "/wt/t1" },
+      quotaResumeContinuePrompt(undefined),
+    )
+  })
+
+  it("resumes in the language the task's user writes in", async () => {
+    // The resume fires from a TIMER with no user message in hand, so the
+    // observation recorded at task creation is the only thing that can carry
+    // the language this far.
+    const orch = fakeOrch([task("t1", { quotaResume: schedule(PAST), observedLanguage: "zh" })])
+    const prompts: string[] = []
+    const deliverPromptToLiveEngine = vi.fn(async (_target: unknown, prompt: string) => {
+      prompts.push(prompt)
+      return true
+    })
+    const runtime = { deliverPromptToLiveEngine } as unknown as DaemonRuntimeAdapter
+
+    const stop = startQuotaResumeRunner(orch, runtime, 5, () => NOW)
+    try {
+      await vi.waitFor(() => expect(deliverPromptToLiveEngine).toHaveBeenCalled())
+    } finally {
+      stop()
+    }
+    expect(prompts[0]).toContain("继续这个任务")
+  })
+})

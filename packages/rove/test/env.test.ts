@@ -1,0 +1,61 @@
+import { homedir } from "node:os"
+import { preRenameConfigDir, preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
+import { afterEach, describe, expect, test } from "vitest"
+import {
+  homeDir,
+  isDev,
+  kvStatePath,
+  legacyRoveKvStatePath,
+  legacyRoveStateDir,
+  roveSettingsDir,
+  roveStateDir,
+} from "../src/env.ts"
+
+const ORIGINAL = {
+  ROVE_DEV: process.env.ROVE_DEV,
+  ROVE_HOME_DIR: process.env.ROVE_HOME_DIR,
+}
+
+function restore(key: keyof typeof ORIGINAL): void {
+  const value = ORIGINAL[key]
+  if (value === undefined) Reflect.deleteProperty(process.env, key)
+  else process.env[key] = value
+}
+
+afterEach(() => {
+  for (const key of Object.keys(ORIGINAL) as (keyof typeof ORIGINAL)[]) restore(key)
+})
+
+describe("startupible environment access", () => {
+  test("ROVE_HOME_DIR wins and product data uses the canonical Rove layout", () => {
+    process.env.ROVE_HOME_DIR = "/legacy-home"
+    process.env.ROVE_HOME_DIR = "/rove-home"
+
+    expect(homeDir()).toBe("/rove-home")
+    expect(roveStateDir()).toBe("/rove-home/.rove")
+    expect(roveSettingsDir()).toBe("/rove-home/.rove/settings")
+    expect(kvStatePath()).toBe("/rove-home/.config/rove/state.json")
+    expect(legacyRoveStateDir()).toBe(preRenameStateDir("/rove-home"))
+    expect(legacyRoveKvStatePath()).toBe(`${preRenameConfigDir("/rove-home")}/state.json`)
+  })
+
+  // `VAR=` is how a shell says "unset". Read raw, it made the home `""` and
+  // every state path RELATIVE — `.rove`, `.config/rove/state.json` — resolved
+  // against whatever cwd the process happened to have, which for the TUI is
+  // the user's repository.
+  test("an empty HOME_DIR means unset, never a relative state root", () => {
+    process.env.ROVE_HOME_DIR = ""
+    process.env.ROVE_HOME_DIR = ""
+    expect(homeDir()).toBe(homedir())
+    expect(roveStateDir()).toBe(`${homedir()}/.rove`)
+    expect(kvStatePath()).toBe(`${homedir()}/.config/rove/state.json`)
+  })
+
+  test("ROVE_DEV takes precedence over ROVE_DEV", () => {
+    process.env.ROVE_DEV = "1"
+    process.env.ROVE_DEV = "0"
+    expect(isDev()).toBe(false)
+    process.env.ROVE_DEV = "1"
+    expect(isDev()).toBe(true)
+  })
+})

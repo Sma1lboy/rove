@@ -102,7 +102,7 @@ Rove's default workflow squash-merges (`gh pr merge --squash`), which never
 makes branch commits ancestors of main — `git merge-base --is-ancestor` is a
 **false negative for every squash-merged branch**. The judgment must reuse
 the existing staleness rubric
-([`orchestrator/worktree/staleness.ts`](../../packages/kobe/src/orchestrator/worktree/staleness.ts)),
+([`orchestrator/worktree/staleness.ts`](../../packages/rove/src/orchestrator/worktree/staleness.ts)),
 whose signal cascade was built for exactly this:
 
 ```mermaid

@@ -9,7 +9,7 @@ never create an invisible orphan worktree.
 
 ## Current behavior and root cause
 
-`task.delete` currently waits for `KobeOrchestrator.deleteTask()`. That method
+`task.delete` currently waits for `RoveOrchestrator.deleteTask()`. That method
 runs the dirty-worktree guard, `git worktree remove`, metadata prune, optional
 branch deletion, and task-index removal before the RPC replies. The TUI cannot
 move selection until that reply arrives. Ignored directories such as

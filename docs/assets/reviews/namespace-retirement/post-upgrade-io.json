@@ -1,0 +1,12 @@
+{
+  "capturedAt": "2026-10-04T07:18:40.214Z",
+  "socket": "/private/tmp/rove-rename-proof/home/.rove/pty.sock",
+  "key": "01M42RD4Q21PW8WFZYTDXRN2MB::tab-1",
+  "beforePid": 96329,
+  "afterPid": 96329,
+  "alive": true,
+  "marker": "ROVE_CONTINUITY_AFTER",
+  "echoed": true,
+  "deltaBytes": 307,
+  "submitted": false
+}

@@ -21,8 +21,8 @@
 ### Task 1: Frame-final IME anchor output
 
 **Files:**
-- Create: `packages/kobe/src/tui/lib/ime-anchor-output.ts`
-- Create: `packages/kobe/test/tui/ime-anchor-output.test.ts`
+- Create: `packages/rove/src/tui/lib/ime-anchor-output.ts`
+- Create: `packages/rove/test/tui/ime-anchor-output.test.ts`
 
 **Interfaces:**
 - Produces: `ImeAnchorController`, `imeAnchorController`, `createImeAnchoredOutput`, and `installRendererResizeForwarder`.
@@ -43,7 +43,7 @@ expect(output).toContain("\x1b[5;7H\x1b[?25l\x1b[?2026l")
 Run:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 bunx vitest run test/tui/ime-anchor-output.test.ts
 ```
 
@@ -72,7 +72,7 @@ installRendererResizeForwarder(
 Run:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 bunx vitest run test/tui/ime-anchor-output.test.ts
 ```
 
@@ -81,16 +81,16 @@ Expected: all tests pass.
 - [ ] **Step 5: Commit the renderer-output seam**
 
 ```bash
-git add packages/kobe/src/tui/lib/ime-anchor-output.ts packages/kobe/test/tui/ime-anchor-output.test.ts
+git add packages/rove/src/tui/lib/ime-anchor-output.ts packages/rove/test/tui/ime-anchor-output.test.ts
 git commit -m "fix: anchor hidden cursor at frame end" -m "Route macOS OpenTUI frames through an owner-aware output adapter. It restores the hidden hardware cursor before synchronized-frame commit so IME preedit cannot follow diff rendering."
 ```
 
 ### Task 2: Retain the PTY cursor independently from the visual cursor
 
 **Files:**
-- Create: `packages/kobe/src/tui/panes/terminal/ime-cursor.ts`
-- Create: `packages/kobe/test/tui/terminal-ime-cursor.test.ts`
-- Modify: `packages/kobe/src/tui-react/panes/terminal/Terminal.tsx`
+- Create: `packages/rove/src/tui/panes/terminal/ime-cursor.ts`
+- Create: `packages/rove/test/tui/terminal-ime-cursor.test.ts`
+- Modify: `packages/rove/src/tui-react/panes/terminal/Terminal.tsx`
 
 **Interfaces:**
 - Produces: `ImeCursorRetention.update(pty, cursor)` returning the retained `CursorPos | null`.
@@ -111,7 +111,7 @@ tracker.update(ptyB, null)             // => null
 Run:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 bunx vitest run test/tui/terminal-ime-cursor.test.ts
 ```
 
@@ -135,7 +135,7 @@ park at origin only when that release actually cleared the active anchor.
 Run:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 bunx vitest run test/tui/terminal-ime-cursor.test.ts test/tui/terminal-viewport.test.ts test/tui/terminal-render.test.ts
 bun test test/render/terminal-ime-keys.test.tsx
 ```
@@ -145,15 +145,15 @@ Expected: all tests pass.
 - [ ] **Step 6: Commit cursor-state separation**
 
 ```bash
-git add packages/kobe/src/tui/panes/terminal/ime-cursor.ts packages/kobe/src/tui-react/panes/terminal/Terminal.tsx packages/kobe/test/tui/terminal-ime-cursor.test.ts
+git add packages/rove/src/tui/panes/terminal/ime-cursor.ts packages/rove/src/tui-react/panes/terminal/Terminal.tsx packages/rove/test/tui/terminal-ime-cursor.test.ts
 git commit -m "fix: retain terminal IME anchor through redraws" -m "Separate the visual PTY cursor from the macOS IME anchor. Transient cursor-hide frames retain the last valid location, and owner tokens prevent stale split cleanup from clearing the focused pane."
 ```
 
 ### Task 3: Wire the macOS host and publish the fix
 
 **Files:**
-- Modify: `packages/kobe/src/tui-react/lib/host-boot.tsx`
-- Modify: `packages/kobe/test/tui/host-render-options.test.ts`
+- Modify: `packages/rove/src/tui-react/lib/host-boot.tsx`
+- Modify: `packages/rove/test/tui/host-render-options.test.ts`
 - Create: `.changeset/stable-ime-anchor.md`
 
 **Interfaces:**
@@ -172,7 +172,7 @@ to the prior direct path.
 Run:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 bunx vitest run test/tui/host-render-options.test.ts
 ```
 
@@ -190,7 +190,7 @@ Create `.changeset/stable-ime-anchor.md`:
 
 ```md
 ---
-"@sma1lboy/kobe": patch
+"@sma1lboy/rove": patch
 ---
 
 Keep macOS input-method preedit and candidate windows anchored to the embedded terminal prompt while Claude or another engine animates output.
@@ -201,14 +201,14 @@ Keep macOS input-method preedit and candidate windows anchored to the embedded t
 Run:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 bunx vitest run test/tui/ime-anchor-output.test.ts test/tui/terminal-ime-cursor.test.ts test/tui/host-render-options.test.ts
 bun test test/render/terminal-ime-keys.test.tsx
 cd ../..
 bun run lint
 bun run typecheck
 bun run test
-cd packages/kobe
+cd packages/rove
 bun run test:render
 bun run build
 bun run test:behavior
@@ -220,15 +220,15 @@ all are at or below 500 lines.
 - [ ] **Step 6: Commit publication metadata**
 
 ```bash
-git add packages/kobe/src/tui-react/lib/host-boot.tsx packages/kobe/test/tui/host-render-options.test.ts .changeset/stable-ime-anchor.md
+git add packages/rove/src/tui-react/lib/host-boot.tsx packages/rove/test/tui/host-render-options.test.ts .changeset/stable-ime-anchor.md
 git commit -m "fix: enable stable macOS IME anchoring" -m "Use the frame-final cursor adapter only for fullscreen macOS hosts and preserve local terminal detection and resize handling. Ship the behavior as a patch changeset."
 ```
 
-- [ ] **Step 7: Push and open the KOBE pull request**
+- [ ] **Step 7: Push and open the ROVE pull request**
 
 ```bash
 git push -u origin fix/ime-anchor-stability
-gh pr create --base main --head fix/ime-anchor-stability --title "fix: stabilize macOS IME anchor in embedded terminals" --body-file /tmp/kobe-ime-pr.md
+gh pr create --base main --head fix/ime-anchor-stability --title "fix: stabilize macOS IME anchor in embedded terminals" --body-file /tmp/rove-ime-pr.md
 ```
 
 The PR body must include the reproduced root cause, the frame-final output

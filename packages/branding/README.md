@@ -4,7 +4,7 @@ Animated logo concepts for Rove, built in [Remotion](https://www.remotion.dev/).
 project's actual aesthetic: terminal-first, agent-deck-style brackets / BOLD CAPS, and
 multi-pane orchestration as the product story.
 
-> The repository keeps its `kobe` package and path identifiers for compatibility;
+> The repository keeps its `rove` package and path identifiers for compatibility;
 > rendered wordmarks and product copy use Rove.
 
 ## Concepts

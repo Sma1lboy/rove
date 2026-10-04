@@ -36,12 +36,12 @@ maintained on main and already accurate.
 
 | Phase | Claim | Verified state on main |
 |---|---|---|
-| 1. ExecHost seam | Done | `packages/kobe/src/exec/exec-host.ts` — `LocalExecHost` / `RemoteExecHost` / pure ssh construction (`sshConnectArgs`, `remoteShellCommand`, `shQuote`) + ControlMaster `ensureReady`. `exec/resolve.ts` — `execHostForRepo` / `execHostForWorktreePath`. Tests pass. |
-| 2. Keychain | Done | `packages/kobe/src/exec/keychain.ts` — macOS `security` store/read/delete behind injected deps; non-darwin no-op. Tests pass. |
-| 3. Data model | Done | `packages/kobe/src/state/remote-repos.ts` — `RemoteRepoConfig`, `remoteRepos` map, synthetic `ssh://user@host[:port][/basePath]` savedRepos keys, `resolveRepoRoot` ssh:// passthrough, `isRemoteProjectsEnabled()` experimental gate. `remoteControlSocketPath` in `env.ts`. Tests pass. |
-| 4. CLI | Done | `packages/kobe/src/cli/add-remote.ts` — `rove add --remote --host --user --path [--port] [--key|--password]`; refuses when the experimental flag is off. Tests pass. |
-| 5. Remote worktree | Done | `GitWorktreeManager` routes git+fs through `orchestrator/worktree/exec-deps.ts`; `paths.ts` `remoteWorktreePathFor`; new remote worktrees use `<basePath>/.rove/worktrees` and legacy `.kobe/worktrees` remains recognized. Tests pass. |
-| 6. Engine launch over SSH | **REGRESSED / disconnected** | The original phase-6 launch was wired through the tmux runtime, which was retired in the embedded-terminal pivot. `ExecHost.wrapCommand` (the `ssh -tt … 'cd <wt> && <engine>'` builder) still exists but has **zero consumers** outside `exec-host.ts`. The current shared launch builder `packages/kobe/src/engine/session-launch.ts` has no remote/ssh/ExecHost awareness — a task under a remote project would get its worktree created remotely but its engine launched locally (against a cwd that doesn't exist locally). |
+| 1. ExecHost seam | Done | `packages/rove/src/exec/exec-host.ts` — `LocalExecHost` / `RemoteExecHost` / pure ssh construction (`sshConnectArgs`, `remoteShellCommand`, `shQuote`) + ControlMaster `ensureReady`. `exec/resolve.ts` — `execHostForRepo` / `execHostForWorktreePath`. Tests pass. |
+| 2. Keychain | Done | `packages/rove/src/exec/keychain.ts` — macOS `security` store/read/delete behind injected deps; non-darwin no-op. Tests pass. |
+| 3. Data model | Done | `packages/rove/src/state/remote-repos.ts` — `RemoteRepoConfig`, `remoteRepos` map, synthetic `ssh://user@host[:port][/basePath]` savedRepos keys, `resolveRepoRoot` ssh:// passthrough, `isRemoteProjectsEnabled()` experimental gate. `remoteControlSocketPath` in `env.ts`. Tests pass. |
+| 4. CLI | Done | `packages/rove/src/cli/add-remote.ts` — `rove add --remote --host --user --path [--port] [--key|--password]`; refuses when the experimental flag is off. Tests pass. |
+| 5. Remote worktree | Done | `GitWorktreeManager` routes git+fs through `orchestrator/worktree/exec-deps.ts`; `paths.ts` `remoteWorktreePathFor`; new remote worktrees use `<basePath>/.rove/worktrees` and legacy `.rove/worktrees` remains recognized. Tests pass. |
+| 6. Engine launch over SSH | **REGRESSED / disconnected** | The original phase-6 launch was wired through the tmux runtime, which was retired in the embedded-terminal pivot. `ExecHost.wrapCommand` (the `ssh -tt … 'cd <wt> && <engine>'` builder) still exists but has **zero consumers** outside `exec-host.ts`. The current shared launch builder `packages/rove/src/engine/session-launch.ts` has no remote/ssh/ExecHost awareness — a task under a remote project would get its worktree created remotely but its engine launched locally (against a cwd that doesn't exist locally). |
 
 Feature gate: `experimental.remoteProjects`, off by default, toggled at
 Settings → Dev → Experimental (React surface:
@@ -56,7 +56,7 @@ telemetry — that was a real post-merge bug, fixed (`4fa4da8`).
 ## Gate status (this worktree, on main)
 
 - Repo-root `bun run lint` — clean (763 files).
-- Repo-root `bun run typecheck` (kobe-daemon + kobe) — clean.
+- Repo-root `bun run typecheck` (rove-daemon + rove) — clean.
 - Repo-root `bun run test` (fast + socket tracks) — all pass, exit 0.
 - Remote-specific suites run explicitly: `test/exec/*` (exec-host, keychain,
   local-exec-host, remote-repos), `test/cli/add-remote.test.ts`,

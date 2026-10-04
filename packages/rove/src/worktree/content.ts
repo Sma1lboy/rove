@@ -1,0 +1,146 @@
+/** Soft-failing Worktree reads (git output, file text); local vs SSH stays behind ExecHost. */
+
+import { errorMessage } from "@/lib/error-message"
+import { readHeadSha, resolveGitDirs } from "@sma1lboy/rove-daemon/daemon/worktree-probe"
+import type { ExecResult } from "../exec/exec-host.ts"
+import { execHostForWorktreePath } from "../exec/resolve.ts"
+import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
+import { recordSpawn } from "../lib/spawn-profile.ts"
+
+export interface WorktreeGitResult {
+  readonly stdout: string
+  readonly stderr: string
+  readonly status: number | null
+}
+
+export interface WorktreeContentDeps {
+  readonly execForPath?: typeof execHostForWorktreePath
+}
+
+export interface RunWorktreeGitOptions extends WorktreeContentDeps {
+  readonly timeoutMs?: number
+  /** Combined with the timeout; aborting kills the subprocess (panes cancel stale reads). */
+  readonly signal?: AbortSignal
+}
+
+/** `git <args>` via the Worktree's ExecHost. Never throws; spawn/SSH failure is `status: -1`. */
+export async function runWorktreeGit(
+  worktreePath: string,
+  args: readonly string[],
+  options: RunWorktreeGitOptions = {},
+): Promise<WorktreeGitResult> {
+  if (!worktreePath) {
+    return { stdout: "", stderr: "worktreePath is required", status: -1 }
+  }
+  const exec = (options.execForPath ?? execHostForWorktreePath)(worktreePath)
+  const controller = options.timeoutMs && options.timeoutMs > 0 ? new AbortController() : null
+  let timedOut = false
+  const timer = controller
+    ? setTimeout(() => {
+        timedOut = true
+        controller.abort()
+      }, options.timeoutMs)
+    : null
+  const signal =
+    controller && options.signal
+      ? AbortSignal.any([controller.signal, options.signal])
+      : (controller?.signal ?? options.signal)
+  let result: ExecResult
+  try {
+    recordSpawn("worktree.content", ["git", ...args], worktreePath)
+    result = await exec.run(["git", ...args], {
+      cwd: worktreePath,
+      env: READ_ONLY_GIT_ENV,
+      signal,
+    })
+  } catch (err) {
+    if (timer) clearTimeout(timer)
+    return { stdout: "", stderr: errorMessage(err), status: -1 }
+  }
+  if (timer) clearTimeout(timer)
+  if (timedOut && result.exitCode === -1 && !result.stderr) {
+    return {
+      stdout: result.stdout,
+      stderr: `git ${args.join(" ")} timed out after ${options.timeoutMs}ms`,
+      status: -1,
+    }
+  }
+  return {
+    stdout: result.stdout,
+    stderr: result.stderr,
+    status: result.exitCode,
+  }
+}
+
+/** HEAD sha read from the git dir files, no spawn; `null` for a remote Worktree or an unreadable/unborn HEAD. */
+export function readLocalWorktreeHead(worktreePath: string, deps: WorktreeContentDeps = {}): string | null {
+  if (!worktreePath || (deps.execForPath ?? execHostForWorktreePath)(worktreePath).isRemote) return null
+  try {
+    const dirs = resolveGitDirs(worktreePath)
+    return dirs ? readHeadSha(dirs) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Absolute path of `relPath` inside the Worktree, or `null` for invalid
+ * relative paths (absolute / `..`-escaping). Exported for callers that hand
+ * the file to something outside the read seam (e.g. the system viewer).
+ *
+ * The guard is separator-aware because the returned path feeds a filesystem
+ * read (`readWorktreeFile`, `worktreeFileSize`), and a LOCAL host on Windows
+ * treats `\` as a path separator just like `/`. So a leading `\` (a Windows
+ * root), a `drive:\`/`drive:/` prefix (a Windows absolute path), and a `..\`
+ * segment each escape the worktree there exactly as their `/` forms do on
+ * POSIX — and each has to be rejected, or the "relative, inside the worktree"
+ * contract only holds on one OS. The `..` check splits on BOTH separators;
+ * the result is still assembled from `/`-segments, so a POSIX filename that
+ * legitimately contains a `\` is passed through unchanged rather than split.
+ */
+export function worktreeFilePath(worktreePath: string, relPath: string): string | null {
+  if (!worktreePath || !relPath) return null
+  if (/^[/\\]/.test(relPath) || /^[a-zA-Z]:[/\\]/.test(relPath)) return null
+  if (relPath.split(/[/\\]/).some((part) => part === "..")) return null
+  const parts = relPath.split("/")
+  return `${worktreePath.replace(/\/+$/, "")}/${parts.filter(Boolean).join("/")}`
+}
+
+/**
+ * Byte size via ExecHost `wc -c` (local and remote alike); `null` when unreadable.
+ * ponytail: `wc` is absent on native Windows — size degrades to null there;
+ * switch to an ExecHost `stat` member if Windows support ever matters.
+ */
+export async function worktreeFileSize(
+  worktreePath: string,
+  relPath: string,
+  deps: WorktreeContentDeps = {},
+): Promise<number | null> {
+  const path = worktreeFilePath(worktreePath, relPath)
+  if (!path) return null
+  const exec = (deps.execForPath ?? execHostForWorktreePath)(worktreePath)
+  try {
+    const res = await exec.run(["wc", "-c", path])
+    if (res.exitCode !== 0) return null
+    const n = Number.parseInt(res.stdout.trim().split(/\s+/)[0] ?? "", 10)
+    return Number.isFinite(n) ? n : null
+  } catch {
+    return null
+  }
+}
+
+/** utf8 file text; `null` for invalid paths or unreadable files. */
+export async function readWorktreeFile(
+  worktreePath: string,
+  relPath: string,
+  deps: WorktreeContentDeps = {},
+): Promise<string | null> {
+  const path = worktreeFilePath(worktreePath, relPath)
+  if (!path) return null
+  const exec = (deps.execForPath ?? execHostForWorktreePath)(worktreePath)
+  try {
+    return await exec.readFile(path)
+  } catch {
+    return null
+  }
+}

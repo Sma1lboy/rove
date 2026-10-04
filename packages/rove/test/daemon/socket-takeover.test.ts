@@ -1,0 +1,230 @@
+/**
+ * Socket-takeover guard. An unconditional `unlink(socketPath)` in
+ * `startDaemonServer` lets an autospawned daemon steal the path out from
+ * under a healthy incumbent — the incumbent keeps serving its already-attached
+ * TUI while every NEW connection (engine hooks, `rove api`) lands on the
+ * usurper. Split-brain activity state; sidebar badges vanish for engines that
+ * are genuinely mid-turn. The guard probes the socket before binding: a live
+ * (hello-answering) owner refuses the boot, a stale leftover file is cleared.
+ */
+
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { unlink } from "node:fs/promises"
+import { type Server, createServer } from "node:net"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { type DaemonServerOptions, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
+import { createSocketOwnershipGuard } from "@sma1lboy/rove-daemon/daemon/socket-guard"
+import { describe, expect, it } from "vitest"
+import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
+import { bootDaemonHarness, fakeOrchestrator, waitFor } from "./harness.ts"
+
+const ZERO_POLLS = {
+  updatePollMs: 0,
+  autoTitlePollMs: 0,
+  prStatusPollMs: 0,
+  uiPrefsDebounceMs: 0,
+  keybindingsDebounceMs: 0,
+  worktreeChangesTickMs: 0,
+  transcriptActivityTickMs: 0,
+} as const
+
+/** Temp home + isolated socket/pid paths + ROVE_HOME_DIR pinned for the test's
+ *  duration, with base server options ready to spread. */
+function tempDaemonDir(prefix: string): {
+  dir: string
+  socketPath: string
+  pidPath: string
+  base: DaemonServerOptions
+  cleanup: () => void
+} {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  const saved = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = dir
+  const socketPath = join(dir, "daemon.sock")
+  const pidPath = join(dir, "daemon.pid")
+  return {
+    dir,
+    socketPath,
+    pidPath,
+    base: { runtime: daemonRuntime, socketPath, pidPath, homeDir: dir, ...ZERO_POLLS },
+    cleanup: () => {
+      if (saved === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = saved
+      rmSync(dir, { recursive: true, force: true })
+    },
+  }
+}
+
+async function bindForeignSocket(socketPath: string, pidPath: string) {
+  const server = createServer((socket) => {
+    socket.on("data", (chunk) => {
+      for (const line of chunk.toString().trim().split("\n")) {
+        const request = JSON.parse(line)
+        socket.write(`${JSON.stringify({ type: "response", id: request.id, name: request.name, payload: {} })}\n`)
+      }
+    })
+  })
+  await new Promise<void>((resolve) => server.listen(socketPath, resolve))
+  writeFileSync(pidPath, `${process.pid}\n`)
+  return { close: () => new Promise<void>((resolve) => server.close(() => resolve())) }
+}
+
+describe("daemon socket takeover guard", () => {
+  it("refuses to boot onto a socket a live daemon is serving, leaving the incumbent intact", async () => {
+    const h = await bootDaemonHarness()
+    try {
+      await expect(
+        startDaemonServer(() => fakeOrchestrator(), {
+          runtime: daemonRuntime,
+          socketPath: h.socketPath,
+          pidPath: `${h.pidPath}.usurper`,
+          homeDir: h.dir,
+          ...ZERO_POLLS,
+        }),
+      ).rejects.toThrow(/exclusive ownership/)
+      // The incumbent's socket file was NOT unlinked — it still answers.
+      const status = await h.client().request<Record<string, unknown>>("daemon.status")
+      expect(status).toBeTruthy()
+    } finally {
+      await h.close()
+    }
+  })
+
+  it("a daemon whose socket path was clobbered and rebound self-stops so clients can migrate", async () => {
+    // The client-side clobber the boot guard can't see: the path is unlinked
+    // FIRST (stopDaemonProcess cleanup), so the usurper's boot probe reads
+    // "absent" and binds. The incumbent must notice and stop itself — its
+    // attached clients' reconnect loops then land on the new owner.
+    const { socketPath, pidPath, base, cleanup } = tempDaemonDir("rove-sock-tko-")
+    try {
+      let stopped = false
+      const incumbent = await startDaemonServer(() => fakeOrchestrator(), {
+        ...base,
+        socketWatchMs: 25,
+        onStop: async () => {
+          stopped = true
+        },
+      })
+      await unlink(socketPath)
+      const usurper = await bindForeignSocket(socketPath, pidPath)
+      expect(await waitFor(() => stopped, 3000)).toBe(true)
+      // The superseded daemon's shutdown left the new owner fully intact.
+      expect(await waitFor(() => existsSync(socketPath), 3000)).toBe(true)
+      expect(existsSync(pidPath)).toBe(true)
+      const probe = new RoveDaemonClient(socketPath)
+      await probe.connect()
+      expect(await probe.request<Record<string, unknown>>("daemon.status")).toBeTruthy()
+      probe.close()
+      await usurper.close()
+      await incumbent.close()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it("shutdown cleanup leaves a socket it no longer owns untouched, but still cleans an owned one", async () => {
+    const { socketPath, pidPath, base, cleanup } = tempDaemonDir("rove-sock-own-")
+    try {
+      const superseded = await startDaemonServer(() => fakeOrchestrator(), { ...base, socketWatchMs: 0 })
+      await unlink(socketPath)
+      const owner = await bindForeignSocket(socketPath, pidPath)
+      await superseded.close()
+      // The late close of the superseded daemon deleted NOTHING of the owner's.
+      expect(existsSync(socketPath)).toBe(true)
+      expect(existsSync(pidPath)).toBe(true)
+      const probe = new RoveDaemonClient(socketPath)
+      await probe.connect()
+      expect(await probe.request<Record<string, unknown>>("daemon.status")).toBeTruthy()
+      probe.close()
+      // A daemon that still owns its socket cleans up like always.
+      await owner.close()
+      const next = await startDaemonServer(fakeOrchestrator, base)
+      await next.close()
+      expect(existsSync(socketPath)).toBe(false)
+      expect(existsSync(pidPath)).toBe(false)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it("a guard that never armed unlinks NOTHING on release — the self-feeding-cascade regression", async () => {
+    // `arm()` returns without stamping when the initial stat sees ENOENT —
+    // the path was already clobbered between bind and arm. A release() that
+    // treats "never armed" as "still mine" unlinks socket + pidfile BY PATH
+    // (both node and Bun do that inside server.close() too), deleting the
+    // LIVE owner's files. Deleting the pidfile is the half that makes it
+    // self-feeding: `ensureDaemonReachable`'s busy-daemon grace keys on
+    // readPidFile, so with it gone every client skips the grace and goes
+    // straight to stop+spawn.
+    const dir = mkdtempSync(join(tmpdir(), "rove-sock-unarmed-"))
+    try {
+      const socketPath = join(dir, "daemon.sock")
+      const pidPath = join(dir, "daemon.pid")
+
+      let lost = false
+      const guard = createSocketOwnershipGuard({
+        socketPath,
+        pidPath,
+        watchMs: 0,
+        onLost: () => {
+          lost = true
+        },
+      })
+      // Arm while the path is ABSENT — the incumbent's socket was already
+      // clobbered in its bind→arm window, so no stamp is recorded.
+      await guard.arm()
+      // ...and only THEN does the new owner bind the path and write its pid.
+      // Both files belong to a live daemon now. Plain files, so a stray
+      // unlink is unambiguous.
+      writeFileSync(socketPath, "live-owner-socket")
+      writeFileSync(pidPath, "4242\n")
+
+      let unrefs = 0
+      let closes = 0
+      const server = {
+        unref: () => {
+          unrefs += 1
+        },
+        close: (cb: () => void) => {
+          closes += 1
+          cb()
+        },
+      } as unknown as Server
+      await guard.release(server)
+
+      expect(readFileSync(socketPath, "utf8")).toBe("live-owner-socket")
+      expect(readFileSync(pidPath, "utf8")).toBe("4242\n")
+      // Unref, never close: close() itself unlinks the path by name.
+      expect(unrefs).toBe(1)
+      expect(closes).toBe(0)
+      expect(lost).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("still clears a stale socket file left by a dead daemon", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-sock-stale-"))
+    const saved = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = dir
+    const socketPath = join(dir, "daemon.sock")
+    writeFileSync(socketPath, "") // dead leftover: connect() fails, not a live owner
+    try {
+      const server = await startDaemonServer(() => fakeOrchestrator(), {
+        runtime: daemonRuntime,
+        socketPath,
+        pidPath: join(dir, "daemon.pid"),
+        homeDir: dir,
+        ...ZERO_POLLS,
+      })
+      expect(server.socketPath).toBe(socketPath)
+      await server.close()
+    } finally {
+      if (saved === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = saved
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})

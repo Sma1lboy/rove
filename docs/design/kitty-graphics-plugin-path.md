@@ -153,7 +153,7 @@ plugin-side workaround gets around all three, and the plugin contract exposes
 no replacement fact.**
 
 `probes/q2-run.ts` builds the pane argv through the shipped
-[`buildPaneArgv()`](../../packages/kobe-daemon/src/plugins/pane-command.ts) —
+[`buildPaneArgv()`](../../packages/rove-daemon/src/plugins/pane-command.ts) —
 `[loginShell, "-ilc", "exec env ROVE_…=… <command>"]` — and runs
 `probes/q2-pane-reach.py` inside it.
 
@@ -164,7 +164,7 @@ tty: /dev/ttys029
 ```
 
 **2. The outer emulator's identity is scrubbed.**
-[`embeddedTerminalEnv()`](../../packages/kobe-daemon/src/daemon/pty-env.js)
+[`embeddedTerminalEnv()`](../../packages/rove-daemon/src/daemon/pty-env.js)
 drops `TERM_PROGRAM`, `LC_TERMINAL`, `__CFBundleIdentifier` and every
 `GHOSTTY_` / `KITTY_` / `ITERM_` / `WEZTERM_` prefix:
 
@@ -174,7 +174,7 @@ GHOSTTY_* : 0 vars    KITTY_* : 0 vars       ITERM_* : 0 vars
 ```
 
 **3. Ancestry leads nowhere.** The default backend is `hosted`
-([`createTaskPty`](../../packages/kobe/src/tui/panes/terminal/pty.ts)), so the
+([`createTaskPty`](../../packages/rove/src/tui/panes/terminal/pty.ts)), so the
 child's ancestor is `pty-host`, measured live as **pid 954, ppid 1, tty `??`**.
 A hosted PTY outlives the TUI by design, so there is no ancestor holding an
 outer tty to walk up to — and a task can be attached by more than one GUI at
@@ -197,16 +197,16 @@ answers it, so the query channel works and the three empty replies are the
 embedded emulator declining to answer, not a probe that never wrote anything.
 
 **Nothing in the plugin contract substitutes.** Of the 52 `rove api` verbs,
-none reports terminal geometry or a tty. Of the `ROVE_*` / `KOBE_*` variables a
+none reports terminal geometry or a tty. Of the `ROVE_*` / `ROVE_*` variables a
 pane receives, none names a tty, a display, or a pixel dimension. Grepping
-`packages/kobe/src` + `packages/kobe-daemon/src` for `cellWidth|pixelWidth|
+`packages/rove/src` + `packages/rove-daemon/src` for `cellWidth|pixelWidth|
 CSI 16|termProgram` finds only `doctor-report.ts` (diagnostics) and the scrub
 list itself: **Rove does not know its own cell pixel size today**, at any
 layer.
 
 Known ceiling, not a blocker: Rove forwards mouse as SGR 1006 with cell
 coordinates (`\x1b[<${code};${col};${row}M`,
-[`keys-pure.ts:462`](../../packages/kobe/src/tui/panes/terminal/keys-pure.ts)),
+[`keys-pure.ts:462`](../../packages/rove/src/tui/panes/terminal/keys-pure.ts)),
 and answers `CSI ?1016$p` with `2` (permanently reset). A browser pane gets
 pointing at 16 × 34 px granularity, not per-pixel.
 
@@ -236,14 +236,14 @@ Three pieces, in the layer each already belongs to:
 
 1. **The TUI learns its own cell pixel size.** One `CSI 16 t` query on its tty
    around renderer creation
-   ([`tui-react/lib/host-boot.tsx:255`](../../packages/kobe/src/tui-react/lib/host-boot.tsx)),
+   ([`tui-react/lib/host-boot.tsx:255`](../../packages/rove/src/tui-react/lib/host-boot.tsx)),
    reported to the daemon with the `role: "gui"` subscribe
-   ([`daemon/subscribe.ts`](../../packages/kobe-daemon/src/daemon/subscribe.ts)).
+   ([`daemon/subscribe.ts`](../../packages/rove-daemon/src/daemon/subscribe.ts)).
    This is the prerequisite the removed `terminal-graphics.md` recorded as
    unsolved; the measurement above shows it is one query, and terminals that
    answer `0` or nothing simply report no capability.
 2. **A verb + channel**, alongside
-   [`handlers-ui.ts`](../../packages/kobe-daemon/src/daemon/handlers-ui.ts)'s
+   [`handlers-ui.ts`](../../packages/rove-daemon/src/daemon/handlers-ui.ts)'s
    `tab.open`: take opaque bytes plus a tab id, allocate the image id in the
    daemon (per-tab, which is the id-namespacing blocker the prior gate listed),
    broadcast to every attached GUI, reply with the id and the cell size — or
@@ -251,7 +251,7 @@ Three pieces, in the layer each already belongs to:
    pane does today.
 3. **The TUI writes the payload to fd 1 between frames**, next to where the
    event is consumed
-   ([`client/remote-orchestrator-events.ts:353`](../../packages/kobe/src/client/remote-orchestrator-events.ts)).
+   ([`client/remote-orchestrator-events.ts:353`](../../packages/rove/src/client/remote-orchestrator-events.ts)).
    Bytes verbatim; Rove parses nothing.
 
 **Why this does not reintroduce what the scrub prevents.**
@@ -295,12 +295,12 @@ describes, so it was deleted rather than left to be quoted against this one:
 
 ```bash
 cd .scratch/kitty-plugin                       # assets copied from .scratch/kitty-spike
-(cd ../../packages/kobe && bun ../../.scratch/kitty-plugin/probes/q1-pane-stack.ts)   # Q1 in the grid
+(cd ../../packages/rove && bun ../../.scratch/kitty-plugin/probes/q1-pane-stack.ts)   # Q1 in the grid
 ./probes/q1-wire.sh out/q1e-wire.bin                                                  # Q1 on the wire
 ./probes/shoot.sh "$PWD/probes/run-q1e.sh"       "$PWD/out/q1e-full.png"           10  # Q1 on screen
 ./probes/shoot.sh "$PWD/probes/run-q1e-cells.sh" "$PWD/out/q1e-cells-negative.png" 10  # its negative control
 python3 probes/measure.py out/q1e-full.png && python3 probes/measure-ruler.py out/q1e-full.png
-(cd ../../packages/kobe && bun ../../.scratch/kitty-plugin/probes/q2-run.ts)          # Q2 from the pane
+(cd ../../packages/rove && bun ../../.scratch/kitty-plugin/probes/q2-run.ts)          # Q2 from the pane
 ./probes/shoot.sh "$PWD/probes/run-q2-host-caps.sh" "$PWD/out/q2-host-caps.png"     6  # Q2 from the host
 ```
 
@@ -313,9 +313,9 @@ capture picks up whatever app is in front of that rectangle.
 
 A child's own graphics commands now reach the real terminal without the
 `pane-graphics` verb. `XtermTaskPty.feedInternal`
-([`pty-xterm-base.ts`](../../packages/kobe/src/tui/panes/terminal/pty-xterm-base.ts))
+([`pty-xterm-base.ts`](../../packages/rove/src/tui/panes/terminal/pty-xterm-base.ts))
 runs every chunk, live and replay, through
-[`KittyGraphicsFilter`](../../packages/kobe/src/tui/panes/terminal/kitty-graphics.ts)
+[`KittyGraphicsFilter`](../../packages/rove/src/tui/panes/terminal/kitty-graphics.ts)
 before `term.write`, and hands the APCs it keeps to the GUI's `graphics.write`
 stdout sink. The sink and the measured cell size are installed by
 `start-workspace.tsx` only when stdout is a TTY and the env names Ghostty or

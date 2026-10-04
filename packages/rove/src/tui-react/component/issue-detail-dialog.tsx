@@ -1,0 +1,455 @@
+/** @jsxImportSource @opentui/react */
+/**
+ * Issue-detail dialog — the kanban page's Enter surface onto one story.
+ * Title is a controlled <input>; description an UNCONTROLLED <textarea> so
+ * pasted newlines survive. `tab` cycles title → description → status →
+ * engine → workspace; arrows steer only selector fields, never the inputs'
+ * cursors. `esc` SAVES dirty edits and closes (ctrl+c discards).
+ *
+ * STATUS is a field here because this drawer is the only place a human can
+ * move a card out of Backlog/In progress (board keys only steer and delete);
+ * a field reuses the existing cycle where a board chord would be new.
+ *
+ * Pasted image/PDF paths and ctrl+v screenshots (`captureClipboardAttachment`)
+ * append an `images[N]: /path` line to the description, which persists in the
+ * body and rides the first prompt — no separate attachments rail.
+ *
+ * Resolves via `showDialog` with the edited draft on every outcome
+ * (see `issue-detail-contract.ts`); `mode: "create"` is the board's `n` intake
+ * (ctrl+s = save only, enter = save & start, esc = cancel). The kanban page
+ * owns the store writes.
+ */
+
+import { TextAttributes, type TextareaRenderable } from "@opentui/core"
+import { usePaste } from "@opentui/react"
+import { ISSUE_STATUSES, type IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import { useRef, useState } from "react"
+import { ISSUE_CHAT_PLACEMENTS, type IssueChatPlacement, withImagePlaceholders } from "../../state/issue-chat"
+import { stripNewlines } from "../../tui/component/new-task-dialog/state"
+import { asAttachmentPaths, captureClipboardAttachment } from "../../tui/lib/attachments"
+import type { VendorId } from "../../types/task"
+import { useTheme } from "../context/theme"
+import { useT } from "../i18n"
+import { useBindings } from "../lib/keymap"
+import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
+import { ChipButton, ChipRow, DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
+import type { IssueDetailOptions, IssueDetailOutcome, IssueDraft } from "./issue-detail-contract"
+import { IssueEventsSection } from "./issue-detail-parts"
+
+// Re-exported so the page and render tests keep one import site.
+export type { IssueDetailOptions, IssueDetailOutcome } from "./issue-detail-contract"
+
+type Field = "title" | "description" | "status" | "engine" | "workspace" | "jump" | "open" | "unlink"
+
+/** Description editor height — tall enough to read a story, short enough
+ *  to keep the start config on screen. */
+const DESCRIPTION_ROWS = 8
+
+export function IssueDetailDialogView(
+  props: IssueDetailOptions & {
+    onSubmit: (outcome: IssueDetailOutcome) => void
+    onCancel: () => void
+  },
+) {
+  const dialog = useDialog()
+  const { theme } = useTheme()
+  const t = useT()
+  const padX = useDialogPaddingX()
+  const issue = props.issue
+  const create = props.mode === "create"
+  const linkedTaskId = !create && issue.taskId && issue.taskId !== "" ? issue.taskId : null
+  const startable = create || (!linkedTaskId && issue.status !== "done")
+
+  const [vendor, setVendor] = useState<VendorId>(props.defaultVendor)
+  const [placement, setPlacement] = useState<IssueChatPlacement>(ISSUE_CHAT_PLACEMENTS[0] ?? "worktree")
+  // Follow-or-stay, orthogonal to placement. Default STAY: the board is
+  // the tracking surface; jumping into the session is the explicit ask.
+  const [jump, setJump] = useState(false)
+  const [draftTitle, setDraftTitle] = useState(issue.title)
+  const [draftBody, setDraftBody] = useState(issue.body)
+  const [draftStatus, setDraftStatus] = useState<IssueStatus>(issue.status)
+  // Startable stories open ready to fire (enter = start from the workspace
+  // field); a new story starts typing its title; linked ones open ready to
+  // JUMP (enter = open the session); done-unlinked ones open on the title.
+  const [field, setField] = useState<Field>(
+    create ? "title" : startable ? "workspace" : linkedTaskId ? "open" : "title",
+  )
+
+  // Placeholder inserts write through the ref; edits mirror into draftBody.
+  const bodyEl = useRef<TextareaRenderable | null>(null)
+
+  // No `status` in create (a new story is `open` by construction); in detail
+  // it follows the text fields so closing a card is two tabs away.
+  const fields: readonly Field[] = create
+    ? ["title", "description", "engine", "workspace", "jump"]
+    : startable
+      ? ["title", "description", "status", "engine", "workspace", "jump"]
+      : linkedTaskId
+        ? ["title", "description", "status", "open", "unlink"]
+        : ["title", "description", "status"]
+
+  function insertPlaceholders(paths: readonly string[]): void {
+    if (paths.length === 0) return
+    const next = withImagePlaceholders(bodyEl.current?.plainText ?? draftBody, paths)
+    bodyEl.current?.setText(next)
+    setDraftBody(next)
+  }
+
+  // Pasted text that is entirely image/PDF path(s) becomes placeholder
+  // lines — the quick-task composer's paste contract, aimed at the body.
+  usePaste((event: { bytes: Uint8Array; preventDefault: () => void }) => {
+    const paths = asAttachmentPaths(new TextDecoder().decode(event.bytes))
+    if (!paths) return
+    event.preventDefault()
+    insertPlaceholders(paths)
+  })
+
+  function pasteClipboardImage(): void {
+    void captureClipboardAttachment().then((path) => {
+      if (path) insertPlaceholders([path])
+    })
+  }
+
+  function cycleField(dir: 1 | -1): void {
+    setField((current) => {
+      const i = Math.max(0, fields.indexOf(current))
+      return fields[(i + dir + fields.length) % fields.length] ?? "title"
+    })
+  }
+
+  function stepEngine(dir: 1 | -1): void {
+    const list = props.engines
+    if (list.length === 0) return
+    setVendor((v) => {
+      const i = Math.max(0, list.indexOf(v))
+      return list[(i + dir + list.length) % list.length] ?? v
+    })
+  }
+
+  function stepPlacement(dir: 1 | -1): void {
+    setPlacement((p) => {
+      const i = ISSUE_CHAT_PLACEMENTS.indexOf(p)
+      return ISSUE_CHAT_PLACEMENTS[(i + dir + ISSUE_CHAT_PLACEMENTS.length) % ISSUE_CHAT_PLACEMENTS.length] ?? p
+    })
+  }
+
+  function draft(): IssueDraft {
+    return {
+      title: draftTitle.trim() || issue.title,
+      body: bodyEl.current?.plainText ?? draftBody,
+      status: draftStatus,
+    }
+  }
+
+  function stepStatus(dir: 1 | -1): void {
+    setDraftStatus((s) => {
+      const i = Math.max(0, ISSUE_STATUSES.indexOf(s))
+      return ISSUE_STATUSES[(i + dir + ISSUE_STATUSES.length) % ISSUE_STATUSES.length] ?? s
+    })
+  }
+
+  /** Create mode needs a real title — bounce focus back when it's blank. */
+  function requireTitle(): boolean {
+    if (draftTitle.trim().length > 0) return true
+    setField("title")
+    return false
+  }
+
+  function commit(): void {
+    if (create) {
+      if (!requireTitle()) return
+      const { title, body } = draft()
+      props.onSubmit({ kind: "create", start: { vendor, placement, jump }, title, body })
+    } else if (startable) {
+      props.onSubmit({ kind: "start", vendor, placement, jump, ...draft() })
+    } else if (linkedTaskId) {
+      props.onSubmit({ kind: "open", taskId: linkedTaskId, ...draft() })
+    } else {
+      return
+    }
+    dialog.clear()
+  }
+
+  /** ctrl+s in create mode — file the story without starting anything. */
+  function saveOnly(): void {
+    if (!create || !requireTitle()) return
+    const { title, body } = draft()
+    props.onSubmit({ kind: "create", start: null, title, body })
+    dialog.clear()
+  }
+
+  /** Unlink and close — a stranded card's way back to Backlog. */
+  function unlink(): void {
+    props.onSubmit({ kind: "unlink", ...draft() })
+    dialog.clear()
+  }
+
+  function close(): void {
+    // Detail esc saves; create esc cancels (no esc-created empty stories).
+    if (create) props.onCancel()
+    else props.onSubmit({ kind: "close", ...draft() })
+    dialog.clear()
+  }
+
+  useBindings(() => ({
+    bindings: [
+      // Save-and-close esc: a modal MEMBER outranks the barrier's own
+      // escape, so dirty edits persist. ctrl+c (the barrier) still discards.
+      { key: "escape", cmd: () => close() },
+      { key: "tab", cmd: () => cycleField(1) },
+      { key: "shift+tab", cmd: () => cycleField(-1) },
+      { key: "ctrl+return", cmd: () => commit() },
+      ...(create ? [{ key: "ctrl+s", cmd: () => saveOnly() }] : []),
+      { key: "ctrl+v", cmd: () => pasteClipboardImage() },
+      // Arrows are unregistered on text fields so they reach the cursor.
+      // Status binds no `return`: routing enter on a done/parked story to
+      // `commit()` would start a session.
+      ...(field === "status"
+        ? [
+            { key: "left", cmd: () => stepStatus(-1) },
+            { key: "right", cmd: () => stepStatus(1) },
+            { key: "h", cmd: () => stepStatus(-1) },
+            { key: "l", cmd: () => stepStatus(1) },
+          ]
+        : []),
+      ...(field === "engine"
+        ? [
+            { key: "left", cmd: () => stepEngine(-1) },
+            { key: "right", cmd: () => stepEngine(1) },
+            { key: "h", cmd: () => stepEngine(-1) },
+            { key: "l", cmd: () => stepEngine(1) },
+            { key: "return", cmd: () => commit() },
+          ]
+        : []),
+      ...(field === "workspace"
+        ? [
+            { key: "up", cmd: () => stepPlacement(-1) },
+            { key: "down", cmd: () => stepPlacement(1) },
+            { key: "return", cmd: () => commit() },
+          ]
+        : []),
+      ...(field === "jump"
+        ? [
+            { key: "left", cmd: () => setJump((v) => !v) },
+            { key: "right", cmd: () => setJump((v) => !v) },
+            { key: "h", cmd: () => setJump((v) => !v) },
+            { key: "l", cmd: () => setJump((v) => !v) },
+            { key: "return", cmd: () => commit() },
+          ]
+        : []),
+      // The linked story's two actions — enter fires whichever is focused.
+      ...(field === "open" ? [{ key: "return", cmd: () => commit() }] : []),
+      ...(field === "unlink" ? [{ key: "return", cmd: () => unlink() }] : []),
+    ],
+  }))
+
+  // Keyed on the DRAFT, not the open-time snapshot: the header badge is the
+  // confirmation that the status field's ←/→ landed.
+  const statusFg =
+    draftStatus === "done"
+      ? theme.success
+      : draftStatus === "hold"
+        ? theme.warning
+        : draftStatus === "doing"
+          ? theme.accent
+          : theme.textMuted
+
+  return (
+    <box paddingLeft={padX} paddingRight={padX} gap={1}>
+      {create ? (
+        <DialogHeader title={t("kanban.detail.newStory")} onClose={() => close()} />
+      ) : (
+        <DialogHeader onClose={() => close()}>
+          <box flexDirection="row" gap={2}>
+            <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none">
+              #{issue.id}
+            </text>
+            <text fg={statusFg} attributes={TextAttributes.BOLD} wrapMode="none">
+              {t(`kanban.detail.status.${draftStatus}`)}
+            </text>
+            <text fg={theme.textMuted} wrapMode="none">
+              {t("kanban.detail.created", { date: issue.created })}
+            </text>
+            {linkedTaskId ? (
+              <text fg={theme.accent} wrapMode="none">
+                {t("kanban.detail.linked")}
+              </text>
+            ) : null}
+          </box>
+        </DialogHeader>
+      )}
+
+      {/* TITLE — controlled input, single line. Enter walks to the body. */}
+      <DialogSection
+        label={t("kanban.detail.titleLabel")}
+        focused={field === "title"}
+        onPress={() => setField("title")}
+      >
+        <DialogField focused={field === "title"}>
+          <input
+            value={draftTitle}
+            focused={field === "title"}
+            onMouseUp={() => setField("title")}
+            onInput={(v: string) => setDraftTitle(stripNewlines(v))}
+            onSubmit={() => setField("description")}
+          />
+        </DialogField>
+      </DialogSection>
+
+      {/* DESCRIPTION — uncontrolled multiline editor; pasted image paths and
+          ctrl+v screenshots append `images[N]: /path` placeholder lines. */}
+      <DialogSection
+        label={t("kanban.detail.description")}
+        focused={field === "description"}
+        hint={t("kanban.detail.attachHint")}
+        onPress={() => setField("description")}
+      >
+        <DialogField focused={field === "description"}>
+          <textarea
+            ref={(el: TextareaRenderable | null) => {
+              bodyEl.current = el
+            }}
+            initialValue={issue.body}
+            placeholder={t("kanban.detail.noDescription")}
+            focused={field === "description"}
+            height={DESCRIPTION_ROWS}
+            wrapMode="word"
+            onMouseUp={() => setField("description")}
+            onContentChange={() => setDraftBody(bodyEl.current?.plainText ?? "")}
+          />
+        </DialogField>
+      </DialogSection>
+
+      {/* STATUS — the card's column, as a chip row. Detail mode only: this is
+          the human's only route out of Backlog / In progress, since the board
+          itself is read-only and `d` deletes rather than closes. */}
+      {create ? null : (
+        <DialogSection
+          label={t("kanban.detail.statusLabel")}
+          focused={field === "status"}
+          hint="←/→"
+          paddingBottom={1}
+          onPress={() => setField("status")}
+        >
+          <ChipRow
+            choices={ISSUE_STATUSES}
+            selected={draftStatus}
+            display={(option) => t(`kanban.detail.status.${option}`)}
+            onPick={(option) => {
+              setField("status")
+              setDraftStatus(option)
+            }}
+          />
+        </DialogSection>
+      )}
+
+      {startable ? (
+        <box gap={0}>
+          {/* ENGINE — chip buttons; selected = active border + primary bold. */}
+          <DialogSection label={t("kanban.detail.engine")} focused={field === "engine"} hint="←/→">
+            <ChipRow
+              choices={props.engines}
+              selected={vendor}
+              display={props.engineLabel}
+              paddingBottom={1}
+              onPick={(engine) => {
+                setField("engine")
+                setVendor(engine)
+              }}
+            />
+          </DialogSection>
+
+          {/* WORKSPACE — the three placements as one grouped, bordered list. */}
+          <DialogSection
+            label={t("kanban.detail.workspace")}
+            focused={field === "workspace"}
+            hint="↑/↓"
+            paddingBottom={1}
+          >
+            <DialogField focused={field === "workspace"}>
+              {ISSUE_CHAT_PLACEMENTS.map((option) => {
+                const active = option === placement
+                return (
+                  <text
+                    key={option}
+                    fg={active ? theme.primary : theme.textMuted}
+                    attributes={active ? TextAttributes.BOLD : undefined}
+                    onMouseUp={() => {
+                      setField("workspace")
+                      setPlacement(option)
+                    }}
+                  >
+                    {active ? "▸ " : "  "}
+                    {t(`kanban.detail.placement.${option}`)}
+                  </text>
+                )
+              })}
+            </DialogField>
+          </DialogSection>
+
+          {/* AFTER START — follow the session or stay on the board;
+              orthogonal to placement (all three support both). */}
+          <DialogSection label={t("kanban.detail.jumpLabel")} focused={field === "jump"} hint="←/→" paddingBottom={1}>
+            <ChipRow
+              choices={["stay", "follow"] as const}
+              selected={jump ? "follow" : "stay"}
+              display={(option) => t(option === "follow" ? "kanban.detail.jump.follow" : "kanban.detail.jump.stay")}
+              onPick={(option) => {
+                setField("jump")
+                setJump(option === "follow")
+              }}
+            />
+          </DialogSection>
+
+          <DialogFooter>{create ? t("kanban.detail.createLegend") : t("kanban.detail.startLegend")}</DialogFooter>
+        </box>
+      ) : linkedTaskId ? (
+        <box gap={1}>
+          {/* SESSION — jump to the story's running workspace (mouse or
+              enter; the board closes and the task activates), and the way
+              back out: Unlink returns the card to Backlog. Unlink is the
+              only recovery when the linked task no longer exists — the
+              Open action would then jump at nothing. */}
+          <DialogSection label={t("kanban.detail.sessionLabel")} focused={field === "open"}>
+            <box flexDirection="row" gap={1}>
+              <ChipButton
+                label={t("kanban.detail.openAction")}
+                selected={field === "open"}
+                tone="text"
+                onPress={() => {
+                  setField("open")
+                  commit()
+                }}
+              />
+              <ChipButton
+                label={t("kanban.detail.unlinkAction")}
+                selected={field === "unlink"}
+                onPress={() => {
+                  setField("unlink")
+                  unlink()
+                }}
+              />
+            </box>
+          </DialogSection>
+          {/* EVENTS — what the linked session's engine has been doing. */}
+          <IssueEventsSection taskId={linkedTaskId} orchestrator={props.orchestrator ?? null} />
+          <DialogFooter>{t("kanban.detail.openLegend")}</DialogFooter>
+        </box>
+      ) : (
+        <DialogFooter>{t("kanban.detail.doneNote")}</DialogFooter>
+      )}
+    </box>
+  )
+}
+
+function show(dialog: DialogContext, opts: IssueDetailOptions): Promise<IssueDetailOutcome | undefined> {
+  return showDialog<IssueDetailOutcome>(
+    dialog,
+    (resolve) => (
+      <IssueDetailDialogView {...opts} onSubmit={(outcome) => resolve(outcome)} onCancel={() => resolve(undefined)} />
+    ),
+    { size: "large" },
+  )
+}
+
+export const IssueDetailDialog = { show }

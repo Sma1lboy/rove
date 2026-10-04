@@ -18,15 +18,10 @@ configured using Git-style forward slashes without creating a second entry.
 | `<repo>/.rove/init.sh` + `init-prompt.md` | Per-repo worktree setup | You (committed to the repo) |
 | `<repo>/.rove/pr-instructions.md` | Per-repo PR action prompt | You (committed to the repo) |
 
-Setting `ROVE_HOME_DIR` changes the home beneath these paths. `KOBE_HOME_DIR`
-remains a supported fallback; when both are set, `ROVE_HOME_DIR` wins. On first
-launch, Rove copies missing client-owned data from `.kobe` and `.config/kobe`;
-daemon-owned stores are copied when the new daemon starts, after the old writer
-has stopped. Neither phase overwrites old files. Existing worktrees stay
-where they are; daemon/PTY runtime files keep their compatibility paths only
-while a pre-rename process is still live, and the plugin tree is *moved* into
-`~/.rove/` on the first new-daemon start, with a symlink left at the old
-path.
+Setting `ROVE_HOME_DIR` changes the home beneath all these paths. Only `ROVE_*`
+environment variables are read. New runtime files use canonical names; a live
+pre-rename PTY host can still be attached until it exits or `rove reset` runs.
+See [runtime state](./CLI.md#where-state-lives).
 
 ### Runtime path overrides
 
@@ -42,7 +37,7 @@ the one you use, without the two finding each other.
 | `ROVE_PTY_SOCKET_PATH` | The PTY host's socket — a named pipe on Windows |
 | `ROVE_PTY_PID_PATH` | The PTY host's pidfile |
 
-Each has a `KOBE_`-prefixed fallback (`KOBE_DAEMON_SOCKET_PATH`, and so on);
+Each has a `ROVE_`-prefixed fallback (`ROVE_DAEMON_SOCKET_PATH`, and so on);
 when both spellings are set, the `ROVE_` one wins. Unset ones stay derived
 from the home.
 
@@ -150,8 +145,7 @@ In `editor.customCommand`, `{file}` is replaced by the quoted file path. Without
 it, the path is appended.
 
 Set `ROVE_OPEN_EDITOR` to choose the GUI editor for a whole worktree, for
-example `ROVE_OPEN_EDITOR=zed`. `KOBE_OPEN_EDITOR` remains a compatibility
-fallback; when both are set, `ROVE_OPEN_EDITOR` wins. Without either variable,
+example `ROVE_OPEN_EDITOR=zed`. Without that variable,
 Rove tries the `code`, `cursor`, `windsurf`, and `zed` CLIs in that order,
 then the platform opener. These variables do not change the file tree's
 per-file TTY editor.
@@ -357,7 +351,7 @@ each repo. The token only counts as the **first** segment.
 **Only new tasks move.** Existing tasks keep the path they were created with,
 including legacy global and repo-local roots. `worktree.basePath` is
 local-only: remote (SSH) worktrees go under the *remote project's own* path
-at `<project>/.rove/worktrees`, and their existing `.kobe/worktrees` remain
+at `<project>/.rove/worktrees`, and their existing `.rove/worktrees` remain
 discoverable. No restart needed.
 
 ### Sidebar
@@ -539,7 +533,7 @@ non-regular files and files over 8 MiB. JSON rewrites use owner-only read/write
 permissions (`0600`). Startup cleanup of retired global hooks uses this same
 profile; explicitly saved repository or settings-file cleanup paths still apply.
 If you also have a pre-plugin skill copy under
-`~/.claude/skills/rove` (or `…/kobe`), delete that directory. The plugin's
+`~/.claude/skills/rove` (or `…/rove`), delete that directory. The plugin's
 bundled copy replaces it. Rove never edits or removes either one silently.
 
 Uninstalling or disabling the plugin reverses the handoff: the next Rove
@@ -562,14 +556,11 @@ same level of trust you extend by running the repo's own build or test
 command, so it is worth a look at `.rove/init.sh` before you create the first
 task in a repository you did not write.
 
-Files committed in the repo win over any per-user override you set with
-`rove repo set`. Legacy `.kobe/init.sh` and `.kobe/init-prompt.md` remain
-field-by-field fallbacks; a `.rove` file wins when both spellings exist —
-for `init.sh` the file merely has to exist (even empty), while
-`init-prompt.md` must be non-empty to win.
+Files under `.rove/` win over per-user overrides set with `rove repo set`.
+For `init.sh`, the file only has to exist, even if empty. Prompt files must
+be non-empty. The retired repository directory is no longer read.
 
 The PR action also reads `.rove/pr-instructions.md` as its prompt template;
 `{{branch}}`, `{{targetBranch}}`, `{{dirtyCountSentence}}`, and
 `{{upstreamSentence}}` are substituted (unknown `{{…}}` passes through).
-It falls back to `.kobe/pr-instructions.md`; when both files are present, the
-non-empty `.rove` file wins.
+The file must be non-empty.

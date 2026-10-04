@@ -1,0 +1,149 @@
+/**
+ * Schema + `--help` rendering from the {@link VERBS} table. The `schema`
+ * handler lives in `verbs.ts` (load-order cycle); these renderers are only
+ * called from function bodies, so importing `VERBS` here is safe.
+ */
+
+import { registeredEngineIds } from "../../engine/plugin-engines.ts"
+import { ROVE_PRODUCT_NAME } from "../../product.ts"
+import { CURRENT_VERSION } from "../../version.ts"
+import { ApiError, type FlagSpec, type VerbSpec } from "./types.ts"
+import { VERBS, VERB_ALIASES, VERB_GROUPS } from "./verbs.ts"
+
+/** Bumped when the verb/flag shape changes incompatibly. Agents can gate on it. */
+export const API_SCHEMA_VERSION = 2
+
+const GLOBAL_FLAGS = [
+  { name: "pretty", type: "bool", description: "Pretty-print stdout JSON." },
+  { name: "help", type: "bool", description: "Show usage for the verb and exit." },
+]
+
+/**
+ * Values a flag's schema/help should SHOW. `--vendor` is an open enum: spec
+ * `values` lists built-ins, but registered engines (presets, plugins) are
+ * valid at runtime too. Read at render time so new engines show immediately.
+ */
+function displayValues(f: FlagSpec): readonly string[] | undefined {
+  if (!f.values) return undefined
+  if (f.name !== "vendor") return f.values
+  const registered = registeredEngineIds().filter((id) => !f.values!.includes(id))
+  return registered.length > 0 ? [...f.values, ...registered] : f.values
+}
+
+function flagJson(f: FlagSpec): unknown {
+  const values = displayValues(f)
+  return {
+    name: f.name,
+    type: f.type,
+    required: f.required ?? false,
+    ...(values ? { values } : {}),
+    ...(f.default !== undefined ? { default: f.default } : {}),
+    ...(f.placeholder ? { placeholder: f.placeholder } : {}),
+    description: f.description,
+  }
+}
+
+/** ONE verb, full detail (flags + types). The drill-in level. */
+export function verbSchema(v: VerbSpec): unknown {
+  return {
+    name: v.name,
+    group: v.group,
+    summary: v.summary,
+    offline: v.offline ?? false,
+    flags: v.flags.map(flagJson),
+  }
+}
+
+/** The COMPACT index: groups + verb names + summaries, but NO flags — so an
+ *  agent can survey the surface cheaply, then drill in with --verb. */
+export function schemaIndex(): unknown {
+  const cliName = ROVE_PRODUCT_NAME
+  return {
+    apiVersion: API_SCHEMA_VERSION,
+    roveVersion: CURRENT_VERSION,
+    hint: `Compact index. Drill into ONE verb: \`${cliName} api schema --verb <name>\` (or \`${cliName} api <verb> --help\`). One group: \`--group <g>\`. Whole spec: \`--all\`.`,
+    groups: VERB_GROUPS,
+    verbs: VERBS.map((v) => ({ name: v.name, group: v.group, summary: v.summary })),
+    globalFlags: GLOBAL_FLAGS,
+    aliases: VERB_ALIASES,
+  }
+}
+
+/** The verbs in ONE group (compact), from the same `VerbSpec.group` as the index. */
+export function groupSchema(group: string): unknown {
+  const verbs = VERBS.filter((v) => v.group === group)
+  if (verbs.length === 0) {
+    throw new ApiError(`unknown group: ${group}. Groups: ${Object.keys(VERB_GROUPS).join(", ")}`, "BAD_VERB", {
+      hint: "that group does not exist — the compact index lists every group and the verbs in it",
+      nextCommandArgs: ["api", "schema"],
+    })
+  }
+  return {
+    group,
+    verbs: verbs.map((v) => ({ name: v.name, summary: v.summary })),
+  }
+}
+
+/** The COMPLETE spec — every verb AND every flag. Opt-in via --all. */
+export function fullSchema(): unknown {
+  return {
+    apiVersion: API_SCHEMA_VERSION,
+    roveVersion: CURRENT_VERSION,
+    output: {
+      success: "one JSON object on stdout, newline-terminated, exit 0",
+      error: '{"error":{"message","code"}} on stderr, exit != 0',
+      pretty: "--pretty indents stdout JSON",
+    },
+    globalFlags: GLOBAL_FLAGS,
+    aliases: VERB_ALIASES,
+    groups: VERB_GROUPS,
+    verbs: VERBS.map(verbSchema),
+  }
+}
+
+/** Render one verb's flag signature, e.g. `--repo PATH [--title T] ...`. */
+function flagSignature(verb: VerbSpec): string {
+  return verb.flags
+    .map((f) => {
+      const meta =
+        f.type === "enum" && f.values ? displayValues(f)!.join("|") : (f.placeholder ?? (f.type === "bool" ? "" : "X"))
+      const core = meta ? `--${f.name} ${meta}` : `--${f.name}`
+      return f.required ? core : `[${core}]`
+    })
+    .join(" ")
+}
+
+/** Full `<active CLI> api <verb> --help` text. */
+export function verbHelp(verb: VerbSpec): string {
+  const lines = [`${ROVE_PRODUCT_NAME} api ${verb.name} ${flagSignature(verb)}`.trimEnd(), "", verb.summary, ""]
+  const alias = Object.entries(VERB_ALIASES).find(([, canon]) => canon === verb.name)?.[0]
+  if (alias) lines.push(`Alias: ${alias}`, "")
+  if (verb.flags.length > 0) {
+    lines.push("Flags:")
+    for (const f of verb.flags) {
+      const req = f.required ? " (required)" : ""
+      const def = f.default !== undefined ? ` [default: ${f.default}]` : ""
+      const vals = f.type === "enum" && f.values ? ` {${displayValues(f)!.join("|")}}` : ""
+      lines.push(`  --${f.name}${vals}${req}${def}  ${f.description}`)
+    }
+    lines.push("")
+  }
+  lines.push("Global: [--pretty] [--help]")
+  return lines.join("\n")
+}
+
+/** One-line-per-verb usage banner for `<active CLI> api` with no/bad verb. */
+export function apiUsage(): string {
+  const cliName = ROVE_PRODUCT_NAME
+  const rows = VERBS.map((v) => `  ${v.name.padEnd(18)} ${v.summary}`)
+  return [
+    `usage: ${cliName} api <verb> [flags] [--pretty] [--help]`,
+    "",
+    `Explore the full surface (names, flags, types) with:  ${cliName} api schema`,
+    "",
+    "verbs:",
+    ...rows,
+    "",
+    "Output is one JSON object on stdout (exit 0); errors are JSON on stderr (exit != 0).",
+  ].join("\n")
+}

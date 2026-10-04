@@ -1,6 +1,6 @@
 # Verifying Worker Output
 
-What a coordinator does after a worker reports `succeeded`. Dispatching workers and the report contract they follow live in the `rove` skill ([`.claude/skills/kobe/SKILL.md`](../../.claude/skills/kobe/SKILL.md)); this page starts where that ends — **`succeeded` is a claim, not a verification.** Every rule here was paid for in one night of verifying 26 worker PRs; the examples are real.
+What a coordinator does after a worker reports `succeeded`. Dispatching workers and the report contract they follow live in the `rove` skill ([`.claude/skills/rove/SKILL.md`](../../.claude/skills/rove/SKILL.md)); this page starts where that ends — **`succeeded` is a claim, not a verification.** Every rule here was paid for in one night of verifying 26 worker PRs; the examples are real.
 
 ```mermaid
 flowchart TD

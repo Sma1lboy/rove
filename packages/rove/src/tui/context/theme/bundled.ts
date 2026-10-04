@@ -1,0 +1,29 @@
+/**
+ * The bundled theme JSONs as a plain map — the SINGLE owner of the static
+ * JSON imports. `theme-core.ts` re-exports this map as `BUNDLED_THEMES`
+ * for the theme providers; off-render callers (e.g. resolving tmux border
+ * colors at session-build time) import it here directly, as does `cli/theme.ts`
+ * for the bundled NAMES — this map is the only place that list exists.
+ */
+
+import type { ThemeJson } from "../theme-core"
+
+import claude from "./claude.json" with { type: "json" }
+import conductor from "./conductor.json" with { type: "json" }
+import skylight from "./skylight.json" with { type: "json" }
+import tokyonight from "./tokyonight.json" with { type: "json" }
+
+export const BUNDLED_THEME_JSONS: Record<string, ThemeJson> = {
+  // Claude-branded palette (terracotta accent on warm neutrals), ported
+  // from ashwingopalsamy/claude-code-theme's brandTokens. Default for
+  // new rove installs so the TUI reads as part of the Claude ecosystem.
+  claude: claude as ThemeJson,
+  conductor: conductor as ThemeJson,
+  // Cool daylight canvas with a sky-cyan selection accent, and a near-black
+  // night twin where that cyan reads as a glow. The light half is the reason
+  // to ship it: pick it with Settings → Appearance → Mode = Light or Auto.
+  // The day accent is the same hue deepened until it holds 4.5:1 as text on
+  // the white canvas (the raw sky cyan reads 2.1:1 there).
+  skylight: skylight as ThemeJson,
+  tokyonight: tokyonight as ThemeJson,
+}

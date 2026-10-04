@@ -1,20 +1,20 @@
 # Landing-page auto-deploy.
 #
-# Deploys the marketing site (`packages/kobe-landing`, a static HTML site)
-# to Vercel production (project `kobe-landing`, rove.sma1lboy.me) whenever
+# Deploys the marketing site (`packages/rove-landing`, a static HTML site)
+# to Vercel production (project `rove-landing`, rove.sma1lboy.me) whenever
 # the landing files change on `main`. This exists because the Vercel CLI
 # can't always run from a local machine behind a TLS-intercepting network
 # (node's fetch fails cert verification); a GitHub-hosted runner has a clean
 # network, so CI is the reliable path to ship a merged landing change.
 #
-# Trigger: a push to `main` that touches `packages/kobe-landing/**` (or this
+# Trigger: a push to `main` that touches `packages/rove-landing/**` (or this
 # workflow), plus a manual `workflow_dispatch` so a change that already
 # landed can be deployed on demand (the first run after this workflow is
 # added won't have an auto-trigger).
 #
 # Required repo secret:
 #   - VERCEL_TOKEN: a Vercel access token (Vercel dashboard → Settings →
-#     Tokens → Create), scoped to the team that owns the `kobe-landing`
+#     Tokens → Create), scoped to the team that owns the `rove-landing`
 #     project. Add with: `gh secret set VERCEL_TOKEN`.
 #
 # The org/project IDs below are NOT secrets (they're the identifiers from
@@ -27,7 +27,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "packages/kobe-landing/**"
+      - "packages/rove-landing/**"
       - ".github/workflows/deploy-landing.yml"
   workflow_dispatch:
 
@@ -60,9 +60,9 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      # The Vercel project's Root Directory setting is `packages/kobe-landing`,
+      # The Vercel project's Root Directory setting is `packages/rove-landing`,
       # so the CLI must run from the REPO ROOT — running it inside the package
-      # doubles the path (`packages/kobe-landing/packages/kobe-landing`) and
+      # doubles the path (`packages/rove-landing/packages/rove-landing`) and
       # fails. That exact doubling broke every deploy from 2026-08-15 on.
       - name: Pull Vercel project settings
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"

@@ -1,0 +1,271 @@
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+const mocks = vi.hoisted(() => ({
+  stopDaemonProcess: vi.fn(),
+  stopLegacyTmux: vi.fn(),
+  stampResetGate: vi.fn(),
+  /** Answer the reset command's y/N prompt reads off stdin. */
+  promptAnswer: { value: "n" },
+}))
+
+vi.mock("node:readline", () => ({
+  createInterface: () => ({
+    question: (_q: string, cb: (answer: string) => void) => cb(mocks.promptAnswer.value),
+    close: () => undefined,
+  }),
+}))
+
+vi.mock("@sma1lboy/rove-daemon/daemon/lifecycle", () => ({
+  stopDaemonProcess: mocks.stopDaemonProcess,
+}))
+
+vi.mock("../../src/cli/legacy-tmux.ts", () => ({
+  stopLegacyTmux: mocks.stopLegacyTmux,
+}))
+
+vi.mock("../../src/cli/reset-gate.ts", () => ({
+  stampResetGate: mocks.stampResetGate,
+}))
+
+// clearFrozenSessions stays REAL — it rm -rf's a directory under the tmp home,
+// and a stub would leave the "did reset actually drop the archives?" assertion
+// checking nothing.
+
+import { runResetSubcommand } from "../../src/cli/reset-cmd.ts"
+
+let home: string
+let originalHome: string | undefined
+let originalExitCode: number | string | null | undefined
+let logSpy: ReturnType<typeof vi.spyOn>
+let errorSpy: ReturnType<typeof vi.spyOn>
+
+beforeEach(() => {
+  originalHome = process.env.ROVE_HOME_DIR
+  originalExitCode = process.exitCode
+  process.exitCode = 0
+  home = mkdtempSync(join(tmpdir(), "rove-reset-"))
+  process.env.ROVE_HOME_DIR = home
+  mkdirSync(join(home, `${preRenameStateDir("")}`), { recursive: true })
+  mkdirSync(join(home, ".rove"), { recursive: true })
+  mocks.stopDaemonProcess.mockReset().mockResolvedValue({ pid: null, method: "absent" })
+  mocks.stopLegacyTmux.mockReset().mockResolvedValue({ status: "absent", sessions: 0, signalledGroups: 0 })
+  mocks.stampResetGate.mockReset()
+  logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined)
+  errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined)
+})
+
+afterEach(() => {
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
+  process.exitCode = originalExitCode
+  rmSync(home, { recursive: true, force: true })
+  logSpy.mockRestore()
+  errorSpy.mockRestore()
+})
+
+function output(): string {
+  return logSpy.mock.calls.map((call) => String(call[0])).join("\n")
+}
+
+describe("runResetSubcommand", () => {
+  it("stops current runtimes before safely cleaning legacy tmux", async () => {
+    mocks.stopDaemonProcess
+      .mockResolvedValueOnce({ pid: 11, method: "sigterm" })
+      .mockResolvedValueOnce({ pid: 12, method: "graceful" })
+    mocks.stopLegacyTmux.mockResolvedValue({ status: "stopped", sessions: 2, signalledGroups: 8 })
+
+    await runResetSubcommand(["--yes"])
+
+    expect(mocks.stopDaemonProcess).toHaveBeenCalledTimes(2)
+    expect(mocks.stopLegacyTmux).toHaveBeenCalledTimes(1)
+    expect(mocks.stopLegacyTmux.mock.invocationCallOrder[0]).toBeGreaterThan(
+      mocks.stopDaemonProcess.mock.invocationCallOrder[1] ?? 0,
+    )
+    expect(output()).toContain("pty host: stopped via graceful (pid 12)")
+    expect(output()).toContain("legacy tmux: stopped 2 session(s) after signalling 8 pane group(s)")
+    expect(mocks.stampResetGate).toHaveBeenCalledTimes(1)
+  })
+
+  it("hard reset removes task and UI state while preserving worktrees", async () => {
+    const tasksPath = join(home, ".rove", "tasks.json")
+    const legacyTasksPath = join(home, `${preRenameStateDir("")}`, "tasks.json")
+    const statePath = join(home, ".config", "rove", "state.json")
+    const legacyStatePath = join(home, ".config", "rove", "state.json")
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
+    writeFileSync(tasksPath, JSON.stringify({ tasks: [{ id: "a" }] }))
+    writeFileSync(legacyTasksPath, JSON.stringify({ tasks: [{ id: "legacy" }] }))
+    writeFileSync(statePath, "{}")
+    writeFileSync(legacyStatePath, "{}")
+
+    await runResetSubcommand(["--hard", "--yes"])
+
+    expect(existsSync(tasksPath)).toBe(false)
+    expect(existsSync(legacyTasksPath)).toBe(false)
+    expect(existsSync(statePath)).toBe(false)
+    expect(existsSync(legacyStatePath)).toBe(false)
+    expect(output()).toContain("NOT touch your git worktrees")
+    expect(mocks.stampResetGate).not.toHaveBeenCalled()
+  })
+
+  it("does not wipe state or stamp reset complete when legacy cleanup fails", async () => {
+    const tasksPath = join(home, ".rove", "tasks.json")
+    const statePath = join(home, ".config", "rove", "state.json")
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
+    writeFileSync(tasksPath, JSON.stringify({ tasks: [{ id: "a" }] }))
+    writeFileSync(statePath, "{}")
+    mocks.stopLegacyTmux.mockResolvedValue({
+      status: "failed",
+      sessions: 1,
+      signalledGroups: 1,
+      error: "server still running",
+    })
+
+    await runResetSubcommand(["--hard", "--yes"])
+    expect(process.exitCode).toBe(1)
+    expect(errorSpy).toHaveBeenCalledWith("  legacy tmux: cleanup failed — server still running")
+    expect(existsSync(tasksPath)).toBe(true)
+    expect(existsSync(statePath)).toBe(true)
+    expect(mocks.stampResetGate).not.toHaveBeenCalled()
+    expect(output()).not.toContain("reset complete")
+  })
+
+  it("does not report success when a hard-reset state path cannot be removed", async () => {
+    const tasksPath = join(home, ".rove", "tasks.json")
+    mkdirSync(tasksPath)
+
+    await expect(runResetSubcommand(["--hard", "--yes"])).rejects.toThrow("failed to remove task index")
+    expect(output()).not.toContain("reset complete")
+  })
+
+  it("--hard names what it destroys in the settings file, with counts", async () => {
+    // The preview used to say "UI state", which is not what gets unlinked:
+    // saved projects and every registered custom engine live in the same file
+    // and have no other record.
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
+    writeFileSync(
+      join(home, ".config", "rove", "state.json"),
+      JSON.stringify({
+        savedRepos: ["/a", "/b", "/c"],
+        customEngineIds: ["mine"],
+        "engineCommand.mine": "mine --go",
+        activeTheme: "claude",
+        onboarded: true,
+      }),
+    )
+    const tty = process.stdin.isTTY
+    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true })
+    try {
+      await runResetSubcommand(["--hard"])
+    } finally {
+      Object.defineProperty(process.stdin, "isTTY", { value: tty, configurable: true })
+    }
+    expect(output()).toContain("saved projects: 3")
+    expect(output()).toContain("custom engines: 1")
+    expect(output()).toContain("theme")
+    expect(output()).toContain("onboarding")
+  })
+
+  it("drops frozen sessions when the host had to be signalled, not stopped gracefully", async () => {
+    // Only the `daemon.stop` RPC sets the host's own wipe flag. A wedged host
+    // — the case TROUBLESHOOTING points at reset for — never runs it, so every
+    // frozen archive used to survive and restore the whole scene next boot.
+    const freezeDir = join(home, ".rove", "pty-sessions")
+    mkdirSync(freezeDir, { recursive: true })
+    writeFileSync(join(freezeDir, "task--tab-1.json"), "{}")
+    mocks.stopDaemonProcess
+      .mockResolvedValueOnce({ pid: 1, method: "graceful" }) // the daemon
+      .mockResolvedValueOnce({ pid: 2, method: "sigkill" }) // the pty host
+
+    await runResetSubcommand(["--yes"])
+
+    expect(existsSync(freezeDir)).toBe(false)
+    expect(output()).toContain("frozen sessions: cleared")
+  })
+
+  it("--hard without --yes on a non-TTY refuses: nothing stopped, nothing wiped", async () => {
+    // Every other test passes --yes, so the whole confirmation block
+    // (reset-cmd.ts:104-116) can be deleted with the suite still green. This
+    // is the regression that block exists to prevent: `rove reset --hard` in
+    // a pipe/CI/agent shell silently wiping the task index with no prompt.
+    const tasksPath = join(home, ".rove", "tasks.json")
+    const statePath = join(home, ".config", "rove", "state.json")
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
+    writeFileSync(tasksPath, JSON.stringify({ tasks: [{ id: "a" }] }))
+    writeFileSync(statePath, "{}")
+    const tty = process.stdin.isTTY
+    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true })
+    try {
+      await runResetSubcommand(["--hard"])
+    } finally {
+      Object.defineProperty(process.stdin, "isTTY", { value: tty, configurable: true })
+    }
+
+    expect(existsSync(tasksPath)).toBe(true)
+    expect(existsSync(statePath)).toBe(true)
+    // The refusal is a true preflight: it returns BEFORE any runtime is torn
+    // down, so a refused reset leaves the daemon and PTY host running.
+    expect(mocks.stopDaemonProcess).not.toHaveBeenCalled()
+    expect(mocks.stopLegacyTmux).not.toHaveBeenCalled()
+    expect(mocks.stampResetGate).not.toHaveBeenCalled()
+    expect(output()).toContain("re-run with --yes to proceed")
+    expect(output()).not.toContain("reset complete")
+    // A refused no-op must not exit 0: a caller reading only the status would
+    // take "I did nothing" for "I reset your install".
+    expect(process.exitCode).toBe(2)
+  })
+
+  it("declining the interactive y/N prompt aborts with nothing changed", async () => {
+    const tasksPath = join(home, ".rove", "tasks.json")
+    writeFileSync(tasksPath, JSON.stringify({ tasks: [{ id: "a" }] }))
+    mocks.promptAnswer.value = "n"
+    const tty = process.stdin.isTTY
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true })
+    try {
+      await runResetSubcommand(["--hard"])
+    } finally {
+      Object.defineProperty(process.stdin, "isTTY", { value: tty, configurable: true })
+    }
+
+    expect(existsSync(tasksPath)).toBe(true)
+    expect(mocks.stopDaemonProcess).not.toHaveBeenCalled()
+    expect(output()).toContain("aborted — nothing changed")
+  })
+
+  it("accepting the prompt proceeds — the gate blocks, it does not disable --hard", async () => {
+    const tasksPath = join(home, ".rove", "tasks.json")
+    writeFileSync(tasksPath, JSON.stringify({ tasks: [{ id: "a" }] }))
+    mocks.promptAnswer.value = "y"
+    const tty = process.stdin.isTTY
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true })
+    try {
+      await runResetSubcommand(["--hard"])
+    } finally {
+      Object.defineProperty(process.stdin, "isTTY", { value: tty, configurable: true })
+    }
+
+    expect(existsSync(tasksPath)).toBe(false)
+    expect(mocks.stopDaemonProcess).toHaveBeenCalled()
+  })
+
+  it("an unknown argument exits 2 before anything is stopped", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("__exit__")
+    }) as never)
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+    try {
+      await expect(runResetSubcommand(["--hardd", "--yes"])).rejects.toThrow("__exit__")
+      expect(exit).toHaveBeenCalledWith(2)
+      expect(stderr.mock.calls.join("")).toContain('unknown argument "--hardd"')
+    } finally {
+      exit.mockRestore()
+      stderr.mockRestore()
+    }
+    // A typo must not be read as a bare `reset` and tear the daemon down.
+    expect(mocks.stopDaemonProcess).not.toHaveBeenCalled()
+  })
+})

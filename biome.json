@@ -16,7 +16,7 @@
       "bun.lock",
       "packages/branding/**",
       "branding/**",
-      "packages/kobe-harness/**",
+      "packages/rove-harness/**",
       "packages/*/.dev-sandbox/**",
       "packages/*/.dev-fixture/**",
       "**/.dev-sandbox/**",
@@ -25,11 +25,11 @@
       "**/.mockdist-dev/**",
       "packages/*/*probe*.ts",
       "packages/*/*probe*.tsx",
-      "packages/kobe/leak-*.ts",
-      "packages/kobe/leak-*.tsx",
-      "packages/kobe/minimal-tui.tsx",
-      "packages/kobe/noop-react.tsx",
-      "packages/kobe/react-*.tsx"
+      "packages/rove/leak-*.ts",
+      "packages/rove/leak-*.tsx",
+      "packages/rove/minimal-tui.tsx",
+      "packages/rove/noop-react.tsx",
+      "packages/rove/react-*.tsx"
     ]
   },
   "formatter": {

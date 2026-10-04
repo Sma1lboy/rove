@@ -8,14 +8,14 @@ prefix key without changing tmux Handover bindings or pane ownership.
 ## Contract
 
 - The default prefix is `ctrl+a`; the second key must arrive within 1000 ms.
-- Existing PureTUI `ctrl+…` rows in `KobeKeymap` become prefix rows. Their
+- Existing PureTUI `ctrl+…` rows in `RoveKeymap` become prefix rows. Their
   unmodified key becomes the second stroke (for example, `ctrl+t` becomes
   `ctrl+a t`). Non-control rows, function keys, and dialog-local controls stay
   direct.
 - A prefix row is still registered at its existing Binding Stack site. The
   second stroke is matched only against enabled registrations above the modal
   barrier, so a Terminal Tab cannot run a Tasks pane action.
-- Prefix configuration lives in `~/.kobe/settings/keybindings.yaml`:
+- Prefix configuration lives in `~/.rove/settings/keybindings.yaml`:
 
   ```yaml
   prefix:
@@ -37,7 +37,7 @@ prefix key without changing tmux Handover bindings or pane ownership.
 ## Boundaries
 
 The dispatcher remains framework-free in `src/tui/lib`; React's `useBindings`
-continues to own Binding Stack registration. `KobeKeymap` stays the canonical
+continues to own Binding Stack registration. `RoveKeymap` stays the canonical
 catalogue for help and hints. The tmux resolver continues to read only
 `tmux.*` entries and is not changed.
 

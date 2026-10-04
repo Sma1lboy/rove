@@ -1,0 +1,54 @@
+import { describe, expect, it } from "vitest"
+import { renderExport } from "../../src/cli/export-cmd.ts"
+import { displayWidth } from "../../src/lib/display-width.ts"
+import { type Task, toTaskId } from "../../src/types/task.ts"
+
+function task(overrides: Partial<Task> = {}): Task {
+  return {
+    id: toTaskId("01HZ0000000000000000000001"),
+    title: "Fix the thing",
+    repo: "/home/u/repo",
+    branch: "rove/fix-thing-01",
+    worktreePath: "/home/u/.rove/worktrees/repo/fix-thing-01",
+    status: "in_progress",
+    vendor: "claude",
+    createdAt: "2026-06-23T00:00:00.000Z",
+    updatedAt: "2026-06-23T00:00:00.000Z",
+    ...overrides,
+  }
+}
+
+describe("renderExport", () => {
+  it("emits a JSON array that round-trips and carries the documented fields", () => {
+    const parsed = JSON.parse(renderExport([task()], "json"))
+    expect(Array.isArray(parsed)).toBe(true)
+    expect(parsed[0]).toMatchObject({
+      id: "01HZ0000000000000000000001",
+      title: "Fix the thing",
+      status: "in_progress",
+      vendor: "claude",
+      branch: "rove/fix-thing-01",
+      repo: "/home/u/repo",
+      worktreePath: "/home/u/.rove/worktrees/repo/fix-thing-01",
+    })
+  })
+
+  it("quotes and escapes CSV fields containing commas or quotes", () => {
+    const csv = renderExport([task({ title: 'a, "b"' })], "csv")
+    expect(csv.split("\n")[1]).toContain('"a, ""b"""')
+  })
+
+  it("aligns table columns by terminal display width, not code-unit length (CJK titles)", () => {
+    // Two tasks identical except the title: one ASCII (2 cells), one CJK whose
+    // display width (4 cells) exceeds its code-unit length (2). With true
+    // display-width padding both rows pad the title column to the same cell
+    // width, so every later column lines up and the two rows share one total
+    // display width. Measuring by String.length would under-pad
+    // the CJK row by 2 cells and shove its trailing columns left.
+    const asciiTitle = "ab"
+    const cjkTitle = String.fromCodePoint(0x4e2d, 0x6587) // 中文
+    const ascii = renderExport([task({ id: toTaskId("01HZ0000000000000000000001"), title: asciiTitle })], "table")
+    const cjk = renderExport([task({ id: toTaskId("01HZ0000000000000000000002"), title: cjkTitle })], "table")
+    expect(displayWidth(ascii.split("\n")[1])).toBe(displayWidth(cjk.split("\n")[1]))
+  })
+})

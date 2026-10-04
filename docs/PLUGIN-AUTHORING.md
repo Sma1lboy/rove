@@ -70,15 +70,15 @@ const ev = pluginEvent()      // typed event envelope (null outside [[events]])
   These are the SINGLE source: the daemon itself imports them from the
   SDK's `./contract` module, so host and SDK can't drift by construction.
 
-Package README has full examples: `packages/kobe-plugin-sdk/README.md`.
+Package README has full examples: `packages/rove-plugin-sdk/README.md`.
 Module-by-module SDK reference: [PLUGIN-SDK.md](./PLUGIN-SDK.md).
 
 ## SDK examples
 
-Five runnable examples live under `packages/kobe-plugin-sdk/examples/`, one
+Five runnable examples live under `packages/rove-plugin-sdk/examples/`, one
 per surface. Each clip below is the real TUI — recorded through the same
 browser-PTY path the README assets use, against a throwaway home with the
-example already linked (`packages/kobe-harness/e2e/films/`), so what
+example already linked (`packages/rove-harness/e2e/films/`), so what
 you see is where your plugin actually shows up.
 
 ![task-board](./assets/plugins/task-board.gif)
@@ -106,7 +106,7 @@ copy appears as a toast in every attached UI.*
 Re-record with:
 
 ```bash
-cd packages/kobe-harness
+cd packages/rove-harness
 bun e2e/hero-fixture.ts --fresh   # throwaway home + a real repo
 bun e2e/hero-plugins.ts           # link every example (BEFORE the TUI boots)
 bun e2e/hero-serve.ts             # warm capture stack (keep running)
@@ -315,7 +315,7 @@ Every plugin command gets, on top of the user's environment:
 
 | Variable | Meaning |
 |---|---|
-| `ROVE_BIN_PATH` | exec this to call back into Rove — the absolute path of the running install when that is a runnable file (an npm install, a compiled binary), otherwise the bare `rove`/`kobe` name resolved on `PATH`, which is what a dev checkout run through `bun` falls back to. In that fallback your callbacks run **a different build than the daemon that launched you**, so a verb or flag the daemon has can still fail as a usage error: compare `$ROVE_BIN_PATH --version` against the daemon's own `roveVersion` (see [Which host am I talking to](#which-host-am-i-talking-to)) before blaming your own arguments |
+| `ROVE_BIN_PATH` | exec this to call back into Rove — the absolute path of the running install when that is a runnable file (an npm install, a compiled binary), otherwise the bare `rove` name resolved on `PATH`, which is what a dev checkout run through `bun` falls back to. In that fallback your callbacks run **a different build than the daemon that launched you**, so a verb or flag the daemon has can still fail as a usage error: compare `$ROVE_BIN_PATH --version` against the daemon's own `roveVersion` (see [Which host am I talking to](#which-host-am-i-talking-to)) before blaming your own arguments |
 | `ROVE_SOCKET_PATH` | daemon unix socket, for raw JSON requests |
 | `ROVE_HOME_DIR` | set when Rove runs against a non-default home (keep passing it through) |
 | `ROVE_PLUGIN_ID`, `ROVE_PLUGIN_ROOT` | who you are, where your files are |
@@ -327,10 +327,8 @@ Every plugin command gets, on top of the user's environment:
 | actions | `ROVE_PLUGIN_ACTION_ID`, `ROVE_PLUGIN_INVOKE_CWD` (where the user invoked, usually "the repo I mean") |
 | panes | `ROVE_PLUGIN_ENTRYPOINT_ID`, `ROVE_PLUGIN_TASK_ID`; cwd is the task worktree. Panes get no `_TASK_TITLE` — read it with `"$ROVE_BIN_PATH" api get-task --task-id "$ROVE_PLUGIN_TASK_ID"` |
 
-Every `ROVE_*` variable above is also injected under its established `KOBE_*`
-alias. Existing plugins need no edits; when both are supplied, SDK readers
-prefer `ROVE_*`. Likewise, `kobe-plugin.toml`, `min_kobe_version`, and
-`@sma1lboy/kobe-plugin-sdk` remain supported compatibility spellings.
+Only the `ROVE_*` namespace, `rove-plugin.toml`, `min_rove_version`, and
+`@sma1lboy/rove-plugin-sdk` are supported. Update plugins using retired aliases.
 
 Never write durable state under `ROVE_PLUGIN_ROOT`. GitHub installs are
 managed checkouts replaced on reinstall. Settings you declare in
@@ -375,7 +373,7 @@ own `$ROVE_PLUGIN_TASK_ID`.
 
 **Socket (advanced):** newline-delimited JSON frames on `ROVE_SOCKET_PATH`
 (`{"type":"request","id":"1","name":"task.list","payload":{}}`); request
-names and payloads in `packages/kobe-daemon/src/daemon/protocol.ts`. Prefer
+names and payloads in `packages/rove-daemon/src/daemon/protocol.ts`. Prefer
 the CLI unless you need push channels.
 
 ### Which host am I talking to
@@ -385,7 +383,7 @@ version describes what YOU were built against, not what the running daemon
 knows. Send `{"type":"request","id":"1","name":"hello","payload":{}}` (the
 SDK wraps it as `RoveSocket.hello()`) and read back:
 
-- `kobeVersion` — the daemon's build version. The SDK also surfaces it as
+- `roveVersion` — the daemon's build version. The SDK also surfaces it as
   `roveVersion`; the wire field keeps its original spelling.
 - `capabilities` — the broadcast channels **this** daemon has. A channel name
   it does not know is dropped from a `subscribe` filter silently, so this is
@@ -499,7 +497,7 @@ engine name belongs in one: the engine adapter owns that vocabulary
   row-token surface; the SDK helpers answer `false` rather than throwing, so
   you never have to version-gate the call.
 
-Runnable example: [`examples/row-tokens/`](../packages/kobe-plugin-sdk/examples/row-tokens).
+Runnable example: [`examples/row-tokens/`](../packages/rove-plugin-sdk/examples/row-tokens).
 
 ## Ground rules
 

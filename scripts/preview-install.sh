@@ -24,9 +24,9 @@
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-PKG_SRC="$ROOT/packages/kobe"
+PKG_SRC="$ROOT/packages/rove"
 
-BIN="$(command -v rove 2>/dev/null || command -v kobe 2>/dev/null || true)"
+BIN="$(command -v rove 2>/dev/null || command -v rove 2>/dev/null || true)"
 if [ -z "$BIN" ]; then
   echo "preview-install: no global rove on PATH — install prod first: npm i -g @sma1lboy/rove" >&2
   exit 1
@@ -34,11 +34,11 @@ fi
 ENTRY="$(realpath "$BIN")" # …/node_modules/@sma1lboy/rove/dist/cli/rove.js
 PKG_DIR="$(cd "$(dirname "$ENTRY")/../.." && pwd)"
 # Either package name is a valid target: installs that haven't run
-# `rove update` since the rename are still on @sma1lboy/kobe.
+# `rove update` since the rename are still on @sma1lboy/rove.
 case "$PKG_DIR" in
-  */node_modules/@sma1lboy/rove | */node_modules/@sma1lboy/kobe) ;;
+  */node_modules/@sma1lboy/rove | */node_modules/@sma1lboy/rove) ;;
   *)
-    echo "preview-install: rove on PATH ($BIN) doesn't resolve into a global @sma1lboy/{rove,kobe} install (got: $PKG_DIR)" >&2
+    echo "preview-install: rove on PATH ($BIN) doesn't resolve into a global @sma1lboy/{rove,rove} install (got: $PKG_DIR)" >&2
     exit 1
     ;;
 esac

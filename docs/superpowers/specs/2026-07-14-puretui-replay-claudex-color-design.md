@@ -23,7 +23,7 @@ viewport and terminal protocol handlers:
 A later screen-level probe showed that `rgb(255,193,7)` belonged to the
 repository-specific `PR #324` status link, not a portable warning state. The
 portable acceptance frame therefore uses a real Claude Bash permission prompt:
-Claude supplies the orange, gray, and periwinkle terminal palette while Kobe's
+Claude supplies the orange, gray, and periwinkle terminal palette while Rove's
 `permission_needed` task state supplies warning yellow `rgb(232,201,107)`.
 
 This isolates the failure to the replay capture environment boundary.
@@ -37,7 +37,7 @@ daemon, PTY host, or engine children. It will continue to declare
 `TERM=xterm-256color` and `COLORTERM=truecolor` explicitly.
 
 The fix belongs in the capture-only environment builder. It must not change the
-user's shell environment or Kobe's normal runtime environment.
+user's shell environment or Rove's normal runtime environment.
 
 ### ClaudeX launch override
 
@@ -47,7 +47,7 @@ capture state as `engineCommand.claude` before the TUI starts.
 
 The checked-in replay spec remains portable and contains no machine-specific
 provider, model, or shell-alias configuration. For the reviewed Brand Studio
-capture, the caller supplies the current `claudex` alias expansion. Kobe then
+capture, the caller supplies the current `claudex` alias expansion. Rove then
 launches the same `cc-switch` provider and model path as the user's interactive
 alias while preserving its normal engine-session wiring.
 
@@ -83,7 +83,7 @@ Automated tests must prove:
 - the replay regression suite remains green.
 
 Manual acceptance must use the real `claudex` expansion and require a rendered
-Claude permission frame containing visible Claude orange, Kobe permission-state
+Claude permission frame containing visible Claude orange, Rove permission-state
 yellow, muted gray text, and the periwinkle permission selection on the dark
 background. A monochrome frame fails acceptance even if the agent is real and
 readable.
@@ -92,5 +92,5 @@ readable.
 
 This change is limited to `packages/branding` capture infrastructure, tests,
 the refreshed replay frames, and rendered review artifacts. It does not alter
-Kobe's normal engine defaults, global user state, provider configuration, or
+Rove's normal engine defaults, global user state, provider configuration, or
 shell aliases.

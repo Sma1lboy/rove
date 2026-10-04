@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Keep capture-specific behavior in `packages/branding`; do not add Remotion concerns to Kobe runtime packages.
+- Keep capture-specific behavior in `packages/branding`; do not add Remotion concerns to Rove runtime packages.
 - Use the validated replay theme as the terminal default-color source.
 - Never answer queries while replaying historical PTY bytes.
 - Do not change keybindings or product layout.
@@ -102,8 +102,8 @@ Expected: all tests pass.
 
 **Files:**
 - Modify: `packages/branding/src/quicklook/frames.json`
-- Scratch only: `packages/branding/out/kobe-quicklook-4x.mp4`
-- Scratch only: `/tmp/kobe-replay-color-after.png`
+- Scratch only: `packages/branding/out/rove-quicklook-4x.mp4`
+- Scratch only: `/tmp/rove-replay-color-after.png`
 
 - [ ] **Step 1: Run code verification**
 
@@ -119,7 +119,7 @@ chrome.
 - [ ] **Step 3: Record and render in the feature worktree**
 
 Run `bun run capture:puretui` from `packages/branding`, then render
-`quicklook-replay-4x` to `packages/branding/out/kobe-quicklook-4x.mp4` in the
+`quicklook-replay-4x` to `packages/branding/out/rove-quicklook-4x.mp4` in the
 same worktree.
 
 - [ ] **Step 4: Extract and inspect a representative frame**

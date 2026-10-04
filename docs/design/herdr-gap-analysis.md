@@ -11,7 +11,7 @@ Compared against [herdr.dev/docs](https://herdr.dev/docs/) (`refs/herdr/docs/nex
 | keyboard | `docs/KEYBINDINGS.md` exists, incl. `keybindings.yaml` customization | OK |
 | configuration / config-reference | `state.json` + themes + `keybindings.yaml` exist, no unified reference | **Wrote `docs/CONFIGURATION.md`** |
 | agents (supported agents, detection, labels, attach) | Engines claude/codex/copilot/kimi + custom engines; no user doc; no `rove attach` cmd | **Wrote `docs/ENGINES.md`**; borrow: direct-attach command (gap below) |
-| agent-skill | `.agents/skills/kobe/SKILL.md` + `rove skill install` | OK (stronger than herdr's) |
+| agent-skill | `.agents/skills/rove/SKILL.md` + `rove skill install` | OK (stronger than herdr's) |
 | agent-automation | Engine hooks + plugin events + `rove api` | Covered by `docs/CLI.md` + PLUGIN-AUTHORING |
 | integrations | Hook adapters auto-installed for claude/codex | Covered in `docs/ENGINES.md` |
 | session-state | PTY host survives TUI/daemon restart; resume exists; no dedicated doc | **Wrote `docs/SESSIONS.md`** ("what survives" matrix, borrowed format) |
@@ -19,7 +19,7 @@ Compared against [herdr.dev/docs](https://herdr.dev/docs/) (`refs/herdr/docs/nex
 | socket-api | `docs/design/cli-api.md` is historical; `rove api schema` is source of truth | **Wrote `docs/CLI.md`** (CLI + API reference, schema-first) |
 | cli-reference | Lives in `src/cli/usage.ts` only | **Wrote `docs/CLI.md`** |
 | plugins | `docs/PLUGIN-AUTHORING.md` + typed SDK | OK (stronger: typed SDK) |
-| marketplace | GitHub topic `kobe-plugin` + `rove plugin search` + landing page | OK (same zero-infra model, independently built) |
+| marketplace | GitHub topic `rove-plugin` + `rove plugin search` + landing page | OK (same zero-infra model, independently built) |
 | how-to-work | none | Folded into `docs/CONCEPTS.md` workflows section |
 | troubleshooting | `docs/TROUBLESHOOTING.md` exists (clipboard/OSC52 depth) | OK; expand as symptoms accrue |
 | windows-beta | n/a (macOS/Linux only) | Skip |
@@ -34,8 +34,8 @@ The first version of this list assumed gaps that turned out to be implemented-bu
 4. **In-app keymap help**: **already have** (`F1` / `?`, live localized keymap). Borrow the filter interaction (`/` to narrow), a small win.
 5. **Self-update**: **already have**. `rove update [version|list|dry-run]`, daemon-side npm version check broadcast to clients, sidebar `u` Update page, breaking-version reset gate. Genuinely missing vs herdr: **release channels** (preview vs stable), cheap to add since releases are tags. Live handoff on update is mostly inherent: the PTY host already survives daemon restarts.
 6. **Sidebar layout**: **already have** runtime splits (`ctrl+\` / `ctrl+=`), reorder (Move mode), zen mode, persisted tab/split state. Fixed 24-cell sidebar, no pane-size config. Herdr's declarative `layout.export/apply` only matters if Rove outgrows flex-ratio splits.
-7. **Public docs site**: **done** (2026-07-29). `packages/kobe-docs`, Fumadocs (Next.js static export), content synced from `docs/` (same prepare-docs pattern as herdr). Not yet deployed/versioned/trilingual.
-8. **Sidebar metadata tokens / plugin-owned row fields** (`$name` tokens, `report-metadata`): **SHIPPED** (2026-09-18) as `rove api row-token` + `setRowToken()` / `clearRowToken()` in the SDK, broadcast on the `task.tokens` channel and rendered by the TUI. Not herdr's `$name` row TEMPLATE: a plugin writes a short label into its own slot (2 per plugin per task, 24 chars, semantic `tone` not a colour) and cannot address the host-owned fields — the derived group, the activity badge, the PR chip, the title, the branch. Every token carries a TTL (default 60s, max 1h) and the daemon republishes at each expiry, so a plugin that dies has its labels FADE instead of leaving a screen of stale state; tokens are in memory only for the same reason. Contract: `docs/PLUGIN-AUTHORING.md` § Task-row tokens; example: `packages/kobe-plugin-sdk/examples/row-tokens/`.
+7. **Public docs site**: **done** (2026-07-29). `packages/rove-docs`, Fumadocs (Next.js static export), content synced from `docs/` (same prepare-docs pattern as herdr). Not yet deployed/versioned/trilingual.
+8. **Sidebar metadata tokens / plugin-owned row fields** (`$name` tokens, `report-metadata`): **SHIPPED** (2026-09-18) as `rove api row-token` + `setRowToken()` / `clearRowToken()` in the SDK, broadcast on the `task.tokens` channel and rendered by the TUI. Not herdr's `$name` row TEMPLATE: a plugin writes a short label into its own slot (2 per plugin per task, 24 chars, semantic `tone` not a colour) and cannot address the host-owned fields — the derived group, the activity badge, the PR chip, the title, the branch. Every token carries a TTL (default 60s, max 1h) and the daemon republishes at each expiry, so a plugin that dies has its labels FADE instead of leaving a screen of stale state; tokens are in memory only for the same reason. Contract: `docs/PLUGIN-AUTHORING.md` § Task-row tokens; example: `packages/rove-plugin-sdk/examples/row-tokens/`.
 
 ## Mouse / notifications (not gaps)
 

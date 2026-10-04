@@ -305,14 +305,14 @@ Claude and Codex hook installation and cleanup use `settings.json` under
 overrides use `~/.claude` and `~/.codex`. Invalid JSON or hook structure,
 unreadable files, non-regular files, and files over 8 MiB are left unchanged.
 Other user settings and commands in a shared hook group survive cleanup.
-Cleanup recognizes literal `kobe`/`rove` invocations, including absolute
+Cleanup recognizes literal `rove`/`rove` invocations, including absolute
 executables and Bun/Node source or bundle entry paths. Commands behind shell
 wrappers or compound shell commands are left for manual review.
 
 ### Adding a hook to another engine
 
 Hooks are no longer a built-in-only privilege. A shipped catalog entry in
-`packages/kobe/src/engine/contrib-engines.ts` may declare a `createHookAdapter`
+`packages/rove/src/engine/contrib-engines.ts` may declare a `createHookAdapter`
 alongside its `screenManifest`, and cursor is the worked example
 (`engine/cursor-local/hook-adapter.ts`). Declaring one costs the other catalog
 entries nothing — an engine without it keeps the no-op adapter, installs

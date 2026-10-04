@@ -1,0 +1,26 @@
+# sidebar frame: search-tab-title
+# the query reaches a live TAB title and drags its worktree along — the tree's own increment
+# 30x22, keys: / review
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
+|                              |
+| ROVE                         |
+| New task                + n  |
+| /review█ 2/5                 |
+|                              |
+| Kanban                       |
+| Routines                     |
+| Issues                       |
+|                              |
+| rove ─────────────────────── |
+|▌▎feat/alpha                ? |
+| ▎○ review                    |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |

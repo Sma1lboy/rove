@@ -195,7 +195,7 @@ Issues track *what to do*; the changelog records *what shipped*.
 | Conversation history | engine-owned, e.g. `~/.claude/projects/**` |
 
 Setting `ROVE_HOME_DIR` moves Rove's home-rooted product data and compatibility
-runtime; `KOBE_HOME_DIR` remains a fallback. It does not relocate platform
+runtime; `ROVE_HOME_DIR` remains a fallback. It does not relocate platform
 settings or engine-owned conversation stores. That's how the dev sandbox
 avoids touching your real `~/.rove` task data or runtime.
 

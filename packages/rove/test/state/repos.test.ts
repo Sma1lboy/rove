@@ -1,0 +1,243 @@
+/**
+ * Unit tests for `src/state/repos.ts`.
+ *
+ * The module reads/writes the same on-disk KV blob the TUI uses
+ * (`~/.config/rove/state.json`), so the tests redirect HOME via
+ * `ROVE_HOME_DIR` to a per-test tmpdir. Every state mutation is
+ * scoped to that tmpdir; the real `~/.config/rove/` is untouched.
+ *
+ * What we pin:
+ *   - `getSavedRepos()` returns `[]` when the file doesn't exist.
+ *   - `getSavedRepos()` returns `[]` when the file is malformed.
+ *   - `addSavedRepo()` creates the file + directory on first write.
+ *   - `addSavedRepo()` is idempotent (re-add returns `added: false`).
+ *   - `addSavedRepo()` preserves any sibling KV keys already in the
+ *     file — this is the load-bearing reason `repos.ts` and `kv.tsx`
+ *     read/write the SAME blob: a `rove add` from a shell mustn't
+ *     wipe the user's `lastSelectedTaskId` / `activeTheme` / etc.
+ *   - `addSavedRepo()` preserves order of existing entries.
+ *   - The total in `AddResult` matches the post-write list size.
+ *
+ * The persistence tests pass `{ skipGate: true }` and synthetic paths
+ * (`/repos/alpha`): what they pin is the WRITE — atomic rename, sibling-key
+ * preservation, ordering — and the path is an arbitrary stand-in. Admission
+ * itself is covered in `test/state/project-eligibility.test.ts`, plus the
+ * gated cases at the bottom of this file.
+ */
+
+import { spawnSync } from "node:child_process"
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
+import { afterEach, beforeEach, describe, expect, test } from "vitest"
+import {
+  addRemoteRepo,
+  addSavedRepo,
+  backfillSavedReposFromProjects,
+  getCustomEngineIds,
+  getRemoteRepoConfig,
+  getSavedRepos,
+  isGitRepo,
+  removeSavedRepo,
+  statePath,
+} from "../../src/state/repos.ts"
+
+let tmpHome: string
+let originalHome: string | undefined
+
+beforeEach(() => {
+  // realpath: macOS `os.tmpdir()` is a symlink (`/var` → `/private/var`), and
+  // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
+  // built under the un-resolved spelling would compare unequal to what was saved.
+  tmpHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "rove-repos-")))
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
+})
+
+afterEach(() => {
+  // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves it as the string "undefined"). Same pattern as test/tui/user-slashes.test.ts.
+  if (originalHome === undefined) delete process.env.ROVE_HOME_DIR
+  else process.env.ROVE_HOME_DIR = originalHome
+  fs.rmSync(tmpHome, { recursive: true, force: true })
+})
+
+describe("statePath", () => {
+  test("resolves under ROVE_HOME_DIR", () => {
+    expect(statePath()).toBe(path.join(tmpHome, ".config", "rove", "state.json"))
+  })
+})
+
+describe("isGitRepo", () => {
+  test("true inside a real git work tree (and its subdirectories)", () => {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), "rove-gitrepo-"))
+    try {
+      expect(spawnSync("git", ["init"], { cwd: repo }).status).toBe(0)
+      expect(isGitRepo(repo)).toBe(true)
+      const sub = path.join(repo, "packages", "x")
+      fs.mkdirSync(sub, { recursive: true })
+      expect(isGitRepo(sub)).toBe(true)
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true })
+    }
+  })
+
+  test("false for a path that does not exist (the `rove add ,` case)", () => {
+    expect(isGitRepo(path.join(os.tmpdir(), "rove-does-not-exist", ","))).toBe(false)
+  })
+
+  test("false for a remote (ssh://) key — validated by the remote-add flow", () => {
+    expect(isGitRepo("ssh://user@host:22/srv/repo")).toBe(false)
+  })
+})
+
+describe("getCustomEngineIds", () => {
+  function writeState(blob: Record<string, unknown>): void {
+    fs.mkdirSync(path.dirname(statePath()), { recursive: true })
+    fs.writeFileSync(statePath(), JSON.stringify(blob))
+  }
+
+  test("reads the customEngineIds array, dropping non-strings and blanks", () => {
+    writeState({ customEngineIds: ["aider", "", 3, "  ", "my-engine"], savedRepos: ["/x"] })
+    expect(getCustomEngineIds()).toEqual(["aider", "my-engine"])
+  })
+})
+
+describe("getSavedRepos", () => {
+  test("filters out non-string entries defensively", () => {
+    const p = statePath()
+    fs.mkdirSync(path.dirname(p), { recursive: true })
+    fs.writeFileSync(p, JSON.stringify({ savedRepos: ["/a", 42, null, "/b"] }), "utf8")
+    expect(getSavedRepos()).toEqual(["/a", "/b"])
+  })
+})
+
+describe("addSavedRepo", () => {
+  test("is idempotent — re-adding the same path returns added=false and doesn't grow", () => {
+    addSavedRepo("/repos/alpha", { skipGate: true })
+    const r = addSavedRepo("/repos/alpha", { skipGate: true })
+    expect(r).toEqual({ added: false, path: "/repos/alpha", total: 1 })
+    expect(getSavedRepos()).toEqual(["/repos/alpha"])
+  })
+
+  test("preserves sibling KV keys (rove add must not wipe TUI state)", () => {
+    const p = statePath()
+    fs.mkdirSync(path.dirname(p), { recursive: true })
+    fs.writeFileSync(
+      p,
+      JSON.stringify({
+        activeTheme: "dracula",
+        lastSelectedTaskId: "01XYZ",
+        savedRepos: ["/old"],
+      }),
+      "utf8",
+    )
+
+    addSavedRepo("/new", { skipGate: true })
+
+    const after = JSON.parse(fs.readFileSync(p, "utf8")) as Record<string, unknown>
+    expect(after.activeTheme).toBe("dracula")
+    expect(after.lastSelectedTaskId).toBe("01XYZ")
+    expect(after.savedRepos).toEqual(["/old", "/new"])
+  })
+})
+
+describe("removeSavedRepo (KOB-15)", () => {
+  test("removes an entry and reports removed=true with the new total", () => {
+    addSavedRepo("/repos/alpha", { skipGate: true })
+    addSavedRepo("/repos/beta", { skipGate: true })
+    const r = removeSavedRepo("/repos/alpha")
+    expect(r).toEqual({ removed: true, path: "/repos/alpha", total: 1 })
+    expect(getSavedRepos()).toEqual(["/repos/beta"])
+  })
+
+  test("is idempotent — removing a path that's not present returns removed=false", () => {
+    addSavedRepo("/repos/alpha", { skipGate: true })
+    const r = removeSavedRepo("/repos/never-added")
+    expect(r).toEqual({ removed: false, path: "/repos/never-added", total: 1 })
+    expect(getSavedRepos()).toEqual(["/repos/alpha"])
+  })
+
+  test("preserves order of remaining entries", () => {
+    addSavedRepo("/a", { skipGate: true })
+    addSavedRepo("/b", { skipGate: true })
+    addSavedRepo("/c", { skipGate: true })
+    addSavedRepo("/d", { skipGate: true })
+    removeSavedRepo("/b")
+    expect(getSavedRepos()).toEqual(["/a", "/c", "/d"])
+  })
+
+  test("removing a remote project also drops its remoteRepos config (no orphan)", () => {
+    const { key } = addRemoteRepo({ host: "box", user: "jc", basePath: "/srv/work", auth: { kind: "key" } })
+    expect(getSavedRepos()).toContain(key)
+    expect(getRemoteRepoConfig(key)).not.toBeNull()
+    const r = removeSavedRepo(key)
+    expect(r.removed).toBe(true)
+    expect(getSavedRepos()).not.toContain(key)
+    expect(getRemoteRepoConfig(key)).toBeNull()
+  })
+})
+
+describe("addSavedRepo admission gate", () => {
+  /** A real git repo under the per-test tmpdir. */
+  function initRepo(name: string): string {
+    const dir = path.join(tmpHome, name)
+    fs.mkdirSync(dir, { recursive: true })
+    spawnSync("git", ["init", "-q"], { cwd: dir, encoding: "utf8" })
+    return dir
+  }
+
+  test("refuses a path that is not a git repo, and writes nothing", () => {
+    const plain = path.join(tmpHome, "just-a-folder")
+    fs.mkdirSync(plain, { recursive: true })
+    const r = addSavedRepo(plain)
+    expect(r.added).toBe(false)
+    expect(r.rejected).toBe("notGitRepo")
+    expect(getSavedRepos()).toEqual([])
+  })
+
+  test("refuses a repo inside a .dev-sandbox, however real the checkout is", () => {
+    // The exact shape that leaked: a genuine git repo, at a path that cannot
+    // be anyone's project. Without the gate this is indistinguishable from a
+    // user's own checkout.
+    const sandboxed = initRepo(path.join(".dev-sandbox", "named", "smoke-repo"))
+    const r = addSavedRepo(sandboxed)
+    expect(r.added).toBe(false)
+    expect(r.rejected).toBe("insideSandbox")
+    expect(getSavedRepos()).toEqual([])
+  })
+
+  test("a rejection still reports the normalized path, so callers can name it", () => {
+    // `rove add` prints this path in its error, and `createTaskFlow` uses it
+    // as the task's repo — a rejection must not degrade it to the raw input.
+    const plain = path.join(tmpHome, "not-a-repo")
+    fs.mkdirSync(plain, { recursive: true })
+    expect(addSavedRepo(plain).path).toBe(plain)
+  })
+})
+
+describe("backfillSavedReposFromProjects", () => {
+  function initRepo(name: string): string {
+    const dir = path.join(tmpHome, name)
+    fs.mkdirSync(dir, { recursive: true })
+    spawnSync("git", ["init", "-q"], { cwd: dir, encoding: "utf8" })
+    return dir
+  }
+
+  test("adds project rows that never reached savedRepos", () => {
+    // The owner's machine: 8 sidebar projects, 2 saved repos.
+    const a = initRepo("proj-a")
+    const b = initRepo("proj-b")
+    addSavedRepo(a)
+    expect(getSavedRepos()).toEqual([a])
+
+    expect(backfillSavedReposFromProjects([a, b])).toEqual([b])
+    expect(getSavedRepos()).toEqual([a, b])
+  })
+
+  test("skips a row that fails the admission gate", () => {
+    // A leaked fixture row is not something to make MORE permanent.
+    const leaked = initRepo(path.join(".dev-sandbox", "smoke-repo"))
+    expect(backfillSavedReposFromProjects([leaked])).toEqual([])
+    expect(getSavedRepos()).toEqual([])
+  })
+})

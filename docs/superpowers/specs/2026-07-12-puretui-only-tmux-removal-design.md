@@ -2,18 +2,18 @@
 
 ## Goal
 
-Remove tmux as a kobe runtime, UI surface, session backend, configuration
-namespace, and development requirement. Plain `kobe` boots the React PureTUI
+Remove tmux as a rove runtime, UI surface, session backend, configuration
+namespace, and development requirement. Plain `rove` boots the React PureTUI
 Workspace Host and the standalone PTY Host is the only owner of interactive
 engine and shell sessions.
 
-The removal must preserve unattended automation: `kobe api send`, `add` with a
+The removal must preserve unattended automation: `rove api send`, `add` with a
 prompt, and `fan-out` must start an engine session through the PTY Host when no
 session exists, even when no PureTUI process is open.
 
 ## Product contract
 
-- `kobe` has one launch behavior: start PureTUI.
+- `rove` has one launch behavior: start PureTUI.
 - There are no `--tmux` or `--puretui` launch flags and no environment launch
   switch. A UI mode selector would describe a product choice that no longer
   exists.
@@ -22,10 +22,10 @@ session exists, even when no PureTUI process is open.
 - Engine sessions survive PureTUI exits and daemon restarts because the
   standalone PTY Host owns their child processes.
 - Task archive/delete/reset operations kill the task's Hosted PTY sessions.
-- `kobe api send`, prompted `add`, and `fan-out` preserve their current
+- `rove api send`, prompted `add`, and `fan-out` preserve their current
   auto-start semantics through the PTY Host.
-- Existing installations' old `tmux -L kobe` sessions are not managed by the
-  new runtime. Release notes provide `tmux -L kobe kill-server` as a one-time
+- Existing installations' old `tmux -L rove` sessions are not managed by the
+  new runtime. Release notes provide `tmux -L rove kill-server` as a one-time
   manual cleanup command; no legacy shim remains in product code.
 
 ## Single session backend
@@ -78,9 +78,9 @@ the engine returns to a shell rather than terminating the terminal tab.
 
 Delete tmux-only code rather than retaining disabled adapters:
 
-- `packages/kobe/src/tmux/` after moving genuinely generic helpers.
+- `packages/rove/src/tmux/` after moving genuinely generic helpers.
 - tmux session/layout/chattab/heal modules under
-  `packages/kobe/src/tui/panes/terminal/`.
+  `packages/rove/src/tui/panes/terminal/`.
 - the direct Handover entrypoint and task-enter/switch-client plumbing.
 - tmux-only Tasks/Ops/quick-task/settings/help/update/worktree/history pane-host
   entrypoints while retaining components and framework-free cores used by the
@@ -90,7 +90,7 @@ Delete tmux-only code rather than retaining disabled adapters:
 - tmux keybinding defaults, parser namespace, Settings copy, help rows, and
   keybinding documentation.
 - tmux doctor/resource reporting, `reload`, `kill-sessions`, tmux teardown in
-  `reset`, and `KOBE_TMUX_SOCKET` controls.
+  `reset`, and `ROVE_TMUX_SOCKET` controls.
 - tmux-specific unit, render, socket, and behavior tests.
 
 Code is retained only when PureTUI uses the behavior independently of tmux.
@@ -109,14 +109,14 @@ must not import or require tmux.
   requires it; otherwise rename the role to a backend-neutral background
   client term and migrate protocol tests.
 - Rewrite daemon lifecycle comments and invariants around the PTY Host. Daemon
-  shutdown continues not to kill engine sessions; `kobe reset` explicitly
+  shutdown continues not to kill engine sessions; `rove reset` explicitly
   stops the PTY Host.
 - `doctor` reports daemon, PTY Host, state, terminal, and resource information
   without probing a tmux binary.
 
 ## CLI and development scripts
 
-- Bare `kobe` dynamically imports and starts the Workspace Host directly.
+- Bare `rove` dynamically imports and starts the Workspace Host directly.
 - Remove the dual-mode launch parser introduced on this branch.
 - `bun run dev` and `bun run dev:sandbox` start PureTUI without a mode flag.
 - `dev:sandbox:reset` resets the sandbox daemon and PTY Host only.
@@ -128,7 +128,7 @@ must not import or require tmux.
 ## Documentation and migration
 
 Update `AGENTS.md`, `CONTEXT.md`, active design/architecture/harness/keybinding
-docs, READMEs, the installed Kobe skill, inline comments, and the patch
+docs, READMEs, the installed Rove skill, inline comments, and the patch
 changeset. The canonical product unit becomes:
 
 ```text
@@ -155,7 +155,7 @@ start, configure, diagnose, or depend on it.
 - TDD coverage proves fresh PTY auto-start, existing-session delivery,
   concurrent open idempotence, init-script composition, explicit prompt
   priority, running detection, and teardown.
-- Black-box behavior coverage proves a built `kobe` starts PureTUI without
+- Black-box behavior coverage proves a built `rove` starts PureTUI without
   flags and prompted API creation works without an open UI.
 - CLI tests prove tmux launch flags and removed subcommands are rejected.
 - Static guards prove no production import reaches deleted tmux modules and no

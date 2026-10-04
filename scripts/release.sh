@@ -21,7 +21,7 @@
 #      gets tagged. Runs against the working tree as a fast fail; `release.yml`
 #      re-runs everything from the tag checkout before publishing.
 #   2. `changeset version` — derives the next version from pending changesets,
-#      rewrites packages/kobe/package.json, prepends notes to CHANGELOG.md, and
+#      rewrites packages/rove/package.json, prepends notes to CHANGELOG.md, and
 #      deletes the consumed changesets.
 #   3. `bun install` — refreshes bun.lock after the package version changed,
 #      then `bun install --frozen-lockfile` verifies the lockfile is complete.
@@ -41,8 +41,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PKG_JSON="$REPO_ROOT/packages/kobe/package.json"
-CHANGELOG="$REPO_ROOT/packages/kobe/CHANGELOG.md"
+PKG_JSON="$REPO_ROOT/packages/rove/package.json"
+CHANGELOG="$REPO_ROOT/packages/rove/CHANGELOG.md"
 cd "$REPO_ROOT"
 
 # ── two-phase tag: wait for the release commit's CI, then tag + push ─────────
@@ -147,8 +147,8 @@ fi
 # fast-fail convenience, not the verdict — `release.yml` re-runs every gate
 # from the tag checkout before it publishes.
 DIRTY=$(git diff --name-only HEAD \
-  | grep -v '^packages/kobe/package\.json$' \
-  | grep -v '^packages/kobe/CHANGELOG\.md$' \
+  | grep -v '^packages/rove/package\.json$' \
+  | grep -v '^packages/rove/CHANGELOG\.md$' \
   | grep -v '^bun\.lock$' \
   | grep -v '^\.changeset/' || true)
 if [ -n "$DIRTY" ]; then
@@ -203,7 +203,7 @@ CURRENT=$(node -p "require('$PKG_JSON').version")
 echo "Running release gate (lint, typecheck, test, build, behavior)…"
 bun run lint
 bun run typecheck
-(cd packages/kobe && bun run test)
+(cd packages/rove && bun run test)
 bun run build
 # node-pty is optional locally (the suite self-skips without it); on CI it is
 # present and this is the same command the release pipeline runs.
@@ -269,8 +269,8 @@ echo ""
 
 # ── commit & tag ──────────────────────────────────────────────────────────────
 # `changeset version` rewrites EVERY bumped workspace package (Rove, the
-# plugin SDK, private internals like kobe-daemon/kobe-harness get dependency
-# bumps too) — stage them all. Staging only packages/kobe once tagged a
+# plugin SDK, private internals like rove-daemon/rove-harness get dependency
+# bumps too) — stage them all. Staging only packages/rove once tagged a
 # commit that pinned Rove to a daemon version that existed nowhere (0.8.30).
 git add packages/*/package.json packages/*/CHANGELOG.md .changeset
 if ! git diff --quiet bun.lock 2>/dev/null; then

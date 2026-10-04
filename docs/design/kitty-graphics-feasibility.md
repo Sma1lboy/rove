@@ -53,7 +53,7 @@ has no placeholder support". The control panel is what separated them.
 its native VT even parses inbound Kitty APC. Upgrading is the largest lever available,
 and also the largest change — it swaps the terminal emulator under our tabs.**
 
-We pin `0.4.3` ([`packages/kobe/package.json:72-73`](../../packages/kobe/package.json)).
+We pin `0.4.3` ([`packages/rove/package.json:72-73`](../../packages/rove/package.json)).
 npm `latest` is **0.5.11** (published 2026-09-07); 0.5.0 landed 2026-08-03.
 
 What 0.5.11 adds that 0.4.3 does not have at all:
@@ -182,7 +182,7 @@ below us. `@xterm/headless` exposes no APC handler at all. A tap above it is the
 route, and it is a real piece of work, not a shim.**
 
 The tab's path is PTY → `@xterm/headless` →
-[`xterm-chunks.ts`](../../packages/kobe/src/tui/panes/terminal/xterm-chunks.ts) →
+[`xterm-chunks.ts`](../../packages/rove/src/tui/panes/terminal/xterm-chunks.ts) →
 opentui cells. `.scratch/kitty-spike/probes/q3-xterm-apc.ts` writes a real Kitty APC
 into the exact dependency and version we ship:
 
@@ -218,7 +218,7 @@ flowchart TD
   C --> O["opentui frame"]
 ```
 
-The seam is [`pty-xterm-base.ts`](../../packages/kobe/src/tui/panes/terminal/pty-xterm-base.ts),
+The seam is [`pty-xterm-base.ts`](../../packages/rove/src/tui/panes/terminal/pty-xterm-base.ts),
 `feedInternal()` — every PTY byte reaches `this.term.write(data, …)` there, so that is
 the one place a tap sees the whole stream before xterm consumes it.
 

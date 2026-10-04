@@ -1,0 +1,95 @@
+/**
+ * Companion to `interactive-command.test.ts` for the halves that read the
+ * shared state.json: the per-vendor launch-command / display-name overrides
+ * (KOB-244) and the effort + session-id argv weaving.
+ *
+ * Why these matter: every launch site (Handover, Tasks-pane switch,
+ * `new-chattab`) goes through `interactiveEngineCommand` — a bad override
+ * fallback silently launches the wrong binary, and a mis-woven effort flag
+ * makes codex refuse to start. State is isolated via `ROVE_HOME_DIR`.
+ */
+
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import {
+  argvHasFlag,
+  engineCommandKey,
+  engineDisplayName,
+  engineNameKey,
+  interactiveEngineCommand,
+  withEngineEffort,
+} from "../../src/engine/interactive-command.ts"
+import { setPersistedString } from "../../src/state/repos.ts"
+
+let tmpHome: string
+let originalHome: string | undefined
+
+beforeEach(() => {
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-icmd-"))
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
+})
+
+afterEach(() => {
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
+  fs.rmSync(tmpHome, { recursive: true, force: true })
+})
+
+describe("engineDisplayName", () => {
+  it("prefers the persisted engineName override (trimmed)", () => {
+    setPersistedString(engineNameKey("claude"), "  My Claude  ")
+    expect(engineDisplayName("claude")).toBe("My Claude")
+  })
+})
+
+describe("interactiveEngineCommand", () => {
+  it("returns the registry default when no override is persisted", () => {
+    expect(interactiveEngineCommand("claude")).toEqual(["claude"])
+    expect(interactiveEngineCommand(undefined)).toEqual(["claude"])
+  })
+
+  it("parses a persisted override string into argv (quotes preserved)", () => {
+    setPersistedString(engineCommandKey("claude"), 'cl --append-system-prompt "be terse"')
+    expect(interactiveEngineCommand("claude")).toEqual(["cl", "--append-system-prompt", "be terse"])
+  })
+
+  it("a whitespace-only override falls back to the built-in default", () => {
+    setPersistedString(engineCommandKey("codex"), "   ")
+    expect(interactiveEngineCommand("codex")).toEqual(["codex", "-c", 'tui.terminal_title=["activity","thread-title"]'])
+  })
+
+  it("lets Codex own the tab status and name from its live thread title", () => {
+    expect(interactiveEngineCommand("codex", "high")).toEqual([
+      "codex",
+      "-c",
+      "model_reasoning_effort=high",
+      "-c",
+      'tui.terminal_title=["activity","thread-title"]',
+    ])
+  })
+})
+
+describe("withEngineEffort", () => {
+  it("appends -c model_reasoning_effort=<level> for codex", () => {
+    expect(withEngineEffort(["codex"], "codex", "xhigh")).toEqual(["codex", "-c", "model_reasoning_effort=xhigh"])
+  })
+
+  it("drops an unknown level instead of passing it through (codex would refuse to launch)", () => {
+    expect(withEngineEffort(["codex"], "codex", "turbo")).toEqual(["codex"])
+  })
+})
+
+describe("argvHasFlag", () => {
+  it("matches the separated and attached forms, nothing else", () => {
+    expect(argvHasFlag(["claude", "--resume", "x"], "--resume")).toBe(true)
+    expect(argvHasFlag(["claude", "--resume=x"], "--resume")).toBe(true)
+    expect(argvHasFlag(["claude", "--resume-later"], "--resume")).toBe(false)
+    // A flag NAME appearing as another flag's value is a value, not a flag —
+    // known ceiling shared with every guard here; positional matching would
+    // need a full claude arg spec.
+    expect(argvHasFlag(["claude"], "--resume")).toBe(false)
+  })
+})

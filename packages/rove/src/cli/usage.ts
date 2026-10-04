@@ -1,0 +1,50 @@
+/**
+ * Top-level `rove` CLI help text.
+ *
+ * Kept as one tested string so `rove help` / `rove --help` and the
+ * unknown-command path in {@link ./index.ts} render the same thing, and
+ * so adding a subcommand updates help in one place.
+ */
+
+import type { ProductCliName } from "../product.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { CURRENT_VERSION } from "../version.ts"
+
+/** The full `rove help` text (no trailing newline). */
+export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): string {
+  return [
+    `${cliName} ${CURRENT_VERSION}`,
+    "",
+    `Usage: ${cliName} [command] [options]`,
+    "",
+    "Run with no command to launch PureTUI.",
+    `Run \`${cliName} .\` (or \`${cliName} <path>\`) to open a directory as a standalone task.`,
+    "",
+    "Commands:",
+    "  completions <shell>     Generate shell completion script (bash/zsh/fish)",
+    "  add [path]              Save a repo path for the new-task picker",
+    "  remove [path]           Forget a saved project (inverse of add; non-destructive)",
+    "  adopt [glob]            Import existing git worktrees as tasks",
+    "  export [--csv|--json]   Print the task list (json/csv/table; daemon-free)",
+    "  repo <verb>             Per-repo init script + first prompt (show|set|unset)",
+    `  api <verb>              Scriptable RPC surface for agents (see \`${cliName} api --help\`)`,
+    "  daemon <verb>           Manage the daemon (start|stop|status|restart)",
+    "  machine <verb>          Other computers running Rove (add|remove|list)",
+    "  doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies",
+    `  config [--path]         Open ${cliName}'s config file (state.json) in your editor`,
+    "  reset [--hard]          Stop runtimes; optionally wipe task/UI state",
+    "  theme <verb>            Manage user themes (list|add|remove)",
+    `  skill <verb>            Install the ${cliName} agent skill (install|status|command|print)`,
+    "  plugin <verb>           Install and run plugins (install|link|list|action|…)",
+    "  feedback                Send feedback to GitHub Discussions",
+    // `channel` has shipped since `update` learned --channel/bare channel
+    // names; the subcommand lock-step test only compares the command LIST, so
+    // this description drifted past CI for several releases.
+    `  update [version|channel|list]   Self-update ${cliName}, switch channel, or list versions`,
+    "",
+    "Options:",
+    "  -v, --version           Print version",
+    "  -h, --help              Print this help",
+    "  --skill                 Print the agent skill file and exit",
+  ].join("\n")
+}

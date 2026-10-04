@@ -1,0 +1,452 @@
+/**
+ * `pty-delivery.ts` — the CANONICAL delivery path: find the task's engine
+ * session or create it, and the bracketed paste `rove api` routes through.
+ * The engine-key resolver's own tests live in `pty-engine-key.test.ts`;
+ * delivery into ONE addressed tab is `exact-tab-delivery.test.ts`.
+ */
+
+import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
+import { describe, expect, it } from "vitest"
+import { deliverHostedPrompt, deliverToKey } from "../../src/cli/api/pty-delivery.ts"
+import { ApiError } from "../../src/cli/api/types.ts"
+
+function session(key: string, command: string[], alive = true): PtySessionInfo {
+  return { key, alive, pid: alive ? 123 : null, command, title: "" }
+}
+
+/** A ps snapshot in which pid 123 (the session shell) hosts `child`. */
+function psWith(child: string): () => Promise<string> {
+  return async () => `123 1 -zsh\n456 123 ${child}\n`
+}
+
+/**
+ * A `pty.peek` reply from an engine that has announced bracketed paste, i.e.
+ * one that is in raw mode and READING. Delivery now waits for exactly this
+ * before writing — a prompt written into the pre-raw window is truncated at
+ * the tty's 1024-byte canonical buffer (see `pty-large-prompt.test.ts`).
+ */
+function readyPeek(echo = ""): { exists: boolean; alive: boolean; data: string; offset: number } {
+  return { exists: true, alive: true, data: Buffer.from(`\x1b[?2004h${echo}`).toString("base64"), offset: 0 }
+}
+
+/**
+ * A fake engine that echoes what it was written, the way a real composer
+ * redraws pasted text. Delivery confirms the prompt's tail on capture, so a
+ * fake that stayed silent would poll until its confirm budget expired.
+ */
+function echoingPeek(): { seen: () => string; onWrite: (data: string) => void; peek: () => unknown } {
+  let buffer = ""
+  return {
+    seen: () => buffer,
+    onWrite: (data: string) => {
+      buffer += data
+    },
+    peek: () => readyPeek(buffer),
+  }
+}
+
+describe("deliverToKey", () => {
+  function recorder() {
+    const calls: Array<{ name: string; payload: unknown }> = []
+    const engine = echoingPeek()
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push({ name, payload })
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
+        return {} as T
+      },
+    }
+    return { rpc, calls }
+  }
+
+  it("peeks (never attaches/resizes) then writes bracketed prompt + deferred CR", async () => {
+    const { rpc, calls } = recorder()
+    const ok = await deliverToKey(rpc, "t1::tab-1", "do the thing")
+    // The outcome is OBSERVED, not assumed: it carries the byte count,
+    // the readiness verdict, and whether the tail was echoed back.
+    expect(ok).toMatchObject({ ready: true, confirmed: true })
+    // pty.peek, NOT pty.open: an open would last-attach-wins resize the
+    // live session away from its attached TUI — delivery must
+    // be indistinguishable from keyboard input (pure pty.write).
+    // Peeks (gate, readiness) then the paste, the CR, and the echo confirm —
+    // still no open/resize, and NO peek between the paste and the key: the
+    // submit key is Enter for every engine, not a footer read.
+    expect(calls.map((c) => c.name)).toEqual(["pty.peek", "pty.peek", "pty.write", "pty.write", "pty.peek"])
+    expect(calls[0].payload).toEqual({ key: "t1::tab-1" })
+    // Bracketed paste markers wrap the prompt; the CR is a SEPARATE write.
+    expect(calls[2].payload).toEqual({ key: "t1::tab-1", data: "\x1b[200~do the thing\x1b[201~" })
+    expect(calls[3].payload).toEqual({ key: "t1::tab-1", data: "\r" })
+  })
+
+  it("returns false without writing when the session is dead", async () => {
+    const calls: Array<{ name: string }> = []
+    const rpc = {
+      request: async <T>(name: string): Promise<T> => {
+        calls.push({ name })
+        if (name === "pty.peek") return { exists: true, alive: false, data: "", offset: 0 } as T
+        return {} as T
+      },
+    }
+    expect(await deliverToKey(rpc, "t1::tab-1", "x")).toBeNull()
+    expect(calls.map((c) => c.name)).toEqual(["pty.peek"]) // no write into a dead pty
+  })
+})
+
+describe("deliverHostedPrompt", () => {
+  it("starts the canonical engine session with the explicit prompt already in its launch argv", async () => {
+    const calls: Array<{ name: string; payload: unknown }> = []
+    let opened = false
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push({ name, payload })
+        // The post-open list is the readiness walk: nothing confirms an
+        // argv-carried prompt except the engine PROCESS being there.
+        if (name === "pty.list") return { sessions: opened ? [session("t1::tab-1", ["claude 'fix it'"])] : [] } as T
+        if (name === "pty.open") {
+          opened = true
+          return { replay: "", alive: true, created: true } as T
+        }
+        return {} as T
+      },
+    }
+
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "fix it",
+      { key: "t1::tab-1", command: ["/bin/zsh", "-ilc", "claude 'fix it'"] },
+      { snapshot: psWith("claude") },
+    )
+
+    expect(calls.map((call) => call.name)).toEqual(["pty.list", "pty.open", "pty.list", "pty.detach"])
+    expect(calls[1].payload).toMatchObject({
+      key: "t1::tab-1",
+      cwd: "/wt/t1",
+      command: ["/bin/zsh", "-ilc", "claude 'fix it'"],
+    })
+    expect(result).toEqual({
+      session: "t1::tab-1",
+      pane: "t1::tab-1",
+      started: true,
+      engineReady: true,
+      delivered: true,
+    })
+  })
+
+  it("does not report engineReady/delivered from a session that holds no engine", async () => {
+    // `pty.open` reports `alive` for a launch command that does not exist —
+    // keepAlive drops into a login shell where the engine should be — so
+    // `engineReady: open.alive` reported a clean success for a spawn that
+    // ran nothing. The walk is the only thing that separates the two.
+    const rpc = {
+      request: async <T>(name: string): Promise<T> => {
+        // The spawn died; the readiness walk sees it and stops immediately.
+        if (name === "pty.list") return { sessions: [session("t1::tab-1", ["claude 'go'"], false)] } as T
+        if (name === "pty.open") return { replay: "", alive: true, created: true } as T
+        if (name === "pty.peek")
+          return {
+            exists: true,
+            alive: false,
+            data: Buffer.from("⚠ Engine exited (code 127). Check Settings → Engines.").toString("base64"),
+            offset: 0,
+          } as T
+        return {} as T
+      },
+    }
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "go",
+      { key: "t1::tab-1", command: ["/nope/does-not-exist"] },
+      { snapshot: psWith("/bin/zsh") },
+    )
+    expect(result).toMatchObject({ started: true, engineReady: false, delivered: false })
+    // …and it says WHY, in the session's own words, so a fan-out of N bad
+    // launches is not N identical green rows.
+    expect(result.reason).toContain("Engine exited (code 127)")
+  })
+
+  it("delivers once when another caller wins the create race", async () => {
+    const calls: Array<{ name: string; payload: unknown }> = []
+    const engine = echoingPeek()
+    let opened = false
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push({ name, payload })
+        if (name === "pty.list") return { sessions: opened ? [session("t1::tab-1", ["claude"])] : [] } as T
+        if (name === "pty.open") {
+          opened = true
+          return { replay: "", alive: true, created: false } as T
+        }
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
+        return {} as T
+      },
+    }
+
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "fix it",
+      {
+        key: "t1::tab-1",
+        command: ["/bin/zsh", "-ilc", "claude 'fix it'"],
+      },
+      { snapshot: psWith("claude") },
+    )
+
+    expect(calls.map((call) => call.name)).toEqual([
+      "pty.list",
+      "pty.open",
+      "pty.list",
+      "pty.peek",
+      "pty.peek",
+      "pty.peek",
+      "pty.write",
+      "pty.write",
+      "pty.peek",
+      "pty.detach",
+    ])
+    expect(result).toMatchObject({ started: false, delivered: true, promptEcho: "confirmed" })
+  })
+
+  it("delivers into an existing engine when the foreground gate sees the engine process", async () => {
+    const calls: string[] = []
+    const engine = echoingPeek()
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push(name)
+        if (name === "pty.list") return { sessions: [session("t1::tab-1", ["claude"])] } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
+        return {} as T
+      },
+    }
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "go",
+      { key: "t1::tab-1", command: ["claude"] },
+      { snapshot: psWith("claude") },
+    )
+    expect(result).toMatchObject({ started: false, delivered: true })
+    expect(calls).toContain("pty.write")
+  })
+
+  it("delivers into a surviving shell-wrapped engine tab instead of spawning", async () => {
+    // The shape that breaks: tab-1 dead, tab-2 a live shell-wrapped engine.
+    // Spawning here mints a fresh unsandboxed engine at launch.key and
+    // returns ok while tab-2 never sees the prompt.
+    const calls: string[] = []
+    const engine = echoingPeek()
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push(name)
+        if (name === "pty.list")
+          return {
+            sessions: [
+              session("t1::tab-1", ["/bin/zsh", "-ilc", "claude 'x'"], false),
+              session("t1::tab-2", ["/bin/zsh", "-ilc", "claude '--resume' 'x'"]),
+            ],
+          } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
+        return {} as T
+      },
+    }
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "go",
+      { key: "t1::tab-1", command: ["/bin/zsh", "-ilc", "claude 'go'"] },
+      { snapshot: psWith("claude") },
+    )
+    expect(result).toMatchObject({ session: "t1::tab-2", started: false, delivered: true })
+    expect(calls).not.toContain("pty.open") // NEVER a new engine while one lives
+  })
+
+  it("FAILS LOUD instead of spawning when live tabs exist but none is an engine", async () => {
+    // A live shell tab, no engine anywhere: pre-fix this silently booted a
+    // brand-new engine at tab-1 and reported ok — sender and receiver both
+    // believed the message arrived. It must be a typed error instead.
+    const calls: string[] = []
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push(name)
+        if (name === "pty.list") return { sessions: [session("t1::tab-2", ["/bin/zsh", "-il"])] } as T
+        return {} as T
+      },
+    }
+    const err = await deliverHostedPrompt(rpc, { id: "t1", engineBin: "claude" }, "/wt/t1", "go", {
+      key: "t1::tab-1",
+      command: ["/bin/zsh", "-ilc", "claude 'go'"],
+    }).then(
+      () => null,
+      (e) => e,
+    )
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).code).toBe("NO_ENGINE_TAB")
+    expect((err as ApiError).data).toMatchObject({ nextCommandArgs: ["api", "pty-list"] })
+    expect(calls).not.toContain("pty.open") // no session was created
+    expect(calls).not.toContain("pty.write") // and nothing was pasted anywhere
+  })
+
+  it("bare send reaches a live non-tab-1 engine instead of refusing", async () => {
+    // End-to-end shape of the report: the task's only live tab is tab-22
+    // running plain `claude` while the task's vendor is the `claudecpa`
+    // preset. Pre-fix the resolver returned null and this threw
+    // NO_ENGINE_TAB with the engine sitting right there.
+    const calls: string[] = []
+    const engine = echoingPeek()
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push(name)
+        if (name === "pty.list")
+          return {
+            sessions: [session("t1::tab-22", ["/bin/zsh", "-ilc", "export ROVE_TAB_ID='tab-22'\nclaude"])],
+          } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
+        return {} as T
+      },
+    }
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claudecpa" },
+      "/wt/t1",
+      "go",
+      { key: "t1::tab-1", command: ["/bin/zsh", "-ilc", "claudecpa 'go'"] },
+      { snapshot: psWith("claude") },
+    )
+    expect(result).toMatchObject({ session: "t1::tab-22", started: false, delivered: true })
+    expect(calls).not.toContain("pty.open") // delivered into the live tab, never spawned
+  })
+
+  it("a freeze-RESTORED corpse is respawned in place — never killed, prompt not pasted twice", async () => {
+    // After a pty-host restart the canonical session lists as a dead,
+    // restored corpse. Delivery must NOT pty.kill it (the open respawns it,
+    // keeping the pre-restart scrollback) and must NOT writePrompt after
+    // the respawn (the prompt already rode the launch argv).
+    const calls: Array<{ name: string; payload?: unknown }> = []
+    let opened = false
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push({ name, payload })
+        if (name === "pty.list")
+          return {
+            sessions: opened
+              ? [session("t1::tab-1", ["claude 'go'"])]
+              : [{ ...session("t1::tab-1", ["/bin/zsh", "-ilc", "claude 'x'"], false), restored: true }],
+          } as T
+        if (name === "pty.open") {
+          opened = true
+          return { replay: "b2xk", alive: true, created: false, respawned: true } as T
+        }
+        return {} as T
+      },
+    }
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "go",
+      { key: "t1::tab-1", command: ["/bin/zsh", "-ilc", "claude 'go'"] },
+      { snapshot: psWith("claude") },
+    )
+    expect(result).toMatchObject({ session: "t1::tab-1", started: true, delivered: true })
+    expect(calls.map((c) => c.name)).toEqual(["pty.list", "pty.open", "pty.list", "pty.detach"])
+  })
+
+  it("still first-starts the canonical engine when only DEAD sessions remain, cwd'd at the worktree", async () => {
+    const calls: Array<{ name: string; payload: unknown }> = []
+    let opened = false
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push({ name, payload })
+        if (name === "pty.list")
+          return {
+            sessions: [session("t1::tab-1", opened ? ["claude 'go'"] : ["/bin/zsh", "-ilc", "claude 'x'"], opened)],
+          } as T
+        if (name === "pty.open") {
+          opened = true
+          return { replay: "", alive: true, created: true } as T
+        }
+        return {} as T
+      },
+    }
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "go",
+      { key: "t1::tab-1", command: ["/bin/zsh", "-ilc", "claude 'go'"] },
+      { snapshot: psWith("claude") },
+    )
+    // started:true is the "a NEW session was created" marker.
+    expect(result).toMatchObject({ session: "t1::tab-1", started: true, delivered: true })
+    const open = calls.find((c) => c.name === "pty.open")
+    expect(open?.payload).toMatchObject({ cwd: "/wt/t1" }) // the task's worktree, never the caller's repo
+  })
+
+  it("REFUSES an existing session whose engine exited into the keepAlive shell", async () => {
+    const rpc = {
+      request: async <T>(name: string): Promise<T> => {
+        if (name === "pty.list") return { sessions: [session("t1::tab-1", ["claude"])] } as T
+        throw new Error(`unexpected rpc ${name}`)
+      },
+    }
+    const err = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "go",
+      { key: "t1::tab-1", command: ["claude"] },
+      { snapshot: psWith("/bin/sh") }, // keepAlive fallback: shell only
+    ).then(
+      () => null,
+      (e) => e,
+    )
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).code).toBe("ENGINE_NOT_RUNNING")
+  })
+})
+
+describe("deliverHostedPrompt frozen-tab disclosure", () => {
+  it("names the freeze-restored tabs a fresh spawn passed over", async () => {
+    const sessions: PtySessionInfo[] = [
+      { ...session("t1::tab-2", ["claude"], false), restored: true },
+      { ...session("t1::tab-3", ["claude"], false), restored: true },
+    ]
+    const engine = echoingPeek()
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        if (name === "pty.list") return { sessions } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
+        if (name === "pty.open") {
+          sessions.push(session("t1::tab-1", ["claude"]))
+          return { alive: true, created: true } as T
+        }
+        return {} as T
+      },
+    }
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "go",
+      { key: "t1::tab-1", command: ["zsh", "-lc", "claude 'go'"] },
+      { snapshot: psWith("claude") },
+    )
+    // Without this the reply is byte-identical to a healthy first start,
+    // while both real conversations sit frozen in the same host.
+    expect(result.started).toBe(true)
+    expect(result.frozenTabs?.map((t) => t.tab)).toEqual(["tab-2", "tab-3"])
+  })
+})

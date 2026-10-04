@@ -7,7 +7,7 @@ import { DRAW, LIFE, partStart, RELETTER, RENAME_PART } from "./timeline"
 
 // "Rove draws its own life": one drafting sheet, inked part by part from the
 // first commit (2026-05-08) to today. No images — every mark is a polyline from
-// ./pen. Palette and lettering follow the rove.run sheet (kobe-landing/blueprint.css):
+// ./pen. Palette and lettering follow the rove.run sheet (rove-landing/blueprint.css):
 // one ink on one ground, terracotta only on revision marks and the part being drawn.
 // The drawing field is a viewport (./camera) that pulls back as the system grows;
 // the revision table, timeline and title block are the sheet itself and never move.
@@ -187,7 +187,7 @@ const PARTS: Part[] = [
     day: 97,
     date: "08-13",
     rev: "0.8.90",
-    note: "KOBE IS RENAMED ROVE",
+    note: "ROVE IS RENAMED ROVE",
     strokes: line([1466, 921], [1570, 907]),
     labels: [],
     sheet: true,
@@ -402,7 +402,7 @@ export const RoveLife: React.FC<{ theme?: LifeTheme }> = ({ theme = "plot" }) =>
         })}
 
         {/* Title block. The name is struck and re-lettered at the rename revision. */}
-        <Letter x={1468} y={930} text="KOBE" from={34} {...tech(46, renamed ? c.ink3 : c.ink, 700)} spacing={4} />
+        <Letter x={1468} y={930} text="ROVE" from={34} {...tech(46, renamed ? c.ink3 : c.ink, 700)} spacing={4} />
         <Letter x={1600} y={930} text="ROVE" from={RELETTER} {...tech(46, c.ink, 700)} spacing={4} />
         <Letter x={1468} y={955} text="A LIFE, DRAWN WITH ITS OWN PEN" from={40} {...tech(14, c.ink2)} spacing={2} />
         {[

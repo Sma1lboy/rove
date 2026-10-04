@@ -1,0 +1,188 @@
+/**
+ * Companion to `skill-install.test.ts` for the halves that touch the real
+ * environment: `maybeHintSkillInstall`'s one-shot stderr hints (persisted
+ * flags in the shared state.json) and `roveSkillState`'s unreadable-file
+ * fallback. `node:os.homedir` is mocked to a temp dir (the dev machine has
+ * the real skill installed — the default lookup must not see it) and
+ * `process.cwd` is spied per test.
+ */
+
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+const tmpHome = mkdtempSync(join(tmpdir(), "rove-skillhint-home-"))
+
+vi.mock("node:os", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:os")>()
+  return { ...actual, homedir: () => tmpHome, default: { ...actual, homedir: () => tmpHome } }
+})
+
+import {
+  ROVE_SKILL_VERSION,
+  markSkillHintSeen,
+  maybeHintSkillInstall,
+  roveSkillState,
+} from "../../src/lib/skill-install.ts"
+import { getPersistedString } from "../../src/state/repos.ts"
+
+let cwd: string
+let originalRoveHome: string | undefined
+let originalInvokedAs: string | undefined
+let stderrSpy: MockInstance
+let originalStdinIsTTY: boolean | undefined
+
+function skillDir(root: string): string {
+  return join(root, ".claude/skills/rove")
+}
+
+beforeEach(() => {
+  cwd = mkdtempSync(join(tmpdir(), "rove-skillhint-cwd-"))
+  vi.spyOn(process, "cwd").mockReturnValue(cwd)
+  // Persisted hint flags land in a fresh state.json per test.
+  originalRoveHome = process.env.ROVE_HOME_DIR
+  originalInvokedAs = process.env.ROVE_INVOKED_AS
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-skillhint-state-"))
+  process.env.ROVE_INVOKED_AS = "rove"
+  stderrSpy = vi.spyOn(process.stderr, "write").mockReturnValue(true)
+  // Force the non-interactive path unless a test injects `ask` (a TTY test
+  // runner would otherwise flip maybeHintSkillInstall into prompt mode).
+  originalStdinIsTTY = process.stdin.isTTY
+  process.stdin.isTTY = false
+})
+
+afterEach(() => {
+  const stateHome = process.env.ROVE_HOME_DIR
+  if (originalRoveHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalRoveHome
+  if (originalInvokedAs === undefined) Reflect.deleteProperty(process.env, "ROVE_INVOKED_AS")
+  else process.env.ROVE_INVOKED_AS = originalInvokedAs
+  vi.restoreAllMocks()
+  process.stdin.isTTY = originalStdinIsTTY as boolean
+  rmSync(cwd, { recursive: true, force: true })
+  if (stateHome) rmSync(stateHome, { recursive: true, force: true })
+  rmSync(skillDir(tmpHome), { recursive: true, force: true })
+})
+
+describe("roveSkillState — unreadable install", () => {
+  it("treats an existing-but-unreadable SKILL.md as unstamped (stale)", () => {
+    // SKILL.md as a DIRECTORY: existsSync says yes, readFileSync throws EISDIR.
+    mkdirSync(join(skillDir(cwd), "SKILL.md"), { recursive: true })
+    expect(roveSkillState({ home: tmpHome, cwd })).toMatchObject({
+      installed: true,
+      installedVersion: null,
+      stale: true,
+    })
+  })
+})
+
+function writeStaleSkill(): void {
+  mkdirSync(skillDir(cwd), { recursive: true })
+  writeFileSync(join(skillDir(cwd), "SKILL.md"), `<!-- rove-skill-version: ${ROVE_SKILL_VERSION - 1} -->`)
+}
+
+const muteKey = `skillHintSeen:v${ROVE_SKILL_VERSION}`
+
+describe("maybeHintSkillInstall", () => {
+  it("absent skill: hints exactly once, then persists the flag and stays quiet", async () => {
+    await maybeHintSkillInstall()
+    expect(stderrSpy).toHaveBeenCalledTimes(1)
+    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain("rove skill install")
+    expect(getPersistedString("skillHintSeen")).toBe("1")
+
+    await maybeHintSkillInstall()
+    expect(stderrSpy).toHaveBeenCalledTimes(1)
+  })
+
+  // The onboarding wizard's DECLINE branch calls markSkillHintSeen(). That
+  // test mocks skill-install.ts, so it can only prove the CALL happens — this
+  // one proves the call actually silences the hint. Without both, gutting
+  // markSkillHintSeen's body leaves every test green while the user gets
+  // nagged on stderr about a question they answered seconds earlier.
+  it("markSkillHintSeen suppresses the absent-skill hint entirely", async () => {
+    markSkillHintSeen()
+    expect(getPersistedString("skillHintSeen")).toBe("1")
+
+    await maybeHintSkillInstall()
+    expect(stderrSpy).not.toHaveBeenCalled()
+  })
+
+  it("plugin mode: absent AND stale skill both stay silent (skill versions with the plugin)", async () => {
+    // The Rove Claude Code plugin bundles the skill, so neither the install
+    // nudge nor the staleness prompt may fire — the mocked homedir means this
+    // reads the test's own settings.json, never the developer's.
+    mkdirSync(join(tmpHome, ".claude"), { recursive: true })
+    writeFileSync(join(tmpHome, ".claude", "settings.json"), JSON.stringify({ enabledPlugins: { "rove@rove": true } }))
+    await maybeHintSkillInstall() // absent
+    writeStaleSkill()
+    await maybeHintSkillInstall() // stale
+    expect(stderrSpy).not.toHaveBeenCalled()
+    rmSync(join(tmpHome, ".claude"), { recursive: true, force: true })
+  })
+
+  it("fresh skill: no hint at all", async () => {
+    mkdirSync(skillDir(cwd), { recursive: true })
+    writeFileSync(join(skillDir(cwd), "SKILL.md"), `<!-- rove-skill-version: ${ROVE_SKILL_VERSION} -->`)
+    await maybeHintSkillInstall()
+    expect(stderrSpy).not.toHaveBeenCalled()
+  })
+
+  it("stale + non-TTY: hints once per skill version, naming the installed version", async () => {
+    writeStaleSkill()
+
+    await maybeHintSkillInstall()
+    expect(stderrSpy).toHaveBeenCalledTimes(1)
+    const msg = String(stderrSpy.mock.calls[0]?.[0])
+    expect(msg).toContain(`v${ROVE_SKILL_VERSION - 1}`)
+    expect(msg).toContain(`v${ROVE_SKILL_VERSION}`)
+    expect(getPersistedString(muteKey)).toBe("1")
+
+    await maybeHintSkillInstall()
+    expect(stderrSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("stale + interactive 'y': runs the install, nothing persisted", async () => {
+    writeStaleSkill()
+    let ran = 0
+    const install = async () => {
+      ran++
+      return 0
+    }
+    await maybeHintSkillInstall({ ask: async () => "y\n", install })
+    expect(ran).toBe(1)
+    expect(getPersistedString(muteKey)).toBeUndefined()
+    expect(String(stderrSpy.mock.calls.at(-1)?.[0])).toContain("updated")
+  })
+
+  it("stale + interactive 'n': asks again next launch", async () => {
+    writeStaleSkill()
+    let ran = 0
+    const install = async () => {
+      ran++
+      return 0
+    }
+    await maybeHintSkillInstall({ ask: async () => "n\n", install })
+    expect(ran).toBe(0)
+    expect(getPersistedString(muteKey)).toBeUndefined()
+
+    await maybeHintSkillInstall({ ask: async () => "n\n", install })
+    expect(stderrSpy).toHaveBeenCalledTimes(2) // prompted both launches
+  })
+
+  it("stale + interactive 'd': mutes this skill version", async () => {
+    writeStaleSkill()
+    await maybeHintSkillInstall({ ask: async () => "d\n", install: async () => 0 })
+    expect(getPersistedString(muteKey)).toBe("1")
+
+    await maybeHintSkillInstall({ ask: async () => "d\n", install: async () => 0 })
+    expect(stderrSpy).toHaveBeenCalledTimes(1) // no second prompt
+  })
+
+  it("stale + interactive 'y' with failing install: not muted, retries next launch", async () => {
+    writeStaleSkill()
+    await maybeHintSkillInstall({ ask: async () => "yes\n", install: async () => 1 })
+    expect(getPersistedString(muteKey)).toBeUndefined()
+    expect(String(stderrSpy.mock.calls.at(-1)?.[0])).toContain("failed")
+  })
+})

@@ -287,7 +287,7 @@
         <div class="tag fix">FIX</div>
         <div>
           <h3>终端变大时工作区跟随生长,不再闪烁</h3>
-          <p>之前为贴合进入客户端而把窗口 <code>window-size</code> 固定为 <code>manual</code>,导致终端从小拉大时窗口不自动长大,UI 被「信箱化」卡在旧的小尺寸,直到切换或重开任务。新增 <code>client-resized</code> 钩子(<code>kobe resync-window</code>)在每次终端尺寸变化时把活动窗口重新钉到客户端尺寸并修复侧栏;拖拽时的事件风暴被合并为一次重钉,窗口与侧栏的重排打包成一条 tmux 命令一次性重绘——终端长大不再闪过变形的中间帧。</p>
+          <p>之前为贴合进入客户端而把窗口 <code>window-size</code> 固定为 <code>manual</code>,导致终端从小拉大时窗口不自动长大,UI 被「信箱化」卡在旧的小尺寸,直到切换或重开任务。新增 <code>client-resized</code> 钩子(<code>rove resync-window</code>)在每次终端尺寸变化时把活动窗口重新钉到客户端尺寸并修复侧栏;拖拽时的事件风暴被合并为一次重钉,窗口与侧栏的重排打包成一条 tmux 命令一次性重绘——终端长大不再闪过变形的中间帧。</p>
         </div>
       </div>
 
@@ -295,7 +295,7 @@
         <div class="tag fix">FIX</div>
         <div>
           <h3>提示词送进 tmux 引擎面板不再偶发卡在输入框</h3>
-          <p>仓库的 <code>init-prompt.md</code> 首条消息、<code>kobe api send</code> 与快速任务投递都受影响:<code>pasteAndSubmit</code> 把粘贴和提交回车连写,二者可能合并成一次 tty 读取,引擎把回车当成粘贴内容而非提交(与网页 composer / PTY sidecar 之前修过的是同一个问题)。tmux 投递路径现在同样把回车延后 ~150ms 拆开发送。</p>
+          <p>仓库的 <code>init-prompt.md</code> 首条消息、<code>rove api send</code> 与快速任务投递都受影响:<code>pasteAndSubmit</code> 把粘贴和提交回车连写,二者可能合并成一次 tty 读取,引擎把回车当成粘贴内容而非提交(与网页 composer / PTY sidecar 之前修过的是同一个问题)。tmux 投递路径现在同样把回车延后 ~150ms 拆开发送。</p>
         </div>
       </div>
 
@@ -326,8 +326,8 @@
       <div class="entry">
         <div class="tag feat">FEAT</div>
         <div>
-          <h3>新增 <code>kobe export</code>,无需守护进程导出任务列表</h3>
-          <p>直接在进程内读取 <code>~/.kobe/tasks.json</code> 并打印到 stdout:默认 JSON、<code>--csv</code>、或 <code>--format table</code> 对齐表格。可以把任务管道给 <code>jq</code>、用表格软件打开、或在终端里扫一眼——补足了需要守护进程且只出 JSON 的 <code>kobe api list</code>。</p>
+          <h3>新增 <code>rove export</code>,无需守护进程导出任务列表</h3>
+          <p>直接在进程内读取 <code>~/.rove/tasks.json</code> 并打印到 stdout:默认 JSON、<code>--csv</code>、或 <code>--format table</code> 对齐表格。可以把任务管道给 <code>jq</code>、用表格软件打开、或在终端里扫一眼——补足了需要守护进程且只出 JSON 的 <code>rove api list</code>。</p>
         </div>
       </div>
 
@@ -351,7 +351,7 @@
         <div class="tag fix">FIX</div>
         <div>
           <h3>整窗页面不再响应工作区导航快捷键</h3>
-          <p>新建任务、设置、更新、快速任务、帮助等整窗页面,之前 <span class="kbd">Ctrl+Q</span>、<span class="kbd">Ctrl+[</span> / <span class="kbd">Ctrl+]</span>、<span class="kbd">Ctrl+T</span> 等会从 tmux 根表触发,把你从填了一半的对话框里拽走。这些窗口现在带 <code>@kobe_surface</code> 标记,相关快捷键在其中变为空操作。</p>
+          <p>新建任务、设置、更新、快速任务、帮助等整窗页面,之前 <span class="kbd">Ctrl+Q</span>、<span class="kbd">Ctrl+[</span> / <span class="kbd">Ctrl+]</span>、<span class="kbd">Ctrl+T</span> 等会从 tmux 根表触发,把你从填了一半的对话框里拽走。这些窗口现在带 <code>@rove_surface</code> 标记,相关快捷键在其中变为空操作。</p>
         </div>
       </div>
     </section>
@@ -399,7 +399,7 @@
         <div class="tag feat">FEAT</div>
         <div>
           <h3>网页 HTTP/SSE 流量直接走守护进程</h3>
-          <p>网页与桌面端不再启动独立的 kobe-web 桥接进程,浏览器流量直接经由 kobe 守护进程。守护进程持有网页路由表、RPC 白名单、SSE 快照流、会话/规格路由与可选静态托管;网页开发和桌面端只需启动 Vite 和 Node PTY sidecar。默认包现在也会捆绑已构建的网页面板,并作为 <code>bun run build</code> 的一部分构建。</p>
+          <p>网页与桌面端不再启动独立的 rove-web 桥接进程,浏览器流量直接经由 rove 守护进程。守护进程持有网页路由表、RPC 白名单、SSE 快照流、会话/规格路由与可选静态托管;网页开发和桌面端只需启动 Vite 和 Node PTY sidecar。默认包现在也会捆绑已构建的网页面板,并作为 <code>bun run build</code> 的一部分构建。</p>
         </div>
       </div>
 
@@ -414,16 +414,16 @@
       <div class="entry">
         <div class="tag feat">FEAT</div>
         <div>
-          <h3>整套 tmux 外观跟随 kobe 主题</h3>
-          <p>专用的 <code>-L kobe</code> tmux 服务器现在从当前主题派生底部状态栏/窗口栏、status-left/right 样式、命令提示、复制模式选区、面板选择器配色与面板边框——切换主题会完整重塑 ChatTab 外观,且不触碰用户真实的 tmux 服务器。同时让设置写入共享状态文件后的主题实时传播更可靠(守护进程轮询小巧的 UI prefs 文件作为兜底)。</p>
+          <h3>整套 tmux 外观跟随 rove 主题</h3>
+          <p>专用的 <code>-L rove</code> tmux 服务器现在从当前主题派生底部状态栏/窗口栏、status-left/right 样式、命令提示、复制模式选区、面板选择器配色与面板边框——切换主题会完整重塑 ChatTab 外观,且不触碰用户真实的 tmux 服务器。同时让设置写入共享状态文件后的主题实时传播更可靠(守护进程轮询小巧的 UI prefs 文件作为兜底)。</p>
         </div>
       </div>
 
       <div class="entry">
         <div class="tag feat">FEAT</div>
         <div>
-          <h3>实验性 <code>kobe-desktop</code> 工作区</h3>
-          <p>一个轻量 Electron 外壳:在空闲本地端口段上启动既有的 <code>kobe web</code> 开发栈并在桌面窗口中打开,不改动守护进程、tmux 或网页桥接架构。</p>
+          <h3>实验性 <code>rove-desktop</code> 工作区</h3>
+          <p>一个轻量 Electron 外壳:在空闲本地端口段上启动既有的 <code>rove web</code> 开发栈并在桌面窗口中打开,不改动守护进程、tmux 或网页桥接架构。</p>
         </div>
       </div>
     </section>

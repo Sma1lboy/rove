@@ -1,0 +1,26 @@
+# sidebar frame: tab-turn-complete
+# unread completion lamp on the tab that finished
+# 30x22
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
+|                              |
+| ROVE                         |
+| New task                + n  |
+| Kanban                       |
+| Routines                     |
+| Issues                       |
+|                              |
+| rove ─────────────────────── |
+| ▎feat/alpha                ? |
+| ▎● build                     |
+| ▎○ review                    |
+| ▎feat/bravo                ? |
+|▌▎○ tests                     |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |

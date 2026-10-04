@@ -16,7 +16,7 @@ No AI/Anthropic/Claude/Codex attribution anywhere (AGENTS.md).
 
 ## UI evidence
 
-<!-- Required when packages/kobe/src/tui*/ or kobe-harness/src/ changes.
+<!-- Required when packages/rove/src/tui*/ or rove-harness/src/ changes.
      Harness only: /harness → xterm.js → PTY sidecar → real OpenTUI (docs/HARNESS.md).
      If no frame can change (dropped import, moved type), replace this section
      with one line: `ui-evidence: none — <reason>`.

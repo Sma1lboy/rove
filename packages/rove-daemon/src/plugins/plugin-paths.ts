@@ -1,0 +1,64 @@
+import { preRenameStateDir } from "../daemon/pre-rename-runtime.ts"
+/**
+ * Filesystem layout for installed plugins, all under `<home>/.rove/`:
+ *
+ *   plugins.json                  — the registry (see plugins/registry.ts)
+ *   plugins/<id>/checkout/        — managed source checkout (GitHub installs only)
+ *   plugins/<id>/config/          — user-editable config (.env etc.); plugin-owned format
+ *   plugins/<id>/state/           — plugin-owned runtime state
+ *   plugins/<id>/log.jsonl        — command-run log (appended by the runtime)
+ *
+ * Linked (local-dev) plugins keep their root wherever the author works;
+ * config/state still live here so uninstall/relink never loses user data.
+ */
+
+import { homedir } from "node:os"
+import { join } from "node:path"
+import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
+
+/** New plugin reads and writes use only canonical paths. */
+function stateRoot(homeDir?: string): string {
+  const home = homeDir ?? readRoveHomeDirEnv() ?? homedir()
+  const canonical = join(home, ROVE_STATE_DIR_BASENAME)
+  return canonical
+}
+
+export function pluginRegistryPath(homeDir?: string): string {
+  return join(stateRoot(homeDir), "plugins.json")
+}
+
+/** Parent of every per-plugin directory — also where installs stage their clone. */
+export function pluginsRootDir(homeDir?: string): string {
+  return join(stateRoot(homeDir), "plugins")
+}
+
+/** Where the plugin tree lived before the `.rove` → `.rove` rename. */
+export function legacyPluginsRootDir(homeDir?: string): string {
+  const home = homeDir ?? readRoveHomeDirEnv() ?? homedir()
+  return join(preRenameStateDir(home), "plugins")
+}
+
+export function pluginDataDir(id: string, homeDir?: string): string {
+  return join(pluginsRootDir(homeDir), id)
+}
+
+export function pluginCheckoutDir(id: string, homeDir?: string): string {
+  return join(pluginDataDir(id, homeDir), "checkout")
+}
+
+export function pluginConfigDir(id: string, homeDir?: string): string {
+  return join(pluginDataDir(id, homeDir), "config")
+}
+
+export function pluginStateDir(id: string, homeDir?: string): string {
+  return join(pluginDataDir(id, homeDir), "state")
+}
+
+export function pluginLogPath(id: string, homeDir?: string): string {
+  return join(pluginDataDir(id, homeDir), "log.jsonl")
+}
+
+/** CLI-written `plugin outdated` cache the Settings pane reads (advisory). */
+export function pluginsOutdatedCachePath(homeDir?: string): string {
+  return join(stateRoot(homeDir), "plugins-outdated.json")
+}

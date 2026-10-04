@@ -12,7 +12,7 @@
     "output": "src/quicklook/frames.json",
     "home": ".capture-home-puretui",
     "repoDefault": "fixture-repo",
-    "shellPrompt": "kobe-demo$ "
+    "shellPrompt": "rove-demo$ "
   },
   "setup": {
     "readyWait": "workspaceReady",

@@ -85,7 +85,7 @@ npx @sma1lboy/rove              # try it without installing
 
 Rove runs on macOS, Linux, and Windows; Windows also requires Node.js and Git for Windows/Git Bash. The CLI runs on [Bun](https://bun.sh) ≥ 1.3.11, which every install route brings along. If your Bun lives somewhere unusual, point Rove at it with `ROVE_BUN=/path/to/bun`.
 
-`rove` is the canonical command. The package also installs `kobe` as a compatibility alias. On first launch, supported legacy state is copied into `~/.rove`; existing files and worktrees stay where they are.
+`rove` is the canonical command. The package also installs `rove` as a compatibility alias. On first launch, supported legacy state is copied into `~/.rove`; existing files and worktrees stay where they are.
 
 ## Scripting and Agent API
 
@@ -151,7 +151,7 @@ bun run dev:sandbox
 bun run test
 ```
 
-Start with [CONTRIBUTING.md](./CONTRIBUTING.md) and [Architecture](./docs/ARCHITECTURE.md). Shipped behavior is in the [changelog](./packages/kobe/CHANGELOG.md).
+Start with [CONTRIBUTING.md](./CONTRIBUTING.md) and [Architecture](./docs/ARCHITECTURE.md). Shipped behavior is in the [changelog](./packages/rove/CHANGELOG.md).
 
 ## License
 

@@ -1,0 +1,40 @@
+import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { bornWithWorktree, diffTask } from "@sma1lboy/rove-daemon/plugins/task-diff"
+import { describe, expect, it } from "vitest"
+
+function task(extra: Partial<SerializedTask> = {}): SerializedTask {
+  return {
+    id: "a",
+    title: "t",
+    repo: "/repo",
+    branch: "b",
+    worktreePath: "/wt",
+    kind: "task",
+    status: "active",
+    pinned: false,
+    createdAt: "x",
+    updatedAt: "x",
+    ...extra,
+  } as SerializedTask
+}
+
+describe("diffTask", () => {
+  it("returns null when nothing watched changed (updatedAt excluded)", () => {
+    expect(diffTask(task(), task({ updatedAt: "y" }))).toBeNull()
+  })
+
+  it("flags worktreeCreated for a task-kind empty→set transition only", () => {
+    expect(diffTask(task({ worktreePath: "" }), task())?.worktreeCreated).toBe(true)
+    expect(diffTask(task({ kind: "main", worktreePath: "" }), task({ kind: "main" }))?.worktreeCreated).toBe(false)
+    // Path CHANGE (move) is a task.changed field, not a new worktree.
+    expect(diffTask(task(), task({ worktreePath: "/other" }))?.worktreeCreated).toBe(false)
+  })
+})
+
+describe("bornWithWorktree", () => {
+  it("true only for task-kind rows created with a path", () => {
+    expect(bornWithWorktree(task())).toBe(true)
+    expect(bornWithWorktree(task({ worktreePath: "" }))).toBe(false)
+    expect(bornWithWorktree(task({ kind: "main" }))).toBe(false)
+  })
+})

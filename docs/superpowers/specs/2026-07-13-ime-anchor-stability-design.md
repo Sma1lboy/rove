@@ -4,7 +4,7 @@
 
 The embedded Claude/Codex terminal draws its visible cursor as an inverse
 cell, while the outer terminal's hardware cursor stays hidden and supplies the
-anchor used by macOS input methods. KOBE already calls
+anchor used by macOS input methods. ROVE already calls
 `renderer.setCursorPosition(x, y, false)`, but OpenTUI 0.4.3 restores cursor
 position at the end of a rendered frame only when the cursor is visible.
 
@@ -15,7 +15,7 @@ cursor has not moved.
 
 ## Constraints
 
-- Keep KOBE's inverse-cell visual cursor; the visible native-cursor experiment
+- Keep ROVE's inverse-cell visual cursor; the visible native-cursor experiment
   was previously reverted.
 - Do not pause PTY output or disable engine animation. Both only mask the
   renderer defect.
@@ -32,7 +32,7 @@ cursor has not moved.
 ### 1. Frame-final cursor anchoring
 
 Create a framework-free macOS renderer-output adapter. OpenTUI supports a
-custom stdout stream through its native span feed; KOBE supplies a proxy stream
+custom stdout stream through its native span feed; ROVE supplies a proxy stream
 that delegates to `process.stdout` after applying one streaming transform.
 
 For every synchronized frame terminator (`CSI ? 2026 l`) while a terminal IME

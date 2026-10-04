@@ -8,12 +8,12 @@
 // Inputs (env):
 //   BASE_REF            PR base branch (required) — diff is origin/BASE...HEAD
 //   PR_BODY             PR description; `coverage-exemption: <path> — <reason>` lines exempt the named files
-//   KOBE_COVERAGE_MIN   line-% floor for touched files (default 50)
-//   KOBE_RENDER_COVERAGE 1 selects bun test's OpenTUI lcov report
+//   ROVE_COVERAGE_MIN   line-% floor for touched files (default 50)
+//   ROVE_RENDER_COVERAGE 1 selects bun test's OpenTUI lcov report
 //
-// Default mode expects packages/kobe/coverage/coverage-summary.json to exist
-// (`cd packages/kobe && bun run coverage` first). Render mode
-// (`KOBE_RENDER_COVERAGE=1`) consumes test:render's lcov instead. A touched
+// Default mode expects packages/rove/coverage/coverage-summary.json to exist
+// (`cd packages/rove && bun run coverage` first). Render mode
+// (`ROVE_RENDER_COVERAGE=1`) consumes test:render's lcov instead. A touched
 // source file that is ABSENT from its applicable report counts as 0% — an
 // untested new module fails loudly instead of slipping through.
 //
@@ -26,12 +26,12 @@ import { execSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
-const MIN = Number(process.env.KOBE_COVERAGE_MIN ?? "50")
+const MIN = Number(process.env.ROVE_COVERAGE_MIN ?? "50")
 const baseRef = process.env.BASE_REF
 const prBody = process.env.PR_BODY ?? ""
-const renderCoverage = process.env.KOBE_RENDER_COVERAGE === "1"
+const renderCoverage = process.env.ROVE_RENDER_COVERAGE === "1"
 // One per `bun test` process the render track splits into — see
-// packages/kobe/scripts/render-track.mjs. A missing dir is skipped so the
+// packages/rove/scripts/render-track.mjs. A missing dir is skipped so the
 // gate still reports on whichever halves produced coverage.
 const RENDER_COVERAGE_DIRS = ["coverage-render", "coverage-render-pty"]
 
@@ -45,7 +45,7 @@ const exemptPaths = new Set([...prBody.matchAll(/coverage-exemption:\s*(\S+)/gi)
 
 // KOB-11 blind spot: files whose ONLY real exercise is the behavior suite
 // spawning the built CLI as a subprocess (test/behavior/harness.ts's
-// runKobe() → `spawnSync("bun", [DIST_CLI, ...])`) always read 0% here —
+// runRove() → `spawnSync("bun", [DIST_CLI, ...])`) always read 0% here —
 // vitest's v8 coverage instruments its own process, not a child `bun`
 // process. A per-file floor would permanently block touching these files
 // without lcov-merging the behavior run in (out of scope for now — see
@@ -58,30 +58,30 @@ const exemptPaths = new Set([...prBody.matchAll(/coverage-exemption:\s*(\S+)/gi)
 // here if it is a subprocess-only entry point with no (and no plausible)
 // direct unit test — re-verify before adding, don't grow this defensively.
 const SUBPROCESS_ONLY_EXCLUSIONS = new Set([
-  // The public `kobe` and `rove` wrappers install invocation/env
+  // The public `rove` and `rove` wrappers install invocation/env
   // compatibility before dynamically importing the shared CLI. Importing
   // either wrapper directly would execute main()/process.exit in the test
   // runner; test/behavior/rove-alias.test.ts instead spawns both built
   // entries and verifies their observable identity and env precedence.
-  "packages/kobe/src/cli/kobe.ts",
-  "packages/kobe/src/cli/rove.ts",
+  "packages/rove/src/cli/rove.ts",
+  "packages/rove/src/cli/rove.ts",
   // The published bin: a node launcher that finds a Bun runtime and re-execs
   // the real entry through it (npm/npx hand a bin to node, `bun install -g`
   // hands it to Bun). Its module body IS the side effect — importing it from
   // a test would relaunch the CLI inside the runner. All of its logic lives
   // in src/cli/bun-runtime.ts, which test/cli/bun-runtime.test.ts covers
   // directly; test/behavior/rove-alias.test.ts spawns the built launchers.
-  "packages/kobe/src/cli/launcher.ts",
-  // `kobe pty-host`: internal subcommand spawned DETACHED by
+  "packages/rove/src/cli/launcher.ts",
+  // `rove pty-host`: internal subcommand spawned DETACHED by
   // ensurePtyHostReachable() (see src/cli/pty-host-cmd.ts) — it blocks in the
   // foreground running a real server and installs SIGINT/SIGTERM handlers
   // that call process.exit(), so invoking runPtyHostSubcommand() directly
   // from a unit test would hang/kill the test runner. Not reachable from
-  // test/behavior/ either (no test drives `kobe pty-host` today) — it is
+  // test/behavior/ either (no test drives `rove pty-host` today) — it is
   // exercised only by the real running app. The real server logic it wraps
-  // (startPtyHostServer) lives in packages/kobe-daemon and is tested there;
+  // (startPtyHostServer) lives in packages/rove-daemon and is tested there;
   // this file is just the thin CLI-dispatch shim.
-  "packages/kobe/src/cli/pty-host-cmd.ts",
+  "packages/rove/src/cli/pty-host-cmd.ts",
 ])
 
 // tui-react React-integration files (hooks + wiring that import react or
@@ -95,7 +95,7 @@ const SUBPROCESS_ONLY_EXCLUSIONS = new Set([
 // at compile time and does not block vitest from executing the module.
 const RENDER_VALUE_IMPORT = /^\s*import\s+(?!type\b)[^;]*?\bfrom\s+["'](?:react|@opentui\/react)["']/m
 function isRenderTrackOnly(file) {
-  if (!file.startsWith("packages/kobe/src/tui-react/")) return false
+  if (!file.startsWith("packages/rove/src/tui-react/")) return false
   try {
     return RENDER_VALUE_IMPORT.test(readFileSync(file, "utf8"))
   } catch {
@@ -112,8 +112,8 @@ function renderRecords(paths) {
     for (const line of readFileSync(path, "utf8").split("\n")) {
       if (line.startsWith("SF:")) {
         const normal = line.slice(3).replace(/\\/g, "/")
-        const index = normal.indexOf("packages/kobe/src/")
-        relative = index >= 0 ? normal.slice(index) : normal.startsWith("src/") ? `packages/kobe/${normal}` : null
+        const index = normal.indexOf("packages/rove/src/")
+        relative = index >= 0 ? normal.slice(index) : normal.startsWith("src/") ? `packages/rove/${normal}` : null
         lines = relative === null ? null : new Map()
       } else if (line.startsWith("DA:") && lines) {
         const [number, hits] = line.slice(3).split(",")
@@ -132,7 +132,7 @@ function renderRecords(paths) {
 
 /**
  * Line-% per source file, merged across the render track's several `bun test`
- * processes (see packages/kobe/scripts/render-track.mjs).
+ * processes (see packages/rove/scripts/render-track.mjs).
  *
  * THE TWO-STAGE GROUPING BELOW IS LOAD-BEARING. It reads like ceremony around
  * what "should" be a per-line union, and both simpler shapes were measured
@@ -185,16 +185,16 @@ function renderCoverageSummary(paths) {
 let byRelative
 if (renderCoverage) {
   byRelative = renderCoverageSummary(
-    RENDER_COVERAGE_DIRS.map((dir) => resolve(`packages/kobe/${dir}/lcov.info`)).filter((path) => existsSync(path)),
+    RENDER_COVERAGE_DIRS.map((dir) => resolve(`packages/rove/${dir}/lcov.info`)).filter((path) => existsSync(path)),
   )
 } else {
-  const summaryPath = resolve("packages/kobe/coverage/coverage-summary.json")
+  const summaryPath = resolve("packages/rove/coverage/coverage-summary.json")
   const summary = JSON.parse(readFileSync(summaryPath, "utf8"))
   // Summary keys are absolute paths; index by their repo-relative suffix.
   byRelative = new Map()
   for (const key of Object.keys(summary)) {
     if (key === "total") continue
-    const index = key.replace(/\\/g, "/").indexOf("packages/kobe/src/")
+    const index = key.replace(/\\/g, "/").indexOf("packages/rove/src/")
     if (index >= 0) byRelative.set(key.replace(/\\/g, "/").slice(index), summary[key])
   }
 }
@@ -204,8 +204,8 @@ const touched = diff
   .split("\n")
   .map((l) => l.trim())
   .filter((file) => {
-    if (renderCoverage) return /^packages\/kobe\/src\/.*\.tsx$/.test(file) || isRenderTrackOnly(file)
-    return /^packages\/kobe\/src\/.*\.ts$/.test(file) && !isRenderTrackOnly(file)
+    if (renderCoverage) return /^packages\/rove\/src\/.*\.tsx$/.test(file) || isRenderTrackOnly(file)
+    return /^packages\/rove\/src\/.*\.ts$/.test(file) && !isRenderTrackOnly(file)
   })
   .filter((f) => !f.endsWith(".d.ts"))
 

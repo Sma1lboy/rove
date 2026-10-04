@@ -6,7 +6,7 @@ rove work is tracked locally. There is no external issue tracker. Agents should 
 
 - **Backlog + open issues**: daemon-owned issue state.
 - **Current risks and follow-ups**: `HANDOFF.md` at the repo root (local and gitignored; absent on a fresh clone).
-- **User-facing shipped behavior**: [`../packages/kobe/CHANGELOG.md`](../packages/kobe/CHANGELOG.md).
+- **User-facing shipped behavior**: [`../packages/rove/CHANGELOG.md`](../packages/rove/CHANGELOG.md).
 - **Durable product and architecture decisions**: `docs/*.md`.
 - **Proof of work**: git commits and test output.
 

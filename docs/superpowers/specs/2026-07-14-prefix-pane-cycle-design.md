@@ -12,7 +12,7 @@ left and `prefix+k` for the pane to the right.
 - `prefix+k` cycles right through Sidebar -> Workspace -> Files -> Sidebar.
 - `F4` remains a direct alias for cycling right.
 - `ctrl+h`, `ctrl+j`, `ctrl+k`, `ctrl+l`, `prefix+h`, and `prefix+l` are no
-  longer Kobe defaults. When the embedded terminal has focus, the unclaimed
+  longer Rove defaults. When the embedded terminal has focus, the unclaimed
   direct control chords pass through to the child process.
 - Dialog and page gates remain unchanged: pane navigation is disabled while a
   modal or full-page surface owns input.

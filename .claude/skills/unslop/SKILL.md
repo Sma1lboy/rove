@@ -19,9 +19,9 @@ data and must survive, and which surfaces are in scope.
 In scope (the product's public face):
 
 - `README.md`
-- The `docs/` pages listed in `SECTIONS` in `packages/kobe-docs/scripts/sync-docs.mjs`
+- The `docs/` pages listed in `SECTIONS` in `packages/rove-docs/scripts/sync-docs.mjs`
   (they publish to docs.rove.run)
-- `packages/kobe-landing/**` — English copy only
+- `packages/rove-landing/**` — English copy only
 - Release notes and changeset bodies
 
 Out of scope unless asked: `docs/PLAN.md`, `HARNESS.md`, `ARCHITECTURE.md`,
@@ -95,22 +95,22 @@ prose, not a fragment that fits on one line.
 JS. Replacing `agent’s` with a literal `'` breaks the file. Always:
 
 ```bash
-node --check packages/kobe-landing/index.js
-node --check packages/kobe-landing/themes.js
+node --check packages/rove-landing/index.js
+node --check packages/rove-landing/themes.js
 ```
 
 ## Verify before claiming done
 
 ```bash
 bun run lint
-bun run --filter @sma1lboy/kobe-docs build   # the docs-site CI gate
-node --check packages/kobe-landing/*.js
+bun run --filter @sma1lboy/rove-docs build   # the docs-site CI gate
+node --check packages/rove-landing/*.js
 ```
 
 Then confirm the em dashes that remain are all data, not prose:
 
 ```bash
-grep -rn "—" README.md docs/*.md packages/kobe-landing/*.html
+grep -rn "—" README.md docs/*.md packages/rove-landing/*.html
 ```
 
 Every hit should be a table cell, CLI output, a code placeholder, a comment,
@@ -121,7 +121,7 @@ still has the same keys:
 
 ```bash
 node -e '
-const s = require("fs").readFileSync("packages/kobe-landing/index.js", "utf8")
+const s = require("fs").readFileSync("packages/rove-landing/index.js", "utf8")
 const keys = (b) => new Set([...b.matchAll(/'"'"'([a-zA-Z0-9._]+)'"'"':/g)].map(m => m[1]))
 const zh = keys(s.split("var en =")[0].split("var zh =")[1])
 const en = keys(s.split("var en =")[1].split("var dicts")[0])

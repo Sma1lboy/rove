@@ -1,0 +1,26 @@
+# sidebar frame: tab-running-sibling
+# work in a NON-active tab must light THAT row and leave the active one alone (the borrowed-spinner bug)
+# 30x22, spinner glyphs masked as ~
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
+|                              |
+| ROVE                         |
+| New task                + n  |
+| Kanban                       |
+| Routines                     |
+| Issues                       |
+|                              |
+| rove ─────────────────────── |
+| ▎feat/alpha                ? |
+|▌▎○ build                     |
+| ▎~ review                22m |
+| ▎feat/bravo                ? |
+| ▎○ tests                     |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |

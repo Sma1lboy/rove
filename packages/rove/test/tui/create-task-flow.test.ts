@@ -1,0 +1,278 @@
+/**
+ * `createTaskFlow` adopt-mode summary (stability fix C).
+ *
+ * Adopting several worktrees is a loop of independent `adoptWorktree` calls.
+ * The old code wrapped the loop in one try/catch: if item 2 failed, item 1 was
+ * already persisted but the user only saw a generic "couldn't create task" and
+ * the flow returned before reloading — the succeeded task was invisible. These
+ * tests pin the per-item accounting + the real N/M summary that replaced it.
+ *
+ * The module deliberately has no `@opentui` imports, so the flow runs under
+ * plain vitest with mocks. We stub the saved-repo
+ * state, engine detection) so the test is hermetic.
+ */
+
+import { describe, expect, test, vi } from "vitest"
+
+vi.mock("../../src/state/repos", () => ({
+  getSavedRepos: () => ["/repo"],
+  addSavedRepo: (p: string) => mockAddSavedRepo(p),
+}))
+// addSavedRepo normalizes to the git toplevel and returns it. Default: the
+// identity case; the subdirectory test below makes it actually normalize.
+const mockAddSavedRepo = vi.fn((path: string) => ({ added: false, path, total: 1 }))
+vi.mock("../../src/engine/account-detect", () => ({
+  availableEngineIds: () => mockAvailableEngineIds(),
+}))
+// Reassignable so the "no engine detected" test can flip it to []; every
+// other test resets it to the built-in default in the per-test setup below.
+const mockAvailableEngineIds = vi.fn(async () => ["claude"])
+
+import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
+import type { NewTaskInput } from "../../src/tui/component/new-task-dialog/state"
+import { type CreateTaskContext, createTaskFlow } from "../../src/tui/lib/task-create-flow"
+
+type AdoptItem = { worktreePath: string; branch: string }
+
+function makeCreateCtx(opts: {
+  adopt?: readonly AdoptItem[]
+  adoptWorktree?: (input: { worktreePath: string }) => Promise<{ id: string }>
+  createTask?: (input: { repo: string; baseRef?: string; vendor: unknown }) => Promise<{ id: string }>
+  promptNewTask?: () => Promise<NewTaskInput | undefined>
+  orch?: RoveOrchestrator | null
+}): {
+  ctx: CreateTaskContext
+  notifyInfo: ReturnType<typeof vi.fn>
+  notifyError: ReturnType<typeof vi.fn>
+  reload: ReturnType<typeof vi.fn>
+  selectTask: ReturnType<typeof vi.fn>
+  enterTask: ReturnType<typeof vi.fn>
+  adoptWorktree: ReturnType<typeof vi.fn>
+  createTask: ReturnType<typeof vi.fn>
+  rememberVendor: ReturnType<typeof vi.fn>
+  logger: { error: ReturnType<typeof vi.fn> }
+} {
+  const notifyInfo = vi.fn()
+  const notifyError = vi.fn()
+  const reload = vi.fn(async () => {})
+  const selectTask = vi.fn()
+  const enterTask = vi.fn(async () => {})
+  const adoptWorktree = vi.fn(opts.adoptWorktree ?? (async ({ worktreePath }) => ({ id: worktreePath })))
+  const createTask = vi.fn(opts.createTask ?? (async () => ({ id: "created-id" })))
+  const rememberVendor = vi.fn()
+  const logger = { error: vi.fn() }
+  const innerOrch = {
+    adoptWorktree,
+    createTask,
+    discoverAdoptableWorktrees: vi.fn(async () => []),
+  } as unknown as RoveOrchestrator
+  const orch = opts.orch === undefined ? innerOrch : opts.orch
+  const ctx: CreateTaskContext = {
+    orch,
+    tasks: () => [],
+    confirm: async () => true,
+    promptText: async () => undefined,
+    logger,
+    logPrefix: "[test]",
+    notifyInfo,
+    notifyError,
+    reload,
+    selectTask,
+    enterTask,
+    cursorRepo: () => "/repo",
+    lastVendor: () => "claude" as never,
+    rememberVendor,
+    promptNewTask:
+      opts.promptNewTask ??
+      (async () => ({ mode: "adopt", repo: "/repo", vendor: "claude" as never, adopt: opts.adopt ?? [] })),
+  }
+  return {
+    ctx,
+    notifyInfo,
+    notifyError,
+    reload,
+    selectTask,
+    enterTask,
+    adoptWorktree,
+    createTask,
+    rememberVendor,
+    logger,
+  }
+}
+
+describe("createTaskFlow — adopt summary", () => {
+  test("all adopted: info summary + focuses the last one", async () => {
+    const adopt = [
+      { worktreePath: "/wt/a", branch: "a" },
+      { worktreePath: "/wt/b", branch: "b" },
+    ]
+    const { ctx, notifyInfo, notifyError, reload, selectTask, enterTask } = makeCreateCtx({
+      adopt,
+      adoptWorktree: async ({ worktreePath }) => ({ id: worktreePath === "/wt/a" ? "id-a" : "id-b" }),
+    })
+
+    await createTaskFlow(ctx)
+
+    expect(notifyError).not.toHaveBeenCalled()
+    const summary = notifyInfo.mock.calls.map((c) => String(c[0]))
+    expect(summary.some((m) => /2/.test(m))).toBe(true)
+    // Reloaded + landed on the LAST success.
+    expect(reload).toHaveBeenCalledTimes(1)
+    expect(selectTask).toHaveBeenCalledWith("id-b")
+    expect(enterTask).toHaveBeenCalledWith("id-b")
+  })
+
+  test("partial: one fails — the succeeded task still surfaces (N/M summary, not a generic error)", async () => {
+    const adopt = [
+      { worktreePath: "/wt/ok", branch: "ok" },
+      { worktreePath: "/wt/bad", branch: "bad" },
+    ]
+    const { ctx, notifyInfo, notifyError, reload, selectTask, enterTask } = makeCreateCtx({
+      adopt,
+      adoptWorktree: async ({ worktreePath }) => {
+        if (worktreePath === "/wt/bad") throw new Error("boom")
+        return { id: "id-ok" }
+      },
+    })
+
+    await createTaskFlow(ctx)
+
+    // No fatal error toast — a partial success is surfaced as info, not a
+    // dead-end "couldn't create".
+    expect(notifyError).not.toHaveBeenCalled()
+    const summary = notifyInfo.mock.calls.map((c) => String(c[0]))
+    expect(summary.some((m) => /1\/2/.test(m))).toBe(true)
+    // The flow still reloaded + focused the task that DID persist.
+    expect(reload).toHaveBeenCalledTimes(1)
+    expect(selectTask).toHaveBeenCalledWith("id-ok")
+    expect(enterTask).toHaveBeenCalledWith("id-ok")
+  })
+
+  test("all fail: error toast, no reload / focus", async () => {
+    const adopt = [{ worktreePath: "/wt/x", branch: "x" }]
+    const { ctx, notifyError, reload, selectTask, enterTask } = makeCreateCtx({
+      adopt,
+      adoptWorktree: async () => {
+        throw new Error("nope")
+      },
+    })
+
+    await createTaskFlow(ctx)
+
+    expect(notifyError).toHaveBeenCalledTimes(1)
+    expect(String(notifyError.mock.calls[0]?.[0])).toMatch(/nope/)
+    expect(reload).not.toHaveBeenCalled()
+    expect(selectTask).not.toHaveBeenCalled()
+    expect(enterTask).not.toHaveBeenCalled()
+  })
+})
+
+describe("createTaskFlow — create mode + guards", () => {
+  test("create mode: calls task.create, remembers the vendor, saves the repo, lands on the new task", async () => {
+    const promptNewTask = vi.fn(async () => ({
+      mode: "create" as const,
+      repo: "/repo",
+      baseRef: "main",
+      vendor: "claude",
+    }))
+    const { ctx, createTask, reload, selectTask, enterTask, rememberVendor } = makeCreateCtx({
+      createTask: async () => ({ id: "new-id" }),
+      promptNewTask,
+    })
+
+    await createTaskFlow(ctx)
+
+    expect(createTask).toHaveBeenCalledWith({ repo: "/repo", baseRef: "main", vendor: "claude" })
+    expect(rememberVendor).toHaveBeenCalledWith("/repo", "claude")
+    expect(reload).toHaveBeenCalledTimes(1)
+    expect(selectTask).toHaveBeenCalledWith("new-id")
+    expect(enterTask).toHaveBeenCalledWith("new-id")
+  })
+
+  test("create mode failure surfaces a toast and skips reload/selection", async () => {
+    const promptNewTask = vi.fn(async () => ({
+      mode: "create" as const,
+      repo: "/repo",
+      baseRef: "main",
+      vendor: "claude",
+    }))
+    const { ctx, notifyError, reload, selectTask } = makeCreateCtx({
+      createTask: async () => {
+        throw new Error("git worktree add failed")
+      },
+      promptNewTask,
+    })
+
+    await createTaskFlow(ctx)
+
+    expect(notifyError).toHaveBeenCalledWith("Couldn't create the task — nothing was created: git worktree add failed")
+    expect(reload).not.toHaveBeenCalled()
+    expect(selectTask).not.toHaveBeenCalled()
+  })
+
+  test("dialog cancelled (promptNewTask returns undefined) is a no-op", async () => {
+    const promptNewTask = vi.fn(async () => undefined)
+    const { ctx, reload, rememberVendor } = makeCreateCtx({ promptNewTask })
+
+    await createTaskFlow(ctx)
+
+    expect(rememberVendor).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  test("no engine CLI detected surfaces an info notice but still proceeds", async () => {
+    mockAvailableEngineIds.mockResolvedValueOnce([])
+    const promptNewTask = vi.fn(async () => ({
+      mode: "create" as const,
+      repo: "/repo",
+      baseRef: "main",
+      vendor: "claude",
+    }))
+    const { ctx, notifyInfo, createTask } = makeCreateCtx({ promptNewTask })
+
+    await createTaskFlow(ctx)
+
+    expect(notifyInfo).toHaveBeenCalledWith(expect.stringContaining("No engine CLI detected"))
+    expect(createTask).toHaveBeenCalled()
+  })
+
+  // The dialog submits whatever the user typed. If they ran `rove` inside
+  // `my-monorepo/packages/app`, that subdirectory is the prefill and it passes
+  // validation. `addSavedRepo` already normalized to the git toplevel — but
+  // its RETURN was thrown away, so the saved repo list, the vendor preference
+  // key, and the task record all disagreed. This pins that the flow forwards
+  // the normalized path to every downstream consumer.
+  test("forwards addSavedRepo's normalized root to createTask and rememberVendor", async () => {
+    mockAddSavedRepo.mockImplementationOnce(() => ({ added: true, path: "/repo", total: 1 }))
+    const promptNewTask = vi.fn(async () => ({
+      mode: "create" as const,
+      repo: "/repo/packages/app",
+      baseRef: "main",
+      vendor: "claude",
+    }))
+    const { ctx, createTask, rememberVendor } = makeCreateCtx({ promptNewTask })
+
+    await createTaskFlow(ctx)
+
+    expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ repo: "/repo" }))
+    expect(rememberVendor).toHaveBeenCalledWith("/repo", "claude")
+  })
+
+  test("no daemon (orch null): saves the repo/vendor choice but logs instead of creating", async () => {
+    const promptNewTask = vi.fn(async () => ({
+      mode: "create" as const,
+      repo: "/repo",
+      baseRef: "main",
+      vendor: "claude",
+    }))
+    const { ctx, rememberVendor, notifyInfo, reload, logger } = makeCreateCtx({ orch: null, promptNewTask })
+
+    await createTaskFlow(ctx)
+
+    expect(rememberVendor).toHaveBeenCalledWith("/repo", "claude")
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("no daemon"))
+    // Never reaches the "Creating task…" toast — that's gated on `orch`.
+    expect(notifyInfo).not.toHaveBeenCalledWith(expect.stringContaining("Creating task"))
+    expect(reload).not.toHaveBeenCalled()
+  })
+})

@@ -1,0 +1,37 @@
+import { afterEach, describe, expect, it } from "vitest"
+import { DEFAULT_LOCALE, currentLang, setLocaleLang, t, tKeys } from "../../src/tui-react/i18n"
+
+afterEach(() => setLocaleLang(DEFAULT_LOCALE))
+
+describe("react i18n runtime", () => {
+  it("switches language per process and reports it", () => {
+    setLocaleLang("en")
+    const en = t("workspace.empty.selectTask")
+    setLocaleLang("zh")
+    expect(currentLang()).toBe("zh")
+    expect(t("workspace.empty.selectTask")).not.toBe(en)
+  })
+
+  it("ignores unknown locale ids", () => {
+    setLocaleLang("en")
+    setLocaleLang("xx" as never)
+    expect(currentLang()).toBe("en")
+  })
+
+  it("falls back to the raw key for a missing string (loud, not blank)", () => {
+    expect(t("definitely.not.a.key")).toBe("definitely.not.a.key")
+  })
+
+  it("interpolates {params} and leaves absent params literal", () => {
+    // The raw-key fallback goes through interpolation too,
+    // which pins both the substitution and the absent-param-stays-literal rule.
+    expect(t("x {who}", { who: "rove" })).toBe("x rove")
+    expect(t("x {who}", { other: "y" })).toBe("x {who}")
+    expect(t("x {who}")).toBe("x {who}")
+  })
+
+  it("tKeys echoes an unknown binding id back (raw-key fallback)", () => {
+    setLocaleLang("en")
+    expect(tKeys("desc", "not.a.real.binding.id")).toBe("not.a.real.binding.id")
+  })
+})

@@ -4,14 +4,14 @@
 
 **Goal:** Generate a Brand Studio-consumable `frames.json` from a real, isolated PureTUI + Hosted PTY run.
 
-**Architecture:** `packages/branding` gains a backend-neutral capture core that interprets the existing replay spec through a small terminal adapter. The Bun driver owns replay and output; a small Node `node-pty` sidecar launches the source CLI against a disposable fixture repository with unique Kobe state while preserving the host home used by native engines, then exchanges input, ANSI snapshots, and lifecycle messages over newline-delimited JSON. Tests use an in-memory adapter. The existing Remotion renderer remains the sole consumer of the checked-in ANSI capture.
+**Architecture:** `packages/branding` gains a backend-neutral capture core that interprets the existing replay spec through a small terminal adapter. The Bun driver owns replay and output; a small Node `node-pty` sidecar launches the source CLI against a disposable fixture repository with unique Rove state while preserving the host home used by native engines, then exchanges input, ANSI snapshots, and lifecycle messages over newline-delimited JSON. Tests use an in-memory adapter. The existing Remotion renderer remains the sole consumer of the checked-in ANSI capture.
 
-**Tech Stack:** Bun, TypeScript, Node, `node-pty`, `@xterm/headless`, `bun:test`, Kobe's source CLI and sandbox reset, Remotion 4.
+**Tech Stack:** Bun, TypeScript, Node, `node-pty`, `@xterm/headless`, `bun:test`, Rove's source CLI and sandbox reset, Remotion 4.
 
 ## Global Constraints
 
-- Keep all capture, replay, and Remotion code in `packages/branding`; do not introduce marketing dependencies in `packages/kobe` or `packages/kobe-daemon`.
-- Start every production capture with a unique `KOBE_SANDBOX_HOME_DIR`/`KOBE_HOME_DIR`, repository fixture, host identity, and session identity; never use normal `~/.kobe` state.
+- Keep all capture, replay, and Remotion code in `packages/branding`; do not introduce marketing dependencies in `packages/rove` or `packages/rove-daemon`.
+- Start every production capture with a unique `ROVE_SANDBOX_HOME_DIR`/`ROVE_HOME_DIR`, repository fixture, host identity, and session identity; never use normal `~/.rove` state.
 - Production capture always launches the installed native engines from inherited `PATH` and host `HOME`; engine fixtures are test-only dependency injection and are never selectable from the replay spec.
 - Preserve the demo root for diagnostics and never replace `frames.json` on failure; teardown must prove every child has exited.
 - Treat `quicklook.replay.json` as the editable storyboard. Reject unknown action, text, wait, flow, region, stage boundary, and invalid capture geometry before starting a child process.
@@ -180,12 +180,12 @@ git commit -m "feat: add replay capture interpreter"
 Create a fake sidecar process and filesystem wrapper, then assert:
 
 ```ts
-test("launches source PureTUI with native engines, isolated Kobe state, and a fixed replay viewport", async () => {
+test("launches source PureTUI with native engines, isolated Rove state, and a fixed replay viewport", async () => {
   const capture = await createPureTuiCapture({ repoRoot, demoRoot, cols: 160, rows: 45, sidecarFactory })
   expect(sidecarFactory.calls[0]).toMatchObject({
     file: "node",
     args: [expect.stringContaining("puretui-pty-sidecar.mjs")],
-    env: expect.objectContaining({ KOBE_SANDBOX_HOME_DIR: expect.stringContaining(demoRoot) }),
+    env: expect.objectContaining({ ROVE_SANDBOX_HOME_DIR: expect.stringContaining(demoRoot) }),
   })
   await capture.cleanup()
 })
@@ -201,7 +201,7 @@ Expected: failure because the production adapter and its injectable factory are 
 
 - [ ] **Step 3: Implement the production adapter without changing product code**
 
-`capture-puretui.ts` runs in Bun and must not import `node-pty`. Have `puretui-terminal.ts` spawn the Node sidecar with `Bun.spawn(["node", sidecarPath])`, multiplex requests by id, and translate the protocol into `CaptureTerminal` methods. The Node sidecar imports `node-pty`, seeds declared tasks through the source CLI, then launches that CLI with `cwd` set to the fixture repository, `cols/rows` from the spec, and a child-only environment containing a unique `KOBE_SANDBOX_HOME_DIR`, `KOBE_HOME_DIR`, `KOBE_DAEMON_WEB_PORT`, and capture-specific host/session labels. It feeds `onData` output to `@xterm/headless`, retains raw ANSI for diagnostics, and returns active-buffer lines serialized with SGR styling.
+`capture-puretui.ts` runs in Bun and must not import `node-pty`. Have `puretui-terminal.ts` spawn the Node sidecar with `Bun.spawn(["node", sidecarPath])`, multiplex requests by id, and translate the protocol into `CaptureTerminal` methods. The Node sidecar imports `node-pty`, seeds declared tasks through the source CLI, then launches that CLI with `cwd` set to the fixture repository, `cols/rows` from the spec, and a child-only environment containing a unique `ROVE_SANDBOX_HOME_DIR`, `ROVE_HOME_DIR`, `ROVE_DAEMON_WEB_PORT`, and capture-specific host/session labels. It feeds `onData` output to `@xterm/headless`, retains raw ANSI for diagnostics, and returns active-buffer lines serialized with SGR styling.
 
 Map declared strings such as `Enter`, `Escape`, `C-h`, and `C-e` to terminal byte sequences in the sidecar's single `encodeKey()` function. `waitFor()` must poll the rendered snapshot until the declared pattern appears or timeout; it must never use a fixed boot sleep. On `stop`, the sidecar sends a cooperative interrupt, waits for the PTY child to exit, runs `bun run dev:sandbox:reset` with the exact same isolated-home environment, and returns an error if the child remains alive. The Bun adapter then exits the sidecar cleanly.
 
@@ -232,13 +232,13 @@ git commit -m "feat: capture PureTUI replay frames"
 
 - [ ] **Step 1: Write failing renderer/capture-boundary tests**
 
-Add an opt-in `KOBE_REPLAY_E2E=1` test that runs a short fixture spec with one task-creation beat and one prompt beat, then asserts the temporary output has ordered frames containing both `"New task"` and the prompt text. Add a renderer validation test that calls the capture validation helper with `{ cols: 160, rows: 45, frames: [] }` and expects `/at least one frame/`.
+Add an opt-in `ROVE_REPLAY_E2E=1` test that runs a short fixture spec with one task-creation beat and one prompt beat, then asserts the temporary output has ordered frames containing both `"New task"` and the prompt text. Add a renderer validation test that calls the capture validation helper with `{ cols: 160, rows: 45, frames: [] }` and expects `/at least one frame/`.
 
 - [ ] **Step 2: Verify the unit portion fails before the validation is added**
 
 Run: `bun test packages/branding/tests/puretui-capture.test.ts`
 
-Expected: the empty-capture assertion fails because the renderer currently indexes `capture.frames[0]` without a guard; the end-to-end case remains skipped unless `KOBE_REPLAY_E2E=1` is set.
+Expected: the empty-capture assertion fails because the renderer currently indexes `capture.frames[0]` without a guard; the end-to-end case remains skipped unless `ROVE_REPLAY_E2E=1` is set.
 
 - [ ] **Step 3: Add explicit capture preflight and bounded smoke capture**
 
@@ -250,7 +250,7 @@ Keep the end-to-end fixture under the test temporary directory. It must use the 
 
 Run unit boundary checks: `bun test packages/branding/tests/replay-spec.test.ts packages/branding/tests/capture-core.test.ts packages/branding/tests/puretui-terminal.test.ts packages/branding/tests/puretui-capture.test.ts`
 
-Run the real smoke capture: `KOBE_REPLAY_E2E=1 bun test packages/branding/tests/puretui-capture.test.ts`
+Run the real smoke capture: `ROVE_REPLAY_E2E=1 bun test packages/branding/tests/puretui-capture.test.ts`
 
 Expected: all unit tests pass; the opt-in test produces a non-empty temporary ANSI capture with the expected create-task and prompt beats and leaves no isolated daemon/PTY child.
 
@@ -273,19 +273,19 @@ git commit -m "test: verify PureTUI replay capture"
 
 - [ ] **Step 1: Run a clean real capture into a review file**
 
-Run: `cd packages/branding && bun run capture:puretui --output /tmp/kobe-quicklook-frames.json --keep-demo-root`
+Run: `cd packages/branding && bun run capture:puretui --output /tmp/rove-quicklook-frames.json --keep-demo-root`
 
 Expected: successful validation, current `New task` and prompt beats, monotonically timed frames, and a printed isolated demo root for inspection.
 
 - [ ] **Step 2: Review the captured contract before promotion**
 
-Run: `bun -e 'const x = await Bun.file("/tmp/kobe-quicklook-frames.json").json(); if (!x.frames?.length) throw new Error("empty capture"); console.log({ cols: x.cols, rows: x.rows, frames: x.frames.length, duration: x.frames.at(-1).t })'`
+Run: `bun -e 'const x = await Bun.file("/tmp/rove-quicklook-frames.json").json(); if (!x.frames?.length) throw new Error("empty capture"); console.log({ cols: x.cols, rows: x.rows, frames: x.frames.length, duration: x.frames.at(-1).t })'`
 
 Expected: `cols: 160`, `rows: 45`, a positive frame count, and a positive final timestamp. If a declared readiness marker or coordinate hash is stale, update only the corresponding spec field, rerun Task 1 tests, and repeat the review capture.
 
 - [ ] **Step 3: Atomically promote the reviewed frame set**
 
-Run: `cp /tmp/kobe-quicklook-frames.json packages/branding/src/quicklook/frames.json`
+Run: `cp /tmp/rove-quicklook-frames.json packages/branding/src/quicklook/frames.json`
 
 Expected: exactly the reviewed capture becomes the checked-in replay input; no rendered media is added to `public/assets/video/` or accepted state.
 
@@ -295,9 +295,9 @@ Run:
 
 ```bash
 cd packages/branding
-bun x remotion render src/index.ts quicklook-replay-1x /tmp/kobe-quicklook-1x.mp4
-bun x remotion render src/index.ts quicklook-replay-4x /tmp/kobe-quicklook-4x.mp4
-ffprobe -v error -show_entries format=duration -of default=nw=1 /tmp/kobe-quicklook-1x.mp4 /tmp/kobe-quicklook-4x.mp4
+bun x remotion render src/index.ts quicklook-replay-1x /tmp/rove-quicklook-1x.mp4
+bun x remotion render src/index.ts quicklook-replay-4x /tmp/rove-quicklook-4x.mp4
+ffprobe -v error -show_entries format=duration -of default=nw=1 /tmp/rove-quicklook-1x.mp4 /tmp/rove-quicklook-4x.mp4
 ```
 
 Expected: both renders complete; first, middle, and final frames show readable terminal content and no black region outside the terminal grid. Keep both MP4 files in `/tmp` pending human Brand Studio review.
@@ -323,6 +323,6 @@ git commit -m "chore: refresh PureTUI replay capture"
 ## Plan self-review
 
 - Spec coverage: Task 1 validates the spec up front; Task 2 covers beat interpretation, changed-screen wall-clock frames, atomic output, and teardown; Task 3 covers the real PureTUI/Hosted PTY adapter and isolated lifecycle; Task 4 proves cleanup and renderer rejection; Task 5 recaptures and renders the Brand Studio input.
-- Scope: all production additions reside in `packages/branding`; Kobe runtime code is only launched through its supported sandbox entrypoint.
+- Scope: all production additions reside in `packages/branding`; Rove runtime code is only launched through its supported sandbox entrypoint.
 - Terminology/type check: the core exports `CaptureTerminal`, `CaptureClock`, `CaptureDocument`, and `runReplayCapture`; Tasks 3–5 consume those exact names.
 - Placeholder scan: no deferred implementation markers remain; each code change identifies an exact path, behavior, test, and command.

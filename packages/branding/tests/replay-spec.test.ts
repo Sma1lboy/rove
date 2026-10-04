@@ -19,8 +19,8 @@ const baseSpec = {
     seconds: 120,
     output: "src/quicklook/frames.json",
     home: ".capture-home",
-    repoDefault: "/tmp/kobe",
-    shellPrompt: "kobe$ ",
+    repoDefault: "/tmp/rove",
+    shellPrompt: "rove$ ",
   },
   waits: {
     newTaskDialog: { pattern: "New task", timeoutMs: 8000 },
@@ -38,7 +38,7 @@ const baseSpec = {
     { name: "wrap", from: 8, to: "end" },
   ],
   beats: [
-    { at: 1, action: "typeText", text: "kobe", msPerChar: 160 },
+    { at: 1, action: "typeText", text: "rove", msPerChar: 160 },
     { at: 4, action: "typeTextWhenReady", waitFor: "composerReady", textRef: "prompt", msPerChar: 45, submit: true },
   ],
   camera: { transitionSeconds: 1.2, fit: 0.8, minScale: 1, maxScale: 1.6, tailHoldSeconds: 4 },

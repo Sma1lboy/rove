@@ -1,6 +1,6 @@
 ---
 name: changelog-generator
-description: Draft Rove release notes as Changesets. Writes user-facing entries as `.changeset/*.md` files for `@sma1lboy/rove` (consumed into `packages/kobe/CHANGELOG.md` at release time). Use when the user asks for "changelog", "release notes", "what changed", "add a changeset", or before cutting a version. Enforces Rove's no-soft-wrap rule so GitHub release pages render flowing text.
+description: Draft Rove release notes as Changesets. Writes user-facing entries as `.changeset/*.md` files for `@sma1lboy/rove` (consumed into `packages/rove/CHANGELOG.md` at release time). Use when the user asks for "changelog", "release notes", "what changed", "add a changeset", or before cutting a version. Enforces Rove's no-soft-wrap rule so GitHub release pages render flowing text.
 metadata:
   internal: true
 ---
@@ -9,7 +9,7 @@ metadata:
 
 # Changelog Generator (Rove)
 
-Drafts release notes as **Changesets** — one `.changeset/<name>.md` file per change — in Rove's house style. The release (via `changeset version`) later consumes them into [`packages/kobe/CHANGELOG.md`](../../../packages/kobe/CHANGELOG.md) and the GitHub release body. See [`docs/RELEASING.md`](../../../docs/RELEASING.md) for the full flow.
+Drafts release notes as **Changesets** — one `.changeset/<name>.md` file per change — in Rove's house style. The release (via `changeset version`) later consumes them into [`packages/rove/CHANGELOG.md`](../../../packages/rove/CHANGELOG.md) and the GitHub release body. See [`docs/RELEASING.md`](../../../docs/RELEASING.md) for the full flow.
 
 ## When to use
 
@@ -21,7 +21,7 @@ Drafts release notes as **Changesets** — one `.changeset/<name>.md` file per c
 
 ### File format — a changeset, not a CHANGELOG edit
 
-- Do **not** hand-edit `packages/kobe/CHANGELOG.md` or invent a `## [Unreleased]` section — that file is generated.
+- Do **not** hand-edit `packages/rove/CHANGELOG.md` or invent a `## [Unreleased]` section — that file is generated.
 - Each change is a new file `.changeset/<two-words-random>.md` (the `changeset` CLI names it; if writing by hand, any unique kebab name works). Shape:
 
   ```markdown
@@ -48,7 +48,7 @@ Every bullet, every paragraph in a changeset body must be on a **single line**. 
 - Present tense, user-perspective. "Add X", "Fix Y", "Move Z" — not "Added X", not "I added X".
 - Lead with what changed, not why. The why goes in a follow-up clause if it's non-obvious.
 - Short bold lead-in for headlines (`**The thing** — explanation...`) is the established pattern.
-- Reference internal anchors with backticks (\`task.new\`, \`ctrl+,\`, \`packages/kobe/src/foo.ts\`) rather than prose.
+- Reference internal anchors with backticks (\`task.new\`, \`ctrl+,\`, \`packages/rove/src/foo.ts\`) rather than prose.
 
 ### Filtering
 
@@ -60,7 +60,7 @@ When in doubt, ask "would a Rove user reading this on github.com/Sma1lboy/rove/r
 
 ## How to draft
 
-1. Find the cut point: the latest `## [<version>]` heading in `packages/kobe/CHANGELOG.md`, or the last `v*` tag.
+1. Find the cut point: the latest `## [<version>]` heading in `packages/rove/CHANGELOG.md`, or the last `v*` tag.
 2. Run `git log --no-merges <last-tag>..HEAD --pretty=format:'%h %s%n%b%n---'` to get the commit set, and check `.changeset/*.md` for changes that already have one (don't duplicate).
 3. Group the *un-covered* user-facing changes. Write one changeset file per coherent change, each with the right bump type and a single-line summary per the rules above.
 4. Prefer `bun run changeset` so the CLI writes the file; only hand-author the `.changeset/<name>.md` if scripting a batch.
@@ -82,7 +82,7 @@ Note: the summary is one long line. No newlines inside it. That's the only relia
 
 ## What to avoid
 
-- ❌ Hand-editing `packages/kobe/CHANGELOG.md` or recreating a `## [Unreleased]` section — it's generated from changesets.
+- ❌ Hand-editing `packages/rove/CHANGELOG.md` or recreating a `## [Unreleased]` section — it's generated from changesets.
 - ❌ Soft-wrapping a changeset summary at column 70 because "it looks nicer in the editor". Render-time soft-wrap exists for a reason.
 - ❌ Changesets like "Refactor X to use Y pattern" — internal change, skip (or `--empty`).
 - ❌ Auto-generating from `git log` without filtering. Most commits are noise.

@@ -1,0 +1,270 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
+import { findAdoptableWorktree, matchTaskByCwd, matchTaskByWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import {
+  REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
+  managedWorktreeRootsFor,
+  worktreeRootFor,
+} from "../../src/orchestrator/worktree/paths.ts"
+
+let prevHome: string | undefined
+
+beforeEach(() => {
+  prevHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = "/home/rove-test"
+})
+
+afterEach(() => {
+  if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = prevHome
+})
+
+describe("matchTaskByCwd", () => {
+  const main = { id: "main", worktreePath: "/repo" }
+  const sub = { id: "sub", worktreePath: "/repo/.claude/worktrees/snipe" }
+  const other = { id: "other", worktreePath: "/elsewhere/proj" }
+  const tasks = [main, sub, other]
+
+  it("matches a cwd inside a worktree", () => {
+    expect(matchTaskByCwd(tasks, "/elsewhere/proj/src/deep")).toBe("other")
+  })
+
+  it("prefers the longest (most specific) worktree — sub-task over its repo root", () => {
+    // A sub-task's worktree lives UNDER the main task's repo root, so the cwd
+    // prefix-matches both; the longer path must win.
+    expect(matchTaskByCwd(tasks, "/repo/.claude/worktrees/snipe")).toBe("sub")
+    expect(matchTaskByCwd(tasks, "/repo/.claude/worktrees/snipe/pkg")).toBe("sub")
+  })
+
+  it("falls back to the repo-root (main) task for a cwd not under any sub-worktree", () => {
+    expect(matchTaskByCwd(tasks, "/repo/src")).toBe("main")
+    expect(matchTaskByCwd(tasks, "/repo")).toBe("main")
+  })
+
+  it("returns undefined for an unrelated cwd", () => {
+    expect(matchTaskByCwd(tasks, "/totally/unrelated")).toBeUndefined()
+  })
+
+  it("does not treat a sibling-prefix dir as a match (/repo vs /repo-other)", () => {
+    expect(matchTaskByCwd([main], "/repo-other/src")).toBeUndefined()
+  })
+})
+
+// The engine hooks are global, so a cwd under a tracked worktree can belong to
+// a DIFFERENT repository — a vendored clone under `refs/`, a `.dev-sandbox`
+// checkout, any repo under a `$HOME` scratch shell's directory task. Real
+// directories, because the boundary is decided by a `.git` on disk.
+describe("matchTaskByCwd across a repository boundary", () => {
+  let root: string
+
+  beforeEach(() => {
+    root = mkdtempSync(path.join(tmpdir(), "rove-cwd-task-"))
+    // A tracked project, its own plain subdir, and a nested UNRELATED repo.
+    mkdirSync(path.join(root, "alpha", ".git"), { recursive: true })
+    mkdirSync(path.join(root, "alpha", "src", "deep"), { recursive: true })
+    mkdirSync(path.join(root, "alpha", "refs", "vendorlib", ".git"), { recursive: true })
+    // A repo and a plain directory under a `$HOME`-style directory task.
+    mkdirSync(path.join(root, "gamma", ".git"), { recursive: true })
+    mkdirSync(path.join(root, "notes"), { recursive: true })
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it("drops a cwd in a nested repo of its own", () => {
+    const tasks = [{ id: "alpha", worktreePath: path.join(root, "alpha") }]
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "refs", "vendorlib"))).toBeUndefined()
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "refs", "vendorlib", "sub"))).toBeUndefined()
+  })
+
+  it("does not make a directory task the owner of every repo beneath it", () => {
+    const tasks = [{ id: "scratch", worktreePath: root }]
+    expect(matchTaskByCwd(tasks, path.join(root, "gamma"))).toBeUndefined()
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "src", "deep"))).toBeUndefined()
+    // A plain directory under it crosses nothing and still belongs to the task.
+    expect(matchTaskByCwd(tasks, path.join(root, "notes"))).toBe("scratch")
+  })
+
+  it("matches a nested repo that is a task in its own right", () => {
+    // The nested repo IS tracked: the longer worktree wins and no boundary
+    // sits below it, so its own sessions keep landing on it.
+    const tasks = [
+      { id: "alpha", worktreePath: path.join(root, "alpha") },
+      { id: "vendor", worktreePath: path.join(root, "alpha", "refs", "vendorlib") },
+    ]
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "refs", "vendorlib", "sub"))).toBe("vendor")
+  })
+
+  it("treats a `.git` FILE (submodule / linked worktree) as a boundary too", () => {
+    mkdirSync(path.join(root, "alpha", "vendored"), { recursive: true })
+    writeFileSync(path.join(root, "alpha", "vendored", ".git"), "gitdir: ../../elsewhere\n")
+    const tasks = [{ id: "alpha", worktreePath: path.join(root, "alpha") }]
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "vendored"))).toBeUndefined()
+  })
+})
+
+describe("matchTaskByWorktreePath", () => {
+  const tasks = [
+    { id: "main", repo: "/repo", worktreePath: "/repo" },
+    { id: "sub", repo: "/repo", worktreePath: "/repo/.claude/worktrees/snipe" },
+  ]
+
+  it("matches a task whose worktree IS exactly the path", () => {
+    expect(matchTaskByWorktreePath(tasks, "/repo/.claude/worktrees/snipe")).toBe("sub")
+  })
+
+  it("does NOT match a parent on a path prefix (unlike matchTaskByCwd)", () => {
+    // Removing an untracked worktree under /repo must not affect the main task.
+    expect(matchTaskByWorktreePath(tasks, "/repo/.claude/worktrees/unknown")).toBeUndefined()
+  })
+})
+
+describe("findAdoptableWorktree", () => {
+  // rove tracks repo "/repo" (main task) + one sub-task worktree.
+  const tasks = () => [
+    { id: "main", repo: "/repo", worktreePath: "/repo" },
+    { id: "sub", repo: "/repo", worktreePath: path.join(worktreeRootFor("/repo"), "known") },
+    { id: "repo-local", repo: "/repo", worktreePath: `/repo/${REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH}/local` },
+    { id: "legacy", repo: "/repo", worktreePath: "/repo/.claude/worktrees/old" },
+  ]
+
+  it("adopts an external worktree under the global Rove state worktree root", () => {
+    const wt = path.join(worktreeRootFor("/repo"), "external")
+    expect(findAdoptableWorktree(tasks(), wt)).toEqual({
+      repo: "/repo",
+      worktreePath: wt,
+    })
+  })
+
+  it.each([
+    [
+      "legacy global ~/.rove",
+      () => path.join(managedWorktreeRootsFor("/repo").find((r) => r.includes("/.rove/worktrees/"))!, "external"),
+    ],
+    ["repo-local .rove", () => `/repo/${REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH}/external`],
+    ["repo-local .rove", () => "/repo/.rove/worktrees/external"],
+    ["legacy .claude/worktrees", () => "/repo/.claude/worktrees/external"],
+  ])("still adopts worktrees under the %s root", (_label, wtOf) => {
+    const wt = wtOf()
+    expect(findAdoptableWorktree(tasks(), wt)).toEqual({ repo: "/repo", worktreePath: wt })
+  })
+
+  it("derives the worktree dir even when cwd is a subdir of it", () => {
+    const wt = path.join(worktreeRootFor("/repo"), "external")
+    expect(findAdoptableWorktree(tasks(), path.join(wt, "src/deep"))).toEqual({
+      repo: "/repo",
+      worktreePath: wt,
+    })
+  })
+
+  it("returns undefined when that worktree is already a task", () => {
+    const wt = path.join(worktreeRootFor("/repo"), "known")
+    expect(findAdoptableWorktree(tasks(), wt)).toBeUndefined()
+    expect(findAdoptableWorktree(tasks(), path.join(wt, "pkg"))).toBeUndefined()
+    expect(findAdoptableWorktree(tasks(), "/repo/.rove/worktrees/local")).toBeUndefined()
+    expect(findAdoptableWorktree(tasks(), "/repo/.claude/worktrees/old")).toBeUndefined()
+  })
+
+  it("ignores a cwd at the repo root or in a normal subdir (not a worktree)", () => {
+    expect(findAdoptableWorktree(tasks(), "/repo")).toBeUndefined()
+    expect(findAdoptableWorktree(tasks(), "/repo/src")).toBeUndefined()
+  })
+
+  it("ignores a sibling-prefix repo (/repo vs /repo-other)", () => {
+    expect(findAdoptableWorktree(tasks(), "/repo-other/.rove/worktrees/x")).toBeUndefined()
+  })
+
+  it("skips a remote-project repo key (ssh://…) without throwing", () => {
+    // A remote main task's `repo` is a synthetic `ssh://user@host` key, not an
+    // absolute path — it has no local managed worktree root. It must be skipped,
+    // not fed to `managedWorktreeRootsFor` (which throws on non-absolute paths),
+    // so a single remote project never rejects the whole engine.reportEvent path.
+    const withRemote = [...tasks(), { id: "remote", repo: "ssh://user@host:22", worktreePath: "/remote/base" }]
+    const wt = path.join(worktreeRootFor("/repo"), "external")
+    expect(() => findAdoptableWorktree(withRemote, wt)).not.toThrow()
+    // The local repo's worktree is still adoptable alongside the remote task.
+    expect(findAdoptableWorktree(withRemote, wt)).toEqual({ repo: "/repo", worktreePath: wt })
+  })
+})
+
+/**
+ * The daemon used to compute managed worktree roots from its OWN copy of the
+ * layout, and that copy never learned about `worktree.basePath`. A user who
+ * moved their worktree location in Settings → General got worktrees the
+ * adoption path could not see: no error, the worktree simply never became a
+ * task. Both sides now derive the roots from
+ * `@sma1lboy/rove-daemon/daemon/worktree-paths`, so these assert the daemon
+ * reads the same setting the TUI writes.
+ */
+describe("findAdoptableWorktree honours the worktree.basePath override", () => {
+  let home: string
+  let prev: string | undefined
+
+  const writeBase = (value: string) => {
+    const dir = path.join(home, ".config", "rove")
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(path.join(dir, "state.json"), JSON.stringify({ "worktree.basePath": value }), "utf8")
+  }
+
+  beforeEach(() => {
+    prev = process.env.ROVE_HOME_DIR
+    home = mkdtempSync(path.join(tmpdir(), "rove-wt-base-"))
+    process.env.ROVE_HOME_DIR = home
+  })
+
+  afterEach(() => {
+    if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = prev
+    rmSync(home, { recursive: true, force: true })
+  })
+
+  it("adopts a worktree under an absolute custom base (the regression)", () => {
+    const base = path.join(home, "custom-worktrees")
+    writeBase(base)
+    const wt = path.join(worktreeRootFor("/repo"), "external")
+    expect(wt.startsWith(base)).toBe(true)
+    expect(findAdoptableWorktree([{ id: "main", repo: "/repo", worktreePath: "/repo" }], wt)).toEqual({
+      repo: "/repo",
+      worktreePath: wt,
+    })
+  })
+
+  it("expands a leading $project_dir against the task's own repo", () => {
+    writeBase("$project_dir/..")
+    const repo = path.join(home, "code", "proj")
+    const wt = path.join(worktreeRootFor(repo), "external")
+    // `$project_dir/..` puts the worktrees root beside the repo, not under it.
+    expect(wt.startsWith(path.join(home, "code"))).toBe(true)
+    expect(wt.startsWith(`${repo}/`)).toBe(false)
+    expect(findAdoptableWorktree([{ id: "main", repo, worktreePath: repo }], wt)).toEqual({ repo, worktreePath: wt })
+  })
+
+  it("keeps recognizing the default and legacy global roots while an override is set", () => {
+    writeBase(path.join(home, "custom-worktrees"))
+    const roots = managedWorktreeRootsFor("/repo")
+    const defaultRoot = roots.find((r) => r.startsWith(path.join(home, ".rove", "worktrees")))!
+    const legacyRoot = roots.find((r) => r.startsWith(path.join(home, ".rove", "worktrees")))!
+    for (const root of [defaultRoot, legacyRoot]) {
+      const wt = path.join(root, "external")
+      expect(findAdoptableWorktree([{ id: "main", repo: "/repo", worktreePath: "/repo" }], wt)).toEqual({
+        repo: "/repo",
+        worktreePath: wt,
+      })
+    }
+  })
+
+  it("does not let one repo-key root prefix-match a longer sibling's", () => {
+    const base = path.join(home, "custom-worktrees")
+    writeBase(base)
+    // Two repo keys where one is a strict string prefix of the other. Matching
+    // on the bare root instead of `<root>/` would bill the shorter repo for a
+    // worktree that belongs to the longer one.
+    const shortRoot = worktreeRootFor("/repo")
+    const longRoot = `${shortRoot}extra`
+    const wt = path.join(longRoot, "external")
+    expect(findAdoptableWorktree([{ id: "main", repo: "/repo", worktreePath: "/repo" }], wt)).toBeUndefined()
+  })
+})

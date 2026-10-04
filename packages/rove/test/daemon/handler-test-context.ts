@@ -1,0 +1,234 @@
+import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
+import type { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
+import type { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
+import type { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import type { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
+import { GraphicsImageIds } from "@sma1lboy/rove-daemon/daemon/graphics-ids"
+import type { IssuesStore } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import type { FieldNote, NotesStore } from "@sma1lboy/rove-daemon/daemon/notes-store"
+import type { CellPixelSize } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { QuotaUsageCache } from "@sma1lboy/rove-daemon/daemon/quota-usage-cache"
+import { RowTokenStore } from "@sma1lboy/rove-daemon/daemon/row-tokens"
+import {
+  type DaemonHandlerContext,
+  createDaemonHandlerRegistry,
+  dispatchDaemonRequest,
+} from "@sma1lboy/rove-daemon/daemon/server"
+import { TabCloseBroker } from "@sma1lboy/rove-daemon/daemon/tab-close-broker"
+import type { WorkItemCache } from "@sma1lboy/rove-daemon/daemon/work-items"
+import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
+import type { Orchestrator } from "../../src/orchestrator/core.ts"
+import type { Task } from "../../src/types/task.ts"
+
+export interface RecordedHandlerEffects {
+  readonly published: Array<{ channel: string; payload: unknown }>
+  readonly reported: Array<{ taskId: string; kind: string; detail?: unknown }>
+  readonly issueCalls: Array<{ method: string; repo: unknown; op?: unknown }>
+  readonly noteCalls: Array<{ method: string; repo: unknown; note?: unknown }>
+  readonly cleared: string[]
+  /** `(taskId, tabId)` pairs the `tab.closed` sweep cleared. */
+  readonly clearedTabs: Array<{ taskId: string; tabId: string }>
+  readonly inboxRecords: Array<{ taskId: string; kind: string; detail?: unknown; tabId?: string }>
+  readonly inboxDeleted: Array<{ taskId: string; tabId: string | null; at?: number }>
+  readonly inboxRead: Array<{ taskId: string; tabId: string | null; at: number }>
+  readonly inboxTaskDeleted: string[]
+  readonly deletions: string[]
+  stopped: number
+  /** Reasons `daemon.stop` passed to `stopSoon`, in order (protocol v5). */
+  stopReasons: string[]
+  idleReevaluations: number
+}
+
+/**
+ * Build a handler context around a partial fake Orchestrator — no socket.
+ * Two non-orchestrator keys are read off the same bag for the field-note
+ * store fake: `notes` (what `note.list` returns) and `noteAppendThrows`
+ * (drive the persist-failure path).
+ */
+export function fakeCtx(orch: Record<string, unknown> = {}): {
+  ctx: DaemonHandlerContext
+  rec: RecordedHandlerEffects
+} {
+  const rec: RecordedHandlerEffects = {
+    published: [],
+    reported: [],
+    issueCalls: [],
+    noteCalls: [],
+    cleared: [],
+    clearedTabs: [],
+    inboxRecords: [],
+    inboxDeleted: [],
+    inboxRead: [],
+    inboxTaskDeleted: [],
+    deletions: [],
+    stopped: 0,
+    stopReasons: [],
+    idleReevaluations: 0,
+  }
+  const ctx: DaemonHandlerContext = {
+    runtime: daemonRuntime,
+    // `getTask` is on the real DaemonOrchestrator contract; defaulted here so
+    // every handler test inherits it (the deletion audit reads the task before
+    // the index drops it). A test that cares supplies its own.
+    orch: { listTasks: () => [], getTask: () => undefined, ...orch } as unknown as Orchestrator,
+    bus: {
+      publish: (channel: string, payload: unknown) => rec.published.push({ channel, payload }),
+      // `debug.inspect` reads the bus's last-value cache; the fake keeps the
+      // same shape so a handler that asks for it gets an empty replay rather
+      // than a TypeError.
+      snapshot: () => rec.published.map(({ channel, payload }) => ({ channel, payload })),
+    } as unknown as DaemonEventBus,
+    activity: {
+      report: (taskId: string, kind: string, detail?: unknown) => rec.reported.push({ taskId, kind, detail }),
+      clearTask: (taskId: string) => rec.cleared.push(taskId),
+      clearTab: (taskId: string, tabId: string) => rec.clearedTabs.push({ taskId, tabId }),
+    } as unknown as DaemonActivityRegistry,
+    inbox: {
+      snapshot: () => (orch.inboxItems as unknown[] | undefined) ?? [],
+      record: (taskId: string, kind: string, detail?: unknown, tabId?: string) => {
+        rec.inboxRecords.push({ taskId, kind, detail, tabId })
+        return Promise.resolve()
+      },
+      deleteEpisode: (taskId: string, tabId: string | null, at?: number) => {
+        rec.inboxDeleted.push({ taskId, tabId, ...(at !== undefined ? { at } : {}) })
+        return Promise.resolve(true)
+      },
+      markRead: (taskId: string, tabId: string | null, at: number) => {
+        rec.inboxRead.push({ taskId, tabId, at })
+        return Promise.resolve(true)
+      },
+      deleteTask: (taskId: string) => {
+        rec.inboxTaskDeleted.push(taskId)
+        return Promise.resolve()
+      },
+      deleteTaskBestEffort: (taskId: string) => {
+        rec.inboxTaskDeleted.push(taskId)
+        return Promise.resolve()
+      },
+    } as unknown as AttentionInboxStore,
+    deletions: {
+      enqueue: (taskId: string) => rec.deletions.push(taskId),
+    },
+    // A cache that never fetches: handler tests exercise the RPC surface,
+    // not the probe cadence (quota-usage-cache has its own suite).
+    quotaUsage: {
+      peek: () => null,
+      get: () => Promise.resolve(null),
+      refreshIfDue: () => Promise.resolve(),
+    } as unknown as QuotaUsageCache,
+    issues: {
+      list: async (repo: unknown) => {
+        rec.issueCalls.push({ method: "list", repo })
+        return { repoRoot: String(repo), exists: false, nextId: 1, issues: [] }
+      },
+      mutate: async (repo: unknown, op: unknown) => {
+        rec.issueCalls.push({ method: "mutate", repo, op })
+        return { repoRoot: String(repo), exists: true, nextId: 2, issues: [] }
+      },
+      // `task.delete` clears the deleted task's issue link. Returning a state
+      // (not null) keeps the snapshot-publish path covered by default; a test
+      // that wants the "nothing linked" branch supplies its own fake.
+      unlinkTask: async (repo: unknown, taskId: unknown) => {
+        rec.issueCalls.push({ method: "unlinkTask", repo, op: { taskId } })
+        return { repoRoot: String(repo), exists: true, nextId: 2, issues: [] }
+      },
+    } as unknown as IssuesStore,
+    // Field-note store fake. `appendThrows` lets a test drive the
+    // persist-failure path — filing must degrade to routing-only, never
+    // error the agent that filed the note.
+    notes: {
+      list: async (repo: unknown) => {
+        rec.noteCalls.push({ method: "list", repo })
+        return (orch.notes as FieldNote[] | undefined) ?? []
+      },
+      append: async (repo: unknown, note: unknown) => {
+        rec.noteCalls.push({ method: "append", repo, note })
+        if (orch.noteAppendThrows) throw new Error("disk on fire")
+      },
+    } as unknown as NotesStore,
+    // Empty schedule store: automation behavior has its own suites
+    // (automations-store / automation-runner), so handler tests only need the
+    // surface to exist.
+    automations: {
+      list: () => [],
+      get: () => undefined,
+      runsFor: () => [],
+      hasEnabled: () => false,
+      create: async (input: unknown) => input,
+      update: async () => null,
+      delete: async () => false,
+      recordRun: async (input: unknown) => input,
+      advanceNextRun: async () => null,
+    } as unknown as AutomationsStore,
+    // Never hits `gh`: work-item behavior has its own suite.
+    workItems: { list: async () => [], clear: () => {} } as unknown as WorkItemCache,
+    selfLink: { request: async () => ({}) } as unknown as DaemonRpcClient,
+    tabCloses: new TabCloseBroker(),
+    graphics: new GraphicsImageIds(),
+    // The REAL store: it is in-memory and its only dependency is a bus with
+    // `publish`, which the fake above already is — a double would just be a
+    // second copy of the TTL arithmetic to keep in sync.
+    rowTokens: new RowTokenStore({
+      publish: (channel: string, payload: unknown) => rec.published.push({ channel, payload }),
+      // biome-ignore lint/suspicious/noExplicitAny: one narrow test-double seam.
+    } as any),
+    daemon: {
+      startedAt: new Date("2026-06-01T00:00:00.000Z"),
+      socketPath: "/tmp/fake/daemon.sock",
+      pid: 4242,
+      guiCount: () => 1,
+      // One attached GUI in a terminal that reports 16x34 cells — the size
+      // Ghostty answered in the feasibility probes. A test that wants the
+      // no-capability or disagreement branch overrides `guiCellSizes`.
+      guiCellSizes: () => (orch.guiCellSizes as CellPixelSize[] | undefined) ?? [{ width: 16, height: 34 }],
+      clientCount: () => 1,
+      stopSoon: async (reason?: string) => {
+        rec.stopped++
+        rec.stopReasons.push(reason ?? "")
+      },
+      reevaluateIdle: () => {
+        rec.idleReevaluations++
+      },
+    },
+    clientId: 7,
+  }
+  return { ctx, rec }
+}
+
+/**
+ * Task fixture + wire snapshot + the dispatch shim, shared by the two
+ * registry suites (`handlers.test.ts` and `handlers-task-crud.test.ts`).
+ * They live here rather than in either suite so neither imports the other.
+ */
+export const TASK: Task = {
+  id: "t1",
+  title: "demo task",
+  repo: "/repo",
+  branch: "rove/demo",
+  worktreePath: "/repo/.rove/worktrees/demo",
+  kind: "task",
+  status: "in_progress",
+  pinned: false,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-02T00:00:00.000Z",
+} as Task
+
+/** What `serializeTask(TASK)` puts on the wire (pinned literally on purpose). */
+export const SERIALIZED_TASK = {
+  id: "t1",
+  title: "demo task",
+  repo: "/repo",
+  branch: "rove/demo",
+  worktreePath: "/repo/.rove/worktrees/demo",
+  kind: "task",
+  status: "in_progress",
+  pinned: false,
+  vendor: undefined,
+  prStatus: undefined,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-02T00:00:00.000Z",
+}
+
+export function dispatch(name: string, payload: unknown, ctx: DaemonHandlerContext): Promise<unknown> {
+  return dispatchDaemonRequest(createDaemonHandlerRegistry(), name, payload, ctx)
+}

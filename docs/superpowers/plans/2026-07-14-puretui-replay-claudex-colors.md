@@ -4,15 +4,15 @@
 
 **Goal:** Prevent monochrome Brand Studio captures by excluding `NO_COLOR`, launch the reviewed Claude task through the user's real `claudex` path, and prove the rendered Claude frame contains its expected colors.
 
-**Architecture:** Keep the fix inside `packages/branding`: sanitize the capture-only child environment and persist an optional recording-only Claude command into the isolated Kobe state. The replay JSON remains portable; the machine-specific `claudex` expansion enters through `KOBE_REPLAY_CLAUDE_COMMAND` only for the reviewed capture invocation.
+**Architecture:** Keep the fix inside `packages/branding`: sanitize the capture-only child environment and persist an optional recording-only Claude command into the isolated Rove state. The replay JSON remains portable; the machine-specific `claudex` expansion enters through `ROVE_REPLAY_CLAUDE_COMMAND` only for the reviewed capture invocation.
 
 **Tech Stack:** TypeScript, Bun test, Node PTY sidecar, `@xterm/headless`, OpenTUI, Remotion, ffmpeg.
 
 ## Global Constraints
 
-- Do not change the user's shell alias, provider configuration, global Kobe state, or normal engine defaults.
+- Do not change the user's shell alias, provider configuration, global Rove state, or normal engine defaults.
 - Do not put machine-specific `claudex`, model, or provider values in `quicklook.replay.json`.
-- The reviewed Claude permission frame must visibly contain Claude orange `rgb(215,119,87)`, Kobe permission-state yellow `rgb(232,201,107)`, muted gray, periwinkle, and a dark background.
+- The reviewed Claude permission frame must visibly contain Claude orange `rgb(215,119,87)`, Rove permission-state yellow `rgb(232,201,107)`, muted gray, periwinkle, and a dark background.
 - A real but monochrome Claude frame fails acceptance.
 - Keep every touched source file at or below 500 lines.
 - Use no subagents; execute this plan inline.
@@ -63,7 +63,7 @@ Export the existing internal environment builder for direct testing and extend t
 key !== "NO_COLOR"
 ```
 
-Do not introduce a new environment builder or alter normal Kobe runtime code.
+Do not introduce a new environment builder or alter normal Rove runtime code.
 
 - [ ] **Step 4: Run the focused test and verify GREEN**
 
@@ -77,8 +77,8 @@ Run the same focused command. Expected: PASS.
 
 **Interfaces:**
 - Consumes: optional `CapturePureTuiOptions.claudeCommand?: string`.
-- Produces: `engineCommand.claude` in `<demoRoot>/home/.config/kobe/state.json` only when the option is non-empty.
-- CLI source: `process.env.KOBE_REPLAY_CLAUDE_COMMAND?.trim()`.
+- Produces: `engineCommand.claude` in `<demoRoot>/home/.config/rove/state.json` only when the option is non-empty.
+- CLI source: `process.env.ROVE_REPLAY_CLAUDE_COMMAND?.trim()`.
 
 - [ ] **Step 1: Write failing state tests**
 
@@ -130,7 +130,7 @@ if (claudeCommand) state["engineCommand.claude"] = claudeCommand
 Pass the value into `prepareCaptureState`. In `parseArguments`, populate it from:
 
 ```ts
-process.env.KOBE_REPLAY_CLAUDE_COMMAND?.trim() || undefined
+process.env.ROVE_REPLAY_CLAUDE_COMMAND?.trim() || undefined
 ```
 
 - [ ] **Step 4: Run focused and replay tests and verify GREEN**
@@ -149,7 +149,7 @@ Expected: all tests pass; the opt-in real capture test remains skipped.
 
 **Files:**
 - Regenerate: `packages/branding/src/quicklook/frames.json`
-- Generate for review: `packages/branding/out/kobe-quicklook-4x.mp4`
+- Generate for review: `packages/branding/out/rove-quicklook-4x.mp4`
 
 **Interfaces:**
 - Consumes: current `claudex` alias expansion reported by `zsh -lic 'alias claudex'`.
@@ -167,7 +167,7 @@ Construct the override from the current alias expansion using absolute `cc-switc
 
 - [ ] **Step 2: Capture to a review file with the override**
 
-From `packages/branding`, run `bun run capture:puretui` with `KOBE_REPLAY_CLAUDE_COMMAND` set to the resolved command, `--output /tmp/kobe-quicklook-frames-claudex-color.json`, and `--keep-demo-root`.
+From `packages/branding`, run `bun run capture:puretui` with `ROVE_REPLAY_CLAUDE_COMMAND` set to the resolved command, `--output /tmp/rove-quicklook-frames-claudex-color.json`, and `--keep-demo-root`.
 
 Expected: capture completes with a retained isolated demo root and current ClaudeX model visible in its Claude frames.
 
@@ -188,7 +188,7 @@ Also verify the recorded Claude pane identifies Claude Code and the current Clau
 Mechanically copy the reviewed JSON to `src/quicklook/frames.json`, then run:
 
 ```bash
-bun x remotion render src/index.ts quicklook-replay-4x out/kobe-quicklook-4x.mp4
+bun x remotion render src/index.ts quicklook-replay-4x out/rove-quicklook-4x.mp4
 ```
 
 Expected: 1280x720 MP4 renders successfully.
@@ -196,7 +196,7 @@ Expected: 1280x720 MP4 renders successfully.
 ### Task 4: Visual Acceptance and Repository Verification
 
 **Files:**
-- Generate for review: `packages/branding/out/kobe-quicklook-claudex-color-confirmed.png`
+- Generate for review: `packages/branding/out/rove-quicklook-claudex-color-confirmed.png`
 
 **Interfaces:**
 - Consumes: the final MP4 and refreshed frames.
@@ -204,7 +204,7 @@ Expected: 1280x720 MP4 renders successfully.
 
 - [ ] **Step 1: Extract candidate Claude frames**
 
-Render a lossless Remotion still during the Claude permission stage. Select the frame with visible Claude orange, Kobe permission-state yellow, muted gray, periwinkle, white text, and dark background.
+Render a lossless Remotion still during the Claude permission stage. Select the frame with visible Claude orange, Rove permission-state yellow, muted gray, periwinkle, white text, and dark background.
 
 - [ ] **Step 2: Inspect the selected frame at original resolution**
 
@@ -218,7 +218,7 @@ Run:
 bun run lint
 bun run typecheck
 bun run test
-cd packages/kobe && bun run build && bun run test:behavior
+cd packages/rove && bun run build && bun run test:behavior
 cd ../branding && bun run test:replay
 git diff --check
 ```

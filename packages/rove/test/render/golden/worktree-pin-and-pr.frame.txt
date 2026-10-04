@@ -1,0 +1,26 @@
+# sidebar frame: worktree-pin-and-pr
+# worktree-level facts share one right-edge cluster: pin, PR check chip, jump digit
+# 30x22
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
+|                              |
+| ROVE                         |
+| New task                + n  |
+| Kanban                       |
+| Routines                     |
+| Issues                       |
+|                              |
+| rove ─────────────────────── |
+| ▎feat/alpha            ▴ ✓ ? |
+|▌▎○ build                     |
+| ▎○ review                    |
+| ▎feat/bravo              ✗ ? |
+| ▎○ tests                     |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |

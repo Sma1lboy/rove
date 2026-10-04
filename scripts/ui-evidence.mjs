@@ -5,7 +5,7 @@
  * a frame (a dropped import, a type moved to another module).
  */
 export function validateUiEvidence(files, body) {
-  const ui = files.some((file) => /^(packages\/kobe\/src\/(tui|tui-react)\/|packages\/kobe-harness\/src\/)/.test(file))
+  const ui = files.some((file) => /^(packages\/rove\/src\/(tui|tui-react)\/|packages\/rove-harness\/src\/)/.test(file))
   if (!ui) return []
   const visible = (body ?? '').replace(/<!--[\s\S]*?-->/g, '').replace(/```[\s\S]*?```/g, '')
   const waiver = visible.match(/^ui-evidence:[ \t]*none[ \t]*[—–-][ \t]*(\S[^\n]*)$/im)?.[1]?.trim()

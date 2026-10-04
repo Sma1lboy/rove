@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@sma1lboy/rove-landing",
+  "version": "0.0.0",
+  "description": "Marketing landing page for Rove (rove.run) \u2014 static, deployed to Vercel.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 4321",
+    "deploy": "vercel deploy --prod",
+    "deploy:preview": "vercel deploy",
+    "test": "node --test test/*.test.js"
+  }
+}

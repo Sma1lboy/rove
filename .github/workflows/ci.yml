@@ -5,7 +5,7 @@
 # push triggers the release workflow against a broken tree.
 #
 # Behavior tests (test/behavior/) run in their own `behavior` job: they
-# drive the BUILT kobe CLI black-box in a temp home with isolated daemon and
+# drive the BUILT rove CLI black-box in a temp home with isolated daemon and
 # PTY-host state (no real engine binary needed — the harness shims a fake
 # `claude`). See docs/HARNESS.md "Behavioral self-test".
 #
@@ -29,8 +29,8 @@
 # pr-gates.yml so an edit re-runs them alone.
 #
 # changeset-cap (PR only, KOB-10) is the changeset sibling of file-size-cap:
-# a PR that touches published-package source (packages/kobe/src or
-# packages/kobe-daemon/src, since kobe-daemon ships bundled inside the kobe
+# a PR that touches published-package source (packages/rove/src or
+# packages/rove-daemon/src, since rove-daemon ships bundled inside the rove
 # CLI — see docs/RELEASING.md) must add a `.changeset/*.md` file, so a
 # release can't silently ship undocumented behavior. Pure tooling/docs/CI
 # changes opt out with `bun run changeset -- --empty` (docs/RELEASING.md
@@ -77,14 +77,14 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          # "User-facing" == touches published-package source. kobe-daemon
-          # is private/unpublished but ships bundled inside the kobe CLI
+          # "User-facing" == touches published-package source. rove-daemon
+          # is private/unpublished but ships bundled inside the rove CLI
           # (see docs/RELEASING.md), so it counts too; test/docs/config
           # changes in either package do not.
           touches_user_facing=0
           while IFS= read -r f; do
             case "$f" in
-              packages/kobe/src/*|packages/kobe-daemon/src/*) touches_user_facing=1 ;;
+              packages/rove/src/*|packages/rove-daemon/src/*) touches_user_facing=1 ;;
             esac
           done < <(git diff --name-only --diff-filter=ACMR "origin/$BASE_REF"...HEAD)
 
@@ -95,7 +95,7 @@ jobs:
 
           has_changeset=$(git diff --name-only --diff-filter=A "origin/$BASE_REF"...HEAD -- '.changeset/*.md' | grep -v README.md || true)
           if [ -z "$has_changeset" ]; then
-            echo "::error::This PR touches packages/kobe/src or packages/kobe-daemon/src but adds no .changeset/*.md. Run 'bun run changeset' to record the user-facing change, or 'bun run changeset -- --empty' if this is tooling-only. See docs/RELEASING.md."
+            echo "::error::This PR touches packages/rove/src or packages/rove-daemon/src but adds no .changeset/*.md. Run 'bun run changeset' to record the user-facing change, or 'bun run changeset -- --empty' if this is tooling-only. See docs/RELEASING.md."
             exit 1
           fi
           echo "ok — changeset(s): $has_changeset"
@@ -152,11 +152,11 @@ jobs:
         # can't express "console.error inside a catch", hence a script gate.
         run: node scripts/no-silent-catch.mjs
 
-      - name: Typecheck (kobe package)
+      - name: Typecheck (rove package)
         # Workspaces hoist deps; per-package commands run via `bun --filter`.
         run: bun run typecheck
 
-      - name: Build (kobe package)
+      - name: Build (rove package)
         run: bun run build
 
   unit-tests:
@@ -184,13 +184,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Unit tests (kobe package, shard ${{ matrix.shard }}/4)
+      - name: Unit tests (rove package, shard ${{ matrix.shard }}/4)
         # Same flags as `test:fast`, plus vitest's own --shard.
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: bun x vitest run --passWithNoTests --minWorkers=1 --maxWorkers=8 --shard=${{ matrix.shard }}/4
 
   behavior:
-    # Black-box behavior suite: the BUILT CLI in a temp KOBE_HOME with an
+    # Black-box behavior suite: the BUILT CLI in a temp ROVE_HOME with an
     # isolated daemon + hosted PTY engine. Catches packaged-path and session
     # lifecycle regressions unit mocks cannot see.
     #
@@ -214,7 +214,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build (kobe package)
+      - name: Build (rove package)
         run: bun run build
 
       - name: Behavior tests (Rove package, shard ${{ matrix.shard }}/2)
@@ -223,9 +223,9 @@ jobs:
         # CLI black-box and are not safe to run concurrently with each
         # other, but separate runners are separate machines, so slicing
         # across jobs is. Verified locally: 6 + 5 = 11 files, the whole set.
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: |
-          KOBE_INCLUDE_BEHAVIOR=1 bun x vitest run test/behavior \
+          ROVE_INCLUDE_BEHAVIOR=1 bun x vitest run test/behavior \
             --pool forks --minWorkers=1 --maxWorkers=1 --retry=2 \
             --passWithNoTests --shard=${{ matrix.shard }}/2
 
@@ -264,7 +264,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Render tests (Linux, shard ${{ matrix.shard }}/8)
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: bun scripts/render-track.mjs --platform=linux --half=main --shard=${{ matrix.shard }}/8
 
   render-track-macos:
@@ -287,7 +287,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Render tests macOS holds (ratchet list + PTY half)
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: bun scripts/render-track.mjs --platform=macos
 
   visual-ground-truth:
@@ -309,11 +309,11 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build canonical Rove artifacts
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: bun run build
 
       - name: Verify node-pty can create a real child terminal
-        working-directory: packages/kobe-harness
+        working-directory: packages/rove-harness
         run: |
           node --input-type=module <<'EOF'
           import { spawn } from "node-pty"
@@ -327,7 +327,7 @@ jobs:
           EOF
 
       - name: Verify harness PTY reconnect and process-tree cleanup
-        working-directory: packages/kobe-harness
+        working-directory: packages/rove-harness
         run: bun run test test/pty-session-lifecycle.test.ts test/pty-tree-lifecycle.test.mjs test/pty-sidecar-shutdown.test.mjs
 
       # Playwright re-downloaded Chromium every run (~10s). The browser build
@@ -342,11 +342,11 @@ jobs:
           restore-keys: ${{ runner.os }}-playwright-
 
       - name: Install Chromium for the visual ground-truth harness
-        working-directory: packages/kobe-harness
+        working-directory: packages/rove-harness
         run: bunx playwright install chromium
 
       - name: Visual journey (browser → PTY → real OpenTUI)
-        working-directory: packages/kobe-harness
+        working-directory: packages/rove-harness
         run: bun run visual
 
       - name: Upload failed visual evidence
@@ -354,7 +354,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: visual-ground-truth-${{ github.run_id }}
-          path: packages/kobe-harness/test-results
+          path: packages/rove-harness/test-results
           if-no-files-found: ignore
 
   harness-windows-lifetime:
@@ -370,5 +370,5 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Verify console cleanup and detached service survival
-        working-directory: packages/kobe-harness
+        working-directory: packages/rove-harness
         run: bun run test test/pty-session-lifecycle.test.ts test/pty-sidecar-shutdown.test.mjs

@@ -583,7 +583,7 @@ replacement in `nextCommandArgs`.
 
 A create issued from inside a Rove engine tab records
 the caller as the new task's `dispatcher` (`{taskId, tabId}` from
-`$ROVE_TASK_ID`/`$ROVE_TAB_ID`, with Kobe aliases). That is the reply address
+`$ROVE_TASK_ID`/`$ROVE_TAB_ID`, with Rove aliases). That is the reply address
 the worker's bare `send` routes back to. Creates from a plain shell or the
 TUI record none.
 
@@ -775,7 +775,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   split, so an agent must not report "pane opened" on that verdict. (The
   calling CLI is itself one connection, so `1` does not prove a TUI is
   listening; `0` is the unambiguous case.) Task
-  defaults to `$ROVE_TASK_ID` (or its Kobe alias), then the active task. How far splits can go
+  defaults to `$ROVE_TASK_ID` (or its Rove alias), then the active task. How far splits can go
   is decided by the terminal's size: a split that would shrink any pane
   below the minimum usable size (20×6 cells) falls back to a tab.
 - `pane-close [--task-id ID] --title TEXT [--tab TAB]`: the inverse; close
