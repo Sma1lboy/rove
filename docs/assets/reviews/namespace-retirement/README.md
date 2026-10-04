@@ -17,8 +17,8 @@ continuity, not a successful model response. Windows was not executed locally.
 The release package was obtained with `npm pack @sma1lboy/rove@0.9.238` and
 extracted under the fixture's `release/` directory. Its CLI was launched with
 the environment returned by `sandboxChildEnv` from the `dev:sandbox` script.
-It created task `01M42RD4Q21PW8WFZYTDXRN2MB`, opened `tab-1`, and submitted the
-before marker. The branch then ran:
+The baseline source created task `01M42RD4Q21PW8WFZYTDXRN2MB`. The release
+CLI then opened `tab-1` and submitted the before marker. The branch then ran:
 
 ```sh
 ROVE_SANDBOX_HOME_DIR=/private/tmp/rove-rename-proof/home bun run dev:sandbox daemon restart
