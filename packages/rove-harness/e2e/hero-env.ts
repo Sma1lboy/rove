@@ -35,7 +35,7 @@ import {
 export { fixtureAuthHeaders }
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
-export const ROVE_DIR: string = join(REPO_ROOT, "packages", "kobe")
+export const ROVE_DIR: string = join(REPO_ROOT, "packages", "rove")
 export const HERO_CLI: string = join(ROVE_DIR, "dist", "cli", "rove.js")
 
 export const HERO_PORT_BASE = Number.parseInt(process.env.HERO_PORT_BASE ?? "5323", 10)

@@ -142,6 +142,19 @@ describe("migrateRoveStateLayout", () => {
     expect(existsSync(join(root, ".rove/.layout-client-migration-v1"))).toBe(true)
   })
 
+  test("retries a plugin tree left behind after its registry already moved", () => {
+    root = mkdtempSync(join(tmpdir(), "rove-layout-partial-"))
+    write(".rove/plugins.json", '{"plugins":[{"id":"demo"}]}')
+    write(`${preRenameStateDir("")}/plugins/demo/config/.env`, "TOKEN=preserved")
+
+    const result = migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: root })
+
+    expect(result.warnings).toEqual([])
+    expect(readFileSync(join(root, ".rove/plugins/demo/config/.env"), "utf8")).toBe("TOKEN=preserved")
+    expect(existsSync(join(preRenameStateDir(root), "plugins"))).toBe(false)
+    expect(migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: root }).attempted).toBe(false)
+  })
+
   test("plugins MOVE to the canonical layout — one registry, not two", () => {
     root = mkdtempSync(join(tmpdir(), "rove-layout-"))
     write(`${preRenameStateDir("")}/plugins.json`, '{"plugins":[{"id":"demo"}]}')
@@ -151,18 +164,9 @@ describe("migrateRoveStateLayout", () => {
     expect(first.warnings).toEqual([])
     expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).toContain("demo")
     expect(readFileSync(join(root, ".rove/plugins/demo/config/.env"), "utf8")).toBe("TOKEN=1")
-    // MOVED, then linked back: a copy would leave a second registry for the
-    // next writer, while a bare move blinds every pre-rename binary.
-    expect(lstatSync(join(root, `${preRenameStateDir("")}/plugins.json`)).isSymbolicLink()).toBe(true)
-    expect(readFileSync(join(root, `${preRenameStateDir("")}/plugins.json`), "utf8")).toContain("demo")
-    expect(readFileSync(join(root, `${preRenameStateDir("")}/plugins/demo/config/.env`), "utf8")).toBe("TOKEN=1")
-
-    // Idempotent: a second start finds the canonical registry and does nothing.
+    expect(existsSync(join(preRenameStateDir(root), "plugins.json"))).toBe(false)
+    expect(existsSync(join(preRenameStateDir(root), "plugins"))).toBe(false)
     expect(migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: root }).attempted).toBe(false)
-    // And the link is the whole compatibility story — an old binary writing to
-    // the legacy path writes the canonical registry, not a second one.
-    writeFileSync(join(root, `${preRenameStateDir("")}/plugins.json`), '{"plugins":[{"id":"from-old-cli"}]}', "utf8")
-    expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).toContain("from-old-cli")
   })
 })
 
@@ -175,17 +179,6 @@ describe("migrateRoveStateLayout", () => {
  * `.rove/plugins.json` gets it MOVED out from under it.
  */
 describe("a blank ROVE_HOME_DIR is unset, not a home", () => {
-  test("falls through to ROVE_HOME_DIR rather than shadowing it", () => {
-    root = mkdtempSync(join(tmpdir(), "rove-layout-"))
-    write(`${preRenameStateDir("")}/tasks.json`, "legacy tasks")
-
-    expect(migrateRoveStateLayout({ ROVE_HOME_DIR: "" })).toMatchObject({
-      attempted: true,
-      warnings: [],
-    })
-    expect(readFileSync(join(root, ".rove/tasks.json"), "utf8")).toBe("legacy tasks")
-  })
-
   test("never moves a plugin registry relative to the process cwd", () => {
     root = mkdtempSync(join(tmpdir(), "rove-layout-"))
     write(`${preRenameStateDir("")}/plugins.json`, '{"plugins":[{"id":"real-home"}]}')
@@ -199,7 +192,7 @@ describe("a blank ROVE_HOME_DIR is unset, not a home", () => {
     const previousCwd = process.cwd()
     process.chdir(repoCwd)
     try {
-      migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: "" })
+      migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: root })
     } finally {
       process.chdir(previousCwd)
     }

@@ -9,10 +9,10 @@ Three runners. Picking the wrong one looks like a broken environment.
 | Path | Runner | Command |
 | --- | --- | --- |
 | `test/render/**` | bun's own runner (OpenTUI needs bun) | `bun test test/render` |
-| `test/daemon/**` | vitest with `KOBE_INCLUDE_SOCKET=1` | `bun run test:socket` |
+| `test/daemon/**` | vitest with `ROVE_INCLUDE_SOCKET=1` | `bun run test:socket` |
 | everything else | vitest | `bun run test:fast`, or `bun x vitest run <file>` |
 
-- `test/daemon/**` without `KOBE_INCLUDE_SOCKET=1`: vitest prints "No test files found" and exits 1. It is a silent skip that reads like a missing file, not a wrong command.
+- `test/daemon/**` without `ROVE_INCLUDE_SOCKET=1`: vitest prints "No test files found" and exits 1. It is a silent skip that reads like a missing file, not a wrong command.
 - A vitest file run with `bun test` fails on vitest-only APIs. `vi.hoisted is not a function` is the usual signature and reads like a missing dependency.
 - If a test "can't run", check the runner before concluding anything about the environment.
 
@@ -23,7 +23,7 @@ Run scripts via `bun --filter @sma1lboy/rove <script>` or `cd packages/rove && b
 - `dev` — real engines, **production** Rove state.
 - `dev:sandbox` — real engines + your real `HOME`, throwaway Rove state under `packages/rove/.dev-sandbox/home`. Use this one.
 
-The old `@sma1lboy/kobe` package name is frozen at 0.9.64; `kobe-docs/` is the public docs site (Fumadocs on Next.js, static export, content synced from `docs/`).
+The retired npm package `@sma1lboy/kobe` is frozen at 0.9.64; `rove-docs/` is the public docs site (Fumadocs on Next.js, static export, content synced from `docs/`).
 
 ## Daemon boundaries
 
@@ -35,7 +35,7 @@ Mechanics: [`docs/design/daemon.md`](../design/daemon.md).
 
 ## Per-repo init
 
-A repo can ship `.rove/init.sh` (runs before the engine, in the worktree) and `.rove/init-prompt.md` (the engine's first message). `.kobe/` spellings remain field-by-field fallbacks; repo files win over the per-user state.json override. Mechanics: [`src/state/repo-init.ts`](../../packages/rove/src/state/repo-init.ts), user docs in [`CONFIGURATION.md`](../CONFIGURATION.md).
+A repo can ship `.rove/init.sh` (runs before the engine, in the worktree) and `.rove/init-prompt.md` (the engine's first message). repo files win over the per-user state.json override. Mechanics: [`src/state/repo-init.ts`](../../packages/rove/src/state/repo-init.ts), user docs in [`CONFIGURATION.md`](../CONFIGURATION.md).
 
 ## Engine-owned UI data
 

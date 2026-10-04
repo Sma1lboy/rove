@@ -1,15 +1,5 @@
 import { preRenameStateDir } from "./pre-rename-runtime.ts"
-/**
- * Move `pty-exits.json` and `pty-sessions/` from `.rove` to `.rove`. They're
- * absent from the daemon-start copy list (`state/layout-migration.ts`), since a
- * daemon copying them would race the owning host; and the docs call a leftover
- * `~/.rove` safe to delete. Host boot is the single-writer moment (freeze store
- * not yet open), so `runtimeDataPath` in `paths.ts` can stay plain canonical.
- *
- * MOVED, not copied: two exit stores would let the stale one answer. A symlink
- * stays behind because a pre-rename binary reads only `.rove` and would take an
- * empty store as "this session never existed".
- */
+/** Move host-owned exit records and frozen sessions at the single-writer host boot boundary. */
 
 import { existsSync, lstatSync, mkdirSync, renameSync } from "node:fs"
 import { homedir } from "node:os"

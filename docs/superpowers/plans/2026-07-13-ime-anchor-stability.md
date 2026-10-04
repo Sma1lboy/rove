@@ -190,7 +190,7 @@ Create `.changeset/stable-ime-anchor.md`:
 
 ```md
 ---
-"@sma1lboy/kobe": patch
+"@sma1lboy/rove": patch
 ---
 
 Keep macOS input-method preedit and candidate windows anchored to the embedded terminal prompt while Claude or another engine animates output.
@@ -224,11 +224,11 @@ git add packages/rove/src/tui-react/lib/host-boot.tsx packages/rove/test/tui/hos
 git commit -m "fix: enable stable macOS IME anchoring" -m "Use the frame-final cursor adapter only for fullscreen macOS hosts and preserve local terminal detection and resize handling. Ship the behavior as a patch changeset."
 ```
 
-- [ ] **Step 7: Push and open the KOBE pull request**
+- [ ] **Step 7: Push and open the ROVE pull request**
 
 ```bash
 git push -u origin fix/ime-anchor-stability
-gh pr create --base main --head fix/ime-anchor-stability --title "fix: stabilize macOS IME anchor in embedded terminals" --body-file /tmp/kobe-ime-pr.md
+gh pr create --base main --head fix/ime-anchor-stability --title "fix: stabilize macOS IME anchor in embedded terminals" --body-file /tmp/rove-ime-pr.md
 ```
 
 The PR body must include the reproduced root cause, the frame-final output

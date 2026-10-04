@@ -143,8 +143,7 @@ export interface ParsedPluginManifest {
 }
 
 export const PLUGIN_MANIFEST_FILENAME = "rove-plugin.toml"
-export const LEGACY_PLUGIN_MANIFEST_FILENAME = "rove-plugin.toml"
-export const PLUGIN_MANIFEST_FILENAMES = [PLUGIN_MANIFEST_FILENAME, LEGACY_PLUGIN_MANIFEST_FILENAME] as const
+export const PLUGIN_MANIFEST_FILENAMES = [PLUGIN_MANIFEST_FILENAME] as const
 
 /**
  * Engine ids `[[engines]]` may not claim: built-in adapters + shipped contrib
@@ -217,7 +216,7 @@ export function supportsPlatform(
   return platform !== undefined && declared.includes(platform)
 }
 
-/** Parse manifest text; diagnostics name `filename` (legacy spelling included). */
+/** Parse manifest text; diagnostics name `filename`. */
 export function parsePluginManifest(text: string, filename: string = PLUGIN_MANIFEST_FILENAME): ParsedPluginManifest {
   try {
     return parseCanonicalPluginManifest(text)
@@ -248,7 +247,6 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   const description = raw.description === undefined ? undefined : asString(raw.description, "description")
   const platforms = asPlatforms(raw.platforms, "platforms")
   if (!platforms) warnings.push("no top-level `platforms` declared; assuming the plugin runs everywhere")
-
 
   const build = asTableArray(raw.build, "build").map((t, i) => ({
     command: asCommand(t.command, `build[${i}].command`),

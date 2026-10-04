@@ -40,12 +40,9 @@ describe("parsePluginManifest", () => {
     expect(warnings).toEqual([])
   })
 
-  it("accepts min_rove_version and gives it precedence over the legacy field", () => {
-    const { manifest, warnings } = parsePluginManifest(
-      'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.9.0"\nmin_rove_version = "0.8.0"',
-    )
+  it("accepts the canonical minimum version", () => {
+    const { manifest } = parsePluginManifest('id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.9.0"')
     expect(manifest.minRoveVersion).toBe("0.9.0")
-    expect(warnings.some((warning) => warning.includes("using `min_rove_version`"))).toBe(true)
   })
 
   it("rejects a manifest missing id or name", () => {

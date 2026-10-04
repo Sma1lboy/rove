@@ -18,12 +18,12 @@
   --color-subtle: #6b665f;
   --color-primary: #cc785c;
   --color-primary-hover: #e0ab96;
-  --color-kobe-orange: #d97757;
-  --color-kobe-green: #9aca86;
-  --color-kobe-blue: #61aaf2;
-  --color-kobe-red: #d47563;
-  --color-kobe-yellow: #e8c96b;
-  --color-kobe-violet: #9b87f5;
+  --color-rove-orange: #d97757;
+  --color-rove-green: #9aca86;
+  --color-rove-blue: #61aaf2;
+  --color-rove-red: #d47563;
+  --color-rove-yellow: #e8c96b;
+  --color-rove-violet: #9b87f5;
 
   --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, Menlo, Monaco, "Cascadia Code",
     monospace;
@@ -49,17 +49,17 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-html[data-kobe-desktop="true"] [data-kobe-topbar] {
+html[data-rove-desktop="true"] [data-rove-topbar] {
   -webkit-app-region: drag;
   user-select: none;
 }
 
-html[data-kobe-desktop="true"] [data-kobe-topbar] button,
-html[data-kobe-desktop="true"] [data-kobe-topbar] input,
-html[data-kobe-desktop="true"] [data-kobe-topbar] select,
-html[data-kobe-desktop="true"] [data-kobe-topbar] label,
-html[data-kobe-desktop="true"] [data-kobe-topbar] a,
-html[data-kobe-desktop="true"] [data-kobe-topbar] [role="button"] {
+html[data-rove-desktop="true"] [data-rove-topbar] button,
+html[data-rove-desktop="true"] [data-rove-topbar] input,
+html[data-rove-desktop="true"] [data-rove-topbar] select,
+html[data-rove-desktop="true"] [data-rove-topbar] label,
+html[data-rove-desktop="true"] [data-rove-topbar] a,
+html[data-rove-desktop="true"] [data-rove-topbar] [role="button"] {
   -webkit-app-region: no-drag;
 }
 

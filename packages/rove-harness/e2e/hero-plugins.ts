@@ -23,7 +23,7 @@ import { join, resolve } from "node:path"
 import { HERO_CLI, HERO_HOME, HERO_ROOT, ROVE_DIR, assertHeroIsolation, heroEnv } from "./hero-env.ts"
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
-const EXAMPLES = join(REPO_ROOT, "packages", "kobe-plugin-sdk", "examples")
+const EXAMPLES = join(REPO_ROOT, "packages", "rove-plugin-sdk", "examples")
 
 /** Every example under `packages/rove-plugin-sdk/examples/`, in doc order. */
 export const EXAMPLE_PLUGINS: readonly { readonly dir: string; readonly id: string }[] = [

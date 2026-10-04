@@ -19,7 +19,7 @@ Compared against [herdr.dev/docs](https://herdr.dev/docs/) (`refs/herdr/docs/nex
 | socket-api | `docs/design/cli-api.md` is historical; `rove api schema` is source of truth | **Wrote `docs/CLI.md`** (CLI + API reference, schema-first) |
 | cli-reference | Lives in `src/cli/usage.ts` only | **Wrote `docs/CLI.md`** |
 | plugins | `docs/PLUGIN-AUTHORING.md` + typed SDK | OK (stronger: typed SDK) |
-| marketplace | GitHub topic `kobe-plugin` + `rove plugin search` + landing page | OK (same zero-infra model, independently built) |
+| marketplace | GitHub topic `rove-plugin` + `rove plugin search` + landing page | OK (same zero-infra model, independently built) |
 | how-to-work | none | Folded into `docs/CONCEPTS.md` workflows section |
 | troubleshooting | `docs/TROUBLESHOOTING.md` exists (clipboard/OSC52 depth) | OK; expand as symptoms accrue |
 | windows-beta | n/a (macOS/Linux only) | Skip |

@@ -1,0 +1,15 @@
+{
+  "capturedAt": "2026-10-04T07:14:34.761277+00:00",
+  "pids": {
+    "daemon": 16680,
+    "pty": 96327
+  },
+  "commands": {
+    "daemon": "<home>/.bun/bin/bun <worktree>/packages/rove/src/cli/rove.ts daemon start",
+    "pty": "<home>/.bun/bin/bun /private/tmp/rove-rename-proof/release/package/dist/cli/rove.js pty-host"
+  },
+  "publishedVersion": "0.9.238",
+  "publishedArtifact": "sma1lboy-rove-0.9.238.tgz",
+  "sandboxHome": "/private/tmp/rove-rename-proof/home",
+  "pathNormalization": "Only machine-local home and worktree prefixes are replaced with placeholders."
+}

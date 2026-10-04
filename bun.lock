@@ -32,7 +32,6 @@
       "name": "@sma1lboy/rove",
       "version": "0.9.238",
       "bin": {
-        "kobe": "dist/cli/kobe.js",
         "rove": "dist/cli/rove.js",
       },
       "dependencies": {

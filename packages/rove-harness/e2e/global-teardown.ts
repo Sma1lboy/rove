@@ -21,7 +21,7 @@ export default async function globalTeardown(): Promise<void> {
 
   if (!process.env.ROVE_PTY_DEV_COMMAND?.includes("sandbox")) return
   execFileSync("bun", ["run", "dev:sandbox:reset"], {
-    cwd: resolve(import.meta.dirname, "../../kobe"),
+    cwd: resolve(import.meta.dirname, "../../rove"),
     stdio: "inherit",
   })
 }

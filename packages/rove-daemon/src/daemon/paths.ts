@@ -5,13 +5,7 @@ import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv, readRoveHomeDirEnv } from "../compat-env.ts"
 import { preRenameStateDir } from "./pre-rename-runtime.ts"
 
-/**
- * Runtime files live under `.rove`; `.rove` is legacy. A socket path is the
- * ADDRESS of a running process: switching blindly would hide the live daemon
- * and PTY host from a new client, which would start a second pair and orphan
- * every engine tab. Rule: canonical if it exists, else legacy IF its process
- * is alive, else canonical. A crash-stale `.rove` socket fails liveness.
- */
+/** PID discovery preserves live pre-rename owners; new sockets always use the canonical directory. */
 function stateDirs(homeDir: string): { canonical: string; legacy: string } {
   return { canonical: join(homeDir, ROVE_STATE_DIR_BASENAME), legacy: preRenameStateDir(homeDir) }
 }
@@ -38,12 +32,7 @@ function runtimePath(homeDir: string, name: string, pidName: string): string {
   return canonicalPath
 }
 
-/**
- * Data read back across restarts: always canonical. The PTY host migrates
- * legacy entries at boot (`pty-data-migration.ts`, the single-writer moment);
- * a "whichever layout has it" rule would pin data under `.rove`, and deleting
- * `~/.rove` (documented as safe) would lose frozen sessions.
- */
+/** Host-owned snapshots move at host boot, after the previous host releases ownership. */
 function runtimeDataPath(homeDir: string, name: string): string {
   return join(stateDirs(homeDir).canonical, name)
 }
@@ -78,12 +67,11 @@ export function fitSocketPath(naturalPath: string, homeDir: string, role: string
 /**
  * Resolution order (after the `DAEMON_SOCKET_PATH` override):
  *   1. `homeDir` argument → `<homeDir>/.rove/daemon.sock`.
- *   2. `ROVE_HOME_DIR`/`ROVE_HOME_DIR` → `$ROVE_HOME_DIR/.rove/daemon.sock`.
+ *   2. `ROVE_HOME_DIR` → `$ROVE_HOME_DIR/.rove/daemon.sock`.
  *   3. `XDG_RUNTIME_DIR` → `$XDG_RUNTIME_DIR/rove.sock`.
  *   4. `~/.rove/daemon.sock`.
- * Steps 1, 2 and 4 yield the legacy `.rove` twin only while a pre-rename
- * process holds it ({@link stateDirs}). Every result goes through
- * {@link fitSocketPath}.
+ * Every result goes through {@link fitSocketPath}. Clients can attach to a
+ * pre-rename endpoint after the canonical connection fails.
  *
  * XDG sits below the env step: Linux desktops always set it, which would
  * collapse test and production daemons onto one socket.

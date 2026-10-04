@@ -1,4 +1,4 @@
-# Rove (repository/package compatibility name: kobe)
+# Rove
 
 Rove is a local-first terminal UI for running many AI coding sessions at once — Conductor's multi-task shape made terminal-native with git worktrees and local engine processes. A managed Task = git worktree + branch + terminal tabs; project-main and directory Tasks reuse an existing checkout or directory and own no worktree or branch. The TUI is the product; engine adapters (Claude Code default, Codex behind the same engine-owned contract) are execution backends.
 
@@ -11,7 +11,7 @@ Docs are the source of truth. **If docs and implementation disagree, surface the
 
 ## Orientation
 
-- Bun-workspace monorepo under `packages/`: `kobe/` (TUI/CLI, published `@sma1lboy/rove`), `kobe-daemon/`, `rove-harness/` (`/harness` + PTY sidecar), `branding/` (Remotion), `kobe-docs/` (docs site). Unqualified `src/…`/`test/…` paths mean `packages/rove/`.
+- Bun-workspace monorepo under `packages/`: `rove/` (TUI/CLI, published `@sma1lboy/rove`), `rove-daemon/`, `rove-harness/` (`/harness` + PTY sidecar), `branding/` (Remotion), `rove-docs/` (docs site). Unqualified `src/…`/`test/…` paths mean `packages/rove/`.
 - **Three test runners; the wrong one looks like a broken environment:** `test/render/**` → `bun test`, `test/daemon/**` → `bun run test:socket` (plain vitest *silently* finds no files), everything else → vitest. `vi.hoisted is not a function` = wrong runner. Details: [`docs/agents/dev-loop.md`](./docs/agents/dev-loop.md).
 - Develop with `dev:sandbox` (throwaway Rove state), never `dev`, so you don't touch the real `~/.rove/tasks.json`.
 - **Tech stack is locked:** TypeScript + `@opentui/core` + `@opentui/react` + React 19 + Bun. Do not re-litigate. React is the only UI; orchestrator/client reactivity is framework-free observable state.

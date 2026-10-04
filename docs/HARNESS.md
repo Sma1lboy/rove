@@ -93,8 +93,8 @@ under `test:fast`; `test/render/golden/` runs under `test:render`.
 
 Rules:
 
-- **Regenerate deliberately, then read the diff.** `KOBE_UPDATE_GOLDEN=1 bun run
-  test:fast` / `KOBE_UPDATE_GOLDEN=1 bun run test:render`. An unexplained line
+- **Regenerate deliberately, then read the diff.** `ROVE_UPDATE_GOLDEN=1 bun run
+  test:fast` / `ROVE_UPDATE_GOLDEN=1 bun run test:render`. An unexplained line
   in that diff is the finding, not the noise.
 - **A missing golden fails.** It is never auto-created on first run — a golden
   that writes itself would pass its own first CI run while asserting nothing.
@@ -134,7 +134,7 @@ Set either variable on any Rove process to record the same data by hand. Add a c
 
 ## Behavioral self-test
 
-`test/behavior/harness.ts` runs the published `dist/cli/kobe.js` and
+`test/behavior/harness.ts` runs the published `dist/cli/rove.js` and
 `dist/cli/rove.js` entries in a disposable HOME and XDG tree with PATH-first
 CLI and fake engine shims. Daemon and PTY Host paths derive from that home, so
 setup and teardown cannot reach production state.
@@ -192,19 +192,19 @@ Iterate with the warm loop (`visual:serve` once, then `visual:dev` /
 `visual:shot` per change — `visual:shot` takes key tokens plus `text:…` and
 `wait:<ms>`, and prints the PNG path); accept with hermetic `visual`, which
 refuses to reuse a running server — stop `visual:serve` first.
-`KOBE_VISUAL_FRESH=1` forces a fixture rebuild.
+`ROVE_VISUAL_FRESH=1` forces a fixture rebuild.
 
 `--scale=N` sets the device pixel ratio while the viewport stays 1280×800, so
 the TUI keeps its cell grid and only the raster gets denser — that is how a
 `docs/assets` still gets captured at 2× without changing what the TUI lays
-out. Ports come from `KOBE_VISUAL_PORT_BASE`, so pointing the shot at another
+out. Ports come from `ROVE_VISUAL_PORT_BASE`, so pointing the shot at another
 harness instance (a throwaway home with a richer fixture, say) is just an env
 var — the ground-truth path is unchanged.
 
 ### What the harness replaces, and therefore cannot prove
 
-The sidecar resolves its launch command from `KOBE_PTY_DEV_COMMAND`. The visual
-runners set that variable and `KOBE_PTY_DEV_CWD` to launch the isolated fixture.
+The sidecar resolves its launch command from `ROVE_PTY_DEV_COMMAND`. The visual
+runners set that variable and `ROVE_PTY_DEV_CWD` to launch the isolated fixture.
 `createSpecFetcher` returns the same spec for engine and shell modes and throws
 when the command is unset. It does not fetch launch specs from the daemon.
 
@@ -287,7 +287,7 @@ file is only its beats.
 **Films** (`e2e/film.ts`, one definition per film in `e2e/films/`) split a
 video into a TAKE and a RENDER. The take drives the live TUI like any other
 capture, but records nothing but the PTY's output: `hero-serve.ts` runs the
-sidecar with `KOBE_PTY_CAST=1`, the storyboard drops named cues, and the
+sidecar with `ROVE_PTY_CAST=1`, the storyboard drops named cues, and the
 recording lands as a committed asciicast (`<name>.cast.gz`), redacted and
 verified clean (`film/redact.ts`). The render replays that cast into the same
 `/harness` xterm (`?replay`) and screenshots one frame per output time, so
@@ -370,11 +370,11 @@ the same take to encoder noise.
   buffer during `record` takes and aborts on an e-mail address, and a film's
   take refuses to save a cast that contains one, so this is enforced rather
   than remembered.
-- **The hero home's socket is PINNED, not derived.** `.kobe/` is the pre-rename
+- **The hero home's socket is PINNED, not derived.** `.rove/` is the pre-rename
   runtime dir and every daemon bind drops a compatibility symlink there
   (`compat-link.ts`), which `runtimePath()` then PREFERS over the canonical
   `.rove/` path. One stray command exporting `*_HOME_DIR=<hero>` without the
-  socket therefore leaves `<hero>/.kobe/daemon.sock` pointing at the operator's
+  socket therefore leaves `<hero>/.rove/daemon.sock` pointing at the operator's
   real socket, and every later hero process silently attaches to their live
   daemon. `heroEnv()` stamps `*_DAEMON_SOCKET_PATH` explicitly, and
   `assertHeroIsolation()` throws when that link escapes the hero root — run
@@ -408,7 +408,7 @@ command on Linux.
 | Story detail | Workspace sidebar → Kanban → select fixture card → detail drawer → close | Board selection reaches the persisted story detail without mutating it. |
 | Story intake | Workspace sidebar → Kanban → New Story → title and description | The creation drawer accepts real terminal input and echoes it back. |
 
-Ports derive from `KOBE_VISUAL_PORT_BASE` (default 5273): the base is Vite,
+Ports derive from `ROVE_VISUAL_PORT_BASE` (default 5273): the base is Vite,
 base+1 is the PTY sidecar. Two, not three — the daemon is reached over its
 socket and has no port. A busy port fails fast — never reuse a stray server, and never point the fixture at a real HOME
 or the shared `.dev-sandbox/home`. Local Terminal screenshots, native
@@ -460,12 +460,12 @@ What silently produces a false result:
   (`DEFAULT_INTERACTION_THRESHOLD_MS`), so an instant reply reproduces a state
   the user never sees. Let the dialog sit.
 
-Isolation for this mode is stricter than `KOBE_HOME_DIR` alone: the engine's
-hook commands invoke whichever `kobe`/`rove` is on PATH, which resolves its own
+Isolation for this mode is stricter than `ROVE_HOME_DIR` alone: the engine's
+hook commands invoke whichever `rove`/`rove` is on PATH, which resolves its own
 socket, so a sandbox daemon never sees the events. Inline the socket path and
 the source CLI into the hook command itself. A fresh HOME also needs
 `hasCompletedOnboarding` seeded and its folder-trust gate answered, and
-`KOBE_PTY_DEV_COMMAND` must be a script path — nested quotes are lost when the
+`ROVE_PTY_DEV_COMMAND` must be a script path — nested quotes are lost when the
 dev server re-spawns the sidecar.
 
 ## Terminal endurance probe
@@ -478,7 +478,7 @@ cd packages/rove
 bun run pty:soak -- --tabs=50 --cycles=5 --lines=1200
 ```
 
-It creates a disposable `KOBE_HOME_DIR`, drives long output through real hosted
+It creates a disposable `ROVE_HOME_DIR`, drives long output through real hosted
 shells, parks every tab, lets them keep emitting while hidden, then proves each
 wake sees its exact delta. It fails on lost markers or any full-replay fallback,
 not timing. `--tabs` accepts up to 100; the printed temporary home is retained

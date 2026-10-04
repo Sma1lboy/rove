@@ -87,7 +87,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Render tests and coverage (kobe package)
+      - name: Render tests and coverage (rove package)
         working-directory: packages/rove
         run: bun run test:render
 
@@ -237,7 +237,7 @@ jobs:
         # The version check keeps a rerun idempotent instead of failing on an
         # existing version.
         #
-        # `@sma1lboy/kobe` is NOT published anymore (0.9.64 is its last
+        # `@sma1lboy/rove` is NOT published anymore (0.9.64 is its last
         # version). Releases shipped both names through the rename; the old
         # name is now frozen, and `rove update` on an installation of it
         # reports the newest @sma1lboy/rove. Nothing here should start
@@ -255,8 +255,7 @@ jobs:
         # The SDK versions independently via changesets but has no tag of
         # its own: every Rove release checks whether the SDK's current
         # version is on npm and publishes it when it isn't. Build before the
-        # existence check so a partial rerun can still publish the compatibility
-        # alias from a fresh dist even when the canonical version already exists.
+        # existence check so every publish uses a fresh dist.
         working-directory: packages/rove-plugin-sdk
         run: |
           V=$(node -p "require('./package.json').version")
@@ -267,26 +266,6 @@ jobs:
             echo "publishing @sma1lboy/rove-plugin-sdk@$V"
             npm publish --access public --provenance --tag "${{ steps.channel.outputs.dist_tag }}"
           fi
-
-      - name: Publish plugin SDK compatibility alias
-        # Existing plugins keep importing the Rove-named SDK. Publish the
-        # same build/version under both names; only package.json#name differs.
-        working-directory: packages/rove-plugin-sdk
-        run: |
-          V=$(node -p "require('./package.json').version")
-          if npm view "@sma1lboy/kobe-plugin-sdk@$V" version >/dev/null 2>&1; then
-            echo "@sma1lboy/kobe-plugin-sdk@$V already on npm — skipping"
-            exit 0
-          fi
-          cp package.json package.json.bak
-          node -e "
-            const fs = require('fs')
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
-            pkg.name = '@sma1lboy/kobe-plugin-sdk'
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\\n')
-          "
-          npm publish --access public --provenance --ignore-scripts --tag "${{ steps.channel.outputs.dist_tag }}"
-          mv package.json.bak package.json
 
       - name: Create GitHub release
         # The release IS the changelog notes — npm carries the artifact

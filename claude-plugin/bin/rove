@@ -14,7 +14,7 @@ set -u
 resolve_rove() {
   # An interactive shell's PATH usually has it; hooks often run with a
   # minimal PATH, so also probe the standard install locations.
-  local candidates=(rove kobe)
+  local candidates=(rove rove)
   local dirs=("$HOME/.bun/bin" "$HOME/.npm-global/bin" /opt/homebrew/bin /usr/local/bin)
   local name
   for name in "${candidates[@]}"; do

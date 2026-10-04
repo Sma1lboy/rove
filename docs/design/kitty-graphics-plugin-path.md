@@ -197,7 +197,7 @@ answers it, so the query channel works and the three empty replies are the
 embedded emulator declining to answer, not a probe that never wrote anything.
 
 **Nothing in the plugin contract substitutes.** Of the 52 `rove api` verbs,
-none reports terminal geometry or a tty. Of the `ROVE_*` / `KOBE_*` variables a
+none reports terminal geometry or a tty. Of the `ROVE_*` / `ROVE_*` variables a
 pane receives, none names a tty, a display, or a pixel dimension. Grepping
 `packages/rove/src` + `packages/rove-daemon/src` for `cellWidth|pixelWidth|
 CSI 16|termProgram` finds only `doctor-report.ts` (diagnostics) and the scrub

@@ -72,60 +72,24 @@ describe("rove repo set / show / unset round-trip", () => {
     expect(configs[repo]).toEqual({ initScript: "echo hi", initPrompt: "start here" })
   })
 
-  it("show reports canonical and legacy repo convention files", async () => {
-    await runRepoSubcommand(["set", repo, "--init-script", "echo hi"])
-    logSpy.mockClear()
-
+  it("show reports only canonical repo files", async () => {
     mkdirSync(join(repo, ".rove"), { recursive: true })
-    mkdirSync(join(repo, ".rove"), { recursive: true })
-    writeFileSync(join(repo, ".rove", "init.sh"), "echo repo-file", "utf8")
-    writeFileSync(join(repo, ".rove", "init-prompt.md"), "legacy prompt", "utf8")
-
+    writeFileSync(join(repo, ".rove", "init-prompt.md"), "prompt", "utf8")
     await runRepoSubcommand(["show", repo])
-    const out = output()
-    expect(out).toContain(`repo: ${repo}`)
-    expect(out).toContain(".rove/init.sh:        present (wins)")
-    expect(out).toContain(".rove/init-prompt.md: absent")
-    expect(out).toContain(".rove/init.sh:        absent")
-    // `.rove/init-prompt.md` is absent, so the legacy file IS the effective
-    // prompt. The old fixed "legacy fallback" label understated that.
-    expect(out).toContain(".rove/init-prompt.md: present (wins)")
-    expect(out).toContain('override initScript:  "echo hi"')
-    expect(out).toContain("override initPrompt:  (unset)")
+    expect(output()).toContain(".rove/init-prompt.md: present (wins)")
+    const { resolveRepoInit } = await import("../../src/state/repo-init.ts")
+    expect(resolveRepoInit(repo, repo).initPrompt).toBe("prompt")
   })
 
-  it("show does not call a whitespace-only file the winner (it loses to .rove)", async () => {
-    // The one case `repo show` exists to resolve: which source is live. It used
-    // to answer with a bare existsSync, so a blank `.rove/init-prompt.md`
-    // printed "present (wins)" while the runtime actually used `.rove/`.
-    mkdirSync(join(repo, ".rove"), { recursive: true })
+  it("a whitespace-only repo file falls through to the user override", async () => {
+    await runRepoSubcommand(["set", repo, "--init-prompt", "user prompt"])
     mkdirSync(join(repo, ".rove"), { recursive: true })
     writeFileSync(join(repo, ".rove", "init-prompt.md"), "\n", "utf8")
-    writeFileSync(join(repo, ".rove", "init-prompt.md"), "real", "utf8")
     logSpy.mockClear()
-
     await runRepoSubcommand(["show", repo])
-    const out = output()
-    expect(out).toContain(".rove/init-prompt.md: present but empty (ignored)")
-    expect(out).toContain(".rove/init-prompt.md: present (wins)")
-    expect(out).not.toContain(".rove/init-prompt.md: present (wins)")
-
-    // …and the report agrees with what the engine would actually be handed.
+    expect(output()).toContain(".rove/init-prompt.md: present but empty (ignored)")
     const { resolveRepoInit } = await import("../../src/state/repo-init.ts")
-    expect(resolveRepoInit(repo, repo).initPrompt).toBe("real")
-  })
-
-  it("show marks a shadowed legacy file as shadowed, not empty", async () => {
-    mkdirSync(join(repo, ".rove"), { recursive: true })
-    mkdirSync(join(repo, ".rove"), { recursive: true })
-    writeFileSync(join(repo, ".rove", "init-prompt.md"), "canonical", "utf8")
-    writeFileSync(join(repo, ".rove", "init-prompt.md"), "legacy", "utf8")
-    logSpy.mockClear()
-
-    await runRepoSubcommand(["show", repo])
-    const out = output()
-    expect(out).toContain(".rove/init-prompt.md: present (wins)")
-    expect(out).toContain(".rove/init-prompt.md: present (shadowed)")
+    expect(resolveRepoInit(repo, repo).initPrompt).toBe("user prompt")
   })
 
   it("unset with a field flag clears only that field", async () => {

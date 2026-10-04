@@ -224,7 +224,7 @@ function summarize(): void {
 
 function golden(): void {
   const run = Bun.spawnSync(["bun", "run", "perf:golden", "--fast", "--json"], {
-    cwd: join(REPO_ROOT, "packages", "kobe"),
+    cwd: join(REPO_ROOT, "packages", "rove"),
     stderr: "inherit",
   })
   const text = run.stdout.toString()

@@ -31,11 +31,11 @@ Two reasons:
    entry point for every `done` transition; the locality gap the suggestion
    solves does not exist.
 
-2. **It would break a documented boundary.** The **Orchestrator** is the `kobe`
+2. **It would break a documented boundary.** The **Orchestrator** is the `rove`
    package's "task index + git + a Solid signal, TUI-free" core
    (`CONTEXT.md`). The **IssuesStore** and the daemon event **bus** are
-   `kobe-daemon`-owned. Injecting them into the Orchestrator would create a
-   `kobe → kobe-daemon` dependency and reintroduce side-effect coupling the v0.6
+   `rove-daemon`-owned. Injecting them into the Orchestrator would create a
+   `rove → rove-daemon` dependency and reintroduce side-effect coupling the v0.6
    reshape deliberately removed.
 
 The single source of truth for the valid status set now lives in

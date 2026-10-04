@@ -25,8 +25,8 @@ describe("ptyUrl", () => {
   })
 
   it("uses wss on https", () => {
-    withLocation({ protocol: "https:", host: "kobe.local:8443" })
-    expect(ptyUrl("t", "k", "shell", 80, 24)).toMatch(/^wss:\/\/kobe\.local:8443\/pty\?/)
+    withLocation({ protocol: "https:", host: "rove.local:8443" })
+    expect(ptyUrl("t", "k", "shell", 80, 24)).toMatch(/^wss:\/\/rove\.local:8443\/pty\?/)
   })
 
   it("carries tab/taskId/mode/cols/rows as query params", () => {

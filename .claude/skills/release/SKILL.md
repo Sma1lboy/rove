@@ -1,6 +1,6 @@
 ---
 name: release
-description: Autonomously cut a Rove (`@sma1lboy/rove`) release end-to-end — detect the semver bump from pending changesets (flagging an upstream `minor` you didn't intend), run the release gates, dispatch the Changesets workflow (or run `scripts/release.sh` locally), then poll the GitHub Actions Release workflow with `gh` until npm publish completes, diagnosing CI failures (npm token, registry 404, lint, branch mismatch) instead of leaving them silent. Use when the user says "cut a release", "ship a version", "release Rove", "release kobe", "发版", "release.sh", or "bump the version". Never force-pushes; always verifies the release landed on `main`.
+description: Autonomously cut a Rove (`@sma1lboy/rove`) release end-to-end — detect the semver bump from pending changesets (flagging an upstream `minor` you didn't intend), run the release gates, dispatch the Changesets workflow (or run `scripts/release.sh` locally), then poll the GitHub Actions Release workflow with `gh` until npm publish completes, diagnosing CI failures (npm token, registry 404, lint, branch mismatch) instead of leaving them silent. Use when the user says "cut a release", "ship a version", "release Rove", "release rove", "发版", "release.sh", or "bump the version". Never force-pushes; always verifies the release landed on `main`.
 metadata:
   internal: true
 ---
@@ -178,13 +178,8 @@ On success, verify the packages actually landed (don't trust the green check alo
 
 ```bash
 npm view @sma1lboy/rove@<new-version> version          # the published package; must echo the new version
-# @sma1lboy/kobe is NOT published anymore (frozen at 0.9.64) — do not check it,
-# and do not "fix" its absence from a release.
-# Every Rove release checks the SDK's current version and publishes either
-# missing package name, even without a new SDK changeset. Always verify both
-# names at the version recorded in packages/rove-plugin-sdk/package.json:
+# Every Rove release checks the SDK's current version and publishes it if missing.
 npm view @sma1lboy/rove-plugin-sdk@<sdk-version> version
-npm view @sma1lboy/kobe-plugin-sdk@<sdk-version> version
 gh release view v<new-version> --json name -q .name    # GitHub release exists
 ```
 

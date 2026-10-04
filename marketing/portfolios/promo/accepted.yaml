@@ -1,7 +1,7 @@
 schema_version: "1.0"
 owner:
   kind: "repo"
-  id: "kobe"
+  id: "rove"
 accepted:
   - id: "rove-logo-icon-svg"
     kind: "artifact"

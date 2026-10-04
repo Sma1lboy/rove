@@ -135,11 +135,6 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
               `    run \`${CLI_NAME} --skill > ${state.path}\` to refresh it`,
             ]
           : []),
-        // Agents load every skill dir, so a `rove`-named copy teaches an old `api`.
-        ...state.legacyCopies.map(
-          (copy) =>
-            `  ⚠ stale duplicate: ${copy.path}${copy.version === null ? "" : ` (v${copy.version})`} — remove it; agents load both`,
-        ),
         `  looked in: ${paths.join("\n             ")}`,
         state.installed && !state.stale ? "" : `  → run \`${CLI_NAME} skill install\` to install / refresh`,
         "",

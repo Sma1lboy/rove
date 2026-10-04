@@ -2,7 +2,7 @@
 
 > **Superseded (2026-07-06).** The native chat pane / AI SDK harness path
 > this doc describes was deleted whole in the 2026-07-06 provider-runtime →
-> terminal pivot: kobe now embeds the real `claude`/`codex` CLI in an
+> terminal pivot: rove now embeds the real `claude`/`codex` CLI in an
 > in-process embedded terminal tab instead of driving a harness. The
 > `src/engine/ai-sdk/` directory referenced below no longer exists and
 > `package.json` carries no `@ai-sdk/*` dependency. This doc is kept for
@@ -37,7 +37,7 @@ CPU only while a turn is actually running.
 | Date | Decision |
 |------|----------|
 | 2026-06 | DESIGN.md §2.2 locks "no vendor-neutral LLM abstraction, no `@ai-sdk/*` adapters" — correct for the tmux path, written before a native pane existed. |
-| 2026-07-03 | First native-chat spike: headless `claude -p --output-format stream-json` with hand-rolled wire types + stream parsing. Worked, but meant kobe owning a vendor schema. |
+| 2026-07-03 | First native-chat spike: headless `claude -p --output-format stream-json` with hand-rolled wire types + stream parsing. Worked, but meant rove owning a vendor schema. |
 | 2026-07-04 | pi RPC wrapper spike **rejected** (reset). Direction fixed: `ai@7` `HarnessAgent` + `@ai-sdk/harness-claude-code` / `harness-codex`, `UIMessage` rendered natively. |
 | 2026-07-05 | Headless backend retired; the AI SDK harness is the **sole** native-chat backend. DESIGN.md lock updated to name this exception. |
 
@@ -60,7 +60,7 @@ flowchart LR
   process idles between prompts — that is this backend's reason to exist.
 - **`UIMessage` is the render schema.** The transcript holds harness
   `UIMessage`s verbatim and `ChatRow` renders their parts directly with the
-  SDK's own guards (`isToolUIPart` etc.). Vercel maintains the schema; kobe
+  SDK's own guards (`isToolUIPart` etc.). Vercel maintains the schema; rove
   builds **no mapping layer** on top of it.
 - **Engines stay products.** Auth is the engine's subscription login — no API
   keys, no raw model calls. The harness drives the same locally-installed
@@ -77,7 +77,7 @@ flowchart LR
    registry's `nativeChat` descriptor (`harnessVendor`, `builtinSlashes`,
    `userSlashes`) plus `EngineCapabilities`/`EngineIdentity`. A new engine =
    one registry entry; neutral TUI code never compares vendor-id strings.
-2. **No kobe-side message types.** Anything that needs a message shape uses
+2. **No rove-side message types.** Anything that needs a message shape uses
    the SDK's `UIMessage`/`UIMessagePart` types and helpers directly. If a
    mapping layer ever seems necessary, that is a signal to push on the SDK,
    not to fork the schema.

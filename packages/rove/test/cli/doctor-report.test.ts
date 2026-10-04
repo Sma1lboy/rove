@@ -9,7 +9,6 @@ describe("buildReportBundle", () => {
       SECRET_TOKEN: "hunter2",
     })
     expect(lines).toContain("ROVE_HOME_DIR=/tmp/rove-home")
-    expect(lines).toContain("ROVE_HOME_DIR=/tmp/home")
     expect(lines).toContain("TERM=xterm")
     expect(lines.some((l) => l.startsWith("SECRET_TOKEN"))).toBe(false)
   })

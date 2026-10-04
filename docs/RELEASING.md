@@ -2,7 +2,6 @@
 
 Rove versioning + changelog are managed with [Changesets](https://github.com/changesets/changesets). The published package is `@sma1lboy/rove` (`packages/rove`). `packages/branding` is `private` and never published.
 
-`@sma1lboy/kobe` was the package name before the rename and was published in lockstep through 0.9.64. It is frozen there — releases no longer publish it. An install of the old name keeps working and its update check reports the newest `@sma1lboy/rove`; reinstalling under the new name is the way forward.
 
 ## The flow
 
@@ -21,7 +20,7 @@ This prompts for the bump type (**patch** / **minor** / **major**) and a summary
 - The API lookup needs a `GITHUB_TOKEN`: the Changesets workflow passes its Actions token; `scripts/release.sh` takes `gh auth token`. No token → `changeset version` fails loudly rather than shipping uncredited entries.
 - A pure tooling / docs / CI change that doesn't touch the published package needs **no** changeset. If you want to record "intentionally nothing to release", run `bun run changeset -- --empty`.
 - Bump type: default to `patch` for every change, including features and pre-1.0 breaking changes. Use `minor` or `major` only when the maintainer explicitly requests that bump for the change being released.
-- The frontmatter must name a **publishable workspace package** — today `"@sma1lboy/rove"` or `"@sma1lboy/rove-plugin-sdk"`. Never `"@sma1lboy/kobe"`: the CLI under that name is no longer published, and the SDK alias is published from the canonical version rather than versioned on its own. Those names were canonical before 2026-08-13, so stale examples are all over the git history — don't copy an old changeset.
+- The frontmatter must name a **publishable workspace package** — today `"@sma1lboy/rove"` or `"@sma1lboy/rove-plugin-sdk"`. Do not copy retired package names from historical changesets.
 
 Validate before committing:
 
@@ -69,7 +68,7 @@ With a green gate, it consumes every pending `.changeset/*.md`:
 
 If CI comes back red, **no tag exists and the version number is not burned**: `package.json` on `main` already carries X.Y.Z, so land the fix on `main` (no new changeset needed) and re-run `scripts/release.sh` — with zero pending changesets and an untagged committed version it enters **resume mode**: waits for CI at the fixed HEAD, then tags the same `vX.Y.Z` there. The same resume path covers answering `N` at the push prompt, a CI run cancelled by a newer main push, and any failure of the tag step itself (v0.9.61 hit `fatal: no tag message?` on a machine with `tag.gpgSign = true`, since a signed tag must be annotated — the script now tags with `-a -m`).
 
-The push triggers `.github/workflows/release.yml`, which gates on **lint + typecheck + unit tests (fast + socket) + build**, waits on the same **behavior** suite `ci.yml`'s PR gate runs, publishes `@sma1lboy/rove`, and extracts the new `CHANGELOG.md` section as the GitHub release body. The canonical CLI publish is idempotent; `@sma1lboy/kobe` remains frozen at 0.9.64. npm is the sole distribution channel — standalone binaries were dropped 2026-08-02 (nothing consumed them; `packages/rove/scripts/compile.ts` still builds one locally on demand). The same publish job also piggyback-publishes **`@sma1lboy/rove-plugin-sdk`** whenever its independently changeset-versioned version isn't on npm yet, then republishes the identical artifact as the **`@sma1lboy/kobe-plugin-sdk`** compatibility alias. The SDK has no tag of its own; an SDK-only release still rides the next Rove release.
+The push triggers `.github/workflows/release.yml`, which gates on **lint + typecheck + unit tests (fast + socket) + build**, waits on the same **behavior** suite `ci.yml`'s PR gate runs, publishes `@sma1lboy/rove`, and extracts the new `CHANGELOG.md` section as the GitHub release body. The CLI publish is idempotent. npm is the sole distribution channel — standalone binaries were dropped 2026-08-02 (nothing consumed them; `packages/rove/scripts/compile.ts` still builds one locally on demand). The same publish job also piggyback-publishes **`@sma1lboy/rove-plugin-sdk`** whenever its independently changeset-versioned version isn't on npm yet. The SDK has no tag of its own; an SDK-only release still rides the next Rove release.
 
 ## Style rule — no soft wraps inside bullets or paragraphs
 

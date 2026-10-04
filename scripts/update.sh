@@ -1,13 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-# The product is Rove. `@sma1lboy/kobe` is the old package name, still
-# published in lockstep, but this script moves everyone onto the new one:
-# it's fetched fresh over curl on every run, so even a year-old install
-# migrates itself the next time the user updates. Nothing is published
-# solely to shepherd them across (no stub package, no deprecation shim).
 PACKAGE="@sma1lboy/rove"
-LEGACY_PACKAGE="@sma1lboy/kobe"
 
 # Optional argument: `curl … | sh -s -- 0.7.90` installs that exact version,
 # `… | sh -s -- nightly` installs the head of a channel (any npm dist-tag),
@@ -63,7 +57,7 @@ resolve_link() {
 
 # `rove` first: on a migrated install both commands exist, and the newer
 # name is the one whose absence means "not migrated yet".
-BIN="$(command -v rove 2>/dev/null || command -v kobe 2>/dev/null || true)"
+BIN="$(command -v rove 2>/dev/null || true)"
 BEFORE="$("${BIN:-false}" -v 2>/dev/null || true)"
 
 # Update with the same package manager that owns the binary on PATH,
@@ -101,14 +95,6 @@ if [ -n "$PREFIX" ] && [ -d "$PREFIX/lib/node_modules" ]; then
   NPM_PREFIX_ARGS="--prefix $PREFIX"
 fi
 
-# Is the install on PATH still the legacy package? Resolve the symlink and
-# look at which package dir it lands in — `command -v` alone can't tell,
-# since @sma1lboy/kobe ships a `rove` bin too.
-MIGRATING=0
-case "$ENTRY" in
-  */@sma1lboy/rove/*) MIGRATING=1 ;;
-esac
-
 # What the install will actually land on. A bare dist-tag (`nightly`) has to
 # be resolved through the registry: the verify step at the bottom compares
 # the installed `rove -v` against TARGET, and comparing it against the literal
@@ -141,10 +127,7 @@ printf '%b\n' \
   "${DIM}many sessions. one terminal.${RESET}" \
   ""
 
-if [ "$MIGRATING" = "1" ]; then
-  printf '%bkobe is now Rove.%b %s -> %s — same tool, same `kobe` command, new name.\n' \
-    "$BOLD" "$RESET" "$LEGACY_PACKAGE" "$PACKAGE"
-fi
+
 
 # The failure this script exists to prevent is silent: two installs on
 # PATH, and the one you are running is not the one you think. We are about
@@ -159,7 +142,7 @@ IFS=:
 for dir in $PATH; do
   IFS="$saved_ifs"
   [ -n "$dir" ] || dir="."
-  for name in rove kobe; do
+  for name in rove; do
     cand="$dir/$name"
     [ -x "$cand" ] || continue
     real="$(resolve_link "$cand")"
@@ -167,7 +150,7 @@ for dir in $PATH; do
       *" $real "*) continue ;;
     esac
     SEEN="$SEEN $real"
-    # One install owns both a `rove` and a `kobe`. Group by the directory
+    # One install owns both a `rove` and a `rove`. Group by the directory
     # they sit in, so a sibling bin is never reported as a rival install —
     # true whether the bins are symlinks into a package dir or plain files.
     bindir="$(dirname "$cand")"
@@ -201,15 +184,6 @@ fi
 LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
 
-# Both packages own a `kobe` AND a `rove` bin, so installing one over the
-# other dies with EEXIST (verified on npm 11). The legacy package has to go
-# first — and only once we're about to replace it, so a failed install
-# can't leave the user with nothing.
-if [ "$MIGRATING" = "1" ]; then
-  # shellcheck disable=SC2086 # empty-or-two-words, needs splitting
-  "$MANAGER" uninstall -g $NPM_PREFIX_ARGS "$LEGACY_PACKAGE" >>"$LOG" 2>&1 || true
-fi
-
 # npm retires the old package dir to a sibling `.rove-<hash>` before it
 # unpacks the new one, then deletes the retired copy. On Windows that delete
 # cannot finish while a Rove is running: a DLL a process has mapped
@@ -233,7 +207,7 @@ fi
 clear_retired_installs() {
   scope="$1"
   [ -d "$scope" ] || return 0
-  for retired in "$scope"/.rove-* "$scope"/.kobe-*; do
+  for retired in "$scope"/.rove-*; do
     [ -d "$retired" ] || continue
     rm -rf "$retired" 2>/dev/null || true
     [ -d "$retired" ] || continue
@@ -304,18 +278,6 @@ if ! wait "$PID"; then
     printf '%bQuit Rove, run `rove daemon stop`, then retry. Engine sessions live in the PTY host and survive both.%b\n' \
       "$DIM" "$RESET" >&2
   fi
-  # We removed the legacy package to free the bin names, so a failed
-  # install would otherwise leave the user with no kobe at all. Put it
-  # back before giving up.
-  if [ "$MIGRATING" = "1" ]; then
-    printf '%brestoring %s...%b\n' "$DIM" "$LEGACY_PACKAGE" "$RESET" >&2
-    # shellcheck disable=SC2086 # empty-or-two-words, needs splitting
-    if "$MANAGER" install -g $NPM_PREFIX_ARGS "${LEGACY_PACKAGE}@latest" >/dev/null 2>&1; then
-      printf '%brestored — you are back on %s, nothing was lost.%b\n' "$DIM" "$LEGACY_PACKAGE" "$RESET" >&2
-    else
-      printf '%breinstall by hand: %s install -g %s%b\n' "$RED" "$MANAGER" "$LEGACY_PACKAGE" "$RESET" >&2
-    fi
-  fi
   exit 1
 fi
 
@@ -323,7 +285,7 @@ fi
 # entry points at a path that no longer exists.
 hash -r 2>/dev/null || true
 
-AFTER="$(rove -v 2>/dev/null || kobe -v 2>/dev/null || true)"
+AFTER="$(rove -v 2>/dev/null || true)"
 
 if [ -n "$TARGET" ] && [ "${AFTER##* }" != "$TARGET" ]; then
   echo "error: 'rove' on PATH reports '${AFTER:-nothing}' but the target is ${TARGET}." >&2
@@ -333,8 +295,5 @@ if [ -n "$TARGET" ] && [ "${AFTER##* }" != "$TARGET" ]; then
 fi
 
 printf '%b✓ %s -> %s%b\n' "$GREEN" "${BEFORE:-rove (not installed)}" "${AFTER:-unknown}" "$RESET"
-if [ "$MIGRATING" = "1" ]; then
-  printf '%bYou are on %s now. Both `kobe` and `rove` still work — your tasks, worktrees, and settings are untouched.%b\n' \
-    "$DIM" "$PACKAGE" "$RESET"
-fi
+
 printf '%bThanks for using Rove. Happy building.%b\n' "$DIM" "$RESET"

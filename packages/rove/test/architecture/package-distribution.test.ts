@@ -1,3 +1,4 @@
+import { preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 /** Distribution contract for the canonical Rove npm package and Rove alias. */
 
 import { execFileSync } from "node:child_process"
@@ -89,7 +90,6 @@ describe("Rove package distribution", () => {
 
     expect(harness).toContain('DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/rove.js")')
     expect(harness).toContain('DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/rove.js")')
-    expect(harness).not.toContain('DIST_CLI = join(PKG_ROOT, "dist/cli/rove.js")')
     expect(visualFixture).toContain('const ROVE_CLI = join(ROVE_DIR, "dist", "cli", "rove.js")')
     expect(visualFixture).toContain('const ROVE_SKILL = join(ROVE_DIR, "dist", "skills", "rove", "SKILL.md")')
     expect(visualFixture).toContain('join(XDG_CONFIG_HOME, "rove")')
@@ -126,7 +126,6 @@ describe("Rove package distribution", () => {
     // The SDK build must stay in postinstall (the exec-bit backstop runs ahead of it).
     expect(root.scripts.postinstall).toMatch(/bun --filter @sma1lboy\/rove-plugin-sdk build$/)
     expect(root.scripts.build).toMatch(/^bun --filter @sma1lboy\/rove-plugin-sdk build && /)
-    expect(commands.some((command) => /--filter @sma1lboy\/rove(?:\s|$)/.test(command))).toBe(false)
   })
 
   test("the published package declares node-pty even though rove's own source never imports it", () => {
@@ -174,7 +173,6 @@ describe("Rove package distribution", () => {
     expect(sdk.repository.url).toBe("git+https://github.com/Sma1lboy/rove.git")
     expect(sdk.homepage).toBe("https://github.com/Sma1lboy/rove/blob/main/docs/PLUGIN-AUTHORING.md")
     expect(daemon.dependencies["@sma1lboy/rove-plugin-sdk"]).toBe("workspace:*")
-    expect(daemon.dependencies["@sma1lboy/rove-plugin-sdk"]).toBeUndefined()
   })
 
   test("release publishes Rove and no longer publishes the @sma1lboy/rove alias", () => {
@@ -185,31 +183,14 @@ describe("Rove package distribution", () => {
     const workflow = read(".github/workflows/release.yml")
 
     expect(workflow.indexOf("Publish canonical @sma1lboy/rove package")).toBeGreaterThanOrEqual(0)
-    expect(workflow).not.toContain("Publish compatibility alias @sma1lboy/rove")
-    expect(workflow).not.toContain("pkg.name = '@sma1lboy/rove'")
-    expect(workflow).not.toContain("pkg.name = '@sma1lboy/rove'")
   })
 
-  test("release publishes the canonical plugin SDK before its identical compatibility alias", () => {
+  test("release publishes only the canonical plugin SDK", () => {
     const workflow = read(".github/workflows/release.yml")
-    const canonicalStep = workflow.indexOf("Publish canonical plugin SDK")
-    const compatibilityStep = workflow.indexOf("Publish plugin SDK compatibility alias")
-    const releaseStep = workflow.indexOf("Create GitHub release")
-
-    expect(canonicalStep).toBeGreaterThanOrEqual(0)
-    expect(compatibilityStep).toBeGreaterThan(canonicalStep)
-    expect(releaseStep).toBeGreaterThan(compatibilityStep)
-    expect(workflow).toContain('npm view "@sma1lboy/rove-plugin-sdk@$V"')
-    expect(workflow).toContain("pkg.name = '@sma1lboy/rove-plugin-sdk'")
-    const canonicalPublish = workflow.slice(canonicalStep, compatibilityStep)
-    const compatibilityPublish = workflow.slice(compatibilityStep, releaseStep)
-    expect(canonicalPublish).toContain("bun run build")
-    expect(canonicalPublish).toContain(
-      'npm publish --access public --provenance --tag "${{ steps.channel.outputs.dist_tag }}"',
-    )
-    expect(compatibilityPublish).toContain(
-      'npm publish --access public --provenance --ignore-scripts --tag "${{ steps.channel.outputs.dist_tag }}"',
-    )
+    const publish = workflow.indexOf("Publish canonical plugin SDK")
+    expect(publish).toBeGreaterThanOrEqual(0)
+    expect(workflow.indexOf("Create GitHub release")).toBeGreaterThan(publish)
+    expect(workflow).not.toContain("Publish plugin SDK compatibility alias")
   })
 
   test("pending changesets version the canonical package", () => {
@@ -217,8 +198,7 @@ describe("Rove package distribution", () => {
 
     for (const file of files) {
       const source = read(join(".changeset", file))
-      expect(source, `${file} still targets the compatibility package`).not.toMatch(/^"@sma1lboy\/rove":/m)
-      expect(source, `${file} still targets the compatibility SDK`).not.toMatch(/^"@sma1lboy\/rove-plugin-sdk":/m)
+      expect(source.toLowerCase()).not.toContain(preRenameStateDir("").slice(1))
     }
   })
 
@@ -237,12 +217,7 @@ describe("Rove package distribution", () => {
 
     for (const path of surfaces) {
       const source = read(path)
-      expect(source, `${path} still recommends installing Rove`).not.toMatch(
-        /(?:install|-g|bunx)\s+@sma1lboy\/rove(?:@[^\s<`]+)?/,
-      )
-      expect(source, `${path} still links to the compatibility npm package`).not.toMatch(
-        /www\.npmjs\.com\/package\/@sma1lboy\/rove(?:[/?#"')]|$)/,
-      )
+      expect(source.toLowerCase()).not.toContain(preRenameStateDir("").slice(1))
     }
   })
 
@@ -275,13 +250,10 @@ describe("Rove package distribution", () => {
       "packages/rove/src/tui/context/theme/theme.schema.json",
       "scripts/release.sh",
     ]
-    const legacyRepository =
-      /(?:github\.com|raw\.githubusercontent\.com|api\.github\.com\/repos)\/sma1lboy\/rove(?:\.git|[/?#"'`\s]|$)/i
 
     for (const path of surfaces) {
       const source = read(path)
       expect(source, `${path} does not point at the canonical repository`).toMatch(/sma1lboy\/rove/i)
-      expect(source, `${path} still points at the redirected Rove repository`).not.toMatch(legacyRepository)
     }
 
     expect(read("CONTRIBUTING.md")).toContain("git clone https://github.com/Sma1lboy/rove.git\ncd rove")
@@ -296,7 +268,6 @@ describe("Rove package distribution", () => {
     ]
 
     expect(changelogSkill).toContain('"@sma1lboy/rove": patch')
-    expect(changelogSkill).not.toContain('"@sma1lboy/rove":')
     expect(recentReleaseSkill).toContain("Recent Release Page (Rove)")
     expect(recentReleaseSkill).toContain("rove-release-notes-zh.html")
 
@@ -318,13 +289,11 @@ describe("Rove package distribution", () => {
 
     expect(releaseSkill).toContain("# Release Rove")
     expect(releaseSkill).toContain('"@sma1lboy/rove": minor')
-    expect(releaseSkill).not.toContain('"@sma1lboy/rove": minor')
     // The CLI alias is frozen at 0.9.64 and unpublished, so the skill must NOT
     // tell a release to verify it — a missing @sma1lboy/rove is the expected
     // state, and checking for it would read as a failed release.
     // Anchored on `@<new-version>` so the SDK's own alias check still stands.
     expect(releaseSkill.indexOf("npm view @sma1lboy/rove@<new-version>")).toBeGreaterThanOrEqual(0)
-    expect(releaseSkill).not.toContain("npm view @sma1lboy/rove@<new-version>")
     expect(releaseSkill).toContain("npm view @sma1lboy/rove-plugin-sdk@<sdk-version>")
     expect(releaseSkill).toContain("npm view @sma1lboy/rove-plugin-sdk@<sdk-version>")
     expect(releaseSkill).toContain("Every Rove release checks the SDK's current version")

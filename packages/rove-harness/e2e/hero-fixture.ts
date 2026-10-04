@@ -48,12 +48,12 @@ const CLAUDE_COMMAND =
 /**
  * Skill version this build expects, read off the BUILT skill (stamped in
  * lockstep with `ROVE_SKILL_VERSION`). Canonical `rove-` marker with the
- * legacy `kobe-` spelling, matching `parseSkillVersion` in the product.
+ * legacy `rove-` spelling, matching `parseSkillVersion` in the product.
  */
 async function builtSkillVersion(): Promise<string | null> {
   try {
     const skill = await readFile(join(ROVE_DIR, "dist", "skills", "rove", "SKILL.md"), "utf8")
-    return skill.match(/(?:rove|kobe)-skill-version:\s*(\d+)/)?.[1] ?? null
+    return skill.match(/(?:rove|rove)-skill-version:\s*(\d+)/)?.[1] ?? null
   } catch {
     return null
   }

@@ -25,7 +25,7 @@ unix socket — but nothing here serves daemon data to the browser.
 
 ```bash
 bun run dev            # both processes; opens http://localhost:5173/harness
-bun run dev:sandbox    # same, pointed at a throwaway KOBE_HOME_DIR so the task
+bun run dev:sandbox    # same, pointed at a throwaway ROVE_HOME_DIR so the task
                        # index, daemon, and PTY host never touch real state
 ```
 
@@ -41,7 +41,7 @@ bun run visual:shot -- --out=/tmp/shot.png wait:1500    # one screenshot
 bun run visual                                          # the Playwright suite
 ```
 
-Set `KOBE_VISUAL_PORT_BASE` to run an isolated capture stack beside another.
+Set `ROVE_VISUAL_PORT_BASE` to run an isolated capture stack beside another.
 
 ## Test, lint, build
 

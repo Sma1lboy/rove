@@ -36,10 +36,10 @@ describe("deriveConventionBranch", () => {
     expect(deriveConventionBranch("docs update quickstart", typed, ID)).toBe("docs/update-quickstart")
   })
 
-  it("NEVER contains rove/rove brand tokens", () => {
+  it("never contains the brand name", () => {
     for (const style of [typed, bare]) {
       const branch = deriveConventionBranch("rove rove integration for Rove", style, ID)
-      expect(branch).not.toMatch(/rove|rove/)
+      expect(branch).not.toMatch(/rove/)
     }
   })
 

@@ -12,12 +12,12 @@ metadata 注入;没有宿主 repo 时它会先问一句品牌方向和落位,而
 
 目录契约:**所有 producer 的产出先进同一个 temp `.studio/out/`**(gitignored scratch);其中
 brand-video 的产出**按 project 分目录**——每支片子/每类适配一个独立 Remotion 项目
-(`.studio/out/kobe-intro/` 这类)。用户 accept 后才 settle 进 `public/assets/` 并记入 `accepted.yaml`。
+(`.studio/out/rove-intro/` 这类)。用户 accept 后才 settle 进 `public/assets/` 并记入 `accepted.yaml`。
 
 仓库分发:brand-studio 本体是独立 GitHub 仓库,以 submodule 挂在 `.agents/skills/brand-studio`;
 **brand-video 就住在 brand-studio 仓库里**(`skills/brand-studio/producers/brand-video/`,纯
 instruction-grade,Remotion 工具链在宿主 `.studio/out/<name>/` 按项目物化,不违反 studio 的
-no-heavy-toolchain 红线),kobe 侧 `.claude/skills/brand-video` 只是指进 submodule 的 symlink——
+no-heavy-toolchain 红线),rove 侧 `.claude/skills/brand-video` 只是指进 submodule 的 symlink——
 **不变量是 `git clone --recursive` 一次拉全**。
 
 ## 架构:谁管谁
@@ -44,7 +44,7 @@ flowchart TB
     hf["hyperframes ×3 · motion-graphics 等"]
   end
 
-  branding["宿主 theme 源(metadata theme.references)<br/>kobe = packages/branding:colors.ts · quicklook frames.json"]
+  branding["宿主 theme 源(metadata theme.references)<br/>rove = packages/branding:colors.ts · quicklook frames.json"]
 
   user --> studio
   studio --> meta
@@ -81,5 +81,5 @@ flowchart LR
   theme 是 scaffold 时从 `packages/branding/src/colors.ts` 物化拷入的。
 - **scratch 永不自动入库**:没 accept 的产物留在 `.studio/`(gitignored);accept 语义参照
   studio 规则(单候选语境下"这个可以/无敌了"即 accept)。
-- worked example:`.studio/out/kobe-intro/`(本机 scratch)→ `public/assets/video/kobe-intro.mp4`
+- worked example:`.studio/out/rove-intro/`(本机 scratch)→ `public/assets/video/rove-intro.mp4`
   (已 settle,台账见 `public/assets/accepted.yaml`)。

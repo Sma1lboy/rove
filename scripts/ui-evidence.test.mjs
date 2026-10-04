@@ -28,7 +28,7 @@ test('comments, code, local images, duplicate images and missing metadata fail',
   }
 })
 test('all shipped UI roots are covered', () => {
-  for (const root of ['kobe/src/tui', 'kobe/src/tui-react', 'rove-harness/src']) assert.ok(validateUiEvidence([`packages/${root}/component.tsx`], '').length)
+  for (const root of ['rove/src/tui', 'rove/src/tui-react', 'rove-harness/src']) assert.ok(validateUiEvidence([`packages/${root}/component.tsx`], '').length)
 })
 test('reads current body and paginated files, including renames out of UI', async () => {
   let failure = ''

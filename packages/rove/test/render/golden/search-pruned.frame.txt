@@ -1,7 +1,7 @@
 # sidebar frame: search-pruned
 # the query row plus a tree pruned to matches and their ancestors — a hit never floats free
 # 30x22, keys: / bravo
-# GENERATED — do not hand-edit. Regenerate: rove_UPDATE_GOLDEN=1 bun run test:render
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
 | New task                + n  |

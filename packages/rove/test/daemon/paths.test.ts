@@ -9,14 +9,7 @@ import { preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runti
  * production daemon. Same socket = collisions + cross-contamination.
  */
 
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { defaultAttentionInboxPath } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
@@ -230,7 +223,7 @@ describe("live legacy runtime (the rename's one hazard)", () => {
     expect(defaultPtyExitsPath(home)).toBe(join(home, ".rove", "pty-exits.json"))
   })
 
-  test("migrateLegacyPtyHostData moves the exit + freeze stores and links the old paths", () => {
+  test("migrateLegacyPtyHostData moves the exit and freeze stores without recreating the old paths", () => {
     mkdirSync(join(home, `${preRenameStateDir("")}`, "pty-sessions"), { recursive: true })
     writeFileSync(join(home, `${preRenameStateDir("")}`, "pty-sessions", "a.json"), '{"key":"a"}')
     writeFileSync(join(home, `${preRenameStateDir("")}`, "pty-exits.json"), '{"a":{}}')
@@ -241,7 +234,7 @@ describe("live legacy runtime (the rename's one hazard)", () => {
     expect(existsSync(join(preRenameStateDir(home), "pty-sessions"))).toBe(false)
     // Idempotent: a second boot must not move the symlink it just left behind.
     expect(migrateLegacyPtyHostData(home)).toEqual([])
-    expect(readFileSync(join(home, `${preRenameStateDir("")}`, "pty-exits.json"), "utf8")).toBe('{"a":{}}')
+    expect(existsSync(join(preRenameStateDir(home), "pty-exits.json"))).toBe(false)
   })
 
   test("migrateLegacyPtyHostData keeps a canonical entry that already exists", () => {

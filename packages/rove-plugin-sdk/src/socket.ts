@@ -8,7 +8,7 @@ import { type Socket, createConnection } from "node:net"
 import type { DaemonFrame } from "./contract.ts"
 
 export interface RoveSocketOptions {
-  /** Defaults to `process.env.ROVE_SOCKET_PATH`, then `ROVE_SOCKET_PATH`. */
+  /** Defaults to `process.env.ROVE_SOCKET_PATH`. */
   readonly socketPath?: string
 }
 

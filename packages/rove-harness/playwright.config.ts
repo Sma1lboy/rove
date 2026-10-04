@@ -8,7 +8,7 @@ import {
   VISUAL_WEB_PORT,
 } from "./e2e/visual-fixture.ts"
 
-const ROVE_DIR = resolve(import.meta.dirname, "../kobe")
+const ROVE_DIR = resolve(import.meta.dirname, "../rove")
 const visual = process.env.ROVE_VISUAL === "1"
 // Warm iteration mode: reuse a `visual:serve` server pair and keep the
 // fixture alive after the run. Hermetic acceptance keeps strict ownership.

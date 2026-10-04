@@ -91,7 +91,7 @@ host and `rove plugin action invoke`):
 - actions: `ROVE_PLUGIN_ACTION_ID`, `ROVE_PLUGIN_INVOKE_CWD` (where the user
   ran the invoke — "the repo I mean"), extra CLI args appended to argv
 
-Every canonical variable is also injected as a `KOBE_*` compatibility alias.
+Every canonical variable is also injected as a `ROVE_*` compatibility alias.
 Do not store durable state under `ROVE_PLUGIN_ROOT`: GitHub installs are
 managed checkouts, replaced on reinstall.
 
@@ -100,16 +100,16 @@ managed checkouts, replaced on reinstall.
 `rove plugin install owner/repo[/subdir]` (GitHub shorthand only): clone →
 parse manifest → preview commands + confirm (`--yes` to skip, refused
 non-interactively without it) → run `[[build]]` → move under
-`~/.kobe/plugins/<id>/checkout/` → register. `rove plugin link <dir>` for
+`~/.rove/plugins/<id>/checkout/` → register. `rove plugin link <dir>` for
 local authoring (no build; your tree, your build). `uninstall` removes the
 managed checkout but keeps `config/` + `state/`; `unlink` never touches files.
 
-Registry: `~/.kobe/plugins.json`, written only by the CLI. The daemon
+Registry: `~/.rove/plugins.json`, written only by the CLI. The daemon
 (`plugins/runtime.ts`, wired in `daemon/server.ts`) stat-polls it (not
 `fs.watch` — macOS FSEvents can permanently drop writes landing in its async
 startup window), so install/enable/disable apply to a running daemon without
 a restart. Run log:
-`~/.kobe/plugins/<id>/log.jsonl` (`rove plugin log <id>`), stdout/stderr
+`~/.rove/plugins/<id>/log.jsonl` (`rove plugin log <id>`), stdout/stderr
 capped at 8 KB per run.
 
 Trust model: plugins are ordinary code running as you; Rove validates the
@@ -118,7 +118,7 @@ manifest and previews commands but does not sandbox or review.
 ## Marketplace
 
 Zero infrastructure: the canonical GitHub topic is **`rove-plugin`**. Search
-also unions the legacy **`kobe-plugin`** topic, so existing publishers stay listed.
+also unions the legacy **`rove-plugin`** topic, so existing publishers stay listed.
 The landing page (`packages/rove-landing/plugins.html`, rove.run)
 queries GitHub's repo search client-side and lists tagged public repos;
 first-party examples live in [Sma1lboy/rove-plugins](https://github.com/Sma1lboy/rove-plugins) (topic-tagged, so the repo auto-lists) and also seed the list per-plugin. No
@@ -136,7 +136,7 @@ self-closing command tab instead; overlay/popup are tolerated with a warning
 and treated as split. Falls back to a tab when the active tab can't host a
 split (content tab / min-pane-size gate). The pane's cwd is the task
 worktree;
-`$ROVE_PLUGIN_ROOT` (or legacy `$KOBE_PLUGIN_ROOT`) in command elements is expanded by the CLI, and the
+`$ROVE_PLUGIN_ROOT` (or legacy `$ROVE_PLUGIN_ROOT`) in command elements is expanded by the CLI, and the
 plugin env contract rides an `env` prefix inside one `sh -lc` script, so no
 tab/PTY schema knows about plugins. Trust: same boundary as `pty.open` —
 the daemon socket already grants argv execution.

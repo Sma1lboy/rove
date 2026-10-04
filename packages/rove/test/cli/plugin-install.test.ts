@@ -268,7 +268,7 @@ describe("staged install", () => {
     vi.stubEnv("ROVE_HOME_DIR", home)
     mocks.spawn.mockImplementation(() => fakeChild(0))
 
-    await expect(preparePluginInstall("owner/repo")).rejects.toThrow(/no rove-plugin\.toml or rove-plugin\.toml/)
+    await expect(preparePluginInstall("owner/repo")).rejects.toThrow(/no rove-plugin\.toml/)
     expect(readdirSync(pluginsRootDir(home)).filter((e) => e.startsWith(".staging-"))).toEqual([])
   })
 })

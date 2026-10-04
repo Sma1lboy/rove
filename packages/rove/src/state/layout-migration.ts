@@ -234,10 +234,12 @@ function migrateLegacyPluginTree(env: NodeJS.ProcessEnv): StateLayoutMigrationRe
   const roveState = join(home, ROVE_STATE_DIR_BASENAME)
   const marker = join(roveState, PLUGIN_MIGRATION_MARKER)
   try {
-    if (lstatIfExists(marker) || lstatIfExists(join(roveState, "plugins.json"))) {
+    if (lstatIfExists(marker)) {
       return { attempted: false, copied: 0, warnings: [] }
     }
-    if (!lstatIfExists(join(legacyState, "plugins.json"))) return { attempted: false, copied: 0, warnings: [] }
+    if (!lstatIfExists(join(legacyState, "plugins.json")) && !lstatIfExists(join(roveState, "plugins.json"))) {
+      return { attempted: false, copied: 0, warnings: [] }
+    }
   } catch (err) {
     return { attempted: true, copied: 0, warnings: [`plugin migration preflight: ${errorText(err)}`] }
   }

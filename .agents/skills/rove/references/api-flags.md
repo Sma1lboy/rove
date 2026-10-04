@@ -55,9 +55,9 @@ Four flag names that have actually been guessed wrong here, and what they are:
 Seeing one of these in guidance means that guidance predates the rename —
 `rove api schema` is the tiebreak.
 
-`$KOBE_TASK_ID` / `$KOBE_TAB_ID` are NOT retired: they are still exported into
+`$ROVE_TASK_ID` / `$ROVE_TAB_ID` are NOT retired: they are still exported into
 every engine tab as aliases of `$ROVE_TASK_ID` / `$ROVE_TAB_ID`, and parts of
-the daemon still read the `KOBE_` spelling. Write the `ROVE_` names; expect to
+the daemon still read the `ROVE_` spelling. Write the `ROVE_` names; expect to
 see both.
 
 ## read

@@ -132,7 +132,6 @@ describe("install guidance", () => {
     process.env.ROVE_INVOKED_AS = "rove"
     try {
       expect(missingBunMessage(undefined, "linux")).toContain("rove: Rove runs on the Bun runtime")
-      expect(missingBunMessage(undefined, "linux")).not.toContain("rove: Rove")
     } finally {
       // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves the string "undefined").
       if (saved === undefined) delete process.env.ROVE_INVOKED_AS
@@ -149,7 +148,6 @@ describe("canOfferBunInstall", () => {
     expect(canOfferBunInstall({}, { isTTY: false }, tty)).toBe(false)
     expect(canOfferBunInstall({}, tty, { isTTY: false })).toBe(false)
     expect(canOfferBunInstall({ CI: "true" }, tty, tty)).toBe(false)
-    expect(canOfferBunInstall({ ROVE_NO_BUN_BOOTSTRAP: "1" }, tty, tty)).toBe(false)
   })
 })
 

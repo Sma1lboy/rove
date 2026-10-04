@@ -66,18 +66,18 @@ password is stored as a keychain reference, never as a password.
 ## What you see
 
 ```
-kobe                          ← your projects, exactly where they were
+rove                          ← your projects, exactly where they were
   main
   fix/machines
 narwhal · v0.9.185            ← a machine
-  narwhal:kobe                ← its checkout of a repo you also have
+  narwhal:rove                ← its checkout of a repo you also have
     remote probe
 ```
 
-- **Two machines, one repo name.** A repo called `kobe` on both machines shows
-  as `kobe` here and `narwhal:kobe` there. The local one keeps the bare name —
-  it is the one you are sitting at. Two checkouts of `kobe` on the *same*
-  machine take the path instead (`gihub/kobe`, `i/kobe`): there the machine
+- **Two machines, one repo name.** A repo called `rove` on both machines shows
+  as `rove` here and `narwhal:rove` there. The local one keeps the bare name —
+  it is the one you are sitting at. Two checkouts of `rove` on the *same*
+  machine take the path instead (`gihub/rove`, `i/rove`): there the machine
   name would say nothing.
 - **Offline machines keep their rows.** A laptop whose lid closed has not
   stopped having those tasks, so the row stays and greys out instead of

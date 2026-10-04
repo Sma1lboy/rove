@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The published `rove` / `rove` bin. `bun install -g` runs it under Bun;
+ * The published `rove` bin. `bun install -g` runs it under Bun;
  * `npm install -g` / `npx` under node. Under Bun it imports the real entry;
  * under node it re-execs through a Bun it finds, or offers to install one.
  *
@@ -8,7 +8,7 @@
  * (`bun-runtime.ts`): too old a Bun gives terminals that silently never paint,
  * and no package manager checks `engines`.
  *
- * Built `target: "node"` to `dist/cli/{rove,rove}.js`, fronting
+ * Built `target: "node"` to `dist/cli/rove.js`, fronting
  * `<name>-run.js`. It must never import Bun-only code at load time.
  */
 

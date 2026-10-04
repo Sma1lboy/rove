@@ -91,7 +91,7 @@ repo /Users/j/rove · 4 tasks · 1 in the inbox
 inbox (1 unhandled):
   permission_needed  4KN2SM
 field notes (2, newest first):
-  #7 test/daemon needs KOBE_INCLUDE_SOCKET=1 or it silently skips
+  #7 test/daemon needs ROVE_INCLUDE_SOCKET=1 or it silently skips
 ```
 
 The rows are sorted so the **first line is what needs you next**, and the

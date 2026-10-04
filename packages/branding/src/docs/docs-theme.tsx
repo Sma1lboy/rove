@@ -1,4 +1,4 @@
-// Docs illustration theme — the kobe-landing warm-paper palette
+// Docs illustration theme — the rove-landing warm-paper palette
 // (packages/rove-landing/tokens.css), flat hairlines, JetBrains Mono only.
 // Used by the Docs*.tsx still compositions rendered into ../../docs/assets/.
 

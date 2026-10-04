@@ -37,7 +37,7 @@ bun run deploy:preview   # preview URL
 
 The custom domain `rove.run` is a CNAME → Vercel's DNS
 (`*.vercel-dns-016.com`), managed in Cloudflare (zone `sma1lboy.me`). The old
-`kobe.sma1lboy.me` domain is kept as a Vercel-level 301 redirect to
+`rove.sma1lboy.me` domain is kept as a Vercel-level 301 redirect to
 `rove.run`.
 
 ### Why `vercel.json` pins `ignoreCommand: "exit 1"`

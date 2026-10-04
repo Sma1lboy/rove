@@ -5,7 +5,7 @@
 
 ## Context
 
-`kobe web` used to reach daemon state through a standalone `kobe-web/server`
+`rove web` used to reach daemon state through a standalone `rove-web/server`
 bridge. The browser talked HTTP/SSE to the bridge, and the bridge talked
 JSON-lines to the daemon socket. That shape was useful while the dashboard was
 moving fast: web route code could hot-restart without touching the daemon, and
@@ -22,12 +22,12 @@ HTTP/SSE seam.
 
 The daemon is the owner of the local web transport. Browser and desktop front
 ends talk directly to a daemon-hosted loopback HTTP/SSE interface for
-daemon-backed data and mutations. The `kobe-web/server` bridge is not a product
+daemon-backed data and mutations. The `rove-web/server` bridge is not a product
 seam.
 
 The target shape is:
 
-- `kobe daemon` exposes local HTTP RPC plus event streaming for the same
+- `rove daemon` exposes local HTTP RPC plus event streaming for the same
   daemon-owned channels and mutations it already owns on the socket protocol.
 - The web SPA and desktop shell use that daemon interface directly.
 - Vite remains a dev-only static asset/HMR host and may proxy to the daemon in

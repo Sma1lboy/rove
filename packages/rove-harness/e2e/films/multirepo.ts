@@ -158,7 +158,7 @@ async function setup(): Promise<void> {
   await writeFixtureWebToken(HERO_HOME)
   const { version } = JSON.parse(await readFile(join(ROVE_DIR, "package.json"), "utf8"))
   const skill = await readFile(join(ROVE_DIR, "dist", "skills", "rove", "SKILL.md"), "utf8").catch(() => "")
-  const skillVersion = skill.match(/(?:rove|kobe)-skill-version:\s*(\d+)/)?.[1]
+  const skillVersion = skill.match(/(?:rove|rove)-skill-version:\s*(\d+)/)?.[1]
   const state: Record<string, unknown> = {
     "app.lastRunVersion": version,
     onboarded: true,

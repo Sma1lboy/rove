@@ -1,13 +1,12 @@
 /**
- * Call back into Rove through `$ROVE_BIN_PATH` (with `$ROVE_BIN_PATH` as a
- * compatibility fallback). `rove()` is the raw runner; named helpers wrap
+ * Call back into Rove through `$ROVE_BIN_PATH`. `rove()` is the raw runner; named helpers wrap
  * Rove API verbs (full list: `rove api help` / `rove api schema`).
  */
 
 import { execFile } from "node:child_process"
 
 export interface RoveRunOptions {
-  /** Defaults to `process.env.ROVE_BIN_PATH`, then `ROVE_BIN_PATH`. */
+  /** Defaults to `process.env.ROVE_BIN_PATH`. */
   readonly binPath?: string
   readonly cwd?: string
   /** Extra env merged over the inherited environment. */

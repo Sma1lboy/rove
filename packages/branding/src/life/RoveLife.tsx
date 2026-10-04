@@ -7,7 +7,7 @@ import { DRAW, LIFE, partStart, RELETTER, RENAME_PART } from "./timeline"
 
 // "Rove draws its own life": one drafting sheet, inked part by part from the
 // first commit (2026-05-08) to today. No images — every mark is a polyline from
-// ./pen. Palette and lettering follow the rove.run sheet (kobe-landing/blueprint.css):
+// ./pen. Palette and lettering follow the rove.run sheet (rove-landing/blueprint.css):
 // one ink on one ground, terracotta only on revision marks and the part being drawn.
 // The drawing field is a viewport (./camera) that pulls back as the system grows;
 // the revision table, timeline and title block are the sheet itself and never move.

@@ -1,7 +1,6 @@
 import { preRenameConfigDir, preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 /**
- * Every production env/runtime flag read goes through here: `ROVE_*` first,
- * falling back to the `ROVE_*` alias. Test-only vars (`ROVE_TEST_ENGINE`,
+ * Production env/runtime flags use `ROVE_*`. Test-only vars (`ROVE_TEST_ENGINE`,
  * `ROVE_TEST_FAKE_PORT`, per-pane `ROVE_*_HOST` fixtures) stay at their use
  * sites.
  *
@@ -19,7 +18,7 @@ import {
 import { ROVE_STATE_DIR_BASENAME } from "./product.ts"
 
 /**
- * `ROVE_DEV=1` / `ROVE_DEV=1` — running from a developer checkout. Suppresses
+ * `ROVE_DEV=1` — running from a developer checkout. Suppresses
  * the npm "↑ vX.Y.Z available" chip; the installed CLI never sets it.
  */
 export function isDev(): boolean {
@@ -27,7 +26,7 @@ export function isDev(): boolean {
 }
 
 /**
- * `ROVE_HOME_DIR` / `ROVE_HOME_DIR` — overrides `os.homedir()` for everything
+ * `ROVE_HOME_DIR` — overrides `os.homedir()` for everything
  * Rove persists; tests point it at a temp dir.
  */
 export function homeDir(): string {

@@ -45,27 +45,10 @@ const STALE_CLAIMS: Array<[path: string, phrases: string[]]> = [
   ["docs/design/remote-projects.md", ["phases 1–6 done"]],
 ]
 
-/** Rename leaks on active harness/web/CI surfaces, scoped to definite stale copy. */
-const STALE_RENAME_COPY: Array<[path: string, phrases: string[]]> = [
-  ["packages/rove-harness/index.html", ["<title>rove-harness</title>"]],
-  ["packages/rove-harness/pty-server.mjs", ["rove pty-server listening"]],
-  ["packages/rove/scripts/check-preview-deps.ts", ["rove — preview-pane system dependencies"]],
-  [
-    "packages/rove-harness/e2e/visual-fixture.ts",
-    ["./src/cli/rove.ts", 'join(XDG_CONFIG_HOME, "rove")', '"skills", "rove", "SKILL.md"', "/rove-skill-version:"],
-  ],
-  ["packages/rove-harness/e2e/hero-fixture.ts", ['join(HERO_CONFIG, "rove")']],
-]
-
 describe("active product copy", () => {
   test.each(STALE_CLAIMS)("%s makes no retired claim", (path, phrases) => {
     const source = read(path)
     for (const stale of phrases) expect(source, `${path} still claims "${stale}"`).not.toContain(stale)
-  })
-
-  test.each(STALE_RENAME_COPY)("%s makes no active Rove-first claim", (path, phrases) => {
-    const source = read(path)
-    for (const stale of phrases) expect(source, `${path} still contains ${stale}`).not.toContain(stale)
   })
 
   test("current product pages do not publish pre-Rove terminal recordings", () => {

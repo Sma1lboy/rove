@@ -30,7 +30,6 @@ export function roveCliInvocation(): string[] {
  * found" on every fire), so prefer the packaged `rove` on PATH even in dev.
  */
 export function roveHookInvocation(): string[] {
-  // `rove`, not `rove`: guaranteed on PATH throughout rename phase 1.
   if (import.meta.url.endsWith(".js")) return [ROVE_PRODUCT_NAME]
   if (Bun.which(ROVE_PRODUCT_NAME)) return [ROVE_PRODUCT_NAME]
   return roveCliInvocation()

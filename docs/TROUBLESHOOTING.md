@@ -6,7 +6,7 @@ One section per symptom; keep entries short and command-exact.
 ## `rove` exits with "no Bun was found" (or `env: bun: No such file or directory`)
 
 The Rove CLI runs on the [Bun](https://bun.sh) runtime. The published `rove` and
-`kobe` bins are node launchers that re-exec through Bun, so an `npm install -g`
+`rove` bins are node launchers that re-exec through Bun, so an `npm install -g`
 or `npx` on a machine without Bun still works; the first launch offers to
 install Bun for you. You land on this error when that offer could not be made
 (no TTY, `CI=true`, or `ROVE_NO_BUN_BOOTSTRAP=1`) or was declined.
@@ -320,7 +320,7 @@ the task entry remain, and the task is left in `deletion.phase === "error"`
 reason names — a common one is a worktree directory that is no longer a git
 worktree, which `git -C <path> rev-parse --is-inside-work-tree` confirms.
 
-(Installs upgraded from pre-0.8.189 builds may still have a `~/.kobe/`
+(Installs upgraded from pre-0.8.189 builds may still have a `~/.rove/`
 directory; runtime files now live under `~/.rove`, with legacy paths honoured
 only while a process started before the move is still alive.)
 
@@ -383,7 +383,7 @@ and prevents the foreign task list from blanking or replacing the real one.
 Check the overrides in the shell that started the unexpected daemon:
 
 ```bash
-env | grep -E '^(ROVE|KOBE)_(HOME_DIR|DAEMON_SOCKET_PATH)='
+env | grep -E '^(ROVE|ROVE)_(HOME_DIR|DAEMON_SOCKET_PATH)='
 rove doctor
 ```
 
@@ -392,8 +392,8 @@ before starting the intended instance:
 
 ```bash
 rove daemon stop
-unset ROVE_DAEMON_SOCKET_PATH KOBE_DAEMON_SOCKET_PATH
-unset ROVE_HOME_DIR KOBE_HOME_DIR
+unset ROVE_DAEMON_SOCKET_PATH ROVE_DAEMON_SOCKET_PATH
+unset ROVE_HOME_DIR ROVE_HOME_DIR
 rove daemon restart
 ```
 
@@ -546,12 +546,12 @@ Upgrading and re-running `set-branch` converges the record.
 
 ## Two daemons, or engine tabs split across hosts, after an upgrade
 
-Rove 0.8.189 moved runtime files (sockets, pidfiles, logs) from `~/.kobe` to
+Rove 0.8.189 moved runtime files (sockets, pidfiles, logs) from `~/.rove` to
 `~/.rove`. A binary predating the move looks only at the legacy paths; if it
 cannot see the new daemon it starts a second one on the same task index, or a
 second PTY host that splits your engine tabs. Current versions leave symlinks
 at the legacy paths after binding, so mixed-version installs find the same
-daemon — you only hit the split if an old global install (`kobe` from npm,
+daemon — you only hit the split if an old global install (`rove` from npm,
 an old Homebrew bin) is still being launched somewhere.
 
 ```bash
@@ -560,7 +560,7 @@ rove doctor           # reports version mismatches between the CLI and the daemo
 rove daemon restart   # rebinds on the canonical ~/.rove paths
 ```
 
-Then update or remove the stale install so both `rove` and `kobe` resolve to
+Then update or remove the stale install so both `rove` and `rove` resolve to
 the same current binary.
 
 ## A plugin installs cleanly, but Rove never loads it
@@ -699,13 +699,13 @@ it restarts: `rove reset`, or closing every session so the host exits when idle.
 
 rove 0.8 replaced the old tmux runtime with the PureTUI + Hosted PTY backend,
 but upgrading the package does not stop sessions that a pre-0.8 build already
-left running. Those old `tmux -L kobe` sessions keep their `bun` / engine
+left running. Those old `tmux -L rove` sessions keep their `bun` / engine
 process groups resident, so memory can look unchanged after the upgrade.
 
 `rove doctor` now reports them:
 
 ```
-legacy tmux: ⚠ tmux 3.5a — 2 pre-v0.8 session(s) on `kobe`
+legacy tmux: ⚠ tmux 3.5a — 2 pre-v0.8 session(s) on `rove`
              20 process(es) across 8 pane(s), 1008.5 MB RSS total
              → run `rove reset` to stop this retired runtime safely
 ```

@@ -30,7 +30,7 @@ import { getPersistedString, setPersistedString } from "../state/repos.ts"
  * `test/architecture/skill-version-bump.test.ts` fails any content change
  * that skips the bump.
  */
-export const ROVE_SKILL_VERSION = 53
+export const ROVE_SKILL_VERSION = 54
 
 /**
  * Where an installed skill can be found, relative to a home/project root —
@@ -42,8 +42,7 @@ export const ROVE_SKILL_VERSION = 53
  * skills installed by older rove versions.
  */
 const ROVE_SKILL_REL_PATHS = [".agents/skills/rove/SKILL.md", ".claude/skills/rove/SKILL.md"] as const
-const LEGACY_SKILL_REL_PATHS = [".agents/skills/rove/SKILL.md", ".claude/skills/rove/SKILL.md"] as const
-const SKILL_REL_PATHS = [...ROVE_SKILL_REL_PATHS, ...LEGACY_SKILL_REL_PATHS] as const
+const SKILL_REL_PATHS = ROVE_SKILL_REL_PATHS
 
 /** The invoked wrapper command a user runs. Shown in hints / doctor. */
 export function skillInstallCommand(env: NodeJS.ProcessEnv = process.env): string {
@@ -167,7 +166,7 @@ export function roveSkillPaths(opts: { home?: string; cwd?: string } = {}): stri
 
 /** Parse the canonical marker or an installed legacy marker. */
 export function parseSkillVersion(content: string): number | null {
-  const m = content.match(/(?:rove|rove)-skill-version:\s*(\d+)/)
+  const m = content.match(/rove-skill-version:\s*(\d+)/)
   return m ? Number.parseInt(m[1], 10) : null
 }
 
@@ -179,20 +178,8 @@ export interface SkillState {
   readonly currentVersion: number
   /** Installed, stamped, and behind the binary → re-install recommended. */
   readonly stale: boolean
-  /**
-   * `rove`-named copies beside the reported install. Agents load every skill
-   * dir they find, so one keeps teaching an old `rove api` surface however
-   * current the `rove` copy is.
-   */
-  readonly legacyCopies: readonly SkillCopy[]
   /** Where the reported copy lives (null when nothing is installed). */
   readonly path: string | null
-}
-
-/** One skill file on disk: where it is and which marker version it carries. */
-interface SkillCopy {
-  readonly path: string
-  readonly version: number | null
 }
 
 /** Marker version of a skill file, or null when absent/unreadable/unstamped. */
@@ -247,20 +234,13 @@ export function roveSkillState(opts: { home?: string; cwd?: string } = {}): Skil
     path,
     version: skillVersionAt(path),
   }))
-  const legacy = distinctSkillFiles(roots, LEGACY_SKILL_REL_PATHS).map((path) => ({
-    path,
-    version: skillVersionAt(path),
-  }))
-  // Highest-version canonical copy, so a stale duplicate can't make a current
-  // install look out of date; a legacy-only install still reports installed.
-  const best = [...roveCopies].sort((a, b) => (b.version ?? -1) - (a.version ?? -1))[0] ?? legacy[0]
+  const best = [...roveCopies].sort((a, b) => (b.version ?? -1) - (a.version ?? -1))[0]
   if (!best) {
     return {
       installed: false,
       installedVersion: null,
       currentVersion: ROVE_SKILL_VERSION,
       stale: false,
-      legacyCopies: [],
       path: null,
     }
   }
@@ -270,7 +250,6 @@ export function roveSkillState(opts: { home?: string; cwd?: string } = {}): Skil
     installedVersion: best.version,
     currentVersion: ROVE_SKILL_VERSION,
     stale,
-    legacyCopies: legacy.filter((copy) => copy.path !== best.path),
     path: best.path,
   }
 }
@@ -288,11 +267,6 @@ export function installedSkillDiffersFromBundled(installedPath: string): boolean
   } catch {
     return false
   }
-}
-
-/** "…/skills/rove/SKILL.md (v30)", joined — what a user has to go delete. */
-function describeLegacyCopies(copies: readonly SkillCopy[]): string {
-  return copies.map((c) => `${c.path}${c.version === null ? "" : ` (v${c.version})`}`).join(", ")
 }
 
 /** Test seams for the startup prompt (presence of `ask` marks the session interactive). */
@@ -341,20 +315,7 @@ export async function maybeHintSkillInstall(io: SkillHintIO = {}): Promise<void>
     return
   }
   const key = `${HINT_SEEN_KEY}:v${state.currentVersion}`
-  const duplicates = state.legacyCopies
-  // A leftover `rove` copy: same one-per-version gate, no prompt — nothing to
-  // install, only something to delete.
-  if (!state.stale) {
-    if (duplicates.length === 0) return
-    if (getPersistedString(key) === "1") return
-    setPersistedString(key, "1")
-    process.stderr.write(
-      `\n${cliName}: your Rove agent skill is current, but a stale duplicate is still installed:\n  ${describeLegacyCopies(
-        duplicates,
-      )}\n  Remove that directory — your agent loads both.\n\n`,
-    )
-    return
-  }
+  if (!state.stale) return
 
   if (getPersistedString(key) === "1") return
   const was = state.installedVersion === null ? "an older version" : `v${state.installedVersion}`

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Prevent Kobe's embedded terminals from advertising the outer terminal emulator's identity to child applications.
+**Goal:** Prevent Rove's embedded terminals from advertising the outer terminal emulator's identity to child applications.
 
 **Architecture:** Add one package-level pure environment builder in `@sma1lboy/rove-daemon` that removes `TERM_PROGRAM` and `TERM_PROGRAM_VERSION` while preserving all capability variables and explicit PTY overrides. Reuse it from the daemon-hosted PTY, Bun PTY, pipe fallback, and web PTY sidecar; keep the web sidecar's existing `NO_COLOR`/`CLICOLOR` policy in a small wrapper.
 
@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Do not modify user Neovim, shell, or global terminal configuration.
-- Remove only `TERM_PROGRAM` and `TERM_PROGRAM_VERSION`; retain `TERM`, `COLORTERM`, and Kobe's PTY marker variables.
+- Remove only `TERM_PROGRAM` and `TERM_PROGRAM_VERSION`; retain `TERM`, `COLORTERM`, and Rove's PTY marker variables.
 - Apply the policy at every embedded PTY spawn boundary: hosted, Bun fallback, pipe fallback, and web.
 - Preserve the in-progress terminal-palette work already present in the working tree.
 - Add no dependency and keep every touched source file below 500 lines.
@@ -49,12 +49,12 @@ describe("embeddedTerminalEnv", () => {
       COLORTERM: "truecolor",
       HOME: "/home/test",
     }
-    const result = embeddedTerminalEnv(base, { KOBE_TERMINAL_PTY: "1" })
+    const result = embeddedTerminalEnv(base, { ROVE_TERMINAL_PTY: "1" })
     expect(result).toEqual({
       TERM: "xterm-256color",
       COLORTERM: "truecolor",
       HOME: "/home/test",
-      KOBE_TERMINAL_PTY: "1",
+      ROVE_TERMINAL_PTY: "1",
     })
     expect(base.TERM_PROGRAM).toBe("iTerm.app")
   })
@@ -100,7 +100,7 @@ Run the same focused Vitest command. Expected: PASS.
 
 **Interfaces:**
 - Consumes: `embeddedTerminalEnv` from Task 1.
-- Preserves: each backend's existing `TERM`, geometry, shell-warning, and Kobe marker overrides.
+- Preserves: each backend's existing `TERM`, geometry, shell-warning, and Rove marker overrides.
 
 - [x] **Step 1: Add failing real-child environment tests**
 
@@ -127,13 +127,13 @@ embeddedTerminalEnv(process.env, {
   COLUMNS: String(this.cols),
   LINES: String(this.rows),
   BASH_SILENCE_DEPRECATION_WARNING: "1",
-  KOBE_TERMINAL_PTY: "1",
+  ROVE_TERMINAL_PTY: "1",
 })
 ```
 
 The daemon-hosted and Bun blocks use the four overrides above. The pipe block
 uses `TERM: process.env.TERM ?? "xterm-256color"`, its current `COLUMNS` and
-`LINES`, and `KOBE_TERMINAL_PIPE: "1"`.
+`LINES`, and `ROVE_TERMINAL_PIPE: "1"`.
 
 - [x] **Step 4: Run render tests and verify GREEN**
 
@@ -186,7 +186,7 @@ Run the same focused Vitest command. Expected: PASS.
 
 ```md
 ---
-"@sma1lboy/kobe": patch
+"@sma1lboy/rove": patch
 ---
 
 Embedded terminals no longer leak the outer emulator's identity to child applications, preventing terminal-specific escape sequences from being selected for the wrong parser.
@@ -197,10 +197,10 @@ Embedded terminals no longer leak the outer emulator's identity to child applica
 ```bash
 cd packages/rove && bun test test/render/pty-host.test.ts test/render/pty-local-env.test.ts
 cd packages/rove && bunx vitest run test/lib/embedded-terminal-env.test.ts
-bun --filter @sma1lboy/kobe typecheck
+bun --filter @sma1lboy/rove typecheck
 bun --filter @sma1lboy/rove-daemon typecheck
 cd packages/rove-web && bunx vitest run test/pty-env.test.ts
-bun --filter kobe-web build
+bun --filter rove-web build
 ```
 
 Expected: every command exits 0 without new warnings.
@@ -210,7 +210,7 @@ Expected: every command exits 0 without new warnings.
 ```bash
 git diff --check
 bunx biome check packages/rove-daemon/src/daemon/pty-env.js packages/rove-daemon/src/daemon/pty-env.d.ts packages/rove-daemon/src/daemon/pty-host.ts packages/rove/src/tui/panes/terminal/pty.ts packages/rove/src/tui/panes/terminal/pty-pipe.ts packages/rove-web/pty-env.mjs packages/rove-web/pty-server.mjs packages/rove/test/lib/embedded-terminal-env.test.ts packages/rove/test/render/pty-host.test.ts packages/rove/test/render/pty-local-env.test.ts packages/rove-web/test/pty-env.test.ts
-kobe daemon restart
+rove daemon restart
 ```
 
 - [x] **Step 4: Commit only this stream's hunks**

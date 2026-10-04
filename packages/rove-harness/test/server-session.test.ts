@@ -43,7 +43,7 @@ function link(): DaemonRpcClient {
         return {
           task: {
             id: (payload as { taskId: string }).taskId,
-            repo: "/repo/kobe",
+            repo: "/repo/rove",
             vendor: "claude",
             worktreePath: "",
           },
@@ -64,7 +64,7 @@ describe("web session launch init", () => {
     await ensureTaskSessionAdapter(link(), "task-1")
 
     expect(resolveEngineLaunchInitMock).toHaveBeenCalledWith(
-      "/repo/kobe",
+      "/repo/rove",
       "/worktrees/story",
       { kind: "repo-init" },
     )

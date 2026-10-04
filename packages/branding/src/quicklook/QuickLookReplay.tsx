@@ -10,7 +10,7 @@ import capture from "./frames.json"
 import replaySpecJson from "./quicklook.replay.json"
 import { assertRenderableCapture, resolveReplaySpec, type Region } from "./replay-spec"
 
-// Replays a captured kobe TUI session (scripts/capture-tui.ts output) as the
+// Replays a captured rove TUI session (scripts/capture-tui.ts output) as the
 // landing-page quicklook video. UI iterates -> re-run capture -> re-render;
 // no manual screen recording.
 

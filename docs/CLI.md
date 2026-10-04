@@ -1,6 +1,6 @@
 # CLI reference
 
-Everything the `rove` and `kobe` binaries do. The scriptable surface for agents and
+Everything the `rove` binary does. The scriptable surface for agents and
 scripts has its own page: [`rove api`](./API.md).
 
 Two things stay authoritative if this page and the binary ever disagree:
@@ -19,7 +19,7 @@ bun install -g @sma1lboy/rove                         # bun
 npx @sma1lboy/rove                                    # try without installing
 ```
 
-The `rove` and `kobe` bins are small launchers: they run the CLI directly when
+The `rove` bin is a small launcher: it runs the CLI directly when
 started by Bun, and find (or offer to install) a Bun when started by node,
 which is what `npm install -g` and `npx` do. Two environment variables steer
 that: `ROVE_BUN` names the Bun binary to use, `ROVE_NO_BUN_BOOTSTRAP=1` turns a
@@ -28,12 +28,8 @@ package's `engines.bun` floor (1.3.11) is refused with the upgrade command for
 it, since Rove's terminals need Bun's PTY API and produce nothing at all
 without it; `ROVE_SKIP_BUN_CHECK=1` overrides that at your own risk.
 
-The installed package exposes both `rove` and `kobe`. `rove` is the canonical
-entry point; `kobe` remains a fully supported compatibility alias. They run the
-same commands against the same daemon, worktrees, and persisted state. This
-rename uses `~/.rove` and `~/.config/rove/state.json` for canonical product
-data. First launch migrates supported legacy data from `~/.kobe` (see
-[Where state lives](#where-state-lives)).
+The installed package exposes only `rove`. Product data lives under `~/.rove`
+and `~/.config/rove/state.json`.
 
 ```bash
 rove update            # newest build on your channel
@@ -196,7 +192,7 @@ rove completions zsh --path             # print the shipped script's path
 ```
 
 The script is a build-time constant, so the package ships it:
-`dist/completions/<rove|kobe>.<shell>`. `--path` prints that file's path and
+`dist/completions/rove.<shell>`. `--path` prints that file's path and
 `--install` writes `source "<path>"` into your shell config, which a new shell
 reads with no process at all — unlike `source <(rove completions zsh)`, which
 starts the CLI (node launcher → bun, ≈0.3s) on every new shell just to print
@@ -267,8 +263,7 @@ rove repo unset [path] [--init-script] [--init-prompt]
 ```
 
 Sets a per-user init override for a repo. If the repo commits its own
-`.rove/init.sh` / `.rove/init-prompt.md`, those win. Legacy `.kobe` files are
-field-by-field fallbacks. Path defaults to the current directory. `unset` with
+`.rove/init.sh` / `.rove/init-prompt.md`, those win. Path defaults to the current directory. `unset` with
 no flag clears both.
 
 ## skill
@@ -321,8 +316,7 @@ rove plugin pane open --plugin <id> --entrypoint <pane-id>   # equivalent form
 
 Changes apply to a running daemon without a restart. Writing one:
 [Plugin authoring](./PLUGIN-AUTHORING.md). Marketplace:
-<https://github.com/topics/rove-plugin>. Repositories carrying the legacy
-`kobe-plugin` topic remain included.
+<https://github.com/topics/rove-plugin>.
 
 ## doctor
 
@@ -460,10 +454,7 @@ without a daemon, use `rove export --json`.
 
 ## Environment variables
 
-`ROVE_*` is the canonical spelling. Every one of these also accepts the
-established `KOBE_*` name as a compatibility alias, and `ROVE_*` wins when both
-are set: `ROVE_HOME_DIR` beats `KOBE_HOME_DIR`, `ROVE_OPEN_EDITOR` beats
-`KOBE_OPEN_EDITOR`, and so on for the whole table.
+Only the `ROVE_*` environment namespace is supported.
 
 | Variable | What it does |
 |---|---|
@@ -478,32 +469,22 @@ are set: `ROVE_HOME_DIR` beats `KOBE_HOME_DIR`, `ROVE_OPEN_EDITOR` beats
 | `ROVE_DAEMON_IDLE_GRACE_MS` | Grace before a daemon with no attached GUI stops itself (default 3000ms) |
 | `ROVE_HOOK_DEBUG=1` | Print engine-hook failures to stderr instead of swallowing them |
 
-The `KOBE_*` aliases stay fully supported: engine hooks and older automation
-keep reading `KOBE_TASK_ID` / `KOBE_TAB_ID`, which Rove exports beside the
-canonical names.
+
 
 `ROVE_OPEN_EDITOR` wins over Rove's auto-detection, and it's separate from the
 `editor.*` settings, which pick your TTY editor.
 
 ## Where state lives
 
-Canonical product data under `~/.rove/` (or `ROVE_HOME_DIR`, with
-`KOBE_HOME_DIR` as fallback):
+Product data lives under `~/.rove/`, or beneath the home selected by `ROVE_HOME_DIR`:
 
 - `tasks.json`: the task index
-- `worktrees/<repo-key>/<task-slug>/`: per-task worktrees (unless relocated by
-  Settings → General → Worktree location)
+- `worktrees/<repo-key>/<task-slug>/`: managed worktrees
 - `themes/`, `settings/keybindings.yaml`, issues, notes, and automations
+- daemon and PTY sockets, pid files, logs, and plugin data
 
-Plus `~/.config/rove/state.json`, the settings file `rove config` or
-`kobe config` opens. Existing `~/.kobe/worktrees` paths remain recognized and
-are never copied or rewritten. Daemon/PTY runtime files (sockets, pidfiles,
-logs) and the plugin tree are canonical under `~/.rove/`; a legacy `~/.kobe`
-path is honoured only while a pre-rename daemon, PTY host, or plugin registry
-is still live, and after binding on the new paths Rove leaves symlinks at the
-old ones so older binaries still find the running daemon. The first launch
-copies supported legacy state additively and never overwrites canonical files
-— except the plugin tree (`plugins.json`, `plugins/<id>/`) and the PTY host's
-own data (`pty-exits.json`, `pty-sessions/`), which are *moved* with a
-compatibility symlink left behind: the host moves its two at its next start. Daemon-owned stores are copied at
-new-daemon startup, only after the legacy writer has stopped.
+Settings live in `~/.config/rove/state.json`. New hosts create only canonical
+runtime names. Until the next minor release, clients can reattach to a live
+pre-rename host after the canonical connection fails. The old host retains its
+boot-time code and endpoint until it exits or you run `rove reset`.
+State migration never overwrites canonical data or creates legacy links.

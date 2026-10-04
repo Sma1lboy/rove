@@ -1,6 +1,5 @@
 /**
- * `rove plugin`. A plugin is a dir with `rove-plugin.toml` (legacy
- * `rove-plugin.toml` accepted). Owns `~/.rove/plugins.json`, which the
+ * `rove plugin`. A plugin is a dir with `rove-plugin.toml`. Owns `~/.rove/plugins.json`, which the
  * daemon's PluginHost watches, so changes apply without a restart.
  */
 
@@ -54,7 +53,7 @@ function printUsage(out: NodeJS.WriteStream): void {
       "  pane open <plugin-id.pane-id> [--task <task-id>]      open a plugin pane as a terminal tab (JSON:",
       "                                                        clients — 0 = no attached UI performed the split)",
       "",
-      "Marketplace: https://github.com/topics/rove-plugin (legacy rove-plugin is included)",
+      "Marketplace: https://github.com/topics/rove-plugin",
       "",
     ].join("\n"),
   )

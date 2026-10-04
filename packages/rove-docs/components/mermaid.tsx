@@ -5,7 +5,7 @@ import { use, useEffect, useId, useState } from 'react';
 
 /**
  * Renders ```mermaid fences client-side (static-export safe).
- * Brand palette mirrored from app/global.css so diagrams read as kobe
+ * Brand palette mirrored from app/global.css so diagrams read as rove
  * in both themes: warm paper, bone/graphite ink, terracotta accents.
  */
 export function Mermaid({ chart }: { chart: string }) {

@@ -207,7 +207,7 @@ var ROVE_I18N = (function () {
   var lang = 'en';
   try {
     var fromUrl = new URLSearchParams(location.search).get('lang');
-    var stored = localStorage.getItem('kobe_lang');
+    var stored = localStorage.getItem('rove_lang');
     var nav = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
     lang = fromUrl === 'zh' || fromUrl === 'en' ? fromUrl : stored === 'zh' || stored === 'en' ? stored : nav;
   } catch (e) {}
@@ -242,7 +242,7 @@ var ROVE_I18N = (function () {
   if (toggleBtn) {
     toggleBtn.addEventListener('click', function () {
       lang = lang === 'zh' ? 'en' : 'zh';
-      try { localStorage.setItem('kobe_lang', lang); } catch (e) {}
+      try { localStorage.setItem('rove_lang', lang); } catch (e) {}
       apply();
     });
   }
@@ -258,7 +258,7 @@ var ROVE_I18N = (function () {
   function render(n) {
     el.textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n);
   }
-  var CACHE_KEY = 'kobe_stars';
+  var CACHE_KEY = 'rove_stars';
   try {
     var cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
     if (cached && typeof cached.n === 'number') render(cached.n);

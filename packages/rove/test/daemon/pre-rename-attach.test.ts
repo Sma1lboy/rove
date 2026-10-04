@@ -18,7 +18,12 @@ test("a client attaches to the old address only while no canonical host is liste
   await mkdir(preRenameStateDir(home), { recursive: true })
   const canonical = defaultPtyHostSocketPath(home)
   const legacy = preRenameRuntimePaths(canonical)[0]!
-  const old = await startPtyHostServer({ socketPath: legacy, pidPath: join(home, "old.pid"), freezeDir: join(home, "old-freeze"), version: "before" })
+  const old = await startPtyHostServer({
+    socketPath: legacy,
+    pidPath: join(home, "old.pid"),
+    freezeDir: join(home, "old-freeze"),
+    version: "before",
+  })
   const before = new RoveDaemonClient(canonical)
   try {
     const result = await before.request<{ version: string }>("pty.list")
@@ -26,7 +31,12 @@ test("a client attaches to the old address only while no canonical host is liste
   } finally {
     before.close()
   }
-  const current = await startPtyHostServer({ socketPath: canonical, pidPath: join(home, "new.pid"), freezeDir: join(home, "new-freeze"), version: "after" })
+  const current = await startPtyHostServer({
+    socketPath: canonical,
+    pidPath: join(home, "new.pid"),
+    freezeDir: join(home, "new-freeze"),
+    version: "after",
+  })
   const after = new RoveDaemonClient(canonical)
   try {
     const result = await after.request<{ version: string }>("pty.list")

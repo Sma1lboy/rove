@@ -18,11 +18,11 @@ rove add /path/to/repo
 rove
 ```
 
-The CLI runs on the Bun runtime. The published `rove` / `kobe` bins are node
+The CLI runs on the Bun runtime. The published `rove` / `rove` bins are node
 launchers that re-exec through Bun, so an `npm install -g` or `npx` on a
 machine without Bun still ends up with a working Rove.
 
-The package also keeps `kobe` as a compatibility alias. Both executable names
+The package also keeps `rove` as a compatibility alias. Both executable names
 copy supported legacy state into `~/.rove` and `~/.config/rove` without deleting
 or overwriting the old files; daemon-owned stores wait until the legacy writer
 has stopped.

@@ -127,7 +127,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Render tests and coverage (kobe package)
+      - name: Render tests and coverage (rove package)
         working-directory: packages/rove
         run: bun run test:render
 

@@ -33,7 +33,7 @@ import { killPtyTree } from "./pty-tree-kill.mjs"
 
 const PORT = Number.parseInt(process.env.ROVE_PTY_PORT ?? "5175", 10)
 const SCROLLBACK_CAP = 256 * 1024 // bytes of recent output replayed on (re)attach
-const HEALTH_PATH = "/__kobe_harness"
+const HEALTH_PATH = "/__rove_harness"
 const HEALTH_MARKER = "rove-harness"
 const HOST = process.env.ROVE_WEB_HOST?.trim() || "127.0.0.1"
 const ALLOWED_HOST = allowedHostForBindHost(HOST)

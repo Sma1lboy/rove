@@ -10,9 +10,9 @@
 
 ## Global Constraints
 
-- Plain `kobe` has exactly one launch path: PureTUI.
+- Plain `rove` has exactly one launch path: PureTUI.
 - The standalone PTY Host is the only engine/shell session owner.
-- `kobe api send`, prompted `add`, and `fan-out` auto-start `<taskId>::tab-1` when absent.
+- `rove api send`, prompted `add`, and `fan-out` auto-start `<taskId>::tab-1` when absent.
 - Repository init scripts, one-time markers, model effort, engine protocols, and explicit first prompts survive the migration.
 - No tmux compatibility adapter, runtime probe, process spawn, socket env, keybinding namespace, or disabled dead code remains.
 - Historical CHANGELOG text may mention tmux; active instructions and production code may not depend on it.
@@ -57,7 +57,7 @@ expect(launch.command[2]).toContain("'fix it'")
 expect(launch.command[2]).toContain('exec "${SHELL:-/bin/sh}"')
 ```
 
-Add fixtures proving `.kobe/init.sh` precedes the engine, successful init touches `worktreeInitMarkerPath`, timeout remains bounded, a main task receives dispatcher protocol, and a regular task receives worktree protocol.
+Add fixtures proving `.rove/init.sh` precedes the engine, successful init touches `worktreeInitMarkerPath`, timeout remains bounded, a main task receives dispatcher protocol, and a regular task receives worktree protocol.
 
 - [ ] **Step 2: Run RED**
 
@@ -204,9 +204,9 @@ Expected: all pass with no tmux mocks in API tests.
 
 - [ ] **Step 5: Add and run black-box automation coverage**
 
-Build the CLI, create a scratch task in a disposable behavior home, invoke prompted `kobe api add` without an open TUI, and assert `kobe api pty-list` reports an alive `<taskId>::tab-1` session whose command is the fake engine shell.
+Build the CLI, create a scratch task in a disposable behavior home, invoke prompted `rove api add` without an open TUI, and assert `rove api pty-list` reports an alive `<taskId>::tab-1` session whose command is the fake engine shell.
 
-Run: `cd packages/rove && bun run build && KOBE_INCLUDE_BEHAVIOR=1 bunx vitest run test/behavior/pty-api-autostart.test.ts --pool forks --minWorkers=1 --maxWorkers=1`
+Run: `cd packages/rove && bun run build && ROVE_INCLUDE_BEHAVIOR=1 bunx vitest run test/behavior/pty-api-autostart.test.ts --pool forks --minWorkers=1 --maxWorkers=1`
 
 - [ ] **Step 6: Commit**
 
@@ -281,12 +281,12 @@ git commit -m "refactor: make task lifecycle PTY-only" -m "Route daemon session 
 
 **Interfaces:**
 - Bare launch calls `startTui()` with no mode argument.
-- `kobe reset` stops daemon and PTY Host; `doctor` reports PTY Host resources.
+- `rove reset` stops daemon and PTY Host; `doctor` reports PTY Host resources.
 - `reload`, `kill-sessions`, `--tmux`, and `--puretui` are unknown commands/flags.
 
 - [ ] **Step 1: Write RED CLI tests**
 
-Assert bare `kobe` calls `startTui()`; both mode flags and removed subcommands exit 2; help contains neither tmux nor mode flags; reset calls no tmux seam; doctor output contains `pty host` and no tmux requirement.
+Assert bare `rove` calls `startTui()`; both mode flags and removed subcommands exit 2; help contains neither tmux nor mode flags; reset calls no tmux seam; doctor output contains `pty host` and no tmux requirement.
 
 - [ ] **Step 2: Run RED**
 
@@ -294,7 +294,7 @@ Run: `cd packages/rove && bun run test:fast test/cli/index-dispatch.test.ts test
 
 - [ ] **Step 3: Simplify production CLI and sandbox**
 
-Remove launch parsing and dynamic tmux dispatch. `startTui()` always imports `startWorkspaceHost`. Remove pane-host routes, `reload`, and `kill-sessions`; retain internal `pty-host`. Simplify `dev-sandbox.ts` to `run/reset/home` and make reset invoke `kobe reset --yes` against isolated state.
+Remove launch parsing and dynamic tmux dispatch. `startTui()` always imports `startWorkspaceHost`. Remove pane-host routes, `reload`, and `kill-sessions`; retain internal `pty-host`. Simplify `dev-sandbox.ts` to `run/reset/home` and make reset invoke `rove reset --yes` against isolated state.
 
 - [ ] **Step 4: Remove tmux settings/help namespace**
 
@@ -348,7 +348,7 @@ The guard scans production source and fails on:
 expect(runtimePaths).not.toContain("/src/tmux/")
 expect(sourceText).not.toMatch(/from ["'][^"']*(?:\/tmux|tmux\/)/)
 expect(sourceText).not.toMatch(/Bun\.spawn\([^\n]*["']tmux["']/)
-expect(sourceText).not.toContain("KOBE_TMUX_SOCKET")
+expect(sourceText).not.toContain("ROVE_TMUX_SOCKET")
 ```
 
 Exclude historical CHANGELOG/spec/plan text and test fixture strings.
@@ -409,10 +409,10 @@ Remove apt tmux installation and scratch tmux sockets. Rewrite behavior fixtures
 
 ```md
 ---
-"@sma1lboy/kobe": patch
+"@sma1lboy/rove": patch
 ---
 
-Make PureTUI and its standalone PTY Host the only kobe runtime, preserve unattended API session startup through hosted PTYs, and remove the tmux backend, commands, keybindings, tests, and installation requirement. Existing users can stop sessions left by older releases once with `tmux -L kobe kill-server`.
+Make PureTUI and its standalone PTY Host the only rove runtime, preserve unattended API session startup through hosted PTYs, and remove the tmux backend, commands, keybindings, tests, and installation requirement. Existing users can stop sessions left by older releases once with `tmux -L rove kill-server`.
 ```
 
 - [ ] **Step 4: Run active-surface searches**
@@ -437,7 +437,7 @@ git commit -m "docs: document the PureTUI-only runtime" -m "Update product vocab
 Prove:
 
 - no production `src/tmux` directory;
-- no `KOBE_TMUX_SOCKET` or tmux executable spawn;
+- no `ROVE_TMUX_SOCKET` or tmux executable spawn;
 - no public tmux CLI flag/subcommand;
 - no tmux keybinding ids;
 - PTY auto-start behavior test exists;

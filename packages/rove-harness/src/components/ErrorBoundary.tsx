@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children
     return (
       <div className="flex h-screen items-center justify-center bg-bg p-6 text-fg">
-        <div className="w-[28rem] max-w-full border border-kobe-red/40 bg-surface p-5">
+        <div className="w-[28rem] max-w-full border border-rove-red/40 bg-surface p-5">
           <div className="font-mono text-[13px] font-bold text-primary">
             [{DEFAULT_CLI_NAME} web]
           </div>
@@ -53,7 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
             untouched — this is a UI-only crash. Try recovering, or reload the
             page.
           </p>
-          <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap break-words border-l-2 border-kobe-red/40 bg-bg px-3 py-2 font-mono text-[11px] text-kobe-red/90">
+          <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap break-words border-l-2 border-rove-red/40 bg-bg px-3 py-2 font-mono text-[11px] text-rove-red/90">
             {error.message || String(error)}
           </pre>
           <div className="mt-4 flex justify-end gap-2">

@@ -1,14 +1,4 @@
-/**
- * One reader for the `.rove/` → `.rove/` per-repo config-file fallback.
- *
- * Covers `init.sh`, `init-prompt.md`, `pr-instructions.md` and
- * `ci-instructions.md`; legacy `.rove/` stays a fallback. A whitespace-only
- * file is a placeholder that falls through, not an instruction to blank the
- * output.
- *
- * Sync on purpose: small files read once per launch or user action, and one
- * reader can't drift from an async copy.
- */
+/** Read non-empty `.rove/` prompt files; blank files fall through to the user override. */
 
 import { readFileSync } from "node:fs"
 import { join } from "node:path"

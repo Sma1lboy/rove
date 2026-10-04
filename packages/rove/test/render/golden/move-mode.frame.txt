@@ -1,7 +1,7 @@
 # sidebar frame: move-mode
 # scope-aware reorder mode (issue #43) — the dragged ROW wears the chip and j/k drag instead of walking
 # 30x22
-# GENERATED — do not hand-edit. Regenerate: rove_UPDATE_GOLDEN=1 bun run test:render
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
 | New task                + n  |

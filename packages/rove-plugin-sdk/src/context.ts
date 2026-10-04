@@ -30,7 +30,7 @@ export interface PluginContext {
 }
 
 function readCompat(env: NodeJS.ProcessEnv, suffix: string): string | undefined {
-  return env[`ROVE_${suffix}`] ?? env[`ROVE_${suffix}`]
+  return env[`ROVE_${suffix}`]
 }
 
 function required(env: NodeJS.ProcessEnv, suffix: string): string {

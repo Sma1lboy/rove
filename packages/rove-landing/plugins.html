@@ -6,10 +6,10 @@
 <title>Rove: plugins</title>
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/assets/favicon.png">
-<meta name="description" content="The Rove plugin marketplace: shareable workflow packages built on the Rove CLI. Public repos tagged rove-plugin are listed automatically; legacy kobe-plugin repos stay included.">
+<meta name="description" content="The Rove plugin marketplace: shareable workflow packages built on the Rove CLI. Public repos tagged rove-plugin are listed automatically; legacy rove-plugin repos stay included.">
 <link rel="canonical" href="https://rove.run/plugins">
 <meta property="og:title" content="Rove: plugins">
-<meta property="og:description" content="Shareable workflow packages for Rove. Repositories tagged rove-plugin or legacy kobe-plugin are listed automatically.">
+<meta property="og:description" content="Shareable workflow packages for Rove. Repositories tagged rove-plugin or legacy rove-plugin are listed automatically.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://rove.run/plugins">
 <meta name="twitter:card" content="summary_large_image">
@@ -564,7 +564,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
 
     <div class="fig-col">
       <figure class="fig fig-wide">
-        <svg viewBox="0 0 560 230" role="img" aria-label="How a repository reaches this catalogue: two GitHub topic searches, rove-plugin and the legacy kobe-plugin, are merged and de-duplicated into one list. The first-party parts are seeded from this repository in hidden line, because a subdirectory cannot carry a topic, and the parent repository is dropped from the search results because its parts are already listed.">
+        <svg viewBox="0 0 560 230" role="img" aria-label="How a repository reaches this catalogue: two GitHub topic searches, rove-plugin and the legacy rove-plugin, are merged and de-duplicated into one list. The first-party parts are seeded from this repository in hidden line, because a subdirectory cannot carry a topic, and the parent repository is dropped from the search results because its parts are already listed.">
           <!-- the two inlet searches -->
           <g>
             <rect x="4" y="14" width="180" height="44" class="vf" data-draw/>
@@ -573,7 +573,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
           </g>
           <g>
             <rect x="4" y="76" width="180" height="44" class="vf" data-draw/>
-            <text class="tx-m fade" x="16" y="98">topic:kobe-plugin</text>
+            <text class="tx-m fade" x="16" y="98">topic:rove-plugin</text>
             <text class="tx-s fade" x="16" y="114" data-i18n="f3.legacy">Legacy — still searched</text>
           </g>
           <g class="fade">
@@ -631,7 +631,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
 
     <div class="txt-col">
       <p data-i18n-html="note5.p1"><b>Discovery is not curated.</b> Every public repository carrying the GitHub topic <span class="mono">rove-plugin</span> is on this list. Nobody approves it, nobody ranks it, and nobody can keep you out — the listing is a search.</p>
-      <p><span data-i18n-html="note5.p2">The legacy topic <span class="mono">kobe-plugin</span> is searched too, so parts published under the old name stay listed without being touched.</span><svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">1</text></svg></p>
+      <p><span data-i18n-html="note5.p2">The legacy topic <span class="mono">rove-plugin</span> is searched too, so parts published under the old name stay listed without being touched.</span><svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">1</text></svg></p>
       <p data-i18n="note5.p3">A catalogue with no gate at the front prints its caution on the same sheet. Rove checks that a manifest parses and shows you the commands it holds. It does not judge them, and it cannot: an argv array is the whole interface.</p>
     </div>
 
@@ -693,7 +693,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
           <tr>
             <td><svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">1</text></svg></td>
             <td class="mono">2026-09</td>
-            <td data-i18n-html="rev.r1">Canonical topic is <span class="mono">rove-plugin</span>; legacy <span class="mono">kobe-plugin</span> still included</td>
+            <td data-i18n-html="rev.r1">Canonical topic is <span class="mono">rove-plugin</span>; legacy <span class="mono">rove-plugin</span> still included</td>
           </tr>
           <tr><td class="mono">—</td><td class="mono">2026-09</td><td data-i18n-html="rev.r2">A manifest may contribute an engine through <span class="mono">[[engines]]</span></td></tr>
         </tbody>
@@ -735,10 +735,10 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
 
 <script>
   // EN / 中文 — same dictionary shape as the home page, same localStorage key.
-  var KOBE_I18N = (function () {
+  var rove_I18N = (function () {
     var zh = {
       'meta.title': 'Rove — 标准件 · 插件目录',
-      'meta.desc': 'Rove 插件市场——基于 Rove CLI 的可分享工作流包。rove-plugin 与兼容的 kobe-plugin 仓库都会自动列出。',
+      'meta.desc': 'Rove 插件市场——基于 Rove CLI 的可分享工作流包。rove-plugin 与兼容的 rove-plugin 仓库都会自动列出。',
       'a11y.skip': '跳到图纸',
       'sheet.stamp': '第 2 张 / 共 4 张',
       'nav.docs': '文档', 'nav.plugins': '插件', 'nav.themes': '主题', 'nav.changelog': '更新日志',
@@ -807,7 +807,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'mk.disclaimer': '这些是社区仓库，自动收录，无人审核。插件以你 shell 的权限运行——安装前先读一遍清单。',
       'mk.filterPlaceholder': '过滤插件…',
       'mk.offline': 'GitHub API 暂时读不到（多半是限流）。下面是本仓库自带的第一方示例插件。',
-      'mk.empty': '还没有公开仓库打上 rove-plugin 或兼容的 kobe-plugin 话题。下面是第一方示例插件——第一个列在这里的可以是你的。',
+      'mk.empty': '还没有公开仓库打上 rove-plugin 或兼容的 rove-plugin 话题。下面是第一方示例插件——第一个列在这里的可以是你的。',
       'mk.copy': '复制安装命令', 'mk.copied': '✓ 已复制',
       'mk.count': '个零件', 'mk.none': '没有匹配的插件。',
       'mk.firstParty': '第一方',
@@ -816,7 +816,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'caut.p3': '清单被刻意做得很短，而且列出了 Rove 会启动的每一条命令。装之前读一遍。',
       'note5.note': '星标、语言和推送时间在页面加载时从 GitHub API 取。注 2 里那六个第一方件由本仓库播种，因为子目录没法带话题。',
       'note5.p1': '收录不经人工挑选。每一个带 GitHub 话题 <span class="mono">rove-plugin</span> 的公开仓库都在这份列表上——这份列表就是一次搜索。',
-      'note5.p2': '兼容话题 <span class="mono">kobe-plugin</span> 同样在搜索范围内，所以用旧名发布的件不用改动就继续在列。',
+      'note5.p2': '兼容话题 <span class="mono">rove-plugin</span> 同样在搜索范围内，所以用旧名发布的件不用改动就继续在列。',
       'note5.p3': '前面没有闸门的目录，就把注意事项印在同一张图上。Rove 检查清单能不能解析，并把它带的命令给你看。它没法评判：argv 数组就是全部接口。',
       'det.back': '← 返回全部零件',
       'det.pushed': '最近推送',
@@ -834,7 +834,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'note6.p2': '完整的编写参考：<a href="https://docs.rove.run/plugins/authoring">docs.rove.run</a>——插件编写页上有事件目录、环境契约，以及一个面板可以申请的摆放规则。',
       'note6.p3': '你发布的件，会被陌生人拿着你的命令去读。把清单写清楚，并在旁边的 README 里写明它启动了哪些命令。',
       'rev.cap': '修订', 'rev.th1': '版', 'rev.th2': '日期', 'rev.th3': '说明',
-      'rev.r1': '规范话题为 <span class="mono">rove-plugin</span>；兼容的 <span class="mono">kobe-plugin</span> 仍在收录范围',
+      'rev.r1': '规范话题为 <span class="mono">rove-plugin</span>；兼容的 <span class="mono">rove-plugin</span> 仍在收录范围',
       'rev.r2': '清单可以通过 <span class="mono">[[engines]]</span> 贡献一个引擎',
       'tb.title': '图名', 'tb.titleV': 'Rove — 标准件 · 插件目录',
       'tb.partno': '件号', 'tb.rev': '版本', 'tb.sheet': '图号', 'tb.sheetV': '第 2 张 / 共 4 张',
@@ -847,7 +847,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
     };
     var en = {
       'meta.title': 'Rove: plugins',
-      'meta.desc': 'The Rove plugin marketplace: shareable workflow packages built on the Rove CLI. rove-plugin and legacy kobe-plugin repositories are listed automatically.',
+      'meta.desc': 'The Rove plugin marketplace: shareable workflow packages built on the Rove CLI. rove-plugin and legacy rove-plugin repositories are listed automatically.',
       'a11y.skip': 'Skip to drawing',
       'sheet.stamp': 'Sheet 2 of 4',
       'nav.docs': 'Docs', 'nav.plugins': 'Plugins', 'nav.themes': 'Themes', 'nav.changelog': 'Changelog',
@@ -916,7 +916,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'mk.disclaimer': "These are community repositories, listed automatically and reviewed by nobody. A plugin runs with your shell's privileges, so read the manifest before you install.",
       'mk.filterPlaceholder': 'filter plugins…',
       'mk.offline': "Couldn't reach the GitHub API (usually rate limiting). Showing the first-party example plugins that ship in this repo.",
-      'mk.empty': 'No public repository carries the rove-plugin or legacy kobe-plugin topic yet. Below are the first-party examples. The first community one listed here could be yours.',
+      'mk.empty': 'No public repository carries the rove-plugin or legacy rove-plugin topic yet. Below are the first-party examples. The first community one listed here could be yours.',
       'mk.copy': 'copy install command', 'mk.copied': '✓ copied',
       'mk.count': 'parts', 'mk.none': 'No plugins match that filter.',
       'mk.firstParty': 'first-party',
@@ -925,7 +925,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'caut.p3': 'The manifest is short by design, and it lists every command Rove will ever launch. Read it before you install.',
       'note5.note': 'Stars, language and push date come from the GitHub API on page load. The six first-party parts in Note 2 are seeded from this repository, because a subdirectory cannot carry a topic.',
       'note5.p1': 'Discovery is not curated. Every public repository carrying the GitHub topic <span class="mono">rove-plugin</span> is on this list — the listing is a search.',
-      'note5.p2': 'The legacy topic <span class="mono">kobe-plugin</span> is searched too, so parts published under the old name stay listed without being touched.',
+      'note5.p2': 'The legacy topic <span class="mono">rove-plugin</span> is searched too, so parts published under the old name stay listed without being touched.',
       'note5.p3': 'A catalogue with no gate at the front prints its caution on the same sheet. Rove checks that a manifest parses and shows you the commands it holds. It cannot judge them: an argv array is the whole interface.',
       'det.back': '← all parts',
       'det.pushed': 'pushed',
@@ -943,7 +943,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'note6.p2': 'Full authoring reference: <a href="https://docs.rove.run/plugins/authoring">docs.rove.run</a> — the plugin authoring page carries the event catalogue, the environment contract, and the placement rules a pane can ask for.',
       'note6.p3': 'A part you publish is read by strangers with your commands in their hands. Keep the manifest legible, and name the commands it launches in the README beside it.',
       'rev.cap': 'Revisions', 'rev.th1': 'Rev', 'rev.th2': 'Date', 'rev.th3': 'Description',
-      'rev.r1': 'Canonical topic is <span class="mono">rove-plugin</span>; legacy <span class="mono">kobe-plugin</span> still included',
+      'rev.r1': 'Canonical topic is <span class="mono">rove-plugin</span>; legacy <span class="mono">rove-plugin</span> still included',
       'rev.r2': 'A manifest may contribute an engine through <span class="mono">[[engines]]</span>',
       'tb.title': 'Title', 'tb.titleV': 'Rove — standard parts, plugin catalogue',
       'tb.partno': 'Part no.', 'tb.rev': 'Rev', 'tb.sheet': 'Sheet', 'tb.sheetV': '2 of 4',
@@ -958,7 +958,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
     var lang = 'en';
     try {
       var fromUrl = new URLSearchParams(location.search).get('lang');
-      var stored = localStorage.getItem('kobe_lang');
+      var stored = localStorage.getItem('rove_lang');
       var nav = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
       lang = fromUrl === 'zh' || fromUrl === 'en' ? fromUrl : stored === 'zh' || stored === 'en' ? stored : nav;
     } catch (e) {}
@@ -990,7 +990,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
     if (toggleBtn) {
       toggleBtn.addEventListener('click', function () {
         lang = lang === 'zh' ? 'en' : 'zh';
-        try { localStorage.setItem('kobe_lang', lang); } catch (e) {}
+        try { localStorage.setItem('rove_lang', lang); } catch (e) {}
         apply();
       });
     }
@@ -1004,16 +1004,16 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
     var el = document.getElementById('starCount');
     if (!el) return;
     function render(n) { el.textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n); }
-    try { var c = JSON.parse(localStorage.getItem('kobe_stars') || 'null'); if (c && typeof c.n === 'number') render(c.n); } catch (e) {}
+    try { var c = JSON.parse(localStorage.getItem('rove_stars') || 'null'); if (c && typeof c.n === 'number') render(c.n); } catch (e) {}
     fetch('https://api.github.com/repos/Sma1lboy/rove')
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (!d || typeof d.stargazers_count !== 'number') return; render(d.stargazers_count); try { localStorage.setItem('kobe_stars', JSON.stringify({ n: d.stargazers_count })); } catch (e) {} })
+      .then(function (d) { if (!d || typeof d.stargazers_count !== 'number') return; render(d.stargazers_count); try { localStorage.setItem('rove_stars', JSON.stringify({ n: d.stargazers_count })); } catch (e) {} })
       .catch(function () { if (el.textContent === '–') el.textContent = '☆'; });
   })();
 
 </script>
 
-<!-- marketplace list + plugin detail view (needs KOBE_I18N above) -->
+<!-- marketplace list + plugin detail view (needs rove_I18N above) -->
 <script src="marketplace.js"></script>
 <script src="/blueprint-idle.js" defer></script>
 <script src="/blueprint-rev.js" defer></script>

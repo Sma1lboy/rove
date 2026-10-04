@@ -286,7 +286,7 @@
       .catch(function () { return null; });
   }
 
-  Promise.all([searchTopic('rove-plugin'), searchTopic('kobe-plugin')])
+  Promise.all([searchTopic('rove-plugin'), searchTopic('rove-plugin')])
     .then(function (results) {
       if (results[0] === null && results[1] === null) throw new Error('both topic searches failed');
       var seen = {};

@@ -4,13 +4,13 @@
 
 **Goal:** Move PureTUI control-chord actions into a configurable prefix sequence while retaining Binding Stack scope and modal rules.
 
-**Architecture:** The framework-free dispatcher records one armed prefix and matches the next event exclusively against prefix-marked bindings. `KobeKeymap` stores direct and prefix second strokes separately; the user settings loader applies prefix settings and second-stroke overrides without involving the tmux resolver.
+**Architecture:** The framework-free dispatcher records one armed prefix and matches the next event exclusively against prefix-marked bindings. `RoveKeymap` stores direct and prefix second strokes separately; the user settings loader applies prefix settings and second-stroke overrides without involving the tmux resolver.
 
 **Tech Stack:** TypeScript, Bun, Vitest, @opentui/core key events, React registration through `useBindings`.
 
 ## Global Constraints
 
-- Apply only to the Workspace Host (`KOBE_TUI=1`) Binding Stack; do not change tmux Handover behavior.
+- Apply only to the Workspace Host (`ROVE_TUI=1`) Binding Stack; do not change tmux Handover behavior.
 - Preserve modal-barrier, `enabled` gate, LIFO, slot, and Terminal pane raw-input contracts.
 - Use domain terms `Workspace Host`, `Binding Stack`, `Terminal Tab`, and `Terminal pane`.
 - Keep touched source files at or under about 500 lines.

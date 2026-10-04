@@ -150,30 +150,9 @@ describe("scripts/update.sh manager detection", () => {
   // @sma1lboy/rove package dir must be uninstalled BEFORE rove goes in —
   // both packages own a `rove` and a `rove` bin, so a plain install over
   // the top dies with EEXIST.
-  it("a legacy @sma1lboy/rove install is uninstalled before rove is installed", async () => {
-    const base = join(env.home, "case-migrate")
-    const pkgDir = join(base, "npm-global/lib/node_modules/@sma1lboy/rove/dist/cli")
-    await mkdir(pkgDir, { recursive: true })
-    const entry = join(pkgDir, "rove.js")
-    await writeFile(entry, `#!/bin/sh\necho "rove 9.9.9"\n`)
-    await chmod(entry, 0o755)
-
-    const r = await runUpdateScript(base, join(base, "npm-global", "bin"), entry)
-    expect(r.code).toBe(0)
-    expect(r.out).toContain("rove is now Rove.")
-    // Both halves of the swap are pinned to the prefix that owns the binary,
-    // or the uninstall and the install can hit two different prefixes.
-    const prefix = await realpath(join(base, "npm-global"))
-    expect(r.log).toContain(`npm uninstall -g --prefix ${prefix} @sma1lboy/rove`)
-    expect(r.log).toContain(`npm install -g --prefix ${prefix} @sma1lboy/rove@latest`)
-    // Order matters: uninstall first, or npm bails with EEXIST.
-    expect(r.log.indexOf("uninstall")).toBeLessThan(r.log.indexOf("@sma1lboy/rove@latest"))
-  })
-
   it("a non-legacy install is not uninstalled", async () => {
     const base = join(env.home, "case-no-migrate")
     const r = await runUpdateScript(base, join(base, "npm-global", "bin"))
-    expect(r.out).not.toContain("rove is now Rove.")
     expect(r.log).not.toContain("uninstall")
   })
 

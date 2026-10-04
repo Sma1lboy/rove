@@ -365,13 +365,9 @@ describe("terminal tabs state", () => {
   // bare shell never passes through the CLI's ROVE_* → ROVE_* mirror, so
   // exporting only one namespace leaves the other unset in that shell.
   it("shellIdentityInput builds the typed export line for bare shell tabs", () => {
-    expect(shellIdentityInput("t1", "tab-4")).toBe(
-      " export ROVE_TASK_ID=t1 ROVE_TASK_ID=t1 ROVE_TAB_ID=tab-4 ROVE_TAB_ID=tab-4 && clear\r",
-    )
+    expect(shellIdentityInput("t1", "tab-4")).toBe(" export ROVE_TASK_ID=t1 ROVE_TAB_ID=tab-4 && clear\r")
     // Hostile ids stay one shell word each, in BOTH namespaces.
-    expect(shellIdentityInput("t 1", "tab-4")).toBe(
-      " export ROVE_TASK_ID='t 1' ROVE_TASK_ID='t 1' ROVE_TAB_ID=tab-4 ROVE_TAB_ID=tab-4 && clear\r",
-    )
+    expect(shellIdentityInput("t 1", "tab-4")).toBe(" export ROVE_TASK_ID='t 1' ROVE_TAB_ID=tab-4 && clear\r")
   })
 
   // Why: the F7 attention jump's tab precision — the launch script exports
@@ -387,9 +383,7 @@ describe("terminal tabs state", () => {
       task: { id: "01TASK", kind: "task" },
       worktreePath: "/wt",
     })
-    expect(spawn.command[2]).toContain(
-      "export ROVE_TASK_ID='01TASK' ROVE_TASK_ID='01TASK' ROVE_TAB_ID='tab-2' ROVE_TAB_ID='tab-2'\n",
-    )
+    expect(spawn.command[2]).toContain("export ROVE_TASK_ID='01TASK' ROVE_TAB_ID='tab-2'\n")
   })
 
   // Why: collapse decides persistence (null = unsplit fast path) AND the

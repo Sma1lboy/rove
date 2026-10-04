@@ -5,7 +5,7 @@
 # push triggers the release workflow against a broken tree.
 #
 # Behavior tests (test/behavior/) run in their own `behavior` job: they
-# drive the BUILT kobe CLI black-box in a temp home with isolated daemon and
+# drive the BUILT rove CLI black-box in a temp home with isolated daemon and
 # PTY-host state (no real engine binary needed — the harness shims a fake
 # `claude`). See docs/HARNESS.md "Behavioral self-test".
 #
@@ -30,7 +30,7 @@
 #
 # changeset-cap (PR only, KOB-10) is the changeset sibling of file-size-cap:
 # a PR that touches published-package source (packages/rove/src or
-# packages/rove-daemon/src, since kobe-daemon ships bundled inside the kobe
+# packages/rove-daemon/src, since rove-daemon ships bundled inside the rove
 # CLI — see docs/RELEASING.md) must add a `.changeset/*.md` file, so a
 # release can't silently ship undocumented behavior. Pure tooling/docs/CI
 # changes opt out with `bun run changeset -- --empty` (docs/RELEASING.md
@@ -77,8 +77,8 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          # "User-facing" == touches published-package source. kobe-daemon
-          # is private/unpublished but ships bundled inside the kobe CLI
+          # "User-facing" == touches published-package source. rove-daemon
+          # is private/unpublished but ships bundled inside the rove CLI
           # (see docs/RELEASING.md), so it counts too; test/docs/config
           # changes in either package do not.
           touches_user_facing=0
@@ -152,11 +152,11 @@ jobs:
         # can't express "console.error inside a catch", hence a script gate.
         run: node scripts/no-silent-catch.mjs
 
-      - name: Typecheck (kobe package)
+      - name: Typecheck (rove package)
         # Workspaces hoist deps; per-package commands run via `bun --filter`.
         run: bun run typecheck
 
-      - name: Build (kobe package)
+      - name: Build (rove package)
         run: bun run build
 
   unit-tests:
@@ -184,7 +184,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Unit tests (kobe package, shard ${{ matrix.shard }}/4)
+      - name: Unit tests (rove package, shard ${{ matrix.shard }}/4)
         # Same flags as `test:fast`, plus vitest's own --shard.
         working-directory: packages/rove
         run: bun x vitest run --passWithNoTests --minWorkers=1 --maxWorkers=8 --shard=${{ matrix.shard }}/4
@@ -214,7 +214,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build (kobe package)
+      - name: Build (rove package)
         run: bun run build
 
       - name: Behavior tests (Rove package, shard ${{ matrix.shard }}/2)

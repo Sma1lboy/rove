@@ -41,7 +41,7 @@ serialized, so the renderer cannot recover the intended palette afterward.
   non-query OSC operations fall through, and emulator replies reach the PTY.
 - The existing replay unit suite, typecheck, lint, build, and behavior suite
   remain green.
-- A fresh native capture and Remotion render must identify current Kobe and
+- A fresh native capture and Remotion render must identify current Rove and
   current native engine content rather than the historical tmux recording.
 - Compare a fixed-viewport `/harness` screenshot with an extracted replay
   frame. Text, default background, accent colors, engine colors, and contrast

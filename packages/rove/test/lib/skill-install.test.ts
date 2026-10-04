@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -7,7 +7,6 @@ import {
   NPX_MISSING_EXIT,
   ROVE_SKILL_VERSION,
   bundledSkillDir,
-  installedSkillDirs,
   isNpxMissing,
   npxSkillsArgv,
   npxSkillsCommand,
@@ -41,10 +40,6 @@ describe("roveSkillPaths", () => {
     expect(roveSkillPaths({ home: "/h", cwd: "/p" })).toEqual([
       "/h/.agents/skills/rove/SKILL.md",
       "/h/.claude/skills/rove/SKILL.md",
-      "/h/.agents/skills/rove/SKILL.md",
-      "/h/.claude/skills/rove/SKILL.md",
-      "/p/.agents/skills/rove/SKILL.md",
-      "/p/.claude/skills/rove/SKILL.md",
       "/p/.agents/skills/rove/SKILL.md",
       "/p/.claude/skills/rove/SKILL.md",
     ])
@@ -106,35 +101,12 @@ describe("skill version / staleness", () => {
     expect(parseSkillVersion(source)).toBe(ROVE_SKILL_VERSION)
     expect(source).toMatch(/^name: rove$/m)
     expect(source).toContain("${ROVE_TASK_ID:-}")
-    expect(source).not.toContain("${ROVE_TASK_ID:-}")
-  })
-
-  it("roveSkillState: a leftover rove copy is reported beside a current rove one", () => {
-    // Agents load every skill directory they find, so the stale `rove` copy
-    // keeps teaching an old `api` surface however green the rove copy is.
-    // Reporting the first path found hid it completely.
-    const home = tempDir()
-    mkdirSync(join(home, ".agents/skills/rove"), { recursive: true })
-    writeFileSync(join(home, ".agents/skills/rove/SKILL.md"), `<!-- rove-skill-version: ${ROVE_SKILL_VERSION - 5} -->`)
-    // The agent-skills CLI symlinks the agent dir at the shared copy — one
-    // file, one warning, not two.
-    mkdirSync(join(home, ".claude/skills"), { recursive: true })
-    symlinkSync(join(home, ".agents/skills/rove"), join(home, ".claude/skills/rove"))
-    mkdirSync(join(home, ".agents/skills/rove"), { recursive: true })
-    writeFileSync(join(home, ".agents/skills/rove/SKILL.md"), `<!-- rove-skill-version: ${ROVE_SKILL_VERSION} -->`)
-
-    const state = roveSkillState({ home, cwd: tempDir() })
-    expect(state).toMatchObject({ installed: true, installedVersion: ROVE_SKILL_VERSION, stale: false })
-    expect(state.legacyCopies).toEqual([
-      { path: join(home, ".agents/skills/rove/SKILL.md"), version: ROVE_SKILL_VERSION - 5 },
-    ])
-    expect(installedSkillDirs(home)).toEqual([join(home, ".agents/skills/rove"), join(home, ".agents/skills/rove")])
   })
 
   it("roveSkillState: a rove-only install reports no duplicate — it IS the install", () => {
     const home = tempDir()
     installSkillUnder(home, `<!-- rove-skill-version: ${ROVE_SKILL_VERSION} -->`, "rove")
-    expect(roveSkillState({ home, cwd: tempDir() })).toMatchObject({ installed: true, legacyCopies: [] })
+    expect(roveSkillState({ home, cwd: tempDir() })).toMatchObject({ installed: true })
   })
 })
 

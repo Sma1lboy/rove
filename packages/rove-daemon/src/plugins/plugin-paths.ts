@@ -16,11 +16,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 
-/**
- * The canonical state dir, or the legacy `.rove` tree when only it has a
- * registry (until the daemon's startup migration moves it). Never a copy at
- * read time: the registry has exactly one writer.
- */
+/** New plugin reads and writes use only canonical paths. */
 function stateRoot(homeDir?: string): string {
   const home = homeDir ?? readRoveHomeDirEnv() ?? homedir()
   const canonical = join(home, ROVE_STATE_DIR_BASENAME)

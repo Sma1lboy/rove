@@ -1,8 +1,8 @@
-// kobe brand palettes.
+// rove brand palettes.
 // `dark` — the original Claude-brand port (terracotta accent on warm neutrals),
 // coherent with the running TUI's default theme.
 // `light` — porcelain daylight palette mapped from the light landing page
-// (marketing/kobe-landing-light): warm porcelain paper, espresso ink,
+// (marketing/rove-landing-light): warm porcelain paper, espresso ink,
 // terracotta accent, morning-sky secondary.
 // Slot names stay generic (`blue`, `cyan`, …) for backward compatibility with
 // the logo components; `blue` carries the terracotta accent in both themes.

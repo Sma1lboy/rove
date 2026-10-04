@@ -94,7 +94,6 @@ describe("runCompletionsSubcommand", () => {
     expect(script.startsWith("#compdef rove")).toBe(true)
     expect(script).toContain('if [ "${funcstack[1]}" = "_rove" ]')
     expect(script).toContain("compdef _rove rove")
-    expect(script).not.toContain("compdef _rove rove")
   })
 
   test.each(["bash", "zsh", "fish"] as const)(

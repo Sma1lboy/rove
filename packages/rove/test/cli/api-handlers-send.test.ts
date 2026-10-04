@@ -189,7 +189,6 @@ describe("send handler", () => {
       expect(calls[0].prompt).toContain('[ROVE PEER] from "Auth attempt" (task sender-1')
       // Both skill ids, so a receiver on either install finds it.
       expect(calls[0].prompt).toContain("/rove")
-      expect(calls[0].prompt).toContain("legacy /rove installs still work")
       expect(calls[0].prompt).toContain("send --task-id sender-1")
       // The self-teach pointer: a receiver that has never seen rove learns
       // where the rest of the coordination verbs live.

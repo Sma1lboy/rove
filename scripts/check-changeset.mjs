@@ -6,7 +6,7 @@
 // package-name check fails inside `typecheck-and-test` — which means a bad
 // changeset that reaches main turns main AND every branch cut from it red
 // until someone fixes it. That happened: PR #445 shipped
-// `"@sma1lboy/kobe": patch` (the pre-2026-08-13 canonical name), and main
+// `"@sma1lboy/rove": patch` (the pre-2026-08-13 canonical name), and main
 // stayed red across several commits until #446 retargeted the one line.
 //
 // So this runs at commit time, where the author is still holding the
@@ -30,7 +30,7 @@ const DIR = join(ROOT, ".changeset")
 /**
  * Publishable workspace packages a changeset may version, read from the
  * workspace itself rather than hard-coded — the 2026-08-13 rename
- * (`@sma1lboy/kobe` → `@sma1lboy/rove`) is exactly the kind of change a
+ * (`@sma1lboy/rove` → `@sma1lboy/rove`) is exactly the kind of change a
  * hard-coded list would have gone stale against, which is how the stale
  * name survived long enough to reach main in the first place.
  */
@@ -54,8 +54,8 @@ function publishablePackages() {
  * to extend it makes the message vaguer, never the check weaker.
  */
 const RENAMED = new Map([
-  ["@sma1lboy/kobe", "@sma1lboy/rove"],
-  ["@sma1lboy/kobe-plugin-sdk", "@sma1lboy/rove-plugin-sdk"],
+  ["@sma1lboy/rove", "@sma1lboy/rove"],
+  ["@sma1lboy/rove-plugin-sdk", "@sma1lboy/rove-plugin-sdk"],
 ])
 
 function renameHint(pkg, allowed) {

@@ -1,21 +1,21 @@
-# Daemon — split kobe into a daemon + thin TUI client
+# Daemon — split rove into a daemon + thin TUI client
 
 > Design doc. Historical. Tracks the original decision shape when the
-> daemon was its own `kobed` binary. As of KOB-136 the daemon was
-> merged into the single `kobe` binary as `kobe daemon ...`, and the daemon
+> daemon was its own `roved` binary. As of KOB-136 the daemon was
+> merged into the single `rove` binary as `rove daemon ...`, and the daemon
 > code now lives in `packages/rove-daemon/`; this doc retains the original
-> wording (e.g. `kobed start`) since it documents the design at the time it
+> wording (e.g. `roved start`) since it documents the design at the time it
 > was made. For current usage see
 > [`cli-api.md`](./cli-api.md) §6.
 >
 > Original Linear epic:
-> [KOB-35](https://linear.app/codesfox/issue/KOB-35/daemon-split-kobed-thin-tui-client-multi-attach-per-user).
+> [KOB-35](https://linear.app/codesfox/issue/KOB-35/daemon-split-roved-thin-tui-client-multi-attach-per-user).
 
 ---
 
 ## 1. Why
 
-Today kobe is one Bun process: TUI (Solid + opentui) + Orchestrator +
+Today rove is one Bun process: TUI (Solid + opentui) + Orchestrator +
 spawned `claude` subprocesses + worktree manager. Closing the TUI
 (Ctrl+C, accidental terminal close, SSH drop) kills every running
 `claude` subprocess. With 10+ in-flight chats this is brutal — even
@@ -36,8 +36,8 @@ synchronised view).
 
 | | Decision |
 |---|---|
-| Daemon scope | **Per-user** singleton — one `kobed` owns every repo's tasks. Not per-repo. |
-| Lifecycle | **Explicit** `kobed start` / `kobed stop` / `kobed status`. No auto-spawn from TUI. Hard-cut: TUI errors out with `kobe: no daemon (run \`kobed start\`)` if the socket is missing. |
+| Daemon scope | **Per-user** singleton — one `roved` owns every repo's tasks. Not per-repo. |
+| Lifecycle | **Explicit** `roved start` / `roved stop` / `roved status`. No auto-spawn from TUI. Hard-cut: TUI errors out with `rove: no daemon (run \`roved start\`)` if the socket is missing. |
 | Multi-attach | **Yes.** N TUIs can attach to one daemon. State (tasks, chat history) is broadcast to all attached clients. UI-local state (cursor, focus, composer draft) stays per-client. |
 | Wire protocol | **JSON-lines over unix socket.** Custom `{type, id?, payload}` envelope. No LSP, no gRPC. Re-uses the pattern from the then-current `orchestrator/bridge/server.ts` (since removed) but bidirectional. |
 | Attach-time sync | **Snapshot + tail.** Daemon sends task list + last N (50?) chat messages per task on attach. Older history loads lazily on scroll. No full-history replay. |
@@ -48,12 +48,12 @@ synchronised view).
 
 ```mermaid
 flowchart TB
-  subgraph daemon["kobed (per-user singleton)"]
+  subgraph daemon["roved (per-user singleton)"]
     orch[Orchestrator]
     idx[TaskIndexStore]
     wt[Worktree manager]
     bus[Event bus]
-    sock["Unix socket\n~/.kobe/daemon.sock"]
+    sock["Unix socket\n~/.rove/daemon.sock"]
     orch --- idx
     orch --- wt
     orch --> bus
@@ -67,8 +67,8 @@ flowchart TB
   end
 
   subgraph tuis["TUI clients (N)"]
-    tui1["kobe (terminal 1)"]
-    tui2["kobe (terminal 2)"]
+    tui1["rove (terminal 1)"]
+    tui2["rove (terminal 2)"]
   end
 
   orch --> c1
@@ -89,10 +89,10 @@ Closing `tui1` does not touch the daemon, the orchestrator, or any
 | State | Owner | Why |
 |---|---|---|
 | Task list, status, pinned flags | daemon | Survives TUI close. |
-| Chat history (per task) | daemon (on disk, `.kobe/sessions/`) | Same as today — daemon just keeps reading/writing. |
+| Chat history (per task) | daemon (on disk, `.rove/sessions/`) | Same as today — daemon just keeps reading/writing. |
 | `claude` subprocess handles | daemon | The whole point. |
 | Worktree paths, git HEADs | daemon | Same as today. |
-| Bridge MCP server | daemon | Already a per-process socket; relocate inside `kobed`. |
+| Bridge MCP server | daemon | Already a per-process socket; relocate inside `roved`. |
 | Theme, keybindings, settings | TUI-local (read from disk) | Per-user/per-machine UI prefs, not shared state. |
 | Active tab, cursor index, focused pane | TUI-local | Two clients should be able to look at different tasks. |
 | Composer draft (typed-but-unsent text) | TUI-local | "What I'm typing" is mine, not shared. Sent message broadcasts. |
@@ -144,7 +144,7 @@ sequenceDiagram
   participant TUI
   participant Daemon
 
-  TUI->>Daemon: connect ~/.kobe/daemon.sock
+  TUI->>Daemon: connect ~/.rove/daemon.sock
   TUI->>Daemon: request hello { clientId, version }
   Daemon-->>TUI: response hello { protocolVersion, daemonPid }
 
@@ -174,7 +174,7 @@ TUI may show any task at any time.
 > **Superseded.** The original "hard-cut, no auto-spawn, no auto-shutdown"
 > stance below was reversed. The daemon now **auto-spawns** on first TUI
 > launch and **refcounted-lazily self-stops** once the last attached GUI
-> disconnects (grace `KOBE_DAEMON_IDLE_GRACE_MS`, default 3s). Shutdown
+> disconnects (grace `ROVE_DAEMON_IDLE_GRACE_MS`, default 3s). Shutdown
 > never tears down Hosted PTY sessions: their child processes belong to the
 > standalone PTY Host, which survives daemon restarts. Two non-gui holds defer
 > the idle-stop: an enabled scheduled automation, and a **live Hosted PTY
@@ -188,7 +188,7 @@ TUI may show any task at any time.
 > closed" contract (`terminal-tabs-core.ts` `closeTab`), this makes the daemon
 > effectively RESIDENT while any task has an open workspace: zero live
 > sessions means every task deleted (janitor sweep), children exited
-> by hand, or `kobe reset`. That residency is accepted — a parked daemon with
+> by hand, or `rove reset`. That residency is accepted — a parked daemon with
 > no subscribers pauses its collectors, so it holds the socket and the
 > activity registry and little else. This is the live behavior
 > — there is no separate AGENTS.md section for it; CLAUDE.md's own "Daemon" bullet
@@ -274,37 +274,37 @@ TUI may show any task at any time.
 > retains uncertainty when an older adapter cannot read the identified session.
 
 ```bash
-$ kobed start            # binds ~/.kobe/daemon.sock, writes pidfile
-$ kobed status           # prints pid, uptime, attached clients, task count
-$ kobed stop             # graceful: tells claude subprocesses to flush, then exits
-$ kobed restart          # stop + start
+$ roved start            # binds ~/.rove/daemon.sock, writes pidfile
+$ roved status           # prints pid, uptime, attached clients, task count
+$ roved stop             # graceful: tells claude subprocesses to flush, then exits
+$ roved restart          # stop + start
 
-$ kobe                   # opens TUI, attaches to daemon
-$ kobe                   # second terminal, second TUI, same daemon
+$ rove                   # opens TUI, attaches to daemon
+$ rove                   # second terminal, second TUI, same daemon
 ```
 
-If `kobe` runs and the socket is missing:
+If `rove` runs and the socket is missing:
 
 ```
-$ kobe
-kobe: no daemon running. start it with:
-  kobed start
+$ rove
+rove: no daemon running. start it with:
+  roved start
 ```
 
 Hard-cut. No auto-spawn. Two reasons:
 - Auto-spawn races: two TUIs starting in parallel both try to spawn,
   one wins, the other ignores its own daemon.
-- Clarity: `kobed` is a real process the user owns. `kobed status`
+- Clarity: `roved` is a real process the user owns. `roved status`
   is the answer to "what's happening?". Hidden auto-spawn hides that.
 
 ---
 
 ## 8. Crash recovery / engine-offline UX
 
-If `kobed` dies (OOM, panic, kill -9):
+If `roved` dies (OOM, panic, kill -9):
 - All `claude` subprocesses die (they're children).
-- TUI's socket connection dies → TUI shows a banner: "daemon offline — `kobed start` to resume".
-- After `kobed start`, TUI reconnects automatically. Task list comes
+- TUI's socket connection dies → TUI shows a banner: "daemon offline — `roved start` to resume".
+- After `roved start`, TUI reconnects automatically. Task list comes
   back from disk. Each task's status is now `engine_offline`.
 - Pressing `r` on an offline task triggers a session resume (already
   shipped in `src/tui/component/resume-dialog.tsx`).
@@ -323,11 +323,11 @@ resume per task via `r` is fine for the first cut.
 
 | Wave | Title | Scope |
 |---|---|---|
-| **D0** | Core extract | Move `Orchestrator`, `TaskIndexStore`, worktree manager, bridge server out of TUI imports. Define a `KobeCore` boundary that is TUI-free — no dependency on opentui or anything that renders. Solid signals stay as an in-process reactive primitive (the TUI happens to consume the same primitive, but the core doesn't depend on rendering). No behavioural change — kobe still runs as one process, but `KobeCore` is now a self-contained module. |
+| **D0** | Core extract | Move `Orchestrator`, `TaskIndexStore`, worktree manager, bridge server out of TUI imports. Define a `RoveCore` boundary that is TUI-free — no dependency on opentui or anything that renders. Solid signals stay as an in-process reactive primitive (the TUI happens to consume the same primitive, but the core doesn't depend on rendering). No behavioural change — rove still runs as one process, but `RoveCore` is now a self-contained module. |
 | **D1** | Wire protocol + transport | Implement the JSON-line socket server (server-side push + request/response). Reuse the then-current `orchestrator/bridge/server.ts` (since removed) shape. Build a typed client (now `packages/rove-daemon/src/client/`). Both still in-process for now — TUI talks to a "loopback" client that calls the server via the socket inside the same process. Validates the protocol end-to-end. |
-| **D2** | `kobed` binary | Add `kobed` entry point (`packages/rove/src/bin/kobed.ts`). Pidfile, signal handling, `kobed start/stop/status/restart`. Default socket: `$XDG_RUNTIME_DIR/kobe.sock` → fallback `~/.kobe/daemon.sock`. TUI now mandatorily talks over the socket; the in-process loopback from D1 is removed. Hard-cut error if no daemon. |
+| **D2** | `roved` binary | Add `roved` entry point (`packages/rove/src/bin/roved.ts`). Pidfile, signal handling, `roved start/stop/status/restart`. Default socket: `$XDG_RUNTIME_DIR/rove.sock` → fallback `~/.rove/daemon.sock`. TUI now mandatorily talks over the socket; the in-process loopback from D1 is removed. Hard-cut error if no daemon. |
 | **D3** | Multi-attach broadcast | Track all attached clients in the daemon. Broadcast events to all of them. Add the `engine_offline` status + reconnect banner to the TUI. Verify: open two terminals, send a message in one, see it stream in both. |
-| **D4** (deferred) | Resilience polish | Event seq + replay-since-seq, daemon-side per-client backpressure, socket auth token in path, `kobed status --json`, structured logging to `~/.kobe/logs/`. Punt until D3 ships and shows what actually flakes. |
+| **D4** (deferred) | Resilience polish | Event seq + replay-since-seq, daemon-side per-client backpressure, socket auth token in path, `roved status --json`, structured logging to `~/.rove/logs/`. Punt until D3 ships and shows what actually flakes. |
 
 D0 → D3 is the MVP. Each wave is its own KOB issue under the epic.
 
@@ -335,14 +335,14 @@ D0 → D3 is the MVP. Each wave is its own KOB issue under the epic.
 
 ## 10. Out of scope (v1)
 
-- Daemon survives `kobed` itself dying — no, claude subprocesses die
+- Daemon survives `roved` itself dying — no, claude subprocesses die
   with their parent (Unix). Surviving daemon restart requires PID
   inheritance tricks (systemd fd-passing or similar) that aren't
   worth the complexity yet.
 - Cross-machine attach (TUI on laptop A, daemon on desktop B). Unix
   socket only. Tailscale/SSH port-forward would work today; native
   remote attach can come later.
-- Permission model. `~/.kobe/daemon.sock` is mode `0600` and that's
+- Permission model. `~/.rove/daemon.sock` is mode `0600` and that's
   the auth — single-user assumption. Multi-user shared host is not
   the target.
 - TUI hot-reload. Once the daemon split lands, hot-reloading just the
@@ -353,9 +353,9 @@ D0 → D3 is the MVP. Each wave is its own KOB issue under the epic.
 
 ## 11. Open questions for the implementer
 
-- **Where does `kobe mcp-bridge` live?** Today it speaks to the
+- **Where does `rove mcp-bridge` live?** Today it speaks to the
   orchestrator in-process via the bridge socket. After D2 it should
-  attach to `kobed` the same way the TUI does. Question: does the
+  attach to `roved` the same way the TUI does. Question: does the
   bridge become just another client of the daemon protocol, or does
   it keep its own socket? Probably the former — one protocol, one
   socket — but verify that the MCP tools' latency budget tolerates
@@ -365,7 +365,7 @@ D0 → D3 is the MVP. Each wave is its own KOB issue under the epic.
   gone. Open question whether to checkpoint draft to disk per-TUI.
   Probably not in v1.
 - **Settings sync.** Theme/keybinding files on disk are already
-  shared (both TUIs read the same `~/.kobe/config.json`). What
+  shared (both TUIs read the same `~/.rove/config.json`). What
   happens if TUI A flips theme and TUI B's already-rendered tree
   doesn't notice? Probably needs a `settings.changed` event from the
   daemon (or just a file-watcher in each TUI). Defer to D4.

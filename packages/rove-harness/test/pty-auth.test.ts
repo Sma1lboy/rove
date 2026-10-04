@@ -69,9 +69,9 @@ describe("expectedPtyToken", () => {
     expect(expectedPtyToken({ ROVE_HOME_DIR: home })).toBe("file-token")
   })
 
-  it("honours the legacy .kobe layout only when the file is actually there", () => {
-    const legacy = homeWithToken("legacy-token", ".kobe")
-    expect(webTokenPath({ ROVE_HOME_DIR: legacy })).toBe(join(legacy, ".kobe", "web-token"))
+  it("honours the legacy .rove layout only when the file is actually there", () => {
+    const legacy = homeWithToken("legacy-token", ".rove")
+    expect(webTokenPath({ ROVE_HOME_DIR: legacy })).toBe(join(legacy, ".rove", "web-token"))
     expect(expectedPtyToken({ ROVE_HOME_DIR: legacy })).toBe("legacy-token")
   })
 

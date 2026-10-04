@@ -55,7 +55,7 @@ Two dev flavours:
 
 The sandbox gets its own home, daemon, and PTY host, so it can coexist with production Rove. After changing daemon, orchestrator, or engine code, run `bun run dev:sandbox:reset` so a long-lived sandbox process isn't still running old code.
 
-Debugging the daemon? Read `<KOBE_HOME>/.kobe/daemon.log` first — the daemon's stdout/stderr are redirected there, and errors are tagged by `[subsystem]`. The `.kobe` runtime path remains a compatibility contract. Use `rove daemon restart` to replace a stale daemon process.
+Debugging the daemon? Read `<ROVE_HOME>/.rove/daemon.log` first — the daemon's stdout/stderr are redirected there, and errors are tagged by `[subsystem]`. The `.rove` runtime path remains a compatibility contract. Use `rove daemon restart` to replace a stale daemon process.
 
 ## Checks — run before every PR
 

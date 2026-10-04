@@ -34,16 +34,14 @@ export interface BehaviorEnv {
 }
 
 export function requireDistBuild(): void {
-  if (!existsSync(DIST_ROVE_CLI) || !existsSync(DIST_ROVE_CLI)) {
-    throw new Error(
-      "behavior suite needs the built rove entry and rove compatibility alias under dist/cli — run `bun run build` first",
-    )
+  if (!existsSync(DIST_ROVE_CLI)) {
+    throw new Error("behavior suite needs the built rove entry under dist/cli — run `bun run build` first")
   }
 }
 
 function teardownIsolationError(env: NodeJS.ProcessEnv, home: string): string | undefined {
-  if (env.HOME !== home || env.USERPROFILE !== home || env.ROVE_HOME_DIR !== home || env.ROVE_HOME_DIR !== home) {
-    return "HOME/ROVE_HOME_DIR/ROVE_HOME_DIR no longer match the disposable home"
+  if (env.HOME !== home || env.USERPROFILE !== home || env.ROVE_HOME_DIR !== home) {
+    return "HOME/ROVE_HOME_DIR no longer match the disposable home"
   }
   const unexpected = Object.keys(env).filter(
     (key) =>

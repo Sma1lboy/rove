@@ -135,7 +135,7 @@ export async function runResetSubcommand(argv: readonly string[]): Promise<void>
     for (const line of stateSummary(statePath)) console.log(line)
     console.log("  • DELETE the pre-Rove task/UI indexes too, so migration cannot restore reset state")
   }
-  console.log("  • NOT touch your git worktrees under ~/.rove/worktrees/, ~/.rove/worktrees/, or repo-local roots")
+  console.log("  • NOT touch your git worktrees under ~/.rove/worktrees/ or existing repo-local roots")
   if (!hard)
     console.log(
       "  (your task list, settings & worktrees are kept — add --hard to also delete the task index and settings file)",

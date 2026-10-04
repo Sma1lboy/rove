@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path"
-/** Shared rove/rove CLI entry. Unknown commands print usage instead of TUI. */
+/** Rove CLI entry. Unknown commands print usage instead of TUI. */
 import { errorMessage } from "@/lib/error-message"
 import { matchPathGlob } from "../lib/path-glob.ts"
 import { expandTilde } from "../lib/path-home.ts"

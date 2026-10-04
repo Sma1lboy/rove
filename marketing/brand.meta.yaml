@@ -1,13 +1,13 @@
 schema_version: "1.0"
-# `id` stays "kobe" on purpose: it keys the brand-studio project
+# `id` stays "rove" on purpose: it keys the brand-studio project
 # (marketing.studio.yaml) and the accepted-asset ledger. Only the display
 # names are canonical Rove.
 portfolio:
-  id: "kobe"
+  id: "rove"
   name: "Rove"
   version: "1.0.0"
 brand:
-  id: "kobe"
+  id: "rove"
   name: "Rove"
 metadata_version: "1.0.0"
 product:

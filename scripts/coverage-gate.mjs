@@ -58,12 +58,12 @@ const exemptPaths = new Set([...prBody.matchAll(/coverage-exemption:\s*(\S+)/gi)
 // here if it is a subprocess-only entry point with no (and no plausible)
 // direct unit test — re-verify before adding, don't grow this defensively.
 const SUBPROCESS_ONLY_EXCLUSIONS = new Set([
-  // The public `kobe` and `rove` wrappers install invocation/env
+  // The public `rove` and `rove` wrappers install invocation/env
   // compatibility before dynamically importing the shared CLI. Importing
   // either wrapper directly would execute main()/process.exit in the test
   // runner; test/behavior/rove-alias.test.ts instead spawns both built
   // entries and verifies their observable identity and env precedence.
-  "packages/rove/src/cli/kobe.ts",
+  "packages/rove/src/cli/rove.ts",
   "packages/rove/src/cli/rove.ts",
   // The published bin: a node launcher that finds a Bun runtime and re-execs
   // the real entry through it (npm/npx hand a bin to node, `bun install -g`
@@ -72,12 +72,12 @@ const SUBPROCESS_ONLY_EXCLUSIONS = new Set([
   // in src/cli/bun-runtime.ts, which test/cli/bun-runtime.test.ts covers
   // directly; test/behavior/rove-alias.test.ts spawns the built launchers.
   "packages/rove/src/cli/launcher.ts",
-  // `kobe pty-host`: internal subcommand spawned DETACHED by
+  // `rove pty-host`: internal subcommand spawned DETACHED by
   // ensurePtyHostReachable() (see src/cli/pty-host-cmd.ts) — it blocks in the
   // foreground running a real server and installs SIGINT/SIGTERM handlers
   // that call process.exit(), so invoking runPtyHostSubcommand() directly
   // from a unit test would hang/kill the test runner. Not reachable from
-  // test/behavior/ either (no test drives `kobe pty-host` today) — it is
+  // test/behavior/ either (no test drives `rove pty-host` today) — it is
   // exercised only by the real running app. The real server logic it wraps
   // (startPtyHostServer) lives in packages/rove-daemon and is tested there;
   // this file is just the thin CLI-dispatch shim.
@@ -204,8 +204,8 @@ const touched = diff
   .split("\n")
   .map((l) => l.trim())
   .filter((file) => {
-    if (renderCoverage) return /^packages\/kobe\/src\/.*\.tsx$/.test(file) || isRenderTrackOnly(file)
-    return /^packages\/kobe\/src\/.*\.ts$/.test(file) && !isRenderTrackOnly(file)
+    if (renderCoverage) return /^packages\/rove\/src\/.*\.tsx$/.test(file) || isRenderTrackOnly(file)
+    return /^packages\/rove\/src\/.*\.ts$/.test(file) && !isRenderTrackOnly(file)
   })
   .filter((f) => !f.endsWith(".d.ts"))
 

@@ -213,7 +213,7 @@ export function ChatTerminal({
       />
       {status === "closed" ? (
         <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-t border-line bg-surface px-2">
-          <span className="min-w-0 flex-1 truncate text-[11px] text-kobe-yellow">
+          <span className="min-w-0 flex-1 truncate text-[11px] text-rove-yellow">
             detached — the session keeps running
           </span>
           <button

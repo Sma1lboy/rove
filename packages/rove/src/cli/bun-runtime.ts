@@ -1,5 +1,5 @@
 /**
- * Bun discovery + relaunch for the published `rove` / `rove` bins.
+ * Bun discovery + relaunch for the published `rove` bin.
  *
  * The bundle is a Bun program, but `npm install -g` / `npx` start the bin under
  * node. So the bin is a node launcher that finds Bun and re-execs the real

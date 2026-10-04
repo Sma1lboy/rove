@@ -75,7 +75,7 @@ export function daemonSpawnReason(env: NodeJS.ProcessEnv = process.env): DaemonS
   const raw = env.ROVE_DAEMON_SPAWN_REASON
   if (raw === "explicit-restart" || raw === "autospawn") return raw
   // Pre-0.9.158 spawners stamped no reason but did stamp the autospawn flag.
-  return env.ROVE_DAEMON_AUTOSPAWNED === "1" || env.ROVE_DAEMON_AUTOSPAWNED === "1" ? "autospawn" : "manual"
+  return env.ROVE_DAEMON_AUTOSPAWNED === "1" ? "autospawn" : "manual"
 }
 
 /**

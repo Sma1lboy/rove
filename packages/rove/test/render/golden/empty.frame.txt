@@ -1,7 +1,7 @@
 # sidebar frame: empty
 # no tasks at all — the rail still renders its chrome rather than collapsing
 # 30x22
-# GENERATED — do not hand-edit. Regenerate: rove_UPDATE_GOLDEN=1 bun run test:render
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
 | New task                + n  |

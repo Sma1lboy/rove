@@ -545,10 +545,10 @@ html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"]
     var el = document.getElementById('starCount');
     if (!el) return;
     function render(n) { el.textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n); }
-    try { var c = JSON.parse(localStorage.getItem('kobe_stars') || 'null'); if (c && typeof c.n === 'number') render(c.n); } catch (e) {}
+    try { var c = JSON.parse(localStorage.getItem('rove_stars') || 'null'); if (c && typeof c.n === 'number') render(c.n); } catch (e) {}
     fetch('https://api.github.com/repos/Sma1lboy/rove')
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (!d || typeof d.stargazers_count !== 'number') return; render(d.stargazers_count); try { localStorage.setItem('kobe_stars', JSON.stringify({ n: d.stargazers_count })); } catch (e) {} })
+      .then(function (d) { if (!d || typeof d.stargazers_count !== 'number') return; render(d.stargazers_count); try { localStorage.setItem('rove_stars', JSON.stringify({ n: d.stargazers_count })); } catch (e) {} })
       .catch(function () { if (el.textContent === '–') el.textContent = '☆'; });
   })();
 </script>
@@ -593,7 +593,7 @@ html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"]
   var LANG = 'en';
   try {
     var fromUrl = new URLSearchParams(location.search).get('lang');
-    var stored = localStorage.getItem('kobe_lang');
+    var stored = localStorage.getItem('rove_lang');
     var nav = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
     LANG = fromUrl === 'zh' || fromUrl === 'en' ? fromUrl : stored === 'zh' || stored === 'en' ? stored : nav;
   } catch (e) {}
@@ -1060,7 +1060,7 @@ html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"]
     if (toggle) toggle.textContent = LANG === 'zh' ? 'EN' : '中文';
     applyStatic();
     renderStatus();
-    try { localStorage.setItem('kobe_lang', LANG); } catch (e) {}
+    try { localStorage.setItem('rove_lang', LANG); } catch (e) {}
     // type chips swap label with no round trip: fix ⇄ 修复, feat ⇄ 新功能, …
     [].slice.call(document.querySelectorAll('.ent .tag')).forEach(function (tg) {
       var ty = tg.getAttribute('data-type');

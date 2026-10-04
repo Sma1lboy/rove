@@ -8,31 +8,31 @@
 
 Anthropic 2026-06-15 计费政策: `claude -p` / Agent SDK / 第三方程序化用量走独立的 \$200/月额度, **不再占订阅额度**; 只有交互式 Claude Code / Cowork / chat 继续走订阅. 详见 KOB-208.
 
-kobe v0.5 把 `claude` 当 stream-json 子进程驱动 (`engine/claude-code-local/spawn.ts`), 所有用量吃 \$200 桶. 重并行下不够用. v0.6 改成**直接驱动交互式 claude**, 用量回到订阅.
+rove v0.5 把 `claude` 当 stream-json 子进程驱动 (`engine/claude-code-local/spawn.ts`), 所有用量吃 \$200 桶. 重并行下不够用. v0.6 改成**直接驱动交互式 claude**, 用量回到订阅.
 
 ## 2. 形态
 
 ```
-┌─────────── kobe (outer monitor, opentui+Solid) ──────────┐
+┌─────────── rove (outer monitor, opentui+Solid) ──────────┐
 │  Sidebar: tasks  │  Live preview rail (capture-pane)     │
 │  + status        │  Cost / status / cross-task search    │
 │  + worktree mgmt │  Click task → tmux attach (handover)  │
 └──────────────────────────────────────────────────────────┘
                               │
                               ▼  ⏎ enter
-┌────────── tmux session `kobe-<task-id>` (native) ────────┐
+┌────────── tmux session `rove-<task-id>` (native) ────────┐
 │   pane 0 (left, 60%)         │   pane 1 (right top)       │
-│   claude / codex             │   Ops window (kobe-ops)    │
+│   claude / codex             │   Ops window (rove-ops)    │
 │   原生 TUI 占用              │   send-keys 注入 + files   │
 │                              │   watcher                   │
 │                              │   ┌──────────────────────┐ │
 │                              │   pane 2 (right bottom)    │
 │                              │   terminal (zsh @worktree) │
 └──────────────────────────────────────────────────────────┘
-        Ctrl+Q (detach-client, kobe socket only) → 回外层
+        Ctrl+Q (detach-client, rove socket only) → 回外层
 ```
 
-外层 kobe (opentui+Solid) 渲染监控视图; 进入任务 = `tmux attach` 到该任务的预 split session, claude 在左 pane 原生跑 (订阅计费), 右上 Ops pane 提供元操作, 右下 terminal pane 跑 worktree-bound shell.
+外层 rove (opentui+Solid) 渲染监控视图; 进入任务 = `tmux attach` 到该任务的预 split session, claude 在左 pane 原生跑 (订阅计费), 右上 Ops pane 提供元操作, 右下 terminal pane 跑 worktree-bound shell.
 
 ## 3. 删除清单 (一刀切, 不留兼容)
 
@@ -70,7 +70,7 @@ kobe v0.5 把 `claude` 当 stream-json 子进程驱动 (`engine/claude-code-loca
 
 ## 5. 显式不做 (v0.6 不再保留这些功能)
 
-`@file` mention · prompt queue · permission mode 切换 UI · bash composer mode (`! cmd`) · TodoWrite checklist 内联渲染 · AskUserQuestion / ExitPlanMode 审批弹窗 · `/recap` 自动总结 · context meter · quick-* 快捷面板 (除 fork). 这些 v0.5 自渲染功能在 v0.6 之后**不再以任何形式出现**——claude / codex 自身的交互式 TUI 已经覆盖等价交互, kobe 不重做.
+`@file` mention · prompt queue · permission mode 切换 UI · bash composer mode (`! cmd`) · TodoWrite checklist 内联渲染 · AskUserQuestion / ExitPlanMode 审批弹窗 · `/recap` 自动总结 · context meter · quick-* 快捷面板 (除 fork). 这些 v0.5 自渲染功能在 v0.6 之后**不再以任何形式出现**——claude / codex 自身的交互式 TUI 已经覆盖等价交互, rove 不重做.
 
 ## 6. 执行步骤
 
@@ -78,30 +78,30 @@ kobe v0.5 把 `claude` 当 stream-json 子进程驱动 (`engine/claude-code-loca
 
 ### Step A — 砍 headless, 切默认到 interactive
 - 删 §3 所有 "删除" 项
-- chat pane 替换成 `ClaudeLauncher` (已存在), 不再有任何 `KOBE_CHAT_ENGINE` 环境变量分支
+- chat pane 替换成 `ClaudeLauncher` (已存在), 不再有任何 `ROVE_CHAT_ENGINE` 环境变量分支
 - `Task` / `TaskIndex` 瘦身: 删 `tabs` 的 sessionId / 多 tab / model / effort / permissionMode 字段
 - orchestrator 只剩任务/worktree 生命周期, 不再 pump 事件
-- 验证: 启动 kobe → 选任务 → ⏎ 进入 → claude 跑 → Ctrl+Q 回到 kobe. typecheck/lint/单测绿.
+- 验证: 启动 rove → 选任务 → ⏎ 进入 → claude 跑 → Ctrl+Q 回到 rove. typecheck/lint/单测绿.
 - **Linear:** KOB-227
 
 ### Step B — tmux 预 split 三 pane
 - 改 `tmux.ts` 的 `ensureSession`: 建 session 时
   - `new-session -d -s <name> -c <wt> 'claude'`
-  - `split-window -h -t =<name>:0 -p 40 -c <wt> 'kobe-ops'` (占位, B 阶段先跑 `lsd --tree --git -L 2 ; sleep infinity` 之类)
+  - `split-window -h -t =<name>:0 -p 40 -c <wt> 'rove-ops'` (占位, B 阶段先跑 `lsd --tree --git -L 2 ; sleep infinity` 之类)
   - `split-window -v -t =<name>:0.1 -p 50 -c <wt>` (shell)
 - attach 后焦点默认在 pane 0 (claude)
 - 验证: 进入任务看到三 pane 布局, claude/files/terminal 各就位.
 - **Linear:** KOB-228
 
 ### Step C — Ops pane 自研小工具 (`packages/rove-ops`)
-- 独立 npm 包 `@sma1lboy/kobe-ops`, 同 bun workspace
+- 独立 npm 包 `@sma1lboy/rove-ops`, 同 bun workspace
 - 启动入参: `--task-id <id> --worktree <path> --target-pane =<session>:0.0`
 - 功能 (0.6.0 范围内): 文件 watcher (git status + tree); 之后 (0.6.x): quick-fork / create-PR / file preview
-- send-keys 注入用 `tmux -L kobe send-keys -t <target>` (会复用同一 socket)
+- send-keys 注入用 `tmux -L rove send-keys -t <target>` (会复用同一 socket)
 - **Linear:** KOB-229
 
 ### Step D — 外层监控变厚
-- Live preview rail: 每 1s `tmux capture-pane -t kobe-<id> -p` 显示当前 claude 状态
+- Live preview rail: 每 1s `tmux capture-pane -t rove-<id> -p` 显示当前 claude 状态
 - Cost dashboard (照搬 agent-deck `internal/ui/cost_dashboard.go` 形态, 数据来自 `session/usage-metrics.ts` 读 JSONL)
 - Cross-task search / 批量动作 (后续 0.6.x, 不阻塞 0.6.0 发布)
 - **Linear:** KOB-230 (D core), KOB-231 (D 后续)
@@ -116,8 +116,8 @@ kobe v0.5 把 `claude` 当 stream-json 子进程驱动 (`engine/claude-code-loca
 
 ## 8. 不变的契约
 
-- 新 worktree 路径是 `~/.rove/worktrees/<repo-key>/<slug>/`；全局/repo-local `.kobe/worktrees` 和旧的 `<repo>/.claude/worktrees/<slug>/` 任务继续兼容。
-- 任务索引是 `~/.rove/tasks.json` 单 JSON 文件；新 daemon 确认旧 writer 停止后从 `.kobe/tasks.json` 安全复制
+- 新 worktree 路径是 `~/.rove/worktrees/<repo-key>/<slug>/`；全局/repo-local `.rove/worktrees` 和旧的 `<repo>/.claude/worktrees/<slug>/` 任务继续兼容。
+- 任务索引是 `~/.rove/tasks.json` 单 JSON 文件；新 daemon 确认旧 writer 停止后从 `.rove/tasks.json` 安全复制
 - claude history 仍读 `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`
-- `tmux -L kobe` 独占 socket (KOB-225 拍的, 不污染用户自己的 tmux)
+- `tmux -L rove` 独占 socket (KOB-225 拍的, 不污染用户自己的 tmux)
 - 全局 Ctrl+Q = "detach 当前接管 / 返回外层" (KOB-225 绑过, 0.6 沿用)

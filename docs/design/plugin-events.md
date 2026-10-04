@@ -140,7 +140,7 @@ read, connect-if-running, always exit 0).
 
 Every event a plugin hook receives exposes the canonical contract
 (`ROVE_PLUGIN_EVENT`, `ROVE_PLUGIN_EVENT_JSON`, plain `ROVE_PLUGIN_TASK_*`
-vars) plus identical `KOBE_PLUGIN_*` aliases, with the JSON envelope:
+vars) plus identical `ROVE_PLUGIN_*` aliases, with the JSON envelope:
 
 ```jsonc
 {
@@ -183,7 +183,7 @@ builds: notify, log, mirror state, auto-file, auto-bootstrap, dashboards.
   plugins that declared the hook).
 - **Tool-family volume gate (done).** The PreToolUse/PostToolUse(/Failure)
   hooks are written into engine config ONLY while an enabled plugin declares
-  a `tool.*` event (checked on every launch in `ensureGlobalKobeHooks`;
+  a `tool.*` event (checked on every launch in `ensureGlobalRoveHooks`;
   install/remove such a plugin → takes effect on the next Rove start). A
   future manifest matcher (`tool = "Bash"`) can narrow further.
 - **UI events (done).** The TUI fire-and-forgets product moments over the
@@ -216,7 +216,7 @@ builds: notify, log, mirror state, auto-file, auto-bootstrap, dashboards.
   driving both installed binaries (0.80.6 / 18.1.17) through a real turn:
   every event in the A–F tables above was live-fired, including OMP's
   `tool_approval_requested` at a real approval prompt. The payload rides
-  argv (`kobe hook --payload <json>`) because `pi.exec` cannot pipe stdin.
+  argv (`rove hook --payload <json>`) because `pi.exec` cannot pipe stdin.
 - **Kimi adapter** (shipped 2026-08-23): `KimiHookAdapter` writes a
   marker-delimited `[[hooks]]` block into `~/.kimi-code/config.toml`
   (append-at-EOF, merge-safe; payload fields verified against the installed
@@ -238,5 +238,5 @@ pi/omp packages' `extensibility/hooks|extensions/types.ts` (the event
 signatures the generated module is written against). Local ground truth:
 `src/engine/hook-events.ts`, `src/engine/claude-code-local/hook-adapter.ts`,
 `src/engine/codex-local/hook-adapter.ts`, `src/cli/hook-cmd.ts`,
-`kobe-daemon/src/daemon/handlers.ts` (`engine.reportEvent`), and the
+`rove-daemon/src/daemon/handlers.ts` (`engine.reportEvent`), and the
 `refs/` clones (read-only).

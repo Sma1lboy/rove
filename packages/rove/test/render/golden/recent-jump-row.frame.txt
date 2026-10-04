@@ -1,7 +1,7 @@
 # sidebar frame: recent-jump-row
 # narrow mode's one-keystroke way back into the task you were last inside
 # 30x22
-# GENERATED — do not hand-edit. Regenerate: rove_UPDATE_GOLDEN=1 bun run test:render
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
 | New task                + n  |

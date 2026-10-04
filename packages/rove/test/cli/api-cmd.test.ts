@@ -228,7 +228,6 @@ describe("API surface (full CRUD)", () => {
     withEnv("ROVE_INVOKED_AS", "rove", () => {
       const help = verbHelp(findVerb("add")!)
       expect(help).toContain("rove api add")
-      expect(help).not.toContain("rove api add")
     })
   })
 })

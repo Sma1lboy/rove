@@ -29,7 +29,7 @@ const PTY_PORT = readRoveEnv("PTY_PORT") ?? "5175"
 
 // Resolve ROVE_HOME_DIR to an absolute path so every child agrees on the same
 // home regardless of its cwd, and ensure it exists (the sandbox home may not
-// yet). Unset → production `~/.rove` product data (daemon runtime stays `.kobe`).
+// yet). Unset → production `~/.rove` product data (daemon runtime stays `.rove`).
 const rawHome = readRoveEnv("HOME_DIR")
 const homeDir = rawHome ? resolve(rawHome) : null
 if (homeDir) mkdirSync(homeDir, { recursive: true })

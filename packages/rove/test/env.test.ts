@@ -1,4 +1,5 @@
 import { homedir } from "node:os"
+import { preRenameConfigDir, preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { afterEach, describe, expect, test } from "vitest"
 import {
   homeDir,
@@ -34,8 +35,8 @@ describe("startupible environment access", () => {
     expect(roveStateDir()).toBe("/rove-home/.rove")
     expect(roveSettingsDir()).toBe("/rove-home/.rove/settings")
     expect(kvStatePath()).toBe("/rove-home/.config/rove/state.json")
-    expect(legacyRoveStateDir()).toBe("/rove-home/.rove")
-    expect(legacyRoveKvStatePath()).toBe("/rove-home/.config/rove/state.json")
+    expect(legacyRoveStateDir()).toBe(preRenameStateDir("/rove-home"))
+    expect(legacyRoveKvStatePath()).toBe(`${preRenameConfigDir("/rove-home")}/state.json`)
   })
 
   // `VAR=` is how a shell says "unset". Read raw, it made the home `""` and
@@ -48,12 +49,6 @@ describe("startupible environment access", () => {
     expect(homeDir()).toBe(homedir())
     expect(roveStateDir()).toBe(`${homedir()}/.rove`)
     expect(kvStatePath()).toBe(`${homedir()}/.config/rove/state.json`)
-  })
-
-  test("an empty ROVE_HOME_DIR still yields to a real ROVE_HOME_DIR", () => {
-    process.env.ROVE_HOME_DIR = ""
-    process.env.ROVE_HOME_DIR = "/legacy-home"
-    expect(homeDir()).toBe("/legacy-home")
   })
 
   test("ROVE_DEV takes precedence over ROVE_DEV", () => {

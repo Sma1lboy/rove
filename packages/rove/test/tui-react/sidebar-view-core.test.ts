@@ -47,7 +47,7 @@ describe("line budgets", () => {
     // Exact boundary: four label cells fit at width 17; one fewer cell
     // reserves the ellipsis instead of painting a fifth cell.
     expect(truncateProjectFilterLabel({ label: "rove", sectionLabel: "PROJECTS", width: 17 })).toBe("rove")
-    expect(truncateProjectFilterLabel({ label: "rove", sectionLabel: "PROJECTS", width: 16 })).toBe("ko…")
+    expect(truncateProjectFilterLabel({ label: "rove", sectionLabel: "PROJECTS", width: 16 })).toBe("ro…")
     expect(truncateProjectFilterLabel({ label: "all", sectionLabel: "PROJECTS", width: 16 })).toBe("all")
     // At this degenerate width even one suffix cell would overflow; containment
     // takes precedence. Production's sidebar inner width is 30 cells.

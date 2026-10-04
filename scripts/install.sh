@@ -11,7 +11,6 @@ set -eu
 # `rove update` (scripts/update.sh), which reuses whichever package manager
 # owns the binary on PATH.
 PACKAGE="@sma1lboy/rove"
-LEGACY_PACKAGE="@sma1lboy/kobe"
 VERSION="${1:-}"
 
 # Oldest Bun Rove runs on. Must match `engines.bun` in packages/rove/package.json
@@ -120,13 +119,7 @@ fi
 
 BUN_BIN_DIR="$(dirname "$BUN")"
 
-# 2. Rove. Both packages own the `rove` and `kobe` bin names, so an install
-# on top of the pre-rename package dies with EEXIST — clear it first.
-if [ -d "${BUN_INSTALL:-$HOME/.bun}/install/global/node_modules/${LEGACY_PACKAGE}" ]; then
-  say "${DIM}removing the pre-rename ${LEGACY_PACKAGE} first${RESET}"
-  "$BUN" remove -g "$LEGACY_PACKAGE" >/dev/null 2>&1 || true
-fi
-
+# 2. Install Rove.
 say "${BOLD}Installing ${PACKAGE}${VERSION:+@$VERSION}${RESET}"
 "$BUN" install -g "${PACKAGE}@${VERSION:-latest}" >/dev/null 2>&1 ||
   die "install failed — retry with output: ${BUN} install -g ${PACKAGE}@${VERSION:-latest}"

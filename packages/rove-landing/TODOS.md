@@ -1,4 +1,4 @@
-# kobe-landing — TODOs
+# rove-landing — TODOs
 
 Landing page 迭代清单。源文件：`packages/rove-landing/index.html`（静态页 + plugins/themes/changelog 三个子页）。
 线上：[rove.run](https://rove.run) · 仓库：[github.com/Sma1lboy/rove](https://github.com/Sma1lboy/rove)
@@ -12,7 +12,7 @@ Landing page 迭代清单。源文件：`packages/rove-landing/index.html`（静
 - 旧 #3（GitHub logo + 实时 star 数）→ nav 内已有 inline SVG + `starCount` fetch（localStorage 缓存 + 限流 fallback）。
 - 旧 #5（静态 mockup 换活动效）→ 首屏已是可交互的 fleet mock（`fleet.js`，可点任务/Kanban/Routines/Inbox/Zen）。
 - 旧 #6（why section 图片驱动）→ 已被 stages 滚动叙事（multiplex / ssh-native / peers）整体取代。
-- 旧 #7（`kobe api fan-out` 裸命令）→ 已是 fan-out 动画（`fanout.css` + `stages.js`），命令降为注脚。
+- 旧 #7（`rove api fan-out` 裸命令）→ 已是 fan-out 动画（`fanout.css` + `stages.js`），命令降为注脚。
 
 ## 待办
 

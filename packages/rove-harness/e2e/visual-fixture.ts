@@ -16,7 +16,7 @@ import {
 } from "../../rove/scripts/fixture-core.ts"
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
-export const ROVE_DIR: string = join(REPO_ROOT, "packages", "kobe")
+export const ROVE_DIR: string = join(REPO_ROOT, "packages", "rove")
 export const ROVE_CLI = join(ROVE_DIR, "dist", "cli", "rove.js")
 export const ROVE_SKILL = join(ROVE_DIR, "dist", "skills", "rove", "SKILL.md")
 
@@ -71,9 +71,9 @@ export const VISUAL_ENV = buildFixtureEnv({
 // `.dev-sandbox/home` (the owner's live environment).
 //
 // The explicit path assignments pin the fixture's runtime files under its
-// own home. A kobe engine session exports ROVE_DAEMON_SOCKET_PATH into its
+// own home. A rove engine session exports ROVE_DAEMON_SOCKET_PATH into its
 // terminal so in-task agents can reach the owning daemon -- which means an
-// agent running this suite from inside a kobe task would otherwise hand the
+// agent running this suite from inside a rove task would otherwise hand the
 // fixture TUI a socket pointing at the OWNER'S live daemon, and the
 // "isolated" journey renders real tasks.
 export const VISUAL_PTY_COMMAND = `${[
@@ -272,7 +272,7 @@ export default async function setupVisualFixture(): Promise<void> {
     [{ path: "README.md", body: "# OpenTUI visual fixture\n" }],
     [{ message: "fixture", paths: ["README.md"] }],
     VISUAL_ENV,
-    { email: "visual@kobe.local", name: "kobe visual" },
+    { email: "visual@rove.local", name: "rove visual" },
   )
 
   // Bare task, NO chat tab. The journeys assert the sidebar row label

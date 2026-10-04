@@ -326,7 +326,7 @@ silently means something different from what it shows.
 
 ## The prefix
 
-**2026-08-10 — the configured prefix first stroke is Kobe-owned even inside
+**2026-08-10 — the configured prefix first stroke is Rove-owned even inside
 the embedded terminal.** This makes the command layer and content-scoped
 prefix actions reachable without leaving the pane. The explicit cost of the
 default is that the terminal no longer receives `ctrl+a` for shell

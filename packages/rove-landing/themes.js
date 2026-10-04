@@ -91,7 +91,7 @@ var ROVE_I18N = (function () {
   var lang = 'en';
   try {
     var fromUrl = new URLSearchParams(location.search).get('lang');
-    var stored = localStorage.getItem('kobe_lang');
+    var stored = localStorage.getItem('rove_lang');
     var nav = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
     lang = fromUrl === 'zh' || fromUrl === 'en' ? fromUrl : stored === 'zh' || stored === 'en' ? stored : nav;
   } catch (e) {}
@@ -121,7 +121,7 @@ var ROVE_I18N = (function () {
   if (toggleBtn) {
     toggleBtn.addEventListener('click', function () {
       lang = lang === 'zh' ? 'en' : 'zh';
-      try { localStorage.setItem('kobe_lang', lang); } catch (e) {}
+      try { localStorage.setItem('rove_lang', lang); } catch (e) {}
       apply();
     });
   }
@@ -159,15 +159,15 @@ var ROVE_I18N = (function () {
   });
 })();
 
-// live GitHub star count — same shape and same `kobe_stars` cache key as the
+// live GitHub star count — same shape and same `rove_stars` cache key as the
 // home and plugins pages, so the count paints instantly once any page has run
 (function () {
   var el = document.getElementById('starCount');
   if (!el) return;
   function render(n) { el.textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n); }
-  try { var c = JSON.parse(localStorage.getItem('kobe_stars') || 'null'); if (c && typeof c.n === 'number') render(c.n); } catch (e) {}
+  try { var c = JSON.parse(localStorage.getItem('rove_stars') || 'null'); if (c && typeof c.n === 'number') render(c.n); } catch (e) {}
   fetch('https://api.github.com/repos/Sma1lboy/rove')
     .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) { if (!d || typeof d.stargazers_count !== 'number') return; render(d.stargazers_count); try { localStorage.setItem('kobe_stars', JSON.stringify({ n: d.stargazers_count })); } catch (e) {} })
+    .then(function (d) { if (!d || typeof d.stargazers_count !== 'number') return; render(d.stargazers_count); try { localStorage.setItem('rove_stars', JSON.stringify({ n: d.stargazers_count })); } catch (e) {} })
     .catch(function () { if (el.textContent === '–') el.textContent = '☆'; });
 })();

@@ -1,7 +1,7 @@
 # Landing-page auto-deploy.
 #
 # Deploys the marketing site (`packages/rove-landing`, a static HTML site)
-# to Vercel production (project `kobe-landing`, rove.sma1lboy.me) whenever
+# to Vercel production (project `rove-landing`, rove.sma1lboy.me) whenever
 # the landing files change on `main`. This exists because the Vercel CLI
 # can't always run from a local machine behind a TLS-intercepting network
 # (node's fetch fails cert verification); a GitHub-hosted runner has a clean
@@ -14,7 +14,7 @@
 #
 # Required repo secret:
 #   - VERCEL_TOKEN: a Vercel access token (Vercel dashboard → Settings →
-#     Tokens → Create), scoped to the team that owns the `kobe-landing`
+#     Tokens → Create), scoped to the team that owns the `rove-landing`
 #     project. Add with: `gh secret set VERCEL_TOKEN`.
 #
 # The org/project IDs below are NOT secrets (they're the identifiers from

@@ -9,7 +9,7 @@
  * asking"; the token answers "is this caller entitled at all". Both apply.
  *
  * The expected value is the same 0600 file the daemon mints
- * (`kobe-daemon/daemon/web-token.ts` + `defaultWebTokenPath`), read here
+ * (`rove-daemon/daemon/web-token.ts` + `defaultWebTokenPath`), read here
  * directly rather than passed down from whoever spawned this process: the
  * sidecar is started from three places (`dev.ts`, Playwright, by hand), and a launcher that forgot to forward the secret would silently
  * reopen the hole. The path logic is duplicated instead of imported because
@@ -18,7 +18,7 @@
  *
  * Fail closed: no readable token file means no request is served. The minter
  * is `rove-harness/dev.ts`, which calls `ensureWebToken` before it spawns this
- * sidecar — NOT the daemon. Nothing under `kobe-daemon/` calls `ensureWebToken`
+ * sidecar — NOT the daemon. Nothing under `rove-daemon/` calls `ensureWebToken`
  * at all (the daemon-hosted web transport that used to went away with #855), so
  * a launcher that starts the sidecar without minting first gets a gate that
  * refuses every request. That is the correct failure, but it looks like a bug:
@@ -32,10 +32,10 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 
 const STATE_DIR = ".rove"
-const LEGACY_STATE_DIR = ".kobe"
+const LEGACY_STATE_DIR = ".rove"
 const TOKEN_FILE = "web-token"
 
-/** `<home>/.rove/web-token`, falling back to the legacy `.kobe` layout only
+/** `<home>/.rove/web-token`, falling back to the legacy `.rove` layout only
  *  when that is where the file actually is — mirrors `runtimeDataPath`. */
 export function webTokenPath(env = process.env) {
   const home = env.ROVE_HOME_DIR ?? homedir()

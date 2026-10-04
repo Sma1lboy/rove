@@ -53,23 +53,23 @@ launch with a shell error.
 Rove learns what a session is doing (turn started/finished, rate-limited,
 waiting on a permission prompt) from the engine's **own hook mechanism**, not
 polling. Each engine's hook adapter translates vendor events into neutral
-verbs and points them at `kobe hook <verb>`, an internal CLI subcommand that
+verbs and points them at `rove hook <verb>`, an internal CLI subcommand that
 reports the event to the daemon. The daemon maps the hook's `cwd` (or the
-inherited `ROVE_TASK_ID` / `ROVE_TAB_ID` env vars, with `KOBE_*` aliases) to a
+inherited `ROVE_TASK_ID` / `ROVE_TAB_ID` env vars, with `ROVE_*` aliases) to a
 task and folds the event into the task's activity badge.
 
 ```mermaid
 flowchart LR
-    A[engine hook fires<br/>in any session] --> B[kobe hook &lt;verb&gt;<br/>never spawns daemon, always exits 0]
+    A[engine hook fires<br/>in any session] --> B[rove hook &lt;verb&gt;<br/>never spawns daemon, always exits 0]
     B --> C[daemon: cwd/env → task]
     C --> D[task activity badge<br/>+ plugin events]
 ```
 
 Install is **default-on and global**: on every Rove launch,
-`ensureGlobalKobeHooks` (in `src/cli/hook-cmd.ts`) writes Rove's hooks into
+`ensureGlobalRoveHooks` (in `src/cli/hook-cmd.ts`) writes Rove's hooks into
 each hook-supporting engine's user-level config file. The merge is idempotent
 and merge-safe — your own hooks for the same events are preserved; Rove
-replaces only its own entries, identified by the `kobe hook` command
+replaces only its own entries, identified by the `rove hook` command
 substring — and never blocks launch.
 
 ### Claude: `~/.claude/settings.json`
@@ -111,10 +111,10 @@ its default export and dispatch the same `pi.on(...)` event names, so one
 generated file serves `pi` 0.80.6 and `omp` 18.1.17.
 
 The extension is the one hook install that calls an ENGINE API:
-`pi.exec(command, args)` spawns `kobe hook <verb> --engine <id>` with the
+`pi.exec(command, args)` spawns `rove hook <verb> --engine <id>` with the
 engine's environment inherited. It cannot pipe stdin (that API fixes stdio to
 `["ignore","pipe","pipe"]`), which is why the payload rides argv via
-`kobe hook --payload <json>` instead of Claude's stdin channel.
+`rove hook --payload <json>` instead of Claude's stdin channel.
 
 | pi-family event | Neutral verb |
 |---|---|
@@ -154,7 +154,7 @@ are always installed.
 Rove installs no worktree hook today. Two were removed, and each launch
 uninstalls both wherever they were written:
 
-- **`PostToolUse` (Bash) watch observer** — fired `kobe hook worktree-created`
+- **`PostToolUse` (Bash) watch observer** — fired `rove hook worktree-created`
   after every Bash call to archive the task pinned to a removed worktree.
   Archive was removed (issue #75), leaving a hook that did nothing while still
   spawning a process — ~170ms per Bash call, in every session on the machine.
@@ -162,7 +162,7 @@ uninstalls both wherever they were written:
   the entry dropped on their next launch.
 - **`WorktreeCreate` provider hook** (0.7.4–0.7.9) — a *provider* hook, so its
   mere presence made Claude Code delegate worktree creation to Rove's observer
-  (which returns no path) and broke `claude --worktree` everywhere. `kobe hook
+  (which returns no path) and broke `claude --worktree` everywhere. `rove hook
   setup` survives only as a deprecated cleanup no-op.
 
 Adoption is intent-driven instead: an engine `session-start` inside a managed
@@ -170,9 +170,9 @@ worktree root, or an explicit adopt (`rove add .` / New task → Adopt Worktree)
 
 ### Invocation contract
 
-`kobe hook <verb>` is internal: engines fire it, you don't. It keeps the
+`rove hook <verb>` is internal: engines fire it, you don't. It keeps the
 legacy binary name on purpose — a hook file outlives the launcher that wrote
-it, so `kobeHookInvocation()` persists the guaranteed `kobe` alias rather than
+it, so `roveHookInvocation()` persists the guaranteed `rove` alias rather than
 a name a future PATH may not carry. Two guarantees
 are load-bearing — it **never spawns the daemon** (an idle-stopped daemon
 means the event is simply dropped), and it **always exits 0** (a hook must

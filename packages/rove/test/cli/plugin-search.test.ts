@@ -6,8 +6,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("plugin marketplace compatibility", () => {
-  it("unions the Rove and legacy Rove topics and de-duplicates repositories", async () => {
+describe("plugin marketplace", () => {
+  it("lists repositories from the Rove topic", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       const legacy = url.includes("topic%3Arove-plugin")
       return {
@@ -25,7 +25,7 @@ describe("plugin marketplace compatibility", () => {
 
     await searchMarketplace("needle")
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(
       expect.arrayContaining([
         expect.stringContaining("topic%3Arove-plugin"),
@@ -37,7 +37,7 @@ describe("plugin marketplace compatibility", () => {
     expect(output).toContain("you/legacy")
   })
 
-  it("keeps first-party fallback results when both topic searches fail", async () => {
+  it("keeps first-party fallback results when the topic search fail", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),

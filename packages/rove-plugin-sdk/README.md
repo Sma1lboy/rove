@@ -87,7 +87,5 @@ Full contract (manifest reference, event catalog, env table):
 Published docs site version:
 [docs.rove.run/plugins/sdk](https://docs.rove.run/plugins/sdk).
 
-Existing plugins can keep importing `@sma1lboy/kobe-plugin-sdk`: every SDK
-release publishes the same files and version under both package names. The
-legacy `kobe()` / `kobeJson()` helpers, `KobeSocket` class, and `KOBE_*`
-environment aliases remain available as well.
+The SDK exports `rove()`, `roveJson()`, and `RoveSocket`. Its environment
+variables use only the `ROVE_*` namespace.

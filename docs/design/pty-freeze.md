@@ -1,7 +1,7 @@
 # PTY host freeze/restore — surviving a host restart
 
 > Design note (2026-08-15). The problem: the standalone PTY host
-> (`kobe-daemon/src/daemon/pty-server.ts`) keeps every session's metadata and
+> (`rove-daemon/src/daemon/pty-server.ts`) keeps every session's metadata and
 > scrollback ring **in memory only**, so while a `rove daemon restart` is
 > harmless (separate process), the host process itself ending — crash,
 > SIGTERM, machine reboot — took the whole work scene with it. The next host
@@ -15,7 +15,7 @@ to keep processes alive across a host death (that needs fd-passing/CRIU-class
 tricks — rejected as not worth it, same call as the original daemon doc).
 
 - **Freeze** (`pty-freeze-store.ts`): one JSON file per session under
-  `<home>/.kobe/pty-sessions/<urlencoded-key>.json` — key, cwd, launch
+  `<home>/.rove/pty-sessions/<urlencoded-key>.json` — key, cwd, launch
   command, size, title, monotonic byte offset, exit record, and the ring
   buffer (base64, already capped at ~512 KiB). Written at most once per 5s
   per session while streaming (crash-loss bound), immediately on exit, and

@@ -78,7 +78,7 @@ the whole app; say Workspace Host.
 **Focus** — the active keyboard region: `sidebar`, `workspace`, `files`, or
 `terminal`.
 
-**Binding Stack** — the runtime, modal-aware key dispatch stack. `KobeKeymap`
+**Binding Stack** — the runtime, modal-aware key dispatch stack. `RoveKeymap`
 defines which chords exist; the stack decides which focused surface receives a
 chord.
 

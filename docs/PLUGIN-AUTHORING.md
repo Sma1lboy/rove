@@ -315,7 +315,7 @@ Every plugin command gets, on top of the user's environment:
 
 | Variable | Meaning |
 |---|---|
-| `ROVE_BIN_PATH` | exec this to call back into Rove — the absolute path of the running install when that is a runnable file (an npm install, a compiled binary), otherwise the bare `rove`/`kobe` name resolved on `PATH`, which is what a dev checkout run through `bun` falls back to. In that fallback your callbacks run **a different build than the daemon that launched you**, so a verb or flag the daemon has can still fail as a usage error: compare `$ROVE_BIN_PATH --version` against the daemon's own `roveVersion` (see [Which host am I talking to](#which-host-am-i-talking-to)) before blaming your own arguments |
+| `ROVE_BIN_PATH` | exec this to call back into Rove — the absolute path of the running install when that is a runnable file (an npm install, a compiled binary), otherwise the bare `rove` name resolved on `PATH`, which is what a dev checkout run through `bun` falls back to. In that fallback your callbacks run **a different build than the daemon that launched you**, so a verb or flag the daemon has can still fail as a usage error: compare `$ROVE_BIN_PATH --version` against the daemon's own `roveVersion` (see [Which host am I talking to](#which-host-am-i-talking-to)) before blaming your own arguments |
 | `ROVE_SOCKET_PATH` | daemon unix socket, for raw JSON requests |
 | `ROVE_HOME_DIR` | set when Rove runs against a non-default home (keep passing it through) |
 | `ROVE_PLUGIN_ID`, `ROVE_PLUGIN_ROOT` | who you are, where your files are |
@@ -327,10 +327,8 @@ Every plugin command gets, on top of the user's environment:
 | actions | `ROVE_PLUGIN_ACTION_ID`, `ROVE_PLUGIN_INVOKE_CWD` (where the user invoked, usually "the repo I mean") |
 | panes | `ROVE_PLUGIN_ENTRYPOINT_ID`, `ROVE_PLUGIN_TASK_ID`; cwd is the task worktree. Panes get no `_TASK_TITLE` — read it with `"$ROVE_BIN_PATH" api get-task --task-id "$ROVE_PLUGIN_TASK_ID"` |
 
-Every `ROVE_*` variable above is also injected under its established `KOBE_*`
-alias. Existing plugins need no edits; when both are supplied, SDK readers
-prefer `ROVE_*`. Likewise, `kobe-plugin.toml`, `min_kobe_version`, and
-`@sma1lboy/kobe-plugin-sdk` remain supported compatibility spellings.
+Only the `ROVE_*` namespace, `rove-plugin.toml`, `min_rove_version`, and
+`@sma1lboy/rove-plugin-sdk` are supported. Update plugins using retired aliases.
 
 Never write durable state under `ROVE_PLUGIN_ROOT`. GitHub installs are
 managed checkouts replaced on reinstall. Settings you declare in
@@ -385,7 +383,7 @@ version describes what YOU were built against, not what the running daemon
 knows. Send `{"type":"request","id":"1","name":"hello","payload":{}}` (the
 SDK wraps it as `RoveSocket.hello()`) and read back:
 
-- `kobeVersion` — the daemon's build version. The SDK also surfaces it as
+- `roveVersion` — the daemon's build version. The SDK also surfaces it as
   `roveVersion`; the wire field keeps its original spelling.
 - `capabilities` — the broadcast channels **this** daemon has. A channel name
   it does not know is dropped from a `subscribe` filter silently, so this is
