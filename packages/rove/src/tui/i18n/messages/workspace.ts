@@ -10,6 +10,8 @@ export const en = {
     confirmBody: "The daemon and task sessions keep running. This closes only the native workspace.",
     confirmLabel: "Quit",
   },
+  /** Narrow layout's back row: returns to the task list. */
+  narrowBack: "Tasks",
   empty: {
     selectTask: "Select a task with a worktree",
     /** Every tab of this task was closed — the task and its worktree remain.
@@ -81,6 +83,7 @@ export const zh: typeof en = {
     confirmBody: "守护进程和任务会话会继续运行，这里只关闭原生工作区。",
     confirmLabel: "退出",
   },
+  narrowBack: "任务",
   empty: {
     selectTask: "请选择一个带 worktree 的任务",
     noSessions: "这里没有会话——按 ⏎ 或 ctrl+e 开一个",
