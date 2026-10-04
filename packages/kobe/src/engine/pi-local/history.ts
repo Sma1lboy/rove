@@ -25,11 +25,11 @@
  * encoder can only degrade to "no history", never wrong history.
  */
 
-import { realpathSync } from "node:fs"
 import { readdir, stat } from "node:fs/promises"
 import { homedir, tmpdir } from "node:os"
 import path from "node:path"
 import type { Message } from "@/types/engine"
+import { realPathOrSelf } from "../../lib/real-path.ts"
 import { readTextFileIfRegular } from "../file-bounds.ts"
 import { vendorAgentDir } from "../vendor-home.ts"
 import { parsePiSessionRaw } from "./history-parse.ts"
@@ -52,13 +52,7 @@ const defaultPiHistoryDeps: PiHistoryDeps = {
   home: () => homedir(),
   env: (name) => process.env[name],
   tmpdir: () => tmpdir(),
-  realpath: (p) => {
-    try {
-      return realpathSync(p)
-    } catch {
-      return p
-    }
-  },
+  realpath: realPathOrSelf,
   readdir: async (p) => readdir(p),
   stat: async (p) => {
     try {

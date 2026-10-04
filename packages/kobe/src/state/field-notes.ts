@@ -6,9 +6,10 @@
  * task's `repo`) rather than re-deriving the git-common-dir key.
  */
 
-import { readFileSync, realpathSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { roveStateDir } from "../env.ts"
+import { realPathOrSelf } from "../lib/real-path.ts"
 
 /** How many of the newest notes a fresh session is seeded with. */
 export const NOTE_INJECTION_CAP = 15
@@ -28,13 +29,6 @@ function fieldNotesPath(): string {
 }
 
 /** Resolve symlinks so `/var` vs `/private/var` can't split one repo in two. */
-function canonical(path: string): string {
-  try {
-    return realpathSync(path)
-  } catch {
-    return path
-  }
-}
 
 /**
  * Newest-first notes for `repoRoot`, capped at {@link NOTE_INJECTION_CAP}.
@@ -50,11 +44,11 @@ export function readFieldNotes(repoRoot: string, path = fieldNotesPath()): reado
   }
   const repos = (parsed as { repos?: Record<string, unknown> } | null)?.repos
   if (!repos || typeof repos !== "object") return []
-  const target = canonical(repoRoot)
+  const target = realPathOrSelf(repoRoot)
   for (const record of Object.values(repos)) {
     if (!record || typeof record !== "object") continue
     const typed = record as { repoRoot?: unknown; notes?: unknown }
-    if (typeof typed.repoRoot !== "string" || canonical(typed.repoRoot) !== target) continue
+    if (typeof typed.repoRoot !== "string" || realPathOrSelf(typed.repoRoot) !== target) continue
     if (!Array.isArray(typed.notes)) return []
     return typed.notes
       .filter(
