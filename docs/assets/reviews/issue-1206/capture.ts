@@ -23,7 +23,9 @@ writeFileSync(
     savedRepos: [],
   }),
 )
-const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(ROVE_|KOBE_|CLAUDE)/.test(key)))
+const env = Object.fromEntries(
+  Object.entries(process.env).filter(([key]) => ["PATH", "LANG", "LC_ALL", "TERM", "SHELL"].includes(key)),
+)
 Object.assign(env, {
   HOME: home,
   XDG_CONFIG_HOME: `${home}/.config`,
