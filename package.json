@@ -41,6 +41,6 @@
   },
   "trustedDependencies": ["electron", "node-pty"],
   "overrides": {
-    "postcss": "^8.5.26"
+    "postcss": "^8.5.28"
   }
 }
