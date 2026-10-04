@@ -138,8 +138,6 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
         ...env.env,
         ROVE_TASK_ID: taskId,
         ROVE_TAB_ID: "tab-1",
-        KOBE_TASK_ID: taskId,
-        KOBE_TAB_ID: "tab-1",
       },
     })
     expect(hook.code, hook.stderr).toBe(0)

@@ -20,7 +20,7 @@
 
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
-import { HERO_CLI, HERO_HOME, HERO_ROOT, KOBE_DIR, assertHeroIsolation, heroEnv } from "./hero-env.ts"
+import { HERO_CLI, HERO_HOME, HERO_ROOT, ROVE_DIR, assertHeroIsolation, heroEnv } from "./hero-env.ts"
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
 const EXAMPLES = join(REPO_ROOT, "packages", "kobe-plugin-sdk", "examples")
@@ -36,7 +36,7 @@ export const EXAMPLE_PLUGINS: readonly { readonly dir: string; readonly id: stri
 ]
 
 function run(args: readonly string[]): string {
-  const proc = Bun.spawnSync(["bun", HERO_CLI, ...args], { cwd: KOBE_DIR, env: heroEnv(), stdio: ["ignore", "pipe", "pipe"] })
+  const proc = Bun.spawnSync(["bun", HERO_CLI, ...args], { cwd: ROVE_DIR, env: heroEnv(), stdio: ["ignore", "pipe", "pipe"] })
   const out = new TextDecoder().decode(proc.stdout).trim()
   if (proc.exitCode !== 0) {
     throw new Error(`rove ${args.join(" ")} failed: ${new TextDecoder().decode(proc.stderr).trim() || out}`)

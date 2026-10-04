@@ -1,7 +1,7 @@
 /**
  * Loads `~/.rove/settings/keybindings.yaml` (via `src/state/keybindings-file.ts`;
  * the CLI always runs under Bun, so `Bun.YAML` exists) and MUTATES the matching
- * `KobeKeymap` rows in place for `process.platform`. Panes register through
+ * `RoveKeymap` rows in place for `process.platform`. Panes register through
  * `bindByIds`/`chordsOf` and legends render from the table, so one boot-time
  * mutation re-points every surface.
  *
@@ -21,7 +21,7 @@ import {
 import { type AppliedOverride, applyKeymapOverrides, extractKeybindingOverrides } from "../lib/keymap-overrides"
 import { type PluginKeyBinding, extractPluginKeybindings } from "../lib/keymap-plugin-bindings"
 import { applyPrefixKeymapOverrides, extractPrefixKeybindings } from "../lib/keymap-prefix-overrides"
-import { KobeKeymap, bumpKeymapVersion, resetKeymapToDefaults } from "./keybindings"
+import { RoveKeymap, bumpKeymapVersion, resetKeymapToDefaults } from "./keybindings"
 
 export type UserKeybindingsReport = {
   /** Canonical config path (the `.yaml` spelling, even when `.yml` was read). */
@@ -55,15 +55,15 @@ export function applyUserKeybindings(): UserKeybindingsReport {
   const prefixConfiguration = { ...DEFAULT_PREFIX_CONFIGURATION, ...prefix.configuration }
   configurePrefix(prefixConfiguration)
 
-  const result = applyKeymapOverrides(KobeKeymap, extracted.entries)
+  const result = applyKeymapOverrides(RoveKeymap, extracted.entries)
   warnings.push(...result.warnings)
   const applied: AppliedOverride[] = [...result.applied]
   const customPrefix = prefix.configuration.key === undefined ? [] : prefixFirstStrokes(prefixConfiguration)
   for (const prefixKey of customPrefix) {
-    const directOwner = KobeKeymap.find((row) => row.keys.includes(prefixKey))
+    const directOwner = RoveKeymap.find((row) => row.keys.includes(prefixKey))
     if (directOwner) warnings.push(`prefix.key "${prefixKey}" collides with direct binding ${directOwner.id}`)
   }
-  const prefixResult = applyPrefixKeymapOverrides(KobeKeymap, [...extracted.prefixEntries, ...prefix.entries])
+  const prefixResult = applyPrefixKeymapOverrides(RoveKeymap, [...extracted.prefixEntries, ...prefix.entries])
   warnings.push(...prefixResult.warnings)
   applied.push(...prefixResult.applied)
 
@@ -72,7 +72,7 @@ export function applyUserKeybindings(): UserKeybindingsReport {
   const plugins = extractPluginKeybindings(file.doc, process.platform)
   warnings.push(...plugins.warnings)
   for (const p of plugins.entries) {
-    const owner = KobeKeymap.find((row) => row.keys.includes(p.chord))
+    const owner = RoveKeymap.find((row) => row.keys.includes(p.chord))
     if (owner) warnings.push(`plugins: ${p.chord} shadows ${owner.id}`)
   }
 
@@ -92,7 +92,7 @@ export function userKeybindingsReport(): UserKeybindingsReport {
 /**
  * Live-reload counterpart of {@link applyUserKeybindings}, run when the daemon's
  * watcher pings the `keybindings` channel. Order matters: drop the file and
- * report caches, reset `KobeKeymap` to boot defaults, THEN re-apply, so a
+ * report caches, reset `RoveKeymap` to boot defaults, THEN re-apply, so a
  * removed override restores its default. The `keymapVersion` bump re-renders
  * legends; dispatch needs no nudge (it re-reads chords every keypress).
  */

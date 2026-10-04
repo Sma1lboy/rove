@@ -14,7 +14,7 @@ it("the two-task tutorial isolates mock-provider output and restores selection f
   const setup = spawnSync("bash", [resolve(__dirname, "fixtures/repo-init.sh"), repo], { encoding: "utf8" })
   expect(setup.status, setup.stderr).toBe(0)
   vi.stubEnv("ROVE_HOME_DIR", home)
-  vi.stubEnv("KOBE_HOME_DIR", home)
+  vi.stubEnv("ROVE_HOME_DIR", home)
   const store = new TaskIndexStore({ homeDir: home })
   await store.load()
   const orch = new Orchestrator({ store, worktrees: new GitWorktreeManager() })

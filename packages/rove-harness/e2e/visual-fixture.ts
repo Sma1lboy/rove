@@ -16,11 +16,11 @@ import {
 } from "../../rove/scripts/fixture-core.ts"
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
-export const KOBE_DIR: string = join(REPO_ROOT, "packages", "kobe")
-export const ROVE_CLI = join(KOBE_DIR, "dist", "cli", "rove.js")
-export const ROVE_SKILL = join(KOBE_DIR, "dist", "skills", "rove", "SKILL.md")
+export const ROVE_DIR: string = join(REPO_ROOT, "packages", "kobe")
+export const ROVE_CLI = join(ROVE_DIR, "dist", "cli", "rove.js")
+export const ROVE_SKILL = join(ROVE_DIR, "dist", "skills", "rove", "SKILL.md")
 
-export const VISUAL_PORT_BASE = Number.parseInt(process.env.KOBE_VISUAL_PORT_BASE ?? "5273", 10)
+export const VISUAL_PORT_BASE = Number.parseInt(process.env.ROVE_VISUAL_PORT_BASE ?? "5273", 10)
 const PORTS: FixturePorts = fixturePortBase(VISUAL_PORT_BASE)
 export const VISUAL_WEB_PORT = PORTS.webPort!
 export const VISUAL_PTY_PORT = PORTS.ptyPort!
@@ -59,12 +59,10 @@ export const VISUAL_ENV = buildFixtureEnv({
   homePolicy: "redirect",
   extra: {
     ROVE_ISSUES_TODAY: VISUAL_TODAY,
-    KOBE_ISSUES_TODAY: VISUAL_TODAY,
     // A fixture host has no business outliving the run that made it. Teardown
     // below is the primary reaper; this is the backstop for the run that never
     // reaches teardown at all (a killed harness, an interrupted Playwright).
     ROVE_PTY_MAX_LIFETIME_MS: VISUAL_PTY_MAX_LIFETIME_MS,
-    KOBE_PTY_MAX_LIFETIME_MS: VISUAL_PTY_MAX_LIFETIME_MS,
   },
 })
 
@@ -73,7 +71,7 @@ export const VISUAL_ENV = buildFixtureEnv({
 // `.dev-sandbox/home` (the owner's live environment).
 //
 // The explicit path assignments pin the fixture's runtime files under its
-// own home. A kobe engine session exports KOBE_DAEMON_SOCKET_PATH into its
+// own home. A kobe engine session exports ROVE_DAEMON_SOCKET_PATH into its
 // terminal so in-task agents can reach the owning daemon -- which means an
 // agent running this suite from inside a kobe task would otherwise hand the
 // fixture TUI a socket pointing at the OWNER'S live daemon, and the
@@ -82,30 +80,30 @@ export const VISUAL_PTY_COMMAND = `${[
   `HOME=${VISUAL_HOME}`,
   `XDG_CONFIG_HOME=${XDG_CONFIG_HOME}`,
   `ROVE_SANDBOX_HOME_DIR=${VISUAL_HOME}`,
-  `KOBE_SANDBOX_HOME_DIR=${VISUAL_HOME}`,
+  `ROVE_SANDBOX_HOME_DIR=${VISUAL_HOME}`,
   `ROVE_HOME_DIR=${VISUAL_HOME}`,
-  `KOBE_HOME_DIR=${VISUAL_HOME}`,
+  `ROVE_HOME_DIR=${VISUAL_HOME}`,
   `ROVE_ISSUES_TODAY=${VISUAL_TODAY}`,
-  `KOBE_ISSUES_TODAY=${VISUAL_TODAY}`,
+  `ROVE_ISSUES_TODAY=${VISUAL_TODAY}`,
   `ROVE_DAEMON_SOCKET_PATH=${PATHS.daemonSocket}`,
-  `KOBE_DAEMON_SOCKET_PATH=${PATHS.daemonSocket}`,
+  `ROVE_DAEMON_SOCKET_PATH=${PATHS.daemonSocket}`,
   `ROVE_DAEMON_PID_PATH=${PATHS.daemonPidPath}`,
-  `KOBE_DAEMON_PID_PATH=${PATHS.daemonPidPath}`,
+  `ROVE_DAEMON_PID_PATH=${PATHS.daemonPidPath}`,
   `ROVE_PTY_SOCKET_PATH=${PATHS.ptySocket}`,
-  `KOBE_PTY_SOCKET_PATH=${PATHS.ptySocket}`,
+  `ROVE_PTY_SOCKET_PATH=${PATHS.ptySocket}`,
   `ROVE_PTY_PID_PATH=${PATHS.ptyPidPath}`,
-  `KOBE_PTY_PID_PATH=${PATHS.ptyPidPath}`,
+  `ROVE_PTY_PID_PATH=${PATHS.ptyPidPath}`,
   "ROVE_TASK_ID=",
-  "KOBE_TASK_ID=",
+  "ROVE_TASK_ID=",
   "ROVE_TAB_ID=",
-  "KOBE_TAB_ID=",
+  "ROVE_TAB_ID=",
   // Opt-in PATH override for capturing the "nothing installed" states. Only
   // the contrib engines resolve through `Bun.which`, so a stripped PATH is the
   // one lever that hides them; the built-ins have their own finders and stay
   // visible as installed-but-not-logged-in, which is what the onboarding
   // wizard's not-ready verdict needs. Absent by default — a fixture with no
   // engines is not the state most journeys want.
-  ...(process.env.KOBE_VISUAL_MIN_PATH ? [`PATH=${process.env.KOBE_VISUAL_MIN_PATH}`] : []),
+  ...(process.env.ROVE_VISUAL_MIN_PATH ? [`PATH=${process.env.ROVE_VISUAL_MIN_PATH}`] : []),
   // Opt-in profile sinks for `perf:measure`; absent, the TUI records nothing.
   ...["ROVE_RENDER_PROFILE", "ROVE_SPAWN_PROFILE"].flatMap((name) =>
     process.env[name] ? [`${name}=${process.env[name]}`] : [],
@@ -124,12 +122,12 @@ function assertSafeVisualRoot(): void {
   }
 }
 
-function run(command: string, args: readonly string[], cwd: string = KOBE_DIR): string {
+function run(command: string, args: readonly string[], cwd: string = ROVE_DIR): string {
   return runInFixture(command, args, cwd, VISUAL_ENV)
 }
 
 function runRove(args: readonly string[]): unknown {
-  return runRoveApi(ROVE_CLI, args, KOBE_DIR, VISUAL_ENV)
+  return runRoveApi(ROVE_CLI, args, ROVE_DIR, VISUAL_ENV)
 }
 
 function createdIssueId(value: unknown, title: string): number {
@@ -140,7 +138,7 @@ function createdIssueId(value: unknown, title: string): number {
 }
 
 async function seedStartupState(): Promise<void> {
-  const packageJson = JSON.parse(await readFile(join(KOBE_DIR, "package.json"), "utf8")) as { version: string }
+  const packageJson = JSON.parse(await readFile(join(ROVE_DIR, "package.json"), "utf8")) as { version: string }
   let skillVersion: string | undefined
   try {
     const skill = await readFile(ROVE_SKILL, "utf8")
@@ -244,7 +242,7 @@ export async function cleanupVisualFixture(): Promise<void> {
 
 /** Warm-path probe: marker matches and the fixture daemon still answers. */
 async function fixtureIsWarm(): Promise<boolean> {
-  if (process.env.KOBE_VISUAL_FRESH === "1") return false
+  if (process.env.ROVE_VISUAL_FRESH === "1") return false
   try {
     if ((await readFile(FIXTURE_MARKER, "utf8")).trim() !== FIXTURE_VERSION) return false
     // `rove api list` auto-starts the fixture daemon when it idled out.

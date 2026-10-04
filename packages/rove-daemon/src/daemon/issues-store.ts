@@ -126,7 +126,7 @@ function nextIdFallback(entries: readonly unknown[]): number {
 
 function todayStamp(): string {
   // Visual-fixture pin: Kanban screenshots render `created`. Never set in production.
-  const pinned = process.env.KOBE_ISSUES_TODAY
+  const pinned = process.env.ROVE_ISSUES_TODAY
   if (pinned && /^\d{4}-\d{2}-\d{2}$/.test(pinned)) return pinned
   const d = new Date()
   const mm = String(d.getMonth() + 1).padStart(2, "0")

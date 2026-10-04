@@ -4,7 +4,7 @@
  */
 
 import { relaunchSelf } from "../../../cli/self-relaunch"
-import type { KobeOrchestrator } from "../../../client/remote-orchestrator"
+import type { RoveOrchestrator } from "../../../client/remote-orchestrator"
 import {
   type DestroyableRenderer,
   destroyRendererSafely,
@@ -54,7 +54,7 @@ export async function confirmResetState(
  */
 export async function confirmRestartDaemon(
   dialog: DialogContext,
-  orchestrator: KobeOrchestrator | undefined,
+  orchestrator: RoveOrchestrator | undefined,
   renderer: DestroyableRenderer | null | undefined,
 ): Promise<void> {
   if (!hasRestartableDaemon(orchestrator)) return
@@ -71,7 +71,7 @@ export async function confirmRestartDaemon(
 /**
  * Install (or refresh) Rove's activity hooks in every engine's config.
  *
- * Reuses the launch-time `ensureGlobalKobeHooks`, which owns the
+ * Reuses the launch-time `ensureGlobalRoveHooks`, which owns the
  * plugin-takeover skip, the tool-event volume gate and retired-hook cleanups;
  * a second installer would drift. Imported dynamically: a static edge from a
  * render path to a CLI verb's module is a bundle-only TDZ crash (see
@@ -80,10 +80,10 @@ export async function confirmRestartDaemon(
  */
 export async function installEngineHooks(): Promise<void> {
   try {
-    const { ensureGlobalKobeHooks } = await import("../../../cli/hook-cmd")
+    const { ensureGlobalRoveHooks } = await import("../../../cli/hook-cmd")
     // `quiet`: a stderr write under a live OpenTUI render paints over the
     // frame, and the panel already shows the refusal on the engine's row.
-    await ensureGlobalKobeHooks({ quiet: true })
+    await ensureGlobalRoveHooks({ quiet: true })
   } catch {
     /* never let a settings keypress throw through the render path */
   }

@@ -8,7 +8,7 @@ import { looksLikeOldStatus, parseStatusJson } from "../../src/machines/discover
 
 const FULL = JSON.stringify({
   daemonPid: 900,
-  kobeVersion: "0.9.185",
+  roveVersion: "0.9.185",
   homeDir: "/Users/nahuelchen",
   socketPath: "/Users/nahuelchen/.rove/daemon.sock",
   ptySocketPath: "/Users/nahuelchen/.rove/pty.sock",
@@ -22,7 +22,7 @@ describe("parseStatusJson", () => {
       ptySocketPath: "/Users/nahuelchen/.rove/pty.sock",
       homeDir: "/Users/nahuelchen",
       hostname: "Nahuels-Mac-mini.local",
-      kobeVersion: "0.9.185",
+      roveVersion: "0.9.185",
       daemonPid: 900,
     })
   })

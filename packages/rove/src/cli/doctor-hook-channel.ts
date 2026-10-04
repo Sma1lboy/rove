@@ -85,7 +85,7 @@ export function hookChannelDoctorLines(
   out.push(
     `         → compare with an engine tab's own path: \`ps eww -p <engine-pid> | tr " " "\\n" | grep DAEMON_SOCKET_PATH\``,
     `         → restart the engine tabs (they may hold a stale socket path), or run \`${cliName} daemon restart\``,
-    `         → debug one hook directly: \`KOBE_HOOK_DEBUG=1 echo '{}' | ${cliName} hook turn-start --engine claude\``,
+    `         → debug one hook directly: \`ROVE_HOOK_DEBUG=1 echo '{}' | ${cliName} hook turn-start --engine claude\``,
   )
   return out
 }

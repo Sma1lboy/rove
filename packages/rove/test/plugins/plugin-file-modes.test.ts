@@ -85,15 +85,15 @@ describe("plugin subsystem files are owner-only", () => {
     const home = tmp("kobe-pmode-link-")
     const root = tmp("kobe-pmode-link-root-")
     writeFileSync(join(root, "rove-plugin.toml"), LEAKY)
-    const saved = process.env.KOBE_HOME_DIR
-    process.env.KOBE_HOME_DIR = home
+    const saved = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = home
     try {
       linkPlugin(root)
       expect(mode(pluginConfigDir("example.leaky", home))).toBe(0o700)
       expect(mode(pluginStateDir("example.leaky", home))).toBe(0o700)
     } finally {
-      if (saved === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-      else process.env.KOBE_HOME_DIR = saved
+      if (saved === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = saved
     }
   })
 

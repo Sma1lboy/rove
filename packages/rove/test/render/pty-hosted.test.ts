@@ -15,7 +15,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { type PtyHostServer, startPtyHostServer } from "@sma1lboy/rove-daemon/daemon/pty-server"
 import { HostedTaskPty } from "../../src/tui/panes/terminal/pty-hosted.ts"
 
@@ -23,21 +23,21 @@ const dir = mkdtempSync(join(tmpdir(), "kobe-pty-hosted-"))
 let server: PtyHostServer
 
 beforeAll(async () => {
-  process.env.KOBE_PTY_SOCKET_PATH = join(dir, "pty.sock")
-  process.env.KOBE_PTY_PID_PATH = join(dir, "pty.pid")
+  process.env.ROVE_PTY_SOCKET_PATH = join(dir, "pty.sock")
+  process.env.ROVE_PTY_PID_PATH = join(dir, "pty.pid")
   // The server is already listening, so ensurePtyHostReachable's probe
   // succeeds and never spawns a detached `kobe pty-host`.
   server = await startPtyHostServer({
-    socketPath: process.env.KOBE_PTY_SOCKET_PATH,
-    pidPath: process.env.KOBE_PTY_PID_PATH,
+    socketPath: process.env.ROVE_PTY_SOCKET_PATH,
+    pidPath: process.env.ROVE_PTY_PID_PATH,
     idleExitMs: 60_000,
   })
 })
 
 afterAll(async () => {
   await server.close()
-  Reflect.deleteProperty(process.env, "KOBE_PTY_SOCKET_PATH")
-  Reflect.deleteProperty(process.env, "KOBE_PTY_PID_PATH")
+  Reflect.deleteProperty(process.env, "ROVE_PTY_SOCKET_PATH")
+  Reflect.deleteProperty(process.env, "ROVE_PTY_PID_PATH")
 })
 
 function text(pty: HostedTaskPty): string {
@@ -87,7 +87,7 @@ describe("HostedTaskPty over a real pty-host socket", () => {
     try {
       await expect(secondAttempt).rejects.toThrow()
 
-      const client = new KobeDaemonClient(socketPath)
+      const client = new RoveDaemonClient(socketPath)
       try {
         await client.connect()
         const hello = await client.request<{ pid: number }>("hello", {})

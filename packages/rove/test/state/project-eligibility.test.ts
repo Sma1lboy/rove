@@ -14,7 +14,7 @@ const REPO_ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/, "")
 
 /** Where Rove's own state lives for this run — see test/setup-env.ts. */
 function injectedHome(): string {
-  return process.env.KOBE_HOME_DIR ?? homedir()
+  return process.env.ROVE_HOME_DIR ?? homedir()
 }
 
 describe("pathRejection", () => {
@@ -25,7 +25,7 @@ describe("pathRejection", () => {
       "insideSandbox",
     )
     // The home the run was given, not `homedir()`: `roveStateDir()` follows
-    // `KOBE_HOME_DIR`, which test/setup-env.ts points at an empty tmpdir.
+    // `ROVE_HOME_DIR`, which test/setup-env.ts points at an empty tmpdir.
     expect(pathRejection(join(injectedHome(), ".rove/worktrees/kobe-0aff/manatee/fixture"))).toBe("roveInternal")
   })
 

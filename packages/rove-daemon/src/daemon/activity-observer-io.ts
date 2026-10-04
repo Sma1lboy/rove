@@ -7,7 +7,7 @@
  * state. Imports run one way: this → the loop's contract.
  */
 
-import { KobeDaemonClient } from "../client/index.ts"
+import { RoveDaemonClient } from "../client/index.ts"
 import type { ActivityObserverIo } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { logDaemonInfo } from "./crash-log.ts"
@@ -25,7 +25,7 @@ export function createActivityObserverIo(
   activity?: Pick<DaemonActivityRegistry, "recordEngineDeath">,
 ): ActivityObserverIo {
   const peek = async (key: string): Promise<string> => {
-    const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
+    const client = new RoveDaemonClient(defaultPtyHostSocketPath(homeDir))
     try {
       await client.connect()
       const result = await client.request<{ data?: string }>("pty.peek", { key })
@@ -89,7 +89,7 @@ export function createActivityObserverIo(
         .catch((err) => logDaemonInfo("engine-exit", `boot record failed for ${key}: ${String(err)}`))
     },
     async listSessions() {
-      const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
+      const client = new RoveDaemonClient(defaultPtyHostSocketPath(homeDir))
       try {
         await client.connect()
         const result = await client.request<{

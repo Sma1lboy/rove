@@ -71,7 +71,7 @@ min_kobe_version = "0.1.0"
 
 [[events]]
 on = "tool.post"
-command = ["sh", "-c", "printf %s \\"$KOBE_PLUGIN_EVENT\\" > tool.txt && printf %s \\"$KOBE_PLUGIN_EVENT_JSON\\" > payload.json"]
+command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > tool.txt && printf %s \\"$ROVE_PLUGIN_EVENT_JSON\\" > payload.json"]
 `
 
 describe("PluginHost.handleEngineReport", () => {

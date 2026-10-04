@@ -27,20 +27,20 @@ import { useKV } from "../../src/tui-react/context/kv"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { act, renderComponent } from "./harness"
 
-// KVProvider persists to `$KOBE_HOME_DIR` — the real ~/.rove without this.
+// KVProvider persists to `$ROVE_HOME_DIR` — the real ~/.rove without this.
 // Per-FILE (beforeAll), matching host-version-skew-banner.test.tsx: bun runs
 // every file in one process, and a beforeEach snapshot would restore whatever
 // the previous file left behind.
 let previousHome: string | undefined
 
 beforeAll(() => {
-  previousHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-hint-kv-"))
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-hint-kv-"))
 })
 
 afterAll(() => {
-  if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = previousHome
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
 })
 
 let footerRenders = 0

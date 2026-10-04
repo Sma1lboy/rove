@@ -75,7 +75,7 @@ export type AutomationRuntime = Pick<
   DaemonRuntimeAdapter,
   "startTaskSessionWithPrompt" | "deliverPromptToLiveEngineDetailed" | "deliverPromptToLiveEngineTabDetailed"
 > &
-  Partial<Pick<DaemonRuntimeAdapter, "kobeApiInvocation">>
+  Partial<Pick<DaemonRuntimeAdapter, "roveApiInvocation">>
 
 interface RunnerDeps {
   readonly store: AutomationsStore
@@ -289,7 +289,7 @@ export async function runAutomationOnce(
         ...(deps.now ? { now: deps.now } : {}),
       },
       automation,
-      withRoutineRunHeader(automation, reserved, deps.runtime.kobeApiInvocation?.() ?? "rove api"),
+      withRoutineRunHeader(automation, reserved, deps.runtime.roveApiInvocation?.() ?? "rove api"),
     )
   } catch (err) {
     // A moved or forgotten repo: the target is gone, not the schedule.

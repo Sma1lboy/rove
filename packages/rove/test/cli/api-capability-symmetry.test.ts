@@ -170,7 +170,7 @@ describe("remove-worktree", () => {
 })
 
 describe("rename --tab", () => {
-  /** Seed a real two-tab snapshot in the worker's isolated KOBE_HOME_DIR —
+  /** Seed a real two-tab snapshot in the worker's isolated ROVE_HOME_DIR —
    *  the same writers the CLI's own launch path uses. */
   function seedTabs(taskId: string): string {
     publishCliTabSnapshot(taskId)

@@ -6,7 +6,7 @@ import { resolveHarnessRenderer } from "../lib/harness-renderer.ts"
 
 /**
  * `/harness` — the one fixed-viewport observation surface for the real
- * OpenTUI. The PTY runs `KOBE_PTY_DEV_COMMAND`; visual acceptance always sets
+ * OpenTUI. The PTY runs `ROVE_PTY_DEV_COMMAND`; visual acceptance always sets
  * that to `dev:sandbox`. The hidden buffer is synchronization/diagnostics only
  * — screenshots still capture xterm's rendered pixels.
  */

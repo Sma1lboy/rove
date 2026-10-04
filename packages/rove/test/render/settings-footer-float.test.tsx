@@ -22,7 +22,7 @@ function Driver() {
 }
 
 test("the nav hint stays visible on a short standalone page", async () => {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-settings-footer-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-settings-footer-"))
   const { frame } = await renderComponent(<Driver />, {
     width: 100,
     height: 20,

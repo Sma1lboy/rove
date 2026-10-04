@@ -2,34 +2,33 @@ import { describe, expect, it } from "vitest"
 import { buildReportBundle, reportEnvLines } from "../../src/cli/doctor-report.ts"
 
 describe("buildReportBundle", () => {
-  it("captures ROVE_*, KOBE_* + known env keys but never arbitrary secrets", () => {
+  it("captures ROVE_*, ROVE_* + known env keys but never arbitrary secrets", () => {
     const lines = reportEnvLines({
       ROVE_HOME_DIR: "/tmp/rove-home",
-      KOBE_HOME_DIR: "/tmp/home",
       TERM: "xterm",
       SECRET_TOKEN: "hunter2",
     })
     expect(lines).toContain("ROVE_HOME_DIR=/tmp/rove-home")
-    expect(lines).toContain("KOBE_HOME_DIR=/tmp/home")
+    expect(lines).toContain("ROVE_HOME_DIR=/tmp/home")
     expect(lines).toContain("TERM=xterm")
     expect(lines.some((l) => l.startsWith("SECRET_TOKEN"))).toBe(false)
   })
 
   /**
-   * The report exists to be pasted into a public bug report, and ROVE_/KOBE_
+   * The report exists to be pasted into a public bug report, and ROVE_/ROVE_
    * is the namespace the plugin env contract hands to third-party code — so an
    * unrecognized key in it is exactly where a token shows up. Presence is the
    * diagnostic signal; the value is not.
    */
-  it("redacts the value of an unknown ROVE_/KOBE_ var while keeping it listed", () => {
+  it("redacts the value of an unknown ROVE_/ROVE_ var while keeping it listed", () => {
     const lines = reportEnvLines({
       ROVE_GH_PAT: "ghp_realtokenvaluehere",
-      KOBE_PLUGIN_OPENAI_KEY: "sk-live-abc123",
+      ROVE_PLUGIN_OPENAI_KEY: "sk-live-abc123",
       ROVE_HOME_DIR: "/tmp/rove-home",
     })
     // Listed (the maintainer learns the var is set) …
     expect(lines).toContain("ROVE_GH_PAT=(set)")
-    expect(lines).toContain("KOBE_PLUGIN_OPENAI_KEY=(set)")
+    expect(lines).toContain("ROVE_PLUGIN_OPENAI_KEY=(set)")
     // … but no substring of the report carries the secret itself.
     const text = lines.join("\n")
     expect(text).not.toContain("ghp_realtokenvaluehere")
@@ -49,11 +48,11 @@ describe("buildReportBundle", () => {
   it("never leaks an unknown var's value through the assembled bundle", () => {
     const text = buildReportBundle(["kobe doctor"], {
       generatedAt: "2026-07-15T00:00:00.000Z",
-      env: { KOBE_ANTHROPIC_API_KEY: "sk-ant-secret" },
+      env: { ROVE_ANTHROPIC_API_KEY: "sk-ant-secret" },
       daemonLog: "",
       ptyLog: "",
     })
-    expect(text).toContain("KOBE_ANTHROPIC_API_KEY=(set)")
+    expect(text).toContain("ROVE_ANTHROPIC_API_KEY=(set)")
     expect(text).not.toContain("sk-ant-secret")
   })
 })

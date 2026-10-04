@@ -302,7 +302,7 @@ async function runAdoptSubcommand(args: readonly string[]): Promise<void> {
     const hit = glob ? (isMatch(w) ? "*" : " ") : "-"
     // `dirty?` — the probe failed; not the same claim as a clean worktree.
     const dirtyTag = w.dirty === true ? "dirty" : w.dirty === null ? "dirty?" : ""
-    const tags = [dirtyTag, w.kobeManaged ? "" : "external"].filter(Boolean).join(",")
+    const tags = [dirtyTag, w.roveManaged ? "" : "external"].filter(Boolean).join(",")
     console.log(`  ${hit} ${w.branch}\t${w.path}${tags ? `  (${tags})` : ""}`)
   }
 
@@ -375,9 +375,9 @@ async function main(): Promise<void> {
   }
 
   // Own the terminal title before the first-run gate: onboarding is itself
-  // an interactive Kobe UI and may return without ever calling startTui().
-  const { publishKobeTerminalTitle } = await import("../tui/lib/outer-terminal-title.ts")
-  publishKobeTerminalTitle()
+  // an interactive Rove UI and may return without ever calling startTui().
+  const { publishRoveTerminalTitle } = await import("../tui/lib/outer-terminal-title.ts")
+  publishRoveTerminalTitle()
 
   const { launchTui } = await import("./launch-tui.ts")
   await launchTui()

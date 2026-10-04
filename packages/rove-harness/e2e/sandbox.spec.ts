@@ -54,7 +54,7 @@ async function waitForVisualPty(harness: Locator, buffer: Locator): Promise<void
 async function withVisualTui(page: Page, run: VisualJourney): Promise<void> {
   // Warm mode needs a fresh session per run (a reused tab would resume the
   // previous TUI mid-Kanban); hermetic mode keeps the stable id.
-  const runId = process.env.KOBE_VISUAL_KEEP === "1" ? `${VISUAL_RUN_ID}-${Date.now()}` : VISUAL_RUN_ID
+  const runId = process.env.ROVE_VISUAL_KEEP === "1" ? `${VISUAL_RUN_ID}-${Date.now()}` : VISUAL_RUN_ID
   try {
     await page.goto(`/harness?run=${runId}`)
     const harness = page.getByTestId("opentui-harness")
@@ -78,7 +78,7 @@ async function withVisualTui(page: Page, run: VisualJourney): Promise<void> {
 }
 
 test("workspace help and settings render in the real OpenTUI", async ({ page }) => {
-  test.skip(process.env.KOBE_VISUAL !== "1", "visual ground-truth only")
+  test.skip(process.env.ROVE_VISUAL !== "1", "visual ground-truth only")
 
   await withVisualTui(page, async (terminal, buffer) => {
     await clickSidebar(terminal)
@@ -102,7 +102,7 @@ test("workspace help and settings render in the real OpenTUI", async ({ page }) 
 })
 
 test("worktree audit opens and returns through the real OpenTUI", async ({ page }) => {
-  test.skip(process.env.KOBE_VISUAL !== "1", "visual ground-truth only")
+  test.skip(process.env.ROVE_VISUAL !== "1", "visual ground-truth only")
 
   await withVisualTui(page, async (terminal, buffer) => {
     await clickSidebar(terminal)
@@ -117,7 +117,7 @@ test("worktree audit opens and returns through the real OpenTUI", async ({ page 
 })
 
 test("Kanban fixture detail opens and returns through the real OpenTUI", async ({ page }) => {
-  test.skip(process.env.KOBE_VISUAL !== "1", "visual ground-truth only")
+  test.skip(process.env.ROVE_VISUAL !== "1", "visual ground-truth only")
 
   await withVisualTui(page, async (terminal, buffer) => {
     await clickSidebar(terminal)
@@ -139,7 +139,7 @@ test("Kanban fixture detail opens and returns through the real OpenTUI", async (
 })
 
 test("Kanban new issue intake renders in the real OpenTUI", async ({ page }) => {
-  test.skip(process.env.KOBE_VISUAL !== "1", "visual ground-truth only")
+  test.skip(process.env.ROVE_VISUAL !== "1", "visual ground-truth only")
 
   await withVisualTui(page, async (terminal, buffer) => {
     await clickSidebar(terminal)
@@ -165,7 +165,7 @@ test("Kanban new issue intake renders in the real OpenTUI", async ({ page }) => 
 // hint's "used" flag into the shared fixture HOME, so any journey after this
 // one would see the extinguished state instead of the fresh-HOME hints.
 test("keyboard hints render and extinguish in the real OpenTUI", async ({ page }) => {
-  test.skip(process.env.KOBE_VISUAL !== "1", "visual ground-truth only")
+  test.skip(process.env.ROVE_VISUAL !== "1", "visual ground-truth only")
 
   await withVisualTui(page, async (terminal, buffer) => {
     // Fresh HOME: the status-bar micro-hint and the sidebar's first-use

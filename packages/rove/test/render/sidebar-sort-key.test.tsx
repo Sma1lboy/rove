@@ -30,19 +30,19 @@ import { renderComponent } from "./harness"
 const SETTLE = 80
 
 // `useSidebarHostState` PERSISTS the chosen sort through KVProvider, which
-// writes `$KOBE_HOME_DIR/.config/rove/state.json` — the real ~/.rove without
+// writes `$ROVE_HOME_DIR/.config/rove/state.json` — the real ~/.rove without
 // this. Captured once per FILE: bun runs a file in one process, and a
 // `beforeEach` snapshot would restore whatever the previous file left behind.
 let previousHome: string | undefined
 
 beforeAll(() => {
-  previousHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-sort-key-"))
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-sort-key-"))
 })
 
 afterAll(() => {
-  if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = previousHome
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
 })
 
 function task(id: string, over: Partial<Task> = {}): Task {

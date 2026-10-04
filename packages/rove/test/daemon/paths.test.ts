@@ -1,7 +1,7 @@
 /**
  * Unit tests for daemon socket / pid path resolution.
  *
- * Load-bearing rule: an explicit `KOBE_HOME_DIR` (env var or argument)
+ * Load-bearing rule: an explicit `ROVE_HOME_DIR` (env var or argument)
  * MUST win over `XDG_RUNTIME_DIR`. Linux desktops set the runtime dir
  * unconditionally, so a resolver that places the socket there regardless
  * makes `dev:sandbox` / any isolated-state daemon share a socket with the
@@ -49,9 +49,6 @@ const PREV = {
   ROVE_HOME_DIR: process.env.ROVE_HOME_DIR,
   ROVE_DAEMON_SOCKET_PATH: process.env.ROVE_DAEMON_SOCKET_PATH,
   ROVE_DAEMON_PID_PATH: process.env.ROVE_DAEMON_PID_PATH,
-  KOBE_HOME_DIR: process.env.KOBE_HOME_DIR,
-  KOBE_DAEMON_SOCKET_PATH: process.env.KOBE_DAEMON_SOCKET_PATH,
-  KOBE_DAEMON_PID_PATH: process.env.KOBE_DAEMON_PID_PATH,
   XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR,
 }
 
@@ -59,9 +56,9 @@ beforeEach(() => {
   Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
   Reflect.deleteProperty(process.env, "ROVE_DAEMON_SOCKET_PATH")
   Reflect.deleteProperty(process.env, "ROVE_DAEMON_PID_PATH")
-  Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  Reflect.deleteProperty(process.env, "KOBE_DAEMON_SOCKET_PATH")
-  Reflect.deleteProperty(process.env, "KOBE_DAEMON_PID_PATH")
+  Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  Reflect.deleteProperty(process.env, "ROVE_DAEMON_SOCKET_PATH")
+  Reflect.deleteProperty(process.env, "ROVE_DAEMON_PID_PATH")
   Reflect.deleteProperty(process.env, "XDG_RUNTIME_DIR")
 })
 
@@ -72,21 +69,21 @@ afterEach(() => {
   else process.env.ROVE_DAEMON_SOCKET_PATH = PREV.ROVE_DAEMON_SOCKET_PATH
   if (PREV.ROVE_DAEMON_PID_PATH === undefined) Reflect.deleteProperty(process.env, "ROVE_DAEMON_PID_PATH")
   else process.env.ROVE_DAEMON_PID_PATH = PREV.ROVE_DAEMON_PID_PATH
-  if (PREV.KOBE_HOME_DIR === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = PREV.KOBE_HOME_DIR
-  if (PREV.KOBE_DAEMON_SOCKET_PATH === undefined) Reflect.deleteProperty(process.env, "KOBE_DAEMON_SOCKET_PATH")
-  else process.env.KOBE_DAEMON_SOCKET_PATH = PREV.KOBE_DAEMON_SOCKET_PATH
-  if (PREV.KOBE_DAEMON_PID_PATH === undefined) Reflect.deleteProperty(process.env, "KOBE_DAEMON_PID_PATH")
-  else process.env.KOBE_DAEMON_PID_PATH = PREV.KOBE_DAEMON_PID_PATH
+  if (PREV.ROVE_HOME_DIR === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = PREV.ROVE_HOME_DIR
+  if (PREV.ROVE_DAEMON_SOCKET_PATH === undefined) Reflect.deleteProperty(process.env, "ROVE_DAEMON_SOCKET_PATH")
+  else process.env.ROVE_DAEMON_SOCKET_PATH = PREV.ROVE_DAEMON_SOCKET_PATH
+  if (PREV.ROVE_DAEMON_PID_PATH === undefined) Reflect.deleteProperty(process.env, "ROVE_DAEMON_PID_PATH")
+  else process.env.ROVE_DAEMON_PID_PATH = PREV.ROVE_DAEMON_PID_PATH
   if (PREV.XDG_RUNTIME_DIR === undefined) Reflect.deleteProperty(process.env, "XDG_RUNTIME_DIR")
   else process.env.XDG_RUNTIME_DIR = PREV.XDG_RUNTIME_DIR
 })
 
 describe("defaultDaemonSocketPath", () => {
-  test("KOBE_DAEMON_SOCKET_PATH override wins over every derived path", () => {
-    process.env.KOBE_HOME_DIR = "/tmp/from-env"
+  test("ROVE_DAEMON_SOCKET_PATH override wins over every derived path", () => {
+    process.env.ROVE_HOME_DIR = "/tmp/from-env"
     process.env.XDG_RUNTIME_DIR = "/run/user/1000"
-    process.env.KOBE_DAEMON_SOCKET_PATH = "/tmp/kobe-owned.sock"
+    process.env.ROVE_DAEMON_SOCKET_PATH = "/tmp/kobe-owned.sock"
     expect(defaultDaemonSocketPath()).toBe("/tmp/kobe-owned.sock")
   })
 
@@ -95,9 +92,9 @@ describe("defaultDaemonSocketPath", () => {
     expect(defaultDaemonSocketPath("/tmp/sandbox-home")).toBe("/tmp/sandbox-home/.rove/daemon.sock")
   })
 
-  test("explicit KOBE_HOME_DIR env var wins over XDG_RUNTIME_DIR", () => {
+  test("explicit ROVE_HOME_DIR env var wins over XDG_RUNTIME_DIR", () => {
     process.env.XDG_RUNTIME_DIR = "/run/user/1000"
-    process.env.KOBE_HOME_DIR = "/tmp/from-env"
+    process.env.ROVE_HOME_DIR = "/tmp/from-env"
     expect(defaultDaemonSocketPath()).toBe("/tmp/from-env/.rove/daemon.sock")
   })
 
@@ -108,8 +105,8 @@ describe("defaultDaemonSocketPath", () => {
 })
 
 describe("defaultDaemonPidPath", () => {
-  test("uses KOBE_HOME_DIR when set (XDG never relevant for pidfile)", () => {
-    process.env.KOBE_HOME_DIR = "/tmp/from-env"
+  test("uses ROVE_HOME_DIR when set (XDG never relevant for pidfile)", () => {
+    process.env.ROVE_HOME_DIR = "/tmp/from-env"
     expect(defaultDaemonPidPath()).toBe("/tmp/from-env/.rove/daemon.pid")
   })
 })
@@ -128,7 +125,7 @@ describe("ROVE_HOME_DIR compatibility state matrix", () => {
    * and why it is spelled out here instead of left to the daemon-side group.
    */
   test("every path is canonical once nothing legacy is live", () => {
-    process.env.KOBE_HOME_DIR = "/tmp/legacy-home"
+    process.env.ROVE_HOME_DIR = "/tmp/legacy-home"
     process.env.ROVE_HOME_DIR = "/tmp/rove-home"
 
     expect({

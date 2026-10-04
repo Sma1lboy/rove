@@ -17,7 +17,7 @@ export interface RemoteDaemonStatus {
   readonly ptySocketPath: string
   readonly homeDir: string
   readonly hostname: string
-  readonly kobeVersion: string
+  readonly roveVersion: string
   readonly daemonPid: number
 }
 
@@ -189,7 +189,7 @@ export function parseStatusJson(stdout: string): RemoteDaemonStatus | null {
     ptySocketPath,
     homeDir: typeof o.homeDir === "string" ? o.homeDir : "",
     hostname: typeof o.hostname === "string" ? o.hostname : "",
-    kobeVersion: typeof o.kobeVersion === "string" ? o.kobeVersion : "",
+    roveVersion: typeof o.roveVersion === "string" ? o.roveVersion : "",
     daemonPid: typeof o.daemonPid === "number" ? o.daemonPid : 0,
   }
 }

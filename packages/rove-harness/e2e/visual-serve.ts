@@ -8,7 +8,7 @@
 
 import { resolve } from "node:path"
 import setupVisualFixture, {
-  KOBE_DIR,
+  ROVE_DIR,
   VISUAL_ENV,
   VISUAL_HOME,
   VISUAL_PTY_COMMAND,
@@ -23,11 +23,11 @@ const child = Bun.spawn(["bun", "run", "dev.ts"], {
   stdio: ["inherit", "inherit", "inherit"],
   env: {
     ...VISUAL_ENV,
-    KOBE_HOME_DIR: VISUAL_HOME,
-    KOBE_WEB_PORT: String(VISUAL_WEB_PORT),
-    KOBE_PTY_PORT: String(VISUAL_PTY_PORT),
-    KOBE_PTY_DEV_CWD: KOBE_DIR,
-    KOBE_PTY_DEV_COMMAND: VISUAL_PTY_COMMAND,
+    ROVE_HOME_DIR: VISUAL_HOME,
+    ROVE_WEB_PORT: String(VISUAL_WEB_PORT),
+    ROVE_PTY_PORT: String(VISUAL_PTY_PORT),
+    ROVE_PTY_DEV_CWD: ROVE_DIR,
+    ROVE_PTY_DEV_COMMAND: VISUAL_PTY_COMMAND,
   },
 })
 

@@ -3,7 +3,7 @@
  * — each chord fires a plugin pane or action via a detached `kobe plugin`
  * CLI invocation, so the TUI process never blocks and the CLI keeps sole
  * ownership of plugin resolution (registry lookup, env contract, daemon
- * RPC). Kobe ships no default plugin chords; this registers only what the
+ * RPC). Rove ships no default plugin chords; this registers only what the
  * user wrote. Chord-fired ACTIONS run detached without a terminal — anything
  * interactive belongs in a pane instead.
  */

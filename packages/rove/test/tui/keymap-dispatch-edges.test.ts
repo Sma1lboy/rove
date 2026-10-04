@@ -219,14 +219,14 @@ describe("dispatchKeyEvent", () => {
   // Why: the ctrl+w split-close bug — two ENABLED entries sharing a chord
   // resolve by LIFO order, and React stacks ancestors on top, so the
   // winner flips silently. The contract is mutual gating;
-  // dispatch (dev mode, KOBE_DEV=1) flags a second enabled match so the
+  // dispatch (dev mode, ROVE_DEV=1) flags a second enabled match so the
   // violation is loud. Production skips the scan — it would break the
   // read-one-config-on-hit budget (perf-budgets.test.ts).
   describe("shadowed-match warning (dev only)", () => {
     beforeEach(() => {
-      process.env.KOBE_DEV = "1"
+      process.env.ROVE_DEV = "1"
       return () => {
-        Reflect.deleteProperty(process.env, "KOBE_DEV")
+        Reflect.deleteProperty(process.env, "ROVE_DEV")
       }
     })
 

@@ -180,7 +180,7 @@ export { argvHasFlag } from "../cli/argv.ts"
  * checkout the dev entry. Otherwise a dev-sandbox agent would hit a STALE
  * global install on PATH and newer verbs would die with BAD_VERB.
  */
-export function kobeApiInvocation(): string {
+export function roveApiInvocation(): string {
   const quote = (a: string): string => (/^[A-Za-z0-9_/.:=-]+$/.test(a) ? a : `'${a.replace(/'/g, "'\\''")}'`)
   try {
     return [...roveCliInvocation(), "api"].map(quote).join(" ")

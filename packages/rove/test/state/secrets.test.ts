@@ -6,7 +6,7 @@
  * not erase one, a crash must not leave one lying in a file nobody reads, and
  * an environment variable must not be quietly outranked by a stored value.
  *
- * `KOBE_HOME_DIR` points at a per-test tmpdir throughout, so the operator's
+ * `ROVE_HOME_DIR` points at a per-test tmpdir throughout, so the operator's
  * real `~/.rove/secrets.json` is never read or written.
  */
 
@@ -30,14 +30,14 @@ const siblings = () => fs.readdirSync(path.dirname(secretsPath())).sort()
 
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-secrets-"))
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
 })
 
 afterEach(() => {
   // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves it as the string "undefined"). Same pattern as test/state/store.test.ts.
-  if (originalHome === undefined) delete process.env.KOBE_HOME_DIR
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) delete process.env.ROVE_HOME_DIR
+  else process.env.ROVE_HOME_DIR = originalHome
   fs.rmSync(tmpHome, { recursive: true, force: true })
 })
 
@@ -158,7 +158,7 @@ describe("concurrent writers", () => {
             `writeSecret(${JSON.stringify(name)}, ${JSON.stringify(`key-for-${name}`)});`,
           ].join(""),
         ],
-        { env: { ...process.env, KOBE_HOME_DIR: tmpHome, START_AT: startAt }, stdio: ["ignore", "pipe", "pipe"] },
+        { env: { ...process.env, ROVE_HOME_DIR: tmpHome, START_AT: startAt }, stdio: ["ignore", "pipe", "pipe"] },
       ),
     )
     const codes = await Promise.all(

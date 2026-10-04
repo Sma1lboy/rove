@@ -16,7 +16,7 @@
  * Pure: the I/O half is `editJsonSettings` in `./json-hook-adapter.ts`.
  */
 
-import { kobeHookInvocation } from "../cli/invocation.ts"
+import { roveHookInvocation } from "../cli/invocation.ts"
 import { quoteShellArgv } from "../lib/shell-command.ts"
 import {
   type HookEventSpec,
@@ -61,7 +61,7 @@ export function mergeFlatHooks(
   format: FlatHookFormat,
   current: Record<string, unknown>,
   install: boolean,
-  inv: readonly string[] = kobeHookInvocation(),
+  inv: readonly string[] = roveHookInvocation(),
 ): Record<string, unknown> {
   const verbs = format.eventMap.map((spec) => spec.verb)
   const { hooks: rawHooks, ...rest } = current

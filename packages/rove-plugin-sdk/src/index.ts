@@ -4,7 +4,6 @@ export {
   rove,
   roveJson,
   kobe,
-  kobeJson,
   notify,
   dispatch,
   listTasks,
@@ -16,15 +15,11 @@ export {
   type RowTokenTone,
   type RoveRunOptions,
   type RoveRunResult,
-  type KobeRunOptions,
-  type KobeRunResult,
 } from "./cli.ts"
 export {
   RoveSocket,
-  KobeSocket,
   type DaemonInfo,
   type RoveSocketOptions,
-  type KobeSocketOptions,
 } from "./socket.ts"
 export { Pane, parseKeys, type Key, type PaneOptions } from "./pane.ts"
 export {

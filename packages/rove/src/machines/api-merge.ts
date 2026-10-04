@@ -6,7 +6,7 @@
  * byte-identical.
  */
 
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ApiError } from "../cli/api/types.ts"
 import { type MachineEntry, dedupeMachines, listMachines } from "./registry.ts"
@@ -47,7 +47,7 @@ async function machineTasks(entry: MachineEntry): Promise<SerializedTask[] | nul
 }
 
 async function tasksOf(socketPath: string): Promise<SerializedTask[] | null> {
-  const client = new KobeDaemonClient(socketPath)
+  const client = new RoveDaemonClient(socketPath)
   try {
     await client.request("hello", {})
     const res = await client.request<{ tasks?: SerializedTask[] }>("task.list")

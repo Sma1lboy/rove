@@ -28,13 +28,12 @@ describe("sandboxChildEnv", () => {
   it("overrides ambient home aliases in both namespaces", () => {
     const env = sandboxChildEnv("/tmp/isolated", {
       ROVE_HOME_DIR: "/real-rove-home",
-      KOBE_HOME_DIR: "/real-kobe-home",
     })
 
     expect(env.ROVE_HOME_DIR).toBe("/tmp/isolated")
-    expect(env.KOBE_HOME_DIR).toBe("/tmp/isolated")
+    expect(env.ROVE_HOME_DIR).toBe("/tmp/isolated")
     expect(env.ROVE_DEV).toBe("1")
-    expect(env.KOBE_DEV).toBe("1")
+    expect(env.ROVE_DEV).toBe("1")
   })
 
   // The socket-hijack shape: a TUI stamps the production socket onto every
@@ -45,25 +44,21 @@ describe("sandboxChildEnv", () => {
   // stray override can still poison.
   it("pins socket and pid paths under the sandbox home so inherited overrides cannot outrank it", () => {
     const env = sandboxChildEnv("/tmp/isolated", {
-      KOBE_DAEMON_SOCKET_PATH: "/run/user/1000/kobe.sock",
       ROVE_DAEMON_SOCKET_PATH: "/run/user/1000/kobe.sock",
-      KOBE_PTY_SOCKET_PATH: "/run/user/1000/kobe-pty.sock",
       ROVE_PTY_SOCKET_PATH: "/run/user/1000/kobe-pty.sock",
-      KOBE_DAEMON_PID_PATH: "/home/dev/.kobe/daemon.pid",
       ROVE_DAEMON_PID_PATH: "/home/dev/.kobe/daemon.pid",
-      KOBE_PTY_PID_PATH: "/home/dev/.kobe/pty.pid",
       ROVE_PTY_PID_PATH: "/home/dev/.kobe/pty.pid",
     })
 
     expect(env.ROVE_DAEMON_SOCKET_PATH).toBe("/tmp/isolated/.rove/daemon.sock")
-    expect(env.KOBE_DAEMON_SOCKET_PATH).toBe("/tmp/isolated/.rove/daemon.sock")
+    expect(env.ROVE_DAEMON_SOCKET_PATH).toBe("/tmp/isolated/.rove/daemon.sock")
     expect(env.ROVE_PTY_SOCKET_PATH).toBe("/tmp/isolated/.rove/pty.sock")
-    expect(env.KOBE_PTY_SOCKET_PATH).toBe("/tmp/isolated/.rove/pty.sock")
+    expect(env.ROVE_PTY_SOCKET_PATH).toBe("/tmp/isolated/.rove/pty.sock")
     expect(env.ROVE_DAEMON_PID_PATH).toBe("/tmp/isolated/.rove/daemon.pid")
-    expect(env.KOBE_DAEMON_PID_PATH).toBe("/tmp/isolated/.rove/daemon.pid")
+    expect(env.ROVE_DAEMON_PID_PATH).toBe("/tmp/isolated/.rove/daemon.pid")
     expect(env.ROVE_PTY_PID_PATH).toBe("/tmp/isolated/.rove/pty.pid")
-    expect(env.KOBE_PTY_PID_PATH).toBe("/tmp/isolated/.rove/pty.pid")
-    expect(env.KOBE_HOME_DIR).toBe("/tmp/isolated")
+    expect(env.ROVE_PTY_PID_PATH).toBe("/tmp/isolated/.rove/pty.pid")
+    expect(env.ROVE_HOME_DIR).toBe("/tmp/isolated")
   })
 
   // A redirected HOME hid ~/.claude.json, ~/.codex/auth.json and friends from

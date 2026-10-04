@@ -28,7 +28,7 @@ export function matchKey(evt: KeyEvent): string[] {
   //     leaked Cmd chord can't fire an Option binding.
   //   option → `alt+`. KNOWN BUG: opentui also sets `meta` for Alt (`ESC k` →
   //     `{ meta: true, option: false }`), so Option mints `cmd+k`/`cmd+alt+k`
-  //     and every `alt+…` row in KobeKeymap is dead. The embedded terminal is
+  //     and every `alt+…` row in RoveKeymap is dead. The embedded terminal is
   //     unaffected: Option falls through to the encoder.
   //   shift + single char, no other modifier → `shift+z` first, then `z`, so
   //     `Z` can be bound apart while bare-letter bindings still catch it.

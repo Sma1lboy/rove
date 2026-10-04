@@ -10,7 +10,7 @@ import { join } from "node:path"
 import { ROVE_CONFIG_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 
 /**
- * The ambient state root: `ROVE_HOME_DIR` / `KOBE_HOME_DIR`, else the OS home.
+ * The ambient state root: `ROVE_HOME_DIR` / `ROVE_HOME_DIR`, else the OS home.
  * A daemon with an EXPLICIT home uses
  * {@link import("./paths.ts").resolveDaemonHomeDir}, which layers on this.
  * An EMPTY variable means unset, not `""` (that would make every state path

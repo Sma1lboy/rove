@@ -9,7 +9,7 @@
  *
  * ## The predicate — reported only when ALL hold
  *
- *   1. `KOBE_TERMINAL_PTY=1` is in its environment. Only the PTY host sets it
+ *   1. `ROVE_TERMINAL_PTY=1` is in its environment. Only the PTY host sets it
  *      (`pty-child-controller.ts`), so it keeps the sweep off user processes.
  *   2. `ppid === 1` — nothing is coming to reap it.
  *   3. Its process group has no leader. A hosted session's leader IS the PTY
@@ -36,7 +36,7 @@ import { formatDaemonInfo } from "@sma1lboy/rove-daemon/daemon/crash-log"
 import { defaultDaemonLogPath } from "@sma1lboy/rove-daemon/daemon/paths"
 
 /** Set by the PTY host on every child it spawns; inherited by the subtree. */
-const PTY_MARKER = "KOBE_TERMINAL_PTY=1"
+const PTY_MARKER = "ROVE_TERMINAL_PTY=1"
 
 /** One row of the structural `ps` pass. */
 export interface PsRow {

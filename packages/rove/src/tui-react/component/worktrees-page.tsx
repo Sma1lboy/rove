@@ -307,7 +307,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
                         <text fg={theme.text} attributes={isCursor ? TextAttributes.BOLD : undefined} wrapMode="none">
                           {` ${row.branch || t("worktrees.row.detached")}`}
                         </text>
-                        {row.kobeManaged ? <text fg={theme.textMuted}> {t("worktrees.badge.kobeManaged")}</text> : null}
+                        {row.roveManaged ? <text fg={theme.textMuted}> {t("worktrees.badge.roveManaged")}</text> : null}
                         {row.dirty === true ? <text fg={theme.warning}> {t("worktrees.badge.dirty")}</text> : null}
                         {/* `null` = the status probe FAILED. It reads as its own
                             badge, not as the absence of "dirty": a worktree whose

@@ -2,14 +2,14 @@ import { buildPluginEnv } from "@sma1lboy/rove-daemon/plugins/env"
 import { describe, expect, it } from "vitest"
 
 describe("buildPluginEnv", () => {
-  it("publishes canonical Rove variables and identical Kobe aliases", () => {
+  it("publishes canonical Rove variables and identical Rove aliases", () => {
     const env = buildPluginEnv({
       homeDir: "/home/test",
       socketPath: "/tmp/rove.sock",
       binPath: "/bin/rove",
       pluginId: "example.plugin",
       pluginRoot: "/plugin/root",
-      extra: { KOBE_PLUGIN_EVENT: "startup" },
+      extra: { ROVE_PLUGIN_EVENT: "startup" },
     })
 
     for (const suffix of [
@@ -22,7 +22,7 @@ describe("buildPluginEnv", () => {
       "PLUGIN_STATE_DIR",
       "PLUGIN_EVENT",
     ]) {
-      expect(env[`ROVE_${suffix}`]).toBe(env[`KOBE_${suffix}`])
+      expect(env[`ROVE_${suffix}`]).toBe(env[`ROVE_${suffix}`])
     }
   })
 
@@ -34,6 +34,6 @@ describe("buildPluginEnv", () => {
       pluginRoot: "/p",
       extra: { ROVE_PLUGIN_ACTION_ID: "run" },
     })
-    expect(env.KOBE_PLUGIN_ACTION_ID).toBe("run")
+    expect(env.ROVE_PLUGIN_ACTION_ID).toBe("run")
   })
 })

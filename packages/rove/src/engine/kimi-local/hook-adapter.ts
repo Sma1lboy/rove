@@ -24,7 +24,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
-import { kobeHookInvocation } from "../../cli/invocation.ts"
+import { roveHookInvocation } from "../../cli/invocation.ts"
 import { quoteShellArgv } from "../../lib/shell-command.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
@@ -60,8 +60,8 @@ export const KIMI_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
 ]
 
 /** The Kimi events kobe owns — exported for tests (event-ownership parity
- *  with `KOBE_CODEX_HOOK_EVENTS`). */
-export const KOBE_KIMI_HOOK_EVENTS: readonly string[] = [...new Set(KIMI_HOOK_EVENT_MAP.map((e) => e.event))]
+ *  with `ROVE_CODEX_HOOK_EVENTS`). */
+export const ROVE_KIMI_HOOK_EVENTS: readonly string[] = [...new Set(KIMI_HOOK_EVENT_MAP.map((e) => e.event))]
 
 const BLOCK_BEGIN = "# >>> rove hooks"
 const BLOCK_END = "# <<< rove hooks"
@@ -75,7 +75,7 @@ export function kimiConfigPath(home: string = homedir()): string {
 
 /** Render kobe's `[[hooks]]` block. `inv` is injectable for tests. */
 export function renderKimiHookBlock(
-  inv: readonly string[] = kobeHookInvocation(),
+  inv: readonly string[] = roveHookInvocation(),
   opts: { toolEvents?: boolean } = {},
 ): string {
   const lines: string[] = [BLOCK_BEGIN]
@@ -123,7 +123,7 @@ export function removeKimiHookBlock(content: string): string {
 export function mergeKimiHooks(
   content: string,
   install: boolean,
-  inv: readonly string[] = kobeHookInvocation(),
+  inv: readonly string[] = roveHookInvocation(),
   opts: { toolEvents?: boolean } = {},
 ): string {
   const base = removeKimiHookBlock(content)

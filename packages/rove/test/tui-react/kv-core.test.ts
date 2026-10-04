@@ -26,20 +26,20 @@ import {
 let savedHome: string | undefined
 
 beforeEach(() => {
-  savedHome = process.env.KOBE_HOME_DIR
+  savedHome = process.env.ROVE_HOME_DIR
 })
 
 afterEach(() => {
   // Reflect.deleteProperty (not `= undefined`): assigning undefined to a
   // process.env key stores the string "undefined" under node.
-  if (savedHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = savedHome
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
   vi.useRealTimers()
 })
 
 function isolatedHome(initial?: Record<string, unknown>): string {
   const home = mkdtempSync(join(tmpdir(), "kobe-kv-core-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   if (initial) writeState(home, initial)
   return home
 }

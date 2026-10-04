@@ -1,13 +1,13 @@
 import { closeSync, existsSync, mkdirSync, openSync, statSync, unlinkSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { LEGACY_KOBE_PRODUCT_NAME, ROVE_PRODUCT_NAME } from "../compat-env.ts"
+import { LEGACY_ROVE_PRODUCT_NAME, ROVE_PRODUCT_NAME } from "../compat-env.ts"
 import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "../daemon/paths.ts"
 import { DAEMON_PROTOCOL_VERSION } from "../daemon/protocol.ts"
 import { readPidFile } from "../daemon/socket-guard.ts"
 import { spawnDetachedDaemon } from "./detached-spawn.ts"
-import { KobeDaemonClient } from "./index.ts"
+import { RoveDaemonClient } from "./index.ts"
 
 const DAEMON_START_ARGS = ["daemon", "start"] as const
 
@@ -23,13 +23,13 @@ const DAEMON_HELLO_TIMEOUT_MS = 3000
 const BUSY_DAEMON_GRACE_MS = 15_000
 
 /**
- * True inside an engine session (the launch script exports `KOBE_TASK_ID`).
+ * True inside an engine session (the launch script exports `ROVE_TASK_ID`).
  * Helpers there must never kill the shared daemon: a busy one looks wedged,
  * and stop-then-spawn would replace it with a session-env clone that steals
  * the socket and leaves a zombie.
  */
 function insideEngineSession(env: NodeJS.ProcessEnv = process.env): boolean {
-  return typeof env.KOBE_TASK_ID === "string" && env.KOBE_TASK_ID !== ""
+  return typeof env.ROVE_TASK_ID === "string" && env.ROVE_TASK_ID !== ""
 }
 
 /**
@@ -43,10 +43,10 @@ export function autospawnDaemonEnv(
   reason: DaemonSpawnReason = "autospawn",
 ): NodeJS.ProcessEnv {
   const {
-    KOBE_TASK_ID: _task,
-    KOBE_TAB_ID: _tab,
-    KOBE_TUI: _tui,
-    KOBE_TERMINAL_PTY: _pty,
+    ROVE_TASK_ID: _task,
+    ROVE_TAB_ID: _tab,
+    ROVE_TUI: _tui,
+    ROVE_TERMINAL_PTY: _pty,
     ROVE_TASK_ID: _roveTask,
     ROVE_TAB_ID: _roveTab,
     ROVE_TUI: _roveTui,
@@ -57,9 +57,7 @@ export function autospawnDaemonEnv(
   // that wrapper reapplies ROVE_* precedence.
   return {
     ...rest,
-    KOBE_DAEMON_AUTOSPAWNED: "1",
     ROVE_DAEMON_AUTOSPAWNED: "1",
-    KOBE_DAEMON_SPAWN_REASON: reason,
     ROVE_DAEMON_SPAWN_REASON: reason,
   }
 }
@@ -74,10 +72,10 @@ export type DaemonSpawnReason = "autospawn" | "explicit-restart" | "manual"
 
 /** Read the spawn reason a parent stamped, for the daemon's own boot line. */
 export function daemonSpawnReason(env: NodeJS.ProcessEnv = process.env): DaemonSpawnReason {
-  const raw = env.ROVE_DAEMON_SPAWN_REASON ?? env.KOBE_DAEMON_SPAWN_REASON
+  const raw = env.ROVE_DAEMON_SPAWN_REASON
   if (raw === "explicit-restart" || raw === "autospawn") return raw
   // Pre-0.9.158 spawners stamped no reason but did stamp the autospawn flag.
-  return env.ROVE_DAEMON_AUTOSPAWNED === "1" || env.KOBE_DAEMON_AUTOSPAWNED === "1" ? "autospawn" : "manual"
+  return env.ROVE_DAEMON_AUTOSPAWNED === "1" || env.ROVE_DAEMON_AUTOSPAWNED === "1" ? "autospawn" : "manual"
 }
 
 /**
@@ -128,7 +126,7 @@ export function tryAcquireSpawnLock(lockPath: string, staleMs: number = SPAWN_LO
  */
 export async function ensureDaemonReachable(
   /** Test seam: a stale install can't otherwise be reproduced without deleting the source tree. */
-  resolveSpawn: (subcommand: readonly string[]) => string[] = resolveKobeSpawn,
+  resolveSpawn: (subcommand: readonly string[]) => string[] = resolveRoveSpawn,
   /** Stamped into the spawned daemon's env so its boot line says who asked. */
   spawnReason: DaemonSpawnReason = "autospawn",
 ): Promise<string> {
@@ -210,18 +208,18 @@ export async function ensureDaemonReachable(
   }
 }
 
-export async function connectOrStartDaemon(spawnReason: DaemonSpawnReason = "autospawn"): Promise<KobeDaemonClient> {
-  const socketPath = await ensureDaemonReachable(resolveKobeSpawn, spawnReason)
-  const client = new KobeDaemonClient(socketPath)
+export async function connectOrStartDaemon(spawnReason: DaemonSpawnReason = "autospawn"): Promise<RoveDaemonClient> {
+  const socketPath = await ensureDaemonReachable(resolveRoveSpawn, spawnReason)
+  const client = new RoveDaemonClient(socketPath)
   await client.connect()
   return client
 }
 
 /** Connect only to an already-responsive daemon, never spawn; `null` when absent or wedged. */
-export async function connectIfRunning(): Promise<KobeDaemonClient | null> {
+export async function connectIfRunning(): Promise<RoveDaemonClient | null> {
   const socketPath = defaultDaemonSocketPath()
   if (!(await testDaemonResponds(socketPath))) return null
-  const client = new KobeDaemonClient(socketPath)
+  const client = new RoveDaemonClient(socketPath)
   await client.connect()
   return client
 }
@@ -252,7 +250,7 @@ export async function probeDaemonSocket(
   socketPath: string,
   timeoutMs: number = DAEMON_HELLO_TIMEOUT_MS,
 ): Promise<DaemonSocketState> {
-  const probe = new KobeDaemonClient(socketPath)
+  const probe = new RoveDaemonClient(socketPath)
   try {
     await probe.connect()
   } catch {
@@ -291,7 +289,7 @@ export async function testDaemonResponds(
 
 /**
  * This process runs from an install removed from disk (e.g. a brew copy
- * uninstalled while its GUI kept running): the entry {@link resolveKobeSpawn}
+ * uninstalled while its GUI kept running): the entry {@link resolveRoveSpawn}
  * would re-exec is gone, so every retry fails identically. Retrying callers
  * treat it as terminal (`runReconnectLoop`); `rove doctor` names it. The
  * remedy is reinstalling.
@@ -320,7 +318,7 @@ export function isStaleInstallError(err: unknown): boolean {
  *  - npm: bundled into `dist/cli/<name>.js`; the active wrapper is reused.
  *  - `bun build --compile` binary: `process.execPath` IS the CLI; re-exec it.
  */
-export function resolveKobeSpawn(
+export function resolveRoveSpawn(
   subcommand: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
   /** Injectable so a test can point at a missing directory (the stale-install case). */
@@ -331,7 +329,7 @@ export function resolveKobeSpawn(
     return [process.execPath, ...subcommand]
   }
   const dir = dirname(here)
-  const cliName = env.ROVE_INVOKED_AS === ROVE_PRODUCT_NAME ? ROVE_PRODUCT_NAME : LEGACY_KOBE_PRODUCT_NAME
+  const cliName = env.ROVE_INVOKED_AS === ROVE_PRODUCT_NAME ? ROVE_PRODUCT_NAME : LEGACY_ROVE_PRODUCT_NAME
   const candidates = [
     resolve(dir, `../cli/${cliName}.ts`),
     resolve(dir, `../../../rove/src/cli/${cliName}.ts`),

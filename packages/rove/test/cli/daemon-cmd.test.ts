@@ -1,7 +1,7 @@
 /**
  * `kobe daemon <status|start|stop|restart>` (`runDaemonSubcommand`).
  * Daemon client / lifecycle / server / core are all mocked — a real one
- * would dial sockets and spawn a daemon. paths resolve off a KOBE_HOME_DIR
+ * would dial sockets and spawn a daemon. paths resolve off a ROVE_HOME_DIR
  * tempdir so readPidFile (kept real) reads a real pidfile.
  */
 
@@ -19,11 +19,11 @@ const mocks = vi.hoisted(() => ({
   installDaemonCrashHandlers: vi.fn(),
   logDaemonInfo: vi.fn(),
   startDaemonServer: vi.fn(),
-  createKobeCore: vi.fn(),
+  createRoveCore: vi.fn(),
 }))
 
 vi.mock("@sma1lboy/rove-daemon/client", () => ({
-  KobeDaemonClient: vi.fn().mockImplementation(() => ({
+  RoveDaemonClient: vi.fn().mockImplementation(() => ({
     request: mocks.daemonRequest,
     close: mocks.daemonClose,
   })),
@@ -51,7 +51,7 @@ vi.mock("@sma1lboy/rove-daemon/daemon/server", async (importOriginal) => {
 })
 
 vi.mock("../../src/core/index.ts", () => ({
-  createKobeCore: mocks.createKobeCore,
+  createRoveCore: mocks.createRoveCore,
 }))
 
 import { runDaemonSubcommand } from "../../src/cli/daemon-cmd.ts"
@@ -67,10 +67,10 @@ let exitSpy: MockInstance<typeof process.exit>
 
 beforeEach(() => {
   originalRoveHome = process.env.ROVE_HOME_DIR
-  originalHome = process.env.KOBE_HOME_DIR
+  originalHome = process.env.ROVE_HOME_DIR
   home = mkdtempSync(join(tmpdir(), "kobe-daemon-cmd-"))
   process.env.ROVE_HOME_DIR = home
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   mkdirSync(join(home, ".rove"), { recursive: true })
   // An agent/dev shell can already be inside a spawned daemon's environment,
   // which would make `daemonSpawnReason()` read "autospawn" for a `daemon
@@ -88,7 +88,7 @@ beforeEach(() => {
   mocks.installDaemonCrashHandlers.mockReset()
   mocks.logDaemonInfo.mockReset()
   mocks.startDaemonServer.mockReset()
-  mocks.createKobeCore.mockReset()
+  mocks.createRoveCore.mockReset()
 
   logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined)
   errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
@@ -101,8 +101,8 @@ beforeEach(() => {
 afterEach(() => {
   if (originalRoveHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
   else process.env.ROVE_HOME_DIR = originalRoveHome
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   if (originalSpawnReason === undefined) Reflect.deleteProperty(process.env, "ROVE_DAEMON_SPAWN_REASON")
   else process.env.ROVE_DAEMON_SPAWN_REASON = originalSpawnReason
   if (originalAutospawned === undefined) Reflect.deleteProperty(process.env, "ROVE_DAEMON_AUTOSPAWNED")
@@ -193,9 +193,9 @@ describe("kobe daemon start", () => {
       store: { stateDir: join(home, ".rove") },
       close: vi.fn(),
     }
-    mocks.createKobeCore.mockResolvedValue(core)
+    mocks.createRoveCore.mockResolvedValue(core)
     mocks.startDaemonServer.mockImplementation(async (create: () => Promise<unknown>) => {
-      expect(mocks.createKobeCore).not.toHaveBeenCalled()
+      expect(mocks.createRoveCore).not.toHaveBeenCalled()
       expect(await create()).toBe(core.orchestrator)
       return { socketPath: "/tmp/x.sock", close: vi.fn() }
     })
@@ -215,7 +215,7 @@ describe("kobe daemon start", () => {
   it("refuses to migrate stores while another daemon still owns the socket", async () => {
     mocks.startDaemonServer.mockRejectedValue(new Error("daemon still owns home"))
     await expect(runDaemonSubcommand(["start"])).rejects.toThrow("daemon still owns")
-    expect(mocks.createKobeCore).not.toHaveBeenCalled()
+    expect(mocks.createRoveCore).not.toHaveBeenCalled()
   })
 })
 

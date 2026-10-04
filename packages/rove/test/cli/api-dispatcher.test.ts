@@ -18,8 +18,8 @@ import {
 import { normalizeIndex } from "../../src/orchestrator/index/store-codec.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
-const savedTaskId = process.env.KOBE_TASK_ID
-const savedTabId = process.env.KOBE_TAB_ID
+const savedTaskId = process.env.ROVE_TASK_ID
+const savedTabId = process.env.ROVE_TAB_ID
 
 function restoreEnv(name: string, saved: string | undefined): void {
   if (saved === undefined) {
@@ -53,14 +53,14 @@ beforeEach(() => {
   resetVerifiedSelfSession()
   takeIdentityWarning()
   // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-  delete process.env.KOBE_TASK_ID
+  delete process.env.ROVE_TASK_ID
   // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-  delete process.env.KOBE_TAB_ID
+  delete process.env.ROVE_TAB_ID
 })
 afterEach(() => {
   resetVerifiedSelfSession()
-  restoreEnv("KOBE_TASK_ID", savedTaskId)
-  restoreEnv("KOBE_TAB_ID", savedTabId)
+  restoreEnv("ROVE_TASK_ID", savedTaskId)
+  restoreEnv("ROVE_TAB_ID", savedTabId)
 })
 
 describe("verifiedSelfSession (env identity is inheritable, so it must be proven)", () => {
@@ -77,7 +77,7 @@ describe("verifiedSelfSession (env identity is inheritable, so it must be proven
         return base.ps()
       },
     }
-    await verifiedSelfSession({ KOBE_TASK_ID: "d1", KOBE_TAB_ID: "tab-4" }, probe)
+    await verifiedSelfSession({ ROVE_TASK_ID: "d1", ROVE_TAB_ID: "tab-4" }, probe)
     expect(anchors).toEqual([100, 500])
   })
 
@@ -87,7 +87,7 @@ describe("verifiedSelfSession (env identity is inheritable, so it must be proven
     // session is perfectly alive — only the lineage is broken.
     expect(
       await verifiedSelfSession(
-        { KOBE_TASK_ID: "boccha", KOBE_TAB_ID: "tab-1" },
+        { ROVE_TASK_ID: "boccha", ROVE_TAB_ID: "tab-1" },
         probeFor("boccha::tab-1", { detached: true }),
       ),
     ).toBeNull()
@@ -96,7 +96,7 @@ describe("verifiedSelfSession (env identity is inheritable, so it must be proven
   })
 
   it("REFUSES when the named session is dead, absent, or the host is gone", async () => {
-    const env = { KOBE_TASK_ID: "d1", KOBE_TAB_ID: "tab-1" }
+    const env = { ROVE_TASK_ID: "d1", ROVE_TAB_ID: "tab-1" }
     expect(await verifiedSelfSession(env, probeFor("d1::tab-1", { alive: false }))).toBeNull()
     expect(await verifiedSelfSession(env, probeFor("other::tab-1"))).toBeNull()
     expect(await verifiedSelfSession(env, { ...probeFor("d1::tab-1"), sessions: async () => [] })).toBeNull()
@@ -109,26 +109,26 @@ describe("verifiedSelfSession (env identity is inheritable, so it must be proven
         throw new Error("ps failed")
       },
     }
-    expect(await verifiedSelfSession({ KOBE_TASK_ID: "d1" }, probe)).toBeNull()
+    expect(await verifiedSelfSession({ ROVE_TASK_ID: "d1" }, probe)).toBeNull()
   })
 
   it("the warning is read-and-CLEAR, and a verified resolution leaves none behind", async () => {
-    await verifiedSelfSession({ KOBE_TASK_ID: "d1" }, probeFor("d1::tab-1", { detached: true }))
+    await verifiedSelfSession({ ROVE_TASK_ID: "d1" }, probeFor("d1::tab-1", { detached: true }))
     expect(takeIdentityWarning()).toBeTruthy()
     // One notice per degrade: a second read must not re-warn a later verb.
     expect(takeIdentityWarning()).toBeNull()
-    await verifiedSelfSession({ KOBE_TASK_ID: "d1" }, probeFor("d1::tab-1", { detached: true }))
-    await verifiedSelfSession({ KOBE_TASK_ID: "d1" }, probeFor("d1::tab-1"))
+    await verifiedSelfSession({ ROVE_TASK_ID: "d1" }, probeFor("d1::tab-1", { detached: true }))
+    await verifiedSelfSession({ ROVE_TASK_ID: "d1" }, probeFor("d1::tab-1"))
     expect(takeIdentityWarning()).toBeNull()
   })
 })
 
 /** Prime the verified-identity memo so `invokeVerb` runs no real pty/ps IO. */
 async function asSession(taskId: string, tabId: string, opts?: { detached?: boolean }): Promise<void> {
-  await verifiedSelfSession({ KOBE_TASK_ID: taskId, KOBE_TAB_ID: tabId }, probeFor(`${taskId}::${tabId}`, opts))
+  await verifiedSelfSession({ ROVE_TASK_ID: taskId, ROVE_TAB_ID: tabId }, probeFor(`${taskId}::${tabId}`, opts))
 }
 
-describe("create records the dispatcher ($KOBE_TASK_ID/$KOBE_TAB_ID)", () => {
+describe("create records the dispatcher ($ROVE_TASK_ID/$ROVE_TAB_ID)", () => {
   it("add sends the caller's task + tab to task.create", async () => {
     await asSession("disp-1", "tab-2")
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
@@ -140,8 +140,8 @@ describe("create records the dispatcher ($KOBE_TASK_ID/$KOBE_TAB_ID)", () => {
     })
   })
 
-  it("add without $KOBE_TAB_ID floors the tab to the canonical tab-1", async () => {
-    await verifiedSelfSession({ KOBE_TASK_ID: "disp-1" }, probeFor("disp-1::tab-1"))
+  it("add without $ROVE_TAB_ID floors the tab to the canonical tab-1", async () => {
+    await verifiedSelfSession({ ROVE_TASK_ID: "disp-1" }, probeFor("disp-1::tab-1"))
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
     await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
     expect(client.requests[0].payload).toMatchObject({ dispatcherTaskId: "disp-1", dispatcherTabId: "tab-1" })

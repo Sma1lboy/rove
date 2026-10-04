@@ -33,7 +33,6 @@ function start(homeDir: string, socket: string) {
       env: {
         ...process.env,
         ROVE_HOME_DIR: homeDir,
-        KOBE_HOME_DIR: homeDir,
         XDG_CONFIG_HOME: join(homeDir, ".config"),
       },
     },

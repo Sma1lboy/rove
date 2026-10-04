@@ -11,13 +11,13 @@ describe("embeddedTerminalEnv", () => {
       HOME: "/home/test",
     }
 
-    const result = embeddedTerminalEnv(base, { KOBE_TERMINAL_PTY: "1" })
+    const result = embeddedTerminalEnv(base, { ROVE_TERMINAL_PTY: "1" })
 
     expect(result).toEqual({
       TERM: "xterm-256color",
       COLORTERM: "truecolor",
       HOME: "/home/test",
-      KOBE_TERMINAL_PTY: "1",
+      ROVE_TERMINAL_PTY: "1",
     })
     expect(base.TERM_PROGRAM).toBe("iTerm.app")
   })

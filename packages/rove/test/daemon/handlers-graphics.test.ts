@@ -17,7 +17,7 @@
  * burn an id on a picture that will never be placed.
  */
 
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { handleSubscribe } from "@sma1lboy/rove-daemon/daemon/subscribe"
 import { describe, expect, it } from "vitest"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
@@ -166,7 +166,7 @@ describe("cell pixel size, client to daemon", () => {
     // silently degrades every graphics call to `unsupported`, which reads as
     // "this terminal has no graphics" rather than as a bug. So the real
     // builder feeds the real reader here, with nothing hand-written between.
-    const client = new KobeDaemonClient("/tmp/never-connected.sock")
+    const client = new RoveDaemonClient("/tmp/never-connected.sock")
     let sent: Record<string, unknown> = {}
     // biome-ignore lint/suspicious/noExplicitAny: stubbing one method on a real instance
     ;(client as any).request = async (_name: string, payload: Record<string, unknown>) => {

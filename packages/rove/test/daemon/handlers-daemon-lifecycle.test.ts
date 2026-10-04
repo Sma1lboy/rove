@@ -23,6 +23,6 @@ describe("daemon process surface", () => {
     expect(status.socketPath).toBe("/tmp/fake/daemon.sock")
     expect(status.startedAt).toBe("2026-06-01T00:00:00.000Z")
     expect(status.uptimeMs).toBeGreaterThanOrEqual(0)
-    expect(status.kobeVersion).toBe(CURRENT_VERSION)
+    expect(status.roveVersion).toBe(CURRENT_VERSION)
   })
 })

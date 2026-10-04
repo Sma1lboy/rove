@@ -116,7 +116,7 @@ export class AttentionInboxStore {
 
   /**
    * `tabId` is nullable: an engine started by hand in a shell (including the
-   * one an exited engine leaves behind) has no `KOBE_TAB_ID`, so its hooks
+   * one an exited engine leaves behind) has no `ROVE_TAB_ID`, so its hooks
    * report task-only. A task-level episode still navigates to the active tab.
    */
   async record(

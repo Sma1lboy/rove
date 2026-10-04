@@ -24,20 +24,20 @@ let orch: Orchestrator
 let prevHome: string | undefined
 
 beforeEach(async () => {
-  prevHome = process.env.KOBE_HOME_DIR
+  prevHome = process.env.ROVE_HOME_DIR
   tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-branchfollow-"))
-  process.env.KOBE_HOME_DIR = path.join(tmpRoot, "home")
+  process.env.ROVE_HOME_DIR = path.join(tmpRoot, "home")
   repo = path.join(tmpRoot, "repo")
   const r = spawnSync("bash", [REPO_INIT, repo], { encoding: "utf8" })
   if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}\n${r.stdout}`)
-  const store = new TaskIndexStore({ homeDir: process.env.KOBE_HOME_DIR })
+  const store = new TaskIndexStore({ homeDir: process.env.ROVE_HOME_DIR })
   await store.load()
   orch = new Orchestrator({ store, worktrees: new GitWorktreeManager() })
 })
 
 afterEach(() => {
-  if (prevHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = prevHome
+  if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = prevHome
   try {
     fs.rmSync(tmpRoot, { recursive: true, force: true })
   } catch {

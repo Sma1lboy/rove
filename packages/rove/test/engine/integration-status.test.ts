@@ -23,7 +23,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("../../src/cli/invocation.ts", () => ({
   roveCliInvocation: () => ["rove"],
-  kobeHookInvocation: () => ["rove"],
+  roveHookInvocation: () => ["rove"],
 }))
 
 describe("readHookInstallState", () => {

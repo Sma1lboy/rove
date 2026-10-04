@@ -8,12 +8,12 @@
 // Inputs (env):
 //   BASE_REF            PR base branch (required) — diff is origin/BASE...HEAD
 //   PR_BODY             PR description; `coverage-exemption: <path> — <reason>` lines exempt the named files
-//   KOBE_COVERAGE_MIN   line-% floor for touched files (default 50)
-//   KOBE_RENDER_COVERAGE 1 selects bun test's OpenTUI lcov report
+//   ROVE_COVERAGE_MIN   line-% floor for touched files (default 50)
+//   ROVE_RENDER_COVERAGE 1 selects bun test's OpenTUI lcov report
 //
 // Default mode expects packages/rove/coverage/coverage-summary.json to exist
 // (`cd packages/rove && bun run coverage` first). Render mode
-// (`KOBE_RENDER_COVERAGE=1`) consumes test:render's lcov instead. A touched
+// (`ROVE_RENDER_COVERAGE=1`) consumes test:render's lcov instead. A touched
 // source file that is ABSENT from its applicable report counts as 0% — an
 // untested new module fails loudly instead of slipping through.
 //
@@ -26,10 +26,10 @@ import { execSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
-const MIN = Number(process.env.KOBE_COVERAGE_MIN ?? "50")
+const MIN = Number(process.env.ROVE_COVERAGE_MIN ?? "50")
 const baseRef = process.env.BASE_REF
 const prBody = process.env.PR_BODY ?? ""
-const renderCoverage = process.env.KOBE_RENDER_COVERAGE === "1"
+const renderCoverage = process.env.ROVE_RENDER_COVERAGE === "1"
 // One per `bun test` process the render track splits into — see
 // packages/rove/scripts/render-track.mjs. A missing dir is skipped so the
 // gate still reports on whichever halves produced coverage.
@@ -45,7 +45,7 @@ const exemptPaths = new Set([...prBody.matchAll(/coverage-exemption:\s*(\S+)/gi)
 
 // KOB-11 blind spot: files whose ONLY real exercise is the behavior suite
 // spawning the built CLI as a subprocess (test/behavior/harness.ts's
-// runKobe() → `spawnSync("bun", [DIST_CLI, ...])`) always read 0% here —
+// runRove() → `spawnSync("bun", [DIST_CLI, ...])`) always read 0% here —
 // vitest's v8 coverage instruments its own process, not a child `bun`
 // process. A per-file floor would permanently block touching these files
 // without lcov-merging the behavior run in (out of scope for now — see

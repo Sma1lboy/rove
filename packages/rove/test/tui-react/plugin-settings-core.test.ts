@@ -21,15 +21,15 @@ import {
 } from "../../src/tui-react/component/settings-dialog/plugin-settings-core.ts"
 
 const SOUND: PluginSetting = {
-  key: "KOBE_NOTIFY_SOUND",
+  key: "ROVE_NOTIFY_SOUND",
   label: "Sound",
   type: "enum",
   options: ["ping", "glass"],
   default: "ping",
 }
-const QUIET: PluginSetting = { key: "KOBE_NOTIFY_QUIET", label: "Quiet hours", type: "boolean" }
-const TITLE: PluginSetting = { key: "KOBE_NOTIFY_TITLE", label: "Title", type: "string" }
-const DELAY: PluginSetting = { key: "KOBE_NOTIFY_DELAY", label: "Delay (ms)", type: "number", default: "500" }
+const QUIET: PluginSetting = { key: "ROVE_NOTIFY_QUIET", label: "Quiet hours", type: "boolean" }
+const TITLE: PluginSetting = { key: "ROVE_NOTIFY_TITLE", label: "Title", type: "string" }
+const DELAY: PluginSetting = { key: "ROVE_NOTIFY_DELAY", label: "Delay (ms)", type: "number", default: "500" }
 const SCHEMA: readonly PluginSetting[] = [SOUND, QUIET, TITLE, DELAY]
 
 const rowFor = (setting: PluginSetting, values: Record<string, string> = {}): PluginSettingRowView =>
@@ -37,17 +37,17 @@ const rowFor = (setting: PluginSetting, values: Record<string, string> = {}): Pl
 
 describe("pluginSettingRows", () => {
   it("shows the stored value, and falls back to the manifest default as defaulted", () => {
-    const rows = pluginSettingRows(SCHEMA, { KOBE_NOTIFY_SOUND: "glass" })
+    const rows = pluginSettingRows(SCHEMA, { ROVE_NOTIFY_SOUND: "glass" })
     expect(rows.map((r) => [r.key, r.value, r.defaulted])).toEqual([
-      ["KOBE_NOTIFY_SOUND", "glass", false],
-      ["KOBE_NOTIFY_QUIET", "", true],
-      ["KOBE_NOTIFY_TITLE", "", true],
-      ["KOBE_NOTIFY_DELAY", "500", true],
+      ["ROVE_NOTIFY_SOUND", "glass", false],
+      ["ROVE_NOTIFY_QUIET", "", true],
+      ["ROVE_NOTIFY_TITLE", "", true],
+      ["ROVE_NOTIFY_DELAY", "500", true],
     ])
   })
 
   it("treats a stored empty string as set, not defaulted", () => {
-    expect(rowFor(DELAY, { KOBE_NOTIFY_DELAY: "" })).toMatchObject({ value: "", defaulted: false, defaultValue: "500" })
+    expect(rowFor(DELAY, { ROVE_NOTIFY_DELAY: "" })).toMatchObject({ value: "", defaulted: false, defaultValue: "500" })
   })
 
   it("renders nothing for a plugin that declares no settings", () => {
@@ -80,7 +80,7 @@ describe("boolean settings", () => {
   })
 
   it("turning off removes the key when the default is not truthy", () => {
-    expect(toggledBooleanValue(rowFor(QUIET, { KOBE_NOTIFY_QUIET: "1" }))).toBe("")
+    expect(toggledBooleanValue(rowFor(QUIET, { ROVE_NOTIFY_QUIET: "1" }))).toBe("")
   })
 
   it("turning off writes an explicit 0 when the default would flip it back on", () => {

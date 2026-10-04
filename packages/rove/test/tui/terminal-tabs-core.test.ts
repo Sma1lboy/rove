@@ -348,9 +348,9 @@ describe("terminal tabs state", () => {
   // rejects the bare `K=V cmd` form). Without it, all tabs of a task are
   // indistinguishable to the daemon (same worktree cwd).
   it("shellSpawn env rides the typed line as an `env K=V` prefix", () => {
-    expect(shellSpawn(["claude"], "/bin/zsh", { KOBE_TASK_ID: "t1", KOBE_TAB_ID: "tab-2" })).toEqual({
+    expect(shellSpawn(["claude"], "/bin/zsh", { ROVE_TASK_ID: "t1", ROVE_TAB_ID: "tab-2" })).toEqual({
       command: ["/bin/zsh"],
-      initialInput: "env KOBE_TASK_ID=t1 KOBE_TAB_ID=tab-2 claude\r",
+      initialInput: "env ROVE_TASK_ID=t1 ROVE_TAB_ID=tab-2 claude\r",
     })
     // Empty env = the plain line, no `env` noise.
     expect(shellSpawn(["claude"], "/bin/zsh", {}).initialInput).toBe("claude\r")
@@ -361,21 +361,21 @@ describe("terminal tabs state", () => {
   // only (no tabId, no per-tab sessionId). The export line is typed input
   // (leading space + clear), NOT the PTY environment — same inheritance
   // path as shellSpawn's env prefix. It exports the CANONICAL ROVE_* names
-  // alongside the KOBE_* aliases, exactly like `engineTabSpawnFor` below: a
-  // bare shell never passes through the CLI's ROVE_* → KOBE_* mirror, so
+  // alongside the ROVE_* aliases, exactly like `engineTabSpawnFor` below: a
+  // bare shell never passes through the CLI's ROVE_* → ROVE_* mirror, so
   // exporting only one namespace leaves the other unset in that shell.
   it("shellIdentityInput builds the typed export line for bare shell tabs", () => {
     expect(shellIdentityInput("t1", "tab-4")).toBe(
-      " export ROVE_TASK_ID=t1 KOBE_TASK_ID=t1 ROVE_TAB_ID=tab-4 KOBE_TAB_ID=tab-4 && clear\r",
+      " export ROVE_TASK_ID=t1 ROVE_TASK_ID=t1 ROVE_TAB_ID=tab-4 ROVE_TAB_ID=tab-4 && clear\r",
     )
     // Hostile ids stay one shell word each, in BOTH namespaces.
     expect(shellIdentityInput("t 1", "tab-4")).toBe(
-      " export ROVE_TASK_ID='t 1' KOBE_TASK_ID='t 1' ROVE_TAB_ID=tab-4 KOBE_TAB_ID=tab-4 && clear\r",
+      " export ROVE_TASK_ID='t 1' ROVE_TASK_ID='t 1' ROVE_TAB_ID=tab-4 ROVE_TAB_ID=tab-4 && clear\r",
     )
   })
 
   // Why: the F7 attention jump's tab precision — the launch script exports
-  // KOBE_TASK_ID/KOBE_TAB_ID ahead of the engine, hooks inherit it, and the
+  // ROVE_TASK_ID/ROVE_TAB_ID ahead of the engine, hooks inherit it, and the
   // daemon can attribute activity to THIS tab (a task's tabs share one
   // worktree cwd). The keepAlive fallback shell inherits it too.
   it("engineTabSpawnFor exports the task+tab identity in the launch script", () => {
@@ -388,7 +388,7 @@ describe("terminal tabs state", () => {
       worktreePath: "/wt",
     })
     expect(spawn.command[2]).toContain(
-      "export ROVE_TASK_ID='01TASK' KOBE_TASK_ID='01TASK' ROVE_TAB_ID='tab-2' KOBE_TAB_ID='tab-2'\n",
+      "export ROVE_TASK_ID='01TASK' ROVE_TASK_ID='01TASK' ROVE_TAB_ID='tab-2' ROVE_TAB_ID='tab-2'\n",
     )
   })
 

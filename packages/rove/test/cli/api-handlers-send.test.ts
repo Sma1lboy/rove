@@ -11,20 +11,20 @@ import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 // Peer provenance AND dispatcher provenance both key off the caller's own
-// $KOBE_TASK_ID/$KOBE_TAB_ID — unset them file-wide so exact-payload
+// $ROVE_TASK_ID/$ROVE_TAB_ID — unset them file-wide so exact-payload
 // assertions stay deterministic when the runner itself lives inside a kobe
 // task. Tests that WANT provenance set them in their own beforeEach.
-const savedEnv = { taskId: process.env.KOBE_TASK_ID, tabId: process.env.KOBE_TAB_ID }
+const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }
 beforeEach(() => {
   // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-  delete process.env.KOBE_TASK_ID
+  delete process.env.ROVE_TASK_ID
   // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-  delete process.env.KOBE_TAB_ID
+  delete process.env.ROVE_TAB_ID
 })
 afterEach(() => {
   for (const [name, value] of [
-    ["KOBE_TASK_ID", savedEnv.taskId],
-    ["KOBE_TAB_ID", savedEnv.tabId],
+    ["ROVE_TASK_ID", savedEnv.taskId],
+    ["ROVE_TAB_ID", savedEnv.tabId],
   ] as const) {
     if (value === undefined) delete process.env[name]
     else process.env[name] = value
@@ -148,15 +148,15 @@ describe("send handler", () => {
     )
   })
 
-  describe("peer provenance ($KOBE_TASK_ID)", () => {
-    const saved = process.env.KOBE_TASK_ID
+  describe("peer provenance ($ROVE_TASK_ID)", () => {
+    const saved = process.env.ROVE_TASK_ID
     beforeEach(async () => {
-      process.env.KOBE_TASK_ID = "sender-1"
+      process.env.ROVE_TASK_ID = "sender-1"
       // Identity is the VERIFIED env pair — prime the memo with a
       // process tree where this process really does descend from the tab's
       // shell, so no real pty-host/ps read happens here.
       await verifiedSelfSession(
-        { KOBE_TASK_ID: "sender-1", KOBE_TAB_ID: "tab-1" },
+        { ROVE_TASK_ID: "sender-1", ROVE_TAB_ID: "tab-1" },
         {
           pid: 500,
           sessions: async () => [{ key: "sender-1::tab-1", pid: 100, alive: true }],
@@ -168,8 +168,8 @@ describe("send handler", () => {
       resetVerifiedSelfSession()
       if (saved === undefined) {
         // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-        delete process.env.KOBE_TASK_ID
-      } else process.env.KOBE_TASK_ID = saved
+        delete process.env.ROVE_TASK_ID
+      } else process.env.ROVE_TASK_ID = saved
     })
 
     const peerClient = () =>

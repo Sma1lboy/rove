@@ -147,7 +147,7 @@ async function add(argv: readonly string[]): Promise<void> {
   })
 
   process.stdout.write(
-    `${CLI_NAME} machine: ${alias} → ${sshTargetOf(config)} (rove ${found.status.kobeVersion || "?"} on ${found.status.hostname || "?"})\n`,
+    `${CLI_NAME} machine: ${alias} → ${sshTargetOf(config)} (rove ${found.status.roveVersion || "?"} on ${found.status.hostname || "?"})\n`,
   )
   if (!up) {
     process.stderr.write(

@@ -31,7 +31,6 @@ it("serializes independent settings writers through the complete read-mutate-wri
             env: {
               ...process.env,
               ROVE_HOME_DIR: home,
-              KOBE_HOME_DIR: home,
               XDG_CONFIG_HOME: join(home!, ".config"),
               TEST_STATE_KEY: `writer${index}`,
             },

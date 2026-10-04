@@ -43,7 +43,7 @@ describe("daemon.stopping reason", () => {
     expect(payload.reason).toBe("restart")
     // The version is the comparison the client would otherwise have to
     // reconnect to make.
-    expect(payload.kobeVersion).toBe(CURRENT_VERSION)
+    expect(payload.roveVersion).toBe(CURRENT_VERSION)
   })
 
   it("an unlabelled stop stays a stop", async () => {

@@ -1,6 +1,6 @@
 // EN / 中文 — same mechanism as the home page (data-i18n + localStorage).
 // Terminal-mock content (branch names, TUI chrome) deliberately stays English.
-var KOBE_I18N = (function () {
+var ROVE_I18N = (function () {
   var zh = {
     'meta.title': 'Rove — 主题',
     'meta.desc': '每个内置 Rove 主题都由它真实的配色文件渲染，另附如何编写并发布你自己的主题。一个主题就是一个 JSON 文件，没有需要挤进去的注册表。', 'nav.docs': '文档', 'nav.plugins': '插件', 'nav.themes': '主题', 'nav.changelog': '更新日志',
@@ -138,9 +138,9 @@ var KOBE_I18N = (function () {
       try {
         if (navigator.clipboard) navigator.clipboard.writeText('rove theme add ' + b.getAttribute('data-cmd'));
       } catch (e) {}
-      label.textContent = KOBE_I18N.t('card.copied');
+      label.textContent = ROVE_I18N.t('card.copied');
       clearTimeout(timer);
-      timer = setTimeout(function () { label.textContent = KOBE_I18N.t('card.copy'); }, 1600);
+      timer = setTimeout(function () { label.textContent = ROVE_I18N.t('card.copy'); }, 1600);
     });
   });
 })();
@@ -153,9 +153,9 @@ var KOBE_I18N = (function () {
     try {
       if (navigator.clipboard) navigator.clipboard.writeText('rove theme add <raw-url>');
     } catch (e) {}
-    label.textContent = KOBE_I18N.t('copy.done');
+    label.textContent = ROVE_I18N.t('copy.done');
     clearTimeout(timer);
-    timer = setTimeout(function () { label.textContent = KOBE_I18N.t('copy.hint'); }, 1800);
+    timer = setTimeout(function () { label.textContent = ROVE_I18N.t('copy.hint'); }, 1800);
   });
 })();
 

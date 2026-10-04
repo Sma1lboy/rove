@@ -14,7 +14,7 @@ import {
 let home: string
 beforeEach(() => {
   home = mkdtempSync(path.join(tmpdir(), "rove-path-state-"))
-  vi.stubEnv("KOBE_HOME_DIR", home)
+  vi.stubEnv("ROVE_HOME_DIR", home)
   vi.stubEnv("ROVE_HOME_DIR", home)
   mkdirSync(path.dirname(statePath()), { recursive: true })
 })

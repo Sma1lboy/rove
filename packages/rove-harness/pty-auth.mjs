@@ -38,7 +38,7 @@ const TOKEN_FILE = "web-token"
 /** `<home>/.rove/web-token`, falling back to the legacy `.kobe` layout only
  *  when that is where the file actually is — mirrors `runtimeDataPath`. */
 export function webTokenPath(env = process.env) {
-  const home = env.ROVE_HOME_DIR ?? env.KOBE_HOME_DIR ?? homedir()
+  const home = env.ROVE_HOME_DIR ?? homedir()
   const canonical = join(home, STATE_DIR, TOKEN_FILE)
   if (existsSync(canonical)) return canonical
   const legacy = join(home, LEGACY_STATE_DIR, TOKEN_FILE)

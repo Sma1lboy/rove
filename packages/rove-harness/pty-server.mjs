@@ -13,7 +13,7 @@
  *   POST /pty/close   { tab }                          kill the tab process
  *   POST /pty/send    { tab, taskId, text }            paste text + Enter into the tab's engine
  *
- * With KOBE_PTY_CAST=1 (film capture) every tab is also recorded:
+ * With ROVE_PTY_CAST=1 (film capture) every tab is also recorded:
  *   POST /pty/mark    { tab, label }                   storyboard marker into the recording
  *   GET  /pty/cast?tab=<id>                            the recording (asciicast v2), then dropped
  */
@@ -31,11 +31,11 @@ import { createSpecFetcher } from "./pty-spec.mjs"
 import { createCast } from "./pty-cast.mjs"
 import { killPtyTree } from "./pty-tree-kill.mjs"
 
-const PORT = Number.parseInt(process.env.KOBE_PTY_PORT ?? "5175", 10)
+const PORT = Number.parseInt(process.env.ROVE_PTY_PORT ?? "5175", 10)
 const SCROLLBACK_CAP = 256 * 1024 // bytes of recent output replayed on (re)attach
 const HEALTH_PATH = "/__kobe_harness"
 const HEALTH_MARKER = "rove-harness"
-const HOST = process.env.KOBE_WEB_HOST?.trim() || "127.0.0.1"
+const HOST = process.env.ROVE_WEB_HOST?.trim() || "127.0.0.1"
 const ALLOWED_HOST = allowedHostForBindHost(HOST)
 
 const fetchSpec = createSpecFetcher()
@@ -47,7 +47,7 @@ const ptySessions = createPtySessionManager({
   createScrollback,
   scrollbackCap: SCROLLBACK_CAP,
   env: ptyEnv,
-  createCast: process.env.KOBE_PTY_CAST === "1" ? createCast : null,
+  createCast: process.env.ROVE_PTY_CAST === "1" ? createCast : null,
 })
 
 /**
@@ -245,7 +245,7 @@ wss.on("connection", (ws, req) => {
 })
 
 // Bind loopback by default — a PTY is an arbitrary shell/engine in the
-// worktree, so it must never listen on all interfaces. KOBE_WEB_HOST overrides.
+// worktree, so it must never listen on all interfaces. ROVE_WEB_HOST overrides.
 server.listen(PORT, HOST, () => {
   process.stdout.write(`Rove PTY server listening on ${HOST}:${server.address().port}\n`)
 })
@@ -267,7 +267,7 @@ const shutdown = () => {
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
 const stopParentWatch = watchParent({ onGone: shutdown })
-if (process.env.KOBE_PTY_PARENT_PIPE === "1") {
+if (process.env.ROVE_PTY_PARENT_PIPE === "1") {
   process.stdin.once("end", shutdown)
   process.stdin.resume()
 }

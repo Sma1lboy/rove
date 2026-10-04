@@ -42,7 +42,7 @@ const EVENT_MAP: readonly HookEventSpec[] = [
 ]
 
 /** The Codex events kobe owns — a merge replaces only these. */
-export const KOBE_CODEX_HOOK_EVENTS: readonly string[] = EVENT_MAP.map((e) => e.event)
+export const ROVE_CODEX_HOOK_EVENTS: readonly string[] = EVENT_MAP.map((e) => e.event)
 
 /** Where Codex reads user hook definitions. */
 export function codexHooksPath(): string {

@@ -11,7 +11,7 @@ import { useSyncExternalStore } from "react"
 import { keymapVersion, subscribeKeymapVersion } from "../../tui/context/keybindings"
 
 export {
-  KobeKeymap,
+  RoveKeymap,
   bindByIds,
   bumpKeymapVersion,
   subscribeKeymapVersion,

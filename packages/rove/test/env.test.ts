@@ -4,17 +4,15 @@ import {
   homeDir,
   isDev,
   kvStatePath,
-  legacyKobeKvStatePath,
-  legacyKobeStateDir,
+  legacyRoveKvStatePath,
+  legacyRoveStateDir,
   roveSettingsDir,
   roveStateDir,
 } from "../src/env.ts"
 
 const ORIGINAL = {
   ROVE_DEV: process.env.ROVE_DEV,
-  KOBE_DEV: process.env.KOBE_DEV,
   ROVE_HOME_DIR: process.env.ROVE_HOME_DIR,
-  KOBE_HOME_DIR: process.env.KOBE_HOME_DIR,
 }
 
 function restore(key: keyof typeof ORIGINAL): void {
@@ -29,15 +27,15 @@ afterEach(() => {
 
 describe("rename-compatible environment access", () => {
   test("ROVE_HOME_DIR wins and product data uses the canonical Rove layout", () => {
-    process.env.KOBE_HOME_DIR = "/legacy-home"
+    process.env.ROVE_HOME_DIR = "/legacy-home"
     process.env.ROVE_HOME_DIR = "/rove-home"
 
     expect(homeDir()).toBe("/rove-home")
     expect(roveStateDir()).toBe("/rove-home/.rove")
     expect(roveSettingsDir()).toBe("/rove-home/.rove/settings")
     expect(kvStatePath()).toBe("/rove-home/.config/rove/state.json")
-    expect(legacyKobeStateDir()).toBe("/rove-home/.kobe")
-    expect(legacyKobeKvStatePath()).toBe("/rove-home/.config/rove/state.json")
+    expect(legacyRoveStateDir()).toBe("/rove-home/.kobe")
+    expect(legacyRoveKvStatePath()).toBe("/rove-home/.config/rove/state.json")
   })
 
   // `VAR=` is how a shell says "unset". Read raw, it made the home `""` and
@@ -46,20 +44,20 @@ describe("rename-compatible environment access", () => {
   // the user's repository.
   test("an empty HOME_DIR means unset, never a relative state root", () => {
     process.env.ROVE_HOME_DIR = ""
-    process.env.KOBE_HOME_DIR = ""
+    process.env.ROVE_HOME_DIR = ""
     expect(homeDir()).toBe(homedir())
     expect(roveStateDir()).toBe(`${homedir()}/.rove`)
     expect(kvStatePath()).toBe(`${homedir()}/.config/rove/state.json`)
   })
 
-  test("an empty ROVE_HOME_DIR still yields to a real KOBE_HOME_DIR", () => {
+  test("an empty ROVE_HOME_DIR still yields to a real ROVE_HOME_DIR", () => {
     process.env.ROVE_HOME_DIR = ""
-    process.env.KOBE_HOME_DIR = "/legacy-home"
+    process.env.ROVE_HOME_DIR = "/legacy-home"
     expect(homeDir()).toBe("/legacy-home")
   })
 
-  test("ROVE_DEV takes precedence over KOBE_DEV", () => {
-    process.env.KOBE_DEV = "1"
+  test("ROVE_DEV takes precedence over ROVE_DEV", () => {
+    process.env.ROVE_DEV = "1"
     process.env.ROVE_DEV = "0"
     expect(isDev()).toBe(false)
     process.env.ROVE_DEV = "1"

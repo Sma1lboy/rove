@@ -110,7 +110,7 @@ export function resolveMainRepoRoot(absPath: string): string {
 
 /**
  * Where the shared KV blob lives. Resolved on each access so a test's
- * `KOBE_HOME_DIR` override works without module-init reload tricks.
+ * `ROVE_HOME_DIR` override works without module-init reload tricks.
  */
 export function statePath(): string {
   return kvStatePath()

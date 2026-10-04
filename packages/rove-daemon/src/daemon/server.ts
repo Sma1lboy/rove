@@ -114,7 +114,7 @@ async function startOwnedServer(
     },
     idleGraceMs: resolveIdleGraceMs(),
     // Autospawned daemons reap themselves if no gui EVER attaches.
-    ...(process.env.KOBE_DAEMON_AUTOSPAWNED === "1" ? { firstGuiGraceMs: FIRST_GUI_GRACE_MS } : {}),
+    ...(process.env.ROVE_DAEMON_AUTOSPAWNED === "1" ? { firstGuiGraceMs: FIRST_GUI_GRACE_MS } : {}),
     // Read lazily (both constructed below). An enabled schedule must fire
     // unwatched; idle-stopping under a live PTY drops engine hook events and
     // blanks the activity dots.
@@ -308,7 +308,7 @@ async function startOwnedServer(
   resources.defer(async () => {
     // Carries the reason and version so a TUI can offer to refresh on a
     // `restart` immediately, instead of reconnecting to compare versions.
-    const payload: DaemonStoppingPayload = { reason: stopReason, kobeVersion: runtime.currentVersion }
+    const payload: DaemonStoppingPayload = { reason: stopReason, roveVersion: runtime.currentVersion }
     broadcast(clients, { type: "event", name: "daemon.stopping", payload })
     for (const client of clients) client.socket.destroy()
     await sockGuard.release(server)

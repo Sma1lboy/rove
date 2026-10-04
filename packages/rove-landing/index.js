@@ -1,6 +1,6 @@
 // EN / 中文 — one page, two language versions. Terminal-mock content
 // (commands, branch names, TUI chrome) deliberately stays English.
-var KOBE_I18N = (function () {
+var ROVE_I18N = (function () {
   var zh = {
     'meta.title': 'Rove — 装在你 shell 里的 agent 多路复用器',
     'meta.desc': 'Rove 是终端里的编码代理多路复用器：N 个彼此隔离的尝试，各自拥有 git worktree 和托管引擎会话，互相发消息协作——而这一整套就跑在一个你随时能关掉的 SSH 会话里。',
@@ -93,8 +93,6 @@ var KOBE_I18N = (function () {
     'footer.colophon': '用 Bun、OpenTUI 和 React 构建。字体为 Saira Condensed、IBM Plex Sans 与 IBM Plex Mono。MIT 许可。',
     'footer.plugins': '插件', 'footer.themesLink': '主题', 'footer.changelog': '更新日志', 'footer.docs': '文档', 'footer.keybindings': '快捷键',
     'hero.alts': '或者用',
-    'ga.n5.h': '实物视图',
-    'ga.n5.sub': '不是截图 · 点一个任务',
     'ga.n5.p1': '这就是整个产品，在跑。下面几条注释把它拆开。',
     'ga.n5.p3': '每个字形都是侧栏真会画的，每个引擎名都真发布了。完整清单在<a href="https://docs.rove.run">文档</a>里。',
     'ga.fig5cap': '图 1 —— 实物视图 · 三个仓库、四个任务、都在后台运行',
@@ -196,8 +194,6 @@ var KOBE_I18N = (function () {
     'footer.colophon': 'Built with Bun, OpenTUI and React. Set in Saira Condensed, IBM Plex Sans and IBM Plex Mono. MIT licensed.',
     'footer.plugins': 'plugins', 'footer.themesLink': 'themes', 'footer.changelog': 'changelog', 'footer.docs': 'docs', 'footer.keybindings': 'keybindings',
     'hero.alts': 'or with',
-    'ga.n5.h': 'Physical view',
-    'ga.n5.sub': 'Not a screenshot · pick a task',
     'ga.n5.p1': 'The whole product, running. The notes below take it apart.',
     'ga.n5.p3': 'Every glyph is one the sidebar really draws; every engine name ships. The full schedule is in the <a href="https://docs.rove.run">docs</a>.',
     'ga.fig5cap': 'Fig. 1 — Physical view · three repos, four tasks, running in the background',

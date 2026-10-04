@@ -63,7 +63,7 @@ describe("setActiveTask focus-switch op budget", () => {
 
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), "kobe-set-active-perf-"))
-    vi.stubEnv("KOBE_HOME_DIR", home)
+    vi.stubEnv("ROVE_HOME_DIR", home)
     store = new TaskIndexStore({ homeDir: home })
     await store.load()
     orch = new Orchestrator({ store, worktrees: new GitWorktreeManager() })

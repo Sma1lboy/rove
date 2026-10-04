@@ -15,7 +15,7 @@ import { chmod, mkdir, readFile, readdir, realpath, symlink, writeFile } from "n
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { type BehaviorEnv, makeBehaviorEnv, runKobe } from "./harness.ts"
+import { type BehaviorEnv, makeBehaviorEnv, runRove } from "./harness.ts"
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const UPDATE_SH = join(REPO_ROOT, "scripts/update.sh")
@@ -30,21 +30,21 @@ describe("kobe update (behavior)", () => {
   })
 
   it("--dry-run prints the plan and runs nothing, exit 0", () => {
-    const r = runKobe(["update", "--dry-run"], env)
+    const r = runRove(["update", "--dry-run"], env)
     expect(r.code).toBe(0)
     expect(r.stdout).toMatch(/kobe \d+\.\d+\.\d+ -> latest/)
     expect(r.stdout).toContain("running: curl")
   })
 
   it("unknown flag lands on the usage surface, exit 2", () => {
-    const r = runKobe(["update", "--harf"], env)
+    const r = runRove(["update", "--harf"], env)
     expect(r.code).toBe(2)
     expect(r.stderr).toContain("Usage: kobe update")
   })
 })
 
 /**
- * Run scripts/update.sh with PATH shims. `kobeBinDir` decides the manager
+ * Run scripts/update.sh with PATH shims. `roveBinDir` decides the manager
  * (a path containing `/.bun/` → bun, else npm). Both managers log to
  * `calls.log` instead of installing anything. `linkTo` makes the on-PATH
  * `kobe` a symlink to that entry file, which is how the script tells a
@@ -53,14 +53,14 @@ describe("kobe update (behavior)", () => {
  */
 async function runUpdateScript(
   base: string,
-  kobeBinDir: string,
+  roveBinDir: string,
   linkTo?: string,
   arg?: string,
   extraPathDirs: readonly string[] = [],
 ): Promise<{ code: number; out: string; log: string }> {
   const shims = join(base, "shims")
   await mkdir(shims, { recursive: true })
-  await mkdir(kobeBinDir, { recursive: true })
+  await mkdir(roveBinDir, { recursive: true })
   const logFile = join(base, "calls.log")
 
   // Post-install `kobe -v` must match `npm view` output or the script exits 1
@@ -69,10 +69,10 @@ async function runUpdateScript(
   // `rove`, so the fixture has to carry both like a real install does.
   for (const name of ["kobe", "rove"]) {
     if (linkTo) {
-      await symlink(linkTo, join(kobeBinDir, name))
+      await symlink(linkTo, join(roveBinDir, name))
     } else {
-      await writeFile(join(kobeBinDir, name), `#!/bin/sh\necho "${name} 9.9.9"\n`)
-      await chmod(join(kobeBinDir, name), 0o755)
+      await writeFile(join(roveBinDir, name), `#!/bin/sh\necho "${name} 9.9.9"\n`)
+      await chmod(join(roveBinDir, name), 0o755)
     }
   }
   for (const mgr of ["npm", "bun"]) {
@@ -84,7 +84,7 @@ async function runUpdateScript(
   }
 
   const r = spawnSync("sh", arg === undefined ? [UPDATE_SH] : [UPDATE_SH, arg], {
-    env: { PATH: [kobeBinDir, ...extraPathDirs, shims, "/usr/bin", "/bin"].join(":") },
+    env: { PATH: [roveBinDir, ...extraPathDirs, shims, "/usr/bin", "/bin"].join(":") },
     encoding: "utf8",
     timeout: 30_000,
   })

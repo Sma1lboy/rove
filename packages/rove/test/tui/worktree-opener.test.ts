@@ -5,16 +5,16 @@ describe("detectWorktreeOpener", () => {
   it("honors ROVE_OPEN_EDITOR before the compatibility variable", () => {
     expect(
       detectWorktreeOpener({
-        env: { ROVE_OPEN_EDITOR: "zed", KOBE_OPEN_EDITOR: "cursor", PATH: "" },
+        env: { ROVE_OPEN_EDITOR: "zed", PATH: "" },
         exists: () => false,
       }),
     ).toEqual({ id: "env", label: "Zed", command: "zed", args: [] })
   })
 
-  it("honors KOBE_OPEN_EDITOR", () => {
+  it("honors ROVE_OPEN_EDITOR", () => {
     expect(
       detectWorktreeOpener({
-        env: { KOBE_OPEN_EDITOR: "cursor", PATH: "" },
+        env: { ROVE_OPEN_EDITOR: "cursor", PATH: "" },
         exists: () => false,
       }),
     ).toEqual({ id: "env", label: "Cursor", command: "cursor", args: [] })

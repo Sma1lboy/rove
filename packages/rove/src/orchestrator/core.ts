@@ -136,7 +136,7 @@ export class Orchestrator {
   }
 
   /** In-process active-task focus; mirrors {@link RemoteOrchestrator}'s
-   *  daemon-backed `active-task` channel so the `KobeOrchestrator` union has one API. */
+   *  daemon-backed `active-task` channel so the `RoveOrchestrator` union has one API. */
   activeTaskSignal(): ReadableState<string | null> {
     return this.activeTaskAcc
   }

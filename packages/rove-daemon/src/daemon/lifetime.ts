@@ -40,7 +40,7 @@ export interface LifetimeClient {
  */
 const DEFAULT_IDLE_GRACE_MS = 3000
 
-/** First-gui window for AUTOSPAWNED daemons (`KOBE_DAEMON_AUTOSPAWNED`): long
+/** First-gui window for AUTOSPAWNED daemons (`ROVE_DAEMON_AUTOSPAWNED`): long
  *  enough for a slow TUI boot, short enough that a daemon born from a stray
  *  `kobe api` in an engine tab never lingers as a zombie holding the socket. */
 export const FIRST_GUI_GRACE_MS = 60_000
@@ -71,7 +71,7 @@ export interface DaemonLifetimeOptions {
   readonly onIdleStop: () => void
   /**
    * Also arm a BOOT-time grace: no gui within this window → self-stop. For
-   * AUTOSPAWNED daemons only (`KOBE_DAEMON_AUTOSPAWNED`, set by
+   * AUTOSPAWNED daemons only (`ROVE_DAEMON_AUTOSPAWNED`, set by
    * `connectOrStartDaemon`'s spawn): without a >0 → 0 gui drop the normal rule
    * never fires, so one whose client never attached as a gui would live
    * forever. A deliberate `kobe daemon start` doesn't set the flag and stays up.

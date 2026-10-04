@@ -43,11 +43,11 @@ let logSpy: ReturnType<typeof vi.spyOn>
 let errorSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
-  originalHome = process.env.KOBE_HOME_DIR
+  originalHome = process.env.ROVE_HOME_DIR
   originalExitCode = process.exitCode
   process.exitCode = 0
   home = mkdtempSync(join(tmpdir(), "kobe-reset-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   mkdirSync(join(home, ".kobe"), { recursive: true })
   mkdirSync(join(home, ".rove"), { recursive: true })
   mocks.stopDaemonProcess.mockReset().mockResolvedValue({ pid: null, method: "absent" })
@@ -58,8 +58,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   process.exitCode = originalExitCode
   rmSync(home, { recursive: true, force: true })
   logSpy.mockRestore()

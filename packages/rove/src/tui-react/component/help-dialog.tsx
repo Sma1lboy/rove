@@ -19,7 +19,7 @@ import {
 } from "../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import type { BindingReachability } from "../../tui/lib/keymap-reachability"
-import { KobeKeymap, useKeymapVersion } from "../context/keybindings"
+import { RoveKeymap, useKeymapVersion } from "../context/keybindings"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"
 import { currentBindingReachability, useBindings } from "../lib/keymap"
@@ -52,7 +52,7 @@ export function HelpDialog(props: {
   const pureTuiPrefix = currentPrefixConfiguration()
   // biome-ignore lint/correctness/useExhaustiveDependencies: keymapVersion is the invalidation key — the table is mutated in place.
   const sections = useMemo(
-    () => grammarHelpSections(KobeKeymap, props.currentScope ?? null, pureTuiPrefix.key, props.reachability),
+    () => grammarHelpSections(RoveKeymap, props.currentScope ?? null, pureTuiPrefix.key, props.reachability),
     [keymapVersion, props.currentScope, props.reachability, pureTuiPrefix.key],
   )
   // Standalone full-window page (`kobe help-page`) passes its own exit;

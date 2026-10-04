@@ -9,56 +9,53 @@ import { afterEach, describe, expect, test } from "vitest"
 import { roveCliInvocation } from "../../src/cli/invocation.ts"
 import {
   activeCliName,
-  markKobeInvocation,
   markRoveInvocation,
   prepareCliEnvironment,
 } from "../../src/cli/rename-compat.ts"
 
 describe("rove environment compatibility", () => {
-  test("ROVE_* overrides the matching legacy KOBE_* value", () => {
+  test("ROVE_* overrides the matching legacy ROVE_* value", () => {
     const env: NodeJS.ProcessEnv = {
       ROVE_HOME_DIR: "/new-home",
-      KOBE_HOME_DIR: "/old-home",
       ROVE_DEBUG: "1",
     }
 
     installRoveEnvCompatibility(env)
 
-    expect(env.KOBE_HOME_DIR).toBe("/new-home")
-    expect(env.KOBE_DEBUG).toBe("1")
+    expect(env.ROVE_HOME_DIR).toBe("/new-home")
+    expect(env.ROVE_DEBUG).toBe("1")
     expect(env.ROVE_HOME_DIR).toBe("/new-home")
   })
 
-  test("an existing KOBE_* value survives when no ROVE_* value exists", () => {
-    const env: NodeJS.ProcessEnv = { KOBE_HOME_DIR: "/legacy-home" }
+  test("an existing ROVE_* value survives when no ROVE_* value exists", () => {
+    const env: NodeJS.ProcessEnv = { ROVE_HOME_DIR: "/legacy-home" }
     installRoveEnvCompatibility(env)
-    expect(env.KOBE_HOME_DIR).toBe("/legacy-home")
+    expect(env.ROVE_HOME_DIR).toBe("/legacy-home")
     expect(readRoveEnv("HOME_DIR", env)).toBe("/legacy-home")
   })
 
   test("an explicit internal override stamps both names over ambient values", () => {
     const env: NodeJS.ProcessEnv = {
       ROVE_HOME_DIR: "/ambient-rove-home",
-      KOBE_HOME_DIR: "/ambient-kobe-home",
     }
     setRoveEnv("HOME_DIR", "/isolated-home", env)
     expect(readRoveEnv("HOME_DIR", env)).toBe("/isolated-home")
     expect(env.ROVE_HOME_DIR).toBe("/isolated-home")
-    expect(env.KOBE_HOME_DIR).toBe("/isolated-home")
+    expect(env.ROVE_HOME_DIR).toBe("/isolated-home")
   })
 
-  test("the internal invoked-as marker is not exposed as a KOBE_* control", () => {
+  test("the internal invoked-as marker is not exposed as a ROVE_* control", () => {
     const env: NodeJS.ProcessEnv = {}
     markRoveInvocation(env)
     prepareCliEnvironment(env)
 
     expect(activeCliName(env)).toBe("rove")
-    expect(env.KOBE_INVOKED_AS).toBeUndefined()
+    expect(env.ROVE_INVOKED_AS).toBeUndefined()
   })
 
   test("the kobe wrapper overrides a stale inherited invocation marker", () => {
     const env: NodeJS.ProcessEnv = { ROVE_INVOKED_AS: "rove" }
-    markKobeInvocation(env)
+    markRoveInvocation(env)
     expect(activeCliName(env)).toBe("kobe")
   })
 
@@ -72,7 +69,7 @@ describe("rove environment compatibility", () => {
         expect.stringMatching(/\/cli\/rove\.ts$/),
       ])
 
-      markKobeInvocation()
+      markRoveInvocation()
       expect(roveCliInvocation()).toEqual([
         process.execPath,
         "--conditions=browser",
@@ -89,7 +86,7 @@ describe("rove environment compatibility", () => {
  * `VAR=` is how a shell says "unset", and this repo's own fixtures spell it
  * that way (`compat-env.ts` names the visual fixture's `ROVE_TASK_ID=`). Read
  * through a bare `??` chain a DEFINED empty `ROVE_*` is a value, so it shadows
- * the real `KOBE_*` beside it — and the two consumers that matters for are the
+ * the real `ROVE_*` beside it — and the two consumers that matters for are the
  * ones that decide WHERE things are written: the state home, and the daemon /
  * PTY socket + pid paths that are the whole of an isolated run's isolation.
  */
@@ -110,21 +107,21 @@ describe("a blank ROVE_* value is unset, not a value", () => {
     "HOME_DIR",
   ] as const
 
-  test.each(SUFFIXES)("%s: blank ROVE_* falls through to KOBE_*", (suffix) => {
-    const env: NodeJS.ProcessEnv = { [`ROVE_${suffix}`]: "", [`KOBE_${suffix}`]: "isolated" }
+  test.each(SUFFIXES)("%s: blank ROVE_* falls through to ROVE_*", (suffix) => {
+    const env: NodeJS.ProcessEnv = { [`ROVE_${suffix}`]: "", }
     expect(readRoveEnv(suffix, env)).toBe("isolated")
   })
 
   test.each(SUFFIXES)("%s: blank in both namespaces reads as absent", (suffix) => {
-    expect(readRoveEnv(suffix, { [`ROVE_${suffix}`]: "", [`KOBE_${suffix}`]: "   " })).toBeUndefined()
+    expect(readRoveEnv(suffix, { [`ROVE_${suffix}`]: "", })).toBeUndefined()
   })
 
-  test("mirroring does not overwrite a real KOBE_* with a blank ROVE_*", () => {
-    const env: NodeJS.ProcessEnv = { ROVE_HOME_DIR: "", KOBE_HOME_DIR: "/isolated-home" }
+  test("mirroring does not overwrite a real ROVE_* with a blank ROVE_*", () => {
+    const env: NodeJS.ProcessEnv = { ROVE_HOME_DIR: "", }
     installRoveEnvCompatibility(env)
     // The other half of the same bug: the mirror ran before any read, so it
     // destroyed the one namespace that still held the isolated value.
-    expect(env.KOBE_HOME_DIR).toBe("/isolated-home")
+    expect(env.ROVE_HOME_DIR).toBe("/isolated-home")
     expect(readRoveEnv("HOME_DIR", env)).toBe("/isolated-home")
   })
 })
@@ -145,7 +142,7 @@ describe("blank ROVE_* overrides keep an isolated daemon isolated", () => {
     saved.clear()
   })
 
-  // The exact shape a harness writes: `ROVE_*=` for "unset", `KOBE_*` pointing
+  // The exact shape a harness writes: `ROVE_*=` for "unset", `ROVE_*` pointing
   // at the isolated runtime. Resolving to the DEFAULT path here is not a
   // cosmetic miss — it connects the run to the user's production daemon.
   test.each([
@@ -155,7 +152,7 @@ describe("blank ROVE_* overrides keep an isolated daemon isolated", () => {
     ["PTY_PID_PATH", "/tmp/iso-pty.pid", () => defaultPtyHostPidPath()],
   ] as const)("%s", (suffix, isolated, resolve) => {
     stub(`ROVE_${suffix}`, "")
-    stub(`KOBE_${suffix}`, isolated)
+    stub(`ROVE_${suffix}`, isolated)
     expect(resolve()).toBe(isolated)
   })
 })

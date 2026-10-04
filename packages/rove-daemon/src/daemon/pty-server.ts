@@ -48,7 +48,7 @@ import { listenOnUnixSocket } from "./socket-guard.ts"
 
 /**
  * Grace before a zero-live-session host exits; absorbs the boot window before
- * the first `pty.open` and quick close→reopen. Env: `KOBE_PTY_IDLE_EXIT_MS`.
+ * the first `pty.open` and quick close→reopen. Env: `ROVE_PTY_IDLE_EXIT_MS`.
  */
 const DEFAULT_IDLE_EXIT_MS = 60_000
 
@@ -56,19 +56,19 @@ const DEFAULT_IDLE_EXIT_MS = 60_000
 const DEFAULT_ORPHAN_CHECK_MS = 30_000
 
 /**
- * `KOBE_PTY_MAX_LIFETIME_MS` wall-clock ceiling. Unset in production: a host
+ * `ROVE_PTY_MAX_LIFETIME_MS` wall-clock ceiling. Unset in production: a host
  * whose owner is still there must never die for being old. Only fixtures set
  * it — the pidfile watchdog can't see a run interrupted before teardown.
  */
 function resolveMaxLifetimeMs(): number | null {
-  const raw = process.env.KOBE_PTY_MAX_LIFETIME_MS
+  const raw = process.env.ROVE_PTY_MAX_LIFETIME_MS
   if (raw === undefined) return null
   const n = Number(raw)
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
 function resolveIdleExitMs(): number {
-  const raw = process.env.KOBE_PTY_IDLE_EXIT_MS
+  const raw = process.env.ROVE_PTY_IDLE_EXIT_MS
   if (raw === undefined) return DEFAULT_IDLE_EXIT_MS
   const n = Number(raw)
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_IDLE_EXIT_MS
@@ -81,7 +81,7 @@ export interface PtyHostServerOptions {
   readonly idleExitMs?: number
   /** Cadence of the orphan watchdog (see below); `0` uses the default. */
   readonly orphanCheckMs?: number
-  /** Wall-clock life ceiling; `null`/omitted uses `KOBE_PTY_MAX_LIFETIME_MS`,
+  /** Wall-clock life ceiling; `null`/omitted uses `ROVE_PTY_MAX_LIFETIME_MS`,
    *  which is itself normally unset. Only fixtures set either. */
   readonly maxLifetimeMs?: number | null
   /** How PTY children get spawned. Defaults to Bun's; the node host passes node-pty's. */

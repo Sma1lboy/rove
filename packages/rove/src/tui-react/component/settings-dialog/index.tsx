@@ -10,7 +10,7 @@ import { errorMessage } from "@/lib/error-message"
 import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { useState } from "react"
-import { type KobeOrchestrator, RemoteOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
+import { type RoveOrchestrator, RemoteOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../engine/integration-status"
 import { createStateCell } from "../../../lib/external-store"
 import { submitFeedback } from "../../../lib/feedback"
@@ -57,7 +57,7 @@ import { useSettingsPrefs } from "./use-settings-prefs"
 export type SettingsDialogProps = {
   kv: KVContext
   /** Enables daemon-only Settings actions when present. */
-  orchestrator?: KobeOrchestrator
+  orchestrator?: RoveOrchestrator
   onClose: () => void
 }
 

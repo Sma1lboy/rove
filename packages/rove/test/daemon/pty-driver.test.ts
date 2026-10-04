@@ -41,7 +41,7 @@ describe("PtyHost driver seam", () => {
     expect(rec.requests[0]?.cols).toBe(90)
     // The child sees a terminal identity, not the outer emulator's.
     expect(rec.requests[0]?.env.TERM).toBe("xterm-256color")
-    expect(rec.requests[0]?.env.KOBE_TERMINAL_PTY).toBe("1")
+    expect(rec.requests[0]?.env.ROVE_TERMINAL_PTY).toBe("1")
 
     host.write("t::tab-1", "ls\r")
     host.resize("t::tab-1", 100, 40)

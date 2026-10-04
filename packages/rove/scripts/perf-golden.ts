@@ -2,7 +2,7 @@
  * perf-golden — kobe's golden performance testcases (issue #28 follow-up).
  *
  * A release-ritual doctor: end-to-end metrics measured against REAL
- * sandbox infrastructure (throwaway KOBE_HOME_DIR pty-host + daemon
+ * sandbox infrastructure (throwaway ROVE_HOME_DIR pty-host + daemon
  * server on a temp socket — never touches ~/.kobe), each with a golden
  * ceiling committed in the ONE `GOLDEN` table below. A new version that
  * regresses past a ceiling fails loudly (exit 1). Ceilings sit 2-3× the
@@ -111,7 +111,7 @@ function record(metric: keyof typeof GOLDEN, value: number, unit: string): void 
 {
   const { startDaemonServer } = await import("@sma1lboy/rove-daemon/daemon/server")
   const { daemonRuntime } = await import("../src/core/daemon-runtime.ts")
-  const { KobeDaemonClient } = await import("@sma1lboy/rove-daemon/client")
+  const { RoveDaemonClient } = await import("@sma1lboy/rove-daemon/client")
   const dir = mkdtempSync(join(tmpdir(), "kobe-perf-daemon-"))
   const orch = {
     subscribeTasks: (listener: (snapshot: unknown[]) => void) => {
@@ -132,7 +132,7 @@ function record(metric: keyof typeof GOLDEN, value: number, unit: string): void 
     keybindingsDebounceMs: 25,
     worktreeChangesTickMs: 0,
   })
-  const client = new KobeDaemonClient(join(dir, "daemon.sock"))
+  const client = new RoveDaemonClient(join(dir, "daemon.sock"))
   let sawSnapshot = false
   client.on("task.snapshot", () => {
     sawSnapshot = true

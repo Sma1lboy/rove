@@ -22,7 +22,7 @@ export interface ScratchFoldIO {
 }
 
 async function renameHostedSession(from: string, to: string): Promise<boolean> {
-  if ((process.env.KOBE_TERMINAL_BACKEND ?? "hosted") !== "hosted") return false
+  if ((process.env.ROVE_TERMINAL_BACKEND ?? "hosted") !== "hosted") return false
   try {
     const client = await getSharedPtyClient()
     const res = await client.request<{ renamed?: boolean }>("pty.rename", { from, to })

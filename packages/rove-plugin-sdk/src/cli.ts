@@ -1,5 +1,5 @@
 /**
- * Call back into Rove through `$ROVE_BIN_PATH` (with `$KOBE_BIN_PATH` as a
+ * Call back into Rove through `$ROVE_BIN_PATH` (with `$ROVE_BIN_PATH` as a
  * compatibility fallback). `rove()` is the raw runner; named helpers wrap
  * Rove API verbs (full list: `rove api help` / `rove api schema`).
  */
@@ -7,7 +7,7 @@
 import { execFile } from "node:child_process"
 
 export interface RoveRunOptions {
-  /** Defaults to `process.env.ROVE_BIN_PATH`, then `KOBE_BIN_PATH`. */
+  /** Defaults to `process.env.ROVE_BIN_PATH`, then `ROVE_BIN_PATH`. */
   readonly binPath?: string
   readonly cwd?: string
   /** Extra env merged over the inherited environment. */
@@ -16,21 +16,15 @@ export interface RoveRunOptions {
   readonly timeoutMs?: number
 }
 
-/** @deprecated Use RoveRunOptions. */
-export type KobeRunOptions = RoveRunOptions
-
 export interface RoveRunResult {
   readonly code: number
   readonly stdout: string
   readonly stderr: string
 }
 
-/** @deprecated Use RoveRunResult. */
-export type KobeRunResult = RoveRunResult
-
 /** Run the Rove CLI with `<args…>`; resolves with the exit code (never rejects on non-zero). */
 export function rove(args: readonly string[], opts: RoveRunOptions = {}): Promise<RoveRunResult> {
-  const bin = opts.binPath ?? process.env.ROVE_BIN_PATH ?? process.env.KOBE_BIN_PATH
+  const bin = opts.binPath ?? process.env.ROVE_BIN_PATH
   if (!bin) return Promise.reject(new Error("ROVE_BIN_PATH is not set and no binPath was given"))
   return new Promise((resolve, reject) => {
     execFile(
@@ -53,7 +47,7 @@ export function rove(args: readonly string[], opts: RoveRunOptions = {}): Promis
   })
 }
 
-/** Compatibility alias for plugins written against the Kobe-named SDK. */
+/** Compatibility alias for plugins written against the Rove-named SDK. */
 export const kobe = rove
 
 /** Run and parse stdout as JSON; throws on non-zero exit or bad JSON. */
@@ -62,9 +56,6 @@ export async function roveJson<T = unknown>(args: readonly string[], opts: RoveR
   if (res.code !== 0) throw new Error(`Rove command ${args.join(" ")} exited ${res.code}: ${res.stderr.trim()}`)
   return JSON.parse(res.stdout) as T
 }
-
-/** Compatibility alias for plugins written against the Kobe-named SDK. */
-export const kobeJson = roveJson
 
 /** Toast a notification in every attached Rove UI. */
 export function notify(title: string, body?: string, opts?: RoveRunOptions): Promise<RoveRunResult> {

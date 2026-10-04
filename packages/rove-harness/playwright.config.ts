@@ -8,24 +8,24 @@ import {
   VISUAL_WEB_PORT,
 } from "./e2e/visual-fixture.ts"
 
-const KOBE_DIR = resolve(import.meta.dirname, "../kobe")
-const visual = process.env.KOBE_VISUAL === "1"
+const ROVE_DIR = resolve(import.meta.dirname, "../kobe")
+const visual = process.env.ROVE_VISUAL === "1"
 // Warm iteration mode: reuse a `visual:serve` server pair and keep the
 // fixture alive after the run. Hermetic acceptance keeps strict ownership.
-const keepWarm = visual && process.env.KOBE_VISUAL_KEEP === "1"
+const keepWarm = visual && process.env.ROVE_VISUAL_KEEP === "1"
 const webPort = visual ? VISUAL_WEB_PORT : 5173
 const ptyPort = visual ? VISUAL_PTY_PORT : 5175
-const devCommand = visual ? VISUAL_PTY_COMMAND : (process.env.KOBE_PTY_DEV_COMMAND ?? "bun run dev:mock")
+const devCommand = visual ? VISUAL_PTY_COMMAND : (process.env.ROVE_PTY_DEV_COMMAND ?? "bun run dev:mock")
 const baseEnv = visual
   ? {
       ...VISUAL_ENV,
-      KOBE_WEB_PORT: String(webPort),
-      KOBE_PTY_PORT: String(ptyPort),
+      ROVE_WEB_PORT: String(webPort),
+      ROVE_PTY_PORT: String(ptyPort),
     }
   : process.env
 
 /**
- * Browser → xterm → PTY → OpenTUI. `KOBE_VISUAL=1` owns the one visual
+ * Browser → xterm → PTY → OpenTUI. `ROVE_VISUAL=1` owns the one visual
  * ground-truth path: an isolated real dev:sandbox, fixed viewport, fresh
  * servers, and app-owned terminal synchronization seams.
  */
@@ -60,10 +60,10 @@ export default defineConfig({
       stderr: "pipe",
       env: {
         ...baseEnv,
-        KOBE_PTY_PORT: String(ptyPort),
-        KOBE_PTY_DEV_CWD: KOBE_DIR,
-        KOBE_PTY_DEV_COMMAND: devCommand,
-        ...(visual ? { KOBE_SANDBOX_HOME_DIR: VISUAL_HOME } : {}),
+        ROVE_PTY_PORT: String(ptyPort),
+        ROVE_PTY_DEV_CWD: ROVE_DIR,
+        ROVE_PTY_DEV_COMMAND: devCommand,
+        ...(visual ? { ROVE_SANDBOX_HOME_DIR: VISUAL_HOME } : {}),
       },
     },
   ],

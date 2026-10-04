@@ -7,7 +7,7 @@
  *     resolves `null` when no daemon answers.
  */
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { connectIfRunning, connectOrStartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
 import type {
   ChannelName,
@@ -25,7 +25,7 @@ export interface DaemonRpc {
 
 /** An open connection plus the one cleanup hook the caller must run. */
 export interface DaemonSession {
-  readonly client: KobeDaemonClient
+  readonly client: RoveDaemonClient
   /** Idempotent: closes the socket; safe to call from a `finally`. */
   close(): void
 }

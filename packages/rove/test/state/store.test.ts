@@ -11,7 +11,7 @@
  * writers.
  *
  * Same isolation pattern as test/state/repos.test.ts: redirect HOME via
- * `KOBE_HOME_DIR` to a per-test tmpdir so the real `~/.config/rove/` is
+ * `ROVE_HOME_DIR` to a per-test tmpdir so the real `~/.config/rove/` is
  * never touched.
  */
 import fs from "node:fs"
@@ -47,14 +47,14 @@ function writeDisk(blob: Record<string, unknown>): void {
 
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-store-"))
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
 })
 
 afterEach(() => {
   // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves it as the string "undefined"). Same pattern as test/state/repos.test.ts.
-  if (originalHome === undefined) delete process.env.KOBE_HOME_DIR
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) delete process.env.ROVE_HOME_DIR
+  else process.env.ROVE_HOME_DIR = originalHome
   fs.rmSync(tmpHome, { recursive: true, force: true })
 })
 

@@ -3,7 +3,7 @@
  * propagation). The watcher unit test exercises the file→bus half in
  * isolation; this one wires the WHOLE pipe a pane actually uses: a real
  * daemon server (which starts the keybindings watcher from its homeDir) →
- * the Unix socket → a `KobeDaemonClient` subscribed to the `keybindings`
+ * the Unix socket → a `RoveDaemonClient` subscribed to the `keybindings`
  * channel. It pins the two things inspection can't: the server actually
  * installs the watcher, and a file edit reaches a subscriber as a rev bump.
  */
@@ -11,7 +11,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { type DaemonServer, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
@@ -50,14 +50,14 @@ describe("keybindings channel (daemon → client round-trip)", () => {
     const settingsDir = join(dir, ".rove", "settings")
     kbFile = join(settingsDir, "keybindings.yaml")
     mkdirSync(settingsDir, { recursive: true })
-    savedHome = process.env.KOBE_HOME_DIR
-    process.env.KOBE_HOME_DIR = dir
+    savedHome = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = dir
     server = null
   })
 
   afterEach(async () => {
-    if (savedHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-    else process.env.KOBE_HOME_DIR = savedHome
+    if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = savedHome
     await server?.close().catch(() => {})
     rmSync(dir, { recursive: true, force: true })
   })
@@ -74,7 +74,7 @@ describe("keybindings channel (daemon → client round-trip)", () => {
       keybindingsDebounceMs: 25,
     })
 
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     const revs: number[] = []
     client.onChannel("keybindings", (payload) => revs.push(payload.rev))
     await client.subscribe()

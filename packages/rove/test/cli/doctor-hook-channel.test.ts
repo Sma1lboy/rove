@@ -35,7 +35,7 @@ describe("hookChannelDoctorLines", () => {
     expect(lines[0]).toContain("NO hook events")
     expect(text).toContain(socketPath)
     expect(text).toContain("DAEMON_SOCKET_PATH")
-    expect(text).toContain("KOBE_HOOK_DEBUG=1")
+    expect(text).toContain("ROVE_HOOK_DEBUG=1")
   })
 
   it("names a refused settings file — the SECOND way the channel dies", () => {

@@ -61,7 +61,7 @@ export class PtyChildController {
           COLUMNS: String(session.cols),
           LINES: String(session.rows),
           BASH_SILENCE_DEPRECATION_WARNING: "1",
-          KOBE_TERMINAL_PTY: "1",
+          ROVE_TERMINAL_PTY: "1",
         }),
         cols: session.cols,
         rows: session.rows,

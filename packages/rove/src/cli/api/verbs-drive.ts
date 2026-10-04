@@ -208,7 +208,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         name: "tab",
         type: "string",
         placeholder: "TAB",
-        description: "Terminal tab id the session runs in (defaults to $ROVE_TAB_ID / $KOBE_TAB_ID).",
+        description: "Terminal tab id the session runs in (defaults to $ROVE_TAB_ID / $ROVE_TAB_ID).",
       },
       {
         name: "detail",
@@ -218,8 +218,8 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
       },
     ],
     handler: async (ctx) => {
-      const taskId = ctx.args.str("task-id") ?? process.env.ROVE_TASK_ID ?? process.env.KOBE_TASK_ID
-      const tabId = ctx.args.str("tab") ?? process.env.ROVE_TAB_ID ?? process.env.KOBE_TAB_ID
+      const taskId = ctx.args.str("task-id") ?? process.env.ROVE_TASK_ID
+      const tabId = ctx.args.str("tab") ?? process.env.ROVE_TAB_ID
       const detailRaw = ctx.args.str("detail")
       let detail: unknown
       if (detailRaw !== undefined) {

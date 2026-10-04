@@ -41,14 +41,14 @@ function writeState(content: string): void {
 }
 
 beforeEach(() => {
-  prevHome = process.env.KOBE_HOME_DIR
+  prevHome = process.env.ROVE_HOME_DIR
   home = mkdtempSync(join(tmpdir(), "kobe-uiprefs-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 })
 
 afterEach(() => {
-  if (prevHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = prevHome
+  if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = prevHome
   rmSync(home, { recursive: true, force: true })
 })
 

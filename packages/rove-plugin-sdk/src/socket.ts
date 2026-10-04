@@ -8,12 +8,9 @@ import { type Socket, createConnection } from "node:net"
 import type { DaemonFrame } from "./contract.ts"
 
 export interface RoveSocketOptions {
-  /** Defaults to `process.env.ROVE_SOCKET_PATH`, then `KOBE_SOCKET_PATH`. */
+  /** Defaults to `process.env.ROVE_SOCKET_PATH`, then `ROVE_SOCKET_PATH`. */
   readonly socketPath?: string
 }
-
-/** @deprecated Use RoveSocketOptions. */
-export type KobeSocketOptions = RoveSocketOptions
 
 type Pending = { resolve: (payload: unknown) => void; reject: (err: Error) => void }
 type Connection = {
@@ -29,9 +26,8 @@ export interface DaemonInfo {
   readonly protocolVersion: number
   readonly minProtocolVersion: number
   /** The daemon's BUILD version. Both spellings carry the same value; the
-   *  wire field is `kobeVersion`. */
+   *  wire field is `roveVersion`. */
   readonly roveVersion: string
-  readonly kobeVersion: string
   /** Channels THIS daemon broadcasts; `DAEMON_CHANNELS` is only what your SDK
    *  was built against. */
   readonly capabilities: readonly string[]
@@ -49,7 +45,7 @@ export class RoveSocket {
 
   /** Connect; resolves once the socket is up (before any `hello`). */
   connect(opts: RoveSocketOptions = {}): Promise<void> {
-    const path = opts.socketPath ?? process.env.ROVE_SOCKET_PATH ?? process.env.KOBE_SOCKET_PATH
+    const path = opts.socketPath ?? process.env.ROVE_SOCKET_PATH
     if (!path) return Promise.reject(new Error("ROVE_SOCKET_PATH is not set and no socketPath was given"))
     this.close()
     return new Promise((resolve, reject) => {
@@ -93,12 +89,11 @@ export class RoveSocket {
    */
   async hello(): Promise<DaemonInfo> {
     const raw = await this.request<Record<string, unknown>>("hello", {})
-    const version = typeof raw.kobeVersion === "string" ? raw.kobeVersion : ""
+    const version = typeof raw.roveVersion === "string" ? raw.roveVersion : ""
     return {
       protocolVersion: Number(raw.protocolVersion ?? 0),
       minProtocolVersion: Number(raw.minProtocolVersion ?? 0),
       roveVersion: version,
-      kobeVersion: version,
       capabilities: Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : [],
       ...(typeof raw.daemonPid === "number" ? { daemonPid: raw.daemonPid } : {}),
       ...(typeof raw.homeDir === "string" ? { homeDir: raw.homeDir } : {}),
@@ -164,6 +159,3 @@ export class RoveSocket {
     if (notify) this.closeHandler?.(err)
   }
 }
-
-/** Compatibility alias for plugins written against the Kobe-named SDK. */
-export { RoveSocket as KobeSocket }

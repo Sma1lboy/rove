@@ -349,7 +349,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
           if (!completeFocusedField()) setField(advanceField)
         },
       },
-      // No KobeKeymap row: the dialog labels `MODE  ctrl+[ ]` itself, and F1
+      // No RoveKeymap row: the dialog labels `MODE  ctrl+[ ]` itself, and F1
       // can't open over a modal.
       { key: "ctrl+]", cmd: () => switchToTab(nextDialogTab(tab)) },
       { key: "ctrl+[", cmd: () => switchToTab(prevDialogTab(tab)) },

@@ -37,9 +37,9 @@ function spanWith(frame: CapturedFrame, needle: string) {
 
 /** No network in the render track: keep both of the page's reads deterministic. */
 async function withOfflineUpdatePage<T>(run: () => Promise<T>): Promise<T> {
-  const prevFake = process.env.KOBE_FAKE_UPDATE ?? ""
+  const prevFake = process.env.ROVE_FAKE_UPDATE ?? ""
   const realFetch = globalThis.fetch
-  process.env.KOBE_FAKE_UPDATE = ""
+  process.env.ROVE_FAKE_UPDATE = ""
   globalThis.fetch = (async () => {
     throw new Error("offline")
   }) as unknown as typeof fetch
@@ -47,7 +47,7 @@ async function withOfflineUpdatePage<T>(run: () => Promise<T>): Promise<T> {
     return await run()
   } finally {
     globalThis.fetch = realFetch
-    process.env.KOBE_FAKE_UPDATE = prevFake
+    process.env.ROVE_FAKE_UPDATE = prevFake
   }
 }
 

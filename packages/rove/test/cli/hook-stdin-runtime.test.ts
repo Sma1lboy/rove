@@ -7,7 +7,7 @@
  * bare `Bun` reference threw, the caller's catch swallowed it, and each hook
  * fired with an empty payload: no session id, no failure class, no cwd.
  * Nothing looked broken, because a hook inside a Rove tab still had
- * `KOBE_TASK_ID` in its environment to fall back on.
+ * `ROVE_TASK_ID` in its environment to fall back on.
  *
  * Vitest runs under node, so "there is no Bun global here" is the real
  * condition rather than a simulated one.

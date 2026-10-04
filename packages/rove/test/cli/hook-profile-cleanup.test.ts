@@ -37,11 +37,11 @@ describe("global legacy hook cleanup", () => {
       if (homedir() !== process.env.FIXTURE_HOME) throw Error('unsafe home');
       for (const v of ['claude','codex','kimi','copilot']) if (!vendorConfigHome(v).startsWith(homedir() + '/')) throw Error('unsafe profile');
       const { setPersistedString } = await import(${JSON.stringify(`${source}state/repos.ts`)});
-      const { ensureGlobalKobeHooks } = await import(${JSON.stringify(`${source}cli/hook-cmd.ts`)});
+      const { ensureGlobalRoveHooks } = await import(${JSON.stringify(`${source}cli/hook-cmd.ts`)});
       const stored = ${JSON.stringify(stored) ?? "undefined"};
       if (stored !== undefined) setPersistedString('externalWorktreeSync', stored);
-      await ensureGlobalKobeHooks();
-      await ensureGlobalKobeHooks();
+      await ensureGlobalRoveHooks();
+      await ensureGlobalRoveHooks();
     `
     const child = spawnSync("bun", ["-e", script], {
       env: {

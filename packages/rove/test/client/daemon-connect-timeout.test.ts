@@ -1,5 +1,5 @@
 /**
- * The connect deadline on `KobeDaemonClient.openSocket`.
+ * The connect deadline on `RoveDaemonClient.openSocket`.
  *
  * `net.connect` has no connect timeout of its own, and the address the PTY
  * host listens on under Windows is a NAMED PIPE (`\\.\pipe\kobe-…`, see
@@ -17,7 +17,7 @@
  * promise, not how the OS misbehaves.
  */
 
-import { ConnectTimeoutError, KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { ConnectTimeoutError, RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { probeDaemonSocket } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -45,10 +45,10 @@ vi.mock("node:net", async (importActual) => {
 })
 
 const PIPE = "\\\\.\\pipe\\kobe-test-busy"
-const clients: KobeDaemonClient[] = []
+const clients: RoveDaemonClient[] = []
 
-const open = (path = PIPE): KobeDaemonClient => {
-  const client = new KobeDaemonClient(path)
+const open = (path = PIPE): RoveDaemonClient => {
+  const client = new RoveDaemonClient(path)
   clients.push(client)
   return client
 }

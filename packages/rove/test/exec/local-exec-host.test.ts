@@ -30,9 +30,9 @@ describe("LocalExecHost", () => {
     // `$PWD`, not `$(pwd)`: the subshell forks, and under a parallel test
     // run MSYS sh on Windows CI occasionally fails that fork and exits with
     // a raw 0x8000000x status. The variable carries the same answer.
-    const result = await host.run(["sh", "-c", "printf '%s' \"$KOBE_PROBE:$PWD\""], {
+    const result = await host.run(["sh", "-c", "printf '%s' \"$ROVE_PROBE:$PWD\""], {
       cwd: dir,
-      env: { KOBE_PROBE: "yes" },
+      env: { ROVE_PROBE: "yes" },
     })
     expect(result.exitCode).toBe(0)
     expect(result.stdout.startsWith("yes:")).toBe(true)

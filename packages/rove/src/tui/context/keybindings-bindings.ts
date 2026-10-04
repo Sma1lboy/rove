@@ -1,4 +1,4 @@
-/** Runtime binding expansion for the canonical KobeKeymap catalogue. */
+/** Runtime binding expansion for the canonical RoveKeymap catalogue. */
 
 import type { Binding, PrefixAction } from "../lib/keymap-dispatch"
 import { findBinding } from "./keybindings"
@@ -15,7 +15,7 @@ export function bindByIds(handlers: Record<string, Binding["cmd"] | PrefixAction
     const chords = binding?.keys ?? []
     const prefixChords = binding?.prefixKeys ?? []
     if (chords.length === 0 && prefixChords.length === 0) {
-      console.warn(`[rove/keybindings] bindByIds: id="${id}" has no chords (or doesn't exist in KobeKeymap)`)
+      console.warn(`[rove/keybindings] bindByIds: id="${id}" has no chords (or doesn't exist in RoveKeymap)`)
       continue
     }
     chords.forEach((key, slot) =>

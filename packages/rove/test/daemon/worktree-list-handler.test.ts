@@ -4,7 +4,7 @@
  * Unlike the mock-based `handlers.test.ts` suite, these two handlers bypass
  * `ctx.orch` entirely (they compose `GitWorktreeManager` + `getSavedRepos()`
  * directly — see the handler file's doc comment), so a fake Orchestrator
- * can't observe them. Real temp git repos + a sandboxed `KOBE_HOME_DIR`
+ * can't observe them. Real temp git repos + a sandboxed `ROVE_HOME_DIR`
  * (same convention as `worktree-manager-edges.test.ts`) exercise the actual
  * composition: saved-repo discovery, the new `createdAtMs`/`branchOnRemote`
  * fields, and the dirty-refusal → force-delete safety gate.
@@ -51,8 +51,8 @@ let prevHome: string | undefined
 
 beforeEach(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), "kobe-wt-list-")))
-  prevHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = root
+  prevHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = root
   repo = join(root, "repo")
   mkdirSync(repo)
   execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: repo, env: gitEnv })
@@ -60,13 +60,13 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  if (prevHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = prevHome
+  if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = prevHome
   rmSync(root, { recursive: true, force: true })
 })
 
 describe("worktree.list", () => {
-  it("lists a saved repo's worktrees with kobeManaged/dirty/createdAtMs/branchOnRemote", async () => {
+  it("lists a saved repo's worktrees with roveManaged/dirty/createdAtMs/branchOnRemote", async () => {
     const wt = join(root, "adhoc-worktree")
     execSync(`git worktree add -b feature/demo ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
 
@@ -80,7 +80,7 @@ describe("worktree.list", () => {
     const row = project?.worktrees[0]
     expect(row?.branch).toBe("feature/demo")
     // Created via plain `git worktree add`, not kobe's convention root.
-    expect(row?.kobeManaged).toBe(false)
+    expect(row?.roveManaged).toBe(false)
     expect(row?.dirty).toBe(false)
     expect(typeof row?.createdAtMs).toBe("number")
     expect(row?.createdAtMs as number).toBeGreaterThan(0)

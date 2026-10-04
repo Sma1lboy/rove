@@ -18,7 +18,7 @@
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pathSyntax, pathWithin } from "@sma1lboy/rove-daemon/path-identity"
-import { homeDir, legacyKobeStateDir, roveStateDir } from "../env.ts"
+import { homeDir, legacyRoveStateDir, roveStateDir } from "../env.ts"
 
 /** Why a path may not become a project. `null` = eligible. */
 export type ProjectRejection = "notAbsolute" | "notGitRepo" | "temporary" | "roveInternal" | "insideSandbox"
@@ -45,7 +45,7 @@ function isInside(candidate: string, root: string): boolean {
  * fixture that dies with the task.
  */
 function roveInternalRoots(): readonly string[] {
-  return [roveStateDir(), legacyKobeStateDir(), join(homeDir(), ".config", "rove")]
+  return [roveStateDir(), legacyRoveStateDir(), join(homeDir(), ".config", "rove")]
 }
 
 /**

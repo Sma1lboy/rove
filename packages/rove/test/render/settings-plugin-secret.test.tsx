@@ -23,11 +23,11 @@ import { act, renderComponent, settle } from "./harness"
 
 const NOOP = (): void => {}
 
-// Every test here repoints KOBE_HOME_DIR at its own fixture. Left set, it
+// Every test here repoints ROVE_HOME_DIR at its own fixture. Left set, it
 // follows the process into every later file in the run (the render track is
 // one bun process), so restore it rather than leaking a plugin fixture into
 // suites that expect the real home.
-const REAL_HOME_DIR = process.env.KOBE_HOME_DIR
+const REAL_HOME_DIR = process.env.ROVE_HOME_DIR
 
 // Walking up to Plugins passes THROUGH Marketplace, which queries GitHub the
 // moment it mounts. Stubbed so this file never reaches the network for a
@@ -41,14 +41,14 @@ afterAll(() => {
 })
 afterEach(() => {
   if (REAL_HOME_DIR !== undefined) {
-    process.env.KOBE_HOME_DIR = REAL_HOME_DIR
+    process.env.ROVE_HOME_DIR = REAL_HOME_DIR
     return
   }
   // Genuinely unset it. `readRoveEnv` uses `??`, so "" resolves to a RELATIVE
   // `.rove`, and assigning undefined stores the STRING "undefined" — both are
   // worse than the perf rule this suppresses.
   // biome-ignore lint/performance/noDelete: restoring an unset env var
-  delete process.env.KOBE_HOME_DIR
+  delete process.env.ROVE_HOME_DIR
 })
 const TOKEN = "sk-live-51H8xQ2eZvKYlo"
 
@@ -101,7 +101,7 @@ function Driver() {
 }
 
 test("the secret's value never reaches the frame, while a plain row still shows its own", async () => {
-  process.env.KOBE_HOME_DIR = seedHome("example.maskrow")
+  process.env.ROVE_HOME_DIR = seedHome("example.maskrow")
   const { frame, mockInput } = await renderComponent(<Driver />, {
     width: 110,
     height: 40,
@@ -189,7 +189,7 @@ async function activateSecretRow(
 }
 
 test("editing a secret opens an EMPTY field, never pre-filled with the stored key", async () => {
-  process.env.KOBE_HOME_DIR = seedHome("example.emptyedit")
+  process.env.ROVE_HOME_DIR = seedHome("example.emptyedit")
   const dialog = captureDialog(undefined) // cancel — no write
   try {
     const { frame, mockInput, mockMouse } = await renderComponent(<Driver />, {

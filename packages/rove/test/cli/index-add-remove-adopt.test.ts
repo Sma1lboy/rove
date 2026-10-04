@@ -15,7 +15,7 @@ const fake = vi.hoisted(() => ({
   savedRepos: [] as string[],
   isGitRepo: true,
   repoRootOf: {} as Record<string, string>,
-  adoptable: [] as Array<{ path: string; branch: string; dirty?: boolean; kobeManaged?: boolean }>,
+  adoptable: [] as Array<{ path: string; branch: string; dirty?: boolean; roveManaged?: boolean }>,
   customEngineIds: [] as string[],
   discoverError: null as Error | null,
   // Mirrors the real `addSavedRepo`, which owns the admission gate: an
@@ -59,7 +59,7 @@ vi.mock("../../src/orchestrator/core.ts", () => ({
         path: w.path,
         branch: w.branch,
         dirty: w.dirty ?? false,
-        kobeManaged: w.kobeManaged ?? true,
+        roveManaged: w.roveManaged ?? true,
       })) as unknown as AdoptableWorktree[]
     }
     async forgetProject(repo: string) {
@@ -289,7 +289,7 @@ describe("kobe remove", () => {
 
 describe("kobe adopt", () => {
   test("no glob → dry-run listing plus the how-to hint", async () => {
-    fake.adoptable = [{ path: "/repo/wt-a", branch: "a", dirty: true, kobeManaged: false }]
+    fake.adoptable = [{ path: "/repo/wt-a", branch: "a", dirty: true, roveManaged: false }]
     await runCli("adopt")
     expect(logText()).toContain("adoptable worktrees in")
     expect(logText()).toContain("dirty")

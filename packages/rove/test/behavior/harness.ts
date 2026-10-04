@@ -1,6 +1,6 @@
 /**
  * Behavior-suite harness for the built CLI. Every run gets a disposable
- * HOME/XDG tree, PATH-first Rove (plus the Kobe compatibility alias) and
+ * HOME/XDG tree, PATH-first Rove (plus the Rove compatibility alias) and
  * engine shims, and isolated daemon/PTY host paths derived from that home.
  */
 
@@ -20,7 +20,6 @@ import {
 
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 export const DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/rove.js")
-export const DIST_KOBE_CLI = join(PKG_ROOT, "dist/cli/kobe.js")
 
 /** Longer than the host's own exit ceiling, so SIGKILL means a real hang. */
 const CLOSE_TUI_TIMEOUT_MS = 8_000
@@ -35,7 +34,7 @@ export interface BehaviorEnv {
 }
 
 export function requireDistBuild(): void {
-  if (!existsSync(DIST_ROVE_CLI) || !existsSync(DIST_KOBE_CLI)) {
+  if (!existsSync(DIST_ROVE_CLI) || !existsSync(DIST_ROVE_CLI)) {
     throw new Error(
       "behavior suite needs the built rove entry and kobe compatibility alias under dist/cli — run `bun run build` first",
     )
@@ -43,12 +42,12 @@ export function requireDistBuild(): void {
 }
 
 function teardownIsolationError(env: NodeJS.ProcessEnv, home: string): string | undefined {
-  if (env.HOME !== home || env.USERPROFILE !== home || env.ROVE_HOME_DIR !== home || env.KOBE_HOME_DIR !== home) {
-    return "HOME/ROVE_HOME_DIR/KOBE_HOME_DIR no longer match the disposable home"
+  if (env.HOME !== home || env.USERPROFILE !== home || env.ROVE_HOME_DIR !== home || env.ROVE_HOME_DIR !== home) {
+    return "HOME/ROVE_HOME_DIR/ROVE_HOME_DIR no longer match the disposable home"
   }
   const unexpected = Object.keys(env).filter(
     (key) =>
-      (key.startsWith("KOBE_") && key !== "KOBE_HOME_DIR") || (key.startsWith("ROVE_") && key !== "ROVE_HOME_DIR"),
+      (key.startsWith("ROVE_") && key !== "ROVE_HOME_DIR") || (key.startsWith("ROVE_") && key !== "ROVE_HOME_DIR"),
   )
   if (unexpected.length > 0) return `unexpected controls: ${unexpected.sort().join(", ")}`
   return undefined
@@ -72,7 +71,7 @@ export async function makeBehaviorEnv(): Promise<BehaviorEnv> {
 
   await writeFile(join(bin, "rove"), `#!/bin/sh\nexec bun ${DIST_ROVE_CLI} "$@"\n`)
   await chmod(join(bin, "rove"), 0o755)
-  await writeFile(join(bin, "kobe"), `#!/bin/sh\nexec bun ${DIST_KOBE_CLI} "$@"\n`)
+  await writeFile(join(bin, "kobe"), `#!/bin/sh\nexec bun ${DIST_ROVE_CLI} "$@"\n`)
   await chmod(join(bin, "kobe"), 0o755)
   // The idle loop must keep the shim's OWN name in `ps`. `exec sleep 600`
   // replaced the process image, so the tab's tree read as `sleep` with no
@@ -88,7 +87,7 @@ export async function makeBehaviorEnv(): Promise<BehaviorEnv> {
   const inherited = Object.fromEntries(
     Object.entries(process.env).filter(
       ([key]) =>
-        !key.startsWith("KOBE_") &&
+        !key.startsWith("ROVE_") &&
         !key.startsWith("ROVE_") &&
         key !== "HOME" &&
         key !== "USERPROFILE" &&
@@ -112,7 +111,6 @@ export async function makeBehaviorEnv(): Promise<BehaviorEnv> {
     COLORTERM: "truecolor",
     PATH: `${bin}:${inherited.PATH ?? ""}`,
     ROVE_HOME_DIR: home,
-    KOBE_HOME_DIR: home,
   }
 
   return {
@@ -138,16 +136,6 @@ export interface CliResult {
   stderr: string
 }
 
-export function runKobe(args: readonly string[], env: BehaviorEnv, opts?: { input?: string }): CliResult {
-  const result = spawnSync("bun", [DIST_KOBE_CLI, ...args], {
-    env: env.env,
-    input: opts?.input ?? "",
-    encoding: "utf8",
-    timeout: 60_000,
-  })
-  return { code: result.status ?? -1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" }
-}
-
 export function runRove(args: readonly string[], env: BehaviorEnv, opts?: { input?: string }): CliResult {
   const result = spawnSync("bun", [DIST_ROVE_CLI, ...args], {
     env: env.env,
@@ -157,6 +145,7 @@ export function runRove(args: readonly string[], env: BehaviorEnv, opts?: { inpu
   })
   return { code: result.status ?? -1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" }
 }
+
 
 export async function makeScratchRepo(env: BehaviorEnv): Promise<string> {
   const repo = join(env.home, "scratch-repo")

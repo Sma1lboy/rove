@@ -1,7 +1,7 @@
 /**
  * Launcher for the capture stack — one `bun run dev` brings up:
- *   - the PTY sidecar (node, because node-pty only works there) on KOBE_PTY_PORT
- *   - the Vite dev server on KOBE_WEB_PORT, serving `/harness` and proxying /pty
+ *   - the PTY sidecar (node, because node-pty only works there) on ROVE_PTY_PORT
+ *   - the Vite dev server on ROVE_WEB_PORT, serving `/harness` and proxying /pty
  *
  * `/harness` is the only page: xterm.js over that sidecar, running the real
  * OpenTUI. It is the one ground-truth surface for visual acceptance
@@ -11,7 +11,7 @@
  *
  * Daemon isolation: `bun run dev` connects to whatever the default socket
  * points to — your production daemon with `~/.rove` product data.
- * `bun run dev:sandbox` sets `KOBE_HOME_DIR` to a throwaway home so the PTY
+ * `bun run dev:sandbox` sets `ROVE_HOME_DIR` to a throwaway home so the PTY
  * engines and services use a sandbox and never touch production `tasks.json`.
  * The banner below always prints which home this session is wired to.
  */
@@ -27,7 +27,7 @@ import { ensureWebToken } from "@sma1lboy/rove-daemon/daemon/web-token"
 const WEB_PORT = readRoveEnv("WEB_PORT") ?? "5173"
 const PTY_PORT = readRoveEnv("PTY_PORT") ?? "5175"
 
-// Resolve KOBE_HOME_DIR to an absolute path so every child agrees on the same
+// Resolve ROVE_HOME_DIR to an absolute path so every child agrees on the same
 // home regardless of its cwd, and ensure it exists (the sandbox home may not
 // yet). Unset → production `~/.rove` product data (daemon runtime stays `.kobe`).
 const rawHome = readRoveEnv("HOME_DIR")
@@ -54,7 +54,7 @@ const webToken = ensureWebToken(defaultWebTokenPath())
 // node: PTY terminal server — node-pty only works under node, not bun.
 const pty = Bun.spawn(["node", "pty-server.mjs"], {
   stdio: ["pipe", "inherit", "inherit"],
-  env: { ...childEnv, KOBE_PTY_PORT: PTY_PORT, KOBE_PTY_PARENT_PIPE: "1" },
+  env: { ...childEnv, ROVE_PTY_PORT: PTY_PORT, ROVE_PTY_PARENT_PIPE: "1" },
 })
 
 // node (via vite): the capture page, proxying /pty to the sidecar above.
@@ -62,7 +62,7 @@ const vite = Bun.spawn(["bun", "run", "vite", "dev", "--port", WEB_PORT, "--stri
   stdio: ["inherit", "inherit", "inherit"],
   env: {
     ...childEnv,
-    KOBE_PTY_PORT: PTY_PORT,
+    ROVE_PTY_PORT: PTY_PORT,
     VITE_ROVE_WEB_TOKEN: webToken,
   },
 })

@@ -35,7 +35,7 @@ describe("Hosted PTY-only runtime boundary", () => {
     const offenders = sourceFiles(SRC_ROOT)
       .filter((file) => {
         const source = readFileSync(file, "utf8")
-        if (source.includes("KOBE_TMUX")) return true
+        if (source.includes("ROVE_TMUX")) return true
         return source.split("\n").some((line) => {
           if (line.trimStart().startsWith("//")) return false
           const importsLegacyCompat = /["'][^"']*legacy-tmux(?:\.ts)?["']/.test(line)
@@ -53,6 +53,6 @@ describe("Hosted PTY-only runtime boundary", () => {
     expect(existsSync(LEGACY_COMPAT)).toBe(true)
     const compatibilitySource = readFileSync(LEGACY_COMPAT, "utf8")
     expect(compatibilitySource).toContain('LEGACY_TMUX_SOCKET = "kobe"')
-    expect(compatibilitySource).not.toContain("KOBE_TMUX")
+    expect(compatibilitySource).not.toContain("ROVE_TMUX")
   })
 })

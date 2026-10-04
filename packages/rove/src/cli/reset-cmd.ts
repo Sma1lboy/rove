@@ -14,7 +14,7 @@ import {
   defaultPtyHostSocketPath,
 } from "@sma1lboy/rove-daemon/daemon/paths"
 import { clearFrozenSessions } from "@sma1lboy/rove-daemon/daemon/pty-freeze-store"
-import { kvStatePath, legacyKobeKvStatePath, legacyKobeStateDir, roveStateDir } from "../env.ts"
+import { kvStatePath, legacyRoveKvStatePath, legacyRoveStateDir, roveStateDir } from "../env.ts"
 import { stopLegacyTmux } from "./legacy-tmux.ts"
 import { activeCliName } from "./rename-compat.ts"
 import { stampResetGate } from "./reset-gate.ts"
@@ -119,9 +119,9 @@ export async function runResetSubcommand(argv: readonly string[]): Promise<void>
   const yes = argv.includes("--yes") || argv.includes("-y")
   const daemonSocket = defaultDaemonSocketPath()
   const tasksPath = join(roveStateDir(), "tasks.json")
-  const legacyTasksPath = join(legacyKobeStateDir(), "tasks.json")
+  const legacyTasksPath = join(legacyRoveStateDir(), "tasks.json")
   const statePath = kvStatePath()
-  const legacyStatePath = legacyKobeKvStatePath()
+  const legacyStatePath = legacyRoveKvStatePath()
 
   console.log(`${CLI_NAME} reset will:`)
   console.log("  • stop the Rove daemon (graceful → SIGTERM → SIGKILL)")

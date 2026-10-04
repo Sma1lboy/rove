@@ -22,16 +22,16 @@ import {
 } from "../../src/state/repos.ts"
 
 let home: string
-const ORIGINAL = process.env.KOBE_HOME_DIR
+const ORIGINAL = process.env.ROVE_HOME_DIR
 
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), "kobe-remote-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 })
 
 afterEach(() => {
-  if (ORIGINAL === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = ORIGINAL
+  if (ORIGINAL === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = ORIGINAL
 })
 
 describe("remoteRepoKey / isRemoteRepoKey", () => {
@@ -193,13 +193,13 @@ describe("worktreeUsable", () => {
 describe("localSpawnCwd", () => {
   it("falls back to the local home dir for a remote worktree path", () => {
     addRemoteRepo({ host: "box", user: "dev", basePath: "/srv/work", auth: { kind: "key" } })
-    // KOBE_HOME_DIR (= the temp home) overrides os.homedir() in env.homeDir().
+    // ROVE_HOME_DIR (= the temp home) overrides os.homedir() in env.homeDir().
     expect(localSpawnCwd("/srv/work/kobe-task-1")).toBe(home)
   })
 })
 
 describe("remoteSpecFromConfig", () => {
-  it("derives the control socket under KOBE_HOME and maps key auth", () => {
+  it("derives the control socket under ROVE_HOME and maps key auth", () => {
     const spec = remoteSpecFromConfig({
       host: "box",
       user: "dev",

@@ -10,7 +10,7 @@
  * {@link HookEventSpec}[]. Pure (no I/O).
  */
 
-import { kobeHookInvocation } from "../cli/invocation.ts"
+import { roveHookInvocation } from "../cli/invocation.ts"
 import { type QuoteShellArgvOptions, quoteShellArgv } from "../lib/shell-command.ts"
 import type { EngineActivityKind } from "./hook-events.ts"
 
@@ -157,7 +157,7 @@ export function removeRoveHooks(groups: unknown[], verbs: readonly string[]): un
 
 /** True if a shared settings object still carries any of kobe's activity hooks.
  *  Read-only, for the plugin-migration hint. */
-export function hasKobeActivityHooks(current: Record<string, unknown>, eventMap: readonly HookEventSpec[]): boolean {
+export function hasRoveActivityHooks(current: Record<string, unknown>, eventMap: readonly HookEventSpec[]): boolean {
   const verbs = eventMap.map((spec) => spec.verb)
   const hooks = isObject(current.hooks) ? current.hooks : {}
   return Object.values(hooks).some(
@@ -194,7 +194,7 @@ export function hookCommandQuoting(platform: NodeJS.Platform = process.platform)
  *  `kobe hook <verb>` (cwd-based; no task id). `inv` is injectable for tests. */
 export function buildActivityHooks(
   eventMap: readonly HookEventSpec[],
-  inv: readonly string[] = kobeHookInvocation(),
+  inv: readonly string[] = roveHookInvocation(),
   opts: ActivityHookOpts = {},
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {}
@@ -224,7 +224,7 @@ export function mergeActivityHooks(
   current: Record<string, unknown>,
   install: boolean,
   eventMap: readonly HookEventSpec[],
-  inv: readonly string[] = kobeHookInvocation(),
+  inv: readonly string[] = roveHookInvocation(),
   opts: ActivityHookOpts = {},
 ): Record<string, unknown> {
   const verbs = eventMap.map((spec) => spec.verb)

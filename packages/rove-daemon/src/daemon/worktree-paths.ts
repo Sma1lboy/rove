@@ -23,15 +23,15 @@
 import { createHash } from "node:crypto"
 import { readFileSync } from "node:fs"
 import path from "node:path"
-import { LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../compat-env.ts"
+import { LEGACY_ROVE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../compat-env.ts"
 import { defaultUiPrefsStatePath, resolveProductHomeDir } from "./product-paths.ts"
 
 /** Directory under Rove's state dir holding all of its worktrees. */
 const WORKTREE_ROOT_DIR = "worktrees"
 
 export const REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH = ".rove/worktrees"
-export const REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH = ".kobe/worktrees"
-export const LEGACY_KOBE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
+export const REPO_LOCAL_LEGACY_WORKTREE_ROOT_SUBPATH = ".kobe/worktrees"
+export const LEGACY_ROVE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
 
 /**
  * Repo-local compatibility roots. Creation does not use these; recognition and
@@ -39,8 +39,8 @@ export const LEGACY_KOBE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
  */
 export const REPO_LOCAL_MANAGED_WORKTREE_ROOT_SUBPATHS = [
   REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
-  REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH,
-  LEGACY_KOBE_WORKTREE_ROOT_SUBPATH,
+  REPO_LOCAL_LEGACY_WORKTREE_ROOT_SUBPATH,
+  LEGACY_ROVE_WORKTREE_ROOT_SUBPATH,
 ] as const
 
 /** `state.json` key holding the raw, un-normalized worktree base override. */
@@ -118,7 +118,7 @@ export function defaultLocalWorktreesRoot(): string {
 
 /** Pre-rename global root. Existing worktree records and discovery keep it live. */
 export function legacyLocalWorktreesRoot(): string {
-  return path.join(resolveProductHomeDir(), LEGACY_KOBE_STATE_DIR_BASENAME, WORKTREE_ROOT_DIR)
+  return path.join(resolveProductHomeDir(), LEGACY_ROVE_STATE_DIR_BASENAME, WORKTREE_ROOT_DIR)
 }
 
 /**

@@ -43,7 +43,7 @@ export type { EngineStatePayload } from "./activity-readers.ts"
 
 /**
  * A TAB-LESS hook entry: an engine started in a shell kobe didn't spawn has no
- * `KOBE_TAB_ID`, so its hooks report task-only. One rollup candidate beside
+ * `ROVE_TAB_ID`, so its hooks report task-only. One rollup candidate beside
  * the task's tabs — NOT the rollup, which is derived (activity-rollup.ts).
  */
 interface ActivityEntry {

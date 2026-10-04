@@ -27,7 +27,7 @@ describe("attention inbox store invariants", () => {
   })
 
   // A missing tab identity records at TASK level (an engine typed into a bare
-  // shell inherits no KOBE_TAB_ID). An EMPTY string
+  // shell inherits no ROVE_TAB_ID). An EMPTY string
   // is not a tab either: normalize it to null rather than keying an episode
   // on `""`.
   it("normalizes an empty tab identity to a task-level episode", async () => {

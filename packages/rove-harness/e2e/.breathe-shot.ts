@@ -3,7 +3,7 @@
 import { mkdirSync } from "node:fs"
 import { resolve } from "node:path"
 import { chromium } from "@playwright/test"
-import { KOBE_DIR, VISUAL_ENV, VISUAL_WEB_PORT } from "./visual-fixture.ts"
+import { ROVE_DIR, VISUAL_ENV, VISUAL_WEB_PORT } from "./visual-fixture.ts"
 
 const out = process.argv[2] ?? "/tmp/breathe"
 const frames = Number(process.argv[3] ?? 18)
@@ -11,8 +11,8 @@ const taskId = process.argv[4] ?? "01M3D2A63C3N1NBMYZHX5DCPHZ"
 mkdirSync(out, { recursive: true })
 
 function api(...args: string[]) {
-  return Bun.spawnSync(["bun", "--conditions=browser", resolve(KOBE_DIR, "src/cli/rove.ts"), "api", ...args], {
-    cwd: KOBE_DIR,
+  return Bun.spawnSync(["bun", "--conditions=browser", resolve(ROVE_DIR, "src/cli/rove.ts"), "api", ...args], {
+    cwd: ROVE_DIR,
     env: { ...VISUAL_ENV },
   })
 }

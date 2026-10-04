@@ -18,7 +18,7 @@
 
 import { userFacingErrorMessage } from "@/lib/error-message"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
-import { kobeApiInvocation } from "../../engine/interactive-command"
+import { roveApiInvocation } from "../../engine/interactive-command"
 import { type IssueChatPlacement, issueChatTaskTitle, issueProjectPrompt } from "../../state/issue-chat"
 import { addSavedRepo } from "../../state/repos"
 import { setRepoLastActiveVendor } from "../../state/vendor-prefs"
@@ -136,7 +136,7 @@ export function useIssueChat(
 
   async function start(request: IssueChatStart): Promise<void> {
     try {
-      const api = kobeApiInvocation()
+      const api = roveApiInvocation()
       if (request.placement === "project") {
         await startProjectTab(request, api)
         return

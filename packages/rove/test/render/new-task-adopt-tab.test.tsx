@@ -32,15 +32,15 @@ const WORKTREES: readonly AdoptableWorktree[] = [
     branch: "feature/alpha",
     head: "a1b2c3d",
     dirty: false,
-    kobeManaged: true,
+    roveManaged: true,
     lastActivityMs: 2,
   },
-  { path: "/tmp/wt/beta", branch: "feature/beta", head: "d4e5f6a", dirty: true, kobeManaged: false, lastActivityMs: 1 },
+  { path: "/tmp/wt/beta", branch: "feature/beta", head: "d4e5f6a", dirty: true, roveManaged: false, lastActivityMs: 1 },
 ]
 
 /** Mount, then `ctrl+]` twice: Existing → For New Repo → Adopt Worktree. */
 async function onAdoptTab(dir: string): Promise<RenderHandle> {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-adopthome-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-adopthome-"))
   const handle = await renderComponent(
     <NewTaskDialogView
       defaultRepo={dir}

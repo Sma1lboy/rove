@@ -81,7 +81,7 @@ function Driver(props: { onReady: (api: ReturnType<typeof useEngineSettings>, kv
 }
 
 /**
- * Fresh $KOBE_HOME_DIR + a mounted hook, with `run` driven from OUTSIDE the
+ * Fresh $ROVE_HOME_DIR + a mounted hook, with `run` driven from OUTSIDE the
  * component and fully awaited before the returned promise resolves.
  *
  * Deliberately not "fire it inside the mount effect and hope": that makes the
@@ -93,7 +93,7 @@ function Driver(props: { onReady: (api: ReturnType<typeof useEngineSettings>, kv
 async function withEngineSettings(
   run: (api: ReturnType<typeof useEngineSettings>) => void | Promise<void>,
 ): Promise<(key: string) => unknown> {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-engine-settings-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-engine-settings-"))
   let resolveReady: (pair: readonly [ReturnType<typeof useEngineSettings>, KVContext]) => void = () => {}
   const ready = new Promise<readonly [ReturnType<typeof useEngineSettings>, KVContext]>((resolve) => {
     resolveReady = resolve
@@ -107,19 +107,19 @@ async function withEngineSettings(
   const [api, kv] = await ready
   await run(api)
   await settle()
-  // The kv write is debounced and resolves its path from KOBE_HOME_DIR when it
+  // The kv write is debounced and resolves its path from ROVE_HOME_DIR when it
   // fires; flush now so no late write lands in whatever home runs next.
   kv.flush()
   handle.destroy()
   return (key: string) => kv.get(key, undefined)
 }
 
-// Each run points KOBE_HOME_DIR at a fresh dir; restore it so the next file's
+// Each run points ROVE_HOME_DIR at a fresh dir; restore it so the next file's
 // state.json lives where its readers look.
-const originalHome = process.env.KOBE_HOME_DIR
+const originalHome = process.env.ROVE_HOME_DIR
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
 })
 
 describe("Settings → Engines protocol declaration", () => {

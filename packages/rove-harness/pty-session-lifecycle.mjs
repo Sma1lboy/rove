@@ -81,7 +81,7 @@ export function createPtySessionManager({
   maxSessions = DEFAULT_MAX_SESSIONS,
   detachGraceMs = DEFAULT_DETACH_GRACE_MS,
   backpressure = DEFAULT_BACKPRESSURE,
-  /** Film capture only (`KOBE_PTY_CAST=1`): record each tab as an asciicast. */
+  /** Film capture only (`ROVE_PTY_CAST=1`): record each tab as an asciicast. */
   createCast = null,
 }) {
   /** @type {Map<string, { pty: any, scrollback: ReturnType<createScrollback>, sockets: Set<any> }>} */

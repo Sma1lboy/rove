@@ -14,7 +14,7 @@
  *
  * The writes here go through the real State Store (`patchStateFile`), so
  * the test exercises the exact tmp+rename pattern production uses. Isolated
- * via KOBE_HOME_DIR → a temp home (kvStatePath honours it).
+ * via ROVE_HOME_DIR → a temp home (kvStatePath honours it).
  */
 
 import fs from "node:fs"
@@ -39,8 +39,8 @@ let stop: (() => void) | null
 
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-uiprefs-"))
-  savedHomeDir = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  savedHomeDir = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
   statePath = defaultUiPrefsStatePath(tmpHome)
   bus = new DaemonEventBus()
   events = []
@@ -53,8 +53,8 @@ beforeEach(() => {
 afterEach(() => {
   stop?.()
   // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves it as the string "undefined"). Same pattern as test/state/store.test.ts.
-  if (savedHomeDir === undefined) delete process.env.KOBE_HOME_DIR
-  else process.env.KOBE_HOME_DIR = savedHomeDir
+  if (savedHomeDir === undefined) delete process.env.ROVE_HOME_DIR
+  else process.env.ROVE_HOME_DIR = savedHomeDir
   try {
     fs.rmSync(tmpHome, { recursive: true, force: true })
   } catch {

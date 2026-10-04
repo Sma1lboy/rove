@@ -20,7 +20,7 @@ import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.
 
 /**
  * Register a `mycodex` preset declaring the codex protocol, in a throwaway
- * KOBE_HOME_DIR. `engine-presets.ts` reads state.json per call, so writing the
+ * ROVE_HOME_DIR. `engine-presets.ts` reads state.json per call, so writing the
  * file is the whole registration.
  */
 function withPreset(): void {
@@ -38,19 +38,19 @@ function withPreset(): void {
     }),
     "utf8",
   )
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 }
 
 const presetHomes: string[] = []
 let homeBeforePreset: string | undefined
 beforeEach(() => {
-  homeBeforePreset = process.env.KOBE_HOME_DIR
+  homeBeforePreset = process.env.ROVE_HOME_DIR
 })
 afterEach(() => {
   if (homeBeforePreset === undefined) {
     // biome-ignore lint/performance/noDelete: the var must be truly unset when it started unset.
-    delete process.env.KOBE_HOME_DIR
-  } else process.env.KOBE_HOME_DIR = homeBeforePreset
+    delete process.env.ROVE_HOME_DIR
+  } else process.env.ROVE_HOME_DIR = homeBeforePreset
   for (const home of presetHomes.splice(0)) rmSync(home, { recursive: true, force: true })
 })
 

@@ -8,7 +8,7 @@ import { mkdir, open, rename, unlink } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
-import { LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../../product.ts"
+import { LEGACY_ROVE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../../product.ts"
 import type { Task, TaskId, TaskIndex } from "../../types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "../../types/task.ts"
 import { release } from "./lockfile.ts"
@@ -17,7 +17,7 @@ import { ulid } from "./ulid.ts"
 
 export interface TaskIndexStoreOptions {
   /**
-   * Omitted ≠ OS home: falls back to `ROVE_HOME_DIR`/`KOBE_HOME_DIR` first.
+   * Omitted ≠ OS home: falls back to `ROVE_HOME_DIR`/`ROVE_HOME_DIR` first.
    * Load-bearing — every isolation recipe uses those variables, and
    * `openLocalOrchestrator` constructs this store with no options.
    */
@@ -52,7 +52,7 @@ export class TaskIndexStore {
     this.homeDir = options.homeDir ?? readRoveHomeDirEnv() ?? homedir()
     this.roveDir = join(this.homeDir, ROVE_STATE_DIR_BASENAME)
     this.path = join(this.roveDir, "tasks.json")
-    this.legacyPath = join(this.homeDir, LEGACY_KOBE_STATE_DIR_BASENAME, "tasks.json")
+    this.legacyPath = join(this.homeDir, LEGACY_ROVE_STATE_DIR_BASENAME, "tasks.json")
     this.lockPath = `${this.path}.lock`
   }
 

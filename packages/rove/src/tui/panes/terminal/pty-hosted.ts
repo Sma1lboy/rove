@@ -15,7 +15,7 @@
  * async: input typed meanwhile is queued and flushed after the replay.
  */
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { SerializeAddon } from "@xterm/addon-serialize"
@@ -34,7 +34,7 @@ export { warmHostedShell } from "./pty-hosted-client"
 const WIGGLE_MIN_GAP_MS = 150
 
 export class HostedTaskPty extends XtermTaskPty {
-  private client: KobeDaemonClient | null = null
+  private client: RoveDaemonClient | null = null
   private recovery: SessionRecovery = null
   private recoveryListeners = new Set<(state: SessionRecovery) => void>()
   onRecovery(listener: (state: SessionRecovery) => void): () => void {

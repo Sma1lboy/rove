@@ -23,8 +23,7 @@ import { getWorktreeBaseOverride } from "../../state/worktree-base.ts"
 /** Re-exported from the shared derivation so the daemon and this module
  *  can't disagree about the layout. */
 export {
-  LEGACY_KOBE_WORKTREE_ROOT_SUBPATH,
-  REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH,
+  LEGACY_ROVE_WORKTREE_ROOT_SUBPATH,
   REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
 } from "@sma1lboy/rove-daemon/daemon/worktree-paths"
 
@@ -96,12 +95,12 @@ export function managedWorktreeRootForPath(repo: string, candidate: string): str
 }
 
 /** False for plain `git worktree add` checkouts outside Rove's roots. */
-export function isKobeManagedPath(repo: string, candidate: string): boolean {
+export function isRoveManagedPath(repo: string, candidate: string): boolean {
   return managedWorktreeRootForPath(repo, candidate) !== null
 }
 
 /**
- * {@link isKobeManagedPath} without a repo: for `remove()` on a worktree whose
+ * {@link isRoveManagedPath} without a repo: for `remove()` on a worktree whose
  * `.git` was destroyed (macOS pruning `/tmp`, deleted checkout), so no owner
  * is discoverable. Checks only the global roots (the per-repo subdir and
  * repo-local roots need the missing repo). Deliberately narrow: a yes

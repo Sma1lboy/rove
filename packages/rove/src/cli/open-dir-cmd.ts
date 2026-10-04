@@ -84,8 +84,8 @@ export async function runOpenDirectory(arg: string): Promise<void> {
       writeLastActiveTaskId(String(task.id))
     },
   })
-  const { publishKobeTerminalTitle } = await import("../tui/lib/outer-terminal-title.ts")
-  publishKobeTerminalTitle()
+  const { publishRoveTerminalTitle } = await import("../tui/lib/outer-terminal-title.ts")
+  publishRoveTerminalTitle()
   const { launchTui } = await import("./launch-tui.ts")
   await launchTui()
 }

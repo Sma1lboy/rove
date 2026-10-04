@@ -44,7 +44,7 @@ export function isProtocolCompatible(args: {
 /**
  * Build-version skew: a patch upgrade keeps the protocol version, so a
  * long-lived daemon still running its boot-time code is otherwise invisible.
- * Compares `hello.kobeVersion` / `daemon.status.kobeVersion` against
+ * Compares `hello.roveVersion` / `daemon.status.roveVersion` against
  * {@link import("../version").CURRENT_VERSION}.
  *
  * Non-fatal: drives a dismissible restart banner, never an error. A daemon that

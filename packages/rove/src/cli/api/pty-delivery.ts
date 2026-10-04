@@ -31,7 +31,7 @@ import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-color
 import { restoredTabsOf } from "./tab-respawn.ts"
 import { ApiError, type DeliveredPrompt } from "./types.ts"
 
-/** Narrow pty-host RPC surface; `KobeDaemonClient` satisfies it, tests fake it. */
+/** Narrow pty-host RPC surface; `RoveDaemonClient` satisfies it, tests fake it. */
 export type PtyHostRpc = HostedSessionRpc
 
 /** A key belongs to `taskId` when its segment before the first `::` matches. */

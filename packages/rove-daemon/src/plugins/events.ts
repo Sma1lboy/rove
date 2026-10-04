@@ -23,7 +23,7 @@ export interface PluginEvent {
   readonly task?: Pick<SerializedTask, "id" | "title" | "repo" | "branch" | "worktreePath" | "vendor" | "status">
   /** Which engine produced it (agent-lifecycle events, when tagged). */
   readonly vendor?: string
-  /** Kobe terminal tab, when the session is kobe-spawned. */
+  /** Rove terminal tab, when the session is kobe-spawned. */
   readonly tabId?: string
   /** The engine's own session id, when its hook payload named one. */
   readonly sessionId?: string

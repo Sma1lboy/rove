@@ -58,12 +58,12 @@ let store: FlakyStore
 let orch: Orchestrator
 
 beforeEach(async () => {
-  prevHome = process.env.KOBE_HOME_DIR
+  prevHome = process.env.ROVE_HOME_DIR
   tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-ensure-wt-"))
-  // The worktree manager computes paths under `$KOBE_HOME_DIR/.rove/worktrees`,
+  // The worktree manager computes paths under `$ROVE_HOME_DIR/.rove/worktrees`,
   // so isolate it (and the store) to the tmp home.
   const home = path.join(tmpRoot, "home")
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   repo = path.join(tmpRoot, "repo")
   const r = spawnSync("bash", [REPO_INIT, repo], { encoding: "utf8" })
   if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}\n${r.stdout}`)
@@ -73,8 +73,8 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
-  if (prevHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = prevHome
+  if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = prevHome
   try {
     fs.rmSync(tmpRoot, { recursive: true, force: true })
   } catch {

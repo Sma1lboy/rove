@@ -35,11 +35,11 @@ describe("buildPaneArgv", () => {
       "'ROVE_SOCKET_PATH=/tmp/x.sock'",
       "'ROVE_BIN_PATH=kobe'",
       "'ROVE_PLUGIN_ENTRYPOINT_ID=b'",
-      "'KOBE_PLUGIN_ID=p.id'",
-      "'KOBE_PLUGIN_ROOT=/plug/root'",
-      "'KOBE_SOCKET_PATH=/tmp/x.sock'",
-      "'KOBE_BIN_PATH=kobe'",
-      "'KOBE_PLUGIN_ENTRYPOINT_ID=b'",
+      "'ROVE_PLUGIN_ID=p.id'",
+      "'ROVE_PLUGIN_ROOT=/plug/root'",
+      "'ROVE_SOCKET_PATH=/tmp/x.sock'",
+      "'ROVE_BIN_PATH=kobe'",
+      "'ROVE_PLUGIN_ENTRYPOINT_ID=b'",
       "'/plug/root/run.sh'",
       // POSIX-quoted single quote survives.
       "'it'\\''s'",
@@ -51,7 +51,7 @@ describe("buildPaneArgv", () => {
   it("injects the task id so a pane can name its own task", () => {
     const pane = { id: "b", title: "B", placement: "split" as const, command: ["run"] }
     const script = buildPaneArgv("p.id", "/plug/root", pane, { ...OPTS, taskId: "01TASK" })[2] as string
-    for (const frag of ["'ROVE_PLUGIN_TASK_ID=01TASK'", "'KOBE_PLUGIN_TASK_ID=01TASK'"]) {
+    for (const frag of ["'ROVE_PLUGIN_TASK_ID=01TASK'", "'ROVE_PLUGIN_TASK_ID=01TASK'"]) {
       expect(script).toContain(frag)
     }
     // No task resolved (an opener that never had one) → no empty var to

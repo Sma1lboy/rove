@@ -187,7 +187,7 @@ const PARTS: Part[] = [
     day: 97,
     date: "08-13",
     rev: "0.8.90",
-    note: "KOBE IS RENAMED ROVE",
+    note: "ROVE IS RENAMED ROVE",
     strokes: line([1466, 921], [1570, 907]),
     labels: [],
     sheet: true,
@@ -402,7 +402,7 @@ export const RoveLife: React.FC<{ theme?: LifeTheme }> = ({ theme = "plot" }) =>
         })}
 
         {/* Title block. The name is struck and re-lettered at the rename revision. */}
-        <Letter x={1468} y={930} text="KOBE" from={34} {...tech(46, renamed ? c.ink3 : c.ink, 700)} spacing={4} />
+        <Letter x={1468} y={930} text="ROVE" from={34} {...tech(46, renamed ? c.ink3 : c.ink, 700)} spacing={4} />
         <Letter x={1600} y={930} text="ROVE" from={RELETTER} {...tech(46, c.ink, 700)} spacing={4} />
         <Letter x={1468} y={955} text="A LIFE, DRAWN WITH ITS OWN PEN" from={40} {...tech(14, c.ink2)} spacing={2} />
         {[

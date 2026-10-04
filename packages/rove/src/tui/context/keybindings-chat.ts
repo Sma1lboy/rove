@@ -1,8 +1,8 @@
 /** Workspace keybinding rows, split out to keep the keymap table small. */
 
-import type { KobeBinding } from "./keybindings-table.ts"
+import type { RoveBinding } from "./keybindings-table.ts"
 
-export const CHAT_BINDINGS: readonly KobeBinding[] = [
+export const CHAT_BINDINGS: readonly RoveBinding[] = [
   // ─── Workspace ────────────────────────────────────────────────────────
   // No composer rows (`chat.send` / newline / cycle-mode / steer / interrupt):
   // the workspace is the engine CLI in a PTY, and one vendor's composer keys

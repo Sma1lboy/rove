@@ -14,7 +14,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { type Socket, connect } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { type DaemonServer, type DaemonServerOptions, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import type { Orchestrator } from "../../src/orchestrator/core.ts"
@@ -57,7 +57,7 @@ export interface RawWireFrame {
 }
 
 /**
- * A raw JSON-lines connection to the daemon socket, below `KobeDaemonClient`
+ * A raw JSON-lines connection to the daemon socket, below `RoveDaemonClient`
  * — for sending malformed/adversarial bytes and asserting on the exact
  * response frames.
  */
@@ -90,7 +90,7 @@ export interface DaemonHarness {
   readonly pidPath: string
   readonly server: DaemonServer
   /** A tracked socket client — auto-closed by `close()`. */
-  client(): KobeDaemonClient
+  client(): RoveDaemonClient
   /** A tracked raw JSON-lines connection — auto-destroyed by `close()`. */
   rawSocket(): Promise<RawDaemonSocket>
   close(): Promise<void>
@@ -108,7 +108,7 @@ export async function bootDaemonHarness(opts: DaemonHarnessOptions = {}): Promis
     if (!savedEnv.has(key)) savedEnv.set(key, process.env[key])
     process.env[key] = value
   }
-  setEnv("KOBE_HOME_DIR", dir)
+  setEnv("ROVE_HOME_DIR", dir)
   for (const [key, value] of Object.entries(opts.env ?? {})) setEnv(key, value)
   opts.seedHome?.(dir)
 
@@ -127,9 +127,9 @@ export async function bootDaemonHarness(opts: DaemonHarnessOptions = {}): Promis
     ...opts.server,
   })
 
-  const clients: KobeDaemonClient[] = []
+  const clients: RoveDaemonClient[] = []
   const rawSockets: RawDaemonSocket[] = []
-  const trackClient = (client: KobeDaemonClient): KobeDaemonClient => {
+  const trackClient = (client: RoveDaemonClient): RoveDaemonClient => {
     clients.push(client)
     return client
   }
@@ -141,7 +141,7 @@ export async function bootDaemonHarness(opts: DaemonHarnessOptions = {}): Promis
     pidPath,
     server,
     client() {
-      return trackClient(new KobeDaemonClient(socketPath))
+      return trackClient(new RoveDaemonClient(socketPath))
     },
     rawSocket() {
       return new Promise<RawDaemonSocket>((resolve, reject) => {

@@ -5,7 +5,7 @@
  * read methods return, not `this`.
  */
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient } from "@sma1lboy/rove-daemon/client/client-log"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
@@ -76,7 +76,7 @@ export {
   sameWorktreeChangesMap,
 } from "./remote-orchestrator-payloads.ts"
 
-export type KobeOrchestrator = Orchestrator | RemoteOrchestrator
+export type RoveOrchestrator = Orchestrator | RemoteOrchestrator
 
 export class RemoteOrchestrator {
   private readonly tasksAcc = createStateCell<Task[]>([], "orchestrator.tasks")
@@ -126,7 +126,7 @@ export class RemoteOrchestrator {
   private readonly signals: OrchestratorSignals
 
   constructor(
-    private readonly client: KobeDaemonClient,
+    private readonly client: RoveDaemonClient,
     options: RemoteOrchestratorOptions = {},
   ) {
     this.ensureReachable = options.ensureReachable ?? ensureDaemonReachable

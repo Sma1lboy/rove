@@ -119,11 +119,11 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
     // Global hooks carry no task id; the daemon maps cwd → task. `--task-id` is
     // honoured for direct invocation.
     const taskId = flagValue(rest, "--task-id")
-    // Engine tabs launch as `env KOBE_TASK_ID=… KOBE_TAB_ID=… <engine>`, and hooks
+    // Engine tabs launch as `env ROVE_TASK_ID=… ROVE_TAB_ID=… <engine>`, and hooks
     // inherit it. cwd can't tell tabs apart (they share the worktree); env
     // taskId beats the cwd map but yields to an explicit flag.
-    const envTaskId = process.env.KOBE_TASK_ID
-    const envTabId = process.env.KOBE_TAB_ID
+    const envTaskId = process.env.ROVE_TASK_ID
+    const envTabId = process.env.ROVE_TAB_ID
     // The adapter owns the vendor payload vocabulary. `--engine` picks the
     // right one; untagged installs ask each adapter, first answer wins.
     const engine = flagValue(rest, "--engine")
@@ -216,7 +216,7 @@ function persistedSyncPath(stored: string | undefined): string | undefined {
  *     daemon's `session-start` auto-adopt (`findAdoptableWorktree`) and
  *     `rove add .`.
  */
-export async function ensureGlobalKobeHooks(opts: { quiet?: boolean } = {}): Promise<void> {
+export async function ensureGlobalRoveHooks(opts: { quiet?: boolean } = {}): Promise<void> {
   try {
     // 0. With the Rove Claude Code plugin enabled, its hooks.json carries the
     //    Claude hooks, so the Claude settings install is skipped (both would
@@ -312,7 +312,7 @@ async function runHookCleanup(): Promise<void> {
 }
 
 /** `kobe hook setup` — DEPRECATED; only removes the WorktreeCreate hook (see
- *  {@link ensureGlobalKobeHooks}). Sync is automatic on the daemon side. */
+ *  {@link ensureGlobalRoveHooks}). Sync is automatic on the daemon side. */
 async function runHookSetup(_argv: readonly string[]): Promise<void> {
   await cleanupWorktreeSyncHook()
   process.stdout.write(

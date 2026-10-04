@@ -32,11 +32,11 @@ const gitEnv = {
 
 beforeAll(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), "kobe-wtm-edge-")))
-  // The managed-roots guard reads `$KOBE_HOME_DIR`; point it at the temp root
+  // The managed-roots guard reads `$ROVE_HOME_DIR`; point it at the temp root
   // so the orphaned-worktree cases below exercise a REAL managed root instead
   // of the developer's own `~/.rove`.
-  previousHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = root
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = root
   // `<worktrees-root>/<repo-key>/<slug>` — the shape `worktreePathFor`
   // actually creates, and the only one `isUnderManagedWorktreesRoot`
   // accepts as authorization to delete outright.
@@ -49,8 +49,8 @@ beforeAll(() => {
 })
 
 afterAll(() => {
-  if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = previousHome
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
   rmSync(root, { recursive: true, force: true })
 })
 

@@ -301,7 +301,7 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   const tabId = quoteShellArg(input.tabId ?? "tab-1")
   const imageEnv = input.inlineImages ? protocolEntry(input.task.vendor).capabilities?.inlineImageEnv : undefined
   const imageExports = Object.entries(imageEnv ?? {}).map(([name, value]) => ` ${name}=${quoteShellArg(value)}`)
-  const identity = `export ROVE_TASK_ID=${taskId} KOBE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId} KOBE_TAB_ID=${tabId}${imageExports.join("")}\n`
+  const identity = `export ROVE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId}${imageExports.join("")}\n`
   return {
     key: engineSessionKey(input.task.id, input.tabId),
     command: [input.shell, "-ilc", identity + script],

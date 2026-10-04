@@ -10,21 +10,21 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { ApiError, type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
-// Dispatcher provenance keys off the caller's own $KOBE_TASK_ID/$KOBE_TAB_ID —
+// Dispatcher provenance keys off the caller's own $ROVE_TASK_ID/$ROVE_TAB_ID —
 // unset them file-wide so exact-payload assertions stay deterministic when the
 // runner itself lives inside a kobe task (`api-dispatcher.test.ts` owns the
 // case where they ARE set).
-const savedEnv = { taskId: process.env.KOBE_TASK_ID, tabId: process.env.KOBE_TAB_ID }
+const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }
 beforeEach(() => {
   // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-  delete process.env.KOBE_TASK_ID
+  delete process.env.ROVE_TASK_ID
   // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-  delete process.env.KOBE_TAB_ID
+  delete process.env.ROVE_TAB_ID
 })
 afterEach(() => {
   for (const [name, value] of [
-    ["KOBE_TASK_ID", savedEnv.taskId],
-    ["KOBE_TAB_ID", savedEnv.tabId],
+    ["ROVE_TASK_ID", savedEnv.taskId],
+    ["ROVE_TAB_ID", savedEnv.tabId],
   ] as const) {
     if (value === undefined) delete process.env[name]
     else process.env[name] = value

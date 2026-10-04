@@ -240,26 +240,26 @@ describe("IssuesStore", () => {
 
   describe("created stamp", () => {
     // Pins the visual-fixture determinism seam: the Kanban screenshot gate
-    // renders `created` on every card, so KOBE_ISSUES_TODAY must override the
+    // renders `created` on every card, so ROVE_ISSUES_TODAY must override the
     // real clock (valid YYYY-MM-DD only) or the snapshot breaks at midnight.
-    it("honours a valid KOBE_ISSUES_TODAY pin and ignores a malformed one", async () => {
+    it("honours a valid ROVE_ISSUES_TODAY pin and ignores a malformed one", async () => {
       const repo = await makeRepo()
       const home = await mkdtemp(join(tmpdir(), "kobe-issues-store-stamp-"))
       cleanups.push(home)
       const store = new IssuesStore(join(home, ".kobe", "issues.json"))
-      const prior = process.env.KOBE_ISSUES_TODAY
+      const prior = process.env.ROVE_ISSUES_TODAY
       try {
-        process.env.KOBE_ISSUES_TODAY = "2026-07-15"
+        process.env.ROVE_ISSUES_TODAY = "2026-07-15"
         await store.mutate(repo, { type: "create", title: "Pinned" })
-        process.env.KOBE_ISSUES_TODAY = "yesterday"
+        process.env.ROVE_ISSUES_TODAY = "yesterday"
         const state = await store.mutate(repo, { type: "create", title: "Unpinned" })
         expect(state.issues.find((i) => i.title === "Pinned")?.created).toBe("2026-07-15")
         const today = new Date()
         const expected = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
         expect(state.issues.find((i) => i.title === "Unpinned")?.created).toBe(expected)
       } finally {
-        if (prior === undefined) Reflect.deleteProperty(process.env, "KOBE_ISSUES_TODAY")
-        else process.env.KOBE_ISSUES_TODAY = prior
+        if (prior === undefined) Reflect.deleteProperty(process.env, "ROVE_ISSUES_TODAY")
+        else process.env.ROVE_ISSUES_TODAY = prior
       }
     })
   })

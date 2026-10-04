@@ -1,5 +1,5 @@
 import { installRoveEnvCompatibility } from "@sma1lboy/rove-daemon/compat-env"
-import { LEGACY_KOBE_PRODUCT_NAME, type ProductCliName, ROVE_PRODUCT_NAME } from "../product.ts"
+import { LEGACY_ROVE_PRODUCT_NAME, type ProductCliName, ROVE_PRODUCT_NAME } from "../product.ts"
 import { migrateRoveClientStateLayout } from "../state/layout-migration.ts"
 import { migrateRenamedStateKeys } from "../state/state-key-migration.ts"
 
@@ -11,8 +11,8 @@ export function markRoveInvocation(env: NodeJS.ProcessEnv = process.env): void {
 }
 
 /** Keep the legacy wrapper identity explicit even if its environment was reused. */
-export function markKobeInvocation(env: NodeJS.ProcessEnv = process.env): void {
-  env[INVOKED_AS_ENV] = LEGACY_KOBE_PRODUCT_NAME
+export function markLegacyInvocation(env: NodeJS.ProcessEnv = process.env): void {
+  env[INVOKED_AS_ENV] = LEGACY_ROVE_PRODUCT_NAME
 }
 
 /** Install ROVE_* precedence before any runtime subsystem starts. */
@@ -35,5 +35,5 @@ export function prepareCliStateLayout(env: NodeJS.ProcessEnv = process.env): voi
 }
 
 export function activeCliName(env: NodeJS.ProcessEnv = process.env): ProductCliName {
-  return env[INVOKED_AS_ENV] === ROVE_PRODUCT_NAME ? ROVE_PRODUCT_NAME : LEGACY_KOBE_PRODUCT_NAME
+  return env[INVOKED_AS_ENV] === ROVE_PRODUCT_NAME ? ROVE_PRODUCT_NAME : LEGACY_ROVE_PRODUCT_NAME
 }

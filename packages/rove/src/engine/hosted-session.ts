@@ -1,5 +1,5 @@
 import { basename } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process"
 import { defaultPtyHostSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import type { PtyOpenResult, PtyPeekResult } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -22,7 +22,7 @@ export interface HostedSessionClient {
 }
 
 async function connectHostedSessionClient(socketPath: string): Promise<HostedSessionClient> {
-  const client = new KobeDaemonClient(socketPath)
+  const client = new RoveDaemonClient(socketPath)
   try {
     await client.connect()
   } catch (error) {

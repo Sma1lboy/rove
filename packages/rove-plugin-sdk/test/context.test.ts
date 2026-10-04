@@ -23,9 +23,9 @@ describe("pluginContext", () => {
     expect(() => pluginContext({})).toThrow(/ROVE_PLUGIN_ID/)
   })
 
-  it("falls back to the legacy Kobe namespace", () => {
+  it("falls back to the legacy Rove namespace", () => {
     const legacy = Object.fromEntries(
-      Object.entries(BASE).map(([key, value]) => [key.replace("ROVE_", "KOBE_"), value]),
+      Object.entries(BASE).map(([key, value]) => [key.replace("ROVE_", "ROVE_"), value]),
     )
     expect(pluginContext(legacy).pluginId).toBe("you.example")
   })

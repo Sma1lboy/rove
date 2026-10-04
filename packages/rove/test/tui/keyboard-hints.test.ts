@@ -4,7 +4,7 @@
  * resolves through the LIVE keymap and reachability snapshot — a rebound
  * chord shows its new key, an unbound/disabled one drops its token, and the
  * terminal passthrough boundary is never lied about (the configured prefix
- * remains Kobe-owned there while every other unreserved key reaches the PTY).
+ * remains Rove-owned there while every other unreserved key reaches the PTY).
  */
 
 import { afterEach, describe, expect, test } from "vitest"

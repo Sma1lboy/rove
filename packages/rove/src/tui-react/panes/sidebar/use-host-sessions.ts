@@ -41,7 +41,7 @@ export function sameSessions(a: readonly LiveSession[], b: readonly LiveSession[
  * Off under a test runner. `getSharedPtyClient` caches ONE connection per
  * process and bun-test runs every render file in one process, so a mounted
  * sidebar would pin a stale client and `pty-hosted.test.ts` (which points
- * `KOBE_PTY_SOCKET_PATH` at its own fixture) would time out.
+ * `ROVE_PTY_SOCKET_PATH` at its own fixture) would time out.
  */
 function pollingAllowed(): boolean {
   return process.env.NODE_ENV !== "test" && process.env.BUN_TEST !== "1" && process.env.VITEST !== "true"

@@ -10,7 +10,7 @@
  *                  syntax highlight when missing)
  *
  * Skipped on CI (CI env var set) and when ROVE_SKIP_DEP_CHECK=1 (or its
- * KOBE_* compatibility alias), so automated jobs don't spam logs with
+ * ROVE_* compatibility alias), so automated jobs don't spam logs with
  * install hints we can't follow.
  */
 
@@ -62,7 +62,7 @@ const C = {
 }
 
 async function main(): Promise<void> {
-  if (process.env.CI || process.env.ROVE_SKIP_DEP_CHECK === "1" || process.env.KOBE_SKIP_DEP_CHECK === "1") return
+  if (process.env.CI || process.env.ROVE_SKIP_DEP_CHECK === "1" || process.env.ROVE_SKIP_DEP_CHECK === "1") return
   const results = await Promise.all(DEPS.map(async (d) => ({ ...d, present: await hasBin(d.bin, d.versionArg) })))
   const missing = results.filter((r) => !r.present)
   if (missing.length === 0) return
@@ -92,7 +92,7 @@ async function main(): Promise<void> {
     console.log(`  ${hint}`)
   }
   console.log(
-    `${C.dim}\nSet ROVE_SKIP_DEP_CHECK=1 to suppress this check (KOBE_SKIP_DEP_CHECK remains supported).${C.reset}`,
+    `${C.dim}\nSet ROVE_SKIP_DEP_CHECK=1 to suppress this check (ROVE_SKIP_DEP_CHECK remains supported).${C.reset}`,
   )
   console.log("")
 }

@@ -7,7 +7,7 @@
 import { unlinkSync } from "node:fs"
 import { join } from "node:path"
 import { RemoteOrchestrator } from "../../../client/remote-orchestrator"
-import type { KobeOrchestrator } from "../../../client/remote-orchestrator"
+import type { RoveOrchestrator } from "../../../client/remote-orchestrator"
 import { roveStateDir } from "../../../env"
 
 /**
@@ -17,7 +17,7 @@ import { roveStateDir } from "../../../env"
  * daemon to stop, and narrowing here is what keeps that from needing a second
  * `instanceof` (or a cast) saying the same thing one line later.
  */
-export function hasRestartableDaemon(orchestrator: KobeOrchestrator | undefined): orchestrator is RemoteOrchestrator {
+export function hasRestartableDaemon(orchestrator: RoveOrchestrator | undefined): orchestrator is RemoteOrchestrator {
   return orchestrator instanceof RemoteOrchestrator
 }
 

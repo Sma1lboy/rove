@@ -54,7 +54,7 @@ function fakeNodePty() {
 const request = (over: Partial<PtySpawnRequest> = {}): PtySpawnRequest => ({
   argv: ["C:\\Program Files\\Git\\bin\\bash.exe", "-ilc", "claude"],
   cwd: "C:\\wt\\task-1",
-  env: { TERM: "xterm-256color", KOBE_TASK_ID: "t1" },
+  env: { TERM: "xterm-256color", ROVE_TASK_ID: "t1" },
   cols: 100,
   rows: 30,
   onData: () => {},

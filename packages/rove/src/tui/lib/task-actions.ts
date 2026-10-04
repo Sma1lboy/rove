@@ -5,7 +5,7 @@
  * callbacks so the flows run under plain vitest (`test/tui/task-actions.test.ts`).
  */
 
-import type { KobeOrchestrator } from "@/client/remote-orchestrator"
+import type { RoveOrchestrator } from "@/client/remote-orchestrator"
 import { availableEngineIds } from "@/engine/account-detect"
 import { hostedTaskKeys, killHostedSessions, listHostedSessions, openHostedSessionHost } from "@/engine/hosted-session"
 import { engineDisplayName } from "@/engine/interactive-command"
@@ -52,7 +52,7 @@ export interface EnginePick {
 /** Required members are what every host provides; each optional member is a documented host divergence. */
 export interface TaskActionContext {
   /** `null` only in the Tasks pane's no-daemon fallback; flows then no-op or log. */
-  readonly orch: KobeOrchestrator | null
+  readonly orch: RoveOrchestrator | null
   /** Orchestrator signal or file-poll fallback. */
   readonly tasks: () => readonly Task[]
   /** Host implements with `DialogConfirm.show(dialog, …) === true`. */
@@ -103,14 +103,14 @@ async function stopHostedTask(taskId: string, logger: TaskActionLogger, logPrefi
  * Deleting a BACKGROUND task must not steal focus from the active one. A bare
  * test mock without `activeTaskSignal()` counts as active.
  */
-function removedTaskIsActive(orch: KobeOrchestrator, taskId: string): boolean {
+function removedTaskIsActive(orch: RoveOrchestrator, taskId: string): boolean {
   const read = (orch as { activeTaskSignal?: () => () => string | null }).activeTaskSignal
   if (typeof read !== "function") return true
   return read.call(orch)() === taskId
 }
 
 export async function finishDeletedTaskFlow(opts: {
-  readonly orch?: KobeOrchestrator
+  readonly orch?: RoveOrchestrator
   readonly tasks: readonly Task[]
   readonly taskId: string
   readonly logger: TaskActionLogger

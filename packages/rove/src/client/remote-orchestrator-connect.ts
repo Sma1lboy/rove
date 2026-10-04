@@ -5,7 +5,7 @@
  * and retry policy are testable with fakes, no socket, no real backoff.
  */
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { isStaleInstallError } from "@sma1lboy/rove-daemon/client/daemon-process"
 import {
@@ -36,7 +36,7 @@ export interface PerformInitOptions {
     hostname: string
     homeDir: string
     daemonPid: number
-    kobeVersion: string
+    roveVersion: string
   }) => void
 }
 
@@ -88,7 +88,7 @@ export async function runReconnectLoop(deps: {
 
 /** Open the daemon socket, hello, subscribe to the task snapshot stream. */
 export async function performInit(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   opts: PerformInitOptions,
   signals: OrchestratorSignals,
 ): Promise<void> {
@@ -99,7 +99,7 @@ export async function performInit(
     minProtocolVersion?: number
     // BUILD version; drives the non-fatal stale-build banner, not
     // compatibility. Absent (old daemon) → never "stale".
-    kobeVersion?: string
+    roveVersion?: string
     // Absent (old daemon) → the ownership check is skipped.
     homeDir?: string
     // Absent (old daemon) → a machine falls back to its alias.
@@ -134,18 +134,18 @@ export async function performInit(
   const clientHome = homeDir()
   if (!opts.expectForeignHome && isForeignDaemonHome(hello.homeDir, clientHome)) {
     throw new Error(
-      `Rove daemon on this socket serves ${hello.homeDir}, but this client uses ${clientHome}. A sandbox or dev daemon has taken the production socket — stop it (\`rove daemon stop\`), or unset ROVE_DAEMON_SOCKET_PATH / KOBE_DAEMON_SOCKET_PATH before starting it.`,
+      `Rove daemon on this socket serves ${hello.homeDir}, but this client uses ${clientHome}. A sandbox or dev daemon has taken the production socket — stop it (\`rove daemon stop\`), or unset ROVE_DAEMON_SOCKET_PATH / ROVE_DAEMON_SOCKET_PATH before starting it.`,
     )
   }
   // A patch upgrade keeps the protocol version, so the build version is the
   // only stale-daemon signal (`daemonStaleSignal()` banner). Re-set on every
   // init so reconnecting to a restarted daemon clears the banner.
-  signals.setDaemonVersionSig(typeof hello.kobeVersion === "string" ? hello.kobeVersion : null)
+  signals.setDaemonVersionSig(typeof hello.roveVersion === "string" ? hello.roveVersion : null)
   opts.onPeerIdentity?.({
     hostname: typeof hello.hostname === "string" ? hello.hostname : "",
     homeDir: typeof hello.homeDir === "string" ? hello.homeDir : "",
     daemonPid: typeof hello.daemonPid === "number" ? hello.daemonPid : 0,
-    kobeVersion: typeof hello.kobeVersion === "string" ? hello.kobeVersion : "",
+    roveVersion: typeof hello.roveVersion === "string" ? hello.roveVersion : "",
   })
   // A `reason: "restart"` daemon answered `hello` again, so the swap is over;
   // otherwise one restart would offer a reload forever.

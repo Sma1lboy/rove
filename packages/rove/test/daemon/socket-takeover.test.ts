@@ -13,7 +13,7 @@ import { unlink } from "node:fs/promises"
 import { type Server, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { type DaemonServerOptions, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { createSocketOwnershipGuard } from "@sma1lboy/rove-daemon/daemon/socket-guard"
 import { describe, expect, it } from "vitest"
@@ -30,7 +30,7 @@ const ZERO_POLLS = {
   transcriptActivityTickMs: 0,
 } as const
 
-/** Temp home + isolated socket/pid paths + KOBE_HOME_DIR pinned for the test's
+/** Temp home + isolated socket/pid paths + ROVE_HOME_DIR pinned for the test's
  *  duration, with base server options ready to spread. */
 function tempDaemonDir(prefix: string): {
   dir: string
@@ -40,8 +40,8 @@ function tempDaemonDir(prefix: string): {
   cleanup: () => void
 } {
   const dir = mkdtempSync(join(tmpdir(), prefix))
-  const saved = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = dir
+  const saved = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = dir
   const socketPath = join(dir, "daemon.sock")
   const pidPath = join(dir, "daemon.pid")
   return {
@@ -50,8 +50,8 @@ function tempDaemonDir(prefix: string): {
     pidPath,
     base: { runtime: daemonRuntime, socketPath, pidPath, homeDir: dir, ...ZERO_POLLS },
     cleanup: () => {
-      if (saved === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-      else process.env.KOBE_HOME_DIR = saved
+      if (saved === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = saved
       rmSync(dir, { recursive: true, force: true })
     },
   }
@@ -113,7 +113,7 @@ describe("daemon socket takeover guard", () => {
       // The superseded daemon's shutdown left the new owner fully intact.
       expect(await waitFor(() => existsSync(socketPath), 3000)).toBe(true)
       expect(existsSync(pidPath)).toBe(true)
-      const probe = new KobeDaemonClient(socketPath)
+      const probe = new RoveDaemonClient(socketPath)
       await probe.connect()
       expect(await probe.request<Record<string, unknown>>("daemon.status")).toBeTruthy()
       probe.close()
@@ -134,7 +134,7 @@ describe("daemon socket takeover guard", () => {
       // The late close of the superseded daemon deleted NOTHING of the owner's.
       expect(existsSync(socketPath)).toBe(true)
       expect(existsSync(pidPath)).toBe(true)
-      const probe = new KobeDaemonClient(socketPath)
+      const probe = new RoveDaemonClient(socketPath)
       await probe.connect()
       expect(await probe.request<Record<string, unknown>>("daemon.status")).toBeTruthy()
       probe.close()
@@ -207,8 +207,8 @@ describe("daemon socket takeover guard", () => {
 
   it("still clears a stale socket file left by a dead daemon", async () => {
     const dir = mkdtempSync(join(tmpdir(), "kobe-sock-stale-"))
-    const saved = process.env.KOBE_HOME_DIR
-    process.env.KOBE_HOME_DIR = dir
+    const saved = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = dir
     const socketPath = join(dir, "daemon.sock")
     writeFileSync(socketPath, "") // dead leftover: connect() fails, not a live owner
     try {
@@ -222,8 +222,8 @@ describe("daemon socket takeover guard", () => {
       expect(server.socketPath).toBe(socketPath)
       await server.close()
     } finally {
-      if (saved === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-      else process.env.KOBE_HOME_DIR = saved
+      if (saved === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = saved
       rmSync(dir, { recursive: true, force: true })
     }
   })

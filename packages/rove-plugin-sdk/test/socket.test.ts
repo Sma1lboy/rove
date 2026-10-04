@@ -3,7 +3,7 @@ import { type Server, type Socket, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { KobeSocket, RoveSocket } from "../src/socket.ts"
+import { RoveSocket, } from "../src/socket.ts"
 
 let server: Server | null = null
 
@@ -41,8 +41,8 @@ describe("RoveSocket", () => {
     client.close()
   })
 
-  it("keeps KobeSocket as a constructor-compatible alias", () => {
-    expect(new KobeSocket()).toBeInstanceOf(RoveSocket)
+  it("keeps RoveSocket as a constructor-compatible alias", () => {
+    expect(new RoveSocket()).toBeInstanceOf(RoveSocket)
   })
 
   it("rejects on daemon error frames and routes event frames to the handler", async () => {
@@ -54,7 +54,7 @@ describe("RoveSocket", () => {
         sock.write(`${JSON.stringify({ type: "event", name: "task.snapshot", payload: { tasks: [] } })}\n`)
       }
     })
-    const client = new KobeSocket()
+    const client = new RoveSocket()
     await client.connect({ socketPath: path })
     await expect(client.request("boom")).rejects.toThrow("nope")
     const seen: string[] = []
@@ -103,7 +103,7 @@ describe("RoveSocket.hello", () => {
     const path = fakeDaemon((frame, sock) => {
       const payload =
         frame.name === "hello"
-          ? { protocolVersion: 4, minProtocolVersion: 2, kobeVersion: "0.9.142", capabilities: ["task.snapshot"] }
+          ? { protocolVersion: 4, minProtocolVersion: 2, roveVersion: "0.9.142", capabilities: ["task.snapshot"] }
           : {}
       sock.write(`${JSON.stringify({ type: "response", id: frame.id, payload })}\n`)
     })
@@ -111,7 +111,7 @@ describe("RoveSocket.hello", () => {
     await client.connect({ socketPath: path })
     const info = await client.hello()
     expect(info.roveVersion).toBe("0.9.142")
-    expect(info.kobeVersion).toBe("0.9.142")
+    expect(info.roveVersion).toBe("0.9.142")
     expect(info.capabilities).toEqual(["task.snapshot"])
     expect(info.protocolVersion).toBe(4)
     client.close()

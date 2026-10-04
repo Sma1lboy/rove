@@ -30,11 +30,11 @@ const saved: Record<string, string | undefined> = {}
 
 beforeAll(async () => {
   home = mkdtempSync(join(tmpdir(), "rove-killlog-"))
-  // ROVE_* wins over KOBE_* (compat-env precedence), so an inherited
+  // ROVE_* wins over ROVE_* (compat-env precedence), so an inherited
   // ROVE_HOME_DIR would silently redirect the log to the real home.
-  for (const key of ["ROVE_HOME_DIR", "KOBE_HOME_DIR"]) saved[key] = process.env[key]
+  for (const key of ["ROVE_HOME_DIR", "ROVE_HOME_DIR"]) saved[key] = process.env[key]
   process.env.ROVE_HOME_DIR = home
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   // Imported here, not at top level: the module pulls in the PTY registry
   // and the daemon client, which costs seconds on a loaded machine and would
   // otherwise be charged to the test's own timeout.

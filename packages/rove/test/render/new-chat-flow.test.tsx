@@ -20,7 +20,7 @@
  *
  * Engine history reads and kobe state writes are both sandboxed to a
  * tmpdir via their real env seams (`CLAUDE_CONFIG_DIR` / `CODEX_HOME` /
- * `KOBE_HOME_DIR`) — bun's `os.homedir()` ignores runtime `HOME` changes,
+ * `ROVE_HOME_DIR`) — bun's `os.homedir()` ignores runtime `HOME` changes,
  * so plain-HOME sandboxing silently reads the real home.
  */
 
@@ -41,7 +41,7 @@ let root: string
 let repo: string
 let worktree: string
 const savedEnv: Record<string, string | undefined> = {}
-const ENV_KEYS = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "KOBE_HOME_DIR"] as const
+const ENV_KEYS = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "ROVE_HOME_DIR"] as const
 
 function git(cwd: string, ...args: string[]): void {
   const out = spawnSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd, encoding: "utf-8" })
@@ -71,10 +71,10 @@ beforeAll(() => {
   for (const k of ENV_KEYS) savedEnv[k] = process.env[k]
   process.env.CLAUDE_CONFIG_DIR = path.join(root, "claude-config")
   process.env.CODEX_HOME = path.join(root, "codex-home")
-  process.env.KOBE_HOME_DIR = path.join(root, "kobe-home")
+  process.env.ROVE_HOME_DIR = path.join(root, "kobe-home")
   fs.mkdirSync(process.env.CLAUDE_CONFIG_DIR, { recursive: true })
   fs.mkdirSync(process.env.CODEX_HOME, { recursive: true })
-  fs.mkdirSync(process.env.KOBE_HOME_DIR, { recursive: true })
+  fs.mkdirSync(process.env.ROVE_HOME_DIR, { recursive: true })
   repo = path.join(root, "repo")
   worktree = path.join(root, "wt")
   fs.mkdirSync(repo)
@@ -171,7 +171,7 @@ describe("requestNewChat dispatch", () => {
     // a registration left standing changes what the picker highlights for
     // everyone else — and on a runner with no claude binary it becomes the
     // only entry, breaking the two neighbours that assert on "claude".
-    const statePath = path.join(process.env.KOBE_HOME_DIR as string, ".config", "rove", "state.json")
+    const statePath = path.join(process.env.ROVE_HOME_DIR as string, ".config", "rove", "state.json")
     fs.mkdirSync(path.dirname(statePath), { recursive: true })
     fs.writeFileSync(
       statePath,

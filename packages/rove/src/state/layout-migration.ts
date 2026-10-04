@@ -24,8 +24,8 @@ import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
 import {
-  LEGACY_KOBE_CONFIG_DIR_BASENAME,
-  LEGACY_KOBE_STATE_DIR_BASENAME,
+  LEGACY_ROVE_CONFIG_DIR_BASENAME,
+  LEGACY_ROVE_STATE_DIR_BASENAME,
   ROVE_CONFIG_DIR_BASENAME,
   ROVE_STATE_DIR_BASENAME,
 } from "../product.ts"
@@ -179,9 +179,9 @@ function migrateStateEntries(
   env: NodeJS.ProcessEnv,
 ): StateLayoutMigrationResult {
   const home = readRoveHomeDirEnv(env) ?? homedir()
-  const legacyState = join(home, LEGACY_KOBE_STATE_DIR_BASENAME)
+  const legacyState = join(home, LEGACY_ROVE_STATE_DIR_BASENAME)
   const roveState = join(home, ROVE_STATE_DIR_BASENAME)
-  const legacyConfig = join(home, ".config", LEGACY_KOBE_CONFIG_DIR_BASENAME, "state.json")
+  const legacyConfig = join(home, ".config", LEGACY_ROVE_CONFIG_DIR_BASENAME, "state.json")
   const roveConfig = join(home, ".config", ROVE_CONFIG_DIR_BASENAME, "state.json")
   const marker = join(roveState, markerName)
   let hasSource: boolean
@@ -234,7 +234,7 @@ const PLUGIN_ENTRIES = ["plugins.json", "plugins", "plugins-outdated.json"] as c
 
 function migrateLegacyPluginTree(env: NodeJS.ProcessEnv): StateLayoutMigrationResult {
   const home = readRoveHomeDirEnv(env) ?? homedir()
-  const legacyState = join(home, LEGACY_KOBE_STATE_DIR_BASENAME)
+  const legacyState = join(home, LEGACY_ROVE_STATE_DIR_BASENAME)
   const roveState = join(home, ROVE_STATE_DIR_BASENAME)
   const marker = join(roveState, PLUGIN_MIGRATION_MARKER)
   try {

@@ -7,7 +7,7 @@
  *     Diffs the PER-TAB map: the task rollup is last-event-wins, so two tabs
  *     finishing in a row leave it at `turn_complete` and the second never
  *     fires. Inbox episodes are keyed `(taskId, tabId)` too. Tasks with no tab
- *     identity (`claude` typed into a plain shell, no KOBE_TAB_ID) notify off
+ *     identity (`claude` typed into a plain shell, no ROVE_TAB_ID) notify off
  *     the rollup.
  *  2. F7 walks available pending items in the daemon-owned Inbox; visiting the
  *     target resolves it.

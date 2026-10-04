@@ -333,7 +333,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
       {/* Borderless rail (owner call 2026-07-27): no frame, no divider —
           opentui coerces a full frame if borderColor is ever set, so the box
           carries no border prop at all. The workspace frame's left edge is
-          the only boundary; sidebar focus shows on the KOBE brand text. */}
+          the only boundary; sidebar focus shows on the ROVE brand text. */}
       {pageRender.showSidebar ? (
         <RenderProfiler id="sidebar">
           <PaneErrorBoundary region="sidebar" width={pageRender.showContent ? sidebarWidth.width : dims.width}>

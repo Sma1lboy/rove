@@ -9,14 +9,14 @@
  *
  * A fake driver keeps this deterministic under vitest (no real PTY); the
  * socket, protocol, freeze-store files, and server lifecycle are all real.
- * KOBE_HOME_DIR is redirected so the exit-record side write lands in the
+ * ROVE_HOME_DIR is redirected so the exit-record side write lands in the
  * temp home, never the operator's.
  */
 
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { PtyOpenResult, PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtyChild, PtyDriver, PtyExit } from "@sma1lboy/rove-daemon/daemon/pty-driver"
 import { type PtyHostServer, startPtyHostServer } from "@sma1lboy/rove-daemon/daemon/pty-server"
@@ -28,22 +28,22 @@ let pidPath: string
 let freezeDir: string
 let savedHome: string | undefined
 const servers: PtyHostServer[] = []
-const clients: KobeDaemonClient[] = []
+const clients: RoveDaemonClient[] = []
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "kobe-pty-restart-"))
   socketPath = join(dir, "pty.sock")
   pidPath = join(dir, "pty.pid")
   freezeDir = join(dir, "pty-sessions")
-  savedHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = dir
+  savedHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = dir
 })
 
 afterEach(async () => {
   for (const client of clients.splice(0)) client.close()
   for (const server of servers.splice(0)) await server.close().catch(() => {})
-  if (savedHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = savedHome
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
   rmSync(dir, { recursive: true, force: true })
 })
 
@@ -73,8 +73,8 @@ async function bootHost(): Promise<PtyHostServer> {
   return server
 }
 
-async function connect(): Promise<KobeDaemonClient> {
-  const client = new KobeDaemonClient(socketPath)
+async function connect(): Promise<RoveDaemonClient> {
+  const client = new RoveDaemonClient(socketPath)
   await client.connect()
   clients.push(client)
   return client
@@ -124,7 +124,7 @@ describe("pty-host server freeze/restore across a restart", () => {
     const a = await connect()
     const key = "aba::tab-1"
     const spec = { key, cwd: "/wt/aba", command: ["/bin/cat"] }
-    const generation = async (client: KobeDaemonClient) =>
+    const generation = async (client: RoveDaemonClient) =>
       (await client.request<{ sessions: ListRow[] }>("pty.list")).sessions[0]?.generation
     await a.request("pty.open", spec)
     const first = await generation(a)
@@ -171,7 +171,7 @@ describe("pty-host server freeze/restore across a restart", () => {
     const deadline = Date.now() + 3000
     for (;;) {
       await new Promise((r) => setTimeout(r, 25))
-      const probe = new KobeDaemonClient(socketPath)
+      const probe = new RoveDaemonClient(socketPath)
       const up = await probe.connect().then(
         () => true,
         () => false,

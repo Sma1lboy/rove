@@ -8,7 +8,7 @@ import { PROBE_CONCURRENCY, mapWithLimit } from "./concurrency.ts"
 import type { ExecCtx } from "./exec-deps.ts"
 import {
   canonicalize,
-  isKobeManagedPath,
+  isRoveManagedPath,
   managedWorktreeRootForPath,
   remoteManagedRootForPath,
   requireAbsolute,
@@ -128,9 +128,9 @@ export async function listAllAdoptable(deps: ListDeps, repo: string): Promise<re
       branch: entry.branch,
       head: entry.head,
       dirty,
-      kobeManaged: ctx.remote
+      roveManaged: ctx.remote
         ? remoteManagedRootForPath(ctx.dir, entry.path) !== null
-        : isKobeManagedPath(repo, entry.path),
+        : isRoveManagedPath(repo, entry.path),
       lastActivityMs: activityMs,
     }
   })

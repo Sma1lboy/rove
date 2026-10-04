@@ -3,7 +3,7 @@
  * legacy `lastSelectedVendor` → claude, with each layer validated
  * independently (a corrupt repo entry must fall through to the global
  * default, not straight to the built-in fallback). Isolated state.json
- * via `KOBE_HOME_DIR`.
+ * via `ROVE_HOME_DIR`.
  */
 
 import fs from "node:fs"
@@ -25,13 +25,13 @@ let originalHome: string | undefined
 
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-vendor-prefs-"))
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   fs.rmSync(tmpHome, { recursive: true, force: true })
 })
 

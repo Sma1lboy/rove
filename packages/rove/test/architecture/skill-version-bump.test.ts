@@ -1,8 +1,8 @@
 /**
  * Guard: editing the agent skill's CONTENT must bump its version marker.
  *
- * `kobeSkillState` decides staleness by comparing marker numbers only
- * (`best.version < KOBE_SKILL_VERSION`) — it never looks at what the file
+ * `roveSkillState` decides staleness by comparing marker numbers only
+ * (`best.version < ROVE_SKILL_VERSION`) — it never looks at what the file
  * says. So a content edit that skips the bump ships silently: every machine
  * that installed the previous version keeps the old text, and
  * `rove skill status` reports ✓ current. That happened four times in a row
@@ -19,7 +19,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vitest"
-import { KOBE_SKILL_VERSION } from "../../src/lib/skill-install.ts"
+import { ROVE_SKILL_VERSION } from "../../src/lib/skill-install.ts"
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 /** The canonical skill source. `claude-plugin/skills/rove` is a byte-identical
@@ -27,7 +27,7 @@ const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 const SKILL_DIR = join(ROOT, ".agents", "skills", "kobe")
 
 /**
- * sha256 of every file in the skill, as of {@link KOBE_SKILL_VERSION}.
+ * sha256 of every file in the skill, as of {@link ROVE_SKILL_VERSION}.
  * Regenerate with the command the failure message prints.
  */
 const FINGERPRINT = {
@@ -49,13 +49,13 @@ function hashOf(file: SkillFile): string {
 /** The whole fix, spelled out — a red build here should cost one paste. */
 function howToFix(): string {
   // Already bumped the constant? Then `next` is that number, not one past it.
-  const next = Math.max(KOBE_SKILL_VERSION, FINGERPRINT.version + 1)
+  const next = Math.max(ROVE_SKILL_VERSION, FINGERPRINT.version + 1)
   const rows = (Object.keys(FINGERPRINT.sha256) as SkillFile[])
     .map((f) => `      ${JSON.stringify(f)}: "${hashOf(f)}",`)
     .join("\n")
   return [
     "",
-    `Bump KOBE_SKILL_VERSION to ${next} in src/lib/skill-install.ts, set the`,
+    `Bump ROVE_SKILL_VERSION to ${next} in src/lib/skill-install.ts, set the`,
     `\`<!-- rove-skill-version: ${next} -->\` marker in BOTH .agents/skills/rove/SKILL.md`,
     "and claude-plugin/skills/rove/SKILL.md, then paste this into FINGERPRINT:",
     "",
@@ -78,14 +78,14 @@ describe("agent skill content is versioned", () => {
   // Without this the guard goes soft after the first bump: a stale record
   // would let every later content edit at the new version slip through.
   test("the fingerprint records the version this build ships", () => {
-    expect(FINGERPRINT.version, `FINGERPRINT.version must track KOBE_SKILL_VERSION.${howToFix()}`).toBe(
-      KOBE_SKILL_VERSION,
+    expect(FINGERPRINT.version, `FINGERPRINT.version must track ROVE_SKILL_VERSION.${howToFix()}`).toBe(
+      ROVE_SKILL_VERSION,
     )
   })
 
   test("both SKILL.md copies carry the marker this build expects", () => {
     for (const path of [join(SKILL_DIR, "SKILL.md"), join(ROOT, "claude-plugin", "skills", "rove", "SKILL.md")]) {
-      expect(readFileSync(path, "utf8"), path).toContain(`rove-skill-version: ${KOBE_SKILL_VERSION} `)
+      expect(readFileSync(path, "utf8"), path).toContain(`rove-skill-version: ${ROVE_SKILL_VERSION} `)
     }
   })
 })

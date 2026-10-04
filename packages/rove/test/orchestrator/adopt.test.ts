@@ -50,7 +50,7 @@ describe("discoverAdoptableWorktrees", () => {
     const found = await orch.discoverAdoptableWorktrees(repo)
     const branches = found.map((w) => w.branch)
     expect(branches).toContain("featA")
-    expect(found.find((w) => w.branch === "featA")?.kobeManaged).toBe(false)
+    expect(found.find((w) => w.branch === "featA")?.roveManaged).toBe(false)
     void ext
   })
 

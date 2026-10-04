@@ -60,7 +60,7 @@ export function schemaIndex(): unknown {
   const cliName = activeCliName()
   return {
     apiVersion: API_SCHEMA_VERSION,
-    kobeVersion: CURRENT_VERSION,
+    roveVersion: CURRENT_VERSION,
     hint: `Compact index. Drill into ONE verb: \`${cliName} api schema --verb <name>\` (or \`${cliName} api <verb> --help\`). One group: \`--group <g>\`. Whole spec: \`--all\`.`,
     groups: VERB_GROUPS,
     verbs: VERBS.map((v) => ({ name: v.name, group: v.group, summary: v.summary })),
@@ -88,7 +88,7 @@ export function groupSchema(group: string): unknown {
 export function fullSchema(): unknown {
   return {
     apiVersion: API_SCHEMA_VERSION,
-    kobeVersion: CURRENT_VERSION,
+    roveVersion: CURRENT_VERSION,
     output: {
       success: "one JSON object on stdout, newline-terminated, exit 0",
       error: '{"error":{"message","code"}} on stderr, exit != 0',

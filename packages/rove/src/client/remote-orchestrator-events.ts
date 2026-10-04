@@ -118,8 +118,8 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
   // process is about to be a build behind); other reasons paint nothing —
   // see the no-disconnect-banner rule in `host-banner.tsx`.
   if (name === "daemon.stopping") {
-    const p = payload as { reason?: unknown; kobeVersion?: unknown } | undefined
-    if (typeof p?.kobeVersion === "string") signals.setDaemonVersionSig(p.kobeVersion)
+    const p = payload as { reason?: unknown; roveVersion?: unknown } | undefined
+    if (typeof p?.roveVersion === "string") signals.setDaemonVersionSig(p.roveVersion)
     if (parseDaemonStopReason(p?.reason) === "restart") signals.setDaemonRestartingSig(true)
     return
   }

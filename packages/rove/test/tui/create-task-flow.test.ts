@@ -28,7 +28,7 @@ vi.mock("../../src/engine/account-detect", () => ({
 // other test resets it to the built-in default in the per-test setup below.
 const mockAvailableEngineIds = vi.fn(async () => ["claude"])
 
-import type { KobeOrchestrator } from "../../src/client/remote-orchestrator"
+import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import type { NewTaskInput } from "../../src/tui/component/new-task-dialog/state"
 import { type CreateTaskContext, createTaskFlow } from "../../src/tui/lib/task-create-flow"
 
@@ -39,7 +39,7 @@ function makeCreateCtx(opts: {
   adoptWorktree?: (input: { worktreePath: string }) => Promise<{ id: string }>
   createTask?: (input: { repo: string; baseRef?: string; vendor: unknown }) => Promise<{ id: string }>
   promptNewTask?: () => Promise<NewTaskInput | undefined>
-  orch?: KobeOrchestrator | null
+  orch?: RoveOrchestrator | null
 }): {
   ctx: CreateTaskContext
   notifyInfo: ReturnType<typeof vi.fn>
@@ -65,7 +65,7 @@ function makeCreateCtx(opts: {
     adoptWorktree,
     createTask,
     discoverAdoptableWorktrees: vi.fn(async () => []),
-  } as unknown as KobeOrchestrator
+  } as unknown as RoveOrchestrator
   const orch = opts.orch === undefined ? innerOrch : opts.orch
   const ctx: CreateTaskContext = {
     orch,

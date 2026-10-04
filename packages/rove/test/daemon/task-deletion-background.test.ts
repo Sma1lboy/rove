@@ -13,7 +13,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
@@ -30,7 +30,7 @@ afterEach(async () => {
 interface Fixture {
   readonly task: Task
   readonly orch: Orchestrator
-  readonly client: KobeDaemonClient
+  readonly client: RoveDaemonClient
   /** Every channel frame this client received, in arrival order. */
   readonly events: ReadonlyArray<{ name: string; payload: unknown }>
   /** Did a `task.snapshot` carry this task with the given deletion phase? */

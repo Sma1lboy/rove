@@ -16,11 +16,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@sma1lboy/rove-daemon/client/daemon-process", () => mocks)
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { openDaemonSession, resolveActiveTaskId } from "../../src/cli/daemon-session.ts"
 
-function fakeClient(): KobeDaemonClient & { close: ReturnType<typeof vi.fn> } {
-  return { close: vi.fn() } as unknown as KobeDaemonClient & { close: ReturnType<typeof vi.fn> }
+function fakeClient(): RoveDaemonClient & { close: ReturnType<typeof vi.fn> } {
+  return { close: vi.fn() } as unknown as RoveDaemonClient & { close: ReturnType<typeof vi.fn> }
 }
 
 beforeEach(() => {
@@ -48,7 +48,7 @@ describe("openDaemonSession", () => {
 })
 
 describe("resolveActiveTaskId", () => {
-  function fakeClient(activeId: string | null): KobeDaemonClient & {
+  function fakeClient(activeId: string | null): RoveDaemonClient & {
     onChannel: MockInstance
     subscribe: MockInstance
   } {
@@ -57,7 +57,7 @@ describe("resolveActiveTaskId", () => {
       return vi.fn()
     })
     const subscribe = vi.fn().mockResolvedValue(undefined)
-    return { onChannel, subscribe } as unknown as KobeDaemonClient & {
+    return { onChannel, subscribe } as unknown as RoveDaemonClient & {
       onChannel: MockInstance
       subscribe: MockInstance
     }
@@ -74,7 +74,7 @@ describe("resolveActiveTaskId", () => {
     const client = {
       onChannel: vi.fn(() => off),
       subscribe: vi.fn().mockRejectedValue(new Error("socket closed")),
-    } as unknown as KobeDaemonClient
+    } as unknown as RoveDaemonClient
     await expect(resolveActiveTaskId(client)).rejects.toThrow("socket closed")
     expect(off).toHaveBeenCalledTimes(1)
   })

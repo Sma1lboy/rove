@@ -1,5 +1,5 @@
 /**
- * createKobeCore — the public bootstrap wiring (store + worktree manager +
+ * createRoveCore — the public bootstrap wiring (store + worktree manager +
  * orchestrator) with home-dir precedence. Store/manager/orchestrator are
  * mocked at their module seams; what's pinned is exactly what this file
  * owns: option > env > homedir precedence, load-before-return, and
@@ -40,7 +40,7 @@ vi.mock("../../src/orchestrator/core.ts", () => ({
   },
 }))
 
-const { createKobeCore } = await import("../../src/core/index.ts")
+const { createRoveCore } = await import("../../src/core/index.ts")
 
 let prevHome: string | undefined
 
@@ -48,30 +48,30 @@ beforeEach(() => {
   fake.storeHomeDirs = []
   fake.loadCalls = 0
   fake.disposeCalls = 0
-  prevHome = process.env.KOBE_HOME_DIR
+  prevHome = process.env.ROVE_HOME_DIR
 })
 
 afterEach(() => {
-  if (prevHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = prevHome
+  if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = prevHome
 })
 
-describe("createKobeCore", () => {
-  test("an explicit homeDir option wins over KOBE_HOME_DIR", async () => {
-    process.env.KOBE_HOME_DIR = "/env-home"
-    const core = await createKobeCore({ homeDir: "/opt-home" })
+describe("createRoveCore", () => {
+  test("an explicit homeDir option wins over ROVE_HOME_DIR", async () => {
+    process.env.ROVE_HOME_DIR = "/env-home"
+    const core = await createRoveCore({ homeDir: "/opt-home" })
     expect(core.homeDir).toBe("/opt-home")
     expect(fake.storeHomeDirs).toEqual(["/opt-home"])
   })
 
-  test("KOBE_HOME_DIR wins over the OS home dir", async () => {
-    process.env.KOBE_HOME_DIR = "/env-home"
-    const core = await createKobeCore()
+  test("ROVE_HOME_DIR wins over the OS home dir", async () => {
+    process.env.ROVE_HOME_DIR = "/env-home"
+    const core = await createRoveCore()
     expect(core.homeDir).toBe("/env-home")
   })
 
   test("loads the store before returning and exposes the wired pieces", async () => {
-    const core = await createKobeCore({ homeDir: "/h" })
+    const core = await createRoveCore({ homeDir: "/h" })
     expect(fake.loadCalls).toBe(1)
     expect(core.store).toBeDefined()
     expect(core.worktrees).toBeDefined()

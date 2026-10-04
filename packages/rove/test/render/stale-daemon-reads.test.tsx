@@ -67,8 +67,8 @@ test("a failed registry check does not render as green up-to-date", async () => 
   // Empty, not deleted: `checkLatestVersion` gates on truthiness, and biome
   // forbids `delete` on process.env (assigning undefined would store the
   // STRING "undefined", which is truthy).
-  const previous = process.env.KOBE_FAKE_UPDATE ?? ""
-  process.env.KOBE_FAKE_UPDATE = ""
+  const previous = process.env.ROVE_FAKE_UPDATE ?? ""
+  process.env.ROVE_FAKE_UPDATE = ""
   // No network in the render track: the fetch fails, which is the case under
   // test. Force it deterministically rather than depending on that.
   const realFetch = globalThis.fetch
@@ -83,7 +83,7 @@ test("a failed registry check does not render as green up-to-date", async () => 
     expect(text).not.toContain(`latest  v${process.env.npm_package_version ?? ""}`)
   } finally {
     globalThis.fetch = realFetch
-    process.env.KOBE_FAKE_UPDATE = previous
+    process.env.ROVE_FAKE_UPDATE = previous
   }
 })
 

@@ -37,17 +37,17 @@ function writeState(obj: Record<string, unknown>): void {
 }
 
 beforeEach(() => {
-  prevHome = process.env.KOBE_HOME_DIR
+  prevHome = process.env.ROVE_HOME_DIR
   tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-wt-base-"))
   home = path.join(tmpRoot, "home")
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   repo = path.join(tmpRoot, "repo")
   fs.mkdirSync(repo, { recursive: true })
 })
 
 afterEach(() => {
-  if (prevHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = prevHome
+  if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = prevHome
   try {
     fs.rmSync(tmpRoot, { recursive: true, force: true })
   } catch {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   ClaudeHookAdapter,
-  KOBE_HOOK_EVENTS,
+  ROVE_HOOK_EVENTS,
   buildClaudeHooks,
   mergeActivityHooks,
   mergeWorktreeSyncHook,
@@ -152,8 +152,8 @@ describe("mergeActivityHooks (global, cwd-based)", () => {
     expect(removed.hooks).toBeUndefined()
   })
 
-  it("KOBE_HOOK_EVENTS lists exactly the events it installs", () => {
-    expect([...KOBE_HOOK_EVENTS].sort()).toEqual(
+  it("ROVE_HOOK_EVENTS lists exactly the events it installs", () => {
+    expect([...ROVE_HOOK_EVENTS].sort()).toEqual(
       [
         "Notification",
         "SessionEnd",
@@ -287,7 +287,7 @@ describe("removeWorktreeWatchHook (PostToolUse observer)", () => {
  * session's `CLAUDE_CODE_SESSION_ATTENDED` stamp. That flag is the only signal
  * anywhere that separates a nested headless engine from the tab it was
  * launched inside: both run in the same worktree, and both inherit the tab's
- * `KOBE_TAB_ID`.
+ * `ROVE_TAB_ID`.
  */
 describe("ClaudeHookAdapter.isUnattendedSession", () => {
   const adapter = new ClaudeHookAdapter()

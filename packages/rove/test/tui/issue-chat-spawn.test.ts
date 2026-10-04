@@ -9,7 +9,7 @@
  * hosted session (same `taskId::tab-1` key, spawned=true, pinned session id)
  * instead of spawning a second engine on the same worktree.
  *
- * State is isolated via `KOBE_HOME_DIR` (interactiveEngineCommand and the
+ * State is isolated via `ROVE_HOME_DIR` (interactiveEngineCommand and the
  * protocol gates read the shared state.json).
  */
 
@@ -26,13 +26,13 @@ let originalHome: string | undefined
 
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-issue-spawn-"))
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   fs.rmSync(tmpHome, { recursive: true, force: true })
 })
 

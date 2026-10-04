@@ -35,8 +35,8 @@ import {
 export { fixtureAuthHeaders }
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
-export const KOBE_DIR: string = join(REPO_ROOT, "packages", "kobe")
-export const HERO_CLI: string = join(KOBE_DIR, "dist", "cli", "rove.js")
+export const ROVE_DIR: string = join(REPO_ROOT, "packages", "kobe")
+export const HERO_CLI: string = join(ROVE_DIR, "dist", "cli", "rove.js")
 
 export const HERO_PORT_BASE = Number.parseInt(process.env.HERO_PORT_BASE ?? "5323", 10)
 const PORTS: FixturePorts = fixturePortBase(HERO_PORT_BASE)
@@ -169,17 +169,17 @@ export function heroEnv(parent: NodeJS.ProcessEnv = process.env): Record<string,
 export function heroPtyCommand(): string {
   const inline = [
     `ROVE_HOME_DIR=${HERO_HOME}`,
-    `KOBE_HOME_DIR=${HERO_HOME}`,
+    `ROVE_HOME_DIR=${HERO_HOME}`,
     `ROVE_SANDBOX_HOME_DIR=${HERO_HOME}`,
-    `KOBE_SANDBOX_HOME_DIR=${HERO_HOME}`,
+    `ROVE_SANDBOX_HOME_DIR=${HERO_HOME}`,
     `ROVE_DAEMON_SOCKET_PATH=${HERO_DAEMON_SOCKET}`,
-    `KOBE_DAEMON_SOCKET_PATH=${HERO_DAEMON_SOCKET}`,
+    `ROVE_DAEMON_SOCKET_PATH=${HERO_DAEMON_SOCKET}`,
     `ROVE_PTY_SOCKET_PATH=${HERO_PTY_SOCKET}`,
-    `KOBE_PTY_SOCKET_PATH=${HERO_PTY_SOCKET}`,
+    `ROVE_PTY_SOCKET_PATH=${HERO_PTY_SOCKET}`,
     "ROVE_TASK_ID=",
-    "KOBE_TASK_ID=",
+    "ROVE_TASK_ID=",
     "ROVE_TAB_ID=",
-    "KOBE_TAB_ID=",
+    "ROVE_TAB_ID=",
   ]
     // Single-quoted: a Windows path's backslashes are escapes to an unquoted sh word.
     .map((pair) => pair.replace(/=(.+)$/, (_, value: string) => `='${value}'`))

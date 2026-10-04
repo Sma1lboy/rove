@@ -75,11 +75,11 @@ export async function simpleRpc(ctx: VerbContext, name: string, payload: Record<
  * Matches `inspect`'s sessions section.
  */
 export async function handlePtyList(): Promise<unknown> {
-  const [{ KobeDaemonClient }, { defaultPtyHostSocketPath }] = await Promise.all([
+  const [{ RoveDaemonClient }, { defaultPtyHostSocketPath }] = await Promise.all([
     import("@sma1lboy/rove-daemon/client"),
     import("@sma1lboy/rove-daemon/daemon/paths"),
   ])
-  const client = new KobeDaemonClient(defaultPtyHostSocketPath())
+  const client = new RoveDaemonClient(defaultPtyHostSocketPath())
   try {
     await client.connect()
     return await client.request("pty.list", {})

@@ -13,7 +13,7 @@ vi.mock("../../src/state/repos", () => ({
 vi.mock("../../src/engine/account-detect", () => ({
   availableEngineIds: vi.fn(async () => ["claude"]),
 }))
-import type { KobeOrchestrator } from "../../src/client/remote-orchestrator"
+import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import { activateWorkspaceTask } from "../../src/tui-react/workspace/use-task-selection"
 import { type CreateTaskContext, createTaskFlow } from "../../src/tui/lib/task-create-flow"
 
@@ -25,7 +25,7 @@ describe("pure-TUI new-task auto-materialization (behavior)", () => {
     const orch = {
       createTask: vi.fn(async () => ({ id: "new-task" })),
       discoverAdoptableWorktrees: vi.fn(async () => []),
-    } as unknown as KobeOrchestrator
+    } as unknown as RoveOrchestrator
     const ctx: CreateTaskContext = {
       orch,
       tasks: () => [],

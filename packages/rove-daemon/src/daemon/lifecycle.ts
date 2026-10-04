@@ -7,7 +7,7 @@
  */
 
 import { unlink } from "node:fs/promises"
-import { KobeDaemonClient } from "../client/index.ts"
+import { RoveDaemonClient } from "../client/index.ts"
 import type { DaemonStopReason } from "./protocol.ts"
 import { isProcessAlive, readPidFile } from "./socket-guard.ts"
 
@@ -47,7 +47,7 @@ export async function stopDaemonProcess(
   let method: DaemonStopMethod = wasAlive ? "graceful" : "absent"
 
   // 2s for the RPC, then signals. Nothing listening → connect fails fast.
-  const client = new KobeDaemonClient(socketPath)
+  const client = new RoveDaemonClient(socketPath)
   const stopRequest = client.request("daemon.stop", { reason: opts.reason ?? "stop" }).catch(() => undefined)
   const stopTimeout = new Promise<void>((resolve) => setTimeout(resolve, 2000))
   await Promise.race([stopRequest, stopTimeout])

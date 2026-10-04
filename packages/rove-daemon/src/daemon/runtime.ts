@@ -94,7 +94,7 @@ export interface DaemonRuntimeAdapter {
   ): Promise<{ baseRef: string; alreadyCurrent: boolean }>
   availableEngineIds(): Promise<readonly VendorId[]>
   engineDisplayName(vendor: VendorId): string
-  kobeApiInvocation(): string
+  roveApiInvocation(): string
   ensureTaskSession(link: DaemonRpcClient, taskId: string): Promise<{ session: string; worktreePath: string }>
   /**
    * Materialize the worktree and START the engine with `prompt` in its argv

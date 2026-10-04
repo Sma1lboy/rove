@@ -31,7 +31,7 @@ import type { Task } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
 // UpdatePage reaches the npm registry on mount unless this hook is set.
-process.env.KOBE_FAKE_UPDATE = "99.0.0"
+process.env.ROVE_FAKE_UPDATE = "99.0.0"
 
 const WT_ROW = {
   repo: "/x/kobe",
@@ -39,7 +39,7 @@ const WT_ROW = {
   branch: "feature-a",
   head: "abc1234",
   dirty: false,
-  kobeManaged: true,
+  roveManaged: true,
   lastActivityMs: 0,
   createdAtMs: 0,
   branchOnRemote: false,

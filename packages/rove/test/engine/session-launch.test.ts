@@ -45,8 +45,8 @@ describe("hosted engine session launch", () => {
     expect(launch.key).toBe("task-1::tab-1")
     expect(launch.command.slice(0, 2)).toEqual(["/bin/zsh", "-ilc"])
     expect(launch.command[2]).toContain("claude 'fix it'")
-    expect(launch.command[2]).toContain("ROVE_TASK_ID='task-1' KOBE_TASK_ID='task-1'")
-    expect(launch.command[2]).toContain("ROVE_TAB_ID='tab-1' KOBE_TAB_ID='tab-1'")
+    expect(launch.command[2]).toContain("ROVE_TASK_ID='task-1' ROVE_TASK_ID='task-1'")
+    expect(launch.command[2]).toContain("ROVE_TAB_ID='tab-1' ROVE_TAB_ID='tab-1'")
     expect(launch.command[2]).toContain('exec "${SHELL:-/bin/sh}"')
   })
 

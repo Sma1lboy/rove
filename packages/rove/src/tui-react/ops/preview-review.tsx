@@ -159,7 +159,7 @@ export function useDiffReview(args: {
   useBindings(() => ({
     enabled: enabled && args.focused,
     bindings: [
-      // `id`s mirror KobeKeymap's doc-only `diff.review.*` rows (chords are
+      // `id`s mirror RoveKeymap's doc-only `diff.review.*` rows (chords are
       // fixed via FIXED_BINDING_IDS); they put the rows in F1's reachability scan.
       { key: "j", id: "diff.review.cursor", cmd: () => moveCursor(1) },
       { key: "down", id: "diff.review.cursor", cmd: () => moveCursor(1) },

@@ -13,11 +13,11 @@ import { GitWorktreeManager } from "../orchestrator/worktree/manager.ts"
 import { backfillSavedReposFromProjects } from "../state/repos.ts"
 import { tearDownTaskSessionAdapter } from "./daemon-session-adapter.ts"
 
-export interface KobeCoreOptions {
+export interface RoveCoreOptions {
   readonly homeDir?: string
 }
 
-export interface KobeCore {
+export interface RoveCore {
   readonly homeDir: string
   readonly orchestrator: Orchestrator
   readonly store: TaskIndexStore
@@ -25,7 +25,7 @@ export interface KobeCore {
   close(): Promise<void>
 }
 
-export async function createKobeCore(options: KobeCoreOptions = {}): Promise<KobeCore> {
+export async function createRoveCore(options: RoveCoreOptions = {}): Promise<RoveCore> {
   const homeDir = options.homeDir ?? readRoveHomeDirEnv() ?? homedir()
   const store = new TaskIndexStore({ homeDir })
   await store.load()

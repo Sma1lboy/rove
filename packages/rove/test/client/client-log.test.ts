@@ -15,22 +15,22 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
  * The client log is the observability that was MISSING when the Tasks-pane
  * sync drift went undiagnosed: a pane in an opentui alternate-screen has no
  * visible stdout, so its disconnect churn left no trace. These lock that a
- * real write lands on disk under the KOBE_HOME_DIR-isolated `.kobe/client.log`.
+ * real write lands on disk under the ROVE_HOME_DIR-isolated `.kobe/client.log`.
  */
 describe("client-log", () => {
   describe("file write", () => {
     let home: string
-    const prev = process.env.KOBE_HOME_DIR
+    const prev = process.env.ROVE_HOME_DIR
 
     beforeEach(async () => {
       home = await mkdtemp(join(tmpdir(), "kobe-clientlog-"))
-      process.env.KOBE_HOME_DIR = home
+      process.env.ROVE_HOME_DIR = home
     })
 
     afterEach(async () => {
       // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test (assigning undefined leaves the string "undefined").
-      if (prev === undefined) delete process.env.KOBE_HOME_DIR
-      else process.env.KOBE_HOME_DIR = prev
+      if (prev === undefined) delete process.env.ROVE_HOME_DIR
+      else process.env.ROVE_HOME_DIR = prev
       await rm(home, { recursive: true, force: true })
     })
 

@@ -4,11 +4,11 @@
  * `keybindings-table.ts`, re-exported here for existing importers.
  */
 
-import type { KobeBinding, KobeBindingHint } from "./keybindings-table.ts"
-import { KobeKeymap } from "./keybindings-table.ts"
+import type { RoveBinding, RoveBindingHint } from "./keybindings-table.ts"
+import { RoveKeymap } from "./keybindings-table.ts"
 
-export { KobeKeymap } from "./keybindings-table.ts"
-export type { KobeBinding, KobeBindingScope } from "./keybindings-table.ts"
+export { RoveKeymap } from "./keybindings-table.ts"
+export type { RoveBinding, RoveBindingScope } from "./keybindings-table.ts"
 
 /**
  * Pristine `keys`/`prefixKeys`/`hint` captured at module load, BEFORE any
@@ -17,9 +17,9 @@ export type { KobeBinding, KobeBindingScope } from "./keybindings-table.ts"
  */
 const KEYMAP_DEFAULTS: ReadonlyMap<
   string,
-  { keys: readonly string[]; prefixKeys?: readonly string[]; hint?: KobeBindingHint }
+  { keys: readonly string[]; prefixKeys?: readonly string[]; hint?: RoveBindingHint }
 > = new Map(
-  KobeKeymap.map((b) => [
+  RoveKeymap.map((b) => [
     b.id,
     { keys: [...b.keys], prefixKeys: b.prefixKeys && [...b.prefixKeys], hint: b.hint ? { ...b.hint } : undefined },
   ]),
@@ -40,10 +40,10 @@ export function defaultChordsOf(id: string): readonly string[] {
  * are runtime-mutable despite `readonly`).
  */
 export function resetKeymapToDefaults(): void {
-  for (const row of KobeKeymap) {
+  for (const row of RoveKeymap) {
     const def = KEYMAP_DEFAULTS.get(row.id)
     if (!def) continue
-    const mutable = row as { keys: readonly string[]; prefixKeys?: readonly string[]; hint?: KobeBindingHint }
+    const mutable = row as { keys: readonly string[]; prefixKeys?: readonly string[]; hint?: RoveBindingHint }
     mutable.keys = [...def.keys]
     mutable.prefixKeys = def.prefixKeys && [...def.prefixKeys]
     mutable.hint = def.hint ? { ...def.hint } : undefined
@@ -81,9 +81,9 @@ export function bumpKeymapVersion(): void {
  * configs call `bindByIds` each dispatch); a linear scan is ~1.4k comparisons
  * per keypress at a realistic 5-group / 23-id stack.
  */
-const KEYMAP_BY_ID: ReadonlyMap<string, KobeBinding> = new Map(KobeKeymap.map((b) => [b.id, b]))
+const KEYMAP_BY_ID: ReadonlyMap<string, RoveBinding> = new Map(RoveKeymap.map((b) => [b.id, b]))
 
-export function findBinding(id: string): KobeBinding | undefined {
+export function findBinding(id: string): RoveBinding | undefined {
   return KEYMAP_BY_ID.get(id)
 }
 

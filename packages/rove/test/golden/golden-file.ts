@@ -17,8 +17,8 @@
  *
  * Regenerating after an INTENTIONAL change:
  *
- *     KOBE_UPDATE_GOLDEN=1 bun run test:fast     # state matrices
- *     KOBE_UPDATE_GOLDEN=1 bun run test:render   # OpenTUI frames
+ *     ROVE_UPDATE_GOLDEN=1 bun run test:fast     # state matrices
+ *     ROVE_UPDATE_GOLDEN=1 bun run test:render   # OpenTUI frames
  *
  * then read the `git diff` before committing — an unexplained line in that
  * diff is the finding, not the noise.
@@ -29,7 +29,7 @@ import { dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 
 /** Rewrite goldens from the current behavior instead of comparing against them. */
-export const UPDATE_GOLDEN = process.env.KOBE_UPDATE_GOLDEN === "1"
+export const UPDATE_GOLDEN = process.env.ROVE_UPDATE_GOLDEN === "1"
 
 /** Resolve a golden path relative to the calling test file's own directory. */
 export function goldenPath(importMetaUrl: string, name: string): string {
@@ -56,7 +56,7 @@ export function matchGolden(absPath: string, actual: string): string | null {
     return null
   }
   if (!existsSync(absPath)) {
-    return `missing golden ${absPath}\n  regenerate with KOBE_UPDATE_GOLDEN=1, then review the diff before committing`
+    return `missing golden ${absPath}\n  regenerate with ROVE_UPDATE_GOLDEN=1, then review the diff before committing`
   }
   const expected = readFileSync(absPath, "utf8")
   if (expected === normalized) return null
@@ -80,7 +80,7 @@ export function matchGolden(absPath: string, actual: string): string | null {
       `    + ${actualLines[i] ?? "<missing>"}`,
     )
   }
-  report.push("  if this change is intended: KOBE_UPDATE_GOLDEN=1 <the same test command>, then review the diff")
+  report.push("  if this change is intended: ROVE_UPDATE_GOLDEN=1 <the same test command>, then review the diff")
   return report.join("\n")
 }
 
@@ -97,7 +97,7 @@ export function goldenDocument(
 ): string {
   const out: string[] = [
     `# ${header}`,
-    "# GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 <test command>",
+    "# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 <test command>",
   ]
   for (const block of blocks) {
     out.push("", `## ${block.title}`, ...block.lines)

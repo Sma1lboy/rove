@@ -6,7 +6,7 @@ import { availableEngineIds } from "../engine/account-detect.ts"
 import { engineProtocolKey, protocolEntry, sessionProtocol } from "../engine/engine-presets.ts"
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../engine/foreground.ts"
 import { affectsActivityState, isEngineActivityKind } from "../engine/hook-events.ts"
-import { engineDisplayName, kobeApiInvocation } from "../engine/interactive-command.ts"
+import { engineDisplayName, roveApiInvocation } from "../engine/interactive-command.ts"
 import { protocolUpgradeFromLiveSession, protocolWriteBackFromLiveSession } from "../engine/protocol-sniff.ts"
 import { engineEntry, engineTitleTurnHint, vendorsWithQuotaProbe } from "../engine/registry.ts"
 import { createEngineTurnDetector } from "../engine/turn-detector.ts"
@@ -124,7 +124,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   },
   availableEngineIds,
   engineDisplayName,
-  kobeApiInvocation,
+  roveApiInvocation,
   engineEntry,
   ensureTaskSession: ensureTaskSessionAdapter,
   startTaskSessionWithPrompt: startTaskSessionWithPromptAdapter,

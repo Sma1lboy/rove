@@ -15,10 +15,10 @@ import {
 } from "../src/version.ts"
 
 // The npm version check is suppressed in dev. `isDev()` reads ROVE_DEV first
-// and falls back to KOBE_DEV, and `bun run dev` exports the canonical
+// and falls back to ROVE_DEV, and `bun run dev` exports the canonical
 // ROVE_DEV=1 — so a run started from inside a Rove session must clear BOTH,
 // or every assertion below silently exercises the suppressed path.
-const DEV_ENV_KEYS = ["ROVE_DEV", "KOBE_DEV"] as const
+const DEV_ENV_KEYS = ["ROVE_DEV", "ROVE_DEV"] as const
 const ORIGINAL_DEV_ENV = DEV_ENV_KEYS.map((key) => [key, process.env[key]] as const)
 
 function clearDevEnv(): void {
@@ -62,25 +62,25 @@ describe("checkLatestVersion", () => {
   })
 })
 
-describe("checkLatestVersion — dev suppression and the KOBE_FAKE_UPDATE debug hook", () => {
-  const ORIGINAL_FAKE = process.env.KOBE_FAKE_UPDATE
+describe("checkLatestVersion — dev suppression and the ROVE_FAKE_UPDATE debug hook", () => {
+  const ORIGINAL_FAKE = process.env.ROVE_FAKE_UPDATE
 
   beforeEach(() => {
     clearDevEnv()
-    Reflect.deleteProperty(process.env, "KOBE_FAKE_UPDATE")
+    Reflect.deleteProperty(process.env, "ROVE_FAKE_UPDATE")
   })
 
   afterEach(() => {
     restoreDevEnv()
-    if (ORIGINAL_FAKE === undefined) Reflect.deleteProperty(process.env, "KOBE_FAKE_UPDATE")
-    else process.env.KOBE_FAKE_UPDATE = ORIGINAL_FAKE
+    if (ORIGINAL_FAKE === undefined) Reflect.deleteProperty(process.env, "ROVE_FAKE_UPDATE")
+    else process.env.ROVE_FAKE_UPDATE = ORIGINAL_FAKE
     vi.unstubAllGlobals()
   })
 
-  it("KOBE_FAKE_UPDATE bypasses the network entirely and compares by semver", async () => {
+  it("ROVE_FAKE_UPDATE bypasses the network entirely and compares by semver", async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal("fetch", fetchMock)
-    process.env.KOBE_FAKE_UPDATE = "999.0.0"
+    process.env.ROVE_FAKE_UPDATE = "999.0.0"
     await expect(checkLatestVersion()).resolves.toEqual({
       current: CURRENT_VERSION,
       latest: "999.0.0",
@@ -88,15 +88,15 @@ describe("checkLatestVersion — dev suppression and the KOBE_FAKE_UPDATE debug 
       channel: channelOf(CURRENT_VERSION),
     })
     // A LOWER fake version still reads as "no update", not a downgrade chip.
-    process.env.KOBE_FAKE_UPDATE = "0.0.1"
+    process.env.ROVE_FAKE_UPDATE = "0.0.1"
     await expect(checkLatestVersion()).resolves.toMatchObject({ hasUpdate: false })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   // Canonical name AND the legacy alias, one case each: `bun run dev` now
   // exports ROVE_DEV, while an older shell (or an installed 0.8.x wrapper)
-  // still carries KOBE_DEV, and both must suppress the update chip.
-  it.each(["ROVE_DEV", "KOBE_DEV"])("%s=1 suppresses the check unless force is passed", async (key) => {
+  // still carries ROVE_DEV, and both must suppress the update chip.
+  it.each(["ROVE_DEV", "ROVE_DEV"])("%s=1 suppresses the check unless force is passed", async (key) => {
     process.env[key] = "1"
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ version: "999.0.0" }), { status: 200 }))
     vi.stubGlobal("fetch", fetchMock)

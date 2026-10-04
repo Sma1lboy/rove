@@ -92,15 +92,15 @@ describe("captureClipboardAttachment", () => {
 
   beforeEach(() => {
     home = mkdtempSync(join(tmpdir(), "kobe-attach-"))
-    prevHome = process.env.KOBE_HOME_DIR
-    process.env.KOBE_HOME_DIR = home
+    prevHome = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = home
   })
 
   afterEach(() => {
     Object.defineProperty(process, "platform", realPlatform)
     ;(globalThis as { Bun?: unknown }).Bun = undefined
-    if (prevHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-    else process.env.KOBE_HOME_DIR = prevHome
+    if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = prevHome
     rmSync(home, { recursive: true, force: true })
   })
 

@@ -53,7 +53,7 @@ on = "task.created"
 command = ["sh", "notify.sh"]
 
 [[settings]]
-key = "KOBE_NOTIFY_SOUND"
+key = "ROVE_NOTIFY_SOUND"
 label = "Sound"
 type = "enum"
 options = ["ping", "glass"]
@@ -147,10 +147,10 @@ describe("pluginRowView", () => {
   })
 
   it("joins declared settings with their stored values, and has none without a manifest", () => {
-    const stored = pluginRowView(NONE, githubEntry, MANIFEST, null, { KOBE_NOTIFY_SOUND: "glass" })
+    const stored = pluginRowView(NONE, githubEntry, MANIFEST, null, { ROVE_NOTIFY_SOUND: "glass" })
     expect(stored.settings).toEqual([
       {
-        key: "KOBE_NOTIFY_SOUND",
+        key: "ROVE_NOTIFY_SOUND",
         label: "Sound",
         type: "enum",
         options: ["ping", "glass"],

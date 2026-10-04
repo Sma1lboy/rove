@@ -3,7 +3,7 @@
  *
  * The module reads/writes the same on-disk KV blob the TUI uses
  * (`~/.config/rove/state.json`), so the tests redirect HOME via
- * `KOBE_HOME_DIR` to a per-test tmpdir. Every state mutation is
+ * `ROVE_HOME_DIR` to a per-test tmpdir. Every state mutation is
  * scoped to that tmpdir; the real `~/.config/rove/` is untouched.
  *
  * What we pin:
@@ -50,19 +50,19 @@ beforeEach(() => {
   // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
   // built under the un-resolved spelling would compare unequal to what was saved.
   tmpHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "kobe-repos-")))
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
 })
 
 afterEach(() => {
   // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves it as the string "undefined"). Same pattern as test/tui/user-slashes.test.ts.
-  if (originalHome === undefined) delete process.env.KOBE_HOME_DIR
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) delete process.env.ROVE_HOME_DIR
+  else process.env.ROVE_HOME_DIR = originalHome
   fs.rmSync(tmpHome, { recursive: true, force: true })
 })
 
 describe("statePath", () => {
-  test("resolves under KOBE_HOME_DIR", () => {
+  test("resolves under ROVE_HOME_DIR", () => {
     expect(statePath()).toBe(path.join(tmpHome, ".config", "rove", "state.json"))
   })
 })

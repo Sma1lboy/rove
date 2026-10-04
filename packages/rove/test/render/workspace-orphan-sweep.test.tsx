@@ -75,10 +75,10 @@ function Probe(props: { orch: RemoteOrchestrator; kv: TabsSnapshotKv; initial: T
   return null
 }
 
-const savedHome = process.env.KOBE_HOME_DIR
+const savedHome = process.env.ROVE_HOME_DIR
 
 test("a task deleted by a sibling client is swept on the next task-list change, without touching live snapshots", async () => {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-orphan-sweep-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-orphan-sweep-"))
   const kv = fakeKv({
     [terminalTabsKey("alpha")]: { tabs: [] },
     [terminalTabsKey("bravo")]: { tabs: [] },
@@ -106,12 +106,12 @@ test("a task deleted by a sibling client is swept on the next task-list change, 
   })
   expect(kv.store[terminalTabsKey("alpha")]).toEqual({ tabs: [] })
 
-  if (savedHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = savedHome
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
 })
 
 test("an empty task list sweeps nothing — the guard is load-bearing", async () => {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-orphan-sweep-empty-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-orphan-sweep-empty-"))
   const kv = fakeKv({
     [terminalTabsKey("alpha")]: { tabs: [] },
   })
@@ -123,6 +123,6 @@ test("an empty task list sweeps nothing — the guard is load-bearing", async ()
   // recovery; sweeping on it would wipe every live snapshot on the machine.
   expect(kv.store[terminalTabsKey("alpha")]).toEqual({ tabs: [] })
 
-  if (savedHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = savedHome
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
 })

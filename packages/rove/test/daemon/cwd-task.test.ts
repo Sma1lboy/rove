@@ -4,7 +4,6 @@ import path from "node:path"
 import { findAdoptableWorktree, matchTaskByCwd, matchTaskByWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
-  REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH,
   REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
   managedWorktreeRootsFor,
   worktreeRootFor,
@@ -13,13 +12,13 @@ import {
 let prevHome: string | undefined
 
 beforeEach(() => {
-  prevHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = "/home/kobe-test"
+  prevHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = "/home/kobe-test"
 })
 
 afterEach(() => {
-  if (prevHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = prevHome
+  if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = prevHome
 })
 
 describe("matchTaskByCwd", () => {
@@ -128,7 +127,7 @@ describe("findAdoptableWorktree", () => {
   const tasks = () => [
     { id: "main", repo: "/repo", worktreePath: "/repo" },
     { id: "sub", repo: "/repo", worktreePath: path.join(worktreeRootFor("/repo"), "known") },
-    { id: "repo-local", repo: "/repo", worktreePath: `/repo/${REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH}/local` },
+    { id: "repo-local", repo: "/repo", worktreePath: `/repo/${REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH}/local` },
     { id: "legacy", repo: "/repo", worktreePath: "/repo/.claude/worktrees/old" },
   ]
 
@@ -211,14 +210,14 @@ describe("findAdoptableWorktree honours the worktree.basePath override", () => {
   }
 
   beforeEach(() => {
-    prev = process.env.KOBE_HOME_DIR
+    prev = process.env.ROVE_HOME_DIR
     home = mkdtempSync(path.join(tmpdir(), "rove-wt-base-"))
-    process.env.KOBE_HOME_DIR = home
+    process.env.ROVE_HOME_DIR = home
   })
 
   afterEach(() => {
-    if (prev === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-    else process.env.KOBE_HOME_DIR = prev
+    if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = prev
     rmSync(home, { recursive: true, force: true })
   })
 

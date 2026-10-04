@@ -1,7 +1,7 @@
 /**
  * Every production env/runtime flag read goes through here: `ROVE_*` first,
- * falling back to the `KOBE_*` alias. Test-only vars (`KOBE_TEST_ENGINE`,
- * `KOBE_TEST_FAKE_PORT`, per-pane `KOBE_*_HOST` fixtures) stay at their use
+ * falling back to the `ROVE_*` alias. Test-only vars (`ROVE_TEST_ENGINE`,
+ * `ROVE_TEST_FAKE_PORT`, per-pane `ROVE_*_HOST` fixtures) stay at their use
  * sites.
  *
  * Not a config layer: no `.env` loading, no config-file cascade.
@@ -15,10 +15,10 @@ import {
   defaultUiPrefsStatePath,
   resolveProductHomeDir,
 } from "@sma1lboy/rove-daemon/daemon/product-paths"
-import { LEGACY_KOBE_CONFIG_DIR_BASENAME, LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "./product.ts"
+import { LEGACY_ROVE_CONFIG_DIR_BASENAME, LEGACY_ROVE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "./product.ts"
 
 /**
- * `ROVE_DEV=1` / `KOBE_DEV=1` — running from a developer checkout. Suppresses
+ * `ROVE_DEV=1` / `ROVE_DEV=1` — running from a developer checkout. Suppresses
  * the npm "↑ vX.Y.Z available" chip; the installed CLI never sets it.
  */
 export function isDev(): boolean {
@@ -26,7 +26,7 @@ export function isDev(): boolean {
 }
 
 /**
- * `ROVE_HOME_DIR` / `KOBE_HOME_DIR` — overrides `os.homedir()` for everything
+ * `ROVE_HOME_DIR` / `ROVE_HOME_DIR` — overrides `os.homedir()` for everything
  * Rove persists; tests point it at a temp dir.
  */
 export function homeDir(): string {
@@ -39,8 +39,8 @@ export function roveStateDir(): string {
 }
 
 /** Compatibility root for data created before the Rove migration. */
-export function legacyKobeStateDir(): string {
-  return join(homeDir(), LEGACY_KOBE_STATE_DIR_BASENAME)
+export function legacyRoveStateDir(): string {
+  return join(homeDir(), LEGACY_ROVE_STATE_DIR_BASENAME)
 }
 
 /**
@@ -53,8 +53,8 @@ export function kvStatePath(): string {
 }
 
 /** Compatibility path copied on first launch after upgrade. */
-export function legacyKobeKvStatePath(): string {
-  return join(homeDir(), ".config", LEGACY_KOBE_CONFIG_DIR_BASENAME, "state.json")
+export function legacyRoveKvStatePath(): string {
+  return join(homeDir(), ".config", LEGACY_ROVE_CONFIG_DIR_BASENAME, "state.json")
 }
 
 /**

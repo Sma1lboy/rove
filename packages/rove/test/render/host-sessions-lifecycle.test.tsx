@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 import { expect, spyOn, test } from "bun:test"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { useEffect, useState } from "react"
 import type { LiveSession } from "../../src/tui-react/panes/sidebar/orphan-tabs"
 import { useHostSessions } from "../../src/tui-react/panes/sidebar/use-host-sessions"
@@ -14,7 +14,7 @@ async function until(predicate: () => boolean) {
 }
 
 test("inventory polling publishes PID changes, skips identical snapshots, and stops on unmount", async () => {
-  const client = new KobeDaemonClient("/unused-host-sessions-test.sock")
+  const client = new RoveDaemonClient("/unused-host-sessions-test.sock")
   const getClient = spyOn(hostedClient, "getSharedPtyClient").mockResolvedValue(client)
   const request = spyOn(client, "request")
   const first = { key: "task::tab-1", alive: true, title: "shell", pid: 101 }

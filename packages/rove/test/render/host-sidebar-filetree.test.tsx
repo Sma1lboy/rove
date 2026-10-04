@@ -76,7 +76,7 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
 }
 
 function withTempKvHome(): void {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-panes-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-panes-"))
 }
 
 /** Mimic the workspace frame: a bounded ROW container so the sidebar column

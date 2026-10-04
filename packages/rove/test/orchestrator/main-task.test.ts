@@ -26,8 +26,8 @@ beforeEach(async () => {
   if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}\n${r.stdout}`)
   // Isolate the shared state.json (savedRepos) that forgetProject mutates so
   // tests never touch the developer's real ~/.config/rove.
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = path.join(tmpRoot, "home")
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = path.join(tmpRoot, "home")
   store = new TaskIndexStore({ homeDir: path.join(tmpRoot, "home") })
   await store.load()
   orch = new Orchestrator({ store, worktrees: new GitWorktreeManager() })
@@ -35,8 +35,8 @@ beforeEach(async () => {
 
 afterEach(() => {
   // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves the string "undefined").
-  if (originalHome === undefined) delete process.env.KOBE_HOME_DIR
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) delete process.env.ROVE_HOME_DIR
+  else process.env.ROVE_HOME_DIR = originalHome
   try {
     fs.rmSync(tmpRoot, { recursive: true, force: true })
   } catch {

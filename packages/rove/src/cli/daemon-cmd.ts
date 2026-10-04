@@ -1,6 +1,6 @@
 /** `kobe daemon <command>` — daemon lifecycle. `argv` is already trimmed of the `daemon` verb. */
 
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { connectOrStartDaemon, daemonSpawnReason } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { installDaemonCrashHandlers, logDaemonInfo } from "@sma1lboy/rove-daemon/daemon/crash-log"
 import { stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
@@ -8,7 +8,7 @@ import { rotateLogIfNeeded } from "@sma1lboy/rove-daemon/daemon/log-rotate"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { readPidFile, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
-import { type KobeCore, createKobeCore } from "../core/index.ts"
+import { type RoveCore, createRoveCore } from "../core/index.ts"
 import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
 import { CURRENT_VERSION } from "../version.ts"
@@ -51,7 +51,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   }
 
   if (command === "status") {
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     try {
       const status = await client.request<Record<string, unknown>>("daemon.status")
       console.log(JSON.stringify(status, null, 2))
@@ -67,7 +67,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   }
 
   if (command === "stop") {
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     try {
       await client.request("daemon.stop")
       console.log(`${CLI_NAME} daemon: stop requested`)
@@ -104,12 +104,12 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   // First line: who asked (`explicit-restart`, `autospawn`, `manual`).
   logDaemonInfo("boot", `daemon starting — ${daemonSpawnReason()} (pid ${process.pid}, v${CURRENT_VERSION})`)
 
-  let core: KobeCore | undefined
+  let core: RoveCore | undefined
   const server = await startDaemonServer(
     async () => {
       const migration = migrateRoveDaemonStateLayout()
       for (const warning of migration.warnings) console.error(`[rove] daemon state migration will retry: ${warning}`)
-      core = await createKobeCore()
+      core = await createRoveCore()
       const swept = sweepIndexLeftovers(core.store.stateDir)
       if (swept.lock || swept.tmp.length > 0) {
         console.error(

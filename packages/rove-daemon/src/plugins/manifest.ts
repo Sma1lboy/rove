@@ -121,7 +121,7 @@ export interface PluginManifest {
   readonly id: string
   readonly name: string
   readonly version: string
-  readonly minKobeVersion: string
+  readonly minRoveVersion: string
   readonly description?: string
   readonly platforms?: readonly PluginPlatform[]
   readonly build: readonly PluginCommandSpec[]
@@ -173,7 +173,7 @@ export const RESERVED_ENGINE_IDS: readonly string[] = [
   "bob",
 ]
 
-/** Canonical Rove spelling wins; the Kobe spelling is a permanent read fallback. */
+/** Canonical Rove spelling wins; the Rove spelling is a permanent read fallback. */
 export function pluginManifestPath(root: string): string | null {
   for (const filename of PLUGIN_MANIFEST_FILENAMES) {
     const path = join(root, filename)
@@ -244,7 +244,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   const name = asString(raw.name, "name")
   const version = asString(raw.version, "version")
   const rawMinVersion = raw.min_rove_version ?? raw.min_kobe_version
-  const minKobeVersion = asString(rawMinVersion, "min_rove_version")
+  const minRoveVersion = asString(rawMinVersion, "min_rove_version")
   const description = raw.description === undefined ? undefined : asString(raw.description, "description")
   const platforms = asPlatforms(raw.platforms, "platforms")
   if (!platforms) warnings.push("no top-level `platforms` declared; assuming the plugin runs everywhere")
@@ -442,7 +442,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       id,
       name,
       version,
-      minKobeVersion,
+      minRoveVersion,
       description,
       platforms,
       build,

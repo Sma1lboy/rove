@@ -1,6 +1,6 @@
 /** Prefer a live daemon (so a TUI sees updates at once), else an in-process orchestrator. */
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { connectIfRunning } from "@sma1lboy/rove-daemon/client/daemon-process"
 import type { Orchestrator } from "../orchestrator/core.ts"
 
@@ -16,7 +16,7 @@ export async function openLocalOrchestrator(): Promise<Orchestrator> {
 
 /** The daemon client is closed in `finally`; the local orchestrator is single-use. */
 export async function withDaemonOrLocal<T>(bridge: {
-  daemon: (client: KobeDaemonClient) => Promise<T>
+  daemon: (client: RoveDaemonClient) => Promise<T>
   local: (orch: Orchestrator) => Promise<T>
 }): Promise<T> {
   const client = await connectIfRunning()

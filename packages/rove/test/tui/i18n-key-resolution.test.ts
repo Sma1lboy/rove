@@ -40,8 +40,8 @@ import type { AutomationRunStatus } from "@sma1lboy/rove-daemon/daemon/contracts
 import { describe, expect, test } from "vitest"
 import { DOW_CODES } from "../../src/tui/component/cron-segments"
 import { SECTIONS } from "../../src/tui/component/settings-dialog/model"
-import { KobeKeymap } from "../../src/tui/context/keybindings"
-import type { KobeBindingScope } from "../../src/tui/context/keybindings"
+import { RoveKeymap } from "../../src/tui/context/keybindings"
+import type { RoveBindingScope } from "../../src/tui/context/keybindings"
 import { en } from "../../src/tui/i18n/catalog"
 import { UI_PREFS_FOCUS_ACCENT_SLOTS } from "../../src/tui/lib/apply-ui-prefs"
 import { guideCategory, scopeCategory } from "../../src/tui/lib/help-groups"
@@ -180,9 +180,9 @@ describe("i18n key resolution", () => {
 /**
  * Every scope a section can carry, plus the `undefined` the help dialog
  * passes for an unscoped section. Typed as the real union so adding a scope
- * to `KobeBindingScope` fails to compile here until it is listed.
+ * to `RoveBindingScope` fails to compile here until it is listed.
  */
-const HELP_SCOPES: readonly (KobeBindingScope | undefined)[] = [
+const HELP_SCOPES: readonly (RoveBindingScope | undefined)[] = [
   undefined,
   "global",
   "sidebar",
@@ -194,8 +194,8 @@ const HELP_SCOPES: readonly (KobeBindingScope | undefined)[] = [
 
 describe("keybinding catalog reachability", () => {
   test("every binding id has a keys.desc entry", () => {
-    expect(KobeKeymap.length).toBeGreaterThan(0)
-    const missing = KobeKeymap.map((binding) => binding.id)
+    expect(RoveKeymap.length).toBeGreaterThan(0)
+    const missing = RoveKeymap.map((binding) => binding.id)
       .filter((id) => !(id in en.keys.desc))
       .sort()
 
@@ -213,7 +213,7 @@ describe("keybinding catalog reachability", () => {
   // and to knip. Seven such orphans accumulated from removed chat and dialog
   // chords before anyone noticed.
   test("every keys.desc entry belongs to a binding id", () => {
-    const ids = new Set(KobeKeymap.map((binding) => binding.id))
+    const ids = new Set(RoveKeymap.map((binding) => binding.id))
     const orphans = Object.keys(en.keys.desc)
       .filter((key) => !ids.has(key))
       .sort()
@@ -227,8 +227,8 @@ describe("keybinding catalog reachability", () => {
     // mapping, and that mapping falls through to the binding's own category.
     const reachable = new Set<string>([
       ...HELP_SCOPES.map(scopeCategory),
-      ...KobeKeymap.map((binding) => guideCategory(binding.id)),
-      ...KobeKeymap.map((binding) => binding.category),
+      ...RoveKeymap.map((binding) => guideCategory(binding.id)),
+      ...RoveKeymap.map((binding) => binding.category),
     ])
     const missing = [...reachable].filter((category) => !(category in en.keys.category)).sort()
 

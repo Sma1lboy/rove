@@ -30,7 +30,7 @@ function fakeSignals() {
 describe("daemon.stopping", () => {
   it("a restart arms the refresh and carries the outgoing build", () => {
     const { signals, state } = fakeSignals()
-    handleOrchestratorEvent("daemon.stopping", { reason: "restart", kobeVersion: "0.9.160" }, signals)
+    handleOrchestratorEvent("daemon.stopping", { reason: "restart", roveVersion: "0.9.160" }, signals)
     expect(state.restarting).toBe(true)
     // The version rides along so the client can compare NOW rather than after
     // a reconnect plus a `hello` under backoff.
@@ -60,7 +60,7 @@ describe("daemon.stopping", () => {
   it("does not mistake a version for a reason", () => {
     // A daemon that reports its build on an ordinary stop is not restarting.
     const { signals, state } = fakeSignals()
-    handleOrchestratorEvent("daemon.stopping", { kobeVersion: "0.9.160" }, signals)
+    handleOrchestratorEvent("daemon.stopping", { roveVersion: "0.9.160" }, signals)
     expect(state.version).toBe("0.9.160")
     expect(state.restarting).toBe(false)
   })

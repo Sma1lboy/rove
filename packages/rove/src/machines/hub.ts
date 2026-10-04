@@ -12,7 +12,7 @@
  * which would not know that id.
  */
 
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { RemoteOrchestrator } from "../client/remote-orchestrator.ts"
 import type { ReadableState } from "../lib/external-store.ts"
@@ -142,7 +142,7 @@ export class MachineHub {
   private async openOrchestrator(entry: MachineEntry, tunnel: TunnelHandle): Promise<void> {
     const slot = this.slots.get(entry.alias)
     if (!slot || this.disposed || slot.orchestrator) return
-    const client = new KobeDaemonClient(tunnel.daemonSocketPath)
+    const client = new RoveDaemonClient(tunnel.daemonSocketPath)
     const orchestrator = new RemoteOrchestrator(client, {
       // `gui`, not `pane`: holds the remote daemon's refcount while its rows are
       // on screen; a pane watcher doesn't, and the remote daemon idle-stops ~3s
@@ -184,7 +184,7 @@ export class MachineHub {
 
   private onPeerIdentity(
     alias: string,
-    peer: { hostname: string; homeDir: string; daemonPid: number; kobeVersion: string },
+    peer: { hostname: string; homeDir: string; daemonPid: number; roveVersion: string },
   ): void {
     if (!peer.hostname && !peer.homeDir) return
     const identity = { hostname: peer.hostname, homeDir: peer.homeDir, daemonPid: peer.daemonPid }
@@ -192,7 +192,7 @@ export class MachineHub {
     const duplicate = duplicateAliasOf(readMachines(loadStateFile()), alias, identity)
     this.setStatus(alias, {
       hostname: peer.hostname || undefined,
-      version: peer.kobeVersion || undefined,
+      version: peer.roveVersion || undefined,
       ...(duplicate ? { duplicateOf: duplicate } : {}),
     })
   }

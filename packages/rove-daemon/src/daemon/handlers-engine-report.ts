@@ -48,7 +48,7 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     const taskId = explicitId ?? (cwd ? matchTaskByCwd(ctx.orch.listTasks(), cwd) : undefined)
     if (!taskId) return {} // unmatched cwd → drop
     const detail = optionalActivityDetail(payload)
-    // The inherited KOBE_TAB_ID.
+    // The inherited ROVE_TAB_ID.
     const tabId = optionalString(payload, "tabId")
     // From the hook payload; an old hook omits it.
     const sessionId = optionalString(payload, "sessionId")

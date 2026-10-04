@@ -1,6 +1,6 @@
 import { connect } from "node:net"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { startPtyHostServer } from "@sma1lboy/rove-daemon/daemon/pty-server"
 import { afterEach, expect, it } from "vitest"
 import { type DaemonHarness, bootDaemonHarness, fakeOrchestrator, waitFor } from "./harness.ts"
@@ -24,7 +24,7 @@ it.each(["daemon", "pty"])(
           })
         : undefined
     const bad = connect(path)
-    const good = new KobeDaemonClient(path)
+    const good = new RoveDaemonClient(path)
     try {
       bad.on("error", () => {})
       await new Promise<void>((resolve) => bad.once("connect", resolve))

@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { connectPaneOrchestrator } from "../../src/client/connect-pane-orchestrator.ts"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
@@ -19,7 +19,7 @@ import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
  */
 
 interface FakeClient {
-  client: KobeDaemonClient
+  client: RoveDaemonClient
   closed: () => boolean
   lastSubscribe: () => { role?: string; channels?: readonly string[] } | null
 }
@@ -55,24 +55,24 @@ function fakeClient(helloOutcome: "ok" | "skew"): FakeClient {
     close: () => {
       closedFlag = true
     },
-  } as unknown as KobeDaemonClient
+  } as unknown as RoveDaemonClient
   return { client, closed: () => closedFlag, lastSubscribe: () => subscribeArgs }
 }
 
 describe("connectPaneOrchestrator", () => {
   let home: string
-  const prev = process.env.KOBE_HOME_DIR
+  const prev = process.env.ROVE_HOME_DIR
 
   beforeEach(async () => {
     // connect/init log to client.log — keep that off the real ~/.kobe.
     home = await mkdtemp(join(tmpdir(), "kobe-connect-pane-"))
-    process.env.KOBE_HOME_DIR = home
+    process.env.ROVE_HOME_DIR = home
   })
 
   afterEach(async () => {
     // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test.
-    if (prev === undefined) delete process.env.KOBE_HOME_DIR
-    else process.env.KOBE_HOME_DIR = prev
+    if (prev === undefined) delete process.env.ROVE_HOME_DIR
+    else process.env.ROVE_HOME_DIR = prev
     await rm(home, { recursive: true, force: true })
   })
 
@@ -115,7 +115,7 @@ describe("connectPaneOrchestrator", () => {
  * deserialize the hello task list into a mirror nothing reads — that
  * wasted parse is exactly the per-broadcast churn the filter removes.
  */
-function helloTaskClient(): KobeDaemonClient {
+function helloTaskClient(): RoveDaemonClient {
   return {
     on: () => () => {},
     onLifecycle: () => () => {},
@@ -148,22 +148,22 @@ function helloTaskClient(): KobeDaemonClient {
     },
     subscribe: () => Promise.resolve({}),
     close: () => {},
-  } as unknown as KobeDaemonClient
+  } as unknown as RoveDaemonClient
 }
 
 describe("RemoteOrchestrator channel filter", () => {
   let home: string
-  const prev = process.env.KOBE_HOME_DIR
+  const prev = process.env.ROVE_HOME_DIR
 
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), "kobe-orch-filter-"))
-    process.env.KOBE_HOME_DIR = home
+    process.env.ROVE_HOME_DIR = home
   })
 
   afterEach(async () => {
     // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test.
-    if (prev === undefined) delete process.env.KOBE_HOME_DIR
-    else process.env.KOBE_HOME_DIR = prev
+    if (prev === undefined) delete process.env.ROVE_HOME_DIR
+    else process.env.ROVE_HOME_DIR = prev
     await rm(home, { recursive: true, force: true })
   })
 

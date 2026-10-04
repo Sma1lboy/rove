@@ -26,7 +26,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       const client = await connectOrStartDaemon()
       const orchestrator = new RemoteOrchestrator(client, { role: "gui", cellPixelSize })
       await orchestrator.init()
-      process.env.KOBE_DAEMON_SOCKET_PATH = client.socketPath
+      process.env.ROVE_DAEMON_SOCKET_PATH = client.socketPath
       // Pane emulators read this lazily: the cell size answers `CSI 16 t`, and the
       // Kitty writer (only on a kitty-capable tty) carries their graphics to fd 1.
       installTerminalGraphics(

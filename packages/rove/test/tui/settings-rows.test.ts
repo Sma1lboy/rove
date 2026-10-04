@@ -42,7 +42,7 @@ function input(overrides: Partial<SettingsRowsInput> = {}): SettingsRowsInput {
   return {
     engineList: [...ALL_VENDORS],
     plugins: [
-      { id: "example.notify", settingKeys: ["KOBE_NOTIFY_SOUND"] },
+      { id: "example.notify", settingKeys: ["ROVE_NOTIFY_SOUND"] },
       { id: "acme.layout", settingKeys: [] },
     ],
     marketplace: ["Sma1lboy/rove-plugins/notify", "you/rove-thing"],

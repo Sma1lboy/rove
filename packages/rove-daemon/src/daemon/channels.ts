@@ -81,7 +81,7 @@ export interface ChannelPayloads {
    */
   "engine-state": {
     taskId: string
-    /** The engine tab (`KOBE_TAB_ID` inherited by the hook process). Absent
+    /** The engine tab (`ROVE_TAB_ID` inherited by the hook process). Absent
      *  for sessions Rove didn't spawn as a tab (manual `claude` in a shell). */
     tabId?: string
     state: TaskActivityState
@@ -125,7 +125,7 @@ export interface ChannelPayloads {
   }
   /**
    * "Re-read `~/.rove/settings/keybindings.yaml`" ping; every pane re-applies
-   * it onto its `KobeKeymap`. `rev` is an opaque token — only transitions
+   * it onto its `RoveKeymap`. `rev` is an opaque token — only transitions
    * matter; panes skip the first (replayed) value since they read it at boot.
    */
   keybindings: { rev: number }

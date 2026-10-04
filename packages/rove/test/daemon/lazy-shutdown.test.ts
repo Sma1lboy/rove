@@ -23,7 +23,7 @@ describe("daemon refcounted lazy shutdown", () => {
 
   /** Boot with the short grace window every test here relies on. */
   function boot(): Promise<DaemonHarness> {
-    return bootDaemonHarness({ env: { KOBE_DAEMON_IDLE_GRACE_MS: String(GRACE_MS) } })
+    return bootDaemonHarness({ env: { ROVE_DAEMON_IDLE_GRACE_MS: String(GRACE_MS) } })
   }
 
   it("self-stops a grace period after the last subscriber disconnects", async () => {

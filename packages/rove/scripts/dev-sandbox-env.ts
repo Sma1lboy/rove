@@ -25,6 +25,6 @@ export function sandboxChildEnv(home: string, parent: NodeJS.ProcessEnv = proces
     ports: {},
     homePolicy: "keep",
     parentEnv: parent,
-    extra: { ROVE_DEV: "1", KOBE_DEV: "1" },
+    extra: { ROVE_DEV: "1", },
   })
 }

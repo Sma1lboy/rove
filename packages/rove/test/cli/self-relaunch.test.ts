@@ -26,7 +26,7 @@ describe("planSelfRefresh", () => {
   })
 
   it("stays quiet while the daemon's build is still unknown", () => {
-    // A daemon that predates the `kobeVersion` field, or a handshake that has
+    // A daemon that predates the `roveVersion` field, or a handshake that has
     // not landed yet. Neither is evidence of skew, and guessing produces a
     // refresh prompt on a Rove that is perfectly current.
     expect(planSelfRefresh({ ...base, daemonVersion: null })).toEqual({ kind: "current" })

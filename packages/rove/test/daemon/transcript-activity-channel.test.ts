@@ -16,7 +16,7 @@
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { type DaemonServer, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
@@ -69,14 +69,14 @@ describe("transcript.activity channel (daemon → client)", () => {
     dir = mkdtempSync(join(tmpdir(), "kobe-ta-chan-"))
     socketPath = join(dir, "daemon.sock")
     pidPath = join(dir, "daemon.pid")
-    savedHome = process.env.KOBE_HOME_DIR
-    process.env.KOBE_HOME_DIR = dir
+    savedHome = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = dir
     server = null
   })
 
   afterEach(async () => {
-    if (savedHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-    else process.env.KOBE_HOME_DIR = savedHome
+    if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = savedHome
     await server?.close().catch(() => {})
     rmSync(dir, { recursive: true, force: true })
   })
@@ -96,7 +96,7 @@ describe("transcript.activity channel (daemon → client)", () => {
       transcriptActivityTickMs: 0,
     })
 
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     const hello = await client.request<{ capabilities?: string[] }>("hello", {})
     expect(hello.capabilities).toContain("transcript.activity")
     client.close()
@@ -119,7 +119,7 @@ describe("transcript.activity channel (daemon → client)", () => {
 
     // First client subscribes as gui → holds the daemon up AND satisfies the
     // collector's hasSubscribers gate, so it runs and publishes.
-    const first = new KobeDaemonClient(socketPath)
+    const first = new RoveDaemonClient(socketPath)
     let firstPayload: { activity?: Record<string, unknown> } | undefined
     first.on("transcript.activity", (frame) => {
       firstPayload = frame.payload as { activity?: Record<string, unknown> }
@@ -130,7 +130,7 @@ describe("transcript.activity channel (daemon → client)", () => {
 
     // A LATE subscriber gets the channel's last value replayed on connect —
     // a freshly-attached Ops pane learns the current map in one frame.
-    const late = new KobeDaemonClient(socketPath)
+    const late = new RoveDaemonClient(socketPath)
     let latePayload: { activity?: Record<string, unknown> } | undefined
     late.on("transcript.activity", (frame) => {
       latePayload = frame.payload as { activity?: Record<string, unknown> }
@@ -162,7 +162,7 @@ describe("transcript.activity channel (daemon → client)", () => {
     // must keep it idle (no fs probes, no published last-value).
     await new Promise((r) => setTimeout(r, 150))
 
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     let payload: { activity?: Record<string, unknown> } | undefined
     client.on("transcript.activity", (frame) => {
       payload = frame.payload as { activity?: Record<string, unknown> }

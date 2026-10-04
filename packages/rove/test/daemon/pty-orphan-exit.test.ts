@@ -21,7 +21,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { type Socket, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
 import type { PtyChild, PtyDriver, PtyExit } from "@sma1lboy/rove-daemon/daemon/pty-driver"
 import { type PtyHostServer, startPtyHostServer } from "@sma1lboy/rove-daemon/daemon/pty-server"
@@ -33,22 +33,22 @@ let pidPath: string
 let freezeDir: string
 let savedHome: string | undefined
 const servers: PtyHostServer[] = []
-const clients: KobeDaemonClient[] = []
+const clients: RoveDaemonClient[] = []
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "kobe-pty-orphan-"))
   socketPath = join(dir, "pty.sock")
   pidPath = join(dir, "pty.pid")
   freezeDir = join(dir, "pty-sessions")
-  savedHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = dir
+  savedHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = dir
 })
 
 afterEach(async () => {
   for (const client of clients.splice(0)) client.close()
   for (const server of servers.splice(0)) await server.close().catch(() => {})
-  if (savedHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = savedHome
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
   rmSync(dir, { recursive: true, force: true })
 })
 
@@ -85,8 +85,8 @@ async function bootHost(): Promise<PtyHostServer> {
   return server
 }
 
-async function connect(): Promise<KobeDaemonClient> {
-  const client = new KobeDaemonClient(socketPath)
+async function connect(): Promise<RoveDaemonClient> {
+  const client = new RoveDaemonClient(socketPath)
   await client.connect()
   clients.push(client)
   return client
@@ -96,7 +96,7 @@ async function connect(): Promise<KobeDaemonClient> {
 async function stoppedWithin(ms: number): Promise<boolean> {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
-    const probe = new KobeDaemonClient(socketPath)
+    const probe = new RoveDaemonClient(socketPath)
     try {
       await probe.connect()
       await probe.request("hello")

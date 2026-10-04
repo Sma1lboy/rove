@@ -1,13 +1,13 @@
 /**
- * `sidebar.*` / `tasks.*` rows: plain {@link KobeBinding} data spread into
+ * `sidebar.*` / `tasks.*` rows: plain {@link RoveBinding} data spread into
  * `keybindings-table.ts`, which owns the contract (spread order = display
  * order; ids are what `bindByIds` and user overrides key off). A row's file is
  * decided by its `scope`, nothing else.
  */
 
-import type { KobeBinding } from "./keybindings-table.ts"
+import type { RoveBinding } from "./keybindings-table.ts"
 
-export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
+export const SIDEBAR_BINDINGS: readonly RoveBinding[] = [
   // ─── Sidebar ──────────────────────────────────────────────────────────
   {
     // POSITIONAL: alternating [down, up] pairs — slot dispatch

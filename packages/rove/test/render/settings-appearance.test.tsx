@@ -31,7 +31,7 @@ const initial = {
 
 async function setup(width = 120, height = 48) {
   const home = mkdtempSync(join(tmpdir(), "rove-appearance-test-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   const dir = join(home, ".config", "rove")
   mkdirSync(dir, { recursive: true })
   const path = join(dir, "state.json")

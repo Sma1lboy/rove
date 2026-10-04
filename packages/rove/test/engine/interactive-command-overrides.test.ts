@@ -6,7 +6,7 @@
  * Why these matter: every launch site (Handover, Tasks-pane switch,
  * `new-chattab`) goes through `interactiveEngineCommand` — a bad override
  * fallback silently launches the wrong binary, and a mis-woven effort flag
- * makes codex refuse to start. State is isolated via `KOBE_HOME_DIR`.
+ * makes codex refuse to start. State is isolated via `ROVE_HOME_DIR`.
  */
 
 import fs from "node:fs"
@@ -28,13 +28,13 @@ let originalHome: string | undefined
 
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-icmd-"))
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   fs.rmSync(tmpHome, { recursive: true, force: true })
 })
 

@@ -11,7 +11,7 @@
  * own, and writing pictures to it would corrupt whatever it is showing.
  */
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { describe, expect, it, vi } from "vitest"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
@@ -22,7 +22,7 @@ vi.mock("@sma1lboy/rove-daemon/client/client-log", async (importActual) => ({
 }))
 
 function fakeClient(): {
-  client: KobeDaemonClient
+  client: RoveDaemonClient
   emit: (name: string, payload: unknown) => void
   subscribes: Array<Record<string, unknown>>
 } {
@@ -40,7 +40,7 @@ function fakeClient(): {
       subscribes.push(opts)
       return {}
     },
-  } as unknown as KobeDaemonClient
+  } as unknown as RoveDaemonClient
   return { client, emit: (name, payload) => star?.({ name, payload }), subscribes }
 }
 

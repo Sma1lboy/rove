@@ -7,7 +7,7 @@ import {
   ensureDaemonReachable,
   isStaleInstallError,
   probeDaemonSocket,
-  resolveKobeSpawn,
+  resolveRoveSpawn,
   testDaemonResponds,
   tryAcquireSpawnLock,
 } from "@sma1lboy/rove-daemon/client/daemon-process"
@@ -21,15 +21,15 @@ const servers: Server[] = []
 const openSockets = new Set<import("node:net").Socket>()
 type EventedServer = Server & { once(event: "error", listener: (err: Error) => void): void }
 
-describe("resolveKobeSpawn", () => {
+describe("resolveRoveSpawn", () => {
   it("re-enters through the active public wrapper in source mode", () => {
-    expect(resolveKobeSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "rove" })).toEqual([
+    expect(resolveRoveSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "rove" })).toEqual([
       process.execPath,
       expect.stringMatching(/\/cli\/rove\.ts$/),
       "daemon",
       "start",
     ])
-    expect(resolveKobeSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "kobe" })).toEqual([
+    expect(resolveRoveSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "kobe" })).toEqual([
       process.execPath,
       expect.stringMatching(/\/cli\/kobe\.ts$/),
       "daemon",
@@ -48,7 +48,7 @@ describe("resolveKobeSpawn", () => {
     const gone = "/opt/homebrew/lib/node_modules/@sma1lboy/rove/dist/client/daemon-process.js"
     let thrown: unknown
     try {
-      resolveKobeSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "rove" }, gone)
+      resolveRoveSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "rove" }, gone)
     } catch (err) {
       thrown = err
     }
@@ -229,7 +229,7 @@ describe("tryAcquireSpawnLock", () => {
 
 /**
  * Point BOTH env namespaces at the test's throwaway paths, and hand back a
- * restore function. Writing only `KOBE_*` is not isolation: `readRoveEnv`
+ * restore function. Writing only `ROVE_*` is not isolation: `readRoveEnv`
  * prefers `ROVE_*`, so an inherited `ROVE_DAEMON_SOCKET_PATH` would quietly
  * aim these tests at the developer's real daemon. `undefined` clears a pair,
  * which is how a test escapes `insideEngineSession()` — this suite itself
@@ -238,7 +238,7 @@ describe("tryAcquireSpawnLock", () => {
 function overrideRoveEnv(vars: Record<string, string | undefined>): () => void {
   const saved: [string, string | undefined][] = []
   for (const [suffix, value] of Object.entries(vars)) {
-    for (const name of [`ROVE_${suffix}`, `KOBE_${suffix}`]) {
+    for (const name of [`ROVE_${suffix}`, `ROVE_${suffix}`]) {
       saved.push([name, process.env[name]])
       if (value === undefined) Reflect.deleteProperty(process.env, name)
       else process.env[name] = value
@@ -398,7 +398,7 @@ describe("ensureDaemonReachable when the daemon is busy, not dead", () => {
  * The destructive half of a stale install — and the one nobody reports,
  * because its symptom is indistinguishable from the reported one.
  *
- * Calling `stopDaemonProcess` FIRST and `resolveKobeSpawn` second does damage
+ * Calling `stopDaemonProcess` FIRST and `resolveRoveSpawn` second does damage
  * on a stale install: the client kills the daemon and unlinks its socket +
  * pidfile, and only then discovers it has no entry point to re-exec — so it
  * has removed a daemon it cannot replace. A client which cannot spawn must
@@ -437,10 +437,10 @@ describe("ensureDaemonReachable on a stale install", () => {
 
     // The resolver's verdict for an install that is gone. Built by the REAL
     // resolver against a directory that does not exist, so this test cannot
-    // drift from what `resolveKobeSpawn` actually throws.
+    // drift from what `resolveRoveSpawn` actually throws.
     const staleDir = join(dir, "gone", "node_modules", "@sma1lboy", "rove", "dist", "client")
     const resolveSpawn = (): string[] => {
-      resolveKobeSpawn([], { ROVE_INVOKED_AS: "rove" }, join(staleDir, "daemon-process.js"))
+      resolveRoveSpawn([], { ROVE_INVOKED_AS: "rove" }, join(staleDir, "daemon-process.js"))
       throw new Error("unreachable: the resolver was supposed to reject a missing install")
     }
 

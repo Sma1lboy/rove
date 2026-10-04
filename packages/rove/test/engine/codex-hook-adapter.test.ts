@@ -2,9 +2,9 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { CodexHookAdapter, KOBE_CODEX_HOOK_EVENTS } from "../../src/engine/codex-local/hook-adapter.ts"
+import { CodexHookAdapter, ROVE_CODEX_HOOK_EVENTS } from "../../src/engine/codex-local/hook-adapter.ts"
 
-// The adapter's install path builds hook commands from `kobeHookInvocation()`
+// The adapter's install path builds hook commands from `roveHookInvocation()`
 // (whose dev fallback is `roveCliInvocation()`). Pin the whole module so the
 // roundtrip exercises the merge/IO, not CLI-path resolution. NOTE: vi.mock
 // replaces EVERY export — a new function
@@ -13,7 +13,7 @@ import { CodexHookAdapter, KOBE_CODEX_HOOK_EVENTS } from "../../src/engine/codex
 // eats it (that exact gap shipped red CI once).
 vi.mock("../../src/cli/invocation.ts", () => ({
   roveCliInvocation: () => ["kobe"],
-  kobeHookInvocation: () => ["kobe"],
+  roveHookInvocation: () => ["kobe"],
 }))
 
 describe("CodexHookAdapter", () => {
@@ -43,7 +43,7 @@ describe("CodexHookAdapter", () => {
   })
 
   it("owns exactly the events Codex can deliver safely", () => {
-    expect([...KOBE_CODEX_HOOK_EVENTS].sort()).toEqual(
+    expect([...ROVE_CODEX_HOOK_EVENTS].sort()).toEqual(
       [
         "SessionStart",
         "SessionEnd",
@@ -61,7 +61,7 @@ describe("CodexHookAdapter", () => {
     // failure event at all, and its only "waiting" event is PermissionRequest
     // — an allow/deny DECISION hook Rove must not observe.
     for (const absent of ["StopFailure", "PostToolUseFailure", "Notification", "PermissionRequest", "TurnFailed"]) {
-      expect(KOBE_CODEX_HOOK_EVENTS).not.toContain(absent)
+      expect(ROVE_CODEX_HOOK_EVENTS).not.toContain(absent)
     }
   })
 })

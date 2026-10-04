@@ -55,7 +55,7 @@ describe("BunTerminalTaskPty child environment", () => {
       COLORTERM: "truecolor",
       COLUMNS: "60",
       LINES: "8",
-      KOBE_TERMINAL_PTY: "1",
+      ROVE_TERMINAL_PTY: "1",
     })
     expect(options?.env).not.toHaveProperty("TERM_PROGRAM")
     expect(options?.env).not.toHaveProperty("TERM_PROGRAM_VERSION")

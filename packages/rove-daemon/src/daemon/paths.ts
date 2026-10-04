@@ -102,7 +102,7 @@ export function fitSocketPath(naturalPath: string, homeDir: string, role: string
 /**
  * Resolution order (after the `DAEMON_SOCKET_PATH` override):
  *   1. `homeDir` argument → `<homeDir>/.rove/daemon.sock`.
- *   2. `ROVE_HOME_DIR`/`KOBE_HOME_DIR` → `$ROVE_HOME_DIR/.rove/daemon.sock`.
+ *   2. `ROVE_HOME_DIR`/`ROVE_HOME_DIR` → `$ROVE_HOME_DIR/.rove/daemon.sock`.
  *   3. `XDG_RUNTIME_DIR` → `$XDG_RUNTIME_DIR/kobe.sock`.
  *   4. `~/.rove/daemon.sock`.
  * Steps 1, 2 and 4 yield the legacy `.kobe` twin only while a pre-rename

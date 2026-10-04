@@ -12,7 +12,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { createTaskWithChatTab, runInFixture, runRoveApi, seedGitRepo, writeFixtureWebToken } from "../../rove/scripts/fixture-core.ts"
-import { HERO_CLI, HERO_CONFIG, HERO_HOME, HERO_REPO, HERO_ROOT, KOBE_DIR, heroEnv, stopHeroStack } from "./hero-env.ts"
+import { HERO_CLI, HERO_CONFIG, HERO_HOME, HERO_REPO, HERO_ROOT, ROVE_DIR, heroEnv, stopHeroStack } from "./hero-env.ts"
 import { HERO_COMMITS, HERO_FILES } from "./hero-repo.ts"
 
 const env = heroEnv()
@@ -47,12 +47,12 @@ const CLAUDE_COMMAND =
 
 /**
  * Skill version this build expects, read off the BUILT skill (stamped in
- * lockstep with `KOBE_SKILL_VERSION`). Canonical `rove-` marker with the
+ * lockstep with `ROVE_SKILL_VERSION`). Canonical `rove-` marker with the
  * legacy `kobe-` spelling, matching `parseSkillVersion` in the product.
  */
 async function builtSkillVersion(): Promise<string | null> {
   try {
-    const skill = await readFile(join(KOBE_DIR, "dist", "skills", "rove", "SKILL.md"), "utf8")
+    const skill = await readFile(join(ROVE_DIR, "dist", "skills", "rove", "SKILL.md"), "utf8")
     return skill.match(/(?:rove|kobe)-skill-version:\s*(\d+)/)?.[1] ?? null
   } catch {
     return null
@@ -60,7 +60,7 @@ async function builtSkillVersion(): Promise<string | null> {
 }
 
 async function seedSettings(): Promise<void> {
-  const pkg = JSON.parse(await readFile(join(KOBE_DIR, "package.json"), "utf8")) as { version: string }
+  const pkg = JSON.parse(await readFile(join(ROVE_DIR, "package.json"), "utf8")) as { version: string }
   const state: Record<string, unknown> = {
     "app.lastRunVersion": pkg.version,
     onboarded: true,

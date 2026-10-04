@@ -281,7 +281,7 @@ describe("filterRepos / filterBranches (substring filters)", () => {
   })
 
   it("matches case-insensitive substrings", () => {
-    expect(filterRepos(["/Users/me/Kobe", "/tmp/other"], "kobe")).toEqual(["/Users/me/Kobe"])
+    expect(filterRepos(["/Users/me/Rove", "/tmp/other"], "kobe")).toEqual(["/Users/me/Rove"])
     expect(filterBranches(["main", "feature/Login", "fix"], "login")).toEqual(["feature/Login"])
   })
 })

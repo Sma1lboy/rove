@@ -8,7 +8,7 @@ import { configDefaults } from "vitest/config"
 
 // The PTY terminal lives in a separate node process (node-pty doesn't work
 // under bun). Proxy its WebSocket here so the browser stays single-origin.
-const ptyPort = process.env.KOBE_PTY_PORT ?? "5175"
+const ptyPort = process.env.ROVE_PTY_PORT ?? "5175"
 
 const config = defineConfig({
   // Dedupe React to ONE copy. The monorepo has two React versions on disk

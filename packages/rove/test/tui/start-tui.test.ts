@@ -10,7 +10,7 @@ const spies = vi.hoisted(() => ({
   takeWelcome: vi.fn(() => null as { shell: string | null } | null),
 }))
 
-vi.mock("../../src/cli/hook-cmd.ts", () => ({ ensureGlobalKobeHooks: spies.installHooks }))
+vi.mock("../../src/cli/hook-cmd.ts", () => ({ ensureGlobalRoveHooks: spies.installHooks }))
 // Spread the real module rather than listing the one function stubbed here:
 // a factory that names only its stub turns every later export of the real
 // module into a hard "No X export is defined on the mock" at import time.
@@ -21,7 +21,7 @@ vi.mock("../../src/cli/reset-gate.ts", async (importActual) => ({
 vi.mock("../../src/cli/whats-new.ts", () => ({ takeWhatsNew: spies.takeWhatsNew }))
 vi.mock("../../src/cli/welcome.ts", () => ({ takeWelcome: spies.takeWelcome }))
 vi.mock("../../src/lib/skill-install.ts", () => ({ maybeHintSkillInstall: spies.hintSkillInstall }))
-vi.mock("../../src/tui/lib/outer-terminal-title.ts", () => ({ publishKobeTerminalTitle: spies.publishTitle }))
+vi.mock("../../src/tui/lib/outer-terminal-title.ts", () => ({ publishRoveTerminalTitle: spies.publishTitle }))
 vi.mock("../../src/tui-react/workspace/start-workspace", () => ({ startWorkspaceHost: spies.startWorkspaceHost }))
 
 import { startTui } from "../../src/tui/index"

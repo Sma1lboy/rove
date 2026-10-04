@@ -63,7 +63,7 @@ describe("active product copy", () => {
     for (const stale of phrases) expect(source, `${path} still claims "${stale}"`).not.toContain(stale)
   })
 
-  test.each(STALE_RENAME_COPY)("%s makes no active Kobe-first claim", (path, phrases) => {
+  test.each(STALE_RENAME_COPY)("%s makes no active Rove-first claim", (path, phrases) => {
     const source = read(path)
     for (const stale of phrases) expect(source, `${path} still contains ${stale}`).not.toContain(stale)
   })

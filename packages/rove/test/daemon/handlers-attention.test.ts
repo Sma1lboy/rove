@@ -66,7 +66,7 @@ describe("attention Inbox handlers", () => {
 
   // A missing tabId records a TASK-level episode rather than dropping the
   // event. An engine the user typed into a bare shell (including the shell an
-  // exited engine leaves in place) inherits no KOBE_TAB_ID, and dropping
+  // exited engine leaves in place) inherits no ROVE_TAB_ID, and dropping
   // those would let such a session finish without ever appearing in the Inbox.
   it("records a task-level episode when the event carries no tabId", async () => {
     const { ctx, rec } = fakeCtx()

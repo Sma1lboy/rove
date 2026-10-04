@@ -24,9 +24,9 @@ let home: string
 let savedHome: string | undefined
 
 beforeAll(() => {
-  savedHome = process.env.KOBE_HOME_DIR
+  savedHome = process.env.ROVE_HOME_DIR
   home = mkdtempSync(join(tmpdir(), "kobe-kv-toast-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   // Break the write deterministically: a DIRECTORY where the lockfile goes
   // makes `acquireSync`'s link fail EEXIST, and reading the holder then fails
   // EISDIR — not a contention error, so it propagates immediately.
@@ -34,8 +34,8 @@ beforeAll(() => {
 })
 
 afterAll(() => {
-  if (savedHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = savedHome
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
   rmSync(home, { recursive: true, force: true })
 })
 

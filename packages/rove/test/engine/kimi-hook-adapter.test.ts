@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
-  KOBE_KIMI_HOOK_EVENTS,
+  ROVE_KIMI_HOOK_EVENTS,
   KimiHookAdapter,
   mergeKimiHooks,
   removeKimiHookBlock,
@@ -16,7 +16,7 @@ import {
 // here too or default-arg calls become undefined()).
 vi.mock("../../src/cli/invocation.ts", () => ({
   roveCliInvocation: () => ["kobe"],
-  kobeHookInvocation: () => ["kobe"],
+  roveHookInvocation: () => ["kobe"],
 }))
 
 describe("KimiHookAdapter", () => {
@@ -26,11 +26,11 @@ describe("KimiHookAdapter", () => {
     // Interrupt is the load-bearing one: Kimi fires it INSTEAD of Stop on a
     // user interrupt (plugin-events.md §B).
     for (const wired of ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "Interrupt", "PermissionRequest"]) {
-      expect(KOBE_KIMI_HOOK_EVENTS).toContain(wired)
+      expect(ROVE_KIMI_HOOK_EVENTS).toContain(wired)
     }
     // Notification stays out: no documented type filter → every idle prompt
     // would read as needs-input.
-    expect(KOBE_KIMI_HOOK_EVENTS).not.toContain("Notification")
+    expect(ROVE_KIMI_HOOK_EVENTS).not.toContain("Notification")
   })
 
   it("classifies PermissionRequest as a permission wait and reads tool names", () => {

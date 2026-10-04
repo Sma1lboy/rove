@@ -62,7 +62,7 @@ describe("migrateRoveStateLayout", () => {
     write(".kobe/settings/keybindings.yaml", "legacy keys")
     write(".rove/tasks.json", "canonical")
 
-    expect(migrateRoveStateLayout({ KOBE_HOME_DIR: root }).attempted).toBe(true)
+    expect(migrateRoveStateLayout({ ROVE_HOME_DIR: root }).attempted).toBe(true)
     expect(readFileSync(join(root, ".rove/tasks.json"), "utf8")).toBe("canonical")
     expect(readFileSync(join(root, ".rove/settings/keybindings.yaml"), "utf8")).toBe("legacy keys")
 
@@ -174,11 +174,11 @@ describe("migrateRoveStateLayout", () => {
  * `.kobe/plugins.json` gets it MOVED out from under it.
  */
 describe("a blank ROVE_HOME_DIR is unset, not a home", () => {
-  test("falls through to KOBE_HOME_DIR rather than shadowing it", () => {
+  test("falls through to ROVE_HOME_DIR rather than shadowing it", () => {
     root = mkdtempSync(join(tmpdir(), "rove-layout-"))
     write(".kobe/tasks.json", "legacy tasks")
 
-    expect(migrateRoveStateLayout({ ROVE_HOME_DIR: "", KOBE_HOME_DIR: root })).toMatchObject({
+    expect(migrateRoveStateLayout({ ROVE_HOME_DIR: "", })).toMatchObject({
       attempted: true,
       warnings: [],
     })
@@ -198,7 +198,7 @@ describe("a blank ROVE_HOME_DIR is unset, not a home", () => {
     const previousCwd = process.cwd()
     process.chdir(repoCwd)
     try {
-      migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: "", KOBE_HOME_DIR: root })
+      migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: "", })
     } finally {
       process.chdir(previousCwd)
     }

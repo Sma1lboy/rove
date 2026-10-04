@@ -8,8 +8,8 @@
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
-  kobeSkillState: vi.fn(),
-  kobeSkillPaths: vi.fn(() => ["/home/u/.claude/skills/rove/SKILL.md", "/proj/.claude/skills/rove/SKILL.md"]),
+  roveSkillState: vi.fn(),
+  roveSkillPaths: vi.fn(() => ["/home/u/.claude/skills/rove/SKILL.md", "/proj/.claude/skills/rove/SKILL.md"]),
   installedSkillDiffersFromBundled: vi.fn(() => false),
   bunSpawn: vi.fn(),
 }))
@@ -18,8 +18,8 @@ vi.mock("../../src/lib/skill-install.ts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/lib/skill-install.ts")>()
   return {
     ...actual,
-    kobeSkillState: mocks.kobeSkillState,
-    kobeSkillPaths: mocks.kobeSkillPaths,
+    roveSkillState: mocks.roveSkillState,
+    roveSkillPaths: mocks.roveSkillPaths,
     installedSkillDiffersFromBundled: mocks.installedSkillDiffersFromBundled,
   }
 })
@@ -32,7 +32,7 @@ let errSpy: MockInstance<typeof process.stderr.write>
 let exitSpy: MockInstance<typeof process.exit>
 
 beforeEach(() => {
-  mocks.kobeSkillState.mockReset().mockReturnValue({
+  mocks.roveSkillState.mockReset().mockReturnValue({
     installed: true,
     installedVersion: 2,
     currentVersion: 2,
@@ -91,7 +91,7 @@ describe("kobe skill status", () => {
   })
 
   it("reports not installed with the install hint", async () => {
-    mocks.kobeSkillState.mockReturnValue({
+    mocks.roveSkillState.mockReturnValue({
       installed: false,
       installedVersion: null,
       currentVersion: 2,
@@ -105,7 +105,7 @@ describe("kobe skill status", () => {
   })
 
   it("reports an out-of-date skill (stamped) and an unstamped one", async () => {
-    mocks.kobeSkillState.mockReturnValue({
+    mocks.roveSkillState.mockReturnValue({
       installed: true,
       installedVersion: 1,
       currentVersion: 2,
@@ -116,7 +116,7 @@ describe("kobe skill status", () => {
     expect(out()).toContain("⚠ out of date (installed v1, this Rove wants v2)")
 
     outSpy.mockClear()
-    mocks.kobeSkillState.mockReturnValue({
+    mocks.roveSkillState.mockReturnValue({
       installed: true,
       installedVersion: null,
       currentVersion: 2,

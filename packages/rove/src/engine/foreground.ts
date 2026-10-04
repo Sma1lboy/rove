@@ -92,7 +92,7 @@ function childrenIndex(rows: readonly ProcRow[]): Map<number, ProcRow[]> {
 /**
  * Is `ancestorPid` anywhere on `pid`'s parent chain (or `pid` itself)?
  *
- * The lineage half of "am I really inside this tab": `$KOBE_TASK_ID`
+ * The lineage half of "am I really inside this tab": `$ROVE_TASK_ID`
  * inherits into anything forked from the tab, including a detached daemon; a
  * pid chain does not (reparented to 1 → stops reaching the shell), which is
  * the case we must refuse.

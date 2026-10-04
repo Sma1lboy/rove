@@ -39,11 +39,11 @@ const defaultDeps: KeychainDeps = {
   },
 }
 
-const KOBE_KEYCHAIN_SERVICE = "kobe-remote-ssh"
+const ROVE_KEYCHAIN_SERVICE = "kobe-remote-ssh"
 
 /** Account is `user@host[:port]`. */
 export function remoteKeychainRef(host: string, user: string, port?: number): KeychainRef {
-  return { service: KOBE_KEYCHAIN_SERVICE, account: port ? `${user}@${host}:${port}` : `${user}@${host}` }
+  return { service: ROVE_KEYCHAIN_SERVICE, account: port ? `${user}@${host}:${port}` : `${user}@${host}` }
 }
 
 export function isKeychainSupported(deps: KeychainDeps = defaultDeps): boolean {

@@ -9,7 +9,7 @@
  *     malformed JWT, id_token-with-no-email, non-object oauthAccount,
  *     non-record parsed config.
  *   - `availableEngineIds`, which layers `getCustomEngineIds()` (real
- *     state.json, redirected via `KOBE_HOME_DIR` per the
+ *     state.json, redirected via `ROVE_HOME_DIR` per the
  *     `test/state/repos.test.ts` convention) on top of the binary probe.
  */
 
@@ -205,14 +205,14 @@ describe("availableEngineIds", () => {
 
   beforeEach(() => {
     tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-account-detect-"))
-    originalHome = process.env.KOBE_HOME_DIR
-    process.env.KOBE_HOME_DIR = tmpHome
+    originalHome = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = tmpHome
   })
 
   afterEach(() => {
     // biome-ignore lint/performance/noDelete: env cleanup must fully unset when unset before the test.
-    if (originalHome === undefined) delete process.env.KOBE_HOME_DIR
-    else process.env.KOBE_HOME_DIR = originalHome
+    if (originalHome === undefined) delete process.env.ROVE_HOME_DIR
+    else process.env.ROVE_HOME_DIR = originalHome
     fs.rmSync(tmpHome, { recursive: true, force: true })
   })
 

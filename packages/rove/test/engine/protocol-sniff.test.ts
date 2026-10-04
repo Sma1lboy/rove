@@ -82,16 +82,16 @@ describe("protocolUpgradeFromLiveSession", () => {
 
   beforeEach(() => {
     home = mkdtempSync(join(tmpdir(), "kobe-protocol-sniff-"))
-    originalHome = process.env.KOBE_HOME_DIR
-    process.env.KOBE_HOME_DIR = home
+    originalHome = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = home
     writeState({})
   })
 
   afterEach(() => {
     if (originalHome === undefined) {
       // biome-ignore lint/performance/noDelete: the var must be truly unset when it started unset.
-      delete process.env.KOBE_HOME_DIR
-    } else process.env.KOBE_HOME_DIR = originalHome
+      delete process.env.ROVE_HOME_DIR
+    } else process.env.ROVE_HOME_DIR = originalHome
     rmSync(home, { recursive: true, force: true })
   })
 
@@ -141,16 +141,16 @@ describe("protocolWriteBackFromLiveSession", () => {
 
   beforeEach(() => {
     home = mkdtempSync(join(tmpdir(), "kobe-protocol-writeback-"))
-    originalHome = process.env.KOBE_HOME_DIR
-    process.env.KOBE_HOME_DIR = home
+    originalHome = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = home
     writeState({})
   })
 
   afterEach(() => {
     if (originalHome === undefined) {
       // biome-ignore lint/performance/noDelete: the var must be truly unset when it started unset.
-      delete process.env.KOBE_HOME_DIR
-    } else process.env.KOBE_HOME_DIR = originalHome
+      delete process.env.ROVE_HOME_DIR
+    } else process.env.ROVE_HOME_DIR = originalHome
     rmSync(home, { recursive: true, force: true })
   })
 

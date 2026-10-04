@@ -45,7 +45,7 @@ describe("daemon lifetime under a failing dependency", () => {
 
   it("idle-stops through to teardown when the stop hook rejects", async () => {
     h = await bootDaemonHarness({
-      env: { KOBE_DAEMON_IDLE_GRACE_MS: String(GRACE_MS) },
+      env: { ROVE_DAEMON_IDLE_GRACE_MS: String(GRACE_MS) },
       server: {
         onStop: async () => {
           throw new Error("core.close exploded")

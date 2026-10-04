@@ -30,7 +30,7 @@
  */
 
 import { afterEach, describe, expect, test } from "vitest"
-import { KobeKeymap, bindByIds, findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
+import { RoveKeymap, bindByIds, findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
 import { type Binding, type RegisteredBinding, dispatchKeyEvent } from "../../src/tui/lib/keymap-dispatch"
 import { applyKeymapOverrides } from "../../src/tui/lib/keymap-overrides"
 
@@ -57,7 +57,7 @@ function fire(handlers: Record<string, Binding["cmd"]>, names: string[]): boolea
   return names.map((name) => dispatchKeyEvent([reg], makeEvt(name)))
 }
 
-// applyKeymapOverrides mutates KobeKeymap in place — restore pristine
+// applyKeymapOverrides mutates RoveKeymap in place — restore pristine
 // defaults after every test (same discipline as keymap-reload.test.ts).
 afterEach(() => {
   resetKeymapToDefaults()
@@ -129,7 +129,7 @@ describe("slot dispatch after a user override", () => {
   test("sidebar.nav: [w, e] → w=down, e=up; defaults stop matching", () => {
     // `w`/`e` are free in the sidebar scope (`s` would conflict-warn with
     // settings.open.sidebar — conflicts apply anyway, but keep this green).
-    const { warnings } = applyKeymapOverrides(KobeKeymap, [{ id: "sidebar.nav", keys: ["w", "e"] }])
+    const { warnings } = applyKeymapOverrides(RoveKeymap, [{ id: "sidebar.nav", keys: ["w", "e"] }])
     expect(warnings).toEqual([])
 
     const calls: string[] = []
@@ -145,14 +145,14 @@ describe("slot dispatch after a user override", () => {
 
   test("live reload: reset + re-apply re-derives slots from the current keymap", () => {
     // Boot override…
-    applyKeymapOverrides(KobeKeymap, [{ id: "files.hierarchy", keys: ["left", "right"] }])
+    applyKeymapOverrides(RoveKeymap, [{ id: "files.hierarchy", keys: ["left", "right"] }])
     expect([...findBinding("files.hierarchy")!.keys]).toEqual(["left", "right"])
 
     // …user edits the YAML to an INVALID (odd) count; the reload path
     // resets to defaults first, then re-applies → slot validation re-runs
     // and the default layout survives.
     resetKeymapToDefaults()
-    const { warnings } = applyKeymapOverrides(KobeKeymap, [{ id: "files.hierarchy", keys: ["left"] }])
+    const { warnings } = applyKeymapOverrides(RoveKeymap, [{ id: "files.hierarchy", keys: ["left"] }])
     expect(warnings.some((w) => w.includes("keeping the default"))).toBe(true)
     expect([...findBinding("files.hierarchy")!.keys]).toEqual(["h", "l", "left", "right"])
 

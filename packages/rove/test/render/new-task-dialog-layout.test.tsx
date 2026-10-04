@@ -28,7 +28,7 @@ function OpenDialog() {
             branch: `feature/layout-${i}`,
             head: "abcdef",
             dirty: false,
-            kobeManaged: false,
+            roveManaged: false,
             lastActivityMs: 0,
           }))
         }

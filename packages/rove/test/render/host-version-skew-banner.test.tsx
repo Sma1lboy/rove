@@ -27,7 +27,7 @@ import { act, renderComponent, settle } from "./harness"
 
 // The host is the widest mount in this track, so its two process-wide side
 // effects have to be undone or they follow the whole file into later tests:
-// KVProvider persists to `$KOBE_HOME_DIR` (the real ~/.rove without this),
+// KVProvider persists to `$ROVE_HOME_DIR` (the real ~/.rove without this),
 // and the host installs a module-level UI-event reporter closed over THIS
 // orchestrator, which outlives unmount.
 // The env override is per-FILE, not per-test: bun runs every file in one
@@ -37,13 +37,13 @@ import { act, renderComponent, settle } from "./harness"
 let previousHome: string | undefined
 
 beforeAll(() => {
-  previousHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-skew-banner-"))
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-skew-banner-"))
 })
 
 afterAll(() => {
-  if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = previousHome
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
 })
 
 // The reporter is per-MOUNT: the host installs one closed over its own

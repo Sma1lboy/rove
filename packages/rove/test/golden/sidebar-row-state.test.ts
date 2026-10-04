@@ -18,7 +18,7 @@
  * document. The locale cell is process-wide, so this restores it afterwards.
  *
  * After an INTENTIONAL change:
- *     KOBE_UPDATE_GOLDEN=1 bun run test:fast
+ *     ROVE_UPDATE_GOLDEN=1 bun run test:fast
  * then read the diff — every moved line should be one you meant to move.
  */
 

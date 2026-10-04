@@ -11,7 +11,7 @@ export type PtyMode = "engine" | "shell"
 
 /**
  * PTY sidecar websocket origin: our own, because Vite proxies `/pty` to the
- * sidecar on `KOBE_PTY_PORT` (see `vite.config.ts`) and Vite dev is the only
+ * sidecar on `ROVE_PTY_PORT` (see `vite.config.ts`) and Vite dev is the only
  * thing that ever serves this page (`dev.ts`).
  *
  * This used to derive the sidecar's port as `location.port + 2`, which made

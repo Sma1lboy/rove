@@ -17,8 +17,8 @@ import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { type SelfSessionProbe, resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
-const savedTaskId = process.env.KOBE_TASK_ID
-const savedTabId = process.env.KOBE_TAB_ID
+const savedTaskId = process.env.ROVE_TASK_ID
+const savedTabId = process.env.ROVE_TAB_ID
 
 function restoreEnv(name: string, saved: string | undefined): void {
   if (saved === undefined) delete process.env[name]
@@ -39,7 +39,7 @@ function probeFor(key: string, opts: { detached?: boolean } = {}): SelfSessionPr
 }
 
 async function asSession(taskId: string, tabId: string, opts?: { detached?: boolean }): Promise<void> {
-  await verifiedSelfSession({ KOBE_TASK_ID: taskId, KOBE_TAB_ID: tabId }, probeFor(`${taskId}::${tabId}`, opts))
+  await verifiedSelfSession({ ROVE_TASK_ID: taskId, ROVE_TAB_ID: tabId }, probeFor(`${taskId}::${tabId}`, opts))
 }
 
 /** Sender is `worker-1`; every other id answers as the coordinator. */
@@ -60,15 +60,15 @@ const emptyBranch = { readBranchSignals: async () => ({ baseRef: "origin/main", 
 
 beforeEach(async () => {
   resetVerifiedSelfSession()
-  process.env.KOBE_TASK_ID = "worker-1"
-  process.env.KOBE_TAB_ID = "tab-1"
+  process.env.ROVE_TASK_ID = "worker-1"
+  process.env.ROVE_TAB_ID = "tab-1"
   await asSession("worker-1", "tab-1")
 })
 
 afterEach(() => {
   resetVerifiedSelfSession()
-  restoreEnv("KOBE_TASK_ID", savedTaskId)
-  restoreEnv("KOBE_TAB_ID", savedTabId)
+  restoreEnv("ROVE_TASK_ID", savedTaskId)
+  restoreEnv("ROVE_TAB_ID", savedTabId)
 })
 
 describe("send refuses an empty-branch success report", () => {

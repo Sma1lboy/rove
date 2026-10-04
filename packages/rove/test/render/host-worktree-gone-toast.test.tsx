@@ -31,17 +31,17 @@ import { type Task, toTaskId } from "../../src/types/task"
 import { act, renderComponent, settle } from "./harness"
 
 // Same per-FILE env capture as host-version-skew-banner: KVProvider persists
-// to `$KOBE_HOME_DIR`, which is the real ~/.rove without this.
+// to `$ROVE_HOME_DIR`, which is the real ~/.rove without this.
 let previousHome: string | undefined
 
 beforeAll(() => {
-  previousHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-worktree-gone-"))
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-worktree-gone-"))
 })
 
 afterAll(() => {
-  if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = previousHome
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
 })
 
 // The host installs a module-level reporter closed over ITS orchestrator,

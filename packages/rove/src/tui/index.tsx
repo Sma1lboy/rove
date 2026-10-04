@@ -1,11 +1,11 @@
 /** TUI entry: plain `kobe` starts the Workspace Host. Daemon recovery is `kobe daemon restart`. */
 
-import { ensureGlobalKobeHooks } from "../cli/hook-cmd.ts"
+import { ensureGlobalRoveHooks } from "../cli/hook-cmd.ts"
 import { enforceResetGate } from "../cli/reset-gate.ts"
 import { takeWelcome } from "../cli/welcome.ts"
 import { takeWhatsNew } from "../cli/whats-new.ts"
 import { maybeHintSkillInstall } from "../lib/skill-install.ts"
-import { publishKobeTerminalTitle } from "./lib/outer-terminal-title.ts"
+import { publishRoveTerminalTitle } from "./lib/outer-terminal-title.ts"
 
 export async function startTui(): Promise<void> {
   // Before the reset gate, which overwrites the `app.lastRunVersion` stamp
@@ -21,7 +21,7 @@ export async function startTui(): Promise<void> {
 
   // Own the emulator's tab title; without an OSC title iTerm2 shows the
   // packaged runtime name ("node").
-  publishKobeTerminalTitle()
+  publishRoveTerminalTitle()
 
   // Before the screen takeover: hint once if the agent skill is absent, or
   // prompt yes/no/don't-notify-this-version if stale. Best-effort; the reliable
@@ -30,7 +30,7 @@ export async function startTui(): Promise<void> {
 
   // Finish the idempotent settings merge before any engine launches, so its
   // first activity events are observable.
-  await ensureGlobalKobeHooks()
+  await ensureGlobalRoveHooks()
 
   // Plugin engines ([[engines]] in enabled manifests) before the host, so every
   // surface sees them from the first frame.

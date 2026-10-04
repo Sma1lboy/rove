@@ -14,7 +14,7 @@ vi.mock("../../src/engine/account-detect", () => ({
   availableEngineIds: vi.fn(async () => ["claude", "codex"]),
 }))
 
-import type { KobeOrchestrator } from "../../src/client/remote-orchestrator"
+import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import {
   type TaskActionContext,
   copyTaskFieldFlow,
@@ -82,7 +82,7 @@ function makeCtx(opts: {
   const notifyInfo = vi.fn()
   const reload = vi.fn(async () => {})
   const ctx: TaskActionContext = {
-    orch: opts.orch as unknown as KobeOrchestrator | null,
+    orch: opts.orch as unknown as RoveOrchestrator | null,
     tasks: () => opts.tasks,
     confirm: async () => true,
     promptText,

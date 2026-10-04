@@ -17,7 +17,7 @@ import { TURN_GLYPHS, TabStrip } from "../../src/tui-react/workspace/tab-strip"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
-process.env.KOBE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "kobe-tab-strip-test-"))
+process.env.ROVE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "kobe-tab-strip-test-"))
 
 const TABS: readonly TerminalTab[] = [
   { kind: "engine", id: "tab-1", title: null, ordinal: 1 },
@@ -40,10 +40,10 @@ function strip(activeId: string) {
 }
 
 test("narrow strip shows the active tab truncated with a position counter", async () => {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-narrow-"))
-  mkdirSync(join(process.env.KOBE_HOME_DIR, ".config", "rove"), { recursive: true })
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-narrow-"))
+  mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
   writeFileSync(
-    join(process.env.KOBE_HOME_DIR, ".config", "rove", "state.json"),
+    join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),
     JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
   )
   const { frame } = await renderComponent(strip("tab-2"), { width: 46, height: 4, providers: { kv: true } })
@@ -57,10 +57,10 @@ test("narrow strip shows the active tab truncated with a position counter", asyn
 test("desktop renders the boxed strip when the mode is `always`", async () => {
   // Explicit, because `never` is the default: the sidebar tree
   // already lists these tabs. This pins what the strip DRAWS when asked for.
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-always-"))
-  mkdirSync(join(process.env.KOBE_HOME_DIR, ".config", "rove"), { recursive: true })
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-always-"))
+  mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
   writeFileSync(
-    join(process.env.KOBE_HOME_DIR, ".config", "rove", "state.json"),
+    join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),
     JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
   )
   const { frame } = await renderComponent(strip("tab-2"), { width: 100, height: 4, providers: { kv: true } })
@@ -73,10 +73,10 @@ test("desktop renders the boxed strip when the mode is `always`", async () => {
 })
 
 test("desktop honours a stored `never`", async () => {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-never-"))
-  mkdirSync(join(process.env.KOBE_HOME_DIR, ".config", "rove"), { recursive: true })
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-never-"))
+  mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
   writeFileSync(
-    join(process.env.KOBE_HOME_DIR, ".config", "rove", "state.json"),
+    join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),
     JSON.stringify({ [TAB_STRIP_MODE_KEY]: "never" }),
   )
   const { frame } = await renderComponent(strip("tab-2"), { width: 100, height: 4, providers: { kv: true } })
@@ -89,10 +89,10 @@ test("narrow keeps each turn state its own tone, the way the wide strip does", a
   // `! error` differed only by glyph. Painting the tone ON the focusAccent
   // fill would not have fixed it either: error red lands at a 1.02 contrast
   // ratio there. The chip therefore sits outside the fill, on ambient.
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-tone-"))
-  mkdirSync(join(process.env.KOBE_HOME_DIR, ".config", "rove"), { recursive: true })
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-tone-"))
+  mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
   writeFileSync(
-    join(process.env.KOBE_HOME_DIR, ".config", "rove", "state.json"),
+    join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),
     JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
   )
   const turns = new Map<string, ChatTabTurnState>([

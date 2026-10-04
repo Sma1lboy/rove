@@ -21,7 +21,7 @@ import { type HostPageDeps, renderContentPage } from "../../src/tui-react/worksp
 import type { Task } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
-process.env.KOBE_HOME_DIR ??= (await import("node:fs")).mkdtempSync("/tmp/kobe-rail-baseline-")
+process.env.ROVE_HOME_DIR ??= (await import("node:fs")).mkdtempSync("/tmp/kobe-rail-baseline-")
 
 // claude theme (the render-track default) — pinned as ints so a theme edit
 // fails here loudly instead of silently re-breaking the palette contract.

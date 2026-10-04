@@ -19,7 +19,7 @@
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
-import { kobeHookInvocation } from "../../cli/invocation.ts"
+import { roveHookInvocation } from "../../cli/invocation.ts"
 import { type FlatHookFormat, mergeFlatHooks, parseFlatHooks } from "../flat-hooks.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail } from "../hook-events.ts"
@@ -51,7 +51,7 @@ export function parseCursorHooks(raw: string | undefined): HookSettingsParse {
 export function mergeCursorHooks(
   current: Record<string, unknown>,
   install: boolean,
-  inv: readonly string[] = kobeHookInvocation(),
+  inv: readonly string[] = roveHookInvocation(),
 ): Record<string, unknown> {
   return mergeFlatHooks(CURSOR_FORMAT, current, install, inv)
 }

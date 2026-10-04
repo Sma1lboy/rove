@@ -10,7 +10,7 @@
  * session inherits it. CI never sees it.
  *
  * BOTH namespaces are pinned: `isDev()` reads `ROVE_DEV` first and falls back
- * to `KOBE_DEV`, and `bun run dev` now exports the canonical `ROVE_DEV=1`, so
+ * to `ROVE_DEV`, and `bun run dev` now exports the canonical `ROVE_DEV=1`, so
  * silencing only the legacy alias would leave the diagnostic on.
  */
 
@@ -18,7 +18,7 @@ import { beforeAll, describe, expect, test, vi } from "vitest"
 
 beforeAll(() => {
   vi.stubEnv("ROVE_DEV", "0")
-  vi.stubEnv("KOBE_DEV", "0")
+  vi.stubEnv("ROVE_DEV", "0")
   return () => vi.unstubAllEnvs()
 })
 import { computeNextAllowedAt, shouldPoll } from "../../src/lib/poll-scheduling"

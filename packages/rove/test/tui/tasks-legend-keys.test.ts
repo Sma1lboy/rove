@@ -9,12 +9,12 @@
  * hint)". A hardcoded literal array of legend rows
  * (`{ k: "n" }`, `{ k: "a/d" }`, …) lets an override / unbind in
  * ~/.kobe/settings/keybindings.yaml change dispatch but NOT the advertised
- * cap, so the legend lies. Each cap is derived from `KobeKeymap` via
+ * cap, so the legend lies. Each cap is derived from `RoveKeymap` via
  * `legendCap` / `legendRowCap`, which live in the framework-free
  * `src/tui/lib/help-groups.ts` — imported here directly (no opentui in the
  * module graph), so this file tests the REAL helpers the footer legend
  * (tasks-pane/shortcut-hints.tsx) and the help dialog run. Two things lock:
- *   1. every binding id the legend reads still EXISTS in KobeKeymap and
+ *   1. every binding id the legend reads still EXISTS in RoveKeymap and
  *      resolves to the expected default cap (id drift = a silently-dropped
  *      legend row), and
  *   2. the resolution rule (`hint?.keys ?? keys[0]`, drop on unbind, join
@@ -23,7 +23,7 @@
  */
 
 import { afterEach, describe, expect, test } from "vitest"
-import { KobeKeymap, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
+import { RoveKeymap, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
 import { legendCap, legendRowCap } from "../../src/tui/lib/help-groups"
 import { applyKeymapOverrides } from "../../src/tui/lib/keymap-overrides"
 
@@ -59,7 +59,7 @@ describe("tasks-pane legend keycap derivation", () => {
 
   test("an override re-points the cap (hint.keys is refreshed in place)", () => {
     // task.new: c — a bare-letter sidebar override is valid (scope:"sidebar").
-    applyKeymapOverrides(KobeKeymap, [{ id: "task.new", keys: ["c"] }])
+    applyKeymapOverrides(RoveKeymap, [{ id: "task.new", keys: ["c"] }])
     expect(legendCap("task.new")).toBe("c")
     resetKeymapToDefaults()
     expect(legendCap("task.new")).toBe("n")
@@ -68,13 +68,13 @@ describe("tasks-pane legend keycap derivation", () => {
   test("a composite row drops only the unbound id, keeping the survivors", () => {
     // Unbind the branch rename (b) — the r/b/v row collapses to r/v, it
     // does not advertise the dead `b`.
-    applyKeymapOverrides(KobeKeymap, [{ id: "tasks.renameBranch", keys: [] }])
+    applyKeymapOverrides(RoveKeymap, [{ id: "tasks.renameBranch", keys: [] }])
     expect(legendCap("tasks.renameBranch")).toBeNull()
     expect(legendRowCap(["sidebar.rename", "tasks.renameBranch", "tasks.cycleEngine"])).toBe("r/v")
   })
 
   test("a fully-unbound row resolves to null so the caller drops it entirely", () => {
-    applyKeymapOverrides(KobeKeymap, [{ id: "tasks.openWorktree", keys: [] }])
+    applyKeymapOverrides(RoveKeymap, [{ id: "tasks.openWorktree", keys: [] }])
     expect(legendCap("tasks.openWorktree")).toBeNull()
     expect(legendRowCap(["tasks.openWorktree"])).toBeNull()
   })

@@ -46,8 +46,8 @@ describe("formatCliFailure", () => {
     expect(formatCliFailure(new Error("disk on fire"), opts)).toBe("rove adopt: disk on fire")
   })
 
-  it("keeps the raw throw under KOBE_DEBUG=1 so bug reports still carry the argv", () => {
-    const line = formatCliFailure(new Error(GIT_THROW), { ...opts, env: { KOBE_DEBUG: "1" } })
+  it("keeps the raw throw under ROVE_DEBUG=1 so bug reports still carry the argv", () => {
+    const line = formatCliFailure(new Error(GIT_THROW), { ...opts, env: { ROVE_DEBUG: "1" } })
 
     expect(line).toContain("(cwd=/private/tmp)")
     expect(line).toContain("exited with code 128")

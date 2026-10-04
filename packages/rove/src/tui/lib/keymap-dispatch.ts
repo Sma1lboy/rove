@@ -26,11 +26,11 @@ export type Binding = {
   key: string
   /** True when `key` is the second stroke of the PureTUI prefix. */
   prefix?: boolean
-  /** Terminal/shell input that marks the PTY boundary. The configured prefix remains Kobe-owned. */
+  /** Terminal/shell input that marks the PTY boundary. The configured prefix remains Rove-owned. */
   passthrough?: boolean
   /** Skip this match when the current input surface forwards keys to a PTY. */
   yieldToPassthrough?: boolean
-  /** Owning KobeKeymap id, filled by `bindByIds` so the prefix HUD can name the action. Hand-rolled literals may omit it. */
+  /** Owning RoveKeymap id, filled by `bindByIds` so the prefix HUD can name the action. Hand-rolled literals may omit it. */
   id?: string
   /**
    * `slot` is present when the registration assigned one (`bindByIds` does).
@@ -172,7 +172,7 @@ function armPrefix(
  * Arm the prefix from the mouse (the clickable footer "commands" hint). Same
  * guards as the keyboard arm in {@link dispatchKeyEvent}: disabled prefix or
  * unreachable catalogue (modal barrier) → no-op. Allowed over terminal
- * passthrough because the prefix is Kobe-global. The armed state is real, so
+ * passthrough because the prefix is Rove-global. The armed state is real, so
  * the next keypress dispatches as the second stroke.
  */
 export function armPrefixNow(snapshot: readonly RegisteredBinding[], now: number = Date.now()): boolean {
@@ -245,7 +245,7 @@ const shadowWarned = new Set<string>()
  * snapshot (the handler may re-gate the loser); below a modal entry is
  * unreachable, not shadowed.
  *
- * DEV-ONLY (`isDev()`, KOBE_DEV=1): it reads every lower config, which breaks
+ * DEV-ONLY (`isDev()`, ROVE_DEV=1): it reads every lower config, which breaks
  * the read-one-config-on-hit hot-path budget (test/tui/perf-budgets.test.ts).
  */
 function warnShadowedMatch(
@@ -370,7 +370,7 @@ export function dispatchKeyEvent(
 
     const firstStroke = prefixFirstStrokes().find((key) => candidates.includes(key))
     if (firstStroke !== undefined) {
-      // The first stroke is Kobe-global, even over the terminal. With no
+      // The first stroke is Rove-global, even over the terminal. With no
       // reachable prefix row, direct dispatch below lets passthrough win.
       if (prefixReachable(snapshot)) {
         const reach = scanReachability(snapshot)

@@ -17,7 +17,7 @@
  * Before the fix the analogous count would be 8 (every handle's body ran its
  * compare); after it is exactly 1.
  *
- * A REAL `HostedTaskPty` over a REAL `KobeDaemonClient` (protocol-only fake
+ * A REAL `HostedTaskPty` over a REAL `RoveDaemonClient` (protocol-only fake
  * host — no child spawn) exercises the actual dispatcher + `hostedByKey` map
  * + `cleanup()` teardown, so it also guards that detach removes the entry (no
  * leak, no stray chunk to a dead tab).
@@ -116,15 +116,15 @@ describe("hosted pty inbound dispatch budget", () => {
 
   beforeAll(async () => {
     dir = mkdtempSync(join(tmpdir(), "kobe-pty-dispatch-"))
-    process.env.KOBE_PTY_SOCKET_PATH = join(dir, "pty.sock")
-    process.env.KOBE_PTY_PID_PATH = join(dir, "pty.pid")
-    host = await FakePtyHost.start(process.env.KOBE_PTY_SOCKET_PATH)
+    process.env.ROVE_PTY_SOCKET_PATH = join(dir, "pty.sock")
+    process.env.ROVE_PTY_PID_PATH = join(dir, "pty.pid")
+    host = await FakePtyHost.start(process.env.ROVE_PTY_SOCKET_PATH)
   })
 
   afterAll(async () => {
     await host.close()
-    Reflect.deleteProperty(process.env, "KOBE_PTY_SOCKET_PATH")
-    Reflect.deleteProperty(process.env, "KOBE_PTY_PID_PATH")
+    Reflect.deleteProperty(process.env, "ROVE_PTY_SOCKET_PATH")
+    Reflect.deleteProperty(process.env, "ROVE_PTY_PID_PATH")
     rmSync(dir, { recursive: true, force: true })
   })
 

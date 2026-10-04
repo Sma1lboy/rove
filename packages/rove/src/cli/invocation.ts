@@ -1,7 +1,7 @@
 /** How to re-invoke the active public CLI as a subprocess (packaged bin, or the dev runtime). */
 
 import { fileURLToPath } from "node:url"
-import { LEGACY_KOBE_PRODUCT_NAME, ROVE_PRODUCT_NAME } from "../product.ts"
+import { LEGACY_ROVE_PRODUCT_NAME, ROVE_PRODUCT_NAME } from "../product.ts"
 import { activeCliName } from "./rename-compat.ts"
 
 /**
@@ -30,9 +30,9 @@ export function roveCliInvocation(): string[] {
  * (often in a worktree) goes stale when the worktree is removed ("Module not
  * found" on every fire), so prefer the packaged `kobe` on PATH even in dev.
  */
-export function kobeHookInvocation(): string[] {
+export function roveHookInvocation(): string[] {
   // `kobe`, not `rove`: guaranteed on PATH throughout rename phase 1.
-  if (import.meta.url.endsWith(".js")) return [LEGACY_KOBE_PRODUCT_NAME]
-  if (Bun.which(LEGACY_KOBE_PRODUCT_NAME)) return [LEGACY_KOBE_PRODUCT_NAME]
+  if (import.meta.url.endsWith(".js")) return [LEGACY_ROVE_PRODUCT_NAME]
+  if (Bun.which(LEGACY_ROVE_PRODUCT_NAME)) return [LEGACY_ROVE_PRODUCT_NAME]
   return roveCliInvocation()
 }

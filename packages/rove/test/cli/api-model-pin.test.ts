@@ -9,17 +9,17 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
-const savedEnv = { taskId: process.env.KOBE_TASK_ID, tabId: process.env.KOBE_TAB_ID }
+const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }
 beforeEach(() => {
   // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-  delete process.env.KOBE_TASK_ID
+  delete process.env.ROVE_TASK_ID
   // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-  delete process.env.KOBE_TAB_ID
+  delete process.env.ROVE_TAB_ID
 })
 afterEach(() => {
   for (const [name, value] of [
-    ["KOBE_TASK_ID", savedEnv.taskId],
-    ["KOBE_TAB_ID", savedEnv.tabId],
+    ["ROVE_TASK_ID", savedEnv.taskId],
+    ["ROVE_TAB_ID", savedEnv.tabId],
   ] as const) {
     if (value === undefined) delete process.env[name]
     else process.env[name] = value

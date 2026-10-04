@@ -18,7 +18,7 @@ import { randomUUID } from "node:crypto"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { PtyChild, PtyDriver, PtyExit } from "@sma1lboy/rove-daemon/daemon/pty-driver"
 import { type PtyHostServer, startPtyHostServer } from "@sma1lboy/rove-daemon/daemon/pty-server"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -27,20 +27,20 @@ let dir: string
 let socketPath: string
 let savedHome: string | undefined
 const servers: PtyHostServer[] = []
-const clients: KobeDaemonClient[] = []
+const clients: RoveDaemonClient[] = []
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "kobe-pty-kill-wait-"))
   socketPath = process.platform === "win32" ? `\\\\.\\pipe\\kobe-pty-kill-wait-${randomUUID()}` : join(dir, "pty.sock")
-  savedHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = dir
+  savedHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = dir
 })
 
 afterEach(async () => {
   for (const client of clients.splice(0)) client.close()
   for (const server of servers.splice(0)) await server.close().catch(() => {})
-  if (savedHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = savedHome
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
   rmSync(dir, { recursive: true, force: true })
 })
 
@@ -85,8 +85,8 @@ async function bootHost(): Promise<PtyHostServer> {
   return server
 }
 
-async function connect(): Promise<KobeDaemonClient> {
-  const client = new KobeDaemonClient(socketPath)
+async function connect(): Promise<RoveDaemonClient> {
+  const client = new RoveDaemonClient(socketPath)
   await client.connect()
   clients.push(client)
   return client

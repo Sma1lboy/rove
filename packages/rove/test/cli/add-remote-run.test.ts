@@ -2,7 +2,7 @@
  * `runAddRemote` (kobe add --remote) — sibling of add-remote.test.ts (which
  * covers parseRemoteFlags). RemoteExecHost + keychain are mocked (a real one
  * would SSH out / hit the macOS keychain); state.json lives under a
- * KOBE_HOME_DIR tempdir, so registration is asserted against the real
+ * ROVE_HOME_DIR tempdir, so registration is asserted against the real
  * persisted remoteRepos entry — not a mocked write.
  */
 
@@ -69,9 +69,9 @@ function enableRemoteProjects(): void {
 }
 
 beforeEach(() => {
-  originalHome = process.env.KOBE_HOME_DIR
+  originalHome = process.env.ROVE_HOME_DIR
   home = mkdtempSync(join(tmpdir(), "kobe-add-remote-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 
   mocks.run.mockReset().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" })
   mocks.isKeychainSupported.mockReset().mockReturnValue(false)
@@ -86,8 +86,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   rmSync(home, { recursive: true, force: true })
   logSpy.mockRestore()
   errSpy.mockRestore()

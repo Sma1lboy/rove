@@ -5,7 +5,7 @@
  * `keys.category` entries the catalog needs and can't import an opentui component.
  */
 
-import type { KobeBinding, KobeBindingScope } from "../context/keybindings"
+import type { RoveBinding, RoveBindingScope } from "../context/keybindings"
 import { findBinding } from "../context/keybindings"
 import type { BindingReachability } from "./keymap-reachability"
 
@@ -28,7 +28,7 @@ export function groupBindings<T extends { readonly category: string }>(
 }
 
 /** `hint.keys` (refreshed in place by overrides), else the first chord. */
-function capOf(row: Pick<KobeBinding, "keys" | "hint">): string | undefined {
+function capOf(row: Pick<RoveBinding, "keys" | "hint">): string | undefined {
   return row.hint?.keys ?? row.keys[0]
 }
 
@@ -46,20 +46,20 @@ export function legendRowCap(ids: readonly string[]): string | null {
   return caps.length > 0 ? caps.join("/") : null
 }
 
-export type HelpSurface = Exclude<KobeBindingScope, "global" | "inbox">
+export type HelpSurface = Exclude<RoveBindingScope, "global" | "inbox">
 type HelpGrammarKind = "here" | "direct" | "prefix" | "other"
 type HelpGrammarRow = {
-  binding: KobeBinding
+  binding: RoveBinding
   primary: string
   aliases: readonly string[]
 }
 export type HelpGrammarSection = {
   kind: HelpGrammarKind
-  scope?: KobeBindingScope
+  scope?: RoveBindingScope
   rows: readonly HelpGrammarRow[]
 }
 
-function directCap(row: KobeBinding): string | null {
+function directCap(row: RoveBinding): string | null {
   if (row.keys.length > 0) return row.hint?.keys ?? row.keys[0] ?? null
   // Doc-only rows (diff review, new-task tab cycler) advertise their hint: the
   // owning component registers the raw chord tagged with this row's id, which
@@ -67,7 +67,7 @@ function directCap(row: KobeBinding): string | null {
   return row.prefixKeys?.length ? null : (row.hint?.keys ?? null)
 }
 
-function availableOn(row: KobeBinding, surface: HelpSurface | null): boolean {
+function availableOn(row: RoveBinding, surface: HelpSurface | null): boolean {
   if (row.scope === "global") return true
   if (surface === null) return false
   if (row.scope === surface) return true
@@ -81,7 +81,7 @@ function availableOn(row: KobeBinding, surface: HelpSurface | null): boolean {
  * prefix commands, then other panes' rows as reference.
  */
 export function grammarHelpSections(
-  keymap: readonly KobeBinding[],
+  keymap: readonly RoveBinding[],
   surface: HelpSurface | null,
   prefixKey: string | null,
   reachability?: BindingReachability,
@@ -89,7 +89,7 @@ export function grammarHelpSections(
   const here: HelpGrammarRow[] = []
   const direct: HelpGrammarRow[] = []
   const prefix: HelpGrammarRow[] = []
-  const other = new Map<KobeBindingScope, HelpGrammarRow[]>()
+  const other = new Map<RoveBindingScope, HelpGrammarRow[]>()
 
   for (const binding of keymap) {
     const cap = directCap(binding)
@@ -129,7 +129,7 @@ export function grammarHelpSections(
  * exhaustive Record so a new scope is a compile error, not a plausible wrong
  * header (an if-chain default once headed the Inbox rows "Dialog").
  */
-const SCOPE_CATEGORY: Record<KobeBindingScope, string> = {
+const SCOPE_CATEGORY: Record<RoveBindingScope, string> = {
   global: "Global",
   sidebar: "Sidebar",
   workspace: "Workspace",
@@ -144,7 +144,7 @@ export function scopeCategory(scope: HelpGrammarSection["scope"]): string {
 
 /**
  * Prefix-HUD guide header: mostly a synthetic set (`Views` / `Sessions` /
- * `Tasks` / …) with no `KobeKeymap.category` counterpart; unclaimed actions
+ * `Tasks` / …) with no `RoveKeymap.category` counterpart; unclaimed actions
  * fall back to their own category, then `Global`.
  */
 export function guideCategory(action: string): string {

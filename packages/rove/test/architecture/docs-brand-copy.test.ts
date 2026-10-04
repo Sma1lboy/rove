@@ -4,7 +4,7 @@
  *
  * `package-distribution.test.ts` pins the npm/repository contract and
  * `active-product-copy.test.ts` pins stale-architecture claims. Neither sees
- * the third failure mode of the Kobe -> Rove rename: a page that still tells a
+ * the third failure mode of the Rove -> Rove rename: a page that still tells a
  * user to run `kobe …`, or prints a state path / branch prefix Rove does not
  * write. Those are silent because they are only wrong for NEW users.
  *
@@ -12,12 +12,12 @@
  * the absence of the stale spelling, never the presence of an exact sentence.
  *
  * Deliberately NOT covered here, because they are preserved compatibility:
- * the `kobe` executable and `@sma1lboy/kobe` package, `KOBE_*` env aliases,
+ * the `kobe` executable and `@sma1lboy/kobe` package, `ROVE_*` env aliases,
  * `packages/rove*` workspace names, `~/.kobe` runtime + plugin paths, legacy
  * `.kobe/worktrees` discovery, the `kobe-plugin` topic,
  * the installed `.agents/skills/rove/SKILL.md` path,
  * and the persisted `kobe hook` invocation.
- * `[KOBE PEER]`/`[KOBE FIELD NOTE]` are deliberately NOT compatibility: the
+ * `[ROVE PEER]`/`[ROVE FIELD NOTE]` are deliberately NOT compatibility: the
  * message prefixes are read by LLMs, not parsed by code, so `[ROVE PEER]`/
  * `[ROVE FIELD NOTE]` need no compat shim — guarded below.
  * Historical records (`docs/adr/`, `docs/superpowers/`, CHANGELOG, and the
@@ -48,26 +48,26 @@ const CURRENT_DESIGN_DOCS = [
 
 /**
  * A `kobe <verb>` the reader is expected to TYPE. `kobe hook` is excluded: it
- * is persisted into engine config files by `kobeHookInvocation()` and must
+ * is persisted into engine config files by `roveHookInvocation()` and must
  * keep the guaranteed legacy name.
  */
-const TYPED_KOBE_COMMAND =
+const TYPED_ROVE_COMMAND =
   /\bkobe (?!hook\b)(api|attach|daemon|doctor|reset|update|plugin|skill|theme|repo|config|web|add|remove|list|feedback|export|completions|pty-host)\b/
 
 /**
  * The product called `kobe` rather than `rove`. Compatibility spellings survive the
  * lookahead: `packages/rove-docs`, `kobe-plugin`, `.agents/skills/rove/`, and
  * `packages/rove/src/…` all continue with `-`, `/`,
- * or `.`, so only a bare "kobe"/"Kobe"/"kobe's" — the product itself — trips.
+ * or `.`, so only a bare "kobe"/"Rove"/"kobe's" — the product itself — trips.
  */
-const PRODUCT_NAME_KOBE = /\bkobe(?:['’]s)?\b(?![-/.])/i
+const PRODUCT_NAME_ROVE = /\bkobe(?:['’]s)?\b(?![-/.])/i
 
 /** Product-data paths that moved to the Rove layout. */
 const MOVED_STATE_PATHS = ["~/.kobe/tasks.json", "~/.kobe/settings/", "~/.kobe/themes/", "~/.config/rove/state.json"]
 
 describe("current docs and landing copy speak Rove", () => {
   test.each(CURRENT_DESIGN_DOCS)("%s tells the reader to run rove", (path) => {
-    const match = TYPED_KOBE_COMMAND.exec(read(path))
+    const match = TYPED_ROVE_COMMAND.exec(read(path))
     expect(match?.[0], `${path} still documents "${match?.[0]}"`).toBeUndefined()
   })
 
@@ -84,9 +84,9 @@ describe("current docs and landing copy speak Rove", () => {
   test("the CLI environment table leads with the canonical names", () => {
     const source = read("docs/CLI.md")
     const table = source.slice(source.indexOf("## Environment variables"))
-    // A `| \`KOBE_…\` |` first cell means the alias is being taught as the
+    // A `| \`ROVE_…\` |` first cell means the alias is being taught as the
     // primary spelling; prose mentions of the aliases stay welcome.
-    expect(table, "docs/CLI.md documents a KOBE_* alias as the primary name").not.toMatch(/^\|\s*`KOBE_/m)
+    expect(table, "docs/CLI.md documents a ROVE_* alias as the primary name").not.toMatch(/^\|\s*`ROVE_/m)
   })
 
   test("docs and issue templates use the canonical repository and CLI", () => {
@@ -95,30 +95,30 @@ describe("current docs and landing copy speak Rove", () => {
     )
 
     const bugReport = read(".github/ISSUE_TEMPLATE/bug_report.md")
-    expect(bugReport, "the bug template still asks for `kobe` diagnostics").not.toMatch(TYPED_KOBE_COMMAND)
+    expect(bugReport, "the bug template still asks for `kobe` diagnostics").not.toMatch(TYPED_ROVE_COMMAND)
     expect(bugReport, "the bug template still asks for `kobe --version`").not.toContain("kobe --version")
 
     const engineRequest = read(".github/ISSUE_TEMPLATE/engine-support-request.md")
-    expect(engineRequest, "the engine template still calls the product Kobe").not.toContain("Kobe")
+    expect(engineRequest, "the engine template still calls the product Rove").not.toContain("Rove")
   })
 
   test.each(["docs/design/herdr-gap-analysis.md", ".claude/skills/file-issue/SKILL.md"])(
     "%s calls the product Rove",
     (path) => {
-      const match = PRODUCT_NAME_KOBE.exec(read(path))
+      const match = PRODUCT_NAME_ROVE.exec(read(path))
       expect(match?.[0], `${path} still calls the product "${match?.[0]}"`).toBeUndefined()
     },
   )
 
   test("the active file-issue skill teaches rove commands", () => {
     const source = read(".claude/skills/file-issue/SKILL.md")
-    const match = TYPED_KOBE_COMMAND.exec(source)
+    const match = TYPED_ROVE_COMMAND.exec(source)
     expect(match?.[0], `the file-issue skill still teaches "${match?.[0]}"`).toBeUndefined()
   })
 
   // The peer/field-note prefixes are LLM-read text: no code parses the
   // literal, so there is no compat shim to preserve. Producers and the skill
-  // must not regrow the `KOBE` spelling.
+  // must not regrow the `ROVE` spelling.
   test.each([
     "packages/rove/src/cli/api/handlers-tasks.ts",
     "packages/rove-daemon/src/daemon/handlers-ui.ts",
@@ -126,8 +126,8 @@ describe("current docs and landing copy speak Rove", () => {
     ".agents/skills/rove/SKILL.md",
   ])("%s stamps ROVE-branded message provenance", (path) => {
     const source = read(path)
-    expect(source, `${path} still stamps [KOBE PEER]`).not.toContain("[KOBE PEER]")
-    expect(source, `${path} still stamps [KOBE FIELD NOTE]`).not.toContain("[KOBE FIELD NOTE]")
+    expect(source, `${path} still stamps [ROVE PEER]`).not.toContain("[ROVE PEER]")
+    expect(source, `${path} still stamps [ROVE FIELD NOTE]`).not.toContain("[ROVE FIELD NOTE]")
   })
 
   test("the landing page prints Rove state paths and branch names", () => {
@@ -170,17 +170,17 @@ describe("current docs and landing copy speak Rove", () => {
 
   test("the preview installer teaches the canonical executable", () => {
     const source = read("scripts/preview-install.sh")
-    const command = TYPED_KOBE_COMMAND.exec(source)
+    const command = TYPED_ROVE_COMMAND.exec(source)
     expect(command?.[0], `preview-install.sh still teaches "${command?.[0]}"`).toBeUndefined()
     expect(source, "preview-install.sh still verifies the compatibility executable").not.toContain("kobe -v")
   })
 
   test("active developer tooling labels Rove", () => {
-    expect(read("packages/rove/scripts/pty-soak.ts"), "the PTY soak banner still labels Kobe").not.toContain(
+    expect(read("packages/rove/scripts/pty-soak.ts"), "the PTY soak banner still labels Rove").not.toContain(
       "kobe pty soak",
     )
     const webReadme = read("packages/rove-harness/README.md")
-    expect(webReadme, "the web README still calls the product Kobe").not.toMatch(PRODUCT_NAME_KOBE)
-    expect(webReadme, "the web README still teaches the compatibility CLI").not.toMatch(TYPED_KOBE_COMMAND)
+    expect(webReadme, "the web README still calls the product Rove").not.toMatch(PRODUCT_NAME_ROVE)
+    expect(webReadme, "the web README still teaches the compatibility CLI").not.toMatch(TYPED_ROVE_COMMAND)
   })
 })

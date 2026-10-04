@@ -15,7 +15,7 @@
 import { autoStatusEnabled } from "@/state/auto-status"
 import { dispatcherEnabled } from "@/state/dispatcher"
 import { sessionProtocol } from "./engine-presets.ts"
-import { argvHasFlag, kobeApiInvocation } from "./interactive-command.ts"
+import { argvHasFlag, roveApiInvocation } from "./interactive-command.ts"
 
 /** The engine protocol whose `--append-system-prompt` flag these injections use. */
 const SYSTEM_PROMPT_PROTOCOL = "claude"
@@ -40,7 +40,7 @@ function hasOwnSystemPrompt(argv: readonly string[]): boolean {
  * "complete" or "asking the user" (Stop fires identically for both). The
  * task id is baked in at spawn (ids are immutable).
  */
-export function statusReportProtocol(taskId: string, api: string = kobeApiInvocation()): string {
+export function statusReportProtocol(taskId: string, api: string = roveApiInvocation()): string {
   return [
     `You are running inside Rove (a local multi-session task manager) as task ${taskId}.`,
     "Rove tracks a lifecycle status for this task on a board.",
@@ -56,7 +56,7 @@ export function statusReportProtocol(taskId: string, api: string = kobeApiInvoca
  * resolved repo-level gotcha becomes a one-line note the daemon forwards to
  * the repo's dispatcher for routing.
  */
-export function noteFilingProtocol(taskId: string, api: string = kobeApiInvocation()): string {
+export function noteFilingProtocol(taskId: string, api: string = roveApiInvocation()): string {
   return [
     "Rove shares hard-won discoveries between its parallel sessions as one-line field notes.",
     "When you RESOLVE a non-obvious, repo-level gotcha (a build flag, a flaky test, an environment quirk, an API trap), file it:",
@@ -91,7 +91,7 @@ function noteRecallProtocol(notes: readonly { text: string; author: string }[]):
  */
 export function worktreeProtocol(
   taskId: string,
-  api: string = kobeApiInvocation(),
+  api: string = roveApiInvocation(),
   gates: { status?: () => boolean; notes?: () => boolean } = {},
   notes: readonly { text: string; author: string }[] = [],
 ): string | null {
@@ -121,7 +121,7 @@ export function withWorktreeProtocol(
   if (!taskId) return argv
   if (!acceptsSystemPrompt(vendor)) return argv
   if (hasOwnSystemPrompt(argv)) return argv
-  const text = worktreeProtocol(taskId, kobeApiInvocation(), gates, notes)
+  const text = worktreeProtocol(taskId, roveApiInvocation(), gates, notes)
   if (!text) return argv
   return [...argv, "--append-system-prompt", text]
 }
@@ -133,7 +133,7 @@ export function withWorktreeProtocol(
  * (`collect`) and message (`dispatch`): a bad call costs a stray FYI, never
  * a mutated worktree. No action on merge conflicts (the radar is display-only).
  */
-export function dispatcherProtocol(taskId: string, api: string = kobeApiInvocation()): string {
+export function dispatcherProtocol(taskId: string, api: string = roveApiInvocation()): string {
   return [
     `You are running inside Rove (a local multi-session task manager) as this repository's DISPATCHER (task ${taskId}, the repo's main session).`,
     "Rove runs multiple worktree task sessions on this repo in parallel. When one of them resolves a non-obvious gotcha, it files a one-line field note; Rove forwards each note to you as a user message prefixed with [ROVE FIELD NOTE].",

@@ -1,4 +1,4 @@
-/** Distribution contract for the canonical Rove npm package and Kobe alias. */
+/** Distribution contract for the canonical Rove npm package and Rove alias. */
 
 import { execFileSync } from "node:child_process"
 import { existsSync, readFileSync, readdirSync } from "node:fs"
@@ -88,10 +88,10 @@ describe("Rove package distribution", () => {
     const build = read("packages/rove/scripts/build.ts")
 
     expect(harness).toContain('DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/rove.js")')
-    expect(harness).toContain('DIST_KOBE_CLI = join(PKG_ROOT, "dist/cli/kobe.js")')
+    expect(harness).toContain('DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/kobe.js")')
     expect(harness).not.toContain('DIST_CLI = join(PKG_ROOT, "dist/cli/kobe.js")')
-    expect(visualFixture).toContain('const ROVE_CLI = join(KOBE_DIR, "dist", "cli", "rove.js")')
-    expect(visualFixture).toContain('const ROVE_SKILL = join(KOBE_DIR, "dist", "skills", "rove", "SKILL.md")')
+    expect(visualFixture).toContain('const ROVE_CLI = join(ROVE_DIR, "dist", "cli", "rove.js")')
+    expect(visualFixture).toContain('const ROVE_SKILL = join(ROVE_DIR, "dist", "skills", "rove", "SKILL.md")')
     expect(visualFixture).toContain('join(XDG_CONFIG_HOME, "rove")')
     expect(heroFixture).toContain('join(HERO_CONFIG, "rove")')
     expect(build).toContain('const SKILL_OUT_DIR = "./dist/skills/rove"')
@@ -237,7 +237,7 @@ describe("Rove package distribution", () => {
 
     for (const path of surfaces) {
       const source = read(path)
-      expect(source, `${path} still recommends installing Kobe`).not.toMatch(
+      expect(source, `${path} still recommends installing Rove`).not.toMatch(
         /(?:install|-g|bunx)\s+@sma1lboy\/kobe(?:@[^\s<`]+)?/,
       )
       expect(source, `${path} still links to the compatibility npm package`).not.toMatch(
@@ -281,7 +281,7 @@ describe("Rove package distribution", () => {
     for (const path of surfaces) {
       const source = read(path)
       expect(source, `${path} does not point at the canonical repository`).toMatch(/sma1lboy\/rove/i)
-      expect(source, `${path} still points at the redirected Kobe repository`).not.toMatch(legacyRepository)
+      expect(source, `${path} still points at the redirected Rove repository`).not.toMatch(legacyRepository)
     }
 
     expect(read("CONTRIBUTING.md")).toContain("git clone https://github.com/Sma1lboy/rove.git\ncd rove")
@@ -302,7 +302,7 @@ describe("Rove package distribution", () => {
 
     for (const path of releasePageAssets) {
       const source = read(path)
-      expect(source, `${path} still brands generated pages as Kobe`).toContain("<title>Rove · 近期发版速览</title>")
+      expect(source, `${path} still brands generated pages as Rove`).toContain("<title>Rove · 近期发版速览</title>")
       expect(source, `${path} still advertises the compatibility package`).toContain(
         '<span class="chip">包 <b>@sma1lboy/rove</b></span>',
       )
@@ -358,7 +358,7 @@ describe("Rove package distribution", () => {
     expect(homeScript).toContain("https://api.github.com/repos/Sma1lboy/rove")
     expect(themes).toContain('<link rel="stylesheet" href="/themes.css">')
     expect(themes).toMatch(/<script[^>]+src="\/themes\.js"/)
-    expect(themesScript).toContain("var KOBE_I18N")
+    expect(themesScript).toContain("var ROVE_I18N")
     expect(themesStyles).toContain(".tcard")
   })
 })

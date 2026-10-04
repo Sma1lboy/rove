@@ -130,7 +130,7 @@ function KvSeed(props: { entries: readonly [string, unknown][]; children?: React
 }
 
 function withTempKvHome(): void {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-hints-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-hints-"))
 }
 
 function withGuideKvHome(): void {
@@ -138,7 +138,7 @@ function withGuideKvHome(): void {
   const configDir = join(home, ".config", "rove")
   mkdirSync(configDir, { recursive: true })
   writeFileSync(join(configDir, "state.json"), JSON.stringify({ [PREFIX_TAP_PRESENTATION_KEY]: "guide" }))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 }
 
 // The command guide is a deliberate delayed reveal: PrefixHud only opens it

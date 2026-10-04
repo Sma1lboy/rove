@@ -30,9 +30,9 @@ let exitSpy: MockInstance<typeof process.exit>
 const configPath = (): string => join(home, ".config", "rove", "state.json")
 
 beforeEach(() => {
-  originalHome = process.env.KOBE_HOME_DIR
+  originalHome = process.env.ROVE_HOME_DIR
   home = mkdtempSync(join(tmpdir(), "kobe-config-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   mocks.resolveEditorCommand.mockReset()
   mocks.binaryAvailable.mockReset()
   logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined)
@@ -43,8 +43,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   rmSync(home, { recursive: true, force: true })
   vi.restoreAllMocks()
   vi.unstubAllGlobals()

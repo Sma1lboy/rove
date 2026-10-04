@@ -1,5 +1,5 @@
 /* Rove marketplace — the plugin list and the hash-routed detail view.
-   Loaded by plugins.html after KOBE_I18N is defined. Classic script (no module),
+   Loaded by plugins.html after ROVE_I18N is defined. Classic script (no module),
    so it also runs from file:// while iterating locally. */
 (function () {
   var grid = document.getElementById('grid');
@@ -42,13 +42,13 @@
     var sub = subdirOf(it);
     return 'https://github.com/' + repoOf(it) + (sub ? '/tree/HEAD/' + sub : '');
   }
-  function descOf(it) { return typeof it.desc === 'string' ? it.desc : (it.desc[KOBE_I18N.lang()] || it.desc.en); }
+  function descOf(it) { return typeof it.desc === 'string' ? it.desc : (it.desc[ROVE_I18N.lang()] || it.desc.en); }
   function starsOf(it) { return typeof it.stars === 'number' ? it.stars.toLocaleString() : '–'; }
 
   function relTime(iso) {
     if (!iso) return '';
     var days = Math.round((Date.now() - new Date(iso).getTime()) / 86400000);
-    var loc = KOBE_I18N.lang() === 'zh' ? 'zh-CN' : 'en';
+    var loc = ROVE_I18N.lang() === 'zh' ? 'zh-CN' : 'en';
     try {
       var rtf = new Intl.RelativeTimeFormat(loc, { numeric: 'auto' });
       if (Math.abs(days) < 31) return rtf.format(-days, 'day');
@@ -79,7 +79,7 @@
     var parts = [];
     if (it.lang) parts.push('<span class="dot" aria-hidden="true"></span>' + esc(it.lang));
     if (it.pushed) parts.push(esc(relTime(it.pushed)));
-    var chip = it.firstParty ? '<span class="tag-first">' + esc(KOBE_I18N.t('mk.firstParty')) + '</span>' : '';
+    var chip = it.firstParty ? '<span class="tag-first">' + esc(ROVE_I18N.t('mk.firstParty')) + '</span>' : '';
     if (!chip && !parts.length) return '';
     return chip + parts.join(' <span class="sep">·</span> ');
   }
@@ -95,7 +95,7 @@
       '</div>' +
       '<p class="card-desc">' + esc(descOf(it)) + '</p>' +
       '<div class="card-meta">' + (meta || '&nbsp;') + '</div>' +
-      '<button class="card-install" data-cmd="' + esc(cmd) + '" title="' + esc(KOBE_I18N.t('mk.copy')) + '">' +
+      '<button class="card-install" data-cmd="' + esc(cmd) + '" title="' + esc(ROVE_I18N.t('mk.copy')) + '">' +
         '<span class="ps" aria-hidden="true">$</span><span class="cmd">' + esc(cmd) + '</span></button>' +
     '</article>';
   }
@@ -112,10 +112,10 @@
       var bv = key === 'stars' ? (b.stars || 0) : Date.parse(b[key] || 0) || 0;
       return bv - av || a.ref.localeCompare(b.ref);
     });
-    countEl.textContent = list.length + ' ' + KOBE_I18N.t('mk.count');
+    countEl.textContent = list.length + ' ' + ROVE_I18N.t('mk.count');
     grid.innerHTML = list.length
       ? list.map(card).join('')
-      : '<p class="empty">' + esc(KOBE_I18N.t('mk.none')) + '</p>';
+      : '<p class="empty">' + esc(ROVE_I18N.t('mk.none')) + '</p>';
   }
 
   // ── minimal markdown → html (headings, paragraphs, fenced code, inline code, links, lists) ──
@@ -175,8 +175,8 @@
   }
 
   function readmeFallback(it) {
-    return '<p class="md-fail">' + esc(KOBE_I18N.t('det.readmeFail')) +
-      ' <a href="' + esc(urlOf(it)) + '" target="_blank" rel="noopener">' + esc(KOBE_I18N.t('det.viewGithub')) + ' ↗</a></p>';
+    return '<p class="md-fail">' + esc(ROVE_I18N.t('det.readmeFail')) +
+      ' <a href="' + esc(urlOf(it)) + '" target="_blank" rel="noopener">' + esc(ROVE_I18N.t('det.viewGithub')) + ' ↗</a></p>';
   }
 
   function loadReadme(it) {
@@ -202,19 +202,19 @@
     var cmd = 'rove plugin install ' + it.ref;
     var facts = ['<span class="det-fact">' + STAR_SVG + starsOf(it) + '</span>'];
     if (it.lang) facts.push('<span class="det-fact"><span class="dot" aria-hidden="true"></span>' + esc(it.lang) + '</span>');
-    if (it.pushed) facts.push('<span class="det-fact">' + esc(KOBE_I18N.t('det.pushed')) + ' ' + esc(relTime(it.pushed)) + '</span>');
-    return '<a class="det-back" href="#">' + esc(KOBE_I18N.t('det.back')) + '</a>' +
+    if (it.pushed) facts.push('<span class="det-fact">' + esc(ROVE_I18N.t('det.pushed')) + ' ' + esc(relTime(it.pushed)) + '</span>');
+    return '<a class="det-back" href="#">' + esc(ROVE_I18N.t('det.back')) + '</a>' +
       '<div class="det-title">' +
         '<h2 class="det-name"><span class="owner">' + esc(it.owner) + '/</span>' + esc(it.name) + '</h2>' +
-        (it.firstParty ? '<span class="tag-first">' + esc(KOBE_I18N.t('mk.firstParty')) + '</span>' : '') +
+        (it.firstParty ? '<span class="tag-first">' + esc(ROVE_I18N.t('mk.firstParty')) + '</span>' : '') +
       '</div>' +
       '<p class="det-desc">' + esc(descOf(it)) + '</p>' +
       '<div class="det-facts">' + facts.join('<span class="sep">·</span>') +
-        '<a class="det-gh" href="' + esc(urlOf(it)) + '" target="_blank" rel="noopener">' + esc(KOBE_I18N.t('det.viewGithub')) + ' ↗</a></div>' +
-      '<button class="card-install det-install" data-cmd="' + esc(cmd) + '" title="' + esc(KOBE_I18N.t('mk.copy')) + '">' +
+        '<a class="det-gh" href="' + esc(urlOf(it)) + '" target="_blank" rel="noopener">' + esc(ROVE_I18N.t('det.viewGithub')) + ' ↗</a></div>' +
+      '<button class="card-install det-install" data-cmd="' + esc(cmd) + '" title="' + esc(ROVE_I18N.t('mk.copy')) + '">' +
         '<span class="ps" aria-hidden="true">$</span><span class="cmd">' + esc(cmd) + '</span></button>' +
       '<div class="det-readme"><span class="det-readme-label">README</span>' +
-        '<div class="det-readme-body md"><p class="md-fail">' + esc(KOBE_I18N.t('det.readmeLoading')) + '</p></div></div>';
+        '<div class="det-readme-body md"><p class="md-fail">' + esc(ROVE_I18N.t('det.readmeLoading')) + '</p></div></div>';
   }
 
   function currentRef() { try { return decodeURIComponent((location.hash || '').slice(1)); } catch (e) { return ''; } }
@@ -222,7 +222,7 @@
   function showList() {
     detailSec.hidden = true;
     headSec.hidden = false; listSec.hidden = false; pubSec.hidden = false;
-    document.title = KOBE_I18N.t('meta.title');
+    document.title = ROVE_I18N.t('meta.title');
     renderList();
   }
 
@@ -243,7 +243,7 @@
 
   qEl.addEventListener('input', renderList);
   sortEl.addEventListener('change', renderList);
-  KOBE_I18N.onChange(function () { if (items.length) route(false); });
+  ROVE_I18N.onChange(function () { if (items.length) route(false); });
   window.addEventListener('hashchange', function () { route(true); });
 
   // whole card opens the detail view; the install button copies instead
@@ -260,7 +260,7 @@
     var cmd = btn.getAttribute('data-cmd');
     try { if (navigator.clipboard) navigator.clipboard.writeText(cmd); } catch (err) {}
     var label = btn.querySelector('.cmd');
-    label.textContent = KOBE_I18N.t('mk.copied');
+    label.textContent = ROVE_I18N.t('mk.copied');
     setTimeout(function () { label.textContent = cmd; }, 1500);
   });
 
@@ -273,9 +273,9 @@
     n.className = isErr ? 'notice err' : 'notice';
     n.innerHTML = '<span class="mk" aria-hidden="true">!</span><span></span>';
     var msg = n.lastChild;
-    function say() { msg.textContent = KOBE_I18N.t(key); }
+    function say() { msg.textContent = ROVE_I18N.t(key); }
     say();
-    KOBE_I18N.onChange(say);
+    ROVE_I18N.onChange(say);
     host.insertAdjacentElement('beforebegin', n);
   }
 

@@ -190,7 +190,7 @@ jobs:
         run: bun x vitest run --passWithNoTests --minWorkers=1 --maxWorkers=8 --shard=${{ matrix.shard }}/4
 
   behavior:
-    # Black-box behavior suite: the BUILT CLI in a temp KOBE_HOME with an
+    # Black-box behavior suite: the BUILT CLI in a temp ROVE_HOME with an
     # isolated daemon + hosted PTY engine. Catches packaged-path and session
     # lifecycle regressions unit mocks cannot see.
     #
@@ -225,7 +225,7 @@ jobs:
         # across jobs is. Verified locally: 6 + 5 = 11 files, the whole set.
         working-directory: packages/rove
         run: |
-          KOBE_INCLUDE_BEHAVIOR=1 bun x vitest run test/behavior \
+          ROVE_INCLUDE_BEHAVIOR=1 bun x vitest run test/behavior \
             --pool forks --minWorkers=1 --maxWorkers=1 --retry=2 \
             --passWithNoTests --shard=${{ matrix.shard }}/2
 

@@ -79,7 +79,7 @@ export const STICKY_STATES: ReadonlySet<TaskActivityState> = new Set([
 ])
 
 export function resolveEngineStateTtlMs(): number {
-  const raw = process.env.KOBE_ENGINE_STATE_TTL_MS
+  const raw = process.env.ROVE_ENGINE_STATE_TTL_MS
   if (raw === undefined) return DEFAULT_ENGINE_STATE_TTL_MS
   const n = Number(raw)
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_ENGINE_STATE_TTL_MS

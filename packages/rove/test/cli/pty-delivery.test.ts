@@ -309,7 +309,7 @@ describe("deliverHostedPrompt", () => {
         calls.push(name)
         if (name === "pty.list")
           return {
-            sessions: [session("t1::tab-22", ["/bin/zsh", "-ilc", "export KOBE_TAB_ID='tab-22'\nclaude"])],
+            sessions: [session("t1::tab-22", ["/bin/zsh", "-ilc", "export ROVE_TAB_ID='tab-22'\nclaude"])],
           } as T
         if (name === "pty.peek") return engine.peek() as T
         if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")

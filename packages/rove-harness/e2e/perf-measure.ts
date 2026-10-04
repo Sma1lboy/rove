@@ -29,7 +29,7 @@ const out = resolve(
 mkdirSync(out, { recursive: true })
 
 // Read at import by visual-fixture and by the TUI command it builds.
-process.env.KOBE_VISUAL_PORT_BASE ??= "5373"
+process.env.ROVE_VISUAL_PORT_BASE ??= "5373"
 process.env.ROVE_RENDER_PROFILE = join(out, "render.jsonl")
 process.env.ROVE_SPAWN_PROFILE = join(out, "spawn.jsonl")
 for (const f of [process.env.ROVE_RENDER_PROFILE, process.env.ROVE_SPAWN_PROFILE]) writeFileSync(f, "")
@@ -266,11 +266,11 @@ const server = Bun.spawn(["bun", "run", "dev.ts"], {
   stdio: ["ignore", "ignore", "ignore"],
   env: {
     ...fixture.VISUAL_ENV,
-    KOBE_HOME_DIR: fixture.VISUAL_HOME,
-    KOBE_WEB_PORT: String(fixture.VISUAL_WEB_PORT),
-    KOBE_PTY_PORT: String(fixture.VISUAL_PTY_PORT),
-    KOBE_PTY_DEV_CWD: fixture.KOBE_DIR,
-    KOBE_PTY_DEV_COMMAND: fixture.VISUAL_PTY_COMMAND,
+    ROVE_HOME_DIR: fixture.VISUAL_HOME,
+    ROVE_WEB_PORT: String(fixture.VISUAL_WEB_PORT),
+    ROVE_PTY_PORT: String(fixture.VISUAL_PTY_PORT),
+    ROVE_PTY_DEV_CWD: fixture.ROVE_DIR,
+    ROVE_PTY_DEV_COMMAND: fixture.VISUAL_PTY_COMMAND,
   },
 })
 try {

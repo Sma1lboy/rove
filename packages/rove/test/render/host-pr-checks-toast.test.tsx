@@ -33,13 +33,13 @@ import { act, renderComponent, settle } from "./harness"
 let previousHome: string | undefined
 
 beforeAll(() => {
-  previousHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-pr-checks-"))
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-pr-checks-"))
 })
 
 afterAll(() => {
-  if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = previousHome
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
 })
 
 afterEach(() => {

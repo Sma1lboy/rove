@@ -42,7 +42,7 @@ export interface RemoteOrchestratorOptions {
     hostname: string
     homeDir: string
     daemonPid: number
-    kobeVersion: string
+    roveVersion: string
   }) => void
   /** Bring the daemon back on this client's socket (single/owned mode injects
    *  a restart for its per-TUI socket). */

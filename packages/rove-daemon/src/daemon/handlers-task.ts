@@ -55,7 +55,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "task.create",
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
-      // The CLI sends its $KOBE_TASK_ID/$KOBE_TAB_ID (the daemon has no caller
+      // The CLI sends its $ROVE_TASK_ID/$ROVE_TAB_ID (the daemon has no caller
       // env). Recorded only with a task id; tab defaults to tab-1.
       const dispatcherTaskId = optionalString(payload, "dispatcherTaskId")
       const dispatcher = dispatcherTaskId

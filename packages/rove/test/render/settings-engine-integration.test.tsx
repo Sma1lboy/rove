@@ -33,7 +33,7 @@ function Driver() {
 /** Point every vendor's config home at a throwaway dir and return it. */
 function isolateVendorHomes(tag: string): string {
   const home = mkdtempSync(join(tmpdir(), tag))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   process.env.CLAUDE_CONFIG_DIR = join(home, "claude")
   process.env.CODEX_HOME = join(home, "codex")
   process.env.COPILOT_HOME = join(home, "copilot")

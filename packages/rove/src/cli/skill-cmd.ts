@@ -14,8 +14,8 @@ import {
   NPX_MISSING_EXIT,
   bundledSkillDir,
   installedSkillDiffersFromBundled,
-  kobeSkillPaths,
-  kobeSkillState,
+  roveSkillPaths,
+  roveSkillState,
   npxSkillsCommand,
   runNpxSkillsInstall,
 } from "../lib/skill-install.ts"
@@ -100,7 +100,7 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
     // The bundled copy always matches this binary; an installed copy is the
     // fallback so `kobe --skill` still answers on an unbuilt environment.
     const bundled = bundledSkillDir()
-    const path = bundled ? join(bundled, "SKILL.md") : kobeSkillPaths().find((p) => existsSync(p))
+    const path = bundled ? join(bundled, "SKILL.md") : roveSkillPaths().find((p) => existsSync(p))
     if (!path) {
       process.stderr.write(
         `${CLI_NAME} skill: no SKILL.md found (not bundled, not installed) — run \`${CLI_NAME} skill install\`\n`,
@@ -113,8 +113,8 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
 
   if (verb === "status") {
     const { isRovePluginEnabled } = await import("../engine/claude-code-local/plugin-migration.ts")
-    const state = kobeSkillState()
-    const paths = kobeSkillPaths()
+    const state = roveSkillState()
+    const paths = roveSkillPaths()
     const pluginNote = isRovePluginEnabled()
       ? "  note: the Rove Claude Code plugin is enabled — for Claude Code the skill ships\n        inside the plugin and versions with it (staleness prompts are suppressed).\n"
       : ""

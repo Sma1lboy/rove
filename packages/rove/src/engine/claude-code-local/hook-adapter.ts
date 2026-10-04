@@ -56,7 +56,7 @@ export const CLAUDE_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
 
 /** The events kobe owns — a merge replaces only these. Deduped:
  *  one event can carry several matcher-scoped specs. */
-export const KOBE_HOOK_EVENTS: readonly string[] = [...new Set(CLAUDE_HOOK_EVENT_MAP.map((e) => e.event))]
+export const ROVE_HOOK_EVENTS: readonly string[] = [...new Set(CLAUDE_HOOK_EVENT_MAP.map((e) => e.event))]
 
 /** Query side of {@link CLAUDE_HOOK_EVENT_MAP}; undefined for uninstalled events. */
 export function claudeVerbForHookEvent(event: string): EngineActivityKind | undefined {

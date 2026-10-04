@@ -67,7 +67,7 @@ describe("issue-chat prompts", () => {
   test("the product name is interpolated, not hard-coded", () => {
     // The drift the dedup fixed: a caller passing its own display name must
     // see it, which a hard-coded "Rove" would silently swallow.
-    expect(sharedWorktreePrompt(story, "rove api", "Kobe")).toContain("dedicated Kobe task session")
+    expect(sharedWorktreePrompt(story, "rove api", "Rove")).toContain("dedicated Rove task session")
   })
 
   test("merge prompt: finish framing, merge to project main, done instruction", () => {

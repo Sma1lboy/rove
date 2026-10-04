@@ -14,12 +14,12 @@ import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
-const saved = { rove: process.env.ROVE_HOME_DIR, kobe: process.env.KOBE_HOME_DIR }
+const saved = { rove: process.env.ROVE_HOME_DIR, kobe: process.env.ROVE_HOME_DIR }
 
 afterEach(() => {
   for (const [key, value] of [
     ["ROVE_HOME_DIR", saved.rove],
-    ["KOBE_HOME_DIR", saved.kobe],
+    ["ROVE_HOME_DIR", saved.kobe],
   ] as const) {
     if (value === undefined) Reflect.deleteProperty(process.env, key)
     else process.env[key] = value
@@ -32,9 +32,9 @@ describe("home resolution with no explicit homeDir", () => {
     expect(new TaskIndexStore().filePath).toBe(join("/tmp/rove-home-resolution/rove", ".rove", "tasks.json"))
   })
 
-  it("falls back to the legacy KOBE_HOME_DIR", () => {
+  it("falls back to the legacy ROVE_HOME_DIR", () => {
     Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-    process.env.KOBE_HOME_DIR = "/tmp/rove-home-resolution/kobe"
+    process.env.ROVE_HOME_DIR = "/tmp/rove-home-resolution/kobe"
     expect(new TaskIndexStore().filePath).toBe(join("/tmp/rove-home-resolution/kobe", ".rove", "tasks.json"))
   })
 })

@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import type { KobeBinding } from "../../src/tui/context/keybindings"
+import type { RoveBinding } from "../../src/tui/context/keybindings"
 import { grammarHelpSections, groupBindings } from "../../src/tui/lib/help-groups"
 
 describe("groupBindings", () => {
@@ -31,7 +31,7 @@ describe("groupBindings", () => {
 })
 
 describe("grammarHelpSections", () => {
-  const rows: KobeBinding[] = [
+  const rows: RoveBinding[] = [
     {
       id: "help",
       scope: "global",
@@ -60,7 +60,7 @@ describe("grammarHelpSections", () => {
     expect(sections[3]?.scope).toBe("files")
   })
 
-  it("advertises the Kobe prefix inside the embedded terminal", () => {
+  it("advertises the Rove prefix inside the embedded terminal", () => {
     const sections = grammarHelpSections(rows, "terminal", "ctrl+a")
     expect(sections.find((section) => section.kind === "prefix")?.rows.map((row) => row.binding.id)).toEqual(["more"])
   })

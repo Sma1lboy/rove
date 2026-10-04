@@ -49,7 +49,7 @@ function seedState(seen: Record<string, number>): void {
     join(home, ".config", "rove", "state.json"),
     JSON.stringify({ completionSeen: seen, [TAB_STRIP_MODE_KEY]: "always" }),
   )
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 }
 
 /** `tab-2` is active, so `tab-1`'s completion is one you are NOT looking at

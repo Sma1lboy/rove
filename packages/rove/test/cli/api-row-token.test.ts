@@ -49,7 +49,7 @@ describe("row-token", () => {
   it("writes as `cli` from a plain shell", async () => {
     const c = client()
     vi.stubEnv("ROVE_PLUGIN_ID", undefined)
-    vi.stubEnv("KOBE_PLUGIN_ID", undefined)
+    vi.stubEnv("ROVE_PLUGIN_ID", undefined)
     await invokeVerb("row-token", ["--task-id", "t1", "--text", "@ana"], { client: c, runtime })
     expect(lastPayload(c)).toMatchObject({ source: "cli" })
   })

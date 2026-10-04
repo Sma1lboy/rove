@@ -18,7 +18,7 @@
  * check; see host-boot.tsx.
  */
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { connectIfRunning } from "@sma1lboy/rove-daemon/client/daemon-process"
 import type { ChannelName } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -33,7 +33,7 @@ export interface ConnectPaneOrchestratorOptions {
    */
   readonly channels?: readonly ChannelName[]
   /** Connect step override for tests. Defaults to the non-spawning {@link connectIfRunning}. */
-  readonly connect?: () => Promise<KobeDaemonClient | null>
+  readonly connect?: () => Promise<RoveDaemonClient | null>
   /** Extra {@link RemoteOrchestrator} options (role, ensureReachable). */
   readonly orchestratorOptions?: Omit<RemoteOrchestratorOptions, "channels">
 }

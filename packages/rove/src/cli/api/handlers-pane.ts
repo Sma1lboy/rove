@@ -53,9 +53,9 @@ export const PANE_VERB: VerbSpec = {
   ],
   handler: async (ctx) => {
     const client = daemonOf(ctx)
-    // `rename-compat.ts` mirrors ROVE_* onto KOBE_* at the CLI boundary, so
+    // `rename-compat.ts` mirrors ROVE_* onto ROVE_* at the CLI boundary, so
     // this also honours $ROVE_TASK_ID.
-    const taskId = ctx.args.str("task-id") ?? process.env.KOBE_TASK_ID ?? (await resolveActiveTaskId(client))
+    const taskId = ctx.args.str("task-id") ?? process.env.ROVE_TASK_ID ?? (await resolveActiveTaskId(client))
     if (!taskId) {
       // MISSING_TARGET, not TASK_NOT_FOUND: no id was GIVEN (same as
       // read-output / send / collect).
@@ -104,7 +104,7 @@ export const PANE_CLOSE_VERB: VerbSpec = {
   ],
   handler: async (ctx) => {
     const client = daemonOf(ctx)
-    const taskId = ctx.args.str("task-id") ?? process.env.KOBE_TASK_ID ?? (await resolveActiveTaskId(client))
+    const taskId = ctx.args.str("task-id") ?? process.env.ROVE_TASK_ID ?? (await resolveActiveTaskId(client))
     if (!taskId) {
       // MISSING_TARGET, not TASK_NOT_FOUND: no id was GIVEN.
       throw new ApiError("no target task: pass --task-id (no $ROVE_TASK_ID, no active task)", "MISSING_TARGET")

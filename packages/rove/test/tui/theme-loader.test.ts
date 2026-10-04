@@ -6,7 +6,7 @@
  * file must not propagate; instead the loader emits a `console.warn`
  * (so a power user piping kobe through `2>` can find it) and continues.
  *
- * We use `KOBE_HOME_DIR` to point the loader at a tmpdir so the tests
+ * We use `ROVE_HOME_DIR` to point the loader at a tmpdir so the tests
  * never touch the developer's real `~/.kobe/`.
  */
 
@@ -21,16 +21,16 @@ let prevHome: string | undefined
 
 beforeEach(() => {
   tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-theme-loader-"))
-  prevHome = process.env.KOBE_HOME_DIR
-  // env.ts: roveStateDir() = join(KOBE_HOME_DIR ?? homedir(), ".rove").
+  prevHome = process.env.ROVE_HOME_DIR
+  // env.ts: roveStateDir() = join(ROVE_HOME_DIR ?? homedir(), ".rove").
   // Point at the tmp root so the loader looks under tmpRoot/.kobe/themes/.
-  process.env.KOBE_HOME_DIR = tmpRoot
+  process.env.ROVE_HOME_DIR = tmpRoot
 })
 
 afterEach(() => {
   // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves it as the string "undefined"). Same pattern as test/state/repos.test.ts.
-  if (prevHome === undefined) delete process.env.KOBE_HOME_DIR
-  else process.env.KOBE_HOME_DIR = prevHome
+  if (prevHome === undefined) delete process.env.ROVE_HOME_DIR
+  else process.env.ROVE_HOME_DIR = prevHome
   try {
     fs.rmSync(tmpRoot, { recursive: true, force: true })
   } catch {

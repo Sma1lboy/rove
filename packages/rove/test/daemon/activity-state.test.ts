@@ -19,7 +19,7 @@ describe("daemon activity state", () => {
   })
 
   it("keeps turn-complete visible instead of lapsing it back to idle", async () => {
-    h = await bootDaemonHarness({ env: { KOBE_ENGINE_STATE_TTL_MS: String(TTL_MS) } })
+    h = await bootDaemonHarness({ env: { ROVE_ENGINE_STATE_TTL_MS: String(TTL_MS) } })
     const client = h.client()
     const states: TaskActivityState[] = []
     client.onChannel("engine-state", (payload) => {
@@ -42,7 +42,7 @@ describe("daemon activity state", () => {
     // exactly what a user leaves the session to handle. A blocked engine writes
     // no transcript, so the liveness probe reads "stale" — the badge must NOT
     // lapse to idle regardless, or "come back and see who's stuck" breaks.
-    h = await bootDaemonHarness({ env: { KOBE_ENGINE_STATE_TTL_MS: String(TTL_MS) } })
+    h = await bootDaemonHarness({ env: { ROVE_ENGINE_STATE_TTL_MS: String(TTL_MS) } })
     const client = h.client()
     const states: TaskActivityState[] = []
     client.onChannel("engine-state", (payload) => {

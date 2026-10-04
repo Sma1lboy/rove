@@ -34,7 +34,7 @@ import { updateSharedJson } from "./shared-config-write.ts"
  * live file a starting session may be reading.
  *
  * Best-effort: failure never blocks a launch; it is REPORTED, not thrown
- * ({@link HookEditOutcome}), and the caller reports once — `ensureGlobalKobeHooks`
+ * ({@link HookEditOutcome}), and the caller reports once — `ensureGlobalRoveHooks`
  * runs three edits on this file every launch.
  */
 export async function editJsonSettings(

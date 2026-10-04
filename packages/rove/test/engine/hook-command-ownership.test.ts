@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { mergeWorktreeSyncHook } from "../../src/engine/claude-code-local/hook-adapter.ts"
-import { hasKobeActivityHooks, mergeActivityHooks, removeWorktreeWatchHook } from "../../src/engine/json-hooks.ts"
+import { hasRoveActivityHooks, mergeActivityHooks, removeWorktreeWatchHook } from "../../src/engine/json-hooks.ts"
 import { quoteShellArgv } from "../../src/lib/shell-command.ts"
 
 const events = [{ event: "Stop", verb: "turn-complete" }] as const
@@ -38,7 +38,7 @@ describe("Rove hook command ownership", () => {
     "rove hook turn-complete --custom-option",
   ])("keeps unconfirmed user commands: %s", (command) => {
     const current = settings("Stop", command)
-    expect(hasKobeActivityHooks(current, events)).toBe(false)
+    expect(hasRoveActivityHooks(current, events)).toBe(false)
     expect(mergeActivityHooks(current, false, events, ["kobe"])).toEqual(current)
     const installed = mergeActivityHooks(current, true, events, ["kobe"])
     expect(mergeActivityHooks(installed, false, events, ["kobe"])).toEqual(current)
@@ -59,7 +59,7 @@ describe("Rove hook command ownership", () => {
     (_name, inv) => {
       for (const suffix of [[], ["--engine", "claude"]]) {
         const activity = settings("Stop", quoteShellArgv([...inv, "hook", "turn-complete", ...suffix]))
-        expect(hasKobeActivityHooks(activity, events)).toBe(true)
+        expect(hasRoveActivityHooks(activity, events)).toBe(true)
         expect(mergeActivityHooks(activity, false, events, ["kobe"])).toEqual({})
         const command = quoteShellArgv([...inv, "hook", "worktree-created"])
         expect(removeWorktreeWatchHook(settings("PostToolUse", command))).toEqual({})
@@ -78,7 +78,7 @@ describe("Rove hook command ownership", () => {
     "node /repo/packages/rove/dist/cli/rove.js hook turn-complete",
   ])("recognizes historical literal invocation %s", (command) => {
     const current = settings("Stop", command)
-    expect(hasKobeActivityHooks(current, events)).toBe(true)
+    expect(hasRoveActivityHooks(current, events)).toBe(true)
     expect(mergeActivityHooks(current, false, events, ["kobe"])).toEqual({})
   })
 })

@@ -144,7 +144,7 @@ function scrubFixtureEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
   for (const [key, value] of Object.entries(parent)) {
     if (value === undefined) continue
     if (CLAUDE_MARKERS.includes(key)) continue
-    const suffix = key.startsWith("KOBE_") ? key.slice(5) : key.startsWith("ROVE_") ? key.slice(5) : null
+    const suffix = key.startsWith("ROVE_") ? key.slice(5) : key.startsWith("ROVE_") ? key.slice(5) : null
     if (suffix !== null && FIXTURE_SCRUBBED_SUFFIXES.includes(suffix)) continue
     out[key] = value
   }

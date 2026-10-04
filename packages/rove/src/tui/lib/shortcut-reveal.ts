@@ -6,7 +6,7 @@
  * the canonical live chord only when the current binding stack can run it.
  */
 
-import { KobeKeymap, findBinding } from "../context/keybindings"
+import { RoveKeymap, findBinding } from "../context/keybindings"
 import { formatChord } from "./chord-glyphs"
 import type { BindingReachability } from "./keymap-reachability"
 import type { PrefixHudOption } from "./prefix-hud"
@@ -49,7 +49,7 @@ export function shortcutCaption(input: ShortcutCaptionInput): string | null {
 
 /** Ctrl follow-up keys runnable in the current Binding Stack, in live keymap order. */
 export function directGuideOptions(reachability: BindingReachability, prefixKey: string | null): PrefixHudOption[] {
-  const options = KobeKeymap.filter((binding) => reachability.direct.has(binding.id)).flatMap((binding) => {
+  const options = RoveKeymap.filter((binding) => reachability.direct.has(binding.id)).flatMap((binding) => {
     const strokes = binding.keys.flatMap((chord) => ctrlFollowUpKey(chord) ?? [])
     // A numbered run (`chat.tab.goto`) is one row, `1-9`, not nine.
     if (strokes.length > 2) return [{ stroke: `${strokes[0]}-${strokes.at(-1)}`, action: binding.id }]

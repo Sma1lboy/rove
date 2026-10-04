@@ -54,15 +54,15 @@ function writeState(state: Record<string, unknown>): void {
 
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), "kobe-custom-vendor-"))
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = home
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = home
 })
 
 afterEach(() => {
   if (originalHome === undefined) {
     // biome-ignore lint/performance/noDelete: the var must be truly unset when it started unset.
-    delete process.env.KOBE_HOME_DIR
-  } else process.env.KOBE_HOME_DIR = originalHome
+    delete process.env.ROVE_HOME_DIR
+  } else process.env.ROVE_HOME_DIR = originalHome
   rmSync(home, { recursive: true, force: true })
 })
 

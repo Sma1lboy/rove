@@ -10,7 +10,7 @@
 import { existsSync } from "node:fs"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
-import { kobeHookInvocation } from "../../cli/invocation.ts"
+import { roveHookInvocation } from "../../cli/invocation.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
@@ -105,7 +105,7 @@ export class PiFamilyHookAdapter implements EngineHookAdapter {
     if (!existsSync(agentDir)) return { ok: true }
     const source = renderPiExtensionSource({
       vendor: this.family,
-      invocation: kobeHookInvocation(),
+      invocation: roveHookInvocation(),
       toolEvents: opts.toolEvents ?? false,
     })
     await writeIfChanged(settingsFilePath, source)

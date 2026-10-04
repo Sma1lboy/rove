@@ -1,14 +1,14 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
 /**
  * Home-ownership guard.
  *
- * A `dev:sandbox` daemon inherits `KOBE_DAEMON_SOCKET_PATH` from the task
+ * A `dev:sandbox` daemon inherits `ROVE_DAEMON_SOCKET_PATH` from the task
  * terminal it was launched in. Because an explicit socket override outranks
  * `*_HOME_DIR`, it binds the PRODUCTION socket while serving its own — empty —
  * task index. Attached TUIs reconnect onto it, `hello` succeeds, and the
@@ -33,7 +33,7 @@ const FOREIGN_TASK = {
   updatedAt: "2026-08-13T00:00:00.000Z",
 }
 
-function fakeClient(hello: Record<string, unknown>): KobeDaemonClient {
+function fakeClient(hello: Record<string, unknown>): RoveDaemonClient {
   return {
     on: () => () => {},
     onLifecycle: () => () => {},
@@ -43,23 +43,23 @@ function fakeClient(hello: Record<string, unknown>): KobeDaemonClient {
     request: (name: string) =>
       name === "hello" ? Promise.resolve({ protocolVersion: 2, minProtocolVersion: 2, ...hello }) : Promise.resolve({}),
     subscribe: () => Promise.resolve({}),
-  } as unknown as KobeDaemonClient
+  } as unknown as RoveDaemonClient
 }
 
 describe("RemoteOrchestrator home-ownership guard", () => {
   let home: string
-  const prev = process.env.KOBE_HOME_DIR
+  const prev = process.env.ROVE_HOME_DIR
 
   beforeEach(async () => {
     // init() logs to client.log — keep that off the real ~/.kobe.
     home = await mkdtemp(join(tmpdir(), "kobe-orch-home-"))
-    process.env.KOBE_HOME_DIR = home
+    process.env.ROVE_HOME_DIR = home
   })
 
   afterEach(async () => {
     // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test (assigning undefined leaves the string "undefined").
-    if (prev === undefined) delete process.env.KOBE_HOME_DIR
-    else process.env.KOBE_HOME_DIR = prev
+    if (prev === undefined) delete process.env.ROVE_HOME_DIR
+    else process.env.ROVE_HOME_DIR = prev
     await rm(home, { recursive: true, force: true })
   })
 
@@ -90,7 +90,7 @@ describe("RemoteOrchestrator home-ownership guard", () => {
   })
 
   it("accepts a daemon that predates the homeDir field (rolling upgrade)", async () => {
-    // Same tolerance as the kobeVersion handshake: an old daemon omits the
+    // Same tolerance as the roveVersion handshake: an old daemon omits the
     // field and must not be rejected on evidence it cannot supply.
     const orch = new RemoteOrchestrator(fakeClient({ tasks: [FOREIGN_TASK] }), { role: "gui" })
 

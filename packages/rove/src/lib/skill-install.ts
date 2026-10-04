@@ -31,11 +31,11 @@ import { getPersistedString, setPersistedString } from "../state/repos.ts"
  * `test/architecture/skill-version-bump.test.ts` fails any content change
  * that skips the bump.
  */
-export const KOBE_SKILL_VERSION = 53
+export const ROVE_SKILL_VERSION = 53
 
 /**
  * Where an installed skill can be found, relative to a home/project root —
- * not `KOBE_HOME_DIR`, since agents read the real home/project.
+ * not `ROVE_HOME_DIR`, since agents read the real home/project.
  *
  * The agent-skills CLI writes the real file into `.agents/skills` and
  * symlinks agent dirs at it (`--copy` opts out); `existsSync` follows
@@ -160,7 +160,7 @@ export function markSkillHintSeen(): void {
 }
 
 /** Candidate install locations in priority order: home, then the current project. */
-export function kobeSkillPaths(opts: { home?: string; cwd?: string } = {}): string[] {
+export function roveSkillPaths(opts: { home?: string; cwd?: string } = {}): string[] {
   const home = opts.home ?? homedir()
   const cwd = opts.cwd ?? process.cwd()
   return [home, cwd].flatMap((root) => SKILL_REL_PATHS.map((rel) => join(root, rel)))
@@ -176,7 +176,7 @@ export interface SkillState {
   readonly installed: boolean
   /** Marker version of the installed skill (null if installed but unstamped). */
   readonly installedVersion: number | null
-  /** What this binary expects ({@link KOBE_SKILL_VERSION}). */
+  /** What this binary expects ({@link ROVE_SKILL_VERSION}). */
   readonly currentVersion: number
   /** Installed, stamped, and behind the binary → re-install recommended. */
   readonly stale: boolean
@@ -242,7 +242,7 @@ export function installedSkillDirs(home: string = homedir()): string[] {
 }
 
 /** Installed skill vs the version this binary expects. Unstamped = stale (refreshed once); absent = not installed, not stale. */
-export function kobeSkillState(opts: { home?: string; cwd?: string } = {}): SkillState {
+export function roveSkillState(opts: { home?: string; cwd?: string } = {}): SkillState {
   const roots = [opts.home ?? homedir(), opts.cwd ?? process.cwd()]
   const roveCopies = distinctSkillFiles(roots, ROVE_SKILL_REL_PATHS).map((path) => ({
     path,
@@ -259,17 +259,17 @@ export function kobeSkillState(opts: { home?: string; cwd?: string } = {}): Skil
     return {
       installed: false,
       installedVersion: null,
-      currentVersion: KOBE_SKILL_VERSION,
+      currentVersion: ROVE_SKILL_VERSION,
       stale: false,
       legacyCopies: [],
       path: null,
     }
   }
-  const stale = best.version === null || best.version < KOBE_SKILL_VERSION
+  const stale = best.version === null || best.version < ROVE_SKILL_VERSION
   return {
     installed: true,
     installedVersion: best.version,
-    currentVersion: KOBE_SKILL_VERSION,
+    currentVersion: ROVE_SKILL_VERSION,
     stale,
     legacyCopies: legacy.filter((copy) => copy.path !== best.path),
     path: best.path,
@@ -332,7 +332,7 @@ export async function maybeHintSkillInstall(io: SkillHintIO = {}): Promise<void>
   if (isRovePluginEnabled()) return
   const cliName = activeCliName()
   const installCommand = skillInstallCommand()
-  const state = kobeSkillState()
+  const state = roveSkillState()
   if (!state.installed) {
     if (getPersistedString(HINT_SEEN_KEY) === "1") return
     setPersistedString(HINT_SEEN_KEY, "1")

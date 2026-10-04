@@ -1,6 +1,6 @@
-import type { KobeBinding } from "./keybindings-table.ts"
+import type { RoveBinding } from "./keybindings-table.ts"
 
-export const INBOX_BINDINGS: readonly KobeBinding[] = [
+export const INBOX_BINDINGS: readonly RoveBinding[] = [
   {
     id: "inbox.show",
     scope: "global",

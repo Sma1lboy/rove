@@ -4,7 +4,7 @@
  * is async and can find the daemon gone.
  */
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -20,7 +20,7 @@ import type { RecentTaskEvent } from "./remote-orchestrator-payloads.ts"
 import { deserializeTask } from "./remote-orchestrator-payloads.ts"
 
 export async function createTaskOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   input: {
     repo: string
     title?: string
@@ -44,14 +44,14 @@ export async function createTaskOp(
   return deserializeTask(res.task)
 }
 
-export async function ensureMainTaskOp(client: KobeDaemonClient, repo: string): Promise<Task> {
+export async function ensureMainTaskOp(client: RoveDaemonClient, repo: string): Promise<Task> {
   const res = await client.request<{ task: SerializedTask }>("task.ensureMain", { repo })
   return deserializeTask(res.task)
 }
 
 /** Open a directory as a `kind:"dir"` task; `scratch` puts it in the sidebar's Scratch section. */
 export async function openDirectoryTaskOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   input: { dir: string; scratch?: boolean },
 ): Promise<Task> {
   const res = await client.request<{ task: SerializedTask }>("task.openDir", input)
@@ -59,16 +59,16 @@ export async function openDirectoryTaskOp(
 }
 
 /** Scratch → project migration: repoint + clear the flag. */
-export async function adoptScratchRepoOp(client: KobeDaemonClient, id: TaskId | string, repo: string): Promise<void> {
+export async function adoptScratchRepoOp(client: RoveDaemonClient, id: TaskId | string, repo: string): Promise<void> {
   await client.request("task.adoptScratchRepo", { taskId: String(id), repo })
 }
 
-export async function ensureWorktreeOp(client: KobeDaemonClient, id: TaskId | string): Promise<string> {
+export async function ensureWorktreeOp(client: RoveDaemonClient, id: TaskId | string): Promise<string> {
   const res = await client.request<{ worktreePath: string }>("task.ensureWorktree", { taskId: String(id) })
   return res.worktreePath
 }
 
-export async function forgetProjectOp(client: KobeDaemonClient, repo: string): Promise<void> {
+export async function forgetProjectOp(client: RoveDaemonClient, repo: string): Promise<void> {
   await client.request("project.forget", { repo })
 }
 
@@ -77,20 +77,20 @@ export async function forgetProjectOp(client: KobeDaemonClient, repo: string): P
  * interrupt, confirmed by `InterruptObserver`). Same `engine.reportEvent` verb
  * as `kobe hook`, so the daemon treats it like any hook event.
  */
-export function reportEngineInterruptOp(client: KobeDaemonClient, taskId: string, tabId: string): void {
+export function reportEngineInterruptOp(client: RoveDaemonClient, taskId: string, tabId: string): void {
   void client.request("engine.reportEvent", { kind: "turn-interrupted", taskId, tabId }).catch(() => {})
 }
 
-export async function setTitleOp(client: KobeDaemonClient, id: TaskId | string, title: string): Promise<void> {
+export async function setTitleOp(client: RoveDaemonClient, id: TaskId | string, title: string): Promise<void> {
   await client.request("task.rename", { taskId: String(id), title })
 }
 
-export async function setBranchOp(client: KobeDaemonClient, id: TaskId | string, branch: string): Promise<void> {
+export async function setBranchOp(client: RoveDaemonClient, id: TaskId | string, branch: string): Promise<void> {
   await client.request("task.setBranch", { taskId: String(id), branch })
 }
 
 export async function setVendorOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   id: TaskId | string,
   vendor: VendorId,
   effort?: string,
@@ -106,7 +106,7 @@ export async function setVendorOp(
 }
 
 export async function setCommandOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   id: TaskId | string,
   command: string,
   vendor?: VendorId,
@@ -118,33 +118,33 @@ export async function setCommandOp(
   })
 }
 
-export async function setPinnedOp(client: KobeDaemonClient, id: TaskId | string, pinned?: boolean): Promise<void> {
+export async function setPinnedOp(client: RoveDaemonClient, id: TaskId | string, pinned?: boolean): Promise<void> {
   await client.request("task.pin", { taskId: String(id), pinned })
 }
 
-export async function moveTaskOp(client: KobeDaemonClient, id: TaskId | string, delta: -1 | 1): Promise<void> {
+export async function moveTaskOp(client: RoveDaemonClient, id: TaskId | string, delta: -1 | 1): Promise<void> {
   await client.request("task.move", {
     taskId: String(id),
     direction: delta < 0 ? "up" : "down",
   })
 }
 
-export async function moveTaskToTopOp(client: KobeDaemonClient, id: TaskId | string): Promise<void> {
+export async function moveTaskToTopOp(client: RoveDaemonClient, id: TaskId | string): Promise<void> {
   await client.request("task.move", { taskId: String(id), direction: "top" })
 }
 
 /** Record a task's brief. "Run again" copies it onto the fork so the child can
  *  itself be re-run and `get-task` shows what its engine was handed. */
-export async function setPromptOp(client: KobeDaemonClient, id: TaskId | string, prompt: string): Promise<void> {
+export async function setPromptOp(client: RoveDaemonClient, id: TaskId | string, prompt: string): Promise<void> {
   await client.request("task.setPrompt", { taskId: String(id), prompt })
 }
 
-export async function setStatusOp(client: KobeDaemonClient, id: TaskId | string, status: TaskStatus): Promise<void> {
+export async function setStatusOp(client: RoveDaemonClient, id: TaskId | string, status: TaskStatus): Promise<void> {
   await client.request("task.status", { taskId: String(id), status })
 }
 
 export async function deleteTaskOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   id: TaskId | string,
   opts?: { force?: boolean; deleteBranch?: boolean },
 ): Promise<void> {
@@ -157,7 +157,7 @@ export async function deleteTaskOp(
 
 /** Explicitly delete one durable attention episode. */
 export async function dismissAttentionOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   taskId: TaskId | string,
   tabId: string | null,
   at: number,
@@ -172,14 +172,14 @@ export async function dismissAttentionOp(
 
 /** Delete a routine's attention episode — addressed by the SCHEDULE, since a
  *  routine that cannot run may have produced no task to address it by. */
-export async function dismissRoutineAttentionOp(client: KobeDaemonClient, automationId: string): Promise<boolean> {
+export async function dismissRoutineAttentionOp(client: RoveDaemonClient, automationId: string): Promise<boolean> {
   const res = await client.request<{ deleted: boolean }>("attention.dismissRoutine", { automationId })
   return res.deleted
 }
 
 /** Legacy compatibility alias: resolving this exact episode removes it. */
 export async function markAttentionReadOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   taskId: TaskId | string,
   tabId: string | null,
   at: number,
@@ -193,7 +193,7 @@ export async function markAttentionReadOp(
 }
 
 /** Read-only land probe: merge destination, commit count, any refusal. */
-export async function landPreflightOp(client: KobeDaemonClient, id: TaskId | string): Promise<LandPreflight> {
+export async function landPreflightOp(client: RoveDaemonClient, id: TaskId | string): Promise<LandPreflight> {
   const res = await client.request<{ result: LandPreflight }>("task.landPreflight", { taskId: String(id) })
   return res.result
 }
@@ -201,7 +201,7 @@ export async function landPreflightOp(client: KobeDaemonClient, id: TaskId | str
 /** Land a task's branch into its base repo. Guarded failures throw with a
  *  `LAND_CONFLICT`/`MAIN_CHECKOUT_DIRTY` sentinel the caller matches on. */
 export async function landTaskOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   id: TaskId | string,
   opts?: {
     strategy?: "merge" | "squash"
@@ -221,7 +221,7 @@ export async function landTaskOp(
 }
 
 export async function discoverAdoptableWorktreesOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   repo: string,
 ): Promise<readonly AdoptableWorktree[]> {
   const res = await client.request<{ worktrees: AdoptableWorktree[] }>("worktree.discoverAdoptable", { repo })
@@ -229,7 +229,7 @@ export async function discoverAdoptableWorktreesOp(
 }
 
 export async function adoptWorktreeOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   input: {
     repo: string
     worktreePath: string
@@ -245,7 +245,7 @@ export async function adoptWorktreeOp(
 /** Every worktree of every saved project. `network: false` skips the slow forge
  *  lookups (ls-remote, gh PR states) for an instant first paint. */
 export async function listWorktreesOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   opts?: { network?: boolean },
 ): Promise<readonly WorktreeProject[]> {
   const res = await client.request<{ projects: WorktreeProject[] }>("worktree.list", {
@@ -257,7 +257,7 @@ export async function listWorktreesOp(
 /** Remove a worktree; refuses a dirty one unless `force`. Resolves with the
  *  leftover directory when git deregistered but couldn't delete it, else null. */
 export async function removeWorktreeOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   path: string,
   force?: boolean,
 ): Promise<WorktreeResidue | null> {
@@ -268,7 +268,7 @@ export async function removeWorktreeOp(
 /** Merge a task's base branch INTO its worktree (the `↓N` chip). Rejects with a
  *  `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY` sentinel the caller matches. */
 export async function syncBaseOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   taskId: string,
 ): Promise<{ baseRef: string; alreadyCurrent: boolean }> {
   const res = await client.request<{ result: { baseRef: string; alreadyCurrent: boolean } }>("task.syncBase", {
@@ -278,7 +278,7 @@ export async function syncBaseOp(
 }
 
 /** A PR's FAILING checks with log tails. Never poll it: the daemon spawns `gh` per call. */
-export async function failingChecksOp(client: KobeDaemonClient, taskId: string): Promise<CIFailingChecksRead> {
+export async function failingChecksOp(client: RoveDaemonClient, taskId: string): Promise<CIFailingChecksRead> {
   const res = await client.request<{
     checks?: readonly CIFailingCheck[]
     totalFailing?: number
@@ -293,39 +293,39 @@ export async function failingChecksOp(client: KobeDaemonClient, taskId: string):
 }
 
 /** A repo's daemon-owned issues (`issue.list`) — the TUI kanban page's read. */
-export async function listIssuesOp(client: KobeDaemonClient, repoRoot: string): Promise<RepoIssues> {
+export async function listIssuesOp(client: RoveDaemonClient, repoRoot: string): Promise<RepoIssues> {
   return client.request<RepoIssues>("issue.list", { repoRoot })
 }
 
 /** Repo roots the issue store holds a record for — the kanban's board source.
  *  Not derived from the task index: deleting a repo's last task would hide its backlog. */
-export async function listIssueReposOp(client: KobeDaemonClient): Promise<readonly string[]> {
+export async function listIssueReposOp(client: RoveDaemonClient): Promise<readonly string[]> {
   const res = await client.request<{ repos?: readonly string[] }>("issue.repos", {})
   return res.repos ?? []
 }
 
 /** A repo's field notes, newest first — the whole live store (50), not the
  *  15-note launch cap `state/field-notes.ts` applies. */
-export async function listFieldNotesOp(client: KobeDaemonClient, repo: string): Promise<readonly StoredFieldNote[]> {
+export async function listFieldNotesOp(client: RoveDaemonClient, repo: string): Promise<readonly StoredFieldNote[]> {
   const res = await client.request<{ notes?: readonly StoredFieldNote[] }>("note.list", { repo })
   return res.notes ?? []
 }
 
 /** Retire one field note. `false` = id not found (the retention ring may have
  *  evicted it); the caller renders that rather than throwing. */
-export async function deleteFieldNoteOp(client: KobeDaemonClient, repo: string, id: number): Promise<boolean> {
+export async function deleteFieldNoteOp(client: RoveDaemonClient, repo: string, id: number): Promise<boolean> {
   const res = await client.request<{ deleted?: boolean }>("note.delete", { repo, id })
   return res.deleted === true
 }
 
 /** One issue-store mutation; the op union lives in the daemon's issues-store. */
-export async function mutateIssueOp(client: KobeDaemonClient, repoRoot: string, op: unknown): Promise<RepoIssues> {
+export async function mutateIssueOp(client: RoveDaemonClient, repoRoot: string, op: unknown): Promise<RepoIssues> {
   return client.request<RepoIssues>("issue.mutate", { repoRoot, op })
 }
 
 /** Scheduled automations. `lastRunStatus` = latest run's status per id, absent
  *  for a never-run routine (row health without a request per row). */
-export async function listAutomationsOp(client: KobeDaemonClient): Promise<{
+export async function listAutomationsOp(client: RoveDaemonClient): Promise<{
   automations: Automation[]
   keepsDaemonAlive: boolean
   lastRunStatus?: Record<string, AutomationRunStatus>
@@ -336,20 +336,20 @@ export async function listAutomationsOp(client: KobeDaemonClient): Promise<{
 /** Create a schedule (`automation.create`). The daemon validates the cron and
  *  rejects an expression that parses but never fires. */
 export async function createAutomationOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   input: { repo: string; name: string; prompt: string; schedule: string },
 ): Promise<{ automation: Automation }> {
   return client.request("automation.create", input)
 }
 
 /** One automation's run history (`automation.runs`), newest first. */
-export async function automationRunsOp(client: KobeDaemonClient, id: string): Promise<{ runs: AutomationRun[] }> {
+export async function automationRunsOp(client: RoveDaemonClient, id: string): Promise<{ runs: AutomationRun[] }> {
   return client.request("automation.runs", { id })
 }
 
 /** Pause / resume (`automation.update` with just `enabled`). */
 export async function setAutomationEnabledOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   id: string,
   enabled: boolean,
 ): Promise<{ automation: Automation }> {
@@ -357,18 +357,18 @@ export async function setAutomationEnabledOp(
 }
 
 /** Fire one now, skipping its precheck (`automation.runNow`). */
-export async function runAutomationNowOp(client: KobeDaemonClient, id: string): Promise<{ status: string }> {
+export async function runAutomationNowOp(client: RoveDaemonClient, id: string): Promise<{ status: string }> {
   return client.request("automation.runNow", { id })
 }
 
 /** Delete an automation and its history (`automation.delete`). */
-export async function deleteAutomationOp(client: KobeDaemonClient, id: string): Promise<{ deleted: boolean }> {
+export async function deleteAutomationOp(client: RoveDaemonClient, id: string): Promise<{ deleted: boolean }> {
   return client.request("automation.delete", { id })
 }
 
 /** External tracker items for a repo. `refresh` bypasses the daemon's 60s cache. */
 export async function listWorkItemsOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   args: {
     repo: string
     state?: string
@@ -383,32 +383,32 @@ export async function listWorkItemsOp(
 
 /** Start a task on one external item, with the issue as the engine's first message. */
 export async function startWorkItemOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   args: { repo: string; number: number; vendor?: string; baseRef?: string },
 ): Promise<{ taskId: string; title: string; started: boolean }> {
   return client.request<{ taskId: string; title: string; started: boolean }>("workitem.start", args)
 }
 
 /** Mark the focused task; published on `active-task` so every pane highlights it. */
-export async function setActiveTaskOp(client: KobeDaemonClient, id: TaskId | string | null): Promise<void> {
+export async function setActiveTaskOp(client: RoveDaemonClient, id: TaskId | string | null): Promise<void> {
   await client.request("task.setActive", {
     taskId: id === null ? null : String(id),
   })
 }
 
 /** Ack a Terminal Tab close request. Fire-and-forget: the broker times out on its side. */
-export function replyTabCloseOp(client: KobeDaemonClient, requestId: string, closed: boolean): void {
+export function replyTabCloseOp(client: RoveDaemonClient, requestId: string, closed: boolean): void {
   void client.request("terminalTab.closeReply", { requestId, closed }).catch(() => {})
 }
 
 /** Answer a `ui.prompt`; omitting `value` = cancel. Fire-and-forget (broker times out). */
-export function replyPromptOp(client: KobeDaemonClient, promptId: string, value?: string): void {
+export function replyPromptOp(client: RoveDaemonClient, promptId: string, value?: string): void {
   void client.request("ui.promptReply", { promptId, ...(value !== undefined ? { value } : {}) }).catch(() => {})
 }
 
 /** Fire-and-forget UI moment → plugin event hooks (`ui.reportEvent`). */
 export function reportUiEventOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   kind: string,
   taskId?: string,
   detail?: Record<string, unknown>,
@@ -420,7 +420,7 @@ export function reportUiEventOp(
 
 /** One task's recent engine events (the event feed; newest last). */
 export function recentTaskEventsOp(
-  client: KobeDaemonClient,
+  client: RoveDaemonClient,
   id: TaskId | string,
 ): Promise<{ events: readonly RecentTaskEvent[] }> {
   return client.request("task.recentEvents", { taskId: String(id) })

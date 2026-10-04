@@ -18,7 +18,7 @@ type OverridableHint = {
   keys: string
 }
 
-/** Structural slice of `KobeBinding`; avoids importing the opentui-tainted keybindings module. */
+/** Structural slice of `RoveBinding`; avoids importing the opentui-tainted keybindings module. */
 export type OverridableBinding = {
   id: string
   scope: string

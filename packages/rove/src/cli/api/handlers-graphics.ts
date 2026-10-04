@@ -44,7 +44,7 @@ export const PANE_GRAPHICS_VERB: VerbSpec = {
   handler: async (ctx) => {
     // Same resolution order and MISSING_TARGET as the other pane verbs.
     const client = daemonOf(ctx)
-    const taskId = ctx.args.str("task-id") ?? process.env.KOBE_TASK_ID ?? (await resolveActiveTaskId(client))
+    const taskId = ctx.args.str("task-id") ?? process.env.ROVE_TASK_ID ?? (await resolveActiveTaskId(client))
     if (!taskId) {
       throw new ApiError("no target task: pass --task-id (no $ROVE_TASK_ID, no active task)", "MISSING_TARGET")
     }

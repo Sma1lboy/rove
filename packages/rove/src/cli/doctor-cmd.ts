@@ -2,8 +2,8 @@
 
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { isStaleInstallError, resolveKobeSpawn } from "@sma1lboy/rove-daemon/client/daemon-process"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { isStaleInstallError, resolveRoveSpawn } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { resolveNodeBinary } from "@sma1lboy/rove-daemon/client/pty-process"
 import {
   defaultDaemonLogPath,
@@ -18,9 +18,9 @@ import { readPidFile } from "@sma1lboy/rove-daemon/daemon/server"
 import { hookConfigIssues } from "../engine/hook-config-check.ts"
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { formatBytes } from "../lib/format-bytes.ts"
-import { kobeSkillState, skillInstallCommand } from "../lib/skill-install.ts"
+import { roveSkillState, skillInstallCommand } from "../lib/skill-install.ts"
 import { readableLegacyIndexPath } from "../orchestrator/index/store-codec.ts"
-import { LEGACY_KOBE_STATE_DIR_BASENAME } from "../product.ts"
+import { LEGACY_ROVE_STATE_DIR_BASENAME } from "../product.ts"
 import { t } from "../tui/i18n"
 import { CURRENT_VERSION } from "../version.ts"
 import { MIN_BUN_VERSION, isBunAtLeast } from "./bun-runtime.ts"
@@ -84,7 +84,7 @@ async function requestIfReachable<T>(
   socketPath: string,
   name: "daemon.status" | "pty.list" | "debug.inspect",
 ): Promise<T | null> {
-  const client = new KobeDaemonClient(socketPath)
+  const client = new RoveDaemonClient(socketPath)
   try {
     return await client.request<T>(name, {})
   } catch {
@@ -139,7 +139,7 @@ function tailFile(path: string, count: number): string {
  */
 function describeInstall(): { line: string; ok: boolean } {
   try {
-    const [, entry] = resolveKobeSpawn([])
+    const [, entry] = resolveRoveSpawn([])
     return { line: `install:  ✓ ${entry ?? process.execPath}`, ok: true }
   } catch (err) {
     if (!isStaleInstallError(err)) return { line: `install:  ? could not check (${String(err)})`, ok: true }
@@ -181,7 +181,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
   // Same fallback the daemon-free readers use (`export`), so doctor never
   // prints "absent" for an unmigrated home whose tasks `export` can list.
   const canonicalTasks = join(roveStateDir(), "tasks.json")
-  const legacyTasks = join(homeDir(), LEGACY_KOBE_STATE_DIR_BASENAME, "tasks.json")
+  const legacyTasks = join(homeDir(), LEGACY_ROVE_STATE_DIR_BASENAME, "tasks.json")
   const readableLegacy = readableLegacyIndexPath(canonicalTasks, legacyTasks)
   const usingLegacyTasks = !existsSync(canonicalTasks) && readableLegacy !== undefined && existsSync(readableLegacy)
   const tasksPath = usingLegacyTasks ? legacyTasks : canonicalTasks
@@ -222,7 +222,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
     const tasks = typeof daemon.taskCount === "number" ? daemon.taskCount : "?"
     const clients = typeof daemon.attachedClients === "number" ? daemon.attachedClients : "?"
     out.push(`daemon:  ✓ running (pid ${pid}, up ${uptime}, ${tasks} task(s), ${clients} client(s))`)
-    const version = typeof daemon.kobeVersion === "string" ? daemon.kobeVersion : undefined
+    const version = typeof daemon.roveVersion === "string" ? daemon.roveVersion : undefined
     if (version && version !== CURRENT_VERSION) {
       out.push(`         ⚠ stale build: daemon is v${version}, you launched v${CURRENT_VERSION}`)
       out.push(`         → run \`${CLI_NAME} daemon restart\`, then relaunch Rove`)
@@ -232,7 +232,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
     // sandbox daemon on the production socket answers with an empty index.
     if (isForeignDaemonHome(typeof daemon.homeDir === "string" ? daemon.homeDir : undefined, homeDir())) {
       out.push(`         ⚠ foreign home: daemon serves ${String(daemon.homeDir)}, you are reading ${homeDir()}`)
-      out.push(`         → clear ROVE_HOME_DIR/KOBE_HOME_DIR, then \`${CLI_NAME} daemon restart\``)
+      out.push(`         → clear ROVE_HOME_DIR/ROVE_HOME_DIR, then \`${CLI_NAME} daemon restart\``)
     }
     // Hooks are the only sub-second badge path and fail SILENTLY (`kobe hook`
     // swallows everything), so a dead channel reads as a sluggish UI.
@@ -339,7 +339,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
   out.push(...legacyTmuxDoctorLines(legacy), "")
   if (legacy.sessions.length > 0) fixes.push(resetManualFix(CLI_NAME, "resetLegacy"))
 
-  const skill = kobeSkillState()
+  const skill = roveSkillState()
   const installCommand = skillInstallCommand()
   if (!skill.installed) {
     out.push("skill:   ✗ Rove agent skill not installed", `         → ${installCommand}`)

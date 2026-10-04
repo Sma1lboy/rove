@@ -48,8 +48,8 @@ export function shellSpawn(argv: readonly string[], shell: string, env?: Readonl
 /**
  * Identity export for a bare shell tab (ctrl+e shell), so an engine the user
  * types there inherits `ROVE_TASK_ID`/`ROVE_TAB_ID` and the daemon gets
- * tab-precise events for a session Rove never spawned. `KOBE_*` aliases too: a
- * bare shell never passes through the CLI's ROVE_* → KOBE_* mirror (same
+ * tab-precise events for a session Rove never spawned. `ROVE_*` aliases too: a
+ * bare shell never passes through the CLI's ROVE_* → ROVE_* mirror (same
  * reason as `session-launch.ts`). Typed via `initialInput`, so it reaches warm
  * spares with no pty protocol change. Leading space skips HIST_IGNORE_SPACE
  * history; `clear` hides it from scrollback. ponytail: one visible line
@@ -59,5 +59,5 @@ export function shellSpawn(argv: readonly string[], shell: string, env?: Readonl
 export function shellIdentityInput(taskId: string, tabId: string): string {
   const task = shellCommandLine([taskId])
   const tab = shellCommandLine([tabId])
-  return ` export ROVE_TASK_ID=${task} KOBE_TASK_ID=${task} ROVE_TAB_ID=${tab} KOBE_TAB_ID=${tab} && clear\r`
+  return ` export ROVE_TASK_ID=${task} ROVE_TAB_ID=${tab} && clear\r`
 }

@@ -1,5 +1,5 @@
 /**
- * `kobe hook <verb>` dispatcher (`runHookSubcommand` + `ensureGlobalKobeHooks`)
+ * `kobe hook <verb>` dispatcher (`runHookSubcommand` + `ensureGlobalRoveHooks`)
  * — sibling of hook-cmd.test.ts (which covers the pure parsers). The daemon
  * client is mocked (hooks are non-spawning by contract) and the engine hook
  * adapters are faked so no real ~/.claude/settings.json is ever written.
@@ -58,7 +58,7 @@ vi.mock("../../src/engine/claude-code-local/plugin-migration.ts", () => ({
   migrationHint: vi.fn(() => null),
 }))
 
-import { ensureGlobalKobeHooks, runHookSubcommand } from "../../src/cli/hook-cmd.ts"
+import { ensureGlobalRoveHooks, runHookSubcommand } from "../../src/cli/hook-cmd.ts"
 import { getPersistedString, setPersistedString } from "../../src/state/repos.ts"
 
 let home: string
@@ -69,18 +69,18 @@ function stubStdin(payload: unknown): void {
 }
 
 beforeEach(() => {
-  originalHome = process.env.KOBE_HOME_DIR
+  originalHome = process.env.ROVE_HOME_DIR
   home = mkdtempSync(join(tmpdir(), "kobe-hook-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 
-  // Engine tabs launch as `env KOBE_TASK_ID=… KOBE_TAB_ID=… <engine>`, so a
+  // Engine tabs launch as `env ROVE_TASK_ID=… ROVE_TAB_ID=… <engine>`, so a
   // test run started from inside a kobe engine tab inherits both and the
   // dispatcher reports THAT tab's identity instead of resolving the payload
   // cwd. Pin them off: these assertions describe the no-ambient-identity
   // path, and without this they fail only on a developer's machine — CI,
   // which has no kobe session, never sees it.
-  vi.stubEnv("KOBE_TASK_ID", undefined)
-  vi.stubEnv("KOBE_TAB_ID", undefined)
+  vi.stubEnv("ROVE_TASK_ID", undefined)
+  vi.stubEnv("ROVE_TAB_ID", undefined)
 
   mocks.connectIfRunning.mockReset().mockResolvedValue({ request: mocks.request, close: mocks.close })
   mocks.request.mockReset().mockResolvedValue({})
@@ -101,8 +101,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   rmSync(home, { recursive: true, force: true })
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
@@ -125,11 +125,11 @@ describe("runHookSubcommand — activity verbs", () => {
   })
 
   // Why: tab precision for the F7 attention jump. Engine tabs launch as
-  // `env KOBE_TASK_ID=… KOBE_TAB_ID=… <engine>` and hooks inherit that env —
+  // `env ROVE_TASK_ID=… ROVE_TAB_ID=… <engine>` and hooks inherit that env —
   // the ONLY way to tell a task's tabs apart (they share one worktree cwd).
-  it("reports the inherited KOBE_TASK_ID/KOBE_TAB_ID env as exact identity", async () => {
-    vi.stubEnv("KOBE_TASK_ID", "t7")
-    vi.stubEnv("KOBE_TAB_ID", "tab-2")
+  it("reports the inherited ROVE_TASK_ID/ROVE_TAB_ID env as exact identity", async () => {
+    vi.stubEnv("ROVE_TASK_ID", "t7")
+    vi.stubEnv("ROVE_TAB_ID", "tab-2")
     stubStdin({ cwd: "/some/task/worktree" })
     await runHookSubcommand(["awaiting-input"])
     expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", {
@@ -141,8 +141,8 @@ describe("runHookSubcommand — activity verbs", () => {
   })
 
   it("an explicit --task-id still beats the env identity (tabId rides along)", async () => {
-    vi.stubEnv("KOBE_TASK_ID", "t7")
-    vi.stubEnv("KOBE_TAB_ID", "tab-2")
+    vi.stubEnv("ROVE_TASK_ID", "t7")
+    vi.stubEnv("ROVE_TAB_ID", "tab-2")
     stubStdin({ cwd: "/ignored" })
     await runHookSubcommand(["turn-start", "--task-id", "flag-wins"])
     expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", {
@@ -160,8 +160,8 @@ describe("runHookSubcommand — activity verbs", () => {
   // fires continuously while the user's real turn ended long ago.
   it("drops an unattended session's event instead of billing it to the inherited tab", async () => {
     mocks.adapter.isUnattendedSession.mockReturnValue(true)
-    vi.stubEnv("KOBE_TASK_ID", "t7")
-    vi.stubEnv("KOBE_TAB_ID", "tab-2")
+    vi.stubEnv("ROVE_TASK_ID", "t7")
+    vi.stubEnv("ROVE_TAB_ID", "tab-2")
     stubStdin({ cwd: "/some/task/worktree" })
     await runHookSubcommand(["turn-complete"])
     expect(mocks.connectIfRunning).not.toHaveBeenCalled()
@@ -312,9 +312,9 @@ describe("kobe hook setup (deprecated cleanup)", () => {
   })
 })
 
-describe("ensureGlobalKobeHooks (default-ON global install)", () => {
+describe("ensureGlobalRoveHooks (default-ON global install)", () => {
   it("installs activity hooks into each engine's own settings file, then cleans the removed WorktreeCreate hook", async () => {
-    await ensureGlobalKobeHooks()
+    await ensureGlobalRoveHooks()
     // toolEvents:false — no enabled plugin declares a tool.* hook in this
     // test home, so the gated tool family stays out of the engine config.
     expect(mocks.adapter.installActivityHooks).toHaveBeenCalledWith("/fake/.claude/settings.json", {
@@ -334,7 +334,7 @@ describe("ensureGlobalKobeHooks (default-ON global install)", () => {
   // block the launch of a user who never had the hook at all.
   it("never throws when the watch-hook uninstall fails on a fresh install", async () => {
     mocks.adapter.removeWorktreeWatchHook.mockRejectedValue(new Error("ENOENT"))
-    await expect(ensureGlobalKobeHooks()).resolves.toBeUndefined()
+    await expect(ensureGlobalRoveHooks()).resolves.toBeUndefined()
   })
 
   // Issue #37 plugin takeover: the Claude Code plugin's hooks.json carries
@@ -342,7 +342,7 @@ describe("ensureGlobalKobeHooks (default-ON global install)", () => {
   // otherwise every event fires twice. Other engines keep their install.
   it("plugin mode skips the claude settings install but keeps other engines", async () => {
     mocks.rovePluginEnabled.mockReturnValue(true)
-    await ensureGlobalKobeHooks()
+    await ensureGlobalRoveHooks()
     const installedVendors = mocks.adapter.installActivityHooks.mock.contexts.map(
       (ctx) => (ctx as { vendor: string }).vendor,
     )

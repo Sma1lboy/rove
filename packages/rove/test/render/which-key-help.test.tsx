@@ -39,7 +39,7 @@ function useGuidePreference(): void {
   const configDir = join(home, ".config", "rove")
   mkdirSync(configDir, { recursive: true })
   writeFileSync(join(configDir, "state.json"), JSON.stringify({ [PREFIX_TAP_PRESENTATION_KEY]: "guide" }))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 }
 
 const CLOSED_PAGES: HostPagesState = {

@@ -5,7 +5,7 @@
  * path. The file READER (`state/keybindings-file.ts`) is mocked — it needs
  * `Bun.YAML`, unavailable under vitest's node VM, and its parse behavior
  * isn't what this module owns. What IS asserted: the parsed doc lands as
- * real chord mutations on `KobeKeymap` and as an accurate applied/warnings
+ * real chord mutations on `RoveKeymap` and as an accurate applied/warnings
  * report, and a reload restores defaults for removed overrides.
  */
 
@@ -66,7 +66,7 @@ describe("applyUserKeybindings", () => {
     expect(warnSpy).not.toHaveBeenCalled()
   })
 
-  test("applies a bindings override onto KobeKeymap and reports it", () => {
+  test("applies a bindings override onto RoveKeymap and reports it", () => {
     fileState.doc = { bindings: { [ID]: "ctrl+r" } }
     const report = userKb.reloadUserKeybindings()
     expect([...(findBinding(ID)?.keys ?? [])]).toEqual(["ctrl+r"])

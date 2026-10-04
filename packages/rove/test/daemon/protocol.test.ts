@@ -31,7 +31,7 @@ describe("isProtocolCompatible", () => {
 
 describe("isForeignDaemonHome", () => {
   it("rejects a sandbox daemon squatting on the production socket", () => {
-    // `dev:sandbox` inheriting KOBE_DAEMON_SOCKET_PATH from the task terminal
+    // `dev:sandbox` inheriting ROVE_DAEMON_SOCKET_PATH from the task terminal
     // binds the real socket and serves an EMPTY task index.
     expect(isForeignDaemonHome("/repo/packages/rove/.dev-sandbox/home", "/home/dev")).toBe(true)
   })
@@ -44,7 +44,7 @@ describe("isForeignDaemonHome", () => {
   })
 
   it("accepts a daemon that reports no home (predates the field)", () => {
-    // Same rolling-upgrade rule as kobeVersion: an old daemon is never
+    // Same rolling-upgrade rule as roveVersion: an old daemon is never
     // rejected on evidence it cannot supply.
     expect(isForeignDaemonHome(undefined, "/home/dev")).toBe(false)
   })
@@ -58,7 +58,7 @@ describe("isDaemonVersionStale", () => {
   })
 
   it("is NOT stale when the daemon version is unknown (older daemon omits the field)", () => {
-    // A daemon predating the kobeVersion handshake field reports undefined;
+    // A daemon predating the roveVersion handshake field reports undefined;
     // we must never flag that as stale (no false banner).
     expect(isDaemonVersionStale(undefined, "0.7.4")).toBe(false)
   })

@@ -29,12 +29,11 @@ it("closes tab sessions and exits through the parent pipe without killing detach
     env: {
       ...process.env,
       ROVE_HOME_DIR: home,
-      KOBE_HOME_DIR: home,
-      KOBE_WEB_HOST: "127.0.0.1",
-      KOBE_PTY_PORT: "0",
-      KOBE_PTY_PARENT_PIPE: "1",
-      KOBE_PTY_DEV_SHELL: process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "/bin/sh",
-      KOBE_PTY_DEV_COMMAND: `exec ${quote(process.execPath)} ${quote(fixture)}`,
+      ROVE_WEB_HOST: "127.0.0.1",
+      ROVE_PTY_PORT: "0",
+      ROVE_PTY_PARENT_PIPE: "1",
+      ROVE_PTY_DEV_SHELL: process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "/bin/sh",
+      ROVE_PTY_DEV_COMMAND: `exec ${quote(process.execPath)} ${quote(fixture)}`,
     },
   })
   const exited = once(sidecar, "exit")

@@ -8,7 +8,7 @@
  * `request`.
  */
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
@@ -35,7 +35,7 @@ function fakeClient() {
     on: () => () => {},
     onLifecycle: () => () => {},
     request,
-  } as unknown as KobeDaemonClient
+  } as unknown as RoveDaemonClient
   return { client, request }
 }
 
@@ -160,7 +160,7 @@ describe("RemoteOrchestrator RPC wire mapping", () => {
         totalFailing: 0,
         unavailable: { reason: "gh_failed", detail: "gh auth login" },
       }),
-    } as unknown as KobeDaemonClient
+    } as unknown as RoveDaemonClient
     const local = new RemoteOrchestrator(client)
     expect(await local.failingChecks("t1")).toEqual({
       checks: [],

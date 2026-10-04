@@ -3,7 +3,7 @@
  * attachable text file.
  *
  * Env discipline: this gets pasted into public bug reports, so a value prints
- * ONLY for a key on {@link REPORT_ENV_KEYS}; other ROVE_/KOBE_ vars show as
+ * ONLY for a key on {@link REPORT_ENV_KEYS}; other ROVE_/ROVE_ vars show as
  * `KEY=(set)` (a `ROVE_GH_PAT=ghp_…` never leaves the machine). Allowlisting
  * values, not filtering by name or entropy, fails closed on unknown keys.
  */
@@ -15,7 +15,7 @@ import { defaultDaemonLogPath, defaultPtyHostLogPath } from "@sma1lboy/rove-daem
 /**
  * Rove's own knobs by SUFFIX, expanded to both prefixes so neither spelling of
  * a knob gets redacted. (`WEB_HOST` is read only by the harness PTY sidecar,
- * as `KOBE_WEB_HOST` — the LAN escape hatch, so its value matters.)
+ * as `ROVE_WEB_HOST` — the LAN escape hatch, so its value matters.)
  */
 const REPORT_ENV_SUFFIXES = [
   "HOME_DIR",
@@ -42,9 +42,9 @@ const REPORT_ENV_KEYS: readonly string[] = [
   "COLORTERM",
   "VISUAL",
   "EDITOR",
-  ...REPORT_ENV_SUFFIXES.flatMap((suffix) => [`ROVE_${suffix}`, `KOBE_${suffix}`]),
-  // No KOBE_ twin on purpose: `installRoveEnvCompatibility` deliberately skips
-  // this one, so a `KOBE_INVOKED_AS` line would always read `(unset)`.
+  ...REPORT_ENV_SUFFIXES.flatMap((suffix) => [`ROVE_${suffix}`, `ROVE_${suffix}`]),
+  // No ROVE_ twin on purpose: `installRoveEnvCompatibility` deliberately skips
+  // this one, so a `ROVE_INVOKED_AS` line would always read `(unset)`.
   "ROVE_INVOKED_AS",
 ]
 
@@ -63,11 +63,11 @@ function logTail(path: string, count: number): string {
   }
 }
 
-/** Env section lines; non-allowlisted ROVE_/KOBE_ vars are redacted. */
+/** Env section lines; non-allowlisted ROVE_/ROVE_ vars are redacted. */
 export function reportEnvLines(env: NodeJS.ProcessEnv): string[] {
   const shown = new Set<string>(REPORT_ENV_KEYS)
   const keys = new Set<string>(shown)
-  for (const key of Object.keys(env)) if (key.startsWith("ROVE_") || key.startsWith("KOBE_")) keys.add(key)
+  for (const key of Object.keys(env)) if (key.startsWith("ROVE_") || key.startsWith("ROVE_")) keys.add(key)
   return [...keys].sort().map((key) => {
     const value = env[key]
     if (value === undefined) return `${key}=(unset)`

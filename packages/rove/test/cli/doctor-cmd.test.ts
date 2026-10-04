@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   request: vi.fn(),
   close: vi.fn(),
   inspectLegacyTmux: vi.fn(),
-  kobeSkillState: vi.fn(),
+  roveSkillState: vi.fn(),
   detectEngineStatuses: vi.fn(),
   listPresetIds: vi.fn(),
 }))
@@ -37,7 +37,7 @@ vi.mock("../../src/engine/account-detect.ts", async (importOriginal) => {
 })
 
 vi.mock("@sma1lboy/rove-daemon/client", () => ({
-  KobeDaemonClient: vi.fn().mockImplementation(() => ({
+  RoveDaemonClient: vi.fn().mockImplementation(() => ({
     request: mocks.request,
     close: mocks.close,
   })),
@@ -45,7 +45,7 @@ vi.mock("@sma1lboy/rove-daemon/client", () => ({
 
 vi.mock("../../src/lib/skill-install.ts", () => ({
   skillInstallCommand: () => "kobe skill install",
-  kobeSkillState: mocks.kobeSkillState,
+  roveSkillState: mocks.roveSkillState,
 }))
 
 vi.mock("../../src/cli/legacy-tmux.ts", async (importOriginal) => {
@@ -60,9 +60,9 @@ let originalHome: string | undefined
 let logSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
-  originalHome = process.env.KOBE_HOME_DIR
+  originalHome = process.env.ROVE_HOME_DIR
   home = mkdtempSync(join(tmpdir(), "kobe-doctor-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   mkdirSync(join(home, ".kobe"), { recursive: true })
   mocks.request.mockReset()
   mocks.close.mockReset()
@@ -74,7 +74,7 @@ beforeEach(() => {
     processes: [],
     error: null,
   })
-  mocks.kobeSkillState.mockReset().mockReturnValue({
+  mocks.roveSkillState.mockReset().mockReturnValue({
     installed: true,
     installedVersion: 3,
     currentVersion: 3,
@@ -94,8 +94,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   rmSync(home, { recursive: true, force: true })
   logSpy.mockRestore()
   vi.unstubAllGlobals()
@@ -151,7 +151,7 @@ describe("runDoctorSubcommand", () => {
     // its purpose — so an install upgraded underneath it keeps running old
     // code for as long as sessions live. Doctor could not see this at all.
     mocks.request.mockImplementation(async (name: string) => {
-      if (name === "daemon.status") return { daemonPid: 42, kobeVersion: CURRENT_VERSION }
+      if (name === "daemon.status") return { daemonPid: 42, roveVersion: CURRENT_VERSION }
       if (name === "pty.list") return { sessions: [], version: "0.0.1-ancient" }
       throw new Error(`unexpected request ${name}`)
     })

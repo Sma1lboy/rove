@@ -35,7 +35,7 @@ describe("cross-task notify targets", () => {
     expect(targets.get("a:tab-1")).toEqual({ taskId: "a", tabId: "tab-1" })
   })
 
-  test("falls back to the task rollup when no tab reports (engine with no KOBE_TAB_ID)", () => {
+  test("falls back to the task rollup when no tab reports (engine with no ROVE_TAB_ID)", () => {
     const { states, targets } = notifyTargetStates(taskLevel({ a: "error" }), tabLevel({}))
     expect([...states]).toEqual([["a:", "error"]])
     expect(targets.get("a:")).toEqual({ taskId: "a", tabId: "" })

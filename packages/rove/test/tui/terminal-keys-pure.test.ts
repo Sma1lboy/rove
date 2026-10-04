@@ -279,7 +279,7 @@ describe("key routing tables", () => {
     for (const digit of "123456789") expect(PASSTHROUGH_CHORDS).not.toContain(`ctrl+${digit}`)
   })
 
-  it("derives the reservation from KobeKeymap DEFAULTS, immune to live overrides", () => {
+  it("derives the reservation from RoveKeymap DEFAULTS, immune to live overrides", () => {
     // RESERVED_GLOBAL_CHORDS is generated from RESERVED_SPEC (keys-pure.ts):
     // ids resolve via defaultChordsOf, prefix-moved chords stay literals —
     // the exact-list pin above is what fails if a keymap-table edit

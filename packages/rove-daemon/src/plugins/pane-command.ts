@@ -2,7 +2,7 @@
  * Pane launch composition — shared by `kobe plugin pane open` (CLI) and the
  * TUI's ctrl+e picker, so both build the IDENTICAL argv: one login-shell
  * `-ilc` script carrying the plugin env contract, with `$ROVE_PLUGIN_ROOT`
- * (or `$KOBE_PLUGIN_ROOT`) expanded in the manifest command. The PTY runs in
+ * (or `$ROVE_PLUGIN_ROOT`) expanded in the manifest command. The PTY runs in
  * the task worktree; no tab/PTY
  * schema knows about plugins (docs/design/plugins.md §Panes).
  */
@@ -52,11 +52,11 @@ export function buildPaneArgv(
       ...(opts.taskId ? { ROVE_PLUGIN_TASK_ID: opts.taskId } : {}),
     },
   })
-  const pairs = Object.entries(env).filter(([k]) => k.startsWith("ROVE_") || k.startsWith("KOBE_")) as [
+  const pairs = Object.entries(env).filter(([k]) => k.startsWith("ROVE_") || k.startsWith("ROVE_")) as [
     string,
     string,
   ][]
-  const command = pane.command.map((a) => a.replace(/\$\{?(?:ROVE|KOBE)_PLUGIN_ROOT\}?/g, pluginRoot))
+  const command = pane.command.map((a) => a.replace(/\$\{?(?:ROVE|ROVE)_PLUGIN_ROOT\}?/g, pluginRoot))
   const script = `exec env ${pairs.map(([k, v]) => shq(`${k}=${v}`)).join(" ")} ${command.map(shq).join(" ")}`
   // Interactive login shell, as the engine tab (session-launch.ts), for the same PATH/exports.
   return [resolveLoginShell(), "-ilc", script]

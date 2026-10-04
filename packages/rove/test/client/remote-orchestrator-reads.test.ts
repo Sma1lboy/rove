@@ -1,9 +1,9 @@
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { expect, it } from "vitest"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 
 it("read methods stay bound when handed to a consumer and return stable state cells", () => {
-  const client = new KobeDaemonClient("/unused-read-test.sock")
+  const client = new RoveDaemonClient("/unused-read-test.sock")
   const orch = new RemoteOrchestrator(client)
   try {
     const readers = [

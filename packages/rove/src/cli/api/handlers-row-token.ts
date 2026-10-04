@@ -19,7 +19,7 @@ const DEFAULT_TTL_SECONDS = 60
  * else `cli`.
  */
 function sourceOf(env: NodeJS.ProcessEnv = process.env): string {
-  return env.ROVE_PLUGIN_ID ?? env.KOBE_PLUGIN_ID ?? "cli"
+  return env.ROVE_PLUGIN_ID ?? "cli"
 }
 
 async function rowToken(ctx: VerbContext): Promise<unknown> {

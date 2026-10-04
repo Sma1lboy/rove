@@ -40,7 +40,7 @@ process.env.HOME = home
 process.env.XDG_CONFIG_HOME = join(home, ".config")
 setRoveEnv("PTY_IDLE_EXIT_MS", "500")
 
-const { KobeDaemonClient } = await import("@sma1lboy/rove-daemon/client")
+const { RoveDaemonClient } = await import("@sma1lboy/rove-daemon/client")
 const { defaultPtyHostSocketPath } = await import("@sma1lboy/rove-daemon/daemon/paths")
 const { PtyRegistry } = await import("../src/tui/panes/terminal/registry.ts")
 
@@ -79,7 +79,7 @@ function workload(cycle: number, index: number): string {
 }
 
 async function inventory(): Promise<PtyInventory> {
-  const client = new KobeDaemonClient(defaultPtyHostSocketPath(home))
+  const client = new RoveDaemonClient(defaultPtyHostSocketPath(home))
   try {
     await client.connect()
     return await client.request<PtyInventory>("pty.list", {})

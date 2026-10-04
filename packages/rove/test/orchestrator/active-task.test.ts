@@ -14,8 +14,8 @@ describe("Orchestrator active task recency", () => {
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), "kobe-active-task-"))
     // Isolate the global `lastActive` record (state/last-active.ts writes
-    // through kvStatePath(), which honours KOBE_HOME_DIR).
-    vi.stubEnv("KOBE_HOME_DIR", home)
+    // through kvStatePath(), which honours ROVE_HOME_DIR).
+    vi.stubEnv("ROVE_HOME_DIR", home)
     const store = new TaskIndexStore({ homeDir: home })
     await store.load()
     orch = new Orchestrator({ store, worktrees: new GitWorktreeManager() })

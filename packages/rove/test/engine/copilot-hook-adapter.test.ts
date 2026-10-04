@@ -86,7 +86,7 @@ describe("CopilotHookAdapter install", () => {
   beforeEach(() => {
     home = mkdtempSync(join(tmpdir(), "rove-copilot-hooks-"))
     // The merge's lock file belongs in a throwaway state dir, not the
-    // developer's real ~/.rove; and `kobeHookInvocation` probes PATH through a
+    // developer's real ~/.rove; and `roveHookInvocation` probes PATH through a
     // bare `Bun.which`, which does not exist under vitest's node.
     vi.stubEnv("ROVE_HOME_DIR", join(home, "rove"))
     vi.stubGlobal("Bun", { which: () => "/usr/local/bin/kobe" })

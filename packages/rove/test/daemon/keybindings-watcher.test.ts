@@ -11,7 +11,7 @@
  *   - seed the bus last-value cache at start so a late subscriber learns the
  *     channel's current rev.
  *
- * Isolated via KOBE_HOME_DIR → a temp home (defaultKeybindingsPath honours
+ * Isolated via ROVE_HOME_DIR → a temp home (defaultKeybindingsPath honours
  * it). Writes are plain fs writes — the file is owned by the user/editor,
  * not the State Store.
  */
@@ -33,8 +33,8 @@ let stop: (() => void) | null
 
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-keybinds-"))
-  savedHomeDir = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  savedHomeDir = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
   filePath = defaultKeybindingsPath(tmpHome)
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   bus = new DaemonEventBus()
@@ -48,8 +48,8 @@ beforeEach(() => {
 afterEach(() => {
   stop?.()
   // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test. Same pattern as ui-prefs-watcher.test.ts.
-  if (savedHomeDir === undefined) delete process.env.KOBE_HOME_DIR
-  else process.env.KOBE_HOME_DIR = savedHomeDir
+  if (savedHomeDir === undefined) delete process.env.ROVE_HOME_DIR
+  else process.env.ROVE_HOME_DIR = savedHomeDir
   try {
     fs.rmSync(tmpHome, { recursive: true, force: true })
   } catch {

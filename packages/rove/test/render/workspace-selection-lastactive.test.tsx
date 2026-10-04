@@ -69,7 +69,7 @@ function Probe(props: {
 
 describe("selectTask on a fresh home", () => {
   it("re-selecting the fallback-selected task still publishes it as active", async () => {
-    process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-lastactive-"))
+    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-lastactive-"))
     const activeCell = createStateCell<string | null>(null)
     const { orch, published } = mockOrchestrator(activeCell)
     const tasks = [task("alpha"), task("bravo")]

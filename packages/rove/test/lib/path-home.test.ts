@@ -4,7 +4,7 @@
  * The CLI's path arguments (`kobe add ~/repo`, `kobe api --repo ~/repo`,
  * `kobe repo set --init-script-file ~/s.sh`, …) reach us verbatim when the
  * `~` is quoted or forwarded from another tool. `expandTilde` turns a
- * leading `~` / `~/` into the (KOBE_HOME_DIR-aware) home directory so the
+ * leading `~` / `~/` into the (ROVE_HOME_DIR-aware) home directory so the
  * later `resolve(cwd, …)` can't produce a bogus `<cwd>/~/repo` path.
  */
 
@@ -17,13 +17,13 @@ let prevHome: string | undefined
 const HOME = path.join(path.sep, "tmp", "kobe-home-fixture")
 
 beforeEach(() => {
-  prevHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = HOME
+  prevHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = HOME
 })
 
 afterEach(() => {
-  if (prevHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = prevHome
+  if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = prevHome
 })
 
 describe("expandTilde", () => {

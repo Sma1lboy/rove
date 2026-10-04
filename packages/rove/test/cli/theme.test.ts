@@ -1,6 +1,6 @@
 /**
  * `kobe theme <list|add|remove>` (`runThemeSubcommand`). Real filesystem
- * under a per-test KOBE_HOME_DIR tempdir — `userThemesDir()` resolves off
+ * under a per-test ROVE_HOME_DIR tempdir — `userThemesDir()` resolves off
  * that env var (roveStateDir() honours it), so list/add/remove exercise
  * real reads/writes. `fetch` is stubbed for the URL-source branch.
  */
@@ -31,9 +31,9 @@ function themesDir(): string {
 }
 
 beforeEach(() => {
-  originalHome = process.env.KOBE_HOME_DIR
+  originalHome = process.env.ROVE_HOME_DIR
   home = mkdtempSync(join(tmpdir(), "kobe-theme-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 
   outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
   errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
@@ -43,8 +43,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   rmSync(home, { recursive: true, force: true })
   outSpy.mockRestore()
   errSpy.mockRestore()

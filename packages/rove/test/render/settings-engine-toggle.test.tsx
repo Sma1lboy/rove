@@ -22,7 +22,7 @@ function Driver() {
 }
 
 test("space switches the focused engine off and back on", async () => {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-engine-toggle-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-engine-toggle-"))
   const { frame, mockInput } = await renderComponent(<Driver />, {
     width: 110,
     height: 40,
@@ -45,7 +45,7 @@ test("space switches the focused engine off and back on", async () => {
 })
 
 test("clicking the checkbox toggles it instead of opening the command editor", async () => {
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-engine-click-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-engine-click-"))
   const { frame, mockInput, mockMouse } = await renderComponent(<Driver />, {
     width: 110,
     height: 40,

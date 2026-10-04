@@ -48,7 +48,7 @@ export class PipeTaskPty implements TaskPtyLike {
         TERM: process.env.TERM ?? "xterm-256color",
         COLUMNS: String(this.cols),
         LINES: String(this.rows),
-        KOBE_TERMINAL_PIPE: "1",
+        ROVE_TERMINAL_PIPE: "1",
       }),
       stdio: ["pipe", "pipe", "pipe"],
     })

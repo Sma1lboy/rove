@@ -1,4 +1,4 @@
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
@@ -10,7 +10,7 @@ vi.mock("@sma1lboy/rove-daemon/client/client-log", async (importActual) => ({
 }))
 
 /** Minimal client whose `emit` replays a daemon event through the captured `*` handler. */
-function fakeClient(): { client: KobeDaemonClient; emit: (name: string, payload: unknown) => void } {
+function fakeClient(): { client: RoveDaemonClient; emit: (name: string, payload: unknown) => void } {
   let star: ((frame: { name: string; payload: unknown }) => void) | undefined
   const client = {
     on: (name: string, handler: (frame: { name: string; payload: unknown }) => void) => {
@@ -18,7 +18,7 @@ function fakeClient(): { client: KobeDaemonClient; emit: (name: string, payload:
       return () => {}
     },
     onLifecycle: () => () => {},
-  } as unknown as KobeDaemonClient
+  } as unknown as RoveDaemonClient
   return { client, emit: (name, payload) => star?.({ name, payload }) }
 }
 
@@ -363,7 +363,7 @@ describe("worktree.changes capability gating (init)", () => {
       onLifecycle: () => () => {},
       request: async (name: string) => (name === "hello" ? hello : {}),
       subscribe: async () => ({}),
-    } as unknown as KobeDaemonClient
+    } as unknown as RoveDaemonClient
     return { client, emit: (name: string, payload: unknown) => star?.({ name, payload }) }
   }
 

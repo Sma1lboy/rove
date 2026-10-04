@@ -12,7 +12,7 @@
  *     the signal null (the pane's local mtime/completion probes engage).
  */
 
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { describe, expect, it, vi } from "vitest"
 import { RemoteOrchestrator, sameTranscriptActivityMap } from "../../src/client/remote-orchestrator.ts"
 
@@ -22,7 +22,7 @@ vi.mock("@sma1lboy/rove-daemon/client/client-log", async (importActual) => ({
   logClientError,
 }))
 
-function fakeClient(): { client: KobeDaemonClient; emit: (name: string, payload: unknown) => void } {
+function fakeClient(): { client: RoveDaemonClient; emit: (name: string, payload: unknown) => void } {
   let star: ((frame: { name: string; payload: unknown }) => void) | undefined
   const client = {
     on: (name: string, handler: (frame: { name: string; payload: unknown }) => void) => {
@@ -30,7 +30,7 @@ function fakeClient(): { client: KobeDaemonClient; emit: (name: string, payload:
       return () => {}
     },
     onLifecycle: () => () => {},
-  } as unknown as KobeDaemonClient
+  } as unknown as RoveDaemonClient
   return { client, emit: (name, payload) => star?.({ name, payload }) }
 }
 
@@ -44,7 +44,7 @@ function fakeRpcClient(hello: Record<string, unknown>) {
     onLifecycle: () => () => {},
     request: async (name: string) => (name === "hello" ? hello : {}),
     subscribe: async () => ({}),
-  } as unknown as KobeDaemonClient
+  } as unknown as RoveDaemonClient
   return { client, emit: (name: string, payload: unknown) => star?.({ name, payload }) }
 }
 

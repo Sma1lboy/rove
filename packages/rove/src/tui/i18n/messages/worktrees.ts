@@ -11,7 +11,7 @@ export const en = {
   noWorktrees: "No worktrees.",
 
   badge: {
-    kobeManaged: "rove",
+    roveManaged: "rove",
     dirty: "dirty",
     dirtyUnknown: "dirty?",
     remoteOn: "on remote",
@@ -88,7 +88,7 @@ export const zh: typeof en = {
   noWorktrees: "没有 worktree。",
 
   badge: {
-    kobeManaged: "rove",
+    roveManaged: "rove",
     dirty: "有改动",
     dirtyUnknown: "改动未知",
     remoteOn: "已推送",

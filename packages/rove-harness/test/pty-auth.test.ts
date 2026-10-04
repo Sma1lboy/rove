@@ -71,8 +71,8 @@ describe("expectedPtyToken", () => {
 
   it("honours the legacy .kobe layout only when the file is actually there", () => {
     const legacy = homeWithToken("legacy-token", ".kobe")
-    expect(webTokenPath({ KOBE_HOME_DIR: legacy })).toBe(join(legacy, ".kobe", "web-token"))
-    expect(expectedPtyToken({ KOBE_HOME_DIR: legacy })).toBe("legacy-token")
+    expect(webTokenPath({ ROVE_HOME_DIR: legacy })).toBe(join(legacy, ".kobe", "web-token"))
+    expect(expectedPtyToken({ ROVE_HOME_DIR: legacy })).toBe("legacy-token")
   })
 
   it("stays empty when no token file exists, so every request is refused", () => {

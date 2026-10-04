@@ -3,7 +3,7 @@
  * (`src/tui/lib/keymap-overrides.ts`) — the pure half of
  * `~/.kobe/settings/keybindings.yaml` support.
  *
- * Why these matter: the override pipeline rewrites `KobeKeymap` in place
+ * Why these matter: the override pipeline rewrites `RoveKeymap` in place
  * at boot, so a normalization bug here doesn't crash anything — it
  * silently produces chords `matchKey()` can never mint (binding dead) or
  * bare letters on global scope (binding steals composer typing). The

@@ -23,7 +23,7 @@ import { renderComponent } from "./harness"
 
 /** The completion's stamp — the daemon keeps publishing it after a restart. */
 const AT = 1_760_000_000_000
-const HOME_ENV = process.env.KOBE_HOME_DIR
+const HOME_ENV = process.env.ROVE_HOME_DIR
 
 function task(id: string): Task {
   return {
@@ -48,7 +48,7 @@ function seedState(seen: Record<string, number>): void {
   const home = mkdtempSync(join(tmpdir(), "kobe-unread-restart-"))
   mkdirSync(join(home, ".config", "rove"), { recursive: true })
   writeFileSync(join(home, ".config", "rove", "state.json"), JSON.stringify({ completionSeen: seen }))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 }
 
 beforeAll(() => {
@@ -66,8 +66,8 @@ beforeAll(() => {
 
 afterAll(() => {
   tabsByTask.clear()
-  if (HOME_ENV === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = HOME_ENV
+  if (HOME_ENV === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = HOME_ENV
 })
 
 const tabState: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>> = new Map([

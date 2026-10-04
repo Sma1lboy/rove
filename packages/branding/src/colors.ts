@@ -7,7 +7,7 @@
 // Slot names stay generic (`blue`, `cyan`, …) for backward compatibility with
 // the logo components; `blue` carries the terracotta accent in both themes.
 //
-// Select with KOBE_BRAND_THEME=dark|light (default: light, matching the
+// Select with ROVE_BRAND_THEME=dark|light (default: light, matching the
 // current landing direction).
 
 const dark = {
@@ -44,7 +44,7 @@ const light: typeof dark = {
 
 export const palettes = { dark, light } as const
 
-export const isDark = process.env.KOBE_BRAND_THEME === "dark"
+export const isDark = process.env.ROVE_BRAND_THEME === "dark"
 
 export const colors = isDark ? dark : light
 

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { type Server, type Socket, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { KobeDaemonClient, RpcTimeoutError } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient, RpcTimeoutError } from "@sma1lboy/rove-daemon/client"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 /**
@@ -45,7 +45,7 @@ function pushServer(socketPath: string): Promise<{ server: Server; nextSocket: (
   })
 }
 
-describe("KobeDaemonClient pending-request cleanup", () => {
+describe("RoveDaemonClient pending-request cleanup", () => {
   let dir: string
   let socketPath: string
   let server: Server | null
@@ -66,7 +66,7 @@ describe("KobeDaemonClient pending-request cleanup", () => {
   })
 
   it("close rejects in-flight requests on a disposed client", async () => {
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     await client.connect()
     const inflight = client.request("daemon.status")
     await settle()
@@ -77,7 +77,7 @@ describe("KobeDaemonClient pending-request cleanup", () => {
   })
 
   it("forceDisconnect keeps the client revivable: a fresh connect + request works", async () => {
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     await client.connect()
     const stale = client.request("daemon.status")
     await settle()
@@ -100,7 +100,7 @@ describe("KobeDaemonClient pending-request cleanup", () => {
  * NOT hang a request forever — the per-request deadline converts it into the
  * ordinary disconnected→reconnect lifecycle so the UI sees the failure.
  */
-describe("KobeDaemonClient wedged-daemon deadline", () => {
+describe("RoveDaemonClient wedged-daemon deadline", () => {
   let dir: string
   let socketPath: string
   let server: Server | null
@@ -126,7 +126,7 @@ describe("KobeDaemonClient wedged-daemon deadline", () => {
   })
 
   it("rejects with RpcTimeoutError and emits close so the host can reconnect", async () => {
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     await client.connect()
     let closed = false
     client.onLifecycle("close", () => {
@@ -141,7 +141,7 @@ describe("KobeDaemonClient wedged-daemon deadline", () => {
   })
 
   it("exempts minute-scale RPCs (worktree.list) from the deadline", async () => {
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     await client.connect()
     const exempt = client.request("worktree.list")
     // Past the (short) deadline it must still be pending, not rejected.
@@ -160,7 +160,7 @@ describe("KobeDaemonClient wedged-daemon deadline", () => {
  * skip the rest of the same frame, and the throw must not escape the socket
  * 'data' callback (which would go deaf on all further frames).
  */
-describe("KobeDaemonClient emit isolates a throwing handler", () => {
+describe("RoveDaemonClient emit isolates a throwing handler", () => {
   let dir: string
   let socketPath: string
   let server: Server | null
@@ -182,7 +182,7 @@ describe("KobeDaemonClient emit isolates a throwing handler", () => {
   it("a throwing channel handler doesn't skip the other handlers or the '*' handler", async () => {
     const { server: srv, nextSocket } = await pushServer(socketPath)
     server = srv
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     await client.connect()
     const sock = await nextSocket()
 

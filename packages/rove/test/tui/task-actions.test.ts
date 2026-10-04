@@ -29,7 +29,7 @@ vi.mock("../../src/engine/hosted-session", () => ({
 // Rename/branch/vendor flows live in task-actions-rename.test.ts (file split
 // to stay under the ~500-line cap).
 
-import type { KobeOrchestrator } from "../../src/client/remote-orchestrator"
+import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import { type TaskActionContext, deleteTaskFlow, nextActiveTask } from "../../src/tui/lib/task-actions"
 import type { Task } from "../../src/types/task"
 
@@ -90,7 +90,7 @@ function makeCtx(opts: {
   const onTaskDeleted = vi.fn()
   const reload = vi.fn(async () => {})
   const ctx: TaskActionContext = {
-    orch: opts.orch as unknown as KobeOrchestrator | null,
+    orch: opts.orch as unknown as RoveOrchestrator | null,
     tasks: () => opts.tasks,
     confirm,
     promptText,

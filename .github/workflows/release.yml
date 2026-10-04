@@ -269,7 +269,7 @@ jobs:
           fi
 
       - name: Publish plugin SDK compatibility alias
-        # Existing plugins keep importing the Kobe-named SDK. Publish the
+        # Existing plugins keep importing the Rove-named SDK. Publish the
         # same build/version under both names; only package.json#name differs.
         working-directory: packages/rove-plugin-sdk
         run: |

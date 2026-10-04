@@ -1,5 +1,5 @@
 // Animated stage visuals for the three narrative primitives. Loaded after
-// index.js, which owns KOBE_I18N — every string here comes from that dictionary.
+// index.js, which owns ROVE_I18N — every string here comes from that dictionary.
 
 // stage-1 fan-out graph: type the ask, draw the edges, walk each lane from
 // starting → running → reported. Replays on engine change, on the replay
@@ -33,7 +33,7 @@
       return '<div class="fo-lane" data-lane="' + id + '">' +
         '<p class="fo-head"><b>' + slug() + '</b><span class="tag">' + id + '</span></p>' +
         '<p class="fo-wt">simplify-auth-' + id + '</p>' +
-        '<p class="fo-st"><span class="sp">⠋</span> ' + KOBE_I18N.t('fan.starting') + '</p>' +
+        '<p class="fo-st"><span class="sp">⠋</span> ' + ROVE_I18N.t('fan.starting') + '</p>' +
       '</div>';
     }).join('');
   }
@@ -43,7 +43,7 @@
     if (!lane) return;
     lane.classList.add(cls);
     lane.querySelector('.fo-st').className = 'fo-st ' + (cls === 'ok' ? 'ok' : 'on');
-    lane.querySelector('.fo-st').innerHTML = mark + ' ' + KOBE_I18N.t(key);
+    lane.querySelector('.fo-st').innerHTML = mark + ' ' + ROVE_I18N.t(key);
   }
 
   function play() {
@@ -51,11 +51,11 @@
     root.classList.remove('run', 'done');
     void root.offsetWidth; // restart the CSS timelines
     paintLanes();
-    cmdEl.innerHTML = '<b>' + KOBE_I18N.t('fan.cmdLead') + '</b> rove api add --agents ' +
+    cmdEl.innerHTML = '<b>' + ROVE_I18N.t('fan.cmdLead') + '</b> rove api add --agents ' +
       slug() + ':3 --prompt …';
     askEl.textContent = '';
 
-    var full = KOBE_I18N.t('fan.ask');
+    var full = ROVE_I18N.t('fan.ask');
     if (still) {
       askEl.textContent = full;
       root.classList.add('run', 'done');
@@ -137,15 +137,15 @@
 
   function label(step) {
     return step.dir === 'up'
-      ? KOBE_I18N.t('px.b1') + ' ' + KOBE_I18N.t('px.to') + ' ' + KOBE_I18N.t('px.you')
-      : KOBE_I18N.t('px.you') + ' ' + KOBE_I18N.t('px.to') + ' ' + KOBE_I18N.t('px.b1');
+      ? ROVE_I18N.t('px.b1') + ' ' + ROVE_I18N.t('px.to') + ' ' + ROVE_I18N.t('px.you')
+      : ROVE_I18N.t('px.you') + ' ' + ROVE_I18N.t('px.to') + ' ' + ROVE_I18N.t('px.b1');
   }
   function row(step) {
     var p = document.createElement('p');
     p.className = 'px-line ' + step.dir;
     p.innerHTML = '<span class="dir"></span><span class="msg"></span>';
     p.querySelector('.dir').textContent = label(step);
-    p.querySelector('.msg').textContent = KOBE_I18N.t(step.key);
+    p.querySelector('.msg').textContent = ROVE_I18N.t(step.key);
     return p;
   }
 
@@ -250,17 +250,17 @@
     stop();
     mins = START;
     root.classList.remove('gone');
-    stateEl.textContent = KOBE_I18N.t('sh.attached');
+    stateEl.textContent = ROVE_I18N.t('sh.attached');
     cmdEl.textContent = '';
     outEl.textContent = '';
     paintRows();
-    noteEl.innerHTML = KOBE_I18N.t('sh.noteLive');
+    noteEl.innerHTML = ROVE_I18N.t('sh.noteLive');
 
     if (still) {
       mins = END; paintClock();
-      cmdEl.textContent = KOBE_I18N.t('sh.back');
-      outEl.textContent = KOBE_I18N.t('sh.closed');
-      noteEl.innerHTML = KOBE_I18N.t('sh.noteBack');
+      cmdEl.textContent = ROVE_I18N.t('sh.back');
+      outEl.textContent = ROVE_I18N.t('sh.closed');
+      noteEl.innerHTML = ROVE_I18N.t('sh.noteBack');
       return;
     }
     var f = 0;
@@ -271,24 +271,24 @@
     }, 90);
 
     at(700, function () {
-      type(KOBE_I18N.t('sh.exit'), function () {
+      type(ROVE_I18N.t('sh.exit'), function () {
         at(450, function () {
-          outEl.textContent = KOBE_I18N.t('sh.closed');
+          outEl.textContent = ROVE_I18N.t('sh.closed');
           root.classList.add('gone');
-          stateEl.textContent = KOBE_I18N.t('sh.gone');
-          noteEl.innerHTML = KOBE_I18N.t('sh.noteGone');
+          stateEl.textContent = ROVE_I18N.t('sh.gone');
+          noteEl.innerHTML = ROVE_I18N.t('sh.noteGone');
           // 29 unattended minutes, compressed into three seconds
           clock = setInterval(function () {
             if (mins >= END) { clearInterval(clock); clock = null; return; }
             mins++; paintClock();
           }, 3000 / (END - START));
           at(3600, function () {
-            type(KOBE_I18N.t('sh.back'), function () {
+            type(ROVE_I18N.t('sh.back'), function () {
               at(500, function () {
                 root.classList.remove('gone');
-                stateEl.textContent = KOBE_I18N.t('sh.attached');
+                stateEl.textContent = ROVE_I18N.t('sh.attached');
                 outEl.textContent = '';
-                noteEl.innerHTML = KOBE_I18N.t('sh.noteBack');
+                noteEl.innerHTML = ROVE_I18N.t('sh.noteBack');
               });
             });
           });
@@ -302,8 +302,8 @@
   if (langBtn) langBtn.addEventListener('click', function () { setTimeout(play, 0); });
 
   paintRows();
-  noteEl.innerHTML = KOBE_I18N.t('sh.noteLive');
-  stateEl.textContent = KOBE_I18N.t('sh.attached');
+  noteEl.innerHTML = ROVE_I18N.t('sh.noteLive');
+  stateEl.textContent = ROVE_I18N.t('sh.attached');
   if (still || !window.IntersectionObserver) { play(); return; }
   var started = false;
   function start() { if (started) return; started = true; io.disconnect(); play(); }

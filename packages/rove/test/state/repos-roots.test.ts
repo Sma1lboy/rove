@@ -7,7 +7,7 @@
  * the subdir (FileTree then renders rooted at the wrong toplevel), and
  * `resolveMainRepoRoot` is what keeps scripted task creation from nesting
  * a new worktree under another task's worktree. Real `git` repos in temp
- * dirs; the KV blob is isolated via `KOBE_HOME_DIR`.
+ * dirs; the KV blob is isolated via `ROVE_HOME_DIR`.
  */
 
 import { spawnSync } from "node:child_process"
@@ -50,13 +50,13 @@ function initRepo(dir: string): void {
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-roots-home-"))
   tempDirs.push(tmpHome)
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   for (const d of tempDirs.splice(0)) fs.rmSync(d, { recursive: true, force: true })
 })
 

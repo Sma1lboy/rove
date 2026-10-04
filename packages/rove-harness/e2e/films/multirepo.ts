@@ -20,7 +20,7 @@ import type { Page } from "@playwright/test"
 import { runRoveApi, seedGitRepo, writeFixtureWebToken } from "../../../rove/scripts/fixture-core.ts"
 import type { Cue, Film } from "../film/film.ts"
 import { clickText, look, press, type as typeText } from "../hero-capture.ts"
-import { HERO_CLI, HERO_CONFIG, HERO_HOME, HERO_REPO, HERO_ROOT, heroEnv, KOBE_DIR, stopHeroStack } from "../hero-env.ts"
+import { HERO_CLI, HERO_CONFIG, HERO_HOME, HERO_REPO, HERO_ROOT, heroEnv, ROVE_DIR, stopHeroStack } from "../hero-env.ts"
 import { HERO_COMMITS, HERO_FILES } from "../hero-repo.ts"
 
 const env = heroEnv()
@@ -156,8 +156,8 @@ async function setup(): Promise<void> {
   await rm(HERO_ROOT, { recursive: true, force: true })
   await mkdir(HERO_HOME, { recursive: true })
   await writeFixtureWebToken(HERO_HOME)
-  const { version } = JSON.parse(await readFile(join(KOBE_DIR, "package.json"), "utf8"))
-  const skill = await readFile(join(KOBE_DIR, "dist", "skills", "rove", "SKILL.md"), "utf8").catch(() => "")
+  const { version } = JSON.parse(await readFile(join(ROVE_DIR, "package.json"), "utf8"))
+  const skill = await readFile(join(ROVE_DIR, "dist", "skills", "rove", "SKILL.md"), "utf8").catch(() => "")
   const skillVersion = skill.match(/(?:rove|kobe)-skill-version:\s*(\d+)/)?.[1]
   const state: Record<string, unknown> = {
     "app.lastRunVersion": version,

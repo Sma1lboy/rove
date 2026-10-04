@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   statSync: vi.fn(),
   connectIfRunning: vi.fn(),
   writeLastActiveTaskId: vi.fn(),
-  publishKobeTerminalTitle: vi.fn(),
+  publishRoveTerminalTitle: vi.fn(),
   startTui: vi.fn(),
   apply: vi.fn(),
   /** Git toplevel of the opened dir. Equal to the dir = it IS a repo root. */
@@ -34,7 +34,7 @@ vi.mock("../../src/state/last-active.ts", () => ({
   writeLastActiveTaskId: mocks.writeLastActiveTaskId,
 }))
 vi.mock("../../src/tui/lib/outer-terminal-title.ts", () => ({
-  publishKobeTerminalTitle: mocks.publishKobeTerminalTitle,
+  publishRoveTerminalTitle: mocks.publishRoveTerminalTitle,
 }))
 vi.mock("../../src/cli/onboarding.ts", () => ({ runPendingWelcomeInstalls: mocks.apply }))
 vi.mock("../../src/tui/index.tsx", () => ({
@@ -74,7 +74,7 @@ beforeEach(() => {
   mocks.statSync.mockReset()
   mocks.connectIfRunning.mockReset().mockResolvedValue(null)
   mocks.writeLastActiveTaskId.mockReset()
-  mocks.publishKobeTerminalTitle.mockReset()
+  mocks.publishRoveTerminalTitle.mockReset()
   mocks.startTui.mockReset().mockResolvedValue(undefined)
   // Default: not a repo — the dir-task path every pre-existing test expects.
   mocks.repoRootOf.mockReset().mockImplementation((p: string) => p)
@@ -128,7 +128,7 @@ describe("runOpenDirectory", () => {
     expect(client.request).toHaveBeenCalledWith("task.openDir", { dir: expect.stringContaining("my-dir") })
     expect(client.request).toHaveBeenCalledWith("task.setActive", { taskId: "daemon-task-1" })
     expect(client.close).toHaveBeenCalled()
-    expect(mocks.publishKobeTerminalTitle).toHaveBeenCalled()
+    expect(mocks.publishRoveTerminalTitle).toHaveBeenCalled()
     expect(mocks.startTui).toHaveBeenCalled()
     expect(mocks.writeLastActiveTaskId).not.toHaveBeenCalled()
   })
@@ -140,7 +140,7 @@ describe("runOpenDirectory", () => {
     await runOpenDirectory("./local-dir")
 
     expect(mocks.writeLastActiveTaskId).toHaveBeenCalledWith("123")
-    expect(mocks.publishKobeTerminalTitle).toHaveBeenCalled()
+    expect(mocks.publishRoveTerminalTitle).toHaveBeenCalled()
     expect(mocks.startTui).toHaveBeenCalled()
   })
 

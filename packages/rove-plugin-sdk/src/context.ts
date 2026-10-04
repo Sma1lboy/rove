@@ -30,7 +30,7 @@ export interface PluginContext {
 }
 
 function readCompat(env: NodeJS.ProcessEnv, suffix: string): string | undefined {
-  return env[`ROVE_${suffix}`] ?? env[`KOBE_${suffix}`]
+  return env[`ROVE_${suffix}`] ?? env[`ROVE_${suffix}`]
 }
 
 function required(env: NodeJS.ProcessEnv, suffix: string): string {
@@ -58,7 +58,7 @@ export function pluginContext(env: NodeJS.ProcessEnv = process.env): PluginConte
   }
 }
 
-/** Event envelope from `ROVE_PLUGIN_EVENT_JSON` (or `KOBE_`); null outside `[[events]]`. */
+/** Event envelope from `ROVE_PLUGIN_EVENT_JSON` (or `ROVE_`); null outside `[[events]]`. */
 export function pluginEvent(env: NodeJS.ProcessEnv = process.env): PluginEventEnvelope | null {
   const raw = readCompat(env, "PLUGIN_EVENT_JSON")
   if (!raw) return null

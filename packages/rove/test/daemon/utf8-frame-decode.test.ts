@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { type Server, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 /**
@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
  * the daemon to a front-end. Both socket read paths now feed a `StringDecoder`
  * that holds the partial sequence across chunks.
  *
- * This drives the real `KobeDaemonClient` read path against a fake raw server
+ * This drives the real `RoveDaemonClient` read path against a fake raw server
  * that controls the chunk boundary — the only way to deterministically bisect
  * a multibyte character mid-frame. Corruption is detectable here because the
  * decoded title is asserted byte-for-byte (a mangled title contains U+FFFD and
@@ -102,7 +102,7 @@ describe("UTF-8 frame decode survives chunk boundaries (daemon → client)", () 
     })
     await new Promise<void>((resolve) => raw?.listen(socketPath, () => resolve()))
 
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     const received: string[] = []
     client.onChannel("task.snapshot", (payload) => {
       const tasks = (payload as { tasks?: Array<{ title?: string }> }).tasks ?? []

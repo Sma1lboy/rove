@@ -28,7 +28,7 @@ function Driver() {
 
 test("Marketplace marks installed plugins and reports an install it refused", async () => {
   const home = mkdtempSync(join(tmpdir(), "rove-marketplace-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   savePluginRegistry(
     {
       plugins: [

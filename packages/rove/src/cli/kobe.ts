@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
-import { markKobeInvocation, prepareCliEnvironment, prepareCliStateLayout } from "./rename-compat.ts"
+import { markLegacyInvocation, prepareCliEnvironment, prepareCliStateLayout } from "./rename-compat.ts"
 
-markKobeInvocation()
+markLegacyInvocation()
 prepareCliEnvironment()
 prepareCliStateLayout()
 await import("./index.ts")

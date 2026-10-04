@@ -35,8 +35,8 @@ describe("findEngineKey", () => {
     // production: this surviving engine tab resolved to null and delivery
     // silently spawned a duplicate engine.
     const sessions = [
-      session("t1::tab-1", ["/bin/zsh", "-ilc", "export KOBE_TASK_ID='t1'\nclaude 'hi'"], false),
-      session("t1::tab-2", ["/bin/zsh", "-ilc", "export KOBE_TASK_ID='t1' KOBE_TAB_ID='tab-2'\nclaude '--resume' 'x'"]),
+      session("t1::tab-1", ["/bin/zsh", "-ilc", "export ROVE_TASK_ID='t1'\nclaude 'hi'"], false),
+      session("t1::tab-2", ["/bin/zsh", "-ilc", "export ROVE_TASK_ID='t1' ROVE_TAB_ID='tab-2'\nclaude '--resume' 'x'"]),
     ]
     expect(findEngineKey(sessions, "t1", "claude")).toBe("t1::tab-2")
   })
@@ -58,7 +58,7 @@ describe("findEngineKey", () => {
     // vendor-strict argv match found nothing and bare send refused with
     // NO_ENGINE_TAB — while the delivery gate accepts ANY live engine.
     const sessions = [
-      session("t1::tab-22", ["/bin/zsh", "-ilc", "export KOBE_TAB_ID='tab-22'\nclaude --session-id bf09"]),
+      session("t1::tab-22", ["/bin/zsh", "-ilc", "export ROVE_TAB_ID='tab-22'\nclaude --session-id bf09"]),
     ]
     expect(findEngineKey(sessions, "t1", "claudecpa")).toBe("t1::tab-22")
   })

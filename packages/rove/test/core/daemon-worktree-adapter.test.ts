@@ -16,9 +16,9 @@ const git = (cwd: string, ...args: string[]) =>
     encoding: "utf8",
     env: {
       ...process.env,
-      GIT_AUTHOR_NAME: "Kobe Test",
+      GIT_AUTHOR_NAME: "Rove Test",
       GIT_AUTHOR_EMAIL: "kobe@example.com",
-      GIT_COMMITTER_NAME: "Kobe Test",
+      GIT_COMMITTER_NAME: "Rove Test",
       GIT_COMMITTER_EMAIL: "kobe@example.com",
     },
   })
@@ -30,12 +30,12 @@ describe("daemon worktree adapter", () => {
   let previousHome: string | undefined
 
   beforeAll(async () => {
-    previousHome = process.env.KOBE_HOME_DIR
+    previousHome = process.env.ROVE_HOME_DIR
     // realpath: macOS `os.tmpdir()` is a symlink (`/var` → `/private/var`), and
     // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
     // built under the un-resolved spelling would compare unequal to what was saved.
     root = await realpath(await mkdtemp(join(tmpdir(), "kobe-daemon-worktrees-")))
-    process.env.KOBE_HOME_DIR = join(root, "home")
+    process.env.ROVE_HOME_DIR = join(root, "home")
     repo = join(root, "repo")
     worktree = join(root, "feature")
     await mkdir(repo)
@@ -48,8 +48,8 @@ describe("daemon worktree adapter", () => {
   })
 
   afterAll(async () => {
-    if (previousHome === undefined) process.env.KOBE_HOME_DIR = undefined
-    else process.env.KOBE_HOME_DIR = previousHome
+    if (previousHome === undefined) process.env.ROVE_HOME_DIR = undefined
+    else process.env.ROVE_HOME_DIR = previousHome
     await rm(root, { recursive: true, force: true })
   })
 

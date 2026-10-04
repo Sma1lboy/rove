@@ -4,7 +4,7 @@
  * PluginEventReducer). Every run is appended to the plugin's `log.jsonl`.
  *
  * Plugins are argv commands — no shell, cwd = plugin root, env carries the
- * ROVE_PLUGIN_* contract plus Kobe aliases. The host stat-polls
+ * ROVE_PLUGIN_* contract plus Rove aliases. The host stat-polls
  * `plugins.json` and each enabled `rove-plugin.toml` so edits apply without
  * a restart. Polling, not `fs.watch`: macOS FSEvents starts asynchronously
  * and silently drops writes that land before it is live. A reload swaps hook

@@ -220,7 +220,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           minProtocolVersion: MIN_COMPATIBLE_PROTOCOL_VERSION,
           // BUILD version (package.json): catches a stale-build daemon after a
           // patch upgrade (same protocol) → non-fatal "restart the daemon" banner.
-          kobeVersion: ctx.runtime.currentVersion,
+          roveVersion: ctx.runtime.currentVersion,
           capabilities: [...CHANNEL_NAMES],
           daemonPid: ctx.daemon.pid,
           clientId: ctx.clientId,
@@ -240,7 +240,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
         return {
           daemonPid: ctx.daemon.pid,
           // Makes a stale-build daemon visible in `daemon status` / doctor without a TUI.
-          kobeVersion: ctx.runtime.currentVersion,
+          roveVersion: ctx.runtime.currentVersion,
           uptimeMs: Date.now() - ctx.daemon.startedAt.getTime(),
           startedAt: ctx.daemon.startedAt.toISOString(),
           // GUI refcount that keeps the daemon alive; excludes panes and CLI pokes.
@@ -289,7 +289,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
       handle(_payload, ctx) {
         return {
           daemonPid: ctx.daemon.pid,
-          kobeVersion: ctx.runtime.currentVersion,
+          roveVersion: ctx.runtime.currentVersion,
           startedAt: ctx.daemon.startedAt.toISOString(),
           activity: ctx.activity.debugSnapshot(),
           attachedClients: ctx.daemon.guiCount(),

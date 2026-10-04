@@ -202,13 +202,13 @@ export async function checkLatestVersion(
 ): Promise<UpdateInfo | null> {
   const channel = opts.channel ?? channelOf()
   // Debug hook, bypasses dev suppression and the network to exercise the update
-  // UI: `KOBE_FAKE_UPDATE=99.0.0 bun run dev:sandbox`. A lower fake reads as no update.
-  const fake = process.env.KOBE_FAKE_UPDATE
+  // UI: `ROVE_FAKE_UPDATE=99.0.0 bun run dev:sandbox`. A lower fake reads as no update.
+  const fake = process.env.ROVE_FAKE_UPDATE
   if (fake) {
     return { current: CURRENT_VERSION, latest: fake, hasUpdate: isNewerSemver(fake, CURRENT_VERSION), channel }
   }
 
-  // Dev runs (KOBE_DEV=1) are usually a few patches behind `latest`; don't nag.
+  // Dev runs (ROVE_DEV=1) are usually a few patches behind `latest`; don't nag.
   if (isDev() && !opts.force) return null
 
   const latest = await fetchLatestFromRegistry(PACKAGE_NAME, channel)

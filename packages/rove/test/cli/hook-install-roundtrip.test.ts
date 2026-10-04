@@ -55,7 +55,7 @@ beforeEach(() => {
   // The install's lock file belongs in a throwaway state dir, not the
   // developer's real ~/.rove.
   vi.stubEnv("ROVE_HOME_DIR", join(home, "rove"))
-  // `kobeHookInvocation` probes PATH through a bare `Bun.which`, which does
+  // `roveHookInvocation` probes PATH through a bare `Bun.which`, which does
   // not exist under vitest's node. Pinning it also fixes the command text the
   // assertions below read back.
   vi.stubGlobal("Bun", { which: () => "/usr/local/bin/kobe" })
@@ -65,8 +65,8 @@ beforeEach(() => {
   // A run started from inside a Rove engine tab inherits these and the
   // dispatcher would report THAT tab instead of resolving the payload cwd —
   // green in CI, red only on a developer's machine.
-  vi.stubEnv("KOBE_TASK_ID", undefined)
-  vi.stubEnv("KOBE_TAB_ID", undefined)
+  vi.stubEnv("ROVE_TASK_ID", undefined)
+  vi.stubEnv("ROVE_TAB_ID", undefined)
 })
 
 afterEach(() => {

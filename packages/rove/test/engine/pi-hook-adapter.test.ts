@@ -16,7 +16,7 @@ import { trustPiWorktree } from "../../src/engine/pi-local/trust.ts"
 // otherwise reach these assertions as undefined()).
 vi.mock("../../src/cli/invocation.ts", () => ({
   roveCliInvocation: () => ["kobe"],
-  kobeHookInvocation: () => ["kobe"],
+  roveHookInvocation: () => ["kobe"],
 }))
 
 describe("PiFamilyHookAdapter", () => {

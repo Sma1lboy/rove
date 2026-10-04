@@ -15,7 +15,7 @@
  * catch neither, because they say nothing about the cells they don't name.
  *
  * After an INTENTIONAL change:
- *     KOBE_UPDATE_GOLDEN=1 bun run test:render
+ *     ROVE_UPDATE_GOLDEN=1 bun run test:render
  * then read the diff. Every changed cell should be one you meant to change.
  */
 
@@ -54,7 +54,7 @@ function frameDocument(scene: Scene, frame: string): string {
     `# ${SCENE_WIDTH}x${SCENE_HEIGHT}${scene.keys ? `, keys: ${scene.keys.join(" ")}` : ""}${
       scene.animated ? ", spinner glyphs masked as ~" : ""
     }`,
-    "# GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render",
+    "# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render",
     ...body,
   ].join("\n")
 }

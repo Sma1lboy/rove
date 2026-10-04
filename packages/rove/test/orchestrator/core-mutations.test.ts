@@ -6,7 +6,7 @@
  * deleteTask's safety ladder (main-row refusal, dirty-worktree guard, force
  * override, remove-failure keeping the index entry).
  *
- * Uses the house pattern: a REAL TaskIndexStore on a temp KOBE home (these
+ * Uses the house pattern: a REAL TaskIndexStore on a temp ROVE home (these
  * methods are store round-trips — mocking the store would test the mock) and
  * a stubbed worktree manager only where git would be touched (deleteTask),
  * since fabricating real dirty worktrees per case belongs to worktree.test.ts.

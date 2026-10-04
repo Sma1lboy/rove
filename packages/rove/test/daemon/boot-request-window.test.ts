@@ -98,8 +98,8 @@ async function askOverSocket(socketPath: string, name: string, payload: unknown)
 it("answers a hello that arrives before the rest of boot finishes", async () => {
   const dir = mkdtempSync(join(tmpdir(), "kobe-daemon-boot-"))
   const socketPath = join(dir, "daemon.sock")
-  const savedHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = dir
+  const savedHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = dir
 
   let server: DaemonServer | undefined
   const booting = startDaemonServer(() => fakeOrchestrator(), {
@@ -122,8 +122,8 @@ it("answers a hello that arrives before the rest of boot finishes", async () => 
   cleanup = async () => {
     await booting.catch(() => {})
     await server?.close().catch(() => {})
-    if (savedHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-    else process.env.KOBE_HOME_DIR = savedHome
+    if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = savedHome
     rmSync(dir, { recursive: true, force: true })
   }
 

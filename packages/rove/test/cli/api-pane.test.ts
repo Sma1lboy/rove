@@ -7,7 +7,7 @@ import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.
 
 describe("pane-open handler", () => {
   beforeEach(() => {
-    vi.stubEnv("KOBE_TASK_ID", "env-task")
+    vi.stubEnv("ROVE_TASK_ID", "env-task")
   })
   afterEach(() => {
     vi.unstubAllEnvs()

@@ -1,7 +1,7 @@
 /**
  * `kobe repo <show|set|unset>` (`runRepoSubcommand`) — per-user repo init
  * override stored in state.json. No mocks: state.json lives under a
- * per-test KOBE_HOME_DIR tempdir and the repo path is a real scratch git
+ * per-test ROVE_HOME_DIR tempdir and the repo path is a real scratch git
  * repo (resolveRepoRoot shells out to `git rev-parse`), so the tests pin
  * the actual read→merge→write behavior end to end.
  */
@@ -21,9 +21,9 @@ let errSpy: MockInstance<typeof process.stderr.write>
 let exitSpy: MockInstance<typeof process.exit>
 
 beforeEach(() => {
-  originalHome = process.env.KOBE_HOME_DIR
+  originalHome = process.env.ROVE_HOME_DIR
   home = mkdtempSync(join(tmpdir(), "kobe-repo-cmd-"))
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
 
   repo = join(home, "scratch-repo")
   mkdirSync(repo, { recursive: true })
@@ -37,8 +37,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   rmSync(home, { recursive: true, force: true })
   logSpy.mockRestore()
   errSpy.mockRestore()

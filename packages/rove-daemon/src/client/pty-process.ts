@@ -15,9 +15,9 @@ import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
 import { defaultPtyHostLogPath, defaultPtyHostPidPath, defaultPtyHostSocketPath } from "../daemon/paths.ts"
 import type { PtySessionInfo } from "../daemon/pty-observability.ts"
 import { readPidFile } from "../daemon/socket-guard.ts"
-import { resolveKobeSpawn, testDaemonResponds } from "./daemon-process.ts"
+import { resolveRoveSpawn, testDaemonResponds } from "./daemon-process.ts"
 import { spawnDetachedDaemon } from "./detached-spawn.ts"
-import { KobeDaemonClient } from "./index.ts"
+import { RoveDaemonClient } from "./index.ts"
 import { windowsPowershellPath } from "./win-detached-launch.ts"
 
 const PTY_HOST_START_ARGS = ["pty-host"] as const
@@ -115,7 +115,7 @@ export async function bundleWithBun(entry: string, outFile: string, io?: BundleI
  * there, and a Bun-hosted node-pty session can be read but never written.
  * Returns `[node, script]`, or null off Windows.
  *
- * Layouts, as in {@link resolveKobeSpawn}:
+ * Layouts, as in {@link resolveRoveSpawn}:
  *  - installed: `dist/cli/pty-host-node.mjs`, emitted by scripts/build.ts.
  *  - dev: bundle the entry on demand into the daemon package's `.cache/`.
  */
@@ -283,7 +283,7 @@ export async function ensurePtyHostReachable(): Promise<string> {
 
   await stopDaemonProcess(socketPath, defaultPtyHostPidPath()).catch(() => {})
 
-  const [command, ...args] = (await resolveNodePtyHostSpawn()) ?? resolveKobeSpawn(PTY_HOST_START_ARGS)
+  const [command, ...args] = (await resolveNodePtyHostSpawn()) ?? resolveRoveSpawn(PTY_HOST_START_ARGS)
   spawnDetachedDaemon(command ?? "", args, process.env, defaultPtyHostLogPath())
 
   const deadline = Date.now() + 5000
@@ -301,7 +301,7 @@ export async function sweepPtyHostSessions(
   liveTaskIds: () => readonly string[] | null,
   homeDir?: string,
 ): Promise<void> {
-  const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
+  const client = new RoveDaemonClient(defaultPtyHostSocketPath(homeDir))
   try {
     await client.connect()
     const { sessions } = await client.request<{ sessions: PtySessionInfo[] }>("pty.list")
@@ -332,7 +332,7 @@ export async function sweepPtyHostSessions(
 
 /** true/false are observed session state; null means the host could not be read. Never spawns. */
 export async function ptyHostHasLiveSessions(homeDir?: string): Promise<boolean | null> {
-  const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
+  const client = new RoveDaemonClient(defaultPtyHostSocketPath(homeDir))
   try {
     await client.connect()
     const result = await client.request<{ sessions?: Array<{ alive?: boolean }> }>("pty.list")

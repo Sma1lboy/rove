@@ -238,7 +238,7 @@ describe("custom engine presets in the walk", () => {
   let previousHome: string | undefined
 
   beforeEach(() => {
-    previousHome = process.env.KOBE_HOME_DIR
+    previousHome = process.env.ROVE_HOME_DIR
     const dir = join(home, ".config", "rove")
     mkdirSync(dir, { recursive: true })
     writeFileSync(
@@ -250,13 +250,13 @@ describe("custom engine presets in the walk", () => {
         "engineCommand.cluadex": "claudex --yolo",
       }),
     )
-    process.env.KOBE_HOME_DIR = home
+    process.env.ROVE_HOME_DIR = home
   })
 
   afterEach(() => {
     rmSync(home, { recursive: true, force: true })
-    if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-    else process.env.KOBE_HOME_DIR = previousHome
+    if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = previousHome
   })
 
   it("names a registered preset by the binary its command launches", () => {

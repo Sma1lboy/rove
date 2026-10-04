@@ -15,9 +15,9 @@
 
 import { errorMessage } from "@/lib/error-message"
 
-/** `KOBE_DEBUG=1` keeps the raw throw (stack included) for bug reports. */
+/** `ROVE_DEBUG=1` keeps the raw throw (stack included) for bug reports. */
 function debugEnabled(env: NodeJS.ProcessEnv): boolean {
-  return env.KOBE_DEBUG === "1" || env.ROVE_DEBUG === "1"
+  return env.ROVE_DEBUG === "1" || env.ROVE_DEBUG === "1"
 }
 
 /** `rove adopt` when argv named a subcommand, plain `rove` otherwise (the bare TUI launch). */

@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs"
 import path from "node:path"
 import { defineConfig } from "vitest/config"
 
-const includeBehavior = process.env.KOBE_INCLUDE_BEHAVIOR === "1"
-const includeSocket = process.env.KOBE_INCLUDE_SOCKET === "1"
-const includeDaemonCoverage = process.env.KOBE_COVERAGE_DAEMON === "1"
+const includeBehavior = process.env.ROVE_INCLUDE_BEHAVIOR === "1"
+const includeSocket = process.env.ROVE_INCLUDE_SOCKET === "1"
+const includeDaemonCoverage = process.env.ROVE_COVERAGE_DAEMON === "1"
 // test/render/** is the bun-test-only render track (see test/render/harness.tsx
 // + docs/HARNESS.md "render track") — it uses bun:test APIs vitest can't
 // resolve, and mounts real opentui Solid components vitest's node
@@ -45,7 +45,7 @@ export default defineConfig({
     include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
     exclude,
     environment: "node",
-    // Strips the ambient ROVE_*/KOBE_* identity vars and redirects the home
+    // Strips the ambient ROVE_*/ROVE_* identity vars and redirects the home
     // at an empty tmpdir before any test file's own hooks run, so a result
     // cannot depend on the developer's shell, saved presets, or where the
     // checkout sits. See the header of that file for the measured numbers.

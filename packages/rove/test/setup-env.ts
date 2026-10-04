@@ -17,9 +17,9 @@
  *     `pathRejection()`, failing 4 cases across `project-eligibility` and
  *     `open-dir-cmd` — which is where every dispatched worker runs.
  *
- * The home is redirected via `KOBE_HOME_DIR` and `ROVE_HOME_DIR` is DELETED
+ * The home is redirected via `ROVE_HOME_DIR` and `ROVE_HOME_DIR` is DELETED
  * rather than set: `readRoveEnv()` reads `ROVE_*` first, so an ambient
- * `ROVE_HOME_DIR` would shadow the ~288 tests that set only `KOBE_HOME_DIR`
+ * `ROVE_HOME_DIR` would shadow the ~288 tests that set only `ROVE_HOME_DIR`
  * in their own hooks (measured: 180 failures when both are set here).
  */
 
@@ -28,19 +28,19 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 /**
- * Ambient `KOBE_*` / `ROVE_*` names a run may legitimately read from the
+ * Ambient `ROVE_*` / `ROVE_*` names a run may legitimately read from the
  * developer's shell. Every other one is deleted — a list of what to keep
  * cannot rot the way a list of what to strip does.
  */
 const AMBIENT_KEEP = new Set([
-  "KOBE_UPDATE_GOLDEN", // regenerates golden files on purpose
-  "KOBE_INCLUDE_SOCKET",
-  "KOBE_INCLUDE_BEHAVIOR",
-  "KOBE_COVERAGE_DAEMON",
+  "ROVE_UPDATE_GOLDEN", // regenerates golden files on purpose
+  "ROVE_INCLUDE_SOCKET",
+  "ROVE_INCLUDE_BEHAVIOR",
+  "ROVE_COVERAGE_DAEMON",
 ])
 
 for (const key of Object.keys(process.env)) {
-  if ((key.startsWith("KOBE_") || key.startsWith("ROVE_")) && !AMBIENT_KEEP.has(key)) {
+  if ((key.startsWith("ROVE_") || key.startsWith("ROVE_")) && !AMBIENT_KEEP.has(key)) {
     Reflect.deleteProperty(process.env, key)
   }
 }
@@ -58,7 +58,7 @@ Reflect.deleteProperty(process.env, "CODEX_HOME")
 // home under a temp root still reports the specific reason.
 const home = join(tmpdir(), `rove-vitest-home-${process.pid}`)
 mkdirSync(home, { recursive: true })
-process.env.KOBE_HOME_DIR = home
+process.env.ROVE_HOME_DIR = home
 
 // Fixture repos run `git init && git commit` inheriting `process.env`, so the
 // developer's `~/.gitconfig` applied: `commit.gpgsign = true` passes only

@@ -19,7 +19,7 @@ const ROW = {
   branch: "feature-a",
   head: "abc1234",
   dirty: false,
-  kobeManaged: true,
+  roveManaged: true,
   lastActivityMs: 0,
   createdAtMs: 0,
   branchOnRemote: false,

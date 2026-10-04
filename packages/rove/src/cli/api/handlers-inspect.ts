@@ -51,11 +51,11 @@ async function daemonSection(): Promise<unknown> {
 
 /** pty.list + a foreground walk per live session pid. */
 async function sessionsSection(taskId: string | undefined): Promise<unknown> {
-  const [{ KobeDaemonClient }, { defaultPtyHostSocketPath }] = await Promise.all([
+  const [{ RoveDaemonClient }, { defaultPtyHostSocketPath }] = await Promise.all([
     import("@sma1lboy/rove-daemon/client"),
     import("@sma1lboy/rove-daemon/daemon/paths"),
   ])
-  const client = new KobeDaemonClient(defaultPtyHostSocketPath())
+  const client = new RoveDaemonClient(defaultPtyHostSocketPath())
   let sessions: PtySessionRow[]
   try {
     await client.connect()

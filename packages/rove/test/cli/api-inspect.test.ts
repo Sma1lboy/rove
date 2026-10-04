@@ -16,17 +16,17 @@ import { tabsSection } from "../../src/cli/api/handlers-inspect.ts"
 
 let home: string
 const saved: Record<string, string | undefined> = {}
-const ENV_KEYS = ["HOME", "KOBE_HOME_DIR", "KOBE_DAEMON_SOCKET_PATH", "KOBE_PTY_SOCKET_PATH"] as const
+const ENV_KEYS = ["HOME", "ROVE_HOME_DIR", "ROVE_DAEMON_SOCKET_PATH", "ROVE_PTY_SOCKET_PATH"] as const
 
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), "kobe-inspect-"))
   for (const key of ENV_KEYS) saved[key] = process.env[key]
   process.env.HOME = home
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   // Point both sockets at paths nothing listens on — the sections must
   // degrade to null instead of touching any real daemon/host.
-  process.env.KOBE_DAEMON_SOCKET_PATH = join(home, "no-daemon.sock")
-  process.env.KOBE_PTY_SOCKET_PATH = join(home, "no-pty.sock")
+  process.env.ROVE_DAEMON_SOCKET_PATH = join(home, "no-daemon.sock")
+  process.env.ROVE_PTY_SOCKET_PATH = join(home, "no-pty.sock")
 })
 
 afterEach(() => {

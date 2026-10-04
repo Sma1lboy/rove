@@ -236,7 +236,7 @@ export interface AdoptableWorktree {
    *  gone mid-scan), not "clean". A worktree holding uncommitted work whose
    *  status answers "Permission denied" must not be reported as `false`. */
   readonly dirty: boolean | null
-  readonly kobeManaged: boolean
+  readonly roveManaged: boolean
   readonly lastActivityMs: number
 }
 

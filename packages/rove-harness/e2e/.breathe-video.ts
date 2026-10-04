@@ -3,15 +3,15 @@ import { mkdirSync } from "node:fs"
 import { resolve } from "node:path"
 import { chromium } from "@playwright/test"
 import { readFileSync } from "node:fs"
-import { KOBE_DIR, VISUAL_ENV, VISUAL_HOME, VISUAL_WEB_PORT } from "./visual-fixture.ts"
+import { ROVE_DIR, VISUAL_ENV, VISUAL_HOME, VISUAL_WEB_PORT } from "./visual-fixture.ts"
 
 const out = process.argv[2] ?? "/tmp/breathe-video"
 const seconds = Number(process.argv[3] ?? 8)
 const taskId: string = JSON.parse(readFileSync(resolve(VISUAL_HOME, ".rove/tasks.json"), "utf8")).tasks[0].id
 mkdirSync(out, { recursive: true })
 const api = (...args: string[]) =>
-  Bun.spawnSync(["bun", "--conditions=browser", resolve(KOBE_DIR, "src/cli/rove.ts"), "api", ...args], {
-    cwd: KOBE_DIR,
+  Bun.spawnSync(["bun", "--conditions=browser", resolve(ROVE_DIR, "src/cli/rove.ts"), "api", ...args], {
+    cwd: ROVE_DIR,
     env: { ...VISUAL_ENV },
   })
 

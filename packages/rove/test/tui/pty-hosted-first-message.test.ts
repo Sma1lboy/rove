@@ -7,7 +7,7 @@
  * `initialInput` already follows.
  *
  * The pty-host socket is mocked (the engine/paste mechanics themselves are
- * pinned in test/engine/hosted-session.test.ts); `KOBE_HOME_DIR` isolates
+ * pinned in test/engine/hosted-session.test.ts); `ROVE_HOME_DIR` isolates
  * the scrollback preference read.
  */
 
@@ -37,14 +37,14 @@ let originalHome: string | undefined
 
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-pty-hosted-fm-"))
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
   mocks.paste.mockClear()
 })
 
 afterEach(() => {
-  if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = originalHome
   fs.rmSync(tmpHome, { recursive: true, force: true })
 })
 

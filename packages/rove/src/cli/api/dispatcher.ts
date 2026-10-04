@@ -7,7 +7,7 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { kobeApiInvocation } from "../../engine/interactive-command.ts"
+import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activeCliName } from "../rename-compat.ts"
 import { ApiError, type ApiRuntime } from "./types.ts"
@@ -52,7 +52,7 @@ async function realProbe(): Promise<SelfSessionProbe> {
 }
 
 /**
- * The caller's OWN kobe session identity — `$KOBE_TASK_ID`/`$KOBE_TAB_ID`
+ * The caller's OWN kobe session identity — `$ROVE_TASK_ID`/`$ROVE_TAB_ID`
  * cross-checked against the pty host, or `null` when it doesn't hold up.
  *
  * The env alone is NOT identity: it inherits down the process tree, so a
@@ -89,9 +89,9 @@ export function resetVerifiedSelfSession(): void {
 }
 
 async function resolveSelfSession(env: NodeJS.ProcessEnv, probe?: SelfSessionProbe): Promise<Dispatcher | null> {
-  const taskId = env.KOBE_TASK_ID
+  const taskId = env.ROVE_TASK_ID
   if (!taskId) return null
-  const tabId = env.KOBE_TAB_ID || "tab-1"
+  const tabId = env.ROVE_TAB_ID || "tab-1"
   try {
     const p = probe ?? (await realProbe())
     const key = `${taskId}::${tabId}`
@@ -115,7 +115,7 @@ async function resolveSelfSession(env: NodeJS.ProcessEnv, probe?: SelfSessionPro
   // Never a SILENT degrade. stderr carries exactly one JSON error envelope by
   // contract (docs/API.md), so the notice rides the verb's stdout result —
   // see `takeIdentityWarning`.
-  identityWarning = `$ROVE_TASK_ID/$KOBE_TASK_ID names task ${taskId} ${tabId}, but this process is not running inside that tab (an inherited env, not an identity) — dispatcher/peer provenance omitted`
+  identityWarning = `$ROVE_TASK_ID/$ROVE_TASK_ID names task ${taskId} ${tabId}, but this process is not running inside that tab (an inherited env, not an identity) — dispatcher/peer provenance omitted`
   return null
 }
 
@@ -195,7 +195,7 @@ export async function resolveDispatcherTab(runtime: ApiRuntime, dispatcher: Disp
  * is only the task ROW's `dispatcher`, which a receiver has no reason to go
  * read, so a dispatched task finishes and then sits waiting. Same convention
  * as field notes (`[ROVE FIELD NOTE] from "<label>" (task <id>)`), plus the
- * reply command. Sender is the VERIFIED $KOBE_TASK_ID/$KOBE_TAB_ID pair — an
+ * reply command. Sender is the VERIFIED $ROVE_TASK_ID/$ROVE_TAB_ID pair — an
  * unverified one would bake a stranger's tab into the reply command. A send
  * from a plain shell, an unverified process, or to yourself stays untouched.
  */
@@ -210,9 +210,9 @@ export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string
   } catch {
     /* stale env id — keep id-only provenance rather than dropping it */
   }
-  const api = kobeApiInvocation()
+  const api = roveApiInvocation()
   // The sender's TAB, not just its task: task-granular replies go through
-  // canonical-tab resolution, the link that breaks. $KOBE_TAB_ID is exported
+  // canonical-tab resolution, the link that breaks. $ROVE_TAB_ID is exported
   // into every engine tab (session-launch.ts).
   const replyTarget = `--task-id ${senderId} --tab ${self.tabId}`
   // A pointer, not a curriculum: every peer message pays for this prefix in

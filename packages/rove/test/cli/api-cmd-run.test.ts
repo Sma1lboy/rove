@@ -140,7 +140,7 @@ describe("runApiSubcommand", () => {
     // goes on stdout, attached to the successful result.
     fake.request.mockResolvedValue({ tasks: [] })
     await verifiedSelfSession(
-      { KOBE_TASK_ID: "boccha", KOBE_TAB_ID: "tab-1" },
+      { ROVE_TASK_ID: "boccha", ROVE_TAB_ID: "tab-1" },
       {
         pid: 500,
         sessions: async () => [{ key: "boccha::tab-1", pid: 100, alive: true }],

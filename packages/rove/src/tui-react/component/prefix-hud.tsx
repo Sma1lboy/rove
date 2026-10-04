@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react"
 import { charWidth, displayWidth } from "../../lib/display-width"
-import { KobeKeymap, findBinding } from "../../tui/context/keybindings"
+import { RoveKeymap, findBinding } from "../../tui/context/keybindings"
 import { guideCategory } from "../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudClock, prefixHudState } from "../../tui/lib/prefix-hud"
@@ -28,7 +28,7 @@ import { useShortcutRevealPresentation } from "./shortcut-reveal"
 const BOTTOM_MARGIN = 1
 
 /**
- * Human label for a resolved action: the KobeKeymap row's help description,
+ * Human label for a resolved action: the RoveKeymap row's help description,
  * clipped at its `:` lead when present (`Quick-fork: create child task…` →
  * `Quick-fork`). Falls back to the raw id for rows without a description.
  */
@@ -49,7 +49,7 @@ type GuideGroup = { category: string; actions: GuideAction[] }
 
 /** Keep catalogue order while collapsing aliases such as p / shift+p. */
 function groupPrefixGuideOptions(options: readonly { stroke: string; action: string }[]): GuideGroup[] {
-  const order = new Map(KobeKeymap.map((binding, index) => [binding.id, index]))
+  const order = new Map(RoveKeymap.map((binding, index) => [binding.id, index]))
   const byAction = new Map<string, GuideAction>()
   for (const option of options) {
     const current = byAction.get(option.action)

@@ -85,7 +85,7 @@ export type LifecycleEvent = "close"
  * teardown; callers recover by calling {@link connect} again, except after
  * {@link close}, which blocks further connects.
  */
-export class KobeDaemonClient implements DaemonRpcClient {
+export class RoveDaemonClient implements DaemonRpcClient {
   private socket: Socket | null = null
   private buffer = ""
   private nextId = 1

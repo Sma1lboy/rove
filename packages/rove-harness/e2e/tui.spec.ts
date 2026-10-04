@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 /** Transport smoke only. Visual acceptance belongs exclusively to `bun run visual`. */
 test("mock OpenTUI round-trips through the web terminal", async ({ page }) => {
-  test.skip(process.env.KOBE_VISUAL === "1", "dev:mock transport only")
+  test.skip(process.env.ROVE_VISUAL === "1", "dev:mock transport only")
 
   await page.goto("/harness?run=mock-smoke")
   const harness = page.getByTestId("opentui-harness")

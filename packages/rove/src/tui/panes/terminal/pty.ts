@@ -1,5 +1,5 @@
 /**
- * Terminal pane backends (`KOBE_TERMINAL_BACKEND`):
+ * Terminal pane backends (`ROVE_TERMINAL_BACKEND`):
  *   - `hosted` (default, `pty-hosted.ts`): PTY lives in the standalone pty-host,
  *     so a session survives TUI exits AND daemon restarts, with scrollback.
  *   - `bun-pty`: Bun's native PTY in the TUI process.
@@ -40,7 +40,7 @@ export class BunTerminalTaskPty extends XtermTaskPty {
         COLUMNS: String(this.cols),
         LINES: String(this.rows),
         BASH_SILENCE_DEPRECATION_WARNING: "1",
-        KOBE_TERMINAL_PTY: "1",
+        ROVE_TERMINAL_PTY: "1",
       }),
       terminal: {
         cols: this.cols,
@@ -85,7 +85,7 @@ export class BunTerminalTaskPty extends XtermTaskPty {
 }
 
 export function createTaskPty(opts: TaskPtyOpts): TaskPtyLike {
-  const backend = process.env.KOBE_TERMINAL_BACKEND ?? "hosted"
+  const backend = process.env.ROVE_TERMINAL_BACKEND ?? "hosted"
   if (backend === "mock") return new MockTaskPty(opts)
   if (backend === "pipe") return new PipeTaskPty(opts)
   if (backend === "bun-pty") return new BunTerminalTaskPty(opts)

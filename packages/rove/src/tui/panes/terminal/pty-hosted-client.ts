@@ -1,6 +1,6 @@
 /** Process-wide pty-host socket, frame dispatcher and key → handle route table for `HostedTaskPty`. */
 
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process"
 import type { PtyDataEventPayload, PtyExitEventPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { defaultShell } from "./pty-types"
@@ -16,7 +16,7 @@ export interface HostedRoute {
  * One connection per process (the host speaks the daemon frame grammar). Spawns
  * the host if none runs: the terminal pane may resurrect an idle-exited host.
  */
-let shared: Promise<KobeDaemonClient> | null = null
+let shared: Promise<RoveDaemonClient> | null = null
 
 /**
  * Key → live handles for O(1) routing: the client's `emit()` walks every
@@ -52,10 +52,10 @@ export function routeCount(key: string): number {
   return hostedByKey.get(key)?.size ?? 0
 }
 
-const dispatchInstalled = new WeakSet<KobeDaemonClient>()
+const dispatchInstalled = new WeakSet<RoveDaemonClient>()
 
 /** One map lookup per frame; unknown keys (late frames, other processes) drop silently. */
-function installDispatch(client: KobeDaemonClient): void {
+function installDispatch(client: RoveDaemonClient): void {
   if (dispatchInstalled.has(client)) return
   dispatchInstalled.add(client)
   client.on("pty.data", (frame) => {
@@ -71,11 +71,11 @@ function installDispatch(client: KobeDaemonClient): void {
   })
 }
 
-export function getSharedPtyClient(): Promise<KobeDaemonClient> {
+export function getSharedPtyClient(): Promise<RoveDaemonClient> {
   if (shared) return shared
   const p = (async () => {
     const socketPath = await ensurePtyHostReachable()
-    const client = new KobeDaemonClient(socketPath)
+    const client = new RoveDaemonClient(socketPath)
     await client.connect()
     installDispatch(client)
     client.onLifecycle("close", () => {
@@ -96,7 +96,7 @@ export function getSharedPtyClient(): Promise<KobeDaemonClient> {
  * starve the suite owning the real one (as `use-host-sessions.ts` documents).
  * In a live TUI the sidebar's host poll keeps this non-null.
  */
-export function peekSharedPtyClient(): Promise<KobeDaemonClient> | null {
+export function peekSharedPtyClient(): Promise<RoveDaemonClient> | null {
   return shared
 }
 
@@ -105,7 +105,7 @@ export function peekSharedPtyClient(): Promise<KobeDaemonClient> | null {
  * engine tab skips rc startup. Best-effort; an older host just spawns cold.
  */
 export function warmHostedShell(cwd: string, shell: string = defaultShell()): void {
-  if ((process.env.KOBE_TERMINAL_BACKEND ?? "hosted") !== "hosted") return
+  if ((process.env.ROVE_TERMINAL_BACKEND ?? "hosted") !== "hosted") return
   void getSharedPtyClient()
     .then((client) => client.request("pty.warm", { cwd, shell }))
     .catch(() => {})

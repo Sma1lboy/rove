@@ -1,6 +1,6 @@
 import { createServer } from "node:net"
 import { join } from "node:path"
-import { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ClientWriter } from "@sma1lboy/rove-daemon/daemon/client-writer"
 import {
   DAEMON_PROTOCOL_VERSION,
@@ -92,7 +92,7 @@ it.each(["pane", "gui"] as const)(
       )
     })
     await new Promise<void>((resolve) => raw.listen(path, resolve))
-    const client = new KobeDaemonClient(path)
+    const client = new RoveDaemonClient(path)
     const orch = new RemoteOrchestrator(client, { role, ensureReachable: async () => {} })
     try {
       await orch.init()

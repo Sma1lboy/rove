@@ -66,7 +66,7 @@ async function waitForGuideText(
 }
 
 test("the default prefix tap shows local badges and the complete command guide together", async () => {
-  process.env.KOBE_HOME_DIR = tempHome()
+  process.env.ROVE_HOME_DIR = tempHome()
   const { mockInput, frame } = await renderComponent(
     <ShortcutRevealProvider>
       <RevealFixture />
@@ -89,7 +89,7 @@ test("the default prefix tap shows local badges and the complete command guide t
 })
 
 test("a complete-guide row is a real clickable entry in local mode", async () => {
-  process.env.KOBE_HOME_DIR = tempHome()
+  process.env.ROVE_HOME_DIR = tempHome()
   let editorOpens = 0
   const { mockInput, mockMouse, frame } = await renderComponent(
     <ShortcutRevealProvider>
@@ -110,7 +110,7 @@ test("a complete-guide row is a real clickable entry in local mode", async () =>
 })
 
 test("the guide setting routes the same prefix tap to the global command guide", async () => {
-  process.env.KOBE_HOME_DIR = tempHome("guide")
+  process.env.ROVE_HOME_DIR = tempHome("guide")
   const { mockInput, frame } = await renderComponent(
     <ShortcutRevealProvider>
       <RevealFixture />

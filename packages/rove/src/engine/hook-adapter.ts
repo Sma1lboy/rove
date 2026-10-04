@@ -57,7 +57,7 @@ export interface EngineHookAdapter {
   sessionFromPayload(payload: Record<string, unknown>): EngineSessionRef | undefined
   /**
    * Does this hook's own env mark an unattended session (e.g. a nested headless
-   * engine a script ran inside a Rove tab)? `KOBE_TASK_ID` / `KOBE_TAB_ID`
+   * engine a script ran inside a Rove tab)? `ROVE_TASK_ID` / `ROVE_TAB_ID`
    * are inherited, so without this every nested turn reports as the parent
    * tab's: `turn_complete` re-fires per subprocess and foreign tokens bill to
    * the tab. Neither cwd (same worktree) nor the daemon (the live session id

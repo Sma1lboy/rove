@@ -3,7 +3,7 @@
  * `(taskId, mode)` pair into the `{ cwd, command }` a browser tab's terminal
  * is spawned from.
  *
- * There is exactly one way to resolve a spec now: `KOBE_PTY_DEV_COMMAND`.
+ * There is exactly one way to resolve a spec now: `ROVE_PTY_DEV_COMMAND`.
  * This used to fall back to the daemon's `/api/engine-spec` and
  * `/api/terminal-spec` routes, but #855 deleted the daemon's HTTP transport
  * entirely — `packages/rove-daemon/src` is `node:net` and nothing else — so
@@ -36,15 +36,15 @@ export function createSpecFetcher({ env = process.env } = {}) {
     // the PTY so a Playwright test can drive the real TUI through the web
     // terminal with no daemon or task. Since #855 this is the only source of a
     // launch spec, so `mode` no longer selects between two routes.
-    if (!env.KOBE_PTY_DEV_COMMAND) {
+    if (!env.ROVE_PTY_DEV_COMMAND) {
       throw new Error(
-        "KOBE_PTY_DEV_COMMAND is unset — the sidecar has no other way to resolve a launch spec since the daemon web transport was removed in 0.9.x",
+        "ROVE_PTY_DEV_COMMAND is unset — the sidecar has no other way to resolve a launch spec since the daemon web transport was removed in 0.9.x",
       )
     }
     return {
-      cwd: env.KOBE_PTY_DEV_CWD ?? process.cwd(),
+      cwd: env.ROVE_PTY_DEV_CWD ?? process.cwd(),
       // `/bin/sh` does not exist to a native Windows spawn; Git Bash's sh does.
-      command: [env.KOBE_PTY_DEV_SHELL ?? "/bin/sh", "-lc", env.KOBE_PTY_DEV_COMMAND],
+      command: [env.ROVE_PTY_DEV_SHELL ?? "/bin/sh", "-lc", env.ROVE_PTY_DEV_COMMAND],
     }
   }
 }

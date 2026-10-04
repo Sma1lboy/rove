@@ -63,11 +63,11 @@ function registered(worktreePath: string): boolean {
 
 beforeAll(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), "kobe-wt-partial-")))
-  // The managed-roots guard reads `$KOBE_HOME_DIR`. Pointing it at the temp
+  // The managed-roots guard reads `$ROVE_HOME_DIR`. Pointing it at the temp
   // root is what lets the ordering test below put a residue INSIDE a real
   // managed root — the one place the orphan branch would delete it.
-  previousHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = root
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = root
   // `<worktrees-root>/<repo-key>/<slug>` — the shape `worktreePathFor`
   // actually creates, and the only one `isUnderManagedWorktreesRoot`
   // accepts as authorization to delete outright.
@@ -90,8 +90,8 @@ afterEach(() => {
 })
 
 afterAll(() => {
-  if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
-  else process.env.KOBE_HOME_DIR = previousHome
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
   rmSync(root, { recursive: true, force: true })
 })
 

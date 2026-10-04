@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   RECONNECT_LOG_ATTEMPT_CEILING,
@@ -48,7 +48,7 @@ describe("shouldLogReconnectAttempt", () => {
  */
 
 interface Harness {
-  client: KobeDaemonClient
+  client: RoveDaemonClient
   triggerClose: () => void
   helloCount: () => number
   setDisposed: (v: boolean) => void
@@ -75,7 +75,7 @@ function fakeClient(): Harness {
       return Promise.resolve({})
     },
     subscribe: () => Promise.resolve({}),
-  } as unknown as KobeDaemonClient
+  } as unknown as RoveDaemonClient
   return {
     client,
     triggerClose: () => closeHandler?.(),
@@ -90,18 +90,18 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 describe("RemoteOrchestrator auto-reconnect", () => {
   let home: string
-  const prev = process.env.KOBE_HOME_DIR
+  const prev = process.env.ROVE_HOME_DIR
 
   beforeEach(async () => {
     // init() logs to client.log — keep that off the real ~/.kobe.
     home = await mkdtemp(join(tmpdir(), "kobe-orch-reconnect-"))
-    process.env.KOBE_HOME_DIR = home
+    process.env.ROVE_HOME_DIR = home
   })
 
   afterEach(async () => {
     // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test (assigning undefined leaves the string "undefined").
-    if (prev === undefined) delete process.env.KOBE_HOME_DIR
-    else process.env.KOBE_HOME_DIR = prev
+    if (prev === undefined) delete process.env.ROVE_HOME_DIR
+    else process.env.ROVE_HOME_DIR = prev
     await rm(home, { recursive: true, force: true })
   })
 
@@ -190,17 +190,17 @@ describe("RemoteOrchestrator on a stale install", () => {
   // Same isolation as the suite above: the loop's error logging writes to
   // client.log, which must never land in the real ~/.rove.
   let home: string
-  const prev = process.env.KOBE_HOME_DIR
+  const prev = process.env.ROVE_HOME_DIR
 
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), "kobe-orch-stale-"))
-    process.env.KOBE_HOME_DIR = home
+    process.env.ROVE_HOME_DIR = home
   })
 
   afterEach(async () => {
     // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test (assigning undefined leaves the string "undefined").
-    if (prev === undefined) delete process.env.KOBE_HOME_DIR
-    else process.env.KOBE_HOME_DIR = prev
+    if (prev === undefined) delete process.env.ROVE_HOME_DIR
+    else process.env.ROVE_HOME_DIR = prev
     await rm(home, { recursive: true, force: true })
   })
 

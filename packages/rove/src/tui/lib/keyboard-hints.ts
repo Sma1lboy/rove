@@ -65,7 +65,7 @@ export type StatusHintToken = {
 
 /**
  * The status-bar micro-hint, derived from the live reachability snapshot:
- * the configured prefix remains Kobe-owned inside the embedded terminal, so
+ * the configured prefix remains Rove-owned inside the embedded terminal, so
  * it stays visible whenever a second stroke can run. If no prefix command is
  * reachable there, the escape hatch is the truthful fallback; a disabled
  * prefix or unbound help chord drops its token.

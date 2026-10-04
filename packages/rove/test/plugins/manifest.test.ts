@@ -32,7 +32,7 @@ describe("parsePluginManifest", () => {
   it("parses a full manifest", () => {
     const { manifest, warnings } = parsePluginManifest(VALID)
     expect(manifest.id).toBe("example.notify")
-    expect(manifest.minKobeVersion).toBe("0.8.0")
+    expect(manifest.minRoveVersion).toBe("0.8.0")
     expect(manifest.build[0]?.command).toEqual(["bun", "install"])
     expect(manifest.startup).toHaveLength(1)
     expect(manifest.actions[0]).toMatchObject({ id: "test", title: "Send a test notification" })
@@ -44,7 +44,7 @@ describe("parsePluginManifest", () => {
     const { manifest, warnings } = parsePluginManifest(
       'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.9.0"\nmin_kobe_version = "0.8.0"',
     )
-    expect(manifest.minKobeVersion).toBe("0.9.0")
+    expect(manifest.minRoveVersion).toBe("0.9.0")
     expect(warnings.some((warning) => warning.includes("using `min_rove_version`"))).toBe(true)
   })
 

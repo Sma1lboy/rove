@@ -278,7 +278,7 @@ export type DaemonStopReason = "restart" | "stop" | "idle" | "socket-lost"
 export interface DaemonStoppingPayload {
   readonly reason?: DaemonStopReason
   /** Outgoing build version, comparable without waiting for the next `hello`. */
-  readonly kobeVersion?: string
+  readonly roveVersion?: string
 }
 
 /** Unknown/absent → `undefined` (an older daemon, or a reason this build doesn't know). */

@@ -74,9 +74,9 @@ function registerClaudeWrapper(): void {
 
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), "kobe-declared-flags-"))
-  originalHome = process.env.KOBE_HOME_DIR
+  originalHome = process.env.ROVE_HOME_DIR
   originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR
-  process.env.KOBE_HOME_DIR = home
+  process.env.ROVE_HOME_DIR = home
   // Claude's transcript reader honours this, so the history assertions read
   // fixtures under the temp home instead of the developer's ~/.claude.
   process.env.CLAUDE_CONFIG_DIR = join(home, ".claude")
@@ -87,8 +87,8 @@ beforeEach(() => {
 afterEach(() => {
   if (originalHome === undefined) {
     // biome-ignore lint/performance/noDelete: the var must be truly unset when it started unset.
-    delete process.env.KOBE_HOME_DIR
-  } else process.env.KOBE_HOME_DIR = originalHome
+    delete process.env.ROVE_HOME_DIR
+  } else process.env.ROVE_HOME_DIR = originalHome
   if (originalClaudeConfigDir === undefined) {
     // biome-ignore lint/performance/noDelete: the var must be truly unset when it started unset.
     delete process.env.CLAUDE_CONFIG_DIR

@@ -23,7 +23,7 @@ vi.mock("../../src/engine/account-detect", () => ({
   availableEngineIds: async () => ["claude"],
 }))
 
-import type { KobeOrchestrator } from "../../src/client/remote-orchestrator"
+import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import type { NewTaskDialogOptions, NewTaskInput } from "../../src/tui/component/new-task-dialog/state"
 import { type CreateTaskContext, createTaskFlow } from "../../src/tui/lib/task-create-flow"
 import type { Task } from "../../src/types/task"
@@ -51,7 +51,7 @@ function makeCtx(opts: {
   /** What the dialog was handed — the assertion target for the gating half. */
   let seenOptions: NewTaskDialogOptions | undefined
   const ctx: CreateTaskContext = {
-    orch: { ensureMainTask, createTask, discoverAdoptableWorktrees: async () => [] } as unknown as KobeOrchestrator,
+    orch: { ensureMainTask, createTask, discoverAdoptableWorktrees: async () => [] } as unknown as RoveOrchestrator,
     tasks: () => opts.tasks ?? [HIDDEN_MAIN],
     confirm: async () => true,
     promptText: async () => undefined,

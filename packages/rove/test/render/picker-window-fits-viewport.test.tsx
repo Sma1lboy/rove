@@ -63,9 +63,9 @@ function dirWithChildren(count: number): string {
 }
 
 async function cloneTabFrame(height: number, parent: string): Promise<string> {
-  // Own KV home per mount: `KVProvider` reads `$KOBE_HOME_DIR`, and the clone
+  // Own KV home per mount: `KVProvider` reads `$ROVE_HOME_DIR`, and the clone
   // tab persists its parent dir there.
-  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-clonehome-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-clonehome-"))
   const { frame, mockInput } = await renderComponent(
     <NewTaskDialogView
       defaultRepo={tmpdir()}

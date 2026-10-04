@@ -34,19 +34,19 @@ import { INBOX_BINDINGS } from "./keybindings-inbox.ts"
 import { SIDEBAR_BINDINGS } from "./keybindings-sidebar.ts"
 
 /** Pane scopes that gate where a binding is active. */
-export type KobeBindingScope = "global" | "sidebar" | "workspace" | "files" | "inbox" | "terminal"
+export type RoveBindingScope = "global" | "sidebar" | "workspace" | "files" | "inbox" | "terminal"
 
 /** Display override for F1 and the footer legend; without it `keys[0]` shows. */
-export type KobeBindingHint = {
+export type RoveBindingHint = {
   /** Display string for the chord. May be a collapsed pseudo-chord (e.g. "j/k"). */
   keys: string
 }
 
 /** A single binding row. */
-export type KobeBinding = {
+export type RoveBinding = {
   /** Stable identifier; tests and settings persistence key off it. */
   id: string
-  scope: KobeBindingScope
+  scope: RoveBindingScope
   /**
    * First is canonical. Empty = documentation/hint row only, no chord
    * registered (composer-internal keys the textarea handles, e.g. `chat.send`).
@@ -57,15 +57,15 @@ export type KobeBinding = {
   category: string
   description: string
   /** Omitted = the first chord in `keys` shows. */
-  hint?: KobeBindingHint
-  /** User-facing tier. Only the deliberately small Kobe-owned direct set opts in. */
+  hint?: RoveBindingHint
+  /** User-facing tier. Only the deliberately small Rove-owned direct set opts in. */
   presentation?: "onePress"
   /** Let an enabled PTY input binding win this direct chord. */
   yieldToPassthrough?: boolean
 }
 
 /** The full keymap. Order within a category is the help-dialog order. */
-export const KobeKeymap: readonly KobeBinding[] = [
+export const RoveKeymap: readonly RoveBinding[] = [
   // ─── Global ───────────────────────────────────────────────────────────
   {
     id: "help.open",

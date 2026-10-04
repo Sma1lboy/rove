@@ -9,7 +9,7 @@
  * to configure it. The last case here asserts that end to end rather than
  * asserting about keys.
  *
- * Isolation is the same as the other state tests: `KOBE_HOME_DIR` points at a
+ * Isolation is the same as the other state tests: `ROVE_HOME_DIR` points at a
  * per-test tmpdir, so the operator's real `~/.config/rove/state.json` is never
  * read or written.
  */
@@ -40,14 +40,14 @@ function readDisk(): Record<string, unknown> {
 
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-key-migration-"))
-  originalHome = process.env.KOBE_HOME_DIR
-  process.env.KOBE_HOME_DIR = tmpHome
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = tmpHome
 })
 
 afterEach(() => {
   // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves it as the string "undefined"). Same pattern as test/state/store.test.ts.
-  if (originalHome === undefined) delete process.env.KOBE_HOME_DIR
-  else process.env.KOBE_HOME_DIR = originalHome
+  if (originalHome === undefined) delete process.env.ROVE_HOME_DIR
+  else process.env.ROVE_HOME_DIR = originalHome
   fs.rmSync(tmpHome, { recursive: true, force: true })
 })
 

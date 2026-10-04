@@ -23,7 +23,7 @@ import { parseHookSettings } from "../../src/engine/json-hooks.ts"
 
 vi.mock("../../src/cli/invocation.ts", () => ({
   roveCliInvocation: () => ["rove"],
-  kobeHookInvocation: () => ["rove"],
+  roveHookInvocation: () => ["rove"],
 }))
 
 describe("parseHookSettings", () => {

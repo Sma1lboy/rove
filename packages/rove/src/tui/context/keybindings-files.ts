@@ -3,9 +3,9 @@
  * contract (stable `id`, spread order = display order, `hint` vs `keys`).
  */
 
-import type { KobeBinding } from "./keybindings-table.ts"
+import type { RoveBinding } from "./keybindings-table.ts"
 
-export const FILES_BINDINGS: readonly KobeBinding[] = [
+export const FILES_BINDINGS: readonly RoveBinding[] = [
   {
     // POSITIONAL: alternating [down, up] pairs (slot dispatch).
     id: "files.nav",
