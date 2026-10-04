@@ -85,6 +85,16 @@ them, Rove refuses to restart it and says so; inspect it with
 sessions. A connect that nothing accepts fails after
 `ROVE_CONNECT_TIMEOUT_MS` (default 5000ms) instead of hanging.
 
+On Windows, every hosted session runs inside its own Job Object, so the
+teardowns above end everything the session started — including processes
+whose parent already exited, like a dev server an engine backgrounded or a
+nested Rove (`dev:sandbox`) an agent launched. Windows has no reparenting, so
+before this those survived every teardown. A daemon of the *same* Rove
+instance started from inside a tab (an agent's `rove daemon restart`) still
+outlives the tab. The job needs the .NET Framework compiler every Windows
+10/11 ships (`csc.exe`); without it the PTY host log says `session jobs off`
+and sessions end the old way.
+
 ## Why: three processes, three lifetimes
 
 ```mermaid

@@ -8,11 +8,14 @@
  * Bundled to a node target; nothing here may touch a Bun global.
  */
 
+import { join } from "node:path"
+import { ROVE_STATE_DIR_BASENAME } from "../compat-env.ts"
 import { rotateLogIfNeeded } from "./log-rotate.ts"
-import { defaultPtyHostLogPath } from "./paths.ts"
+import { defaultDaemonSocketPath, defaultPtyHostLogPath, resolveDaemonHomeDir } from "./paths.ts"
 import { nodePtyDriver } from "./pty-driver.ts"
 import { formatPtyHostLine } from "./pty-host-log.ts"
 import { startPtyHostServer } from "./pty-server.ts"
+import { ensurePtyJobLauncher } from "./win-pty-job.ts"
 
 async function main(): Promise<void> {
   // Same log, same inherited-append-fd constraint as the Bun host in
@@ -23,10 +26,22 @@ async function main(): Promise<void> {
   process.on("uncaughtException", (err) => console.error(formatPtyHostLine("crash", err?.stack ?? String(err))))
   process.on("unhandledRejection", (err) => console.error(formatPtyHostLine("reject", String(err))))
 
-  const driver = await nodePtyDriver()
+  const log = (event: string, message: string) => console.log(formatPtyHostLine(event, message))
+  // Every session in its own Job Object, so ending it ends what it spawned
+  // (win-pty-job.ts). Without the launcher, sessions run as before.
+  // ensurePtyJobLauncher never rejects; the catch is the boot's own guarantee.
+  const launcher = await ensurePtyJobLauncher(join(resolveDaemonHomeDir(), ROVE_STATE_DIR_BASENAME, "bin")).catch(
+    (err: unknown) => ({ path: null, reason: String(err) }) as const,
+  )
+  log("pty", launcher.path ? `session job launcher ${launcher.path}` : `session jobs off: ${launcher.reason}`)
+  const driver = await nodePtyDriver(
+    undefined,
+    undefined,
+    launcher.path ? { launcher: launcher.path, owner: defaultDaemonSocketPath() } : undefined,
+  )
   const server = await startPtyHostServer({
     driver,
-    log: (event, message) => console.log(formatPtyHostLine(event, message)),
+    log,
     // Windows spawns this host from a bundle that cannot see the CLI's
     // package.json; the spawner stamps the version it is serving instead.
     version: process.env.ROVE_PTY_HOST_VERSION,

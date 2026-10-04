@@ -5,12 +5,14 @@
  */
 
 import type { Socket } from "node:net"
+import { spawnDetachedDaemon } from "../client/detached-spawn.ts"
 import type { ClientWriter } from "./client-writer.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { objectPayload, optionalBoolean, requireString } from "./handler-validators.ts"
 import { DAEMON_PROTOCOL_VERSION, type DaemonFrame } from "./protocol.ts"
 import type { PtyHost } from "./pty-host.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
+import { withoutPtyJob } from "./win-pty-job.ts"
 
 /** One connected client; also the identity token attached sinks are keyed by. */
 export interface PtyClientState {
@@ -131,6 +133,24 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
         typeof payload.shell === "string" ? payload.shell : undefined,
         typeof payload.cols === "number" ? payload.cols : undefined,
         typeof payload.rows === "number" ? payload.rows : undefined,
+      )
+      return {}
+    }
+    case "spawn.detached": {
+      // Windows only: a session's Job Object traps every launch made inside
+      // it, so this host — outside every session job — launches a child of
+      // its own Rove instance that must outlive the tab (win-pty-job.ts).
+      // No new power: `pty.open` already runs any argv for any client.
+      if (process.platform !== "win32") throw new Error("spawn.detached is Windows-only")
+      const payload = objectPayload(req.payload)
+      const env = objectPayload(payload.env)
+      spawnDetachedDaemon(
+        requireString(payload, "command"),
+        Array.isArray(payload.args) ? payload.args.filter((a): a is string => typeof a === "string") : [],
+        withoutPtyJob(
+          Object.fromEntries(Object.entries(env).filter((e): e is [string, string] => typeof e[1] === "string")),
+        ),
+        requireString(payload, "logPath"),
       )
       return {}
     }
