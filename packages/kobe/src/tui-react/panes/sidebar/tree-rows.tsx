@@ -13,7 +13,7 @@
 import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { TextAttributes } from "@opentui/core"
-import { useEffect, useMemo } from "react"
+import { useMemo } from "react"
 import { engineDisplayName } from "../../../engine/interactive-command"
 import { engineEntry } from "../../../engine/registry"
 import { charWidth, displayWidth } from "../../../lib/display-width"
@@ -40,16 +40,18 @@ import {
   completionSeenFor,
   completionStampOf,
   useChanges,
+  useClockTick,
   useDonePulse,
   useDurableCompletionSeen,
+  usePollOnClock,
   useSpinnerFrame,
 } from "./row-cards"
 import { MoveChip, RowShell, type TreeRowShared, clusterCells, treeLabelBudget } from "./tree-row-shell"
 
 /**
  * Age in the current state (`12m`) for WORKING or STOPPED rows only; null
- * otherwise, or every idle tab would wear a number. No timer: the ~2s branch
- * tick re-renders the tree, and this sits outside `useTabRowBaseView`'s memo.
+ * otherwise, or every idle tab would wear a number. A row showing one
+ * re-renders on the poll clock (`useClockTick`).
  */
 function activityAgeLabel(activity: TaskEngineState | undefined, loading: boolean): string | null {
   if (activity === undefined) return null
@@ -90,11 +92,7 @@ export function WorktreeTreeRow(props: {
   // Named by BRANCH (`worktreeRowLabel`). Main checkouts and directory/scratch
   // tasks store none and move freely, so they poll their own HEAD.
   const livePath = rowLiveBranchPath(task)
-  useEffect(() => {
-    // Re-poll on the sidebar's ~2s tick.
-    void shared.branchTick
-    if (livePath) pollCurrentBranch(livePath)
-  }, [livePath, shared.branchTick])
+  usePollOnClock(livePath, pollCurrentBranch)
   const label = worktreeRowLabel(task, livePath ? { liveBranch: currentBranch(livePath) } : {})
   const moving = shared.movingRowId === props.rowId
   // Presence in the map IS "running" — the daemon removes the entry on both
@@ -111,6 +109,7 @@ export function WorktreeTreeRow(props: {
   const deletionWord =
     deleting || deleteFailed ? t(deleteFailed ? "tasks.subtitle.deleteFailed" : "tasks.subtitle.deleting") : null
   // Expired plugin tokens drop at RENDER time too, before the daemon's republish.
+  useClockTick((shared.rowTokens?.get(task.id)?.length ?? 0) > 0)
   const tokens = liveRowTokens(shared.rowTokens, task.id, Date.now())
   const reserved =
     // The glyph column exists only while a job runs.
@@ -296,6 +295,7 @@ export function TabTreeRow(props: {
     viewing: shared.selectedTaskId === props.task.id && props.tab.active === true,
   })
   const age = carriesState ? activityAgeLabel(activity, rowView.loading) : null
+  useClockTick(age !== null)
   // Second line, agent tabs only: the engine RUNNING, probed from the pty's
   // process tree (`TreeTab.liveVendor`), not task config (usually unset).
   // No answer → no second line. No KV provider → default height.

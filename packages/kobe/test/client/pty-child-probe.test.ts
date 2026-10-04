@@ -118,9 +118,9 @@ describe("liveChildCount", () => {
     // that stays alive, and the abandoned one has to be killed or a long-lived
     // daemon leaks a probe per recovery attempt.
     const started = Date.now()
-    await expect(
-      runChildProbe([process.execPath, "-e", "setTimeout(() => {}, 30000)"], 200),
-    ).rejects.toThrow(/did not answer within 200ms/)
+    await expect(runChildProbe([process.execPath, "-e", "setTimeout(() => {}, 30000)"], 200)).rejects.toThrow(
+      /did not answer within 200ms/,
+    )
     expect(Date.now() - started).toBeLessThan(5_000)
   })
 

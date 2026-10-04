@@ -37,7 +37,7 @@ export type TreeRowShared = {
   readonly onPress: (flatIndex: number, rowId: string) => void
   /** Right-click. Absent = right-click falls through to a plain activate. */
   readonly onContextMenu?: (flatIndex: number, rowId: string, x: number, y: number) => void
-  /** The sidebar's ~2s poll tick — drives the ±stats poller. */
+  /** Bumps when a git poll lands a changed value; rows re-render to read it. */
   readonly branchTick: number
   /** Per-tab activity (taskId → tabId → state), never the task rollup. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>

@@ -9,9 +9,10 @@ import type { Task } from "@/types/task"
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useMachineRows } from "../../../machines/hub-singleton"
+import { subscribeBackgroundPolls } from "../../../tui/lib/background-poll"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
 import { RECENT_ROW_ID, parseRowId } from "../../../tui/panes/sidebar/tree-core"
-import { MAIN_BRANCH_POLL_MS, SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
+import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import { usePaneHintMark } from "../../component/keyboard-hints"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
@@ -56,12 +57,10 @@ export function SidebarTree(props: SidebarTreeProps) {
   const focused = props.focused ?? true
   const dims = useTerminalSize()
 
-  // The ~2s branch/changes poll tick the row cards' effects key on.
+  // Bumps only when a git poll lands a changed value: rows poll on the shared
+  // poll clock, so an unchanged poll renders nothing.
   const [branchTick, setBranchTick] = useState(0)
-  useEffect(() => {
-    const timer = setInterval(() => setBranchTick((n) => n + 1), MAIN_BRANCH_POLL_MS)
-    return () => clearInterval(timer)
-  }, [])
+  useEffect(() => subscribeBackgroundPolls(() => setBranchTick((n) => n + 1)), [])
 
   const machines = useMachineRows()
   const search = useTreeSearch({ focused, onActiveChange: props.onSearchActiveChange })

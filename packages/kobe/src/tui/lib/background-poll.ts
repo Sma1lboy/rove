@@ -54,6 +54,26 @@ export interface BackgroundPoller<T> {
   reset(): void
 }
 
+const changeListeners = new Set<() => void>()
+
+/** Fires after any poller in this process writes a value that differs from its last one. */
+export function subscribeBackgroundPolls(listener: () => void): () => void {
+  changeListeners.add(listener)
+  return () => {
+    changeListeners.delete(listener)
+  }
+}
+
+function notifyChanged(): void {
+  for (const listener of changeListeners) {
+    try {
+      listener()
+    } catch {
+      /* one subscriber must not break the others */
+    }
+  }
+}
+
 interface PollEntry<T> extends PollScheduleState {
   read: () => T
   write: (next: T) => void
@@ -73,7 +93,9 @@ export function createBackgroundPoller<T>(cfg: BackgroundPollerConfig<T>): Backg
       entry = {
         read: () => current,
         write: (next) => {
-          if (!equals(current, next)) current = next
+          if (equals(current, next)) return
+          current = next
+          notifyChanged()
         },
         inFlight: false,
         nextAllowedAt: 0,

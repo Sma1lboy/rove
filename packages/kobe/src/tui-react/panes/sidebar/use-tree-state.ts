@@ -47,7 +47,7 @@ export interface TreeStateOpts {
   /** Per-task activity `attention` sort ranks by; the same map the glyphs
    *  read, so order and glyphs can't disagree. */
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
-  /** The ~2s poll tick; re-runs search over freshly polled HEADs. */
+  /** Bumps when a git poll lands a changed value; re-runs search over fresh HEADs. */
   readonly branchTick?: number
   /** Registered machines. Absent/empty: no header row, no extra indent. */
   readonly machines?: readonly MachineLayerEntry[]
@@ -106,7 +106,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
       expandedRoutines: searching ? new Set(groups.map((group) => group.key)) : expandedRoutines,
     })
     const total = treeFlatIds(all).length
-    // Re-run on the poll tick: the HEAD read below is a cache lookup that never re-triggers.
+    // Re-run when a poll lands: the HEAD read below is a cache lookup that never re-triggers.
     void opts.branchTick
     // Search matches the label a row RENDERS; branchless rows use the same
     // cached HEAD read `WorktreeTreeRow` renders through.
