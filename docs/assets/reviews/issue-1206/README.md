@@ -9,14 +9,14 @@ Matched browser captures for PR #1207. No production source changed during this 
 - Before: hook from `6cb83b8e79be0bf367d57a7f769a29ac50b68768`, the fix's parent. Other components and dependencies come from the fixed checkout.
 - After: hook from `08981ed99d382879097b7bd2bf6868a12bd9d21d`.
 
-The fixture supplies fixed orchestrator responses to the actual page. This is a pane-host browser/PTy capture on macOS, not a native Windows filesystem or live-daemon test. `build.ts` substitutes only the baseline hook for Before; it does not emulate rendering or change either hook's logic.
+The fixture supplies fixed orchestrator responses to the actual page. This is a pane-host browser/PTY capture on macOS, not a native Windows filesystem or live-daemon test. `build.ts` substitutes only the baseline hook for Before; it does not emulate rendering or change either hook's logic.
 
 | State | Initial frame | Enter through xterm |
 | --- | --- | --- |
 | Before | `alpha 1/6`, no selected story | No detail drawer |
 | After | `orbit-sdk 2/3`, story #7 highlighted | Story #7 detail drawer opens |
 
-`before.png` and `after.png` are the matched initial frames. The `*-detail.png` pair records the same Enter action. Text files are xterm buffer reads, and `capture.json` records provenance, process IDs, and initial-frame hashes.
+`before.png` and `after.png` are the matched initial frames. The `*-detail.png` pair records the same Enter action. Text files are xterm buffer reads with trailing whitespace trimmed, and `capture.json` records provenance, process IDs, and initial-frame hashes.
 
 Run from the repository root with dependencies and Playwright Chromium installed, with ports 5573 and 5575 free:
 

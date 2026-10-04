@@ -89,7 +89,7 @@ try {
       await page.waitForTimeout(700)
       const text = await buffer.textContent()
       assert.ok(text?.includes(state === "before" ? "alpha 1/6" : "orbit-sdk 2/3"))
-      writeFileSync(`${import.meta.dirname}/${state}.txt`, text ?? "")
+      writeFileSync(`${import.meta.dirname}/${state}.txt`, `${(text ?? "").replace(/[ \t]+$/gm, "").trimEnd()}\n`)
       await page.screenshot({ path: `${import.meta.dirname}/${state}.png` })
       metadata.push({
         state,
@@ -108,7 +108,7 @@ try {
       await page.waitForTimeout(500)
       const detail = (await buffer.textContent()) ?? ""
       assert.equal(detail.includes("#7  open  created 2026-10-04"), state === "after")
-      writeFileSync(`${import.meta.dirname}/${state}-detail.txt`, detail)
+      writeFileSync(`${import.meta.dirname}/${state}-detail.txt`, `${detail.replace(/[ \t]+$/gm, "").trimEnd()}\n`)
       await page.screenshot({ path: `${import.meta.dirname}/${state}-detail.png` })
       await page.close()
     } finally {
