@@ -11,26 +11,18 @@
  */
 
 import { createHash } from "node:crypto"
-import { mkdirSync, realpathSync, writeFileSync } from "node:fs"
+import { mkdirSync, writeFileSync } from "node:fs"
 import path from "node:path"
+import { realPathOrSelf } from "../../lib/real-path.ts"
 import { vendorConfigHome, vendorWriteHomeDeps } from "../vendor-home.ts"
 
 /**
  * Kimi hashes the RESOLVED path and LOWERCASES the basename (read off records
  * kimi 0.40.1 wrote): `/tmp/x-B` on macOS → `wd_x-b_<sha256("/private/tmp/x-B")[:12]>`.
- * A record keyed on the literal path suppresses nothing. Falls back to the
- * given path when it doesn't exist yet.
+ * A record keyed on the literal path suppresses nothing.
  */
-function resolvedWorktree(worktreePath: string): string {
-  try {
-    return realpathSync(worktreePath)
-  } catch {
-    return worktreePath /* not on disk yet — use what we were given */
-  }
-}
-
 export function kimiTrustFilePath(worktreePath: string, home?: string): string {
-  const resolved = resolvedWorktree(worktreePath)
+  const resolved = realPathOrSelf(worktreePath)
   const hash = createHash("sha256").update(resolved).digest("hex").slice(0, 12)
   const dir = path.basename(resolved).toLowerCase()
   return path.join(vendorConfigHome("kimi", vendorWriteHomeDeps(home)), "workspace-trust", `wd_${dir}_${hash}`)
@@ -41,7 +33,7 @@ export function trustKimiWorktree(worktreePath: string, home?: string): void {
   mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
   // `root` is resolved too, matching the records kimi writes itself.
   try {
-    writeFileSync(file, JSON.stringify({ root: resolvedWorktree(worktreePath), trustedAt: Date.now() }), {
+    writeFileSync(file, JSON.stringify({ root: realPathOrSelf(worktreePath), trustedAt: Date.now() }), {
       mode: 0o600,
       flag: "wx",
     })

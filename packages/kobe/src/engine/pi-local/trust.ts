@@ -16,19 +16,10 @@
  * `omp` has no such gate (verified in a never-seen directory).
  */
 
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
+import { realPathOrSelf } from "../../lib/real-path.ts"
 import { type VendorHomeDeps, vendorAgentDir } from "../vendor-home.ts"
-
-/** pi's own canonicalization: `realpathSync`, falling back to the input when
- *  the path isn't there yet (see `trust-manager` → `canonicalizePath`). */
-function canonical(p: string): string {
-  try {
-    return realpathSync(p)
-  } catch {
-    return p
-  }
-}
 
 /** `<agentDir>/trust.json`. */
 function piTrustPath(deps?: VendorHomeDeps): string {
@@ -48,7 +39,7 @@ export function trustPiWorktree(worktreePath: string, deps?: VendorHomeDeps): vo
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return
       for (const [key, value] of Object.entries(parsed)) existing[key] = value === true
     }
-    existing[canonical(worktreePath)] = true
+    existing[realPathOrSelf(worktreePath)] = true
     mkdirSync(path.dirname(file), { recursive: true })
     writeFileSync(file, `${JSON.stringify(existing, null, 2)}\n`)
   } catch {
