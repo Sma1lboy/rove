@@ -10,6 +10,7 @@
  */
 
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import { pathIdentity, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
@@ -43,7 +44,10 @@ export interface KanbanBoards {
 }
 
 export function useKanbanBoards(args: {
-  readonly orchestrator: RemoteOrchestrator | null
+  readonly orchestrator: Pick<
+    RemoteOrchestrator,
+    "listTasks" | "listIssueRepos" | "listIssues" | "activeTaskSignal"
+  > | null
   /** Opened from a task row (`c`): land on THAT task's project and put the
    *  card cursor on its linked story. */
   readonly focusTask?: { readonly id: string; readonly repo: string }
@@ -71,7 +75,14 @@ export function useKanbanBoards(args: {
       .then((stored) => {
         // `ssh://` saved keys are remote projects; the issue store is keyed by
         // git path and would reject each one as a visible read error.
-        const repos = [...new Set([...local, ...stored])].filter((repo) => repo && !isRemoteRepoKey(repo))
+        const seen = new Set<string>()
+        const repos = [...local, ...stored].filter((repo) => {
+          if (!repo || isRemoteRepoKey(repo)) return false
+          const key = pathIdentity(repo.replace(/^\/private\//, "/"))
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
         return Promise.all(
           repos.map((repo) =>
             orchestrator.listIssues(repo).catch(
@@ -96,10 +107,13 @@ export function useKanbanBoards(args: {
         setBoards(next)
         // First load: the focus task's project, else the active task's repo
         // (loose realpath match).
-        const norm = (p: string): string => p.replace(/^\/private\//, "/").replace(/\/+$/, "")
         const activeId = orchestrator.activeTaskSignal().get()
         const targetRepo = focusTask?.repo ?? orchestrator.listTasks().find((task) => task.id === activeId)?.repo
-        const initialBoard = targetRepo ? next.find((board) => norm(board.repoRoot) === norm(targetRepo)) : undefined
+        const initialBoard = targetRepo
+          ? next.find((board) =>
+              samePath(board.repoRoot.replace(/^\/private\//, "/"), targetRepo.replace(/^\/private\//, "/")),
+            )
+          : undefined
         setActiveRepo((prev) => prev ?? initialBoard?.repoRoot ?? null)
         // …and the card cursor on the focus task's linked story, if any.
         const focusId = focusTask?.id

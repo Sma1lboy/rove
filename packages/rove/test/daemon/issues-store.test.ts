@@ -57,6 +57,7 @@ describe("IssuesStore", () => {
       issues: [],
     })
     await store.mutate(repo, { type: "create", title: "Daemon issue", body: "shared state" })
+    await expect(store.repos()).resolves.toEqual([canonicalRepo])
     await expect(store.mutate(worktree, { type: "setStatus", id: 1, status: "done" })).resolves.toMatchObject({
       repoRoot: canonicalRepo,
       issues: [{ id: 1, status: "done" }],
