@@ -25,11 +25,11 @@ vi.mock("node:child_process", async (importOriginal) => {
   }
 })
 
-vi.mock("../../../kobe-daemon/src/client/index.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../kobe-daemon/src/client/index.ts")>()
+vi.mock("../../../rove-daemon/src/client/index.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../rove-daemon/src/client/index.ts")>()
   return {
     ...actual,
-    KobeDaemonClient: class {
+    RoveDaemonClient: class {
       constructor(socketPath: string) {
         clients.push(socketPath)
       }
@@ -41,10 +41,10 @@ vi.mock("../../../kobe-daemon/src/client/index.ts", async (importOriginal) => {
   }
 })
 
-const { spawnDetachedDaemon } = await import("../../../kobe-daemon/src/client/detached-spawn.ts")
-const { dispatchPtyRequest } = await import("../../../kobe-daemon/src/daemon/pty-server-verbs.ts")
-const { PTY_JOB_ENV, PTY_JOB_OWNER_ENV } = await import("../../../kobe-daemon/src/daemon/win-pty-job.ts")
-const { defaultDaemonSocketPath } = await import("../../../kobe-daemon/src/daemon/paths.ts")
+const { spawnDetachedDaemon } = await import("../../../rove-daemon/src/client/detached-spawn.ts")
+const { dispatchPtyRequest } = await import("../../../rove-daemon/src/daemon/pty-server-verbs.ts")
+const { PTY_JOB_ENV, PTY_JOB_OWNER_ENV } = await import("../../../rove-daemon/src/daemon/win-pty-job.ts")
+const { defaultDaemonSocketPath } = await import("../../../rove-daemon/src/daemon/paths.ts")
 
 afterEach(() => {
   spawned.length = 0

@@ -14,7 +14,7 @@ import { appendFileSync, closeSync, mkdirSync, openSync } from "node:fs"
 import { dirname } from "node:path"
 import { defaultDaemonSocketPath, defaultPtyHostSocketPath } from "../daemon/paths.ts"
 import { ptyJobLaunch, withoutPtyJob } from "../daemon/win-pty-job.ts"
-import { KobeDaemonClient } from "./index.ts"
+import { RoveDaemonClient } from "./index.ts"
 import { spawnWindowsDetached } from "./win-detached-launch.ts"
 
 /** The host answers at once; an unreachable one falls back to the launcher. */
@@ -39,7 +39,7 @@ async function launchViaPtyHost(
   logPath: string,
   socketPath: string,
 ): Promise<void> {
-  const client = new KobeDaemonClient(socketPath)
+  const client = new RoveDaemonClient(socketPath)
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     await Promise.race([

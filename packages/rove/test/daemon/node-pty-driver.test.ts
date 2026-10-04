@@ -91,7 +91,7 @@ describe("nodePtyDriver", () => {
     // tell "outlive the tab" (same instance) from "end with it" (nested).
     const env = pty.spawnArgs?.options.env as Record<string, string>
     expect(env.ROVE_PTY_JOB).toMatch(/^Local\\rove-pty-[0-9a-f-]{36}$/)
-    expect(env).toMatchObject({ KOBE_TASK_ID: "t1", ROVE_PTY_JOB_OWNER: "C:\\home\\.rove\\daemon.sock" })
+    expect(env).toMatchObject({ ROVE_TASK_ID: "t1", ROVE_PTY_JOB_OWNER: "C:\\home\\.rove\\daemon.sock" })
   })
 
   test("gives every session its own job", async () => {

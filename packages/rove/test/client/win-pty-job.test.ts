@@ -18,7 +18,7 @@ import {
   newPtyJobName,
   ptyJobLaunch,
   withoutPtyJob,
-} from "../../../kobe-daemon/src/daemon/win-pty-job.ts"
+} from "../../../rove-daemon/src/daemon/win-pty-job.ts"
 
 describe("ptyJobLaunch", () => {
   const inTab = { [PTY_JOB_ENV]: "Local\\rove-pty-1", [PTY_JOB_OWNER_ENV]: "C:\\Users\\a\\.rove\\daemon.sock" }
