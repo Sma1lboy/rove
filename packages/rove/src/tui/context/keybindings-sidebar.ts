@@ -80,7 +80,7 @@ export const SIDEBAR_BINDINGS: readonly RoveBinding[] = [
     scope: "sidebar",
     keys: ["t"],
     category: "Sidebar",
-    description: "Switch task sort (default ↔ recent)",
+    description: "Cycle task sort (default → recent → attention → name)",
     hint: { keys: "t" },
   },
   {

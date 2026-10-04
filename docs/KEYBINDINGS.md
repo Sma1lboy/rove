@@ -185,7 +185,7 @@ is active.
 | `d` | Delete Task / forget project | | `x` | Worktrees page |
 | `gg` / `shift+g` | Top / bottom | | | |
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
-| `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Cycle task sort (default → recent → attention) |
+| `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Cycle task sort (default → recent → attention → name) |
 
 Sidebar row verbs (`b`, `v`, `o`, `d`, `r`, `shift+p`, `shift+m`) act on the
 row under the cursor — the highlight `j`/`k` moves, which may differ from the

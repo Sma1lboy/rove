@@ -18,7 +18,7 @@ import { fuzzyMatch } from "./fuzzy"
  * comparator (`compareTaskGroup`) lives in `task-group-view.ts`, which
  * imports this module, so it can't live here.
  */
-export type TaskSortMode = "default" | "recent" | "attention"
+export type TaskSortMode = "default" | "recent" | "attention" | "name"
 
 /** One visible sidebar row; kept a discriminated union so new row kinds slot in. */
 export type SidebarRow = { kind: "task"; task: Task; flatIndex: number }
@@ -67,10 +67,11 @@ export function buildRows(
     else regular.push(t)
   }
   // Projects keep tasks.json (save) order so the list never reshuffles on its
-  // own; `recent` only sorts tasks. Manual reorder goes through `moveTask`.
-  if (sortMode === "recent") {
-    pinnedRegular.sort(compareRecent)
-    regular.sort(compareRecent)
+  // own; a sort reorders tasks only. Manual reorder goes through `moveTask`.
+  const compare = sortMode === "recent" ? compareRecent : sortMode === "name" ? compareName : null
+  if (compare) {
+    pinnedRegular.sort(compare)
+    regular.sort(compare)
   }
   const rows: SidebarRow[] = []
   let flatIndex = 0
@@ -94,6 +95,15 @@ export function compareRecent(a: Task, b: Task): number {
   const byTime = taskTime(b) - taskTime(a)
   if (byTime !== 0) return byTime
   return String(b.id).localeCompare(String(a.id))
+}
+
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
+
+/** A→Z by title, numbers in numeric order (`task 2` before `task 10`). */
+export function compareName(a: Task, b: Task): number {
+  const byName = nameCollator.compare(a.title.trim(), b.title.trim())
+  if (byName !== 0) return byName
+  return String(a.id).localeCompare(String(b.id))
 }
 
 function taskTime(task: Task): number {
