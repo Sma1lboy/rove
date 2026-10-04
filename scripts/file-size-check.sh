@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # File-size cap on touched code files (docs/agents/dev-loop.md "File size"), run by
 # the CI file-size-cap job. Lives as a script so the gate's behavior is
-# testable — see packages/kobe/test/architecture/file-size-check.test.ts.
+# testable — see packages/rove/test/architecture/file-size-check.test.ts.
 #
 # Env contract (set by ci.yml):
 #   BASE_REF — the PR base branch; touched files are diffed against

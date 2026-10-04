@@ -1,6 +1,6 @@
 # Filesystem path identity
 
-`packages/kobe-daemon/src/path-identity.ts` owns lexical path identity for both
+`packages/rove-daemon/src/path-identity.ts` owns lexical path identity for both
 packages. Use `samePath` for equality, `pathWithin(parent, candidate)` for
 containment, and `pathIdentity` for transient map/set keys. `pathWithin` returns
 an empty suffix for the directory itself and `null` for an unrelated path.
@@ -31,7 +31,7 @@ An identity-format change requires a compatibility migration.
 Run the candidate inventory from the repository root:
 
 ```sh
-bun packages/kobe/scripts/audit-path-identity.ts
+bun packages/rove/scripts/audit-path-identity.ts
 ```
 
 It emits source, line, and expression as TSV for review. A path-looking variable

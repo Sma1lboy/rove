@@ -5,20 +5,20 @@ Rove is a local-first terminal UI for running many AI coding sessions at once �
 This file is boundaries and orientation only. Read what the task needs:
 - [`HANDOFF.md`](./HANDOFF.md) — last local handoff (gitignored, may be absent). Check its date: an old one describes shipped work.
 - [`docs/DESIGN.md`](./docs/DESIGN.md) decisions + stack lock-in · [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) source map, ownership, `refs/` (§7) · [`docs/HARNESS.md`](./docs/HARNESS.md) self-test contract (**load-bearing**) · [`docs/KEYBINDINGS.md`](./docs/KEYBINDINGS.md) before any chord · [`docs/agents/dev-loop.md`](./docs/agents/dev-loop.md) test runners, dev scripts, daemon, engine-data, layout, file-size mechanics.
-- Version and shipped behavior: [`packages/kobe/package.json`](./packages/kobe/package.json), [`packages/kobe/CHANGELOG.md`](./packages/kobe/CHANGELOG.md) (over 1 MB: grep it or read the newest entries).
+- Version and shipped behavior: [`packages/rove/package.json`](./packages/rove/package.json), [`packages/rove/CHANGELOG.md`](./packages/rove/CHANGELOG.md) (over 1 MB: grep it or read the newest entries).
 
 Docs are the source of truth. **If docs and implementation disagree, surface the mismatch before widening scope.**
 
 ## Orientation
 
-- Bun-workspace monorepo under `packages/`: `kobe/` (TUI/CLI, published `@sma1lboy/rove`), `kobe-daemon/`, `kobe-harness/` (`/harness` + PTY sidecar), `branding/` (Remotion), `kobe-docs/` (docs site). Unqualified `src/…`/`test/…` paths mean `packages/kobe/`.
+- Bun-workspace monorepo under `packages/`: `kobe/` (TUI/CLI, published `@sma1lboy/rove`), `kobe-daemon/`, `rove-harness/` (`/harness` + PTY sidecar), `branding/` (Remotion), `kobe-docs/` (docs site). Unqualified `src/…`/`test/…` paths mean `packages/rove/`.
 - **Three test runners; the wrong one looks like a broken environment:** `test/render/**` → `bun test`, `test/daemon/**` → `bun run test:socket` (plain vitest *silently* finds no files), everything else → vitest. `vi.hoisted is not a function` = wrong runner. Details: [`docs/agents/dev-loop.md`](./docs/agents/dev-loop.md).
 - Develop with `dev:sandbox` (throwaway Rove state), never `dev`, so you don't touch the real `~/.rove/tasks.json`.
 - **Tech stack is locked:** TypeScript + `@opentui/core` + `@opentui/react` + React 19 + Bun. Do not re-litigate. React is the only UI; orchestrator/client reactivity is framework-free observable state.
 - **One visual ground truth:** fixed-viewport browser `/harness` → xterm.js → PTY sidecar → real OpenTUI. Not Terminal screenshots, render-test output, or mocks. Live-state bugs: drive a REAL engine through the browser's xterm and read `rove api inspect`. Every PR touching UI source keeps the template's **UI evidence** section with before/after harness screenshots (bugs and refactors too), or `ui-evidence: none — <reason>` when no frame can change. See [`docs/HARNESS.md`](./docs/HARNESS.md).
 - **After editing daemon/orchestrator/engine code, `rove daemon restart`** — Bun doesn't hot-reload. Debug from `<ROVE_HOME>/.rove/daemon.log` first.
 - `refs/` is gitignored and **read-only**; clone list and use in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) §7.
-- Changing config keys, CLI or `rove api` verbs, engine support, worktree safety, or session/persistence behavior → update the matching `docs/` page in the same PR. A new user-facing page must be added to `SECTIONS` in [`packages/kobe-docs/scripts/sync-docs.mjs`](./packages/kobe-docs/scripts/sync-docs.mjs) or it never reaches docs.rove.run.
+- Changing config keys, CLI or `rove api` verbs, engine support, worktree safety, or session/persistence behavior → update the matching `docs/` page in the same PR. A new user-facing page must be added to `SECTIONS` in [`packages/rove-docs/scripts/sync-docs.mjs`](./packages/rove-docs/scripts/sync-docs.mjs) or it never reaches docs.rove.run.
 - Respond in the user's language. Don't assume their name.
 
 ## Work tracking — local only

@@ -5,7 +5,7 @@
 > shape outgrew it: `kobe api` is now a 30+ verb declarative table
 > (discover/read/create/drive/edit/issues/lifecycle/worktree/feedback
 > categories), not five verbs in a switch. For the real surface, read
-> [`packages/kobe/src/cli/api/verbs.ts`](../../packages/kobe/src/cli/api/verbs.ts)
+> [`packages/rove/src/cli/api/verbs.ts`](../../packages/rove/src/cli/api/verbs.ts)
 > or run `kobe api schema`. This doc is kept for the *why* (§1) and the
 > phasing history — don't treat §3/§10 as current.
 >
@@ -77,7 +77,7 @@ Non-goals (deliberately):
 
 > **Superseded.** This section describes the original 5-verb v1 proposal.
 > The shipped surface is a 30+ verb declarative table in
-> [`verbs.ts`](../../packages/kobe/src/cli/api/verbs.ts) — run
+> [`verbs.ts`](../../packages/rove/src/cli/api/verbs.ts) — run
 > `kobe api schema` for the live list. Kept below for historical context only.
 
 Five verbs. Each takes flag-style args (`--task-id ID`, not positional)
@@ -120,7 +120,7 @@ don't trip parsers.
 
 ### Why these five and not the full daemon protocol
 
-The daemon protocol has ~25 request types (`packages/kobe-daemon/src/daemon/protocol.ts`).
+The daemon protocol has ~25 request types (`packages/rove-daemon/src/daemon/protocol.ts`).
 Most are TUI-driven (focus changes, draft updates, plan-usage polling).
 The five above are the minimum complete set for *fan-out + report
 back*, which is the only agent workflow we want to optimize for in v1.
@@ -194,11 +194,11 @@ Same options as `bridge.md` §4 but for a SKILL.md file:
 - **A — auto-write** on first `kobe` launch. Zero steps, but pollutes
   `~/.claude/skills/` without consent.
 - **B — `kobe skill install`** subcommand. User runs once; subcommand
-  writes to `~/.claude/skills/kobe/SKILL.md`, diff-prompt if exists.
+  writes to `~/.claude/skills/rove/SKILL.md`, diff-prompt if exists.
 - **C — first-launch onboarding banner** in the TUI.
 
 Recommended: **B**, same as in `bridge.md`. Project-level overrides
-(`<repo>/.claude/skills/kobe/SKILL.md`) come for free. `kobe diagnose`
+(`<repo>/.claude/skills/rove/SKILL.md`) come for free. `kobe diagnose`
 reports `skill: not installed` so the user has a discoverable hint.
 
 A `kobe skill uninstall` mirror is cheap and worth adding.
@@ -212,7 +212,7 @@ work lands.
 
 ### Current state
 
-- `packages/kobe/package.json` declares two bins:
+- `packages/rove/package.json` declares two bins:
   - `kobe` → `dist/cli/index.js`
   - `kobed` → `dist/bin/kobed.js`
 - `kobed start|stop|status|restart` is the only surface. ~130 lines.
@@ -228,7 +228,7 @@ Move every `kobed` subcommand under `kobe daemon`:
 | `kobed status` | `kobe daemon status` |
 | `kobed restart` | `kobe daemon restart` |
 
-Implementation: `packages/kobe/src/cli/daemon-cmd.ts` exports
+Implementation: `packages/rove/src/cli/daemon-cmd.ts` exports
 `runDaemonSubcommand(argv)`; `src/cli/index.ts` routes `kobe daemon
 ...` to it. The body is mostly a copy-paste from
 `src/bin/kobed.ts` — same `KobeDaemonClient`, same socket/pid paths.
@@ -250,14 +250,14 @@ No shim, no alias. Two-surface tax avoided.
   hard-cut wins).
 - All docs grep-replace `kobed` → `kobe daemon`. Search hits:
   `AGENTS.md`, `HANDOFF.md`, `docs/design/daemon.md`, `docs/design/bridge.md`,
-  scripts under `packages/kobe/scripts/`.
+  scripts under `packages/rove/scripts/`.
 - `bun run` scripts that reference `kobed` get updated.
 
 ---
 
 ## 7. README rewrite
 
-Three new sections in `packages/kobe/README.md`, ordered for a new
+Three new sections in `packages/rove/README.md`, ordered for a new
 reader:
 
 1. **"Using kobe from another agent"** — short rationale, the
@@ -296,7 +296,7 @@ Each phase is one PR, green on its own, mergeable independently.
 |---|---|---|
 | **P1** | Merge `kobed` → `kobe daemon ...`. Resolve §8.1. | `kobe daemon status` works; old `kobed` either errors with rename hint or aliases. |
 | **P2** | `kobe api <verb>` subcommands wired to `KobeDaemonClient`. All 5 verbs from §3. | Smoke test: spawn a task from `bash`, observe sidebar update. |
-| **P3** | `kobe skill install` + bundled SKILL.md under `packages/kobe/share/skills/kobe/`. | Install on a fresh `~/.claude` and read back the file. |
+| **P3** | `kobe skill install` + bundled SKILL.md under `packages/rove/share/skills/rove/`. | Install on a fresh `~/.claude` and read back the file. |
 | **P4** | README rewrite + AGENTS.md / HANDOFF.md / bridge.md cross-links updated. | Manual: a new user can install + spawn a task in <5 min. |
 
 Total estimate: 4 small PRs, ~150-300 LOC each excluding generated docs.
@@ -307,7 +307,7 @@ Total estimate: 4 small PRs, ~150-300 LOC each excluding generated docs.
 
 > **Superseded.** This phasing/file-layout plan (`api-cmd.ts` as a single
 > in-file dispatcher) is not what shipped — the real implementation is
-> [`packages/kobe/src/cli/api/verbs.ts`](../../packages/kobe/src/cli/api/verbs.ts)
+> [`packages/rove/src/cli/api/verbs.ts`](../../packages/rove/src/cli/api/verbs.ts)
 > plus the surrounding `src/cli/api/` directory. Kept below for historical
 > context only; don't use this as a map of the current source tree.
 
@@ -319,7 +319,7 @@ P-numbering mirrors §9.
 
 **Files added**
 
-- `packages/kobe/src/cli/daemon-cmd.ts` — NEW. Owns the four
+- `packages/rove/src/cli/daemon-cmd.ts` — NEW. Owns the four
   subcommands. Body is a near-direct port of `src/bin/kobed.ts:9-128`
   with one signature change (no `argv[2]` shift; the dispatcher
   passes `rest` already trimmed of `daemon`).
@@ -335,7 +335,7 @@ P-numbering mirrors §9.
 
 **Files modified**
 
-- `packages/kobe/src/cli/index.ts` — add one branch in `main()`,
+- `packages/rove/src/cli/index.ts` — add one branch in `main()`,
   next to the existing `mcp-bridge` route:
   ```ts
   if (subcommand === "daemon") {
@@ -344,26 +344,26 @@ P-numbering mirrors §9.
     return
   }
   ```
-- `packages/kobe/scripts/build.ts` — drop `./src/bin/kobed.ts` from
+- `packages/rove/scripts/build.ts` — drop `./src/bin/kobed.ts` from
   `entrypoints`, drop `./dist/bin/kobed.js` from `OUT_FILES`. Update
   the JSDoc that mentions `kobed` bin output.
-- `packages/kobe/scripts/compile.ts` — verify nothing else references
+- `packages/rove/scripts/compile.ts` — verify nothing else references
   the kobed entry; remove if it does.
-- `packages/kobe/package.json` — delete `"kobed": "dist/bin/kobed.js"`
+- `packages/rove/package.json` — delete `"kobed": "dist/bin/kobed.js"`
   line from `bin`.
 
 **Files deleted**
 
-- `packages/kobe/src/bin/kobed.ts` — full delete. (Hard rule: user
+- `packages/rove/src/bin/kobed.ts` — full delete. (Hard rule: user
   explicitly authorized this delete via the §8.1 decision.)
-- `packages/kobe/src/bin/` directory — empty after the above; remove.
+- `packages/rove/src/bin/` directory — empty after the above; remove.
 
 **Doc grep-replace (P1 part)**
 
 - `AGENTS.md`, `HANDOFF.md`: `kobed start` → `kobe daemon start`, etc.
 - `docs/design/daemon.md`, `docs/design/bridge.md`: same.
-- `packages/kobe/README.md`: same.
-- `packages/kobe/CHANGELOG.md`: new entry for the next version with
+- `packages/rove/README.md`: same.
+- `packages/rove/CHANGELOG.md`: new entry for the next version with
   the rename callout (single line — users hit it once on upgrade,
   this is their warning).
 
@@ -387,7 +387,7 @@ kobe daemon stop
 
 **Files added**
 
-- `packages/kobe/src/cli/api-cmd.ts` — NEW. Single file dispatcher;
+- `packages/rove/src/cli/api-cmd.ts` — NEW. Single file dispatcher;
   five verbs are small enough to live in-file under ~250 LOC.
 
   Shape:
@@ -454,7 +454,7 @@ messages.
 
 **Files modified**
 
-- `packages/kobe/src/cli/index.ts` — one new branch:
+- `packages/rove/src/cli/index.ts` — one new branch:
   ```ts
   if (subcommand === "api") {
     const { runApiSubcommand } = await import("./api-cmd.ts")
@@ -462,9 +462,9 @@ messages.
     return
   }
   ```
-- `packages/kobe-daemon/src/daemon/protocol.ts` — add `task.get` to
+- `packages/rove-daemon/src/daemon/protocol.ts` — add `task.get` to
   `DaemonRequestName`.
-- `packages/kobe-daemon/src/daemon/server.ts` — handle the new case (one
+- `packages/rove-daemon/src/daemon/server.ts` — handle the new case (one
   `orch.getTask(taskId)` call).
 
 **Test surface**
@@ -490,17 +490,17 @@ kobe daemon stop
 
 **Files added**
 
-- `packages/kobe/share/skills/kobe/SKILL.md` — NEW. ~60-line skill
+- `packages/rove/share/skills/rove/SKILL.md` — NEW. ~60-line skill
   content from §5.
-- `packages/kobe/src/cli/skill-cmd.ts` — NEW. Two commands:
+- `packages/rove/src/cli/skill-cmd.ts` — NEW. Two commands:
   `install`, `uninstall`.
 
   Install logic:
   1. Resolve bundled SKILL.md path. In dev: `import.meta.url`-relative
-     `../../share/skills/kobe/SKILL.md`. In production npm install:
+     `../../share/skills/rove/SKILL.md`. In production npm install:
      `dist`-relative — needs `scripts/build.ts` to copy `share/` into
      `dist/share/` so the file is reachable post-bundle.
-  2. Target path: `${process.env.HOME}/.claude/skills/kobe/SKILL.md`.
+  2. Target path: `${process.env.HOME}/.claude/skills/rove/SKILL.md`.
   3. If target exists with identical content → print "already
      installed" + path; exit 0.
   4. If target exists with different content → print diff (or just a
@@ -513,20 +513,20 @@ kobe daemon stop
 
 **Files modified**
 
-- `packages/kobe/src/cli/index.ts` — route `skill` subcommand.
-- `packages/kobe/scripts/build.ts` — copy `share/` → `dist/share/`
+- `packages/rove/src/cli/index.ts` — route `skill` subcommand.
+- `packages/rove/scripts/build.ts` — copy `share/` → `dist/share/`
   post-`Bun.build`. ~5 LOC `cp -r` equivalent.
-- `packages/kobe/package.json` `files` — add `share` so npm includes
+- `packages/rove/package.json` `files` — add `share` so npm includes
   it in the published tarball. (Or rely on the `dist/share/` path
   alone; depends on whether SKILL.md is shipped raw or only as dist
   copy. Recommend `dist/share/` only — single source of truth.)
-- `packages/kobe/src/cli/diagnose.ts` — add a `skill: installed | not installed`
-  line that reads `~/.claude/skills/kobe/SKILL.md`.
+- `packages/rove/src/cli/diagnose.ts` — add a `skill: installed | not installed`
+  line that reads `~/.claude/skills/rove/SKILL.md`.
 
 **Gate**
 
 ```
-kobe skill install        # writes ~/.claude/skills/kobe/SKILL.md
+kobe skill install        # writes ~/.claude/skills/rove/SKILL.md
 kobe diagnose | grep skill
 kobe skill install        # idempotent
 kobe skill uninstall
@@ -536,13 +536,13 @@ kobe skill uninstall
 
 **Files modified**
 
-- `packages/kobe/README.md` — add three sections after the existing
+- `packages/rove/README.md` — add three sections after the existing
   TUI overview:
   - **"Using kobe from another agent"**: rationale + the §3 verb table
     + one example shell session (the §11 P2 gate block, lightly
     edited for readability).
   - **"Install the skill"**: `kobe skill install` + what it writes +
-    project-level override path (`<repo>/.claude/skills/kobe/SKILL.md`).
+    project-level override path (`<repo>/.claude/skills/rove/SKILL.md`).
   - **"Daemon"**: `kobe daemon start / stop / status / restart`
     (replaces any existing `kobed` mention).
 - `docs/design/bridge.md` — add a top-of-doc note: "the CLI API in
@@ -551,7 +551,7 @@ kobe skill uninstall
   the doc still documents the live MCP code.
 - `AGENTS.md`, `HANDOFF.md` — already grep-replaced in P1; verify the
   README rewrite didn't leave dangling references.
-- `packages/kobe/CHANGELOG.md` — final entry per release covering all
+- `packages/rove/CHANGELOG.md` — final entry per release covering all
   four phases (`kobed` rename + new `kobe api` + skill installer +
   docs).
 
@@ -566,14 +566,14 @@ implement X three different ways" and the model uses
 
 ## 11. References
 
-- `packages/kobe/src/cli/index.ts` — current subcommand router (`add`,
+- `packages/rove/src/cli/index.ts` — current subcommand router (`add`,
   `diagnose`, `update`, `theme`, `mcp-bridge`).
-- `packages/kobe/src/bin/kobed.ts` — what gets merged into `kobe daemon ...`.
-- `packages/kobe/src/cli/mcp-bridge.ts` — MCP path that stays as
+- `packages/rove/src/bin/kobed.ts` — what gets merged into `kobe daemon ...`.
+- `packages/rove/src/cli/mcp-bridge.ts` — MCP path that stays as
   fallback.
-- `packages/kobe-daemon/src/daemon/protocol.ts` — full daemon RPC surface;
+- `packages/rove-daemon/src/daemon/protocol.ts` — full daemon RPC surface;
   the five `kobe api` verbs are a strict subset.
-- `packages/kobe-daemon/src/client/index.ts` — `KobeDaemonClient`, the
+- `packages/rove-daemon/src/client/index.ts` — `KobeDaemonClient`, the
   ready-made transport every `kobe api` verb will use.
 - `bridge.md` (since removed) — sibling design doc for the MCP-bridge
   path; this file supersedes its skill-distribution discussion (§4)

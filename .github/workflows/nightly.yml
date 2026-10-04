@@ -58,14 +58,14 @@ jobs:
       - name: Decide whether there is anything new to ship
         id: check
         run: |
-          BASE=$(node -p "require('./packages/kobe/package.json').version")
+          BASE=$(node -p "require('./packages/rove/package.json').version")
           # Next patch + today's date: sorts above the released X.Y.Z it was
           # cut from... no — BELOW it, per semver (a prerelease ranks under
           # its release). That's correct and intended: when X.Y.(Z+1) really
           # ships, every nightly of it is older, so nightly users roll
           # forward onto the stable build instead of being stranded above it.
           NEXT=$(node -p "
-            const [maj, min, pat] = require('./packages/kobe/package.json').version.split('-')[0].split('.')
+            const [maj, min, pat] = require('./packages/rove/package.json').version.split('-')[0].split('.')
             \`\${maj}.\${min}.\${Number(pat) + 1}\`
           ")
           VERSION="${NEXT}-nightly.$(date -u +%Y%m%d)"
@@ -128,7 +128,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Render tests and coverage (kobe package)
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: bun run test:render
 
   visual-ground-truth:
@@ -150,15 +150,15 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build canonical Rove artifacts
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: bun run build
 
       - name: Install Chromium for the visual ground-truth harness
-        working-directory: packages/kobe-harness
+        working-directory: packages/rove-harness
         run: bunx playwright install chromium
 
       - name: Visual journey (browser → PTY → real OpenTUI)
-        working-directory: packages/kobe-harness
+        working-directory: packages/rove-harness
         run: bun run visual
 
   publish:
@@ -188,14 +188,14 @@ jobs:
         run: bun run typecheck
 
       - name: Unit tests
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: bun run test
 
       - name: Build
         run: bun run build
 
       - name: Stamp the nightly version (working tree only — never committed)
-        working-directory: packages/kobe
+        working-directory: packages/rove
         env:
           VERSION: ${{ needs.changes.outputs.version }}
         run: |
@@ -213,7 +213,7 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to the nightly dist-tag
-        working-directory: packages/kobe
+        working-directory: packages/rove
         env:
           VERSION: ${{ needs.changes.outputs.version }}
         run: |

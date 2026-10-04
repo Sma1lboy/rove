@@ -77,7 +77,7 @@ Run the same focused command. Expected: PASS.
 
 **Interfaces:**
 - Consumes: optional `CapturePureTuiOptions.claudeCommand?: string`.
-- Produces: `engineCommand.claude` in `<demoRoot>/home/.config/kobe/state.json` only when the option is non-empty.
+- Produces: `engineCommand.claude` in `<demoRoot>/home/.config/rove/state.json` only when the option is non-empty.
 - CLI source: `process.env.KOBE_REPLAY_CLAUDE_COMMAND?.trim()`.
 
 - [ ] **Step 1: Write failing state tests**
@@ -218,7 +218,7 @@ Run:
 bun run lint
 bun run typecheck
 bun run test
-cd packages/kobe && bun run build && bun run test:behavior
+cd packages/rove && bun run build && bun run test:behavior
 cd ../branding && bun run test:replay
 git diff --check
 ```

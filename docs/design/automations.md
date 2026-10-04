@@ -27,13 +27,13 @@ summarize risky changes."*
 ## Data model
 
 Two records, both in `<ROVE_HOME>/.rove/automations.json` (daemon is the only
-writer). Types in [`contracts.ts`](../../packages/kobe-daemon/src/daemon/contracts.ts).
+writer). Types in [`contracts.ts`](../../packages/rove-daemon/src/daemon/contracts.ts).
 
 - **`Automation`** — the rule. `schedule` (five-field cron), `prompt`, `repo`,
   optional `vendor` / `baseRef` / `precheck`, `enabled`, `nextRunAt`,
   `missedRunGraceMinutes`, and the standing-session pair `persistentSession` /
   `sessionTaskId` (issue #91). Types in
-  [`automation-contracts.ts`](../../packages/kobe-daemon/src/daemon/automation-contracts.ts).
+  [`automation-contracts.ts`](../../packages/rove-daemon/src/daemon/automation-contracts.ts).
 - **`AutomationRun`** — one firing. `scheduledFor` (when it *should* have run),
   `status`, `trigger`, and the `taskId` it produced. Capped at 100 per
   automation.
@@ -64,7 +64,7 @@ week of runs on one branch is a branch nobody can land. Hence per-routine, and
 off by default.
 
 The four paths one firing can take live in
-[`automation-dispatch.ts`](../../packages/kobe-daemon/src/daemon/automation-dispatch.ts):
+[`automation-dispatch.ts`](../../packages/rove-daemon/src/daemon/automation-dispatch.ts):
 
 ```text
 fire → persistentSession?
@@ -79,7 +79,7 @@ fire → persistentSession?
 
 **What continuity actually rests on.** The engine's own conversation, kept alive
 by the PTY host — which lives outside the daemon on purpose
-([`pty-server.ts`](../../packages/kobe-daemon/src/daemon/pty-server.ts)), so it
+([`pty-server.ts`](../../packages/rove-daemon/src/daemon/pty-server.ts)), so it
 survives `rove daemon restart`. When that process is gone, the respawn does NOT
 inherit the transcript: the daemon's spawn path (`buildEngineSessionLaunch`) has
 no resume verb wired into it — `engineResumeArgv` is the TUI's tab-restart path.
@@ -93,7 +93,7 @@ looks exactly like a quiet one.
 
 **In the sidebar.** A standing task carries `Task.routine`, which folds it behind
 a per-project `N routine sessions` count row
-([`tree-core.ts`](../../packages/kobe/src/tui/panes/sidebar/tree-core.ts)). This
+([`tree-core.ts`](../../packages/rove/src/tui/panes/sidebar/tree-core.ts)). This
 is the one fold in a tree that otherwise has none (owner call 2026-08-01, round
 5), scoped so the rule it bends still holds: it hides only what a SCHEDULE
 created, never a task a human opened. A folded task stays findable by `/` (the
@@ -107,11 +107,11 @@ That single decision answers the restart question: a daemon that restarts (or
 was down for a day) re-discovers every armed schedule on its first sweep, with
 no re-arm pass. Same shape as `Task.quotaResume` and `TaskDeletionState`.
 
-The sweep ([`automation-runner.ts`](../../packages/kobe-daemon/src/daemon/automation-runner.ts))
+The sweep ([`automation-runner.ts`](../../packages/rove-daemon/src/daemon/automation-runner.ts))
 runs every 60s, and like the quota-resume runner it is **not** gated on
 `hasSubscribers` — a schedule that requires an audience is not a schedule.
 
-Cron parsing is hand-rolled ([`cron.ts`](../../packages/kobe-daemon/src/daemon/cron.ts)),
+Cron parsing is hand-rolled ([`cron.ts`](../../packages/rove-daemon/src/daemon/cron.ts)),
 pure JS, no dependency: the repo has no scheduling deps and `bun build --compile`
 bans native addons. Two functions, and the second is the interesting one:
 
@@ -213,7 +213,7 @@ to retype it.
 The intent is `{kind: "new-task", prompt}`, not `explicit`: the runner creates
 the task immediately ahead of this call, so the firing's first prompt gets the
 branch-rename coda every other new-worktree entry point gets
-([`daemon-session-adapter.ts`](../../packages/kobe/src/core/daemon-session-adapter.ts)).
+([`daemon-session-adapter.ts`](../../packages/rove/src/core/daemon-session-adapter.ts)).
 Paste-delivery vendors (kimi) are the exception — their prompt rides outside
 argv and is typed once the engine is up.
 

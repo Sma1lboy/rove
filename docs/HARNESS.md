@@ -42,7 +42,7 @@ The sidecar closes its servers and lets node-pty's asynchronous console cleanup
 drain. The parent watcher remains a fallback for other launchers. A hard kill
 of the sidecar itself cannot execute shutdown handlers.
 
-Run `bun run test test/pty-tree-lifecycle.test.mjs` in `packages/kobe-harness`
+Run `bun run test test/pty-tree-lifecycle.test.mjs` in `packages/rove-harness`
 on macOS or Linux to exercise a real PTY and WebSocket with an advanced grace
 clock. The test verifies reconnect survival, session cleanup after expiry,
 and detached-service survival. `test/pty-sidecar-shutdown.test.mjs` drives the
@@ -62,8 +62,8 @@ fill in `Capture:`, `Viewport:`, `Fixture:` and `Theme:`. Use durable image URLs
 in the PR, not local paths or an expiring review-board URL. For remote review,
 publish both states on one share-server series board as well.
 
-The CI evidence check covers `packages/kobe/src/tui/`,
-`packages/kobe/src/tui-react/` and `packages/kobe-harness/src/`, including deleted
+The CI evidence check covers `packages/rove/src/tui/`,
+`packages/rove/src/tui-react/` and `packages/rove-harness/src/`, including deleted
 or renamed files. It reads the current PR description and reruns on body edits; it lives in
 `pr-gates.yml`, so an edit re-runs only the gates, not the test jobs. A change
 that cannot move a frame (a dropped import, a type moved to another module) may
@@ -113,15 +113,15 @@ Rules:
 
 ## Terminal input performance
 
-With an isolated `visual:serve` fixture running, run `HEADED=1 TEST_URL=http://localhost:5273 node e2e/terminal-input-perf.ts /tmp/rpaint-run` from `packages/kobe-harness`. It opens the fixture shell through the 1280×800 `/harness`, measures browser-input-to-buffer latency for idle typing and typing during real PTY output, and saves screenshots plus raw timing samples. The workload also checks Unicode output, backspace clearing, and returning from the alternate screen. Use a fresh output directory for each comparison. Headless Chromium's WebGL rendering can dominate latency; compare runs in the same browser mode and inspect the recorded incoming frame timestamps before attributing a delay to Rove.
+With an isolated `visual:serve` fixture running, run `HEADED=1 TEST_URL=http://localhost:5273 node e2e/terminal-input-perf.ts /tmp/rpaint-run` from `packages/rove-harness`. It opens the fixture shell through the 1280×800 `/harness`, measures browser-input-to-buffer latency for idle typing and typing during real PTY output, and saves screenshots plus raw timing samples. The workload also checks Unicode output, backspace clearing, and returning from the alternate screen. Use a fresh output directory for each comparison. Headless Chromium's WebGL rendering can dominate latency; compare runs in the same browser mode and inspect the recorded incoming frame timestamps before attributing a delay to Rove.
 
 Visible terminal snapshots use the renderer's frame callback and commit React updates before that frame draws. `test/render/terminal-frame-scheduler.test.tsx` pins this with one explicit render pass; waiting for several passes would hide an extra-frame regression. `test/tui/terminal-refresh-scheduler.test.ts` covers burst coalescing, cancellation, reattach, and synchronized-output retries. Non-visual consumers retain the timer fallback.
 
-`bun scripts/terminal-paint-bench.ts` from `packages/kobe` compares whole-content replacement with retained row buffers using the real OpenTUI renderer. This measures conversion and rendering cost, and supplements the browser journey rather than replacing it.
+`bun scripts/terminal-paint-bench.ts` from `packages/rove` compares whole-content replacement with retained row buffers using the real OpenTUI renderer. This measures conversion and rendering cost, and supplements the browser journey rather than replacing it.
 
 ## Performance measurement
 
-`bun run perf:measure` from `packages/kobe-harness` measures the TUI's user paths on this machine. With `--baseline=<file>` it compares against that file; when the file does not exist yet, this run is written to it, so the first run of a series is its baseline. It starts a cold, isolated fixture on port base 5373, seeds two tasks that run a plain `bash` (no engine), and drives the real OpenTUI through the browser harness: 10 s idle, 10 task switches, 30 typed keys. It then appends `perf:golden --fast`. Exit 1 means a metric moved past its tolerance (counts: 10% or 1, whichever is larger; timings: 50% or 15 ms). `--update-baseline` rewrites the `--baseline` file with this run; `--out=<dir>` keeps the run's `report.md`, `metrics.json`, raw profiles and one screenshot per phase (default `.scratch/perf/<timestamp>`).
+`bun run perf:measure` from `packages/rove-harness` measures the TUI's user paths on this machine. With `--baseline=<file>` it compares against that file; when the file does not exist yet, this run is written to it, so the first run of a series is its baseline. It starts a cold, isolated fixture on port base 5373, seeds two tasks that run a plain `bash` (no engine), and drives the real OpenTUI through the browser harness: 10 s idle, 10 task switches, 30 typed keys. It then appends `perf:golden --fast`. Exit 1 means a metric moved past its tolerance (counts: 10% or 1, whichever is larger; timings: 50% or 15 ms). `--update-baseline` rewrites the `--baseline` file with this run; `--out=<dir>` keeps the run's `report.md`, `metrics.json`, raw profiles and one screenshot per phase (default `.scratch/perf/<timestamp>`).
 
 It is not a CI gate: wall-clock numbers depend on the machine, so a baseline only means something for machines of the same spec. The nightly cloud routine keeps its baseline, run history and failed attempts on the `perf-data` branch.
 
@@ -152,7 +152,7 @@ The suite currently pins:
 Behavior tests run in CI and the release workflow. They require a build first:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 bun run build
 bun run test:behavior
 ```
@@ -184,8 +184,8 @@ bun run visual          # hermetic journey: real OpenTUI drives, assertions read
 
 bun run visual:serve    # warm iteration servers + reusable fixture (keep running)
 bun run visual:dev      # fast baseline check against visual:serve (~2s)
-cd packages/kobe-harness && bun run visual:shot -- ctrl+h c   # ad-hoc screenshot (~2s)
-cd packages/kobe-harness && bun run visual:shot -- --scale=2 --out=shot.png
+cd packages/rove-harness && bun run visual:shot -- ctrl+h c   # ad-hoc screenshot (~2s)
+cd packages/rove-harness && bun run visual:shot -- --scale=2 --out=shot.png
 ```
 
 Iterate with the warm loop (`visual:serve` once, then `visual:dev` /
@@ -213,12 +213,12 @@ sidecar and the real OpenTUI process. It does not exercise production task-to-PT
 launch resolution. Changes to that path need the relevant CLI or hosted-session
 tests in addition to any visual checks.
 
-`packages/kobe-harness/test/pty-spec.test.ts` checks command and cwd selection,
+`packages/rove-harness/test/pty-spec.test.ts` checks command and cwd selection,
 mode equivalence and the missing-command error. The session lifecycle tests
 inject their own spec fetcher and cover spawn, attachment and teardown.
 
 ```bash
-cd packages/kobe-harness && bun run test
+cd packages/rove-harness && bun run test
 ```
 
 ### `shift+<letter>` is pressed as the uppercase letter
@@ -242,10 +242,10 @@ byte as the unshifted chord anyway.
 
 Marketing stills and the demo video ride that same `/harness` path, against a
 RICHER throwaway home — the visual fixture is one empty task and photographs
-as an empty product. `packages/kobe-harness/e2e/hero-*.ts` owns it:
+as an empty product. `packages/rove-harness/e2e/hero-*.ts` owns it:
 
 ```bash
-cd packages/kobe-harness
+cd packages/rove-harness
 bun e2e/hero-fixture.ts --fresh   # isolated home + a real repo with history
 bun e2e/hero-seed.ts              # REAL Claude Code turns on two worktrees
 bun e2e/hero-issues.ts            # the kanban board's stories (no quota)
@@ -384,7 +384,7 @@ the same take to encoder noise.
   *stale* path, gated on `skillHintSeen:v<N>` — unseeded, the TUI opens on an
   interactive "update now? [y/n/d]" prompt, never renders, and every capture
   times out waiting for the sidebar. `hero-fixture.ts` reads the version off
-  the BUILT skill, so `bun run build` in `packages/kobe` has to be current.
+  the BUILT skill, so `bun run build` in `packages/rove` has to be current.
 - **Video beats switch panes by CLICKING rows**, never by the `ctrl+a` prefix.
   The prefix is two strokes, and while an engine streams into the pane the
   second one gets starved — the storyboard then types its own navigation keys
@@ -412,9 +412,9 @@ Ports derive from `KOBE_VISUAL_PORT_BASE` (default 5273): the base is Vite,
 base+1 is the PTY sidecar. Two, not three — the daemon is reached over its
 socket and has no port. A busy port fails fast — never reuse a stray server, and never point the fixture at a real HOME
 or the shared `.dev-sandbox/home`. Local Terminal screenshots, native
-`kobe-harness` pages such as `/board`, render-test frames, and `dev:mock` cannot
+`rove-harness` pages such as `/board`, render-test frames, and `dev:mock` cannot
 approve visual changes; `test:e2e` (dev:mock) stays a PTY-transport smoke only.
-Failure artifacts land in `packages/kobe-harness/test-results/` (actual/diff/trace).
+Failure artifacts land in `packages/rove-harness/test-results/` (actual/diff/trace).
 
 ### Driving a live engine to observe STATE
 
@@ -474,7 +474,7 @@ dev server re-spawns the sidecar.
 park/wake regressions, run the non-CI hosted-PTY soak on a development machine:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 bun run pty:soak -- --tabs=50 --cycles=5 --lines=1200
 ```
 
@@ -557,7 +557,7 @@ had a correct exemption sitting in the body that no run ever read.
 bun run lint && \
 bun run typecheck && \
 bun run test && \
-(cd packages/kobe && bun run build && bun run test:behavior)
+(cd packages/rove && bun run build && bun run test:behavior)
 ```
 
 Inspect `git status`, `git diff`, touched-file sizes, and the changeset before

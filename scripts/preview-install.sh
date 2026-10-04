@@ -24,7 +24,7 @@
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-PKG_SRC="$ROOT/packages/kobe"
+PKG_SRC="$ROOT/packages/rove"
 
 BIN="$(command -v rove 2>/dev/null || command -v kobe 2>/dev/null || true)"
 if [ -z "$BIN" ]; then

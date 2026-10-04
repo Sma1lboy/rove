@@ -1,6 +1,6 @@
 # Releasing Rove
 
-Rove versioning + changelog are managed with [Changesets](https://github.com/changesets/changesets). The published package is `@sma1lboy/rove` (`packages/kobe`). `packages/branding` is `private` and never published.
+Rove versioning + changelog are managed with [Changesets](https://github.com/changesets/changesets). The published package is `@sma1lboy/rove` (`packages/rove`). `packages/branding` is `private` and never published.
 
 `@sma1lboy/kobe` was the package name before the rename and was published in lockstep through 0.9.64. It is frozen there — releases no longer publish it. An install of the old name keeps working and its update check reports the newest `@sma1lboy/rove`; reinstalling under the new name is the way forward.
 
@@ -61,7 +61,7 @@ This first runs the release gate — lint, typecheck, unit tests, build, and the
 
 With a green gate, it consumes every pending `.changeset/*.md`:
 
-1. `changeset version` — computes the next version from the pending bump types, rewrites `packages/kobe/package.json`, and prepends the collected notes to `CHANGELOG.md` (then deletes the consumed changesets).
+1. `changeset version` — computes the next version from the pending bump types, rewrites `packages/rove/package.json`, and prepends the collected notes to `CHANGELOG.md` (then deletes the consumed changesets).
 2. Runs `bun install`, then `bun install --frozen-lockfile`, so `bun.lock` matches the workspace package versions before the release commit is made.
 3. Re-runs Biome `--write` on the touched `package.json` / `CHANGELOG.md` so the generated JSON formatting can't fail the lint gate (Changesets and the release script both reserialize `package.json`, which used to re-expand the single-line `files` array). This step is no longer error-swallowed — a `lint:fix` failure stops the release.
 4. Commits `chore: release — X.Y.Z`. **No tag yet.**
@@ -69,7 +69,7 @@ With a green gate, it consumes every pending `.changeset/*.md`:
 
 If CI comes back red, **no tag exists and the version number is not burned**: `package.json` on `main` already carries X.Y.Z, so land the fix on `main` (no new changeset needed) and re-run `scripts/release.sh` — with zero pending changesets and an untagged committed version it enters **resume mode**: waits for CI at the fixed HEAD, then tags the same `vX.Y.Z` there. The same resume path covers answering `N` at the push prompt, a CI run cancelled by a newer main push, and any failure of the tag step itself (v0.9.61 hit `fatal: no tag message?` on a machine with `tag.gpgSign = true`, since a signed tag must be annotated — the script now tags with `-a -m`).
 
-The push triggers `.github/workflows/release.yml`, which gates on **lint + typecheck + unit tests (fast + socket) + build**, waits on the same **behavior** suite `ci.yml`'s PR gate runs, publishes `@sma1lboy/rove`, and extracts the new `CHANGELOG.md` section as the GitHub release body. The canonical CLI publish is idempotent; `@sma1lboy/kobe` remains frozen at 0.9.64. npm is the sole distribution channel — standalone binaries were dropped 2026-08-02 (nothing consumed them; `packages/kobe/scripts/compile.ts` still builds one locally on demand). The same publish job also piggyback-publishes **`@sma1lboy/rove-plugin-sdk`** whenever its independently changeset-versioned version isn't on npm yet, then republishes the identical artifact as the **`@sma1lboy/kobe-plugin-sdk`** compatibility alias. The SDK has no tag of its own; an SDK-only release still rides the next Rove release.
+The push triggers `.github/workflows/release.yml`, which gates on **lint + typecheck + unit tests (fast + socket) + build**, waits on the same **behavior** suite `ci.yml`'s PR gate runs, publishes `@sma1lboy/rove`, and extracts the new `CHANGELOG.md` section as the GitHub release body. The canonical CLI publish is idempotent; `@sma1lboy/kobe` remains frozen at 0.9.64. npm is the sole distribution channel — standalone binaries were dropped 2026-08-02 (nothing consumed them; `packages/rove/scripts/compile.ts` still builds one locally on demand). The same publish job also piggyback-publishes **`@sma1lboy/rove-plugin-sdk`** whenever its independently changeset-versioned version isn't on npm yet, then republishes the identical artifact as the **`@sma1lboy/kobe-plugin-sdk`** compatibility alias. The SDK has no tag of its own; an SDK-only release still rides the next Rove release.
 
 ## Style rule — no soft wraps inside bullets or paragraphs
 
@@ -77,7 +77,7 @@ GitHub renders release bodies with GFM's hard-break extension: every single newl
 
 ## Breaking releases — the reset gate
 
-A release whose state/daemon/session format is incompatible with older installs must be added to `BREAKING_VERSIONS` in [`packages/kobe/src/version.ts`](../packages/kobe/src/version.ts) **in the same PR that ships the break** (the version you add is the one about to be released — confirm it against the pending changesets' bump). The changeset summary must say what breaks and that `rove reset` is required.
+A release whose state/daemon/session format is incompatible with older installs must be added to `BREAKING_VERSIONS` in [`packages/rove/src/version.ts`](../packages/rove/src/version.ts) **in the same PR that ships the break** (the version you add is the one about to be released — confirm it against the pending changesets' bump). The changeset summary must say what breaks and that `rove reset` is required.
 
 What the list drives:
 
@@ -106,7 +106,7 @@ Three properties worth knowing before changing any of this:
 - **`latest` never moves.** `npm i @sma1lboy/rove` and every existing install keep resolving to the stable line.
 - **A nightly sorts *below* the release it anticipates** (semver §11), which is what you want: when `X.Y.(Z+1)` really ships, every nightly of it is older, so nightly users roll forward onto the stable build instead of being stranded above it.
 
-That ordering is why `isNewerSemver` compares prerelease tails while `compareSemver` deliberately does not — see the note on each in [`src/version.ts`](../packages/kobe/src/version.ts). The split is load-bearing in both directions: without the tail, consecutive nightlies compare equal and nightly users never see an update; with the tail in `compareSemver`, a nightly carrying a breaking change would stop tripping the `rove reset` boot gate.
+That ordering is why `isNewerSemver` compares prerelease tails while `compareSemver` deliberately does not — see the note on each in [`src/version.ts`](../packages/rove/src/version.ts). The split is load-bearing in both directions: without the tail, consecutive nightlies compare equal and nightly users never see an update; with the tail in `compareSemver`, a nightly carrying a breaking change would stop tripping the `rove reset` boot gate.
 
 ## Prereleases
 

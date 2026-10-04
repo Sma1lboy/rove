@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/sma1lboy/rove/main/packages/rove/src/tui/context/theme/theme.schema.json",
+  "title": "Rove theme",
+  "description": "Color theme for the Rove TUI. Drop the file at ~/.rove/themes/<name>.json (or run `rove theme add <url>`). See packages/rove/src/tui/context/theme/claude.json for a canonical example with defs + dark/light variants.",
+  "type": "object",
+  "required": ["theme"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional pointer back to this schema for editor autocomplete."
+    },
+    "defs": {
+      "type": "object",
+      "description": "Optional palette of named colors that `theme` entries can reference (e.g. `darkPrimary -> #cc785c`). Values are hex strings or refs to other defs.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "theme": {
+      "type": "object",
+      "description": "Map of slot name to color value. Slot values are: a hex string (`#abc`, `#aabbcc`, `#aabbccdd`), a bare string referencing a key in `defs`, or a `{ dark, light }` variant pair.",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Hex color (`#abc` / `#aabbcc` / `#aabbccdd`) or a reference to a `defs` key."
+          },
+          {
+            "type": "object",
+            "description": "Dark/light variant pair. Both fields are required.",
+            "required": ["dark", "light"],
+            "additionalProperties": false,
+            "properties": {
+              "dark": { "type": "string" },
+              "light": { "type": "string" }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -51,7 +51,7 @@ because their absolute paths are part of the running-plugin compatibility contra
 
 ## Package distribution migration
 
-`packages/kobe/package.json` names `@sma1lboy/rove`, so workspace filters,
+`packages/rove/package.json` names `@sma1lboy/rove`, so workspace filters,
 Changesets, update checks, install commands, and the first npm publish all use
 the canonical package. The release job then rewrites only `package.json#name`
 in its checkout and published the identical artifact as `@sma1lboy/kobe` (through 0.9.64; that alias is no longer published).

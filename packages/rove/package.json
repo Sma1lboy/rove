@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@sma1lboy/rove",
+  "version": "0.9.238",
+  "description": "Rove — the agent multiplexer for your terminal. Run coding agents on parallel tasks with isolated worktrees and persistent sessions.",
+  "keywords": [
+    "terminal",
+    "tui",
+    "cli",
+    "multiplexer",
+    "ai-agents",
+    "coding-agent",
+    "ai-coding-assistant",
+    "agentic-ai",
+    "parallel-agents",
+    "git-worktree",
+    "claude-code",
+    "codex",
+    "llm",
+    "developer-tools"
+  ],
+  "type": "module",
+  "packageManager": "bun@1.3.13",
+  "bin": {
+    "kobe": "dist/cli/kobe.js",
+    "rove": "dist/cli/rove.js"
+  },
+  "files": ["dist/cli", "dist/completions", "dist/web-ui", "dist/skills", "dist/*.wav", "README.md", "LICENSE"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sma1lboy/rove.git"
+  },
+  "homepage": "https://rove.run",
+  "bugs": {
+    "url": "https://github.com/Sma1lboy/rove/issues"
+  },
+  "engines": {
+    "bun": ">=1.3.11"
+  },
+  "scripts": {
+    "dev": "ROVE_DEV=1 bun --conditions=browser ./src/cli/rove.ts",
+    "dev:kobe": "KOBE_DEV=1 bun --conditions=browser ./src/cli/kobe.ts",
+    "dev:mock": "KOBE_DEV=1 bun ./src/tui-react/mock/host.tsx",
+    "dev:sandbox": "bun run scripts/dev-sandbox.ts run",
+    "dev:sandbox:reset": "bun run scripts/dev-sandbox.ts reset",
+    "build": "bun run scripts/build.ts",
+    "build:rubric": "bun run scripts/build-tier-rubric.ts",
+    "compile": "bun run scripts/compile.ts",
+    "typecheck": "tsc --noEmit",
+    "check-i18n": "bun run scripts/check-i18n.ts",
+    "test": "bun run test:fast && bun run test:socket",
+    "perf:golden": "bun scripts/perf-golden.ts",
+    "pty:soak": "bun scripts/pty-soak.ts",
+    "test:fast": "vitest run --passWithNoTests --minWorkers=1 --maxWorkers=8",
+    "test:socket": "KOBE_INCLUDE_SOCKET=1 vitest run test/daemon --pool forks --minWorkers=1 --maxWorkers=4 --passWithNoTests",
+    "test:socket:coverage": "KOBE_INCLUDE_SOCKET=1 KOBE_COVERAGE_DAEMON=1 vitest run test/daemon --coverage --pool forks --minWorkers=1 --maxWorkers=4 --passWithNoTests",
+    "test:behavior": "KOBE_INCLUDE_BEHAVIOR=1 vitest run test/behavior --pool forks --minWorkers=1 --maxWorkers=1 --retry=2 --passWithNoTests",
+    "test:render": "bun scripts/render-track.mjs",
+    "coverage": "vitest run --coverage --passWithNoTests",
+    "bench": "vitest bench --run",
+    "lint": "biome check .",
+    "knip": "knip-bun",
+    "postinstall": "bun run scripts/check-preview-deps.ts || true",
+    "prepublishOnly": "bun run typecheck && bun run build",
+    "plugin-sandbox": "bun run scripts/plugin-sandbox.ts"
+  },
+  "//": "biome.json + bunfig.toml live at the monorepo root since they apply repo-wide; bun.lock also lives at root (workspace-shared).",
+  "dependencies": {
+    "@ansi-tools/parser": "^1.0.15",
+    "@opentui/core": "0.4.3",
+    "@opentui/react": "0.4.3",
+    "@xterm/addon-serialize": "^0.14.0",
+    "@xterm/addon-unicode11": "^0.9.0",
+    "@xterm/headless": "^6.0.0",
+    "node-pty": "^1.1.0",
+    "react": "^19.2.8",
+    "smol-toml": "^1.7.1",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@sma1lboy/rove-daemon": "0.7.19",
+    "@tsconfig/bun": "1.0.11",
+    "@types/bun": "1.3.14",
+    "@types/node": "25.6.2",
+    "@types/react": "^19.2.0",
+    "@vitest/coverage-v8": "2.1.9",
+    "knip": "^6.14.2",
+    "react-devtools-core": "^7.0.1",
+    "typescript": "5.8.2",
+    "vitest": "2.1.9"
+  },
+  "trustedDependencies": []
+}

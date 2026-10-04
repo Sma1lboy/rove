@@ -24,7 +24,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 
-const root = process.argv[2] ?? "packages/kobe/src/tui-react"
+const root = process.argv[2] ?? "packages/rove/src/tui-react"
 
 /** Every .ts/.tsx file under `dir`, recursively. */
 function sources(dir) {
@@ -62,8 +62,8 @@ const MARKER = /silent-catch-ok/
  * it and the exemption would lapse without anyone noticing.
  */
 const GRANDFATHERED = new Set([
-  "packages/kobe/src/tui-react/context/kv-core.ts",
-  "packages/kobe/src/tui-react/workspace/host-keybindings.ts",
+  "packages/rove/src/tui-react/context/kv-core.ts",
+  "packages/rove/src/tui-react/workspace/host-keybindings.ts",
 ])
 
 const hits = []

@@ -50,14 +50,14 @@ Filter the JSON yourself; there is no `--state` flag. An issue body often
 carries the repro and the reasoning that a commit message compressed away.
 Cite as `issue #N`.
 
-## 4. `packages/kobe/CHANGELOG.md`
+## 4. `packages/rove/CHANGELOG.md`
 
 ~3800 lines of shipped behavior, one entry per change, generated from
 changesets. The fastest way to date a behavior change and get the phrasing the
 author chose when explaining it to users.
 
 ```bash
-grep -n "<feature>" packages/kobe/CHANGELOG.md | head
+grep -n "<feature>" packages/rove/CHANGELOG.md | head
 ```
 
 Pair a hit with `git log -S` on the same term to get from the note to the diff.

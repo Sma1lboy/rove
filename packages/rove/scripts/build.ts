@@ -1,0 +1,226 @@
+/**
+ * Production build entry.
+ *
+ * Driven from a script (rather than a bare `bun build` CLI call) so the web
+ * dashboard build + dist copy can run alongside the CLI bundle. The React TUI
+ * uses `@opentui/react`'s per-file `@jsxImportSource` pragmas, which Bun's
+ * default transpiler honours — no build plugin required.
+ *
+ * Output: `dist/cli/kobe.js` and `dist/cli/rove.js` with executable perms,
+ * plus their shared `index.js` implementation. Those two bins are the NODE
+ * launcher (src/cli/launcher.ts) — installers disagree about which runtime
+ * starts a bin file, and only node is guaranteed under `npm i -g` / `npx` —
+ * so the Bun bundles they front ship beside them as `<name>-run.js`. After
+ * the kobed → kobe bin merge (KOB-136), daemon lifecycle lives at
+ * `kobe daemon ...`, so there is no separate `kobed` binary to build.
+ *
+ * The canonical Rove SKILL.md is copied from its compatibility source path
+ * into the tarball. `npx skills add Sma1lboy/rove --skill rove` does a `git clone
+ * --depth 1`, which for this repo means 198MB of working tree — unusable
+ * on a slow connection for a file this size. Since the user already has
+ * Rove installed, `rove skill install` points the agent-skills CLI at the
+ * bundled copy instead (a local path, no network). The CLI still owns
+ * agent detection, target dirs, and symlinking — kobe never reimplements
+ * that registry.
+ *
+ * The published artifact carries the `rove-harness` capture page alongside
+ * the TUI, in dist/web-ui, together with the PTY sidecar modules it needs.
+ */
+
+import { existsSync } from "node:fs"
+import { chmod, cp, mkdir, rm } from "node:fs/promises"
+import { API_VERBS } from "../src/cli/api/verbs.ts"
+import { SHELLS, generateCompletions, mergeSubVerbs } from "../src/cli/completion-scripts.ts"
+
+/** Both published bin names; each gets a launcher + the Bun bundle behind it. */
+const CLI_NAMES = ["kobe", "rove"] as const
+const OUT_FILES = CLI_NAMES.flatMap((name) => [`./dist/cli/${name}.js`, `./dist/cli/${name}-run.js`])
+const CLI_OUT_DIR = "./dist/cli"
+/**
+ * Pre-generated shell completions, one file per (bin name, shell).
+ *
+ * Shipped so a shell can `source` a file instead of spawning node → bun to
+ * print 1.8KB of static text on every new shell (`rove completions <shell>
+ * --path` prints the path; `installCompletions` writes it into the rc file).
+ * Generated from the same generators the CLI runs, so the shipped copy and
+ * `completions <shell>` cannot disagree.
+ */
+const COMPLETIONS_OUT_DIR = "./dist/completions"
+/** Canonical skill source (repo root) → its home in the tarball. */
+const SKILL_SRC_DIR = "../../.agents/skills/kobe"
+const SKILL_OUT_DIR = "./dist/skills/rove"
+const WEB_PACKAGE_DIR = "../rove-harness"
+const WEB_DIST_DIR = `${WEB_PACKAGE_DIR}/dist`
+const WEB_OUT_DIR = "./dist/web-ui"
+const WEB_PTY_SIDE_CAR_FILES = [
+  "origin-policy.mjs",
+  "pty-scrollback.mjs",
+  "pty-session-lifecycle.mjs",
+  "pty-server.mjs",
+]
+
+async function buildWebUi(): Promise<void> {
+  if (!existsSync(`${WEB_PACKAGE_DIR}/package.json`)) return
+  const proc = Bun.spawn(["bun", "run", "build"], {
+    cwd: WEB_PACKAGE_DIR,
+    stdout: "inherit",
+    stderr: "inherit",
+  })
+  const code = await proc.exited
+  if (code !== 0) process.exit(code)
+}
+
+async function copyWebUi(): Promise<void> {
+  if (!existsSync(`${WEB_DIST_DIR}/index.html`)) return
+  // Empty dist/web-ui before copying. Vite hashes filenames per build
+  // (index-<hash>.js/.css), so without this old generations pile up here
+  // forever on a long-lived checkout and ship in the npm tarball. Mirror
+  // vite's own emptyOutDir: wipe + recreate, then copy the fresh bundle.
+  await rm(WEB_OUT_DIR, { recursive: true, force: true })
+  await mkdir(WEB_OUT_DIR, { recursive: true })
+  await cp(WEB_DIST_DIR, WEB_OUT_DIR, { recursive: true, force: true })
+  // The PTY server runs unbundled under Node, so every sibling module it
+  // imports must ship next to it (missing one = ERR_MODULE_NOT_FOUND at
+  // sidecar startup in the packaged build).
+  for (const file of WEB_PTY_SIDE_CAR_FILES) {
+    await cp(`${WEB_PACKAGE_DIR}/${file}`, `${WEB_OUT_DIR}/${file}`, { force: true })
+  }
+}
+
+/**
+ * Copy the canonical skill into the tarball. Hard-fails when it's missing:
+ * a silently skill-less build ships a `kobe skill install` that can only
+ * report "not bundled", which is worse than a red build.
+ */
+async function copySkill(): Promise<void> {
+  if (!existsSync(`${SKILL_SRC_DIR}/SKILL.md`)) {
+    console.error(`build failed: canonical skill missing at ${SKILL_SRC_DIR}/SKILL.md`)
+    process.exit(1)
+  }
+  await rm(SKILL_OUT_DIR, { recursive: true, force: true })
+  await mkdir(SKILL_OUT_DIR, { recursive: true })
+  await cp(SKILL_SRC_DIR, SKILL_OUT_DIR, { recursive: true, force: true })
+}
+
+/**
+ * Bake the shell completions into the tarball. Both `completions --path` and
+ * the rc line onboarding writes point at these files, so a build that emitted
+ * none would ship a path that does not exist.
+ */
+async function writeCompletionScripts(): Promise<void> {
+  const subVerbs = mergeSubVerbs(API_VERBS)
+  await rm(COMPLETIONS_OUT_DIR, { recursive: true, force: true })
+  await mkdir(COMPLETIONS_OUT_DIR, { recursive: true })
+  for (const cli of CLI_NAMES) {
+    for (const shell of SHELLS) {
+      await Bun.write(`${COMPLETIONS_OUT_DIR}/${cli}.${shell}`, generateCompletions(shell, cli, subVerbs))
+    }
+  }
+}
+
+await buildWebUi()
+
+// Empty dist/cli before the CLI build, for the same reason copyWebUi() empties
+// dist/web-ui: splitting names chunks by content hash, so every build whose
+// sources changed leaves its predecessor's chunks behind and they ship in the
+// npm tarball forever. Everything in here is regenerated below.
+await rm(CLI_OUT_DIR, { recursive: true, force: true })
+await mkdir(CLI_OUT_DIR, { recursive: true })
+
+const result = await Bun.build({
+  entrypoints: ["./src/cli/index.ts", "./src/cli/kobe.ts", "./src/cli/rove.ts"],
+  outdir: "./dist",
+  root: "./src",
+  target: "bun",
+  conditions: ["browser"],
+  // Without this every `await import()` in src/cli is inlined into one 2.7MB
+  // file, so `rove --version` and every `rove api` verb evaluate the TUI,
+  // opentui and React before they can answer. The laziness is already written
+  // in src/cli/index.ts; splitting is what makes the build honour it.
+  // Chunks are named into `cli/` because package.json `files` ships
+  // `dist/cli`, not `dist` — a chunk emitted at the dist root is absent from
+  // the tarball and the published CLI dies on the first dynamic import.
+  splitting: true,
+  naming: { chunk: "cli/chunk-[hash].[ext]" },
+  // Keep native/runtime-resolved packages external. @opentui/core loads
+  // @opentui/core-${platform}-${arch} dynamically; bundling core moves
+  // that dynamic import into dist/index.js, where Bun can no longer
+  // resolve the optional platform package under isolated installs.
+  external: ["node-pty", "@opentui/core"],
+  // React's production error boundary reports component ownership through
+  // Function.name. Minify syntax and whitespace, but preserve identifiers so
+  // a pane-crash stack stays readable in the shipped bundle.
+  minify: { syntax: true, whitespace: true, identifiers: false },
+  // Without this Bun inlines NODE_ENV as "development", so react/react-reconciler
+  // resolve to their *development* builds and ship to users. Those builds keep
+  // per-update debug bookkeeping alive, which grows unboundedly in a long-lived
+  // TUI — the #307 memory leak.
+  define: { "process.env.NODE_ENV": JSON.stringify("production") },
+})
+
+if (!result.success) {
+  console.error("build failed:")
+  for (const log of result.logs) console.error(log)
+  process.exit(1)
+}
+
+// The Windows PTY host, as a NODE program. Bun rejects its `terminal` spawn
+// option on Windows, and a Bun-hosted node-pty session cannot be written to,
+// so that one process runs under node (see kobe-daemon/daemon/pty-driver.ts).
+// Emitted unconditionally — the npm tarball is built once and installed on
+// every OS, so this file must exist in it regardless of the build machine.
+const ptyHostNode = await Bun.build({
+  entrypoints: ["../rove-daemon/src/daemon/pty-host-node-entry.ts"],
+  outdir: "./dist/cli",
+  target: "node",
+  format: "esm",
+  naming: "pty-host-node.mjs",
+  // node-pty is a native module resolved from the installed package's own
+  // node_modules; bundling its napi loader would break that lookup.
+  external: ["node-pty"],
+})
+
+if (!ptyHostNode.success) {
+  console.error("pty-host node build failed:")
+  for (const log of ptyHostNode.logs) console.error(log)
+  process.exit(1)
+}
+
+/** Write a program file with an explicit shebang, replacing any bundled one. */
+async function writeExecutable(file: string, shebang: string, code: string): Promise<void> {
+  const body = code.startsWith("#!") ? code.slice(code.indexOf("\n") + 1) : code
+  await Bun.write(file, `${shebang}\n${body}`)
+}
+
+// Move the Bun bundles aside so the bin names can carry the node launcher.
+for (const name of CLI_NAMES) {
+  const bundle = await Bun.file(`./dist/cli/${name}.js`).text()
+  await writeExecutable(`./dist/cli/${name}-run.js`, "#!/usr/bin/env bun", bundle)
+}
+
+// The launcher itself, as a NODE program: it runs before any Bun exists, so
+// it can only use plain node APIs (see src/cli/bun-runtime.ts).
+const launcher = await Bun.build({
+  entrypoints: ["./src/cli/launcher.ts"],
+  target: "node",
+  format: "esm",
+  minify: true,
+})
+
+if (!launcher.success) {
+  console.error("launcher build failed:")
+  for (const log of launcher.logs) console.error(log)
+  process.exit(1)
+}
+
+const launcherCode = await launcher.outputs[0].text()
+for (const name of CLI_NAMES) await writeExecutable(`./dist/cli/${name}.js`, "#!/usr/bin/env node", launcherCode)
+
+for (const file of OUT_FILES) await chmod(file, 0o755)
+await writeCompletionScripts()
+await copyWebUi()
+await copySkill()
+
+console.log(
+  `built ${OUT_FILES.join(", ")}, ./dist/cli/pty-host-node.mjs, ${COMPLETIONS_OUT_DIR}/*.${SHELLS.join("|")}, ${SKILL_OUT_DIR}`,
+)

@@ -24,15 +24,15 @@
 import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import type { FlagSpec, VerbGroup, VerbSpec } from "../packages/kobe/src/cli/api/types.ts"
-import { VERB_GROUP_IDS } from "../packages/kobe/src/cli/api/types.ts"
-import { VERBS } from "../packages/kobe/src/cli/api/verbs.ts"
+import type { FlagSpec, VerbGroup, VerbSpec } from "../packages/rove/src/cli/api/types.ts"
+import { VERB_GROUP_IDS } from "../packages/rove/src/cli/api/types.ts"
+import { VERBS } from "../packages/rove/src/cli/api/verbs.ts"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 
 /** Canonical skill first; every other path is a byte copy of it. */
 export const REFERENCE_PATHS = [
-  join(ROOT, ".agents/skills/kobe/references/api-flags.md"),
+  join(ROOT, ".agents/skills/rove/references/api-flags.md"),
   join(ROOT, "claude-plugin/skills/rove/references/api-flags.md"),
 ]
 

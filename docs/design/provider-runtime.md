@@ -18,7 +18,7 @@
 >
 > Companions: [`../DESIGN.md`](../DESIGN.md) §2.2 (the superseded
 > "no `@ai-sdk/*`" lock) and the engine contract in
-> [`packages/kobe/src/engine/registry.ts`](../../packages/kobe/src/engine/registry.ts)
+> [`packages/rove/src/engine/registry.ts`](../../packages/rove/src/engine/registry.ts)
 > (still live). The `src/engine/ai-sdk/harness-turn.ts` runtime this doc
 > originally linked no longer exists.
 

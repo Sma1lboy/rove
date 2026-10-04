@@ -7,7 +7,7 @@ describes, and kept **as written** afterwards. They are dated for that reason.
 
 A plan names the tree it was planning against. Executing it moved, renamed and
 deleted those files — `2026-07-10-embedded-terminal-identity.md` points at
-`packages/kobe-web/pty-server.mjs`, which is `packages/kobe-harness/` since
+`packages/rove-web/pty-server.mjs`, which is `packages/rove-harness/` since
 #871; `2026-07-12-puretui-only-tmux-removal.md` points at the `src/tmux/`
 modules whose deletion was the plan's whole point.
 
@@ -17,7 +17,7 @@ record would be worth less, not more. A mechanical path sweep over the repo
 will flag these; that is the sweep being wrong about this directory.
 
 To find out what the code does now, read the code, `docs/`, or
-[`packages/kobe/CHANGELOG.md`](../../../packages/kobe/CHANGELOG.md) — not these.
+[`packages/rove/CHANGELOG.md`](../../../packages/rove/CHANGELOG.md) — not these.
 
 ## Where live documentation lives instead
 

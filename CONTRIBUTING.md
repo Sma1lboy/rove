@@ -11,7 +11,7 @@ Read these, in order:
 1. [`docs/DESIGN.md`](./docs/DESIGN.md) — design philosophy, architecture decisions, tech stack.
 2. [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — source-tree map and ownership boundaries.
 3. [`docs/KEYBINDINGS.md`](./docs/KEYBINDINGS.md) — required reading before adding or moving any keyboard chord.
-4. [`packages/kobe/CHANGELOG.md`](./packages/kobe/CHANGELOG.md) — current shipped behavior and release-note style.
+4. [`packages/rove/CHANGELOG.md`](./packages/rove/CHANGELOG.md) — current shipped behavior and release-note style.
 
 The tech stack is locked: **TypeScript + `@opentui/core` + `@opentui/react` + React 19 + Bun**. Proposals to swap any of these will not be accepted — see `docs/DESIGN.md` for why.
 
@@ -31,14 +31,14 @@ bun install
 
 This is a Bun-workspaces monorepo:
 
-- [`packages/kobe/`](./packages/kobe) — the published CLI and PureTUI.
-- [`packages/kobe-daemon/`](./packages/kobe-daemon) — daemon protocol/server and Hosted PTY runtime.
-- [`packages/kobe-harness/`](./packages/kobe-harness) — the `/harness` capture page and its PTY sidecar.
+- [`packages/rove/`](./packages/rove) — the published CLI and PureTUI.
+- [`packages/rove-daemon/`](./packages/rove-daemon) — daemon protocol/server and Hosted PTY runtime.
+- [`packages/rove-harness/`](./packages/rove-harness) — the `/harness` capture page and its PTY sidecar.
 - [`packages/branding/`](./packages/branding) — Remotion render pipeline for brand assets.
 
 The current ownership map is in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
-Run package scripts from the root via `bun --filter @sma1lboy/rove <script>`, or `cd packages/kobe` first. Most common scripts are also aliased at the root (`bun run dev`, `bun run test`, etc.).
+Run package scripts from the root via `bun --filter @sma1lboy/rove <script>`, or `cd packages/rove` first. Most common scripts are also aliased at the root (`bun run dev`, `bun run test`, etc.).
 
 ### Reference repos (optional but recommended)
 
@@ -51,7 +51,7 @@ Two dev flavours:
 | Script | Engine | State directory | Use when |
 |---|---|---|---|
 | `bun run dev` | Real `claude` / `codex` | `~/.rove` (production) | Touching production-style state. |
-| `bun run dev:sandbox` | Real `claude` / `codex` | `packages/kobe/.dev-sandbox/home` (throwaway) | Day-to-day development. Won't touch your real `~/.rove` state. |
+| `bun run dev:sandbox` | Real `claude` / `codex` | `packages/rove/.dev-sandbox/home` (throwaway) | Day-to-day development. Won't touch your real `~/.rove` state. |
 
 The sandbox gets its own home, daemon, and PTY host, so it can coexist with production Rove. After changing daemon, orchestrator, or engine code, run `bun run dev:sandbox:reset` so a long-lived sandbox process isn't still running old code.
 
@@ -106,7 +106,7 @@ The product backlog is local. Everything used for normal development is
 repo-local:
 
 - **Backlog**: the daemon-owned issue store — see [`docs/WORK-TRACKING.md`](./docs/WORK-TRACKING.md).
-- **Shipped behavior**: [`packages/kobe/CHANGELOG.md`](./packages/kobe/CHANGELOG.md), via changesets.
+- **Shipped behavior**: [`packages/rove/CHANGELOG.md`](./packages/rove/CHANGELOG.md), via changesets.
 - **Durable design decisions**: Markdown in `docs/`.
 
 GitHub Issues are reserved for inbound user reports; do not create them for

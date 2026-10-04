@@ -1,6 +1,6 @@
 # Why `TerminalTabs.tsx` is not split further
 
-`packages/kobe/src/tui-react/workspace/TerminalTabs.tsx` sits at ~495 lines, close to the repo's file-size cap. It has been reviewed twice for further splitting; both reviews concluded that the remaining code is intrinsic integration glue and should stay where it is.
+`packages/rove/src/tui-react/workspace/TerminalTabs.tsx` sits at ~495 lines, close to the repo's file-size cap. It has been reviewed twice for further splitting; both reviews concluded that the remaining code is intrinsic integration glue and should stay where it is.
 
 This document records that decision and the analysis behind it so the next reader does not repeat the same investigation.
 

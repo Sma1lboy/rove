@@ -18,10 +18,10 @@ Three runners. Picking the wrong one looks like a broken environment.
 
 ## Scripts and dev flavours
 
-Run scripts via `bun --filter @sma1lboy/rove <script>` or `cd packages/kobe && bun <script>`.
+Run scripts via `bun --filter @sma1lboy/rove <script>` or `cd packages/rove && bun <script>`.
 
 - `dev` — real engines, **production** Rove state.
-- `dev:sandbox` — real engines + your real `HOME`, throwaway Rove state under `packages/kobe/.dev-sandbox/home`. Use this one.
+- `dev:sandbox` — real engines + your real `HOME`, throwaway Rove state under `packages/rove/.dev-sandbox/home`. Use this one.
 
 The old `@sma1lboy/kobe` package name is frozen at 0.9.64; `kobe-docs/` is the public docs site (Fumadocs on Next.js, static export, content synced from `docs/`).
 
@@ -35,7 +35,7 @@ Mechanics: [`docs/design/daemon.md`](../design/daemon.md).
 
 ## Per-repo init
 
-A repo can ship `.rove/init.sh` (runs before the engine, in the worktree) and `.rove/init-prompt.md` (the engine's first message). `.kobe/` spellings remain field-by-field fallbacks; repo files win over the per-user state.json override. Mechanics: [`src/state/repo-init.ts`](../../packages/kobe/src/state/repo-init.ts), user docs in [`CONFIGURATION.md`](../CONFIGURATION.md).
+A repo can ship `.rove/init.sh` (runs before the engine, in the worktree) and `.rove/init-prompt.md` (the engine's first message). `.kobe/` spellings remain field-by-field fallbacks; repo files win over the per-user state.json override. Mechanics: [`src/state/repo-init.ts`](../../packages/rove/src/state/repo-init.ts), user docs in [`CONFIGURATION.md`](../CONFIGURATION.md).
 
 ## Engine-owned UI data
 

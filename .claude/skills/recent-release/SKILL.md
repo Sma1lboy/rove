@@ -1,6 +1,6 @@
 ---
 name: recent-release
-description: Render Rove's recent releases as a self-contained, Rove-styled HTML page (Chinese by default). Reads shipped notes from packages/kobe/CHANGELOG.md + git tags, filters to user-facing changes, and emits one standalone .html file in the `claude` theme (terracotta on near-black, JetBrains Mono, terminal chrome). Use when the user asks for a "release page", "发版速览", "recent release html", "把发版做成网页", or wants to share/post what changed.
+description: Render Rove's recent releases as a self-contained, Rove-styled HTML page (Chinese by default). Reads shipped notes from packages/rove/CHANGELOG.md + git tags, filters to user-facing changes, and emits one standalone .html file in the `claude` theme (terracotta on near-black, JetBrains Mono, terminal chrome). Use when the user asks for a "release page", "发版速览", "recent release html", "把发版做成网页", or wants to share/post what changed.
 metadata:
   internal: true
 ---
@@ -27,7 +27,7 @@ Do NOT use this to draft changelog entries — that's `changelog-generator`. Thi
 
 ## How to build
 
-1. **Gather the releases.** Read the top of [`packages/kobe/CHANGELOG.md`](../../../packages/kobe/CHANGELOG.md) for the version sections in range. Cross-check dates with `git log --pretty="%h %ad %s" --date=short | grep -i "chore: release"` so each version gets its real release date and "today" is correct (the env's `currentDate` is the reference for "today").
+1. **Gather the releases.** Read the top of [`packages/rove/CHANGELOG.md`](../../../packages/rove/CHANGELOG.md) for the version sections in range. Cross-check dates with `git log --pretty="%h %ad %s" --date=short | grep -i "chore: release"` so each version gets its real release date and "today" is correct (the env's `currentDate` is the reference for "today").
 2. **Filter to user-facing.** Keep features, visible behaviour changes, bug fixes the user can feel, packaging/install changes. **Drop** entries the changeset marked internal — anything starting `Internal:` / `Internal (web):` / pure refactor / test-only / "No behavior change". Same bar as `changelog-generator`'s Filtering section: "would a user reading github.com/Sma1lboy/rove/releases care?"
 3. **Classify each kept entry** as `FEAT` (new capability) or `FIX` (bug/behaviour fix). Map from the verb: "Add/新增" → FEAT, "Fix/修复" → FIX. Internal-but-shipped tooling (e.g. `rove export`) is FEAT.
 4. **Translate to natural Chinese** (unless `en`). Keep code identifiers, CLI commands, key chords, file paths, and the version numbers verbatim — only prose is translated. Render key chords with the `.kbd` style, code with `<code>`.

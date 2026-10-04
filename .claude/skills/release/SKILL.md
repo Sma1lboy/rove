@@ -88,12 +88,12 @@ Then decide:
   not a patch. Intended?"* Only continue on an explicit yes. Do **not** edit
   someone's changeset bump without permission.
 
-Record the predicted next version (current `packages/kobe/package.json` version
+Record the predicted next version (current `packages/rove/package.json` version
 applied with the detected bump) so you can verify it later.
 
 ## Step 2 — Run the gates locally (abort on failure)
 
-`scripts/release.sh` enforces `lint && typecheck && (cd packages/kobe && bun
+`scripts/release.sh` enforces `lint && typecheck && (cd packages/rove && bun
 run test)` itself before touching version/CHANGELOG, and `release.yml`
 re-runs lint + typecheck + test + build + the behavior suite before
 `npm publish`. Running the same set here first just fails fast, before burning a
@@ -104,7 +104,7 @@ bun run lint
 bun run typecheck
 bun run test            # fast Vitest + unix-socket daemon/bridge suite
 bun run build
-cd packages/kobe && bun run perf:golden   # golden perf doctor (~90s incl. binary compile smoke; docs/HARNESS.md §Performance contracts)
+cd packages/rove && bun run perf:golden   # golden perf doctor (~90s incl. binary compile smoke; docs/HARNESS.md §Performance contracts)
 ```
 
 `perf:golden` ceilings are 2-3× the reference numbers, so a FAIL means a real
@@ -182,14 +182,14 @@ npm view @sma1lboy/rove@<new-version> version          # the published package; 
 # and do not "fix" its absence from a release.
 # Every Rove release checks the SDK's current version and publishes either
 # missing package name, even without a new SDK changeset. Always verify both
-# names at the version recorded in packages/kobe-plugin-sdk/package.json:
+# names at the version recorded in packages/rove-plugin-sdk/package.json:
 npm view @sma1lboy/rove-plugin-sdk@<sdk-version> version
 npm view @sma1lboy/kobe-plugin-sdk@<sdk-version> version
 gh release view v<new-version> --json name -q .name    # GitHub release exists
 ```
 
 Confirm: `@sma1lboy/rove` and both SDK names report their expected versions,
-the Rove version matches the tag and `packages/kobe/package.json`,
+the Rove version matches the tag and `packages/rove/package.json`,
 and the release landed on `main` (`git log --oneline -1 origin/main` is the `chore: release` commit).
 Then report done with the version, the npm dist-tag it went to (`latest` for
 plain semver), and the release URL.

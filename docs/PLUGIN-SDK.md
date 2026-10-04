@@ -35,7 +35,7 @@ exposes them as typed objects.
 (`event`, `taskId`, `taskTitle`, `actionId`, `invokeCwd`, `entrypointId`).
 
 Runnable example:
-[`packages/kobe-plugin-sdk/examples/hello-events/`](https://github.com/Sma1lboy/rove/blob/main/packages/kobe-plugin-sdk/examples/hello-events/).
+[`packages/rove-plugin-sdk/examples/hello-events/`](https://github.com/Sma1lboy/rove/blob/main/packages/rove-plugin-sdk/examples/hello-events/).
 
 ```ts
 import { pluginContext, pluginEvent } from "@sma1lboy/rove-plugin-sdk"

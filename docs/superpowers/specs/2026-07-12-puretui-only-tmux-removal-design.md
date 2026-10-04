@@ -78,9 +78,9 @@ the engine returns to a shell rather than terminating the terminal tab.
 
 Delete tmux-only code rather than retaining disabled adapters:
 
-- `packages/kobe/src/tmux/` after moving genuinely generic helpers.
+- `packages/rove/src/tmux/` after moving genuinely generic helpers.
 - tmux session/layout/chattab/heal modules under
-  `packages/kobe/src/tui/panes/terminal/`.
+  `packages/rove/src/tui/panes/terminal/`.
 - the direct Handover entrypoint and task-enter/switch-client plumbing.
 - tmux-only Tasks/Ops/quick-task/settings/help/update/worktree/history pane-host
   entrypoints while retaining components and framework-free cores used by the

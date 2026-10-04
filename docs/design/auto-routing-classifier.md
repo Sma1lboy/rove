@@ -12,7 +12,7 @@
 > 「给人读的」和「实际发出去的」因此是同一份文本，由
 > `test/engine/tier-rubric-generated.test.ts` 盯着。
 
-`autoRouting` 今天只做一半。[`engine/auto-routing.ts`](../../packages/kobe/src/engine/auto-routing.ts)
+`autoRouting` 今天只做一半。[`engine/auto-routing.ts`](../../packages/rove/src/engine/auto-routing.ts)
 的注释把边界写得很清楚：
 
 > No classifier, no auto-pick: the tier is a one-keystroke fill of three fields

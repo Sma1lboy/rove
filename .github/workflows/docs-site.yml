@@ -1,4 +1,4 @@
-# The public docs site (packages/kobe-docs), gated only when it can break.
+# The public docs site (packages/rove-docs), gated only when it can break.
 #
 # This lived in ci.yml and ran on every PR, costing ~60s on changes that
 # could not possibly affect it. GitHub's `paths` filter only exists at the
@@ -24,13 +24,13 @@ on:
     branches: [main]
     paths:
       - "docs/**"
-      - "packages/kobe-docs/**"
+      - "packages/rove-docs/**"
       - ".github/workflows/docs-site.yml"
   pull_request:
     branches: [main]
     paths:
       - "docs/**"
-      - "packages/kobe-docs/**"
+      - "packages/rove-docs/**"
       - ".github/workflows/docs-site.yml"
 
 permissions:
@@ -63,4 +63,4 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build docs site (sync + next build)
-        run: bun run --filter @sma1lboy/kobe-docs build
+        run: bun run --filter @sma1lboy/rove-docs build

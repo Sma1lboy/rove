@@ -33,7 +33,7 @@ model — so no plugin layer is pre-built for one implementation. Adding Linear
 or Jira later means writing that provider, not filling in a hook.
 
 `gh` failures are classified into the three fixes that differ
-([`work-items.ts`](../../packages/kobe-daemon/src/daemon/work-items.ts)):
+([`work-items.ts`](../../packages/rove-daemon/src/daemon/work-items.ts)):
 
 | kind | Message |
 |---|---|
@@ -52,7 +52,7 @@ than refetching.
 
 ## Starting work
 
-`workitem-start` ([`work-item-start.ts`](../../packages/kobe-daemon/src/daemon/work-item-start.ts)):
+`workitem-start` ([`work-item-start.ts`](../../packages/rove-daemon/src/daemon/work-item-start.ts)):
 
 1. Re-fetch the single issue **with its body** (the list view omits bodies)
 2. `createTask` titled `#<number> <title>` — the number stays at the front so a

@@ -21,7 +21,7 @@
 # Standalone binaries were dropped 2026-08-02 (owner): npm is the sole
 # distribution channel — the install/update flows already run through it,
 # nothing consumed the tarballs, and the 3-runner matrix was pure release
-# latency. `packages/kobe/scripts/compile.ts` still builds one locally if
+# latency. `packages/rove/scripts/compile.ts` still builds one locally if
 # a binary is ever needed ad hoc.
 #
 # Required repo secrets:
@@ -88,7 +88,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Render tests and coverage (kobe package)
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: bun run test:render
 
   visual-ground-truth:
@@ -109,11 +109,11 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build canonical Rove artifacts
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: bun run build
 
       - name: Verify node-pty can create a real child terminal
-        working-directory: packages/kobe-harness
+        working-directory: packages/rove-harness
         run: |
           node --input-type=module <<'EOF'
           import { spawn } from "node-pty"
@@ -127,11 +127,11 @@ jobs:
           EOF
 
       - name: Install Chromium for the visual ground-truth harness
-        working-directory: packages/kobe-harness
+        working-directory: packages/rove-harness
         run: bunx playwright install chromium
 
       - name: Visual journey (browser → PTY → real OpenTUI)
-        working-directory: packages/kobe-harness
+        working-directory: packages/rove-harness
         run: bun run visual
 
   publish:
@@ -166,23 +166,23 @@ jobs:
         # `bun run test` = test:fast + test:socket (same as ci.yml's PR gate —
         # the release gate must not be weaker than the PR gate). Behavior
         # tests already ran in the required behavior job above.
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: bun run test
 
       - name: Build
         run: bun run build
 
       - name: Verify tag matches package.json
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::tag $TAG_VERSION does not match packages/kobe/package.json version $PKG_VERSION"
-            echo "Bump packages/kobe/package.json before tagging, or retag after bumping."
+            echo "::error::tag $TAG_VERSION does not match packages/rove/package.json version $PKG_VERSION"
+            echo "Bump packages/rove/package.json before tagging, or retag after bumping."
             exit 1
           fi
-          echo "tag and packages/kobe/package.json agree on $PKG_VERSION"
+          echo "tag and packages/rove/package.json agree on $PKG_VERSION"
 
       - name: Resolve release channel
         id: channel
@@ -205,7 +205,7 @@ jobs:
 
       - name: Extract changelog section
         id: changelog
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           # Pull everything between this version's heading and the next one.
@@ -218,7 +218,7 @@ jobs:
             found { print }
           ' CHANGELOG.md)
           if [ -z "$(echo "$NOTES" | tr -d '[:space:]')" ]; then
-            NOTES="See [CHANGELOG.md](./packages/kobe/CHANGELOG.md) for details."
+            NOTES="See [CHANGELOG.md](./packages/rove/CHANGELOG.md) for details."
           fi
           {
             echo 'notes<<CHANGELOG_EOF'
@@ -242,7 +242,7 @@ jobs:
         # name is now frozen, and `rove update` on an installation of it
         # reports the newest @sma1lboy/rove. Nothing here should start
         # publishing it again — see docs/RELEASING.md.
-        working-directory: packages/kobe
+        working-directory: packages/rove
         run: |
           V=$(node -p "require('./package.json').version")
           if npm view "@sma1lboy/rove@$V" version >/dev/null 2>&1; then
@@ -257,7 +257,7 @@ jobs:
         # version is on npm and publishes it when it isn't. Build before the
         # existence check so a partial rerun can still publish the compatibility
         # alias from a fresh dist even when the canonical version already exists.
-        working-directory: packages/kobe-plugin-sdk
+        working-directory: packages/rove-plugin-sdk
         run: |
           V=$(node -p "require('./package.json').version")
           bun run build
@@ -271,7 +271,7 @@ jobs:
       - name: Publish plugin SDK compatibility alias
         # Existing plugins keep importing the Kobe-named SDK. Publish the
         # same build/version under both names; only package.json#name differs.
-        working-directory: packages/kobe-plugin-sdk
+        working-directory: packages/rove-plugin-sdk
         run: |
           V=$(node -p "require('./package.json').version")
           if npm view "@sma1lboy/kobe-plugin-sdk@$V" version >/dev/null 2>&1; then

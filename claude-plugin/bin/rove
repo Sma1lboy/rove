@@ -5,7 +5,7 @@
 # so hook commands never depend on the user's PATH or shell aliases. The
 # wrapper's only job is to find a real Rove install and exec it.
 #
-# Hook contract (see packages/kobe/src/cli/hook-cmd.ts): a hook invocation must
+# Hook contract (see packages/rove/src/cli/hook-cmd.ts): a hook invocation must
 # never fail the engine's action. If no Rove install is found, `hook` verbs
 # exit 0 silently — the activity event is simply dropped, same as when the
 # daemon isn't running. Any other verb reports the missing install loudly.

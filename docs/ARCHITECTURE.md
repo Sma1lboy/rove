@@ -29,7 +29,7 @@ reuse their directory and do not own a Rove-created worktree or branch.
 
 ## 2. Package map
 
-- `packages/kobe/` — CLI and PureTUI, published as `@sma1lboy/rove`. (The directory keeps its old name; the `@sma1lboy/kobe` package was published in lockstep until 0.9.64 and is now frozen.)
+- `packages/rove/` — CLI and PureTUI, published as `@sma1lboy/rove`. (The directory keeps its old name; the `@sma1lboy/kobe` package was published in lockstep until 0.9.64 and is now frozen.)
   - `src/cli/` — command routing, help, API handlers, daemon and PTY-host
     process entrypoints.
   - `src/engine/` — engine registry, command/capability/history adapters,
@@ -40,11 +40,11 @@ reuse their directory and do not own a Rove-created worktree or branch.
   - `src/tui/` — framework-free keymap, state, terminal, file, sidebar, and
     workspace cores.
   - `src/tui-react/` — the only UI implementation: React 19 over opentui.
-- `packages/kobe-daemon/` — Unix-socket daemon protocol/server, standalone
+- `packages/rove-daemon/` — Unix-socket daemon protocol/server, standalone
   PTY Host implementation, and the plugin core
   (`src/plugins/`: manifest, registry, event derivation, daemon-side host —
   see [docs/design/plugins.md](./design/plugins.md)).
-- `packages/kobe-harness/` — the `/harness` capture page and its PTY sidecar (see docs/HARNESS.md).
+- `packages/rove-harness/` — the `/harness` capture page and its PTY sidecar (see docs/HARNESS.md).
   **Frozen (2026-07-25):** no new features. It survives because its `/harness`
   route is the only sanctioned visual ground truth for OpenTUI work, not
   because the SPA is a product surface. Every extra GUI consumer is another
@@ -53,7 +53,7 @@ reuse their directory and do not own a Rove-created worktree or branch.
   surface work to the TUI. The `kobe-desktop` Electron shell was removed the
   same day for the same reason.
 - `packages/branding/` — Remotion assets and checked-in replay rendering.
-- `packages/kobe-docs/` — public docs site (Fumadocs on Next.js, static
+- `packages/rove-docs/` — public docs site (Fumadocs on Next.js, static
   export). Content is synced from `docs/` by `scripts/sync-docs.mjs`
   (frontmatter injection + link rewriting); edit the source in `docs/`,
   never the generated copies.
@@ -129,7 +129,7 @@ from creating duplicate children.
 - Task index: `<ROVE_HOME>/.rove/tasks.json` (legacy `.kobe/tasks.json` is copied additively when the new daemon starts, after the old writer stops)
 - Runtime: `<ROVE_HOME>/.rove/{daemon,pty}.{sock,pid,log}` + `client.log`. A socket is the ADDRESS of a live process, so a legacy `.kobe` path is still used while the process holding it is alive (`daemon/paths.ts`) — otherwise an upgrade would orphan every engine tab the running PTY host owns.
 - UI/settings state: platform config home, normally
-  `~/.config/rove/state.json` (legacy `.config/kobe/state.json` is copied without overwrite)
+  `~/.config/rove/state.json` (legacy `.config/rove/state.json` is copied without overwrite)
 - Daemon socket/pid/log: derived from `ROVE_HOME_DIR` (`KOBE_HOME_DIR` fallback) and intentionally retain legacy `.kobe` runtime names
 - PTY Host socket/pid/log plus bounded `pty-sessions/` recovery snapshots and
   `pty-exits.json` abnormal-exit tails: derived independently from the same home

@@ -1,0 +1,346 @@
+/**
+ * Behavioral tests for the `kobe add` / `kobe remove` / `kobe adopt`
+ * subcommands in `src/cli/index.ts` — the sibling of
+ * `index-dispatch.test.ts` (same fresh-import + first-exit-throws
+ * technique; see that file's header). Here the state/orchestrator/daemon
+ * seams are stateful fakes so the tests assert real flow decisions:
+ * which target `remove` matches, when `add` folds worktrees in, and when
+ * `adopt` requires the glob + `--yes` gate.
+ */
+
+import { type MockInstance, afterEach, beforeEach, describe, expect, test, vi } from "vitest"
+import type { AdoptableWorktree } from "../../src/types/worktree"
+
+const fake = vi.hoisted(() => ({
+  savedRepos: [] as string[],
+  isGitRepo: true,
+  repoRootOf: {} as Record<string, string>,
+  adoptable: [] as Array<{ path: string; branch: string; dirty?: boolean; kobeManaged?: boolean }>,
+  customEngineIds: [] as string[],
+  discoverError: null as Error | null,
+  // Mirrors the real `addSavedRepo`, which owns the admission gate: an
+  // ineligible path comes back `rejected` instead of being written.
+  // `rove add` turns that into its exit-1 error.
+  addSavedRepo: vi.fn((p: string) =>
+    fake.isGitRepo ? { added: true, path: p, total: 1 } : { added: false, path: p, total: 0, rejected: "notGitRepo" },
+  ),
+  adoptWorktree: vi.fn(async (args: { worktreePath: string }) => ({
+    id: `task-${args.worktreePath.split("/").pop()}`,
+    title: "adopted",
+  })),
+  remoteRepos: {} as Record<string, { auth: { kind: string; keychainRef?: { service: string; account: string } } }>,
+  keychainSupported: true,
+  deleteKeychainPassword: vi.fn((_ref: { service: string; account: string }) => true),
+  forgetProject: vi.fn(async (_repo: string) => {}),
+  ensureMainTask: vi.fn(async (repo: string) => ({ id: "main-1", kind: "main", repo })),
+  daemonClient: null as null | { request: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> },
+}))
+
+vi.mock("../../src/state/repos.ts", () => ({
+  addSavedRepo: fake.addSavedRepo,
+  isGitRepo: vi.fn(() => fake.isGitRepo),
+  getSavedRepos: vi.fn(() => fake.savedRepos),
+  resolveRepoRoot: vi.fn((p: string) => fake.repoRootOf[p] ?? p),
+  getCustomEngineIds: vi.fn(() => fake.customEngineIds),
+  setPersistedString: vi.fn(),
+  getRemoteRepoConfig: vi.fn((key: string) => fake.remoteRepos[key] ?? null),
+}))
+vi.mock("../../src/orchestrator/index/store.ts", () => ({
+  TaskIndexStore: class {
+    async load() {}
+  },
+}))
+vi.mock("../../src/orchestrator/worktree/manager.ts", () => ({ GitWorktreeManager: class {} }))
+vi.mock("../../src/orchestrator/core.ts", () => ({
+  Orchestrator: class {
+    async discoverAdoptableWorktrees(): Promise<AdoptableWorktree[]> {
+      if (fake.discoverError) throw fake.discoverError
+      return fake.adoptable.map((w) => ({
+        path: w.path,
+        branch: w.branch,
+        dirty: w.dirty ?? false,
+        kobeManaged: w.kobeManaged ?? true,
+      })) as unknown as AdoptableWorktree[]
+    }
+    async forgetProject(repo: string) {
+      await fake.forgetProject(repo)
+    }
+    async ensureMainTask(repo: string) {
+      return fake.ensureMainTask(repo)
+    }
+    async adoptWorktree(args: { worktreePath: string }) {
+      return fake.adoptWorktree(args)
+    }
+  },
+}))
+vi.mock("../../src/exec/keychain.ts", () => ({
+  deleteKeychainPassword: fake.deleteKeychainPassword,
+  isKeychainSupported: vi.fn(() => fake.keychainSupported),
+}))
+vi.mock("@sma1lboy/rove-daemon/client/daemon-process", () => ({
+  connectIfRunning: vi.fn(async () => fake.daemonClient),
+}))
+
+let originalArgv: string[]
+let exitSpy: ReturnType<typeof vi.fn>
+let logSpy: MockInstance
+let stderrSpy: MockInstance
+
+async function runCli(...args: string[]): Promise<void> {
+  process.argv = ["bun", "/rove/src/cli/index.ts", ...args]
+  vi.resetModules()
+  await import("../../src/cli/index.ts")
+  for (let i = 0; i < 3; i++) await new Promise((r) => setImmediate(r))
+}
+
+function logText(): string {
+  return logSpy.mock.calls.map((c) => c.map(String).join(" ")).join("\n")
+}
+
+function stderrText(): string {
+  return stderrSpy.mock.calls.map((c) => String(c[0])).join("")
+}
+
+beforeEach(() => {
+  fake.savedRepos = []
+  fake.isGitRepo = true
+  fake.repoRootOf = {}
+  fake.adoptable = []
+  fake.customEngineIds = []
+  fake.discoverError = null
+  fake.daemonClient = null
+  fake.remoteRepos = {}
+  fake.keychainSupported = true
+  fake.deleteKeychainPassword.mockClear().mockReturnValue(true)
+  originalArgv = process.argv
+  let exited = false
+  exitSpy = vi.fn((code?: number) => {
+    if (!exited) {
+      exited = true
+      throw new Error(`process.exit(${code}) sentinel`)
+    }
+  })
+  vi.spyOn(process, "exit").mockImplementation(exitSpy as unknown as typeof process.exit)
+  logSpy = vi.spyOn(console, "log").mockImplementation(() => {})
+  vi.spyOn(console, "error").mockImplementation(() => {})
+  vi.spyOn(process.stdout, "write").mockImplementation(() => true)
+  stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+})
+
+afterEach(() => {
+  process.argv = originalArgv
+  vi.restoreAllMocks()
+  vi.clearAllMocks()
+})
+
+describe("kobe add", () => {
+  test("saves a git repo and reports the total", async () => {
+    await runCli("add", "/repo")
+    expect(fake.addSavedRepo).toHaveBeenCalledWith("/repo")
+    expect(logText()).toContain("added /repo (1 saved repo total)")
+    // The repo's main task (= the sidebar PROJECTS row) is provisioned even
+    // when there are no worktrees to adopt — no daemon running → in-process.
+    expect(fake.ensureMainTask).toHaveBeenCalledWith("/repo")
+  })
+
+  test("rejects a non-git path with exit 1 before polluting the picker", async () => {
+    fake.isGitRepo = false
+    await runCli("add", ",")
+    // The gate moved INSIDE addSavedRepo (state/project-eligibility.ts), so
+    // the call happens and returns a refusal — what must not happen is a
+    // saved entry, and what must happen is a non-zero exit naming the reason.
+    expect(fake.addSavedRepo).toHaveReturnedWith(expect.objectContaining({ added: false, rejected: "notGitRepo" }))
+    expect(exitSpy).toHaveBeenCalledWith(1)
+    expect(stderrText()).toContain("not a git repository")
+  })
+
+  test("folds the repo's unlinked worktrees in as tasks (KOB-256)", async () => {
+    fake.adoptable = [{ path: "/repo/.claude/worktrees/lynx", branch: "kobe/lynx" }]
+    await runCli("add", "/repo")
+    expect(fake.adoptWorktree).toHaveBeenCalledWith(
+      expect.objectContaining({ worktreePath: "/repo/.claude/worktrees/lynx" }),
+    )
+    expect(logText()).toContain("importing")
+    expect(logText()).toContain("adopted kobe/lynx")
+  })
+
+  test("a worktree-scan failure is reported but does not fail the add", async () => {
+    fake.discoverError = new Error("git broke")
+    await runCli("add", "/repo")
+    expect(fake.addSavedRepo).toHaveBeenCalled()
+    expect(exitSpy).not.toHaveBeenCalled()
+  })
+
+  test("adopts through a RUNNING daemon when one is up (live TUI updates)", async () => {
+    fake.adoptable = [{ path: "/repo/wt-a", branch: "kobe/a" }]
+    const request = vi.fn(async () => ({ task: { id: "d1", title: "via-daemon" } }))
+    const close = vi.fn()
+    fake.daemonClient = { request, close }
+    await runCli("add", "/repo")
+    expect(request).toHaveBeenCalledWith("worktree.adopt", {
+      repo: "/repo",
+      worktreePath: "/repo/wt-a",
+      branch: "kobe/a",
+      vendor: "claude",
+    })
+    expect(close).toHaveBeenCalled()
+    // The in-process orchestrator write path is NOT used when the daemon answers.
+    expect(fake.adoptWorktree).not.toHaveBeenCalled()
+    expect(logText()).toContain("adopted kobe/a → task d1 (via-daemon)")
+    // Main-task provisioning also rides the daemon so the live TUI's
+    // PROJECTS list gains the repo immediately.
+    expect(request).toHaveBeenCalledWith("task.ensureMain", { repo: "/repo" })
+    expect(fake.ensureMainTask).not.toHaveBeenCalled()
+  })
+})
+
+describe("kobe remove", () => {
+  test("rejects an unknown flag with exit 2 and the usage text", async () => {
+    await runCli("remove", "--frobnicate")
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(stderrText()).toContain('unknown flag "--frobnicate"')
+    expect(stderrText()).toContain("Usage: kobe remove")
+  })
+
+  test("an exact saved entry (e.g. a garbage or ssh:// key) is removable verbatim", async () => {
+    fake.savedRepos = ["ssh://dev@box", "/repo"]
+    await runCli("remove", "ssh://dev@box")
+    expect(fake.forgetProject).toHaveBeenCalledWith("ssh://dev@box")
+  })
+
+  test("a subdirectory resolves to its git toplevel before matching", async () => {
+    fake.savedRepos = ["/repo"]
+    fake.repoRootOf["/repo/packages/sub"] = "/repo"
+    await runCli("remove", "/repo/packages/sub")
+    expect(fake.forgetProject).toHaveBeenCalledWith("/repo")
+  })
+
+  // The stored SSH password is the one thing `remove` must not destroy by
+  // default — but before this it had no deletion path at all once the
+  // `remoteRepos` entry holding its keychain ref was dropped.
+  describe("remote credentials", () => {
+    const SSH = "ssh://dev@box"
+    const ref = { service: "kobe-remote-ssh", account: "dev@box" }
+
+    function withPassword(): void {
+      fake.savedRepos = [SSH]
+      fake.remoteRepos[SSH] = { auth: { kind: "password", keychainRef: ref } }
+    }
+
+    test("keeps the keychain password and names the flag that deletes it", async () => {
+      withPassword()
+      await runCli("remove", SSH)
+      expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
+      expect(logText()).toContain("--purge-credentials")
+      expect(logText()).toContain("dev@box")
+    })
+
+    test("--purge-credentials deletes it", async () => {
+      withPassword()
+      await runCli("remove", SSH, "--purge-credentials")
+      expect(fake.deleteKeychainPassword).toHaveBeenCalledWith(ref)
+      expect(fake.forgetProject).toHaveBeenCalledWith(SSH)
+    })
+
+    test("--purge-credentials=false keeps it", async () => {
+      withPassword()
+      await runCli("remove", SSH, "--purge-credentials=false")
+      expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
+      expect(fake.forgetProject).toHaveBeenCalledWith(SSH)
+    })
+
+    test("an unreadable --purge-credentials value exits 2 before forgetting anything", async () => {
+      withPassword()
+      await runCli("remove", SSH, "--purge-credentials=nope")
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(stderrText()).toContain("--purge-credentials takes true or false")
+      expect(fake.forgetProject).not.toHaveBeenCalled()
+      expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
+    })
+
+    test("a key-auth remote has no password, so no note and no delete", async () => {
+      fake.savedRepos = [SSH]
+      fake.remoteRepos[SSH] = { auth: { kind: "key" } }
+      await runCli("remove", SSH)
+      expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
+      expect(logText()).not.toContain("--purge-credentials")
+    })
+  })
+
+  test("no match prints the saved list to stderr and exits 1", async () => {
+    fake.savedRepos = ["/other"]
+    await runCli("remove", "/nope")
+    expect(exitSpy).toHaveBeenCalledWith(1)
+    expect(stderrText()).toContain("/other")
+    expect(fake.forgetProject).not.toHaveBeenCalled()
+  })
+
+  test("prefers a RUNNING daemon so a live TUI updates", async () => {
+    fake.savedRepos = ["/repo"]
+    const request = vi.fn(async () => ({}))
+    const close = vi.fn()
+    fake.daemonClient = { request, close }
+    await runCli("remove", "/repo")
+    expect(request).toHaveBeenCalledWith("project.forget", { repo: "/repo" })
+    expect(close).toHaveBeenCalled()
+    expect(fake.forgetProject).not.toHaveBeenCalled()
+  })
+})
+
+describe("kobe adopt", () => {
+  test("no glob → dry-run listing plus the how-to hint", async () => {
+    fake.adoptable = [{ path: "/repo/wt-a", branch: "a", dirty: true, kobeManaged: false }]
+    await runCli("adopt")
+    expect(logText()).toContain("adoptable worktrees in")
+    expect(logText()).toContain("dirty")
+    expect(logText()).toContain("external")
+    expect(logText()).toContain("pass a path glob to adopt")
+    expect(fake.adoptWorktree).not.toHaveBeenCalled()
+  })
+
+  test("a glob without --yes lists matches and stops at the confirmation gate", async () => {
+    fake.adoptable = [
+      { path: "/repo/wt-a", branch: "a" },
+      { path: "/repo/other", branch: "b" },
+    ]
+    await runCli("adopt", "/repo/wt-*")
+    expect(logText()).toContain("1 worktree(s) match")
+    expect(fake.adoptWorktree).not.toHaveBeenCalled()
+  })
+
+  test("glob + --yes adopts exactly the matches", async () => {
+    fake.adoptable = [
+      { path: "/repo/wt-a", branch: "a" },
+      { path: "/repo/other", branch: "b" },
+    ]
+    await runCli("adopt", "/repo/wt-*", "--yes")
+    expect(fake.adoptWorktree).toHaveBeenCalledTimes(1)
+    expect(fake.adoptWorktree).toHaveBeenCalledWith(expect.objectContaining({ worktreePath: "/repo/wt-a" }))
+    expect(logText()).toContain("done — adopted 1 worktree(s)")
+  })
+
+  test("a misspelled --vendor exits 2 and creates nothing", async () => {
+    // coerceVendorId only rejects the empty string, so a typo used to be
+    // written onto every matched task and only surface when each of them first
+    // failed to launch a binary that does not exist.
+    fake.adoptable = [
+      { path: "/repo/wt-a", branch: "a" },
+      { path: "/repo/wt-b", branch: "b" },
+    ]
+    await runCli("adopt", "/repo/wt-*", "--yes", "--vendor", "cluade")
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(fake.adoptWorktree).not.toHaveBeenCalled()
+    expect(stderrText()).toContain('unknown engine "cluade"')
+    // Naming the accept-set is the whole point — a bare rejection leaves the
+    // caller guessing which spelling this install actually knows.
+    expect(stderrText()).toContain("claude")
+  })
+
+  test("a registered custom engine is accepted, not just the built-ins", async () => {
+    fake.customEngineIds = ["my-engine"]
+    fake.adoptable = [{ path: "/repo/wt-a", branch: "a" }]
+    await runCli("adopt", "/repo/wt-*", "--yes", "--vendor", "my-engine")
+    expect(exitSpy).not.toHaveBeenCalled()
+    expect(fake.adoptWorktree).toHaveBeenCalledWith(expect.objectContaining({ vendor: "my-engine" }))
+  })
+})

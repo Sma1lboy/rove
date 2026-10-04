@@ -58,7 +58,7 @@ PR #855 deleted the browser dashboard, the daemon's HTTP/SSE transport, and
 `rove web`. The daemon now speaks only its unix socket:
 
 ```
-git grep -nE "Bun\.serve|createServer|node:http" -- packages/kobe-daemon/src
+git grep -nE "Bun\.serve|createServer|node:http" -- packages/rove-daemon/src
 # → only node:net, in server.ts and pty-server.ts
 ```
 
@@ -73,7 +73,7 @@ declared in its interface, and called by nobody until they were removed.
 
 The one surviving piece of this shape is the PTY sidecar, which is a Node
 process with its own HTTP/WebSocket listener and its own bearer-token gate
-(`packages/kobe-harness/pty-auth.mjs`). It is not the daemon web transport and
+(`packages/rove-harness/pty-auth.mjs`). It is not the daemon web transport and
 does not revive it.
 
 The successor decision is implicit in #855 and has no ADR of its own: the TUI

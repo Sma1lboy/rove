@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Keep all capture, replay, and Remotion code in `packages/branding`; do not introduce marketing dependencies in `packages/kobe` or `packages/kobe-daemon`.
+- Keep all capture, replay, and Remotion code in `packages/branding`; do not introduce marketing dependencies in `packages/rove` or `packages/rove-daemon`.
 - Start every production capture with a unique `KOBE_SANDBOX_HOME_DIR`/`KOBE_HOME_DIR`, repository fixture, host identity, and session identity; never use normal `~/.kobe` state.
 - Production capture always launches the installed native engines from inherited `PATH` and host `HOME`; engine fixtures are test-only dependency injection and are never selectable from the replay spec.
 - Preserve the demo root for diagnostics and never replace `frames.json` on failure; teardown must prove every child has exited.

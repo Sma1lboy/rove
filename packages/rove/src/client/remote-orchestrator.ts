@@ -1,0 +1,471 @@
+/**
+ * Mirrors the daemon's {@link Orchestrator}: same read surface, writes
+ * forwarded as daemon RPCs. Event handling gets an explicit
+ * {@link OrchestratorSignals} deps bag built from the same state cells the
+ * read methods return, not `this`.
+ */
+
+import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { logClient } from "@sma1lboy/rove-daemon/client/client-log"
+import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
+import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
+import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import {
+  type CellPixelSize,
+  type ChannelName,
+  type NoticeEventPayload,
+  type SubscribeRole,
+  type TabClosePayload,
+  type TabOpenPayload,
+  type TabRenamePayload,
+  type UiPrefsPayload,
+  type UiPromptPayload,
+  isDaemonVersionStale,
+} from "@sma1lboy/rove-daemon/daemon/protocol"
+import { type ExternalStore, type ReadableState, createStateCell, mapReadableState } from "../lib/external-store.ts"
+import type { Orchestrator, Unsubscribe } from "../orchestrator/core.ts"
+import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
+import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
+import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
+import { CURRENT_VERSION, type UpdateInfo } from "../version.ts"
+import { performInit, runReconnectLoop } from "./remote-orchestrator-connect.ts"
+import { handleOrchestratorEvent, writeGraphicsToStdout } from "./remote-orchestrator-events.ts"
+import {
+  type AttentionInboxItem,
+  type ContextUsageMap,
+  type DaemonConnectionState,
+  type EngineLifecycleMap,
+  type EngineTabStateMap,
+  type OrchestratorSignals,
+  type RecentTaskEvent,
+  type RemoteOrchestratorOptions,
+  type RowTokenMap,
+  type TaskEngineState,
+  type TaskJobState,
+  type TranscriptActivityMap,
+  type UsageSnapshotMap,
+  type WorktreeChangesMap,
+  shouldLogReconnectAttempt,
+} from "./remote-orchestrator-payloads.ts"
+import { subscribeTasksOp } from "./remote-orchestrator-reads.ts"
+import * as writes from "./remote-orchestrator-writes.ts"
+
+export type {
+  AttentionInboxItem,
+  DaemonConnectionState,
+  EngineLifecycleMap,
+  EngineTabStateMap,
+  RecentTaskEvent,
+  RemoteOrchestratorOptions,
+  RowToken,
+  RowTokenMap,
+  TaskEngineState,
+  TaskJobState,
+  TranscriptActivityMap,
+  UsageSnapshotMap,
+  WorktreeChangesMap,
+} from "./remote-orchestrator-payloads.ts"
+export {
+  decodeUiPrefsPayload,
+  liveRowTokens,
+  parseRowTokensPayload,
+  parseTranscriptActivityPayload,
+  parseWorktreeChangesPayload,
+  sameRowTokenMap,
+  sameTranscriptActivityMap,
+  sameWorktreeChangesMap,
+} from "./remote-orchestrator-payloads.ts"
+
+export type KobeOrchestrator = Orchestrator | RemoteOrchestrator
+
+export class RemoteOrchestrator {
+  private readonly tasksAcc = createStateCell<Task[]>([], "orchestrator.tasks")
+  private readonly activeTaskAcc = createStateCell<string | null>(null, "orchestrator.active-task")
+  private readonly updateAcc = createStateCell<UpdateInfo | null>(null)
+  private readonly daemonVersionAcc = createStateCell<string | null>(null)
+  /** Set by a `daemon.stopping` frame naming `reason: "restart"`, cleared by
+   *  the next successful handshake — see {@link daemonRestartingSignal}. */
+  private readonly daemonRestartingAcc = createStateCell<boolean>(false)
+  private readonly daemonStaleAcc = mapReadableState(this.daemonVersionAcc, (version) =>
+    isDaemonVersionStale(version ?? undefined, CURRENT_VERSION),
+  )
+  private readonly engineStateAcc = createStateCell<ReadonlyMap<string, TaskEngineState>>(new Map())
+  private readonly engineTabStateAcc = createStateCell<EngineTabStateMap>(new Map())
+  private readonly attentionInboxAcc = createStateCell<readonly AttentionInboxItem[]>([])
+  private readonly taskJobsAcc = createStateCell<ReadonlyMap<string, TaskJobState>>(new Map())
+  private readonly rowTokensAcc = createStateCell<RowTokenMap>(new Map())
+  private readonly worktreeChangesAcc = createStateCell<WorktreeChangesMap | null>(null)
+  private readonly usageSnapshotAcc = createStateCell<UsageSnapshotMap | null>(null)
+  private readonly contextUsageAcc = createStateCell<ContextUsageMap | null>(null)
+  private readonly transcriptActivityAcc = createStateCell<TranscriptActivityMap | null>(null)
+  private readonly noticeAcc = createStateCell<NoticeEventPayload | null>(null)
+  private readonly tabOpenAcc = createStateCell<TabOpenPayload | null>(null)
+  private readonly tabCloseAcc = createStateCell<TabClosePayload | null>(null)
+  private readonly tabRenameAcc = createStateCell<TabRenamePayload | null>(null)
+  private readonly uiPromptAcc = createStateCell<UiPromptPayload | null>(null)
+  private readonly engineLifecycleAcc = createStateCell<EngineLifecycleMap>(new Map())
+  private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
+  private readonly keybindingsRevAcc = createStateCell<number | null>(null)
+  private readonly connectionStateAcc = createStateCell<DaemonConnectionState>("online", "orchestrator.connection")
+  /** Set once, by the reconnect loop giving up — see {@link staleInstallSignal}. */
+  private readonly staleInstallAcc = createStateCell<string | null>(null)
+  private readonly ensureReachable: () => Promise<unknown>
+  private readonly role: SubscribeRole
+  /** This terminal's measured cell size, sent with every (re)subscribe. */
+  private readonly cellPixelSize: CellPixelSize | null
+  /** Per-channel subscribe filter; `undefined` = subscribe to all channels. */
+  private readonly channels?: readonly ChannelName[]
+  /** True when the filter excludes `task.snapshot` — skip hello task hydration. */
+  private readonly subscribesTasks: boolean
+  /** Machine connection: the far daemon's own home is expected to differ. */
+  private readonly expectForeignHome: boolean
+  private readonly onPeerIdentity: RemoteOrchestratorOptions["onPeerIdentity"]
+  /** One shared retry task: repeated close events and an explicit reconnect
+   *  join the same loop instead of racing two hello/subscribe handshakes. */
+  private reconnectTask: Promise<void> | null = null
+  private readonly signals: OrchestratorSignals
+
+  constructor(
+    private readonly client: KobeDaemonClient,
+    options: RemoteOrchestratorOptions = {},
+  ) {
+    this.ensureReachable = options.ensureReachable ?? ensureDaemonReachable
+    this.role = options.role ?? "pane"
+    this.cellPixelSize = options.cellPixelSize ?? null
+    this.channels = options.channels
+    this.subscribesTasks = !options.channels || options.channels.includes("task.snapshot")
+    this.expectForeignHome = options.expectForeignHome === true
+    this.onPeerIdentity = options.onPeerIdentity
+    this.signals = {
+      // A pane has no tty of its own worth drawing on, so the default sink is
+      // a gui's own fd 1 and nothing otherwise. Injectable for tests.
+      writeGraphics: options.graphicsOut ?? (this.role === "gui" ? writeGraphicsToStdout : () => {}),
+      tasksAcc: this.tasksAcc,
+      setTasks: this.tasksAcc.set,
+      setActiveTaskSig: this.activeTaskAcc.set,
+      setUpdateSig: this.updateAcc.set,
+      setDaemonVersionSig: this.daemonVersionAcc.set,
+      setDaemonRestartingSig: this.daemonRestartingAcc.set,
+      engineStateAcc: this.engineStateAcc,
+      setEngineStateSig: this.engineStateAcc.set,
+      engineTabStateAcc: this.engineTabStateAcc,
+      setEngineTabStateSig: this.engineTabStateAcc.set,
+      setAttentionInboxSig: this.attentionInboxAcc.set,
+      taskJobsAcc: this.taskJobsAcc,
+      setTaskJobsSig: this.taskJobsAcc.set,
+      rowTokensAcc: this.rowTokensAcc,
+      setRowTokensSig: this.rowTokensAcc.set,
+      worktreeChangesAcc: this.worktreeChangesAcc,
+      setWorktreeChangesSig: this.worktreeChangesAcc.set,
+      usageSnapshotAcc: this.usageSnapshotAcc,
+      setUsageSnapshotSig: this.usageSnapshotAcc.set,
+      contextUsageAcc: this.contextUsageAcc,
+      setContextUsageSig: this.contextUsageAcc.set,
+      transcriptActivityAcc: this.transcriptActivityAcc,
+      setTranscriptActivitySig: this.transcriptActivityAcc.set,
+      setNoticeSig: this.noticeAcc.set,
+      setTabOpenSig: this.tabOpenAcc.set,
+      setTabCloseSig: this.tabCloseAcc.set,
+      setTabRenameSig: this.tabRenameAcc.set,
+      setUiPromptSig: this.uiPromptAcc.set,
+      engineLifecycleAcc: this.engineLifecycleAcc,
+      setEngineLifecycleSig: this.engineLifecycleAcc.set,
+      setUiPrefsSig: this.uiPrefsAcc.set,
+      setKeybindingsRevSig: this.keybindingsRevAcc.set,
+      setConnectionState: this.connectionStateAcc.set,
+    }
+    this.client.on("*", (frame) => handleOrchestratorEvent(frame.name, frame.payload, this.signals))
+    // On socket drop:
+    //   - gui: spawning reconnect — it owns daemon availability.
+    //   - pane: non-spawning reconnect. Lazy-shutdown idle-stops the daemon 3s
+    //     after the last gui quits while tmux panes persist; without reconnect
+    //     the task list freezes at the last snapshot. It must NOT spawn (panes
+    //     alone never hold the daemon alive), so no `ensureReachable`.
+    this.client.onLifecycle("close", () => {
+      this.connectionStateAcc.set("disconnected")
+      const spawnDaemon = this.role === "gui"
+      logClient(
+        "orch",
+        spawnDaemon
+          ? "daemon socket closed — starting silent spawning reconnect loop"
+          : "daemon socket closed — starting non-spawning reconnect loop",
+      )
+      void this.reconnectLoop(spawnDaemon)
+    })
+  }
+
+  /** Start or join the reconnect loop; subscribe replay rehydrates every signal. */
+  private reconnectLoop(spawnDaemon: boolean): Promise<void> {
+    if (this.reconnectTask) return this.reconnectTask
+    const task = runReconnectLoop({
+      isDisposed: () => this.client.isDisposed,
+      spawnDaemon,
+      ensureReachable: this.ensureReachable,
+      init: () => this.init(),
+      shouldLogAttempt: shouldLogReconnectAttempt,
+      onFatal: (err) => this.staleInstallAcc.set(err instanceof Error ? err.message : String(err)),
+    })
+    this.reconnectTask = task
+    const clear = (): void => {
+      if (this.reconnectTask === task) this.reconnectTask = null
+    }
+    task.then(clear, clear)
+    return task
+  }
+
+  /** Write graphics bytes to this GUI's terminal through the same sink `graphics.write` events use. */
+  writeGraphics(data: Buffer): void {
+    this.signals.writeGraphics(data)
+  }
+
+  /** Open the daemon socket, hello, subscribe to the task snapshot stream. */
+  async init(): Promise<void> {
+    await performInit(
+      this.client,
+      {
+        role: this.role,
+        cellPixelSize: this.cellPixelSize,
+        channels: this.channels,
+        subscribesTasks: this.subscribesTasks,
+        expectForeignHome: this.expectForeignHome,
+        onPeerIdentity: this.onPeerIdentity,
+      },
+      this.signals,
+    )
+  }
+
+  connectionStateSignal(): ReadableState<DaemonConnectionState> {
+    return this.connectionStateAcc
+  }
+
+  /** Non-null once this process is confirmed running from a deleted install.
+   *  Latched: otherwise a stale install shows "reconnecting" forever. */
+  staleInstallSignal(): ReadableState<string | null> {
+    return this.staleInstallAcc
+  }
+
+  /** Explicitly force the same spawning recovery used by a GUI socket drop. */
+  async manualReconnect(): Promise<void> {
+    this.client.forceDisconnect()
+    await this.reconnectLoop(true)
+  }
+
+  dispose(): void {
+    this.client.close()
+  }
+
+  // Reads return the same cells written by hello and channel events.
+
+  readonly tasksSignal = (): ReadableState<Task[]> => this.tasksAcc
+
+  readonly activeTaskSignal = (): ReadableState<string | null> => this.activeTaskAcc
+
+  readonly updateSignal = (): ReadableState<UpdateInfo | null> => this.updateAcc
+
+  readonly daemonVersionSignal = (): ReadableState<string | null> => this.daemonVersionAcc
+
+  readonly daemonStaleSignal = (): ReadableState<boolean> => this.daemonStaleAcc
+
+  /**
+   * True while a daemon that announced a restart hasn't come back. Set only
+   * by the daemon saying so — never a stand-in for generic socket drop. Keeps
+   * `planSelfRefresh` from stopping a daemon someone else is replacing.
+   */
+  readonly daemonRestartingSignal = (): ReadableState<boolean> => this.daemonRestartingAcc
+
+  /**
+   * Stop the daemon for a restart so it reloads code from disk (the half of
+   * a build skew relaunching this process can't fix). Best-effort: a gone or
+   * wedged daemon is covered by the caller's relaunch, which spawns one.
+   */
+  async restartDaemon(): Promise<void> {
+    await this.client.request("daemon.stop", { reason: "restart" }).catch(() => {})
+  }
+
+  readonly engineStateSignal = (): ReadableState<ReadonlyMap<string, TaskEngineState>> => this.engineStateAcc
+
+  /** Per-TAB engine activity (taskId → tabId → state) — the F7 attention
+   *  jump's tab-precise read. Sparse; see {@link EngineTabStateMap}. */
+  readonly engineTabStatesSignal = (): ReadableState<EngineTabStateMap> => this.engineTabStateAcc
+
+  readonly attentionInboxSignal = (): ReadableState<readonly AttentionInboxItem[]> => this.attentionInboxAcc
+
+  readonly taskJobsSignal = (): ReadableState<ReadonlyMap<string, TaskJobState>> => this.taskJobsAcc
+
+  /** Plugin-written row labels, TTL-bounded (`task.tokens`). An EMPTY map —
+   *  no plugin has anything to say — is the resting state, so there is no null. */
+  readonly rowTokensSignal = (): ReadableState<RowTokenMap> => this.rowTokensAcc
+
+  /** null means the daemon has not supplied this channel; readers may poll locally. */
+  readonly worktreeChangesSignal = (): ReadableState<WorktreeChangesMap | null> => this.worktreeChangesAcc
+
+  readonly usageSnapshotSignal = (): ReadableState<UsageSnapshotMap | null> => this.usageSnapshotAcc
+  /** Per-session context occupancy (`usage.context`) — the footer's ctx meter. */
+  readonly contextUsageSignal = (): ReadableState<ContextUsageMap | null> => this.contextUsageAcc
+
+  readonly transcriptActivitySignal = (): ReadableState<TranscriptActivityMap | null> => this.transcriptActivityAcc
+
+  /** Store and signal access share one cell and one subscription stream. */
+  readonly transcriptActivityStore = (): ExternalStore<TranscriptActivityMap | null> => this.transcriptActivityAcc
+
+  /** Latest daemon-broadcast notice (`notice.event`) — consumers dedupe on `at`. */
+  readonly noticeStore = (): ExternalStore<NoticeEventPayload | null> => this.noticeAcc
+
+  /** Latest `tab.open` request (plugin panes) — consumers dedupe on `at`. */
+  readonly tabOpenStore = (): ExternalStore<TabOpenPayload | null> => this.tabOpenAcc
+
+  /** Latest `tab.close` request (pane or exact Terminal Tab) — consumers dedupe on `at`. */
+  readonly tabCloseStore = (): ExternalStore<TabClosePayload | null> => this.tabCloseAcc
+
+  /** Latest `tab.rename` request (`rove api rename --tab`) — consumers dedupe on `at`. */
+  readonly tabRenameStore = (): ExternalStore<TabRenamePayload | null> => this.tabRenameAcc
+
+  /**
+   * Bare request/response for verbs this class doesn't wrap. Narrowed to
+   * {@link DaemonRpcClient}: exposing `subscribe`/`close` would let a caller
+   * take down the whole UI's event stream.
+   */
+  readonly rpc: DaemonRpcClient = { request: (name, payload) => this.client.request(name, payload) }
+
+  replyTerminalTabClose = (requestId: string, closed: boolean): void =>
+    writes.replyTabCloseOp(this.client, requestId, closed)
+
+  /** Latest `ui.prompt` request (host input dialog) — consumers dedupe on `at`. */
+  readonly uiPromptStore = (): ExternalStore<UiPromptPayload | null> => this.uiPromptAcc
+
+  /** Answer a `ui.prompt` request; omit `value` to report a cancel. */
+  readonly replyPrompt = (promptId: string, value?: string): void => writes.replyPromptOp(this.client, promptId, value)
+
+  /** Transient per-task lifecycle marks (subagent activity). */
+  readonly engineLifecycleSignal = (): ReadableState<EngineLifecycleMap> => this.engineLifecycleAcc
+
+  /** One task's recent engine events (the event feed; newest last). */
+  recentTaskEvents(id: TaskId | string): Promise<{ events: readonly RecentTaskEvent[] }> {
+    return writes.recentTaskEventsOp(this.client, id)
+  }
+
+  /** Fire-and-forget UI moment → plugin event hooks (`ui.reportEvent`). */
+  readonly reportUiEvent = (kind: string, taskId?: string, detail?: Record<string, unknown>): void =>
+    writes.reportUiEventOp(this.client, kind, taskId, detail)
+
+  readonly reportScreenInput = async (taskId: string, tabId: string, blocked: boolean): Promise<void> => {
+    await this.client.request("engine.reportEvent", { source: "screen", taskId, tabId, blocked })
+  }
+
+  /** Confirmed ESC interrupt on a hook-running tab — see {@link reportEngineInterruptOp}. */
+  readonly reportEngineInterrupt = (taskId: TaskId | string, tabId: string): void =>
+    writes.reportEngineInterruptOp(this.client, String(taskId), tabId)
+
+  readonly uiPrefsSignal = (): ReadableState<UiPrefsPayload | null> => this.uiPrefsAcc
+
+  readonly uiPrefsStore = (): ExternalStore<UiPrefsPayload | null> => this.uiPrefsAcc
+
+  readonly keybindingsRevSignal = (): ReadableState<number | null> => this.keybindingsRevAcc
+
+  readonly keybindingsRevStore = (): ExternalStore<number | null> => this.keybindingsRevAcc
+
+  readonly listTasks = (): Task[] => this.tasksAcc()
+
+  readonly getTask = (id: TaskId | string): Task | undefined => this.tasksAcc().find((task) => task.id === id)
+
+  subscribeTasks(listener: (snapshot: readonly Task[]) => void): Unsubscribe {
+    return subscribeTasksOp(this.tasksAcc, listener)
+  }
+
+  // RPC serialization and result handling live in remote-orchestrator-writes.ts.
+
+  createTask = (input: Parameters<typeof writes.createTaskOp>[1]): Promise<Task> =>
+    writes.createTaskOp(this.client, input)
+  ensureMainTask = (repo: string): Promise<Task> => writes.ensureMainTaskOp(this.client, repo)
+  openDirectoryTask = (input: { dir: string; scratch?: boolean }): Promise<Task> =>
+    writes.openDirectoryTaskOp(this.client, input)
+  adoptScratchRepo = (id: TaskId | string, repo: string): Promise<void> =>
+    writes.adoptScratchRepoOp(this.client, id, repo)
+  ensureWorktree = (id: TaskId | string): Promise<string> => writes.ensureWorktreeOp(this.client, id)
+  forgetProject = (repo: string): Promise<void> => writes.forgetProjectOp(this.client, repo)
+  setTitle = (id: TaskId | string, title: string): Promise<void> => writes.setTitleOp(this.client, id, title)
+  setBranch = (id: TaskId | string, branch: string): Promise<void> => writes.setBranchOp(this.client, id, branch)
+  setVendor = (id: TaskId | string, vendor: VendorId, effort?: string, model?: string): Promise<void> =>
+    writes.setVendorOp(this.client, id, vendor, effort, model)
+  setCommand = (id: TaskId | string, command: string, vendor?: VendorId): Promise<void> =>
+    writes.setCommandOp(this.client, id, command, vendor)
+  setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => writes.setPinnedOp(this.client, id, pinned)
+  moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => writes.moveTaskOp(this.client, id, delta)
+  moveTaskToTop = (id: TaskId | string): Promise<void> => writes.moveTaskToTopOp(this.client, id)
+  setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => writes.setStatusOp(this.client, id, status)
+  setPrompt = (id: TaskId | string, prompt: string): Promise<void> => writes.setPromptOp(this.client, id, prompt)
+  deleteTask = (id: TaskId | string, opts?: { force?: boolean; deleteBranch?: boolean }): Promise<void> =>
+    writes.deleteTaskOp(this.client, id, opts)
+  dismissAttention = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
+    writes.dismissAttentionOp(this.client, taskId, tabId, at)
+  dismissRoutineAttention = (automationId: string): Promise<boolean> =>
+    writes.dismissRoutineAttentionOp(this.client, automationId)
+  markAttentionRead = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
+    writes.markAttentionReadOp(this.client, taskId, tabId, at)
+
+  /** Read-only land probe: destination, commit count, refusal. */
+  landPreflight(id: TaskId | string): ReturnType<typeof writes.landPreflightOp> {
+    return writes.landPreflightOp(this.client, id)
+  }
+
+  /** Throws with a `LAND_CONFLICT` / `MAIN_CHECKOUT_DIRTY` sentinel in the
+   *  message on guarded failures. */
+  landTask(id: TaskId | string, opts?: Parameters<typeof writes.landTaskOp>[2]): ReturnType<typeof writes.landTaskOp> {
+    return writes.landTaskOp(this.client, id, opts)
+  }
+
+  discoverAdoptableWorktrees(repo: string): Promise<readonly AdoptableWorktree[]> {
+    return writes.discoverAdoptableWorktreesOp(this.client, repo)
+  }
+
+  adoptWorktree(input: Parameters<typeof writes.adoptWorktreeOp>[1]): Promise<Task> {
+    return writes.adoptWorktreeOp(this.client, input)
+  }
+
+  /** Every worktree of every saved project. `network: false` = local-only fast pass. */
+  listWorktrees(opts?: { network?: boolean }): Promise<readonly WorktreeProject[]> {
+    return writes.listWorktreesOp(this.client, opts)
+  }
+
+  /** A repo's daemon-owned issues (`issue.list`) — the kanban page's read. */
+  listIssues(repoRoot: string): Promise<RepoIssues> {
+    return writes.listIssuesOp(this.client, repoRoot)
+  }
+
+  /** Repo roots the issue store knows; see {@link writes.listIssueReposOp}. */
+  listIssueRepos(): Promise<readonly string[]> {
+    return writes.listIssueReposOp(this.client)
+  }
+
+  /** One issue-store mutation (`issue.mutate`). */
+  mutateIssue(repoRoot: string, op: unknown): Promise<RepoIssues> {
+    return writes.mutateIssueOp(this.client, repoRoot, op)
+  }
+
+  // Automations, work items and field notes.
+  listAutomations = () => writes.listAutomationsOp(this.client)
+  createAutomation = (i: Parameters<typeof writes.createAutomationOp>[1]) => writes.createAutomationOp(this.client, i)
+  automationRuns = (id: string) => writes.automationRunsOp(this.client, id)
+  setAutomationEnabled = (id: string, on: boolean) => writes.setAutomationEnabledOp(this.client, id, on)
+  runAutomationNow = (id: string) => writes.runAutomationNowOp(this.client, id)
+  deleteAutomation = (id: string) => writes.deleteAutomationOp(this.client, id)
+  listWorkItems = (a: Parameters<typeof writes.listWorkItemsOp>[1]) => writes.listWorkItemsOp(this.client, a)
+  listFieldNotes = (repo: string) => writes.listFieldNotesOp(this.client, repo)
+
+  deleteFieldNote = (repo: string, id: number) => writes.deleteFieldNoteOp(this.client, repo, id)
+  /** A PR's failing checks + log tails (`pr.failingChecks`). On demand only. */
+  failingChecks = (taskId: string) => writes.failingChecksOp(this.client, taskId)
+  /** Merge a task's base branch into its worktree (`task.syncBase`). */
+  syncBase = (taskId: string) => writes.syncBaseOp(this.client, taskId)
+  startWorkItem = (a: Parameters<typeof writes.startWorkItemOp>[1]) => writes.startWorkItemOp(this.client, a)
+
+  /** Refuses a dirty worktree unless `force`. */
+  removeWorktree(path: string, force?: boolean): Promise<WorktreeResidue | null> {
+    return writes.removeWorktreeOp(this.client, path, force)
+  }
+
+  /** Published on `active-task` so every pane highlights the same task. */
+  setActiveTask(id: TaskId | string | null): Promise<void> {
+    return writes.setActiveTaskOp(this.client, id)
+  }
+}

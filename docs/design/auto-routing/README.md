@@ -10,7 +10,7 @@ jev-head.py             ─┘                                   （提交进仓
 ```
 
 ```sh
-cd packages/kobe && bun run build:rubric     # 改完这里就跑它，并把生成结果一起提交
+cd packages/rove && bun run build:rubric     # 改完这里就跑它，并把生成结果一起提交
 ```
 
 忘了跑 `test/engine/tier-rubric-generated.test.ts` 会红——它把生成器在同样的源文件上

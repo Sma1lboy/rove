@@ -93,7 +93,7 @@ kobe v0.5 把 `claude` 当 stream-json 子进程驱动 (`engine/claude-code-loca
 - 验证: 进入任务看到三 pane 布局, claude/files/terminal 各就位.
 - **Linear:** KOB-228
 
-### Step C — Ops pane 自研小工具 (`packages/kobe-ops`)
+### Step C — Ops pane 自研小工具 (`packages/rove-ops`)
 - 独立 npm 包 `@sma1lboy/kobe-ops`, 同 bun workspace
 - 启动入参: `--task-id <id> --worktree <path> --target-pane =<session>:0.0`
 - 功能 (0.6.0 范围内): 文件 watcher (git status + tree); 之后 (0.6.x): quick-fork / create-PR / file preview

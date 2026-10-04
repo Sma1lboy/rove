@@ -9,7 +9,7 @@ const dir = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const render = resolve(dir, "renders/hero.mp4")
 // FILM_PUBLISH_DIR redirects both files for a trial run that must not touch the committed assets.
 const trial = process.env.FILM_PUBLISH_DIR && resolve(process.env.FILM_PUBLISH_DIR)
-const landing = trial ? resolve(trial, "hero-multirepo.mp4") : resolve(dir, "../../../kobe-landing/assets/hero-multirepo.mp4")
+const landing = trial ? resolve(trial, "hero-multirepo.mp4") : resolve(dir, "../../../rove-landing/assets/hero-multirepo.mp4")
 const gif = trial ? resolve(trial, "demo.gif") : resolve(dir, "../../../../docs/assets/demo.gif")
 
 const GIF_FILTER =

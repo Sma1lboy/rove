@@ -2,7 +2,7 @@
 
 Contributor-facing mechanics behind [`docs/ENGINES.md`](../ENGINES.md): the
 engine-owned contract, hook wiring, and activity-state detection. Ground
-truth is [`packages/kobe/src/engine/registry.ts`](../../packages/kobe/src/engine/registry.ts);
+truth is [`packages/rove/src/engine/registry.ts`](../../packages/rove/src/engine/registry.ts);
 if this file and the registry disagree, the registry wins.
 
 ## The engine-owned contract
@@ -219,7 +219,7 @@ the OSC window title) so even unmanaged sessions get a badge.
 **one slot per source** — a `hook` slot written by `report()` and an
 `observed` slot written by the PTY/foreground observer's `observeTab()` — and
 ONE pure function arbitrates them
-(`packages/kobe-daemon/src/daemon/activity-arbitrate.ts`):
+(`packages/rove-daemon/src/daemon/activity-arbitrate.ts`):
 
 1. a hook entry in a sticky state (`turn_complete` / `permission_needed` /
    `error` / `rate_limited`) always wins — observation never dims an

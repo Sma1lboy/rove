@@ -106,7 +106,7 @@ fi
 # since @sma1lboy/kobe ships a `rove` bin too.
 MIGRATING=0
 case "$ENTRY" in
-  */@sma1lboy/kobe/*) MIGRATING=1 ;;
+  */@sma1lboy/rove/*) MIGRATING=1 ;;
 esac
 
 # What the install will actually land on. A bare dist-tag (`nightly`) has to
@@ -270,7 +270,7 @@ PID=$!
 
 if [ -t 1 ]; then
   # ponytail: braille spinner, same glyph set as the TUI's DEFAULT_SPINNER_FRAMES
-  # (packages/kobe/src/engine/spinner-frames.ts) — keep the two in sync by eye.
+  # (packages/rove/src/engine/spinner-frames.ts) — keep the two in sync by eye.
   set -- ⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏
   while kill -0 "$PID" 2>/dev/null; do
     frame=$1

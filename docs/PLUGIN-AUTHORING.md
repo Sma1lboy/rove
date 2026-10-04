@@ -70,15 +70,15 @@ const ev = pluginEvent()      // typed event envelope (null outside [[events]])
   These are the SINGLE source: the daemon itself imports them from the
   SDK's `./contract` module, so host and SDK can't drift by construction.
 
-Package README has full examples: `packages/kobe-plugin-sdk/README.md`.
+Package README has full examples: `packages/rove-plugin-sdk/README.md`.
 Module-by-module SDK reference: [PLUGIN-SDK.md](./PLUGIN-SDK.md).
 
 ## SDK examples
 
-Five runnable examples live under `packages/kobe-plugin-sdk/examples/`, one
+Five runnable examples live under `packages/rove-plugin-sdk/examples/`, one
 per surface. Each clip below is the real TUI — recorded through the same
 browser-PTY path the README assets use, against a throwaway home with the
-example already linked (`packages/kobe-harness/e2e/films/`), so what
+example already linked (`packages/rove-harness/e2e/films/`), so what
 you see is where your plugin actually shows up.
 
 ![task-board](./assets/plugins/task-board.gif)
@@ -106,7 +106,7 @@ copy appears as a toast in every attached UI.*
 Re-record with:
 
 ```bash
-cd packages/kobe-harness
+cd packages/rove-harness
 bun e2e/hero-fixture.ts --fresh   # throwaway home + a real repo
 bun e2e/hero-plugins.ts           # link every example (BEFORE the TUI boots)
 bun e2e/hero-serve.ts             # warm capture stack (keep running)
@@ -375,7 +375,7 @@ own `$ROVE_PLUGIN_TASK_ID`.
 
 **Socket (advanced):** newline-delimited JSON frames on `ROVE_SOCKET_PATH`
 (`{"type":"request","id":"1","name":"task.list","payload":{}}`); request
-names and payloads in `packages/kobe-daemon/src/daemon/protocol.ts`. Prefer
+names and payloads in `packages/rove-daemon/src/daemon/protocol.ts`. Prefer
 the CLI unless you need push channels.
 
 ### Which host am I talking to
@@ -499,7 +499,7 @@ engine name belongs in one: the engine adapter owns that vocabulary
   row-token surface; the SDK helpers answer `false` rather than throwing, so
   you never have to version-gate the call.
 
-Runnable example: [`examples/row-tokens/`](../packages/kobe-plugin-sdk/examples/row-tokens).
+Runnable example: [`examples/row-tokens/`](../packages/rove-plugin-sdk/examples/row-tokens).
 
 ## Ground rules
 

@@ -44,7 +44,7 @@ the screen and respawn the recorded command on first attach. Explicit
 `pty.kill`, tab close, task archive/delete, terminal reset, or `rove reset`
 tears down the corresponding hosted session and frozen record.
 
-**Harness PTY sidecar** — the Node process `packages/kobe-harness` starts
+**Harness PTY sidecar** — the Node process `packages/rove-harness` starts
 (`pty-server.mjs`, with its own bearer-token gate in `pty-auth.mjs`) to back
 the `/harness` capture page. It owns only browser-created terminal children
 and is separate from the standalone PTY Host. It is what survived #855, which

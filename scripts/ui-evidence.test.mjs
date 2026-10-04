@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { checkPullRequest, validateUiEvidence } from './ui-evidence.mjs'
-const files = ['packages/kobe/src/tui-react/panes/sidebar/collapsed-rail.tsx']
+const files = ['packages/rove/src/tui-react/panes/sidebar/collapsed-rail.tsx']
 const body = `## UI evidence
 ![Before](https://example.com/before.png)
 ![After](https://example.com/after.png)
@@ -28,7 +28,7 @@ test('comments, code, local images, duplicate images and missing metadata fail',
   }
 })
 test('all shipped UI roots are covered', () => {
-  for (const root of ['kobe/src/tui', 'kobe/src/tui-react', 'kobe-harness/src']) assert.ok(validateUiEvidence([`packages/${root}/component.tsx`], '').length)
+  for (const root of ['kobe/src/tui', 'kobe/src/tui-react', 'rove-harness/src']) assert.ok(validateUiEvidence([`packages/${root}/component.tsx`], '').length)
 })
 test('reads current body and paginated files, including renames out of UI', async () => {
   let failure = ''

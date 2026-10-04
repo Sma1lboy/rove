@@ -4,7 +4,7 @@
 // ponytail: covers reset/bold/dim/italic/underline/reverse + 16/256/truecolor;
 // add charset or OSC handling only if a capture ever shows artifacts.
 
-import { charWidth } from "../../../kobe/src/lib/display-width"
+import { charWidth } from "../../../rove/src/lib/display-width"
 import { colors } from "../colors"
 
 export type Span = {

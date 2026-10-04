@@ -1,0 +1,81 @@
+/**
+ * Unit tests for the daemon session boilerplate (`cli/daemon-session.ts`):
+ * connect-or-start vs require-running mode selection, and the one
+ * guarantee callers lean on — the socket is closed on EVERY exit path
+ * (success, thrown error, absent daemon). A leaked socket from a
+ * short-lived `kobe api` process would pin the daemon's connection table,
+ * so close-on-error is load-bearing, not cosmetic.
+ */
+
+import { type MockInstance, beforeEach, describe, expect, it, vi } from "vitest"
+
+const mocks = vi.hoisted(() => ({
+  connectOrStartDaemon: vi.fn(),
+  connectIfRunning: vi.fn(),
+}))
+
+vi.mock("@sma1lboy/rove-daemon/client/daemon-process", () => mocks)
+
+import type { KobeDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { openDaemonSession, resolveActiveTaskId } from "../../src/cli/daemon-session.ts"
+
+function fakeClient(): KobeDaemonClient & { close: ReturnType<typeof vi.fn> } {
+  return { close: vi.fn() } as unknown as KobeDaemonClient & { close: ReturnType<typeof vi.fn> }
+}
+
+beforeEach(() => {
+  mocks.connectOrStartDaemon.mockReset()
+  mocks.connectIfRunning.mockReset()
+})
+
+describe("openDaemonSession", () => {
+  it("default mode connects via connect-or-start and close() closes the client", async () => {
+    const client = fakeClient()
+    mocks.connectOrStartDaemon.mockResolvedValue(client)
+    const session = await openDaemonSession()
+    expect(mocks.connectIfRunning).not.toHaveBeenCalled()
+    expect(session.client).toBe(client)
+    session.close()
+    expect(client.close).toHaveBeenCalledTimes(1)
+  })
+
+  it("require-running mode never spawns and resolves null when no daemon answers", async () => {
+    mocks.connectIfRunning.mockResolvedValue(null)
+    const session = await openDaemonSession({ mode: "require-running" })
+    expect(session).toBeNull()
+    expect(mocks.connectOrStartDaemon).not.toHaveBeenCalled()
+  })
+})
+
+describe("resolveActiveTaskId", () => {
+  function fakeClient(activeId: string | null): KobeDaemonClient & {
+    onChannel: MockInstance
+    subscribe: MockInstance
+  } {
+    const onChannel = vi.fn((channel, handler) => {
+      if (channel === "active-task" && activeId !== null) handler({ taskId: activeId })
+      return vi.fn()
+    })
+    const subscribe = vi.fn().mockResolvedValue(undefined)
+    return { onChannel, subscribe } as unknown as KobeDaemonClient & {
+      onChannel: MockInstance
+      subscribe: MockInstance
+    }
+  }
+
+  it("returns the active task id replayed on the active-task channel", async () => {
+    const client = fakeClient("task-123")
+    expect(await resolveActiveTaskId(client)).toBe("task-123")
+    expect(client.subscribe).toHaveBeenCalled()
+  })
+
+  it("unsubscribes from the channel even if subscribe throws", async () => {
+    const off = vi.fn()
+    const client = {
+      onChannel: vi.fn(() => off),
+      subscribe: vi.fn().mockRejectedValue(new Error("socket closed")),
+    } as unknown as KobeDaemonClient
+    await expect(resolveActiveTaskId(client)).rejects.toThrow("socket closed")
+    expect(off).toHaveBeenCalledTimes(1)
+  })
+})

@@ -25,12 +25,12 @@
 ### Task 1: Extract the neutral engine launch builder
 
 **Files:**
-- Create: `packages/kobe/src/engine/session-launch.ts`
-- Create: `packages/kobe/test/engine/session-launch.test.ts`
-- Modify: `packages/kobe/src/tui/workspace/terminal-tabs-core.ts`
-- Modify: `packages/kobe/src/tui-react/workspace/TerminalTabs.tsx`
-- Modify: `packages/kobe/src/tui-react/workspace/show-workspace.tsx`
-- Later delete source: `packages/kobe/src/tmux/launch-line.ts`
+- Create: `packages/rove/src/engine/session-launch.ts`
+- Create: `packages/rove/test/engine/session-launch.test.ts`
+- Modify: `packages/rove/src/tui/workspace/terminal-tabs-core.ts`
+- Modify: `packages/rove/src/tui-react/workspace/TerminalTabs.tsx`
+- Modify: `packages/rove/src/tui-react/workspace/show-workspace.tsx`
+- Later delete source: `packages/rove/src/tmux/launch-line.ts`
 
 **Interfaces:**
 - Produces: `EngineSessionLaunch = { command: readonly string[]; key: string }`.
@@ -61,7 +61,7 @@ Add fixtures proving `.kobe/init.sh` precedes the engine, successful init touche
 
 - [ ] **Step 2: Run RED**
 
-Run: `cd packages/kobe && bun run test:fast test/engine/session-launch.test.ts`
+Run: `cd packages/rove && bun run test:fast test/engine/session-launch.test.ts`
 
 Expected: FAIL because `engine/session-launch.ts` does not exist.
 
@@ -110,7 +110,7 @@ Replace `engineTabSpawnFor`'s local shell wrapping with the neutral builder. Kee
 Run:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 bun run test:fast test/engine/session-launch.test.ts test/tui/terminal-tabs-core.test.ts test/tui/terminal-registry.test.ts
 ```
 
@@ -119,19 +119,19 @@ Expected: all pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/kobe/src/engine/session-launch.ts packages/kobe/test/engine/session-launch.test.ts packages/kobe/src/tui/workspace/terminal-tabs-core.ts packages/kobe/src/tui-react/workspace/TerminalTabs.tsx packages/kobe/src/tui-react/workspace/show-workspace.tsx
+git add packages/rove/src/engine/session-launch.ts packages/rove/test/engine/session-launch.test.ts packages/rove/src/tui/workspace/terminal-tabs-core.ts packages/rove/src/tui-react/workspace/TerminalTabs.tsx packages/rove/src/tui-react/workspace/show-workspace.tsx
 git commit -m "refactor: centralize hosted engine launch" -m "Move shell, repo-init, protocol, and prompt composition into a neutral engine-session builder. Use the same launch contract for PureTUI tabs and future headless PTY automation."
 ```
 
 ### Task 2: Replace API tmux fallback with PTY auto-start
 
 **Files:**
-- Modify: `packages/kobe/src/cli/api/pty-delivery.ts`
-- Modify: `packages/kobe/src/cli/api/runtime.ts`
-- Modify: `packages/kobe/src/cli/api/types.ts`
-- Modify: `packages/kobe/test/cli/api-cmd-runtime.test.ts`
-- Modify: `packages/kobe/test/cli/pty-delivery.test.ts`
-- Create: `packages/kobe/test/behavior/pty-api-autostart.test.ts`
+- Modify: `packages/rove/src/cli/api/pty-delivery.ts`
+- Modify: `packages/rove/src/cli/api/runtime.ts`
+- Modify: `packages/rove/src/cli/api/types.ts`
+- Modify: `packages/rove/test/cli/api-cmd-runtime.test.ts`
+- Modify: `packages/rove/test/cli/pty-delivery.test.ts`
+- Create: `packages/rove/test/behavior/pty-api-autostart.test.ts`
 
 **Interfaces:**
 - Produces: `ensurePtyHost(): Promise<{ rpc: PtyHostRpc; close(): void }>` which calls `ensurePtyHostReachable()` before connecting.
@@ -165,7 +165,7 @@ Add cases for existing alive session (bracketed paste + CR, `started:false`), `c
 
 - [ ] **Step 2: Run RED**
 
-Run: `cd packages/kobe && bun run test:fast test/cli/pty-delivery.test.ts test/cli/api-cmd-runtime.test.ts`
+Run: `cd packages/rove && bun run test:fast test/cli/pty-delivery.test.ts test/cli/api-cmd-runtime.test.ts`
 
 Expected: fresh delivery still invokes tmux seams or cannot auto-start PTY.
 
@@ -198,7 +198,7 @@ Use `ensurePtyHostReachable()` for missing host rather than returning `null`.
 
 - [ ] **Step 4: Run GREEN**
 
-Run: `cd packages/kobe && bun run test:fast test/cli/pty-delivery.test.ts test/cli/api-cmd-runtime.test.ts test/cli/api-handlers.test.ts`
+Run: `cd packages/rove && bun run test:fast test/cli/pty-delivery.test.ts test/cli/api-cmd-runtime.test.ts test/cli/api-handlers.test.ts`
 
 Expected: all pass with no tmux mocks in API tests.
 
@@ -206,28 +206,28 @@ Expected: all pass with no tmux mocks in API tests.
 
 Build the CLI, create a scratch task in a disposable behavior home, invoke prompted `kobe api add` without an open TUI, and assert `kobe api pty-list` reports an alive `<taskId>::tab-1` session whose command is the fake engine shell.
 
-Run: `cd packages/kobe && bun run build && KOBE_INCLUDE_BEHAVIOR=1 bunx vitest run test/behavior/pty-api-autostart.test.ts --pool forks --minWorkers=1 --maxWorkers=1`
+Run: `cd packages/rove && bun run build && KOBE_INCLUDE_BEHAVIOR=1 bunx vitest run test/behavior/pty-api-autostart.test.ts --pool forks --minWorkers=1 --maxWorkers=1`
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/kobe/src/cli/api/pty-delivery.ts packages/kobe/src/cli/api/runtime.ts packages/kobe/src/cli/api/types.ts packages/kobe/test/cli/api-cmd-runtime.test.ts packages/kobe/test/cli/pty-delivery.test.ts packages/kobe/test/behavior/pty-api-autostart.test.ts
+git add packages/rove/src/cli/api/pty-delivery.ts packages/rove/src/cli/api/runtime.ts packages/rove/src/cli/api/types.ts packages/rove/test/cli/api-cmd-runtime.test.ts packages/rove/test/cli/pty-delivery.test.ts packages/rove/test/behavior/pty-api-autostart.test.ts
 git commit -m "feat: auto-start API sessions in PTY host" -m "Make hosted PTYs the only prompt-delivery backend and preserve unattended send/add/fan-out startup. Remove the tmux fallback, duplicate-engine risk, and tmux liveness seams."
 ```
 
 ### Task 3: Move daemon and task lifecycle to PTY teardown
 
 **Files:**
-- Modify: `packages/kobe/src/core/daemon-session-adapter.ts`
-- Modify: `packages/kobe/src/core/daemon-runtime.ts`
-- Modify: `packages/kobe-daemon/src/daemon/runtime.ts`
-- Modify: `packages/kobe-daemon/src/daemon/auto-title-poller.ts`
-- Modify: `packages/kobe/src/tui/lib/task-actions.ts`
-- Modify: `packages/kobe/src/tui-react/workspace/host-task-actions.ts`
-- Modify: `packages/kobe/test/core/daemon-session-adapter.test.ts`
-- Modify: `packages/kobe/test/tui/task-actions.test.ts`
-- Delete later: `packages/kobe/src/tmux/chat-tab-naming.ts`
-- Delete later: `packages/kobe/test/tmux/chat-tab-naming.test.ts`
+- Modify: `packages/rove/src/core/daemon-session-adapter.ts`
+- Modify: `packages/rove/src/core/daemon-runtime.ts`
+- Modify: `packages/rove-daemon/src/daemon/runtime.ts`
+- Modify: `packages/rove-daemon/src/daemon/auto-title-poller.ts`
+- Modify: `packages/rove/src/tui/lib/task-actions.ts`
+- Modify: `packages/rove/src/tui-react/workspace/host-task-actions.ts`
+- Modify: `packages/rove/test/core/daemon-session-adapter.test.ts`
+- Modify: `packages/rove/test/tui/task-actions.test.ts`
+- Delete later: `packages/rove/src/tmux/chat-tab-naming.ts`
+- Delete later: `packages/rove/test/tmux/chat-tab-naming.test.ts`
 
 **Interfaces:**
 - `ensureTaskSessionAdapter` opens/detaches the deterministic PTY key and returns `{ session: key, worktreePath }`.
@@ -240,7 +240,7 @@ Expect `pty.open`/`pty.detach` rather than `tmux new-session`, and expect teardo
 
 - [ ] **Step 2: Run RED**
 
-Run: `cd packages/kobe && bun run test:fast test/core/daemon-session-adapter.test.ts test/tui/task-actions.test.ts`
+Run: `cd packages/rove && bun run test:fast test/core/daemon-session-adapter.test.ts test/tui/task-actions.test.ts`
 
 - [ ] **Step 3: Implement hosted lifecycle adapters**
 
@@ -250,33 +250,33 @@ In task actions, replace `tmuxSessionName/switchClientBeforeKill/killSession` wi
 
 - [ ] **Step 4: Run GREEN**
 
-Run: `cd packages/kobe && bun run test:fast test/core/daemon-session-adapter.test.ts test/tui/task-actions.test.ts test/tui/task-actions-rename.test.ts test/daemon/auto-title-poller.test.ts`
+Run: `cd packages/rove && bun run test:fast test/core/daemon-session-adapter.test.ts test/tui/task-actions.test.ts test/tui/task-actions-rename.test.ts test/daemon/auto-title-poller.test.ts`
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/kobe/src/core/daemon-session-adapter.ts packages/kobe/src/core/daemon-runtime.ts packages/kobe-daemon/src/daemon/runtime.ts packages/kobe-daemon/src/daemon/auto-title-poller.ts packages/kobe/src/tui/lib/task-actions.ts packages/kobe/src/tui-react/workspace/host-task-actions.ts packages/kobe/test/core/daemon-session-adapter.test.ts packages/kobe/test/tui/task-actions.test.ts
+git add packages/rove/src/core/daemon-session-adapter.ts packages/rove/src/core/daemon-runtime.ts packages/rove-daemon/src/daemon/runtime.ts packages/rove-daemon/src/daemon/auto-title-poller.ts packages/rove/src/tui/lib/task-actions.ts packages/rove/src/tui-react/workspace/host-task-actions.ts packages/rove/test/core/daemon-session-adapter.test.ts packages/rove/test/tui/task-actions.test.ts
 git commit -m "refactor: make task lifecycle PTY-only" -m "Route daemon session creation and archive/delete teardown through hosted PTYs. Remove tmux client switching and the obsolete chat-tab naming runtime contract."
 ```
 
 ### Task 4: Make CLI, maintenance, settings, and help PureTUI-only
 
 **Files:**
-- Modify: `packages/kobe/src/cli/index.ts`
-- Modify: `packages/kobe/src/cli/usage.ts`
-- Modify: `packages/kobe/src/cli/subcommands.ts`
-- Modify: `packages/kobe/src/cli/maintenance.ts`
-- Modify: `packages/kobe/src/cli/doctor-resources.ts`
-- Modify: `packages/kobe/scripts/dev-sandbox.ts`
-- Delete: `packages/kobe/src/launch-mode.ts`
-- Delete: `packages/kobe/scripts/dev-sandbox-args.ts`
-- Delete: `packages/kobe/src/cli/commands-tui.ts`
-- Delete: `packages/kobe/src/tui/direct.ts`
-- Modify: `packages/kobe/src/tui/index.tsx`
-- Modify: `packages/kobe/src/tui/context/keybindings-user.ts`
-- Modify: `packages/kobe/src/state/keybindings-file.ts`
-- Modify: `packages/kobe/src/tui-react/component/help-dialog.tsx`
-- Modify: `packages/kobe/src/tui-react/component/settings-dialog/sections-misc.tsx`
+- Modify: `packages/rove/src/cli/index.ts`
+- Modify: `packages/rove/src/cli/usage.ts`
+- Modify: `packages/rove/src/cli/subcommands.ts`
+- Modify: `packages/rove/src/cli/maintenance.ts`
+- Modify: `packages/rove/src/cli/doctor-resources.ts`
+- Modify: `packages/rove/scripts/dev-sandbox.ts`
+- Delete: `packages/rove/src/launch-mode.ts`
+- Delete: `packages/rove/scripts/dev-sandbox-args.ts`
+- Delete: `packages/rove/src/cli/commands-tui.ts`
+- Delete: `packages/rove/src/tui/direct.ts`
+- Modify: `packages/rove/src/tui/index.tsx`
+- Modify: `packages/rove/src/tui/context/keybindings-user.ts`
+- Modify: `packages/rove/src/state/keybindings-file.ts`
+- Modify: `packages/rove/src/tui-react/component/help-dialog.tsx`
+- Modify: `packages/rove/src/tui-react/component/settings-dialog/sections-misc.tsx`
 - Modify matching CLI/settings/help tests.
 
 **Interfaces:**
@@ -290,7 +290,7 @@ Assert bare `kobe` calls `startTui()`; both mode flags and removed subcommands e
 
 - [ ] **Step 2: Run RED**
 
-Run: `cd packages/kobe && bun run test:fast test/cli/index-dispatch.test.ts test/cli/usage.test.ts test/cli/maintenance-doctor.test.ts test/cli/maintenance-reset.test.ts`
+Run: `cd packages/rove && bun run test:fast test/cli/index-dispatch.test.ts test/cli/usage.test.ts test/cli/maintenance-doctor.test.ts test/cli/maintenance-reset.test.ts`
 
 - [ ] **Step 3: Simplify production CLI and sandbox**
 
@@ -302,7 +302,7 @@ Delete `tmux.*` binding defaults and extraction branches, tmux prefix probing, t
 
 - [ ] **Step 5: Run GREEN**
 
-Run: `cd packages/kobe && bun run test:fast test/cli/index-dispatch.test.ts test/cli/usage.test.ts test/cli/maintenance-doctor.test.ts test/cli/maintenance-reset.test.ts test/tui/keybindings-user.test.ts test/tui-react/help-groups.test.ts`
+Run: `cd packages/rove && bun run test:fast test/cli/index-dispatch.test.ts test/cli/usage.test.ts test/cli/maintenance-doctor.test.ts test/cli/maintenance-reset.test.ts test/tui/keybindings-user.test.ts test/tui-react/help-groups.test.ts`
 
 - [ ] **Step 6: Commit**
 
@@ -315,14 +315,14 @@ git commit -m "refactor: make the CLI PureTUI-only" -m "Remove UI mode selection
 ### Task 5: Move generic helpers and delete the tmux module graph
 
 **Files:**
-- Move: `packages/kobe/src/tmux/editor-launch.ts` → `packages/kobe/src/tui/lib/editor-launch.ts`
-- Move matching tests to `packages/kobe/test/tui/editor-launch*.test.ts`
-- Delete: all remaining files under `packages/kobe/src/tmux/`
-- Delete: tmux session/layout/chattab/heal files under `packages/kobe/src/tui/panes/terminal/`
-- Delete: tmux-only pane host files under `packages/kobe/src/tui-react/{tasks-pane,quick-task,ops,settings,new-task,help,update,worktrees,history}/` while preserving components/cores imported by Workspace Host.
-- Delete: `packages/kobe/src/tui/lib/task-enter.ts`, `attach-gate.ts`, `tmux-border-theme.ts`, and other now-unreferenced tmux-only helpers.
-- Delete: tmux-only tests under `packages/kobe/test/tmux/`, `test/tui/`, and `test/behavior/`.
-- Create: `packages/kobe/test/architecture/no-tmux-runtime.test.ts`.
+- Move: `packages/rove/src/tmux/editor-launch.ts` → `packages/rove/src/tui/lib/editor-launch.ts`
+- Move matching tests to `packages/rove/test/tui/editor-launch*.test.ts`
+- Delete: all remaining files under `packages/rove/src/tmux/`
+- Delete: tmux session/layout/chattab/heal files under `packages/rove/src/tui/panes/terminal/`
+- Delete: tmux-only pane host files under `packages/rove/src/tui-react/{tasks-pane,quick-task,ops,settings,new-task,help,update,worktrees,history}/` while preserving components/cores imported by Workspace Host.
+- Delete: `packages/rove/src/tui/lib/task-enter.ts`, `attach-gate.ts`, `tmux-border-theme.ts`, and other now-unreferenced tmux-only helpers.
+- Delete: tmux-only tests under `packages/rove/test/tmux/`, `test/tui/`, and `test/behavior/`.
+- Create: `packages/rove/test/architecture/no-tmux-runtime.test.ts`.
 
 **Interfaces:**
 - Retained editor helper exports remain `resolveEditorLaunch`, `openInEditor`, and command-resolution types from the neutral path.
@@ -332,7 +332,7 @@ git commit -m "refactor: make the CLI PureTUI-only" -m "Remove UI mode selection
 
 Change imports to `src/tui/lib/editor-launch.ts` before moving the source.
 
-Run: `cd packages/kobe && bun run test:fast test/tui/editor-launch-resolve.test.ts test/tui/editor-launch.test.ts`
+Run: `cd packages/rove && bun run test:fast test/tui/editor-launch-resolve.test.ts test/tui/editor-launch.test.ts`
 
 Expected: FAIL until the helper is moved and importers updated.
 
@@ -364,7 +364,7 @@ comment says “tmux-style”; remove or rewrite stale comments separately.
 Run:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 bun run test:fast test/architecture/no-tmux-runtime.test.ts
 bun run typecheck
 bun run test:fast
@@ -386,7 +386,7 @@ Before staging, inspect `git status` and explicitly name only paths belonging to
 
 **Files:**
 - Modify: `AGENTS.md`, `CONTEXT.md`, `README.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md`, `docs/HARNESS.md`, `docs/KEYBINDINGS.md`, `docs/PLAN.md`, relevant active `docs/design/*.md`.
-- Modify: `.agents/skills/kobe/SKILL.md` only if it is a normal tracked file and not the user's unrelated `brand-studio` change.
+- Modify: `.agents/skills/rove/SKILL.md` only if it is a normal tracked file and not the user's unrelated `brand-studio` change.
 - Modify: `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.github/ISSUE_TEMPLATE/bug_report.md`, `.github/workflows/claude-code-review.yml`.
 - Modify: root/package scripts and behavior harness.
 - Replace: `.changeset/puretui-default-launch.md` with `.changeset/puretui-only.md`.
@@ -447,7 +447,7 @@ Prove:
 - [ ] **Step 2: Run full local gates from a fresh command**
 
 ```bash
-bun run lint && bun run typecheck && bun run test && (cd packages/kobe && bun run build && bun run test:behavior)
+bun run lint && bun run typecheck && bun run test && (cd packages/rove && bun run build && bun run test:behavior)
 ```
 
 Expected: every command exits 0.

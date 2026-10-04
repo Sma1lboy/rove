@@ -70,7 +70,7 @@ jobs:
           # release silently do nothing. Releasing whatever main's HEAD is
           # now is both what was asked for and what gets verified below.
           PENDING=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' | wc -l | tr -d ' ')
-          VERSION=$(node -p "require('./packages/kobe/package.json').version")
+          VERSION=$(node -p "require('./packages/rove/package.json').version")
           if [ "$PENDING" != "0" ]; then
             echo "$PENDING pending changeset(s) — releasing"
             echo "mode=release" >> "$GITHUB_OUTPUT"
@@ -136,7 +136,7 @@ jobs:
         run: |
           bun install --frozen-lockfile
           bun run ci:version
-          NEW=$(node -p "require('./packages/kobe/package.json').version")
+          NEW=$(node -p "require('./packages/rove/package.json').version")
           TAG="v$NEW"
           if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
             echo "::error::$TAG already exists on origin — changesets produced a version that's already tagged"

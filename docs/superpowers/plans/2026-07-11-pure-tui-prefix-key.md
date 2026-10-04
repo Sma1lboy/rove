@@ -20,24 +20,24 @@
 ### Task 1: Prefix dispatcher core
 
 **Files:**
-- Modify: `packages/kobe/src/tui/lib/keymap-dispatch.ts`
-- Test: `packages/kobe/test/tui/keymap-prefix.test.ts`
+- Modify: `packages/rove/src/tui/lib/keymap-dispatch.ts`
+- Test: `packages/rove/test/tui/keymap-prefix.test.ts`
 
 **Interfaces:**
 - Produces: prefix-marked `Binding` entries and configurable, resettable dispatcher prefix state.
 
 - [ ] Write failing tests for prefix entry, scoped second-stroke dispatch, timeout, cancellation, and modal isolation.
-- [ ] Run `cd packages/kobe && bunx vitest run test/tui/keymap-prefix.test.ts` and confirm the missing prefix API fails.
+- [ ] Run `cd packages/rove && bunx vitest run test/tui/keymap-prefix.test.ts` and confirm the missing prefix API fails.
 - [ ] Add the smallest framework-free prefix state and dispatch branch that makes the tests pass.
 - [ ] Re-run the focused test and `test/tui/keymap-dispatch.test.ts`.
 
 ### Task 2: Keymap catalogue and user configuration
 
 **Files:**
-- Modify: `packages/kobe/src/tui/context/keybindings.ts`
-- Modify: `packages/kobe/src/tui/context/keybindings-user.ts`
-- Create: `packages/kobe/src/tui/lib/keymap-prefix-overrides.ts`
-- Test: `packages/kobe/test/tui/keymap-prefix-overrides.test.ts`
+- Modify: `packages/rove/src/tui/context/keybindings.ts`
+- Modify: `packages/rove/src/tui/context/keybindings-user.ts`
+- Create: `packages/rove/src/tui/lib/keymap-prefix-overrides.ts`
+- Test: `packages/rove/test/tui/keymap-prefix-overrides.test.ts`
 
 **Interfaces:**
 - Consumes: prefix-marked `Binding` support from Task 1.
@@ -52,7 +52,7 @@
 
 **Files:**
 - Modify: `docs/KEYBINDINGS.md`
-- Test: `packages/kobe/test/tui/keymap-prefix.test.ts`
+- Test: `packages/rove/test/tui/keymap-prefix.test.ts`
 
 **Interfaces:**
 - Consumes: final dispatcher and YAML behaviour from Tasks 1–2.

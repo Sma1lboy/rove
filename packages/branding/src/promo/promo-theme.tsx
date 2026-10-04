@@ -26,7 +26,7 @@ export const P = {
 export const SANS = '"Instrument Sans", system-ui, sans-serif'
 export const MONO = '"JetBrains Mono", ui-monospace, monospace'
 
-// Mirrors BUILTIN_VENDORS and CONTRIB_ENGINES in packages/kobe: re-render with `bun run still:promo` when either changes.
+// Mirrors BUILTIN_VENDORS and CONTRIB_ENGINES in packages/rove: re-render with `bun run still:promo` when either changes.
 export const ENGINES = {
   builtIn: [
     ["Claude Code", "claude"],

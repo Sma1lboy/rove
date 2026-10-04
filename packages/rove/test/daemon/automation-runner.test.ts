@@ -1,0 +1,231 @@
+import { mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { describe, expect, it } from "vitest"
+import {
+  dueAutomations,
+  resolveDueOccurrence,
+  runAutomationOnce,
+  sweepAutomations,
+} from "../../../rove-daemon/src/daemon/automation-runner.ts"
+import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
+import { HOUR, NOW, REPO, automation, fakeDeps, tempStore } from "./automation-runner-fixtures.ts"
+
+describe("dueAutomations", () => {
+  it("selects only enabled schedules whose time has arrived", () => {
+    const list = [
+      automation({ id: "due" }),
+      automation({ id: "future", nextRunAt: new Date(NOW + HOUR).toISOString() }),
+      automation({ id: "disabled", enabled: false }),
+      automation({ id: "bad-date", nextRunAt: "not-a-date" }),
+    ]
+    expect(dueAutomations(list, NOW).map((a) => a.id)).toEqual(["due"])
+  })
+})
+
+describe("resolveDueOccurrence", () => {
+  it("marks an occurrence past the grace window as missed", () => {
+    const found = resolveDueOccurrence(automation({ missedRunGraceMinutes: 30 }), NOW)
+    expect(found?.missed).toBe(true)
+  })
+
+  it("will not claim occurrences from before the automation existed", () => {
+    // Created at 09:30, so today's 09:00 is not its occurrence.
+    const fresh = automation({ createdAt: new Date(NOW - 30 * 60_000).toISOString() })
+    expect(resolveDueOccurrence(fresh, NOW)).toBeNull()
+  })
+
+  it("a zero grace still runs an occurrence discovered on the next tick", () => {
+    // The sweep is a poller: it can only ever see an occurrence AFTER it
+    // happened, so `now - scheduledFor` lands somewhere in 0..tickMs on a
+    // perfectly healthy run. Without a one-tick floor, grace 0 made `missed`
+    // true on every single firing — the automation recorded `skipped_missed`
+    // forever and never dispatched, while zero looks like a sane setting.
+    const zero = automation({
+      schedule: "*/5 * * * *",
+      missedRunGraceMinutes: 0,
+      createdAt: new Date(0).toISOString(),
+    })
+    const scheduled = new Date(2026, 6, 31, 10, 5, 0).getTime()
+    const out = resolveDueOccurrence(zero, scheduled + 30_000)
+    expect(out?.scheduledFor).toBe(scheduled)
+    expect(out?.missed).toBe(false)
+  })
+
+  it("still calls a genuinely late occurrence missed with a zero grace", () => {
+    // The floor is ONE tick, not an amnesty: 10 minutes after the fact is a
+    // real outage and must still be skipped rather than fired stale. A daily
+    // schedule, so 10 minutes late really is late — under `*/5` the resolver
+    // would just hand back the newer occurrence.
+    const zero = automation({ missedRunGraceMinutes: 0 })
+    const scheduled = new Date(2026, 6, 31, 9, 0, 0).getTime()
+    expect(resolveDueOccurrence(zero, scheduled + 10 * 60_000)?.missed).toBe(true)
+    // …while the tick that discovers it is still on time.
+    expect(resolveDueOccurrence(zero, scheduled + 30_000)?.missed).toBe(false)
+  })
+
+  it("returns the single most recent occurrence after a long outage", () => {
+    // Daemon down for three days: the answer is yesterday's 09:00 (one run),
+    // never a stampede of every missed day.
+    const found = resolveDueOccurrence(automation(), NOW + 3 * 24 * HOUR)
+    expect(found?.scheduledFor).toBe(new Date(2026, 7, 3, 9, 0).getTime())
+  })
+})
+
+describe("runAutomationOnce", () => {
+  it("creates a task and starts its engine with the prompt", async () => {
+    const store = await tempStore()
+    const { deps, created, prompts } = fakeDeps({ store })
+    const a = await store.create(automation())
+
+    const status = await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
+
+    expect(status).toBe("dispatched")
+    expect(created).toEqual([{ repo: REPO, title: "audit" }])
+    const run = store.runsFor(a.id)[0]
+    expect(run).toMatchObject({ status: "dispatched", taskId: "task-1" })
+    // The header names THIS run, and the routine's prompt comes last, unchanged.
+    expect(prompts).toEqual([
+      `[ROVE ROUTINE] "audit" run #1 — when done, report with: rove api routine-respond --run ${run?.id} --prompt-file -\n\nrun the audit`,
+    ])
+  })
+
+  it("skips without creating a task when the precheck fails", async () => {
+    const store = await tempStore()
+    const { deps, created } = fakeDeps({ store })
+    const a = await store.create(automation({ precheck: { command: "exit 1", timeoutSeconds: 10 } }))
+
+    const status = await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
+
+    expect(status).toBe("skipped_precheck")
+    // The whole point of a precheck: no engine, no token spend.
+    expect(created).toEqual([])
+    expect(store.runsFor(a.id)[0]?.precheckResult?.exitCode).toBe(1)
+  })
+
+  it("ignores the precheck on a manual trigger", async () => {
+    const store = await tempStore()
+    const { deps, created } = fakeDeps({ store })
+    // Asking for it by hand IS the answer to "is this worth running".
+    const a = await store.create(automation({ precheck: { command: "exit 1", timeoutSeconds: 10 } }))
+
+    expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "manual" })).toBe("dispatched")
+    expect(created).toHaveLength(1)
+  })
+
+  it("records skipped_unavailable when the repo is gone", async () => {
+    const store = await tempStore()
+    const { deps } = fakeDeps({
+      store,
+      createTask: async () => {
+        throw new Error("repo not found")
+      },
+    })
+    const a = await store.create(automation())
+
+    expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("skipped_unavailable")
+    expect(store.runsFor(a.id)[0]?.error).toMatch(/repo not found/)
+  })
+
+  it("records dispatch_failed but keeps the task id when the engine will not start", async () => {
+    const store = await tempStore()
+    const { deps } = fakeDeps({
+      store,
+      start: async () => ({
+        started: false,
+        error: "engine process never started; last session output: command not found",
+      }),
+    })
+    const a = await store.create(automation())
+
+    expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("dispatch_failed")
+    // The task exists; surfacing its id lets the user open and retry it.
+    expect(store.runsFor(a.id)[0]).toMatchObject({ status: "dispatch_failed", taskId: "task-1" })
+  })
+})
+
+describe("sweepAutomations", () => {
+  it("does not fire the same occurrence twice across overlapping sweeps", async () => {
+    const store = await tempStore()
+    const created = await store.create({
+      name: "audit",
+      repo: REPO,
+      prompt: "p",
+      schedule: "*/15 * * * *",
+      missedRunGraceMinutes: 60,
+    })
+    const { deps, prompts } = fakeDeps({ store })
+    await store.advanceNextRun(created.id, NOW - 60_000)
+
+    await sweepAutomations(deps)
+    await sweepAutomations(deps)
+
+    expect(prompts).toHaveLength(1)
+  })
+
+  it("records skipped_missed without dispatching when past the grace window", async () => {
+    // The daemon was down when 09:00 came around and only came back at 10:00,
+    // outside the 30m grace. Arming a schedule whose nextRunAt is already in
+    // the past is exactly what a persisted file looks like after an outage.
+    const dir = mkdtempSync(join(tmpdir(), "kobe-automation-missed-"))
+    const path = join(dir, "automations.json")
+    writeFileSync(
+      path,
+      JSON.stringify({
+        version: 1,
+        automations: [
+          {
+            id: "missed",
+            name: "audit",
+            repo: REPO,
+            prompt: "p",
+            schedule: "0 9 * * *",
+            enabled: true,
+            nextRunAt: new Date(NOW - HOUR).toISOString(),
+            missedRunGraceMinutes: 30,
+            createdAt: new Date(NOW - 30 * 24 * HOUR).toISOString(),
+            updatedAt: new Date(NOW - 30 * 24 * HOUR).toISOString(),
+          },
+        ],
+        runs: [],
+      }),
+    )
+    const store = new AutomationsStore(path, () => NOW)
+    await store.init()
+    const { deps, created: tasks } = fakeDeps({ store })
+
+    await sweepAutomations(deps)
+
+    expect(tasks).toEqual([])
+    expect(store.runsFor("missed")[0]?.status).toBe("skipped_missed")
+    // And the schedule still moved on, so the stale occurrence cannot re-fire.
+    expect(Date.parse(store.get("missed")?.nextRunAt ?? "")).toBeGreaterThan(NOW)
+  })
+
+  it("picks up a schedule armed by a previous daemon (restart survival)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "kobe-automation-restart-"))
+    const path = join(dir, "automations.json")
+
+    // Daemon #1 arms a schedule, then dies.
+    const first = new AutomationsStore(path, () => NOW - HOUR)
+    await first.init()
+    const created = await first.create({
+      name: "audit",
+      repo: REPO,
+      prompt: "p",
+      schedule: "*/15 * * * *",
+      missedRunGraceMinutes: 60,
+    })
+
+    // Daemon #2 boots fresh with no in-memory timers whatsoever.
+    const second = new AutomationsStore(path, () => NOW)
+    await second.init()
+    const { deps, prompts } = fakeDeps({ store: second })
+
+    await sweepAutomations(deps)
+
+    // Fired purely off the persisted nextRunAt — no re-arm pass exists.
+    expect(prompts).toEqual([expect.stringMatching(/\n\np$/)])
+    expect(second.get(created.id)).toBeDefined()
+  })
+})

@@ -13,7 +13,7 @@ A theme is a JSON object with two top-level fields:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/sma1lboy/rove/main/packages/kobe/src/tui/context/theme/theme.schema.json",
+  "$schema": "https://raw.githubusercontent.com/sma1lboy/rove/main/packages/rove/src/tui/context/theme/theme.schema.json",
   "defs": {
     "brand": "#cc785c"
   },
@@ -42,9 +42,9 @@ A theme is a JSON object with two top-level fields:
 You don't have to fill every slot; Rove has fallbacks (e.g.
 missing `borderActive` falls through to `border`, missing `border`
 falls through to `text`). The full slot list with fallbacks lives in
-[`packages/kobe/src/tui/context/theme-core.ts`](../packages/kobe/src/tui/context/theme-core.ts).
+[`packages/rove/src/tui/context/theme-core.ts`](../packages/rove/src/tui/context/theme-core.ts).
 The canonical example is
-[`packages/kobe/src/tui/context/theme/claude.json`](../packages/kobe/src/tui/context/theme/claude.json).
+[`packages/rove/src/tui/context/theme/claude.json`](../packages/rove/src/tui/context/theme/claude.json).
 Copy it as a starting point.
 
 ## CLI

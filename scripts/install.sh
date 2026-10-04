@@ -14,8 +14,8 @@ PACKAGE="@sma1lboy/rove"
 LEGACY_PACKAGE="@sma1lboy/kobe"
 VERSION="${1:-}"
 
-# Oldest Bun Rove runs on. Must match `engines.bun` in packages/kobe/package.json
-# and MIN_BUN_VERSION in packages/kobe/src/cli/bun-runtime.ts — the three are
+# Oldest Bun Rove runs on. Must match `engines.bun` in packages/rove/package.json
+# and MIN_BUN_VERSION in packages/rove/src/cli/bun-runtime.ts — the three are
 # held together by test/architecture/bun-version-floor.test.ts.
 #
 # Checked because nobody else checks it: `bun install` ignores `engines`
