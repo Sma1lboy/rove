@@ -29,3 +29,11 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Remaining per-switch spawn:** `git ls-files` from `listFiles` (the All tab wipes and re-lists on every worktree change). A per-worktree cache is not safe as-is: the fs watch only covers the shown worktree, so an away worktree's list can go stale. Needs an invalidation signal (e.g. `worktreeFingerprint` from kobe-daemon's worktree-probe, which misses untracked-file adds) before it is worth trying.
 
 **Noise:** `golden.daemon-connect-replay-ms` read 32.1 once (7.9 baseline) and 9.5 on the re-run. `golden.mem-per-tab-mb` swings 4.8–9.6 across nights with no related change.
+
+## 2026-10-04 — notes (main 02dddc8)
+
+**Baseline moved:** switch.perOp.spawns 2.6 → 1.5 (the 09-28 Files-pane HEAD read landed); every other change within tolerance.
+
+**Landed tonight as a PR from `perf/nightly-2026-10-04`:** a simpler take on the 09-24 idea. Rows poll from a shared clock store (`tui/lib/sidebar-poll-clock.ts`) instead of effects keyed on `branchTick`; `branchTick` bumps only on `subscribeBackgroundPolls` (a poller wrote a changed value). Age-label and row-token rows subscribe to the clock via `useClockTick`. idle commits/frames 6 → 0; typing.perOp.commit.sidebar 0.2 → 0. perf:measure completed 2/2 with it.
+
+**Pre-existing on main:** `bun run lint` fails on `test/client/pty-child-probe.test.ts` formatting (fixed in the PR); render test "the Clone tab's parent dir walks the same way" fails on unmodified main.
