@@ -4,8 +4,8 @@ import { join } from "node:path"
 import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
-  ROVE_KIMI_HOOK_EVENTS,
   KimiHookAdapter,
+  ROVE_KIMI_HOOK_EVENTS,
   mergeKimiHooks,
   removeKimiHookBlock,
   renderKimiHookBlock,
@@ -15,8 +15,8 @@ import {
 // vi.mock replaces EVERY export; a new invocation.ts function must be stubbed
 // here too or default-arg calls become undefined()).
 vi.mock("../../src/cli/invocation.ts", () => ({
-  roveCliInvocation: () => ["kobe"],
-  roveHookInvocation: () => ["kobe"],
+  roveCliInvocation: () => ["rove"],
+  roveHookInvocation: () => ["rove"],
 }))
 
 describe("KimiHookAdapter", () => {
@@ -46,14 +46,14 @@ describe("KimiHookAdapter", () => {
 })
 
 describe("mergeKimiHooks (pure TOML block merge)", () => {
-  const inv = ["kobe"] as const
+  const inv = ["rove"] as const
 
   it("appends a marker-delimited block with one table per non-gated event", () => {
     const out = mergeKimiHooks("", true, inv)
     expect(out).toContain("# >>> rove hooks")
     expect(out).toContain("# <<< rove hooks")
     expect(out).toContain('event = "Interrupt"')
-    expect(out).toContain(`command = "kobe hook turn-interrupted --engine kimi --hook-version ${ROVE_HOOK_VERSION}"`)
+    expect(out).toContain(`command = "rove hook turn-interrupted --engine kimi --hook-version ${ROVE_HOOK_VERSION}"`)
     // Gated tool family is absent by default…
     expect(out).not.toContain('event = "PreToolUse"')
     // …and present when a plugin subscribes tool.* events.
@@ -85,7 +85,7 @@ describe("KimiHookAdapter install/remove roundtrip (real file)", () => {
   const adapter = new KimiHookAdapter()
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), "kobe-kimi-hooks-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-kimi-hooks-"))
     file = join(dir, "config.toml")
   })
   afterEach(async () => {
@@ -115,7 +115,7 @@ describe("KimiHookAdapter install/remove roundtrip (real file)", () => {
 
 describe("renderKimiHookBlock", () => {
   it("bounds every hook with an explicit sub-30s timeout", () => {
-    const block = renderKimiHookBlock(["kobe"])
+    const block = renderKimiHookBlock(["rove"])
     const tables = block.split("[[hooks]]").length - 1
     const timeouts = block.split("timeout = 10").length - 1
     expect(tables).toBeGreaterThan(0)

@@ -7,7 +7,7 @@
  * TERM_PROGRAM: apps with layered detection (claude-code checks
  * LC_TERMINAL, ITERM_SESSION_ID, __CFBundleIdentifier, KITTY_*,
  * terminal-multiplexer identifiers, … as fallbacks) otherwise still
- * resolve the OUTER emulator and keep emitting its dialect at kobe's
+ * resolve the OUTER emulator and keep emitting its dialect at rove's
  * xterm parser. Capability variables
  * (TERM, COLORTERM, TERMINFO*) survive — they describe what the immediate
  * parser can do, which the spawn sites set explicitly.

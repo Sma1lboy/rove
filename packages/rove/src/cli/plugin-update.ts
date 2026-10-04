@@ -1,5 +1,5 @@
 /**
- * `kobe plugin outdated|update` for GitHub installs: `git ls-remote HEAD` vs
+ * `rove plugin outdated|update` for GitHub installs: `git ls-remote HEAD` vs
  * the checkout's HEAD; update = reinstall (config/state live outside the
  * checkout). Linked plugins are never touched. Every check rewrites the
  * outdated cache Settings reads — the TUI never hits the network.
@@ -21,8 +21,8 @@ import {
   removePluginEntry,
   savePluginRegistry,
 } from "@sma1lboy/rove-daemon/plugins/registry"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { PluginCliError, installPlugin } from "./plugin-install.ts"
-import { activeCliName } from "./rename-compat.ts"
 
 interface OutdatedRow {
   readonly id: string
@@ -124,7 +124,7 @@ export async function updatePlugins(ids: readonly string[], opts: { all: boolean
     targets = ids.map((id) => {
       const row = rows.find((r) => r.id === id)
       if (!row)
-        throw new PluginCliError(`\`${id}\` is not a GitHub-installed plugin; see \`${activeCliName()} plugin list\``)
+        throw new PluginCliError(`\`${id}\` is not a GitHub-installed plugin; see \`${ROVE_PRODUCT_NAME} plugin list\``)
       return row
     })
   }

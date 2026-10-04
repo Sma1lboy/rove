@@ -57,7 +57,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
           machines.dispose()
           orchestrator.dispose()
           installTerminalGraphics(null)
-          // Detach, don't kill: hosted PTYs (`kobe pty-host`) keep sessions
+          // Detach, don't kill: hosted PTYs (`rove pty-host`) keep sessions
           // running and reattach next boot. Local-backend PTYs (no detach())
           // still die with this process.
           getDefaultPtyRegistry().detachAll()

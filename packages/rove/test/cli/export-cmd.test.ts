@@ -8,8 +8,8 @@ function task(overrides: Partial<Task> = {}): Task {
     id: toTaskId("01HZ0000000000000000000001"),
     title: "Fix the thing",
     repo: "/home/u/repo",
-    branch: "kobe/fix-thing-01",
-    worktreePath: "/home/u/.kobe/worktrees/repo/fix-thing-01",
+    branch: "rove/fix-thing-01",
+    worktreePath: "/home/u/.rove/worktrees/repo/fix-thing-01",
     status: "in_progress",
     vendor: "claude",
     createdAt: "2026-06-23T00:00:00.000Z",
@@ -27,9 +27,9 @@ describe("renderExport", () => {
       title: "Fix the thing",
       status: "in_progress",
       vendor: "claude",
-      branch: "kobe/fix-thing-01",
+      branch: "rove/fix-thing-01",
       repo: "/home/u/repo",
-      worktreePath: "/home/u/.kobe/worktrees/repo/fix-thing-01",
+      worktreePath: "/home/u/.rove/worktrees/repo/fix-thing-01",
     })
   })
 

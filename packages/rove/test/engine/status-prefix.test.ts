@@ -1,6 +1,6 @@
 /**
  * `stripEngineStatusPrefix` — an engine that owns its OSC title writes its
- * turn state into it, and kobe draws that same state in its own glyph
+ * turn state into it, and rove draws that same state in its own glyph
  * column. Rendering both says the fact twice, and the ANIMATED variants make
  * a resting tab look busy. The glyph vocabulary is
  * declared per engine, so no neutral layer hard-codes a vendor's characters.

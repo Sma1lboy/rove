@@ -24,7 +24,7 @@ const NOW = Date.now()
 const AUTOMATION = {
   id: "a1",
   name: "weekday audit",
-  repo: "/x/kobe",
+  repo: "/x/rove",
   prompt: "audit",
   schedule: "0 9 * * MON-FRI",
   enabled: true,
@@ -49,7 +49,7 @@ function fakeOrchestrator(opts: { automations?: unknown[] } = {}) {
       return { automations, keepsDaemonAlive: automations.length > 0 }
     },
     automationRuns: async () => ({ runs: [] }),
-    listTasks: () => [{ repo: "/x/kobe" }],
+    listTasks: () => [{ repo: "/x/rove" }],
   } as unknown as RemoteOrchestrator
   return {
     orchestrator,

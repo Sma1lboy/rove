@@ -1,7 +1,7 @@
 /**
  * Newline-delimited JSON client for the daemon unix socket — the push
  * surface the CLI can't give you (live channels). Request names/payloads:
- * kobe-daemon protocol.ts; channel payloads are host-versioned `unknown`.
+ * rove-daemon protocol.ts; channel payloads are host-versioned `unknown`.
  */
 
 import { type Socket, createConnection } from "node:net"

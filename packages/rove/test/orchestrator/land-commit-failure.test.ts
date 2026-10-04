@@ -97,7 +97,7 @@ function breakCommitting(): void {
 }
 
 beforeEach(() => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-land-fail-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-land-fail-"))
   repo = path.join(tmpRoot, "repo")
   fs.mkdirSync(repo)
   gitOk(["init", "-b", "main"])

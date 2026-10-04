@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
@@ -46,9 +47,9 @@ beforeEach(() => {
   originalHome = process.env.ROVE_HOME_DIR
   originalExitCode = process.exitCode
   process.exitCode = 0
-  home = mkdtempSync(join(tmpdir(), "kobe-reset-"))
+  home = mkdtempSync(join(tmpdir(), "rove-reset-"))
   process.env.ROVE_HOME_DIR = home
-  mkdirSync(join(home, ".kobe"), { recursive: true })
+  mkdirSync(join(home, `${preRenameStateDir("")}`), { recursive: true })
   mkdirSync(join(home, ".rove"), { recursive: true })
   mocks.stopDaemonProcess.mockReset().mockResolvedValue({ pid: null, method: "absent" })
   mocks.stopLegacyTmux.mockReset().mockResolvedValue({ status: "absent", sessions: 0, signalledGroups: 0 })
@@ -91,11 +92,11 @@ describe("runResetSubcommand", () => {
 
   it("hard reset removes task and UI state while preserving worktrees", async () => {
     const tasksPath = join(home, ".rove", "tasks.json")
-    const legacyTasksPath = join(home, ".kobe", "tasks.json")
+    const legacyTasksPath = join(home, `${preRenameStateDir("")}`, "tasks.json")
     const statePath = join(home, ".config", "rove", "state.json")
-    const legacyStatePath = join(home, ".config", "kobe", "state.json")
+    const legacyStatePath = join(home, ".config", "rove", "state.json")
     mkdirSync(join(home, ".config", "rove"), { recursive: true })
-    mkdirSync(join(home, ".config", "kobe"), { recursive: true })
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
     writeFileSync(tasksPath, JSON.stringify({ tasks: [{ id: "a" }] }))
     writeFileSync(legacyTasksPath, JSON.stringify({ tasks: [{ id: "legacy" }] }))
     writeFileSync(statePath, "{}")

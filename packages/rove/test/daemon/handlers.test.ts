@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 /**
- * RPC dispatch seam tests (registry in `kobe-daemon/src/daemon/handlers.ts`).
+ * RPC dispatch seam tests (registry in `rove-daemon/src/daemon/handlers.ts`).
  *
  * WHY these matter: the registry makes the RPC dispatch seam testable WITHOUT
  * a socket — dispatch through a fake context and assert the payload, instead
@@ -76,9 +76,9 @@ describe("daemon handler registry", () => {
       const published = rec.published.find((p) => p.channel === "ui.prompt")
       expect(published?.payload).toMatchObject({ title: "URL?", placeholder: "https://…" })
       const promptId = (published?.payload as { promptId: string }).promptId
-      const ok = await dispatch("ui.promptReply", { promptId, value: "https://kobe.dev" }, ctx)
+      const ok = await dispatch("ui.promptReply", { promptId, value: "https://rove.dev" }, ctx)
       expect(ok).toEqual({ ok: true })
-      expect(await pending).toEqual({ value: "https://kobe.dev" })
+      expect(await pending).toEqual({ value: "https://rove.dev" })
       // A second reply to the same prompt is dropped.
       expect(await dispatch("ui.promptReply", { promptId, value: "late" }, ctx)).toEqual({ ok: false })
     })

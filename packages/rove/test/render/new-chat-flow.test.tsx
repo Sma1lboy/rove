@@ -18,7 +18,7 @@
  * frame — blank, because `Driver` renders `null`. Wait for the dialog's own
  * text with `waitForFrameText` instead.
  *
- * Engine history reads and kobe state writes are both sandboxed to a
+ * Engine history reads and rove state writes are both sandboxed to a
  * tmpdir via their real env seams (`CLAUDE_CONFIG_DIR` / `CODEX_HOME` /
  * `ROVE_HOME_DIR`) — bun's `os.homedir()` ignores runtime `HOME` changes,
  * so plain-HOME sandboxing silently reads the real home.
@@ -67,11 +67,11 @@ async function waitFor(
 beforeAll(() => {
   // realpath: on darwin mkdtemp hands back `/var/…` but git resolves the
   // `/private/var` symlink, and the flow compares repo paths from git.
-  root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "kobe-new-chat-flow-")))
+  root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "rove-new-chat-flow-")))
   for (const k of ENV_KEYS) savedEnv[k] = process.env[k]
   process.env.CLAUDE_CONFIG_DIR = path.join(root, "claude-config")
   process.env.CODEX_HOME = path.join(root, "codex-home")
-  process.env.ROVE_HOME_DIR = path.join(root, "kobe-home")
+  process.env.ROVE_HOME_DIR = path.join(root, "rove-home")
   fs.mkdirSync(process.env.CLAUDE_CONFIG_DIR, { recursive: true })
   fs.mkdirSync(process.env.CODEX_HOME, { recursive: true })
   fs.mkdirSync(process.env.ROVE_HOME_DIR, { recursive: true })
@@ -80,7 +80,7 @@ beforeAll(() => {
   fs.mkdirSync(repo)
   git(repo, "init", "-b", "main")
   git(repo, "commit", "--allow-empty", "-m", "init")
-  git(repo, "worktree", "add", "-b", "kobe/parent", worktree)
+  git(repo, "worktree", "add", "-b", "rove/parent", worktree)
 })
 
 afterAll(() => {
@@ -220,7 +220,7 @@ describe("requestNewChat dispatch", () => {
     expect(captured.forks[0]!.result).toMatchObject({
       prompt: "ship the thing",
       vendor: "claude",
-      baseRef: "kobe/parent",
+      baseRef: "rove/parent",
     })
   })
 

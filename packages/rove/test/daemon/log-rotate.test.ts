@@ -1,8 +1,8 @@
 /**
- * Tests for the append-log rotation logic. Uncapped, `~/.kobe/client.log`
- * and `~/.kobe/daemon.log` grow into the hundreds of MB. These lock the pure
+ * Tests for the append-log rotation logic. Uncapped, `~/.rove/client.log`
+ * and `~/.rove/daemon.log` grow into the hundreds of MB. These lock the pure
  * size-threshold decision plus the real rename-based rotation against a temp
- * dir (never the real ~/.kobe).
+ * dir (never the real ~/.rove).
  */
 
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises"
@@ -23,7 +23,7 @@ describe("rotateLogIfNeeded", () => {
   let logPath: string
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), "kobe-log-rotate-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-log-rotate-"))
     logPath = join(dir, "test.log")
   })
 

@@ -83,7 +83,7 @@ describe("claude-plugin bundle integrity", () => {
   test.each(["SKILL.md", join("references", "api-flags.md")])(
     "bundled %s is byte-identical to the canonical skill",
     (file) => {
-      const canonical = readFileSync(join(ROOT, ".agents", "skills", "kobe", file), "utf8")
+      const canonical = readFileSync(join(ROOT, ".agents", "skills", "rove", file), "utf8")
       const bundled = readFileSync(join(PLUGIN, "skills", "rove", file), "utf8")
       expect(bundled).toBe(canonical)
     },

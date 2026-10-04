@@ -1,5 +1,5 @@
 /**
- * Bun discovery + relaunch for the published `rove` / `kobe` bins.
+ * Bun discovery + relaunch for the published `rove` / `rove` bins.
  *
  * The bundle is a Bun program, but `npm install -g` / `npx` start the bin under
  * node. So the bin is a node launcher that finds Bun and re-execs the real
@@ -18,7 +18,7 @@ import { homedir } from "node:os"
 import { basename, delimiter, dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import pkg from "../../package.json" with { type: "json" }
-import { activeCliName } from "./rename-compat.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 
 /** Point Rove at a specific Bun binary (skips every other candidate). */
 export const BUN_OVERRIDE_ENV = "ROVE_BUN"
@@ -205,7 +205,7 @@ export function bunInstallerCommand(platform: NodeJS.Platform = process.platform
 
 /** Copy-pasteable install lines, shown when Rove cannot start Bun itself. */
 export function missingBunMessage(
-  cliName: string = activeCliName(),
+  cliName: string = ROVE_PRODUCT_NAME,
   platform: NodeJS.Platform = process.platform,
 ): string {
   const primary =
@@ -227,7 +227,7 @@ export function missingBunMessage(
 
 /** Every Bun predates {@link MIN_BUN_VERSION}. Names the binary: upgrading
  *  `~/.bun` does nothing for a Homebrew Bun earlier on PATH. */
-export function staleBunMessage(bunPath: string, version: string, cliName: string = activeCliName()): string {
+export function staleBunMessage(bunPath: string, version: string, cliName: string = ROVE_PRODUCT_NAME): string {
   return [
     `${cliName}: this machine's Bun is too old for Rove — found ${version} at ${bunPath}, need ${MIN_BUN_VERSION} or newer.`,
     "",
@@ -247,7 +247,7 @@ export function staleBunMessage(bunPath: string, version: string, cliName: strin
 
 /** A Bun is on disk but won't run. Distinct from "no Bun found", which would
  *  send the user in circles. */
-export function unusableBunMessage(bunPath: string, cliName: string = activeCliName()): string {
+export function unusableBunMessage(bunPath: string, cliName: string = ROVE_PRODUCT_NAME): string {
   return [
     `${cliName}: the Bun at ${bunPath} could not be run — \`${bunPath} --version\` failed or never returned.`,
     "",

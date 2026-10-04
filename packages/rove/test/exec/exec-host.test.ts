@@ -241,7 +241,7 @@ describe("LocalExecHost.run (async, non-blocking)", () => {
 
   it("maps a missing binary (ENOENT) to the old spawnSync-derived shape: exitCode -1, empty output", async () => {
     const host = new LocalExecHost()
-    const r = await host.run(["kobe-definitely-not-a-real-binary-xyz"])
+    const r = await host.run(["rove-definitely-not-a-real-binary-xyz"])
     expect(r.exitCode).toBe(-1)
     expect(r.stdout).toBe("")
     expect(r.stderr).toBe("")

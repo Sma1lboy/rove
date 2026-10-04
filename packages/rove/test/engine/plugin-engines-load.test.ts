@@ -24,7 +24,7 @@ afterEach(() => {
 })
 
 function homeWith(plugins: { id: string; root: string; enabled?: boolean }[]): string {
-  const home = tmp("kobe-engines-home-")
+  const home = tmp("rove-engines-home-")
   mkdirSync(join(home, ".rove"), { recursive: true })
   savePluginRegistry(
     {
@@ -44,7 +44,7 @@ function homeWith(plugins: { id: string; root: string; enabled?: boolean }[]): s
 }
 
 function pluginRoot(manifest: string): string {
-  const root = tmp("kobe-engines-plugin-")
+  const root = tmp("rove-engines-plugin-")
   writeFileSync(join(root, "rove-plugin.toml"), manifest)
   return root
 }
@@ -88,7 +88,7 @@ describe("loadPluginEngines", () => {
   })
 
   it("skips disabled plugins and unreadable manifests without throwing", () => {
-    const broken = tmp("kobe-engines-broken-") // no manifest file at all
+    const broken = tmp("rove-engines-broken-") // no manifest file at all
     homeWith([
       { id: "off.plugin", root: pluginRoot(MANIFEST), enabled: false },
       { id: "broken.plugin", root: broken },

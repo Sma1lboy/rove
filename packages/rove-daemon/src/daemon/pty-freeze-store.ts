@@ -3,7 +3,7 @@
  *
  * Scrollback lives in host memory, so a host crash / reboot / SIGTERM would
  * otherwise lose the session table and every byte of it. One JSON file per
- * session under `<home>/.kobe/pty-sessions/` holds what a LATER host needs:
+ * session under `<home>/.rove/pty-sessions/` holds what a LATER host needs:
  * key, cwd, launch command, size, title, byte offsets, and the ring.
  *
  * Restore is LAZY and lossy-by-design: a thawed session is a dead

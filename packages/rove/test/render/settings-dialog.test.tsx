@@ -37,7 +37,7 @@ describe("SettingsDialog", () => {
   })
 
   it("walks every section with the real j chord and renders each body", async () => {
-    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-settings-"))
+    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-settings-"))
     const { frame, mockInput } = await renderComponent(<Driver />, {
       width: 110,
       // Tall enough for a whole section inside the page's scroll viewport.
@@ -89,7 +89,7 @@ describe("SettingsDialog", () => {
   })
 
   it("selects and persists the prefix-tap presentation with ordinary Settings keys", async () => {
-    const home = mkdtempSync(join(tmpdir(), "kobe-prefix-setting-"))
+    const home = mkdtempSync(join(tmpdir(), "rove-prefix-setting-"))
     process.env.ROVE_HOME_DIR = home
     const { frame, mockInput } = await renderComponent(<Driver />, {
       width: 110,

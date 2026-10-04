@@ -46,7 +46,7 @@ function gitProcesses(): number {
  */
 beforeEach(() => {
   realPath = process.env.PATH ?? ""
-  root = mkdtempSync(join(tmpdir(), "kobe-baseref-"))
+  root = mkdtempSync(join(tmpdir(), "rove-baseref-"))
   const origin = join(root, "origin")
   mkdirSync(origin)
   git(origin, "init", "-q", "-b", "develop", ".")

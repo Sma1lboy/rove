@@ -2,17 +2,18 @@ import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
 import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
-import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv, readRoveHomeDirEnv } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME, readRoveEnv, readRoveHomeDirEnv } from "../compat-env.ts"
+import { preRenameStateDir } from "./pre-rename-runtime.ts"
 
 /**
- * Runtime files live under `.rove`; `.kobe` is legacy. A socket path is the
+ * Runtime files live under `.rove`; `.rove` is legacy. A socket path is the
  * ADDRESS of a running process: switching blindly would hide the live daemon
  * and PTY host from a new client, which would start a second pair and orphan
  * every engine tab. Rule: canonical if it exists, else legacy IF its process
- * is alive, else canonical. A crash-stale `.kobe` socket fails liveness.
+ * is alive, else canonical. A crash-stale `.rove` socket fails liveness.
  */
 function stateDirs(homeDir: string): { canonical: string; legacy: string } {
-  return { canonical: join(homeDir, ROVE_STATE_DIR_BASENAME), legacy: join(homeDir, COMPAT_STATE_DIR_BASENAME) }
+  return { canonical: join(homeDir, ROVE_STATE_DIR_BASENAME), legacy: preRenameStateDir(homeDir) }
 }
 
 /** True when `pidPath` names a process this machine still has. */
@@ -31,42 +32,17 @@ function pidIsLive(pidPath: string): boolean {
 function runtimePath(homeDir: string, name: string, pidName: string): string {
   const { canonical, legacy } = stateDirs(homeDir)
   const canonicalPath = join(canonical, name)
-  if (existsSync(canonicalPath)) return canonicalPath
+  if (pidIsLive(join(canonical, pidName))) return canonicalPath
   const legacyPath = join(legacy, name)
   if (existsSync(legacyPath) && pidIsLive(join(legacy, pidName))) return legacyPath
   return canonicalPath
 }
 
 /**
- * Pre-rename location of a runtime file. Binding side only: after bind it
- * links legacy → canonical so an older binary still finds the daemon/host
- * (`compat-link.ts`). Resolution uses `runtimePath`, never this.
- */
-export function legacyRuntimePath(homeDir: string, name: string): string {
-  return join(homeDir, COMPAT_STATE_DIR_BASENAME, name)
-}
-
-export function legacyDaemonSocketPath(homeDir: string): string {
-  return legacyRuntimePath(homeDir, "daemon.sock")
-}
-
-export function legacyDaemonPidPath(homeDir: string): string {
-  return legacyRuntimePath(homeDir, "daemon.pid")
-}
-
-export function legacyPtyHostSocketPath(homeDir: string): string {
-  return legacyRuntimePath(homeDir, "pty.sock")
-}
-
-export function legacyPtyHostPidPath(homeDir: string): string {
-  return legacyRuntimePath(homeDir, "pty.pid")
-}
-
-/**
  * Data read back across restarts: always canonical. The PTY host migrates
  * legacy entries at boot (`pty-data-migration.ts`, the single-writer moment);
- * a "whichever layout has it" rule would pin data under `.kobe`, and deleting
- * `~/.kobe` (documented as safe) would lose frozen sessions.
+ * a "whichever layout has it" rule would pin data under `.rove`, and deleting
+ * `~/.rove` (documented as safe) would lose frozen sessions.
  */
 function runtimeDataPath(homeDir: string, name: string): string {
   return join(stateDirs(homeDir).canonical, name)
@@ -85,7 +61,7 @@ export function shortHomeTag(homeDir: string): string {
 }
 
 /**
- * `naturalPath` if within the limit, else `$TMPDIR/kobe-<homeTag>-<role>.sock`.
+ * `naturalPath` if within the limit, else `$TMPDIR/rove-<homeTag>-<role>.sock`.
  * The fallback MUST be deterministic per (homeDir, role) or clients can't find
  * the socket. `pidTag` is only for ephemeral per-PID sockets (the bridge); omit
  * it for paths that must stay stable across restarts.
@@ -94,7 +70,7 @@ export function fitSocketPath(naturalPath: string, homeDir: string, role: string
   if (Buffer.byteLength(naturalPath, "utf8") <= SOCKET_PATH_SAFETY_LIMIT) return naturalPath
   const tag = shortHomeTag(homeDir)
   const suffix = pidTag === undefined ? "" : `-${pidTag}`
-  const fallback = join(tmpdir(), `kobe-${tag}-${role}${suffix}.sock`)
+  const fallback = join(tmpdir(), `rove-${tag}-${role}${suffix}.sock`)
   if (Buffer.byteLength(fallback, "utf8") <= SOCKET_PATH_SAFETY_LIMIT) return fallback
   throw new Error(`daemon socket path exceeds ${SOCKET_PATH_SAFETY_LIMIT} bytes even after fallback: ${fallback}`)
 }
@@ -103,9 +79,9 @@ export function fitSocketPath(naturalPath: string, homeDir: string, role: string
  * Resolution order (after the `DAEMON_SOCKET_PATH` override):
  *   1. `homeDir` argument → `<homeDir>/.rove/daemon.sock`.
  *   2. `ROVE_HOME_DIR`/`ROVE_HOME_DIR` → `$ROVE_HOME_DIR/.rove/daemon.sock`.
- *   3. `XDG_RUNTIME_DIR` → `$XDG_RUNTIME_DIR/kobe.sock`.
+ *   3. `XDG_RUNTIME_DIR` → `$XDG_RUNTIME_DIR/rove.sock`.
  *   4. `~/.rove/daemon.sock`.
- * Steps 1, 2 and 4 yield the legacy `.kobe` twin only while a pre-rename
+ * Steps 1, 2 and 4 yield the legacy `.rove` twin only while a pre-rename
  * process holds it ({@link stateDirs}). Every result goes through
  * {@link fitSocketPath}.
  *
@@ -121,14 +97,14 @@ export function defaultDaemonSocketPath(homeDir?: string): string {
   if (override) return override
   const explicit = homeDir ?? readRoveHomeDirEnv()
   if (explicit && explicit.length > 0) {
-    return fitSocketPath(runtimePath(explicit, "daemon.sock", "daemon.pid"), explicit, "daemon")
+    return fitSocketPath(join(explicit, ROVE_STATE_DIR_BASENAME, "daemon.sock"), explicit, "daemon")
   }
   const runtimeDir = process.env.XDG_RUNTIME_DIR
   if (runtimeDir && runtimeDir.length > 0) {
-    return fitSocketPath(join(runtimeDir, "kobe.sock"), runtimeDir, "daemon")
+    return fitSocketPath(join(runtimeDir, "rove.sock"), runtimeDir, "daemon")
   }
   const home = homedir()
-  return fitSocketPath(runtimePath(home, "daemon.sock", "daemon.pid"), home, "daemon")
+  return fitSocketPath(join(home, ROVE_STATE_DIR_BASENAME, "daemon.sock"), home, "daemon")
 }
 
 /**
@@ -176,12 +152,12 @@ export function isWindowsPipePath(path: string): boolean {
  * Bun daemon keeps a unix socket ({@link defaultDaemonSocketPath}).
  */
 export function windowsPipePath(homeDir: string, role: string): string {
-  return `\\\\.\\pipe\\kobe-${shortHomeTag(homeDir)}-${role}`
+  return `\\\\.\\pipe\\rove-${shortHomeTag(homeDir)}-${role}`
 }
 
 /**
- * Socket for the standalone PTY HOST (`kobe pty-host`), which owns terminal
- * children so they survive TUI exits AND `kobe daemon restart`. Separate from
+ * Socket for the standalone PTY HOST (`rove pty-host`), which owns terminal
+ * children so they survive TUI exits AND `rove daemon restart`. Separate from
  * the daemon, which restarts routinely; the host is small and must keep
  * running. Same resolution/fitting as {@link defaultDaemonSocketPath}.
  */
@@ -191,14 +167,14 @@ export function defaultPtyHostSocketPath(homeDir?: string, platform: NodeJS.Plat
   const explicit = homeDir ?? readRoveHomeDirEnv()
   if (platform === "win32") return windowsPipePath(explicit || homedir(), "pty")
   if (explicit && explicit.length > 0) {
-    return fitSocketPath(runtimePath(explicit, "pty.sock", "pty.pid"), explicit, "pty")
+    return fitSocketPath(join(explicit, ROVE_STATE_DIR_BASENAME, "pty.sock"), explicit, "pty")
   }
   const runtimeDir = process.env.XDG_RUNTIME_DIR
   if (runtimeDir && runtimeDir.length > 0) {
-    return fitSocketPath(join(runtimeDir, "kobe-pty.sock"), runtimeDir, "pty")
+    return fitSocketPath(join(runtimeDir, "rove-pty.sock"), runtimeDir, "pty")
   }
   const home = homedir()
-  return fitSocketPath(runtimePath(home, "pty.sock", "pty.pid"), home, "pty")
+  return fitSocketPath(join(home, ROVE_STATE_DIR_BASENAME, "pty.sock"), home, "pty")
 }
 
 export function defaultPtyHostPidPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {

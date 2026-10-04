@@ -1,6 +1,6 @@
 /**
- * `kobe pty-host` (INTERNAL, spawned by `ensurePtyHostReachable()`): this
- * process becomes the PTY host. Separate from the daemon so `kobe daemon
+ * `rove pty-host` (INTERNAL, spawned by `ensurePtyHostReachable()`): this
+ * process becomes the PTY host. Separate from the daemon so `rove daemon
  * restart` never ends running engine sessions.
  */
 

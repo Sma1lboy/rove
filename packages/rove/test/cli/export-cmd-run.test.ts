@@ -1,7 +1,7 @@
 /**
- * `kobe export` end-to-end command path (`runExportSubcommand`) — sibling of
+ * `rove export` end-to-end command path (`runExportSubcommand`) — sibling of
  * export-cmd.test.ts (which covers the pure renderers). The TaskIndexStore
- * is mocked (the real one reads ~/.kobe/tasks.json); what's pinned here is
+ * is mocked (the real one reads ~/.rove/tasks.json); what's pinned here is
  * the flag parsing (later flag wins, --format value/= forms, usage errors
  * exit 2) and the printed output contract per format.
  */
@@ -33,8 +33,8 @@ function task(overrides: Partial<Task> = {}): Task {
     id: toTaskId("01HZ0000000000000000000001"),
     title: "Fix the thing",
     repo: "/home/u/repo",
-    branch: "kobe/fix-thing-01",
-    worktreePath: "/home/u/.kobe/worktrees/repo/fix-thing-01",
+    branch: "rove/fix-thing-01",
+    worktreePath: "/home/u/.rove/worktrees/repo/fix-thing-01",
     status: "in_progress",
     vendor: "claude",
     createdAt: "2026-06-23T00:00:00.000Z",
@@ -73,7 +73,7 @@ function err(): string {
 describe("runExportSubcommand", () => {
   it("--help prints usage without loading the store", async () => {
     await runExportSubcommand(["--help"])
-    expect(out()).toContain("Usage: kobe export")
+    expect(out()).toContain("Usage: rove export")
     expect(fake.loads).toBe(0)
   })
 

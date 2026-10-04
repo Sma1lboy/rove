@@ -55,7 +55,7 @@ async function sandboxHome(name?: string): Promise<string> {
   // task worktree, so every sandbox run sees the same task store. Named
   // instances nest under the same root, one home per name.
   const repoRoot = dirname(await gitCommonDir())
-  const base = join(repoRoot, "packages", "kobe", ".dev-sandbox")
+  const base = join(repoRoot, "packages", "rove", ".dev-sandbox")
   return name ? join(base, "named", name, "home") : join(base, "home")
 }
 
@@ -155,7 +155,7 @@ if (mode === "seed") await seed()
  */
 async function smoketest(): Promise<never> {
   const repoRoot = dirname(await gitCommonDir())
-  const exampleDir = join(repoRoot, "packages", "kobe-plugin-sdk", "examples", "hello-events")
+  const exampleDir = join(repoRoot, "packages", "rove-plugin-sdk", "examples", "hello-events")
   const linked = runRove(["plugin", "link", exampleDir])
   if (linked.code !== 0) {
     console.error(`[rove ${label}] SMOKETEST FAIL -- plugin link exited ${linked.code}`)

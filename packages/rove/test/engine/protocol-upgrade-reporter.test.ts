@@ -30,7 +30,7 @@ let home: string
 let originalHome: string | undefined
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "kobe-protocol-upgrade-"))
+  home = mkdtempSync(join(tmpdir(), "rove-protocol-upgrade-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = home
   const dir = join(home, ".config", "rove")

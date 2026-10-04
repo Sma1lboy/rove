@@ -1,6 +1,7 @@
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 /**
  * Install + detect the agent skill that teaches a coding agent to drive
- * `kobe api`. Installation goes through `npx skills add`, which owns the
+ * `rove api`. Installation goes through `npx skills add`, which owns the
  * registry of ~75 agents and where each reads skills from; we don't
  * reimplement it.
  *
@@ -9,7 +10,7 @@
  * un-installable on a slow connection. {@link SKILL_SOURCE_SLUG} is the
  * fallback for people without Rove.
  *
- * `kobe skill status` is the reliable check; the startup hint is best-effort
+ * `rove skill status` is the reliable check; the startup hint is best-effort
  * (the opentui screen takeover can scroll it off).
  */
 
@@ -17,8 +18,6 @@ import { accessSync, existsSync, constants as fsConstants, readFileSync, statSyn
 import { homedir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { activeCliName } from "../cli/rename-compat.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { getPersistedString, setPersistedString } from "../state/repos.ts"
 
 /**
@@ -40,7 +39,7 @@ export const ROVE_SKILL_VERSION = 53
  * The agent-skills CLI writes the real file into `.agents/skills` and
  * symlinks agent dirs at it (`--copy` opts out); `existsSync` follows
  * symlinks, so either path is a genuine install. `.claude` also catches
- * skills installed by older kobe versions.
+ * skills installed by older rove versions.
  */
 const ROVE_SKILL_REL_PATHS = [".agents/skills/rove/SKILL.md", ".claude/skills/rove/SKILL.md"] as const
 const LEGACY_SKILL_REL_PATHS = [".agents/skills/rove/SKILL.md", ".claude/skills/rove/SKILL.md"] as const
@@ -48,7 +47,7 @@ const SKILL_REL_PATHS = [...ROVE_SKILL_REL_PATHS, ...LEGACY_SKILL_REL_PATHS] as 
 
 /** The invoked wrapper command a user runs. Shown in hints / doctor. */
 export function skillInstallCommand(env: NodeJS.ProcessEnv = process.env): string {
-  return `${activeCliName(env)} skill install`
+  return `${ROVE_PRODUCT_NAME} skill install`
 }
 
 /** Fallback source (and the route for people without Rove); resolving it means a large clone. */
@@ -61,7 +60,7 @@ const SKILL_SOURCE_SLUG = "Sma1lboy/rove"
 export function bundledSkillDir(): string | null {
   const here = fileURLToPath(import.meta.url)
   const candidates = [
-    resolve(here, "../../../../../.agents/skills/kobe"), // dev: repo root .agents/skills/kobe
+    resolve(here, "../../../../../.agents/skills/rove"), // dev: repo root .agents/skills/rove
     resolve(here, "../../skills/rove"), // packaged: dist/skills/rove
   ]
   return candidates.find((dir) => existsSync(join(dir, "SKILL.md"))) ?? null
@@ -79,7 +78,7 @@ export interface NpxSkillsOpts {
  * Build the `npx skills add …` argv. `source` defaults to the bundled dir (a
  * local path skips the network), else the repo slug.
  *
- * Global by default: `kobe api` is machine-wide (one daemon, one task
+ * Global by default: `rove api` is machine-wide (one daemon, one task
  * store), and per-project copies re-prompt staleness in every repo.
  *
  * Omitting `--agent` lets the CLI detect agents and prompt; pass `agent` only
@@ -129,7 +128,7 @@ export function isNpxMissing(): boolean {
 
 /** The "install Node" message shown wherever a missing `npx` blocks the install. */
 function npxMissingMessage(): string {
-  return `${activeCliName()} skill install needs \`npx\` (part of Node.js), which isn't on your PATH.\nInstall Node.js (https://nodejs.org) and run it again — the Rove installer only installs Bun and Rove.`
+  return `${ROVE_PRODUCT_NAME} skill install needs \`npx\` (part of Node.js), which isn't on your PATH.\nInstall Node.js (https://nodejs.org) and run it again — the Rove installer only installs Bun and Rove.`
 }
 
 /**
@@ -168,7 +167,7 @@ export function roveSkillPaths(opts: { home?: string; cwd?: string } = {}): stri
 
 /** Parse the canonical marker or an installed legacy marker. */
 export function parseSkillVersion(content: string): number | null {
-  const m = content.match(/(?:rove|kobe)-skill-version:\s*(\d+)/)
+  const m = content.match(/(?:rove|rove)-skill-version:\s*(\d+)/)
   return m ? Number.parseInt(m[1], 10) : null
 }
 
@@ -181,8 +180,8 @@ export interface SkillState {
   /** Installed, stamped, and behind the binary → re-install recommended. */
   readonly stale: boolean
   /**
-   * `kobe`-named copies beside the reported install. Agents load every skill
-   * dir they find, so one keeps teaching an old `kobe api` surface however
+   * `rove`-named copies beside the reported install. Agents load every skill
+   * dir they find, so one keeps teaching an old `rove api` surface however
    * current the `rove` copy is.
    */
   readonly legacyCopies: readonly SkillCopy[]
@@ -316,7 +315,7 @@ function promptLine(): Promise<string> {
 }
 
 /**
- * Best-effort startup notice when the kobe skill is absent or out of date.
+ * Best-effort startup notice when the rove skill is absent or out of date.
  *   - absent → one-time hint to install (gated on {@link HINT_SEEN_KEY}).
  *   - stale + interactive terminal → prompt: yes (install now) / no (ask
  *     again next launch) / don't notify for this version (persists
@@ -330,7 +329,7 @@ export async function maybeHintSkillInstall(io: SkillHintIO = {}): Promise<void>
   // registration the migration gate warns about. `skill status` still reports.
   const { isRovePluginEnabled } = await import("../engine/claude-code-local/plugin-migration.ts")
   if (isRovePluginEnabled()) return
-  const cliName = activeCliName()
+  const cliName = ROVE_PRODUCT_NAME
   const installCommand = skillInstallCommand()
   const state = roveSkillState()
   if (!state.installed) {
@@ -343,7 +342,7 @@ export async function maybeHintSkillInstall(io: SkillHintIO = {}): Promise<void>
   }
   const key = `${HINT_SEEN_KEY}:v${state.currentVersion}`
   const duplicates = state.legacyCopies
-  // A leftover `kobe` copy: same one-per-version gate, no prompt — nothing to
+  // A leftover `rove` copy: same one-per-version gate, no prompt — nothing to
   // install, only something to delete.
   if (!state.stale) {
     if (duplicates.length === 0) return

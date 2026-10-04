@@ -18,7 +18,7 @@ describe("TaskIndexStore rollback on a failed save", () => {
   let home: string
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kobe-store-rollback-"))
+    home = await mkdtemp(join(tmpdir(), "rove-store-rollback-"))
     await mkdir(join(home, ".rove"), { recursive: true })
   })
 
@@ -43,8 +43,8 @@ describe("TaskIndexStore rollback on a failed save", () => {
     return {
       title,
       repo: "/repo",
-      branch: `kobe/${title}`,
-      worktreePath: `/repo/.kobe/worktrees/${title}`,
+      branch: `rove/${title}`,
+      worktreePath: `/repo/.rove/worktrees/${title}`,
       kind: "task",
       status: "backlog",
     }

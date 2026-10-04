@@ -104,7 +104,7 @@ export type DaemonFrame =
 
 /**
  * Broadcast channels a socket client can subscribe to. Payload shapes are
- * host-versioned (see kobe-daemon channels.ts); treat them as `unknown`
+ * host-versioned (see rove-daemon channels.ts); treat them as `unknown`
  * and validate what you read.
  */
 export const DAEMON_CHANNELS = [

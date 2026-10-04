@@ -1,10 +1,10 @@
 /**
- * The engine face of `kobe api`: `engine-list` (what can I launch, and with
+ * The engine face of `rove api`: `engine-list` (what can I launch, and with
  * what command?), `set-command` (pin a task's launch command), `set-effort`
  * (pin its reasoning level) and `set-model` (pin its model).
  *
  * `engine-list` is WYSIWYG: it prints each raw command line so an agent can
- * copy one, edit a flag, and pass it back as `--command` without kobe
+ * copy one, edit a flag, and pass it back as `--command` without rove
  * modelling anyone's flags. `set-command` resolves the protocol HERE (the
  * preset registry lives in state.json, which the daemon cannot read).
  *

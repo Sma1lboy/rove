@@ -38,7 +38,7 @@ function writeState(obj: Record<string, unknown>): void {
 
 beforeEach(() => {
   prevHome = process.env.ROVE_HOME_DIR
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-wt-base-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-wt-base-"))
   home = path.join(tmpRoot, "home")
   process.env.ROVE_HOME_DIR = home
   repo = path.join(tmpRoot, "repo")
@@ -56,7 +56,7 @@ afterEach(() => {
 })
 
 describe("normalizeWorktreeBase", () => {
-  test("expands a leading ~ against the kobe home", () => {
+  test("expands a leading ~ against the rove home", () => {
     expect(normalizeWorktreeBase("~")).toBe(home)
     expect(normalizeWorktreeBase("~/code/wt")).toBe(path.join(home, "code/wt"))
   })
@@ -100,7 +100,7 @@ describe("worktree paths honor the override", () => {
     // No override → canonical + legacy global and repo-local roots.
     const roots = managedWorktreeRootsFor(repo)
     expect(roots[0]).toBe(root)
-    expect(roots).toContain(path.join(home, ".kobe", "worktrees", path.basename(root)))
+    expect(roots).toContain(path.join(home, ".rove", "worktrees", path.basename(root)))
     // The canonical default root is not duplicated as a separate fallback.
     expect(roots.filter((r) => r === root)).toHaveLength(1)
   })
@@ -116,22 +116,22 @@ describe("worktree paths honor the override", () => {
   })
 
   test("$project_dir override → root resolved per project, per-repo subdir kept", () => {
-    writeState({ "worktree.basePath": "$project_dir/../kobe-wt" })
+    writeState({ "worktree.basePath": "$project_dir/../rove-wt" })
 
     const root = worktreeRootFor(repo)
-    expect(path.dirname(root)).toBe(path.resolve(repo, "../kobe-wt"))
+    expect(path.dirname(root)).toBe(path.resolve(repo, "../rove-wt"))
     expect(path.basename(root)).toMatch(/^repo-[0-9a-f]{12}$/)
 
     // A second repo in another parent dir gets its own resolved base.
     const otherRepo = path.join(tmpRoot, "nested", "other")
     fs.mkdirSync(otherRepo, { recursive: true })
-    expect(path.dirname(worktreeRootFor(otherRepo))).toBe(path.resolve(otherRepo, "../kobe-wt"))
+    expect(path.dirname(worktreeRootFor(otherRepo))).toBe(path.resolve(otherRepo, "../rove-wt"))
 
     // The default root stays recognized so pre-override tasks keep listing.
     const roots = managedWorktreeRootsFor(repo)
     expect(roots[0]).toBe(root)
     expect(roots).toContain(path.join(home, ".rove", "worktrees", path.basename(root)))
-    expect(roots).toContain(path.join(home, ".kobe", "worktrees", path.basename(root)))
+    expect(roots).toContain(path.join(home, ".rove", "worktrees", path.basename(root)))
   })
 
   /**

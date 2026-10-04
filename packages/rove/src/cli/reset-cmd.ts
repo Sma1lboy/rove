@@ -15,11 +15,11 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/paths"
 import { clearFrozenSessions } from "@sma1lboy/rove-daemon/daemon/pty-freeze-store"
 import { kvStatePath, legacyRoveKvStatePath, legacyRoveStateDir, roveStateDir } from "../env.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { stopLegacyTmux } from "./legacy-tmux.ts"
-import { activeCliName } from "./rename-compat.ts"
 import { stampResetGate } from "./reset-gate.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 function printUsage(out: Pick<typeof process.stderr, "write">): void {
   out.write(
@@ -135,7 +135,7 @@ export async function runResetSubcommand(argv: readonly string[]): Promise<void>
     for (const line of stateSummary(statePath)) console.log(line)
     console.log("  • DELETE the pre-Rove task/UI indexes too, so migration cannot restore reset state")
   }
-  console.log("  • NOT touch your git worktrees under ~/.rove/worktrees/, ~/.kobe/worktrees/, or repo-local roots")
+  console.log("  • NOT touch your git worktrees under ~/.rove/worktrees/, ~/.rove/worktrees/, or repo-local roots")
   if (!hard)
     console.log(
       "  (your task list, settings & worktrees are kept — add --hard to also delete the task index and settings file)",

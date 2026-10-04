@@ -96,7 +96,7 @@ async function askOverSocket(socketPath: string, name: string, payload: unknown)
 }
 
 it("answers a hello that arrives before the rest of boot finishes", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-daemon-boot-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-daemon-boot-"))
   const socketPath = join(dir, "daemon.sock")
   const savedHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = dir

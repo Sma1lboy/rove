@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * `kobe update --list` (TTY) — the versions browser: recent releases, the
+ * `rove update --list` (TTY) — the versions browser: recent releases, the
  * selected one's notes, Enter runs the shell updater pinned to it. Crossing a
- * BREAKING_VERSIONS entry shows the `kobe reset` warning before committing.
+ * BREAKING_VERSIONS entry shows the `rove reset` warning before committing.
  */
 
 import { TextAttributes } from "@opentui/core"

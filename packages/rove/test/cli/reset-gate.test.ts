@@ -1,6 +1,6 @@
 /**
  * Breaking-version reset gate — the pure decision layer. These pin the
- * contract the boot block and `kobe update`'s warning both rely on: a
+ * contract the boot block and `rove update`'s warning both rely on: a
  * launch is blocked exactly when the last-run stamp and the running
  * version sit on opposite sides of a BREAKING_VERSIONS entry, in either
  * direction. Wrong here = users bypass a required reset (state corruption)

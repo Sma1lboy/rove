@@ -25,7 +25,7 @@ let repo: string
 let adminRoot: string
 
 beforeAll(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), "kobe-wt-unreadable-")))
+  root = realpathSync(mkdtempSync(join(tmpdir(), "rove-wt-unreadable-")))
   repo = join(root, "repo")
   adminRoot = join(repo, ".git", "worktrees")
   mkdirSync(adminRoot, { recursive: true })

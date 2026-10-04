@@ -26,8 +26,8 @@ const NOW = Date.parse("2026-07-27T12:00:00.000Z")
 
 const githubEntry: PluginRegistryEntry = {
   id: "example.notify",
-  source: { kind: "github", spec: "acme/kobe-notify" },
-  root: "/home/u/.kobe/plugins/example.notify/checkout",
+  source: { kind: "github", spec: "acme/rove-notify" },
+  root: "/home/u/.rove/plugins/example.notify/checkout",
   enabled: true,
   version: "0.1.0",
   installedAt: NOW,
@@ -37,7 +37,7 @@ const MANIFEST = `
 id = "example.notify"
 name = "Notify"
 version = "0.1.0"
-min_kobe_version = "0.8.23"
+min_rove_version = "0.8.23"
 
 [[actions]]
 id = "test"
@@ -135,7 +135,7 @@ describe("pluginRowView", () => {
       version: "0.1.0",
       enabled: true,
       linked: false,
-      source: "acme/kobe-notify",
+      source: "acme/rove-notify",
       declares: { actions: 1, events: 2, panes: 0 },
       lastRun: null,
     })

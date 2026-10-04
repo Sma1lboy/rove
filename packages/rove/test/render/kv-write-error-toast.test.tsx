@@ -25,7 +25,7 @@ let savedHome: string | undefined
 
 beforeAll(() => {
   savedHome = process.env.ROVE_HOME_DIR
-  home = mkdtempSync(join(tmpdir(), "kobe-kv-toast-"))
+  home = mkdtempSync(join(tmpdir(), "rove-kv-toast-"))
   process.env.ROVE_HOME_DIR = home
   // Break the write deterministically: a DIRECTORY where the lockfile goes
   // makes `acquireSync`'s link fail EEXIST, and reading the holder then fails

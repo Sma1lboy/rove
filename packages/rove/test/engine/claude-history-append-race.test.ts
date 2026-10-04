@@ -20,7 +20,7 @@ import * as fileBounds from "../../src/engine/file-bounds.ts"
 const CWD = "/Users/test/proj"
 
 async function makeDeps(): Promise<{ deps: HistoryDeps; projectsRoot: string; filePath: (sid: string) => string }> {
-  const projectsRoot = await mkdtemp(path.join(tmpdir(), "kobe-hist-"))
+  const projectsRoot = await mkdtemp(path.join(tmpdir(), "rove-hist-"))
   await mkdir(path.join(projectsRoot, encodeCwd(CWD)), { recursive: true })
   const deps: HistoryDeps = {
     projectsDir: () => projectsRoot,

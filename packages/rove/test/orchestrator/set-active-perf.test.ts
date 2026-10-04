@@ -62,7 +62,7 @@ describe("setActiveTask focus-switch op budget", () => {
   let store: TaskIndexStore
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kobe-set-active-perf-"))
+    home = await mkdtemp(join(tmpdir(), "rove-set-active-perf-"))
     vi.stubEnv("ROVE_HOME_DIR", home)
     store = new TaskIndexStore({ homeDir: home })
     await store.load()

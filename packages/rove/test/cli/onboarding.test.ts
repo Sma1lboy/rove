@@ -54,10 +54,10 @@ vi.mock("../../src/lib/skill-install.ts", () => ({
   markSkillHintSeen: mocks.markSkillHintSeen,
 }))
 function freshHome(): string {
-  return mkdtempSync(join(tmpdir(), "kobe-onboarding-"))
+  return mkdtempSync(join(tmpdir(), "rove-onboarding-"))
 }
 
-function setProduct(name: "rove" | "kobe"): void {
+function setProduct(name: "rove" | "rove"): void {
   if (name === "rove") process.env.ROVE_INVOKED_AS = "rove"
   // Assigning `undefined` stores the literal string "undefined", which reads
   // as legacy only by accident. Delete it so the legacy case is the real one.

@@ -4,7 +4,7 @@
  *
  *   vendor hook event (Claude Code's `Stop` / `StopFailure` / …)
  *     → adapter install-time translation (event → neutral verb)
- *     → `kobe hook <verb>` gate (`isEngineActivityKind`)
+ *     → `rove hook <verb>` gate (`isEngineActivityKind`)
  *     → adapter fire-time translation (stdin payload → neutral detail)
  *     → daemon reduce (`DaemonActivityRegistry` / `reduceActivity`)
  *     → `engine-state` payload → the `TaskEngineState` a sidebar row gets
@@ -31,7 +31,7 @@ function task(): Task {
   return {
     id: toTaskId("task-1"),
     title: "fix sidebar",
-    repo: "/repo/kobe",
+    repo: "/repo/rove",
     branch: "feature/sidebar",
     worktreePath: "/repo/rove/worktrees/sidebar",
     kind: "task",
@@ -48,10 +48,10 @@ function task(): Task {
  *  return the sidebar row a task would render afterwards. */
 function rowAfterClaudeHook(event: string, payload: Record<string, unknown>) {
   // 1. Install-time translation: Claude event name → neutral verb. This is
-  //    what the adapter bakes into the `kobe hook <verb>` command it installs.
+  //    what the adapter bakes into the `rove hook <verb>` command it installs.
   const verb = claudeVerbForHookEvent(event)
-  if (!verb) throw new Error(`kobe installs no hook for Claude event ${event}`)
-  // 2. The `kobe hook` CLI gate: the verb on the wire must be a member of the
+  if (!verb) throw new Error(`rove installs no hook for Claude event ${event}`)
+  // 2. The `rove hook` CLI gate: the verb on the wire must be a member of the
   //    one canonical kind vocabulary.
   expect(isEngineActivityKind(verb)).toBe(true)
   // 3. Fire-time translation: the vendor stdin payload → neutral detail

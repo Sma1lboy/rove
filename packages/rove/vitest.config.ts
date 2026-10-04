@@ -61,8 +61,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       // Daemon tests live under this package but execute source from the
-      // sibling kobe-daemon workspace. The opt-in socket-coverage track must
-      // explicitly allow and include that external root; ordinary kobe
+      // sibling rove-daemon workspace. The opt-in socket-coverage track must
+      // explicitly allow and include that external root; ordinary rove
       // coverage keeps its existing package-local scope.
       allowExternal: includeDaemonCoverage,
       include: includeDaemonCoverage ? [path.resolve(__dirname, "../rove-daemon/src/**/*.ts")] : ["src/**/*.ts"],

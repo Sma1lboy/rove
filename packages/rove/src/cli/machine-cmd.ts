@@ -25,10 +25,10 @@ import {
 } from "../machines/registry.ts"
 import { readMachines } from "../machines/registry.ts"
 import { machineSocketDir } from "../machines/ssh-args.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile } from "../state/store.ts"
-import { activeCliName } from "./rename-compat.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 const MACHINE_USAGE = [
   `Usage: ${CLI_NAME} machine <add|remove|list> [options]`,

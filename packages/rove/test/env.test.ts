@@ -25,7 +25,7 @@ afterEach(() => {
   for (const key of Object.keys(ORIGINAL) as (keyof typeof ORIGINAL)[]) restore(key)
 })
 
-describe("rename-compatible environment access", () => {
+describe("startupible environment access", () => {
   test("ROVE_HOME_DIR wins and product data uses the canonical Rove layout", () => {
     process.env.ROVE_HOME_DIR = "/legacy-home"
     process.env.ROVE_HOME_DIR = "/rove-home"
@@ -34,7 +34,7 @@ describe("rename-compatible environment access", () => {
     expect(roveStateDir()).toBe("/rove-home/.rove")
     expect(roveSettingsDir()).toBe("/rove-home/.rove/settings")
     expect(kvStatePath()).toBe("/rove-home/.config/rove/state.json")
-    expect(legacyRoveStateDir()).toBe("/rove-home/.kobe")
+    expect(legacyRoveStateDir()).toBe("/rove-home/.rove")
     expect(legacyRoveKvStatePath()).toBe("/rove-home/.config/rove/state.json")
   })
 

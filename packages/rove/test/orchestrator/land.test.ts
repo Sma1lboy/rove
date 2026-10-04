@@ -41,7 +41,7 @@ function write(rel: string, body: string): void {
 }
 
 beforeEach(() => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-land-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-land-"))
   repo = path.join(tmpRoot, "repo")
   fs.mkdirSync(repo)
   git(["init", "-b", "main"], repo)

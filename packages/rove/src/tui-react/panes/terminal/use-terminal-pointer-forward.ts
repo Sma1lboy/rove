@@ -13,7 +13,7 @@ type PointerEvent = {
 export function useTerminalPointerForward(opts: {
   pty: TaskPtyLike | null
   bodyEl: { screenX: number; screenY: number } | null
-  /** Move kobe's local viewport; positive is toward newer output. */
+  /** Move rove's local viewport; positive is toward newer output. */
   scrollBy: (lines: number) => void
 }) {
   const { pty, bodyEl, scrollBy } = opts
@@ -28,7 +28,7 @@ export function useTerminalPointerForward(opts: {
   /**
    * Emulator order for ANY scroll (wheel, or a selection drag past an edge):
    * an app with mouse tracking or on the alternate screen gets wheel events;
-   * otherwise kobe's local viewport moves. Engines on the ALTERNATE screen
+   * otherwise rove's local viewport moves. Engines on the ALTERNATE screen
    * have no local scrollback, so an edge drag must ask the app. Coords are
    * absolute. True = forwarded; the selection hook then tracks the shift.
    */

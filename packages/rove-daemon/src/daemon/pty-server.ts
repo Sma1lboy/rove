@@ -1,9 +1,9 @@
 /**
- * Standalone PTY host server — kobe's persistent terminal host.
+ * Standalone PTY host server — rove's persistent terminal host.
  *
  * Its own detached process and socket, OUTSIDE the daemon: the daemon
  * restarts routinely, while this tiny process must keep embedded-terminal
- * children alive across TUI exits and daemon restarts. Only `kobe reset`,
+ * children alive across TUI exits and daemon restarts. Only `rove reset`,
  * idle-exit at zero live sessions, or losing its own address (watchdog
  * below) ends it.
  *
@@ -17,7 +17,6 @@ import { mkdir, unlink } from "node:fs/promises"
 import { type Server, createServer } from "node:net"
 import { dirname } from "node:path"
 import { ClientWriter } from "./client-writer.ts"
-import { linkLegacyRuntimePath } from "./compat-link.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { writeTextAtomic } from "./json-file.ts"
 import { LineReceiver } from "./line-receiver.ts"
@@ -27,8 +26,6 @@ import {
   defaultPtyHostPidPath,
   defaultPtyHostSocketPath,
   isWindowsPipePath,
-  legacyPtyHostPidPath,
-  legacyPtyHostSocketPath,
   resolveDaemonHomeDir,
 } from "./paths.ts"
 import { type DaemonFrame, frameToLine } from "./protocol.ts"
@@ -324,12 +321,6 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
   await listenOnUnixSocket(server, socketPath)
   // tmp+rename: a torn pidfile is EMPTY, and empty parses as pid 0.
   await writeTextAtomic(pidPath, `${process.pid}\n`)
-  // A pre-rename TUI that can't see this host starts a SECOND one, splitting engine tabs.
-  if (!pipeSocket) {
-    const home = resolveDaemonHomeDir()
-    await linkLegacyRuntimePath(socketPath, legacyPtyHostSocketPath(home))
-    await linkLegacyRuntimePath(pidPath, legacyPtyHostPidPath(home))
-  }
   armIdle()
   log("boot", `pty host listening on ${socketPath}`)
   return api

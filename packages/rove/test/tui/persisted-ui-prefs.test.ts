@@ -42,7 +42,7 @@ function writeState(content: string): void {
 
 beforeEach(() => {
   prevHome = process.env.ROVE_HOME_DIR
-  home = mkdtempSync(join(tmpdir(), "kobe-uiprefs-"))
+  home = mkdtempSync(join(tmpdir(), "rove-uiprefs-"))
   process.env.ROVE_HOME_DIR = home
 })
 
@@ -77,8 +77,8 @@ describe("readPersistedUiPrefs", () => {
     expect(readPersistedUiPrefs("claude").theme).toBe("claude")
   })
 
-  // A host that loaded ~/.kobe/themes first knows more than the bundled set.
-  // Without this seam every `kobe theme add` theme reverts to the fallback on
+  // A host that loaded ~/.rove/themes first knows more than the bundled set.
+  // Without this seam every `rove theme add` theme reverts to the fallback on
   // the next boot — which is most themes now that only three ship bundled.
   test("a caller-supplied registry check keeps a user-installed theme", () => {
     writeState(JSON.stringify({ activeTheme: "gruvbox" }))

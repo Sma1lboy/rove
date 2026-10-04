@@ -187,7 +187,7 @@ describe("fs watch", () => {
     expect(watchEventRelevant(".gitignore")).toBe(true)
   })
   test("watchWorktree on an unwatchable path degrades to a no-op disposer", () => {
-    const dispose = watchWorktree("/nonexistent/kobe-filetree-test", () => {})
+    const dispose = watchWorktree("/nonexistent/rove-filetree-test", () => {})
     expect(() => dispose()).not.toThrow()
   })
 })

@@ -35,7 +35,7 @@ import { renderComponent, waitForFrameText } from "./harness"
 const NOOP = (): void => {}
 
 function repoWithFile(): string {
-  const repo = mkdtempSync(join(tmpdir(), "kobe-files-header-"))
+  const repo = mkdtempSync(join(tmpdir(), "rove-files-header-"))
   execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", {
     cwd: repo,
   })

@@ -11,7 +11,7 @@
  * the same trap that broke `claude --worktree`). Polling covers both states.
  *
  * Codex won't run a non-managed hook until the user trusts it via `/hooks`
- * (or `--dangerously-bypass-hook-trust`). kobe never bypasses trust, so codex
+ * (or `--dangerously-bypass-hook-trust`). rove never bypasses trust, so codex
  * activity badges light only after the user approves.
  */
 
@@ -22,7 +22,7 @@ import { JsonHookAdapter } from "../json-hook-adapter.ts"
 import type { HookEventSpec } from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home.ts"
 
-/** Codex hook event → kobe verb; the one place Codex event names live. No decision hooks. */
+/** Codex hook event → rove verb; the one place Codex event names live. No decision hooks. */
 const EVENT_MAP: readonly HookEventSpec[] = [
   { event: "SessionStart", verb: "session-start" },
   { event: "UserPromptSubmit", verb: "turn-start" },
@@ -41,7 +41,7 @@ const EVENT_MAP: readonly HookEventSpec[] = [
   { event: "PostToolUse", verb: "tool-post" },
 ]
 
-/** The Codex events kobe owns — a merge replaces only these. */
+/** The Codex events rove owns — a merge replaces only these. */
 export const ROVE_CODEX_HOOK_EVENTS: readonly string[] = EVENT_MAP.map((e) => e.event)
 
 /** Where Codex reads user hook definitions. */

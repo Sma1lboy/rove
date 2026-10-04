@@ -13,7 +13,7 @@ let home: string
 let store: TaskIndexStore
 
 beforeEach(async () => {
-  home = mkdtempSync(join(tmpdir(), "kobe-store-remove-"))
+  home = mkdtempSync(join(tmpdir(), "rove-store-remove-"))
   store = new TaskIndexStore({ homeDir: home })
   await store.load()
 })
@@ -27,7 +27,7 @@ describe("TaskIndexStore.remove", () => {
     const task = await store.create({
       repo: "/repo",
       title: "t",
-      branch: "kobe/t",
+      branch: "rove/t",
       worktreePath: "/repo/wt",
       status: "backlog",
     })
@@ -43,7 +43,7 @@ describe("TaskIndexStore.remove", () => {
     await store.create({
       repo: "/repo",
       title: "t",
-      branch: "kobe/t",
+      branch: "rove/t",
       worktreePath: "/repo/wt",
       status: "backlog",
     })

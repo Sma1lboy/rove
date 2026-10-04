@@ -99,7 +99,7 @@ describe("buildTreeRows", () => {
   })
 
   test("a dir task groups under its directory as the project header", () => {
-    // `kobe .` on an arbitrary directory: loose rows
+    // `rove .` on an arbitrary directory: loose rows
     // after the last project read as THAT project's rows, so the directory
     // itself is the header — same grouping rule as every other task.
     const result = rows({ tasks: [task("d", { kind: "dir", repo: "/tmp/scratch" })] })
@@ -261,15 +261,15 @@ describe("projectKeysOf", () => {
 
 describe("mainTaskIdOfProject", () => {
   const tasks = [
-    task("kobe-wt", { repo: "/repos/rove" }),
-    task("kobe-main", { kind: "main", repo: "/repos/rove", branch: "main", worktreePath: "/repos/rove" }),
+    task("rove-wt", { repo: "/repos/rove" }),
+    task("rove-main", { kind: "main", repo: "/repos/rove", branch: "main", worktreePath: "/repos/rove" }),
     task("fox-main", { kind: "main", repo: "/repos/foxychat", branch: "main", worktreePath: "/repos/foxychat" }),
   ]
 
   test("finds the repo's main checkout, not its first task", () => {
     // Project reorder rides on the MAIN row (mains move among mains), so
     // picking the first task of the repo would move nothing.
-    expect(mainTaskIdOfProject(tasks, "/repos/rove")).toBe("kobe-main")
+    expect(mainTaskIdOfProject(tasks, "/repos/rove")).toBe("rove-main")
     expect(mainTaskIdOfProject(tasks, "/repos/foxychat")).toBe("fox-main")
   })
 
@@ -353,7 +353,7 @@ describe("a project closed down to nothing", () => {
     // The worktree rows are how you get back to that work — losing them would
     // strand the branches. Only the main-only case hides.
     const out = rows({
-      tasks: [mainOf("/repos/kobe"), task("a", { repo: "/repos/kobe" })],
+      tasks: [mainOf("/repos/rove"), task("a", { repo: "/repos/rove" })],
       tabsByTask: new Map([
         ["m", []],
         ["a", []],
@@ -364,13 +364,13 @@ describe("a project closed down to nothing", () => {
 
   test("hiding one project does not disturb the others", () => {
     const out = rows({
-      tasks: [mainOf("/repos/codefox", "m1"), mainOf("/repos/kobe", "m2")],
+      tasks: [mainOf("/repos/codefox", "m1"), mainOf("/repos/rove", "m2")],
       tabsByTask: new Map([
         ["m1", []],
         ["m2", [tab("t1")]],
       ]),
     })
-    expect(out.filter((r) => r.kind === "project").map((r) => (r as { label: string }).label)).toEqual(["kobe"])
+    expect(out.filter((r) => r.kind === "project").map((r) => (r as { label: string }).label)).toEqual(["rove"])
   })
 
   test("keeps a project whose ONLY row is a worktree task with no tabs", () => {

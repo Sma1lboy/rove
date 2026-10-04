@@ -6,10 +6,10 @@
  * TypeScript modules discovered from `<agentDir>/extensions/*.ts`. Verified
  * against pi 0.80.6 and omp 18.1.17: both call the default export and
  * dispatch through the SAME `pi.on(name, handler)`, and `pi.exec` inherits the
- * engine's env, so `kobe hook` finds the daemon socket and tab env vars.
+ * engine's env, so `rove hook` finds the daemon socket and tab env vars.
  *
  * `pi.exec` cannot pipe stdin (`stdio` fixed to `["ignore","pipe","pipe"]`),
- * so the payload rides argv (`kobe hook --payload <json>`).
+ * so the payload rides argv (`rove hook --payload <json>`).
  *
  * Events are the INTERSECTION of both APIs (no pi-only `agent_settled`, no
  * omp-only `session_stop`), so neither logs an unknown-event warning:
@@ -31,7 +31,7 @@ import { ROVE_HOOK_VERSION } from "../json-hooks.ts"
 
 export interface ExtensionSourceOptions {
   readonly vendor: VendorId
-  /** argv prefix that reaches `kobe hook <verb>` (see `cli/invocation.ts`). */
+  /** argv prefix that reaches `rove hook <verb>` (see `cli/invocation.ts`). */
   readonly invocation: readonly string[]
   /** Install the high-volume tool family too (plugin-gated by the caller). */
   readonly toolEvents?: boolean

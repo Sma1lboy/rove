@@ -1,6 +1,6 @@
 /**
  * `pty-delivery.ts` — the CANONICAL delivery path: find the task's engine
- * session or create it, and the bracketed paste `kobe api` routes through.
+ * session or create it, and the bracketed paste `rove api` routes through.
  * The engine-key resolver's own tests live in `pty-engine-key.test.ts`;
  * delivery into ONE addressed tab is `exact-tab-delivery.test.ts`.
  */

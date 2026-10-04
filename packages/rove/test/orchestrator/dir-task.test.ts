@@ -1,5 +1,5 @@
 /**
- * Standalone `kind:"dir"` tasks (`kobe .`).
+ * Standalone `kind:"dir"` tasks (`rove .`).
  *
  * Why these matter: a dir task pins the USER'S OWN directory as its
  * worktreePath. Every guarantee here is a data-loss guard — deletion must
@@ -28,8 +28,8 @@ let worktrees: {
 }
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "kobe-dir-task-"))
-  dir = await mkdtemp(join(tmpdir(), "kobe-user-dir-"))
+  home = await mkdtemp(join(tmpdir(), "rove-dir-task-"))
+  dir = await mkdtemp(join(tmpdir(), "rove-user-dir-"))
   store = new TaskIndexStore({ homeDir: home })
   await store.load()
   worktrees = {

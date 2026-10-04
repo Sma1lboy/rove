@@ -70,8 +70,8 @@ type = "secret"
 
 /** A home with the plugin registered and both settings already stored. */
 function seedHome(id: string): string {
-  const home = mkdtempSync(join(tmpdir(), "kobe-secret-row-"))
-  const root = mkdtempSync(join(tmpdir(), "kobe-secret-root-"))
+  const home = mkdtempSync(join(tmpdir(), "rove-secret-row-"))
+  const root = mkdtempSync(join(tmpdir(), "rove-secret-root-"))
   writeFileSync(join(root, "rove-plugin.toml"), manifestFor(id))
   mkdirSync(join(home, ".rove"), { recursive: true })
   writeFileSync(

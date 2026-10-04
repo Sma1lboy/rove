@@ -74,7 +74,7 @@ describe("runApiSubcommand", () => {
 
   test("help prints usage to stdout without exiting", async () => {
     await runApiSubcommand(["--help"])
-    expect(stdoutText()).toContain("kobe api")
+    expect(stdoutText()).toContain("rove api")
     expect(exitSpy).not.toHaveBeenCalled()
   })
 
@@ -144,7 +144,7 @@ describe("runApiSubcommand", () => {
       {
         pid: 500,
         sessions: async () => [{ key: "boccha::tab-1", pid: 100, alive: true }],
-        ps: async () => "  100     1 /bin/zsh -il\n  500     1 bun kobe api list",
+        ps: async () => "  100     1 /bin/zsh -il\n  500     1 bun rove api list",
       },
     )
     await runApiSubcommand(["list"])

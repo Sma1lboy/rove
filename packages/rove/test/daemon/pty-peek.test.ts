@@ -1,6 +1,6 @@
 /**
  * `peekRing` — the pure half of `pty.peek` (read-only ring snapshot for
- * `kobe api read-output`'s terminal fallback). Exercised directly with a
+ * `rove api read-output`'s terminal fallback). Exercised directly with a
  * fake session view: slicing math and the missing-key shape must hold
  * without ever attaching to or spawning a PTY.
  */

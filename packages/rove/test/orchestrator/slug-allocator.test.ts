@@ -5,7 +5,7 @@ import { SlugAllocator } from "../../src/orchestrator/worktree/slug-allocator.ts
 // A repo path with no managed worktree roots on disk → listWorktreeDirNames
 // returns [], so "occupied" reduces to active + pending slugs and the
 // allocator's pure logic can be exercised without touching the filesystem.
-const REPO = "/tmp/kobe-slug-test-does-not-exist"
+const REPO = "/tmp/rove-slug-test-does-not-exist"
 // random:() => 0 makes `Math.floor(random() * n)` always pick index 0,
 // so allocations are deterministic.
 const FIRST = () => 0
@@ -40,8 +40,8 @@ describe("SlugAllocator", () => {
 
   it("scopes pending slugs per repo so different repos can share a name", async () => {
     const alloc = new SlugAllocator(() => [], { pool: ["panda"], random: FIRST })
-    expect(await alloc.allocate("/tmp/kobe-slug-repo-A-nope")).toBe("panda")
-    expect(await alloc.allocate("/tmp/kobe-slug-repo-B-nope")).toBe("panda")
+    expect(await alloc.allocate("/tmp/rove-slug-repo-A-nope")).toBe("panda")
+    expect(await alloc.allocate("/tmp/rove-slug-repo-B-nope")).toBe("panda")
   })
 
   describe("claim (add --worktree-name)", () => {

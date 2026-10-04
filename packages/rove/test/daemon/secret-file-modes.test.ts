@@ -37,7 +37,7 @@ function mode(path: string): number {
 
 describe("stores that hold agent output or credentials are owner-only", () => {
   it("freezes a PTY session ring into a 0600 file inside a 0700 dir", () => {
-    const dir = join(tmp("kobe-modes-freeze-"), "pty-sessions")
+    const dir = join(tmp("rove-modes-freeze-"), "pty-sessions")
     fileFreezeSink(dir).save(
       freezeSession({
         key: "t::tab-1",
@@ -58,7 +58,7 @@ describe("stores that hold agent output or credentials are owner-only", () => {
   })
 
   it("writes pty-exits.json (which carries the dying process's last output) as 0600", () => {
-    const path = join(tmp("kobe-modes-exits-"), "pty-exits.json")
+    const path = join(tmp("rove-modes-exits-"), "pty-exits.json")
     recordPtyExit(
       {
         key: "t::tab-1",
@@ -72,14 +72,14 @@ describe("stores that hold agent output or credentials are owner-only", () => {
   })
 
   it("writes a plugin's settings .env as 0600 inside a 0700 config dir", () => {
-    const home = tmp("kobe-modes-plugin-")
+    const home = tmp("rove-modes-plugin-")
     writePluginSettings("p", { API_KEY: "sk-live-123" }, home)
     expect(mode(join(pluginConfigDir("p", home), ".env"))).toBe(0o600)
     expect(mode(pluginConfigDir("p", home))).toBe(0o700)
   })
 
   it("writes agent-turns.json as 0600", async () => {
-    const path = join(tmp("kobe-modes-turns-"), "agent-turns.json")
+    const path = join(tmp("rove-modes-turns-"), "agent-turns.json")
     const store = new AgentTurnsStore(path)
     await store.record([{ id: "turn-1", taskId: "task-1", startedAt: 1, endedAt: 2 }])
     expect(mode(path)).toBe(0o600)

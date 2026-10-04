@@ -137,7 +137,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     )
   }
   // Protocol resolution happens HERE, in the CLI, because the preset
-  // registry lives in kobe's state.json — the same tier-(a) read `add` does.
+  // registry lives in rove's state.json — the same tier-(a) read `add` does.
   const tabVendor = tabCommand ? resolveCommandProtocol(tabCommand) : undefined
   let taskId = ctx.args.str("task-id")
   if (!taskId) {

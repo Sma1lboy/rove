@@ -128,7 +128,7 @@ export const SIDEBAR_BINDINGS: readonly RoveBinding[] = [
   },
 
   // ─── Tasks pane ───────────────────────────────────────────────────────
-  // The standalone Tasks pane (`kobe tasks`, src/tui/tasks-pane/host.tsx)
+  // The standalone Tasks pane (`rove tasks`, src/tui/tasks-pane/host.tsx)
   // binds these via `bindByIds`, so user overrides apply. n/s/r/d/M/t come
   // from the Sidebar/Global rows above.
   {

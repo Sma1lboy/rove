@@ -21,13 +21,13 @@ function git(cwd: string, ...args: string[]): void {
 }
 
 beforeAll(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-quick-fork-test-"))
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "rove-quick-fork-test-"))
   repo = path.join(root, "repo")
   worktree = path.join(root, "wt")
   fs.mkdirSync(repo)
   git(repo, "init", "-b", "main")
   git(repo, "commit", "--allow-empty", "-m", "init")
-  git(repo, "worktree", "add", "-b", "kobe/parent", worktree)
+  git(repo, "worktree", "add", "-b", "rove/parent", worktree)
 })
 
 afterAll(() => {
@@ -36,7 +36,7 @@ afterAll(() => {
 
 describe("quickForkComposerOptions", () => {
   it("seeds the base ref from the task's worktree branch", () => {
-    expect(quickForkComposerOptions(repo, ["claude"], "claude", worktree).defaultBaseRef).toBe("kobe/parent")
+    expect(quickForkComposerOptions(repo, ["claude"], "claude", worktree).defaultBaseRef).toBe("rove/parent")
   })
 
   it("falls back to the repo's branch when the worktree path is gone", () => {

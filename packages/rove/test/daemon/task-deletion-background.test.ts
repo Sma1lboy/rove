@@ -41,13 +41,13 @@ interface Fixture {
 
 /** Boot a daemon over a real socket with one task and an injectable removal. */
 async function boot(worktrees: Partial<GitWorktreeManager>): Promise<Fixture> {
-  const home = await mkdtemp(join(tmpdir(), "kobe-delete-background-"))
+  const home = await mkdtemp(join(tmpdir(), "rove-delete-background-"))
   const store = new TaskIndexStore({ homeDir: home })
   await store.load()
   const task = await store.create({
     repo: "/repo",
     title: "large task",
-    branch: "kobe/large-task",
+    branch: "rove/large-task",
     worktreePath: "/wt/large-task",
     status: "backlog",
     kind: "task",

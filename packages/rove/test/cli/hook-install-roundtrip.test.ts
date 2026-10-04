@@ -37,7 +37,7 @@ import { DroidHookAdapter } from "@/engine/droid-local/hook-adapter"
 import type { EngineHookAdapter } from "@/engine/hook-adapter"
 import { QodercliHookAdapter } from "@/engine/qodercli-local/hook-adapter"
 
-/** Pull every `kobe hook …` command out of an installed config file, whatever
+/** Pull every `rove hook …` command out of an installed config file, whatever
  *  container shape the engine uses, and return each as the argv
  *  `runHookSubcommand` is handed — everything after the `hook` word. */
 function installedHookArgv(file: string): string[][] {
@@ -58,7 +58,7 @@ beforeEach(() => {
   // `roveHookInvocation` probes PATH through a bare `Bun.which`, which does
   // not exist under vitest's node. Pinning it also fixes the command text the
   // assertions below read back.
-  vi.stubGlobal("Bun", { which: () => "/usr/local/bin/kobe" })
+  vi.stubGlobal("Bun", { which: () => "/usr/local/bin/rove" })
   mocks.connectIfRunning.mockReset().mockResolvedValue({ request: mocks.request, close: mocks.close })
   mocks.request.mockReset().mockResolvedValue({})
   mocks.close.mockReset()
@@ -77,7 +77,7 @@ afterEach(() => {
 
 function stubStdin(payload: unknown): void {
   vi.stubGlobal("Bun", {
-    which: () => "/usr/local/bin/kobe",
+    which: () => "/usr/local/bin/rove",
     stdin: { text: () => Promise.resolve(JSON.stringify(payload)) },
   })
 }

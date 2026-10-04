@@ -50,7 +50,7 @@ function branchOneAhead(): void {
 }
 
 beforeEach(() => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-preflight-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-preflight-"))
   repo = path.join(tmpRoot, "repo")
   fs.mkdirSync(repo)
   git(["init", "-b", "main"], repo)

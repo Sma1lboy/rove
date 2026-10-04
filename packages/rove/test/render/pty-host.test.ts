@@ -284,7 +284,7 @@ describe("PtyHost", () => {
   })
 
   // Why this matters: pty.list's `title` is how headless surfaces
-  // (`kobe api pty-list`) see each child's live process name without a TUI
+  // (`rove api pty-list`) see each child's live process name without a TUI
   // attached — the same OSC 0/2 stream the tab strip renders. Last title
   // wins, and pid/command ride along for inventory.
   test("tracks the child's last OSC window title in list()", async () => {

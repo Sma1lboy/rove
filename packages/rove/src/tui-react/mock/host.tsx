@@ -22,7 +22,7 @@ import { useBindings } from "../lib/keymap"
 import { SidebarTree } from "../panes/sidebar/SidebarTree"
 import { TerminalTabs } from "../workspace/TerminalTabs"
 
-const cwd = mkdtempSync(join(tmpdir(), "kobe-mock-react-"))
+const cwd = mkdtempSync(join(tmpdir(), "rove-mock-react-"))
 
 function MockScene() {
   const { theme, transparentBackground } = useTheme()

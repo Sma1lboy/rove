@@ -71,7 +71,7 @@ describe("GitWorktreeManager — remote project", () => {
           stdout: [
             `worktree ${BASE}\nHEAD aaa\nbranch refs/heads/main\n`,
             `worktree ${BASE}/.rove/worktrees/panda\nHEAD bbb\nbranch refs/heads/feat\n`,
-            `worktree ${BASE}/.kobe/worktrees/otter\nHEAD ddd\nbranch refs/heads/legacy\n`,
+            `worktree ${BASE}/.rove/worktrees/otter\nHEAD ddd\nbranch refs/heads/legacy\n`,
             "worktree /elsewhere/wt\nHEAD ccc\nbranch refs/heads/other\n",
           ].join("\n"),
           stderr: "",
@@ -82,6 +82,6 @@ describe("GitWorktreeManager — remote project", () => {
     })
     const mgr = new GitWorktreeManager(remoteDeps(exec))
     const infos = await mgr.list(REMOTE_KEY)
-    expect(infos.map((i) => i.path)).toEqual([`${BASE}/.rove/worktrees/panda`, `${BASE}/.kobe/worktrees/otter`])
+    expect(infos.map((i) => i.path)).toEqual([`${BASE}/.rove/worktrees/panda`, `${BASE}/.rove/worktrees/otter`])
   })
 })

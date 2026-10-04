@@ -20,7 +20,7 @@ let repo: string
 let orch: Orchestrator
 
 beforeEach(async () => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-adopt-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-adopt-"))
   repo = path.join(tmpRoot, "repo")
   const r = spawnSync("bash", [REPO_INIT, repo], { encoding: "utf8" })
   if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}\n${r.stdout}`)

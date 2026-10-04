@@ -1,17 +1,17 @@
 /**
  * Engine-neutral activity-event vocabulary (+ the reducer, re-exported).
  *
- * kobe learns what a task's engine is doing from engine HOOKS (e.g. Claude
+ * rove learns what a task's engine is doing from engine HOOKS (e.g. Claude
  * Code's Stop / StopFailure / Notification / Session*, Codex's hooks.json).
  * Each {@link EngineHookAdapter} maps its vendor hook to a NORMALIZED verb and
- * shells out to `kobe hook <verb>`; everything downstream speaks only this
+ * shells out to `rove hook <verb>`; everything downstream speaks only this
  * vocabulary, so no vendor strings leak past the adapter (CLAUDE.md
  * "Engine-owned UI data").
  *
  * Pure (no I/O). {@link reduceActivity} lives in the daemon package, re-exported below.
  */
 
-/** The normalized hook verbs a `kobe hook <verb>` invocation carries. */
+/** The normalized hook verbs a `rove hook <verb>` invocation carries. */
 export const ENGINE_ACTIVITY_KINDS = [
   "session-start",
   "turn-start",
@@ -87,8 +87,8 @@ export const TASK_ACTIVITY_STATES = [
   "dead",
 ] as const satisfies readonly DaemonTaskActivityState[]
 /**
- * Re-exported from the daemon, which OWNS this vocabulary (kobe depends on
- * kobe-daemon, never the reverse). `satisfies` rejects a member the daemon
+ * Re-exported from the daemon, which OWNS this vocabulary (rove depends on
+ * rove-daemon, never the reverse). `satisfies` rejects a member the daemon
  * lacks and the assignment below rejects one the list above is missing, so
  * they cannot drift.
  */

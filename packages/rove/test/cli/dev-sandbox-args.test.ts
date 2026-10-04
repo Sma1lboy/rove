@@ -44,10 +44,10 @@ describe("sandboxChildEnv", () => {
   // stray override can still poison.
   it("pins socket and pid paths under the sandbox home so inherited overrides cannot outrank it", () => {
     const env = sandboxChildEnv("/tmp/isolated", {
-      ROVE_DAEMON_SOCKET_PATH: "/run/user/1000/kobe.sock",
-      ROVE_PTY_SOCKET_PATH: "/run/user/1000/kobe-pty.sock",
-      ROVE_DAEMON_PID_PATH: "/home/dev/.kobe/daemon.pid",
-      ROVE_PTY_PID_PATH: "/home/dev/.kobe/pty.pid",
+      ROVE_DAEMON_SOCKET_PATH: "/run/user/1000/rove.sock",
+      ROVE_PTY_SOCKET_PATH: "/run/user/1000/rove-pty.sock",
+      ROVE_DAEMON_PID_PATH: "/home/dev/.rove/daemon.pid",
+      ROVE_PTY_PID_PATH: "/home/dev/.rove/pty.pid",
     })
 
     expect(env.ROVE_DAEMON_SOCKET_PATH).toBe("/tmp/isolated/.rove/daemon.sock")

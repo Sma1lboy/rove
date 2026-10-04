@@ -2,7 +2,7 @@
 /**
  * The Inbox's state badges must occupy ONE cell each in the real frame.
  *
- * kobe budgets a single cell per state glyph everywhere it draws one, and
+ * rove budgets a single cell per state glyph everywhere it draws one, and
  * every layer in the pipeline agrees: `display-width.ts`, opentui's layout,
  * and the Unicode width tables all say 1. The terminal is the layer that can
  * disagree — when the user's font lacks a codepoint the OS substitutes another

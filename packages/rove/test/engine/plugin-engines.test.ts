@@ -56,8 +56,8 @@ describe("plugin manifest [[engines]]", () => {
     expect(() => parsePluginManifest(bad)).toThrow(/shadows a built-in/)
   })
 
-  it("keeps the daemon-side reserved list in lockstep with kobe's engine lists", () => {
-    // The daemon cannot import kobe (dependency direction), so its manifest
+  it("keeps the daemon-side reserved list in lockstep with rove's engine lists", () => {
+    // The daemon cannot import rove (dependency direction), so its manifest
     // parser carries its own copy — this pins the two halves together.
     expect([...RESERVED_ENGINE_IDS].sort()).toEqual([...BUILTIN_VENDORS, ...CONTRIB_ENGINE_IDS].sort())
   })
@@ -148,7 +148,7 @@ describe("loadPluginEngines + reloadPluginEngines", () => {
   })
 
   it("warns and skips a catalog id that slips past the manifest check (drift guard)", () => {
-    // Simulate the drift this guard exists for: kobe's shipped catalog gains
+    // Simulate the drift this guard exists for: rove's shipped catalog gains
     // an engine the daemon-side reserved list doesn't know about. The manifest
     // parses, registration refuses — the user must hear about it, not lose it.
     CONTRIB_ENGINES.drifted = {

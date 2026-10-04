@@ -8,7 +8,7 @@ const VALID = `
 id = "example.notify"
 name = "Notify"
 version = "0.1.0"
-min_kobe_version = "0.8.0"
+min_rove_version = "0.8.0"
 description = "Desktop notifications"
 platforms = ["macos", "linux"]
 
@@ -42,15 +42,15 @@ describe("parsePluginManifest", () => {
 
   it("accepts min_rove_version and gives it precedence over the legacy field", () => {
     const { manifest, warnings } = parsePluginManifest(
-      'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.9.0"\nmin_kobe_version = "0.8.0"',
+      'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.9.0"\nmin_rove_version = "0.8.0"',
     )
     expect(manifest.minRoveVersion).toBe("0.9.0")
     expect(warnings.some((warning) => warning.includes("using `min_rove_version`"))).toBe(true)
   })
 
   it("rejects a manifest missing id or name", () => {
-    expect(() => parsePluginManifest('name = "x"\nversion = "1.0.0"\nmin_kobe_version = "0.1.0"')).toThrow(/`id`/)
-    expect(() => parsePluginManifest('id = "x"\nversion = "1.0.0"\nmin_kobe_version = "0.1.0"')).toThrow(/`name`/)
+    expect(() => parsePluginManifest('name = "x"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"')).toThrow(/`id`/)
+    expect(() => parsePluginManifest('id = "x"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"')).toThrow(/`name`/)
   })
 
   it("rejects invalid TOML with a labeled error", () => {
@@ -58,7 +58,7 @@ describe("parsePluginManifest", () => {
   })
 
   it("rejects dots in action ids and duplicate action ids", () => {
-    const base = 'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_kobe_version = "0.1.0"\n'
+    const base = 'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"\n'
     expect(() => parsePluginManifest(`${base}[[actions]]\nid = "a.b"\ntitle = "T"\ncommand = ["true"]`)).toThrow(
       /may not contain dots/,
     )
@@ -71,14 +71,14 @@ describe("parsePluginManifest", () => {
 
   it("warns on unknown event names and missing platforms", () => {
     const { warnings } = parsePluginManifest(
-      'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_kobe_version = "0.1.0"\n[[events]]\non = "no.such"\ncommand = ["true"]',
+      'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"\n[[events]]\non = "no.such"\ncommand = ["true"]',
     )
     expect(warnings.some((w) => w.includes("unknown event"))).toBe(true)
     expect(warnings.some((w) => w.includes("platforms"))).toBe(true)
   })
 
   it("parses [[panes]] and warns on unsupported placement", () => {
-    const base = 'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_kobe_version = "0.1.0"\nplatforms = ["macos"]\n'
+    const base = 'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"\nplatforms = ["macos"]\n'
     const { manifest, warnings } = parsePluginManifest(
       `${base}[[panes]]\nid = "git"\ntitle = "lazygit"\ncommand = ["lazygit"]\nplacement = "overlay"`,
     )
@@ -96,7 +96,7 @@ describe("parsePluginManifest", () => {
   it("rejects a command that is not an argv array", () => {
     expect(() =>
       parsePluginManifest(
-        'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_kobe_version = "0.1.0"\n[[startup]]\ncommand = "sh run.sh"',
+        'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"\n[[startup]]\ncommand = "sh run.sh"',
       ),
     ).toThrow(/argv/)
   })
@@ -105,9 +105,9 @@ describe("parsePluginManifest", () => {
 describe("plugin manifest filenames", () => {
   const body = 'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"\nplatforms = ["linux"]'
 
-  it("falls back to kobe-plugin.toml and prefers Rove when both exist", () => {
+  it("falls back to rove-plugin.toml and prefers Rove when both exist", () => {
     const root = mkdtempSync(join(tmpdir(), "rove-manifest-compat-"))
-    writeFileSync(join(root, "kobe-plugin.toml"), body.replace('id = "p"', 'id = "legacy"'))
+    writeFileSync(join(root, "rove-plugin.toml"), body.replace('id = "p"', 'id = "legacy"'))
     expect(readPluginManifest(root).manifest.id).toBe("legacy")
     writeFileSync(join(root, "rove-plugin.toml"), body)
     expect(readPluginManifest(root).manifest.id).toBe("p")
@@ -126,7 +126,7 @@ describe("platform helpers", () => {
 })
 
 describe("settings + file handlers", () => {
-  const base = 'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_kobe_version = "0.1.0"\nplatforms = ["macos"]\n'
+  const base = 'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"\nplatforms = ["macos"]\n'
 
   it("parses [[settings]] with types, options, defaults", () => {
     const { manifest } = parsePluginManifest(

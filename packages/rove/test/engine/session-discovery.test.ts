@@ -7,7 +7,7 @@
  *   - kimi tabs never recorded an id, because kimi's CLI cannot be TOLD one
  *     and its OSC title is a sentence, so the store is the only source;
  *   - the restart check asked `readHistory(id).length > 0`, which silently
- *     means "kobe can parse this engine's messages" — kimi's reader ships no
+ *     means "rove can parse this engine's messages" — kimi's reader ships no
  *     parser, so every kimi session reported as absent and its tab respawned
  *     blank under a fresh conversation.
  */
@@ -29,7 +29,7 @@ async function writeSession(id: string, wt: string, mtime: Date): Promise<void> 
   const dir = path.join(home, "sessions", `wd_${id}`)
   await mkdir(path.join(dir, "agents", "main"), { recursive: true })
   const wire = path.join(dir, "agents", "main", "wire.jsonl")
-  await writeFile(wire, '{"type":"whatever-kobe-does-not-parse"}\n')
+  await writeFile(wire, '{"type":"whatever-rove-does-not-parse"}\n')
   await writeFile(
     path.join(home, "session_index.jsonl"),
     `${JSON.stringify({ sessionId: id, sessionDir: dir, workDir: wt })}\n`,

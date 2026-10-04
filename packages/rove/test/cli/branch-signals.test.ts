@@ -24,13 +24,13 @@ function git(cwd: string, ...args: string[]): void {
 
 /** Repo with a `main` base and a task branch carrying one committed change. */
 function makeRepo(): string {
-  const repo = mkdtempSync(join(tmpdir(), "kobe-branch-signals-"))
+  const repo = mkdtempSync(join(tmpdir(), "rove-branch-signals-"))
   cleanups.push(repo)
   git(repo, "init", "-q", "-b", "main")
   writeFileSync(join(repo, "a.txt"), "one\n")
   git(repo, "add", "a.txt")
   git(repo, "commit", "-q", "-m", "base")
-  git(repo, "checkout", "-q", "-b", "kobe/task")
+  git(repo, "checkout", "-q", "-b", "rove/task")
   writeFileSync(join(repo, "a.txt"), "one\ntwo\n")
   writeFileSync(join(repo, "b.txt"), "new\n")
   git(repo, "add", "-A")
@@ -55,7 +55,7 @@ describe("readBranchSignals", () => {
   })
 
   it("yields nulls (never throws) outside a git repo or with no base", () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-branch-signals-plain-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-branch-signals-plain-"))
     cleanups.push(dir)
     expect(readBranchSignals(dir)).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
     expect(readBranchSignals("")).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
@@ -73,7 +73,7 @@ describe("a ladder hit that shares no history with the branch", () => {
    * reading `ahead` does not look at.
    */
   function makeOrphanMainRepo(): { repo: string; worktree: string } {
-    const repo = mkdtempSync(join(tmpdir(), "kobe-branch-signals-orphan-"))
+    const repo = mkdtempSync(join(tmpdir(), "rove-branch-signals-orphan-"))
     cleanups.push(repo)
     git(repo, "init", "-q", "-b", "develop")
     writeFileSync(join(repo, "a.txt"), "one\n")
@@ -107,7 +107,7 @@ describe("a ladder hit that shares no history with the branch", () => {
   })
 
   it("finds a default branch the ladder never names (`trunk`, no remote)", () => {
-    const repo = mkdtempSync(join(tmpdir(), "kobe-branch-signals-trunk-"))
+    const repo = mkdtempSync(join(tmpdir(), "rove-branch-signals-trunk-"))
     cleanups.push(repo)
     git(repo, "init", "-q", "-b", "trunk")
     writeFileSync(join(repo, "a.txt"), "one\n")
@@ -130,13 +130,13 @@ describe("a ladder hit that shares no history with the branch", () => {
 
 describe("readBranchSignals with a recorded baseRef", () => {
   /**
-   * main (A) → release/2.x (adds B) → kobe/task cut FROM release/2.x (adds
+   * main (A) → release/2.x (adds B) → rove/task cut FROM release/2.x (adds
    * C). The base guess resolves local `main`; the recorded fork point is
    * `release/2.x` — measuring against the guess over-counts ahead and
    * folds the release work into the task's diffstat.
    */
   function makeForkedRepo(): string {
-    const repo = mkdtempSync(join(tmpdir(), "kobe-branch-signals-forked-"))
+    const repo = mkdtempSync(join(tmpdir(), "rove-branch-signals-forked-"))
     cleanups.push(repo)
     git(repo, "init", "-q", "-b", "main")
     writeFileSync(join(repo, "a.txt"), "one\n")
@@ -146,7 +146,7 @@ describe("readBranchSignals with a recorded baseRef", () => {
     writeFileSync(join(repo, "release.txt"), "rel\n")
     git(repo, "add", "release.txt")
     git(repo, "commit", "-q", "-m", "release work")
-    git(repo, "checkout", "-q", "-b", "kobe/task")
+    git(repo, "checkout", "-q", "-b", "rove/task")
     writeFileSync(join(repo, "task.txt"), "task\n")
     git(repo, "add", "task.txt")
     git(repo, "commit", "-q", "-m", "task work")

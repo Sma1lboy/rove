@@ -93,8 +93,8 @@ describe("RemoteOrchestrator auto-reconnect", () => {
   const prev = process.env.ROVE_HOME_DIR
 
   beforeEach(async () => {
-    // init() logs to client.log — keep that off the real ~/.kobe.
-    home = await mkdtemp(join(tmpdir(), "kobe-orch-reconnect-"))
+    // init() logs to client.log — keep that off the real ~/.rove.
+    home = await mkdtemp(join(tmpdir(), "rove-orch-reconnect-"))
     process.env.ROVE_HOME_DIR = home
   })
 
@@ -193,7 +193,7 @@ describe("RemoteOrchestrator on a stale install", () => {
   const prev = process.env.ROVE_HOME_DIR
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kobe-orch-stale-"))
+    home = await mkdtemp(join(tmpdir(), "rove-orch-stale-"))
     process.env.ROVE_HOME_DIR = home
   })
 

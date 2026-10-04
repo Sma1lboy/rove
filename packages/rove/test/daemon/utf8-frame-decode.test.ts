@@ -55,7 +55,7 @@ describe("UTF-8 frame decode survives chunk boundaries (daemon → client)", () 
   let dir: string
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "kobe-utf8-"))
+    dir = mkdtempSync(join(tmpdir(), "rove-utf8-"))
     socketPath = join(dir, "raw.sock")
     raw = null
   })

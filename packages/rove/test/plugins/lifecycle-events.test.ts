@@ -67,7 +67,7 @@ const MANIFEST = `
 id = "example.lifecycle"
 name = "Lifecycle"
 version = "0.1.0"
-min_kobe_version = "0.1.0"
+min_rove_version = "0.1.0"
 
 [[events]]
 on = "tool.post"
@@ -76,10 +76,10 @@ command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > tool.txt && printf 
 
 describe("PluginHost.handleEngineReport", () => {
   it("fires declared lifecycle hooks with the envelope", async () => {
-    const home = tmp("kobe-lifecycle-home-")
-    const root = tmp("kobe-lifecycle-root-")
-    writeFileSync(join(root, "kobe-plugin.toml"), MANIFEST)
-    mkdirSync(join(home, ".kobe"), { recursive: true })
+    const home = tmp("rove-lifecycle-home-")
+    const root = tmp("rove-lifecycle-root-")
+    writeFileSync(join(root, "rove-plugin.toml"), MANIFEST)
+    mkdirSync(join(home, ".rove"), { recursive: true })
     savePluginRegistry(
       {
         plugins: [
@@ -88,7 +88,7 @@ describe("PluginHost.handleEngineReport", () => {
       },
       home,
     )
-    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "kobe" })
+    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "rove" })
     host.start()
     try {
       // An undeclared event dispatches nothing.

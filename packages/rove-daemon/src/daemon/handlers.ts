@@ -72,7 +72,7 @@ export {
 export interface DaemonHandlerContext {
   /** Task-lifecycle owner — the single writer for the task index. */
   readonly orch: DaemonOrchestrator
-  /** Product/runtime behavior supplied by the kobe composition root. */
+  /** Product/runtime behavior supplied by the rove composition root. */
   readonly runtime: DaemonRuntimeAdapter
   /** Push-channel hub (`task.setActive` publishes `active-task` here). */
   readonly bus: DaemonEventBus
@@ -112,7 +112,7 @@ export interface DaemonHandlerContext {
   readonly daemon: {
     readonly startedAt: Date
     readonly socketPath: string
-    /** State root served (`<homeDir>/.kobe`). `hello` reports it so a client
+    /** State root served (`<homeDir>/.rove`). `hello` reports it so a client
      *  detects a daemon from a DIFFERENT home on its socket, whose empty task
      *  index would otherwise render as "you have no tasks". */
     readonly homeDir?: string
@@ -283,7 +283,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...ISSUE_HANDLERS,
     ...PR_HANDLERS,
     {
-      // `kobe api inspect`: raw transient state, read-only. Wire payloads hide
+      // `rove api inspect`: raw transient state, read-only. Wire payloads hide
       // the fields (probe vendor, armed watchdogs) badge/idle bugs hinge on.
       name: "debug.inspect",
       handle(_payload, ctx) {

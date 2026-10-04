@@ -25,7 +25,7 @@ let tmpHome: string
 let originalHome: string | undefined
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-issue-spawn-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-issue-spawn-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
 })
@@ -51,7 +51,7 @@ function build() {
     repoRoot: "/repo",
     worktreePath: "/repo/.wt/task-9",
     vendor: "claude",
-    api: "kobe api",
+    api: "rove api",
     shell: "/bin/zsh",
   })
 }
@@ -91,7 +91,7 @@ describe("buildIssueChatBackgroundSpawn", () => {
       repoRoot: "/repo",
       worktreePath: "/repo/.wt/task-9",
       vendor: "kimi",
-      api: "kobe api",
+      api: "rove api",
       shell: "/bin/zsh",
     })
     expect(spawn.ptyKey).toBe("task-9::tab-1")

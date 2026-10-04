@@ -17,7 +17,7 @@ let tmpHome: string
 let originalHome: string | undefined
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-file-modes-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-file-modes-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
 })
@@ -48,8 +48,8 @@ describe("user-scoped state files are owner-only", () => {
     await store.create({
       title: "alpha",
       repo: "/repo",
-      branch: "kobe/alpha",
-      worktreePath: "/repo/.kobe/worktrees/alpha",
+      branch: "rove/alpha",
+      worktreePath: "/repo/.rove/worktrees/alpha",
       kind: "task",
       status: "backlog",
     })

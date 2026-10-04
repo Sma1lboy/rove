@@ -29,9 +29,9 @@ describe("resolveRoveSpawn", () => {
       "daemon",
       "start",
     ])
-    expect(resolveRoveSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "kobe" })).toEqual([
+    expect(resolveRoveSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "rove" })).toEqual([
       process.execPath,
-      expect.stringMatching(/\/cli\/kobe\.ts$/),
+      expect.stringMatching(/\/cli\/rove\.ts$/),
       "daemon",
       "start",
     ])
@@ -84,7 +84,7 @@ function listenAt(path: string, handler?: (sock: import("node:net").Socket) => v
 }
 
 function listen(handler?: (sock: import("node:net").Socket) => void): Promise<string> {
-  return listenAt(join(SOCK_DIR, `kobe-dpr-${process.pid}-${servers.length}.sock`), handler)
+  return listenAt(join(SOCK_DIR, `rove-dpr-${process.pid}-${servers.length}.sock`), handler)
 }
 
 /** Minimal daemon stand-in: answers `hello` and nothing else. */
@@ -187,15 +187,15 @@ describe("testDaemonResponds", () => {
   })
 
   it("is false when no daemon is listening", async () => {
-    expect(await testDaemonResponds(join(SOCK_DIR, `kobe-dpr-absent-${process.pid}.sock`), 300)).toBe(false)
+    expect(await testDaemonResponds(join(SOCK_DIR, `rove-dpr-absent-${process.pid}.sock`), 300)).toBe(false)
   })
 })
 
 describe("tryAcquireSpawnLock", () => {
-  it("acquires on a fresh home whose .kobe dir does not exist yet", () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-spawn-lock-"))
+  it("acquires on a fresh home whose .rove dir does not exist yet", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-spawn-lock-"))
     try {
-      const lock = join(dir, "does-not-exist-yet", ".kobe", "daemon.pid.spawn-lock")
+      const lock = join(dir, "does-not-exist-yet", ".rove", "daemon.pid.spawn-lock")
       expect(tryAcquireSpawnLock(lock)).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -203,7 +203,7 @@ describe("tryAcquireSpawnLock", () => {
   })
 
   it("second acquire loses while the lock is fresh", () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-spawn-lock-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-spawn-lock-"))
     try {
       const lock = join(dir, "daemon.pid.spawn-lock")
       expect(tryAcquireSpawnLock(lock)).toBe(true)
@@ -214,7 +214,7 @@ describe("tryAcquireSpawnLock", () => {
   })
 
   it("reclaims a stale lock left by a crashed spawner", () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-spawn-lock-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-spawn-lock-"))
     try {
       const lock = join(dir, "daemon.pid.spawn-lock")
       expect(tryAcquireSpawnLock(lock)).toBe(true)
@@ -257,8 +257,8 @@ describe("ensureDaemonReachable under a held spawn lock", () => {
     // Two clients race after the same daemon drop (twin autospawn). The
     // loser must NOT kill/spawn — it polls until the
     // winner's daemon answers, and never releases the winner's lock.
-    const dir = mkdtempSync(join(tmpdir(), "kobe-spawn-wait-"))
-    const socketPath = join(SOCK_DIR, `kobe-dpr-wait-${process.pid}.sock`)
+    const dir = mkdtempSync(join(tmpdir(), "rove-spawn-wait-"))
+    const socketPath = join(SOCK_DIR, `rove-dpr-wait-${process.pid}.sock`)
     const restoreEnv = overrideRoveEnv({
       DAEMON_SOCKET_PATH: socketPath,
       DAEMON_PID_PATH: join(dir, "daemon.pid"),
@@ -332,8 +332,8 @@ describe("ensureDaemonReachable when the daemon is busy, not dead", () => {
     // `stopDaemonProcess`, leaving nothing at risk; and destroying the
     // probe's own connection makes `probeDaemonSocket` read the close as a
     // reply and return "alive", so the branch under test is never entered.
-    const dir = mkdtempSync(join(tmpdir(), "kobe-busy-daemon-"))
-    const socketPath = join(SOCK_DIR, `kobe-dpr-busy-${process.pid}.sock`)
+    const dir = mkdtempSync(join(tmpdir(), "rove-busy-daemon-"))
+    const socketPath = join(SOCK_DIR, `rove-dpr-busy-${process.pid}.sock`)
     const pidPath = join(dir, "daemon.pid")
     const restoreEnv = overrideRoveEnv({
       DAEMON_SOCKET_PATH: socketPath,
@@ -412,8 +412,8 @@ describe("ensureDaemonReachable when the daemon is busy, not dead", () => {
  */
 describe("ensureDaemonReachable on a stale install", () => {
   it("destroys nothing — it cannot replace what it would kill", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-stale-install-"))
-    const socketPath = join(SOCK_DIR, `kobe-dpr-stale-${process.pid}.sock`)
+    const dir = mkdtempSync(join(tmpdir(), "rove-stale-install-"))
+    const socketPath = join(SOCK_DIR, `rove-dpr-stale-${process.pid}.sock`)
     const pidPath = join(dir, "daemon.pid")
     const restoreEnv = overrideRoveEnv({
       DAEMON_SOCKET_PATH: socketPath,

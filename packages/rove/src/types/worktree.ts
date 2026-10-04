@@ -1,7 +1,7 @@
 /**
- * Worktree manager: kobe's wrapper around `git worktree` (DESIGN.md §5.3,
+ * Worktree manager: rove's wrapper around `git worktree` (DESIGN.md §5.3,
  * §11.3). New Rove-created worktrees use `~/.rove/worktrees/<repo-key>/<slug>/`;
- * `.kobe/worktrees` (global/repo-local) and `.claude/worktrees` task paths
+ * `.rove/worktrees` (global/repo-local) and `.claude/worktrees` task paths
  * remain supported. The orchestrator must never shell out to `git worktree`
  * directly, so error handling, dirty detection, and path conventions live in
  * one place.
@@ -27,7 +27,7 @@ export interface WorktreeInfo {
 
 /**
  * One row of the cross-project worktree audit (`worktree.list` RPC). Extends
- * {@link AdoptableWorktree} (every worktree of a repo, kobe-managed or not).
+ * {@link AdoptableWorktree} (every worktree of a repo, rove-managed or not).
  * Local projects only.
  */
 export interface WorktreeAuditRow extends AdoptableWorktree {
@@ -53,7 +53,7 @@ export interface WorktreeProject {
 }
 
 /**
- * Manager for git worktrees mapped 1:1 to kobe Tasks.
+ * Manager for git worktrees mapped 1:1 to rove Tasks.
  *
  * Conventions / invariants the impl must hold:
  * - `create()` is responsible for creating the branch if it doesn't
@@ -61,8 +61,8 @@ export interface WorktreeProject {
  *   reject — never silently fast-forward or hijack a branch.
  * - `remove()` refuses to remove a dirty worktree unless `force=true`.
  *   This is the single most important safety property here.
- * - `list()` enumerates ONLY worktrees managed by kobe (i.e. under the
- *   kobe worktree root convention), not all worktrees on the repo.
+ * - `list()` enumerates ONLY worktrees managed by rove (i.e. under the
+ *   rove worktree root convention), not all worktrees on the repo.
  * - All paths in/out are absolute. No tilde expansion, no relative
  *   paths — caller normalizes before calling.
  * - All git invocations use argv arrays, never shell strings. No
@@ -93,9 +93,9 @@ export interface WorktreeManager {
   remove(path: string, opts?: { readonly force?: boolean }): Promise<void>
 
   /**
-   * List all kobe-managed worktrees under `repo`.
+   * List all rove-managed worktrees under `repo`.
    *
-   * Guarantees: only worktrees inside the kobe convention root (DESIGN.md
+   * Guarantees: only worktrees inside the rove convention root (DESIGN.md
    * §11.3); stable across calls when the filesystem is unchanged.
    */
   list(repo: string): Promise<readonly WorktreeInfo[]>

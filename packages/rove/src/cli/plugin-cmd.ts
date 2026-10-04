@@ -1,6 +1,6 @@
 /**
- * `kobe plugin`. A plugin is a dir with `rove-plugin.toml` (legacy
- * `kobe-plugin.toml` accepted). Owns `~/.rove/plugins.json`, which the
+ * `rove plugin`. A plugin is a dir with `rove-plugin.toml` (legacy
+ * `rove-plugin.toml` accepted). Owns `~/.rove/plugins.json`, which the
  * daemon's PluginHost watches, so changes apply without a restart.
  */
 
@@ -25,13 +25,13 @@ import {
   removePluginEntry,
   savePluginRegistry,
 } from "@sma1lboy/rove-daemon/plugins/registry"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { flagValue } from "./argv.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
 import { PluginCliError, installPlugin, linkPlugin } from "./plugin-install.ts"
-import { activeCliName } from "./rename-compat.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 function printUsage(out: NodeJS.WriteStream): void {
   out.write(
@@ -54,7 +54,7 @@ function printUsage(out: NodeJS.WriteStream): void {
       "  pane open <plugin-id.pane-id> [--task <task-id>]      open a plugin pane as a terminal tab (JSON:",
       "                                                        clients — 0 = no attached UI performed the split)",
       "",
-      "Marketplace: https://github.com/topics/rove-plugin (legacy kobe-plugin is included)",
+      "Marketplace: https://github.com/topics/rove-plugin (legacy rove-plugin is included)",
       "",
     ].join("\n"),
   )

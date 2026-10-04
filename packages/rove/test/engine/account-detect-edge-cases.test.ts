@@ -204,7 +204,7 @@ describe("availableEngineIds", () => {
   let originalHome: string | undefined
 
   beforeEach(() => {
-    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-account-detect-"))
+    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-account-detect-"))
     originalHome = process.env.ROVE_HOME_DIR
     process.env.ROVE_HOME_DIR = tmpHome
   })

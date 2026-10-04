@@ -151,7 +151,7 @@ export class WorktreeCoordinator {
   /**
    * Apply the repo's inferred naming convention (local + origin branches) to
    * the title; `-2`/`-3` against existing and in-flight reserved names. Never a
-   * rove/kobe brand token; unreadable/empty repo → bare kebab slug.
+   * rove/rove brand token; unreadable/empty repo → bare kebab slug.
    */
   private async deriveAutoBranch(task: Task): Promise<string> {
     const names = await this.worktrees.listBranchNames(task.repo)

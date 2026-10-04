@@ -13,7 +13,7 @@
  *   - `addSavedRepo()` is idempotent (re-add returns `added: false`).
  *   - `addSavedRepo()` preserves any sibling KV keys already in the
  *     file — this is the load-bearing reason `repos.ts` and `kv.tsx`
- *     read/write the SAME blob: a `kobe add` from a shell mustn't
+ *     read/write the SAME blob: a `rove add` from a shell mustn't
  *     wipe the user's `lastSelectedTaskId` / `activeTheme` / etc.
  *   - `addSavedRepo()` preserves order of existing entries.
  *   - The total in `AddResult` matches the post-write list size.
@@ -49,7 +49,7 @@ beforeEach(() => {
   // realpath: macOS `os.tmpdir()` is a symlink (`/var` → `/private/var`), and
   // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
   // built under the un-resolved spelling would compare unequal to what was saved.
-  tmpHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "kobe-repos-")))
+  tmpHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "rove-repos-")))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
 })
@@ -69,7 +69,7 @@ describe("statePath", () => {
 
 describe("isGitRepo", () => {
   test("true inside a real git work tree (and its subdirectories)", () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-gitrepo-"))
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), "rove-gitrepo-"))
     try {
       expect(spawnSync("git", ["init"], { cwd: repo }).status).toBe(0)
       expect(isGitRepo(repo)).toBe(true)
@@ -81,8 +81,8 @@ describe("isGitRepo", () => {
     }
   })
 
-  test("false for a path that does not exist (the `kobe add ,` case)", () => {
-    expect(isGitRepo(path.join(os.tmpdir(), "kobe-does-not-exist", ","))).toBe(false)
+  test("false for a path that does not exist (the `rove add ,` case)", () => {
+    expect(isGitRepo(path.join(os.tmpdir(), "rove-does-not-exist", ","))).toBe(false)
   })
 
   test("false for a remote (ssh://) key — validated by the remote-add flow", () => {
@@ -119,7 +119,7 @@ describe("addSavedRepo", () => {
     expect(getSavedRepos()).toEqual(["/repos/alpha"])
   })
 
-  test("preserves sibling KV keys (kobe add must not wipe TUI state)", () => {
+  test("preserves sibling KV keys (rove add must not wipe TUI state)", () => {
     const p = statePath()
     fs.mkdirSync(path.dirname(p), { recursive: true })
     fs.writeFileSync(

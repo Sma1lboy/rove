@@ -2,7 +2,7 @@
 /**
  * The daemon-owned issue store as a Backlog / In progress / Parked / Done
  * board, one PROJECT at a time. Full-page swap: esc/ctrl+c closes, `r`
- * refetches, and a light poll shows agent moves (`kobe api issue-*`) live.
+ * refetches, and a light poll shows agent moves (`rove api issue-*`) live.
  *
  * Human surface: cursor + {@link IssueDetailDialog} (Start hands an
  * {@link IssueChatStart} to the host). Column math lives in

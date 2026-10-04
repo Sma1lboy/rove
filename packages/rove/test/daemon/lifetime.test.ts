@@ -80,7 +80,7 @@ describe("DaemonLifetime", () => {
 
 /**
  * The keep-alive hold exists for scheduled Automations: a schedule that only
- * fires while a human happens to be looking at kobe is not a schedule. It must
+ * fires while a human happens to be looking at rove is not a schedule. It must
  * both engage AND release — a hold that never lets go is a leak.
  */
 describe("keep-alive hold", () => {

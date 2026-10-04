@@ -1,6 +1,6 @@
 /**
  * Pins the issue-chat prompt contract — the shared builders in
- * `kobe-daemon/prompts/issue-prompts.ts` that the TUI
+ * `rove-daemon/prompts/issue-prompts.ts` that the TUI
  * (state/issue-chat.ts) sends.
  * Both prompts frame the story (#id + title + body) and
  * end with the daemon-owned `issue-set-status … done` instruction; the
@@ -38,12 +38,12 @@ describe("issue-chat prompts", () => {
   })
 
   test("worktree prompt: story + worktree/merge discipline + done instruction", () => {
-    const prompt = issueWorktreePrompt(story, "bun kobe api")
+    const prompt = issueWorktreePrompt(story, "bun rove api")
     expect(prompt).toContain("Work on user story #7: Fix the flake")
     expect(prompt).toContain("repro steps here")
     expect(prompt).toContain("task worktree")
     expect(prompt).toContain("merge the task branch")
-    expect(prompt).toContain("bun kobe api issue-set-status --repo . --id 7 --status done")
+    expect(prompt).toContain("bun rove api issue-set-status --repo . --id 7 --status done")
   })
 
   test("project prompt: stay on the checkout, no worktree/merge lines", () => {

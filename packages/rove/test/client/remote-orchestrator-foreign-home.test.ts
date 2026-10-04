@@ -51,8 +51,8 @@ describe("RemoteOrchestrator home-ownership guard", () => {
   const prev = process.env.ROVE_HOME_DIR
 
   beforeEach(async () => {
-    // init() logs to client.log — keep that off the real ~/.kobe.
-    home = await mkdtemp(join(tmpdir(), "kobe-orch-home-"))
+    // init() logs to client.log — keep that off the real ~/.rove.
+    home = await mkdtemp(join(tmpdir(), "rove-orch-home-"))
     process.env.ROVE_HOME_DIR = home
   })
 
@@ -68,7 +68,7 @@ describe("RemoteOrchestrator home-ownership guard", () => {
       role: "gui",
     })
 
-    await expect(orch.init()).rejects.toThrow(/serves \/repo\/packages\/kobe\/\.dev-sandbox\/home/)
+    await expect(orch.init()).rejects.toThrow(/serves \/repo\/packages\/rove\/\.dev-sandbox\/home/)
     expect(orch.tasksSignal()()).toEqual([])
   })
 

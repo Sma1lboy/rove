@@ -1,12 +1,12 @@
-/** Pins the daemon package as a consumer-owned seam, never a kobe source alias client. */
+/** Pins the daemon package as a consumer-owned seam, never a rove source alias client. */
 
 import { readFileSync, readdirSync } from "node:fs"
 import { join, relative } from "node:path"
 import { describe, expect, test } from "vitest"
 
-const daemonRoot = join(import.meta.dirname, "../../../kobe-daemon")
+const daemonRoot = join(import.meta.dirname, "../../../rove-daemon")
 const sourceRoot = join(daemonRoot, "src")
-const forbidden = /^(?:@\/|@tui\/|@engine\/|@orchestrator\/|@types\/)|(?:^|\/)\.\.\/kobe(?:\/|$)/
+const forbidden = /^(?:@\/|@tui\/|@engine\/|@orchestrator\/|@types\/)|(?:^|\/)\.\.\/rove(?:\/|$)/
 const specifier = /(?:import|export)\s+(?:type\s+)?(?:[^"']*?\s+from\s+)?["']([^"']+)["']|import\(["']([^"']+)["']\)/g
 
 function sourceFiles(dir: string): string[] {
@@ -17,8 +17,8 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-describe("kobe-daemon dependency direction", () => {
-  test("source imports never reach through kobe aliases or sibling paths", () => {
+describe("rove-daemon dependency direction", () => {
+  test("source imports never reach through rove aliases or sibling paths", () => {
     const violations: string[] = []
     for (const file of sourceFiles(sourceRoot)) {
       const text = readFileSync(file, "utf8")

@@ -1,3 +1,4 @@
+import { preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 /** Read-only health report for the PureTUI runtime. */
 
 import { existsSync, readFileSync, statSync } from "node:fs"
@@ -20,7 +21,8 @@ import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { formatBytes } from "../lib/format-bytes.ts"
 import { roveSkillState, skillInstallCommand } from "../lib/skill-install.ts"
 import { readableLegacyIndexPath } from "../orchestrator/index/store-codec.ts"
-import { LEGACY_ROVE_STATE_DIR_BASENAME } from "../product.ts"
+
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { t } from "../tui/i18n"
 import { CURRENT_VERSION } from "../version.ts"
 import { MIN_BUN_VERSION, isBunAtLeast } from "./bun-runtime.ts"
@@ -44,9 +46,8 @@ import { type Orphan, collectOrphans, killOrphanGroups, orphanDoctorLines } from
 import { terminalDoctorLines } from "./doctor-terminal.ts"
 import { probeEngines, probeGit } from "./env-checks.ts"
 import { inspectLegacyTmux, legacyTmuxDoctorLines } from "./legacy-tmux.ts"
-import { activeCliName } from "./rename-compat.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 type PtySessionStatus = { alive?: boolean; parked?: boolean; pid?: number | null }
 
@@ -181,7 +182,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
   // Same fallback the daemon-free readers use (`export`), so doctor never
   // prints "absent" for an unmigrated home whose tasks `export` can list.
   const canonicalTasks = join(roveStateDir(), "tasks.json")
-  const legacyTasks = join(homeDir(), LEGACY_ROVE_STATE_DIR_BASENAME, "tasks.json")
+  const legacyTasks = join(preRenameStateDir(homeDir()), "tasks.json")
   const readableLegacy = readableLegacyIndexPath(canonicalTasks, legacyTasks)
   const usingLegacyTasks = !existsSync(canonicalTasks) && readableLegacy !== undefined && existsSync(readableLegacy)
   const tasksPath = usingLegacyTasks ? legacyTasks : canonicalTasks
@@ -234,7 +235,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
       out.push(`         ⚠ foreign home: daemon serves ${String(daemon.homeDir)}, you are reading ${homeDir()}`)
       out.push(`         → clear ROVE_HOME_DIR/ROVE_HOME_DIR, then \`${CLI_NAME} daemon restart\``)
     }
-    // Hooks are the only sub-second badge path and fail SILENTLY (`kobe hook`
+    // Hooks are the only sub-second badge path and fail SILENTLY (`rove hook`
     // swallows everything), so a dead channel reads as a sluggish UI.
     const snapshot = await requestIfReachable<InspectSnapshot>(daemonSocket, "debug.inspect")
     const tabs = snapshot?.activity?.tabs

@@ -101,7 +101,7 @@ describe.skipIf(process.platform === "win32")("killOrphanGroups leaves a trace",
   const prevHome = process.env.ROVE_HOME_DIR
 
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), "kobe-orphan-log-"))
+    home = mkdtempSync(join(tmpdir(), "rove-orphan-log-"))
     process.env.ROVE_HOME_DIR = home
     mkdirSync(join(defaultDaemonLogPath(home), ".."), { recursive: true })
   })

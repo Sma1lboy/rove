@@ -12,14 +12,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
  * every live engine session on the machine on every `bun run test`.
  *
  * The pin: given an explicit homeDir, the sweep's connection MUST land on
- * `<homeDir>/.kobe/pty.sock` — observed via a raw listener planted there.
+ * `<homeDir>/.rove/pty.sock` — observed via a raw listener planted there.
  */
 describe("sweepPtyHostSessions homeDir isolation", () => {
   let dir: string
   let server: net.Server | null = null
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "kobe-sweep-"))
+    dir = mkdtempSync(join(tmpdir(), "rove-sweep-"))
     mkdirSync(join(dir, ".rove"), { recursive: true })
   })
 

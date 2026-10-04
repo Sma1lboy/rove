@@ -5,8 +5,8 @@
  */
 
 import { registeredEngineIds } from "../../engine/plugin-engines.ts"
+import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import { CURRENT_VERSION } from "../../version.ts"
-import { activeCliName } from "../rename-compat.ts"
 import { ApiError, type FlagSpec, type VerbSpec } from "./types.ts"
 import { VERBS, VERB_ALIASES, VERB_GROUPS } from "./verbs.ts"
 
@@ -57,7 +57,7 @@ export function verbSchema(v: VerbSpec): unknown {
 /** The COMPACT index: groups + verb names + summaries, but NO flags — so an
  *  agent can survey the surface cheaply, then drill in with --verb. */
 export function schemaIndex(): unknown {
-  const cliName = activeCliName()
+  const cliName = ROVE_PRODUCT_NAME
   return {
     apiVersion: API_SCHEMA_VERSION,
     roveVersion: CURRENT_VERSION,
@@ -115,7 +115,7 @@ function flagSignature(verb: VerbSpec): string {
 
 /** Full `<active CLI> api <verb> --help` text. */
 export function verbHelp(verb: VerbSpec): string {
-  const lines = [`${activeCliName()} api ${verb.name} ${flagSignature(verb)}`.trimEnd(), "", verb.summary, ""]
+  const lines = [`${ROVE_PRODUCT_NAME} api ${verb.name} ${flagSignature(verb)}`.trimEnd(), "", verb.summary, ""]
   const alias = Object.entries(VERB_ALIASES).find(([, canon]) => canon === verb.name)?.[0]
   if (alias) lines.push(`Alias: ${alias}`, "")
   if (verb.flags.length > 0) {
@@ -134,7 +134,7 @@ export function verbHelp(verb: VerbSpec): string {
 
 /** One-line-per-verb usage banner for `<active CLI> api` with no/bad verb. */
 export function apiUsage(): string {
-  const cliName = activeCliName()
+  const cliName = ROVE_PRODUCT_NAME
   const rows = VERBS.map((v) => `  ${v.name.padEnd(18)} ${v.summary}`)
   return [
     `usage: ${cliName} api <verb> [flags] [--pretty] [--help]`,

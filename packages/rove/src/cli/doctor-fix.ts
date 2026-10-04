@@ -1,5 +1,5 @@
 /**
- * `kobe doctor --fix`. The fix kind IS the safety contract:
+ * `rove doctor --fix`. The fix kind IS the safety contract:
  *
  * - `run` — executed after a per-fix y/N; reversible, never destroys state
  *   (daemon restart — engine PTYs survive in the host; idempotent installs).
@@ -58,7 +58,7 @@ export function skillInstallFix(installCommand: string, stale: boolean): DoctorF
 
 type ResetReason = "resetDaemonWedged" | "resetPty" | "resetPtyStale" | "resetLegacy"
 
-/** `kobe reset` kills live sessions — always print-only, one entry per reason. */
+/** `rove reset` kills live sessions — always print-only, one entry per reason. */
 export function resetManualFix(cliName: string, reason: ResetReason): DoctorFix {
   return {
     kind: "manual",

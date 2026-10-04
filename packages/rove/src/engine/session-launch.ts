@@ -65,8 +65,8 @@ export function resolveRepoInitTimeoutSeconds(raw?: string | number | null): num
 /**
  * Run repo init without allowing a hung setup command to block engine entry.
  *
- * Leaves `$__kobe_init_rc` (`124` on timeout) and, on success only, an env
- * dump at `$__kobe_init_env`; the caller owns that path and the sourcing,
+ * Leaves `$__rove_init_rc` (`124` on timeout) and, on success only, an env
+ * dump at `$__rove_init_env`; the caller owns that path and the sourcing,
  * since the dump outlives this run — see {@link engineLaunchLine}.
  *
  * The dump is the DELTA of `export -p` across the script: every session in the
@@ -79,27 +79,27 @@ function boundedInitGroup(script: string, timeoutSeconds: number): string {
   const timeoutBanner = "\\n  ⚠ Repo init script timed out after %ss and was killed; continuing to the engine.\\n\\n"
   const failBanner = "\\n  ⚠ Repo init script failed (code %s); continuing to the engine.\\n\\n"
   return [
-    `__kobe_init_pre="\${TMPDIR:-/tmp}/kobe-init-pre.$$"`,
-    `__kobe_init_to="\${TMPDIR:-/tmp}/kobe-init-timeout.$$"`,
-    `rm -f "$__kobe_init_env" "$__kobe_init_pre" "$__kobe_init_to" 2>/dev/null`,
+    `__rove_init_pre="\${TMPDIR:-/tmp}/rove-init-pre.$$"`,
+    `__rove_init_to="\${TMPDIR:-/tmp}/rove-init-timeout.$$"`,
+    `rm -f "$__rove_init_env" "$__rove_init_pre" "$__rove_init_to" 2>/dev/null`,
     "(",
-    `export -p > "$__kobe_init_pre" 2>/dev/null`,
+    `export -p > "$__rove_init_pre" 2>/dev/null`,
     script,
-    "__kobe_init_ec=$?",
+    "__rove_init_ec=$?",
     "umask 077",
     // No pre-image means no way to tell the script's exports from the
     // session's own, so write nothing rather than clobber tab identity.
-    `[ -s "$__kobe_init_pre" ] && export -p 2>/dev/null | grep -vxF -f "$__kobe_init_pre" > "$__kobe_init_env" 2>/dev/null`,
-    "exit $__kobe_init_ec",
+    `[ -s "$__rove_init_pre" ] && export -p 2>/dev/null | grep -vxF -f "$__rove_init_pre" > "$__rove_init_env" 2>/dev/null`,
+    "exit $__rove_init_ec",
     ") </dev/null &",
-    "__kobe_init_pid=$!",
-    `( sleep ${seconds}; : > "$__kobe_init_to"; kill -TERM "$__kobe_init_pid" 2>/dev/null; sleep 2; kill -KILL "$__kobe_init_pid" 2>/dev/null ) &`,
-    "__kobe_init_wd=$!",
-    `wait "$__kobe_init_pid" 2>/dev/null; __kobe_init_rc=$?`,
-    `kill "$__kobe_init_wd" 2>/dev/null; wait "$__kobe_init_wd" 2>/dev/null`,
-    `if [ -f "$__kobe_init_to" ]; then __kobe_init_rc=124; printf '${timeoutBanner}' '${seconds}'; rm -f "$__kobe_init_env" 2>/dev/null;`,
-    `elif [ "$__kobe_init_rc" -ne 0 ]; then printf '${failBanner}' "$__kobe_init_rc"; rm -f "$__kobe_init_env" 2>/dev/null; fi`,
-    `rm -f "$__kobe_init_pre" "$__kobe_init_to" 2>/dev/null`,
+    "__rove_init_pid=$!",
+    `( sleep ${seconds}; : > "$__rove_init_to"; kill -TERM "$__rove_init_pid" 2>/dev/null; sleep 2; kill -KILL "$__rove_init_pid" 2>/dev/null ) &`,
+    "__rove_init_wd=$!",
+    `wait "$__rove_init_pid" 2>/dev/null; __rove_init_rc=$?`,
+    `kill "$__rove_init_wd" 2>/dev/null; wait "$__rove_init_wd" 2>/dev/null`,
+    `if [ -f "$__rove_init_to" ]; then __rove_init_rc=124; printf '${timeoutBanner}' '${seconds}'; rm -f "$__rove_init_env" 2>/dev/null;`,
+    `elif [ "$__rove_init_rc" -ne 0 ]; then printf '${failBanner}' "$__rove_init_rc"; rm -f "$__rove_init_env" 2>/dev/null; fi`,
+    `rm -f "$__rove_init_pre" "$__rove_init_to" 2>/dev/null`,
   ].join("\n")
 }
 
@@ -117,15 +117,15 @@ export function engineLaunchLine(engineCommand: string, init?: EngineInitLaunch)
   // Restore sits OUTSIDE the once-per-worktree marker guard: every tab and
   // restart must get init's exports (the `repo-init.ts` contract), not only
   // the session that ran init.
-  const restore = `[ -f "$__kobe_init_env" ] && . "$__kobe_init_env" 2>/dev/null`
+  const restore = `[ -f "$__rove_init_env" ] && . "$__rove_init_env" 2>/dev/null`
   // The marker is interpolated INTO the script, so it must be in the form the
   // shell reads paths in — Git Bash rejects a backslash path in `[ -f ]`.
   const markerPath = init?.markerPath && toPosixPath(init.markerPath, init.platform)
   if (!markerPath) {
     // No durable home: per-shell dump, dropped after restore. Only direct
     // callers reach this; every spawner passes a marker.
-    const tmpEnv = `__kobe_init_env="\${TMPDIR:-/tmp}/kobe-init-env.$$"`
-    return SIGINT_GUARD + [tmpEnv, group, restore, `rm -f "$__kobe_init_env" 2>/dev/null`, tail].join("\n")
+    const tmpEnv = `__rove_init_env="\${TMPDIR:-/tmp}/rove-init-env.$$"`
+    return SIGINT_GUARD + [tmpEnv, group, restore, `rm -f "$__rove_init_env" 2>/dev/null`, tail].join("\n")
   }
   const marker = quoteShellArg(markerPath)
   const markerDir = quoteShellArg(markerDirOf(markerPath))
@@ -139,7 +139,7 @@ export function engineLaunchLine(engineCommand: string, init?: EngineInitLaunch)
     [
       // Durable and per-worktree, NOT per-shell `$TMPDIR/…$$`, so later
       // sessions still have it to source.
-      `__kobe_init_env=${quoteShellArg(`${markerPath}.env`)}`,
+      `__rove_init_env=${quoteShellArg(`${markerPath}.env`)}`,
       // The marker RECORDS the exit code so the paste-delivery spawner can
       // tell "never ran" from "finished badly". A recorded non-zero code
       // retries, same as a missing marker.
@@ -158,7 +158,7 @@ export function engineLaunchLine(engineCommand: string, init?: EngineInitLaunch)
       // left by a retry would make it paste before the engine starts.
       `rm -f ${marker} 2>/dev/null`,
       group,
-      `printf '%s' "$__kobe_init_rc" > ${marker}`,
+      `printf '%s' "$__rove_init_rc" > ${marker}`,
       `rm -f ${lock} 2>/dev/null`,
       "else",
       // Wait on the LOCK, not the marker: a loser could see the PREVIOUS run's
@@ -168,8 +168,8 @@ export function engineLaunchLine(engineCommand: string, init?: EngineInitLaunch)
       // Bounded by init's own budget so a crashed winner costs one wait, not a
       // stall; the engine then starts without exports (as if init failed) and
       // clearing the stale lock lets the next launch retry.
-      "__kobe_init_w=0",
-      `while [ -f ${lock} ] && [ "$__kobe_init_w" -lt ${waitSeconds} ]; do sleep 1; __kobe_init_w=$((__kobe_init_w+1)); done`,
+      "__rove_init_w=0",
+      `while [ -f ${lock} ] && [ "$__rove_init_w" -lt ${waitSeconds} ]; do sleep 1; __rove_init_w=$((__rove_init_w+1)); done`,
       `rm -f ${lock} 2>/dev/null`,
       "fi",
       "fi",

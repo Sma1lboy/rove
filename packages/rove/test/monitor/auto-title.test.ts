@@ -28,7 +28,7 @@ let home: string
 let savedHome: string | undefined
 
 beforeEach(async () => {
-  home = await mkdtemp(path.join(tmpdir(), "kobe-auto-title-"))
+  home = await mkdtemp(path.join(tmpdir(), "rove-auto-title-"))
   savedHome = process.env.HOME
   process.env.HOME = home
 })

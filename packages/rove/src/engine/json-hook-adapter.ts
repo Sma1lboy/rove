@@ -109,7 +109,7 @@ export abstract class JsonHookAdapter implements EngineHookAdapter {
   }
 
   /** Verbs installed only when something asked for them (tool.* plugin
-   *  hooks) — every tool call machine-wide spawns `kobe hook`, so the family
+   *  hooks) — every tool call machine-wide spawns `rove hook`, so the family
    *  stays out of the engine config until a plugin actually subscribes. */
   protected gatedVerbs(): ReadonlySet<string> {
     return GATED_TOOL_VERBS
@@ -122,7 +122,7 @@ export abstract class JsonHookAdapter implements EngineHookAdapter {
     const gated = this.gatedVerbs()
     const outcome = await editJsonSettings(settingsFilePath, (cur) =>
       mergeActivityHooks(cur, true, this.eventMap, undefined, {
-        // Tag with the vendor so `kobe hook` picks the right decoder, and the
+        // Tag with the vendor so `rove hook` picks the right decoder, and the
         // shape version so a later Rove can spot its own old entries
         // (docs/design/plugin-events.md).
         extraArgs: roveHookArgs(this.vendor),

@@ -89,7 +89,7 @@ export function renderCIPrompt(template: string, state: CIPromptState): string {
   )
 }
 
-/** Per-repo override, `.rove/` then `.kobe/`; first readable non-empty wins. */
+/** Per-repo override, `.rove/` then `.rove/`; first readable non-empty wins. */
 const CI_INSTRUCTION_FILENAME = "ci-instructions.md"
 
 function loadTemplate(worktree: string): string {

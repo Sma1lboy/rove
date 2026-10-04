@@ -125,7 +125,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "task.setCommand",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
-      // The caller resolves the protocol: presets live in kobe's state.json,
+      // The caller resolves the protocol: presets live in rove's state.json,
       // which the daemon cannot read. Absent = keep the task's current one.
       await ctx.orch.setCommand(taskId, requireString(payload, "command"), optionalVendor(payload, "vendor"))
       return {}

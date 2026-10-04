@@ -82,7 +82,7 @@ function Harness(props: {
 
 describe("a worktree vanishing under a live task", () => {
   it("reports the dropped tabs instead of closing them silently", async () => {
-    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-wt-gone-"))
+    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-wt-gone-"))
     const store: Record<string, unknown> = {
       // Two tabs the user was working in.
       [terminalTabsKey("alpha")]: {

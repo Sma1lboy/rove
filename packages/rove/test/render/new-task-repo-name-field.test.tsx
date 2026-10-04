@@ -29,7 +29,7 @@ import { act, renderComponent, settle } from "./harness"
 
 /** A repo whose PARENT path is long enough to crowd the row. */
 function repoUnderLongParent(name: string): string {
-  const parent = mkdtempSync(join(tmpdir(), "kobe-reponame-with-a-deliberately-long-parent-path-"))
+  const parent = mkdtempSync(join(tmpdir(), "rove-reponame-with-a-deliberately-long-parent-path-"))
   const dir = join(parent, name)
   execSync(`mkdir -p ${dir}`, { shell: "/bin/sh" })
   execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", { cwd: dir })
@@ -37,7 +37,7 @@ function repoUnderLongParent(name: string): string {
 }
 
 function repo(name: string): string {
-  const parent = mkdtempSync(join(tmpdir(), "kobe-reponame-"))
+  const parent = mkdtempSync(join(tmpdir(), "rove-reponame-"))
   const dir = join(parent, name)
   execSync(
     `mkdir -p ${dir} && git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init`,

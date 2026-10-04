@@ -5,7 +5,7 @@
  * reads, so a completion you had already looked at does not come back wearing
  * a fresh ✓ after a restart.
  *
- * A relaunched kobe is exactly this state — no in-process history, and the
+ * A relaunched rove is exactly this state — no in-process history, and the
  * daemon still publishing the same sticky `turn_complete`. So the strip is
  * mounted through the REAL hook (`useDurableTabSeen`) against a seeded
  * state.json, not handed a precomputed set: the wiring is what this file
@@ -43,7 +43,7 @@ const HOOK_STATES: ReadonlyMap<string, HookTabState> = new Map([["tab-1", { stat
 /** The mode is set explicitly; this test is about the seen-record wiring,
  *  not the default. */
 function seedState(seen: Record<string, number>): void {
-  const home = mkdtempSync(join(tmpdir(), "kobe-tab-strip-restart-"))
+  const home = mkdtempSync(join(tmpdir(), "rove-tab-strip-restart-"))
   mkdirSync(join(home, ".config", "rove"), { recursive: true })
   writeFileSync(
     join(home, ".config", "rove", "state.json"),

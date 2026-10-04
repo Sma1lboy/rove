@@ -1,7 +1,7 @@
 /**
  * `tabTitleStable` — the sidebar tree's naming rule.
  *
- * The tree shows kobe's OWN state glyph (daemon activity) beside each tab and
+ * The tree shows rove's OWN state glyph (daemon activity) beside each tab and
  * renders tabs it does not host, so it has no live title stream and reads the
  * RECORDED `lastTitle`.
  *
@@ -10,7 +10,7 @@
  * recording away instead — as one must when it is the engine's whole status
  * line (`⠐ 利用自进化…`) — leaves every row reading "claude 1" while
  * the tab strip shows the real conversation title. Titles recorded by an
- * older kobe still carry their prefix and are stripped again here, so
+ * older rove still carry their prefix and are stripped again here, so
  * those snapshots heal on display without a migration.
  */
 
@@ -94,7 +94,7 @@ describe("tabTitleStable", () => {
     expect(tabTitleStable(tab, "codex", "claude")).toBe("claude 1")
   })
 
-  // Regression: quit kobe with `claude` running in
+  // Regression: quit rove with `claude` running in
   // a shell tab, restart, and the sidebar row reads "shell N" if the rule
   // carries a resolved vendor through only for tabs born as engine tabs.
   it("names a shell tab after the engine running in it, not 'shell'", () => {

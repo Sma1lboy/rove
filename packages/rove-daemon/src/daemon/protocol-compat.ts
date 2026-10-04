@@ -14,7 +14,7 @@ import { samePath } from "../path-identity.ts"
  * upgrade. Bump MIN only on a breaking change.
  *
  * v3: no `daemon.web.start` / `daemon.web.stop`; browser HTTP/SSE lives on the
- * daemon-owned web transport. A v2 client's `kobe web` gets "unknown daemon
+ * daemon-owned web transport. A v2 client's `rove web` gets "unknown daemon
  * request"; everything else interoperates, so MIN stays 2.
  *
  * v4: daemon-hosted PTYs (`pty.*` requests + targeted `pty.data`/`pty.exit`

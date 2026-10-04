@@ -48,7 +48,7 @@ describe("TaskIndexStore staging-file isolation", () => {
   let home: string
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kobe-store-tmp-collision-"))
+    home = await mkdtemp(join(tmpdir(), "rove-store-tmp-collision-"))
     await mkdir(join(home, ".rove"), { recursive: true })
   })
 
@@ -62,8 +62,8 @@ describe("TaskIndexStore staging-file isolation", () => {
     return {
       title,
       repo: "/repo",
-      branch: `kobe/${title}`,
-      worktreePath: `/repo/.kobe/worktrees/${title}`,
+      branch: `rove/${title}`,
+      worktreePath: `/repo/.rove/worktrees/${title}`,
       kind: "task",
       status: "backlog",
     }

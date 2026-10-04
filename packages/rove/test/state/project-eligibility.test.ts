@@ -26,7 +26,7 @@ describe("pathRejection", () => {
     )
     // The home the run was given, not `homedir()`: `roveStateDir()` follows
     // `ROVE_HOME_DIR`, which test/setup-env.ts points at an empty tmpdir.
-    expect(pathRejection(join(injectedHome(), ".rove/worktrees/kobe-0aff/manatee/fixture"))).toBe("roveInternal")
+    expect(pathRejection(join(injectedHome(), ".rove/worktrees/rove-0aff/manatee/fixture"))).toBe("roveInternal")
   })
 
   it("rejects a .scratch checkout wherever it sits", () => {

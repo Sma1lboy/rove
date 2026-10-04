@@ -16,8 +16,8 @@ import { statSync } from "node:fs"
 import { resolve } from "node:path"
 import { pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
 import { expandTilde } from "../lib/path-home.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { withDaemonOrLocal } from "./orchestrator-bridge.ts"
-import { activeCliName } from "./rename-compat.ts"
 
 /**
  * True for EXPLICIT path syntax (`.`, `..`, `./x`, `/abs`, `~/x`). Narrow on
@@ -62,7 +62,7 @@ export async function runOpenDirectory(arg: string): Promise<void> {
     isDir = false
   }
   if (!isDir) {
-    process.stderr.write(`${activeCliName()}: "${arg}" is not a directory (resolved to ${dir}).\n`)
+    process.stderr.write(`${ROVE_PRODUCT_NAME}: "${arg}" is not a directory (resolved to ${dir}).\n`)
     process.exit(1)
   }
   // Repo root → the project; anything else → a dir task (see header).

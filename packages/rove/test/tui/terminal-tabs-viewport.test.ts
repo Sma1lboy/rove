@@ -23,7 +23,7 @@ let tmpHome: string
 let originalHome: string | undefined
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-viewport-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-viewport-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
 })

@@ -46,14 +46,14 @@ afterEach(async () => {
 /** A git repo plus an issues.json already holding `issues`, keyed the way the
  *  store keys it (git common dir), so `list` reads a file it did not write. */
 async function seedStore(issues: unknown[]): Promise<{ repo: string; store: IssuesStore }> {
-  const parent = await mkdtemp(join(tmpdir(), "kobe-issue-fields-"))
+  const parent = await mkdtemp(join(tmpdir(), "rove-issue-fields-"))
   cleanups.push(parent)
   const repo = join(parent, "repo")
   await mkdir(repo)
   execFileSync("git", ["init", "--quiet"], { cwd: repo })
 
-  const storePath = join(parent, "home", ".kobe", "issues.json")
-  await mkdir(join(parent, "home", ".kobe"), { recursive: true })
+  const storePath = join(parent, "home", ".rove", "issues.json")
+  await mkdir(join(parent, "home", ".rove"), { recursive: true })
   await writeFile(
     storePath,
     JSON.stringify({

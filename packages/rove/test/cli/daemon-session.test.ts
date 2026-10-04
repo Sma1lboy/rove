@@ -3,7 +3,7 @@
  * connect-or-start vs require-running mode selection, and the one
  * guarantee callers lean on — the socket is closed on EVERY exit path
  * (success, thrown error, absent daemon). A leaked socket from a
- * short-lived `kobe api` process would pin the daemon's connection table,
+ * short-lived `rove api` process would pin the daemon's connection table,
  * so close-on-error is load-bearing, not cosmetic.
  */
 

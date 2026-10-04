@@ -42,10 +42,10 @@ export function deriveTitleFromPrompt(prompt: string): string {
  * Whether `branch` is still an untouched placeholder default for `taskId` —
  * `TaskEditor.followBranchToTitle` uses it to follow the first rename at most
  * once. Accepts the `new-task` slug (optionally type-prefixed and/or
- * `-N`-suffixed) and the legacy `rove/` / `kobe/` `new-task-<id6>` spellings.
+ * `-N`-suffixed) and the legacy `rove/` / `rove/` `new-task-<id6>` spellings.
  */
 export function isPlaceholderDerivedBranch(branch: string, taskId: string): boolean {
   const id6 = taskId.slice(-6).toLowerCase()
-  if (branch === `rove/new-task-${id6}` || branch === `kobe/new-task-${id6}`) return true
+  if (branch === `rove/new-task-${id6}` || branch === `rove/new-task-${id6}`) return true
   return /^(?:[^/]+\/)?new-task(?:-\d+)?$/.test(branch)
 }

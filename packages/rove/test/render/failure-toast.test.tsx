@@ -97,7 +97,7 @@ test("kanban: a failed issue delete shows an error toast, not just a log line", 
 const AUTOMATION = {
   id: "a1",
   name: "weekday audit",
-  repo: "/x/kobe",
+  repo: "/x/rove",
   prompt: "audit",
   schedule: "0 9 * * MON-FRI",
   enabled: true,
@@ -119,7 +119,7 @@ test("automations: a failed delete shows an error toast instead of a muted line"
     connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations: [AUTOMATION], keepsDaemonAlive: true }),
     automationRuns: async () => ({ runs: [] }),
-    listTasks: () => [{ repo: "/x/kobe" }],
+    listTasks: () => [{ repo: "/x/rove" }],
     deleteAutomation: async () => {
       throw new Error("daemon refused")
     },
@@ -156,7 +156,7 @@ const WORK_ITEM = {
 
 function workItemsOrch(over: Record<string, unknown> = {}) {
   return {
-    listTasks: () => [{ repo: "/x/kobe" }],
+    listTasks: () => [{ repo: "/x/rove" }],
     listWorkItems: async () => ({ items: [WORK_ITEM] }),
     ...over,
   } as never
@@ -180,7 +180,7 @@ test("work-items: a failed start shows an error toast instead of a muted line", 
   await settle(150)
   // Muted reference: the repo label in the header renders `textMuted`; the
   // toast title must not share that color.
-  await expectErrorToast(await frame(), spans, "Couldn't start work on #42", "kobe")
+  await expectErrorToast(await frame(), spans, "Couldn't start work on #42", "rove")
 })
 
 test("work-items: a started item opens its task", async () => {

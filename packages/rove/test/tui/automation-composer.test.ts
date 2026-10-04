@@ -12,7 +12,7 @@ import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 
 const FULL: ComposerDraft = {
   name: "weekday audit",
-  repo: "/x/kobe",
+  repo: "/x/rove",
   prompt: "Audit dependencies.",
   schedule: "0 9 * * MON-FRI",
 }

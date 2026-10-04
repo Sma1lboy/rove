@@ -218,7 +218,7 @@ describe("keyEventToShellBytes", () => {
 })
 
 describe("key routing tables", () => {
-  it("reserves ONLY the minimal kobe chords; the engine owns the rest", () => {
+  it("reserves ONLY the minimal rove chords; the engine owns the rest", () => {
     expect(TRAPPED_KEYS).toEqual(["ctrl+pageup", "ctrl+pagedown"])
     // The reserved set: ctrl+q escape hatch + tab management +
     // splits + reset, plus f4 (focus.next pane cycle — the one cross-pane

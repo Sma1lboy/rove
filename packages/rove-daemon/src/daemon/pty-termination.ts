@@ -75,7 +75,7 @@ const TERMINATION_GRACE_MS = 500
 /**
  * End one PTY child: SIGTERM its process group, escalate to SIGKILL past a
  * short grace, then fire `onSettled`. BOUNDED (see {@link settledWithin}) so a
- * wedged node-pty child can't hang shutdown and `kobe reset`; a child that
+ * wedged node-pty child can't hang shutdown and `rove reset`; a child that
  * outlives SIGKILL is beyond reach, and reporting it dead beats never returning.
  *
  * With a driver `endTree` (node-pty on Windows) the subtree ends FIRST, then

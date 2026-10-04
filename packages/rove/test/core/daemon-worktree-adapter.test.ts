@@ -17,9 +17,9 @@ const git = (cwd: string, ...args: string[]) =>
     env: {
       ...process.env,
       GIT_AUTHOR_NAME: "Rove Test",
-      GIT_AUTHOR_EMAIL: "kobe@example.com",
+      GIT_AUTHOR_EMAIL: "rove@example.com",
       GIT_COMMITTER_NAME: "Rove Test",
-      GIT_COMMITTER_EMAIL: "kobe@example.com",
+      GIT_COMMITTER_EMAIL: "rove@example.com",
     },
   })
 
@@ -34,7 +34,7 @@ describe("daemon worktree adapter", () => {
     // realpath: macOS `os.tmpdir()` is a symlink (`/var` → `/private/var`), and
     // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
     // built under the un-resolved spelling would compare unequal to what was saved.
-    root = await realpath(await mkdtemp(join(tmpdir(), "kobe-daemon-worktrees-")))
+    root = await realpath(await mkdtemp(join(tmpdir(), "rove-daemon-worktrees-")))
     process.env.ROVE_HOME_DIR = join(root, "home")
     repo = join(root, "repo")
     worktree = join(root, "feature")

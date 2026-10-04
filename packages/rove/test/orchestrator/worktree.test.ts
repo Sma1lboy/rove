@@ -36,7 +36,7 @@ let prevHome: string | undefined
 
 beforeEach(() => {
   prevHome = process.env.ROVE_HOME_DIR
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-worktree-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-worktree-"))
   process.env.ROVE_HOME_DIR = path.join(tmpRoot, "home")
   repo = path.join(tmpRoot, "repo")
   const result = spawnSync("bash", [REPO_INIT, repo], { encoding: "utf8" })
@@ -62,10 +62,10 @@ describe("GitWorktreeManager.create", () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-1")
 
-    const info = await mgr.create(repo, "kobe/task-1", target)
+    const info = await mgr.create(repo, "rove/task-1", target)
 
     expect(info.path).toBe(target)
-    expect(info.branch).toBe("kobe/task-1")
+    expect(info.branch).toBe("rove/task-1")
     expect(info.head).toMatch(/^[0-9a-f]{40}$/)
     expect(info.dirty).toBe(false)
     expect(fs.existsSync(target)).toBe(true)
@@ -76,8 +76,8 @@ describe("GitWorktreeManager.create", () => {
   test("is idempotent: second call with the same args returns equivalent info", async () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-1")
-    const a = await mgr.create(repo, "kobe/task-1", target)
-    const b = await mgr.create(repo, "kobe/task-1", target)
+    const a = await mgr.create(repo, "rove/task-1", target)
+    const b = await mgr.create(repo, "rove/task-1", target)
     expect(b.path).toBe(a.path)
     expect(b.branch).toBe(a.branch)
     expect(b.head).toBe(a.head)
@@ -95,23 +95,23 @@ describe("GitWorktreeManager.create", () => {
   test("refuses to hijack an existing worktree on a different branch", async () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-3")
-    await mgr.create(repo, "kobe/task-3", target)
-    await expect(mgr.create(repo, "kobe/different", target)).rejects.toThrow(/refusing to hijack/i)
+    await mgr.create(repo, "rove/task-3", target)
+    await expect(mgr.create(repo, "rove/different", target)).rejects.toThrow(/refusing to hijack/i)
   })
 })
 
 describe("GitWorktreeManager.list", () => {
-  test("returns kobe-managed worktrees only", async () => {
+  test("returns rove-managed worktrees only", async () => {
     const mgr = new GitWorktreeManager()
-    await mgr.create(repo, "kobe/a", worktreePathFor(repo, "a"))
-    await mgr.create(repo, "kobe/b", worktreePathFor(repo, "b"))
+    await mgr.create(repo, "rove/a", worktreePathFor(repo, "a"))
+    await mgr.create(repo, "rove/b", worktreePathFor(repo, "b"))
 
-    // Add a non-kobe worktree outside the .kobe root — should be filtered.
+    // Add a non-rove worktree outside the .rove root — should be filtered.
     spawnSync("git", ["worktree", "add", path.join(tmpRoot, "external"), "-b", "external"], { cwd: repo })
 
     const list = await mgr.list(repo)
     const branches = list.map((w) => w.branch).sort()
-    expect(branches).toEqual(["kobe/a", "kobe/b"])
+    expect(branches).toEqual(["rove/a", "rove/b"])
     for (const w of list) {
       expect(w.path.startsWith(worktreeRootFor(repo))).toBe(true)
     }
@@ -120,29 +120,29 @@ describe("GitWorktreeManager.list", () => {
   test("still lists legacy .claude/worktrees tasks without rewriting their paths", async () => {
     const mgr = new GitWorktreeManager()
     const legacyTarget = path.join(repo, LEGACY_ROVE_WORKTREE_ROOT_SUBPATH, "legacy")
-    await mgr.create(repo, "kobe/legacy", legacyTarget)
+    await mgr.create(repo, "rove/legacy", legacyTarget)
 
     const list = await mgr.list(repo)
-    expect(list.find((w) => w.branch === "kobe/legacy")?.path).toBe(legacyTarget)
+    expect(list.find((w) => w.branch === "rove/legacy")?.path).toBe(legacyTarget)
   })
 
-  test("still lists repo-local .kobe/worktrees tasks without rewriting their paths", async () => {
+  test("still lists repo-local .rove/worktrees tasks without rewriting their paths", async () => {
     const mgr = new GitWorktreeManager()
     const localTarget = path.join(repo, REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH, "local")
-    await mgr.create(repo, "kobe/local", localTarget)
+    await mgr.create(repo, "rove/local", localTarget)
 
     const list = await mgr.list(repo)
-    expect(list.find((w) => w.branch === "kobe/local")?.path).toBe(localTarget)
+    expect(list.find((w) => w.branch === "rove/local")?.path).toBe(localTarget)
   })
 
-  test("still lists legacy global ~/.kobe/worktrees tasks without rewriting their paths", async () => {
+  test("still lists legacy global ~/.rove/worktrees tasks without rewriting their paths", async () => {
     const mgr = new GitWorktreeManager()
-    const legacyRoot = managedWorktreeRootsFor(repo).find((root) => root.includes(`${path.sep}.kobe${path.sep}`))!
+    const legacyRoot = managedWorktreeRootsFor(repo).find((root) => root.includes(`${path.sep}.rove${path.sep}`))!
     const legacyTarget = path.join(legacyRoot, "global-legacy")
-    await mgr.create(repo, "kobe/global-legacy", legacyTarget)
+    await mgr.create(repo, "rove/global-legacy", legacyTarget)
 
     const list = await mgr.list(repo)
-    expect(list.find((w) => w.branch === "kobe/global-legacy")?.path).toBe(legacyTarget)
+    expect(list.find((w) => w.branch === "rove/global-legacy")?.path).toBe(legacyTarget)
   })
 })
 
@@ -150,7 +150,7 @@ describe("GitWorktreeManager.isDirty / currentBranch", () => {
   test("isDirty flips when a tracked file is modified", async () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-dirty")
-    await mgr.create(repo, "kobe/task-dirty", target)
+    await mgr.create(repo, "rove/task-dirty", target)
     expect(await mgr.isDirty(target)).toBe(false)
 
     fs.appendFileSync(path.join(target, "README.md"), "\nlocal change\n")
@@ -160,7 +160,7 @@ describe("GitWorktreeManager.isDirty / currentBranch", () => {
   test("isDirty flips for untracked files (caller's safety net)", async () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-untracked")
-    await mgr.create(repo, "kobe/task-untracked", target)
+    await mgr.create(repo, "rove/task-untracked", target)
     expect(await mgr.isDirty(target)).toBe(false)
 
     fs.writeFileSync(path.join(target, "scratch.txt"), "wip\n")
@@ -170,8 +170,8 @@ describe("GitWorktreeManager.isDirty / currentBranch", () => {
   test("currentBranch returns the short branch name", async () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-branch")
-    await mgr.create(repo, "kobe/task-branch", target)
-    expect(await mgr.currentBranch(target)).toBe("kobe/task-branch")
+    await mgr.create(repo, "rove/task-branch", target)
+    expect(await mgr.currentBranch(target)).toBe("rove/task-branch")
   })
 })
 
@@ -179,7 +179,7 @@ describe("GitWorktreeManager.remove", () => {
   test("removes a clean worktree without force", async () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-rm")
-    await mgr.create(repo, "kobe/task-rm", target)
+    await mgr.create(repo, "rove/task-rm", target)
 
     await mgr.remove(target)
     expect(fs.existsSync(target)).toBe(false)
@@ -190,7 +190,7 @@ describe("GitWorktreeManager.remove", () => {
   test("refuses to remove a dirty worktree without force", async () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-dirty-rm")
-    await mgr.create(repo, "kobe/task-dirty-rm", target)
+    await mgr.create(repo, "rove/task-dirty-rm", target)
     fs.writeFileSync(path.join(target, "wip.txt"), "wip\n")
 
     // The refusal names the file, so whoever re-prompts for force can show it.
@@ -204,7 +204,7 @@ describe("GitWorktreeManager.remove", () => {
   test("removes a dirty worktree with force=true", async () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-force-rm")
-    await mgr.create(repo, "kobe/task-force-rm", target)
+    await mgr.create(repo, "rove/task-force-rm", target)
     fs.writeFileSync(path.join(target, "wip.txt"), "wip\n")
 
     await mgr.remove(target, { force: true })
@@ -214,7 +214,7 @@ describe("GitWorktreeManager.remove", () => {
   test("round-trip: create → remove leaves no orphan files or branch refs", async () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-rt")
-    await mgr.create(repo, "kobe/task-rt", target)
+    await mgr.create(repo, "rove/task-rt", target)
     await mgr.remove(target)
 
     expect(fs.existsSync(target)).toBe(false)
@@ -238,9 +238,9 @@ describe("GitWorktreeManager.remove", () => {
 describe("createForTask helper", () => {
   test("computes the canonical path from slug", async () => {
     const mgr = new GitWorktreeManager()
-    const info = await mgr.createForTask({ repo, slug: "panda", branch: "kobe/panda" })
+    const info = await mgr.createForTask({ repo, slug: "panda", branch: "rove/panda" })
     expect(info.path).toBe(worktreePathFor(repo, "panda"))
-    expect(info.branch).toBe("kobe/panda")
+    expect(info.branch).toBe("rove/panda")
   })
 
   test("creates the new branch rooted at the explicit baseRef", async () => {
@@ -271,7 +271,7 @@ describe("createForTask helper", () => {
     const info = await mgr.createForTask({
       repo,
       slug: "from-side",
-      branch: "kobe/from-side",
+      branch: "rove/from-side",
       baseRef: "side-base",
     })
 
@@ -283,7 +283,7 @@ describe("createForTask helper", () => {
     // And the side-base file must be checked out in the worktree.
     expect(fs.existsSync(path.join(info.path, "SIDE.md"))).toBe(true)
     // Branch name is the requested one (NOT side-base).
-    expect(info.branch).toBe("kobe/from-side")
+    expect(info.branch).toBe("rove/from-side")
   })
 })
 
@@ -291,7 +291,7 @@ describe("GitWorktreeManager.listAll (KOB-256)", () => {
   test("includes external worktrees + excludes main checkout, with roveManaged flags", async () => {
     const mgr = new GitWorktreeManager()
     // Rove-managed worktree under ROVE_HOME_DIR/.rove/worktrees/
-    const managed = await mgr.createForTask({ repo, slug: "managed-wt", branch: "kobe/managed" })
+    const managed = await mgr.createForTask({ repo, slug: "managed-wt", branch: "rove/managed" })
     // external worktree created by the user OUTSIDE the convention root
     const extPath = path.join(tmpRoot, "external-wt")
     const r = spawnSync("git", ["worktree", "add", "-b", "ext-branch", extPath], { cwd: repo, encoding: "utf8" })
@@ -301,16 +301,16 @@ describe("GitWorktreeManager.listAll (KOB-256)", () => {
     const byBranch = new Map(all.map((w) => [w.branch, w]))
 
     // both worktrees show up
-    expect(byBranch.has("kobe/managed")).toBe(true)
+    expect(byBranch.has("rove/managed")).toBe(true)
     expect(byBranch.has("ext-branch")).toBe(true)
     // main checkout (the repo root branch) is excluded
     for (const w of all) expect(fs.realpathSync(w.path)).not.toBe(fs.realpathSync(repo))
     // roveManaged flag distinguishes origin
-    expect(byBranch.get("kobe/managed")?.roveManaged).toBe(true)
+    expect(byBranch.get("rove/managed")?.roveManaged).toBe(true)
     expect(byBranch.get("ext-branch")?.roveManaged).toBe(false)
     // list() still only returns the managed one
     const managedOnly = await mgr.list(repo)
-    expect(managedOnly.some((w) => w.branch === "kobe/managed")).toBe(true)
+    expect(managedOnly.some((w) => w.branch === "rove/managed")).toBe(true)
     expect(managedOnly.some((w) => w.branch === "ext-branch")).toBe(false)
     void managed
   })

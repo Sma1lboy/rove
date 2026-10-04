@@ -1,6 +1,6 @@
 /**
  * The env contract a plugin command runs with — shared by the daemon's
- * PluginHost (startup/event hooks) and the CLI's `kobe plugin action invoke`
+ * PluginHost (startup/event hooks) and the CLI's `rove plugin action invoke`
  * so both surfaces inject identical ROVE_PLUGIN_* variables plus their
  * permanent ROVE_PLUGIN_* compatibility aliases.
  */
@@ -22,7 +22,7 @@ export function buildPluginEnv(opts: PluginEnvOptions): NodeJS.ProcessEnv {
   const extra = withPluginEnvAliases(opts.extra ?? {})
   return {
     ...process.env,
-    ...(opts.homeDir ? { ROVE_HOME_DIR: opts.homeDir, } : {}),
+    ...(opts.homeDir ? { ROVE_HOME_DIR: opts.homeDir } : {}),
     ROVE_SOCKET_PATH: opts.socketPath,
     ROVE_BIN_PATH: opts.binPath,
     ROVE_PLUGIN_ID: opts.pluginId,

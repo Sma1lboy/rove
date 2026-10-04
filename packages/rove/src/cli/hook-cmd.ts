@@ -1,5 +1,5 @@
 /**
- * `kobe hook <verb>` — INTERNAL subcommand fired by engine hooks installed
+ * `rove hook <verb>` — INTERNAL subcommand fired by engine hooks installed
  * globally (e.g. `~/.claude/settings.json`). Reports a normalized activity event
  * to the daemon, which maps the hook's cwd to a task (`daemon/cwd-task.ts`).
  * `verb` is already vendor-neutral; detail comes from the stdin JSON payload.
@@ -20,9 +20,9 @@ import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { type EngineSessionRef, activityHookAdapters } from "../engine/hook-adapter.ts"
 import type { EngineActivityDetail } from "../engine/hook-events.ts"
 import { isEngineActivityKind } from "../engine/hook-events.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { getPersistedString, setPersistedString } from "../state/repos.ts"
 import { flagValue } from "./argv.ts"
-import { activeCliName } from "./rename-compat.ts"
 
 /** Bounds a manual invocation without stdin so it can't hang. */
 const STDIN_READ_TIMEOUT_MS = 500
@@ -228,7 +228,7 @@ export async function ensureGlobalRoveHooks(opts: { quiet?: boolean } = {}): Pro
     )
     const pluginMode = isRovePluginEnabled()
     if (pluginMode) {
-      const hint = migrationHint(detectLegacyInstalls(), activeCliName())
+      const hint = migrationHint(detectLegacyInstalls(), ROVE_PRODUCT_NAME)
       if (hint) process.stderr.write(`\n${hint}\n`)
     }
     // 1. Activity hooks, into each engine's own settings file.
@@ -250,7 +250,7 @@ export async function ensureGlobalRoveHooks(opts: { quiet?: boolean } = {}): Pro
 
 /**
  * Tool-hook volume gate (docs/design/plugin-events.md §Phase 2): Pre/PostToolUse
- * spawn `kobe hook` on every tool call machine-wide, so they're installed only
+ * spawn `rove hook` on every tool call machine-wide, so they're installed only
  * while an enabled plugin declares a `tool.*` event. Takes effect next launch.
  */
 function pluginsWantToolEvents(): boolean {
@@ -287,7 +287,7 @@ async function cleanupWorktreeSyncHook(): Promise<void> {
 }
 
 /**
- * `kobe hook cleanup` — remove Rove's settings-managed Claude hooks after the
+ * `rove hook cleanup` — remove Rove's settings-managed Claude hooks after the
  * plugin takes over (both would double-fire). Only Rove-tagged groups are
  * touched; other engines untouched. Idempotent.
  */
@@ -311,7 +311,7 @@ async function runHookCleanup(): Promise<void> {
   )
 }
 
-/** `kobe hook setup` — DEPRECATED; only removes the WorktreeCreate hook (see
+/** `rove hook setup` — DEPRECATED; only removes the WorktreeCreate hook (see
  *  {@link ensureGlobalRoveHooks}). Sync is automatic on the daemon side. */
 async function runHookSetup(_argv: readonly string[]): Promise<void> {
   await cleanupWorktreeSyncHook()

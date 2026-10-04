@@ -37,7 +37,7 @@ function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
   return {
     title: overrides.id,
     repo: "/repo",
-    branch: `kobe/${overrides.id}`,
+    branch: `rove/${overrides.id}`,
     worktreePath: `/wt/${overrides.id}`,
     status: "todo",
     createdAt: "2026-01-01T00:00:00.000Z",

@@ -19,7 +19,7 @@ import { engineTitleTurnHint } from "../../engine/registry"
 import type { VendorId } from "../../types/vendor"
 
 /**
- * Must outlive a natural end's title→Stop gap (a spawned `kobe hook` + one
+ * Must outlive a natural end's title→Stop gap (a spawned `rove hook` + one
  * RPC, well under 1s); 2.5s covers a loaded machine while still feeling
  * immediate.
  */

@@ -2,7 +2,7 @@
  * Unit tests for the per-repo init resolution (state/repo-init.ts) and the
  * state.json override accessors (state/repos.ts).
  *
- * Priority is the load-bearing rule: in-repo `.rove/` files win, `.kobe/`
+ * Priority is the load-bearing rule: in-repo `.rove/` files win, `.rove/`
  * files remain fallbacks, and both beat the per-user state.json override,
  * resolved PER FIELD. Paths used here are plain tmpdirs (not git repos), so
  * `resolveRepoRoot` returns them verbatim, except the one toplevel-lookup test.
@@ -20,7 +20,7 @@ let tmpHome: string
 let originalHome: string | undefined
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-repoinit-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-repoinit-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
 })
@@ -33,7 +33,7 @@ afterEach(() => {
 })
 
 function makeWorktree(files: Record<string, string> = {}): string {
-  const wt = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-wt-"))
+  const wt = fs.mkdtempSync(path.join(os.tmpdir(), "rove-wt-"))
   for (const [rel, content] of Object.entries(files)) {
     const p = path.join(wt, rel)
     fs.mkdirSync(path.dirname(p), { recursive: true })
@@ -72,24 +72,22 @@ describe("resolveRepoInit (files win over override, per field)", () => {
     expect(resolveRepoInit(wt, wt)).toEqual({ initScript: "make setup", initPrompt: "hi" })
   })
 
-  test("repo .kobe/init.sh + init-prompt.md WIN over the override", () => {
+  test("repo .rove/init.sh + init-prompt.md WIN over the override", () => {
     const wt = makeWorktree({
-      ".kobe/init.sh": "echo hi",
-      ".kobe/init-prompt.md": "start by reading the docs",
+      ".rove/init.sh": "echo hi",
+      ".rove/init-prompt.md": "start by reading the docs",
     })
     setRepoInitOverride(wt, { initScript: "make setup", initPrompt: "ignored" })
     const r = resolveRepoInit(wt, wt)
     // script runs the committed file by relative path (cwd is the worktree)
-    expect(r.initScript).toBe("sh .kobe/init.sh")
+    expect(r.initScript).toBe("sh .rove/init.sh")
     expect(r.initPrompt).toBe("start by reading the docs")
   })
 
-  test("canonical .rove files win over legacy .kobe files per field", () => {
+  test("canonical .rove files win over legacy .rove files per field", () => {
     const wt = makeWorktree({
       ".rove/init.sh": "echo rove",
       ".rove/init-prompt.md": "canonical prompt",
-      ".kobe/init.sh": "echo kobe",
-      ".kobe/init-prompt.md": "legacy prompt",
     })
     expect(resolveRepoInit(wt, wt)).toEqual({
       initScript: "sh .rove/init.sh",
@@ -100,7 +98,7 @@ describe("resolveRepoInit (files win over override, per field)", () => {
   test("canonical and legacy convention files compose per field", () => {
     const wt = makeWorktree({
       ".rove/init.sh": "echo rove",
-      ".kobe/init-prompt.md": "legacy prompt",
+      ".rove/init-prompt.md": "legacy prompt",
     })
     expect(resolveRepoInit(wt, wt)).toEqual({
       initScript: "sh .rove/init.sh",
@@ -109,13 +107,13 @@ describe("resolveRepoInit (files win over override, per field)", () => {
   })
 
   test("per field: file script wins, override prompt fills the gap", () => {
-    const wt = makeWorktree({ ".kobe/init.sh": "echo hi" })
+    const wt = makeWorktree({ ".rove/init.sh": "echo hi" })
     setRepoInitOverride(wt, { initScript: "ignored", initPrompt: "from override" })
-    expect(resolveRepoInit(wt, wt)).toEqual({ initScript: "sh .kobe/init.sh", initPrompt: "from override" })
+    expect(resolveRepoInit(wt, wt)).toEqual({ initScript: "sh .rove/init.sh", initPrompt: "from override" })
   })
 
   test("a blank init-prompt.md is treated as absent (falls back)", () => {
-    const wt = makeWorktree({ ".kobe/init-prompt.md": "   \n  " })
+    const wt = makeWorktree({ ".rove/init-prompt.md": "   \n  " })
     setRepoInitOverride(wt, { initPrompt: "fallback" })
     expect(resolveRepoInit(wt, wt).initPrompt).toBe("fallback")
   })
@@ -123,23 +121,23 @@ describe("resolveRepoInit (files win over override, per field)", () => {
 
 describe("resolveEngineLaunchInit", () => {
   test("repo-init intent turns the resolved init prompt into the first engine message", () => {
-    const wt = makeWorktree({ ".kobe/init-prompt.md": "  read the repo docs\n" })
+    const wt = makeWorktree({ ".rove/init-prompt.md": "  read the repo docs\n" })
     expect(resolveEngineLaunchInit(wt, wt, { kind: "repo-init" })).toEqual({
       firstMessage: { source: "repo-init", text: "read the repo docs" },
     })
   })
 
   test("explicit intent carries the explicit prompt and still includes the init script", () => {
-    const wt = makeWorktree({ ".kobe/init.sh": "echo hi", ".kobe/init-prompt.md": "repo prompt" })
+    const wt = makeWorktree({ ".rove/init.sh": "echo hi", ".rove/init-prompt.md": "repo prompt" })
     expect(resolveEngineLaunchInit(wt, wt, { kind: "explicit", prompt: "user prompt\n\nkeep spacing" })).toEqual({
-      initScript: "sh .kobe/init.sh",
+      initScript: "sh .rove/init.sh",
       firstMessage: { source: "explicit", text: "user prompt\n\nkeep spacing" },
     })
   })
 
   test("none intent suppresses any first message but keeps the init script", () => {
-    const wt = makeWorktree({ ".kobe/init.sh": "echo hi", ".kobe/init-prompt.md": "repo prompt" })
-    expect(resolveEngineLaunchInit(wt, wt, { kind: "none" })).toEqual({ initScript: "sh .kobe/init.sh" })
+    const wt = makeWorktree({ ".rove/init.sh": "echo hi", ".rove/init-prompt.md": "repo prompt" })
+    expect(resolveEngineLaunchInit(wt, wt, { kind: "none" })).toEqual({ initScript: "sh .rove/init.sh" })
   })
 
   // Why: standing instructions for a worker — name your branch, report your
@@ -195,7 +193,7 @@ describe("missing-dependency coda (new-task only)", () => {
   })
 
   test("explicit / repo-init / none intents never carry it", () => {
-    const wt = makeWorktree({ "bun.lock": "{}", ".kobe/init-prompt.md": "repo prompt" })
+    const wt = makeWorktree({ "bun.lock": "{}", ".rove/init-prompt.md": "repo prompt" })
     for (const intent of [{ kind: "explicit", prompt: "p" }, { kind: "repo-init" }, { kind: "none" }] as const) {
       const msg = resolveEngineLaunchInit(wt, wt, intent).firstMessage
       expect(msg?.text ?? "").not.toContain("no installed dependencies")

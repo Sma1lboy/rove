@@ -21,7 +21,7 @@ import { setRepoLastActiveVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
 import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { type PaneLaunch, listPaneLaunches } from "@sma1lboy/rove-daemon/plugins/pane-command"
-import { activeCliName } from "../../cli/rename-compat"
+import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { openPluginPane } from "../../tui/workspace/pane-split"
 import {
@@ -168,7 +168,7 @@ export function useTabDialogs(deps: {
       try {
         panes = listPaneLaunches({
           socketPath: defaultDaemonSocketPath(),
-          binPath: activeCliName(),
+          binPath: ROVE_PRODUCT_NAME,
           taskId: deps.taskId,
         })
       } catch {

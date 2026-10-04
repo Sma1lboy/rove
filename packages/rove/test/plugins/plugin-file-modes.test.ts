@@ -62,7 +62,7 @@ command = ["sh", "-c", "echo sk-live-abc123 >&2; exit 1"]
 
 function installPlugin(home: string, root: string, manifest: string, id: string): void {
   writeFileSync(join(root, "rove-plugin.toml"), manifest)
-  mkdirSync(join(home, ".kobe"), { recursive: true })
+  mkdirSync(join(home, ".rove"), { recursive: true })
   savePluginRegistry(
     { plugins: [{ id, source: { kind: "link" }, root, enabled: true, version: "0.1.0", installedAt: 1 }] },
     home,
@@ -71,8 +71,8 @@ function installPlugin(home: string, root: string, manifest: string, id: string)
 
 describe("plugin subsystem files are owner-only", () => {
   it("writes plugins.json as 0600", () => {
-    const home = tmp("kobe-pmode-reg-")
-    mkdirSync(join(home, ".kobe"), { recursive: true })
+    const home = tmp("rove-pmode-reg-")
+    mkdirSync(join(home, ".rove"), { recursive: true })
     savePluginRegistry({ plugins: [] }, home)
     expect(mode(pluginRegistryPath(home))).toBe(0o600)
   })
@@ -82,8 +82,8 @@ describe("plugin subsystem files are owner-only", () => {
     // existing directory, so a 0755 from `plugin link` survives every later
     // 0700 the daemon asks for. The daemon-side assertion below cannot see
     // that — it only ever runs against a home the CLI never touched.
-    const home = tmp("kobe-pmode-link-")
-    const root = tmp("kobe-pmode-link-root-")
+    const home = tmp("rove-pmode-link-")
+    const root = tmp("rove-pmode-link-root-")
     writeFileSync(join(root, "rove-plugin.toml"), LEAKY)
     const saved = process.env.ROVE_HOME_DIR
     process.env.ROVE_HOME_DIR = home
@@ -98,10 +98,10 @@ describe("plugin subsystem files are owner-only", () => {
   })
 
   it("writes the captured-output log as 0600 in 0700 config/state dirs", async () => {
-    const home = tmp("kobe-pmode-log-")
-    const root = tmp("kobe-pmode-root-")
+    const home = tmp("rove-pmode-log-")
+    const root = tmp("rove-pmode-root-")
     installPlugin(home, root, LEAKY, "example.leaky")
-    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "kobe-test-bin" })
+    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "rove-test-bin" })
     const logPath = pluginLogPath("example.leaky", home)
     host.start()
     try {
@@ -125,8 +125,8 @@ describe("plugin subsystem files are owner-only", () => {
 
 describe("the plugin log is size-capped", () => {
   it("rotates an oversized log to .old instead of growing forever", async () => {
-    const home = tmp("kobe-pmode-rot-")
-    const root = tmp("kobe-pmode-rot-root-")
+    const home = tmp("rove-pmode-rot-")
+    const root = tmp("rove-pmode-rot-root-")
     installPlugin(home, root, LEAKY, "example.leaky")
     const logPath = pluginLogPath("example.leaky", home)
     mkdirSync(pluginConfigDir("example.leaky", home), { recursive: true })
@@ -134,7 +134,7 @@ describe("the plugin log is size-capped", () => {
     // over enough sessions when nothing ever truncates.
     appendFileSync(logPath, `${"x".repeat(5 * 1024 * 1024)}\n`)
 
-    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "kobe-test-bin" })
+    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "rove-test-bin" })
     host.start()
     try {
       await waitFor(() => {

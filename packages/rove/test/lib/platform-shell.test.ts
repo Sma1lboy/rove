@@ -78,8 +78,8 @@ describe("resolveLoginShell", () => {
 
 describe("toPosixPath", () => {
   test("rewrites a Windows path to the MSYS form Git Bash reads", () => {
-    expect(toPosixPath("C:\\Users\\dev\\.kobe\\worktree-init\\ab12", "win32")).toBe(
-      "/c/Users/dev/.kobe/worktree-init/ab12",
+    expect(toPosixPath("C:\\Users\\dev\\.rove\\worktree-init\\ab12", "win32")).toBe(
+      "/c/Users/dev/.rove/worktree-init/ab12",
     )
   })
 })

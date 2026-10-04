@@ -32,7 +32,7 @@ const NO_TABS = new Map<string, never[]>()
 describe("applyMachineLayer", () => {
   it("returns the SAME array when no machine is registered", () => {
     const rows = buildTreeRows({
-      tasks: [task({ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", repo: "/i/kobe" })],
+      tasks: [task({ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", repo: "/i/rove" })],
       tabsByTask: NO_TABS,
     })
     expect(applyMachineLayer(rows, [])).toBe(rows)
@@ -40,10 +40,10 @@ describe("applyMachineLayer", () => {
 
   it("puts a remote machine's projects under a header, indented by one", () => {
     const tasks = [
-      task({ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", repo: "/i/kobe" }),
+      task({ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", repo: "/i/rove" }),
       task({
         id: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
-        repo: "/i/kobe",
+        repo: "/i/rove",
         origin: { machineId: "narwhal", hostLabel: "mac-mini" },
       }),
     ]
@@ -63,7 +63,7 @@ describe("applyMachineLayer", () => {
     const tasks = [
       task({
         id: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
-        repo: "/i/kobe",
+        repo: "/i/rove",
         origin: { machineId: "narwhal", hostLabel: "mac-mini", stale: true },
       }),
     ]
@@ -79,7 +79,7 @@ describe("applyMachineLayer", () => {
     const tasks = [
       task({
         id: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
-        repo: "/i/kobe",
+        repo: "/i/rove",
         origin: { machineId: "gone", hostLabel: "gone" },
       }),
     ]

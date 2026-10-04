@@ -132,7 +132,7 @@ describe("install guidance", () => {
     process.env.ROVE_INVOKED_AS = "rove"
     try {
       expect(missingBunMessage(undefined, "linux")).toContain("rove: Rove runs on the Bun runtime")
-      expect(missingBunMessage(undefined, "linux")).not.toContain("kobe: Rove")
+      expect(missingBunMessage(undefined, "linux")).not.toContain("rove: Rove")
     } finally {
       // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves the string "undefined").
       if (saved === undefined) delete process.env.ROVE_INVOKED_AS

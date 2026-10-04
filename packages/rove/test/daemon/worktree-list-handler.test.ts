@@ -50,7 +50,7 @@ let repo: string
 let prevHome: string | undefined
 
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), "kobe-wt-list-")))
+  root = realpathSync(mkdtempSync(join(tmpdir(), "rove-wt-list-")))
   prevHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = root
   repo = join(root, "repo")
@@ -79,7 +79,7 @@ describe("worktree.list", () => {
     expect(project?.worktrees).toHaveLength(1)
     const row = project?.worktrees[0]
     expect(row?.branch).toBe("feature/demo")
-    // Created via plain `git worktree add`, not kobe's convention root.
+    // Created via plain `git worktree add`, not rove's convention root.
     expect(row?.roveManaged).toBe(false)
     expect(row?.dirty).toBe(false)
     expect(typeof row?.createdAtMs).toBe("number")

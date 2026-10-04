@@ -6,7 +6,7 @@ import { readSettings, setting } from "../src/settings.ts"
 
 describe("readSettings", () => {
   it("parses KEY=value lines, skipping comments and garbage", () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-sdk-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-sdk-"))
     writeFileSync(join(dir, ".env"), "# comment\nMODE=fancy\nFPS=24\nnot a line\nEMPTY=\n")
     expect(readSettings(dir)).toEqual({ MODE: "fancy", FPS: "24", EMPTY: "" })
     expect(setting(dir, "MODE")).toBe("fancy")
@@ -14,6 +14,6 @@ describe("readSettings", () => {
   })
 
   it("returns {} when the .env does not exist", () => {
-    expect(readSettings("/nonexistent-dir-kobe-sdk")).toEqual({})
+    expect(readSettings("/nonexistent-dir-rove-sdk")).toEqual({})
   })
 })

@@ -1,12 +1,12 @@
 /**
- * Claude Code {@link EngineHookAdapter}: writes `kobe hook <verb>` hooks into
+ * Claude Code {@link EngineHookAdapter}: writes `rove hook <verb>` hooks into
  * the GLOBAL `~/.claude/settings.json`; the daemon maps each hook's cwd to a task
  * (`daemon/cwd-task.ts`). I/O and install/remove live in {@link JsonHookAdapter};
  * this file owns Claude's event names, detail decoding, and the legacy
  * `WorktreeCreate` cleanup.
  *
  * Global, not per-worktree: per-task hooks missed already-running engines and
- * leaked into the real repo root. The cost is cheap — `kobe hook` no-ops fast
+ * leaked into the real repo root. The cost is cheap — `rove hook` no-ops fast
  * (never spawning the daemon) outside a task.
  *
  * The file is SHARED: merges tag Rove's entries by command substring and
@@ -29,7 +29,7 @@ import { vendorConfigHome } from "../vendor-home.ts"
 
 export { removeWorktreeWatchHook }
 
-/** Claude Code hook event → normalized kobe verb. The ONE place Claude event
+/** Claude Code hook event → normalized rove verb. The ONE place Claude event
  *  names live. `matcher` narrows which Notification types fire. */
 export const CLAUDE_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
   { event: "SessionStart", verb: "session-start" },
@@ -54,7 +54,7 @@ export const CLAUDE_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
   { event: "PostToolUseFailure", verb: "tool-failed" },
 ]
 
-/** The events kobe owns — a merge replaces only these. Deduped:
+/** The events rove owns — a merge replaces only these. Deduped:
  *  one event can carry several matcher-scoped specs. */
 export const ROVE_HOOK_EVENTS: readonly string[] = [...new Set(CLAUDE_HOOK_EVENT_MAP.map((e) => e.event))]
 
@@ -96,9 +96,9 @@ export function mergeActivityHooks(
 }
 
 /**
- * Pure merge: add (or with `command === null`, remove) kobe's WorktreeCreate
+ * Pure merge: add (or with `command === null`, remove) rove's WorktreeCreate
  * hook in a settings object, preserving the user's own hooks + other keys.
- * Drops kobe's prior entry first so re-install is idempotent + removal clean.
+ * Drops rove's prior entry first so re-install is idempotent + removal clean.
  */
 export function mergeWorktreeSyncHook(
   current: Record<string, unknown>,
@@ -154,7 +154,7 @@ export class ClaudeHookAdapter extends JsonHookAdapter {
   }
 
   /** Every payload carries `session_id` (+ `transcript_path`), including
-   *  user-typed sessions kobe never spawned. */
+   *  user-typed sessions rove never spawned. */
   override sessionFromPayload(payload: Record<string, unknown>): EngineSessionRef | undefined {
     if (typeof payload.session_id !== "string" || !payload.session_id) return undefined
     return {

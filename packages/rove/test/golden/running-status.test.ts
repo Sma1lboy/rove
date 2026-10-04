@@ -35,7 +35,7 @@ const TASK_ID = "task-1"
 const TASK: Task = {
   id: toTaskId(TASK_ID),
   title: "fix sidebar",
-  repo: "/repo/kobe",
+  repo: "/repo/rove",
   branch: "feature/sidebar",
   worktreePath: "/repo/rove/worktrees/sidebar",
   kind: "task",

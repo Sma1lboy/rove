@@ -24,7 +24,7 @@ import { ROVE_SKILL_VERSION } from "../../src/lib/skill-install.ts"
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 /** The canonical skill source. `claude-plugin/skills/rove` is a byte-identical
  *  copy, held there by `claude-plugin.test.ts` — hashing one covers both. */
-const SKILL_DIR = join(ROOT, ".agents", "skills", "kobe")
+const SKILL_DIR = join(ROOT, ".agents", "skills", "rove")
 
 /**
  * sha256 of every file in the skill, as of {@link ROVE_SKILL_VERSION}.

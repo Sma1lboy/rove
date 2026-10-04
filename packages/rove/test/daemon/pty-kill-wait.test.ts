@@ -30,8 +30,8 @@ const servers: PtyHostServer[] = []
 const clients: RoveDaemonClient[] = []
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "kobe-pty-kill-wait-"))
-  socketPath = process.platform === "win32" ? `\\\\.\\pipe\\kobe-pty-kill-wait-${randomUUID()}` : join(dir, "pty.sock")
+  dir = mkdtempSync(join(tmpdir(), "rove-pty-kill-wait-"))
+  socketPath = process.platform === "win32" ? `\\\\.\\pipe\\rove-pty-kill-wait-${randomUUID()}` : join(dir, "pty.sock")
   savedHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = dir
 })

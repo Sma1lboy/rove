@@ -32,7 +32,7 @@ let revs: number[]
 let stop: (() => void) | null
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-keybinds-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-keybinds-"))
   savedHomeDir = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
   filePath = defaultKeybindingsPath(tmpHome)

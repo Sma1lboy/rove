@@ -55,12 +55,12 @@ describe("RemoteOrchestrator channel handling", () => {
     const orch = new RemoteOrchestrator(client)
     expect(orch.uiPrefsSignal()()).toBeNull()
 
-    emit("ui-prefs", { theme: "nord", sortMode: "recent", keysCollapsed: true, projectFilter: "/repo/kobe" })
+    emit("ui-prefs", { theme: "nord", sortMode: "recent", keysCollapsed: true, projectFilter: "/repo/rove" })
     expect(orch.uiPrefsSignal()()).toMatchObject({
       theme: "nord",
       sortMode: "recent",
       keysCollapsed: true,
-      projectFilter: "/repo/kobe",
+      projectFilter: "/repo/rove",
     })
 
     emit("ui-prefs", { theme: "nord" })

@@ -16,9 +16,9 @@ import {
  */
 describe("buildClaudeHooks", () => {
   // Inject a fixed invocation so the test doesn't depend on the dev/prod CLI resolver.
-  const hooks = buildClaudeHooks(["kobe"]) as Record<string, Array<{ matcher?: string; hooks: { command: string }[] }>>
+  const hooks = buildClaudeHooks(["rove"]) as Record<string, Array<{ matcher?: string; hooks: { command: string }[] }>>
 
-  it("points each hook at `kobe hook <verb>` with NO task id (bare argv — one command in sh, cmd and PowerShell)", () => {
+  it("points each hook at `rove hook <verb>` with NO task id (bare argv — one command in sh, cmd and PowerShell)", () => {
     expect(hooks.Stop[0].hooks[0].command).toContain("hook turn-complete")
     expect(hooks.Stop[0].hooks[0].command).not.toContain("'")
     expect(hooks.Stop[0].hooks[0].command).not.toContain("--task-id")
@@ -53,7 +53,7 @@ describe("activityDetailFromPayload", () => {
 
 /**
  * Session identity extraction — Claude pipes `session_id`/`transcript_path`
- * on every hook payload; this is what lets kobe pin a live sessionId per
+ * on every hook payload; this is what lets rove pin a live sessionId per
  * task/tab, including user-typed `claude` sessions it never spawned. Type
  * guards matter: a malformed payload must yield undefined, never throw
  * (hooks run on every turn boundary machine-wide).
@@ -82,7 +82,7 @@ interface SettingsShape extends Record<string, unknown> {
 }
 
 describe("mergeActivityHooks (global, cwd-based)", () => {
-  it("adds kobe's events, preserving the user's other hooks + keys", () => {
+  it("adds rove's events, preserving the user's other hooks + keys", () => {
     const userSettings = {
       hooks: {
         Stop: [{ hooks: [{ type: "command", command: "user-old-stop" }] }],
@@ -90,65 +90,65 @@ describe("mergeActivityHooks (global, cwd-based)", () => {
       },
       model: "opus",
     }
-    const out = mergeActivityHooks(userSettings, true, ["kobe"]) as SettingsShape
+    const out = mergeActivityHooks(userSettings, true, ["rove"]) as SettingsShape
     expect(out.model).toBe("opus") // untouched
-    // The user's PostToolUse group is preserved; kobe's tool-post group is
+    // The user's PostToolUse group is preserved; rove's tool-post group is
     // appended beside it (the pure merge installs the full map — the tool
     // family gate lives in JsonHookAdapter.installActivityHooks).
     expect((out.hooks?.PostToolUse as unknown[])[0]).toEqual(userSettings.hooks.PostToolUse[0])
     expect(JSON.stringify(out.hooks?.PostToolUse)).toContain("tool-post")
-    // kobe's Stop coexists with the user's Stop hook (both kept).
+    // rove's Stop coexists with the user's Stop hook (both kept).
     expect(JSON.stringify(out.hooks?.Stop)).toContain("turn-complete")
     expect(JSON.stringify(out.hooks?.Stop)).toContain("user-old-stop")
     expect(out.hooks?.Stop).toHaveLength(2)
   })
 
-  it("is idempotent — re-install replaces only kobe's own entry, no duplicates", () => {
-    const once = mergeActivityHooks({}, true, ["kobe"])
-    const twice = mergeActivityHooks(once, true, ["kobe"]) as SettingsShape
+  it("is idempotent — re-install replaces only rove's own entry, no duplicates", () => {
+    const once = mergeActivityHooks({}, true, ["rove"])
+    const twice = mergeActivityHooks(once, true, ["rove"]) as SettingsShape
     expect(twice.hooks?.Stop).toHaveLength(1)
   })
 
-  it("replaces LEGACY unquoted `kobe hook <verb>` entries too, keeping user hooks", () => {
-    // Early kobe wrote hook commands unquoted (`kobe hook turn-complete`); the
+  it("replaces LEGACY unquoted `rove hook <verb>` entries too, keeping user hooks", () => {
+    // Early rove wrote hook commands unquoted (`rove hook turn-complete`); the
     // quoted-marker-only recognizer left them behind on every upgrade, so each
-    // Claude event fired kobe's hook twice. They must be treated as kobe's own.
+    // Claude event fired rove's hook twice. They must be treated as rove's own.
     const legacy = {
       hooks: {
         Stop: [
-          { hooks: [{ type: "command", command: "kobe hook turn-complete" }] },
+          { hooks: [{ type: "command", command: "rove hook turn-complete" }] },
           { hooks: [{ type: "command", command: "user-old-stop" }] },
         ],
         Notification: [
-          { matcher: "permission_prompt", hooks: [{ type: "command", command: "kobe hook awaiting-input" }] },
+          { matcher: "permission_prompt", hooks: [{ type: "command", command: "rove hook awaiting-input" }] },
         ],
       },
     }
-    const out = mergeActivityHooks(legacy, true, ["kobe"]) as SettingsShape
-    expect(out.hooks?.Stop).toHaveLength(2) // fresh kobe entry + the user's, legacy dropped
+    const out = mergeActivityHooks(legacy, true, ["rove"]) as SettingsShape
+    expect(out.hooks?.Stop).toHaveLength(2) // fresh rove entry + the user's, legacy dropped
     expect(JSON.stringify(out.hooks?.Stop)).toContain("user-old-stop")
-    expect(JSON.stringify(out.hooks?.Stop)).toContain('"kobe hook turn-complete"')
+    expect(JSON.stringify(out.hooks?.Stop)).toContain('"rove hook turn-complete"')
     // The legacy permission_prompt entry is REPLACED, not duplicated: exactly
     // the two fresh matcher-scoped groups carry the command afterwards.
     const notification = (out.hooks as Record<string, { matcher?: string }[] | undefined>).Notification
     expect(notification?.map((g) => g.matcher)).toEqual(["permission_prompt", "elicitation_dialog"])
-    expect((JSON.stringify(out.hooks).match(/"kobe hook awaiting-input"/g) ?? []).length).toBe(2)
+    expect((JSON.stringify(out.hooks).match(/"rove hook awaiting-input"/g) ?? []).length).toBe(2)
   })
 
-  it("removes kobe's hooks while keeping the user's same-event hooks", () => {
+  it("removes rove's hooks while keeping the user's same-event hooks", () => {
     const userSettings = {
       hooks: { Stop: [{ hooks: [{ type: "command", command: "user-old-stop" }] }] },
     }
-    const added = mergeActivityHooks(userSettings, true, ["kobe"]) as SettingsShape
+    const added = mergeActivityHooks(userSettings, true, ["rove"]) as SettingsShape
     expect(added.hooks?.Stop).toHaveLength(2)
-    const removed = mergeActivityHooks(added, false, ["kobe"]) as SettingsShape
+    const removed = mergeActivityHooks(added, false, ["rove"]) as SettingsShape
     expect(removed.hooks?.Stop).toHaveLength(1)
     expect(JSON.stringify(removed.hooks?.Stop)).toContain("user-old-stop")
   })
 
-  it("drops the empty hooks key entirely when only kobe's hooks existed", () => {
-    const added = mergeActivityHooks({}, true, ["kobe"])
-    const removed = mergeActivityHooks(added, false, ["kobe"]) as SettingsShape
+  it("drops the empty hooks key entirely when only rove's hooks existed", () => {
+    const added = mergeActivityHooks({}, true, ["rove"])
+    const removed = mergeActivityHooks(added, false, ["rove"]) as SettingsShape
     expect(removed.hooks).toBeUndefined()
   })
 
@@ -179,23 +179,23 @@ describe("mergeWorktreeSyncHook (external worktree sync)", () => {
       hooks: { PostToolUse: [{ matcher: "Edit", hooks: [{ type: "command", command: "fmt" }] }] },
       model: "opus",
     }
-    const out = mergeWorktreeSyncHook(userSettings, "kobe hook worktree-created") as SettingsShape
+    const out = mergeWorktreeSyncHook(userSettings, "rove hook worktree-created") as SettingsShape
     expect(out.model).toBe("opus") // untouched
     expect(out.hooks?.PostToolUse).toEqual(userSettings.hooks.PostToolUse) // untouched
     expect(JSON.stringify(out.hooks?.WorktreeCreate)).toContain("worktree-created")
   })
 
-  it("is idempotent — re-install replaces kobe's own entry, no duplicates", () => {
-    const once = mergeWorktreeSyncHook({}, "kobe hook worktree-created")
-    const twice = mergeWorktreeSyncHook(once, "kobe hook worktree-created")
+  it("is idempotent — re-install replaces rove's own entry, no duplicates", () => {
+    const once = mergeWorktreeSyncHook({}, "rove hook worktree-created")
+    const twice = mergeWorktreeSyncHook(once, "rove hook worktree-created")
     expect((twice as SettingsShape).hooks?.WorktreeCreate).toHaveLength(1)
   })
 
-  it("removes kobe's hook (command=null) while keeping the user's WorktreeCreate hooks", () => {
+  it("removes rove's hook (command=null) while keeping the user's WorktreeCreate hooks", () => {
     const withUser = {
       hooks: { WorktreeCreate: [{ hooks: [{ type: "command", command: "user-wt-hook" }] }] },
     }
-    const added = mergeWorktreeSyncHook(withUser, "kobe hook worktree-created")
+    const added = mergeWorktreeSyncHook(withUser, "rove hook worktree-created")
     expect((added as SettingsShape).hooks?.WorktreeCreate).toHaveLength(2)
     const removed = mergeWorktreeSyncHook(added, null) as SettingsShape
     expect(removed.hooks?.WorktreeCreate).toHaveLength(1)
@@ -203,8 +203,8 @@ describe("mergeWorktreeSyncHook (external worktree sync)", () => {
   })
 
   it("activity + worktree-sync hooks coexist in one settings file", () => {
-    const withActivity = mergeActivityHooks({}, true, ["kobe"])
-    const both = mergeWorktreeSyncHook(withActivity, "kobe hook worktree-created") as SettingsShape
+    const withActivity = mergeActivityHooks({}, true, ["rove"])
+    const both = mergeWorktreeSyncHook(withActivity, "rove hook worktree-created") as SettingsShape
     expect(both.hooks?.Stop).toHaveLength(1)
     expect(both.hooks?.WorktreeCreate).toHaveLength(1)
     // Removing one leaves the other intact.
@@ -217,7 +217,7 @@ describe("mergeWorktreeSyncHook (external worktree sync)", () => {
 /**
  * The PostToolUse(Bash) watch observer, which a registered
  * `~/.claude/settings.json` can still carry: it does nothing but spawn a
- * ~170ms `kobe hook` process on EVERY Bash call of every session
+ * ~170ms `rove hook` process on EVERY Bash call of every session
  * machine-wide. Nothing installs it, so these tests cover the only direction
  * that matters: getting it back OUT of files that have it, without disturbing
  * anything the user or another tool put there.
@@ -226,7 +226,7 @@ describe("removeWorktreeWatchHook (PostToolUse observer)", () => {
   /** What a registered user's settings.json actually holds, verbatim. */
   const REGISTERED = {
     matcher: "Bash",
-    hooks: [{ type: "command", command: "'kobe' 'hook' 'worktree-created'" }],
+    hooks: [{ type: "command", command: "'rove' 'hook' 'worktree-created'" }],
   }
 
   it("removes the hook from an already-registered user's settings", () => {
@@ -267,14 +267,14 @@ describe("removeWorktreeWatchHook (PostToolUse observer)", () => {
   it("also matches the legacy unquoted install form", () => {
     const legacy = {
       hooks: {
-        PostToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "kobe hook worktree-created" }] }],
+        PostToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "rove hook worktree-created" }] }],
       },
     }
     expect(removeWorktreeWatchHook(legacy)).toEqual({})
   })
 
-  it("keeps kobe's own activity hooks — only the watch group goes", () => {
-    const withActivity = mergeActivityHooks({}, true, ["kobe"]) as SettingsShape
+  it("keeps rove's own activity hooks — only the watch group goes", () => {
+    const withActivity = mergeActivityHooks({}, true, ["rove"]) as SettingsShape
     const both = { ...withActivity, hooks: { ...withActivity.hooks, PostToolUse: [REGISTERED] } }
     const out = removeWorktreeWatchHook(both) as SettingsShape
     expect(out.hooks?.Stop).toHaveLength(1)

@@ -1,5 +1,5 @@
 /**
- * `kobe api inspect` — one production-diagnostics read aggregating the
+ * `rove api inspect` — one production-diagnostics read aggregating the
  * identity/activity signals a bug report needs:
  *
  *   - `daemon`    — RAW activity registry (`debug.inspect`): per-tab state,

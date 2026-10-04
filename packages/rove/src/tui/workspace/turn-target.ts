@@ -1,7 +1,7 @@
 /**
  * What a tab's turn detector tracks — one framework-free rule shared by
  * `turn-polls.ts` and `use-turn-polls.ts`. Every tab is a shell; the target is
- * its own kobe-launched engine or whatever its solo PTY is running (rationale
+ * its own rove-launched engine or whatever its solo PTY is running (rationale
  * in `turn-polls.ts`'s header).
  */
 

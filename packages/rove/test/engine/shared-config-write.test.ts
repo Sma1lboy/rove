@@ -49,7 +49,7 @@ const { updateSharedJson, updateSharedJsonSync } = await import("../../src/engin
 
 // Locks live under the resolved ~/.rove/; point them at a temp root so the
 // suite never contends with a real Rove on this machine.
-const lockHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-cas-lockhome-"))
+const lockHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-cas-lockhome-"))
 process.env.ROVE_HOME_DIR = lockHome
 
 const tempDirs: string[] = []
@@ -64,7 +64,7 @@ afterAll(() => {
 })
 
 function tempHome(): string {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-cas-"))
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "rove-cas-"))
   tempDirs.push(home)
   return home
 }

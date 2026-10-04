@@ -141,7 +141,7 @@ export function useCloneState(args: {
       // Probe which input is at fault instead of blaming the whole form.
       const folder = cloneFolder.trim()
       const folderStructurallyBad = !folder || folder.includes("/") || folder.includes("\\")
-      const parentAtFault = !folderStructurallyBad && validateCloneTarget(cloneParent, "__kobe_probe__") != null
+      const parentAtFault = !folderStructurallyBad && validateCloneTarget(cloneParent, "__rove_probe__") != null
       args.setField(parentAtFault ? "cloneParent" : "cloneFolder")
       return
     }

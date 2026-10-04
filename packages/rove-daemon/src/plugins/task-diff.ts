@@ -47,7 +47,7 @@ function same(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Mirrors kobe's `samePrStatus` (not importable here): per-poll bookkeeping
+ * Mirrors rove's `samePrStatus` (not importable here): per-poll bookkeeping
  * must not read as change, or `task.pr-changed` fires every tick.
  */
 function samePr(a: unknown, b: unknown): boolean {

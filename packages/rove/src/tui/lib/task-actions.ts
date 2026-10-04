@@ -280,7 +280,7 @@ export async function applyVendorChange(
     return false
   }
   // The new vendor applies on the NEXT enter (ensureSession rebuilds a pane
-  // whose `@kobe_vendor` tag mismatches), so without this `v` looks like a no-op.
+  // whose `@rove_vendor` tag mismatches), so without this `v` looks like a no-op.
   if (!opts.silentSuccess) ctx.notifyInfo?.(t("tasks.toast.engineSwitched", { engine: engineDisplayName(next) }))
   return true
 }

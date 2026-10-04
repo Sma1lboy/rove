@@ -1,4 +1,4 @@
-/** `kobe daemon <command>` — daemon lifecycle. `argv` is already trimmed of the `daemon` verb. */
+/** `rove daemon <command>` — daemon lifecycle. `argv` is already trimmed of the `daemon` verb. */
 
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { connectOrStartDaemon, daemonSpawnReason } from "@sma1lboy/rove-daemon/client/daemon-process"
@@ -10,13 +10,13 @@ import { readPidFile, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/ser
 import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { type RoveCore, createRoveCore } from "../core/index.ts"
 import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
 import { CURRENT_VERSION } from "../version.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
-import { activeCliName } from "./rename-compat.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 function printDaemonUsage(out: Pick<typeof process.stderr, "write">): void {
   out.write(
@@ -43,7 +43,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     return
   }
 
-  // Accept-set shared with `kobe completions`, so every verb is completable.
+  // Accept-set shared with `rove completions`, so every verb is completable.
   if (!SUBCOMMAND_VERBS.daemon.includes(command)) {
     process.stderr.write(`${CLI_NAME} daemon: unknown command "${command}"\n\n`)
     printDaemonUsage(process.stderr)

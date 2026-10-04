@@ -18,7 +18,7 @@ afterEach(async () => {
 })
 
 async function createStore(): Promise<{ store: AgentTurnsStore; path: string }> {
-  dir = await mkdtemp(join(tmpdir(), "kobe-agent-turns-"))
+  dir = await mkdtemp(join(tmpdir(), "rove-agent-turns-"))
   const path = join(dir, "agent-turns.json")
   const store = new AgentTurnsStore(path)
   await store.init()

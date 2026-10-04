@@ -2,7 +2,7 @@
  * Production IO for `activity-observer.ts`: `pty.list` over the PTY host socket
  * (NEVER spawns one; unreachable → null, as `ptyHostHasLiveSessions`), the
  * process walk and title vocabulary via the runtime adapter (engine knowledge
- * stays kobe-owned), and durable death records. The loop may not open a
+ * stays rove-owned), and durable death records. The loop may not open a
  * socket, read a file or write the registry; this file holds no cadence or
  * state. Imports run one way: this → the loop's contract.
  */

@@ -1,9 +1,9 @@
 /**
- * perf-golden — kobe's golden performance testcases (issue #28 follow-up).
+ * perf-golden — rove's golden performance testcases (issue #28 follow-up).
  *
  * A release-ritual doctor: end-to-end metrics measured against REAL
  * sandbox infrastructure (throwaway ROVE_HOME_DIR pty-host + daemon
- * server on a temp socket — never touches ~/.kobe), each with a golden
+ * server on a temp socket — never touches ~/.rove), each with a golden
  * ceiling committed in the ONE `GOLDEN` table below. A new version that
  * regresses past a ceiling fails loudly (exit 1). Ceilings sit 2-3× the
  * reference-machine numbers (2026-07-09, Apple Silicon) so machine
@@ -41,7 +41,7 @@ const GOLDEN = {
   "binary-compile-ms": 240_000, // scripts/compile.ts wall time (skipped by --fast)
 }
 
-setRoveEnv("HOME_DIR", mkdtempSync(join(tmpdir(), "kobe-perf-golden-")))
+setRoveEnv("HOME_DIR", mkdtempSync(join(tmpdir(), "rove-perf-golden-")))
 setRoveEnv("PTY_IDLE_EXIT_MS", "2000")
 
 const { PtyRegistry, PARK_QUIET_MS } = await import("../src/tui/panes/terminal/registry.ts")
@@ -72,7 +72,7 @@ function record(metric: keyof typeof GOLDEN, value: number, unit: string): void 
   const runs: number[] = []
   for (let i = 0; i < 3; i++) {
     const t0 = performance.now()
-    Bun.spawnSync(["bun", join(PKG_ROOT, "src/cli/kobe.ts"), "--version"], { stdout: "ignore", stderr: "ignore" })
+    Bun.spawnSync(["bun", join(PKG_ROOT, "src/cli/rove.ts"), "--version"], { stdout: "ignore", stderr: "ignore" })
     runs.push(performance.now() - t0)
   }
   record("cli-startup-ms", median(runs), "ms")
@@ -112,7 +112,7 @@ function record(metric: keyof typeof GOLDEN, value: number, unit: string): void 
   const { startDaemonServer } = await import("@sma1lboy/rove-daemon/daemon/server")
   const { daemonRuntime } = await import("../src/core/daemon-runtime.ts")
   const { RoveDaemonClient } = await import("@sma1lboy/rove-daemon/client")
-  const dir = mkdtempSync(join(tmpdir(), "kobe-perf-daemon-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-perf-daemon-"))
   const orch = {
     subscribeTasks: (listener: (snapshot: unknown[]) => void) => {
       listener([])

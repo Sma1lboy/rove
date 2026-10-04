@@ -56,7 +56,7 @@ describe("validateGitUrl", () => {
 describe("validateCloneTarget / resolveCloneTarget / findAvailableFolderName (tmpdir fixture)", () => {
   let parent: string
   beforeAll(() => {
-    parent = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-clone-test-"))
+    parent = fs.mkdtempSync(path.join(os.tmpdir(), "rove-clone-test-"))
     fs.mkdirSync(path.join(parent, "taken"))
     fs.mkdirSync(path.join(parent, "dup"))
     fs.mkdirSync(path.join(parent, "dup-2"))

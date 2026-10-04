@@ -58,7 +58,7 @@ export interface EngineHistoryReader {
    */
   readUsageSnapshot?(sessionId: string): Promise<EngineUsageSnapshot | undefined>
   /**
-   * Absolute transcript path, or null. Not for kobe to parse: the cross-engine
+   * Absolute transcript path, or null. Not for rove to parse: the cross-engine
    * handoff gives it to the next agent in its native format. `worktree`
    * scopes stores keyed by directory (claude).
    */
@@ -158,7 +158,7 @@ export interface EngineRegistryEntry {
   /**
    * Pre-trust a worktree in the vendor's trust store before a hosted spawn,
    * so the pane doesn't stall on a trust dialog. Idempotent and
-   * merge-preserving. Absent = no gate kobe can pre-answer.
+   * merge-preserving. Absent = no gate rove can pre-answer.
    */
   readonly trustWorktree?: (worktreePath: string) => void
   /** Completed {@link AgentTurn}s from one session transcript. Absent = no per-turn data; nothing is guessed. */

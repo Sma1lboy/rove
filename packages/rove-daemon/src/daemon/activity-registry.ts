@@ -42,7 +42,7 @@ export { MAX_UNKNOWN_REARMS } from "./activity-lapse.ts"
 export type { EngineStatePayload } from "./activity-readers.ts"
 
 /**
- * A TAB-LESS hook entry: an engine started in a shell kobe didn't spawn has no
+ * A TAB-LESS hook entry: an engine started in a shell rove didn't spawn has no
  * `ROVE_TAB_ID`, so its hooks report task-only. One rollup candidate beside
  * the task's tabs — NOT the rollup, which is derived (activity-rollup.ts).
  */
@@ -50,7 +50,7 @@ interface ActivityEntry {
   state: TaskActivityState
   detail?: EngineActivityDetail
   at: number
-  /** Carried forward: must survive an event from an older `kobe hook` that omits it. */
+  /** Carried forward: must survive an event from an older `rove hook` that omits it. */
   session?: EngineSessionInfo
   /** Hook `--engine` id, what the liveness probe asks about. Carried forward like `session`. */
   vendor?: string
@@ -401,7 +401,7 @@ export class DaemonActivityRegistry {
     return replaySnapshot(this.activity, this.tabActivity)
   }
 
-  /** Raw dump for `kobe api inspect` ({@link buildActivityDebugSnapshot}). */
+  /** Raw dump for `rove api inspect` ({@link buildActivityDebugSnapshot}). */
   debugSnapshot(): ActivityDebugSnapshot {
     const derived = new Map<string, RollupCandidate>()
     for (const taskId of this.taskIds()) {

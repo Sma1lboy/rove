@@ -1,6 +1,6 @@
 /**
  * Regression pin: a session you have already read must not come back UNREAD
- * after you quit kobe and start it again.
+ * after you quit rove and start it again.
  *
  * The bug is environment-shaped, which is why this test spends two real TUI
  * processes on it: the daemon's activity registry outlives the TUI, so the
@@ -147,7 +147,7 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
     await env.dispose()
   })
 
-  it("keeps a completion read after kobe is restarted", async () => {
+  it("keeps a completion read after rove is restarted", async () => {
     const key = `terminalTabs.${taskId}`
 
     // Launch #1 — boot lands in the restored session, so tab-1 is the tab the

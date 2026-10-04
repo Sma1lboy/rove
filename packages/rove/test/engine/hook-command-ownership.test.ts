@@ -9,14 +9,14 @@ const settings = (event: string, command: string) => ({
 })
 
 const invocations = [
-  ["kobe"],
+  ["rove"],
   ["rove"],
   ["/usr/local/bin/rove"],
-  ["/path with spaces/it's/bin/kobe"],
+  ["/path with spaces/it's/bin/rove"],
   ["bun", "--conditions=browser", new URL("../../src/cli/rove.ts", import.meta.url).pathname],
-  ["/opt/homebrew/bin/bun", "--conditions=browser", "/old checkout/packages/rove/src/cli/kobe.ts"],
+  ["/opt/homebrew/bin/bun", "--conditions=browser", "/old checkout/packages/rove/src/cli/rove.ts"],
   ["node", "/old checkout/packages/rove/dist/cli/rove.js"],
-  ["/usr/local/bin/node", "/old checkout/packages/rove/dist/cli/kobe.js"],
+  ["/usr/local/bin/node", "/old checkout/packages/rove/dist/cli/rove.js"],
 ]
 
 describe("Rove hook command ownership", () => {
@@ -39,12 +39,12 @@ describe("Rove hook command ownership", () => {
   ])("keeps unconfirmed user commands: %s", (command) => {
     const current = settings("Stop", command)
     expect(hasRoveActivityHooks(current, events)).toBe(false)
-    expect(mergeActivityHooks(current, false, events, ["kobe"])).toEqual(current)
-    const installed = mergeActivityHooks(current, true, events, ["kobe"])
-    expect(mergeActivityHooks(installed, false, events, ["kobe"])).toEqual(current)
+    expect(mergeActivityHooks(current, false, events, ["rove"])).toEqual(current)
+    const installed = mergeActivityHooks(current, true, events, ["rove"])
+    expect(mergeActivityHooks(installed, false, events, ["rove"])).toEqual(current)
   })
 
-  it.each(["echo worktree-created", "audit-wrapper hook worktree-created", "kobe hook worktree-created && echo user"])(
+  it.each(["echo worktree-created", "audit-wrapper hook worktree-created", "rove hook worktree-created && echo user"])(
     "keeps user legacy lookalikes: %s",
     (command) => {
       const watch = settings("PostToolUse", command)
@@ -60,7 +60,7 @@ describe("Rove hook command ownership", () => {
       for (const suffix of [[], ["--engine", "claude"]]) {
         const activity = settings("Stop", quoteShellArgv([...inv, "hook", "turn-complete", ...suffix]))
         expect(hasRoveActivityHooks(activity, events)).toBe(true)
-        expect(mergeActivityHooks(activity, false, events, ["kobe"])).toEqual({})
+        expect(mergeActivityHooks(activity, false, events, ["rove"])).toEqual({})
         const command = quoteShellArgv([...inv, "hook", "worktree-created"])
         expect(removeWorktreeWatchHook(settings("PostToolUse", command))).toEqual({})
         expect(mergeWorktreeSyncHook(settings("WorktreeCreate", command), null)).toEqual({})
@@ -69,16 +69,16 @@ describe("Rove hook command ownership", () => {
   )
 
   it.each([
-    "kobe hook turn-complete",
+    "rove hook turn-complete",
     " \trove\t hook \tturn-complete \t",
     quoteShellArgv(["/path\nwith spaces/rove", "hook", "turn-complete"]),
     "/usr/local/bin/rove hook turn-complete --engine codex",
     '"/path with spaces/rove" "hook" "turn-complete"',
-    "bun --conditions=browser /repo/packages/rove/src/cli/kobe.ts hook turn-complete",
+    "bun --conditions=browser /repo/packages/rove/src/cli/rove.ts hook turn-complete",
     "node /repo/packages/rove/dist/cli/rove.js hook turn-complete",
   ])("recognizes historical literal invocation %s", (command) => {
     const current = settings("Stop", command)
     expect(hasRoveActivityHooks(current, events)).toBe(true)
-    expect(mergeActivityHooks(current, false, events, ["kobe"])).toEqual({})
+    expect(mergeActivityHooks(current, false, events, ["rove"])).toEqual({})
   })
 })

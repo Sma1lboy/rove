@@ -1,7 +1,7 @@
 # sidebar frame: tab-permission-needed
 # blocked on the user — the one state whose glyph literally asks a question
 # 30x22
-# GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
+# GENERATED — do not hand-edit. Regenerate: rove_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
 | New task                + n  |

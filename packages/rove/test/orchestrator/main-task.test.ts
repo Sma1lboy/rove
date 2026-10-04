@@ -20,7 +20,7 @@ beforeEach(async () => {
   // realpath: macOS `os.tmpdir()` is a symlink (`/var` → `/private/var`), and
   // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
   // built under the un-resolved spelling would compare unequal to what was saved.
-  tmpRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "kobe-main-task-")))
+  tmpRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "rove-main-task-")))
   repo = path.join(tmpRoot, "repo")
   const r = spawnSync("bash", [REPO_INIT, repo], { encoding: "utf8" })
   if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}\n${r.stdout}`)
@@ -46,7 +46,7 @@ afterEach(() => {
 
 describe("ensureMainTask", () => {
   test("createTask auto-creates the repo's main row (the sidebar PROJECTS entry)", async () => {
-    // Regression: `kobe add` / the new-task dialog on a brand-new repo used
+    // Regression: `rove add` / the new-task dialog on a brand-new repo used
     // to create only the task — no `kind:"main"` row, so the sidebar never
     // grew a PROJECTS entry for the repo (the tmux-era boot provisioned
     // mains; the daemon world must do it on every creation path).

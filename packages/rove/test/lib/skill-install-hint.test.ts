@@ -12,7 +12,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-const tmpHome = mkdtempSync(join(tmpdir(), "kobe-skillhint-home-"))
+const tmpHome = mkdtempSync(join(tmpdir(), "rove-skillhint-home-"))
 
 vi.mock("node:os", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:os")>()
@@ -21,9 +21,9 @@ vi.mock("node:os", async (importOriginal) => {
 
 import {
   ROVE_SKILL_VERSION,
-  roveSkillState,
   markSkillHintSeen,
   maybeHintSkillInstall,
+  roveSkillState,
 } from "../../src/lib/skill-install.ts"
 import { getPersistedString } from "../../src/state/repos.ts"
 
@@ -34,16 +34,16 @@ let stderrSpy: MockInstance
 let originalStdinIsTTY: boolean | undefined
 
 function skillDir(root: string): string {
-  return join(root, ".claude/skills/kobe")
+  return join(root, ".claude/skills/rove")
 }
 
 beforeEach(() => {
-  cwd = mkdtempSync(join(tmpdir(), "kobe-skillhint-cwd-"))
+  cwd = mkdtempSync(join(tmpdir(), "rove-skillhint-cwd-"))
   vi.spyOn(process, "cwd").mockReturnValue(cwd)
   // Persisted hint flags land in a fresh state.json per test.
   originalRoveHome = process.env.ROVE_HOME_DIR
   originalInvokedAs = process.env.ROVE_INVOKED_AS
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-skillhint-state-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-skillhint-state-"))
   process.env.ROVE_INVOKED_AS = "rove"
   stderrSpy = vi.spyOn(process.stderr, "write").mockReturnValue(true)
   // Force the non-interactive path unless a test injects `ask` (a TTY test
@@ -79,7 +79,7 @@ describe("roveSkillState — unreadable install", () => {
 
 function writeStaleSkill(): void {
   mkdirSync(skillDir(cwd), { recursive: true })
-  writeFileSync(join(skillDir(cwd), "SKILL.md"), `<!-- kobe-skill-version: ${ROVE_SKILL_VERSION - 1} -->`)
+  writeFileSync(join(skillDir(cwd), "SKILL.md"), `<!-- rove-skill-version: ${ROVE_SKILL_VERSION - 1} -->`)
 }
 
 const muteKey = `skillHintSeen:v${ROVE_SKILL_VERSION}`
@@ -123,7 +123,7 @@ describe("maybeHintSkillInstall", () => {
 
   it("fresh skill: no hint at all", async () => {
     mkdirSync(skillDir(cwd), { recursive: true })
-    writeFileSync(join(skillDir(cwd), "SKILL.md"), `<!-- kobe-skill-version: ${ROVE_SKILL_VERSION} -->`)
+    writeFileSync(join(skillDir(cwd), "SKILL.md"), `<!-- rove-skill-version: ${ROVE_SKILL_VERSION} -->`)
     await maybeHintSkillInstall()
     expect(stderrSpy).not.toHaveBeenCalled()
   })

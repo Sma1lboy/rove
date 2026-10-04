@@ -61,7 +61,7 @@ describe("nextAllowedAt", () => {
 
 describe("pollWorktreeChanges end-to-end", () => {
   function makeRepo(): string {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-poller-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-poller-"))
     execFileSync("git", ["init", "-q"], { cwd: dir })
     return dir
   }
@@ -85,7 +85,7 @@ describe("pollWorktreeChanges end-to-end", () => {
   })
 
   test("a failing path reads unknown, never a fabricated clean", async () => {
-    const missing = join(tmpdir(), "kobe-poller-definitely-missing")
+    const missing = join(tmpdir(), "rove-poller-definitely-missing")
     pollWorktreeChanges(missing)
     // Give the spawn error a moment to settle. `null`, not `{0,0}`: the row
     // must render this differently from a worktree with nothing uncommitted.

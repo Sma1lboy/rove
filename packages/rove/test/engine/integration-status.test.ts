@@ -37,7 +37,7 @@ describe("readHookInstallState", () => {
     // it as `installed` is the blind spot the stamp was added to close.
     expect(readHookInstallState(`"command": "rove hook turn-complete --engine claude"`)).toBe("outdated")
     // Older still: no --engine tag either.
-    expect(readHookInstallState(`"command": "kobe hook turn-complete"`)).toBe("outdated")
+    expect(readHookInstallState(`"command": "rove hook turn-complete"`)).toBe("outdated")
   })
 
   it("calls a file with one stale entry among current ones outdated", () => {

@@ -32,7 +32,7 @@ let events: PluginEvent[]
 let unsubscribe: () => void
 
 beforeEach(async () => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-plugin-pipeline-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-plugin-pipeline-"))
   repo = path.join(tmpRoot, "repo")
   const r = spawnSync("bash", [REPO_INIT, repo], { encoding: "utf8" })
   if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}\n${r.stdout}`)

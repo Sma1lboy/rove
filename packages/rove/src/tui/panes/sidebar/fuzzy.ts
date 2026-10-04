@@ -2,7 +2,7 @@
  * Sidebar `/`-search: case-insensitive subsequence test. No scoring — the
  * caller keeps survivors in their original order.
  *
- *   fuzzyMatch("kbe", "kobe")              → true
+ *   fuzzyMatch("kbe", "rove")              → true
  *   fuzzyMatch("kbe", "berserk")           → false  (order matters)
  *   fuzzyMatch("CSK", "closure-stack-k8s") → true   (case-insensitive)
  *   fuzzyMatch("", anything)               → true   (empty query passes)

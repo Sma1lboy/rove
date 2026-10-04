@@ -165,7 +165,7 @@ describe("hasAncestor (env inherits, a pid chain doesn't)", () => {
   const rows = parsePsSnapshot(`
 10 1 /bin/zsh -il
 11 10 claude
-12 11 /bin/zsh -c kobe api add
+12 11 /bin/zsh -c rove api add
 13 12 bun /rove/api add
 20 1 claude --fork-session
 `)

@@ -36,7 +36,7 @@ function git(cwd: string, ...args: string[]): void {
 }
 
 beforeAll(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-git-snapshot-test-"))
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "rove-git-snapshot-test-"))
   repo = path.join(root, "repo")
   notRepo = path.join(root, "not-repo")
   plainFile = path.join(root, "file.txt")

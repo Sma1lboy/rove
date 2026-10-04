@@ -21,7 +21,7 @@ import type { AdoptableWorktree } from "../../src/types/worktree"
 import { type RenderHandle, act, renderComponent, settle } from "./harness"
 
 function repo(): string {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-adopt-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-adopt-"))
   execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", { cwd: dir })
   return dir
 }
@@ -40,7 +40,7 @@ const WORKTREES: readonly AdoptableWorktree[] = [
 
 /** Mount, then `ctrl+]` twice: Existing → For New Repo → Adopt Worktree. */
 async function onAdoptTab(dir: string): Promise<RenderHandle> {
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-adopthome-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-adopthome-"))
   const handle = await renderComponent(
     <NewTaskDialogView
       defaultRepo={dir}

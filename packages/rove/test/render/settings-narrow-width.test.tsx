@@ -28,7 +28,7 @@ function Driver() {
 }
 
 async function generalAt(width: number): Promise<string> {
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-narrow-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-narrow-"))
   const { frame } = await renderComponent(<Driver />, { width, height: 120, providers: { kv: true, dialog: true } })
   return await frame()
 }

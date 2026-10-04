@@ -29,7 +29,7 @@ function task(overrides: Omit<Partial<Task>, "id"> & { id?: string } = {}): Task
   return {
     id: toTaskId(overrides.id ?? "task-1"),
     title: "fix sidebar",
-    repo: "/repo/kobe",
+    repo: "/repo/rove",
     branch: "feature/sidebar",
     worktreePath: "/repo/rove/worktrees/sidebar",
     kind: "task",

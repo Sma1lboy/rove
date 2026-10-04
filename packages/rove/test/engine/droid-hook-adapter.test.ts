@@ -72,7 +72,7 @@ describe("DroidHookAdapter install", () => {
     // developer's real ~/.rove; and `roveHookInvocation` probes PATH through a
     // bare `Bun.which`, which does not exist under vitest's node.
     vi.stubEnv("ROVE_HOME_DIR", join(home, "rove"))
-    vi.stubGlobal("Bun", { which: () => "/usr/local/bin/kobe" })
+    vi.stubGlobal("Bun", { which: () => "/usr/local/bin/rove" })
   })
   afterEach(() => {
     rmSync(home, { recursive: true, force: true })

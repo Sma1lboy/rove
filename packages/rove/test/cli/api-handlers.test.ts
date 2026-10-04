@@ -9,7 +9,7 @@ import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture
 
 // Peer provenance AND dispatcher provenance both key off the caller's own
 // $ROVE_TASK_ID/$ROVE_TAB_ID — unset them file-wide so exact-payload
-// assertions stay deterministic when the runner itself lives inside a kobe
+// assertions stay deterministic when the runner itself lives inside a rove
 // task. Tests that WANT provenance set them in their own beforeEach.
 const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }
 beforeEach(() => {

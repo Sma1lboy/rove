@@ -1,4 +1,4 @@
-/** Bootstrap for the kobe core: orchestrator + worktree manager + task index. */
+/** Bootstrap for the rove core: orchestrator + worktree manager + task index. */
 
 import { homedir } from "node:os"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
@@ -43,7 +43,7 @@ export async function createRoveCore(options: RoveCoreOptions = {}): Promise<Rov
     tearDownSession: (taskId) => tearDownTaskSessionAdapter(String(taskId)),
   })
 
-  // Older kobe rows are in the sidebar but not the picker. Idempotent, once per boot.
+  // Older rove rows are in the sidebar but not the picker. Idempotent, once per boot.
   const backfilled = backfillSavedReposFromProjects(
     store
       .list()

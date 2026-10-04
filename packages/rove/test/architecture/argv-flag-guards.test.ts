@@ -20,7 +20,7 @@ const SRC_ROOT = fileURLToPath(new URL("../../src", import.meta.url))
 
 // Files allowed to keep exact-token argv flag checks, with why.
 const BARE_TOKEN_ALLOWED = new Set([
-  // `kobe reset` parses user-typed process argv against a closed `known` set
+  // `rove reset` parses user-typed process argv against a closed `known` set
   // and exit(2)s on anything else — an attached `--hard=x` is rejected as an
   // unknown argument before these checks run, so bare matching is fail-closed.
   join(SRC_ROOT, "cli", "reset-cmd.ts"),

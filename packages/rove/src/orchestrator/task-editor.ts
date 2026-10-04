@@ -48,7 +48,7 @@ export class TaskEditor {
 
   /**
    * Rename the branch to follow the title while it's still the
-   * placeholder-derived default (`new-task`, or legacy `rove/`/`kobe/`), so a
+   * placeholder-derived default (`new-task`, or legacy `rove/`/`rove/`), so a
    * prompt-auto-named task gets a real branch. Fires at most once: after that
    * the branch no longer matches, so later titles / manual `setBranch` are
    * never clobbered. Skipped for `main` and unmaterialised tasks

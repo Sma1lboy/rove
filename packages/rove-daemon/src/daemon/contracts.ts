@@ -36,11 +36,11 @@ export {
   isRoutineInboxState,
 } from "./attention-contracts.ts"
 
-/** Engine id (kobe `VendorId`), opaque to the daemon. Plain `string`: a
- *  literal union with `(string & {})` drifts from kobe's list and hides the
+/** Engine id (rove `VendorId`), opaque to the daemon. Plain `string`: a
+ *  literal union with `(string & {})` drifts from rove's list and hides the
  *  drift inside an exhaustive-looking switch. The built-in list the daemon
  *  needs (plugin ids may not shadow one) is `plugins/manifest.ts`
- *  `RESERVED_ENGINE_IDS`, locked to kobe's by a kobe-side test. */
+ *  `RESERVED_ENGINE_IDS`, locked to rove's by a rove-side test. */
 export type VendorId = string
 export type TaskStatus = "backlog" | "in_progress" | "in_review" | "done" | "canceled" | "error"
 
@@ -54,7 +54,7 @@ export interface TaskDeletionState {
   readonly error?: string
 }
 
-/** One engine-neutral quota window (mirrors kobe/types/engine.ts). */
+/** One engine-neutral quota window (mirrors rove/types/engine.ts). */
 export interface EngineQuotaWindow {
   readonly kind: string
   readonly label: string
@@ -64,13 +64,13 @@ export interface EngineQuotaWindow {
   readonly resetsAt: number | null
 }
 
-/** Snapshot of an engine account's quota windows (mirrors kobe/types/engine.ts). */
+/** Snapshot of an engine account's quota windows (mirrors rove/types/engine.ts). */
 export interface EngineQuotaUsage {
   readonly windows: readonly EngineQuotaWindow[]
   readonly capturedAt: number
 }
 
-/** Durable rate-limit auto-resume schedule (mirrors kobe/types/task.ts). */
+/** Durable rate-limit auto-resume schedule (mirrors rove/types/task.ts). */
 export interface TaskQuotaResumeState {
   /** ISO-8601 time the provider's exhausted quota window resets. */
   readonly resumeAt: string
@@ -79,7 +79,7 @@ export interface TaskQuotaResumeState {
 }
 
 /**
- * A worker's own outcome claim (mirrors kobe/types/task.ts).
+ * A worker's own outcome claim (mirrors rove/types/task.ts).
  *
  * Kept apart from {@link TaskPRStatus} on purpose: this is what the worker
  * SAID, that is what the daemon OBSERVED by polling the forge. A dispatcher
@@ -108,7 +108,7 @@ export interface TaskPRStatus {
 }
 
 /** Session (task + tab) that dispatched a task: where a sub-task's bare
- *  `send` routes back (mirrors kobe/types/task.ts). */
+ *  `send` routes back (mirrors rove/types/task.ts). */
 export interface TaskDispatcher {
   readonly taskId: string
   readonly tabId: string
@@ -155,7 +155,7 @@ export interface DaemonTask {
   readonly quotaResume?: TaskQuotaResumeState
   /** The external tracker item this task was started from, when it was. */
   readonly linkedWorkItem?: TaskLinkedWorkItem
-  /** The kobe session (task + tab) that dispatched this task, when one did. */
+  /** The rove session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
   /** The `add --prompt` brief as delivered, verbatim, never truncated; outlives
    *  the engine transcript. Absent until delivered. */
@@ -263,7 +263,7 @@ export interface DaemonOrchestrator {
     routine?: TaskRoutineLink
   }): Promise<DaemonTask>
   ensureMainTask(repo: string): Promise<DaemonTask>
-  /** Open an existing directory as a standalone `kind:"dir"` task (`kobe .`).
+  /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`).
    *  `scratch` marks it a temp shell task for the sidebar's Scratch section. */
   openDirectoryTask(input: { dir: string; vendor?: VendorId; scratch?: boolean }): Promise<DaemonTask>
   /** Migrate a scratch task into `repo`: repoint the
@@ -325,8 +325,8 @@ export interface DaemonOrchestrator {
 
 /**
  * Engine half of a turn record, lifted from the vendor transcript. Structural
- * copy of `kobe/src/engine/agent-turn.ts` (source of truth); the daemon never
- * imports kobe sources.
+ * copy of `rove/src/engine/agent-turn.ts` (source of truth); the daemon never
+ * imports rove sources.
  */
 export interface AgentTurn {
   /** The engine's own stable turn id — dedupe key within a task. */
@@ -365,7 +365,7 @@ export interface UpdateInfo {
 
 /**
  * Context half of one live session's usage snapshot. Structural mirror of
- * kobe's `EngineUsageSnapshot` (`kobe/src/types/engine.ts`, source of truth);
+ * rove's `EngineUsageSnapshot` (`rove/src/types/engine.ts`, source of truth);
  * the engine's history reader computes it, never the daemon (vendor arithmetic).
  *
  * An unreported token count is absent, never `0`: "used no cache" and "engine

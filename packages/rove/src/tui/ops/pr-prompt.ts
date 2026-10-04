@@ -112,7 +112,7 @@ export function renderPRPrompt(template: string, state: PRPromptState): string {
 }
 
 /**
- * Per-repo PR prompt override: `.rove/`, then `.kobe/` fallback. First
+ * Per-repo PR prompt override: `.rove/`, then `.rove/` fallback. First
  * NON-EMPTY file wins; an empty file is a placeholder, not a blank prompt.
  */
 const PR_INSTRUCTION_FILENAME = "pr-instructions.md"

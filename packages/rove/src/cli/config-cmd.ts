@@ -1,12 +1,12 @@
-/** `kobe config`: open kobe's single user config file in your editor. */
+/** `rove config`: open rove's single user config file in your editor. */
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { kvStatePath } from "../env.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { binaryAvailable, resolveEditorCommand } from "../tui/lib/editor-launch.ts"
-import { activeCliName } from "./rename-compat.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 function printUsage(out: Pick<typeof process.stderr, "write">): void {
   out.write(
@@ -45,7 +45,7 @@ export async function runConfigSubcommand(argv: readonly string[] = []): Promise
   }
 
   // Editors open a missing path as a blank "new file" buffer; seed an empty
-  // object so first-run `kobe config` lands on real, valid JSON instead.
+  // object so first-run `rove config` lands on real, valid JSON instead.
   if (!existsSync(path)) {
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, "{}\n")

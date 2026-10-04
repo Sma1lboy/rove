@@ -31,7 +31,7 @@ import { isAbsolute, join, resolve } from "node:path"
 
 /**
  * The base branches the daemon falls back to when a task recorded none —
- * kobe's `base-ref-cache.ts` ladder, in its order. The fingerprint stats
+ * rove's `base-ref-cache.ts` ladder, in its order. The fingerprint stats
  * these too: the recorded base is usually absent and the real one is resolved
  * later in the runner, and `FETCH_HEAD` misses a local `update-ref` or a ref
  * moved by another worktree.

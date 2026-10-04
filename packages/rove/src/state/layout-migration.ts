@@ -1,4 +1,5 @@
-/** Safe, additive migration from the legacy kobe data layout to Rove. */
+import { preRenameConfigDir, preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
+/** Safe, additive migration from the legacy rove data layout to Rove. */
 
 import { randomUUID } from "node:crypto"
 import type { Stats } from "node:fs"
@@ -23,18 +24,13 @@ import {
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
-import {
-  LEGACY_ROVE_CONFIG_DIR_BASENAME,
-  LEGACY_ROVE_STATE_DIR_BASENAME,
-  ROVE_CONFIG_DIR_BASENAME,
-  ROVE_STATE_DIR_BASENAME,
-} from "../product.ts"
+import { ROVE_CONFIG_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../product.ts"
 
 const CLIENT_MIGRATION_MARKER = ".layout-client-migration-v1"
 const PLUGIN_MIGRATION_MARKER = ".layout-plugins-migration-v1"
 /**
  * Written under `.rove/` once daemon-owned state is copied; its presence makes
- * the legacy `.kobe` copies STALE rather than a fallback. Exported so other
+ * the legacy `.rove` copies STALE rather than a fallback. Exported so other
  * readers never re-spell the filename.
  */
 export const DAEMON_MIGRATION_MARKER = ".layout-daemon-migration-v1"
@@ -129,7 +125,7 @@ function copyRegularFile(source: string, destination: string): number {
 function writeMarker(destination: string): void {
   const temp = `${destination}.migration-${process.pid}-${randomUUID()}.tmp`
   try {
-    writeFileSync(temp, "legacy kobe state copied without overwrite\n", { flag: "wx" })
+    writeFileSync(temp, "legacy rove state copied without overwrite\n", { flag: "wx" })
     syncFile(temp)
     publishTemp(temp, destination)
   } finally {
@@ -179,9 +175,9 @@ function migrateStateEntries(
   env: NodeJS.ProcessEnv,
 ): StateLayoutMigrationResult {
   const home = readRoveHomeDirEnv(env) ?? homedir()
-  const legacyState = join(home, LEGACY_ROVE_STATE_DIR_BASENAME)
+  const legacyState = preRenameStateDir(home)
   const roveState = join(home, ROVE_STATE_DIR_BASENAME)
-  const legacyConfig = join(home, ".config", LEGACY_ROVE_CONFIG_DIR_BASENAME, "state.json")
+  const legacyConfig = join(preRenameConfigDir(home), "state.json")
   const roveConfig = join(home, ".config", ROVE_CONFIG_DIR_BASENAME, "state.json")
   const marker = join(roveState, markerName)
   let hasSource: boolean
@@ -234,7 +230,7 @@ const PLUGIN_ENTRIES = ["plugins.json", "plugins", "plugins-outdated.json"] as c
 
 function migrateLegacyPluginTree(env: NodeJS.ProcessEnv): StateLayoutMigrationResult {
   const home = readRoveHomeDirEnv(env) ?? homedir()
-  const legacyState = join(home, LEGACY_ROVE_STATE_DIR_BASENAME)
+  const legacyState = preRenameStateDir(home)
   const roveState = join(home, ROVE_STATE_DIR_BASENAME)
   const marker = join(roveState, PLUGIN_MIGRATION_MARKER)
   try {
@@ -255,12 +251,6 @@ function migrateLegacyPluginTree(env: NodeJS.ProcessEnv): StateLayoutMigrationRe
       if (!lstatIfExists(source) || lstatIfExists(destination)) continue
       renameSync(source, destination)
       moved += 1
-      // Older binaries read only `.kobe/plugins.json`; a missing file reads as "no plugins".
-      try {
-        symlinkSync(destination, source)
-      } catch {
-        /* compatibility is a courtesy — a failed link never fails the move */
-      }
     } catch (err) {
       warnings.push(`${name}: ${errorText(err)}`)
     }

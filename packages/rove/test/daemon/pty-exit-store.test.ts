@@ -21,7 +21,7 @@ let dir: string
 let path: string
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "kobe-pty-exits-"))
+  dir = mkdtempSync(join(tmpdir(), "rove-pty-exits-"))
   path = join(dir, "pty-exits.json")
 })
 
@@ -166,7 +166,7 @@ describe("pty exit store", () => {
     // are presumably intact and we do not know them — rewriting would drop up
     // to MAX_RECORDS other deaths. Unparsable means the bytes are already not
     // a store, so overwriting is the only way back (pinned above).
-    const walled = join(mkdtempSync(join(tmpdir(), "kobe-pty-exits-walled-")), "pty-exits.json")
+    const walled = join(mkdtempSync(join(tmpdir(), "rove-pty-exits-walled-")), "pty-exits.json")
     mkdirSync(walled)
     expect(() => recordPtyExit(endInfo(), walled)).toThrow(/unreadable/)
     expect(statSync(walled).isDirectory()).toBe(true)

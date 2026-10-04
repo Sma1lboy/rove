@@ -1,6 +1,7 @@
 import { type Socket, connect } from "node:net"
 import { StringDecoder } from "node:string_decoder"
 import { readRoveEnv } from "../compat-env.ts"
+import { preRenameRuntimePaths } from "../daemon/pre-rename-runtime.ts"
 import {
   BLOCKING_RPCS,
   type CellPixelSize,
@@ -106,7 +107,7 @@ export class RoveDaemonClient implements DaemonRpcClient {
     if (this.socket) return Promise.resolve()
     if (this.disposed) return Promise.reject(new Error("daemon client disposed"))
     if (this.connecting) return this.connecting
-    const p = this.openSocket()
+    const p = this.openSocketWithFallback()
     this.connecting = p
     // Not `.finally`: its derived promise rejects with `p` and has no
     // handler, so Bun reports an unhandled rejection.
@@ -243,9 +244,29 @@ export class RoveDaemonClient implements DaemonRpcClient {
     this.emitLifecycle("close")
   }
 
-  private openSocket(): Promise<void> {
+  private async openSocketWithFallback(): Promise<void> {
+    try {
+      await this.openSocket(this.socketPath)
+      return
+    } catch (err) {
+      if (!(err instanceof Error) || !("code" in err) || !["ENOENT", "ECONNREFUSED"].includes(String(err.code)))
+        throw err
+      for (const path of preRenameRuntimePaths(this.socketPath)) {
+        if (this.disposed) throw err
+        try {
+          await this.openSocket(path)
+          return
+        } catch {
+          // Preserve the canonical error if no pre-rename host answers.
+        }
+      }
+      throw err
+    }
+  }
+
+  private openSocket(path: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const socket = connect(this.socketPath)
+      const socket = connect(path)
       this.socket = socket
       // Both handlers clear the deadline; on expiry the half-open socket is
       // destroyed so it does not outlive the promise.

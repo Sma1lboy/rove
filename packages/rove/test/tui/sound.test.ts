@@ -48,7 +48,7 @@ async function freshPulse(): Promise<(volume?: number) => void> {
 const settle = () => new Promise((r) => setTimeout(r, 0))
 
 beforeEach(() => {
-  pathDir = mkdtempSync(join(tmpdir(), "kobe-sound-path-"))
+  pathDir = mkdtempSync(join(tmpdir(), "rove-sound-path-"))
   prevPath = process.env.PATH
 })
 
@@ -90,7 +90,7 @@ describe("pulse", () => {
     expect(bun.spawn).toHaveBeenCalledTimes(1)
     const [argv, opts] = bun.spawn.mock.calls[0] as [string[], Record<string, string>]
     expect(argv[0]).toBe("afplay")
-    expect(argv[1]).toMatch(/kobe-sfx.*pulse@40\.wav$/)
+    expect(argv[1]).toMatch(/rove-sfx.*pulse@40\.wav$/)
     expect(opts).toMatchObject({ stdin: "ignore", stdout: "ignore", stderr: "ignore" })
   })
 
@@ -178,7 +178,7 @@ describe("pulse", () => {
     await settle() // the rejection path must also stay contained
   })
 
-  test("detaches the player so its lifetime never pins kobe at shutdown", async () => {
+  test("detaches the player so its lifetime never pins rove at shutdown", async () => {
     writeFileSync(join(pathDir, "afplay"), "")
     process.env.PATH = pathDir
     const unref = vi.fn()

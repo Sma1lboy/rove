@@ -147,7 +147,7 @@ describe("terminal tabs state", () => {
     expect(findContentTab(s)).toMatchObject({ relPath: "src/b.ts", base: undefined })
   })
 
-  // Why: sessionId is the naming/resume anchor (tmux @kobe_session_id) —
+  // Why: sessionId is the naming/resume anchor (tmux @rove_session_id) —
   // it must land on engine tabs only and survive shell degradation is NOT
   // required (the conversation ended), but autoTitle must survive so a
   // degraded tab keeps the name of the conversation it hosted.
@@ -342,7 +342,7 @@ describe("terminal tabs state", () => {
     expect(shellCommandLine(["echo", "it's", ""])).toBe("echo 'it'\\''s' ''")
   })
 
-  // Why: tab identity reaches `kobe hook` as inherited env — an `env K=V`
+  // Why: tab identity reaches `rove hook` as inherited env — an `env K=V`
   // PREFIX on the typed line (not the PTY environment), so it covers fresh
   // spawns and adopted warm shells in every backend, and fish (which
   // rejects the bare `K=V cmd` form). Without it, all tabs of a task are

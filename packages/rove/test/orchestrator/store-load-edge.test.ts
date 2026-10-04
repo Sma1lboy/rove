@@ -22,7 +22,7 @@ let home: string
 let store: TaskIndexStore
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "kobe-store-edge-"))
+  home = await mkdtemp(join(tmpdir(), "rove-store-edge-"))
   store = new TaskIndexStore({ homeDir: home })
 })
 

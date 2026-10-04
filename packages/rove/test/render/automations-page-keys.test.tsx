@@ -18,7 +18,7 @@ const NOW = Date.now()
 const AUTOMATION = {
   id: "a1",
   name: "weekday audit",
-  repo: "/x/kobe",
+  repo: "/x/rove",
   prompt: "audit",
   schedule: "0 9 * * MON-FRI",
   enabled: true,
@@ -42,7 +42,7 @@ function orchestrator(automations: unknown[] = []) {
     connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations, keepsDaemonAlive: automations.length > 0 }),
     automationRuns: async () => ({ runs: [] }),
-    listTasks: () => [{ repo: "/x/kobe" }],
+    listTasks: () => [{ repo: "/x/rove" }],
   }
 }
 
@@ -141,7 +141,7 @@ test("a selected routine offers an on-demand run", async () => {
 })
 
 test.each([
-  { taskRepo: "/x/kobe", focusRepo: "/x/kobe" },
+  { taskRepo: "/x/rove", focusRepo: "/x/rove" },
   { taskRepo: "C:\\Projects\\demo", focusRepo: "c:/Projects/demo" },
 ])("composer binds an existing task with the selected engine tab: %o", async ({ taskRepo, focusRepo }) => {
   const calls: unknown[] = []
@@ -193,7 +193,7 @@ test("a bound routine shows its exact target in the detail box", async () => {
   const bound = { ...AUTOMATION, target: { kind: "existing-tab", taskId: "existing", tabId: "tab-2" } }
   const orch = {
     ...orchestrator([bound]),
-    listTasks: () => [{ id: "existing", title: "My existing task", repo: "/x/kobe" }],
+    listTasks: () => [{ id: "existing", title: "My existing task", repo: "/x/rove" }],
     automationRuns: async () => ({
       runs: [
         {

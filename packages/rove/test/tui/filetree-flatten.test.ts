@@ -86,7 +86,7 @@ describe("readWorktreeChanges", () => {
   let repo: string
 
   beforeAll(() => {
-    repo = mkdtempSync(join(tmpdir(), "kobe-wt-changes-"))
+    repo = mkdtempSync(join(tmpdir(), "rove-wt-changes-"))
     execSync("git init -q -b main && git commit -q --allow-empty -m init", {
       cwd: repo,
       env: {
@@ -108,7 +108,7 @@ describe("readWorktreeChanges", () => {
   // "cannot land", so a fabricated zero reads as safe to land / safe to delete.
   test("returns null — not zeros — when the counts cannot be read", () => {
     expect(readWorktreeChanges("")).toBeNull()
-    const notRepo = mkdtempSync(join(tmpdir(), "kobe-not-repo-"))
+    const notRepo = mkdtempSync(join(tmpdir(), "rove-not-repo-"))
     try {
       // git exits non-zero outside a repo.
       expect(readWorktreeChanges(notRepo)).toBeNull()

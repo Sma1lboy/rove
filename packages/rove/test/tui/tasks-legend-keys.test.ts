@@ -8,7 +8,7 @@
  * (overridden rows get their hint.keys refreshed; an unbound row loses its
  * hint)". A hardcoded literal array of legend rows
  * (`{ k: "n" }`, `{ k: "a/d" }`, …) lets an override / unbind in
- * ~/.kobe/settings/keybindings.yaml change dispatch but NOT the advertised
+ * ~/.rove/settings/keybindings.yaml change dispatch but NOT the advertised
  * cap, so the legend lies. Each cap is derived from `RoveKeymap` via
  * `legendCap` / `legendRowCap`, which live in the framework-free
  * `src/tui/lib/help-groups.ts` — imported here directly (no opentui in the

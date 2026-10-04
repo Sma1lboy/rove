@@ -51,10 +51,10 @@ describe("marketplace row views", () => {
     expect(rows[0]?.installedId).toBe("example.plugin")
   })
 
-  it("counts a plugin installed under the old kobe-plugins repo name as installed", () => {
-    const rows = marketplaceRowViews(LISTING, [plugin({ id: "kobe.notify", source: "Sma1lboy/kobe-plugins/notify" })])
+  it("counts a plugin installed under the old rove-plugins repo name as installed", () => {
+    const rows = marketplaceRowViews(LISTING, [plugin({ id: "rove.notify", source: "Sma1lboy/rove-plugins/notify" })])
 
-    expect(rows[1]?.installedId).toBe("kobe.notify")
+    expect(rows[1]?.installedId).toBe("rove.notify")
   })
 
   it("ignores linked plugins, whose source is a directory and never a ref", () => {

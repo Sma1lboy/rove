@@ -76,7 +76,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   const renderer = useRenderer()
   const notif = useNotifications()
   const orch = props.orchestrator
-  // Daemon-broadcast toasts (`kobe api notify` → notice.event).
+  // Daemon-broadcast toasts (`rove api notify` → notice.event).
   useDaemonNotices(orch, notif.notify, dialog)
 
   const {

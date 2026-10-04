@@ -49,7 +49,7 @@ async function seedKimiSession(): Promise<void> {
   worktree = await mkdtemp(path.join(tmpdir(), "rove-kimi-wt-"))
   const dir = path.join(kimiHome, "sessions", `wd_${SESSION_ID}`)
   await mkdir(path.join(dir, "agents", "main"), { recursive: true })
-  // Deliberately NOT a format kobe parses — kimi ships no message reader, and
+  // Deliberately NOT a format rove parses — kimi ships no message reader, and
   // the whole point is that discovery works without one.
   await writeFile(path.join(dir, "agents", "main", "wire.jsonl"), '{"type":"protocol-frame"}\n')
   await writeFile(

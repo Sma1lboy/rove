@@ -44,7 +44,7 @@ describe("keybindings channel (daemon → client round-trip)", () => {
   let savedHome: string | undefined
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "kobe-kb-chan-"))
+    dir = mkdtempSync(join(tmpdir(), "rove-kb-chan-"))
     socketPath = join(dir, "daemon.sock")
     pidPath = join(dir, "daemon.pid")
     const settingsDir = join(dir, ".rove", "settings")

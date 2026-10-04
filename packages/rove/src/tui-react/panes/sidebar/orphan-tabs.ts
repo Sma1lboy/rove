@@ -35,7 +35,7 @@ export interface LiveSession {
  *
  * Label: ⚠ + the live title, else the tab id. The title is RAW OSC here, so
  * the engine's status decoration is stripped (vendor-agnostic: an
- * unregistered session has no resolved vendor) since kobe draws its own glyph.
+ * unregistered session has no resolved vendor) since rove draws its own glyph.
  */
 export function orphanTabsByTask(
   sessions: readonly LiveSession[],

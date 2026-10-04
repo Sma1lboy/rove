@@ -7,7 +7,7 @@ export interface QuoteShellArgvOptions {
   readonly bareSafe?: boolean
   /**
    * Double-quote for cmd.exe / PowerShell. Single quotes are not quotes there
-   * (cmd runs `'kobe'` as a program named `'kobe'`), so a command persisted for
+   * (cmd runs `'rove'` as a program named `'rove'`), so a command persisted for
    * a Windows host (codex hooks) must never carry them.
    */
   readonly windows?: boolean

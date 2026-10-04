@@ -30,7 +30,7 @@ import { act, renderComponent, settle } from "./harness"
 
 /** A repo with more branches than any window will show. */
 function repoWithBranches(count: number): string {
-  const repo = mkdtempSync(join(tmpdir(), "kobe-shortterm-"))
+  const repo = mkdtempSync(join(tmpdir(), "rove-shortterm-"))
   execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", { cwd: repo })
   for (let i = 0; i < count; i++) execSync(`git branch feature/branch-name-${i}`, { cwd: repo })
   return repo

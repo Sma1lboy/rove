@@ -8,7 +8,7 @@ import { expect, test } from "bun:test"
 import { WorkItemsPage } from "../../src/tui-react/component/work-items-page"
 import { renderComponent, settle } from "./harness"
 
-const REPO = "/x/kobe"
+const REPO = "/x/rove"
 const ITEM = { number: 412, title: "Fix the thing", author: "octocat", labels: [], updatedAt: new Date().toISOString() }
 
 function orch(tasks: unknown[], startWorkItem: () => Promise<unknown>) {

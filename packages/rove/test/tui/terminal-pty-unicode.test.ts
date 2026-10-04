@@ -6,7 +6,7 @@ import { XtermTaskPty } from "../../src/tui/panes/terminal/pty-xterm-base"
  * Unicode 11 width tables (regression pin for the Unicode11Addon wiring).
  *
  * Why this matters: @xterm/headless defaults to Unicode 6, where emoji are
- * ONE cell wide — but engines (claude/codex) and kobe's own cursor-overlay
+ * ONE cell wide — but engines (claude/codex) and rove's own cursor-overlay
  * math (`lib/display-width.ts`) measure them as TWO. Any emoji in engine
  * output desynced the emulator's cursor/wrap from the drawn overlay, the
  * same "cursor doesn't follow the text" failure class as the CJK bug.

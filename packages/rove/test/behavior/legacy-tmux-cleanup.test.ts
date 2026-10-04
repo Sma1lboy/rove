@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import { legacyPaneProcesses, parseLegacyPsRows, stopLegacyTmux } from "../../src/cli/legacy-tmux.ts"
 
 const TMUX_AVAILABLE = spawnSync("tmux", ["-V"], { stdio: "ignore" }).status === 0
-const SOCKET = `kobe-legacy-cleanup-${process.pid}`
+const SOCKET = `rove-legacy-cleanup-${process.pid}`
 const SESSION = "legacy-cleanup"
 let panePgid: number | null = null
 

@@ -15,15 +15,15 @@ describe("isPlaceholderDerivedBranch", () => {
     expect(isPlaceholderDerivedBranch("fix/new-task-3", id)).toBe(true)
   })
 
-  it("recognizes the legacy rove/ and kobe/ id-suffixed placeholders", () => {
+  it("recognizes the legacy rove/ and rove/ id-suffixed placeholders", () => {
     const id = "01HXABCDEF"
     expect(isPlaceholderDerivedBranch("rove/new-task-abcdef", id)).toBe(true)
-    expect(isPlaceholderDerivedBranch("kobe/new-task-abcdef", id)).toBe(true)
+    expect(isPlaceholderDerivedBranch("rove/new-task-abcdef", id)).toBe(true)
   })
 
   it("rejects real branch names", () => {
     const id = "01HXABCDEF"
-    expect(isPlaceholderDerivedBranch("kobe/real-work-abcdef", id)).toBe(false)
+    expect(isPlaceholderDerivedBranch("rove/real-work-abcdef", id)).toBe(false)
     expect(isPlaceholderDerivedBranch("feat/login-flow", id)).toBe(false)
     expect(isPlaceholderDerivedBranch("rove/new-task-zzzzzz", id)).toBe(false)
   })

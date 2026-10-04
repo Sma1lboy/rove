@@ -9,7 +9,7 @@ import {
 /**
  * The staleness rubric drives the worktrees page's "safe to clean?"
  * badges. The cascade ORDER is the contract: strong signals (dirty, PR
- * state) must always beat weak fallbacks (ahead-count, age) — kobe's
+ * state) must always beat weak fallbacks (ahead-count, age) — rove's
  * default squash-merge makes the PR-merged signal the only one that can
  * identify a merged branch, and a dirty tree must never be called stale
  * no matter how old or how merged its branch looks.

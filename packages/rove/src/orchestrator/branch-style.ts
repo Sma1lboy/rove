@@ -6,7 +6,7 @@
  * (local + origin) — conventional type prefixes (`feat/`, `fix/`, …) or bare
  * kebab slugs — and apply it to a slug of the task title. Guarantees:
  *
- *   - The generated name NEVER contains "rove" or "kobe" (brand tokens are
+ *   - The generated name NEVER contains "rove" or "rove" (brand tokens are
  *     stripped from the slug; prefixes only come from the conventional set).
  *   - Collisions get a short `-2` / `-3` suffix, not a machine ulid tail.
  *   - No inferable convention (empty repo, no branches) → bare kebab slug.
@@ -41,7 +41,7 @@ const TYPE_PREFIXES = new Set([
 ])
 
 /** Tool-brand tokens that must never appear in a generated branch name. */
-const BRAND_TOKENS = new Set(["rove", "kobe"])
+const BRAND_TOKENS = new Set(["rove"])
 
 export type BranchStyle = { readonly kind: "bare" } | { readonly kind: "typed"; readonly defaultPrefix: string }
 

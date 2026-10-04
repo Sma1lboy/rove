@@ -4,7 +4,7 @@
  *
  * The module exists to prevent a multi-process lost update: a KVProvider
  * that debounce-writes its ENTIRE in-memory snapshot silently reverts a
- * key another kobe process (Tasks pane, quick-task, a CLI command) wrote
+ * key another rove process (Tasks pane, quick-task, a CLI command) wrote
  * in the meantime, on its next flush. These tests
  * pin the read-merge-write contract that prevents that, plus the
  * atomicity and corrupt-file behaviors carried over from the two former
@@ -46,7 +46,7 @@ function writeDisk(blob: Record<string, unknown>): void {
 }
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-store-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-store-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
 })
@@ -155,7 +155,7 @@ describe("patchStateFile — the lost-update fix", () => {
     const processASnapshot = loadStateFile()
     expect(processASnapshot).toEqual({ activeTheme: "claude" })
 
-    // Process B (another kobe process) persists a new key via the public
+    // Process B (another rove process) persists a new key via the public
     // repos.ts API — the real cross-process write path.
     setPersistedString("lastSelectedVendor", "codex")
 

@@ -137,7 +137,7 @@ function isEngineDecoration(text: string, vendor: VendorId): boolean {
 }
 
 /**
- * Tab name for the sidebar tree, which draws kobe's own state glyph beside it:
+ * Tab name for the sidebar tree, which draws rove's own state glyph beside it:
  * strip the decoration, keep the name. Old snapshots still carry the prefix,
  * so it's stripped again here (display-side). A manual rename still wins.
  *
@@ -234,7 +234,7 @@ export function tabTitle(tab: TerminalTab, taskVendor: VendorId, liveName?: stri
 /**
  * True only when `tabTitle` renders an engine-owned live title. `vendor` is the
  * resolved live identity (`useTurnPolls().turnVendors`, same `turn-target.ts`
- * rule as detectors), so a typed `claude` and a kobe-launched tab behave the
+ * rule as detectors), so a typed `claude` and a rove-launched tab behave the
  * same. Native status is visible iff the label IS the live title.
  */
 export function visibleNativeStatus(

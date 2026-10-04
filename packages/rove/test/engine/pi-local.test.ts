@@ -58,13 +58,13 @@ describe("pi-family terminal titles", () => {
   it("strips the brand and the state so the tab is named after the session", () => {
     expect(stripEngineStatusPrefix("π ⠋ Fix the sidebar", "omp")).toBe("Fix the sidebar")
     expect(stripEngineStatusPrefix("π > Fix the sidebar", "omp")).toBe("Fix the sidebar")
-    expect(stripEngineStatusPrefix("π - Fix the sidebar - kobe", "pi")).toBe("Fix the sidebar - kobe")
+    expect(stripEngineStatusPrefix("π - Fix the sidebar - rove", "pi")).toBe("Fix the sidebar - rove")
   })
 
   it("gives the protocol sniffer one unambiguous glyph per family id", () => {
     expect(sniffProtocolFromTitle("π ⠋ Fix the sidebar")).toBe("omp")
     expect(sniffProtocolFromTitle("π > Fix the sidebar")).toBe("omp")
-    expect(sniffProtocolFromTitle("π - Fix the sidebar - kobe")).toBe("pi")
+    expect(sniffProtocolFromTitle("π - Fix the sidebar - rove")).toBe("pi")
   })
 })
 
@@ -118,7 +118,7 @@ describe("pi-family session store", () => {
 
   it("derives omp's home-, temp- and absolute-form directories", () => {
     // omp writes the home-relative form for a cwd under $HOME …
-    expect(sessionDirNamesForWorktree("omp", "/Users/me/i/kobe", deps)).toEqual(["-i-kobe", "--Users-me-i-kobe--"])
+    expect(sessionDirNamesForWorktree("omp", "/Users/me/i/rove", deps)).toEqual(["-i-rove", "--Users-me-i-rove--"])
     // … the temp-relative form under the (canonicalized) temp root …
     expect(sessionDirNamesForWorktree("omp", "/private/tmp/x", deps)).toEqual(["-tmp-x", "--private-tmp-x--"])
     // … and the absolute form for anything else, which is also what its own
@@ -135,19 +135,19 @@ describe("pi-family session store", () => {
 
   it("lists a worktree's sessions oldest-first and mtime-reads the newest", async () => {
     const files: Record<string, string[]> = {
-      "--Users-me-i-kobe--": ["2026-01-02_b.jsonl", "2026-01-01_a.jsonl"],
+      "--Users-me-i-rove--": ["2026-01-02_b.jsonl", "2026-01-01_a.jsonl"],
     }
     const withFiles: PiHistoryDeps = {
       ...deps,
       // Basename, never a "/"-split: the injected deps still build their paths
       // with `path.join`, which is a backslash on Windows — and this suite runs
       // there too (the split version answered `[]` under the Windows job).
-      readdir: async (dir) => (basename(dir) === "sessions" ? ["--Users-me-i-kobe--"] : (files[basename(dir)] ?? [])),
+      readdir: async (dir) => (basename(dir) === "sessions" ? ["--Users-me-i-rove--"] : (files[basename(dir)] ?? [])),
       stat: async (file) => ({ mtimeMs: file.endsWith("2026-01-02_b.jsonl") ? 200 : 100, isFile: true }),
     }
-    expect(await listSessionIdsForWorktree("pi", "/Users/me/i/kobe", withFiles)).toEqual(["a", "b"])
-    expect(await latestTranscriptMtimeForWorktree("pi", "/Users/me/i/kobe", withFiles)).toBe(200)
-    expect(await transcriptPath("pi", "b", "/Users/me/i/kobe", withFiles)).toContain("2026-01-02_b.jsonl")
+    expect(await listSessionIdsForWorktree("pi", "/Users/me/i/rove", withFiles)).toEqual(["a", "b"])
+    expect(await latestTranscriptMtimeForWorktree("pi", "/Users/me/i/rove", withFiles)).toBe(200)
+    expect(await transcriptPath("pi", "b", "/Users/me/i/rove", withFiles)).toContain("2026-01-02_b.jsonl")
   })
 })
 
@@ -229,7 +229,7 @@ describe("pi-family session store, default deps", () => {
     const previousAgentDir = process.env.PI_CODING_AGENT_DIR
     try {
       const agentDir = join(tmpHome, ".omp", "agent")
-      const sessionDir = join(agentDir, "sessions", "-i-kobe")
+      const sessionDir = join(agentDir, "sessions", "-i-rove")
       mkdirSync(sessionDir, { recursive: true })
       const file = join(sessionDir, "2026-01-01T00-00-00-000Z_aaaa-bbbb.jsonl")
       writeFileSync(
@@ -241,7 +241,7 @@ describe("pi-family session store, default deps", () => {
       // The worktree must EXIST: both CLIs encode the RESOLVED path, and on
       // macOS an unresolved `/var/…` never matches the `/private/var/…` the
       // store was written under.
-      const worktree = join(tmpHome, "i", "kobe")
+      const worktree = join(tmpHome, "i", "rove")
       mkdirSync(worktree, { recursive: true })
       expect(await listSessionIdsForWorktree("omp", worktree)).toEqual(["aaaa-bbbb"])
       expect(await transcriptPath("omp", "aaaa-bbbb", worktree)).toBe(file)

@@ -34,7 +34,7 @@ import { act, renderComponent } from "./harness"
 process.env.ROVE_FAKE_UPDATE = "99.0.0"
 
 const WT_ROW = {
-  repo: "/x/kobe",
+  repo: "/x/rove",
   path: "/x/wt/feature-a",
   branch: "feature-a",
   head: "abc1234",
@@ -47,7 +47,7 @@ const WT_ROW = {
   verdictReason: "fresh",
 }
 
-const SELECTED_TASK = { id: "t1", repo: "/x/kobe" } as unknown as Task
+const SELECTED_TASK = { id: "t1", repo: "/x/rove" } as unknown as Task
 
 /** Hoisted so `useSyncExternalStore` sees one stable store identity. */
 const ONLINE = createStateCell("online")
@@ -55,14 +55,14 @@ const ONLINE = createStateCell("online")
 function fakeOrchestrator(): RemoteOrchestrator {
   return {
     listWorktrees: async (opts?: { network?: boolean }) => [
-      { repo: "/x/kobe", worktrees: opts?.network === false ? [WT_ROW] : [WT_ROW] },
+      { repo: "/x/rove", worktrees: opts?.network === false ? [WT_ROW] : [WT_ROW] },
     ],
     listTasks: () => [SELECTED_TASK],
     connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations: [], keepsDaemonAlive: false }),
     automationRuns: async () => ({ runs: [] }),
-    listIssueRepos: async () => ["/x/kobe"],
-    listIssues: async () => ({ repoRoot: "/x/kobe", exists: true, nextId: 99, issues: [] }),
+    listIssueRepos: async () => ["/x/rove"],
+    listIssues: async () => ({ repoRoot: "/x/rove", exists: true, nextId: 99, issues: [] }),
     listWorkItems: async () => ({ items: [] }),
     activeTaskSignal: () => ({ get: () => null }),
   } as unknown as RemoteOrchestrator

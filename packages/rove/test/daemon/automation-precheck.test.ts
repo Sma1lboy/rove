@@ -72,7 +72,7 @@ describe("runAutomationPrecheck", () => {
   it("spawns the shell with -ilc, the same interactive login form engine tabs use", async () => {
     // A spy shell records the exact argv it was invoked with, so this pins the
     // flag contract rather than just "a shell ran".
-    const dir = mkdtempSync(join(tmpdir(), "kobe-precheck-spy-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-precheck-spy-"))
     const spy = join(dir, "spy.sh")
     const argsFile = join(dir, "args")
     writeFileSync(spy, `#!/bin/sh\n: > "${argsFile}"\nfor a in "$@"; do echo "$a" >> "${argsFile}"; done\nexit 0\n`)

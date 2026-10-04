@@ -38,7 +38,7 @@ let store: TaskIndexStore
 let orch: Orchestrator
 
 beforeEach(async () => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-prstatus-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-prstatus-"))
   store = new TaskIndexStore({ homeDir: path.join(tmpRoot, "home") })
   await store.load()
   orch = new Orchestrator({ store, worktrees: new GitWorktreeManager() })
@@ -56,7 +56,7 @@ async function makeTask(opts: { worktree?: string } = {}): Promise<string> {
   const task = await orch.createTask({ repo: "/repo" })
   // A backlog task has no branch until its worktree is materialized; stamp one
   // (plus a worktree path) so it clears the pr-pollable gate.
-  await store.update(task.id, { worktreePath: opts.worktree ?? `/wt/${task.id}`, branch: `kobe/test-${task.id}` })
+  await store.update(task.id, { worktreePath: opts.worktree ?? `/wt/${task.id}`, branch: `rove/test-${task.id}` })
   return task.id
 }
 
@@ -91,7 +91,7 @@ describe("isPrPollable", () => {
     id: toTaskId("t1"),
     title: "x",
     repo: "/repo",
-    branch: "kobe/x-1",
+    branch: "rove/x-1",
     worktreePath: "/wt/x",
     status: "backlog",
     createdAt: "2026-06-24T00:00:00.000Z",

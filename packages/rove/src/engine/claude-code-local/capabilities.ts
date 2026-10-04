@@ -1,7 +1,7 @@
 /**
  * Claude-code adapter capabilities.
  *
- * The single object kobe's neutral layers (orchestrator, TUI) consult
+ * The single object rove's neutral layers (orchestrator, TUI) consult
  * for anything vendor-specific about claude. See {@link EngineCapabilities}
  * for the contract. Claude needs no terminal-presentation adjustments.
  */

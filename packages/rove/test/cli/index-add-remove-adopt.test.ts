@@ -1,5 +1,5 @@
 /**
- * Behavioral tests for the `kobe add` / `kobe remove` / `kobe adopt`
+ * Behavioral tests for the `rove add` / `rove remove` / `rove adopt`
  * subcommands in `src/cli/index.ts` — the sibling of
  * `index-dispatch.test.ts` (same fresh-import + first-exit-throws
  * technique; see that file's header). Here the state/orchestrator/daemon
@@ -133,7 +133,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe("kobe add", () => {
+describe("rove add", () => {
   test("saves a git repo and reports the total", async () => {
     await runCli("add", "/repo")
     expect(fake.addSavedRepo).toHaveBeenCalledWith("/repo")
@@ -155,13 +155,13 @@ describe("kobe add", () => {
   })
 
   test("folds the repo's unlinked worktrees in as tasks (KOB-256)", async () => {
-    fake.adoptable = [{ path: "/repo/.claude/worktrees/lynx", branch: "kobe/lynx" }]
+    fake.adoptable = [{ path: "/repo/.claude/worktrees/lynx", branch: "rove/lynx" }]
     await runCli("add", "/repo")
     expect(fake.adoptWorktree).toHaveBeenCalledWith(
       expect.objectContaining({ worktreePath: "/repo/.claude/worktrees/lynx" }),
     )
     expect(logText()).toContain("importing")
-    expect(logText()).toContain("adopted kobe/lynx")
+    expect(logText()).toContain("adopted rove/lynx")
   })
 
   test("a worktree-scan failure is reported but does not fail the add", async () => {
@@ -172,7 +172,7 @@ describe("kobe add", () => {
   })
 
   test("adopts through a RUNNING daemon when one is up (live TUI updates)", async () => {
-    fake.adoptable = [{ path: "/repo/wt-a", branch: "kobe/a" }]
+    fake.adoptable = [{ path: "/repo/wt-a", branch: "rove/a" }]
     const request = vi.fn(async () => ({ task: { id: "d1", title: "via-daemon" } }))
     const close = vi.fn()
     fake.daemonClient = { request, close }
@@ -180,13 +180,13 @@ describe("kobe add", () => {
     expect(request).toHaveBeenCalledWith("worktree.adopt", {
       repo: "/repo",
       worktreePath: "/repo/wt-a",
-      branch: "kobe/a",
+      branch: "rove/a",
       vendor: "claude",
     })
     expect(close).toHaveBeenCalled()
     // The in-process orchestrator write path is NOT used when the daemon answers.
     expect(fake.adoptWorktree).not.toHaveBeenCalled()
-    expect(logText()).toContain("adopted kobe/a → task d1 (via-daemon)")
+    expect(logText()).toContain("adopted rove/a → task d1 (via-daemon)")
     // Main-task provisioning also rides the daemon so the live TUI's
     // PROJECTS list gains the repo immediately.
     expect(request).toHaveBeenCalledWith("task.ensureMain", { repo: "/repo" })
@@ -194,12 +194,12 @@ describe("kobe add", () => {
   })
 })
 
-describe("kobe remove", () => {
+describe("rove remove", () => {
   test("rejects an unknown flag with exit 2 and the usage text", async () => {
     await runCli("remove", "--frobnicate")
     expect(exitSpy).toHaveBeenCalledWith(2)
     expect(stderrText()).toContain('unknown flag "--frobnicate"')
-    expect(stderrText()).toContain("Usage: kobe remove")
+    expect(stderrText()).toContain("Usage: rove remove")
   })
 
   test("an exact saved entry (e.g. a garbage or ssh:// key) is removable verbatim", async () => {
@@ -220,7 +220,7 @@ describe("kobe remove", () => {
   // `remoteRepos` entry holding its keychain ref was dropped.
   describe("remote credentials", () => {
     const SSH = "ssh://dev@box"
-    const ref = { service: "kobe-remote-ssh", account: "dev@box" }
+    const ref = { service: "rove-remote-ssh", account: "dev@box" }
 
     function withPassword(): void {
       fake.savedRepos = [SSH]
@@ -287,7 +287,7 @@ describe("kobe remove", () => {
   })
 })
 
-describe("kobe adopt", () => {
+describe("rove adopt", () => {
   test("no glob → dry-run listing plus the how-to hint", async () => {
     fake.adoptable = [{ path: "/repo/wt-a", branch: "a", dirty: true, roveManaged: false }]
     await runCli("adopt")

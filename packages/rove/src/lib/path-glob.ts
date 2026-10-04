@@ -1,7 +1,7 @@
 /**
  * Tiny zero-dependency path glob matcher.
  *
- * Filters discovered worktree paths (`kobe adopt --glob`, the Adopt tab). Not
+ * Filters discovered worktree paths (`rove adopt --glob`, the Adopt tab). Not
  * `Bun.Glob`: `import "bun"` doesn't resolve under Vitest.
  *
  * Supported syntax (POSIX-ish, path-segment aware):

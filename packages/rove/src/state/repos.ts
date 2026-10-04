@@ -1,6 +1,6 @@
 /**
  * Saved-repos persistence: the non-reactive accessor (for CLI verbs like
- * `kobe add`) to the same `~/.config/rove/state.json` the TUI's React `KV`
+ * `rove add`) to the same `~/.config/rove/state.json` the TUI's React `KV`
  * wraps. `savedRepos` is a `string[]` of repo paths the user added.
  *
  * All writes go through `store.ts` read-merge-write transactions, so
@@ -58,7 +58,7 @@ export function resolveRepoRoot(absPath: string): string {
 
 /**
  * Whether `absPath` is inside a local git work tree. Rejects garbage like
- * `kobe add ,` before it becomes a saved project the TUI cannot delete. A
+ * `rove add ,` before it becomes a saved project the TUI cannot delete. A
  * missing or non-repo `cwd` gives a non-zero or null status → false. Remote
  * (`ssh://…`) keys are validated by the remote-add flow, not here.
  */

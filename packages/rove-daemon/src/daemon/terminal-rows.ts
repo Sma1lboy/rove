@@ -1,6 +1,6 @@
 /**
  * Raw PTY bytes → readable rows, shared by the death record's tail
- * (`pty-exit-store.ts`) and `read-output` (`kobe/src/cli/api/read-output-page.ts`).
+ * (`pty-exit-store.ts`) and `read-output` (`rove/src/cli/api/read-output-page.ts`).
  *
  * A full-screen TUI writes no `\n`: in the alternate screen it moves the
  * cursor with CSI (`ESC[1B`, `ESC[H`). Stripping escapes first joins the whole

@@ -53,7 +53,7 @@ export const PANE_VERB: VerbSpec = {
   ],
   handler: async (ctx) => {
     const client = daemonOf(ctx)
-    // `rename-compat.ts` mirrors ROVE_* onto ROVE_* at the CLI boundary, so
+    // `startup.ts` mirrors ROVE_* onto ROVE_* at the CLI boundary, so
     // this also honours $ROVE_TASK_ID.
     const taskId = ctx.args.str("task-id") ?? process.env.ROVE_TASK_ID ?? (await resolveActiveTaskId(client))
     if (!taskId) {

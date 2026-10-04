@@ -5,7 +5,7 @@
  * The daemon-side counter used to re-scan the lines itself with a laxer filter
  * (`line.length < 3` and no separator check) than `parsePorcelainRows`
  * (`line.length < 4` plus `line[2] === " "`). Both survived because the twelve
- * porcelain edge-case tests in `test/lib/git-parsers.test.ts` exercised kobe's
+ * porcelain edge-case tests in `test/lib/git-parsers.test.ts` exercised rove's
  * parser while the daemon's copy was the one actually feeding the UI. These
  * cover the two inputs where the two implementations disagreed, so a
  * re-introduced local scan fails here.

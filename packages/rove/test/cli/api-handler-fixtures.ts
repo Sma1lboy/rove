@@ -54,7 +54,7 @@ export function taskFixture(overrides: Record<string, unknown> = {}): Record<str
   return {
     id: "t1",
     title: "T",
-    branch: "kobe/t-t1",
+    branch: "rove/t-t1",
     worktreePath: "/wt/t1",
     vendor: "claude",
     repo: "/repo/x",

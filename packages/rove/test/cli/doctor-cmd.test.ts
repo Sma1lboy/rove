@@ -44,7 +44,7 @@ vi.mock("@sma1lboy/rove-daemon/client", () => ({
 }))
 
 vi.mock("../../src/lib/skill-install.ts", () => ({
-  skillInstallCommand: () => "kobe skill install",
+  skillInstallCommand: () => "rove skill install",
   roveSkillState: mocks.roveSkillState,
 }))
 
@@ -61,9 +61,9 @@ let logSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
   originalHome = process.env.ROVE_HOME_DIR
-  home = mkdtempSync(join(tmpdir(), "kobe-doctor-"))
+  home = mkdtempSync(join(tmpdir(), "rove-doctor-"))
   process.env.ROVE_HOME_DIR = home
-  mkdirSync(join(home, ".kobe"), { recursive: true })
+  mkdirSync(join(home, ".rove"), { recursive: true })
   mocks.request.mockReset()
   mocks.close.mockReset()
   mocks.inspectLegacyTmux.mockReset().mockResolvedValue({
@@ -141,7 +141,7 @@ describe("runDoctorSubcommand", () => {
     expect(output()).toContain("ring: 128 KB / 1.0 MB")
     expect(output()).toContain("parked screens: 100 KB")
     expect(output()).toContain("park wakes: 7 delta, 2 full replay fallback")
-    expect(output()).toContain("legacy tmux: tmux 3.6b — no sessions on `kobe`")
+    expect(output()).toContain("legacy tmux: tmux 3.6b — no sessions on `rove`")
     // No `version` in the reply: an older host, which is itself the finding.
     expect(output()).toContain("build: unknown — this host predates the version check")
   })
@@ -192,7 +192,7 @@ describe("runDoctorSubcommand", () => {
     // undoable and as killing every live session — to a user with nothing
     // wrong and nothing to lose yet.
     expect(output()).not.toContain("rove reset")
-    expect(output()).not.toContain("kobe reset")
+    expect(output()).not.toContain("rove reset")
     expect(output()).toContain("starts on demand")
     // …and nothing ran (no TTY → no confirmations → no executions).
     expect(output()).toContain("nothing was executed")
@@ -212,7 +212,7 @@ describe("runDoctorSubcommand", () => {
     await runDoctorSubcommand(["--fix"])
 
     expect(output()).toContain("WEDGED")
-    expect(output()).toMatch(/(rove|kobe) reset/)
+    expect(output()).toMatch(/(rove|rove) reset/)
     expect(output()).not.toContain("starts on demand")
     // The label must name the condition that actually fired. "unreachable or
     // not running" read as true either way, including in the cold case above

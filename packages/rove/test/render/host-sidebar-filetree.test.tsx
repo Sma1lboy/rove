@@ -76,7 +76,7 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
 }
 
 function withTempKvHome(): void {
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-panes-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-panes-"))
 }
 
 /** Mimic the workspace frame: a bounded ROW container so the sidebar column
@@ -116,7 +116,7 @@ describe("HostSidebar", () => {
 
 describe("FileTree", () => {
   it("lists a real worktree, opens a file with enter, and shows the live footer hint", async () => {
-    const repo = mkdtempSync(join(tmpdir(), "kobe-filetree-"))
+    const repo = mkdtempSync(join(tmpdir(), "rove-filetree-"))
     execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", {
       cwd: repo,
     })
@@ -156,7 +156,7 @@ describe("FileTree", () => {
 
 describe("HostFilesPane", () => {
   it("`a` on a file row delivers the worktree-relative path to the host's mention handler", async () => {
-    const repo = mkdtempSync(join(tmpdir(), "kobe-mention-"))
+    const repo = mkdtempSync(join(tmpdir(), "rove-mention-"))
     execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", {
       cwd: repo,
     })

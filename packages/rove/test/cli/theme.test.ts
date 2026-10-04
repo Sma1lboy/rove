@@ -1,5 +1,5 @@
 /**
- * `kobe theme <list|add|remove>` (`runThemeSubcommand`). Real filesystem
+ * `rove theme <list|add|remove>` (`runThemeSubcommand`). Real filesystem
  * under a per-test ROVE_HOME_DIR tempdir — `userThemesDir()` resolves off
  * that env var (roveStateDir() honours it), so list/add/remove exercise
  * real reads/writes. `fetch` is stubbed for the URL-source branch.
@@ -32,7 +32,7 @@ function themesDir(): string {
 
 beforeEach(() => {
   originalHome = process.env.ROVE_HOME_DIR
-  home = mkdtempSync(join(tmpdir(), "kobe-theme-"))
+  home = mkdtempSync(join(tmpdir(), "rove-theme-"))
   process.env.ROVE_HOME_DIR = home
 
   outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)

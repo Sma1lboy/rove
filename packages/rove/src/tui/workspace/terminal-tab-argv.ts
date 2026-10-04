@@ -101,7 +101,7 @@ export function engineTabSpawnFor(
     // No firstMessageDelivery override: a paste vendor's (kimi) message
     // returns as `launch.firstMessage` (its positional slot is a subcommand)
     // and the hosted backend pastes it post-spawn (`pastePromptWhenEngineUp`).
-    // tabId is exported into the launch env so `kobe hook` attributes
+    // tabId is exported into the launch env so `rove hook` attributes
     // activity to THIS tab; cwd can't (tabs share the worktree).
     tabId: ref ? "tab-1" : tab.id,
   })

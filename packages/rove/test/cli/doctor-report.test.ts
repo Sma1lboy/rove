@@ -46,7 +46,7 @@ describe("buildReportBundle", () => {
   })
 
   it("never leaks an unknown var's value through the assembled bundle", () => {
-    const text = buildReportBundle(["kobe doctor"], {
+    const text = buildReportBundle(["rove doctor"], {
       generatedAt: "2026-07-15T00:00:00.000Z",
       env: { ROVE_ANTHROPIC_API_KEY: "sk-ant-secret" },
       daemonLog: "",

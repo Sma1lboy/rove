@@ -6,7 +6,7 @@ function task(id: string, extra: Record<string, unknown> = {}) {
     id,
     title: `t-${id}`,
     repo: "/repo",
-    branch: `kobe/${id}`,
+    branch: `rove/${id}`,
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "active",

@@ -17,7 +17,7 @@ const theme = applyDisplayOverlay(resolveTheme(BUNDLED_THEMES[DEFAULT_THEME], "d
 
 test("the branch field wears the shared dialog label and well", async () => {
   const { frame, spans } = await renderComponent(
-    <BranchPickerDialogView currentBranch="feat/a" repo="/x/kobe" onSubmit={() => {}} onCancel={() => {}} />,
+    <BranchPickerDialogView currentBranch="feat/a" repo="/x/rove" onSubmit={() => {}} onCancel={() => {}} />,
     // 34+ rows: below that `FRAMED_DIALOG_MIN_ROWS` drops every well in the
     // dialog system, this one included.
     { width: 70, height: 36, providers: { dialog: true } },

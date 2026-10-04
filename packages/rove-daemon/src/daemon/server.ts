@@ -1,5 +1,5 @@
 /**
- * kobe daemon server: the single writer for the task index, plus the
+ * rove daemon server: the single writer for the task index, plus the
  * push-channel bus every attached TUI/pane client subscribes to. RPC
  * surface: hello / daemon.status / daemon.stop + handlers.ts + subscribe.
  */
@@ -14,7 +14,6 @@ import type { CellPixelSize } from "./channels-events.ts"
 import { type ClientState, broadcast, handleClientLine, writeFrame } from "./client-connection.ts"
 import { ClientWriter } from "./client-writer.ts"
 import { startDaemonCollectors } from "./collectors.ts"
-import { linkLegacyRuntimePath } from "./compat-link.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { createDirectLink } from "./direct-link.ts"
@@ -32,13 +31,7 @@ import { writeTextAtomic } from "./json-file.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
 import { LineReceiver } from "./line-receiver.ts"
 import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
-import {
-  defaultDaemonPidPath,
-  defaultDaemonSocketPath,
-  legacyDaemonPidPath,
-  legacyDaemonSocketPath,
-  resolveDaemonHomeDir,
-} from "./paths.ts"
+import { defaultDaemonPidPath, defaultDaemonSocketPath, resolveDaemonHomeDir } from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
 import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, serializeTask } from "./protocol.ts"
 import { startPtyExitWatch } from "./pty-exit-watch.ts"
@@ -105,7 +98,7 @@ async function startOwnedServer(
   // Helper panes (`role: "pane"`) are EXCLUDED: they outlive the front-end,
   // so counting them kept the daemon alive forever. CLI pokes never
   // subscribe. After the last gui leaves, a short grace then `stopSoon()`,
-  // which never touches task sessions (only `kobe reset` / `kobe
+  // which never touches task sessions (only `rove reset` / `rove
   // kill-sessions` do). Also gates collectors on `hasSubscribers()`. The
   // live `clients` set is the source of truth — no counter to drift.
   const lifetime = new DaemonLifetime({
@@ -364,10 +357,8 @@ async function startOwnedServer(
   await sockGuard.arm()
   // tmp+rename: a torn pidfile is EMPTY, and empty parses as pid 0.
   await writeTextAtomic(pidPath, `${process.pid}\n`)
-  // A pre-rename binary only knows `.kobe`; without these it starts a second
+  // A pre-rename binary only knows `.rove`; without these it starts a second
   // daemon on the same task index. See compat-link.ts.
-  await linkLegacyRuntimePath(socketPath, legacyDaemonSocketPath(homeDir))
-  await linkLegacyRuntimePath(pidPath, legacyDaemonPidPath(homeDir))
 
   async function stopSoon(reason: DaemonStopReason = "stop"): Promise<void> {
     if (lifetime.isStopping()) return

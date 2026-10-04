@@ -83,9 +83,9 @@ describe("daemon activity state", () => {
     registry.close()
   })
 
-  // Why: the reducer now has ONE definition (kobe-daemon activity-reduce;
-  // kobe/src/engine/hook-events.ts re-exports it). These two behaviors were
-  // paid for with production bugs and were only pinned on the kobe side —
+  // Why: the reducer now has ONE definition (rove-daemon activity-reduce;
+  // rove/src/engine/hook-events.ts re-exports it). These two behaviors were
+  // paid for with production bugs and were only pinned on the rove side —
   // this is the daemon path they actually ship on.
   it("a Stop on a COLD registry completes the turn — it outlived a daemon restart", () => {
     const bus = new DaemonEventBus()
@@ -179,7 +179,7 @@ describe("daemon activity state", () => {
 
   // Why: sessionId is the "which engine session is live here" resolver —
   // including user-typed `claude` (cwd-matched, no tabId). It must ride the
-  // payload, survive events that omit it (older `kobe hook` binaries), and
+  // payload, survive events that omit it (older `rove hook` binaries), and
   // replay to late subscribers, or session discovery silently regresses.
   it("stores the reporting session's identity, carries it forward, and replays it", () => {
     const bus = new DaemonEventBus()

@@ -14,8 +14,8 @@
  * reordered (a lost chunk corrupts client VT state) — server.ts marks them
  * critical for the ClientWriter.
  *
- * Runs in the standalone `kobe pty-host` process (`pty-server.ts`), not the
- * daemon, so `kobe daemon restart` never touches running sessions. An
+ * Runs in the standalone `rove pty-host` process (`pty-server.ts`), not the
+ * daemon, so `rove daemon restart` never touches running sessions. An
  * exited session keeps its scrollback until an explicit `kill` or the
  * task-deletion sweep (`sweepPtyHostSessions` in `client/pty-process.ts`).
  *

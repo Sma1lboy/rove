@@ -31,7 +31,7 @@ const servers: PtyHostServer[] = []
 const clients: RoveDaemonClient[] = []
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "kobe-pty-restart-"))
+  dir = mkdtempSync(join(tmpdir(), "rove-pty-restart-"))
   socketPath = join(dir, "pty.sock")
   pidPath = join(dir, "pty.pid")
   freezeDir = join(dir, "pty-sessions")

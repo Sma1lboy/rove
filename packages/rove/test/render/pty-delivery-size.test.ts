@@ -1,5 +1,5 @@
 /**
- * `kobe api send` delivery must not resize the pane's PTY.
+ * `rove api send` delivery must not resize the pane's PTY.
  *
  * The attached TUI opens a session at its real pane size; a headless delivery
  * client that reattaches via `pty.open {cols:80, rows:24}` hits the host's
@@ -76,7 +76,7 @@ describe("prompt delivery vs pane size", () => {
     const open = host.open("t1::tab-1", { cwd: process.cwd(), command: ["/bin/sh"], cols: 120, rows: 10 }, {}, sink)
     expect(open.alive).toBe(true)
 
-    // A peer `kobe api send` lands through the real delivery helper.
+    // A peer `rove api send` lands through the real delivery helper.
     // `/bin/sh` never announces DECSET 2004, so this also pins the fallback:
     // the readiness wait times out, delivery still happens, and it reports
     // `ready: false` rather than pretending the engine was confirmed reading.

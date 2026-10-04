@@ -65,7 +65,7 @@ function restoreRowColor(diff: DiffRenderable, row: DiffRow | undefined, index: 
   diff.setLineColor(index, config)
 }
 
-/** Inert when `review` is absent (standalone `kobe ops --preview`) or no diff is showing. */
+/** Inert when `review` is absent (standalone `rove ops --preview`) or no diff is showing. */
 export function useDiffReview(args: {
   review: DiffReviewApi | undefined
   relPath: string

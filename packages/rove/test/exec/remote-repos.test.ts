@@ -25,7 +25,7 @@ let home: string
 const ORIGINAL = process.env.ROVE_HOME_DIR
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "kobe-remote-"))
+  home = mkdtempSync(join(tmpdir(), "rove-remote-"))
   process.env.ROVE_HOME_DIR = home
 })
 
@@ -159,7 +159,7 @@ describe("execHostForRepo", () => {
   it("execHostForRepo and execHostForWorktreePath share the same cached instance", () => {
     const { key } = addRemoteRepo({ host: "box", user: "dev", basePath: "/srv/work", auth: { kind: "key" } })
     const byRepo = execHostForRepo(key)
-    const byPath = execHostForWorktreePath("/srv/work/kobe-task-1")
+    const byPath = execHostForWorktreePath("/srv/work/rove-task-1")
     expect(byPath).toBe(byRepo)
   })
 })
@@ -186,7 +186,7 @@ describe("worktreeUsable", () => {
   it("a path under a remote project's basePath is trusted without a local stat", () => {
     addRemoteRepo({ host: "box", user: "dev", basePath: "/srv/work", auth: { kind: "key" } })
     // Doesn't exist locally — must still be usable (it lives on the remote).
-    expect(worktreeUsable("/srv/work/kobe-task-1")).toBe(true)
+    expect(worktreeUsable("/srv/work/rove-task-1")).toBe(true)
   })
 })
 
@@ -194,7 +194,7 @@ describe("localSpawnCwd", () => {
   it("falls back to the local home dir for a remote worktree path", () => {
     addRemoteRepo({ host: "box", user: "dev", basePath: "/srv/work", auth: { kind: "key" } })
     // ROVE_HOME_DIR (= the temp home) overrides os.homedir() in env.homeDir().
-    expect(localSpawnCwd("/srv/work/kobe-task-1")).toBe(home)
+    expect(localSpawnCwd("/srv/work/rove-task-1")).toBe(home)
   })
 })
 
@@ -217,7 +217,7 @@ describe("remoteSpecFromConfig", () => {
       host: "box",
       user: "dev",
       basePath: "/srv",
-      auth: { kind: "password", keychainRef: { service: "kobe-remote-ssh", account: "dev@box" } },
+      auth: { kind: "password", keychainRef: { service: "rove-remote-ssh", account: "dev@box" } },
     })
     expect(spec.auth.kind).toBe("password")
     if (spec.auth.kind === "password") {

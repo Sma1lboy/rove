@@ -28,7 +28,7 @@ import { renderComponent } from "./harness"
 // The strip is OFF by default — the sidebar tree already lists
 // these tabs. This file is about what it DRAWS when asked for, so the mode is
 // pinned to `always` for every test here.
-process.env.ROVE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "kobe-tab-strip-boxed-"))
+process.env.ROVE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "rove-tab-strip-boxed-"))
 mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
 writeFileSync(
   join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),

@@ -11,7 +11,7 @@
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
-/** Mirrors kobe-daemon's `TaskActivityState`, so an `--until` typo is refused instead of waiting forever. */
+/** Mirrors rove-daemon's `TaskActivityState`, so an `--until` typo is refused instead of waiting forever. */
 const WATCHABLE_STATES = [
   "idle",
   "running",

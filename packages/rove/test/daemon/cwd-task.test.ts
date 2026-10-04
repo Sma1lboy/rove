@@ -13,7 +13,7 @@ let prevHome: string | undefined
 
 beforeEach(() => {
   prevHome = process.env.ROVE_HOME_DIR
-  process.env.ROVE_HOME_DIR = "/home/kobe-test"
+  process.env.ROVE_HOME_DIR = "/home/rove-test"
 })
 
 afterEach(() => {
@@ -123,7 +123,7 @@ describe("matchTaskByWorktreePath", () => {
 })
 
 describe("findAdoptableWorktree", () => {
-  // kobe tracks repo "/repo" (main task) + one sub-task worktree.
+  // rove tracks repo "/repo" (main task) + one sub-task worktree.
   const tasks = () => [
     { id: "main", repo: "/repo", worktreePath: "/repo" },
     { id: "sub", repo: "/repo", worktreePath: path.join(worktreeRootFor("/repo"), "known") },
@@ -141,11 +141,11 @@ describe("findAdoptableWorktree", () => {
 
   it.each([
     [
-      "legacy global ~/.kobe",
-      () => path.join(managedWorktreeRootsFor("/repo").find((r) => r.includes("/.kobe/worktrees/"))!, "external"),
+      "legacy global ~/.rove",
+      () => path.join(managedWorktreeRootsFor("/repo").find((r) => r.includes("/.rove/worktrees/"))!, "external"),
     ],
     ["repo-local .rove", () => `/repo/${REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH}/external`],
-    ["repo-local .kobe", () => "/repo/.kobe/worktrees/external"],
+    ["repo-local .rove", () => "/repo/.rove/worktrees/external"],
     ["legacy .claude/worktrees", () => "/repo/.claude/worktrees/external"],
   ])("still adopts worktrees under the %s root", (_label, wtOf) => {
     const wt = wtOf()
@@ -164,7 +164,7 @@ describe("findAdoptableWorktree", () => {
     const wt = path.join(worktreeRootFor("/repo"), "known")
     expect(findAdoptableWorktree(tasks(), wt)).toBeUndefined()
     expect(findAdoptableWorktree(tasks(), path.join(wt, "pkg"))).toBeUndefined()
-    expect(findAdoptableWorktree(tasks(), "/repo/.kobe/worktrees/local")).toBeUndefined()
+    expect(findAdoptableWorktree(tasks(), "/repo/.rove/worktrees/local")).toBeUndefined()
     expect(findAdoptableWorktree(tasks(), "/repo/.claude/worktrees/old")).toBeUndefined()
   })
 
@@ -174,7 +174,7 @@ describe("findAdoptableWorktree", () => {
   })
 
   it("ignores a sibling-prefix repo (/repo vs /repo-other)", () => {
-    expect(findAdoptableWorktree(tasks(), "/repo-other/.kobe/worktrees/x")).toBeUndefined()
+    expect(findAdoptableWorktree(tasks(), "/repo-other/.rove/worktrees/x")).toBeUndefined()
   })
 
   it("skips a remote-project repo key (ssh://…) without throwing", () => {
@@ -246,7 +246,7 @@ describe("findAdoptableWorktree honours the worktree.basePath override", () => {
     writeBase(path.join(home, "custom-worktrees"))
     const roots = managedWorktreeRootsFor("/repo")
     const defaultRoot = roots.find((r) => r.startsWith(path.join(home, ".rove", "worktrees")))!
-    const legacyRoot = roots.find((r) => r.startsWith(path.join(home, ".kobe", "worktrees")))!
+    const legacyRoot = roots.find((r) => r.startsWith(path.join(home, ".rove", "worktrees")))!
     for (const root of [defaultRoot, legacyRoot]) {
       const wt = path.join(root, "external")
       expect(findAdoptableWorktree([{ id: "main", repo: "/repo", worktreePath: "/repo" }], wt)).toEqual({

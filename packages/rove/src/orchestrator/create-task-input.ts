@@ -34,7 +34,7 @@ export interface CreateTaskInput {
   readonly tier?: string
   /** Fan-out round marker shared by all siblings of one fan-out call. */
   readonly groupId?: string
-  /** The kobe session (task + tab) dispatching this create, when one is. */
+  /** The rove session (task + tab) dispatching this create, when one is. */
   readonly dispatcher?: TaskDispatcher
   /** Marks this the standing session task of a routine: the
    *  sidebar folds it behind a count row instead of a loose task row. */

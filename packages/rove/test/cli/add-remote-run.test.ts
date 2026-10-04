@@ -1,5 +1,5 @@
 /**
- * `runAddRemote` (kobe add --remote) — sibling of add-remote.test.ts (which
+ * `runAddRemote` (rove add --remote) — sibling of add-remote.test.ts (which
  * covers parseRemoteFlags). RemoteExecHost + keychain are mocked (a real one
  * would SSH out / hit the macOS keychain); state.json lives under a
  * ROVE_HOME_DIR tempdir, so registration is asserted against the real
@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   isKeychainSupported: vi.fn(() => false),
   setKeychainPassword: vi.fn(() => true),
   getKeychainPassword: vi.fn(() => "pw"),
-  remoteKeychainRef: vi.fn((host: string, user: string, port?: number) => `kobe-ssh:${user}@${host}:${port ?? 22}`),
+  remoteKeychainRef: vi.fn((host: string, user: string, port?: number) => `rove-ssh:${user}@${host}:${port ?? 22}`),
   /** What the mocked hidden-password prompt answers. */
   passwordAnswer: "hunter2",
 }))
@@ -70,7 +70,7 @@ function enableRemoteProjects(): void {
 
 beforeEach(() => {
   originalHome = process.env.ROVE_HOME_DIR
-  home = mkdtempSync(join(tmpdir(), "kobe-add-remote-"))
+  home = mkdtempSync(join(tmpdir(), "rove-add-remote-"))
   process.env.ROVE_HOME_DIR = home
 
   mocks.run.mockReset().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" })
@@ -188,7 +188,7 @@ describe("runAddRemote password-auth registration", () => {
 
     await runAddRemote(["--host", "box", "--user", "dev", "--path", "/srv", "--password"])
 
-    const ref = "kobe-ssh:dev@box:22"
+    const ref = "rove-ssh:dev@box:22"
     expect(mocks.setKeychainPassword).toHaveBeenCalledWith(ref, "hunter2")
     // state.json carries the keychainRef, never the secret.
     const stored = getRemoteRepos()["ssh://dev@box/srv"]

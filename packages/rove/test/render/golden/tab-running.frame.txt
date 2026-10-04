@@ -1,7 +1,7 @@
 # sidebar frame: tab-running
 # a live turn — the glyph cell animates, so it is masked; everything AROUND it is still locked
 # 30x22, spinner glyphs masked as ~
-# GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
+# GENERATED — do not hand-edit. Regenerate: rove_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
 | New task                + n  |

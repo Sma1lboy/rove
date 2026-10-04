@@ -1,5 +1,5 @@
 /**
- * Pure paging/shaping half of `kobe api read-output`: the envelope + cursor
+ * Pure paging/shaping half of `rove api read-output`: the envelope + cursor
  * types, the deterministic page builders, and the terminal-text shaping.
  * No I/O: messages in, page out. Fetching and the verb live in
  * `read-output.ts`, which re-exports this module as the one import site.

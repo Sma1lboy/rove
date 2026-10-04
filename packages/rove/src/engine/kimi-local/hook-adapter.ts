@@ -37,7 +37,7 @@ import {
 } from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home.ts"
 
-/** Kimi hook event → normalized kobe verb. The ONE place Kimi event names live. */
+/** Kimi hook event → normalized rove verb. The ONE place Kimi event names live. */
 export const KIMI_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
   { event: "SessionStart", verb: "session-start" },
   { event: "UserPromptSubmit", verb: "turn-start" },
@@ -59,13 +59,13 @@ export const KIMI_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
   { event: "PostToolUseFailure", verb: "tool-failed" },
 ]
 
-/** The Kimi events kobe owns — exported for tests (event-ownership parity
+/** The Kimi events rove owns — exported for tests (event-ownership parity
  *  with `ROVE_CODEX_HOOK_EVENTS`). */
 export const ROVE_KIMI_HOOK_EVENTS: readonly string[] = [...new Set(KIMI_HOOK_EVENT_MAP.map((e) => e.event))]
 
 const BLOCK_BEGIN = "# >>> rove hooks"
 const BLOCK_END = "# <<< rove hooks"
-/** Bound each hook spawn — `kobe hook` is sub-second; Kimi's default is 30s. */
+/** Bound each hook spawn — `rove hook` is sub-second; Kimi's default is 30s. */
 const HOOK_TIMEOUT_SECONDS = 10
 
 /** Where Kimi reads its config (the hooks live inline in config.toml). */
@@ -73,7 +73,7 @@ export function kimiConfigPath(home: string = homedir()): string {
   return join(vendorConfigHome("kimi", { env: (k) => process.env[k], home: () => home }), "config.toml")
 }
 
-/** Render kobe's `[[hooks]]` block. `inv` is injectable for tests. */
+/** Render rove's `[[hooks]]` block. `inv` is injectable for tests. */
 export function renderKimiHookBlock(
   inv: readonly string[] = roveHookInvocation(),
   opts: { toolEvents?: boolean } = {},
@@ -95,7 +95,7 @@ export function renderKimiHookBlock(
   return lines.join("\n")
 }
 
-/** Drop kobe's marker block (inclusive) from a config, preserving everything
+/** Drop rove's marker block (inclusive) from a config, preserving everything
  *  else byte-for-byte. No block → the input unchanged. */
 export function removeKimiHookBlock(content: string): string {
   const lines = content.split("\n")
@@ -117,7 +117,7 @@ export function removeKimiHookBlock(content: string): string {
   return out.join("\n")
 }
 
-/** Pure merge: config text → config text with kobe's block replaced (install)
+/** Pure merge: config text → config text with rove's block replaced (install)
  *  or removed. The install appends at EOF — a `[[hooks]]` table there attaches
  *  to nothing above it, so the user's config is never re-parsed. */
 export function mergeKimiHooks(

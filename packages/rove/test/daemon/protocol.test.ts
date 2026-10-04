@@ -52,7 +52,7 @@ describe("isForeignDaemonHome", () => {
 
 describe("isDaemonVersionStale", () => {
   it("is stale when the daemon is OLDER than the client (the common upgrade case)", () => {
-    // User ran `npm i -g @sma1lboy/kobe@latest` (client v0.7.4) but the
+    // User ran `npm i -g @sma1lboy/rove@latest` (client v0.7.4) but the
     // long-lived daemon is still running v0.7.3 in memory.
     expect(isDaemonVersionStale("0.7.3", "0.7.4")).toBe(true)
   })

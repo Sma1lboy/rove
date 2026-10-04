@@ -26,10 +26,10 @@ describe("isMissingServer", () => {
     // tmux 3.5a (Apple Git build and Homebrew) when the socket file is absent
     // — every machine that never ran pre-v0.8 Rove. This is the one that was
     // missing, and it turned a healthy install into `✗ inspection failed`.
-    "error connecting to /private/tmp/tmux-501/kobe (No such file or directory)",
+    "error connecting to /private/tmp/tmux-501/rove (No such file or directory)",
     // Same wording when the socket is there but its server died.
-    "error connecting to /private/tmp/tmux-501/kobe (Connection refused)",
-    "no server running on /tmp/tmux-501/kobe",
+    "error connecting to /private/tmp/tmux-501/rove (Connection refused)",
+    "no server running on /tmp/tmux-501/rove",
     "failed to connect to server",
     "no sessions",
   ])("reads %j as an absent server", (stderr) => {
@@ -52,14 +52,14 @@ describe("legacy tmux process inspection", () => {
       spawn: vi.fn((argv: readonly string[]) =>
         argv.join(" ") === "tmux -V"
           ? result("tmux 3.5a\n")
-          : result("", 1, "error connecting to /private/tmp/tmux-501/kobe (No such file or directory)\n"),
+          : result("", 1, "error connecting to /private/tmp/tmux-501/rove (No such file or directory)\n"),
       ),
     })
 
     const report = await inspectLegacyTmux()
     expect(report.error).toBeNull()
     expect(report.sessions).toEqual([])
-    expect(legacyTmuxDoctorLines(report)).toEqual(["legacy tmux: tmux 3.5a — no sessions on `kobe`"])
+    expect(legacyTmuxDoctorLines(report)).toEqual(["legacy tmux: tmux 3.5a — no sessions on `rove`"])
   })
 
   it("surfaces list-sessions failures instead of reporting zero sessions", async () => {
@@ -83,7 +83,7 @@ describe("stopLegacyTmux", () => {
       events.push(argv.join(" "))
       const command = argv.join(" ")
       if (command === "tmux -V") return result("tmux 3.6b\n")
-      if (command.includes("list-sessions")) return result("kobe-a\nkobe-b\n")
+      if (command.includes("list-sessions")) return result("rove-a\nrove-b\n")
       if (command.includes("list-panes")) return result("501\n502\n")
       if (command === "ps -axo pid,pgid,rss,comm") {
         return result("PID PGID RSS COMM\n501 501 1024 bun\n502 502 1024 bun\n")
@@ -113,7 +113,7 @@ describe("stopLegacyTmux", () => {
     const spawn = vi.fn((argv: readonly string[]) => {
       const command = argv.join(" ")
       if (command === "tmux -V") return result("tmux 3.6b\n")
-      if (command.includes("list-sessions")) return result("kobe-a\n")
+      if (command.includes("list-sessions")) return result("rove-a\n")
       if (command.includes("list-panes")) return result("", 1, "permission denied")
       throw new Error(`unexpected command: ${command}`)
     })
@@ -132,7 +132,7 @@ describe("stopLegacyTmux", () => {
     const spawn = vi.fn((argv: readonly string[]) => {
       const command = argv.join(" ")
       if (command === "tmux -V") return result("tmux 3.6b\n")
-      if (command.includes("list-sessions")) return result("kobe-a\n")
+      if (command.includes("list-sessions")) return result("rove-a\n")
       if (command.includes("list-panes")) return result("501\n")
       if (command === "ps -axo pid,pgid,rss,comm") return result("PID PGID RSS COMM\n501 501 1024 bun\n")
       if (command.startsWith("ps -o pgid=")) return result("999\n")
@@ -157,7 +157,7 @@ describe("stopLegacyTmux", () => {
       if (command === "tmux -V") return result("tmux 3.6b\n")
       if (command.includes("list-sessions")) {
         listCalls++
-        return result("kobe-a\n")
+        return result("rove-a\n")
       }
       if (command.includes("list-panes")) return result("501\n")
       if (command === "ps -axo pid,pgid,rss,comm") return result("PID PGID RSS COMM\n501 501 1024 bun\n")

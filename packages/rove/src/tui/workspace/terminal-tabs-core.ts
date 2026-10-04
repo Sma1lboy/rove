@@ -183,7 +183,7 @@ export function setTabForkFrom(state: TabsState, id: string, sourceSessionId: st
 
 /**
  * Pin the RAW launch command on an engine tab (see `EngineTab.engineCommand`),
- * so the tab launches `command` while its `vendor` carries the protocol kobe
+ * so the tab launches `command` while its `vendor` carries the protocol rove
  * resolved for it. Set together with a vendor when the two differ — a custom
  * preset (`claudecpa`) launches by its own name but speaks the wrapped
  * engine's session verbs.

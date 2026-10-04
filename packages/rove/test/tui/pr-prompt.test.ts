@@ -36,7 +36,7 @@ describe("renderPRPrompt", () => {
 // fallbacks against a missing one.
 describe("buildPRPrompt (async git)", () => {
   function makeRepo(): string {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-pr-prompt-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-pr-prompt-"))
     execFileSync("git", ["init", "-q", "-b", "feature/x"], { cwd: dir })
     execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-q", "-m", "init"], {
       cwd: dir,
@@ -55,13 +55,13 @@ describe("buildPRPrompt (async git)", () => {
   })
 
   test("a missing worktree resolves to fallbacks instead of throwing", async () => {
-    const state = await gatherPRPromptState(join(tmpdir(), "kobe-pr-prompt-definitely-missing"))
+    const state = await gatherPRPromptState(join(tmpdir(), "rove-pr-prompt-definitely-missing"))
     expect(state).toEqual({ branch: "HEAD", targetBranch: "main", hasUpstream: false, dirtyCount: 0 })
   })
 })
 
 // The per-repo override moved to the canonical `.rove/` convention spelling
-// (matching `.rove/init.sh`), with `.kobe/` kept as a fallback so repos that
+// (matching `.rove/init.sh`), with `.rove/` kept as a fallback so repos that
 // already committed one are not silently dropped back to the default.
 describe("per-repo pr-instructions override", () => {
   function writeInstructions(dir: string, relDir: string, body: string): void {
@@ -75,15 +75,15 @@ describe("per-repo pr-instructions override", () => {
     await expect(buildPRPrompt(dir, STATE)).resolves.toBe("canonical template for feature/x")
   })
 
-  test("falls back to the legacy .kobe/pr-instructions.md", async () => {
+  test("falls back to the legacy .rove/pr-instructions.md", async () => {
     const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
-    writeInstructions(dir, ".kobe", "legacy template for {{branch}}")
+    writeInstructions(dir, ".rove", "legacy template for {{branch}}")
     await expect(buildPRPrompt(dir, STATE)).resolves.toBe("legacy template for feature/x")
   })
 
-  test(".rove wins over .kobe when a repo carries both", async () => {
+  test(".rove wins over .rove when a repo carries both", async () => {
     const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
-    writeInstructions(dir, ".kobe", "legacy")
+    writeInstructions(dir, ".rove", "legacy")
     writeInstructions(dir, ".rove", "canonical")
     await expect(buildPRPrompt(dir, STATE)).resolves.toBe("canonical")
   })
@@ -93,7 +93,7 @@ describe("per-repo pr-instructions override", () => {
   test("an empty .rove file does not shadow the legacy one", async () => {
     const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
     writeInstructions(dir, ".rove", "")
-    writeInstructions(dir, ".kobe", "legacy")
+    writeInstructions(dir, ".rove", "legacy")
     await expect(buildPRPrompt(dir, STATE)).resolves.toBe("legacy")
   })
 
@@ -103,7 +103,7 @@ describe("per-repo pr-instructions override", () => {
   test("a whitespace-only .rove file does not shadow the legacy one", async () => {
     const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
     writeInstructions(dir, ".rove", "\n   \n")
-    writeInstructions(dir, ".kobe", "legacy")
+    writeInstructions(dir, ".rove", "legacy")
     await expect(buildPRPrompt(dir, STATE)).resolves.toBe("legacy")
   })
 

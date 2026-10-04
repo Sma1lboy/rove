@@ -130,11 +130,11 @@ function KvSeed(props: { entries: readonly [string, unknown][]; children?: React
 }
 
 function withTempKvHome(): void {
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-hints-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-hints-"))
 }
 
 function withGuideKvHome(): void {
-  const home = mkdtempSync(join(tmpdir(), "kobe-hints-guide-"))
+  const home = mkdtempSync(join(tmpdir(), "rove-hints-guide-"))
   const configDir = join(home, ".config", "rove")
   mkdirSync(configDir, { recursive: true })
   writeFileSync(join(configDir, "state.json"), JSON.stringify({ [PREFIX_TAP_PRESENTATION_KEY]: "guide" }))

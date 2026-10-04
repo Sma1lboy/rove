@@ -32,7 +32,7 @@ describe("filetypeOf", () => {
 })
 
 function makeRepo(): string {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-preview-core-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-preview-core-"))
   execFileSync("git", ["init", "-q"], { cwd: dir })
   writeFileSync(join(dir, "a.ts"), "export const a = 1\n")
   execFileSync("git", ["add", "a.ts"], { cwd: dir })
@@ -378,7 +378,7 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
 // content is the honest answer — the standalone `rove ops --preview <file>`
 // is pointed at directories that are not repos at all.
 test("a preview outside any git repo still shows the file, not a git error", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-preview-norepo-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-preview-norepo-"))
   writeFileSync(join(dir, "note.txt"), "FIRST CONTENT\n")
   const data = await loadPreviewData(dir, "note.txt")
   if (data.kind !== "code") throw new Error(`expected code, got ${data.kind}`)

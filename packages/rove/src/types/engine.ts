@@ -78,7 +78,7 @@ export type EngineUsageSnapshot = {
   readonly cache_creation_input_tokens?: number
   /** Tokens currently in the session's context window, when known. */
   readonly context_tokens?: number
-  /** True when `context_tokens` is kobe-estimated rather than engine-reported. */
+  /** True when `context_tokens` is rove-estimated rather than engine-reported. */
   readonly context_tokens_approximate?: boolean
   /** Model context window, when known. */
   readonly context_window_tokens?: number

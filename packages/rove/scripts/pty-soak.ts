@@ -33,7 +33,7 @@ if (readRoveEnv("TERMINAL_BACKEND") && readRoveEnv("TERMINAL_BACKEND") !== "host
 const tabs = option("tabs", 50, 100)
 const cycles = option("cycles", 3, 20)
 const lines = option("lines", 1200, 5000)
-const home = mkdtempSync(join(tmpdir(), "kobe-pty-soak-"))
+const home = mkdtempSync(join(tmpdir(), "rove-pty-soak-"))
 setRoveEnv("HOME_DIR", home)
 setRoveEnv("SANDBOX_HOME_DIR", home)
 process.env.HOME = home

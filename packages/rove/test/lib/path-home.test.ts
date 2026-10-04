@@ -1,8 +1,8 @@
 /**
  * Unit tests for CLI `~` expansion.
  *
- * The CLI's path arguments (`kobe add ~/repo`, `kobe api --repo ~/repo`,
- * `kobe repo set --init-script-file ~/s.sh`, …) reach us verbatim when the
+ * The CLI's path arguments (`rove add ~/repo`, `rove api --repo ~/repo`,
+ * `rove repo set --init-script-file ~/s.sh`, …) reach us verbatim when the
  * `~` is quoted or forwarded from another tool. `expandTilde` turns a
  * leading `~` / `~/` into the (ROVE_HOME_DIR-aware) home directory so the
  * later `resolve(cwd, …)` can't produce a bogus `<cwd>/~/repo` path.
@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import { expandTilde } from "../../src/lib/path-home.ts"
 
 let prevHome: string | undefined
-const HOME = path.join(path.sep, "tmp", "kobe-home-fixture")
+const HOME = path.join(path.sep, "tmp", "rove-home-fixture")
 
 beforeEach(() => {
   prevHome = process.env.ROVE_HOME_DIR

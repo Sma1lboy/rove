@@ -1,5 +1,5 @@
 /**
- * Bridge daemon broadcasts (`kobe api notify`, tab open/close/rename,
+ * Bridge daemon broadcasts (`rove api notify`, tab open/close/rename,
  * prompts) into the host. Channels replay their last value on connect, so
  * every bridge dedupes on `at` (unique per publish) and drops replays older
  * than {@link STALE_NOTICE_MS}.

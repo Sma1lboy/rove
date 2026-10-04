@@ -39,7 +39,7 @@ async function sync(): Promise<Error | null> {
 }
 
 beforeEach(() => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-sync-base-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-sync-base-"))
   repo = path.join(tmpRoot, "repo")
   fs.mkdirSync(repo)
   gitOk(["init", "-b", "main"])

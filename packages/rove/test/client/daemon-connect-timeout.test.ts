@@ -2,7 +2,7 @@
  * The connect deadline on `RoveDaemonClient.openSocket`.
  *
  * `net.connect` has no connect timeout of its own, and the address the PTY
- * host listens on under Windows is a NAMED PIPE (`\\.\pipe\kobe-…`, see
+ * host listens on under Windows is a NAMED PIPE (`\\.\pipe\rove-…`, see
  * `daemon/paths.ts` `windowsPipePath`). A pipe whose instances are all taken
  * does not refuse the connect: libuv parks it in
  * `WaitNamedPipeW(name, 30000)` and retries for as long as it stays busy
@@ -44,7 +44,7 @@ vi.mock("node:net", async (importActual) => {
   }
 })
 
-const PIPE = "\\\\.\\pipe\\kobe-test-busy"
+const PIPE = "\\\\.\\pipe\\rove-test-busy"
 const clients: RoveDaemonClient[] = []
 
 const open = (path = PIPE): RoveDaemonClient => {

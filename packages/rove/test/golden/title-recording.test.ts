@@ -49,7 +49,7 @@ const tabOf = (state: TabsState, id: string): TerminalTab => {
 }
 
 describe("golden: title stream → recording → display", () => {
-  it("an engine's status stream records the NAME; the tree shows it beside kobe's own glyph", () => {
+  it("an engine's status stream records the NAME; the tree shows it beside rove's own glyph", () => {
     let state = initialTabs()
     state = recordTitle(state, "tab-1", "✳ 修复构建失败", "claude")
     expect(tabOf(state, "tab-1").lastTitle).toBe("修复构建失败")

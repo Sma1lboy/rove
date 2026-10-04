@@ -36,7 +36,7 @@ let tmpHome: string
 let originalHome: string | undefined
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-pty-hosted-fm-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-pty-hosted-fm-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
   mocks.paste.mockClear()

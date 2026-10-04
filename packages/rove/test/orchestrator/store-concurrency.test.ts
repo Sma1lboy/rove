@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { type TaskCreateInput, TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
 /**
- * Multi-process consistency for the task index. Two kobe instances (TUI +
+ * Multi-process consistency for the task index. Two rove instances (TUI +
  * daemon + CLI) write the SAME `~/.rove/tasks.json`. Without the lock +
  * read-merge-write, a save serializes the writer's WHOLE in-memory snapshot,
  * so process B silently clobbers the task process A just created (lost
@@ -17,7 +17,7 @@ describe("TaskIndexStore multi-process consistency", () => {
   let home: string
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kobe-store-concurrency-"))
+    home = await mkdtemp(join(tmpdir(), "rove-store-concurrency-"))
     await mkdir(join(home, ".rove"), { recursive: true })
   })
 
@@ -29,8 +29,8 @@ describe("TaskIndexStore multi-process consistency", () => {
     return {
       title,
       repo: "/repo",
-      branch: `kobe/${title}`,
-      worktreePath: `/repo/.kobe/worktrees/${title}`,
+      branch: `rove/${title}`,
+      worktreePath: `/repo/.rove/worktrees/${title}`,
       kind: "task",
       status: "backlog",
     }
@@ -46,7 +46,7 @@ describe("TaskIndexStore multi-process consistency", () => {
   }
 
   it("keeps both tasks when two processes create concurrently", async () => {
-    // Two independent stores on the SAME home = two kobe processes.
+    // Two independent stores on the SAME home = two rove processes.
     const procA = new TaskIndexStore({ homeDir: home })
     const procB = new TaskIndexStore({ homeDir: home })
     await procA.load()
@@ -113,7 +113,7 @@ describe("TaskIndexStore multi-process consistency", () => {
   })
 
   it("does not resurrect a legacy task after a peer creates the canonical index", async () => {
-    const legacyDir = join(home, ".kobe")
+    const legacyDir = join(home, ".rove")
     await mkdir(legacyDir, { recursive: true })
     const first = {
       ...input("first"),

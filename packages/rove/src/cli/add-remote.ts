@@ -1,5 +1,5 @@
 /**
- * `kobe add --remote …` — register an SSH-backed project under
+ * `rove add --remote …` — register an SSH-backed project under
  * `remoteRepos[ssh://user@host:port]` + `savedRepos`. Passwords are prompted
  * (never argv) into the OS keychain; only a `keychainRef` hits `state.json`.
  * A failed post-registration probe does NOT unregister (host may be down).
@@ -11,10 +11,10 @@ import { errorMessage } from "@/lib/error-message"
 import { remoteControlSocketPath } from "../env.ts"
 import { RemoteExecHost, type RemoteSpec } from "../exec/exec-host.ts"
 import { getKeychainPassword, isKeychainSupported, remoteKeychainRef, setKeychainPassword } from "../exec/keychain.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { addRemoteRepo, isRemoteProjectsEnabled } from "../state/repos.ts"
-import { activeCliName } from "./rename-compat.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 export interface ParsedFlags {
   host?: string

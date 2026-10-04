@@ -26,7 +26,7 @@ const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 const FIX = "bun scripts/gen-skill-api-flags.ts"
 
 const reference = () => readFileSync(REFERENCE_PATHS[0], "utf8")
-const skill = () => readFileSync(join(ROOT, ".agents", "skills", "kobe", "SKILL.md"), "utf8")
+const skill = () => readFileSync(join(ROOT, ".agents", "skills", "rove", "SKILL.md"), "utf8")
 
 describe("api-flags.md flag tables are generated from the verb specs", () => {
   test("no generated block is stale", () => {
@@ -86,9 +86,9 @@ describe("the error-code table names codes the source throws", () => {
     // instead of flattening everything to RPC_ERROR), so a documented code
     // can just as well be a daemon-side literal as a CLI one.
     const source = [
-      join(ROOT, "packages", "kobe", "src", "cli"),
-      join(ROOT, "packages", "kobe", "src", "orchestrator"),
-      join(ROOT, "packages", "kobe-daemon", "src", "daemon"),
+      join(ROOT, "packages", "rove", "src", "cli"),
+      join(ROOT, "packages", "rove", "src", "orchestrator"),
+      join(ROOT, "packages", "rove-daemon", "src", "daemon"),
     ]
       .map(readTsSources)
       .join("\n")

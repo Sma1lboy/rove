@@ -12,7 +12,7 @@
  *     three-digit OCTAL escape per BYTE (`\303\274` = the UTF-8 bytes of `ü`),
  *     so octal runs must be decoded as bytes, then UTF-8 decoded.
  *
- * `unquoteGitPath` is shared with kobe's numstat parser (`lib/git-parsers.ts`)
+ * `unquoteGitPath` is shared with rove's numstat parser (`lib/git-parsers.ts`)
  * so both formats unquote to one path and numstat counts join porcelain rows.
  */
 

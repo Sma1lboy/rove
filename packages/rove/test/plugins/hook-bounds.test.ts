@@ -33,7 +33,7 @@ async function waitFor(predicate: () => boolean, ms = 10_000): Promise<void> {
 
 /** A registry with one linked, enabled plugin at `root`. */
 function register(home: string, id: string, root: string): void {
-  mkdirSync(join(home, ".kobe"), { recursive: true })
+  mkdirSync(join(home, ".rove"), { recursive: true })
   savePluginRegistry(
     { plugins: [{ id, source: { kind: "link" }, root, enabled: true, version: "0.1.0", installedAt: 1 }] },
     home,
@@ -94,8 +94,8 @@ command = ["sh", "-c", "sleep 60 </dev/null & printf %s \\"$!\\" > grandchild.pi
 `
 
   it("kills a hanging hook and its whole process group, and logs it while it runs", async () => {
-    const home = tmp("kobe-hang-home-")
-    const root = tmp("kobe-hang-root-")
+    const home = tmp("rove-hang-home-")
+    const root = tmp("rove-hang-root-")
     writeFileSync(join(root, "rove-plugin.toml"), HANGING)
     register(home, "example.hang", root)
 
@@ -103,7 +103,7 @@ command = ["sh", "-c", "sleep 60 </dev/null & printf %s \\"$!\\" > grandchild.pi
     const host = new PluginHost({
       homeDir: home,
       socketPath: "/tmp/fake.sock",
-      binPath: "kobe",
+      binPath: "rove",
       log: (l) => lines.push(l),
     })
     host.start()
@@ -129,15 +129,15 @@ command = ["sh", "-c", "sleep 60 </dev/null & printf %s \\"$!\\" > grandchild.pi
   })
 
   it("stop() reaps a hook still running, instead of waiting out its deadline", async () => {
-    const home = tmp("kobe-reap-home-")
-    const root = tmp("kobe-reap-root-")
+    const home = tmp("rove-reap-home-")
+    const root = tmp("rove-reap-root-")
     writeFileSync(
       join(root, "rove-plugin.toml"),
       HANGING.replace("timeout_ms = 900", "timeout_ms = 120000").replace('id = "example.hang"', 'id = "example.reap"'),
     )
     register(home, "example.reap", root)
 
-    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "kobe" })
+    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "rove" })
     host.start()
     host.handleChannel(snapshotEvent(["a"]))
     host.handleChannel(snapshotEvent(["a", "b"]))
@@ -181,12 +181,12 @@ command = ["sh", "-c", "printf teardown > teardown.txt"]
   }
 
   it("applies a manifest edit without a second `plugin link`", async () => {
-    const home = tmp("kobe-edit-home-")
-    const root = tmp("kobe-edit-root-")
+    const home = tmp("rove-edit-home-")
+    const root = tmp("rove-edit-root-")
     writeFileSync(join(root, "rove-plugin.toml"), BASE)
     register(home, "example.edit", root)
 
-    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "kobe" })
+    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "rove" })
     host.start()
     try {
       // The documented dev loop is "edit the manifest, watch the hook fire".
@@ -206,8 +206,8 @@ command = ["sh", "-c", "printf teardown > teardown.txt"]
   })
 
   it("does not fire plugin.disabled when the manifest merely stops parsing", async () => {
-    const home = tmp("kobe-typo-home-")
-    const root = tmp("kobe-typo-root-")
+    const home = tmp("rove-typo-home-")
+    const root = tmp("rove-typo-root-")
     writeFileSync(join(root, "rove-plugin.toml"), BASE)
     register(home, "example.edit", root)
 
@@ -215,7 +215,7 @@ command = ["sh", "-c", "printf teardown > teardown.txt"]
     const host = new PluginHost({
       homeDir: home,
       socketPath: "/tmp/fake.sock",
-      binPath: "kobe",
+      binPath: "rove",
       log: (l) => lines.push(l),
     })
     host.start()

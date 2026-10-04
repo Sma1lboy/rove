@@ -1,5 +1,5 @@
 /**
- * `kobe api inspect` — hermetic offline run. No daemon, no PTY host: the
+ * `rove api inspect` — hermetic offline run. No daemon, no PTY host: the
  * daemon/sessions sections must degrade to null (an honest "couldn't look",
  * never an error), while the offline sections still answer — the persisted
  * tab snapshots from state.json and the durable session
@@ -19,7 +19,7 @@ const saved: Record<string, string | undefined> = {}
 const ENV_KEYS = ["HOME", "ROVE_HOME_DIR", "ROVE_DAEMON_SOCKET_PATH", "ROVE_PTY_SOCKET_PATH"] as const
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "kobe-inspect-"))
+  home = mkdtempSync(join(tmpdir(), "rove-inspect-"))
   for (const key of ENV_KEYS) saved[key] = process.env[key]
   process.env.HOME = home
   process.env.ROVE_HOME_DIR = home
@@ -50,7 +50,7 @@ function seedHome(): void {
     }),
     "utf8",
   )
-  // Canonical: the PTY host moves this out of `.kobe` at its first boot.
+  // Canonical: the PTY host moves this out of `.rove` at its first boot.
   mkdirSync(join(home, ".rove"), { recursive: true })
   writeFileSync(
     join(home, ".rove", "pty-exits.json"),
@@ -83,7 +83,7 @@ type InspectResult = {
   tabs: Record<string, { tabs: Array<{ id: string; lastTitle: string | null }> }>
 }
 
-describe("kobe api inspect (offline)", () => {
+describe("rove api inspect (offline)", () => {
   it("degrades daemon/sessions to null and reads tabs + death records from disk", async () => {
     seedHome()
     const res = (await invokeVerb("inspect", [], { client: null })) as InspectResult

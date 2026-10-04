@@ -134,7 +134,7 @@ describe("PtyHost driver seam", () => {
   test("escalates to SIGKILL and still finishes when the child never reports exiting", async () => {
     // The node-pty driver's `exited` settles only when ConPTY delivers onExit.
     // An unbounded await here hangs killAll(), and with it the host's
-    // shutdown and `kobe reset`.
+    // shutdown and `rove reset`.
     const rec = recordingDriver()
     const host = new PtyHost({ driver: rec.driver })
     host.open("t::tab-1", { cwd: "/wt", command: ["bash"], cols: 80, rows: 24 }, {}, () => {})

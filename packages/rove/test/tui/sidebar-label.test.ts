@@ -5,7 +5,7 @@ import { spacedTitle, truncateTitle } from "../../src/tui/panes/sidebar/labels"
 
 describe("sidebar row labels", () => {
   it("keeps the glyph-to-title spacer inside the label", () => {
-    expect(spacedTitle("kobe", 12)).toBe(" kobe")
+    expect(spacedTitle("rove", 12)).toBe(" rove")
   })
 
   it("preserves the spacer when the title is ellipsised", () => {

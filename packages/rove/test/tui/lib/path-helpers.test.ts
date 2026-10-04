@@ -1,7 +1,7 @@
 /**
  * Unit tests for `src/tui/lib/path-helpers.ts` — the path/dir
  * suggestion plumbing behind the new-task dialog's browse-mode picker
- * and `kobe quick-task`'s repo resolution.
+ * and `rove quick-task`'s repo resolution.
  *
  * Why these matter: this module was split out of the dialog's state.ts
  * junk drawer; it's now a shared lib, so regressions here break two

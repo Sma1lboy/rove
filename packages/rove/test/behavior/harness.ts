@@ -36,7 +36,7 @@ export interface BehaviorEnv {
 export function requireDistBuild(): void {
   if (!existsSync(DIST_ROVE_CLI) || !existsSync(DIST_ROVE_CLI)) {
     throw new Error(
-      "behavior suite needs the built rove entry and kobe compatibility alias under dist/cli — run `bun run build` first",
+      "behavior suite needs the built rove entry and rove compatibility alias under dist/cli — run `bun run build` first",
     )
   }
 }
@@ -58,7 +58,7 @@ export async function makeBehaviorEnv(): Promise<BehaviorEnv> {
   // Resolved, because on macOS `tmpdir()` is the `/var` symlink to
   // `/private/var`. Rove reports the real path, so an unresolved home makes
   // every path a test compares against Rove's output differ by that prefix.
-  const home = await realpath(await mkdtemp(join(tmpdir(), "kobe-behavior-")))
+  const home = await realpath(await mkdtemp(join(tmpdir(), "rove-behavior-")))
   const bin = join(home, "bin")
   const xdgConfig = join(home, ".config")
   const xdgData = join(home, ".local", "share")
@@ -71,8 +71,8 @@ export async function makeBehaviorEnv(): Promise<BehaviorEnv> {
 
   await writeFile(join(bin, "rove"), `#!/bin/sh\nexec bun ${DIST_ROVE_CLI} "$@"\n`)
   await chmod(join(bin, "rove"), 0o755)
-  await writeFile(join(bin, "kobe"), `#!/bin/sh\nexec bun ${DIST_ROVE_CLI} "$@"\n`)
-  await chmod(join(bin, "kobe"), 0o755)
+  await writeFile(join(bin, "rove"), `#!/bin/sh\nexec bun ${DIST_ROVE_CLI} "$@"\n`)
+  await chmod(join(bin, "rove"), 0o755)
   // The idle loop must keep the shim's OWN name in `ps`. `exec sleep 600`
   // replaced the process image, so the tab's tree read as `sleep` with no
   // `claude` anywhere — and the delivery foreground gate (engineProcessIn)
@@ -145,7 +145,6 @@ export function runRove(args: readonly string[], env: BehaviorEnv, opts?: { inpu
   })
   return { code: result.status ?? -1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" }
 }
-
 
 export async function makeScratchRepo(env: BehaviorEnv): Promise<string> {
   const repo = join(env.home, "scratch-repo")

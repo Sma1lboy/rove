@@ -27,12 +27,12 @@ mkdir -p "$TARGET"
 cd "$TARGET"
 
 git init --quiet --initial-branch=main
-git config user.email "harness@kobe.test"
-git config user.name "kobe harness"
+git config user.email "harness@rove.test"
+git config user.name "rove harness"
 git config commit.gpgsign false
 
 cat > README.md <<'EOF'
-# kobe behavior fixture
+# rove behavior fixture
 
 Tiny git repo created by `test/behavior/fixtures/repo-init.sh`. Used by
 behavior tests that need a real working copy to spawn worktrees from.

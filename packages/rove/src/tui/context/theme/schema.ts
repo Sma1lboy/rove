@@ -41,7 +41,7 @@ export function isHex(s: string): boolean {
   return HEX_RE.test(s)
 }
 
-/** The one-line `reason` feeds the disk loader's `console.warn` and `kobe theme add`'s error. */
+/** The one-line `reason` feeds the disk loader's `console.warn` and `rove theme add`'s error. */
 export function validateTheme(value: unknown): ValidateResult {
   if (!isPlainObject(value)) {
     return { ok: false, reason: "theme must be a JSON object at the top level" }

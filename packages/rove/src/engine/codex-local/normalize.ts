@@ -1,5 +1,5 @@
 /**
- * Codex `response_item` content → kobe neutral {@link ContentBlock}[].
+ * Codex `response_item` content → rove neutral {@link ContentBlock}[].
  *
  * Codex's on-disk shape (rollout JSONL):
  *   - { type: "input_text",  text: "..." }  — user-side text

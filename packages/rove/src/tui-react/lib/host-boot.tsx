@@ -159,7 +159,7 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
   applyUserKeybindings()
   for (const { name, theme } of loadUserThemes()) addTheme(name, theme)
 
-  // Validate against the just-populated registry: `kobe theme add` themes count.
+  // Validate against the just-populated registry: `rove theme add` themes count.
   const prefs = readPersistedUiPrefs(FALLBACK_THEME, hasTheme)
   // Seed before render so the first frame has no transparent/accent flash.
   applyUiPrefs(themeTarget, {

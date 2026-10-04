@@ -116,11 +116,11 @@ describe("claude latestTranscriptMtimeForWorktree", () => {
     // Claude encodes the worktree cwd as the projects subdir name
     // (`/`→`-`), and its lister reads ~/.claude/projects. Point HOME at
     // a temp dir and build that layout for a fake worktree path.
-    const home = await mkdtemp(path.join(tmpdir(), "kobe-claude-mtime-"))
+    const home = await mkdtemp(path.join(tmpdir(), "rove-claude-mtime-"))
     const prevHome = process.env.HOME
     process.env.HOME = home
     try {
-      const worktree = "/tmp/kobe-fake-wt"
+      const worktree = "/tmp/rove-fake-wt"
       const encoded = worktree.replace(/\//g, "-")
       const projDir = path.join(home, ".claude", "projects", encoded)
       const { mkdir } = await import("node:fs/promises")

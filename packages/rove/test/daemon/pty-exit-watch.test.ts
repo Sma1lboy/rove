@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from "vitest"
 
 const dirs: string[] = []
 function tmp(): string {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-pty-exit-watch-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-pty-exit-watch-"))
   dirs.push(dir)
   return dir
 }

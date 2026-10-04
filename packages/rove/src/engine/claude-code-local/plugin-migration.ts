@@ -39,7 +39,7 @@ export function isRovePluginEnabled(settingsFilePath: string = claudeSettingsPat
 
 /** What the migration gate found — each entry is a double-registration risk. */
 export interface MigrationFindings {
-  /** settings.json still carries kobe's activity/worktree-watch hook groups. */
+  /** settings.json still carries rove's activity/worktree-watch hook groups. */
   readonly legacyHooks: boolean
   /** Pre-plugin skill directories Claude Code would load alongside the plugin's copy. */
   readonly legacySkillDirs: readonly string[]
@@ -52,7 +52,7 @@ export function detectLegacyInstalls(opts: { settingsFilePath?: string; home?: s
   // "worktree-created" isn't an activity verb, so the watch hook needs its own check.
   const legacyHooks =
     settings !== null && (hasRoveActivityHooks(settings, CLAUDE_HOOK_EVENT_MAP) || settingsHasWorktreeWatch(settings))
-  // Not just `.claude/skills/{rove,kobe}`: the agent-skills CLI writes into
+  // Not just `.claude/skills/{rove,rove}`: the agent-skills CLI writes into
   // `.agents/skills` and symlinks agent dirs at it.
   const legacySkillDirs = installedSkillDirs(home)
   return { legacyHooks, legacySkillDirs }

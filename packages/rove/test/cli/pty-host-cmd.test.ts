@@ -1,5 +1,5 @@
 /**
- * `kobe pty-host` boot (`runPtyHostSubcommand`).
+ * `rove pty-host` boot (`runPtyHostSubcommand`).
  *
  * The one thing pinned here is log rotation. `pty.log` is stdout/stderr
  * inherited as an append fd from the parent's `spawnDetachedDaemon`, so boot
@@ -38,7 +38,7 @@ let logPath: string
 const prevHome = process.env.ROVE_HOME_DIR
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "kobe-pty-host-cmd-"))
+  home = mkdtempSync(join(tmpdir(), "rove-pty-host-cmd-"))
   process.env.ROVE_HOME_DIR = home
   logPath = defaultPtyHostLogPath(home)
   mkdirSync(join(logPath, ".."), { recursive: true })

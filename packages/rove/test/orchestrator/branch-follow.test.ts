@@ -1,6 +1,6 @@
 /**
  * Branch-follows-title (KOB). When a task's branch is still the
- * placeholder-derived default (`new-task`, or a legacy `rove/`/`kobe/` spelling), renaming the title
+ * placeholder-derived default (`new-task`, or a legacy `rove/`/`rove/` spelling), renaming the title
  * — including the auto-name from the first prompt — renames the real git
  * branch in lockstep. A manually-set branch, or a branch derived from a
  * non-placeholder title, is never clobbered. Real git + real store on
@@ -25,7 +25,7 @@ let prevHome: string | undefined
 
 beforeEach(async () => {
   prevHome = process.env.ROVE_HOME_DIR
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-branchfollow-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-branchfollow-"))
   process.env.ROVE_HOME_DIR = path.join(tmpRoot, "home")
   repo = path.join(tmpRoot, "repo")
   const r = spawnSync("bash", [REPO_INIT, repo], { encoding: "utf8" })
@@ -76,7 +76,7 @@ describe("branch follows title", () => {
   test("renames a pre-Rove placeholder branch when its first title is set", async () => {
     const task = await orch.createTask({ repo })
     await orch.ensureWorktree(task.id)
-    const legacyPlaceholder = `kobe/new-task-${task.id.slice(-6).toLowerCase()}`
+    const legacyPlaceholder = `rove/new-task-${task.id.slice(-6).toLowerCase()}`
     await orch.setBranch(task.id, legacyPlaceholder)
 
     await orch.setTitle(task.id, "Fix migrated task")

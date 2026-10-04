@@ -1,3 +1,4 @@
+import { preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 /**
  * Unit tests for daemon socket / pid path resolution.
  *
@@ -10,20 +11,16 @@
 
 import {
   existsSync,
-  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  readlinkSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { defaultAttentionInboxPath } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
 import { defaultAutomationsPath } from "@sma1lboy/rove-daemon/daemon/automations-store"
-import { linkLegacyRuntimePath } from "@sma1lboy/rove-daemon/daemon/compat-link"
 import { defaultIssuesStorePath } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { defaultKeybindingsPath } from "@sma1lboy/rove-daemon/daemon/keybindings-watcher"
 import { defaultNotesStorePath } from "@sma1lboy/rove-daemon/daemon/notes-store"
@@ -37,7 +34,6 @@ import {
   defaultPtyHostPidPath,
   defaultPtyHostSocketPath,
   fitSocketPath,
-  legacyDaemonSocketPath,
 } from "@sma1lboy/rove-daemon/daemon/paths"
 import { migrateLegacyPtyHostData } from "@sma1lboy/rove-daemon/daemon/pty-data-migration"
 import { defaultUiPrefsStatePath } from "@sma1lboy/rove-daemon/daemon/ui-prefs-watcher"
@@ -83,8 +79,8 @@ describe("defaultDaemonSocketPath", () => {
   test("ROVE_DAEMON_SOCKET_PATH override wins over every derived path", () => {
     process.env.ROVE_HOME_DIR = "/tmp/from-env"
     process.env.XDG_RUNTIME_DIR = "/run/user/1000"
-    process.env.ROVE_DAEMON_SOCKET_PATH = "/tmp/kobe-owned.sock"
-    expect(defaultDaemonSocketPath()).toBe("/tmp/kobe-owned.sock")
+    process.env.ROVE_DAEMON_SOCKET_PATH = "/tmp/rove-owned.sock"
+    expect(defaultDaemonSocketPath()).toBe("/tmp/rove-owned.sock")
   })
 
   test("caller-supplied homeDir argument wins over XDG_RUNTIME_DIR", () => {
@@ -100,7 +96,7 @@ describe("defaultDaemonSocketPath", () => {
 
   test("falls back to XDG_RUNTIME_DIR when no home override is set", () => {
     process.env.XDG_RUNTIME_DIR = "/run/user/1000"
-    expect(defaultDaemonSocketPath()).toBe("/run/user/1000/kobe.sock")
+    expect(defaultDaemonSocketPath()).toBe("/run/user/1000/rove.sock")
   })
 })
 
@@ -120,8 +116,8 @@ describe("ROVE_HOME_DIR compatibility state matrix", () => {
    * because the escape is invisible until someone's sandbox run scribbles on
    * their real `~/.rove`. ADD AN ENTRY when you add a persisted path.
    *
-   * `taskIndex` reaches through the kobe package's `roveStateDir()` rather
-   * than a kobe-daemon `default*Path` — which is exactly why it was missing,
+   * `taskIndex` reaches through the rove package's `roveStateDir()` rather
+   * than a rove-daemon `default*Path` — which is exactly why it was missing,
    * and why it is spelled out here instead of left to the daemon-side group.
    */
   test("every path is canonical once nothing legacy is live", () => {
@@ -175,14 +171,14 @@ describe("fitSocketPath — sun_path length fallback", () => {
   // 108 on Linux. Worktree-based dev:sandbox paths can easily blow
   // past that; without the fallback `listen()` fails silently.
 
-  test("falls back to $TMPDIR/kobe-<homeTag>-<role>.sock when natural path is too long", () => {
+  test("falls back to $TMPDIR/rove-<homeTag>-<role>.sock when natural path is too long", () => {
     const longHome = "/Users/me/i/rove/.claude/worktrees/01KRAHRS48X42YK9TRJ2VE5X1F/packages/rove/.dev-sandbox/home"
     const natural = `${longHome}/.rove/daemon.sock`
     const fitted = fitSocketPath(natural, longHome, "daemon")
     expect(fitted).not.toBe(natural)
     expect(fitted.length).toBeLessThanOrEqual(100)
     expect(fitted.startsWith(tmpdir())).toBe(true)
-    expect(fitted).toMatch(/kobe-[0-9a-f]{8}-daemon\.sock$/)
+    expect(fitted).toMatch(/rove-[0-9a-f]{8}-daemon\.sock$/)
   })
 
   test("daemon socket falls back automatically through defaultDaemonSocketPath", () => {
@@ -198,7 +194,7 @@ describe("live legacy runtime (the rename's one hazard)", () => {
 
   beforeEach(() => {
     home = mkdtempSync(join(tmpdir(), "rove-runtime-"))
-    mkdirSync(join(home, ".kobe"), { recursive: true })
+    mkdirSync(join(home, `${preRenameStateDir("")}`), { recursive: true })
   })
   afterEach(() => {
     rmSync(home, { recursive: true, force: true })
@@ -206,100 +202,54 @@ describe("live legacy runtime (the rename's one hazard)", () => {
 
   test("a legacy socket whose process is ALIVE stays the address", () => {
     // Switching a running host's address would orphan every engine tab it owns.
-    writeFileSync(join(home, ".kobe", "pty.sock"), "")
-    writeFileSync(join(home, ".kobe", "pty.pid"), `${process.pid}\n`)
-    expect(defaultPtyHostSocketPath(home)).toBe(join(home, ".kobe", "pty.sock"))
-    expect(defaultPtyHostPidPath(home)).toBe(join(home, ".kobe", "pty.pid"))
+    writeFileSync(join(home, `${preRenameStateDir("")}`, "pty.sock"), "")
+    writeFileSync(join(home, `${preRenameStateDir("")}`, "pty.pid"), `${process.pid}\n`)
+    expect(defaultPtyHostSocketPath(home)).toBe(join(home, ".rove", "pty.sock"))
+    expect(defaultPtyHostPidPath(home)).toBe(join(home, `${preRenameStateDir("")}`, "pty.pid"))
   })
 
   test("a legacy socket left by a dead process is stepped over", () => {
-    writeFileSync(join(home, ".kobe", "daemon.sock"), "")
-    writeFileSync(join(home, ".kobe", "daemon.pid"), "2\n") // pid 2: never ours
+    writeFileSync(join(home, `${preRenameStateDir("")}`, "daemon.sock"), "")
+    writeFileSync(join(home, `${preRenameStateDir("")}`, "daemon.pid"), "2\n") // pid 2: never ours
     expect(defaultDaemonSocketPath(home)).toBe(join(home, ".rove", "daemon.sock"))
   })
 
   test("a canonical socket always wins, even next to a live legacy one", () => {
     mkdirSync(join(home, ".rove"), { recursive: true })
     writeFileSync(join(home, ".rove", "daemon.sock"), "")
-    writeFileSync(join(home, ".kobe", "daemon.sock"), "")
-    writeFileSync(join(home, ".kobe", "daemon.pid"), `${process.pid}\n`)
+    writeFileSync(join(home, `${preRenameStateDir("")}`, "daemon.sock"), "")
+    writeFileSync(join(home, `${preRenameStateDir("")}`, "daemon.pid"), `${process.pid}\n`)
     expect(defaultDaemonSocketPath(home)).toBe(join(home, ".rove", "daemon.sock"))
   })
 
   test("host-owned data is canonical even while the legacy copy is still there", () => {
     // The PTY host MOVES these at boot (`migrateLegacyPtyHostData`), so the
-    // resolver never points at `.kobe` — the old "whichever layout holds it"
+    // resolver never points at `.rove` — the old "whichever layout holds it"
     // rule made the legacy location permanent for any pre-rename home.
-    writeFileSync(join(home, ".kobe", "pty-exits.json"), "{}")
+    writeFileSync(join(home, `${preRenameStateDir("")}`, "pty-exits.json"), "{}")
     expect(defaultPtyExitsPath(home)).toBe(join(home, ".rove", "pty-exits.json"))
   })
 
   test("migrateLegacyPtyHostData moves the exit + freeze stores and links the old paths", () => {
-    mkdirSync(join(home, ".kobe", "pty-sessions"), { recursive: true })
-    writeFileSync(join(home, ".kobe", "pty-sessions", "a.json"), '{"key":"a"}')
-    writeFileSync(join(home, ".kobe", "pty-exits.json"), '{"a":{}}')
+    mkdirSync(join(home, `${preRenameStateDir("")}`, "pty-sessions"), { recursive: true })
+    writeFileSync(join(home, `${preRenameStateDir("")}`, "pty-sessions", "a.json"), '{"key":"a"}')
+    writeFileSync(join(home, `${preRenameStateDir("")}`, "pty-exits.json"), '{"a":{}}')
 
     expect(migrateLegacyPtyHostData(home)).toEqual(["pty-exits.json", "pty-sessions"])
     expect(readFileSync(join(home, ".rove", "pty-exits.json"), "utf8")).toBe('{"a":{}}')
     expect(readFileSync(join(home, ".rove", "pty-sessions", "a.json"), "utf8")).toBe('{"key":"a"}')
-    expect(lstatSync(join(home, ".kobe", "pty-sessions")).isSymbolicLink()).toBe(true)
+    expect(existsSync(join(preRenameStateDir(home), "pty-sessions"))).toBe(false)
     // Idempotent: a second boot must not move the symlink it just left behind.
     expect(migrateLegacyPtyHostData(home)).toEqual([])
-    expect(readFileSync(join(home, ".kobe", "pty-exits.json"), "utf8")).toBe('{"a":{}}')
+    expect(readFileSync(join(home, `${preRenameStateDir("")}`, "pty-exits.json"), "utf8")).toBe('{"a":{}}')
   })
 
   test("migrateLegacyPtyHostData keeps a canonical entry that already exists", () => {
     mkdirSync(join(home, ".rove"), { recursive: true })
     writeFileSync(join(home, ".rove", "pty-exits.json"), '{"canonical":{}}')
-    writeFileSync(join(home, ".kobe", "pty-exits.json"), '{"legacy":{}}')
+    writeFileSync(join(home, `${preRenameStateDir("")}`, "pty-exits.json"), '{"legacy":{}}')
 
     expect(migrateLegacyPtyHostData(home)).toEqual([])
     expect(readFileSync(join(home, ".rove", "pty-exits.json"), "utf8")).toBe('{"canonical":{}}')
-  })
-})
-
-describe("linkLegacyRuntimePath (the other direction)", () => {
-  let home = ""
-
-  beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), "rove-compat-"))
-  })
-  afterEach(() => {
-    rmSync(home, { recursive: true, force: true })
-  })
-
-  test("points an EXISTING legacy dir at the canonical path", async () => {
-    const canonical = join(home, ".rove", "daemon.sock")
-    mkdirSync(join(home, ".rove"), { recursive: true })
-    mkdirSync(join(home, ".kobe"), { recursive: true })
-    writeFileSync(canonical, "")
-    expect(await linkLegacyRuntimePath(canonical, legacyDaemonSocketPath(home))).toBe(true)
-    expect(readlinkSync(join(home, ".kobe", "daemon.sock"))).toBe(canonical)
-  })
-
-  test("does not CREATE a legacy dir — a fresh install has no ~/.kobe to link into", async () => {
-    // The link only helps a binary predating the rename, and such a binary
-    // would have made `.kobe` itself. Creating it gave every new install a
-    // directory full of dangling links after shutdown.
-    const canonical = join(home, ".rove", "daemon.sock")
-    mkdirSync(join(home, ".rove"), { recursive: true })
-    writeFileSync(canonical, "")
-    expect(await linkLegacyRuntimePath(canonical, legacyDaemonSocketPath(home))).toBe(false)
-    expect(existsSync(join(home, ".kobe"))).toBe(false)
-  })
-
-  test("never clobbers a REAL file at the legacy path — that is another daemon's socket", async () => {
-    mkdirSync(join(home, ".kobe"), { recursive: true })
-    writeFileSync(join(home, ".kobe", "daemon.sock"), "someone else's")
-    expect(await linkLegacyRuntimePath(join(home, ".rove", "daemon.sock"), legacyDaemonSocketPath(home))).toBe(false)
-    expect(readFileSync(join(home, ".kobe", "daemon.sock"), "utf8")).toBe("someone else's")
-  })
-
-  test("replaces its own stale link from a previous boot", async () => {
-    mkdirSync(join(home, ".kobe"), { recursive: true })
-    symlinkSync(join(home, ".rove", "old.sock"), join(home, ".kobe", "daemon.sock"))
-    const canonical = join(home, ".rove", "daemon.sock")
-    expect(await linkLegacyRuntimePath(canonical, legacyDaemonSocketPath(home))).toBe(true)
-    expect(readlinkSync(join(home, ".kobe", "daemon.sock"))).toBe(canonical)
   })
 })

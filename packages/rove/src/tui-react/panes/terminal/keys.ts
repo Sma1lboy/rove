@@ -1,7 +1,7 @@
 /**
  * Terminal pane key bindings (React registration). When focused, every key
  * the shell expects is forwarded verbatim; the command prefix,
- * `RESERVED_GLOBAL_CHORDS`, and ctrl+pgup/pgdown stay kobe-owned (rationale
+ * `RESERVED_GLOBAL_CHORDS`, and ctrl+pgup/pgdown stay rove-owned (rationale
  * in `keys-pure.ts`).
  */
 

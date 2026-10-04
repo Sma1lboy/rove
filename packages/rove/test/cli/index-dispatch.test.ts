@@ -102,7 +102,7 @@ describe("version, help, launch, and unknown commands", () => {
     "retired surface %s is an unknown command",
     async (command) => {
       await runCli(command)
-      expect(errorSpy).toHaveBeenCalledWith(`kobe: unknown command '${command}'`)
+      expect(errorSpy).toHaveBeenCalledWith(`rove: unknown command '${command}'`)
       expect(exitSpy).toHaveBeenCalledWith(2)
       expect(spies.startTui).not.toHaveBeenCalled()
     },
@@ -110,7 +110,7 @@ describe("version, help, launch, and unknown commands", () => {
 })
 
 describe("public subcommand routing", () => {
-  test.each([".", "..", "./x", "/abs/path", "~/x"])("kobe %s routes to open-directory", async (arg) => {
+  test.each([".", "..", "./x", "/abs/path", "~/x"])("rove %s routes to open-directory", async (arg) => {
     await runCli(arg)
     expect(spies.openDirectory).toHaveBeenCalledWith(arg)
     expect(exitSpy).not.toHaveBeenCalled()
@@ -119,7 +119,7 @@ describe("public subcommand routing", () => {
   test("a bare word is still an unknown command, not a directory guess", async () => {
     await runCli("statsu")
     expect(spies.openDirectory).not.toHaveBeenCalled()
-    expect(errorSpy).toHaveBeenCalledWith("kobe: unknown command 'statsu'")
+    expect(errorSpy).toHaveBeenCalledWith("rove: unknown command 'statsu'")
     expect(exitSpy).toHaveBeenCalledWith(2)
   })
 })

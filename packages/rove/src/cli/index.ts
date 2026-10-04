@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path"
-/** Shared kobe/rove CLI entry. Unknown commands print usage instead of TUI. */
+/** Shared rove/rove CLI entry. Unknown commands print usage instead of TUI. */
 import { errorMessage } from "@/lib/error-message"
 import { matchPathGlob } from "../lib/path-glob.ts"
 import { expandTilde } from "../lib/path-home.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { rejectionReason } from "../state/project-eligibility.ts"
 import { BUILTIN_VENDORS, type VendorId, coerceVendorId, isBuiltinVendor } from "../types/vendor.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
@@ -14,11 +15,9 @@ import { formatCliFailure } from "./cli-failure.ts"
 import { type CommandHandler, DYNAMIC_COMMANDS } from "./index-commands.ts"
 import { isPathLikeArg, runOpenDirectory } from "./open-dir-cmd.ts"
 import { openLocalOrchestrator, withDaemonOrLocal } from "./orchestrator-bridge.ts"
-import { activeCliName, prepareCliEnvironment } from "./rename-compat.ts"
 import { topLevelUsage } from "./usage.ts"
 
-prepareCliEnvironment()
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 const ADD_USAGE = [
   `Usage: ${CLI_NAME} add [path]`,
@@ -98,7 +97,7 @@ const REMOVE_USAGE = [
 ].join("\n")
 
 /**
- * `kobe remove [path]`. Match order: exact saved entry (so garbage like `","`
+ * `rove remove [path]`. Match order: exact saved entry (so garbage like `","`
  * or an `ssh://` key is removable verbatim), then the resolved path's git
  * toplevel, then the resolved absolute path. No match prints the saved list.
  */
@@ -182,7 +181,7 @@ async function reportCredentialExit(
 /**
  * Adopt every unlinked worktree of `repo`, most-recently-active first.
  * Discovery is in-process (git + tasks.json) so a plain repo never boots a
- * daemon. A scan failure is reported, not fatal to `kobe add`.
+ * daemon. A scan failure is reported, not fatal to `rove add`.
  */
 async function adoptAllWorktrees(repo: string): Promise<void> {
   const orch = await openLocalOrchestrator()
@@ -225,7 +224,7 @@ async function adoptWorktreesInto(
   }
 }
 
-/** Scans worktrees outside kobe-managed roots too. */
+/** Scans worktrees outside rove-managed roots too. */
 const ADOPT_USAGE = [
   `Usage: ${CLI_NAME} adopt [glob] [--repo <path>] [--vendor <v>] [--yes]`,
   "",
@@ -294,7 +293,7 @@ async function runAdoptSubcommand(args: readonly string[]): Promise<void> {
   }
 
   // Match by absolute path, and by basename for convenience (so
-  // `kobe adopt 'feature-*'` works without typing the full path).
+  // `rove adopt 'feature-*'` works without typing the full path).
   const isMatch = (w: AdoptableWorktree) => !glob || matchPathGlob(glob, w.path)
 
   console.log(`adoptable worktrees in ${repo}:`)
@@ -327,7 +326,7 @@ function printTopLevelUsage(out: Pick<typeof process.stderr, "write">): void {
   out.write(`${topLevelUsage()}\n`)
 }
 
-/** Heavy commands are dynamic imports so `kobe add` doesn't load the TUI. */
+/** Heavy commands are dynamic imports so `rove add` doesn't load the TUI. */
 const COMMANDS = new Map<string, CommandHandler>([
   ["add", runAddSubcommand],
   ["remove", runRemoveSubcommand],
@@ -350,7 +349,7 @@ async function main(): Promise<void> {
   }
   if (subcommand === "--skill") {
     // Agent-facing: print the bundled SKILL.md so a coding agent can learn
-    // the `kobe api` surface with one command.
+    // the `rove api` surface with one command.
     const { runSkillSubcommand } = await import("./skill-cmd.ts")
     await runSkillSubcommand(["print"])
     return
@@ -362,12 +361,12 @@ async function main(): Promise<void> {
     return
   }
 
-  // `kobe <path>` opens a dir task. Path syntax only, so typos still error.
+  // `rove <path>` opens a dir task. Path syntax only, so typos still error.
   if (subcommand !== undefined && isPathLikeArg(subcommand)) {
     await runOpenDirectory(subcommand)
     return
   }
-  // Only a bare `kobe` launches the TUI; a typo exits non-zero.
+  // Only a bare `rove` launches the TUI; a typo exits non-zero.
   if (subcommand !== undefined) {
     console.error(`${CLI_NAME}: unknown command '${subcommand}'`)
     printTopLevelUsage(process.stderr)

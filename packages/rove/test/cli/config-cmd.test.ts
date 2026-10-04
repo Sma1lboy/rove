@@ -31,7 +31,7 @@ const configPath = (): string => join(home, ".config", "rove", "state.json")
 
 beforeEach(() => {
   originalHome = process.env.ROVE_HOME_DIR
-  home = mkdtempSync(join(tmpdir(), "kobe-config-"))
+  home = mkdtempSync(join(tmpdir(), "rove-config-"))
   process.env.ROVE_HOME_DIR = home
   mocks.resolveEditorCommand.mockReset()
   mocks.binaryAvailable.mockReset()

@@ -3,7 +3,7 @@ import { charWidth, displayWidth, padEndCells } from "../../src/lib/display-widt
 
 /**
  * Cell-width contract for `charWidth`/`displayWidth`. These feed the
- * `kobe export` table renderer and the embedded-terminal cursor overlay, so an
+ * `rove export` table renderer and the embedded-terminal cursor overlay, so an
  * under-counted wide glyph drifts every cell to its right by one column — the
  * exact misalignment the module exists to prevent.
  */
@@ -46,7 +46,7 @@ describe("displayWidth", () => {
 
   it("measures decomposed (NFD) Hangul the same as precomposed", () => {
     // macOS filenames arrive NFD-decomposed; a Korean name in the file tree
-    // or `kobe export` table must occupy the same width either way.
+    // or `rove export` table must occupy the same width either way.
     const precomposed = "한글" // U+D55C U+AE00
     const decomposed = precomposed.normalize("NFD")
     expect(decomposed.length).toBeGreaterThan(precomposed.length) // genuinely decomposed

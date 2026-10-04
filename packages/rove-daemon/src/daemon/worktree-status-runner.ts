@@ -32,7 +32,7 @@ function runGit(worktreePath: string, args: readonly string[], signal: AbortSign
  * `null` when the ref does not resolve or the counts are unreadable — the
  * chips then don't draw rather than show a fabricated zero.
  *
- * The `origin/HEAD → origin/main → main → master` ladder lives in kobe's
+ * The `origin/HEAD → origin/main → main → master` ladder lives in rove's
  * `cli/api/branch-signals.ts`, resolved by the PRODUCTION runner
  * (`runtime.runWorktreeStatus`); this default runner (tests, runtime-less
  * daemons) only measures against the base it was handed.
@@ -55,7 +55,7 @@ export interface AheadBehind {
  * do not), right is ours. `null` for anything that is not two non-negative
  * integers (or a failed run's `null`): never guess one half.
  *
- * @public — kobe's production runner (`core/daemon-runtime.ts`) shares it so
+ * @public — rove's production runner (`core/daemon-runtime.ts`) shares it so
  * both paths agree on what the counts mean.
  */
 export function parseAheadBehind(stdout: string | null): AheadBehind | null {
@@ -72,7 +72,7 @@ export function parseAheadBehind(stdout: string | null): AheadBehind | null {
 export function countPorcelain(stdout: string): { added: number; deleted: number } {
   let added = 0
   let deleted = 0
-  // Shared parser: kobe's file tree renders from the same bytes, and a laxer
+  // Shared parser: rove's file tree renders from the same bytes, and a laxer
   // local scan counted junk the real parser rejects.
   for (const row of parsePorcelainRows(stdout)) {
     if (row.x === "D" || row.y === "D") deleted++

@@ -62,7 +62,7 @@ export interface PtyOpenResult {
 }
 
 /** `pty.peek` response — read-only ring snapshot; never attaches, spawns or
- *  resizes, so safe for observation (`kobe api read-output` fallback). */
+ *  resizes, so safe for observation (`rove api read-output` fallback). */
 export interface PtyPeekResult {
   /** False when no session exists under the key (nothing was spawned). */
   readonly exists: boolean

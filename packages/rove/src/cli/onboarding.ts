@@ -14,11 +14,11 @@ import { homedir } from "node:os"
 import { basename, join } from "node:path"
 import { isNpxMissing, markSkillHintSeen, npxSkillsArgv, npxSkillsCommand } from "../lib/skill-install.ts"
 import type { ProductCliName } from "../product.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile, patchStateFile } from "../state/store.ts"
 import type { OnboardingChoices } from "../tui-react/onboarding/host.tsx"
 import { t } from "../tui/i18n"
 import { type ShellKind, isShellKind, shippedCompletionsPath } from "./completion-scripts.ts"
-import { activeCliName } from "./rename-compat.ts"
 import { PENDING_SKILL_KEY } from "./welcome.ts"
 
 /** Completions the user accepted, deferred for the same reason as the skill. */
@@ -74,7 +74,7 @@ export interface CompletionInstall {
 export function installCompletions(
   shell: ShellKind,
   home: string = homedir(),
-  cli: ProductCliName = activeCliName(),
+  cli: ProductCliName = ROVE_PRODUCT_NAME,
   shipped: string | null = shippedScriptFor(shell, cli),
 ): CompletionInstall {
   const hook = completionHook(shell, cli, shipped)
@@ -140,7 +140,7 @@ export function runPendingWelcomeInstalls(): void {
   }
   if (pendingShell === null && !wantsSkill) return
 
-  const cli = activeCliName()
+  const cli = ROVE_PRODUCT_NAME
   const out = (line: string) => process.stdout.write(`${line}\n`)
   const save = (patch: Record<string, unknown>) => {
     try {

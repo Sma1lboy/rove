@@ -16,7 +16,7 @@ import { GitCommandError, git } from "../../src/orchestrator/worktree/git.ts"
 let repo: string
 
 beforeAll(() => {
-  repo = realpathSync(mkdtempSync(join(tmpdir(), "kobe-git-runner-")))
+  repo = realpathSync(mkdtempSync(join(tmpdir(), "rove-git-runner-")))
   execSync("git init -q -b main", { cwd: repo })
 })
 

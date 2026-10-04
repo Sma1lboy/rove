@@ -3,12 +3,12 @@
  * pre-generated copy shipped in the package.
  *
  * Usage:
- *   source <(kobe completions zsh)                 # zsh, generate now
- *   kobe completions zsh --path                    # print the shipped file's path
- *   kobe completions zsh --install                 # hook that path into your rc
- *   kobe completions zsh  > ~/.zsh/completions/_kobe   # zsh, fpath install
- *   kobe completions bash > ~/.bash_completion.d/kobe
- *   kobe completions fish > ~/.config/fish/completions/kobe.fish
+ *   source <(rove completions zsh)                 # zsh, generate now
+ *   rove completions zsh --path                    # print the shipped file's path
+ *   rove completions zsh --install                 # hook that path into your rc
+ *   rove completions zsh  > ~/.zsh/completions/_rove   # zsh, fpath install
+ *   rove completions bash > ~/.bash_completion.d/rove
+ *   rove completions fish > ~/.config/fish/completions/rove.fish
  *
  * `--path`: generating costs a process start (~0.3s per shell, node → bun) for
  * static text, so the build bakes `dist/completions/<cli>.<shell>` for
@@ -21,8 +21,8 @@
  */
 import { existsSync, readFileSync } from "node:fs"
 import type { ProductCliName } from "../product.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { generateCompletions, isShellKind, mergeSubVerbs, shippedCompletionsPath } from "./completion-scripts.ts"
-import { activeCliName } from "./rename-compat.ts"
 
 /** `--help` is spelled as a flag or as a bare word, as it always was here. */
 const HELP_WORDS = ["--help", "-h", "help"]
@@ -59,7 +59,7 @@ function completionUsage(cliName: ProductCliName): string {
 
 export async function runCompletionsSubcommand(
   rest: readonly string[],
-  cliName: ProductCliName = activeCliName(),
+  cliName: ProductCliName = ROVE_PRODUCT_NAME,
   deps: CompletionsCommandDeps = {},
 ): Promise<void> {
   const usage = completionUsage(cliName)

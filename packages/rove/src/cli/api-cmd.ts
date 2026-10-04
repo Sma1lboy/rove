@@ -1,5 +1,5 @@
 /**
- * `kobe api <verb>` — the scriptable control surface for agents. Each
+ * `rove api <verb>` — the scriptable control surface for agents. Each
  * invocation connects to (or auto-starts) the daemon, prints one JSON object,
  * and exits; read-only verbs like `schema` skip the daemon entirely.
  *
@@ -13,7 +13,7 @@
  *   - success → one JSON object to stdout, `\n` terminated, exit 0
  *   - error   → `{ "error": { "message", "code", ...data } }` to stderr, exit ≠ 0.
  *     High-traffic rejections additionally carry `hint` (what to do) and
- *     `nextCommandArgs` (argv for the same `kobe` executable, runnable
+ *     `nextCommandArgs` (argv for the same `rove` executable, runnable
  *     verbatim) so an agent caller can self-heal without parsing prose.
  *   - `--pretty` → indent stdout JSON (humans only)
  *   - `--help`   → render that verb's usage to stdout, exit 0

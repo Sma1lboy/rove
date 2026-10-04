@@ -85,7 +85,7 @@ export interface Task {
   /**
    * `"main"`: a saved repo's root checkout (`worktreePath === repo`,
    * `branch === ""`). `"task"`: a per-task worktree under
-   * `~/.rove/worktrees/<repo-key>/<slug>/` (older records: `.kobe/worktrees`,
+   * `~/.rove/worktrees/<repo-key>/<slug>/` (older records: `.rove/worktrees`,
    * `.claude/worktrees`). `"dir"` (`rove .`): an existing directory, same
    * `worktreePath`/`branch` shape as main, no project; deletion drops only the
    * index entry, never the directory. Absent normalizes to `"task"` on load.
@@ -143,7 +143,7 @@ export interface Task {
    * Absent = engine chosen by hand.
    */
   readonly tier?: string
-  /** ULID shared by all siblings of one `kobe api fan-out` call; single tasks never get one. */
+  /** ULID shared by all siblings of one `rove api fan-out` call; single tasks never get one. */
   readonly groupId?: string
   /**
    * Language observed from the user's prompts (`prompts/observed-language.ts`),
@@ -157,7 +157,7 @@ export interface Task {
   readonly quotaResume?: TaskQuotaResumeState
   /** The external tracker item this task was started from, when it was. */
   readonly linkedWorkItem?: TaskLinkedWorkItem
-  /** The kobe session (task + tab) that dispatched this task, when one did. */
+  /** The rove session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
   /**
    * The brief `add --prompt` delivered, recorded on the delivery path because

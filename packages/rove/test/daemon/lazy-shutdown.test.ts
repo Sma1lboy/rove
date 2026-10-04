@@ -65,7 +65,7 @@ describe("daemon refcounted lazy shutdown", () => {
     await pane1.subscribe({ role: "pane" })
     await pane2.subscribe({ role: "pane" })
 
-    // User quits kobe → only the gui socket drops. Panes stay subscribed
+    // User quits rove → only the gui socket drops. Panes stay subscribed
     // (the tmux session persists), but the daemon must still self-stop.
     gui.close()
     expect(await waitFor(() => !existsSync(h.socketPath), GRACE_MS + 500)).toBe(true)

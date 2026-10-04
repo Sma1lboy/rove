@@ -248,7 +248,7 @@ export function useMarketplace(section: SectionId, dialog: DialogContext, plugin
         }
         setStatus(t("settings.marketplace.installing", { name: prepared.preview.name }))
         const id = await prepared.commit()
-        // Engine contributions are kobe-process state: reload so a new engine
+        // Engine contributions are rove-process state: reload so a new engine
         // reaches the selector without a restart.
         reloadPluginEngines()
         // Flip this row to `installed` now, not on next Plugins open.

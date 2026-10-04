@@ -1,8 +1,8 @@
 /**
- * The POSIX login shell every kobe PTY spawns through, and the path form
+ * The POSIX login shell every rove PTY spawns through, and the path form
  * that shell understands.
  *
- * kobe's engine-launch contract (`packages/rove/src/engine/session-launch.ts`)
+ * rove's engine-launch contract (`packages/rove/src/engine/session-launch.ts`)
  * is a POSIX shell SCRIPT, not an argv: `trap ':' INT`, `export -p`, `$$`,
  * `${TMPDIR:-/tmp}`, `kill -TERM`, `[ -f ]`, `exec "${SHELL:-/bin/sh}"`.
  * Every engine tab and every embedded terminal is spawned through it, so
@@ -10,8 +10,8 @@
  * path the whole product runs on — twice the surface, twice the drift.
  *
  * Windows therefore gets a real POSIX shell rather than a second dialect:
- * Git for Windows ships bash plus full coreutils, and kobe is git-worktree
- * native, so every machine that can run kobe at all already has it. This
+ * Git for Windows ships bash plus full coreutils, and rove is git-worktree
+ * native, so every machine that can run rove at all already has it. This
  * module is the ONLY place that knows any of that — callers keep passing
  * `-il` / `-ilc` and keep composing one POSIX script.
  *

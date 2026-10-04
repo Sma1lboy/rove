@@ -30,7 +30,7 @@ import { type Field, type NewTaskInput, nextField } from "../../src/tui/componen
 import { act, renderComponent, settle } from "./harness"
 
 function repo(name: string): string {
-  const parent = mkdtempSync(join(tmpdir(), "kobe-tabcomplete-"))
+  const parent = mkdtempSync(join(tmpdir(), "rove-tabcomplete-"))
   const dir = join(parent, name)
   mkdirSync(dir)
   execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", { cwd: dir })
@@ -87,7 +87,7 @@ async function focusEmptyRepo(h: Awaited<ReturnType<typeof mount>>) {
 }
 
 test("browse mode: each Tab walks one directory deeper, in place", async () => {
-  const parent = mkdtempSync(join(tmpdir(), "kobe-tabwalk-"))
+  const parent = mkdtempSync(join(tmpdir(), "rove-tabwalk-"))
   mkdirSync(join(parent, "level1"))
   mkdirSync(join(parent, "level1", "level2"))
   const h = await mount(repo("origin"))
@@ -164,7 +164,7 @@ test("the Clone tab's parent dir walks the same way — one key, both path field
   // Same drill-down picker, two tabs apart. A Tab that walked the repo field
   // but not this one would be worse than a Tab that walked neither: the key
   // would mean two things inside one dialog.
-  const parent = mkdtempSync(join(tmpdir(), "kobe-tabwalk-clone-"))
+  const parent = mkdtempSync(join(tmpdir(), "rove-tabwalk-clone-"))
   mkdirSync(join(parent, "level1"))
   mkdirSync(join(parent, "level1", "level2"))
   const h = await mount(repo("origin"))

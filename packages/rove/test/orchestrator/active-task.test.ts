@@ -12,7 +12,7 @@ describe("Orchestrator active task recency", () => {
   let orch: Orchestrator
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kobe-active-task-"))
+    home = await mkdtemp(join(tmpdir(), "rove-active-task-"))
     // Isolate the global `lastActive` record (state/last-active.ts writes
     // through kvStatePath(), which honours ROVE_HOME_DIR).
     vi.stubEnv("ROVE_HOME_DIR", home)
@@ -60,7 +60,7 @@ describe("Orchestrator active task recency", () => {
   })
 
   // The `lastActive` contract (state/last-active.ts): whoever focused last
-  // wins globally, and a fresh orchestrator (daemon restart, new `kobe`)
+  // wins globally, and a fresh orchestrator (daemon restart, new `rove`)
   // opens on that task instead of null → "first in the list".
   it("restores the persisted lastActive focus in a fresh orchestrator", async () => {
     const task = await orch.createTask({ repo: "/repo", title: "t", branch: "t", vendor: "claude" })

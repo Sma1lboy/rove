@@ -21,13 +21,13 @@ import { type HostPageDeps, renderContentPage } from "../../src/tui-react/worksp
 import type { Task } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
-process.env.ROVE_HOME_DIR ??= (await import("node:fs")).mkdtempSync("/tmp/kobe-rail-baseline-")
+process.env.ROVE_HOME_DIR ??= (await import("node:fs")).mkdtempSync("/tmp/rove-rail-baseline-")
 
 // claude theme (the render-track default) — pinned as ints so a theme edit
 // fails here loudly instead of silently re-breaking the palette contract.
 const TEXT_RGB: readonly [number, number, number, number] = [234, 231, 223, 255]
 
-const SELECTED_TASK = { id: "t1", repo: "/x/kobe" } as unknown as Task
+const SELECTED_TASK = { id: "t1", repo: "/x/rove" } as unknown as Task
 const ONLINE = createStateCell("online")
 
 function fakeOrchestrator(): RemoteOrchestrator {
@@ -35,8 +35,8 @@ function fakeOrchestrator(): RemoteOrchestrator {
     listTasks: () => [SELECTED_TASK],
     listAutomations: async () => ({ automations: [], keepsDaemonAlive: false }),
     automationRuns: async () => ({ runs: [] }),
-    listIssueRepos: async () => ["/x/kobe"],
-    listIssues: async () => ({ repoRoot: "/x/kobe", exists: true, nextId: 99, issues: [] }),
+    listIssueRepos: async () => ["/x/rove"],
+    listIssues: async () => ({ repoRoot: "/x/rove", exists: true, nextId: 99, issues: [] }),
     listWorkItems: async () => ({ items: [] }),
     connectionStateSignal: () => ONLINE,
     activeTaskSignal: () => ({ get: () => null }),
@@ -96,7 +96,7 @@ type RailPage = {
 const RAIL_PAGES: readonly RailPage[] = [
   // `╭` anchors the board's first column — its rounded corner, matching every
   // other framed surface (see kanban-columns.test.tsx, which pins the style).
-  { title: "Kanban", body: ["kobe", "╭"], overrides: { kanbanOpen: true } },
+  { title: "Kanban", body: ["rove", "╭"], overrides: { kanbanOpen: true } },
   { title: "ROUTINES", body: ["No routines scheduled."], overrides: { automationsOpen: true } },
   { title: "ISSUES", body: ["No open issues."], overrides: { workItemsOpen: true } },
 ]

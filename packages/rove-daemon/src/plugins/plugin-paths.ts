@@ -1,3 +1,4 @@
+import { preRenameStateDir } from "../daemon/pre-rename-runtime.ts"
 /**
  * Filesystem layout for installed plugins, all under `<home>/.rove/`:
  *
@@ -11,22 +12,19 @@
  * config/state still live here so uninstall/relink never loses user data.
  */
 
-import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 
 /**
- * The canonical state dir, or the legacy `.kobe` tree when only it has a
+ * The canonical state dir, or the legacy `.rove` tree when only it has a
  * registry (until the daemon's startup migration moves it). Never a copy at
  * read time: the registry has exactly one writer.
  */
 function stateRoot(homeDir?: string): string {
   const home = homeDir ?? readRoveHomeDirEnv() ?? homedir()
   const canonical = join(home, ROVE_STATE_DIR_BASENAME)
-  if (existsSync(join(canonical, "plugins.json"))) return canonical
-  const legacy = join(home, COMPAT_STATE_DIR_BASENAME)
-  return existsSync(join(legacy, "plugins.json")) ? legacy : canonical
+  return canonical
 }
 
 export function pluginRegistryPath(homeDir?: string): string {
@@ -38,10 +36,10 @@ export function pluginsRootDir(homeDir?: string): string {
   return join(stateRoot(homeDir), "plugins")
 }
 
-/** Where the plugin tree lived before the `.kobe` → `.rove` rename. */
+/** Where the plugin tree lived before the `.rove` → `.rove` rename. */
 export function legacyPluginsRootDir(homeDir?: string): string {
   const home = homeDir ?? readRoveHomeDirEnv() ?? homedir()
-  return join(home, COMPAT_STATE_DIR_BASENAME, "plugins")
+  return join(preRenameStateDir(home), "plugins")
 }
 
 export function pluginDataDir(id: string, homeDir?: string): string {

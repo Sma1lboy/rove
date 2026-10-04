@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 
-import { markRoveInvocation, prepareCliEnvironment, prepareCliStateLayout } from "./rename-compat.ts"
+import { prepareCliStateLayout } from "./startup.ts"
 
-markRoveInvocation()
-prepareCliEnvironment()
 prepareCliStateLayout()
 await import("./index.ts")

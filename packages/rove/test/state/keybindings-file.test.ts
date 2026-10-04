@@ -1,6 +1,6 @@
 /**
  * Unit tests for `src/state/keybindings-file.ts` — the shared, cached reader
- * for `~/.kobe/settings/keybindings.yaml`.
+ * for `~/.rove/settings/keybindings.yaml`.
  *
  * Why these matter: two consumers (the opentui keymap loader and the tmux
  * resolver) parse this one file; the reader is the seam that keeps them
@@ -27,7 +27,7 @@ function settingsDir(): string {
 }
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-kbfile-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-kbfile-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
   vi.stubGlobal("Bun", {

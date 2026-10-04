@@ -8,7 +8,7 @@ import {
   setKeychainPassword,
 } from "../../src/exec/keychain.ts"
 
-const REF: KeychainRef = { service: "kobe-remote-ssh", account: "dev@box:2222" }
+const REF: KeychainRef = { service: "rove-remote-ssh", account: "dev@box:2222" }
 
 /** A fake keychain that records argv and answers from an in-memory store. */
 function fakeKeychain(platform = "darwin", store: Record<string, string> = {}) {

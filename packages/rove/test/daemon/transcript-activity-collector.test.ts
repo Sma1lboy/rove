@@ -19,7 +19,7 @@
  * The probe is injected (no real transcripts / fs); the cadence floor is
  * zeroed so successive ticks are immediately eligible. The pure timing math
  * is covered by the shared poll-scheduling tests — this file pins the
- * collector's pass logic. The per-window capture-pane → @kobe_tab_state chip
+ * collector's pass logic. The per-window capture-pane → @rove_tab_state chip
  * stays MANUAL (it needs a real tmux pane and lives in `ops/host.tsx`, never
  * daemon-side).
  */

@@ -1,3 +1,4 @@
+import { preRenameStateDir } from "./pre-rename-runtime.ts"
 /**
  * Canonical filesystem layout for Rove-managed worktrees — the ONE derivation
  * both packages read.
@@ -7,12 +8,12 @@
  * `worktree.basePath` setting; `<repo-key>` is `<basename>-<sha1-12>` of the
  * repo path, so two repos never collide under a shared base.
  *
- * Lives in kobe-daemon (kobe -> kobe-daemon, never back) because both sides
+ * Lives in rove-daemon (rove -> rove-daemon, never back) because both sides
  * compute it: the orchestrator to create/list worktrees, the daemon's
  * `cwd-task.ts` to recognize one an engine started in. Separate copies drift
  * into silent adoption failures.
  *
- * I/O stays with each caller (kobe's State Store owns the corrupt-file
+ * I/O stays with each caller (rove's State Store owns the corrupt-file
  * backup; the daemon reads best-effort). Only the INTERPRETATION is shared,
  * via {@link normalizeWorktreeBase}, so the two never disagree about what a
  * `state.json` means.
@@ -23,14 +24,13 @@
 import { createHash } from "node:crypto"
 import { readFileSync } from "node:fs"
 import path from "node:path"
-import { LEGACY_ROVE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME } from "../compat-env.ts"
 import { defaultUiPrefsStatePath, resolveProductHomeDir } from "./product-paths.ts"
 
 /** Directory under Rove's state dir holding all of its worktrees. */
 const WORKTREE_ROOT_DIR = "worktrees"
 
 export const REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH = ".rove/worktrees"
-export const REPO_LOCAL_LEGACY_WORKTREE_ROOT_SUBPATH = ".kobe/worktrees"
 export const LEGACY_ROVE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
 
 /**
@@ -39,7 +39,6 @@ export const LEGACY_ROVE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
  */
 export const REPO_LOCAL_MANAGED_WORKTREE_ROOT_SUBPATHS = [
   REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
-  REPO_LOCAL_LEGACY_WORKTREE_ROOT_SUBPATH,
   LEGACY_ROVE_WORKTREE_ROOT_SUBPATH,
 ] as const
 
@@ -118,7 +117,7 @@ export function defaultLocalWorktreesRoot(): string {
 
 /** Pre-rename global root. Existing worktree records and discovery keep it live. */
 export function legacyLocalWorktreesRoot(): string {
-  return path.join(resolveProductHomeDir(), LEGACY_ROVE_STATE_DIR_BASENAME, WORKTREE_ROOT_DIR)
+  return path.join(preRenameStateDir(resolveProductHomeDir()), WORKTREE_ROOT_DIR)
 }
 
 /**

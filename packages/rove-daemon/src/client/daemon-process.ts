@@ -1,7 +1,7 @@
 import { closeSync, existsSync, mkdirSync, openSync, statSync, unlinkSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { LEGACY_ROVE_PRODUCT_NAME, ROVE_PRODUCT_NAME } from "../compat-env.ts"
+import { ROVE_PRODUCT_NAME } from "../compat-env.ts"
 import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "../daemon/paths.ts"
 import { DAEMON_PROTOCOL_VERSION } from "../daemon/protocol.ts"
@@ -313,7 +313,7 @@ export function isStaleInstallError(err: unknown): boolean {
 
 /**
  * `[command, ...args]` for spawning a detached CLI child. Layouts:
- *  - dev, kobe source: entry at `../cli/<name>.ts` from this module.
+ *  - dev, rove source: entry at `../cli/<name>.ts` from this module.
  *  - dev, `packages/rove-daemon` source: entry in sibling `packages/rove/src/cli`.
  *  - npm: bundled into `dist/cli/<name>.js`; the active wrapper is reused.
  *  - `bun build --compile` binary: `process.execPath` IS the CLI; re-exec it.
@@ -329,7 +329,7 @@ export function resolveRoveSpawn(
     return [process.execPath, ...subcommand]
   }
   const dir = dirname(here)
-  const cliName = env.ROVE_INVOKED_AS === ROVE_PRODUCT_NAME ? ROVE_PRODUCT_NAME : LEGACY_ROVE_PRODUCT_NAME
+  const cliName = ROVE_PRODUCT_NAME
   const candidates = [
     resolve(dir, `../cli/${cliName}.ts`),
     resolve(dir, `../../../rove/src/cli/${cliName}.ts`),

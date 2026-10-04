@@ -1,5 +1,5 @@
 /**
- * `kobe api` contract types — flag specs, verbs, and the side-effect seams
+ * `rove api` contract types — flag specs, verbs, and the side-effect seams
  * (`ApiRuntime`, `PromptDeliveryOps`) — importable without the dispatcher.
  */
 

@@ -111,7 +111,7 @@ export function repoBasename(repo: string): string {
 
 /**
  * Project row identity: `machineId + NUL + pathIdentity(repo)`. A path alone
- * would merge the same `~/i/kobe` on two machines into one row.
+ * would merge the same `~/i/rove` on two machines into one row.
  * The local machine (`"local"`, the default) gets the bare path, so
  * single-machine keys are unchanged.
  */
@@ -134,14 +134,14 @@ export interface LabelledRepo {
 /**
  * Narrowest project header label that is unique on screen:
  *
- *   1. basename unique → `kobe`;
- *   2. shared on the SAME machine → last two segments (`gihub/kobe`), since
+ *   1. basename unique → `rove`;
+ *   2. shared on the SAME machine → last two segments (`gihub/rove`), since
  *      the host name wouldn't distinguish them;
- *   3. shared only with another MACHINE → `host:basename` (`narwhal:kobe`);
+ *   3. shared only with another MACHINE → `host:basename` (`narwhal:rove`);
  *      the local machine (no host label) keeps the bare name.
  *
  * Step 2 must precede 3: otherwise two checkouts on one remote machine both
- * read `narwhal:kobe`. A tail that also repeats across machines still gets
+ * read `narwhal:rove`. A tail that also repeats across machines still gets
  * the host prefix. `repos` may be plain strings or {@link LabelledRepo}s.
  */
 export function sidebarProjectLabel(
@@ -166,7 +166,7 @@ export function sidebarProjectLabel(
   return host ? `${host}:${base}` : base
 }
 
-/** The last two path segments — `work/api`, `gihub/kobe`. */
+/** The last two path segments — `work/api`, `gihub/rove`. */
 function pathTail(repo: string): string {
   const syntax = pathSyntax(repo)
   return syntax.normalize(repo).split(syntax.sep).filter(Boolean).slice(-2).join("/")

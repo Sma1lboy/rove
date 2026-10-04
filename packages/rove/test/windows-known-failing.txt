@@ -23,7 +23,7 @@ test/cli/hook-profile-cleanup.test.ts
 test/cli/index-add-remove-adopt.test.ts
 test/cli/plugin-bin-path.test.ts
 test/cli/plugin-install.test.ts
-test/cli/rename-compat.test.ts
+test/cli/startup.test.ts
 test/cli/repo-cmd.test.ts
 test/client/daemon-process.test.ts
 test/core/base-ref-cache.test.ts

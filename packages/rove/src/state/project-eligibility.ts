@@ -41,7 +41,7 @@ function isInside(candidate: string, root: string): boolean {
 
 /**
  * Rove's own state dirs: `~/.rove` (worktrees, plugins, issue assets), legacy
- * `~/.kobe`, and the config dir. A repo inside a task worktree is a test
+ * `~/.rove`, and the config dir. A repo inside a task worktree is a test
  * fixture that dies with the task.
  */
 function roveInternalRoots(): readonly string[] {

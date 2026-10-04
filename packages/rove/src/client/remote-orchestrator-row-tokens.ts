@@ -1,6 +1,6 @@
 /**
  * `task.tokens` channel: plugin-written row labels keyed by task id (see
- * `kobe-daemon/daemon/row-tokens.ts`). Validated field by field, not cast:
+ * `rove-daemon/daemon/row-tokens.ts`). Validated field by field, not cast:
  * plugins are THIRD-PARTY publishers, so a malformed token is dropped here
  * rather than rendered as `undefined`.
  */

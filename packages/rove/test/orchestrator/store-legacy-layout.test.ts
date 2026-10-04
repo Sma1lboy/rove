@@ -1,5 +1,6 @@
+import { preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 /**
- * How TaskIndexStore reads a home that predates the `.kobe` → `.rove` rename.
+ * How TaskIndexStore reads a home that predates the `.rove` → `.rove` rename.
  *
  * The seam against `store-load-edge.test.ts` is the input, not the assertion:
  * these fix the LAYOUT the manifest is found in, where the failure mode is
@@ -19,7 +20,7 @@ let home: string
 let store: TaskIndexStore
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "kobe-store-legacy-"))
+  home = await mkdtemp(join(tmpdir(), "rove-store-legacy-"))
   store = new TaskIndexStore({ homeDir: home })
 })
 
@@ -27,15 +28,15 @@ afterEach(async () => {
   await rm(home, { recursive: true, force: true })
 })
 
-describe("legacy .kobe layout", () => {
+describe(`legacy ${preRenameStateDir("")} layout`, () => {
   it("reads the legacy index until migration and carries every legacy task into the first canonical save", async () => {
-    const legacyPath = join(home, ".kobe", "tasks.json")
-    await mkdir(join(home, ".kobe"), { recursive: true })
+    const legacyPath = join(home, `${preRenameStateDir("")}`, "tasks.json")
+    await mkdir(join(home, `${preRenameStateDir("")}`), { recursive: true })
     const legacyTask = {
       id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
       title: "legacy",
       repo: "/r",
-      branch: "kobe/legacy",
+      branch: "rove/legacy",
       worktreePath: "/legacy/wt",
       status: "backlog",
       createdAt: "2026-01-01T00:00:00.000Z",
@@ -61,11 +62,11 @@ describe("legacy .kobe layout", () => {
   })
 
   it("stops reading the legacy index once the daemon migration marker exists", async () => {
-    // The migration copies .kobe/tasks.json across once; after that the legacy
+    // The migration copies .rove/tasks.json across once; after that the legacy
     // file is a frozen snapshot. Settings › Reset UI state unlinks only the
     // canonical file, so an ungated fallback resurrects every pre-rename task.
-    const legacyPath = join(home, ".kobe", "tasks.json")
-    await mkdir(join(home, ".kobe"), { recursive: true })
+    const legacyPath = join(home, `${preRenameStateDir("")}`, "tasks.json")
+    await mkdir(join(home, `${preRenameStateDir("")}`), { recursive: true })
     await writeFile(
       legacyPath,
       JSON.stringify({

@@ -73,7 +73,7 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
 
 describe("recent jump row", () => {
   it("renders first and ⏎ on it activates the recent task", async () => {
-    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-recent-row-"))
+    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-recent-row-"))
     const activated: string[] = []
     const recent = task("bravo")
     const { frame, mockInput } = await renderComponent(
@@ -99,7 +99,7 @@ describe("recent jump row", () => {
   })
 
   it("per-task verbs are inert on the shortcut row", async () => {
-    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-recent-row-"))
+    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-recent-row-"))
     const deleted: string[] = []
     const { mockInput } = await renderComponent(
       <box flexDirection="row" height={24}>

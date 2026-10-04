@@ -34,7 +34,7 @@ export function isRemoteRepoKey(key: string): boolean {
 
 /**
  * Settings → Dev → Experimental toggle, off by default. Read from state.json
- * cross-process so `kobe add --remote` can refuse when it is off.
+ * cross-process so `rove add --remote` can refuse when it is off.
  */
 export function isRemoteProjectsEnabled(): boolean {
   return getPersistedBool("experimental.remoteProjects", false)

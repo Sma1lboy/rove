@@ -1,11 +1,11 @@
 /**
- * `kobe update` black-box behavior + the update.sh package-manager matrix.
+ * `rove update` black-box behavior + the update.sh package-manager matrix.
  *
  * Pins the bug class: the update must run through the package manager
- * that OWNS the `kobe` on PATH, or the new version lands in another prefix
+ * that OWNS the `rove` on PATH, or the new version lands in another prefix
  * and PATH keeps resolving the stale install. The manager decision lives in
- * scripts/update.sh (fetched remotely by `kobe update`), so the matrix here
- * executes that actual script with a fully shimmed PATH — fake `kobe`, `npm`,
+ * scripts/update.sh (fetched remotely by `rove update`), so the matrix here
+ * executes that actual script with a fully shimmed PATH — fake `rove`, `npm`,
  * `bun` that log their argv — and asserts which manager got the install.
  */
 
@@ -20,7 +20,7 @@ import { type BehaviorEnv, makeBehaviorEnv, runRove } from "./harness.ts"
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const UPDATE_SH = join(REPO_ROOT, "scripts/update.sh")
 
-describe("kobe update (behavior)", () => {
+describe("rove update (behavior)", () => {
   let env: BehaviorEnv
   beforeAll(async () => {
     env = await makeBehaviorEnv()
@@ -32,14 +32,14 @@ describe("kobe update (behavior)", () => {
   it("--dry-run prints the plan and runs nothing, exit 0", () => {
     const r = runRove(["update", "--dry-run"], env)
     expect(r.code).toBe(0)
-    expect(r.stdout).toMatch(/kobe \d+\.\d+\.\d+ -> latest/)
+    expect(r.stdout).toMatch(/rove \d+\.\d+\.\d+ -> latest/)
     expect(r.stdout).toContain("running: curl")
   })
 
   it("unknown flag lands on the usage surface, exit 2", () => {
     const r = runRove(["update", "--harf"], env)
     expect(r.code).toBe(2)
-    expect(r.stderr).toContain("Usage: kobe update")
+    expect(r.stderr).toContain("Usage: rove update")
   })
 })
 
@@ -47,8 +47,8 @@ describe("kobe update (behavior)", () => {
  * Run scripts/update.sh with PATH shims. `roveBinDir` decides the manager
  * (a path containing `/.bun/` → bun, else npm). Both managers log to
  * `calls.log` instead of installing anything. `linkTo` makes the on-PATH
- * `kobe` a symlink to that entry file, which is how the script tells a
- * legacy @sma1lboy/kobe install from a migrated one. `arg` is the script's
+ * `rove` a symlink to that entry file, which is how the script tells a
+ * legacy @sma1lboy/rove install from a migrated one. `arg` is the script's
  * positional argument — a pinned version or a channel/dist-tag.
  */
 async function runUpdateScript(
@@ -63,11 +63,11 @@ async function runUpdateScript(
   await mkdir(roveBinDir, { recursive: true })
   const logFile = join(base, "calls.log")
 
-  // Post-install `kobe -v` must match `npm view` output or the script exits 1
+  // Post-install `rove -v` must match `npm view` output or the script exits 1
   // (the shadowed-install guard) — keep both at 9.9.9 for the happy path.
-  // Both packages ship a `kobe` AND a `rove` bin, and the script prefers
+  // Both packages ship a `rove` AND a `rove` bin, and the script prefers
   // `rove`, so the fixture has to carry both like a real install does.
-  for (const name of ["kobe", "rove"]) {
+  for (const name of ["rove"]) {
     if (linkTo) {
       await symlink(linkTo, join(roveBinDir, name))
     } else {
@@ -101,7 +101,7 @@ describe("scripts/update.sh manager detection", () => {
     await env.dispose()
   })
 
-  it("a bun-owned kobe (path contains /.bun/) updates via bun", async () => {
+  it("a bun-owned rove (path contains /.bun/) updates via bun", async () => {
     const base = join(env.home, "case-bun")
     const r = await runUpdateScript(base, join(base, ".bun", "bin"))
     expect(r.code).toBe(0)
@@ -115,7 +115,7 @@ describe("scripts/update.sh manager detection", () => {
     expect(r.log).not.toContain("npm install -g")
   })
 
-  it("any other kobe location updates via npm", async () => {
+  it("any other rove location updates via npm", async () => {
     const base = join(env.home, "case-npm")
     const r = await runUpdateScript(base, join(base, "npm-global", "bin"))
     expect(r.code).toBe(0)
@@ -147,24 +147,24 @@ describe("scripts/update.sh manager detection", () => {
   })
 
   // The rename migration: an install whose bin resolves into an
-  // @sma1lboy/kobe package dir must be uninstalled BEFORE rove goes in —
-  // both packages own a `kobe` and a `rove` bin, so a plain install over
+  // @sma1lboy/rove package dir must be uninstalled BEFORE rove goes in —
+  // both packages own a `rove` and a `rove` bin, so a plain install over
   // the top dies with EEXIST.
-  it("a legacy @sma1lboy/kobe install is uninstalled before rove is installed", async () => {
+  it("a legacy @sma1lboy/rove install is uninstalled before rove is installed", async () => {
     const base = join(env.home, "case-migrate")
     const pkgDir = join(base, "npm-global/lib/node_modules/@sma1lboy/rove/dist/cli")
     await mkdir(pkgDir, { recursive: true })
-    const entry = join(pkgDir, "kobe.js")
-    await writeFile(entry, `#!/bin/sh\necho "kobe 9.9.9"\n`)
+    const entry = join(pkgDir, "rove.js")
+    await writeFile(entry, `#!/bin/sh\necho "rove 9.9.9"\n`)
     await chmod(entry, 0o755)
 
     const r = await runUpdateScript(base, join(base, "npm-global", "bin"), entry)
     expect(r.code).toBe(0)
-    expect(r.out).toContain("kobe is now Rove.")
+    expect(r.out).toContain("rove is now Rove.")
     // Both halves of the swap are pinned to the prefix that owns the binary,
     // or the uninstall and the install can hit two different prefixes.
     const prefix = await realpath(join(base, "npm-global"))
-    expect(r.log).toContain(`npm uninstall -g --prefix ${prefix} @sma1lboy/kobe`)
+    expect(r.log).toContain(`npm uninstall -g --prefix ${prefix} @sma1lboy/rove`)
     expect(r.log).toContain(`npm install -g --prefix ${prefix} @sma1lboy/rove@latest`)
     // Order matters: uninstall first, or npm bails with EEXIST.
     expect(r.log.indexOf("uninstall")).toBeLessThan(r.log.indexOf("@sma1lboy/rove@latest"))
@@ -173,7 +173,7 @@ describe("scripts/update.sh manager detection", () => {
   it("a non-legacy install is not uninstalled", async () => {
     const base = join(env.home, "case-no-migrate")
     const r = await runUpdateScript(base, join(base, "npm-global", "bin"))
-    expect(r.out).not.toContain("kobe is now Rove.")
+    expect(r.out).not.toContain("rove is now Rove.")
     expect(r.log).not.toContain("uninstall")
   })
 
@@ -259,9 +259,9 @@ describe("scripts/update.sh manager detection", () => {
     const bin = join(base, "bin")
     await mkdir(shims, { recursive: true })
     await mkdir(bin, { recursive: true })
-    // kobe stays at 1.0.0 while the registry says 9.9.9 → shadowed install.
-    await writeFile(join(bin, "kobe"), `#!/bin/sh\necho "kobe 1.0.0"\n`)
-    await chmod(join(bin, "kobe"), 0o755)
+    // rove stays at 1.0.0 while the registry says 9.9.9 → shadowed install.
+    await writeFile(join(bin, "rove"), `#!/bin/sh\necho "rove 1.0.0"\n`)
+    await chmod(join(bin, "rove"), 0o755)
     for (const mgr of ["npm", "bun"]) {
       await writeFile(join(shims, mgr), `#!/bin/sh\nif [ "$1" = "view" ]; then echo "9.9.9"; fi\n`)
       await chmod(join(shims, mgr), 0o755)
@@ -315,7 +315,7 @@ describe("scripts/update.sh stale npm retire dirs", () => {
     const base = join(env.home, "case-retire-win")
     const { binDir, scope } = await windowsLayout(base)
     const retired = await plantRetireDir(scope, ".rove-xsdjqHxL")
-    const legacy = await plantRetireDir(scope, ".kobe-gcMdoyQi")
+    const legacy = await plantRetireDir(scope, ".rove-gcMdoyQi")
 
     const r = await runUpdateScript(base, binDir)
     expect(r.code).toBe(0)

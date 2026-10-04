@@ -253,7 +253,7 @@ export const TRAPPED_KEYS = ["ctrl+pageup", "ctrl+pagedown"] as const
 /**
  * Chords the terminal pane must NEVER pass through to the shell. Deliberately
  * MINIMAL: the engine CLI owns its chords (shift+tab, ctrl+r, ctrl+hjkl…), and
- * kobe's other globals stay reachable from non-terminal panes. The command
+ * rove's other globals stay reachable from non-terminal panes. The command
  * prefix is claimed dynamically by the dispatcher instead, so a live rebind
  * releases the old prefix immediately. Not here: bare `escape`/`tab` (vim,
  * shell completion) and `ctrl+pageup`/`ctrl+pagedown` (trapped earlier,

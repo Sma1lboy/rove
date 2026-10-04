@@ -1,9 +1,9 @@
 /**
  * HostedTaskPty — the default terminal backend (protocol v4). The PTY child
- * lives in the standalone `kobe pty-host` (`kobe-daemon/daemon/pty-server.ts`),
+ * lives in the standalone `rove pty-host` (`rove-daemon/daemon/pty-server.ts`),
  * not the daemon or this TUI, so sessions survive quitting the TUI and
- * `kobe daemon restart`; reopening replays the host's byte ring into a fresh
- * local xterm. Only `kobe reset` (or the host idle-exiting at zero live
+ * `rove daemon restart`; reopening replays the host's byte ring into a fresh
+ * local xterm. Only `rove reset` (or the host idle-exiting at zero live
  * sessions) ends children. VT emulation stays here; only raw bytes (base64
  * `pty.data`) cross the socket.
  *

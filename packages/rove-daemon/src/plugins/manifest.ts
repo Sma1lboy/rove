@@ -143,13 +143,13 @@ export interface ParsedPluginManifest {
 }
 
 export const PLUGIN_MANIFEST_FILENAME = "rove-plugin.toml"
-export const LEGACY_PLUGIN_MANIFEST_FILENAME = "kobe-plugin.toml"
+export const LEGACY_PLUGIN_MANIFEST_FILENAME = "rove-plugin.toml"
 export const PLUGIN_MANIFEST_FILENAMES = [PLUGIN_MANIFEST_FILENAME, LEGACY_PLUGIN_MANIFEST_FILENAME] as const
 
 /**
  * Engine ids `[[engines]]` may not claim: built-in adapters + shipped contrib
- * catalog. The daemon can't import kobe's lists (kobe depends on the daemon),
- * so this is the daemon-side copy; a kobe-side test locks them together.
+ * catalog. The daemon can't import rove's lists (rove depends on the daemon),
+ * so this is the daemon-side copy; a rove-side test locks them together.
  */
 export const RESERVED_ENGINE_IDS: readonly string[] = [
   "claude",
@@ -243,18 +243,12 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   if (!PLUGIN_ID_RE.test(id)) fail(`plugin id \`${id}\` may use ASCII letters, digits, dot, colon, underscore, hyphen`)
   const name = asString(raw.name, "name")
   const version = asString(raw.version, "version")
-  const rawMinVersion = raw.min_rove_version ?? raw.min_kobe_version
+  const rawMinVersion = raw.min_rove_version
   const minRoveVersion = asString(rawMinVersion, "min_rove_version")
   const description = raw.description === undefined ? undefined : asString(raw.description, "description")
   const platforms = asPlatforms(raw.platforms, "platforms")
   if (!platforms) warnings.push("no top-level `platforms` declared; assuming the plugin runs everywhere")
-  if (
-    raw.min_rove_version !== undefined &&
-    raw.min_kobe_version !== undefined &&
-    raw.min_rove_version !== raw.min_kobe_version
-  ) {
-    warnings.push("both `min_rove_version` and legacy `min_kobe_version` are set; using `min_rove_version`")
-  }
+
 
   const build = asTableArray(raw.build, "build").map((t, i) => ({
     command: asCommand(t.command, `build[${i}].command`),

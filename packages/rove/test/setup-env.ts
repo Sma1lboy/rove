@@ -9,7 +9,7 @@
  * at once from a Rove-managed worktree: 53 failures, 0 of them about the code.
  *
  *   - `ROVE_INVOKED_AS=rove` (every agent session inherits it) flips
- *     `activeCliName()` and 47 `test/cli` assertions on the product name.
+ *     `ROVE_PRODUCT_NAME` and 47 `test/cli` assertions on the product name.
  *   - The real `~/.config/rove/state.json` answers `getEngineProtocol()`, so
  *     a registered `claudecpa` preset fails 2 cases in
  *     `test/tui/continue-live-vendor.test.ts` that a fresh machine passes.

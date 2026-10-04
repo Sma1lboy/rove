@@ -16,7 +16,7 @@
  * is a permanent branch in every reader and a permanent question about which
  * one wins when both exist. One move, and afterwards there is one name.
  *
- * Runs from `cli/rename-compat.ts` at process start, after the `.kobe` → `.rove`
+ * Runs from `cli/startup.ts` at process start, after the `.rove` → `.rove`
  * layout copy has put the file where this can find it, and before any verb,
  * the TUI, or the daemon has read a key. Cheap when there is nothing to do:
  * the check is one read of an already-small file and a substring test, and the
@@ -26,7 +26,7 @@
  * store applies its corrupt-file policy, which renames an unparseable file to
  * `state.json.corrupt-<ts>` and starts fresh — correct for a reader that needs
  * a value, wrong for a rename that has nothing to do. On the launch right
- * after the `.kobe` → `.rove` copy that would quarantine the very file the
+ * after the `.rove` → `.rove` copy that would quarantine the very file the
  * copy had just published, so a legacy blob this had no business touching
  * disappeared on the first run of the new version.
  */

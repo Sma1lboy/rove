@@ -75,7 +75,7 @@ export async function forgetProjectOp(client: RoveDaemonClient, repo: string): P
 /**
  * Fire-and-forget `turn-interrupted` for a turn that ended with NO hook (ESC
  * interrupt, confirmed by `InterruptObserver`). Same `engine.reportEvent` verb
- * as `kobe hook`, so the daemon treats it like any hook event.
+ * as `rove hook`, so the daemon treats it like any hook event.
  */
 export function reportEngineInterruptOp(client: RoveDaemonClient, taskId: string, tabId: string): void {
   void client.request("engine.reportEvent", { kind: "turn-interrupted", taskId, tabId }).catch(() => {})

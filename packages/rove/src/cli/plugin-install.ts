@@ -1,5 +1,5 @@
 /**
- * `kobe plugin install` / `kobe plugin link` — getting a plugin registered.
+ * `rove plugin install` / `rove plugin link` — getting a plugin registered.
  *
  * Install takes GitHub shorthand (`owner/repo[/subdir...]`) in two phases:
  * `preparePluginInstall` clones and previews every command it WOULD run;

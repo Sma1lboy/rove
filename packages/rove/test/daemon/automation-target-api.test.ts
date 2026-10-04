@@ -66,7 +66,7 @@ describe("routine target through real daemon RPC", () => {
       expect(rebound.vendor).toBeUndefined()
       const { automations } = await c.request<{ automations: Automation[] }>("automation.list", {})
       expect(automations).toContainEqual(rebound)
-      await expect(c.request("automation.create", { ...input, repo: `${REPO}/../kobe-daemon` })).rejects.toThrow(
+      await expect(c.request("automation.create", { ...input, repo: `${REPO}/../rove-daemon` })).rejects.toThrow(
         /repo must match/,
       )
       await expect(

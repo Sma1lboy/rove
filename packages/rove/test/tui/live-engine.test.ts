@@ -1,5 +1,5 @@
 /**
- * The live-engine store owns kobe's process identity, NOT OSC-title
+ * The live-engine store owns rove's process identity, NOT OSC-title
  * sniffing (a claude session whose summary says "codex" would
  * relabel its tab codex). These lock the two properties it depends
  * on: identity comes from the tree under the tab's OWN shell pid, and it

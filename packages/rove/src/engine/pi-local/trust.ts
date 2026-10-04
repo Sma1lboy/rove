@@ -8,7 +8,7 @@
  *   → Trust / Trust parent folder / Trust (this session only) / Do not trust …
  *
  * (pi 0.80.6). Nobody answers it in a hosted session, and any repo shipping
- * `.agents/skills/` (kobe does) triggers it.
+ * `.agents/skills/` (rove does) triggers it.
  *
  * The store is `<agentDir>/trust.json`, canonical path → boolean; pi walks a
  * cwd's ANCESTORS for an entry, so one record covers the worktree.

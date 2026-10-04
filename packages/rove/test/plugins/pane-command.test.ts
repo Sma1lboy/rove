@@ -16,7 +16,7 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-const OPTS = { socketPath: "/tmp/x.sock", binPath: "kobe" }
+const OPTS = { socketPath: "/tmp/x.sock", binPath: "rove" }
 
 describe("buildPaneArgv", () => {
   it("wraps the command in the login shell's -ilc with the env contract and root expansion", () => {
@@ -33,12 +33,12 @@ describe("buildPaneArgv", () => {
       "'ROVE_PLUGIN_ID=p.id'",
       "'ROVE_PLUGIN_ROOT=/plug/root'",
       "'ROVE_SOCKET_PATH=/tmp/x.sock'",
-      "'ROVE_BIN_PATH=kobe'",
+      "'ROVE_BIN_PATH=rove'",
       "'ROVE_PLUGIN_ENTRYPOINT_ID=b'",
       "'ROVE_PLUGIN_ID=p.id'",
       "'ROVE_PLUGIN_ROOT=/plug/root'",
       "'ROVE_SOCKET_PATH=/tmp/x.sock'",
-      "'ROVE_BIN_PATH=kobe'",
+      "'ROVE_BIN_PATH=rove'",
       "'ROVE_PLUGIN_ENTRYPOINT_ID=b'",
       "'/plug/root/run.sh'",
       // POSIX-quoted single quote survives.
@@ -62,13 +62,13 @@ describe("buildPaneArgv", () => {
 
 describe("listPaneLaunches", () => {
   it("lists panes of enabled plugins only, launch-ready", () => {
-    const home = tmp("kobe-pane-home-")
-    const root = tmp("kobe-pane-root-")
+    const home = tmp("rove-pane-home-")
+    const root = tmp("rove-pane-root-")
     writeFileSync(
       join(root, "rove-plugin.toml"),
       'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"\n[[panes]]\nid = "git"\ntitle = "lazygit"\ncommand = ["lazygit"]',
     )
-    mkdirSync(join(home, ".kobe"), { recursive: true })
+    mkdirSync(join(home, ".rove"), { recursive: true })
     savePluginRegistry(
       {
         plugins: [

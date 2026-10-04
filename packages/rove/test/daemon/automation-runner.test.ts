@@ -167,7 +167,7 @@ describe("sweepAutomations", () => {
     // The daemon was down when 09:00 came around and only came back at 10:00,
     // outside the 30m grace. Arming a schedule whose nextRunAt is already in
     // the past is exactly what a persisted file looks like after an outage.
-    const dir = mkdtempSync(join(tmpdir(), "kobe-automation-missed-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-automation-missed-"))
     const path = join(dir, "automations.json")
     writeFileSync(
       path,
@@ -203,7 +203,7 @@ describe("sweepAutomations", () => {
   })
 
   it("picks up a schedule armed by a previous daemon (restart survival)", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-automation-restart-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-automation-restart-"))
     const path = join(dir, "automations.json")
 
     // Daemon #1 arms a schedule, then dies.

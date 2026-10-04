@@ -1,5 +1,5 @@
 /**
- * `kobe skill <install|status|command>` (`runSkillSubcommand`). The pure
+ * `rove skill <install|status|command>` (`runSkillSubcommand`). The pure
  * helpers from lib/skill-install stay real (npxSkillsArgv/Command are
  * deterministic); only the state probe is stubbed per-test and Bun.spawn is
  * stubbed so `install` never really runs npx.
@@ -70,7 +70,7 @@ function err(): string {
 describe("runSkillSubcommand usage / dispatch", () => {
   it("no verb prints usage and sets exitCode 2", async () => {
     await runSkillSubcommand([])
-    expect(out()).toContain("usage: kobe skill")
+    expect(out()).toContain("usage: rove skill")
     expect(process.exitCode).toBe(2)
   })
 
@@ -80,14 +80,14 @@ describe("runSkillSubcommand usage / dispatch", () => {
   })
 })
 
-describe("kobe skill status", () => {
+describe("rove skill status", () => {
   it("reports installed + up to date, listing both candidate paths", async () => {
     await runSkillSubcommand(["status"])
     const text = out()
     expect(text).toContain("✓ installed (v2)")
     expect(text).toContain("/home/u/.claude/skills/rove/SKILL.md")
     expect(text).toContain("/proj/.claude/skills/rove/SKILL.md")
-    expect(text).not.toContain("run `kobe skill install`")
+    expect(text).not.toContain("run `rove skill install`")
   })
 
   it("reports not installed with the install hint", async () => {
@@ -101,7 +101,7 @@ describe("kobe skill status", () => {
     await runSkillSubcommand(["status"])
     const text = out()
     expect(text).toContain("✗ not installed")
-    expect(text).toContain("run `kobe skill install`")
+    expect(text).toContain("run `rove skill install`")
   })
 
   it("reports an out-of-date skill (stamped) and an unstamped one", async () => {
@@ -136,15 +136,15 @@ describe("kobe skill status", () => {
     const text = out()
     expect(text).toContain("✓ installed (v2)")
     expect(text).toContain("content differs from the copy bundled with this Rove at the same version")
-    expect(text).toContain("run `kobe --skill > /home/u/.claude/skills/rove/SKILL.md`")
+    expect(text).toContain("run `rove --skill > /home/u/.claude/skills/rove/SKILL.md`")
   })
 })
 
-describe("kobe skill command", () => {
+describe("rove skill command", () => {
   it("prints the underlying npx command — with NO agent — without running it", async () => {
     await runSkillSubcommand(["command"])
     // No --agent on purpose: the agent-skills CLI detects installed agents
-    // and asks. kobe must not pin an agent list of its own.
+    // and asks. rove must not pin an agent list of its own.
     expect(out().trim()).toBe(npxSkillsCommand())
     expect(out()).not.toContain("--agent")
     expect(mocks.bunSpawn).not.toHaveBeenCalled()
@@ -160,8 +160,8 @@ describe("kobe skill command", () => {
   })
 })
 
-describe("kobe skill print", () => {
-  it("prints the bundled SKILL.md verbatim (the `kobe --skill` body)", async () => {
+describe("rove skill print", () => {
+  it("prints the bundled SKILL.md verbatim (the `rove --skill` body)", async () => {
     await runSkillSubcommand(["print"])
     expect(out()).toContain("# Rove shell control")
     expect(out()).toContain("rove-skill-version")
@@ -169,7 +169,7 @@ describe("kobe skill print", () => {
   })
 })
 
-describe("kobe skill install", () => {
+describe("rove skill install", () => {
   it("spawns npx against the BUNDLED skill path, naming no agent", async () => {
     await runSkillSubcommand(["install"])
     const [argv, opts] = mocks.bunSpawn.mock.calls[0]
@@ -181,13 +181,13 @@ describe("kobe skill install", () => {
     expect(argv).not.toContain("--agent")
     // stdio inherited so the CLI's own agent picker is interactive here.
     expect(opts).toEqual({ stdin: "inherit", stdout: "inherit", stderr: "inherit" })
-    expect(out()).toContain("kobe skill: installed.")
+    expect(out()).toContain("rove skill: installed.")
   })
 
   it("propagates a non-zero npx exit code and prints the manual command", async () => {
     mocks.bunSpawn.mockReturnValue({ exited: Promise.resolve(3) })
     await expect(runSkillSubcommand(["install"])).rejects.toThrow("exit 3")
-    expect(err()).toContain("kobe skill install failed (npx exited 3)")
+    expect(err()).toContain("rove skill install failed (npx exited 3)")
     expect(err()).toContain(npxSkillsCommand())
   })
 

@@ -5,7 +5,7 @@ import { readTextWithTimeout } from "../../src/cli/hook-cmd.ts"
  * `readTextWithTimeout` is the stdin-race helper behind `readStdinPayload`. The
  * regression it pins (perf): the fallback timer was never cleared, so even when
  * stdin resolved instantly the process couldn't exit until the 500ms timer
- * fired — and `kobe hook` runs on every Bash tool call + turn boundary of every
+ * fired — and `rove hook` runs on every Bash tool call + turn boundary of every
  * Claude session machine-wide. The contract: when the reader wins the race, the
  * timer is cleared, so no pending timer is left to keep the event loop alive.
  */

@@ -8,12 +8,12 @@ import { SyntaxStyle } from "@opentui/core"
 import type { Theme } from "../context/theme-core"
 
 /**
- * Build a tree-sitter SyntaxStyle from the active kobe theme.
+ * Build a tree-sitter SyntaxStyle from the active rove theme.
  * `SyntaxStyle.create()` is an EMPTY style — opentui parses the code
  * into capture groups but renders them plain unless each scope has a
  * registered colour. We map the nvim-treesitter capture names the
  * bundled ts/js/markdown grammars emit (probed: keyword, string,
- * comment, type, function, number, …) onto kobe's palette so the
+ * comment, type, function, number, …) onto rove's palette so the
  * preview's highlighting matches the rest of the TUI.
  */
 export function buildSyntaxStyle(theme: Theme): SyntaxStyle {

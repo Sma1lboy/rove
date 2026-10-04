@@ -84,7 +84,7 @@ describe("settings keys a manifest may declare", () => {
 
 describe("settings values stay on one line", () => {
   it("strips a newline that would forge a second KEY= assignment", () => {
-    const home = tmp("kobe-setkey-nl-")
+    const home = tmp("rove-setkey-nl-")
     writePluginSettings("p", { ROVE_P_MODE: "fast\nLD_PRELOAD=/tmp/evil.so" }, home)
     const text = readFileSync(join(pluginConfigDir("p", home), ".env"), "utf8")
     expect(text.trimEnd().split("\n")).toEqual(["ROVE_P_MODE=fastLD_PRELOAD=/tmp/evil.so"])
@@ -92,7 +92,7 @@ describe("settings values stay on one line", () => {
   })
 
   it("strips a carriage return too, and on the update path as well as the insert path", () => {
-    const home = tmp("kobe-setkey-cr-")
+    const home = tmp("rove-setkey-cr-")
     writePluginSettings("p", { ROVE_P_MODE: "one" }, home)
     writePluginSettings("p", { ROVE_P_MODE: "two\r\nPATH=/tmp/bin" }, home)
     const text = readFileSync(join(pluginConfigDir("p", home), ".env"), "utf8")

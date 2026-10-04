@@ -23,9 +23,9 @@
  * dashboard ships in the npm `dist/web-ui` artifact, not inside the compiled
  * single-file binary.
  *
- * After the kobed → kobe bin merge (KOB-136), the single Rove binary
+ * After the roved → rove bin merge (KOB-136), the single Rove binary
  * also hosts the daemon (`rove daemon start|stop|status|restart`), so
- * there is no separate `kobed` binary to compile.
+ * there is no separate `roved` binary to compile.
  */
 
 import { mkdirSync } from "node:fs"

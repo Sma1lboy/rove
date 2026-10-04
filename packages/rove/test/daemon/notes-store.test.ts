@@ -16,7 +16,7 @@ import { afterEach, describe, expect, it } from "vitest"
 const cleanups: string[] = []
 
 async function makeRepo(): Promise<string> {
-  const repo = await mkdtemp(join(tmpdir(), "kobe-notes-store-"))
+  const repo = await mkdtemp(join(tmpdir(), "rove-notes-store-"))
   cleanups.push(repo)
   execFileSync("git", ["init", "--quiet"], { cwd: repo })
   await writeFile(join(repo, "README.md"), "fixture\n", "utf8")
@@ -40,7 +40,7 @@ afterEach(async () => {
 describe("NotesStore", () => {
   it("appends newest-first so recall reads as a recency-ordered list", async () => {
     const repo = await makeRepo()
-    const store = new NotesStore(join(repo, "home", ".kobe", "notes.json"))
+    const store = new NotesStore(join(repo, "home", ".rove", "notes.json"))
     await store.append(repo, note("first"))
     await store.append(repo, note("second"))
     expect((await store.list(repo)).map((n) => n.text)).toEqual(["second", "first"])
@@ -48,7 +48,7 @@ describe("NotesStore", () => {
 
   it("evicts past the retention cap instead of growing without bound", async () => {
     const repo = await makeRepo()
-    const store = new NotesStore(join(repo, "home", ".kobe", "notes.json"))
+    const store = new NotesStore(join(repo, "home", ".rove", "notes.json"))
     for (let i = 0; i < NOTES_RETENTION_CAP + 5; i++) await store.append(repo, note(`n${i}`))
     const notes = await store.list(repo)
     expect(notes).toHaveLength(NOTES_RETENTION_CAP)
@@ -58,12 +58,12 @@ describe("NotesStore", () => {
 
   it("shares one record between a repo and its worktrees (git common-dir key)", async () => {
     const repo = await makeRepo()
-    const parent = await mkdtemp(join(tmpdir(), "kobe-notes-wt-"))
+    const parent = await mkdtemp(join(tmpdir(), "rove-notes-wt-"))
     cleanups.push(parent)
     const worktree = join(parent, "task")
     execFileSync("git", ["worktree", "add", "--quiet", worktree, "-b", "task"], { cwd: repo })
 
-    const store = new NotesStore(join(parent, "home", ".kobe", "notes.json"))
+    const store = new NotesStore(join(parent, "home", ".rove", "notes.json"))
     await store.append(worktree, note("filed from the worktree"))
     expect((await store.list(repo)).map((n) => n.text)).toEqual(["filed from the worktree"])
   })
@@ -73,7 +73,7 @@ describe("NotesStore", () => {
   // only fix was hand-editing the daemon's JSON.
   it("removes one note by id and leaves its siblings alone", async () => {
     const repo = await makeRepo()
-    const store = new NotesStore(join(repo, "home", ".kobe", "notes.json"))
+    const store = new NotesStore(join(repo, "home", ".rove", "notes.json"))
     await store.append(repo, note("stale"))
     const keep = await store.append(repo, note("still true"))
     const stale = (await store.list(repo)).find((n) => n.text === "stale")
@@ -89,7 +89,7 @@ describe("NotesStore", () => {
     // Not an error: the retention ring may already have evicted the note a
     // sweeper is asking about, and "gone now" is the outcome it wanted.
     const repo = await makeRepo()
-    const store = new NotesStore(join(repo, "home", ".kobe", "notes.json"))
+    const store = new NotesStore(join(repo, "home", ".rove", "notes.json"))
     await store.append(repo, note("only"))
     expect(await store.remove(repo, 999)).toBe(false)
     expect(await store.list(repo)).toHaveLength(1)
@@ -100,7 +100,7 @@ describe("NotesStore", () => {
     // notes still hold once the ring starts dropping the tail — and a delete
     // by such an id would hit two notes.
     const repo = await makeRepo()
-    const store = new NotesStore(join(repo, "home", ".kobe", "notes.json"))
+    const store = new NotesStore(join(repo, "home", ".rove", "notes.json"))
     for (let i = 0; i < NOTES_RETENTION_CAP + 5; i++) await store.append(repo, note(`n${i}`))
     const ids = (await store.list(repo)).map((n) => n.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -110,7 +110,7 @@ describe("NotesStore", () => {
     // The launch-path reader parses this file directly, so legacy notes must
     // keep being listed — and every one must come back addressable.
     const repo = await makeRepo()
-    const storePath = join(repo, "home", ".kobe", "notes.json")
+    const storePath = join(repo, "home", ".rove", "notes.json")
     const store = new NotesStore(storePath)
     await store.append(repo, note("seed"))
     const raw = JSON.parse(await readFile(storePath, "utf8"))

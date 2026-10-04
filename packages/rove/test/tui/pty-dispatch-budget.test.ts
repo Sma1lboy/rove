@@ -115,7 +115,7 @@ describe("hosted pty inbound dispatch budget", () => {
   let host: FakePtyHost
 
   beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), "kobe-pty-dispatch-"))
+    dir = mkdtempSync(join(tmpdir(), "rove-pty-dispatch-"))
     process.env.ROVE_PTY_SOCKET_PATH = join(dir, "pty.sock")
     process.env.ROVE_PTY_PID_PATH = join(dir, "pty.pid")
     host = await FakePtyHost.start(process.env.ROVE_PTY_SOCKET_PATH)

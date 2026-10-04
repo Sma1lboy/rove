@@ -16,7 +16,7 @@ import { type ExecResult, LocalExecHost, RemoteExecHost, type RemoteSpec } from 
 let dir: string
 
 beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), "kobe-local-exec-"))
+  dir = mkdtempSync(join(tmpdir(), "rove-local-exec-"))
 })
 
 afterAll(() => {
@@ -36,7 +36,7 @@ describe("LocalExecHost", () => {
     })
     expect(result.exitCode).toBe(0)
     expect(result.stdout.startsWith("yes:")).toBe(true)
-    expect(result.stdout).toContain("kobe-local-exec-")
+    expect(result.stdout).toContain("rove-local-exec-")
   })
 
   it("fs helpers: exists / mkdirp / readFile / readdir with graceful fallbacks", async () => {

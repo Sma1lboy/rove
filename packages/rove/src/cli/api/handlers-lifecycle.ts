@@ -97,7 +97,7 @@ async function deleteOne(
     throw deleteRecoveryError(err, taskId)
   }
   // task.delete never kills the hosted session; without this the
-  // `kobe-<id>` session + engine orphan invisibly. Mirrors the TUI's
+  // `rove-<id>` session + engine orphan invisibly. Mirrors the TUI's
   // finishDeletedTaskFlow, after the RPC succeeds.
   await ctx.runtime.tearDownSession(taskId)
   if (!res.queued) return { ...res, status: "not_found" as const }

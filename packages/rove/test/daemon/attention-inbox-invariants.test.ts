@@ -14,7 +14,7 @@ describe("attention inbox store invariants", () => {
   })
 
   it("stores and indexes a new episode under its required tab identity", async () => {
-    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-invariants-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-attention-inbox-invariants-"))
     const store = new AttentionInboxStore(join(dir, "attention-inbox.json"), new DaemonEventBus(), () => 100)
     await store.init()
 
@@ -31,7 +31,7 @@ describe("attention inbox store invariants", () => {
   // is not a tab either: normalize it to null rather than keying an episode
   // on `""`.
   it("normalizes an empty tab identity to a task-level episode", async () => {
-    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-invariants-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-attention-inbox-invariants-"))
     const store = new AttentionInboxStore(join(dir, "attention-inbox.json"), new DaemonEventBus())
     await store.init()
 
@@ -45,7 +45,7 @@ describe("attention inbox store invariants", () => {
 
   it("does not delete a replacement episode through a stale dismiss action", async () => {
     let now = 100
-    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-invariants-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-attention-inbox-invariants-"))
     const store = new AttentionInboxStore(join(dir, "attention-inbox.json"), new DaemonEventBus(), () => now)
     await store.init()
     await store.record("task-1", "turn-complete", undefined, "tab-1")

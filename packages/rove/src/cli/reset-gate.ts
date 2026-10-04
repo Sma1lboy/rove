@@ -1,15 +1,15 @@
 /**
  * Breaking-version reset gate: when the binary and `app.lastRunVersion` straddle
- * a {@link BREAKING_VERSIONS} entry, the TUI refuses to start until `kobe reset`
+ * a {@link BREAKING_VERSIONS} entry, the TUI refuses to start until `rove reset`
  * (tears down daemon/PTY host/sessions and re-stamps).
  *
  * NOT enforced for non-app subcommands (`update`, `doctor`, `reset`, `api`, …):
  * a gated install must stay inspectable and recoverable.
  */
 
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile, patchStateFile } from "../state/store.ts"
 import { BREAKING_VERSIONS, CURRENT_VERSION, compareSemver } from "../version.ts"
-import { activeCliName } from "./rename-compat.ts"
 
 export const LAST_RUN_VERSION_KEY = "app.lastRunVersion"
 
@@ -29,7 +29,7 @@ export function resetGateBlockers(
 
 /** exit(1) with instructions if blocked, else re-stamp (best-effort). */
 export function enforceResetGate(): void {
-  const cliName = activeCliName()
+  const cliName = ROVE_PRODUCT_NAME
   const lastRun = loadStateFile()[LAST_RUN_VERSION_KEY]
   const blockers = resetGateBlockers(lastRun)
   if (blockers.length > 0) {
@@ -51,7 +51,7 @@ export function enforceResetGate(): void {
   if (lastRun !== CURRENT_VERSION) stampResetGate()
 }
 
-/** Stamp the running version (also how `kobe reset` clears a block).
+/** Stamp the running version (also how `rove reset` clears a block).
  *  Best-effort: a read-only FS must not crash startup. */
 export function stampResetGate(): void {
   try {

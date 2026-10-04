@@ -1,5 +1,5 @@
 /**
- * `defaultApiRuntime` — the real side-effect seam `kobe api` handlers run
+ * `defaultApiRuntime` — the real side-effect seam `rove api` handlers run
  * against in production. Each operation lazily imports (or statically uses)
  * a heavier module; those modules are mocked here so what's asserted is the
  * DELEGATION contract: which underlying function each runtime op calls,

@@ -73,7 +73,7 @@ function registerClaudeWrapper(): void {
 }
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "kobe-declared-flags-"))
+  home = mkdtempSync(join(tmpdir(), "rove-declared-flags-"))
   originalHome = process.env.ROVE_HOME_DIR
   originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR
   process.env.ROVE_HOME_DIR = home

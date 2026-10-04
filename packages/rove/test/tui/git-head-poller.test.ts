@@ -24,7 +24,7 @@ import { resetGitHeadPoller, resolveBranchHead } from "../../src/tui/panes/sideb
 afterEach(() => resetGitHeadPoller())
 
 function makeRepo(): string {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-git-head-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-git-head-"))
   // -b main pins the initial branch name across git default-branch configs.
   execFileSync("git", ["init", "-q", "-b", "main"], { cwd: dir })
   return dir
@@ -72,7 +72,7 @@ describe("resolveBranchHead fingerprint gate", () => {
   })
 
   test("a repo without a statable .git/HEAD skips the gate (always resolves, returns '')", async () => {
-    const missing = join(tmpdir(), "kobe-git-head-definitely-missing")
+    const missing = join(tmpdir(), "rove-git-head-definitely-missing")
     const { spawn, count } = countingSpawn()
     const signal = new AbortController().signal
 

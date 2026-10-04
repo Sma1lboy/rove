@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs"
 import { submitFeedback } from "../lib/feedback.ts"
-import { activeCliName } from "./rename-compat.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 const FEEDBACK_USAGE = [
   `Usage: ${CLI_NAME} feedback --title <text> (--body <text> | --body-file <path>) [--category <slug>]`,

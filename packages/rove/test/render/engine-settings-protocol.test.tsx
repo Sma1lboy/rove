@@ -93,7 +93,7 @@ function Driver(props: { onReady: (api: ReturnType<typeof useEngineSettings>, kv
 async function withEngineSettings(
   run: (api: ReturnType<typeof useEngineSettings>) => void | Promise<void>,
 ): Promise<(key: string) => unknown> {
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-engine-settings-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-engine-settings-"))
   let resolveReady: (pair: readonly [ReturnType<typeof useEngineSettings>, KVContext]) => void = () => {}
   const ready = new Promise<readonly [ReturnType<typeof useEngineSettings>, KVContext]>((resolve) => {
     resolveReady = resolve

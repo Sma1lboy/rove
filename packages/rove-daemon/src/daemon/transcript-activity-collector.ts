@@ -102,7 +102,7 @@ export async function runTranscriptActivity(
  * or path excluded). Tasks sharing a path collapse; the FIRST in list order
  * picks the vendor, keeping the vendor-specific completion marker stable. A
  * task with no vendor gets `defaultVendor` — required so it can't diverge
- * from kobe's `DEFAULT_TASK_VENDOR`, which the runtime adapter injects.
+ * from rove's `DEFAULT_TASK_VENDOR`, which the runtime adapter injects.
  */
 export function trackedWorktrees(tasks: readonly Task[], defaultVendor: VendorId): Map<string, VendorId> {
   const map = new Map<string, VendorId>()
@@ -135,7 +135,7 @@ export interface TranscriptActivityCollectorOptions {
    */
   readonly hasSubscribers?: () => boolean
   readonly createDetector?: (vendor: VendorId) => EngineTurnDetector
-  /** Vendor for a task that names none; kobe injects `DEFAULT_TASK_VENDOR`. */
+  /** Vendor for a task that names none; rove injects `DEFAULT_TASK_VENDOR`. */
   readonly defaultVendor: VendorId
 }
 

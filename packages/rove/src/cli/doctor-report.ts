@@ -1,5 +1,5 @@
 /**
- * `kobe doctor --report`: diagnosis + recent logs + relevant env in one
+ * `rove doctor --report`: diagnosis + recent logs + relevant env in one
  * attachable text file.
  *
  * Env discipline: this gets pasted into public bug reports, so a value prints

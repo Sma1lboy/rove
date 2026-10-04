@@ -47,9 +47,6 @@ export function rove(args: readonly string[], opts: RoveRunOptions = {}): Promis
   })
 }
 
-/** Compatibility alias for plugins written against the Rove-named SDK. */
-export const kobe = rove
-
 /** Run and parse stdout as JSON; throws on non-zero exit or bad JSON. */
 export async function roveJson<T = unknown>(args: readonly string[], opts: RoveRunOptions = {}): Promise<T> {
   const res = await rove(args, opts)

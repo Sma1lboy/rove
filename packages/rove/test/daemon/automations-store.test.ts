@@ -8,7 +8,7 @@ import type { AutomationRun } from "../../../rove-daemon/src/daemon/contracts.ts
 const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime() // 2026-07-31 10:00 local
 
 function tempStore(now = () => NOW): { store: AutomationsStore; path: string } {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-automations-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-automations-"))
   const path = join(dir, "automations.json")
   return { store: new AutomationsStore(path, now), path }
 }

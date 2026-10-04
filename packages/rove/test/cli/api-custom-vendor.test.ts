@@ -53,7 +53,7 @@ function writeState(state: Record<string, unknown>): void {
 }
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "kobe-custom-vendor-"))
+  home = mkdtempSync(join(tmpdir(), "rove-custom-vendor-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = home
 })

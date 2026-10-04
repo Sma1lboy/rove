@@ -1,5 +1,5 @@
 /**
- * `kobe hook <verb>` dispatcher (`runHookSubcommand` + `ensureGlobalRoveHooks`)
+ * `rove hook <verb>` dispatcher (`runHookSubcommand` + `ensureGlobalRoveHooks`)
  * — sibling of hook-cmd.test.ts (which covers the pure parsers). The daemon
  * client is mocked (hooks are non-spawning by contract) and the engine hook
  * adapters are faked so no real ~/.claude/settings.json is ever written.
@@ -70,15 +70,15 @@ function stubStdin(payload: unknown): void {
 
 beforeEach(() => {
   originalHome = process.env.ROVE_HOME_DIR
-  home = mkdtempSync(join(tmpdir(), "kobe-hook-"))
+  home = mkdtempSync(join(tmpdir(), "rove-hook-"))
   process.env.ROVE_HOME_DIR = home
 
   // Engine tabs launch as `env ROVE_TASK_ID=… ROVE_TAB_ID=… <engine>`, so a
-  // test run started from inside a kobe engine tab inherits both and the
+  // test run started from inside a rove engine tab inherits both and the
   // dispatcher reports THAT tab's identity instead of resolving the payload
   // cwd. Pin them off: these assertions describe the no-ambient-identity
   // path, and without this they fail only on a developer's machine — CI,
-  // which has no kobe session, never sees it.
+  // which has no rove session, never sees it.
   vi.stubEnv("ROVE_TASK_ID", undefined)
   vi.stubEnv("ROVE_TAB_ID", undefined)
 
@@ -211,7 +211,7 @@ describe("runHookSubcommand — activity verbs", () => {
     )
   })
 
-  // Why: sessionId is how kobe pins "which engine session is live here" —
+  // Why: sessionId is how rove pins "which engine session is live here" —
   // including user-typed engines. The adapter extracts it from the payload;
   // the dispatcher must forward it (and transcriptPath) on the RPC.
   it("forwards the adapter's session identity on the RPC", async () => {
@@ -290,7 +290,7 @@ describe("runHookSubcommand — activity verbs", () => {
   })
 })
 
-describe("kobe hook setup (deprecated cleanup)", () => {
+describe("rove hook setup (deprecated cleanup)", () => {
   it("removes the old WorktreeCreate hook from the global settings and persists sync=off", async () => {
     const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
     await runHookSubcommand(["setup"])

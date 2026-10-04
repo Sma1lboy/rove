@@ -93,7 +93,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     // Base drift on the SAME guarded run as the status walk (inherits its
     // dedupe, timeout, backoff). One `--left-right --count` yields both
     // sides: two counts could straddle a commit. The ladder lives here
-    // because kobe-daemon does not import kobe sources.
+    // because rove-daemon does not import rove sources.
     const base = await resolveBaseRefCached(worktreePath, baseRef, signal)
     if (!base) return counts
     // Memoised on HEAD/base shas from ref files (was half the collector's spawns).

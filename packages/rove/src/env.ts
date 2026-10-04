@@ -1,3 +1,4 @@
+import { preRenameConfigDir, preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 /**
  * Every production env/runtime flag read goes through here: `ROVE_*` first,
  * falling back to the `ROVE_*` alias. Test-only vars (`ROVE_TEST_ENGINE`,
@@ -15,7 +16,7 @@ import {
   defaultUiPrefsStatePath,
   resolveProductHomeDir,
 } from "@sma1lboy/rove-daemon/daemon/product-paths"
-import { LEGACY_ROVE_CONFIG_DIR_BASENAME, LEGACY_ROVE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "./product.ts"
+import { ROVE_STATE_DIR_BASENAME } from "./product.ts"
 
 /**
  * `ROVE_DEV=1` / `ROVE_DEV=1` — running from a developer checkout. Suppresses
@@ -40,7 +41,7 @@ export function roveStateDir(): string {
 
 /** Compatibility root for data created before the Rove migration. */
 export function legacyRoveStateDir(): string {
-  return join(homeDir(), LEGACY_ROVE_STATE_DIR_BASENAME)
+  return preRenameStateDir(homeDir())
 }
 
 /**
@@ -54,7 +55,7 @@ export function kvStatePath(): string {
 
 /** Compatibility path copied on first launch after upgrade. */
 export function legacyRoveKvStatePath(): string {
-  return join(homeDir(), ".config", LEGACY_ROVE_CONFIG_DIR_BASENAME, "state.json")
+  return join(preRenameConfigDir(homeDir()), "state.json")
 }
 
 /**

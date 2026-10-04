@@ -46,7 +46,7 @@ export function optionalNumber(payload: Record<string, unknown>, key: string): n
 }
 
 export function optionalVendor(payload: Record<string, unknown>, key: string): VendorId | undefined {
-  // Any non-empty string: custom engines live in kobe's customEngineIds
+  // Any non-empty string: custom engines live in rove's customEngineIds
   // registry, invisible here; a bogus id just fails to launch in the pane.
   // Empty/absent stays undefined (→ claude).
   const value = optionalString(payload, key)

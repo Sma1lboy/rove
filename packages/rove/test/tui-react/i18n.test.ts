@@ -25,7 +25,7 @@ describe("react i18n runtime", () => {
   it("interpolates {params} and leaves absent params literal", () => {
     // The raw-key fallback goes through interpolation too,
     // which pins both the substitution and the absent-param-stays-literal rule.
-    expect(t("x {who}", { who: "kobe" })).toBe("x kobe")
+    expect(t("x {who}", { who: "rove" })).toBe("x rove")
     expect(t("x {who}", { other: "y" })).toBe("x {who}")
     expect(t("x {who}")).toBe("x {who}")
   })

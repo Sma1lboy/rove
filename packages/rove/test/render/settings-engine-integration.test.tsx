@@ -43,7 +43,7 @@ function isolateVendorHomes(tag: string): string {
 }
 
 test("an engine config written by an older Rove reads outdated, and the install row fixes it", async () => {
-  const home = isolateVendorHomes("kobe-engine-integration-")
+  const home = isolateVendorHomes("rove-engine-integration-")
   const claudeDir = process.env.CLAUDE_CONFIG_DIR as string
   const settings = join(claudeDir, "settings.json")
   require("node:fs").mkdirSync(claudeDir, { recursive: true })
@@ -103,7 +103,7 @@ test("an engine config written by an older Rove reads outdated, and the install 
 })
 
 test("an engine with no hook adapter says so instead of reading as broken", async () => {
-  isolateVendorHomes("kobe-engine-integration-none-")
+  isolateVendorHomes("rove-engine-integration-none-")
   const { frame, mockInput } = await renderComponent(<Driver />, {
     width: 120,
     height: 44,

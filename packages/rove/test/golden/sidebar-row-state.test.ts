@@ -104,7 +104,7 @@ test("no spinner frame collides with a settled-state badge glyph", () => {
 /**
  * Every glyph the rail can render must survive the FONT, not just the layout.
  *
- * kobe reserves one cell per state glyph, and both the width table and opentui
+ * rove reserves one cell per state glyph, and both the width table and opentui
  * agree on one cell for all of these. The terminal may not: when the user's
  * font lacks a codepoint, the OS substitutes another face at ITS advance, and
  * a CJK or dingbat substitute is 1.1–1.6 cells wide — it overruns into the

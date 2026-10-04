@@ -6,13 +6,13 @@
  * uses `@opentui/react`'s per-file `@jsxImportSource` pragmas, which Bun's
  * default transpiler honours — no build plugin required.
  *
- * Output: `dist/cli/kobe.js` and `dist/cli/rove.js` with executable perms,
+ * Output: `dist/cli/rove.js` and `dist/cli/rove.js` with executable perms,
  * plus their shared `index.js` implementation. Those two bins are the NODE
  * launcher (src/cli/launcher.ts) — installers disagree about which runtime
  * starts a bin file, and only node is guaranteed under `npm i -g` / `npx` —
  * so the Bun bundles they front ship beside them as `<name>-run.js`. After
- * the kobed → kobe bin merge (KOB-136), daemon lifecycle lives at
- * `kobe daemon ...`, so there is no separate `kobed` binary to build.
+ * the roved → rove bin merge (KOB-136), daemon lifecycle lives at
+ * `rove daemon ...`, so there is no separate `roved` binary to build.
  *
  * The canonical Rove SKILL.md is copied from its compatibility source path
  * into the tarball. `npx skills add Sma1lboy/rove --skill rove` does a `git clone
@@ -20,7 +20,7 @@
  * on a slow connection for a file this size. Since the user already has
  * Rove installed, `rove skill install` points the agent-skills CLI at the
  * bundled copy instead (a local path, no network). The CLI still owns
- * agent detection, target dirs, and symlinking — kobe never reimplements
+ * agent detection, target dirs, and symlinking — rove never reimplements
  * that registry.
  *
  * The published artifact carries the `rove-harness` capture page alongside
@@ -33,7 +33,7 @@ import { API_VERBS } from "../src/cli/api/verbs.ts"
 import { SHELLS, generateCompletions, mergeSubVerbs } from "../src/cli/completion-scripts.ts"
 
 /** Both published bin names; each gets a launcher + the Bun bundle behind it. */
-const CLI_NAMES = ["kobe", "rove"] as const
+const CLI_NAMES = ["rove"] as const
 const OUT_FILES = CLI_NAMES.flatMap((name) => [`./dist/cli/${name}.js`, `./dist/cli/${name}-run.js`])
 const CLI_OUT_DIR = "./dist/cli"
 /**
@@ -47,7 +47,7 @@ const CLI_OUT_DIR = "./dist/cli"
  */
 const COMPLETIONS_OUT_DIR = "./dist/completions"
 /** Canonical skill source (repo root) → its home in the tarball. */
-const SKILL_SRC_DIR = "../../.agents/skills/kobe"
+const SKILL_SRC_DIR = "../../.agents/skills/rove"
 const SKILL_OUT_DIR = "./dist/skills/rove"
 const WEB_PACKAGE_DIR = "../rove-harness"
 const WEB_DIST_DIR = `${WEB_PACKAGE_DIR}/dist`
@@ -89,7 +89,7 @@ async function copyWebUi(): Promise<void> {
 
 /**
  * Copy the canonical skill into the tarball. Hard-fails when it's missing:
- * a silently skill-less build ships a `kobe skill install` that can only
+ * a silently skill-less build ships a `rove skill install` that can only
  * report "not bundled", which is worse than a red build.
  */
 async function copySkill(): Promise<void> {
@@ -128,7 +128,7 @@ await rm(CLI_OUT_DIR, { recursive: true, force: true })
 await mkdir(CLI_OUT_DIR, { recursive: true })
 
 const result = await Bun.build({
-  entrypoints: ["./src/cli/index.ts", "./src/cli/kobe.ts", "./src/cli/rove.ts"],
+  entrypoints: ["./src/cli/index.ts", "./src/cli/rove.ts"],
   outdir: "./dist",
   root: "./src",
   target: "bun",
@@ -166,7 +166,7 @@ if (!result.success) {
 
 // The Windows PTY host, as a NODE program. Bun rejects its `terminal` spawn
 // option on Windows, and a Bun-hosted node-pty session cannot be written to,
-// so that one process runs under node (see kobe-daemon/daemon/pty-driver.ts).
+// so that one process runs under node (see rove-daemon/daemon/pty-driver.ts).
 // Emitted unconditionally — the npm tarball is built once and installed on
 // every OS, so this file must exist in it regardless of the build machine.
 const ptyHostNode = await Bun.build({

@@ -55,7 +55,7 @@ export function HelpDialog(props: {
     () => grammarHelpSections(RoveKeymap, props.currentScope ?? null, pureTuiPrefix.key, props.reachability),
     [keymapVersion, props.currentScope, props.reachability, pureTuiPrefix.key],
   )
-  // Standalone full-window page (`kobe help-page`) passes its own exit;
+  // Standalone full-window page (`rove help-page`) passes its own exit;
   // the in-pane overlay closes by clearing the dialog stack.
   const close = () => (props.onClose ? props.onClose() : dialog.clear())
 

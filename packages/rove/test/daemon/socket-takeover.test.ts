@@ -2,7 +2,7 @@
  * Socket-takeover guard. An unconditional `unlink(socketPath)` in
  * `startDaemonServer` lets an autospawned daemon steal the path out from
  * under a healthy incumbent — the incumbent keeps serving its already-attached
- * TUI while every NEW connection (engine hooks, `kobe api`) lands on the
+ * TUI while every NEW connection (engine hooks, `rove api`) lands on the
  * usurper. Split-brain activity state; sidebar badges vanish for engines that
  * are genuinely mid-turn. The guard probes the socket before binding: a live
  * (hello-answering) owner refuses the boot, a stale leftover file is cleared.
@@ -97,7 +97,7 @@ describe("daemon socket takeover guard", () => {
     // FIRST (stopDaemonProcess cleanup), so the usurper's boot probe reads
     // "absent" and binds. The incumbent must notice and stop itself — its
     // attached clients' reconnect loops then land on the new owner.
-    const { socketPath, pidPath, base, cleanup } = tempDaemonDir("kobe-sock-tko-")
+    const { socketPath, pidPath, base, cleanup } = tempDaemonDir("rove-sock-tko-")
     try {
       let stopped = false
       const incumbent = await startDaemonServer(() => fakeOrchestrator(), {
@@ -125,7 +125,7 @@ describe("daemon socket takeover guard", () => {
   })
 
   it("shutdown cleanup leaves a socket it no longer owns untouched, but still cleans an owned one", async () => {
-    const { socketPath, pidPath, base, cleanup } = tempDaemonDir("kobe-sock-own-")
+    const { socketPath, pidPath, base, cleanup } = tempDaemonDir("rove-sock-own-")
     try {
       const superseded = await startDaemonServer(() => fakeOrchestrator(), { ...base, socketWatchMs: 0 })
       await unlink(socketPath)
@@ -158,7 +158,7 @@ describe("daemon socket takeover guard", () => {
     // self-feeding: `ensureDaemonReachable`'s busy-daemon grace keys on
     // readPidFile, so with it gone every client skips the grace and goes
     // straight to stop+spawn.
-    const dir = mkdtempSync(join(tmpdir(), "kobe-sock-unarmed-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-sock-unarmed-"))
     try {
       const socketPath = join(dir, "daemon.sock")
       const pidPath = join(dir, "daemon.pid")
@@ -206,7 +206,7 @@ describe("daemon socket takeover guard", () => {
   })
 
   it("still clears a stale socket file left by a dead daemon", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-sock-stale-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-sock-stale-"))
     const saved = process.env.ROVE_HOME_DIR
     process.env.ROVE_HOME_DIR = dir
     const socketPath = join(dir, "daemon.sock")

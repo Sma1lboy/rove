@@ -1,9 +1,9 @@
 /**
- * Map a hook's `cwd` to a task. Global hooks (`kobe hook <verb>`) fire for
+ * Map a hook's `cwd` to a task. Global hooks (`rove hook <verb>`) fire for
  * every session and carry only the engine's directory; the match is the task
  * whose `worktreePath` is the cwd or its LONGEST prefix — worktrees live under
- * `~/.rove/worktrees/`, legacy `~/.kobe/worktrees/`, or repo-local
- * `.rove/`/`.kobe/`/`.claude/worktrees/`, and a `main` task's path is the repo
+ * `~/.rove/worktrees/`, legacy `~/.rove/worktrees/`, or repo-local
+ * `.rove/`/`.rove/`/`.claude/worktrees/`, and a `main` task's path is the repo
  * root, so the more specific one must win.
  *
  * A prefix alone isn't enough: a different repo nested under a tracked root
@@ -20,7 +20,7 @@ import { managedWorktreeRootsFor, readWorktreeBaseOverride } from "./worktree-pa
 export interface CwdMatchTask {
   readonly id: string
   readonly worktreePath?: string | null
-  /** The task's repo root — names which repos kobe already tracks. */
+  /** The task's repo root — names which repos rove already tracks. */
   readonly repo?: string | null
 }
 

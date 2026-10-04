@@ -73,7 +73,7 @@ export type DaemonRequestName =
   | "task.observeLanguage"
   | "task.setVendor"
   // RAW engine launch command (`set-command`). The caller resolves its protocol
-  // (presets live in kobe's state.json, unreadable here) and sends both.
+  // (presets live in rove's state.json, unreadable here) and sends both.
   | "task.setCommand"
   | "task.delete"
   // Merge/squash a task's branch into its base repo. Refuses a dirty base
@@ -92,7 +92,7 @@ export type DaemonRequestName =
   // durable, so this copy is what survives engine/context loss.
   | "task.setPrompt"
   | "task.ensureMain"
-  // Open an existing directory as a standalone `kind:"dir"` task (`kobe .`).
+  // Open an existing directory as a standalone `kind:"dir"` task (`rove .`).
   | "task.openDir"
   // Scratch → project migration: repoint + clear the flag.
   | "task.adoptScratchRepo"
@@ -111,7 +111,7 @@ export type DaemonRequestName =
   // Remove refuses a dirty worktree unless `force: true`.
   | "worktree.list"
   | "worktree.remove"
-  // `kobe hook <verb>` reports a normalized activity event; folded into the
+  // `rove hook <verb>` reports a normalized activity event; folded into the
   // task's transient activity state and broadcast as `engine-state`.
   | "engine.reportEvent"
   // Guarded removal of the Inbox item at an event timestamp (dismiss/open/visit).
@@ -149,12 +149,12 @@ export type DaemonRequestName =
   | "task.recentEvents"
   // Turn store read side; written only by hook ingest on `turn-complete`.
   | "agentTurn.list"
-  // `kobe api inspect`: RAW activity-registry entries (probe vendor, armed
+  // `rove api inspect`: RAW activity-registry entries (probe vendor, armed
   // watchdogs) beyond the engine-state payload. Read-only.
   | "debug.inspect"
   // TUI-originated product events (file/task/project opens) → plugin hooks.
   | "ui.reportEvent"
-  // Plugin input dialog (`kobe api prompt`): blocks until an attached TUI
+  // Plugin input dialog (`rove api prompt`): blocks until an attached TUI
   // answers via `ui.promptReply` or the broker times out.
   | "ui.prompt"
   | "ui.promptReply"
@@ -167,12 +167,12 @@ export type DaemonRequestName =
   // CLI falls back to the standalone PTY Host when nobody confirms.
   | "terminalTab.close"
   | "terminalTab.closeReply"
-  // Broadcast on `tab.rename` (`kobe api rename --tab`). No reply: rename is
+  // Broadcast on `tab.rename` (`rove api rename --tab`). No reply: rename is
   // idempotent and the CLI also writes the persisted snapshot.
   | "terminalTab.rename"
-  // Toast to every attached UI on `notice.event` (`kobe api notify`).
+  // Toast to every attached UI on `notice.event` (`rove api notify`).
   | "notice.send"
-  // OPAQUE graphics bytes for each attached GUI's tty (`kobe api pane-graphics`),
+  // OPAQUE graphics bytes for each attached GUI's tty (`rove api pane-graphics`),
   // on `graphics.write`. The daemon allocates the image id (a pane can't: the id
   // space is the terminal's) and parses nothing.
   | "graphics.write"
@@ -184,7 +184,7 @@ export type DaemonRequestName =
   // The newest notes are injected into every fresh session, so a stale one
   // must be removable.
   | "note.delete"
-  // Hosted PTYs (v4), served by the standalone PTY HOST (`kobe pty-host`, own
+  // Hosted PTYs (v4), served by the standalone PTY HOST (`rove pty-host`, own
   // socket, `pty-server.ts`), NOT the daemon: the daemon restarts routinely.
   // Same frame grammar and client class. The host owns the PTY child + a byte
   // ring buffer per session key and answers only OSC 10/11 color queries (so
@@ -202,7 +202,7 @@ export type DaemonRequestName =
   // must check `renamed`: if false, fold only the tab record and the session
   // stays under its old key until scratch teardown.
   | "pty.rename"
-  // Ring-buffer peek (no attach/spawn/resize) for `kobe api read-output`'s
+  // Ring-buffer peek (no attach/spawn/resize) for `rove api read-output`'s
   // terminal fallback. Older hosts reject it; callers treat that as no data.
   | "pty.peek"
   // Pre-spawn an idle, rc-initialized shell for a cwd; the next bare-shell
@@ -244,10 +244,10 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
 /**
  * WHO is subscribing, so the refcounted lazy shutdown counts only real attaches.
  *
- * - `gui` — a user-facing front-end (the `kobe` TUI, or the deprecated outer
+ * - `gui` — a user-facing front-end (the `rove` TUI, or the deprecated outer
  *   monitor); HOLDS the daemon alive.
  * - `pane` — a helper pane (Tasks pane, Ops, settings/new-task windows,
- *   transient `kobe api` pokes) that only RECEIVES channels. Panes outlive the
+ *   transient `rove api` pokes) that only RECEIVES channels. Panes outlive the
  *   attach, so counting them would pin the daemon open forever.
  *
  * Default is `pane`, so a client that forgets to declare can't pin the daemon.
@@ -323,7 +323,7 @@ export interface SerializedTask {
   /** Durable rate-limit auto-resume schedule. */
   readonly quotaResume?: DaemonTask["quotaResume"]
   readonly linkedWorkItem?: DaemonTask["linkedWorkItem"]
-  /** The kobe session (task + tab) that dispatched this task's creation. */
+  /** The rove session (task + tab) that dispatched this task's creation. */
   readonly dispatcher?: DaemonTask["dispatcher"]
   /** The task brief: the full delivered `add --prompt` text (never truncated). */
   readonly prompt?: DaemonTask["prompt"]

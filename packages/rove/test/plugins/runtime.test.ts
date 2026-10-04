@@ -56,10 +56,10 @@ function snapshotEvent(ids: string[]) {
 
 describe("PluginHost", () => {
   it("runs startup hooks and fires event hooks with the env contract", async () => {
-    const home = tmp("kobe-plugin-home-")
-    const root = tmp("kobe-plugin-root-")
+    const home = tmp("rove-plugin-home-")
+    const root = tmp("rove-plugin-root-")
     writeFileSync(join(root, "rove-plugin.toml"), MANIFEST)
-    mkdirSync(join(home, ".kobe"), { recursive: true })
+    mkdirSync(join(home, ".rove"), { recursive: true })
     savePluginRegistry(
       {
         plugins: [
@@ -69,7 +69,7 @@ describe("PluginHost", () => {
       home,
     )
 
-    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "kobe-test-bin" })
+    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "rove-test-bin" })
     // Redirections create the file BEFORE the write lands — always wait for
     // the expected CONTENT, never mere existence (CI race, releases #1/#3).
     const read = (name: string): string => {
@@ -85,7 +85,7 @@ describe("PluginHost", () => {
 
       host.handleChannel(snapshotEvent(["a"])) // baseline — must NOT fire
       host.handleChannel(snapshotEvent(["a", "b"]))
-      await waitFor(() => read("event.txt") === "task.created:example.probe:kobe-test-bin")
+      await waitFor(() => read("event.txt") === "task.created:example.probe:rove-test-bin")
 
       // The log line lands AFTER each hook process exits — later than the
       // file the hook itself writes — so wait for both entries, not just
@@ -105,8 +105,8 @@ describe("PluginHost", () => {
   })
 
   it("runs [[shutdown]] hooks on stop and fires plugin.enabled on a registry reload", async () => {
-    const home = tmp("kobe-plugin-home-")
-    const root = tmp("kobe-plugin-root-")
+    const home = tmp("rove-plugin-home-")
+    const root = tmp("rove-plugin-root-")
     writeFileSync(
       join(root, "rove-plugin.toml"),
       `
@@ -123,7 +123,7 @@ on = "plugin.enabled"
 command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > enabled.txt"]
 `,
     )
-    mkdirSync(join(home, ".kobe"), { recursive: true })
+    mkdirSync(join(home, ".rove"), { recursive: true })
     // Start with an EMPTY registry — the plugin is enabled by a later write,
     // which is exactly the transition plugin.enabled reports. The write below
     // lands in the same tick as start(); with fs.watch it would sit inside the
@@ -131,7 +131,7 @@ command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > enabled.txt"]
     // runs at 8 lanes). The stat-poll watcher makes delivery deterministic —
     // do not reintroduce fs.watch here.
     savePluginRegistry({ plugins: [] }, home)
-    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "kobe" })
+    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "rove" })
     const read = (name: string): string => {
       try {
         return readFileSync(join(root, name), "utf8")
@@ -158,8 +158,8 @@ command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > enabled.txt"]
   })
 
   it("skips disabled plugins and unreadable manifests without crashing", async () => {
-    const home = tmp("kobe-plugin-home-")
-    mkdirSync(join(home, ".kobe"), { recursive: true })
+    const home = tmp("rove-plugin-home-")
+    mkdirSync(join(home, ".rove"), { recursive: true })
     savePluginRegistry(
       {
         plugins: [
@@ -173,7 +173,7 @@ command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > enabled.txt"]
     const host = new PluginHost({
       homeDir: home,
       socketPath: "/tmp/fake.sock",
-      binPath: "kobe",
+      binPath: "rove",
       log: (l) => lines.push(l),
     })
     host.start()

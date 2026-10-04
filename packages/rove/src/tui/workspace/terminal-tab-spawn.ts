@@ -37,7 +37,7 @@ export function shellCommandLine(argv: readonly string[]): string {
  * `env` rides the typed line as an `env K=V …` prefix, not the PTY env: it
  * reaches fresh spawns and adopted warm shells alike, works in fish (which
  * rejects bare `K=V cmd`), and the engine's hook subprocesses inherit it — how
- * `kobe hook` learns which tab an event came from.
+ * `rove hook` learns which tab an event came from.
  */
 export function shellSpawn(argv: readonly string[], shell: string, env?: Readonly<Record<string, string>>): TabSpawn {
   const pairs = Object.entries(env ?? {})

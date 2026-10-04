@@ -2,7 +2,7 @@
  * Engine PRESETS and the command → protocol resolution behind them.
  *
  * Dispatch (`rove api add` / `send --tab new`) takes a raw `--command`, never
- * a vendor; the protocol kobe speaks to it (history reader, trust store,
+ * a vendor; the protocol rove speaks to it (history reader, trust store,
  * whether the first message may ride argv) is DERIVED from that command.
  *
  * Resolution is three-tiered — this module owns tier (a), the deterministic one:
@@ -48,7 +48,7 @@ import {
 } from "./session-identity.ts"
 
 /**
- * The protocol id for "kobe cannot name this engine". Deliberately not a
+ * The protocol id for "rove cannot name this engine". Deliberately not a
  * built-in vendor: {@link engineEntry} answers any unknown id with its
  * documented EMPTY entry, so the degraded path needs no branch of its own.
  */
@@ -73,7 +73,7 @@ export function getEngineProtocol(id: string): VendorId | undefined {
   return raw && ENGINE_PROTOCOLS.includes(raw) ? raw : undefined
 }
 
-/** True when `id` names an engine kobe can launch by NAME alone. */
+/** True when `id` names an engine rove can launch by NAME alone. */
 function isPresetId(id: string): boolean {
   return isBuiltinVendor(id) || isContribEngine(id) || getCustomEngineIds().includes(id)
 }
@@ -89,7 +89,7 @@ export interface EnginePreset {
   readonly name: string
   /** The exact command line this preset launches. What you see is what runs. */
   readonly command: string
-  /** The adapter kobe speaks to it with; `generic` = no adapter knowledge. */
+  /** The adapter rove speaks to it with; `generic` = no adapter knowledge. */
   readonly protocol: VendorId
   readonly builtin: boolean
 }

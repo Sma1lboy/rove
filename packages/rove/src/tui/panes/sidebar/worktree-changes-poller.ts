@@ -13,7 +13,7 @@
  *
  * NO-DAEMON FALLBACK only: when the daemon advertises `worktree.changes`, the
  * Sidebar renders its pushes and spawns zero git processes. The daemon's
- * collector (`kobe-daemon/daemon/worktree-changes-collector.ts`) shares the
+ * collector (`rove-daemon/daemon/worktree-changes-collector.ts`) shares the
  * guards via `src/lib/poll-scheduling.ts`.
  */
 

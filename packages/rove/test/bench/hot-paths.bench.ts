@@ -1,5 +1,5 @@
 /**
- * Local opt-in benchmarks for kobe's hot PURE paths — `bun run bench`.
+ * Local opt-in benchmarks for rove's hot PURE paths — `bun run bench`.
  *
  * This is a baseline tool, not a gate: run it before and after touching
  * one of these paths to see whether the change moved the needle. Timing
@@ -87,7 +87,7 @@ describe("reconcileRows (1k rows)", () => {
 const benchTask: Task = {
   id: toTaskId("bench-task"),
   title: "fix sidebar",
-  repo: "/repo/kobe",
+  repo: "/repo/rove",
   branch: "feature/sidebar",
   worktreePath: "/repo/rove/worktrees/sidebar",
   kind: "task",

@@ -42,14 +42,14 @@ describe.skipIf(!POSIX)("machineSocketDir", () => {
     // A Rove home inside a worktree already spends most of the ~104-byte
     // sun_path budget; ssh's own refusal is `ControlPath too long`, which
     // names neither the machine nor the remedy.
-    const deep = "/Users/someone/.rove/worktrees/kobe-0aff3858ab76/ocelot/.scratch/opentui-visual-5473/home"
+    const deep = "/Users/someone/.rove/worktrees/rove-0aff3858ab76/ocelot/.scratch/opentui-visual-5473/home"
     const dir = machineSocketDir("narwhal", deep)
     expect(dir).not.toContain(deep)
     expect(Buffer.byteLength(`${dir}/daemon.sock`)).toBeLessThanOrEqual(100)
   })
 
   it("gives the same fallback every time — a client must find the same socket", () => {
-    const deep = "/Users/someone/.rove/worktrees/kobe-0aff3858ab76/ocelot/.scratch/opentui-visual-5473/home"
+    const deep = "/Users/someone/.rove/worktrees/rove-0aff3858ab76/ocelot/.scratch/opentui-visual-5473/home"
     expect(machineSocketDir("narwhal", deep)).toBe(machineSocketDir("narwhal", deep))
     expect(machineSocketDir("narwhal", deep)).not.toBe(machineSocketDir("other", deep))
   })

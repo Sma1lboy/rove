@@ -1,7 +1,7 @@
 /**
  * Env contract for AUTOSPAWNED daemons (`connectOrStartDaemon`'s spawn).
  *
- * Why this matters: a `kobe` helper running INSIDE an engine tab inherits
+ * Why this matters: a `rove` helper running INSIDE an engine tab inherits
  * the session's identity env (ROVE_TASK_ID/ROVE_TAB_ID/ROVE_TUI/
  * ROVE_TERMINAL_PTY, plus their ROVE_* aliases). Passing that straight into a
  * spawned daemon breeds zombies: long-lived shared daemons stamped with one

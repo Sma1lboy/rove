@@ -19,14 +19,14 @@ import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { type PtyHostServer, startPtyHostServer } from "@sma1lboy/rove-daemon/daemon/pty-server"
 import { HostedTaskPty } from "../../src/tui/panes/terminal/pty-hosted.ts"
 
-const dir = mkdtempSync(join(tmpdir(), "kobe-pty-hosted-"))
+const dir = mkdtempSync(join(tmpdir(), "rove-pty-hosted-"))
 let server: PtyHostServer
 
 beforeAll(async () => {
   process.env.ROVE_PTY_SOCKET_PATH = join(dir, "pty.sock")
   process.env.ROVE_PTY_PID_PATH = join(dir, "pty.pid")
   // The server is already listening, so ensurePtyHostReachable's probe
-  // succeeds and never spawns a detached `kobe pty-host`.
+  // succeeds and never spawns a detached `rove pty-host`.
   server = await startPtyHostServer({
     socketPath: process.env.ROVE_PTY_SOCKET_PATH,
     pidPath: process.env.ROVE_PTY_PID_PATH,
@@ -287,7 +287,7 @@ describe("HostedTaskPty over a real pty-host socket", () => {
     const c = new HostedTaskPty({
       taskId: "smoke::t5",
       cwd: dir,
-      command: ["/nonexistent-kobe-binary"],
+      command: ["/nonexistent-rove-binary"],
       cols: 60,
       rows: 12,
     })

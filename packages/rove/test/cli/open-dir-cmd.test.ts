@@ -1,5 +1,5 @@
 /**
- * `kobe <path>` — directory-open gesture. Tests the routing predicate and
+ * `rove <path>` — directory-open gesture. Tests the routing predicate and
  * both execution branches: daemon-handoff vs in-process orchestrator.
  */
 

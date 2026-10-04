@@ -9,8 +9,8 @@ describe("shell-command quoting", () => {
 
   test("quotes for a Windows shell with double quotes, MSVCRT style", () => {
     const win = { bareSafe: true, windows: true }
-    expect(quoteShellArgv(["kobe", "hook", "turn-complete", "--engine", "codex"], win)).toBe(
-      "kobe hook turn-complete --engine codex",
+    expect(quoteShellArgv(["rove", "hook", "turn-complete", "--engine", "codex"], win)).toBe(
+      "rove hook turn-complete --engine codex",
     )
     expect(quoteShellArgv(["C:\\Program Files\\rove\\rove.exe", "hook"], win)).toBe(
       '"C:\\Program Files\\rove\\rove.exe" hook',

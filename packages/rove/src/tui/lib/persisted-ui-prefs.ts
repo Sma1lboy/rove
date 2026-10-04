@@ -45,7 +45,7 @@ export interface PersistedUiPrefs {
  * defaults, so a pane always renders. `isKnownTheme` defaults to the
  * bundled-only check; a host that already loaded user themes (`bootPaneHost`
  * via `loadUserThemes()`) must pass the live registry's check, or every
- * `kobe theme add` theme silently reverts on the next boot.
+ * `rove theme add` theme silently reverts on the next boot.
  */
 export function readPersistedUiPrefs(
   fallbackTheme: string,

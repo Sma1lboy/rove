@@ -6,7 +6,7 @@
  *   1. dirty working tree        → active  (uncommitted work, never stale)
  *   2. open PR on the branch     → active  (in review)
  *   3. PR merged                 → merged  (safe to clean — the ONLY
- *                                  signal that survives kobe's default
+ *                                  signal that survives rove's default
  *                                  squash-merge, which never makes branch
  *                                  commits ancestors of main)
  *   4. 0 commits ahead of the    → merged  (history-level: everything the

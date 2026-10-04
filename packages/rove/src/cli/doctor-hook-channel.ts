@@ -1,7 +1,7 @@
 /**
  * Doctor check: is the ENGINE HOOK CHANNEL live?
  *
- * `kobe hook` is best-effort (never spawns a daemon, always exits 0, swallows
+ * `rove hook` is best-effort (never spawns a daemon, always exits 0, swallows
  * failures) and the observer falls back to a ~10s poll, so a dead channel looks
  * slow, not broken. Usual cause: an engine's inherited `*_DAEMON_SOCKET_PATH`
  * points at a dead socket.
@@ -56,7 +56,7 @@ export function classifyHookChannel(input: HookChannelInput): HookChannelVerdict
   return { kind: "live", hookTabs: hooked, totalTabs: total }
 }
 
-/** `cliName` is whichever name the user invoked (`rove` / `kobe`). */
+/** `cliName` is whichever name the user invoked (`rove` / `rove`). */
 export function hookChannelDoctorLines(
   verdict: HookChannelVerdict,
   input: Pick<HookChannelInput, "socketPath" | "configIssues">,

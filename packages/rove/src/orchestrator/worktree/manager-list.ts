@@ -65,7 +65,7 @@ export async function listBranchNames(deps: ListDeps, repo: string): Promise<rea
   return [...names]
 }
 
-/** kobe-managed worktrees under `repo` — see `GitWorktreeManager.list`. */
+/** rove-managed worktrees under `repo` — see `GitWorktreeManager.list`. */
 export async function listManaged(deps: ListDeps, repo: string): Promise<readonly WorktreeInfo[]> {
   const ctx = deps.ctxFor(repo)
   requireAbsolute("repo", ctx.dir)

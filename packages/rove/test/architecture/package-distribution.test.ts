@@ -62,7 +62,7 @@ describe("Rove package distribution", () => {
     const pkg = json<{ name: string; bin: Record<string, string> }>("packages/rove/package.json")
 
     expect(pkg.name).toBe("@sma1lboy/rove")
-    expect(pkg.bin).toEqual({ kobe: "dist/cli/kobe.js", rove: "dist/cli/rove.js" })
+    expect(pkg.bin).toEqual({ rove: "dist/cli/rove.js" })
   })
 
   test("the bins are node launchers fronting the Bun bundles, so npm/npx installs run", () => {
@@ -73,7 +73,7 @@ describe("Rove package distribution", () => {
     // symlinks it and starts it with Bun. The bin file has one shebang, so
     // it is the node launcher, and the Bun bundle moves to `<name>-run.js`.
     expect(launcher.startsWith("#!/usr/bin/env node")).toBe(true)
-    expect(build).toContain('const CLI_NAMES = ["kobe", "rove"] as const')
+    expect(build).toContain('const CLI_NAMES = ["rove"] as const')
     expect(build).toContain('writeExecutable(`./dist/cli/${name}-run.js`, "#!/usr/bin/env bun", bundle)')
     expect(build).toContain('writeExecutable(`./dist/cli/${name}.js`, "#!/usr/bin/env node", launcherCode)')
     expect(build).toContain('entrypoints: ["./src/cli/launcher.ts"]')
@@ -88,8 +88,8 @@ describe("Rove package distribution", () => {
     const build = read("packages/rove/scripts/build.ts")
 
     expect(harness).toContain('DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/rove.js")')
-    expect(harness).toContain('DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/kobe.js")')
-    expect(harness).not.toContain('DIST_CLI = join(PKG_ROOT, "dist/cli/kobe.js")')
+    expect(harness).toContain('DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/rove.js")')
+    expect(harness).not.toContain('DIST_CLI = join(PKG_ROOT, "dist/cli/rove.js")')
     expect(visualFixture).toContain('const ROVE_CLI = join(ROVE_DIR, "dist", "cli", "rove.js")')
     expect(visualFixture).toContain('const ROVE_SKILL = join(ROVE_DIR, "dist", "skills", "rove", "SKILL.md")')
     expect(visualFixture).toContain('join(XDG_CONFIG_HOME, "rove")')
@@ -126,11 +126,11 @@ describe("Rove package distribution", () => {
     // The SDK build must stay in postinstall (the exec-bit backstop runs ahead of it).
     expect(root.scripts.postinstall).toMatch(/bun --filter @sma1lboy\/rove-plugin-sdk build$/)
     expect(root.scripts.build).toMatch(/^bun --filter @sma1lboy\/rove-plugin-sdk build && /)
-    expect(commands.some((command) => /--filter @sma1lboy\/kobe(?:\s|$)/.test(command))).toBe(false)
+    expect(commands.some((command) => /--filter @sma1lboy\/rove(?:\s|$)/.test(command))).toBe(false)
   })
 
-  test("the published package declares node-pty even though kobe's own source never imports it", () => {
-    // The runtime consumer is kobe-daemon (pty-driver.ts's `import("node-pty")`,
+  test("the published package declares node-pty even though rove's own source never imports it", () => {
+    // The runtime consumer is rove-daemon (pty-driver.ts's `import("node-pty")`,
     // shipped as dist/cli/pty-host-node.mjs with node-pty external). But
     // @sma1lboy/rove-daemon is private and never published — its dependencies
     // reach no user install. The ONLY thing that puts node-pty on disk under an
@@ -148,13 +148,13 @@ describe("Rove package distribution", () => {
 
   test("daemon typechecking does not rely on the renamed package's hoisted dependencies", () => {
     const daemon = json<{ devDependencies: Record<string, string> }>("packages/rove-daemon/package.json")
-    const kobe = json<{ devDependencies: Record<string, string> }>("packages/rove/package.json")
+    const rove = json<{ devDependencies: Record<string, string> }>("packages/rove/package.json")
 
-    // The invariant is "daemon carries its OWN pin, in lockstep with kobe's" —
+    // The invariant is "daemon carries its OWN pin, in lockstep with rove's" —
     // not a specific version. A frozen literal turns every routine @types/node
     // bump into an unrelated red.
     expect(daemon.devDependencies["@types/node"]).toBeDefined()
-    expect(daemon.devDependencies["@types/node"]).toBe(kobe.devDependencies["@types/node"])
+    expect(daemon.devDependencies["@types/node"]).toBe(rove.devDependencies["@types/node"])
   })
 
   test("the plugin SDK workspace and daemon dependency use the canonical Rove package", () => {
@@ -174,19 +174,19 @@ describe("Rove package distribution", () => {
     expect(sdk.repository.url).toBe("git+https://github.com/Sma1lboy/rove.git")
     expect(sdk.homepage).toBe("https://github.com/Sma1lboy/rove/blob/main/docs/PLUGIN-AUTHORING.md")
     expect(daemon.dependencies["@sma1lboy/rove-plugin-sdk"]).toBe("workspace:*")
-    expect(daemon.dependencies["@sma1lboy/kobe-plugin-sdk"]).toBeUndefined()
+    expect(daemon.dependencies["@sma1lboy/rove-plugin-sdk"]).toBeUndefined()
   })
 
-  test("release publishes Rove and no longer publishes the @sma1lboy/kobe alias", () => {
-    // The `@sma1lboy/kobe` name is frozen at 0.9.64. The alias step is a
+  test("release publishes Rove and no longer publishes the @sma1lboy/rove alias", () => {
+    // The `@sma1lboy/rove` name is frozen at 0.9.64. The alias step is a
     // rewrite of package.json#name, so its ABSENCE is what this asserts: a
     // release must never resume publishing that name. The SDK keeps its own
     // alias — pinned by the next test — so this checks the CLI name only.
     const workflow = read(".github/workflows/release.yml")
 
     expect(workflow.indexOf("Publish canonical @sma1lboy/rove package")).toBeGreaterThanOrEqual(0)
-    expect(workflow).not.toContain("Publish compatibility alias @sma1lboy/kobe")
-    expect(workflow).not.toContain("pkg.name = '@sma1lboy/kobe'")
+    expect(workflow).not.toContain("Publish compatibility alias @sma1lboy/rove")
+    expect(workflow).not.toContain("pkg.name = '@sma1lboy/rove'")
     expect(workflow).not.toContain("pkg.name = '@sma1lboy/rove'")
   })
 
@@ -200,7 +200,7 @@ describe("Rove package distribution", () => {
     expect(compatibilityStep).toBeGreaterThan(canonicalStep)
     expect(releaseStep).toBeGreaterThan(compatibilityStep)
     expect(workflow).toContain('npm view "@sma1lboy/rove-plugin-sdk@$V"')
-    expect(workflow).toContain("pkg.name = '@sma1lboy/kobe-plugin-sdk'")
+    expect(workflow).toContain("pkg.name = '@sma1lboy/rove-plugin-sdk'")
     const canonicalPublish = workflow.slice(canonicalStep, compatibilityStep)
     const compatibilityPublish = workflow.slice(compatibilityStep, releaseStep)
     expect(canonicalPublish).toContain("bun run build")
@@ -217,8 +217,8 @@ describe("Rove package distribution", () => {
 
     for (const file of files) {
       const source = read(join(".changeset", file))
-      expect(source, `${file} still targets the compatibility package`).not.toMatch(/^"@sma1lboy\/kobe":/m)
-      expect(source, `${file} still targets the compatibility SDK`).not.toMatch(/^"@sma1lboy\/kobe-plugin-sdk":/m)
+      expect(source, `${file} still targets the compatibility package`).not.toMatch(/^"@sma1lboy\/rove":/m)
+      expect(source, `${file} still targets the compatibility SDK`).not.toMatch(/^"@sma1lboy\/rove-plugin-sdk":/m)
     }
   })
 
@@ -238,10 +238,10 @@ describe("Rove package distribution", () => {
     for (const path of surfaces) {
       const source = read(path)
       expect(source, `${path} still recommends installing Rove`).not.toMatch(
-        /(?:install|-g|bunx)\s+@sma1lboy\/kobe(?:@[^\s<`]+)?/,
+        /(?:install|-g|bunx)\s+@sma1lboy\/rove(?:@[^\s<`]+)?/,
       )
       expect(source, `${path} still links to the compatibility npm package`).not.toMatch(
-        /www\.npmjs\.com\/package\/@sma1lboy\/kobe(?:[/?#"')]|$)/,
+        /www\.npmjs\.com\/package\/@sma1lboy\/rove(?:[/?#"')]|$)/,
       )
     }
   })
@@ -276,7 +276,7 @@ describe("Rove package distribution", () => {
       "scripts/release.sh",
     ]
     const legacyRepository =
-      /(?:github\.com|raw\.githubusercontent\.com|api\.github\.com\/repos)\/sma1lboy\/kobe(?:\.git|[/?#"'`\s]|$)/i
+      /(?:github\.com|raw\.githubusercontent\.com|api\.github\.com\/repos)\/sma1lboy\/rove(?:\.git|[/?#"'`\s]|$)/i
 
     for (const path of surfaces) {
       const source = read(path)
@@ -296,7 +296,7 @@ describe("Rove package distribution", () => {
     ]
 
     expect(changelogSkill).toContain('"@sma1lboy/rove": patch')
-    expect(changelogSkill).not.toContain('"@sma1lboy/kobe":')
+    expect(changelogSkill).not.toContain('"@sma1lboy/rove":')
     expect(recentReleaseSkill).toContain("Recent Release Page (Rove)")
     expect(recentReleaseSkill).toContain("rove-release-notes-zh.html")
 
@@ -318,15 +318,15 @@ describe("Rove package distribution", () => {
 
     expect(releaseSkill).toContain("# Release Rove")
     expect(releaseSkill).toContain('"@sma1lboy/rove": minor')
-    expect(releaseSkill).not.toContain('"@sma1lboy/kobe": minor')
+    expect(releaseSkill).not.toContain('"@sma1lboy/rove": minor')
     // The CLI alias is frozen at 0.9.64 and unpublished, so the skill must NOT
-    // tell a release to verify it — a missing @sma1lboy/kobe is the expected
+    // tell a release to verify it — a missing @sma1lboy/rove is the expected
     // state, and checking for it would read as a failed release.
     // Anchored on `@<new-version>` so the SDK's own alias check still stands.
     expect(releaseSkill.indexOf("npm view @sma1lboy/rove@<new-version>")).toBeGreaterThanOrEqual(0)
-    expect(releaseSkill).not.toContain("npm view @sma1lboy/kobe@<new-version>")
+    expect(releaseSkill).not.toContain("npm view @sma1lboy/rove@<new-version>")
     expect(releaseSkill).toContain("npm view @sma1lboy/rove-plugin-sdk@<sdk-version>")
-    expect(releaseSkill).toContain("npm view @sma1lboy/kobe-plugin-sdk@<sdk-version>")
+    expect(releaseSkill).toContain("npm view @sma1lboy/rove-plugin-sdk@<sdk-version>")
     expect(releaseSkill).toContain("Every Rove release checks the SDK's current version")
     expect(releaseSkill).not.toContain("If this release carried an SDK changeset")
     expect(releasingDocs).toContain("default to `patch` for every change")
@@ -340,7 +340,7 @@ describe("Rove package distribution", () => {
     expect(contributing).toContain("# Contributing to Rove")
     expect(contributing).toContain("`~/.rove` (production)")
     expect(contributing).toContain("Won't touch your real `~/.rove` state")
-    expect(contributing).toContain("The `.kobe` runtime path remains a compatibility contract")
+    expect(contributing).toContain("The `.rove` runtime path remains a compatibility contract")
     expect(contributing).toContain("Use `rove daemon restart`")
   })
 

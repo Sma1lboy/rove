@@ -12,7 +12,7 @@ const TUI_ROOT = fileURLToPath(new URL("../../src/tui", import.meta.url))
 const WHITELIST: Record<string, string> = {
   // One-shot O(refs) git (rev-parse / for-each-ref) on explicit dialog actions — never on a render tick; header documents the rationale.
   "lib/git-snapshot.ts": "one-shot O(refs) git on explicit dialog actions; header documents the rationale",
-  // Sync helper kept ONLY for one-shot CLI use (`kobe api`); its header documents the render-path ban.
+  // Sync helper kept ONLY for one-shot CLI use (`rove api`); its header documents the render-path ban.
   "panes/sidebar/worktree-changes.ts": "sync helper for one-shot CLI use only; header documents the ban",
 }
 

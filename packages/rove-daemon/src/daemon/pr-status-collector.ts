@@ -9,9 +9,9 @@
  * array), never a guessed stderr pattern. Multiple PRs per branch: see
  * {@link pickPr}.
  *
- * The failure classifier and `--json` field set live in kobe's
+ * The failure classifier and `--json` field set live in rove's
  * `monitor/pr-status.ts` and arrive via `runtime.prStatus.classify` /
- * `viewFields`: kobe-daemon must not depend on the `kobe` package.
+ * `viewFields`: rove-daemon must not depend on the `rove` package.
  *
  * GitHub only: `ssh://` projects and non-GitHub remotes yield no PR.
  *
@@ -145,7 +145,7 @@ export function spawnGh(args: readonly string[], cwd: string, signal: AbortSigna
   })
 }
 
-/** Structurally kobe's `classifyGhFailure`; injected, not imported (see header). */
+/** Structurally rove's `classifyGhFailure`; injected, not imported (see header). */
 type GhFailureClassifier = DaemonRuntimeAdapter["prStatus"]["classify"]
 
 /**

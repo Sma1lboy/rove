@@ -212,10 +212,10 @@ export function buildFixtureEnv(config: FixtureEnvConfig): Record<string, string
   if (config.ports.ptyPort !== undefined) setRoveEnv("PTY_PORT", String(config.ports.ptyPort), env)
 
   // Pin sockets and pidfiles to the canonical fixture path. Deriving them from
-  // HOME_DIR is not enough: `.kobe/` is the pre-rename runtime dir, and every
+  // HOME_DIR is not enough: `.rove/` is the pre-rename runtime dir, and every
   // daemon bind drops a compatibility symlink there (`compat-link.ts`). A
   // daemon that binds while *_HOME_DIR points at the fixture but without a
-  // pinned socket leaves `<fixture>/.kobe/daemon.sock` pointing at whatever
+  // pinned socket leaves `<fixture>/.rove/daemon.sock` pointing at whatever
   // process bound last — sometimes the operator's real socket. An explicit
   // *_SOCKET_PATH override bypasses `runtimePath()` entirely.
   setRoveEnv("DAEMON_SOCKET_PATH", join(runtime, "daemon.sock"), env)
@@ -232,12 +232,12 @@ export function buildFixtureEnv(config: FixtureEnvConfig): Record<string, string
 }
 
 /**
- * Fail loudly if the legacy `.kobe/daemon.sock` symlink under the fixture home
+ * Fail loudly if the legacy `.rove/daemon.sock` symlink under the fixture home
  * points outside the fixture root. Pinned sockets make the link inert for new
  * connections, so this is a tripwire for the state itself, not the connection.
  */
 export function assertFixtureIsolation(home: string, fixtureRoot: string): void {
-  const legacy = join(home, ".kobe", "daemon.sock")
+  const legacy = join(home, ".rove", "daemon.sock")
   let target: string
   try {
     target = readlinkSync(legacy)

@@ -1,5 +1,5 @@
 /**
- * Daemon-stop primitive shared by `kobe daemon restart` and `kobe reset`: the
+ * Daemon-stop primitive shared by `rove daemon restart` and `rove reset`: the
  * daemon must actually be gone before they continue. A wedged daemon would
  * outlive a `daemon.stop` RPC, and a respawn onto its socket races EADDRINUSE
  * (or two daemons write one `tasks.json`), so we poll the pid with `kill -0`

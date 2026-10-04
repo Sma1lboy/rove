@@ -78,7 +78,7 @@ function Probe(props: { orch: RemoteOrchestrator; kv: TabsSnapshotKv; initial: T
 const savedHome = process.env.ROVE_HOME_DIR
 
 test("a task deleted by a sibling client is swept on the next task-list change, without touching live snapshots", async () => {
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-orphan-sweep-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-orphan-sweep-"))
   const kv = fakeKv({
     [terminalTabsKey("alpha")]: { tabs: [] },
     [terminalTabsKey("bravo")]: { tabs: [] },
@@ -111,7 +111,7 @@ test("a task deleted by a sibling client is swept on the next task-list change, 
 })
 
 test("an empty task list sweeps nothing — the guard is load-bearing", async () => {
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-orphan-sweep-empty-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-orphan-sweep-empty-"))
   const kv = fakeKv({
     [terminalTabsKey("alpha")]: { tabs: [] },
   })

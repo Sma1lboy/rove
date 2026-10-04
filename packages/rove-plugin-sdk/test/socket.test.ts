@@ -3,12 +3,12 @@ import { type Server, type Socket, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { RoveSocket, } from "../src/socket.ts"
+import { RoveSocket } from "../src/socket.ts"
 
 let server: Server | null = null
 
 function fakeDaemon(onFrame: (frame: { id: string; name: string }, sock: Socket) => void): string {
-  const path = join(mkdtempSync(join(tmpdir(), "kobe-sdk-sock-")), "d.sock")
+  const path = join(mkdtempSync(join(tmpdir(), "rove-sdk-sock-")), "d.sock")
   server = createServer((sock) => {
     let buf = ""
     sock.setEncoding("utf8")

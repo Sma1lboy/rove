@@ -9,7 +9,7 @@ afterEach(() => {
 describe("plugin marketplace compatibility", () => {
   it("unions the Rove and legacy Rove topics and de-duplicates repositories", async () => {
     const fetchMock = vi.fn(async (url: string) => {
-      const legacy = url.includes("topic%3Akobe-plugin")
+      const legacy = url.includes("topic%3Arove-plugin")
       return {
         ok: true,
         json: async () => ({
@@ -29,7 +29,7 @@ describe("plugin marketplace compatibility", () => {
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(
       expect.arrayContaining([
         expect.stringContaining("topic%3Arove-plugin"),
-        expect.stringContaining("topic%3Akobe-plugin"),
+        expect.stringContaining("topic%3Arove-plugin"),
       ]),
     )
     const output = log.mock.calls.map(([line]) => String(line)).join("\n")

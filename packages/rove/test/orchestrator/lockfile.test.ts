@@ -57,7 +57,7 @@ describe("acquire / release", () => {
   let lock: string
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), "kobe-lock-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-lock-"))
     lock = join(dir, "index.lock")
   })
   afterEach(async () => {
@@ -113,7 +113,7 @@ describe("acquire / release", () => {
 })
 
 describe("acquire / release — edge branches", () => {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-lock-edge-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-lock-edge-"))
   const lockPath = join(dir, "edge.lock")
 
   afterEach(async () => {

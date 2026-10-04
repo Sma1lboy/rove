@@ -24,7 +24,7 @@ function writeSettings(settings: Record<string, unknown>): void {
 }
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "kobe-plugmig-"))
+  home = mkdtempSync(join(tmpdir(), "rove-plugmig-"))
   mkdirSync(join(home, ".claude"), { recursive: true })
   settingsPath = join(home, ".claude", "settings.json")
 })
@@ -50,7 +50,7 @@ describe("isRovePluginEnabled", () => {
 describe("detectLegacyInstalls", () => {
   it("flags the settings-managed activity hooks", () => {
     writeSettings({
-      hooks: { Stop: [{ hooks: [{ type: "command", command: "'kobe' 'hook' 'turn-complete' '--engine' 'claude'" }] }] },
+      hooks: { Stop: [{ hooks: [{ type: "command", command: "'rove' 'hook' 'turn-complete' '--engine' 'claude'" }] }] },
     })
     expect(detectLegacyInstalls({ settingsFilePath: settingsPath, home }).legacyHooks).toBe(true)
   })
@@ -58,7 +58,7 @@ describe("detectLegacyInstalls", () => {
   it("flags the settings-managed worktree-watch hook (not an activity verb)", () => {
     writeSettings({
       hooks: {
-        PostToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "'kobe' 'hook' 'worktree-created'" }] }],
+        PostToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "'rove' 'hook' 'worktree-created'" }] }],
       },
     })
     expect(detectLegacyInstalls({ settingsFilePath: settingsPath, home }).legacyHooks).toBe(true)

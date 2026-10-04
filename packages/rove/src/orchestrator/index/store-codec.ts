@@ -19,7 +19,7 @@ import { coerceTask } from "./store-codec-rows.ts"
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
-/** Poll interval while another kobe instance briefly holds the index lock. */
+/** Poll interval while another rove instance briefly holds the index lock. */
 const LOCK_RETRY_DELAY_MS = 25
 /** Holds are millisecond-scale (one read-merge-write); past 5s surface the
  *  {@link LockfileError} rather than block a UI thread. */
@@ -131,7 +131,7 @@ export function normalizeIndex(parsed: unknown, source: string): { version: type
 const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 /**
- * Legacy `~/.kobe/tasks.json` as a read fallback for daemon-free readers
+ * Legacy `~/.rove/tasks.json` as a read fallback for daemon-free readers
  * (`export`, orchestrator bridge) on an unmigrated home; `undefined` once the
  * daemon migration marker exists. After that it's a frozen snapshot and
  * reading it resurrects deleted tasks — the whole index after Reset UI state

@@ -9,7 +9,7 @@
  *   - the `hasSubscribers` gate holds: a gui-less daemon with zero
  *     subscribers publishes nothing, then repopulates once a pane subscribes.
  *
- * The per-window capture-pane → @kobe_tab_state chip stays MANUAL — it needs
+ * The per-window capture-pane → @rove_tab_state chip stays MANUAL — it needs
  * a real tmux pane and lives in `ops/host.tsx`, never daemon-side.
  */
 
@@ -66,7 +66,7 @@ describe("transcript.activity channel (daemon → client)", () => {
   let savedHome: string | undefined
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "kobe-ta-chan-"))
+    dir = mkdtempSync(join(tmpdir(), "rove-ta-chan-"))
     socketPath = join(dir, "daemon.sock")
     pidPath = join(dir, "daemon.pid")
     savedHome = process.env.ROVE_HOME_DIR

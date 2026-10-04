@@ -1,7 +1,7 @@
 # sidebar frame: long-labels
 # a clipped label ends in a visible … (never Yoga's bare hard cut), and the right-edge cluster still gets its cells
 # 30x22
-# GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
+# GENERATED — do not hand-edit. Regenerate: rove_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
 | New task                + n  |

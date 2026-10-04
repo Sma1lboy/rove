@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it } from "vitest"
 
 const homes: string[] = []
 function home(): string {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-plugin-registry-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-plugin-registry-"))
   homes.push(dir)
   return dir
 }
@@ -56,21 +56,21 @@ describe("plugin registry", () => {
     expect(loadPluginRegistry(dir).plugins).toEqual([])
   })
 
-  it("re-anchors a managed root recorded under the legacy .kobe tree onto .rove", () => {
+  it("re-anchors a managed root recorded under the legacy .rove tree onto .rove", () => {
     const dir = home()
     mkdirSync(join(dir, ".rove"), { recursive: true })
-    const legacyRoot = join(dir, ".kobe", "plugins", "kobe.notify", "checkout", "notify")
+    const legacyRoot = join(dir, ".rove", "plugins", "rove.notify", "checkout", "notify")
     writeFileSync(
       join(dir, ".rove", "plugins.json"),
       JSON.stringify({
         plugins: [
-          { ...entry, id: "kobe.notify", root: legacyRoot },
-          { ...entry, id: "local.dev", source: { kind: "link" }, root: join(dir, ".kobe", "plugins", "elsewhere") },
+          { ...entry, id: "rove.notify", root: legacyRoot },
+          { ...entry, id: "local.dev", source: { kind: "link" }, root: join(dir, ".rove", "plugins", "elsewhere") },
         ],
       }),
     )
     const [managed, linked] = loadPluginRegistry(dir).plugins
-    expect(managed?.root).toBe(join(dir, ".rove", "plugins", "kobe.notify", "checkout", "notify"))
-    expect(linked?.root).toBe(join(dir, ".kobe", "plugins", "elsewhere"))
+    expect(managed?.root).toBe(join(dir, ".rove", "plugins", "rove.notify", "checkout", "notify"))
+    expect(linked?.root).toBe(join(dir, ".rove", "plugins", "elsewhere"))
   })
 })

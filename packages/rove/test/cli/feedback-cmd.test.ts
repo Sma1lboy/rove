@@ -1,5 +1,5 @@
 /**
- * `kobe feedback` (`parseFeedbackArgs` + `runFeedbackSubcommand`) and the
+ * `rove feedback` (`parseFeedbackArgs` + `runFeedbackSubcommand`) and the
  * underlying `submitFeedback` gh-GraphQL flow. submitFeedback already takes
  * an injectable `deps.spawn` / `deps.repoSlug`, so the network/gh boundary
  * is exercised with a scripted fake — no real `gh` runs.
@@ -57,7 +57,7 @@ describe("parseFeedbackArgs", () => {
 describe("runFeedbackSubcommand", () => {
   it("--help prints usage and submits nothing", async () => {
     await runFeedbackSubcommand(["--help"])
-    expect(outSpy.mock.calls.join("")).toContain("Usage: kobe feedback")
+    expect(outSpy.mock.calls.join("")).toContain("Usage: rove feedback")
     expect(mocks.submitFeedback).not.toHaveBeenCalled()
   })
 
@@ -68,7 +68,7 @@ describe("runFeedbackSubcommand", () => {
   })
 
   it("--body-file reads the body from disk", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-feedback-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-feedback-"))
     try {
       const file = join(dir, "body.md")
       writeFileSync(file, "from a file", "utf8")

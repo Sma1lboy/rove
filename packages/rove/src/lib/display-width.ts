@@ -3,7 +3,7 @@
  * not `String.length` (UTF-16 units) or code-point count. Wide CJK / fullwidth
  * glyphs are common (Chinese-default UI), and length under-counts them.
  *
- * Framework-free so the `kobe export` table renderer and the embedded-terminal
+ * Framework-free so the `rove export` table renderer and the embedded-terminal
  * cursor overlay (`terminal-render.ts`, mapping a cell column onto
  * code-point-indexed text) share ONE width table.
  */

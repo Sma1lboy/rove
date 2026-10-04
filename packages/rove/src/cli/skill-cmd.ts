@@ -1,9 +1,9 @@
 /**
- * `kobe skill install | status | command | print`.
+ * `rove skill install | status | command | print`.
  *
  * Install shells out to the agent-skills CLI, pointed at the bundled SKILL.md
  * (a repo clone only when none is bundled; `lib/skill-install.ts`). With no
- * `--agent` that CLI detects installed agents and prompts, so kobe carries no
+ * `--agent` that CLI detects installed agents and prompts, so rove carries no
  * agent list. Installs are GLOBAL by default — the skill drives a machine-wide
  * daemon; `--project` opts into a per-project install.
  */
@@ -14,15 +14,15 @@ import {
   NPX_MISSING_EXIT,
   bundledSkillDir,
   installedSkillDiffersFromBundled,
+  npxSkillsCommand,
   roveSkillPaths,
   roveSkillState,
-  npxSkillsCommand,
   runNpxSkillsInstall,
 } from "../lib/skill-install.ts"
-import { activeCliName } from "./rename-compat.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 const SKILL_VERBS = SUBCOMMAND_VERBS.skill
 
@@ -98,7 +98,7 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
 
   if (verb === "print") {
     // The bundled copy always matches this binary; an installed copy is the
-    // fallback so `kobe --skill` still answers on an unbuilt environment.
+    // fallback so `rove --skill` still answers on an unbuilt environment.
     const bundled = bundledSkillDir()
     const path = bundled ? join(bundled, "SKILL.md") : roveSkillPaths().find((p) => existsSync(p))
     if (!path) {
@@ -135,7 +135,7 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
               `    run \`${CLI_NAME} --skill > ${state.path}\` to refresh it`,
             ]
           : []),
-        // Agents load every skill dir, so a `kobe`-named copy teaches an old `api`.
+        // Agents load every skill dir, so a `rove`-named copy teaches an old `api`.
         ...state.legacyCopies.map(
           (copy) =>
             `  ⚠ stale duplicate: ${copy.path}${copy.version === null ? "" : ` (v${copy.version})`} — remove it; agents load both`,

@@ -51,7 +51,7 @@ describe("RoveDaemonClient pending-request cleanup", () => {
   let server: Server | null
 
   beforeEach(async () => {
-    dir = mkdtempSync(join(tmpdir(), "kobe-clientpend-"))
+    dir = mkdtempSync(join(tmpdir(), "rove-clientpend-"))
     socketPath = join(dir, "daemon.sock")
     server = await silentServer(socketPath)
   })
@@ -107,7 +107,7 @@ describe("RoveDaemonClient wedged-daemon deadline", () => {
   const prev = process.env.ROVE_RPC_TIMEOUT_MS
 
   beforeEach(async () => {
-    dir = mkdtempSync(join(tmpdir(), "kobe-clientwedge-"))
+    dir = mkdtempSync(join(tmpdir(), "rove-clientwedge-"))
     socketPath = join(dir, "daemon.sock")
     server = await silentServer(socketPath) // accepts, never answers → wedged
     process.env.ROVE_RPC_TIMEOUT_MS = "40" // short deadline for the test
@@ -166,7 +166,7 @@ describe("RoveDaemonClient emit isolates a throwing handler", () => {
   let server: Server | null
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "kobe-clientemit-"))
+    dir = mkdtempSync(join(tmpdir(), "rove-clientemit-"))
     socketPath = join(dir, "daemon.sock")
   })
 

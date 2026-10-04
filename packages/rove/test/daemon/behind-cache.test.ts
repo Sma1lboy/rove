@@ -26,7 +26,7 @@ function git(...args: string[]): string {
 }
 
 beforeEach(() => {
-  repo = mkdtempSync(join(tmpdir(), "kobe-behind-"))
+  repo = mkdtempSync(join(tmpdir(), "rove-behind-"))
   git("init", "-q", "-b", "main", ".")
   writeFileSync(join(repo, "a.txt"), "a\n")
   git("add", "-A")

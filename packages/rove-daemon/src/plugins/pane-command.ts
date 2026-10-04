@@ -1,5 +1,5 @@
 /**
- * Pane launch composition — shared by `kobe plugin pane open` (CLI) and the
+ * Pane launch composition — shared by `rove plugin pane open` (CLI) and the
  * TUI's ctrl+e picker, so both build the IDENTICAL argv: one login-shell
  * `-ilc` script carrying the plugin env contract, with `$ROVE_PLUGIN_ROOT`
  * (or `$ROVE_PLUGIN_ROOT`) expanded in the manifest command. The PTY runs in

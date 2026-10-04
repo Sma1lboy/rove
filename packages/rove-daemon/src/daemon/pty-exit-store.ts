@@ -94,7 +94,7 @@ export function engineExitCodeFromTail(tail: readonly string[]): number | null {
 }
 
 /**
- * The keepAlive wrapper's own banner, as a matcher — the twin of kobe's
+ * The keepAlive wrapper's own banner, as a matcher — the twin of rove's
  * `session-launch.ts` `ENGINE_EXIT_BANNER` (this package cannot import that
  * one). Deliberately non-global: `.test`/`.exec` on a global regex carries
  * `lastIndex` between calls.

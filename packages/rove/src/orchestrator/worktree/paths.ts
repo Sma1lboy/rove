@@ -2,7 +2,7 @@
  * The one definition of where Rove-managed worktrees live:
  * `~/.rove/worktrees/<repo-key>/<slug>/` (under `$ROVE_HOME_DIR` when set).
  * `<slug>` is an animal name, or a ULID on older persisted records. Legacy
- * repo-local roots (`<repo>/.kobe/worktrees/`, `<repo>/.claude/worktrees/`)
+ * repo-local roots (`<repo>/.rove/worktrees/`, `<repo>/.claude/worktrees/`)
  * stay managed; new tasks use the global dir so no repo `.gitignore` entry is
  * needed. `<repo>` must be absolute; callers normalize.
  */
@@ -137,7 +137,7 @@ function remoteWorktreeRootFor(basePath: string): string {
 
 function remoteManagedWorktreeRootsFor(basePath: string): readonly string[] {
   const base = stripTrailingSlash(basePath)
-  return [`${base}/.rove/worktrees`, `${base}/.kobe/worktrees`]
+  return [`${base}/.rove/worktrees`, `${base}/.rove/worktrees`]
 }
 
 export function remoteWorktreePathFor(basePath: string, slug: string): string {
@@ -147,7 +147,7 @@ export function remoteWorktreePathFor(basePath: string, slug: string): string {
   return `${remoteWorktreeRootFor(basePath)}/${slug}`
 }
 
-/** Remote {@link managedWorktreeRootForPath} (`.rove` or legacy `.kobe` root):
+/** Remote {@link managedWorktreeRootForPath} (`.rove` or legacy `.rove` root):
  *  pure string compare, no local realpath possible. */
 export function remoteManagedRootForPath(basePath: string, candidate: string): string | null {
   for (const root of remoteManagedWorktreeRootsFor(basePath)) {

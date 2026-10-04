@@ -60,7 +60,7 @@ function link(): DaemonRpcClient {
         return {
           task: {
             id: (payload as { taskId: string }).taskId,
-            repo: "/repo/kobe",
+            repo: "/repo/rove",
             kind: "task",
             vendor: "claude",
             worktreePath: "",
@@ -134,7 +134,7 @@ describe("daemon session adapter", () => {
       request: vi.fn(
         async <T>() =>
           ({
-            task: { id: "task-4", repo: "/repo/kobe", vendor: "claude", worktreePath: "/existing" },
+            task: { id: "task-4", repo: "/repo/rove", vendor: "claude", worktreePath: "/existing" },
           }) as T,
       ),
     } as unknown as DaemonRpcClient
@@ -148,7 +148,7 @@ describe("daemon session adapter", () => {
       request: vi.fn(
         async <T>(name: string) =>
           (name === "task.get"
-            ? { task: { id: "task-5", repo: "/repo/kobe", vendor: "claude", worktreePath: "" } }
+            ? { task: { id: "task-5", repo: "/repo/rove", vendor: "claude", worktreePath: "" } }
             : { worktreePath: null }) as T,
       ),
     } as unknown as DaemonRpcClient
@@ -162,7 +162,7 @@ describe("daemon session adapter", () => {
           ({
             task: {
               id: "task-6",
-              repo: "/repo/kobe",
+              repo: "/repo/rove",
               vendor: "claude",
               worktreePath: "/worktrees/task-6",
               deletion: { phase: "running", force: false, requestedAt: "2026-07-15T00:00:00.000Z" },

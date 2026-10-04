@@ -24,7 +24,7 @@ let tmpHome: string
 let originalHome: string | undefined
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-vendor-prefs-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-vendor-prefs-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
 })

@@ -1,5 +1,5 @@
 /**
- * `kobe api read-output` — cursor-paged read of a task's engine output, so a
+ * `rove api read-output` — cursor-paged read of a task's engine output, so a
  * coordinator agent needn't scrape its terminal.
  *
  *   auto      → engine transcript history, else a bounded terminal tail with

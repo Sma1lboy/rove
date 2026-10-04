@@ -94,7 +94,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     })
     this.snapshotEngine = new XtermSnapshotEngine(opts.alternateScreenStyleRewrites)
     // Unicode 11 width tables: the default (Unicode 6) measures emoji as ONE
-    // cell while modern apps — and kobe's cursor-overlay math in
+    // cell while modern apps — and rove's cursor-overlay math in
     // lib/display-width.ts — measure TWO; emoji desynced cursor/wrap.
     this.term.loadAddon(new Unicode11Addon())
     this.term.unicode.activeVersion = "11"

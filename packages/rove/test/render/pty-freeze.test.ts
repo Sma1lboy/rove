@@ -26,7 +26,7 @@ function makeHost(opts: ConstructorParameters<typeof PtyHost>[0] = {}): PtyHost 
 }
 
 function makeFreezeDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-pty-freeze-bun-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-pty-freeze-bun-"))
   dirs.push(dir)
   return dir
 }

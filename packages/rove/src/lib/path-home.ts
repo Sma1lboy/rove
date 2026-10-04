@@ -1,5 +1,5 @@
 /**
- * `~` expansion for CLI path arguments. Quoted `~` (`kobe add "~/repo"`, prompt
+ * `~` expansion for CLI path arguments. Quoted `~` (`rove add "~/repo"`, prompt
  * input, forwarded paths) arrives verbatim, and `resolve(cwd, "~/repo")` yields
  * a bogus `<cwd>/~/repo`.
  *

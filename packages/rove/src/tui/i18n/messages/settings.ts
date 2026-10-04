@@ -149,7 +149,7 @@ export const en = {
     worktreeBaseInvalidTitle: "Can't use that worktree location",
     /** `{token}` is the literal `$project_dir`, not a translatable word. */
     worktreeBaseTokenBody:
-      "{token} only expands as the leading path segment (e.g. {token}/../kobe-worktrees). Keeping the previous setting.",
+      "{token} only expands as the leading path segment (e.g. {token}/../rove-worktrees). Keeping the previous setting.",
     worktreeBaseUnusableBody:
       "{path} isn't usable ({error}). Keeping the previous setting — pick a writable directory.",
     terminal: "Terminal",
@@ -386,7 +386,7 @@ export const zh: typeof en = {
     worktreeBaseField: "路径",
     editorCustomTitle: "自定义编辑器命令（用 {file} 代表文件路径）",
     worktreeBaseInvalidTitle: "无法使用该工作树位置",
-    worktreeBaseTokenBody: "{token} 只能作为路径的第一段展开（如 {token}/../kobe-worktrees）。保留原设置。",
+    worktreeBaseTokenBody: "{token} 只能作为路径的第一段展开（如 {token}/../rove-worktrees）。保留原设置。",
     worktreeBaseUnusableBody: "{path} 不可用（{error}）。保留原设置 —— 请选择一个可写目录。",
     terminal: "终端",
     terminalHint: "对修改后新打开的终端生效。",

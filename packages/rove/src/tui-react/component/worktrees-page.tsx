@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * WorktreesPage — every git worktree across saved projects, kobe-managed or
+ * WorktreesPage — every git worktree across saved projects, rove-managed or
  * not, with managed/age/dirty/pushed badges.
  *
  * Delete defers to the daemon's gate (`GitWorktreeManager.remove`): a clean

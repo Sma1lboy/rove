@@ -1,8 +1,8 @@
 /**
- * One reader for the `.rove/` → `.kobe/` per-repo config-file fallback.
+ * One reader for the `.rove/` → `.rove/` per-repo config-file fallback.
  *
  * Covers `init.sh`, `init-prompt.md`, `pr-instructions.md` and
- * `ci-instructions.md`; legacy `.kobe/` stays a fallback. A whitespace-only
+ * `ci-instructions.md`; legacy `.rove/` stays a fallback. A whitespace-only
  * file is a placeholder that falls through, not an instruction to blank the
  * output.
  *
@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 /** Config dirs a repo may ship, canonical spelling first. */
-export const REPO_CONFIG_DIRS = [".rove", ".kobe"] as const
+export const REPO_CONFIG_DIRS = [".rove"] as const
 
 /** Every candidate path for `filename`, in precedence order. */
 function repoConfigCandidates(repoDir: string, filename: string): string[] {

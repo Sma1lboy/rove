@@ -12,7 +12,7 @@ import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture
 
 // Peer provenance AND dispatcher provenance both key off the caller's own
 // $ROVE_TASK_ID/$ROVE_TAB_ID — unset them file-wide so exact-payload
-// assertions stay deterministic when the runner itself lives inside a kobe
+// assertions stay deterministic when the runner itself lives inside a rove
 // task. Tests that WANT provenance set them in their own beforeEach.
 const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }
 beforeEach(() => {
@@ -160,7 +160,7 @@ describe("send handler", () => {
         {
           pid: 500,
           sessions: async () => [{ key: "sender-1::tab-1", pid: 100, alive: true }],
-          ps: async () => "  100     1 /bin/zsh -il\n  500   100 bun kobe api send",
+          ps: async () => "  100     1 /bin/zsh -il\n  500   100 bun rove api send",
         },
       )
     })
@@ -189,9 +189,9 @@ describe("send handler", () => {
       expect(calls[0].prompt).toContain('[ROVE PEER] from "Auth attempt" (task sender-1')
       // Both skill ids, so a receiver on either install finds it.
       expect(calls[0].prompt).toContain("/rove")
-      expect(calls[0].prompt).toContain("legacy /kobe installs still work")
+      expect(calls[0].prompt).toContain("legacy /rove installs still work")
       expect(calls[0].prompt).toContain("send --task-id sender-1")
-      // The self-teach pointer: a receiver that has never seen kobe learns
+      // The self-teach pointer: a receiver that has never seen rove learns
       // where the rest of the coordination verbs live.
       expect(calls[0].prompt).toContain("Rove agent skill")
       // …and reads it ONCE PER SESSION. "FIRST" had receivers re-loading it
@@ -211,7 +211,7 @@ describe("send handler", () => {
     })
 
     it("gives a dispatched task the same reply address in its opening brief", async () => {
-      // `add --prompt` from inside a kobe session is agent-to-agent too, and
+      // `add --prompt` from inside a rove session is agent-to-agent too, and
       // its brief is where the reply address matters most: every report that
       // task ever sends flows back through it. Recording the sender only as
       // `dispatcher` on the task ROW — data a receiver has to think to go

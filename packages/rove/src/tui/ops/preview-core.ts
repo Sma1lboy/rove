@@ -1,5 +1,5 @@
 /**
- * Framework-free data half of the `kobe ops --preview <rel>` window.
+ * Framework-free data half of the `rove ops --preview <rel>` window.
  * Vitest-safe: no @opentui imports (SyntaxStyle lives in `./preview-syntax`).
  */
 

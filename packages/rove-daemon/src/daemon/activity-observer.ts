@@ -10,7 +10,7 @@
  *   - `titleTurnHint`: claude writes ⠂/⠐ working and a static ✳ at rest,
  *     codex only decorates while working — a resting title is an event-grade
  *     "not working". No declared vocabulary → null → pure silence (never rest).
- *   - a low-frequency foreground WALK (`ps` tree, as `kobe api inspect`):
+ *   - a low-frequency foreground WALK (`ps` tree, as `rove api inspect`):
  *     which engine runs in each session. Walk evidence gates every claim;
  *     "no engine" proves a `running` claim stale.
  *
@@ -71,7 +71,7 @@ export interface ActivityObserverIo {
   /** Foreground engine per session pid (ONE `ps` snapshot walk) — the
    *  engine's vendor + its own pid, or null for "no engine in this tree". */
   foregroundEngines(pids: readonly number[]): Promise<ReadonlyMap<number, { vendor: string; pid: number } | null>>
-  /** Engine-owned title verdict — see kobe's `engineTitleTurnHint`. */
+  /** Engine-owned title verdict — see rove's `engineTitleTurnHint`. */
   titleTurnHint(vendor: string, title: string): "working" | "rest" | null
   /**
    * Naming evidence per ALIVE, WALKED session (tier-b protocol sniff), once

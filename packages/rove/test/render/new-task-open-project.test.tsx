@@ -27,7 +27,7 @@ import { type Field, type NewTaskInput, nextField } from "../../src/tui/componen
 import { act, renderComponent, settle } from "./harness"
 
 function repo(): string {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-openproj-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-openproj-"))
   execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", { cwd: dir })
   return dir
 }

@@ -3,13 +3,13 @@
  *
  * The sidebar tree lists a worktree's tabs from `terminalTabs.<taskId>`,
  * which only a mounted `TerminalTabs` ever wrote — so a headless start
- * (`kobe api add --prompt`, `kobe api send`, a routine firing) ran a live
+ * (`rove api add --prompt`, `rove api send`, a routine firing) ran a live
  * engine that the tree could not see, and rendered the worktree with no tabs
- * at all. Since headless start is how agent-driven work enters kobe, that was
+ * at all. Since headless start is how agent-driven work enters rove, that was
  * most of the fleet.
  *
  * The write-once rule is the load-bearing half: a mounted TUI owns tab state
- * for real (ordinals, titles, splits), and `kobe api send` into a task you
+ * for real (ordinals, titles, splits), and `rove api send` into a task you
  * have open reuses that session — so clobbering its snapshot with a one-tab
  * stub would actively destroy state.
  */
@@ -42,7 +42,7 @@ function readState(): Record<string, unknown> {
 }
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "kobe-cli-tabsnap-"))
+  home = mkdtempSync(join(tmpdir(), "rove-cli-tabsnap-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = home
 })

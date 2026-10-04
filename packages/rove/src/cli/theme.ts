@@ -1,5 +1,5 @@
 /**
- * `kobe theme list | add <source> | remove <name>` — user color themes under
+ * `rove theme list | add <source> | remove <name>` — user color themes under
  * `~/.rove/themes/<name>.json`. `add` refuses to overwrite without `--force`;
  * `remove` refuses bundled (read-only) names.
  *
@@ -11,13 +11,13 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFile
 import { basename, join, resolve } from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import { expandTilde } from "../lib/path-home.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { BUNDLED_THEME_JSONS } from "../tui/context/theme/bundled"
 import { userThemesDir } from "../tui/context/theme/loader"
 import { validateTheme } from "../tui/context/theme/schema"
-import { activeCliName } from "./rename-compat.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 /** Short spellings accepted on the command line but not offered by completions. */
 const THEME_VERB_ALIASES: Readonly<Record<string, string>> = { ls: "list", rm: "remove" }
@@ -214,7 +214,7 @@ function printUsage(out: NodeJS.WriteStream = process.stderr): void {
   )
 }
 
-/** `args` is whatever followed `kobe theme`. */
+/** `args` is whatever followed `rove theme`. */
 export async function runThemeSubcommand(args: string[]): Promise<void> {
   const [action, ...rest] = args
   if (!action || action === "--help" || action === "-h" || action === "help") {

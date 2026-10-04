@@ -97,7 +97,7 @@ export interface DaemonHarness {
 }
 
 export async function bootDaemonHarness(opts: DaemonHarnessOptions = {}): Promise<DaemonHarness> {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-daemon-harness-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-daemon-harness-"))
   const socketPath = join(dir, "daemon.sock")
   const pidPath = join(dir, "daemon.pid")
 

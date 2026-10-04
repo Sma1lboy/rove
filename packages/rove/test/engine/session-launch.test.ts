@@ -17,7 +17,7 @@ afterEach(() => {
 })
 
 function makeWorktree(files: Record<string, string>): string {
-  const worktree = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-session-launch-"))
+  const worktree = fs.mkdtempSync(path.join(os.tmpdir(), "rove-session-launch-"))
   tempDirs.push(worktree)
   for (const [relativePath, content] of Object.entries(files)) {
     const file = path.join(worktree, relativePath)
@@ -158,28 +158,28 @@ describe("hosted engine session launch", () => {
 
   test("writes the init marker in the form the shell reads, not the OS's", () => {
     // The marker is interpolated into a POSIX script that Git Bash runs.
-    // `[ -f 'C:\wt\.kobe\worktree-init\ab12' ]` reads `\w` as an escape, so
+    // `[ -f 'C:\wt\.rove\worktree-init\ab12' ]` reads `\w` as an escape, so
     // the gate would never match and repo init would re-run on every launch.
     const script = engineLaunchLine("claude", {
       initScript: "echo hi",
-      markerPath: "C:\\wt\\.kobe\\worktree-init\\ab12",
+      markerPath: "C:\\wt\\.rove\\worktree-init\\ab12",
       platform: "win32",
     })
 
-    expect(script).toContain("[ ! -f '/c/wt/.kobe/worktree-init/ab12' ]")
-    expect(script).toContain("mkdir -p '/c/wt/.kobe/worktree-init'")
+    expect(script).toContain("[ ! -f '/c/wt/.rove/worktree-init/ab12' ]")
+    expect(script).toContain("mkdir -p '/c/wt/.rove/worktree-init'")
     expect(script).not.toContain("\\wt\\")
   })
 
   test("leaves a POSIX marker path exactly as it is", () => {
     const script = engineLaunchLine("claude", {
       initScript: "echo hi",
-      markerPath: "/repo/.kobe/worktree-init/ab12",
+      markerPath: "/repo/.rove/worktree-init/ab12",
       platform: "linux",
     })
 
-    expect(script).toContain("[ ! -f '/repo/.kobe/worktree-init/ab12' ]")
-    expect(script).toContain("mkdir -p '/repo/.kobe/worktree-init'")
+    expect(script).toContain("[ ! -f '/repo/.rove/worktree-init/ab12' ]")
+    expect(script).toContain("mkdir -p '/repo/.rove/worktree-init'")
   })
 
   // These run the GENERATED script for real. The bugs here are both about
@@ -214,7 +214,7 @@ describe("hosted engine session launch", () => {
     }
 
     function scratch(): { dir: string; marker: string } {
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-init-run-"))
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rove-init-run-"))
       tempDirs.push(dir)
       return { dir, marker: path.join(dir, "state", "worktree-init", "abc123") }
     }
@@ -358,7 +358,7 @@ describe("hosted engine session launch", () => {
       ["a recorded success", "0", true],
       ["a recorded failure", "1", true],
     ])("%s", (_label, contents, finished) => {
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-init-marker-"))
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rove-init-marker-"))
       tempDirs.push(dir)
       const marker = path.join(dir, "marker")
       if (contents !== null) fs.writeFileSync(marker, contents)

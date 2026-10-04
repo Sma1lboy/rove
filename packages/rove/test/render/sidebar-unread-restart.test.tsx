@@ -2,10 +2,10 @@
 /**
  * The durable seen mark at the render boundary: a completion this process has
  * never seen
- * — the state a relaunched kobe is in — must still draw as read when the
+ * — the state a relaunched rove is in — must still draw as read when the
  * persisted mark covers it.
  *
- * The end-to-end pin (quit kobe, start it again, look at the rail) lives in
+ * The end-to-end pin (quit rove, start it again, look at the rail) lives in
  * `test/behavior/pure-tui-unread-restart.test.ts`; this one proves the rail
  * actually consults the durable mark, without a PTY.
  */
@@ -45,7 +45,7 @@ const ALPHA = task("alpha")
 const BRAVO = task("bravo")
 
 function seedState(seen: Record<string, number>): void {
-  const home = mkdtempSync(join(tmpdir(), "kobe-unread-restart-"))
+  const home = mkdtempSync(join(tmpdir(), "rove-unread-restart-"))
   mkdirSync(join(home, ".config", "rove"), { recursive: true })
   writeFileSync(join(home, ".config", "rove", "state.json"), JSON.stringify({ completionSeen: seen }))
   process.env.ROVE_HOME_DIR = home

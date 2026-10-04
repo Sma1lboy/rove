@@ -25,7 +25,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 let dir: string
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "kobe-pty-freeze-"))
+  dir = mkdtempSync(join(tmpdir(), "rove-pty-freeze-"))
 })
 
 afterEach(() => {

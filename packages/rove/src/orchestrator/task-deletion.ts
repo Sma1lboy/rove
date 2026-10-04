@@ -93,7 +93,7 @@ export class TaskDeletionCoordinator {
     const task = this.store.get(id)
     if (!task?.deletion || task.deletion.phase !== "running") return
     try {
-      // NEVER remove a `dir` task's directory (`kobe .`): it's the user's own.
+      // NEVER remove a `dir` task's directory (`rove .`): it's the user's own.
       if (task.worktreePath && task.kind !== "dir") {
         await this.worktrees.remove(task.worktreePath, {
           force: task.deletion.force,

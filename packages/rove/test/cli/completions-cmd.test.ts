@@ -1,5 +1,5 @@
 /**
- * `kobe completions <shell>` — asserts each generated script actually
+ * `rove completions <shell>` — asserts each generated script actually
  * carries every top-level subcommand AND every sub-verb in that shell's
  * grammar, plus the usage / unknown-shell error surface.
  *
@@ -75,7 +75,7 @@ describe("runCompletionsSubcommand", () => {
   test("bash script registers the completion fn and lists every subcommand", async () => {
     await runCompletionsSubcommand(["bash"])
     const script = stdoutText()
-    expect(script).toContain("complete -F _kobe kobe")
+    expect(script).toContain("complete -F _rove rove")
     for (const sub of TOP_LEVEL_SUBCOMMANDS) expect(script).toContain(sub)
   })
 
@@ -83,9 +83,9 @@ describe("runCompletionsSubcommand", () => {
     await runCompletionsSubcommand(["zsh"])
     const script = stdoutText()
     // fpath-autoload path: the funcstack guard runs the completion fn.
-    expect(script).toContain('if [ "${funcstack[1]}" = "_kobe" ]')
+    expect(script).toContain('if [ "${funcstack[1]}" = "_rove" ]')
     // source <(...) path: falls through to an explicit compdef registration.
-    expect(script).toContain("compdef _kobe kobe")
+    expect(script).toContain("compdef _rove rove")
   })
 
   test("rove gets isolated shell registrations and install instructions", async () => {
@@ -94,7 +94,7 @@ describe("runCompletionsSubcommand", () => {
     expect(script.startsWith("#compdef rove")).toBe(true)
     expect(script).toContain('if [ "${funcstack[1]}" = "_rove" ]')
     expect(script).toContain("compdef _rove rove")
-    expect(script).not.toContain("compdef _kobe kobe")
+    expect(script).not.toContain("compdef _rove rove")
   })
 
   test.each(["bash", "zsh", "fish"] as const)(
@@ -125,33 +125,33 @@ describe("runCompletionsSubcommand with a shipped script", () => {
   let scriptPath: string
 
   beforeEach(() => {
-    shippedDir = mkdtempSync(join(tmpdir(), "kobe-completions-"))
-    scriptPath = join(shippedDir, "kobe.zsh")
-    writeFileSync(scriptPath, "#compdef kobe\n")
+    shippedDir = mkdtempSync(join(tmpdir(), "rove-completions-"))
+    scriptPath = join(shippedDir, "rove.zsh")
+    writeFileSync(scriptPath, "#compdef rove\n")
   })
 
   test("--path prints the shipped script's path", async () => {
-    await runCompletionsSubcommand(["zsh", "--path"], "kobe", { shippedDir })
+    await runCompletionsSubcommand(["zsh", "--path"], "rove", { shippedDir })
     expect(stdoutText()).toBe(`${scriptPath}\n`)
   })
 
   test("plain stdout serves the shipped file, so --path cannot disagree with it", async () => {
-    await runCompletionsSubcommand(["zsh"], "kobe", { shippedDir })
-    expect(stdoutText()).toBe("#compdef kobe\n")
+    await runCompletionsSubcommand(["zsh"], "rove", { shippedDir })
+    expect(stdoutText()).toBe("#compdef rove\n")
   })
 
   test("--path without a built script fails loudly rather than printing a dead path", async () => {
-    const empty = mkdtempSync(join(tmpdir(), "kobe-completions-empty-"))
-    await expect(runCompletionsSubcommand(["zsh", "--path"], "kobe", { shippedDir: empty })).rejects.toThrow(
+    const empty = mkdtempSync(join(tmpdir(), "rove-completions-empty-"))
+    await expect(runCompletionsSubcommand(["zsh", "--path"], "rove", { shippedDir: empty })).rejects.toThrow(
       "exit sentinel",
     )
     expect(exitSpy).toHaveBeenCalledWith(2)
-    expect(stderrText()).toContain(`no pre-generated zsh script at ${join(empty, "kobe.zsh")}`)
+    expect(stderrText()).toContain(`no pre-generated zsh script at ${join(empty, "rove.zsh")}`)
   })
 
   test("--install writes the shipped path into the rc file", async () => {
-    const home = mkdtempSync(join(tmpdir(), "kobe-completions-home-"))
-    await runCompletionsSubcommand(["zsh", "--install"], "kobe", { shippedDir, home })
+    const home = mkdtempSync(join(tmpdir(), "rove-completions-home-"))
+    await runCompletionsSubcommand(["zsh", "--install"], "rove", { shippedDir, home })
     const rc = readFileSync(join(home, ".zshrc"), "utf8")
     expect(rc).toContain(`source "${scriptPath}"`)
     expect(rc).not.toContain("source <(")
@@ -159,7 +159,7 @@ describe("runCompletionsSubcommand with a shipped script", () => {
   })
 
   test("--path together with --install is a usage error, not a silent pick", async () => {
-    await expect(runCompletionsSubcommand(["zsh", "--path", "--install"], "kobe", { shippedDir })).rejects.toThrow(
+    await expect(runCompletionsSubcommand(["zsh", "--path", "--install"], "rove", { shippedDir })).rejects.toThrow(
       "exit sentinel",
     )
     expect(stderrText()).toContain("--path and --install are different things")

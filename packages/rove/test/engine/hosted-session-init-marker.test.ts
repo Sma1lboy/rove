@@ -24,7 +24,7 @@ describe("pastePromptWhenEngineUp repo-init marker wait", () => {
   const withEngine = "  42   1 /bin/zsh -ilc kimi\n  43  42 kimi\n"
 
   it("waits for the init marker before budgeting engine-startup time", async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-marker-"))
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "rove-hosted-init-marker-"))
     const marker = path.join(tmp, "marker")
     let written = ""
     const request = vi.fn().mockImplementation((name: string, payload: unknown) => {
@@ -80,7 +80,7 @@ describe("pastePromptWhenEngineUp repo-init marker wait", () => {
   // were the same observation from here and this loop sat out its whole
   // 120s budget before the prompt was ever pasted.
   it("stops waiting on the first poll after a FAILING init records its outcome", async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-failed-"))
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "rove-hosted-init-failed-"))
     const marker = path.join(tmp, "marker")
     let written = ""
     const request = vi.fn().mockImplementation((name: string, payload: unknown) => {
@@ -131,7 +131,7 @@ describe("pastePromptWhenEngineUp repo-init marker wait", () => {
   // one — so it means "still running" here too. Ending the wait on it handed
   // the engine-startup budget to a shell that had not started an engine yet.
   it("keeps waiting through an EMPTY pre-0.9.101 marker until a code is recorded", async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-empty-"))
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "rove-hosted-init-empty-"))
     const marker = path.join(tmp, "marker")
     fs.writeFileSync(marker, "")
     let written = ""
@@ -176,7 +176,7 @@ describe("pastePromptWhenEngineUp repo-init marker wait", () => {
   })
 
   it("returns false if the session dies while waiting for the init marker", async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-marker-"))
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "rove-hosted-init-marker-"))
     const marker = path.join(tmp, "marker")
     const request = vi.fn().mockResolvedValue({ sessions: [{ ...session("task-a::tab-1"), alive: false }] })
     const rpc: HostedSessionRpc = { request }

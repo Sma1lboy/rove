@@ -93,7 +93,7 @@ describe("nameOrPath (what the field should hold)", () => {
 })
 
 describe("completeRepoInput", () => {
-  const repos = ["/Users/me/i/quokka", "/Users/me/i/kobe"]
+  const repos = ["/Users/me/i/quokka", "/Users/me/i/rove"]
 
   it("walks browse mode one directory DOWN, dropdown still open", () => {
     // The trailing slash is the whole mechanism: it re-points the picker at

@@ -59,7 +59,7 @@ let orch: Orchestrator
 
 beforeEach(async () => {
   prevHome = process.env.ROVE_HOME_DIR
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-ensure-wt-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-ensure-wt-"))
   // The worktree manager computes paths under `$ROVE_HOME_DIR/.rove/worktrees`,
   // so isolate it (and the store) to the tmp home.
   const home = path.join(tmpRoot, "home")
@@ -112,7 +112,7 @@ describe("ensureWorktree — partial-failure cleanup (no orphans)", () => {
 
     // The task record never got a path (so it stays a lazy, retryable task)...
     expect(orch.getTask(task.id)?.worktreePath).toBe("")
-    // ...and nothing was left on disk: no kobe-managed worktree, no orphan dir
+    // ...and nothing was left on disk: no rove-managed worktree, no orphan dir
     // under the worktrees root that a retry would collide with.
     expect(await new GitWorktreeManager().list(repo)).toEqual([])
   })

@@ -91,7 +91,7 @@ describe("captureClipboardAttachment", () => {
   }
 
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), "kobe-attach-"))
+    home = mkdtempSync(join(tmpdir(), "rove-attach-"))
     prevHome = process.env.ROVE_HOME_DIR
     process.env.ROVE_HOME_DIR = home
   })

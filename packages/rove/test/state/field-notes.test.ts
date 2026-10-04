@@ -13,7 +13,7 @@ import { NOTE_INJECTION_CAP, readFieldNotes } from "../../src/state/field-notes.
 const cleanups: string[] = []
 
 async function storeWith(repos: unknown): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "kobe-field-notes-"))
+  const dir = await mkdtemp(join(tmpdir(), "rove-field-notes-"))
   cleanups.push(dir)
   const path = join(dir, "notes.json")
   await writeFile(path, JSON.stringify({ version: 1, repos }), "utf8")
@@ -45,7 +45,7 @@ describe("readFieldNotes", () => {
   })
 
   it("survives a corrupt store rather than throwing into the launch path", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "kobe-field-notes-bad-"))
+    const dir = await mkdtemp(join(tmpdir(), "rove-field-notes-bad-"))
     cleanups.push(dir)
     const path = join(dir, "notes.json")
     await writeFile(path, "{ not json", "utf8")

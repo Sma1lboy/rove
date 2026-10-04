@@ -1,7 +1,7 @@
 /**
  * Unit tests for the user-keybinding override logic
  * (`src/tui/lib/keymap-overrides.ts`) — the pure half of
- * `~/.kobe/settings/keybindings.yaml` support.
+ * `~/.rove/settings/keybindings.yaml` support.
  *
  * Why these matter: the override pipeline rewrites `RoveKeymap` in place
  * at boot, so a normalization bug here doesn't crash anything — it

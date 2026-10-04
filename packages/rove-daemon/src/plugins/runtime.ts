@@ -33,7 +33,7 @@ import { loadPluginRegistry } from "./registry.ts"
 export interface PluginHostOptions {
   readonly homeDir?: string
   readonly socketPath: string
-  /** Path plugins should exec to call back into kobe (packaged `kobe` on PATH, or a dev override). */
+  /** Path plugins should exec to call back into rove (packaged `rove` on PATH, or a dev override). */
   readonly binPath: string
   readonly log?: (line: string) => void
 }

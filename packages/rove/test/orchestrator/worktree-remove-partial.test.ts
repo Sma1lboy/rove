@@ -62,7 +62,7 @@ function registered(worktreePath: string): boolean {
 }
 
 beforeAll(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), "kobe-wt-partial-")))
+  root = realpathSync(mkdtempSync(join(tmpdir(), "rove-wt-partial-")))
   // The managed-roots guard reads `$ROVE_HOME_DIR`. Pointing it at the temp
   // root is what lets the ordering test below put a residue INSIDE a real
   // managed root — the one place the orphan branch would delete it.
@@ -97,7 +97,7 @@ afterAll(() => {
 
 describe("remove() when git deregisters but cannot delete", () => {
   it("resolves and reports the leftover directory instead of throwing", async () => {
-    const wt = undeletableWorktree("wt-locked", "kobe/locked")
+    const wt = undeletableWorktree("wt-locked", "rove/locked")
     const seen: WorktreeResidue[] = []
 
     // Treating exit 255 as a plain `runGit` failure hands the caller a
@@ -115,7 +115,7 @@ describe("remove() when git deregisters but cannot delete", () => {
   })
 
   it("does NOT delete the leftover directory — it is reported, not cleaned up", async () => {
-    const wt = undeletableWorktree("wt-keep", "kobe/keep")
+    const wt = undeletableWorktree("wt-keep", "rove/keep")
     await manager.remove(wt, { force: true, onResidue: () => {} })
     // The whole point of reporting rather than cleaning: whatever made this
     // undeletable may be something the user wants.
@@ -123,7 +123,7 @@ describe("remove() when git deregisters but cannot delete", () => {
   })
 
   it("a second call converges instead of `is not a working tree`", async () => {
-    const wt = undeletableWorktree("wt-retry", "kobe/retry")
+    const wt = undeletableWorktree("wt-retry", "rove/retry")
     await manager.remove(wt, { force: true, onResidue: () => {} })
 
     const second: WorktreeResidue[] = []
@@ -136,11 +136,11 @@ describe("remove() when git deregisters but cannot delete", () => {
   })
 
   it("still deletes the branch on the opt-in — the residue is not a live worktree", async () => {
-    const wt = undeletableWorktree("wt-branch", "kobe/residue-branch")
+    const wt = undeletableWorktree("wt-branch", "rove/residue-branch")
     await manager.remove(wt, { force: true, deleteBranch: true, onResidue: () => {} })
     // The branch was undeletable only while checked out; the deregistration
     // released it, so skipping the delete on this path would silently leak it.
-    const out = execSync('git branch --list "kobe/residue-branch"', { cwd: repo, env: gitEnv, encoding: "utf8" })
+    const out = execSync('git branch --list "rove/residue-branch"', { cwd: repo, env: gitEnv, encoding: "utf8" })
     expect(out.trim()).toBe("")
   })
 
@@ -152,7 +152,7 @@ describe("remove() when git deregisters but cannot delete", () => {
     // forced delete `rm -rf`s the very directory git had just refused to
     // touch: the user's undeletable files, destroyed by the retry.
     const wt = join(managedRoot, "residue-in-root")
-    execSync(`git worktree add -q ${JSON.stringify(wt)} -b kobe/residue-in-root`, { cwd: repo, env: gitEnv })
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b rove/residue-in-root`, { cwd: repo, env: gitEnv })
     const fixture = join(wt, "fixture")
     mkdirSync(fixture, { recursive: true })
     writeFileSync(join(fixture, "keep.txt"), "precious")
@@ -176,7 +176,7 @@ describe("remove() when git deregisters but cannot delete", () => {
     // managed-root cleanup. Removing the pointer by hand reproduces the Linux
     // shape on any platform.
     const wt = join(managedRoot, "no-pointer")
-    execSync(`git worktree add -q ${JSON.stringify(wt)} -b kobe/no-pointer`, { cwd: repo, env: gitEnv })
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b rove/no-pointer`, { cwd: repo, env: gitEnv })
     const fixture = join(wt, "fixture")
     mkdirSync(fixture, { recursive: true })
     writeFileSync(join(fixture, "keep.txt"), "precious")
@@ -205,7 +205,7 @@ describe("remove() when git deregisters but cannot delete", () => {
 
   it("a clean removal reports no residue at all", async () => {
     const wt = join(root, "wt-clean")
-    await manager.create(repo, "kobe/clean", wt)
+    await manager.create(repo, "rove/clean", wt)
     const seen: WorktreeResidue[] = []
     await manager.remove(wt, { onResidue: (r) => seen.push(r) })
     // Red if the probe fires unconditionally: every ordinary delete would
@@ -240,7 +240,7 @@ describe("remove() when the worktree is nested inside its own repo", () => {
   }
 
   it("reports the leftover directory instead of throwing", async () => {
-    const wt = nestedUndeletableWorktree("wt-nested", "kobe/nested")
+    const wt = nestedUndeletableWorktree("wt-nested", "rove/nested")
     const seen: WorktreeResidue[] = []
 
     // Red before the fix wherever git unlinks the `.git` pointer before
@@ -259,7 +259,7 @@ describe("remove() when the worktree is nested inside its own repo", () => {
   })
 
   it("a second call converges even where git unlinked the `.git` pointer", async () => {
-    const wt = nestedUndeletableWorktree("wt-nested-retry", "kobe/nested-retry")
+    const wt = nestedUndeletableWorktree("wt-nested-retry", "rove/nested-retry")
     await manager.remove(wt, { force: true, onResidue: () => {} })
     // The Linux shape, reproduced on any platform: no pointer file left, so
     // the fingerprint fast path cannot fire and only the registration probe
@@ -281,7 +281,7 @@ describe("remove() when the worktree is nested inside its own repo", () => {
     // make a later `git worktree add` on that path fail.
     const wt = join(repo, ".rove", "worktrees", "wt-vanished")
     mkdirSync(join(repo, ".rove", "worktrees"), { recursive: true })
-    execSync(`git worktree add -q ${JSON.stringify(wt)} -b kobe/vanished`, { cwd: repo, env: gitEnv })
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b rove/vanished`, { cwd: repo, env: gitEnv })
     const adminDir = join(repo, ".git", "worktrees", "wt-vanished")
     expect(existsSync(adminDir)).toBe(true)
 
@@ -291,7 +291,7 @@ describe("remove() when the worktree is nested inside its own repo", () => {
     // The observable effect of the prune, not a spy on the argv: git dropped
     // the registration, so the path is re-addable.
     expect(existsSync(adminDir)).toBe(false)
-    execSync(`git worktree add -q ${JSON.stringify(wt)} kobe/vanished`, { cwd: repo, env: gitEnv })
+    execSync(`git worktree add -q ${JSON.stringify(wt)} rove/vanished`, { cwd: repo, env: gitEnv })
     expect(existsSync(wt)).toBe(true)
   })
 })

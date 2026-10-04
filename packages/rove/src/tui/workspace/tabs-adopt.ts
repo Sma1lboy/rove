@@ -2,7 +2,7 @@
  * Adopt live-but-unlisted pty sessions into a task's tab state. The pty host
  * is the truth; the tab snapshot is intent, and they diverge (canonical-spawn
  * fallback, a tab closed while unmounted so the kill never reached the host,
- * an older kobe). An unlisted session can't be opened, focused or closed.
+ * an older rove). An unlisted session can't be opened, focused or closed.
  *
  * A live `<taskId>::<tabId>` becomes an engine tab under ITS OWN id, so a
  * mount attaches to the host session instead of respawning. Never steals

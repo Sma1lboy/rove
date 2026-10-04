@@ -18,7 +18,7 @@ let root: string
 let origin: string
 
 beforeAll(() => {
-  root = mkdtempSync(join(tmpdir(), "kobe-clone-run-"))
+  root = mkdtempSync(join(tmpdir(), "rove-clone-run-"))
   origin = join(root, "origin")
   mkdirSync(origin)
   execSync("git init -q -b main && git commit -q --allow-empty -m init", {

@@ -85,7 +85,7 @@ function encodeAbsolute(p: string): string {
 /**
  * omp's relative form, verbatim from its `encodeRelativeSessionDirName`: the
  * separator is inserted only when the prefix does not already end in one
- * (`-` + `i/kobe` → `-i-kobe`, not `--i-kobe`).
+ * (`-` + `i/rove` → `-i-rove`, not `--i-rove`).
  */
 function encodeRelative(prefix: string, relative: string): string {
   const encoded = relative.replace(/[/\\:]/g, "-")

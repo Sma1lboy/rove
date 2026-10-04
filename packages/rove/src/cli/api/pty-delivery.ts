@@ -1,5 +1,5 @@
 /**
- * PTY Host prompt delivery for `kobe api`. The standalone pty-host owns
+ * PTY Host prompt delivery for `rove api`. The standalone pty-host owns
  * interactive engine sessions and serves pty.* on its OWN socket (not
  * proxied through the daemon), so this opens a short-lived client to it.
  * The engine key is `<taskId>::tab-1` refined by an argv match on the

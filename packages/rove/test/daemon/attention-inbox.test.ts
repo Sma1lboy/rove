@@ -18,7 +18,7 @@ describe("daemon attention inbox", () => {
     path: string
     bus: DaemonEventBus
   }> {
-    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-attention-inbox-"))
     const path = join(dir, "attention-inbox.json")
     const bus = new DaemonEventBus()
     const store = new AttentionInboxStore(path, bus, () => (typeof now === "function" ? now() : now))
@@ -40,7 +40,7 @@ describe("daemon attention inbox", () => {
    * records made AFTER the seed reach, so nothing is lost by seeding cheaply.
    */
   async function seed(count: number, firstAt: number): Promise<string> {
-    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-attention-inbox-"))
     const path = join(dir, "attention-inbox.json")
     const items = Array.from({ length: count }, (_, i) => ({
       taskId: `task-${i}`,
@@ -194,7 +194,7 @@ describe("daemon attention inbox", () => {
   })
 
   it("boots with an empty Inbox when the persisted JSON is corrupt", async () => {
-    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-corrupt-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-attention-inbox-corrupt-"))
     const path = join(dir, "attention-inbox.json")
     await writeFile(path, "{not-json", "utf8")
     const bus = new DaemonEventBus()
@@ -212,7 +212,7 @@ describe("daemon attention inbox", () => {
     // `init()` published that as an authoritative "nothing needs you", and the
     // next hook event rewrote the whole file from the empty map — a transient
     // read failure permanently destroyed every pending episode.
-    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-unreadable-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-attention-inbox-unreadable-"))
     const path = join(dir, "attention-inbox.json")
     await mkdir(path)
     const bus = new DaemonEventBus()
@@ -227,7 +227,7 @@ describe("daemon attention inbox", () => {
   })
 
   it("keeps memory unchanged when an atomic write fails", async () => {
-    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-blocked-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-attention-inbox-blocked-"))
     const blocker = join(dir, "not-a-directory")
     await writeFile(blocker, "blocked", "utf8")
     const store = new AttentionInboxStore(join(blocker, "attention-inbox.json"), new DaemonEventBus())

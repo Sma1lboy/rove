@@ -1,13 +1,13 @@
 /**
- * Plugin marketplace: GitHub topics `rove-plugin` + legacy `kobe-plugin`, plus
+ * Plugin marketplace: GitHub topics `rove-plugin` + legacy `rove-plugin`, plus
  * a first-party list that doubles as the offline fallback. `fetchMarketplace`
  * is the data layer (also Settings → Marketplace).
  */
 
-import { activeCliName } from "./rename-compat.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 
 const SEARCH_TIMEOUT_MS = 5_000
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 /** First-party examples under Sma1lboy/rove-plugins/ — also the offline fallback. */
 const FIRST_PARTY: readonly { ref: string; desc: string }[] = [
@@ -59,7 +59,7 @@ async function fetchTopic(topic: string, query: string | undefined): Promise<Mar
 /** Both topics + seeds, de-duplicated by repo ref. Never rejects: offline
  *  returns the seeds with `offline: true` (the TUI has no error surface). */
 export async function fetchMarketplace(query?: string): Promise<MarketplaceResult> {
-  const topicResults = await Promise.all([fetchTopic("rove-plugin", query), fetchTopic("kobe-plugin", query)])
+  const topicResults = await Promise.all([fetchTopic("rove-plugin", query), fetchTopic("rove-plugin", query)])
   const lower = query?.toLowerCase()
   const seeds = FIRST_PARTY.filter((s) => !lower || `${s.ref} ${s.desc}`.toLowerCase().includes(lower)).map((s) => ({
     ...s,

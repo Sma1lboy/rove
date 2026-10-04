@@ -226,7 +226,7 @@ export function mainRowBlock(): string[] {
   for (const mainBranch of ["main", "feat/long-running-branch", ""]) {
     for (const state of ACTIVITY_STATES) {
       const view = build({
-        task: task({ kind: "main", branch: "", title: "kobe" }),
+        task: task({ kind: "main", branch: "", title: "rove" }),
         activity: activityOf(state),
         mainBranch,
       })

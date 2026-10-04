@@ -193,7 +193,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     history: bobHistoryReader,
     detectAccount: (deps) => detectBobAccount(deps),
     trustWorktree: trustBobWorktree,
-    // Bob persists no per-turn completion marker kobe can read.
+    // Bob persists no per-turn completion marker rove can read.
     createHookAdapter: () => new NoopHookAdapter("bob"),
     createTurnDetector: () => new UnknownTurnDetector("bob"),
     screenManifest: BOB_SCREEN_MANIFEST,
@@ -206,7 +206,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     history: copilotHistoryReader,
     detectAccount: (deps) => detectCopilotAccount(deps),
     createHookAdapter: () => new CopilotHookAdapter(),
-    // Copilot persists no turn-completion marker kobe can read yet.
+    // Copilot persists no turn-completion marker rove can read yet.
     createTurnDetector: () => new UnknownTurnDetector("copilot"),
     trustWorktree: trustCopilotWorktree,
     screenManifest: COPILOT_SCREEN_MANIFEST,

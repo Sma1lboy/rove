@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
  * The client log is the observability that was MISSING when the Tasks-pane
  * sync drift went undiagnosed: a pane in an opentui alternate-screen has no
  * visible stdout, so its disconnect churn left no trace. These lock that a
- * real write lands on disk under the ROVE_HOME_DIR-isolated `.kobe/client.log`.
+ * real write lands on disk under the ROVE_HOME_DIR-isolated `.rove/client.log`.
  */
 describe("client-log", () => {
   describe("file write", () => {
@@ -23,7 +23,7 @@ describe("client-log", () => {
     const prev = process.env.ROVE_HOME_DIR
 
     beforeEach(async () => {
-      home = await mkdtemp(join(tmpdir(), "kobe-clientlog-"))
+      home = await mkdtemp(join(tmpdir(), "rove-clientlog-"))
       process.env.ROVE_HOME_DIR = home
     })
 
@@ -73,7 +73,7 @@ describe("client-log", () => {
   })
 
   /**
-   * The pane crash net: without it a `kobe <pane>` process terminates on a
+   * The pane crash net: without it a `rove <pane>` process terminates on a
    * single stray rejected fire-and-forget. These lock that the handlers are
    * installed exactly once (idempotent) and remove cleanly, mirroring the
    * daemon's `crash-log` contract.

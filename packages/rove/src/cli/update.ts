@@ -9,6 +9,7 @@
 
 import { spawnSync } from "node:child_process"
 import { updaterShell, updaterShellFailureHint } from "../lib/updater-shell.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import {
   BREAKING_VERSIONS,
   CURRENT_VERSION,
@@ -23,9 +24,8 @@ import {
   fetchReleaseSummaries,
   recommendedGlobalInstallCommand,
 } from "../version.ts"
-import { activeCliName } from "./rename-compat.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 export type UpdatePlan = {
   command: string
@@ -55,7 +55,7 @@ type ParsedArgs = {
   help: boolean
   dryRun: boolean
   list: boolean
-  /** Pinned target version (`kobe update 0.7.90`); undefined = channel head. */
+  /** Pinned target version (`rove update 0.7.90`); undefined = channel head. */
   version?: string
   /** Explicit `--channel`; undefined = stay on this build's channel. */
   channel?: ReleaseChannel

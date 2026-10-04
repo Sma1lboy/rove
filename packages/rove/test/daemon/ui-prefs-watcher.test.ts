@@ -38,7 +38,7 @@ let events: UiPrefsPayload[]
 let stop: (() => void) | null
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-uiprefs-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-uiprefs-"))
   savedHomeDir = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
   statePath = defaultUiPrefsStatePath(tmpHome)
@@ -88,8 +88,8 @@ describe("readUiPrefsFromStateFile", () => {
   })
 
   test("reads tasksPane.projectFilter; only a non-empty string is kept", () => {
-    patchStateFile({ "tasksPane.projectFilter": "/repo/kobe" })
-    expect(readUiPrefsFromStateFile(statePath).projectFilter).toBe("/repo/kobe")
+    patchStateFile({ "tasksPane.projectFilter": "/repo/rove" })
+    expect(readUiPrefsFromStateFile(statePath).projectFilter).toBe("/repo/rove")
     patchStateFile({ "tasksPane.projectFilter": "" })
     expect(readUiPrefsFromStateFile(statePath).projectFilter).toBeNull()
   })

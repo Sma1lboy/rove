@@ -22,7 +22,7 @@ function Driver() {
 }
 
 test("the Keybindings page writes the starter YAML on enter", async () => {
-  const home = mkdtempSync(join(tmpdir(), "kobe-keys-create-"))
+  const home = mkdtempSync(join(tmpdir(), "rove-keys-create-"))
   process.env.ROVE_HOME_DIR = home
   // `userKeybindingsReport()` memoizes the resolved path on first call, and
   // bun runs every render test in ONE process — so any earlier test that

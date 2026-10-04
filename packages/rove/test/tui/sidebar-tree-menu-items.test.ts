@@ -35,7 +35,7 @@ const projectRow: TreeRow = {
   machineId: "local",
   id: "/repos/rove",
   repo: "/repos/rove",
-  label: "kobe",
+  label: "rove",
   depth: 0,
 }
 const worktreeRow = (over: Partial<Task> = {}): TreeRow => ({ kind: "worktree", id: "a", task: task(over), depth: 1 })

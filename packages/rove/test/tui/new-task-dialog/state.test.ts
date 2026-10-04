@@ -126,18 +126,18 @@ describe("splitRepoRow (repo rows lead with the basename)", () => {
     expect(splitRepoRow("/srv/demo\\part")).toEqual({ base: "demo\\part", dir: "/srv/" })
   })
   it("splits an absolute path into basename + its directory, keeping the slash", () => {
-    expect(splitRepoRow("/Users/me/i/kobe")).toEqual({ base: "kobe", dir: "/Users/me/i/" })
+    expect(splitRepoRow("/Users/me/i/rove")).toEqual({ base: "rove", dir: "/Users/me/i/" })
   })
 
   it("round-trips: dir + base is the original path, so the row shows the same string", () => {
-    for (const path of ["/Users/me/i/kobe", "/a/b", "/root", "rel/path"]) {
+    for (const path of ["/Users/me/i/rove", "/a/b", "/root", "rel/path"]) {
       const { base, dir } = splitRepoRow(path)
       expect(dir + base).toBe(path)
     }
   })
 
   it("leaves a bare name whole — nothing to demote, so the row renders as before", () => {
-    expect(splitRepoRow("kobe")).toEqual({ base: "kobe", dir: "" })
+    expect(splitRepoRow("rove")).toEqual({ base: "rove", dir: "" })
   })
 
   it("leaves a trailing-slash path whole: it names no leaf, so a split would blank the row", () => {
@@ -147,7 +147,7 @@ describe("splitRepoRow (repo rows lead with the basename)", () => {
   })
 
   it("keeps a repo at the filesystem root identifiable", () => {
-    expect(splitRepoRow("/kobe")).toEqual({ base: "kobe", dir: "/" })
+    expect(splitRepoRow("/rove")).toEqual({ base: "rove", dir: "/" })
   })
 })
 
@@ -281,7 +281,7 @@ describe("filterRepos / filterBranches (substring filters)", () => {
   })
 
   it("matches case-insensitive substrings", () => {
-    expect(filterRepos(["/Users/me/Rove", "/tmp/other"], "kobe")).toEqual(["/Users/me/Rove"])
+    expect(filterRepos(["/Users/me/Rove", "/tmp/other"], "rove")).toEqual(["/Users/me/Rove"])
     expect(filterBranches(["main", "feature/Login", "fix"], "login")).toEqual(["feature/Login"])
   })
 })

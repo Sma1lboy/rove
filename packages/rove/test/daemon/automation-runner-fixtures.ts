@@ -37,7 +37,7 @@ export function automation(overrides: Partial<Automation> = {}): Automation {
 }
 
 export async function tempStore(now = () => NOW): Promise<AutomationsStore> {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-automation-runner-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-automation-runner-"))
   const store = new AutomationsStore(join(dir, "automations.json"), now)
   await store.init()
   return store

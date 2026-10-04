@@ -5,7 +5,7 @@
  * `test/tui/render-path-sync-guard.test.ts`.
  *
  * Sync is tolerated because every call is one O(refs) git invocation fired by
- * an explicit dialog action (open, repo-field edit, `kobe quick-task`
+ * an explicit dialog action (open, repo-field edit, `rove quick-task`
  * defaults), never a render tick or poll. O(refs) scales with branch count, so
  * even a 30GB repo stays in low milliseconds. Anything periodic or O(repo
  * size) goes through `lib/background-poll.ts` or async spawn; do NOT grow this

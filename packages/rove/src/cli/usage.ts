@@ -1,17 +1,17 @@
 /**
- * Top-level `kobe` CLI help text.
+ * Top-level `rove` CLI help text.
  *
- * Kept as one tested string so `kobe help` / `kobe --help` and the
+ * Kept as one tested string so `rove help` / `rove --help` and the
  * unknown-command path in {@link ./index.ts} render the same thing, and
  * so adding a subcommand updates help in one place.
  */
 
 import type { ProductCliName } from "../product.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { CURRENT_VERSION } from "../version.ts"
-import { activeCliName } from "./rename-compat.ts"
 
-/** The full `kobe help` text (no trailing newline). */
-export function topLevelUsage(cliName: ProductCliName = activeCliName()): string {
+/** The full `rove help` text (no trailing newline). */
+export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): string {
   return [
     `${cliName} ${CURRENT_VERSION}`,
     "",

@@ -21,7 +21,7 @@ export interface TaskEngineState {
   readonly state: TaskActivityState
   readonly detail?: EngineActivityDetail
   /** The engine's OWN latest session id from its hook payload — works even for
-   *  user-typed engines kobe never spawned. Absent on old daemons. */
+   *  user-typed engines rove never spawned. Absent on old daemons. */
   readonly sessionId?: string
   /** The session's transcript file, when the hook payload named it. */
   readonly transcriptPath?: string

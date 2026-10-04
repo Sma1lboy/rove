@@ -1,8 +1,8 @@
 /**
  * Paths to Rove's PRODUCT data (user settings files), keyed by home; runtime
  * ADDRESSES (sockets, pidfiles, logs) are `paths.ts`. Here because both the
- * daemon and the TUI (`packages/rove/src/env.ts`) derive them, and kobe
- * depends on kobe-daemon, never back.
+ * daemon and the TUI (`packages/rove/src/env.ts`) derive them, and rove
+ * depends on rove-daemon, never back.
  */
 
 import { homedir } from "node:os"

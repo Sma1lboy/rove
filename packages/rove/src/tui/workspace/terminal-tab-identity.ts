@@ -7,7 +7,7 @@
  *
  * Deliberately not the inverse: a shell the user types `claude` into is an
  * agent for glyph/detector purposes (the live probe and `targetFor` handle
- * that), but it has no kobe-pinned session, so promoting `kind` would claim a
+ * that), but it has no rove-pinned session, so promoting `kind` would claim a
  * resume story that doesn't exist.
  */
 

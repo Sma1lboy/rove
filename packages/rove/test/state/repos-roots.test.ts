@@ -3,7 +3,7 @@
  * cross-process KV accessors that file leaves untouched.
  *
  * Why these matter: `resolveRepoRoot` decides what path a saved repo is
- * KEYED by — a wrong answer makes `kobe add` from a monorepo subdir store
+ * KEYED by — a wrong answer makes `rove add` from a monorepo subdir store
  * the subdir (FileTree then renders rooted at the wrong toplevel), and
  * `resolveMainRepoRoot` is what keeps scripted task creation from nesting
  * a new worktree under another task's worktree. Real `git` repos in temp
@@ -48,7 +48,7 @@ function initRepo(dir: string): void {
 }
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-roots-home-"))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-roots-home-"))
   tempDirs.push(tmpHome)
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
@@ -62,15 +62,15 @@ afterEach(() => {
 
 describe("resolveRepoRoot", () => {
   test("resolves a monorepo subdirectory to the git toplevel", () => {
-    const repo = tempDir("kobe-root-repo-")
+    const repo = tempDir("rove-root-repo-")
     initRepo(repo)
-    const sub = path.join(repo, "packages", "kobe")
+    const sub = path.join(repo, "packages", "rove")
     fs.mkdirSync(sub, { recursive: true })
     expect(fs.realpathSync(resolveRepoRoot(sub))).toBe(fs.realpathSync(repo))
   })
 
   test("returns the input path when it already IS the toplevel (no realpath rewrite)", () => {
-    const repo = tempDir("kobe-root-top-")
+    const repo = tempDir("rove-root-top-")
     initRepo(repo)
     // macOS: os.tmpdir() gives /var/… while git prints /private/var/… — the
     // realpath comparison must keep the user's spelling, not canonicalize it.
@@ -80,9 +80,9 @@ describe("resolveRepoRoot", () => {
 
 describe("resolveMainRepoRoot", () => {
   test("resolves a linked worktree to the PRIMARY checkout, not the worktree", () => {
-    const repo = tempDir("kobe-main-repo-")
+    const repo = tempDir("rove-main-repo-")
     initRepo(repo)
-    const wt = path.join(tempDir("kobe-main-wt-"), "wt1")
+    const wt = path.join(tempDir("rove-main-wt-"), "wt1")
     const env = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" }
     const r = spawnSync("git", ["worktree", "add", wt, "-b", "feature-x"], { cwd: repo, env, encoding: "utf8" })
     expect(r.status).toBe(0)
@@ -92,7 +92,7 @@ describe("resolveMainRepoRoot", () => {
   })
 
   test("falls back to resolveRepoRoot outside a git repo, and passes ssh:// through", () => {
-    const plain = tempDir("kobe-main-plain-")
+    const plain = tempDir("rove-main-plain-")
     expect(resolveMainRepoRoot(plain)).toBe(plain)
     expect(resolveMainRepoRoot("ssh://jc@box")).toBe("ssh://jc@box")
   })
@@ -100,7 +100,7 @@ describe("resolveMainRepoRoot", () => {
 
 describe("normalizeSavedRepos", () => {
   test("rewrites subdir entries to their toplevel and de-dupes collapsed duplicates", () => {
-    const repo = tempDir("kobe-norm-repo-")
+    const repo = tempDir("rove-norm-repo-")
     initRepo(repo)
     const subA = path.join(repo, "packages", "a")
     const subB = path.join(repo, "packages", "b")

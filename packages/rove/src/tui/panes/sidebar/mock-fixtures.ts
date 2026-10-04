@@ -43,7 +43,7 @@ export function seedSidebarTasks(): readonly Task[] {
     {
       ...base,
       id: toTaskId("mock-main"),
-      title: "kobe",
+      title: "rove",
       branch: "",
       worktreePath: MOCK_SIDEBAR_REPO,
       kind: "main",

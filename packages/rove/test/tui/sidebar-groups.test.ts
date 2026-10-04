@@ -24,7 +24,7 @@ it("uses one sidebar identity and basename for Windows repo spellings", () => {
 
 function task(overrides: Omit<Partial<Task>, "id"> & { id: string; title: string }): Task {
   return {
-    repo: "/repo/kobe",
+    repo: "/repo/rove",
     branch: overrides.title,
     worktreePath: `/repo/rove/${overrides.id}`,
     kind: "task",
@@ -105,8 +105,8 @@ describe("sidebar task ordering", () => {
   it("shows one project row when stale duplicate main tasks share a repo", () => {
     const rows = buildRows(
       [
-        task({ id: "project-a", title: "kobe", kind: "main", repo: "/repo/kobe" }),
-        task({ id: "project-b", title: "kobe copy", kind: "main", repo: "/repo/rove/" }),
+        task({ id: "project-a", title: "rove", kind: "main", repo: "/repo/rove" }),
+        task({ id: "project-b", title: "rove copy", kind: "main", repo: "/repo/rove/" }),
         task({ id: "regular", title: "task" }),
       ],
       "",
@@ -119,8 +119,8 @@ describe("sidebar task ordering", () => {
   it("does not collapse distinct projects just because their basenames match", () => {
     const rows = buildRows(
       [
-        task({ id: "project-a", title: "kobe", kind: "main", repo: "/repo/a/kobe" }),
-        task({ id: "project-b", title: "kobe", kind: "main", repo: "/repo/b/kobe" }),
+        task({ id: "project-a", title: "rove", kind: "main", repo: "/repo/a/rove" }),
+        task({ id: "project-b", title: "rove", kind: "main", repo: "/repo/b/rove" }),
       ],
       "",
       "default",
@@ -132,32 +132,32 @@ describe("sidebar task ordering", () => {
   it("scopes both the project rows and regular tasks to the filtered project", () => {
     const rows = buildRows(
       [
-        task({ id: "project-kobe", title: "kobe", kind: "main", repo: "/repo/kobe" }),
+        task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
         task({ id: "project-pochi", title: "pochi", kind: "main", repo: "/repo/pochi" }),
-        task({ id: "kobe-a", title: "kobe a", repo: "/repo/kobe" }),
+        task({ id: "rove-a", title: "rove a", repo: "/repo/rove" }),
         task({ id: "pochi-a", title: "pochi a", repo: "/repo/pochi" }),
       ],
       "",
       "default",
-      "/repo/kobe",
+      "/repo/rove",
     )
 
-    expect(ids(rows)).toEqual(["project-kobe", "kobe-a"])
+    expect(ids(rows)).toEqual(["project-rove", "rove-a"])
   })
 
   it("composes project filtering with recent task ordering", () => {
     const rows = buildRows(
       [
-        task({ id: "kobe-old", title: "old", repo: "/repo/kobe", updatedAt: "2026-01-01T00:00:00.000Z" }),
+        task({ id: "rove-old", title: "old", repo: "/repo/rove", updatedAt: "2026-01-01T00:00:00.000Z" }),
         task({ id: "pochi-new", title: "other", repo: "/repo/pochi", updatedAt: "2026-01-05T00:00:00.000Z" }),
-        task({ id: "kobe-new", title: "new", repo: "/repo/kobe", updatedAt: "2026-01-03T00:00:00.000Z" }),
+        task({ id: "rove-new", title: "new", repo: "/repo/rove", updatedAt: "2026-01-03T00:00:00.000Z" }),
       ],
       "",
       "recent",
-      "/repo/kobe",
+      "/repo/rove",
     )
 
-    expect(ids(rows)).toEqual(["kobe-new", "kobe-old"])
+    expect(ids(rows)).toEqual(["rove-new", "rove-old"])
   })
 })
 
@@ -165,8 +165,8 @@ describe("sidebar row sections", () => {
   it("splits projects and tasks without changing their flat cursor indexes", () => {
     const rows = buildRows(
       [
-        task({ id: "task-a", title: "task a", repo: "/repo/kobe" }),
-        task({ id: "project-kobe", title: "kobe", kind: "main", repo: "/repo/kobe" }),
+        task({ id: "task-a", title: "task a", repo: "/repo/rove" }),
+        task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
         task({ id: "project-pochi", title: "pochi", kind: "main", repo: "/repo/pochi" }),
         task({ id: "task-b", title: "task b", repo: "/repo/pochi" }),
       ],
@@ -176,7 +176,7 @@ describe("sidebar row sections", () => {
 
     const sections = splitSidebarRows(rows)
 
-    expect(ids(sections.projectRows)).toEqual(["project-kobe", "project-pochi"])
+    expect(ids(sections.projectRows)).toEqual(["project-rove", "project-pochi"])
     expect(ids(sections.taskRows)).toEqual(["task-a", "task-b"])
     expect(sections.projectRows.map((row) => row.flatIndex)).toEqual([0, 1])
     expect(sections.taskRows.map((row) => row.flatIndex)).toEqual([2, 3])
@@ -186,28 +186,28 @@ describe("sidebar row sections", () => {
 describe("sidebar project filter options", () => {
   it("includes saved project rows even when the current view has no tasks for them", () => {
     const options = buildProjectOptions([
-      task({ id: "project-kobe", title: "kobe", kind: "main", repo: "/repo/kobe" }),
+      task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
       task({ id: "project-pochi", title: "pochi", kind: "main", repo: "/repo/pochi" }),
-      task({ id: "kobe-active", title: "active", repo: "/repo/kobe" }),
+      task({ id: "rove-active", title: "active", repo: "/repo/rove" }),
     ])
 
     expect(options).toEqual([
-      { repo: "/repo/kobe", label: "kobe", count: 1 },
+      { repo: "/repo/rove", label: "rove", count: 1 },
       { repo: "/repo/pochi", label: "pochi", count: 0 },
     ])
   })
 
   it("counts tasks in the active view and disambiguates basename collisions", () => {
     const options = buildProjectOptions([
-      task({ id: "project-a", title: "kobe", kind: "main", repo: "/repo/a/kobe" }),
-      task({ id: "project-b", title: "kobe", kind: "main", repo: "/repo/b/kobe" }),
-      task({ id: "task-a", title: "a", repo: "/repo/a/kobe" }),
-      task({ id: "task-b", title: "b", repo: "/repo/b/kobe" }),
+      task({ id: "project-a", title: "rove", kind: "main", repo: "/repo/a/rove" }),
+      task({ id: "project-b", title: "rove", kind: "main", repo: "/repo/b/rove" }),
+      task({ id: "task-a", title: "a", repo: "/repo/a/rove" }),
+      task({ id: "task-b", title: "b", repo: "/repo/b/rove" }),
     ])
 
     expect(options).toEqual([
-      { repo: "/repo/a/kobe", label: "a/kobe", count: 1 },
-      { repo: "/repo/b/kobe", label: "b/kobe", count: 1 },
+      { repo: "/repo/a/rove", label: "a/rove", count: 1 },
+      { repo: "/repo/b/rove", label: "b/rove", count: 1 },
     ])
   })
 })
@@ -216,41 +216,41 @@ describe("sidebar project filter cursor", () => {
   it("lands on the first task in the project scope instead of the PROJECTS header rows", () => {
     const rows = buildRows(
       [
-        task({ id: "project-kobe", title: "kobe", kind: "main", repo: "/repo/kobe" }),
+        task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
         task({ id: "project-marketing", title: "marketing", kind: "main", repo: "/repo/marketingharness" }),
         task({ id: "marketing-a", title: "marketing a", repo: "/repo/marketingharness" }),
-        task({ id: "kobe-a", title: "kobe a", repo: "/repo/kobe" }),
+        task({ id: "rove-a", title: "rove a", repo: "/repo/rove" }),
       ],
       "",
       "default",
-      "/repo/kobe",
+      "/repo/rove",
     )
 
-    expect(ids(rows)).toEqual(["project-kobe", "kobe-a"])
-    expect(cursorIndexForProjectScope(rows, "/repo/kobe")).toBe(1)
+    expect(ids(rows)).toEqual(["project-rove", "rove-a"])
+    expect(cursorIndexForProjectScope(rows, "/repo/rove")).toBe(1)
   })
 
   it("falls back to the project main row when the filtered project has no tasks in view", () => {
     const rows = buildRows(
       [
-        task({ id: "project-kobe", title: "kobe", kind: "main", repo: "/repo/kobe" }),
+        task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
         task({ id: "project-marketing", title: "marketing", kind: "main", repo: "/repo/marketingharness" }),
         task({ id: "marketing-a", title: "marketing a", repo: "/repo/marketingharness" }),
       ],
       "",
       "default",
-      "/repo/kobe",
+      "/repo/rove",
     )
 
-    expect(ids(rows)).toEqual(["project-kobe"])
-    expect(cursorIndexForProjectScope(rows, "/repo/kobe")).toBe(0)
+    expect(ids(rows)).toEqual(["project-rove"])
+    expect(cursorIndexForProjectScope(rows, "/repo/rove")).toBe(0)
   })
 
   it("keeps all-project scope at the top row", () => {
     const rows = buildRows(
       [
-        task({ id: "project-kobe", title: "kobe", kind: "main", repo: "/repo/kobe" }),
-        task({ id: "kobe-a", title: "kobe a", repo: "/repo/kobe" }),
+        task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
+        task({ id: "rove-a", title: "rove a", repo: "/repo/rove" }),
       ],
       "",
       "default",
@@ -374,22 +374,22 @@ describe("resolveCursorTarget", () => {
 
 describe("project identity and labels across machines", () => {
   it("keys the same path on two machines as two projects", () => {
-    // Without the machine in the key, `~/i/kobe` on the laptop and on the
+    // Without the machine in the key, `~/i/rove` on the laptop and on the
     // build box merged into ONE sidebar row carrying both machines' tasks.
-    expect(sidebarProjectKey("/i/kobe", "narwhal")).not.toBe(sidebarProjectKey("/i/kobe"))
+    expect(sidebarProjectKey("/i/rove", "narwhal")).not.toBe(sidebarProjectKey("/i/rove"))
   })
 
   it("leaves the local key byte-identical to the pre-machines one", () => {
-    expect(sidebarProjectKey("/i/kobe", "local")).toBe(sidebarProjectKey("/i/kobe"))
+    expect(sidebarProjectKey("/i/rove", "local")).toBe(sidebarProjectKey("/i/rove"))
   })
 
   it("disambiguates a cross-machine basename collision by host", () => {
     const repos = [
-      { repo: "/i/kobe", hostLabel: undefined },
-      { repo: "/i/kobe", hostLabel: "narwhal" },
+      { repo: "/i/rove", hostLabel: undefined },
+      { repo: "/i/rove", hostLabel: "narwhal" },
     ]
-    expect(sidebarProjectLabel("/i/kobe", repos)).toBe("kobe")
-    expect(sidebarProjectLabel("/i/kobe", repos, "narwhal")).toBe("narwhal:kobe")
+    expect(sidebarProjectLabel("/i/rove", repos)).toBe("rove")
+    expect(sidebarProjectLabel("/i/rove", repos, "narwhal")).toBe("narwhal:rove")
   })
 
   it("still uses the path tail for a collision on ONE machine", () => {
@@ -397,23 +397,23 @@ describe("project identity and labels across machines", () => {
   })
 
   it("uses the path tail when the collision is on the same REMOTE machine", () => {
-    // Both checkouts answered `narwhal:kobe` when the machine test came
+    // Both checkouts answered `narwhal:rove` when the machine test came
     // first — two headers reading as one project, on the very machine whose
     // name was supposed to be doing the telling-apart.
     const repos = [
-      { repo: "/Users/n/gihub/kobe", hostLabel: "narwhal" },
-      { repo: "/Users/n/i/kobe", hostLabel: "narwhal" },
+      { repo: "/Users/n/gihub/rove", hostLabel: "narwhal" },
+      { repo: "/Users/n/i/rove", hostLabel: "narwhal" },
     ]
-    expect(sidebarProjectLabel("/Users/n/gihub/kobe", repos, "narwhal")).toBe("gihub/kobe")
-    expect(sidebarProjectLabel("/Users/n/i/kobe", repos, "narwhal")).toBe("i/kobe")
+    expect(sidebarProjectLabel("/Users/n/gihub/rove", repos, "narwhal")).toBe("gihub/rove")
+    expect(sidebarProjectLabel("/Users/n/i/rove", repos, "narwhal")).toBe("i/rove")
   })
 
   it("puts the host in front of a tail that also repeats across machines", () => {
     const repos = [
-      { repo: "/a/i/kobe", hostLabel: "narwhal" },
-      { repo: "/b/i/kobe", hostLabel: "narwhal" },
-      { repo: "/c/i/kobe", hostLabel: "vps" },
+      { repo: "/a/i/rove", hostLabel: "narwhal" },
+      { repo: "/b/i/rove", hostLabel: "narwhal" },
+      { repo: "/c/i/rove", hostLabel: "vps" },
     ]
-    expect(sidebarProjectLabel("/a/i/kobe", repos, "narwhal")).toBe("narwhal:i/kobe")
+    expect(sidebarProjectLabel("/a/i/rove", repos, "narwhal")).toBe("narwhal:i/rove")
   })
 })

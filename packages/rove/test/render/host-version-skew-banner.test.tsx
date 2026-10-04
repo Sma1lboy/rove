@@ -38,7 +38,7 @@ let previousHome: string | undefined
 
 beforeAll(() => {
   previousHome = process.env.ROVE_HOME_DIR
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-skew-banner-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-skew-banner-"))
 })
 
 afterAll(() => {

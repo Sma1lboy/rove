@@ -46,7 +46,7 @@ export function buildIssueChatBackgroundSpawn(input: {
   repoRoot: string
   worktreePath: string
   vendor: VendorId
-  /** Shell-ready `kobe api` prefix for the prompt's status protocol. */
+  /** Shell-ready `rove api` prefix for the prompt's status protocol. */
   api: string
   shell?: string
 }): IssueChatBackgroundSpawn {

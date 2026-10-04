@@ -178,7 +178,7 @@ describe("standing session — later firings", () => {
 
 describe("runAutomationOnce persists the standing link", () => {
   it("writes sessionTaskId on the first firing so the next one reuses it", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-routine-link-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-routine-link-"))
     const store = new AutomationsStore(join(dir, "automations.json"), () => NOW)
     await store.init()
     const created = await store.create({
@@ -203,7 +203,7 @@ describe("runAutomationOnce persists the standing link", () => {
   })
 
   it("clears a stale link so a deleted task cannot wedge the routine forever", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-routine-stale-"))
+    const dir = mkdtempSync(join(tmpdir(), "rove-routine-stale-"))
     const store = new AutomationsStore(join(dir, "automations.json"), () => NOW)
     await store.init()
     const created = await store.create({

@@ -1,5 +1,5 @@
 /**
- * `kobe api read-output` core rules — pagination, fallback labeling, and
+ * `rove api read-output` core rules — pagination, fallback labeling, and
  * cursor pinning (the contract an external coordinator scripts against).
  * Runs the pure `readTaskOutput` against fake deps; no daemon, PTY host,
  * or vendor transcript files.

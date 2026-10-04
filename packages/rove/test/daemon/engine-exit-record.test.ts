@@ -25,7 +25,7 @@ let dir: string
 let path: string
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "kobe-engine-exit-"))
+  dir = mkdtempSync(join(tmpdir(), "rove-engine-exit-"))
   path = join(dir, "pty-exits.json")
 })
 afterEach(() => rmSync(dir, { recursive: true, force: true }))

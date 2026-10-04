@@ -29,7 +29,7 @@ function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
   return {
     title: overrides.id,
     repo: "/repo",
-    branch: `kobe/${overrides.id}`,
+    branch: `rove/${overrides.id}`,
     worktreePath: `/wt/${overrides.id}`,
     status: "todo",
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -150,18 +150,18 @@ describe("renameTaskFlow", () => {
 
 describe("renameBranchFlow", () => {
   test("renames the branch and reloads", async () => {
-    const tasks = [makeTask({ id: "t1", branch: "kobe/t1" })]
+    const tasks = [makeTask({ id: "t1", branch: "rove/t1" })]
     const orch = makeOrch()
     const { ctx, promptText, reload } = makeCtx({ tasks, orch, promptTextResult: "feature/foo" })
 
     await renameBranchFlow(ctx, "t1")
 
-    expect(promptText).toHaveBeenCalledWith("kobe/t1", { dialogTitle: "Rename branch", fieldLabel: "branch" })
+    expect(promptText).toHaveBeenCalledWith("rove/t1", { dialogTitle: "Rename branch", fieldLabel: "branch" })
     expect(orch.setBranch).toHaveBeenCalledWith("t1", "feature/foo")
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
-  test("a `main` (project) row is a no-op — its branch isn't kobe's to rename", async () => {
+  test("a `main` (project) row is a no-op — its branch isn't rove's to rename", async () => {
     const tasks = [makeTask({ id: "m1", kind: "main" })]
     const orch = makeOrch()
     const { ctx, promptText } = makeCtx({ tasks, orch, promptTextResult: "x" })
@@ -194,7 +194,7 @@ describe("renameBranchFlow", () => {
 
     await renameBranchFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith('Couldn\'t rename the branch — it stays "kobe/t1": bad branch name')
+    expect(notifyError).toHaveBeenCalledWith('Couldn\'t rename the branch — it stays "rove/t1": bad branch name')
     expect(reload).not.toHaveBeenCalled()
   })
 })

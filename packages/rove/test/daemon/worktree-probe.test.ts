@@ -36,7 +36,7 @@ function git(cwd: string, ...args: string[]): string {
 }
 
 function newRepo(): string {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-probe-"))
+  const dir = mkdtempSync(join(tmpdir(), "rove-probe-"))
   dirs.push(dir)
   git(dir, "init", "-q", "-b", "main", ".")
   mkdirSync(join(dir, "src", "deep"), { recursive: true })
@@ -63,7 +63,7 @@ describe("worktreeFingerprint", () => {
   })
 
   test("is null for a directory that is not a git checkout", () => {
-    const plain = mkdtempSync(join(tmpdir(), "kobe-probe-plain-"))
+    const plain = mkdtempSync(join(tmpdir(), "rove-probe-plain-"))
     dirs.push(plain)
     expect(worktreeFingerprint(plain)).toBeNull()
   })
@@ -151,7 +151,7 @@ describe("ref reads", () => {
 
   test("readRefSha reads a packed ref when the git-dir path contains a 'refs' substring", () => {
     // `prefs/` places the misleading `refs/` substring before the ref namespace.
-    const parent = mkdtempSync(join(tmpdir(), "kobe-probe-andrefs-"))
+    const parent = mkdtempSync(join(tmpdir(), "rove-probe-andrefs-"))
     dirs.push(parent)
     const nested = join(parent, "prefs", "proj")
     mkdirSync(nested, { recursive: true })

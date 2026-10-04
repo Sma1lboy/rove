@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest"
 const cleanups: string[] = []
 
 async function makeRepo(): Promise<string> {
-  const repo = await mkdtemp(join(tmpdir(), "kobe-issues-store-"))
+  const repo = await mkdtemp(join(tmpdir(), "rove-issues-store-"))
   cleanups.push(repo)
   execFileSync("git", ["init", "--quiet"], { cwd: repo })
   await writeFile(join(repo, "README.md"), "fixture\n", "utf8")
@@ -31,9 +31,9 @@ afterEach(async () => {
 
 describe("IssuesStore", () => {
   it("rejects plain directories with a clean non-git error", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "kobe-issues-store-plain-"))
+    const dir = await mkdtemp(join(tmpdir(), "rove-issues-store-plain-"))
     cleanups.push(dir)
-    const storePath = join(dir, "home", ".kobe", "issues.json")
+    const storePath = join(dir, "home", ".rove", "issues.json")
     const store = new IssuesStore(storePath)
 
     await expect(store.list(dir)).rejects.toThrow("repoRoot is not a git repository")
@@ -41,12 +41,12 @@ describe("IssuesStore", () => {
 
   it("shares daemon issue state across git worktrees", async () => {
     const repo = await makeRepo()
-    const parent = await mkdtemp(join(tmpdir(), "kobe-issues-store-wt-"))
+    const parent = await mkdtemp(join(tmpdir(), "rove-issues-store-wt-"))
     cleanups.push(parent)
     const worktree = join(parent, "task")
     execFileSync("git", ["worktree", "add", "--quiet", worktree, "-b", "task"], { cwd: repo })
 
-    const storePath = join(parent, "home", ".kobe", "issues.json")
+    const storePath = join(parent, "home", ".rove", "issues.json")
     const store = new IssuesStore(storePath)
     const canonicalRepo = await realpath(repo)
 
@@ -85,9 +85,9 @@ describe("IssuesStore", () => {
     // every create must survive.
     const repoA = await makeRepo()
     const repoB = await makeRepo()
-    const parent = await mkdtemp(join(tmpdir(), "kobe-issues-store-conc-"))
+    const parent = await mkdtemp(join(tmpdir(), "rove-issues-store-conc-"))
     cleanups.push(parent)
-    const store = new IssuesStore(join(parent, "home", ".kobe", "issues.json"))
+    const store = new IssuesStore(join(parent, "home", ".rove", "issues.json"))
 
     const N = 15
     const ops: Promise<unknown>[] = []
@@ -105,12 +105,12 @@ describe("IssuesStore", () => {
 
   it("migrates a stored worktree repoRoot back to the main worktree on list", async () => {
     const repo = await makeRepo()
-    const parent = await mkdtemp(join(tmpdir(), "kobe-issues-store-wt-"))
+    const parent = await mkdtemp(join(tmpdir(), "rove-issues-store-wt-"))
     cleanups.push(parent)
     const worktree = join(parent, "task")
     execFileSync("git", ["worktree", "add", "--quiet", worktree, "-b", "task"], { cwd: repo })
 
-    const storePath = join(parent, "home", ".kobe", "issues.json")
+    const storePath = join(parent, "home", ".rove", "issues.json")
     const store = new IssuesStore(storePath)
     const canonicalRepo = await realpath(repo)
 
@@ -152,9 +152,9 @@ describe("IssuesStore", () => {
   describe("update carrying a taskId", () => {
     async function seeded(): Promise<{ repo: string; store: IssuesStore }> {
       const repo = await makeRepo()
-      const home = await mkdtemp(join(tmpdir(), "kobe-issues-store-update-link-"))
+      const home = await mkdtemp(join(tmpdir(), "rove-issues-store-update-link-"))
       cleanups.push(home)
-      const store = new IssuesStore(join(home, ".kobe", "issues.json"))
+      const store = new IssuesStore(join(home, ".rove", "issues.json"))
       await store.mutate(repo, { type: "create", title: "Story", body: "B1" })
       return { repo, store }
     }
@@ -195,9 +195,9 @@ describe("IssuesStore", () => {
   describe("mirrorTaskDone", () => {
     async function linkedStore(): Promise<{ repo: string; store: IssuesStore }> {
       const repo = await makeRepo()
-      const home = await mkdtemp(join(tmpdir(), "kobe-issues-store-mirror-"))
+      const home = await mkdtemp(join(tmpdir(), "rove-issues-store-mirror-"))
       cleanups.push(home)
-      const store = new IssuesStore(join(home, ".kobe", "issues.json"))
+      const store = new IssuesStore(join(home, ".rove", "issues.json"))
       await store.mutate(repo, { type: "create", title: "Linked" })
       await store.mutate(repo, { type: "link", id: 1, taskId: "task-abc" })
       return { repo, store }
@@ -221,9 +221,9 @@ describe("IssuesStore", () => {
   describe("unlinkTask", () => {
     async function linkedStore(): Promise<{ repo: string; store: IssuesStore }> {
       const repo = await makeRepo()
-      const home = await mkdtemp(join(tmpdir(), "kobe-issues-store-unlink-"))
+      const home = await mkdtemp(join(tmpdir(), "rove-issues-store-unlink-"))
       cleanups.push(home)
-      const store = new IssuesStore(join(home, ".kobe", "issues.json"))
+      const store = new IssuesStore(join(home, ".rove", "issues.json"))
       await store.mutate(repo, { type: "create", title: "Linked" })
       await store.mutate(repo, { type: "link", id: 1, taskId: "task-abc" })
       return { repo, store }
@@ -244,9 +244,9 @@ describe("IssuesStore", () => {
     // real clock (valid YYYY-MM-DD only) or the snapshot breaks at midnight.
     it("honours a valid ROVE_ISSUES_TODAY pin and ignores a malformed one", async () => {
       const repo = await makeRepo()
-      const home = await mkdtemp(join(tmpdir(), "kobe-issues-store-stamp-"))
+      const home = await mkdtemp(join(tmpdir(), "rove-issues-store-stamp-"))
       cleanups.push(home)
-      const store = new IssuesStore(join(home, ".kobe", "issues.json"))
+      const store = new IssuesStore(join(home, ".rove", "issues.json"))
       const prior = process.env.ROVE_ISSUES_TODAY
       try {
         process.env.ROVE_ISSUES_TODAY = "2026-07-15"
@@ -281,7 +281,7 @@ describe("IssuesStore corrupt-record honesty", () => {
     nextId: unknown,
   ): Promise<{ store: IssuesStore; repo: string; storePath: string }> {
     const repo = await realpath(await makeRepo())
-    const dir = await mkdtemp(join(tmpdir(), "kobe-issues-corrupt-"))
+    const dir = await mkdtemp(join(tmpdir(), "rove-issues-corrupt-"))
     cleanups.push(dir)
     const storePath = join(dir, "issues.json")
     const store = new IssuesStore(storePath)
@@ -339,7 +339,7 @@ describe("IssuesStore corrupt-record honesty", () => {
 
   it("refuses to write over a record whose `issues` is an object, and never calls it skipped: 0", async () => {
     const repo = await realpath(await makeRepo())
-    const dir = await mkdtemp(join(tmpdir(), "kobe-issues-object-"))
+    const dir = await mkdtemp(join(tmpdir(), "rove-issues-object-"))
     cleanups.push(dir)
     const storePath = join(dir, "issues.json")
     const store = new IssuesStore(storePath)

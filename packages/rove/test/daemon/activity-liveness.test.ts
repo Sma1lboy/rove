@@ -333,7 +333,7 @@ describe("activity registry liveness watchdog", () => {
 
 /**
  * `readActivityLiveness` session scoping: several tabs share one worktree
- * (the kobe main task runs many tabs in one checkout), so the worktree-wide
+ * (the rove main task runs many tabs in one checkout), so the worktree-wide
  * completion scan read a SIBLING's Stop as "this turn ended" and idled a
  * genuinely mid-turn engine at the TTL. With the hook-piped transcript path
  * the probe must ask that one session; a vanished file stays unknown.

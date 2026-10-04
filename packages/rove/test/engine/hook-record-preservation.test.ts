@@ -12,15 +12,15 @@ const kept = { matcher: "Bash", userField: { keep: true }, hooks: [user] }
 
 describe("shared hook groups", () => {
   it("preserves user commands and group fields during activity install and removal", () => {
-    const current = { extra: true, hooks: { Stop: [group("'kobe' 'hook' 'turn-complete'")] } }
+    const current = { extra: true, hooks: { Stop: [group("'rove' 'hook' 'turn-complete'")] } }
     const events = [{ event: "Stop", verb: "turn-complete" }] as const
-    const installed = mergeActivityHooks(current, true, events, ["kobe"])
+    const installed = mergeActivityHooks(current, true, events, ["rove"])
     expect(installed).toMatchObject({
       extra: true,
       // The single-quoted legacy entry is recognized as ours and re-written bare.
-      hooks: { Stop: [kept, { hooks: [{ command: "kobe hook turn-complete" }] }] },
+      hooks: { Stop: [kept, { hooks: [{ command: "rove hook turn-complete" }] }] },
     })
-    expect(mergeActivityHooks(installed, false, events, ["kobe"])).toEqual({ extra: true, hooks: { Stop: [kept] } })
+    expect(mergeActivityHooks(installed, false, events, ["rove"])).toEqual({ extra: true, hooks: { Stop: [kept] } })
     expect(current.hooks.Stop[0].hooks).toHaveLength(2)
   })
 
@@ -28,7 +28,7 @@ describe("shared hook groups", () => {
     { event: "WorktreeCreate", remove: (doc: Record<string, unknown>) => mergeWorktreeSyncHook(doc, null) },
     { event: "PostToolUse", remove: removeWorktreeWatchHook },
   ])("removes only the retired command in $event", ({ event, remove }) => {
-    const current = { extra: true, hooks: { [event]: [group("kobe hook worktree-created")] } }
+    const current = { extra: true, hooks: { [event]: [group("rove hook worktree-created")] } }
     const result = remove(current)
     expect(result).toEqual({ extra: true, hooks: { [event]: [kept] } })
     expect(remove(result)).toEqual(result)

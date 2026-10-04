@@ -1,6 +1,6 @@
 /**
  * Dispatcher provenance — the collaboration loop's reply address. A task
- * created from inside another kobe engine tab records WHO dispatched it
+ * created from inside another rove engine tab records WHO dispatched it
  * (`dispatcher: {taskId, tabId}`), and a bare `send` from that task replies
  * to exactly that tab. Holds both the create-side stamping and the send-side
  * routing.
@@ -8,8 +8,8 @@
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
+import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
-import { activeCliName } from "../rename-compat.ts"
 import { ApiError, type ApiRuntime } from "./types.ts"
 
 /** The dispatcher pair as recorded on a task. */
@@ -52,7 +52,7 @@ async function realProbe(): Promise<SelfSessionProbe> {
 }
 
 /**
- * The caller's OWN kobe session identity — `$ROVE_TASK_ID`/`$ROVE_TAB_ID`
+ * The caller's OWN rove session identity — `$ROVE_TASK_ID`/`$ROVE_TAB_ID`
  * cross-checked against the pty host, or `null` when it doesn't hold up.
  *
  * The env alone is NOT identity: it inherits down the process tree, so a
@@ -146,9 +146,9 @@ export async function dispatcherEnvPayload(
 
 /**
  * The dispatcher recorded on the CALLER's own task, when the caller is a
- * VERIFIED kobe session that has one. `null` (keep the active-task default)
- * when the caller isn't a kobe session, its env didn't verify, or the task
- * predates the field / was created outside a kobe session.
+ * VERIFIED rove session that has one. `null` (keep the active-task default)
+ * when the caller isn't a rove session, its env didn't verify, or the task
+ * predates the field / was created outside a rove session.
  */
 export async function readOwnDispatcher(daemon: DaemonRpc): Promise<Dispatcher | null> {
   const self = await verifiedSelfSession()
@@ -181,14 +181,14 @@ export async function resolveDispatcherTab(runtime: ApiRuntime, dispatcher: Disp
     "DISPATCHER_UNREACHABLE",
     {
       dispatcher,
-      hint: `address an alive target explicitly with --task-id/--tab (see \`${activeCliName()} api pty-list\`), or notify the user with \`${activeCliName()} api notify\``,
+      hint: `address an alive target explicitly with --task-id/--tab (see \`${ROVE_PRODUCT_NAME} api pty-list\`), or notify the user with \`${ROVE_PRODUCT_NAME} api notify\``,
       nextCommandArgs: ["api", "pty-list"],
     },
   )
 }
 
 /**
- * Peer provenance: a prompt issued from INSIDE another kobe task tells the
+ * Peer provenance: a prompt issued from INSIDE another rove task tells the
  * receiver who is talking and how to answer.
  *
  * Both delivery verbs wear it, `add --prompt` included: otherwise the sender
@@ -225,5 +225,5 @@ export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string
   // The sender's text goes LAST, whole, after a blank line: a model replies
   // in the language of the tokens nearest its turn, so wrapping a Chinese
   // prompt in an English clause pulls replies into English.
-  return `[ROVE PEER] from "${label}" (task ${senderId} — Rove agent skill /rove, read it once per session (legacy /kobe installs still work); reply only if it changes what I do next: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`)\n\n${prompt}`
+  return `[ROVE PEER] from "${label}" (task ${senderId} — Rove agent skill /rove, read it once per session (legacy /rove installs still work); reply only if it changes what I do next: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`)\n\n${prompt}`
 }

@@ -1,9 +1,9 @@
 /**
- * `kobe repo <show|set|unset> [path]` — manage a repo's per-user init
+ * `rove repo <show|set|unset> [path]` — manage a repo's per-user init
  * override (the `initScript` / `initPrompt` stored in state.json).
  *
  * A FALLBACK: in-repo `.rove/init.sh` / `.rove/init-prompt.md` (then legacy
- * `.kobe/`) win (see `state/repo-init.ts`). The path defaults to cwd and is
+ * `.rove/`) win (see `state/repo-init.ts`). The path defaults to cwd and is
  * normalized to its git toplevel, so every worktree resolves the same entry.
  */
 
@@ -11,10 +11,10 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import { expandTilde } from "../lib/path-home.ts"
-import { activeCliName } from "./rename-compat.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 const REPO_USAGE = [
   `Usage: ${CLI_NAME} repo <show|set|unset> [path] [options]`,
@@ -104,7 +104,7 @@ export async function runRepoSubcommand(args: readonly string[]): Promise<void> 
     return
   }
 
-  // Accept-set shared with `kobe completions` (`subcommands.ts`).
+  // Accept-set shared with `rove completions` (`subcommands.ts`).
   if (!SUBCOMMAND_VERBS.repo.includes(verb)) usageError(`unknown verb "${verb}"`)
 
   const { getRepoInitOverride, setRepoInitOverride, resolveRepoRoot } = await import("../state/repos.ts")

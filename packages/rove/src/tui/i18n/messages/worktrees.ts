@@ -1,6 +1,6 @@
 /**
  * `worktrees.*` messages — the standalone worktree-management page
- * (`kobe worktrees`). English is the source of truth; `zh: typeof en` keeps
+ * (`rove worktrees`). English is the source of truth; `zh: typeof en` keeps
  * the shapes locked together.
  */
 

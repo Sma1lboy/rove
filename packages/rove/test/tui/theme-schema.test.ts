@@ -3,9 +3,9 @@
  *
  * The validator backs two paths users can hit if they author broken
  * JSON: the disk loader (`loader.ts`, called at boot for files under
- * `~/.kobe/themes/`) and the CLI (`kobe theme add` for fetched URLs).
+ * `~/.rove/themes/`) and the CLI (`rove theme add` for fetched URLs).
  * If either silently accepts garbage we end up with `RGBA.fromHex`
- * throwing inside the render loop, which would crash kobe at the
+ * throwing inside the render loop, which would crash rove at the
  * worst possible moment. These tests pin the contract:
  *
  *   - bare-hex strings, def-name refs, and `{dark,light}` variants are

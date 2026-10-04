@@ -64,8 +64,8 @@ describe("connectPaneOrchestrator", () => {
   const prev = process.env.ROVE_HOME_DIR
 
   beforeEach(async () => {
-    // connect/init log to client.log — keep that off the real ~/.kobe.
-    home = await mkdtemp(join(tmpdir(), "kobe-connect-pane-"))
+    // connect/init log to client.log — keep that off the real ~/.rove.
+    home = await mkdtemp(join(tmpdir(), "rove-connect-pane-"))
     process.env.ROVE_HOME_DIR = home
   })
 
@@ -156,7 +156,7 @@ describe("RemoteOrchestrator channel filter", () => {
   const prev = process.env.ROVE_HOME_DIR
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kobe-orch-filter-"))
+    home = await mkdtemp(join(tmpdir(), "rove-orch-filter-"))
     process.env.ROVE_HOME_DIR = home
   })
 

@@ -16,7 +16,7 @@ import tokyonight from "./tokyonight.json" with { type: "json" }
 export const BUNDLED_THEME_JSONS: Record<string, ThemeJson> = {
   // Claude-branded palette (terracotta accent on warm neutrals), ported
   // from ashwingopalsamy/claude-code-theme's brandTokens. Default for
-  // new kobe installs so the TUI reads as part of the Claude ecosystem.
+  // new rove installs so the TUI reads as part of the Claude ecosystem.
   claude: claude as ThemeJson,
   conductor: conductor as ThemeJson,
   // Cool daylight canvas with a sky-cyan selection accent, and a near-black

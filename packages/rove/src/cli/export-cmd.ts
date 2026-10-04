@@ -10,11 +10,11 @@
  */
 
 import { displayWidth } from "../lib/display-width.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import type { Task } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
-import { activeCliName } from "./rename-compat.ts"
 
-const CLI_NAME = activeCliName()
+const CLI_NAME = ROVE_PRODUCT_NAME
 
 type ExportFormat = "json" | "csv" | "table"
 
@@ -54,7 +54,7 @@ function usageError(message: string): never {
   process.exit(2)
 }
 
-/** Parse `kobe export` argv into a single output format (later flag wins). */
+/** Parse `rove export` argv into a single output format (later flag wins). */
 function parseFormat(args: readonly string[]): ExportFormat {
   let format: ExportFormat = "json"
   for (let i = 0; i < args.length; i++) {

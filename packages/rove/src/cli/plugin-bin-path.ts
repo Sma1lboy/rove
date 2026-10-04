@@ -8,7 +8,7 @@
 
 import { constants, accessSync, statSync } from "node:fs"
 import { isAbsolute } from "node:path"
-import { activeCliName } from "./rename-compat.ts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 
 function isRunnableFile(path: string): boolean {
   try {
@@ -30,5 +30,5 @@ export function resolvePluginBinPath(argv = process.argv, moduleUrl = import.met
   if (moduleUrl.includes("/$bunfs/") || moduleUrl.includes("B:\\~BUN")) return process.execPath
   const entry = argv[1]
   if (entry && isAbsolute(entry) && isRunnableFile(entry)) return entry
-  return activeCliName()
+  return ROVE_PRODUCT_NAME
 }

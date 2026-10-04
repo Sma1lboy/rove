@@ -32,7 +32,7 @@ export interface ReadableTabEntry extends RollupTabEntry {
 
 /** taskId → tabId → entry. */
 export type TabLedger = ReadonlyMap<string, ReadonlyMap<string, ReadableTabEntry>>
-/** taskId → the task's TAB-LESS hook entry (an engine started outside a kobe tab). */
+/** taskId → the task's TAB-LESS hook entry (an engine started outside a rove tab). */
 export type TablessLedger = ReadonlyMap<string, RollupCandidate>
 
 export function activityPayload(taskId: string, entry: PayloadSource, tabId?: string): EngineStatePayload {

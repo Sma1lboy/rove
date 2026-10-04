@@ -79,7 +79,7 @@ function loadFactory(source: string): (pi: unknown) => void {
 
 describe("the generated pi-family extension", () => {
   function load(vendor: "pi" | "omp", toolEvents = false): FakePi {
-    const factory = loadFactory(renderPiExtensionSource({ vendor, invocation: ["kobe"], toolEvents }))
+    const factory = loadFactory(renderPiExtensionSource({ vendor, invocation: ["rove"], toolEvents }))
     const pi = fakePi()
     factory(pi.api)
     return pi
@@ -91,7 +91,7 @@ describe("the generated pi-family extension", () => {
     await pi.fire("agent_end", { type: "agent_end", messages: [] }, CONTEXT)
 
     expect(pi.execs.map((c) => c.args[1])).toEqual(["turn-start", "turn-complete"])
-    expect(pi.execs[0]?.command).toBe("kobe")
+    expect(pi.execs[0]?.command).toBe("rove")
     // Every report names the engine that decodes it AND the installed shape,
     // so a stale extension left behind by an older Rove is readable as such.
     expect(pi.execs[0]?.args.slice(2, 7)).toEqual([
@@ -178,7 +178,7 @@ describe("the generated pi-family extension", () => {
   })
 
   it("never lets a failing spawn surface as an engine error", async () => {
-    const factory = loadFactory(renderPiExtensionSource({ vendor: "omp", invocation: ["kobe"], toolEvents: false }))
+    const factory = loadFactory(renderPiExtensionSource({ vendor: "omp", invocation: ["rove"], toolEvents: false }))
     const pi = fakePi()
     factory({
       on: pi.api.on,

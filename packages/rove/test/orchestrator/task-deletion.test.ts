@@ -38,7 +38,7 @@ let worktrees: {
 }
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "kobe-task-deletion-"))
+  home = await mkdtemp(join(tmpdir(), "rove-task-deletion-"))
   store = new TaskIndexStore({ homeDir: home })
   await store.load()
   worktrees = {
@@ -304,7 +304,7 @@ describe("dir tasks on the daemon's prepare→begin→finish path", { timeout: D
     // What the guard protects: a dir task's `worktreePath` IS the user's own
     // directory (`rove .` — their project root, possibly their $HOME). A
     // `git worktree remove --force` on it deletes their files.
-    const dir = await mkdtemp(join(tmpdir(), "kobe-user-dir-"))
+    const dir = await mkdtemp(join(tmpdir(), "rove-user-dir-"))
     try {
       const task = await orch.openDirectoryTask({ dir })
       // Dirty on purpose: a dir task must skip the gate rather than pass it.
@@ -329,7 +329,7 @@ describe("dir tasks on the daemon's prepare→begin→finish path", { timeout: D
   it("force + deleteBranch on a dir task still removes nothing on disk", async () => {
     // The escalating flags (`rove api delete --force --delete-branch`) must
     // not talk the coordinator past the kind check.
-    const dir = await mkdtemp(join(tmpdir(), "kobe-user-dir-"))
+    const dir = await mkdtemp(join(tmpdir(), "rove-user-dir-"))
     try {
       const task = await orch.openDirectoryTask({ dir })
       await orch.prepareTaskDeletion(task.id, { force: true, deleteBranch: true })

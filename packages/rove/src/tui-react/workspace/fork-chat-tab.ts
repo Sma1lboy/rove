@@ -25,7 +25,7 @@ export type ChatForkPlan =
   | { readonly kind: "handoff"; readonly prompt: string }
   /** Nothing to continue from — this tab has no conversation yet. */
   | { readonly kind: "no-session" }
-  /** Its engine keeps no transcript kobe can name (kimi, copilot, custom). */
+  /** Its engine keeps no transcript rove can name (kimi, copilot, custom). */
   | { readonly kind: "no-transcript"; readonly engine: string }
 
 /**

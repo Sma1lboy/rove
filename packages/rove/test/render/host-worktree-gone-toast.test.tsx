@@ -36,7 +36,7 @@ let previousHome: string | undefined
 
 beforeAll(() => {
   previousHome = process.env.ROVE_HOME_DIR
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-worktree-gone-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-worktree-gone-"))
 })
 
 afterAll(() => {

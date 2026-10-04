@@ -35,7 +35,7 @@ const STALE_CLAIMS: Array<[path: string, phrases: string[]]> = [
       "需要 Bun ≥ 1.3.11、tmux",
     ],
   ],
-  ["packages/rove-harness/README.md", ["kobe-sandbox tmux socket"]],
+  ["packages/rove-harness/README.md", ["rove-sandbox tmux socket"]],
   [".claude/skills/release/SKILL.md", ["needs tmux", "apt-installed tmux"]],
   ["marketing/brand.meta.yaml", ["git worktrees, tmux sessions", "persistent tmux sessions"]],
   ["docs/design/tasks.md", ["inside a tmux pane/embedded terminal"]],
@@ -48,13 +48,13 @@ const STALE_CLAIMS: Array<[path: string, phrases: string[]]> = [
 /** Rename leaks on active harness/web/CI surfaces, scoped to definite stale copy. */
 const STALE_RENAME_COPY: Array<[path: string, phrases: string[]]> = [
   ["packages/rove-harness/index.html", ["<title>rove-harness</title>"]],
-  ["packages/rove-harness/pty-server.mjs", ["kobe pty-server listening"]],
-  ["packages/rove/scripts/check-preview-deps.ts", ["kobe — preview-pane system dependencies"]],
+  ["packages/rove-harness/pty-server.mjs", ["rove pty-server listening"]],
+  ["packages/rove/scripts/check-preview-deps.ts", ["rove — preview-pane system dependencies"]],
   [
     "packages/rove-harness/e2e/visual-fixture.ts",
-    ["./src/cli/kobe.ts", 'join(XDG_CONFIG_HOME, "kobe")', '"skills", "kobe", "SKILL.md"', "/kobe-skill-version:"],
+    ["./src/cli/rove.ts", 'join(XDG_CONFIG_HOME, "rove")', '"skills", "rove", "SKILL.md"', "/rove-skill-version:"],
   ],
-  ["packages/rove-harness/e2e/hero-fixture.ts", ['join(HERO_CONFIG, "kobe")']],
+  ["packages/rove-harness/e2e/hero-fixture.ts", ['join(HERO_CONFIG, "rove")']],
 ]
 
 describe("active product copy", () => {
@@ -75,7 +75,7 @@ describe("active product copy", () => {
     // `diff-review.png`, `narrow-sidebar.png`, `routines.png`, and the kanban
     // set (`kanban.png`, `kanban-story.png`, `kanban.gif`/`.mp4`, shot by
     // `hero-issues.ts` + `films/kanban.ts`). What stays barred is every still
-    // nobody has re-shot: those still photograph the kobe-era TUI, wordmark
+    // nobody has re-shot: those still photograph the rove-era TUI, wordmark
     // and all.
     const stale = ["inbox.png", "new-session-dialog.png"]
     for (const page of ["README.md", "docs/TUI.md"]) {

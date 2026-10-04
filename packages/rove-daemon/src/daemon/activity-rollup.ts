@@ -3,7 +3,7 @@
  * a stored last-event-wins copy can't represent tabs A running and B complete
  * at once, and needs hand un-setting that leaves tasks pinned `running`.
  * Folds the tab entries plus the task's tab-less hook entry (an engine started
- * in a shell kobe didn't spawn reports no `ROVE_TAB_ID`).
+ * in a shell rove didn't spawn reports no `ROVE_TAB_ID`).
  *
  * The order is by URGENCY, not recency:
  *   - any candidate `running` ⇒ running (newest such `at`). Work in ANY tab
@@ -26,7 +26,7 @@ export interface RollupCandidate {
   readonly detail?: EngineActivityDetail
   readonly vendor?: string
   readonly session?: EngineSessionInfo
-  /** Winner's lapse watchdog, so `kobe api inspect` can report `lapseArmed`. */
+  /** Winner's lapse watchdog, so `rove api inspect` can report `lapseArmed`. */
   readonly lapse?: unknown
 }
 

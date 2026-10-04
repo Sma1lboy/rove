@@ -267,7 +267,7 @@ export function DialogProvider(props: { children?: ReactNode }) {
 }
 
 /** One process, one dialog overlay → one scope token (module-stable). */
-const MODAL_SCOPE = Symbol("kobe.dialog.modal")
+const MODAL_SCOPE = Symbol("rove.dialog.modal")
 
 /**
  * Mounted exactly while a dialog is up: esc/ctrl+c dismiss AND the modal

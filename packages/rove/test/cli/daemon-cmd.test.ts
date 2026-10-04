@@ -1,5 +1,5 @@
 /**
- * `kobe daemon <status|start|stop|restart>` (`runDaemonSubcommand`).
+ * `rove daemon <status|start|stop|restart>` (`runDaemonSubcommand`).
  * Daemon client / lifecycle / server / core are all mocked — a real one
  * would dial sockets and spawn a daemon. paths resolve off a ROVE_HOME_DIR
  * tempdir so readPidFile (kept real) reads a real pidfile.
@@ -68,7 +68,7 @@ let exitSpy: MockInstance<typeof process.exit>
 beforeEach(() => {
   originalRoveHome = process.env.ROVE_HOME_DIR
   originalHome = process.env.ROVE_HOME_DIR
-  home = mkdtempSync(join(tmpdir(), "kobe-daemon-cmd-"))
+  home = mkdtempSync(join(tmpdir(), "rove-daemon-cmd-"))
   process.env.ROVE_HOME_DIR = home
   process.env.ROVE_HOME_DIR = home
   mkdirSync(join(home, ".rove"), { recursive: true })
@@ -118,7 +118,7 @@ function output(): string {
   return logSpy.mock.calls.map((c) => String(c[0])).join("\n")
 }
 
-describe("kobe daemon status", () => {
+describe("rove daemon status", () => {
   it("prints the daemon's status JSON and closes the socket", async () => {
     mocks.daemonRequest.mockResolvedValue({ daemonPid: 7, taskCount: 2 })
     await runDaemonSubcommand(["status"])
@@ -138,7 +138,7 @@ describe("kobe daemon status", () => {
   })
 })
 
-describe("kobe daemon stop", () => {
+describe("rove daemon stop", () => {
   it("requests daemon.stop and reports success", async () => {
     mocks.daemonRequest.mockResolvedValue({})
     await runDaemonSubcommand(["stop"])
@@ -156,7 +156,7 @@ describe("kobe daemon stop", () => {
   })
 })
 
-describe("kobe daemon restart", () => {
+describe("rove daemon restart", () => {
   it("stops the old daemon, respawns detached, and closes the probe client", async () => {
     const next = { close: vi.fn() }
     mocks.connectOrStartDaemon.mockResolvedValue(next)
@@ -184,7 +184,7 @@ describe("kobe daemon restart", () => {
   })
 })
 
-describe("kobe daemon start", () => {
+describe("rove daemon start", () => {
   it("installs crash handlers, creates the core, and starts the server", async () => {
     // `store.stateDir` is where boot sweeps a crashed predecessor's leftovers.
     const core = {
@@ -223,6 +223,6 @@ describe("usage", () => {
   it("unknown command prints usage to stderr and exits 2", async () => {
     await expect(runDaemonSubcommand(["bogus"])).rejects.toThrow("exit 2")
     expect(errSpy.mock.calls.join("")).toContain('unknown command "bogus"')
-    expect(errSpy.mock.calls.join("")).toContain("Usage: kobe daemon")
+    expect(errSpy.mock.calls.join("")).toContain("Usage: rove daemon")
   })
 })

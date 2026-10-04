@@ -38,7 +38,7 @@ let fakeWorktrees: {
 }
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "kobe-core-mutations-"))
+  home = await mkdtemp(join(tmpdir(), "rove-core-mutations-"))
   store = new TaskIndexStore({ homeDir: home })
   await store.load()
   fakeWorktrees = {

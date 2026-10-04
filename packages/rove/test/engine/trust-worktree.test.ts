@@ -28,7 +28,7 @@ afterEach(() => {
 })
 
 function tempHome(): string {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-trust-"))
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "rove-trust-"))
   tempDirs.push(home)
   return home
 }
@@ -41,7 +41,7 @@ describe("trustKimiWorktree", () => {
   // suppresses no dialog, which is the whole point of writing one.
   it("hashes the resolved path and lowercases the dirname segment", () => {
     const home = tempHome()
-    const real = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "kobe-real-"))
+    const real = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "rove-real-"))
     tempDirs.push(real)
     const target = path.join(real, "Task-A")
     fs.mkdirSync(target)

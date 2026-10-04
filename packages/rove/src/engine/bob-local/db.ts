@@ -7,7 +7,7 @@
  * open across Bob's own writes.
  *
  * Only the constructor differs between the production Bun runtime and Node's
- * test runner (see `kobe-daemon/src/daemon/home-owner.ts`, same split).
+ * test runner (see `rove-daemon/src/daemon/home-owner.ts`, same split).
  */
 
 import { bobDbPath } from "../vendor-home.ts"

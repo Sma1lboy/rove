@@ -80,7 +80,7 @@ describe("colliding project basenames (a 5-repo rail)", () => {
 
 describe("filterTreeRows", () => {
   // One fixture for the whole block: two projects, a tab under each of the
-  // kobe worktrees, so every ancestor/descendant direction has something to
+  // rove worktrees, so every ancestor/descendant direction has something to
   // prove.
   const tree = () =>
     rows({

@@ -16,7 +16,7 @@ const serializedTask = {
   id: "t1",
   title: "task",
   repo: "/repo",
-  branch: "kobe/t1",
+  branch: "rove/t1",
   status: "in_progress",
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),

@@ -52,7 +52,7 @@ describe("Hosted PTY-only runtime boundary", () => {
     expect(offenders, `retired runtime references: ${offenders.join(", ")}`).toEqual([])
     expect(existsSync(LEGACY_COMPAT)).toBe(true)
     const compatibilitySource = readFileSync(LEGACY_COMPAT, "utf8")
-    expect(compatibilitySource).toContain('LEGACY_TMUX_SOCKET = "kobe"')
+    expect(compatibilitySource).toContain('LEGACY_TMUX_SOCKET = "rove"')
     expect(compatibilitySource).not.toContain("ROVE_TMUX")
   })
 })

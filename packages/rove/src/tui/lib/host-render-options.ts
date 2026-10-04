@@ -36,7 +36,7 @@ export function hostRenderOptions(onDestroy?: () => void): Record<string, unknow
 }
 
 /**
- * Inline variant for CLI-command hosts (`kobe update list`, onboarding): a
+ * Inline variant for CLI-command hosts (`rove update list`, onboarding): a
  * `heightRows` footer on the MAIN screen, scrollback visible above, cleared
  * on exit. Subcommands should feel like a prompt, not an app.
  */

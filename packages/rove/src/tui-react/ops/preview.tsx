@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * `kobe ops --preview <rel>`. Loading follows THE ASYNC CANON
+ * `rove ops --preview <rel>`. Loading follows THE ASYNC CANON
  * (`src/tui-react/history/host.tsx`): a dependency-keyed `useEffect` whose
  * stale completions an effect-local `disposed` flag drops. `r` reloads: the
  * workspace diff tab stays open while the engine works, so its hunks go stale.

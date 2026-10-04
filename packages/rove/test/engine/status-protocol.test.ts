@@ -59,23 +59,23 @@ describe("withWorktreeProtocol", () => {
 })
 
 describe("statusReportProtocol", () => {
-  it("the api prefix is injectable — packaged builds bake plain `kobe api`", () => {
+  it("the api prefix is injectable — packaged builds bake plain `rove api`", () => {
     // The default resolves the environment's CLI invocation (the dev bun
     // line from a source checkout), so a protocol agent never drives a
-    // stale global `kobe` that predates a new verb and answers BAD_VERB.
-    expect(statusReportProtocol("t9", "kobe api")).toContain("kobe api set-status --task-id t9")
-    expect(noteFilingProtocol("t9", "kobe api")).toContain('kobe api note --task-id t9 --text "<one line')
-    expect(dispatcherProtocol("m9", "kobe api")).toContain("kobe api dispatch --task-id <id>")
-    expect(dispatcherProtocol("m9", "kobe api")).toContain("kobe api collect --repo .")
+    // stale global `rove` that predates a new verb and answers BAD_VERB.
+    expect(statusReportProtocol("t9", "rove api")).toContain("rove api set-status --task-id t9")
+    expect(noteFilingProtocol("t9", "rove api")).toContain('rove api note --task-id t9 --text "<one line')
+    expect(dispatcherProtocol("m9", "rove api")).toContain("rove api dispatch --task-id <id>")
+    expect(dispatcherProtocol("m9", "rove api")).toContain("rove api collect --repo .")
   })
 
-  it("points delegation at kobe's own verbs — a pointer, not a curriculum", () => {
+  it("points delegation at rove's own verbs — a pointer, not a curriculum", () => {
     // The injected protocol stays small (every session pays context for it):
     // the coordination verbs are named so the agent knows they exist, and the
     // schema/skill are named as where to learn them — nothing more.
-    const text = noteFilingProtocol("t9", "kobe api")
+    const text = noteFilingProtocol("t9", "rove api")
     expect(text).toContain("add --prompt, add --count N for parallel attempts, send, dispatch")
-    expect(text).toContain("kobe api schema")
+    expect(text).toContain("rove api schema")
     // Guard the "pointer" property itself: the whole protocol must stay a
     // handful of lines, not absorb the skill's verb tables over time.
     expect(text.split("\n").length).toBeLessThanOrEqual(6)
@@ -89,7 +89,7 @@ describe("note recall", () => {
   ]
 
   it("seeds an enabled session with the repo's accumulated notes, with provenance", () => {
-    const text = worktreeProtocol("t1", "kobe api", { status: off, notes: on }, notes)
+    const text = worktreeProtocol("t1", "rove api", { status: off, notes: on }, notes)
     expect(text).toContain("the build needs --no-sandbox")
     expect(text).toContain('(from "worker A")')
     // An authorless note still renders, just without the attribution clause.
@@ -100,13 +100,13 @@ describe("note recall", () => {
   })
 
   it("emits no recall block at all when the repo has no notes", () => {
-    const text = worktreeProtocol("t1", "kobe api", { status: off, notes: on }, [])
+    const text = worktreeProtocol("t1", "rove api", { status: off, notes: on }, [])
     expect(text).toContain("field notes")
     expect(text).not.toContain("previously filed by other sessions")
   })
 
   it("withholds recall when the note switch is off, even with notes on disk", () => {
-    expect(worktreeProtocol("t1", "kobe api", { status: on, notes: off }, notes)).not.toContain("--no-sandbox")
+    expect(worktreeProtocol("t1", "rove api", { status: on, notes: off }, notes)).not.toContain("--no-sandbox")
   })
 })
 

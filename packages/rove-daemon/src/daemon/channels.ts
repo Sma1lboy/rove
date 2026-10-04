@@ -187,22 +187,22 @@ export interface ChannelPayloads {
    * Text to paste into a task's live engine session (docs/design/dispatcher.md).
    * The daemon never delivers: whichever front-end hosts the session does.
    * Producers: `note.file` (`source: "note"`, to the repo's main-task
-   * dispatcher) and `session.deliver` (`kobe api dispatch`,
+   * dispatcher) and `session.deliver` (`rove api dispatch`,
    * `source: "dispatcher"`). EVENT channel.
    */
   "session.deliver": SessionDeliverPayload
   /**
-   * "Open a terminal tab running argv in task X" (`kobe plugin pane open` →
+   * "Open a terminal tab running argv in task X" (`rove plugin pane open` →
    * `tab.open` RPC → the hosting TUI opens a CommandTab). EVENT channel.
    */
   "tab.open": TabOpenPayload
   /**
    * Inverse of `tab.open`: close panes opened under `title` in task X
-   * (`kobe api pane-close` → `tab.close` RPC). EVENT channel.
+   * (`rove api pane-close` → `tab.close` RPC). EVENT channel.
    */
   "tab.close": TabClosePayload
   /**
-   * Rename Terminal Tab `tabId` of task X (`kobe api rename --tab` →
+   * Rename Terminal Tab `tabId` of task X (`rove api rename --tab` →
    * `terminalTab.rename` RPC). EVENT channel. No `requestId`, unlike
    * `tab.close`: rename is idempotent, so the CLI writes the persisted
    * snapshot itself (headless case) and both writers converge in any order.
@@ -214,7 +214,7 @@ export interface ChannelPayloads {
    * EVENT channel.
    */
   "engine.lifecycle": EngineLifecyclePayload
-  /** One toast for attached UIs (`kobe api notify` → `notice.send`). EVENT channel. */
+  /** One toast for attached UIs (`rove api notify` → `notice.send`). EVENT channel. */
   "notice.event": NoticeEventPayload
   /**
    * Per-vendor quota snapshots from the daemon's usage cache, keyed by vendor
@@ -236,7 +236,7 @@ export interface ChannelPayloads {
     context: Record<string, EngineContextUsage>
   }
   /**
-   * "Ask the human for a line of text" (`kobe api prompt`). EVENT channel;
+   * "Ask the human for a line of text" (`rove api prompt`). EVENT channel;
    * answered via the `ui.promptReply` RPC.
    */
   "ui.prompt": UiPromptPayload

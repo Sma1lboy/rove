@@ -270,7 +270,7 @@ describe("stale paths in the sent prompt", () => {
   let root: string
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "kobe-notes-"))
+    root = mkdtempSync(join(tmpdir(), "rove-notes-"))
   })
   afterEach(() => rmSync(root, { recursive: true, force: true }))
 

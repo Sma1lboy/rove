@@ -38,7 +38,7 @@ export function roveHookArgs(vendor: string): readonly string[] {
  *  shared by the JSON- and TOML-shaped adapters. */
 export const GATED_TOOL_VERBS: ReadonlySet<string> = new Set(["tool-pre", "tool-post", "tool-failed"])
 
-/** One engine hook event mapped to a normalized kobe verb. `matcher` narrows
+/** One engine hook event mapped to a normalized rove verb. `matcher` narrows
  *  which sub-events fire (e.g. only permission notifications). */
 export interface HookEventSpec {
   readonly event: string
@@ -128,9 +128,9 @@ export function isRoveHook(hook: unknown, verbs: readonly string[]): boolean {
   if (executable === "bun" || executable === "node") {
     if (argv[offset] === "--conditions=browser") offset++
     const entry = argv[offset] ?? ""
-    if (!/(?:^|\/)(?:src|dist)\/cli\/(?:rove|kobe)\.(?:ts|js)$/.test(entry)) return false
+    if (!/(?:^|\/)(?:src|dist)\/cli\/(?:rove|rove)\.(?:ts|js)$/.test(entry)) return false
     offset++
-  } else if (executable !== "rove" && executable !== "kobe") {
+  } else if (executable !== "rove" && executable !== "rove") {
     return false
   }
   if (argv[offset] !== "hook" || !verbs.includes(argv[offset + 1])) return false
@@ -155,7 +155,7 @@ export function removeRoveHooks(groups: unknown[], verbs: readonly string[]): un
   })
 }
 
-/** True if a shared settings object still carries any of kobe's activity hooks.
+/** True if a shared settings object still carries any of rove's activity hooks.
  *  Read-only, for the plugin-migration hint. */
 export function hasRoveActivityHooks(current: Record<string, unknown>, eventMap: readonly HookEventSpec[]): boolean {
   const verbs = eventMap.map((spec) => spec.verb)
@@ -171,7 +171,7 @@ export function hasRoveActivityHooks(current: Record<string, unknown>, eventMap:
 
 /** Optional knobs shared by the build/merge pair. */
 export interface ActivityHookOpts {
-  /** Extra argv after the verb (e.g. `--engine claude`, so `kobe hook` decodes
+  /** Extra argv after the verb (e.g. `--engine claude`, so `rove hook` decodes
    *  with the right adapter instead of guessing). */
   readonly extraArgs?: readonly string[]
   /** When present, only specs passing the filter are INSTALLED; every spec
@@ -181,8 +181,8 @@ export interface ActivityHookOpts {
 
 /**
  * How a persisted hook command line is quoted. Bare tokens wherever possible:
- * `kobe hook turn-complete --engine codex` is one command in sh, cmd.exe AND
- * PowerShell, whereas `'kobe' 'hook' …` is a program named `'kobe'` to cmd
+ * `rove hook turn-complete --engine codex` is one command in sh, cmd.exe AND
+ * PowerShell, whereas `'rove' 'hook' …` is a program named `'rove'` to cmd
  * and a string literal to PowerShell (Windows hooks fail silently). Tokens
  * that still need quoting get the platform's own dialect.
  */
@@ -190,8 +190,8 @@ export function hookCommandQuoting(platform: NodeJS.Platform = process.platform)
   return { bareSafe: true, windows: platform === "win32" }
 }
 
-/** Build the activity hook groups kobe installs, pointing each event at
- *  `kobe hook <verb>` (cwd-based; no task id). `inv` is injectable for tests. */
+/** Build the activity hook groups rove installs, pointing each event at
+ *  `rove hook <verb>` (cwd-based; no task id). `inv` is injectable for tests. */
 export function buildActivityHooks(
   eventMap: readonly HookEventSpec[],
   inv: readonly string[] = roveHookInvocation(),
@@ -216,7 +216,7 @@ export function buildActivityHooks(
 }
 
 /**
- * Pure merge: add (`install`) or remove kobe's activity hooks in a SHARED
+ * Pure merge: add (`install`) or remove rove's activity hooks in a SHARED
  * settings object, preserving the user's own hooks for those events + every
  * other key. Rove owns only recognized CLI invocations; they are dropped first so re-install is idempotent and removal clean.
  */
@@ -244,7 +244,7 @@ export function mergeActivityHooks(
 }
 
 /**
- * Event of the retired `kobe hook worktree-created` observer (a ~170ms spawn
+ * Event of the retired `rove hook worktree-created` observer (a ~170ms spawn
  * after every Bash call, machine-wide), which Rove now only removes.
  */
 const RETIRED_WATCH_EVENT = "PostToolUse"

@@ -12,8 +12,8 @@ type EventedChild = {
 }
 
 /**
- * `stopDaemonProcess` is the shared kill primitive behind `kobe daemon
- * restart` and `kobe reset` (KOB-258). These cover the two paths that are
+ * `stopDaemonProcess` is the shared kill primitive behind `rove daemon
+ * restart` and `rove reset` (KOB-258). These cover the two paths that are
  * deterministic without a live wedged daemon: nothing running (idempotent
  * cleanup) and a pidfile pointing at an already-dead process. The
  * SIGTERM→SIGKILL escalation is inherited verbatim from the long-proven
@@ -26,7 +26,7 @@ describe("stopDaemonProcess", () => {
   let pidPath: string
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "kobe-lifecycle-"))
+    dir = mkdtempSync(join(tmpdir(), "rove-lifecycle-"))
     socketPath = join(dir, "daemon.sock")
     pidPath = join(dir, "daemon.pid")
   })

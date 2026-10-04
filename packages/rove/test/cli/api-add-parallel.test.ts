@@ -12,7 +12,7 @@ import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture
 
 // Dispatcher provenance keys off the caller's own $ROVE_TASK_ID/$ROVE_TAB_ID —
 // unset them file-wide so exact-payload assertions stay deterministic when the
-// runner itself lives inside a kobe task (`api-dispatcher.test.ts` owns the
+// runner itself lives inside a rove task (`api-dispatcher.test.ts` owns the
 // case where they ARE set).
 const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }
 beforeEach(() => {
@@ -86,8 +86,8 @@ describe("add --count (parallel round)", () => {
     // Without these the spawner has only opaque ids and reaches for the
     // worktree directory name, which appears nowhere in the UI.
     expect(result.tasks.map((t) => [t.title, t.branch])).toEqual([
-      ["T", "kobe/t-t1"],
-      ["T", "kobe/t-t1"],
+      ["T", "rove/t-t1"],
+      ["T", "rove/t-t1"],
     ])
     expect(Object.keys(result.tasks[0]).slice(0, 4)).toEqual(["ok", "taskId", "title", "branch"])
   })

@@ -38,7 +38,7 @@ afterEach(() => {
 })
 
 function isolatedHome(initial?: Record<string, unknown>): string {
-  const home = mkdtempSync(join(tmpdir(), "kobe-kv-core-"))
+  const home = mkdtempSync(join(tmpdir(), "rove-kv-core-"))
   process.env.ROVE_HOME_DIR = home
   if (initial) writeState(home, initial)
   return home
@@ -76,7 +76,7 @@ describe("createKvCore", () => {
     const home = isolatedHome({ shared: "old", mine: "old" })
     const kv = createKvCore()
     kv.set("mine", "new")
-    // Another kobe process writes a DIFFERENT key after our hydration.
+    // Another rove process writes a DIFFERENT key after our hydration.
     writeState(home, { shared: "theirs", mine: "old" })
     expect(kv.flush()).toBe(true)
     expect(readState(home)).toEqual({ shared: "theirs", mine: "new" })

@@ -91,7 +91,7 @@ describe("migrateRenamedStateKeys", () => {
     // Reading through `loadStateFile` here QUARANTINES such a file — that is
     // the store's corrupt-file policy, and it is right for a reader that needs
     // a value. This is not one. It cost a real regression: on the first launch
-    // after the `.kobe` → `.rove` layout copy, the copy publishes the legacy
+    // after the `.rove` → `.rove` layout copy, the copy publishes the legacy
     // blob at this path and the rename then renamed it away, so a migration
     // that had nothing to do destroyed the file the migration before it had
     // just saved (test/behavior/rove-alias.test.ts).

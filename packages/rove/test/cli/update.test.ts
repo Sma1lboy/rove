@@ -85,8 +85,8 @@ describe("parseUpdateArgs", () => {
       expect(() => parseUpdateArgs(["--fast"])).toThrow("exit 2")
       const err = errSpy.mock.calls.map((c) => String(c[0])).join("")
       // The instruction surface, not a bare one-liner: usage + script URL + fallback.
-      expect(err).toContain('kobe update: unknown argument "--fast"')
-      expect(err).toContain("Usage: kobe update [version|channel|list|dry-run]")
+      expect(err).toContain('rove update: unknown argument "--fast"')
+      expect(err).toContain("Usage: rove update [version|channel|list|dry-run]")
       expect(err).toContain(UPDATE_SCRIPT_URL)
       expect(err).toContain(recommendedGlobalInstallCommand())
     } finally {
@@ -190,7 +190,7 @@ describe("runUpdateSubcommand", () => {
     }).catch((e) => {
       expect((e as Error).message).toBe("exit")
     })
-    expect(err.join("")).toContain(`kobe update: failed to run ${updaterShell()}: ENOENT`)
+    expect(err.join("")).toContain(`rove update: failed to run ${updaterShell()}: ENOENT`)
     expect(exits).toEqual([1])
   })
 })

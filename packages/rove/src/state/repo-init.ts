@@ -3,7 +3,7 @@
  *
  * Two sources, resolved PER FIELD, in-repo files winning:
  *
- *   1. Version-controlled files in the worktree (legacy `.kobe/` spellings
+ *   1. Version-controlled files in the worktree (legacy `.rove/` spellings
  *      are field-by-field fallbacks):
  *        <worktree>/.rove/init.sh         → runs before the engine starts
  *        <worktree>/.rove/init-prompt.md  → pasted as the engine's first prompt

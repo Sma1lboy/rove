@@ -2,12 +2,12 @@
  * Unit tests for the user-theme disk loader.
  *
  * The loader runs at boot, before the ThemeProvider mounts. The bar
- * is "never crash kobe": a corrupt JSON or a schema-mismatched theme
+ * is "never crash rove": a corrupt JSON or a schema-mismatched theme
  * file must not propagate; instead the loader emits a `console.warn`
- * (so a power user piping kobe through `2>` can find it) and continues.
+ * (so a power user piping rove through `2>` can find it) and continues.
  *
  * We use `ROVE_HOME_DIR` to point the loader at a tmpdir so the tests
- * never touch the developer's real `~/.kobe/`.
+ * never touch the developer's real `~/.rove/`.
  */
 
 import * as fs from "node:fs"
@@ -20,10 +20,10 @@ let tmpRoot: string
 let prevHome: string | undefined
 
 beforeEach(() => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-theme-loader-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-theme-loader-"))
   prevHome = process.env.ROVE_HOME_DIR
   // env.ts: roveStateDir() = join(ROVE_HOME_DIR ?? homedir(), ".rove").
-  // Point at the tmp root so the loader looks under tmpRoot/.kobe/themes/.
+  // Point at the tmp root so the loader looks under tmpRoot/.rove/themes/.
   process.env.ROVE_HOME_DIR = tmpRoot
 })
 

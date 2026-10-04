@@ -1,6 +1,6 @@
 /**
  * Git-HEAD poller for the sidebar's main-task rows' live branch hint
- * (`○ kobe   main`), computed at display time so an external checkout shows
+ * (`○ rove   main`), computed at display time so an external checkout shows
  * on the next render.
  *
  * Async via `background-poll.ts`: even an O(1) ref-read spawnSync per row

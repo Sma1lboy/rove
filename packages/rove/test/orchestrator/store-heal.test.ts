@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
 /**
- * Self-heal-on-load coercion (`coerceTask`). The bug it guards (the kobe
+ * Self-heal-on-load coercion (`coerceTask`). The bug it guards (the rove
  * project stuck showing "working"): a `main` (project-root) task has NO
  * session lifecycle that maintains its status, so an old auto-done flip
  * plus the done→in_progress heal left the project permanently in_progress,
@@ -16,7 +16,7 @@ describe("TaskIndexStore self-heal on load", () => {
   let home: string
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kobe-heal-"))
+    home = await mkdtemp(join(tmpdir(), "rove-heal-"))
     await mkdir(join(home, ".rove"), { recursive: true })
   })
 
@@ -31,10 +31,10 @@ describe("TaskIndexStore self-heal on load", () => {
   function baseRow(over: Record<string, unknown>): Record<string, unknown> {
     return {
       id: "01HXMAINAAAAAAAAAAAAAAAAA",
-      title: "kobe",
-      repo: "/repo/kobe",
+      title: "rove",
+      repo: "/repo/rove",
       branch: "",
-      worktreePath: "/repo/kobe",
+      worktreePath: "/repo/rove",
       status: "backlog",
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -69,7 +69,7 @@ describe("TaskIndexStore vendor coercion on load", () => {
   let home: string
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kobe-vendor-"))
+    home = await mkdtemp(join(tmpdir(), "rove-vendor-"))
     await mkdir(join(home, ".rove"), { recursive: true })
   })
 
@@ -121,7 +121,7 @@ describe("TaskIndexStore task ordering", () => {
   let home: string
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kobe-order-"))
+    home = await mkdtemp(join(tmpdir(), "rove-order-"))
   })
 
   afterEach(async () => {

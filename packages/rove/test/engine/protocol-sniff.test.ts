@@ -81,7 +81,7 @@ describe("protocolUpgradeFromLiveSession", () => {
   }
 
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), "kobe-protocol-sniff-"))
+    home = mkdtempSync(join(tmpdir(), "rove-protocol-sniff-"))
     originalHome = process.env.ROVE_HOME_DIR
     process.env.ROVE_HOME_DIR = home
     writeState({})
@@ -140,7 +140,7 @@ describe("protocolWriteBackFromLiveSession", () => {
   }
 
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), "kobe-protocol-writeback-"))
+    home = mkdtempSync(join(tmpdir(), "rove-protocol-writeback-"))
     originalHome = process.env.ROVE_HOME_DIR
     process.env.ROVE_HOME_DIR = home
     writeState({})

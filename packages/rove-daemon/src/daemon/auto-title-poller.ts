@@ -7,7 +7,7 @@
  * Only placeholder tasks touch disk (`deriveTitleFromSession` returns `""`
  * until a usable message exists). A per-task failure is logged and never
  * blocks the rest of the tick. The detach-time rename in `tui/direct.ts`
- * covers a `kobe` running without a live daemon.
+ * covers a `rove` running without a live daemon.
  */
 
 import type { DaemonOrchestrator, VendorId } from "./contracts.ts"
@@ -35,9 +35,9 @@ export interface AutoTitled {
 export async function runAutoTitlePass(
   orch: DaemonOrchestrator,
   derive: TitleDeriver,
-  /** kobe's `PLACEHOLDER_TASK_TITLE`, via the runtime adapter. */
+  /** rove's `PLACEHOLDER_TASK_TITLE`, via the runtime adapter. */
   placeholderTitle: string,
-  /** kobe's `DEFAULT_TASK_VENDOR`, via the runtime adapter; required so no
+  /** rove's `DEFAULT_TASK_VENDOR`, via the runtime adapter; required so no
    *  local literal can drift from it. */
   defaultVendor: VendorId,
 ): Promise<AutoTitled[]> {

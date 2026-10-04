@@ -19,7 +19,7 @@ let store: TaskIndexStore
 let orch: Orchestrator
 
 beforeEach(async () => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-autotitle-"))
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rove-autotitle-"))
   store = new TaskIndexStore({ homeDir: path.join(tmpRoot, "home") })
   await store.load()
   orch = new Orchestrator({ store, worktrees: new GitWorktreeManager() })

@@ -12,8 +12,8 @@ import { CodexHookAdapter, ROVE_CODEX_HOOK_EVENTS } from "../../src/engine/codex
 // call becomes undefined() and editJsonSettings' best-effort catch silently
 // eats it (that exact gap shipped red CI once).
 vi.mock("../../src/cli/invocation.ts", () => ({
-  roveCliInvocation: () => ["kobe"],
-  roveHookInvocation: () => ["kobe"],
+  roveCliInvocation: () => ["rove"],
+  roveHookInvocation: () => ["rove"],
 }))
 
 describe("CodexHookAdapter", () => {
@@ -72,7 +72,7 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
   const adapter = new CodexHookAdapter()
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), "kobe-codex-hooks-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-codex-hooks-"))
     file = join(dir, "hooks.json")
   })
   afterEach(async () => {
@@ -103,7 +103,7 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
   })
 
   it("installs the session, turn, compaction and subagent events, preserving the user's hooks", async () => {
-    // Seed a user-authored hook that must survive kobe's merge.
+    // Seed a user-authored hook that must survive rove's merge.
     await writeFile(file, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: "user-stop" }] }] } }))
 
     await adapter.installActivityHooks(file)
@@ -117,18 +117,18 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
     expect(JSON.stringify(hooks.SessionEnd)).toContain("session-end")
     expect(JSON.stringify(hooks.SubagentStart)).toContain("subagent-start")
     expect(JSON.stringify(hooks.SubagentStop)).toContain("subagent-stop")
-    // Codex never delivers these → kobe must not install them.
+    // Codex never delivers these → rove must not install them.
     expect(hooks.StopFailure).toBeUndefined()
     expect(hooks.Notification).toBeUndefined()
     expect(hooks.PermissionRequest).toBeUndefined()
-    // kobe's Stop coexists with the user's Stop hook.
+    // rove's Stop coexists with the user's Stop hook.
     expect(JSON.stringify(hooks.Stop)).toContain("turn-complete")
     expect(JSON.stringify(hooks.Stop)).toContain("user-stop")
     // The PostToolUse(Bash) watch observer is never installed.
     expect(hooks.PostToolUse).toBeUndefined()
   })
 
-  it("removal strips kobe's hooks but keeps the user's", async () => {
+  it("removal strips rove's hooks but keeps the user's", async () => {
     await writeFile(file, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: "user-stop" }] }] } }))
     await adapter.installActivityHooks(file)
 
@@ -149,7 +149,7 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
       JSON.stringify({
         hooks: {
           PostToolUse: [
-            { matcher: "Bash", hooks: [{ type: "command", command: "'kobe' 'hook' 'worktree-created'" }] },
+            { matcher: "Bash", hooks: [{ type: "command", command: "'rove' 'hook' 'worktree-created'" }] },
             { matcher: "Bash", hooks: [{ type: "command", command: "other-tool post-bash" }] },
           ],
         },

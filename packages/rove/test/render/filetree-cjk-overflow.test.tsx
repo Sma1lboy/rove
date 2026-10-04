@@ -29,7 +29,7 @@ import { act, renderComponent, settle } from "./harness"
 const PANE_WIDTH = 34
 
 function repoWith(path: string): string {
-  const repo = mkdtempSync(join(tmpdir(), "kobe-cjk-"))
+  const repo = mkdtempSync(join(tmpdir(), "rove-cjk-"))
   execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", { cwd: repo })
   const file = join(repo, path)
   mkdirSync(dirname(file), { recursive: true })

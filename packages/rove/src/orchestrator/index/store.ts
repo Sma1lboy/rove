@@ -1,3 +1,4 @@
+import { preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 /**
  * The {@link TaskIndex} at `<homeDir>/.rove/tasks.json`. Cross-process safety
  * is `lockfile.ts`; atomicity is here (write-tmp + fsync + rename). Listeners
@@ -8,7 +9,7 @@ import { mkdir, open, rename, unlink } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
-import { LEGACY_ROVE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../../product.ts"
+import { ROVE_STATE_DIR_BASENAME } from "../../product.ts"
 import type { Task, TaskId, TaskIndex } from "../../types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "../../types/task.ts"
 import { release } from "./lockfile.ts"
@@ -52,7 +53,7 @@ export class TaskIndexStore {
     this.homeDir = options.homeDir ?? readRoveHomeDirEnv() ?? homedir()
     this.roveDir = join(this.homeDir, ROVE_STATE_DIR_BASENAME)
     this.path = join(this.roveDir, "tasks.json")
-    this.legacyPath = join(this.homeDir, LEGACY_ROVE_STATE_DIR_BASENAME, "tasks.json")
+    this.legacyPath = join(preRenameStateDir(this.homeDir), "tasks.json")
     this.lockPath = `${this.path}.lock`
   }
 

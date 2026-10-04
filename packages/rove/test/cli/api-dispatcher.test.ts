@@ -29,7 +29,7 @@ function restoreEnv(name: string, saved: string | undefined): void {
 
 /**
  * A pty host + process tree where THIS process (pid 500) descends from the
- * session's shell — the shape a real `kobe api` call inside an engine tab
+ * session's shell — the shape a real `rove api` call inside an engine tab
  * has: tab shell → engine → its Bash tool → this CLI.
  */
 function probeFor(
@@ -44,7 +44,7 @@ function probeFor(
       [
         `  ${shellPid}     1 /bin/zsh -il`,
         `  200 ${opts.detached ? 1 : shellPid} claude`,
-        "  500   200 bun kobe api add",
+        "  500   200 bun rove api add",
       ].join("\n"),
   }
 }
@@ -315,7 +315,7 @@ describe("persistence codec", () => {
       id: "01HXTASKAAAAAAAAAAAAAAAAA",
       title: "T",
       repo: "/repo/x",
-      branch: "kobe/t",
+      branch: "rove/t",
       worktreePath: "/wt/t",
       status: "backlog",
       createdAt: "2026-01-01T00:00:00.000Z",

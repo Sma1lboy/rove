@@ -1,11 +1,11 @@
 /**
  * One-shot notification sound. Ported from opencode's
  * `packages/opencode/src/cli/cmd/tui/util/sound.ts` (MIT) and trimmed to
- * a single `pulse()` entry point — kobe only needs a short ding when a
+ * a single `pulse()` entry point — rove only needs a short ding when a
  * background chat tab transitions out of `running`.
  *
  * Probes PATH for the first audio player (cached), writes the bundled
- * `pulse.wav` to `$TMPDIR/kobe-sfx/` (a stable path even from `dist/`),
+ * `pulse.wav` to `$TMPDIR/rove-sfx/` (a stable path even from `dist/`),
  * spawns detached with stdio ignored, and swallows failures: the BEL in
  * `notifications.tsx` is the always-on fallback. No player → no-op.
  *
@@ -27,7 +27,7 @@ import { scaleWavVolume } from "./wav-volume"
 // `bun build` output; normalise against `import.meta.dir`.
 const pulseAsset = isAbsolute(pulseAssetRaw) ? pulseAssetRaw : resolve(import.meta.dir, pulseAssetRaw)
 
-const DIR = join(tmpdir(), "kobe-sfx")
+const DIR = join(tmpdir(), "rove-sfx")
 
 const PLAYERS = [
   "ffplay",

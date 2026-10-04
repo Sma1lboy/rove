@@ -23,7 +23,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 // A REAL (empty) temp dir: `claude`'s nvm scan lists it via a module-internal
 // `require("node:fs")` that vi.mock can't intercept, so directory listings
 // must exist on the real disk. File-existence stays virtual (statSync below).
-const HOME = mkdtempSync(path.join(tmpdir(), "kobe-bin-home-"))
+const HOME = mkdtempSync(path.join(tmpdir(), "rove-bin-home-"))
 /** Virtual FS: paths that exist as regular files. */
 const files = new Set<string>()
 /** Next `which`/`where` result. */

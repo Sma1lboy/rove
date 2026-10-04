@@ -32,8 +32,8 @@ function probeFor(key: string, opts: { detached?: boolean } = {}): SelfSessionPr
     sessions: async () => [{ key, pid: shellPid, alive: true }],
     ps: async () =>
       opts.detached
-        ? `  ${shellPid}     1 /bin/zsh -il\n  500     1 bun kobe api send`
-        : `  ${shellPid}     1 /bin/zsh -il\n  500   ${shellPid} bun kobe api send`,
+        ? `  ${shellPid}     1 /bin/zsh -il\n  500     1 bun rove api send`
+        : `  ${shellPid}     1 /bin/zsh -il\n  500   ${shellPid} bun rove api send`,
     pid: 500,
   }
 }

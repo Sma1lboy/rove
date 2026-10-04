@@ -1,7 +1,7 @@
 /**
- * Client-side lifecycle for the PTY HOST (`kobe pty-host`,
+ * Client-side lifecycle for the PTY HOST (`rove pty-host`,
  * `daemon/pty-server.ts`), which keeps terminal children alive across TUI
- * exits and `kobe daemon restart`. Same spawn-and-poll shape as
+ * exits and `rove daemon restart`. Same spawn-and-poll shape as
  * `daemon-process.ts`.
  */
 
@@ -248,7 +248,7 @@ export async function liveChildCount(pid: number, deps: ChildProbeDeps = {}): Pr
 
 /**
  * Return the socket path once the pty host answers `hello`, spawning a
- * detached `kobe pty-host` if needed. Only an EXITED host may be replaced
+ * detached `rove pty-host` if needed. Only an EXITED host may be replaced
  * freely; killing a live one kills every hosted engine. A live host gets the
  * grace window, and one still holding sessions after it is refused loudly,
  * never reaped: N running engines must not be spent to deliver one message.

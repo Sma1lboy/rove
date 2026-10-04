@@ -192,6 +192,6 @@ describe("resolveNodeBinary", () => {
 
 describe("defaultPtyHostSocketPath", () => {
   test("Windows gets a named pipe, since node cannot bind a filesystem socket there", () => {
-    expect(defaultPtyHostSocketPath("C:\\Users\\dev", "win32")).toMatch(/^\\\\\.\\pipe\\kobe-[0-9a-f]{8}-pty$/)
+    expect(defaultPtyHostSocketPath("C:\\Users\\dev", "win32")).toMatch(/^\\\\\.\\pipe\\rove-[0-9a-f]{8}-pty$/)
   })
 })

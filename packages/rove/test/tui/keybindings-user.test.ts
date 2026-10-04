@@ -20,7 +20,7 @@ const fileState = vi.hoisted(() => ({
 
 vi.mock("../../src/state/keybindings-file", () => ({
   readKeybindingsFile: vi.fn(() => ({
-    path: "/home/user/.kobe/settings/keybindings.yaml",
+    path: "/home/user/.rove/settings/keybindings.yaml",
     exists: fileState.exists,
     doc: fileState.doc,
     warnings: fileState.warnings,

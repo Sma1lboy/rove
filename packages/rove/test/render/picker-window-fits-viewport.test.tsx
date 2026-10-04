@@ -21,7 +21,7 @@ import { act, renderComponent, settle } from "./harness"
 
 /** More branches than any window will show, so the cap is what bounds it. */
 function repoWithBranches(count: number): string {
-  const repo = mkdtempSync(join(tmpdir(), "kobe-picker-"))
+  const repo = mkdtempSync(join(tmpdir(), "rove-picker-"))
   execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", { cwd: repo })
   for (let i = 0; i < count; i++) execSync(`git branch feature/branch-name-${i}`, { cwd: repo })
   return repo
@@ -57,7 +57,7 @@ test("the set-branch dialog shrinks its picker on a short terminal", async () =>
  * real `/` would make the row count depend on the host.
  */
 function dirWithChildren(count: number): string {
-  const parent = mkdtempSync(join(tmpdir(), "kobe-clonetab-"))
+  const parent = mkdtempSync(join(tmpdir(), "rove-clonetab-"))
   for (let i = 0; i < count; i++) mkdirSync(join(parent, `child-${String(i).padStart(2, "0")}`))
   return parent
 }
@@ -65,7 +65,7 @@ function dirWithChildren(count: number): string {
 async function cloneTabFrame(height: number, parent: string): Promise<string> {
   // Own KV home per mount: `KVProvider` reads `$ROVE_HOME_DIR`, and the clone
   // tab persists its parent dir there.
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-clonehome-"))
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-clonehome-"))
   const { frame, mockInput } = await renderComponent(
     <NewTaskDialogView
       defaultRepo={tmpdir()}

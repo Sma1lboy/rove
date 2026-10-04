@@ -6,7 +6,7 @@
  *  1. **Lazy shutdown** — lifetime is bound to `role: "gui"` subscribers
  *     (`holdsLifetime`). The LAST gui leaving arms a short grace, then
  *     self-stop. Armed only on a >0 → 0 gui transition (never on boot), so a
- *     gui-less `kobe daemon start` / respawned `daemon restart` stays up. A gui
+ *     gui-less `rove daemon start` / respawned `daemon restart` stays up. A gui
  *     (re)attach cancels the grace; a pane subscribing during it must NOT.
  *  2. **Collector gate** — background collectors (worktree-changes,
  *     auto-title) pause while nobody (gui OR pane) is subscribed.
@@ -42,7 +42,7 @@ const DEFAULT_IDLE_GRACE_MS = 3000
 
 /** First-gui window for AUTOSPAWNED daemons (`ROVE_DAEMON_AUTOSPAWNED`): long
  *  enough for a slow TUI boot, short enough that a daemon born from a stray
- *  `kobe api` in an engine tab never lingers as a zombie holding the socket. */
+ *  `rove api` in an engine tab never lingers as a zombie holding the socket. */
 export const FIRST_GUI_GRACE_MS = 60_000
 
 export function resolveIdleGraceMs(): number {
@@ -74,7 +74,7 @@ export interface DaemonLifetimeOptions {
    * AUTOSPAWNED daemons only (`ROVE_DAEMON_AUTOSPAWNED`, set by
    * `connectOrStartDaemon`'s spawn): without a >0 → 0 gui drop the normal rule
    * never fires, so one whose client never attached as a gui would live
-   * forever. A deliberate `kobe daemon start` doesn't set the flag and stays up.
+   * forever. A deliberate `rove daemon start` doesn't set the flag and stays up.
    */
   readonly firstGuiGraceMs?: number
   /**

@@ -27,7 +27,7 @@ describe("resolvePluginBinPath", () => {
   it("falls back to the invoked name when the entry needs a runtime in front", () => {
     // A dev checkout: `bun src/cli/rove.ts`, no exec bit, no single token.
     const source = entry("rove.ts", 0o644)
-    expect(resolvePluginBinPath(["bun", source, "daemon", "start"])).toMatch(/^(rove|kobe)$/)
+    expect(resolvePluginBinPath(["bun", source, "daemon", "start"])).toMatch(/^(rove|rove)$/)
   })
 
   it("uses the executable itself when running from a compiled binary", () => {

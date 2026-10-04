@@ -2,8 +2,8 @@
  * Pure half of the activity registry: `(state, event) → state`, nothing to
  * mount. `activity-registry.ts` holds the live map, timers and subscribers and
  * re-exports these names. Being stateless is what lets
- * `kobe/src/engine/hook-events.ts` re-export {@link reduceActivity} (kobe
- * depends on kobe-daemon, never the reverse), so it is the one definition.
+ * `rove/src/engine/hook-events.ts` re-export {@link reduceActivity} (rove
+ * depends on rove-daemon, never the reverse), so it is the one definition.
  */
 
 import type { EngineActivityDetail, EngineActivityKind, TaskActivityState } from "./contracts.ts"

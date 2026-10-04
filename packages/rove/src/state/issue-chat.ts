@@ -58,7 +58,7 @@ export function issueChatTaskTitle(issue: Issue): string {
   return `#${issue.id} ${issue.title}`
 }
 
-/** Shared with the web board (`kobe-daemon/prompts/issue-prompts`). */
+/** Shared with the web board (`rove-daemon/prompts/issue-prompts`). */
 export function issueWorktreePrompt(issue: Issue, api = "rove api"): string {
   return buildIssueWorktreePrompt(issue, api, displayProductName())
 }

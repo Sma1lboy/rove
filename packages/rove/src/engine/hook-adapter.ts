@@ -2,7 +2,7 @@
  * Neutral seam for engine activity hooks, so activity (turn started/finished,
  * rate-limited, waiting on a permission) arrives as events, not polling. The
  * adapter writes whatever its engine reads (Claude's `.claude/settings.json`,
- * Codex's `hooks.json`, …), pointing each hook at `kobe hook <verb>`
+ * Codex's `hooks.json`, …), pointing each hook at `rove hook <verb>`
  * ({@link ./hook-events}); the hook reports its `cwd` and the daemon maps it to
  * a task (`daemon/cwd-task.ts`). A new engine is a new adapter file; neutral
  * code never names a vendor.
@@ -40,7 +40,7 @@ export interface EngineHookAdapter {
   /**
    * Map the vendor's stdin payload to {@link EngineActivityDetail}. Undefined
    * when there is nothing for this verb or the payload isn't this engine's:
-   * the hook command carries no vendor id, so `kobe hook` takes the first
+   * the hook command carries no vendor id, so `rove hook` takes the first
    * non-undefined answer across adapters. Pure; must never throw.
    */
   activityDetailFromPayload(
@@ -50,7 +50,7 @@ export interface EngineHookAdapter {
   /**
    * Engine session identity from a hook payload (Claude sends `session_id` +
    * `transcript_path` on every hook). The daemon stores it per (task, tab?),
-   * covering sessions kobe didn't spawn (a user-typed `claude`, via the cwd
+   * covering sessions rove didn't spawn (a user-typed `claude`, via the cwd
    * map). Same first-non-undefined dispatch as
    * {@link activityDetailFromPayload}. Pure; must never throw.
    */
@@ -67,7 +67,7 @@ export interface EngineHookAdapter {
   isUnattendedSession?(env: NodeJS.ProcessEnv): boolean
   /**
    * Install activity hooks into a shared settings file so every session
-   * reports via `kobe hook <verb>`. Must be idempotent (skips the write when
+   * reports via `rove hook <verb>`. Must be idempotent (skips the write when
    * in place), merge-safe (keeps the user's hooks), and never throw fatally.
    * Returns whether the merge reached the file: a refusal (unparseable
    * document) doesn't fail the launch, but hooks stay uninstalled and badges
@@ -93,7 +93,7 @@ export interface EngineHookAdapter {
    * adopts worktrees on session-start instead.
    */
   supportsWorktreeSync(): boolean
-  /** Remove kobe's `WorktreeCreate` hook; keeps the user's. Idempotent; no-op when unsupported. */
+  /** Remove rove's `WorktreeCreate` hook; keeps the user's. Idempotent; no-op when unsupported. */
   removeWorktreeSyncHook(settingsFilePath: string): Promise<void>
 
   /**
@@ -105,7 +105,7 @@ export interface EngineHookAdapter {
 
   /**
    * The directory the payload is about, when the engine doesn't spell it
-   * `cwd`. `kobe hook` otherwise reads `payload.cwd`, then `process.cwd()`;
+   * `cwd`. `rove hook` otherwise reads `payload.cwd`, then `process.cwd()`;
    * cursor-agent runs hooks in `~/.cursor` with the workspace in
    * `workspace_roots[0]`, so without this every cursor hook maps to no task.
    * Optional; pure; must never throw.

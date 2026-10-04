@@ -61,7 +61,7 @@ export const en = {
   },
   unavailable: {
     // The PTY host resolves its shell from `$SHELL` alone (`resolveLoginShell`
-    // in kobe-daemon) — there is no Settings row for it, so `$SHELL` is the
+    // in rove-daemon) — there is no Settings row for it, so `$SHELL` is the
     // only place a user can act.
     shellMissing:
       "terminal unavailable — the shell named by $SHELL isn't on this machine. Point $SHELL at one that exists, or unset it to fall back to the system default.",

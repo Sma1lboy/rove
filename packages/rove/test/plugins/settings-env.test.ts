@@ -18,7 +18,7 @@ afterEach(() => {
 
 describe("plugin settings env store", () => {
   it("round-trips values, preserves unrelated lines, removes on empty", () => {
-    const home = tmp("kobe-senv-")
+    const home = tmp("rove-senv-")
     mkdirSync(pluginConfigDir("p", home), { recursive: true })
     writeFileSync(join(pluginConfigDir("p", home), ".env"), "# keep me\nOTHER=x\nK_MODE=old\n")
     writePluginSettings("p", { K_MODE: "ascii", K_FPS: "24" }, home)
@@ -31,13 +31,13 @@ describe("plugin settings env store", () => {
 
 describe("findFileHandler", () => {
   it("routes matching files to the first enabled plugin's action", () => {
-    const home = tmp("kobe-fh-home-")
-    const root = tmp("kobe-fh-root-")
+    const home = tmp("rove-fh-home-")
+    const root = tmp("rove-fh-root-")
     writeFileSync(
-      join(root, "kobe-plugin.toml"),
-      'id = "v"\nname = "V"\nversion = "1.0.0"\nmin_kobe_version = "0.1.0"\n[[actions]]\nid = "open"\ntitle = "O"\ncommand = ["true"]\n[[file_handlers]]\npattern = "\\\\.(mp4|mov)$"\naction = "open"',
+      join(root, "rove-plugin.toml"),
+      'id = "v"\nname = "V"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"\n[[actions]]\nid = "open"\ntitle = "O"\ncommand = ["true"]\n[[file_handlers]]\npattern = "\\\\.(mp4|mov)$"\naction = "open"',
     )
-    mkdirSync(join(home, ".kobe"), { recursive: true })
+    mkdirSync(join(home, ".rove"), { recursive: true })
     savePluginRegistry(
       { plugins: [{ id: "v", source: { kind: "link" }, root, enabled: true, version: "1", installedAt: 1 }] },
       home,

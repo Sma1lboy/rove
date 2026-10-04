@@ -14,7 +14,7 @@ import { WorktreesPage } from "../../src/tui-react/component/worktrees-page"
 import { renderComponent } from "./harness"
 
 const ROW = {
-  repo: "/x/kobe",
+  repo: "/x/rove",
   path: "/x/wt/feature-a",
   branch: "feature-a",
   head: "abc1234",
@@ -29,7 +29,7 @@ const ROW = {
 
 function orchestrator(removeWorktree: (path: string, force: boolean) => Promise<void>) {
   return {
-    listWorktrees: async () => [{ repo: "/x/kobe", worktrees: [ROW] }],
+    listWorktrees: async () => [{ repo: "/x/rove", worktrees: [ROW] }],
     listTasks: () => [],
     removeWorktree,
   } as never

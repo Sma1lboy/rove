@@ -24,7 +24,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterAll, describe, expect, it, vi } from "vitest"
 
-const tmpHome = mkdtempSync(path.join(tmpdir(), "kobe-hist-home-"))
+const tmpHome = mkdtempSync(path.join(tmpdir(), "rove-hist-home-"))
 
 vi.mock("node:os", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:os")>()
@@ -299,7 +299,7 @@ describe("copilot history (real default deps)", () => {
       mkdirSync(path.join(tmpHome, ".copilot", "session-state", "s1"), { recursive: true })
       await expect(copilotListSessionDirs()).resolves.toEqual([path.join(tmpHome, ".copilot", "session-state", "s1")])
 
-      const override = mkdtempSync(path.join(tmpdir(), "kobe-copilot-home-"))
+      const override = mkdtempSync(path.join(tmpdir(), "rove-copilot-home-"))
       try {
         process.env.COPILOT_HOME = override
         mkdirSync(path.join(override, "session-state", "s2"), { recursive: true })

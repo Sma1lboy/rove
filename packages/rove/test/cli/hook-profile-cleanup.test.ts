@@ -13,7 +13,7 @@ describe("global legacy hook cleanup", () => {
     const defaultFile = path.join(home, ".claude/settings.json")
     const selectedFile = path.join(profile, "settings.json")
     const explicitFile = path.join(home, "repo/.claude/settings.json")
-    const own = { type: "command", command: "kobe hook worktree-created" }
+    const own = { type: "command", command: "rove hook worktree-created" }
     const user = { type: "command", command: "echo worktree-created", timeout: 9 }
     const raw = JSON.stringify({
       user: true,

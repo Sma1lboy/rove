@@ -2,7 +2,7 @@
  * Claude Code on-disk / stream-json content blocks → neutral {@link ContentBlock}.
  *
  * Drop-list (silently elided from output):
- *   - `image` blocks (kobe doesn't render images yet)
+ *   - `image` blocks (rove doesn't render images yet)
  *   - `redacted_thinking` (no usable text)
  *   - any unknown block type
  */

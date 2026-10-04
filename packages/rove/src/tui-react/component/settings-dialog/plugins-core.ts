@@ -194,7 +194,7 @@ export function setPluginSetting(pluginId: string, key: string, value: string, h
 
 /**
  * The daemon file-watches plugins.json, so no restart there. Engine
- * contributions are kobe-process state, so this TUI's engine table is re-read
+ * contributions are rove-process state, so this TUI's engine table is re-read
  * too, or the selector stays stale until restart.
  */
 export function setPluginEnabled(id: string, enabled: boolean, homeDir?: string): void {

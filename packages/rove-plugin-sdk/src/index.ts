@@ -3,7 +3,6 @@ export { readSettings, setting } from "./settings.ts"
 export {
   rove,
   roveJson,
-  kobe,
   notify,
   dispatch,
   listTasks,

@@ -1,6 +1,6 @@
 /**
- * `<home>/.rove/plugins.json` (legacy `.kobe/` when only that exists) — the
- * user-global installed/linked plugin registry. Written whole by the `kobe
+ * `<home>/.rove/plugins.json` (legacy `.rove/` when only that exists) — the
+ * user-global installed/linked plugin registry. Written whole by the `rove
  * plugin` CLI on every mutation; stat-polled by the daemon's plugin runtime.
  */
 
@@ -46,7 +46,7 @@ export function loadPluginRegistry(homeDir?: string): PluginRegistry {
 
 /**
  * A managed checkout's absolute `root` can still name the pre-migration
- * `.kobe` tree after the checkout moved to `.rove`; re-anchor it onto the
+ * `.rove` tree after the checkout moved to `.rove`; re-anchor it onto the
  * canonical dir (the next save persists it). Linked roots are left as-is.
  */
 function withCanonicalRoot(entry: PluginRegistryEntry, homeDir?: string): PluginRegistryEntry {

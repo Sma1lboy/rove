@@ -15,7 +15,6 @@
     "./client/pty-process": "./src/client/pty-process.ts",
     "./client/rpc": "./src/client/rpc.ts",
     "./daemon/activity-arbitrate": "./src/daemon/activity-arbitrate.ts",
-    "./daemon/compat-link": "./src/daemon/compat-link.ts",
     "./daemon/pty-data-migration": "./src/daemon/pty-data-migration.ts",
     "./daemon/agent-turns-ingest": "./src/daemon/agent-turns-ingest.ts",
     "./daemon/agent-turns-store": "./src/daemon/agent-turns-store.ts",
@@ -102,7 +101,8 @@
     "./prompts/issue-prompts": "./src/prompts/issue-prompts.ts",
     "./prompts/observed-language": "./src/prompts/observed-language.ts",
     "./daemon/terminal-rows": "./src/daemon/terminal-rows.ts",
-    "./daemon/ticker": "./src/daemon/ticker.ts"
+    "./daemon/ticker": "./src/daemon/ticker.ts",
+    "./daemon/pre-rename-runtime": "./src/daemon/pre-rename-runtime.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

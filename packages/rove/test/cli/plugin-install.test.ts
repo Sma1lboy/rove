@@ -158,12 +158,12 @@ describe("plugin manifest diagnostics", () => {
       if (command === "git") {
         const checkout = args.at(-1) as string
         writeFileSync(
-          join(checkout, "kobe-plugin.toml"),
+          join(checkout, "rove-plugin.toml"),
           [
             'id = "managed.plugin"',
             'name = "Managed"',
             'version = "2.0.0"',
-            'min_kobe_version = "0.1.0"',
+            'min_rove_version = "0.1.0"',
             "[[build]]",
             'command = ["build-plugin"]',
           ].join("\n"),
@@ -268,7 +268,7 @@ describe("staged install", () => {
     vi.stubEnv("ROVE_HOME_DIR", home)
     mocks.spawn.mockImplementation(() => fakeChild(0))
 
-    await expect(preparePluginInstall("owner/repo")).rejects.toThrow(/no rove-plugin\.toml or kobe-plugin\.toml/)
+    await expect(preparePluginInstall("owner/repo")).rejects.toThrow(/no rove-plugin\.toml or rove-plugin\.toml/)
     expect(readdirSync(pluginsRootDir(home)).filter((e) => e.startsWith(".staging-"))).toEqual([])
   })
 })

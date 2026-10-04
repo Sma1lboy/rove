@@ -24,7 +24,7 @@ import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.
  * file is the whole registration.
  */
 function withPreset(): void {
-  const home = mkdtempSync(join(tmpdir(), "kobe-api-effort-"))
+  const home = mkdtempSync(join(tmpdir(), "rove-api-effort-"))
   presetHomes.push(home)
   const dir = join(home, ".config", "rove")
   mkdirSync(dir, { recursive: true })

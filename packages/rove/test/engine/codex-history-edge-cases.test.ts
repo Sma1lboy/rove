@@ -410,7 +410,7 @@ describe("deleteHistory (real temp rollout tree)", () => {
   })
 
   async function realDeps(): Promise<{ deps: HistoryDeps; file: string }> {
-    tmpRoot = await mkdtemp(path.join(tmpdir(), "kobe-codex-sessions-"))
+    tmpRoot = await mkdtemp(path.join(tmpdir(), "rove-codex-sessions-"))
     const dayDir = path.join(tmpRoot, "2026", "01", "01")
     await mkdir(dayDir, { recursive: true })
     const fname = `rollout-2026-01-01T00-00-00-${SID}.jsonl`

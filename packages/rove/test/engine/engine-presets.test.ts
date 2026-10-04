@@ -29,7 +29,7 @@ function writeState(state: Record<string, unknown>): void {
 }
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "kobe-engine-presets-"))
+  home = mkdtempSync(join(tmpdir(), "rove-engine-presets-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = home
   writeState({})
@@ -121,7 +121,7 @@ describe("fork through a declared protocol", () => {
     ])
   })
 
-  it("still refuses a preset with no declared protocol — kobe knows no verb for it", () => {
+  it("still refuses a preset with no declared protocol — rove knows no verb for it", () => {
     writeState({ customEngineIds: ["mystery"], "engineCommand.mystery": "mystery-cli" })
     expect(engineCanFork("mystery")).toBe(false)
     expect(engineForkArgv(["mystery-cli"], "mystery", "src")).toBeNull()

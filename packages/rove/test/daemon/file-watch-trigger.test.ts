@@ -38,7 +38,7 @@ let filePath: string
 let stop: (() => void) | null
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-fwt-"))
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "rove-fwt-"))
   filePath = path.join(tmpDir, "state.json")
   stop = null
 })

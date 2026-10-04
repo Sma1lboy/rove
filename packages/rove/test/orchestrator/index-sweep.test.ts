@@ -21,7 +21,7 @@ function age(path: string, minutes: number): void {
 }
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "kobe-index-sweep-"))
+  dir = mkdtempSync(join(tmpdir(), "rove-index-sweep-"))
 })
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true })

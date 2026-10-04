@@ -4,23 +4,23 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
 import {
-  ROVE_SKILL_VERSION,
   NPX_MISSING_EXIT,
+  ROVE_SKILL_VERSION,
   bundledSkillDir,
   installedSkillDirs,
   isNpxMissing,
-  roveSkillPaths,
-  roveSkillState,
   npxSkillsArgv,
   npxSkillsCommand,
   parseSkillVersion,
+  roveSkillPaths,
+  roveSkillState,
   runNpxSkillsInstall,
   skillInstallCommand,
 } from "../../src/lib/skill-install.ts"
 
 const dirs: string[] = []
 function tempDir(): string {
-  const d = mkdtempSync(join(tmpdir(), "kobe-skill-"))
+  const d = mkdtempSync(join(tmpdir(), "rove-skill-"))
   dirs.push(d)
   return d
 }
@@ -53,9 +53,9 @@ describe("roveSkillPaths", () => {
 
 describe("npxSkillsArgv / npxSkillsCommand", () => {
   it("names NO agent by default — the agent-skills CLI detects and asks", () => {
-    // kobe deliberately owns no agent registry: ~75 agents, each with its own
+    // rove deliberately owns no agent registry: ~75 agents, each with its own
     // skills dir and symlink rules. Passing an agent here would freeze that
-    // list into kobe.
+    // list into rove.
     expect(npxSkillsArgv({ source: "/bundled" })).toEqual(["skills", "add", "/bundled", "--skill", "rove", "--global"])
     expect(npxSkillsArgv({ source: "/bundled" })).not.toContain("--agent")
   })
@@ -88,14 +88,14 @@ describe("npxSkillsArgv / npxSkillsCommand", () => {
 describe("skillInstallCommand", () => {
   it("follows the invoked canonical or compatibility entry", () => {
     expect(skillInstallCommand({ ROVE_INVOKED_AS: "rove" })).toBe("rove skill install")
-    expect(skillInstallCommand({ ROVE_INVOKED_AS: "kobe" })).toBe("kobe skill install")
+    expect(skillInstallCommand({ ROVE_INVOKED_AS: "rove" })).toBe("rove skill install")
   })
 })
 
 describe("skill version / staleness", () => {
   it("parses canonical and legacy skill-version markers", () => {
     expect(parseSkillVersion("<!-- rove-skill-version: 4 -->\n# x")).toBe(4)
-    expect(parseSkillVersion("<!-- kobe-skill-version: 3 -->\n# x")).toBe(3)
+    expect(parseSkillVersion("<!-- rove-skill-version: 3 -->\n# x")).toBe(3)
     expect(parseSkillVersion("no marker here")).toBeNull()
   })
 
@@ -109,17 +109,17 @@ describe("skill version / staleness", () => {
     expect(source).not.toContain("${ROVE_TASK_ID:-}")
   })
 
-  it("roveSkillState: a leftover kobe copy is reported beside a current rove one", () => {
-    // Agents load every skill directory they find, so the stale `kobe` copy
+  it("roveSkillState: a leftover rove copy is reported beside a current rove one", () => {
+    // Agents load every skill directory they find, so the stale `rove` copy
     // keeps teaching an old `api` surface however green the rove copy is.
     // Reporting the first path found hid it completely.
     const home = tempDir()
-    mkdirSync(join(home, ".agents/skills/kobe"), { recursive: true })
-    writeFileSync(join(home, ".agents/skills/rove/SKILL.md"), `<!-- kobe-skill-version: ${ROVE_SKILL_VERSION - 5} -->`)
+    mkdirSync(join(home, ".agents/skills/rove"), { recursive: true })
+    writeFileSync(join(home, ".agents/skills/rove/SKILL.md"), `<!-- rove-skill-version: ${ROVE_SKILL_VERSION - 5} -->`)
     // The agent-skills CLI symlinks the agent dir at the shared copy — one
     // file, one warning, not two.
     mkdirSync(join(home, ".claude/skills"), { recursive: true })
-    symlinkSync(join(home, ".agents/skills/kobe"), join(home, ".claude/skills/kobe"))
+    symlinkSync(join(home, ".agents/skills/rove"), join(home, ".claude/skills/rove"))
     mkdirSync(join(home, ".agents/skills/rove"), { recursive: true })
     writeFileSync(join(home, ".agents/skills/rove/SKILL.md"), `<!-- rove-skill-version: ${ROVE_SKILL_VERSION} -->`)
 
@@ -128,12 +128,12 @@ describe("skill version / staleness", () => {
     expect(state.legacyCopies).toEqual([
       { path: join(home, ".agents/skills/rove/SKILL.md"), version: ROVE_SKILL_VERSION - 5 },
     ])
-    expect(installedSkillDirs(home)).toEqual([join(home, ".agents/skills/rove"), join(home, ".agents/skills/kobe")])
+    expect(installedSkillDirs(home)).toEqual([join(home, ".agents/skills/rove"), join(home, ".agents/skills/rove")])
   })
 
-  it("roveSkillState: a kobe-only install reports no duplicate — it IS the install", () => {
+  it("roveSkillState: a rove-only install reports no duplicate — it IS the install", () => {
     const home = tempDir()
-    installSkillUnder(home, `<!-- kobe-skill-version: ${ROVE_SKILL_VERSION} -->`, "kobe")
+    installSkillUnder(home, `<!-- rove-skill-version: ${ROVE_SKILL_VERSION} -->`, "rove")
     expect(roveSkillState({ home, cwd: tempDir() })).toMatchObject({ installed: true, legacyCopies: [] })
   })
 })

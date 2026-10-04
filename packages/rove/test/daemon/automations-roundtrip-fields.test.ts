@@ -65,7 +65,7 @@ const BOUND: DeepRequired<Pick<Automation, "target">> = {
 }
 
 function tempPath(): string {
-  return join(mkdtempSync(join(tmpdir(), "kobe-automations-fields-")), "automations.json")
+  return join(mkdtempSync(join(tmpdir(), "rove-automations-fields-")), "automations.json")
 }
 
 describe("Automation field round-trip", () => {

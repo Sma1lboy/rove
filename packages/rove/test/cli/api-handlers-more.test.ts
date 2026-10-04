@@ -1,5 +1,5 @@
 /**
- * `kobe api` verb handlers not covered by api-handlers.test.ts: the leveled
+ * `rove api` verb handlers not covered by api-handlers.test.ts: the leveled
  * schema drill-ins (--verb / --group), the simple-RPC edit verbs (rename /
  * set-branch / set-command / set-status / pin), the issue verbs, and the
  * dispatch / note delivery verbs — plus the VerbArgs coercion errors that

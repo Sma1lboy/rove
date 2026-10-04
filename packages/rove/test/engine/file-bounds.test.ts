@@ -7,7 +7,7 @@ import { readTextFileBounded, readTextFileSyncBounded } from "../../src/engine/f
 describe("file-bounds", () => {
   let dir: string
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), "kobe-file-bounds-"))
+    dir = await mkdtemp(join(tmpdir(), "rove-file-bounds-"))
   })
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true })
