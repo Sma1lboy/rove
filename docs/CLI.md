@@ -488,3 +488,6 @@ runtime names. Until the next minor release, clients can reattach to a live
 pre-rename host after the canonical connection fails. The old host retains its
 boot-time code and endpoint until it exits or you run `rove reset`.
 State migration never overwrites canonical data or creates legacy links.
+After import, non-live source files move to canonical paths or, when those
+paths already exist, to `.rove/migration-conflicts/`. Live runtime files and
+existing Git worktrees retain their addresses; cleanup retries at daemon startup.

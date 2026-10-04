@@ -28,3 +28,8 @@ ROVE_SANDBOX_HOME_DIR=/private/tmp/rove-rename-proof/home bun run dev:sandbox ap
 The before/after raw responses are included in the PR evidence comments.
 Production Rove state was not used. The canonical-first attachment socket
 test also checks an existing pre-rename endpoint and canonical preference.
+
+`retirement-proof.json` adds an upgrade with conflicting pre-rename state.
+The same live release host and engine survive; canonical bytes stay unchanged,
+conflicting source bytes are archived, and the unoccupied retired directory
+is removed. Existing Git worktrees and live runtime paths are protected.

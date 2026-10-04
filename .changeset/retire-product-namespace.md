@@ -35,3 +35,5 @@ VISUAL_KEEP, VISUAL_MIN_PATH, VISUAL_PORT_BASE, WEB_HOST, WEB_PORT, WORKTREE_ROO
 Temporary compatibility, remove next minor: the internal `LEGACY_PRE_RENAME_RUNTIME_NAME` constant permits attachment to already-running pre-rename PTY hosts and access to their existing state. Canonical endpoints are tried first. Nothing creates a legacy listener or compatibility symlink. The running PTY host retains its boot-time build and sessions until it exits or `rove reset` runs.
 
 Deployment owners must change the docs and landing Vercel projects' Root Directory settings to `packages/rove-docs` and `packages/rove-landing` respectively. Dashboard settings are not changed by this patch.
+
+After import, non-live sources move out of the retired state directories. Conflicting bytes are preserved under `.rove/migration-conflicts`; live runtime files and existing Git worktrees retain their addresses. Retirement retries independently of import markers.

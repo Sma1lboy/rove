@@ -34,14 +34,14 @@ afterEach(() => {
 })
 
 describe("migrateRoveStateLayout", () => {
-  test("copies product data without moving legacy files or copying compatibility-only roots", () => {
+  test("retires imported files while preserving Git worktrees and isolating stale runtime addresses", () => {
     root = mkdtempSync(join(tmpdir(), "rove-layout-"))
     write(`${preRenameStateDir("")}/tasks.json`, "legacy tasks")
     write(`${preRenameStateDir("")}/settings/keybindings.yaml`, "ctrl+x: task.close")
     write(`${preRenameStateDir("")}/issues.json`, "legacy issues")
     write(`${preRenameStateDir("")}/worktrees/repo/task/file`, "worktree")
     write(`${preRenameStateDir("")}/plugins/demo/state/value`, "plugin")
-    write(`${preRenameStateDir("")}/daemon.pid`, "123")
+    write(`${preRenameStateDir("")}/daemon.sock`, "stale socket")
     write(`${preRenameConfigDir("")}/state.json`, "legacy prefs")
 
     const result = migrateRoveStateLayout({ ROVE_HOME_DIR: root })
@@ -52,9 +52,10 @@ describe("migrateRoveStateLayout", () => {
     expect(readFileSync(join(root, ".rove/issues.json"), "utf8")).toBe("legacy issues")
     expect(readFileSync(join(root, ".config/rove/state.json"), "utf8")).toBe("legacy prefs")
     expect(existsSync(join(root, ".rove/worktrees"))).toBe(false)
-    expect(existsSync(join(root, ".rove/plugins"))).toBe(false)
+    expect(readFileSync(join(root, ".rove/plugins/demo/state/value"), "utf8")).toBe("plugin")
     expect(existsSync(join(root, ".rove/daemon.pid"))).toBe(false)
-    expect(readFileSync(join(root, `${preRenameStateDir("")}/tasks.json`), "utf8")).toBe("legacy tasks")
+    expect(existsSync(join(preRenameStateDir(root), "tasks.json"))).toBe(false)
+    expect(readFileSync(join(root, ".rove/migration-conflicts/state/tasks.json"), "utf8")).toBe("legacy tasks")
   })
 
   test("never overwrites canonical files and does not repeat a completed migration", () => {
@@ -68,8 +69,9 @@ describe("migrateRoveStateLayout", () => {
     expect(readFileSync(join(root, ".rove/settings/keybindings.yaml"), "utf8")).toBe("legacy keys")
 
     write(`${preRenameStateDir("")}/issues.json`, "added too late")
+    expect(migrateRoveStateLayout({ ROVE_HOME_DIR: root })).toEqual({ attempted: true, copied: 0, warnings: [] })
+    expect(readFileSync(join(root, ".rove/issues.json"), "utf8")).toBe("added too late")
     expect(migrateRoveStateLayout({ ROVE_HOME_DIR: root })).toEqual({ attempted: false, copied: 0, warnings: [] })
-    expect(existsSync(join(root, ".rove/issues.json"))).toBe(false)
   })
 
   test("defers daemon-owned files until daemon startup so the latest legacy write wins", () => {

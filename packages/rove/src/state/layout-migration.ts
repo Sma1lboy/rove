@@ -1,4 +1,5 @@
 import { preRenameConfigDir, preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
+import { retirePreRenameLayout } from "./retire-layout.ts"
 /** Safe, additive migration from the legacy rove data layout to Rove. */
 
 import { randomUUID } from "node:crypto"
@@ -276,10 +277,14 @@ export function migrateRoveClientStateLayout(env: NodeJS.ProcessEnv = process.en
 export function migrateRoveDaemonStateLayout(env: NodeJS.ProcessEnv = process.env): StateLayoutMigrationResult {
   const state = migrateStateEntries(DAEMON_STATE_ENTRIES, DAEMON_MIGRATION_MARKER, false, env)
   const plugins = migrateLegacyPluginTree(env)
+  const retirement =
+    state.warnings.length + plugins.warnings.length === 0
+      ? retirePreRenameLayout(readRoveHomeDirEnv(env) ?? homedir())
+      : { retired: 0, warnings: [] }
   return {
-    attempted: state.attempted || plugins.attempted,
+    attempted: state.attempted || plugins.attempted || retirement.retired > 0,
     copied: state.copied + plugins.copied,
-    warnings: [...state.warnings, ...plugins.warnings],
+    warnings: [...state.warnings, ...plugins.warnings, ...retirement.warnings],
   }
 }
 
