@@ -36,7 +36,7 @@ export interface SidebarHostState {
 }
 
 /** The order `t` walks; `default` first so one press from anywhere returns to the resting sort. */
-const SORT_MODE_CYCLE: readonly TaskSortMode[] = ["default", "recent", "attention"]
+const SORT_MODE_CYCLE: readonly TaskSortMode[] = ["default", "recent", "attention", "name"]
 
 /** A persisted value this build doesn't know reads as the resting sort — the
  *  stored string is shared with older/newer builds through `state.json`. */

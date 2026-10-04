@@ -358,9 +358,11 @@ discoverable. No restart needed.
 
 The current tree sidebar follows persisted project/task order and supports
 manual project reordering with `shift+m`. The `t` key cycles the task sort
-through three orders — the persisted one, most-recently-touched, and
-`attention` (tasks blocked on you first, then ones whose turn landed unread,
-most-recently-touched inside each group). The choice is saved as
+through four orders — the persisted one, most-recently-touched, `attention`
+(tasks blocked on you first, then ones whose turn landed unread,
+most-recently-touched inside each group), and `name` (A→Z by title, ignoring
+case, with numbers in numeric order so `task 2` comes before `task 10`).
+Projects keep their own order in every mode. The choice is saved as
 `activeSortMode` and read back on startup; a value this build does not
 recognise reads as the persisted order. Older state files may contain
 `tasksPane.projectFilter`; the daemon still mirrors that compatibility value

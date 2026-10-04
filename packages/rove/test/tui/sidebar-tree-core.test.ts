@@ -176,6 +176,20 @@ describe("buildTreeRows", () => {
     expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["m", "newer", "older"])
   })
 
+  test("name sort orders worktrees A→Z, case-blind and numbers by value, main still first", () => {
+    const result = rows({
+      sortMode: "name",
+      tasks: [
+        task("t10", { title: "task 10" }),
+        task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove", title: "zz main" }),
+        task("beta", { title: "beta" }),
+        task("t2", { title: "Task 2" }),
+        task("alpha", { title: "Alpha" }),
+      ],
+    })
+    expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["m", "alpha", "beta", "t2", "t10"])
+  })
+
   test("attention sort floats blocked worktrees, then unread completions", () => {
     // All three touched at the SAME instant, so only the derived group can
     // order them — an age-only sort would leave the input order.

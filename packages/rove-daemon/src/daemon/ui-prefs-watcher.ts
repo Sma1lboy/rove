@@ -73,7 +73,9 @@ export function readUiPrefsFromStateFile(statePath: string): UiPrefsPayload {
       : null
   // Mirror of the TUI's `TaskSortMode` union; anything else is `default`.
   const sortMode =
-    parsed.activeSortMode === "recent" || parsed.activeSortMode === "attention" ? parsed.activeSortMode : "default"
+    parsed.activeSortMode === "recent" || parsed.activeSortMode === "attention" || parsed.activeSortMode === "name"
+      ? parsed.activeSortMode
+      : "default"
   // Tasks-pane keys legend fold: only an explicit `true` collapses.
   const keysCollapsed = parsed["tasksPane.keysCollapsed"] === true
   const projectFilter =

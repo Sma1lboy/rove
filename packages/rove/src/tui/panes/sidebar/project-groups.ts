@@ -14,6 +14,7 @@ import type { Task } from "@/types/task"
 import {
   type LabelledRepo,
   type TaskSortMode,
+  compareName,
   compareRecent,
   sidebarProjectKeyOfTask,
   sidebarProjectLabel,
@@ -127,7 +128,9 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
       ? compareRecent
       : sortMode === "attention"
         ? compareTaskGroup(input.activityOf ?? (() => undefined))
-        : null
+        : sortMode === "name"
+          ? compareName
+          : null
 
   // Scratch tasks never mint a project header — their cwd is temporary, so it
   // would name a home they don't have. One Scratch section above all projects.

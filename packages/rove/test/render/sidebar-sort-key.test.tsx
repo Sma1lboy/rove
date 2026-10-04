@@ -62,17 +62,18 @@ function task(id: string, over: Partial<Task> = {}): Task {
 
 /**
  * One project whose regular worktrees sit in stored order by default. `aaa` is
- * the OLDEST and the one that is BLOCKED, so each of the three sorts puts the
- * two rows in a different, unambiguous order:
+ * the OLDEST, the one that is BLOCKED, and titled to sort LAST by name, so each
+ * stop of the cycle puts the two rows in an unambiguous order:
  *   default   aaa, zzz  (stored)
  *   recent    zzz, aaa  (zzz touched later)
  *   attention aaa, zzz  (aaa is stuck; zzz is quiet)
- * `default` and `attention` agree here, which is why the test walks the whole
- * cycle rather than sampling two of its three stops.
+ *   name      zzz, aaa  ("Apple" before "Zebra")
+ * Neighbouring stops always disagree, so walking the whole cycle proves each
+ * press advanced exactly one step.
  */
 const MAIN = task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" })
-const OLDER = task("aaa", { updatedAt: "2026-08-01T00:00:00.000Z" })
-const NEWER = task("zzz", { updatedAt: "2026-08-20T00:00:00.000Z" })
+const OLDER = task("aaa", { title: "Zebra", updatedAt: "2026-08-01T00:00:00.000Z" })
+const NEWER = task("zzz", { title: "Apple", updatedAt: "2026-08-20T00:00:00.000Z" })
 
 const BLOCKED: ReadonlyMap<string, TaskEngineState> = new Map([
   [OLDER.id, { state: "permission_needed", at: Date.now() }],
@@ -160,38 +161,29 @@ function orderOf(frame: string): number {
   return frame.indexOf("feat/aaa") - frame.indexOf("feat/zzz")
 }
 
-test("t cycles the sidebar through default → recent → attention", async () => {
+test("t cycles the sidebar through default → recent → attention → name", async () => {
   const { frame, mockInput } = await renderComponent(<SortHost />, {
     width: 28,
     height: 20,
     providers: { focus: true, dialog: true, kv: true },
   })
   await new Promise((r) => setTimeout(r, SETTLE))
+  const press = async (): Promise<number> => {
+    mockInput.typeText("t")
+    await new Promise((r) => setTimeout(r, SETTLE))
+    return orderOf(await frame())
+  }
 
   // Default sort keeps the stored order: aaa before zzz.
   expect(orderOf(await frame())).toBeLessThan(0)
-
-  // First press — recency: zzz (touched later) jumps above aaa.
-  mockInput.typeText("t")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  expect(orderOf(await frame())).toBeGreaterThan(0)
-
-  // Second press — attention: aaa is the blocked one, so it comes back to the
-  // top DESPITE being the older row. This is the stop a two-state toggle
-  // never reaches, and the reason the assertion above must be `recent`.
-  mockInput.typeText("t")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  expect(orderOf(await frame())).toBeLessThan(0)
-
-  // Third press wraps home rather than latching on the last mode.
-  mockInput.typeText("t")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  expect(orderOf(await frame())).toBeLessThan(0)
-
-  // …and a fourth reaches `recent` again, which is what proves the wrap
-  // landed on `default` rather than sticking at `attention` (the two render
-  // identically for this fixture).
-  mockInput.typeText("t")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  expect(orderOf(await frame())).toBeGreaterThan(0)
+  // Recency: zzz (touched later) jumps above aaa.
+  expect(await press()).toBeGreaterThan(0)
+  // Attention: aaa is the blocked one, so it returns to the top despite being older.
+  expect(await press()).toBeLessThan(0)
+  // Name: "Apple" (zzz) sorts above "Zebra" (aaa).
+  expect(await press()).toBeGreaterThan(0)
+  // Wraps home rather than latching on the last mode…
+  expect(await press()).toBeLessThan(0)
+  // …and the next press is `recent` again, so the wrap landed on `default`.
+  expect(await press()).toBeGreaterThan(0)
 })
