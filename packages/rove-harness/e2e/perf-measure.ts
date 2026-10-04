@@ -237,8 +237,10 @@ function compare(base: Record<string, number>): string[] {
   const failures: string[] = []
   const lines = ["| metric | baseline | now | Δ |", "| --- | ---: | ---: | ---: |"]
   for (const key of Object.keys({ ...base, ...metrics }).sort()) {
-    const was = base[key]
-    const now = metrics[key]
+    // A phase counter that never ticked is absent, not missing data: read it as 0.
+    const zero = /^(idle|switch|typing)\./.test(key) && !key.endsWith(".ms") ? 0 : undefined
+    const was = base[key] ?? zero
+    const now = metrics[key] ?? zero
     const floor = key.endsWith("-min")
     const timing = key.endsWith(".ms") || key.includes("-ms") || key.includes("-mb")
     let mark = ""
