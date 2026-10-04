@@ -422,10 +422,17 @@ function TerminalSession(props: TerminalProps) {
         </box>
       ) : null}
 
-      {/* The inline arrow is load-bearing, not an oversight: it re-attaches on
-          every render, which is what re-runs the geometry measurement until
-          Yoga has laid the box out. See `use-terminal-geometry.ts`. */}
-      <box ref={(r: BoxRenderable | null) => setBodyEl(r)} onSizeChange={bumpGeomTick} flexGrow={1} overflow="hidden">
+      {/* Until the first real measurement the inline arrow is load-bearing: it
+          re-attaches on every render, which re-runs the geometry measurement
+          until Yoga has laid the box out (see `use-terminal-geometry.ts`).
+          After that the stable setter stops each render from scheduling a
+          second one; `onSizeChange` and `dims` cover later resizes. */}
+      <box
+        ref={bodyGeometry ? setBodyEl : (r: BoxRenderable | null) => setBodyEl(r)}
+        onSizeChange={bumpGeomTick}
+        flexGrow={1}
+        overflow="hidden"
+      >
         {/* Body */}
         {pty ? (
           <box flexGrow={1} overflow="hidden" ref={setSnapshotGrid} />
