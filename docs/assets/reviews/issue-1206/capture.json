@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-10-04T22:31:50.865Z",
+  "build": {
+    "before": "6cb83b8e79be0bf367d57a7f769a29ac50b68768",
+    "after": "08981ed99d382879097b7bd2bf6868a12bd9d21d",
+    "replacedModule": "packages/rove/src/tui-react/component/use-kanban-boards.ts"
+  },
+  "capture": "/harness -> xterm.js -> node-pty sidecar -> Bun -> real OpenTUI KanbanPage",
+  "fixture": "Three Windows-shaped repository roots; active/focused task T1; linked story 7; no saved repos. Fixed orchestrator responses; no native Windows filesystem or live daemon.",
+  "theme": "claude, dark, opaque",
+  "vitePid": 45230,
+  "metadata": [
+    {
+      "state": "before",
+      "viewport": "1280x800",
+      "dpr": 1,
+      "sidecarPid": 45236,
+      "page": "http://localhost:5573/harness?run=issue-1206-before-1791153106491",
+      "expectedBoard": "alpha 1/6",
+      "screenshotSha256": "40dfc6415bd8ff0a2abdb8e9db73e426349160070f2ce2178ef0d99e4b2cb94a"
+    },
+    {
+      "state": "after",
+      "viewport": "1280x800",
+      "dpr": 1,
+      "sidecarPid": 45316,
+      "page": "http://localhost:5573/harness?run=issue-1206-after-1791153108893",
+      "expectedBoard": "orbit-sdk 2/3",
+      "screenshotSha256": "ab3aae89141bb5e55c78af8dd56c2d484b67defb3ad0250233e99d858342aa80"
+    }
+  ]
+}
