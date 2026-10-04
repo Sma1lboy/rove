@@ -684,7 +684,8 @@ phone-sized SSH sessions. Nothing changes at 70 columns or wider, and there
 is no setting: it follows the terminal width.
 
 - The task list and the workspace alternate: opening a task shows the
-  workspace full-width, `ctrl+q` returns to the list. No new chords.
+  workspace full-width. A `‹ Tasks` row at its top-left returns to the list,
+  by click or by the key it shows (`ctrl+q` by default). No new chords.
 - The first sidebar row is `↩ Recent: <task>`; `enter` drops you back into
   the task you were last working in, and it survives reconnects.
 - The files pane is hidden; the pane-cycle keys skip it.

@@ -19,6 +19,7 @@ import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
+import { isNarrowWidth } from "../lib/narrow-mode"
 import { PaneErrorBoundary } from "../lib/pane-error-boundary"
 import { RenderProfiler } from "../lib/render-profiler"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
@@ -36,6 +37,7 @@ import { useWorkspaceKeybindings } from "./host-keybindings"
 import { type BootDialogs, useHostPagesRender, useHostPagesState } from "./host-pages"
 import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
+import { NarrowBackBar } from "./narrow-back-bar"
 import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
 import { runningPaneFlow, runningPaneTitle } from "./running-pane-chrome"
@@ -401,6 +403,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           }
           onMouseUp={() => focus.setFocused("workspace")}
         >
+          {/* Narrow hides the sidebar; a null slot keeps the boundary's index stable across the breakpoint. */}
+          {isNarrowWidth(dims.width) ? <NarrowBackBar onBack={() => focus.setFocused("sidebar")} /> : null}
           {/* The rail swaps THIS pane, not the whole window — the task list on
             the left stays live, so selecting a task is how you get back to
             its terminal. */}
