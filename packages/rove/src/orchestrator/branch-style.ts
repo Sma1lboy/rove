@@ -127,12 +127,25 @@ export function deriveConventionBranch(title: string, style: BranchStyle, taskId
 /**
  * First free name among `base`, `base-2` … `base-99`; past that (taken-set
  * pathology) fall back to a short task-id suffix so allocation never fails.
+ *
+ * Git refs are files, so `fix` and `fix/login` can't coexist: a name that is
+ * a directory of a taken branch counts as taken, and a base nested under a
+ * taken branch is flattened (`fix/login` → `fix-login`), since no suffix on
+ * the leaf could free it.
  */
 export function uniqueBranchName(base: string, taken: ReadonlySet<string>, taskId: string): string {
-  if (!taken.has(base)) return base
-  for (let n = 2; n <= 99; n += 1) {
-    const candidate = `${base}-${n}`
-    if (!taken.has(candidate)) return candidate
+  const dirs = new Set<string>()
+  for (const name of taken) {
+    for (let i = name.indexOf("/"); i > 0; i = name.indexOf("/", i + 1)) dirs.add(name.slice(0, i))
   }
-  return `${base}-${taskId.slice(-6).toLowerCase()}`
+  const isFree = (name: string) => !taken.has(name) && !dirs.has(name)
+  const segments = base.split("/")
+  const nestedUnderTaken = segments.slice(0, -1).some((_, i) => taken.has(segments.slice(0, i + 1).join("/")))
+  const root = nestedUnderTaken ? segments.join("-") : base
+  if (isFree(root)) return root
+  for (let n = 2; n <= 99; n += 1) {
+    const candidate = `${root}-${n}`
+    if (isFree(candidate)) return candidate
+  }
+  return `${root}-${taskId.slice(-6).toLowerCase()}`
 }

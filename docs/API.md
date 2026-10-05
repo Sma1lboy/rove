@@ -505,7 +505,8 @@ replacement in `nextCommandArgs`.
   auto-derived from the title following the repo's own branch-naming
   convention (inferred from its existing local + origin branches, e.g.
   `feat/login-flow` in a type-prefixed repo, `login-flow` in a bare-slug or
-  empty repo; name collisions get a short `-2`/`-3` suffix). A title that
+  empty repo; name collisions get a short `-2`/`-3` suffix, and a name that
+  clashes with an existing branch's folder is skipped or flattened). A title that
   kebab-cases to nothing — written in a non-Latin script, or all emoji /
   punctuation — falls back to `task-<last 6 of the task id>`, so two such
   tasks get two distinct names instead of `task` and `task-2`.

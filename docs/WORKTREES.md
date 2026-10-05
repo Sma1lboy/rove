@@ -19,7 +19,9 @@ from the task title, following the repository's own naming convention: Rove
 scans the repo's existing branches (local + `origin`) and matches the
 dominant style: a type prefix like `feat/`/`fix/`/`chore/` when that's what
 the repo uses, or a bare kebab slug otherwise (also the fallback for an
-empty repo). Name collisions get a short `-2`/`-3` suffix. Generated names
+empty repo). Name collisions get a short `-2`/`-3` suffix, and a name that
+would clash with an existing branch's folder (`fix` beside `fix/login`, or
+`feat/x` beside `feat`) is skipped or flattened (`feat-x`). Generated names
 never contain Rove branding. An explicit `--branch` on creation,
 `set-branch` afterwards, and `b` on a task row in the sidebar override this
 entirely. A branch still on its `new-task` placeholder is renamed once,
