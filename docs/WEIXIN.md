@@ -168,7 +168,7 @@ the binding then keeps whatever base URL that server confirms. The repo ships a
 fake one for development:
 
 ```bash
-cd packages/kobe
+cd packages/rove
 PORT=18733 bun test/weixin/fake-ilink.ts &          # confirms any login
 ROVE_WEIXIN_BASE_URL=http://127.0.0.1:18733 bun dev:sandbox --name wx run weixin login
 bun dev:sandbox --name wx run daemon start &
