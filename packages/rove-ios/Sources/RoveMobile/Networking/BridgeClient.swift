@@ -84,8 +84,7 @@ final class BridgeClient {
     private func run(_ pairing: Pairing) async {
         var attempt = 0
         while !Task.isCancelled {
-            var req = URLRequest(url: pairing.url)
-            req.setValue("Bearer \(pairing.token)", forHTTPHeaderField: "Authorization")
+            let req = makeConnectRequest(pairing)
             let session = URLSession(configuration: .default)
             let task = session.webSocketTask(with: req)
             self.session = session
@@ -116,7 +115,7 @@ final class BridgeClient {
                 }
             } catch {
                 if (task.response as? HTTPURLResponse)?.statusCode == 401 {
-                    fatal = "Pairing token rejected (401). Re-pair with a fresh URL."
+                    fatal = ConnectRequest.unauthorizedMessage
                 }
             }
             if Task.isCancelled { return }

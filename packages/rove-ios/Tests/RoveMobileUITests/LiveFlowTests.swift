@@ -181,4 +181,25 @@ final class LiveFlowTests: XCTestCase {
         Thread.sleep(forTimeInterval: 2)
         checkpoint("12-phone-keys")
     }
+
+    /// Screenshot-only: Cloudflare preset with fake credentials. Needs ROVE_SHOT_DIR; never connects.
+    func testCloudflarePresetScreenshot() throws {
+        guard let dir = env["ROVE_SHOT_DIR"], !dir.isEmpty else { throw XCTSkip("ROVE_SHOT_DIR not set") }
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.launchArguments = ["-resetPairing"]
+        app.launch()
+
+        let field = waitFor(element("pairingField"), "pairing field")
+        field.tap()
+        field.typeText("wss://rove.example.com/?token=FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAK&preset=cf")
+        hideKeyboard()
+        let id = waitFor(element("cfClientId"), "CF client id field (preset auto-selected from URL)")
+        id.tap(); id.typeText("0123abcd.access")
+        hideKeyboard()
+        let secret = waitFor(element("cfClientSecret"), "CF secret field")
+        secret.tap(); secret.typeText("fake-secret-value")
+        hideKeyboard()
+        checkpoint("13-cloudflare-preset")
+    }
 }

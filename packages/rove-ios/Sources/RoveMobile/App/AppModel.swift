@@ -10,6 +10,8 @@ final class AppModel {
     private(set) var pairing: Pairing?
     /// Set when a task is created so the root stack can navigate to it.
     var path: [Route] = []
+    /// A pairing link that still needs input (e.g. Cloudflare Access credentials); PairingView prefills it.
+    var draftURL: String?
 
     init() {
         store = TaskStore(client: client)
@@ -23,7 +25,12 @@ final class AppModel {
     }
 
     func pair(text: String) throws {
-        let p = try PairingParser.parse(text)
+        try connect(try PairingParser.parse(text))
+    }
+
+    /// Validates, persists everything to the Keychain, and connects.
+    func connect(_ p: Pairing) throws {
+        try p.validate()
         keychain.save(p)
         pairing = p
         client.connect(p)
@@ -54,7 +61,9 @@ struct RoveMobileApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
-                .onOpenURL { url in try? model.pair(text: url.absoluteString) }
+                .onOpenURL { url in
+                    if (try? model.pair(text: url.absoluteString)) == nil { model.draftURL = url.absoluteString }
+                }
         }
     }
 }
