@@ -1,13 +1,15 @@
 /**
  * rove-bridge — the Mac-side WebSocket gateway for the Rove iOS client.
  *
- *   bun src/main.ts [--host <addr>]... [--port <n>] [--rotate-token]
+ *   bun src/main.ts [--preset tailscale|cf] [--port <n>] [--rotate-token]
  *
- * Off unless started. Listens on 127.0.0.1 by default; every other interface
- * (a LAN or Tailscale address, or 0.0.0.0) is an explicit `--host`.
+ * Off unless started. Listens on 127.0.0.1 by default. Remote access is one
+ * of two presets: a tailnet address (`--preset tailscale`) or a Cloudflare
+ * Tunnel guarded by Access (`--preset cf`). See README.md / docs/IOS.md.
  */
 
-import { networkInterfaces } from "node:os"
+import { spawnSync } from "node:child_process"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
@@ -19,29 +21,59 @@ import { ensurePluginEnginesLoaded } from "@sma1lboy/rove/src/engine/plugin-engi
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
 import { loadOrCreateToken, pairingUrl } from "./auth.ts"
-import { type BridgeArgs, parseBridgeArgs } from "./cli-args.ts"
+import { createAccessVerifier } from "./cf-access.ts"
+import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
 import { TaskFeed } from "./feed.ts"
 import { createRoveOps } from "./rove-ops.ts"
-import { startBridgeServer } from "./server.ts"
+import { type BridgeDeps, startBridgeServer } from "./server.ts"
 
 /** Re-read the list at least this often: group rules have time windows. */
 const TICK_MS = 15_000
 
-/** Addresses a phone can dial when bound to a wildcard; Tailscale first. */
-function reachableAddresses(): string[] {
-  const out: string[] = []
-  for (const list of Object.values(networkInterfaces())) {
-    for (const addr of list ?? []) {
-      if (addr.family === "IPv4" && !addr.internal) out.push(addr.address)
+/** The Mac App Store build ships its CLI inside the app bundle. */
+const TAILSCALE_BINARIES = ["tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale"]
+
+function tailscaleInfo(): TailscaleInfo {
+  for (const bin of TAILSCALE_BINARIES) {
+    const ip = spawnSync(bin, ["ip", "-4"], { encoding: "utf8", timeout: 5000 })
+    const ipv4 = ip.status === 0 ? (ip.stdout.split("\n")[0]?.trim() ?? "") : ""
+    if (!ipv4) continue
+    const status = spawnSync(bin, ["status", "--json"], { encoding: "utf8", timeout: 5000 })
+    let dnsName: string | null = null
+    try {
+      const self: unknown = JSON.parse(status.stdout).Self
+      if (self && typeof self === "object" && "DNSName" in self && typeof self.DNSName === "string") {
+        dnsName = self.DNSName.replace(/\.$/, "") || null
+      }
+    } catch {
+      // MagicDNS name is a nicety; the IP is enough to pair.
     }
+    return { ipv4, dnsName }
   }
-  return out.sort((a, b) => Number(b.startsWith("100.")) - Number(a.startsWith("100.")))
+  return { ipv4: null, dnsName: null }
+}
+
+function readConfig(path: string): BridgeConfig {
+  if (!existsSync(path)) return {}
+  const raw: unknown = JSON.parse(readFileSync(path, "utf8"))
+  if (!raw || typeof raw !== "object") throw new Error(`${path} must hold a JSON object`)
+  const fields = new Map<string, unknown>(Object.entries(raw))
+  const pick = (k: string): string | undefined => {
+    const v = fields.get(k)
+    return typeof v === "string" && v.trim() ? v.trim() : undefined
+  }
+  return { cfTeam: pick("cfTeam"), cfAud: pick("cfAud"), publicHost: pick("publicHost") }
 }
 
 async function main(): Promise<void> {
+  const home = resolveProductHomeDir()
+  const bridgeDir = join(home, ".rove", "bridge")
   let args: BridgeArgs
   try {
-    args = parseBridgeArgs(process.argv.slice(2))
+    args = parseBridgeArgs(process.argv.slice(2), {
+      config: readConfig(join(bridgeDir, "config.json")),
+      tailscale: tailscaleInfo,
+    })
   } catch (err) {
     console.error(`rove-bridge: ${err instanceof Error ? err.message : String(err)}`)
     process.exit(2)
@@ -53,8 +85,7 @@ async function main(): Promise<void> {
   Reflect.deleteProperty(process.env, "ROVE_TAB_ID")
   ensurePluginEnginesLoaded()
 
-  const home = resolveProductHomeDir()
-  const token = loadOrCreateToken(join(home, ".rove", "bridge", "token"), args.rotateToken)
+  const token = loadOrCreateToken(join(bridgeDir, "token"), args.rotateToken)
 
   const daemonSocket = await ensureDaemonReachable(undefined, "autospawn")
   await ensurePtyHostReachable()
@@ -79,29 +110,33 @@ async function main(): Promise<void> {
   setInterval(() => feed.poke(), TICK_MS)
 
   const ptySocket = defaultPtyHostSocketPath()
-  const deps = {
+  const deps: BridgeDeps = {
     token,
     ops,
     feed,
     openPty: () => new RoveDaemonClient(ptySocket),
     roveVersion: CURRENT_VERSION,
+    ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
   }
   const servers = args.hosts.map((hostname) => startBridgeServer(deps, { hostname, port: args.port }))
 
   console.log(`rove-bridge ${CURRENT_VERSION} — Rove home ${home}`)
   for (const server of servers) {
     const host = server.hostname ?? "127.0.0.1"
-    const dialable = host === "0.0.0.0" || host === "::" ? reachableAddresses() : [host]
+    const port = server.port ?? args.port
+    console.log(`listening on ${host}:${port}${args.preset === "none" ? "" : ` (preset ${args.preset})`}`)
     if (host === "0.0.0.0" || host === "::") {
-      console.log(`listening on ALL interfaces (${host}:${server.port}) — anyone on these networks can try the token`)
-    } else {
-      console.log(`listening on ${host}:${server.port}`)
+      console.log("  WARNING: all interfaces, plain ws:// — prefer --preset tailscale or --preset cf")
     }
-    for (const addr of dialable) {
-      const url = pairingUrl(addr, server.port ?? args.port, token)
-      console.log(`\npair: ${url}`)
-      if (args.qr) console.log(renderUnicodeCompact(url))
-    }
+    const url = pairingUrl({ host: args.publicHost ?? host, port, token, tls: args.tls, preset: args.preset })
+    console.log(`\npair: ${url}`)
+    if (args.qr) console.log(renderUnicodeCompact(url))
+  }
+  if (args.cloudflare) {
+    console.log(
+      `\nCloudflare Access: team ${args.cloudflare.teamDomain}, every connection needs a valid JWT for this AUD.`,
+    )
+    console.log(`Point the tunnel at http://127.0.0.1:${args.port} (e.g. ingress service for ${args.publicHost}).`)
   }
   console.log("\nThe pairing URL is a password. `--rotate-token` revokes every paired phone.")
 }

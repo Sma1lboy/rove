@@ -15,26 +15,33 @@ bun run --filter rove-bridge dev                        # the dev:sandbox home i
 bun run --filter rove-bridge dev -- --name ios          # a named sandbox home
 ```
 
-It prints a pairing URL (and a QR code) such as `ws://127.0.0.1:7878/?token=…`, then keeps running. It connects to the same daemon and PTY Host your TUI uses, starting them if they are down.
+It prints a pairing URL (and a QR code), then keeps running. It connects to the same daemon and PTY Host your TUI uses, starting them if they are down.
+
+With no flags it listens on `127.0.0.1` only, which reaches the Mac itself and the iOS Simulator. A real phone uses one of two presets. [`packages/rove-bridge/README.md`](../packages/rove-bridge/README.md) has the full setup for each, including the Cloudflare Tunnel and Access application.
+
+| Preset | Listens on | Phone dials | Transport security | Extra check |
+| --- | --- | --- | --- | --- |
+| `--preset tailscale` | the Mac's Tailscale IPv4 only (exits if there is none) | `ws://<MagicDNS name>:7878`, or `wss://` with `tailscale serve` + `--public-host` | WireGuard (plus TLS with `tailscale serve`) | — |
+| `--preset cf` | `127.0.0.1`, for `cloudflared` | `wss://<tunnel hostname>` | TLS to Cloudflare, then the tunnel | Cloudflare Access JWT (signature, issuer, AUD, expiry) |
+
+Plain `ws://` on a LAN (`--host <LAN address>`) still works, but it is not a supported way to reach the bridge remotely: the token and terminal output travel in cleartext.
 
 | Flag | Effect |
 | --- | --- |
-| `--host <addr>` | Interface to listen on. Repeatable. Default `127.0.0.1` only. |
+| `--preset tailscale` / `--preset cf` | See above. |
+| `--public-host <name>` | Hostname the phone dials over `wss://` (tunnel hostname, or a `tailscale serve` name). |
+| `--cf-team`, `--cf-aud` | Cloudflare Access team and application AUD tag; also readable from `<ROVE_HOME>/.rove/bridge/config.json`. |
+| `--host <addr>` | Without a preset: an explicit listen address. Repeatable. |
 | `--port <n>` | TCP port, default `7878`. |
 | `--rotate-token` | Mint a new token. Every paired phone must pair again. |
 | `--no-qr` | Print the URL without the QR code. |
 
-Loopback is only reachable from the Mac itself (and the iOS Simulator). For a real phone, pick one:
-
-- **Tailscale (recommended).** Install Tailscale on the Mac and the phone, then `--host 100.x.y.z` with the Mac's Tailscale address (`tailscale ip -4`). Traffic is WireGuard-encrypted end to end and works away from home.
-- **Same Wi-Fi.** `--host 192.168.1.20` with the Mac's LAN address. Traffic is plain `ws://`: anyone on that network can read it.
-- **`--host 0.0.0.0`** listens everywhere and prints one pairing URL per address. Use it only on networks you trust.
-
 ## Pair the phone
 
 1. Build and run the app (below), open **Settings**.
-2. Scan the QR code, or paste the URL. A `rove://pair?url=<percent-encoded URL>` link opens the app straight into pairing.
-3. The app stores the URL in the iOS Keychain and connects. It reconnects by itself when the Mac or the bridge comes back.
+2. Scan the QR code, or paste the URL, for example `wss://rove.example.com/?token=…&preset=cf`. A `rove://pair?url=<percent-encoded URL>` link opens the app straight into pairing. The preset in the URL selects the matching preset in the app.
+3. For **Cloudflare**, also fill in `CF-Access-Client-Id` and `CF-Access-Client-Secret` from your Access service token. Any preset can carry additional request headers.
+4. The app stores the endpoint, token, preset and headers in the iOS Keychain and connects. It sends the token as `Authorization: Bearer …`, never in the URL. It reconnects by itself when the Mac or the bridge comes back.
 
 The token lives in `<ROVE_HOME>/.rove/bridge/token` (mode 0600) and survives bridge restarts, so a paired phone stays paired. `--rotate-token` is the revoke button.
 
@@ -53,7 +60,10 @@ Engine names in the app come from Rove's engine registry through the bridge.
 
 ```mermaid
 flowchart LR
-  phone["Rove Mobile (SwiftUI + SwiftTerm)"] -- "ws:// + token" --> bridge["rove-bridge (Bun)"]
+  phone["Rove Mobile (SwiftUI + SwiftTerm)"] -- "WireGuard, Bearer token" --> tailnet["Tailscale tailnet"]
+  phone -- "wss, CF-Access-Client-Id/Secret, Bearer token" --> cf["Cloudflare Access + Tunnel"]
+  tailnet -- "tailnet IP only" --> bridge["rove-bridge (Bun)"]
+  cf -- "cloudflared → 127.0.0.1, Cf-Access-Jwt-Assertion" --> bridge
   bridge -- "unix socket, JSON lines (gui role)" --> daemon["Rove daemon"]
   bridge -- "unix socket, one per phone" --> pty["PTY Host"]
   tui["Rove TUI"] -- "unix socket" --> daemon
@@ -70,13 +80,14 @@ flowchart LR
 ## Security model
 
 - **Off by default.** Nothing listens until you run the bridge.
-- **Loopback by default.** Any other interface is an explicit `--host`.
-- **One bearer token.** 32 random bytes. It is checked with a constant-time compare at the WebSocket upgrade; a missing or wrong token gets HTTP 401 and no socket. Every later frame rides that authenticated socket.
+- **Loopback by default.** Remote access is `--preset tailscale` (tailnet address only) or `--preset cf` (loopback behind cloudflared); anything else is an explicit `--host`.
+- **One bearer token.** 32 random bytes, sent only as `Authorization: Bearer`; a token in the URL query is refused, so it never lands in proxy or tunnel logs. It is checked with a constant-time compare at the WebSocket upgrade; a missing or wrong token gets HTTP 401 and no socket. Every later frame rides that authenticated socket.
+- **Cloudflare Access (`--preset cf`).** Before the token, the bridge verifies `Cf-Access-Jwt-Assertion` against the team's published keys (`/cdn-cgi/access/certs`) and checks issuer, AUD and expiry. Both layers must pass; each refusal is logged with the reason, never with the token or JWT.
 - **Closed op list.** The phone can call the 18 operations below and nothing else. There is no generic daemon passthrough; anything else is refused with `UNKNOWN_OP`.
 - **Terminal input is scoped.** `term.input` only reaches a session this connection attached, and attach refuses a tab with no hosted session instead of spawning one.
 - **Diff paths stay in the worktree.** Absolute paths and `..` are refused.
 - **What the token grants.** Whoever holds it can do what the app can: read task output, type into engine sessions (which run with your user's permissions), create, land and delete tasks. Treat the pairing URL like a password; rotate it if it leaks.
-- **No transport encryption of its own.** Use Tailscale or a trusted network. Plain `ws://` on shared Wi-Fi exposes the token and terminal contents.
+- **Transport encryption comes from the path.** WireGuard for Tailscale, TLS for Cloudflare and `tailscale serve`. The bridge itself speaks plain `ws://`, so a LAN `--host` exposes the token and terminal contents to that network.
 
 ## Protocol
 
@@ -120,6 +131,6 @@ Running on a physical iPhone needs your own signing team in Xcode; the repo ship
 - Push notifications (APNs). Notifications fire only while the app is running.
 - TestFlight / App Store distribution.
 - A chat view of the conversation; the app shows the raw terminal.
-- Transport encryption inside the bridge (TLS or end-to-end), and a relay for reaching a Mac without Tailscale.
+- End-to-end encryption between the phone and the bridge (Orca pins a desktop key); today the tunnel or tailnet is trusted.
 - Per-device tokens with a device list and per-device revoke; today one token is shared and rotation revokes all.
 - Restoring the TUI's terminal size when a phone leaves Fit mode.

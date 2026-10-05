@@ -7,6 +7,7 @@
 import { hostname as osHostname } from "node:os"
 import type { Server, ServerWebSocket } from "bun"
 import { presentedToken, tokenMatches } from "./auth.ts"
+import type { AccessVerifier } from "./cf-access.ts"
 import type { TaskFeed } from "./feed.ts"
 import {
   BRIDGE_PROTOCOL_VERSION,
@@ -32,6 +33,10 @@ export interface BridgeDeps {
   /** A fresh PTY Host socket for one phone connection. */
   readonly openPty: () => PtyHostClient
   readonly roveVersion: string
+  /** Cloudflare Access check, run before the token check (`--preset cf`). */
+  readonly access?: AccessVerifier
+  /** Rejection log; never receives the token or the JWT. */
+  readonly log?: (line: string) => void
 }
 
 interface Conn {
@@ -143,8 +148,22 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
   return Bun.serve<Conn, never>({
     hostname: listen.hostname,
     port: listen.port,
-    fetch(req, server) {
-      if (!tokenMatches(deps.token, presentedToken(req))) return new Response("unauthorized\n", { status: 401 })
+    async fetch(req, server) {
+      const log = deps.log ?? ((line: string) => console.error(line))
+      // Behind cloudflared every peer is 127.0.0.1; Cloudflare names the real client.
+      const from = req.headers.get("cf-connecting-ip") ?? server.requestIP(req)?.address ?? "?"
+      if (deps.access) {
+        try {
+          await deps.access.verify(req.headers.get("cf-access-jwt-assertion"))
+        } catch (err) {
+          log(`[rove-bridge] 401 from ${from}: Cloudflare Access — ${err instanceof Error ? err.message : String(err)}`)
+          return new Response("unauthorized\n", { status: 401 })
+        }
+      }
+      if (!tokenMatches(deps.token, presentedToken(req))) {
+        log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
+        return new Response("unauthorized\n", { status: 401 })
+      }
       if (server.upgrade(req, { data: { terminal: null, unsubscribeTasks: null } })) return undefined
       return new Response("rove-bridge speaks WebSocket only\n", { status: 426 })
     },

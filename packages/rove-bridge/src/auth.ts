@@ -29,15 +29,29 @@ export function tokenMatches(expected: string, presented: string | null | undefi
   return timingSafeEqual(a, b)
 }
 
-/** The token a WebSocket upgrade presents: `Authorization: Bearer` wins over `?token=`. */
+/**
+ * The token a WebSocket upgrade presents. Header only: a query-string token
+ * lands in proxy and tunnel access logs, so only the pairing QR carries one.
+ */
 export function presentedToken(req: Request): string | null {
   const header = req.headers.get("authorization")
-  if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length).trim()
-  return new URL(req.url).searchParams.get("token")
+  return header?.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : null
 }
 
-/** The URL the phone pastes or scans; it IS the credential, so treat it like a password. */
-export function pairingUrl(host: string, port: number, token: string): string {
-  const shown = host.includes(":") ? `[${host}]` : host
-  return `ws://${shown}:${port}/?token=${token}`
+/**
+ * The URL the phone scans once; it IS the credential, so treat it like a
+ * password. The app reads `token`/`preset` out of it and never dials it as is.
+ * TLS endpoints (a tunnel or `tailscale serve`) are reached on the default port.
+ */
+export function pairingUrl(opts: {
+  host: string
+  port: number
+  token: string
+  tls: boolean
+  preset: "none" | "tailscale" | "cf"
+}): string {
+  const shown = opts.host.includes(":") ? `[${opts.host}]` : opts.host
+  const origin = opts.tls ? `wss://${shown}` : `ws://${shown}:${opts.port}`
+  const preset = opts.preset === "none" ? "" : `&preset=${opts.preset}`
+  return `${origin}/?token=${opts.token}${preset}`
 }
