@@ -49,3 +49,15 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Fixture:** after #1201 the visual fixture's PTY command repeats every `ROVE_*` variable twice (`e2e/visual-fixture.ts`). This is harmless, but it is leftover from the rename.
 
 **Pre-existing on main:** render tests "the Clone tab's parent dir walks the same way" and "a multi-line paste is delivered as one paste, never as Enter" fail on unmodified main.
+
+## 2026-10-05 — switch.perOp.commit.root / .workspace (main 2ce7dd3)
+
+**Baseline moved:** #1202 (terminal ref) landed: switch.perOp.commit.root 10.6 → 9.2 and .workspace 10.6 → 8.8 (both ✓). The first run read boot.ready.ms 7323 (cold first run again); the re-run read 2869.
+
+**Approach.** Fold the terminal pane's mount waterfall on each task switch. A temporary React DevTools-hook tracer (a `__REACT_DEVTOOLS_GLOBAL_HOOK__` installed before `@opentui/react` loads; it calls `injectIntoDevTools()` unconditionally) logged which hooks changed per commit. Per switch it showed about 9 commits, with the terminal ones in this order: bodyEl, then geomTick, then bodyRows/bodyGeometry, then `setPty`, then the `[pty]` effect's snapshot/cursor prime plus the paint grid's `setGrid`. The change did three things. It primed snapshot and cursor in the acquire effect, in the same commit as `setPty`. It created the `TerminalRowPainter` in the grid ref callback instead of from `grid` state. It skipped same-value `setExited` and `setCursor` calls in the `[pty]` effect, and same-value `setRecovery` calls, since `onRecovery` replays its current state on subscribe. Typecheck passed.
+
+**Why it did not count.** With the tracer attached, the first switch went from 9 commits to 8 and workspace from 8.8 to 8.4. Without the tracer, two clean runs read root 9.1 and 9.2 and workspace 8.8 and 8.8: no drop. The tracer walks the whole fiber tree on every commit, so it slowed commits enough to split updates that React batches in a normal run. **Do not count commits with a per-commit tracer attached.** Check any tracer finding against a clean run before writing code. The diff is not kept. It is small to redo: `use-terminal-pty.ts` acquire effect, `use-terminal-paint.ts`, and `Terminal.tsx` recovery.
+
+**Still seen in the trace, not tried:** two commits per switch that change no hook state. In them WorkspaceFrame, TerminalSession and StatusKeyHintBar re-render, which points to a context change (focus moving to the workspace). The Files pane also wipes its list and lists it again on every switch (`FileTree` list null → arr), the known `git ls-files` item from 09-28.
+
+**Noise:** switch.shown.p50 read 496/545 on main and 456–483 with the change; boot.firstFrame.ms 670–918 across runs.
