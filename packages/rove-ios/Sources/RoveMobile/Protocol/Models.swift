@@ -15,17 +15,6 @@ enum TaskGroup: String, Codable, CaseIterable, Hashable {
     }
 
     var sortIndex: Int { Self.allCases.firstIndex(of: self) ?? Self.allCases.count }
-
-    var title: String {
-        switch self {
-        case .waitingOnYou: "Waiting on you"
-        case .landing: "Landing"
-        case .readyForReview: "Ready for review"
-        case .working: "Working"
-        case .idle: "Idle"
-        case .unknown: "Other"
-        }
-    }
 }
 
 struct TaskActivity: Codable, Hashable {

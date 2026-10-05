@@ -49,7 +49,6 @@ final class AppModel {
 
 enum Route: Hashable {
     case task(String)
-    case terminal(taskId: String, tab: TabRow)
     case diff(taskId: String)
 }
 
@@ -61,6 +60,7 @@ struct RoveMobileApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
+                .tint(Theme.accent)
                 .onOpenURL { url in
                     if (try? model.pair(text: url.absoluteString)) == nil { model.draftURL = url.absoluteString }
                 }
@@ -81,7 +81,6 @@ struct RootView: View {
                     .navigationDestination(for: Route.self) { route in
                         switch route {
                         case .task(let id): TaskDetailView(taskId: id)
-                        case .terminal(let taskId, let tab): TerminalScreen(taskId: taskId, tab: tab)
                         case .diff(let taskId): DiffFilesView(taskId: taskId)
                         }
                     }

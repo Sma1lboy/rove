@@ -11,11 +11,12 @@ enum TaskListLogic {
         }.map(\.element)
     }
 
-    static func sections(_ rows: [TaskRow]) -> [(group: TaskGroup, rows: [TaskRow])] {
-        let s = sorted(rows)
-        var out: [(group: TaskGroup, rows: [TaskRow])] = []
-        for r in s {
-            if let i = out.indices.last, out[i].group == r.group { out[i].rows.append(r) } else { out.append((r.group, [r])) }
+    /// One section per project (repo), ordered by its most urgent task; rows keep `sorted` order.
+    static func projects(_ rows: [TaskRow]) -> [(repo: String, rows: [TaskRow])] {
+        var out: [(repo: String, rows: [TaskRow])] = []
+        var index: [String: Int] = [:]
+        for r in sorted(rows) {
+            if let i = index[r.repo] { out[i].rows.append(r) } else { index[r.repo] = out.count; out.append((r.repo, [r])) }
         }
         return out
     }
@@ -42,6 +43,15 @@ enum TaskListLogic {
         if s < 3600 { return "\(s / 60)m" }
         if s < 86400 { return "\(s / 3600)h" }
         return "\(s / 86400)d"
+    }
+
+    /// Second-precision elapsed time for a live timer: `9s`, `4m07s`, `2h03m`, then days.
+    static func clock(ms: Double) -> String {
+        let s = max(Int(ms / 1000), 0)
+        if s < 60 { return "\(s)s" }
+        if s < 3600 { return String(format: "%dm%02ds", s / 60, s % 60) }
+        if s < 86400 { return String(format: "%dh%02dm", s / 3600, (s % 3600) / 60) }
+        return age(ms: ms)
     }
 }
 
@@ -74,15 +84,14 @@ final class TaskStore {
     }
 
     var visible: [TaskRow] { TaskListLogic.filtered(tasks, repo: repoFilter) }
-    var sections: [(group: TaskGroup, rows: [TaskRow])] { TaskListLogic.sections(visible) }
+    var projects: [(repo: String, rows: [TaskRow])] { TaskListLogic.projects(visible) }
     var repos: [String] { TaskListLogic.repos(tasks) }
     var attentionCount: Int { TaskListLogic.attentionCount(attention) }
 
-    /// Locally-aged activity text ("working · 3m"), nil without activity.
-    func activityText(_ row: TaskRow, now: Date) -> String? {
+    /// Locally-aged ms in the current activity state, nil without activity.
+    func activityMs(_ row: TaskRow, now: Date) -> Double? {
         guard let a = row.activity else { return nil }
-        let ms = TaskListLogic.ageMs(forMs: a.forMs, receivedAt: receivedAt[row.id] ?? now, now: now)
-        return "\(a.state) · \(TaskListLogic.age(ms: ms))"
+        return TaskListLogic.ageMs(forMs: a.forMs, receivedAt: receivedAt[row.id] ?? now, now: now)
     }
 
     func task(id: String) -> TaskRow? { tasks.first { $0.id == id } }

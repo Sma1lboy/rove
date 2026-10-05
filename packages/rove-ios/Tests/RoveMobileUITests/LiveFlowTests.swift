@@ -33,14 +33,21 @@ final class LiveFlowTests: XCTestCase {
 
     private func text(_ s: String) -> XCUIElement { app.staticTexts[s].firstMatch }
 
-    func testLiveFlow() throws {
-        guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty else { throw XCTSkip("ROVE_BRIDGE_URL not set") }
-        let title = "Add a multiply helper"
-
+    /// Launches unpaired and answers the first-run notification prompt, which would cover the pairing screen.
+    private func launchFresh() {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["-resetPairing"]
         app.launch()
+        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
+        if allow.waitForExistence(timeout: 3) { allow.tap() }
+    }
+
+    func testLiveFlow() throws {
+        guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty else { throw XCTSkip("ROVE_BRIDGE_URL not set") }
+        let title = "Add a multiply helper"
+
+        launchFresh()
 
         // Pair
         let field = waitFor(element("pairingField"), "pairing field")
@@ -137,10 +144,7 @@ final class LiveFlowTests: XCTestCase {
         }
         let reply = env["ROVE_REPLY"] ?? "From the phone: reply with the word PONG only."
 
-        continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
-        app.launch()
+        launchFresh()
 
         let field = waitFor(element("pairingField"), "pairing field")
         field.tap()
@@ -185,10 +189,7 @@ final class LiveFlowTests: XCTestCase {
     /// Screenshot-only: Cloudflare preset with fake credentials. Needs ROVE_SHOT_DIR; never connects.
     func testCloudflarePresetScreenshot() throws {
         guard let dir = env["ROVE_SHOT_DIR"], !dir.isEmpty else { throw XCTSkip("ROVE_SHOT_DIR not set") }
-        continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
-        app.launch()
+        launchFresh()
 
         let field = waitFor(element("pairingField"), "pairing field")
         field.tap()
@@ -201,5 +202,43 @@ final class LiveFlowTests: XCTestCase {
         secret.tap(); secret.typeText("fake-secret-value")
         hideKeyboard()
         checkpoint("13-cloudflare-preset")
+    }
+
+    /// Screenshot-only: the task list and one task's detail with its live terminal.
+    /// Needs ROVE_BRIDGE_URL, ROVE_TASK_TITLE and ROVE_SHOT_DIR; changes nothing on the Mac.
+    func testTaskScreensScreenshots() throws {
+        guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty,
+              let taskTitle = env["ROVE_TASK_TITLE"], !taskTitle.isEmpty,
+              env["ROVE_SHOT_DIR"]?.isEmpty == false else {
+            throw XCTSkip("ROVE_BRIDGE_URL / ROVE_TASK_TITLE / ROVE_SHOT_DIR not set")
+        }
+        launchFresh()
+
+        let field = waitFor(element("pairingField"), "pairing field")
+        field.tap()
+        field.typeText(url)
+        hideKeyboard()
+        element("connectButton").tap()
+
+        waitFor(element("newTaskButton"), "task list")
+        let row = waitFor(text(taskTitle), "task \(taskTitle)", timeout: 30)
+        Thread.sleep(forTimeInterval: 2)
+        checkpoint("design-list")
+
+        row.tap()
+        waitFor(element("taskTitle"), "task detail", timeout: 20)
+        let terminal = waitFor(element("terminal"), "terminal")
+        let deadline = Date().addingTimeInterval(30)
+        while Date() < deadline, (Int(terminal.value as? String ?? "") ?? 0) < 300 { Thread.sleep(forTimeInterval: 0.5) }
+        Thread.sleep(forTimeInterval: 4)
+        checkpoint("design-detail")
+
+        // The activity timer ages locally between pushes; it must not sit still.
+        let timer = element("activityTimer")
+        if timer.exists {
+            let before = timer.label
+            Thread.sleep(forTimeInterval: 2.5)
+            XCTAssertNotEqual(timer.label, before, "activity timer did not advance")
+        }
     }
 }

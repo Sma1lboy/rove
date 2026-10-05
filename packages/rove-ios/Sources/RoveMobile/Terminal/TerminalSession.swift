@@ -21,9 +21,11 @@ final class TerminalSession {
 
     let taskId: String
     let tabId: String
-    private(set) var status = "Attaching…"
+    static let liveStatus = "Live"
+    static let attachingStatus = "Attaching…"
+    private(set) var status = TerminalSession.attachingStatus
     private(set) var exited = false
-    /// Total terminal bytes fed to the view (also exposed to UI tests).
+    /// Total terminal bytes fed to the view (exposed to UI tests as the terminal's accessibility value).
     private(set) var bytesReceived = 0
     private(set) var keys = KeyMapper()
     var mode: TerminalMode = .fit {
@@ -93,7 +95,7 @@ final class TerminalSession {
         inFlight = true
         stream = nil
         buffered = []
-        status = "Attaching…"
+        status = Self.attachingStatus
         let gen = generation
         Task {
             do {
@@ -108,7 +110,7 @@ final class TerminalSession {
                 stream = r.stream
                 sentSize = attachedSize
                 exited = !r.alive
-                status = r.alive ? "Live" : "Process exited"
+                status = r.alive ? Self.liveStatus : "Process exited"
                 surface?.reset()
                 if let replay = Data(base64Encoded: r.replay), !replay.isEmpty { feed(replay) }
                 for b in buffered where b.stream == r.stream { feed(b.bytes) }

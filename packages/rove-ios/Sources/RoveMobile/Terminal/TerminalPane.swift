@@ -1,0 +1,130 @@
+import SwiftUI
+
+/// The selected tab's live terminal, its key row and the reply composer.
+struct TerminalPane: View {
+    var session: TerminalSession
+    var engineName: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SwiftTermView(session: session)
+                .background(Color(uiColor: TerminalPalette.background))
+                .overlay(alignment: .top) { statusBanner }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("terminal")
+                .accessibilityValue("\(session.bytesReceived)")
+            KeyRow(session: session)
+            Composer(session: session, engineName: engineName)
+        }
+    }
+
+    /// Only shown while not live: attach progress, an exit, or the attach error.
+    @ViewBuilder private var statusBanner: some View {
+        if session.status != TerminalSession.liveStatus {
+            HStack(spacing: 8) {
+                if !session.exited && session.status == TerminalSession.attachingStatus {
+                    BrailleSpinner(size: 12)
+                }
+                Text(session.status.lowercased())
+                    .font(Theme.mono(12))
+                    .foregroundStyle(session.exited ? Theme.muted : Theme.ink)
+                    .lineLimit(2)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.inset)
+            .accessibilityIdentifier("terminalStatus")
+            .transition(.opacity)
+        }
+    }
+}
+
+/// Reply mode: compose text, return sends it followed by Enter.
+struct Composer: View {
+    var session: TerminalSession
+    var engineName: String?
+    @State private var text = ""
+
+    var body: some View {
+        HStack(spacing: 8) {
+            FieldBox {
+                TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Theme.muted), axis: .vertical)
+                    .lineLimit(1...4)
+                    .submitLabel(.send)
+                    .onSubmit(send)
+                    .accessibilityIdentifier("composerField")
+            }
+            Button(action: send) {
+                Text("send")
+                    .font(Theme.mono(14, .semibold))
+                    .foregroundStyle(text.isEmpty ? Theme.muted : Theme.paper)
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .background(text.isEmpty ? Theme.inset : Theme.accent,
+                                in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            }
+            .buttonStyle(.pressable)
+            .disabled(text.isEmpty)
+            .accessibilityIdentifier("sendButton")
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
+        .background(Theme.paper)
+    }
+
+    private var placeholder: String {
+        engineName.map { "reply to \($0.lowercased())" } ?? "reply"
+    }
+
+    private func send() {
+        guard !text.isEmpty else { return }
+        session.reply(text)
+        text = ""
+    }
+}
+
+/// Always-visible key row — Esc, Tab, ⇧Tab, sticky Ctrl, arrows, Enter, ^C — then canned replies.
+struct KeyRow: View {
+    var session: TerminalSession
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(AccessoryKey.allCases, id: \.self) { key in
+                    let armed = key == .ctrl && session.keys.ctrlArmed
+                    Button { session.press(key) } label: {
+                        Text(key.label.lowercased())
+                            .font(Theme.mono(13, .medium))
+                            .foregroundStyle(armed ? Theme.paper : Theme.ink)
+                            .padding(.horizontal, 10)
+                            .frame(minWidth: 36, minHeight: 34)
+                            .background(armed ? Theme.accent : Theme.surface,
+                                        in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                                .strokeBorder(armed ? Theme.accent : Theme.line))
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityLabel(key.label)
+                    .accessibilityIdentifier("key-\(key.label)")
+                }
+                Rectangle().fill(Theme.line).frame(width: 1, height: 22).padding(.horizontal, 2)
+                ForEach(["continue", "yes"], id: \.self) { reply in
+                    Button { session.reply(reply) } label: {
+                        Text(reply)
+                            .font(Theme.mono(13, .medium))
+                            .foregroundStyle(Theme.accent)
+                            .padding(.horizontal, 10)
+                            .frame(minHeight: 34)
+                            .background(Theme.accentSoft,
+                                        in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+                    }
+                    .buttonStyle(.pressable)
+                }
+            }
+            .padding(.horizontal, 12)
+        }
+        .padding(.top, 8)
+        .background(Theme.paper)
+    }
+}

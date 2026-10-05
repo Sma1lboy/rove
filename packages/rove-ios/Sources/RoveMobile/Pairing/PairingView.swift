@@ -27,88 +27,39 @@ struct PairingView: View {
     }
 
     var body: some View {
-        Form {
-            Section("Connection") {
-                LabeledContent("Status", value: model.client.state.label)
-                if let p = model.pairing { LabeledContent("Bridge", value: p.display) }
-                if let h = model.client.hello { LabeledContent("Host", value: h.host) }
-            }
-            Section {
-                Picker("Network", selection: $preset) {
-                    ForEach(PairingPreset.allCases) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("presetPicker")
-                TextField("ws://host:port/?token=…", text: $text, axis: .vertical)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.URL)
-                    .lineLimit(1...4)
-                    .font(.footnote.monospaced())
-                    .accessibilityIdentifier("pairingField")
-                    .onChange(of: text) { applyPresetFromText() }
-                Button("Paste from clipboard") { text = UIPasteboard.general.string ?? text }
-                if cameraAvailable {
-                    Button("Scan QR code") { scanning = true }
-                }
-            } header: {
-                Text(model.pairing == nil ? "Pair with your Mac" : "Pair again")
-            } footer: {
-                if !cameraAvailable { Text("No camera available — paste the pairing URL instead.") }
-            }
-            if preset == .cloudflare {
-                Section {
-                    TextField("CF-Access-Client-Id", text: $cfId)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .accessibilityIdentifier("cfClientId")
-                    SecureField("CF-Access-Client-Secret", text: $cfSecret)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .accessibilityIdentifier("cfClientSecret")
-                } header: {
-                    Text("Cloudflare Access")
-                } footer: {
-                    Text("Service token from Cloudflare Zero Trust → Access → Service Auth")
-                }
-            }
-            Section {
-                ForEach($headers) { $row in
-                    VStack(alignment: .leading) {
-                        TextField("Header name", text: $row.name)
-                            .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        SecureField("Value", text: $row.value)
-                            .textInputAutocapitalization(.never).autocorrectionDisabled()
+        VStack(spacing: 0) {
+            ScreenHeader {
+                BracketChip(size: 19).accessibilityAddTraits(.isHeader)
+            } trailing: {
+                if !isOnboarding {
+                    Button { dismiss() } label: {
+                        Text("done").font(Theme.mono(14, .semibold)).foregroundStyle(Theme.accent)
+                            .frame(minWidth: 44, minHeight: 36)
                     }
-                }
-                .onDelete { headers.remove(atOffsets: $0) }
-                Button { headers.append(HeaderRow()) } label: { Label("Add header", systemImage: "plus") }
-            } header: {
-                Text("Additional headers")
-            } footer: {
-                Text("Sent with the WebSocket upgrade. Authorization is set by the app and can't be overridden.")
-            }
-            Section {
-                Button("Connect") { connect() }
-                    .accessibilityIdentifier("connectButton")
-                    .disabled(urlEmpty || !cfReady)
-                if let error { Text(error).foregroundStyle(.red).font(.footnote) }
-            }
-            if model.pairing != nil {
-                Section {
-                    if model.client.state == .disconnected {
-                        Button("Reconnect") { model.reconnect() }
-                    } else {
-                        Button("Disconnect") { model.disconnect() }
-                    }
-                    Button("Forget pairing", role: .destructive) { model.forget() }
+                    .buttonStyle(.pressable)
+                    .accessibilityIdentifier("doneButton")
                 }
             }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    intro
+                    if model.pairing != nil { connectionCard }
+                    networkSection
+                    linkSection
+                    if preset == .cloudflare { cloudflareSection }
+                    headersSection
+                    if model.pairing != nil { sessionActions }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            connectBar
         }
+        .background(Theme.paper.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .keyboardDoneButton()
-        .navigationTitle(isOnboarding ? "Pair Rove" : "Settings")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if !isOnboarding { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
         .onAppear {
             if let draft = model.draftURL { text = draft; model.draftURL = nil; applyPresetFromText() }
         }
@@ -120,6 +71,178 @@ struct PairingView: View {
             }
             .ignoresSafeArea()
         }
+    }
+
+    private var intro: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Theme.kicker(model.pairing == nil ? "pair · remote control" : "settings · bridge")
+            Text(model.pairing == nil ? "drive your mac's tasks from here" : "this phone's bridge")
+                .font(Theme.face(24, .semibold))
+                .foregroundStyle(Theme.ink)
+            Text("start rove-bridge on the mac, then scan its qr code or paste the link it prints")
+                .font(Theme.mono(12))
+                .foregroundStyle(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var connectionCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Theme.kicker("connection")
+            VStack(spacing: 0) {
+                infoRow("status", model.client.state.label.lowercased(),
+                        tone: { if case .failed = model.client.state { return Theme.error }; return Theme.ink }())
+                if let p = model.pairing { divider; infoRow("bridge", p.display) }
+                if let h = model.client.hello { divider; infoRow("host", h.host); divider; infoRow("rove", h.roveVersion) }
+            }
+            .tile()
+        }
+    }
+
+    private var divider: some View { Rectangle().fill(Theme.line).frame(height: 1).padding(.leading, 14) }
+
+    private func infoRow(_ label: String, _ value: String, tone: Color = Theme.ink) -> some View {
+        HStack {
+            Text(label).font(Theme.mono(13)).foregroundStyle(Theme.muted)
+            Spacer()
+            Text(value).font(Theme.mono(13, .medium)).foregroundStyle(tone).lineLimit(1).truncationMode(.middle)
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 44)
+    }
+
+    /// Three mono tiles; the selected one takes the accent wash.
+    private var networkSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Theme.kicker("network")
+            HStack(spacing: 6) {
+                ForEach(PairingPreset.allCases) { p in
+                    let on = p == preset
+                    Button { withAnimation(Theme.spring) { preset = p } } label: {
+                        Text(p.title.lowercased())
+                            .font(Theme.mono(13, on ? .semibold : .regular))
+                            .foregroundStyle(on ? Theme.accent : Theme.ink)
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .background(on ? Theme.accentSoft : Theme.surface,
+                                        in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous)
+                                .strokeBorder(on ? Theme.accent : Theme.line))
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("presetPicker")
+        }
+    }
+
+    private var linkSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Theme.kicker(model.pairing == nil ? "pairing link" : "pair again")
+            FieldBox {
+                TextField("", text: $text, prompt: Text("ws://host:7878/?token=…").foregroundStyle(Theme.muted), axis: .vertical)
+                    .keyboardType(.URL)
+                    .lineLimit(1...4)
+                    .accessibilityIdentifier("pairingField")
+                    .onChange(of: text) { applyPresetFromText() }
+            }
+            HStack(spacing: 6) {
+                Button { text = UIPasteboard.general.string ?? text } label: { TileLabel(text: "paste") }
+                    .buttonStyle(.pressable)
+                if cameraAvailable {
+                    Button { scanning = true } label: { TileLabel(text: "scan qr") }
+                        .buttonStyle(.pressable)
+                }
+                Spacer()
+            }
+            if !cameraAvailable { note("no camera here — paste the link instead") }
+        }
+    }
+
+    private var cloudflareSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Theme.kicker("cloudflare access")
+            FieldBox {
+                TextField("", text: $cfId, prompt: Text("CF-Access-Client-Id").foregroundStyle(Theme.muted))
+                    .accessibilityIdentifier("cfClientId")
+            }
+            FieldBox {
+                SecureField("", text: $cfSecret, prompt: Text("CF-Access-Client-Secret").foregroundStyle(Theme.muted))
+                    .accessibilityIdentifier("cfClientSecret")
+            }
+            note("service token from zero trust → access → service auth")
+        }
+    }
+
+    private var headersSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Theme.kicker("extra headers")
+            ForEach($headers) { $row in
+                HStack(spacing: 6) {
+                    FieldBox { TextField("", text: $row.name, prompt: Text("name").foregroundStyle(Theme.muted)) }
+                    FieldBox { SecureField("", text: $row.value, prompt: Text("value").foregroundStyle(Theme.muted)) }
+                    Button { headers.removeAll { $0.id == row.id } } label: {
+                        Text("×").font(Theme.mono(16)).foregroundStyle(Theme.muted).frame(width: 32, height: 40)
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityLabel("Remove header")
+                }
+            }
+            HStack {
+                Button { headers.append(HeaderRow()) } label: { TileLabel(text: "+ header") }
+                    .buttonStyle(.pressable)
+                Spacer()
+            }
+            note("sent with the websocket upgrade · the app owns authorization")
+        }
+    }
+
+    private var sessionActions: some View {
+        HStack(spacing: 6) {
+            if model.client.state == .disconnected {
+                Button { model.reconnect() } label: { TileLabel(text: "reconnect") }.buttonStyle(.pressable)
+            } else {
+                Button { model.disconnect() } label: { TileLabel(text: "disconnect") }.buttonStyle(.pressable)
+            }
+            Spacer()
+            Button { model.forget() } label: { TileLabel(text: "forget pairing", tint: Theme.error) }
+                .buttonStyle(.pressable)
+        }
+    }
+
+    private func note(_ s: String) -> some View {
+        Text(s).font(Theme.mono(11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Full-width primary bar; the error line sits right above it so it can't scroll away.
+    private var connectBar: some View {
+        let enabled = !urlEmpty && cfReady
+        return VStack(alignment: .leading, spacing: 8) {
+            if let error {
+                Text(error).font(Theme.mono(12)).foregroundStyle(Theme.error)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("pairingError")
+            }
+            Button { connect() } label: {
+                HStack {
+                    Text("connect").font(Theme.mono(16, .semibold))
+                    Spacer()
+                    Text("→").font(Theme.mono(16, .semibold))
+                }
+                .foregroundStyle(enabled ? Theme.paper : Theme.muted)
+                .padding(.horizontal, 18)
+                .frame(height: 56)
+                .background(enabled ? Theme.accent : Theme.inset,
+                            in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.pressable)
+            .disabled(!enabled)
+            .accessibilityIdentifier("connectButton")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Theme.paper)
     }
 
     /// A URL carrying `preset=` selects that preset in the picker.
