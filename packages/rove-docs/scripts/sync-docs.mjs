@@ -94,6 +94,7 @@ const MODULES = [
           ["ENGINES.md", "rove/engines"],
           ["WORKTREES.md", "rove/worktrees"],
           ["MACHINES.md", "rove/machines"],
+          ["IOS.md", "rove/ios"],
           ["themes.md", "rove/themes"],
           ["SESSIONS.md", "rove/sessions"],
         ],
