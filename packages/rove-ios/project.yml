@@ -1,0 +1,85 @@
+name: RoveMobile
+options:
+  bundleIdPrefix: run.rove
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+    TARGETED_DEVICE_FAMILY: "1"
+packages:
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    exactVersion: 1.18.0
+targets:
+  RoveMobile:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/RoveMobile
+    dependencies:
+      - package: SwiftTerm
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: run.rove.mobile
+        PRODUCT_NAME: RoveMobile
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ENABLE_PREVIEWS: YES
+    info:
+      path: Sources/RoveMobile/Info.plist
+      properties:
+        CFBundleDisplayName: Rove
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # The bridge speaks plain ws:// on the LAN / Tailscale, so ATS must allow it.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        NSCameraUsageDescription: Rove scans the pairing QR code shown by your Mac.
+        NSLocalNetworkUsageDescription: Rove connects to the rove-bridge running on your Mac over the local network.
+        CFBundleURLTypes:
+          - CFBundleURLName: run.rove.mobile
+            CFBundleURLSchemes:
+              - rove
+  RoveMobileTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/RoveMobileTests
+    dependencies:
+      - target: RoveMobile
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: run.rove.mobile.tests
+        GENERATE_INFOPLIST_FILE: YES
+  RoveMobileUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Tests/RoveMobileUITests
+    dependencies:
+      - target: RoveMobile
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: run.rove.mobile.uitests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  RoveMobile:
+    build:
+      targets:
+        RoveMobile: all
+        RoveMobileTests: [test]
+        RoveMobileUITests: [test]
+    test:
+      targets:
+        - RoveMobileTests
+        - RoveMobileUITests
