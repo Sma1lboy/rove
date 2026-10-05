@@ -159,6 +159,10 @@ jobs:
       - name: Build (rove package)
         run: bun run build
 
+      - name: Bridge tests (rove-bridge)
+        # bun:test, not vitest: the bridge's server is Bun.serve.
+        run: bun --filter rove-bridge test
+
   unit-tests:
     # What `typecheck-and-test` used to run inline as a single 91s step — the
     # long pole once the render track was sharded. vitest shards natively, and
@@ -216,6 +220,10 @@ jobs:
 
       - name: Build (rove package)
         run: bun run build
+
+      - name: Bridge tests (rove-bridge)
+        # bun:test, not vitest: the bridge's server is Bun.serve.
+        run: bun --filter rove-bridge test
 
       - name: Behavior tests (Rove package, shard ${{ matrix.shard }}/2)
         # Same flags as `test:behavior`, plus vitest's --shard. The serial
