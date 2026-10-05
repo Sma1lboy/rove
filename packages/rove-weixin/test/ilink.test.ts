@@ -1,10 +1,10 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { IlinkClient, classifyIlink, messageText } from "../../src/weixin/ilink.ts"
-import { runQrLogin } from "../../src/weixin/login.ts"
-import { WeixinStore } from "../../src/weixin/store.ts"
+import { IlinkClient, type IlinkOutcome, type IlinkStatus, classifyIlink, messageText } from "../src/ilink.ts"
+import { runQrLogin } from "../src/login.ts"
+import { WeixinStore } from "../src/store.ts"
 import { FAKE_BOT_ID, FAKE_OWNER, FAKE_TOKEN, FakeIlink } from "./fake-ilink.ts"
 
 let fake: FakeIlink
@@ -53,7 +53,7 @@ describe("iLink wire format", () => {
 })
 
 describe("classifyIlink", () => {
-  it.each([
+  const cases: Array<[IlinkStatus, IlinkOutcome]> = [
     [{ ret: 0 }, "ok"],
     [{}, "ok"],
     [{ ret: -14 }, "session-expired"],
@@ -63,7 +63,8 @@ describe("classifyIlink", () => {
     [{ errcode: -2, errmsg: "prepare failed" }, "session-expired"],
     [{ ret: -2, errmsg: "frequency limit" }, "rate-limited"],
     [{ ret: 1, errmsg: "bad" }, "error"],
-  ])("%j → %s", (resp, outcome) => {
+  ]
+  it.each(cases)("%j → %s", (resp, outcome) => {
     expect(classifyIlink(resp)).toBe(outcome)
   })
 })

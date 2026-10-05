@@ -28,6 +28,23 @@ export interface InboundSpec {
 
 type Answer = Record<string, unknown>
 
+/**
+ * Retry `check` until it stops throwing — the bridge runs on its own loops, so
+ * tests wait on the observable outcome, not a guessed delay.
+ */
+export async function waitFor(check: () => void, timeoutMs = 4_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    try {
+      check()
+      return
+    } catch (err) {
+      if (Date.now() > deadline) throw err
+      await Bun.sleep(20)
+    }
+  }
+}
+
 export class FakeIlink {
   readonly sends: RecordedSend[] = []
   /** `getupdates` request bodies, in order. */
@@ -73,12 +90,10 @@ export class FakeIlink {
   }
 
   /** Resolves once `count` sends have been recorded. */
-  async waitForSends(count: number, timeoutMs = 5_000): Promise<RecordedSend[]> {
-    const deadline = Date.now() + timeoutMs
-    while (this.sends.length < count) {
-      if (Date.now() > deadline) throw new Error(`expected ${count} sends, saw ${this.sends.length}`)
-      await new Promise((r) => setTimeout(r, 20))
-    }
+  async waitForSends(count: number): Promise<RecordedSend[]> {
+    await waitFor(() => {
+      if (this.sends.length < count) throw new Error(`expected ${count} sends, saw ${this.sends.length}`)
+    })
     return this.sends
   }
 

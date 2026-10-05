@@ -9,8 +9,8 @@
  *   - only arrivals INTO {@link PUSH_GROUPS} are reported.
  */
 
-import type { ContextPayload } from "../cli/api/context-view.ts"
-import type { TaskGroup } from "../lib/task-group.ts"
+import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
+import type { TaskGroup } from "@sma1lboy/rove/src/lib/task-group.ts"
 import { rowLine } from "./format.ts"
 
 type ContextRow = ContextPayload["tasks"][number]

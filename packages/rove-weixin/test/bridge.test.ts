@@ -1,12 +1,12 @@
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { ContextPayload } from "../../src/cli/api/context-view.ts"
-import { REPLY_WINDOW_MS, type WeixinBridge, startWeixinBridge } from "../../src/weixin/bridge.ts"
-import type { RoveOps } from "../../src/weixin/commands.ts"
-import { WeixinStore } from "../../src/weixin/store.ts"
-import { FAKE_BOT_ID, FAKE_OWNER, FAKE_TOKEN, FakeIlink } from "./fake-ilink.ts"
+import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
+import { REPLY_WINDOW_MS, type WeixinBridge, startWeixinBridge } from "../src/bridge.ts"
+import type { RoveOps } from "../src/commands.ts"
+import { WeixinStore } from "../src/store.ts"
+import { FAKE_BOT_ID, FAKE_OWNER, FAKE_TOKEN, FakeIlink, waitFor } from "./fake-ilink.ts"
 
 type Row = ContextPayload["tasks"][number]
 
@@ -29,12 +29,15 @@ let current: ContextPayload
 let clock: number
 const logs: string[] = []
 
+const status = mock(async () => current)
+const send = mock(async () => ({ tab: "tab-1" }))
+const add = mock(async () => ({ taskId: "01NEW" }))
 const ops: RoveOps = {
-  status: vi.fn(async () => current),
+  status,
   tasks: async () => [{ id: TASK, title: "Fix login", repo: "/r/app" }],
   repos: async () => ["/r/app"],
-  send: vi.fn(async () => ({ tab: "tab-1" })),
-  add: vi.fn(async () => ({ taskId: "01NEW" })),
+  send,
+  add,
 }
 
 function start(onUnbound?: () => void): WeixinBridge {
@@ -65,7 +68,7 @@ beforeEach(async () => {
   clock = Date.now()
   logs.length = 0
   bridge = null
-  vi.clearAllMocks()
+  for (const fn of [status, send, add]) fn.mockClear()
 })
 
 afterEach(async () => {
@@ -81,7 +84,7 @@ describe("inbound", () => {
     const [reply] = await fake.waitForSends(1)
     expect(reply).toMatchObject({ to: FAKE_OWNER, contextToken: "ctx-owner-1" })
     expect(reply?.text.split("\n")[0]).toBe("1 need you · 0 running")
-    await vi.waitFor(() => expect(store.readState(FAKE_BOT_ID).syncBuf).toBe("buf-1"))
+    await waitFor(() => expect(store.readState(FAKE_BOT_ID).syncBuf).toBe("buf-1"))
     expect(store.readState(FAKE_BOT_ID).peers[FAKE_OWNER]).toEqual({
       contextToken: "ctx-owner-1",
       lastInboundAt: clock,
@@ -132,7 +135,7 @@ describe("pushes", () => {
     // Open the reply window, then let a few ticks pass on the boot state.
     fake.deliver({ from: FAKE_OWNER, text: "help" })
     await fake.waitForSends(1)
-    await vi.waitFor(() => expect(vi.mocked(ops.status).mock.calls.length).toBeGreaterThan(3))
+    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(3))
     expect(fake.sends).toHaveLength(1)
 
     current = snapshot("waiting-on-you")
@@ -144,11 +147,11 @@ describe("pushes", () => {
     start()
     fake.deliver({ from: FAKE_OWNER, text: "help" })
     await fake.waitForSends(1)
-    await vi.waitFor(() => expect(vi.mocked(ops.status).mock.calls.length).toBeGreaterThan(1))
+    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(1))
 
     clock += REPLY_WINDOW_MS + 1
     current = snapshot("landing")
-    await vi.waitFor(() => expect(store.readUndelivered()).toHaveLength(1))
+    await waitFor(() => expect(store.readUndelivered()).toHaveLength(1))
     expect(store.readUndelivered()[0]).toMatchObject({
       to: FAKE_OWNER,
       reason: "reply window closed (>24h since their last message)",
@@ -159,12 +162,12 @@ describe("pushes", () => {
 })
 
 it("releases the daemon's keep-alive when the binding is removed", async () => {
-  const onUnbound = vi.fn()
+  const onUnbound = mock(() => {})
   const b = start(onUnbound)
   expect(b.isBound()).toBe(true)
-  await vi.waitFor(() => expect(fake.polls.length).toBeGreaterThan(0))
+  await waitFor(() => expect(fake.polls.length).toBeGreaterThan(0))
   store.clearAccount()
-  await vi.waitFor(() => expect(onUnbound).toHaveBeenCalledTimes(1), { timeout: 5_000 })
+  await waitFor(() => expect(onUnbound).toHaveBeenCalledTimes(1))
   expect(b.isBound()).toBe(false)
 })
 

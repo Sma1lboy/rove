@@ -161,6 +161,26 @@ Under `~/.rove/weixin/` (or `$ROVE_HOME_DIR/.rove/weixin/`), directory mode
 The bot token is never written to the daemon log. Daemon log lines that mention
 a WeChat id show only its first eight characters.
 
+## Where the code lives
+
+The channel is its own workspace package, `packages/rove-weixin`: the iLink
+client, QR login, the state files above, command handling, message formatting
+and notifications. It is bundled into the `rove` CLI at build time, so
+`npm i -g @sma1lboy/rove` includes it; it is not published on its own.
+
+Rove itself only defines a generic chat-channel contract
+(`packages/rove/src/channels/chat-channel.ts`) and a registry that names the
+channel package (`packages/rove/src/channels/registry.ts`). The daemon starts
+every registered channel after it is listening and stays up while one asks it
+to. Dependencies point one way: `rove-weixin` uses Rove's public pieces (the
+daemon client, `rove api` verbs, the `context` snapshot); Rove never imports
+its internals.
+
+```bash
+bun --filter rove-weixin test        # protocol, routing and push tests, against a fake iLink server
+bun --filter rove-weixin typecheck
+```
+
 ## Testing against a fake server
 
 `ROVE_WEIXIN_BASE_URL` points `rove weixin login` at another iLink endpoint;
@@ -168,8 +188,8 @@ the binding then keeps whatever base URL that server confirms. The repo ships a
 fake one for development:
 
 ```bash
+PORT=18733 bun packages/rove-weixin/test/fake-ilink.ts &   # confirms any login
 cd packages/rove
-PORT=18733 bun test/weixin/fake-ilink.ts &          # confirms any login
 ROVE_WEIXIN_BASE_URL=http://127.0.0.1:18733 bun dev:sandbox --name wx run weixin login
 bun dev:sandbox --name wx run daemon start &
 curl -s localhost:18733/_inject -d '{"text":"status"}'   # a message from the owner

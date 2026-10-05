@@ -163,6 +163,14 @@ jobs:
         # bun:test, not vitest: the bridge's server is Bun.serve.
         run: bun --filter rove-bridge test
 
+      - name: WeChat channel tests (rove-weixin)
+        run: bun --filter rove-weixin test
+
+      - name: Built CLI carries the WeChat channel
+        # rove-weixin is bundled into dist, not published: prove the npm
+        # artifact still answers `rove weixin`.
+        run: bun packages/rove/dist/cli/rove.js weixin --help | grep -q "rove weixin <login"
+
   unit-tests:
     # What `typecheck-and-test` used to run inline as a single 91s step — the
     # long pole once the render track was sharded. vitest shards natively, and

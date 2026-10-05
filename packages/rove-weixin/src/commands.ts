@@ -12,8 +12,8 @@
  */
 
 import { basename } from "node:path"
-import type { ContextPayload } from "../cli/api/context-view.ts"
-import { ApiError } from "../cli/api/types.ts"
+import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
+import { ApiError } from "@sma1lboy/rove/src/cli/api/types.ts"
 import { renderStatus, shortId } from "./format.ts"
 
 export interface TaskRef {

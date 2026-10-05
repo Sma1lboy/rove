@@ -42,7 +42,6 @@
         "@xterm/addon-unicode11": "^0.9.0",
         "@xterm/headless": "^6.0.0",
         "node-pty": "^1.1.0",
-        "qrcode-terminal": "^0.12.0",
         "react": "^19.2.8",
         "smol-toml": "^1.7.1",
         "ws": "^8.21.3",
@@ -53,11 +52,11 @@
         "@tsconfig/bun": "1.0.11",
         "@types/bun": "1.3.14",
         "@types/node": "25.6.2",
-        "@types/qrcode-terminal": "^0.12.2",
         "@types/react": "^19.2.0",
         "@vitest/coverage-v8": "2.1.9",
         "knip": "^6.14.2",
         "react-devtools-core": "^7.0.1",
+        "rove-weixin": "0.0.1",
         "typescript": "5.8.2",
         "vitest": "2.1.9",
       },
@@ -167,6 +166,22 @@
         "@types/node": "^22.20.5",
         "typescript": "5.8.2",
         "vitest": "2.1.9",
+      },
+    },
+    "packages/rove-weixin": {
+      "name": "rove-weixin",
+      "version": "0.0.1",
+      "dependencies": {
+        "@sma1lboy/rove": "workspace:*",
+        "@sma1lboy/rove-daemon": "workspace:*",
+        "qrcode-terminal": "^0.12.0",
+      },
+      "devDependencies": {
+        "@tsconfig/bun": "1.0.11",
+        "@types/bun": "1.3.14",
+        "@types/node": "25.6.2",
+        "@types/qrcode-terminal": "^0.12.2",
+        "typescript": "5.8.2",
       },
     },
   },
@@ -2100,6 +2115,8 @@
     "rove-bridge": ["rove-bridge@workspace:packages/rove-bridge"],
 
     "rove-harness": ["rove-harness@workspace:packages/rove-harness"],
+
+    "rove-weixin": ["rove-weixin@workspace:packages/rove-weixin"],
 
     "run-parallel": ["run-parallel@1.2.0", "", { "dependencies": { "queue-microtask": "^1.2.2" } }, "sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA=="],
 

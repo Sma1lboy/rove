@@ -54,9 +54,9 @@ vi.mock("../../src/core/index.ts", () => ({
   createRoveCore: mocks.createRoveCore,
 }))
 
-// The WeChat bridge would dial the (mocked) daemon socket and poll iLink.
-vi.mock("../../src/weixin/daemon-service.ts", () => ({
-  startWeixinService: vi.fn(async () => null),
+// Chat channels would dial the (mocked) daemon socket and poll the network.
+vi.mock("../../src/channels/registry.ts", () => ({
+  startChatChannels: vi.fn(async () => []),
 }))
 
 import { runDaemonSubcommand } from "../../src/cli/daemon-cmd.ts"

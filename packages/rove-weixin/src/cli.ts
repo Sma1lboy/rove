@@ -1,17 +1,17 @@
 /**
  * `rove weixin <login|logout|status|allow|deny>` — bind a WeChat (微信) bot to
- * this Rove. The daemon does the talking (src/weixin/bridge.ts); this command
- * only edits the binding on disk, which the daemon re-reads every cycle.
+ * this Rove. The daemon does the talking (bridge.ts); this command only edits
+ * the binding on disk, which the daemon re-reads every cycle.
  */
 import { setTimeout as delay } from "node:timers/promises"
 import { connectIfRunning } from "@sma1lboy/rove-daemon/client/daemon-process"
+import { SUBCOMMAND_VERBS } from "@sma1lboy/rove/src/cli/subcommands.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove/src/product.ts"
 import qrcode from "qrcode-terminal"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { REPLY_WINDOW_MS } from "../weixin/bridge.ts"
-import { resolveIlinkBaseUrl } from "../weixin/ilink.ts"
-import { runQrLogin } from "../weixin/login.ts"
-import { WeixinStore } from "../weixin/store.ts"
-import { SUBCOMMAND_VERBS } from "./subcommands.ts"
+import { REPLY_WINDOW_MS } from "./bridge.ts"
+import { resolveIlinkBaseUrl } from "./ilink.ts"
+import { runQrLogin } from "./login.ts"
+import { WeixinStore } from "./store.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
@@ -48,7 +48,7 @@ function age(ms: number): string {
   return h < 48 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`
 }
 
-export async function runWeixinSubcommand(argv: readonly string[]): Promise<void> {
+export async function runWeixinCli(argv: readonly string[]): Promise<void> {
   const [verb, arg] = argv
   if (!verb || verb === "--help" || verb === "-h" || verb === "help") {
     process.stdout.write(`${WEIXIN_USAGE}\n`)

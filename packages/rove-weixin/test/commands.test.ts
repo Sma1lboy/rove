@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from "vitest"
-import type { ContextPayload } from "../../src/cli/api/context-view.ts"
-import { ApiError } from "../../src/cli/api/types.ts"
-import { HELP_TEXT, type RoveOps, handleCommand } from "../../src/weixin/commands.ts"
-import { BUBBLE_CHARS, MAX_BUBBLES, toBubbles } from "../../src/weixin/format.ts"
+import { describe, expect, it, mock } from "bun:test"
+import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
+import { ApiError } from "@sma1lboy/rove/src/cli/api/types.ts"
+import { HELP_TEXT, type RoveOps, handleCommand } from "../src/commands.ts"
+import { BUBBLE_CHARS, MAX_BUBBLES, toBubbles } from "../src/format.ts"
 
 type Row = ContextPayload["tasks"][number]
 
@@ -16,15 +16,15 @@ function payload(tasks: Row[]): ContextPayload {
 
 function fakeOps(overrides: Partial<RoveOps> = {}): RoveOps {
   return {
-    status: vi.fn(async () => payload([])),
+    status: mock(async () => payload([])),
     tasks: async () => [
       { id: "01AAAAAAAAAAAAAAAAAAABC123", title: "Fix login", repo: "/r/app" },
       { id: "01AAAAAAAAAAAAAAAAAAXBC123", title: "Add retry", repo: "/r/app" },
       { id: "01AAAAAAAAAAAAAAAAAAQQQ999", title: "Docs", repo: "/r/site" },
     ],
     repos: async () => ["/r/app", "/r/site", "/other/app2"],
-    send: vi.fn(async () => ({ tab: "tab-1", started: false })),
-    add: vi.fn(async () => ({ taskId: "01NEWNEWNEWNEWNEWNEWNEW777" })),
+    send: mock(async () => ({ tab: "tab-1", started: false })),
+    add: mock(async () => ({ taskId: "01NEWNEWNEWNEWNEWNEWNEW777" })),
     ...overrides,
   }
 }
