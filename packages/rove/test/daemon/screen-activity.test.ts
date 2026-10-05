@@ -2,7 +2,7 @@ import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-re
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { describe, expect, it } from "vitest"
 import { startTurnStatusPoll } from "../../src/tui/ops/activity-monitor"
-import { bootDaemonHarness, fakeOrchestrator, waitFor } from "./harness"
+import { bootDaemonHarness, fakeOrchestrator } from "./harness"
 
 describe("attached screen approval", () => {
   it("publishes a blocked-only plugin screen to activity and inbox, then clears on an unmatched screen", async () => {
@@ -14,6 +14,17 @@ describe("attached screen approval", () => {
       if (value.tabId === "tab-1") states.push(value.state)
     })
     await client.subscribe()
+    function waitForInbox(blocked: boolean): Promise<void> {
+      return new Promise((resolve) => {
+        const off = client.onChannel("attention.inbox", ({ items }) => {
+          const needsInput = items.some((item) => item.taskId === "task" && item.state === "permission_needed")
+          if (needsInput !== blocked) return
+          off()
+          resolve()
+        })
+      })
+    }
+    const blocked = waitForInbox(true)
     const stop = startTurnStatusPoll(
       {
         detector: { supportsCompletionMarkers: () => false, latestActivityInFile: async () => null },
@@ -30,12 +41,16 @@ describe("attached screen approval", () => {
       },
     )
     try {
-      expect(await waitFor(() => states.includes("permission_needed"))).toBe(true)
+      // Activity broadcasts precede inbox persistence; the inbox event confirms both are ready.
+      await blocked
+      expect(states.at(-1)).toBe("permission_needed")
       expect(await client.request("attention.list", {})).toMatchObject({
         items: [{ taskId: "task", state: "permission_needed" }],
       })
+      const cleared = waitForInbox(false)
       pane = "Approved. Working..."
-      expect(await waitFor(() => states.at(-1) === "idle", 2500)).toBe(true)
+      await cleared
+      expect(states.at(-1)).toBe("idle")
       expect(await client.request("attention.list", {})).toMatchObject({ items: [] })
       await expect(
         client.request("engine.reportEvent", { source: "screen", taskId: "task", tabId: "tab-1", blocked: "yes" }),
