@@ -111,7 +111,7 @@ async function startOwnedServer(
     // Read lazily (both constructed below). An enabled schedule must fire
     // unwatched; idle-stopping under a live PTY drops engine hook events and
     // blanks the activity dots.
-    keepAlive: () => automations.hasEnabled() || ptyHold.isHeld(),
+    keepAlive: () => automations.hasEnabled() || ptyHold.isHeld() || (options.keepAlive?.() ?? false),
     onIdleStop: () => void stopSoon("idle").catch((err) => logDaemonError("daemon-idle-shutdown", err)),
   })
   const ptyHold = new PtyLiveHold({
@@ -293,6 +293,7 @@ async function startOwnedServer(
     pidPath,
     startedAt,
     clients,
+    reevaluateIdle: () => lifetime.reevaluateIdle(),
     close() {
       lifetime.markStopping()
       return resources.close()

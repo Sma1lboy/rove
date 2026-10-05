@@ -10,16 +10,18 @@
 
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { DaemonRpc } from "../daemon-session.ts"
 import {
   type ActivityEntry,
   CONTEXT_TASK_LIMIT,
   type ContextNote,
+  type ContextPayload,
   buildContext,
   renderContext,
 } from "./context-view.ts"
 import { F } from "./flags.ts"
 import { daemonOf, repoFilter } from "./handler-helpers.ts"
-import type { VerbContext, VerbSpec } from "./types.ts"
+import type { ApiRuntime, VerbContext, VerbSpec } from "./types.ts"
 
 /** A daemon read whose absence must stay distinguishable from "empty". */
 async function tryRead<T>(read: () => Promise<T>): Promise<T | null> {
@@ -30,28 +32,38 @@ async function tryRead<T>(read: () => Promise<T>): Promise<T | null> {
   }
 }
 
-async function context(ctx: VerbContext): Promise<unknown> {
-  const daemon = daemonOf(ctx)
-  const { args, runtime } = ctx
-  const repoFlag = args.requireRepo("repo")
-  const limit = args.int("limit") ?? CONTEXT_TASK_LIMIT
+/** What `context` reads, minus argv: `repo: null` is the whole fleet (every
+ *  repo's tasks, no field notes — notes are per-repo). */
+export interface LoadContextOptions {
+  readonly repo: string | null
+  readonly limit: number
+}
 
+export async function loadContext(
+  daemon: DaemonRpc,
+  runtime: ApiRuntime,
+  opts: LoadContextOptions,
+): Promise<{ payload: ContextPayload; unresolvableRepos: readonly string[] }> {
   const { tasks: allTasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
   // Throws on an unresolvable `--repo`; unresolvable task repos are named.
-  const filter = await repoFilter(
-    runtime,
-    repoFlag,
-    allTasks.map((t) => t.repo),
-  )
+  const filter =
+    opts.repo === null
+      ? null
+      : await repoFilter(
+          runtime,
+          opts.repo,
+          allTasks.map((t) => t.repo),
+        )
+  const inScope = (repo: string): boolean => filter === null || filter.matches(repo)
 
   // Before the unit-of-work filter: inbox items about `main` still count.
-  const repoTaskIds = new Set(allTasks.filter((task) => filter.matches(task.repo)).map((task) => task.id))
+  const repoTaskIds = new Set(allTasks.filter((task) => inScope(task.repo)).map((task) => task.id))
 
   const tasks = allTasks.filter(
     (task) =>
       // Only worktree tasks are units of work (not `main`, not `dir`).
       (task.kind ?? "task") === "task" &&
-      filter.matches(task.repo) &&
+      inScope(task.repo) &&
       // Being removed = spent; a FAILED deletion is waiting on a person.
       task.deletion?.phase !== "queued" &&
       task.deletion?.phase !== "running",
@@ -60,12 +72,12 @@ async function context(ctx: VerbContext): Promise<unknown> {
   const [inspect, inbox, notes, liveTaskIds] = await Promise.all([
     tryRead(() => daemon.request<{ activity?: { tasks?: Record<string, ActivityEntry> } }>("debug.inspect")),
     tryRead(() => daemon.request<{ items: AttentionInboxItem[] }>("attention.list")),
-    tryRead(() => daemon.request<{ notes: ContextNote[] }>("note.list", { repo: filter.target })),
+    filter ? tryRead(() => daemon.request<{ notes: ContextNote[] }>("note.list", { repo: filter.target })) : null,
     tryRead(() => runtime.liveTaskIds()),
   ])
 
   const payload = buildContext({
-    repo: filter.target,
+    repo: filter?.target ?? "*",
     tasks,
     activity: inspect?.activity?.tasks ?? null,
     // `null` = host unreachable; an empty set DOES refute a stale `running`.
@@ -75,13 +87,21 @@ async function context(ctx: VerbContext): Promise<unknown> {
     attention: (inbox?.items ?? []).filter((item) => item.taskId === null || repoTaskIds.has(item.taskId)),
     notes: notes?.notes ?? [],
     now: Date.now(),
-    limit,
+    limit: opts.limit,
   })
+  return { payload, unresolvableRepos: filter?.unresolvableRepos ?? [] }
+}
 
+async function context(ctx: VerbContext): Promise<unknown> {
+  const { args, runtime } = ctx
+  const { payload, unresolvableRepos } = await loadContext(daemonOf(ctx), runtime, {
+    repo: args.requireRepo("repo"),
+    limit: args.int("limit") ?? CONTEXT_TASK_LIMIT,
+  })
   if (args.bool("text")) return { text: renderContext(payload) }
   return {
     ...payload,
-    ...(filter.unresolvableRepos.length > 0 ? { unresolvableRepos: filter.unresolvableRepos } : {}),
+    ...(unresolvableRepos.length > 0 ? { unresolvableRepos } : {}),
   }
 }
 

@@ -72,6 +72,13 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
     },
   ],
   [
+    "weixin",
+    async (args) => {
+      const { runWeixinSubcommand } = await import("./weixin-cmd.ts")
+      await runWeixinSubcommand(args)
+    },
+  ],
+  [
     "doctor",
     async (args) => {
       const { runDoctorSubcommand } = await import("./doctor-cmd.ts")

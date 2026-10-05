@@ -32,6 +32,12 @@ export interface DaemonServerOptions {
   readonly plugins?: { readonly binPath: string }
   /** Socket-ownership watch interval in ms; `0` disables the periodic check. */
   readonly socketWatchMs?: number
+  /**
+   * A consumer-owned reason to outlive the last gui (a bound chat channel
+   * that must keep answering). Call {@link DaemonServer.reevaluateIdle} when
+   * it turns false.
+   */
+  readonly keepAlive?: () => boolean
 }
 
 export interface DaemonServer {
@@ -39,5 +45,7 @@ export interface DaemonServer {
   readonly pidPath: string
   readonly startedAt: Date
   readonly clients: ReadonlySet<DaemonClientConnection>
+  /** Re-check the idle-stop rule after a keep-alive hold went away. */
+  reevaluateIdle(): void
   close(): Promise<void>
 }

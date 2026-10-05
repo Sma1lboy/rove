@@ -13,6 +13,7 @@ export const TOP_LEVEL_SUBCOMMANDS = [
   "api",
   "daemon",
   "machine",
+  "weixin",
   "doctor",
   "config",
   "reset",
@@ -31,7 +32,7 @@ export const TOP_LEVEL_SUBCOMMANDS = [
  * `VERBS` registry, loaded lazily). Canonical spellings only; aliases
  * (`theme ls`/`rm`) stay in their command module.
  */
-export type VerbedSubcommand = "daemon" | "machine" | "plugin" | "repo" | "skill" | "theme"
+export type VerbedSubcommand = "daemon" | "machine" | "plugin" | "repo" | "skill" | "theme" | "weixin"
 
 export const SUBCOMMAND_VERBS: Readonly<Record<VerbedSubcommand, readonly string[]>> = {
   daemon: ["status", "start", "stop", "restart"],
@@ -55,4 +56,5 @@ export const SUBCOMMAND_VERBS: Readonly<Record<VerbedSubcommand, readonly string
   repo: ["show", "set", "unset"],
   skill: ["install", "status", "command", "print"],
   theme: ["list", "add", "remove"],
+  weixin: ["login", "logout", "status", "allow", "deny"],
 }

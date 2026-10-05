@@ -13,6 +13,8 @@ import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
 import { CURRENT_VERSION } from "../version.ts"
+import type { WeixinBridge } from "../weixin/bridge.ts"
+import { startWeixinService } from "../weixin/daemon-service.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
@@ -105,6 +107,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   logDaemonInfo("boot", `daemon starting — ${daemonSpawnReason()} (pid ${process.pid}, v${CURRENT_VERSION})`)
 
   let core: RoveCore | undefined
+  let weixin: WeixinBridge | null = null
   const server = await startDaemonServer(
     async () => {
       const migration = migrateRoveDaemonStateLayout()
@@ -127,12 +130,16 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
       // Plugin callbacks exec THIS Rove where that is expressible as one
       // absolute path, else the invoked name on PATH (see plugin-bin-path.ts).
       plugins: { binPath: resolvePluginBinPath() },
+      // A bound WeChat channel must keep answering after the TUI closes.
+      keepAlive: () => weixin?.isBound() ?? false,
       onStop: async () => {
+        weixin?.stop()
         await core?.close()
       },
     },
   )
   console.log(`${CLI_NAME} daemon: listening on ${server.socketPath}`)
+  weixin = await startWeixinService(server)
 
   const shutdown = async () => {
     await server.close()
