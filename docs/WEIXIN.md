@@ -90,9 +90,10 @@ announced.
 
 ### The 24-hour limit
 
-WeChat only lets a bot start a conversation with someone who has written to it
-recently. Rove sends a notification only if that person messaged the bot in
-the last 24 hours. Otherwise the notification is written to
+iLink only accepts a bot-initiated message once the person has written to the
+bot, and the session behind it goes stale. Rove applies its own rule on top:
+it sends a notification only if that person messaged the bot in the last 24
+hours. Otherwise the notification is written to
 `~/.rove/weixin/undelivered.jsonl` and the daemon log instead, and
 `rove weixin status` shows the count and the latest reason. Any message to the
 bot (even `s`) opens the window again.

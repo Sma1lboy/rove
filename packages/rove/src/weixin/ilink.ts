@@ -47,6 +47,8 @@ export interface IlinkMessage {
   readonly message_id?: string | number
   readonly from_user_id?: string
   readonly to_user_id?: string
+  /** 1 = from a person, 2 = from a bot. */
+  readonly message_type?: number
   readonly context_token?: string
   readonly item_list?: readonly IlinkItem[]
   readonly room_id?: string
@@ -99,9 +101,13 @@ export function messageText(message: IlinkMessage): string {
   return ""
 }
 
-/** Group events are out of scope: a QR-bound bot identity rarely receives them. */
-export function isGroupMessage(message: IlinkMessage): boolean {
-  return Boolean(message.room_id || message.chat_room_id)
+/**
+ * A person's direct message to the bot. Group events are out of scope (a
+ * QR-bound bot identity rarely receives them), and a bot-typed message is an
+ * echo of our own send, never something to answer.
+ */
+export function isDirectUserMessage(message: IlinkMessage): boolean {
+  return !message.room_id && !message.chat_room_id && message.message_type !== MSG_TYPE_BOT
 }
 
 async function requestJson<T>(fetchFn: FetchFn, url: string, init: RequestInit, timeoutMs: number): Promise<T> {

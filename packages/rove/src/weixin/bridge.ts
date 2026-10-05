@@ -22,7 +22,7 @@ import {
   type UpdatesResponse,
   classifyIlink,
   describeIlink,
-  isGroupMessage,
+  isDirectUserMessage,
   messageText,
 } from "./ilink.ts"
 import { GroupTracker, renderArrivals } from "./notify.ts"
@@ -95,14 +95,14 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
   function refreshAccount(): boolean {
     const next = deps.store.readAccount()
     if (!next) {
-      if (account) {
-        deps.log("weixin", "unbound — stopped polling")
-        account = null
-        deps.onUnbound?.()
-      }
+      const wasBound = account !== null
       account = null
       client = null
       state = null
+      if (wasBound) {
+        deps.log("weixin", "unbound — stopped polling")
+        deps.onUnbound?.()
+      }
       return false
     }
     if (!client || !account || next.token !== account.token || next.accountId !== account.accountId) {
@@ -167,7 +167,7 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
   async function handleInbound(message: IlinkMessage): Promise<void> {
     if (!account || !state) return
     const from = message.from_user_id?.trim() ?? ""
-    if (!from || from === account.accountId || isGroupMessage(message)) return
+    if (!from || from === account.accountId || !isDirectUserMessage(message)) return
     const id = message.message_id === undefined ? "" : String(message.message_id)
     if (id) {
       if (seen.has(id)) return
