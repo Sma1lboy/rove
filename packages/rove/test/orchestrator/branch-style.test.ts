@@ -82,4 +82,13 @@ describe("uniqueBranchName", () => {
     const taken = new Set(["x", ...Array.from({ length: 98 }, (_, i) => `x-${i + 2}`)])
     expect(uniqueBranchName("x", taken, "01HXABCDEF")).toBe("x-abcdef")
   })
+
+  it("skips a name that an existing branch uses as a folder (git can't hold fix and fix/login)", () => {
+    expect(uniqueBranchName("fix", new Set(["main", "fix/login"]), "01HXABCDEF")).toBe("fix-2")
+  })
+
+  it("flattens a name nested under an existing branch (git can't hold feat and feat/x)", () => {
+    expect(uniqueBranchName("feat/login", new Set(["main", "feat"]), "01HXABCDEF")).toBe("feat-login")
+    expect(uniqueBranchName("feat/login", new Set(["feat", "feat-login"]), "01HXABCDEF")).toBe("feat-login-2")
+  })
 })
