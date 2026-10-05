@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.240
+
+### Patch Changes
+
+- [#1208](https://github.com/Sma1lboy/rove/pull/1208) [`63abd15`](https://github.com/Sma1lboy/rove/commit/63abd1561f6cdc2ab3ba6be6ba8427f7296cc209) Add Rove Mobile, an iPhone remote for Rove, and `rove-bridge`, the opt-in WebSocket gateway it pairs with. Remote access is `--preset tailscale` (tailnet address only) or `--preset cf` (Cloudflare Tunnel, with every connection's Access JWT verified); the bearer token travels only in a header. See docs/IOS.md. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1207](https://github.com/Sma1lboy/rove/pull/1207) [`9fdb530`](https://github.com/Sma1lboy/rove/commit/9fdb530a511e8bbd46db7bb2f952c50e27f82dde) Fix duplicate Kanban project boards and initial project selection when Windows repository paths use different separators, drive-letter case, or extended-length prefixes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.239
 
 ### Patch Changes

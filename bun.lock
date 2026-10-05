@@ -30,7 +30,7 @@
     },
     "packages/rove": {
       "name": "@sma1lboy/rove",
-      "version": "0.9.239",
+      "version": "0.9.240",
       "bin": {
         "rove": "dist/cli/rove.js",
       },
@@ -62,7 +62,7 @@
     },
     "packages/rove-bridge": {
       "name": "rove-bridge",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@sma1lboy/rove": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
