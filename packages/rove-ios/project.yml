@@ -45,6 +45,8 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        # iPhone only: opts out of iPad multitasking, which would otherwise demand all four orientations.
+        UIRequiresFullScreen: true
         # The bridge speaks plain ws:// on the LAN / Tailscale, so ATS must allow it.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
