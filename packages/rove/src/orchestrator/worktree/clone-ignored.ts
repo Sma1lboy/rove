@@ -10,42 +10,49 @@
  * tracked file is never collapsed into one entry, so tracked paths cannot be
  * cloned by construction.
  *
+ * Each directory is ONE clonefileat(2) call (atomic: a failure leaves no
+ * target), made through the perl that ships with macOS because node has no
+ * binding for it and `cp -c -R` clones file by file (~10x slower).
+ *
  * Cloning is best-effort: every precondition miss is silent and a failure is
- * logged, never thrown, because task creation must not depend on it. `cp -c`
- * silently degrades to a full copy where clonefile(2) is unsupported, so the
- * clone is gated on darwin + same device + APFS rather than trusting cp.
+ * logged, never thrown, because task creation must not depend on it.
  */
 
 import fs from "node:fs/promises"
 import path from "node:path"
 import type { ExecHost } from "../../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
-import { isCloneIgnoredEnabled, resolveCloneDirs } from "../../state/worktree-clone.ts"
+import { DEFAULT_CLONE_DIRS, isCloneIgnoredEnabled, resolveCloneDirs } from "../../state/worktree-clone.ts"
 
 export interface CloneIgnoredDeps {
   readonly platform: NodeJS.Platform
   /** `st_dev` of a path; two paths clone only when this matches. */
   statDev(p: string): Promise<number>
-  /** Whether the volume holding `p` is APFS (the only filesystem `cp -c` clones on). */
+  /** Whether the volume holding `p` is APFS, the filesystem clonefile(2) works on. */
   isApfs(p: string): Promise<boolean>
   /** Clone `source` to the not-yet-existing `target`; rejects on failure. */
   clone(source: string, target: string): Promise<void>
   log(message: string): void
 }
 
+// darwin <sys/syscall.h>: SYS_clonefileat = 462.
+// AT_FDCWD is -2 on darwin (Linux's -100 gives EINVAL).
+const CLONEFILEAT_PERL =
+  'my $r = syscall(462, -2, $ARGV[0], -2, $ARGV[1], 0); if ($r != 0) { print STDERR "clonefileat: $!\\n"; exit 1 }'
+
 export function defaultCloneDeps(exec: ExecHost): CloneIgnoredDeps {
   return {
     platform: process.platform,
     statDev: async (p) => (await fs.stat(p)).dev,
-    // Absolute paths: darwin only, and a PATH-shadowing coreutils `cp` has no clonefile `-c`.
+    // Absolute paths: darwin only, and PATH may shadow these with another implementation.
     // `df -T apfs <path>` prints a row only when the path is on an APFS volume.
     isApfs: async (p) => {
       const r = await exec.run(["/bin/df", "-T", "apfs", p])
       return r.exitCode === 0 && r.stdout.trim().split("\n").length > 1
     },
     clone: async (source, target) => {
-      const r = await exec.run(["/bin/cp", "-c", "-R", source, target])
-      if (r.exitCode !== 0) throw new Error(r.stderr.trim() || `cp exited ${r.exitCode}`)
+      const r = await exec.run(["/usr/bin/perl", "-e", CLONEFILEAT_PERL, source, target])
+      if (r.exitCode !== 0) throw new Error(r.stderr.trim() || `perl exited ${r.exitCode}`)
     },
     log: (message) => console.error(`[rove] ${message}`),
   }
@@ -82,19 +89,24 @@ async function exists(p: string): Promise<boolean> {
   }
 }
 
-/**
- * Directory names Rove clones into a new worktree on this host, empty when
- * cloning is off, unsupported or the project is remote. Doubles as "what is a
- * regenerable copy" for the delete gate.
- */
-export function clonedDirNames(exec: ExecHost, worktreePath: string, deps: CloneIgnoredDeps): readonly string[] {
+/** Directory names to clone into a new worktree here; empty when off, unsupported or remote. */
+function cloneDirNames(exec: ExecHost, worktreePath: string, deps: CloneIgnoredDeps): readonly string[] {
   if (exec.isRemote || deps.platform !== "darwin" || !isCloneIgnoredEnabled()) return []
   return resolveCloneDirs(worktreePath)
 }
 
 /**
- * Clone the configured ignored directories from `repo` into `worktreePath`.
- * Returns the repo-relative paths actually cloned; never throws.
+ * Names the delete gate treats as regenerable copies rather than work: only the
+ * built-in defaults that this worktree is also set to clone. A name a user adds
+ * to `.rove/clone-dirs` is cloned but never becomes silently deletable.
+ */
+export function regenerableDirNames(exec: ExecHost, worktreePath: string, deps: CloneIgnoredDeps): readonly string[] {
+  return cloneDirNames(exec, worktreePath, deps).filter((name) => DEFAULT_CLONE_DIRS.includes(name))
+}
+
+/**
+ * Clone the configured ignored directories from `repo` into `worktreePath`,
+ * concurrently. Returns the repo-relative paths actually cloned; never throws.
  */
 export async function cloneIgnoredDirs(
   exec: ExecHost,
@@ -102,12 +114,12 @@ export async function cloneIgnoredDirs(
   worktreePath: string,
   deps: CloneIgnoredDeps = defaultCloneDeps(exec),
 ): Promise<readonly string[]> {
-  const cloned: string[] = []
   try {
-    const names = new Set(clonedDirNames(exec, worktreePath, deps))
-    if (names.size === 0) return cloned
+    const names = new Set(cloneDirNames(exec, worktreePath, deps))
+    if (names.size === 0) return []
 
     const apfsByDev = new Map<number, boolean>()
+    const todo: { rel: string; source: string; target: string }[] = []
     for (const rel of await discoverIgnoredDirs(exec, repo, names)) {
       const source = path.join(repo, rel)
       const target = path.join(worktreePath, rel)
@@ -121,19 +133,25 @@ export async function cloneIgnoredDirs(
         apfs = await deps.isApfs(source)
         apfsByDev.set(dev, apfs)
       }
-      if (!apfs) continue
-
-      try {
-        await deps.clone(source, target)
-        cloned.push(rel)
-      } catch (err) {
-        // `target` did not exist a moment ago, so whatever is there is our partial copy.
-        await fs.rm(target, { recursive: true, force: true }).catch(() => {})
-        deps.log(`clone of ignored dir ${rel} into ${worktreePath} failed: ${err instanceof Error ? err.message : err}`)
-      }
+      if (apfs) todo.push({ rel, source, target })
     }
+
+    const results = await Promise.all(
+      todo.map(async ({ rel, source, target }) => {
+        try {
+          await deps.clone(source, target)
+          return rel
+        } catch (err) {
+          deps.log(
+            `clone of ignored dir ${rel} into ${worktreePath} failed: ${err instanceof Error ? err.message : err}`,
+          )
+          return null
+        }
+      }),
+    )
+    return results.filter((rel) => rel !== null)
   } catch (err) {
     deps.log(`cloning ignored dirs into ${worktreePath} failed: ${err instanceof Error ? err.message : err}`)
+    return []
   }
-  return cloned
 }

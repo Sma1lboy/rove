@@ -361,7 +361,7 @@ discoverable. No restart needed.
 A new local task's worktree starts with no `node_modules`, `.venv`, `target` or
 `.build`, because git does not check out ignored files. On macOS Rove clones
 those directories from the project's main checkout into the new worktree before
-`.rove/init.sh` runs, using APFS copy-on-write (`cp -c -R`). The copies cost
+`.rove/init.sh` runs, using APFS copy-on-write (`clonefileat(2)`). The copies cost
 almost no disk until a file changes, so `bun test` and friends work at once.
 `init.sh` still runs afterwards and stays authoritative: a lockfile that
 differs from the main checkout is its job to reconcile.
@@ -384,14 +384,17 @@ without a message, exactly as before:
 - it is absent from the new worktree;
 - source and worktree are on the same APFS volume (`st_dev` match).
 
-A clone that fails is logged to the daemon log and removed; it never fails task
-creation. Cloning `node_modules` of about 87,000 files takes roughly 15 seconds,
-asynchronously: the task opens when it finishes. `du` counts clones at full
-size, so measure with `df` instead. Because the copies are regenerable, any
-directory with a listed name is exempt from the gitignored-work check on
-delete (while cloning is on, on macOS): deleting a fresh task needs no
-`--force`. Mind that when you add a name that holds real work to
-`.rove/clone-dirs`; a forced delete still snapshots it.
+A clone that fails (no `/usr/bin/perl`, say) is logged to the daemon log; it
+never fails task creation and leaves no partial directory. Each directory is
+one `clonefileat(2)` call, run concurrently, asynchronously: on a 2 GB,
+87,000-file `node_modules` plus six nested ones, task creation went from 0.8 s
+to about 2.5 s. `du` counts clones at full size, so measure with `df`: that
+clone cost about 35 MB of free space.
+
+Deleting a fresh task needs no `--force`: the four default names, when this
+worktree clones them, do not count as gitignored work. A name you add to
+`.rove/clone-dirs` is cloned but still counts, so a `data` directory is never
+silently deletable.
 
 ### Sidebar
 

@@ -8,7 +8,8 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import type { CloneIgnoredDeps } from "../../src/orchestrator/worktree/clone-ignored.ts"
+import { LocalExecHost } from "../../src/exec/exec-host.ts"
+import { type CloneIgnoredDeps, defaultCloneDeps } from "../../src/orchestrator/worktree/clone-ignored.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
 let tmpRoot: string
@@ -120,11 +121,10 @@ describe("cloning ignored dirs into a new task worktree", () => {
     expect(logs).toEqual([])
   })
 
-  test("a failing clone is logged, leaves no partial copy, and never fails task creation", async () => {
+  test("a failing clone is logged and never fails task creation", async () => {
     seedRepo()
     const wt = await createTask({
-      clone: async (_source, target) => {
-        fs.mkdirSync(path.join(target, "half"), { recursive: true })
+      clone: async () => {
         throw new Error("disk on fire")
       },
     })
@@ -133,6 +133,17 @@ describe("cloning ignored dirs into a new task worktree", () => {
     expect(fs.existsSync(path.join(wt, "node_modules"))).toBe(false)
     expect(fs.existsSync(path.join(wt, "packages/x/node_modules"))).toBe(false)
     expect(logs.filter((m) => m.includes("disk on fire"))).toHaveLength(2)
+  })
+
+  test("a name added in .rove/clone-dirs is cloned but never becomes silently deletable", async () => {
+    seedRepo({ ".rove/clone-dirs": "node_modules\ndist\n" })
+    const wt = await createTask()
+    expect(fs.existsSync(path.join(wt, "dist/out.js"))).toBe(true)
+
+    const mgr = new GitWorktreeManager(undefined, deps())
+    await expect(mgr.remove(wt)).rejects.toThrow(/dist/)
+    await mgr.remove(wt, { force: true })
+    expect(fs.existsSync(wt)).toBe(false)
   })
 
   test("a pristine clone does not make deleting the task need --force", async () => {
@@ -156,5 +167,19 @@ describe("cloning ignored dirs into a new task worktree", () => {
 
     expect(again.path).toBe(wt)
     expect(fs.existsSync(path.join(wt, "node_modules"))).toBe(false)
+  })
+})
+
+describe.skipIf(process.platform !== "darwin")("the default clone (darwin)", () => {
+  test("clones a directory tree in one call and refuses to overwrite", async () => {
+    const { clone } = defaultCloneDeps(new LocalExecHost())
+    const source = path.join(tmpRoot, "src-dir")
+    write(path.join(source, "a/b/file.txt"), "payload")
+    const target = path.join(tmpRoot, "dst-dir")
+
+    await clone(source, target)
+    expect(fs.readFileSync(path.join(target, "a/b/file.txt"), "utf8")).toBe("payload")
+
+    await expect(clone(source, target)).rejects.toThrow(/exist/i)
   })
 })

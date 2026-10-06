@@ -17,7 +17,7 @@ import type { ExecHost } from "../../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
 import { parseDirtyPaths } from "../dirty-paths.ts"
-import { type CloneIgnoredDeps, cloneIgnoredDirs, clonedDirNames, defaultCloneDeps } from "./clone-ignored.ts"
+import { type CloneIgnoredDeps, cloneIgnoredDirs, defaultCloneDeps, regenerableDirNames } from "./clone-ignored.ts"
 import { type ExecCtx, type WorktreeExecDeps, defaultExecDeps } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import {
@@ -272,7 +272,7 @@ export class GitWorktreeManager implements WorktreeManager {
    */
   async ignoredWork(worktreePath: string): Promise<IgnoredWorkProbe> {
     const exec = this.execAt(worktreePath)
-    return smallIgnoredPaths(exec, worktreePath, clonedDirNames(exec, worktreePath, this.cloneDeps(exec)))
+    return smallIgnoredPaths(exec, worktreePath, regenerableDirNames(exec, worktreePath, this.cloneDeps(exec)))
   }
 
   /** Throws on detached HEAD (rev-parse prints `HEAD`) rather than returning a
