@@ -11,6 +11,7 @@ struct TaskDetailView: View {
     @State private var diff: (files: Int, added: Int, deleted: Int)?
     @State private var error: String?
     @State private var newTab = false
+    @State private var historySheet = false
     @State private var closing: TabRow?
     @State private var confirmDelete = false
     @State private var deleteSheet = false
@@ -50,6 +51,7 @@ struct TaskDetailView: View {
         .onAppear { session?.start() }
         .onDisappear { session?.stop() }
         .sheet(isPresented: $newTab) { NewTabSheet(taskId: taskId) { await reload() } }
+        .sheet(isPresented: $historySheet) { TaskHistorySheet(taskId: taskId) }
         .sheet(isPresented: $deleteSheet) {
             DeleteConfirmSheet(taskId: taskId) { dismiss() }
         }
@@ -90,6 +92,8 @@ struct TaskDetailView: View {
     private var moreMenu: some View {
         Menu {
             Button { newTab = true } label: { Label("New engine tab", systemImage: "plus") }
+            Button { historySheet = true } label: { Label("Engine history", systemImage: "text.alignleft") }
+                .accessibilityIdentifier("historyButton")
             if let tab = selectedTab {
                 Button { closing = tab } label: { Label("Close \(tab.displayTitle.lowercased())", systemImage: "xmark") }
             }

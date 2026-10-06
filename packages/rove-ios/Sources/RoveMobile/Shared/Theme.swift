@@ -25,6 +25,9 @@ enum Theme {
     static let success = dyn(0x5F8C49, 0x9ACA86)
     /// Failures only — terracotta never means error.
     static let error = dyn(0xB65742, 0xD47563)
+    /// Quota at 75%+ and routine runs that were missed; palette `yellow` (packages/branding colors.ts).
+    /// Not an error and not terracotta: it asks for a look, never for action.
+    static let warning = dyn(0xB08A2F, 0xE8C96B)
 
     static let radius: CGFloat = 8
     static let smallRadius: CGFloat = 6

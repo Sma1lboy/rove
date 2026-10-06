@@ -104,7 +104,7 @@ struct TaskListView: View {
                 } label: { HeaderIcon(systemName: "square.grid.2x2") }
                     .accessibilityLabel("Pages")
                     .accessibilityIdentifier("pagesMenu")
-                Button { showSettings = true } label: { HeaderIcon(systemName: "gearshape") }
+                Button { model.path.append(.settings) } label: { HeaderIcon(systemName: "gearshape") }
                     .buttonStyle(.pressable)
                     .accessibilityLabel("Settings")
                     .accessibilityIdentifier("settingsButton")
