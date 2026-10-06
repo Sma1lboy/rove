@@ -1,87 +1,74 @@
 import SwiftUI
 
-/// `rove api add`: repo, engine, optional title and first prompt. The last repo and engine
-/// are remembered on this phone, as the TUI's dialog remembers its own.
+/// New task: `existing` repo (task.spawn), `open project` (task.openMain), `clone` (repo.clone,
+/// then the existing form) or `adopt` (worktree.adopt). The last repo and engine are remembered
+/// on this phone, as the TUI's dialog remembers its own.
 struct NewTaskView: View {
     var onCreated: (String) -> Void
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @AppStorage("newTask.repo") private var lastRepo = ""
     @AppStorage("newTask.engine") private var lastEngine = ""
-    @State private var repos: [String] = []
-    @State private var engines: [Engine] = []
-    @State private var repo = ""
-    @State private var engine = ""
-    @State private var title = ""
-    @State private var prompt = ""
-    @State private var busy = false
-    @State private var error: String?
+    @State private var draft = NewTaskDraft()
+
+    private struct LoadKey: Hashable {
+        var repo: String
+        var mode: NewTaskMode
+    }
 
     var body: some View {
-        SheetScaffold(title: "new task", kicker: "worktree + branch", error: error,
-                      primary: PrimaryBar(label: "create task", enabled: !repo.isEmpty, busy: busy,
-                                          identifier: "createButton") { Task { await create() } }) {
-            FormSection(label: "repository", trailing: repos.isEmpty ? nil : String(format: "%02d", repos.count)) {
-                if repos.isEmpty && error == nil { BrailleSpinner(size: 13) }
-                VStack(spacing: 6) {
-                    ForEach(repos, id: \.self) { path in repoRow(path) }
-                }
+        SheetScaffold(title: "new task", kicker: kicker, error: draft.error,
+                      primary: PrimaryBar(label: primaryLabel, enabled: draft.canCreate, busy: draft.busy,
+                                          identifier: "createButton") { Task { await run() } }) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                ChoiceTiles(options: NewTaskMode.allCases, selection: $draft.mode, label: \.label, fill: false)
             }
-            FormSection(label: "engine") {
-                if !engines.isEmpty { EnginePicker(engines: engines, selection: $engine) }
-            }
-            FormSection(label: "title") {
-                FieldBox {
-                    TextField("", text: $title, prompt: Text("optional — derived from the prompt").foregroundStyle(Theme.muted))
-                        .accessibilityIdentifier("titleField")
-                }
-            }
-            FormSection(label: "first prompt") {
-                PromptEditor(text: $prompt, placeholder: "leave empty to open the worktree without starting the engine")
-                    .accessibilityIdentifier("promptEditor")
+            .accessibilityIdentifier("modePicker")
+            switch draft.mode {
+            case .existing: NewTaskExistingForm(draft: draft)
+            case .openProject: NewTaskOpenForm(draft: draft)
+            case .clone: NewTaskCloneForm(draft: draft)
+            case .adopt: NewTaskAdoptForm(draft: draft)
             }
         }
-        .task { await load() }
-    }
-
-    private func repoRow(_ path: String) -> some View {
-        let on = path == repo
-        return Button { withAnimation(Theme.spring) { repo = path } } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(URL(fileURLWithPath: path).lastPathComponent)
-                    .font(Theme.mono(14, on ? .semibold : .medium))
-                    .foregroundStyle(on ? Theme.accent : Theme.ink)
-                Text(path).font(Theme.mono(11)).foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.head)
+        .task { await draft.loadLists(client: model.client, preferred: [model.store.repoFilter, lastRepo].compactMap { $0 }, lastEngine: lastEngine) }
+        .task(id: LoadKey(repo: draft.spawn.repo, mode: draft.mode)) {
+            switch draft.mode {
+            case .existing: await draft.loadBranches(client: model.client)
+            case .adopt: await draft.loadAdoptable(client: model.client)
+            case .openProject, .clone: break
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            .selectableTile(on)
         }
-        .buttonStyle(.pressable)
+        .onChange(of: draft.spawn.engine) { draft.engineChanged() }
+        .onChange(of: draft.mode) { draft.error = nil }
     }
 
-    private func load() async {
-        do {
-            repos = try await model.client.request("repos.list", as: ReposResult.self).repos
-            engines = try await model.client.request("engines.list", as: EnginesResult.self).engines
-            let preferred = [model.store.repoFilter, lastRepo].compactMap { $0 }.first { repos.contains($0) }
-            if repo.isEmpty { repo = preferred ?? repos.first ?? "" }
-            if engine.isEmpty { engine = engines.contains { $0.id == lastEngine } ? lastEngine : engines.first?.id ?? "" }
-        } catch { self.error = error.localizedDescription }
+    private var kicker: String {
+        switch draft.mode {
+        case .existing: "worktree + branch"
+        case .openProject: "the project checkout"
+        case .clone: "git clone"
+        case .adopt: "existing worktrees"
+        }
     }
 
-    private func create() async {
-        busy = true; defer { busy = false }
-        var args: [String: Any] = ["repo": repo]
-        if !engine.isEmpty { args["engine"] = engine }
-        if !title.trimmingCharacters(in: .whitespaces).isEmpty { args["title"] = title }
-        if !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { args["prompt"] = prompt }
-        do {
-            let r = try await model.client.request("task.create", args, as: TaskCreateResult.self)
-            lastRepo = repo
-            lastEngine = engine
-            dismiss()
-            onCreated(r.taskId)
-        } catch { self.error = error.localizedDescription }
+    private var primaryLabel: String {
+        switch draft.mode {
+        case .existing: draft.spawn.isFanOut ? "create \(draft.spawn.fanOutTotal) tasks" : "create task"
+        case .openProject: "open project"
+        case .clone: draft.busy ? "cloning…" : "clone"
+        case .adopt:
+            if let p = draft.progress { "adopting \(p)" } else { draft.adopt.count > 0 ? "adopt \(draft.adopt.count)" : "adopt" }
+        }
+    }
+
+    private func run() async {
+        let finish = await draft.perform(client: model.client)
+        if finish != .stay { lastRepo = draft.spawn.repo; lastEngine = draft.spawn.engine }
+        switch finish {
+        case .stay: break
+        case .dismiss: dismiss()
+        case .open(let id): dismiss(); onCreated(id)
+        }
     }
 }

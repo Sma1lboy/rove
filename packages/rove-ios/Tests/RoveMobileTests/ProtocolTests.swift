@@ -128,4 +128,20 @@ final class ProtocolTests: XCTestCase {
         XCTAssertEqual(DiffLineKind.classify("-x"), .removed)
         XCTAssertEqual(DiffLineKind.classify(" x"), .context)
     }
+
+    /// A `tasks` frame mixing an old-bridge row (no additive fields) with a new one: both decode,
+    /// and the old row falls back to plain defaults.
+    func testTasksFrameDecodesRowsWithAndWithoutAdditiveListFields() throws {
+        let p = try result(#"""
+        {"id":3,"ok":true,"result":{"tasks":[
+          {"id":"old","title":"Old","group":"idle","rank":0},
+          {"id":"new","title":"New","group":"working","rank":1,"pinned":true,"order":2,"updatedAt":"2026-07-01T00:00:00.000Z",
+           "changes":{"added":1,"deleted":2,"ahead":3},"rowTokens":[{"text":"t","tone":"error","source":"s","expiresAt":1}],
+           "prChip":"passing","prChipStale":false}],"attention":[]}}
+        """#, as: TasksPayload.self)
+        XCTAssertEqual(p.tasks.map(\.id), ["old", "new"])
+        XCTAssertFalse(p.tasks[0].pinned); XCTAssertNil(p.tasks[0].changes); XCTAssertTrue(p.tasks[0].rowTokens.isEmpty)
+        XCTAssertTrue(p.tasks[1].pinned); XCTAssertEqual(p.tasks[1].order, 2)
+        XCTAssertEqual(p.tasks[1].changes?.ahead, 3); XCTAssertEqual(p.tasks[1].prChip, "passing")
+    }
 }

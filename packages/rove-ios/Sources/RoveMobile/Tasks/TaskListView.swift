@@ -1,21 +1,22 @@
 import SwiftUI
 
-func checkStateColor(_ s: String) -> Color {
-    let l = s.lowercased()
-    if l.contains("pass") || l.contains("success") || l.contains("green") { return Theme.success }
-    if l.contains("fail") || l.contains("error") || l.contains("red") { return Theme.error }
-    return Theme.muted
-}
-
-/// `#12 passing` — mono, coloured by CI state.
+/// `#12 ✓` — the PR number in muted mono, then the check / conflict mark (see `TaskRowMarks`).
+/// Without `chip` the mark is derived from `pr` itself, which is all the detail header has.
 struct PRTag: View {
     var pr: TaskPR
+    var chip: String?
+    var stale = false
+
     var body: some View {
-        Text([pr.number.map { "#\($0)" }, pr.checkState].compactMap { $0 }.joined(separator: " "))
-            .font(Theme.mono(11, .medium))
-            .foregroundStyle(checkStateColor(pr.checkState))
-            .lineLimit(1)
-            .fixedSize()
+        let mark = TaskRowMarks.prMark(kind: chip ?? TaskRowMarks.chipKind(pr), stale: stale)
+        HStack(spacing: 3) {
+            if let n = TaskRowMarks.prNumber(pr) {
+                Text(n).font(Theme.mono(11, .medium)).foregroundStyle(Theme.muted)
+            }
+            if let mark { MarkText(segments: [mark]) }
+        }
+        .lineLimit(1)
+        .fixedSize()
     }
 }
 
@@ -34,68 +35,33 @@ struct RowButtonStyle: ButtonStyle {
     }
 }
 
-struct TaskRowView: View {
-    var row: TaskRow
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(row.displayTitle)
-                    .font(Theme.face(16, .medium))
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(1)
-                HStack(spacing: 6) {
-                    if row.deleting {
-                        Text("deleting").font(Theme.mono(11, .medium)).foregroundStyle(Theme.muted)
-                    } else {
-                        StatusTag(group: row.group)
-                    }
-                    if row.kind == "main" {
-                        Text("main checkout").font(Theme.mono(12)).foregroundStyle(Theme.muted)
-                    } else if !row.branch.isEmpty {
-                        Text(row.branch)
-                            .font(Theme.mono(12))
-                            .foregroundStyle(Theme.muted)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                    if let pr = row.pr { PRTag(pr: pr) }
-                }
-            }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 5) {
-                TimelineView(.periodic(from: .distantPast, by: 1)) { ctx in
-                    Text(model.store.activityMs(row, now: ctx.date).map { TaskListLogic.age(ms: $0) } ?? "—")
-                        .font(Theme.mono(13))
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.muted)
-                }
-                if let e = row.engine {
-                    Text(e.name.lowercased()).font(Theme.mono(11)).foregroundStyle(Theme.muted).lineLimit(1)
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .accessibilityElement(children: .combine)
-    }
-}
-
 struct TaskListView: View {
     @Environment(AppModel.self) private var model
+    @AppStorage("taskSortMode") private var sortRaw = TaskSortMode.attention.rawValue
     @State private var showAttention = false
     @State private var showSettings = false
     @State private var showNew = false
+    @State private var searching = false
+    @State private var query = ""
+    @FocusState private var searchFocused: Bool
+    /// The one owner of task / project action sheets for this screen (row and project menus feed it).
+    @State private var actions = TaskActionHost()
+
+    private var sortMode: TaskSortMode { TaskSortMode(rawValue: sortRaw) ?? .attention }
+    private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         @Bindable var store = model.store
+        let sections = store.projects(mode: sortMode, query: searching ? query : "")
+        let shown = sections.reduce(0) { $0 + $1.rows.count }
         VStack(spacing: 0) {
             ScreenHeader {
                 BracketChip(size: 19).accessibilityAddTraits(.isHeader)
             } trailing: {
                 attentionButton
                 filterMenu
+                searchButton
+                sortMenu
                 Menu {
                     Button("board") { model.path.append(.board) }
                     Button("routines") { model.path.append(.routines) }
@@ -109,17 +75,18 @@ struct TaskListView: View {
                     .accessibilityLabel("Settings")
                     .accessibilityIdentifier("settingsButton")
             }
-            connectionStrip
+            connectionStrip(shown: shown)
+            if searching { searchBar }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if let e = store.error {
                         Text(e).font(Theme.mono(12)).foregroundStyle(Theme.error)
                             .padding(.horizontal, 20).padding(.vertical, 8)
                     }
-                    ForEach(store.projects, id: \.repo) { project in
+                    ForEach(sections, id: \.repo) { project in
                         projectSection(project.repo, project.rows)
                     }
-                    if store.loaded && store.visible.isEmpty { emptyState }
+                    emptyView(TaskListLogic.emptiness(loaded: store.loaded, total: store.tasks.count, shown: shown))
                     if !store.loaded {
                         HStack(spacing: 8) {
                             BrailleSpinner(size: 13)
@@ -135,6 +102,8 @@ struct TaskListView: View {
         }
         .background(Theme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear { actions.onOpenTask = { [model] id in model.path.append(.task(id)) } }
+        .taskActionSheets(actions)
         .sheet(isPresented: $showAttention) { AttentionSheet() }
         .sheet(isPresented: $showSettings) { NavigationStack { PairingView() } }
         .sheet(isPresented: $showNew) {
@@ -173,8 +142,58 @@ struct TaskListView: View {
         .accessibilityLabel("Filter by project")
     }
 
+    private var searchButton: some View {
+        Button { toggleSearch() } label: {
+            HeaderIcon(systemName: "magnifyingglass", tint: searching ? Theme.accent : Theme.muted)
+        }
+        .buttonStyle(.pressable)
+        .accessibilityLabel("Search")
+        .accessibilityIdentifier("searchButton")
+    }
+
+    /// Current sort in mono accent; the menu lists the four modes.
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort", selection: $sortRaw) {
+                ForEach(TaskSortMode.allCases) { Text($0.label).tag($0.rawValue) }
+            }
+        } label: {
+            Text(sortMode.label)
+                .font(Theme.mono(12, .medium))
+                .foregroundStyle(Theme.accent)
+                .lineLimit(1).fixedSize()
+                .frame(minHeight: 36)
+        }
+        .accessibilityLabel("Sort: \(sortMode.label)")
+        .accessibilityIdentifier("sortMenu")
+    }
+
+    private var searchBar: some View {
+        FieldBox {
+            HStack(spacing: 8) {
+                TextField("search title, repo, branch", text: $query)
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                    .accessibilityIdentifier("searchField")
+                if !query.isEmpty {
+                    Button { query = "" } label: { Text("×").font(Theme.mono(16)).foregroundStyle(Theme.muted) }
+                        .buttonStyle(.pressable)
+                        .accessibilityLabel("Clear search")
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 6)
+    }
+
+    /// Closing the field clears the query, which restores the full list.
+    private func toggleSearch() {
+        withAnimation(Theme.spring) { searching.toggle() }
+        if searching { searchFocused = true } else { query = ""; searchFocused = false }
+    }
+
     /// `HOST · CONNECTED` at rest; accent while reconnecting, error red when the link failed.
-    private var connectionStrip: some View {
+    private func connectionStrip(shown: Int) -> some View {
         let state = model.client.state
         let tone: Color = switch state {
         case .connected: Theme.muted
@@ -198,7 +217,7 @@ struct TaskListView: View {
                 }
                 .buttonStyle(.pressable)
             } else {
-                Theme.kicker(String(format: "%02d tasks", model.store.visible.count))
+                Theme.kicker(String(format: "%02d tasks", shown))
             }
         }
         .padding(.horizontal, 20)
@@ -213,26 +232,40 @@ struct TaskListView: View {
                 Text(String(format: "%02d", rows.count))
                     .font(Theme.mono(11)).monospacedDigit()
                     .foregroundStyle(Theme.muted)
+                Menu { ProjectActionItems(host: actions, repo: repo) } label: {
+                    Text("···").font(Theme.mono(14, .bold)).foregroundStyle(Theme.muted)
+                        .frame(width: 36, height: 28)
+                }
+                .accessibilityLabel("Project actions")
+                .accessibilityIdentifier("projectMenu-\(URL(fileURLWithPath: repo).lastPathComponent)")
             }
-            .padding(.horizontal, 20)
+            .padding(.leading, 20)
+            .padding(.trailing, 12)
             .padding(.top, 18)
-            .padding(.bottom, 4)
+            .padding(.bottom, 2)
             ForEach(rows) { row in
                 NavigationLink(value: Route.task(row.id)) { TaskRowView(row: row) }
                     .buttonStyle(RowButtonStyle())
                     .padding(.horizontal, 8)
+                    .contextMenu { TaskActionItems(host: actions, taskId: row.id) }
                     .accessibilityIdentifier("task-\(row.id)")
             }
         }
     }
 
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("no tasks on this mac").font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink)
-            Text("start one below — each gets its own worktree and branch")
-                .font(Theme.mono(12)).foregroundStyle(Theme.muted)
+    /// Welcome when the daemon has no tasks at all; `no matches` when a search or project filter hides them all.
+    @ViewBuilder private func emptyView(_ kind: TaskListEmpty) -> some View {
+        switch kind {
+        case .none: EmptyView()
+        case .welcome: TaskWelcomeView()
+        case .noMatches:
+            EmptyState(title: "no matches",
+                       detail: trimmedQuery.isEmpty
+                           ? "this project has no tasks — clear the filter above"
+                           : "nothing matches “\(trimmedQuery)” — clear the search")
+                .padding(.horizontal, 20).padding(.top, 28)
+                .accessibilityIdentifier("noMatches")
         }
-        .padding(.horizontal, 20).padding(.top, 28)
     }
 
     /// Full-width pressable bar, quill record-control grammar.

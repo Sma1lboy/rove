@@ -1,6 +1,7 @@
 /** The extended op allowlist: area tables, merged. An op not named here (or in core `OPS`) is UNKNOWN_OP. */
 
 import { BridgeError } from "../protocol.ts"
+import { TASK_OPS } from "./tasks.ts"
 import type { OpTable } from "./types.ts"
 
 /** Merge area tables; a name registered twice is a programming error, caught at startup and in tests. */
@@ -15,4 +16,4 @@ export function mergeOpTables(...tables: readonly OpTable[]): OpTable {
   return merged
 }
 
-export const AREA_OPS: OpTable = mergeOpTables()
+export const AREA_OPS: OpTable = mergeOpTables(TASK_OPS)
