@@ -36,7 +36,9 @@ TEST_RUNNER_ROVE_FIXTURE_URL='ws://127.0.0.1:7896/?token=fixture' \
 
 修复前的结果来自浅色竖屏 demo 一轮（跑到 routine 编辑为止）、fixture 终端一轮（深浅各一次）和横屏 fixture 一轮。看板、issue、设置、文件页、diff 备注这几行修复前没跑到，按代码判断：它们所在的 sheet / 页面没有挂 Done。
 
-输入点这张表：套件（也就是 CI）每次跑「竖屏浅色 demo」和「竖屏深色 fixture」两列，深浅主题、demo 和 fixture 各覆盖一次；「竖屏深色 demo」和「竖屏浅色 fixture」两列在这个 PR 的一次本地全量运行里也跑过并通过，之后从套件里拿掉，因为托管 runner 比本地慢约 2.5 倍，四轮 sweep 会超过时限。终端详情页那张表的六列每次都跑。修复后在 iPhone 17 Pro Max 和全新创建的 iPhone 17 Pro（CI 用的机型）上都跑过。
+输入点这张表：套件里有「竖屏浅色 demo」和「竖屏深色 fixture」两轮全量 sweep，深浅主题、demo 和 fixture 各覆盖一次；「竖屏深色 demo」和「竖屏浅色 fixture」两列在这个 PR 的一次本地全量运行里也跑过并通过，之后从套件里拿掉。终端详情页那张表的六列每次都跑。修复后在 iPhone 17 Pro Max 和全新创建的 iPhone 17 Pro（CI 用的机型）上都跑过。
+
+CI 上的取舍：iOS workflow 分浅色、深色两个并行 job。浅色 job 跑单元测试和除深色输入外的全部 UI 测试（约 50 分钟）。深色 job 不跑深色全量 sweep，改跑 `testInputSampleFixtureDark`：每类输入各一个，用同一个 `check`（配对页字段、列表搜索、sheet 单行框、sheet 多行编辑框、详情菜单打开的 sheet、设置页、文件页搜索），外加两个终端测试的深色那一轮。原因：深色全量 sweep 在托管 runner 上跑到第 6 分钟左右开始，几乎每个动作都卡在 XCUITest 的「等 app 空闲」上限 60 秒，持续约 9 分钟，整轮 16–42 分钟不等；同一 sweep 本地 408 秒，浅色 fixture 的同一批输入在 CI 上每个约 12 秒。CI 的屏幕录像里那段时间画面完全静止，没找到是什么让 app 一直不空闲（屏上唯一持续在跑的是任务列表里 working 那行 12.5 Hz 的 braille 转圈和每秒刷新的计时，未证实）。深色全量 sweep 留在套件里，本地跑：`-only-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark`。
 
 ### 输入点
 

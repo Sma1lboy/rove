@@ -38,13 +38,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Unit tests and every UI test except the dark input sweep; terminal tests run their light case.
+          # Unit tests and every UI test except the dark input tests; terminal tests run their light case.
           - appearance: light
-            select: -skip-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark
-          # The dark input sweep and the dark case of the terminal tests.
+            select: >-
+              -skip-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark
+              -skip-testing:RoveMobileUITests/KeyboardStateTests/testInputSampleFixtureDark
+          # One dark input of each kind and the dark case of the terminal tests. The full dark sweep stalls on
+          # the hosted runner (60 s app-idle waits per action, docs/KEYBOARD.md) and stays a local run.
           - appearance: dark
             select: >-
-              -only-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark
+              -only-testing:RoveMobileUITests/KeyboardStateTests/testInputSampleFixtureDark
               -only-testing:RoveMobileUITests/KeyboardStateTests/testTerminalDemo
               -only-testing:RoveMobileUITests/KeyboardStateTests/testTerminalFixture
     name: test (${{ matrix.appearance }})

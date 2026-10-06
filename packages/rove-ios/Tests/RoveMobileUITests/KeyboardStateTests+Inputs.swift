@@ -20,6 +20,33 @@ extension KeyboardStateTests {
         sweepDiff()
     }
 
+    /// One input of each kind, with the same `check`: a screen field (pairing), the list search, a sheet field
+    /// and a sheet editor (new task), a sheet opened from the detail menu (rename), a settings page (feedback)
+    /// and the files search. CI's dark pass runs this instead of `sweepInputs` (see docs/KEYBOARD.md).
+    func sampleInputs(_ look: XCUIDevice.Appearance, fixture: String?) throws {
+        try launch(look, fixture: fixture)
+        check("pairing-link", { self.input("pairingField") }, landmarks: ["connectButton"])
+        enter(fixture: fixture)
+        sweepList()
+        el("newTaskButton").tap()
+        waitFor(visible("createButton"), "new task sheet")
+        let primary = { self.assertReachable("createButton") }
+        check("newtask-title", { self.input("titleField") }, landmarks: ["createButton", "sheetClose"], whileUp: primary)
+        check("newtask-prompt", { self.input("promptEditor") }, landmarks: ["createButton", "sheetClose"], whileUp: primary)
+        closeSheet()
+        openTask()
+        sheetCheck("rename-task", menu: "Rename", field: "renameField", primary: "renameConfirm")
+        el("diffLink").tap()
+        waitFor(app.buttons["all"].firstMatch, "all files").tap()
+        check("files-search", { self.input("pathSearch") }, landmarks: ["backButton"])
+        el("backButton").tap()
+        back()
+        el("settingsButton").tap()
+        waitFor(el("settingsRow-feedback"), "settings").tap()
+        check("feedback-title", { self.input("feedbackTitle") }, landmarks: ["feedbackSend"],
+              whileUp: { self.assertReachable("feedbackSend") })
+    }
+
     private func sweepPairing() {
         let lm = ["connectButton"]
         check("pairing-link", { self.input("pairingField") }, landmarks: lm)

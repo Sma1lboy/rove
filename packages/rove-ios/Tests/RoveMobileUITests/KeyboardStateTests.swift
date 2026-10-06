@@ -26,9 +26,11 @@ final class KeyboardStateTests: XCTestCase {
     // MARK: Tests
 
     // Each theme once and each mode once (the terminal and landscape tests below run every pairing): the
-    // reviewer's path (demo) in light, the fixture bridge in dark.
+    // reviewer's path (demo) in light, the fixture bridge in dark. CI's dark pass runs the dark sample, one input
+    // of each kind; the full dark sweep is for local runs (docs/KEYBOARD.md says why).
     func testInputsDemoLight() throws { try sweepInputs(.light, fixture: nil) }
     func testInputsFixtureDark() throws { try sweepInputs(.dark, fixture: try fixtureURL()) }
+    func testInputSampleFixtureDark() throws { try sampleInputs(.dark, fixture: try fixtureURL()) }
 
     func testTerminalDemo() throws {
         for look in looks {
