@@ -128,6 +128,15 @@ final class TaskStore {
         catch { self.error = error.localizedDescription }
     }
 
+    /// Back to the not-yet-loaded state (leaving demo mode): the next bridge's first snapshot must neither
+    /// show demo rows nor be diffed against them for notifications.
+    func reset() {
+        tasks = []; attention = []; tabTitles = [:]
+        loaded = false; error = nil; repoFilter = nil
+        snapshot = nil; receivedAt = [:]
+        version += 1
+    }
+
     func dismissAttention(_ item: AttentionItem) async {
         guard let taskId = item.taskId else { return }
         var args: [String: Any] = ["taskId": taskId]

@@ -200,6 +200,16 @@ struct PairingView: View {
         VStack(alignment: .leading, spacing: 8) {
             if let error { ErrorLine(text: error).accessibilityIdentifier("pairingError") }
             PrimaryBar(label: String(localized: "connect"), enabled: !urlEmpty && cfReady, identifier: "connectButton") { connect() }
+            if isOnboarding {
+                Button { withAnimation(Theme.spring) { model.startDemo() } } label: {
+                    Text("try a demo")
+                        .font(Theme.mono(12))
+                        .foregroundStyle(Theme.muted)
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                }
+                .buttonStyle(.pressable)
+                .accessibilityIdentifier("demoButton")
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
