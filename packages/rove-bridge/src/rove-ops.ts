@@ -20,7 +20,14 @@ import {
   statusFilesBranch,
 } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
 import { createBridgeApi } from "./ops/api.ts"
-import { BridgeError, type DiffFileRow, type TabRow, type TaskRow, type TasksPayload } from "./protocol.ts"
+import {
+  type AttentionRow,
+  BridgeError,
+  type DiffFileRow,
+  type TabRow,
+  type TaskRow,
+  type TasksPayload,
+} from "./protocol.ts"
 
 export interface EngineRow {
   readonly id: string
@@ -71,6 +78,28 @@ export function engineFor(task: SerializedTask, engines: readonly EngineRow[]): 
     engines.find((e) => e.builtin && e.protocol === task.vendor)
   if (preset) return { id: preset.id, name: preset.name }
   return task.vendor ? { id: null, name: task.vendor } : null
+}
+
+/**
+ * The inbox as the phone sees it. Optional, additive fields: `resumeAt` (a rate-limited task's
+ * scheduled auto-resume, from its `quotaResume`) and `label` (a routine episode's name, since
+ * its subject is the routine, not a task).
+ */
+export function attentionRows(items: readonly AttentionInboxItem[], tasks: readonly SerializedTask[]): AttentionRow[] {
+  const byId = new Map(tasks.map((t) => [t.id, t]))
+  return items.map((i) => {
+    const resumeAt = i.state === "rate_limited" && i.taskId ? byId.get(i.taskId)?.quotaResume?.resumeAt : undefined
+    const label = i.detail?.routine?.name
+    return {
+      taskId: i.taskId,
+      tabId: i.tabId,
+      state: i.state,
+      unread: i.unread,
+      at: i.at,
+      ...(resumeAt ? { resumeAt } : {}),
+      ...(label ? { label } : {}),
+    }
+  })
 }
 
 /** Fold `context`'s grouping over EVERY task (main/dir included) and join display fields. */
@@ -172,13 +201,7 @@ export function createRoveOps(client: RoveDaemonClient): RoveOps {
       ])
       return {
         tasks: taskRows(tasks, inspect?.activity?.tasks ?? null, live, engineRows ?? [], Date.now()),
-        attention: (inbox?.items ?? []).map((i) => ({
-          taskId: i.taskId,
-          tabId: i.tabId,
-          state: i.state,
-          unread: i.unread,
-          at: i.at,
-        })),
+        attention: attentionRows(inbox?.items ?? [], tasks),
       }
     },
 
