@@ -114,23 +114,26 @@ struct RootView: View {
                 .overlay { SheetScrim() }
         } else {
             @Bindable var m = model
-            NavigationStack(path: $m.path) {
-                TaskListView()
-                    .navigationDestination(for: Route.self) { route in
-                        switch route {
-                        case .task(let id): TaskDetailView(taskId: id)
-                        case .taskTab(let id, let tab): TaskDetailView(taskId: id, tabId: tab)
-                        case .diff(let taskId): DiffFilesView(taskId: taskId)
-                        case .inbox: InboxView()
-                        case .board: BoardView()
-                        case .routines: RoutinesView()
-                        case .issues: IssuesView()
-                        case .worktrees: WorktreesView()
-                        case .settings: SettingsView()
+            VStack(spacing: 0) {
+                if model.demo { DemoStrip() }
+                NavigationStack(path: $m.path) {
+                    TaskListView()
+                        .navigationDestination(for: Route.self) { route in
+                            switch route {
+                            case .task(let id): TaskDetailView(taskId: id)
+                            case .taskTab(let id, let tab): TaskDetailView(taskId: id, tabId: tab)
+                            case .diff(let taskId): DiffFilesView(taskId: taskId)
+                            case .inbox: InboxView()
+                            case .board: BoardView()
+                            case .routines: RoutinesView()
+                            case .issues: IssuesView()
+                            case .worktrees: WorktreesView()
+                            case .settings: SettingsView()
+                            }
                         }
-                    }
+                }
             }
-            .safeAreaInset(edge: .top, spacing: 0) { if model.demo { DemoStrip() } }
+            .background(Theme.paper.ignoresSafeArea())
             .overlay { SheetScrim() }
             .overlay(alignment: .bottom) { ToastHost() }
         }
