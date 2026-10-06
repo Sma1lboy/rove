@@ -136,8 +136,9 @@ struct ToastHost: View {
             }
             .buttonStyle(.pressable)
             .padding(.horizontal, 12)
-            .padding(.top, 4)
-            .transition(.move(edge: .top).combined(with: .opacity))
+            // Above the bottom bars (new task / composer), clear of the header's bell and `…`.
+            .padding(.bottom, 84)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("noticeToast")
         }

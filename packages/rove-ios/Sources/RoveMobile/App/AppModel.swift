@@ -103,7 +103,7 @@ struct RootView: View {
                         }
                     }
             }
-            .overlay(alignment: .top) { ToastHost() }
+            .overlay(alignment: .bottom) { ToastHost() }
         }
     }
 }
