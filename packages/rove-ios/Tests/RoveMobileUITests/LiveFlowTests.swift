@@ -119,7 +119,7 @@ final class LiveFlowTests: XCTestCase {
             Thread.sleep(forTimeInterval: 1.2)
             waitFor(element("moreMenu"), "more menu").tap()
             if element("actionInfo").waitForExistence(timeout: 4) { break }
-            if attempt < 2 { app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).tap() }
+            if attempt < 2 { app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.5)).tap() }
         }
         // Tab and task actions together are taller than the screen: scroll the menu down to Delete.
         for _ in 0..<5 where !element("deleteButton").isHittable { app.swipeUp() }

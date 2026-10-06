@@ -104,6 +104,7 @@ final class PagesFixtureTests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.6)
         checkpoint("fx-routines-3-detail-runs")
         element("sheetClose").tap()
+        Thread.sleep(forTimeInterval: 1)
         element("backButton").tap()
 
         openPage("github issues")
@@ -133,7 +134,9 @@ final class PagesFixtureTests: XCTestCase {
         waitFor(element("confirmAction"), "confirm")
         checkpoint("fx-settings-4-remove-engine-confirm")
         element("sheetClose").tap()
+        Thread.sleep(forTimeInterval: 1) // the confirmation closes first, the engine sheet behind it second
         element("sheetClose").tap()
+        Thread.sleep(forTimeInterval: 1)
         element("backButton").tap()
         element("settingsRow-plugins").tap()
         waitFor(element("pluginRow-notes"), "plugins", timeout: 20)

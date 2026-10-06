@@ -29,6 +29,19 @@ final class TerminalFlowTests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
     }
 
+    /// Opens the detail `…` menu and returns the item with this label. A tap that lands while a sheet is
+    /// still closing opens nothing, so the menu is reopened (after a tap on the right edge, outside it).
+    private func menuItem(_ label: String) -> XCUIElement {
+        let item = app.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
+        for attempt in 0..<3 {
+            Thread.sleep(forTimeInterval: 1.2)
+            element("moreMenu").tap()
+            if item.waitForExistence(timeout: 4) { break }
+            if attempt < 2 { app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.5)).tap() }
+        }
+        return waitFor(item, "menu item \(label)")
+    }
+
     func testTerminalParity() throws {
         guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty, let title = env["ROVE_TASK_TITLE"], !title.isEmpty else {
             throw XCTSkip("ROVE_BRIDGE_URL / ROVE_TASK_TITLE not set")
@@ -96,8 +109,7 @@ final class TerminalFlowTests: XCTestCase {
         shot("07-interrupt")
 
         // S7: rename.
-        element("moreMenu").tap()
-        waitFor(app.buttons["Rename tab"].firstMatch, "rename item").tap()
+        menuItem("Rename tab").tap()
         let rename = waitFor(element("renameField"), "rename field")
         rename.tap()
         rename.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 30) + "scratch run")
@@ -107,8 +119,7 @@ final class TerminalFlowTests: XCTestCase {
         waitFor(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'scratch run'")).firstMatch, "renamed tab")
 
         // S2-S5: the new-session sheet.
-        element("moreMenu").tap()
-        app.buttons["Fork a child task…"].firstMatch.tap()
+        menuItem("Fork a child task…").tap()
         waitFor(element("startSessionButton"), "new session sheet")
         app.buttons["3"].firstMatch.tap()
         shot("09-new-session-fork")
@@ -116,10 +127,11 @@ final class TerminalFlowTests: XCTestCase {
         Thread.sleep(forTimeInterval: 2)
         shot("10-new-session-continue")
         element("sheetClose").tap()
+        let sheetGone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: element("sheetClose"))
+        wait(for: [sheetGone], timeout: 10)
 
         // C10: the PR request asks before it sends.
-        element("moreMenu").tap()
-        app.buttons["Ask the engine for a PR…"].firstMatch.tap()
+        menuItem("Ask the engine for a PR…").tap()
         waitFor(app.buttons["Send PR request"].firstMatch, "PR confirmation")
         shot("11-pr-confirm")
     }

@@ -41,10 +41,19 @@ final class TasksParityTests: XCTestCase {
         waitFor(element(id), "menu item \(id)").tap()
     }
 
-    /// Tap an empty strip under the status bar: closes a menu without hitting a row.
+    /// Tap the right edge, outside any menu the app opens (a list row's context menu, the detail `…`
+    /// menu, a project menu) and outside the rows: closes the menu without hitting anything. The
+    /// strip under the status bar no longer receives the dismissing tap.
     private func dismissMenu() {
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).tap()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.5)).tap()
         Thread.sleep(forTimeInterval: 0.5)
+    }
+
+    /// Close the open sheet and wait for it to be gone: a tap that lands mid-dismissal is swallowed.
+    private func closeSheet() {
+        element("sheetClose").tap()
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: element("sheetClose"))
+        wait(for: [gone], timeout: 10)
     }
 
     func testTasksParity() throws {
@@ -149,16 +158,16 @@ final class TasksParityTests: XCTestCase {
         act("actionInfo")
         Thread.sleep(forTimeInterval: 2)
         shot("18-info")
-        element("sheetClose").tap()
+        closeSheet()
 
         // Model & effort, engine, branch sheets
         act("actionBranch")
         waitFor(element("branchField"), "branch sheet"); Thread.sleep(forTimeInterval: 1.5)
         shot("19-branch")
-        element("sheetClose").tap()
+        closeSheet()
         act("actionModel")
         Thread.sleep(forTimeInterval: 1.5); shot("20-model-effort")
-        element("sheetClose").tap()
+        closeSheet()
 
         // Back to the list: pinned mark visible
         element("backButton").tap()
