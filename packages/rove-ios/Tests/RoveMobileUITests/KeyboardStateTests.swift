@@ -210,6 +210,9 @@ final class KeyboardStateTests: XCTestCase {
     func check(_ name: String, _ field: @escaping () -> XCUIElement, focus: (() -> Void)? = nil,
                landmarks: [String] = [], whileUp: (() -> Void)? = nil) {
         let tag = "\(label) \(name)"
+        // One line per input in the xcodebuild log (CI greps `KB `): where a slow run spends its time.
+        let started = Date()
+        defer { print("KB \(tag) \(String(format: "%.1f", Date().timeIntervalSince(started)))s") }
         if kb.isUp { dismiss() }
         let marks = landmarks.map { visible($0) }
         let before = marks.map(\.frame)
