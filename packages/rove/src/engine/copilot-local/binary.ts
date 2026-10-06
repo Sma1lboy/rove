@@ -5,8 +5,7 @@
  * lives in `../binary-discovery.ts`.
  */
 
-import path from "node:path"
-import { BinaryNotFoundError, createBinaryFinder, npmStyleDirs } from "../binary-discovery.ts"
+import { BinaryNotFoundError, createBinaryFinder, npmStyleBinaryCandidates } from "../binary-discovery.ts"
 
 export type { BinaryDiscoveryDeps } from "../binary-discovery.ts"
 
@@ -23,11 +22,6 @@ export class CopilotBinaryNotFoundError extends BinaryNotFoundError {
 
 export const findCopilotBinary = createBinaryFinder({
   name: "copilot",
-  candidates({ deps, home }) {
-    const win32 = (deps.platform?.() ?? process.platform) === "win32"
-    const names = win32 ? ["copilot.exe", "copilot.cmd", "copilot"] : ["copilot"]
-
-    return npmStyleDirs({ deps, home }).flatMap((dir) => names.map((name) => path.join(dir, name)))
-  },
+  candidates: (ctx) => npmStyleBinaryCandidates(ctx, "copilot"),
   notFound: (checked) => new CopilotBinaryNotFoundError(checked),
 })

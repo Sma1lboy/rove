@@ -138,6 +138,13 @@ export function npmStyleDirs(
   })
 }
 
+/** `name` under every npm-style dir, each spelling the platform uses (`.exe`/`.cmd` on Windows). */
+export function npmStyleBinaryCandidates(ctx: BinaryCandidateContext, name: string): string[] {
+  const win32 = (ctx.deps.platform?.() ?? process.platform) === "win32"
+  const names = win32 ? [`${name}.exe`, `${name}.cmd`, name] : [name]
+  return npmStyleDirs(ctx).flatMap((dir) => names.map((n) => path.join(dir, n)))
+}
+
 export interface BinaryFinderSpec {
   /** The binary name handed to `which`. */
   readonly name: string
