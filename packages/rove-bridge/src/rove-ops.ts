@@ -116,7 +116,7 @@ export function taskRows(
         status: task.status,
         group: row.group,
         rank: row.rank,
-        activity: row.activity,
+        activity: row.activity ? { ...row.activity, since: now - row.activity.forMs } : null,
         engine: engineFor(task, engines),
         pr: pr
           ? {

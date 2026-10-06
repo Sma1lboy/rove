@@ -7,7 +7,10 @@ struct TerminalPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Inset so glyphs never touch the bezel; the view measures its columns from the inset width.
             SwiftTermView(session: session)
+                .padding(.horizontal, 8)
+                .padding(.top, 6)
                 .background(Color(uiColor: TerminalPalette.background))
                 .overlay(alignment: .top) { statusBanner }
                 .accessibilityElement(children: .contain)
@@ -88,17 +91,30 @@ struct Composer: View {
 struct KeyRow: View {
     var session: TerminalSession
 
+    /// Most-used first, so `enter` is on screen without scrolling.
+    private static let order: [AccessoryKey] = [.esc, .enter, .up, .down, .tab, .shiftTab, .ctrl, .left, .right, .ctrlC]
+
+    /// Mono-safe captions in the TUI's chord spelling.
+    private static func caption(_ key: AccessoryKey) -> String {
+        switch key {
+        case .shiftTab: "shift+tab"
+        case .ctrlC: "ctrl+c"
+        default: key.label.lowercased()
+        }
+    }
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                ForEach(AccessoryKey.allCases, id: \.self) { key in
+                ForEach(Self.order, id: \.self) { key in
                     let armed = key == .ctrl && session.keys.ctrlArmed
                     Button { session.press(key) } label: {
-                        Text(key.label.lowercased())
+                        Text(Self.caption(key))
                             .font(Theme.mono(13, .medium))
                             .foregroundStyle(armed ? Theme.paper : Theme.ink)
+                            .fixedSize()
                             .padding(.horizontal, 10)
-                            .frame(minWidth: 36, minHeight: 34)
+                            .frame(minWidth: 38, minHeight: 34)
                             .background(armed ? Theme.accent : Theme.surface,
                                         in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
@@ -114,6 +130,7 @@ struct KeyRow: View {
                         Text(reply)
                             .font(Theme.mono(13, .medium))
                             .foregroundStyle(Theme.accent)
+                            .fixedSize()
                             .padding(.horizontal, 10)
                             .frame(minHeight: 34)
                             .background(Theme.accentSoft,
@@ -122,8 +139,17 @@ struct KeyRow: View {
                     .buttonStyle(.pressable)
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.leading, 12)
+            .padding(.trailing, 32)
         }
+        // The row scrolls: fade the trailing edge so a cut-off key reads as "more", not as a typo.
+        .mask(
+            HStack(spacing: 0) {
+                Color.black
+                LinearGradient(colors: [.black, .black.opacity(0)], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: 32)
+            }
+        )
         .padding(.top, 8)
         .background(Theme.paper)
     }

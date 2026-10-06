@@ -79,9 +79,10 @@ struct PairingView: View {
             Text(model.pairing == nil ? "drive your mac's tasks from here" : "this phone's bridge")
                 .font(Theme.face(24, .semibold))
                 .foregroundStyle(Theme.ink)
-            Text("start rove-bridge on the mac, then scan its qr code or paste the link it prints")
-                .font(Theme.mono(12))
-                .foregroundStyle(Theme.muted)
+            // Prose, so the system face; ink, because this line is the instructions.
+            Text("Start rove-bridge on your Mac, then scan the QR code it shows or paste the link it prints.")
+                .font(Theme.face(16))
+                .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -212,7 +213,7 @@ struct PairingView: View {
     }
 
     private func note(_ s: String) -> some View {
-        Text(s).font(Theme.mono(11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+        Text(s).font(Theme.face(14)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
     }
 
     /// Full-width primary bar; the error line sits right above it so it can't scroll away.

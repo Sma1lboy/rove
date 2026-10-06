@@ -204,7 +204,7 @@ describe("op allowlist", () => {
 })
 
 describe("task feed", () => {
-  test("a subscriber gets the snapshot, then a push when a row changes but not when only its age ticks", async () => {
+  test("a subscriber gets the snapshot, then a push when a row changes or a new episode starts, not when only its age ticks", async () => {
     const h = start()
     const c = await connect(h.url, AUTH)
     const first = await c.call("tasks.subscribe")
@@ -218,7 +218,7 @@ describe("task feed", () => {
       status: "backlog",
       group: "working" as const,
       rank: 3,
-      activity: { state: "running", forMs: 1 },
+      activity: { state: "running", forMs: 1, since: 5000 },
       engine: null,
       pr: null,
       report: null,
@@ -226,11 +226,14 @@ describe("task feed", () => {
     }
     h.setRows({ tasks: [row], attention: [] })
     await h.feed.refresh()
-    h.setRows({ tasks: [{ ...row, activity: { state: "running", forMs: 9000 } }], attention: [] })
+    h.setRows({ tasks: [{ ...row, activity: { state: "running", forMs: 9000, since: 5000 } }], attention: [] })
+    await h.feed.refresh()
+    // Same state, but the next turn: the phone must rebase its timer.
+    h.setRows({ tasks: [{ ...row, activity: { state: "running", forMs: 2, since: 60000 } }], attention: [] })
     await h.feed.refresh()
     // The socket is FIFO: a reply after the refreshes trails any push they sent.
     await c.call("hello")
-    expect(c.pushes.filter((p) => p.event === "tasks")).toHaveLength(1)
+    expect(c.pushes.filter((p) => p.event === "tasks")).toHaveLength(2)
   })
 })
 

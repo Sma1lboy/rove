@@ -1,0 +1,64 @@
+# Rove Mobile (packages/rove-ios): build, unit tests and UI tests on a simulator.
+#
+# Own file for the `paths` filter: a PR that touches neither the app nor the
+# bridge it talks to starts no macOS runner. The bridge is in the filter
+# because the app decodes its wire format.
+
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/rove-ios/**"
+      - "packages/rove-bridge/**"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/rove-ios/**"
+      - "packages/rove-bridge/**"
+      - ".github/workflows/ios.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        working-directory: packages/rove-ios
+        run: xcodegen generate
+
+      - name: Pick a simulator
+        # Hosted images rename their simulators with every Xcode bump; take the first available iPhone.
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
+          echo "SIM_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid" || true
+
+      - name: Build and test
+        working-directory: packages/rove-ios
+        run: |
+          set -o pipefail
+          xcodebuild -scheme RoveMobile -destination "id=$SIM_UDID" build test | grep -E 'error:|warning: .*RoveMobile|Test Case .*(passed|failed|skipped)|Executed|\*\* (BUILD|TEST)'

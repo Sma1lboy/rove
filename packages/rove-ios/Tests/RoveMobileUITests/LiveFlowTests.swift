@@ -58,7 +58,7 @@ final class LiveFlowTests: XCTestCase {
         element("connectButton").tap()
 
         // Task list
-        waitFor(app.navigationBars["Tasks"], "task list")
+        waitFor(element("newTaskButton"), "task list")
         waitFor(text("Add a subtract helper"), "existing task row", timeout: 30)
         checkpoint("02-task-list")
 
@@ -75,23 +75,17 @@ final class LiveFlowTests: XCTestCase {
         checkpoint("03-new-task")
         element("createButton").tap()
 
-        // Detail
-        waitFor(app.navigationBars[title], "task detail", timeout: 30)
-        let tab = waitFor(element("tab-tab-1"), "tab-1 row", timeout: 30)
+        // Detail: the first engine tab's terminal opens with it.
+        let heading = waitFor(element("taskTitle"), "task detail", timeout: 30)
+        XCTAssertEqual(heading.label, title)
+        waitFor(element("tab-tab-1"), "tab-1", timeout: 30)
         checkpoint("04-task-detail")
 
         // Terminal
-        tab.tap()
-        let bytes = waitFor(element("terminalStatus"), "terminal view")
-        var seen = 0
+        waitFor(element("terminal"), "terminal view")
         let deadline = Date().addingTimeInterval(45)
-        while Date() < deadline {
-            let label = bytes.label // "Live · 1234 B"
-            seen = Int((label.components(separatedBy: " · ").last ?? "").filter(\.isNumber)) ?? 0
-            if seen > 300 { break }
-            Thread.sleep(forTimeInterval: 0.5)
-        }
-        XCTAssertGreaterThan(seen, 300, "terminal produced no output")
+        while Date() < deadline, terminalBytes() <= 300 { Thread.sleep(forTimeInterval: 0.5) }
+        XCTAssertGreaterThan(terminalBytes(), 300, "terminal produced no output")
         Thread.sleep(forTimeInterval: 8) // let the engine render
         checkpoint("05-terminal")
 
@@ -104,7 +98,6 @@ final class LiveFlowTests: XCTestCase {
         checkpoint("06-terminal-replied")
 
         // Diff
-        app.navigationBars.buttons.element(boundBy: 0).tap()
         waitFor(element("diffLink"), "diff link").tap()
         let file = waitFor(text("math.ts"), "math.ts in diff files", timeout: 30)
         checkpoint("07-diff-files")
@@ -113,26 +106,27 @@ final class LiveFlowTests: XCTestCase {
         Thread.sleep(forTimeInterval: 1.5)
         checkpoint("08-diff-file")
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        waitFor(element("backButton"), "back to detail").tap()
 
         // Delete
-        waitFor(element("deleteButton"), "delete button").tap()
+        waitFor(element("moreMenu"), "more menu").tap()
+        waitFor(app.buttons["Delete task"].firstMatch, "delete in menu").tap()
         waitFor(app.buttons["Delete…"].firstMatch, "delete confirmation").tap()
         let force = waitFor(element("forceToggle"), "force toggle")
         force.switches.firstMatch.exists ? force.switches.firstMatch.tap() : force.tap()
         checkpoint("09-delete-confirm")
         element("confirmDeleteButton").tap()
 
-        waitFor(app.navigationBars["Tasks"], "task list after delete")
+        waitFor(element("newTaskButton"), "task list after delete")
         let gone = NSPredicate(format: "exists == false")
         let exp = expectation(for: gone, evaluatedWith: text(title))
         wait(for: [exp], timeout: 30)
         checkpoint("10-deleted")
     }
 
+    /// Bytes the terminal has received, exposed as its accessibility value.
     private func terminalBytes() -> Int {
-        let label = element("terminalStatus").label // "Live · 1,234 B"
-        return Int((label.components(separatedBy: " · ").last ?? "").filter(\.isNumber)) ?? 0
+        Int(element("terminal").value as? String ?? "") ?? 0
     }
 
     /// Types into an already-running task's terminal from the phone, then uses the accessory key row.
@@ -152,15 +146,12 @@ final class LiveFlowTests: XCTestCase {
         hideKeyboard()
         element("connectButton").tap()
 
-        waitFor(app.navigationBars["Tasks"], "task list")
+        waitFor(element("newTaskButton"), "task list")
         waitFor(text(taskTitle), "task \(taskTitle)", timeout: 30).tap()
-        waitFor(app.navigationBars[taskTitle], "task detail", timeout: 20)
+        waitFor(element("taskTitle"), "task detail", timeout: 20)
 
-        // First engine tab = first tab row.
-        let tab = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'tab-'")).firstMatch
-        waitFor(tab, "first tab row", timeout: 20).tap()
-
-        waitFor(element("terminalStatus"), "terminal view")
+        // The first engine tab's terminal opens with the task.
+        waitFor(element("terminal"), "terminal view")
         let start = Date().addingTimeInterval(30)
         while Date() < start, terminalBytes() < 300 { Thread.sleep(forTimeInterval: 0.5) }
         let before = terminalBytes()
