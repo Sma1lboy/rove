@@ -17,13 +17,14 @@ extension XCUIElement {
 struct KeyboardProbe {
     let app: XCUIApplication
 
-    /// The keyboard's frame in app coordinates, or nil. Existence is taken from one element snapshot, which
-    /// answers "gone" for a keyboard that just left instead of failing the test the way a frame query on it
-    /// does; the frame itself comes from the element (a snapshot's frame is not rotated for landscape).
+    /// The keyboard's frame in app coordinates, or nil. Read from one element snapshot: a frame query on a
+    /// keyboard that leaves mid-query fails the test ("failed to get matching snapshot"), a snapshot just
+    /// answers "gone". Snapshots keep portrait coordinates; the suite only rotates to landscape-left, measured
+    /// as element = (snapshot.y, appHeight − snapshot.maxX, snapshot.height, snapshot.width).
     var frame: CGRect? {
-        let k = app.keyboards.firstMatch
-        guard (try? k.snapshot()) != nil else { return nil }
-        return k.frame
+        guard let s = try? app.keyboards.firstMatch.snapshot().frame else { return nil }
+        guard XCUIDevice.shared.orientation == .landscapeLeft else { return s }
+        return CGRect(x: s.minY, y: app.frame.height - s.maxX, width: s.height, height: s.width)
     }
 
     /// A software keyboard on screen. With a hardware keyboard attached the tree can still hold a keyboard
@@ -63,9 +64,10 @@ struct KeyboardProbe {
         return bar.exists && bar.isHittable ? min(top, bar.frame.minY) : top
     }
 
-    /// Up and no longer moving (two equal frames 0.25 s apart).
+    /// Up and no longer moving (two equal frames 0.25 s apart). 12 s: hosted runners take over 6 s to bring
+    /// the keyboard up for the terminal.
     @discardableResult
-    func waitUp(timeout: TimeInterval = 6) -> Bool {
+    func waitUp(timeout: TimeInterval = 12) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         var last: CGRect?
         while Date() < deadline {
@@ -80,7 +82,7 @@ struct KeyboardProbe {
     }
 
     @discardableResult
-    func waitDown(timeout: TimeInterval = 6) -> Bool {
+    func waitDown(timeout: TimeInterval = 12) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if !isUp { Thread.sleep(forTimeInterval: 0.6); return true }

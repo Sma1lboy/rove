@@ -61,8 +61,13 @@ extension KeyboardStateTests {
     }
 
     private func sweepList() {
-        el("searchButton").tap()
-        check("list-search", { self.input("searchField") }, landmarks: ["newTaskButton", "settingsButton"])
+        // Opening search focuses its field, so the tap belongs to the focus step: the landmarks are measured
+        // before it, with no keyboard on the way up.
+        check("list-search", { self.input("searchField") }, focus: {
+            self.el("searchButton").tap()
+            let field = self.input("searchField")
+            if field.waitForExistence(timeout: 5), !self.kb.waitUp(timeout: 3) { field.tap() }
+        }, landmarks: ["newTaskButton", "settingsButton"])
         el("searchButton").tap()
     }
 
