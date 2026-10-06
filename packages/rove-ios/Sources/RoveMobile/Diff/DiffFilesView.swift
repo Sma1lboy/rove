@@ -55,7 +55,8 @@ struct DiffFilesView: View {
     /// F6: park `@path` for the engine input, then leave so the task's terminal is what you see.
     private func mention(_ path: String) {
         MentionBus.shared.post(taskId: taskId, path: path)
-        dismiss()
+        // The file view pops itself first; a pop issued while it is still on top is ignored.
+        Task { try? await Task.sleep(for: .milliseconds(500)); dismiss() }
     }
 
     // MARK: Changes
@@ -88,7 +89,7 @@ struct DiffFilesView: View {
     private var scopeHeader: some View {
         VStack(alignment: .leading, spacing: 8) {
             ChoiceTiles(options: base == nil ? ["working"] : ["working", "branch"], selection: $scope) { DiffScope.title($0, base: base) }
-            Text(scope == "working" ? "edits not committed yet in this task's worktree" : "everything this branch changed since it left \(base ?? "its base"), committed or not")
+            Text(scope == "working" ? "edits not committed yet in this task's worktree" : "commits on this branch since it left \(base ?? "its base"); uncommitted edits are under the other tab")
                 .font(Theme.mono(12)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
         }
     }

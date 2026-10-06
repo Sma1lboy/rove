@@ -188,7 +188,7 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
           delivered?: boolean
           targetState?: string
           targetDetail?: string
-          reason?: string
+          reason?: unknown
         }>("send", [flag("task-id", id), "--plain", flag("prompt", prompt), ...(tab ? [flag("tab", tab)] : [])])
         // A refused or unconfirmed send leaves every note unsent; the verb throws on a refusal.
         if (res.delivered !== true || res.targetState) {
@@ -196,7 +196,8 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
             sent: 0,
             delivered: false,
             reason:
-              res.targetDetail ?? res.reason ?? (res.targetState ? `engine is ${res.targetState}` : "not confirmed"),
+              reasonText(res.targetDetail ?? res.reason) ??
+              (res.targetState ? `engine is ${res.targetState}` : "not confirmed"),
           }
         }
         const batch = new Set(unsent.map((c) => c.id))
@@ -261,6 +262,12 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
       },
     }),
   }
+}
+
+/** `send` reports a string or a small object (`{failure: "other"}`); the phone gets one line either way. */
+function reasonText(reason: unknown): string | undefined {
+  if (reason === undefined || reason === null || reason === "") return undefined
+  return typeof reason === "string" ? reason : JSON.stringify(reason)
 }
 
 export const filesOps: OpTable = createFilesOps()

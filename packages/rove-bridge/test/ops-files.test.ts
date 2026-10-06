@@ -148,6 +148,12 @@ describe("review notes", () => {
     await expect(run("review.send", { taskId: "t1" }, refused.api)).rejects.toThrow("NOT_DELIVERED")
     const dead = fakeApi({ ...task, send: () => ({ delivered: true, targetState: "dead", targetDetail: "gone" }) })
     expect(await run("review.send", { taskId: "t1" }, dead.api)).toEqual({ sent: 0, delivered: false, reason: "gone" })
+    const objectReason = fakeApi({ ...task, send: () => ({ delivered: false, reason: { failure: "other" } }) })
+    expect(await run("review.send", { taskId: "t1" }, objectReason.api)).toEqual({
+      sent: 0,
+      delivered: false,
+      reason: '{"failure":"other"}',
+    })
     const unconfirmed = fakeApi({ ...task, send: () => ({}) })
     expect(await run("review.send", { taskId: "t1" }, unconfirmed.api)).toMatchObject({ delivered: false })
     expect(notes.data.get("t1")?.[0]?.sentAt).toBeUndefined()

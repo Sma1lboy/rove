@@ -37,25 +37,28 @@ struct DiffLinesView: View {
     let lines: [DiffLine]
     var file: String
     var notes: [ReviewNote] = []
-    /// `nil` = read-only, nothing can be selected (a plain file preview).
+    /// False for a plain file preview or a combined diff: rows then cannot be selected.
     @Binding var selection: DiffSelection
     var selectable = true
 
     var body: some View {
         let longest = lines.map { $0.text.count }.max() ?? 0
         let width = DiffMetrics.contentWidth(longest)
-        ScrollView([.horizontal, .vertical]) {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(lines.enumerated()), id: \.element.id) { idx, line in
-                    row(line, index: idx, width: width)
-                    ForEach(notes.filter { $0.line == line.number && line.selectable && lastRow(of: $0, at: idx) }) { n in
-                        noteCard(n).frame(width: width, alignment: .leading)
+        GeometryReader { geo in
+            ScrollView([.horizontal, .vertical]) {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(lines.enumerated()), id: \.element.id) { idx, line in
+                        row(line, index: idx, width: max(width, geo.size.width))
+                        ForEach(notes.filter { $0.line == line.number && line.selectable && lastRow(of: $0, at: idx) }) { n in
+                            noteCard(n)
+                        }
                     }
                 }
+                .padding(.bottom, 80)
+                .frame(minWidth: geo.size.width, minHeight: geo.size.height, alignment: .topLeading)
             }
-            .padding(.bottom, 80)
+            .scrollIndicators(.visible)
         }
-        .scrollIndicators(.visible)
         .background(Theme.surface)
     }
 

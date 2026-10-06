@@ -15,7 +15,7 @@ struct DiffFileView: View {
     let scope: String
     var base: String?
     var review: ReviewStore
-    /// Insert `@path` into the engine input (F6): the owner parks it and leaves this screen.
+    /// Insert `@path` into the engine input (F6): the owner parks it and leaves its own screen; this view leaves first.
     var mention: (String) -> Void
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -41,7 +41,7 @@ struct DiffFileView: View {
                 }
             } trailing: {
                 HStack(spacing: 0) {
-                    Button { mention(path) } label: { Text("@").font(Theme.mono(17, .medium)).foregroundStyle(Theme.muted).frame(width: 36, height: 36) }
+                    Button { mention(path); dismiss() } label: { Text("@").font(Theme.mono(17, .medium)).foregroundStyle(Theme.muted).frame(width: 36, height: 36) }
                         .buttonStyle(.pressable).accessibilityLabel("Mention in engine").accessibilityIdentifier("mentionButton")
                     Button { Task { await load() } } label: { HeaderIcon(systemName: "arrow.clockwise") }
                         .buttonStyle(.pressable).accessibilityLabel("Refresh").accessibilityIdentifier("refreshButton")
@@ -63,32 +63,34 @@ struct DiffFileView: View {
     // MARK: Header strip
 
     private var metaStrip: some View {
-        HStack(spacing: 8) {
-            Text(DiffScope.title(scope, base: base)).font(Theme.mono(11, .medium)).foregroundStyle(Theme.muted)
-            if case .loaded(let r) = phase {
-                if let from = r.origPath {
-                    Text("·").font(Theme.mono(11)).foregroundStyle(Theme.muted)
-                    Text("renamed from \(from)").font(Theme.mono(11)).foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.head)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text(DiffScope.title(scope, base: base)).foregroundStyle(Theme.muted)
+                if case .loaded(let r) = phase {
+                    if r.kind == "diff" {
+                        let c = DiffFileState.counts(r.text ?? "")
+                        Text("+\(c.added)").foregroundStyle(Theme.success)
+                        Text("−\(c.deleted)").foregroundStyle(Theme.error)
+                    } else if r.kind == "code" {
+                        Text("·").foregroundStyle(Theme.muted)
+                        Text("read-only preview").foregroundStyle(Theme.muted)
+                    }
                 }
-                if r.kind == "diff" {
-                    let c = DiffFileState.counts(r.text ?? "")
-                    Spacer(minLength: 4)
-                    Text("+\(c.added)").foregroundStyle(Theme.success)
-                    Text("−\(c.deleted)").foregroundStyle(Theme.error)
-                } else if r.kind == "code" {
-                    Text("·").font(Theme.mono(11)).foregroundStyle(Theme.muted)
-                    Text("read-only").font(Theme.mono(11)).foregroundStyle(Theme.muted)
+                Spacer(minLength: 4)
+                if !review.notes.isEmpty {
+                    Button { notesOpen = true } label: {
+                        Text("notes \(review.unsent.count)/\(review.notes.count)").foregroundStyle(Theme.accent)
+                    }
+                    .buttonStyle(.pressable).accessibilityIdentifier("notesButton")
                 }
             }
-            Spacer(minLength: 4)
-            if !review.notes.isEmpty {
-                Button { notesOpen = true } label: {
-                    Text("notes \(review.unsent.count)/\(review.notes.count)").font(Theme.mono(11, .medium)).foregroundStyle(Theme.accent)
-                }
-                .buttonStyle(.pressable).accessibilityIdentifier("notesButton")
+            if case .loaded(let r) = phase, let from = r.origPath {
+                Text("renamed from \(from)").foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.head)
+                    .accessibilityIdentifier("renamedFrom")
             }
         }
         .font(Theme.mono(12, .medium)).monospacedDigit()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20).padding(.bottom, 8)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 1) }
     }
