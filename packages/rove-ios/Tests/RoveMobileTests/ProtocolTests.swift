@@ -144,4 +144,29 @@ final class ProtocolTests: XCTestCase {
         XCTAssertTrue(p.tasks[1].pinned); XCTAssertEqual(p.tasks[1].order, 2)
         XCTAssertEqual(p.tasks[1].changes?.ahead, 3); XCTAssertEqual(p.tasks[1].prChip, "passing")
     }
+
+    /// `engines.list` rows: an old bridge omits `models`/`effortLevels`/`ready`; a new one carries them.
+    func testEnginesDecodeWithAndWithoutAdditiveFields() throws {
+        let r = try result(#"""
+        {"id":4,"ok":true,"result":{"engines":[
+          {"id":"claude","name":"Claude","command":"claude","protocol":"claude","builtin":true},
+          {"id":"codex","name":"Codex","command":"codex","protocol":"codex","builtin":true,
+           "models":[{"id":"gpt-5","name":"GPT 5"},{"id":"o3"}],"effortLevels":["low","high"],"ready":false},
+          {"id":"pi","name":"Pi","command":"pi","protocol":"pi","builtin":false,"models":null}]}}
+        """#, as: EnginesResult.self)
+        XCTAssertNil(r.engines[0].models); XCTAssertNil(r.engines[0].effortLevels); XCTAssertNil(r.engines[0].ready)
+        XCTAssertEqual(r.engines[1].models?.map(\.id), ["gpt-5", "o3"]); XCTAssertNil(r.engines[1].models?[1].name)
+        XCTAssertEqual(r.engines[1].effortLevels, ["low", "high"]); XCTAssertEqual(r.engines[1].ready, false)
+        XCTAssertNil(r.engines[2].models)
+    }
+
+    /// `pr.mergeable` is additive on task rows too.
+    func testPRMergeableOptional() throws {
+        let p = try result(#"""
+        {"id":5,"ok":true,"result":{"tasks":[
+          {"id":"a","title":"A","group":"idle","pr":{"number":1,"lifecycle":"open","checkState":"passing"}},
+          {"id":"b","title":"B","group":"idle","pr":{"number":2,"lifecycle":"open","checkState":"failing","mergeable":"CONFLICTING"}}],"attention":[]}}
+        """#, as: TasksPayload.self)
+        XCTAssertNil(p.tasks[0].pr?.mergeable); XCTAssertEqual(p.tasks[1].pr?.mergeable, "CONFLICTING")
+    }
 }
