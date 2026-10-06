@@ -210,7 +210,8 @@ struct TileLabel: View {
     }
 }
 
-/// Mono text field on a surface tile.
+/// Mono text field on a surface tile. At least 44 pt: an empty TextField lays out a taller line until it is
+/// first edited, so without the floor the box (and everything under it) shrinks 3 pt on first focus.
 struct FieldBox<Field: View>: View {
     @ViewBuilder var field: Field
 
@@ -222,6 +223,7 @@ struct FieldBox<Field: View>: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .padding(.horizontal, 12).padding(.vertical, 11)
+            .frame(minHeight: 44)
             .tile()
     }
 }

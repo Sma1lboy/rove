@@ -19,8 +19,16 @@ struct TerminalPane: View {
                 .accessibilityIdentifier("terminal")
                 // A String, not an interpolated literal: the literal is a LocalizedStringKey and would group digits ("42,683").
                 .accessibilityValue(String(session.bytesReceived))
-            KeyRow(session: session)
-            Composer(session: session, engineName: engineName)
+            // One bar on the keyboard: its own `done` sits in the key row, and pulling it down drops the keyboard
+            // (the terminal's pan scrolls history and must not).
+            VStack(spacing: 0) {
+                KeyRow(session: session)
+                Composer(session: session, engineName: engineName)
+            }
+            .simultaneousGesture(DragGesture(minimumDistance: 16).onEnded { drag in
+                let down = drag.translation.height
+                if down > 24, down > abs(drag.translation.width) { Keyboard.dismiss() }
+            })
         }
     }
 
@@ -61,6 +69,8 @@ struct TerminalPane: View {
 /// Always-visible key row — Esc, Tab, ⇧Tab, sticky Ctrl, arrows, Enter, ^C — then canned replies.
 struct KeyRow: View {
     var session: TerminalSession
+    @Environment(AppModel.self) private var model
+    @State private var keyboardUp = false
 
     /// Most-used first, so `enter` is on screen without scrolling.
     private static let order: [AccessoryKey] = [.esc, .enter, .up, .down, .tab, .shiftTab, .ctrl, .left, .right, .ctrlC]
@@ -75,6 +85,20 @@ struct KeyRow: View {
     }
 
     var body: some View {
+        HStack(spacing: 0) {
+            keys
+            if keyboardUp && model.sheets.isEmpty {
+                KeyboardDoneButton().padding(.trailing, 6)
+            }
+        }
+        .padding(.top, 8)
+        .background(Theme.paper)
+        .trackKeyboard($keyboardUp)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("keyRow")
+    }
+
+    private var keys: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(Self.order, id: \.self) { key in
@@ -134,7 +158,5 @@ struct KeyRow: View {
                     .frame(width: 32)
             }
         )
-        .padding(.top, 8)
-        .background(Theme.paper)
     }
 }

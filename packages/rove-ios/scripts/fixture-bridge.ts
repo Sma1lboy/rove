@@ -1,9 +1,13 @@
 // A canned-answer bridge on :7896 (token "fixture") that serves the SAME file the app's in-app demo
 // bridge answers from: Sources/RoveMobile/Demo/demo-fixture.json. It exists to look at states the
 // sandbox cannot produce (stale daemon, warn/ok quota meters, plugins, GitHub issues, every routine
-// run tone, a need-you card floating on the board) and to run PagesFixtureTests.
+// run tone, a need-you card floating on the board) and to run PagesFixtureTests and KeyboardStateTests.
 //   bun packages/rove-ios/scripts/fixture-bridge.ts
 //   TEST_RUNNER_ROVE_FIXTURE_URL=ws://127.0.0.1:7896/?token=fixture
+//
+// Every request it receives is recorded; `GET /log` (same bearer token) returns them as
+// [{op, args}] oldest first, `DELETE /log` clears it. KeyboardStateTests reads `term.resize` and
+// `term.input` from there.
 //
 // Fixture format (resolved identically by Demo/DemoFixture.swift):
 //   top level      { "<op>": <result> }; an op that is missing answers {}.
@@ -47,15 +51,21 @@ export function answer(op: string, args: Obj = {}, now = Date.now()): Json {
 }
 
 if (import.meta.main) {
+  const log: { op: string; args: Obj }[] = []
   Bun.serve({
     port: 7896,
     fetch(req, server) {
       if (req.headers.get("authorization") !== "Bearer fixture") return new Response("no", { status: 401 })
+      if (new URL(req.url).pathname === "/log") {
+        if (req.method === "DELETE") log.length = 0
+        return Response.json(log)
+      }
       return server.upgrade(req) ? undefined : new Response("ws", { status: 426 })
     },
     websocket: {
       message(ws, raw) {
         const { id, op, args } = JSON.parse(String(raw))
+        log.push({ op, args: args ?? {} })
         ws.send(JSON.stringify({ id, ok: true, result: answer(op, args ?? {}) }))
       },
     },

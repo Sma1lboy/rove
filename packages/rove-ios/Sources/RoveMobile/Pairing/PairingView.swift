@@ -59,7 +59,7 @@ struct PairingView: View {
         }
         .background(Theme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .keyboardDoneButton()
+        .keyboardDoneButton(active: model.sheets.isEmpty)
         .onAppear {
             if let draft = model.draftURL { text = draft; model.draftURL = nil; applyPresetFromText() }
         }

@@ -10,6 +10,7 @@ struct SettingsPage<Content: View>: View {
     var refresh: (() async -> Void)? = nil
     @ViewBuilder var content: Content
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,9 +26,11 @@ struct SettingsPage<Content: View>: View {
             }
             .refreshable { await refresh?() }
             .scrollDismissesKeyboard(.interactively)
+            .keyboardBarMargin()
         }
         .background(Theme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .keyboardDoneButton(active: model.sheets.isEmpty)
     }
 }
 

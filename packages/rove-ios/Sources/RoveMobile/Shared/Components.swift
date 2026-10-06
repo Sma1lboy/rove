@@ -119,41 +119,56 @@ struct SheetScaffold<Content: View>: View {
     var primary: PrimaryBar? = nil
     @ViewBuilder var content: Content
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.verticalSizeClass) private var verticalSize
+    @State private var keyboardUp = false
+
+    /// Landscape with the keyboard up leaves ~190 pt: the title row goes and the primary bar scrolls with
+    /// the form, so the field being typed in keeps the room.
+    private var typingInShortWindow: Bool { keyboardUp && verticalSize == .compact }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    if let kicker { Theme.kicker(kicker) }
-                    Text(title).font(Theme.face(20, .semibold)).foregroundStyle(Theme.ink)
-                        .accessibilityAddTraits(.isHeader)
+            if !typingInShortWindow {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let kicker { Theme.kicker(kicker) }
+                        Text(title).font(Theme.face(20, .semibold)).foregroundStyle(Theme.ink)
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Text("close").font(Theme.mono(14)).foregroundStyle(Theme.muted).frame(minWidth: 44, minHeight: 36)
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityIdentifier("sheetClose")
                 }
-                Spacer()
-                Button { dismiss() } label: {
-                    Text("close").font(Theme.mono(14)).foregroundStyle(Theme.muted).frame(minWidth: 44, minHeight: 36)
-                }
-                .buttonStyle(.pressable)
-                .accessibilityIdentifier("sheetClose")
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-            .padding(.bottom, 8)
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) { content }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8)
-            }
-            .scrollDismissesKeyboard(.interactively)
-            if error != nil || primary != nil {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let error { ErrorLine(text: error) }
-                    primary
+                VStack(alignment: .leading, spacing: 22) {
+                    content
+                    if typingInShortWindow { footer }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
                 .padding(.vertical, 8)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardBarMargin()
+            if !typingInShortWindow { footer.padding(.horizontal, 16).padding(.vertical, 8) }
         }
+        .trackKeyboard($keyboardUp)
         .quillSheetChrome()
+    }
+
+    @ViewBuilder private var footer: some View {
+        if error != nil || primary != nil {
+            VStack(alignment: .leading, spacing: 8) {
+                if let error { ErrorLine(text: error) }
+                primary
+            }
+        }
     }
 }
 
@@ -169,6 +184,7 @@ struct QuillSheetChrome: ViewModifier {
         content
             .background(Theme.paper.ignoresSafeArea())
             .safeAreaInset(edge: .top, spacing: 0) { if model.demo { DemoStrip() } }
+            .keyboardDoneButton(active: model.sheets.last == id)
             .presentationBackground(Theme.paper)
             .presentationBackgroundInteraction(.enabled(upThrough: .large))
             .onAppear { withAnimation(Theme.spring) { model.sheets.append(id) } }

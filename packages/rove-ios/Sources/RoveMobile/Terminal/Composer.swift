@@ -57,6 +57,8 @@ struct Composer: View {
         .padding(.top, 6)
         .padding(.bottom, 8)
         .background(Theme.paper)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("composerBar")
         .photosPicker(isPresented: $showPhotos, selection: $photo, matching: .images)
         .fileImporter(isPresented: $showFiles, allowedContentTypes: Self.fileTypes) { result in
             if case .success(let url) = result { load { try Self.read(url) } }

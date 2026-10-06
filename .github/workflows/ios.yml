@@ -32,7 +32,7 @@ jobs:
     # macos-26 defaults to Xcode 26.6, the toolchain the app is developed with; macos-15's
     # Xcode 16 rejects Swift that 26 accepts (Optional<Bool> switches, Substring interpolation).
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -63,8 +63,21 @@ jobs:
           echo "SIM_UDID=$udid" >> "$GITHUB_ENV"
           xcrun simctl boot "$udid" || true
 
+      - name: Start the fixture bridge
+        # KeyboardStateTests read what the app sent (term.resize, term.input) back from its /log.
+        run: |
+          bun packages/rove-ios/scripts/fixture-bridge.ts > /tmp/fixture-bridge.log 2>&1 &
+          for _ in $(seq 1 50); do
+            curl -sf -H 'Authorization: Bearer fixture' http://127.0.0.1:7896/log > /dev/null && exit 0
+            sleep 0.2
+          done
+          cat /tmp/fixture-bridge.log
+          exit 1
+
       - name: Build and test
         working-directory: packages/rove-ios
+        env:
+          TEST_RUNNER_ROVE_FIXTURE_URL: ws://127.0.0.1:7896/?token=fixture
         run: |
           set -o pipefail
           xcodebuild -scheme RoveMobile -destination "id=$SIM_UDID" build test | grep -E 'error:|warning: .*RoveMobile|Test Case .*(passed|failed|skipped)|Executed|\*\* (BUILD|TEST)'

@@ -3970,6 +3970,16 @@
         }
       }
     },
+    "Hide keyboard" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收起键盘"
+          }
+        }
+      }
+    },
     "hide output" : {
       "localizations" : {
         "zh-Hans" : {

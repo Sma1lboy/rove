@@ -19,20 +19,26 @@ struct TaskDetailView: View {
     @State private var actions = TaskActionHost()
     @State private var confirmLand = false
     @State private var landResult: String?
+    @State private var keyboardUp = false
+    @Environment(\.verticalSizeClass) private var verticalSize
 
     private var row: TaskRow? { model.store.task(id: taskId) }
     private var client: BridgeClient { model.client }
     private var selectedTab: TabRow? { tabs.first { $0.id == selectedTabId } }
+    /// Landscape with the keyboard up leaves ~230 pt: the header strips go so the terminal keeps its rows.
+    private var typingInShortWindow: Bool { keyboardUp && verticalSize == .compact }
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(back: { dismiss() }) {
-                titleBlock
-            } trailing: {
-                moreMenu
+            if !typingInShortWindow {
+                ScreenHeader(back: { dismiss() }) {
+                    titleBlock
+                } trailing: {
+                    moreMenu
+                }
+                metaStrip
+                tabStrip
             }
-            metaStrip
-            tabStrip
             if let error {
                 Text(error).font(Theme.mono(12)).foregroundStyle(Theme.error)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -47,7 +53,7 @@ struct TaskDetailView: View {
         }
         .background(Theme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .keyboardDoneButton()
+        .trackKeyboard($keyboardUp)
         .task { await reload() }
         .task { await tabStates.poll(client: client, taskId: taskId) { selectedTabId } }
         .onChange(of: model.store.version) { Task { await reload() } }
