@@ -10,7 +10,7 @@ struct EnginesView: View {
     @State private var selected: EngineRef?
 
     var body: some View {
-        SettingsPage(title: "engines", refresh: { await load() }) {
+        SettingsPage(title: String(localized: "engines"), refresh: { await load() }) {
             switch state {
             case .loading:
                 BrailleSpinner(size: 14)
@@ -19,7 +19,7 @@ struct EnginesView: View {
             case .loaded(let payload):
                 if let reloadError { ErrorLine(text: reloadError) }
                 if payload.engines.isEmpty {
-                    EmptyState(title: "no engines", detail: "the mac reports no engines")
+                    EmptyState(title: String(localized: "no engines"), detail: String(localized: "the mac reports no engines"))
                 } else {
                     VStack(spacing: 0) {
                         ForEach(Array(payload.engines.enumerated()), id: \.element.id) { index, engine in
@@ -31,7 +31,7 @@ struct EnginesView: View {
                     }
                     .tile()
                 }
-                Hint(text: "launch commands are edited on the mac — a command typed on a phone would run on the mac")
+                Hint(text: String(localized: "launch commands are edited on the mac — a command typed on a phone would run on the mac"))
             }
         }
         .task { await load() }
@@ -58,9 +58,9 @@ private struct EngineRow: View {
             HStack(spacing: 8) {
                 Text(engine.name).font(Theme.face(16, .medium)).foregroundStyle(engine.enabled ? Theme.ink : Theme.muted)
                     .lineLimit(1)
-                if engine.isDefault { SettingsTag(text: "default", tint: Theme.accent, bold: true) }
-                if !engine.enabled { SettingsTag(text: "off") }
-                if engine.custom { SettingsTag(text: "custom") }
+                if engine.isDefault { SettingsTag(text: String(localized: "default"), tint: Theme.accent, bold: true) }
+                if !engine.enabled { SettingsTag(text: String(localized: "off")) }
+                if engine.custom { SettingsTag(text: String(localized: "custom")) }
                 Spacer()
             }
             HStack(spacing: 6) {

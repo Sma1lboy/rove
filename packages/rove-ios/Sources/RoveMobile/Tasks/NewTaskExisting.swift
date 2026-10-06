@@ -7,7 +7,7 @@ struct RepoTiles: View {
     @Binding var selection: String
 
     var body: some View {
-        FormSection(label: "repository", trailing: repos.isEmpty ? nil : String(format: "%02d", repos.count)) {
+        FormSection(label: String(localized: "repository"), trailing: repos.isEmpty ? nil : String(format: "%02d", repos.count)) {
             if repos.isEmpty && loading { BrailleSpinner(size: 13) }
             VStack(spacing: 6) {
                 ForEach(repos, id: \.self) { path in row(path) }
@@ -40,22 +40,22 @@ struct NewTaskExistingForm: View {
     var body: some View {
         if let notice = draft.notice { Hint(text: notice) }
         RepoTiles(repos: draft.repos, loading: !draft.loadedLists, selection: $draft.spawn.repo)
-        FormSection(label: "engine") {
+        FormSection(label: String(localized: "engine")) {
             if !draft.engines.isEmpty { EnginePicker(engines: draft.engines, selection: $draft.spawn.engine) }
         }
         if !draft.branches.isEmpty {
-            FormSection(label: "base", trailing: "branch off") {
+            FormSection(label: String(localized: "base"), trailing: String(localized: "branch off")) {
                 BranchPicker(branches: draft.branches, selection: $draft.spawn.baseBranch)
             }
         }
-        FormSection(label: "title") {
+        FormSection(label: String(localized: "title")) {
             FieldBox {
                 TextField("", text: $draft.spawn.title, prompt: Text("optional — derived from the prompt").foregroundStyle(Theme.muted))
                     .accessibilityIdentifier("titleField")
             }
         }
-        FormSection(label: "first prompt") {
-            PromptEditor(text: $draft.spawn.prompt, placeholder: "leave empty to open the worktree without starting the engine")
+        FormSection(label: String(localized: "first prompt")) {
+            PromptEditor(text: $draft.spawn.prompt, placeholder: String(localized: "leave empty to open the worktree without starting the engine"))
                 .accessibilityIdentifier("promptEditor")
         }
         NewTaskOptions(draft: draft)
@@ -69,6 +69,6 @@ struct NewTaskOpenForm: View {
 
     var body: some View {
         RepoTiles(repos: draft.repos, loading: !draft.loadedLists, selection: $draft.spawn.repo)
-        Hint(text: "the project checkout itself, no new worktree.")
+        Hint(text: String(localized: "the project checkout itself, no new worktree."))
     }
 }

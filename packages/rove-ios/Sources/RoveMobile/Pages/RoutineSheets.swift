@@ -19,12 +19,15 @@ struct RoutineEditorSheet: View {
         let cron: String
     }
 
-    private static let presets = [
-        Preset(name: "hourly", cron: "0 * * * *"),
-        Preset(name: "daily 9:00", cron: "0 9 * * *"),
-        Preset(name: "weekdays", cron: "0 9 * * MON-FRI"),
-        Preset(name: "weekly", cron: "0 9 * * MON"),
-    ]
+    /// Computed, not stored: the names must follow the language at the time they are shown.
+    private static var presets: [Preset] {
+        [
+            Preset(name: String(localized: "hourly"), cron: "0 * * * *"),
+            Preset(name: String(localized: "daily 9:00"), cron: "0 9 * * *"),
+            Preset(name: String(localized: "weekdays"), cron: "0 9 * * MON-FRI"),
+            Preset(name: String(localized: "weekly"), cron: "0 9 * * MON"),
+        ]
+    }
 
     /// The bridge's own caps (`NAME_MAX`, `PROMPT_MAX`), counted in UTF-16 units as JS does.
     private static let nameMax = 120
@@ -39,23 +42,24 @@ struct RoutineEditorSheet: View {
     }
 
     var body: some View {
-        SheetScaffold(title: editing == nil ? "new routine" : "edit routine",
-                      kicker: editing?.name ?? "cron + prompt",
+        SheetScaffold(title: editing == nil ? String(localized: "new routine") : String(localized: "edit routine"),
+                      kicker: editing?.name ?? String(localized: "cron + prompt"),
                       error: error,
-                      primary: PrimaryBar(label: editing == nil ? "create routine" : "save routine",
+                      primary: PrimaryBar(label: editing == nil ? String(localized: "create routine") : String(localized: "save routine"),
                                           enabled: ready, busy: busy,
                                           identifier: editing == nil ? "createRoutine" : "saveRoutine") {
                           Task { await save() }
                       }) {
-            FormSection(label: "name") {
+            FormSection(label: String(localized: "name")) {
                 FieldBox {
                     TextField("", text: $name, prompt: Text("nightly dependency audit").foregroundStyle(Theme.muted))
                         .accessibilityIdentifier("routineName")
                 }
             }
             repoSection
-            FormSection(label: "prompt") {
-                PromptEditor(text: $prompt, placeholder: "what the agent should do each time it fires", minHeight: 140)
+            FormSection(label: String(localized: "prompt")) {
+                PromptEditor(text: $prompt, placeholder: String(localized: "what the agent should do each time it fires"),
+                             minHeight: 140)
                     .accessibilityIdentifier("routinePrompt")
             }
             scheduleSection
@@ -68,7 +72,7 @@ struct RoutineEditorSheet: View {
 
     @ViewBuilder private var repoSection: some View {
         if let editing {
-            FormSection(label: "repository") {
+            FormSection(label: String(localized: "repository")) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(editing.repoName).font(Theme.mono(14, .medium)).foregroundStyle(Theme.muted)
                     Text(editing.repo).font(Theme.mono(11)).foregroundStyle(Theme.muted)
@@ -77,10 +81,10 @@ struct RoutineEditorSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 .tile(Theme.inset)
-                Hint(text: "the repo is fixed once a routine exists — recreate it to move it")
+                Hint(text: String(localized: "the repo is fixed once a routine exists — recreate it to move it"))
             }
         } else {
-            FormSection(label: "repository", trailing: repos.isEmpty ? nil : String(format: "%02d", repos.count)) {
+            FormSection(label: String(localized: "repository"), trailing: repos.isEmpty ? nil : String(format: "%02d", repos.count)) {
                 if repos.isEmpty && error == nil { BrailleSpinner(size: 13) }
                 VStack(spacing: 6) {
                     ForEach(repos, id: \.self) { path in repoRow(path) }
@@ -108,9 +112,9 @@ struct RoutineEditorSheet: View {
     }
 
     private var scheduleSection: some View {
-        FormSection(label: "schedule") {
+        FormSection(label: String(localized: "schedule")) {
             FieldBox {
-                TextField("", text: $schedule, prompt: Text("0 9 * * *").foregroundStyle(Theme.muted))
+                TextField("", text: $schedule, prompt: Text(verbatim: "0 9 * * *").foregroundStyle(Theme.muted))
                     .keyboardType(.asciiCapable)
                     .accessibilityIdentifier("routineSchedule")
             }
@@ -121,9 +125,9 @@ struct RoutineEditorSheet: View {
             }
             .accessibilityIdentifier("routinePresets")
             if showsScheduleError {
-                ErrorLine(text: "schedule needs five space-separated cron fields: minute hour day month weekday")
+                ErrorLine(text: String(localized: "schedule needs five space-separated cron fields: minute hour day month weekday"))
             }
-            Hint(text: "five-field cron, in the mac's local time")
+            Hint(text: String(localized: "five-field cron, in the mac's local time"))
         }
     }
 
@@ -147,8 +151,8 @@ struct RoutineEditorSheet: View {
     private var showsScheduleError: Bool { !normalizedSchedule.isEmpty && !scheduleValid }
 
     private var lengthProblem: String? {
-        if trimmedName.utf16.count > Self.nameMax { return "name is longer than \(Self.nameMax) characters" }
-        if trimmedPrompt.utf16.count > Self.promptMax { return "prompt is longer than \(Self.promptMax) characters" }
+        if trimmedName.utf16.count > Self.nameMax { return String(localized: "name is longer than \(Self.nameMax) characters") }
+        if trimmedPrompt.utf16.count > Self.promptMax { return String(localized: "prompt is longer than \(Self.promptMax) characters") }
         return nil
     }
 
@@ -211,8 +215,8 @@ struct RoutineDeleteSheet: View {
     @State private var busy = false
 
     var body: some View {
-        SheetScaffold(title: "delete this routine?", kicker: "delete", error: error,
-                      primary: PrimaryBar(label: "delete routine", destructive: true, busy: busy,
+        SheetScaffold(title: String(localized: "delete this routine?"), kicker: String(localized: "delete"), error: error,
+                      primary: PrimaryBar(label: String(localized: "delete routine"), destructive: true, busy: busy,
                                           identifier: "confirmDeleteRoutine") { Task { await run() } }) {
             Text(routine.name).font(Theme.mono(14, .semibold)).foregroundStyle(Theme.ink)
             Text("Deletes the routine and its run history. Tasks it already created stay.")

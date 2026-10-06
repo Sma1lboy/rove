@@ -5,7 +5,7 @@ struct NewTaskCloneForm: View {
     @Bindable var draft: NewTaskDraft
 
     var body: some View {
-        FormSection(label: "git url") {
+        FormSection(label: String(localized: "git url")) {
             FieldBox {
                 TextField("", text: Binding(get: { draft.clone.url }, set: { draft.clone.setURL($0) }),
                           prompt: Text(verbatim: "https://github.com/owner/repo.git").foregroundStyle(Theme.muted))
@@ -16,7 +16,7 @@ struct NewTaskCloneForm: View {
             }
             soft(draft.clone.url, draft.clone.urlIssue)
         }
-        FormSection(label: "parent directory") {
+        FormSection(label: String(localized: "parent directory")) {
             FieldBox {
                 TextField("", text: $draft.clone.parentDir, prompt: Text(verbatim: "/Users/you/code").foregroundStyle(Theme.muted))
                     .textInputAutocapitalization(.never)
@@ -25,7 +25,7 @@ struct NewTaskCloneForm: View {
             }
             soft(draft.clone.parentDir, draft.clone.parentIssue)
         }
-        FormSection(label: "folder name") {
+        FormSection(label: String(localized: "folder name")) {
             FieldBox {
                 TextField("", text: Binding(get: { draft.clone.folder }, set: { draft.clone.setFolder($0) }),
                           prompt: Text("derived from the url").foregroundStyle(Theme.muted))
@@ -35,7 +35,7 @@ struct NewTaskCloneForm: View {
             }
             soft(draft.clone.folder, draft.clone.folderIssue)
         }
-        Hint(text: "git clone runs on the Mac. then the checkout opens in the new-task form.")
+        Hint(text: String(localized: "git clone runs on the Mac. then the checkout opens in the new-task form."))
     }
 
     @ViewBuilder private func soft(_ text: String, _ issue: String?) -> some View {

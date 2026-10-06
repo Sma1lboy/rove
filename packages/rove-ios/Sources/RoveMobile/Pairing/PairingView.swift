@@ -75,8 +75,8 @@ struct PairingView: View {
 
     private var intro: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Theme.kicker(model.pairing == nil ? "pair · remote control" : "settings · bridge")
-            Text(model.pairing == nil ? "drive your mac's tasks from here" : "this phone's bridge")
+            Theme.kicker(model.pairing == nil ? String(localized: "pair · remote control") : String(localized: "settings · bridge"))
+            Text(model.pairing == nil ? String(localized: "drive your mac's tasks from here") : String(localized: "this phone's bridge"))
                 .font(Theme.face(24, .semibold))
                 .foregroundStyle(Theme.ink)
             // Prose, so the system face; ink, because this line is the instructions.
@@ -89,12 +89,12 @@ struct PairingView: View {
 
     private var connectionCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Theme.kicker("connection")
+            Theme.kicker(String(localized: "connection"))
             VStack(spacing: 0) {
-                infoRow("status", model.client.state.label.lowercased(),
+                infoRow(String(localized: "status"), model.client.state.label.lowercased(),
                         tone: { if case .failed = model.client.state { return Theme.error }; return Theme.ink }())
-                if let p = model.pairing { divider; infoRow("bridge", p.display) }
-                if let h = model.client.hello { divider; infoRow("host", h.host); divider; infoRow("rove", h.roveVersion) }
+                if let p = model.pairing { divider; infoRow(String(localized: "bridge"), p.display) }
+                if let h = model.client.hello { divider; infoRow(String(localized: "host"), h.host); divider; infoRow("rove", h.roveVersion) }
             }
             .tile()
         }
@@ -113,7 +113,7 @@ struct PairingView: View {
     }
 
     private var networkSection: some View {
-        FormSection(label: "network") {
+        FormSection(label: String(localized: "network")) {
             ChoiceTiles(options: PairingPreset.allCases, selection: $preset) { $0.title.lowercased() }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("presetPicker")
@@ -122,45 +122,45 @@ struct PairingView: View {
 
     private var linkSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Theme.kicker(model.pairing == nil ? "pairing link" : "pair again")
+            Theme.kicker(model.pairing == nil ? String(localized: "pairing link") : String(localized: "pair again"))
             FieldBox {
-                TextField("", text: $text, prompt: Text("ws://host:7878/?token=…").foregroundStyle(Theme.muted), axis: .vertical)
+                TextField("", text: $text, prompt: Text(verbatim: "ws://host:7878/?token=…").foregroundStyle(Theme.muted), axis: .vertical)
                     .keyboardType(.URL)
                     .lineLimit(1...4)
                     .accessibilityIdentifier("pairingField")
                     .onChange(of: text) { applyPresetFromText() }
             }
             HStack(spacing: 6) {
-                Button { text = UIPasteboard.general.string ?? text } label: { TileLabel(text: "paste") }
+                Button { text = UIPasteboard.general.string ?? text } label: { TileLabel(text: String(localized: "paste")) }
                     .buttonStyle(.pressable)
                 if cameraAvailable {
-                    Button { scanning = true } label: { TileLabel(text: "scan qr") }
+                    Button { scanning = true } label: { TileLabel(text: String(localized: "scan qr")) }
                         .buttonStyle(.pressable)
                 }
                 Spacer()
             }
-            if !cameraAvailable { Hint(text: "no camera here — paste the link instead") }
+            if !cameraAvailable { Hint(text: String(localized: "no camera here — paste the link instead")) }
         }
     }
 
     private var cloudflareSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Theme.kicker("cloudflare access")
+            Theme.kicker(String(localized: "cloudflare access"))
             FieldBox {
-                TextField("", text: $cfId, prompt: Text("CF-Access-Client-Id").foregroundStyle(Theme.muted))
+                TextField("", text: $cfId, prompt: Text(verbatim: "CF-Access-Client-Id").foregroundStyle(Theme.muted))
                     .accessibilityIdentifier("cfClientId")
             }
             FieldBox {
-                SecureField("", text: $cfSecret, prompt: Text("CF-Access-Client-Secret").foregroundStyle(Theme.muted))
+                SecureField("", text: $cfSecret, prompt: Text(verbatim: "CF-Access-Client-Secret").foregroundStyle(Theme.muted))
                     .accessibilityIdentifier("cfClientSecret")
             }
-            Hint(text: "service token from zero trust → access → service auth")
+            Hint(text: String(localized: "service token from zero trust → access → service auth"))
         }
     }
 
     private var headersSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Theme.kicker("extra headers")
+            Theme.kicker(String(localized: "extra headers"))
             ForEach($headers) { $row in
                 HStack(spacing: 6) {
                     FieldBox { TextField("", text: $row.name, prompt: Text("name").foregroundStyle(Theme.muted)) }
@@ -173,23 +173,23 @@ struct PairingView: View {
                 }
             }
             HStack {
-                Button { headers.append(HeaderRow()) } label: { TileLabel(text: "+ header") }
+                Button { headers.append(HeaderRow()) } label: { TileLabel(text: String(localized: "+ header")) }
                     .buttonStyle(.pressable)
                 Spacer()
             }
-            Hint(text: "sent with the websocket upgrade · the app owns authorization")
+            Hint(text: String(localized: "sent with the websocket upgrade · the app owns authorization"))
         }
     }
 
     private var sessionActions: some View {
         HStack(spacing: 6) {
             if model.client.state == .disconnected {
-                Button { model.reconnect() } label: { TileLabel(text: "reconnect") }.buttonStyle(.pressable)
+                Button { model.reconnect() } label: { TileLabel(text: String(localized: "reconnect")) }.buttonStyle(.pressable)
             } else {
-                Button { model.disconnect() } label: { TileLabel(text: "disconnect") }.buttonStyle(.pressable)
+                Button { model.disconnect() } label: { TileLabel(text: String(localized: "disconnect")) }.buttonStyle(.pressable)
             }
             Spacer()
-            Button { model.forget() } label: { TileLabel(text: "forget pairing", tint: Theme.error) }
+            Button { model.forget() } label: { TileLabel(text: String(localized: "forget pairing"), tint: Theme.error) }
                 .buttonStyle(.pressable)
         }
     }
@@ -198,8 +198,7 @@ struct PairingView: View {
     private var connectBar: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let error { ErrorLine(text: error).accessibilityIdentifier("pairingError") }
-            PrimaryBar(label: "connect", enabled: !urlEmpty && cfReady) { connect() }
-                .accessibilityIdentifier("connectButton")
+            PrimaryBar(label: String(localized: "connect"), enabled: !urlEmpty && cfReady, identifier: "connectButton") { connect() }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

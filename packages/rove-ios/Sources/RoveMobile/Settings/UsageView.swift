@@ -6,7 +6,7 @@ struct UsageView: View {
     @State private var state: SettingsLoad<UsagePayload> = .loading
 
     var body: some View {
-        SettingsPage(title: "usage", refresh: { await load() }) {
+        SettingsPage(title: String(localized: "usage"), refresh: { await load() }) {
             switch state {
             case .loading:
                 BrailleSpinner(size: 14)
@@ -23,7 +23,7 @@ struct UsageView: View {
     private func content(_ payload: UsagePayload) -> some View {
         if let vendors = payload.usage {
             if vendors.isEmpty {
-                EmptyState(title: "no quota data", detail: "none of your engines report a quota")
+                EmptyState(title: String(localized: "no quota data"), detail: String(localized: "none of your engines report a quota"))
             } else {
                 ForEach(vendors) { vendor in
                     FormSection(label: vendor.displayName.lowercased(), trailing: captured(vendor)) {
@@ -39,13 +39,13 @@ struct UsageView: View {
                 }
             }
         } else {
-            EmptyState(title: "no usage yet", detail: "engines report quota once they have run")
+            EmptyState(title: String(localized: "no usage yet"), detail: String(localized: "engines report quota once they have run"))
         }
     }
 
     private func captured(_ vendor: UsageVendor) -> String? {
         let age = SettingsFormat.age(since: vendor.capturedAt)
-        return age.isEmpty ? nil : "\(age) ago"
+        return age.isEmpty ? nil : String(localized: "\(age) ago")
     }
 
     private func load() async {
@@ -66,7 +66,7 @@ private struct WindowRow: View {
             Text(window.label).font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink)
                 .frame(width: 34, alignment: .leading)
             Meter(percent: window.percent, tint: tone)
-            Text("\(window.percent)%").font(Theme.mono(13, .semibold)).foregroundStyle(tone)
+            Text(verbatim: "\(window.percent)%").font(Theme.mono(13, .semibold)).foregroundStyle(tone)
                 .frame(width: 44, alignment: .trailing)
             // A fixed column even when empty, so every meter in the group has the same length.
             Text(UsageLogic.resetText(window.resetsAt, now: Date()))

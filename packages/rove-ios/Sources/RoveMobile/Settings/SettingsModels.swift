@@ -169,9 +169,9 @@ enum EngineLogic {
     /// One mono word per fact, the TUI's second line: `claude ok · logged in`.
     static func loginText(_ e: EngineSetting) -> String {
         switch e.login {
-        case "yes": "logged in"
-        case "no": "no account"
-        default: "login unknown"
+        case "yes": String(localized: "logged in")
+        case "no": String(localized: "no account")
+        default: String(localized: "login unknown")
         }
     }
 
@@ -179,12 +179,14 @@ enum EngineLogic {
     static func reportText(_ e: EngineSetting) -> String {
         let hooks: String
         switch e.hooks {
-        case "installed": hooks = "hooks installed"
-        case "outdated": hooks = "hooks outdated"
-        case "not-installed": hooks = "hooks missing"
-        default: hooks = "no hooks"
+        case "installed": hooks = String(localized: "hooks installed")
+        case "outdated": hooks = String(localized: "hooks outdated")
+        case "not-installed": hooks = String(localized: "hooks missing")
+        default: hooks = String(localized: "no hooks")
         }
-        return [hooks, e.markers ? "markers" : "no markers", e.screen ? "screen rules" : "no screen rules"].joined(separator: " · ")
+        return [hooks,
+                e.markers ? String(localized: "markers") : String(localized: "no markers"),
+                e.screen ? String(localized: "screen rules") : String(localized: "no screen rules")].joined(separator: " · ")
     }
 }
 

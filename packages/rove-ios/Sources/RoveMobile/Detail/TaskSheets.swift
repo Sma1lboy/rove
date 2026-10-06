@@ -32,7 +32,7 @@ struct CheckRow: View {
             .tile()
         }
         .buttonStyle(.pressable)
-        .accessibilityValue(on ? "on" : "off")
+        .accessibilityValue(on ? String(localized: "on") : String(localized: "off"))
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 }

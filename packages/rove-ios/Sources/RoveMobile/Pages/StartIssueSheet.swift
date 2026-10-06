@@ -23,15 +23,15 @@ struct StartIssueSheet: View {
     }
 
     private func tileLabel(_ id: String?) -> String {
-        guard let id else { return "default engine" }
+        guard let id else { return String(localized: "default engine") }
         return engines.first { $0.id == id }?.name.lowercased() ?? id
     }
 
     var body: some View {
-        SheetScaffold(title: "#\(item.number) \(item.title)", kicker: "start task", error: error,
-                      primary: PrimaryBar(label: "start task", busy: busy,
+        SheetScaffold(title: "#\(item.number) \(item.title)", kicker: String(localized: "start task"), error: error,
+                      primary: PrimaryBar(label: String(localized: "start task"), busy: busy,
                                           identifier: "startIssueTask") { Task { await start() } }) {
-            FormSection(label: "engine") {
+            FormSection(label: String(localized: "engine")) {
                 if loaded {
                     ScrollView(.horizontal, showsIndicators: false) {
                         ChoiceTiles(options: options, selection: $engine, label: tileLabel, fill: false)

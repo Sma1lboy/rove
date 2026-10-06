@@ -5,6 +5,13 @@ enum TerminalMode: String, CaseIterable, Identifiable {
     case fit = "Fit"
     case watch = "Watch"
     var id: String { rawValue }
+    /// Display caption (the raw value stays the English id).
+    var label: String {
+        switch self {
+        case .fit: String(localized: "fit")
+        case .watch: String(localized: "watch")
+        }
+    }
 }
 
 @MainActor
@@ -30,8 +37,8 @@ final class TerminalSession {
 
     let taskId: String
     let tabId: String
-    static let liveStatus = "Live"
-    static let attachingStatus = "Attaching…"
+    static let liveStatus = String(localized: "Live")
+    static let attachingStatus = String(localized: "Attaching…")
     private(set) var status = TerminalSession.attachingStatus
     private(set) var exited = false
     /// Total terminal bytes fed to the view (exposed to UI tests as the terminal's accessibility value).
@@ -130,7 +137,7 @@ final class TerminalSession {
                 stream = r.stream
                 sentSize = attachedSize
                 exited = !r.alive
-                status = r.alive ? Self.liveStatus : "Process exited"
+                status = r.alive ? Self.liveStatus : String(localized: "Process exited")
                 surface?.reset()
                 if let replay = Data(base64Encoded: r.replay), !replay.isEmpty { feed(replay) }
                 for b in buffered where b.stream == r.stream { feed(b.bytes) }
@@ -153,7 +160,7 @@ final class TerminalSession {
             if let stream { if s == stream { feed(bytes) } }
             else if inFlight { buffered.append((s, bytes)) }
         case .termExit(let s, _):
-            if s == stream { exited = true; status = "Process exited" }
+            if s == stream { exited = true; status = String(localized: "Process exited") }
         case .tasks, .notice:
             break
         }

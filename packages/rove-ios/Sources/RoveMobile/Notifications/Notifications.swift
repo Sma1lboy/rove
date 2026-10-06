@@ -9,8 +9,8 @@ struct TaskNotice: Equatable {
 
     var body: String {
         switch kind {
-        case .waitingOnYou: "\(title) is waiting on you"
-        case .finished: "\(title) finished working"
+        case .waitingOnYou: String(localized: "\(title) is waiting on you")
+        case .finished: String(localized: "\(title) finished working")
         }
     }
 }

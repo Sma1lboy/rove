@@ -13,16 +13,16 @@ struct FieldNotesView: View {
     private var projectName: String { URL(fileURLWithPath: repo).lastPathComponent }
 
     var body: some View {
-        SheetScaffold(title: "field notes", kicker: projectName) {
+        SheetScaffold(title: String(localized: "field notes"), kicker: projectName) {
             if loading {
                 BrailleSpinner(size: 13)
             } else if let error {
                 ErrorLine(text: error)
             } else if notes.isEmpty {
-                EmptyState(title: "no field notes", detail: "workers leave notes here as they learn the repo")
+                EmptyState(title: String(localized: "no field notes"), detail: String(localized: "workers leave notes here as they learn the repo"))
                     .accessibilityIdentifier("notesEmpty")
             } else {
-                Hint(text: "The newest notes are handed to every fresh session on this repo, so retire any that stopped being true.")
+                Hint(text: String(localized: "The newest notes are handed to every fresh session on this repo, so retire any that stopped being true."))
                 VStack(spacing: 8) { ForEach(notes) { noteTile($0) } }
             }
         }
@@ -73,15 +73,15 @@ private struct NoteDeleteSheet: View {
     @State private var busy = false
 
     var body: some View {
-        SheetScaffold(title: "delete this note?", kicker: "field note #\(note.id)", error: error,
-                      primary: PrimaryBar(label: "delete note", destructive: true, busy: busy,
+        SheetScaffold(title: String(localized: "delete this note?"), kicker: String(localized: "field note #\(note.id)"), error: error,
+                      primary: PrimaryBar(label: String(localized: "delete note"), destructive: true, busy: busy,
                                           identifier: "confirmDeleteNoteButton") { Task { await run() } }) {
             Text(note.text).font(Theme.mono(13)).foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
                 .tile()
-            Hint(text: "Fresh sessions on this repo stop receiving it. This cannot be undone.")
+            Hint(text: String(localized: "Fresh sessions on this repo stop receiving it. This cannot be undone."))
         }
         .presentationDetents([.medium])
     }

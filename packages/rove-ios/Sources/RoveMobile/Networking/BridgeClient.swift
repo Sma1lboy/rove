@@ -10,10 +10,10 @@ enum ConnectionState: Equatable {
 
     var label: String {
         switch self {
-        case .disconnected: "Disconnected"
-        case .connecting: "Connecting…"
-        case .connected: "Connected"
-        case .reconnecting(let n): "Reconnecting (try \(n))…"
+        case .disconnected: String(localized: "Disconnected")
+        case .connecting: String(localized: "Connecting…")
+        case .connected: String(localized: "Connected")
+        case .reconnecting(let n): String(localized: "Reconnecting (try \(n))…")
         case .failed(let m): m
         }
     }

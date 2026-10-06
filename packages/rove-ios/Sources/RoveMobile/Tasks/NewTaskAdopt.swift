@@ -10,7 +10,7 @@ private struct AdoptRow: View {
             HStack(spacing: 10) {
                 Text(on ? "[x]" : "[ ]").font(Theme.mono(14, .bold)).foregroundStyle(on ? Theme.accent : Theme.muted)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(worktree.branch ?? "detached")
+                    Text(worktree.branch ?? String(localized: "detached"))
                         .font(Theme.mono(14, on ? .semibold : .medium))
                         .foregroundStyle(on ? Theme.accent : Theme.ink)
                     Text(AdoptSelection.pathTail(worktree.path))
@@ -23,7 +23,7 @@ private struct AdoptRow: View {
             .selectableTile(on)
         }
         .buttonStyle(.pressable)
-        .accessibilityValue(on ? "on" : "off")
+        .accessibilityValue(on ? String(localized: "on") : String(localized: "off"))
     }
 }
 
@@ -33,11 +33,11 @@ struct NewTaskAdoptForm: View {
 
     var body: some View {
         RepoTiles(repos: draft.repos, loading: !draft.loadedLists, selection: $draft.spawn.repo)
-        FormSection(label: "worktrees", trailing: draft.adoptable.isEmpty ? nil : "\(draft.adopt.count)/\(draft.adoptable.count)") {
+        FormSection(label: String(localized: "worktrees"), trailing: draft.adoptable.isEmpty ? nil : "\(draft.adopt.count)/\(draft.adoptable.count)") {
             if !draft.adoptLoaded {
                 BrailleSpinner(size: 13)
             } else if draft.adoptable.isEmpty {
-                EmptyState(title: "nothing to adopt", detail: "every worktree of this repo is already a task.")
+                EmptyState(title: String(localized: "nothing to adopt"), detail: String(localized: "every worktree of this repo is already a task."))
             } else {
                 VStack(spacing: 6) {
                     ForEach(draft.adoptable) { wt in
@@ -49,21 +49,21 @@ struct NewTaskAdoptForm: View {
                         if draft.adopt.count == draft.adoptable.count { draft.adopt.clear() } else { draft.adopt.selectAll(draft.adoptable.map(\.path)) }
                     }
                 } label: {
-                    Text(draft.adopt.count == draft.adoptable.count ? "clear" : "select all")
+                    Text(draft.adopt.count == draft.adoptable.count ? String(localized: "clear") : String(localized: "select all"))
                         .font(Theme.mono(13, .medium)).foregroundStyle(Theme.muted).frame(minHeight: 36, alignment: .leading)
                 }
                 .buttonStyle(.pressable)
             }
             if !draft.unreadable.isEmpty {
-                Text("\(draft.unreadable.count) unreadable, skipped: " + draft.unreadable.map { AdoptSelection.pathTail($0) }.joined(separator: ", "))
+                Text("\(draft.unreadable.count) unreadable, skipped: \(draft.unreadable.map { AdoptSelection.pathTail($0) }.joined(separator: ", "))")
                     .font(Theme.mono(12)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
             }
         }
         if !draft.engines.isEmpty {
-            FormSection(label: "engine", trailing: "optional") {
+            FormSection(label: String(localized: "engine"), trailing: String(localized: "optional")) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     ChoiceTiles(options: [""] + draft.engines.map(\.id), selection: $draft.adoptEngine, label: { id in
-                        id.isEmpty ? "default" : (draft.engines.first { $0.id == id }?.name.lowercased() ?? id)
+                        id.isEmpty ? String(localized: "default") : (draft.engines.first { $0.id == id }?.name.lowercased() ?? id)
                     }, fill: false)
                 }
             }

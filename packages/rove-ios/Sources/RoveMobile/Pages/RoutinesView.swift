@@ -81,11 +81,11 @@ struct RoutinesView: View {
 
     @ViewBuilder private var content: some View {
         if let payload {
-            Theme.kicker(String(format: "%02d routines", payload.automations.count))
+            Theme.kicker(String(localized: "\(String(format: "%02d", payload.automations.count)) routines"))
                 .padding(.horizontal, 4)
             if let error { ErrorLine(text: error).padding(.horizontal, 4) }
             if payload.automations.isEmpty {
-                EmptyState(title: "no routines", detail: "+ schedules a prompt on a cron")
+                EmptyState(title: String(localized: "no routines"), detail: String(localized: "+ schedules a prompt on a cron"))
                     .padding(.horizontal, 4).padding(.top, 12)
             }
             ForEach(payload.automations) { routine in
@@ -98,7 +98,7 @@ struct RoutinesView: View {
             }
         } else if let error {
             ErrorLine(text: error).padding(.horizontal, 4)
-            Button { Task { await load() } } label: { TileLabel(text: "retry") }
+            Button { Task { await load() } } label: { TileLabel(text: String(localized: "retry")) }
                 .buttonStyle(.pressable)
                 .padding(.horizontal, 4)
                 .accessibilityIdentifier("routinesRetry")
@@ -137,7 +137,7 @@ struct RoutinesView: View {
     /// `repoName · 0 9 * * * · next in 3d`; a paused routine has no next run.
     private func subtitle(_ routine: Routine) -> String {
         let next = routine.enabled ? RoutineLogic.until(routine.nextRunAt, now: Date()) : "—"
-        return "\(routine.repoName) · \(routine.schedule) · next \(next)"
+        return String(localized: "\(routine.repoName) · \(routine.schedule) · next \(next)")
     }
 
     private func load() async {

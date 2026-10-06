@@ -35,7 +35,7 @@ struct DiffFilesView: View {
                         .buttonStyle(.pressable).accessibilityLabel("Refresh").accessibilityIdentifier("refreshButton")
                 }
             }
-            ChoiceTiles(options: ["changes", "all"], selection: $tab) { $0 }
+            ChoiceTiles(options: ["changes", "all"], selection: $tab) { $0 == "changes" ? String(localized: "changes") : String(localized: "all") }
                 .padding(.horizontal, 20).padding(.bottom, 10)
             if tab == "changes" { changes } else {
                 FileTreeView(taskId: taskId, review: review ?? ReviewStore(client: model.client, taskId: taskId), base: base,
@@ -66,16 +66,17 @@ struct DiffFilesView: View {
             VStack(alignment: .leading, spacing: 14) {
                 if let error {
                     ErrorLine(text: error).accessibilityIdentifier("filesError")
-                    Button { Task { await load() } } label: { TileLabel(text: "retry", tint: Theme.accent) }
+                    Button { Task { await load() } } label: { TileLabel(text: String(localized: "retry"), tint: Theme.accent) }
                         .buttonStyle(.pressable).accessibilityIdentifier("retryButton")
                 } else {
                     scopeHeader
                     if !loaded {
                         HStack(spacing: 8) { BrailleSpinner(size: 14, tint: Theme.muted); Text("loading").font(Theme.mono(12)).foregroundStyle(Theme.muted) }
                     } else if visible.isEmpty {
-                        EmptyState(title: "no changes", detail: scope == "working" ? "the worktree matches its last commit" : "nothing on this branch beyond \(base ?? "its base")")
+                        EmptyState(title: String(localized: "no changes"), detail: emptyDetail)
                     } else {
-                        combinedRow(path: ".", title: "whole worktree", detail: "all \(visible.count) \(visible.count == 1 ? "file" : "files") as one diff")
+                        combinedRow(path: ".", title: String(localized: "whole worktree"),
+                                    detail: visible.count == 1 ? String(localized: "all \(visible.count) file as one diff") : String(localized: "all \(visible.count) files as one diff"))
                         ForEach(ChangeGroup.group(visible)) { g in group(g) }
                     }
                 }
@@ -85,11 +86,15 @@ struct DiffFilesView: View {
         .refreshable { await load() }
     }
 
+    private var emptyDetail: String {
+        scope == "working" ? String(localized: "the worktree matches its last commit") : String(localized: "nothing on this branch beyond \(base ?? String(localized: "its base"))")
+    }
+
     /// What this list is: working changes vs the branch against its named base.
     private var scopeHeader: some View {
         VStack(alignment: .leading, spacing: 8) {
             ChoiceTiles(options: base == nil ? ["working"] : ["working", "branch"], selection: $scope) { DiffScope.title($0, base: base) }
-            Text(scope == "working" ? "edits not committed yet in this task's worktree" : "commits on this branch since it left \(base ?? "its base"); uncommitted edits are under the other tab")
+            Text(scope == "working" ? String(localized: "edits not committed yet in this task's worktree") : String(localized: "commits on this branch since it left \(base ?? String(localized: "its base")); uncommitted edits are under the other tab"))
                 .font(Theme.mono(12)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -112,7 +117,7 @@ struct DiffFilesView: View {
     private func group(_ g: ChangeGroup) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             if g.dir.isEmpty == false {
-                combinedRow(path: g.dir, title: g.dir, detail: "\(g.files.count) \(g.files.count == 1 ? "file" : "files") · combined")
+                combinedRow(path: g.dir, title: g.dir, detail: g.files.count == 1 ? String(localized: "\(g.files.count) file · combined") : String(localized: "\(g.files.count) files · combined"))
             }
             VStack(spacing: 0) {
                 ForEach(g.files) { f in

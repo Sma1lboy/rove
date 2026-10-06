@@ -86,8 +86,8 @@ struct PrimaryBar: View {
     var enabled = true
     var destructive = false
     var busy = false
-    /// Accessibility identifier; defaults to the label.
-    var identifier: String? = nil
+    /// Accessibility identifier: an English constant, never derived from the (localized) label.
+    var identifier: String
     var action: () -> Void
 
     var body: some View {
@@ -105,7 +105,7 @@ struct PrimaryBar: View {
         }
         .buttonStyle(.pressable)
         .disabled(!enabled || busy)
-        .accessibilityIdentifier(identifier ?? label)
+        .accessibilityIdentifier(identifier)
     }
 }
 

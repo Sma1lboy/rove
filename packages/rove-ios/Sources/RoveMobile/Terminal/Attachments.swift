@@ -35,8 +35,8 @@ enum AttachmentLogic {
         case unsupported, tooLarge
         var errorDescription: String? {
             switch self {
-            case .unsupported: "only png, jpeg, gif, webp and pdf can be attached"
-            case .tooLarge: "that file is over 5 MB"
+            case .unsupported: String(localized: "only png, jpeg, gif, webp and pdf can be attached")
+            case .tooLarge: String(localized: "that file is over 5 MB")
             }
         }
     }
@@ -93,7 +93,7 @@ extension TerminalSession {
     func interrupt() async {
         do {
             _ = try await client.request("tab.interrupt", ["taskId": taskId, "tabId": tabId], as: EmptyResult.self)
-            flash("interrupt sent")
+            flash(String(localized: "interrupt sent"))
         } catch { flash(error.localizedDescription) }
     }
 }

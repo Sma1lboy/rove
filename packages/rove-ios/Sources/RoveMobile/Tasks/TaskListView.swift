@@ -88,7 +88,7 @@ struct TaskListView: View {
                     if !store.loaded {
                         HStack(spacing: 8) {
                             BrailleSpinner(size: 13)
-                            Text(model.client.state.label.lowercased()).font(Theme.mono(13)).foregroundStyle(Theme.muted)
+                            Text(connectionSpinnerWord(model.client.state)).font(Theme.mono(13)).foregroundStyle(Theme.muted)
                         }
                         .padding(.horizontal, 20).padding(.top, 24)
                     }
@@ -184,6 +184,22 @@ struct TaskListView: View {
         if searching { searchFocused = true } else { query = ""; searchFocused = false }
     }
 
+    private func connectionWord(_ state: ConnectionState) -> String {
+        switch state {
+        case .connected: String(localized: "connected")
+        case .connecting: String(localized: "connecting")
+        case .reconnecting(let n): String(localized: "reconnecting · try \(n)")
+        case .disconnected: String(localized: "offline")
+        case .failed: String(localized: "failed")
+        }
+    }
+
+    /// The loading line under the list: the bridge's own failure text stays verbatim.
+    private func connectionSpinnerWord(_ state: ConnectionState) -> String {
+        if case .failed(let m) = state { return m.lowercased() }
+        return connectionWord(state)
+    }
+
     /// `HOST · CONNECTED` at rest; accent while reconnecting, error red when the link failed.
     private func connectionStrip(shown: Int) -> some View {
         let state = model.client.state
@@ -193,13 +209,7 @@ struct TaskListView: View {
         default: Theme.accent
         }
         let host = model.client.hello?.host ?? model.pairing?.display ?? ""
-        let word: String = switch state {
-        case .connected: "connected"
-        case .connecting: "connecting"
-        case .reconnecting(let n): "reconnecting · try \(n)"
-        case .disconnected: "offline"
-        case .failed: "failed"
-        }
+        let word = connectionWord(state)
         return HStack(spacing: 8) {
             Theme.kicker([host, word].filter { !$0.isEmpty }.joined(separator: " · "), color: tone)
             Spacer()
@@ -209,7 +219,7 @@ struct TaskListView: View {
                 }
                 .buttonStyle(.pressable)
             } else {
-                Theme.kicker(String(format: "%02d tasks", shown))
+                Theme.kicker(String(localized: "\(String(format: "%02d", shown)) tasks"))
             }
         }
         .padding(.horizontal, 20)
@@ -251,10 +261,10 @@ struct TaskListView: View {
         case .none: EmptyView()
         case .welcome: TaskWelcomeView()
         case .noMatches:
-            EmptyState(title: "no matches",
+            EmptyState(title: String(localized: "no matches"),
                        detail: trimmedQuery.isEmpty
-                           ? "this project has no tasks — clear the filter above"
-                           : "nothing matches “\(trimmedQuery)” — clear the search")
+                           ? String(localized: "this project has no tasks — clear the filter above")
+                           : String(localized: "nothing matches “\(trimmedQuery)” — clear the search"))
                 .padding(.horizontal, 20).padding(.top, 28)
                 .accessibilityIdentifier("noMatches")
         }
@@ -267,7 +277,7 @@ struct TaskListView: View {
                 Text("+").font(Theme.mono(20, .medium)).foregroundStyle(Theme.accent)
                 Text("new task").font(Theme.mono(16, .medium)).foregroundStyle(Theme.ink)
                 Spacer()
-                Theme.kicker("worktree")
+                Theme.kicker(String(localized: "worktree"))
             }
             .padding(.horizontal, 18)
             .frame(height: 56)

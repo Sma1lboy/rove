@@ -88,7 +88,14 @@ enum BoardColumn: String, CaseIterable, Hashable {
     case parked
     case done
 
-    var title: String { rawValue }
+    var title: String {
+        switch self {
+        case .backlog: String(localized: "backlog")
+        case .inProgress: String(localized: "in progress")
+        case .parked: String(localized: "parked")
+        case .done: String(localized: "done")
+        }
+    }
 }
 
 struct BoardColumnData: Equatable {
@@ -277,7 +284,18 @@ enum RoutineLogic {
     }
 
     /// `skipped_precheck` → `skipped precheck`: the daemon's status ids, spaced.
-    static func label(status: String) -> String { status.replacingOccurrences(of: "_", with: " ") }
+    static func label(status: String) -> String {
+        switch status {
+        case "dispatched": String(localized: "dispatched")
+        case "revived": String(localized: "revived")
+        case "skipped_cancelled": String(localized: "skipped cancelled")
+        case "skipped_precheck": String(localized: "skipped precheck")
+        case "skipped_missed": String(localized: "skipped missed")
+        case "skipped_unavailable": String(localized: "skipped unavailable")
+        case "dispatch_failed": String(localized: "dispatch failed")
+        default: status.replacingOccurrences(of: "_", with: " ")
+        }
+    }
 
     static func date(_ iso: String?) -> Date? {
         guard let iso, !iso.isEmpty else { return nil }
@@ -292,14 +310,16 @@ enum RoutineLogic {
     static func until(_ iso: String?, now: Date) -> String {
         guard let d = date(iso) else { return "—" }
         let s = Int(d.timeIntervalSince(now))
-        if s <= 0 { return "due" }
-        return "in " + TaskListLogic.age(ms: Double(s) * 1000)
+        if s <= 0 { return String(localized: "due") }
+        let age = TaskListLogic.age(ms: Double(s) * 1000)
+        return String(localized: "in \(age)")
     }
 
     /// `3d ago`-style age of a past time.
     static func ago(_ iso: String?, now: Date) -> String {
         guard let d = date(iso) else { return "" }
-        return TaskListLogic.age(ms: max(0, now.timeIntervalSince(d)) * 1000) + " ago"
+        let age = TaskListLogic.age(ms: max(0, now.timeIntervalSince(d)) * 1000)
+        return String(localized: "\(age) ago")
     }
 
     /// Five space-separated cron fields: the bridge refuses anything else, so refuse it here first.
@@ -346,9 +366,9 @@ enum WorkItemLogic {
     static func errorHint(_ message: String) -> String {
         let kind = message.range(of: ": ").map { String(message[..<$0.lowerBound]) } ?? ""
         switch kind {
-        case "no-remote": return "this repo has no github remote"
-        case "gh-missing": return "install the gh cli on the mac"
-        case "auth": return "run gh auth login on the mac"
+        case "no-remote": return String(localized: "this repo has no github remote")
+        case "gh-missing": return String(localized: "install the gh cli on the mac")
+        case "auth": return String(localized: "run gh auth login on the mac")
         default: return message
         }
     }

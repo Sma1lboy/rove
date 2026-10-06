@@ -46,11 +46,11 @@ struct FileTreeView: View {
         let searching = !query.trimmingCharacters(in: .whitespaces).isEmpty
         if searching {
             let hits = FileTreeLogic.search(files, query)
-            if hits.isEmpty { EmptyState(title: "no match", detail: "no path contains “\(query)”") }
+            if hits.isEmpty { EmptyState(title: String(localized: "no match"), detail: String(localized: "no path contains “\(query)”")) }
             VStack(spacing: 0) { ForEach(hits, id: \.self) { fileLink($0, label: $0) } }.tile()
         } else {
             let entries = FileTreeLogic.entries(files, in: dir)
-            if entries.isEmpty { EmptyState(title: "empty", detail: "no files here") }
+            if entries.isEmpty { EmptyState(title: String(localized: "empty"), detail: String(localized: "no files here")) }
             VStack(spacing: 0) {
                 ForEach(entries) { e in
                     if case .dir(let n) = e.kind { dirRow(e, files: n) } else { fileLink(e.path, label: e.name) }

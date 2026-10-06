@@ -18,13 +18,13 @@ struct RenameTaskSheet: View {
     private var next: String? { TaskActionLogic.validTitle(title).flatMap { $0 == original ? nil : $0 } }
 
     var body: some View {
-        SheetScaffold(title: "rename task", kicker: "title", error: error,
-                      primary: PrimaryBar(label: "rename", enabled: next != nil, busy: busy, identifier: "renameConfirm") { Task { await save() } }) {
-            FormSection(label: "title", trailing: "\(title.count)/200") {
+        SheetScaffold(title: String(localized: "rename task"), kicker: String(localized: "title"), error: error,
+                      primary: PrimaryBar(label: String(localized: "rename"), enabled: next != nil, busy: busy, identifier: "renameConfirm") { Task { await save() } }) {
+            FormSection(label: String(localized: "title"), trailing: "\(title.count)/200") {
                 FieldBox { TextField("task title", text: $title).submitLabel(.done) }
                     .accessibilityIdentifier("renameField")
             }
-            Hint(text: "Changes the title only. The git branch keeps its name.")
+            Hint(text: String(localized: "Changes the title only. The git branch keeps its name."))
         }
         .presentationDetents([.medium])
         .onAppear { if !seeded { title = original; seeded = true } }
@@ -61,20 +61,20 @@ struct BranchSheet: View {
     private var next: String? { TaskActionLogic.validBranch(branch).flatMap { $0 == row?.branch ? nil : $0 } }
 
     var body: some View {
-        SheetScaffold(title: "task branch", kicker: "branch", error: error,
-                      primary: PrimaryBar(label: "set branch", enabled: next != nil, busy: busy, identifier: "branchConfirm") { Task { await save() } }) {
-            FormSection(label: "branch") {
+        SheetScaffold(title: String(localized: "task branch"), kicker: String(localized: "branch"), error: error,
+                      primary: PrimaryBar(label: String(localized: "set branch"), enabled: next != nil, busy: busy, identifier: "branchConfirm") { Task { await save() } }) {
+            FormSection(label: String(localized: "branch")) {
                 FieldBox { TextField("branch name", text: $branch).submitLabel(.done).textInputAutocapitalization(.never).autocorrectionDisabled() }
                     .accessibilityIdentifier("branchField")
-                Hint(text: "Type a new name, or tap a local branch. Renames with git branch -m once the worktree exists.")
+                Hint(text: String(localized: "Type a new name, or tap a local branch. Renames with git branch -m once the worktree exists."))
             }
-            FormSection(label: "local branches", trailing: branches.isEmpty ? nil : "\(branches.count)") {
+            FormSection(label: String(localized: "local branches"), trailing: branches.isEmpty ? nil : "\(branches.count)") {
                 if loading {
                     BrailleSpinner(size: 13)
                 } else if let listError {
                     ErrorLine(text: listError)
                 } else if branches.isEmpty {
-                    EmptyState(title: "no local branches", detail: "the repo reports none")
+                    EmptyState(title: String(localized: "no local branches"), detail: String(localized: "the repo reports none"))
                 } else {
                     LazyVStack(spacing: 6) { ForEach(branches, id: \.self) { tile($0) } }
                 }
@@ -103,7 +103,7 @@ struct BranchSheet: View {
     private func load() async {
         if !seeded { branch = row?.branch ?? ""; seeded = true }
         defer { loading = false }
-        guard let repo = row?.repo, !repo.isEmpty else { listError = "no project path for this task"; return }
+        guard let repo = row?.repo, !repo.isEmpty else { listError = String(localized: "no project path for this task"); return }
         do {
             let r = try await model.client.request("repo.branches", ["repo": repo], as: BranchesResult.self)
             branches = r.branches
@@ -139,14 +139,14 @@ struct EngineSheet: View {
     private var ready: Bool { !engine.isEmpty && engine != initial }
 
     var body: some View {
-        SheetScaffold(title: "change engine", kicker: "engine", error: error,
-                      primary: PrimaryBar(label: "change engine", enabled: ready, busy: busy, identifier: "engineConfirm") { Task { await save() } }) {
-            FormSection(label: "engine", trailing: engines.first { $0.id == initial }.map { "now \($0.name.lowercased())" }) {
+        SheetScaffold(title: String(localized: "change engine"), kicker: String(localized: "engine"), error: error,
+                      primary: PrimaryBar(label: String(localized: "change engine"), enabled: ready, busy: busy, identifier: "engineConfirm") { Task { await save() } }) {
+            FormSection(label: String(localized: "engine"), trailing: engines.first { $0.id == initial }.map { String(localized: "now \($0.name.lowercased())") }) {
                 if loading { BrailleSpinner(size: 13) } else if engines.isEmpty {
-                    EmptyState(title: "no engines", detail: "the bridge lists none")
+                    EmptyState(title: String(localized: "no engines"), detail: String(localized: "the bridge lists none"))
                 } else { EnginePicker(engines: engines, selection: $engine) }
             }
-            Hint(text: "Takes effect the next time the session is rebuilt. A tab that is running keeps its current engine until then.")
+            Hint(text: String(localized: "Takes effect the next time the session is rebuilt. A tab that is running keeps its current engine until then."))
         }
         .presentationDetents([.medium])
         .task { await load() }
@@ -198,17 +198,17 @@ struct ModelEffortSheet: View {
     private var effortChange: String? { effort.isEmpty || effort == initialEffort ? nil : effort }
 
     var body: some View {
-        SheetScaffold(title: "model & effort", kicker: engine.map { $0.name.lowercased() } ?? "engine", error: error,
-                      primary: PrimaryBar(label: "save", enabled: modelChange != nil || effortChange != nil, busy: busy,
+        SheetScaffold(title: String(localized: "model & effort"), kicker: engine.map { $0.name.lowercased() } ?? String(localized: "engine"), error: error,
+                      primary: PrimaryBar(label: String(localized: "save"), enabled: modelChange != nil || effortChange != nil, busy: busy,
                                           identifier: "modelEffortConfirm") { Task { await save() } }) {
             if loading {
                 BrailleSpinner(size: 13)
             } else {
-                FormSection(label: "model", trailing: initialModel.isEmpty ? "engine default" : nil) {
+                FormSection(label: String(localized: "model"), trailing: initialModel.isEmpty ? String(localized: "engine default") : nil) {
                     FieldBox { TextField("model, in the engine's own spelling", text: $modelText).submitLabel(.done).textInputAutocapitalization(.never).autocorrectionDisabled() }
                         .accessibilityIdentifier("modelField")
                     if suggestions.isEmpty {
-                        Hint(text: "This engine lists no models. Type one exactly as the engine expects it.")
+                        Hint(text: String(localized: "This engine lists no models. Type one exactly as the engine expects it."))
                     } else {
                         ScrollView(.horizontal, showsIndicators: false) {
                             ChoiceTiles(options: suggestions.map(\.id), selection: $modelText, label: { id in
@@ -219,14 +219,14 @@ struct ModelEffortSheet: View {
                     }
                 }
                 if !levels.isEmpty {
-                    FormSection(label: "effort", trailing: initialEffort.isEmpty ? "engine default" : nil) {
+                    FormSection(label: String(localized: "effort"), trailing: initialEffort.isEmpty ? String(localized: "engine default") : nil) {
                         ScrollView(.horizontal, showsIndicators: false) {
                             ChoiceTiles(options: levels, selection: $effort, label: { $0 }, fill: false)
                         }
                         .accessibilityIdentifier("effortLevels")
                     }
                 }
-                Hint(text: "Both take effect on the next session rebuild.")
+                Hint(text: String(localized: "Both take effect on the next session rebuild."))
             }
         }
         .task { await load() }
@@ -280,8 +280,8 @@ struct StatusSheet: View {
     private var ready: Bool { selection != nil && selection != current }
 
     var body: some View {
-        SheetScaffold(title: "set status", kicker: "status", error: error,
-                      primary: PrimaryBar(label: "set status", enabled: ready, busy: busy, identifier: "statusConfirm") { Task { await save() } }) {
+        SheetScaffold(title: String(localized: "set status"), kicker: String(localized: "status"), error: error,
+                      primary: PrimaryBar(label: String(localized: "set status"), enabled: ready, busy: busy, identifier: "statusConfirm") { Task { await save() } }) {
             VStack(spacing: 6) {
                 ForEach(TaskStatusLabel.allCases) { label in
                     let on = selection == label
@@ -299,7 +299,7 @@ struct StatusSheet: View {
                     .accessibilityIdentifier("status-\(label.rawValue)")
                 }
             }
-            Hint(text: "A label only: the worktree, branch and session stay as they are. Canceled stops nothing; delete the task to end it.")
+            Hint(text: String(localized: "A label only: the worktree, branch and session stay as they are. Canceled stops nothing; delete the task to end it."))
         }
         .onAppear { if !seeded { selection = current; seeded = true } }
     }

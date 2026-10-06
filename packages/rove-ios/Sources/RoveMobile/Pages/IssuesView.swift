@@ -19,7 +19,7 @@ private struct IssueFailure {
 private enum IssueFilter: Hashable {
     case all, mine
 
-    var label: String { self == .all ? "all" : "assigned to me" }
+    var label: String { self == .all ? String(localized: "all") : String(localized: "assigned to me") }
 }
 
 /// The repo's GitHub issues through `gh` (read-only), with the tasks already started from them.
@@ -101,13 +101,13 @@ struct IssuesView: View {
         if let reposFailure {
             failureView(reposFailure, id: "issuesReposRetry") { await loadRepos() }
         } else if let repos, repos.isEmpty {
-            EmptyState(title: "no repos", detail: "add a project on the mac first")
+            EmptyState(title: String(localized: "no repos"), detail: String(localized: "add a project on the mac first"))
                 .padding(.horizontal, 4).padding(.top, 12)
         } else if let failure {
             failureView(failure, id: "issuesRetry") { await load() }
         } else if let items {
             if items.isEmpty {
-                EmptyState(title: "no issues", detail: "nothing open for this filter")
+                EmptyState(title: String(localized: "no issues"), detail: String(localized: "nothing open for this filter"))
                     .padding(.horizontal, 4).padding(.top, 12)
             }
             ForEach(items) { item in row(item) }
@@ -129,7 +129,7 @@ struct IssuesView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Button { Task { await retry() } } label: { TileLabel(text: "retry") }
+            Button { Task { await retry() } } label: { TileLabel(text: String(localized: "retry")) }
                 .buttonStyle(.pressable)
                 .accessibilityIdentifier(id)
         }
@@ -141,7 +141,7 @@ struct IssuesView: View {
         return Button { select(item, linkedTask: linkedTask) } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("#\(item.number)").font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink)
+                    Text(verbatim: "#\(item.number)").font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink)
                     Text(item.title)
                         .font(Theme.face(15, .semibold)).foregroundStyle(Theme.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)

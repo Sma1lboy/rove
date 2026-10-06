@@ -33,8 +33,8 @@ struct DestructiveConfirmSheet: View {
     }
 
     var body: some View {
-        SheetScaffold(title: dirty == nil ? plan.sheetTitle : "discard uncommitted changes?",
-                      kicker: dirty == nil ? plan.kicker : "second confirmation", error: error,
+        SheetScaffold(title: dirty == nil ? plan.sheetTitle : String(localized: "discard uncommitted changes?"),
+                      kicker: dirty == nil ? plan.kicker : String(localized: "second confirmation"), error: error,
                       primary: primary) {
             if let dirty { forceStep(dirty) } else { firstStep }
         }
@@ -65,7 +65,7 @@ struct DestructiveConfirmSheet: View {
             .tile()
             .accessibilityIdentifier("dirtyDetail")
         Text(plan.forceBody).font(Theme.face(16)).foregroundStyle(Theme.ink).fixedSize(horizontal: false, vertical: true)
-        ActionRow(title: "keep it, go back", tint: Theme.muted) {
+        ActionRow(title: String(localized: "keep it, go back"), tint: Theme.muted) {
             withAnimation(Theme.spring) { dirty = nil; error = nil }
         }
     }
@@ -77,7 +77,7 @@ struct DestructiveConfirmSheet: View {
         do {
             if plan.flow == .removeWorktree {
                 let r = try await model.client.request(plan.flow.op, args, as: RemoveWorktreeResult.self)
-                guard r.removed else { error = "nothing was removed — the task has no worktree on disk"; return }
+                guard r.removed else { error = String(localized: "nothing was removed — the task has no worktree on disk"); return }
             } else {
                 _ = try await model.client.request(plan.flow.op, args, as: EmptyResult.self)
             }

@@ -77,7 +77,7 @@ struct TaskDetailView: View {
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(row?.displayTitle ?? "loading task")
+            Text(row?.displayTitle ?? String(localized: "loading task"))
                 .font(Theme.face(16, .semibold))
                 .foregroundStyle(Theme.ink)
                 .lineLimit(1)
@@ -219,7 +219,7 @@ struct TaskDetailView: View {
                 Button {
                     withAnimation(Theme.spring) { session.mode = mode }
                 } label: {
-                    Text(mode.rawValue.lowercased())
+                    Text(mode.label)
                         .font(Theme.mono(12, session.mode == mode ? .semibold : .regular))
                         .foregroundStyle(session.mode == mode ? Theme.accent : Theme.muted)
                 }
@@ -235,12 +235,12 @@ struct TaskDetailView: View {
     private var noTabState: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(tabs.isEmpty ? "no terminal tabs" : "pick a tab").font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink)
+                Text(tabs.isEmpty ? String(localized: "no terminal tabs") : String(localized: "pick a tab")).font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink)
                 Text("open an engine tab to give this task its next message")
                     .font(Theme.mono(12)).foregroundStyle(Theme.muted)
             }
             if tabs.isEmpty {
-                Button { tabSheet = .newSession(SessionPreset(reopen: true)) } label: { TileLabel(text: "reopen session", tint: Theme.accent) }
+                Button { tabSheet = .newSession(SessionPreset(reopen: true)) } label: { TileLabel(text: String(localized: "reopen session"), tint: Theme.accent) }
                     .buttonStyle(.pressable)
                     .accessibilityIdentifier("reopenSession")
             }
@@ -292,7 +292,7 @@ struct TaskDetailView: View {
     private func land(_ strategy: String) async {
         do {
             let r = try await client.request("task.land", ["taskId": taskId, "strategy": strategy], as: TaskLandResult.self)
-            landResult = "Landed on \(r.landedOn) (\(r.commit.prefix(8)))"
+            landResult = String(localized: "Landed on \(r.landedOn) (\(String(r.commit.prefix(8))))")
         } catch { self.error = error.localizedDescription }
     }
 }

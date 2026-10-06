@@ -15,23 +15,24 @@ struct DiffFileState: Equatable {
     static func describe(_ r: DiffFileResult) -> DiffFileState? {
         switch r.kind {
         case "binary":
-            return DiffFileState(title: r.image == true ? "image" : "binary file",
-                                 detail: [size(r.sizeBytes), "no text preview"].compactMap { $0 }.joined(separator: " · "))
+            return DiffFileState(title: r.image == true ? String(localized: "image") : String(localized: "binary file"),
+                                 detail: [size(r.sizeBytes), String(localized: "no text preview")].compactMap { $0 }.joined(separator: " · "))
         case "empty":
-            return DiffFileState(title: "no changes", detail: "nothing differs in this scope")
+            return DiffFileState(title: String(localized: "no changes"), detail: String(localized: "nothing differs in this scope"))
         case "patch-note":
-            guard let n = r.note else { return DiffFileState(title: "changed", detail: "no hunks to show") }
+            guard let n = r.note else { return DiffFileState(title: String(localized: "changed"), detail: String(localized: "no hunks to show")) }
+            let from = n.from ?? "?", to = n.to ?? "?"
             switch n.kind {
             case "binary":
-                return DiffFileState(title: "binary file changed", detail: [size(r.sizeBytes), "no text diff"].compactMap { $0 }.joined(separator: " · "))
+                return DiffFileState(title: String(localized: "binary file changed"), detail: [size(r.sizeBytes), String(localized: "no text diff")].compactMap { $0 }.joined(separator: " · "))
             case "mode":
-                return DiffFileState(title: "mode changed", detail: "\(n.from ?? "?") → \(n.to ?? "?") · contents unchanged")
+                return DiffFileState(title: String(localized: "mode changed"), detail: String(localized: "\(from) → \(to) · contents unchanged"))
             case "rename":
-                return DiffFileState(title: "renamed", detail: "\(n.from ?? "?") → \(n.to ?? "?") · +0 −0, contents unchanged")
+                return DiffFileState(title: String(localized: "renamed"), detail: String(localized: "\(from) → \(to) · +0 −0, contents unchanged"))
             case "empty-file":
-                return DiffFileState(title: n.change == "deleted" ? "empty file deleted" : "empty file added", detail: "no lines to show")
+                return DiffFileState(title: n.change == "deleted" ? String(localized: "empty file deleted") : String(localized: "empty file added"), detail: String(localized: "no lines to show"))
             default:
-                return DiffFileState(title: "changed", detail: "no hunks to show")
+                return DiffFileState(title: String(localized: "changed"), detail: String(localized: "no hunks to show"))
             }
         default:
             return nil

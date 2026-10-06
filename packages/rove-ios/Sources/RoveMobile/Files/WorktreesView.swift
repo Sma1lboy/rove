@@ -25,11 +25,11 @@ struct WorktreesView: View {
                     if let notice { Text(notice).font(Theme.mono(12)).foregroundStyle(Theme.muted).accessibilityIdentifier("worktreeNotice") }
                     if let error {
                         ErrorLine(text: error).accessibilityIdentifier("worktreesError")
-                        Button { Task { await load() } } label: { TileLabel(text: "retry", tint: Theme.accent) }.buttonStyle(.pressable)
+                        Button { Task { await load() } } label: { TileLabel(text: String(localized: "retry"), tint: Theme.accent) }.buttonStyle(.pressable)
                     } else if !loaded {
                         HStack(spacing: 8) { BrailleSpinner(size: 14, tint: Theme.muted); Text("asking the remotes").font(Theme.mono(12)).foregroundStyle(Theme.muted) }
                     } else if projects.isEmpty {
-                        EmptyState(title: "no projects", detail: "save a project in rove and its worktrees list here")
+                        EmptyState(title: String(localized: "no projects"), detail: String(localized: "save a project in rove and its worktrees list here"))
                     } else {
                         ForEach(projects) { p in project(p) }
                     }
@@ -69,7 +69,7 @@ struct WorktreesView: View {
     private func rowView(_ row: WorktreeRow) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
-                Text(row.branch.isEmpty ? "detached" : row.branch).font(Theme.mono(13, .semibold)).foregroundStyle(Theme.ink)
+                Text(row.branch.isEmpty ? String(localized: "detached") : row.branch).font(Theme.mono(13, .semibold)).foregroundStyle(Theme.ink)
                     .lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 4)
                 if let age = WorktreesLogic.age(ms: row.lastActivityMs ?? row.createdAtMs) {
@@ -114,7 +114,7 @@ struct WorktreeActionSheet: View {
     @State private var error: String?
 
     var body: some View {
-        SheetScaffold(title: row.branch.isEmpty ? "detached" : row.branch, kicker: "worktree", error: error) {
+        SheetScaffold(title: row.branch.isEmpty ? String(localized: "detached") : row.branch, kicker: String(localized: "worktree"), error: error) {
             Text(row.path).font(Theme.mono(12)).foregroundStyle(Theme.muted).textSelection(.enabled)
             HStack(spacing: 8) {
                 ForEach(Array(WorktreesLogic.tags(row).enumerated()), id: \.offset) { _, t in
@@ -123,13 +123,13 @@ struct WorktreeActionSheet: View {
             }
             VStack(spacing: 0) {
                 if row.canLand, let id = row.taskId {
-                    ActionRow(title: "land branch", detail: "merge or squash into main") { confirmLand = true; _ = id }
+                    ActionRow(title: String(localized: "land branch"), detail: String(localized: "merge or squash into main")) { confirmLand = true; _ = id }
                         .accessibilityIdentifier("landWorktree")
                 } else {
                     Text("not a tracked task branch — only removal is available")
                         .font(Theme.mono(12)).foregroundStyle(Theme.muted).padding(14)
                 }
-                ActionRow(title: "remove worktree", detail: row.dirty == true ? "has uncommitted work" : nil, tint: Theme.error) { confirmRemove = true }
+                ActionRow(title: String(localized: "remove worktree"), detail: row.dirty == true ? String(localized: "has uncommitted work") : nil, tint: Theme.error) { confirmRemove = true }
                     .accessibilityIdentifier("removeWorktree")
             }
             .tile()
@@ -152,7 +152,8 @@ struct WorktreeActionSheet: View {
         busy = true; defer { busy = false }
         do {
             let r = try await model.client.request("worktrees.remove", ["path": row.path, "force": force], as: WorktreeRemoveResult.self)
-            done(r.removed ? "removed \(row.branch.isEmpty ? row.path : row.branch)" : "not removed")
+            let name = row.branch.isEmpty ? row.path : row.branch
+            done(r.removed ? String(localized: "removed \(name)") : String(localized: "not removed"))
             dismiss()
         } catch let e as BridgeError where e.code == "DIRTY_WORKTREE" && !force {
             dirtyReason = e.message // second, explicit confirm with git's own reason
@@ -166,7 +167,7 @@ struct WorktreeActionSheet: View {
         busy = true; defer { busy = false }
         do {
             let r = try await model.client.request("task.land", ["taskId": taskId, "strategy": strategy], as: TaskLandResult.self)
-            done("landed on \(r.landedOn) (\(r.commit.prefix(8)))")
+            done(String(localized: "landed on \(r.landedOn) (\(r.commit.prefix(8)))"))
             dismiss()
         } catch { self.error = error.localizedDescription }
     }

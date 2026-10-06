@@ -7,10 +7,10 @@ enum NewTaskMode: String, CaseIterable, Hashable {
 
     var label: String {
         switch self {
-        case .existing: "existing"
-        case .openProject: "open project"
-        case .clone: "clone"
-        case .adopt: "adopt"
+        case .existing: String(localized: "existing")
+        case .openProject: String(localized: "open project")
+        case .clone: String(localized: "clone")
+        case .adopt: String(localized: "adopt")
         }
     }
 }
@@ -80,9 +80,9 @@ struct SpawnDraft: Equatable {
 
     /// Why create is blocked, or nil.
     var blocker: String? {
-        if repo.isEmpty { return "pick a repository" }
-        if usesAgents && !AgentsPlan.isValid(agents) { return "agents: at most \(AgentsPlan.maxTotal) in total" }
-        if isFanOut && promptText.isEmpty { return "fan-out needs a first prompt" }
+        if repo.isEmpty { return String(localized: "pick a repository") }
+        if usesAgents && !AgentsPlan.isValid(agents) { return String(localized: "agents: at most \(AgentsPlan.maxTotal) in total") }
+        if isFanOut && promptText.isEmpty { return String(localized: "fan-out needs a first prompt") }
         return nil
     }
 
@@ -167,35 +167,35 @@ enum CloneRules {
 
     static func urlIssue(_ raw: String) -> String? {
         let url = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if url.isEmpty { return "enter a git url" }
-        if url.hasPrefix("-") || url.contains(where: \.isWhitespace) { return "that is not a git url" }
+        if url.isEmpty { return String(localized: "enter a git url") }
+        if url.hasPrefix("-") || url.contains(where: \.isWhitespace) { return String(localized: "that is not a git url") }
         if let r = url.range(of: "://") {
             let scheme = url[..<r.lowerBound].lowercased()
             let rest = url[r.upperBound...]
-            guard schemes.contains(scheme) else { return "use https, ssh, git or user@host:path" }
+            guard schemes.contains(scheme) else { return String(localized: "use https, ssh, git or user@host:path") }
             let host = rest.split(separator: "/", omittingEmptySubsequences: false).first.map(String.init) ?? ""
             let path = rest.dropFirst(host.count).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            return host.isEmpty || path.isEmpty ? "the url needs a host and a path" : nil
+            return host.isEmpty || path.isEmpty ? String(localized: "the url needs a host and a path") : nil
         }
         // scp form: [user@]host:path
-        guard let colon = url.firstIndex(of: ":") else { return "use https, ssh, git or user@host:path" }
+        guard let colon = url.firstIndex(of: ":") else { return String(localized: "use https, ssh, git or user@host:path") }
         let host = url[..<colon], path = url[url.index(after: colon)...]
-        if host.isEmpty || host.contains("/") || path.isEmpty { return "use https, ssh, git or user@host:path" }
+        if host.isEmpty || host.contains("/") || path.isEmpty { return String(localized: "use https, ssh, git or user@host:path") }
         return nil
     }
 
     static func parentIssue(_ raw: String) -> String? {
         let p = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if p.isEmpty { return "enter a parent directory" }
-        return p.hasPrefix("/") ? nil : "parent must be an absolute path"
+        if p.isEmpty { return String(localized: "enter a parent directory") }
+        return p.hasPrefix("/") ? nil : String(localized: "parent must be an absolute path")
     }
 
     /// Empty is fine (the bridge derives it); otherwise a single path component.
     static func folderIssue(_ raw: String) -> String? {
         let f = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if f.isEmpty { return nil }
-        if f.contains("/") { return "folder name cannot contain /" }
-        if f == "." || f == ".." { return "folder name is not valid" }
+        if f.contains("/") { return String(localized: "folder name cannot contain /") }
+        if f == "." || f == ".." { return String(localized: "folder name is not valid") }
         return nil
     }
 

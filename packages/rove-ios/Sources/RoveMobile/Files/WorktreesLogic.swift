@@ -13,10 +13,10 @@ enum WorktreesLogic {
         guard let ms, ms > 0 else { return nil }
         let s = max(0, now.timeIntervalSince1970 - ms / 1000)
         switch s {
-        case ..<3600: return "\(max(1, Int(s / 60)))m"
-        case ..<86_400: return "\(Int(s / 3600))h"
-        case ..<(86_400 * 60): return "\(Int(s / 86_400))d"
-        default: return "\(Int(s / (86_400 * 30)))mo"
+        case ..<3600: return String(localized: "\(max(1, Int(s / 60)))m")
+        case ..<86_400: return String(localized: "\(Int(s / 3600))h")
+        case ..<(86_400 * 60): return String(localized: "\(Int(s / 86_400))d")
+        default: return String(localized: "\(Int(s / (86_400 * 30)))mo")
         }
     }
 
@@ -25,14 +25,14 @@ enum WorktreesLogic {
         var out: [WorktreeTag] = []
         if row.roveManaged == true { out.append(WorktreeTag(text: "rove", tone: .quiet)) }
         switch row.dirty {
-        case true: out.append(WorktreeTag(text: "dirty", tone: .warn))
-        case nil: out.append(WorktreeTag(text: "dirty?", tone: .quiet)) // probe failed: not the same as clean
+        case true: out.append(WorktreeTag(text: String(localized: "dirty"), tone: .warn))
+        case nil: out.append(WorktreeTag(text: String(localized: "dirty?"), tone: .quiet)) // probe failed: not the same as clean
         default: break
         }
         switch row.branchOnRemote {
-        case true: out.append(WorktreeTag(text: "on remote", tone: .good))
-        case false: out.append(WorktreeTag(text: "not pushed", tone: .warn))
-        case nil: out.append(WorktreeTag(text: "remote ?", tone: .quiet))
+        case true: out.append(WorktreeTag(text: String(localized: "on remote"), tone: .good))
+        case false: out.append(WorktreeTag(text: String(localized: "not pushed"), tone: .warn))
+        case nil: out.append(WorktreeTag(text: String(localized: "remote ?"), tone: .quiet))
         }
         if let v = verdictLabel(row) { out.append(v) }
         return out
@@ -41,11 +41,11 @@ enum WorktreesLogic {
     /// `dirty` and `fresh` already read from other tags; the rest explain why a row looks stale or done.
     static func verdictLabel(_ row: WorktreeRow) -> WorktreeTag? {
         switch row.verdictReason {
-        case "prOpen": return WorktreeTag(text: "PR open", tone: .quiet)
-        case "prMerged": return WorktreeTag(text: "PR merged", tone: .good)
-        case "inMain": return WorktreeTag(text: "in main", tone: .good)
-        case "prClosed": return WorktreeTag(text: "PR closed", tone: .warn)
-        case "idle": return WorktreeTag(text: "idle", tone: .warn)
+        case "prOpen": return WorktreeTag(text: String(localized: "PR open"), tone: .quiet)
+        case "prMerged": return WorktreeTag(text: String(localized: "PR merged"), tone: .good)
+        case "inMain": return WorktreeTag(text: String(localized: "in main"), tone: .good)
+        case "prClosed": return WorktreeTag(text: String(localized: "PR closed"), tone: .warn)
+        case "idle": return WorktreeTag(text: String(localized: "idle"), tone: .warn)
         default: return nil
         }
     }

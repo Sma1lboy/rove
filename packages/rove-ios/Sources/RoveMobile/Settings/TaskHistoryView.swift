@@ -17,7 +17,7 @@ struct TaskHistorySheet: View {
     private static let pageSize = 30
 
     var body: some View {
-        SheetScaffold(title: "engine history", kicker: "task") {
+        SheetScaffold(title: String(localized: "engine history"), kicker: String(localized: "task")) {
             switch state {
             case .loading:
                 BrailleSpinner(size: 14)
@@ -43,7 +43,7 @@ struct TaskHistorySheet: View {
     }
 
     private var refreshButton: some View {
-        Button { Task { await load() } } label: { TileLabel(text: "refresh") }
+        Button { Task { await load() } } label: { TileLabel(text: String(localized: "refresh")) }
             .buttonStyle(.pressable)
             .accessibilityIdentifier("historyRefresh")
     }
@@ -52,7 +52,7 @@ struct TaskHistorySheet: View {
 
     private func header(_ envelope: OutputEnvelope) -> some View {
         HStack(spacing: 8) {
-            if envelope.running { SettingsTag(text: "session live", tint: Theme.success) }
+            if envelope.running { SettingsTag(text: String(localized: "session live"), tint: Theme.success) }
             if let vendor = envelope.vendor { SettingsTag(text: vendor) }
             Spacer()
         }
@@ -61,12 +61,12 @@ struct TaskHistorySheet: View {
     @ViewBuilder
     private func transcript(_ envelope: OutputEnvelope) -> some View {
         if messages.isEmpty {
-            EmptyState(title: "no messages yet", detail: "the engine has not written a transcript for this task")
+            EmptyState(title: String(localized: "no messages yet"), detail: String(localized: "the engine has not written a transcript for this task"))
         } else {
             VStack(alignment: .leading, spacing: 18) {
                 ForEach(messages) { message in
                     VStack(alignment: .leading, spacing: 8) {
-                        Theme.kicker(message.role == "user" ? "you" : "agent")
+                        Theme.kicker(message.role == "user" ? String(localized: "you") : String(localized: "agent"))
                         ForEach(Array(message.blocks.enumerated()), id: \.offset) { _, block in
                             HistoryBlock(block: block)
                         }
@@ -81,7 +81,7 @@ struct TaskHistorySheet: View {
         if cursor != nil {
             Button { Task { await loadNewer() } } label: {
                 HStack(spacing: 8) {
-                    TileLabel(text: "load newer")
+                    TileLabel(text: String(localized: "load newer"))
                     if loadingMore { BrailleSpinner(size: 13) }
                 }
             }
@@ -93,15 +93,15 @@ struct TaskHistorySheet: View {
     }
 
     private func counts() -> String {
-        var parts = [total.map { "\(messages.count) of \($0) messages" } ?? "\(messages.count) messages"]
-        if limited { parts.append("limited") }
+        var parts = [total.map { String(localized: "\(messages.count) of \($0) messages") } ?? String(localized: "\(messages.count) messages")]
+        if limited { parts.append(String(localized: "limited")) }
         return parts.joined(separator: " · ")
     }
 
     @ViewBuilder
     private func terminalTail(_ envelope: OutputEnvelope) -> some View {
         let tail = envelope.terminal
-        FormSection(label: "no structured history — terminal tail", trailing: flags(tail)) {
+        FormSection(label: String(localized: "no structured history — terminal tail"), trailing: flags(tail)) {
             if let reason = envelope.fallbackReason, !reason.isEmpty {
                 Text(reason).font(Theme.mono(12)).foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -114,14 +114,14 @@ struct TaskHistorySheet: View {
                     .tile()
                     .accessibilityIdentifier("historyTerminalTail")
             } else {
-                EmptyState(title: "nothing to show", detail: "the terminal has no output yet")
+                EmptyState(title: String(localized: "nothing to show"), detail: String(localized: "the terminal has no output yet"))
             }
         }
     }
 
     private func flags(_ tail: OutputTerminal?) -> String? {
         guard let tail else { return nil }
-        let parts = [tail.live ? "live" : nil, tail.truncated ? "truncated" : nil].compactMap { $0 }
+        let parts = [tail.live ? String(localized: "live") : nil, tail.truncated ? String(localized: "truncated") : nil].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
@@ -185,7 +185,7 @@ private struct HistoryBlock: View {
                 .textSelection(.enabled)
         case "tool_call":
             VStack(alignment: .leading, spacing: 3) {
-                Text(block.name ?? "tool").font(Theme.mono(12, .bold)).foregroundStyle(Theme.ink)
+                Text(block.name ?? String(localized: "tool")).font(Theme.mono(12, .bold)).foregroundStyle(Theme.ink)
                 if let input = block.input, !input.isEmpty {
                     Text(input).font(Theme.mono(12)).foregroundStyle(Theme.ink).lineLimit(4)
                 }
@@ -196,7 +196,7 @@ private struct HistoryBlock: View {
         case "tool_result":
             let text = block.output ?? block.text ?? ""
             Button { withAnimation(Theme.spring) { expanded.toggle() } } label: {
-                Text(text.isEmpty ? "(empty result)" : text).font(Theme.mono(12)).foregroundStyle(Theme.muted)
+                Text(text.isEmpty ? String(localized: "(empty result)") : text).font(Theme.mono(12)).foregroundStyle(Theme.muted)
                     .lineLimit(expanded ? nil : 6)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -204,7 +204,7 @@ private struct HistoryBlock: View {
                     .tile()
             }
             .buttonStyle(.pressable)
-            .accessibilityValue(expanded ? "expanded" : "collapsed")
+            .accessibilityValue(expanded ? String(localized: "expanded") : String(localized: "collapsed"))
         default:
             VStack(alignment: .leading, spacing: 3) {
                 Text(block.type).font(Theme.mono(11, .medium)).foregroundStyle(Theme.muted)

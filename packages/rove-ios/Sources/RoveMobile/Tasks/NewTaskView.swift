@@ -17,7 +17,7 @@ struct NewTaskView: View {
     }
 
     var body: some View {
-        SheetScaffold(title: "new task", kicker: kicker, error: draft.error,
+        SheetScaffold(title: String(localized: "new task"), kicker: kicker, error: draft.error,
                       primary: PrimaryBar(label: primaryLabel, enabled: draft.canCreate, busy: draft.busy,
                                           identifier: "createButton") { Task { await run() } }) {
             ScrollView(.horizontal, showsIndicators: false) {
@@ -45,20 +45,20 @@ struct NewTaskView: View {
 
     private var kicker: String {
         switch draft.mode {
-        case .existing: "worktree + branch"
-        case .openProject: "the project checkout"
-        case .clone: "git clone"
-        case .adopt: "existing worktrees"
+        case .existing: String(localized: "worktree + branch")
+        case .openProject: String(localized: "the project checkout")
+        case .clone: String(localized: "git clone")
+        case .adopt: String(localized: "existing worktrees")
         }
     }
 
     private var primaryLabel: String {
         switch draft.mode {
-        case .existing: draft.spawn.isFanOut ? "create \(draft.spawn.fanOutTotal) tasks" : "create task"
-        case .openProject: "open project"
-        case .clone: draft.busy ? "cloning…" : "clone"
+        case .existing: draft.spawn.isFanOut ? String(localized: "create \(draft.spawn.fanOutTotal) tasks") : String(localized: "create task")
+        case .openProject: String(localized: "open project")
+        case .clone: draft.busy ? String(localized: "cloning…") : String(localized: "clone")
         case .adopt:
-            if let p = draft.progress { "adopting \(p)" } else { draft.adopt.count > 0 ? "adopt \(draft.adopt.count)" : "adopt" }
+            if let p = draft.progress { String(localized: "adopting \(p)") } else { draft.adopt.count > 0 ? String(localized: "adopt \(draft.adopt.count)") : String(localized: "adopt") }
         }
     }
 

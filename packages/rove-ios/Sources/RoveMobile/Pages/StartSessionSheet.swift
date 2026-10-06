@@ -4,12 +4,17 @@ import SwiftUI
 enum StartPlacement: String, CaseIterable, Hashable {
     case worktree, project
 
-    var label: String { rawValue }
+    var label: String {
+        switch self {
+        case .worktree: String(localized: "worktree")
+        case .project: String(localized: "project")
+        }
+    }
 
     var hint: String {
         switch self {
-        case .worktree: "the story's own worktree and branch"
-        case .project: "a new tab on the project checkout, no worktree"
+        case .worktree: String(localized: "the story's own worktree and branch")
+        case .project: String(localized: "a new tab on the project checkout, no worktree")
         }
     }
 }
@@ -18,12 +23,12 @@ enum StartPlacement: String, CaseIterable, Hashable {
 enum StartFollow: String, CaseIterable, Hashable {
     case follow, stay
 
-    var label: String { self == .follow ? "follow" : "stay on board" }
+    var label: String { self == .follow ? String(localized: "follow") : String(localized: "stay on board") }
 
     var hint: String {
         switch self {
-        case .follow: "open the session as soon as it starts"
-        case .stay: "back on the board while it works"
+        case .follow: String(localized: "open the session as soon as it starts")
+        case .stay: String(localized: "back on the board while it works")
         }
     }
 }
@@ -56,7 +61,7 @@ struct SessionStarter {
             if !engine.isEmpty { args["engine"] = engine }
             let created = try await client.request("task.create", args, as: TaskCreateResult.self)
             openTaskId = created.taskId
-            await attempt("could not link #\(id) to its task", &warnings) {
+            await attempt(String(localized: "could not link #\(id) to its task"), &warnings) {
                 _ = try await client.request("issue.update", ["repo": repo, "id": id, "task": created.taskId],
                                              as: EmptyResult.self)
             }
@@ -67,7 +72,7 @@ struct SessionStarter {
             _ = try await client.request("tab.new", args, as: TabNewResult.self)
             openTaskId = main.taskId
         }
-        await attempt("could not mark #\(id) doing", &warnings) {
+        await attempt(String(localized: "could not mark #\(id) doing"), &warnings) {
             _ = try await client.request("issue.setStatus", ["repo": repo, "id": id, "status": IssueStatus.doing.rawValue],
                                          as: EmptyResult.self)
         }
@@ -105,7 +110,9 @@ struct StartSessionSheet: View {
         Binding(get: { StartFollow(rawValue: afterRaw) ?? .follow }, set: { afterRaw = $0.rawValue })
     }
 
-    private var label: String { story.linked ? "start another session" : "start session" }
+    private var label: String {
+        story.linked ? String(localized: "start another session") : String(localized: "start session")
+    }
 
     var body: some View {
         SheetScaffold(title: label, kicker: "#\(story.id)", error: error,
@@ -113,26 +120,26 @@ struct StartSessionSheet: View {
                                           identifier: "startSessionSubmit") { Task { await submit() } }) {
             Text(story.title).font(Theme.face(16)).foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            FormSection(label: "engine") {
+            FormSection(label: String(localized: "engine")) {
                 if loading {
                     BrailleSpinner(size: 13)
                 } else if engines.isEmpty {
-                    Hint(text: "no engines found, the daemon picks its default")
+                    Hint(text: String(localized: "no engines found, the daemon picks its default"))
                 } else {
                     EnginePicker(engines: engines, selection: $engine)
                 }
             }
-            FormSection(label: "where") {
+            FormSection(label: String(localized: "where")) {
                 ChoiceTiles(options: StartPlacement.allCases, selection: placement, label: { $0.label })
                     .accessibilityIdentifier("startWhere")
                 Hint(text: placement.wrappedValue.hint)
             }
-            FormSection(label: "after") {
+            FormSection(label: String(localized: "after")) {
                 ChoiceTiles(options: StartFollow.allCases, selection: after, label: { $0.label })
                     .accessibilityIdentifier("startAfter")
                 Hint(text: after.wrappedValue.hint)
             }
-            if unsaved { Hint(text: "Unsaved edits to the story are saved first.") }
+            if unsaved { Hint(text: String(localized: "Unsaved edits to the story are saved first.")) }
         }
         .task { await load() }
     }
