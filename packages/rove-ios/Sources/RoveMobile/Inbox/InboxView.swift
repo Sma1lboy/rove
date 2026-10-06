@@ -82,7 +82,7 @@ struct InboxView: View {
                             Text(resume).font(Theme.mono(11)).foregroundStyle(Theme.muted)
                         }
                     }
-                    .foregroundStyle(blocking ? Theme.accent : Theme.muted)
+                    .foregroundStyle(item.state == "error" ? Theme.error : blocking ? Theme.accent : Theme.muted)
                     Text(title).font(Theme.face(16, .medium)).foregroundStyle(Theme.ink).lineLimit(1)
                     HStack(spacing: 6) {
                         if let tab = item.tabId { Text(tab).font(Theme.mono(12)).foregroundStyle(Theme.muted) }
