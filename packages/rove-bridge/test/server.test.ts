@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { AccessDenied, type AccessVerifier } from "../src/cf-access.ts"
 import { TaskFeed } from "../src/feed.ts"
+import type { OpTable } from "../src/ops/types.ts"
 import type { TasksPayload } from "../src/protocol.ts"
 import type { RoveOps } from "../src/rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "../src/server.ts"
@@ -86,6 +87,15 @@ function start(extra: Partial<BridgeDeps> = {}): Harness {
     openPty: () => pty,
     roveVersion: "test",
     log: () => {},
+    api: {
+      verb: async () => {
+        throw new Error("no verbs in this harness")
+      },
+      rpc: async () => {
+        throw new Error("no RPCs in this harness")
+      },
+    },
+    areaOps: {},
     ...extra,
   }
   const server = startBridgeServer(deps, { hostname: "127.0.0.1", port: 0 })
@@ -201,10 +211,39 @@ describe("op allowlist", () => {
     expect(JSON.parse(await bad.promise).error.code).toBe("BAD_FRAME")
     expect((await c.call("hello")).ok).toBe(true)
   })
+
+  test("a registered area op runs on the authenticated socket; a destructive one is audited by id, never the token", async () => {
+    const lines: string[] = []
+    const calls: string[] = []
+    const areaOps: OpTable = {
+      "demo.read": { kind: "read", destructive: false, wraps: "test", run: async () => ({ ok: 1 }) },
+      "demo.remove": {
+        kind: "write",
+        destructive: true,
+        wraps: "test",
+        run: async (args) => {
+          calls.push(String(args.taskId))
+          return {}
+        },
+      },
+    }
+    const h = start({ areaOps, log: (line) => lines.push(line) })
+    expect(await upgradeStatus(h.url)).toBe(401)
+    const c = await connect(h.url, AUTH)
+    lines.length = 0 // drop the refused-upgrade line above
+    expect((await c.call("demo.read")).result).toEqual({ ok: 1 })
+    expect(lines).toHaveLength(0)
+    await c.call("demo.remove", { taskId: "T7", secret: "s3cret" })
+    expect(calls).toEqual(["T7"])
+    expect(lines).toEqual(["[rove-bridge] demo.remove taskId=T7"])
+    expect(lines.join("\n")).not.toContain(TOKEN)
+    expect(lines.join("\n")).not.toContain("s3cret")
+    expect((await c.call("demo.other")).error?.code).toBe("UNKNOWN_OP")
+  })
 })
 
 describe("task feed", () => {
-  test("a subscriber gets the snapshot, then a push when a row changes but not when only its age ticks", async () => {
+  test("a subscriber gets the snapshot, then a push when a row changes or a new episode starts, not when only its age ticks", async () => {
     const h = start()
     const c = await connect(h.url, AUTH)
     const first = await c.call("tasks.subscribe")
@@ -218,7 +257,7 @@ describe("task feed", () => {
       status: "backlog",
       group: "working" as const,
       rank: 3,
-      activity: { state: "running", forMs: 1 },
+      activity: { state: "running", forMs: 1, since: 5000 },
       engine: null,
       pr: null,
       report: null,
@@ -226,11 +265,46 @@ describe("task feed", () => {
     }
     h.setRows({ tasks: [row], attention: [] })
     await h.feed.refresh()
-    h.setRows({ tasks: [{ ...row, activity: { state: "running", forMs: 9000 } }], attention: [] })
+    h.setRows({ tasks: [{ ...row, activity: { state: "running", forMs: 9000, since: 5000 } }], attention: [] })
+    await h.feed.refresh()
+    // Same state, but the next turn: the phone must rebase its timer.
+    h.setRows({ tasks: [{ ...row, activity: { state: "running", forMs: 2, since: 60000 } }], attention: [] })
     await h.feed.refresh()
     // The socket is FIFO: a reply after the refreshes trails any push they sent.
     await c.call("hello")
-    expect(c.pushes.filter((p) => p.event === "tasks")).toHaveLength(1)
+    expect(c.pushes.filter((p) => p.event === "tasks")).toHaveLength(2)
+  })
+
+  test("a later subscriber gets the cached list without a read, its timers aged to now", async () => {
+    let clock = 1_000_000
+    let reads = 0
+    const row = {
+      id: "T1",
+      title: "t",
+      branch: "b",
+      repo: "/r",
+      kind: "task",
+      status: "backlog",
+      group: "working" as const,
+      rank: 3,
+      activity: { state: "running", forMs: 4000 },
+      engine: null,
+      pr: null,
+      report: null,
+      deleting: false,
+    }
+    const feed = new TaskFeed(
+      async () => {
+        reads++
+        return { tasks: [row], attention: [] }
+      },
+      () => clock,
+    )
+    await feed.current()
+    clock += 7000
+    const later = await feed.current()
+    expect(reads).toBe(1)
+    expect(later.tasks[0]?.activity?.forMs).toBe(11_000)
   })
 })
 

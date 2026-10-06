@@ -1,7 +1,8 @@
 /**
  * The bridge's only network surface: one WebSocket endpoint. The token is
  * checked at the HTTP upgrade, before a socket exists; every frame afterwards
- * rides that authenticated socket and may only name an op from `OPS`.
+ * rides that authenticated socket and may only name a core op from `OPS` or an
+ * area op registered in `ops/index.ts`. There is no other path to an op.
  */
 
 import { hostname as osHostname } from "node:os"
@@ -9,10 +10,14 @@ import type { Server, ServerWebSocket } from "bun"
 import { presentedToken, tokenMatches } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
 import type { TaskFeed } from "./feed.ts"
+import type { NoticeFeed } from "./notices.ts"
+import { AREA_OPS } from "./ops/index.ts"
+import type { BridgeApi, OpTable } from "./ops/types.ts"
 import {
   BRIDGE_PROTOCOL_VERSION,
   BridgeError,
   type Request,
+  isCoreOp,
   optBool,
   optInt,
   optStr,
@@ -30,18 +35,25 @@ export interface BridgeDeps {
   readonly token: string
   readonly ops: RoveOps
   readonly feed: Pick<TaskFeed, "current" | "refresh" | "subscribe">
+  /** `rove api notify` toasts, pushed to every connected phone as a `notice` event. */
+  readonly notices?: Pick<NoticeFeed, "subscribe">
   /** A fresh PTY Host socket for one phone connection. */
   readonly openPty: () => PtyHostClient
   readonly roveVersion: string
   /** Cloudflare Access check, run before the token check (`--preset cf`). */
   readonly access?: AccessVerifier
-  /** Rejection log; never receives the token or the JWT. */
+  /** Rejection and destructive-op audit log; never receives the token or the JWT. */
   readonly log?: (line: string) => void
+  /** One verb or RPC per call, for area ops. */
+  readonly api: BridgeApi
+  /** Area op allowlist; defaults to `AREA_OPS` (tests inject their own). */
+  readonly areaOps?: OpTable
 }
 
 interface Conn {
   terminal: TerminalForwarder | null
   unsubscribeTasks: (() => void) | null
+  unsubscribeNotices: (() => void) | null
 }
 
 async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request): Promise<unknown> {
@@ -52,11 +64,13 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     conn.terminal ??= new TerminalForwarder(deps.openPty(), (frame) => ws.send(frame))
     return conn.terminal
   }
+  if (DESTRUCTIVE_CORE[req.op]) logDestructive(deps, req)
   switch (req.op) {
     case "hello":
       return { protocol: BRIDGE_PROTOCOL_VERSION, roveVersion: deps.roveVersion, host: osHostname() }
     case "tasks.subscribe": {
-      // Snapshot first: subscribing before the first read would also push it.
+      // Snapshot first: subscribing before the read would also push it. Cached (only the
+      // first subscriber pays a read), with `forMs` aged to now — see `TaskFeed.current`.
       const snapshot = await deps.feed.current()
       conn.unsubscribeTasks ??= deps.feed.subscribe((payload) => ws.send(pushEvent("tasks", payload)))
       return snapshot
@@ -124,13 +138,32 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     case "attention.dismiss":
       await ops.dismissAttention(str(a, "taskId"), optStr(a, "tabId"))
       return {}
+    default: {
+      const spec = (deps.areaOps ?? AREA_OPS)[req.op]
+      // Unreachable for unregistered names: parseRequest already refused them.
+      if (!spec) throw new BridgeError("UNKNOWN_OP", `unknown op: ${req.op}`)
+      if (spec.destructive) logDestructive(deps, req)
+      return spec.run(a, { api: deps.api })
+    }
   }
+}
+
+/** Core ops that lose work or are hard to undo; area ops declare it on their spec. */
+const DESTRUCTIVE_CORE: Readonly<Record<string, true>> = { "task.delete": true, "task.land": true, "tab.close": true }
+
+/** Audit line for a destructive op: op name and the ids it targets. Never other args, never the token. */
+function logDestructive(deps: BridgeDeps, req: Request): void {
+  const ids = ["taskId", "tabId", "path"]
+    .filter((key) => typeof req.args[key] === "string")
+    .map((key) => `${key}=${String(req.args[key])}`)
+  ;(deps.log ?? ((line: string) => console.error(line)))(`[rove-bridge] ${req.op} ${ids.join(" ")}`.trimEnd())
 }
 
 async function onMessage(deps: BridgeDeps, ws: ServerWebSocket<Conn>, raw: string): Promise<void> {
   let req: Request
+  const area = deps.areaOps ?? AREA_OPS
   try {
-    req = parseRequest(raw)
+    req = parseRequest(raw, (op) => isCoreOp(op) || Object.hasOwn(area, op))
   } catch (err) {
     const e = err instanceof BridgeError ? err : new BridgeError("BAD_FRAME", String(err))
     ws.send(responseError(requestIdOf(err), e.code, e.message))
@@ -164,10 +197,14 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
         return new Response("unauthorized\n", { status: 401 })
       }
-      if (server.upgrade(req, { data: { terminal: null, unsubscribeTasks: null } })) return undefined
+      const data: Conn = { terminal: null, unsubscribeTasks: null, unsubscribeNotices: null }
+      if (server.upgrade(req, { data })) return undefined
       return new Response("rove-bridge speaks WebSocket only\n", { status: 426 })
     },
     websocket: {
+      open(ws) {
+        ws.data.unsubscribeNotices = deps.notices?.subscribe((n) => ws.send(pushEvent("notice", n))) ?? null
+      },
       // Terminal replays reach 512 KiB raw (~700 KiB base64); leave headroom for paste.
       maxPayloadLength: 8 * 1024 * 1024,
       message(ws, message) {
@@ -175,6 +212,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
       },
       close(ws) {
         ws.data.unsubscribeTasks?.()
+        ws.data.unsubscribeNotices?.()
         ws.data.terminal?.dispose()
       },
     },

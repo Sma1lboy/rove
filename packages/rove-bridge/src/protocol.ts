@@ -35,6 +35,20 @@ export type Op = (typeof OPS)[number]
 
 export type TaskGroup = "waiting-on-you" | "landing" | "ready-for-review" | "working" | "idle" | "unknown"
 
+export type PrChipKind = "conflict" | "failing" | "passing"
+
+export type RowChanges =
+  | { readonly added: number; readonly deleted: number; readonly ahead?: number; readonly behind?: number }
+  | { readonly unreadable: true }
+
+export interface RowTokenChip {
+  readonly text: string
+  readonly tone?: string
+  readonly source: string
+  /** ms epoch; the phone filters on display. */
+  readonly expiresAt: number
+}
+
 export interface TaskRow {
   readonly id: string
   readonly title: string
@@ -44,7 +58,13 @@ export interface TaskRow {
   readonly status: string
   readonly group: TaskGroup
   readonly rank: number
-  readonly activity: { readonly state: string; readonly forMs: number } | null
+  /**
+   * `forMs` = time in `state`, for display (immune to phone/Mac clock skew).
+   * `since` (optional, additive) = when that episode began on the bridge's clock. Clients
+   * never need it — they age `forMs` locally — but the feed keys on it, so a new episode in
+   * the same state (turn ends, next starts) still pushes a fresh `forMs`.
+   */
+  readonly activity: { readonly state: string; readonly forMs: number; readonly since?: number } | null
   /** Display name comes from the engine registry; the app never hardcodes vendors. */
   readonly engine: { readonly id: string | null; readonly name: string } | null
   readonly pr: {
@@ -53,10 +73,25 @@ export interface TaskRow {
     readonly lifecycle: string
     readonly checkState: string
     readonly reviewDecision?: string
+    readonly mergeable?: string
   } | null
   /** The worker's own claim of what it delivered, not a verification. */
   readonly report: { readonly summary: string; readonly at: string } | null
   readonly deleting: boolean
+  /** Additive row fields (all optional: absent = not collected / not known). */
+  readonly pinned?: boolean
+  /** Index in the daemon's own task list: the manual ("default") order. */
+  readonly order?: number
+  readonly createdAt?: string
+  readonly updatedAt?: string
+  /** Uncommitted counts from the daemon's `worktree.changes` push; `unreadable` = tracked but git could not be read. Absent = not collected, never zeros. */
+  readonly changes?: RowChanges
+  /** Live (unexpired when read) plugin tokens. */
+  readonly rowTokens?: readonly RowTokenChip[]
+  /** The sidebar's one PR chip (row-chips.ts rules); `null` = none. */
+  readonly prChip?: PrChipKind | null
+  /** The forge was unreachable on the last poll, so `prChip` is the last good value. */
+  readonly prChipStale?: boolean
 }
 
 export interface AttentionRow {
@@ -65,6 +100,10 @@ export interface AttentionRow {
   readonly state: string
   readonly unread: boolean
   readonly at: number
+  /** Rate-limited tasks: ISO time the daemon will auto-resume the engine (`quotaResume`). Optional. */
+  readonly resumeAt?: string
+  /** Routine episodes: the routine's name (the subject is a schedule, not a task). Optional. */
+  readonly label?: string
 }
 
 export interface TasksPayload {
@@ -91,8 +130,13 @@ export interface DiffFileRow {
 
 export interface Request {
   readonly id: number
-  readonly op: Op
+  /** A core `Op`, or an area op the server's allowlist names. */
+  readonly op: string
   readonly args: Readonly<Record<string, unknown>>
+}
+
+export function isCoreOp(op: string): op is Op {
+  return (OPS as readonly string[]).includes(op)
 }
 
 /** A refusal the client can branch on; `code` is stable, `message` is prose. */
@@ -108,9 +152,10 @@ export class BridgeError extends Error {
 
 /**
  * Parse one inbound frame. Throws {@link BridgeError} for malformed frames;
- * the caller answers with the frame's `id` when one could be read.
+ * the caller answers with the frame's `id` when one could be read. `known` is the
+ * full allowlist (core ops plus registered area ops).
  */
-export function parseRequest(raw: string): Request {
+export function parseRequest(raw: string, known: (op: string) => boolean = isCoreOp): Request {
   let frame: unknown
   try {
     frame = JSON.parse(raw)
@@ -122,13 +167,13 @@ export function parseRequest(raw: string): Request {
   const { id, op, args } = frame as Record<string, unknown>
   if (typeof id !== "number" || !Number.isSafeInteger(id))
     throw new BridgeError("BAD_FRAME", "frame needs an integer id")
-  if (typeof op !== "string" || !(OPS as readonly string[]).includes(op)) {
+  if (typeof op !== "string" || !known(op)) {
     throw Object.assign(new BridgeError("UNKNOWN_OP", `unknown op: ${String(op)}`), { requestId: id })
   }
   if (args !== undefined && (args === null || typeof args !== "object" || Array.isArray(args))) {
     throw Object.assign(new BridgeError("BAD_ARGS", "args must be an object"), { requestId: id })
   }
-  return { id, op: op as Op, args: (args ?? {}) as Record<string, unknown> }
+  return { id, op, args: (args ?? {}) as Record<string, unknown> }
 }
 
 /** The id of a frame that failed {@link parseRequest} after its id was read. */

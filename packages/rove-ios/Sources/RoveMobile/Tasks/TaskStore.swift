@@ -2,23 +2,7 @@ import Foundation
 import Observation
 
 enum TaskListLogic {
-    /// Group order first (rank order), then server rank, then original order.
-    static func sorted(_ rows: [TaskRow]) -> [TaskRow] {
-        rows.enumerated().sorted { a, b in
-            if a.element.group.sortIndex != b.element.group.sortIndex { return a.element.group.sortIndex < b.element.group.sortIndex }
-            if a.element.rank != b.element.rank { return a.element.rank < b.element.rank }
-            return a.offset < b.offset
-        }.map(\.element)
-    }
-
-    static func sections(_ rows: [TaskRow]) -> [(group: TaskGroup, rows: [TaskRow])] {
-        let s = sorted(rows)
-        var out: [(group: TaskGroup, rows: [TaskRow])] = []
-        for r in s {
-            if let i = out.indices.last, out[i].group == r.group { out[i].rows.append(r) } else { out.append((r.group, [r])) }
-        }
-        return out
-    }
+    // `sorted` / `projects` / `emptiness` live in TaskListOrdering.swift; search in TaskSearch.swift.
 
     static func attentionCount(_ items: [AttentionItem]) -> Int { items.filter(\.unread).count }
 
@@ -42,6 +26,15 @@ enum TaskListLogic {
         if s < 3600 { return "\(s / 60)m" }
         if s < 86400 { return "\(s / 3600)h" }
         return "\(s / 86400)d"
+    }
+
+    /// Second-precision elapsed time for a live timer: `9s`, `4m07s`, `2h03m`, then days.
+    static func clock(ms: Double) -> String {
+        let s = max(Int(ms / 1000), 0)
+        if s < 60 { return "\(s)s" }
+        if s < 3600 { return String(format: "%dm%02ds", s / 60, s % 60) }
+        if s < 86400 { return String(format: "%dh%02dm", s / 3600, (s % 3600) / 60) }
+        return age(ms: ms)
     }
 }
 
@@ -74,15 +67,38 @@ final class TaskStore {
     }
 
     var visible: [TaskRow] { TaskListLogic.filtered(tasks, repo: repoFilter) }
-    var sections: [(group: TaskGroup, rows: [TaskRow])] { TaskListLogic.sections(visible) }
+    /// Sections for the list under the chosen sort and search (the sort mode is a view-side `@AppStorage`).
+    func projects(mode: TaskSortMode = .attention, query: String = "") -> [(repo: String, rows: [TaskRow])] {
+        TaskListLogic.projects(visible, mode: mode, query: query, tabTitles: query.isEmpty ? [:] : tabTitles)
+    }
+
+    /// Task id → its tabs' titles, for search. Filled by `loadTabTitles` when the search opens.
+    private(set) var tabTitles: [String: [String]] = [:]
+
+    /// One `task.tabs` per task, concurrently; a task whose read fails just keeps no titles.
+    func loadTabTitles() async {
+        let ids = tasks.map(\.id)
+        let client = client
+        let loaded = await withTaskGroup(of: (String, [String])?.self) { group in
+            for id in ids {
+                group.addTask {
+                    guard let r = try? await client.request("task.tabs", ["taskId": id], as: TabsResult.self) else { return nil }
+                    return (id, r.tabs.map(\.displayTitle))
+                }
+            }
+            var out: [String: [String]] = [:]
+            for await pair in group { if let (id, titles) = pair { out[id] = titles } }
+            return out
+        }
+        tabTitles = loaded
+    }
     var repos: [String] { TaskListLogic.repos(tasks) }
     var attentionCount: Int { TaskListLogic.attentionCount(attention) }
 
-    /// Locally-aged activity text ("working · 3m"), nil without activity.
-    func activityText(_ row: TaskRow, now: Date) -> String? {
+    /// Locally-aged ms in the current activity state, nil without activity.
+    func activityMs(_ row: TaskRow, now: Date) -> Double? {
         guard let a = row.activity else { return nil }
-        let ms = TaskListLogic.ageMs(forMs: a.forMs, receivedAt: receivedAt[row.id] ?? now, now: now)
-        return "\(a.state) · \(TaskListLogic.age(ms: ms))"
+        return TaskListLogic.ageMs(forMs: a.forMs, receivedAt: receivedAt[row.id] ?? now, now: now)
     }
 
     func task(id: String) -> TaskRow? { tasks.first { $0.id == id } }
@@ -110,6 +126,15 @@ final class TaskStore {
     func refresh() async {
         do { apply(try await client.request("tasks.list", as: TasksPayload.self)); error = nil }
         catch { self.error = error.localizedDescription }
+    }
+
+    /// Back to the not-yet-loaded state (leaving demo mode): the next bridge's first snapshot must neither
+    /// show demo rows nor be diffed against them for notifications.
+    func reset() {
+        tasks = []; attention = []; tabTitles = [:]
+        loaded = false; error = nil; repoFilter = nil
+        snapshot = nil; receivedAt = [:]
+        version += 1
     }
 
     func dismissAttention(_ item: AttentionItem) async {

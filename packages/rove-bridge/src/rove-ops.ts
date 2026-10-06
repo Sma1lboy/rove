@@ -8,11 +8,18 @@ import { isAbsolute, normalize } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { type ActivityEntry, buildContext } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import { defaultApiRuntime } from "@sma1lboy/rove/src/cli/api/runtime.ts"
 import type { TaskTabRow } from "@sma1lboy/rove/src/cli/api/tab-snapshot.ts"
+import {
+  type RowTokenMap,
+  type WorktreeChangesMap,
+  liveRowTokens,
+} from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
+import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
+import { engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
 import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
+import { DEFAULT_GLYPHS } from "@sma1lboy/rove/src/tui/lib/glyphs.ts"
 import { loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
 import {
   type StatusEntry,
@@ -20,7 +27,20 @@ import {
   statusFiles,
   statusFilesBranch,
 } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
-import { BridgeError, type DiffFileRow, type TabRow, type TaskRow, type TasksPayload } from "./protocol.ts"
+import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
+import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
+import { createBridgeApi } from "./ops/api.ts"
+import {
+  type AttentionRow,
+  BridgeError,
+  type DiffFileRow,
+  type PrChipKind,
+  type RowChanges,
+  type RowTokenChip,
+  type TabRow,
+  type TaskRow,
+  type TasksPayload,
+} from "./protocol.ts"
 
 export interface EngineRow {
   readonly id: string
@@ -28,6 +48,12 @@ export interface EngineRow {
   readonly command: string
   readonly protocol: string
   readonly builtin: boolean
+  /** engine-list `models`: suggestions in the engine's own spelling; `null` = unknown. */
+  readonly models?: ReadonlyArray<{ readonly id: string; readonly name?: string }> | null
+  /** Reasoning levels the engine declares; `[]` = takes none. */
+  readonly effortLevels?: readonly string[]
+  /** Binary present and, where Rove can read the login, signed in (`engine-status.ts`). Absent = could not probe. */
+  readonly ready?: boolean
 }
 
 /** The bridge's whole view of Rove. Faked in tests. */
@@ -48,18 +74,8 @@ export interface RoveOps {
 }
 
 /** `rove api` refusals carry a stable `code`; keep it on the wire. */
-async function verb<T>(client: RoveDaemonClient, name: string, argv: readonly string[]): Promise<T> {
-  try {
-    // In-process result of a `rove api` verb whose shape docs/API.md pins.
-    const result = (await invokeVerb(name, argv, { client })) as T
-    return result
-  } catch (err) {
-    const code = err && typeof err === "object" && "code" in err ? err.code : undefined
-    throw new BridgeError(
-      typeof code === "string" ? code : "RPC_ERROR",
-      err instanceof Error ? err.message : String(err),
-    )
-  }
+function verb<T>(client: RoveDaemonClient, name: string, argv: readonly string[]): Promise<T> {
+  return createBridgeApi(client).verb<T>(name, argv)
 }
 
 async function tryRead<T>(read: () => Promise<T>): Promise<T | null> {
@@ -83,6 +99,68 @@ export function engineFor(task: SerializedTask, engines: readonly EngineRow[]): 
   return task.vendor ? { id: null, name: task.vendor } : null
 }
 
+/** Live feeds the rows join beyond `task.list`: both come from the daemon pushes the orchestrator already holds. */
+export interface RowExtras {
+  readonly changes: WorktreeChangesMap | null
+  readonly tokens: RowTokenMap
+}
+
+/** `worktree.changes` for one row: absent when not collected (never zeros), `unreadable` for a tracked path git could not read. */
+function rowChanges(map: WorktreeChangesMap | null, worktreePath: string): RowChanges | undefined {
+  if (!map || !map.has(worktreePath)) return undefined
+  const c = map.get(worktreePath)
+  if (!c) return { unreadable: true }
+  return {
+    added: c.added,
+    deleted: c.deleted,
+    ...(c.ahead !== undefined ? { ahead: c.ahead } : {}),
+    ...(c.behind !== undefined ? { behind: c.behind } : {}),
+  }
+}
+
+function rowTokenChips(map: RowTokenMap | undefined, taskId: string, now: number): RowTokenChip[] {
+  return liveRowTokens(map, taskId, now).map((t) => ({
+    text: t.text,
+    ...(t.tone ? { tone: t.tone } : {}),
+    source: t.source,
+    expiresAt: t.expiresAt,
+  }))
+}
+
+const PR_CHIP_BY_GLYPH: Record<string, PrChipKind> = {
+  [DEFAULT_GLYPHS.conflict]: "conflict",
+  [DEFAULT_GLYPHS.checksFailing]: "failing",
+  [DEFAULT_GLYPHS.checksPassing]: "passing",
+}
+
+/** The sidebar's one PR chip, straight from `row-chips.ts` (conflict > failing > passing), named instead of drawn. */
+function prChipKind(task: SerializedTask): PrChipKind | null {
+  const chip = prChip(task as unknown as Parameters<typeof prChip>[0])
+  return chip ? (PR_CHIP_BY_GLYPH[chip.glyph] ?? null) : null
+}
+
+/**
+ * The inbox as the phone sees it. Optional, additive fields: `resumeAt` (a rate-limited task's
+ * scheduled auto-resume, from its `quotaResume`) and `label` (a routine episode's name, since
+ * its subject is the routine, not a task).
+ */
+export function attentionRows(items: readonly AttentionInboxItem[], tasks: readonly SerializedTask[]): AttentionRow[] {
+  const byId = new Map(tasks.map((t) => [t.id, t]))
+  return items.map((i) => {
+    const resumeAt = i.state === "rate_limited" && i.taskId ? byId.get(i.taskId)?.quotaResume?.resumeAt : undefined
+    const label = i.detail?.routine?.name
+    return {
+      taskId: i.taskId,
+      tabId: i.tabId,
+      state: i.state,
+      unread: i.unread,
+      at: i.at,
+      ...(resumeAt ? { resumeAt } : {}),
+      ...(label ? { label } : {}),
+    }
+  })
+}
+
 /** Fold `context`'s grouping over EVERY task (main/dir included) and join display fields. */
 export function taskRows(
   tasks: readonly SerializedTask[],
@@ -90,8 +168,10 @@ export function taskRows(
   liveTaskIds: ReadonlySet<string> | null,
   engines: readonly EngineRow[],
   now: number,
+  extras?: RowExtras,
 ): TaskRow[] {
   const byId = new Map(tasks.map((t) => [t.id, t]))
+  const orderOf = new Map(tasks.map((t, i) => [t.id, i]))
   const context = buildContext({
     repo: "",
     tasks,
@@ -106,6 +186,9 @@ export function taskRows(
     const task = byId.get(row.taskId)
     if (!task) return []
     const pr = task.prStatus
+    const changes = rowChanges(extras?.changes ?? null, task.worktreePath)
+    const tokens = rowTokenChips(extras?.tokens, task.id, now)
+    const chip = prChipKind(task)
     return [
       {
         id: task.id,
@@ -116,7 +199,7 @@ export function taskRows(
         status: task.status,
         group: row.group,
         rank: row.rank,
-        activity: row.activity,
+        activity: row.activity ? { ...row.activity, since: now - row.activity.forMs } : null,
         engine: engineFor(task, engines),
         pr: pr
           ? {
@@ -125,10 +208,19 @@ export function taskRows(
               lifecycle: pr.lifecycle,
               checkState: pr.checkState,
               ...(pr.reviewDecision ? { reviewDecision: pr.reviewDecision } : {}),
+              ...(pr.mergeable ? { mergeable: pr.mergeable } : {}),
             }
           : null,
         report: task.report ? { summary: task.report.summary ?? "", at: task.report.at } : null,
         deleting: task.deletion?.phase === "queued" || task.deletion?.phase === "running",
+        pinned: task.pinned === true,
+        order: orderOf.get(task.id) ?? 0,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        ...(changes ? { changes } : {}),
+        ...(tokens.length > 0 ? { rowTokens: tokens } : {}),
+        prChip: chip,
+        prChipStale: chip !== null && pr?.lastError !== undefined,
       },
     ]
   })
@@ -143,19 +235,34 @@ function flatten(entries: readonly StatusEntry[], scope: DiffFileRow["scope"]): 
   )
 }
 
-export function createRoveOps(client: RoveDaemonClient): RoveOps {
+/** Optional live signals the feed joins into rows (the orchestrator's `worktree.changes` and `task.tokens` pushes). */
+export interface LiveRowSignals {
+  changes(): WorktreeChangesMap | null
+  tokens(): RowTokenMap
+}
+
+export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals): RoveOps {
   let engineCache: { at: number; engines: readonly EngineRow[] } | null = null
 
   const engines = async (): Promise<readonly EngineRow[]> => {
     if (engineCache && Date.now() - engineCache.at < ENGINE_CACHE_MS) return engineCache.engines
-    const res = await verb<{ engines: readonly EngineRow[] }>(client, "engine-list", [])
-    const rows = res.engines.map(({ id, name, command, protocol, builtin }) => ({
-      id,
-      name,
-      command,
-      protocol,
-      builtin,
-    }))
+    const res = await verb<{ engines: ReadonlyArray<EngineRow> }>(client, "engine-list", [])
+    const rows = await Promise.all(
+      res.engines.map(async ({ id, name, command, protocol, builtin, models }) => {
+        // `engine-status.ts`: binary found AND (where Rove can read the login) an account exists.
+        const status = await tryRead(() => detectEngineStatus(id as VendorId))
+        return {
+          id,
+          name,
+          command,
+          protocol,
+          builtin,
+          models: models ?? null,
+          effortLevels: [...(engineEntry(protocol).effortLevels ?? [])],
+          ...(status ? { ready: status.binary.found && status.account?.kind !== "none" } : {}),
+        }
+      }),
+    )
     engineCache = { at: Date.now(), engines: rows }
     return rows
   }
@@ -181,14 +288,15 @@ export function createRoveOps(client: RoveDaemonClient): RoveOps {
         tryRead(engines),
       ])
       return {
-        tasks: taskRows(tasks, inspect?.activity?.tasks ?? null, live, engineRows ?? [], Date.now()),
-        attention: (inbox?.items ?? []).map((i) => ({
-          taskId: i.taskId,
-          tabId: i.tabId,
-          state: i.state,
-          unread: i.unread,
-          at: i.at,
-        })),
+        tasks: taskRows(
+          tasks,
+          inspect?.activity?.tasks ?? null,
+          live,
+          engineRows ?? [],
+          Date.now(),
+          signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined,
+        ),
+        attention: attentionRows(inbox?.items ?? [], tasks),
       }
     },
 

@@ -24,8 +24,11 @@ import { loadOrCreateToken, pairingUrl } from "./auth.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
 import { TaskFeed } from "./feed.ts"
+import { NoticeFeed } from "./notices.ts"
+import { createBridgeApi } from "./ops/api.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
+import { usageStore } from "./usage-store.ts"
 
 /** Re-read the list at least this often: group rules have time windows. */
 const TICK_MS = 15_000
@@ -98,24 +101,39 @@ async function main(): Promise<void> {
   await orchestrator.init()
   // Verbs get their own socket: some subscribe as a pane, which must not
   // demote the orchestrator's gui subscription.
-  const ops = createRoveOps(new RoveDaemonClient(daemonSocket))
+  const verbClient = new RoveDaemonClient(daemonSocket)
+  const ops = createRoveOps(verbClient, {
+    changes: () => orchestrator.worktreeChangesSignal()(),
+    tokens: () => orchestrator.rowTokensSignal()(),
+  })
   const feed = new TaskFeed(() => ops.tasks())
   for (const signal of [
     orchestrator.tasksSignal(),
     orchestrator.engineStateSignal(),
     orchestrator.attentionInboxSignal(),
+    orchestrator.worktreeChangesSignal(),
+    orchestrator.rowTokensSignal(),
   ]) {
     signal.subscribe(() => feed.poke())
   }
+  // Engine quota windows for `usage.get`; the daemon publishes them as the engines report.
+  const usage = orchestrator.usageSnapshotSignal()
+  usageStore.set(usage())
+  usage.subscribe(() => usageStore.set(usage()))
   setInterval(() => feed.poke(), TICK_MS)
+  const notices = new NoticeFeed()
+  const noticeStore = orchestrator.noticeStore()
+  noticeStore.subscribe(() => notices.push(noticeStore.get()))
 
   const ptySocket = defaultPtyHostSocketPath()
   const deps: BridgeDeps = {
     token,
     ops,
     feed,
+    notices,
     openPty: () => new RoveDaemonClient(ptySocket),
     roveVersion: CURRENT_VERSION,
+    api: createBridgeApi(verbClient),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
   }
   const servers = args.hosts.map((hostname) => startBridgeServer(deps, { hostname, port: args.port }))

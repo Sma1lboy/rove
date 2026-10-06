@@ -9,8 +9,8 @@ struct TaskNotice: Equatable {
 
     var body: String {
         switch kind {
-        case .waitingOnYou: "\(title) is waiting on you"
-        case .finished: "\(title) finished working"
+        case .waitingOnYou: String(localized: "\(title) is waiting on you")
+        case .finished: String(localized: "\(title) finished working")
         }
     }
 }
@@ -50,6 +50,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func post(_ notice: TaskNotice) {
+        guard NotificationPrefs.enabled else { return }
         let content = UNMutableNotificationContent()
         content.title = "Rove"
         content.body = notice.body

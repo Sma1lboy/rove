@@ -1,8 +1,10 @@
 import XCTest
 
 /// End-to-end smoke against a real rove-bridge. Skipped unless ROVE_BRIDGE_URL is set
-/// (pass with TEST_RUNNER_ROVE_BRIDGE_URL, TEST_RUNNER_ROVE_DEMO_REPO, TEST_RUNNER_ROVE_SHOT_DIR).
-/// Screenshots go through scripts/shot-watcher.sh (`simctl io booted screenshot`) via .ready/.done files.
+/// (pass with TEST_RUNNER_ROVE_BRIDGE_URL, TEST_RUNNER_ROVE_DEMO_REPO_NAME, TEST_RUNNER_ROVE_SHOT_DIR).
+/// The bridge's Rove needs a repo named ROVE_DEMO_REPO_NAME (default `math-demo`) holding `math.ts`, and an
+/// existing task there titled "Add a subtract helper". Screenshots go through scripts/shot-watcher.sh
+/// (`simctl io booted screenshot`) via .ready/.done files.
 final class LiveFlowTests: XCTestCase {
     private let env = ProcessInfo.processInfo.environment
     private var app: XCUIApplication!
@@ -33,14 +35,21 @@ final class LiveFlowTests: XCTestCase {
 
     private func text(_ s: String) -> XCUIElement { app.staticTexts[s].firstMatch }
 
-    func testLiveFlow() throws {
-        guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty else { throw XCTSkip("ROVE_BRIDGE_URL not set") }
-        let title = "Add a multiply helper"
-
+    /// Launches unpaired and answers the first-run notification prompt, which would cover the pairing screen.
+    private func launchFresh() {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["-resetPairing"]
         app.launch()
+        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
+        if allow.waitForExistence(timeout: 3) { allow.tap() }
+    }
+
+    func testLiveFlow() throws {
+        guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty else { throw XCTSkip("ROVE_BRIDGE_URL not set") }
+        let title = "Add a multiply helper"
+
+        launchFresh()
 
         // Pair
         let field = waitFor(element("pairingField"), "pairing field")
@@ -51,16 +60,17 @@ final class LiveFlowTests: XCTestCase {
         element("connectButton").tap()
 
         // Task list
-        waitFor(app.navigationBars["Tasks"], "task list")
+        waitFor(element("newTaskButton"), "task list")
         waitFor(text("Add a subtract helper"), "existing task row", timeout: 30)
         checkpoint("02-task-list")
 
         // New task
         element("newTaskButton").tap()
-        // The picker shows the first engine once engines.list returns; tap that menu button.
-        let current = waitFor(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Claude'")).firstMatch, "engine menu", timeout: 20)
-        current.tap()
-        waitFor(app.buttons["Codex"].firstMatch, "Codex option").tap()
+        // The sheet preselects the repo the phone used last, so pick the demo repo explicitly.
+        let demoRepo = env["ROVE_DEMO_REPO_NAME"] ?? "math-demo"
+        waitFor(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", demoRepo + ",")).firstMatch, "demo repo tile").tap()
+        // Engines are mono tiles once engines.list returns.
+        waitFor(app.buttons["codex"].firstMatch, "codex engine tile", timeout: 20).tap()
         let titleField = element("titleField"); titleField.tap(); titleField.typeText(title)
         let prompt = element("promptEditor"); prompt.tap()
         prompt.typeText("Add a multiply(a, b) function to math.ts. Keep it tiny; do not commit.")
@@ -68,23 +78,17 @@ final class LiveFlowTests: XCTestCase {
         checkpoint("03-new-task")
         element("createButton").tap()
 
-        // Detail
-        waitFor(app.navigationBars[title], "task detail", timeout: 30)
-        let tab = waitFor(element("tab-tab-1"), "tab-1 row", timeout: 30)
+        // Detail: the first engine tab's terminal opens with it.
+        let heading = waitFor(element("taskTitle"), "task detail", timeout: 30)
+        XCTAssertEqual(heading.label, title)
+        waitFor(element("tab-tab-1"), "tab-1", timeout: 30)
         checkpoint("04-task-detail")
 
         // Terminal
-        tab.tap()
-        let bytes = waitFor(element("terminalStatus"), "terminal view")
-        var seen = 0
+        waitFor(element("terminal"), "terminal view")
         let deadline = Date().addingTimeInterval(45)
-        while Date() < deadline {
-            let label = bytes.label // "Live · 1234 B"
-            seen = Int((label.components(separatedBy: " · ").last ?? "").filter(\.isNumber)) ?? 0
-            if seen > 300 { break }
-            Thread.sleep(forTimeInterval: 0.5)
-        }
-        XCTAssertGreaterThan(seen, 300, "terminal produced no output")
+        while Date() < deadline, terminalBytes() <= 300 { Thread.sleep(forTimeInterval: 0.5) }
+        XCTAssertGreaterThan(terminalBytes(), 300, "terminal produced no output")
         Thread.sleep(forTimeInterval: 8) // let the engine render
         checkpoint("05-terminal")
 
@@ -97,35 +101,45 @@ final class LiveFlowTests: XCTestCase {
         checkpoint("06-terminal-replied")
 
         // Diff
-        app.navigationBars.buttons.element(boundBy: 0).tap()
         waitFor(element("diffLink"), "diff link").tap()
         let file = waitFor(text("math.ts"), "math.ts in diff files", timeout: 30)
         checkpoint("07-diff-files")
         file.tap()
-        waitFor(app.navigationBars["math.ts"], "diff file")
+        waitFor(element("mentionButton"), "diff file")
         Thread.sleep(forTimeInterval: 1.5)
         checkpoint("08-diff-file")
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        element("backButton").tap()
+        let left = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: element("mentionButton"))
+        wait(for: [left], timeout: 10)
+        waitFor(element("backButton"), "back to detail").tap()
 
         // Delete
-        waitFor(element("deleteButton"), "delete button").tap()
+        // The menu can swallow a tap that lands during the back transition, so retry opening it.
+        for attempt in 0..<3 {
+            Thread.sleep(forTimeInterval: 1.2)
+            waitFor(element("moreMenu"), "more menu").tap()
+            if element("actionInfo").waitForExistence(timeout: 4) { break }
+            if attempt < 2 { app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.5)).tap() }
+        }
+        // Tab and task actions together are taller than the screen: scroll the menu down to Delete.
+        for _ in 0..<5 where !element("deleteButton").isHittable { app.swipeUp() }
+        waitFor(element("deleteButton"), "delete in menu").tap()
         waitFor(app.buttons["Delete…"].firstMatch, "delete confirmation").tap()
         let force = waitFor(element("forceToggle"), "force toggle")
         force.switches.firstMatch.exists ? force.switches.firstMatch.tap() : force.tap()
         checkpoint("09-delete-confirm")
         element("confirmDeleteButton").tap()
 
-        waitFor(app.navigationBars["Tasks"], "task list after delete")
+        waitFor(element("newTaskButton"), "task list after delete")
         let gone = NSPredicate(format: "exists == false")
         let exp = expectation(for: gone, evaluatedWith: text(title))
         wait(for: [exp], timeout: 30)
         checkpoint("10-deleted")
     }
 
+    /// Bytes the terminal has received, exposed as its accessibility value.
     private func terminalBytes() -> Int {
-        let label = element("terminalStatus").label // "Live · 1,234 B"
-        return Int((label.components(separatedBy: " · ").last ?? "").filter(\.isNumber)) ?? 0
+        Int(element("terminal").value as? String ?? "") ?? 0
     }
 
     /// Types into an already-running task's terminal from the phone, then uses the accessory key row.
@@ -137,10 +151,7 @@ final class LiveFlowTests: XCTestCase {
         }
         let reply = env["ROVE_REPLY"] ?? "From the phone: reply with the word PONG only."
 
-        continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
-        app.launch()
+        launchFresh()
 
         let field = waitFor(element("pairingField"), "pairing field")
         field.tap()
@@ -148,15 +159,12 @@ final class LiveFlowTests: XCTestCase {
         hideKeyboard()
         element("connectButton").tap()
 
-        waitFor(app.navigationBars["Tasks"], "task list")
+        waitFor(element("newTaskButton"), "task list")
         waitFor(text(taskTitle), "task \(taskTitle)", timeout: 30).tap()
-        waitFor(app.navigationBars[taskTitle], "task detail", timeout: 20)
+        waitFor(element("taskTitle"), "task detail", timeout: 20)
 
-        // First engine tab = first tab row.
-        let tab = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'tab-'")).firstMatch
-        waitFor(tab, "first tab row", timeout: 20).tap()
-
-        waitFor(element("terminalStatus"), "terminal view")
+        // The first engine tab's terminal opens with the task.
+        waitFor(element("terminal"), "terminal view")
         let start = Date().addingTimeInterval(30)
         while Date() < start, terminalBytes() < 300 { Thread.sleep(forTimeInterval: 0.5) }
         let before = terminalBytes()
@@ -185,10 +193,7 @@ final class LiveFlowTests: XCTestCase {
     /// Screenshot-only: Cloudflare preset with fake credentials. Needs ROVE_SHOT_DIR; never connects.
     func testCloudflarePresetScreenshot() throws {
         guard let dir = env["ROVE_SHOT_DIR"], !dir.isEmpty else { throw XCTSkip("ROVE_SHOT_DIR not set") }
-        continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
-        app.launch()
+        launchFresh()
 
         let field = waitFor(element("pairingField"), "pairing field")
         field.tap()
@@ -201,5 +206,43 @@ final class LiveFlowTests: XCTestCase {
         secret.tap(); secret.typeText("fake-secret-value")
         hideKeyboard()
         checkpoint("13-cloudflare-preset")
+    }
+
+    /// Screenshot-only: the task list and one task's detail with its live terminal.
+    /// Needs ROVE_BRIDGE_URL, ROVE_TASK_TITLE and ROVE_SHOT_DIR; changes nothing on the Mac.
+    func testTaskScreensScreenshots() throws {
+        guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty,
+              let taskTitle = env["ROVE_TASK_TITLE"], !taskTitle.isEmpty,
+              env["ROVE_SHOT_DIR"]?.isEmpty == false else {
+            throw XCTSkip("ROVE_BRIDGE_URL / ROVE_TASK_TITLE / ROVE_SHOT_DIR not set")
+        }
+        launchFresh()
+
+        let field = waitFor(element("pairingField"), "pairing field")
+        field.tap()
+        field.typeText(url)
+        hideKeyboard()
+        element("connectButton").tap()
+
+        waitFor(element("newTaskButton"), "task list")
+        let row = waitFor(text(taskTitle), "task \(taskTitle)", timeout: 30)
+        Thread.sleep(forTimeInterval: 2)
+        checkpoint("design-list")
+
+        row.tap()
+        waitFor(element("taskTitle"), "task detail", timeout: 20)
+        let terminal = waitFor(element("terminal"), "terminal")
+        let deadline = Date().addingTimeInterval(30)
+        while Date() < deadline, (Int(terminal.value as? String ?? "") ?? 0) < 300 { Thread.sleep(forTimeInterval: 0.5) }
+        Thread.sleep(forTimeInterval: 4)
+        checkpoint("design-detail")
+
+        // The activity timer ages locally between pushes; it must not sit still.
+        let timer = element("activityTimer")
+        if timer.exists {
+            let before = timer.label
+            Thread.sleep(forTimeInterval: 2.5)
+            XCTAssertNotEqual(timer.label, before, "activity timer did not advance")
+        }
     }
 }

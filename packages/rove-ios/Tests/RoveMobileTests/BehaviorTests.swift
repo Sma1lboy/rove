@@ -43,9 +43,16 @@ final class BehaviorTests: XCTestCase {
         let rows = [row("w1", .working, rank: 1), row("i", .idle), row("wait", .waitingOnYou, rank: 9),
                     row("w0", .working, rank: 0), row("w1b", .working, rank: 1), row("u", .unknown), row("l", .landing)]
         XCTAssertEqual(TaskListLogic.sorted(rows).map(\.id), ["wait", "l", "w0", "w1", "w1b", "i", "u"])
-        let sections = TaskListLogic.sections(rows)
-        XCTAssertEqual(sections.map(\.group), [.waitingOnYou, .landing, .working, .idle, .unknown])
-        XCTAssertEqual(sections[2].rows.count, 3)
+    }
+
+    func testProjectsOrderedByMostUrgentTaskRowsKeepGroupOrder() {
+        let rows = [row("x-idle", .idle, repo: "/x"), row("y-work", .working, repo: "/y"),
+                    row("x-wait", .waitingOnYou, repo: "/x"), row("y-ready", .readyForReview, repo: "/y"),
+                    row("z-idle", .idle, repo: "/z")]
+        let projects = TaskListLogic.projects(rows)
+        XCTAssertEqual(projects.map(\.repo), ["/x", "/y", "/z"])
+        XCTAssertEqual(projects[0].rows.map(\.id), ["x-wait", "x-idle"])
+        XCTAssertEqual(projects[1].rows.map(\.id), ["y-ready", "y-work"])
     }
 
     func testAttentionCountOnlyUnread() {
@@ -68,11 +75,36 @@ final class BehaviorTests: XCTestCase {
         XCTAssertEqual(TaskListLogic.ageMs(forMs: 5_000, receivedAt: t0, now: t0.addingTimeInterval(-3)), 5_000)
     }
 
+    /// `activity.since` is an optional, additive bridge field the app never reads: with it or
+    /// without it (an older bridge), the timer is `forMs` at receipt plus local elapsed time.
+    @MainActor
+    func testTimerAgesFromForMsWhetherOrNotTheBridgeSendsSince() throws {
+        for activity in [#"{"state":"running","forMs":60000}"#,
+                         #"{"state":"running","forMs":60000,"since":1700000000000}"#] {
+            let json = #"{"tasks":[{"id":"t1","title":"t","group":"working","activity":"# + activity + "}]}"
+            let payload = try JSONDecoder().decode(TasksPayload.self, from: Data(json.utf8))
+            let store = TaskStore(client: BridgeClient())
+            store.apply(payload)
+            let row = try XCTUnwrap(store.task(id: "t1"))
+            let ms = try XCTUnwrap(store.activityMs(row, now: Date().addingTimeInterval(30)))
+            XCTAssertEqual(ms, 90_000, accuracy: 1_000, activity)
+        }
+    }
+
     func testAgeFormatting() {
         XCTAssertEqual(TaskListLogic.age(ms: 5_000), "5s")
         XCTAssertEqual(TaskListLogic.age(ms: 125_000), "2m")
         XCTAssertEqual(TaskListLogic.age(ms: 7_200_000), "2h")
         XCTAssertEqual(TaskListLogic.age(ms: 200_000_000), "2d")
+    }
+
+    func testClockShowsSecondsUnderAnHour() {
+        XCTAssertEqual(TaskListLogic.clock(ms: 9_400), "9s")
+        XCTAssertEqual(TaskListLogic.clock(ms: 247_000), "4m07s")
+        XCTAssertEqual(TaskListLogic.clock(ms: 3_599_000), "59m59s")
+        XCTAssertEqual(TaskListLogic.clock(ms: 7_380_000), "2h03m")
+        XCTAssertEqual(TaskListLogic.clock(ms: 200_000_000), "2d")
+        XCTAssertEqual(TaskListLogic.clock(ms: -5), "0s")
     }
 
     // MARK: Accessory keys

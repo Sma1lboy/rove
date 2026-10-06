@@ -53,6 +53,7 @@ The token lives in `<ROVE_HOME>/.rove/bridge/token` (mode 0600) and survives bri
 - **Diff.** Files changed on the branch versus its base (same base rule as the TUI's changes pane) and uncommitted files, each with its unified diff.
 - **New task, land, delete.** New task takes a repo, an engine and an optional first prompt. Land and delete ask twice; delete keeps the branch, as `rove api delete` does.
 - **Notifications.** While the app is running, a task that moves into `waiting-on-you`, or from `working` to `ready-for-review`/`idle`, posts a local notification.
+- **Demo.** `try a demo` on the first screen runs the whole app against canned data bundled in the app (`Sources/RoveMobile/Demo/demo-fixture.json`, the same file `scripts/fixture-bridge.ts` serves to the UI tests): no Mac, no bridge, no network request. A strip on every screen says `demo · not connected to a mac`; `connect a mac` leaves it. Nothing about the demo is saved, so a cold launch starts on the pairing screen. It exists so App Store beta review can use the app without a Mac (`packages/rove-ios/docs/REVIEW_NOTES.md`).
 
 Engine names in the app come from Rove's engine registry through the bridge.
 
@@ -83,7 +84,7 @@ flowchart LR
 - **Loopback by default.** Remote access is `--preset tailscale` (tailnet address only) or `--preset cf` (loopback behind cloudflared); anything else is an explicit `--host`.
 - **One bearer token.** 32 random bytes, sent only as `Authorization: Bearer`; a token in the URL query is refused, so it never lands in proxy or tunnel logs. It is checked with a constant-time compare at the WebSocket upgrade; a missing or wrong token gets HTTP 401 and no socket. Every later frame rides that authenticated socket.
 - **Cloudflare Access (`--preset cf`).** Before the token, the bridge verifies `Cf-Access-Jwt-Assertion` against the team's published keys (`/cdn-cgi/access/certs`) and checks issuer, AUD and expiry. Both layers must pass; each refusal is logged with the reason, never with the token or JWT.
-- **Closed op list.** The phone can call the 18 operations below and nothing else. There is no generic daemon passthrough; anything else is refused with `UNKNOWN_OP`.
+- **Closed op list.** The phone can call the operations listed below and nothing else. There is no generic daemon passthrough; anything else is refused with `UNKNOWN_OP`.
 - **Terminal input is scoped.** `term.input` only reaches a session this connection attached, and attach refuses a tab with no hosted session instead of spawning one.
 - **Diff paths stay in the worktree.** Absolute paths and `..` are refused.
 - **What the token grants.** Whoever holds it can do what the app can: read task output, type into engine sessions (which run with your user's permissions), create, land and delete tasks. Treat the pairing URL like a password; rotate it if it leaks.
@@ -112,7 +113,102 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `term.detach` | `stream` | `{}` |
 | `diff.files` | `taskId` | `{base, files: [{path, status, added, deleted, scope}]}` |
 | `diff.file` | `taskId`, `path`, `scope` | `{kind, text?, message?}` |
+| `files.list` | `taskId` | `{files, truncated}` (tracked + untracked, not ignored) |
+| `review.list` | `taskId` | `{notes, unsent}` (notes live in `state.json` `diffComments.<taskId>`, shared with the TUI) |
+| `review.add` | `taskId`, `filePath`, `line`, `startLine?`, `body` | `{note}` |
+| `review.remove` | `taskId`, `id` | `{removed}` (destructive) |
+| `review.send` | `taskId`, `tabId?` | `{sent, delivered, reason?}`; notes are marked sent only when delivery is confirmed |
+| `worktrees.list` | `network?` | `{projects: [{repo, worktrees: [{path, branch, dirty, branchOnRemote, verdict, verdictReason, taskId?, taskKind?, …}]}]}` |
+| `worktrees.remove` | `path`, `force` | `{removed, residue?}`; a dirty worktree is refused with code `DIRTY_WORKTREE` unless `force` (destructive) |
 | `attention.dismiss` | `taskId`, `tabId?` | `{}` |
+
+### Task area ops
+
+Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-checked, engine arguments are engine ids from `engine-list` (never a command line), and the three destructive ones are logged and confirmed twice in the app. Repo-scoped ops accept only repos `repos.list` knows (`UNKNOWN_REPO` otherwise): pass the path as `repos.list` returned it.
+
+| Op | Args | Result | Wraps | Destructive |
+| --- | --- | --- | --- | --- |
+| `task.get` | `taskId` | `{task}` (path, prompt, engine, model, effort, PR detail, report) | `get-task` | |
+| `task.info` | `taskId` | `{running, activity, changes, base, tabs: [{exit?, tail?}]}` | `collect` | |
+| `repo.branches` | `repo` | `{branches, current}` | `listLocalBranches` | |
+| `notes.list` | `repo` | `{notes}` | `note-list` | |
+| `worktree.adoptable` | `repo` | `{worktrees, unreadable}` | RPC `worktree.discoverAdoptable` | |
+| `task.spawn` | `repo`, `engine?`, `title?`, `prompt?`, `branch?`, `baseBranch?`, `model?`, `effort?`, `count?` (1–10) or `agents?` (`id:N,…`), `status?`, `pin?` | `{taskIds, groupId?}` | `add` | |
+| `task.rename` | `taskId`, `title` | `{}` | `rename` | |
+| `task.setBranch` | `taskId`, `branch` | `{}` | `set-branch` | |
+| `task.setCommand` | `taskId`, `engine` | `{protocol?}` | `set-command` | |
+| `task.setModel` | `taskId`, `model` | `{}` | `set-model` | |
+| `task.setEffort` | `taskId`, `level` | `{}` | `set-effort` | |
+| `task.setStatus` | `taskId`, `status` (six) | `{}` | `set-status` | |
+| `task.pin` | `taskId`, `pinned` | `{}` | `pin` | |
+| `task.move` | `taskId`, `direction` (`up`/`down`/`top`) | `{}` | RPC `task.move` | |
+| `project.forget` | `repo` | `{}` | RPC `project.forget` | yes |
+| `notes.delete` | `repo`, `id` | `{deleted}` | `note-delete` | yes |
+| `task.openMain` | `repo` | `{taskId}` | RPC `task.ensureMain` | |
+| `worktree.adopt` | `repo`, `worktreePath` (must be adoptable), `branch?`, `title?`, `engine?` | `{taskId}` | RPC `worktree.adopt` | |
+| `repo.clone` | `url` (https/http/ssh/git/scp form), `parentDir`, `folder?` | `{path}` | `cloneRepo` | |
+| `task.ensureWorktree` | `taskId` | `{worktreePath}` | `ensure-worktree` | |
+| `task.removeWorktree` | `taskId`, `force?` | `{removed, worktreePath?, branch?}` | `remove-worktree` | yes |
+
+Task rows (`tasks` push and `tasks.list`) also carry optional `pinned`, `order`, `createdAt`, `updatedAt`, `changes` (`{added, deleted, ahead?, behind?}` or `{unreadable: true}`, from the daemon's `worktree.changes` push; absent = not collected), `rowTokens` (`{text, tone?, source, expiresAt}`), `prChip` (`conflict`/`failing`/`passing`), `prChipStale`, and `pr.mergeable`. Engine rows carry optional `models`, `effortLevels` and `ready`. Older apps ignore them; the app decodes rows without them.
+
+### Terminal-tab ops and the `notice` push
+
+Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC or helper and checks its arguments.
+
+| Op | Args | Result | Wraps |
+| --- | --- | --- | --- |
+| `tab.states` | `taskId` | `{tabs: {tab-N: {state, at}}}` | `debug.inspect` (`activity.tabs`) |
+| `tab.rename` | `taskId`, `tabId`, `title` | `{}` | `rename --tab` |
+| `tab.interrupt` | `taskId`, `tabId?` | `{}` | `interrupt` |
+| `tab.forkTask` | `repo`, `baseBranch`, `prompt`, `engine?`, `title?`, `count?` (1–5) | `{taskIds}` | `add --base-branch` (`--count` for attempts) |
+| `tab.handoff` | `taskId`, `tabId` | `{kind: "handoff", prompt}` or `{kind: "no-session" \| "no-transcript", engine?}` | `planWorktreeHandoff` |
+| `tab.requestPR` | `taskId`, `tabId?` | `{}` | `buildPRPrompt` + `send --plain` |
+| `attachment.put` | `mime` (png/jpeg/gif/webp/pdf), `data` (base64, ≤ 5 MB) | `{path, kind, bytes}` | writes `~/.rove/attachments/attach-<date>-<nonce>.<ext>` |
+
+`attachment.put` checks the file's magic bytes against the declared type. A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
+
+Additive fields and events, ignored by an app that predates them: `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time) and `attention[].label` (a routine episode's name); the push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
+
+### Board, routines, GitHub issues and settings ops
+
+Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in `ops/index.ts`). Each wraps one `rove api` verb, daemon RPC or Rove helper and validates its own arguments; ops marked **destructive** are logged with their ids, and the app asks for a second confirmation before sending them.
+
+| Op | Args | Wraps | Destructive |
+| --- | --- | --- | --- |
+| `issue.repos` | — | RPC `issue.repos` | — |
+| `issue.list` | `repo` | `issue-list` | — |
+| `issue.create` | `repo`, `title`, `body?` | `issue-create` | — |
+| `issue.update` | `repo`, `id`, `title?`, `body?` or `clearBody`, `task?` (`none` unlinks) | `issue-update` | — |
+| `issue.setStatus` | `repo`, `id`, `status` (`open`/`doing`/`hold`/`done`) | `issue-set-status` | — |
+| `issue.delete` | `repo`, `id` | `issue-delete` (the record only) | yes |
+| `issue.prompt` | `repo`, `id`, `where` (`worktree`/`project`) | `issue-list` + the kanban drawer's prompt builders | — |
+| `task.events` | `taskId`, `limit?` | RPC `task.recentEvents`, newest first | — |
+| `routine.list` | — | `routine-list` | — |
+| `routine.create` | `repo`, `name`, `prompt`, `schedule` | `routine-create` | — |
+| `routine.update` | `id`, `name?`, `prompt?`, `schedule?` | `routine-update` | — |
+| `routine.setEnabled` | `id`, `enabled` | `routine-set-enabled` | — |
+| `routine.runNow` | `id` | `routine-run-now` | — |
+| `routine.runs` | `id` | `routine-runs` | — |
+| `routine.delete` | `id` | `routine-delete` | yes |
+| `workitem.list` | `repo`, `state?`, `assignee?` (`@me`), `search?`, `limit?`, `refresh?` | RPC `workitem.list` | — |
+| `workitem.links` | `repo` | RPC `task.list`, folded to tasks started from an issue | — |
+| `workitem.start` | `repo`, `number`, `engine?` (built-in) | `workitem-start` | — |
+| `usage.get` | — | the orchestrator's `usageSnapshotSignal()`; `{usage: null}` until the daemon reports | — |
+| `daemon.info` | — | RPC `daemon.status` + `isDaemonVersionStale` against the bridge's build | — |
+| `plugins.list` | — | the Plugins section's `readPluginRows` | — |
+| `plugin.setEnabled` | `id`, `enabled` | `setPluginEnabled` | yes |
+| `feedback.send` | `title`, `body`, `category?` | `feedback` (a public GitHub Discussion) | yes |
+| `engines.settings` | — | engine registry + `detectEngineStatuses` + `engineIntegrations` + state.json switches | — |
+| `engine.setEnabled` | `id`, `enabled` | state.json `disabledEngineIds` (+ `defaultVendor` hand-off) | yes |
+| `engine.setDefault` | `id` | state.json `defaultVendor` | yes |
+| `engine.rename` | `id`, `name` | state.json `engineName.<id>` | yes |
+| `engine.reset` | `id` | state.json `engineCommand`/`engineName`/`engineProtocol`/`customEngineIds` | yes |
+| `output.read` | `taskId`, `tab?`, `source?`, `cursor?`, `limit?` | `read-output` | — |
+| `repo.digest` | `repo`, `sinceDays?` | `digest` | — |
+| `turns.list` | `taskId?`, `repo?`, `sinceDays?`, `limit?` | `agent-turns` | — |
+
+What the phone cannot do, because each would make the Mac run a command the phone wrote: set a routine's precheck, edit an engine's launch command, change a plugin's manifest settings, install a plugin from the marketplace. Engine rows never carry account emails or the launch command's arguments.
 
 ## Build the app
 

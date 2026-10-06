@@ -10,10 +10,10 @@ enum ConnectionState: Equatable {
 
     var label: String {
         switch self {
-        case .disconnected: "Disconnected"
-        case .connecting: "Connecting…"
-        case .connected: "Connected"
-        case .reconnecting(let n): "Reconnecting (try \(n))…"
+        case .disconnected: String(localized: "Disconnected")
+        case .connecting: String(localized: "Connecting…")
+        case .connected: String(localized: "Connected")
+        case .reconnecting(let n): String(localized: "Reconnecting (try \(n))…")
         case .failed(let m): m
         }
     }
@@ -28,6 +28,8 @@ final class BridgeClient {
     @ObservationIgnored private var socket: URLSessionWebSocketTask?
     @ObservationIgnored private var session: URLSession?
     @ObservationIgnored private var runner: Task<Void, Never>?
+    /// Set in demo mode: every request is answered from this in-memory fixture and nothing touches the network.
+    @ObservationIgnored private var demo: DemoFixture?
     @ObservationIgnored private var nextId = 1
     @ObservationIgnored private var pending: [Int: CheckedContinuation<Data, Error>] = [:]
     @ObservationIgnored private var observers: [UUID: (BridgeEvent) -> Void] = [:]
@@ -66,8 +68,19 @@ final class BridgeClient {
         state = .disconnected
     }
 
+    /// Demo mode: connected to the in-app fixture bridge. No socket, no URLSession; `request` answers from
+    /// the fixture, `fire` (keystrokes, resize, detach) is dropped, and `connected` goes out as for a real hello.
+    func connectDemo(_ fixture: DemoFixture) {
+        stop()
+        demo = fixture
+        hello = try? IncomingFrame.decode(HelloResult.self, from: fixture.answer("hello"))
+        state = .connected
+        emit(.connected)
+    }
+
     private func stop() {
         runner?.cancel(); runner = nil
+        demo = nil
         teardownSocket()
     }
 
@@ -152,7 +165,9 @@ final class BridgeClient {
         return String(data: d, encoding: .utf8)
     }
 
-    func request<T: Decodable>(_ op: String, _ args: [String: Any] = [:], as type: T.Type = EmptyResult.self) async throws -> T {
+    /// `timeout` is seconds to wait for the answer; long ops (a repo clone) pass more than the default.
+    func request<T: Decodable>(_ op: String, _ args: [String: Any] = [:], timeout: Double = 30, as type: T.Type = EmptyResult.self) async throws -> T {
+        if let demo { return try IncomingFrame.decode(T.self, from: demo.answer(op, args)) }
         guard let socket else { throw BridgeError.notConnected }
         let id = nextId; nextId += 1
         guard let text = frame(id: id, op: op, args: args) else { throw BridgeError.malformed }
@@ -165,7 +180,7 @@ final class BridgeClient {
                 }
             }
             Task { [weak self] in
-                try? await Task.sleep(for: .seconds(30))
+                try? await Task.sleep(for: .seconds(timeout))
                 self?.pending.removeValue(forKey: id)?.resume(throwing: BridgeError.timeout)
             }
         }
@@ -174,6 +189,7 @@ final class BridgeClient {
 
     /// Fire-and-forget (keystrokes, resize). Sends synchronously so ordering is preserved.
     func fire(_ op: String, _ args: [String: Any] = [:]) {
+        guard demo == nil else { return }
         guard let socket else { return }
         let id = nextId; nextId += 1
         guard let text = frame(id: id, op: op, args: args) else { return }

@@ -9,7 +9,7 @@ enum PairingPreset: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .direct: "Direct"
+        case .direct: String(localized: "Direct")
         case .tailscale: "Tailscale"
         case .cloudflare: "Cloudflare"
         }
@@ -63,13 +63,13 @@ enum PairingError: Error, Equatable, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .empty: "Paste a pairing URL first."
-        case .invalidURL: "That doesn't look like a valid pairing URL."
-        case .unsupportedScheme: "Pairing URLs must start with ws://, wss:// or rove://pair."
-        case .missingToken: "The pairing URL has no token."
-        case .unknownPreset: "The pairing URL has an unknown preset."
-        case .cloudflareNeedsTLS: "The Cloudflare preset needs a wss:// URL."
-        case .missingAccessCredentials: "Enter the Cloudflare Access client id and secret."
+        case .empty: String(localized: "Paste a pairing URL first.")
+        case .invalidURL: String(localized: "That doesn't look like a valid pairing URL.")
+        case .unsupportedScheme: String(localized: "Pairing URLs must start with ws://, wss:// or rove://pair.")
+        case .missingToken: String(localized: "The pairing URL has no token.")
+        case .unknownPreset: String(localized: "The pairing URL has an unknown preset.")
+        case .cloudflareNeedsTLS: String(localized: "The Cloudflare preset needs a wss:// URL.")
+        case .missingAccessCredentials: String(localized: "Enter the Cloudflare Access client id and secret.")
         }
     }
 }

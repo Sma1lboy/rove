@@ -5,10 +5,10 @@ struct BridgeError: Error, LocalizedError, Equatable {
     var message: String
     var errorDescription: String? { message.isEmpty ? code : "\(message) (\(code))" }
 
-    static let notConnected = BridgeError(code: "NOT_CONNECTED", message: "Not connected to the bridge")
-    static let disconnected = BridgeError(code: "DISCONNECTED", message: "Connection lost")
-    static let timeout = BridgeError(code: "TIMEOUT", message: "Request timed out")
-    static let malformed = BridgeError(code: "MALFORMED", message: "Malformed response")
+    static var notConnected: BridgeError { BridgeError(code: "NOT_CONNECTED", message: String(localized: "Not connected to the bridge")) }
+    static var disconnected: BridgeError { BridgeError(code: "DISCONNECTED", message: String(localized: "Connection lost")) }
+    static var timeout: BridgeError { BridgeError(code: "TIMEOUT", message: String(localized: "Request timed out")) }
+    static var malformed: BridgeError { BridgeError(code: "MALFORMED", message: String(localized: "Malformed response")) }
 }
 
 /// A decoded server → client frame. Payloads stay as JSON `Data` until a typed decode.
@@ -47,6 +47,7 @@ enum BridgeEvent {
     case tasks(TasksPayload)
     case termData(stream: String, bytes: Data)
     case termExit(stream: String, code: Int?)
+    case notice(Notice)
 
     static func from(name: String, data: Data) -> BridgeEvent? {
         switch name {
@@ -58,6 +59,8 @@ enum BridgeEvent {
             return .termData(stream: e.stream, bytes: bytes)
         case "term.exit":
             return (try? JSONDecoder().decode(TermExitEvent.self, from: data)).map { .termExit(stream: $0.stream, code: $0.code) }
+        case "notice":
+            return (try? JSONDecoder().decode(Notice.self, from: data)).map(BridgeEvent.notice)
         default:
             return nil
         }

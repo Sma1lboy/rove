@@ -72,6 +72,117 @@ describe("engine identity", () => {
   })
 })
 
+describe("task row extras", () => {
+  const now = 10_000_000
+  const pr = (over: Record<string, unknown>) => ({
+    provider: "github",
+    lifecycle: "open",
+    checkState: "pending",
+    ...over,
+  })
+
+  test("manual order, pin and timestamps come from the daemon list even without live signals", () => {
+    const rows = taskRows(
+      [
+        task({ id: "a", pinned: false, createdAt: "c1", updatedAt: "u1" } as never),
+        task({ id: "b", pinned: true, createdAt: "c2", updatedAt: "u2" } as never),
+      ],
+      null,
+      null,
+      ENGINES,
+      now,
+    )
+    const b = rows.find((r) => r.id === "b")
+    const a = rows.find((r) => r.id === "a")
+    expect([a?.order, b?.order]).toEqual([0, 1])
+    expect(b).toMatchObject({ pinned: true, createdAt: "c2", updatedAt: "u2" })
+    // No live signals: nothing is invented.
+    expect(a).not.toHaveProperty("changes")
+    expect(a).not.toHaveProperty("rowTokens")
+  })
+
+  test("changes are keyed by worktree: counts, unreadable, and absent when not collected", () => {
+    const extras = {
+      changes: new Map([
+        ["/w/ok", { added: 3, deleted: 1, ahead: 2, behind: 0 }],
+        ["/w/bare", { added: 0, deleted: 0 }],
+        ["/w/bad", null],
+      ]),
+      tokens: new Map(),
+    }
+    const rows = taskRows(
+      [
+        task({ id: "ok", worktreePath: "/w/ok" }),
+        task({ id: "bare", worktreePath: "/w/bare" }),
+        task({ id: "bad", worktreePath: "/w/bad" }),
+        task({ id: "new", worktreePath: "/w/new" }),
+      ],
+      null,
+      null,
+      ENGINES,
+      now,
+      extras,
+    )
+    const by = (id: string) => rows.find((r) => r.id === id)
+    expect(by("ok")?.changes).toEqual({ added: 3, deleted: 1, ahead: 2, behind: 0 })
+    // A real clean worktree reads zero; an untracked one reads nothing.
+    expect(by("bare")?.changes).toEqual({ added: 0, deleted: 0 })
+    expect(by("bad")?.changes).toEqual({ unreadable: true })
+    expect(by("new")).not.toHaveProperty("changes")
+    // The daemon has not supplied the channel at all.
+    const none = taskRows([task({ id: "ok", worktreePath: "/w/ok" })], null, null, ENGINES, now, {
+      changes: null,
+      tokens: new Map(),
+    })
+    expect(none[0]).not.toHaveProperty("changes")
+  })
+
+  test("row tokens drop expired ones and carry expiresAt for the phone", () => {
+    const tokens = new Map([
+      [
+        "a",
+        [
+          { source: "plug", key: "k1", text: "live", tone: "info" as const, expiresAt: now + 5000 },
+          { source: "plug", key: "k2", text: "gone", expiresAt: now - 1 },
+          { source: "cli", key: "k3", text: "plain", expiresAt: now + 1 },
+        ],
+      ],
+      ["b", [{ source: "plug", key: "k", text: "old", expiresAt: now - 10 }]],
+    ])
+    const rows = taskRows([task({ id: "a" }), task({ id: "b" })], null, null, ENGINES, now, { changes: null, tokens })
+    expect(rows.find((r) => r.id === "a")?.rowTokens).toEqual([
+      { text: "live", tone: "info", source: "plug", expiresAt: now + 5000 },
+      { text: "plain", source: "cli", expiresAt: now + 1 },
+    ])
+    expect(rows.find((r) => r.id === "b")).not.toHaveProperty("rowTokens")
+  })
+
+  test("pr chip follows the sidebar rules: conflict beats failing beats passing; stale on lastError", () => {
+    const chipOf = (prStatus: unknown) => {
+      const [row] = taskRows([task({ id: "x", prStatus } as never)], null, null, ENGINES, now)
+      return [row?.prChip, row?.prChipStale]
+    }
+    expect(chipOf(pr({ mergeable: "CONFLICTING", checkState: "passing" }))).toEqual(["conflict", false])
+    expect(chipOf(pr({ checkState: "failing" }))).toEqual(["failing", false])
+    expect(chipOf(pr({ checkState: "passing", lastError: "offline" }))).toEqual(["passing", true])
+    expect(chipOf(pr({ checkState: "pending" }))).toEqual([null, false])
+    expect(chipOf(undefined)).toEqual([null, false])
+  })
+
+  test("pr.mergeable is passed through when the forge reported it", () => {
+    const [row] = taskRows(
+      [task({ id: "x", prStatus: pr({ mergeable: "MERGEABLE", number: 4 }) } as never)],
+      null,
+      null,
+      ENGINES,
+      now,
+    )
+    expect(row?.pr).toEqual({ number: 4, lifecycle: "open", checkState: "pending", mergeable: "MERGEABLE" })
+    const [bare] = taskRows([task({ id: "y", prStatus: pr({}) } as never)], null, null, ENGINES, now)
+    expect(bare?.pr).not.toHaveProperty("mergeable")
+  })
+})
+
 describe("diff file path", () => {
   test("paths that could escape the worktree are refused before git or the filesystem is touched", async () => {
     // Fixture: the guard must fire before any daemon request.
