@@ -27,6 +27,7 @@ import { TaskFeed } from "./feed.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
+import { usageStore } from "./usage-store.ts"
 
 /** Re-read the list at least this often: group rules have time windows. */
 const TICK_MS = 15_000
@@ -109,6 +110,10 @@ async function main(): Promise<void> {
   ]) {
     signal.subscribe(() => feed.poke())
   }
+  // Engine quota windows for `usage.get`; the daemon publishes them as the engines report.
+  const usage = orchestrator.usageSnapshotSignal()
+  usageStore.set(usage())
+  usage.subscribe(() => usageStore.set(usage()))
   setInterval(() => feed.poke(), TICK_MS)
 
   const ptySocket = defaultPtyHostSocketPath()
