@@ -40,6 +40,17 @@ Worktree location relocates the root (a `$project_dir` token expands to each
 task's project root). Remote (SSH) projects put worktrees under the remote
 project's own path at `<project>/.rove/worktrees/<slug>`.
 
+## Ignored directories are cloned in
+
+On macOS a new local task's worktree gets the main checkout's `node_modules`
+(including `packages/*/node_modules`), `.venv`, `target` and `.build`,
+cloned copy-on-write on the same APFS volume, before `.rove/init.sh` runs. They
+are copies, not links: editing one changes only that worktree, and the disk
+cost stays near zero until it does. Turn it off with `worktree.cloneIgnored`
+or change the list per repo with `.rove/clone-dirs`; see
+[Cloned ignored directories](./CONFIGURATION.md#cloned-ignored-directories).
+Cross-volume, non-APFS, SSH and non-macOS setups behave as before.
+
 ## Open and navigate the page
 
 1. Focus the task sidebar with `ctrl+q`.

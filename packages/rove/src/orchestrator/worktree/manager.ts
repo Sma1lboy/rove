@@ -17,6 +17,7 @@ import type { ExecHost } from "../../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
 import { parseDirtyPaths } from "../dirty-paths.ts"
+import { type CloneIgnoredDeps, cloneIgnoredDirs, defaultCloneDeps, regenerableDirNames } from "./clone-ignored.ts"
 import { type ExecCtx, type WorktreeExecDeps, defaultExecDeps } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import {
@@ -43,7 +44,10 @@ import type { SalvageRecord } from "./salvage.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
 export class GitWorktreeManager implements WorktreeManager {
-  constructor(private readonly execDeps: WorktreeExecDeps = defaultExecDeps) {}
+  constructor(
+    private readonly execDeps: WorktreeExecDeps = defaultExecDeps,
+    private readonly cloneDeps: (exec: ExecHost) => CloneIgnoredDeps = defaultCloneDeps,
+  ) {}
 
   private ctxFor(repoKey: string): ExecCtx {
     const basePath = this.execDeps.remoteBasePath(repoKey)
@@ -122,7 +126,9 @@ export class GitWorktreeManager implements WorktreeManager {
   }
 
   /** Computes the path here so callers can't disagree on the layout. `slug` is
-   *  the directory basename from {@link SlugAllocator}; opaque to the manager. */
+   *  the directory basename from {@link SlugAllocator}; opaque to the manager.
+   *  A local worktree created here (not a reused one) then gets the main
+   *  checkout's ignored dirs cloned in, before the caller runs repo init. */
   async createForTask(args: {
     repo: string
     slug: string
@@ -132,7 +138,11 @@ export class GitWorktreeManager implements WorktreeManager {
     // Remote: under its basePath, not the local `~/.rove/worktrees`.
     const basePath = this.execDeps.remoteBasePath(args.repo)
     const target = basePath ? remoteWorktreePathFor(basePath, args.slug) : worktreePathFor(args.repo, args.slug)
-    return this.create(args.repo, args.branch, target, args.baseRef)
+    const ctx = this.ctxFor(args.repo)
+    const skipClone = ctx.remote || (await ctx.exec.exists(target))
+    const info = await this.create(args.repo, args.branch, target, args.baseRef)
+    if (!skipClone) await cloneIgnoredDirs(ctx.exec, args.repo, info.path, this.cloneDeps(ctx.exec))
+    return info
   }
 
   /** Refuses a dirty worktree unless `opts.force`; a forced removal salvages
@@ -261,7 +271,8 @@ export class GitWorktreeManager implements WorktreeManager {
    * through — "could not look" is not "nothing here".
    */
   async ignoredWork(worktreePath: string): Promise<IgnoredWorkProbe> {
-    return smallIgnoredPaths(this.execAt(worktreePath), worktreePath)
+    const exec = this.execAt(worktreePath)
+    return smallIgnoredPaths(exec, worktreePath, regenerableDirNames(exec, worktreePath, this.cloneDeps(exec)))
   }
 
   /** Throws on detached HEAD (rev-parse prints `HEAD`) rather than returning a
