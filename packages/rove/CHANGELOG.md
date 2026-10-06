@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.243
+
+### Patch Changes
+
+- [`6d81d3e`](https://github.com/Sma1lboy/rove/commit/6d81d3e150d43bbf00116127899578a63901203b) Scratch tasks can open straight onto an engine. In the `ctrl+e` dialog, press `tab` until the destination reads "new scratch task ($HOME)", pick omp, claude or any other engine, and the Scratch task starts with that engine running. You no longer have to type it into a bare shell. Picking `shell` there still opens a bare shell. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1216](https://github.com/Sma1lboy/rove/pull/1216) [`82c62e8`](https://github.com/Sma1lboy/rove/commit/82c62e8081275ddb439b9cec36d0fce35e47bb6f) Share the npm-style binary candidate list between the Bob and Copilot engine finders. No behavior change. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.242
 
 ### Patch Changes
