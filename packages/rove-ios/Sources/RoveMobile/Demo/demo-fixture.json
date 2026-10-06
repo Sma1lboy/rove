@@ -1,0 +1,2108 @@
+{
+  "hello": {
+    "protocol": 1,
+    "roveVersion": "0.9.240",
+    "host": "demo-mac"
+  },
+  "tasks.subscribe": {
+    "tasks": [
+      {
+        "id": "T-WAIT",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/payments-api",
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Verify refund webhook signatures",
+        "branch": "fix/refund-webhook-sig",
+        "group": "waiting-on-you",
+        "rank": 0,
+        "order": 0,
+        "activity": {
+          "state": "waiting",
+          "forMs": 240000
+        },
+        "engine": {
+          "id": "codex",
+          "name": "Codex"
+        },
+        "changes": {
+          "added": 39,
+          "deleted": 7,
+          "ahead": 1,
+          "behind": 0
+        },
+        "createdAt": {
+          "$ago_min": 95
+        },
+        "updatedAt": {
+          "$ago_min": 4
+        }
+      },
+      {
+        "id": "T-LAND",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/payments-api",
+        "deleting": false,
+        "pinned": false,
+        "pr": {
+          "number": 231,
+          "url": "https://github.com/acme/payments-api/pull/231",
+          "lifecycle": "open",
+          "checkState": "passing",
+          "reviewDecision": "APPROVED",
+          "mergeable": "MERGEABLE"
+        },
+        "report": null,
+        "title": "Retry failed charges",
+        "branch": "fix/retry-failed-charges",
+        "group": "landing",
+        "rank": 1,
+        "order": 1,
+        "activity": {
+          "state": "waiting",
+          "forMs": 720000
+        },
+        "engine": {
+          "id": "codex",
+          "name": "Codex"
+        },
+        "changes": {
+          "added": 19,
+          "deleted": 2,
+          "ahead": 3,
+          "behind": 0
+        },
+        "createdAt": {
+          "$ago_min": 300
+        },
+        "updatedAt": {
+          "$ago_min": 12
+        }
+      },
+      {
+        "id": "T-REV",
+        "kind": "task",
+        "status": "in_review",
+        "repo": "/work/payments-api",
+        "deleting": false,
+        "pinned": false,
+        "pr": {
+          "number": 229,
+          "url": "https://github.com/acme/payments-api/pull/229",
+          "lifecycle": "open",
+          "checkState": "pending",
+          "reviewDecision": null
+        },
+        "report": {
+          "summary": "Added an Idempotency keys section to docs/api.md: the header, the 24 hour replay window and the 422 on a mismatched reuse.",
+          "at": {
+            "$ago_min": 22
+          }
+        },
+        "title": "Document idempotency keys",
+        "branch": "docs/idempotency-keys",
+        "group": "ready-for-review",
+        "rank": 2,
+        "order": 2,
+        "activity": {
+          "state": "waiting",
+          "forMs": 1320000
+        },
+        "engine": {
+          "id": "claude",
+          "name": "Claude"
+        },
+        "changes": {
+          "added": 10,
+          "deleted": 0,
+          "ahead": 1,
+          "behind": 2
+        },
+        "createdAt": {
+          "$ago_min": 1560
+        },
+        "updatedAt": {
+          "$ago_min": 22
+        }
+      },
+      {
+        "id": "T-WORK",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/payments-api",
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Add pagination to invoices",
+        "branch": "feat/invoice-pagination",
+        "group": "working",
+        "rank": 3,
+        "order": 3,
+        "activity": {
+          "state": "running",
+          "forMs": 102000
+        },
+        "engine": {
+          "id": "codex",
+          "name": "Codex"
+        },
+        "changes": {
+          "added": 27,
+          "deleted": 3,
+          "ahead": 2,
+          "behind": 0
+        },
+        "createdAt": {
+          "$ago_min": 48
+        },
+        "updatedAt": {
+          "$ago_min": 1
+        }
+      },
+      {
+        "id": "T-IDLE",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/marketing-site",
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Fix layout shift on the pricing page",
+        "branch": "fix/pricing-cls",
+        "group": "idle",
+        "rank": 4,
+        "order": 4,
+        "activity": {
+          "state": "waiting",
+          "forMs": 10800000
+        },
+        "engine": {
+          "id": "claude",
+          "name": "Claude"
+        },
+        "changes": {
+          "added": 2,
+          "deleted": 1,
+          "ahead": 1,
+          "behind": 0
+        },
+        "createdAt": {
+          "$ago_min": 1620
+        },
+        "updatedAt": {
+          "$ago_min": 180
+        }
+      }
+    ],
+    "attention": [
+      {
+        "taskId": "T-WAIT",
+        "tabId": "tab-1",
+        "state": "permission_needed",
+        "unread": true,
+        "at": {
+          "$ago_min": 4,
+          "$as": "ms"
+        }
+      },
+      {
+        "taskId": "T-REV",
+        "tabId": "tab-1",
+        "state": "turn_complete",
+        "unread": true,
+        "at": {
+          "$ago_min": 22,
+          "$as": "ms"
+        }
+      },
+      {
+        "state": "routine_failed",
+        "label": "flaky test hunter",
+        "unread": true,
+        "at": {
+          "$ago_min": 50,
+          "$as": "ms"
+        }
+      }
+    ]
+  },
+  "tasks.list": {
+    "$same_as": "tasks.subscribe"
+  },
+  "repos.list": {
+    "repos": [
+      "/work/payments-api",
+      "/work/marketing-site"
+    ]
+  },
+  "engines.list": {
+    "engines": [
+      {
+        "id": "claude",
+        "name": "Claude",
+        "command": "claude",
+        "protocol": "claude",
+        "builtin": true,
+        "ready": true
+      },
+      {
+        "id": "codex",
+        "name": "Codex",
+        "command": "codex",
+        "protocol": "codex",
+        "builtin": true,
+        "ready": true
+      },
+      {
+        "id": "mine",
+        "name": "My Local Agent",
+        "command": "mine",
+        "protocol": "generic",
+        "builtin": false
+      }
+    ]
+  },
+  "task.tabs": {
+    "$by": "taskId",
+    "T-WAIT": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "codex",
+          "engineName": "Codex",
+          "alive": true,
+          "engineAlive": true
+        },
+        {
+          "id": "tab-2",
+          "kind": "shell",
+          "title": "shell",
+          "alive": true
+        }
+      ]
+    },
+    "T-LAND": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "codex",
+          "engineName": "Codex",
+          "alive": true,
+          "engineAlive": true
+        }
+      ]
+    },
+    "T-REV": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "claude",
+          "engineName": "Claude",
+          "alive": true,
+          "engineAlive": true
+        }
+      ]
+    },
+    "T-WORK": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "codex",
+          "engineName": "Codex",
+          "alive": true,
+          "engineAlive": true
+        }
+      ]
+    },
+    "T-IDLE": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "claude",
+          "engineName": "Claude",
+          "alive": true,
+          "engineAlive": true
+        }
+      ]
+    },
+    "*": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "codex",
+          "engineName": "Codex",
+          "alive": true,
+          "engineAlive": true
+        },
+        {
+          "id": "tab-2",
+          "kind": "shell",
+          "title": "shell",
+          "alive": true
+        }
+      ]
+    }
+  },
+  "tab.states": {
+    "$by": "taskId",
+    "T-WAIT": {
+      "tabs": {
+        "tab-1": {
+          "state": "permission_needed",
+          "at": {
+            "$ago_min": 4,
+            "$as": "ms"
+          }
+        }
+      }
+    },
+    "T-LAND": {
+      "tabs": {
+        "tab-1": {
+          "state": "turn_complete",
+          "at": {
+            "$ago_min": 12,
+            "$as": "ms"
+          }
+        }
+      }
+    },
+    "T-REV": {
+      "tabs": {
+        "tab-1": {
+          "state": "turn_complete",
+          "at": {
+            "$ago_min": 22,
+            "$as": "ms"
+          }
+        }
+      }
+    },
+    "T-WORK": {
+      "tabs": {
+        "tab-1": {
+          "state": "running",
+          "at": {
+            "$ago_min": 2,
+            "$as": "ms"
+          }
+        }
+      }
+    },
+    "T-IDLE": {
+      "tabs": {
+        "tab-1": {
+          "state": "turn_complete",
+          "at": {
+            "$ago_min": 180,
+            "$as": "ms"
+          }
+        }
+      }
+    },
+    "*": {
+      "tabs": {
+        "tab-1": {
+          "state": "permission_needed",
+          "at": {
+            "$ago_min": 4,
+            "$as": "ms"
+          }
+        }
+      }
+    }
+  },
+  "task.get": {
+    "$by": "taskId",
+    "T-WAIT": {
+      "task": {
+        "id": "T-WAIT",
+        "title": "Verify refund webhook signatures",
+        "repo": "/work/payments-api",
+        "branch": "fix/refund-webhook-sig",
+        "worktreePath": "/work/payments-api/.rove/worktrees/fix-refund-webhook-sig",
+        "kind": "task",
+        "status": "in_progress",
+        "pinned": false,
+        "engine": "codex",
+        "command": "codex",
+        "model": "gpt-6-astra",
+        "effort": "medium",
+        "prompt": "Verify refund webhook signatures.",
+        "baseRef": "main",
+        "createdAt": {
+          "$ago_min": 95
+        },
+        "updatedAt": {
+          "$ago_min": 4
+        }
+      }
+    },
+    "T-LAND": {
+      "task": {
+        "id": "T-LAND",
+        "title": "Retry failed charges",
+        "repo": "/work/payments-api",
+        "branch": "fix/retry-failed-charges",
+        "worktreePath": "/work/payments-api/.rove/worktrees/fix-retry-failed-charges",
+        "kind": "task",
+        "status": "in_progress",
+        "pinned": false,
+        "engine": "codex",
+        "command": "codex",
+        "model": "gpt-6-astra",
+        "effort": "medium",
+        "prompt": "Retry failed charges.",
+        "baseRef": "main",
+        "createdAt": {
+          "$ago_min": 300
+        },
+        "updatedAt": {
+          "$ago_min": 12
+        },
+        "pr": {
+          "number": 231,
+          "url": "https://github.com/acme/payments-api/pull/231",
+          "lifecycle": "open",
+          "checkState": "passing",
+          "reviewDecision": "APPROVED",
+          "mergeable": "MERGEABLE",
+          "baseRef": "main"
+        }
+      }
+    },
+    "T-REV": {
+      "task": {
+        "id": "T-REV",
+        "title": "Document idempotency keys",
+        "repo": "/work/payments-api",
+        "branch": "docs/idempotency-keys",
+        "worktreePath": "/work/payments-api/.rove/worktrees/docs-idempotency-keys",
+        "kind": "task",
+        "status": "in_review",
+        "pinned": false,
+        "engine": "claude",
+        "command": "claude",
+        "model": "fable",
+        "effort": "medium",
+        "prompt": "Document idempotency keys.",
+        "baseRef": "main",
+        "createdAt": {
+          "$ago_min": 1560
+        },
+        "updatedAt": {
+          "$ago_min": 22
+        },
+        "pr": {
+          "number": 229,
+          "url": "https://github.com/acme/payments-api/pull/229",
+          "lifecycle": "open",
+          "checkState": "pending",
+          "reviewDecision": null,
+          "baseRef": "main"
+        },
+        "report": {
+          "summary": "Added an Idempotency keys section to docs/api.md: the header, the 24 hour replay window and the 422 on a mismatched reuse.",
+          "at": {
+            "$ago_min": 22
+          }
+        }
+      }
+    },
+    "T-WORK": {
+      "task": {
+        "id": "T-WORK",
+        "title": "Add pagination to invoices",
+        "repo": "/work/payments-api",
+        "branch": "feat/invoice-pagination",
+        "worktreePath": "/work/payments-api/.rove/worktrees/feat-invoice-pagination",
+        "kind": "task",
+        "status": "in_progress",
+        "pinned": false,
+        "engine": "codex",
+        "command": "codex",
+        "model": "gpt-6-astra",
+        "effort": "medium",
+        "prompt": "Add pagination to invoices.",
+        "baseRef": "main",
+        "createdAt": {
+          "$ago_min": 48
+        },
+        "updatedAt": {
+          "$ago_min": 1
+        }
+      }
+    },
+    "T-IDLE": {
+      "task": {
+        "id": "T-IDLE",
+        "title": "Fix layout shift on the pricing page",
+        "repo": "/work/marketing-site",
+        "branch": "fix/pricing-cls",
+        "worktreePath": "/work/marketing-site/.rove/worktrees/fix-pricing-cls",
+        "kind": "task",
+        "status": "in_progress",
+        "pinned": false,
+        "engine": "claude",
+        "command": "claude",
+        "model": "fable",
+        "effort": "medium",
+        "prompt": "Fix layout shift on the pricing page.",
+        "baseRef": "main",
+        "createdAt": {
+          "$ago_min": 1620
+        },
+        "updatedAt": {
+          "$ago_min": 180
+        }
+      }
+    },
+    "*": {
+      "task": {
+        "id": "T-WAIT",
+        "title": "Verify refund webhook signatures",
+        "repo": "/work/payments-api",
+        "branch": "fix/refund-webhook-sig",
+        "worktreePath": "/work/payments-api/.rove/worktrees/fix-refund-webhook-sig",
+        "kind": "task",
+        "status": "in_progress",
+        "pinned": false,
+        "engine": "codex",
+        "command": "codex",
+        "model": "gpt-6-astra",
+        "effort": "medium",
+        "prompt": "Verify refund webhook signatures.",
+        "baseRef": "main",
+        "createdAt": {
+          "$ago_min": 95
+        },
+        "updatedAt": {
+          "$ago_min": 4
+        }
+      }
+    }
+  },
+  "task.info": {
+    "$by": "taskId",
+    "T-WAIT": {
+      "taskId": "T-WAIT",
+      "running": false,
+      "activity": {
+        "state": "waiting",
+        "forMs": 240000
+      },
+      "changes": {
+        "added": 39,
+        "deleted": 7
+      },
+      "base": {
+        "baseRef": "main",
+        "ahead": 1,
+        "behind": 0
+      },
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "alive": true,
+          "tail": "Codex wants to run: git push origin fix/refund-webhook-sig"
+        }
+      ]
+    },
+    "T-LAND": {
+      "taskId": "T-LAND",
+      "running": false,
+      "activity": {
+        "state": "waiting",
+        "forMs": 720000
+      },
+      "changes": {
+        "added": 19,
+        "deleted": 2
+      },
+      "base": {
+        "baseRef": "main",
+        "ahead": 3,
+        "behind": 0
+      },
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "alive": true,
+          "tail": "PR #231 is open, checks are green."
+        }
+      ]
+    },
+    "T-REV": {
+      "taskId": "T-REV",
+      "running": false,
+      "activity": {
+        "state": "waiting",
+        "forMs": 1320000
+      },
+      "changes": {
+        "added": 10,
+        "deleted": 0
+      },
+      "base": {
+        "baseRef": "main",
+        "ahead": 1,
+        "behind": 2
+      },
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "alive": true,
+          "tail": "Added an Idempotency keys section before Errors."
+        }
+      ]
+    },
+    "T-WORK": {
+      "taskId": "T-WORK",
+      "running": true,
+      "activity": {
+        "state": "running",
+        "forMs": 102000
+      },
+      "changes": {
+        "added": 27,
+        "deleted": 3
+      },
+      "base": {
+        "baseRef": "main",
+        "ahead": 2,
+        "behind": 0
+      },
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "alive": true,
+          "tail": "Working (1m 42s · esc to interrupt)"
+        }
+      ]
+    },
+    "T-IDLE": {
+      "taskId": "T-IDLE",
+      "running": false,
+      "activity": {
+        "state": "waiting",
+        "forMs": 10800000
+      },
+      "changes": {
+        "added": 2,
+        "deleted": 1
+      },
+      "base": {
+        "baseRef": "main",
+        "ahead": 1,
+        "behind": 0
+      },
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "alive": true,
+          "tail": "Done. Lighthouse CLS went from 0.31 to 0.00."
+        }
+      ]
+    },
+    "*": {
+      "taskId": "T-WAIT",
+      "running": false,
+      "activity": {
+        "state": "waiting",
+        "forMs": 240000
+      },
+      "changes": {
+        "added": 39,
+        "deleted": 7
+      },
+      "base": {
+        "baseRef": "main",
+        "ahead": 1,
+        "behind": 0
+      },
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "alive": true,
+          "tail": "Codex wants to run: git push origin fix/refund-webhook-sig"
+        }
+      ]
+    }
+  },
+  "term.attach": {
+    "$by": [
+      "taskId",
+      "tabId"
+    ],
+    "T-WAIT:tab-1": {
+      "stream": "demo-T-WAIT-tab-1",
+      "alive": true,
+      "replay": {
+        "$b64": "\u001b[2m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[2m│\u001b[0m \u001b[1m>_ OpenAI Codex\u001b[0m \u001b[2m(v0.9.4)\u001b[0m               \u001b[2m│\u001b[0m\r\n\u001b[2m│\u001b[0m                                        \u001b[2m│\u001b[0m\r\n\u001b[2m│\u001b[0m model:     gpt-6-astra                 \u001b[2m│\u001b[0m\r\n\u001b[2m│\u001b[0m directory: ~/work/payments-api         \u001b[2m│\u001b[0m\r\n\u001b[2m╰────────────────────────────────────────╯\u001b[0m\r\n\r\n\u001b[1m›\u001b[0m Verify refund webhook signatures. Reject\r\n  unsigned and stale events.\r\n\r\n\u001b[2m•\u001b[0m I'll look at how refund webhooks are handled.\r\n\r\n\u001b[1m• Explored\u001b[0m\r\n  \u001b[2m└ Search handleRefundWebhook in src\u001b[0m\r\n    \u001b[2mRead src/refunds/webhook.ts\u001b[0m\r\n\r\n\u001b[2m•\u001b[0m The handler parses the body before it checks\r\n  the signature header. I'll verify the HMAC over\r\n  the raw body first, refuse events older than\r\n  five minutes, and compare with timingSafeEqual.\r\n\r\n\u001b[1m• Edited\u001b[0m src/refunds/signature.ts \u001b[32m(+15\u001b[0m \u001b[31m-0)\u001b[0m\r\n\u001b[1m• Edited\u001b[0m src/refunds/webhook.ts \u001b[32m(+12\u001b[0m \u001b[31m-5)\u001b[0m\r\n    \u001b[2m3\u001b[0m  \u001b[32m+import { verifySignature } from \"./signature\"\u001b[0m\r\n    \u001b[2m9\u001b[0m  \u001b[31m-  const event = JSON.parse(await req.text())\u001b[0m\r\n    \u001b[2m12\u001b[0m \u001b[32m+  const raw = await req.text()\u001b[0m\r\n\r\n\u001b[1m• Ran\u001b[0m bun test test/refunds\r\n  \u001b[2m└\u001b[0m \u001b[32m3 pass\u001b[0m\u001b[2m,\u001b[0m 0 fail\r\n\r\n\u001b[33m!\u001b[0m \u001b[1mCodex wants to run a command\u001b[0m\r\n  \u001b[36m$ git push origin fix/refund-webhook-sig\u001b[0m\r\n\r\n  \u001b[38;5;173m› 1. Yes, proceed\u001b[0m\r\n    2. Yes, and don't ask again for git push\r\n    3. No, tell Codex what to do differently\r\n\r\n\u001b[2m  enter to confirm · esc to cancel\u001b[0m\r\n"
+      }
+    },
+    "T-WAIT:tab-2": {
+      "stream": "demo-T-WAIT-tab-2",
+      "alive": true,
+      "replay": {
+        "$b64": "\u001b[32mjackson\u001b[0m@mac \u001b[1mpayments-api\u001b[0m % git status -sb\r\n## fix/refund-webhook-sig...origin/main [ahead 1]\r\n \u001b[31mM\u001b[0m src/refunds/webhook.ts\r\n\u001b[31m??\u001b[0m src/refunds/signature.ts\r\n\u001b[32mjackson\u001b[0m@mac \u001b[1mpayments-api\u001b[0m % "
+      }
+    },
+    "T-WORK:tab-1": {
+      "stream": "demo-T-WORK-tab-1",
+      "alive": true,
+      "replay": {
+        "$b64": "\u001b[2m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[2m│\u001b[0m \u001b[1m>_ OpenAI Codex\u001b[0m \u001b[2m(v0.9.4)\u001b[0m               \u001b[2m│\u001b[0m\r\n\u001b[2m│\u001b[0m                                        \u001b[2m│\u001b[0m\r\n\u001b[2m│\u001b[0m model:     gpt-6-astra                 \u001b[2m│\u001b[0m\r\n\u001b[2m│\u001b[0m directory: ~/work/payments-api         \u001b[2m│\u001b[0m\r\n\u001b[2m╰────────────────────────────────────────╯\u001b[0m\r\n\r\n\u001b[1m›\u001b[0m Add pagination to the invoices list. Cursor\r\n  based, 50 per page, newest first.\r\n\r\n\u001b[2m•\u001b[0m Reading how invoices are listed today.\r\n\r\n\u001b[1m• Explored\u001b[0m\r\n  \u001b[2m└ Read src/invoices/list.ts\u001b[0m\r\n    \u001b[2mRead test/invoices/list.test.ts\u001b[0m\r\n\r\n\u001b[2m•\u001b[0m The list returns every row. I'll add an opaque\r\n  cursor that wraps the last id, fetch one extra\r\n  row to know whether there is a next page, and\r\n  cover it with a test that walks 120 invoices.\r\n\r\n\u001b[1m• Edited\u001b[0m src/invoices/cursor.ts \u001b[32m(+7\u001b[0m \u001b[31m-0)\u001b[0m\r\n\u001b[1m• Edited\u001b[0m src/invoices/list.ts \u001b[32m(+10\u001b[0m \u001b[31m-3)\u001b[0m\r\n    \u001b[2m11\u001b[0m \u001b[32m+  const after = q.cursor ? decodeCursor(q.cursor)\u001b[0m\r\n    \u001b[2m12\u001b[0m \u001b[32m+    : Number.MAX_SAFE_INTEGER\u001b[0m\r\n\r\n\u001b[1m• Running\u001b[0m bun test test/invoices\r\n\r\n\u001b[38;5;173m⠹\u001b[0m \u001b[1mWorking\u001b[0m \u001b[2m(1m 42s · esc to interrupt)\u001b[0m\r\n\r\n\u001b[2m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[2m│\u001b[0m \u001b[1m›\u001b[0m \u001b[2mAsk Codex to do anything\u001b[0m             \u001b[2m│\u001b[0m\r\n\u001b[2m╰────────────────────────────────────────╯\u001b[0m\r\n\u001b[2m  ⏎ send   ⌃J newline   ⌃C quit\u001b[0m\r\n"
+      }
+    },
+    "T-LAND:tab-1": {
+      "stream": "demo-T-LAND-tab-1",
+      "alive": true,
+      "replay": {
+        "$b64": "\u001b[2m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[2m│\u001b[0m \u001b[1m>_ OpenAI Codex\u001b[0m \u001b[2m(v0.9.4)\u001b[0m               \u001b[2m│\u001b[0m\r\n\u001b[2m│\u001b[0m                                        \u001b[2m│\u001b[0m\r\n\u001b[2m│\u001b[0m model:     gpt-6-astra                 \u001b[2m│\u001b[0m\r\n\u001b[2m│\u001b[0m directory: ~/work/payments-api         \u001b[2m│\u001b[0m\r\n\u001b[2m╰────────────────────────────────────────╯\u001b[0m\r\n\r\n\u001b[1m›\u001b[0m Retry failed charges on 5xx with backoff.\r\n  Never retry a 4xx.\r\n\r\n\u001b[1m• Edited\u001b[0m src/charges/retry.ts \u001b[32m(+7\u001b[0m \u001b[31m-2)\u001b[0m\r\n\u001b[1m• Edited\u001b[0m test/charges/retry.test.ts \u001b[32m(+12\u001b[0m \u001b[31m-0)\u001b[0m\r\n\r\n\u001b[1m• Ran\u001b[0m bun test\r\n  \u001b[2m└\u001b[0m \u001b[32m41 pass\u001b[0m\u001b[2m,\u001b[0m 0 fail\r\n\r\n\u001b[1m• Ran\u001b[0m git push -u origin fix/retry-failed-charges\r\n  \u001b[2m└ branch 'fix/retry-failed-charges' set up\u001b[0m\r\n\r\n\u001b[2m•\u001b[0m Done. \u001b[1mretryCharge\u001b[0m now retries 5xx up to\r\n  MAX_ATTEMPTS with exponential backoff and an\r\n  idempotency key, and gives up at once on 4xx.\r\n  PR #231 is open, checks are green.\r\n\r\n\u001b[2m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[2m│\u001b[0m \u001b[1m›\u001b[0m \u001b[2mAsk Codex to do anything\u001b[0m             \u001b[2m│\u001b[0m\r\n\u001b[2m╰────────────────────────────────────────╯\u001b[0m\r\n\u001b[2m  ⏎ send   ⌃J newline   ⌃C quit\u001b[0m\r\n"
+      }
+    },
+    "T-REV:tab-1": {
+      "stream": "demo-T-REV-tab-1",
+      "alive": true,
+      "replay": {
+        "$b64": "\u001b[38;5;173m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[38;5;173m✻\u001b[0m \u001b[1mWelcome to Claude Code\u001b[0m               \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m                                        \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[2m/help for help\u001b[0m                         \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[2mcwd: ~/work/payments-api\u001b[0m               \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m╰────────────────────────────────────────╯\u001b[0m\r\n\r\n\u001b[1m>\u001b[0m Explain idempotency keys in docs/api.md\r\n\r\n\u001b[38;5;173m●\u001b[0m I'll read the current API docs first.\r\n\r\n\u001b[38;5;173m●\u001b[0m \u001b[1mRead\u001b[0m(docs/api.md)\r\n  \u001b[2m⎿  Read 212 lines\u001b[0m\r\n\r\n\u001b[38;5;173m●\u001b[0m \u001b[1mUpdate\u001b[0m(docs/api.md)\r\n  \u001b[2m⎿  Updated docs/api.md with \u001b[0m\u001b[32m10 additions\u001b[0m\r\n     \u001b[2m88\u001b[0m  \u001b[32m+## Idempotency keys\u001b[0m\r\n     \u001b[2m89\u001b[0m  \u001b[32m+\u001b[0m\r\n     \u001b[2m90\u001b[0m  \u001b[32m+Send an `Idempotency-Key` header on\u001b[0m\r\n     \u001b[2m91\u001b[0m  \u001b[32m+every `POST`. We store the first\u001b[0m\r\n\r\n\u001b[38;5;173m●\u001b[0m Added an \"Idempotency keys\" section before\r\n  Errors: what the header is, how long we keep\r\n  the response, and what a mismatched reuse\r\n  returns. Examples use a UUID per operation.\r\n\r\n\u001b[2m╭────────────────────────────────────────────╮\u001b[0m\r\n\u001b[2m│\u001b[0m \u001b[1m>\u001b[0m \u001b[2mTry \"write a test for list.ts\"\u001b[0m           \u001b[2m│\u001b[0m\r\n\u001b[2m╰────────────────────────────────────────────╯\u001b[0m\r\n  \u001b[2m? for shortcuts\u001b[0m\r\n"
+      }
+    },
+    "T-IDLE:tab-1": {
+      "stream": "demo-T-IDLE-tab-1",
+      "alive": true,
+      "replay": {
+        "$b64": "\u001b[38;5;173m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[38;5;173m✻\u001b[0m \u001b[1mWelcome to Claude Code\u001b[0m               \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m                                        \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[2m/help for help\u001b[0m                         \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[2mcwd: ~/work/payments-api\u001b[0m               \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m╰────────────────────────────────────────╯\u001b[0m\r\n\r\n\u001b[1m>\u001b[0m Fix the layout shift on the pricing page\r\n\r\n\u001b[38;5;173m●\u001b[0m The hero image has no width and height, so\r\n  the page jumps when it loads. Reserving its\r\n  box fixes it: 1200x630 in pricing/Hero.tsx.\r\n\r\n\u001b[38;5;173m●\u001b[0m \u001b[1mUpdate\u001b[0m(pricing/Hero.tsx)\r\n  \u001b[2m⎿  Updated with \u001b[0m\u001b[32m2 additions\u001b[0m\u001b[2m, \u001b[0m\u001b[31m1 removal\u001b[0m\r\n\r\n\u001b[38;5;173m●\u001b[0m Done. Lighthouse CLS went from 0.31 to 0.00.\r\n\r\n\u001b[2m╭────────────────────────────────────────────╮\u001b[0m\r\n\u001b[2m│\u001b[0m \u001b[1m>\u001b[0m \u001b[2mTry \"write a test for list.ts\"\u001b[0m           \u001b[2m│\u001b[0m\r\n\u001b[2m╰────────────────────────────────────────────╯\u001b[0m\r\n  \u001b[2m? for shortcuts\u001b[0m\r\n"
+      }
+    },
+    "*": {
+      "stream": "demo-T-WAIT-tab-2",
+      "alive": true,
+      "replay": {
+        "$b64": "\u001b[32mjackson\u001b[0m@mac \u001b[1mpayments-api\u001b[0m % git status -sb\r\n## fix/refund-webhook-sig...origin/main [ahead 1]\r\n \u001b[31mM\u001b[0m src/refunds/webhook.ts\r\n\u001b[31m??\u001b[0m src/refunds/signature.ts\r\n\u001b[32mjackson\u001b[0m@mac \u001b[1mpayments-api\u001b[0m % "
+      }
+    }
+  },
+  "diff.files": {
+    "$by": "taskId",
+    "T-WAIT": {
+      "base": "main",
+      "files": [
+        {
+          "path": "src/refunds/webhook.ts",
+          "status": "M",
+          "added": 12,
+          "deleted": 5,
+          "scope": "working"
+        },
+        {
+          "path": "src/refunds/signature.ts",
+          "status": "A",
+          "added": 15,
+          "deleted": 0,
+          "scope": "working"
+        },
+        {
+          "path": "test/refunds/webhook.test.ts",
+          "status": "M",
+          "added": 12,
+          "deleted": 2,
+          "scope": "branch"
+        }
+      ]
+    },
+    "T-LAND": {
+      "base": "main",
+      "files": [
+        {
+          "path": "src/charges/retry.ts",
+          "status": "M",
+          "added": 7,
+          "deleted": 2,
+          "scope": "branch"
+        },
+        {
+          "path": "test/charges/retry.test.ts",
+          "status": "M",
+          "added": 12,
+          "deleted": 0,
+          "scope": "branch"
+        }
+      ]
+    },
+    "T-REV": {
+      "base": "main",
+      "files": [
+        {
+          "path": "docs/api.md",
+          "status": "M",
+          "added": 10,
+          "deleted": 0,
+          "scope": "branch"
+        }
+      ]
+    },
+    "T-WORK": {
+      "base": "main",
+      "files": [
+        {
+          "path": "src/invoices/list.ts",
+          "status": "M",
+          "added": 10,
+          "deleted": 3,
+          "scope": "working"
+        },
+        {
+          "path": "src/invoices/cursor.ts",
+          "status": "A",
+          "added": 7,
+          "deleted": 0,
+          "scope": "working"
+        },
+        {
+          "path": "test/invoices/list.test.ts",
+          "status": "M",
+          "added": 10,
+          "deleted": 0,
+          "scope": "branch"
+        }
+      ]
+    },
+    "T-IDLE": {
+      "base": "main",
+      "files": []
+    },
+    "*": {
+      "base": "main",
+      "files": [
+        {
+          "path": "src/refunds/webhook.ts",
+          "status": "M",
+          "added": 12,
+          "deleted": 5,
+          "scope": "working"
+        },
+        {
+          "path": "src/refunds/signature.ts",
+          "status": "A",
+          "added": 15,
+          "deleted": 0,
+          "scope": "working"
+        },
+        {
+          "path": "test/refunds/webhook.test.ts",
+          "status": "M",
+          "added": 12,
+          "deleted": 2,
+          "scope": "branch"
+        }
+      ]
+    }
+  },
+  "diff.file": {
+    "$by": [
+      "taskId",
+      "path",
+      "scope"
+    ],
+    "T-WAIT:src/refunds/webhook.ts:working": {
+      "kind": "diff",
+      "text": "diff --git a/src/refunds/webhook.ts b/src/refunds/webhook.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/src/refunds/webhook.ts\n+++ b/src/refunds/webhook.ts\n@@ -1,8 +1,15 @@ export async function handleRefundWebhook(req: Request) {\n import { createHmac, timingSafeEqual } from \"node:crypto\"\n import { refunds } from \"./store\"\n+import { verifySignature } from \"./signature\"\n \n-export async function handleRefundWebhook(req: Request) {\n-  const event = JSON.parse(await req.text())\n-  await refunds.apply(event)\n-  return new Response(\"ok\")\n-}\n+const TOLERANCE_SECONDS = 300\n+\n+export async function handleRefundWebhook(req: Request) {\n+  // Verify the HMAC over the raw bytes before anything parses the body.\n+  const raw = await req.text()\n+  const header = req.headers.get(\"stripe-signature\") ?? \"\"\n+  const check = verifySignature(raw, header, process.env.REFUND_WEBHOOK_SECRET!, TOLERANCE_SECONDS)\n+  if (!check.ok) return new Response(check.reason, { status: 400 })\n+  await refunds.apply(JSON.parse(raw))\n+  return new Response(\"ok\")\n+}\n"
+    },
+    "T-WAIT:src/refunds/signature.ts:working": {
+      "kind": "diff",
+      "text": "diff --git a/src/refunds/signature.ts b/src/refunds/signature.ts\nnew file mode 100644\nindex 0000000..4be1a07\n--- /dev/null\n+++ b/src/refunds/signature.ts\n@@ -0,0 +1,15 @@\n+import { createHmac, timingSafeEqual } from \"node:crypto\"\n+\n+export type Check = { ok: true } | { ok: false; reason: string }\n+\n+/** `t=<unix>,v1=<hex hmac>` as Stripe sends it. */\n+export function verifySignature(raw: string, header: string, secret: string, toleranceSeconds: number): Check {\n+  const parts = Object.fromEntries(header.split(\",\").map((p) => p.split(\"=\") as [string, string]))\n+  const t = Number(parts.t)\n+  if (!parts.v1 || !Number.isFinite(t)) return { ok: false, reason: \"malformed signature header\" }\n+  if (Math.abs(Date.now() / 1000 - t) > toleranceSeconds) return { ok: false, reason: \"stale event\" }\n+  const want = createHmac(\"sha256\", secret).update(`${t}.${raw}`).digest()\n+  const got = Buffer.from(parts.v1, \"hex\")\n+  if (got.length !== want.length || !timingSafeEqual(got, want)) return { ok: false, reason: \"bad signature\" }\n+  return { ok: true }\n+}\n"
+    },
+    "T-WAIT:.:working": {
+      "kind": "diff",
+      "text": "diff --git a/src/refunds/webhook.ts b/src/refunds/webhook.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/src/refunds/webhook.ts\n+++ b/src/refunds/webhook.ts\n@@ -1,8 +1,15 @@ export async function handleRefundWebhook(req: Request) {\n import { createHmac, timingSafeEqual } from \"node:crypto\"\n import { refunds } from \"./store\"\n+import { verifySignature } from \"./signature\"\n \n-export async function handleRefundWebhook(req: Request) {\n-  const event = JSON.parse(await req.text())\n-  await refunds.apply(event)\n-  return new Response(\"ok\")\n-}\n+const TOLERANCE_SECONDS = 300\n+\n+export async function handleRefundWebhook(req: Request) {\n+  // Verify the HMAC over the raw bytes before anything parses the body.\n+  const raw = await req.text()\n+  const header = req.headers.get(\"stripe-signature\") ?? \"\"\n+  const check = verifySignature(raw, header, process.env.REFUND_WEBHOOK_SECRET!, TOLERANCE_SECONDS)\n+  if (!check.ok) return new Response(check.reason, { status: 400 })\n+  await refunds.apply(JSON.parse(raw))\n+  return new Response(\"ok\")\n+}\ndiff --git a/src/refunds/signature.ts b/src/refunds/signature.ts\nnew file mode 100644\nindex 0000000..4be1a07\n--- /dev/null\n+++ b/src/refunds/signature.ts\n@@ -0,0 +1,15 @@\n+import { createHmac, timingSafeEqual } from \"node:crypto\"\n+\n+export type Check = { ok: true } | { ok: false; reason: string }\n+\n+/** `t=<unix>,v1=<hex hmac>` as Stripe sends it. */\n+export function verifySignature(raw: string, header: string, secret: string, toleranceSeconds: number): Check {\n+  const parts = Object.fromEntries(header.split(\",\").map((p) => p.split(\"=\") as [string, string]))\n+  const t = Number(parts.t)\n+  if (!parts.v1 || !Number.isFinite(t)) return { ok: false, reason: \"malformed signature header\" }\n+  if (Math.abs(Date.now() / 1000 - t) > toleranceSeconds) return { ok: false, reason: \"stale event\" }\n+  const want = createHmac(\"sha256\", secret).update(`${t}.${raw}`).digest()\n+  const got = Buffer.from(parts.v1, \"hex\")\n+  if (got.length !== want.length || !timingSafeEqual(got, want)) return { ok: false, reason: \"bad signature\" }\n+  return { ok: true }\n+}\n"
+    },
+    "T-WAIT:src/refunds:working": {
+      "kind": "diff",
+      "text": "diff --git a/src/refunds/webhook.ts b/src/refunds/webhook.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/src/refunds/webhook.ts\n+++ b/src/refunds/webhook.ts\n@@ -1,8 +1,15 @@ export async function handleRefundWebhook(req: Request) {\n import { createHmac, timingSafeEqual } from \"node:crypto\"\n import { refunds } from \"./store\"\n+import { verifySignature } from \"./signature\"\n \n-export async function handleRefundWebhook(req: Request) {\n-  const event = JSON.parse(await req.text())\n-  await refunds.apply(event)\n-  return new Response(\"ok\")\n-}\n+const TOLERANCE_SECONDS = 300\n+\n+export async function handleRefundWebhook(req: Request) {\n+  // Verify the HMAC over the raw bytes before anything parses the body.\n+  const raw = await req.text()\n+  const header = req.headers.get(\"stripe-signature\") ?? \"\"\n+  const check = verifySignature(raw, header, process.env.REFUND_WEBHOOK_SECRET!, TOLERANCE_SECONDS)\n+  if (!check.ok) return new Response(check.reason, { status: 400 })\n+  await refunds.apply(JSON.parse(raw))\n+  return new Response(\"ok\")\n+}\ndiff --git a/src/refunds/signature.ts b/src/refunds/signature.ts\nnew file mode 100644\nindex 0000000..4be1a07\n--- /dev/null\n+++ b/src/refunds/signature.ts\n@@ -0,0 +1,15 @@\n+import { createHmac, timingSafeEqual } from \"node:crypto\"\n+\n+export type Check = { ok: true } | { ok: false; reason: string }\n+\n+/** `t=<unix>,v1=<hex hmac>` as Stripe sends it. */\n+export function verifySignature(raw: string, header: string, secret: string, toleranceSeconds: number): Check {\n+  const parts = Object.fromEntries(header.split(\",\").map((p) => p.split(\"=\") as [string, string]))\n+  const t = Number(parts.t)\n+  if (!parts.v1 || !Number.isFinite(t)) return { ok: false, reason: \"malformed signature header\" }\n+  if (Math.abs(Date.now() / 1000 - t) > toleranceSeconds) return { ok: false, reason: \"stale event\" }\n+  const want = createHmac(\"sha256\", secret).update(`${t}.${raw}`).digest()\n+  const got = Buffer.from(parts.v1, \"hex\")\n+  if (got.length !== want.length || !timingSafeEqual(got, want)) return { ok: false, reason: \"bad signature\" }\n+  return { ok: true }\n+}\n"
+    },
+    "T-WAIT:test/refunds/webhook.test.ts:branch": {
+      "kind": "diff",
+      "text": "diff --git a/test/refunds/webhook.test.ts b/test/refunds/webhook.test.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/test/refunds/webhook.test.ts\n+++ b/test/refunds/webhook.test.ts\n@@ -8,6 +8,16 @@ describe(\"refund webhook\", () => {\n describe(\"refund webhook\", () => {\n-  test(\"applies the refund\", async () => {\n-    const res = await handleRefundWebhook(post({ id: \"re_1\" }))\n+  test(\"applies a signed refund\", async () => {\n+    const res = await handleRefundWebhook(signed({ id: \"re_1\" }))\n     expect(res.status).toBe(200)\n   })\n+\n+  test(\"rejects an unsigned event\", async () => {\n+    const res = await handleRefundWebhook(post({ id: \"re_2\" }))\n+    expect(res.status).toBe(400)\n+  })\n+\n+  test(\"rejects an event older than five minutes\", async () => {\n+    const res = await handleRefundWebhook(signed({ id: \"re_3\" }, { ageSeconds: 301 }))\n+    expect(res.status).toBe(400)\n+  })\n })\n"
+    },
+    "T-WAIT:.:branch": {
+      "kind": "diff",
+      "text": "diff --git a/test/refunds/webhook.test.ts b/test/refunds/webhook.test.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/test/refunds/webhook.test.ts\n+++ b/test/refunds/webhook.test.ts\n@@ -8,6 +8,16 @@ describe(\"refund webhook\", () => {\n describe(\"refund webhook\", () => {\n-  test(\"applies the refund\", async () => {\n-    const res = await handleRefundWebhook(post({ id: \"re_1\" }))\n+  test(\"applies a signed refund\", async () => {\n+    const res = await handleRefundWebhook(signed({ id: \"re_1\" }))\n     expect(res.status).toBe(200)\n   })\n+\n+  test(\"rejects an unsigned event\", async () => {\n+    const res = await handleRefundWebhook(post({ id: \"re_2\" }))\n+    expect(res.status).toBe(400)\n+  })\n+\n+  test(\"rejects an event older than five minutes\", async () => {\n+    const res = await handleRefundWebhook(signed({ id: \"re_3\" }, { ageSeconds: 301 }))\n+    expect(res.status).toBe(400)\n+  })\n })\n"
+    },
+    "T-WAIT:test/refunds:branch": {
+      "kind": "diff",
+      "text": "diff --git a/test/refunds/webhook.test.ts b/test/refunds/webhook.test.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/test/refunds/webhook.test.ts\n+++ b/test/refunds/webhook.test.ts\n@@ -8,6 +8,16 @@ describe(\"refund webhook\", () => {\n describe(\"refund webhook\", () => {\n-  test(\"applies the refund\", async () => {\n-    const res = await handleRefundWebhook(post({ id: \"re_1\" }))\n+  test(\"applies a signed refund\", async () => {\n+    const res = await handleRefundWebhook(signed({ id: \"re_1\" }))\n     expect(res.status).toBe(200)\n   })\n+\n+  test(\"rejects an unsigned event\", async () => {\n+    const res = await handleRefundWebhook(post({ id: \"re_2\" }))\n+    expect(res.status).toBe(400)\n+  })\n+\n+  test(\"rejects an event older than five minutes\", async () => {\n+    const res = await handleRefundWebhook(signed({ id: \"re_3\" }, { ageSeconds: 301 }))\n+    expect(res.status).toBe(400)\n+  })\n })\n"
+    },
+    "T-WORK:src/invoices/list.ts:working": {
+      "kind": "diff",
+      "text": "diff --git a/src/invoices/list.ts b/src/invoices/list.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/src/invoices/list.ts\n+++ b/src/invoices/list.ts\n@@ -3,5 +3,12 @@ export async function listInvoices(db: Db, q: ListQuery) {\n import { db } from \"../db\"\n+import { decodeCursor, encodeCursor } from \"./cursor\"\n \n-export async function listInvoices(db: Db) {\n-  return db.all(\"select * from invoices order by id desc\")\n-}\n+const PAGE = 50\n+\n+export async function listInvoices(db: Db, q: ListQuery) {\n+  const after = q.cursor ? decodeCursor(q.cursor) : Number.MAX_SAFE_INTEGER\n+  const rows = await db.all(\"select * from invoices where id < ? order by id desc limit ?\", after, PAGE + 1)\n+  const page = rows.slice(0, PAGE)\n+  const next = rows.length > PAGE ? encodeCursor(page[page.length - 1].id) : null\n+  return { items: page, next }\n+}\n"
+    },
+    "T-WORK:src/invoices/cursor.ts:working": {
+      "kind": "diff",
+      "text": "diff --git a/src/invoices/cursor.ts b/src/invoices/cursor.ts\nnew file mode 100644\nindex 0000000..4be1a07\n--- /dev/null\n+++ b/src/invoices/cursor.ts\n@@ -0,0 +1,7 @@\n+export const encodeCursor = (id: number) => Buffer.from(String(id)).toString(\"base64url\")\n+\n+export function decodeCursor(cursor: string): number {\n+  const id = Number(Buffer.from(cursor, \"base64url\").toString())\n+  if (!Number.isInteger(id)) throw new Error(\"bad cursor\")\n+  return id\n+}\n"
+    },
+    "T-WORK:.:working": {
+      "kind": "diff",
+      "text": "diff --git a/src/invoices/list.ts b/src/invoices/list.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/src/invoices/list.ts\n+++ b/src/invoices/list.ts\n@@ -3,5 +3,12 @@ export async function listInvoices(db: Db, q: ListQuery) {\n import { db } from \"../db\"\n+import { decodeCursor, encodeCursor } from \"./cursor\"\n \n-export async function listInvoices(db: Db) {\n-  return db.all(\"select * from invoices order by id desc\")\n-}\n+const PAGE = 50\n+\n+export async function listInvoices(db: Db, q: ListQuery) {\n+  const after = q.cursor ? decodeCursor(q.cursor) : Number.MAX_SAFE_INTEGER\n+  const rows = await db.all(\"select * from invoices where id < ? order by id desc limit ?\", after, PAGE + 1)\n+  const page = rows.slice(0, PAGE)\n+  const next = rows.length > PAGE ? encodeCursor(page[page.length - 1].id) : null\n+  return { items: page, next }\n+}\ndiff --git a/src/invoices/cursor.ts b/src/invoices/cursor.ts\nnew file mode 100644\nindex 0000000..4be1a07\n--- /dev/null\n+++ b/src/invoices/cursor.ts\n@@ -0,0 +1,7 @@\n+export const encodeCursor = (id: number) => Buffer.from(String(id)).toString(\"base64url\")\n+\n+export function decodeCursor(cursor: string): number {\n+  const id = Number(Buffer.from(cursor, \"base64url\").toString())\n+  if (!Number.isInteger(id)) throw new Error(\"bad cursor\")\n+  return id\n+}\n"
+    },
+    "T-WORK:src/invoices:working": {
+      "kind": "diff",
+      "text": "diff --git a/src/invoices/list.ts b/src/invoices/list.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/src/invoices/list.ts\n+++ b/src/invoices/list.ts\n@@ -3,5 +3,12 @@ export async function listInvoices(db: Db, q: ListQuery) {\n import { db } from \"../db\"\n+import { decodeCursor, encodeCursor } from \"./cursor\"\n \n-export async function listInvoices(db: Db) {\n-  return db.all(\"select * from invoices order by id desc\")\n-}\n+const PAGE = 50\n+\n+export async function listInvoices(db: Db, q: ListQuery) {\n+  const after = q.cursor ? decodeCursor(q.cursor) : Number.MAX_SAFE_INTEGER\n+  const rows = await db.all(\"select * from invoices where id < ? order by id desc limit ?\", after, PAGE + 1)\n+  const page = rows.slice(0, PAGE)\n+  const next = rows.length > PAGE ? encodeCursor(page[page.length - 1].id) : null\n+  return { items: page, next }\n+}\ndiff --git a/src/invoices/cursor.ts b/src/invoices/cursor.ts\nnew file mode 100644\nindex 0000000..4be1a07\n--- /dev/null\n+++ b/src/invoices/cursor.ts\n@@ -0,0 +1,7 @@\n+export const encodeCursor = (id: number) => Buffer.from(String(id)).toString(\"base64url\")\n+\n+export function decodeCursor(cursor: string): number {\n+  const id = Number(Buffer.from(cursor, \"base64url\").toString())\n+  if (!Number.isInteger(id)) throw new Error(\"bad cursor\")\n+  return id\n+}\n"
+    },
+    "T-WORK:test/invoices/list.test.ts:branch": {
+      "kind": "diff",
+      "text": "diff --git a/test/invoices/list.test.ts b/test/invoices/list.test.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/test/invoices/list.test.ts\n+++ b/test/invoices/list.test.ts\n@@ -0,0 +12,10 @@ test(\"lists newest first\", async () => {\n+test(\"pages through 120 invoices in three requests\", async () => {\n+  const seen: number[] = []\n+  let cursor: string | undefined\n+  do {\n+    const page = await listInvoices(db, { cursor })\n+    seen.push(...page.items.map((i) => i.id))\n+    cursor = page.next ?? undefined\n+  } while (cursor)\n+  expect(seen).toHaveLength(120)\n+})\n"
+    },
+    "T-WORK:.:branch": {
+      "kind": "diff",
+      "text": "diff --git a/test/invoices/list.test.ts b/test/invoices/list.test.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/test/invoices/list.test.ts\n+++ b/test/invoices/list.test.ts\n@@ -0,0 +12,10 @@ test(\"lists newest first\", async () => {\n+test(\"pages through 120 invoices in three requests\", async () => {\n+  const seen: number[] = []\n+  let cursor: string | undefined\n+  do {\n+    const page = await listInvoices(db, { cursor })\n+    seen.push(...page.items.map((i) => i.id))\n+    cursor = page.next ?? undefined\n+  } while (cursor)\n+  expect(seen).toHaveLength(120)\n+})\n"
+    },
+    "T-WORK:test/invoices:branch": {
+      "kind": "diff",
+      "text": "diff --git a/test/invoices/list.test.ts b/test/invoices/list.test.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/test/invoices/list.test.ts\n+++ b/test/invoices/list.test.ts\n@@ -0,0 +12,10 @@ test(\"lists newest first\", async () => {\n+test(\"pages through 120 invoices in three requests\", async () => {\n+  const seen: number[] = []\n+  let cursor: string | undefined\n+  do {\n+    const page = await listInvoices(db, { cursor })\n+    seen.push(...page.items.map((i) => i.id))\n+    cursor = page.next ?? undefined\n+  } while (cursor)\n+  expect(seen).toHaveLength(120)\n+})\n"
+    },
+    "T-LAND:src/charges/retry.ts:branch": {
+      "kind": "diff",
+      "text": "diff --git a/src/charges/retry.ts b/src/charges/retry.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/src/charges/retry.ts\n+++ b/src/charges/retry.ts\n@@ -14,4 +14,9 @@ export async function retryCharge(charge: Charge) {\n export async function retryCharge(charge: Charge) {\n-  const res = await gateway.capture(charge)\n-  if (!res.ok) throw new Error(res.error)\n+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {\n+    const res = await gateway.capture(charge, { idempotencyKey: charge.id })\n+    if (res.ok) return res\n+    if (res.status < 500) throw new Error(res.error)\n+    await sleep(backoff(attempt))\n+  }\n+  throw new Error(\"gateway still failing after retries\")\n }\n"
+    },
+    "T-LAND:test/charges/retry.test.ts:branch": {
+      "kind": "diff",
+      "text": "diff --git a/test/charges/retry.test.ts b/test/charges/retry.test.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/test/charges/retry.test.ts\n+++ b/test/charges/retry.test.ts\n@@ -5,1 +5,13 @@ describe(\"retryCharge\", () => {\n describe(\"retryCharge\", () => {\n+  test(\"retries a 503 and then succeeds\", async () => {\n+    gateway.failNext(2, 503)\n+    const res = await retryCharge(charge)\n+    expect(res.ok).toBe(true)\n+    expect(gateway.calls).toBe(3)\n+  })\n+\n+  test(\"does not retry a 402\", async () => {\n+    gateway.failNext(1, 402)\n+    await expect(retryCharge(charge)).rejects.toThrow()\n+    expect(gateway.calls).toBe(1)\n+  })\n"
+    },
+    "T-LAND:.:branch": {
+      "kind": "diff",
+      "text": "diff --git a/src/charges/retry.ts b/src/charges/retry.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/src/charges/retry.ts\n+++ b/src/charges/retry.ts\n@@ -14,4 +14,9 @@ export async function retryCharge(charge: Charge) {\n export async function retryCharge(charge: Charge) {\n-  const res = await gateway.capture(charge)\n-  if (!res.ok) throw new Error(res.error)\n+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {\n+    const res = await gateway.capture(charge, { idempotencyKey: charge.id })\n+    if (res.ok) return res\n+    if (res.status < 500) throw new Error(res.error)\n+    await sleep(backoff(attempt))\n+  }\n+  throw new Error(\"gateway still failing after retries\")\n }\ndiff --git a/test/charges/retry.test.ts b/test/charges/retry.test.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/test/charges/retry.test.ts\n+++ b/test/charges/retry.test.ts\n@@ -5,1 +5,13 @@ describe(\"retryCharge\", () => {\n describe(\"retryCharge\", () => {\n+  test(\"retries a 503 and then succeeds\", async () => {\n+    gateway.failNext(2, 503)\n+    const res = await retryCharge(charge)\n+    expect(res.ok).toBe(true)\n+    expect(gateway.calls).toBe(3)\n+  })\n+\n+  test(\"does not retry a 402\", async () => {\n+    gateway.failNext(1, 402)\n+    await expect(retryCharge(charge)).rejects.toThrow()\n+    expect(gateway.calls).toBe(1)\n+  })\n"
+    },
+    "T-LAND:src/charges:branch": {
+      "kind": "diff",
+      "text": "diff --git a/src/charges/retry.ts b/src/charges/retry.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/src/charges/retry.ts\n+++ b/src/charges/retry.ts\n@@ -14,4 +14,9 @@ export async function retryCharge(charge: Charge) {\n export async function retryCharge(charge: Charge) {\n-  const res = await gateway.capture(charge)\n-  if (!res.ok) throw new Error(res.error)\n+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {\n+    const res = await gateway.capture(charge, { idempotencyKey: charge.id })\n+    if (res.ok) return res\n+    if (res.status < 500) throw new Error(res.error)\n+    await sleep(backoff(attempt))\n+  }\n+  throw new Error(\"gateway still failing after retries\")\n }\n"
+    },
+    "T-LAND:test/charges:branch": {
+      "kind": "diff",
+      "text": "diff --git a/test/charges/retry.test.ts b/test/charges/retry.test.ts\nindex 3b1c9d2..a7e4f10 100644\n--- a/test/charges/retry.test.ts\n+++ b/test/charges/retry.test.ts\n@@ -5,1 +5,13 @@ describe(\"retryCharge\", () => {\n describe(\"retryCharge\", () => {\n+  test(\"retries a 503 and then succeeds\", async () => {\n+    gateway.failNext(2, 503)\n+    const res = await retryCharge(charge)\n+    expect(res.ok).toBe(true)\n+    expect(gateway.calls).toBe(3)\n+  })\n+\n+  test(\"does not retry a 402\", async () => {\n+    gateway.failNext(1, 402)\n+    await expect(retryCharge(charge)).rejects.toThrow()\n+    expect(gateway.calls).toBe(1)\n+  })\n"
+    },
+    "T-REV:docs/api.md:branch": {
+      "kind": "diff",
+      "text": "diff --git a/docs/api.md b/docs/api.md\nindex 3b1c9d2..a7e4f10 100644\n--- a/docs/api.md\n+++ b/docs/api.md\n@@ -88,3 +88,13 @@ ## Errors\n ## Errors\n \n+## Idempotency keys\n+\n+Send an `Idempotency-Key` header on every `POST`. We store the first response\n+for 24 hours and replay it for any request that repeats the key, so a retry\n+after a timeout never charges twice.\n+\n+- Use a fresh random key per logical operation (a UUID is fine).\n+- Reusing a key with a different body returns `422 idempotency_mismatch`.\n+- Keys are scoped to your API key, not to the endpoint.\n+\n Errors are JSON: `{ \"error\": { \"code\": \"...\", \"message\": \"...\" } }`.\n"
+    },
+    "T-REV:.:branch": {
+      "kind": "diff",
+      "text": "diff --git a/docs/api.md b/docs/api.md\nindex 3b1c9d2..a7e4f10 100644\n--- a/docs/api.md\n+++ b/docs/api.md\n@@ -88,3 +88,13 @@ ## Errors\n ## Errors\n \n+## Idempotency keys\n+\n+Send an `Idempotency-Key` header on every `POST`. We store the first response\n+for 24 hours and replay it for any request that repeats the key, so a retry\n+after a timeout never charges twice.\n+\n+- Use a fresh random key per logical operation (a UUID is fine).\n+- Reusing a key with a different body returns `422 idempotency_mismatch`.\n+- Keys are scoped to your API key, not to the endpoint.\n+\n Errors are JSON: `{ \"error\": { \"code\": \"...\", \"message\": \"...\" } }`.\n"
+    },
+    "T-REV:docs:branch": {
+      "kind": "diff",
+      "text": "diff --git a/docs/api.md b/docs/api.md\nindex 3b1c9d2..a7e4f10 100644\n--- a/docs/api.md\n+++ b/docs/api.md\n@@ -88,3 +88,13 @@ ## Errors\n ## Errors\n \n+## Idempotency keys\n+\n+Send an `Idempotency-Key` header on every `POST`. We store the first response\n+for 24 hours and replay it for any request that repeats the key, so a retry\n+after a timeout never charges twice.\n+\n+- Use a fresh random key per logical operation (a UUID is fine).\n+- Reusing a key with a different body returns `422 idempotency_mismatch`.\n+- Keys are scoped to your API key, not to the endpoint.\n+\n Errors are JSON: `{ \"error\": { \"code\": \"...\", \"message\": \"...\" } }`.\n"
+    },
+    "*": {
+      "kind": "code",
+      "text": "# Not part of the demo\n\nThe demo fixture only carries the files this task changed.\n"
+    }
+  },
+  "files.list": {
+    "$by": "taskId",
+    "T-WAIT": {
+      "files": [
+        "README.md",
+        "bun.lock",
+        "docs/api.md",
+        "package.json",
+        "src/charges/retry.ts",
+        "src/db.ts",
+        "src/index.ts",
+        "src/invoices/list.ts",
+        "src/refunds/signature.ts",
+        "src/refunds/store.ts",
+        "src/refunds/webhook.ts",
+        "test/charges/retry.test.ts",
+        "test/refunds/webhook.test.ts",
+        "tsconfig.json"
+      ],
+      "truncated": false
+    },
+    "T-LAND": {
+      "files": [
+        "README.md",
+        "bun.lock",
+        "docs/api.md",
+        "package.json",
+        "src/charges/retry.ts",
+        "src/db.ts",
+        "src/index.ts",
+        "src/invoices/list.ts",
+        "src/refunds/store.ts",
+        "test/charges/retry.test.ts",
+        "tsconfig.json"
+      ],
+      "truncated": false
+    },
+    "T-REV": {
+      "files": [
+        "README.md",
+        "bun.lock",
+        "docs/api.md",
+        "package.json",
+        "src/charges/retry.ts",
+        "src/db.ts",
+        "src/index.ts",
+        "src/invoices/list.ts",
+        "src/refunds/store.ts",
+        "test/charges/retry.test.ts",
+        "tsconfig.json"
+      ],
+      "truncated": false
+    },
+    "T-WORK": {
+      "files": [
+        "README.md",
+        "bun.lock",
+        "docs/api.md",
+        "package.json",
+        "src/charges/retry.ts",
+        "src/db.ts",
+        "src/index.ts",
+        "src/invoices/cursor.ts",
+        "src/invoices/list.ts",
+        "src/refunds/store.ts",
+        "test/charges/retry.test.ts",
+        "test/invoices/list.test.ts",
+        "tsconfig.json"
+      ],
+      "truncated": false
+    },
+    "T-IDLE": {
+      "files": [
+        "README.md",
+        "bun.lock",
+        "docs/api.md",
+        "package.json",
+        "src/charges/retry.ts",
+        "src/db.ts",
+        "src/index.ts",
+        "src/invoices/list.ts",
+        "src/refunds/store.ts",
+        "test/charges/retry.test.ts",
+        "tsconfig.json"
+      ],
+      "truncated": false
+    },
+    "*": {
+      "files": [
+        "README.md",
+        "bun.lock",
+        "docs/api.md",
+        "package.json",
+        "src/charges/retry.ts",
+        "src/db.ts",
+        "src/index.ts",
+        "src/invoices/list.ts",
+        "src/refunds/signature.ts",
+        "src/refunds/store.ts",
+        "src/refunds/webhook.ts",
+        "test/charges/retry.test.ts",
+        "test/refunds/webhook.test.ts",
+        "tsconfig.json"
+      ],
+      "truncated": false
+    }
+  },
+  "review.list": {
+    "$by": "taskId",
+    "T-WAIT": {
+      "notes": [
+        {
+          "id": "n1",
+          "filePath": "src/refunds/webhook.ts",
+          "line": 17,
+          "startLine": 14,
+          "body": "Log the rejected reason with the event id, support will ask.",
+          "createdAt": {
+            "$ago_min": 6,
+            "$as": "ms"
+          }
+        }
+      ],
+      "unsent": 1
+    },
+    "*": {
+      "notes": [],
+      "unsent": 0
+    }
+  },
+  "output.read": {
+    "source": "history",
+    "vendor": "codex",
+    "running": false,
+    "history": {
+      "totalMessages": 3,
+      "limited": false,
+      "messages": [
+        {
+          "role": "user",
+          "timestamp": {
+            "$ago_min": 95
+          },
+          "blocks": [
+            {
+              "type": "text",
+              "text": "Verify refund webhook signatures. Reject unsigned and stale events."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "timestamp": {
+            "$ago_min": 90
+          },
+          "blocks": [
+            {
+              "type": "text",
+              "text": "I'll look at how refund webhooks are handled."
+            },
+            {
+              "type": "tool_call",
+              "name": "read",
+              "input": "src/refunds/webhook.ts",
+              "output": "export async function handleRefundWebhook(req: Request) { … }"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "timestamp": {
+            "$ago_min": 60
+          },
+          "blocks": [
+            {
+              "type": "text",
+              "text": "Signature check added; the tests pass. Waiting on your approval to push."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "repo.branches": {
+    "branches": [
+      "main",
+      "fix/refund-webhook-sig",
+      "feat/invoice-pagination",
+      "fix/retry-failed-charges"
+    ],
+    "current": "main"
+  },
+  "worktree.adoptable": {
+    "worktrees": [],
+    "unreadable": []
+  },
+  "notes.list": {
+    "notes": [
+      {
+        "id": 2,
+        "text": "Refund webhook secret rotates on the 1st.",
+        "at": {
+          "$ago_min": 1800
+        }
+      },
+      {
+        "id": 1,
+        "text": "Ledger migration is blocked on infra, see #5.",
+        "at": {
+          "$ago_min": 4320
+        }
+      }
+    ]
+  },
+  "worktrees.list": {
+    "projects": [
+      {
+        "repo": "/work/payments-api",
+        "worktrees": [
+          {
+            "roveManaged": false,
+            "dirty": false,
+            "branchOnRemote": true,
+            "path": "/work/payments-api",
+            "branch": "main",
+            "taskId": "T-MAIN",
+            "taskKind": "main",
+            "lastActivityMs": {
+              "$ago_min": 30,
+              "$as": "ms"
+            },
+            "verdict": "keep",
+            "verdictReason": "fresh"
+          },
+          {
+            "roveManaged": true,
+            "dirty": true,
+            "branchOnRemote": false,
+            "path": "/work/payments-api/.rove/worktrees/fix-refund-webhook-sig",
+            "branch": "fix/refund-webhook-sig",
+            "taskId": "T-WAIT",
+            "taskKind": "task",
+            "lastActivityMs": {
+              "$ago_min": 4,
+              "$as": "ms"
+            },
+            "createdAtMs": {
+              "$ago_min": 95,
+              "$as": "ms"
+            },
+            "verdict": "keep",
+            "verdictReason": "fresh"
+          },
+          {
+            "roveManaged": true,
+            "dirty": false,
+            "branchOnRemote": true,
+            "path": "/work/payments-api/.rove/worktrees/fix-retry-failed-charges",
+            "branch": "fix/retry-failed-charges",
+            "taskId": "T-LAND",
+            "taskKind": "task",
+            "lastActivityMs": {
+              "$ago_min": 12,
+              "$as": "ms"
+            },
+            "createdAtMs": {
+              "$ago_min": 300,
+              "$as": "ms"
+            },
+            "verdict": "keep",
+            "verdictReason": "prOpen"
+          },
+          {
+            "roveManaged": true,
+            "dirty": true,
+            "branchOnRemote": false,
+            "path": "/work/payments-api/.rove/worktrees/feat-invoice-pagination",
+            "branch": "feat/invoice-pagination",
+            "taskId": "T-WORK",
+            "taskKind": "task",
+            "lastActivityMs": {
+              "$ago_min": 1,
+              "$as": "ms"
+            },
+            "createdAtMs": {
+              "$ago_min": 48,
+              "$as": "ms"
+            },
+            "verdict": "keep",
+            "verdictReason": "fresh"
+          },
+          {
+            "roveManaged": true,
+            "dirty": false,
+            "branchOnRemote": true,
+            "path": "/work/payments-api/.rove/worktrees/feat-audit-export",
+            "branch": "feat/audit-export",
+            "lastActivityMs": {
+              "$ago_min": 12960,
+              "$as": "ms"
+            },
+            "createdAtMs": {
+              "$ago_min": 17280,
+              "$as": "ms"
+            },
+            "verdict": "remove",
+            "verdictReason": "prMerged"
+          }
+        ]
+      },
+      {
+        "repo": "/work/marketing-site",
+        "worktrees": [
+          {
+            "roveManaged": false,
+            "dirty": false,
+            "branchOnRemote": true,
+            "path": "/work/marketing-site",
+            "branch": "main",
+            "taskId": "T-SITE",
+            "taskKind": "main",
+            "lastActivityMs": {
+              "$ago_min": 1440,
+              "$as": "ms"
+            },
+            "verdict": "keep",
+            "verdictReason": "fresh"
+          },
+          {
+            "roveManaged": true,
+            "dirty": false,
+            "branchOnRemote": true,
+            "path": "/work/marketing-site/.rove/worktrees/fix-pricing-cls",
+            "branch": "fix/pricing-cls",
+            "taskId": "T-IDLE",
+            "taskKind": "task",
+            "lastActivityMs": {
+              "$ago_min": 180,
+              "$as": "ms"
+            },
+            "createdAtMs": {
+              "$ago_min": 1620,
+              "$as": "ms"
+            },
+            "verdict": "keep",
+            "verdictReason": "fresh"
+          }
+        ]
+      }
+    ]
+  },
+  "issue.repos": {
+    "repos": [
+      "/work/payments-api",
+      "/work/marketing-site"
+    ]
+  },
+  "issue.list": {
+    "$by": "repo",
+    "/work/marketing-site": {
+      "repoRoot": "/work/marketing-site",
+      "exists": true,
+      "nextId": 3,
+      "issues": [
+        {
+          "id": 2,
+          "title": "Fix layout shift on the pricing page",
+          "status": "doing",
+          "created": {
+            "$ago_min": 1440
+          },
+          "body": "CLS is 0.31 on mobile.",
+          "taskId": "T-IDLE"
+        },
+        {
+          "id": 1,
+          "title": "Add a changelog page",
+          "status": "open",
+          "created": {
+            "$ago_min": 11520
+          },
+          "body": ""
+        }
+      ],
+      "skipped": 0
+    },
+    "*": {
+      "repoRoot": "/work/payments-api",
+      "exists": true,
+      "nextId": 10,
+      "issues": [
+        {
+          "id": 9,
+          "title": "Rate limit the refund endpoint",
+          "status": "open",
+          "created": {
+            "$ago_min": 0
+          },
+          "body": "Token bucket per api key.\nCap at 10 rpm."
+        },
+        {
+          "id": 8,
+          "title": "Webhook signature checks",
+          "status": "doing",
+          "created": {
+            "$ago_min": 1440
+          },
+          "body": "HMAC-SHA256 with timingSafeEqual.",
+          "taskId": "T-WAIT"
+        },
+        {
+          "id": 7,
+          "title": "Invoice pagination",
+          "status": "open",
+          "created": {
+            "$ago_min": 2880
+          },
+          "body": "Cursor based.",
+          "taskId": "T-WORK"
+        },
+        {
+          "id": 6,
+          "title": "Retry charges on 5xx",
+          "status": "doing",
+          "created": {
+            "$ago_min": 2880
+          },
+          "body": "",
+          "taskId": "T-LAND"
+        },
+        {
+          "id": 5,
+          "title": "Move to the new ledger",
+          "status": "hold",
+          "created": {
+            "$ago_min": 5760
+          },
+          "body": "Blocked on infra."
+        },
+        {
+          "id": 4,
+          "title": "Drop the legacy sandbox flag",
+          "status": "done",
+          "created": {
+            "$ago_min": 7200
+          },
+          "body": ""
+        },
+        {
+          "id": 3,
+          "title": "Audit log export",
+          "status": "open",
+          "created": {
+            "$ago_min": 8640
+          },
+          "body": "CSV for finance."
+        }
+      ],
+      "skipped": 0
+    }
+  },
+  "task.events": {
+    "events": [
+      {
+        "kind": "turn-complete",
+        "at": {
+          "$ago_min": 4,
+          "$as": "ms"
+        },
+        "tail": "codex"
+      },
+      {
+        "kind": "tool-start",
+        "at": {
+          "$ago_min": 9,
+          "$as": "ms"
+        },
+        "tail": "Bash · codex"
+      },
+      {
+        "kind": "turn-start",
+        "at": {
+          "$ago_min": 11,
+          "$as": "ms"
+        },
+        "tail": "codex"
+      },
+      {
+        "kind": "session-start",
+        "at": {
+          "$ago_min": 12,
+          "$as": "ms"
+        },
+        "tail": "codex"
+      }
+    ]
+  },
+  "routine.list": {
+    "automations": [
+      {
+        "id": "r-ok",
+        "name": "nightly dependency audit",
+        "repo": "/work/payments-api",
+        "prompt": "Run the nightly dependency audit checks and report anything surprising.",
+        "schedule": "0 3 * * *",
+        "enabled": true,
+        "nextRunAt": {
+          "$in_min": 1200
+        },
+        "missedRunGraceMinutes": 60,
+        "persistentSession": false
+      },
+      {
+        "id": "r-skip",
+        "name": "docs link check",
+        "repo": "/work/payments-api",
+        "prompt": "Run the docs link check checks and report anything surprising.",
+        "schedule": "0 9 * * MON-FRI",
+        "enabled": true,
+        "nextRunAt": {
+          "$in_min": 1200
+        },
+        "missedRunGraceMinutes": 60,
+        "persistentSession": false,
+        "precheck": {
+          "command": "git diff --quiet origin/main -- docs",
+          "timeoutSeconds": 60
+        }
+      },
+      {
+        "id": "r-miss",
+        "name": "weekly changelog digest",
+        "repo": "/work/payments-api",
+        "prompt": "Run the weekly changelog digest checks and report anything surprising.",
+        "schedule": "0 8 * * MON",
+        "enabled": true,
+        "nextRunAt": {
+          "$in_min": 1200
+        },
+        "missedRunGraceMinutes": 60,
+        "persistentSession": false,
+        "baseRef": "main"
+      },
+      {
+        "id": "r-bad",
+        "name": "flaky test hunter",
+        "repo": "/work/payments-api",
+        "prompt": "Run the flaky test hunter checks and report anything surprising.",
+        "schedule": "*/30 * * * *",
+        "enabled": true,
+        "nextRunAt": {
+          "$in_min": 1200
+        },
+        "missedRunGraceMinutes": 60,
+        "persistentSession": false
+      },
+      {
+        "id": "r-off",
+        "name": "stale branch sweep",
+        "repo": "/work/payments-api",
+        "prompt": "Run the stale branch sweep checks and report anything surprising.",
+        "schedule": "0 6 * * SUN",
+        "enabled": false,
+        "nextRunAt": {
+          "$in_min": 1200
+        },
+        "missedRunGraceMinutes": 60,
+        "persistentSession": false
+      }
+    ],
+    "lastRunStatus": {
+      "r-ok": "dispatched",
+      "r-skip": "skipped_precheck",
+      "r-miss": "skipped_missed",
+      "r-bad": "dispatch_failed"
+    },
+    "keepsDaemonAlive": true
+  },
+  "routine.runs": {
+    "runs": [
+      {
+        "id": "x4",
+        "automationId": "r-ok",
+        "runNumber": 4,
+        "status": "dispatched",
+        "trigger": "scheduled",
+        "at": {
+          "$ago_min": 300
+        },
+        "taskId": "T-WORK",
+        "tabId": "tab-1",
+        "response": {
+          "text": "Audited 41 packages.\n\n- 2 minor bumps available\n- no advisories",
+          "at": {
+            "$ago_min": 240
+          }
+        }
+      },
+      {
+        "id": "x3",
+        "automationId": "r-ok",
+        "runNumber": 3,
+        "status": "skipped_precheck",
+        "trigger": "scheduled",
+        "at": {
+          "$ago_min": 1740
+        }
+      },
+      {
+        "id": "x2",
+        "automationId": "r-ok",
+        "runNumber": 2,
+        "status": "skipped_missed",
+        "trigger": "scheduled",
+        "at": {
+          "$ago_min": 3180
+        }
+      },
+      {
+        "id": "x1",
+        "automationId": "r-ok",
+        "runNumber": 1,
+        "status": "dispatch_failed",
+        "trigger": "manual",
+        "at": {
+          "$ago_min": 4620
+        },
+        "error": "engine binary not found on PATH"
+      }
+    ]
+  },
+  "workitem.list": {
+    "items": [
+      {
+        "provider": "github",
+        "type": "issue",
+        "number": 214,
+        "title": "Refund webhook retries forever on 410",
+        "state": "open",
+        "url": "https://github.com/acme/payments-api/issues/214",
+        "updatedAt": {
+          "$ago_min": 2880
+        },
+        "author": "ana",
+        "labels": [
+          "bug",
+          "p1",
+          "webhooks"
+        ]
+      },
+      {
+        "provider": "github",
+        "type": "issue",
+        "number": 212,
+        "title": "Paginate the invoices list",
+        "state": "open",
+        "url": "https://github.com/acme/payments-api/issues/212",
+        "updatedAt": {
+          "$ago_min": 300
+        },
+        "author": "ben",
+        "labels": [
+          "enhancement"
+        ]
+      },
+      {
+        "provider": "github",
+        "type": "issue",
+        "number": 209,
+        "title": "Docs: explain idempotency keys",
+        "state": "open",
+        "url": "https://github.com/acme/payments-api/issues/209",
+        "updatedAt": {
+          "$ago_min": 12960
+        },
+        "labels": []
+      }
+    ]
+  },
+  "workitem.links": {
+    "links": [
+      {
+        "number": 212,
+        "taskId": "T-WORK"
+      }
+    ]
+  },
+  "usage.get": {
+    "usage": [
+      {
+        "vendor": "claude",
+        "name": "Claude",
+        "capturedAt": {
+          "$ago_min": 2,
+          "$as": "ms"
+        },
+        "windows": [
+          {
+            "kind": "session",
+            "label": "5h",
+            "percent": 42,
+            "resetsAt": {
+              "$in_min": 120,
+              "$as": "ms"
+            }
+          },
+          {
+            "kind": "week",
+            "label": "7d",
+            "percent": 81,
+            "resetsAt": {
+              "$in_min": 4200,
+              "$as": "ms"
+            }
+          }
+        ]
+      },
+      {
+        "vendor": "codex",
+        "name": "Codex",
+        "capturedAt": {
+          "$ago_min": 7,
+          "$as": "ms"
+        },
+        "windows": [
+          {
+            "kind": "primary",
+            "label": "7d",
+            "percent": 97,
+            "resetsAt": {
+              "$in_min": 1800,
+              "$as": "ms"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "daemon.info": {
+    "daemonVersion": "0.9.230",
+    "bridgeVersion": "0.9.240",
+    "stale": true,
+    "uptimeMs": 259200000,
+    "startedAt": {
+      "$ago_min": 4320
+    },
+    "taskCount": 5,
+    "attachedClients": 2,
+    "automationHold": true
+  },
+  "plugins.list": {
+    "plugins": [
+      {
+        "id": "notes",
+        "version": "1.2.0",
+        "enabled": true,
+        "linked": false,
+        "platformOk": true,
+        "hooksDeclared": true,
+        "updateAvailable": true,
+        "declares": {
+          "actions": 2,
+          "events": 1,
+          "panes": 0,
+          "engines": 0
+        },
+        "lastRun": {
+          "at": {
+            "$ago_min": 60,
+            "$as": "ms"
+          },
+          "label": "startup",
+          "ok": true,
+          "running": false
+        }
+      },
+      {
+        "id": "gemini-engine",
+        "version": "0.4.1",
+        "enabled": false,
+        "linked": true,
+        "platformOk": true,
+        "hooksDeclared": false,
+        "updateAvailable": false,
+        "declares": {
+          "actions": 0,
+          "events": 0,
+          "panes": 0,
+          "engines": 1
+        },
+        "lastRun": null
+      },
+      {
+        "id": "winonly",
+        "version": "0.1.0",
+        "enabled": true,
+        "linked": false,
+        "platformOk": false,
+        "hooksDeclared": true,
+        "updateAvailable": false,
+        "declares": null,
+        "lastRun": {
+          "at": {
+            "$ago_min": 1440,
+            "$as": "ms"
+          },
+          "label": "on-task-done",
+          "ok": false,
+          "running": false
+        }
+      }
+    ]
+  },
+  "engines.settings": {
+    "defaultId": "claude",
+    "engines": [
+      {
+        "id": "claude",
+        "name": "Claude",
+        "builtin": true,
+        "custom": false,
+        "enabled": true,
+        "isDefault": true,
+        "canBeDefault": true,
+        "binary": "claude",
+        "customized": false,
+        "protocol": null,
+        "binaryFound": true,
+        "binaryPath": "/opt/homebrew/bin/claude",
+        "login": "yes",
+        "hooks": "installed",
+        "markers": true,
+        "screen": false
+      },
+      {
+        "id": "codex",
+        "name": "Codex",
+        "builtin": true,
+        "custom": false,
+        "enabled": false,
+        "isDefault": false,
+        "canBeDefault": true,
+        "binary": "codex",
+        "customized": true,
+        "protocol": null,
+        "binaryFound": true,
+        "binaryPath": "/opt/homebrew/bin/codex",
+        "login": "no",
+        "hooks": "outdated",
+        "markers": true,
+        "screen": false
+      },
+      {
+        "id": "mine",
+        "name": "My Local Agent",
+        "builtin": false,
+        "custom": true,
+        "enabled": true,
+        "isDefault": false,
+        "canBeDefault": true,
+        "binary": "/opt/mine/agent",
+        "customized": true,
+        "protocol": "claude",
+        "binaryFound": false,
+        "binaryPath": null,
+        "login": "unknown",
+        "hooks": "unsupported",
+        "markers": false,
+        "screen": false,
+        "configIssue": "hook file is read-only"
+      }
+    ]
+  },
+  "repo.digest": {
+    "repo": "/work/payments-api",
+    "since": {
+      "$ago_min": 10080
+    },
+    "tasks": {
+      "total": 9
+    },
+    "routines": {
+      "runs": 14,
+      "byStatus": {
+        "dispatched": 9,
+        "skipped_precheck": 3,
+        "dispatch_failed": 1,
+        "skipped_missed": 1
+      }
+    }
+  },
+  "turns.list": {
+    "since": {
+      "$ago_min": 10080
+    },
+    "totals": {
+      "turns": 31,
+      "inputTokens": 482113,
+      "outputTokens": 61220,
+      "cacheReadTokens": 9120344,
+      "cacheCreationTokens": 0,
+      "durationMs": 4380000,
+      "byModel": {
+        "gpt-6-astra": 22,
+        "fable": 9
+      }
+    },
+    "turns": [
+      {
+        "id": "t0",
+        "taskId": "T-WORK",
+        "vendor": "codex",
+        "model": "gpt-6-astra",
+        "startedAt": {
+          "$ago_min": 15,
+          "$as": "ms"
+        },
+        "endedAt": {
+          "$ago_min": 12.666666666666666,
+          "$as": "ms"
+        }
+      },
+      {
+        "id": "t1",
+        "taskId": "T-WORK",
+        "vendor": "claude",
+        "model": "fable",
+        "startedAt": {
+          "$ago_min": 30,
+          "$as": "ms"
+        },
+        "endedAt": {
+          "$ago_min": 27.333333333333332,
+          "$as": "ms"
+        }
+      },
+      {
+        "id": "t2",
+        "taskId": "T-WORK",
+        "vendor": "codex",
+        "model": "gpt-6-astra",
+        "startedAt": {
+          "$ago_min": 45,
+          "$as": "ms"
+        },
+        "endedAt": {
+          "$ago_min": 42,
+          "$as": "ms"
+        }
+      },
+      {
+        "id": "t3",
+        "taskId": "T-WORK",
+        "vendor": "claude",
+        "model": "fable",
+        "startedAt": {
+          "$ago_min": 60,
+          "$as": "ms"
+        },
+        "endedAt": {
+          "$ago_min": 56.666666666666664,
+          "$as": "ms"
+        }
+      },
+      {
+        "id": "t4",
+        "taskId": "T-WORK",
+        "vendor": "codex",
+        "model": "gpt-6-astra",
+        "startedAt": {
+          "$ago_min": 75,
+          "$as": "ms"
+        },
+        "endedAt": {
+          "$ago_min": 71.33333333333333,
+          "$as": "ms"
+        }
+      },
+      {
+        "id": "t5",
+        "taskId": "T-WORK",
+        "vendor": "claude",
+        "model": "fable",
+        "startedAt": {
+          "$ago_min": 90,
+          "$as": "ms"
+        },
+        "endedAt": {
+          "$ago_min": 86,
+          "$as": "ms"
+        }
+      }
+    ]
+  },
+  "task.land": {
+    "landedOn": "main",
+    "commit": "9f3c2a1d84b7e60a5c1f2d3e4b5a6978c0d1e2f3"
+  },
+  "tab.new": {
+    "tabId": "tab-1"
+  },
+  "tab.forkTask": {
+    "taskIds": [
+      "T-WORK"
+    ]
+  },
+  "tab.handoff": {
+    "kind": "ready",
+    "prompt": "Continue from where the last session stopped: the signature check is in, the push needs approval.",
+    "engine": "codex"
+  },
+  "task.create": {
+    "taskId": "T-WORK"
+  },
+  "task.spawn": {
+    "taskIds": [
+      "T-WORK"
+    ]
+  },
+  "task.openMain": {
+    "taskId": "T-WORK"
+  },
+  "task.ensureWorktree": {
+    "worktreePath": "/work/payments-api/.rove/worktrees/fix-refund-webhook-sig"
+  },
+  "task.removeWorktree": {
+    "removed": true
+  },
+  "worktrees.remove": {
+    "removed": true
+  },
+  "worktree.adopt": {
+    "taskId": "T-WORK"
+  },
+  "repo.clone": {
+    "path": "/work/cloned-repo"
+  },
+  "workitem.start": {
+    "taskId": "T-WORK"
+  },
+  "issue.prompt": {
+    "title": "Rate limit the refund endpoint",
+    "prompt": "Add a token bucket per api key to the refund endpoint. Cap at 10 requests per minute."
+  },
+  "routine.create": {
+    "automation": {
+      "id": "r-new",
+      "name": "new routine",
+      "repo": "/work/payments-api",
+      "prompt": "Run the new routine checks and report anything surprising.",
+      "schedule": "0 9 * * *",
+      "enabled": true,
+      "nextRunAt": {
+        "$in_min": 1200
+      },
+      "missedRunGraceMinutes": 60,
+      "persistentSession": false
+    }
+  },
+  "review.add": {
+    "note": {
+      "id": "n1",
+      "filePath": "src/refunds/webhook.ts",
+      "line": 17,
+      "startLine": 14,
+      "body": "Log the rejected reason with the event id, support will ask.",
+      "createdAt": {
+        "$ago_min": 6,
+        "$as": "ms"
+      }
+    }
+  },
+  "review.remove": {
+    "removed": true
+  },
+  "review.send": {
+    "sent": 1,
+    "delivered": true
+  },
+  "notes.delete": {
+    "deleted": true
+  },
+  "attachment.put": {
+    "path": "/tmp/rove/attachments/demo.png",
+    "kind": "image",
+    "bytes": 2048
+  },
+  "feedback.send": {}
+}

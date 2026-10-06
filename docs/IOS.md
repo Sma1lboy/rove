@@ -53,6 +53,7 @@ The token lives in `<ROVE_HOME>/.rove/bridge/token` (mode 0600) and survives bri
 - **Diff.** Files changed on the branch versus its base (same base rule as the TUI's changes pane) and uncommitted files, each with its unified diff.
 - **New task, land, delete.** New task takes a repo, an engine and an optional first prompt. Land and delete ask twice; delete keeps the branch, as `rove api delete` does.
 - **Notifications.** While the app is running, a task that moves into `waiting-on-you`, or from `working` to `ready-for-review`/`idle`, posts a local notification.
+- **Demo.** `try a demo` on the first screen runs the whole app against canned data bundled in the app (`Sources/RoveMobile/Demo/demo-fixture.json`, the same file `scripts/fixture-bridge.ts` serves to the UI tests): no Mac, no bridge, no network request. A strip on every screen says `demo · not connected to a mac`; `connect a mac` leaves it. Nothing about the demo is saved, so a cold launch starts on the pairing screen. It exists so App Store beta review can use the app without a Mac (`packages/rove-ios/docs/REVIEW_NOTES.md`).
 
 Engine names in the app come from Rove's engine registry through the bridge.
 

@@ -167,6 +167,7 @@ struct QuillSheetChrome: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(Theme.paper.ignoresSafeArea())
+            .safeAreaInset(edge: .top, spacing: 0) { if model.demo { DemoStrip() } }
             .presentationBackground(Theme.paper)
             .presentationBackgroundInteraction(.enabled(upThrough: .large))
             .onAppear { withAnimation(Theme.spring) { model.sheets.append(id) } }

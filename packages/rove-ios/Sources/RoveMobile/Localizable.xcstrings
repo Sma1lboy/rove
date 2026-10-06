@@ -2840,6 +2840,16 @@
         }
       }
     },
+    "connect a mac" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接 mac"
+          }
+        }
+      }
+    },
     "connected" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3206,6 +3216,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "删除中"
+          }
+        }
+      }
+    },
+    "demo · not connected to a mac" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演示 · 未连接 mac"
           }
         }
       }
@@ -7356,6 +7376,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已截断"
+          }
+        }
+      }
+    },
+    "try a demo" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先看看"
           }
         }
       }
