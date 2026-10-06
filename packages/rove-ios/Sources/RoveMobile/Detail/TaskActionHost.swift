@@ -242,12 +242,26 @@ struct TaskActionItems: View {
     }
 }
 
-/// Menu content for a project header: field notes, remove project.
+/// Menu content for a project header: move the project, field notes, remove project.
 struct ProjectActionItems: View {
     var host: TaskActionHost
     var repo: String
+    @Environment(AppModel.self) private var model
+
+    /// Projects order by their `main` task's stored order, so moving that task moves the project
+    /// (the TUI's project move-mode does the same). A project without a main row has nothing to move.
+    private var mainTaskId: String? {
+        model.store.tasks.first { $0.repo == repo && $0.kind == "main" }?.id
+    }
 
     var body: some View {
+        if let id = mainTaskId {
+            Section("Order (default sort)") {
+                Button { Task { await host.move(id, "up") } } label: { Label("Move project up", systemImage: "arrow.up") }
+                Button { Task { await host.move(id, "down") } } label: { Label("Move project down", systemImage: "arrow.down") }
+                Button { Task { await host.move(id, "top") } } label: { Label("Move project to top", systemImage: "arrow.up.to.line") }
+            }
+        }
         Button { host.request = .notes(repo: repo) } label: { Label("Field notes", systemImage: "note.text") }
             .accessibilityIdentifier("projectNotes")
         Divider()

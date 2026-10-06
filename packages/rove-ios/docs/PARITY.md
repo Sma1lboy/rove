@@ -17,7 +17,7 @@
 | T3 | 派生分组（needs you / ready to land / needs review / working / quiet） | 已有 | 每行的状态 tag，配色见 DESIGN 决定 |
 | T4 | attention 排序（最需要人的在最前） | 已有 | 列表默认顺序 |
 | T5 | 排序切换：default / recent / attention / name（`t`） | 已有 | 列表头排序图标；attention（默认）/ default（daemon 手动顺序，行字段 `order`）/ recent（`updatedAt`）/ name，选择记在手机上；置顶始终在前 |
-| T6 | `/` 模糊搜索：标题、仓库、分支、tab 标题 | 已有 | 列表头放大镜：子序列模糊匹配标题 / 仓库 / 分支，按得分排序；不含 tab 标题（任务行不带 tab 标题） |
+| T6 | `/` 模糊搜索：标题、仓库、分支、tab 标题 | 已有 | 列表头放大镜：子序列模糊匹配标题 / 仓库 / 分支 / tab 标题，按得分排序；打开搜索时并发读一次各任务的 `task.tabs` 拿 tab 标题 |
 | T7 | 行标记 `▴` 置顶 | 已有 | 标题前 `▴`（行字段 `pinned`） |
 | T8 | 行标记 `+N/−N` 改动文件数 | 已有 | 第二行 `+N/−N`；数据来自 daemon `worktree.changes` 推送（经 bridge 的 RemoteOrchestrator），不逐任务跑 git；读不了显示 `?` |
 | T9 | 行标记 `↑N/↓N` 领先/落后 base 的提交数 | 已有 | 第二行 `↑N/↓N`，同一推送 |
@@ -27,7 +27,8 @@
 | T13 | 改分支名 / 选本地分支（`b`） | 已有 | `…` 菜单 / 行长按 → branch…（`task.setBranch`，本地分支来自 `repo.branches`） |
 | T14 | 换引擎（`v`，右键是选择器） | 已有 | `…` 菜单 / 行长按 → change engine…（`task.setCommand`，只接受 engine-list 里的 id） |
 | T15 | 置顶/取消（`shift+p`） | 已有 | `…` 菜单 / 行长按 → pin / unpin（`task.pin`） |
-| T16 | 重新排序（`shift+m`，tab/任务/项目三级） | 已有 | 菜单 → move up / down / to top（`task.move`，任务级；tab、项目级顺序不做） |
+| T16 | 重新排序（`shift+m`，任务/项目） | 已有 | 任务行 `…` → move up / down / to top；项目标题 `···` → 项目上移 / 下移 / 到顶（移动该项目的 main 任务，和 TUI 一样，default 排序下生效）（`task.move`） |
+| T16b | 重新排序 tab（同一任务内） | 缺失 | tab 顺序只存在 TUI 的 state.json 里，daemon 没有移动 tab 的接口；bridge 直接写 state.json 会被已连接的 TUI 覆盖（kv 只在启动时读一次）。已提需（rove issue #121） |
 | T17 | 删除：按类型区分（忘掉项目 / 只删目录任务记录 / 删任务+worktree，脏 worktree 二次确认） | 已有 | 菜单 → delete：main 行 `project.forget`，dir 行只删记录，其余 `task.delete`；脏 worktree 被拒后第二次红色确认再 `force` |
 | T18 | 设置状态（右键 Set status，六种） | 已有 | 菜单 → set status…（`task.setStatus`，六种标签） |
 | T19 | 复制分支名 / 复制路径 | 已有 | 菜单 → copy branch / copy path（路径来自 `task.get`） |
@@ -161,4 +162,4 @@
 
 ## 进度
 
-已有 15 / 需要做的 104（不含不适用 15 项）。
+已有 95 / 需要做的 97（不含不适用 15 项）。剩下 2 项缺失都卡在没有公开接口，已提需：S2b shell tab（rove issue #120）、T16b tab 重排（rove issue #121）。

@@ -118,6 +118,13 @@ final class TaskListTests: XCTestCase {
         XCTAssertTrue(TaskListLogic.sorted([r], query: "tt").isEmpty)
     }
 
+    func testSearchFindsATaskByOneOfItsTabTitles() {
+        let rows = [row("a", title: "billing", branch: "b1"), row("b", title: "docs", branch: "b2")]
+        XCTAssertTrue(TaskListLogic.sorted(rows, query: "flaky").isEmpty)
+        let hit = TaskListLogic.sorted(rows, query: "flaky", tabTitles: ["b": ["fix flaky test", "zsh"]])
+        XCTAssertEqual(ids(hit), ["b"])
+    }
+
     func testClearingTheQueryRestoresTheModeOrder() {
         let rows = [row("b", .idle), row("a", .waitingOnYou)]
         XCTAssertEqual(ids(TaskListLogic.sorted(rows, query: "")), ["a", "b"])

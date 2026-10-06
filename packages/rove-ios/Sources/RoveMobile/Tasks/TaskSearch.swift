@@ -46,13 +46,13 @@ enum FuzzyMatch {
 /// Which row fields the search reads, and how much each is worth.
 /// Each field is matched on its own, never joined: a joined string would let `feat/tree` match a
 /// `feat/chat` row by spending `tree` on the title next to it (the TUI's `tree-search.ts` rule).
-/// Documented gap: the TUI's `/` also matches tab titles; task rows do not carry them.
+/// Tab titles come from `task.tabs`, fetched when the search opens (task rows do not carry them).
 enum RowSearch {
-    /// Best field score for `row`, or nil when no field matches. Title beats branch beats repo.
-    static func score(_ query: String, _ row: TaskRow) -> Int? {
+    /// Best field score for `row`, or nil when no field matches. Title beats branch beats tab title beats repo.
+    static func score(_ query: String, _ row: TaskRow, tabTitles: [String] = []) -> Int? {
         let fields: [(text: String, bonus: Int)] = [
             (row.displayTitle, 6), (row.branch, 2), (row.repoName, 0), (row.repo, -4),
-        ]
+        ] + tabTitles.map { ($0, 1) }
         return fields.compactMap { f in
             f.text.isEmpty ? nil : FuzzyMatch.score(query, in: f.text).map { $0 + f.bonus }
         }.max()

@@ -1168,6 +1168,36 @@
         }
       }
     },
+    "Move project down" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "项目下移"
+          }
+        }
+      }
+    },
+    "Move project to top" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "项目移到顶部"
+          }
+        }
+      }
+    },
+    "Move project up" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "项目上移"
+          }
+        }
+      }
+    },
     "Move to top" : {
       "localizations" : {
         "zh-Hans" : {
@@ -5550,6 +5580,16 @@
         }
       }
     },
+    "Order (default sort)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顺序（默认排序）"
+          }
+        }
+      }
+    },
     "optional" : {
       "localizations" : {
         "zh-Hans" : {
@@ -6450,12 +6490,12 @@
         }
       }
     },
-    "search title, repo, branch" : {
+    "search title, repo, branch, tab" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "搜索标题、仓库、分支"
+            "value" : "搜索标题、仓库、分支、tab"
           }
         }
       }

@@ -164,7 +164,7 @@ struct TaskListView: View {
     private var searchBar: some View {
         FieldBox {
             HStack(spacing: 8) {
-                TextField("search title, repo, branch", text: $query)
+                TextField("search title, repo, branch, tab", text: $query)
                     .focused($searchFocused)
                     .submitLabel(.search)
                     .accessibilityIdentifier("searchField")
@@ -182,7 +182,10 @@ struct TaskListView: View {
     /// Closing the field clears the query, which restores the full list.
     private func toggleSearch() {
         withAnimation(Theme.spring) { searching.toggle() }
-        if searching { searchFocused = true } else { query = ""; searchFocused = false }
+        if searching {
+            searchFocused = true
+            Task { await model.store.loadTabTitles() }
+        } else { query = ""; searchFocused = false }
     }
 
     private func connectionWord(_ state: ConnectionState) -> String {

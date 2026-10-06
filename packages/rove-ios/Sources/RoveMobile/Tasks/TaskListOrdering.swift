@@ -35,8 +35,10 @@ extension TaskListLogic {
     /// Rows in display order: search score first (only with a query), then `main`, pinned, the rest
     /// (the TUI's `buildRows` partition), then the mode's comparator, then list order.
     /// Pinned/`main` float across the whole list here; `projects` splits that per project.
-    static func sorted(_ rows: [TaskRow], mode: TaskSortMode = .attention, query: String = "") -> [TaskRow] {
-        rank(rows, mode: mode, query: query, floating: true)
+    /// `tabTitles` (task id → its tabs' titles) widens a query to live tab titles, as the TUI's `/` does.
+    static func sorted(_ rows: [TaskRow], mode: TaskSortMode = .attention, query: String = "",
+                       tabTitles: [String: [String]] = [:]) -> [TaskRow] {
+        rank(rows, mode: mode, query: query, tabTitles: tabTitles, floating: true)
     }
 
     /// One section per project (repo); rows keep `sorted` order.
@@ -44,12 +46,12 @@ extension TaskListLogic {
     /// order, then main-less projects first-seen. `attention` keeps the phone's own rule — most urgent
     /// task first (a deliberate difference: the TUI leaves project order alone in every mode).
     /// Project order is taken from ALL rows, so sections do not jump around while a search narrows.
-    static func projects(_ rows: [TaskRow], mode: TaskSortMode = .attention, query: String = "")
-        -> [(repo: String, rows: [TaskRow])]
+    static func projects(_ rows: [TaskRow], mode: TaskSortMode = .attention, query: String = "",
+                         tabTitles: [String: [String]] = [:]) -> [(repo: String, rows: [TaskRow])]
     {
         var out: [(repo: String, rows: [TaskRow])] = []
         var index: [String: Int] = [:]
-        for r in sorted(rows, mode: mode, query: query) {
+        for r in sorted(rows, mode: mode, query: query, tabTitles: tabTitles) {
             if let i = index[r.repo] { out[i].rows.append(r) } else { index[r.repo] = out.count; out.append((r.repo, [r])) }
         }
         guard out.count > 1 else { return out }
@@ -80,11 +82,13 @@ extension TaskListLogic {
 
     private typealias Entry = (offset: Int, row: TaskRow, score: Int)
 
-    private static func rank(_ rows: [TaskRow], mode: TaskSortMode, query: String, floating: Bool) -> [TaskRow] {
+    private static func rank(_ rows: [TaskRow], mode: TaskSortMode, query: String,
+                             tabTitles: [String: [String]] = [:], floating: Bool) -> [TaskRow] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         var entries: [Entry] = []
         for (i, r) in rows.enumerated() {
-            if q.isEmpty { entries.append((i, r, 0)) } else if let s = RowSearch.score(q, r) { entries.append((i, r, s)) }
+            if q.isEmpty { entries.append((i, r, 0)) }
+            else if let s = RowSearch.score(q, r, tabTitles: tabTitles[r.id] ?? []) { entries.append((i, r, s)) }
         }
         entries.sort { a, b in
             if a.score != b.score { return a.score > b.score }

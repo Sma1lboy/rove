@@ -69,7 +69,28 @@ final class TaskStore {
     var visible: [TaskRow] { TaskListLogic.filtered(tasks, repo: repoFilter) }
     /// Sections for the list under the chosen sort and search (the sort mode is a view-side `@AppStorage`).
     func projects(mode: TaskSortMode = .attention, query: String = "") -> [(repo: String, rows: [TaskRow])] {
-        TaskListLogic.projects(visible, mode: mode, query: query)
+        TaskListLogic.projects(visible, mode: mode, query: query, tabTitles: query.isEmpty ? [:] : tabTitles)
+    }
+
+    /// Task id → its tabs' titles, for search. Filled by `loadTabTitles` when the search opens.
+    private(set) var tabTitles: [String: [String]] = [:]
+
+    /// One `task.tabs` per task, concurrently; a task whose read fails just keeps no titles.
+    func loadTabTitles() async {
+        let ids = tasks.map(\.id)
+        let client = client
+        let loaded = await withTaskGroup(of: (String, [String])?.self) { group in
+            for id in ids {
+                group.addTask {
+                    guard let r = try? await client.request("task.tabs", ["taskId": id], as: TabsResult.self) else { return nil }
+                    return (id, r.tabs.map(\.displayTitle))
+                }
+            }
+            var out: [String: [String]] = [:]
+            for await pair in group { if let (id, titles) = pair { out[id] = titles } }
+            return out
+        }
+        tabTitles = loaded
     }
     var repos: [String] { TaskListLogic.repos(tasks) }
     var attentionCount: Int { TaskListLogic.attentionCount(attention) }
