@@ -24,11 +24,12 @@ the same directory. Only managed tasks get Rove-created branch/worktree
 isolation; project-main and directory tasks deliberately reuse directories you
 already own.
 
-**Scratch shells** are directory Tasks with an unsettled home: the "scratch
-shell" choice at the tail of the `ctrl+e` new-conversation dialog opens one
-as a bare shell in `$HOME`. It
+**Scratch shells** are directory Tasks with an unsettled home: press `tab` in
+the `ctrl+e` new-conversation dialog until the destination reads "new scratch
+task", pick an engine (or `shell` for a bare shell), and `enter` opens one in
+`$HOME` with that engine already running. It
 lives in the sidebar's Scratch section above every project, and follows a
-zero-ceremony lifecycle: the shell exiting removes the row (no archive, no
+zero-ceremony lifecycle: its last tab exiting removes the row (no archive, no
 confirm; nothing on disk is touched). A scratch row earns a permanent place
 two ways: rename it (naming is the keep gesture), or start a coding harness
 inside a git repository. Rove detects the live harness plus the shell's

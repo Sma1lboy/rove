@@ -1,8 +1,9 @@
 /**
  * Scratch temp-shell task lifecycle for the host:
  *
- *   - `openScratchShell` (ctrl+e dialog's trailing choice, the only entry; no
- *     chord): a scratch dir task at $HOME whose tab-1 is a bare shell.
+ *   - `openScratchShell` (ctrl+e dialog's "scratch" destination, the only
+ *     entry; no chord): a scratch dir task at $HOME whose tab-1 runs the
+ *     picked engine, or a bare shell when none was picked.
  *   - `onScratchExit`: the last shell exited; delete the row, no confirm (it
  *     owns no worktree/branch). Deliberately UNFORCED: `kind: "dir"` already
  *     skips the dirty gate and never removes the directory, so `force` would
@@ -19,8 +20,9 @@ import { userFacingErrorMessage } from "../../lib/error-message"
 import { t } from "../../tui/i18n"
 import { finishDeletedTaskFlow } from "../../tui/lib/task-actions"
 import type { Task } from "../../types/task"
+import type { VendorId } from "../../types/vendor"
 import type { TabsSnapshotKv } from "./terminal-tabs-persist"
-import { requestTabActivation } from "./terminal-tabs-shared"
+import { engineScratchTasks, requestTabActivation } from "./terminal-tabs-shared"
 import { useScratchAdopt } from "./use-scratch-adopt"
 
 /** Teardowns already started; module-level to survive per-render rebuilds.
@@ -38,7 +40,7 @@ export function useScratchShell(deps: {
   readonly notifyError: (message: string) => void
   readonly notifyInfo: (message: string) => void
 }): {
-  openScratchShell: () => void
+  openScratchShell: (vendor: VendorId | undefined) => void
   onScratchExit: (taskId: string) => void
 } {
   const { orchestrator, enterTask, forgetTaskTabs, notifyError } = deps
@@ -61,10 +63,14 @@ export function useScratchShell(deps: {
     },
   })
 
-  const openScratchShell = (): void => {
+  const openScratchShell = (vendor: VendorId | undefined): void => {
     void orchestrator
-      .openDirectoryTask({ dir: homedir(), scratch: true })
-      .then((task) => enterTask(task.id))
+      .openDirectoryTask({ dir: homedir(), scratch: true, ...(vendor ? { vendor } : {}) })
+      .then((task) => {
+        // Before the select mounts its tabs: the mount reads the mark.
+        if (vendor) engineScratchTasks.add(task.id)
+        enterTask(task.id)
+      })
       .catch((err) => notifyError(t("tasks.toast.scratchOpenFailed", { message: userFacingErrorMessage(err) })))
   }
 

@@ -30,6 +30,10 @@ export const tabsByTask = new Map<string, TabsState>()
 /** Bumped on every `tabsByTask` write so React readers re-render; a counter, not a copy. */
 export const tabsRevision = createStateCell(0, "tabs.revision")
 
+/** Scratch tasks opened onto an engine rather than a bare shell. The first
+ *  `TerminalTabs` mount deletes the id and seeds an engine tab-1. */
+export const engineScratchTasks = new Set<string>()
+
 export function setTaskTabs(taskId: string, state: TabsState): void {
   tabsByTask.set(taskId, state)
   tabsRevision.update((n) => n + 1)

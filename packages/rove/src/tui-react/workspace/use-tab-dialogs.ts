@@ -13,6 +13,8 @@
  *                                         (`ctrl+a f`)
  *   destination=fork + context=continue → composer, first prompt led by the
  *                                         transcript handoff brief
+ *   destination=scratch (fresh only)    → new Scratch task in $HOME, tab-1
+ *                                         running the picked engine or shell
  */
 
 import { availableEngineIds } from "@/engine/account-detect"
@@ -72,8 +74,9 @@ export function useTabDialogs(deps: {
   activeLeafSize: () => { cols: number; rows: number } | null
   onChooseEngine?: (vendor: VendorId) => void
   onQuickFork?: (repo: string, result: QuickTaskResult) => void
-  /** Absent = the dialog's "scratch shell" choice isn't offered. */
-  onOpenScratch?: () => void
+  /** Absent = the dialog's "scratch" destination isn't offered. Engine
+   *  undefined = a bare shell. */
+  onOpenScratch?: (vendor: VendorId | undefined) => void
   /** Toast for the "nothing to continue from" refusals. */
   notifyError: (title: string) => void
 }): {
@@ -193,6 +196,11 @@ export function useTabDialogs(deps: {
         await forkChildTask(choice, source, available)
         return
       }
+      // A whole Scratch TASK, not a tab; this is its only entry point.
+      if (choice.destination === "scratch") {
+        deps.onOpenScratch?.(choice.pick === "shell" ? undefined : (choice.pick as VendorId))
+        return
+      }
       const pane = panes.find((p) => `pane:${p.pluginId}.${p.paneId}` === choice.pick)
       if (pane) {
         update(openPluginPane(state, pane.argv, pane.title, pane.placement, undefined, deps.activeLeafSize()))
@@ -202,11 +210,6 @@ export function useTabDialogs(deps: {
       // on exit; null label so the live process names it ("zsh", "vim").
       if (choice.pick === "shell") {
         update(openCommandTab(state, [defaultShell()], null))
-        return
-      }
-      // A whole Scratch TASK, not a tab; this is its only entry point.
-      if (choice.pick === "scratch") {
-        deps.onOpenScratch?.()
         return
       }
       await openTabHere(choice, tabVendor, source)

@@ -377,7 +377,7 @@ export class RemoteOrchestrator {
   createTask = (input: Parameters<typeof writes.createTaskOp>[1]): Promise<Task> =>
     writes.createTaskOp(this.client, input)
   ensureMainTask = (repo: string): Promise<Task> => writes.ensureMainTaskOp(this.client, repo)
-  openDirectoryTask = (input: { dir: string; scratch?: boolean }): Promise<Task> =>
+  openDirectoryTask = (input: { dir: string; scratch?: boolean; vendor?: VendorId }): Promise<Task> =>
     writes.openDirectoryTaskOp(this.client, input)
   adoptScratchRepo = (id: TaskId | string, repo: string): Promise<void> =>
     writes.adoptScratchRepoOp(this.client, id, repo)

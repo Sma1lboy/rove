@@ -36,10 +36,10 @@ export function ShowWorkspace(props: {
   initialPrompt?: string
   /** The user landed on a tab of the selected task; resolve its episodes. */
   onTabVisited?: (taskId: string, tabId: string) => void
-  /** A scratch task's last shell exited — the host deletes the row. */
+  /** A scratch task's last tab exited — the host deletes the row. */
   onScratchExit?: (taskId: string) => void
-  /** ctrl+e's trailing "scratch shell" choice — open a Scratch task. */
-  onOpenScratch?: () => void
+  /** ctrl+e's "scratch" destination — open a Scratch task on `vendor`, or a bare shell. */
+  onOpenScratch?: (vendor: VendorId | undefined) => void
   /** The ctrl+e picker landed on an engine — persist it and toast the result. */
   onEngineChosen?: (taskId: string, vendor: VendorId) => Promise<void>
 }): ReactNode {

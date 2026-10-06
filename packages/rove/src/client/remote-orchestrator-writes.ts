@@ -52,7 +52,7 @@ export async function ensureMainTaskOp(client: RoveDaemonClient, repo: string): 
 /** Open a directory as a `kind:"dir"` task; `scratch` puts it in the sidebar's Scratch section. */
 export async function openDirectoryTaskOp(
   client: RoveDaemonClient,
-  input: { dir: string; scratch?: boolean },
+  input: { dir: string; scratch?: boolean; vendor?: VendorId },
 ): Promise<Task> {
   const res = await client.request<{ task: SerializedTask }>("task.openDir", input)
   return deserializeTask(res.task)

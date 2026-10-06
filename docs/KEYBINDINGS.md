@@ -113,7 +113,7 @@ for terminal support.
 | `F1` | The live keymap; works from every pane, including inside the terminal (not while a dialog or a full-page view — Settings / Worktrees / Update — is open) |
 | `ctrl+q` | Focus the sidebar; pressed again there, quit immediately (`q` in the sidebar quits with a confirm) |
 | `ctrl+t` | New engine tab |
-| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` switches the destination (new tab here ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue this chat). The trailing "scratch shell" choice opens a Scratch shell task |
+| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` cycles the destination (new tab here → fork a child task → new Scratch task in `$HOME`) and `ctrl+f` the context (fresh ⇄ continue this chat). A Scratch destination starts the picked engine, or a bare shell when `shell` is picked |
 | `ctrl+w` | Close the active split, otherwise the tab — closing the last tab leaves the task open with no session |
 | `enter` | Reopen a session in a task whose tabs are all closed (only while that empty pane is showing; `ctrl+e` does the same there) |
 | `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |

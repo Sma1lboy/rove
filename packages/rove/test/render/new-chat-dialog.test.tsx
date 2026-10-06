@@ -79,6 +79,31 @@ describe("NewChatDialogView", () => {
     expect(p.choices).toEqual([{ pick: "claude", destination: "fork", context: "fresh" }])
   })
 
+  test("scratch destination carries the picked engine, keeps shell, and is fresh-only", async () => {
+    const p = mount({ allowScratch: true })
+    const { frame, mockInput } = await p
+    // tab → fork → scratch, then pick codex; continue was on and resets.
+    act(() => mockInput.pressKey("f", { ctrl: true }))
+    act(() => mockInput.pressTab())
+    act(() => mockInput.pressTab())
+    expect(await frame()).toContain("new scratch task")
+    expect(await frame()).toContain("shell")
+    act(() => mockInput.pressArrow("right"))
+    act(() => mockInput.pressEnter())
+    await frame()
+    expect(p.choices).toEqual([{ pick: "codex", destination: "scratch", context: "fresh" }])
+  })
+
+  test("asking for continue from scratch drops back to a tab here", async () => {
+    const p = mount({ allowScratch: true, initialDestination: "scratch" })
+    const { frame, mockInput } = await p
+    act(() => mockInput.pressKey("f", { ctrl: true }))
+    await frame()
+    act(() => mockInput.pressEnter())
+    await frame()
+    expect(p.choices).toEqual([{ pick: "claude", destination: "tab", context: "continue" }])
+  })
+
   test("dialog tab wins over a sibling binding mounted before the overlay", async () => {
     const dialogRef: { current: DialogContext | null } = { current: null }
     let siblingTabFired = false

@@ -64,7 +64,7 @@ import { TerminalSplit } from "./TerminalSplit"
 import { noteEngineTabInput } from "./optimistic-activity"
 import { TabStrip } from "./tab-strip"
 import { terminalTabsKey } from "./terminal-tabs-persist"
-import { reportTabsDelta, setTaskTabs, tabsByTask } from "./terminal-tabs-shared"
+import { engineScratchTasks, reportTabsDelta, setTaskTabs, tabsByTask } from "./terminal-tabs-shared"
 import { useTabClose } from "./use-tab-close"
 import { useTabDialogs } from "./use-tab-dialogs"
 import { useTabHandoffs } from "./use-tab-handoffs"
@@ -77,13 +77,14 @@ export interface TerminalTabsProps {
   worktree: string
   repo?: string
   taskKind?: "main" | "task" | "dir"
-  /** Scratch task: tab-1 is a BARE SHELL, and the last shell exiting deletes
-   *  the task via `onScratchExit` instead of recycling into an engine tab. */
+  /** Scratch task: tab-1 is a BARE SHELL unless it was opened onto an engine
+   *  (`engineScratchTasks`), and the last tab exiting deletes the task via
+   *  `onScratchExit` instead of recycling into an engine tab. */
   scratch?: boolean
-  /** The scratch task's last shell exited — the host deletes the task row. */
+  /** The scratch task's last tab exited — the host deletes the task row. */
   onScratchExit?: () => void
-  /** ctrl+e's "scratch shell" choice; the only entry point, no chord. */
-  onOpenScratch?: () => void
+  /** ctrl+e's "scratch" destination; the only entry point, no chord. */
+  onOpenScratch?: (vendor: VendorId | undefined) => void
   command: readonly string[]
   /** Task's engine; builds a per-tab command when a tab pins its own vendor. */
   vendor: VendorId
@@ -145,8 +146,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     const saved = kv.get(persistKey, null) as TabsState | null
     const fromDisk = saved && Array.isArray(saved.tabs) ? rehydrateTabs(saved, [defaultShell()]) : null
     rehydratedRef.current = fromDisk !== null
-    const fresh =
-      fromDisk ?? (props.scratch === true ? initialShellTabs(defaultShell()) : pinSession(initialTabs(), undefined))
+    const shellScratch = props.scratch === true && !engineScratchTasks.delete(props.taskId)
+    const fresh = fromDisk ?? (shellScratch ? initialShellTabs(defaultShell()) : pinSession(initialTabs(), undefined))
     tabsByTask.set(props.taskId, fresh) // silent: render phase, see setTaskTabs
     return fresh
   }

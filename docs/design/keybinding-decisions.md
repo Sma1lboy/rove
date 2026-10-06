@@ -465,6 +465,12 @@ engine a doomed `gh pr create`.
   equally acceptable to the owner but stays the row's primary action (edit
   the launch command), which is what makes the toggle a separate key rather
   than a mode.
+- **2026-10-06 — Scratch moves from an engine choice to a destination,
+  owner-requested.** The dialog's existing `tab` toggle now cycles new tab
+  here → fork → Scratch, so a Scratch task opens straight onto the picked
+  engine instead of a bare shell the user has to type `omp` into (`shell`
+  stays a pick there). No new chord; the engine row is back to engines,
+  shell, and plugin panes, so `ctrl+e`→`enter` is unchanged.
 - **2026-08-16 — Scratch shell gets NO chord; entry is the ctrl+e dialog's
   tail.** The PROPOSED `prefix+t` (issue #33 PR-2) was rejected: an unproven
   gesture doesn't earn a chord — Scratch entry joins the unified
