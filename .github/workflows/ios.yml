@@ -79,10 +79,49 @@ jobs:
           cat /tmp/fixture-bridge.log
           exit 1
 
-      - name: Build and test
+      - name: Build
+        working-directory: packages/rove-ios
+        run: |
+          set -o pipefail
+          xcodebuild -scheme RoveMobile -destination "id=$SIM_UDID" -derivedDataPath build/dd build-for-testing | grep -E 'error:|warning: .*RoveMobile|\*\* (BUILD|TEST)'
+
+      # Two passes with the appearance set from the host: XCUIDevice.appearance has not switched the hosted
+      # simulator. ROVE_APPEARANCE tells KeyboardStateTests which theme the host chose.
+      - name: Test (light)
         working-directory: packages/rove-ios
         env:
           TEST_RUNNER_ROVE_FIXTURE_URL: ws://127.0.0.1:7896/?token=fixture
+          TEST_RUNNER_ROVE_APPEARANCE: light
+          TEST_RUNNER_ROVE_CI: "1"
         run: |
           set -o pipefail
-          xcodebuild -scheme RoveMobile -destination "id=$SIM_UDID" build test | grep -E 'error:|warning: .*RoveMobile|Test Case .*(passed|failed|skipped)|Executed|\*\* (BUILD|TEST)'
+          xcrun simctl ui "$SIM_UDID" appearance light
+          xcodebuild -scheme RoveMobile -destination "id=$SIM_UDID" -derivedDataPath build/dd test-without-building \
+            -skip-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark \
+            | grep -E 'error:|warning: .*RoveMobile|Test Case .*(passed|failed|skipped)|Executed|\*\* (BUILD|TEST)'
+
+      - name: Test (dark)
+        if: success() || failure()
+        working-directory: packages/rove-ios
+        env:
+          TEST_RUNNER_ROVE_FIXTURE_URL: ws://127.0.0.1:7896/?token=fixture
+          TEST_RUNNER_ROVE_APPEARANCE: dark
+          TEST_RUNNER_ROVE_CI: "1"
+        run: |
+          set -o pipefail
+          xcrun simctl ui "$SIM_UDID" appearance dark
+          sleep 3
+          xcrun simctl io "$SIM_UDID" screenshot /tmp/springboard-dark.png
+          xcodebuild -scheme RoveMobile -destination "id=$SIM_UDID" -derivedDataPath build/dd test-without-building \
+            -only-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark \
+            -only-testing:RoveMobileUITests/KeyboardStateTests/testTerminalDemo \
+            -only-testing:RoveMobileUITests/KeyboardStateTests/testTerminalFixture \
+            | grep -E 'error:|warning: .*RoveMobile|Test Case .*(passed|failed|skipped)|Executed|\*\* (BUILD|TEST)'
+
+      - name: Upload the dark-pass simulator screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: springboard-dark
+          path: /tmp/springboard-dark.png
+          if-no-files-found: ignore

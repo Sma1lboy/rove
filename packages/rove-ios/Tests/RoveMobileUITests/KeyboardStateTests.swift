@@ -20,19 +20,19 @@ final class KeyboardStateTests: XCTestCase {
 
     override func tearDown() {
         XCUIDevice.shared.orientation = .portrait
-        XCUIDevice.shared.appearance = .light
+        if env["ROVE_APPEARANCE"] == nil { XCUIDevice.shared.appearance = .light }
     }
 
     // MARK: Tests
 
     // Each theme once and each mode once (the terminal and landscape tests below run every pairing): the
     // reviewer's path (demo) in light, the fixture bridge in dark.
-    func testInputsDemoLight() { sweepInputs(.light, fixture: nil) }
-    func testInputsFixtureDark() throws { sweepInputs(.dark, fixture: try fixtureURL()) }
+    func testInputsDemoLight() throws { try sweepInputs(.light, fixture: nil) }
+    func testInputsFixtureDark() throws { try sweepInputs(.dark, fixture: try fixtureURL()) }
 
-    func testTerminalDemo() {
-        for look in [XCUIDevice.Appearance.light, .dark] {
-            start(look, fixture: nil)
+    func testTerminalDemo() throws {
+        for look in looks {
+            try start(look, fixture: nil)
             openTask()
             terminalChecks(log: nil)
         }
@@ -40,15 +40,15 @@ final class KeyboardStateTests: XCTestCase {
 
     func testTerminalFixture() throws {
         let url = try fixtureURL()
-        for look in [XCUIDevice.Appearance.light, .dark] {
-            start(look, fixture: url)
+        for look in looks {
+            try start(look, fixture: url)
             openTask()
             terminalChecks(log: FixtureLog(socketURL: url))
         }
     }
 
-    func testLandscapeDemo() { landscape(fixture: nil) }
-    func testLandscapeFixture() throws { landscape(fixture: try fixtureURL()) }
+    func testLandscapeDemo() throws { try landscape(fixture: nil) }
+    func testLandscapeFixture() throws { try landscape(fixture: try fixtureURL()) }
 
     /// A hardware keyboard: with one attached (Simulator → I/O → Keyboard → Connect Hardware Keyboard, or
     /// `defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool true`) no software keyboard
@@ -57,7 +57,7 @@ final class KeyboardStateTests: XCTestCase {
     func testHardwareKeysReachTheTerminal() throws {
         let url = try fixtureURL()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
-        start(.light, fixture: url)
+        try start(.light, fixture: url)
         openTask()
         let term = el("terminal")
         term.tap()
@@ -189,8 +189,8 @@ final class KeyboardStateTests: XCTestCase {
         XCTAssertTrue(kb.waitDown(), "\(label): pulling the reply bar down left the keyboard up")
     }
 
-    private func landscape(fixture: String?) {
-        start(.light, fixture: fixture)
+    private func landscape(fixture: String?) throws {
+        try start(.light, fixture: fixture)
         XCUIDevice.shared.orientation = .landscapeLeft
         label = label.replacingOccurrences(of: "portrait", with: "landscape")
         Thread.sleep(forTimeInterval: 1)
@@ -230,13 +230,28 @@ final class KeyboardStateTests: XCTestCase {
             XCTFail("\(tag): no keyboardDone over the keyboard")
             return dismiss()
         }
+        // Reveal may still be scrolling the field clear of the bar; a tap during that lands on whatever slides
+        // under it. Wait for the field and `done` to hold still first.
+        waitStill(f, done)
         done.tap()
-        XCTAssertTrue(kb.waitDown(), "\(tag): keyboard still up after Done; focus on \(focusHolder())")
+        XCTAssertTrue(kb.waitDown(), "\(tag): keyboard still up after Done at \(done.frame); focus on \(focusHolder())")
         XCTAssertFalse(holdsFocus(f), "\(tag): input kept focus after Done")
         for (mark, was) in zip(marks, before) {
             let now = mark.frame
             XCTAssertTrue(abs(now.minY - was.minY) <= 1 && abs(now.height - was.height) <= 1,
                           "\(tag): \(mark.identifier) moved from \(was) to \(now)")
+        }
+    }
+
+    /// Until every element's frame is the same in two samples 0.25 s apart (at most 3 s).
+    private func waitStill(_ elements: XCUIElement...) {
+        let deadline = Date().addingTimeInterval(3)
+        var last = elements.map(\.frame)
+        while Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.25)
+            let now = elements.map(\.frame)
+            if now == last { return }
+            last = now
         }
     }
 
