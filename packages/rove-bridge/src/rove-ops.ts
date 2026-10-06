@@ -8,7 +8,6 @@ import { isAbsolute, normalize } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { type ActivityEntry, buildContext } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import { defaultApiRuntime } from "@sma1lboy/rove/src/cli/api/runtime.ts"
 import type { TaskTabRow } from "@sma1lboy/rove/src/cli/api/tab-snapshot.ts"
@@ -20,6 +19,7 @@ import {
   statusFiles,
   statusFilesBranch,
 } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
+import { createBridgeApi } from "./ops/api.ts"
 import { BridgeError, type DiffFileRow, type TabRow, type TaskRow, type TasksPayload } from "./protocol.ts"
 
 export interface EngineRow {
@@ -48,18 +48,8 @@ export interface RoveOps {
 }
 
 /** `rove api` refusals carry a stable `code`; keep it on the wire. */
-async function verb<T>(client: RoveDaemonClient, name: string, argv: readonly string[]): Promise<T> {
-  try {
-    // In-process result of a `rove api` verb whose shape docs/API.md pins.
-    const result = (await invokeVerb(name, argv, { client })) as T
-    return result
-  } catch (err) {
-    const code = err && typeof err === "object" && "code" in err ? err.code : undefined
-    throw new BridgeError(
-      typeof code === "string" ? code : "RPC_ERROR",
-      err instanceof Error ? err.message : String(err),
-    )
-  }
+function verb<T>(client: RoveDaemonClient, name: string, argv: readonly string[]): Promise<T> {
+  return createBridgeApi(client).verb<T>(name, argv)
 }
 
 async function tryRead<T>(read: () => Promise<T>): Promise<T | null> {

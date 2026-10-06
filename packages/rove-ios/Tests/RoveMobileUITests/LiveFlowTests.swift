@@ -64,10 +64,8 @@ final class LiveFlowTests: XCTestCase {
 
         // New task
         element("newTaskButton").tap()
-        // The picker shows the first engine once engines.list returns; tap that menu button.
-        let current = waitFor(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Claude'")).firstMatch, "engine menu", timeout: 20)
-        current.tap()
-        waitFor(app.buttons["Codex"].firstMatch, "Codex option").tap()
+        // Engines are mono tiles once engines.list returns.
+        waitFor(app.buttons["codex"].firstMatch, "codex engine tile", timeout: 20).tap()
         let titleField = element("titleField"); titleField.tap(); titleField.typeText(title)
         let prompt = element("promptEditor"); prompt.tap()
         prompt.typeText("Add a multiply(a, b) function to math.ts. Keep it tiny; do not commit.")

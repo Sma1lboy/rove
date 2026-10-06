@@ -24,6 +24,7 @@ import { loadOrCreateToken, pairingUrl } from "./auth.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
 import { TaskFeed } from "./feed.ts"
+import { createBridgeApi } from "./ops/api.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
 
@@ -98,7 +99,8 @@ async function main(): Promise<void> {
   await orchestrator.init()
   // Verbs get their own socket: some subscribe as a pane, which must not
   // demote the orchestrator's gui subscription.
-  const ops = createRoveOps(new RoveDaemonClient(daemonSocket))
+  const verbClient = new RoveDaemonClient(daemonSocket)
+  const ops = createRoveOps(verbClient)
   const feed = new TaskFeed(() => ops.tasks())
   for (const signal of [
     orchestrator.tasksSignal(),
@@ -116,6 +118,7 @@ async function main(): Promise<void> {
     feed,
     openPty: () => new RoveDaemonClient(ptySocket),
     roveVersion: CURRENT_VERSION,
+    api: createBridgeApi(verbClient),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
   }
   const servers = args.hosts.map((hostname) => startBridgeServer(deps, { hostname, port: args.port }))

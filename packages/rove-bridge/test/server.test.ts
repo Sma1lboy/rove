@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { AccessDenied, type AccessVerifier } from "../src/cf-access.ts"
 import { TaskFeed } from "../src/feed.ts"
+import type { OpTable } from "../src/ops/types.ts"
 import type { TasksPayload } from "../src/protocol.ts"
 import type { RoveOps } from "../src/rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "../src/server.ts"
@@ -86,6 +87,15 @@ function start(extra: Partial<BridgeDeps> = {}): Harness {
     openPty: () => pty,
     roveVersion: "test",
     log: () => {},
+    api: {
+      verb: async () => {
+        throw new Error("no verbs in this harness")
+      },
+      rpc: async () => {
+        throw new Error("no RPCs in this harness")
+      },
+    },
+    areaOps: {},
     ...extra,
   }
   const server = startBridgeServer(deps, { hostname: "127.0.0.1", port: 0 })
@@ -200,6 +210,35 @@ describe("op allowlist", () => {
     c.ws.send("{not json")
     expect(JSON.parse(await bad.promise).error.code).toBe("BAD_FRAME")
     expect((await c.call("hello")).ok).toBe(true)
+  })
+
+  test("a registered area op runs on the authenticated socket; a destructive one is audited by id, never the token", async () => {
+    const lines: string[] = []
+    const calls: string[] = []
+    const areaOps: OpTable = {
+      "demo.read": { kind: "read", destructive: false, wraps: "test", run: async () => ({ ok: 1 }) },
+      "demo.remove": {
+        kind: "write",
+        destructive: true,
+        wraps: "test",
+        run: async (args) => {
+          calls.push(String(args.taskId))
+          return {}
+        },
+      },
+    }
+    const h = start({ areaOps, log: (line) => lines.push(line) })
+    expect(await upgradeStatus(h.url)).toBe(401)
+    const c = await connect(h.url, AUTH)
+    lines.length = 0 // drop the refused-upgrade line above
+    expect((await c.call("demo.read")).result).toEqual({ ok: 1 })
+    expect(lines).toHaveLength(0)
+    await c.call("demo.remove", { taskId: "T7", secret: "s3cret" })
+    expect(calls).toEqual(["T7"])
+    expect(lines).toEqual(["[rove-bridge] demo.remove taskId=T7"])
+    expect(lines.join("\n")).not.toContain(TOKEN)
+    expect(lines.join("\n")).not.toContain("s3cret")
+    expect((await c.call("demo.other")).error?.code).toBe("UNKNOWN_OP")
   })
 })
 

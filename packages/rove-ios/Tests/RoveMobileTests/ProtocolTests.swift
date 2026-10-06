@@ -56,6 +56,22 @@ final class ProtocolTests: XCTestCase {
         XCTAssertTrue(p.tasks.isEmpty)
     }
 
+    /// Additive protocol rule: a newer bridge may add optional fields and push events.
+    /// This build must decode the rows it knows and ignore the rest, not drop the frame.
+    func testNewerBridgeExtrasAreIgnored() throws {
+        let rows = #"""
+        {"id":5,"ok":true,"result":{"tasks":[{"id":"t1","title":"x","group":"working","rank":0,
+          "activity":{"state":"running","forMs":5,"since":1,"phase":"tool"},"pinned":true,
+          "changes":{"added":1,"deleted":0},"rowTokens":[{"text":"ci"}],"futureThing":{"a":[1]}}],
+          "attention":[],"cursor":"next"}}
+        """#
+        let p = try result(rows, as: TasksPayload.self)
+        XCTAssertEqual(p.tasks.first?.activity, TaskActivity(state: "running", forMs: 5))
+        let push = #"{"event":"notice","data":{"title":"done"}}"#
+        guard case .event(let name, let data)? = IncomingFrame.parse(Data(push.utf8)) else { return XCTFail() }
+        XCTAssertNil(BridgeEvent.from(name: name, data: data), "an unknown push event is dropped, not misread")
+    }
+
     func testEnginesReposCreate() throws {
         let e = try result(#"{"id":3,"ok":true,"result":{"engines":[{"id":"a","name":"Alpha","command":"alpha","protocol":"pty","builtin":true}]}}"#, as: EnginesResult.self)
         XCTAssertEqual(e.engines.first, Engine(id: "a", name: "Alpha", command: "alpha", protocolName: "pty", builtin: true))

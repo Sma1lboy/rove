@@ -97,8 +97,13 @@ export interface DiffFileRow {
 
 export interface Request {
   readonly id: number
-  readonly op: Op
+  /** A core `Op`, or an area op the server's allowlist names. */
+  readonly op: string
   readonly args: Readonly<Record<string, unknown>>
+}
+
+export function isCoreOp(op: string): op is Op {
+  return (OPS as readonly string[]).includes(op)
 }
 
 /** A refusal the client can branch on; `code` is stable, `message` is prose. */
@@ -114,9 +119,10 @@ export class BridgeError extends Error {
 
 /**
  * Parse one inbound frame. Throws {@link BridgeError} for malformed frames;
- * the caller answers with the frame's `id` when one could be read.
+ * the caller answers with the frame's `id` when one could be read. `known` is the
+ * full allowlist (core ops plus registered area ops).
  */
-export function parseRequest(raw: string): Request {
+export function parseRequest(raw: string, known: (op: string) => boolean = isCoreOp): Request {
   let frame: unknown
   try {
     frame = JSON.parse(raw)
@@ -128,13 +134,13 @@ export function parseRequest(raw: string): Request {
   const { id, op, args } = frame as Record<string, unknown>
   if (typeof id !== "number" || !Number.isSafeInteger(id))
     throw new BridgeError("BAD_FRAME", "frame needs an integer id")
-  if (typeof op !== "string" || !(OPS as readonly string[]).includes(op)) {
+  if (typeof op !== "string" || !known(op)) {
     throw Object.assign(new BridgeError("UNKNOWN_OP", `unknown op: ${String(op)}`), { requestId: id })
   }
   if (args !== undefined && (args === null || typeof args !== "object" || Array.isArray(args))) {
     throw Object.assign(new BridgeError("BAD_ARGS", "args must be an object"), { requestId: id })
   }
-  return { id, op: op as Op, args: (args ?? {}) as Record<string, unknown> }
+  return { id, op, args: (args ?? {}) as Record<string, unknown> }
 }
 
 /** The id of a frame that failed {@link parseRequest} after its id was read. */

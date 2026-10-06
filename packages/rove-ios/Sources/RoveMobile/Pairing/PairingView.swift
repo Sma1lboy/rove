@@ -112,29 +112,11 @@ struct PairingView: View {
         .frame(minHeight: 44)
     }
 
-    /// Three mono tiles; the selected one takes the accent wash.
     private var networkSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Theme.kicker("network")
-            HStack(spacing: 6) {
-                ForEach(PairingPreset.allCases) { p in
-                    let on = p == preset
-                    Button { withAnimation(Theme.spring) { preset = p } } label: {
-                        Text(p.title.lowercased())
-                            .font(Theme.mono(13, on ? .semibold : .regular))
-                            .foregroundStyle(on ? Theme.accent : Theme.ink)
-                            .frame(maxWidth: .infinity, minHeight: 40)
-                            .background(on ? Theme.accentSoft : Theme.surface,
-                                        in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous)
-                                .strokeBorder(on ? Theme.accent : Theme.line))
-                    }
-                    .buttonStyle(.pressable)
-                    .accessibilityAddTraits(on ? .isSelected : [])
-                }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("presetPicker")
+        FormSection(label: "network") {
+            ChoiceTiles(options: PairingPreset.allCases, selection: $preset) { $0.title.lowercased() }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("presetPicker")
         }
     }
 
@@ -157,7 +139,7 @@ struct PairingView: View {
                 }
                 Spacer()
             }
-            if !cameraAvailable { note("no camera here — paste the link instead") }
+            if !cameraAvailable { Hint(text: "no camera here — paste the link instead") }
         }
     }
 
@@ -172,7 +154,7 @@ struct PairingView: View {
                 SecureField("", text: $cfSecret, prompt: Text("CF-Access-Client-Secret").foregroundStyle(Theme.muted))
                     .accessibilityIdentifier("cfClientSecret")
             }
-            note("service token from zero trust → access → service auth")
+            Hint(text: "service token from zero trust → access → service auth")
         }
     }
 
@@ -195,7 +177,7 @@ struct PairingView: View {
                     .buttonStyle(.pressable)
                 Spacer()
             }
-            note("sent with the websocket upgrade · the app owns authorization")
+            Hint(text: "sent with the websocket upgrade · the app owns authorization")
         }
     }
 
@@ -212,34 +194,12 @@ struct PairingView: View {
         }
     }
 
-    private func note(_ s: String) -> some View {
-        Text(s).font(Theme.face(14)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
-    }
-
     /// Full-width primary bar; the error line sits right above it so it can't scroll away.
     private var connectBar: some View {
-        let enabled = !urlEmpty && cfReady
-        return VStack(alignment: .leading, spacing: 8) {
-            if let error {
-                Text(error).font(Theme.mono(12)).foregroundStyle(Theme.error)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("pairingError")
-            }
-            Button { connect() } label: {
-                HStack {
-                    Text("connect").font(Theme.mono(16, .semibold))
-                    Spacer()
-                    Text("→").font(Theme.mono(16, .semibold))
-                }
-                .foregroundStyle(enabled ? Theme.paper : Theme.muted)
-                .padding(.horizontal, 18)
-                .frame(height: 56)
-                .background(enabled ? Theme.accent : Theme.inset,
-                            in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            }
-            .buttonStyle(.pressable)
-            .disabled(!enabled)
-            .accessibilityIdentifier("connectButton")
+        VStack(alignment: .leading, spacing: 8) {
+            if let error { ErrorLine(text: error).accessibilityIdentifier("pairingError") }
+            PrimaryBar(label: "connect", enabled: !urlEmpty && cfReady) { connect() }
+                .accessibilityIdentifier("connectButton")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

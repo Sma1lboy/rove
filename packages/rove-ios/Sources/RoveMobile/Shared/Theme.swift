@@ -129,9 +129,15 @@ struct BrailleSpinner: View {
 
 extension View {
     /// Surface fill + hairline border, continuous corners — cards and idle buttons.
-    func tile(_ fill: Color = Theme.surface, radius: CGFloat = Theme.radius) -> some View {
+    func tile(_ fill: Color = Theme.surface, radius: CGFloat = Theme.radius, border: Color = Theme.line) -> some View {
         background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Theme.line))
+            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(border))
+    }
+
+    /// A choose-one tile: accent wash and border when selected, plain tile otherwise.
+    func selectableTile(_ on: Bool) -> some View {
+        tile(on ? Theme.accentSoft : Theme.surface, border: on ? Theme.accent : Theme.line)
+            .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
 
