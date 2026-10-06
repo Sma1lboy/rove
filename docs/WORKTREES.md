@@ -28,6 +28,9 @@ entirely. A branch still on its `new-task` placeholder is renamed once,
 automatically, when the task gets a real title (skipped if the branch
 already has an upstream); after that Rove never touches it again.
 
+The title slug keeps whole words within 32 characters. If the first word
+alone exceeds 32 characters, only that word is hard-cut to the limit.
+
 ## Where worktrees live
 
 By default a managed worktree lands under

@@ -92,9 +92,15 @@ function slugTokens(title: string): string[] {
     .filter((t) => t.length > 0 && !BRAND_TOKENS.has(t))
 }
 
-/** Join tokens, cap at 32 chars, and re-trim a hyphen the cap can expose. */
+/** Keep whole tokens within 32 chars; hard-cut only an overlong first token. */
 function capSlug(tokens: readonly string[]): string {
-  return tokens.join("-").slice(0, 32).replace(/-+$/, "")
+  let slug = ""
+  for (const token of tokens) {
+    const candidate = slug ? `${slug}-${token}` : token
+    if (candidate.length > 32) return slug || token.slice(0, 32)
+    slug = candidate
+  }
+  return slug
 }
 
 /**

@@ -68,12 +68,22 @@ describe("deriveConventionBranch", () => {
     expect(deriveConventionBranch("fix 中文标题", typed, ID)).toBe("fix/task-abc123")
   })
 
-  it("caps the slug at 32 chars without a trailing hyphen", () => {
-    const branch = deriveConventionBranch("fix the very long feature name that exceeds the cap", typed, ID)
-    const slug = branch.slice("fix/".length)
-    expect(slug.length).toBeLessThanOrEqual(32)
-    expect(slug.endsWith("-")).toBe(false)
-    expect(branch).not.toContain("--")
+  it("ends at the last whole word when the cap falls inside a token", () => {
+    const title = "the very long feature name redesign"
+    expect(deriveConventionBranch(title, bare, ID)).toBe("the-very-long-feature-name")
+    expect(deriveConventionBranch(`fix ${title}`, typed, ID)).toBe("fix/the-very-long-feature-name")
+  })
+
+  it("hard-caps a single overlong word at 32 chars", () => {
+    const title = "abcdefghijklmnopqrstuvwxyz0123456789"
+    expect(deriveConventionBranch(title, bare, ID)).toBe("abcdefghijklmnopqrstuvwxyz012345")
+    expect(deriveConventionBranch(`fix ${title}`, typed, ID)).toBe("fix/abcdefghijklmnopqrstuvwxyz012345")
+  })
+
+  it("keeps whole tokens that fit exactly at the cap", () => {
+    expect(deriveConventionBranch("the very long feature name fixes more", bare, ID)).toBe(
+      "the-very-long-feature-name-fixes",
+    )
   })
 })
 
