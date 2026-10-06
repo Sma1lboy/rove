@@ -114,7 +114,7 @@ struct SettingsCopyCommand: View {
             HStack {
                 Text(command).font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink).textSelection(.enabled)
                 Spacer()
-                Text(copied ? "copied" : "copy").font(Theme.mono(12)).foregroundStyle(Theme.muted)
+                Text(copied ? String(localized: "copied") : String(localized: "copy")).font(Theme.mono(12)).foregroundStyle(Theme.muted)
             }
             .padding(.horizontal, 12)
             .frame(minHeight: 40)
@@ -130,7 +130,7 @@ struct StaleDaemonNotice: View {
     var info: DaemonInfo
 
     var body: some View {
-        FormSection(label: "daemon") {
+        FormSection(label: String(localized: "daemon")) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("daemon out of date").font(Theme.mono(14, .bold)).foregroundStyle(Theme.warning)
                 Text("the daemon on your mac runs v\(info.daemonVersion ?? "?"), this app's bridge runs v\(info.bridgeVersion ?? "?"). restart it on the mac:")

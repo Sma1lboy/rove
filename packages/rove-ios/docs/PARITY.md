@@ -129,7 +129,7 @@
 | # | 功能 | 状态 | 手机上 |
 |---|---|---|---|
 | G1 | 深浅色 | 已有 | 跟随系统 |
-| G2 | 语言 | 缺失 | 决定：手机跟 iOS 系统语言（系统设置 → Rove → 语言），不做 App 内切换。现在所有页面文案都是英文字面量，换成 String Catalog 要动所有人的文件，所以留给最后一次统一处理 |
+| G2 | 语言 | 已有 | 手机跟 iOS 系统语言（系统设置 → Rove → 语言），不做 App 内切换。英文（开发语言）+ 简体中文：`Sources/RoveMobile/Localizable.xcstrings`（界面文案）和 `InfoPlist.xcstrings`（相机 / 本地网络授权说明）。`Text("…")` / `Button("…")` 字面量自动本地化；共享组件（`FormSection`、`PrimaryBar`、`SheetScaffold`、`Theme.kicker` 等）的参数是已本地化的 `String`，调用处用 `String(localized:)`，逻辑层（枚举 `label`、错误文案）同样；`PrimaryBar.identifier` 必填、固定英文，UI 测试用英文跑。不翻译：状态 tag（`working` / `idle` / `waiting-on-you` / `ready-for-review` / `landing`，与 TUI 和 `rove api context` 同一套词）、`[ rove ]`、分支 / 路径 / 引擎名、键名（`esc` / `enter`）、cron、bridge 返回的错误原文。中文措辞沿用 TUI 的 zh 文案（`packages/rove/src/tui/i18n/messages`）。新增文案时：英文字面量写进代码，`Localizable.xcstrings` 补 zh-Hans，别漏 |
 | G3 | 通知开关 | 已有 | 设置 → notifications：只作用于这部手机，默认开；Notifier 发通知前读它；iOS 授权被拒时给出打开系统设置的入口 |
 | G4 | 用量（quota）：每个窗口百分比和重置时间，75%/95% 变色 | 已有 | 设置 → usage：每个引擎每个窗口一条进度条，75% 起 warning 黄，95% 起 error 红；bridge 订阅 `usageSnapshotSignal()`，op `usage.get` |
 | G5 | Engines：列表、检测到的路径、登录状态、上报方式 | 已有 | 设置 → engines：二进制路径、是否登录（不传邮箱，也不传命令参数）、上报方式（hooks / markers / screen rules） |

@@ -45,10 +45,12 @@ enum NewSessionLogic {
     /// Why a conversation cannot be continued, in the TUI's terms; nil when it can.
     static func refusal(_ answer: HandoffAnswer) -> String? {
         switch answer.kind {
-        case "handoff": answer.prompt == nil ? "nothing to hand off" : nil
-        case "no-session": "this tab has no conversation yet"
-        case "no-transcript": "\(answer.engine ?? "this engine") keeps no transcript rove can read, so there is nothing to hand off"
-        default: "this conversation cannot be continued"
+        case "handoff": return answer.prompt == nil ? String(localized: "nothing to hand off") : nil
+        case "no-session": return String(localized: "this tab has no conversation yet")
+        case "no-transcript":
+            let engine = answer.engine ?? String(localized: "this engine")
+            return String(localized: "\(engine) keeps no transcript rove can read, so there is nothing to hand off")
+        default: return String(localized: "this conversation cannot be continued")
         }
     }
 

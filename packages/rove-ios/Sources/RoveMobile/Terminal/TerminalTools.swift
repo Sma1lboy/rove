@@ -45,7 +45,7 @@ struct TerminalTools: View {
                 HStack(alignment: .bottom) {
                     if session.hasSelection || copied { copyChip }
                     Spacer()
-                    if !session.atBottom { TermChip(text: "latest ↓", tint: Theme.accent) { session.surface?.scrollToBottom() } }
+                    if !session.atBottom { TermChip(text: String(localized: "latest ↓"), tint: Theme.accent) { session.surface?.scrollToBottom() } }
                 }
                 .padding(8)
             }
@@ -88,7 +88,7 @@ struct TerminalTools: View {
     }
 
     private var copyChip: some View {
-        TermChip(text: copied ? "copied" : "copy", tint: copied ? Theme.success : Theme.accent) {
+        TermChip(text: copied ? String(localized: "copied") : String(localized: "copy"), tint: copied ? Theme.success : Theme.accent) {
             guard let text = session.surface?.selectedText() else { return }
             UIPasteboard.general.string = text
             session.surface?.clearSelection()
@@ -141,7 +141,7 @@ struct TerminalTools: View {
 
     private var counter: String {
         guard let summary else { return "" }
-        return summary.total == 0 ? "no match" : "\(summary.index)/\(summary.total)"
+        return summary.total == 0 ? String(localized: "no match") : "\(summary.index)/\(summary.total)"
     }
 
     private func openSearch() {

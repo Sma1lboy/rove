@@ -96,7 +96,7 @@ struct DiffLinesView: View {
 
     private func noteCard(_ n: ReviewNote) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Text(n.isSent ? "sent" : "note").font(Theme.mono(11, .medium)).foregroundStyle(n.isSent ? Theme.muted : Theme.accent)
+            Text(n.isSent ? String(localized: "sent") : String(localized: "note")).font(Theme.mono(11, .medium)).foregroundStyle(n.isSent ? Theme.muted : Theme.accent)
             Text(n.body).font(Theme.face(14)).foregroundStyle(Theme.ink).fixedSize(horizontal: false, vertical: true)
         }
         .padding(10)

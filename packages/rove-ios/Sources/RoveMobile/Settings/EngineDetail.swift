@@ -35,30 +35,34 @@ private enum EngineAction: Identifiable {
 
     func label(_ e: EngineSetting) -> String {
         switch self {
-        case .setEnabled(let on): on ? "switch on" : "switch off"
-        case .setDefault: "make default"
-        case .rename: "rename"
-        case .reset: e.custom ? "remove engine" : "reset overrides"
+        case .setEnabled(let on): on ? String(localized: "switch on") : String(localized: "switch off")
+        case .setDefault: String(localized: "make default")
+        case .rename: String(localized: "rename")
+        case .reset: e.custom ? String(localized: "remove engine") : String(localized: "reset overrides")
         }
     }
 
     func prose(_ e: EngineSetting) -> String {
         switch self {
         case .setEnabled(let on):
-            if on { return "Switches \(e.name) on: the TUI offers it again and new tasks can default to it." }
-            let handoff = e.isDefault ? " It is the default, so another enabled engine takes over as default." : ""
-            return "Switches \(e.name) off: the TUI stops offering it and new tasks stop defaulting to it. Its settings stay.\(handoff)"
+            if on { return String(localized: "Switches \(e.name) on: the TUI offers it again and new tasks can default to it.") }
+            if e.isDefault {
+                return String(localized: "Switches \(e.name) off: the TUI stops offering it and new tasks stop defaulting to it. Its settings stay. It is the default, so another enabled engine takes over as default.")
+            }
+            return String(localized: "Switches \(e.name) off: the TUI stops offering it and new tasks stop defaulting to it. Its settings stay.")
         case .setDefault:
-            let on = e.enabled ? "" : " It is switched off, so this switches it back on."
-            return "Makes \(e.name) the engine new tasks start with.\(on)"
+            if !e.enabled {
+                return String(localized: "Makes \(e.name) the engine new tasks start with. It is switched off, so this switches it back on.")
+            }
+            return String(localized: "Makes \(e.name) the engine new tasks start with.")
         case .rename(let name):
             return name.isEmpty
-                ? "Clears the name override: \(e.id) goes back to its built-in name. The launch command stays."
-                : "Renames \(e.id) to “\(name)” on the mac and in this app. The launch command stays."
+                ? String(localized: "Clears the name override: \(e.id) goes back to its built-in name. The launch command stays.")
+                : String(localized: "Renames \(e.id) to “\(name)” on the mac and in this app. The launch command stays.")
         case .reset:
             return e.custom
-                ? "Removes the custom engine \(e.name): its launch command, name and protocol are deleted from the mac."
-                : "Clears the name and launch-command overrides for \(e.name). It goes back to its built-in settings; on or off stays as it is."
+                ? String(localized: "Removes the custom engine \(e.name): its launch command, name and protocol are deleted from the mac.")
+                : String(localized: "Clears the name and launch-command overrides for \(e.name). It goes back to its built-in settings; on or off stays as it is.")
         }
     }
 }
@@ -77,12 +81,12 @@ struct EngineDetail: View {
     private var engine: EngineSetting? { engines.first { $0.id == engineId } }
 
     var body: some View {
-        SheetScaffold(title: engine?.name ?? engineId, kicker: "engine") {
+        SheetScaffold(title: engine?.name ?? engineId, kicker: String(localized: "engine")) {
             if let engine {
                 facts(engine)
                 actions(engine)
             } else {
-                EmptyState(title: "engine gone", detail: "it is no longer in the registry")
+                EmptyState(title: String(localized: "engine gone"), detail: String(localized: "it is no longer in the registry"))
             }
         }
         .onAppear {
@@ -91,7 +95,7 @@ struct EngineDetail: View {
         .onChange(of: engine == nil) { _, gone in if gone { dismiss() } }
         .sheet(item: $pending) { action in
             if let engine {
-                SettingsConfirmSheet(title: "\(action.label(engine))?", kicker: "engine", prose: action.prose(engine),
+                SettingsConfirmSheet(title: String(localized: "\(action.label(engine))?"), kicker: String(localized: "engine"), prose: action.prose(engine),
                              label: action.label(engine), run: {
                     _ = try await model.client.request(action.op, action.args(engine.id), as: EmptyResult.self)
                     await reload()
@@ -104,17 +108,17 @@ struct EngineDetail: View {
         VStack(spacing: 0) {
             SettingsInfoRow(key: "id", value: e.id)
             SettingsDivider()
-            SettingsInfoRow(key: "kind", value: e.custom ? "custom" : e.builtin ? "built-in" : "detected")
+            SettingsInfoRow(key: String(localized: "kind"), value: e.custom ? String(localized: "custom") : e.builtin ? String(localized: "built-in") : String(localized: "detected"))
             SettingsDivider()
-            SettingsInfoRow(key: "status", value: [e.enabled ? "on" : "off", e.isDefault ? "default" : nil]
+            SettingsInfoRow(key: String(localized: "status"), value: [e.enabled ? String(localized: "on") : String(localized: "off"), e.isDefault ? String(localized: "default") : nil]
                 .compactMap { $0 }.joined(separator: " · "))
             SettingsDivider()
-            SettingsInfoRow(key: "binary", value: e.binaryFound == false ? "not found" : (e.binaryPath ?? e.binary ?? "—"),
+            SettingsInfoRow(key: String(localized: "binary"), value: e.binaryFound == false ? String(localized: "not found") : (e.binaryPath ?? e.binary ?? "—"),
                     tint: e.binaryFound == false ? Theme.warning : Theme.ink)
             SettingsDivider()
-            SettingsInfoRow(key: "account", value: EngineLogic.loginText(e))
+            SettingsInfoRow(key: String(localized: "account"), value: EngineLogic.loginText(e))
             SettingsDivider()
-            SettingsInfoRow(key: "reports", value: EngineLogic.reportText(e))
+            SettingsInfoRow(key: String(localized: "reports"), value: EngineLogic.reportText(e))
         }
         .tile()
     }
@@ -122,45 +126,45 @@ struct EngineDetail: View {
     @ViewBuilder
     private func actions(_ e: EngineSetting) -> some View {
         if let issue = e.configIssue, !issue.isEmpty { ErrorLine(text: issue) }
-        FormSection(label: "actions") {
+        FormSection(label: String(localized: "actions")) {
             VStack(spacing: 0) {
                 if e.enabled {
                     let can = EngineLogic.canDisable(e, in: engines)
-                    ActionRow(title: "switch off", tint: can ? Theme.ink : Theme.muted) {
+                    ActionRow(title: String(localized: "switch off"), tint: can ? Theme.ink : Theme.muted) {
                         if can { pending = .setEnabled(false) }
                     }
                     .accessibilityIdentifier("engineSwitchOff")
                 } else {
-                    ActionRow(title: "switch on") { pending = .setEnabled(true) }
+                    ActionRow(title: String(localized: "switch on")) { pending = .setEnabled(true) }
                         .accessibilityIdentifier("engineSwitchOn")
                 }
                 if e.canBeDefault && !e.isDefault {
                     SettingsDivider()
-                    ActionRow(title: "make default") { pending = .setDefault }
+                    ActionRow(title: String(localized: "make default")) { pending = .setDefault }
                         .accessibilityIdentifier("engineMakeDefault")
                 }
                 SettingsDivider()
-                ActionRow(title: e.custom ? "remove engine" : "reset overrides", tint: Theme.error) { pending = .reset }
+                ActionRow(title: e.custom ? String(localized: "remove engine") : String(localized: "reset overrides"), tint: Theme.error) { pending = .reset }
                     .accessibilityIdentifier("engineReset")
             }
             .tile()
             if e.enabled && !EngineLogic.canDisable(e, in: engines) {
-                Hint(text: "the last enabled engine stays on")
+                Hint(text: String(localized: "the last enabled engine stays on"))
             }
             if !e.canBeDefault {
-                Hint(text: "only built-in and custom engines can be the default")
+                Hint(text: String(localized: "only built-in and custom engines can be the default"))
             }
         }
-        FormSection(label: "display name") {
+        FormSection(label: String(localized: "display name")) {
             FieldBox { TextField("name", text: $name) }
                 .accessibilityIdentifier("engineNameField")
             let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-            ActionRow(title: trimmed.isEmpty ? "clear name override" : "rename", tint: Theme.accent) {
+            ActionRow(title: trimmed.isEmpty ? String(localized: "clear name override") : String(localized: "rename"), tint: Theme.accent) {
                 pending = .rename(trimmed)
             }
             .tile()
             .accessibilityIdentifier("engineRename")
-            Hint(text: "blank clears the override and brings back the built-in name")
+            Hint(text: String(localized: "blank clears the override and brings back the built-in name"))
         }
     }
 }

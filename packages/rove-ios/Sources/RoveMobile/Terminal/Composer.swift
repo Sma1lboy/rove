@@ -84,7 +84,7 @@ struct Composer: View {
     }
 
     private var placeholder: String {
-        engineName.map { "reply to \($0.lowercased())" } ?? "reply"
+        engineName.map { String(localized: "reply to \($0.lowercased())") } ?? String(localized: "reply")
     }
 
     private func send() {

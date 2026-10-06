@@ -26,27 +26,27 @@ struct FeedbackView: View {
     }
 
     var body: some View {
-        SettingsPage(title: "feedback") {
+        SettingsPage(title: String(localized: "feedback")) {
             if let sent {
                 sentState(sent)
             } else {
-                FormSection(label: "title", trailing: "\(title.count)/200") {
+                FormSection(label: String(localized: "title"), trailing: "\(title.count)/200") {
                     FieldBox { TextField("what is this about", text: $title) }
                         .accessibilityIdentifier("feedbackTitle")
                 }
-                FormSection(label: "message", trailing: "\(message.count)/10000") {
-                    PromptEditor(text: $message, placeholder: "what happened, or what would you change", minHeight: 160)
+                FormSection(label: String(localized: "message"), trailing: "\(message.count)/10000") {
+                    PromptEditor(text: $message, placeholder: String(localized: "what happened, or what would you change"), minHeight: 160)
                         .accessibilityIdentifier("feedbackBody")
                 }
-                Hint(text: "it is posted publicly in the rove repo, using the github login on your mac")
-                PrimaryBar(label: "send feedback", enabled: ready && title.count <= 200 && message.count <= 10_000,
+                Hint(text: String(localized: "it is posted publicly in the rove repo, using the github login on your mac"))
+                PrimaryBar(label: String(localized: "send feedback"), enabled: ready && title.count <= 200 && message.count <= 10_000,
                            identifier: "feedbackSend") { confirming = true }
             }
         }
         .sheet(isPresented: $confirming) {
-            SettingsConfirmSheet(title: "post this feedback?", kicker: "feedback",
-                         prose: "Posts a public GitHub Discussion in the rove repo, from your mac's gh login. It can't be unsent.",
-                         label: "post discussion", run: {
+            SettingsConfirmSheet(title: String(localized: "post this feedback?"), kicker: String(localized: "feedback"),
+                         prose: String(localized: "Posts a public GitHub Discussion in the rove repo, from your mac's gh login. It can't be unsent."),
+                         label: String(localized: "post discussion"), run: {
                 sent = try await model.client.request(
                     "feedback.send", ["title": trimmedTitle, "body": message], as: FeedbackResult.self)
             })
@@ -67,7 +67,7 @@ struct FeedbackView: View {
                 title = ""
                 message = ""
                 sent = nil
-            } label: { TileLabel(text: "write another") }
+            } label: { TileLabel(text: String(localized: "write another")) }
                 .buttonStyle(.pressable)
         }
         .padding(14)

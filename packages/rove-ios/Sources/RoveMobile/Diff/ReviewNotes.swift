@@ -50,10 +50,14 @@ final class ReviewStore {
         do {
             let r = try await client.request("review.send", ["taskId": taskId], as: ReviewSendResult.self)
             await load()
-            if r.delivered { return r.sent == 0 ? "nothing to send" : "sent \(r.sent) \(r.sent == 1 ? "note" : "notes") to the engine" }
-            return "not delivered — notes kept" + (r.reason.map { ": \($0)" } ?? "")
+            if r.delivered {
+                if r.sent == 0 { return String(localized: "nothing to send") }
+                return r.sent == 1 ? String(localized: "sent \(r.sent) note to the engine") : String(localized: "sent \(r.sent) notes to the engine")
+            }
+            if let reason = r.reason { return String(localized: "not delivered — notes kept: \(reason)") }
+            return String(localized: "not delivered — notes kept")
         } catch {
-            return "not delivered — notes kept: \(error.localizedDescription)"
+            return String(localized: "not delivered — notes kept: \(error.localizedDescription)")
         }
     }
 }
@@ -70,13 +74,13 @@ struct NoteComposerSheet: View {
     @State private var saving = false
 
     private var label: String {
-        range.startLine.map { "lines \($0)–\(range.line)" } ?? "line \(range.line)"
+        range.startLine.map { String(localized: "lines \($0)–\(range.line)") } ?? String(localized: "line \(range.line)")
     }
 
     var body: some View {
         SheetScaffold(
-            title: "note", kicker: "\((file as NSString).lastPathComponent) · \(label)", error: review.error,
-            primary: PrimaryBar(label: "drop note", enabled: !body_.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            title: String(localized: "note"), kicker: "\((file as NSString).lastPathComponent) · \(label)", error: review.error,
+            primary: PrimaryBar(label: String(localized: "drop note"), enabled: !body_.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                                 busy: saving, identifier: "dropNote") { save() }
         ) {
             VStack(alignment: .leading, spacing: 0) {
@@ -93,10 +97,10 @@ struct NoteComposerSheet: View {
                 }
             }
             .tile(Theme.surface)
-            FormSection(label: "your note") {
-                PromptEditor(text: $body_, placeholder: "what should the engine change here?", minHeight: 110)
+            FormSection(label: String(localized: "your note")) {
+                PromptEditor(text: $body_, placeholder: String(localized: "what should the engine change here?"), minHeight: 110)
             }
-            Hint(text: "notes stay on this phone's list until you send them — all unsent notes go to the engine as one message.")
+            Hint(text: String(localized: "notes stay on this phone's list until you send them — all unsent notes go to the engine as one message."))
         }
     }
 
@@ -121,12 +125,12 @@ struct NotesSheet: View {
 
     var body: some View {
         SheetScaffold(
-            title: "review notes", kicker: "\(review.unsent.count) unsent · \(review.notes.count) total", error: review.error,
-            primary: PrimaryBar(label: "send \(review.unsent.count) to engine", enabled: !review.unsent.isEmpty,
+            title: String(localized: "review notes"), kicker: String(localized: "\(review.unsent.count) unsent · \(review.notes.count) total"), error: review.error,
+            primary: PrimaryBar(label: String(localized: "send \(review.unsent.count) to engine"), enabled: !review.unsent.isEmpty,
                                 busy: review.busy, identifier: "sendNotes") { confirmSend = true }
         ) {
             if review.notes.isEmpty {
-                EmptyState(title: "no notes yet", detail: "tap a diff line, then note, to leave one for the engine")
+                EmptyState(title: String(localized: "no notes yet"), detail: String(localized: "tap a diff line, then note, to leave one for the engine"))
             }
             ForEach(review.notes.sorted { $0.createdAt < $1.createdAt }) { n in
                 noteRow(n)
@@ -145,10 +149,10 @@ struct NotesSheet: View {
     private func noteRow(_ n: ReviewNote) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("\(n.filePath):\(n.lineLabel)").font(Theme.mono(12, .medium)).foregroundStyle(Theme.ink)
+                Text(verbatim: "\(n.filePath):\(n.lineLabel)").font(Theme.mono(12, .medium)).foregroundStyle(Theme.ink)
                     .lineLimit(1).truncationMode(.head)
                 Spacer(minLength: 8)
-                Text(n.isSent ? "sent" : "unsent").font(Theme.mono(11, .medium))
+                Text(n.isSent ? String(localized: "sent") : String(localized: "unsent")).font(Theme.mono(11, .medium))
                     .foregroundStyle(n.isSent ? Theme.muted : Theme.accent)
                 Button { dropping = n } label: {
                     Text("drop").font(Theme.mono(12)).foregroundStyle(Theme.muted).frame(minWidth: 40, minHeight: 32)

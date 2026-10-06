@@ -17,34 +17,34 @@ struct TaskInfoSheet: View {
     private var report: TaskReport? { detail?.report ?? row?.report }
 
     var body: some View {
-        SheetScaffold(title: row?.displayTitle ?? detail?.title ?? "task info", kicker: "info") {
+        SheetScaffold(title: row?.displayTitle ?? detail?.title ?? String(localized: "task info"), kicker: String(localized: "info")) {
             if loading { BrailleSpinner(size: 13) }
             if let detailError { ErrorLine(text: detailError) }
             if let infoError { ErrorLine(text: infoError) }
             if let pr = detail?.pr {
-                FormSection(label: "pull request") {
+                FormSection(label: String(localized: "pull request")) {
                     card(TaskActionLogic.prLines(pr).map { InfoRow(label: $0.label, value: $0.value) })
                 }
             } else if !loading, detail != nil {
-                FormSection(label: "pull request") { Hint(text: "No pull request for this task yet.") }
+                FormSection(label: String(localized: "pull request")) { Hint(text: String(localized: "No pull request for this task yet.")) }
             }
             if let report {
-                FormSection(label: "worker's claim", trailing: report.at) {
+                FormSection(label: String(localized: "worker's claim"), trailing: report.at) {
                     Text(report.summary).font(Theme.face(15)).foregroundStyle(Theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)
                         .tile()
-                    Hint(text: "What the worker says it delivered. Rove has not verified it.")
+                    Hint(text: String(localized: "What the worker says it delivered. Rove has not verified it."))
                 }
             }
             if let info {
-                FormSection(label: "state") {
+                FormSection(label: String(localized: "state")) {
                     card(stateRows(info))
                 }
-                FormSection(label: "tabs", trailing: "\(info.tabs.count)") {
+                FormSection(label: String(localized: "tabs"), trailing: "\(info.tabs.count)") {
                     if info.tabs.isEmpty {
-                        EmptyState(title: "no tabs", detail: "this task has no terminal tabs")
+                        EmptyState(title: String(localized: "no tabs"), detail: String(localized: "this task has no terminal tabs"))
                     } else {
                         VStack(spacing: 8) { ForEach(info.tabs) { tabCard($0) } }
                     }
@@ -57,10 +57,10 @@ struct TaskInfoSheet: View {
     private func stateRows(_ info: TaskInfoResult) -> [InfoRow] {
         let uncommitted = TaskActionLogic.uncommittedLine(info.changes)
         return [
-            InfoRow(label: "running", value: TaskActionLogic.runningLine(info.running)),
-            InfoRow(label: "activity", value: TaskActionLogic.activityLine(info.activity)),
-            InfoRow(label: "uncommitted", value: uncommitted, added: info.changes?.added, deleted: info.changes?.deleted),
-            InfoRow(label: "committed", value: TaskActionLogic.baseLine(info.base)),
+            InfoRow(label: String(localized: "running"), value: TaskActionLogic.runningLine(info.running)),
+            InfoRow(label: String(localized: "activity"), value: TaskActionLogic.activityLine(info.activity)),
+            InfoRow(label: String(localized: "uncommitted"), value: uncommitted, added: info.changes?.added, deleted: info.changes?.deleted),
+            InfoRow(label: String(localized: "committed"), value: TaskActionLogic.baseLine(info.base)),
         ]
     }
 
@@ -87,7 +87,7 @@ struct TaskInfoSheet: View {
                 Button {
                     withAnimation(Theme.spring) { if open { expanded.remove(tab.id) } else { expanded.insert(tab.id) } }
                 } label: {
-                    Text(open ? "hide output" : "show output").font(Theme.mono(12)).foregroundStyle(Theme.accent)
+                    Text(open ? String(localized: "hide output") : String(localized: "show output")).font(Theme.mono(12)).foregroundStyle(Theme.accent)
                         .frame(minHeight: 32, alignment: .leading)
                 }
                 .buttonStyle(.pressable)

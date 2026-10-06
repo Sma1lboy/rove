@@ -14,18 +14,18 @@ struct TaskWelcomeView: View {
 
     /// `[ codex ] not signed in` — one line per engine that reported `ready == false`.
     static func notReadyLines(_ engines: [Engine]) -> [String] {
-        engines.filter { $0.ready == false }.map { "[ \($0.name.lowercased()) ] not signed in" }
+        engines.filter { $0.ready == false }.map { String(localized: "[ \($0.name.lowercased()) ] not signed in") }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Theme.kicker("welcome", color: Theme.accent)
+            Theme.kicker(String(localized: "welcome"), color: Theme.accent)
             Text("rove runs coding agents side by side — every task gets its own git worktree and branch.")
                 .font(Theme.mono(13)).foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
             if !engines.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Theme.kicker("engines")
+                    Theme.kicker(String(localized: "engines"))
                     if !Self.engineLine(engines).isEmpty {
                         Text(Self.engineLine(engines))
                             .font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink)

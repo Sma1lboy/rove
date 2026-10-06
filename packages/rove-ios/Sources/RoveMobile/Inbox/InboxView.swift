@@ -28,22 +28,22 @@ struct InboxView: View {
                     .accessibilityAddTraits(.isHeader)
             } trailing: {
                 if InboxLogic.next(after: nil, in: pending) != nil {
-                    Button(action: jumpNext) { TileLabel(text: "next pending", tint: Theme.accent, size: 12) }
+                    Button(action: jumpNext) { TileLabel(text: String(localized: "next pending"), tint: Theme.accent, size: 12) }
                         .buttonStyle(.pressable)
                         .accessibilityIdentifier("nextPending")
                 }
             }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    section("attention", count: pending.count)
+                    section(String(localized: "attention"), count: pending.count)
                     if pending.isEmpty {
-                        EmptyState(title: "nothing needs you", detail: "blocked agents and finished turns land here")
+                        EmptyState(title: String(localized: "nothing needs you"), detail: String(localized: "blocked agents and finished turns land here"))
                             .padding(.horizontal, 20).padding(.vertical, 8)
                     }
                     ForEach(pending, id: \.self) { attentionRow($0) }
-                    section("recent", count: recent.count)
+                    section(String(localized: "recent"), count: recent.count)
                     if recent.isEmpty {
-                        EmptyState(title: "no recent tabs", detail: "tabs you open on this phone show up here")
+                        EmptyState(title: String(localized: "no recent tabs"), detail: String(localized: "tabs you open on this phone show up here"))
                             .padding(.horizontal, 20).padding(.vertical, 8)
                     }
                     ForEach(recent, id: \.self) { recentRow($0) }
@@ -71,7 +71,7 @@ struct InboxView: View {
     private func attentionRow(_ item: AttentionItem) -> some View {
         let blocking = InboxLogic.isBlocking(item)
         let task = item.taskId.flatMap { store.task(id: $0) }
-        let title = task?.displayTitle ?? item.label ?? item.taskId ?? "routine"
+        let title = task?.displayTitle ?? item.label ?? item.taskId ?? String(localized: "routine")
         return HStack(spacing: 0) {
             Button { open(item) } label: {
                 VStack(alignment: .leading, spacing: 4) {

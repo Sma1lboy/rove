@@ -12,7 +12,14 @@ enum TaskSortMode: String, CaseIterable, Identifiable {
     case name
 
     var id: String { rawValue }
-    var label: String { rawValue }
+    var label: String {
+        switch self {
+        case .attention: String(localized: "attention")
+        case .default: String(localized: "default")
+        case .recent: String(localized: "recent")
+        case .name: String(localized: "name")
+        }
+    }
 }
 
 /// What the list shows in place of rows, if anything.

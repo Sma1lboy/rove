@@ -2,7 +2,9 @@ import Foundation
 
 enum ConnectRequest {
     /// Shown on HTTP 401; deliberately contains no secrets.
-    static let unauthorizedMessage = "Rejected by the bridge or Cloudflare Access (401). Check the token and the Access service token."
+    static var unauthorizedMessage: String {
+        String(localized: "Rejected by the bridge or Cloudflare Access (401). Check the token and the Access service token.")
+    }
     /// Header names the app owns; custom headers can't set these.
     static let reservedHeaders: Set<String> = ["authorization"]
 }

@@ -19,7 +19,7 @@ struct ActivityView: View {
     @State private var turns: SettingsLoad<TurnsResult> = .loading
 
     var body: some View {
-        SettingsPage(title: "activity", refresh: { await reload() }) {
+        SettingsPage(title: String(localized: "activity"), refresh: { await reload() }) {
             switch repos {
             case .loading:
                 BrailleSpinner(size: 14)
@@ -27,7 +27,7 @@ struct ActivityView: View {
                 ErrorLine(text: message)
             case .loaded(let list):
                 if list.isEmpty {
-                    EmptyState(title: "no repos", detail: "add a repo on the mac to see its activity")
+                    EmptyState(title: String(localized: "no repos"), detail: String(localized: "add a repo on the mac to see its activity"))
                 } else {
                     pickers(list)
                     digestSection
@@ -44,13 +44,13 @@ struct ActivityView: View {
 
     private func pickers(_ list: [String]) -> some View {
         VStack(alignment: .leading, spacing: 22) {
-            FormSection(label: "repo") {
+            FormSection(label: String(localized: "repo")) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     ChoiceTiles(options: list, selection: $repo, label: { ($0 as NSString).lastPathComponent }, fill: false)
                 }
                 .accessibilityIdentifier("activityRepoPicker")
             }
-            FormSection(label: "window") {
+            FormSection(label: String(localized: "window")) {
                 ChoiceTiles(options: [7, 14, 30], selection: $days, label: { "\($0)d" })
                     .accessibilityIdentifier("activityWindow")
             }
@@ -60,7 +60,7 @@ struct ActivityView: View {
     // MARK: Digest
 
     @ViewBuilder private var digestSection: some View {
-        FormSection(label: "digest") {
+        FormSection(label: String(localized: "digest")) {
             switch digest {
             case .loading:
                 BrailleSpinner(size: 14)
@@ -68,9 +68,9 @@ struct ActivityView: View {
                 ErrorLine(text: message)
             case .loaded(let d):
                 VStack(spacing: 0) {
-                    SettingsInfoRow(key: "tasks touched", value: "\(d.tasksTotal)")
+                    SettingsInfoRow(key: String(localized: "tasks touched"), value: "\(d.tasksTotal)")
                     SettingsDivider()
-                    SettingsInfoRow(key: "routine runs", value: "\(d.routineRuns)")
+                    SettingsInfoRow(key: String(localized: "routine runs"), value: "\(d.routineRuns)")
                     ForEach(d.byStatus.keys.sorted(), id: \.self) { status in
                         SettingsDivider()
                         SettingsInfoRow(key: status, value: "\(d.byStatus[status] ?? 0)",
@@ -88,32 +88,32 @@ struct ActivityView: View {
     @ViewBuilder private var turnsSection: some View {
         switch turns {
         case .loading:
-            FormSection(label: "turns") { BrailleSpinner(size: 14) }
+            FormSection(label: String(localized: "turns")) { BrailleSpinner(size: 14) }
         case .failed(let message):
-            FormSection(label: "turns") { ErrorLine(text: message) }
+            FormSection(label: String(localized: "turns")) { ErrorLine(text: message) }
         case .loaded(let result):
             if result.totals.turns == 0 && result.turns.isEmpty {
-                FormSection(label: "turns") {
-                    EmptyState(title: "no turns recorded", detail: "only some engines report per-turn telemetry")
+                FormSection(label: String(localized: "turns")) {
+                    EmptyState(title: String(localized: "no turns recorded"), detail: String(localized: "only some engines report per-turn telemetry"))
                 }
             } else {
-                FormSection(label: "turns") { totals(result.totals) }
-                FormSection(label: "latest") { latest(result.turns) }
+                FormSection(label: String(localized: "turns")) { totals(result.totals) }
+                FormSection(label: String(localized: "latest")) { latest(result.turns) }
             }
         }
     }
 
     private func totals(_ t: TurnTotals) -> some View {
         VStack(spacing: 0) {
-            SettingsInfoRow(key: "turns", value: "\(t.turns)")
+            SettingsInfoRow(key: String(localized: "turns"), value: "\(t.turns)")
             SettingsDivider()
-            SettingsInfoRow(key: "input", value: InsightLogic.compact(t.inputTokens))
+            SettingsInfoRow(key: String(localized: "input"), value: InsightLogic.compact(t.inputTokens))
             SettingsDivider()
-            SettingsInfoRow(key: "output", value: InsightLogic.compact(t.outputTokens))
+            SettingsInfoRow(key: String(localized: "output"), value: InsightLogic.compact(t.outputTokens))
             SettingsDivider()
-            SettingsInfoRow(key: "cache", value: InsightLogic.compact(t.cacheReadTokens + t.cacheCreationTokens))
+            SettingsInfoRow(key: String(localized: "cache"), value: InsightLogic.compact(t.cacheReadTokens + t.cacheCreationTokens))
             SettingsDivider()
-            SettingsInfoRow(key: "time", value: InsightLogic.duration(ms: t.durationMs))
+            SettingsInfoRow(key: String(localized: "time"), value: InsightLogic.duration(ms: t.durationMs))
             ForEach(t.byModel.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }, id: \.key) { entry in
                 SettingsDivider()
                 SettingsInfoRow(key: entry.key, value: "\(entry.value)")
@@ -130,7 +130,7 @@ struct ActivityView: View {
                 if index > 0 { SettingsDivider() }
                 HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(turn.model ?? "unknown model").font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink).lineLimit(1)
+                        Text(turn.model ?? String(localized: "unknown model")).font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink).lineLimit(1)
                         if let vendor = turn.vendor {
                             Text(vendor).font(Theme.mono(11)).foregroundStyle(Theme.muted).lineLimit(1)
                         }

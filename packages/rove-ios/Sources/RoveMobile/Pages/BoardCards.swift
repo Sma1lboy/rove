@@ -22,10 +22,10 @@ enum BoardCardLogic {
 
     static func emptyLines(_ key: BoardColumn) -> (title: String, detail: String) {
         switch key {
-        case .backlog: ("backlog is empty", "+ files a story")
-        case .inProgress: ("nothing in progress", "start a session from a card")
-        case .parked: ("nothing parked", "set a story to hold to park it")
-        case .done: ("nothing done yet", "set a story to done to close it")
+        case .backlog: (String(localized: "backlog is empty"), String(localized: "+ files a story"))
+        case .inProgress: (String(localized: "nothing in progress"), String(localized: "start a session from a card"))
+        case .parked: (String(localized: "nothing parked"), String(localized: "set a story to hold to park it"))
+        case .done: (String(localized: "nothing done yet"), String(localized: "set a story to done to close it"))
         }
     }
 
@@ -92,7 +92,7 @@ struct StoryCard: View {
         Button(action: open) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("#\(story.id)").font(Theme.mono(12, .medium)).foregroundStyle(Theme.muted)
+                    Text(verbatim: "#\(story.id)").font(Theme.mono(12, .medium)).foregroundStyle(Theme.muted)
                     Text(story.title).font(Theme.face(15, .semibold)).foregroundStyle(Theme.ink)
                         .lineLimit(2).multilineTextAlignment(.leading)
                 }

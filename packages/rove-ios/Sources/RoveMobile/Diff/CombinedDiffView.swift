@@ -13,7 +13,7 @@ struct CombinedDiffView: View {
     @State private var phase: DiffFileView.Phase = .loading
     @State private var selection = DiffSelection()
 
-    private var title: String { path == "." ? "whole worktree" : path }
+    private var title: String { path == "." ? String(localized: "whole worktree") : path }
     private var scopes: [String] { base == nil ? ["working"] : ["working", "branch"] }
 
     init(taskId: String, path: String, base: String?, scope: String) {
@@ -49,7 +49,7 @@ struct CombinedDiffView: View {
         if case .loaded(let r) = phase, r.kind == "diff" {
             let sections = CombinedDiff.sections(r.text ?? "")
             HStack(spacing: 8) {
-                Text("\(sections.count) \(sections.count == 1 ? "file" : "files")").foregroundStyle(Theme.muted)
+                Text(sections.count == 1 ? String(localized: "\(sections.count) file") : String(localized: "\(sections.count) files")).foregroundStyle(Theme.muted)
                 Text("+\(sections.reduce(0) { $0 + $1.added })").foregroundStyle(Theme.success)
                 Text("−\(sections.reduce(0) { $0 + $1.deleted })").foregroundStyle(Theme.error)
                 Spacer()
@@ -70,11 +70,11 @@ struct CombinedDiffView: View {
             failure(message)
         case .loaded(let r):
             if r.kind == "error" {
-                failure(r.message ?? "git gave no reason")
+                failure(r.message ?? String(localized: "git gave no reason"))
             } else if r.kind == "diff" {
                 DiffLinesView(lines: DiffParser.lines(r.text ?? ""), file: path, selection: $selection, selectable: false)
             } else {
-                EmptyState(title: "no changes", detail: "nothing under \(title) differs in this scope")
+                EmptyState(title: String(localized: "no changes"), detail: String(localized: "nothing under \(title) differs in this scope"))
                     .padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
@@ -83,7 +83,7 @@ struct CombinedDiffView: View {
     private func failure(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             ErrorLine(text: message).accessibilityIdentifier("diffError")
-            Button { Task { await load() } } label: { TileLabel(text: "retry", tint: Theme.accent) }
+            Button { Task { await load() } } label: { TileLabel(text: String(localized: "retry"), tint: Theme.accent) }
                 .buttonStyle(.pressable).accessibilityIdentifier("retryButton")
         }
         .padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

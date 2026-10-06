@@ -119,7 +119,7 @@ final class NewTaskDraft {
             if let fresh = try? await client.request("repos.list", as: ReposResult.self).repos { repos = fresh }
             if !repos.contains(r.path) { repos.append(r.path) }
             spawn.repo = r.path
-            notice = "cloned to \(r.path)"
+            notice = String(localized: "cloned to \(r.path)")
             mode = .existing
         } catch { self.error = error.localizedDescription }
         return .stay

@@ -29,7 +29,7 @@ struct RoutineDetail: View {
     private var latestTaskId: String? { runs?.first?.taskId }
 
     var body: some View {
-        SheetScaffold(title: routine.name, kicker: "routine", error: error) {
+        SheetScaffold(title: routine.name, kicker: String(localized: "routine"), error: error) {
             promptSection
             precheckSection
             scheduleSection
@@ -60,7 +60,7 @@ struct RoutineDetail: View {
     // MARK: Sections
 
     private var promptSection: some View {
-        FormSection(label: "prompt") {
+        FormSection(label: String(localized: "prompt")) {
             Text(routine.prompt)
                 .font(Theme.face(15)).foregroundStyle(Theme.ink)
                 .textSelection(.enabled)
@@ -72,7 +72,7 @@ struct RoutineDetail: View {
     }
 
     private var precheckSection: some View {
-        FormSection(label: "precheck") {
+        FormSection(label: String(localized: "precheck")) {
             VStack(alignment: .leading, spacing: 6) {
                 if let precheck = routine.precheck {
                     Text(precheck.command)
@@ -89,12 +89,12 @@ struct RoutineDetail: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
             .tile()
-            Hint(text: "prechecks are set on the mac — they run a shell command")
+            Hint(text: String(localized: "prechecks are set on the mac — they run a shell command"))
         }
     }
 
     private var scheduleSection: some View {
-        FormSection(label: "schedule") {
+        FormSection(label: String(localized: "schedule")) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(routine.schedule).font(Theme.mono(14, .semibold)).foregroundStyle(Theme.ink)
@@ -113,13 +113,14 @@ struct RoutineDetail: View {
 
     /// `next Oct 6, 9:00 AM · in 3d` in this phone's clock; paused routines have no next run.
     private var nextLine: String {
-        guard routine.enabled, let date = RoutineLogic.date(routine.nextRunAt) else { return "next —" }
+        guard routine.enabled, let date = RoutineLogic.date(routine.nextRunAt) else { return String(localized: "next —") }
         let local = date.formatted(date: .abbreviated, time: .shortened)
-        return "next \(local) · \(RoutineLogic.until(routine.nextRunAt, now: Date()))"
+        let until = RoutineLogic.until(routine.nextRunAt, now: Date())
+        return String(localized: "next \(local) · \(until)")
     }
 
     private var repoSection: some View {
-        FormSection(label: "repo") {
+        FormSection(label: String(localized: "repo")) {
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(routine.repoName).font(Theme.mono(14, .semibold)).foregroundStyle(Theme.ink)
@@ -128,8 +129,8 @@ struct RoutineDetail: View {
                 }
                 if routine.persistentSession || (routine.baseRef?.isEmpty == false) {
                     HStack(spacing: 6) {
-                        if routine.persistentSession { tag("persistent session") }
-                        if let ref = routine.baseRef, !ref.isEmpty { tag("base \(ref)") }
+                        if routine.persistentSession { tag(String(localized: "persistent session")) }
+                        if let ref = routine.baseRef, !ref.isEmpty { tag(String(localized: "base \(ref)")) }
                     }
                 }
             }
@@ -148,10 +149,11 @@ struct RoutineDetail: View {
     }
 
     private var runsSection: some View {
-        FormSection(label: "last runs", trailing: runs.map { String(format: "%02d", min($0.count, 10)) }) {
+        FormSection(label: String(localized: "last runs"), trailing: runs.map { String(format: "%02d", min($0.count, 10)) }) {
             if let runs {
                 if runs.isEmpty {
-                    EmptyState(title: "no runs yet", detail: "run now fires one without waiting for the schedule")
+                    EmptyState(title: String(localized: "no runs yet"),
+                               detail: String(localized: "run now fires one without waiting for the schedule"))
                 } else {
                     let shown = Array(runs.prefix(10))
                     VStack(spacing: 0) {
@@ -164,7 +166,7 @@ struct RoutineDetail: View {
                 }
             } else if let runsError {
                 ErrorLine(text: runsError)
-                Button { Task { await reloadRuns() } } label: { TileLabel(text: "retry") }
+                Button { Task { await reloadRuns() } } label: { TileLabel(text: String(localized: "retry")) }
                     .buttonStyle(.pressable)
             } else {
                 BrailleSpinner(size: 13)
@@ -176,7 +178,7 @@ struct RoutineDetail: View {
         let isOpen = expanded.contains(run.id)
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text("#\(run.runNumber)").font(Theme.mono(13, .semibold)).foregroundStyle(Theme.ink)
+                Text(verbatim: "#\(run.runNumber)").font(Theme.mono(13, .semibold)).foregroundStyle(Theme.ink)
                 RoutineStatusTag(status: run.status)
                 Text(run.trigger).font(Theme.mono(11)).foregroundStyle(Theme.muted).lineLimit(1)
                 Spacer(minLength: 8)
@@ -197,7 +199,7 @@ struct RoutineDetail: View {
                 .accessibilityIdentifier("routineRunResponse-\(run.id)")
             }
             if let taskId = run.taskId {
-                Button { openTask(taskId) } label: { TileLabel(text: "open task", size: 12) }
+                Button { openTask(taskId) } label: { TileLabel(text: String(localized: "open task"), size: 12) }
                     .buttonStyle(.pressable)
                     .accessibilityIdentifier("routineRunTask-\(run.id)")
             }
@@ -208,26 +210,26 @@ struct RoutineDetail: View {
     }
 
     private var actionsSection: some View {
-        FormSection(label: "actions") {
+        FormSection(label: String(localized: "actions")) {
             VStack(spacing: 0) {
-                ActionRow(title: routine.enabled ? "pause" : "resume") {
+                ActionRow(title: routine.enabled ? String(localized: "pause") : String(localized: "resume")) {
                     Task { await setEnabled(!routine.enabled) }
                 }
                 .accessibilityIdentifier("routineToggle")
                 divider
-                ActionRow(title: "run now", detail: "skips the precheck") { confirmRun = true }
+                ActionRow(title: String(localized: "run now"), detail: String(localized: "skips the precheck")) { confirmRun = true }
                     .accessibilityIdentifier("routineRunNow")
                 divider
-                ActionRow(title: "open latest run's task", tint: latestTaskId == nil ? Theme.muted : Theme.ink) {
+                ActionRow(title: String(localized: "open latest run's task"), tint: latestTaskId == nil ? Theme.muted : Theme.ink) {
                     if let id = latestTaskId { openTask(id) }
                 }
                 .disabled(latestTaskId == nil)
                 .accessibilityIdentifier("routineOpenTask")
                 divider
-                ActionRow(title: "edit", detail: "name, prompt, schedule") { modal = .edit }
+                ActionRow(title: String(localized: "edit"), detail: String(localized: "name, prompt, schedule")) { modal = .edit }
                     .accessibilityIdentifier("routineEdit")
                 divider
-                ActionRow(title: "delete", tint: Theme.error) { modal = .delete }
+                ActionRow(title: String(localized: "delete"), tint: Theme.error) { modal = .delete }
                     .accessibilityIdentifier("routineDelete")
             }
             .disabled(busy)

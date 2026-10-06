@@ -10,21 +10,21 @@ struct NotificationsView: View {
     @State private var authorization: UNAuthorizationStatus?
 
     var body: some View {
-        SettingsPage(title: "notifications") {
-            FormSection(label: "banners") {
+        SettingsPage(title: String(localized: "notifications")) {
+            FormSection(label: String(localized: "banners")) {
                 ChoiceTiles(options: [true, false], selection: Binding(
                     get: { enabled },
                     set: { enabled = $0; NotificationPrefs.enabled = $0 }
-                ), label: { $0 ? "on" : "off" })
+                ), label: { $0 ? String(localized: "on") : String(localized: "off") })
                 .accessibilityIdentifier("notificationsToggle")
-                Hint(text: "banners when a task needs you or finishes. only on this phone.")
+                Hint(text: String(localized: "banners when a task needs you or finishes. only on this phone."))
             }
             if authorization == .denied {
-                permissionTile(text: "ios notifications are off for rove", action: "open ios settings") {
+                permissionTile(text: String(localized: "ios notifications are off for rove"), action: String(localized: "open ios settings")) {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                 }
             } else if authorization == .notDetermined {
-                permissionTile(text: "ios has not asked about notifications yet", action: "allow") {
+                permissionTile(text: String(localized: "ios has not asked about notifications yet"), action: String(localized: "allow")) {
                     model.notifier.requestPermission()
                 }
             }

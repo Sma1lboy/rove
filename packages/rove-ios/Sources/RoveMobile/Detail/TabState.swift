@@ -40,13 +40,13 @@ enum TabGlyph: Equatable {
     /// The word a screen reader hears where the TUI relies on the glyph.
     var word: String {
         switch self {
-        case .working: "working"
-        case .needsInput: "needs input"
-        case .error: "error"
-        case .rateLimited: "rate limited"
-        case .exited: "exited"
-        case .unseenDone: "finished, unread"
-        case .quiet: "idle"
+        case .working: String(localized: "working")
+        case .needsInput: String(localized: "needs input")
+        case .error: String(localized: "error")
+        case .rateLimited: String(localized: "rate limited")
+        case .exited: String(localized: "exited")
+        case .unseenDone: String(localized: "finished, unread")
+        case .quiet: String(localized: "idle")
         }
     }
 

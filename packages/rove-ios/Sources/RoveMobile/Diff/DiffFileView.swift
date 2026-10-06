@@ -3,7 +3,7 @@ import SwiftUI
 enum DiffScope {
     /// The header words for a scope: what is being compared, with the base named.
     static func title(_ scope: String, base: String?) -> String {
-        scope == "branch" ? "branch vs \(base ?? "base")" : "uncommitted"
+        scope == "branch" ? String(localized: "branch vs \(base ?? String(localized: "base"))") : String(localized: "uncommitted")
     }
 }
 
@@ -106,7 +106,7 @@ struct DiffFileView: View {
             failure(message)
         case .loaded(let r):
             if r.kind == "error" {
-                failure(r.message ?? "git gave no reason")
+                failure(r.message ?? String(localized: "git gave no reason"))
             } else if let state = DiffFileState.describe(r) {
                 VStack(alignment: .leading, spacing: 4) {
                     EmptyState(title: state.title, detail: state.detail ?? "")
@@ -122,7 +122,7 @@ struct DiffFileView: View {
     private func failure(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             ErrorLine(text: message).accessibilityIdentifier("diffError")
-            Button { Task { await load() } } label: { TileLabel(text: "retry", tint: Theme.accent) }
+            Button { Task { await load() } } label: { TileLabel(text: String(localized: "retry"), tint: Theme.accent) }
                 .buttonStyle(.pressable).accessibilityIdentifier("retryButton")
         }
         .padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -131,7 +131,7 @@ struct DiffFileView: View {
     private var selectionBar: some View {
         let range = DiffParser.range(lines, cursor: selection.cursor ?? 0, anchor: selection.anchor)
         return HStack(spacing: 10) {
-            Text(range.map { r in r.startLine.map { "lines \($0)–\(r.line)" } ?? "line \(r.line)" } ?? "")
+            Text(range.map { r in r.startLine.map { String(localized: "lines \($0)–\(r.line)") } ?? String(localized: "line \(r.line)") } ?? "")
                 .font(Theme.mono(12, .medium)).foregroundStyle(Theme.ink)
             Spacer()
             Button { selection = DiffSelection() } label: { Text("clear").font(Theme.mono(13)).foregroundStyle(Theme.muted).frame(minHeight: 40) }

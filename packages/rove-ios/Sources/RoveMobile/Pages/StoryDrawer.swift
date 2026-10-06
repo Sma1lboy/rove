@@ -94,20 +94,20 @@ struct StoryDrawer: View {
     private var edit: StoryEdit { StoryEdit(title: title, body: detail, status: status) }
 
     var body: some View {
-        SheetScaffold(title: "story #\(story.id)", kicker: URL(fileURLWithPath: repo).lastPathComponent, error: error,
-                      primary: PrimaryBar(label: "save", enabled: edit.canSubmit(from: original), busy: busy,
+        SheetScaffold(title: String(localized: "story #\(story.id)"), kicker: URL(fileURLWithPath: repo).lastPathComponent, error: error,
+                      primary: PrimaryBar(label: String(localized: "save"), enabled: edit.canSubmit(from: original), busy: busy,
                                           identifier: "drawerSave") { Task { await save() } }) {
-            FormSection(label: "title") {
+            FormSection(label: String(localized: "title")) {
                 FieldBox {
                     TextField("", text: $title, prompt: Text("what to do").foregroundStyle(Theme.muted))
                         .accessibilityIdentifier("drawerTitle")
                 }
             }
-            FormSection(label: "description") {
-                PromptEditor(text: $detail, placeholder: "what and why, in a few lines")
+            FormSection(label: String(localized: "description")) {
+                PromptEditor(text: $detail, placeholder: String(localized: "what and why, in a few lines"))
                     .accessibilityIdentifier("drawerDescription")
             }
-            FormSection(label: "status") {
+            FormSection(label: String(localized: "status")) {
                 ChoiceTiles(options: IssueStatus.allCases, selection: $status, label: { $0.rawValue })
                     .accessibilityIdentifier("drawerStatus")
             }
@@ -116,8 +116,9 @@ struct StoryDrawer: View {
                 eventsSection
             }
             startButton
-            FormSection(label: "delete story") {
-                ActionRow(title: "delete story", detail: "record only", tint: Theme.error) { showDelete = true }
+            FormSection(label: String(localized: "delete story")) {
+                ActionRow(title: String(localized: "delete story"), detail: String(localized: "record only"),
+                          tint: Theme.error) { showDelete = true }
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
                     .tile()
                     .accessibilityIdentifier("deleteStory")
@@ -137,14 +138,14 @@ struct StoryDrawer: View {
 
     private func linkedTask(_ id: String) -> some View {
         let task = model.store.task(id: id)
-        return FormSection(label: "task") {
+        return FormSection(label: String(localized: "task")) {
             VStack(spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(task?.displayTitle ?? "linked task").font(Theme.face(15, .semibold))
+                        Text(task?.displayTitle ?? String(localized: "linked task")).font(Theme.face(15, .semibold))
                             .foregroundStyle(Theme.ink).lineLimit(2)
                         if task == nil {
-                            Text(model.store.loaded ? "not in the task list" : "waiting for the task list")
+                            Text(model.store.loaded ? String(localized: "not in the task list") : String(localized: "waiting for the task list"))
                                 .font(Theme.mono(12)).foregroundStyle(Theme.muted)
                         }
                     }
@@ -155,7 +156,7 @@ struct StoryDrawer: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if let task {
                     Rectangle().fill(Theme.line).frame(height: 1)
-                    ActionRow(title: "open task", detail: task.engine?.name.lowercased()) { openTask(task.id) }
+                    ActionRow(title: String(localized: "open task"), detail: task.engine?.name.lowercased()) { openTask(task.id) }
                         .accessibilityIdentifier("openTask")
                 }
             }
@@ -165,7 +166,7 @@ struct StoryDrawer: View {
     }
 
     private var eventsSection: some View {
-        FormSection(label: "events") {
+        FormSection(label: String(localized: "events")) {
             switch events {
             case .loading:
                 BrailleSpinner(size: 13)
@@ -173,7 +174,8 @@ struct StoryDrawer: View {
                 ErrorLine(text: message)
             case .loaded(let rows, let at):
                 if rows.isEmpty {
-                    EmptyState(title: "no events recorded", detail: "the daemon forgets them when it restarts")
+                    EmptyState(title: String(localized: "no events recorded"),
+                               detail: String(localized: "the daemon forgets them when it restarts"))
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(Array(rows.enumerated()), id: \.offset) { _, row in eventLine(row, now: at) }
@@ -192,7 +194,7 @@ struct StoryDrawer: View {
             Text(EventRowFormat.age(at: row.at, now: now)).font(Theme.mono(12)).foregroundStyle(Theme.muted)
             Text(row.kind).font(Theme.mono(12)).foregroundStyle(Theme.ink).lineLimit(1)
             if !row.tail.isEmpty {
-                Text("· \(row.tail)").font(Theme.mono(12)).foregroundStyle(Theme.muted).lineLimit(1)
+                Text(verbatim: "· \(row.tail)").font(Theme.mono(12)).foregroundStyle(Theme.muted).lineLimit(1)
             }
         }
     }
@@ -200,7 +202,7 @@ struct StoryDrawer: View {
     private var startButton: some View {
         Button { showStart = true } label: {
             HStack(spacing: 12) {
-                Text(story.linked ? "start another session" : "start session")
+                Text(story.linked ? String(localized: "start another session") : String(localized: "start session"))
                     .font(Theme.mono(15, .medium)).foregroundStyle(Theme.accent)
                 Spacer()
                 Text("→").font(Theme.mono(15, .medium)).foregroundStyle(Theme.accent)
@@ -232,7 +234,7 @@ struct StoryDrawer: View {
     private func persistEdits() async throws {
         let now = edit
         if now.titleChanged(from: original), BoardCardLogic.trim(now.title).isEmpty {
-            throw BoardInputError("the title is empty")
+            throw BoardInputError(String(localized: "the title is empty"))
         }
         guard let args = now.updateArgs(repo: repo, id: story.id, from: original) else { return }
         _ = try await model.client.request("issue.update", args, as: EmptyResult.self)
@@ -283,8 +285,8 @@ struct DeleteStorySheet: View {
     @State private var busy = false
 
     var body: some View {
-        SheetScaffold(title: "delete this story?", kicker: "#\(story.id)", error: error,
-                      primary: PrimaryBar(label: "delete story", destructive: true, busy: busy,
+        SheetScaffold(title: String(localized: "delete this story?"), kicker: "#\(story.id)", error: error,
+                      primary: PrimaryBar(label: String(localized: "delete story"), destructive: true, busy: busy,
                                           identifier: "confirmDeleteStory") { Task { await run() } }) {
             Text("Removes only the story record. A linked task, its branch and its worktree are left alone.")
                 .font(Theme.face(16)).foregroundStyle(Theme.ink)

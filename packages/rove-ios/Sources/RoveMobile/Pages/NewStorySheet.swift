@@ -15,20 +15,20 @@ struct NewStorySheet: View {
     private var ready: Bool { !BoardCardLogic.trim(title).isEmpty }
 
     var body: some View {
-        SheetScaffold(title: "new story", kicker: URL(fileURLWithPath: repo).lastPathComponent, error: error,
-                      primary: PrimaryBar(label: "file story", enabled: ready, busy: busy,
+        SheetScaffold(title: String(localized: "new story"), kicker: URL(fileURLWithPath: repo).lastPathComponent, error: error,
+                      primary: PrimaryBar(label: String(localized: "file story"), enabled: ready, busy: busy,
                                           identifier: "newStorySave") { Task { await create() } }) {
-            FormSection(label: "title") {
+            FormSection(label: String(localized: "title")) {
                 FieldBox {
                     TextField("", text: $title, prompt: Text("what to do").foregroundStyle(Theme.muted))
                         .accessibilityIdentifier("newStoryTitle")
                 }
             }
-            FormSection(label: "description") {
-                PromptEditor(text: $detail, placeholder: "optional, what and why in a few lines")
+            FormSection(label: String(localized: "description")) {
+                PromptEditor(text: $detail, placeholder: String(localized: "optional, what and why in a few lines"))
                     .accessibilityIdentifier("newStoryDescription")
             }
-            Hint(text: "Stories start in the backlog. Start a session from one when it is time.")
+            Hint(text: String(localized: "Stories start in the backlog. Start a session from one when it is time."))
         }
     }
 

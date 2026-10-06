@@ -69,13 +69,13 @@ enum InboxLogic {
 
     static func stateWord(_ state: String) -> String {
         switch state {
-        case "permission_needed": "permission"
-        case "rate_limited": "rate limit"
-        case "error": "error"
-        case "dead": "exited"
-        case "turn_complete": "done"
-        case "routine_failed": "routine failed"
-        case "routine_responded": "routine replied"
+        case "permission_needed": String(localized: "permission")
+        case "rate_limited": String(localized: "rate limit")
+        case "error": String(localized: "error")
+        case "dead": String(localized: "exited")
+        case "turn_complete": String(localized: "done")
+        case "routine_failed": String(localized: "routine failed")
+        case "routine_responded": String(localized: "routine replied")
         default: state.replacingOccurrences(of: "_", with: " ")
         }
     }
@@ -102,7 +102,7 @@ enum InboxLogic {
         if calendar.isDate(date, inSameDayAs: now) { f.timeStyle = .short; f.dateStyle = .none }
         else { f.setLocalizedDateFormatFromTemplate("MMM d jmm") }
         // ICU puts a narrow no-break space before AM/PM; the mono face shows it as a gap.
-        return "resumes \(f.string(from: date).replacingOccurrences(of: "\u{202F}", with: " "))"
+        return String(localized: "resumes \(f.string(from: date).replacingOccurrences(of: "\u{202F}", with: " "))")
     }
 
     static func parseISO(_ s: String) -> Date? {

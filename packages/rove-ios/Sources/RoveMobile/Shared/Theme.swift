@@ -78,12 +78,12 @@ struct BracketChip: View {
     var body: some View {
         HStack(spacing: 0) {
             Text("[").foregroundStyle(Theme.accent)
-            Text(" rove ").foregroundStyle(Theme.ink)
+            Text(verbatim: " rove ").foregroundStyle(Theme.ink)
             Text("]").foregroundStyle(Theme.accent)
         }
         .font(Theme.mono(size, .bold))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("rove")
+        .accessibilityLabel(Text(verbatim: "rove"))
     }
 }
 

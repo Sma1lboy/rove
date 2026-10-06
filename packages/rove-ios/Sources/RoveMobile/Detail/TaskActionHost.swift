@@ -127,17 +127,17 @@ final class TaskActionHost {
 
     func copyBranch(_ taskId: String) {
         let branch = model?.store.task(id: taskId)?.branch ?? details[taskId]?.branch ?? ""
-        guard !branch.isEmpty else { show("this task has no branch", isError: true); return }
+        guard !branch.isEmpty else { show(String(localized: "this task has no branch"), isError: true); return }
         UIPasteboard.general.string = branch
-        show("copied branch · \(branch)")
+        show(String(localized: "copied branch · \(branch)"))
     }
 
     func copyPath(_ taskId: String) async {
         do {
             let path = try await fetchDetail(taskId).worktreePath
-            guard !path.isEmpty else { show("no worktree yet — create one first", isError: true); return }
+            guard !path.isEmpty else { show(String(localized: "no worktree yet — create one first"), isError: true); return }
             UIPasteboard.general.string = path
-            show("copied path · \(path)")
+            show(String(localized: "copied path · \(path)"))
         } catch { fail(error) }
     }
 
@@ -146,7 +146,7 @@ final class TaskActionHost {
         do {
             let r = try await model.client.request("task.ensureWorktree", ["taskId": taskId], as: WorktreePathResult.self)
             await didMutate(taskId)
-            show("worktree ready · \(r.worktreePath)")
+            show(String(localized: "worktree ready · \(r.worktreePath)"))
         } catch { fail(error) }
     }
 
@@ -156,12 +156,12 @@ final class TaskActionHost {
         do {
             let detail = try await fetchDetail(taskId)
             guard let args = TaskActionLogic.runAgainArgs(detail) else {
-                show("no stored prompt — nothing to run again", isError: true)
+                show(String(localized: "no stored prompt — nothing to run again"), isError: true)
                 return
             }
             let r = try await model.client.request("task.spawn", args, as: SpawnResult.self)
             await model.store.refresh()
-            if let id = r.taskIds.first { onOpenTask?(id) } else { show("spawned, but the bridge returned no task") }
+            if let id = r.taskIds.first { onOpenTask?(id) } else { show(String(localized: "spawned, but the bridge returned no task")) }
         } catch { fail(error) }
     }
 }
@@ -342,7 +342,7 @@ private struct TaskActionSheets: ViewModifier {
         case .confirmRemoveWorktree(let id):
             DestructiveConfirmSheet(plan: plan(for: request), taskId: id, repo: nil) {
                 Task { await host.didMutate(id) }
-                host.show("worktree removed · task and branch kept")
+                host.show(String(localized: "worktree removed · task and branch kept"))
             }
         case .confirmForgetProject(let repo):
             DestructiveConfirmSheet(plan: plan(for: request), taskId: nil, repo: repo) { host.onRemoved?(nil) }

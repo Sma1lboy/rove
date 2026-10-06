@@ -67,7 +67,7 @@ private struct TabSheetsModifier: ViewModifier {
         if let tab = sourceTab { args["tabId"] = tab.id }
         do {
             _ = try await model.client.request("tab.requestPR", args, as: EmptyResult.self)
-            session?.flash("pr request sent")
+            session?.flash(String(localized: "pr request sent"))
         } catch { session?.flash(error.localizedDescription) }
     }
 }
@@ -108,9 +108,9 @@ struct RenameTabSheet: View {
     private var ready: Bool { !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !title.contains("\n") }
 
     var body: some View {
-        SheetScaffold(title: "rename tab", kicker: tab.id, error: error,
-                      primary: PrimaryBar(label: "rename", enabled: ready, busy: busy) { Task { await rename() } }) {
-            FormSection(label: "name") {
+        SheetScaffold(title: String(localized: "rename tab"), kicker: tab.id, error: error,
+                      primary: PrimaryBar(label: String(localized: "rename"), enabled: ready, busy: busy, identifier: "rename") { Task { await rename() } }) {
+            FormSection(label: String(localized: "name")) {
                 FieldBox {
                     TextField("", text: $title, prompt: Text(tab.displayTitle.lowercased()).foregroundStyle(Theme.muted))
                         .submitLabel(.done)
@@ -118,7 +118,7 @@ struct RenameTabSheet: View {
                         .accessibilityIdentifier("renameField")
                 }
             }
-            Hint(text: "Shown in the tab strip here and on the desktop.")
+            Hint(text: String(localized: "Shown in the tab strip here and on the desktop."))
         }
         .presentationDetents([.medium])
         .onAppear { title = tab.title ?? "" }
@@ -164,30 +164,30 @@ struct NewSessionSheet: View {
     private var canFork: Bool { !(row?.branch.isEmpty ?? true) && !preset.reopen }
 
     var body: some View {
-        SheetScaffold(title: title, kicker: destination == .tab ? "same worktree" : "new worktree", error: error,
+        SheetScaffold(title: title, kicker: destination == .tab ? String(localized: "same worktree") : String(localized: "new worktree"), error: error,
                       primary: PrimaryBar(label: primaryLabel, enabled: request != nil, busy: busy || loadingHandoff,
                                           identifier: "startSessionButton") { Task { await start() } }) {
             if !preset.reopen {
-                FormSection(label: "where") {
+                FormSection(label: String(localized: "where")) {
                     ChoiceTiles(options: canFork ? SessionDestination.allCases : [.tab], selection: $destination,
-                                label: { $0 == .tab ? "new tab here" : "fork child task" })
+                                label: { $0 == .tab ? String(localized: "new tab here") : String(localized: "fork child task") })
                 }
             }
-            FormSection(label: "engine") {
+            FormSection(label: String(localized: "engine")) {
                 if engines.isEmpty { BrailleSpinner(size: 13) } else { EnginePicker(engines: engines, selection: $engine) }
             }
-            FormSection(label: "conversation") {
+            FormSection(label: String(localized: "conversation")) {
                 ChoiceTiles(options: SessionContext.allCases, selection: $context,
-                            label: { $0 == .fresh ? "fresh" : "continue this one" })
+                            label: { $0 == .fresh ? String(localized: "fresh") : String(localized: "continue this one") })
                 if let why = handoffRefusal { Text(why).font(Theme.mono(12)).foregroundStyle(Theme.muted) }
             }
             if destination == .fork {
-                FormSection(label: "attempts", trailing: attempts > 1 ? "same prompt, \(attempts) siblings" : nil) {
+                FormSection(label: String(localized: "attempts"), trailing: attempts > 1 ? String(localized: "same prompt, \(attempts) siblings") : nil) {
                     ChoiceTiles(options: Array(1...NewSessionLogic.maxAttempts), selection: $attempts, label: { "\($0)" })
                 }
             }
-            FormSection(label: context == .continued ? "your message (optional)" : "first message") {
-                PromptEditor(text: $message, placeholder: "what should this session work on")
+            FormSection(label: context == .continued ? String(localized: "your message (optional)") : String(localized: "first message")) {
+                PromptEditor(text: $message, placeholder: String(localized: "what should this session work on"))
             }
             Hint(text: hint)
         }
@@ -196,26 +196,28 @@ struct NewSessionSheet: View {
         .onAppear { destination = preset.destination; context = preset.context }
     }
 
-    private var title: String { preset.reopen ? "reopen session" : "new session" }
+    private var title: String { preset.reopen ? String(localized: "reopen session") : String(localized: "new session") }
 
     private var primaryLabel: String {
         switch (destination, attempts) {
-        case (.tab, _): preset.reopen ? "reopen" : "open tab"
-        case (.fork, 1): "fork task"
-        case (.fork, let n): "start \(n) attempts"
+        case (.tab, _): preset.reopen ? String(localized: "reopen") : String(localized: "open tab")
+        case (.fork, 1): String(localized: "fork task")
+        case (.fork, let n): String(localized: "start \(n) attempts")
         }
     }
 
     private var hint: String {
         var lines: [String] = []
         switch destination {
-        case .tab: lines.append("Tabs share the worktree but keep their own process, scrollback and conversation.")
-        case .fork: lines.append("The child branches from \(row?.branch ?? "this task's branch"): committed work carries over, uncommitted changes stay behind.")
+        case .tab: lines.append(String(localized: "Tabs share the worktree but keep their own process, scrollback and conversation."))
+        case .fork:
+            let branch = row?.branch ?? String(localized: "this task's branch")
+            lines.append(String(localized: "The child branches from \(branch): committed work carries over, uncommitted changes stay behind."))
         }
         if context == .continued {
-            lines.append("Continue hands the new session this conversation's transcript. A native fork needs the desktop, so even the same engine gets a handoff here.")
+            lines.append(String(localized: "Continue hands the new session this conversation's transcript. A native fork needs the desktop, so even the same engine gets a handoff here."))
         }
-        lines.append("Shell tabs and plugin panes need a desktop terminal, so the phone starts engines only.")
+        lines.append(String(localized: "Shell tabs and plugin panes need a desktop terminal, so the phone starts engines only."))
         return lines.joined(separator: " ")
     }
 
@@ -257,7 +259,7 @@ struct NewSessionSheet: View {
                 dismiss()
                 // A single attempt is "carry on from here" and moves you; a round stays put.
                 if let only = ids.first, ids.count == 1 { model.path.append(.task(only)) }
-                else { model.inbox.show(Notice(title: "\(ids.count) attempts started", body: row?.displayTitle, kind: "done", at: Date().timeIntervalSince1970 * 1000)) }
+                else { model.inbox.show(Notice(title: String(localized: "\(ids.count) attempts started"), body: row?.displayTitle, kind: "done", at: Date().timeIntervalSince1970 * 1000)) }
             }
         } catch { self.error = error.localizedDescription }
     }

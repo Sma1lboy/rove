@@ -6,25 +6,25 @@ struct AboutView: View {
     @State private var daemon: SettingsLoad<DaemonInfo> = .loading
 
     var body: some View {
-        SettingsPage(title: "about", refresh: { await load() }) {
+        SettingsPage(title: String(localized: "about"), refresh: { await load() }) {
             if let info = daemon.value, info.stale { StaleDaemonNotice(info: info) }
             VStack(spacing: 0) {
-                SettingsInfoRow(key: "app", value: SettingsFormat.appVersion)
+                SettingsInfoRow(key: String(localized: "app"), value: SettingsFormat.appVersion)
                 SettingsDivider()
-                SettingsInfoRow(key: "bridge", value: model.client.hello.map { "v\($0.roveVersion)" } ?? "—")
+                SettingsInfoRow(key: String(localized: "bridge"), value: model.client.hello.map { "v\($0.roveVersion)" } ?? "—")
                 SettingsDivider()
-                SettingsInfoRow(key: "daemon", value: daemonVersion)
+                SettingsInfoRow(key: String(localized: "daemon"), value: daemonVersion)
                 SettingsDivider()
-                SettingsInfoRow(key: "host", value: model.client.hello?.host ?? "—")
+                SettingsInfoRow(key: String(localized: "host"), value: model.client.hello?.host ?? "—")
                 SettingsDivider()
-                SettingsInfoRow(key: "uptime", value: uptime)
+                SettingsInfoRow(key: String(localized: "uptime"), value: uptime)
                 SettingsDivider()
-                SettingsInfoRow(key: "tasks", value: daemon.value?.taskCount.map(String.init) ?? "—")
+                SettingsInfoRow(key: String(localized: "tasks"), value: daemon.value?.taskCount.map(String.init) ?? "—")
             }
             .tile()
             if case .failed(let message) = daemon { ErrorLine(text: message) }
-            Hint(text: "language follows ios settings → rove")
-            Hint(text: "restarting the daemon, resetting ui state and plugin installs are mac-side actions — the phone talks to the daemon through the bridge and has no way back if it goes down")
+            Hint(text: String(localized: "language follows ios settings → rove"))
+            Hint(text: String(localized: "restarting the daemon, resetting ui state and plugin installs are mac-side actions — the phone talks to the daemon through the bridge and has no way back if it goes down"))
         }
         .task { await load() }
     }

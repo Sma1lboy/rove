@@ -170,7 +170,8 @@ struct BoardView: View {
             if let e = board.error { ErrorLine(text: e) } else { loadingLine }
         } else if board.projects.isEmpty {
             if let e = board.error { ErrorLine(text: e) }
-            EmptyState(title: "no projects", detail: "save a project or open a task and its stories appear here")
+            EmptyState(title: String(localized: "no projects"),
+                       detail: String(localized: "save a project or open a task and its stories appear here"))
         } else {
             projectTabs
             if let notice = board.notice {
@@ -205,7 +206,7 @@ struct BoardView: View {
         Button { board.warnings = [] } label: {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(board.warnings, id: \.self) { ErrorLine(text: $0) }
-                Theme.kicker("tap to dismiss")
+                Theme.kicker(String(localized: "tap to dismiss"))
             }
         }
         .buttonStyle(.pressable)
@@ -216,10 +217,13 @@ struct BoardView: View {
         if let issues = board.issues {
             let data = columnsData
             if issues.skipped > 0 {
-                ErrorLine(text: "\(issues.skipped) unreadable record\(issues.skipped == 1 ? "" : "s") skipped, the board may be incomplete")
+                let skipped = issues.skipped
+                ErrorLine(text: skipped == 1
+                    ? String(localized: "\(skipped) unreadable record skipped, the board may be incomplete")
+                    : String(localized: "\(skipped) unreadable records skipped, the board may be incomplete"))
             }
             if issues.issues.isEmpty {
-                EmptyState(title: "no stories", detail: "+ files one")
+                EmptyState(title: String(localized: "no stories"), detail: String(localized: "tap + to file a story"))
             } else {
                 let key = column ?? BoardCardLogic.defaultColumn(data.columns)
                 BoardColumnTabs(columns: data.columns, selection: Binding(get: { key }, set: { column = $0 }))
@@ -245,7 +249,7 @@ struct BoardView: View {
         if outcome.follow {
             model.path.append(.task(outcome.openTaskId))
         } else {
-            board.flash("started #\(outcome.storyId) in the background")
+            board.flash(String(localized: "started #\(outcome.storyId) in the background"))
         }
     }
 }

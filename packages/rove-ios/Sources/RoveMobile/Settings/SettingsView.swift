@@ -52,30 +52,31 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     if let daemon, daemon.stale { StaleDaemonNotice(info: daemon) }
                     VStack(spacing: 0) {
-                        SettingsRow(title: "bridge", detail: model.client.state.label.lowercased(),
+                        SettingsRow(title: String(localized: "bridge"), detail: model.client.state.label.lowercased(),
                                     identifier: "settingsRow-bridge") { route = .bridge }
                         SettingsDivider()
-                        SettingsRow(title: "usage", detail: usageDetail.text, detailTint: usageDetail.tint,
+                        SettingsRow(title: String(localized: "usage"), detail: usageDetail.text, detailTint: usageDetail.tint,
                                     identifier: "settingsRow-usage") { route = .usage }
                         SettingsDivider()
-                        SettingsRow(title: "engines", detail: enginesDetail,
+                        SettingsRow(title: String(localized: "engines"), detail: enginesDetail,
                                     identifier: "settingsRow-engines") { route = .engines }
                         SettingsDivider()
-                        SettingsRow(title: "plugins", detail: pluginsDetail,
+                        SettingsRow(title: String(localized: "plugins"), detail: pluginsDetail,
                                     identifier: "settingsRow-plugins") { route = .plugins }
                         SettingsDivider()
-                        SettingsRow(title: "notifications", detail: notificationsOn ? "on" : "off",
+                        SettingsRow(title: String(localized: "notifications"),
+                                    detail: notificationsOn ? String(localized: "on") : String(localized: "off"),
                                     identifier: "settingsRow-notifications") { route = .notifications }
                         SettingsDivider()
-                        SettingsRow(title: "worktrees", identifier: "settingsRow-worktrees") {
+                        SettingsRow(title: String(localized: "worktrees"), identifier: "settingsRow-worktrees") {
                             model.path.append(.worktrees)
                         }
                         SettingsDivider()
-                        SettingsRow(title: "activity", identifier: "settingsRow-activity") { route = .activity }
+                        SettingsRow(title: String(localized: "activity"), identifier: "settingsRow-activity") { route = .activity }
                         SettingsDivider()
-                        SettingsRow(title: "feedback", identifier: "settingsRow-feedback") { route = .feedback }
+                        SettingsRow(title: String(localized: "feedback"), identifier: "settingsRow-feedback") { route = .feedback }
                         SettingsDivider()
-                        SettingsRow(title: "about", detail: SettingsFormat.appVersion,
+                        SettingsRow(title: String(localized: "about"), detail: SettingsFormat.appVersion,
                                     identifier: "settingsRow-about") { route = .about }
                     }
                     .tile()
@@ -121,12 +122,12 @@ struct SettingsView: View {
 
     private var enginesDetail: String {
         guard let engines else { return "—" }
-        return "\(engines.engines.filter(\.enabled).count) of \(engines.engines.count) on"
+        return String(localized: "\(engines.engines.filter(\.enabled).count) of \(engines.engines.count) on")
     }
 
     private var pluginsDetail: String {
         guard let plugins else { return "—" }
-        return "\(plugins.plugins.filter(\.enabled).count) on"
+        return String(localized: "\(plugins.plugins.filter(\.enabled).count) on")
     }
 
     /// All four summaries in parallel; each one that fails leaves its row at `—`.
