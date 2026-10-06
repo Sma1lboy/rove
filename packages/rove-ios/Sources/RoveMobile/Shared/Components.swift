@@ -74,6 +74,7 @@ struct ChoiceTiles<Value: Hashable>: View {
                         .selectableTile(on)
                 }
                 .buttonStyle(.pressable)
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
     }

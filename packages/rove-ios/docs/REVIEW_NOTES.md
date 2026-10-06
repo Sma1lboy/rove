@@ -31,8 +31,9 @@ and you are back on the first screen.
 - **Accounts.** None. There is no sign-up and no login. The pairing link carries a token for the
   user's own bridge.
 - **Camera.** Used only to scan the pairing QR code. Nothing is recorded or stored.
-- **Local network.** Used only to reach the user's own Mac, over the local network, Tailscale or a
-  Cloudflare tunnel they set up. The app contacts no other server.
+- **Local network.** Used only to reach the user's own Mac. The pairing screen offers two network
+  choices: **direct** (same Wi-Fi, or Tailscale) and **cloudflare** (a Cloudflare tunnel the user set
+  up). The app contacts no other server.
 - **Demo mode.** Makes no network requests at all. It answers from a file inside the app.
 - **Data.** The pairing (link and token) is kept in the iOS Keychain on the device. There are no
   analytics and no ads. The only third-party code is SwiftTerm, an open-source terminal view.

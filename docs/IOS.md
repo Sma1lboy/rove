@@ -39,8 +39,8 @@ Plain `ws://` on a LAN (`--host <LAN address>`) still works, but it is not a sup
 ## Pair the phone
 
 1. Build and run the app (below), open **Settings**.
-2. Scan the QR code, or paste the URL, for example `wss://rove.example.com/?token=…&preset=cf`. A `rove://pair?url=<percent-encoded URL>` link opens the app straight into pairing. The preset in the URL selects the matching preset in the app.
-3. For **Cloudflare**, also fill in `CF-Access-Client-Id` and `CF-Access-Client-Secret` from your Access service token. Any preset can carry additional request headers.
+2. Scan the QR code, or paste the URL, for example `wss://rove.example.com/?token=…&preset=cf`. A `rove://pair?url=<percent-encoded URL>` link opens the app straight into pairing. The app's **network** picker has two choices: **direct** (same Wi-Fi or Tailscale, `100.x` or `*.ts.net`) and **cloudflare**. A URL with `preset=cf` selects cloudflare; any other URL, including the bridge's `preset=tailscale`, selects direct. Which address the bridge listens on is the bridge's preset, not the phone's.
+3. For **cloudflare**, also fill in `CF-Access-Client-Id` and `CF-Access-Client-Secret` from your Access service token. Either choice can carry additional request headers.
 4. The app stores the endpoint, token, preset and headers in the iOS Keychain and connects. It sends the token as `Authorization: Bearer …`, never in the URL. It reconnects by itself when the Mac or the bridge comes back.
 
 The token lives in `<ROVE_HOME>/.rove/bridge/token` (mode 0600) and survives bridge restarts, so a paired phone stays paired. `--rotate-token` is the revoke button.

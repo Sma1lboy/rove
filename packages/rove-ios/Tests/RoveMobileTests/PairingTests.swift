@@ -19,17 +19,15 @@ final class PairingTests: XCTestCase {
         XCTAssertEqual(p.endpoint.host, "mac.local")
     }
 
-    func testTailscalePresetOverWS() throws {
+    /// The bridge's `--preset tailscale` URLs still say `preset=tailscale`; the phone treats them as direct.
+    func testTailscalePresetURLParsesAsDirect() throws {
         let p = try PairingParser.parse("ws://100.64.0.1:7878/?token=\(token)&preset=tailscale")
-        XCTAssertEqual(p.preset, .tailscale)
+        XCTAssertEqual(p.preset, .direct)
         XCTAssertEqual(p.endpoint.absoluteString, "ws://100.64.0.1:7878/")
-    }
-
-    func testTailscaleServeOverWSS() throws {
-        let p = try PairingParser.parse("wss://mac.tail1234.ts.net/?preset=tailscale&token=\(token)")
-        XCTAssertEqual(p.preset, .tailscale)
-        XCTAssertEqual(p.endpoint.absoluteString, "wss://mac.tail1234.ts.net/")
-        XCTAssertEqual(p.token, token)
+        let serve = try PairingParser.parse("wss://mac.tail1234.ts.net/?preset=TAILSCALE&token=\(token)")
+        XCTAssertEqual(serve.preset, .direct)
+        XCTAssertEqual(serve.endpoint.absoluteString, "wss://mac.tail1234.ts.net/")
+        XCTAssertEqual(serve.token, token)
     }
 
     func testCloudflarePreset() throws {
@@ -138,6 +136,18 @@ final class ConnectRequestTests: XCTestCase {
         let blob = try XCTUnwrap(KeychainStore.encode(p))
         XCTAssertEqual(KeychainStore.decode(blob), p)
         XCTAssertEqual(KeychainStore.decode(blob)?.customHeaders["X-B"], "two words")
+    }
+
+    /// A pairing saved while the picker still offered Tailscale must keep loading, as direct.
+    func testStoredTailscaleBlobDecodesAsDirect() throws {
+        let blob = #"{"endpoint":"ws:\/\/100.64.0.1:7878\/","token":"TOK","preset":"tailscale","customHeaders":{"X-A":"1"},"cfAccessClientId":"","cfAccessClientSecret":""}"#
+        let p = try XCTUnwrap(KeychainStore.decode(Data(blob.utf8)))
+        XCTAssertEqual(p.preset, .direct)
+        XCTAssertEqual(p.token, "TOK")
+        XCTAssertEqual(p.customHeaders, ["X-A": "1"])
+        let resaved = try XCTUnwrap(KeychainStore.encode(p))
+        XCTAssertTrue(String(decoding: resaved, as: UTF8.self).contains(#""preset":"none""#))
+        XCTAssertNil(KeychainStore.decode(Data(blob.replacingOccurrences(of: "tailscale", with: "wireguard").utf8)))
     }
 
     func testKeychainRoundTripWhenAvailable() throws {

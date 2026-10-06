@@ -118,6 +118,10 @@ struct PairingView: View {
             ChoiceTiles(options: PairingPreset.allCases, selection: $preset) { $0.title.lowercased() }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("presetPicker")
+            if preset == .direct {
+                Hint(text: String(localized: "same Wi-Fi or Tailscale (100.x · *.ts.net)"))
+                    .accessibilityIdentifier("directHint")
+            }
         }
     }
 

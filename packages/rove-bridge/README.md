@@ -30,7 +30,7 @@ Traffic stays inside your tailnet and is encrypted by WireGuard.
    ```
 
    It listens on the Tailscale address only. If `tailscale ip -4` prints nothing, the bridge exits with an error; it never falls back to `0.0.0.0`.
-4. Scan the printed QR code in the app (or paste the URL). The URL uses the MagicDNS name when there is one: `ws://mac.tailXXXX.ts.net:7878/?token=…&preset=tailscale`.
+4. Scan the printed QR code in the app (or paste the URL); the app files it under **direct**. The URL uses the MagicDNS name when there is one: `ws://mac.tailXXXX.ts.net:7878/?token=…&preset=tailscale`.
 
 ### Optional: wss:// with `tailscale serve`
 
