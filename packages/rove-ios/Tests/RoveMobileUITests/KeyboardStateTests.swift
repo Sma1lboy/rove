@@ -199,8 +199,8 @@ final class KeyboardStateTests: XCTestCase {
         XCTAssertTrue(f.isHittable, "\(tag): input covered")
         XCTAssertTrue(holdsFocus(f), "\(tag): focus is on \(focusHolder()), not the input")
         assertKeyboardLook(tag)
-        whileUp?()
         shot(name)
+        whileUp?()
         guard let done = kb.done else {
             XCTFail("\(tag): no keyboardDone over the keyboard")
             return dismiss()
