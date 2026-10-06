@@ -52,6 +52,7 @@ targets:
         NSLocalNetworkUsageDescription: Rove connects to the rove-bridge running on your Mac over the local network.
         # Only system TLS/WSS; no custom or non-exempt cryptography. Skips the export-compliance prompt per build.
         ITSAppUsesNonExemptEncryption: false
+        CFBundleIconName: AppIcon
         CFBundleURLTypes:
           - CFBundleURLName: run.rove.mobile
             CFBundleURLSchemes:
