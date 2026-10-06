@@ -38,7 +38,6 @@ struct RowButtonStyle: ButtonStyle {
 struct TaskListView: View {
     @Environment(AppModel.self) private var model
     @AppStorage("taskSortMode") private var sortRaw = TaskSortMode.attention.rawValue
-    @State private var showSettings = false
     @State private var showNew = false
     @State private var searching = false
     @State private var query = ""
@@ -103,7 +102,6 @@ struct TaskListView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { actions.onOpenTask = { [model] id in model.path.append(.task(id)) } }
         .taskActionSheets(actions)
-        .sheet(isPresented: $showSettings) { NavigationStack { PairingView() } }
         .sheet(isPresented: $showNew) {
             NewTaskView { id in model.path.append(.task(id)) }
         }

@@ -57,7 +57,8 @@
 | # | 功能 | 状态 | 手机上 |
 |---|---|---|---|
 | S1 | 新开引擎 tab（`ctrl+t`） | 已有 | `+ tab`，选引擎 + 首条消息 |
-| S2 | 新会话对话框：引擎 / shell / 插件面板 | 已有 | `+ tab` / `…` → New session…：选引擎。shell 缺失（rove issue #120，没有 headless 公共 API）；插件面板不适用（`pane-open` 只广播给已挂载的 TUI，没有 TUI 就是空操作） |
+| S2 | 新会话对话框：引擎 / 插件面板 | 已有 | `+ tab` / `…` → New session…：选引擎。插件面板不适用（`pane-open` 只广播给已挂载的 TUI，没有 TUI 就是空操作） |
+| S2b | 新会话对话框里的 shell / 右键 New shell | 缺失 | 没有无头的公开接口：`send --tab new` 必须带 prompt 且只开引擎 tab，`pane-open` 要已连接的 TUI。已提需（rove issue #120） |
 | S3 | 目标切换：本 worktree 新 tab ⇄ fork 子任务（新 worktree，从当前分支切） | 已有 | 新会话 sheet 的 `where`；子任务用 `add --base-branch <本任务分支>`；单个 attempt 会跳进子任务 |
 | S4 | 上下文切换：全新会话 ⇄ 接着这段对话（continue / handoff） | 已有 | 新会话 sheet 的 `conversation`。无头环境没有原生 fork，同引擎也走 transcript handoff，界面里写明 |
 | S5 | Attempts：同一 prompt 扇出 N 个兄弟任务 | 已有 | fork 模式下 `attempts` 1–5（`add --count`），多个时留在原任务并弹 toast |
@@ -104,7 +105,7 @@
 | C6 | 首条 prompt | 已有 | |
 | C7 | 指定分支名 / model / effort | 已有 | 新建任务 → + options：branch、model（引擎 `models` 作建议）、effort（引擎 `effortLevels`） |
 | C8 | count / 混合引擎扇出（`--count`、`--agents`） | 已有 | + options：count 1–5 的 chip，或 agents 混合编队（总数 ≤10，API 上限）；需要 prompt |
-| C9 | 记住上次的仓库和引擎 | 缺失 | |
+| C9 | 记住上次的仓库和引擎 | 已有 | 新建任务页记住这台手机上次用的仓库和引擎（`@AppStorage`） |
 | C10 | 让引擎开 PR（`ctrl+a p`，读 `.rove/pr-instructions.md`） | 已有 | 详情页 `…` → Ask the engine for a PR…，确认后发送 `buildPRPrompt` |
 | C11 | PR 状态：lifecycle、check、review | 已有 | `…` 菜单 → info：lifecycle / check / review / mergeable / base |
 
