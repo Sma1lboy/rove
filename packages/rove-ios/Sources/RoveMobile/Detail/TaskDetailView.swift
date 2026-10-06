@@ -49,6 +49,7 @@ struct TaskDetailView: View {
         .onChange(of: model.store.version) { Task { await reload() } }
         .onAppear { session?.start() }
         .onDisappear { session?.stop() }
+        .mentionDelivery(taskId: taskId, session: session)
         .sheet(isPresented: $newTab) { NewTabSheet(taskId: taskId) { await reload() } }
         .sheet(isPresented: $deleteSheet) {
             DeleteConfirmSheet(taskId: taskId) { dismiss() }
