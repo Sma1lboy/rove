@@ -43,39 +43,39 @@
 
 | # | 功能 | 状态 | 手机上 |
 |---|---|---|---|
-| I1 | ATTENTION：待处理项，被阻塞的排前面，同组内最老的在前 | 缺失 | 现在有一个系统样式的列表，没有排序和分组 |
-| I2 | rate limit 项显示自动恢复时间 | 缺失 | |
-| I3 | `enter` 打开目标任务和那个 tab，并清掉该项 | 缺失 | 现在只打开任务，不定位 tab |
-| I4 | `d` 不跳转直接清掉 | 已有 | 左滑 Dismiss（样式待改） |
-| I5 | RECENT：最近访问的 tab，运行中的带 spinner | 缺失 | |
-| I6 | `F7` 跳到下一个待处理项（跨项目，可循环） | 缺失 | |
+| I1 | ATTENTION：待处理项，被阻塞的排前面，同组内最老的在前 | 已有 | 铃铛 → Inbox，排序同 `sortAttentionInbox` |
+| I2 | rate limit 项显示自动恢复时间 | 已有 | `resumes 3:14 PM`，来自任务的 `quotaResume`（附加字段 `resumeAt`） |
+| I3 | `enter` 打开目标任务和那个 tab，并清掉该项 | 已有 | 点行打开精确 tab 并清除；打开任何 tab 也会清掉对应项 |
+| I4 | `d` 不跳转直接清掉 | 已有 | 行右侧 `dismiss` |
+| I5 | RECENT：最近访问的 tab，运行中的带 spinner | 已有 | 手机本地访问记录（任务+tab），运行中的带 spinner |
+| I6 | `F7` 跳到下一个待处理项（跨项目，可循环） | 已有 | Inbox 右上 `next pending`；详情页 `…` → Next waiting item，重复按会往后走 |
 | I7 | 任务进入 waiting-on-you / 跑完时通知 | 已有 | 本地通知（App 在前台或刚切后台时） |
-| I8 | `rove api notify` 的 toast | 缺失 | |
+| I8 | `rove api notify` 的 toast | 已有 | 桥新增 `notice` 推送（过期和重复丢弃），App 顶部 toast，点开对应任务 |
 
 ## 终端与 tab
 
 | # | 功能 | 状态 | 手机上 |
 |---|---|---|---|
 | S1 | 新开引擎 tab（`ctrl+t`） | 已有 | `+ tab`，选引擎 + 首条消息 |
-| S2 | 新会话对话框：引擎 / shell / 插件面板 | 缺失 | 只有引擎 |
-| S3 | 目标切换：本 worktree 新 tab ⇄ fork 子任务（新 worktree，从当前分支切） | 缺失 | |
-| S4 | 上下文切换：全新会话 ⇄ 接着这段对话（continue / handoff） | 缺失 | |
-| S5 | Attempts：同一 prompt 扇出 N 个兄弟任务 | 缺失 | |
+| S2 | 新会话对话框：引擎 / shell / 插件面板 | 已有 | `+ tab` / `…` → New session…：选引擎。shell 缺失（rove issue #120，没有 headless 公共 API）；插件面板不适用（`pane-open` 只广播给已挂载的 TUI，没有 TUI 就是空操作） |
+| S3 | 目标切换：本 worktree 新 tab ⇄ fork 子任务（新 worktree，从当前分支切） | 已有 | 新会话 sheet 的 `where`；子任务用 `add --base-branch <本任务分支>`；单个 attempt 会跳进子任务 |
+| S4 | 上下文切换：全新会话 ⇄ 接着这段对话（continue / handoff） | 已有 | 新会话 sheet 的 `conversation`。无头环境没有原生 fork，同引擎也走 transcript handoff，界面里写明 |
+| S5 | Attempts：同一 prompt 扇出 N 个兄弟任务 | 已有 | fork 模式下 `attempts` 1–5（`add --count`），多个时留在原任务并弹 toast |
 | S6 | 切换 tab（`ctrl+[ ]`、`ctrl+1..9`） | 已有 | 点 tab |
-| S7 | 重命名 tab（`F2`） | 缺失 | |
+| S7 | 重命名 tab（`F2`） | 已有 | `…` → Rename tab（`rename --tab`，无 TUI 时也写入快照） |
 | S8 | 关闭 tab（`ctrl+w`，关掉最后一个后任务保留） | 已有 | … 菜单 |
-| S9 | 关掉所有 tab 后重新打开同类会话 | 缺失 | |
-| S10 | tab 状态图标：spinner / `!` / `●` / `○`，以及 `◷ † ?` | 缺失 | 只有 `exited` |
+| S9 | 关掉所有 tab 后重新打开同类会话 | 已有 | 无 tab 时出现 `reopen session`，可选接着上一段对话（只能开引擎 tab，没有 prompt 的空 tab 开不了：`send --tab new` 要求 prompt） |
+| S10 | tab 状态图标：spinner / `!` / `●` / `○`，以及 `◷ † ?` | 已有 | tab 条每个 tab 前的符号，来自 `tab.states`；`●` 在手机上打开该 tab 后变 `○`（已读记在手机本地） |
 | S11 | 终端分屏（`ctrl+\`、`ctrl+=`、`F3`） | 不适用 | 手机一屏放不下两个可用的终端；一个 tab 一个会话，tab 已覆盖并行 |
-| S12 | 滚动回看（`ctrl+pageup/down`、滚轮、first/latest） | 缺失 | |
-| S13 | 选中复制（拖选、`ctrl+c` 有选区时复制） | 缺失 | |
-| S14 | 回看搜索（`ctrl+a /`，上下走匹配） | 缺失 | |
-| S15 | 重置终端（`F5`） | 缺失 | |
+| S12 | 滚动回看（`ctrl+pageup/down`、滚轮、first/latest） | 已有 | 拖动滚动；终端右上 `⋯`：Top / Page up / Page down；滚上去后出现 `latest ↓` |
+| S13 | 选中复制（拖选、`ctrl+c` 有选区时复制） | 已有 | 长按选中，左下出现 `copy` |
+| S14 | 回看搜索（`ctrl+a /`，上下走匹配） | 已有 | `⋯` → Find in scrollback，`‹ ›` 走匹配并显示 n/总数；全屏应用（alternate screen）占着缓冲区时只能搜到当前屏，界面会写明 |
+| S15 | 重置终端（`F5`） | 已有 | `⋯` → Reset terminal…，确认后清本地屏和回看，再错一列 resize 让应用重画 |
 | S16 | 打字直达终端、Esc/Tab/方向键/Ctrl/Enter | 已有 | 键盘 + 按键条 |
-| S17 | 整行发送（bracketed paste，多行不提前提交） | 缺失 | composer 现在逐字发 + Enter |
-| S18 | 附件：图片/PDF 以路径粘进引擎输入框（不提交） | 缺失 | |
+| S17 | 整行发送（bracketed paste，多行不提前提交） | 已有 | composer 多行（`↵` 换行）整段 bracketed paste，150ms 后 Enter |
+| S18 | 附件：图片/PDF 以路径粘进引擎输入框（不提交） | 已有 | composer 左侧 `+`：相册或文件 → `attachment.put` → 粘 `images[0]: /path`（png/jpeg/gif/webp/pdf，≤5 MB，HEIC 转 JPEG） |
 | S19 | Fit / Watch 尺寸模式 | 已有 | 详情页 `fit · watch` |
-| S20 | 中断当前 turn（`rove api interrupt`） | 缺失 | 现在只能按 esc / ctrl+c |
+| S20 | 中断当前 turn（`rove api interrupt`） | 已有 | 按键条 `interrupt`；`…` → Interrupt turn |
 | S21 | 横向 tab 条显示策略（总是/多 tab/隐藏） | 不适用 | TUI 外观设置；手机的 tab 行始终显示 |
 
 ## 文件与 diff
@@ -105,7 +105,7 @@
 | C7 | 指定分支名 / model / effort | 已有 | 新建任务 → + options：branch、model（引擎 `models` 作建议）、effort（引擎 `effortLevels`） |
 | C8 | count / 混合引擎扇出（`--count`、`--agents`） | 已有 | + options：count 1–5 的 chip，或 agents 混合编队（总数 ≤10，API 上限）；需要 prompt |
 | C9 | 记住上次的仓库和引擎 | 缺失 | |
-| C10 | 让引擎开 PR（`ctrl+a p`，读 `.rove/pr-instructions.md`） | 缺失 | |
+| C10 | 让引擎开 PR（`ctrl+a p`，读 `.rove/pr-instructions.md`） | 已有 | 详情页 `…` → Ask the engine for a PR…，确认后发送 `buildPRPrompt` |
 | C11 | PR 状态：lifecycle、check、review | 已有 | `…` 菜单 → info：lifecycle / check / review / mergeable / base |
 
 ## 页面

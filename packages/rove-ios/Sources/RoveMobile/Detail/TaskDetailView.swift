@@ -3,6 +3,8 @@ import SwiftUI
 /// Task detail: the selected tab's terminal fills the screen; diff and land sit in the header strip.
 struct TaskDetailView: View {
     let taskId: String
+    /// Open on this tab (Inbox, F7) instead of the task's first engine tab.
+    var tabId: String?
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var tabs: [TabRow] = []
@@ -10,7 +12,8 @@ struct TaskDetailView: View {
     @State private var session: TerminalSession?
     @State private var diff: (files: Int, added: Int, deleted: Int)?
     @State private var error: String?
-    @State private var newTab = false
+    @State private var tabSheet: TabSheetRoute?
+    @State private var tabStates = TabStateModel()
     @State private var closing: TabRow?
     @State private var actions = TaskActionHost()
     @State private var confirmLand = false
@@ -45,6 +48,7 @@ struct TaskDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .keyboardDoneButton()
         .task { await reload() }
+        .task { await tabStates.poll(client: client, taskId: taskId) { selectedTabId } }
         .onChange(of: model.store.version) { Task { await reload() } }
         .onAppear {
             session?.start()
@@ -53,7 +57,7 @@ struct TaskDetailView: View {
             Task { await actions.loadDetail(taskId) }
         }
         .onDisappear { session?.stop() }
-        .sheet(isPresented: $newTab) { NewTabSheet(taskId: taskId) { await reload() } }
+        .tabSheets($tabSheet, taskId: taskId, row: row, sourceTab: selectedTab, session: session) { await openTab($0) }
         .taskActionSheets(actions)
         .confirmationDialog("Close this tab?", isPresented: Binding(get: { closing != nil }, set: { if !$0 { closing = nil } }),
                             titleVisibility: .visible) {
@@ -88,7 +92,8 @@ struct TaskDetailView: View {
 
     private var moreMenu: some View {
         Menu {
-            Button { newTab = true } label: { Label("New engine tab", systemImage: "plus") }
+            TabActionItems(tab: selectedTab, session: session, route: $tabSheet)
+            Divider()
             if let tab = selectedTab {
                 Button { closing = tab } label: { Label("Close \(tab.displayTitle.lowercased())", systemImage: "xmark") }
             }
@@ -142,7 +147,7 @@ struct TaskDetailView: View {
                             .buttonStyle(.pressable)
                             .accessibilityIdentifier("tab-\(tab.id)")
                     }
-                    Button { newTab = true } label: {
+                    Button { tabSheet = .newSession(SessionPreset()) } label: {
                         Text("+ tab").font(Theme.mono(13)).foregroundStyle(Theme.muted)
                             .padding(.horizontal, 6).frame(height: 32)
                     }
@@ -187,16 +192,18 @@ struct TaskDetailView: View {
 
     private func tabLabel(_ tab: TabRow) -> some View {
         let selected = tab.id == selectedTabId
+        let glyph = tabStates.glyph(taskId: taskId, tab: tab)
         return HStack(spacing: 0) {
             Text(selected ? "[ " : "  ").foregroundStyle(Theme.accent)
+            TabGlyphView(glyph: glyph)
+            Text(" ")
             Text(tab.displayTitle.lowercased()).foregroundStyle(selected ? Theme.ink : Theme.muted)
-            if tab.alive == false { Text(" exited").foregroundStyle(Theme.muted) }
             Text(selected ? " ]" : "  ").foregroundStyle(Theme.accent)
         }
         .font(Theme.mono(13, selected ? .bold : .regular))
         .frame(height: 32)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(tab.displayTitle)
+        .accessibilityLabel("\(tab.displayTitle), \(glyph.word)")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
@@ -221,10 +228,17 @@ struct TaskDetailView: View {
     }
 
     private var noTabState: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(tabs.isEmpty ? "no terminal tabs" : "pick a tab").font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink)
-            Text("open an engine tab to give this task its next message")
-                .font(Theme.mono(12)).foregroundStyle(Theme.muted)
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(tabs.isEmpty ? "no terminal tabs" : "pick a tab").font(Theme.mono(13, .medium)).foregroundStyle(Theme.ink)
+                Text("open an engine tab to give this task its next message")
+                    .font(Theme.mono(12)).foregroundStyle(Theme.muted)
+            }
+            if tabs.isEmpty {
+                Button { tabSheet = .newSession(SessionPreset(reopen: true)) } label: { TileLabel(text: "reopen session", tint: Theme.accent) }
+                    .buttonStyle(.pressable)
+                    .accessibilityIdentifier("reopenSession")
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.horizontal, 20).padding(.top, 24)
@@ -237,6 +251,8 @@ struct TaskDetailView: View {
         let next = TerminalSession(client: client, taskId: taskId, tabId: tab.id)
         session = next
         next.start()
+        model.visit(taskId: taskId, tabId: tab.id)
+        tabStates.markSeen(taskId: taskId, tabId: tab.id)
     }
 
     private func reload() async {
@@ -251,8 +267,15 @@ struct TaskDetailView: View {
         }
         if selectedTab == nil {
             session?.stop(); session = nil; selectedTabId = nil
-            if let first = tabs.first(where: { $0.kind == "engine" }) ?? tabs.first { select(first) }
+            let wanted = tabId.flatMap { id in tabs.first { $0.id == id } }
+            if let first = wanted ?? tabs.first(where: { $0.kind == "engine" }) ?? tabs.first { select(first) }
         }
+    }
+
+    /// A tab the new-session or rename sheet just touched: refresh the strip, then show it.
+    private func openTab(_ id: String) async {
+        await reload()
+        if let tab = tabs.first(where: { $0.id == id }) { select(tab) }
     }
 
     private func close(_ tab: TabRow) async {

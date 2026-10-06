@@ -31,6 +31,7 @@ import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import {
+  type AttentionRow,
   BridgeError,
   type DiffFileRow,
   type PrChipKind,
@@ -136,6 +137,28 @@ const PR_CHIP_BY_GLYPH: Record<string, PrChipKind> = {
 function prChipKind(task: SerializedTask): PrChipKind | null {
   const chip = prChip(task as unknown as Parameters<typeof prChip>[0])
   return chip ? (PR_CHIP_BY_GLYPH[chip.glyph] ?? null) : null
+}
+
+/**
+ * The inbox as the phone sees it. Optional, additive fields: `resumeAt` (a rate-limited task's
+ * scheduled auto-resume, from its `quotaResume`) and `label` (a routine episode's name, since
+ * its subject is the routine, not a task).
+ */
+export function attentionRows(items: readonly AttentionInboxItem[], tasks: readonly SerializedTask[]): AttentionRow[] {
+  const byId = new Map(tasks.map((t) => [t.id, t]))
+  return items.map((i) => {
+    const resumeAt = i.state === "rate_limited" && i.taskId ? byId.get(i.taskId)?.quotaResume?.resumeAt : undefined
+    const label = i.detail?.routine?.name
+    return {
+      taskId: i.taskId,
+      tabId: i.tabId,
+      state: i.state,
+      unread: i.unread,
+      at: i.at,
+      ...(resumeAt ? { resumeAt } : {}),
+      ...(label ? { label } : {}),
+    }
+  })
 }
 
 /** Fold `context`'s grouping over EVERY task (main/dir included) and join display fields. */
@@ -273,13 +296,7 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
           Date.now(),
           signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined,
         ),
-        attention: (inbox?.items ?? []).map((i) => ({
-          taskId: i.taskId,
-          tabId: i.tabId,
-          state: i.state,
-          unread: i.unread,
-          at: i.at,
-        })),
+        attention: attentionRows(inbox?.items ?? [], tasks),
       }
     },
 

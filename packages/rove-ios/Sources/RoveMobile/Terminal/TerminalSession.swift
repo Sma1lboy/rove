@@ -12,6 +12,15 @@ protocol TerminalSurface: AnyObject {
     func reset()
     func feed(_ data: Data)
     func currentSize() -> (cols: Int, rows: Int)?
+    var isAlternateScreen: Bool { get }
+    var isScrolledToBottom: Bool { get }
+    func scrollToBottom()
+    func scrollToTop()
+    func scrollPage(up: Bool)
+    func search(_ term: String, forward: Bool) -> SearchSummary?
+    func clearSearch()
+    func selectedText() -> String?
+    func clearSelection()
 }
 
 /// One attached terminal tab: attach/replay/stream/input/resize/detach, surviving reconnects.
@@ -28,11 +37,22 @@ final class TerminalSession {
     /// Total terminal bytes fed to the view (exposed to UI tests as the terminal's accessibility value).
     private(set) var bytesReceived = 0
     private(set) var keys = KeyMapper()
+    /// Scrolled up into history; drives the `latest` jump.
+    var atBottom = true
+    /// The view holds a text selection; drives the `copy` chip.
+    var hasSelection = false
+    /// An app owns the screen (alternate buffer): the terminal keeps no scrollback for it.
+    var alternateScreen = false
+    /// Attachment refs pasted since the last reply; the next one is `images[count]` like the TUI composer.
+    var attachmentCount = 0
+    /// A short-lived line over the terminal ("interrupt sent", an upload error).
+    private(set) var flashText: String?
+    @ObservationIgnored private var flashTask: Task<Void, Never>?
     var mode: TerminalMode = .fit {
         didSet { if oldValue != mode { switchMode() } }
     }
 
-    @ObservationIgnored private let client: BridgeClient
+    @ObservationIgnored let client: BridgeClient
     @ObservationIgnored weak var surface: TerminalSurface?
     @ObservationIgnored private var observer: UUID?
     @ObservationIgnored private var wanted = false
@@ -134,7 +154,7 @@ final class TerminalSession {
             else if inFlight { buffered.append((s, bytes)) }
         case .termExit(let s, _):
             if s == stream { exited = true; status = "Process exited" }
-        case .tasks:
+        case .tasks, .notice:
             break
         }
     }
@@ -142,6 +162,7 @@ final class TerminalSession {
     private func feed(_ data: Data) {
         bytesReceived += data.count
         surface?.feed(data)
+        refreshScreenState()
     }
 
     // MARK: View → session
@@ -172,19 +193,62 @@ final class TerminalSession {
         if let text = keys.press(key) { send(text) }
     }
 
-    /// Composer / chip reply: text, then Enter.
-    /// Enter follows after a short pause: engine TUIs treat text+CR arriving in one burst as a paste
-    /// and insert a newline instead of submitting.
+    /// Composer / chip reply: text, then Enter. A multi-line message goes in as ONE bracketed paste so the
+    /// engine does not submit at the first newline.
+    /// Enter follows after a short pause (the host's own submit delay): engine TUIs treat text+CR arriving in
+    /// one burst as a paste and insert a newline instead of submitting.
     func reply(_ text: String) {
-        send(text)
+        send(PasteEncoding.message(text))
+        attachmentCount = 0
         Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(150))
             self?.send("\r")
         }
     }
 
+    /// Text into the engine's input as a bracketed paste, not submitted (attachment paths).
+    func paste(_ text: String) { send(PasteEncoding.paste(text)) }
+
     private func send(_ text: String) {
         guard let stream, !text.isEmpty else { return }
         client.fire("term.input", ["stream": stream, "data": text])
+    }
+
+    // MARK: Scrollback / reset
+
+    /// Keeps the observable scroll and selection flags in step with the view.
+    func refreshScreenState() {
+        guard let surface else { return }
+        let alt = surface.isAlternateScreen
+        if alt != alternateScreen { alternateScreen = alt }
+        let bottom = alt || surface.isScrolledToBottom
+        if bottom != atBottom { atBottom = bottom }
+        let selected = surface.selectedText() != nil
+        if selected != hasSelection { hasSelection = selected }
+    }
+
+    /// F5: drop the local screen and scrollback, then nudge the PTY's size so the app repaints itself.
+    /// A one-column bounce is the only way to make SIGWINCH fire when the size would not otherwise change.
+    func resetAndRedraw() {
+        surface?.clearSearch()
+        surface?.reset()
+        refreshScreenState()
+        guard let stream, let s = surface?.currentSize() else { return }
+        client.fire("term.resize", ["stream": stream, "cols": max(s.cols - 1, 10), "rows": s.rows])
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard let self, self.stream == stream else { return }
+            self.client.fire("term.resize", ["stream": stream, "cols": s.cols, "rows": s.rows])
+        }
+    }
+
+    /// Shows `text` over the terminal for a couple of seconds.
+    func flash(_ text: String) {
+        flashTask?.cancel()
+        flashText = text
+        flashTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2.5))
+            if !Task.isCancelled { self?.flashText = nil }
+        }
     }
 }

@@ -24,6 +24,7 @@ import { loadOrCreateToken, pairingUrl } from "./auth.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
 import { TaskFeed } from "./feed.ts"
+import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
@@ -115,12 +116,16 @@ async function main(): Promise<void> {
     signal.subscribe(() => feed.poke())
   }
   setInterval(() => feed.poke(), TICK_MS)
+  const notices = new NoticeFeed()
+  const noticeStore = orchestrator.noticeStore()
+  noticeStore.subscribe(() => notices.push(noticeStore.get()))
 
   const ptySocket = defaultPtyHostSocketPath()
   const deps: BridgeDeps = {
     token,
     ops,
     feed,
+    notices,
     openPty: () => new RoveDaemonClient(ptySocket),
     roveVersion: CURRENT_VERSION,
     api: createBridgeApi(verbClient),

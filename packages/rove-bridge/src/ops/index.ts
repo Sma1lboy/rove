@@ -2,6 +2,7 @@
 
 import { BridgeError } from "../protocol.ts"
 import { TASK_OPS } from "./tasks.ts"
+import { TERMINAL_OPS } from "./terminal.ts"
 import type { OpTable } from "./types.ts"
 
 /** Merge area tables; a name registered twice is a programming error, caught at startup and in tests. */
@@ -16,4 +17,4 @@ export function mergeOpTables(...tables: readonly OpTable[]): OpTable {
   return merged
 }
 
-export const AREA_OPS: OpTable = mergeOpTables(TASK_OPS)
+export const AREA_OPS: OpTable = mergeOpTables(TASK_OPS, TERMINAL_OPS)

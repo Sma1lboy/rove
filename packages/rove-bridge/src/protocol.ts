@@ -100,6 +100,10 @@ export interface AttentionRow {
   readonly state: string
   readonly unread: boolean
   readonly at: number
+  /** Rate-limited tasks: ISO time the daemon will auto-resume the engine (`quotaResume`). Optional. */
+  readonly resumeAt?: string
+  /** Routine episodes: the routine's name (the subject is a schedule, not a task). Optional. */
+  readonly label?: string
 }
 
 export interface TasksPayload {

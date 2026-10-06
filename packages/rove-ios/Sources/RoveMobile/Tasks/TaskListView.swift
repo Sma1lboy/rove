@@ -38,7 +38,6 @@ struct RowButtonStyle: ButtonStyle {
 struct TaskListView: View {
     @Environment(AppModel.self) private var model
     @AppStorage("taskSortMode") private var sortRaw = TaskSortMode.attention.rawValue
-    @State private var showAttention = false
     @State private var showSettings = false
     @State private var showNew = false
     @State private var searching = false
@@ -104,7 +103,6 @@ struct TaskListView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { actions.onOpenTask = { [model] id in model.path.append(.task(id)) } }
         .taskActionSheets(actions)
-        .sheet(isPresented: $showAttention) { AttentionSheet() }
         .sheet(isPresented: $showSettings) { NavigationStack { PairingView() } }
         .sheet(isPresented: $showNew) {
             NewTaskView { id in model.path.append(.task(id)) }
@@ -112,7 +110,7 @@ struct TaskListView: View {
     }
 
     private var attentionButton: some View {
-        Button { showAttention = true } label: {
+        Button { model.path.append(.inbox) } label: {
             HStack(spacing: 3) {
                 HeaderIcon(systemName: "bell", tint: model.store.attentionCount > 0 ? Theme.accent : Theme.muted)
                     .frame(width: 24)
@@ -285,38 +283,5 @@ struct TaskListView: View {
         .background(Theme.paper)
         .accessibilityLabel("New task")
         .accessibilityIdentifier("newTaskButton")
-    }
-}
-
-struct AttentionSheet: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List {
-                if model.store.attention.isEmpty { ContentUnavailableView("Nothing needs you", systemImage: "checkmark.circle") }
-                ForEach(Array(model.store.attention.enumerated()), id: \.offset) { _, item in
-                    Button {
-                        if let id = item.taskId { dismiss(); model.path.append(.task(id)) }
-                    } label: {
-                        HStack {
-                            Circle().fill(item.unread ? Theme.accent : Color.clear).frame(width: 8, height: 8)
-                            VStack(alignment: .leading) {
-                                Text(item.taskId.flatMap { model.store.task(id: $0)?.displayTitle } ?? item.taskId ?? "—")
-                                Text(item.state).font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Text(Date(timeIntervalSince1970: item.at > 1e11 ? item.at / 1000 : item.at), style: .relative)
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                    .swipeActions { Button("Dismiss") { Task { await model.store.dismissAttention(item) } } }
-                }
-            }
-            .navigationTitle("Attention")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
     }
 }

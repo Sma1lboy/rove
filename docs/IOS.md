@@ -144,6 +144,24 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 
 Task rows (`tasks` push and `tasks.list`) also carry optional `pinned`, `order`, `createdAt`, `updatedAt`, `changes` (`{added, deleted, ahead?, behind?}` or `{unreadable: true}`, from the daemon's `worktree.changes` push; absent = not collected), `rowTokens` (`{text, tone?, source, expiresAt}`), `prChip` (`conflict`/`failing`/`passing`), `prChipStale`, and `pr.mergeable`. Engine rows carry optional `models`, `effortLevels` and `ready`. Older apps ignore them; the app decodes rows without them.
 
+### Terminal-tab ops and the `notice` push
+
+Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC or helper and checks its arguments.
+
+| Op | Args | Result | Wraps |
+| --- | --- | --- | --- |
+| `tab.states` | `taskId` | `{tabs: {tab-N: {state, at}}}` | `debug.inspect` (`activity.tabs`) |
+| `tab.rename` | `taskId`, `tabId`, `title` | `{}` | `rename --tab` |
+| `tab.interrupt` | `taskId`, `tabId?` | `{}` | `interrupt` |
+| `tab.forkTask` | `repo`, `baseBranch`, `prompt`, `engine?`, `title?`, `count?` (1–5) | `{taskIds}` | `add --base-branch` (`--count` for attempts) |
+| `tab.handoff` | `taskId`, `tabId` | `{kind: "handoff", prompt}` or `{kind: "no-session" \| "no-transcript", engine?}` | `planWorktreeHandoff` |
+| `tab.requestPR` | `taskId`, `tabId?` | `{}` | `buildPRPrompt` + `send --plain` |
+| `attachment.put` | `mime` (png/jpeg/gif/webp/pdf), `data` (base64, ≤ 5 MB) | `{path, kind, bytes}` | writes `~/.rove/attachments/attach-<date>-<nonce>.<ext>` |
+
+`attachment.put` checks the file's magic bytes against the declared type. A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
+
+Additive fields and events, ignored by an app that predates them: `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time) and `attention[].label` (a routine episode's name); the push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
+
 ## Build the app
 
 The app is in `packages/rove-ios` (SwiftUI, iOS 17+, SwiftTerm). The Xcode project is generated, not committed:
