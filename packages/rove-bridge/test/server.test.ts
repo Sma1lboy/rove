@@ -240,14 +240,27 @@ describe("task feed", () => {
     let clock = 1_000_000
     let reads = 0
     const row = {
-      id: "T1", title: "t", branch: "b", repo: "/r", kind: "task", status: "backlog",
-      group: "working" as const, rank: 3, activity: { state: "running", forMs: 4000 },
-      engine: null, pr: null, report: null, deleting: false,
+      id: "T1",
+      title: "t",
+      branch: "b",
+      repo: "/r",
+      kind: "task",
+      status: "backlog",
+      group: "working" as const,
+      rank: 3,
+      activity: { state: "running", forMs: 4000 },
+      engine: null,
+      pr: null,
+      report: null,
+      deleting: false,
     }
-    const feed = new TaskFeed(async () => {
-      reads++
-      return { tasks: [row], attention: [] }
-    }, () => clock)
+    const feed = new TaskFeed(
+      async () => {
+        reads++
+        return { tasks: [row], attention: [] }
+      },
+      () => clock,
+    )
     await feed.current()
     clock += 7000
     const later = await feed.current()
