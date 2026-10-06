@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.241
+
+### Patch Changes
+
+- [#1211](https://github.com/Sma1lboy/rove/pull/1211) [`585ca03`](https://github.com/Sma1lboy/rove/commit/585ca031368d7d521539e5bbfb2a5b01831b4153) A new task's auto-named branch no longer fails to create when the name clashes with an existing branch's folder: a title like "Fix" in a repo that already has `fix/login` now gets `fix-2`, and `feat/x` in a repo with a plain `feat` branch becomes `feat-x`, instead of git refusing with "cannot lock ref" on every retry. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1209](https://github.com/Sma1lboy/rove/pull/1209) [`c22daf4`](https://github.com/Sma1lboy/rove/commit/c22daf4ea3f9fe5a0c99b1a4b0a24fc7ad4c03bb) You can now talk to Rove from WeChat (微信). `rove weixin login` shows a QR code; after you scan it, messaging the bot `status` returns what needs you and what is running, `send <id> <text>` types into a task's agent, and `add <repo> <prompt>` starts a task. The daemon also messages you when a task needs you, is ready for review, or has a PR ready to merge, within 24 hours of your last message to the bot; pushes outside that window go to `~/.rove/weixin/undelivered.jsonl`. Only the account that scanned, plus users you `rove weixin allow`, are answered. The channel ships inside the `rove` CLI. See docs/WEIXIN.md. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.240
 
 ### Patch Changes

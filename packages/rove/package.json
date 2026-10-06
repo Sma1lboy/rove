@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@sma1lboy/rove",
-  "version": "0.9.240",
+  "version": "0.9.241",
   "description": "Rove — the agent multiplexer for your terminal. Run coding agents on parallel tasks with isolated worktrees and persistent sessions.",
   "keywords": [
     "terminal",
@@ -88,7 +88,7 @@
     "@vitest/coverage-v8": "2.1.9",
     "knip": "^6.14.2",
     "react-devtools-core": "^7.0.1",
-    "rove-weixin": "0.0.1",
+    "rove-weixin": "0.0.2",
     "typescript": "5.8.2",
     "vitest": "2.1.9"
   },
