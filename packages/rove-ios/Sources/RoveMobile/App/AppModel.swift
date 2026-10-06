@@ -89,6 +89,7 @@ struct RootView: View {
     var body: some View {
         if model.pairing == nil {
             NavigationStack { PairingView(isOnboarding: true) }
+                .overlay { SheetScrim() }
         } else {
             @Bindable var m = model
             NavigationStack(path: $m.path) {

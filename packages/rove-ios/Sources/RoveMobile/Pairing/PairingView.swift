@@ -70,6 +70,7 @@ struct PairingView: View {
                 if cfReady { connect() }
             }
             .ignoresSafeArea()
+            .quillSheetChrome()
         }
     }
 

@@ -81,7 +81,11 @@ final class RoundScreensTests: XCTestCase {
         element("newTaskButton").tap()
         Thread.sleep(forTimeInterval: 2.5)
         checkpoint("r-newtask")
-        waitFor(element("sheetClose"), "close new task").tap()
+        waitFor(element("sheetClose"), "new task sheet")
+        // The shared scrim stands in for the system dim; tapping it must still close the sheet.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04)).tap()
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: element("sheetClose"))
+        wait(for: [gone], timeout: 5)
 
         waitFor(app.staticTexts[taskTitle].firstMatch, "task row").tap()
         waitFor(element("taskTitle"), "task detail")
