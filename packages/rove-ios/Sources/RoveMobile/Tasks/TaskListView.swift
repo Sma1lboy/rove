@@ -96,6 +96,14 @@ struct TaskListView: View {
             } trailing: {
                 attentionButton
                 filterMenu
+                Menu {
+                    Button("board") { model.path.append(.board) }
+                    Button("routines") { model.path.append(.routines) }
+                    Button("github issues") { model.path.append(.issues) }
+                    Button("worktrees") { model.path.append(.worktrees) }
+                } label: { HeaderIcon(systemName: "square.grid.2x2") }
+                    .accessibilityLabel("Pages")
+                    .accessibilityIdentifier("pagesMenu")
                 Button { showSettings = true } label: { HeaderIcon(systemName: "gearshape") }
                     .buttonStyle(.pressable)
                     .accessibilityLabel("Settings")

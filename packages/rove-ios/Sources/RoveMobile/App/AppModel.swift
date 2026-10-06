@@ -50,6 +50,12 @@ final class AppModel {
 enum Route: Hashable {
     case task(String)
     case diff(taskId: String)
+    case inbox
+    case board
+    case routines
+    case issues
+    case worktrees
+    case settings
 }
 
 @main
@@ -82,6 +88,12 @@ struct RootView: View {
                         switch route {
                         case .task(let id): TaskDetailView(taskId: id)
                         case .diff(let taskId): DiffFilesView(taskId: taskId)
+                        case .inbox: InboxView()
+                        case .board: BoardView()
+                        case .routines: RoutinesView()
+                        case .issues: IssuesView()
+                        case .worktrees: WorktreesView()
+                        case .settings: SettingsView()
                         }
                     }
             }
