@@ -131,16 +131,6 @@ describe("starting a session from a story", () => {
       run("issue.prompt", { repo: REPO, id: 3, where: "elsewhere" }, { "issue-list": issues }),
     ).rejects.toThrow("worktree|project")
   })
-
-  test("ensureMain answers the main task's id from the RPC", async () => {
-    const { result, calls } = await run(
-      "project.ensureMain",
-      { repo: REPO },
-      { "task.ensureMain": { task: { id: "MAIN1" } } },
-    )
-    expect(result).toEqual({ taskId: "MAIN1" })
-    expect(calls).toEqual([{ kind: "rpc", name: "task.ensureMain", payload: { repo: REPO } }])
-  })
 })
 
 describe("task events", () => {
@@ -295,7 +285,6 @@ describe("bad arguments never reach the daemon", () => {
     ["issue.setStatus", { repo: REPO, id: 1, status: "" }],
     ["issue.delete", { repo: REPO, id: -1 }],
     ["issue.prompt", { repo: REPO, id: 1, where: "anywhere" }],
-    ["project.ensureMain", { repo: "relative/path" }],
     ["task.events", { taskId: "--x" }],
     ["routine.setEnabled", { id: "r-1" }],
     ["routine.runNow", { id: "--force" }],

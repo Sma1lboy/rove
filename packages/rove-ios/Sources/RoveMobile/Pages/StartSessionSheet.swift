@@ -66,7 +66,7 @@ struct SessionStarter {
                                              as: EmptyResult.self)
             }
         case .project:
-            let main = try await client.request("project.ensureMain", ["repo": repo], as: EnsureMainResult.self)
+            let main = try await client.request("task.openMain", ["repo": repo], as: OpenMainResult.self)
             var args: [String: Any] = ["taskId": main.taskId, "prompt": drafted.prompt]
             if !engine.isEmpty { args["engine"] = engine }
             _ = try await client.request("tab.new", args, as: TabNewResult.self)

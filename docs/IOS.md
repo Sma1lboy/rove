@@ -182,7 +182,6 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `issue.setStatus` | `repo`, `id`, `status` (`open`/`doing`/`hold`/`done`) | `issue-set-status` | — |
 | `issue.delete` | `repo`, `id` | `issue-delete` (the record only) | yes |
 | `issue.prompt` | `repo`, `id`, `where` (`worktree`/`project`) | `issue-list` + the kanban drawer's prompt builders | — |
-| `project.ensureMain` | `repo` | RPC `task.ensureMain` | — |
 | `task.events` | `taskId`, `limit?` | RPC `task.recentEvents`, newest first | — |
 | `routine.list` | — | `routine-list` | — |
 | `routine.create` | `repo`, `name`, `prompt`, `schedule` | `routine-create` | — |

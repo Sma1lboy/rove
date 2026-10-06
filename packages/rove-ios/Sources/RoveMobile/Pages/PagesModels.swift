@@ -64,7 +64,6 @@ struct RepoIssues: Codable, Equatable {
 
 struct IssueReposResult: Codable { var repos: [String] }
 struct IssuePromptResult: Codable { var title: String; var prompt: String }
-struct EnsureMainResult: Codable { var taskId: String }
 
 /// One row of a task's EVENTS snapshot: the engine lifecycle ring, newest first.
 struct TaskEvent: Codable, Hashable {

@@ -61,10 +61,10 @@ struct TaskListView: View {
                 searchButton
                 sortMenu
                 Menu {
-                    Button("board") { model.path.append(.board) }
-                    Button("routines") { model.path.append(.routines) }
-                    Button("github issues") { model.path.append(.issues) }
-                    Button("worktrees") { model.path.append(.worktrees) }
+                    Button("board") { model.path.append(.board) }.accessibilityIdentifier("page-board")
+                    Button("routines") { model.path.append(.routines) }.accessibilityIdentifier("page-routines")
+                    Button("github issues") { model.path.append(.issues) }.accessibilityIdentifier("page-issues")
+                    Button("worktrees") { model.path.append(.worktrees) }.accessibilityIdentifier("page-worktrees")
                 } label: { HeaderIcon(systemName: "square.grid.2x2") }
                     .accessibilityLabel("Pages")
                     .accessibilityIdentifier("pagesMenu")
@@ -122,6 +122,7 @@ struct TaskListView: View {
         }
         .buttonStyle(.pressable)
         .accessibilityLabel("Attention, \(model.store.attentionCount) unread")
+        .accessibilityIdentifier("inboxButton")
     }
 
     private var filterMenu: some View {

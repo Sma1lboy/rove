@@ -136,15 +136,6 @@ export const pagesOps: OpTable = {
       }
     },
   },
-  "project.ensureMain": {
-    kind: "write",
-    destructive: false,
-    wraps: "daemon RPC task.ensureMain (the repo's own checkout as a task)",
-    async run(args, { api }) {
-      const res = await api.rpc<{ task: { id: string } }>("task.ensureMain", { repo: absPath(args, "repo") })
-      return { taskId: res.task.id }
-    },
-  },
   "task.events": {
     kind: "read",
     destructive: false,

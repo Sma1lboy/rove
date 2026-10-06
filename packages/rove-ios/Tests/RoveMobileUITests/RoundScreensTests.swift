@@ -27,7 +27,7 @@ final class RoundScreensTests: XCTestCase {
 
     private func openPage(_ name: String) {
         waitFor(element("pagesMenu"), "pages menu").tap()
-        waitFor(app.buttons[name].firstMatch, "\(name) in pages menu").tap()
+        waitFor(element("page-\(name)"), "\(name) in pages menu").tap()
         Thread.sleep(forTimeInterval: 2.5)
     }
 
@@ -40,8 +40,11 @@ final class RoundScreensTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["-resetPairing"]
+        if let lang = env["ROVE_LANG"], !lang.isEmpty { app.launchArguments += ["-AppleLanguages", "(\(lang))"] }
         app.launch()
-        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
+        // The notification prompt is springboard's, in the simulator's language.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = springboard.buttons.matching(NSPredicate(format: "label IN {'Allow', '允许'}")).firstMatch
         if allow.waitForExistence(timeout: 3) { allow.tap() }
 
         let field = waitFor(element("pairingField"), "pairing field")
@@ -55,7 +58,7 @@ final class RoundScreensTests: XCTestCase {
         Thread.sleep(forTimeInterval: 2)
         checkpoint("r-list")
 
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Attention'")).firstMatch.tap()
+        waitFor(element("inboxButton"), "inbox").tap()
         Thread.sleep(forTimeInterval: 2)
         checkpoint("r-inbox")
         back()
