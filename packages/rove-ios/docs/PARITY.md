@@ -112,15 +112,15 @@
 
 | # | 功能 | 状态 | 手机上 |
 |---|---|---|---|
-| P1 | Kanban：按项目、四列（Backlog/In progress/Parked/Done） | 缺失 | |
-| P2 | 卡片带关联任务的派生分组，需要人的置顶并计数 | 缺失 | |
-| P3 | 新建 / 编辑标题与描述 / 改状态 / 删除 story | 缺失 | |
-| P4 | 从卡片开会话：选引擎、在哪跑、跟过去还是留在看板 | 缺失 | |
-| P5 | 关联任务的 EVENTS 快照 | 缺失 | |
-| P6 | Routines：列表（仓库、cron、下次运行）+ prompt、precheck、最近运行 | 缺失 | |
-| P7 | 新建 / 暂停恢复 / 立即运行 / 删除 / 打开最近一次运行的任务 | 缺失 | |
-| P8 | GitHub Issues：按仓库，只看分给我的，刷新 | 缺失 | |
-| P9 | 从 issue 开任务；已有任务的直接打开 | 缺失 | |
+| P1 | Kanban：按项目、四列（Backlog/In progress/Parked/Done） | 已有 | 页面菜单 → board：按项目切换，四列用 tile 切换（带计数），5 秒自动刷新；Parked/Done 超过 20 张显示 `+N more` |
+| P2 | 卡片带关联任务的派生分组，需要人的置顶并计数 | 已有 | 关联卡片显示任务的分组 tag 和引擎名；需要人的卡片置顶，标题栏 `N need you`；Parked 不置顶 |
+| P3 | 新建 / 编辑标题与描述 / 改状态 / 删除 story | 已有 | 右上 `+` 新建；点卡片开抽屉：改标题/描述、STATUS open·doing·hold·done、删除（只删记录，二次确认）。描述清空会存成一个空格（verb 不接受空 body） |
+| P4 | 从卡片开会话：选引擎、在哪跑、跟过去还是留在看板 | 已有 | 抽屉 start session：引擎、worktree / project、follow / stay。worktree：新建任务 → 关联 story → 状态 doing；project：主检出上新开 tab → 状态 doing |
+| P5 | 关联任务的 EVENTS 快照 | 已有 | 关联 story 的抽屉里：最近 12 条引擎事件，新的在前；daemon 重启后可能为空 |
+| P6 | Routines：列表（仓库、cron、下次运行）+ prompt、precheck、最近运行 | 已有 | 页面菜单 → routines：每行 repo · cron · 下次运行 + 最近一次结果；详情有 prompt、precheck（只读）、最近 10 次运行和 agent 回复 |
+| P7 | 新建 / 暂停恢复 / 立即运行 / 删除 / 打开最近一次运行的任务 | 已有 | `+` 新建（name / repo / prompt / schedule，带常用 cron）；详情里暂停恢复、run now（二次确认）、打开最近一次运行的任务、改 name/prompt/schedule、删除（二次确认）。precheck 是 shell 命令，不能从手机写 |
+| P8 | GitHub Issues：按仓库，只看分给我的，刷新 | 已有 | 页面菜单 → github issues：仓库切换、assigned to me、刷新（绕过 60 秒缓存）；`gh` 缺失 / 未登录 / 没有 remote 时清楚显示原因并可重试 |
+| P9 | 从 issue 开任务；已有任务的直接打开 | 已有 | 点 issue：已有关联任务的直接打开，否则选内置引擎后 start task |
 | P10 | Worktrees 页：审计所有非 main worktree（脏、远端、PR、年龄），land，受保护的删除 | 已有 | 任务列表 `…` 页面菜单 → worktrees：按项目分组，每行分支、脏/探测失败、远端有无、PR/已合并/空闲判定、年龄；点开后 `land branch`（仅已跟踪的任务分支，merge/squash 二次确认，走现有 `task.land`）与 `remove worktree`（确认后调 `worktrees.remove`；有未提交改动时 git 的拒绝原因原样引用，再来一次明确的 `Force remove` 确认才会强制删）。新 ops `worktrees.list/remove` |
 
 ## 设置与杂项
@@ -128,20 +128,22 @@
 | # | 功能 | 状态 | 手机上 |
 |---|---|---|---|
 | G1 | 深浅色 | 已有 | 跟随系统 |
-| G2 | 语言 | 缺失 | |
-| G3 | 通知开关 | 缺失 | |
-| G4 | 用量（quota）：每个窗口百分比和重置时间，75%/95% 变色 | 缺失 | |
-| G5 | Engines：列表、检测到的路径、登录状态、上报方式 | 缺失 | |
-| G6 | Engines：开关、改命令、改名、重置/删除、设默认 | 缺失 | |
-| G7 | Plugins：启用/停用、改 manifest 声明的设置 | 缺失 | |
-| G8 | Marketplace：浏览并安装插件 | 缺失 | |
-| G9 | Feedback：发 GitHub Discussion | 缺失 | |
-| G10 | 配对、断开、重连、忘掉配对 | 已有 | 设置页 |
+| G2 | 语言 | 缺失 | 决定：手机跟 iOS 系统语言（系统设置 → Rove → 语言），不做 App 内切换。现在所有页面文案都是英文字面量，换成 String Catalog 要动所有人的文件，所以留给最后一次统一处理 |
+| G3 | 通知开关 | 已有 | 设置 → notifications：只作用于这部手机，默认开；Notifier 发通知前读它；iOS 授权被拒时给出打开系统设置的入口 |
+| G4 | 用量（quota）：每个窗口百分比和重置时间，75%/95% 变色 | 已有 | 设置 → usage：每个引擎每个窗口一条进度条，75% 起 warning 黄，95% 起 error 红；bridge 订阅 `usageSnapshotSignal()`，op `usage.get` |
+| G5 | Engines：列表、检测到的路径、登录状态、上报方式 | 已有 | 设置 → engines：二进制路径、是否登录（不传邮箱，也不传命令参数）、上报方式（hooks / markers / screen rules） |
+| G6 | Engines：开关、改命令、改名、重置/删除、设默认 | 已有 | 开关、设默认、改名、重置覆盖 / 删除自定义引擎；每一项都二次确认；bridge 守住“最后一个启用的引擎不关、默认必须是启用的”。改命令见 G6b |
+| G6b | Engines：改启动命令 | 不适用 | `engineCommand.<id>` 是 daemon 真正去 spawn 的命令行，手机写入等于让 Mac 执行手机给的命令；只能在 Mac 上改。手机能把它重置回内置默认 |
+| G7 | Plugins：启用/停用 | 已有 | 设置 → plugins：版本、linked、有更新、平台不支持、最近一次运行；启用/停用（二次确认） |
+| G7b | Plugins：改 manifest 声明的设置 | 不适用 | 设置值会变成 plugin 自带命令的环境变量，手机写入等于给 Mac 上的命令塞参数；留在 Mac |
+| G8 | Marketplace：浏览并安装插件 | 不适用 | 安装会跑仓库自带的 build 命令（TUI 要先 clone、列出所有命令、再让人确认）；手机上没有安全的办法替人确认这些命令，留在 Mac |
+| G9 | Feedback：发 GitHub Discussion | 已有 | 设置 → feedback：二次确认后，用 Mac 上的 gh 登录发（公开、不可撤回） |
+| G10 | 配对、断开、重连、忘掉配对 | 已有 | 设置 → bridge（复用配对页） |
 | G11 | 透明度、焦点/分屏样式、键盘提示、zen 启动、编辑器选择、scrollback 长度 | 不适用 | 只影响 TUI 自己怎么画 |
 | G12 | Keybindings 设置、F1 键位表、按住 ctrl 的提示 | 不适用 | 手机没有组合键 |
-| G13 | Dev：重置 UI 状态、重启 backend | 缺失 | |
+| G13 | Dev：重置 UI 状态、重启 backend | 不适用 | reset 会清空 UI 和任务索引，不可恢复；TUI 里“重启 backend”只是退出这个 TUI 窗口，真正重启 daemon 要在 Mac 的 shell 里跑 `rove daemon restart`，手机经 bridge 连着 daemon，重启会断掉它自己唯一的路 |
 | G14 | What's New、Update 页、自更新 | 不适用 | 更新的是 Mac 上的 rove，命令在 Mac 的 shell 里跑；App 自己走 TestFlight |
-| G15 | DAEMON OUT OF DATE 提示 | 缺失 | |
+| G15 | DAEMON OUT OF DATE 提示 | 已有 | 设置首页顶部：daemon 和 bridge 的 Rove 版本不同时出现 `daemon out of date` 和要在 Mac 上跑的命令（op `daemon.info`） |
 | G16 | 窄终端布局（<70 列） | 不适用 | 这是给手机 SSH 用的 TUI 布局；本 App 就是它的替代 |
 
 ## `rove api` 中 TUI 没覆盖到的
@@ -149,9 +151,9 @@
 | # | verb | 状态 | 手机上 |
 |---|---|---|---|
 | A1 | `context` / `collect`：每个任务的改动、提交、死 tab 的退出原因 | 已有 | `…` 菜单 → info：未提交 / 提交差异、running、每个 tab 的退出原因和输出尾部（`task.info` ← `collect`） |
-| A2 | `read-output`：引擎结构化历史 | 缺失 | |
-| A3 | `digest`：仓库近期工作汇总 | 缺失 | |
-| A4 | `agent-turns`：每轮 token / 耗时 | 缺失 | |
+| A2 | `read-output`：引擎结构化历史 | 已有 | 任务详情 `…` → Engine history：按消息渲染结构化历史（工具调用/结果可展开），`load newer` 用游标翻页；没有历史时回退到带标签的终端尾部 |
+| A3 | `digest`：仓库近期工作汇总 | 已有 | 设置 → activity：选仓库和 7/14/30 天窗口，看动过的任务数和 routine 各状态的运行数 |
+| A4 | `agent-turns`：每轮 token / 耗时 | 已有 | 设置 → activity：turns 总数、token（输入/输出/缓存）、耗时、按模型；最近 10 轮 |
 | A5 | `set-model` / `set-effort` / `set-command` | 已有 | 菜单 → model & effort… / change engine…（`task.setModel` / `task.setEffort` / `task.setCommand`） |
 | A6 | `ensure-worktree` / `remove-worktree` | 已有 | 菜单 → create worktree / remove worktree（后者二次确认，脏时再确认 force，保留任务和分支） |
 | A7 | `schema`、`inspect`、`pty-list`、`engine-report`、`pane-*`、`prompt`、`dispatch`、`watch`、`set-active` | 不适用 | 给脚本、插件或已连接的 TUI 用的接口，没有人在手机上直接操作它们 |

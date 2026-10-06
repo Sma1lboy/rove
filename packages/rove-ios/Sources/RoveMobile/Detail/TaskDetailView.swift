@@ -14,6 +14,7 @@ struct TaskDetailView: View {
     @State private var error: String?
     @State private var tabSheet: TabSheetRoute?
     @State private var tabStates = TabStateModel()
+    @State private var historySheet = false
     @State private var closing: TabRow?
     @State private var actions = TaskActionHost()
     @State private var confirmLand = false
@@ -51,6 +52,7 @@ struct TaskDetailView: View {
         .task { await tabStates.poll(client: client, taskId: taskId) { selectedTabId } }
         .onChange(of: model.store.version) { Task { await reload() } }
         .mentionDelivery(taskId: taskId, session: session)
+        .sheet(isPresented: $historySheet) { TaskHistorySheet(taskId: taskId) }
         .onAppear {
             session?.start()
             actions.onRemoved = { _ in dismiss() }
@@ -94,6 +96,8 @@ struct TaskDetailView: View {
     private var moreMenu: some View {
         Menu {
             TabActionItems(tab: selectedTab, session: session, route: $tabSheet)
+            Button { historySheet = true } label: { Label("Engine history", systemImage: "text.alignleft") }
+                .accessibilityIdentifier("historyButton")
             Divider()
             if let tab = selectedTab {
                 Button { closing = tab } label: { Label("Close \(tab.displayTitle.lowercased())", systemImage: "xmark") }

@@ -50,6 +50,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func post(_ notice: TaskNotice) {
+        guard NotificationPrefs.enabled else { return }
         let content = UNMutableNotificationContent()
         content.title = "Rove"
         content.body = notice.body

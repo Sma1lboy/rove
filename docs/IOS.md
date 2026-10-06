@@ -169,6 +169,47 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 
 Additive fields and events, ignored by an app that predates them: `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time) and `attention[].label` (a routine episode's name); the push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
 
+### Board, routines, GitHub issues and settings ops
+
+Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in `ops/index.ts`). Each wraps one `rove api` verb, daemon RPC or Rove helper and validates its own arguments; ops marked **destructive** are logged with their ids, and the app asks for a second confirmation before sending them.
+
+| Op | Args | Wraps | Destructive |
+| --- | --- | --- | --- |
+| `issue.repos` | — | RPC `issue.repos` | — |
+| `issue.list` | `repo` | `issue-list` | — |
+| `issue.create` | `repo`, `title`, `body?` | `issue-create` | — |
+| `issue.update` | `repo`, `id`, `title?`, `body?` or `clearBody`, `task?` (`none` unlinks) | `issue-update` | — |
+| `issue.setStatus` | `repo`, `id`, `status` (`open`/`doing`/`hold`/`done`) | `issue-set-status` | — |
+| `issue.delete` | `repo`, `id` | `issue-delete` (the record only) | yes |
+| `issue.prompt` | `repo`, `id`, `where` (`worktree`/`project`) | `issue-list` + the kanban drawer's prompt builders | — |
+| `project.ensureMain` | `repo` | RPC `task.ensureMain` | — |
+| `task.events` | `taskId`, `limit?` | RPC `task.recentEvents`, newest first | — |
+| `routine.list` | — | `routine-list` | — |
+| `routine.create` | `repo`, `name`, `prompt`, `schedule` | `routine-create` | — |
+| `routine.update` | `id`, `name?`, `prompt?`, `schedule?` | `routine-update` | — |
+| `routine.setEnabled` | `id`, `enabled` | `routine-set-enabled` | — |
+| `routine.runNow` | `id` | `routine-run-now` | — |
+| `routine.runs` | `id` | `routine-runs` | — |
+| `routine.delete` | `id` | `routine-delete` | yes |
+| `workitem.list` | `repo`, `state?`, `assignee?` (`@me`), `search?`, `limit?`, `refresh?` | RPC `workitem.list` | — |
+| `workitem.links` | `repo` | RPC `task.list`, folded to tasks started from an issue | — |
+| `workitem.start` | `repo`, `number`, `engine?` (built-in) | `workitem-start` | — |
+| `usage.get` | — | the orchestrator's `usageSnapshotSignal()`; `{usage: null}` until the daemon reports | — |
+| `daemon.info` | — | RPC `daemon.status` + `isDaemonVersionStale` against the bridge's build | — |
+| `plugins.list` | — | the Plugins section's `readPluginRows` | — |
+| `plugin.setEnabled` | `id`, `enabled` | `setPluginEnabled` | yes |
+| `feedback.send` | `title`, `body`, `category?` | `feedback` (a public GitHub Discussion) | yes |
+| `engines.settings` | — | engine registry + `detectEngineStatuses` + `engineIntegrations` + state.json switches | — |
+| `engine.setEnabled` | `id`, `enabled` | state.json `disabledEngineIds` (+ `defaultVendor` hand-off) | yes |
+| `engine.setDefault` | `id` | state.json `defaultVendor` | yes |
+| `engine.rename` | `id`, `name` | state.json `engineName.<id>` | yes |
+| `engine.reset` | `id` | state.json `engineCommand`/`engineName`/`engineProtocol`/`customEngineIds` | yes |
+| `output.read` | `taskId`, `tab?`, `source?`, `cursor?`, `limit?` | `read-output` | — |
+| `repo.digest` | `repo`, `sinceDays?` | `digest` | — |
+| `turns.list` | `taskId?`, `repo?`, `sinceDays?`, `limit?` | `agent-turns` | — |
+
+What the phone cannot do, because each would make the Mac run a command the phone wrote: set a routine's precheck, edit an engine's launch command, change a plugin's manifest settings, install a plugin from the marketplace. Engine rows never carry account emails or the launch command's arguments.
+
 ## Build the app
 
 The app is in `packages/rove-ios` (SwiftUI, iOS 17+, SwiftTerm). The Xcode project is generated, not committed:
