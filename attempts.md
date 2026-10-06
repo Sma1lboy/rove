@@ -61,3 +61,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Still seen in the trace, not tried:** two commits per switch that change no hook state. In them WorkspaceFrame, TerminalSession and StatusKeyHintBar re-render, which points to a context change (focus moving to the workspace). The Files pane also wipes its list and lists it again on every switch (`FileTree` list null → arr), the known `git ls-files` item from 09-28.
 
 **Noise:** switch.shown.p50 read 496/545 on main and 456–483 with the change; boot.firstFrame.ms 670–918 across runs.
+
+## 2026-10-06 — switch.perOp.commit.files / .root (main 7c50b64)
+
+**No regression.** The first run read boot.firstFrame.ms 1304.5 and boot.ready.ms 5426 (cold first run again); the re-run read 570 and 2044, every metric within tolerance.
+
+**Approach.** The Files pane (`FileTree.tsx`) wipes its state (`allFiles`, `changes`, cursor, expanded dirs, scope) in a `useEffect` keyed on `worktreePath`, so each switch commits once for the new path and again for the wipe. The change moved the wipe into render ("adjust state when a prop changes": a `shownPath` state compared during render), leaving the effect to refetch only.
+
+**Why it did not count.** It went the wrong way. switch.perOp.commit.files read 5.9 and 6.2 (5.2 on main tonight and in the baseline); root 9.5/9.8 vs 9.2, frame 4.0/4.6 vs 4.0. Not investigated further. A guess: the effect's wipe was already batched into a commit that happens anyway (e.g. with the terminal's mount waterfall), and the render-phase reset makes the first commit render the empty pane and the list arrive as a separate commit. Check with a clean-run count of which commits touch `files` before retrying anything in this effect.
+
+**Spawn breakdown per switch (unchanged):** 0.8 `git ls-files` (Files pane All tab, 09-28 item) plus about 0.5 `ps -A` from the 2 s `engine.foregroundWalk` that lands in the window. `resolveBase`'s `git symbolic-ref` / `rev-parse` run only on each worktree's first show.
