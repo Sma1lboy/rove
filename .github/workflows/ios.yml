@@ -62,8 +62,10 @@ jobs:
         run: |
           udid=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
           echo "SIM_UDID=$udid" >> "$GITHUB_ENV"
-          # Wait for the first boot to finish: until it has, the simulator ignores appearance switches and the
-          # dark-theme keyboard checks would see a light app.
+          # A never-booted simulator ignores appearance switches until it has finished a first boot and been
+          # restarted; the dark-theme keyboard checks would otherwise see a light app.
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl shutdown "$udid"
           xcrun simctl bootstatus "$udid" -b
 
       - name: Start the fixture bridge

@@ -16,7 +16,7 @@ TEST_RUNNER_ROVE_FIXTURE_URL='ws://127.0.0.1:7896/?token=fixture' \
 - fixture bridge 记下收到的每个请求，`GET /log` 读回、`DELETE /log` 清空（同一个 bearer token）。`term.resize` 的行列数和 `term.input` 的字节都从这里断言。
 - `ROVE_SHOT_DIR` 设了就把每个输入点键盘弹出时的整屏存下来。
 - 模拟器要处在软键盘模式（默认）。连着硬件键盘时软键盘不弹，除硬件键盘那一项外全部会报 `no keyboard`。
-- 新建的模拟器第一次启动没完成时会忽略深浅色切换，深色那轮会看到浅色 app 并失败（`launch` 会报 `stayed in the other appearance`）。先 `xcrun simctl bootstatus <udid> -b` 等它启动完，CI 也是这样做的。
+- 从没启动过的模拟器要先完整启动一次再重启，之前它会忽略深浅色切换，深色那轮会看到浅色 app 并失败（`launch` 会报 `stayed in the other appearance`）。CI 用 `simctl bootstatus -b`、`shutdown`、再 `bootstatus -b` 做这一步。
 
 ## 每个输入点断言什么（`check`）
 

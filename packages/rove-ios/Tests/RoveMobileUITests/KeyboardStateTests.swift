@@ -98,17 +98,34 @@ final class KeyboardStateTests: XCTestCase {
         let row = el("keyRow").frame, bar = el("composerBar").frame
         XCTAssertLessThanOrEqual(abs(bar.minY - row.maxY), 2, "\(label): key row \(row) not on the composer \(bar)")
         XCTAssertLessThanOrEqual(abs(top - bar.maxY), 2, "\(label): composer bar ends at \(bar.maxY), keyboard at \(top)")
+        let rowCenter = el("keyRow").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        /// Back to the row's leading edge (a drag past it just stops there).
+        func rewind() {
+            rowCenter.press(forDuration: 0.05, thenDragTo: rowCenter.withOffset(CGVector(dx: 400, dy: 0)))
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        rewind()
         for id in ["key-Esc", "key-Ctrl", "key-↑", "sendButton"] {
             let e = el(id)
-            // The visible part of the row ends at its `done` key, less the 32 pt fade. A key past that edge has
-            // no hit point (isHittable throws there), so it is dragged in by its overflow first.
-            let edge = (kb.done?.frame.minX ?? el("keyRow").frame.maxX) - 32
+            // Keys: the visible part of the row runs from its left edge to its `done` key, less the 32 pt fade. A
+            // key past that edge is dragged in by its overflow, then must sit inside it. Judged by frame: XCUI's
+            // isHittable throws ("activation point invalid") on keys while the row settles.
+            let rowFrame = el("keyRow").frame
+            let edge = (kb.done?.frame.minX ?? rowFrame.maxX) - 32
             let overflow = id.hasPrefix("key-") ? e.frame.maxX - edge : 0
-            let row = el("keyRow").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            if overflow > 0 { row.press(forDuration: 0.05, thenDragTo: row.withOffset(CGVector(dx: -(overflow + 40), dy: 0))) }
-            XCTAssertTrue(e.isHittable, "\(label): \(id) not reachable with the keyboard up")
+            if overflow > 0 {
+                rowCenter.press(forDuration: 0.05, thenDragTo: rowCenter.withOffset(CGVector(dx: -(overflow + 40), dy: 0)))
+                Thread.sleep(forTimeInterval: 0.5)
+            }
+            if id.hasPrefix("key-") {
+                let f = e.frame
+                XCTAssertTrue(f.minX >= rowFrame.minX - 1 && f.maxX <= edge + 1 && f.width > 0,
+                              "\(label): \(id) at \(f) is outside the visible key row (\(rowFrame.minX)…\(edge))")
+            } else {
+                XCTAssertTrue(e.isHittable, "\(label): \(id) not reachable with the keyboard up")
+            }
             XCTAssertLessThanOrEqual(e.frame.maxY, top + 0.5, "\(label): \(id) under the keyboard")
-            if overflow > 0 { row.press(forDuration: 0.05, thenDragTo: row.withOffset(CGVector(dx: overflow + 40, dy: 0))) }
+            if overflow > 0 { rewind() }
         }
         XCTAssertGreaterThan(el("terminal").frame.height, 40, "\(label): terminal squeezed out")
         let term = el("terminal").frame
