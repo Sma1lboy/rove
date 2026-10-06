@@ -141,6 +141,34 @@ final class PagesLiveTests: XCTestCase {
         checkpoint("board-11-deleted")
     }
 
+    /// The verb refuses an empty --body, so the drawer clears through `clearBody`; the description
+    /// must read empty afterwards, not keep its old text.
+    func testStoryClearDescription() throws {
+        try pair()
+        openPage("board")
+        waitFor(element("boardNewStory"), "board").tap()
+        type("newStoryTitle", "Clear description smoke")
+        let body = waitFor(element("newStoryDescription"), "description")
+        body.tap(); body.typeText("remove me"); hideKeyboard()
+        element("newStorySave").tap()
+        waitFor(text("Clear description smoke"), "the new card").tap()
+        let editor = waitFor(element("drawerDescription"), "drawer description")
+        // Triple tap selects the whole paragraph (a plain tap lands the caret at the start).
+        editor.tap(withNumberOfTaps: 3, numberOfTouches: 1)
+        editor.typeText(XCUIKeyboardKey.delete.rawValue)
+        hideKeyboard()
+        XCTAssertTrue(text("what and why, in a few lines").waitForExistence(timeout: 5), "the editor still has text")
+        element("drawerSave").tap()
+        gone(element("drawerTitle"), "the drawer")
+        waitFor(text("Clear description smoke"), "card after save").tap()
+        waitFor(element("drawerDescription"), "drawer again")
+        XCTAssertTrue(text("what and why, in a few lines").waitForExistence(timeout: 5), "description was not cleared")
+        checkpoint("board-12-cleared-description")
+        waitFor(element("deleteStory"), "delete story").tap()
+        waitFor(element("confirmDeleteStory"), "confirm delete").tap()
+        gone(text("Clear description smoke"), "the deleted story")
+    }
+
     // MARK: Routines
 
     func testRoutinesFlow() throws {

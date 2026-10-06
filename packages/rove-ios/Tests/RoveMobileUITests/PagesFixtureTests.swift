@@ -2,8 +2,10 @@ import XCTest
 
 /// Screenshot-and-tap checks for states a sandbox Rove cannot produce on demand: a stale daemon,
 /// warn/crit quota meters, installed plugins, GitHub issues with a linked task, every routine run
-/// tone, a need-you card floating on the board. They run against a canned-answer bridge, so they
-/// need ROVE_FIXTURE_URL (+ ROVE_SHOT_DIR, ROVE_SHOT_PREFIX) and are skipped otherwise.
+/// tone, a need-you card floating on the board. They run against the canned-answer bridge in
+/// scripts/fixture-bridge.ts (`bun packages/rove-ios/scripts/fixture-bridge.ts`), so they need
+/// TEST_RUNNER_ROVE_FIXTURE_URL=ws://127.0.0.1:7896/?token=fixture (+ ROVE_SHOT_DIR, ROVE_SHOT_PREFIX)
+/// and are skipped otherwise.
 /// `testHistorySheet` runs against the real sandbox bridge (ROVE_BRIDGE_URL, ROVE_TASK_TITLE).
 final class PagesFixtureTests: XCTestCase {
     private let env = ProcessInfo.processInfo.environment

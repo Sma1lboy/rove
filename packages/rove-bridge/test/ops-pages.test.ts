@@ -287,3 +287,38 @@ describe("destructive flags", () => {
     expect(destructive).toEqual(["issue.delete", "routine.delete"])
   })
 })
+
+describe("bad arguments never reach the daemon", () => {
+  const bad: [string, Args][] = [
+    ["issue.list", { repo: "relative/path" }],
+    ["issue.create", { repo: REPO, title: "   " }],
+    ["issue.setStatus", { repo: REPO, id: 1, status: "" }],
+    ["issue.delete", { repo: REPO, id: -1 }],
+    ["issue.prompt", { repo: REPO, id: 1, where: "anywhere" }],
+    ["project.ensureMain", { repo: "relative/path" }],
+    ["task.events", { taskId: "--x" }],
+    ["routine.setEnabled", { id: "r-1" }],
+    ["routine.runNow", { id: "--force" }],
+    ["routine.runs", { id: "a b" }],
+    ["routine.delete", { id: "../x" }],
+    ["workitem.list", { repo: "relative/path" }],
+    ["workitem.links", { repo: "relative/path" }],
+    ["workitem.start", { repo: REPO, number: 0 }],
+  ]
+
+  for (const [op, args] of bad) {
+    test(`${op} refuses ${JSON.stringify(args)} with BAD_ARGS before any verb or RPC`, async () => {
+      const spec = pagesOps[op]
+      if (!spec) throw new Error(`no op ${op}`)
+      const { api, calls } = fakeApi()
+      // The server calls `run` inside an async handler, so a synchronous throw is a rejection there too.
+      await expect((async () => spec.run(args, { api }))()).rejects.toMatchObject({ code: "BAD_ARGS" })
+      expect(calls).toEqual([])
+    })
+  }
+
+  test("run-now and runs pass the routine id as one --id=value", async () => {
+    expect((await run("routine.runNow", { id: "r-1" })).calls[0]?.payload).toEqual(["--id=r-1"])
+    expect((await run("routine.runs", { id: "r-1" })).calls[0]?.payload).toEqual(["--id=r-1"])
+  })
+})
