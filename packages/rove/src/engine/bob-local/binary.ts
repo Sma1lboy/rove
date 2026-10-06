@@ -5,8 +5,7 @@
  * system dirs, the active nvm bin, then the per-user npm dirs.
  */
 
-import path from "node:path"
-import { BinaryNotFoundError, createBinaryFinder, npmStyleDirs } from "../binary-discovery.ts"
+import { BinaryNotFoundError, createBinaryFinder, npmStyleBinaryCandidates } from "../binary-discovery.ts"
 
 export class BobBinaryNotFoundError extends BinaryNotFoundError {
   constructor(checkedPaths: readonly string[]) {
@@ -21,11 +20,6 @@ export class BobBinaryNotFoundError extends BinaryNotFoundError {
 
 export const findBobBinary = createBinaryFinder({
   name: "bob",
-  candidates({ deps, home }) {
-    const win32 = (deps.platform?.() ?? process.platform) === "win32"
-    const names = win32 ? ["bob.exe", "bob.cmd", "bob"] : ["bob"]
-
-    return npmStyleDirs({ deps, home }).flatMap((dir) => names.map((name) => path.join(dir, name)))
-  },
+  candidates: (ctx) => npmStyleBinaryCandidates(ctx, "bob"),
   notFound: (checked) => new BobBinaryNotFoundError(checked),
 })
