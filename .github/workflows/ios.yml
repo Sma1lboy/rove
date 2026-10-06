@@ -29,7 +29,9 @@ concurrency:
 
 jobs:
   test:
-    runs-on: macos-15
+    # macos-26 defaults to Xcode 26.6, the toolchain the app is developed with; macos-15's
+    # Xcode 16 rejects Swift that 26 accepts (Optional<Bool> switches, Substring interpolation).
+    runs-on: macos-26
     timeout-minutes: 40
     steps:
       - name: Checkout

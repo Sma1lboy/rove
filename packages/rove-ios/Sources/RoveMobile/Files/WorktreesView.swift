@@ -167,7 +167,7 @@ struct WorktreeActionSheet: View {
         busy = true; defer { busy = false }
         do {
             let r = try await model.client.request("task.land", ["taskId": taskId, "strategy": strategy], as: TaskLandResult.self)
-            done(String(localized: "landed on \(r.landedOn) (\(r.commit.prefix(8)))"))
+            done(String(localized: "landed on \(r.landedOn) (\(String(r.commit.prefix(8))))"))
             dismiss()
         } catch { self.error = error.localizedDescription }
     }
