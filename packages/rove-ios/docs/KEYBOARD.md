@@ -16,6 +16,7 @@ TEST_RUNNER_ROVE_FIXTURE_URL='ws://127.0.0.1:7896/?token=fixture' \
 - fixture bridge 记下收到的每个请求，`GET /log` 读回、`DELETE /log` 清空（同一个 bearer token）。`term.resize` 的行列数和 `term.input` 的字节都从这里断言。
 - `ROVE_SHOT_DIR` 设了就把每个输入点键盘弹出时的整屏存下来。
 - 模拟器要处在软键盘模式（默认）。连着硬件键盘时软键盘不弹，除硬件键盘那一项外全部会报 `no keyboard`。
+- 新建的模拟器第一次启动没完成时会忽略深浅色切换，深色那轮会看到浅色 app 并失败（`launch` 会报 `stayed in the other appearance`）。先 `xcrun simctl bootstatus <udid> -b` 等它启动完，CI 也是这样做的。
 
 ## 每个输入点断言什么（`check`）
 
@@ -33,7 +34,9 @@ TEST_RUNNER_ROVE_FIXTURE_URL='ws://127.0.0.1:7896/?token=fixture' \
 
 图例：✅ 修复前就通过；已修 Fn = 修复前失败、修复后通过；跳过 Sn = 见下方原因；— = 不在这次的范围。横屏只测终端页和新建任务页。
 
-修复前的结果来自浅色竖屏 demo 一轮（跑到 routine 编辑为止）、fixture 终端一轮（深浅各一次）和横屏 fixture 一轮。看板、issue、设置、文件页、diff 备注这几行修复前没跑到，按代码判断：它们所在的 sheet / 页面没有挂 Done。修复后所有格子在同一轮里跑过。
+修复前的结果来自浅色竖屏 demo 一轮（跑到 routine 编辑为止）、fixture 终端一轮（深浅各一次）和横屏 fixture 一轮。看板、issue、设置、文件页、diff 备注这几行修复前没跑到，按代码判断：它们所在的 sheet / 页面没有挂 Done。
+
+输入点这张表：套件（也就是 CI）每次跑「竖屏浅色 demo」和「竖屏深色 fixture」两列，深浅主题、demo 和 fixture 各覆盖一次；「竖屏深色 demo」和「竖屏浅色 fixture」两列在这个 PR 的一次本地全量运行里也跑过并通过，之后从套件里拿掉，因为托管 runner 比本地慢约 2.5 倍，四轮 sweep 会超过时限。终端详情页那张表的六列每次都跑。修复后在 iPhone 17 Pro Max 和全新创建的 iPhone 17 Pro（CI 用的机型）上都跑过。
 
 ### 输入点
 

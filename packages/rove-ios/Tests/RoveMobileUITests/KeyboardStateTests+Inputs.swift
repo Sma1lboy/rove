@@ -160,16 +160,29 @@ extension KeyboardStateTests {
         return url
     }
 
+    /// Launches unpaired in `look`. A freshly booted simulator can ignore the first appearance switch, so the
+    /// app's own paper is sampled and the switch retried; every keyboard-color check depends on it.
     private func launch(_ look: XCUIDevice.Appearance, fixture: String?) {
         appearance = look
-        XCUIDevice.shared.appearance = look
         label = "\(look == .dark ? "dark" : "light")-portrait-\(fixture == nil ? "demo" : "fixture")"
         app = XCUIApplication()
         app.launchArguments = ["-resetPairing"]
-        app.launch()
-        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
-        if allow.waitForExistence(timeout: 3) { allow.tap() }
-        waitFor(el("pairingField"), "pairing screen")
+        for attempt in 0..<3 {
+            if attempt > 0 {
+                app.terminate()
+                XCUIDevice.shared.appearance = look == .dark ? .light : .dark
+                Thread.sleep(forTimeInterval: 1)
+            }
+            XCUIDevice.shared.appearance = look
+            Thread.sleep(forTimeInterval: 1)
+            app.launch()
+            let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
+            if allow.waitForExistence(timeout: 3) { allow.tap() }
+            waitFor(el("pairingField"), "pairing screen")
+            let paper = screen().luminance(in: CGRect(x: 4, y: app.frame.midY, width: 8, height: 20))
+            if (look == .dark) == (paper < 0.5) { return }
+        }
+        XCTFail("\(label): the simulator stayed in the other appearance after three switches")
     }
 
     private func enter(fixture: String?) {

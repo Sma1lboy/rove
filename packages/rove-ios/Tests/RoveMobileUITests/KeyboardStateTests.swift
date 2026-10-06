@@ -25,9 +25,9 @@ final class KeyboardStateTests: XCTestCase {
 
     // MARK: Tests
 
+    // Each theme once and each mode once (the terminal and landscape tests below run every pairing): the
+    // reviewer's path (demo) in light, the fixture bridge in dark.
     func testInputsDemoLight() { sweepInputs(.light, fixture: nil) }
-    func testInputsDemoDark() { sweepInputs(.dark, fixture: nil) }
-    func testInputsFixtureLight() throws { sweepInputs(.light, fixture: try fixtureURL()) }
     func testInputsFixtureDark() throws { sweepInputs(.dark, fixture: try fixtureURL()) }
 
     func testTerminalDemo() {
@@ -92,6 +92,7 @@ final class KeyboardStateTests: XCTestCase {
     // MARK: Terminal
 
     /// Key row and composer form one bar that sits on the keyboard (≤ 2 pt), and every key and `send` can be hit.
+    /// The key row scrolls sideways (most-used first), so a key past a narrow screen's edge is scrolled to.
     func assertTerminalBlock() {
         let px = screen(), top = kb.coveredTop(px)
         let row = el("keyRow").frame, bar = el("composerBar").frame
@@ -99,8 +100,15 @@ final class KeyboardStateTests: XCTestCase {
         XCTAssertLessThanOrEqual(abs(top - bar.maxY), 2, "\(label): composer bar ends at \(bar.maxY), keyboard at \(top)")
         for id in ["key-Esc", "key-Ctrl", "key-↑", "sendButton"] {
             let e = el(id)
-            XCTAssertTrue(e.isHittable, "\(label): \(id) not hittable with the keyboard up")
+            // The visible part of the row ends at its `done` key, less the 32 pt fade. A key past that edge has
+            // no hit point (isHittable throws there), so it is dragged in by its overflow first.
+            let edge = (kb.done?.frame.minX ?? el("keyRow").frame.maxX) - 32
+            let overflow = id.hasPrefix("key-") ? e.frame.maxX - edge : 0
+            let row = el("keyRow").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            if overflow > 0 { row.press(forDuration: 0.05, thenDragTo: row.withOffset(CGVector(dx: -(overflow + 40), dy: 0))) }
+            XCTAssertTrue(e.isHittable, "\(label): \(id) not reachable with the keyboard up")
             XCTAssertLessThanOrEqual(e.frame.maxY, top + 0.5, "\(label): \(id) under the keyboard")
+            if overflow > 0 { row.press(forDuration: 0.05, thenDragTo: row.withOffset(CGVector(dx: overflow + 40, dy: 0))) }
         }
         XCTAssertGreaterThan(el("terminal").frame.height, 40, "\(label): terminal squeezed out")
         let term = el("terminal").frame
@@ -313,5 +321,5 @@ final class KeyboardStateTests: XCTestCase {
         try? screen().upright.pngData()?.write(to: url)
     }
 
-    private func screen() -> Pixels { Pixels(XCUIScreen.main.screenshot()) }
+    func screen() -> Pixels { Pixels(XCUIScreen.main.screenshot()) }
 }

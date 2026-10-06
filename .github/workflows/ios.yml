@@ -32,7 +32,8 @@ jobs:
     # macos-26 defaults to Xcode 26.6, the toolchain the app is developed with; macos-15's
     # Xcode 16 rejects Swift that 26 accepts (Optional<Bool> switches, Substring interpolation).
     runs-on: macos-26
-    timeout-minutes: 60
+    # The keyboard suite drives ~35 inputs and the terminal in both themes; hosted runners take ~2.5x local.
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -61,7 +62,9 @@ jobs:
         run: |
           udid=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
           echo "SIM_UDID=$udid" >> "$GITHUB_ENV"
-          xcrun simctl boot "$udid" || true
+          # Wait for the first boot to finish: until it has, the simulator ignores appearance switches and the
+          # dark-theme keyboard checks would see a light app.
+          xcrun simctl bootstatus "$udid" -b
 
       - name: Start the fixture bridge
         # KeyboardStateTests read what the app sent (term.resize, term.input) back from its /log.
