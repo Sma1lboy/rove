@@ -32,6 +32,19 @@ final class RoveTerminalView: TerminalView {
         return ok
     }
 
+    /// Engines ask for a blinking caret (DECSCUSR). Blinking is a never-ending UIKit animation that keeps the app
+    /// from ever going idle, for UI tests and for the battery, and the caret is hidden unless focused anyway,
+    /// so every style is shown steady.
+    override func cursorStyleChanged(source: Terminal, newStyle: CursorStyle) {
+        let steady: CursorStyle
+        switch newStyle {
+        case .blinkBlock, .steadyBlock: steady = .steadyBlock
+        case .blinkUnderline, .steadyUnderline: steady = .steadyUnderline
+        case .blinkBar, .steadyBar: steady = .steadyBar
+        }
+        super.cursorStyleChanged(source: source, newStyle: steady)
+    }
+
     /// Long-press selection and search results land here; the session mirrors it as the `copy` chip.
     var onSelectionChange: (() -> Void)?
     override func selectionChanged(source: Terminal) {

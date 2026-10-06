@@ -99,8 +99,9 @@ final class PagesLiveTests: XCTestCase {
         checkpoint("board-4-drawer")
         button("hold").tap()
         element("drawerSave").tap()
-        waitFor(button(startingWith: "parked 1"), "parked column count", timeout: 20)
-        button(startingWith: "parked").tap()
+        gone(element("drawerTitle"), "the drawer")
+        // The sandbox may already park other stories, so don't count: wait for this card in the column.
+        waitFor(button(startingWith: "parked"), "parked column tile").tap()
         waitFor(text("Phone smoke story"), "card in parked").tap()
         waitFor(element("drawerTitle"), "drawer again")
         button("open").tap()
@@ -118,12 +119,22 @@ final class PagesLiveTests: XCTestCase {
         waitFor(element("boardNotice"), "background notice", timeout: 60)
         checkpoint("board-6-started")
         button(startingWith: "in progress").tap()
-        let linked = waitFor(text("Phone smoke story"), "card in progress", timeout: 20)
+        waitFor(text("Phone smoke story"), "card in progress", timeout: 20)
         checkpoint("board-7-in-progress")
 
-        // The linked drawer: events snapshot, open task.
-        linked.tap()
-        waitFor(element("drawerEvents"), "events snapshot", timeout: 20)
+        // The linked drawer: events snapshot, open task. The engine records its first events a few
+        // seconds after the session starts and the drawer reads them once when it opens, so reopen it
+        // until they are there.
+        var sawEvents = false
+        for _ in 0..<8 where !sawEvents {
+            waitFor(text("Phone smoke story"), "card in progress", timeout: 20).tap()
+            sawEvents = element("drawerEvents").waitForExistence(timeout: 5)
+            if !sawEvents {
+                element("sheetClose").tap()
+                gone(element("drawerTitle"), "the drawer")
+            }
+        }
+        XCTAssertTrue(sawEvents, "timed out waiting for events snapshot")
         checkpoint("board-8-linked-drawer")
         element("openTask").tap()
         waitFor(element("taskTitle"), "the linked task", timeout: 30)
@@ -265,6 +276,7 @@ final class PagesLiveTests: XCTestCase {
         waitFor(element("confirmAction"), "confirm on").tap()
         waitFor(element("engineSwitchOff"), "back on", timeout: 20)
         element("sheetClose").tap()
+        gone(element("sheetClose"), "the engine sheet")
         element("backButton").tap()
 
         element("settingsRow-plugins").tap()
@@ -293,6 +305,7 @@ final class PagesLiveTests: XCTestCase {
         waitFor(element("confirmAction"), "feedback confirm sheet")
         checkpoint("settings-9-feedback-confirm")
         element("sheetClose").tap()
+        gone(element("sheetClose"), "the feedback confirmation")
         element("backButton").tap()
 
         element("settingsRow-about").tap()

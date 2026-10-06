@@ -1,8 +1,10 @@
 import XCTest
 
 /// End-to-end smoke against a real rove-bridge. Skipped unless ROVE_BRIDGE_URL is set
-/// (pass with TEST_RUNNER_ROVE_BRIDGE_URL, TEST_RUNNER_ROVE_DEMO_REPO, TEST_RUNNER_ROVE_SHOT_DIR).
-/// Screenshots go through scripts/shot-watcher.sh (`simctl io booted screenshot`) via .ready/.done files.
+/// (pass with TEST_RUNNER_ROVE_BRIDGE_URL, TEST_RUNNER_ROVE_DEMO_REPO_NAME, TEST_RUNNER_ROVE_SHOT_DIR).
+/// The bridge's Rove needs a repo named ROVE_DEMO_REPO_NAME (default `math-demo`) holding `math.ts`, and an
+/// existing task there titled "Add a subtract helper". Screenshots go through scripts/shot-watcher.sh
+/// (`simctl io booted screenshot`) via .ready/.done files.
 final class LiveFlowTests: XCTestCase {
     private let env = ProcessInfo.processInfo.environment
     private var app: XCUIApplication!
@@ -64,6 +66,9 @@ final class LiveFlowTests: XCTestCase {
 
         // New task
         element("newTaskButton").tap()
+        // The sheet preselects the repo the phone used last, so pick the demo repo explicitly.
+        let demoRepo = env["ROVE_DEMO_REPO_NAME"] ?? "math-demo"
+        waitFor(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", demoRepo + ",")).firstMatch, "demo repo tile").tap()
         // Engines are mono tiles once engines.list returns.
         waitFor(app.buttons["codex"].firstMatch, "codex engine tile", timeout: 20).tap()
         let titleField = element("titleField"); titleField.tap(); titleField.typeText(title)
@@ -100,15 +105,25 @@ final class LiveFlowTests: XCTestCase {
         let file = waitFor(text("math.ts"), "math.ts in diff files", timeout: 30)
         checkpoint("07-diff-files")
         file.tap()
-        waitFor(app.navigationBars["math.ts"], "diff file")
+        waitFor(element("mentionButton"), "diff file")
         Thread.sleep(forTimeInterval: 1.5)
         checkpoint("08-diff-file")
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        element("backButton").tap()
+        let left = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: element("mentionButton"))
+        wait(for: [left], timeout: 10)
         waitFor(element("backButton"), "back to detail").tap()
 
         // Delete
-        waitFor(element("moreMenu"), "more menu").tap()
-        waitFor(app.buttons["Delete task"].firstMatch, "delete in menu").tap()
+        // The menu can swallow a tap that lands during the back transition, so retry opening it.
+        for attempt in 0..<3 {
+            Thread.sleep(forTimeInterval: 1.2)
+            waitFor(element("moreMenu"), "more menu").tap()
+            if element("actionInfo").waitForExistence(timeout: 4) { break }
+            if attempt < 2 { app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).tap() }
+        }
+        // Tab and task actions together are taller than the screen: scroll the menu down to Delete.
+        for _ in 0..<5 where !element("deleteButton").isHittable { app.swipeUp() }
+        waitFor(element("deleteButton"), "delete in menu").tap()
         waitFor(app.buttons["Delete…"].firstMatch, "delete confirmation").tap()
         let force = waitFor(element("forceToggle"), "force toggle")
         force.switches.firstMatch.exists ? force.switches.firstMatch.tap() : force.tap()

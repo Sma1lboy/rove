@@ -17,7 +17,8 @@ struct TerminalPane: View {
                 .overlay(alignment: .bottom) { flashLine }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("terminal")
-                .accessibilityValue("\(session.bytesReceived)")
+                // A String, not an interpolated literal: the literal is a LocalizedStringKey and would group digits ("42,683").
+                .accessibilityValue(String(session.bytesReceived))
             KeyRow(session: session)
             Composer(session: session, engineName: engineName)
         }
