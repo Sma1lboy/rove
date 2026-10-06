@@ -17,12 +17,15 @@ extension XCUIElement {
 struct KeyboardProbe {
     let app: XCUIApplication
 
-    var keyboard: XCUIElement { app.keyboards.firstMatch }
+    /// The keyboard's frame, or nil. Read from one element snapshot: a keyboard that leaves between a count and a
+    /// frame query is an XCUI "failed to get matching snapshot" failure, here it is just gone.
+    var frame: CGRect? { (try? app.keyboards.firstMatch.snapshot())?.frame }
+
     /// A software keyboard on screen. With a hardware keyboard attached the tree can still hold a keyboard
     /// element, but not one that is tall and inside the app's frame.
     var isUp: Bool {
-        guard app.keyboards.count > 0 else { return false }
-        let k = keyboard.frame, a = app.frame
+        guard let k = frame else { return false }
+        let a = app.frame
         return k.height > 100 && k.minY > a.minY && k.maxY <= a.maxY + 1
     }
 
@@ -35,7 +38,7 @@ struct KeyboardProbe {
     /// rises above them by an amount that depends on the keyboard (suggestion row or not). Scans up from the
     /// keys 24 pt in from the left edge (clear of the rounded corner) for the first color edge.
     func visibleTop(_ px: Pixels) -> CGFloat {
-        let k = keyboard.frame
+        guard let k = frame else { return px.upright.size.height }
         let x = k.minX + 24
         var y = k.minY + 1
         var below = px.rgb(CGPoint(x: x, y: y))
@@ -62,7 +65,7 @@ struct KeyboardProbe {
         var last: CGRect?
         while Date() < deadline {
             if isUp {
-                let f = keyboard.frame
+                let f = frame
                 if let last, last == f { Thread.sleep(forTimeInterval: 0.4); return true }
                 last = f
             }

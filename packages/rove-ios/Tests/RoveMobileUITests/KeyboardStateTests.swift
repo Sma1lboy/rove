@@ -65,7 +65,7 @@ final class KeyboardStateTests: XCTestCase {
         term.tap()
         Thread.sleep(forTimeInterval: 1.5)
         if kb.isUp {
-            throw XCTSkip("no hardware keyboard attached to this simulator: a software keyboard came up (\(kb.keyboard.frame)), and typeKey through it cannot send ctrl or esc")
+            throw XCTSkip("no hardware keyboard attached to this simulator: a software keyboard came up (\(kb.frame ?? .zero)), and typeKey through it cannot send ctrl or esc")
         }
         XCTAssertTrue(holdsFocus(term), "the terminal takes focus without a software keyboard; focus on \(focusHolder())")
         /// What one hardware key press put on the PTY, alone.
@@ -278,7 +278,7 @@ final class KeyboardStateTests: XCTestCase {
 
     /// Keyboard colors follow the theme: sampled below the keys, where only the keyboard's own backdrop is.
     private func assertKeyboardLook(_ tag: String) {
-        let k = kb.keyboard.frame
+        guard let k = kb.frame else { return XCTFail("\(tag): keyboard gone before its colors could be read") }
         let lum = screen().luminance(in: CGRect(x: k.midX - 20, y: k.maxY - 14, width: 40, height: 6))
         if appearance == .dark {
             XCTAssertLessThan(lum, 0.35, "\(tag): light keyboard on the dark theme (luminance \(lum))")

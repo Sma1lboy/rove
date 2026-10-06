@@ -90,10 +90,10 @@ GitHub issues 页（`page-issues`）没有可编辑的文本框：点开 issue �
 
 | 按键 | 连硬件键盘的模拟器（本地手动） | CI |
 | --- | --- | --- |
-| ctrl-c → `\x03` | ✅ | 跳过 S1 |
-| ↑ → `ESC [A` | ✅ | 跳过 S1 |
-| ⌘B 不把字母 b 送进终端 | ✅ | 跳过 S1 |
-| esc → `ESC` | 跳过 S2 | 跳过 S1 |
+| ctrl-c → `\x03` | ✅ | ✅（软键盘弹出时按 S1 跳过） |
+| ↑ → `ESC [A` | ✅ | ✅（同上） |
+| ⌘B 不把字母 b 送进终端 | ✅ | ✅（同上） |
+| esc → `ESC` | 跳过 S2 | 跳过 S2 |
 
 ## 修复
 
@@ -110,7 +110,7 @@ GitHub issues 页（`page-issues`）没有可编辑的文本框：点开 issue �
 
 | | 跳过什么 | 原因 |
 | --- | --- | --- |
-| S1 | CI 上的硬件键盘测试 | 模拟器默认不接硬件键盘。XCUITest 没法接上它；不接时 `typeKey` 走软键盘，发不出 ctrl 和 esc。测试检测到软键盘弹出就 `XCTSkip` 并写明原因 |
+| S1 | 软键盘弹出时的硬件键盘测试 | 模拟器没接硬件键盘时 `typeKey` 走软键盘，发不出 ctrl 和 esc，XCUITest 也没法把硬件键盘接上。测试一看到软键盘弹出就 `XCTSkip` 并写明原因；CI 的托管模拟器那次没弹软键盘，测试实际执行并通过 |
 | S2 | 硬件 esc | 接了硬件键盘的模拟器上，XCUITest 敲的 Escape 不进 app：SwiftTerm 的 `pressesBegan` 收不到，加一个 `wantsPriorityOverSystemBehavior` 的 `inputEscape` 键命令也收不到。测试里用 `XCTExpectFailure` 记着，哪天能收到会自己报出来 |
 | S3 | demo 下 bridge 收到的 resize 行数和输入字节 | demo 模式不发任何请求（`BridgeClient.fire` 在 demo 下直接丢掉），没有东西可读；界面那一半（终端变矮、按键行贴键盘）照常断言 |
 | S4 | 新建任务的模型输入框 | 只在所选引擎带 `models` 时出现；fixture 和 demo 的 `engines.list` 都不带，任务详情里的「Model & effort…」sheet 覆盖了同一种输入框 |
