@@ -7,6 +7,7 @@
  * DIRECTORIES to one entry, so one `du -sk` per entry measures whole trees.
  */
 
+import path from "node:path"
 import type { ExecHost } from "../../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 
@@ -83,9 +84,15 @@ export type IgnoredWorkProbe = readonly string[] | "unknown"
 /**
  * `"unknown"` when `git status --ignored` failed. An entry whose size can't be
  * read is SKIPPED (more likely a huge tree than a note) — a per-entry verdict
- * on a successful listing, unlike `"unknown"`.
+ * on a successful listing, unlike `"unknown"`. `regenerable` are directory
+ * basenames Rove clones into a new worktree: copies of the main checkout's
+ * caches, not work, so a fresh task must not need a force delete.
  */
-export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): Promise<IgnoredWorkProbe> {
+export async function smallIgnoredPaths(
+  exec: ExecHost,
+  worktreePath: string,
+  regenerable: readonly string[] = [],
+): Promise<IgnoredWorkProbe> {
   try {
     // Lock-free: runs on the ordinary delete path, so it must not compete
     // with an engine's commit for `.git/index.lock`.
@@ -94,7 +101,9 @@ export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): P
       env: READ_ONLY_GIT_ENV,
     })
     if (status.exitCode !== 0) return "unknown"
-    const paths = parseIgnoredPaths(status.stdout)
+    const paths = parseIgnoredPaths(status.stdout).filter(
+      (p) => !regenerable.includes(path.posix.basename(p.replace(/\/$/, ""))),
+    )
     if (paths.length === 0) return []
 
     const sizes = await duKb(exec, worktreePath, paths)

@@ -17,6 +17,7 @@ configured using Git-style forward slashes without creating a second entry.
 | `~/.rove/settings/keybindings.yaml` | Keybinding overrides | You only |
 | `<repo>/.rove/init.sh` + `init-prompt.md` | Per-repo worktree setup | You (committed to the repo) |
 | `<repo>/.rove/pr-instructions.md` | Per-repo PR action prompt | You (committed to the repo) |
+| `<repo>/.rove/clone-dirs` | Per-repo list of ignored directories to clone into new worktrees | You (committed to the repo) |
 
 Setting `ROVE_HOME_DIR` changes the home beneath all these paths. Only `ROVE_*`
 environment variables are read. New runtime files use canonical names; a live
@@ -342,6 +343,7 @@ By default new worktrees land under `~/.rove/worktrees/<repo-key>/<slug>`.
 |---|---|---|---|
 | `worktree.basePath` | string | `~/.rove/worktrees` | Where new worktrees go |
 | `worktree.basePath.custom` | string | unset | Remembers your last custom path in the TUI |
+| `worktree.cloneIgnored` | boolean | `true` | Clone ignored directories into new worktrees; see [below](#cloned-ignored-directories) |
 
 `worktree.basePath` takes an absolute path, or one starting with the
 `$project_dir` token, which expands to each task's project root, so one setting
@@ -353,6 +355,40 @@ including legacy global and repo-local roots. `worktree.basePath` is
 local-only: remote (SSH) worktrees go under the *remote project's own* path
 at `<project>/.rove/worktrees`, and their existing `.rove/worktrees` remain
 discoverable. No restart needed.
+
+### Cloned ignored directories
+
+A new local task's worktree starts with no `node_modules`, `.venv`, `target` or
+`.build`, because git does not check out ignored files. On macOS Rove clones
+those directories from the project's main checkout into the new worktree before
+`.rove/init.sh` runs, using APFS copy-on-write (`cp -c -R`). The copies cost
+almost no disk until a file changes, so `bun test` and friends work at once.
+`init.sh` still runs afterwards and stays authoritative: a lockfile that
+differs from the main checkout is its job to reconcile.
+
+| Setting | Where | Default | What it does |
+|---|---|---|---|
+| `worktree.cloneIgnored` | `state.json` | `true` | `false` turns cloning off for every project. No restart needed |
+| `.rove/clone-dirs` | in the repo | the four names above | Directory names to clone, one per line, `#` comments. A non-blank file **replaces** the defaults, so a comment-only file clones nothing for that repo. Wins over the defaults the way `init.sh` wins over the `state.json` override |
+
+Names are matched anywhere in the tree, so `node_modules` also picks up
+`packages/*/node_modules`. Entries holding a `/`, `.` or `..`, or starting with
+`-`, are ignored.
+
+A directory is cloned only when all of these hold; otherwise it is skipped
+without a message, exactly as before:
+
+- the project is local (not SSH) and the task owns a worktree (project-main and
+  directory tasks do not);
+- git reports the directory as ignored and containing no tracked file;
+- it is absent from the new worktree;
+- source and worktree are on the same APFS volume (`st_dev` match).
+
+A clone that fails is logged to the daemon log and removed; it never fails task
+creation. Cloning `node_modules` of about 87,000 files takes roughly 15 seconds,
+asynchronously: the task opens when it finishes. `du` counts clones at full
+size, so measure with `df` instead. Because the copies are regenerable, they do
+not count as gitignored work: deleting a fresh task still needs no `--force`.
 
 ### Sidebar
 
