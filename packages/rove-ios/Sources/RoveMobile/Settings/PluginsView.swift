@@ -70,15 +70,10 @@ private struct PluginRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 8) {
-                    Text(plugin.id).font(Theme.mono(14, .medium)).foregroundStyle(plugin.enabled ? Theme.ink : Theme.muted)
-                        .lineLimit(1)
-                    if !plugin.version.isEmpty { SettingsTag(text: "v\(plugin.version)") }
-                    SettingsTag(text: plugin.enabled ? "on" : "off", tint: plugin.enabled ? Theme.success : Theme.muted)
-                    if plugin.linked { SettingsTag(text: "linked") }
-                    if plugin.updateAvailable { SettingsTag(text: "update available", tint: Theme.accent) }
-                    if !plugin.platformOk { SettingsTag(text: "platform unsupported", tint: Theme.warning) }
-                }
+                Text(plugin.id).font(Theme.mono(14, .medium)).foregroundStyle(plugin.enabled ? Theme.ink : Theme.muted)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                tagLine.font(Theme.mono(11)).fixedSize(horizontal: false, vertical: true)
                 if let run = plugin.lastRun {
                     Text(lastRun(run)).font(Theme.mono(12)).foregroundStyle(Theme.muted)
                         .fixedSize(horizontal: false, vertical: true)
@@ -100,6 +95,17 @@ private struct PluginRow: View {
         .padding(.vertical, 12)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("pluginRow-\(plugin.id)")
+    }
+
+    /// `v1.2.0  on  linked  update available`: one wrapping line, each word in its own tone.
+    private var tagLine: Text {
+        var tags: [(String, Color)] = []
+        if !plugin.version.isEmpty { tags.append(("v\(plugin.version)", Theme.muted)) }
+        tags.append((plugin.enabled ? "on" : "off", plugin.enabled ? Theme.success : Theme.muted))
+        if plugin.linked { tags.append(("linked", Theme.muted)) }
+        if plugin.updateAvailable { tags.append(("update available", Theme.accent)) }
+        if !plugin.platformOk { tags.append(("platform unsupported", Theme.warning)) }
+        return tags.reduce(Text("")) { line, tag in line + Text(tag.0 + "  ").foregroundStyle(tag.1) }
     }
 
     private func lastRun(_ run: PluginLastRun) -> String {

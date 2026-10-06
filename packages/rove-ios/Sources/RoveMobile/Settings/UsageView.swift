@@ -67,11 +67,11 @@ private struct WindowRow: View {
                 .frame(width: 34, alignment: .leading)
             Meter(percent: window.percent, tint: tone)
             Text("\(window.percent)%").font(Theme.mono(13, .semibold)).foregroundStyle(tone)
-                .frame(minWidth: 42, alignment: .trailing)
-            let reset = UsageLogic.resetText(window.resetsAt, now: Date())
-            if !reset.isEmpty {
-                Text(reset).font(Theme.mono(11)).foregroundStyle(Theme.muted).lineLimit(1).fixedSize()
-            }
+                .frame(width: 44, alignment: .trailing)
+            // A fixed column even when empty, so every meter in the group has the same length.
+            Text(UsageLogic.resetText(window.resetsAt, now: Date()))
+                .font(Theme.mono(11)).foregroundStyle(Theme.muted).lineLimit(1)
+                .frame(width: 92, alignment: .trailing)
         }
         .padding(.horizontal, 14)
         .frame(minHeight: 46)

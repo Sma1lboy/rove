@@ -52,7 +52,7 @@ struct TaskHistorySheet: View {
 
     private func header(_ envelope: OutputEnvelope) -> some View {
         HStack(spacing: 8) {
-            if envelope.running { SettingsTag(text: "working", tint: Theme.accent, bold: true) }
+            if envelope.running { SettingsTag(text: "session live", tint: Theme.success) }
             if let vendor = envelope.vendor { SettingsTag(text: vendor) }
             Spacer()
         }

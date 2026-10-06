@@ -45,9 +45,9 @@ private enum EngineAction: Identifiable {
     func prose(_ e: EngineSetting) -> String {
         switch self {
         case .setEnabled(let on):
-            if on { return "Switches \(e.name) on: it is offered again when you pick an engine for a task." }
+            if on { return "Switches \(e.name) on: the TUI offers it again and new tasks can default to it." }
             let handoff = e.isDefault ? " It is the default, so another enabled engine takes over as default." : ""
-            return "Switches \(e.name) off: it stops being offered when you pick an engine for a task. Its settings stay.\(handoff)"
+            return "Switches \(e.name) off: the TUI stops offering it and new tasks stop defaulting to it. Its settings stay.\(handoff)"
         case .setDefault:
             let on = e.enabled ? "" : " It is switched off, so this switches it back on."
             return "Makes \(e.name) the engine new tasks start with.\(on)"
