@@ -16,27 +16,27 @@
 | T2 | 选中 tab 打开那个会话 | 已有 | 详情页 tab 行，`[ codex ]` |
 | T3 | 派生分组（needs you / ready to land / needs review / working / quiet） | 已有 | 每行的状态 tag，配色见 DESIGN 决定 |
 | T4 | attention 排序（最需要人的在最前） | 已有 | 列表默认顺序 |
-| T5 | 排序切换：default / recent / attention / name（`t`） | 缺失 | |
-| T6 | `/` 模糊搜索：标题、仓库、分支、tab 标题 | 缺失 | |
-| T7 | 行标记 `▴` 置顶 | 缺失 | |
-| T8 | 行标记 `+N/−N` 改动文件数 | 缺失 | |
-| T9 | 行标记 `↑N/↓N` 领先/落后 base 的提交数 | 缺失 | |
-| T10 | PR 标记 `≠/✗/✓`（冲突、失败、通过） | 缺失 | 现在只显示 `#N checkState` |
-| T11 | 插件 row token（带过期的短标签） | 缺失 | |
-| T12 | 改任务标题（`r`） | 缺失 | |
-| T13 | 改分支名 / 选本地分支（`b`） | 缺失 | |
-| T14 | 换引擎（`v`，右键是选择器） | 缺失 | |
-| T15 | 置顶/取消（`shift+p`） | 缺失 | |
-| T16 | 重新排序（`shift+m`，tab/任务/项目三级） | 缺失 | |
-| T17 | 删除：按类型区分（忘掉项目 / 只删目录任务记录 / 删任务+worktree，脏 worktree 二次确认） | 缺失 | 现在只有删托管任务 |
-| T18 | 设置状态（右键 Set status，六种） | 缺失 | |
-| T19 | 复制分支名 / 复制路径 | 缺失 | |
-| T20 | Run again：用原 brief 新建一个任务 | 缺失 | |
+| T5 | 排序切换：default / recent / attention / name（`t`） | 已有 | 列表头排序图标；attention（默认）/ default（daemon 手动顺序，行字段 `order`）/ recent（`updatedAt`）/ name，选择记在手机上；置顶始终在前 |
+| T6 | `/` 模糊搜索：标题、仓库、分支、tab 标题 | 已有 | 列表头放大镜：子序列模糊匹配标题 / 仓库 / 分支，按得分排序；不含 tab 标题（任务行不带 tab 标题） |
+| T7 | 行标记 `▴` 置顶 | 已有 | 标题前 `▴`（行字段 `pinned`） |
+| T8 | 行标记 `+N/−N` 改动文件数 | 已有 | 第二行 `+N/−N`；数据来自 daemon `worktree.changes` 推送（经 bridge 的 RemoteOrchestrator），不逐任务跑 git；读不了显示 `?` |
+| T9 | 行标记 `↑N/↓N` 领先/落后 base 的提交数 | 已有 | 第二行 `↑N/↓N`，同一推送 |
+| T10 | PR 标记 `≠/✗/✓`（冲突、失败、通过） | 已有 | 行上 `≠ ✗ ✓`（行字段 `prChip`，规则同 `row-chips.ts:prChip`；forge 不可达时变灰） |
+| T11 | 插件 row token（带过期的短标签） | 已有 | 行上的小标签（行字段 `rowTokens`，`liveRowTokens` 过滤，手机按 `expiresAt` 再过滤） |
+| T12 | 改任务标题（`r`） | 已有 | `…` 菜单 / 行长按 → rename（`task.rename`） |
+| T13 | 改分支名 / 选本地分支（`b`） | 已有 | `…` 菜单 / 行长按 → branch…（`task.setBranch`，本地分支来自 `repo.branches`） |
+| T14 | 换引擎（`v`，右键是选择器） | 已有 | `…` 菜单 / 行长按 → change engine…（`task.setCommand`，只接受 engine-list 里的 id） |
+| T15 | 置顶/取消（`shift+p`） | 已有 | `…` 菜单 / 行长按 → pin / unpin（`task.pin`） |
+| T16 | 重新排序（`shift+m`，tab/任务/项目三级） | 已有 | 菜单 → move up / down / to top（`task.move`，任务级；tab、项目级顺序不做） |
+| T17 | 删除：按类型区分（忘掉项目 / 只删目录任务记录 / 删任务+worktree，脏 worktree 二次确认） | 已有 | 菜单 → delete：main 行 `project.forget`，dir 行只删记录，其余 `task.delete`；脏 worktree 被拒后第二次红色确认再 `force` |
+| T18 | 设置状态（右键 Set status，六种） | 已有 | 菜单 → set status…（`task.setStatus`，六种标签） |
+| T19 | 复制分支名 / 复制路径 | 已有 | 菜单 → copy branch / copy path（路径来自 `task.get`） |
+| T20 | Run again：用原 brief 新建一个任务 | 已有 | 菜单 → run again（`task.get` 取原 prompt → `task.spawn`）；没存 prompt 时置灰 |
 | T21 | Land into base branch（merge / squash） | 已有 | 详情页 `land`，确认后选策略 |
-| T22 | 项目的 Field notes：查看、按条删除 | 缺失 | |
-| T23 | Remove project（忘掉项目） | 缺失 | |
+| T22 | 项目的 Field notes：查看、按条删除 | 已有 | 项目标题 `···` → field notes（`notes.list`），逐条 delete 后二次确认（`notes.delete`） |
+| T23 | Remove project（忘掉项目） | 已有 | 项目标题 `···` → remove project，二次确认（`project.forget`） |
 | T24 | 在编辑器里打开任务目录（`o`） | 不适用 | 编辑器开在 Mac 的屏幕上，拿着手机的人看不到；手机改为文件浏览（F1） |
-| T25 | 没有任务时的欢迎面板：可用引擎（已装且已登录） | 缺失 | |
+| T25 | 没有任务时的欢迎面板：可用引擎（已装且已登录） | 已有 | 空列表显示欢迎面板和 `engines.list` 的引擎；`ready:false`（未装或未登录）置灰 |
 | T26 | 侧栏宽度拖拽、折叠栏（fold）、zen 模式 | 不适用 | 终端里分配列宽的手段；手机一次只显示一屏 |
 
 ## Inbox / 通知
@@ -96,17 +96,17 @@
 
 | # | 功能 | 状态 | 手机上 |
 |---|---|---|---|
-| C1 | For Existing：选仓库 + 从哪个 ref 切 | 缺失 | 现在只选仓库，不选 base |
-| C2 | 打开项目本身（project-main）而不是新 worktree | 缺失 | |
-| C3 | For New Repo：clone URL 到父目录再建任务 | 缺失 | |
-| C4 | Adopt Worktree：导入已有 worktree（可多选） | 缺失 | |
+| C1 | For Existing：选仓库 + 从哪个 ref 切 | 已有 | 新建任务 → existing，base 分支条（`repo.branches` → `--base-branch`） |
+| C2 | 打开项目本身（project-main）而不是新 worktree | 已有 | 新建任务 → open project（`task.openMain`） |
+| C3 | For New Repo：clone URL 到父目录再建任务 | 已有 | 新建任务 → clone（`repo.clone`，只允许 https/ssh/git/scp 形式的 URL），完成后接着建任务 |
+| C4 | Adopt Worktree：导入已有 worktree（可多选） | 已有 | 新建任务 → adopt（`worktree.adoptable` / `worktree.adopt`，多选逐个导入） |
 | C5 | 选引擎 | 已有 | 新建任务页 |
 | C6 | 首条 prompt | 已有 | |
-| C7 | 指定分支名 / model / effort | 缺失 | |
-| C8 | count / 混合引擎扇出（`--count`、`--agents`） | 缺失 | |
+| C7 | 指定分支名 / model / effort | 已有 | 新建任务 → + options：branch、model（引擎 `models` 作建议）、effort（引擎 `effortLevels`） |
+| C8 | count / 混合引擎扇出（`--count`、`--agents`） | 已有 | + options：count 1–5 的 chip，或 agents 混合编队（总数 ≤10，API 上限）；需要 prompt |
 | C9 | 记住上次的仓库和引擎 | 缺失 | |
 | C10 | 让引擎开 PR（`ctrl+a p`，读 `.rove/pr-instructions.md`） | 缺失 | |
-| C11 | PR 状态：lifecycle、check、review | 缺失 | 现在只有 `#N checkState` |
+| C11 | PR 状态：lifecycle、check、review | 已有 | `…` 菜单 → info：lifecycle / check / review / mergeable / base |
 
 ## 页面
 
@@ -148,12 +148,12 @@
 
 | # | verb | 状态 | 手机上 |
 |---|---|---|---|
-| A1 | `context` / `collect`：每个任务的改动、提交、死 tab 的退出原因 | 缺失 | |
+| A1 | `context` / `collect`：每个任务的改动、提交、死 tab 的退出原因 | 已有 | `…` 菜单 → info：未提交 / 提交差异、running、每个 tab 的退出原因和输出尾部（`task.info` ← `collect`） |
 | A2 | `read-output`：引擎结构化历史 | 缺失 | |
 | A3 | `digest`：仓库近期工作汇总 | 缺失 | |
 | A4 | `agent-turns`：每轮 token / 耗时 | 缺失 | |
-| A5 | `set-model` / `set-effort` / `set-command` | 缺失 | |
-| A6 | `ensure-worktree` / `remove-worktree` | 缺失 | |
+| A5 | `set-model` / `set-effort` / `set-command` | 已有 | 菜单 → model & effort… / change engine…（`task.setModel` / `task.setEffort` / `task.setCommand`） |
+| A6 | `ensure-worktree` / `remove-worktree` | 已有 | 菜单 → create worktree / remove worktree（后者二次确认，脏时再确认 force，保留任务和分支） |
 | A7 | `schema`、`inspect`、`pty-list`、`engine-report`、`pane-*`、`prompt`、`dispatch`、`watch`、`set-active` | 不适用 | 给脚本、插件或已连接的 TUI 用的接口，没有人在手机上直接操作它们 |
 
 ## 进度

@@ -12,8 +12,7 @@ struct TaskDetailView: View {
     @State private var error: String?
     @State private var newTab = false
     @State private var closing: TabRow?
-    @State private var confirmDelete = false
-    @State private var deleteSheet = false
+    @State private var actions = TaskActionHost()
     @State private var confirmLand = false
     @State private var landResult: String?
 
@@ -47,19 +46,19 @@ struct TaskDetailView: View {
         .keyboardDoneButton()
         .task { await reload() }
         .onChange(of: model.store.version) { Task { await reload() } }
-        .onAppear { session?.start() }
+        .onAppear {
+            session?.start()
+            actions.onRemoved = { _ in dismiss() }
+            actions.onOpenTask = { model.path.append(.task($0)) }
+            Task { await actions.loadDetail(taskId) }
+        }
         .onDisappear { session?.stop() }
         .sheet(isPresented: $newTab) { NewTabSheet(taskId: taskId) { await reload() } }
-        .sheet(isPresented: $deleteSheet) {
-            DeleteConfirmSheet(taskId: taskId) { dismiss() }
-        }
+        .taskActionSheets(actions)
         .confirmationDialog("Close this tab?", isPresented: Binding(get: { closing != nil }, set: { if !$0 { closing = nil } }),
                             titleVisibility: .visible) {
             Button("Close tab", role: .destructive) { if let t = closing { Task { await close(t) } } }
         }
-        .confirmationDialog("Delete this task?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete…", role: .destructive) { deleteSheet = true }
-        } message: { Text("Removes the task and its worktree.") }
         .confirmationDialog("Land this task", isPresented: $confirmLand, titleVisibility: .visible) {
             Button("Merge") { Task { await land("merge") } }
             Button("Squash") { Task { await land("squash") } }
@@ -94,8 +93,7 @@ struct TaskDetailView: View {
                 Button { closing = tab } label: { Label("Close \(tab.displayTitle.lowercased())", systemImage: "xmark") }
             }
             Divider()
-            Button(role: .destructive) { confirmDelete = true } label: { Label("Delete task", systemImage: "trash") }
-                .accessibilityIdentifier("deleteButton")
+            TaskActionItems(host: actions, taskId: taskId)
         } label: {
             HeaderIcon(systemName: "ellipsis")
         }

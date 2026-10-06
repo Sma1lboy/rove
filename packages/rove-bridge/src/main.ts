@@ -100,12 +100,17 @@ async function main(): Promise<void> {
   // Verbs get their own socket: some subscribe as a pane, which must not
   // demote the orchestrator's gui subscription.
   const verbClient = new RoveDaemonClient(daemonSocket)
-  const ops = createRoveOps(verbClient)
+  const ops = createRoveOps(verbClient, {
+    changes: () => orchestrator.worktreeChangesSignal()(),
+    tokens: () => orchestrator.rowTokensSignal()(),
+  })
   const feed = new TaskFeed(() => ops.tasks())
   for (const signal of [
     orchestrator.tasksSignal(),
     orchestrator.engineStateSignal(),
     orchestrator.attentionInboxSignal(),
+    orchestrator.worktreeChangesSignal(),
+    orchestrator.rowTokensSignal(),
   ]) {
     signal.subscribe(() => feed.poke())
   }

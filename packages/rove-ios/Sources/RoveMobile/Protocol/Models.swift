@@ -33,6 +33,8 @@ struct TaskPR: Codable, Hashable {
     var lifecycle: String
     var checkState: String
     var reviewDecision: String?
+    /// Additive: GitHub `mergeable` (`CONFLICTING` …), absent on older bridges.
+    var mergeable: String?
 }
 
 struct TaskReport: Codable, Hashable {
@@ -54,13 +56,28 @@ struct TaskRow: Codable, Hashable, Identifiable {
     var pr: TaskPR?
     var report: TaskReport?
     var deleting: Bool
+    // Additive optional fields (docs: tasks-batch contract). Absent on older bridges.
+    var pinned: Bool
+    /// Index in the daemon's own task list: the TUI's `default` sort.
+    var order: Int?
+    var createdAt: String?
+    var updatedAt: String?
+    var changes: TaskChanges?
+    var rowTokens: [RowTokenChip]
+    /// `conflict` / `failing` / `passing` (row-chips.ts `prChip`), nil when the row draws no PR chip.
+    var prChip: String?
+    var prChipStale: Bool
 
     init(id: String, title: String, branch: String = "", repo: String = "", kind: String = "task",
          status: String = "", group: TaskGroup, rank: Double = 0, activity: TaskActivity? = nil,
-         engine: TaskEngine? = nil, pr: TaskPR? = nil, report: TaskReport? = nil, deleting: Bool = false) {
+         engine: TaskEngine? = nil, pr: TaskPR? = nil, report: TaskReport? = nil, deleting: Bool = false,
+         pinned: Bool = false, order: Int? = nil, createdAt: String? = nil, updatedAt: String? = nil,
+         changes: TaskChanges? = nil, rowTokens: [RowTokenChip] = [], prChip: String? = nil, prChipStale: Bool = false) {
         self.id = id; self.title = title; self.branch = branch; self.repo = repo; self.kind = kind
         self.status = status; self.group = group; self.rank = rank; self.activity = activity
         self.engine = engine; self.pr = pr; self.report = report; self.deleting = deleting
+        self.pinned = pinned; self.order = order; self.createdAt = createdAt; self.updatedAt = updatedAt
+        self.changes = changes; self.rowTokens = rowTokens; self.prChip = prChip; self.prChipStale = prChipStale
     }
 
     init(from decoder: Decoder) throws {
@@ -78,6 +95,14 @@ struct TaskRow: Codable, Hashable, Identifiable {
         pr = try c.decodeIfPresent(TaskPR.self, forKey: .pr)
         report = try c.decodeIfPresent(TaskReport.self, forKey: .report)
         deleting = try c.decodeIfPresent(Bool.self, forKey: .deleting) ?? false
+        pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
+        order = try c.decodeIfPresent(Int.self, forKey: .order)
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
+        updatedAt = try c.decodeIfPresent(String.self, forKey: .updatedAt)
+        changes = try c.decodeIfPresent(TaskChanges.self, forKey: .changes)
+        rowTokens = try c.decodeIfPresent([RowTokenChip].self, forKey: .rowTokens) ?? []
+        prChip = try c.decodeIfPresent(String.self, forKey: .prChip)
+        prChipStale = try c.decodeIfPresent(Bool.self, forKey: .prChipStale) ?? false
     }
 
     var repoName: String { URL(fileURLWithPath: repo).lastPathComponent }
@@ -109,8 +134,14 @@ struct Engine: Codable, Hashable, Identifiable {
     var command: String
     var protocolName: String
     var builtin: Bool
+    /// Additive: what the engine can name for `--model` (suggestions); nil = unknown or older bridge.
+    var models: [EngineModel]?
+    /// Additive: reasoning-effort levels the engine declares; nil/empty = takes none.
+    var effortLevels: [String]?
+    /// Additive: installed and (where Rove can read it) signed in. nil on older bridges = unknown.
+    var ready: Bool?
 
-    enum CodingKeys: String, CodingKey { case id, name, command, builtin, protocolName = "protocol" }
+    enum CodingKeys: String, CodingKey { case id, name, command, builtin, models, effortLevels, ready, protocolName = "protocol" }
 }
 
 struct DiffFile: Codable, Hashable, Identifiable {

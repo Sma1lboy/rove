@@ -2,24 +2,7 @@ import Foundation
 import Observation
 
 enum TaskListLogic {
-    /// Group order first (rank order), then server rank, then original order.
-    static func sorted(_ rows: [TaskRow]) -> [TaskRow] {
-        rows.enumerated().sorted { a, b in
-            if a.element.group.sortIndex != b.element.group.sortIndex { return a.element.group.sortIndex < b.element.group.sortIndex }
-            if a.element.rank != b.element.rank { return a.element.rank < b.element.rank }
-            return a.offset < b.offset
-        }.map(\.element)
-    }
-
-    /// One section per project (repo), ordered by its most urgent task; rows keep `sorted` order.
-    static func projects(_ rows: [TaskRow]) -> [(repo: String, rows: [TaskRow])] {
-        var out: [(repo: String, rows: [TaskRow])] = []
-        var index: [String: Int] = [:]
-        for r in sorted(rows) {
-            if let i = index[r.repo] { out[i].rows.append(r) } else { index[r.repo] = out.count; out.append((r.repo, [r])) }
-        }
-        return out
-    }
+    // `sorted` / `projects` / `emptiness` live in TaskListOrdering.swift; search in TaskSearch.swift.
 
     static func attentionCount(_ items: [AttentionItem]) -> Int { items.filter(\.unread).count }
 
@@ -84,7 +67,10 @@ final class TaskStore {
     }
 
     var visible: [TaskRow] { TaskListLogic.filtered(tasks, repo: repoFilter) }
-    var projects: [(repo: String, rows: [TaskRow])] { TaskListLogic.projects(visible) }
+    /// Sections for the list under the chosen sort and search (the sort mode is a view-side `@AppStorage`).
+    func projects(mode: TaskSortMode = .attention, query: String = "") -> [(repo: String, rows: [TaskRow])] {
+        TaskListLogic.projects(visible, mode: mode, query: query)
+    }
     var repos: [String] { TaskListLogic.repos(tasks) }
     var attentionCount: Int { TaskListLogic.attentionCount(attention) }
 

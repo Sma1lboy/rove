@@ -152,7 +152,8 @@ final class BridgeClient {
         return String(data: d, encoding: .utf8)
     }
 
-    func request<T: Decodable>(_ op: String, _ args: [String: Any] = [:], as type: T.Type = EmptyResult.self) async throws -> T {
+    /// `timeout` is seconds to wait for the answer; long ops (a repo clone) pass more than the default.
+    func request<T: Decodable>(_ op: String, _ args: [String: Any] = [:], timeout: Double = 30, as type: T.Type = EmptyResult.self) async throws -> T {
         guard let socket else { throw BridgeError.notConnected }
         let id = nextId; nextId += 1
         guard let text = frame(id: id, op: op, args: args) else { throw BridgeError.malformed }
@@ -165,7 +166,7 @@ final class BridgeClient {
                 }
             }
             Task { [weak self] in
-                try? await Task.sleep(for: .seconds(30))
+                try? await Task.sleep(for: .seconds(timeout))
                 self?.pending.removeValue(forKey: id)?.resume(throwing: BridgeError.timeout)
             }
         }

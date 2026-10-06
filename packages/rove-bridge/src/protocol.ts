@@ -35,6 +35,20 @@ export type Op = (typeof OPS)[number]
 
 export type TaskGroup = "waiting-on-you" | "landing" | "ready-for-review" | "working" | "idle" | "unknown"
 
+export type PrChipKind = "conflict" | "failing" | "passing"
+
+export type RowChanges =
+  | { readonly added: number; readonly deleted: number; readonly ahead?: number; readonly behind?: number }
+  | { readonly unreadable: true }
+
+export interface RowTokenChip {
+  readonly text: string
+  readonly tone?: string
+  readonly source: string
+  /** ms epoch; the phone filters on display. */
+  readonly expiresAt: number
+}
+
 export interface TaskRow {
   readonly id: string
   readonly title: string
@@ -59,10 +73,25 @@ export interface TaskRow {
     readonly lifecycle: string
     readonly checkState: string
     readonly reviewDecision?: string
+    readonly mergeable?: string
   } | null
   /** The worker's own claim of what it delivered, not a verification. */
   readonly report: { readonly summary: string; readonly at: string } | null
   readonly deleting: boolean
+  /** Additive row fields (all optional: absent = not collected / not known). */
+  readonly pinned?: boolean
+  /** Index in the daemon's own task list: the manual ("default") order. */
+  readonly order?: number
+  readonly createdAt?: string
+  readonly updatedAt?: string
+  /** Uncommitted counts from the daemon's `worktree.changes` push; `unreadable` = tracked but git could not be read. Absent = not collected, never zeros. */
+  readonly changes?: RowChanges
+  /** Live (unexpired when read) plugin tokens. */
+  readonly rowTokens?: readonly RowTokenChip[]
+  /** The sidebar's one PR chip (row-chips.ts rules); `null` = none. */
+  readonly prChip?: PrChipKind | null
+  /** The forge was unreachable on the last poll, so `prChip` is the last good value. */
+  readonly prChipStale?: boolean
 }
 
 export interface AttentionRow {
