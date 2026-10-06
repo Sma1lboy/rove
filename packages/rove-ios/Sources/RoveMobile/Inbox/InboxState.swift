@@ -132,7 +132,7 @@ struct ToastHost: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 .tile()
-                .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
+                .shadow(color: Theme.shadow, radius: 8, y: 3)
             }
             .buttonStyle(.pressable)
             .padding(.horizontal, 12)

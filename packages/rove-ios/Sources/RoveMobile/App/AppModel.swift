@@ -14,6 +14,10 @@ final class AppModel {
     var path: [Route] = []
     /// A pairing link that still needs input (e.g. Cloudflare Access credentials); PairingView prefills it.
     var draftURL: String?
+    /// Open quill sheets, bottom to top; `RootView` draws `Theme.scrim` while any is open.
+    var sheets: [UUID] = []
+    /// The sheet a scrim tap asked to close.
+    var dismissSheet: UUID?
 
     init() {
         store = TaskStore(client: client)
@@ -103,6 +107,7 @@ struct RootView: View {
                         }
                     }
             }
+            .overlay { SheetScrim() }
             .overlay(alignment: .bottom) { ToastHost() }
         }
     }

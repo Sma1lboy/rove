@@ -48,6 +48,10 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Theme guard (colors only in Theme.swift)
+        working-directory: packages/rove-ios
+        run: scripts/lint-colors.sh
+
       - name: Generate project
         working-directory: packages/rove-ios
         run: xcodegen generate

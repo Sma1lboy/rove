@@ -20,7 +20,7 @@ struct QRScannerView: UIViewControllerRepresentable {
 
         override func viewDidLoad() {
             super.viewDidLoad()
-            view.backgroundColor = .black
+            view.backgroundColor = Theme.cameraBackdropUI
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 DispatchQueue.main.async { if granted { self.configure() } }
             }

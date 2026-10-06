@@ -152,9 +152,45 @@ struct SheetScaffold<Content: View>: View {
                 .padding(.vertical, 8)
             }
         }
-        .background(Theme.paper.ignoresSafeArea())
-        .presentationBackground(Theme.paper)
-        .keyboardDoneButton()
+        .quillSheetChrome()
+    }
+}
+
+/// The app's sheets, one look: paper body, and the `Theme.scrim` drawn by `RootView` in place of the
+/// system dim (enabling background interaction is what removes the system dim). Tapping the scrim
+/// dismisses the topmost sheet, as tapping the system dim did.
+struct QuillSheetChrome: ViewModifier {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var id = UUID()
+
+    func body(content: Content) -> some View {
+        content
+            .background(Theme.paper.ignoresSafeArea())
+            .presentationBackground(Theme.paper)
+            .presentationBackgroundInteraction(.enabled(upThrough: .large))
+            .onAppear { withAnimation(Theme.spring) { model.sheets.append(id) } }
+            .onDisappear { withAnimation(Theme.spring) { model.sheets.removeAll { $0 == id } } }
+            .onChange(of: model.dismissSheet) { _, target in if target == id { dismiss() } }
+    }
+}
+
+extension View {
+    func quillSheetChrome() -> some View { modifier(QuillSheetChrome()) }
+}
+
+/// The one modal scrim, under every sheet; owned by `RootView`.
+struct SheetScrim: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if let top = model.sheets.last {
+            Theme.scrim
+                .ignoresSafeArea()
+                .onTapGesture { model.dismissSheet = top }
+                .transition(.opacity)
+                .accessibilityHidden(true)
+        }
     }
 }
 

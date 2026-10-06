@@ -286,7 +286,7 @@ struct TaskListView: View {
             .padding(.horizontal, 18)
             .frame(height: 56)
             .tile(radius: 14)
-            .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+            .shadow(color: Theme.shadow, radius: 6, y: 2)
         }
         .buttonStyle(.pressable)
         .padding(.horizontal, 16)

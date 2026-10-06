@@ -2,26 +2,16 @@ import SwiftUI
 import SwiftTerm
 import UIKit
 
-/// Rove's terminal palette — the claude-theme xterm palette the harness photographs
-/// (rove-harness/src/lib/harness-terminal.ts). The terminal stays espresso in both app themes:
-/// engines draw for a dark background and never learn ours (query replies are filtered).
+/// Applies `Theme.Terminal` to a SwiftTerm view.
 enum TerminalPalette {
-    static let background = UIColor(hex: 0x141413)
-    static let foreground = UIColor(hex: 0xEAE7DF)
-    static let caret = UIColor(hex: 0xCC785C)
-    static let ansi: [UInt32] = [
-        0x141413, 0xD47563, 0x9ACA86, 0xE8C96B, 0x61AAF2, 0x9B87F5, 0xD4967E, 0xA9A39A,
-        0x6B665F, 0xD47563, 0x9ACA86, 0xE8C96B, 0x61AAF2, 0x9B87F5, 0xE0AB96, 0xEAE7DF,
-    ]
-
     @MainActor static func apply(to tv: TerminalView) {
-        tv.installColors(ansi.map {
+        tv.installColors(Theme.Terminal.ansi.map {
             SwiftTerm.Color(red8: UInt16(($0 >> 16) & 0xFF), green8: UInt16(($0 >> 8) & 0xFF), blue8: UInt16($0 & 0xFF))
         })
-        tv.nativeBackgroundColor = background
-        tv.nativeForegroundColor = foreground
+        tv.nativeBackgroundColor = Theme.Terminal.backgroundUI
+        tv.nativeForegroundColor = Theme.Terminal.foregroundUI
         tv.caretColor = .clear
-        tv.backgroundColor = background
+        tv.backgroundColor = Theme.Terminal.backgroundUI
         tv.getTerminal().setCursorStyle(.steadyBar)
     }
 }
@@ -32,7 +22,7 @@ enum TerminalPalette {
 final class RoveTerminalView: TerminalView {
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
-        if ok { caretColor = TerminalPalette.caret }
+        if ok { caretColor = Theme.Terminal.caretUI }
         return ok
     }
 

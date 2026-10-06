@@ -11,7 +11,7 @@ struct TerminalPane: View {
             SwiftTermView(session: session)
                 .padding(.horizontal, 8)
                 .padding(.top, 6)
-                .background(Color(uiColor: TerminalPalette.background))
+                .background(Theme.Terminal.background)
                 .overlay(alignment: .top) { statusBanner }
                 .overlay { TerminalTools(session: session) }
                 .overlay(alignment: .bottom) { flashLine }
@@ -47,9 +47,9 @@ struct TerminalPane: View {
         if let text = session.flashText {
             Text(text.lowercased())
                 .font(Theme.mono(12))
-                .foregroundStyle(Color(uiColor: TerminalPalette.foreground))
+                .foregroundStyle(Theme.Terminal.foreground)
                 .padding(.horizontal, 10).padding(.vertical, 6)
-                .background(Color(uiColor: UIColor(hex: 0x2B2A27)), in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+                .background(Theme.Terminal.control, in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
                 .padding(.bottom, 44)
                 .transition(.opacity)
                 .accessibilityIdentifier("terminalFlash")
@@ -128,8 +128,8 @@ struct KeyRow: View {
         // The row scrolls: fade the trailing edge so a cut-off key reads as "more", not as a typo.
         .mask(
             HStack(spacing: 0) {
-                Color.black
-                LinearGradient(colors: [.black, .black.opacity(0)], startPoint: .leading, endPoint: .trailing)
+                Theme.maskOpaque
+                LinearGradient(colors: [Theme.maskOpaque, Theme.maskOpaque.opacity(0)], startPoint: .leading, endPoint: .trailing)
                     .frame(width: 32)
             }
         )

@@ -3,7 +3,7 @@ import SwiftUI
 /// A small mono control on the (always espresso) terminal: solid, hairline, never glass.
 private struct TermChip: View {
     var text: String
-    var tint: Color = Color(uiColor: TerminalPalette.foreground)
+    var tint: Color = Theme.Terminal.foreground
     var action: () -> Void
 
     var body: some View {
@@ -14,10 +14,10 @@ private struct TermChip: View {
                 .fixedSize()
                 .padding(.horizontal, 10)
                 .frame(minHeight: 30)
-                .background(Color(uiColor: UIColor(hex: 0x2B2A27)),
+                .background(Theme.Terminal.control,
                             in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                    .strokeBorder(Color(uiColor: UIColor(hex: 0x3A3835))))
+                    .strokeBorder(Theme.Terminal.controlLine))
         }
         .buttonStyle(.pressable)
     }
@@ -76,12 +76,12 @@ struct TerminalTools: View {
         } label: {
             Text("⋯")
                 .font(Theme.mono(14, .bold))
-                .foregroundStyle(Color(uiColor: TerminalPalette.foreground))
+                .foregroundStyle(Theme.Terminal.foreground)
                 .frame(width: 34, height: 30)
-                .background(Color(uiColor: UIColor(hex: 0x2B2A27)),
+                .background(Theme.Terminal.control,
                             in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                    .strokeBorder(Color(uiColor: UIColor(hex: 0x3A3835))))
+                    .strokeBorder(Theme.Terminal.controlLine))
         }
         .accessibilityLabel("Terminal tools")
         .accessibilityIdentifier("terminalTools")
@@ -106,9 +106,9 @@ struct TerminalTools: View {
     private var searchBar: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                TextField("", text: $query, prompt: Text("find in scrollback").foregroundStyle(Color(uiColor: TerminalPalette.foreground).opacity(0.5)))
+                TextField("", text: $query, prompt: Text("find in scrollback").foregroundStyle(Theme.Terminal.foreground.opacity(0.5)))
                     .font(Theme.mono(13))
-                    .foregroundStyle(Color(uiColor: TerminalPalette.foreground))
+                    .foregroundStyle(Theme.Terminal.foreground)
                     .tint(Theme.accent)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -117,12 +117,12 @@ struct TerminalTools: View {
                     .onSubmit { run(forward: true) }
                     .onChange(of: query) { run(forward: true) }
                     .padding(.horizontal, 10).frame(height: 32)
-                    .background(Color(uiColor: UIColor(hex: 0x2B2A27)), in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous).strokeBorder(Color(uiColor: UIColor(hex: 0x3A3835))))
+                    .background(Theme.Terminal.control, in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous).strokeBorder(Theme.Terminal.controlLine))
                     .accessibilityIdentifier("searchField")
                 Text(counter)
                     .font(Theme.mono(12)).monospacedDigit()
-                    .foregroundStyle(summary?.total == 0 ? Theme.error : Color(uiColor: TerminalPalette.foreground))
+                    .foregroundStyle(summary?.total == 0 ? Theme.error : Theme.Terminal.foreground)
                     .frame(minWidth: 44)
                 TermChip(text: "‹") { run(forward: false) }
                 TermChip(text: "›") { run(forward: true) }
@@ -131,12 +131,12 @@ struct TerminalTools: View {
             if session.alternateScreen {
                 Text("an app owns the screen — only what it shows now is searchable; its history is its own")
                     .font(Theme.mono(11))
-                    .foregroundStyle(Color(uiColor: TerminalPalette.foreground).opacity(0.7))
+                    .foregroundStyle(Theme.Terminal.foreground.opacity(0.7))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(8)
-        .background(Color(uiColor: TerminalPalette.background))
+        .background(Theme.Terminal.background)
     }
 
     private var counter: String {

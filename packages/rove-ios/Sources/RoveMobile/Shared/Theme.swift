@@ -2,25 +2,43 @@ import SwiftUI
 import UIKit
 
 // quill design language (quill-all/DESIGN.md) with Rove's own palette from
-// packages/branding/src/colors.ts: porcelain paper / espresso, terracotta as
+// packages/branding/src/colors.ts: porcelain paper / espresso ink, terracotta as
 // the one accent. Matte surfaces, never glass.
+//
+// This file is the only place a color is spelled. Everything else uses these tokens
+// (`scripts/lint-colors.sh` fails the build on a raw `Color(...)`, `.black`, `.white`,
+// `UIColor(...)` or a material anywhere else).
 enum Theme {
+    /// Raw palette (colors.ts `light` / `dark`). Tokens below pick from it.
+    private enum Hex {
+        static let paperLight: UInt32 = 0xF6F3EC, paperDark: UInt32 = 0x141413
+        static let surfaceLight: UInt32 = 0xFDFCF9, surfaceDark: UInt32 = 0x1A1917
+        static let insetLight: UInt32 = 0xEFEAE0, insetDark: UInt32 = 0x2B2A27
+        static let lineLight: UInt32 = 0xDFD8CB, lineDark: UInt32 = 0x3A3835
+        static let inkLight: UInt32 = 0x3B322A, inkDark: UInt32 = 0xEAE7DF
+        static let mutedLight: UInt32 = 0x7C7266, mutedDark: UInt32 = 0xA9A39A
+        static let accentLight: UInt32 = 0xC46B48, accentDark: UInt32 = 0xCC785C
+    }
+
     private static func dyn(_ light: UInt32, _ dark: UInt32, alpha: CGFloat = 1) -> Color {
         Color(uiColor: UIColor { traits in
             UIColor(hex: traits.userInterfaceStyle == .dark ? dark : light, alpha: alpha)
         })
     }
 
-    static let paper = dyn(0xF6F3EC, 0x141413)
-    static let surface = dyn(0xFDFCF9, 0x1A1917)
-    static let inset = dyn(0xEFEAE0, 0x2B2A27)
-    static let line = dyn(0xDFD8CB, 0x3A3835)
-    static let ink = dyn(0x3B322A, 0xEAE7DF)
-    static let muted = dyn(0x7C7266, 0xA9A39A)
-    static let accent = dyn(0xC46B48, 0xCC785C)
+    /// The one page background per theme: every screen and every sheet body.
+    static let paper = dyn(Hex.paperLight, Hex.paperDark)
+    /// The one card / input fill per theme.
+    static let surface = dyn(Hex.surfaceLight, Hex.surfaceDark)
+    /// Read-only wells (code, tails, banners, footers) — never a card.
+    static let inset = dyn(Hex.insetLight, Hex.insetDark)
+    static let line = dyn(Hex.lineLight, Hex.lineDark)
+    static let ink = dyn(Hex.inkLight, Hex.inkDark)
+    static let muted = dyn(Hex.mutedLight, Hex.mutedDark)
+    static let accent = dyn(Hex.accentLight, Hex.accentDark)
     static let accentSoft = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
-            ? UIColor(hex: 0xCC785C, alpha: 0.14) : UIColor(hex: 0xC46B48, alpha: 0.10)
+            ? UIColor(hex: Hex.accentDark, alpha: 0.14) : UIColor(hex: Hex.accentLight, alpha: 0.10)
     })
     static let success = dyn(0x5F8C49, 0x9ACA86)
     /// Failures only — terracotta never means error.
@@ -28,6 +46,37 @@ enum Theme {
     /// Quota at 75%+ and routine runs that were missed; palette `yellow` (packages/branding colors.ts).
     /// Not an error and not terracotta: it asks for a look, never for action.
     static let warning = dyn(0xB08A2F, 0xE8C96B)
+
+    /// The one modal scrim, both themes: espresso ink at a fixed opacity (never the system dim,
+    /// which is grey in light, black in dark and varies with the detent).
+    static let scrim = Color(uiColor: UIColor(hex: Hex.inkLight, alpha: 0.32))
+    /// Soft drop shadow under floating bars and toasts.
+    static let shadow = Color(uiColor: UIColor(hex: Hex.inkLight, alpha: 0.08))
+    /// Fully opaque fill for alpha masks (only the alpha channel matters).
+    static let maskOpaque = Color(uiColor: UIColor(hex: Hex.inkLight))
+
+    /// The terminal is espresso in both themes and shares the dark theme's tokens: in light mode it
+    /// reads as an inset espresso panel, not a different black. Engines draw for a dark background
+    /// and never learn ours (query replies are filtered).
+    enum Terminal {
+        static let backgroundUI = UIColor(hex: Hex.paperDark)
+        static let foregroundUI = UIColor(hex: Hex.inkDark)
+        static let caretUI = UIColor(hex: Hex.accentDark)
+        static let background = Color(uiColor: backgroundUI)
+        static let foreground = Color(uiColor: foregroundUI)
+        /// Controls drawn on the terminal (tools chip, find row): dark inset / line.
+        static let control = Color(uiColor: UIColor(hex: Hex.insetDark))
+        static let controlLine = Color(uiColor: UIColor(hex: Hex.lineDark))
+        /// ANSI 0–15: the claude-theme xterm palette the harness photographs
+        /// (rove-harness/src/lib/harness-terminal.ts); color 0 is the terminal background.
+        static let ansi: [UInt32] = [
+            Hex.paperDark, 0xD47563, 0x9ACA86, 0xE8C96B, 0x61AAF2, 0x9B87F5, 0xD4967E, Hex.mutedDark,
+            0x6B665F, 0xD47563, 0x9ACA86, 0xE8C96B, 0x61AAF2, 0x9B87F5, 0xE0AB96, Hex.inkDark,
+        ]
+    }
+
+    /// UIKit backdrops that are not themed surfaces (the camera preview).
+    static let cameraBackdropUI = UIColor(hex: 0x000000)
 
     static let radius: CGFloat = 8
     static let smallRadius: CGFloat = 6

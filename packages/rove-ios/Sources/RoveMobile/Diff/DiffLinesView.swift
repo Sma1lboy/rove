@@ -101,7 +101,7 @@ struct DiffLinesView: View {
         }
         .padding(10)
         .frame(maxWidth: 320, alignment: .leading)
-        .tile(Theme.paper)
+        .tile()
         .padding(.leading, DiffMetrics.gutter + 10).padding(.vertical, 4)
     }
 }

@@ -63,7 +63,7 @@ final class RoundScreensTests: XCTestCase {
         checkpoint("r-inbox")
         back()
 
-        for page in ["board", "routines", "worktrees"] {
+        for page in ["board", "routines", "issues", "worktrees"] {
             openPage(page)
             if page == "board", let repo = env["ROVE_BOARD_REPO"], app.buttons[repo].firstMatch.exists {
                 app.buttons[repo].firstMatch.tap()
