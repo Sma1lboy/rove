@@ -29,10 +29,11 @@ enum WorktreesLogic {
         case nil: out.append(WorktreeTag(text: "dirty?", tone: .quiet)) // probe failed: not the same as clean
         default: break
         }
+        // `.some(true)`/`.some(false)`/`.none`: older compilers don't see literal Bool patterns on Optional as exhaustive.
         switch row.branchOnRemote {
-        case true: out.append(WorktreeTag(text: "on remote", tone: .good))
-        case false: out.append(WorktreeTag(text: "not pushed", tone: .warn))
-        case nil: out.append(WorktreeTag(text: "remote ?", tone: .quiet))
+        case .some(true): out.append(WorktreeTag(text: "on remote", tone: .good))
+        case .some(false): out.append(WorktreeTag(text: "not pushed", tone: .warn))
+        case .none: out.append(WorktreeTag(text: "remote ?", tone: .quiet))
         }
         if let v = verdictLabel(row) { out.append(v) }
         return out
