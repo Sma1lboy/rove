@@ -372,8 +372,8 @@ differs from the main checkout is its job to reconcile.
 | `.rove/clone-dirs` | in the repo | the four names above | Directory names to clone, one per line, `#` comments. A non-blank file **replaces** the defaults, so a comment-only file clones nothing for that repo. Wins over the defaults the way `init.sh` wins over the `state.json` override |
 
 Names are matched anywhere in the tree, so `node_modules` also picks up
-`packages/*/node_modules`. Entries holding a `/`, `.` or `..`, or starting with
-`-`, are ignored.
+`packages/*/node_modules`. Entries containing a `/`, exactly `.` or `..`, or
+starting with `-`, are ignored.
 
 A directory is cloned only when all of these hold; otherwise it is skipped
 without a message, exactly as before:
@@ -387,8 +387,11 @@ without a message, exactly as before:
 A clone that fails is logged to the daemon log and removed; it never fails task
 creation. Cloning `node_modules` of about 87,000 files takes roughly 15 seconds,
 asynchronously: the task opens when it finishes. `du` counts clones at full
-size, so measure with `df` instead. Because the copies are regenerable, they do
-not count as gitignored work: deleting a fresh task still needs no `--force`.
+size, so measure with `df` instead. Because the copies are regenerable, any
+directory with a listed name is exempt from the gitignored-work check on
+delete (while cloning is on, on macOS): deleting a fresh task needs no
+`--force`. Mind that when you add a name that holds real work to
+`.rove/clone-dirs`; a forced delete still snapshots it.
 
 ### Sidebar
 
