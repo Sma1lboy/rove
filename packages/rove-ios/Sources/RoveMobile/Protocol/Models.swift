@@ -183,6 +183,15 @@ struct TabNewResult: Codable { var tabId: String }
 struct EmptyResult: Codable { init() {}; init(from decoder: Decoder) throws {} }
 struct TermAttachResult: Codable { var stream: String; var alive: Bool; var replay: String }
 struct DiffFilesResult: Codable { var base: String?; var files: [DiffFile] }
-struct DiffFileResult: Codable { var kind: String; var text: String?; var message: String? }
+struct DiffFileResult: Codable, Equatable {
+    var kind: String
+    var text: String?
+    var message: String?
+    /// Rename source (`diff`), image flag and size (`binary`/`patch-note`), hunkless-patch detail.
+    var origPath: String?
+    var image: Bool?
+    var sizeBytes: Int?
+    var note: PatchNote?
+}
 struct TermDataEvent: Codable { var stream: String; var data: String }
 struct TermExitEvent: Codable { var stream: String; var code: Int? }

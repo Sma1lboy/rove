@@ -50,6 +50,7 @@ struct TaskDetailView: View {
         .task { await reload() }
         .task { await tabStates.poll(client: client, taskId: taskId) { selectedTabId } }
         .onChange(of: model.store.version) { Task { await reload() } }
+        .mentionDelivery(taskId: taskId, session: session)
         .onAppear {
             session?.start()
             actions.onRemoved = { _ in dismiss() }

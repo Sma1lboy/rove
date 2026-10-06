@@ -82,13 +82,13 @@
 
 | # | 功能 | 状态 | 手机上 |
 |---|---|---|---|
-| F1 | Files · All：worktree 文件树，打开只读预览 | 缺失 | |
-| F2 | Files · Changes：未提交 / 分支对 base，`b` 切换，标题写明范围 | 已有 | diff 列表分两段（样式待改） |
-| F3 | 单文件 diff：重命名、二进制、仅权限变化、空文件都写明 | 缺失 | 现在只渲染 diff 文本 |
-| F4 | 合并 diff：目录 / 整个 worktree 一次看 | 缺失 | |
-| F5 | diff review：选行/选区写批注、删批注、一次发给引擎 | 缺失 | |
-| F6 | `a` 把 `@path` 粘进引擎输入框 | 缺失 | |
-| F7 | `r` 刷新 / git 报错原样显示并可重试 | 缺失 | |
+| F1 | Files · All：worktree 文件树，打开只读预览 | 已有 | 任务页 `diff` → files → `all`：按目录浏览（面包屑）、路径搜索；点文件走 `diff.file` working 范围，未改动的文件得到 `code` 只读预览。新 op `files.list`（超过 5 万个文件时截断并提示） |
+| F2 | Files · Changes：未提交 / 分支对 base，`b` 切换，标题写明范围 | 已有 | files → `changes`：`uncommitted` / `branch vs <base>` 两个 tile 切换，下面一行写明范围含义，base 点名；按目录分组，加减行用成功绿/错误红 |
+| F3 | 单文件 diff：重命名、二进制、仅权限变化、空文件都写明 | 已有 | 单文件页按 `diff.file` 的结果种类渲染：重命名（`renamed from` + `+N −M`；纯重命名写 `+0 −0`）、二进制/图片（含大小）、仅权限变化（`100644 → 100755`）、空文件新增/删除、读取失败、git 报错原样显示，均带 `retry` |
+| F4 | 合并 diff：目录 / 整个 worktree 一次看 | 已有 | changes 里 `whole worktree` 与每个目录行，All 里目录行的 `diff`：直接用 `diff.file` 的目录/`.` 路径让 git 出合并 diff（和 TUI 同一条路径），只读，可切范围。只含已跟踪文件的改动（未跟踪文件在 changes 列表里单列） |
+| F5 | diff review：选行/选区写批注、删批注、一次发给引擎 | 已有 | 单文件 diff 里点一行、再点另一行成区间 → `note`；批注挂在行下，`notes n/m` 打开列表，`drop`（二次确认）删除、`send` 一次把所有未发送批注作为一条消息发给引擎，只有 `send` 动词确认送达才标记 `sentAt`。新 ops `review.list/add/remove/send`，存储在 `state.json` 的 `diffComments.<taskId>`，与 TUI 同一份。注意：已经在运行的 TUI 只在重启后才看得到手机写入的批注（TUI 的 kv 只在启动时读一次） |
+| F6 | `a` 把 `@path` 粘进引擎输入框 | 已有 | 单文件页头部 `@`：把 `@<相对路径>`（与 TUI 同格式，不提交）记下，退回任务页，终端重新附着并回放完之后，经现有 `term.input` 写进当前引擎的输入框 |
+| F7 | `r` 刷新 / git 报错原样显示并可重试 | 已有 | files、单文件、合并 diff、Worktrees 页都有刷新键和下拉刷新；git/桥接报错原样显示，带 `retry` |
 | F8 | `o` 用系统应用打开音视频/PDF | 不适用 | 文件在 Mac 上，系统应用也在 Mac 上 |
 | F9 | 用终端编辑器打开（vim diff 模式） | 不适用 | 需要在 Mac 的终端里交互 |
 
@@ -121,7 +121,7 @@
 | P7 | 新建 / 暂停恢复 / 立即运行 / 删除 / 打开最近一次运行的任务 | 缺失 | |
 | P8 | GitHub Issues：按仓库，只看分给我的，刷新 | 缺失 | |
 | P9 | 从 issue 开任务；已有任务的直接打开 | 缺失 | |
-| P10 | Worktrees 页：审计所有非 main worktree（脏、远端、PR、年龄），land，受保护的删除 | 缺失 | |
+| P10 | Worktrees 页：审计所有非 main worktree（脏、远端、PR、年龄），land，受保护的删除 | 已有 | 任务列表 `…` 页面菜单 → worktrees：按项目分组，每行分支、脏/探测失败、远端有无、PR/已合并/空闲判定、年龄；点开后 `land branch`（仅已跟踪的任务分支，merge/squash 二次确认，走现有 `task.land`）与 `remove worktree`（确认后调 `worktrees.remove`；有未提交改动时 git 的拒绝原因原样引用，再来一次明确的 `Force remove` 确认才会强制删）。新 ops `worktrees.list/remove` |
 
 ## 设置与杂项
 
