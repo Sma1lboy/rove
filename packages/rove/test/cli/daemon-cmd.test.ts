@@ -54,6 +54,11 @@ vi.mock("../../src/core/index.ts", () => ({
   createRoveCore: mocks.createRoveCore,
 }))
 
+// Chat channels would dial the (mocked) daemon socket and poll the network.
+vi.mock("../../src/channels/registry.ts", () => ({
+  startChatChannels: vi.fn(async () => []),
+}))
+
 import { runDaemonSubcommand } from "../../src/cli/daemon-cmd.ts"
 
 let home: string

@@ -1,0 +1,27 @@
+{
+  "name": "rove-weixin",
+  "version": "0.0.1",
+  "description": "WeChat (微信) chat channel for Rove over Tencent's iLink Bot API. Bundled into the rove CLI; not published on its own.",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.13",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sma1lboy/rove": "workspace:*",
+    "@sma1lboy/rove-daemon": "workspace:*",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "@tsconfig/bun": "1.0.11",
+    "@types/bun": "1.3.14",
+    "@types/node": "25.6.2",
+    "@types/qrcode-terminal": "^0.12.2",
+    "typescript": "5.8.2"
+  }
+}

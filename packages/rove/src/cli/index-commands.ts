@@ -72,6 +72,14 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
     },
   ],
   [
+    // A chat channel package; the registry names its entry.
+    "weixin",
+    async (args) => {
+      const { runChannelCli } = await import("../channels/registry.ts")
+      await runChannelCli("weixin", args)
+    },
+  ],
+  [
     "doctor",
     async (args) => {
       const { runDoctorSubcommand } = await import("./doctor-cmd.ts")

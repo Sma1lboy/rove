@@ -105,6 +105,7 @@ Commands:
   api <verb>              Scriptable RPC surface for agents (see `rove api --help`)
   daemon <verb>           Manage the daemon (start|stop|status|restart)
   machine <verb>          Other computers running Rove (add|remove|list)
+  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny)
   doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
   config [--path]         Open rove's config file (state.json) in your editor
   reset [--hard]          Stop runtimes; optionally wipe task/UI state
@@ -414,6 +415,20 @@ something's wrong.
 > reload itself too. Settings → Dev → **Restart backend** does both in one
 > step. Hosted engine sessions live in the PTY host and survive all of it.
 
+## weixin
+
+```bash
+rove weixin login           # show a QR code; scan it in WeChat to bind
+rove weixin status          # binding, allowed senders, reply windows, undelivered pushes
+rove weixin allow <user-id> # let another WeChat user send commands
+rove weixin deny <user-id>
+rove weixin logout          # remove the binding and its credentials
+```
+
+Lets you ask for task status, message a task's agent and start tasks from
+WeChat, and get a message when a task needs you. The running daemon does the
+messaging. See [WeChat](./WEIXIN.md).
+
 ## feedback
 
 ```bash
@@ -462,6 +477,7 @@ Only the `ROVE_*` environment namespace is supported.
 | `ROVE_OPEN_EDITOR` | Command that opens a worktree in a GUI editor (`code`, `cursor`, …) |
 | `ROVE_DEV=1` | Mark a developer checkout; hides the update chip |
 | `ROVE_DEBUG=1` | Print full startup errors instead of one line |
+| `ROVE_WEIXIN_BASE_URL` | iLink endpoint `rove weixin login` uses (default `https://ilinkai.weixin.qq.com`); for testing against a fake server |
 | `ROVE_TASK_ID` / `ROVE_TAB_ID` | Set inside tabs Rove opens; how `rove api` verbs resolve the calling task |
 | `ROVE_FILETREE_WATCH=0` | Turn off the Files pane's worktree watcher; `r` becomes the only refresh |
 | `ROVE_RPC_TIMEOUT_MS` | Deadline for one daemon RPC (default 20000; `0` or negative waits forever) |
@@ -480,6 +496,8 @@ Product data lives under `~/.rove/`, or beneath the home selected by `ROVE_HOME_
 
 - `tasks.json`: the task index
 - `worktrees/<repo-key>/<task-slug>/`: managed worktrees
+- `weixin/`: the WeChat binding (credentials, owner-only); see
+  [WeChat](./WEIXIN.md#where-things-live)
 - `themes/`, `settings/keybindings.yaml`, issues, notes, and automations
 - daemon and PTY sockets, pid files, logs, and plugin data
 

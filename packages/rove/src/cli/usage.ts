@@ -30,6 +30,7 @@ export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): stri
     `  api <verb>              Scriptable RPC surface for agents (see \`${cliName} api --help\`)`,
     "  daemon <verb>           Manage the daemon (start|stop|status|restart)",
     "  machine <verb>          Other computers running Rove (add|remove|list)",
+    "  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny)",
     "  doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies",
     `  config [--path]         Open ${cliName}'s config file (state.json) in your editor`,
     "  reset [--hard]          Stop runtimes; optionally wipe task/UI state",

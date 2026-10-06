@@ -7,6 +7,8 @@ import { stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
 import { rotateLogIfNeeded } from "@sma1lboy/rove-daemon/daemon/log-rotate"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { readPidFile, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
+import type { ChatChannel } from "../channels/chat-channel.ts"
+import { startChatChannels } from "../channels/registry.ts"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { type RoveCore, createRoveCore } from "../core/index.ts"
 import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
@@ -105,6 +107,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   logDaemonInfo("boot", `daemon starting — ${daemonSpawnReason()} (pid ${process.pid}, v${CURRENT_VERSION})`)
 
   let core: RoveCore | undefined
+  let channels: readonly ChatChannel[] = []
   const server = await startDaemonServer(
     async () => {
       const migration = migrateRoveDaemonStateLayout()
@@ -127,12 +130,20 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
       // Plugin callbacks exec THIS Rove where that is expressible as one
       // absolute path, else the invoked name on PATH (see plugin-bin-path.ts).
       plugins: { binPath: resolvePluginBinPath() },
+      // A bound chat channel must keep answering after the TUI closes.
+      keepAlive: () => channels.some((channel) => channel.keepAlive()),
       onStop: async () => {
+        for (const channel of channels) channel.stop()
         await core?.close()
       },
     },
   )
   console.log(`${CLI_NAME} daemon: listening on ${server.socketPath}`)
+  channels = await startChatChannels({
+    socketPath: server.socketPath,
+    log: logDaemonInfo,
+    keepAliveChanged: () => server.reevaluateIdle(),
+  })
 
   const shutdown = async () => {
     await server.close()
