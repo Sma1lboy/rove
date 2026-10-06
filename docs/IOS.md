@@ -112,6 +112,13 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `term.detach` | `stream` | `{}` |
 | `diff.files` | `taskId` | `{base, files: [{path, status, added, deleted, scope}]}` |
 | `diff.file` | `taskId`, `path`, `scope` | `{kind, text?, message?}` |
+| `files.list` | `taskId` | `{files, truncated}` (tracked + untracked, not ignored) |
+| `review.list` | `taskId` | `{notes, unsent}` (notes live in `state.json` `diffComments.<taskId>`, shared with the TUI) |
+| `review.add` | `taskId`, `filePath`, `line`, `startLine?`, `body` | `{note}` |
+| `review.remove` | `taskId`, `id` | `{removed}` (destructive) |
+| `review.send` | `taskId`, `tabId?` | `{sent, delivered, reason?}`; notes are marked sent only when delivery is confirmed |
+| `worktrees.list` | `network?` | `{projects: [{repo, worktrees: [{path, branch, dirty, branchOnRemote, verdict, verdictReason, taskId?, taskKind?, …}]}]}` |
+| `worktrees.remove` | `path`, `force` | `{removed, residue?}`; a dirty worktree is refused with code `DIRTY_WORKTREE` unless `force` (destructive) |
 | `attention.dismiss` | `taskId`, `tabId?` | `{}` |
 
 ## Build the app

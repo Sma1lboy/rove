@@ -81,8 +81,8 @@ final class FilesFlowTests: XCTestCase {
         shot("14-sent")
     }
 
-    private func launchToFiles() {
-        guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty, let task = env["ROVE_FILES_TASK"] else { return }
+    private func launchToFiles(task override: String? = nil) {
+        guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty, let task = override ?? env["ROVE_FILES_TASK"] else { return }
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["-resetPairing"]
@@ -126,5 +126,22 @@ final class FilesFlowTests: XCTestCase {
         wait(force, "force confirm"); shot("32-force-confirm")
         force.tap()
         wait(el("worktreeNotice"), "removed notice", 30); shot("33-removed")
+    }
+
+    /// F7/F3: a git failure is shown as git said it, and `retry` recovers once the cause is gone.
+    func testGitErrorShownVerbatimThenRetryRecovers() throws {
+        guard let task = env["ROVE_ERR_TASK"], let dir = env["ROVE_ERR_DIR"] else { throw XCTSkip("not configured") }
+        let fm = FileManager.default
+        try fm.moveItem(atPath: dir, toPath: dir + ".gone")
+        defer { if fm.fileExists(atPath: dir + ".gone") { try? fm.moveItem(atPath: dir + ".gone", toPath: dir) } }
+        var tmp = env; tmp["ROVE_FILES_TASK"] = task
+        launchToFiles(task: task)
+        let err = wait(el("filesError"), "git error line", 30)
+        XCTAssertTrue(err.label.contains("git") || err.label.contains("worktree") || err.label.contains("No such"), "got: \(err.label)")
+        shot("40-git-error")
+        try fm.moveItem(atPath: dir + ".gone", toPath: dir)
+        el("retryButton").tap()
+        wait(el("combinedAll").exists ? el("combinedAll") : app.staticTexts["no changes"], "recovered", 30)
+        shot("41-recovered")
     }
 }
