@@ -64,7 +64,7 @@ struct BranchSheet: View {
         SheetScaffold(title: "task branch", kicker: "branch", error: error,
                       primary: PrimaryBar(label: "set branch", enabled: next != nil, busy: busy, identifier: "branchConfirm") { Task { await save() } }) {
             FormSection(label: "branch") {
-                FieldBox { TextField("branch name", text: $branch).submitLabel(.done) }
+                FieldBox { TextField("branch name", text: $branch).submitLabel(.done).textInputAutocapitalization(.never).autocorrectionDisabled() }
                     .accessibilityIdentifier("branchField")
                 Hint(text: "Type a new name, or tap a local branch. Renames with git branch -m once the worktree exists.")
             }
@@ -205,7 +205,7 @@ struct ModelEffortSheet: View {
                 BrailleSpinner(size: 13)
             } else {
                 FormSection(label: "model", trailing: initialModel.isEmpty ? "engine default" : nil) {
-                    FieldBox { TextField("model, in the engine's own spelling", text: $modelText).submitLabel(.done) }
+                    FieldBox { TextField("model, in the engine's own spelling", text: $modelText).submitLabel(.done).textInputAutocapitalization(.never).autocorrectionDisabled() }
                         .accessibilityIdentifier("modelField")
                     if suggestions.isEmpty {
                         Hint(text: "This engine lists no models. Type one exactly as the engine expects it.")

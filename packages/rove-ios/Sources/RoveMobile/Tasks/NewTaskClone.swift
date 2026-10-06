@@ -8,15 +8,19 @@ struct NewTaskCloneForm: View {
         FormSection(label: "git url") {
             FieldBox {
                 TextField("", text: Binding(get: { draft.clone.url }, set: { draft.clone.setURL($0) }),
-                          prompt: Text("https://github.com/owner/repo.git").foregroundStyle(Theme.muted))
+                          prompt: Text(verbatim: "https://github.com/owner/repo.git").foregroundStyle(Theme.muted))
                     .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                     .accessibilityIdentifier("cloneURLField")
             }
             soft(draft.clone.url, draft.clone.urlIssue)
         }
         FormSection(label: "parent directory") {
             FieldBox {
-                TextField("", text: $draft.clone.parentDir, prompt: Text("/Users/you/code").foregroundStyle(Theme.muted))
+                TextField("", text: $draft.clone.parentDir, prompt: Text(verbatim: "/Users/you/code").foregroundStyle(Theme.muted))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                     .accessibilityIdentifier("cloneParentField")
             }
             soft(draft.clone.parentDir, draft.clone.parentIssue)
@@ -25,6 +29,8 @@ struct NewTaskCloneForm: View {
             FieldBox {
                 TextField("", text: Binding(get: { draft.clone.folder }, set: { draft.clone.setFolder($0) }),
                           prompt: Text("derived from the url").foregroundStyle(Theme.muted))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                     .accessibilityIdentifier("cloneFolderField")
             }
             soft(draft.clone.folder, draft.clone.folderIssue)

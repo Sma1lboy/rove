@@ -58,6 +58,7 @@ struct NewTaskOptions: View {
         FormSection(label: "branch name", trailing: fanOut ? "single task only" : nil) {
             FieldBox {
                 TextField("", text: $draft.spawn.branch, prompt: Text("optional — derived from the title").foregroundStyle(Theme.muted))
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .disabled(fanOut)
                     .accessibilityIdentifier("branchField")
             }
@@ -69,6 +70,7 @@ struct NewTaskOptions: View {
         FormSection(label: "model") {
             FieldBox {
                 TextField("", text: $draft.spawn.model, prompt: Text("engine default").foregroundStyle(Theme.muted))
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .accessibilityIdentifier("modelField")
             }
             ScrollView(.horizontal, showsIndicators: false) {

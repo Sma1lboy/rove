@@ -56,7 +56,7 @@ struct TaskListView: View {
         let shown = sections.reduce(0) { $0 + $1.rows.count }
         VStack(spacing: 0) {
             ScreenHeader {
-                BracketChip(size: 19).accessibilityAddTraits(.isHeader)
+                BracketChip(size: 19).fixedSize().accessibilityAddTraits(.isHeader)
             } trailing: {
                 attentionButton
                 filterMenu
@@ -151,18 +151,14 @@ struct TaskListView: View {
         .accessibilityIdentifier("searchButton")
     }
 
-    /// Current sort in mono accent; the menu lists the four modes.
+    /// Sort icon, accent once the order is not the default; the menu lists the four modes.
     private var sortMenu: some View {
         Menu {
             Picker("Sort", selection: $sortRaw) {
                 ForEach(TaskSortMode.allCases) { Text($0.label).tag($0.rawValue) }
             }
         } label: {
-            Text(sortMode.label)
-                .font(Theme.mono(12, .medium))
-                .foregroundStyle(Theme.accent)
-                .lineLimit(1).fixedSize()
-                .frame(minHeight: 36)
+            HeaderIcon(systemName: "arrow.up.arrow.down", tint: sortMode == .attention ? Theme.muted : Theme.accent)
         }
         .accessibilityLabel("Sort: \(sortMode.label)")
         .accessibilityIdentifier("sortMenu")

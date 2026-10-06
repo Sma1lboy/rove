@@ -83,7 +83,7 @@ flowchart LR
 - **Loopback by default.** Remote access is `--preset tailscale` (tailnet address only) or `--preset cf` (loopback behind cloudflared); anything else is an explicit `--host`.
 - **One bearer token.** 32 random bytes, sent only as `Authorization: Bearer`; a token in the URL query is refused, so it never lands in proxy or tunnel logs. It is checked with a constant-time compare at the WebSocket upgrade; a missing or wrong token gets HTTP 401 and no socket. Every later frame rides that authenticated socket.
 - **Cloudflare Access (`--preset cf`).** Before the token, the bridge verifies `Cf-Access-Jwt-Assertion` against the team's published keys (`/cdn-cgi/access/certs`) and checks issuer, AUD and expiry. Both layers must pass; each refusal is logged with the reason, never with the token or JWT.
-- **Closed op list.** The phone can call the 18 operations below and nothing else. There is no generic daemon passthrough; anything else is refused with `UNKNOWN_OP`.
+- **Closed op list.** The phone can call the operations listed below and nothing else. There is no generic daemon passthrough; anything else is refused with `UNKNOWN_OP`.
 - **Terminal input is scoped.** `term.input` only reaches a session this connection attached, and attach refuses a tab with no hosted session instead of spawning one.
 - **Diff paths stay in the worktree.** Absolute paths and `..` are refused.
 - **What the token grants.** Whoever holds it can do what the app can: read task output, type into engine sessions (which run with your user's permissions), create, land and delete tasks. Treat the pairing URL like a password; rotate it if it leaks.
@@ -113,6 +113,36 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `diff.files` | `taskId` | `{base, files: [{path, status, added, deleted, scope}]}` |
 | `diff.file` | `taskId`, `path`, `scope` | `{kind, text?, message?}` |
 | `attention.dismiss` | `taskId`, `tabId?` | `{}` |
+
+### Task area ops
+
+Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-checked, engine arguments are engine ids from `engine-list` (never a command line), and the three destructive ones are logged and confirmed twice in the app. Repo-scoped ops accept only repos `repos.list` knows (`UNKNOWN_REPO` otherwise): pass the path as `repos.list` returned it.
+
+| Op | Args | Result | Wraps | Destructive |
+| --- | --- | --- | --- | --- |
+| `task.get` | `taskId` | `{task}` (path, prompt, engine, model, effort, PR detail, report) | `get-task` | |
+| `task.info` | `taskId` | `{running, activity, changes, base, tabs: [{exit?, tail?}]}` | `collect` | |
+| `repo.branches` | `repo` | `{branches, current}` | `listLocalBranches` | |
+| `notes.list` | `repo` | `{notes}` | `note-list` | |
+| `worktree.adoptable` | `repo` | `{worktrees, unreadable}` | RPC `worktree.discoverAdoptable` | |
+| `task.spawn` | `repo`, `engine?`, `title?`, `prompt?`, `branch?`, `baseBranch?`, `model?`, `effort?`, `count?` (1–10) or `agents?` (`id:N,…`), `status?`, `pin?` | `{taskIds, groupId?}` | `add` | |
+| `task.rename` | `taskId`, `title` | `{}` | `rename` | |
+| `task.setBranch` | `taskId`, `branch` | `{}` | `set-branch` | |
+| `task.setCommand` | `taskId`, `engine` | `{protocol?}` | `set-command` | |
+| `task.setModel` | `taskId`, `model` | `{}` | `set-model` | |
+| `task.setEffort` | `taskId`, `level` | `{}` | `set-effort` | |
+| `task.setStatus` | `taskId`, `status` (six) | `{}` | `set-status` | |
+| `task.pin` | `taskId`, `pinned` | `{}` | `pin` | |
+| `task.move` | `taskId`, `direction` (`up`/`down`/`top`) | `{}` | RPC `task.move` | |
+| `project.forget` | `repo` | `{}` | RPC `project.forget` | yes |
+| `notes.delete` | `repo`, `id` | `{deleted}` | `note-delete` | yes |
+| `task.openMain` | `repo` | `{taskId}` | RPC `task.ensureMain` | |
+| `worktree.adopt` | `repo`, `worktreePath` (must be adoptable), `branch?`, `title?`, `engine?` | `{taskId}` | RPC `worktree.adopt` | |
+| `repo.clone` | `url` (https/http/ssh/git/scp form), `parentDir`, `folder?` | `{path}` | `cloneRepo` | |
+| `task.ensureWorktree` | `taskId` | `{worktreePath}` | `ensure-worktree` | |
+| `task.removeWorktree` | `taskId`, `force?` | `{removed, worktreePath?, branch?}` | `remove-worktree` | yes |
+
+Task rows (`tasks` push and `tasks.list`) also carry optional `pinned`, `order`, `createdAt`, `updatedAt`, `changes` (`{added, deleted, ahead?, behind?}` or `{unreadable: true}`, from the daemon's `worktree.changes` push; absent = not collected), `rowTokens` (`{text, tone?, source, expiresAt}`), `prChip` (`conflict`/`failing`/`passing`), `prChipStale`, and `pr.mergeable`. Engine rows carry optional `models`, `effortLevels` and `ready`. Older apps ignore them; the app decodes rows without them.
 
 ## Build the app
 
