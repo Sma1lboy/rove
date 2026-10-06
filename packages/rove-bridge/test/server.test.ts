@@ -235,6 +235,25 @@ describe("task feed", () => {
     await c.call("hello")
     expect(c.pushes.filter((p) => p.event === "tasks")).toHaveLength(2)
   })
+
+  test("a later subscriber gets the cached list without a read, its timers aged to now", async () => {
+    let clock = 1_000_000
+    let reads = 0
+    const row = {
+      id: "T1", title: "t", branch: "b", repo: "/r", kind: "task", status: "backlog",
+      group: "working" as const, rank: 3, activity: { state: "running", forMs: 4000 },
+      engine: null, pr: null, report: null, deleting: false,
+    }
+    const feed = new TaskFeed(async () => {
+      reads++
+      return { tasks: [row], attention: [] }
+    }, () => clock)
+    await feed.current()
+    clock += 7000
+    const later = await feed.current()
+    expect(reads).toBe(1)
+    expect(later.tasks[0]?.activity?.forMs).toBe(11_000)
+  })
 })
 
 describe("terminal forwarding", () => {

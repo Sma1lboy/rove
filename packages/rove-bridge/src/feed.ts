@@ -11,12 +11,16 @@ const DEBOUNCE_MS = 250
  * same state (one turn ends, the next starts) still pushes a fresh base.
  */
 export class TaskFeed {
+  private latest: { payload: TasksPayload; readAt: number } | null = null
   private latestKey = ""
   private readonly listeners = new Set<(payload: TasksPayload) => void>()
   private timer: ReturnType<typeof setTimeout> | null = null
   private inflight: Promise<TasksPayload> | null = null
 
-  constructor(private readonly read: () => Promise<TasksPayload>) {}
+  constructor(
+    private readonly read: () => Promise<TasksPayload>,
+    private readonly now: () => number = Date.now,
+  ) {}
 
   /** Something changed upstream; refresh soon. */
   poke(): void {
@@ -33,6 +37,7 @@ export class TaskFeed {
   refresh(): Promise<TasksPayload> {
     if (this.inflight) return this.inflight
     const p = this.read().then((payload) => {
+      this.latest = { payload, readAt: this.now() }
       const key = JSON.stringify(payload, (k, v) => (k === "forMs" ? undefined : v))
       if (key !== this.latestKey) {
         this.latestKey = key
@@ -46,6 +51,22 @@ export class TaskFeed {
     }
     p.then(clear, clear)
     return p
+  }
+
+  /**
+   * The cached list for a new subscriber; only the very first one costs a read. `forMs` is
+   * aged by the time since that read, because the phone treats it as current on receipt.
+   */
+  current(): Promise<TasksPayload> {
+    if (!this.latest) return this.refresh()
+    const elapsed = Math.max(0, this.now() - this.latest.readAt)
+    const { payload } = this.latest
+    return Promise.resolve({
+      ...payload,
+      tasks: payload.tasks.map((t) =>
+        t.activity ? { ...t, activity: { ...t.activity, forMs: t.activity.forMs + elapsed } } : t,
+      ),
+    })
   }
 
   subscribe(listener: (payload: TasksPayload) => void): () => void {

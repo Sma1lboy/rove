@@ -75,6 +75,22 @@ final class BehaviorTests: XCTestCase {
         XCTAssertEqual(TaskListLogic.ageMs(forMs: 5_000, receivedAt: t0, now: t0.addingTimeInterval(-3)), 5_000)
     }
 
+    /// `activity.since` is an optional, additive bridge field the app never reads: with it or
+    /// without it (an older bridge), the timer is `forMs` at receipt plus local elapsed time.
+    @MainActor
+    func testTimerAgesFromForMsWhetherOrNotTheBridgeSendsSince() throws {
+        for activity in [#"{"state":"running","forMs":60000}"#,
+                         #"{"state":"running","forMs":60000,"since":1700000000000}"#] {
+            let json = #"{"tasks":[{"id":"t1","title":"t","group":"working","activity":"# + activity + "}]}"
+            let payload = try JSONDecoder().decode(TasksPayload.self, from: Data(json.utf8))
+            let store = TaskStore(client: BridgeClient())
+            store.apply(payload)
+            let row = try XCTUnwrap(store.task(id: "t1"))
+            let ms = try XCTUnwrap(store.activityMs(row, now: Date().addingTimeInterval(30)))
+            XCTAssertEqual(ms, 90_000, accuracy: 1_000, activity)
+        }
+    }
+
     func testAgeFormatting() {
         XCTAssertEqual(TaskListLogic.age(ms: 5_000), "5s")
         XCTAssertEqual(TaskListLogic.age(ms: 125_000), "2m")

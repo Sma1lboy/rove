@@ -29,7 +29,7 @@ import { type PtyHostClient, TerminalForwarder } from "./terminal.ts"
 export interface BridgeDeps {
   readonly token: string
   readonly ops: RoveOps
-  readonly feed: Pick<TaskFeed, "refresh" | "subscribe">
+  readonly feed: Pick<TaskFeed, "current" | "refresh" | "subscribe">
   /** A fresh PTY Host socket for one phone connection. */
   readonly openPty: () => PtyHostClient
   readonly roveVersion: string
@@ -56,9 +56,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     case "hello":
       return { protocol: BRIDGE_PROTOCOL_VERSION, roveVersion: deps.roveVersion, host: osHostname() }
     case "tasks.subscribe": {
-      // Snapshot first: subscribing before the read would also push it. A fresh read,
-      // not the cached payload: the phone ages `forMs` from receipt, so it must be current.
-      const snapshot = await deps.feed.refresh()
+      // Snapshot first: subscribing before the read would also push it. Cached (only the
+      // first subscriber pays a read), with `forMs` aged to now — see `TaskFeed.current`.
+      const snapshot = await deps.feed.current()
       conn.unsubscribeTasks ??= deps.feed.subscribe((payload) => ws.send(pushEvent("tasks", payload)))
       return snapshot
     }

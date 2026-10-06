@@ -46,10 +46,11 @@ export interface TaskRow {
   readonly rank: number
   /**
    * `forMs` = time in `state`, for display (immune to phone/Mac clock skew).
-   * `since` = when that episode began on the bridge's clock: a new episode in the
-   * same state (turn ends, next turn starts) changes it, so the feed pushes.
+   * `since` (optional, additive) = when that episode began on the bridge's clock. Clients
+   * never need it — they age `forMs` locally — but the feed keys on it, so a new episode in
+   * the same state (turn ends, next starts) still pushes a fresh `forMs`.
    */
-  readonly activity: { readonly state: string; readonly forMs: number; readonly since: number } | null
+  readonly activity: { readonly state: string; readonly forMs: number; readonly since?: number } | null
   /** Display name comes from the engine registry; the app never hardcodes vendors. */
   readonly engine: { readonly id: string | null; readonly name: string } | null
   readonly pr: {
