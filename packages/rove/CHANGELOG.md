@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.242
+
+### Patch Changes
+
+- [#1214](https://github.com/Sma1lboy/rove/pull/1214) [`7c50b64`](https://github.com/Sma1lboy/rove/commit/7c50b6416e07f4c5d436a2e8f2860892df96981f) Keep whole words when capping automatically generated branch slugs at 32 characters. Hard-cut only when the first word alone exceeds the cap. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.241
 
 ### Patch Changes
