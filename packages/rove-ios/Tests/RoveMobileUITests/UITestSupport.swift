@@ -17,9 +17,14 @@ extension XCUIElement {
 struct KeyboardProbe {
     let app: XCUIApplication
 
-    /// The keyboard's frame, or nil. Read from one element snapshot: a keyboard that leaves between a count and a
-    /// frame query is an XCUI "failed to get matching snapshot" failure, here it is just gone.
-    var frame: CGRect? { (try? app.keyboards.firstMatch.snapshot())?.frame }
+    /// The keyboard's frame in app coordinates, or nil. Existence is taken from one element snapshot, which
+    /// answers "gone" for a keyboard that just left instead of failing the test the way a frame query on it
+    /// does; the frame itself comes from the element (a snapshot's frame is not rotated for landscape).
+    var frame: CGRect? {
+        let k = app.keyboards.firstMatch
+        guard (try? k.snapshot()) != nil else { return nil }
+        return k.frame
+    }
 
     /// A software keyboard on screen. With a hardware keyboard attached the tree can still hold a keyboard
     /// element, but not one that is tall and inside the app's frame.
