@@ -90,6 +90,10 @@ struct AttentionItem: Codable, Hashable {
     var state: String
     var unread: Bool
     var at: Double
+    /// Rate-limited items: ISO time the daemon resumes the engine on its own. Absent from older bridges.
+    var resumeAt: String?
+    /// Routine items: the routine's name. Absent from older bridges.
+    var label: String?
 }
 
 struct TabRow: Codable, Hashable, Identifiable {

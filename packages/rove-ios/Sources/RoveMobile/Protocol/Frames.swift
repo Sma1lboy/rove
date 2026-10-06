@@ -47,6 +47,7 @@ enum BridgeEvent {
     case tasks(TasksPayload)
     case termData(stream: String, bytes: Data)
     case termExit(stream: String, code: Int?)
+    case notice(Notice)
 
     static func from(name: String, data: Data) -> BridgeEvent? {
         switch name {
@@ -58,6 +59,8 @@ enum BridgeEvent {
             return .termData(stream: e.stream, bytes: bytes)
         case "term.exit":
             return (try? JSONDecoder().decode(TermExitEvent.self, from: data)).map { .termExit(stream: $0.stream, code: $0.code) }
+        case "notice":
+            return (try? JSONDecoder().decode(Notice.self, from: data)).map(BridgeEvent.notice)
         default:
             return nil
         }

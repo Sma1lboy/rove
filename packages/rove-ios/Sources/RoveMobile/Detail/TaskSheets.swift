@@ -15,52 +15,6 @@ struct EnginePicker: View {
     }
 }
 
-/// `rove api send --tab new`: a fresh engine tab in this task's worktree, with its first message.
-struct NewTabSheet: View {
-    let taskId: String
-    var done: () async -> Void
-    @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
-    @State private var engines: [Engine] = []
-    @State private var engine = ""
-    @State private var prompt = ""
-    @State private var error: String?
-    @State private var busy = false
-
-    private var ready: Bool { !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-
-    var body: some View {
-        SheetScaffold(title: "new engine tab", kicker: "same worktree", error: error,
-                      primary: PrimaryBar(label: "open tab", enabled: ready, busy: busy) { Task { await create() } }) {
-            FormSection(label: "engine") {
-                if engines.isEmpty { BrailleSpinner(size: 13) } else { EnginePicker(engines: engines, selection: $engine) }
-            }
-            FormSection(label: "first message") {
-                PromptEditor(text: $prompt, placeholder: "what should this tab work on")
-            }
-            Hint(text: "Tabs share the worktree but keep their own process, scrollback and conversation.")
-        }
-        .task {
-            do {
-                engines = try await model.client.request("engines.list", as: EnginesResult.self).engines
-                if engine.isEmpty { engine = engines.first?.id ?? "" }
-            } catch { self.error = error.localizedDescription }
-        }
-    }
-
-    private func create() async {
-        busy = true
-        defer { busy = false }
-        var args: [String: Any] = ["taskId": taskId, "prompt": prompt]
-        if !engine.isEmpty { args["engine"] = engine }
-        do {
-            _ = try await model.client.request("tab.new", args, as: TabNewResult.self)
-            await done()
-            dismiss()
-        } catch { self.error = error.localizedDescription }
-    }
-}
-
 /// Mono checkbox row: `[x] label`, accent when on.
 struct CheckRow: View {
     var label: String

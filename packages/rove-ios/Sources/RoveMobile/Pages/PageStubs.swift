@@ -16,7 +16,6 @@ private struct PageStub: View {
     }
 }
 
-struct InboxView: View { var body: some View { PageStub(title: "inbox") } }
 struct BoardView: View { var body: some View { PageStub(title: "board") } }
 struct RoutinesView: View { var body: some View { PageStub(title: "routines") } }
 struct IssuesView: View { var body: some View { PageStub(title: "github issues") } }

@@ -5,6 +5,8 @@ import Observation
 final class AppModel {
     let client = BridgeClient()
     let store: TaskStore
+    /// Phone-local Inbox state: visit log, F7 cursor, `notify` toast.
+    let inbox: InboxState
     @ObservationIgnored private let keychain = KeychainStore()
     @ObservationIgnored let notifier = Notifier()
     private(set) var pairing: Pairing?
@@ -15,6 +17,7 @@ final class AppModel {
 
     init() {
         store = TaskStore(client: client)
+        inbox = InboxState(client: client)
         store.onNotice = { [notifier] in notifier.post($0) }
         notifier.requestPermission()
         if ProcessInfo.processInfo.arguments.contains("-resetPairing") { keychain.delete() }
@@ -49,6 +52,8 @@ final class AppModel {
 
 enum Route: Hashable {
     case task(String)
+    /// A task opened on one exact tab (Inbox, F7).
+    case taskTab(String, String)
     case diff(taskId: String)
     case inbox
     case board
@@ -87,6 +92,7 @@ struct RootView: View {
                     .navigationDestination(for: Route.self) { route in
                         switch route {
                         case .task(let id): TaskDetailView(taskId: id)
+                        case .taskTab(let id, let tab): TaskDetailView(taskId: id, tabId: tab)
                         case .diff(let taskId): DiffFilesView(taskId: taskId)
                         case .inbox: InboxView()
                         case .board: BoardView()
@@ -97,6 +103,7 @@ struct RootView: View {
                         }
                     }
             }
+            .overlay(alignment: .top) { ToastHost() }
         }
     }
 }

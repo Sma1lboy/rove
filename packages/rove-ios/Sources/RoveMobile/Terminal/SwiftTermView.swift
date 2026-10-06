@@ -41,6 +41,13 @@ final class RoveTerminalView: TerminalView {
         if ok { caretColor = .clear }
         return ok
     }
+
+    /// Long-press selection and search results land here; the session mirrors it as the `copy` chip.
+    var onSelectionChange: (() -> Void)?
+    override func selectionChanged(source: Terminal) {
+        super.selectionChanged(source: source)
+        onSelectionChange?()
+    }
 }
 
 struct SwiftTermView: UIViewRepresentable {
@@ -54,6 +61,7 @@ struct SwiftTermView: UIViewRepresentable {
         tv.font = UIFont.monospacedSystemFont(ofSize: 13, weight: .regular)
         tv.inputAccessoryView = nil // the key row is a permanent SwiftUI view (KeyRow)
         TerminalPalette.apply(to: tv)
+        tv.onSelectionChange = { [weak session] in session?.refreshScreenState() }
         context.coordinator.view = tv
         session.surface = context.coordinator
         return tv
@@ -99,6 +107,29 @@ struct SwiftTermView: UIViewRepresentable {
             return (t.cols, t.rows)
         }
 
+        var isAlternateScreen: Bool { view?.getTerminal().isCurrentBufferAlternate ?? false }
+        var isScrolledToBottom: Bool {
+            guard let view else { return true }
+            return view.scrollThumbsize >= 1 || view.scrollPosition >= 0.999
+        }
+        func scrollToBottom() { view?.scrollTo(row: Int.max) }
+        func scrollToTop() { view?.scrollTo(row: 0) }
+        /// On the alternate screen SwiftTerm sends PageUp/PageDown to the app instead of scrolling.
+        func scrollPage(up: Bool) { if up { view?.pageUp() } else { view?.pageDown() } }
+        func search(_ term: String, forward: Bool) -> SearchSummary? {
+            guard let view, !term.isEmpty else { return nil }
+            let found = forward ? view.findNext(term) : view.findPrevious(term)
+            guard found else { return SearchSummary(index: 0, total: 0) }
+            let s = view.searchMatchSummary(term)
+            return SearchSummary(index: s.index, total: s.total)
+        }
+        func clearSearch() { view?.clearSearch() }
+        func selectedText() -> String? {
+            guard let text = view?.getSelection(), !text.isEmpty else { return nil }
+            return text
+        }
+        func clearSelection() { view?.selectNone() }
+
         // MARK: TerminalViewDelegate
         func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
             switch session.mode {
@@ -114,7 +145,7 @@ struct SwiftTermView: UIViewRepresentable {
         func setTerminalTitle(source: TerminalView, title: String) {}
         func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
         func send(source: TerminalView, data: ArraySlice<UInt8>) { session.typed(Array(data)) }
-        func scrolled(source: TerminalView, position: Double) {}
+        func scrolled(source: TerminalView, position: Double) { session.refreshScreenState() }
         func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {
             if let url = URL(string: link) { UIApplication.shared.open(url) }
         }

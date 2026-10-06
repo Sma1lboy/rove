@@ -67,7 +67,7 @@ final class ProtocolTests: XCTestCase {
         """#
         let p = try result(rows, as: TasksPayload.self)
         XCTAssertEqual(p.tasks.first?.activity, TaskActivity(state: "running", forMs: 5))
-        let push = #"{"event":"notice","data":{"title":"done"}}"#
+        let push = #"{"event":"futureEvent","data":{"title":"done"}}"#
         guard case .event(let name, let data)? = IncomingFrame.parse(Data(push.utf8)) else { return XCTFail() }
         XCTAssertNil(BridgeEvent.from(name: name, data: data), "an unknown push event is dropped, not misread")
     }
