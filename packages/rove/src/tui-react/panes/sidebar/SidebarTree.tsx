@@ -286,6 +286,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     },
     onContextMenu: menu.openForRow,
     branchTick,
+    engineState: props.engineState,
     engineTabState: props.engineTabState,
     engineLifecycle: props.engineLifecycle,
     taskJobs: props.taskJobs,

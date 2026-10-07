@@ -91,6 +91,8 @@ export type TreeRow =
       /** Project key these routines belong to — the row sits under it. */
       readonly projectKey: string
       readonly count: number
+      /** The routine sessions behind the row, so a closed fold can still flag one that needs you. */
+      readonly tasks: readonly Task[]
       readonly expanded: boolean
       readonly depth: number
     }
@@ -160,15 +162,17 @@ export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
     for (const task of ownTasks(group)) pushWorktree(rows, task, tabsByTask)
     if (group.routineCount > 0) {
       const expanded = input.expandedRoutines?.has(group.key) === true
+      const routines = group.tasks.slice(ownCount)
       rows.push({
         kind: "routines",
         id: routinesRowId(group.key),
         projectKey: group.key,
         count: group.routineCount,
+        tasks: routines,
         expanded,
         depth: 1,
       })
-      if (expanded) for (const task of group.tasks.slice(ownCount)) pushWorktree(rows, task, tabsByTask)
+      if (expanded) for (const task of routines) pushWorktree(rows, task, tabsByTask)
     }
   }
   return rows

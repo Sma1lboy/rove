@@ -72,3 +72,14 @@ export function compareTaskGroup(
     return byGroup !== 0 ? byGroup : compareRecent(a, b)
   }
 }
+
+/** How many of `tasks` are blocked on a person; what a closed fold must still surface. */
+export function countWaitingOnYou(
+  tasks: readonly Task[],
+  activityOf: (taskId: string) => TaskEngineState | undefined,
+  now: number = Date.now(),
+): number {
+  let count = 0
+  for (const task of tasks) if (taskGroupIn(task, activityOf(task.id), now) === "waiting-on-you") count++
+  return count
+}
