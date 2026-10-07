@@ -36,8 +36,7 @@ extension KeyboardStateTests {
         closeSheet()
         openTask()
         sheetCheck("rename-task", menu: "Rename", field: "renameField", primary: "renameConfirm")
-        el("diffLink").tap()
-        waitFor(app.buttons["all"].firstMatch, "all files").tap()
+        openFiles()
         check("files-search", { self.input("pathSearch") }, landmarks: ["backButton"])
         el("backButton").tap()
         back()
@@ -164,10 +163,20 @@ extension KeyboardStateTests {
         back()
     }
 
+    /// The task's files page. A tap on `diff` while a sheet is still closing is dropped, so it is retried while
+    /// the link is still there.
+    private func openFiles() {
+        let all = app.buttons["all"].firstMatch, link = el("diffLink")
+        for _ in 0..<3 where !all.exists {
+            if link.waitForExistence(timeout: 5) { link.tap() }
+            _ = all.waitForExistence(timeout: 8)
+        }
+        waitFor(all, "all files").tap()
+    }
+
     private func sweepDiff() {
         openTask()
-        el("diffLink").tap()
-        waitFor(app.buttons["all"].firstMatch, "all files").tap()
+        openFiles()
         check("files-search", { self.input("pathSearch") }, landmarks: ["backButton"])
         waitFor(app.buttons["changes"].firstMatch, "changes tab").tap()
         waitFor(el("file-src/refunds/webhook.ts"), "changed file").tap()

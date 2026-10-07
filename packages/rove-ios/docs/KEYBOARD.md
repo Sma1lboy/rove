@@ -15,7 +15,7 @@ TEST_RUNNER_ROVE_FIXTURE_URL='ws://127.0.0.1:7896/?token=fixture' \
 - demo 测试不需要任何环境变量。fixture 测试没有 `ROVE_FIXTURE_URL` 时跳过；CI（`.github/workflows/ios.yml`）会先起 fixture bridge 再跑。
 - fixture bridge 记下收到的每个请求，`GET /log` 读回、`DELETE /log` 清空（同一个 bearer token）。`term.resize` 的行列数和 `term.input` 的字节都从这里断言。
 - `ROVE_SHOT_DIR` 设了就把每个输入点键盘弹出时的整屏存下来。
-- 模拟器要处在软键盘模式（默认）。连着硬件键盘时软键盘不弹，除硬件键盘那一项外全部会报 `no keyboard`。
+- 模拟器要处在软键盘模式。模拟器见过硬件键盘之后（设备偏好 `com.apple.keyboard.preferences` 里 `HardwareKeyboardLastSeen` 为真，托管 runner 的 Simulator 默认就接着硬件键盘）软键盘时有时无，套件会零散地报 `no keyboard`。CI 在两次启动之间把这个值写成假，并把主机的 `ConnectHardwareKeyboard` 设为假；会发硬件按键的 `testHardwareKeysReachTheTerminal` 放在最后单独跑。本地遇到同样的报错：模拟器关机后执行 `plutil -replace HardwareKeyboardLastSeen -bool NO ~/Library/Developer/CoreSimulator/Devices/<udid>/data/Library/Preferences/com.apple.keyboard.preferences.plist`。
 - 从没启动过的模拟器要先完整启动一次再重启，之前它会忽略深浅色切换（CI 用 `simctl bootstatus -b`、`shutdown`、再 `bootstatus -b`）。CI 分两轮跑：主机先 `simctl ui <udid> appearance light|dark`，再用 `ROVE_APPEARANCE=light|dark` 告诉套件这一轮是什么主题，套件就不自己切换，只核对 app 底色确实是这个主题。核对不过时本地直接失败；设了 `ROVE_CI` 时改为跳过并写明原因（托管 runner 上见过模拟器怎么切都保持浅色，而 app 卡在浅色的样子和这一模一样，所以本地不能跳过）。
 
 ## 每个输入点断言什么（`check`）
@@ -25,7 +25,7 @@ TEST_RUNNER_ROVE_FIXTURE_URL='ws://127.0.0.1:7896/?token=fixture' \
 3. 输入框能点到（`isHittable`），说明没被页头或别的视图盖住。
 4. 键盘配色跟主题：取键盘底部一块像素的亮度，浅色主题 > 0.6，深色 < 0.35。
 5. 屏幕上有 `keyboardDone`，点了以后键盘收起、焦点离开。
-6. 收起后关键元素（页头、主按钮）的 `minY` 和高度与弹出前相差 ≤ 1pt。
+6. 收起后关键元素（页头、主按钮）的 `minY` 和高度与弹出前相差不超过 1.5pt（`layoutTolerance`：1pt 加 @3x 下一个像素的取整）。
 7. 在 sheet 里：主按钮在键盘弹出时能滚到并点到，且在键盘之上，滚动过程中键盘不收起。
 
 终端详情页另外断言（`assertTerminalBlock` / `terminalChecks`）：按键行紧贴回复框、回复框底边离键盘（或 `done` 条）≤ 2pt；esc / ctrl / ↑ / send 能点；终端区取样亮度 < 0.15（深浅主题都是深色）；终端变矮、bridge 收到行数更少的 `term.resize`、列数不变；收起后行数回到原值。
@@ -38,7 +38,7 @@ TEST_RUNNER_ROVE_FIXTURE_URL='ws://127.0.0.1:7896/?token=fixture' \
 
 输入点这张表：套件里有「竖屏浅色 demo」和「竖屏深色 fixture」两轮全量 sweep，深浅主题、demo 和 fixture 各覆盖一次；「竖屏深色 demo」和「竖屏浅色 fixture」两列在这个 PR 的一次本地全量运行里也跑过并通过，之后从套件里拿掉。终端详情页那张表的六列每次都跑。修复后在 iPhone 17 Pro Max 和全新创建的 iPhone 17 Pro（CI 用的机型）上都跑过。
 
-CI 上的取舍：iOS workflow 分浅色、深色两个并行 job。浅色 job 跑单元测试和除深色输入外的全部 UI 测试（约 50 分钟）。深色 job 不跑深色全量 sweep，改跑 `testInputSampleFixtureDark`：每类输入各一个，用同一个 `check`（配对页字段、列表搜索、sheet 单行框、sheet 多行编辑框、详情菜单打开的 sheet、设置页、文件页搜索），外加两个终端测试的深色那一轮。原因：深色全量 sweep 在托管 runner 上跑到第 6 分钟左右开始，几乎每个动作都卡在 XCUITest 的「等 app 空闲」上限 60 秒，持续约 9 分钟，整轮 16–42 分钟不等；同一 sweep 本地 408 秒，浅色 fixture 的同一批输入在 CI 上每个约 12 秒。CI 的屏幕录像里那段时间画面完全静止，没找到是什么让 app 一直不空闲（屏上唯一持续在跑的是任务列表里 working 那行 12.5 Hz 的 braille 转圈和每秒刷新的计时，未证实）。深色全量 sweep 留在套件里，本地跑：`-only-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark`。
+CI 上的取舍：iOS workflow 有三个并行 job。`app (light)` 跑单元测试和 KeyboardStateTests 以外的全部 UI 测试，决定 PR 的成败。`keyboard (light)` 和 `keyboard (dark)` 跑键盘套件，标了 `continue-on-error`，失败只报告不挡合并；同一个 commit 用 workflow_dispatch 连续三轮全绿后再改回必跑。深色 job 不跑深色全量 sweep，改跑 `testInputSampleFixtureDark`：每类输入各一个，用同一个 `check`（配对页字段、列表搜索、sheet 单行框、sheet 多行编辑框、详情菜单打开的 sheet、设置页、文件页搜索），外加两个终端测试的深色那一轮。原因：深色全量 sweep 在托管 runner 上跑到第 6 分钟左右开始，几乎每个动作都卡在 XCUITest 的「等 app 空闲」上限 60 秒，持续约 9 分钟；同一 sweep 本地 408 秒，浅色 fixture 的同一批输入在 CI 上每个约 12 秒。CI 的屏幕录像里那段时间画面完全静止，原因没找到。深色全量 sweep 留在套件里，本地跑：`-only-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark`。
 
 ### 输入点
 

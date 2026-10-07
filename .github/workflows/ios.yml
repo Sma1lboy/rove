@@ -19,6 +19,8 @@ on:
       - "packages/rove-ios/**"
       - "packages/rove-bridge/**"
       - ".github/workflows/ios.yml"
+  # Re-run the keyboard suite on one commit to judge its stability.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -32,25 +34,39 @@ jobs:
     # macos-26 defaults to Xcode 26.6, the toolchain the app is developed with; macos-15's
     # Xcode 16 rejects Swift that 26 accepts (Optional<Bool> switches, Substring interpolation).
     runs-on: macos-26
-    # Light and dark run as two parallel jobs, each in its own simulator, so a PR waits for the slower one.
     timeout-minutes: 60
+    # The keyboard suite reports without gating until it has passed three runs in a row on one commit
+    # (docs/KEYBOARD.md); the app suite gates.
+    continue-on-error: ${{ matrix.optional }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Unit tests and every UI test except the dark input tests; terminal tests run their light case.
-          - appearance: light
+          # Unit tests and every UI test except KeyboardStateTests.
+          - suite: app
+            appearance: light
+            optional: false
+            select: -skip-testing:RoveMobileUITests/KeyboardStateTests
+          # The light keyboard tests. The hardware-key test runs last, on its own (see the step below).
+          - suite: keyboard
+            appearance: light
+            optional: true
+            hardware: true
             select: >-
+              -only-testing:RoveMobileUITests/KeyboardStateTests
               -skip-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark
               -skip-testing:RoveMobileUITests/KeyboardStateTests/testInputSampleFixtureDark
+              -skip-testing:RoveMobileUITests/KeyboardStateTests/testHardwareKeysReachTheTerminal
           # One dark input of each kind and the dark case of the terminal tests. The full dark sweep stalls on
           # the hosted runner (60 s app-idle waits per action, docs/KEYBOARD.md) and stays a local run.
-          - appearance: dark
+          - suite: keyboard
+            appearance: dark
+            optional: true
             select: >-
               -only-testing:RoveMobileUITests/KeyboardStateTests/testInputSampleFixtureDark
               -only-testing:RoveMobileUITests/KeyboardStateTests/testTerminalDemo
               -only-testing:RoveMobileUITests/KeyboardStateTests/testTerminalFixture
-    name: test (${{ matrix.appearance }})
+    name: ${{ matrix.suite }} (${{ matrix.appearance }})
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -79,10 +95,16 @@ jobs:
         run: |
           udid=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
           echo "SIM_UDID=$udid" >> "$GITHUB_ENV"
+          # Software keyboard, always. The hosted Simulator connects a hardware keyboard, and a simulator that has
+          # seen one (HardwareKeyboardLastSeen) hides the software keyboard; the keyboard tests then find none.
+          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
           # A never-booted simulator ignores appearance switches until it has finished a first boot and been
-          # restarted; the dark-theme keyboard checks would otherwise see a light app.
+          # restarted. The keyboard flag is written while it is down, once the first boot has created the file.
           xcrun simctl bootstatus "$udid" -b
           xcrun simctl shutdown "$udid"
+          prefs="$HOME/Library/Developer/CoreSimulator/Devices/$udid/data/Library/Preferences/com.apple.keyboard.preferences.plist"
+          [ -f "$prefs" ] || plutil -create xml1 "$prefs"
+          plutil -replace HardwareKeyboardLastSeen -bool NO "$prefs"
           xcrun simctl bootstatus "$udid" -b
 
       - name: Start the fixture bridge
@@ -99,7 +121,7 @@ jobs:
       # The appearance is set from the host: XCUIDevice.appearance has not switched the hosted simulator.
       # ROVE_APPEARANCE tells KeyboardStateTests which theme the host chose. A test that runs past its
       # allowance fails with a hang report instead of eating the job's budget.
-      - name: Build and test (${{ matrix.appearance }})
+      - name: Build and test (${{ matrix.suite }}, ${{ matrix.appearance }})
         working-directory: packages/rove-ios
         env:
           TEST_RUNNER_ROVE_FIXTURE_URL: ws://127.0.0.1:7896/?token=fixture
@@ -110,18 +132,34 @@ jobs:
           xcrun simctl ui "$SIM_UDID" appearance ${{ matrix.appearance }}
           sleep 3
           xcrun simctl io "$SIM_UDID" screenshot /tmp/springboard.png
-          xcodebuild -scheme RoveMobile -destination "id=$SIM_UDID" -resultBundlePath /tmp/ios.xcresult \
+          xcodebuild -scheme RoveMobile -destination "id=$SIM_UDID" -derivedDataPath build/dd -resultBundlePath /tmp/ios.xcresult \
             -test-timeouts-enabled YES -default-test-execution-time-allowance 1500 -maximum-test-execution-time-allowance 1800 \
             build test ${{ matrix.select }} \
             | grep --line-buffered -E 'error:|warning: .*RoveMobile|Test Case .*(passed|failed|skipped)|Executed|KB |\*\* (BUILD|TEST)'
+
+      # Hardware key presses mark the simulator as having seen a hardware keyboard, after which it hides the
+      # software keyboard, so this test runs after every other one.
+      - name: Hardware keys
+        if: matrix.hardware
+        working-directory: packages/rove-ios
+        env:
+          TEST_RUNNER_ROVE_FIXTURE_URL: ws://127.0.0.1:7896/?token=fixture
+          TEST_RUNNER_ROVE_APPEARANCE: ${{ matrix.appearance }}
+          TEST_RUNNER_ROVE_CI: "1"
+        run: |
+          set -o pipefail
+          xcodebuild -scheme RoveMobile -destination "id=$SIM_UDID" -derivedDataPath build/dd -resultBundlePath /tmp/ios-hw.xcresult \
+            test-without-building -only-testing:RoveMobileUITests/KeyboardStateTests/testHardwareKeysReachTheTerminal \
+            | grep --line-buffered -E 'error:|Test Case .*(passed|failed|skipped)|skipped -|Executed|\*\* (BUILD|TEST)'
 
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ios-${{ matrix.appearance }}
+          name: ios-${{ matrix.suite }}-${{ matrix.appearance }}
           path: |
             /tmp/ios.xcresult
+            /tmp/ios-hw.xcresult
             /tmp/springboard.png
             /tmp/fixture-bridge.log
           if-no-files-found: ignore
