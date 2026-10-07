@@ -37,7 +37,7 @@ export function RoutinesTreeRow(props: {
   const settling = !props.expanded && props.tasks.some((task) => isSettlingActivity(activityOf(task.id)?.state))
   useClockTick(settling)
   const waiting = props.expanded ? 0 : countWaitingOnYou(props.tasks, activityOf)
-  const chip = waiting > 0 ? ` · ${t("tasks.routinesNeedYou", { count: String(waiting) })}` : ""
+  const chip = waiting > 0 ? ` · ${t("tasks.group.waitingOnYou")}: ${waiting}` : ""
   // The count yields to the chip: the chip is the part that asks you to act.
   const label = truncateEndCells(
     t("tasks.routinesRow", { count: String(props.count) }),

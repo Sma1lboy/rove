@@ -331,7 +331,7 @@ from the Routines page (`enter` on the routine), and still raises an **Inbox**
 entry when its turn finishes or it needs you. That entry is how you learn what
 last night's routine said — you do not go looking for it.
 While the row is closed, it also names how many of those sessions are blocked on
-you (`3 routine sessions · 1 need you`): a permission prompt, a quota wall that
+you (`3 routine sessions · needs you: 1`): a permission prompt, a quota wall that
 will not clear itself, or an error that has settled. A stalled routine makes no
 progress until you answer it, so the fold never hides that.
 

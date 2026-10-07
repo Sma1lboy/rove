@@ -71,7 +71,7 @@ test("routine sessions rest behind a count row instead of loose rows", async () 
   // One row stands in for them, and it says how many there are.
   expect(painted).toContain("3 routine sessions")
   // Nothing is blocked, so the row claims nothing.
-  expect(painted).not.toContain("need you")
+  expect(painted).not.toContain("needs you")
 })
 
 test("a closed fold still says when a routine session is blocked on you", async () => {
@@ -84,7 +84,7 @@ test("a closed fold still says when a routine session is blocked on you", async 
   const painted = await frame()
 
   expect(painted).not.toContain("dep-check")
-  expect(painted).toContain("1 need you")
+  expect(painted).toContain("needs you: 1")
 
   // Open, the session's own row carries its state; the chip would repeat it.
   mockInput.typeText("j")
@@ -93,7 +93,7 @@ test("a closed fold still says when a routine session is blocked on you", async 
   await new Promise((r) => setTimeout(r, SETTLE))
   const opened = await frame()
   expect(opened).toContain("dep-check")
-  expect(opened).not.toContain("need you")
+  expect(opened).not.toContain("needs you")
 })
 
 test("enter on the count row reveals the sessions, and closes them again", async () => {

@@ -179,8 +179,6 @@ export const en = {
   recentJump: "Recent: {title}",
   /** The fold row standing in for a project's routine sessions */
   routinesRow: "{count} routine sessions",
-  /** Chip on the CLOSED routines row: folded sessions blocked on you. */
-  routinesNeedYou: "{count} need you",
   /** Machine section headers — another computer running its own Rove daemon */
   machine: {
     connecting: "connecting…",
@@ -423,7 +421,6 @@ export const zh: typeof en = {
   moveChip: " 移动",
   recentJump: "最近:{title}",
   routinesRow: "{count} 个 routine 会话",
-  routinesNeedYou: "{count} 个等你处理",
   machine: {
     connecting: "连接中…",
     offline: "离线",
