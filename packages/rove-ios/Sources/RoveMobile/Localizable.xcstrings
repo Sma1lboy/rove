@@ -3970,6 +3970,16 @@
         }
       }
     },
+    "Hide keyboard" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收起键盘"
+          }
+        }
+      }
+    },
     "hide output" : {
       "localizations" : {
         "zh-Hans" : {
@@ -6406,6 +6416,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "同一提示词，%lld 个并行任务"
+          }
+        }
+      }
+    },
+    "same Wi-Fi or Tailscale (100.x · *.ts.net)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一 Wi-Fi 或 Tailscale（100.x · *.ts.net）"
           }
         }
       }

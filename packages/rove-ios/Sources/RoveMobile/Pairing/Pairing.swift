@@ -1,8 +1,9 @@
 import Foundation
 
-enum PairingPreset: String, Codable, CaseIterable, Identifiable {
+/// The phone only behaves differently for Cloudflare (Access headers, wss only). A Tailscale address is a
+/// direct connection; where the bridge listens (`--preset tailscale`) is the bridge's choice, not the phone's.
+enum PairingPreset: String, CaseIterable, Identifiable {
     case direct = "none"
-    case tailscale
     case cloudflare
 
     var id: String { rawValue }
@@ -10,19 +11,29 @@ enum PairingPreset: String, Codable, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .direct: String(localized: "Direct")
-        case .tailscale: "Tailscale"
         case .cloudflare: "Cloudflare"
         }
     }
 
-    /// Value of the `preset=` query item in pairing URLs.
+    /// Value of the `preset=` query item in pairing URLs. The bridge still prints `tailscale`.
     init?(queryValue: String) {
         switch queryValue.lowercased() {
-        case "none": self = .direct
-        case "tailscale": self = .tailscale
+        case "none", "tailscale": self = .direct
         case "cf": self = .cloudflare
         default: return nil
         }
+    }
+}
+
+extension PairingPreset: Codable {
+    /// Keychain blobs saved before the merge carry `"tailscale"`; they read back as direct.
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        if let p = PairingPreset(rawValue: raw) { self = p; return }
+        guard raw == "tailscale" else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "unknown preset \(raw)"))
+        }
+        self = .direct
     }
 }
 

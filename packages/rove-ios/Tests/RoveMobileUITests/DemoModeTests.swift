@@ -75,6 +75,26 @@ final class DemoModeTests: XCTestCase {
         XCTAssertFalse(element("task-T-WAIT").exists, "demo rows are gone")
     }
 
+    /// Two network choices; a bridge URL with `preset=tailscale` lands on direct, `preset=cf` on cloudflare.
+    func testPairingNetworkPickerOffersDirectAndCloudflare() {
+        launch()
+        let picker = waitFor(element("presetPicker"), "network picker")
+        XCTAssertEqual(picker.buttons.allElementsBoundByIndex.map(\.label), ["direct", "cloudflare"])
+        XCTAssertTrue(picker.buttons["direct"].isSelected)
+        XCTAssertTrue(element("directHint").exists, "direct explains it covers Wi-Fi and Tailscale")
+
+        let field = element("pairingField")
+        field.tap()
+        field.typeText("ws://100.64.0.1:7878/?token=abc&preset=tailscale")
+        XCTAssertTrue(picker.buttons["direct"].isSelected, "preset=tailscale selects direct")
+        XCTAssertFalse(element("cfClientId").exists)
+
+        field.clearAndType("wss://rove.example.com/?token=abc&preset=cf")
+        waitFor(element("cfClientId"), "cloudflare fields")
+        XCTAssertTrue(picker.buttons["cloudflare"].isSelected)
+        XCTAssertFalse(element("directHint").exists)
+    }
+
     func testTaskDetailTerminalAndDiff() {
         launch()
         startDemo()

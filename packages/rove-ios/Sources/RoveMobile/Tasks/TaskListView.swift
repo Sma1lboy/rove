@@ -100,6 +100,7 @@ struct TaskListView: View {
         }
         .background(Theme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .keyboardDoneButton(active: model.sheets.isEmpty)
         .onAppear { actions.onOpenTask = { [model] id in model.path.append(.task(id)) } }
         .taskActionSheets(actions)
         .sheet(isPresented: $showNew) {

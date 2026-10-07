@@ -44,6 +44,7 @@ struct DiffFilesView: View {
         }
         .background(Theme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .keyboardDoneButton(active: model.sheets.isEmpty)
         .task {
             if review == nil { review = ReviewStore(client: model.client, taskId: taskId) }
             await load()
