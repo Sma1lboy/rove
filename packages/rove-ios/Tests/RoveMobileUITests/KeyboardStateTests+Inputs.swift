@@ -53,8 +53,13 @@ extension KeyboardStateTests {
         check("pairing-cf-id", { self.input("cfClientId") }, landmarks: lm)
         check("pairing-cf-secret", { self.input("cfClientSecret") }, landmarks: lm)
         el("presetPicker").buttons["direct"].tap()
-        app.buttons["+ header"].firstMatch.tap()
-        check("pairing-header-name", { self.app.textFields.matching(NSPredicate(format: "placeholderValue == 'name'")).firstMatch }, landmarks: lm)
+        // A tap that lands while the cloudflare section is still animating away is dropped: retry until the row exists.
+        let name = app.textFields.matching(NSPredicate(format: "placeholderValue == 'name'")).firstMatch
+        for _ in 0..<3 where !name.exists {
+            app.buttons["+ header"].firstMatch.tap()
+            _ = name.waitForExistence(timeout: 4)
+        }
+        check("pairing-header-name", { name }, landmarks: lm)
         check("pairing-header-value", { self.app.secureTextFields.matching(NSPredicate(format: "placeholderValue == 'value'")).firstMatch }, landmarks: lm)
         app.buttons["Remove header"].firstMatch.tap()
     }
