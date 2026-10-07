@@ -1,10 +1,55 @@
 import { expect, test } from "bun:test"
+import { once } from "node:events"
 import { createTestRenderer } from "@opentui/core/testing"
 import { createRoot } from "@opentui/react"
 import { act, useEffect, useState } from "react"
 import { terminalFrameScheduler } from "../../src/tui-react/panes/terminal/terminal-frame-scheduler"
 import type { TerminalRow } from "../../src/tui/panes/terminal/pty-types"
 import { FakeTransportPty, rowsText } from "../tui/pty-fake"
+
+test("split synchronized updates retry without an unrelated redraw", async () => {
+  const t = await createTestRenderer({ width: 40, height: 4 })
+  const pty = new FakeTransportPty({
+    taskId: "sync-retry",
+    cwd: "/wt",
+    scheduleRefresh: terminalFrameScheduler(t.renderer),
+  })
+  function Screen() {
+    const [rows, setRows] = useState<readonly TerminalRow[]>([])
+    useEffect(() => pty.onData(setRows), [])
+    return (
+      <text width={40} height={4}>
+        {rowsText(rows)}
+      </text>
+    )
+  }
+  const root = createRoot(t.renderer)
+  try {
+    await act(async () => root.render(<Screen />))
+    await t.renderer.idle()
+    await pty.pump("old")
+    await t.renderer.idle()
+    expect(t.captureCharFrame()).toContain("old")
+
+    const syncFrame = once(t.renderer, "frame")
+    await pty.pump("\x1b[?2026h\rnew")
+    await syncFrame
+    expect(t.captureCharFrame()).toContain("old")
+
+    await pty.pump("\x1b[?2026l")
+    await t.renderer.idle()
+    expect(t.captureCharFrame()).toContain("new")
+    expect(t.captureCharFrame()).not.toContain("old")
+
+    await pty.pump("!")
+    await t.renderer.idle()
+    expect(t.captureCharFrame()).toContain("new!")
+  } finally {
+    pty.kill()
+    act(() => root.unmount())
+    t.renderer.destroy()
+  }
+})
 
 test("PTY data reaches the actual frame that requested its snapshot", async () => {
   let pty: FakeTransportPty | null = null
@@ -36,6 +81,45 @@ test("PTY data reaches the actual frame that requested its snapshot", async () =
     await t.renderOnce()
     expect(t.captureCharFrame()).toContain("short")
     expect(t.captureCharFrame()).not.toContain("latest")
+  } finally {
+    pty.kill()
+    act(() => root.unmount())
+    t.renderer.destroy()
+  }
+})
+
+test("one PTY write draws one frame, not a second one for the rows it committed", async () => {
+  let pty: FakeTransportPty | null = null
+  function Screen() {
+    const [rows, setRows] = useState<readonly TerminalRow[]>([])
+    useEffect(() => pty?.onData(setRows), [])
+    // Fixed size, like the pane's rows: a growing text re-lays out and earns its own frame.
+    return (
+      <text width={40} height={4}>
+        {rowsText(rows)}
+      </text>
+    )
+  }
+  const t = await createTestRenderer({ width: 40, height: 4 })
+  pty = new FakeTransportPty({
+    taskId: "frames",
+    cwd: "/wt",
+    scheduleRefresh: terminalFrameScheduler(t.renderer),
+  })
+  const root = createRoot(t.renderer)
+  let frames = 0
+  t.renderer.on("frame", () => frames++)
+  try {
+    await act(async () => {
+      root.render(<Screen />)
+    })
+    await t.renderer.idle()
+    frames = 0
+    await pty.pump("x")
+    await t.renderer.idle()
+    await new Promise((r) => setTimeout(r, 100))
+    expect(t.captureCharFrame()).toContain("x")
+    expect(frames).toBe(1)
   } finally {
     pty.kill()
     act(() => root.unmount())
