@@ -83,3 +83,5 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Sandbox:** the harness pins a newer Playwright than the root (headless shell rev 1228, root 1194); the shim needs both revision dirs.
 
 **Pre-existing on main:** `bun test test/render` is flaky on unmodified main (9 failures tonight, a different set per run besides the two known ones).
+
+**Follow-up on PR #1220 (owner commit 4bf7a3c):** stubbing `requestRender` during the flush also swallowed the request of any refresh that re-schedules itself inside the batch (an open synchronized update defers its paint), so that frame never came. Fixed by calling `requestRender()` after restoring it when `pending` is non-empty. Lesson: when suppressing a side effect for a scope, check what inside that scope re-enters the same scheduler.
