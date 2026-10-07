@@ -13,8 +13,9 @@ import { parsePorcelainRows } from "../lib/git-parsers.ts"
 /** Paths from `git status --porcelain` output, unquoted, in `git status` order. */
 export function parseDirtyPaths(stdout: string): string[] {
   return parsePorcelainRows(stdout)
+    .filter((row) => (row.x + row.y).trim().length > 0)
     .map((row) => row.path)
-    .filter((p) => p.trim().length > 0)
+    .filter((p) => p.length > 0)
 }
 
 /**
