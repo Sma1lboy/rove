@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { isDirtyOutput, parseDirtyPaths } from "../../src/orchestrator/dirty-paths.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
 let root: string
@@ -258,5 +259,38 @@ describe("listBranchNames()", () => {
 
     // A stray `origin` is a bare-style vote that flips `main` + `feat/x` from typed to bare.
     expect([...(await manager.listBranchNames(clone))].sort()).toEqual(["feat/x", "main"])
+  })
+})
+
+describe("dirtyPaths()", () => {
+  it.each([
+    ["space", " "],
+    ["tab", "\t"],
+  ])("keeps a %s-only filename dirty", async (label, filename) => {
+    const wt = join(root, `wt-dirty-${label}`)
+    await manager.create(repo, `rove/dirty-${label}`, wt)
+    writeFileSync(join(wt, filename), "valuable uncommitted content")
+
+    expect(await manager.dirtyPaths(wt)).toEqual([filename])
+    expect(await manager.isDirty(wt)).toBe(true)
+  })
+
+  it.each(["", "\n", " ", "    \n", " \t \t \n\r\n"])("treats empty or blank status output %j as clean", (stdout) => {
+    expect(parseDirtyPaths(stdout)).toEqual([])
+    expect(isDirtyOutput(stdout)).toBe(false)
+  })
+
+  it("names quoted and renamed files as they are on disk, not git's escapes", async () => {
+    // The force-delete confirm lists these; porcelain quotes non-ASCII and
+    // space-containing names (`"\347\254\224.md"`) and prints `old -> new`.
+    const wt = join(root, "wt-dirty-names")
+    await manager.create(repo, "rove/dirty-names", wt)
+    writeFileSync(join(wt, "old.txt"), "x")
+    execSync("git add -A && git commit -q -m old", { cwd: wt, env: gitEnv })
+    execSync("git mv old.txt new.txt", { cwd: wt, env: gitEnv })
+    writeFileSync(join(wt, "笔记.md"), "note")
+    writeFileSync(join(wt, "a b.txt"), "space")
+
+    expect((await manager.dirtyPaths(wt)).sort()).toEqual(["a b.txt", "new.txt", "笔记.md"])
   })
 })
