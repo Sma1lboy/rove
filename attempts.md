@@ -71,3 +71,15 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Why it did not count.** It went the wrong way. switch.perOp.commit.files read 5.9 and 6.2 (5.2 on main tonight and in the baseline); root 9.5/9.8 vs 9.2, frame 4.0/4.6 vs 4.0. Not investigated further. A guess: the effect's wipe was already batched into a commit that happens anyway (e.g. with the terminal's mount waterfall), and the render-phase reset makes the first commit render the empty pane and the list arrive as a separate commit. Check with a clean-run count of which commits touch `files` before retrying anything in this effect.
 
 **Spawn breakdown per switch (unchanged):** 0.8 `git ls-files` (Files pane All tab, 09-28 item) plus about 0.5 `ps -A` from the 2 s `engine.foregroundWalk` that lands in the window. `resolveBase`'s `git symbolic-ref` / `rev-parse` run only on each worktree's first show.
+
+## 2026-10-07 — notes (main c8f2cca)
+
+**No regression.** Run 1 read boot.firstFrame.ms 1062 / boot.ready.ms 4675 (cold first run again); run 2 flagged golden.cli-startup-ms 74.5 and golden.vt-1mb-parse-ms 183.2 (machine noise, different metrics each run); run 3 was clean.
+
+**Landed tonight as a PR from `perf/nightly-2026-10-07`:** typing.perOp.frame 2.07 → 1. `terminalFrameScheduler` flushes PTY rows inside a frame callback, and every `requestRender` from that commit (React `resetAfterCommit`, the row painter's text updates) hit OpenTUI's `rendering` branch and set `immediateRerenderRequested`, so each write drew a second, identical frame. The flush now stubs `renderer.requestRender` for its duration. Layout and lifecycle passes run in `root.render` after frame callbacks, so the current frame is complete.
+
+**Trap for render tests:** an auto-sized `<text>` that grows re-lays out during `root.render` and legitimately requests one more frame; a frame-count test needs a fixed-size text.
+
+**Sandbox:** the harness pins a newer Playwright than the root (headless shell rev 1228, root 1194); the shim needs both revision dirs.
+
+**Pre-existing on main:** `bun test test/render` is flaky on unmodified main (9 failures tonight, a different set per run besides the two known ones).
