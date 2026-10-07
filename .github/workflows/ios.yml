@@ -35,9 +35,6 @@ jobs:
     # Xcode 16 rejects Swift that 26 accepts (Optional<Bool> switches, Substring interpolation).
     runs-on: macos-26
     timeout-minutes: 60
-    # The keyboard suite reports without gating until it has passed three runs in a row on one commit
-    # (docs/KEYBOARD.md); the app suite gates.
-    continue-on-error: ${{ matrix.optional }}
     strategy:
       fail-fast: false
       matrix:
@@ -45,12 +42,10 @@ jobs:
           # Unit tests and every UI test except KeyboardStateTests.
           - suite: app
             appearance: light
-            optional: false
             select: -skip-testing:RoveMobileUITests/KeyboardStateTests
           # The light keyboard tests. The hardware-key test runs last, on its own (see the step below).
           - suite: keyboard
             appearance: light
-            optional: true
             hardware: true
             select: >-
               -only-testing:RoveMobileUITests/KeyboardStateTests
@@ -61,7 +56,6 @@ jobs:
           # the hosted runner (60 s app-idle waits per action, docs/KEYBOARD.md) and stays a local run.
           - suite: keyboard
             appearance: dark
-            optional: true
             select: >-
               -only-testing:RoveMobileUITests/KeyboardStateTests/testInputSampleFixtureDark
               -only-testing:RoveMobileUITests/KeyboardStateTests/testTerminalDemo

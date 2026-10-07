@@ -38,7 +38,7 @@ TEST_RUNNER_ROVE_FIXTURE_URL='ws://127.0.0.1:7896/?token=fixture' \
 
 输入点这张表：套件里有「竖屏浅色 demo」和「竖屏深色 fixture」两轮全量 sweep，深浅主题、demo 和 fixture 各覆盖一次；「竖屏深色 demo」和「竖屏浅色 fixture」两列在这个 PR 的一次本地全量运行里也跑过并通过，之后从套件里拿掉。终端详情页那张表的六列每次都跑。修复后在 iPhone 17 Pro Max 和全新创建的 iPhone 17 Pro（CI 用的机型）上都跑过。
 
-CI 上的取舍：iOS workflow 有三个并行 job。`app (light)` 跑单元测试和 KeyboardStateTests 以外的全部 UI 测试，决定 PR 的成败。`keyboard (light)` 和 `keyboard (dark)` 跑键盘套件，标了 `continue-on-error`，失败只报告不挡合并；同一个 commit 用 workflow_dispatch 连续三轮全绿后再改回必跑。深色 job 不跑深色全量 sweep，改跑 `testInputSampleFixtureDark`：每类输入各一个，用同一个 `check`（配对页字段、列表搜索、sheet 单行框、sheet 多行编辑框、详情菜单打开的 sheet、设置页、文件页搜索），外加两个终端测试的深色那一轮。原因：深色全量 sweep 在托管 runner 上跑到第 6 分钟左右开始，几乎每个动作都卡在 XCUITest 的「等 app 空闲」上限 60 秒，持续约 9 分钟；同一 sweep 本地 408 秒，浅色 fixture 的同一批输入在 CI 上每个约 12 秒。CI 的屏幕录像里那段时间画面完全静止，原因没找到。深色全量 sweep 留在套件里，本地跑：`-only-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark`。
+CI 上的取舍：iOS workflow 有三个并行 job，都决定 PR 的成败。`app (light)` 跑单元测试和 KeyboardStateTests 以外的全部 UI 测试；`keyboard (light)` 和 `keyboard (dark)` 跑键盘套件（它们在同一个 commit 上连续三轮全绿之后才重新设为必跑）。深色 job 不跑深色全量 sweep，改跑 `testInputSampleFixtureDark`：每类输入各一个，用同一个 `check`（配对页字段、列表搜索、sheet 单行框、sheet 多行编辑框、详情菜单打开的 sheet、设置页、文件页搜索），外加两个终端测试的深色那一轮。原因：深色全量 sweep 在托管 runner 上跑到第 6 分钟左右开始，几乎每个动作都卡在 XCUITest 的「等 app 空闲」上限 60 秒，持续约 9 分钟；同一 sweep 本地 408 秒，浅色 fixture 的同一批输入在 CI 上每个约 12 秒。CI 的屏幕录像里那段时间画面完全静止，原因没找到。深色全量 sweep 留在套件里，本地跑：`-only-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark`。
 
 ### 输入点
 
