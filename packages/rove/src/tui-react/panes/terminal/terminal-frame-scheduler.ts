@@ -14,8 +14,7 @@ export function terminalFrameScheduler(renderer: CliRenderer): TerminalRefreshSc
     renderer.removeFrameCallback(flush)
     const batch = [...pending]
     pending.clear()
-    // This frame lays out and draws what the batch commits; a requestRender
-    // from inside the frame only queues a redundant second one.
+    // This frame draws committed rows; deferred refreshes still need another frame.
     const requestRender = renderer.requestRender
     renderer.requestRender = () => {}
     try {
@@ -24,6 +23,7 @@ export function terminalFrameScheduler(renderer: CliRenderer): TerminalRefreshSc
       })
     } finally {
       renderer.requestRender = requestRender
+      if (pending.size > 0) renderer.requestRender()
     }
   }
   const schedule: TerminalRefreshScheduler = (refresh) => {
