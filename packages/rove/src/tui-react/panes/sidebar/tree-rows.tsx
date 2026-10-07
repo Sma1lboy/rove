@@ -379,34 +379,6 @@ export function TabTreeRow(props: {
   )
 }
 
-/**
- * A project's routine count row, the tree's one fold: schedule output is
- * noise beside tasks a human opened. Open, they render as ordinary worktree
- * rows; closed, they stay reachable from the Inbox and Routines page.
- */
-export function RoutinesTreeRow(props: {
-  readonly rowId: string
-  readonly flatIndex: number
-  readonly count: number
-  readonly expanded: boolean
-  readonly shared: TreeRowShared
-}) {
-  const { theme } = useTheme()
-  const t = useT()
-  return (
-    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={props.shared}>
-      {/* A 2-cell twisty is terminal grammar for "this opens", the same
-          fixed-glyph exception the diff gutter takes. */}
-      <text fg={theme.textMuted} wrapMode="none" width={2} flexShrink={0}>
-        {props.expanded ? "▾ " : "▸ "}
-      </text>
-      <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-        {t("tasks.routinesRow", { count: String(props.count) })}
-      </text>
-    </RowShell>
-  )
-}
-
 /** Narrow mode's "↩ Recent: <task>" row: ⏎ re-enters that task; no menu, no verbs. */
 export function RecentJumpRow(props: {
   readonly rowId: string

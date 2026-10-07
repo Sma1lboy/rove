@@ -39,6 +39,8 @@ export type TreeRowShared = {
   readonly onContextMenu?: (flatIndex: number, rowId: string, x: number, y: number) => void
   /** Bumps when a git poll lands a changed value; rows re-render to read it. */
   readonly branchTick: number
+  /** Task rollup activity; only the closed routines fold reads it, for rows it hides. */
+  readonly engineState?: ReadonlyMap<string, TaskEngineState>
   /** Per-tab activity (taskId → tabId → state), never the task rollup. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>

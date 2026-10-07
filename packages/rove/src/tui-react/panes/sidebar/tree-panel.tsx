@@ -12,8 +12,9 @@ import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { SectionHeader } from "./chrome"
+import { RoutinesTreeRow } from "./routines-row"
 import type { TreeRowShared } from "./tree-row-shell"
-import { RecentJumpRow, RoutinesTreeRow, TabTreeRow, WorktreeTreeRow } from "./tree-rows"
+import { RecentJumpRow, TabTreeRow, WorktreeTreeRow } from "./tree-rows"
 
 export function SidebarTreeBody(props: {
   readonly rows: readonly TreeRow[]
@@ -91,6 +92,7 @@ export function SidebarTreeBody(props: {
                 rowId={row.id}
                 flatIndex={props.flatIndexOf.get(row.id) ?? -1}
                 count={row.count}
+                tasks={row.tasks}
                 expanded={row.expanded}
                 shared={props.shared}
               />
