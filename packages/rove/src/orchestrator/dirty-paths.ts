@@ -1,23 +1,20 @@
 /**
  * One parse of `git status --porcelain` into the paths a refusal names.
  *
- * Shared by landing and syncing, which both refuse on a dirty tree and list the
- * files. Lines too short to hold a path (`XY <path>` is ≥4 chars) are dropped,
- * so an empty string never renders as a filename.
- *
- * Deliberately NOT `lib/git-parsers.ts`'s `parsePorcelainRows` (unquotes
- * C-escaped paths, resolves `R  old -> new`): the better parser, but adopting
- * it changes the user-visible lists on `SYNC_WORKTREE_DIRTY` and
- * `EmptyBranchDirtyWorktreeError` — its own change, with its own tests.
+ * Shared by landing, syncing and the delete gate, which all refuse on a dirty
+ * tree and list the files. Paths go through the shared porcelain parser, so a
+ * C-quoted `"\347\254\224.md"` or `"a b.txt"` reads as the real filename and a
+ * rename names its new path. Lines too short to hold a path are dropped, so an
+ * empty string never renders as a filename.
  */
 
-/** Paths from `git status --porcelain` output, with the `XY ` prefix stripped. */
+import { parsePorcelainRows } from "../lib/git-parsers.ts"
+
+/** Paths from `git status --porcelain` output, unquoted, in `git status` order. */
 export function parseDirtyPaths(stdout: string): string[] {
-  return stdout
-    .split("\n")
-    .filter((line) => line.length > 3)
-    .map((line) => line.slice(3).trim())
-    .filter((line) => line.length > 0)
+  return parsePorcelainRows(stdout)
+    .map((row) => row.path)
+    .filter((p) => p.trim().length > 0)
 }
 
 /**

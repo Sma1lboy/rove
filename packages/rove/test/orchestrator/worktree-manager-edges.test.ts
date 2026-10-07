@@ -260,3 +260,19 @@ describe("listBranchNames()", () => {
     expect([...(await manager.listBranchNames(clone))].sort()).toEqual(["feat/x", "main"])
   })
 })
+
+describe("dirtyPaths()", () => {
+  it("names quoted and renamed files as they are on disk, not git's escapes", async () => {
+    // The force-delete confirm lists these; porcelain quotes non-ASCII and
+    // space-containing names (`"\347\254\224.md"`) and prints `old -> new`.
+    const wt = join(root, "wt-dirty-names")
+    await manager.create(repo, "rove/dirty-names", wt)
+    writeFileSync(join(wt, "old.txt"), "x")
+    execSync("git add -A && git commit -q -m old", { cwd: wt, env: gitEnv })
+    execSync("git mv old.txt new.txt", { cwd: wt, env: gitEnv })
+    writeFileSync(join(wt, "笔记.md"), "note")
+    writeFileSync(join(wt, "a b.txt"), "space")
+
+    expect((await manager.dirtyPaths(wt)).sort()).toEqual(["a b.txt", "new.txt", "笔记.md"])
+  })
+})
