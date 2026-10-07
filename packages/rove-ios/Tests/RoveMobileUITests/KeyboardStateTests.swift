@@ -208,7 +208,7 @@ final class KeyboardStateTests: XCTestCase {
 
     /// Focuses the input (`focus`, else a tap on it), then: keyboard up; the input holds the focus, sits wholly
     /// above the keyboard and its bar, and is hittable (no header over it); `keyboardDone` on screen. Done drops
-    /// the keyboard and the focus, and every landmark ends within 1 pt of where it was before.
+    /// the keyboard and the focus, and every landmark ends within `layoutTolerance` of where it was before.
     func check(_ name: String, _ field: @escaping () -> XCUIElement, focus: (() -> Void)? = nil,
                landmarks: [String] = [], whileUp: (() -> Void)? = nil) {
         let tag = "\(label) \(name)"
@@ -243,10 +243,14 @@ final class KeyboardStateTests: XCTestCase {
         XCTAssertFalse(holdsFocus(f), "\(tag): input kept focus after Done")
         for (mark, was) in zip(marks, before) {
             let now = mark.frame
-            XCTAssertTrue(abs(now.minY - was.minY) <= 1 && abs(now.height - was.height) <= 1,
+            XCTAssertTrue(abs(now.minY - was.minY) <= Self.layoutTolerance && abs(now.height - was.height) <= Self.layoutTolerance,
                           "\(tag): \(mark.identifier) moved from \(was) to \(now)")
         }
     }
+
+    /// How far a landmark may end from where it was before the keyboard: 1 pt plus one device pixel's rounding
+    /// (@3x frames are multiples of 1/3 pt), so sub-pixel layout passes and a real shift does not.
+    static let layoutTolerance: CGFloat = 1.5
 
     /// Until every element's frame is the same in two samples 0.25 s apart (at most 3 s).
     private func waitStill(_ elements: XCUIElement...) {

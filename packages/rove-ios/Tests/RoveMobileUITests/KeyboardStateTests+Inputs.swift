@@ -28,21 +28,19 @@ extension KeyboardStateTests {
         check("pairing-link", { self.input("pairingField") }, landmarks: ["connectButton"])
         enter(fixture: fixture)
         sweepList()
-        el("newTaskButton").tap()
-        waitFor(visible("createButton"), "new task sheet")
+        open(el("newTaskButton"), until: el("createButton"), "new task sheet")
         let primary = { self.assertReachable("createButton") }
         check("newtask-title", { self.input("titleField") }, landmarks: ["createButton", "sheetClose"], whileUp: primary)
         check("newtask-prompt", { self.input("promptEditor") }, landmarks: ["createButton", "sheetClose"], whileUp: primary)
         closeSheet()
         openTask()
         sheetCheck("rename-task", menu: "Rename", field: "renameField", primary: "renameConfirm")
-        el("diffLink").tap()
-        waitFor(app.buttons["all"].firstMatch, "all files").tap()
+        openFiles()
         check("files-search", { self.input("pathSearch") }, landmarks: ["backButton"])
         el("backButton").tap()
         back()
-        el("settingsButton").tap()
-        waitFor(el("settingsRow-feedback"), "settings").tap()
+        open(el("settingsButton"), until: el("settingsRow-feedback"), "settings")
+        open(el("settingsRow-feedback"), until: el("feedbackSend"), "feedback page")
         check("feedback-title", { self.input("feedbackTitle") }, landmarks: ["feedbackSend"],
               whileUp: { self.assertReachable("feedbackSend") })
     }
@@ -54,8 +52,13 @@ extension KeyboardStateTests {
         check("pairing-cf-id", { self.input("cfClientId") }, landmarks: lm)
         check("pairing-cf-secret", { self.input("cfClientSecret") }, landmarks: lm)
         el("presetPicker").buttons["direct"].tap()
-        app.buttons["+ header"].firstMatch.tap()
-        check("pairing-header-name", { self.app.textFields.matching(NSPredicate(format: "placeholderValue == 'name'")).firstMatch }, landmarks: lm)
+        // A tap that lands while the cloudflare section is still animating away is dropped: retry until the row exists.
+        let name = app.textFields.matching(NSPredicate(format: "placeholderValue == 'name'")).firstMatch
+        for _ in 0..<3 where !name.exists {
+            app.buttons["+ header"].firstMatch.tap()
+            _ = name.waitForExistence(timeout: 4)
+        }
+        check("pairing-header-name", { name }, landmarks: lm)
         check("pairing-header-value", { self.app.secureTextFields.matching(NSPredicate(format: "placeholderValue == 'value'")).firstMatch }, landmarks: lm)
         app.buttons["Remove header"].firstMatch.tap()
     }
@@ -72,8 +75,7 @@ extension KeyboardStateTests {
     }
 
     func sweepNewTask() {
-        el("newTaskButton").tap()
-        waitFor(visible("createButton"), "new task sheet")
+        open(el("newTaskButton"), until: el("createButton"), "new task sheet")
         let lm = ["createButton", "sheetClose"]
         let primary = { self.assertReachable("createButton") }
         check("newtask-title", { self.input("titleField") }, landmarks: lm, whileUp: primary)
@@ -101,20 +103,19 @@ extension KeyboardStateTests {
         sheetCheck("branch", menu: "Branch…", field: "branchField", primary: "branchConfirm")
         sheetCheck("model", menu: "Model & effort…", field: "modelField", primary: "modelEffortConfirm")
         sheetCheck("rename-tab", menu: "Rename tab", field: "renameField", primary: "rename")
-        openMenu("New session…")
-        waitFor(visible("startSessionButton"), "new session sheet")
+        openMenu("New session…", until: el("startSessionButton"))
         check("new-session-prompt", { self.app.textViews.allElementsBoundByIndex.last { $0.isHittable } ?? self.app.textViews.firstMatch },
               landmarks: ["startSessionButton", "sheetClose"], whileUp: { self.assertReachable("startSessionButton") })
         closeSheet()
     }
 
     private func sweepRoutines() {
-        openPage("page-routines")
-        waitFor(el("routineNew"), "routines").tap()
+        openPage("page-routines", until: el("routineNew"))
+        open(el("routineNew"), until: el("createRoutine"), "new routine sheet")
         routineFields("routine-new", primary: "createRoutine")
         closeSheet()
-        waitFor(el("routineRow-r-ok"), "routine row").tap()
-        waitFor(visible("routineEdit"), "routine detail").tap()
+        open(el("routineRow-r-ok"), until: el("routineEdit"), "routine detail")
+        open(el("routineEdit"), until: el("saveRoutine"), "edit routine sheet")
         routineFields("routine-edit", primary: "saveRoutine")
         closeSheet()
         closeSheet()
@@ -131,17 +132,15 @@ extension KeyboardStateTests {
     }
 
     private func sweepBoard() {
-        openPage("page-board")
-        waitFor(el("boardNewStory"), "board").tap()
-        waitFor(visible("newStorySave"), "new story sheet")
+        openPage("page-board", until: el("boardNewStory"))
+        open(el("boardNewStory"), until: el("newStorySave"), "new story sheet")
         let lmNew = ["newStorySave", "sheetClose"]
         check("story-new-title", { self.input("newStoryTitle") }, landmarks: lmNew, whileUp: { self.assertReachable("newStorySave") })
         check("story-new-body", { self.input("newStoryDescription") }, landmarks: lmNew, whileUp: { self.assertReachable("newStorySave") })
         closeSheet()
         let backlog = el("boardColumns").buttons.matching(NSPredicate(format: "label BEGINSWITH 'backlog'")).firstMatch
         if backlog.waitForExistence(timeout: 3) { backlog.tap() }
-        waitFor(el("storyCard-9"), "backlog story").tap()
-        waitFor(visible("drawerSave"), "story drawer")
+        open(el("storyCard-9"), until: el("drawerSave"), "story drawer")
         let lm = ["drawerSave", "sheetClose"]
         check("issue-title", { self.input("drawerTitle") }, landmarks: lm, whileUp: { self.assertReachable("drawerSave") })
         check("issue-body", { self.input("drawerDescription") }, landmarks: lm, whileUp: { self.assertReachable("drawerSave") })
@@ -150,24 +149,34 @@ extension KeyboardStateTests {
     }
 
     private func sweepSettings() {
-        el("settingsButton").tap()
-        waitFor(el("settingsRow-feedback"), "settings").tap()
+        open(el("settingsButton"), until: el("settingsRow-feedback"), "settings")
+        open(el("settingsRow-feedback"), until: el("feedbackSend"), "feedback page")
         let lm = ["feedbackSend"]
         check("feedback-title", { self.input("feedbackTitle") }, landmarks: lm, whileUp: { self.assertReachable("feedbackSend") })
         check("feedback-body", { self.input("feedbackBody") }, landmarks: lm, whileUp: { self.assertReachable("feedbackSend") })
         el("backButton").tap()
-        waitFor(el("settingsRow-engines"), "settings").tap()
-        waitFor(el("engineRow-claude"), "engine row").tap()
+        open(waitFor(el("settingsRow-engines"), "settings"), until: el("engineRow-claude"), "engines page")
+        open(el("engineRow-claude"), until: el("engineNameField"), "engine sheet")
         check("engine-name", { self.input("engineNameField") }, landmarks: ["sheetClose"])
         closeSheet()
         el("backButton").tap()
         back()
     }
 
+    /// The task's files page. A tap on `diff` while a sheet is still closing is dropped, so it is retried while
+    /// the link is still there.
+    private func openFiles() {
+        let all = app.buttons["all"].firstMatch, link = el("diffLink")
+        for _ in 0..<3 where !all.exists {
+            if link.waitForExistence(timeout: 5) { link.tap() }
+            _ = all.waitForExistence(timeout: 8)
+        }
+        waitFor(all, "all files").tap()
+    }
+
     private func sweepDiff() {
         openTask()
-        el("diffLink").tap()
-        waitFor(app.buttons["all"].firstMatch, "all files").tap()
+        openFiles()
         check("files-search", { self.input("pathSearch") }, landmarks: ["backButton"])
         waitFor(app.buttons["changes"].firstMatch, "changes tab").tap()
         waitFor(el("file-src/refunds/webhook.ts"), "changed file").tap()
@@ -178,8 +187,7 @@ extension KeyboardStateTests {
             row.tap()
             _ = el("addNote").waitForExistence(timeout: 1)
         }
-        waitFor(el("addNote"), "note button after selecting a code row").tap()
-        waitFor(visible("dropNote"), "note sheet")
+        open(el("addNote"), until: el("dropNote"), "note sheet")
         check("review-note", { self.app.textViews.allElementsBoundByIndex.last { $0.isHittable } ?? self.app.textViews.firstMatch },
               landmarks: ["dropNote", "sheetClose"], whileUp: { self.assertReachable("dropNote") })
         closeSheet()
@@ -254,37 +262,52 @@ extension KeyboardStateTests {
     }
 
     func openTask() {
-        waitFor(el("task-T-WAIT"), "task row").tap()
-        waitFor(el("taskTitle"), "task detail")
+        open(el("task-T-WAIT"), until: el("taskTitle"), "task detail")
         let deadline = Date().addingTimeInterval(20)
         while Int(el("terminal").value as? String ?? "") ?? 0 == 0, Date() < deadline { Thread.sleep(forTimeInterval: 0.3) }
         Thread.sleep(forTimeInterval: 1)
     }
 
+    /// Taps `target` until `until` exists. A tap that lands while a sheet, menu or push is still animating is
+    /// dropped; only for openers, never for toggles.
+    @discardableResult
+    func open(_ target: XCUIElement, until: XCUIElement, _ what: String) -> XCUIElement {
+        for _ in 0..<3 where !until.exists {
+            if target.waitForExistence(timeout: 5) { target.tap() }
+            _ = until.waitForExistence(timeout: 6)
+        }
+        return waitFor(until, what)
+    }
+
     private func back() {
-        el("backButton").tap()
-        waitFor(el("newTaskButton"), "task list")
+        open(el("backButton"), until: el("newTaskButton"), "task list")
     }
 
-    private func openPage(_ id: String) {
-        waitFor(el("pagesMenu"), "pages menu").tap()
-        waitFor(el(id), id).tap()
+    private func openPage(_ id: String, until: XCUIElement) {
+        let item = el(id)
+        for _ in 0..<3 where !until.exists {
+            el("pagesMenu").tap()
+            if item.waitForExistence(timeout: 3) { item.tap() }
+            _ = until.waitForExistence(timeout: 6)
+        }
+        waitFor(until, id)
     }
 
-    /// The detail `…` menu item; a tap while a sheet is still closing opens nothing, so retry.
-    private func openMenu(_ label: String) {
+    /// The detail `…` menu item that opens `until`; the menu or the item tap is dropped while a sheet is still
+    /// closing, so both are retried.
+    private func openMenu(_ label: String, until: XCUIElement) {
         let item = app.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
-        for _ in 0..<3 {
+        for _ in 0..<3 where !until.exists {
             Thread.sleep(forTimeInterval: 1)
             el("moreMenu").tap()
-            if item.waitForExistence(timeout: 3) { break }
+            if item.waitForExistence(timeout: 3) { item.tap() }
+            _ = until.waitForExistence(timeout: 6)
         }
-        waitFor(item, "menu item \(label)").tap()
+        waitFor(until, "\(label) sheet")
     }
 
     private func sheetCheck(_ name: String, menu: String, field: String, primary: String) {
-        openMenu(menu)
-        waitFor(visible(primary), "\(name) sheet")
+        openMenu(menu, until: el(primary))
         check(name, { self.input(field) }, landmarks: [primary, "sheetClose"], whileUp: { self.assertReachable(primary) })
         closeSheet()
     }
