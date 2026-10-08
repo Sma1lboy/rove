@@ -10,6 +10,7 @@
  * users without these CLIs nothing. Blocked rules go before working rules.
  */
 
+import { roveCliInvocation } from "@/cli/invocation"
 import type { EngineIdentity } from "@/types/engine"
 import { CursorHookAdapter } from "./cursor-local/hook-adapter.ts"
 import { DevinHookAdapter } from "./devin-local/hook-adapter.ts"
@@ -24,6 +25,13 @@ export interface ContribEngineSpec {
   readonly defaultCommand: readonly string[]
   readonly processNames?: readonly string[]
   readonly screenManifest: EngineScreenManifest
+  /**
+   * Name of an env var that must be set for this engine to be OFFERED. For
+   * opt-in engines that must not appear in the new-task selector by default
+   * (the demo replay). Launching by name still works — this gates the offer,
+   * not the adapter.
+   */
+  readonly requiresEnv?: string
   /** Plugin-declared product identity (composer placeholder etc.). */
   readonly identity?: EngineIdentity
   /**
@@ -237,6 +245,17 @@ const QODERCLI: EngineScreenManifest = {
   ],
 }
 
+// The demo replay's own strings (`src/demo/`). Its live status line is the
+// bottom row while a beat runs, so `bottomLines: 1` reads the spinner and the
+// resting composer separately; the approval box needs the full region.
+const DEMO_SESSION: EngineScreenManifest = {
+  rules: [
+    { state: "blocked", any: ["don't ask again this session", "❯ 1. yes"] },
+    { state: "working", bottomLines: 1, lineRegex: ["^[\\u2800-\\u28FF] "] },
+    { state: "idle", bottomLines: 1, lineRegex: ["^>\\s*$"] },
+  ],
+}
+
 /** The shipped catalog. Key = the engine's VendorId. */
 export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
   gemini: { displayName: "Gemini CLI", defaultCommand: ["gemini"], screenManifest: GEMINI },
@@ -291,6 +310,16 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     defaultCommand: ["agy"],
     processNames: ["antigravity", "antigravity-cli"],
     screenManifest: ANTIGRAVITY,
+  },
+  // A scripted session replayed by our own CLI (`rove demo-session`), for
+  // captures and demos on machines with no engine installed. Never calls a
+  // model. `requiresEnv` keeps it out of the selector unless asked for.
+  demo: {
+    displayName: "Claude Code (demo)",
+    defaultCommand: [...roveCliInvocation(), "demo-session"],
+    screenManifest: DEMO_SESSION,
+    identity: { shortName: "Claude" },
+    requiresEnv: "ROVE_DEMO_ENGINE",
   },
 }
 

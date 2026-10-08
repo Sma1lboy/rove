@@ -170,6 +170,7 @@ export const RESERVED_ENGINE_IDS: readonly string[] = [
   "maki",
   "antigravity",
   "bob",
+  "demo",
 ]
 
 /** Canonical Rove spelling wins; the Rove spelling is a permanent read fallback. */

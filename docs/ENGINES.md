@@ -76,6 +76,14 @@ manifest, and identity. Unlike the contrib catalog, plugin engines are
 offered without a binary check — installing the plugin is the opt-in. See
 [Plugin authoring](./PLUGIN-AUTHORING.md).
 
+**There is a demo engine** (`demo`) for recording and screenshots: it opens a
+tab that replays a scripted Claude Code session — spinner, tool calls, a diff,
+a permission prompt, elapsed time and token counts — with no model and no
+network. It is off by default and hidden from the engine selector until you set
+`ROVE_DEMO_ENGINE=1`, so it never appears in normal use. Launching it directly
+by name (`rove api add --command demo`) works without the env var. Playback
+speed is `ROVE_DEMO_SPEED` (default `1`) and it loops unless `ROVE_DEMO_LOOP=0`.
+
 **Kimi is partial.** Rove finds the binary, reads its login state, and can
 locate each session's transcript, enough to watch it for activity and to
 hand the conversation to another engine. It still doesn't *parse* that

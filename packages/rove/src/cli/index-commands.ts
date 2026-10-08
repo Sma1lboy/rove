@@ -110,6 +110,15 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
     },
   ],
   [
+    "demo-session",
+    async (args) => {
+      // Internal: the demo engine's launch command. Replays a scripted session
+      // with no model and no network.
+      const { runDemoSessionSubcommand } = await import("./demo-cmd.ts")
+      await runDemoSessionSubcommand(args)
+    },
+  ],
+  [
     "skill",
     async (args) => {
       const { runSkillSubcommand } = await import("./skill-cmd.ts")

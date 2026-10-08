@@ -25,7 +25,7 @@ import { BinaryNotFoundError } from "./binary-discovery"
 import { findBobBinary } from "./bob-local/binary"
 import { findClaudeBinary } from "./claude-code-local/binary"
 import { findCodexBinary } from "./codex-local/binary"
-import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS, pluginEngineIds } from "./contrib-engines"
+import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS, type ContribEngineSpec, pluginEngineIds } from "./contrib-engines"
 import { findCopilotBinary } from "./copilot-local/binary"
 import { readTextFileSyncBounded } from "./file-bounds"
 import { findKimiBinary } from "./kimi-local/binary"
@@ -218,7 +218,7 @@ export function resetAvailableVendorsCache(): void {
  */
 export async function installedEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
   const builtins = await detectAvailableVendors(deps)
-  const contrib = await detectContribEngines()
+  const contrib = await detectContribEngines(deps.env)
   // Custom ids win over a same-named contrib entry (dedup keeps the first).
   return [...new Set([...builtins, ...getCustomEngineIds(), ...contrib])]
 }
@@ -233,23 +233,31 @@ export async function availableEngineIds(deps: DetectDeps = defaultDeps): Promis
 }
 
 /**
- * Per-process memo of contrib-engine discovery: offered when
- * `defaultCommand[0]` (the binary launch would run) is on PATH.
+ * Whether a contrib spec is OFFERED in the selector: it declares no unmet
+ * {@link ContribEngineSpec.requiresEnv} and the binary its launch would run is
+ * on PATH. `env`/`which` are injected ({@link DetectDeps.env} is a lookup,
+ * `Bun.which` is absent under vitest) so the gate is testable.
  */
+export function contribEngineOffered(
+  spec: ContribEngineSpec | undefined,
+  env: (name: string) => string | undefined,
+  which: ((bin: string) => string | null) | undefined,
+): boolean {
+  if (!spec) return false
+  if (spec.requiresEnv && !env(spec.requiresEnv)) return false
+  const bin = spec.defaultCommand[0]
+  return bin !== undefined && which !== undefined && which(bin) !== null
+}
+
+/** Per-process memo of contrib-engine discovery. */
 let cachedContribEngines: Promise<readonly VendorId[]> | null = null
 
-function detectContribEngines(): Promise<readonly VendorId[]> {
+function detectContribEngines(env: (name: string) => string | undefined): Promise<readonly VendorId[]> {
   if (cachedContribEngines) return cachedContribEngines
-  // `Bun.which` is absent under vitest (node) — reads as "none detected".
   const which: ((bin: string) => string | null) | undefined = globalThis.Bun?.which
   // Plugin engines are offered unconditionally, like custom engines.
   cachedContribEngines = Promise.resolve([
-    ...(which
-      ? CONTRIB_ENGINE_IDS.filter((id) => {
-          const bin = CONTRIB_ENGINES[id]?.defaultCommand[0]
-          return bin ? which(bin) !== null : false
-        })
-      : []),
+    ...CONTRIB_ENGINE_IDS.filter((id) => contribEngineOffered(CONTRIB_ENGINES[id], env, which)),
     ...pluginEngineIds(),
   ])
   return cachedContribEngines
