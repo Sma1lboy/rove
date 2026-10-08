@@ -8,6 +8,7 @@
         "@biomejs/biome": "1.9.4",
         "@changesets/changelog-github": "^1.0.1",
         "@changesets/cli": "^2.31.1",
+        "smol-toml": "^1.7.1",
       },
     },
     "packages/branding": {

@@ -6,11 +6,13 @@ import { expect, test } from "vitest"
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 
-test("the retired name appears only in history, its npm note and the temporary runtime constant", () => {
+test("the retired name appears only in history, external plugin metadata and migration references", () => {
   const retired = basename(preRenameStateDir("")).slice(1)
   const result = execFileSync("git", ["grep", "-Iin", retired], { cwd: ROOT, encoding: "utf8" })
   const unexpected = result.split("\n").filter((line) => {
     if (!line) return false
+    // Generated table rows quote publisher metadata, including external names and URLs.
+    if (/^docs\/PLUGIN-DIRECTORY\.md:\d+:\| /.test(line)) return false
     if (/^packages\/[^/]+\/CHANGELOG\.md:/.test(line)) return false
     if (line.startsWith("docs/agents/dev-loop.md:") && line.includes("frozen at 0.9.64")) return false
     return !(
