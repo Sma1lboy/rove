@@ -129,29 +129,29 @@ async function adopt(args: Args, ctx: OpContext): Promise<unknown> {
 
 export const TASK_WRITE_OPS: OpTable = {
   "task.spawn": write("verb add", spawn),
-  "task.rename": write("verb rename --task-id --title", (a, c) =>
-    done(c.api.verb("rename", [flag("task-id", taskId(a)), flag("title", text(a, "title", 200))])),
+  "task.rename": write("verb update --task-id --title", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("title", text(a, "title", 200))])),
   ),
-  "task.setBranch": write("verb set-branch --task-id --branch", (a, c) =>
-    done(c.api.verb("set-branch", [flag("task-id", taskId(a)), flag("branch", gitRef(a, "branch"))])),
+  "task.setBranch": write("verb update --task-id --branch", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("branch", gitRef(a, "branch"))])),
   ),
-  "task.setCommand": write("verb set-command --task-id --command=<engine id>", async (a, c) => {
+  "task.setCommand": write("verb update --task-id --command=<engine id>", async (a, c) => {
     const id = taskId(a)
     const engine = await engineId(a, "engine", c)
-    const res = await c.api.verb<{ protocol?: string }>("set-command", [flag("task-id", id), flag("command", engine)])
+    const res = await c.api.verb<{ protocol?: string }>("update", [flag("task-id", id), flag("command", engine)])
     return res.protocol ? { protocol: res.protocol } : {}
   }),
-  "task.setModel": write("verb set-model --task-id --model", (a, c) =>
-    done(c.api.verb("set-model", [flag("task-id", taskId(a)), flag("model", model(a))])),
+  "task.setModel": write("verb update --task-id --model", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("model", model(a))])),
   ),
-  "task.setEffort": write("verb set-effort --task-id --level", (a, c) =>
-    done(c.api.verb("set-effort", [flag("task-id", taskId(a)), flag("level", effortLevel(a))])),
+  "task.setEffort": write("verb update --task-id --effort", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("effort", effortLevel(a))])),
   ),
-  "task.setStatus": write("verb set-status --task-id --status", (a, c) =>
-    done(c.api.verb("set-status", [flag("task-id", taskId(a)), flag("status", oneOf(a, "status", STATUSES))])),
+  "task.setStatus": write("verb update --task-id --status", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("status", oneOf(a, "status", STATUSES))])),
   ),
-  "task.pin": write("verb pin --task-id --pinned", (a, c) =>
-    done(c.api.verb("pin", [flag("task-id", taskId(a)), flag("pinned", String(bool(a, "pinned")))])),
+  "task.pin": write("verb update --task-id --pinned", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("pinned", String(bool(a, "pinned")))])),
   ),
   "task.move": write("rpc task.move", (a, c) =>
     done(c.api.rpc("task.move", { taskId: taskId(a), direction: oneOf(a, "direction", DIRECTIONS) })),

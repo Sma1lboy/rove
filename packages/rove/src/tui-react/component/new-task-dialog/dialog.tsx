@@ -63,7 +63,7 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
             reasoning level belong to auto-routing, which owns that decision in
             Settings; a pinned model is a per-task exception, not something
             every new task should be asked about. Both are still settable
-            after the fact — `rove api set-model` / `set-effort`, or the
+            after the fact — `rove api update --model` / `--effort`, or the
             change-engine picker (`v`). What is left is what creating a task
             actually needs: where, with which engine, opening what. */}
         {/* Engine selector — Tab reaches it; ←/→ cycles while focused,

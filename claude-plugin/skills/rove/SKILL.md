@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 54 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 55 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -278,8 +278,9 @@ get-task --task-id(REQ)          list  (no flags)
 collect  --group <groupId> | --task-ids <csv> | --repo
 ```
 
-Four names that have actually been guessed wrong here: `add --vendor` is
-`--command`; `read-output --task` is `--task-id`; `dispatch --text` is
+Names that have actually been guessed wrong here: `add --vendor` is
+`--command`; `read-output --task` is `--task-id`; per-field verbs
+(`set-<field>`, `rename`, `pin`) are all `update --<field>`; `dispatch --text` is
 `--prompt` (`--text` belongs to `note`); `issue-list` has no `--state` at all
 — filter its JSON yourself.
 
@@ -348,7 +349,7 @@ rove api send --task-id <id> --tab tab-3 --prompt "<turn>"  # exact alive tab
 rove api send --task-id <id> --tab new --prompt "<turn>"    # fresh engine tab
 # Same worktree, DIFFERENT agent — the API twin of the TUI's ctrl+e pick. The
 # engine is pinned to that tab (survives restarts, unaffected by a later
-# set-command) and the task's own engine is left alone. --tab new only.
+# update --command) and the task's own engine is left alone. --tab new only.
 rove api send --task-id <id> --tab new --command codex --prompt "<turn>"
 
 rove api get-task --task-id <id>
@@ -423,11 +424,7 @@ logs, dashboards), don't scatter panes for work `add` should own.
 
 | Verb | Purpose |
 |---|---|
-| `rename --task-id ID --title T` | Rename a task |
-| `set-branch --task-id ID --branch B` | Rename its branch |
-| `set-command --task-id ID --command CMD` | Change the engine launch command for the next launch |
-| `set-status --task-id ID --status S` | Set the lifecycle LABEL (`backlog`/`in_progress`/`in_review`/`done`/`canceled`/`error`). Cosmetic: the row, its Worktree, its branch and its engine all stay. `canceled` does NOT close or clean up anything |
-| `pin --task-id ID [--pinned=false]` | Pin/unpin |
+| `update --task-id ID [--title T] [--branch B] [--command CMD] [--model M] [--effort L] [--pinned true\|false] [--status S] [--report-branch B --report-pr N --report-summary TEXT]` | Change any combination of fields in one call: validated first, applied branch → command → model/effort → title → pinned → status; not atomic (a mid-way failure reports `applied`). `--command` takes effect on the next launch; `--tab tab-N` with `--title` renames that tab. `--status` sets the lifecycle LABEL (`backlog`/`in_progress`/`in_review`/`done`/`canceled`/`error`) — cosmetic: the row, its Worktree, its branch and its engine all stay, and `canceled` does NOT close or clean up anything. `--report-*` (need `--status`) record what you delivered: `update --task-id "$ROVE_TASK_ID" --status in_review --report-pr N` |
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
 | `land --task-id ID [--strategy merge\|squash] [--delete-branch] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field |
@@ -438,7 +435,7 @@ logs, dashboards), don't scatter panes for work `add` should own.
 ### "Close this task" means `delete`
 
 `delete` is the ONLY verb that ends a task: it removes the row and its
-Worktree, and the git branch survives as the durable record. `set-status
+Worktree, and the git branch survives as the durable record. `update --status
 canceled` is a label — the row, Worktree, branch and engine all stay, so a
 "close" done that way changes nothing the user can see. Reach for `delete`
 whether or not the work merged; an unmerged branch is still on disk
@@ -458,7 +455,7 @@ Issues are daemon-owned, not repo files:
 ```bash
 rove api issue-list --repo "$PWD" --pretty
 rove api issue-create --repo "$PWD" --title "title" --body "context"
-rove api issue-set-status --repo "$PWD" --id <n> --status done
+rove api issue-update --repo "$PWD" --id <n> --status done
 rove api issue-update --repo "$PWD" --id <n> --title "new" --body "body"
 rove api issue-update --repo "$PWD" --id <n> --task <taskId>   # link; `--task none` unlinks
 ```
@@ -467,7 +464,7 @@ rove api issue-update --repo "$PWD" --id <n> --task <taskId>   # link; `--task n
 
 The TUI and web render issues as a Backlog / In progress / Done board whose
 columns derive from the issue's own lifecycle — do NOT move cards with
-`issue-set-status doing`:
+`issue-update --status doing`:
 
 - **In progress** = the issue has a linked task; `issue-update --task <taskId>`
   IS the move (typical flow: `issue-create` → `add` a task → link them).
@@ -569,7 +566,7 @@ party who knows what the work turned out to be. Once the shape is clear,
 rename it to a short descriptive name in this repo's own convention:
 
 ```bash
-rove api set-branch --task-id "$ROVE_TASK_ID" --branch <descriptive-slug>
+rove api update --task-id "$ROVE_TASK_ID" --branch <descriptive-slug>
 ```
 
 Do this while you work, not at the end — the branch name is what the user
@@ -625,7 +622,7 @@ None of these mean a task is finished:
 | the worker said "done" | a message; it has no verb to remove itself |
 | its PR is MERGED | the code landed; the task did not move |
 | its issue is `status done` | a field in a different store |
-| `set-status canceled` | a label — see Lifecycle above |
+| `update --status canceled` | a label — see Lifecycle above |
 
 **The only evidence is that `rove api list` no longer shows it.** Check the
 task, not the paperwork:

@@ -143,9 +143,9 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
     "tab.rename": {
       kind: "write",
       destructive: false,
-      wraps: "rove api rename --tab",
+      wraps: "rove api update --tab",
       async run(a, { api }) {
-        await api.verb("rename", [flag("task-id", taskId(a)), flag("tab", tabId(a)), flag("title", tabTitle(a))])
+        await api.verb("update", [flag("task-id", taskId(a)), flag("tab", tabId(a)), flag("title", tabTitle(a))])
         return {}
       },
     },

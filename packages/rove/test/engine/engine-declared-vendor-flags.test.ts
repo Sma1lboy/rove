@@ -143,7 +143,7 @@ describe("system-prompt protocols reach a wrapper engine", () => {
     // in_review on a wrapper engine — the exact silent gap the removed
     // `withClaudeSessionId` had.
     expect(argv).toContain("--append-system-prompt")
-    expect(argv.join("\n")).toContain("api set-status --task-id t1 --status in_review")
+    expect(argv.join("\n")).toContain("api update --task-id t1 --status in_review")
   })
 
   it("injects the dispatcher protocol into a claudecpa main session", () => {

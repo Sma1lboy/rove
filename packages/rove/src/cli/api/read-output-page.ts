@@ -18,7 +18,8 @@ export const MAX_PAGE_MESSAGES = 50
 const PAGE_BYTE_BUDGET = 128 * 1024
 /** Any single string inside a message is clipped past this many chars. */
 export const STRING_CLIP_CHARS = 16 * 1024
-/** Terminal fallback tail caps — lines and bytes. */
+/** Terminal tail caps: lines (default / max) and bytes. */
+export const DEFAULT_TAIL_LINES = 40
 export const TERMINAL_TAIL_LINES = 200
 export const TERMINAL_TAIL_BYTES = 64 * 1024
 
@@ -43,6 +44,8 @@ export interface ReadOutputEnvelope {
     readonly messages: readonly unknown[]
     readonly returnedMessageCount: number
     readonly totalMessages: number
+    /** Transcript index of `messages[0]`. */
+    readonly firstIndex: number
     /** True when the byte budget cut the page short of `limit`. */
     readonly limited: boolean
   }
@@ -57,14 +60,29 @@ export interface ReadOutputEnvelope {
     /** The exact tab read (`--tab`); absent for the canonical engine tab. */
     readonly tab?: string
   }
-  /** Opaque next-page cursor; null when there is nothing to page. */
+  /** Opaque forward cursor: the next page after this one, and once caught up
+   *  the poll point for whatever the session writes next. Null when there is
+   *  nothing to page. */
   readonly cursor: string | null
+  /** Opaque backward cursor: the page before this one. Null at the start of
+   *  the transcript, and always for terminal reads (the ring keeps only a tail). */
+  readonly olderCursor: string | null
   /** Why structured history was NOT used (auto only; null on an explicit source). */
   readonly fallbackReason: FallbackReason | null
   readonly warnings: readonly string[]
 }
 
-type HistoryCursor = { v: 1; task: string; src: "history"; sid: string; idx: number }
+type HistoryCursor = {
+  v: 1
+  task: string
+  src: "history"
+  sid: string
+  /** Forward: first index to read. Older: exclusive end of the page to read. */
+  idx: number
+  older?: true
+  /** The tab a `--tab` read is pinned to; absent for the task's own engine. */
+  tab?: string
+}
 type TerminalCursor = {
   v: 1
   task: string
@@ -95,12 +113,11 @@ export function decodeCursor(raw: string, taskId: string): Cursor {
     typeof c === "object" &&
     c.v === 1 &&
     typeof c.task === "string" &&
+    (c.tab === undefined || typeof c.tab === "string") &&
     ((c.src === "history" &&
       typeof (c as HistoryCursor).sid === "string" &&
       typeof (c as HistoryCursor).idx === "number") ||
-      (c.src === "terminal" &&
-        typeof (c as TerminalCursor).off === "number" &&
-        ((c as TerminalCursor).tab === undefined || typeof (c as TerminalCursor).tab === "string")))
+      (c.src === "terminal" && typeof (c as TerminalCursor).off === "number"))
   if (!shapeOk) throw new ApiError("invalid cursor (unknown version or shape)", "CURSOR_INVALID")
   if (c.task !== taskId) {
     throw new ApiError(`cursor belongs to task ${c.task}, not ${taskId}`, "CURSOR_TASK_MISMATCH")
@@ -135,18 +152,27 @@ export function clipStrings(value: unknown): unknown {
 
 export interface HistoryPage {
   readonly page: readonly unknown[]
-  readonly nextIdx: number
+  /** The page covers transcript indices [start, end). */
+  readonly start: number
+  readonly end: number
   readonly limited: boolean
 }
 
-/** Deterministic page: up to `limit` messages from `startIdx`, stopping
- *  early (but never before one message) when the byte budget is spent. */
-export function buildHistoryPage(messages: readonly Message[], startIdx: number, limit: number): HistoryPage {
+/** Deterministic page of up to `limit` messages, read forward from `from` or
+ *  backward from `before` (exclusive), stopping early — but never before one
+ *  message — when the byte budget is spent. Pages are always chronological. */
+export function buildHistoryPage(
+  messages: readonly Message[],
+  at: { readonly from: number } | { readonly before: number },
+  limit: number,
+): HistoryPage {
+  const forward = "from" in at
   const page: unknown[] = []
   let bytes = 0
   let limited = false
-  let i = startIdx
-  for (; i < messages.length && page.length < limit; i++) {
+  let i = forward ? at.from : at.before - 1
+  for (; forward ? i < messages.length : i >= 0; forward ? i++ : i--) {
+    if (page.length >= limit) break
     const clipped = clipStrings(messages[i])
     const size = JSON.stringify(clipped).length
     if (page.length > 0 && bytes + size > PAGE_BYTE_BUDGET) {
@@ -156,7 +182,9 @@ export function buildHistoryPage(messages: readonly Message[], startIdx: number,
     page.push(clipped)
     bytes += size
   }
-  return { page, nextIdx: i, limited }
+  if (forward) return { page, start: at.from, end: i, limited }
+  page.reverse()
+  return { page, start: i + 1, end: at.before, limited }
 }
 
 // ── Terminal text shaping (pure) ─────────────────────────────────────────────
@@ -172,10 +200,10 @@ export interface TerminalTail {
   readonly truncated: boolean
 }
 
-/** Bounded tail: at most {@link TERMINAL_TAIL_LINES} lines / {@link TERMINAL_TAIL_BYTES} bytes. */
-export function boundedTail(text: string): TerminalTail {
+/** Bounded tail: at most `maxLines` (≤ {@link TERMINAL_TAIL_LINES}) lines / {@link TERMINAL_TAIL_BYTES} bytes. */
+export function boundedTail(text: string, maxLines: number = TERMINAL_TAIL_LINES): TerminalTail {
   const lines = terminalLines(text)
-  let start = Math.max(0, lines.length - TERMINAL_TAIL_LINES)
+  let start = Math.max(0, lines.length - Math.min(maxLines, TERMINAL_TAIL_LINES))
   let bytes = 0
   for (let i = lines.length - 1; i >= start; i--) {
     bytes += (lines[i]?.length ?? 0) + 1

@@ -20,7 +20,7 @@ export function issueWorktreePrompt(issue: Issue, api: string, product: string):
     `Treat this as the story's dedicated ${product} task session: work only in this task worktree, and preserve any repo init instructions already delivered to the session.`,
     "Before finishing, verify the acceptance criteria implied by the story and summarize what changed plus any verification still needed.",
     "Then merge the task branch back into the current project's main branch after the worktree is clean and checks pass.",
-    `When the work lands, run: ${api} issue-set-status --repo . --id ${issue.id} --status done`,
+    `When the work lands, run: ${api} issue-update --repo . --id ${issue.id} --status done`,
   ].join("\n")
 }
 
@@ -31,7 +31,7 @@ export function issueProjectPrompt(issue: Issue, api: string): string {
     ...promptHeader(issue),
     "You are working directly in the project checkout — no dedicated worktree or branch was created. Keep changes reviewable and do not switch branches unless asked.",
     "Before finishing, verify the acceptance criteria implied by the story and summarize what changed plus any verification still needed.",
-    `When the work lands, run: ${api} issue-set-status --repo . --id ${issue.id} --status done`,
+    `When the work lands, run: ${api} issue-update --repo . --id ${issue.id} --status done`,
   ].join("\n")
 }
 
@@ -46,6 +46,6 @@ export function issueMergePrompt(issue: Issue, api: string): string {
     "",
     "Verify the acceptance criteria implied by the story, then summarize what changed and any verification still needed.",
     "Then merge this task branch back into the current project's main branch after the worktree is clean and checks pass. Resolve conflicts if needed.",
-    `When the work lands, run: ${api} issue-set-status --repo . --id ${issue.id} --status done`,
+    `When the work lands, run: ${api} issue-update --repo . --id ${issue.id} --status done`,
   ].join("\n")
 }

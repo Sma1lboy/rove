@@ -188,7 +188,7 @@ export class MissingRefError extends Error {
     public readonly dir: string,
   ) {
     super(
-      `${MISSING_REF_CODE}: '${branch}' does not resolve in the base repo at ${dir} (comparing against '${landedOn}') — the branch was renamed or deleted outside Rove; re-point the task with \`rove api set-branch\` or recreate the branch`,
+      `${MISSING_REF_CODE}: '${branch}' does not resolve in the base repo at ${dir} (comparing against '${landedOn}') — the branch was renamed or deleted outside Rove; re-point the task with \`rove api update --branch\` or recreate the branch`,
     )
     this.name = "MissingRefError"
   }

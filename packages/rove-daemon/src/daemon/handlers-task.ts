@@ -12,7 +12,7 @@ import { serializeTask } from "./protocol.ts"
 import { auditDeletionRequested } from "./task-deletion-audit.ts"
 
 /**
- * `set-status --report-*` fields, or undefined when none were sent — never an
+ * `update --report-*` fields, or undefined when none were sent — never an
  * empty report, which would restamp `at` as if the worker reported again.
  */
 function optionalWorkerReport(

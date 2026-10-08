@@ -14,7 +14,7 @@
  * - `remove-worktree` — `ensure-worktree` materializes without an engine and
  *   had no inverse, so reclaiming a checkout meant `delete`, which takes the
  *   task record too.
- * - `rename --tab` — a tab could be opened, closed, read and written from the
+ * - `update --tab` — a tab could be opened, closed, read and written from the
  *   CLI, but not named.
  */
 
@@ -169,7 +169,7 @@ describe("remove-worktree", () => {
   })
 })
 
-describe("rename --tab", () => {
+describe("update --tab", () => {
   /** Seed a real two-tab snapshot in the worker's isolated ROVE_HOME_DIR —
    *  the same writers the CLI's own launch path uses. */
   function seedTabs(taskId: string): string {
@@ -183,7 +183,7 @@ describe("rename --tab", () => {
     // one before its next tab mutation overwrites the file.
     const tabId = seedTabs("rename-both")
     const client = new FakeClient({ "terminalTab.rename": () => ({ ok: true, clients: 2 }) })
-    const res = await invokeVerb("rename", ["--task-id", "rename-both", "--tab", tabId, "--title", "e2e"], {
+    const res = await invokeVerb("update", ["--task-id", "rename-both", "--tab", tabId, "--title", "e2e"], {
       client,
       runtime: stubRuntime(),
     })
@@ -199,7 +199,7 @@ describe("rename --tab", () => {
     const client = new FakeClient({})
     await expectApiError(
       () =>
-        invokeVerb("rename", ["--task-id", "rename-missing", "--tab", "tab-9", "--title", "x"], {
+        invokeVerb("update", ["--task-id", "rename-missing", "--tab", "tab-9", "--title", "x"], {
           client,
           runtime: stubRuntime(),
         }),

@@ -23,7 +23,7 @@ empty repo). Name collisions get a short `-2`/`-3` suffix, and a name that
 would clash with an existing branch's folder (`fix` beside `fix/login`, or
 `feat/x` beside `feat`) is skipped or flattened (`feat-x`). Generated names
 never contain Rove branding. An explicit `--branch` on creation,
-`set-branch` afterwards, and `b` on a task row in the sidebar override this
+`update --branch` afterwards, and `b` on a task row in the sidebar override this
 entirely. A branch still on its `new-task` placeholder is renamed once,
 automatically, when the task gets a real title (skipped if the branch
 already has an upstream); after that Rove never touches it again.

@@ -25,23 +25,23 @@ describe("withWorktreeProtocol", () => {
     const argv = withWorktreeProtocol(["claude"], "claude", "t1", { status: on, notes: off })
     expect(argv.slice(0, 2)).toEqual(["claude", "--append-system-prompt"])
     expect(argv[2]).toContain("task t1")
-    // `set-status` is a TOP-LEVEL api verb — `edit` is only a schema-doc
+    // `update` is a TOP-LEVEL api verb — `edit` is only a schema-doc
     // grouping label, not a command path (a real agent hit BAD_VERB on it).
-    expect(argv[2]).toContain("api set-status --task-id t1 --status in_review")
+    expect(argv[2]).toContain("api update --task-id t1 --status in_review")
     expect(argv[2]).not.toContain("api edit")
   })
 
   it("composes status + note filing into ONE injection when both switches are on", () => {
     const argv = withWorktreeProtocol(["claude"], "claude", "t1", { status: on, notes: on })
     expect(argv.filter((a) => a === "--append-system-prompt")).toHaveLength(1)
-    expect(argv[2]).toContain("api set-status --task-id t1")
+    expect(argv[2]).toContain("api update --task-id t1")
     expect(argv[2]).toContain("api note --task-id t1")
   })
 
   it("notes-only works without the status switch", () => {
     const argv = withWorktreeProtocol(["claude"], "claude", "t1", { status: off, notes: on })
     expect(argv[2]).toContain("api note --task-id t1")
-    expect(argv[2]).not.toContain("set-status")
+    expect(argv[2]).not.toContain("--status")
   })
 
   it("leaves the argv alone when nothing is enabled, vendor isn't claude, or no task", () => {
@@ -63,7 +63,7 @@ describe("statusReportProtocol", () => {
     // The default resolves the environment's CLI invocation (the dev bun
     // line from a source checkout), so a protocol agent never drives a
     // stale global `rove` that predates a new verb and answers BAD_VERB.
-    expect(statusReportProtocol("t9", "rove api")).toContain("rove api set-status --task-id t9")
+    expect(statusReportProtocol("t9", "rove api")).toContain("rove api update --task-id t9")
     expect(noteFilingProtocol("t9", "rove api")).toContain('rove api note --task-id t9 --text "<one line')
     expect(dispatcherProtocol("m9", "rove api")).toContain("rove api dispatch --task-id <id>")
     expect(dispatcherProtocol("m9", "rove api")).toContain("rove api collect --repo .")
@@ -134,7 +134,7 @@ describe("dispatcherProtocol", () => {
   it("routes knowledge only — no status writes, no conflict actions, no git", () => {
     const text = dispatcherProtocol("01HMAIN")
     expect(text).toContain("task 01HMAIN")
-    expect(text).not.toContain("set-status")
+    expect(text).not.toContain("--status")
     // The radar is display-only by explicit decision: the
     // dispatcher must never instruct merges/rebases over conflicts.
     expect(text).toContain("Take no action on merge conflicts")

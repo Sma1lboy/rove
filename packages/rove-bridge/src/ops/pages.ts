@@ -105,9 +105,9 @@ export const pagesOps: OpTable = {
   "issue.setStatus": {
     kind: "write",
     destructive: false,
-    wraps: "rove api issue-set-status",
+    wraps: "rove api issue-update --status",
     run: (args, { api }) =>
-      api.verb("issue-set-status", [
+      api.verb("issue-update", [
         flag("repo", absPath(args, "repo")),
         flag("id", issueId(args)),
         flag("status", oneOf(args, "status", ISSUE_STATUSES)),
@@ -203,9 +203,9 @@ export const pagesOps: OpTable = {
   "routine.setEnabled": {
     kind: "write",
     destructive: false,
-    wraps: "rove api routine-set-enabled",
+    wraps: "rove api routine-update --enabled",
     run: (args, { api }) =>
-      api.verb("routine-set-enabled", [flag("id", taskId(args, "id")), flag("enabled", String(bool(args, "enabled")))]),
+      api.verb("routine-update", [flag("id", taskId(args, "id")), flag("enabled", String(bool(args, "enabled")))]),
   },
   "routine.runNow": {
     kind: "write",

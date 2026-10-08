@@ -102,7 +102,7 @@ export function coerceTask(value: unknown): Task | null {
   }
 }
 
-/** A `set-status --report-*` claim; only its timestamp is required, so none → malformed. */
+/** A `update --report-*` claim; only its timestamp is required, so none → malformed. */
 function coerceWorkerReport(value: unknown): TaskWorkerReport | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
   const v = value as Record<string, unknown>

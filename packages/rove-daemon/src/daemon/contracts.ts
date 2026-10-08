@@ -165,7 +165,7 @@ export interface DaemonTask {
   readonly baseRef?: string
   /** `add --worktree-name`; absent = drawn from the animal pool. */
   readonly worktreeName?: string
-  /** The WORKER's own account of what it delivered (`set-status --report-*`).
+  /** The WORKER's own account of what it delivered (`update --report-*`).
    *  A claim, unlike `prStatus`, which the daemon observed from the forge. */
   readonly report?: TaskWorkerReport
   readonly createdAt: string
@@ -283,7 +283,7 @@ export interface DaemonOrchestrator {
   moveTask(id: string, delta: -1 | 1): Promise<void>
   moveTaskToTop(id: string): Promise<void>
   setStatus(id: string, status: TaskStatus): Promise<void>
-  /** Record what the worker says it delivered (`set-status --report-*`).
+  /** Record what the worker says it delivered (`update --report-*`).
    *  Separate from `setStatus` because a report on an already-`done` task is
    *  ordinary, and `setStatus` returns early when the status is unchanged. */
   setWorkerReport(id: string, report: Omit<TaskWorkerReport, "at">): Promise<void>

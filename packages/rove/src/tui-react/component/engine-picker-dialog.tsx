@@ -5,7 +5,7 @@
  *
  * Engines declaring `effortLevels` get a level row; engines declaring
  * `modelArgv` get the shared `model-field.tsx` input (`tab` moves focus).
- * This and `rove api set-effort` / `set-model` change them after creation;
+ * This and `rove api update --effort` / `--model` change them after creation;
  * only `rove api add --effort/--model` reaches the FIRST session.
  *
  * Picking persists vendor, level and model only; like `v`, it takes effect on

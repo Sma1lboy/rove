@@ -2,12 +2,12 @@
  * `add --effort` — the level a task's FIRST session launches with.
  *
  * Before this flag existed, scripting a codex task at `xhigh` took three
- * steps: `add`, then `set-effort`, then a session rebuild — so the first
+ * steps: `add`, then `update --effort`, then a session rebuild — so the first
  * session, the one that does the opening work, always ran at the engine's
  * default. These pin the payload the level rides on and the gate it must pass,
- * which is deliberately the SAME gate `set-effort` uses
+ * which is deliberately the SAME gate `update --effort` uses
  * (`assertEngineAcceptsEffort`): a level accepted here can never be one
- * `set-effort` would have rejected.
+ * `update --effort` would have rejected.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"

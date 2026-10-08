@@ -1,6 +1,6 @@
 /**
- * `set-effort` — which engine's levels govern a task, and what the verb is
- * allowed to write back.
+ * `update --effort` — which engine's levels govern a task, and what the verb
+ * is allowed to write back.
  *
  * Split out of `api-handlers-more.test.ts` (file-size cap) along its own seam:
  * those pin the generic simple-RPC edit verbs, where the payload IS the
@@ -54,17 +54,17 @@ afterEach(() => {
   for (const home of presetHomes.splice(0)) rmSync(home, { recursive: true, force: true })
 })
 
-describe("set-effort", () => {
+describe("update --effort", () => {
   /** A task.get responder — the verb reads the task to learn its engine. */
   const taskOf = (task: Record<string, unknown>) => ({ "task.get": () => ({ task: { id: "t1", ...task } }) })
 
   it("sends the level on task.setVendor once the task's engine declares it", async () => {
     const client = new FakeClient({ ...taskOf({ vendor: "codex" }), "task.setVendor": () => ({}) })
-    const out = await invokeVerb("set-effort", ["--task-id", "t1", "--level", "xhigh"], {
+    const out = await invokeVerb("update", ["--task-id", "t1", "--effort", "xhigh"], {
       client,
       runtime: stubRuntime(),
     })
-    expect(out).toEqual({ ok: true, taskId: "t1", engine: "codex", effort: "xhigh" })
+    expect(out).toEqual({ ok: true, taskId: "t1", updated: ["effort"], engine: "codex" })
     expect(client.requests.at(-1)).toEqual({
       name: "task.setVendor",
       payload: { taskId: "t1", vendor: "codex", effort: "xhigh" },
@@ -78,7 +78,7 @@ describe("set-effort", () => {
       ...taskOf({ vendor: "generic", command: "codex --search" }),
       "task.setVendor": () => ({}),
     })
-    await invokeVerb("set-effort", ["--task-id", "t1", "--level", "high"], { client, runtime: stubRuntime() })
+    await invokeVerb("update", ["--task-id", "t1", "--effort", "high"], { client, runtime: stubRuntime() })
     expect(client.requests.at(-1)).toEqual({
       name: "task.setVendor",
       payload: { taskId: "t1", vendor: "codex", effort: "high" },
@@ -91,7 +91,7 @@ describe("set-effort", () => {
     // run at the default.
     const client = new FakeClient(taskOf({ vendor: "codex" }))
     await expectApiError(
-      () => invokeVerb("set-effort", ["--task-id", "t1", "--level", "turbo"], { client, runtime: stubRuntime() }),
+      () => invokeVerb("update", ["--task-id", "t1", "--effort", "turbo"], { client, runtime: stubRuntime() }),
       "BAD_EFFORT",
       /none, low, medium, high, xhigh/,
     )
@@ -101,7 +101,7 @@ describe("set-effort", () => {
   it("names every effort-capable engine in the hint, not just codex", async () => {
     const client = new FakeClient(taskOf({ vendor: "claude" }))
     try {
-      await invokeVerb("set-effort", ["--task-id", "t1", "--level", "high"], { client, runtime: stubRuntime() })
+      await invokeVerb("update", ["--task-id", "t1", "--effort", "high"], { client, runtime: stubRuntime() })
       expect.unreachable("should have thrown")
     } catch (err) {
       expect(err).toBeInstanceOf(ApiError)
@@ -113,16 +113,16 @@ describe("set-effort", () => {
 
   // A preset declaring the codex protocol IS a codex launch, and the TUI
   // records the preset id in `vendor`. Reading that id raw found the
-  // registry's empty custom entry, so every level was refused — set-effort
+  // registry's empty custom entry, so every level was refused — the effort pin
   // could not set one at all on the tasks most likely to want one.
   it("accepts a level on a wrapped preset that declares the engine's protocol", async () => {
     withPreset()
     const client = new FakeClient({ ...taskOf({ vendor: "mycodex" }), "task.setVendor": () => ({}) })
-    const out = await invokeVerb("set-effort", ["--task-id", "t1", "--level", "high"], {
+    const out = await invokeVerb("update", ["--task-id", "t1", "--effort", "high"], {
       client,
       runtime: stubRuntime(),
     })
-    expect(out).toEqual({ ok: true, taskId: "t1", engine: "codex", effort: "high" })
+    expect(out).toEqual({ ok: true, taskId: "t1", updated: ["effort"], engine: "codex" })
   })
 
   // Setting a level must not change WHICH engine the task says it is: the
@@ -134,7 +134,7 @@ describe("set-effort", () => {
       ...taskOf({ vendor: "mycodex", command: "codex" }),
       "task.setVendor": () => ({}),
     })
-    await invokeVerb("set-effort", ["--task-id", "t1", "--level", "high"], { client, runtime: stubRuntime() })
+    await invokeVerb("update", ["--task-id", "t1", "--effort", "high"], { client, runtime: stubRuntime() })
     expect(client.requests.at(-1)).toEqual({
       name: "task.setVendor",
       payload: { taskId: "t1", vendor: "mycodex", effort: "high" },

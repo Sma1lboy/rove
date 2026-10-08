@@ -78,11 +78,11 @@ describe("tab.states", () => {
 })
 
 describe("tab.rename", () => {
-  test("builds exactly `rename --tab` and keeps a flag-looking title a value", async () => {
+  test("builds exactly `update --tab` and keeps a flag-looking title a value", async () => {
     const { calls } = await run("tab.rename", { taskId: TASK, tabId: "tab-2", title: "--force" })
     expect(calls).toHaveLength(1)
     const [call] = calls
-    expect(call?.name).toBe("rename")
+    expect(call?.name).toBe("update")
     const { flags } = parseFlags([...(call?.argv ?? [])])
     expect(flags.get("task-id")).toBe(TASK)
     expect(flags.get("tab")).toBe("tab-2")

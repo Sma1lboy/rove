@@ -3,7 +3,7 @@
  * `rove-daemon/prompts/issue-prompts.ts` that the TUI
  * (state/issue-chat.ts) sends.
  * Both prompts frame the story (#id + title + body) and
- * end with the daemon-owned `issue-set-status … done` instruction; the
+ * end with the daemon-owned `issue-update … done` instruction; the
  * worktree prompt carries the worktree/merge discipline, the project prompt
  * replaces it with the stay-on-checkout note. A drift here changes what
  * every story-spawned agent is told to do.
@@ -43,7 +43,7 @@ describe("issue-chat prompts", () => {
     expect(prompt).toContain("repro steps here")
     expect(prompt).toContain("task worktree")
     expect(prompt).toContain("merge the task branch")
-    expect(prompt).toContain("bun rove api issue-set-status --repo . --id 7 --status done")
+    expect(prompt).toContain("bun rove api issue-update --repo . --id 7 --status done")
   })
 
   test("project prompt: stay on the checkout, no worktree/merge lines", () => {
@@ -52,7 +52,7 @@ describe("issue-chat prompts", () => {
     expect(prompt).toContain("directly in the project checkout")
     expect(prompt).not.toContain("task worktree")
     expect(prompt).not.toContain("merge the task branch")
-    expect(prompt).toContain("rove api issue-set-status --repo . --id 7 --status done")
+    expect(prompt).toContain("rove api issue-update --repo . --id 7 --status done")
   })
 
   test("the TUI wrapper is the shared builder verbatim — one implementation, two surfaces", () => {
@@ -75,7 +75,7 @@ describe("issue-chat prompts", () => {
     expect(prompt).toContain("Finish user story #9: Ship it")
     expect(prompt).toContain("Verify the acceptance criteria")
     expect(prompt).toContain("merge this task branch back into the current project's main branch")
-    expect(prompt).toContain("rove api issue-set-status --repo . --id 9 --status done")
+    expect(prompt).toContain("rove api issue-update --repo . --id 9 --status done")
   })
 })
 

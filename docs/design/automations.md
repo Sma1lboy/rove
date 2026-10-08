@@ -196,7 +196,7 @@ rove api routine-create --repo . --name "weekday audit" \
 rove api routine-list
 rove api routine-runs --id <id>
 rove api routine-run-now --id <id>
-rove api routine-set-enabled --id <id> --enabled false
+rove api routine-update --id <id> --enabled false
 rove api routine-delete --id <id>
 ```
 

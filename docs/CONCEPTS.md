@@ -41,7 +41,7 @@ session and all, instead of becoming a duplicate row.
 
 Each Task has a `status` you set yourself (`backlog`, `in_progress`,
 `in_review`, `done`, `canceled`, `error`) — from the sidebar row's right-click
-menu (**Set status**) or with `rove api set-status`. It is a label and nothing
+menu (**Set status**) or with `rove api update --status`. It is a label and nothing
 more: `canceled` does not stop a session or remove a worktree, and `done` does
 not close anything. Rove moves a Task from `backlog` to `in_progress` by itself
 when its engine starts a turn, and the system prompt asks the agent to set
@@ -180,7 +180,7 @@ It's deliberately simple. No type taxonomy, just a status
   STATUS field to move it between columns; `d` on the board deletes the story
   outright.
 - **Agents and scripts.** `rove api issue-list`, `issue-create`,
-  `issue-set-status`, `issue-update`, `issue-delete`.
+  `issue-update` (`--status` moves a card), `issue-delete`.
 
 Issues track *what to do*; the changelog records *what shipped*.
 

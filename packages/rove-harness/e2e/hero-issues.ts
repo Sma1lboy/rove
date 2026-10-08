@@ -110,7 +110,7 @@ for (const story of STORIES) {
   const taskId = story.task ? tasks.get(story.task) : undefined
   if (story.task && !taskId) console.log(`[hero:issues] no task ${JSON.stringify(story.task)} yet — #${id} stays open`)
   if (taskId) heroApi(["issue-update", "--repo", HERO_REPO, "--id", String(id), "--task", taskId])
-  if (story.status) heroApi(["issue-set-status", "--repo", HERO_REPO, "--id", String(id), "--status", story.status])
+  if (story.status) heroApi(["issue-update", "--repo", HERO_REPO, "--id", String(id), "--status", story.status])
   console.log(`[hero:issues] #${id} ${story.title}${taskId ? " → in progress" : ""}`)
 }
 

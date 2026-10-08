@@ -310,7 +310,7 @@ export default async function setupVisualFixture(): Promise<void> {
     runRove(["issue-create", "--repo", VISUAL_REPO, "--title", doneTitle, "--body", "Work is complete."]),
     doneTitle,
   )
-  runRove(["issue-set-status", "--repo", VISUAL_REPO, "--id", String(doneId), "--status", "done"])
+  runRove(["issue-update", "--repo", VISUAL_REPO, "--id", String(doneId), "--status", "done"])
   runRove(["set-active", "--task-id", taskId])
   await writeFile(FIXTURE_MARKER, `${FIXTURE_VERSION}\n`)
 }

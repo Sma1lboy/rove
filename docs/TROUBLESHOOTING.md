@@ -512,7 +512,7 @@ A bare `send` (no `--task-id`) targets the dispatcher's tab when run from a
 task another Rove session spawned, and otherwise the active task — it never
 silently spawns an engine on a guess.
 
-## `rove api set-branch` fails, but the branch was renamed anyway
+## `rove api update --branch` fails, but the branch was renamed anyway
 
 The call exits non-zero with git's own complaint, stamped with the path of the
 **main checkout** rather than the worktree:
@@ -542,7 +542,7 @@ git -C <worktree> branch --show-current   # already <new>? then it succeeded
 rove api get-task --task-id <id>          # what the task record still believes
 ```
 
-Upgrading and re-running `set-branch` converges the record.
+Upgrading and re-running `update --branch` converges the record.
 
 ## Two daemons, or engine tabs split across hosts, after an upgrade
 

@@ -134,13 +134,13 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `notes.list` | `repo` | `{notes}` | `note-list` | |
 | `worktree.adoptable` | `repo` | `{worktrees, unreadable}` | RPC `worktree.discoverAdoptable` | |
 | `task.spawn` | `repo`, `engine?`, `title?`, `prompt?`, `branch?`, `baseBranch?`, `model?`, `effort?`, `count?` (1–10) or `agents?` (`id:N,…`), `status?`, `pin?` | `{taskIds, groupId?}` | `add` | |
-| `task.rename` | `taskId`, `title` | `{}` | `rename` | |
-| `task.setBranch` | `taskId`, `branch` | `{}` | `set-branch` | |
-| `task.setCommand` | `taskId`, `engine` | `{protocol?}` | `set-command` | |
-| `task.setModel` | `taskId`, `model` | `{}` | `set-model` | |
-| `task.setEffort` | `taskId`, `level` | `{}` | `set-effort` | |
-| `task.setStatus` | `taskId`, `status` (six) | `{}` | `set-status` | |
-| `task.pin` | `taskId`, `pinned` | `{}` | `pin` | |
+| `task.rename` | `taskId`, `title` | `{}` | `update --title` | |
+| `task.setBranch` | `taskId`, `branch` | `{}` | `update --branch` | |
+| `task.setCommand` | `taskId`, `engine` | `{protocol?}` | `update --command` | |
+| `task.setModel` | `taskId`, `model` | `{}` | `update --model` | |
+| `task.setEffort` | `taskId`, `level` | `{}` | `update --effort` | |
+| `task.setStatus` | `taskId`, `status` (six) | `{}` | `update --status` | |
+| `task.pin` | `taskId`, `pinned` | `{}` | `update --pinned` | |
 | `task.move` | `taskId`, `direction` (`up`/`down`/`top`) | `{}` | RPC `task.move` | |
 | `project.forget` | `repo` | `{}` | RPC `project.forget` | yes |
 | `notes.delete` | `repo`, `id` | `{deleted}` | `note-delete` | yes |
@@ -159,7 +159,7 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 | Op | Args | Result | Wraps |
 | --- | --- | --- | --- |
 | `tab.states` | `taskId` | `{tabs: {tab-N: {state, at}}}` | `debug.inspect` (`activity.tabs`) |
-| `tab.rename` | `taskId`, `tabId`, `title` | `{}` | `rename --tab` |
+| `tab.rename` | `taskId`, `tabId`, `title` | `{}` | `update --tab --title` |
 | `tab.interrupt` | `taskId`, `tabId?` | `{}` | `interrupt` |
 | `tab.forkTask` | `repo`, `baseBranch`, `prompt`, `engine?`, `title?`, `count?` (1–5) | `{taskIds}` | `add --base-branch` (`--count` for attempts) |
 | `tab.handoff` | `taskId`, `tabId` | `{kind: "handoff", prompt}` or `{kind: "no-session" \| "no-transcript", engine?}` | `planWorktreeHandoff` |
@@ -180,14 +180,14 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `issue.list` | `repo` | `issue-list` | — |
 | `issue.create` | `repo`, `title`, `body?` | `issue-create` | — |
 | `issue.update` | `repo`, `id`, `title?`, `body?` or `clearBody`, `task?` (`none` unlinks) | `issue-update` | — |
-| `issue.setStatus` | `repo`, `id`, `status` (`open`/`doing`/`hold`/`done`) | `issue-set-status` | — |
+| `issue.setStatus` | `repo`, `id`, `status` (`open`/`doing`/`hold`/`done`) | `issue-update --status` | — |
 | `issue.delete` | `repo`, `id` | `issue-delete` (the record only) | yes |
 | `issue.prompt` | `repo`, `id`, `where` (`worktree`/`project`) | `issue-list` + the kanban drawer's prompt builders | — |
 | `task.events` | `taskId`, `limit?` | RPC `task.recentEvents`, newest first | — |
 | `routine.list` | — | `routine-list` | — |
 | `routine.create` | `repo`, `name`, `prompt`, `schedule` | `routine-create` | — |
 | `routine.update` | `id`, `name?`, `prompt?`, `schedule?` | `routine-update` | — |
-| `routine.setEnabled` | `id`, `enabled` | `routine-set-enabled` | — |
+| `routine.setEnabled` | `id`, `enabled` | `routine-update --enabled` | — |
 | `routine.runNow` | `id` | `routine-run-now` | — |
 | `routine.runs` | `id` | `routine-runs` | — |
 | `routine.delete` | `id` | `routine-delete` | yes |

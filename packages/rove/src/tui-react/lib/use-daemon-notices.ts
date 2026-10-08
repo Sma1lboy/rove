@@ -65,7 +65,7 @@ function useDaemonTabCloses(orch: RemoteOrchestrator | null): void {
   }, [request, kv, orch])
 }
 
-/** `tab.rename` (`rove api rename --tab`): the CLI already persisted it, so
+/** `tab.rename` (`rove api update --tab`): the CLI already persisted it, so
  *  this is the repaint half, with no reply. */
 function useDaemonTabRenames(orch: RemoteOrchestrator | null): void {
   const kv = useKV()

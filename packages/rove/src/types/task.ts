@@ -118,7 +118,7 @@ export interface Task {
    */
   readonly vendor?: VendorId
   /**
-   * Raw launch command as given to `add --command` / `set-command`: a preset
+   * Raw launch command as given to `add --command` / `update --command`: a preset
    * id (its `engineCommand.<id>` override still applies) or a full command
    * line. Absent = launch from {@link vendor}.
    */
@@ -179,7 +179,7 @@ export interface Task {
    */
   readonly worktreeName?: string
   /**
-   * What the worker claims it delivered (`set-status --report-*`). Separate
+   * What the worker claims it delivered (`update --report-*`). Separate
    * from {@link prStatus}, which the daemon polls from the forge: a worker can
    * report a PR that doesn't exist; only `prStatus.checkState` is observed.
    */

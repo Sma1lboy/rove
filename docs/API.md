@@ -88,8 +88,8 @@ rove api send --prompt "succeeded: auth flow simplified (branch fix/auth-flow)"
 screen:
 
 ```bash
-rove api read-output --task-id <id>    # paged history, honest terminal fallback
-rove api read-output --task-id <id> --tab tab-3   # one exact tab's terminal
+rove api read-output --task-id <id>    # newest messages first, honest terminal fallback
+rove api read-output --task-id <id> --tab tab-3   # that tab's own conversation or terminal
 ```
 
 **Fan in.** Compare the attempts, then land one:
@@ -149,7 +149,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `NO_WORKTREE` | The task has no materialized worktree yet. |
 | `BASE_CHECKOUT` | `delete` was aimed at the project's own checkout, not a Rove worktree. |
 | `CALLER_WORKTREE` | `delete` was run from inside the worktree it would remove. |
-| `HISTORY_REQUIRED` | `read-output --source history` on an engine with no history reader. |
+| `HISTORY_REQUIRED` | `read-output --source history` on an engine with no history reader, or on a non-engine tab. |
 | `HISTORY_UNREADABLE` | The engine's history exists but could not be parsed. |
 | `CURSOR_INVALID` | A `--cursor` value this build cannot decode. |
 | `CURSOR_TASK_MISMATCH` | The cursor belongs to a different task. |
@@ -191,11 +191,13 @@ an unfamiliar one with `<cmd> --help` before dispatching. See
 [ENGINES.md](./ENGINES.md#engine-presets-and-protocols) for how the protocol
 Rove speaks to a command is derived from it.
 
-Three verbs were REMOVED (no aliases): `fan-out` → `add --count N`,
-`set-vendor` → `set-command`, and `archive` → `delete` (there is no
-hide-without-delete any more; the branch survives unless you pass
-`--delete-branch`). Calling any of them returns `UNKNOWN_VERB` with the
-replacement in `nextCommandArgs`.
+Removed verbs have no aliases: `fan-out` → `add --count N`, `archive` →
+`delete` (there is no hide-without-delete any more; the branch survives unless
+you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
+`set-branch`, `set-command`, `set-effort`, `set-model`, `set-status`, `pin`) →
+`update`, `issue-set-status` → `issue-update --status`, and
+`routine-set-enabled` → `routine-update --enabled`. Calling any of them returns
+`UNKNOWN_VERB` with the replacement in `nextCommandArgs`.
 
 ## discover
 
@@ -349,7 +351,7 @@ replacement in `nextCommandArgs`.
   reads the daemon already answers, joined server-side.
 
   The point is the **derived group**. A task's `status` is a claim somebody
-  wrote (`set-status`), so a worker that crashed stays `in_progress` forever.
+  wrote (`update --status`), so a worker that crashed stays `in_progress` forever.
   `context` reports instead which group a task is in, derived from its report,
   its PR observation, its arbitrated engine activity and its tab liveness:
 
@@ -424,13 +426,43 @@ replacement in `nextCommandArgs`.
 - `read-output [--task-id ID] [--tab TAB] [--source auto|history|terminal]
   [--cursor C] [--limit N]`: a task's engine output as bounded, cursor-paged
   JSON: structured history when the engine has it, else a labeled terminal
-  tail (`fallbackReason`). The cursor is pinned to one source/session/tab and
-  returns `SOURCE_CHANGED` if that moved. `--tab tab-N` reads exactly that
-  tab's hosted terminal session (terminal-only; `TAB_NOT_FOUND` when the tab
-  has no session). A dead session's terminal page includes `terminal.exit`
-  (`code`/`signal`/`at`) while the PTY host still runs. A history page also
-  carries `engineError` when the engine's screen ends on its own error row:
-  a turn that failed before replying leaves nothing in the transcript.
+  tail (`fallbackReason`). Read-only: it never attaches to a session or types
+  into one. Without `--tab` it reads the worktree's NEWEST engine session —
+  once a task has a second engine tab, that can be the second tab's; pass
+  `--tab` (ids from `get-task` `.tabs[]`) to read one specific session.
+
+  The first page is the NEWEST: the last `--limit` messages (history; default
+  40, max 50) or the last `--limit` terminal lines (terminal; default 40, max
+  200). `history.firstIndex` is the transcript index of `messages[0]`.
+  `cursor` is the forward cursor; once you are caught up it is the **poll
+  point** — re-read with it to get only what the session wrote since.
+  `olderCursor` pages backward through history (`null` at the start of the
+  transcript, and always `null` for terminal). A cursor is pinned to one
+  source/session/tab and returns `SOURCE_CHANGED` if that moved.
+
+  `--tab tab-N` reads that tab's own pinned conversation (structured history)
+  when it is an engine tab with a pinned session id (claude tabs); otherwise
+  that tab's terminal — with `fallbackReason` `history_missing` or
+  `engine_unsupported` for an engine tab with no readable history, and
+  `null` for shell/command tabs. `--source history` on a non-engine tab is
+  `HISTORY_REQUIRED`; `TAB_NOT_FOUND` when the tab has no session. A dead
+  session's terminal page includes `terminal.exit` (`code`/`signal`/`at`)
+  while the PTY host still runs. A history page also carries `engineError`
+  when the engine's screen ends on its own error row: a turn that failed
+  before replying leaves nothing in the transcript.
+
+  **Following a running session.** Pair `watch` with the poll point instead
+  of re-reading everything:
+
+  ```bash
+  rove api read-output --task-id X                       # newest page; note .cursor
+  rove api watch --task-ids X --until turn_complete      # block until it moves
+  rove api read-output --task-id X --cursor <cursor>     # only what was written since
+  ```
+
+  Repeat the last two steps (each response's `cursor` is the next poll point).
+  The CLI never attaches to the session; this is how an agent follows one
+  without taking it over.
 - `watch (--task-ids a,b,c | --group GROUPID) --until STATE[,STATE]
   [--timeout MS]`: block until a watched task's engine reaches one of
   `--until`'s states, streaming every transition on the way. This is the
@@ -842,42 +874,41 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
 ## edit
 
-- `rename --task-id ID --title T [--tab TAB]`: set a task's title, or with
-  `--tab` one Terminal Tab's name — the API twin of the TUI's f2. Tab
-  lifecycle is otherwise symmetric already (`pane-open`, `tab-close`,
-  `read-output --tab`, `send --tab`), so naming was the one thing an agent
-  could not do to a tab it had opened itself. `TAB_NOT_FOUND` when the task's
-  snapshot names no such tab — `get-task` lists the addressable ids in
-  `.tabs[].id`. An attached TUI repaints its tab strip; with none attached the
-  persisted snapshot carries the name to the next mount.
-- `set-branch --task-id ID --branch B`: rename a task's branch
-  (`git branch -m` if materialized, else recorded).
-- `set-command --task-id ID --command CMD`: set a task's engine launch
-  command (takes effect on next session rebuild). The protocol Rove speaks
-  to it is derived from the command; the result reports which one, and
-  `generic` when the command names no engine Rove knows. Replaces the
-  removed `set-vendor`.
-- `set-effort --task-id ID --level LEVEL`: set a task's reasoning effort
-  level (takes effect on the next session rebuild). Levels are declared by
-  the task's engine — codex accepts `none`, `low`, `medium`, `high`, `xhigh`,
-  `max`;
-  claude declares none. A level the engine does not declare is rejected
-  (`BAD_EFFORT`, naming the levels it does accept) rather than passed through,
-  because the launch path drops an unknown level silently.
-- `set-model --task-id ID --model MODEL`: pin a task's model (takes effect
-  on the next session rebuild). Passed to the engine verbatim in its own
-  spelling; `engine-list`'s `models` are suggestions. Rejected (`BAD_MODEL`)
-  when the task's engine declares no model flag.
-- `set-status --task-id ID --status S [--report-branch B] [--report-pr N]
-  [--report-summary TEXT]`: set lifecycle status:
-  `backlog`, `in_progress`, `in_review`, `done`, `canceled`, `error`.
-
-  The `--report-*` flags record what the WORKER says it delivered, as
-  `.report` on the task (`{ branch?, pr?, summary?, at }`), readable from
-  `get-task` and `collect`. Before this, an outcome travelled as prose in a
-  `send` back to the dispatcher, which parsed `succeeded: … (branch fix/x)`
-  by convention — a worker that phrased it differently was silently
-  unparseable.
+- `update --task-id ID [--title T] [--branch B] [--command CMD] [--model M]
+  [--effort LEVEL] [--pinned true|false] [--status S] [--report-branch B]
+  [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
+  fields in one call. Every field is validated before anything is written,
+  then applied in a fixed order: branch → command → model/effort → title →
+  pinned → status. The call is not atomic: if a step fails midway, the error
+  reports the fields already `applied`. The result is `{ ok, taskId, updated,
+  command?, protocol?, generic?, engine? }`, where `updated` lists the fields
+  written, in order.
+  - `--title T`: the task's title. With `--tab TAB` it names one Terminal Tab
+    instead (the API twin of the TUI's f2) and `--title` is the only other flag
+    allowed. `TAB_NOT_FOUND` when the task's snapshot names no such tab —
+    `get-task` lists the addressable ids in `.tabs[].id`.
+  - `--branch B`: rename the task's branch (`git branch -m` if materialized,
+    else recorded).
+  - `--command CMD`: the engine launch command (takes effect on next session
+    rebuild). The protocol Rove speaks to it is derived from the command; the
+    result reports which one, and `generic: true` when the command names no
+    engine Rove knows.
+  - `--effort LEVEL`: reasoning effort (next session rebuild). Levels are
+    declared by the task's engine — codex accepts `none`, `low`, `medium`,
+    `high`, `xhigh`, `max`; claude declares none. A level the engine does not
+    declare is rejected (`BAD_EFFORT`, naming the levels it does accept)
+    rather than passed through, because the launch path drops an unknown level
+    silently.
+  - `--model M`: pin the model (next session rebuild). Passed to the engine
+    verbatim in its own spelling; `engine-list`'s `models` are suggestions.
+    Rejected (`BAD_MODEL`) when the task's engine declares no model flag.
+  - `--pinned true|false`: pin/unpin the task to the top of the sidebar.
+  - `--status S`: lifecycle status: `backlog`, `in_progress`, `in_review`,
+    `done`, `canceled`, `error`.
+  - `--report-branch` / `--report-pr` / `--report-summary` (require
+    `--status`) record what the WORKER says it delivered, as `.report` on the
+    task (`{ branch?, pr?, summary?, at }`), readable from `get-task` and
+    `collect`.
 
   **`.report` is a CLAIM; `.prStatus` is an OBSERVATION.** The daemon polls
   the forge for `prStatus.number` / `prStatus.checkState`; `report.pr` is
@@ -888,8 +919,11 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
   Report fields MERGE onto any previous report and restamp `at`, so a
   follow-up naming only `--report-pr` keeps the branch reported earlier.
-  A `set-status` with no `--report-*` flag writes no report at all — an empty
-  one would restamp `at` and claim the worker reported again.
+  An `update --status` with no `--report-*` flag writes no report at all — an
+  empty one would restamp `at` and claim the worker reported again.
+
+  The old per-field verbs are gone (no aliases): calling one returns
+  `UNKNOWN_VERB` with the `update` form in `nextCommandArgs`.
 
 ## issues
 
@@ -899,16 +933,17 @@ The daemon-owned issue store (backlog; see
 
 - `issue-list --repo PATH`: list a repo's issues.
 - `issue-create --repo PATH --title T [--body TEXT]`: create an issue.
-- `issue-set-status --repo PATH --id N --status S`: set an issue's status.
-- `issue-update --repo PATH --id N [--title T] [--body TEXT] [--task ID]`:
-  edit title/body and/or link a task (kanban: In progress; `--task none`
-  unlinks). All three land in one store write, so a rejected `--task` leaves
-  the title and body unchanged — the error means nothing was applied.
+- `issue-update --repo PATH --id N [--title T] [--body TEXT] [--task ID]
+  [--status S]`: edit title/body, link a task (kanban: In progress; `--task none`
+  unlinks) and/or set the status. Title, body and link land in one store
+  write, so a rejected `--task` leaves them unchanged — the error means nothing
+  was applied. `--status` follows as its own `setStatus` change (the op plugin
+  `issue.changed` events report).
 - `issue-delete --repo PATH --id N`: delete an issue. Removes ONLY the tracker
   record — a linked task, its branch and its worktree are left untouched. The
   same store op the kanban page's `d` runs, which the CLI could not reach: an
   agent asked to clear a batch of stale stories could previously only mark
-  them `done` and leave them. Use `issue-set-status --status done` when the
+  them `done` and leave them. Use `issue-update --status done` when the
   story was finished rather than abandoned.
 
 ## workitems
@@ -945,10 +980,9 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   [--vendor V] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
   [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]`: schedule a prompt. `--schedule` is five-field
   cron in the daemon host's local time (`"0 9 * * MON-FRI"`).
-- `routine-update --id ID [...]`: change any field. A new `--schedule`
+- `routine-update --id ID [...]`: change any field; `--enabled true|false` pauses / resumes. A new `--schedule`
   re-anchors the next run; `--precheck ''` clears the precheck. Omitted target flags
   preserve the binding; `--target-task '' --target-tab ''` sends `target: null` to clear it.
-- `routine-set-enabled --id ID --enabled BOOL`: pause / resume.
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
 - `routine-respond --run RUN_ID (--text T | --prompt-file PATH|-)`: store the
@@ -991,8 +1025,6 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 
 ## lifecycle
 
-- `pin --task-id ID [--pinned=false]`: pin/unpin a task to the top of the
-  sidebar.
 - `land --task-id ID [--dry-run] [--strategy merge|squash] [--delete-branch]
   [--remove-worktree=false]`: merge a task's branch back into its
   base repo's current branch (`--no-ff` merge, or one squash commit). Refuses

@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest"
 import {
   DEFAULT_PAGE_MESSAGES,
+  DEFAULT_TAIL_LINES,
   MAX_PAGE_MESSAGES,
   type ReadOutputDeps,
   type ReadOutputEnvelope,
@@ -84,8 +85,16 @@ function fakeTerminal(pages: {
   return { peek, offsets, tabs }
 }
 
-function deps(history: EngineHistoryReader | null, peekTerminal: ReadOutputDeps["peekTerminal"]): ReadOutputDeps {
-  return { history, peekTerminal }
+function deps(
+  history: EngineHistoryReader | null,
+  peekTerminal: ReadOutputDeps["peekTerminal"],
+  tabHistory: ReadOutputDeps["tabHistory"] = () => null,
+): ReadOutputDeps {
+  return { history, peekTerminal, tabHistory }
+}
+
+function texts(p: ReadOutputEnvelope): Array<string | undefined> {
+  return (p.history?.messages ?? []).map((m) => (m as { blocks: Array<{ text: string }> }).blocks[0]?.text)
 }
 
 async function read(
@@ -116,7 +125,7 @@ describe("read-output history paging", () => {
   const messages = Array.from({ length: 100 }, (_, i) => msg(`m${i}`))
   const history = fakeHistory(["s-old", "s-current"], { "s-current": messages })
 
-  it("reads the newest session and pages deterministically through the cursor", async () => {
+  it("opens on the newest page of the newest session and walks back through olderCursor", async () => {
     const d = deps(history, noTerminal())
     const p1 = await read(d)
     expect(p1.source).toBe("history")
@@ -124,20 +133,31 @@ describe("read-output history paging", () => {
     expect(p1.history?.sessionId).toBe("s-current")
     expect(p1.history?.returnedMessageCount).toBe(DEFAULT_PAGE_MESSAGES)
     expect(p1.history?.totalMessages).toBe(100)
-    expect(p1.cursor).toBeTruthy()
+    expect(p1.history?.firstIndex).toBe(60)
+    expect(texts(p1).at(-1)).toBe("m99")
 
-    const p2 = await read(d, { cursor: p1.cursor ?? undefined })
-    const p3 = await read(d, { cursor: p2.cursor ?? undefined })
-    const texts = [p1, p2, p3].flatMap((p) =>
-      (p.history?.messages ?? []).map((m) => (m as { blocks: Array<{ text: string }> }).blocks[0]?.text),
-    )
-    expect(texts).toEqual(messages.map((_, i) => `m${i}`))
+    const p2 = await read(d, { cursor: p1.olderCursor ?? undefined })
+    const p3 = await read(d, { cursor: p2.olderCursor ?? undefined })
+    expect([p3, p2, p1].flatMap(texts)).toEqual(messages.map((_, i) => `m${i}`))
     expect(p3.history?.returnedMessageCount).toBe(20)
+    expect(p3.history?.firstIndex).toBe(0)
+    expect(p3.olderCursor).toBeNull()
+  })
 
-    // Exhausted pages still return a cursor (the session may keep appending).
-    const p4 = await read(d, { cursor: p3.cursor ?? undefined })
-    expect(p4.history?.returnedMessageCount).toBe(0)
-    expect(p4.cursor).toBeTruthy()
+  it("the forward cursor is a poll point: empty until the session appends, then only the new messages", async () => {
+    const live = [msg("a"), msg("b")]
+    const d = deps(fakeHistory(["s-current"], { "s-current": live }), noTerminal())
+    const p1 = await read(d)
+    expect(texts(p1)).toEqual(["a", "b"])
+
+    const idle = await read(d, { cursor: p1.cursor ?? undefined })
+    expect(idle.history?.returnedMessageCount).toBe(0)
+    expect(idle.cursor).toBeTruthy()
+
+    live.push(msg("c"))
+    const next = await read(d, { cursor: idle.cursor ?? undefined })
+    expect(texts(next)).toEqual(["c"])
+    expect(next.history?.firstIndex).toBe(2)
   })
 
   it("clamps --limit to the page cap", async () => {
@@ -145,17 +165,21 @@ describe("read-output history paging", () => {
     expect(p.history?.returnedMessageCount).toBe(MAX_PAGE_MESSAGES)
   })
 
-  it("cuts a page short on the byte budget and flags it limited", async () => {
+  it("cuts a page short on the byte budget, keeps the newest, and the older page resumes right before it", async () => {
     const big = Array.from({ length: 30 }, (_, i) => msg("x".repeat(15_000) + i))
     const d = deps(fakeHistory(["s-current"], { "s-current": big }), noTerminal())
     const p = await read(d)
+    const n = p.history?.returnedMessageCount ?? 0
     expect(p.history?.limited).toBe(true)
-    expect(p.history?.returnedMessageCount).toBeGreaterThan(0)
-    expect(p.history?.returnedMessageCount).toBeLessThan(30)
-    // The next page resumes exactly where the budget stopped.
-    const p2 = await read(d, { cursor: p.cursor ?? undefined })
-    const first = (p2.history?.messages[0] as { blocks: Array<{ text: string }> }).blocks[0]?.text
-    expect(first?.endsWith(String(p.history?.returnedMessageCount))).toBe(true)
+    expect(n).toBeGreaterThan(0)
+    expect(n).toBeLessThan(30)
+    expect(texts(p).at(-1)?.endsWith("29")).toBe(true)
+    const older = await read(d, { cursor: p.olderCursor ?? undefined })
+    expect(
+      texts(older)
+        .at(-1)
+        ?.endsWith(String(29 - n)),
+    ).toBe(true)
   })
 
   it("clips on a code-point boundary so an astral char straddling the cut is not bisected", () => {
@@ -312,8 +336,35 @@ describe("read-output --tab (tab-precise terminal reads)", () => {
     expect(calls).toEqual([])
   })
 
-  it("--source history --tab is a contradiction: typed BAD_FLAG", async () => {
-    await expectApiError(() => read(deps(null, noTerminal()), { source: "history", tab: "tab-3" }), "BAD_FLAG")
+  it("--source history on a non-engine tab is a typed error, not a terminal read", async () => {
+    await expectApiError(() => read(deps(null, noTerminal()), { source: "history", tab: "tab-3" }), "HISTORY_REQUIRED")
+  })
+
+  it("an engine tab with a pinned session reads that conversation, and the cursor stays on it", async () => {
+    const calls: string[] = []
+    const history = fakeHistory(["s-canonical"], { "s-canonical": [msg("one")], "s-tab2": [msg("two")] }, calls)
+    const pinned: ReadOutputDeps["tabHistory"] = (tab) =>
+      tab === "tab-2" ? { reader: history, sessionId: "s-tab2" } : null
+    const d = deps(history, noTerminal(), pinned)
+    const p = await read(d, { tab: "tab-2" })
+    expect(p.source).toBe("history")
+    expect(p.history?.sessionId).toBe("s-tab2")
+    expect(texts(p)).toEqual(["two"])
+    expect(calls).toEqual(["read:s-tab2"])
+
+    await read(d, { tab: "tab-2", cursor: p.cursor ?? undefined })
+    await expectApiError(() => read(d, { cursor: p.cursor ?? undefined }), "CURSOR_INVALID")
+  })
+
+  it("an engine tab without a pinned session falls back to its terminal, labeled", async () => {
+    const t = fakeTerminal({ pid: 7, offset: 3, text: "codex screen\n" })
+    const p = await read(
+      deps(null, t.peek, () => "history_missing"),
+      { tab: "tab-2" },
+    )
+    expect(p.source).toBe("terminal")
+    expect(p.fallbackReason).toBe("history_missing")
+    expect(t.tabs).toEqual(["tab-2"])
   })
 
   it("the cursor pins the tab: same tab pages on, another tab or none is CURSOR_INVALID", async () => {
@@ -332,6 +383,22 @@ describe("read-output --tab (tab-precise terminal reads)", () => {
       "CURSOR_INVALID",
     )
     await expectApiError(() => read(deps(null, noTerminal()), { cursor: p1.cursor ?? undefined }), "CURSOR_INVALID")
+  })
+})
+
+describe("read-output terminal page size", () => {
+  const screen = Array.from({ length: 150 }, (_, i) => `l${i}`).join("\n")
+
+  it("defaults to the newest lines, and --limit widens it up to the cap", async () => {
+    const t = fakeTerminal({ pid: 1, offset: 0, text: screen })
+    const p = await read(deps(null, t.peek), { source: "terminal" })
+    expect(p.terminal?.tail.length).toBe(DEFAULT_TAIL_LINES)
+    expect(p.terminal?.tail.at(-1)).toBe("l149")
+    expect(p.terminal?.truncated).toBe(true)
+    expect(p.olderCursor).toBeNull()
+
+    const wide = await read(deps(null, t.peek), { source: "terminal", limit: 1000 })
+    expect(wide.terminal?.tail.length).toBe(150)
   })
 })
 

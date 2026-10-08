@@ -156,7 +156,7 @@
 | A2 | `read-output`：引擎结构化历史 | 已有 | 任务详情 `…` → Engine history：按消息渲染结构化历史（工具调用/结果可展开），`load newer` 用游标翻页；没有历史时回退到带标签的终端尾部 |
 | A3 | `digest`：仓库近期工作汇总 | 已有 | 设置 → activity：选仓库和 7/14/30 天窗口，看动过的任务数和 routine 各状态的运行数 |
 | A4 | `agent-turns`：每轮 token / 耗时 | 已有 | 设置 → activity：turns 总数、token（输入/输出/缓存）、耗时、按模型；最近 10 轮 |
-| A5 | `set-model` / `set-effort` / `set-command` | 已有 | 菜单 → model & effort… / change engine…（`task.setModel` / `task.setEffort` / `task.setCommand`） |
+| A5 | `update --model` / `--effort` / `--command` | 已有 | 菜单 → model & effort… / change engine…（`task.setModel` / `task.setEffort` / `task.setCommand`） |
 | A6 | `ensure-worktree` / `remove-worktree` | 已有 | 菜单 → create worktree / remove worktree（后者二次确认，脏时再确认 force，保留任务和分支） |
 | A7 | `schema`、`inspect`、`pty-list`、`engine-report`、`pane-*`、`prompt`、`dispatch`、`watch`、`set-active` | 不适用 | 给脚本、插件或已连接的 TUI 用的接口，没有人在手机上直接操作它们 |
 

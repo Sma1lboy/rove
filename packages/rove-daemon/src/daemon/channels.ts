@@ -202,7 +202,7 @@ export interface ChannelPayloads {
    */
   "tab.close": TabClosePayload
   /**
-   * Rename Terminal Tab `tabId` of task X (`rove api rename --tab` →
+   * Rename Terminal Tab `tabId` of task X (`rove api update --tab` →
    * `terminalTab.rename` RPC). EVENT channel. No `requestId`, unlike
    * `tab.close`: rename is idempotent, so the CLI writes the persisted
    * snapshot itself (headless case) and both writers converge in any order.

@@ -226,7 +226,7 @@ export function takeUnclaimedTabMove(): { taskId: string; tabId: string; delta: 
   return claimed && { taskId: claimed.taskId, ...claimed.payload }
 }
 
-/** `rove api rename --tab` via the daemon's `tab.rename` broadcast; background write is `renameTaskTab`. */
+/** `rove api update --tab` via the daemon's `tab.rename` broadcast; background write is `renameTaskTab`. */
 export function requestTabRename(taskId: string, tabId: string, title: string): void {
   renameBox.request(taskId, { tabId, title })
 }

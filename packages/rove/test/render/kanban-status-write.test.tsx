@@ -74,7 +74,7 @@ test("the drawer's status choice reaches the store as a setStatus op", async () 
 
 test("closing the drawer without touching status writes nothing", async () => {
   // The page compares against the OPEN-TIME snapshot precisely so a close
-  // never races an agent's `issue-set-status` and reverts it.
+  // never races an agent's `issue-update --status` and reverts it.
   const { frame, mockInput, mutations } = await board()
   act(() => mockInput.pressArrow("right"))
   act(() => mockInput.pressEnter())

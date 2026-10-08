@@ -1,7 +1,6 @@
 /**
  * `rove api` verb handlers not covered by api-handlers.test.ts: the leveled
- * schema drill-ins (--verb / --group), the simple-RPC edit verbs (rename /
- * set-branch / set-command / set-status / pin), the issue verbs, and the
+ * schema drill-ins (--verb / --group), the issue verbs, and the
  * dispatch / note delivery verbs — plus the VerbArgs coercion errors that
  * only a handler (not spec validation) can raise. Same technique as the
  * sibling file: `invokeVerb` against a fake daemon client that records
@@ -102,7 +101,9 @@ describe("schema drill-ins", () => {
 
     it.each([
       ["fan-out", ["api", "add", "--help"], /--count/],
-      ["set-vendor", ["api", "set-command", "--help"], /set-command/],
+      ["set-vendor", ["api", "update", "--help"], /update --command/],
+      ["set-status", ["api", "update", "--help"], /--status/],
+      ["issue-set-status", ["api", "issue-update", "--help"], /--status/],
       // `archive` died with the archived-task dimension; the rejection must
       // point at delete AND
       // say the branch survives — a coordinator closing a round should not
@@ -167,41 +168,6 @@ describe("schema drill-ins", () => {
   })
 })
 
-describe("edit verbs — RPC name + payload", () => {
-  it("rename → task.rename", async () => {
-    const client = new FakeClient({ "task.rename": () => ({}) })
-    await invokeVerb("rename", ["--task-id", "t1", "--title", "New"], { client, runtime: stubRuntime() })
-    expect(client.requests).toEqual([{ name: "task.rename", payload: { taskId: "t1", title: "New" } }])
-  })
-
-  it("set-branch → task.setBranch", async () => {
-    const client = new FakeClient({ "task.setBranch": () => ({}) })
-    await invokeVerb("set-branch", ["--task-id", "t1", "--branch", "feat/x"], { client, runtime: stubRuntime() })
-    expect(client.requests).toEqual([{ name: "task.setBranch", payload: { taskId: "t1", branch: "feat/x" } }])
-  })
-
-  it("set-command → task.setCommand with the command's resolved protocol", async () => {
-    const client = new FakeClient({ "task.setCommand": () => ({}) })
-    await invokeVerb("set-command", ["--task-id", "t1", "--command", "codex --search"], {
-      client,
-      runtime: stubRuntime(),
-    })
-    expect(client.requests).toEqual([
-      { name: "task.setCommand", payload: { taskId: "t1", command: "codex --search", vendor: "codex" } },
-    ])
-  })
-
-  it("pin defaults pinned:true; --pinned=false unpins", async () => {
-    const client = new FakeClient({ "task.pin": () => ({}) })
-    await invokeVerb("pin", ["--task-id", "t1"], { client, runtime: stubRuntime() })
-    await invokeVerb("pin", ["--task-id", "t1", "--pinned=false"], { client, runtime: stubRuntime() })
-    expect(client.requests.map((r) => r.payload)).toEqual([
-      { taskId: "t1", pinned: true },
-      { taskId: "t1", pinned: false },
-    ])
-  })
-})
-
 describe("issue verbs", () => {
   it("issue-create sends a create mutation with the optional body", async () => {
     const client = new FakeClient({ "issue.mutate": () => ({ issues: [] }) })
@@ -235,7 +201,7 @@ describe("issue verbs", () => {
     await expectApiError(
       () => invokeVerb("issue-update", ["--repo", "/repo/x", "--id", "7"], { client, runtime: stubRuntime() }),
       "MISSING_FLAG",
-      "issue-update requires --title, --body, and/or --task",
+      "issue-update requires --title, --body, --task, and/or --status",
     )
     expect(client.requests).toEqual([])
   })
@@ -325,7 +291,7 @@ describe("dispatch / note delivery verbs", () => {
 
 describe("VerbArgs coercion guards", () => {
   it("enumOf rejects a value outside the spec's declared set", () => {
-    const verb = findVerb("set-status")
+    const verb = findVerb("update")
     expect(verb).toBeDefined()
     const args = new VerbArgs(verb as NonNullable<typeof verb>, new Map([["status", "weird"]]))
     expect(() => args.enumOf("status")).toThrow(ApiError)

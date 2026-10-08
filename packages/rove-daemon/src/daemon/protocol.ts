@@ -72,7 +72,7 @@ export type DaemonRequestName =
   | "task.setBranch"
   | "task.observeLanguage"
   | "task.setVendor"
-  // RAW engine launch command (`set-command`). The caller resolves its protocol
+  // RAW engine launch command (`update --command`). The caller resolves its protocol
   // (presets live in rove's state.json, unreadable here) and sends both.
   | "task.setCommand"
   | "task.delete"
@@ -167,7 +167,7 @@ export type DaemonRequestName =
   // CLI falls back to the standalone PTY Host when nobody confirms.
   | "terminalTab.close"
   | "terminalTab.closeReply"
-  // Broadcast on `tab.rename` (`rove api rename --tab`). No reply: rename is
+  // Broadcast on `tab.rename` (`rove api update --tab`). No reply: rename is
   // idempotent and the CLI also writes the persisted snapshot.
   | "terminalTab.rename"
   // Toast to every attached UI on `notice.event` (`rove api notify`).
@@ -309,7 +309,7 @@ export interface SerializedTask {
   readonly status: DaemonTask["status"]
   readonly pinned: boolean
   readonly vendor?: DaemonTask["vendor"]
-  /** Raw engine launch command as given to `add --command` / `set-command`. */
+  /** Raw engine launch command as given to `add --command` / `update --command`. */
   readonly command?: DaemonTask["command"]
   readonly prStatus?: DaemonTask["prStatus"]
   /** Engine reasoning/effort level, when the vendor supports one. */
@@ -335,7 +335,7 @@ export interface SerializedTask {
   readonly baseRef?: DaemonTask["baseRef"]
   /** Caller-chosen worktree directory name (`add --worktree-name`). */
   readonly worktreeName?: DaemonTask["worktreeName"]
-  /** The worker's own outcome claim (`set-status --report-*`) — a CLAIM,
+  /** The worker's own outcome claim (`update --report-*`) — a CLAIM,
    *  where `prStatus` is the daemon's own observation of the forge. */
   readonly report?: DaemonTask["report"]
   /**

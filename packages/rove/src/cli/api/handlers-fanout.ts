@@ -74,7 +74,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       vendor: task.vendor,
       status: task.status,
       ...(task.groupId ? { groupId: task.groupId } : {}),
-      // The worker's own claim (`set-status --report-*`), beside what the repo
+      // The worker's own claim (`update --report-*`), beside what the repo
       // actually shows.
       ...(task.report ? { report: task.report } : {}),
       ...(task.dispatcher ? { dispatcher: task.dispatcher } : {}),

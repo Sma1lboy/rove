@@ -36,7 +36,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
       {
         ...F.command(),
         description:
-          "Engine launch command for a `--tab new` tab — the API twin of the TUI's ctrl+e pick. Lets one worktree run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; pinned to that tab, so it survives restarts and a later set-command on the task. Only valid with --tab new.",
+          "Engine launch command for a `--tab new` tab — the API twin of the TUI's ctrl+e pick. Lets one worktree run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; pinned to that tab, so it survives restarts and a later `update --command` on the task. Only valid with --tab new.",
       },
       {
         name: "respawn",
