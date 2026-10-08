@@ -1,3 +1,4 @@
+import { Terminal } from "@xterm/headless"
 import { describe, expect, it } from "vitest"
 import { displayWidth } from "../../src/lib/display-width"
 import { ATTR, type Chunk } from "../../src/tui/panes/terminal/sgr"
@@ -45,6 +46,38 @@ describe("terminal grid selection", () => {
     expect(extractSelection(ROWS, range)).toBe("bravo\ncharlie delta\nec")
     // Single-row word drag, backwards.
     expect(extractSelection(ROWS, { anchor: { row: 1, col: 6 }, head: { row: 1, col: 0 } })).toBe("charlie")
+  })
+
+  it("copies framed paragraphs without the aligned right wall or its padding", () => {
+    for (const wall of ["│", "┃", "║", "╎", "┆", "┊"]) {
+      const source = [row(`│ 你好     ${wall}`), row(`│ deploy   ${wall}`), row(`│ safely   ${wall}`)]
+      const range = { anchor: { row: 0, col: 2 }, head: { row: 2, col: 7 } }
+      expect(extractSelection(source, range)).toBe("你好\n│ deploy\n│ safely")
+    }
+  })
+
+  it("keeps a lone wall glyph in ordinary text", () => {
+    const source = [row("first   │"), row("ordinary"), row("last")]
+    expect(extractSelection(source, { anchor: { row: 0, col: 0 }, head: { row: 2, col: 3 } })).toBe(
+      "first   │\nordinary\nlast",
+    )
+    expect(extractSelection(source, { anchor: { row: 0, col: 0 }, head: { row: 1, col: 7 } })).toBe(
+      "first   │\nordinary",
+    )
+  })
+
+  it("preserves literal walls when the emulator soft-wraps ordinary text", async () => {
+    const terminal = new Terminal({ cols: 4, rows: 3, allowProposedApi: true })
+    try {
+      await new Promise<void>((resolve) => terminal.write("abc│def│\r\nghi", resolve))
+      const buffer = Array.from({ length: 3 }, (_, index) => terminal.buffer.active.getLine(index))
+      const source = buffer.map((line) => row(line?.translateToString(true) ?? ""))
+      const wrapped = buffer.map((line) => line?.isWrapped ?? false)
+      const range = { anchor: { row: 0, col: 0 }, head: { row: 2, col: 2 } }
+      expect(extractSelection(source, range, wrapped)).toBe("abc│def│\nghi")
+    } finally {
+      terminal.dispose()
+    }
   })
 
   it("keeps the empty first line when a multi-row drag anchors past a short row's text", () => {

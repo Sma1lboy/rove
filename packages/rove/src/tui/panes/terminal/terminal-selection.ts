@@ -138,17 +138,36 @@ export function extractSelection(
   const { start, end } = orderRange(range)
   const first = Math.max(0, start.row)
   const lines: string[] = []
+  const walls: { glyph: string; column: number }[] = []
   for (let r = first; r <= Math.min(rows.length - 1, end.row); r++) {
     const text = rowText(rows[r] ?? [])
     const span = rowSpan(range, r, Math.max(textCells(text), 1))
-    const slice = span ? sliceTextByCells(text, span[0], span[1]).selected : ""
+    const parts = span ? sliceTextByCells(text, span[0], span[1]) : { before: "", selected: "" }
+    const slice = parts.selected
+    const trimmed = slice.trimEnd()
+    walls.push({ glyph: trimmed.slice(-1), column: textCells(parts.before) + textCells(trimmed) - 1 })
     // A soft-wrap continuation appends to the same logical line; the first
     // selected row always opens one, since its predecessor is outside.
     if (r > first && isWrapContinuation(wrapped, r) && lines.length > 0) lines[lines.length - 1] += slice
     else lines.push(slice)
   }
+  const precedingWalls = walls.slice(0, -1)
+  const wall = precedingWalls[0]
+  // Soft wrapping can align literal glyphs without forming a frame.
+  const hasSoftWrap = wrapped?.slice(first, first + walls.length).some(Boolean)
+  const framed =
+    !hasSoftWrap &&
+    precedingWalls.length >= 2 &&
+    wall !== undefined &&
+    /^[│┃║╎┆┊]$/.test(wall.glyph) &&
+    precedingWalls.every((candidate) => candidate.glyph === wall.glyph && candidate.column === wall.column)
   // Trim per LOGICAL line: a wrap point is mid-line, padding is at its end.
-  return lines.map((line) => line.trimEnd()).join("\n")
+  return lines
+    .map((line, index) => {
+      const trimmed = line.trimEnd()
+      return framed && index < lines.length - 1 ? trimmed.slice(0, -1).trimEnd() : trimmed
+    })
+    .join("\n")
 }
 
 /**
