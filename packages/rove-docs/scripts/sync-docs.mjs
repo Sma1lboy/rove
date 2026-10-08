@@ -118,8 +118,12 @@ const MODULES = [
   {
     dir: "plugins",
     title: "Plugins",
-    description: "Writing Rove plugins and the plugin SDK",
+    description: "Find, write and publish Rove plugins",
     sections: [
+      {
+        title: "Finding plugins",
+        pages: [["PLUGIN-DIRECTORY.md", "plugins/directory"]],
+      },
       {
         title: "Plugin development",
         pages: [

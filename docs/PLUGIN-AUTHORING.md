@@ -121,10 +121,10 @@ panes, run logs, the settings values) and removes the task or story it filed,
 but a fresh fixture is still the safest start.
 
 Publish: push a public GitHub repo (one plugin per subdirectory is fine),
-add the topic **`rove-plugin`** → it appears in the marketplace
-([rove.run/plugins](https://rove.run/plugins) and
-`rove plugin search`, and Settings → Marketplace inside the TUI)
-automatically. Users install with `rove plugin install owner/repo[/subdir]`
+add the topic **`rove-plugin`** → it appears automatically in the marketplace
+([rove.run/plugins](https://rove.run/plugins), `rove plugin search`, and
+Settings → Marketplace inside the TUI) and in the [plugin
+directory](./PLUGIN-DIRECTORY.md). Users install with `rove plugin install owner/repo[/subdir]`
 or from that Settings section, and stay fresh with
 `rove plugin outdated` / `rove plugin update --all` (an update is a clean
 reinstall of the managed checkout; config/state survive).
