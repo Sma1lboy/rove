@@ -14,6 +14,7 @@ import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { readOwnDispatcher, resolveDispatcherTab, verifiedSelfSession, withPeerProvenance } from "./dispatcher.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
+import { filterTaskList, listFilters } from "./list-filter.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
@@ -298,10 +299,14 @@ export async function getTask(ctx: VerbContext): Promise<unknown> {
 }
 
 export async function list(ctx: VerbContext): Promise<unknown> {
-  const local = await daemonOf(ctx).request<{ tasks: SerializedTask[] }>("task.list")
+  const daemon = daemonOf(ctx)
+  const local = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
   // With no machine registered, returns the daemon's response untouched.
   const { mergeTaskList } = await import("../../machines/api-merge.ts")
-  return await mergeTaskList(local)
+  const merged = await mergeTaskList(local)
+  const filters = listFilters(ctx)
+  if (!filters) return merged
+  return { ...merged, ...(await filterTaskList(ctx, daemon, merged.tasks ?? [], filters)) }
 }
 
 export async function setActive(ctx: VerbContext): Promise<unknown> {
