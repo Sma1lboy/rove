@@ -1,3 +1,4 @@
+import { Terminal } from "@xterm/headless"
 import { describe, expect, it } from "vitest"
 import { displayWidth } from "../../src/lib/display-width"
 import { ATTR, type Chunk } from "../../src/tui/panes/terminal/sgr"
@@ -63,6 +64,20 @@ describe("terminal grid selection", () => {
     expect(extractSelection(source, { anchor: { row: 0, col: 0 }, head: { row: 1, col: 7 } })).toBe(
       "first   │\nordinary",
     )
+  })
+
+  it("preserves literal walls when the emulator soft-wraps ordinary text", async () => {
+    const terminal = new Terminal({ cols: 4, rows: 3, allowProposedApi: true })
+    try {
+      await new Promise<void>((resolve) => terminal.write("abc│def│\r\nghi", resolve))
+      const buffer = Array.from({ length: 3 }, (_, index) => terminal.buffer.active.getLine(index))
+      const source = buffer.map((line) => row(line?.translateToString(true) ?? ""))
+      const wrapped = buffer.map((line) => line?.isWrapped ?? false)
+      const range = { anchor: { row: 0, col: 0 }, head: { row: 2, col: 2 } }
+      expect(extractSelection(source, range, wrapped)).toBe("abc│def│\nghi")
+    } finally {
+      terminal.dispose()
+    }
   })
 
   it("keeps the empty first line when a multi-row drag anchors past a short row's text", () => {

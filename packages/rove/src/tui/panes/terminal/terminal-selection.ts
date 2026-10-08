@@ -153,7 +153,10 @@ export function extractSelection(
   }
   const precedingWalls = walls.slice(0, -1)
   const wall = precedingWalls[0]
+  // Soft wrapping can align literal glyphs without forming a frame.
+  const hasSoftWrap = wrapped?.slice(first, first + walls.length).some(Boolean)
   const framed =
+    !hasSoftWrap &&
     precedingWalls.length >= 2 &&
     wall !== undefined &&
     /^[│┃║╎┆┊]$/.test(wall.glyph) &&
