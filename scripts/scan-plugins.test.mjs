@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { test } from "node:test"
-import { collectPlugins, fetchManifest, readManifestHeader, renderPage, run } from "./scan-plugins.mjs"
+import { collectPlugins, fetchManifest, fetchTopicRepos, readManifestHeader, renderPage, run } from "./scan-plugins.mjs"
 
 const DEMO_MANIFEST = `# A pane plugin.
 id = "demo-engine"
@@ -40,10 +40,10 @@ const resolved = (repo, manifest) => ({
 })
 
 /** A fetch stub serving the search endpoint and raw manifests, like GitHub. */
-function stubFetch({ items, manifests = {} }) {
+function stubFetch({ items, manifests = {}, incomplete_results = false, total_count = items.length }) {
   return async (url) => {
     if (url.startsWith("https://api.github.com/search/repositories")) {
-      return { ok: true, status: 200, json: async () => ({ items }) }
+      return { ok: true, status: 200, json: async () => ({ items, incomplete_results, total_count }) }
     }
     const match = /raw\.githubusercontent\.com\/(.+)\/HEAD\/rove-plugin\.toml$/.exec(url)
     const body = match && manifests[match[1]]
@@ -94,7 +94,7 @@ test("description text cannot break the MDX page it lands in", () => {
   assert.match(row, /&#96;code&#96;/)
 })
 
-test("only the manifest's top-level header block is read", () => {
+test("only top-level strings become directory metadata", () => {
   const fields = readManifestHeader(DEMO_MANIFEST)
   assert.deepEqual(Object.keys(fields).sort(), ["description", "id", "min_rove_version", "name", "version"])
   assert.equal(fields.description, "An opt-in tab that replays a scripted session.")
@@ -130,4 +130,71 @@ test("--check reports work when a new plugin appears, and writes nothing", async
   const grown = stubFetch({ items: [demoRepo, collectionRepo], manifests })
   assert.deepEqual(await run({ check: true, fetchImpl: grown, outPath, log: quiet }), { changed: true, wrote: false })
   assert.equal(readFileSync(outPath, "utf8"), withOne, "the precheck never touches the page")
+})
+
+for (const [label, response, error] of [
+  ["incomplete results", { items: [demoRepo], incomplete_results: true, total_count: 2 }, /incomplete/],
+  [
+    "more than 100 repositories",
+    {
+      items: Array.from({ length: 100 }, (_, i) => ({ full_name: `owner/plugin${i}` })),
+      total_count: 101,
+    },
+    /100.*limit/,
+  ],
+  ["a truncated listing", { items: [demoRepo], total_count: 2 }, /count/],
+]) {
+  test(`${label} fails without changing the existing directory`, async () => {
+    const outPath = join(mkdtempSync(join(tmpdir(), "rove-plugins-")), "PLUGIN-DIRECTORY.md")
+    const log = () => {}
+    await run({ fetchImpl: stubFetch({ items: [demoRepo, collectionRepo] }), outPath, log })
+    const before = readFileSync(outPath, "utf8")
+    for (const check of [false, true]) {
+      await assert.rejects(run({ fetchImpl: stubFetch(response), outPath, log, check }), error)
+      assert.equal(readFileSync(outPath, "utf8"), before)
+    }
+  })
+}
+
+test("TOML literal, Unicode and multiline strings reach the rendered directory intact", async () => {
+  const manifest = String.raw`id = 'demo'
+version = '1.2.3'
+name = "caf\u00e9 \U0001F680"
+description = """
+First line
+[still description] \"quoted\"
+"""
+license = '''
+Literal \path
+second line
+'''
+[metadata]
+name = "not the plugin name"
+`
+  const fields = await fetchManifest(DEMO, stubFetch({ items: [demoRepo], manifests: { [DEMO]: manifest } }))
+  assert.equal(fields.version, "1.2.3")
+  assert.equal(fields.name, "café 🚀")
+  assert.equal(fields.description, 'First line\n[still description] "quoted"\n')
+  assert.equal(fields.license, "Literal \\path\nsecond line\n")
+  assert.equal(fields.metadata, undefined)
+  const page = renderPage([resolved(demoRepo, fields)])
+  assert.match(page, /café 🚀 .* \| 1\.2\.3 \|/)
+  assert.match(page, /First line \[still description\] "quoted"/)
+})
+
+test("complete listings at the supported boundaries are accepted", async () => {
+  for (const count of [0, 100]) {
+    const items = Array.from({ length: count }, (_, i) => ({ full_name: `owner/plugin${i}` }))
+    assert.equal((await fetchTopicRepos(stubFetch({ items }))).length, count)
+  }
+})
+
+test("invalid TOML aborts the scan without changing the existing directory", async () => {
+  const outPath = join(mkdtempSync(join(tmpdir(), "rove-plugins-")), "PLUGIN-DIRECTORY.md")
+  const log = () => {}
+  await run({ fetchImpl: stubFetch({ items: [demoRepo] }), outPath, log })
+  const before = readFileSync(outPath, "utf8")
+  const fetchImpl = stubFetch({ items: [demoRepo], manifests: { [DEMO]: 'name = "unterminated' } })
+  await assert.rejects(run({ fetchImpl, outPath, log }), /TOML/)
+  assert.equal(readFileSync(outPath, "utf8"), before)
 })

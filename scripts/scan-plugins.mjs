@@ -22,6 +22,7 @@
 import { readFileSync, writeFileSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import { parse } from "smol-toml"
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const OUT_PATH = join(repoRoot, "docs", "PLUGIN-DIRECTORY.md")
@@ -45,8 +46,18 @@ export async function fetchTopicRepos(fetchImpl = fetch) {
   if (!res.ok) throw new Error(`GitHub topic search failed: HTTP ${res.status}`)
   const body = await res.json()
   if (!Array.isArray(body.items)) throw new Error("GitHub topic search returned no items array")
+  if (body.incomplete_results !== false) throw new Error("GitHub topic search returned incomplete results")
+  if (!Number.isSafeInteger(body.total_count) || body.total_count < 0) {
+    throw new Error("GitHub topic search returned an invalid total count")
+  }
+  if (body.total_count > SEARCH_LIMIT) {
+    throw new Error(`GitHub topic search exceeds the ${SEARCH_LIMIT}-repository limit; pagination is required`)
+  }
+  if (body.items.length !== body.total_count) throw new Error("GitHub topic search result count does not match total")
+  if (body.items.some((repo) => typeof repo?.full_name !== "string" || !repo.full_name)) {
+    throw new Error("GitHub topic search returned a repository without a full name")
+  }
   return body.items
-    .filter((repo) => typeof repo?.full_name === "string")
     .map((repo) => ({
       fullName: repo.full_name,
       url: typeof repo.html_url === "string" ? repo.html_url : `https://github.com/${repo.full_name}`,
@@ -57,8 +68,8 @@ export async function fetchTopicRepos(fetchImpl = fetch) {
 
 /**
  * The manifest's top-level scalar strings, or null when the repo has no
- * manifest at its root. Only the header block is read — every plugin table
- * lives below the first `[`, and nothing here needs what it holds.
+ * manifest at its root. Parse the whole document to handle multiline strings;
+ * nested plugin tables are excluded from the directory metadata.
  *
  * A 404 is "this repo has no manifest"; any other failure throws, because
  * rendering a manifest-less row for a repo that has one is exactly the
@@ -72,26 +83,9 @@ export async function fetchManifest(fullName, fetchImpl = fetch) {
   return readManifestHeader(await res.text())
 }
 
-/** Top-level scalar strings above the first table header. */
+/** Top-level scalar strings, parsed with the plugin loader's TOML parser. */
 export function readManifestHeader(text) {
-  const fields = {}
-  for (const raw of String(text).split("\n")) {
-    const line = raw.trim()
-    if (line.startsWith("[")) break
-    const match = /^([A-Za-z_][A-Za-z0-9_-]*)\s*=\s*"((?:[^"\\]|\\.)*)"\s*(?:#.*)?$/.exec(line)
-    if (match) fields[match[1]] = unescapeTomlString(match[2])
-  }
-  return fields
-}
-
-function unescapeTomlString(value) {
-  return value.replace(/\\(u[0-9a-fA-F]{4}|.)/g, (whole, escape) => {
-    if (escape === "n") return " "
-    if (escape === "t") return " "
-    if (escape === "r") return " "
-    if (escape === "u") return String.fromCharCode(Number.parseInt(escape.slice(1), 16))
-    return escape
-  })
+  return Object.fromEntries(Object.entries(parse(text)).filter(([, value]) => typeof value === "string"))
 }
 
 /**

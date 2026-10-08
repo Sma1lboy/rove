@@ -146,6 +146,9 @@ jobs:
         # + build. Biome at root sees all packages.
         run: bun run lint
 
+      - name: Plugin directory scanner tests
+        run: node --test scripts/scan-plugins.test.mjs
+
       - name: No silent catch handlers in the TUI
         # Under an alternate screen a bare `console.error` in a catch reaches
         # the daemon log only, so the failed gesture looks like a no-op. Biome
