@@ -26,7 +26,7 @@ const demoRepo = {
 const collectionRepo = {
   full_name: "Sma1lboy/rove-plugins",
   html_url: "https://github.com/Sma1lboy/rove-plugins",
-  description: "Official plugins — install with: kobe plugin install <name>",
+  description: "Official plugins — install with: rove plugin install <name>",
 }
 const DEMO = demoRepo.full_name
 const COLLECTION = collectionRepo.full_name
@@ -67,7 +67,7 @@ test("the same topic listing renders byte-identical output, whatever order it ar
 test("a repo with no root manifest falls back to its own name and description", () => {
   const page = renderPage([resolved(collectionRepo, null)])
   assert.match(page, /^\| rove-plugins \| — \|/m)
-  assert.match(page, /Official plugins — install with: kobe plugin install &lt;name&gt;/)
+  assert.match(page, /Official plugins — install with: rove plugin install &lt;name&gt;/)
 })
 
 test("the manifest supplies the name, version and description when it has them", () => {
