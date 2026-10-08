@@ -39,6 +39,34 @@ async function ids(argv: string[]): Promise<{ ids: string[]; result: Record<stri
 }
 
 describe("list filters", () => {
+  it.each([
+    { flag: "--activity", value: "permission_needed", remoteMatches: false },
+    { flag: "--status", value: "in_progress", remoteMatches: true },
+  ])("$flag respects task origins when IDs collide", async ({ flag, value, remoteMatches }) => {
+    const tasks = ["local", "remote-host"].map((machineId) =>
+      taskFixture({
+        id: "same-id",
+        status: "in_progress",
+        origin: { machineId, hostLabel: machineId },
+      }),
+    )
+    const client = new FakeClient({
+      "task.list": () => ({ tasks }),
+      "debug.inspect": () => ({ activity: { tasks: { "same-id": { state: "permission_needed", at: now } } } }),
+    })
+    const result = await invokeVerb("list", [flag, value], { client, runtime: stubRuntime() })
+    expect(result).toEqual({
+      tasks: remoteMatches
+        ? tasks
+        : [
+            {
+              ...tasks[0],
+              activity: { state: "permission_needed", at: new Date(now).toISOString(), forMs: expect.any(Number) },
+            },
+          ],
+    })
+  })
+
   it("--activity lists the tasks waiting on a human, with the state that matched", async () => {
     const { ids: got, result } = await ids(["--activity", "permission_needed,error"])
     expect(got).toEqual(["blocked", "failed", "parked"])

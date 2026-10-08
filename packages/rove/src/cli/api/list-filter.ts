@@ -66,8 +66,9 @@ export async function filterTaskList(
     const wanted = filters.activities
     // A state Rove cannot read (no engine yet, a remote machine's task) never matches.
     const registry = await readActivityRegistry(daemon)
-    const views = await Promise.all(kept.map((t) => activityView(registry, t)))
-    out = kept.flatMap((task, i) => {
+    const local = kept.filter(isLocal)
+    const views = await Promise.all(local.map((t) => activityView(registry, t)))
+    out = local.flatMap((task, i) => {
       const activity = views[i]
       return activity && wanted.has(activity.state) ? [{ ...task, activity }] : []
     })
