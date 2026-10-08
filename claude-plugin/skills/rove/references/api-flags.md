@@ -71,7 +71,7 @@ see both.
 
 <!-- generated:begin read -->
 ```text
-list         (none)
+list         --repo --status <S1,S2> --activity <A1,A2>
 get-task     --task-id(REQ)
 pty-list     (none)
 collect      --task-ids <a,b,c> --group --repo

@@ -5,6 +5,7 @@
  * decides its schema group.
  */
 
+import { TASK_ACTIVITY_STATES } from "../../engine/hook-events.ts"
 import { ACTIVITY_STATES_DOC } from "./activity-view.ts"
 import { F } from "./flags.ts"
 import { handlePtyList } from "./handler-helpers.ts"
@@ -16,6 +17,7 @@ import { INSPECT_VERB } from "./handlers-inspect.ts"
 import { getTask, list } from "./handlers-tasks.ts"
 import { WATCH_VERB } from "./handlers-watch.ts"
 import { READ_OUTPUT_VERB } from "./read-output.ts"
+import { TASK_STATUSES } from "./task-statuses.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const READ_VERBS: readonly VerbSpec[] = [
@@ -23,8 +25,22 @@ export const READ_VERBS: readonly VerbSpec[] = [
     name: "list",
     group: "read",
     summary:
-      "List all tasks. Returns { tasks, activeTaskId } — `activeTaskId` is the shared focus verbs default to when --task-id is omitted (null = no active task), the audit read for any implicit-target delivery.",
-    flags: [],
+      "List all tasks. Returns { tasks, activeTaskId } — `activeTaskId` is the shared focus verbs default to when --task-id is omitted (null = no active task), the audit read for any implicit-target delivery. Filters AND together: --repo, --status, --activity (comma lists match any value). With --activity each task carries the `.activity` it matched; a task whose state Rove cannot read never matches. `unresolvableRepos` beside `tasks` names task repos --repo could not compare.",
+    flags: [
+      F.repo(false),
+      {
+        name: "status",
+        type: "csv",
+        placeholder: "S1,S2",
+        description: `Only tasks in these lifecycle statuses (${TASK_STATUSES.join(", ")}).`,
+      },
+      {
+        name: "activity",
+        type: "csv",
+        placeholder: "A1,A2",
+        description: `Only tasks whose engine is in these states (${TASK_ACTIVITY_STATES.join(", ")}). \`permission_needed,error\` = tasks waiting on you.`,
+      },
+    ],
     handler: list,
   },
   {

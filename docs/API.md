@@ -226,6 +226,15 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   `pane-open`, `pane-close`, `read-output` without `--task-id`) default to;
   `null` means no active task. Reading it back is the audit trail for any
   delivery that omitted `--task-id`.
+  - `--repo PATH`, `--status S1,S2` and `--activity A1,A2` narrow the list.
+    Flags combine with AND; a comma list matches any of its values.
+    `rove api list --activity permission_needed,error` is every task waiting
+    on you. With `--activity`, each returned task carries the `.activity` it
+    matched (the same view `collect` reports); a task whose engine state Rove
+    cannot read, such as one that never started or one on another machine,
+    never matches. `--repo` never matches another machine's task, and
+    `unresolvableRepos` beside `tasks` names task repos it could not compare.
+    An unknown status or state is refused with `BAD_FLAG`.
 - `get-task --task-id <id>`: one task's metadata; `.running` = any of its
   hosted engine tabs is live (not just the first); `.tabs` = the task's
   terminal tabs (`id`/`kind`/`title`/`vendor`/`liveVendor`/`lastTitle`/
