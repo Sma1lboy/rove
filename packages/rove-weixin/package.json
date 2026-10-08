@@ -1,6 +1,6 @@
 {
   "name": "rove-weixin",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "WeChat (微信) chat channel for Rove over Tencent's iLink Bot API. Bundled into the rove CLI; not published on its own.",
   "private": true,
   "type": "module",

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.244
+
+### Patch Changes
+
+- [#1223](https://github.com/Sma1lboy/rove/pull/1223) [`72c3a80`](https://github.com/Sma1lboy/rove/commit/72c3a801570dc3409b026dba3301df15b2f3c84f) `rove api read-output` now opens on the newest output: the last 40 messages, or the last 40 terminal lines (`--limit` sets either; terminal goes up to 200). Its `cursor` is a poll point that returns only what the session wrote since, `olderCursor` pages back, and `--tab tab-N` reads that tab's own conversation. Together with `watch`, this lets a script follow a running session without attaching to it.
+
+  Task edits are one verb now: `rove api update` takes any mix of `--title`, `--branch`, `--command`, `--model`, `--effort`, `--pinned`, `--status` and `--report-*`, and `--tab tab-N --title` renames a tab. Breaking: `rename`, `set-branch`, `set-command`, `set-effort` (whose `--level` is now `--effort`), `set-model`, `set-status` and `pin` are removed. `issue-set-status` moved to `issue-update --status`, and `routine-set-enabled` to `routine-update --enabled`. Calling an old verb returns `UNKNOWN_VERB` with its replacement. Run `rove skill install` again to pick up skill version 55. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1217](https://github.com/Sma1lboy/rove/pull/1217) [`339a166`](https://github.com/Sma1lboy/rove/commit/339a16616f28e16526ab56e737c05d692d24bc2f) New task worktrees on macOS start with the main checkout's `node_modules`, `.venv`, `target` and `.build`, cloned copy-on-write on the same APFS volume before `.rove/init.sh` runs. Turn it off with `worktree.cloneIgnored: false`, or set a per-repo list in `.rove/clone-dirs`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1221](https://github.com/Sma1lboy/rove/pull/1221) [`e9ab3c4`](https://github.com/Sma1lboy/rove/commit/e9ab3c4a29ed231eb7d8c38fcd80b284f829b8c7) The dirty-worktree file list in the force-delete confirm, `rove api delete`, land and sync refusals now shows filenames as they are on disk: non-ASCII names like `笔记.md` and names with spaces no longer appear as git's quoted octal escapes, and a staged rename names its new path instead of `old -> new`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1222](https://github.com/Sma1lboy/rove/pull/1222) [`8b9f22c`](https://github.com/Sma1lboy/rove/commit/8b9f22ce982c0a621608337433cd18b91ade72b3) The sidebar's closed `N routine sessions` row now says how many of those sessions are blocked on you, so a routine stuck on a permission prompt or a settled error no longer hides behind the fold. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1220](https://github.com/Sma1lboy/rove/pull/1220) [`fed6230`](https://github.com/Sma1lboy/rove/commit/fed6230c23590824ad9da66bf5776cf700fea9d9) Terminal output now draws one frame per update instead of two: each keystroke echo used to queue a redundant second redraw of the whole screen right after the first. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.243
 
 ### Patch Changes
