@@ -85,3 +85,11 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Pre-existing on main:** `bun test test/render` is flaky on unmodified main (9 failures tonight, a different set per run besides the two known ones).
 
 **Follow-up on PR #1220 (owner commit 4bf7a3c):** stubbing `requestRender` during the flush also swallowed the request of any refresh that re-schedules itself inside the batch (an open synchronized update defers its paint), so that frame never came. Fixed by calling `requestRender()` after restoring it when `pending` is non-empty. Lesson: when suppressing a side effect for a scope, check what inside that scope re-enters the same scheduler.
+
+## 2026-10-08 — notes (main 22dffd7)
+
+**No regression.** All three runs on main flagged timings only (boot.*, golden.cli-startup-ms, golden.vt-1mb-parse-ms, switch.shown.p50), a different set each run, with every count unchanged. golden on c8f2cca (last night's main) read the same on this machine: cli-startup 70.8–83.7, vt-1mb-parse 179–233 vs 105 in the baseline. The sandbox was slow tonight, so the code did not regress. Baseline not moved (typing.perOp.frame 2.07 → 1.07 is #1220, a drop of exactly 1, so it is not past tolerance).
+
+**Landed tonight as a PR from `perf/nightly-2026-10-08`:** the Files pane starts a worktree's All list from its last listing (4-entry LRU, `tui/panes/filetree/file-list-cache.ts`) instead of null, so the unchanged `git ls-files` result no longer commits. switch.perOp.commit.files 5.2 → 4.7 / 4.5 (main 5.3 tonight); root unchanged (that commit was already batched with others). The spawn count does not change: the refetch still runs.
+
+**Considered, not tried: gating the 2 s `ps -A` walk on PTY output.** An engine can't start or exit in a shell without output, so walks could be skipped while every probed PTY is quiet. Two blockers: subscribing to `onData` clears `unwatchedSince` and keeps hidden emulators refreshing (it defeats parking), and `setAuxPids` feeds every host session (`pty.list`) into the walk, which has no output signal. Local PTYs could use `lastOutputAtMs()`. For aux sessions, the host's `pty.list` would need a per-session output offset or timestamp first.
