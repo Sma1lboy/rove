@@ -74,7 +74,7 @@ test("tab reaches STATUS and ←/→ steps it, and esc carries the choice out", 
 test("a DONE story can be sent back — the one card the drawer could not act on", async () => {
   // Done + unlinked is the drawer's narrowest shape: nothing to start, no
   // session to open. It used to offer only "esc save & close", which is how a
-  // finished card became unreopenable without an agent running issue-set-status.
+  // finished card became unreopenable without an agent running issue-update --status.
   const outcomes: IssueDetailOutcome[] = []
   const { mockInput } = await renderComponent(
     drawer(DONE_ISSUE, (o) => outcomes.push(o)),

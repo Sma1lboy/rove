@@ -259,7 +259,7 @@ rove api routine-list
 rove api routine-run-now --id ROUTINE_ID
 rove api routine-runs --id ROUTINE_ID
 rove api routine-update --id ROUTINE_ID --target-task TASK_ID --target-tab tab-3
-rove api routine-set-enabled --id ROUTINE_ID --enabled false
+rove api routine-update --id ROUTINE_ID --enabled false
 ```
 
 The composer also offers **Deliver to**. Select an existing task with the current

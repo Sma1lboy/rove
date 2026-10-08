@@ -317,7 +317,7 @@ export class RemoteOrchestrator {
   /** Latest `tab.close` request (pane or exact Terminal Tab) — consumers dedupe on `at`. */
   readonly tabCloseStore = (): ExternalStore<TabClosePayload | null> => this.tabCloseAcc
 
-  /** Latest `tab.rename` request (`rove api rename --tab`) — consumers dedupe on `at`. */
+  /** Latest `tab.rename` request (`rove api update --tab`) — consumers dedupe on `at`. */
   readonly tabRenameStore = (): ExternalStore<TabRenamePayload | null> => this.tabRenameAcc
 
   /**

@@ -91,7 +91,7 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   // Re-fire the stored brief as a NEW task; `prompt` is recorded only once
   // actually delivered.
   if (task.prompt !== undefined) verbs.push({ action: "runAgain", labelKey: "tasks.menu.runAgain" })
-  // Otherwise status is only settable via `rove api set-status`. Not danger-toned.
+  // Otherwise status is only settable via `rove api update --status`. Not danger-toned.
   verbs.push({ action: "setStatus", labelKey: "tasks.menu.setStatus" })
   // Copies need the string recorded: `main`/`dir` store `branch === ""`
   // (label is live HEAD), and a never-entered task stores both as "" until
@@ -99,7 +99,7 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   if (task.branch !== "") verbs.push({ action: "copyBranch", labelKey: "tasks.menu.copyBranch" })
   if (task.worktreePath !== "") verbs.push({ action: "copyPath", labelKey: "tasks.menu.copyPath" })
   // `o` / `b` / `v`, routed to the ROW's task (the chords read the active
-  // task; see use-tree-menu.ts). `b` gated like `copyBranch`: `set-branch`
+  // task; see use-tree-menu.ts). `b` gated like `copyBranch`: `update --branch`
   // refuses a `main`/`dir` row.
   verbs.push({ action: "openEditor", labelKey: "tasks.menu.openEditor", bindingId: "tasks.openWorktree" })
   if (task.branch !== "")

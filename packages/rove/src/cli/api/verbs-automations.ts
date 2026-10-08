@@ -156,7 +156,8 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
   {
     name: "routine-update",
     group: "routine",
-    summary: "Change a routine. A new --schedule re-anchors its next run; --precheck '' clears the precheck.",
+    summary:
+      "Change a routine. A new --schedule re-anchors its next run; --precheck '' clears the precheck; --enabled false pauses it (disabling the last active one releases the daemon's keep-alive hold) and --enabled true resumes it.",
     flags: [
       { name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." },
       { name: "name", type: "string", placeholder: "N", description: "New name." },
@@ -173,6 +174,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       GRACE_FLAG,
       PERSISTENT_FLAG,
       ...TARGET_FLAGS,
+      { name: "enabled", type: "bool", placeholder: "BOOL", description: "false pauses the routine, true resumes it." },
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "automation.update", {
@@ -194,18 +196,8 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.present("persistent-session")
           ? { persistentSession: ctx.args.bool("persistent-session") ?? true }
           : {}),
+        ...(ctx.args.present("enabled") ? { enabled: ctx.args.bool("enabled") ?? true } : {}),
       }),
-  },
-  {
-    name: "routine-set-enabled",
-    group: "routine",
-    summary: "Pause or resume a routine. Disabling the last active one releases the daemon's keep-alive hold.",
-    flags: [
-      { name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." },
-      { name: "enabled", type: "bool", required: true, description: "true to resume, false to pause." },
-    ],
-    handler: (ctx) =>
-      simpleRpc(ctx, "automation.update", { id: ctx.args.require("id"), enabled: ctx.args.bool("enabled") }),
   },
   {
     name: "routine-delete",

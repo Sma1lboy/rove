@@ -111,7 +111,7 @@ Three places select one:
 - the sidebar row menu's **Change engine** entry, whose second row lists the
   engine's levels (`←→` picks one, and "engine default" clears it). Engines
   that declare no levels show no row;
-- `rove api set-effort --task-id ID --level LEVEL` from a shell.
+- `rove api update --task-id ID --effort LEVEL` from a shell.
 
 Wherever Rove shows a level it puts a fill glyph in front of it, `○` for
 the engine's lowest through `◔ ◑ ◕ ●` to `◉` for its highest, placed by the
@@ -141,7 +141,7 @@ The same three places select one:
 - **Change engine** and the new-task dialog, whose model row is a free-text
   input with the engine's list as suggestions underneath (`tab` reaches the
   row in the change-engine picker; empty = the engine's default);
-- `rove api set-model --task-id ID --model MODEL` from a shell.
+- `rove api update --task-id ID --model MODEL` from a shell.
 
 An engine that declares no model flag (copilot, contrib, custom) refuses a
 model up front (`BAD_MODEL`) instead of dropping it at launch.

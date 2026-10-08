@@ -5,6 +5,7 @@
  * in `handlers-lifecycle.ts`.
  */
 
+import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import type { VendorId } from "../../types/vendor.ts"
@@ -21,20 +22,30 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   const title = ctx.args.str("title")
   const body = ctx.args.str("body")
   const task = ctx.args.str("task")
-  if (title === undefined && body === undefined && task === undefined) {
-    throw new ApiError("issue-update requires --title, --body, and/or --task", "MISSING_FLAG")
+  const status = ctx.args.enumOf<IssueStatus>("status")
+  if (title === undefined && body === undefined && task === undefined && status === undefined) {
+    throw new ApiError("issue-update requires --title, --body, --task, and/or --status", "MISSING_FLAG")
   }
   const repoRoot = ctx.args.requireRepo("repo")
   const id = ctx.args.int("id")
-  // ONE mutate, so `--title X --task <bogus>` can't half-run: the store
-  // applies all three fields under one lock, and the daemon's task-existence
-  // check runs before it, so a rejected link writes nothing.
-  //
-  // `--task none` unlinks (carried as `taskId: null`); anything else links.
-  // Linking IS the kanban move to In progress — the board column derives from
-  // the link, not a stored column.
-  const link = task === undefined ? {} : { taskId: task === "none" ? null : task }
-  return simpleRpc(ctx, "issue.mutate", { repoRoot, op: { type: "update", id, title, body, ...link } })
+  let state: unknown
+  if (title !== undefined || body !== undefined || task !== undefined) {
+    // ONE mutate, so `--title X --task <bogus>` can't half-run: the store
+    // applies all three fields under one lock, and the daemon's task-existence
+    // check runs before it, so a rejected link writes nothing.
+    //
+    // `--task none` unlinks (carried as `taskId: null`); anything else links.
+    // Linking IS the kanban move to In progress — the board column derives from
+    // the link, not a stored column.
+    const link = task === undefined ? {} : { taskId: task === "none" ? null : task }
+    state = await simpleRpc(ctx, "issue.mutate", { repoRoot, op: { type: "update", id, title, body, ...link } })
+  }
+  // Its own `setStatus` op, after the update proved the issue exists: plugins'
+  // `issue.changed` events key status changes on that op type.
+  if (status !== undefined) {
+    state = await simpleRpc(ctx, "issue.mutate", { repoRoot, op: { type: "setStatus", id, status } })
+  }
+  return state
 }
 
 /**

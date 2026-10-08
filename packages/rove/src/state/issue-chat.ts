@@ -1,6 +1,6 @@
 /**
  * Starting an engine session from a kanban story. The agent reports completion
- * via `issue-set-status`, never by editing repo files. Placement is WHERE it
+ * via `issue-update --status`, never by editing repo files. Placement is WHERE it
  * runs (jump-or-stay is the separate `IssueChatStart.jump` toggle):
  *   - `worktree`        — a new worktree task with its own workspace.
  *   - `projectWorktree` — same task, but also a chattab in the PROJECT

@@ -1,5 +1,5 @@
 /**
- * Rename a tab of ANY task (`rove api rename --tab`). Same two routes as
+ * Rename a tab of ANY task (`rove api update --tab`). Same two routes as
  * `moveTaskTab`: claimed → the mounted component renames through `update`
  * (which persists); unclaimed → write the module map + kv here.
  *

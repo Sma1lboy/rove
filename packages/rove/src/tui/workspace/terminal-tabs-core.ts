@@ -148,7 +148,7 @@ export function renameActiveTab(state: TabsState, title: string): TabsState {
 }
 
 /**
- * Rename one tab by id (`rove api rename --tab` has no "active" tab);
+ * Rename one tab by id (`rove api update --tab` has no "active" tab);
  * empty/whitespace clears to the default. Returns the SAME object when
  * unchanged, so the CLI write + TUI broadcast of one rename costs no
  * re-render or second persist.

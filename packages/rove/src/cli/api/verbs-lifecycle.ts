@@ -1,7 +1,7 @@
 /**
- * The `lifecycle` verb group — pin, land, delete: the verbs that end a task's
- * life or decide it survives, which is why they are worth naming apart from
- * the metadata edits next door. One file per `VerbGroup`, mirroring the
+ * The `lifecycle` verb group — land, delete: the verbs that end a task's
+ * life, which is why they are worth naming apart from the metadata edits
+ * (`update`) next door. One file per `VerbGroup`, mirroring the
  * taxonomy `rove api schema --group lifecycle` prints — though it is each
  * spec's own `group` field, not this file, that decides where a verb lists.
  * Specs spread back into the
@@ -9,22 +9,10 @@
  */
 
 import { F } from "./flags.ts"
-import { simpleRpc } from "./handler-helpers.ts"
 import { deleteTask, land } from "./handlers-lifecycle.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
-  {
-    name: "pin",
-    group: "lifecycle",
-    summary: "Pin (or with --pinned=false, unpin) a task to the top of the sidebar.",
-    flags: [F.taskId(), { name: "pinned", type: "bool", default: "true", description: "true to pin, false to unpin." }],
-    handler: (ctx) =>
-      simpleRpc(ctx, "task.pin", {
-        taskId: ctx.args.require("task-id"),
-        pinned: ctx.args.bool("pinned") ?? true,
-      }),
-  },
   {
     name: "land",
     group: "lifecycle",

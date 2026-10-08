@@ -7,7 +7,7 @@
  * schema/help/validation see one canonical list.
  */
 
-import { ISSUE_STATUSES, type IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import { ISSUE_STATUSES } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { issueUpdate } from "./handlers-tasks.ts"
@@ -37,24 +37,10 @@ export const ISSUE_VERBS: readonly VerbSpec[] = [
       }),
   },
   {
-    name: "issue-set-status",
-    group: "issues",
-    summary: "Set a daemon-owned issue's status.",
-    flags: [
-      F.repo(),
-      { name: "id", type: "int", required: true, placeholder: "N", description: "Issue id." },
-      { name: "status", type: "enum", required: true, values: ISSUE_STATUSES, description: "New issue status." },
-    ],
-    handler: (ctx) =>
-      simpleRpc(ctx, "issue.mutate", {
-        repoRoot: ctx.args.requireRepo("repo"),
-        op: { type: "setStatus", id: ctx.args.int("id"), status: ctx.args.requireEnum<IssueStatus>("status") },
-      }),
-  },
-  {
     name: "issue-update",
     group: "issues",
-    summary: "Update a daemon-owned issue's title, body, and/or linked task.",
+    summary:
+      "Update a daemon-owned issue's title, body, linked task, and/or status. Title, body and link land in one all-or-nothing write; the status follows as its own change.",
     flags: [
       F.repo(),
       { name: "id", type: "int", required: true, placeholder: "N", description: "Issue id." },
@@ -66,6 +52,7 @@ export const ISSUE_VERBS: readonly VerbSpec[] = [
         placeholder: "TASK_ID",
         description: "Link the issue to this task (kanban: In progress). Pass `none` to unlink.",
       },
+      { name: "status", type: "enum", values: ISSUE_STATUSES, description: "New issue status." },
     ],
     handler: issueUpdate,
   },
@@ -73,7 +60,7 @@ export const ISSUE_VERBS: readonly VerbSpec[] = [
     name: "issue-delete",
     group: "issues",
     summary:
-      "Delete a daemon-owned issue. Removes ONLY the tracker record — a linked task, its branch and its worktree are left untouched. The same `delete` op the kanban page's `d` runs; use `issue-set-status --status done` when the story was finished rather than abandoned.",
+      "Delete a daemon-owned issue. Removes ONLY the tracker record — a linked task, its branch and its worktree are left untouched. The same `delete` op the kanban page's `d` runs; use `issue-update --status done` when the story was finished rather than abandoned.",
     flags: [F.repo(), { name: "id", type: "int", required: true, placeholder: "N", description: "Issue id." }],
     handler: (ctx) =>
       simpleRpc(ctx, "issue.mutate", {

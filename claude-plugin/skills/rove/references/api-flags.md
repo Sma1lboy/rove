@@ -50,7 +50,14 @@ Four flag names that have actually been guessed wrong here, and what they are:
 | `fan-out` | `add --count N` / `add --agents claude:2,codex:1` |
 | `task-list` | `list` |
 | `send-tab` | `send --tab tab-N` |
-| `set-vendor` | `set-command` (an engine id from `engine-list`, or a full command line) |
+| `set-vendor` | `update --command` (an engine id from `engine-list`, or a full command line) |
+| `rename` | `update --title` (`update --tab tab-N --title` for a tab) |
+| `set-branch` / `set-command` / `set-model` | `update --branch` / `--command` / `--model` |
+| `set-effort --level` | `update --effort` |
+| `set-status` | `update --status` (+ `--report-*`) |
+| `pin` | `update --pinned true\|false` |
+| `issue-set-status` | `issue-update --status` |
+| `routine-set-enabled` | `routine-update --enabled true\|false` |
 
 Seeing one of these in guidance means that guidance predates the rename —
 `rove api schema` is the tiebreak.
@@ -72,7 +79,7 @@ context      --repo(REQ) --limit(20) --text
 digest       --repo(REQ) --since-days(7)
 agent-turns  --task-id --repo --since-days(7) --limit(200)
 inspect      --task-id
-read-output  --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit(40)
+read-output  --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
 watch        --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
 ```
 <!-- generated:end -->
@@ -86,10 +93,14 @@ the wider diagnostic — daemon activity, a pty walk, and every tab snapshot.
 disagree, it is the ground truth for what is actually alive — key, alive, pid,
 command, OSC title.
 
-`read-output --limit` maxes at 50. `--tab` is terminal-only — it cannot combine
-with `--source history`. The cursor is pinned to one source/session/tab; a
-moved target returns `SOURCE_CHANGED` rather than silently paging something
-else.
+`read-output` opens on the NEWEST page: the last `--limit` messages (history,
+default 40, max 50) or terminal lines (default 40, max 200). Its `cursor` pages
+forward and, once caught up, is the poll point — re-read with it to get only
+what the session wrote since (`watch` tells you when). `olderCursor` pages back
+through history. `--tab tab-N` reads that tab's own conversation when it is an
+engine tab with a pinned session, else its terminal. A cursor is pinned to one
+source/session/tab; a moved target returns `SOURCE_CHANGED` rather than
+silently paging something else.
 
 `digest` and `agent-turns` are the measurement reads — `digest` aggregates a
 repo's recent task + routine activity, `agent-turns` is per-turn telemetry
@@ -164,28 +175,26 @@ clear the shared active task.
 
 <!-- generated:begin create,edit,lifecycle -->
 ```text
-add          --repo(REQ) --title --branch --base-branch --worktree-name --command --effort
-             --tier{swift|standard|deep|auto} --model --count --agents <claude:2,codex:1>
-             --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
-             --activate(false) --prompt|--prompt-file
-rename       --task-id(REQ) --title(REQ) --tab
-set-branch   --task-id(REQ) --branch(REQ)
-set-command  --task-id(REQ) --command(REQ)
-set-effort   --task-id(REQ) --level(REQ)
-set-model    --task-id(REQ) --model(REQ)
-set-status   --task-id(REQ)
-             --status{backlog|in_progress|in_review|done|canceled|error}(REQ)
-             --report-branch --report-pr --report-summary
-pin          --task-id(REQ) --pinned(true)
-land         --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
-             --remove-worktree(true)
-delete       --task-id --group --force --delete-branch --delete-remote --wait
+add     --repo(REQ) --title --branch --base-branch --worktree-name --command --effort
+        --tier{swift|standard|deep|auto} --model --count --agents <claude:2,codex:1>
+        --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
+        --activate(false) --prompt|--prompt-file
+update  --task-id(REQ) --title --tab --branch --command --model --effort --pinned
+        --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
+        --report-pr --report-summary
+land    --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
+        --remove-worktree(true)
+delete  --task-id --group --force --delete-branch --delete-remote --wait
 ```
 <!-- generated:end -->
 
-`set-command` takes effect on the NEXT launch only. `set-effort --level` is
-engine-owned — the levels a vendor accepts come from its registry entry, so
-check `engine-list` rather than guessing.
+`update` takes any mix of its fields in one call. It validates all of them
+before writing anything, then applies branch → command → model/effort →
+title → pinned → status; a refusal mid-way returns `applied` (what already
+landed). `--command`/`--model`/`--effort` take effect on the NEXT launch only.
+Effort levels are engine-owned — the levels a vendor accepts come from its
+registry entry, so check `engine-list` rather than guessing. `--report-*`
+needs `--status`. With `--tab`, only `--title` is allowed.
 
 Task `--status` and issue `--status` are DIFFERENT enums — a task is
 `backlog|in_progress|in_review|done|canceled|error`, an issue is
@@ -214,17 +223,16 @@ adopt               --repo(REQ) --worktree(REQ) --branch --command --title
 
 <!-- generated:begin issues -->
 ```text
-issue-list        --repo(REQ)
-issue-create      --repo(REQ) --title(REQ) --body
-issue-set-status  --repo(REQ) --id(REQ) --status{open|doing|hold|done}(REQ)
-issue-update      --repo(REQ) --id(REQ) --title --body --task
-issue-delete      --repo(REQ) --id(REQ)
+issue-list    --repo(REQ)
+issue-create  --repo(REQ) --title(REQ) --body
+issue-update  --repo(REQ) --id(REQ) --title --body --task --status{open|doing|hold|done}
+issue-delete  --repo(REQ) --id(REQ)
 ```
 <!-- generated:end -->
 
 `--id` is an int, not the ULID a task uses. `issue-update --task <taskId>` is
 the kanban "move to In progress"; `--task none` unlinks. Kanban semantics are
-in SKILL.md — do not move cards with `issue-set-status doing`.
+in SKILL.md — do not move cards with `issue-update --status doing`.
 
 ## workitems (GitHub, through `gh`)
 
@@ -256,19 +264,18 @@ it fires with no TUI attached.
 
 <!-- generated:begin routine -->
 ```text
-routine-list         (none)
-routine-create       --repo(REQ) --name(REQ) --prompt|--prompt-file(REQ) --schedule(REQ)
-                     --vendor{claude|codex|copilot|kimi|pi|omp|bob} --base-branch
-                     --precheck --precheck-timeout(120) --grace(60) --persistent-session
-                     --target-task --target-tab --disabled
-routine-update       --id(REQ) --name --prompt|--prompt-file --schedule --vendor
-                     --base-branch --precheck --precheck-timeout(120) --grace(60)
-                     --persistent-session --target-task --target-tab
-routine-set-enabled  --id(REQ) --enabled(REQ)
-routine-delete       --id(REQ)
-routine-run-now      --id(REQ)
-routine-respond      --run(REQ) --text --prompt-file
-routine-runs         --id(REQ)
+routine-list     (none)
+routine-create   --repo(REQ) --name(REQ) --prompt|--prompt-file(REQ) --schedule(REQ)
+                 --vendor{claude|codex|copilot|kimi|pi|omp|bob} --base-branch --precheck
+                 --precheck-timeout(120) --grace(60) --persistent-session --target-task
+                 --target-tab --disabled
+routine-update   --id(REQ) --name --prompt|--prompt-file --schedule --vendor --base-branch
+                 --precheck --precheck-timeout(120) --grace(60) --persistent-session
+                 --target-task --target-tab --enabled
+routine-delete   --id(REQ)
+routine-run-now  --id(REQ)
+routine-respond  --run(REQ) --text --prompt-file
+routine-runs     --id(REQ)
 ```
 <!-- generated:end -->
 
@@ -292,8 +299,8 @@ the daemon respawns it in the SAME worktree — files and branch carry over, the
 conversation does not — and records that run as `revived`, not `dispatched`.
 
 A bare `--enabled` means true, so pausing a routine is
-`routine-set-enabled --id <id> --enabled=false` (the same `=false` spelling
-`pin --pinned=false` uses).
+`routine-update --id <id> --enabled=false` (the same `=false` spelling
+`update --pinned=false` uses).
 
 `routine-update --schedule` re-anchors the next run. `--precheck ''` clears it.
 `routine-run-now` skips the precheck deliberately (asking for it IS the answer)

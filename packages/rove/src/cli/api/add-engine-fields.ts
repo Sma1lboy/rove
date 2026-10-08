@@ -246,7 +246,7 @@ export function modelFor(ctx: VerbContext, engines: readonly VendorId[]): string
  * launch — before anything is created, so a bad level costs no orphan task.
  *
  * Not an `enum` flag: levels are per-engine (plugins may declare their own),
- * so the list lives on the registry entry; shares `set-effort`'s gate.
+ * so the list lives on the registry entry; shares `update --effort`'s gate.
  *
  * A fan-out validates EVERY engine: `--agents claude:1,codex:1 --effort
  * xhigh` is rejected rather than silently dropped on the claude sibling.

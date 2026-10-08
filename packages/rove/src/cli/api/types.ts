@@ -140,7 +140,7 @@ export interface PromptTarget {
   readonly tab?: string
   /**
    * Engine PROTOCOL pinned on a `--tab new` tab, recorded like the TUI's ctrl+e
-   * pick so it survives restarts and a later task `set-command`.
+   * pick so it survives restarts and a later task `update --command`.
    */
   readonly tabVendor?: VendorId
   /** Raw launch command for a `--tab new` tab — the command half of {@link tabVendor}. */

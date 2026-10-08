@@ -57,8 +57,35 @@ const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandArgs: re
     nextCommandArgs: ["api", "add", "--help"],
   },
   "set-vendor": {
-    hint: "set-vendor was replaced by `set-command`, which takes the engine's raw launch command (an engine id from `engine-list`, or a full command line)",
-    nextCommandArgs: ["api", "set-command", "--help"],
+    hint: "set-vendor was replaced by `update --command`, which takes the engine's raw launch command (an engine id from `engine-list`, or a full command line)",
+    nextCommandArgs: ["api", "update", "--help"],
+  },
+  ...Object.fromEntries(
+    (
+      [
+        ["rename", "--title (with --tab to rename a tab)"],
+        ["set-branch", "--branch"],
+        ["set-command", "--command"],
+        ["set-effort", "--effort (was --level)"],
+        ["set-model", "--model"],
+        ["set-status", "--status and --report-*"],
+        ["pin", "--pinned true|false"],
+      ] as const
+    ).map(([verb, flag]) => [
+      verb,
+      {
+        hint: `${verb} was folded into \`update\`: pass ${flag}; one update call can change several fields at once`,
+        nextCommandArgs: ["api", "update", "--help"],
+      },
+    ]),
+  ),
+  "issue-set-status": {
+    hint: "issue-set-status was folded into `issue-update`: pass --status",
+    nextCommandArgs: ["api", "issue-update", "--help"],
+  },
+  "routine-set-enabled": {
+    hint: "routine-set-enabled was folded into `routine-update`: pass --enabled true|false",
+    nextCommandArgs: ["api", "routine-update", "--help"],
   },
   archive: {
     hint: "archive was removed: there is no hide-without-delete anymore — use `delete` to remove a finished task and its worktree; the git branch survives (pass --delete-branch explicitly only when the history may go)",

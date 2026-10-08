@@ -36,7 +36,7 @@ common-dir, so the source checkout and its worktrees share one issue record:
 - **`id`**: take `nextId`, then increment `nextId`. Ids are never reused.
 - **Adding**: `rove api issue-create --repo <path> --title ...`. The daemon stores the repo's issue record under the repo's git common-dir, so a source checkout and its task worktrees share the same issues.
 - **Closing**: flip `status` to `done`. Done issues stay visible in the Done column until a future archive/export flow exists.
-- **Agent automation**: use `rove api issue-list`, `rove api issue-create`, `rove api issue-set-status`, and `rove api issue-update`. From a task worktree, `--repo .` resolves to the same daemon issue record as the source checkout.
+- **Agent automation**: use `rove api issue-list`, `rove api issue-create`, and `rove api issue-update` (which also moves a card with `--status`). From a task worktree, `--repo .` resolves to the same daemon issue record as the source checkout.
 
 Code changes still land their user-facing line as a **Changeset** (see [`RELEASING.md`](./RELEASING.md)). Issues are the *backlog of what to do*, the changelog is the *record of what shipped*. They're different things; an issue often closes by landing a change that carries its own changeset.
 

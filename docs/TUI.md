@@ -95,7 +95,7 @@ The PR mark drains to grey when the last PR poll failed — the reading stands,
 but nothing is confirming it any more. Pending checks, review state, and a
 merged or closed PR draw nothing. The Task's board status (`in_review`, `done`,
 …) does not appear on the row either: you set it, so you already know it. Set it
-from the row's right-click menu (**Set status**) or with `rove api set-status`;
+from the row's right-click menu (**Set status**) or with `rove api update --status`;
 it is a label, and changing it leaves the worktree, the branch, and every
 running session alone.
 
@@ -563,7 +563,7 @@ The drawer's **STATUS** field is how a human moves a card between columns: tab
 to it and `←/→` (or `h`/`l`) steps through `open · doing · hold · done`. The board's own
 keys steer the cursor and `d` deletes the story outright, so without this the
 only way to mark work finished was an agent running `rove api
-issue-set-status` — "I finished this" and "this never existed" were the same
+issue-update --status` — "I finished this" and "this never existed" were the same
 keypress.
 
 For a linked story, the drawer also shows an **EVENTS** snapshot with up to the

@@ -100,29 +100,21 @@ describe("task.spawn", () => {
 
 describe("task edits", () => {
   const cases: Array<[string, Record<string, unknown>, Call, Record<string, unknown>?]> = [
-    ["task.rename", { taskId: T, title: "--new" }, { verb: "rename", argv: [`--task-id=${T}`, "--title=--new"] }],
+    ["task.rename", { taskId: T, title: "--new" }, { verb: "update", argv: [`--task-id=${T}`, "--title=--new"] }],
     [
       "task.setBranch",
       { taskId: T, branch: "feat/y" },
-      { verb: "set-branch", argv: [`--task-id=${T}`, "--branch=feat/y"] },
+      { verb: "update", argv: [`--task-id=${T}`, "--branch=feat/y"] },
     ],
     [
       "task.setModel",
       { taskId: T, model: "gpt-5.1:high" },
-      { verb: "set-model", argv: [`--task-id=${T}`, "--model=gpt-5.1:high"] },
+      { verb: "update", argv: [`--task-id=${T}`, "--model=gpt-5.1:high"] },
     ],
-    [
-      "task.setEffort",
-      { taskId: T, level: "xhigh" },
-      { verb: "set-effort", argv: [`--task-id=${T}`, "--level=xhigh"] },
-    ],
-    [
-      "task.setStatus",
-      { taskId: T, status: "done" },
-      { verb: "set-status", argv: [`--task-id=${T}`, "--status=done"] },
-    ],
-    ["task.pin", { taskId: T, pinned: false }, { verb: "pin", argv: [`--task-id=${T}`, "--pinned=false"] }],
-    ["task.pin", { taskId: T, pinned: true }, { verb: "pin", argv: [`--task-id=${T}`, "--pinned=true"] }],
+    ["task.setEffort", { taskId: T, level: "xhigh" }, { verb: "update", argv: [`--task-id=${T}`, "--effort=xhigh"] }],
+    ["task.setStatus", { taskId: T, status: "done" }, { verb: "update", argv: [`--task-id=${T}`, "--status=done"] }],
+    ["task.pin", { taskId: T, pinned: false }, { verb: "update", argv: [`--task-id=${T}`, "--pinned=false"] }],
+    ["task.pin", { taskId: T, pinned: true }, { verb: "update", argv: [`--task-id=${T}`, "--pinned=true"] }],
     ["task.move", { taskId: T, direction: "top" }, { rpc: "task.move", payload: { taskId: T, direction: "top" } }],
     ["task.move", { taskId: T, direction: "up" }, { rpc: "task.move", payload: { taskId: T, direction: "up" } }],
   ]
@@ -138,9 +130,9 @@ describe("task edits", () => {
     const { result, calls } = await run(
       "task.setCommand",
       { taskId: T, engine: "codex" },
-      { "set-command": { ok: true, command: "codex", protocol: "codex" } },
+      { update: { ok: true, command: "codex", protocol: "codex" } },
     )
-    expect(calls.at(-1)).toEqual({ verb: "set-command", argv: [`--task-id=${T}`, "--command=codex"] })
+    expect(calls.at(-1)).toEqual({ verb: "update", argv: [`--task-id=${T}`, "--command=codex"] })
     expect(result).toEqual({ protocol: "codex" })
     await refused("task.setCommand", { taskId: T, engine: "codex --search" })
     await refused("task.setCommand", { taskId: T, engine: "unknown" })

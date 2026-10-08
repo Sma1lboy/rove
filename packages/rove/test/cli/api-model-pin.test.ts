@@ -1,5 +1,5 @@
 /**
- * `add --model` and `set-model` — pinning a model on a task, gated the way
+ * `add --model` and `update --model` — pinning a model on a task, gated the way
  * effort is (`assertEngineAcceptsModel`, one gate for both entry points) but
  * WITHOUT a closed set: a model is the engine's own spelling, so the only
  * thing to refuse is an engine that declares no flag to carry it.
@@ -72,16 +72,16 @@ describe("add --model", () => {
   })
 })
 
-describe("set-model", () => {
+describe("update --model", () => {
   const taskOf = (task: Record<string, unknown>) => ({ "task.get": () => ({ task: { id: "t1", ...task } }) })
 
   it("sends the model on task.setVendor, verbatim", async () => {
     const client = new FakeClient({ ...taskOf({ vendor: "claude" }), "task.setVendor": () => ({}) })
-    const out = await invokeVerb("set-model", ["--task-id", "t1", "--model", "sonnet"], {
+    const out = await invokeVerb("update", ["--task-id", "t1", "--model", "sonnet"], {
       client,
       runtime: stubRuntime(),
     })
-    expect(out).toEqual({ ok: true, taskId: "t1", engine: "claude", model: "sonnet" })
+    expect(out).toEqual({ ok: true, taskId: "t1", updated: ["model"], engine: "claude" })
     expect(client.requests.at(-1)).toEqual({
       name: "task.setVendor",
       payload: { taskId: "t1", vendor: "claude", model: "sonnet" },
@@ -94,7 +94,7 @@ describe("set-model", () => {
       "task.setVendor": () => ({}),
     })
     await expectApiError(
-      () => invokeVerb("set-model", ["--task-id", "t1", "--model", "gpt-5"], { client, runtime: stubRuntime() }),
+      () => invokeVerb("update", ["--task-id", "t1", "--model", "gpt-5"], { client, runtime: stubRuntime() }),
       "BAD_MODEL",
       /engine copilot/,
     )

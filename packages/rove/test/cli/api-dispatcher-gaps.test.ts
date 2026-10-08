@@ -118,11 +118,11 @@ describe("watch", () => {
   })
 })
 
-describe("set-status --report-*", () => {
+describe("update --status --report-*", () => {
   it("carries the worker's claim alongside the status, in one call", async () => {
     const client = new FakeClient({ "task.status": () => ({}) })
     await invokeVerb(
-      "set-status",
+      "update",
       [
         "--task-id",
         "t1",
@@ -150,7 +150,7 @@ describe("set-status --report-*", () => {
     // An empty report would restamp `at` and tell a dispatcher the worker
     // reported again when it only moved the status.
     const client = new FakeClient({ "task.status": () => ({}) })
-    await invokeVerb("set-status", ["--task-id", "t1", "--status", "done"], { client, runtime })
+    await invokeVerb("update", ["--task-id", "t1", "--status", "done"], { client, runtime })
     expect(client.requests[0]?.payload).toEqual({
       taskId: "t1",
       status: "done",

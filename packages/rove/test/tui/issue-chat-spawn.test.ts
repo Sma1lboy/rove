@@ -65,7 +65,7 @@ describe("buildIssueChatBackgroundSpawn", () => {
     // The prompt IS the launch — no held prompt, no first-visit wait.
     expect(script).toContain("Work on user story #7: Fix the flaky poll")
     // The self-report instruction the agent uses to move its own card.
-    expect(script).toContain("issue-set-status --repo . --id 7 --status done")
+    expect(script).toContain("issue-update --repo . --id 7 --status done")
   })
 
   it("snapshot marks tab-1 spawned with the SAME session id the argv pins — a visit attaches, a restart resumes", () => {
@@ -97,7 +97,7 @@ describe("buildIssueChatBackgroundSpawn", () => {
     expect(spawn.ptyKey).toBe("task-9::tab-1")
     expect(spawn.command[2] ?? "").not.toContain("Work on user story #7")
     expect(spawn.firstMessage).toContain("Work on user story #7: Fix the flaky poll")
-    expect(spawn.firstMessage).toContain("issue-set-status --repo . --id 7 --status done")
+    expect(spawn.firstMessage).toContain("issue-update --repo . --id 7 --status done")
     expect(spawn.engineBin).toBe("kimi")
   })
 

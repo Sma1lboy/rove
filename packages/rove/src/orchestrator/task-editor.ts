@@ -133,7 +133,7 @@ export class TaskEditor {
   }
 
   /**
-   * Pin a RAW launch command (`set-command`); metadata like {@link setVendor}.
+   * Pin a RAW launch command (`update --command`); metadata like {@link setVendor}.
    * `vendor` is the protocol the caller resolved from the preset registry;
    * omitted leaves the recorded one rather than guessing.
    */
@@ -196,7 +196,7 @@ export class TaskEditor {
   }
 
   /**
-   * What the WORKER says it delivered (`set-status --report-*`). Separate from
+   * What the WORKER says it delivered (`update --report-*`). Separate from
    * {@link setStatus}, whose unchanged-status early return would drop the
    * common re-report on an already-`done` task. Fields MERGE onto the previous
    * report; `at` always restamps ("last reported").
