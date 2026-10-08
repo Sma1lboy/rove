@@ -13,6 +13,7 @@
 import { errorMessage } from "@/lib/error-message"
 import { readRoveEnv } from "@sma1lboy/rove-daemon/compat-env"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { cachedFileList, rememberFileList } from "../../../tui/panes/filetree/file-list-cache"
 import {
   type GitScope,
   type StatusEntry,
@@ -120,6 +121,7 @@ export function FileTree(props: FileTreeProps) {
         if (currentTab === "all") {
           const files = await listFiles(path, signal)
           if (signal?.aborted || seq !== fetchSeq.current || pathRef.current !== path) return
+          rememberFileList(path, files)
           setAllFiles((prev) => (sameFileList(prev, files) ? prev : files))
         } else if (currentTab === "changes") {
           const wantBranch = scopeRef.current === "branch" && baseRef.current != null
@@ -145,9 +147,12 @@ export function FileTree(props: FileTreeProps) {
   )
 
   // Worktree change: wipe caches and reset scope. Cleanup aborts the in-flight
-  // git read so rapid task switches don't stack subprocesses.
+  // git read so rapid task switches don't stack subprocesses. On the All tab
+  // the list starts from this worktree's last listing until the refetch lands;
+  // elsewhere it stays null so the tab effect refetches on the way back.
   useEffect(() => {
-    setAllFiles(null)
+    const path = props.worktreePath
+    setAllFiles(path != null && tabRef.current === "all" ? cachedFileList(path) : null)
     setChanges(null)
     setError(null)
     setCursorIndex(0)
