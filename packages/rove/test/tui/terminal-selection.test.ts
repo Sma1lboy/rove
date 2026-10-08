@@ -47,6 +47,24 @@ describe("terminal grid selection", () => {
     expect(extractSelection(ROWS, { anchor: { row: 1, col: 6 }, head: { row: 1, col: 0 } })).toBe("charlie")
   })
 
+  it("copies framed paragraphs without the aligned right wall or its padding", () => {
+    for (const wall of ["│", "┃", "║", "╎", "┆", "┊"]) {
+      const source = [row(`│ 你好     ${wall}`), row(`│ deploy   ${wall}`), row(`│ safely   ${wall}`)]
+      const range = { anchor: { row: 0, col: 2 }, head: { row: 2, col: 7 } }
+      expect(extractSelection(source, range)).toBe("你好\n│ deploy\n│ safely")
+    }
+  })
+
+  it("keeps a lone wall glyph in ordinary text", () => {
+    const source = [row("first   │"), row("ordinary"), row("last")]
+    expect(extractSelection(source, { anchor: { row: 0, col: 0 }, head: { row: 2, col: 3 } })).toBe(
+      "first   │\nordinary\nlast",
+    )
+    expect(extractSelection(source, { anchor: { row: 0, col: 0 }, head: { row: 1, col: 7 } })).toBe(
+      "first   │\nordinary",
+    )
+  })
+
   it("keeps the empty first line when a multi-row drag anchors past a short row's text", () => {
     // Real snapshot rows are TRIMMED, not grid-padded, and the mouse column is
     // clamped to the grid width — so a drag can anchor in the blank padding
