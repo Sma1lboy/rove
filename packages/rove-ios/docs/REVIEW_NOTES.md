@@ -36,6 +36,8 @@ and you are back on the first screen.
   up). The app contacts no other server.
 - **Demo mode.** Makes no network requests at all. It answers from a file inside the app.
 - **Data.** The pairing (link and token) is kept in the iOS Keychain on the device. There are no
-  analytics and no ads. The only third-party code is SwiftTerm, an open-source terminal view.
+  analytics and no ads. The only third-party code is SwiftTerm, an open-source terminal view. The
+  terminal draws in the bundled Maple Mono NF font (SIL Open Font License 1.1, credited under
+  Settings → about; license text in `Sources/RoveMobile/Fonts/OFL.txt`).
 - **Encryption.** No cryptography of its own. Connections use the system networking stack (wss when
   the bridge sits behind Cloudflare). `ITSAppUsesNonExemptEncryption` is `false`.

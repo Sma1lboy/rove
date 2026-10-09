@@ -61,7 +61,7 @@ struct SwiftTermView: UIViewRepresentable {
     func makeUIView(context: Context) -> TerminalView {
         let tv = RoveTerminalView(frame: .zero)
         tv.terminalDelegate = context.coordinator
-        tv.font = UIFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        TerminalFont.apply(to: tv, size: 13)
         tv.inputAccessoryView = nil // the key row is a permanent SwiftUI view (KeyRow)
         TerminalPalette.apply(to: tv)
         tv.onSelectionChange = { [weak session] in session?.refreshScreenState() }
@@ -88,12 +88,12 @@ struct SwiftTermView: UIViewRepresentable {
             appliedMode = mode
             switch mode {
             case .fit:
-                tv.font = UIFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+                TerminalFont.apply(to: tv, size: 13)
             case .watch:
-                // Monospace advance ≈ 0.6 em; pick a size so 120 columns span the view width.
+                // Maple Mono's advance is 0.6 em; pick a size so 120 columns span the view width.
                 let width = max(tv.bounds.width, UIScreen.main.bounds.width)
                 let size = max(4, (width / (CGFloat(TerminalSession.watchCols) * 0.6)).rounded(.down))
-                tv.font = UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
+                TerminalFont.apply(to: tv, size: size)
             }
             tv.setNeedsLayout()
         }

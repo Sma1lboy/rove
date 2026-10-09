@@ -20,11 +20,14 @@ struct AboutView: View {
                 SettingsInfoRow(key: String(localized: "uptime"), value: uptime)
                 SettingsDivider()
                 SettingsInfoRow(key: String(localized: "tasks"), value: daemon.value?.taskCount.map(String.init) ?? "—")
+                SettingsDivider()
+                SettingsInfoRow(key: String(localized: "terminal font"), value: TerminalFont.family)
             }
             .tile()
             if case .failed(let message) = daemon { ErrorLine(text: message) }
             Hint(text: String(localized: "language follows ios settings → rove"))
             Hint(text: String(localized: "restarting the daemon, resetting ui state and plugin installs are mac-side actions — the phone talks to the daemon through the bridge and has no way back if it goes down"))
+            Hint(text: String(localized: "terminal font Maple Mono NF, copyright 2022 The Maple Mono Project Authors, under the SIL Open Font License 1.1"))
         }
         .task { await load() }
     }
