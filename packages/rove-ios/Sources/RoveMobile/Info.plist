@@ -44,6 +44,11 @@
 	<string>Rove scans the pairing QR code shown by your Mac.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Rove connects to the rove-bridge running on your Mac over the local network.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>MapleMono-NF-Regular.ttf</string>
+		<string>MapleMono-NF-Bold.ttf</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

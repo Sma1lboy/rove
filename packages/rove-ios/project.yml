@@ -59,6 +59,10 @@ targets:
           - CFBundleURLName: run.rove.mobile
             CFBundleURLSchemes:
               - rove
+        # The terminal's typeface (Terminal/TerminalFont.swift); OFL-1.1, Fonts/OFL.txt.
+        UIAppFonts:
+          - MapleMono-NF-Regular.ttf
+          - MapleMono-NF-Bold.ttf
   RoveMobileTests:
     type: bundle.unit-test
     platform: iOS

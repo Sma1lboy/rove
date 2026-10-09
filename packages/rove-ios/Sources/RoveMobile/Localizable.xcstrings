@@ -7070,6 +7070,26 @@
         }
       }
     },
+    "terminal font" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "终端字体"
+          }
+        }
+      }
+    },
+    "terminal font Maple Mono NF, copyright 2022 The Maple Mono Project Authors, under the SIL Open Font License 1.1" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "终端字体 Maple Mono NF，版权所有 2022 The Maple Mono Project Authors，以 SIL Open Font License 1.1 授权"
+          }
+        }
+      }
+    },
     "that file is over 5 MB" : {
       "localizations" : {
         "zh-Hans" : {
