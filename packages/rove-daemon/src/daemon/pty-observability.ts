@@ -13,6 +13,9 @@ export interface PtySessionInfo {
   readonly pid: number | null
   readonly command: readonly string[]
   /** Last OSC 0/2 window title the child set ("" until it sets one). */
+  readonly programStatusEvent?: import("./program-status-event").ProgramStatusEvent
+  readonly programStatus?: import("./osc-signals").ProgramStatus
+  readonly contexts?: readonly import("./osc-signals").OscContext[]
   readonly title: string
   /** Total bytes the child has EVER written (monotonic, never reduced by
    *  ring trimming) — the daemon activity observer's output heartbeat. */
@@ -36,6 +39,8 @@ export function sessionInfo(s: {
   proc: { readonly pid: number } | null
   command: readonly string[]
   title: string
+  programStatusEvent?: import("./program-status-event").ProgramStatusEvent
+  oscSignals?: import("./osc-signals").OscSignals
   totalBytes: number
   parked: boolean
   parkedScreenBytes: number
@@ -49,6 +54,9 @@ export function sessionInfo(s: {
     pid: s.proc?.pid ?? null,
     command: s.command,
     title: s.title,
+    programStatusEvent: s.programStatusEvent,
+    programStatus: s.oscSignals?.records.get(""),
+    contexts: s.oscSignals?.contexts,
     totalBytes: s.totalBytes,
     parked: s.parked,
     parkedScreenBytes: s.parkedScreenBytes,

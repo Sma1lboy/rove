@@ -59,6 +59,7 @@ interface ActivityEntry {
 
 /** A hook slot plus its lapse watchdog — the only slot that gets one. */
 interface TabHookEntry extends HookSlot {
+  programAt?: number
   lapse?: ReturnType<typeof setTimeout>
 }
 
@@ -96,7 +97,7 @@ export class DaemonActivityRegistry {
    * Stop is an automated wake to swallow) from "never heard of it" (a turn that
    * outlived a daemon restart — its ● lamp is owed).
    */
-  private readonly tabLineage = new Map<string, Map<string, TaskActivityState>>()
+  private readonly tabLineage = new Map<string, Map<string, { state: TaskActivityState; hookAt?: number }>>()
 
   constructor(
     private readonly bus: DaemonEventBus,
@@ -128,6 +129,7 @@ export class DaemonActivityRegistry {
     tabId?: string,
     session?: EngineSessionInfo,
     vendor?: string,
+    programAt?: number,
   ): void {
     const at = this.now()
     // The reduce's `previous` is PER SOURCE: reducing against the task rollup
@@ -139,9 +141,13 @@ export class DaemonActivityRegistry {
       // authoritative while the engine lives, so the gap-filler is dropped.
       const tabs = this.tabActivity.get(taskId) ?? new Map<string, TabEntry>()
       const prevTab = tabs.get(tabId)
-      const lineage = this.tabLineage.get(taskId) ?? new Map<string, TaskActivityState>()
-      const state = reduceActivity(prevTab?.effective.state ?? lineage.get(tabId), kind, detail)
-      lineage.set(tabId, state)
+      const lineage = this.tabLineage.get(taskId) ?? new Map<string, { state: TaskActivityState; hookAt?: number }>()
+      const previous = lineage.get(tabId)
+      const state =
+        programAt !== undefined && kind === "turn-complete"
+          ? "turn_complete"
+          : reduceActivity(prevTab?.effective.state ?? previous?.state, kind, detail)
+      lineage.set(tabId, { state, hookAt: programAt === undefined ? at : previous?.hookAt })
       this.tabLineage.set(taskId, lineage)
       if (prevTab?.hook?.lapse) clearTimeout(prevTab.hook.lapse)
       const tabSession = session ?? prevTab?.hook?.session
@@ -150,7 +156,14 @@ export class DaemonActivityRegistry {
         // Idle CLEARS both slots: an ended tab must not linger as a candidate.
         tabs.delete(tabId)
       } else {
-        const hook: TabHookEntry = { state, detail, at, session: tabSession, vendor: tabVendor }
+        const hook: TabHookEntry = {
+          state,
+          detail,
+          at,
+          session: tabSession,
+          vendor: tabVendor,
+          ...(programAt !== undefined ? { programAt } : {}),
+        }
         if (!STICKY_STATES.has(state)) hook.lapse = this.lapse.arm({ taskId, tabId }, at)
         tabs.set(tabId, {
           hook,
@@ -190,6 +203,32 @@ export class DaemonActivityRegistry {
     this.publishRollup(taskId)
   }
 
+  hasHookSince(taskId: string, tabId: string, at: number): boolean {
+    const hookAt = this.tabLineage.get(taskId)?.get(tabId)?.hookAt
+    const hook = this.tabActivity.get(taskId)?.get(tabId)?.hook
+    return (hookAt !== undefined && hookAt >= at) || (hook?.state === "dead" && hook.at >= at)
+  }
+
+  /** OSC records live until replaced/cleared; they do not require heartbeats. */
+  reportProgramStatus(
+    taskId: string,
+    tabId: string,
+    kind: EngineActivityKind,
+    detail?: EngineActivityDetail,
+    vendor?: string,
+    programAt = this.now(),
+  ): () => boolean {
+    this.report(taskId, kind, detail, tabId, undefined, vendor, programAt)
+    const hook = this.tabActivity.get(taskId)?.get(tabId)?.hook
+    if (hook?.lapse) {
+      clearTimeout(hook.lapse)
+      hook.lapse = undefined
+    }
+    const lineage = this.tabLineage.get(taskId)?.get(tabId)
+    return () =>
+      this.tabActivity.get(taskId)?.get(tabId)?.hook === hook && this.tabLineage.get(taskId)?.get(tabId) === lineage
+  }
+
   /** The derived task-level state, or `undefined` when nothing ever reported. */
   private rollup(taskId: string): RollupCandidate | undefined {
     return taskRollup(taskId, this.activity, this.tabActivity)
@@ -208,13 +247,13 @@ export class DaemonActivityRegistry {
   clearTab(taskId: string, tabId: string): void {
     const tabs = this.tabActivity.get(taskId)
     const entry = tabs?.get(tabId)
+    const lineage = this.tabLineage.get(taskId)
+    lineage?.delete(tabId)
+    if (lineage?.size === 0) this.tabLineage.delete(taskId)
     if (!tabs || !entry) return
     if (entry.hook?.lapse) clearTimeout(entry.hook.lapse)
     tabs.delete(tabId)
     if (tabs.size === 0) this.tabActivity.delete(taskId)
-    const lineage = this.tabLineage.get(taskId)
-    lineage?.delete(tabId)
-    if (lineage?.size === 0) this.tabLineage.delete(taskId)
     this.bus.publish("engine-state", { taskId, tabId, state: "idle", at: this.now() })
     this.publishRollup(taskId)
   }
@@ -333,7 +372,7 @@ export class DaemonActivityRegistry {
     const tabs = this.tabActivity.get(taskId) ?? new Map<string, TabEntry>()
     const prev = tabs.get(tabId)
     // A hook event after the death is a new session; don't bury it.
-    if (prev?.hook && prev.hook.at > at) return
+    if (prev?.hook && (prev.hook.programAt ?? prev.hook.at) > at) return
     if (prev?.hook?.lapse) clearTimeout(prev.hook.lapse)
     const detail: EngineActivityDetail = {
       exit: {

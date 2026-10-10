@@ -197,6 +197,7 @@ export type DaemonRequestName =
   | "pty.kill"
   | "pty.detach"
   | "pty.list"
+  | "pty.watchStatus"
   // Re-key a running session (`{from, to}` → `{renamed: boolean}`) for the
   // scratch fold; the child keeps running. Older hosts reject it, so callers
   // must check `renamed`: if false, fold only the tab record and the session
@@ -264,7 +265,7 @@ export type SubscribeRole = "gui" | "pane"
  * (v4) — also not channels: written only to attached connections, an ordered
  * byte stream (drop/replay corrupts VT state), never via the event bus.
  */
-export type DaemonEventName = ChannelName | "daemon.stopping" | "pty.data" | "pty.exit"
+export type DaemonEventName = ChannelName | "daemon.stopping" | "pty.data" | "pty.exit" | "pty.programStatus"
 
 /**
  * WHY a daemon is going away, on the `daemon.stopping` frame (v5). Clients only

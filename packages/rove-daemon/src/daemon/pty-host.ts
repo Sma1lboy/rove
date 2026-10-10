@@ -79,6 +79,7 @@ export class PtyHost {
     this.scrollbackCap = opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP
     this.childController = new PtyChildController({
       driver: opts.driver,
+      onProgramStatus: (event) => this.opts.onProgramStatus?.(event),
       scrollbackCap: this.scrollbackCap,
       onSessionStart: (spare) => {
         if (!spare) this.opts.onSessionStart?.()
@@ -295,6 +296,12 @@ export class PtyHost {
     if (!session || from === to || this.sessions.has(to)) return false
     this.sessions.delete(from)
     session.key = to
+    if (session.programStatusEvent) {
+      const previous = session.programStatusEvent
+      this.opts.onProgramStatus?.({ ...previous, revision: previous.revision + 1, at: Date.now(), status: null })
+      session.programStatusEvent = { ...previous, key: to, revision: previous.revision + 1, at: Date.now() }
+      this.opts.onProgramStatus?.(session.programStatusEvent)
+    }
     this.sessions.set(to, session)
     this.opts.freeze?.drop(from)
     this.maybeFreeze(session, true)

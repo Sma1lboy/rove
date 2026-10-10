@@ -250,6 +250,7 @@ async function startOwnedServer(
       inbox,
     },
     activity,
+    inbox,
   )
 
   resources.defer(stopCollectors)

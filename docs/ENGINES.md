@@ -251,6 +251,19 @@ Screen detection runs only for tabs attached to an open TUI. A matched
 when the dialog disappears or polling detaches. Unopened tabs still need
 hooks to report approval requests.
 
+**Programs can report their own state with OSC 7501.** Any engine (Claude Code
+2.1.295+ does) may write `ESC ] 7501 ; state=working|blocked|done|idle|error|clear
+[:msg=…] ST` into its terminal. The PTY host parses it across output chunks,
+for every hosted tab whether or not a TUI is attached, and the daemon writes it
+to the tab's activity. The sidebar badge, the attention inbox and the phone
+bridge then read the new state from there. Precedence: a hook report at the same time or later
+wins over OSC 7501, and OSC 7501 wins over screen and title inference for that
+tab; an exited engine still reads as exited. `blocked` means waiting on you
+(`kind=permission` marks an approval). `clear` or a terminal reset drops the
+claim. Statuses carrying an `id=` describe child work and do not move the badge.
+`ESC ] 7501 ; ? ST` is answered so a program can detect support. OSC 3008
+context records are parsed and kept but drive no UI yet.
+
 **Pi and OMP differ from each other on waiting.** They share one adapter and
 one hook file — OMP is Stencil Labs' fork of the pi coding agent, so both
 load a TypeScript extension from `<agent dir>/extensions/` and dispatch the

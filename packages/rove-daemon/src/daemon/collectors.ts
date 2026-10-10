@@ -3,6 +3,9 @@
  * WHEN they run; each collector's mechanics live in its own module.
  */
 
+import { programStatusActivity } from "./program-status-activity"
+import { watchProgramStatus } from "./program-status-watch"
+
 import type { DaemonRpcClient } from "../client/rpc.ts"
 import { createActivityObserverIo } from "./activity-observer-io.ts"
 import { startActivityObserver } from "./activity-observer.ts"
@@ -129,7 +132,12 @@ export function startDaemonCollectors(
   /** Enables the activity observer (PTY heartbeat, foreground-walk
    *  reconciler, restart seeding). Always passed by the real server. */
   activity?: DaemonActivityRegistry,
+  inbox?: Pick<import("./attention-inbox").AttentionInboxStore, "record" | "deleteEpisode">,
 ): () => Promise<void> {
+  const receiveStatus = activity ? programStatusActivity(activity, (id) => !!orch.getTask(id), inbox) : undefined
+  const stopStatusWatch = receiveStatus
+    ? watchProgramStatus(receiveStatus, { homeDir: options.homeDir })
+    : async () => {}
   // First tick immediately (restart seeding), then the slow poll.
   const stopActivityObserver = activity
     ? startActivityObserver(
@@ -137,6 +145,7 @@ export function startDaemonCollectors(
         {
           ...createActivityObserverIo(options.homeDir, runtime, activity),
           onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
+          onProgramStatusEvent: receiveStatus,
         },
         () => hasSubscribersFor("engine-state"),
       )
@@ -258,6 +267,7 @@ export function startDaemonCollectors(
     await Promise.allSettled(
       [
         stopActivityObserver,
+        stopStatusWatch,
         stopAutoTitlePoller,
         stopPrStatusPoller,
         stopQuotaResumeRunner,
