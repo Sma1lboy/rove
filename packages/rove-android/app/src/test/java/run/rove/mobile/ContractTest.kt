@@ -73,6 +73,15 @@ class ContractTest {
         val content = wireJson.decodeFromJsonElement<DiffContent>(fixture.answer("diff.file", args("taskId" to "T-WAIT", "path" to file.path, "scope" to file.scope)))
         assertTrue(content.text!!.contains("diff --git"))
     }
+    @Test fun equalDemoAgesTieSoBoardOrderMatchesIos() {
+        var clock = java.time.Instant.parse("2026-10-09T12:00:00.100Z")
+        val fixture = DemoFixture("""{"x":{"x":[{"a":{"${'$'}ago_min":2880}},{"a":{"${'$'}ago_min":2880}}]}}""") {
+            clock.also { clock = clock.plusMillis(7) }
+        }
+        val stamps = fixture.answer("x").getValue("x").jsonArray.map { it.jsonObject.getValue("a").jsonPrimitive.content }
+        assertEquals("2026-10-07T12:00:00Z", stamps[0])
+        assertEquals(stamps[0], stamps[1])
+    }
     @Test fun reconnectDelayCapsAndAuthorizationStopsRetrying() {
         assertEquals(listOf(500L, 1000L, 2000L, 4000L, 8000L, 16000L, 30000L, 30000L), (0..7).map(Reconnect::delayMs))
         assertFalse(Reconnect.retryable(401)); assertFalse(Reconnect.retryable(403))
