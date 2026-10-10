@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.246
+
+### Patch Changes
+
+- [#1233](https://github.com/Sma1lboy/rove/pull/1233) [`14deb3b`](https://github.com/Sma1lboy/rove/commit/14deb3b28dbee3b6c61c783f7c00245f7fb95d70) Routines can pin the model and reasoning effort every run launches with: `rove api routine-create --model M --effort LEVEL`, and `routine-update --model '' --effort ''` clears them. Pins are checked when you save against `--vendor`, else the repo's default engine, else the built-in default, and the routine stores that vendor so its runs launch the same engine the pins were checked against.
+
+  Routines with a standing task reject changes to vendor, model and effort with instructions to disable the routine and create a replacement, preventing silent reuse of old launch settings. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.245
 
 ### Patch Changes
