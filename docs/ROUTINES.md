@@ -96,6 +96,14 @@ engine. Changing `--vendor` also checks any retained pins against the new engine
 replace or clear incompatible pins in the same update. Clearing `--vendor`
 checks the resulting pins against the routine repo's default engine.
 
+Once a persistent routine has a standing task, updates cannot add, change or
+clear its vendor, model or effort. This applies while the engine is live and
+after it exits, and while the routine retains that task link in fresh mode.
+Disable the routine with `routine-update --id ID --enabled false`, then create
+a replacement with the desired pins. Repeating unchanged pins and editing
+other fields remain supported. Binding to an existing tab clears the standing
+link and uses that tab's engine settings.
+
 `--precheck-timeout` only means something alongside `--precheck`; on its own it
 is refused rather than quietly ignored. To change just the timeout, pass the
 command again.

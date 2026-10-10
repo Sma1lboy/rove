@@ -994,6 +994,9 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-update --id ID [...]`: change any field; `--enabled true|false` pauses / resumes. A new `--schedule`
   re-anchors the next run; `--precheck ''` clears the precheck, `--model ''` / `--effort ''` clear those pins. Omitted target flags
   preserve the binding; `--target-task '' --target-tab ''` sends `target: null` to clear it.
+  While a routine retains a standing task, vendor/model/effort changes and clears
+  are rejected even if its engine has exited. Disable it and create a replacement
+  with the desired pins. Unchanged pins and other field updates remain supported.
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
 - `routine-respond --run RUN_ID (--text T | --prompt-file PATH|-)`: store the
