@@ -44,7 +44,7 @@ import run.rove.mobile.data.Connection
                     }, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.error)
                     TextButton(onClick = { model.unpair(); selected = null }) { Text("pair again") }
                 }
-                if (selected == null) TaskListScreen(tasks, onSelect = { selected = it }, onRefresh = model::refresh,
+                if (selected == null) TaskListScreen(tasks, demo, onSelect = { selected = it }, onRefresh = model::refresh,
                     onCreate = { create = true }, onDisconnect = { model.unpair() }, onNotify = notificationPermission)
                 else TaskDetailScreen(model, selected!!, { selected = null })
             }

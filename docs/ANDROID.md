@@ -85,6 +85,8 @@ Known gaps:
 - If interrupted, it leaves the emulator rotated (`user_rotation`).
 - It never sees screens that need a live bridge: real pairing errors, the reconnect banner, a terminal that has exited, and confirmed land/delete.
 - It skips land and delete on purpose.
+- In the 5ab7de529 run, every `landscape/` frame was 1080×2400 (portrait): the rotation did not take effect before capture.
+- The crash log can hold `uiautomator`'s own crash (`registerUiTestAutomationService` NPE). That is the crawler, not the app; check the process before blaming the APK.
 
 ## Device checks still required on allen
 

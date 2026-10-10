@@ -24,7 +24,8 @@ private fun quill(dark: Boolean, paper: Long, surface: Long, inset: Long, line: 
     return base.copy(
         primary = Color(accent), onPrimary = Color(paper), primaryContainer = accentSoft, onPrimaryContainer = Color(ink),
         secondary = Color(muted), onSecondary = Color(paper), secondaryContainer = accentSoft, onSecondaryContainer = Color(ink),
-        tertiary = Color(accent), onTertiary = Color(paper), tertiaryContainer = accentSoft, onTertiaryContainer = Color(ink),
+        // tertiary carries iOS `Theme.success` (the `landing` group tone).
+        tertiary = Color(if (dark) 0xff9aca86 else 0xff5f8c49), onTertiary = Color(paper), tertiaryContainer = accentSoft, onTertiaryContainer = Color(ink),
         background = Color(paper), onBackground = Color(ink), surface = Color(surface), onSurface = Color(ink),
         surfaceVariant = Color(inset), onSurfaceVariant = Color(muted), surfaceTint = Color.Transparent,
         surfaceBright = Color(surface), surfaceDim = Color(paper),
