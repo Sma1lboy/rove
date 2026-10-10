@@ -1,6 +1,7 @@
 package run.rove.mobile.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,7 +22,9 @@ import run.rove.mobile.data.Connection
     var create by remember { mutableStateOf(false) }
     BackHandler(selected != null) { selected = null }
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
+        // A focusable root absorbs the initial focus Compose grants in non-touch mode (after any key
+        // event), so launching never lands on the pairing field and raises the keyboard.
+        Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().focusable()) {
             if (demo) {
                 Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {

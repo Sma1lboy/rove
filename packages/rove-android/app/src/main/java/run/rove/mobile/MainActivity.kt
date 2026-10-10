@@ -1,6 +1,7 @@
 package run.rove.mobile
 
 import android.Manifest
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -24,7 +25,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        // Release builds hide terminal contents from screenshots and recents; debug builds stay capturable for allen's screenshot crawl.
+        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         pairingUrl = intent?.dataString.orEmpty()
         setContent {
             RoveTheme {
