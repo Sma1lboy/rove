@@ -16,6 +16,7 @@ class AppModel(application: Application) : AndroidViewModel(application) {
     val tasks = MutableStateFlow(Tasks())
     val engines = MutableStateFlow<List<Engine>>(emptyList())
     val repos = MutableStateFlow<List<String>>(emptyList())
+    val host = MutableStateFlow("")
     val error = MutableStateFlow<String?>(null)
     val demo = MutableStateFlow(false)
     val paired = MutableStateFlow(false)
@@ -37,6 +38,7 @@ class AppModel(application: Application) : AndroidViewModel(application) {
                         snapshot(repository.subscribeTasks())
                         engines.value = repository.engines()
                         repos.value = repository.repos()
+                        host.value = repository.host()
                     } catch (e: CancellationException) { throw e }
                     catch (_: Exception) { error.value = "Could not load the bridge. Reconnect to retry." }
                 } else previous = null
@@ -74,7 +76,7 @@ class AppModel(application: Application) : AndroidViewModel(application) {
         bridge.disconnect()
         if (!demo.value) runCatching { credentials.clear() }.onFailure { error.value = "Could not clear saved pairing" }
         paired.value = false; demo.value = false; previous = null
-        tasks.value = Tasks(); engines.value = emptyList(); repos.value = emptyList()
+        tasks.value = Tasks(); engines.value = emptyList(); repos.value = emptyList(); host.value = ""
     }
     fun refresh() = action { snapshot(repository.listTasks()) }
     fun action(block: suspend () -> Unit): Job = viewModelScope.launch {

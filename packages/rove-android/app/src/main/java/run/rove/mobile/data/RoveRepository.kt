@@ -7,6 +7,7 @@ import run.rove.mobile.domain.*
 class RoveRepository(val bridge: BridgeClient) {
     fun tasksPush(event: Frame.Event): Tasks? =
         if (event.name == "tasks") wireJson.decodeFromJsonElement(event.data) else null
+    suspend fun host(): String = bridge.request("hello")["host"]?.jsonPrimitive?.content.orEmpty()
     suspend fun subscribeTasks(): Tasks = wireJson.decodeFromJsonElement(bridge.request("tasks.subscribe"))
     suspend fun listTasks(): Tasks = wireJson.decodeFromJsonElement(bridge.request("tasks.list"))
     suspend fun engines(): List<Engine> = wireJson.decodeFromJsonElement<Engines>(bridge.request("engines.list")).engines

@@ -14,10 +14,26 @@ data class TaskRow(
     val pinned: Boolean = false,
     val deleting: Boolean = false,
     val engine: EngineLabel? = null,
+    val status: String = "",
+    val activity: TaskActivity? = null,
+    val pr: TaskPR? = null,
+    val order: Int? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
+    val changes: TaskChanges? = null,
+    val prChip: String? = null,
+    val prChipStale: Boolean = false,
 ) {
     val displayTitle get() = title.ifEmpty { branch.ifEmpty { id } }
+    val repoName get() = repo.trimEnd('/').substringAfterLast('/')
 }
 @Serializable data class EngineLabel(val id: String? = null, val name: String)
+@Serializable data class TaskActivity(val state: String, val forMs: Double = 0.0)
+@Serializable data class TaskPR(val number: Int? = null, val url: String? = null, val lifecycle: String = "",
+                                val checkState: String = "", val reviewDecision: String? = null, val mergeable: String? = null)
+/** `unreadable` = tracked, but git failed on the Mac. */
+@Serializable data class TaskChanges(val added: Int? = null, val deleted: Int? = null, val ahead: Int? = null,
+                                     val behind: Int? = null, val unreadable: Boolean? = null)
 @Serializable data class Engine(val id: String, val name: String)
 @Serializable data class Attention(val taskId: String? = null, val unread: Boolean = false)
 @Serializable data class Tasks(val tasks: List<TaskRow> = emptyList(), val attention: List<Attention> = emptyList())
