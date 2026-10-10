@@ -149,17 +149,6 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       if (!current) throw new Error(`automation not found: ${id}`)
       const targetOptions = mergeAutomationTargetOptions(current, patch)
       assertAutomationTargetOptions(targetOptions)
-      if (
-        current.sessionTaskId &&
-        targetOptions.sessionTaskId &&
-        (targetOptions.model !== current.model ||
-          targetOptions.modelEffort !== current.modelEffort ||
-          targetOptions.vendor !== current.vendor)
-      ) {
-        throw new Error(
-          "cannot change vendor, model or effort while a routine retains its standing task; disable this routine and create a replacement with the desired pins",
-        )
-      }
       // A stale target must remain pausable, clearable and repairable.
       if (patch.target) await assertAutomationTargetTask({ repo: current.repo, target: patch.target }, ctx.orch)
       const automation = await ctx.automations.update(id, patch)

@@ -94,4 +94,80 @@ describe("standing routine pin updates through daemon RPC", () => {
       await h.close()
     }
   })
+
+  it("does not adopt a first-firing task whose pins were replaced while it was being created", async () => {
+    const created: DaemonTask[] = []
+    let releaseCreate = (): void => {}
+    let createStarted = (): void => {}
+    const creating = new Promise<void>((resolve) => {
+      createStarted = resolve
+    })
+    const launches: (readonly string[])[] = []
+    const h = await bootDaemonHarness({
+      orchestrator: fakeOrchestrator({
+        createTask: async (input: Partial<DaemonTask>) => {
+          const task: DaemonTask = {
+            title: "audit",
+            branch: `routine/audit-${created.length}`,
+            status: "in_progress",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            ...input,
+            id: `task-${created.length}`,
+            repo: REPO,
+            worktreePath: REPO,
+          }
+          created.push(task)
+          if (created.length === 1) {
+            createStarted()
+            await new Promise<void>((resolve) => {
+              releaseCreate = resolve
+            })
+          }
+          return task
+        },
+        getTask: (id: string) => created.find((t) => t.id === id),
+      }),
+      server: {
+        runtime: {
+          ...daemonRuntime,
+          startTaskSessionWithPrompt: async (_link: unknown, taskId: string) => {
+            const task = created.find((t) => t.id === taskId)
+            if (!task) throw new Error(`missing task ${taskId}`)
+            launches.push(engineLaunchArgv({ vendor: task.vendor, model: task.model, effort: task.modelEffort }))
+            return { started: true }
+          },
+          deliverPromptToLiveEngineDetailed: async () => ({ outcome: "no-session" }),
+        },
+      },
+    })
+    try {
+      const c = h.client()
+      const { automation: a } = await c.request<{ automation: Automation }>("automation.create", {
+        name: "audit",
+        repo: REPO,
+        prompt: "audit",
+        schedule: "0 9 * * *",
+        enabled: false,
+        persistentSession: true,
+        vendor: "codex",
+        model: "gpt-5.5",
+        effort: "low",
+      })
+      const first = c.request("automation.runNow", { id: a.id })
+      await creating
+      const next = { vendor: "claude", model: "sonnet", effort: "high" }
+      await c.request("automation.update", { id: a.id, ...next })
+      releaseCreate()
+      expect(await first).toEqual({ status: "skipped_cancelled" })
+      const { automations } = await c.request<{ automations: Automation[] }>("automation.list", {})
+      expect(automations.find((x) => x.id === a.id)?.sessionTaskId).toBeUndefined()
+
+      expect(await c.request("automation.runNow", { id: a.id })).toEqual({ status: "dispatched" })
+      expect(created).toHaveLength(2)
+      expect(launches).toEqual([engineLaunchArgv({ vendor: "claude", model: "sonnet", effort: "high" })])
+    } finally {
+      await h.close()
+    }
+  })
 })

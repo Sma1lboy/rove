@@ -302,9 +302,14 @@ export async function runAutomationOnce(
   // between the two costs one run record, while the reverse would leave the
   // routine building a second standing task on its next firing.
   if (outcome.sessionTaskIdToSet) {
-    await deps.store
-      .update(automation.id, { sessionTaskId: outcome.sessionTaskIdToSet })
-      .catch((err) => logDaemonError("automation-session-link", err))
+    // The task launched with `automation`'s pins; adopted only if they still stand.
+    const linked = await deps.store
+      .linkSessionTask(automation.id, outcome.sessionTaskIdToSet, automation)
+      .catch((err) => {
+        logDaemonError("automation-session-link", err)
+        return true
+      })
+    if (!linked) logDaemonInfo("automation", `${automation.name}: not adopting ${outcome.sessionTaskIdToSet}`)
   } else if (outcome.sessionTaskIdToClear) {
     await deps.store
       .update(automation.id, { sessionTaskId: null })

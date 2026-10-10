@@ -184,6 +184,12 @@ export function pruneRuns(
   return runs.filter((run) => kept.has(run.id))
 }
 
+type Pins = Pick<Automation, "vendor" | "model" | "modelEffort">
+
+function samePins(a: Pins, b: Pins): boolean {
+  return a.vendor === b.vendor && a.model === b.model && a.modelEffort === b.modelEffort
+}
+
 export class AutomationsStore {
   private automations: Automation[] = []
   private runs: AutomationRun[] = []
@@ -253,6 +259,12 @@ export class AutomationsStore {
       const current = this.automations[index] as Automation
       const targetOptions = mergeAutomationTargetOptions(current, patch)
       assertAutomationTargetOptions(targetOptions)
+      // Checked inside the queue so it orders against `linkSessionTask`.
+      if (current.sessionTaskId && targetOptions.sessionTaskId && !samePins(current, targetOptions)) {
+        throw new Error(
+          "cannot change vendor, model or effort while a routine retains its standing task; disable this routine and create a replacement with the desired pins",
+        )
+      }
       const nowMs = this.now()
       const schedule = patch.schedule ?? current.schedule
       // A paused routine's nextRunAt froze when it was paused (the sweep skips
@@ -279,6 +291,25 @@ export class AutomationsStore {
       this.automations = this.automations.map((a, i) => (i === index ? next : a))
       await this.commit()
       return next
+    })
+  }
+
+  /** Adopt a just-created standing task, unless the pins it launched with were
+   *  replaced while it was being created. False when not adopted. */
+  async linkSessionTask(
+    id: string,
+    taskId: string,
+    launchedWith: Pick<Automation, "vendor" | "model" | "modelEffort">,
+  ): Promise<boolean> {
+    return await this.enqueue(async () => {
+      const index = this.automations.findIndex((a) => a.id === id)
+      if (index === -1) return false
+      const current = this.automations[index] as Automation
+      if (!samePins(current, launchedWith)) return false
+      const next: Automation = { ...current, sessionTaskId: taskId, updatedAt: new Date(this.now()).toISOString() }
+      this.automations = this.automations.map((a, i) => (i === index ? next : a))
+      await this.commit()
+      return true
     })
   }
 
