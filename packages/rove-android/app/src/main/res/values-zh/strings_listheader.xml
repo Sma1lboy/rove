@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="listheader_attention_a11y">待处理，%1$d 条未读</string>
+    <string name="listheader_filter_a11y">按项目筛选</string>
+    <string name="listheader_all_projects">全部项目</string>
+    <string name="listheader_search_a11y">搜索</string>
+    <string name="listheader_search_placeholder">搜索标题、仓库、分支、tab</string>
+    <string name="listheader_search_clear">清除搜索</string>
+    <string name="listheader_sort_a11y">排序：%1$s</string>
+    <string name="listheader_sort_attention">待处理</string>
+    <string name="listheader_sort_default">默认</string>
+    <string name="listheader_sort_recent">最近</string>
+    <string name="listheader_sort_name">名称</string>
+    <string name="listheader_pages_a11y">页面</string>
+    <string name="listheader_page_board">看板</string>
+    <string name="listheader_page_routines">例行任务</string>
+    <string name="listheader_page_issues">GitHub 议题</string>
+    <string name="listheader_page_worktrees">工作树</string>
+    <string name="listheader_settings_a11y">设置</string>
+    <string name="listheader_no_matches">无匹配</string>
+    <string name="listheader_no_matches_filter">此项目没有任务，请清除上方筛选</string>
+    <string name="listheader_no_matches_search">没有匹配“%1$s”的内容，请清除搜索</string>
+    <string name="listheader_engines">引擎</string>
+    <string name="listheader_cancel">取消</string>
+
+    <string name="listheader_project_actions">项目操作</string>
+    <string name="listheader_order_section">顺序（默认排序）</string>
+    <string name="listheader_move_up">项目上移</string>
+    <string name="listheader_move_down">项目下移</string>
+    <string name="listheader_move_top">项目移到顶部</string>
+    <string name="listheader_field_notes_item">现场笔记</string>
+    <string name="listheader_remove_project">移除项目</string>
+    <string name="listheader_forget_dialog_title">移除这个项目？</string>
+    <string name="listheader_forget_dialog_message">Rove 不再列出它。仓库及其任务仍保留在磁盘上。</string>
+    <string name="listheader_forget_dialog_button">忘记…</string>
+    <string name="listheader_forget_title">忘记这个项目？</string>
+    <string name="listheader_forget_kicker">忘记项目</string>
+    <string name="listheader_forget_body">Rove 不再跟踪这个项目。仓库及其任务仍保留在磁盘上，再次添加该文件夹即可恢复。</string>
+    <string name="listheader_forget_confirm">忘记项目</string>
+
+    <string name="listheader_notes_title">现场笔记</string>
+    <string name="listheader_notes_empty">暂无现场笔记</string>
+    <string name="listheader_notes_empty_detail">worker 在了解仓库的过程中会把笔记留在这里</string>
+    <string name="listheader_notes_hint">最新的笔记会交给此仓库的每个新会话，请删除已失效的笔记。</string>
+    <string name="listheader_notes_delete">删除</string>
+    <string name="listheader_note_delete_title">删除这条笔记？</string>
+    <string name="listheader_note_delete_kicker">现场笔记 #%1$d</string>
+    <string name="listheader_note_delete_confirm">删除笔记</string>
+    <string name="listheader_note_delete_hint">此仓库的新会话将不再收到它。此操作无法撤销。</string>
+</resources>

@@ -3,6 +3,7 @@
     <string name="detail_loading">loading task</string>
     <string name="detail_more">More</string>
     <string name="detail_menu_delete">delete task</string>
+    <string name="detail_menu_history">Engine history</string>
     <string name="detail_menu_refresh">refresh tabs</string>
     <string name="detail_fit">fit</string>
     <string name="detail_watch">watch</string>

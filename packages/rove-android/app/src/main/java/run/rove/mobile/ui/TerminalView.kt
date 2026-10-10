@@ -17,6 +17,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
+import run.rove.mobile.data.AttachmentLogic
+import run.rove.mobile.data.putAttachment
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -70,11 +72,13 @@ private const val ATTACHING = "connecting"
         else session.input(text)
         ctrl = false
     }
+    // References pasted since the last reply: `images[0]`, `images[1]`… restart with the next message (iOS `attachmentCount`).
+    var attachments by remember(session) { mutableIntStateOf(0) }
     // Text, then Enter after a pause: engine TUIs read text+CR in one burst as a paste and insert a newline.
     val reply: (String) -> Boolean = { text ->
         val message = PasteEncoding.message(text)
         (message.isNotEmpty() && session.input(message)).also { sent ->
-            if (sent) scope.launch { delay(150); session.input("\r") }
+            if (sent) { attachments = 0; scope.launch { delay(150); session.input("\r") } }
         }
     }
     LaunchedEffect(session, fit) { session.setFit(fit) }
@@ -124,7 +128,10 @@ private const val ATTACHING = "connecting"
                 }
             },
             onReply = { reply(it) }, onDone = if (WindowInsets.isImeVisible) ({ keyboard?.hide() }) else null)
-        Composer(engineName, reply)
+        Composer(engineName, reply) { prepared ->
+            val put = model.repository.putAttachment(prepared.mime, prepared.data)
+            if (session.input(PasteEncoding.paste(AttachmentLogic.ref(put.path, attachments)))) attachments++
+        }
     }
 }
 

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="issues_title">github issues</string>
+    <string name="issues_refresh">Refresh issues</string>
+    <string name="issues_all">all</string>
+    <string name="issues_mine">assigned to me</string>
+    <string name="issues_no_repos">no repos</string>
+    <string name="issues_no_repos_detail">add a project on the mac first</string>
+    <string name="issues_empty">no issues</string>
+    <string name="issues_empty_detail">nothing open for this filter</string>
+    <string name="issues_loading">loading</string>
+    <string name="issues_retry">retry</string>
+    <string name="issues_task">task</string>
+    <string name="issues_opens_task">opens task</string>
+    <string name="issues_ago">%1$s ago</string>
+    <string name="issues_hint_no_remote">this repo has no github remote</string>
+    <string name="issues_hint_gh_missing">install the gh cli on the mac</string>
+    <string name="issues_hint_auth">run gh auth login on the mac</string>
+    <string name="issues_start">start task</string>
+    <string name="issues_engine">engine</string>
+    <string name="issues_default_engine">default engine</string>
+    <string name="issues_start_note">The issue body becomes the first prompt, marked as an untrusted report. Nothing is written back to GitHub.</string>
+    <string name="issues_start_failed">Could not start the task</string>
+</resources>

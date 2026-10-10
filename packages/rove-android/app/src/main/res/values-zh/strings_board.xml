@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="board_header">看板</string>
+    <string name="board_need_you">%1$d 张等你处理</string>
+    <string name="board_new_story_a11y">新建 story</string>
+    <string name="board_no_projects">没有项目</string>
+    <string name="board_no_projects_hint">保存一个项目或打开一个任务，它的 story 会显示在这里</string>
+    <string name="board_loading">加载中…</string>
+    <string name="board_dismiss">点按关闭</string>
+    <string name="board_no_stories">没有 story</string>
+    <string name="board_no_stories_hint">点 + 新建一个</string>
+    <plurals name="board_skipped">
+        <item quantity="other">已跳过 %1$d 条无法读取的记录，看板可能不完整</item>
+    </plurals>
+    <string name="board_column_backlog">待办</string>
+    <string name="board_column_in_progress">进行中</string>
+    <string name="board_column_parked">搁置</string>
+    <string name="board_column_done">已完成</string>
+    <string name="board_empty_backlog">待办为空</string>
+    <string name="board_empty_backlog_hint">点 + 新建 story</string>
+    <string name="board_empty_in_progress">没有进行中的任务</string>
+    <string name="board_empty_in_progress_hint">从卡片启动会话</string>
+    <string name="board_empty_parked">没有搁置项</string>
+    <string name="board_empty_parked_hint">把 story 设为 hold 即可搁置</string>
+    <string name="board_empty_done">还没有已完成项</string>
+    <string name="board_empty_done_hint">把 story 设为 done 即可关闭</string>
+    <string name="board_more">还有 %1$d 条</string>
+    <string name="board_linked">已关联</string>
+    <string name="board_started_notice">已在后台启动 #%1$d</string>
+    <string name="board_request_failed">请求失败，重试前请先确认结果。</string>
+
+    <string name="board_new_story">新建 story</string>
+    <string name="board_file_story">创建 story</string>
+    <string name="board_field_title">标题</string>
+    <string name="board_title_placeholder">要做什么</string>
+    <string name="board_field_description">描述</string>
+    <string name="board_description_optional">可选，几行说明做什么、为什么</string>
+    <string name="board_new_hint">Story 从待办开始。时机到了再从中启动会话。</string>
+
+    <string name="board_story_title">story #%1$d</string>
+    <string name="board_save">保存</string>
+    <string name="board_description_placeholder">几行说明做什么、为什么</string>
+    <string name="board_field_status">状态</string>
+    <string name="board_field_task">任务</string>
+    <string name="board_linked_task">关联任务</string>
+    <string name="board_not_in_list">不在任务列表中</string>
+    <string name="board_waiting_list">等待任务列表</string>
+    <string name="board_open_task">打开任务</string>
+    <string name="board_events">事件</string>
+    <string name="board_no_events">没有事件记录</string>
+    <string name="board_no_events_hint">守护进程重启后会丢失这些事件</string>
+    <string name="board_start_another">再启动一个会话</string>
+    <string name="board_start_session">启动会话</string>
+    <string name="board_delete_story">删除 story</string>
+    <string name="board_record_only">仅删除记录</string>
+    <string name="board_title_empty">标题为空</string>
+    <string name="board_delete_title">删除这个 story？</string>
+    <string name="board_delete_body">只移除 story 记录。已关联的任务、分支和 worktree 不受影响。</string>
+
+    <string name="board_field_engine">引擎</string>
+    <string name="board_field_where">位置</string>
+    <string name="board_field_after">启动后</string>
+    <string name="board_where_worktree">worktree</string>
+    <string name="board_where_project">项目</string>
+    <string name="board_where_worktree_hint">该 story 独立的 worktree 和分支</string>
+    <string name="board_where_project_hint">在项目主目录新开标签页，不建 worktree</string>
+    <string name="board_after_follow">跟随</string>
+    <string name="board_after_stay">留在看板</string>
+    <string name="board_after_follow_hint">启动后立即打开会话</string>
+    <string name="board_after_stay_hint">运行期间回到看板</string>
+    <string name="board_no_engines">未找到引擎，由守护进程选用默认引擎</string>
+    <string name="board_unsaved_hint">story 中未保存的改动会先保存。</string>
+    <string name="board_warn_link">无法把 #%1$d 关联到它的任务：%2$s</string>
+    <string name="board_warn_mark">无法把 #%1$d 标记为进行中：%2$s</string>
+</resources>

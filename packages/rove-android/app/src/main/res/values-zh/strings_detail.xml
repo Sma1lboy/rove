@@ -3,6 +3,7 @@
     <string name="detail_loading">加载任务中…</string>
     <string name="detail_more">更多</string>
     <string name="detail_menu_delete">删除任务</string>
+    <string name="detail_menu_history">引擎历史</string>
     <string name="detail_menu_refresh">刷新标签页</string>
     <string name="detail_fit">适配</string>
     <string name="detail_watch">观看</string>

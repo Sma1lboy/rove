@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
@@ -53,6 +55,15 @@ import java.util.Locale
     var newTab by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
     var diff by remember(taskId) { mutableStateOf(false) }
+    var history by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    // iOS `select(tab)`: showing a tab records a visit and clears its pending attention.
+    LaunchedEffect(taskId, selected) {
+        val tab = selected ?: return@LaunchedEffect
+        InboxVisits(context).record(taskId, tab)
+        model.tasks.value.attention.filter { it.taskId == taskId && (it.tabId == null || it.tabId == tab) }
+            .forEach { runCatching { model.repository.dismissAttention(taskId, it.tabId) } }
+    }
     var action by remember { mutableStateOf<String?>(null) }
     var confirmation by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
@@ -86,7 +97,7 @@ import java.util.Locale
                     Box(Modifier.size(40.dp, 36.dp).pressable { menu = true }.semantics { contentDescription = more }, contentAlignment = Alignment.Center) {
                         Text("···", color = Rove.c.ink, style = Rove.mono(18, FontWeight.Medium), maxLines = 1)
                     }
-                    MoreMenu(menu, { menu = false }, connected,
+                    MoreMenu(menu, { menu = false }, connected, onHistory = { history = true },
                         onDelete = { action = "delete"; confirmation = 1 }, onRefresh = { revision++ })
                 }
             }) {
@@ -106,6 +117,7 @@ import java.util.Locale
         else if (tabs != null) NoTabState(tabs.orEmpty().isEmpty()) { newTab = true }
     }
     if (newTab) CreateSheet(model, taskId, { newTab = false }, { newTab = false; selected = it; revision++ })
+    if (history) TaskHistorySheet(model, taskId) { history = false }
     if (action != null) ConfirmDialog(action!!, confirmation, busy, task, onDismiss = { if (!busy) action = null }) {
         if (confirmation == 1) confirmation = 2
         else if (!busy) {
@@ -123,9 +135,14 @@ import java.util.Locale
 
 private data class DiffStat(val files: Int, val added: Int, val deleted: Int)
 
-@Composable private fun MoreMenu(open: Boolean, dismiss: () -> Unit, connected: Boolean, onDelete: () -> Unit, onRefresh: () -> Unit) {
+@Composable private fun MoreMenu(open: Boolean, dismiss: () -> Unit, connected: Boolean, onHistory: () -> Unit,
+                                 onDelete: () -> Unit, onRefresh: () -> Unit) {
     DropdownMenu(open, dismiss, containerColor = Rove.c.surface, shape = RoundedCornerShape(Rove.radius), tonalElevation = 0.dp,
         shadowElevation = 4.dp, border = BorderStroke(1.dp, Rove.c.line)) {
+        DropdownMenuItem(onClick = { dismiss(); onHistory() }, text = {
+            Text(stringResource(R.string.detail_menu_history), color = Rove.c.ink, style = Rove.mono(14, FontWeight.Medium))
+        })
+        HorizontalDivider(color = Rove.c.line)
         DropdownMenuItem(enabled = connected, onClick = { dismiss(); onDelete() }, text = {
             Text(stringResource(R.string.detail_menu_delete), color = Rove.c.error, style = Rove.mono(14, FontWeight.Medium))
         })

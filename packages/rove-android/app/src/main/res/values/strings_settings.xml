@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">settings</string>
+    <string name="settings_bridge">bridge</string>
+    <string name="settings_usage">usage</string>
+    <string name="settings_engines">engines</string>
+    <string name="settings_plugins">plugins</string>
+    <string name="settings_notifications">notifications</string>
+    <string name="settings_on">on</string>
+    <string name="settings_off">off</string>
+    <string name="settings_worktrees">worktrees</string>
+    <string name="settings_activity">activity</string>
+    <string name="settings_feedback">feedback</string>
+    <string name="settings_about">about</string>
+    <string name="settings_engines_on">%1$d of %2$d on</string>
+    <string name="settings_plugins_on">%1$d on</string>
+
+    <string name="settings_daemon">daemon</string>
+    <string name="settings_daemon_stale">daemon out of date</string>
+    <string name="settings_daemon_stale_body">the daemon on your mac runs v%1$s, this app\'s bridge runs v%2$s. restart it on the mac:</string>
+    <string name="settings_copy">copy</string>
+    <string name="settings_copied">copied</string>
+    <string name="settings_ago">%1$s ago</string>
+
+    <string name="settings_bridge_kicker">settings · bridge</string>
+    <string name="settings_bridge_title">this phone\'s bridge</string>
+    <string name="settings_bridge_intro">Start rove-bridge on your Mac, then scan the QR code it shows or paste the link it prints.</string>
+    <string name="settings_connection">connection</string>
+    <string name="settings_status">status</string>
+    <string name="settings_disconnect">disconnect</string>
+    <string name="settings_forget">forget pairing</string>
+    <string name="settings_forget_title">forget this pairing?</string>
+    <string name="settings_forget_prose">Removes the saved pairing from this phone. To reconnect you will have to scan or paste the pairing link again.</string>
+    <string name="settings_state_connected">connected</string>
+    <string name="settings_state_connecting">connecting</string>
+    <string name="settings_state_reconnecting">reconnecting · try %1$d</string>
+    <string name="settings_state_offline">offline</string>
+    <string name="settings_state_failed">failed</string>
+
+    <string name="settings_usage_none_yet">no usage yet</string>
+    <string name="settings_usage_none_yet_detail">engines report quota once they have run</string>
+    <string name="settings_usage_no_quota">no quota data</string>
+    <string name="settings_usage_no_quota_detail">none of your engines report a quota</string>
+
+    <string name="settings_banners">banners</string>
+    <string name="settings_banners_hint">banners when a task needs you or finishes. only on this phone.</string>
+    <string name="settings_permission_denied">android notifications are off for rove</string>
+    <string name="settings_permission_prompt">android has not asked about notifications yet</string>
+    <string name="settings_open_settings">open android settings</string>
+    <string name="settings_allow">allow</string>
+
+    <string name="settings_activity_no_repos">no repos</string>
+    <string name="settings_activity_no_repos_detail">add a repo on the mac to see its activity</string>
+    <string name="settings_repo">repo</string>
+    <string name="settings_window">window</string>
+    <string name="settings_digest">digest</string>
+    <string name="settings_tasks_touched">tasks touched</string>
+    <string name="settings_routine_runs">routine runs</string>
+    <string name="settings_turns">turns</string>
+    <string name="settings_turns_none">no turns recorded</string>
+    <string name="settings_turns_none_detail">only some engines report per-turn telemetry</string>
+    <string name="settings_latest">latest</string>
+    <string name="settings_input">input</string>
+    <string name="settings_output">output</string>
+    <string name="settings_cache">cache</string>
+    <string name="settings_time">time</string>
+    <string name="settings_unknown_model">unknown model</string>
+
+    <string name="settings_feedback_title">title</string>
+    <string name="settings_feedback_title_placeholder">what is this about</string>
+    <string name="settings_feedback_message">message</string>
+    <string name="settings_feedback_message_placeholder">what happened, or what would you change</string>
+    <string name="settings_feedback_hint">it is posted publicly in the rove repo, using the github login on your mac</string>
+    <string name="settings_feedback_send">send feedback</string>
+    <string name="settings_feedback_confirm_title">post this feedback?</string>
+    <string name="settings_feedback_confirm_prose">Posts a public GitHub Discussion in the rove repo, from your mac\'s gh login. It can\'t be unsent.</string>
+    <string name="settings_feedback_post">post discussion</string>
+    <string name="settings_feedback_sent">sent</string>
+    <string name="settings_feedback_again">write another</string>
+
+    <string name="settings_app">app</string>
+    <string name="settings_host">host</string>
+    <string name="settings_uptime">uptime</string>
+    <string name="settings_tasks">tasks</string>
+    <string name="settings_about_language">language follows android settings</string>
+    <string name="settings_about_mac_side">restarting the daemon, resetting ui state and plugin installs are mac-side actions — the phone talks to the daemon through the bridge and has no way back if it goes down</string>
+    <string name="settings_licenses">licenses</string>
+    <string name="settings_license_maple" translatable="false">Maple Mono</string>
+    <string name="settings_license_jetbrains" translatable="false">JetBrains Mono</string>
+    <string name="settings_license_xterm" translatable="false">xterm.js</string>
+    <string name="settings_license_addon_fit" translatable="false">xterm addon-fit</string>
+</resources>

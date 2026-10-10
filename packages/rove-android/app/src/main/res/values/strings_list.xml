@@ -9,10 +9,6 @@
     <string name="list_deleting">deleting</string>
     <string name="list_main_checkout">main checkout</string>
     <string name="list_pinned">Pinned</string>
-    <string name="list_more">More</string>
-    <string name="list_refresh">refresh</string>
-    <string name="list_notifications">notifications</string>
-    <string name="list_disconnect">disconnect</string>
     <string name="list_pair_again">pair again</string>
     <string name="list_welcome">welcome</string>
     <string name="list_welcome_body">rove runs coding agents side by side — every task gets its own git worktree and branch.</string>

@@ -9,10 +9,6 @@
     <string name="list_deleting">删除中</string>
     <string name="list_main_checkout">主检出</string>
     <string name="list_pinned">已置顶</string>
-    <string name="list_more">更多</string>
-    <string name="list_refresh">刷新</string>
-    <string name="list_notifications">通知</string>
-    <string name="list_disconnect">断开</string>
     <string name="list_pair_again">重新配对</string>
     <string name="list_welcome">欢迎</string>
     <string name="list_welcome_body">rove 并行运行多个编码 agent，每个任务都有独立的 git worktree 和分支。</string>

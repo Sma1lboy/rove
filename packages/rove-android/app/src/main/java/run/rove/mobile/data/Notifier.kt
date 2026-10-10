@@ -17,6 +17,7 @@ class Notifier(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
     init { manager.createNotificationChannel(NotificationChannel("tasks", "Task updates", NotificationManager.IMPORTANCE_DEFAULT)) }
     fun post(notice: TaskNotice) {
+        if (!NotificationPrefs.enabled(context)) return
         if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val open = PendingIntent.getActivity(context, notice.taskId.hashCode(),
             Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
