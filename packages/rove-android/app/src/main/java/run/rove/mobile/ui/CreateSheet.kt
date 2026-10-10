@@ -22,7 +22,6 @@ import run.rove.mobile.data.BridgeFailure
     val engines by model.engines.collectAsStateWithLifecycle()
     val repos by model.repos.collectAsStateWithLifecycle()
     val tasks by model.tasks.collectAsStateWithLifecycle()
-    val demo by model.demo.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val failed = stringResource(R.string.create_failed)
     var pickedRepo by remember { mutableStateOf("") }
@@ -58,7 +57,8 @@ import run.rove.mobile.data.BridgeFailure
     SheetScaffold(title = stringResource(if (isTask) R.string.create_new_task else R.string.create_new_session),
         onDismiss = { if (!busy) dismiss() },
         kicker = stringResource(if (isTask) R.string.create_kicker_task else R.string.create_kicker_session),
-        error = error, demo = demo, onExitDemo = { model.unpair(); dismiss() },
+        // The root DemoStrip stays visible above an Android bottom sheet, so the sheet draws none of its own.
+        error = error,
         primary = {
             PrimaryBar(stringResource(if (isTask) R.string.create_submit_task else R.string.create_submit_session),
                 enabled = ready, busy = busy, onClick = ::submit)

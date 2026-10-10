@@ -228,13 +228,11 @@ import kotlinx.coroutines.delay
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun SheetScaffold(title: String, onDismiss: () -> Unit, kicker: String? = null, error: String? = null,
-                              demo: Boolean = false, onExitDemo: () -> Unit = {},
                               primary: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Rove.c.paper, scrimColor = Rove.scrim, dragHandle = null,
         shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)) {
         Column(Modifier.fillMaxWidth().imePadding()) {
-            if (demo) DemoStrip(onExitDemo)
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 8.dp), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (kicker != null) Kicker(kicker)

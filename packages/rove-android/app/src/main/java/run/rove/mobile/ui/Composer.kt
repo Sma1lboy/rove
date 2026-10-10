@@ -114,7 +114,8 @@ object PasteEncoding {
             Modifier.weight(1f).heightIn(max = 140.dp), singleLine = false,
             keyboard = KeyboardOptions(imeAction = ImeAction.Send), actions = KeyboardActions(onSend = { send() }))
         Box(Modifier.size(34.dp, 44.dp).pressable { text += "\n" }, contentAlignment = Alignment.Center) {
-            Text("↵", color = Rove.c.muted, style = Rove.mono(16, FontWeight.Medium))
+            // JetBrains Mono draws ↵ at half the size SF Mono does; the system face matches the iOS glyph.
+            Text("↵", color = Rove.c.muted, style = Rove.face(20, FontWeight.Medium))
         }
         val empty = text.isEmpty()
         Box(Modifier.height(44.dp).background(if (empty) Rove.c.inset else Rove.c.accent, RoundedCornerShape(Rove.radius))

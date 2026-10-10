@@ -6,7 +6,6 @@
     <string name="detail_menu_refresh">刷新标签页</string>
     <string name="detail_fit">适配</string>
     <string name="detail_watch">观看</string>
-    <string name="detail_tab_new">+ 标签页</string>
     <string name="detail_diff">diff</string>
     <string name="detail_land">合入</string>
     <string name="detail_tabs_error">无法加载终端标签页</string>

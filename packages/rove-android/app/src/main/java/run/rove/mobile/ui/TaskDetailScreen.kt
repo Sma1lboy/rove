@@ -38,9 +38,9 @@ import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable fun TaskDetailScreen(model: AppModel, taskId: String, back: () -> Unit) {
-    // With the keyboard up or in a short (landscape) window, the header strips give their rows to the terminal.
+    // iOS hides the header strips only while typing in a short (landscape) window; portrait keeps them.
     val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
-    val compact = WindowInsets.isImeVisible || windowHeight < 500.dp
+    val compact = WindowInsets.isImeVisible && windowHeight < 500.dp
     val connection by model.bridge.state.collectAsStateWithLifecycle()
     val connected = connection is Connection.Connected
     val taskSnapshot by model.tasks.collectAsStateWithLifecycle()
