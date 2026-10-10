@@ -63,6 +63,29 @@ The repository's CI does not build Android yet; run `verify.sh` locally or on al
 
 Screenshot baselines live under `packages/rove-android/app/src/test/snapshots/images/`. Regenerate with `./gradlew :app:recordPaparazziDebug`; inspect the resulting images before accepting them. These are Compose render tests, not emulator or real bridge evidence.
 
+### Emulator screenshots on allen
+
+Every UI change also needs real emulator frames. Paparazzi does not run WebView, the IME or rotation. Push the branch first, because allen's script builds from GitHub:
+
+```sh
+git push origin feat/android-client
+ssh allen '/bin/zsh -lc "~/bin/rove_android_shots.sh feat/android-client 40"'
+scp -r allen:~/ci/shots/android/<sha> /tmp/android-shots/
+```
+
+The script builds the APK and runs the unit tests. It opens demo mode and taps through every screen breadth-first, in light and dark mode. Where a screen has a text field, it takes an extra frame with the keyboard up. It then takes a few landscape frames and collects the crash log. Results go to `index.json`.
+
+Debug builds leave out `FLAG_SECURE`. With it set, every screencap comes back black. Release builds keep it.
+
+Known gaps:
+
+- `index.json` is written only after the landscape pass, so an interrupted run leaves none.
+- A full 40-screen run can take more than an hour, because every screen is reached by relaunching the app and replaying taps. Run it with `nohup`.
+- It does not detect black frames.
+- If interrupted, it leaves the emulator rotated (`user_rotation`).
+- It never sees screens that need a live bridge: real pairing errors, the reconnect banner, a terminal that has exited, and confirmed land/delete.
+- It skips land and delete on purpose.
+
 ## Device checks still required on allen
 
 - Scan an actual pairing QR code; cancel/deny camera permission; open a `rove://pair` link.
