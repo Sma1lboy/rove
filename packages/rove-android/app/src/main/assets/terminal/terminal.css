@@ -1,2 +1,5 @@
+/* iOS TerminalFont: bundled Maple Mono NF (Regular + Bold), system monospace if it fails to load. */
+@font-face { font-family: 'Maple Mono NF'; src: url('fonts/MapleMono-NF-Regular.ttf') format('truetype'); font-weight: 400; }
+@font-face { font-family: 'Maple Mono NF'; src: url('fonts/MapleMono-NF-Bold.ttf') format('truetype'); font-weight: 700; }
 html, body, #terminal { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #141413; }
-.xterm { height: 100%; padding: 4px; box-sizing: border-box; }
+.xterm { height: 100%; padding: 4px 8px; box-sizing: border-box; }

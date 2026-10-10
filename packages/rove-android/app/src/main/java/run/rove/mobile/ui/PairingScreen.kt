@@ -23,7 +23,7 @@ import run.rove.mobile.R
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Image(painterResource(R.drawable.rove_chip), "Rove chip", Modifier.size(80.dp))
-        Wordmark(32.sp)
+        Wordmark(32)
         Text("your sessions, within reach", style = MaterialTheme.typography.titleMedium)
         Text("Start rove-bridge on your Mac, then paste its pairing URL or scan the code.")
         OutlinedTextField(url, onUrl, label = { Text("pairing URL") }, modifier = Modifier.fillMaxWidth(),

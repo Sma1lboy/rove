@@ -21,7 +21,7 @@ import run.rove.mobile.domain.*
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically) {
-            Wordmark(20.sp, Modifier.padding(vertical = 16.dp))
+            Wordmark(20, Modifier.padding(vertical = 16.dp))
             TextButton(onClick = onCreate) { Text("+ task") }
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -58,12 +58,4 @@ import run.rove.mobile.domain.*
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp), modifier = Modifier.heightIn(min = 36.dp)) {
         Text(label, style = MaterialTheme.typography.labelMedium)
     }
-}
-
-/** iOS `TaskGroup.tone`: accent only for what needs a person; error red is never a group colour. */
-@Composable private fun groupTone(group: String): Color = when (group) {
-    "waiting-on-you" -> MaterialTheme.colorScheme.primary
-    "landing" -> MaterialTheme.colorScheme.tertiary
-    "ready-for-review", "working" -> MaterialTheme.colorScheme.onSurface
-    else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
