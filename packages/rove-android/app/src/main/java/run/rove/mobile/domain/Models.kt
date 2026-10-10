@@ -35,7 +35,10 @@ data class TaskRow(
 @Serializable data class TaskChanges(val added: Int? = null, val deleted: Int? = null, val ahead: Int? = null,
                                      val behind: Int? = null, val unreadable: Boolean? = null)
 @Serializable data class Engine(val id: String, val name: String)
-@Serializable data class Attention(val taskId: String? = null, val unread: Boolean = false)
+/** One attention-inbox item (iOS `AttentionItem`); `at` is ms since epoch. */
+@Serializable data class Attention(val taskId: String? = null, val tabId: String? = null, val state: String = "",
+                                   val unread: Boolean = false, val at: Double = 0.0, val resumeAt: String? = null,
+                                   val label: String? = null)
 @Serializable data class Tasks(val tasks: List<TaskRow> = emptyList(), val attention: List<Attention> = emptyList())
 @Serializable data class Engines(val engines: List<Engine>)
 @Serializable data class Repos(val repos: List<String>)

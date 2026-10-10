@@ -37,7 +37,7 @@ import java.util.Locale
 // iOS Detail/TaskDetailView.swift: title block, meta strip, tab strip, then the terminal pane filling the rest.
 
 @OptIn(ExperimentalLayoutApi::class)
-@Composable fun TaskDetailScreen(model: AppModel, taskId: String, back: () -> Unit) {
+@Composable fun TaskDetailScreen(model: AppModel, taskId: String, back: () -> Unit, initialTab: String? = null) {
     // iOS hides the header strips only while typing in a short (landscape) window; portrait keeps them.
     val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     val compact = WindowInsets.isImeVisible && windowHeight < 500.dp
@@ -48,7 +48,7 @@ import java.util.Locale
     var tabs by remember(taskId) { mutableStateOf<List<TabRow>?>(null) }
     var tabStates by remember(taskId) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var diffStat by remember(taskId) { mutableStateOf<DiffStat?>(null) }
-    var selected by remember(taskId) { mutableStateOf<String?>(null) }
+    var selected by remember(taskId) { mutableStateOf(initialTab) }
     var fit by remember(taskId) { mutableStateOf(true) }
     var newTab by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
