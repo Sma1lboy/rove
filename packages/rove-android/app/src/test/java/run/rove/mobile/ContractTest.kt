@@ -60,7 +60,8 @@ class ContractTest {
     }
     @Test fun sharedIosDemoResolvesAliasesSelectorsBytesAndTime() {
         val raw = checkNotNull(javaClass.classLoader?.getResourceAsStream("demo-fixture.json")).bufferedReader().use { it.readText() }
-        val fixture = DemoFixture(raw)
+        val now = java.time.Instant.parse("2026-10-09T12:00:00Z")
+        val fixture = DemoFixture(raw) { now }
         val tasks = wireJson.decodeFromJsonElement<Tasks>(fixture.answer("tasks.subscribe"))
         assertTrue(tasks.tasks.any { it.group == "waiting-on-you" })
         assertEquals(tasks, wireJson.decodeFromJsonElement<Tasks>(fixture.answer("tasks.list")))
