@@ -8,13 +8,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import run.rove.mobile.domain.*
 
 @Composable fun TaskListScreen(tasks: Tasks, onSelect: (String) -> Unit, onRefresh: () -> Unit,
                                onCreate: () -> Unit, onDisconnect: () -> Unit, onNotify: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("[ rove ]", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 16.dp))
+            Wordmark(20.sp, Modifier.padding(vertical = 16.dp))
             TextButton(onClick = onCreate) { Text("+ task") }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {

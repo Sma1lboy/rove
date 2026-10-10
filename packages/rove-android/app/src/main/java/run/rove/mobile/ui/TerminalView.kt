@@ -1,6 +1,7 @@
 package run.rove.mobile.ui
 
 import android.annotation.SuppressLint
+import android.view.ViewGroup
 import android.webkit.*
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -9,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
@@ -21,13 +23,16 @@ import run.rove.mobile.data.TerminalSession
 import java.io.ByteArrayInputStream
 
 @SuppressLint("SetJavaScriptEnabled")
-@Composable fun TerminalView(bridge: BridgeClient, taskId: String, tabId: String) {
+@Composable fun TerminalView(bridge: BridgeClient, taskId: String, tabId: String, tabChips: @Composable RowScope.() -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var ctrl by remember { mutableStateOf(false) }
     var line by remember { mutableStateOf("") }
     var fit by remember { mutableStateOf(true) }
-    val web = remember(taskId, tabId) { WebView(context) }
+    // AndroidView defaults to WRAP_CONTENT, under which Chromium resolves `height: 100%` to 0 and xterm fits one row.
+    val web = remember(taskId, tabId) { WebView(context).apply {
+        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+    } }
     val session = remember(web) { TerminalSession(bridge, scope, taskId, tabId,
         write = { encoded -> web.evaluateJavascript("window.roveWrite(${JsonPrimitive(encoded)});", null) },
         reset = { web.evaluateJavascript("window.roveReset();", null) }) }
@@ -63,13 +68,19 @@ import java.io.ByteArrayInputStream
         }
     }
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(status, modifier = Modifier.weight(1f).padding(vertical = 12.dp), style = MaterialTheme.typography.labelSmall)
+        // Tab chips share the status row so the terminal keeps that height.
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                tabChips()
+                Text(status, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             TextButton(onClick = { fit = !fit; session.setFit(fit) }) { Text(if (fit) "fit" else "watch") }
         }
         AndroidView(factory = { web }, modifier = Modifier.fillMaxWidth().weight(1f))
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-            listOf("Esc" to "\u001b", "Tab" to "\t", "⇤" to "\u001b[Z", "↑" to "\u001b[A", "↓" to "\u001b[B",
+            listOf("Esc" to "\u001b", "Tab" to "\t", "⇧Tab" to "\u001b[Z", "↑" to "\u001b[A", "↓" to "\u001b[B",
                 "←" to "\u001b[D", "→" to "\u001b[C", "Enter" to "\r", "Ctrl-C" to "\u0003").forEach { (label, key) ->
                 TextButton(onClick = { session.input(key) }) { Text(label) }
             }

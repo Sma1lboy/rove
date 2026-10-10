@@ -12,6 +12,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import run.rove.mobile.R
 
@@ -22,7 +23,7 @@ import run.rove.mobile.R
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Image(painterResource(R.drawable.rove_chip), "Rove chip", Modifier.size(80.dp))
-        Text("[ rove ]", style = MaterialTheme.typography.headlineLarge)
+        Wordmark(32.sp)
         Text("your sessions, within reach", style = MaterialTheme.typography.titleMedium)
         Text("Start rove-bridge on your Mac, then paste its pairing URL or scan the code.")
         OutlinedTextField(url, onUrl, label = { Text("pairing URL") }, modifier = Modifier.fillMaxWidth(),

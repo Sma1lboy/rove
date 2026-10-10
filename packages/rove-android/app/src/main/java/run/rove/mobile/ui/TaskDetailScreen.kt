@@ -6,13 +6,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CancellationException
 import run.rove.mobile.data.*
 import run.rove.mobile.domain.*
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable fun TaskDetailScreen(model: AppModel, taskId: String, back: () -> Unit) {
+    // With the keyboard up or in a short (landscape) window, the title and task actions give their rows to the terminal.
+    val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
+    val compact = WindowInsets.isImeVisible || windowHeight < 500.dp
     val connection by model.bridge.state.collectAsStateWithLifecycle()
     val taskSnapshot by model.tasks.collectAsStateWithLifecycle()
     val task = taskSnapshot.tasks.firstOrNull { it.id == taskId }
@@ -39,18 +45,20 @@ import run.rove.mobile.domain.*
             TextButton(onClick = { diff = !diff }) { Text(if (diff) "terminal" else "diff") }
             TextButton(onClick = { newTab = true }, enabled = connection is Connection.Connected) { Text("+ tab") }
         }
-        Text(task?.displayTitle ?: taskId, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.titleMedium)
-        Row(Modifier.horizontalScroll(rememberScrollState())) {
-            TextButton(onClick = { action = "land"; confirmation = 1 }, enabled = connection is Connection.Connected) { Text("land") }
-            TextButton(onClick = { action = "delete"; confirmation = 1 }, enabled = connection is Connection.Connected) { Text("delete task") }
-            TextButton(onClick = { revision++ }) { Text("refresh tabs") }
+        if (!compact) {
+            Text(task?.displayTitle ?: taskId, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.titleMedium)
+            Row(Modifier.horizontalScroll(rememberScrollState())) {
+                TextButton(onClick = { action = "land"; confirmation = 1 }, enabled = connection is Connection.Connected) { Text("land") }
+                TextButton(onClick = { action = "delete"; confirmation = 1 }, enabled = connection is Connection.Connected) { Text("delete task") }
+                TextButton(onClick = { revision++ }) { Text("refresh tabs") }
+            }
         }
         if (diff) DiffScreen(model, taskId)
         else {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val chips: @Composable RowScope.() -> Unit = {
                 tabs.forEach { tab -> FilterChip(selected = selected == tab.id, onClick = { selected = tab.id }, label = { Text(tab.displayTitle) }) }
             }
-            if (selected != null) key(taskId, selected) { TerminalView(model.bridge, taskId, selected!!) }
+            if (selected != null) key(taskId, selected) { TerminalView(model.bridge, taskId, selected!!, chips) }
             else Text("No terminal tabs. Start one with + tab.", Modifier.padding(16.dp))
         }
     }
