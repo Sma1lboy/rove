@@ -4,6 +4,8 @@
  * map, sinks, or freeze policy, so a bug here can only damage one session.
  */
 
+import { clearTransientStatuses, createOscSignals, scanOscSignals } from "./osc-signals"
+
 import { randomUUID } from "node:crypto"
 import { resolveLoginShell } from "./platform-shell.js"
 import type { PtySessionExit } from "./protocol.ts"
@@ -16,6 +18,7 @@ import { foldDefaultColorQueries, formatDefaultColorReply } from "./terminal-col
 import { scanTerminalModes } from "./terminal-modes.ts"
 
 export interface PtyChildControllerDeps {
+  readonly onProgramStatus?: (event: import("./program-status-event").ProgramStatusEvent) => void
   /** How children spawn. Default Bun's; the Windows host injects node-pty's. */
   readonly driver?: PtyDriver
   /** Per-session ring-buffer cap in bytes. */
@@ -52,6 +55,9 @@ export class PtyChildController {
    */
   startChild(session: PtySessionState): void {
     session.generation = randomUUID()
+    session.oscSignals = undefined
+    session.programStatusEvent = undefined
+    this.reportStatus(session, null)
     try {
       session.proc = (this.deps.driver ?? bunTerminalDriver())({
         argv: [...session.command],
@@ -99,6 +105,11 @@ export class PtyChildController {
   markExited(session: PtySessionState, exit?: PtyExit): void {
     if (!session.alive) return
     session.alive = false
+    if (session.oscSignals) {
+      const before = session.oscSignals.records.get("")
+      clearTransientStatuses(session.oscSignals)
+      if (before !== session.oscSignals.records.get("")) this.reportStatus(session, null)
+    }
     const sessionExit: PtySessionExit = {
       code: exit?.code ?? null,
       signal: exit?.signal ?? null,
@@ -113,14 +124,28 @@ export class PtyChildController {
     this.deps.onExit?.(session, sessionExit)
   }
 
+  private reportStatus(session: PtySessionState, status: import("./osc-signals").ProgramStatus | null): void {
+    const event = {
+      key: session.key,
+      generation: session.generation,
+      revision: (session.programStatusEvent?.revision ?? 0) + 1,
+      at: Date.now(),
+      status,
+    }
+    session.programStatusEvent = event
+    this.deps.onProgramStatus?.(event)
+  }
+
   private onData(session: PtySessionState, data: string | Uint8Array): void {
     const buf = typeof data === "string" ? Buffer.from(data, "utf8") : Buffer.from(data)
     const text = buf.toString("latin1")
+    session.oscSignals ??= createOscSignals()
+    const queries = scanOscSignals(session.oscSignals, buf, Date.now(), (status) => this.reportStatus(session, status))
     const colorQueries = foldDefaultColorQueries(session.colorQueryCarry, text)
     session.colorQueryCarry = colorQueries.carry
-    // Color replies go first: an app's DA1 sentinel after an OSC 11 query
-    // must never overtake the color reply, or the app reads "unsupported".
+    // OSC replies must precede DA1: applications use it as a support-detection sentinel.
     const replies = colorQueries.slots.map((slot) => formatDefaultColorReply(slot, session.defaultColors))
+    for (let i = 0; i < Math.min(queries, 16); i++) replies.push("\x1b]7501;?\x1b\\")
     const modeReplies = scanTerminalModes(session.modes, text)
     // An attached emulator answers DA1/DECRQM itself; a second answer would
     // desync an app pairing replies to queries.

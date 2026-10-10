@@ -27,6 +27,8 @@
  * within seconds.
  */
 
+import type { ProgramStatusEvent } from "./program-status-event"
+
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 
@@ -56,6 +58,7 @@ export const DEFAULT_CORRECT_AFTER_MS = 20_000
 
 /** One `pty.list` row the observer consumes. */
 export interface ObservedPtySession {
+  readonly programStatusEvent?: ProgramStatusEvent
   readonly key: string
   readonly alive: boolean
   readonly pid: number | null
@@ -65,6 +68,7 @@ export interface ObservedPtySession {
 }
 
 export interface ActivityObserverIo {
+  onProgramStatusEvent?(event: ProgramStatusEvent): void | Promise<void>
   /** Current pty-host inventory; `null` when the host is unreachable
    *  (never spawns one). */
   listSessions(): Promise<readonly ObservedPtySession[] | null>
@@ -293,6 +297,10 @@ export function startActivityObserver(
         effects.push(
           io.onEngineEvidence?.(track.taskId, track.tabId, { walkVendor: track.vendor, title: session.title }),
         )
+        if (session.programStatusEvent && io.onProgramStatusEvent) {
+          effects.push(io.onProgramStatusEvent(session.programStatusEvent))
+          if (session.programStatusEvent.status !== null) continue
+        }
         if (track.vendor === null) {
           // No foreground engine corrects a stale hook `running`, but is NOT the
           // death badge (quitting an agent on purpose leaves an idle tab). `dead`

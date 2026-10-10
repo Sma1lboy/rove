@@ -16,6 +16,7 @@ import { withoutPtyJob } from "./win-pty-job.ts"
 
 /** One connected client; also the identity token attached sinks are keyed by. */
 export interface PtyClientState {
+  watchProgramStatus?: boolean
   socket: Socket
   writer: ClientWriter
 }
@@ -111,6 +112,13 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
         )
       }
       return {}
+    case "pty.watchStatus":
+      client.watchProgramStatus = true
+      for (const session of ptys.list()) {
+        if (session.programStatusEvent)
+          deps.writeFrame(client, { type: "event", name: "pty.programStatus", payload: session.programStatusEvent })
+      }
+      return { supported: true }
     case "pty.list":
       return {
         pid: process.pid,

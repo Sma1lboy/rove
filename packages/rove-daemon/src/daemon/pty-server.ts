@@ -179,6 +179,11 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
   orphanTimer.unref?.()
 
   const ptys = new PtyHost({
+    onProgramStatus: (event) => {
+      for (const client of clients) {
+        if (client.watchProgramStatus) writeFrame(client, { type: "event", name: "pty.programStatus", payload: event })
+      }
+    },
     onSessionStart: cancelIdle,
     onSessionEnd: () => {
       if (ptys.liveCount() === 0) armIdle()

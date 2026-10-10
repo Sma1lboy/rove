@@ -93,10 +93,18 @@ export function createActivityObserverIo(
       try {
         await client.connect()
         const result = await client.request<{
-          sessions?: Array<{ key?: string; alive?: boolean; pid?: number | null; title?: string; totalBytes?: number }>
+          sessions?: Array<{
+            key?: string
+            alive?: boolean
+            pid?: number | null
+            title?: string
+            totalBytes?: number
+            programStatusEvent?: import("./program-status-event").ProgramStatusEvent
+          }>
         }>("pty.list")
         return (result.sessions ?? []).map((s) => ({
           key: s.key ?? "",
+          programStatusEvent: s.programStatusEvent,
           alive: s.alive === true,
           pid: typeof s.pid === "number" ? s.pid : null,
           title: typeof s.title === "string" ? s.title : "",

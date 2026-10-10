@@ -62,6 +62,8 @@ export interface PtySessionState {
    *  launch (the TUI's dead-reattach passes its `--resume` argv). */
   command: readonly string[]
   title: string
+  programStatusEvent?: import("./program-status-event").ProgramStatusEvent
+  oscSignals?: import("./osc-signals").OscSignals
   /** Unterminated escape tail carried between chunks for the title scan. */
   titleCarry: string
   /** UTF-8 decoder for the title scan (a multibyte title may split across chunks). */
@@ -102,6 +104,7 @@ export interface PtySessionState {
 export type { PtyFreezeSink }
 
 export interface PtyHostOptions {
+  readonly onProgramStatus?: (event: import("./program-status-event").ProgramStatusEvent) => void
   /** A session's child spawned — cancels a pending daemon idle-stop grace. */
   readonly onSessionStart?: () => void
   /** A session's child ended — may arm the idle-stop grace. */
