@@ -2,7 +2,7 @@
 
 Rove for Android is a Kotlin and Jetpack Compose client in `packages/rove-android`. It speaks bridge protocol version 1, shared with [iOS](IOS.md), and makes no daemon, bridge, or iOS changes. The Mac owns tasks and PTYs; Android holds pairing credentials and transient screen state.
 
-This draft implements pairing by paste, QR scan or deep link, task attention ordering, terminal tabs, a control-key row and line composer, new engine tabs, branch and working-tree diffs, new tasks, two-step land/delete confirmations, local notifications, and the shared offline demo.
+This draft implements pairing by paste, QR scan or deep link, task attention ordering, terminal tabs, a control-key row and line composer, image/PDF attachments, new engine tabs, branch and working-tree diffs, new tasks, two-step land/delete confirmations, local notifications, and the shared offline demo. The list header opens the same pages as iOS: inbox, settings (bridge, usage, engines, plugins, notifications, worktrees, activity, feedback, about), board, routines, GitHub issues and worktrees.
 
 ## Build
 
@@ -97,6 +97,6 @@ Known gaps:
 - Test replay plus live output, split Unicode bytes, alternate screen, scrollback, tab switching and reconnect during output. Verify leaving a tab detaches without terminating its PTY.
 - Compare Fit and Watch against the desktop. Fit intentionally resizes the shared PTY. Watch does not yet scale to the remote column count.
 - Create a task and tab in a sandbox, inspect a real diff, cancel both destructive confirmation stages, and verify dirty-task deletion is refused.
-- Grant/deny notifications and drive the required task transitions. Background delivery is best-effort while the process is alive; no FCM or foreground service is implemented.
+- Turn notifications on in **settings → notifications**; the app asks for the Android 13+ permission there, not at launch. Grant/deny it and drive the required task transitions. Background delivery is best-effort while the process is alive; no FCM or foreground service is implemented.
 
 The terminal control-row placement is proposed for owner acceptance. This draft does not change desktop shortcuts. Publishing this page through the docs site's sync list is deferred because this task is restricted to the Android package and this document.
