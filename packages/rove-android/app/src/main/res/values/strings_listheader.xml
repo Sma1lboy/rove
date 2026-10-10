@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="listheader_attention_a11y">Attention, %1$d unread</string>
+    <string name="listheader_filter_a11y">Filter by project</string>
+    <string name="listheader_all_projects">all projects</string>
+    <string name="listheader_search_a11y">Search</string>
+    <string name="listheader_search_placeholder">search title, repo, branch, tab</string>
+    <string name="listheader_search_clear">Clear search</string>
+    <string name="listheader_sort_a11y">Sort: %1$s</string>
+    <string name="listheader_sort_attention">attention</string>
+    <string name="listheader_sort_default">default</string>
+    <string name="listheader_sort_recent">recent</string>
+    <string name="listheader_sort_name">name</string>
+    <string name="listheader_pages_a11y">Pages</string>
+    <string name="listheader_page_board">board</string>
+    <string name="listheader_page_routines">routines</string>
+    <string name="listheader_page_issues">github issues</string>
+    <string name="listheader_page_worktrees">worktrees</string>
+    <string name="listheader_settings_a11y">Settings</string>
+    <string name="listheader_no_matches">no matches</string>
+    <string name="listheader_no_matches_filter">this project has no tasks — clear the filter above</string>
+    <string name="listheader_no_matches_search">nothing matches “%1$s” — clear the search</string>
+    <string name="listheader_engines">engines</string>
+    <string name="listheader_cancel">cancel</string>
+
+    <string name="listheader_project_actions">Project actions</string>
+    <string name="listheader_order_section">Order (default sort)</string>
+    <string name="listheader_move_up">Move project up</string>
+    <string name="listheader_move_down">Move project down</string>
+    <string name="listheader_move_top">Move project to top</string>
+    <string name="listheader_field_notes_item">Field notes</string>
+    <string name="listheader_remove_project">Remove project</string>
+    <string name="listheader_forget_dialog_title">Remove this project?</string>
+    <string name="listheader_forget_dialog_message">Rove stops listing it. The repo and its tasks stay on disk.</string>
+    <string name="listheader_forget_dialog_button">Forget…</string>
+    <string name="listheader_forget_title">forget this project?</string>
+    <string name="listheader_forget_kicker">forget project</string>
+    <string name="listheader_forget_body">Rove stops tracking this project. The repo and its tasks stay on disk, and adding the folder again brings it back.</string>
+    <string name="listheader_forget_confirm">forget project</string>
+
+    <string name="listheader_notes_title">field notes</string>
+    <string name="listheader_notes_empty">no field notes</string>
+    <string name="listheader_notes_empty_detail">workers leave notes here as they learn the repo</string>
+    <string name="listheader_notes_hint">The newest notes are handed to every fresh session on this repo, so retire any that stopped being true.</string>
+    <string name="listheader_notes_delete">delete</string>
+    <string name="listheader_note_delete_title">delete this note?</string>
+    <string name="listheader_note_delete_kicker">field note #%1$d</string>
+    <string name="listheader_note_delete_confirm">delete note</string>
+    <string name="listheader_note_delete_hint">Fresh sessions on this repo stop receiving it. This cannot be undone.</string>
+</resources>

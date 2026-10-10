@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_loading">加载任务中…</string>
+    <string name="detail_more">更多</string>
+    <string name="detail_menu_delete">删除任务</string>
+    <string name="detail_menu_history">引擎历史</string>
+    <string name="detail_menu_refresh">刷新标签页</string>
+    <string name="detail_fit">适配</string>
+    <string name="detail_watch">观看</string>
+    <string name="detail_diff">diff</string>
+    <string name="detail_land">合入</string>
+    <string name="detail_tabs_error">无法加载终端标签页</string>
+    <string name="detail_no_tabs">没有终端标签页</string>
+    <string name="detail_pick_tab">选择一个标签页</string>
+    <string name="detail_no_tabs_hint">打开一个引擎标签页，给此任务发下一条消息</string>
+    <string name="detail_reopen">重新打开会话</string>
+
+    <string name="detail_key_interrupt">中断</string>
+    <string name="detail_key_done">完成</string>
+    <string name="detail_interrupt_sent">已发送中断</string>
+
+    <string name="detail_reply">回复</string>
+    <string name="detail_reply_to">回复 %1$s</string>
+    <string name="detail_send">发送</string>
+
+    <string name="detail_status_attaching">连接中…</string>
+    <string name="detail_status_exited">进程已退出</string>
+    <string name="detail_status_exited_code">会话已退出（%1$s）</string>
+    <string name="detail_status_disconnected">已断开 · 输入已暂停</string>
+    <string name="detail_status_unavailable">终端不可用 · 重新打开后重试</string>
+
+    <string name="detail_delete_title">删除这个任务？</string>
+    <string name="detail_land_title">合入此任务</string>
+    <string name="detail_delete_confirm_title">确认删除</string>
+    <string name="detail_land_confirm_title">确认合入</string>
+    <string name="detail_delete_body">移除此任务及其托管的 worktree。分支保留。有未提交改动时会被拒绝。</string>
+    <string name="detail_land_body">在 Mac 上把此任务的分支合入其基线分支。这会修改仓库。</string>
+    <string name="detail_continue">继续</string>
+    <string name="detail_delete_confirm">确认删除</string>
+    <string name="detail_land_confirm">确认合入</string>
+    <string name="detail_cancel">取消</string>
+    <string name="detail_working">处理中…</string>
+</resources>

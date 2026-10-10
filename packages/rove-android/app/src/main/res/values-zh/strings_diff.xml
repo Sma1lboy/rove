@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diff_files">文件</string>
+    <string name="diff_refresh">刷新</string>
+    <string name="diff_retry">重试</string>
+    <string name="diff_loading">加载中…</string>
+    <string name="diff_no_changes">无改动</string>
+    <string name="diff_whole_worktree">整个 worktree</string>
+    <string name="diff_worktree_clean">worktree 与最近一次提交一致</string>
+    <string name="diff_branch_clean">此分支相对 %1$s 没有改动</string>
+    <string name="diff_its_base">其基线</string>
+    <string name="diff_base">基础分支</string>
+    <string name="diff_scope_branch">分支对比 %1$s</string>
+    <string name="diff_scope_working">未提交</string>
+    <string name="diff_working_caption">此任务 worktree 中尚未提交的改动</string>
+    <string name="diff_branch_caption">此分支自 %1$s 分出以来的提交；未提交的改动在另一个标签页</string>
+    <string name="diff_read_only_preview">只读预览</string>
+    <string name="diff_renamed_from">重命名自 %1$s</string>
+    <string name="diff_no_reason">git 未给出原因</string>
+    <string name="diff_image">图片</string>
+    <string name="diff_binary">二进制文件</string>
+    <string name="diff_no_text_preview">无文本预览</string>
+    <string name="diff_empty_detail">此范围内没有差异</string>
+    <string name="diff_changed">已改动</string>
+    <string name="diff_no_hunks">没有可显示的 hunk</string>
+    <string name="diff_binary_changed">二进制文件已改动</string>
+    <string name="diff_no_text_diff">无文本 diff</string>
+    <string name="diff_mode_changed">权限模式已改动</string>
+    <string name="diff_mode_detail">%1$s → %2$s · 内容未变</string>
+    <string name="diff_renamed">已重命名</string>
+    <string name="diff_rename_detail">%1$s → %2$s · +0 −0，内容未变</string>
+    <string name="diff_empty_deleted">空文件已删除</string>
+    <string name="diff_empty_added">空文件已新增</string>
+    <string name="diff_no_lines">没有可显示的行</string>
+    <string name="diff_combined">合并 diff</string>
+    <string name="diff_read_only">只读</string>
+    <string name="diff_combined_hint">只读 · 仅已跟踪的改动</string>
+    <string name="diff_combined_empty">在此范围内，%1$s 下没有差异</string>
+    <plurals name="diff_all_as_one">
+        <item quantity="other">全部 %1$d 个文件合为一个 diff</item>
+    </plurals>
+    <plurals name="diff_dir_combined">
+        <item quantity="other">%1$d 个文件 · 合并</item>
+    </plurals>
+    <plurals name="diff_file_count">
+        <item quantity="other">%1$d 个文件</item>
+    </plurals>
+</resources>

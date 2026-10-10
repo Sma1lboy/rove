@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="routines_title">例行任务</string>
+    <string name="routines_count">%1$s 条例行任务</string>
+    <string name="routines_new_a11y">新建例行任务</string>
+    <string name="routines_empty">没有例行任务</string>
+    <string name="routines_empty_hint">点 + 按 cron 调度一条提示词</string>
+    <string name="routines_retry">重试</string>
+    <string name="routines_loading">加载中…</string>
+    <string name="routines_paused">已暂停</string>
+    <string name="routines_keeps_alive">已启用的例行任务会让 Mac 上的守护进程保持常驻</string>
+    <string name="routines_subtitle">%1$s · %2$s · 下次 %3$s</string>
+    <string name="routines_next_line">下次 %1$s · %2$s</string>
+    <string name="routines_next_none">下次 —</string>
+    <string name="routines_in">%1$s后</string>
+    <string name="routines_ago">%1$s前</string>
+    <string name="routines_due">即将</string>
+    <string name="routines_failed">请求失败，重试前请先确认结果。</string>
+    <string name="routines_kicker">例行任务</string>
+
+    <string name="routines_status_dispatched">已派发</string>
+    <string name="routines_status_revived">已重启会话</string>
+    <string name="routines_status_skipped_cancelled">交付前已取消</string>
+    <string name="routines_status_skipped_precheck">已跳过（预检）</string>
+    <string name="routines_status_skipped_missed">已跳过（错过时间）</string>
+    <string name="routines_status_skipped_unavailable">已跳过（不可用）</string>
+    <string name="routines_status_dispatch_failed">派发失败</string>
+
+    <string name="routines_run_confirm_title">立即运行？</string>
+    <string name="routines_run_now">立即运行</string>
+    <string name="routines_cancel">取消</string>
+    <string name="routines_run_confirm_body">在 Mac 上启动一个 agent 会话，并跳过预检</string>
+    <string name="routines_prompt">提示词</string>
+    <string name="routines_precheck">预检</string>
+    <string name="routines_timeout">超时 %1$d 秒</string>
+    <string name="routines_none">无</string>
+    <string name="routines_precheck_hint">预检在 Mac 上设置——它会运行一条 shell 命令</string>
+    <string name="routines_schedule">调度</string>
+    <string name="routines_repo">仓库</string>
+    <string name="routines_persistent">常驻会话</string>
+    <string name="routines_base">基于 %1$s</string>
+    <string name="routines_last_runs">最近执行</string>
+    <string name="routines_no_runs">尚未执行</string>
+    <string name="routines_no_runs_hint">立即运行会马上触发一次，不等调度</string>
+    <string name="routines_open_task">打开任务</string>
+    <string name="routines_actions">操作</string>
+    <string name="routines_pause">暂停</string>
+    <string name="routines_resume">恢复</string>
+    <string name="routines_skips_precheck">跳过预检</string>
+    <string name="routines_open_latest">打开最近一次执行的任务</string>
+    <string name="routines_edit">编辑</string>
+    <string name="routines_edit_detail">名称、提示词、调度</string>
+    <string name="routines_delete">删除</string>
+
+    <string name="routines_new">新建例行任务</string>
+    <string name="routines_edit_title">编辑例行任务</string>
+    <string name="routines_kicker_new">cron + 提示词</string>
+    <string name="routines_create">创建例行任务</string>
+    <string name="routines_save">保存例行任务</string>
+    <string name="routines_name">名称</string>
+    <string name="routines_name_placeholder">每晚依赖审计</string>
+    <string name="routines_repository">仓库</string>
+    <string name="routines_repo_fixed">例行任务创建后仓库不可更改——需要换仓库请重新创建</string>
+    <string name="routines_prompt_placeholder">每次触发时 agent 要做什么</string>
+    <string name="routines_preset_hourly">每小时</string>
+    <string name="routines_preset_daily">每天 9:00</string>
+    <string name="routines_preset_weekdays">工作日</string>
+    <string name="routines_preset_weekly">每周</string>
+    <string name="routines_schedule_invalid">调度需要五段以空格分隔的 cron 字段：分 时 日 月 星期</string>
+    <string name="routines_schedule_hint">五段 cron，使用 Mac 的本地时间</string>
+    <string name="routines_name_long">名称超过 %1$d 个字符</string>
+    <string name="routines_prompt_long">提示词超过 %1$d 个字符</string>
+
+    <string name="routines_delete_title">删除这条例行任务？</string>
+    <string name="routines_delete_confirm">删除例行任务</string>
+    <string name="routines_delete_body">将删除该例行任务及其执行记录。它已经创建的任务不受影响。</string>
+</resources>

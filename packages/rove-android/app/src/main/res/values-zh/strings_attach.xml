@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="attach_button">添加附件</string>
+    <string name="attach_photo">照片</string>
+    <string name="attach_file">文件（图片或 pdf）</string>
+    <string name="attach_error_unsupported">只能添加 png、jpeg、gif、webp 和 pdf</string>
+    <string name="attach_error_too_large">该文件超过 5 MB</string>
+</resources>

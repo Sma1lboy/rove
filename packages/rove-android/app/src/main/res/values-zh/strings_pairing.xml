@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pairing_kicker">配对 · 远程控制</string>
+    <string name="pairing_title">在这里操控你 Mac 上的任务</string>
+    <string name="pairing_intro">在 Mac 上启动 rove-bridge，然后扫描它显示的二维码，或粘贴它打印的链接。</string>
+    <string name="pairing_network">网络</string>
+    <string name="pairing_direct">direct</string>
+    <string name="pairing_cloudflare">cloudflare</string>
+    <string name="pairing_direct_hint">同一 Wi-Fi 或 Tailscale（100.x · *.ts.net）</string>
+    <string name="pairing_link">配对链接</string>
+    <string name="pairing_paste">粘贴</string>
+    <string name="pairing_scan">扫描二维码</string>
+    <string name="pairing_no_camera">此设备无摄像头——请改为粘贴链接</string>
+    <string name="pairing_cf_kicker">cloudflare access</string>
+    <string name="pairing_cf_hint">在 zero trust → access → service auth 中获取 service token</string>
+    <string name="pairing_connect">连接</string>
+    <string name="pairing_demo">先看看</string>
+</resources>

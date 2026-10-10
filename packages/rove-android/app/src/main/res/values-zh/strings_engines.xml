@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings → Engines list and engine detail -->
+    <string name="engines_title">引擎</string>
+    <string name="engines_empty_title">没有引擎</string>
+    <string name="engines_empty_detail">Mac 未上报任何引擎</string>
+    <string name="engines_hint_launch">启动命令请在 Mac 上编辑——在手机上输入的命令会在 Mac 上执行</string>
+    <string name="engines_tag_default">默认</string>
+    <string name="engines_tag_off">关</string>
+    <string name="engines_tag_custom">自定义</string>
+    <string name="engines_not_found">未找到</string>
+    <string name="engines_login_yes">已登录</string>
+    <string name="engines_login_no">无账号</string>
+    <string name="engines_login_unknown">登录状态未知</string>
+    <string name="engines_hooks_installed">hooks 已安装</string>
+    <string name="engines_hooks_outdated">hooks 已过期</string>
+    <string name="engines_hooks_missing">hooks 缺失</string>
+    <string name="engines_hooks_none">无 hooks</string>
+    <string name="engines_markers">完成标记</string>
+    <string name="engines_no_markers">无完成标记</string>
+    <string name="engines_screen_rules">屏幕规则</string>
+    <string name="engines_no_screen_rules">无屏幕规则</string>
+    <string name="engines_kicker">引擎</string>
+    <string name="engines_gone_title">引擎已消失</string>
+    <string name="engines_gone_detail">它已不在注册表中</string>
+    <string name="engines_fact_kind">类型</string>
+    <string name="engines_kind_builtin">内置</string>
+    <string name="engines_kind_detected">检测到</string>
+    <string name="engines_fact_status">状态</string>
+    <string name="engines_on">开</string>
+    <string name="engines_fact_binary">可执行文件</string>
+    <string name="engines_fact_account">账号</string>
+    <string name="engines_fact_reports">上报</string>
+    <string name="engines_actions">操作</string>
+    <string name="engines_switch_on">开启</string>
+    <string name="engines_switch_off">关闭</string>
+    <string name="engines_make_default">设为默认</string>
+    <string name="engines_remove">移除引擎</string>
+    <string name="engines_reset">重置覆盖项</string>
+    <string name="engines_hint_last_enabled">最后一个已开启的引擎必须保持开启</string>
+    <string name="engines_hint_default_only">只有内置和自定义引擎可以设为默认</string>
+    <string name="engines_display_name">显示名称</string>
+    <string name="engines_name_placeholder">名称</string>
+    <string name="engines_rename">重命名</string>
+    <string name="engines_clear_name">清除名称覆盖</string>
+    <string name="engines_hint_blank_clears">留空即清除覆盖并恢复内置名称</string>
+    <string name="engines_confirm_title">%1$s？</string>
+    <string name="engines_prose_on">开启 %1$s：TUI 重新提供它，新任务可默认使用它。</string>
+    <string name="engines_prose_off">关闭 %1$s：TUI 不再提供它，新任务不再默认使用它。其设置保留。</string>
+    <string name="engines_prose_off_default">关闭 %1$s：TUI 不再提供它，新任务不再默认使用它。其设置保留。它当前是默认引擎，将由另一个已开启的引擎接任默认。</string>
+    <string name="engines_prose_default">将 %1$s 设为新任务默认启动的引擎。</string>
+    <string name="engines_prose_default_off">将 %1$s 设为新任务默认启动的引擎。它当前已关闭，此操作会同时将其开启。</string>
+    <string name="engines_prose_rename_clear">清除名称覆盖：%1$s 恢复为内置名称。启动命令保留。</string>
+    <string name="engines_prose_rename">在 Mac 和本应用中将 %1$s 重命名为“%2$s”。启动命令保留。</string>
+    <string name="engines_prose_remove">移除自定义引擎 %1$s：其启动命令、名称和协议将从 Mac 上删除。</string>
+    <string name="engines_prose_reset">清除 %1$s 的名称和启动命令覆盖项，恢复为内置设置；开关状态保持不变。</string>
+    <string name="engines_failed">请求失败，重试前请先确认结果。</string>
+
+    <!-- Settings → Plugins -->
+    <string name="plugins_title">插件</string>
+    <string name="plugins_empty_title">无插件</string>
+    <string name="plugins_empty_detail">Mac 上未安装任何插件</string>
+    <string name="plugins_hint_install">安装和配置插件会运行其自带命令，因此只能在 Mac 上进行（rove plugin …）</string>
+    <string name="plugins_kicker">插件</string>
+    <string name="plugins_confirm_on">开启 %1$s？</string>
+    <string name="plugins_confirm_off">关闭 %1$s？</string>
+    <string name="plugins_prose_on">开启 %1$s：其 actions 和 events 在 Mac 上恢复运行。</string>
+    <string name="plugins_prose_off">关闭 %1$s：其 actions 和 events 在 Mac 上停止运行。仍保持已安装。</string>
+    <string name="plugins_linked">已关联</string>
+    <string name="plugins_update">有可用更新</string>
+    <string name="plugins_platform">平台不支持</string>
+    <string name="plugins_running">运行中</string>
+    <string name="plugins_ok">成功</string>
+    <string name="plugins_run_failed">失败</string>
+    <string name="plugins_last_run">上次运行 %1$s %2$s</string>
+    <string name="plugins_last_run_ago">上次运行 %1$s %2$s，%3$s前</string>
+    <string name="plugins_declares">声明：%1$s</string>
+    <string name="plugins_declares_nothing">未声明任何内容</string>
+    <plurals name="plugins_actions">
+        <item quantity="other">%1$d 个 action</item>
+    </plurals>
+    <plurals name="plugins_events">
+        <item quantity="other">%1$d 个 event</item>
+    </plurals>
+    <plurals name="plugins_panes">
+        <item quantity="other">%1$d 个面板</item>
+    </plurals>
+    <plurals name="plugins_engines">
+        <item quantity="other">%1$d 个引擎</item>
+    </plurals>
+
+    <!-- Task engine history sheet -->
+    <string name="history_title">引擎历史</string>
+    <string name="history_kicker">任务</string>
+    <string name="history_session_live">会话运行中</string>
+    <string name="history_you">你</string>
+    <string name="history_agent">agent</string>
+    <string name="history_empty_title">暂无消息</string>
+    <string name="history_empty_detail">引擎尚未为该任务写入记录</string>
+    <string name="history_counts_total">%1$d/%2$d 条消息</string>
+    <string name="history_counts">%1$d 条消息</string>
+    <string name="history_limited">已截断</string>
+    <string name="history_load_newer">加载更新</string>
+    <string name="history_nothing_newer">暂无更新内容</string>
+    <string name="history_refresh">刷新</string>
+    <string name="history_terminal_section">无结构化历史——终端尾部</string>
+    <string name="history_flag_live">实时</string>
+    <string name="history_flag_truncated">已截断</string>
+    <string name="history_nothing_title">无可显示内容</string>
+    <string name="history_nothing_detail">终端暂无输出</string>
+    <string name="history_tool">工具</string>
+    <string name="history_empty_result">（空结果）</string>
+    <string name="history_expanded">已展开</string>
+    <string name="history_collapsed">已折叠</string>
+    <string name="history_failed">请求失败，重试前请先确认结果。</string>
+</resources>
