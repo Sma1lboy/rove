@@ -92,7 +92,9 @@ values `rove api add` takes. They are checked against the routine's engine
 engine that has no reasoning levels refuses `--effort` at the keyboard instead
 of at 03:00. `routine-update --model ''` or `--effort ''` clears the pin. A
 routine bound to an existing tab cannot set either: that tab keeps its own
-engine.
+engine. Changing `--vendor` also checks any retained pins against the new engine;
+replace or clear incompatible pins in the same update. Clearing `--vendor`
+checks the resulting pins against the routine repo's default engine.
 
 `--precheck-timeout` only means something alongside `--precheck`; on its own it
 is refused rather than quietly ignored. To change just the timeout, pass the

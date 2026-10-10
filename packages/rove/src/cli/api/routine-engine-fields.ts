@@ -5,16 +5,13 @@
  * the first unattended firing.
  */
 
+import type { Automation } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { VendorId } from "../../types/vendor.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { assertEngineAcceptsEffort, assertEngineAcceptsModel, taskEngine } from "./handlers-engines.ts"
 import type { VerbContext } from "./types.ts"
 
-interface RoutineRow {
-  readonly id: string
-  readonly repo: string
-  readonly vendor?: string
-}
+type RoutineRow = Pick<Automation, "id" | "repo" | "vendor" | "model" | "modelEffort">
 
 const RECOVER = ["api", "engine-list"] as const
 
@@ -38,18 +35,19 @@ export async function createEnginePins(ctx: VerbContext, repo: string): Promise<
 export async function updateEnginePins(ctx: VerbContext, id: string): Promise<Record<string, string | null>> {
   const hasModel = ctx.args.present("model")
   const hasEffort = ctx.args.present("effort")
-  if (!hasModel && !hasEffort) return {}
+  const hasVendor = ctx.args.present("vendor")
+  if (!hasModel && !hasEffort && !hasVendor) return {}
   const model = ctx.args.str("model")?.trim() || undefined
   const effort = ctx.args.str("effort")?.trim() || undefined
-  if (model || effort) {
-    let engine = ctx.args.present("vendor") ? ctx.args.vendor() : undefined
-    if (!ctx.args.present("vendor")) {
-      const { automations } = await daemonOf(ctx).request<{ automations: RoutineRow[] }>("automation.list", {})
-      const routine = automations.find((a) => a.id === id)
-      // An unknown id is the daemon's error to report, with its own wording.
-      if (routine) engine = (routine.vendor as VendorId | undefined) ?? (await ctx.runtime.defaultVendor(routine.repo))
+  if (hasVendor || model || effort) {
+    const { automations } = await daemonOf(ctx).request<{ automations: RoutineRow[] }>("automation.list", {})
+    const routine = automations.find((a) => a.id === id)
+    // An unknown id is the daemon's error to report, with its own wording.
+    if (routine) {
+      const vendor = hasVendor ? ctx.args.vendor() : routine.vendor
+      const engine = vendor ?? (await ctx.runtime.defaultVendor(routine.repo))
+      validate(engine, hasModel ? model : routine.model, hasEffort ? effort : routine.modelEffort)
     }
-    validate(engine, model, effort)
   }
   return {
     ...(hasModel ? { model: model ?? null } : {}),

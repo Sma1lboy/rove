@@ -46,6 +46,70 @@ describe("routine engine pins", () => {
     expect(client.requests.find((r) => r.name === "automation.update")?.payload).toEqual({ id: "r1", effort: "xhigh" })
   })
 
+  it.each([
+    { flags: ["--vendor", "claude"], code: "BAD_EFFORT" },
+    { flags: ["--vendor", ""], code: "BAD_EFFORT" },
+    { flags: ["--vendor", "claude", "--model", "sonnet"], code: "BAD_EFFORT" },
+    { flags: ["--vendor", "claude", "--model", ""], code: "BAD_EFFORT" },
+    { flags: ["--vendor", "bob", "--effort", ""], code: "BAD_MODEL" },
+    { flags: ["--vendor", "bob", "--effort", "high"], code: "BAD_MODEL" },
+  ])("rejects incompatible retained pins for $flags", async ({ flags, code }) => {
+    const client = new FakeClient({
+      "automation.list": () => ({
+        automations: [{ id: "r1", repo: "/repo", vendor: "codex", model: "gpt-5.5", modelEffort: "high" }],
+      }),
+      "automation.update": created,
+    })
+    await expect(
+      invokeVerb("routine-update", ["--id", "r1", ...flags], {
+        client,
+        runtime: stubRuntime({ defaultVendor: async () => "claude" }),
+      }),
+    ).rejects.toMatchObject({ code })
+    expect(client.requests.some((r) => r.name === "automation.update")).toBe(false)
+  })
+
+  it.each([
+    { vendor: "claude", flags: ["--effort", "ultra"], code: "BAD_EFFORT" },
+    { vendor: "bob", flags: ["--model", "gpt-5.5"], code: "BAD_MODEL" },
+  ])("checks pins against $vendor when clearing the vendor", async ({ vendor, flags, code }) => {
+    const client = new FakeClient({
+      "automation.list": () => ({ automations: [{ id: "r1", repo: "/repo", vendor: "codex" }] }),
+      "automation.update": created,
+    })
+    const runtime = stubRuntime({
+      defaultVendor: async (repo) => {
+        expect(repo).toBe("/repo")
+        return vendor
+      },
+    })
+    await expect(
+      invokeVerb("routine-update", ["--id", "r1", "--vendor", "", ...flags], {
+        client,
+        runtime,
+      }),
+    ).rejects.toMatchObject({ code })
+    expect(client.requests.some((r) => r.name === "automation.update")).toBe(false)
+  })
+
+  it.each(["claude", ""])("allows a vendor change to %s with incompatible effort cleared", async (vendor) => {
+    const client = new FakeClient({
+      "automation.list": () => ({
+        automations: [{ id: "r1", repo: "/repo", vendor: "codex", model: "gpt-5.5", modelEffort: "high" }],
+      }),
+      "automation.update": created,
+    })
+    await invokeVerb("routine-update", ["--id", "r1", "--vendor", vendor, "--effort", ""], {
+      client,
+      runtime: stubRuntime({ defaultVendor: async () => "claude" }),
+    })
+    expect(client.requests.find((r) => r.name === "automation.update")?.payload).toEqual({
+      id: "r1",
+      vendor: vendor || null,
+      effort: null,
+    })
+  })
+
   it("clears a pin with an empty value", async () => {
     const client = new FakeClient({ "automation.update": created })
     await invokeVerb("routine-update", ["--id", "r1", "--model", "", "--effort", ""], {
