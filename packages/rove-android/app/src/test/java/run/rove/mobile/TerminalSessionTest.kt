@@ -11,7 +11,6 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.*
 import org.junit.Test
 import run.rove.mobile.data.*
-import run.rove.mobile.ui.TerminalSession
 
 @OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
 class TerminalSessionTest {

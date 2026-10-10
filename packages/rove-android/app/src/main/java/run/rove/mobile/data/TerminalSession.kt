@@ -1,9 +1,8 @@
-package run.rove.mobile.ui
+package run.rove.mobile.data
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
-import run.rove.mobile.data.*
 import run.rove.mobile.domain.*
 
 class TerminalSession(private val bridge: BridgeClient, private val scope: CoroutineScope,

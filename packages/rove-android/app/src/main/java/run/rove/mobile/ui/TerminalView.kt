@@ -17,6 +17,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import kotlinx.serialization.json.JsonPrimitive
 import run.rove.mobile.data.BridgeClient
+import run.rove.mobile.data.TerminalSession
 import java.io.ByteArrayInputStream
 
 @SuppressLint("SetJavaScriptEnabled")

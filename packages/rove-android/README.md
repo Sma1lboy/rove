@@ -17,10 +17,10 @@ For an intentional visual update, run `./gradlew :app:recordPaparazziDebug`, ins
 ## Structure
 
 - `domain` defines task rows, stable iOS attention ordering, notification transitions, and reconnect policy.
-- `data` owns protocol JSON, OkHttp, Keystore encryption, demo resolution, and Android notifications.
-- `ui` owns the ViewModel, Compose screens, and the lifetime of a selected terminal attachment.
+- `data` owns protocol JSON, OkHttp, the typed `RoveRepository` over bridge ops, the terminal attachment session, Keystore encryption, demo resolution, and Android notifications.
+- `ui` owns the ViewModel and Compose screens.
 
-Compose consumes domain rows. Only `data` serializes network frames. The terminal session controller owns attachment and detachment; it never starts a PTY. App actions use the bridge's existing allowlist.
+Compose calls typed `RoveRepository` methods and consumes domain rows; it never builds or decodes a bridge frame. `TerminalSession` owns attachment and detachment; it never starts a PTY. App actions use the bridge's existing allowlist.
 
 ### Terminal choice
 

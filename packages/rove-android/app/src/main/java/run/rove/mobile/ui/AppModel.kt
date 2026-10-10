@@ -5,12 +5,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.serialization.json.*
 import run.rove.mobile.data.*
 import run.rove.mobile.domain.*
 
 class AppModel(application: Application) : AndroidViewModel(application) {
     val bridge = BridgeClient(viewModelScope)
+    val repository = RoveRepository(bridge)
     private val credentials = CredentialStore(application)
     private val notifier = Notifier(application)
     val tasks = MutableStateFlow(Tasks())
@@ -25,7 +25,7 @@ class AppModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             bridge.events.collect { event ->
                 if (event.name == "request.error") error.value = "Terminal request refused. Reopen the tab before typing again."
-                if (event.name == "tasks") runCatching { snapshot(wireJson.decodeFromJsonElement(event.data)) }
+                runCatching { repository.tasksPush(event)?.let(::snapshot) }
                     .onFailure { error.value = "Could not read the task update" }
             }
         }
@@ -34,9 +34,9 @@ class AppModel(application: Application) : AndroidViewModel(application) {
                 if (state is Connection.Connected) {
                     previous = null
                     try {
-                        snapshot(wireJson.decodeFromJsonElement(bridge.request("tasks.subscribe")))
-                        engines.value = wireJson.decodeFromJsonElement<Engines>(bridge.request("engines.list")).engines
-                        repos.value = wireJson.decodeFromJsonElement<Repos>(bridge.request("repos.list")).repos
+                        snapshot(repository.subscribeTasks())
+                        engines.value = repository.engines()
+                        repos.value = repository.repos()
                     } catch (e: CancellationException) { throw e }
                     catch (_: Exception) { error.value = "Could not load the bridge. Reconnect to retry." }
                 } else previous = null
@@ -76,7 +76,7 @@ class AppModel(application: Application) : AndroidViewModel(application) {
         paired.value = false; demo.value = false; previous = null
         tasks.value = Tasks(); engines.value = emptyList(); repos.value = emptyList()
     }
-    fun refresh() = action { snapshot(wireJson.decodeFromJsonElement(bridge.request("tasks.list"))) }
+    fun refresh() = action { snapshot(repository.listTasks()) }
     fun action(block: suspend () -> Unit): Job = viewModelScope.launch {
         try { block() }
         catch (e: CancellationException) { throw e }

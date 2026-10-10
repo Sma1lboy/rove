@@ -8,8 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.serialization.json.*
-import run.rove.mobile.data.args
 
 @Composable fun CreateSheet(model: AppModel, taskId: String?, dismiss: () -> Unit, created: (String) -> Unit) {
     val engines by model.engines.collectAsStateWithLifecycle()
@@ -35,10 +33,8 @@ import run.rove.mobile.data.args
             busy = true
             model.action {
                 try {
-                    val payload = if (taskId == null) args("repo" to repo, "engine" to engine, "title" to title, "prompt" to prompt)
-                    else args("taskId" to taskId, "engine" to engine, "prompt" to prompt)
-                    val result = model.bridge.request(if (taskId == null) "task.create" else "tab.new", payload)
-                    val id = result[if (taskId == null) "taskId" else "tabId"]?.jsonPrimitive?.content ?: error("Missing id")
+                    val id = if (taskId == null) model.repository.createTask(repo, engine, title, prompt)
+                    else model.repository.newTab(taskId, engine, prompt)
                     model.refresh(); created(id)
                 } finally { busy = false }
             }

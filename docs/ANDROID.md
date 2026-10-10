@@ -59,6 +59,8 @@ The demo resolver consumes the iOS fixture directly. Reconnects never replay use
 
 `./scripts/verify.sh` builds the APK and runs Android Lint, domain/protocol tests, MockWebServer integration tests, and Paparazzi Compose screenshot comparisons. The socket tests perform real localhost upgrades, check bearer authentication, close sockets during requests, observe reconnects, and test authorization failure and explicit disconnect.
 
+The repository's CI does not build Android yet; run `verify.sh` locally or on allen before trusting a change.
+
 Screenshot baselines live under `packages/rove-android/app/src/test/snapshots/images/`. Regenerate with `./gradlew :app:recordPaparazziDebug`; inspect the resulting images before accepting them. These are Compose render tests, not emulator or real bridge evidence.
 
 ## Device checks still required on allen

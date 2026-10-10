@@ -11,8 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
-import kotlinx.serialization.json.decodeFromJsonElement
-import run.rove.mobile.data.*
 import run.rove.mobile.domain.*
 
 @Composable fun DiffScreen(model: AppModel, taskId: String) {
@@ -24,9 +22,8 @@ import run.rove.mobile.domain.*
         loading = true; content = null
         try {
             val file = selected
-            if (file == null) files = wireJson.decodeFromJsonElement(model.bridge.request("diff.files", args("taskId" to taskId)))
-            else content = wireJson.decodeFromJsonElement(model.bridge.request("diff.file",
-                args("taskId" to taskId, "path" to file.path, "scope" to file.scope)))
+            if (file == null) files = model.repository.diffFiles(taskId)
+            else content = model.repository.diffFile(taskId, file)
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) { model.error.value = "Could not load diff" }
         finally { loading = false }

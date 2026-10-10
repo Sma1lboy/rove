@@ -9,7 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CancellationException
-import kotlinx.serialization.json.*
 import run.rove.mobile.data.*
 import run.rove.mobile.domain.*
 
@@ -28,7 +27,7 @@ import run.rove.mobile.domain.*
     LaunchedEffect(taskId, connection, revision) {
         if (connection is Connection.Connected) {
             try {
-                tabs = wireJson.decodeFromJsonElement<Tabs>(model.bridge.request("task.tabs", args("taskId" to taskId))).tabs
+                tabs = model.repository.tabs(taskId)
                 if (selected !in tabs.map { it.id }) selected = tabs.firstOrNull()?.id
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { model.error.value = "Could not load terminal tabs" }
@@ -67,10 +66,10 @@ import run.rove.mobile.domain.*
             if (confirmation == 1) confirmation = 2
             else {
                 busy = true
-                val op = "task.$action"
+                val delete = action == "delete"
                 model.action {
                     try {
-                        model.bridge.request(op, args("taskId" to taskId))
+                        if (delete) model.repository.delete(taskId) else model.repository.land(taskId)
                         action = null; model.refresh(); back()
                     } finally { busy = false }
                 }
