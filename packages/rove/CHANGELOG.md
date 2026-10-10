@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.245
+
+### Patch Changes
+
+- [#1224](https://github.com/Sma1lboy/rove/pull/1224) [`3e7874d`](https://github.com/Sma1lboy/rove/commit/3e7874d2137dfe7cdaca6e36098166168e725640) Switching tasks shows the Files pane's list at once instead of blanking it until `git ls-files` returns, and the pane no longer re-renders when the refreshed list is unchanged. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1227](https://github.com/Sma1lboy/rove/pull/1227) [`cb57b17`](https://github.com/Sma1lboy/rove/commit/cb57b1798bcda80680e12a3e61c77f3d9baa7ce2) `rove api list` takes `--repo`, `--status` and `--activity` filters, so `rove api list --activity permission_needed,error` answers "which tasks are waiting on me" in one call, each match carrying the engine state it matched. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1232](https://github.com/Sma1lboy/rove/pull/1232) [`d68fe3b`](https://github.com/Sma1lboy/rove/commit/d68fe3beef3d045e6c0a2ce6871b61055c2e9d94) Engines that report their own state with OSC 7501 (Claude Code 2.1.295+) now
+  drive the sidebar badge, attention inbox and phone status directly, including
+  for tabs no TUI has open. Hook reports still win; screen reading is the
+  fallback. OSC 3008 context is parsed and kept. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1226](https://github.com/Sma1lboy/rove/pull/1226) [`850ee54`](https://github.com/Sma1lboy/rove/commit/850ee54ea86d62a798f9a59cdbd6d2c593fe01d6) Remove aligned right-edge frame glyphs and their padding when copying terminal paragraphs, while preserving left gutters and isolated wall glyphs. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.244
 
 ### Patch Changes
