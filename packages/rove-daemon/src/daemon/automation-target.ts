@@ -32,11 +32,22 @@ export function readAutomationTarget(value: unknown): Automation["target"] | nul
 }
 
 export function assertAutomationTargetOptions(
-  value: Pick<Automation, "target" | "vendor" | "baseRef" | "persistentSession" | "sessionTaskId">,
+  value: Pick<
+    Automation,
+    "target" | "vendor" | "model" | "modelEffort" | "baseRef" | "persistentSession" | "sessionTaskId"
+  >,
 ): void {
-  if (!value.target) return
-  if (value.vendor || value.baseRef || value.persistentSession) {
-    throw new Error("an existing-tab target cannot set vendor, baseRef or persistentSession; clear them when binding")
+  if (!value.target) {
+    // Pins were validated against one engine; a vendor-less run would launch the default one.
+    if ((value.model || value.modelEffort) && !value.vendor) {
+      throw new Error("a routine that pins model or effort must also store the vendor they were validated against")
+    }
+    return
+  }
+  if (value.vendor || value.model || value.modelEffort || value.baseRef || value.persistentSession) {
+    throw new Error(
+      "an existing-tab target cannot set vendor, model, effort, baseRef or persistentSession; clear them when binding",
+    )
   }
 }
 
@@ -45,6 +56,8 @@ export function mergeAutomationTargetOptions(automation: Automation, patch: Auto
   return {
     target: patch.target === null ? undefined : (patch.target ?? automation.target),
     vendor: patch.vendor === null ? undefined : (patch.vendor ?? automation.vendor),
+    model: patch.model === null ? undefined : (patch.model ?? automation.model),
+    modelEffort: patch.modelEffort === null ? undefined : (patch.modelEffort ?? automation.modelEffort),
     baseRef: patch.baseRef === null ? undefined : (patch.baseRef ?? automation.baseRef),
     persistentSession: patch.persistentSession ?? automation.persistentSession,
     sessionTaskId:

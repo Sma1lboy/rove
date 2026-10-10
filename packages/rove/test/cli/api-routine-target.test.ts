@@ -4,7 +4,10 @@ import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 
 describe("routine target CLI payload", () => {
   it("sets, retains and clears the exact target, including clearing a stored vendor", async () => {
-    const client = new FakeClient({ "automation.update": () => ({ ok: true }) })
+    const client = new FakeClient({
+      "automation.list": () => ({ automations: [{ id: "r", repo: "/repo", vendor: "codex" }] }),
+      "automation.update": () => ({ ok: true }),
+    })
     const runtime = stubRuntime()
     await invokeVerb("routine-update", ["--id", "r", "--target-task", "task", "--target-tab", "tab-2"], {
       client,
@@ -15,7 +18,7 @@ describe("routine target CLI payload", () => {
       client,
       runtime,
     })
-    expect(client.requests.map((r) => r.payload)).toEqual([
+    expect(client.requests.filter((r) => r.name === "automation.update").map((r) => r.payload)).toEqual([
       { id: "r", target: { kind: "existing-tab", taskId: "task", tabId: "tab-2" } },
       { id: "r", name: "renamed" },
       { id: "r", target: null, vendor: null },

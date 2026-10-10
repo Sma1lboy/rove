@@ -83,9 +83,13 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       // Validate before persisting, not at the first unattended failure.
       if (!target) await assertRoutineRepo(repo)
       if (baseRef) await assertRoutineBaseRef(repo, baseRef)
+      const model = optionalString(payload, "model")
+      const modelEffort = optionalString(payload, "effort")
       const targetOptions = {
         target: target ?? undefined,
         vendor: optionalVendor(payload, "vendor"),
+        model,
+        modelEffort,
         baseRef,
         persistentSession: optionalBoolean(payload, "persistentSession"),
       }
@@ -99,6 +103,8 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         schedule: requireSchedule(payload, "schedule"),
         missedRunGraceMinutes: readGraceMinutes(payload) ?? 60,
         ...(optionalVendor(payload, "vendor") ? { vendor: optionalVendor(payload, "vendor") } : {}),
+        ...(model ? { model } : {}),
+        ...(modelEffort ? { modelEffort } : {}),
         ...(precheck ? { precheck } : {}),
         ...(baseRef ? { baseRef } : {}),
         ...(optionalBoolean(payload, "persistentSession") === true ? { persistentSession: true } : {}),
@@ -126,6 +132,9 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
           : optionalVendor(payload, "vendor") !== undefined
             ? { vendor: optionalVendor(payload, "vendor") }
             : {}),
+        // Wire key is `effort`, as on `task.create`; `null` or "" clears.
+        ...("model" in payload ? { model: optionalString(payload, "model") ?? null } : {}),
+        ...("effort" in payload ? { modelEffort: optionalString(payload, "effort") ?? null } : {}),
         ...("target" in payload ? { target: readAutomationTarget(payload.target) } : {}),
         ...("schedule" in payload ? { schedule: requireSchedule(payload, "schedule") } : {}),
         ...(readPrecheck(payload) !== undefined ? { precheck: readPrecheck(payload) } : {}),

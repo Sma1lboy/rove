@@ -90,6 +90,16 @@ describe("runAutomationOnce", () => {
     ])
   })
 
+  it("launches each run's task on the routine's pinned model and effort", async () => {
+    const store = await tempStore()
+    const { deps, created } = fakeDeps({ store })
+    const a = await store.create(automation({ vendor: "codex", model: "gpt-5.5", modelEffort: "high" }))
+
+    await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
+
+    expect(created).toEqual([{ repo: REPO, title: "audit", vendor: "codex", model: "gpt-5.5", modelEffort: "high" }])
+  })
+
   it("skips without creating a task when the precheck fails", async () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })

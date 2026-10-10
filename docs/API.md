@@ -986,12 +986,21 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 
 - `routine-list`: every routine with its next run time.
 - `routine-create --repo PATH --name N (--prompt TEXT | --prompt-file PATH) --schedule CRON
-  [--vendor V] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
+  [--vendor V] [--model M] [--effort LEVEL] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
   [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]`: schedule a prompt. `--schedule` is five-field
-  cron in the daemon host's local time (`"0 9 * * MON-FRI"`).
+  cron in the daemon host's local time (`"0 9 * * MON-FRI"`). `--model` / `--effort`
+  pin every run's engine, validated at save time with the same `BAD_MODEL` /
+  `BAD_EFFORT` as `add` against `--vendor`, else the repo's default engine, else
+  the built-in default; a pinned routine stores that vendor, so runs launch the
+  engine the pins were checked against. Without pins or `--vendor`, runs launch
+  the built-in default. The daemon refuses model/effort without a vendor.
 - `routine-update --id ID [...]`: change any field; `--enabled true|false` pauses / resumes. A new `--schedule`
-  re-anchors the next run; `--precheck ''` clears the precheck. Omitted target flags
+  re-anchors the next run; `--precheck ''` clears the precheck, `--model ''` / `--effort ''` clear those pins,
+  and `--vendor ''` under surviving pins re-resolves, re-validates and stores the engine. Omitted target flags
   preserve the binding; `--target-task '' --target-tab ''` sends `target: null` to clear it.
+  While a routine retains a standing task, vendor/model/effort changes and clears
+  are rejected even if its engine has exited. Disable it and create a replacement
+  with the desired pins. Unchanged pins and other field updates remain supported.
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
 - `routine-respond --run RUN_ID (--text T | --prompt-file PATH|-)`: store the
@@ -1017,9 +1026,9 @@ one branch is a branch nobody can land. One extra run status comes with it —
 files carried over, the conversation did not).
 
 **Existing target:** the daemon payload is `target: {kind: "existing-tab", taskId, tabId}`.
-The repo must match the task repo; `vendor`, `baseRef` and `persistentSession`
+The repo must match the task repo; `vendor`, `model`, `effort`, `baseRef` and `persistentSession`
 are incompatible with this mode. Updates validate the merged record; clear old
-launch settings with `--vendor '' --base-branch '' --persistent-session false`
+launch settings with `--vendor '' --model '' --effort '' --base-branch '' --persistent-session false`
 when binding. Missing/deleting tasks, missing tabs and exited engines fail without
 fallback. Disabling stops future scheduling, including a run still in precheck. Claims
 survive restarts without replay, but a crash after claim and before delivery can

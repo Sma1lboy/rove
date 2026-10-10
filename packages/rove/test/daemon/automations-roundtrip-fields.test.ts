@@ -35,6 +35,8 @@ const FULL: Omit<DeepRequired<Automation>, "id" | "nextRunAt" | "createdAt" | "u
   repo: "/repo",
   prompt: "run the audit",
   vendor: "codex",
+  model: "gpt-5.5",
+  modelEffort: "high",
   schedule: "0 9 * * *",
   precheck: { command: "git fetch --dry-run", timeoutSeconds: 45 },
   baseRef: "release/1.x",
@@ -51,6 +53,8 @@ const PATCH: Omit<DeepRequired<AutomationPatch>, "target"> = {
   name: "renamed",
   prompt: "run the other audit",
   vendor: "claude",
+  model: "opus",
+  modelEffort: "low",
   schedule: "*/15 * * * *",
   precheck: { command: "true", timeoutSeconds: 5 },
   baseRef: "main",
@@ -74,7 +78,14 @@ describe("Automation field round-trip", () => {
     const store = new AutomationsStore(path, () => NOW)
     await store.init()
     const created = await store.create(FULL)
-    await store.update(created.id, { ...BOUND, vendor: null, baseRef: null, persistentSession: false })
+    await store.update(created.id, {
+      ...BOUND,
+      vendor: null,
+      model: null,
+      modelEffort: null,
+      baseRef: null,
+      persistentSession: false,
+    })
     await store.update(created.id, { name: "bound" })
     const rebound = new AutomationsStore(path, () => NOW)
     await rebound.init()
@@ -104,7 +115,8 @@ describe("Automation field round-trip", () => {
   it("every AutomationPatch key mutates through update()", async () => {
     const store = new AutomationsStore(tempPath(), () => NOW)
     await store.init()
-    const created = await store.create(FULL)
+    // A retained standing task freezes its pins, so start unlinked: PATCH then sets every key.
+    const created = await store.create({ ...FULL, sessionTaskId: undefined })
     const updated = await store.update(created.id, PATCH)
     expect(updated).toMatchObject(PATCH)
     // Sanity: the fixture really did change every key, or a no-op update
@@ -119,7 +131,13 @@ describe("Automation field round-trip", () => {
     const store = new AutomationsStore(path, () => NOW)
     await store.init()
     const created = await store.create(FULL)
-    await store.update(created.id, { precheck: null, baseRef: null, sessionTaskId: null })
+    await store.update(created.id, {
+      precheck: null,
+      baseRef: null,
+      sessionTaskId: null,
+      model: null,
+      modelEffort: null,
+    })
 
     const reborn = new AutomationsStore(path, () => NOW)
     await reborn.init()
@@ -127,5 +145,7 @@ describe("Automation field round-trip", () => {
     expect(loaded).not.toHaveProperty("precheck")
     expect(loaded).not.toHaveProperty("baseRef")
     expect(loaded).not.toHaveProperty("sessionTaskId")
+    expect(loaded).not.toHaveProperty("model")
+    expect(loaded).not.toHaveProperty("modelEffort")
   })
 })

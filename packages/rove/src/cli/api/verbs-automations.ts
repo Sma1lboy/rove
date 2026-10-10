@@ -11,6 +11,7 @@ import { ROUTINE_RESPONSE_MAX_CHARS } from "@sma1lboy/rove-daemon/daemon/contrac
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { requirePromptText } from "./handlers-tasks.ts"
+import { createEngineFields, updateEngineFields } from "./routine-engine-fields.ts"
 import { ApiError, type VerbSpec } from "./types.ts"
 
 const SCHEDULE_FLAG = {
@@ -51,6 +52,22 @@ const PERSISTENT_FLAG = {
   type: "bool",
   description:
     "Re-deliver into ONE standing task instead of a fresh worktree per run — for a routine that needs yesterday's context (a trend check). Its task is folded behind the sidebar's routine count row. Leave off for a routine that EDITS code: a week of runs on one branch is a branch nobody can land.",
+} as const
+
+const MODEL_FLAG = {
+  name: "model",
+  type: "string",
+  placeholder: "MODEL",
+  description:
+    "Model every run's engine launches on, in the engine's own spelling (`engine-list` shows suggestions). Rejected (BAD_MODEL) on an engine that declares no model flag.",
+} as const
+
+const EFFORT_FLAG = {
+  name: "effort",
+  type: "string",
+  placeholder: "LEVEL",
+  description:
+    "Reasoning effort every run's engine launches at. Validated against the engine's declared levels (BAD_EFFORT otherwise).",
 } as const
 
 const TARGET_FLAGS = [
@@ -123,7 +140,13 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       F.prompt(true, "Text delivered to the selected conversation or a new session."),
       F.promptFile(),
       { ...SCHEDULE_FLAG, required: true },
-      F.vendor(),
+      {
+        ...F.vendor(),
+        description:
+          "Engine every run launches. Omitted with --model/--effort: the repo's default engine (falling back to the built-in default) is resolved, validated and stored. Omitted without pins: runs launch the built-in default engine.",
+      },
+      MODEL_FLAG,
+      EFFORT_FLAG,
       {
         name: "base-branch",
         type: "string",
@@ -136,13 +159,14 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       ...TARGET_FLAGS,
       { name: "disabled", type: "bool", description: "Create it paused instead of active." },
     ],
-    handler: (ctx) =>
-      simpleRpc(ctx, "automation.create", {
-        repo: ctx.args.requireRepo("repo"),
+    handler: async (ctx) => {
+      const repo = ctx.args.requireRepo("repo")
+      return simpleRpc(ctx, "automation.create", {
+        repo,
         name: ctx.args.require("name"),
         prompt: requirePromptText(ctx, "routine-create"),
         schedule: ctx.args.require("schedule"),
-        ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
+        ...(await createEngineFields(ctx, repo)),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),
         ...precheckPayload(ctx),
         ...targetPayload(ctx),
@@ -151,7 +175,8 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
           : {}),
         ...(ctx.args.bool("persistent-session") ? { persistentSession: true } : {}),
         ...(ctx.args.bool("disabled") ? { enabled: false } : {}),
-      }),
+      })
+    },
   },
   {
     name: "routine-update",
@@ -167,8 +192,11 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       {
         ...F.vendor(),
         type: "string",
-        description: "New engine vendor; empty clears it before binding an existing target.",
+        description:
+          "New engine vendor; empty clears it (before binding an existing target). While model/effort stay pinned, a cleared vendor is re-resolved from the repo default and stored.",
       },
+      { ...MODEL_FLAG, description: `${MODEL_FLAG.description} '' clears it.` },
+      { ...EFFORT_FLAG, description: `${EFFORT_FLAG.description} '' clears it.` },
       { name: "base-branch", type: "string", placeholder: "B", description: "New base ref ('' to clear)." },
       ...PRECHECK_FLAGS,
       GRACE_FLAG,
@@ -176,13 +204,14 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       ...TARGET_FLAGS,
       { name: "enabled", type: "bool", placeholder: "BOOL", description: "false pauses the routine, true resumes it." },
     ],
-    handler: (ctx) =>
-      simpleRpc(ctx, "automation.update", {
-        id: ctx.args.require("id"),
+    handler: async (ctx) => {
+      const id = ctx.args.require("id")
+      return simpleRpc(ctx, "automation.update", {
+        id,
         ...(ctx.args.str("name") !== undefined ? { name: ctx.args.str("name") } : {}),
         ...(ctx.args.promptText() !== undefined ? { prompt: ctx.args.promptText() } : {}),
         ...(ctx.args.str("schedule") !== undefined ? { schedule: ctx.args.str("schedule") } : {}),
-        ...(ctx.args.present("vendor") ? { vendor: ctx.args.vendor() ?? null } : {}),
+        ...(await updateEngineFields(ctx, id)),
         // `--base-branch ''` clears the base ref (sends null); `present` keeps
         // that empty value visible where `str` would fold it into "absent".
         ...(ctx.args.present("base-branch") ? { baseRef: ctx.args.str("base-branch") ?? null } : {}),
@@ -197,7 +226,8 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
           ? { persistentSession: ctx.args.bool("persistent-session") ?? true }
           : {}),
         ...(ctx.args.present("enabled") ? { enabled: ctx.args.bool("enabled") ?? true } : {}),
-      }),
+      })
+    },
   },
   {
     name: "routine-delete",

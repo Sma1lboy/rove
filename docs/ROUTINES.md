@@ -38,7 +38,7 @@ The example throughout this page is the one in the screenshot: *every morning at
 There is no in-page editing: recreate the routine, or use `rove api
 routine-update`. The composer carries name, repo, delivery target, prompt, schedule and the
 confirm step; everything else is CLI-only — `--precheck` (below),
-`--precheck-timeout`, `--vendor`, `--base-branch`, `--grace`,
+`--precheck-timeout`, `--vendor`, `--model`, `--effort`, `--base-branch`, `--grace`,
 `--persistent-session` and `--disabled`.
 
 The page end to end: walking the schedules, pausing one, then composing a
@@ -85,6 +85,29 @@ fires: a path that is not a git repository, or a base ref that does not resolve
 in it, is refused with a message naming the value. The check is not a guarantee
 — a repo deleted after the routine was saved still fails at 03:00 — it just
 catches the typo while you are still at the keyboard.
+
+`--model` and `--effort` pin what every run's engine launches on, the same
+values `rove api add` takes. They are checked when the routine is saved, so an
+engine that has no reasoning levels refuses `--effort` at the keyboard instead
+of at 03:00. The engine they are checked against is `--vendor`, else the
+repo's default engine, else the built-in default (claude), and a pinned
+routine stores that vendor: its runs launch the engine its pins were checked
+against, even if the repo's default changes later. A routine with no pins and
+no `--vendor` stores no vendor, and its runs launch the built-in default.
+`routine-update --model ''` or `--effort ''` clears the pin. A
+routine bound to an existing tab cannot set either: that tab keeps its own
+engine. Changing `--vendor` also checks any retained pins against the new engine;
+replace or clear incompatible pins in the same update. Clearing `--vendor`
+while pins remain resolves the engine again the same way, checks the pins
+against it and stores it; clearing it with no pins left stores no vendor.
+
+Once a persistent routine has a standing task, updates cannot add, change or
+clear its vendor, model or effort. This applies while the engine is live and
+after it exits, and while the routine retains that task link in fresh mode.
+Disable the routine with `routine-update --id ID --enabled false`, then create
+a replacement with the desired pins. Repeating unchanged pins and editing
+other fields remain supported. Binding to an existing tab clears the standing
+link and uses that tab's engine settings.
 
 `--precheck-timeout` only means something alongside `--precheck`; on its own it
 is refused rather than quietly ignored. To change just the timeout, pass the
@@ -276,9 +299,9 @@ original fresh-task or standing-session behavior.
 
 The routine repo must match the target task's repo. A bound directory task
 does not require a git repository because the routine creates no worktree. An existing binding cannot
-also set `vendor`, `baseRef` or `persistentSession`, including values already
+also set `vendor`, `model`, `effort`, `baseRef` or `persistentSession`, including values already
 stored before an update. Clear those values in the same update when switching
-modes: `--vendor '' --base-branch '' --persistent-session false`. The target
+modes: `--vendor '' --model '' --effort '' --base-branch '' --persistent-session false`. The target
 keeps its own engine, worktree and conversation; routine runs never change its
 ownership or add a task or tab. Its precheck still runs in the routine repo.
 
