@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="list_connected">已连接</string>
+    <string name="list_connecting">连接中</string>
+    <string name="list_reconnecting">重连中 · 第 %1$d 次</string>
+    <string name="list_offline">离线</string>
+    <string name="list_failed">失败</string>
+    <string name="list_tasks_count">%1$s 个任务</string>
+    <string name="list_deleting">删除中</string>
+    <string name="list_main_checkout">主检出</string>
+    <string name="list_pinned">已置顶</string>
+    <string name="list_more">更多</string>
+    <string name="list_refresh">刷新</string>
+    <string name="list_notifications">通知</string>
+    <string name="list_disconnect">断开</string>
+    <string name="list_pair_again">重新配对</string>
+    <string name="list_welcome">欢迎</string>
+    <string name="list_welcome_body">rove 并行运行多个编码 agent，每个任务都有独立的 git worktree 和分支。</string>
+    <string name="list_welcome_hint">点下方的新建任务栏即可开始。</string>
+    <string name="list_new_task">新建任务</string>
+    <string name="list_new_task_kind">worktree</string>
+    <string name="list_new_task_a11y">新建任务</string>
+</resources>

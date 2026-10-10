@@ -1,5 +1,8 @@
 package run.rove.mobile.ui
 
+import androidx.compose.ui.res.stringResource
+import run.rove.mobile.R
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -140,7 +143,8 @@ import kotlinx.coroutines.delay
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).background(Rove.c.paper)
         .padding(start = if (back == null) 20.dp else 10.dp, end = if (back == null) 20.dp else 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (back != null) Box(Modifier.size(36.dp).pressable(onClick = back).semantics { contentDescription = "Back" },
+        val backLabel = stringResource(R.string.app_back)
+        if (back != null) Box(Modifier.size(36.dp).pressable(onClick = back).semantics { contentDescription = backLabel },
             contentAlignment = Alignment.Center) {
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, tint = Rove.c.ink, modifier = Modifier.size(28.dp))
         }
@@ -211,9 +215,9 @@ import kotlinx.coroutines.delay
     Row(Modifier.fillMaxWidth().background(Rove.c.inset).drawBehind {
         drawLine(line, androidx.compose.ui.geometry.Offset(0f, size.height), androidx.compose.ui.geometry.Offset(size.width, size.height), 1.dp.toPx())
     }.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("demo · not connected to a mac", Modifier.weight(1f), color = Rove.c.muted, style = Rove.mono(11, FontWeight.Medium), maxLines = 1)
+        Text(stringResource(R.string.app_demo_status), Modifier.weight(1f), color = Rove.c.muted, style = Rove.mono(11, FontWeight.Medium), maxLines = 1)
         Box(Modifier.heightIn(min = 32.dp).pressable(onClick = onConnect), contentAlignment = Alignment.Center) {
-            Text("connect a mac", color = Rove.c.accent, style = Rove.mono(11, FontWeight.SemiBold), maxLines = 1)
+            Text(stringResource(R.string.app_demo_connect), color = Rove.c.accent, style = Rove.mono(11, FontWeight.SemiBold), maxLines = 1)
         }
     }
 }
@@ -237,7 +241,7 @@ import kotlinx.coroutines.delay
                     Text(title, color = Rove.c.ink, style = Rove.face(20, FontWeight.SemiBold))
                 }
                 Box(Modifier.heightIn(min = 36.dp).widthIn(min = 44.dp).pressable(onClick = onDismiss), contentAlignment = Alignment.Center) {
-                    Text("close", color = Rove.c.muted, style = Rove.mono(14))
+                    Text(stringResource(R.string.app_close), color = Rove.c.muted, style = Rove.mono(14))
                 }
             }
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),

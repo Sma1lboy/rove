@@ -52,7 +52,10 @@ data class TaskRow(
     val added: Int? = null, val deleted: Int? = null,
 )
 @Serializable data class DiffFiles(val base: String? = null, val files: List<DiffFile>)
-@Serializable data class DiffContent(val kind: String, val text: String? = null, val message: String? = null)
+@Serializable data class DiffContent(val kind: String, val text: String? = null, val message: String? = null,
+                                     val origPath: String? = null, val image: Boolean? = null, val sizeBytes: Long? = null,
+                                     val note: PatchNote? = null)
+@Serializable data class PatchNote(val kind: String, val from: String? = null, val to: String? = null, val change: String? = null)
 
 data class TaskNotice(val taskId: String, val title: String, val body: String)
 
@@ -63,6 +66,40 @@ object TaskOrdering {
         compareBy<TaskRow> { if (it.kind == "main") 0 else if (it.pinned) 1 else 2 }
             .thenBy { groups.indexOf(group(it.group)) }.thenBy { it.rank }
     )
+
+    /** iOS `TaskListLogic.projects`, attention mode: rows in `sorted` order per repo; repos by their most urgent task (main/pinned do not lift a repo). */
+    fun sections(rows: List<TaskRow>): List<TaskSection> {
+        val byRepo = sorted(rows).groupBy { it.repo }
+        val urgency = rows.sortedWith(compareBy<TaskRow> { groups.indexOf(group(it.group)) }.thenBy { it.rank })
+        return urgency.map { it.repo }.distinct().map { TaskSection(it, byRepo.getValue(it)) }
+    }
+}
+
+data class TaskSection(val repo: String, val rows: List<TaskRow>) {
+    val name get() = repo.trimEnd('/').substringAfterLast('/')
+}
+
+/** A row as last received, and when: the age clock restarts only when the row changes (iOS `TaskStore.receivedAt`). */
+data class Receipt(val row: TaskRow, val atMs: Long)
+
+object TaskAge {
+    fun receipts(previous: Map<String, Receipt>, rows: List<TaskRow>, nowMs: Long): Map<String, Receipt> =
+        rows.associate { row -> row.id to (previous[row.id]?.takeIf { it.row == row } ?: Receipt(row, nowMs)) }
+
+    /** Server `forMs` at receipt plus local elapsed time; null without activity. */
+    fun ms(receipt: Receipt, nowMs: Long): Double? =
+        receipt.row.activity?.let { it.forMs + maxOf(0L, nowMs - receipt.atMs) }
+
+    fun label(ms: Double?): String {
+        if (ms == null) return "—"
+        val s = (ms / 1000).toInt()
+        return when {
+            s < 60 -> "${maxOf(s, 0)}s"
+            s < 3600 -> "${s / 60}m"
+            s < 86400 -> "${s / 3600}h"
+            else -> "${s / 86400}d"
+        }
+    }
 }
 
 fun transitionNotices(previous: List<TaskRow>?, next: List<TaskRow>): List<TaskNotice> {

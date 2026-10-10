@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="create_new_task">新建任务</string>
+    <string name="create_new_session">新建会话</string>
+    <string name="create_kicker_task">worktree + 分支</string>
+    <string name="create_kicker_session">同一 worktree</string>
+    <string name="create_repository">仓库</string>
+    <string name="create_engine">引擎</string>
+    <string name="create_title">标题</string>
+    <string name="create_title_placeholder">可选，默认从提示词推导</string>
+    <string name="create_first_prompt">首条提示词</string>
+    <string name="create_first_message">首条消息</string>
+    <string name="create_prompt_placeholder_task">留空则只打开 worktree，不启动引擎</string>
+    <string name="create_prompt_placeholder_session">这个会话要做什么</string>
+    <string name="create_submit_task">创建任务</string>
+    <string name="create_submit_session">打开标签页</string>
+    <string name="create_hint_tab">标签页共用 worktree，但各自保留进程、回滚内容和对话。</string>
+    <string name="create_hint_engines_only">Shell 标签页和插件面板需要桌面终端，手机端只能启动引擎。</string>
+    <string name="create_failed">请求失败，重试前请先确认结果。</string>
+</resources>

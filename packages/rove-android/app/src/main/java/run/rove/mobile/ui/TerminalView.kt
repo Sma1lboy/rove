@@ -3,45 +3,81 @@ package run.rove.mobile.ui
 import android.annotation.SuppressLint
 import android.view.ViewGroup
 import android.webkit.*
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
-import run.rove.mobile.data.BridgeClient
+import run.rove.mobile.R
 import run.rove.mobile.data.TerminalSession
 import java.io.ByteArrayInputStream
 
+// iOS Terminal/TerminalPane.swift: the live terminal, a status banner while not live, the key row and the composer.
+
+private const val LIVE = "connected"
+private const val ATTACHING = "connecting"
+
+/** The session's English status literals, in the reader's language. */
+@Composable private fun statusLabel(status: String): String = when {
+    status == ATTACHING -> stringResource(R.string.detail_status_attaching)
+    status == "session ended" -> stringResource(R.string.detail_status_exited)
+    status.startsWith("session exited") -> stringResource(R.string.detail_status_exited_code, status.substringAfter('(').substringBefore(')'))
+    status.startsWith("disconnected") -> stringResource(R.string.detail_status_disconnected)
+    status.startsWith("terminal unavailable") -> stringResource(R.string.detail_status_unavailable)
+    else -> status
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @SuppressLint("SetJavaScriptEnabled")
-@Composable fun TerminalView(bridge: BridgeClient, taskId: String, tabId: String, tabChips: @Composable RowScope.() -> Unit = {}) {
+@Composable fun TerminalView(model: AppModel, taskId: String, tabId: String, engineName: String?, fit: Boolean) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var ctrl by remember { mutableStateOf(false) }
-    var line by remember { mutableStateOf("") }
-    var fit by remember { mutableStateOf(true) }
+    var flash by remember { mutableStateOf<String?>(null) }
+    var flashJob by remember { mutableStateOf<Job?>(null) }
     // AndroidView defaults to WRAP_CONTENT, under which Chromium resolves `height: 100%` to 0 and xterm fits one row.
     val web = remember(taskId, tabId) { WebView(context).apply {
         layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        setBackgroundColor(Rove.Terminal.background.toArgb())
     } }
-    val session = remember(web) { TerminalSession(bridge, scope, taskId, tabId,
+    val session = remember(web) { TerminalSession(model.bridge, scope, taskId, tabId,
         write = { encoded -> web.evaluateJavascript("window.roveWrite(${JsonPrimitive(encoded)});", null) },
         reset = { web.evaluateJavascript("window.roveReset();", null) }) }
     val status by session.status.collectAsState()
-    val send: (String) -> Unit = { text ->
-        if (ctrl && text.length == 1 && text[0].code in 64..127) {
-            session.input((text[0].code and 31).toChar().toString()); ctrl = false
-        } else session.input(text)
+    val interruptSent = stringResource(R.string.detail_interrupt_sent)
+    val showFlash = { text: String ->
+        flashJob?.cancel()
+        flash = text
+        flashJob = scope.launch { delay(2500); flash = null }
     }
+    // Typed text takes a pending ctrl: a single letter becomes its control byte (letter & 0x1f).
+    val send: (String) -> Unit = { text ->
+        if (ctrl && text.length == 1 && text[0].code in 64..127) session.input((text[0].code and 31).toChar().toString())
+        else session.input(text)
+        ctrl = false
+    }
+    // Text, then Enter after a pause: engine TUIs read text+CR in one burst as a paste and insert a newline.
+    val reply: (String) -> Boolean = { text ->
+        val message = PasteEncoding.message(text)
+        (message.isNotEmpty() && session.input(message)).also { sent ->
+            if (sent) scope.launch { delay(150); session.input("\r") }
+        }
+    }
+    LaunchedEffect(session, fit) { session.setFit(fit) }
     DisposableEffect(web) {
         val assets = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context)).build()
@@ -67,32 +103,37 @@ import java.io.ByteArrayInputStream
             session.close(); web.removeJavascriptInterface("Rove"); web.stopLoading(); web.destroy()
         }
     }
+    val keyboard = LocalSoftwareKeyboardController.current
     Column(Modifier.fillMaxSize()) {
-        // Tab chips share the status row so the terminal keeps that height.
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                tabChips()
-                Text(status, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // Inset so glyphs never touch the bezel; xterm fits its columns to the inset width.
+        Box(Modifier.weight(1f).fillMaxWidth().background(Rove.Terminal.background)) {
+            AndroidView(factory = { web }, modifier = Modifier.fillMaxSize().padding(start = 8.dp, end = 8.dp, top = 6.dp))
+            if (status != LIVE) StatusBanner(status, Modifier.align(Alignment.TopCenter))
+            flash?.let {
+                Text(it.lowercase(), Modifier.align(Alignment.BottomCenter).padding(bottom = 44.dp)
+                    .background(Rove.Terminal.control, RoundedCornerShape(Rove.smallRadius)).padding(horizontal = 10.dp, vertical = 6.dp),
+                    color = Rove.Terminal.foreground, style = Rove.mono(12))
             }
-            TextButton(onClick = { fit = !fit; session.setFit(fit) }) { Text(if (fit) "fit" else "watch") }
         }
-        AndroidView(factory = { web }, modifier = Modifier.fillMaxWidth().weight(1f))
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-            listOf("Esc" to "\u001b", "Tab" to "\t", "⇧Tab" to "\u001b[Z", "↑" to "\u001b[A", "↓" to "\u001b[B",
-                "←" to "\u001b[D", "→" to "\u001b[C", "Enter" to "\r", "Ctrl-C" to "\u0003").forEach { (label, key) ->
-                TextButton(onClick = { session.input(key) }) { Text(label) }
-            }
-            FilterChip(selected = ctrl, onClick = { ctrl = !ctrl }, label = { Text("Ctrl") })
-        }
-        Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val submit = { if (session.input(line + "\r")) line = "" }
-            OutlinedTextField(line, { value ->
-                if (ctrl && value.length == line.length + 1 && value.startsWith(line)) send(value.takeLast(1)) else line = value
-            }, modifier = Modifier.weight(1f), singleLine = true, label = { Text("send a line") },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { submit() }))
-            Button(shape = MaterialTheme.shapes.small, onClick = submit, enabled = status == "connected") { Text("send") }
-        }
+        KeyRow(ctrl, onKey = { ctrl = false; session.input(it) }, onCtrl = { ctrl = !ctrl },
+            onInterrupt = {
+                scope.launch {
+                    try { model.repository.interrupt(taskId, tabId); showFlash(interruptSent) }
+                    catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { showFlash(e.message ?: "") }
+                }
+            },
+            onReply = { reply(it) }, onDone = if (WindowInsets.isImeVisible) ({ keyboard?.hide() }) else null)
+        Composer(engineName, reply)
+    }
+}
+
+/** Only shown while not live: attach progress, an exit, or the attach error. */
+@Composable private fun StatusBanner(status: String, modifier: Modifier) {
+    val exited = status.startsWith("session")
+    Row(modifier.fillMaxWidth().background(Rove.c.inset).padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (status == ATTACHING) BrailleSpinner(12)
+        Text(statusLabel(status), color = if (exited) Rove.c.muted else Rove.c.ink, style = Rove.mono(12), maxLines = 2)
     }
 }

@@ -78,4 +78,22 @@ class ContractTest {
         assertFalse(Reconnect.retryable(401)); assertFalse(Reconnect.retryable(403))
         assertTrue(Reconnect.retryable(503)); assertTrue(Reconnect.retryable(null))
     }
+    @Test fun listSectionsFollowMostUrgentTaskAndAgeRestartsOnlyWhenRowChanges() {
+        val rows = listOf(TaskRow("a-idle", repo = "/w/a", group = "idle"), TaskRow("a-main", repo = "/w/a", kind = "main", group = "idle"),
+            TaskRow("b-work", repo = "/w/b", group = "working"), TaskRow("c-wait", repo = "/w/c", group = "waiting-on-you"),
+            TaskRow("b-pin", repo = "/w/b", group = "idle", pinned = true), TaskRow("a-land", repo = "/w/a", group = "landing"))
+        val sections = TaskOrdering.sections(rows)
+        assertEquals(listOf("/w/c", "/w/a", "/w/b"), sections.map { it.repo })
+        assertEquals(listOf("c", "a", "b"), sections.map { it.name })
+        assertEquals(listOf("a-main", "a-land", "a-idle"), sections[1].rows.map { it.id })
+        assertEquals(listOf("b-pin", "b-work"), sections[2].rows.map { it.id })
+        assertEquals(listOf("—", "0s", "59s", "1m", "59m", "1h", "23h", "1d"),
+            listOf(null, -5.0, 59_999.0, 60_000.0, 3_599_000.0, 3_600_000.0, 86_399_000.0, 86_400_000.0).map(TaskAge::label))
+        val row = TaskRow("t", activity = TaskActivity("waiting", 240_000.0))
+        val first = TaskAge.receipts(emptyMap(), listOf(row), 1_000)
+        assertEquals(244_000.0, TaskAge.ms(first.getValue("t"), 5_000)!!, 0.0)
+        assertEquals(first, TaskAge.receipts(first, listOf(row), 9_000))
+        assertEquals(9_000L, TaskAge.receipts(first, listOf(row.copy(group = "idle")), 9_000).getValue("t").atMs)
+        assertNull(TaskAge.ms(Receipt(TaskRow("n"), 0), 5_000))
+    }
 }

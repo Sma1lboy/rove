@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="list_connected">connected</string>
+    <string name="list_connecting">connecting</string>
+    <string name="list_reconnecting">reconnecting · try %1$d</string>
+    <string name="list_offline">offline</string>
+    <string name="list_failed">failed</string>
+    <string name="list_tasks_count">%1$s tasks</string>
+    <string name="list_deleting">deleting</string>
+    <string name="list_main_checkout">main checkout</string>
+    <string name="list_pinned">Pinned</string>
+    <string name="list_more">More</string>
+    <string name="list_refresh">refresh</string>
+    <string name="list_notifications">notifications</string>
+    <string name="list_disconnect">disconnect</string>
+    <string name="list_pair_again">pair again</string>
+    <string name="list_welcome">welcome</string>
+    <string name="list_welcome_body">rove runs coding agents side by side — every task gets its own git worktree and branch.</string>
+    <string name="list_welcome_hint">start one with the new task bar below.</string>
+    <string name="list_new_task_plus" translatable="false">+</string>
+    <string name="list_new_task">new task</string>
+    <string name="list_new_task_kind">worktree</string>
+    <string name="list_new_task_a11y">New task</string>
+</resources>

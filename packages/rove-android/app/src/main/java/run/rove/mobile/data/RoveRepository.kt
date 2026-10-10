@@ -28,6 +28,12 @@ class RoveRepository(val bridge: BridgeClient) {
         wireJson.decodeFromJsonElement(bridge.request("diff.files", args("taskId" to taskId)))
     suspend fun diffFile(taskId: String, file: DiffFile): DiffContent = wireJson.decodeFromJsonElement(
         bridge.request("diff.file", args("taskId" to taskId, "path" to file.path, "scope" to file.scope)))
+    // tabId -> engine activity state; a bridge without the op leaves every tab quiet.
+    suspend fun tabStates(taskId: String): Map<String, String> = try {
+        bridge.request("tab.states", args("taskId" to taskId))["tabs"]?.jsonObject
+            ?.mapValues { it.value.jsonObject["state"]?.jsonPrimitive?.content.orEmpty() }.orEmpty()
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) { emptyMap() }
+    suspend fun interrupt(taskId: String, tabId: String) { bridge.request("tab.interrupt", args("taskId" to taskId, "tabId" to tabId)) }
 
     private fun JsonObject.id(key: String) =
         this[key]?.jsonPrimitive?.content ?: throw BridgeFailure("BAD_REPLY", "Missing $key")

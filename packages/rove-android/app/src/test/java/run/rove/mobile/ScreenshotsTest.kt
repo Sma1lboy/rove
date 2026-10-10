@@ -17,6 +17,6 @@ class ScreenshotsTest {
     @Test fun demoTasks() {
         val raw = checkNotNull(javaClass.classLoader?.getResourceAsStream("demo-fixture.json")).bufferedReader().use { it.readText() }
         val data = wireJson.decodeFromJsonElement<Tasks>(DemoFixture(raw).answer("tasks.subscribe"))
-        paparazzi.snapshot { RoveTheme(dark = false) { Surface(color = MaterialTheme.colorScheme.background) { TaskListScreen(data.copy(tasks = TaskOrdering.sorted(data.tasks)), true, {}, {}, {}, {}, {}) } } }
+        paparazzi.snapshot { RoveTheme(dark = false) { Surface(color = MaterialTheme.colorScheme.background) { TaskListScreen(data, "demo-mac", Connection.Connected(1), true, {}, {}, {}, {}, {}, {}) } } }
     }
 }
