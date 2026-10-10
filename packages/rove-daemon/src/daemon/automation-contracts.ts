@@ -30,6 +30,10 @@ export interface Automation {
   /** Delivered as the engine's launch-time first message. */
   readonly prompt: string
   readonly vendor?: VendorId
+  /** Model each run's engine launches on, in the engine's own spelling (`Task.model`). */
+  readonly model?: string
+  /** Reasoning level each run's engine launches at (`Task.modelEffort`). */
+  readonly modelEffort?: string
   /** Five-field cron, evaluated in the daemon host's local time. */
   readonly schedule: string
   readonly precheck?: AutomationPrecheck
@@ -144,6 +148,8 @@ export interface AutomationPatch {
   readonly name?: string
   readonly prompt?: string
   readonly vendor?: VendorId | null
+  readonly model?: string | null
+  readonly modelEffort?: string | null
   readonly schedule?: string
   readonly precheck?: AutomationPrecheck | null
   readonly baseRef?: string | null

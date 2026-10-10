@@ -266,12 +266,12 @@ it fires with no TUI attached.
 ```text
 routine-list     (none)
 routine-create   --repo(REQ) --name(REQ) --prompt|--prompt-file(REQ) --schedule(REQ)
-                 --vendor{claude|codex|copilot|kimi|pi|omp|bob} --base-branch --precheck
-                 --precheck-timeout(120) --grace(60) --persistent-session --target-task
-                 --target-tab --disabled
-routine-update   --id(REQ) --name --prompt|--prompt-file --schedule --vendor --base-branch
-                 --precheck --precheck-timeout(120) --grace(60) --persistent-session
-                 --target-task --target-tab --enabled
+                 --vendor{claude|codex|copilot|kimi|pi|omp|bob} --model --effort
+                 --base-branch --precheck --precheck-timeout(120) --grace(60)
+                 --persistent-session --target-task --target-tab --disabled
+routine-update   --id(REQ) --name --prompt|--prompt-file --schedule --vendor --model
+                 --effort --base-branch --precheck --precheck-timeout(120) --grace(60)
+                 --persistent-session --target-task --target-tab --enabled
 routine-delete   --id(REQ)
 routine-run-now  --id(REQ)
 routine-respond  --run(REQ) --text --prompt-file
@@ -302,7 +302,8 @@ A bare `--enabled` means true, so pausing a routine is
 `routine-update --id <id> --enabled=false` (the same `=false` spelling
 `update --pinned=false` uses).
 
-`routine-update --schedule` re-anchors the next run. `--precheck ''` clears it.
+`routine-update --schedule` re-anchors the next run. `--precheck ''` clears it, as
+`--model ''` and `--effort ''` clear the routine's model and effort pins.
 `routine-run-now` skips the precheck deliberately (asking for it IS the answer)
 and does not shift the schedule. `routine-delete` leaves already-created tasks
 alone.

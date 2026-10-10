@@ -75,6 +75,8 @@ async function createRunTask(deps: DispatchDeps, automation: Automation): Promis
     repo: automation.repo,
     title: automation.name,
     ...(automation.vendor ? { vendor: automation.vendor } : {}),
+    ...(automation.model ? { model: automation.model } : {}),
+    ...(automation.modelEffort ? { modelEffort: automation.modelEffort } : {}),
     ...(automation.baseRef ? { baseRef: automation.baseRef } : {}),
     // Folds the task behind the sidebar's routine row. Standing only: fresh
     // runs are work the user must land.

@@ -75,6 +75,8 @@ function normalizeAutomation(value: unknown): Automation | null {
     enabled: raw.enabled !== false,
     missedRunGraceMinutes: typeof grace === "number" && Number.isFinite(grace) && grace >= 0 ? grace : 60,
     ...(raw.vendor ? { vendor: raw.vendor } : {}),
+    ...(str(raw.model) ? { model: raw.model } : {}),
+    ...(str(raw.modelEffort) ? { modelEffort: raw.modelEffort } : {}),
     ...(precheckCommand
       ? {
           precheck: {
