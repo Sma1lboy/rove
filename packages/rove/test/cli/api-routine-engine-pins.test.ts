@@ -92,7 +92,7 @@ describe("routine engine pins", () => {
     expect(client.requests.some((r) => r.name === "automation.update")).toBe(false)
   })
 
-  it.each(["claude", ""])("allows a vendor change to %s with incompatible effort cleared", async (vendor) => {
+  it.each(["claude", ""])("stores the engine a vendor change to '%s' resolves to", async (vendor) => {
     const client = new FakeClient({
       "automation.list": () => ({
         automations: [{ id: "r1", repo: "/repo", vendor: "codex", model: "gpt-5.5", modelEffort: "high" }],
@@ -105,17 +105,26 @@ describe("routine engine pins", () => {
     })
     expect(client.requests.find((r) => r.name === "automation.update")?.payload).toEqual({
       id: "r1",
-      vendor: vendor || null,
+      vendor: "claude",
       effort: null,
     })
   })
 
   it("clears a pin with an empty value", async () => {
-    const client = new FakeClient({ "automation.update": created })
+    const client = new FakeClient({
+      "automation.list": () => ({
+        automations: [{ id: "r1", repo: "/repo", vendor: "codex", model: "gpt-5.5", modelEffort: "high" }],
+      }),
+      "automation.update": created,
+    })
     await invokeVerb("routine-update", ["--id", "r1", "--model", "", "--effort", ""], {
       client,
       runtime: stubRuntime(),
     })
-    expect(client.requests.map((r) => r.payload)).toEqual([{ id: "r1", model: null, effort: null }])
+    expect(client.requests.find((r) => r.name === "automation.update")?.payload).toEqual({
+      id: "r1",
+      model: null,
+      effort: null,
+    })
   })
 })

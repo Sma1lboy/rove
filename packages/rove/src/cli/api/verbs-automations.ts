@@ -11,7 +11,7 @@ import { ROUTINE_RESPONSE_MAX_CHARS } from "@sma1lboy/rove-daemon/daemon/contrac
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { requirePromptText } from "./handlers-tasks.ts"
-import { createEnginePins, updateEnginePins } from "./routine-engine-fields.ts"
+import { createEngineFields, updateEngineFields } from "./routine-engine-fields.ts"
 import { ApiError, type VerbSpec } from "./types.ts"
 
 const SCHEDULE_FLAG = {
@@ -140,7 +140,11 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       F.prompt(true, "Text delivered to the selected conversation or a new session."),
       F.promptFile(),
       { ...SCHEDULE_FLAG, required: true },
-      F.vendor(),
+      {
+        ...F.vendor(),
+        description:
+          "Engine every run launches. Omitted with --model/--effort: the repo's default engine (falling back to the built-in default) is resolved, validated and stored. Omitted without pins: runs launch the built-in default engine.",
+      },
       MODEL_FLAG,
       EFFORT_FLAG,
       {
@@ -162,8 +166,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         name: ctx.args.require("name"),
         prompt: requirePromptText(ctx, "routine-create"),
         schedule: ctx.args.require("schedule"),
-        ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
-        ...(await createEnginePins(ctx, repo)),
+        ...(await createEngineFields(ctx, repo)),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),
         ...precheckPayload(ctx),
         ...targetPayload(ctx),
@@ -189,7 +192,8 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       {
         ...F.vendor(),
         type: "string",
-        description: "New engine vendor; empty clears it before binding an existing target.",
+        description:
+          "New engine vendor; empty clears it (before binding an existing target). While model/effort stay pinned, a cleared vendor is re-resolved from the repo default and stored.",
       },
       { ...MODEL_FLAG, description: `${MODEL_FLAG.description} '' clears it.` },
       { ...EFFORT_FLAG, description: `${EFFORT_FLAG.description} '' clears it.` },
@@ -207,8 +211,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.str("name") !== undefined ? { name: ctx.args.str("name") } : {}),
         ...(ctx.args.promptText() !== undefined ? { prompt: ctx.args.promptText() } : {}),
         ...(ctx.args.str("schedule") !== undefined ? { schedule: ctx.args.str("schedule") } : {}),
-        ...(ctx.args.present("vendor") ? { vendor: ctx.args.vendor() ?? null } : {}),
-        ...(await updateEnginePins(ctx, id)),
+        ...(await updateEngineFields(ctx, id)),
         // `--base-branch ''` clears the base ref (sends null); `present` keeps
         // that empty value visible where `str` would fold it into "absent".
         ...(ctx.args.present("base-branch") ? { baseRef: ctx.args.str("base-branch") ?? null } : {}),

@@ -37,7 +37,13 @@ export function assertAutomationTargetOptions(
     "target" | "vendor" | "model" | "modelEffort" | "baseRef" | "persistentSession" | "sessionTaskId"
   >,
 ): void {
-  if (!value.target) return
+  if (!value.target) {
+    // Pins were validated against one engine; a vendor-less run would launch the default one.
+    if ((value.model || value.modelEffort) && !value.vendor) {
+      throw new Error("a routine that pins model or effort must also store the vendor they were validated against")
+    }
+    return
+  }
   if (value.vendor || value.model || value.modelEffort || value.baseRef || value.persistentSession) {
     throw new Error(
       "an existing-tab target cannot set vendor, model, effort, baseRef or persistentSession; clear them when binding",

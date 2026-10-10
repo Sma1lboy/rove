@@ -87,14 +87,19 @@ in it, is refused with a message naming the value. The check is not a guarantee
 catches the typo while you are still at the keyboard.
 
 `--model` and `--effort` pin what every run's engine launches on, the same
-values `rove api add` takes. They are checked against the routine's engine
-(`--vendor`, or the repo's default engine) when the routine is saved, so an
+values `rove api add` takes. They are checked when the routine is saved, so an
 engine that has no reasoning levels refuses `--effort` at the keyboard instead
-of at 03:00. `routine-update --model ''` or `--effort ''` clears the pin. A
+of at 03:00. The engine they are checked against is `--vendor`, else the
+repo's default engine, else the built-in default (claude), and a pinned
+routine stores that vendor: its runs launch the engine its pins were checked
+against, even if the repo's default changes later. A routine with no pins and
+no `--vendor` stores no vendor, and its runs launch the built-in default.
+`routine-update --model ''` or `--effort ''` clears the pin. A
 routine bound to an existing tab cannot set either: that tab keeps its own
 engine. Changing `--vendor` also checks any retained pins against the new engine;
 replace or clear incompatible pins in the same update. Clearing `--vendor`
-checks the resulting pins against the routine repo's default engine.
+while pins remain resolves the engine again the same way, checks the pins
+against it and stores it; clearing it with no pins left stores no vendor.
 
 Once a persistent routine has a standing task, updates cannot add, change or
 clear its vendor, model or effort. This applies while the engine is live and

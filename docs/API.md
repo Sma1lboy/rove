@@ -989,10 +989,14 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   [--vendor V] [--model M] [--effort LEVEL] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
   [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]`: schedule a prompt. `--schedule` is five-field
   cron in the daemon host's local time (`"0 9 * * MON-FRI"`). `--model` / `--effort`
-  pin every run's engine, validated against `--vendor` (or the repo's default
-  engine) at save time with the same `BAD_MODEL` / `BAD_EFFORT` as `add`.
+  pin every run's engine, validated at save time with the same `BAD_MODEL` /
+  `BAD_EFFORT` as `add` against `--vendor`, else the repo's default engine, else
+  the built-in default; a pinned routine stores that vendor, so runs launch the
+  engine the pins were checked against. Without pins or `--vendor`, runs launch
+  the built-in default. The daemon refuses model/effort without a vendor.
 - `routine-update --id ID [...]`: change any field; `--enabled true|false` pauses / resumes. A new `--schedule`
-  re-anchors the next run; `--precheck ''` clears the precheck, `--model ''` / `--effort ''` clear those pins. Omitted target flags
+  re-anchors the next run; `--precheck ''` clears the precheck, `--model ''` / `--effort ''` clear those pins,
+  and `--vendor ''` under surviving pins re-resolves, re-validates and stores the engine. Omitted target flags
   preserve the binding; `--target-task '' --target-tab ''` sends `target: null` to clear it.
   While a routine retains a standing task, vendor/model/effort changes and clears
   are rejected even if its engine has exited. Disable it and create a replacement
