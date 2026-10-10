@@ -115,7 +115,8 @@ describe("Automation field round-trip", () => {
   it("every AutomationPatch key mutates through update()", async () => {
     const store = new AutomationsStore(tempPath(), () => NOW)
     await store.init()
-    const created = await store.create(FULL)
+    // A retained standing task freezes its pins, so start unlinked: PATCH then sets every key.
+    const created = await store.create({ ...FULL, sessionTaskId: undefined })
     const updated = await store.update(created.id, PATCH)
     expect(updated).toMatchObject(PATCH)
     // Sanity: the fixture really did change every key, or a no-op update
