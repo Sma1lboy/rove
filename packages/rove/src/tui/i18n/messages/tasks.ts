@@ -47,7 +47,8 @@ export const en = {
     /** Menu-only, like `runAgain`, `land`, `fieldNotes` and the two copies —
      *  status has no key yet, so the menu is its only route. */
     setStatus: "Set status",
-    /** Also chord-less: put the row's branch / worktree path on the clipboard. */
+    /** Also chord-less: put the row's task id / branch / worktree path on the clipboard. */
+    copyId: "Copy task ID",
     copyBranch: "Copy branch name",
     copyPath: "Copy path",
     /** The `o` / `b` / `v` chords' menu routes. */
@@ -277,6 +278,7 @@ export const zh: typeof en = {
     reorderProject: "调整项目顺序",
     runAgain: "重新运行",
     setStatus: "设置状态",
+    copyId: "复制任务 ID",
     copyBranch: "复制分支名",
     copyPath: "复制路径",
     openEditor: "在编辑器中打开",

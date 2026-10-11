@@ -2,6 +2,7 @@
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
+import type { TaskCopyField } from "../../../tui/lib/task-actions"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
@@ -25,8 +26,8 @@ export type SidebarTaskCallbacks = {
   onPinRequest?: (taskId: string) => void
   /** Set the task's board status. Menu-only, no chord. */
   onSetStatusRequest?: (taskId: string) => void
-  /** Copy branch name or worktree path to the clipboard. Menu-only. */
-  onCopyRequest?: (taskId: string, field: "branch" | "path") => void
+  /** Copy task id, branch name or worktree path to the clipboard. Menu-only. */
+  onCopyRequest?: (taskId: string, field: TaskCopyField) => void
   /** Re-fire `task.prompt` as a new task. Menu-only; hidden with no stored brief. */
   onRunAgainRequest?: (taskId: string) => void
   /** Menu route of `o`: open the task's worktree in the detected editor. */

@@ -414,6 +414,16 @@ describe("copyTaskFieldFlow", () => {
     for (const fn of Object.values(orch)) expect(fn).not.toHaveBeenCalled()
   })
 
+  test("id: copies the task id `rove api --task-id` takes, even before the worktree exists", async () => {
+    const tasks = [makeTask({ id: "t1", branch: "", worktreePath: "" })]
+    const { ctx, copyText, notifyInfo } = makeCtx({ tasks, orch: makeOrch() })
+
+    await copyTaskFieldFlow(ctx, "t1", "id")
+
+    expect(copyText).toHaveBeenCalledWith("t1")
+    expect(notifyInfo.mock.calls[0][0]).toContain("t1")
+  })
+
   test("an empty branch (main/dir row) copies nothing and shows no toast", async () => {
     const tasks = [makeTask({ id: "t1", branch: "", kind: "main" })]
     const { ctx, copyText, notifyInfo } = makeCtx({ tasks, orch: makeOrch() })

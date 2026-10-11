@@ -342,25 +342,30 @@ export async function setStatusFlow(ctx: TaskActionContext, taskId: string): Pro
   await ctx.reload?.()
 }
 
+export type TaskCopyField = "branch" | "path" | "id"
+
+const COPIED_TOAST: Record<TaskCopyField, string> = {
+  branch: "tasks.toast.copiedBranch",
+  path: "tasks.toast.copiedPath",
+  id: "tasks.toast.copiedId",
+}
+
 /**
  * Copies the RECORDED `task.worktreePath`/branch; never materializes the
  * worktree (a read must not create a directory). A never-entered task records
  * "" for both; tree-menu.ts hides the entries and the `""` guard is the backstop.
+ * `id` is the handle every `rove api` task verb takes, so it is always there.
  * The toast echoes the text and prints only once `copyText` confirms: a
  * headless box may have no clipboard command and some terminals refuse OSC 52.
  */
-export async function copyTaskFieldFlow(
-  ctx: TaskActionContext,
-  taskId: string,
-  field: "branch" | "path",
-): Promise<void> {
+export async function copyTaskFieldFlow(ctx: TaskActionContext, taskId: string, field: TaskCopyField): Promise<void> {
   const task = ctx.tasks().find((candidate) => candidate.id === taskId)
   if (!task || !ctx.copyText) return
-  const text = field === "branch" ? task.branch : task.worktreePath
+  const text = field === "branch" ? task.branch : field === "path" ? task.worktreePath : task.id
   if (text === "") return
   if (!(await ctx.copyText(text))) {
     ctx.notifyError?.(t("tasks.toast.copyFailed"))
     return
   }
-  ctx.notifyInfo?.(t(field === "branch" ? "tasks.toast.copiedBranch" : "tasks.toast.copiedPath", { text }))
+  ctx.notifyInfo?.(t(COPIED_TOAST[field], { text }))
 }
