@@ -93,3 +93,17 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Landed tonight as a PR from `perf/nightly-2026-10-08`:** the Files pane starts a worktree's All list from its last listing (4-entry LRU, `tui/panes/filetree/file-list-cache.ts`) instead of null, so the unchanged `git ls-files` result no longer commits. switch.perOp.commit.files 5.2 → 4.7 / 4.5 (main 5.3 tonight); root unchanged (that commit was already batched with others). The spawn count does not change: the refetch still runs.
 
 **Considered, not tried: gating the 2 s `ps -A` walk on PTY output.** An engine can't start or exit in a shell without output, so walks could be skipped while every probed PTY is quiet. Two blockers: subscribing to `onData` clears `unwatchedSince` and keeps hidden emulators refreshing (it defeats parking), and `setAuxPids` feeds every host session (`pty.list`) into the walk, which has no output signal. Local PTYs could use `lastOutputAtMs()`. For aux sessions, the host's `pty.list` would need a per-session output offset or timestamp first.
+
+## 2026-10-11 — switch.perOp.commit.root / .workspace (main 23c1cf9)
+
+**No regression.** Run 1 read boot.firstFrame.ms 1277.8 and boot.ready.ms 4437 (cold first run again); run 2 was clean, with typing.perOp.frame 2.07 → 1 as the only change past tolerance (✓, #1220). **Baseline moved** to run 2's metrics. Counters that did not tick are kept as explicit zeros.
+
+**Where a switch's host renders come from.** A temporary per-render identity check on `WorkspaceRoot`'s hook values (cheap, it does not walk the fiber tree) shows 3 host renders per switch: (1) `selectedId`; (2) about 10 ms later, a `kv` identity change from `writeInboxVisit` ("inboxVisits"), called from `TerminalTabs`' `[state.activeId]` effect via `onTabVisited` → `resolveVisited`. `notif` changes identity in the same render. (3) The daemon's `tasks`/`activeTaskId` echo of `setActiveTask`. The other ~6 root commits per switch happen below the host (the terminal mount waterfall, see 10-05).
+
+**Approach.** Write the visit synchronously in `selectTask` (a new `onSelected` callback on `useWorkspaceSelection`, using `activeTabIdFor(id)`), so it batches with `setSelectedId`. The effect's later write then hits the "already on top" skip.
+
+**Why it did not count.** At the host level it batched: `kv` and `selectedId` changed in the same render. But switch.perOp.commit.root went 9.5 → 10.7 on 2 of 2 runs, with workspace 9.0 → 9.6/9.8, files 4.5 → 5.9/6.0 and sidebar 3.3 → 3.8. The effect-time KV write was evidently already folded into a commit that happens anyway, likely the terminal waterfall. Moving the KV rebuild into the selection commit makes every KV consumer render there, and that commit seems to split the work that follows. The design also had a flaw: callers that run `selectTask(id)` and then `requestTabActivation(id, tab)` (inbox `openItem`/`openTask`) would record a visit for the old tab. Not kept.
+
+**Lesson:** an extra host render is not always an extra commit. Count commits on a clean run before moving a state write earlier.
+
+**Still open:** every `kv.set` rebuilds the KV context, so all `useKV` consumers re-render, `notif` included. `kv-core.set` also makes a new snapshot when the value is unchanged (`Object.is`). That does not matter for `inboxVisits`, which always changes on an A↔B switch.
