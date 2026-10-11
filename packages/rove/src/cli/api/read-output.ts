@@ -151,6 +151,11 @@ export async function readTaskOutput(input: ReadOutputInput, deps: ReadOutputDep
     }
     return firstTerminalPage(input, deps, "history_unreadable", lineLimit)
   }
+  // A pinned session before its first message (a fresh tab sitting on a trust
+  // or login prompt) has nothing to page; its screen is the only evidence.
+  if (messages.length === 0 && input.source === "auto") {
+    return firstTerminalPage(input, deps, "history_missing", lineLimit)
+  }
   return historyEnvelope(input, pinned.sessionId, messages, { before: messages.length }, messageLimit)
 }
 

@@ -367,6 +367,20 @@ describe("read-output --tab (tab-precise terminal reads)", () => {
     expect(t.tabs).toEqual(["tab-2"])
   })
 
+  it("a pinned session with no messages yet shows the tab's terminal, labeled history_missing", async () => {
+    const history = fakeHistory([], {})
+    const pinned: ReadOutputDeps["tabHistory"] = () => ({ reader: history, sessionId: "s-fresh" })
+    const t = fakeTerminal({ pid: 9, offset: 5, text: "Do you trust the files in this folder?\n" })
+    const p = await read(deps(history, t.peek, pinned), { tab: "tab-2" })
+    expect(p.source).toBe("terminal")
+    expect(p.fallbackReason).toBe("history_missing")
+    expect(p.terminal?.tail).toContain("Do you trust the files in this folder?")
+
+    const strict = await read(deps(history, t.peek, pinned), { tab: "tab-2", source: "history" })
+    expect(strict.source).toBe("history")
+    expect(strict.history?.totalMessages).toBe(0)
+  })
+
   it("the cursor pins the tab: same tab pages on, another tab or none is CURSOR_INVALID", async () => {
     const t1 = fakeTerminal({ pid: 42, offset: 100, text: "one\n" })
     const p1 = await read(deps(null, t1.peek), { tab: "tab-3" })
