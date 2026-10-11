@@ -452,7 +452,9 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   `--tab tab-N` reads that tab's own pinned conversation (structured history)
   when it is an engine tab with a pinned session id (claude tabs); otherwise
   that tab's terminal — with `fallbackReason` `history_missing` or
-  `engine_unsupported` for an engine tab with no readable history, and
+  `engine_unsupported` for an engine tab with no readable history (including
+  a pinned conversation with no messages yet, such as a fresh tab still on a
+  trust or login prompt; `--source history` returns its empty page), and
   `null` for shell/command tabs. `--source history` on a non-engine tab is
   `HISTORY_REQUIRED`; `TAB_NOT_FOUND` when the tab has no session. A dead
   session's terminal page includes `terminal.exit` (`code`/`signal`/`at`)
