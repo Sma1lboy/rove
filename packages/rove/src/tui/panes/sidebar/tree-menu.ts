@@ -5,7 +5,7 @@
  * entry routes to an existing callback. Tab rows list per-task verbs because
  * the chords already walk up from a tab to its worktree (`withCursorTask`).
  *
- * Exceptions (`setStatus`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
+ * Exceptions (`setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
  * `runAgain`, `moveToTop`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
@@ -33,6 +33,7 @@ export type TreeMenuAction =
   | "moveToTop"
   | "runAgain"
   | "setStatus"
+  | "copyId"
   | "copyBranch"
   | "copyPath"
   | "openEditor"
@@ -93,6 +94,8 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   if (task.prompt !== undefined) verbs.push({ action: "runAgain", labelKey: "tasks.menu.runAgain" })
   // Otherwise status is only settable via `rove api update --status`. Not danger-toned.
   verbs.push({ action: "setStatus", labelKey: "tasks.menu.setStatus" })
+  // The id `rove api ... --task-id` takes; recorded at creation, so always offered.
+  verbs.push({ action: "copyId", labelKey: "tasks.menu.copyId" })
   // Copies need the string recorded: `main`/`dir` store `branch === ""`
   // (label is live HEAD), and a never-entered task stores both as "" until
   // `ensureWorktree` allocates them.

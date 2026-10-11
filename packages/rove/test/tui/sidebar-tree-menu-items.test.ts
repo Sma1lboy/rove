@@ -76,6 +76,7 @@ describe("treeMenuItems", () => {
       "pin",
       "reorder",
       "setStatus",
+      "copyId",
       "copyBranch",
       "copyPath",
       "openEditor",
@@ -97,10 +98,12 @@ describe("treeMenuItems", () => {
 
   test("a task never entered (both fields still empty) is offered neither copy", () => {
     // `ensureWorktree` fills branch + worktreePath on first enter; before that
-    // there is nothing to copy, and the menu says so by omission.
+    // there is nothing to copy, and the menu says so by omission. The id exists
+    // from creation, so `rove api` can already address it.
     const lazy = worktreeRow({ branch: "", worktreePath: "" })
     expect(actions(lazy)).not.toContain("copyBranch")
     expect(actions(lazy)).not.toContain("copyPath")
+    expect(actions(lazy)).toContain("copyId")
   })
 
   test("a main row (the project's own checkout) is not offered a pin — setPinned silently no-ops on it", () => {
@@ -112,6 +115,7 @@ describe("treeMenuItems", () => {
       "rename",
       "reorder",
       "setStatus",
+      "copyId",
       "copyPath",
       "openEditor",
       "changeEngine",
@@ -132,6 +136,7 @@ describe("treeMenuItems", () => {
       "rename",
       "reorder",
       "setStatus",
+      "copyId",
       "copyPath",
       "openEditor",
       "changeEngine",
@@ -188,6 +193,7 @@ describe("treeMenuItems", () => {
       "pin",
       "reorder",
       "setStatus",
+      "copyId",
       "copyBranch",
       "copyPath",
       "openEditor",
@@ -227,6 +233,7 @@ describe("treeMenuItems", () => {
       "reorder",
       "runAgain",
       "setStatus",
+      "copyId",
       "copyBranch",
       "copyPath",
       "openEditor",
@@ -313,11 +320,11 @@ describe("the chord an entry advertises", () => {
   })
 
   test("the menu-only verbs stay menu-only", () => {
-    // These six have no chord anywhere in the product; the menu is their one
+    // These seven have no chord anywhere in the product; the menu is their one
     // route. Claiming a bindingId here would print a cap for a key that does
     // not reach them.
     const withId = new Set(everyItem.flatMap((item) => (item.bindingId ? [item.action] : [])))
-    for (const action of ["setStatus", "copyBranch", "copyPath", "runAgain", "fieldNotes", "land"]) {
+    for (const action of ["setStatus", "copyId", "copyBranch", "copyPath", "runAgain", "fieldNotes", "land"]) {
       expect(withId, action).not.toContain(action)
     }
   })

@@ -10,6 +10,7 @@ import { useRenderer } from "@opentui/react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import {
+  type TaskCopyField,
   applyVendorChange,
   copyTaskFieldFlow,
   cycleVendorFlow,
@@ -65,8 +66,8 @@ export type WorkspaceTaskActions = {
   moveTaskToTop: (id: string) => Promise<void>
   /** Tree-menu "Set status" — a picker over the six board statuses. */
   setStatus: (id: string) => Promise<void>
-  /** Tree-menu "Copy branch name" / "Copy path" — system clipboard + toast. */
-  copyTaskField: (id: string, field: "branch" | "path") => void
+  /** Tree-menu "Copy task ID" / "Copy branch name" / "Copy path" — system clipboard + toast. */
+  copyTaskField: (id: string, field: TaskCopyField) => void
   /** Project-row menu "Field notes" — read-only list of the repo's notes. */
   showFieldNotes: (repo: string) => void
   /** Row menu "Run again": the brief dialog; resolves the task to re-fire, or
