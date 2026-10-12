@@ -2,8 +2,6 @@ package run.rove.mobile.ui
 
 import android.annotation.SuppressLint
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputConnection
 import android.webkit.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -55,12 +53,7 @@ private const val ATTACHING = "connecting"
     var flash by remember { mutableStateOf<String?>(null) }
     var flashJob by remember { mutableStateOf<Job?>(null) }
     // AndroidView defaults to WRAP_CONTENT, under which Chromium resolves `height: 100%` to 0 and xterm fits one row.
-    // Landscape IMEs default to fullscreen extract mode, whose editor keeps typed text from reaching xterm.
-    val web = remember(taskId, tabId) { object : WebView(context) {
-        override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? = super.onCreateInputConnection(outAttrs).also {
-            outAttrs.imeOptions = outAttrs.imeOptions or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN
-        }
-    }.apply {
+    val web = remember(taskId, tabId) { WebView(context).apply {
         layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         setBackgroundColor(Rove.Terminal.background.toArgb())
     } }
