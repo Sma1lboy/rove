@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest"
 import { ClientWriter } from "../../../rove-daemon/src/daemon/client-writer.ts"
 import { type PtyRequest, dispatchPtyRequest } from "../../../rove-daemon/src/daemon/pty-server-verbs.ts"
 import { countLiveEngineSessions, openAdmittedEngine } from "../../src/cli/api/engine-admission.ts"
+import { normalizeWindowsArgs } from "../../src/engine/win-process-snapshot.ts"
 
 const session: PtySessionInfo = {
   key: "a::tab-1",
@@ -14,10 +15,23 @@ const session: PtySessionInfo = {
   title: "",
 }
 
+describe.each(["sh", "bash", "zsh", "fish", "dash", "ash", "ksh", "mksh"])("%s admission", (shell) => {
+  it.each([
+    `/bin/${shell}`,
+    `-${shell}`,
+    normalizeWindowsArgs(`"C:\\Program Files\\Git\\bin\\${shell.toUpperCase()}.EXE"`),
+    normalizeWindowsArgs(`${shell}.exe`),
+  ])("releases an exited engine's slot in %s but retains pending and running engines", async (args) => {
+    const existing = { ...session, command: [args, "-ilc", "claude"] }
+    expect(await countLiveEngineSessions([existing], async () => `100 1 ${args}`)).toBe(0)
+    expect(await countLiveEngineSessions([existing], async () => `100 1 ${args} -ilc sleep 10\n101 100 sleep 10`)).toBe(
+      1,
+    )
+    expect(await countLiveEngineSessions([existing], async () => `100 1 ${args}\n101 100 claude`)).toBe(1)
+  })
+})
+
 it.each([
-  ["init or launch is pending", "100 1 /bin/sh -ilc sleep 10; claude\n101 100 sleep 10", 1],
-  ["engine exited into a shell", "100 1 /bin/sh", 0],
-  ["engine is running", "100 1 /bin/sh\n101 100 claude", 1],
   ["root is absent from the snapshot", "999 1 ps", 1],
   ["probe returns no rows", "", 1],
 ])("counts slots when %s", async (_label, text, count) => {

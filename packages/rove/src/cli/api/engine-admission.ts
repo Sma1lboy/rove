@@ -35,9 +35,12 @@ export async function countLiveEngineSessions(
     const [taskId, tabId] = s.key.split("::")
     const labelled = readTabsSnapshot(taskId)?.tabs.some((tab) => tab.id === tabId && tab.kind === "engine")
     if (tabId !== "tab-1" && !labelled && !sessionArgvNamesEngine(s.command)) return false
-    const executable = basename(root.args.split(/\s+/)[0]).replace(/^-/, "")
+    const executable = basename(root.args.split(/\s+/)[0])
+      .toLowerCase()
+      .replace(/^-/, "")
+      .replace(/\.exe$/, "")
     // The launch shell retains -c through init and engine startup, then execs a bare shell on exit.
-    if (["sh", "bash", "zsh", "fish", "dash", "ksh"].includes(executable)) {
+    if (["sh", "bash", "zsh", "fish", "dash", "ash", "ksh", "mksh"].includes(executable)) {
       return /^\S+\s+-[a-zA-Z]*c\b/.test(root.args)
     }
     return true
