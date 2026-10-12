@@ -6,6 +6,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -19,8 +20,8 @@ import run.rove.mobile.R
     val demo by model.demo.collectAsStateWithLifecycle()
     val error by model.error.collectAsStateWithLifecycle()
     // Screens above the task list, newest last (iOS NavigationStack path).
-    var stack by remember { mutableStateOf(listOf<Route>()) }
-    var create by remember { mutableStateOf(false) }
+    var stack by rememberSaveable(stateSaver = RouteStackSaver) { mutableStateOf(listOf<Route>()) }
+    var create by rememberSaveable { mutableStateOf(false) }
     val open: (Route) -> Unit = { stack = stack + it }
     // The list leaves composition while a page is on top; this keeps its filter, search and scroll.
     val saved = rememberSaveableStateHolder()

@@ -18,6 +18,13 @@ class ContractTest {
         assertEquals("secret", request.header("CF-Access-Client-Secret"))
         assertFalse(pair.toString().contains("test-token"))
     }
+    @Test fun navigationStackSurvivesRotation() {
+        val stack = listOf(run.rove.mobile.ui.Route.Settings, run.rove.mobile.ui.Route.Task("T1", "tab-2"),
+            run.rove.mobile.ui.Route.Task("T2"), run.rove.mobile.ui.Route.Board)
+        val saver = run.rove.mobile.ui.RouteStackSaver
+        val flat = with(saver) { androidx.compose.runtime.saveable.SaverScope { true }.save(stack) }!!
+        assertEquals(stack, saver.restore(flat))
+    }
     @Test fun wrappedDirectPairingAndUnsafeUrls() {
         val url = "ws://100.70.0.1:7878/?token=abc&preset=tailscale"
         val pair = Pairing.parse("rove://pair?url=" + URLEncoder.encode(url, "UTF-8"))
