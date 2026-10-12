@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diff_files">files</string>
+    <string name="diff_refresh">Refresh</string>
+    <string name="diff_retry">retry</string>
+    <string name="diff_loading">loading</string>
+    <string name="diff_no_changes">no changes</string>
+    <string name="diff_whole_worktree">whole worktree</string>
+    <string name="diff_worktree_clean">the worktree matches its last commit</string>
+    <string name="diff_branch_clean">nothing on this branch beyond %1$s</string>
+    <string name="diff_its_base">its base</string>
+    <string name="diff_base">base</string>
+    <string name="diff_scope_branch">branch vs %1$s</string>
+    <string name="diff_scope_working">uncommitted</string>
+    <string name="diff_working_caption">edits not committed yet in this task\'s worktree</string>
+    <string name="diff_branch_caption">commits on this branch since it left %1$s; uncommitted edits are under the other tab</string>
+    <string name="diff_read_only_preview">read-only preview</string>
+    <string name="diff_renamed_from">renamed from %1$s</string>
+    <string name="diff_no_reason">git gave no reason</string>
+    <string name="diff_image">image</string>
+    <string name="diff_binary">binary file</string>
+    <string name="diff_no_text_preview">no text preview</string>
+    <string name="diff_empty_detail">nothing differs in this scope</string>
+    <string name="diff_changed">changed</string>
+    <string name="diff_no_hunks">no hunks to show</string>
+    <string name="diff_binary_changed">binary file changed</string>
+    <string name="diff_no_text_diff">no text diff</string>
+    <string name="diff_mode_changed">mode changed</string>
+    <string name="diff_mode_detail">%1$s → %2$s · contents unchanged</string>
+    <string name="diff_renamed">renamed</string>
+    <string name="diff_rename_detail">%1$s → %2$s · +0 −0, contents unchanged</string>
+    <string name="diff_empty_deleted">empty file deleted</string>
+    <string name="diff_empty_added">empty file added</string>
+    <string name="diff_no_lines">no lines to show</string>
+    <string name="diff_combined">combined diff</string>
+    <string name="diff_read_only">read-only</string>
+    <string name="diff_combined_hint">read-only · tracked changes only</string>
+    <string name="diff_combined_empty">nothing under %1$s differs in this scope</string>
+    <plurals name="diff_all_as_one">
+        <item quantity="one">all %1$d file as one diff</item>
+        <item quantity="other">all %1$d files as one diff</item>
+    </plurals>
+    <plurals name="diff_dir_combined">
+        <item quantity="one">%1$d file · combined</item>
+        <item quantity="other">%1$d files · combined</item>
+    </plurals>
+    <plurals name="diff_file_count">
+        <item quantity="one">%1$d file</item>
+        <item quantity="other">%1$d files</item>
+    </plurals>
+</resources>

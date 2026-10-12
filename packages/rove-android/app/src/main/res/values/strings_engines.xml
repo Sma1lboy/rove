@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings → Engines list and engine detail -->
+    <string name="engines_title">engines</string>
+    <string name="engines_empty_title">no engines</string>
+    <string name="engines_empty_detail">the mac reports no engines</string>
+    <string name="engines_hint_launch">launch commands are edited on the mac — a command typed on a phone would run on the mac</string>
+    <string name="engines_tag_default">default</string>
+    <string name="engines_tag_off">off</string>
+    <string name="engines_tag_custom">custom</string>
+    <string name="engines_not_found">not found</string>
+    <string name="engines_login_yes">logged in</string>
+    <string name="engines_login_no">no account</string>
+    <string name="engines_login_unknown">login unknown</string>
+    <string name="engines_hooks_installed">hooks installed</string>
+    <string name="engines_hooks_outdated">hooks outdated</string>
+    <string name="engines_hooks_missing">hooks missing</string>
+    <string name="engines_hooks_none">no hooks</string>
+    <string name="engines_markers">markers</string>
+    <string name="engines_no_markers">no markers</string>
+    <string name="engines_screen_rules">screen rules</string>
+    <string name="engines_no_screen_rules">no screen rules</string>
+    <string name="engines_kicker">engine</string>
+    <string name="engines_gone_title">engine gone</string>
+    <string name="engines_gone_detail">it is no longer in the registry</string>
+    <string name="engines_fact_kind">kind</string>
+    <string name="engines_kind_builtin">built-in</string>
+    <string name="engines_kind_detected">detected</string>
+    <string name="engines_fact_status">status</string>
+    <string name="engines_on">on</string>
+    <string name="engines_fact_binary">binary</string>
+    <string name="engines_fact_account">account</string>
+    <string name="engines_fact_reports">reports</string>
+    <string name="engines_actions">actions</string>
+    <string name="engines_switch_on">switch on</string>
+    <string name="engines_switch_off">switch off</string>
+    <string name="engines_make_default">make default</string>
+    <string name="engines_remove">remove engine</string>
+    <string name="engines_reset">reset overrides</string>
+    <string name="engines_hint_last_enabled">the last enabled engine stays on</string>
+    <string name="engines_hint_default_only">only built-in and custom engines can be the default</string>
+    <string name="engines_display_name">display name</string>
+    <string name="engines_name_placeholder">name</string>
+    <string name="engines_rename">rename</string>
+    <string name="engines_clear_name">clear name override</string>
+    <string name="engines_hint_blank_clears">blank clears the override and brings back the built-in name</string>
+    <string name="engines_confirm_title">%1$s?</string>
+    <string name="engines_prose_on">Switches %1$s on: the TUI offers it again and new tasks can default to it.</string>
+    <string name="engines_prose_off">Switches %1$s off: the TUI stops offering it and new tasks stop defaulting to it. Its settings stay.</string>
+    <string name="engines_prose_off_default">Switches %1$s off: the TUI stops offering it and new tasks stop defaulting to it. Its settings stay. It is the default, so another enabled engine takes over as default.</string>
+    <string name="engines_prose_default">Makes %1$s the engine new tasks start with.</string>
+    <string name="engines_prose_default_off">Makes %1$s the engine new tasks start with. It is switched off, so this switches it back on.</string>
+    <string name="engines_prose_rename_clear">Clears the name override: %1$s goes back to its built-in name. The launch command stays.</string>
+    <string name="engines_prose_rename">Renames %1$s to “%2$s” on the mac and in this app. The launch command stays.</string>
+    <string name="engines_prose_remove">Removes the custom engine %1$s: its launch command, name and protocol are deleted from the mac.</string>
+    <string name="engines_prose_reset">Clears the name and launch-command overrides for %1$s. It goes back to its built-in settings; on or off stays as it is.</string>
+    <string name="engines_failed">Request failed. Check the result before retrying.</string>
+
+    <!-- Settings → Plugins -->
+    <string name="plugins_title">plugins</string>
+    <string name="plugins_empty_title">no plugins</string>
+    <string name="plugins_empty_detail">none are installed on the mac</string>
+    <string name="plugins_hint_install">installing and configuring plugins runs their own commands, so it stays on the mac (rove plugin …)</string>
+    <string name="plugins_kicker">plugin</string>
+    <string name="plugins_confirm_on">switch on %1$s?</string>
+    <string name="plugins_confirm_off">switch off %1$s?</string>
+    <string name="plugins_prose_on">Switches %1$s on: its actions and events run again on the mac.</string>
+    <string name="plugins_prose_off">Switches %1$s off: its actions and events stop running on the mac. It stays installed.</string>
+    <string name="plugins_linked">linked</string>
+    <string name="plugins_update">update available</string>
+    <string name="plugins_platform">platform unsupported</string>
+    <string name="plugins_running">running</string>
+    <string name="plugins_ok">ok</string>
+    <string name="plugins_run_failed">failed</string>
+    <string name="plugins_last_run">last run %1$s %2$s</string>
+    <string name="plugins_last_run_ago">last run %1$s %2$s %3$s ago</string>
+    <string name="plugins_declares">declares: %1$s</string>
+    <string name="plugins_declares_nothing">declares nothing</string>
+    <plurals name="plugins_actions">
+        <item quantity="one">%1$d action</item>
+        <item quantity="other">%1$d actions</item>
+    </plurals>
+    <plurals name="plugins_events">
+        <item quantity="one">%1$d event</item>
+        <item quantity="other">%1$d events</item>
+    </plurals>
+    <plurals name="plugins_panes">
+        <item quantity="one">%1$d pane</item>
+        <item quantity="other">%1$d panes</item>
+    </plurals>
+    <plurals name="plugins_engines">
+        <item quantity="one">%1$d engine</item>
+        <item quantity="other">%1$d engines</item>
+    </plurals>
+
+    <!-- Task engine history sheet -->
+    <string name="history_title">engine history</string>
+    <string name="history_kicker">task</string>
+    <string name="history_session_live">session live</string>
+    <string name="history_you">you</string>
+    <string name="history_agent">agent</string>
+    <string name="history_empty_title">no messages yet</string>
+    <string name="history_empty_detail">the engine has not written a transcript for this task</string>
+    <string name="history_counts_total">%1$d of %2$d messages</string>
+    <string name="history_counts">%1$d messages</string>
+    <string name="history_limited">limited</string>
+    <string name="history_load_newer">load newer</string>
+    <string name="history_nothing_newer">nothing newer yet</string>
+    <string name="history_refresh">refresh</string>
+    <string name="history_terminal_section">no structured history — terminal tail</string>
+    <string name="history_flag_live">live</string>
+    <string name="history_flag_truncated">truncated</string>
+    <string name="history_nothing_title">nothing to show</string>
+    <string name="history_nothing_detail">the terminal has no output yet</string>
+    <string name="history_tool">tool</string>
+    <string name="history_empty_result">(empty result)</string>
+    <string name="history_expanded">expanded</string>
+    <string name="history_collapsed">collapsed</string>
+    <string name="history_failed">Request failed. Check the result before retrying.</string>
+</resources>

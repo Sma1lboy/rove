@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">设置</string>
+    <string name="settings_bridge">bridge</string>
+    <string name="settings_usage">用量</string>
+    <string name="settings_engines">引擎</string>
+    <string name="settings_plugins">插件</string>
+    <string name="settings_notifications">通知</string>
+    <string name="settings_on">开</string>
+    <string name="settings_off">关</string>
+    <string name="settings_worktrees">工作树</string>
+    <string name="settings_activity">活动</string>
+    <string name="settings_feedback">反馈</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_engines_on">%1$d/%2$d 已开</string>
+    <string name="settings_plugins_on">%1$d 已开</string>
+
+    <string name="settings_daemon">daemon</string>
+    <string name="settings_daemon_stale">daemon 版本过旧</string>
+    <string name="settings_daemon_stale_body">Mac 上的 daemon 为 v%1$s，本应用的 bridge 为 v%2$s。请在 Mac 上重启：</string>
+    <string name="settings_copy">复制</string>
+    <string name="settings_copied">已复制</string>
+    <string name="settings_ago">%1$s前</string>
+
+    <string name="settings_bridge_kicker">设置 · bridge</string>
+    <string name="settings_bridge_title">这台手机的 bridge</string>
+    <string name="settings_bridge_intro">在 Mac 上启动 rove-bridge，然后扫描它显示的二维码，或粘贴它打印的链接。</string>
+    <string name="settings_connection">连接</string>
+    <string name="settings_status">状态</string>
+    <string name="settings_disconnect">断开</string>
+    <string name="settings_forget">清除配对</string>
+    <string name="settings_forget_title">清除这个配对？</string>
+    <string name="settings_forget_prose">从这台手机上移除已保存的配对。之后要重新连接，需要再次扫描或粘贴配对链接。</string>
+    <string name="settings_state_connected">已连接</string>
+    <string name="settings_state_connecting">连接中</string>
+    <string name="settings_state_reconnecting">重连中 · 第 %1$d 次</string>
+    <string name="settings_state_offline">离线</string>
+    <string name="settings_state_failed">失败</string>
+
+    <string name="settings_usage_none_yet">暂无用量</string>
+    <string name="settings_usage_none_yet_detail">引擎运行后才会上报配额</string>
+    <string name="settings_usage_no_quota">无配额数据</string>
+    <string name="settings_usage_no_quota_detail">你的引擎均未上报配额</string>
+
+    <string name="settings_banners">横幅</string>
+    <string name="settings_banners_hint">任务等你处理或完成时弹出横幅。仅作用于这台手机。</string>
+    <string name="settings_permission_denied">Android 通知已对 rove 关闭</string>
+    <string name="settings_permission_prompt">Android 尚未询问通知权限</string>
+    <string name="settings_open_settings">打开 Android 设置</string>
+    <string name="settings_allow">允许</string>
+
+    <string name="settings_activity_no_repos">没有仓库</string>
+    <string name="settings_activity_no_repos_detail">在 Mac 上添加仓库即可查看其动态</string>
+    <string name="settings_repo">仓库</string>
+    <string name="settings_window">时段</string>
+    <string name="settings_digest">摘要</string>
+    <string name="settings_tasks_touched">涉及任务</string>
+    <string name="settings_routine_runs">例行任务运行</string>
+    <string name="settings_turns">轮次</string>
+    <string name="settings_turns_none">无轮次记录</string>
+    <string name="settings_turns_none_detail">只有部分引擎会上报每轮遥测</string>
+    <string name="settings_latest">最近</string>
+    <string name="settings_input">输入</string>
+    <string name="settings_output">输出</string>
+    <string name="settings_cache">缓存</string>
+    <string name="settings_time">耗时</string>
+    <string name="settings_unknown_model">未知模型</string>
+
+    <string name="settings_feedback_title">标题</string>
+    <string name="settings_feedback_title_placeholder">关于什么</string>
+    <string name="settings_feedback_message">消息</string>
+    <string name="settings_feedback_message_placeholder">发生了什么，或你想改什么</string>
+    <string name="settings_feedback_hint">将使用 Mac 上的 github 登录，公开发布到 rove 仓库</string>
+    <string name="settings_feedback_send">发送反馈</string>
+    <string name="settings_feedback_confirm_title">发布这条反馈？</string>
+    <string name="settings_feedback_confirm_prose">以 Mac 上的 gh 登录身份，在 rove 仓库发布一条公开的 GitHub Discussion。发布后无法撤回。</string>
+    <string name="settings_feedback_post">发布 discussion</string>
+    <string name="settings_feedback_sent">已发送</string>
+    <string name="settings_feedback_again">再写一条</string>
+
+    <string name="settings_app">应用</string>
+    <string name="settings_host">主机</string>
+    <string name="settings_uptime">运行时长</string>
+    <string name="settings_tasks">任务</string>
+    <string name="settings_about_language">语言跟随 Android 设置</string>
+    <string name="settings_about_mac_side">重启 daemon、重置 UI 状态和安装插件都在 Mac 端操作——手机通过 bridge 与 daemon 通信，daemon 一旦停止，手机无法恢复它</string>
+    <string name="settings_licenses">许可证</string>
+</resources>

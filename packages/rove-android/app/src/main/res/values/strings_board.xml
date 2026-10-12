@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="board_header">board</string>
+    <string name="board_need_you">%1$d need you</string>
+    <string name="board_new_story_a11y">New story</string>
+    <string name="board_no_projects">no projects</string>
+    <string name="board_no_projects_hint">save a project or open a task and its stories appear here</string>
+    <string name="board_loading">loading</string>
+    <string name="board_dismiss">tap to dismiss</string>
+    <string name="board_no_stories">no stories</string>
+    <string name="board_no_stories_hint">tap + to file a story</string>
+    <plurals name="board_skipped">
+        <item quantity="one">%1$d unreadable record skipped, the board may be incomplete</item>
+        <item quantity="other">%1$d unreadable records skipped, the board may be incomplete</item>
+    </plurals>
+    <string name="board_column_backlog">backlog</string>
+    <string name="board_column_in_progress">in progress</string>
+    <string name="board_column_parked">parked</string>
+    <string name="board_column_done">done</string>
+    <string name="board_empty_backlog">backlog is empty</string>
+    <string name="board_empty_backlog_hint">+ files a story</string>
+    <string name="board_empty_in_progress">nothing in progress</string>
+    <string name="board_empty_in_progress_hint">start a session from a card</string>
+    <string name="board_empty_parked">nothing parked</string>
+    <string name="board_empty_parked_hint">set a story to hold to park it</string>
+    <string name="board_empty_done">nothing done yet</string>
+    <string name="board_empty_done_hint">set a story to done to close it</string>
+    <string name="board_more">+%1$d more</string>
+    <string name="board_linked">linked</string>
+    <string name="board_started_notice">started #%1$d in the background</string>
+    <string name="board_request_failed">Request failed. Check the result before retrying.</string>
+
+    <string name="board_new_story">new story</string>
+    <string name="board_file_story">file story</string>
+    <string name="board_field_title">title</string>
+    <string name="board_title_placeholder">what to do</string>
+    <string name="board_field_description">description</string>
+    <string name="board_description_optional">optional, what and why in a few lines</string>
+    <string name="board_new_hint">Stories start in the backlog. Start a session from one when it is time.</string>
+
+    <string name="board_story_title">story #%1$d</string>
+    <string name="board_save">save</string>
+    <string name="board_description_placeholder">what and why, in a few lines</string>
+    <string name="board_field_status">status</string>
+    <string name="board_status_open" translatable="false">open</string>
+    <string name="board_status_doing" translatable="false">doing</string>
+    <string name="board_status_hold" translatable="false">hold</string>
+    <string name="board_status_done" translatable="false">done</string>
+    <string name="board_field_task">task</string>
+    <string name="board_linked_task">linked task</string>
+    <string name="board_not_in_list">not in the task list</string>
+    <string name="board_waiting_list">waiting for the task list</string>
+    <string name="board_open_task">open task</string>
+    <string name="board_events">events</string>
+    <string name="board_no_events">no events recorded</string>
+    <string name="board_no_events_hint">the daemon forgets them when it restarts</string>
+    <string name="board_start_another">start another session</string>
+    <string name="board_start_session">start session</string>
+    <string name="board_arrow" translatable="false">→</string>
+    <string name="board_delete_story">delete story</string>
+    <string name="board_record_only">record only</string>
+    <string name="board_title_empty">the title is empty</string>
+    <string name="board_delete_title">delete this story?</string>
+    <string name="board_delete_body">Removes only the story record. A linked task, its branch and its worktree are left alone.</string>
+
+    <string name="board_field_engine">engine</string>
+    <string name="board_field_where">where</string>
+    <string name="board_field_after">after</string>
+    <string name="board_where_worktree">worktree</string>
+    <string name="board_where_project">project</string>
+    <string name="board_where_worktree_hint">the story\'s own worktree and branch</string>
+    <string name="board_where_project_hint">a new tab on the project checkout, no worktree</string>
+    <string name="board_after_follow">follow</string>
+    <string name="board_after_stay">stay on board</string>
+    <string name="board_after_follow_hint">open the session as soon as it starts</string>
+    <string name="board_after_stay_hint">back on the board while it works</string>
+    <string name="board_no_engines">no engines found, the daemon picks its default</string>
+    <string name="board_unsaved_hint">Unsaved edits to the story are saved first.</string>
+    <string name="board_warn_link">could not link #%1$d to its task: %2$s</string>
+    <string name="board_warn_mark">could not mark #%1$d doing: %2$s</string>
+</resources>

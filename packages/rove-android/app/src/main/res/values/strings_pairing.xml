@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pairing_kicker">pair · remote control</string>
+    <string name="pairing_title">drive your mac\'s tasks from here</string>
+    <string name="pairing_intro">Start rove-bridge on your Mac, then scan the QR code it shows or paste the link it prints.</string>
+    <string name="pairing_network">network</string>
+    <string name="pairing_direct">direct</string>
+    <string name="pairing_cloudflare">cloudflare</string>
+    <string name="pairing_direct_hint">same Wi-Fi or Tailscale (100.x · *.ts.net)</string>
+    <string name="pairing_link">pairing link</string>
+    <string name="pairing_link_placeholder" translatable="false">ws://host:7878/?token=…</string>
+    <string name="pairing_paste">paste</string>
+    <string name="pairing_scan">scan QR code</string>
+    <string name="pairing_no_camera">no camera here — paste the link instead</string>
+    <string name="pairing_cf_kicker">cloudflare access</string>
+    <string name="pairing_cf_id" translatable="false">CF-Access-Client-Id</string>
+    <string name="pairing_cf_secret" translatable="false">CF-Access-Client-Secret</string>
+    <string name="pairing_cf_hint">service token from zero trust → access → service auth</string>
+    <string name="pairing_connect">connect</string>
+    <string name="pairing_demo">try a demo</string>
+</resources>

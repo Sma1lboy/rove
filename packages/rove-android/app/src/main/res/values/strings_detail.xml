@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_loading">loading task</string>
+    <string name="detail_more">More</string>
+    <string name="detail_menu_delete">delete task</string>
+    <string name="detail_menu_history">Engine history</string>
+    <string name="detail_menu_refresh">refresh tabs</string>
+    <string name="detail_fit">fit</string>
+    <string name="detail_watch">watch</string>
+    <string name="detail_tab_new" translatable="false">+</string>
+    <string name="detail_diff">diff</string>
+    <string name="detail_land">land</string>
+    <string name="detail_tabs_error">Could not load terminal tabs</string>
+    <string name="detail_no_tabs">no terminal tabs</string>
+    <string name="detail_pick_tab">pick a tab</string>
+    <string name="detail_no_tabs_hint">open an engine tab to give this task its next message</string>
+    <string name="detail_reopen">reopen session</string>
+
+    <string name="detail_key_esc" translatable="false">esc</string>
+    <string name="detail_key_enter" translatable="false">enter</string>
+    <string name="detail_key_up" translatable="false">↑</string>
+    <string name="detail_key_down" translatable="false">↓</string>
+    <string name="detail_key_tab" translatable="false">tab</string>
+    <string name="detail_key_shift_tab" translatable="false">shift+tab</string>
+    <string name="detail_key_ctrl" translatable="false">ctrl</string>
+    <string name="detail_key_left" translatable="false">←</string>
+    <string name="detail_key_right" translatable="false">→</string>
+    <string name="detail_key_ctrl_c" translatable="false">ctrl+c</string>
+    <string name="detail_key_interrupt">interrupt</string>
+    <string name="detail_key_continue" translatable="false">continue</string>
+    <string name="detail_key_yes" translatable="false">yes</string>
+    <string name="detail_key_done">done</string>
+    <string name="detail_interrupt_sent">interrupt sent</string>
+
+    <string name="detail_reply">reply</string>
+    <string name="detail_reply_to">reply to %1$s</string>
+    <string name="detail_send">send</string>
+
+    <string name="detail_status_attaching">attaching…</string>
+    <string name="detail_status_exited">process exited</string>
+    <string name="detail_status_exited_code">session exited (%1$s)</string>
+    <string name="detail_status_disconnected">disconnected · input paused</string>
+    <string name="detail_status_unavailable">terminal unavailable · reopen to retry</string>
+
+    <string name="detail_delete_title">Delete this task?</string>
+    <string name="detail_land_title">Land this task</string>
+    <string name="detail_delete_confirm_title">Confirm delete</string>
+    <string name="detail_land_confirm_title">Confirm land</string>
+    <string name="detail_delete_body">Remove this task and its managed worktree. The branch is kept. Dirty work is refused.</string>
+    <string name="detail_land_body">Merge this task\'s branch into its base on the Mac. This changes the repository.</string>
+    <string name="detail_continue">continue</string>
+    <string name="detail_delete_confirm">confirm delete</string>
+    <string name="detail_land_confirm">confirm land</string>
+    <string name="detail_cancel">cancel</string>
+    <string name="detail_working">working…</string>
+</resources>

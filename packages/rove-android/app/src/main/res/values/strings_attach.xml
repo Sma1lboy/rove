@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="attach_button">Attach</string>
+    <string name="attach_photo">Photo</string>
+    <string name="attach_file">File (image or pdf)</string>
+    <string name="attach_error_unsupported">only png, jpeg, gif, webp and pdf can be attached</string>
+    <string name="attach_error_too_large">that file is over 5 MB</string>
+</resources>

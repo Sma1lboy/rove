@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="inbox_title">inbox</string>
+    <string name="inbox_next_pending">next pending</string>
+    <string name="inbox_attention">attention</string>
+    <string name="inbox_recent">recent</string>
+    <string name="inbox_attention_empty">nothing needs you</string>
+    <string name="inbox_attention_empty_detail">blocked agents and finished turns land here</string>
+    <string name="inbox_recent_empty">no recent tabs</string>
+    <string name="inbox_recent_empty_detail">tabs you open on this phone show up here</string>
+    <string name="inbox_dismiss">dismiss</string>
+    <string name="inbox_dismiss_label">Dismiss without opening</string>
+    <string name="inbox_routine">routine</string>
+    <string name="inbox_resumes">resumes %1$s</string>
+    <string name="inbox_state_permission">permission</string>
+    <string name="inbox_state_rate_limit">rate limit</string>
+    <string name="inbox_state_error">error</string>
+    <string name="inbox_state_exited">exited</string>
+    <string name="inbox_state_done">done</string>
+    <string name="inbox_state_routine_failed">routine failed</string>
+    <string name="inbox_state_routine_replied">routine replied</string>
+</resources>

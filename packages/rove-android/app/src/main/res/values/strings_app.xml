@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_error_title">Could not complete action</string>
+    <string name="app_close">close</string>
+    <string name="app_back">Back</string>
+    <string name="app_demo_status">demo · not connected to a mac</string>
+    <string name="app_demo_connect">connect a mac</string>
+</resources>

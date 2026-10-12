@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="routines_title">routines</string>
+    <string name="routines_count">%1$s routines</string>
+    <string name="routines_new_a11y">New routine</string>
+    <string name="routines_empty">no routines</string>
+    <string name="routines_empty_hint">+ schedules a prompt on a cron</string>
+    <string name="routines_retry">retry</string>
+    <string name="routines_loading">loading</string>
+    <string name="routines_paused">paused</string>
+    <string name="routines_keeps_alive">enabled routines keep the mac daemon alive</string>
+    <string name="routines_subtitle">%1$s · %2$s · next %3$s</string>
+    <string name="routines_next_line">next %1$s · %2$s</string>
+    <string name="routines_next_none">next —</string>
+    <string name="routines_in">in %1$s</string>
+    <string name="routines_ago">%1$s ago</string>
+    <string name="routines_due">due</string>
+    <string name="routines_failed">Request failed. Check the result before retrying.</string>
+    <string name="routines_kicker">routine</string>
+
+    <string name="routines_status_dispatched">dispatched</string>
+    <string name="routines_status_revived">revived</string>
+    <string name="routines_status_skipped_cancelled">skipped cancelled</string>
+    <string name="routines_status_skipped_precheck">skipped precheck</string>
+    <string name="routines_status_skipped_missed">skipped missed</string>
+    <string name="routines_status_skipped_unavailable">skipped unavailable</string>
+    <string name="routines_status_dispatch_failed">dispatch failed</string>
+
+    <string name="routines_run_confirm_title">run now?</string>
+    <string name="routines_run_now">run now</string>
+    <string name="routines_cancel">cancel</string>
+    <string name="routines_run_confirm_body">starts an agent session on the mac and skips the precheck</string>
+    <string name="routines_prompt">prompt</string>
+    <string name="routines_precheck">precheck</string>
+    <string name="routines_timeout">timeout %1$ds</string>
+    <string name="routines_none">none</string>
+    <string name="routines_precheck_hint">prechecks are set on the mac — they run a shell command</string>
+    <string name="routines_schedule">schedule</string>
+    <string name="routines_repo">repo</string>
+    <string name="routines_persistent">persistent session</string>
+    <string name="routines_base">base %1$s</string>
+    <string name="routines_last_runs">last runs</string>
+    <string name="routines_no_runs">no runs yet</string>
+    <string name="routines_no_runs_hint">run now fires one without waiting for the schedule</string>
+    <string name="routines_open_task">open task</string>
+    <string name="routines_actions">actions</string>
+    <string name="routines_pause">pause</string>
+    <string name="routines_resume">resume</string>
+    <string name="routines_skips_precheck">skips the precheck</string>
+    <string name="routines_open_latest">open latest run\'s task</string>
+    <string name="routines_edit">edit</string>
+    <string name="routines_edit_detail">name, prompt, schedule</string>
+    <string name="routines_delete">delete</string>
+
+    <string name="routines_new">new routine</string>
+    <string name="routines_edit_title">edit routine</string>
+    <string name="routines_kicker_new">cron + prompt</string>
+    <string name="routines_create">create routine</string>
+    <string name="routines_save">save routine</string>
+    <string name="routines_name">name</string>
+    <string name="routines_name_placeholder">nightly dependency audit</string>
+    <string name="routines_repository">repository</string>
+    <string name="routines_repo_fixed">the repo is fixed once a routine exists — recreate it to move it</string>
+    <string name="routines_prompt_placeholder">what the agent should do each time it fires</string>
+    <string name="routines_preset_hourly">hourly</string>
+    <string name="routines_preset_daily">daily 9:00</string>
+    <string name="routines_preset_weekdays">weekdays</string>
+    <string name="routines_preset_weekly">weekly</string>
+    <string name="routines_schedule_invalid">schedule needs five space-separated cron fields: minute hour day month weekday</string>
+    <string name="routines_schedule_hint">five-field cron, in the mac\'s local time</string>
+    <string name="routines_name_long">name is longer than %1$d characters</string>
+    <string name="routines_prompt_long">prompt is longer than %1$d characters</string>
+
+    <string name="routines_delete_title">delete this routine?</string>
+    <string name="routines_delete_confirm">delete routine</string>
+    <string name="routines_delete_body">Deletes the routine and its run history. Tasks it already created stay.</string>
+</resources>

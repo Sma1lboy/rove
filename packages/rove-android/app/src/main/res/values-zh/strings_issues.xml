@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="issues_title">GitHub 议题</string>
+    <string name="issues_refresh">刷新议题</string>
+    <string name="issues_all">全部</string>
+    <string name="issues_mine">分配给我的</string>
+    <string name="issues_no_repos">没有仓库</string>
+    <string name="issues_no_repos_detail">请先在 Mac 上添加项目</string>
+    <string name="issues_empty">没有议题</string>
+    <string name="issues_empty_detail">此筛选下没有开放的议题</string>
+    <string name="issues_loading">加载中…</string>
+    <string name="issues_retry">重试</string>
+    <string name="issues_task">任务</string>
+    <string name="issues_opens_task">打开任务</string>
+    <string name="issues_ago">%1$s前</string>
+    <string name="issues_hint_no_remote">该仓库没有 github remote</string>
+    <string name="issues_hint_gh_missing">在 Mac 上安装 gh CLI</string>
+    <string name="issues_hint_auth">在 Mac 上执行 gh auth login</string>
+    <string name="issues_start">启动任务</string>
+    <string name="issues_engine">引擎</string>
+    <string name="issues_default_engine">默认引擎</string>
+    <string name="issues_start_note">议题正文会作为首条提示词，并标记为不可信的报告。不会向 GitHub 写回任何内容。</string>
+    <string name="issues_start_failed">无法启动任务</string>
+</resources>

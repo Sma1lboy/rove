@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="inbox_title">收件箱</string>
+    <string name="inbox_next_pending">下一个待处理</string>
+    <string name="inbox_attention">待处理</string>
+    <string name="inbox_recent">最近</string>
+    <string name="inbox_attention_empty">没有需要你处理的事项</string>
+    <string name="inbox_attention_empty_detail">被阻塞的 agent 和已完成的回合会出现在这里</string>
+    <string name="inbox_recent_empty">没有最近的标签页</string>
+    <string name="inbox_recent_empty_detail">你在这部手机上打开的标签页会显示在这里</string>
+    <string name="inbox_dismiss">忽略</string>
+    <string name="inbox_dismiss_label">不打开并忽略</string>
+    <string name="inbox_routine">例行任务</string>
+    <string name="inbox_resumes">%1$s 恢复</string>
+    <string name="inbox_state_permission">权限</string>
+    <string name="inbox_state_rate_limit">限流</string>
+    <string name="inbox_state_error">出错</string>
+    <string name="inbox_state_exited">已退出</string>
+    <string name="inbox_state_done">已完成</string>
+    <string name="inbox_state_routine_failed">例行任务失败</string>
+    <string name="inbox_state_routine_replied">例行任务已回复</string>
+</resources>

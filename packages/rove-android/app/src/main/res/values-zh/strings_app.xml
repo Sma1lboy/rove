@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_error_title">操作未完成</string>
+    <string name="app_close">关闭</string>
+    <string name="app_back">返回</string>
+    <string name="app_demo_status">演示 · 未连接 mac</string>
+    <string name="app_demo_connect">连接 mac</string>
+</resources>

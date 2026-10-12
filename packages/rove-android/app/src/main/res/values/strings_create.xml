@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="create_new_task">new task</string>
+    <string name="create_new_session">new session</string>
+    <string name="create_kicker_task">worktree + branch</string>
+    <string name="create_kicker_session">same worktree</string>
+    <string name="create_repository">repository</string>
+    <string name="create_engine">engine</string>
+    <string name="create_title">title</string>
+    <string name="create_title_placeholder">optional — derived from the prompt</string>
+    <string name="create_first_prompt">first prompt</string>
+    <string name="create_first_message">first message</string>
+    <string name="create_prompt_placeholder_task">leave empty to open the worktree without starting the engine</string>
+    <string name="create_prompt_placeholder_session">what should this session work on</string>
+    <string name="create_submit_task">create task</string>
+    <string name="create_submit_session">open tab</string>
+    <string name="create_hint_tab">Tabs share the worktree but keep their own process, scrollback and conversation.</string>
+    <string name="create_hint_engines_only">Shell tabs and plugin panes need a desktop terminal, so the phone starts engines only.</string>
+    <string name="create_failed">Request failed. Check the result before retrying.</string>
+</resources>
