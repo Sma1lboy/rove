@@ -159,6 +159,46 @@ share a filesystem, a prompt can carry file paths: a screenshot, a log, a
 diff. The receiver opens them with its own tools. That is the whole
 coordination surface; there is no separate message bus to learn.
 
+## Unattended loops: hard reports
+
+A scheduler that ticks a task with `send` (a cron, a routine, a standing
+session) cannot tell "finished and reported" from "the turn ended, or the
+engine died". Arm each tick so Rove can:
+
+```bash
+rove api send --task-id <id> --expect-report --prompt-file tick.md
+# → { …, "deliveryId": "d-41" }
+```
+
+Or set it once and every `send` to that task is armed:
+`rove api add --require-report …`, `rove api update --task-id <id> --require-report on`.
+The task's own first `--prompt` on `add` is not armed.
+
+The delivered prompt ends with a `[ROVE]` line naming the delivery. The agent
+closes the tick as the last step of its turn:
+
+```bash
+rove api report --delivery d-41 --outcome done \
+  --summary "Merged 2 PRs, fixed the flaky test" \
+  --evidence "PR #88" --evidence "bun test: 412 pass" \
+  --next "Look at the failing nightly job"
+```
+
+`outcome` is `done`, `partial`, `blocked` or `failed`. If the turn completes
+or fails with no report, the engine dies, or the tab sits idle for 10 minutes,
+the delivery becomes `missing` and the owner's Inbox gets a **report missing**
+row. A late `report` clears it. A permission prompt does not count as a stop.
+Rove records the state only; it does not yet hold back the next tick.
+
+The loop prompt reads the recent history instead of a growing notes file:
+
+```bash
+rove api deliveries --task-id <id> --limit 5   # newest first: outcome, summary, evidence, next, or why it went missing
+```
+
+Full contract: [API → deliveries](API.md#read),
+[design/long-run-controls.md](design/long-run-controls.md).
+
 ## Fan in
 
 Compare, pick, close the round:

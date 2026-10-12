@@ -5,9 +5,10 @@ import kotlinx.serialization.builtins.ListSerializer
 import run.rove.mobile.domain.InboxLogic
 import run.rove.mobile.domain.Visit
 
-/** Clear one attention episode on the Mac; a task-level episode omits the tab. */
-suspend fun RoveRepository.dismissAttention(taskId: String, tabId: String?) {
-    bridge.request("attention.dismiss", if (tabId == null) args("taskId" to taskId) else args("taskId" to taskId, "tabId" to tabId))
+/** Clear one attention episode on the Mac; a task-level episode omits the tab, a `report_missing` one is keyed by its delivery. */
+suspend fun RoveRepository.dismissAttention(taskId: String, tabId: String?, deliveryId: String? = null) {
+    val pairs = listOfNotNull("taskId" to taskId, tabId?.let { "tabId" to it }, deliveryId?.let { "deliveryId" to it })
+    bridge.request("attention.dismiss", args(*pairs.toTypedArray()))
 }
 
 /** The phone-local visit log behind RECENT (iOS `InboxState.visits`, `UserDefaults` key `inboxVisits`). */

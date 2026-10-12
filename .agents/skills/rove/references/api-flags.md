@@ -81,6 +81,7 @@ agent-turns  --task-id --repo --since-days(7) --limit(200)
 inspect      --task-id
 read-output  --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
 watch        --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
+deliveries   --task-id(REQ) --limit
 ```
 <!-- generated:end -->
 
@@ -88,6 +89,12 @@ watch        --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
 `collect` is the comparison snapshot across tasks: pass `--group <groupId>`
 (what `add --count` returned), a `--task-ids` csv, or a `--repo`; `inspect` is
 the wider diagnostic — daemon activity, a pty walk, and every tab snapshot.
+
+`deliveries --task-id` is the task's report log, newest first: for each armed
+prompt its `status` (`awaiting`, `reported`, `missing`), the report
+(`outcome`, `summary`, `evidence`, `next`) or why it went missing (`cause`,
+`note`). A loop that wakes a task reads `deliveries --limit 5` for what the
+last ticks did, instead of a growing notes file.
 
 `pty-list` is what `NO_ENGINE_TAB`'s hint points at: when `.tabs[]` and reality
 disagree, it is the ground truth for what is actually alive — key, alive, pid,
@@ -112,7 +119,7 @@ needs numbers, not when you want to know what a task is doing.
 <!-- generated:begin drive -->
 ```text
 send           --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
-               --allow-empty
+               --allow-empty --expect-report
 dispatch       --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 interrupt      --task-id(REQ) --tab
 note           --task-id(REQ) --text(REQ)
@@ -131,6 +138,8 @@ engine-report  --task-id
 row-token      --task-id(REQ) --text --ttl(60) --key(default)
                --tone{info|success|warning|error|muted} --clear
 set-active     --task-id --none
+report         --delivery --outcome{done|partial|blocked|failed} --summary --evidence
+               --next --json
 ```
 <!-- generated:end -->
 
@@ -148,6 +157,19 @@ a resolved gotcha; an issue is for work that still needs doing.
 `send --allow-empty` is the escape hatch for a `succeeded:` report from a task
 that legitimately produced no commits (an investigation, a review, a question
 answered); without it such a report is refused with `EMPTY_SUCCESS_REPORT`.
+
+**`send --expect-report` asks for a report.** The reply carries `deliveryId`
+(`d-<n>`) and the pasted prompt ends with a `[ROVE] When this turn ends,
+report: rove api report --delivery d-<n> …` line. A task added with
+`add --require-report` (or `update --require-report on`) arms every `send`
+to it. When YOU receive a prompt with that line, finish the turn with
+`report --delivery d-<n> --outcome done|partial|blocked|failed --summary "…"`
+(repeat `--evidence` for commits, PR urls, test results, paths; `--next` for
+what the next tick should do; `--json -` for text with quotes). Run it as the
+last step, before you stop. A turn that ends without it raises a
+`report_missing` Inbox row for the owner. Reporting again replaces the
+report; a late one clears the flag. `outcome` is `blocked` when you need the
+owner, `failed` when you tried and could not. Summary max 32,000 characters.
 
 `notify --kind` styles the toast: `done`, `needs_input`, `error` get severity
 treatment and an unread mark, anything else renders neutrally.
@@ -178,8 +200,9 @@ clear the shared active task.
 add     --repo(REQ) --title --branch --base-branch --worktree-name --command --effort
         --tier{swift|standard|deep|auto} --model --count --agents <claude:2,codex:1>
         --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
-        --activate(false) --prompt|--prompt-file
+        --require-report --activate(false) --prompt|--prompt-file
 update  --task-id(REQ) --title --tab --branch --command --model --effort --pinned
+        --require-report{on|off}
         --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
         --report-pr --report-summary
 land    --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
@@ -309,10 +332,13 @@ and does not shift the schedule. `routine-delete` leaves already-created tasks
 alone.
 
 A delivered routine prompt starts with `[ROVE ROUTINE] "<name>" run #<n> — when
-done, report with: … routine-respond --run <runId> --prompt-file -`. When you
-received one, finish by answering THAT run: lead with the conclusion, markdown
-welcome, 32,000 characters max. Responding again replaces the answer. Nothing
-is inferred if you skip it; the run just shows "no response".
+done, report with: … rove api report --delivery d-<n> …`. When you received
+one, finish by reporting THAT delivery (`report --outcome done|partial|blocked|failed
+--summary …`): lead with the conclusion, markdown welcome, 32,000 characters
+max. Reporting again replaces the answer. `routine-respond --run <runId>
+--text …` still works; it is `report --outcome done` on the same delivery.
+Nothing is inferred if you skip it; the run shows "no response" and the
+delivery goes `missing`.
 
 Run statuses from `routine-runs`: `dispatched`, `revived` (standing session
 respawned — files kept, conversation did not), `skipped_precheck` (nothing to do),
@@ -346,6 +372,7 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 |---|---|---|
 | `BAD_FLAG` | flag not on that verb | check the table above, then `schema --verb <v>` |
 | `TASK_NOT_FOUND` | id deleted or mistyped | `rove api list` |
+| `DELIVERY_NOT_FOUND` | `report --delivery` names no delivery | copy the id from the prompt's `[ROVE]` line; `deliveries --task-id <id>` |
 | `DIRTY_WORKTREE` | `delete` on a worktree with uncommitted files | send the worker back to commit, or `delete --force` to discard |
 | `ISSUE_NOT_FOUND` | no issue with that number in this repo | `rove api issue-list --repo <path>` |
 | `NO_ENGINE_TAB` | live tabs exist, none is an engine | `--tab tab-N` from `pty-list`, or `--tab new` |

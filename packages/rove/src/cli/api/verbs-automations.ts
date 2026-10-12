@@ -247,7 +247,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
   {
     name: "routine-respond",
     group: "routine",
-    summary: `Report this run's result. Every delivered routine prompt starts with a [ROVE ROUTINE] line naming its run id; answer it here once you're done. One response per run — responding again replaces it. Cap ${ROUTINE_RESPONSE_MAX_CHARS} characters; markdown renders on the Routines page.`,
+    summary: `Report this run's result. Every delivered routine prompt starts with a [ROVE ROUTINE] line naming its run; this is the routine-flavoured spelling of \`report --delivery <id> --outcome done --summary <text>\` and writes the same delivery report, so \`deliveries\` shows it too. One response per run — responding again replaces it. Cap ${ROUTINE_RESPONSE_MAX_CHARS} characters; markdown renders on the Routines page.`,
     flags: [
       {
         name: "run",
@@ -297,7 +297,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
     name: "routine-runs",
     group: "routine",
     summary:
-      "Run history, newest first. Statuses: dispatched, revived (standing session respawned — files kept, conversation did not), skipped_cancelled (disabled, changed or stopped before delivery), skipped_precheck (nothing to do), skipped_missed, skipped_unavailable, dispatch_failed. Each run carries `response` ({text, at}) once its agent called routine-respond.",
+      "Run history, newest first. Statuses: dispatched, revived (standing session respawned — files kept, conversation did not), skipped_cancelled (disabled, changed or stopped before delivery), skipped_precheck (nothing to do), skipped_missed, skipped_unavailable, dispatch_failed. Each run carries `deliveryId`, `deliveryStatus` (awaiting|reported|missing) and `response` ({text, at}) once its agent reported (routine-respond or report).",
     flags: [{ name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." }],
     handler: (ctx) => simpleRpc(ctx, "automation.runs", { id: ctx.args.require("id") }),
   },

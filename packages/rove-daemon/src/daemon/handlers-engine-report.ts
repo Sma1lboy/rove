@@ -7,7 +7,9 @@
 import { ingestAgentTurnsBestEffort } from "./agent-turns-ingest.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { findAdoptableWorktree, matchTaskByCwd } from "./cwd-task.ts"
+import { trackDeliveryTurn } from "./delivery-ops.ts"
 import { optionalActivityDetail, optionalString, requireString } from "./handler-validators.ts"
+import { deliveryDepsOf } from "./handlers-deliveries.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { scheduleQuotaResume } from "./quota-resume.ts"
 
@@ -68,6 +70,7 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
         await ctx.inbox
           .record(taskId, kind, detail, tabId ?? null)
           .catch((err) => logDaemonError("attention-inbox-record", err))
+        await trackDeliveryTurn(deliveryDepsOf(ctx), taskId, tabId ?? null, kind, detail)
       }
     }
     ctx.engineEvents?.append(taskId, {

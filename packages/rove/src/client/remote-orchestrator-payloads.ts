@@ -308,6 +308,7 @@ export function deserializeTask(s: SerializedTask): Task {
     quotaResume: s.quotaResume,
     linkedWorkItem: s.linkedWorkItem,
     dispatcher: s.dispatcher,
+    requireReport: s.requireReport,
     prompt: s.prompt,
     baseRef: s.baseRef,
     worktreeName: s.worktreeName,

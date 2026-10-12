@@ -14,6 +14,8 @@ import type { DaemonRpcClient } from "../../../rove-daemon/src/client/rpc.ts"
 import type { DispatchRuntime } from "../../../rove-daemon/src/daemon/automation-dispatch.ts"
 import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
 import type { Automation, DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
+import type { ArmDeliveryInput } from "../../../rove-daemon/src/daemon/deliveries-store.ts"
+import type { Delivery } from "../../../rove-daemon/src/daemon/delivery-contracts.ts"
 
 export const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime() // Fri 2026-07-31 10:00 local
 export const HOUR = 3_600_000
@@ -45,6 +47,32 @@ export async function tempStore(now = () => NOW): Promise<AutomationsStore> {
 
 export const link = {} as DaemonRpcClient
 
+/** Records what the runner arms; ids count up like the real store's. */
+export function fakeDeliveries() {
+  const armed: ArmDeliveryInput[] = []
+  const cancelled: string[] = []
+  const tabs = new Map<string, string>()
+  return {
+    armed,
+    cancelled,
+    tabs,
+    store: {
+      arm: async (input: ArmDeliveryInput) => {
+        armed.push(input)
+        return { ...input, id: `d-${armed.length}`, at: "", status: "awaiting" } as Delivery
+      },
+      cancel: async (id: string) => {
+        cancelled.push(id)
+        return true
+      },
+      setTab: async (id: string, tabId: string) => {
+        tabs.set(id, tabId)
+        return undefined
+      },
+    },
+  }
+}
+
 export function fakeDeps(args: {
   store: AutomationsStore
   createTask?: (input: unknown) => Promise<DaemonTask>
@@ -55,6 +83,7 @@ export function fakeDeps(args: {
   deliverTab?: DispatchRuntime["deliverPromptToLiveEngineTabDetailed"]
 }) {
   const created: unknown[] = []
+  const deliveries = fakeDeliveries()
   const prompts: string[] = []
   const delivered: string[] = []
   /** One slot per routine — the store's real dedupe shape, so the test can
@@ -78,8 +107,10 @@ export function fakeDeps(args: {
     delivered,
     episodes,
     inbox,
+    deliveries,
     deps: {
       store: args.store,
+      deliveries: deliveries.store,
       inbox,
       orch: {
         createTask:

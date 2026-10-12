@@ -127,6 +127,7 @@ function normalizeRun(value: unknown): AutomationRun | null {
     ...(str(raw.tabId) ? { tabId: raw.tabId } : {}),
     ...(raw.precheckResult ? { precheckResult: raw.precheckResult } : {}),
     ...(str(raw.error) ? { error: raw.error } : {}),
+    ...(str(raw.deliveryId) ? { deliveryId: raw.deliveryId } : {}),
     ...(typeof raw.response?.text === "string" && str(raw.response.at)
       ? { response: { text: raw.response.text, at: raw.response.at } }
       : {}),

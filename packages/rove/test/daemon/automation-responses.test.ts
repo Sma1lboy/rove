@@ -15,9 +15,9 @@ import { NOW, REPO, automation, fakeDeps, tempStore } from "./automation-runner-
 
 const STANDING_TASK = { id: "standing", repo: REPO, worktreePath: REPO } as never
 
-/** The run id a delivered prompt's header names. */
-function headerRunId(prompt: string | undefined): string | undefined {
-  return prompt?.match(/^\[ROVE ROUTINE\][^\n]* --run (\S+) /)?.[1]
+/** The delivery id a delivered prompt's header names. */
+function headerDeliveryId(prompt: string | undefined): string | undefined {
+  return prompt?.match(/^\[ROVE ROUTINE\][^\n]* report --delivery (\S+) /)?.[1]
 }
 
 describe("delivered prompt names its run", () => {
@@ -25,7 +25,7 @@ describe("delivered prompt names its run", () => {
     ["fresh task", {}, "prompts"],
     ["standing session", { persistentSession: true, sessionTaskId: "standing" }, "delivered"],
     ["bound tab", { target: { kind: "existing-tab", taskId: "standing", tabId: "tab-2" } }, "tab"],
-  ] as const)("%s: the header carries the recorded run's id", async (_label, overrides, channel) => {
+  ] as const)("%s: the header carries the recorded run's delivery id", async (_label, overrides, channel) => {
     const store = await tempStore()
     const tabPrompts: string[] = []
     const f = fakeDeps({
@@ -44,7 +44,7 @@ describe("delivered prompt names its run", () => {
     const sent = channel === "prompts" ? f.prompts : channel === "delivered" ? f.delivered : tabPrompts
     const runs = store.runsFor(a.id)
     expect(runs.map((run) => run.status)).toEqual(["dispatched", "dispatched"])
-    expect(sent.map(headerRunId)).toEqual([runs[1]?.id, runs[0]?.id])
+    expect(sent.map(headerDeliveryId)).toEqual([runs[1]?.deliveryId, runs[0]?.deliveryId])
     expect(sent[1]).toContain(" run #2 ")
     expect(sent[1]?.endsWith(`\n\n${a.prompt}`)).toBe(true)
   })

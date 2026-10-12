@@ -225,6 +225,15 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "task.requireReport",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      if (typeof payload.required !== "boolean") throw new Error("required must be a boolean")
+      await ctx.orch.setRequireReport(taskId, payload.required)
+      return {}
+    },
+  },
+  {
     name: "task.move",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")

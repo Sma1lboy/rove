@@ -24,6 +24,7 @@ import { type DispatchDeps, dispatchAutomation } from "../../../rove-daemon/src/
 import { runAutomationOnce } from "../../../rove-daemon/src/daemon/automation-runner.ts"
 import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
 import type { Automation, DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
+import { fakeDeliveries } from "./automation-runner-fixtures.ts"
 
 const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime()
 const REPO = process.cwd()
@@ -192,7 +193,7 @@ describe("runAutomationOnce persists the standing link", () => {
     const { deps } = harness()
 
     const status = await runAutomationOnce(
-      { store, orch: deps.orch, runtime: deps.runtime, link, now: () => NOW },
+      { store, deliveries: fakeDeliveries().store, orch: deps.orch, runtime: deps.runtime, link, now: () => NOW },
       created,
       { scheduledFor: NOW, trigger: "scheduled" },
     )
@@ -218,7 +219,7 @@ describe("runAutomationOnce persists the standing link", () => {
     const { deps } = harness({ tasks: {} })
 
     await runAutomationOnce(
-      { store, orch: deps.orch, runtime: deps.runtime, link, now: () => NOW },
+      { store, deliveries: fakeDeliveries().store, orch: deps.orch, runtime: deps.runtime, link, now: () => NOW },
       store.get(created.id) as Automation,
       {
         scheduledFor: NOW,

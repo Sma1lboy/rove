@@ -99,12 +99,20 @@ async function spawnWithPrompt(
   return { status, taskId }
 }
 
+/** The prompt for a firing, built once the task (and tab, when known) it lands
+ *  in exists, so a delivery can be armed against it before the paste. */
+export type DispatchPrompt = string | ((target: { taskId: string; tabId: string | null }) => Promise<string>)
+
+async function resolvePrompt(prompt: DispatchPrompt, target: { taskId: string; tabId: string | null }) {
+  return typeof prompt === "string" ? prompt : await prompt(target)
+}
+
 /** Run one firing until an engine has `prompt` (the routine's, run header
  *  included). Scheduling and run-recording are the runner's. */
 export async function dispatchAutomation(
   deps: DispatchDeps,
   automation: Automation,
-  prompt: string = automation.prompt,
+  prompt: DispatchPrompt = automation.prompt,
 ): Promise<DispatchOutcome> {
   if (deps.canDeliver?.() === false) return { status: "skipped_cancelled" }
   const target = automationTarget(automation)
@@ -128,22 +136,34 @@ export async function dispatchAutomation(
     if (!currentTask || currentTask.deletion || !currentTask.worktreePath) {
       return { status: "skipped_unavailable", taskId: task.id, tabId: target.tabId, error: "target task unavailable" }
     }
+    const text = await resolvePrompt(prompt, { taskId: task.id, tabId: target.tabId })
     const result = await deps.runtime.deliverPromptToLiveEngineTabDetailed(
       { id: task.id, tabId: target.tabId, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
-      prompt,
+      text,
     )
     return await liveDeliveryOutcome(deps, automation, task.id, result)
   }
   if (target.kind === "fresh") {
     const task = await createRunTask(deps, automation)
-    return await spawnWithPrompt(deps, prompt, task.id, "dispatched")
+    // A fresh task's first engine tab is always tab-1.
+    return await spawnWithPrompt(
+      deps,
+      await resolvePrompt(prompt, { taskId: task.id, tabId: "tab-1" }),
+      task.id,
+      "dispatched",
+    )
   }
 
   const standing = resolveStandingTask(deps.orch, automation)
   if (standing.task === null) {
     // Build and remember a session, clearing any stale link.
     const task = await createRunTask(deps, automation)
-    const outcome = await spawnWithPrompt(deps, prompt, task.id, "dispatched")
+    const outcome = await spawnWithPrompt(
+      deps,
+      await resolvePrompt(prompt, { taskId: task.id, tabId: "tab-1" }),
+      task.id,
+      "dispatched",
+    )
     return {
       ...outcome,
       // Even if the engine failed: the worktree exists, so the next firing
@@ -154,9 +174,11 @@ export async function dispatchAutomation(
   }
 
   const task = standing.task
+  // Built once: the live attempt and the respawn below carry the same delivery.
+  const text = await resolvePrompt(prompt, { taskId: task.id, tabId: null })
   const result = await deps.runtime.deliverPromptToLiveEngineDetailed(
     { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
-    prompt,
+    text,
   )
   if (result.outcome === "delivered") {
     return await liveDeliveryOutcome(deps, automation, task.id, result)
@@ -165,7 +187,7 @@ export async function dispatchAutomation(
   // the engine died between firings. Respawn in the SAME worktree as
   // `revived`. `no-engine` must land here, or the prompt gets typed into zsh
   // and RUN as shell commands.
-  return await spawnWithPrompt(deps, prompt, task.id, "revived")
+  return await spawnWithPrompt(deps, text, task.id, "revived")
 }
 
 async function liveDeliveryOutcome(

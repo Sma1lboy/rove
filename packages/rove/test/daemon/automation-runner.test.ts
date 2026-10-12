@@ -84,9 +84,10 @@ describe("runAutomationOnce", () => {
     expect(created).toEqual([{ repo: REPO, title: "audit" }])
     const run = store.runsFor(a.id)[0]
     expect(run).toMatchObject({ status: "dispatched", taskId: "task-1" })
-    // The header names THIS run, and the routine's prompt comes last, unchanged.
+    // The header names THIS run's delivery, and the routine's prompt comes last, unchanged.
+    expect(run?.deliveryId).toBe("d-1")
     expect(prompts).toEqual([
-      `[ROVE ROUTINE] "audit" run #1 — when done, report with: rove api routine-respond --run ${run?.id} --prompt-file -\n\nrun the audit`,
+      `[ROVE ROUTINE] "audit" run #1 — when done, report with: rove api report --delivery d-1 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]\n\nrun the audit`,
     ])
   })
 

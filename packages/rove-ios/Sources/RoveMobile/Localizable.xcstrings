@@ -6200,6 +6200,16 @@
         }
       }
     },
+    "report missing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未回报"
+          }
+        }
+      }
+    },
     "reports" : {
       "localizations" : {
         "zh-Hans" : {

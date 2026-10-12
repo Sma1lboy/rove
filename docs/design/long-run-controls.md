@@ -1,9 +1,11 @@
 # Long-run controls — reports, should-run, decision gates
 
-> Status: PROPOSED. Three daemon-owned controls for tasks that run unattended
+> Status: layer 1 (hard reports: deliveries, `report`, `deliveries`,
+> `send --expect-report`, `Task.requireReport`, `report_missing`) is
+> implemented; should-run and decision gates (layers 2 and 3) are still
+> proposed. Three daemon-owned controls for tasks that run unattended
 > (routines, standing sessions, and external schedulers that tick a task via
-> `rove api send`). Nothing here ships until the owner signs off on the open
-> questions at the bottom.
+> `rove api send`). The owner decided the open questions at the bottom.
 
 ## Problem
 
@@ -86,7 +88,7 @@ interface Delivery {
 
 interface DeliveryReport {
   outcome: "done" | "partial" | "blocked" | "failed"
-  summary: string               // what was done, ≤ 2k chars
+  summary: string               // what was done, ≤ 32k chars (see Deviations)
   evidence: string[]            // commits, PR urls, test commands + result, file paths
   next?: string                 // what the next tick should do
   at: string
@@ -140,7 +142,7 @@ looks up the tab's newest `awaiting` delivery:
 
 | Event | Where | Result |
 |---|---|---|
-| `turn-complete` hook | `handlers-engine-report.ts` | `missing`, cause `turn-complete` |
+| `turn-complete` hook | `handlers-engine-report.ts` | `missing`, cause `turn-complete`, only once the delivery's own turn-start was seen (see Deviations) |
 | `turn-failed` hook / OSC `status.error` | same | `missing`, cause `turn-failed`, `note` = failure detail (the 400 case) |
 | engine exit record | `pty-exit-watch.ts` | `missing`, cause `engine-dead`, `note` = last tail line |
 | stall sweep (60 s daemon ticker) | new, beside `sweepAutomations` | `missing`, cause `stalled`: the delivery is older than 10 min and the tab's activity is neither `running` nor `permission_needed` |
@@ -362,17 +364,28 @@ owner:
 5. **Gates on the bridges** — `rove-bridge` protocol + op, Android and iOS
    Inbox rows, weixin commands.
 
-## Open questions for the owner
+## Decisions
 
-- **Q1. `routine-respond`.** Recommended: one store. `AutomationRun` gains
+- **Q1. `routine-respond`.** Decided: one store. `AutomationRun` gains
   `deliveryId`, `response` is read from that delivery's report, and
   `routine-respond --run ID --text …` stays as the routine-flavoured spelling
   that writes the same report (`outcome: "done"`, `summary` = text), so the
-  documented verb and any run already in flight keep working. Alternative:
-  remove `routine-respond` and require `rove api report`.
-- **Q2. Does `report-missing` block the next tick?** Recommended: yes, until
-  dismissed or late-reported — a loop that stopped reporting is usually broken,
-  and more ticks bury the first failure. Alternative: alarm only, keep ticking.
-- **Q3. `busy` skip.** Recommended: skip when the engine is running. Alternative:
-  keep today's paste-and-queue behaviour for routines and only skip external
-  `--if-runnable` sends.
+  documented verb and any run already in flight keep working. Runs from
+  before this change keep their stored response.
+- **Q2. Does `report-missing` block the next tick?** Decided: yes, until
+  dismissed or late-reported — a loop that stopped reporting is usually
+  broken, and more ticks bury the first failure. The blocking belongs to the
+  should-run layer. Layer 1 only records the `missing` state and raises the
+  Inbox row; it does not skip any tick.
+- **Q3. `busy` skip.** Decided: skip when the engine is running (layer 2).
+
+## Deviations in layer 1
+
+- **Summary cap is 32,000 characters, not 2k.** `routine-respond` already
+  accepted 32,000 characters and its runs now share the delivery store, so one
+  cap avoids a second limit on the same text. Evidence is capped at 50 items
+  of 2,000 characters; `next` at 4,000.
+- **A `turn-complete` marks a delivery missing only after that delivery's own
+  `turn-start` was seen.** A prompt pasted while the engine is mid-turn queues
+  behind it, and the earlier prompt's Stop would otherwise mark the new
+  delivery missing. `turn-failed` and engine exit apply at any time.

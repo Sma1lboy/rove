@@ -359,3 +359,14 @@ describe("terminal forwarding", () => {
     await h.pty.closed.promise
   })
 })
+
+describe("attention.dismiss", () => {
+  test("a report_missing dismissal carries its deliveryId through to the daemon op", async () => {
+    const seen: unknown[][] = []
+    const ops = { ...fakeOps(), dismissAttention: async (...a: unknown[]) => void seen.push(a) } as RoveOps
+    const h = start({ ops })
+    const c = await connect(h.url, AUTH)
+    expect((await c.call("attention.dismiss", { taskId: "T1", deliveryId: "d-12" })).ok).toBe(true)
+    expect(seen).toEqual([["T1", undefined, "d-12"]])
+  })
+})

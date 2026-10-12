@@ -141,6 +141,7 @@ final class TaskStore {
         guard let taskId = item.taskId else { return }
         var args: [String: Any] = ["taskId": taskId]
         if let tab = item.tabId { args["tabId"] = tab }
+        if let delivery = item.deliveryId { args["deliveryId"] = delivery }
         _ = try? await client.request("attention.dismiss", args, as: EmptyResult.self)
         await refresh()
     }

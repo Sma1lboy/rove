@@ -104,6 +104,8 @@ export interface AttentionRow {
   readonly resumeAt?: string
   /** Routine episodes: the routine's name (the subject is a schedule, not a task). Optional. */
   readonly label?: string
+  /** `report_missing` episodes: the delivery id. Dismissal is keyed by it, not by task+tab. Optional. */
+  readonly deliveryId?: string
 }
 
 export interface TasksPayload {

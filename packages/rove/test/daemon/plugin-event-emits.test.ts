@@ -20,6 +20,7 @@ import {
   dispatchDaemonRequest,
 } from "@sma1lboy/rove-daemon/daemon/server"
 import { describe, expect, it } from "vitest"
+import { fakeDeliveries } from "./automation-runner-fixtures.ts"
 import { fakeCtx } from "./handler-test-context.ts"
 
 function dispatch(name: DaemonRequestName, payload: unknown, ctx: DaemonHandlerContext): Promise<unknown> {
@@ -105,6 +106,7 @@ describe("automation runner emit sites", () => {
       directory,
       deps: {
         store,
+        deliveries: fakeDeliveries().store,
         orch: { createTask: async () => ({ id: "task-9" }) },
         runtime: { startTaskSessionWithPrompt: async () => ({ started: true }) },
         link: (() => ({})) as never,

@@ -234,6 +234,13 @@ export class DaemonActivityRegistry {
     return taskRollup(taskId, this.activity, this.tabActivity)
   }
 
+  /** Effective state of one tab (the task rollup when `tabId` is null);
+   *  `undefined` when nothing is ledgered for it. */
+  stateOf(taskId: string, tabId: string | null): TaskActivityState | undefined {
+    if (tabId) return this.tabActivity.get(taskId)?.get(tabId)?.effective.state
+    return this.rollup(taskId)?.state
+  }
+
   /**
    * Every writer calls this after touching the ledger. An empty ledger
    * publishes an explicit idle so subscribers clear the badge.

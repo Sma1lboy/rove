@@ -221,6 +221,12 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
   newer event for the same target replaces the older one, and starting a new
   turn clears it. A rate-limited item also names when its automatic resume is due
   (`resumes 3:14 PM`), so you can tell a wait from a dead end.
+  A **report missing** item means a prompt that asked for a report
+  (`send --expect-report`, a task with `--require-report`, or a routine run)
+  ended its turn, failed, or died without one. It is keyed by the delivery,
+  so the tab's next turn does not clear it; a late `rove api report` or `d`
+  does. `enter` opens the task's tab. See
+  [`rove api deliveries`](API.md#read).
 - **RECENT.** The last handful of tabs you visited, most recent first. These
   aren't pending work, just jump targets; a spinner marks the ones still
   running.

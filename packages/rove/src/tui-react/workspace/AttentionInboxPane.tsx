@@ -32,7 +32,7 @@ import {
   partitionAttentionInboxAvailability,
   windowInboxRows,
 } from "./attention-inbox-core"
-import { itemColor, itemGlyph, itemStateKey, quotaResumeNote } from "./inbox-item-view"
+import { itemColor, itemGlyph, itemStateKey, quotaResumeNote, reportMissingNote } from "./inbox-item-view"
 import { readInboxVisits } from "./inbox-visits"
 import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
 
@@ -351,7 +351,7 @@ export function AttentionInboxPane(props: {
             const title = routine?.name ?? task?.title ?? item.taskId ?? ""
             // Surface an armed auto-resume (`Task.quotaResume`): "back at 3:14"
             // vs "stuck, go do something".
-            const resumeNote = quotaResumeNote(item.state, task, t)
+            const resumeNote = quotaResumeNote(item.state, task, t) ?? reportMissingNote(item)
             const contextLine = resumeNote ? `${title} · ${resumeNote}` : title
             const project = task ? sidebarProjectLabel(task.repo, repos) : ""
             // `project › tab` leads (what a user scans for); task title is line 2.

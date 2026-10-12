@@ -44,7 +44,9 @@ async function applyPostCreateFlags(daemon: DaemonRpc, taskId: string, args: Ver
   if (status) await daemon.request("task.status", { taskId, status })
   const pin = args.bool("pin")
   if (pin !== undefined) await daemon.request("task.pin", { taskId, pinned: pin })
-  return Boolean(status) || pin !== undefined
+  const requireReport = args.bool("require-report")
+  if (requireReport !== undefined) await daemon.request("task.requireReport", { taskId, required: requireReport })
+  return Boolean(status) || pin !== undefined || requireReport !== undefined
 }
 
 export async function add(ctx: VerbContext): Promise<unknown> {

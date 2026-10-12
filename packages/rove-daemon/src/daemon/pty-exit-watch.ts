@@ -9,6 +9,7 @@
 import type { PluginHost } from "../plugins/runtime.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import type { AttentionInboxStore } from "./attention-inbox.ts"
+import { type DeliveryDeps, markDeliveryMissing } from "./delivery-ops.ts"
 import { startFileWatchTrigger } from "./file-watch-trigger.ts"
 import { defaultPtyExitsPath } from "./paths.ts"
 import { ENGINE_EXIT_BANNER, type PtyExitRecord, readPtyExitStore } from "./pty-exit-store.ts"
@@ -24,6 +25,8 @@ export interface PtyExitWatchOptions {
   readonly activity?: Pick<DaemonActivityRegistry, "recordEngineDeath">
   /** Attention Inbox — the durable record once the badge scrolls away. */
   readonly inbox?: Pick<AttentionInboxStore, "recordEngineDeath">
+  /** Armed deliveries — a death with one awaiting leaves it `missing`. */
+  readonly deliveries?: DeliveryDeps
   readonly log?: (line: string) => void
   /** Test seam. */
   readonly path?: string
@@ -62,7 +65,7 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
   /** Turn a death record into the tab's `dead` activity state + Inbox item. */
   const publishDeath = (record: PtyExitRecord): void => {
     const registry = opts.activity
-    if (!registry && !opts.inbox) return
+    if (!registry && !opts.inbox && !opts.deliveries) return
     const death = engineDeathOf(record)
     if (!death) return
     const { taskId, tabId, exit, at } = death
@@ -70,6 +73,15 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
     opts.inbox
       ?.recordEngineDeath(taskId, tabId, { exit }, at)
       .catch((err) => opts.log?.(`pty-exit inbox: ${String(err)}`))
+    if (opts.deliveries) {
+      void markDeliveryMissing(opts.deliveries, {
+        taskId,
+        tabId,
+        cause: "engine-dead",
+        exactTab: true,
+        note: exit.lastLine ?? `engine exited (code ${exit.code ?? "?"}${exit.signal ? `, ${exit.signal}` : ""})`,
+      }).catch((err) => opts.log?.(`pty-exit delivery: ${String(err)}`))
+    }
   }
 
   // Watch BEFORE the baseline read (the trigger stamps synchronously), so no
