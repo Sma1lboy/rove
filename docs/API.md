@@ -161,6 +161,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `NOT_DELIVERED` | The task was created but the prompt never reached its engine. |
 | `EMPTY_SUCCESS_REPORT` | A `succeeded:` report from a branch with 0 commits; commit, or pass `--allow-empty`. |
 | `SESSION_FAILED` | A hosted engine session could not be started or written to. |
+| `ENGINE_LIMIT` | Starting a session would pass `engine.maxLiveSessions`; nothing was started. |
 | `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
 | `BAD_MODEL` | The task's engine declares no model flag, so a model cannot be passed to it. |
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. |
@@ -698,6 +699,16 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   task with no live session at all auto-starts its canonical engine tab, in
   the task's worktree. `started: true` in the result marks that fresh
   session (vs. delivery into an existing one).
+
+  **`engine.maxLiveSessions` caps new sessions.** When that setting is a
+  positive number, a call that would START an engine session (`add` with a
+  prompt, `send --tab new`, a `send` to a task with no live session) first
+  counts the live engine tabs across every task. At or past the cap it
+  refuses with `ENGINE_LIMIT`, carrying `taskId`, `live`, `limit`, and the
+  `send` that retries the same prompt. Nothing is spawned and no tab is
+  left behind. An `add` refused this way has still created its task, so the
+  retry starts it once a session ends. Delivery into an engine that is
+  already running is never limited. Unset (the default) means no cap.
 
   **The prompt is pasted and submitted, unconditionally.** Rove does not read
   the target composer or wait out a quiet keyboard first: a `send` that

@@ -10,6 +10,7 @@ import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-prese
 
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
+import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
 import { type TerminalTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 
@@ -67,6 +68,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       "no PTY host to run the engine in — nothing was started; check `rove daemon status`, then retry the same send",
     )
   }
+  let newTab: string | undefined
   try {
     // Exact tab: deliver-only, never spawn — a dead/absent tab is
     // TAB_NOT_FOUND. engineBin covers a CUSTOM engine; builtins the foreground
@@ -90,7 +92,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
           : {}),
       })
     }
-    const newTab = target.tab === "new" ? mintCliTab(target.id, target.tabVendor, target.tabCommand) : undefined
+    newTab = target.tab === "new" ? mintCliTab(target.id, target.tabVendor, target.tabCommand) : undefined
     // A `--tab new` pin (command and/or protocol) applies to THIS launch
     // only; the task's own engine is left alone.
     const launchVendor = target.tabVendor ?? target.vendor
@@ -123,7 +125,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       worktree,
       prompt,
       launch,
-      { forceNew: newTab !== undefined },
+      { forceNew: newTab !== undefined, maxLiveEngines: persistedMaxLiveEngines() },
     )
     // `started && !delivered` is the real failure. `engineReady` is NOT a
     // stand-in: an engine that never announced bracketed paste can still have
@@ -153,6 +155,8 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
     }
     return result
   } catch (error) {
+    // The refusal spawned nothing, so the tab minted for it must not linger in the strip.
+    if (error instanceof ApiError && error.code === "ENGINE_LIMIT" && newTab) closeTabsSnapshot(target.id, newTab)
     if (error instanceof ApiError) throw error
     throw sessionFailed(
       target.id,
