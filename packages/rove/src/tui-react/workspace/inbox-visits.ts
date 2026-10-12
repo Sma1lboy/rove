@@ -55,7 +55,7 @@ export function inboxVisitIndex(visits: readonly InboxVisit[]): Map<string, Inbo
   return byTarget
 }
 
-type VisitKV = { get(key: string, defaultValue?: unknown): unknown; set(key: string, value: unknown): void }
+type VisitKV = { get(key: string, defaultValue?: unknown): unknown; setQuiet(key: string, value: unknown): void }
 
 export function readInboxVisits(kv: VisitKV): InboxVisit[] {
   return parseInboxVisits(kv.get(VISITS_KEY))
@@ -67,5 +67,6 @@ export function writeInboxVisit(kv: VisitKV, visit: InboxVisit): void {
   // Already on top: skip. Activation re-fires on remount, so this keeps `at`
   // meaning "when you last came here" and persisted writes rare.
   if (previous?.taskId === visit.taskId && previous.tabId === visit.tabId) return
-  kv.set(VISITS_KEY, recordInboxVisit(visits, visit))
+  // Quiet: only the Inbox reads the log, when it opens; a context rebuild would re-render the whole host per task switch.
+  kv.setQuiet(VISITS_KEY, recordInboxVisit(visits, visit))
 }

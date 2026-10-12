@@ -37,6 +37,11 @@ export interface KvCore {
   /** Set + mark dirty + schedule the debounced disk flush. */
   set(key: string, value: unknown): void
   /**
+   * `set` without a new snapshot: `get` and disk see it, subscribers don't
+   * re-render. For write-often keys no render reads (the inbox visit log).
+   */
+  setQuiet(key: string, value: unknown): void
+  /**
    * In-memory default seeding (the `signal(name, default)` contract): sets
    * the key ONLY when currently undefined, and never marks it dirty — a
    * default must not be persisted just because it was read.
@@ -60,6 +65,8 @@ export function createKvCore(): KvCore {
 
   /** Keys this process has `set()` since the last successful flush. */
   const dirtyKeys = new Set<string>()
+  /** `setQuiet` values, read over the snapshot until the next `set` of the key. */
+  const quiet = new Map<string, unknown>()
   let writeTimer: ReturnType<typeof setTimeout> | null = null
   const errorListeners = new Set<KvWriteErrorListener>()
   /**
@@ -82,7 +89,7 @@ export function createKvCore(): KvCore {
       // A key set to `undefined` locally becomes a deletion on disk.
       const patch: Record<string, unknown> = {}
       const snap = store.get()
-      for (const key of dirtyKeys) patch[key] = snap[key]
+      for (const key of dirtyKeys) patch[key] = quiet.has(key) ? quiet.get(key) : snap[key]
       patchStateFile(patch)
       dirtyKeys.clear()
       reportedKeys.clear()
@@ -114,9 +121,10 @@ export function createKvCore(): KvCore {
     snapshot: store.get,
     subscribe: store.subscribe,
     get(key, defaultValue) {
-      return store.get()[key] ?? defaultValue
+      return (quiet.has(key) ? quiet.get(key) : store.get()[key]) ?? defaultValue
     },
     set(key, value) {
+      quiet.delete(key)
       // `undefined` DELETES the key, matching disk. An enumerable `undefined`
       // makes `sweepOrphanTabsSnapshots` (walks `Object.keys`, re-runs on
       // every kv identity change) loop setState forever (React #185).
@@ -130,8 +138,13 @@ export function createKvCore(): KvCore {
       dirtyKeys.add(key)
       scheduleWrite()
     },
+    setQuiet(key, value) {
+      quiet.set(key, value)
+      dirtyKeys.add(key)
+      scheduleWrite()
+    },
     seed(key, value) {
-      if (store.get()[key] !== undefined) return
+      if (quiet.has(key) || store.get()[key] !== undefined) return
       store.update((s) => ({ ...s, [key]: value }))
     },
     flush() {
@@ -148,6 +161,7 @@ export function createKvCore(): KvCore {
       cancelTimer()
       dirtyKeys.clear()
       reportedKeys.clear()
+      quiet.clear()
       store.set({})
       return true
     },

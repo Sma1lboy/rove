@@ -309,4 +309,21 @@ describe("createKvCore", () => {
     kv.set("k", 3)
     expect(seen).toEqual([1, 2])
   })
+
+  // The inbox visit log is written on every task switch; a snapshot change there re-renders every useKV consumer.
+  it("setQuiet() persists and reads back without notifying subscribers; a later set() wins", () => {
+    const home = isolatedHome({ visits: ["old"] })
+    const kv = createKvCore()
+    let notified = 0
+    kv.subscribe(() => notified++)
+    kv.setQuiet("visits", ["new"])
+    expect(notified).toBe(0)
+    expect(kv.get("visits")).toEqual(["new"])
+    expect(kv.flush()).toBe(true)
+    expect(readState(home)).toEqual({ visits: ["new"] })
+
+    kv.set("visits", ["set"])
+    expect(notified).toBe(1)
+    expect(kv.get("visits")).toEqual(["set"])
+  })
 })
