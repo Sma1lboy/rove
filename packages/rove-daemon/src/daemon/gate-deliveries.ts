@@ -1,31 +1,51 @@
 /**
- * The two places decision gates meet delivery reports (feat/delivery-reports).
- * Kept apart so the join is one file: both are inert until that layer exists,
- * and gates behave fully without it.
+ * The two places decision gates meet delivery reports. Kept apart so the join
+ * is one file.
  */
 
 import type { DaemonTask } from "./contracts.ts"
+import { deliveryFooter } from "./delivery-contracts.ts"
+import { reportCurrentDelivery } from "./delivery-ops.ts"
 import type { Gate } from "./gate-contracts.ts"
+import { deliveryDepsOf } from "./handlers-deliveries.ts"
 import type { DaemonHandlerContext } from "./handlers.ts"
 
 /**
  * Raising a gate is the current delivery's report, outcome `blocked`: an agent
- * that asks and stops must not also be flagged `report_missing`.
- *
- * UNWIRED: needs `reportCurrentDelivery` from the deliveries layer.
+ * that asks and stops must not also be flagged `report_missing`. Nothing armed
+ * is fine (null): an ordinary chat turn owes no report.
  */
-export async function countGateRaiseAsReport(_ctx: DaemonHandlerContext, _gate: Gate): Promise<void> {}
+export async function countGateRaiseAsReport(ctx: DaemonHandlerContext, gate: Gate): Promise<void> {
+  await reportCurrentDelivery(deliveryDepsOf(ctx), gate.taskId, gate.tabId, {
+    outcome: "blocked",
+    summary: gate.question,
+    next: `awaiting owner decision ${gate.id}`,
+  })
+}
+
+export interface GateAnswerDelivery {
+  readonly deliveryId: string
+  /** The `[ROVE] When this turn ends, report: …` line to paste after the answer. */
+  readonly footer: string
+}
 
 /**
- * Arm a delivery for a gate answer when the task requires reports; returns the
- * `[ROVE] When this turn ends, report: …` footer to paste after the answer.
- *
- * UNWIRED: needs `DeliveriesStore.arm` and `Task.requireReport`.
+ * A gate answer is the next tick of the task: when the task requires reports,
+ * arm a delivery for it before the paste (a failed turn can fire its hook
+ * within milliseconds). Null when the task does not require reports.
  */
 export async function armGateAnswerDelivery(
-  _ctx: DaemonHandlerContext,
-  _task: DaemonTask,
-  _gate: Gate,
-): Promise<string | null> {
-  return null
+  ctx: DaemonHandlerContext,
+  task: DaemonTask,
+  gate: Gate,
+): Promise<GateAnswerDelivery | null> {
+  if (task.requireReport !== true) return null
+  const delivery = await ctx.deliveries.arm({
+    taskId: task.id,
+    tabId: gate.tabId,
+    source: "gate-answer",
+    gateId: gate.id,
+    promptHead: gate.question,
+  })
+  return { deliveryId: delivery.id, footer: deliveryFooter(delivery.id, ctx.runtime.roveApiInvocation()) }
 }

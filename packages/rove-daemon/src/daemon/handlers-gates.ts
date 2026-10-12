@@ -2,7 +2,7 @@
 
 import { logDaemonError } from "./crash-log.ts"
 import type { Gate, GateAnswerSurface, GateOption, GateStatus } from "./gate-contracts.ts"
-import { armGateAnswerDelivery, countGateRaiseAsReport } from "./gate-deliveries.ts"
+import { type GateAnswerDelivery, armGateAnswerDelivery, countGateRaiseAsReport } from "./gate-deliveries.ts"
 import { takeUndeliveredGateAnswers } from "./gate-handoff.ts"
 import { optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
@@ -33,17 +33,24 @@ async function deliverGateAnswer(ctx: DaemonHandlerContext, gate: Gate): Promise
   if (!handoff) return false
   const target = { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath }
   // Arms a delivery when the task requires reports; its footer rides the paste.
-  const footer = await armGateAnswerDelivery(ctx, task, gate)
-  const text = footer ? `${handoff.text}\n\n${footer}` : handoff.text
+  let armed: GateAnswerDelivery | null = null
   try {
+    armed = await armGateAnswerDelivery(ctx, task, gate)
+    const text = armed ? `${handoff.text}\n\n${armed.footer}` : handoff.text
     const result = gate.tabId
       ? await ctx.runtime.deliverPromptToLiveEngineTabDetailed({ ...target, tabId: gate.tabId }, text)
       : await ctx.runtime.deliverPromptToLiveEngineDetailed(target, text)
-    if (result.outcome !== "delivered") return false
+    if (result.outcome !== "delivered") {
+      // Nothing landed: no turn will come, so the expectation must not linger.
+      if (armed) await ctx.deliveries.cancel(armed.deliveryId)
+      return false
+    }
+    if (armed) await ctx.deliveries.setTab(armed.deliveryId, result.tabId)
     await ctx.gates.markDelivered(handoff.gateIds)
     return true
   } catch (err) {
     logDaemonError("gate-answer-delivery", err)
+    if (armed) await ctx.deliveries.cancel(armed.deliveryId).catch(() => {})
     return false
   }
 }

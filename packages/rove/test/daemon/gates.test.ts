@@ -3,6 +3,7 @@ import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
+import { DeliveriesStore } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { GatesStore, MAX_CLOSED_GATES } from "@sma1lboy/rove-daemon/daemon/gates-store"
 import type { DaemonRequestName } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -49,7 +50,7 @@ describe("decision gates", () => {
   })
 
   /** Real stores wired exactly as `initDaemonStores` wires them; fake engine delivery. */
-  async function setup(opts: { engine?: "live" | "none" } = {}) {
+  async function setup(opts: { engine?: "live" | "none"; requireReport?: boolean } = {}) {
     const dir = mkdtempSync(join(tmpdir(), "rove-gates-"))
     dirs.push(dir)
     const bus = new DaemonEventBus()
@@ -64,6 +65,8 @@ describe("decision gates", () => {
       inbox.publish()
     })
     await gates.init()
+    const deliveries = new DeliveriesStore(join(dir, "deliveries.json"))
+    await deliveries.init()
 
     const delivered: Delivery[] = []
     const engine = opts.engine ?? "live"
@@ -72,11 +75,16 @@ describe("decision gates", () => {
       delivered.push({ ...(target.tabId ? { tabId: target.tabId } : {}), text })
       return { outcome: "delivered" as const, tabId: target.tabId ?? "tab-1" }
     }
-    const base = fakeCtx({ getTask: (id: string) => (id === TASK.id ? TASK : undefined) })
+    const task = opts.requireReport ? { ...TASK, requireReport: true } : TASK
+    const base = fakeCtx({
+      getTask: (id: string) => (id === TASK.id ? task : undefined),
+      setWorkerReport: async () => {},
+    })
     const ctx: DaemonHandlerContext = {
       ...base.ctx,
       inbox,
       gates,
+      deliveries,
       runtime: {
         ...base.ctx.runtime,
         deliverPromptToLiveEngineTabDetailed: deliver,
@@ -87,8 +95,56 @@ describe("decision gates", () => {
     const call: Call = (name, payload = {}) =>
       dispatchDaemonRequest(createDaemonHandlerRegistry(), name, payload, ctx) as Promise<GateRpc>
     const rows = async () => (await call("attention.list")).items
-    return { dir, bus, published, inbox, gates, ctx, call, rows, delivered }
+    return { dir, bus, published, inbox, gates, deliveries, ctx, call, rows, delivered }
   }
+
+  describe("with delivery reports", () => {
+    it("raising a gate reports the tab's armed delivery as blocked, so it is not report_missing", async () => {
+      const s = await setup()
+      const armed = await s.deliveries.arm({ taskId: TASK.id, tabId: "tab-2", source: "send", promptHead: "tick" })
+      await raise(s.call)
+      expect(s.deliveries.get(armed.id)).toMatchObject({
+        status: "reported",
+        report: { outcome: "blocked", summary: "Ship the migration now?", next: "awaiting owner decision g-1" },
+      })
+    })
+
+    it("raising with nothing armed is just a gate", async () => {
+      const s = await setup()
+      await expect(raise(s.call)).resolves.toMatchObject({ gate: { id: "g-1" } })
+    })
+
+    it("a gate row and a report_missing row coexist under different keys", async () => {
+      const s = await setup()
+      await raise(s.call)
+      await s.inbox.recordReportMissing(TASK.id, "tab-2", { id: "d-1", cause: "turn-complete" }, undefined, 100)
+      expect((await s.rows()).map((r) => r.state).sort()).toEqual(["decision_needed", "report_missing"])
+    })
+
+    it("answering a report-required task arms a gate-answer delivery whose footer rides the paste", async () => {
+      const s = await setup({ requireReport: true })
+      await raise(s.call)
+      await s.call("gate.answer", { gateId: "g-1", option: "a" })
+      const delivery = s.deliveries.awaitingFor(TASK.id, "tab-2")
+      expect(delivery).toMatchObject({ source: "gate-answer", gateId: "g-1", tabId: "tab-2" })
+      expect(s.delivered[0]?.text).toContain(`report --delivery ${delivery?.id} --outcome`)
+    })
+
+    it("a task without requireReport arms nothing", async () => {
+      const s = await setup()
+      await raise(s.call)
+      await s.call("gate.answer", { gateId: "g-1", option: "a" })
+      expect(s.deliveries.awaitingFor(TASK.id, "tab-2")).toBeUndefined()
+      expect(s.delivered[0]?.text).not.toContain("report --delivery")
+    })
+
+    it("an answer that did not land cancels the delivery it armed", async () => {
+      const s = await setup({ requireReport: true, engine: "none" })
+      await raise(s.call)
+      await s.call("gate.answer", { gateId: "g-1", option: "a" })
+      expect(s.deliveries.awaitingFor(TASK.id, "tab-2")).toBeUndefined()
+    })
+  })
 
   const raise = (call: Call, over: Record<string, unknown> = {}) =>
     call("gate.raise", {
