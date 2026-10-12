@@ -1,11 +1,39 @@
 /** @jsxImportSource @opentui/react */
-import { expect, test } from "bun:test"
+import { afterEach, beforeEach, expect, test } from "bun:test"
+import { spawnSync } from "node:child_process"
+import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { resolveMainRepoRoot } from "../../src/state/repos"
 import type { QuickTaskResult } from "../../src/tui-react/component/quick-task-composer"
 import { FirstTaskStart, firstTaskRepo } from "../../src/tui-react/workspace/first-task-start"
-import { getCurrentBranch } from "../../src/tui/lib/git-snapshot"
 import { act, renderComponent } from "./harness"
+
+let previousCwd: string
+beforeEach(() => {
+  previousCwd = process.cwd()
+  const repo = mkdtempSync(join(tmpdir(), "rove-first-task-"))
+  for (const args of [
+    ["init", "-b", "first-task-base"],
+    [
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@rove.local",
+      "commit",
+      "--allow-empty",
+      "-m",
+      "Initial fixture",
+    ],
+  ]) {
+    const result = spawnSync("git", args, { cwd: repo, encoding: "utf8" })
+    if (result.status !== 0) throw new Error(result.stderr)
+  }
+  process.chdir(repo)
+})
+afterEach(() => {
+  process.chdir(previousCwd)
+})
 
 test("the first-task action opens a prompt-focused composer with cwd defaults", async () => {
   const created: Array<{ repo: string; result: QuickTaskResult }> = []
@@ -33,7 +61,7 @@ test("the first-task action opens a prompt-focused composer with cwd defaults", 
   expect(created[0]?.result).toMatchObject({
     prompt: "Explain the project",
     vendor: "codex",
-    baseRef: getCurrentBranch(process.cwd()),
+    baseRef: "first-task-base",
     attempts: 1,
   })
 })
