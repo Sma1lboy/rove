@@ -33,6 +33,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -116,12 +117,25 @@ import kotlinx.coroutines.delay
     BasicTextField(value, onValue, modifier.fillMaxWidth().heightIn(min = 44.dp).tile(),
         textStyle = style.copy(color = Rove.c.ink), singleLine = singleLine, cursorBrush = SolidColor(Rove.c.accent),
         visualTransformation = visual, keyboardOptions = keyboard, keyboardActions = actions,
-        decorationBox = { inner ->
-            Box(Modifier.padding(horizontal = 12.dp, vertical = 11.dp), contentAlignment = Alignment.CenterStart) {
-                if (value.isEmpty()) Text(placeholder, color = Rove.c.muted, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                inner()
-            }
-        })
+        decorationBox = fieldDecoration(value.isEmpty(), placeholder, style))
+}
+
+/** [FieldBox] whose caller owns the cursor, so text it inserts (the composer's `↵`) can move it. */
+@Composable fun FieldBox(value: TextFieldValue, onValue: (TextFieldValue) -> Unit, placeholder: String, modifier: Modifier = Modifier,
+                         singleLine: Boolean = true, keyboard: KeyboardOptions = KeyboardOptions.Default,
+                         actions: KeyboardActions = KeyboardActions.Default) {
+    val style = Rove.mono(14)
+    BasicTextField(value, onValue, modifier.fillMaxWidth().heightIn(min = 44.dp).tile(),
+        textStyle = style.copy(color = Rove.c.ink), singleLine = singleLine, cursorBrush = SolidColor(Rove.c.accent),
+        keyboardOptions = keyboard, keyboardActions = actions,
+        decorationBox = fieldDecoration(value.text.isEmpty(), placeholder, style))
+}
+
+private fun fieldDecoration(empty: Boolean, placeholder: String, style: TextStyle): @Composable (@Composable () -> Unit) -> Unit = { inner ->
+    Box(Modifier.padding(horizontal = 12.dp, vertical = 11.dp), contentAlignment = Alignment.CenterStart) {
+        if (empty) Text(placeholder, color = Rove.c.muted, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        inner()
+    }
 }
 
 /** Multi-line prompt editor on a surface tile, system face 16 (iOS `PromptEditor`). */

@@ -38,7 +38,9 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
@@ -127,14 +129,15 @@ object PasteEncoding {
 
 /** Reply composer: `+` attach, text, `↵` for a new line, `send`. `onSend` returns false when the text could not be sent. */
 @Composable fun Composer(engineName: String?, onSend: (String) -> Boolean, onAttach: suspend (Prepared) -> Unit) {
-    var text by remember { mutableStateOf("") }
+    var field by remember { mutableStateOf(TextFieldValue("")) }
+    val text = field.text
     var uploading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val unsupported = stringResource(R.string.attach_error_unsupported)
     val tooLarge = stringResource(R.string.attach_error_too_large)
-    val send = { if (text.isNotEmpty() && onSend(text)) { text = ""; error = null } }
+    val send = { if (text.isNotEmpty() && onSend(text)) { field = TextFieldValue(""); error = null } }
     // Reads, checks, uploads, then pastes the path into the engine's input (not submitted).
     val load: (Uri?) -> Unit = { uri ->
         if (uri != null) {
@@ -159,11 +162,13 @@ object PasteEncoding {
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             AttachMenu(uploading, onPhoto = { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 onFile = { files.launch(FileTypes) })
-            FieldBox(text, { text = it },
+            FieldBox(field, { field = it },
                 engineName?.let { stringResource(R.string.detail_reply_to, it.lowercase()) } ?: stringResource(R.string.detail_reply),
                 Modifier.weight(1f).heightIn(max = 140.dp), singleLine = false,
                 keyboard = KeyboardOptions(imeAction = ImeAction.Send), actions = KeyboardActions(onSend = { send() }))
-            Box(Modifier.size(34.dp, 44.dp).pressable { text += "\n" }, contentAlignment = Alignment.Center) {
+            // Appended with the cursor after it, as iOS does; a String-bound field would leave the cursor before it.
+            Box(Modifier.size(34.dp, 44.dp).pressable { (text + "\n").let { field = TextFieldValue(it, TextRange(it.length)) } },
+                contentAlignment = Alignment.Center) {
                 // JetBrains Mono draws ↵ at half the size SF Mono does; the system face matches the iOS glyph.
                 Text("↵", color = Rove.c.muted, style = Rove.face(20, FontWeight.Medium))
             }

@@ -15,6 +15,10 @@ terminal.onData(data => Rove.input(data));
 terminal.onResize(size => Rove.resize(size.cols, size.rows));
 window.roveWrite = encoded => terminal.write(Uint8Array.from(atob(encoded), c => c.charCodeAt(0)));
 window.roveReset = () => terminal.reset();
-new ResizeObserver(() => fit.fit()).observe(document.getElementById('terminal'));
+const host = document.getElementById('terminal');
+new ResizeObserver(() => fit.fit()).observe(host);
+// When the IME shrinks the viewport, Chromium scrolls the focused helper textarea into view by scrolling this
+// overflow:hidden host; the refit never resets it, leaving the canvas above the top edge.
+host.addEventListener('scroll', () => { host.scrollTop = 0; host.scrollLeft = 0; });
 // Measure cells only after the bundled face has loaded, or the first fit uses the fallback's advance.
 document.fonts.load("13px 'Maple Mono NF'").finally(() => { terminal.options.fontFamily = "'Maple Mono NF', monospace"; fit.fit(); Rove.ready(); });
