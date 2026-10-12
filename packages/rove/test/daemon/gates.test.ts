@@ -308,6 +308,28 @@ describe("decision gates", () => {
     expect(await s.rows()).toEqual([])
   })
 
+  it("a restarted daemon replays its open gates in the first Inbox and gates pushes", async () => {
+    const s = await setup()
+    await raise(s.call)
+    const bus = new DaemonEventBus()
+    const published: Array<{ channel: string; payload: unknown }> = []
+    bus.onPublish((e) => published.push({ channel: e.channel, payload: e.payload }))
+    const inbox = new AttentionInboxStore(join(s.dir, "attention-inbox.json"), bus)
+    const gates = new GatesStore(join(s.dir, "gates.json"))
+    inbox.setProjection(() => gates.inboxItems())
+    gates.setOnChange(() => {
+      bus.publish("gates", { gates: gates.active() })
+      inbox.publish()
+    })
+    await inbox.init()
+    await gates.init()
+    const latest = (channel: string) => [...published].reverse().find((p) => p.channel === channel)?.payload
+    expect((latest("attention.inbox") as { items: AttentionInboxItem[] }).items.map((i) => i.state)).toEqual([
+      "decision_needed",
+    ])
+    expect((latest("gates") as { gates: Gate[] }).gates.map((g) => g.id)).toEqual(["g-1"])
+  })
+
   it("gate.list filters by task, status and repo", async () => {
     const s = await setup()
     await raise(s.call)
