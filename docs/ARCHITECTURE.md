@@ -107,7 +107,11 @@ it.
 4. deliver the prompt and detach the short-lived client.
 
 The PTY Host's key-level `pty.open` idempotence prevents concurrent callers
-from creating duplicate children.
+from creating duplicate children. Capped CLI launches read the opaque
+`admissionToken` from `pty.list`, count running or pending engines, and call
+`pty.openChecked`. The host compares that inventory token and opens synchronously;
+if another caller changed the inventory, the CLI recounts. Older hosts without
+this capability refuse capped launches rather than opening without admission.
 
 ## 5. Ownership boundaries
 

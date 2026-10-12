@@ -9,6 +9,7 @@
 import type { ChannelName } from "./channels.ts"
 import type { DaemonTask } from "./contracts.ts"
 export type {
+  PtyCheckedOpenResult,
   PtyDataEventPayload,
   PtyExitEventPayload,
   PtyOpenResult,
@@ -192,6 +193,7 @@ export type DaemonRequestName =
   // attaches the CONNECTION (spawn on first open, ring replay on reattach);
   // `pty.data` frames go only to attached connections.
   | "pty.open"
+  | "pty.openChecked"
   | "pty.write"
   | "pty.resize"
   | "pty.kill"

@@ -165,6 +165,7 @@ it off, `r` is the only thing that repopulates the list.
 | `engineName.<id>` | string | built-in | Display name |
 | `customEngineIds` | string[] | `[]` | Your own engines; see [Custom engines](#custom-engines) |
 | `engineProtocol.<id>` | built-in engine id | unset | Adapter a custom engine borrows; see [Custom engines](#custom-engines) |
+| `engine.maxLiveSessions` | positive integer | unset | Most engine sessions `rove api` runs at once, counted across all tasks. A `rove api add`/`send` that would start one more is refused with `ENGINE_LIMIT`; sends into running engines are not limited. Admission is atomic across CLI processes and includes exact-tab respawns. Pending launches and failed process probes retain slots; exited engines release them even if their shells stay open. Unset, `0`, or anything else means no cap |
 | `lastActiveVendor.<repo>` | engine id | unset | Per-project last used; outranks `defaultVendor`. Written by Rove |
 | `autoRouting.<tier>.engine` | engine id | `claude` for all three | What the `swift` / `standard` / `deep` depth launches. Set from Settings → Auto routing; an empty string switches auto routing off (no tier is guessed) |
 | `autoRouting.<tier>.model` | string | `sonnet` / `opus` / `fable` | Model for that depth, in the engine's own spelling; empty = the engine's default |

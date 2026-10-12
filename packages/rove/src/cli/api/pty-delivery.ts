@@ -6,7 +6,6 @@
  * vendor's launch binary — never a hard-coded vendor name.
  */
 
-import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { PsSnapshot } from "../../engine/foreground.ts"
 import {
@@ -28,6 +27,7 @@ import {
 import { enginePresence } from "../../engine/session-engine-presence.ts"
 import { type EngineSessionLaunch, initMarkerSaysFinished } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
+import { openAdmittedEngine } from "./engine-admission.ts"
 import { restoredTabsOf } from "./tab-respawn.ts"
 import { ApiError, type DeliveredPrompt } from "./types.ts"
 
@@ -105,6 +105,9 @@ export async function deliverHostedPrompt(
   opts?: {
     readonly forceNew?: boolean
     readonly snapshot?: PsSnapshot
+    /** `engine.maxLiveSessions`; a spawn at or past it refuses with ENGINE_LIMIT. */
+    readonly maxLiveEngines?: number
+    readonly retryArgs?: readonly string[]
   },
 ): Promise<DeliveredPrompt> {
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
@@ -158,7 +161,7 @@ export async function deliverHostedPrompt(
     }
   }
 
-  // Everything below SPAWNS. Disclose tabs a pty-host restart froze, or this
+  // Disclose tabs a pty-host restart froze, or this
   // is indistinguishable from a healthy first start. See {@link DeliveredPrompt.frozenTabs}.
   const frozen = restoredTabsOf(sessions, target.id, launch.key)
   const disclose = frozen.length > 0 ? { frozenTabs: frozen } : {}
@@ -169,12 +172,29 @@ export async function deliverHostedPrompt(
 
   // No cols/rows: host defaults to 80×24, and a lost create race must not
   // resize the winner's session.
-  const open = await rpc.request<PtyOpenResult>("pty.open", {
-    key: launch.key,
-    cwd,
-    command: launch.command,
-    defaultColors: readPersistedTerminalDefaultColors(),
-  })
+  const open = await openAdmittedEngine(
+    rpc,
+    {
+      key: launch.key,
+      cwd,
+      command: launch.command,
+      defaultColors: readPersistedTerminalDefaultColors(),
+    },
+    {
+      maxLiveEngines: opts?.maxLiveEngines,
+      snapshot: opts?.snapshot,
+      taskId: target.id,
+      retryArgs: opts?.retryArgs ?? [
+        "api",
+        "send",
+        "--task-id",
+        target.id,
+        ...(opts?.forceNew ? ["--tab", "new"] : []),
+        "--prompt",
+        prompt,
+      ],
+    },
+  )
   try {
     if (!open.alive) {
       return {
