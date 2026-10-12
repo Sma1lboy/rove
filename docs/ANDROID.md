@@ -82,21 +82,33 @@ Known gaps:
 - `index.json` is written only after the landscape pass, so an interrupted run leaves none.
 - A full 40-screen run can take more than an hour, because every screen is reached by relaunching the app and replaying taps. Run it with `nohup`.
 - It does not detect black frames.
-- If interrupted, it leaves the emulator rotated (`user_rotation`).
+- The landscape pass locks rotation with `wm user-rotation lock 1` and unlocks it in a `finally`; boot also unlocks it, in case an earlier run was killed. `settings put system user_rotation` is not enough on API 35, because launching an activity resets it. The crawler warns if any `landscape/` frame comes out portrait.
 - It never sees screens that need a live bridge: real pairing errors, the reconnect banner, a terminal that has exited, and confirmed land/delete.
 - It skips land and delete on purpose.
-- In the 5ab7de529 run, every `landscape/` frame was 1080×2400 (portrait): the rotation did not take effect before capture.
 - The crash log can hold `uiautomator`'s own crash (`registerUiTestAutomationService` NPE). That is the crawler, not the app; check the process before blaming the APK.
 
-## Device checks still required on allen
+## Terminal key row
 
-- Scan an actual pairing QR code; cancel/deny camera permission; open a `rove://pair` link.
-- Connect through direct and Cloudflare paths. Deny Access, rotate the token, then re-pair.
-- Verify encrypted pairing survives process death; disconnect and verify it is cleared.
-- Type into a real engine using the keyboard and composer. Test IME composition, Enter, sticky Ctrl, Esc, Tab, Shift-Tab, arrows, Ctrl-C, keyboard show/hide and rotation.
-- Test replay plus live output, split Unicode bytes, alternate screen, scrollback, tab switching and reconnect during output. Verify leaving a tab detaches without terminating its PTY.
-- Compare Fit and Watch against the desktop. Fit intentionally resizes the shared PTY. Watch does not yet scale to the remote column count.
-- Create a task and tab in a sandbox, inspect a real diff, cancel both destructive confirmation stages, and verify dirty-task deletion is refused.
-- Turn notifications on in **settings → notifications**; the app asks for the Android 13+ permission there, not at launch. Grant/deny it and drive the required task transitions. Background delivery is best-effort while the process is alive; no FCM or foreground service is implemented.
+The key row matches iOS `KeyRow`. It has the same keys in the same order: `esc enter ↑ ↓ tab shift+tab ctrl ← → ctrl+c`, a divider, then `interrupt`, `continue` and `yes`. It sits above the composer and shows `done` while the keyboard is up. `ctrl` is sticky as on iOS: one tap arms it, the next typed letter becomes its control byte, any other key disarms it, and a second tap turns it off. Query replies that xterm.js emits (DA1/DA2, DECRQM, OSC colour) are dropped before they reach the PTY or use up a pending ctrl (iOS `QueryReplyFilter`).
 
-The terminal control-row placement is proposed for owner acceptance. This draft does not change desktop shortcuts. Publishing this page through the docs site's sync list is deferred because this task is restricted to the Android package and this document.
+## Live bridge check on allen
+
+Run against the Mac's real Cloudflare bridge, pairing from `~/ci/rove-android-pair.json` on allen. Mutations went only to throwaway tasks in `/tmp/rove-android-live/repo`. Their engine was a script that logs every byte its PTY receives, so key checks compare the bytes that arrived. Frames are in `docs/assets/reviews/android-live/`.
+
+Passed:
+
+- **Pairing.** Deep link with the Cloudflare headers connects. A wrong CF secret or a wrong token shows "pairing refused" and does not retry. Pairing survives a forced process kill. **Forget pairing** returns to the pairing screen after a relaunch. No token or CF credential appears in plaintext in the app's data directory.
+- **Terminal input.** Typed text and hardware Enter arrive. Key-row bytes: `esc` `\x1b`, `enter` `\r`, arrows `\x1b[A/B/C/D`, `tab` `\t`, `shift+tab` `\x1b[Z`, `ctrl+c` `\x03`. Ctrl+c gives `\x03`, ctrl+dx gives `\x04x`, ctrl then esc gives `\x1b` followed by a plain `a`, and ctrl twice gives a plain `b`. The `continue`/`yes` chips send the text, then `\r`. A one-line composer message is sent as typed. A multi-line message goes as one bracketed paste, then `\r`. `done` hides the keyboard. `interrupt` shows the daemon's answer.
+- **Output.** Replay plus live output on attach. Tab switching replays each tab's own history, and input reaches only the selected tab. In airplane mode the screen shows "disconnected · input paused" and input is dropped; when the network returns the app reattaches and input flows again. PTYs stay alive after the app detaches.
+- **Tasks.** Create a task and a tab from the app. As on iOS, a tab needs a first message. The real diff shows the file list and the file. Both delete confirmations can be cancelled; a clean delete removes the task, and a dirty one shows `DIRTY_WORKTREE` with the file names.
+- **Notifications.** **settings → notifications** asks for permission. After a denial it offers **open android settings**, and the tile clears on return. With the app in the foreground, working → idle posts "finished working". With the toggle off, nothing is posted.
+- **Rotation.** The open screen survives rotation. The terminal, key row and composer work in landscape.
+
+Not passed or not automatable:
+
+- **Landscape typing straight into the terminal.** xterm's textarea has focus and the IME reports shown, but neither IME text nor raw key events reach the page on the emulator. The key row and composer work in landscape. Needs a real device to tell an emulator artifact from an app bug.
+- **Background notifications.** Android freezes the backgrounded process within seconds, so nothing arrives until the app is reopened. This is expected without FCM or a foreground service.
+- **Needs a real device:** QR scanning, camera denial, IME composition (pinyin; `adb input text` sends ASCII only), and the direct path (the emulator cannot reach the Mac's loopback bridge).
+- **Not run:** Fit vs Watch against the desktop, alternate screen and scrollback, and split Unicode bytes beyond the CJK/emoji banner rendering correctly.
+
+This draft does not change desktop shortcuts. Publishing this page through the docs site's sync list is deferred because this task is restricted to the Android package and this document.
