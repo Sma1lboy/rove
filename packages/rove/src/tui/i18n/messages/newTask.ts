@@ -4,6 +4,7 @@
  */
 
 export const en = {
+  retryHint: "Correct the field above, then choose Create again.",
   title: "New task",
   /** `{enter}` is whichever of the two below applies at the focused stop —
    *  enter creates only on Create, and walks the form everywhere else. */
@@ -115,6 +116,7 @@ export const en = {
 }
 
 export const zh: typeof en = {
+  retryHint: "请修正上方字段，然后再次选择创建。",
   title: "新建任务",
   legend: "{enter} · tab 补全/切字段 · ctrl+[ ] 切模式 · ctrl+e 引擎 · esc 取消",
   enterCreate: "enter 创建",

@@ -10,6 +10,7 @@
 import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
+import { humanOnlyFix, noEngineFix } from "../../cli/doctor-fix"
 import { detectEngineStatuses, probeableEngineIds, summarizeEngines } from "../../engine/engine-status.ts"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { displayWidth, padEndCells } from "../../lib/display-width"
@@ -17,6 +18,7 @@ import { formatChord } from "../../tui/lib/chord-glyphs"
 import { legendCap } from "../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import type { VendorId } from "../../types/vendor"
+import { DoctorSuggestions } from "../component/doctor-suggestions"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -101,10 +103,10 @@ export function WelcomePane(props: {
           : { key: "enginesMissing" as const, fg: theme.warning, list: "" }
 
   return (
-    <box flexGrow={1} alignItems="center" justifyContent="center">
+    <scrollbox flexGrow={1} contentOptions={{ alignItems: "center" }}>
       {/* maxWidth caps line length for readability on wide terminals; the
           block still shrinks with the pane (flex handles narrow). */}
-      <box flexDirection="column" maxWidth={72} paddingLeft={2} paddingRight={2}>
+      <box flexDirection="column" flexShrink={0} maxWidth={72} paddingLeft={2} paddingRight={2}>
         <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none">
           {t("workspace.welcome.title")}
         </text>
@@ -139,9 +141,12 @@ export function WelcomePane(props: {
               </text>
             )}
             {broken ? (
-              <text fg={theme.textMuted} wrapMode="word">
-                {t("workspace.welcome.doctorHint")}
-              </text>
+              <DoctorSuggestions
+                fixes={[
+                  ...(!env.git ? [humanOnlyFix("git")] : []),
+                  ...(env.engines.length === 0 ? [noEngineFix(env.signedOut)] : []),
+                ]}
+              />
             ) : null}
           </box>
         ) : null}
@@ -152,6 +157,6 @@ export function WelcomePane(props: {
           </text>
         </box>
       </box>
-    </box>
+    </scrollbox>
   )
 }

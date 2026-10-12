@@ -16,7 +16,7 @@ export const en = {
   /** Replaces the columns when THIS project's issue read rejected; the project
    *  keeps its selector slot so its cards don't silently vanish.
    *  `{error}` = the daemon's message. */
-  readFailed: "Couldn't read this project's stories: {error}",
+  readFailed: "Couldn't read this project's stories: {error}. Run `rove doctor`, then reopen Kanban.",
   /** Error toast for the same failure, naming which project it was.
    *  `{repo}` = the project label, `{error}` = the daemon's message. */
   readFailedToast: "Couldn't read stories for {repo}: {error}",
@@ -125,7 +125,7 @@ export const zh: typeof en = {
   loading: "正在加载 issues…",
   noRepos: "还没有项目——用 `rove add <路径>` 添加一个，或用 `rove api issue-create` 创建一个 story。",
   empty: "暂无 issue——agent 可通过 `rove api issue-create` 创建。",
-  readFailed: "读取该项目的 story 失败：{error}",
+  readFailed: "读取该项目的 story 失败：{error}。请运行 `rove doctor`，再重新打开看板。",
   readFailedToast: "读取 {repo} 的 story 失败：{error}",
   columnEmpty: "暂无卡片",
   column: {

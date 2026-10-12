@@ -20,7 +20,7 @@ export const en = {
     /** Fix command exited 0 */
     done: "✓ done",
     /** Fix command failed; {code} is its exit code */
-    failed: "✗ exited with code {code}",
+    failed: "✗ exited with code {code}; inspect the command output above, then rerun rove doctor",
     /** User answered no */
     skipped: "· skipped",
     /** `--fix` without a TTY: nothing is ever executed */
@@ -120,7 +120,7 @@ export const zh: typeof en = {
     willRun: "将执行: {command}",
     confirmPrompt: "执行这条修复吗? [y/N] ",
     done: "✓ 完成",
-    failed: "✗ 退出码 {code}",
+    failed: "✗ 退出码 {code}；请检查上方命令输出，再运行 rove doctor",
     skipped: "· 已跳过",
     nonInteractive: "没有交互终端 — 未执行任何命令; 请自行运行上面的命令",
     manualHeader: "人工步骤 — doctor 只打印, 永远不会替你执行:",

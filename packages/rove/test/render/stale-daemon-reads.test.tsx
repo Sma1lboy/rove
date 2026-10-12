@@ -80,6 +80,7 @@ test("a failed registry check does not render as green up-to-date", async () => 
     await settle(150)
     const text = await frame()
     expect(text).toContain("could not reach the registry")
+    expect(text).toContain("reopen Update to retry")
     expect(text).not.toContain(`latest  v${process.env.npm_package_version ?? ""}`)
   } finally {
     globalThis.fetch = realFetch

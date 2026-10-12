@@ -13,6 +13,7 @@ import { useState } from "react"
 import { RemoteOrchestrator, type RoveOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../engine/integration-status"
 import { createStateCell } from "../../../lib/external-store"
+import { failureHint } from "../../../lib/failure-hint"
 import { submitFeedback } from "../../../lib/feedback"
 import {
   type NavLevel,
@@ -162,7 +163,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
       setFeedbackBody("")
       setBodyRow(0)
     } catch (err) {
-      setFeedbackStatus(`error: ${errorMessage(err)}`)
+      setFeedbackStatus(`error: ${errorMessage(err)}\n${failureHint(err)}`)
     }
   }
 

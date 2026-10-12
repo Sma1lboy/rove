@@ -37,6 +37,7 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { DialogActions, DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
+import { FailureHint } from "./failure-hint"
 import { PickerList } from "./new-task-dialog/picker-list"
 
 type TargetTask = { readonly id: string; readonly title: string; readonly repo: string }
@@ -322,9 +323,12 @@ function AutomationComposerView(props: {
       </DialogSection>
 
       {error ? (
-        <text fg={theme.error} wrapMode="word">
-          ※ {error}
-        </text>
+        <box>
+          <text fg={theme.error} wrapMode="word">
+            ※ {error}
+          </text>
+          <FailureHint />
+        </box>
       ) : null}
 
       <DialogFooter>{t("automations.composerLegend")}</DialogFooter>

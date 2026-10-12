@@ -37,6 +37,17 @@ before it runs. The setting changes only whether the pending command layer also
 marks controls in place. Both choices use the same prefix, second stroke,
 timeout, pane scope, and cancellation rules.
 
+## Search actions
+
+Open the command palette with `ctrl+a /`. Type a human-readable action name
+or chord, use ↑/↓ to select, and Enter to run. Escape cancels. It lists typed
+commands available in the current pane; scope checks still apply when you run
+one. Event-dependent navigation bindings remain in help as references.
+
+Inside `F1` help, press `/` to filter the same keymap by name or chord. Clear
+the input to restore all sections. Both searches use case-insensitive fuzzy
+matching. The sidebar's bare `/` still searches tasks.
+
 ## The prefix
 
 The default first stroke is `ctrl+a`. Tap it, then press one more key within
@@ -45,6 +56,7 @@ shows only actions that can run right now.
 
 | Sequence | Action |
 |---|---|
+| `ctrl+a` `/` | Search commands by action name, see their chords, and run a selected action |
 | `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch. Its ATTEMPTS row fans one prompt out to a round of up to 5 |
 | `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new tab of the same Task directory |
 | `ctrl+a` `i` | Open the Inbox |

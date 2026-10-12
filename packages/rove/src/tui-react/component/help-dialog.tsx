@@ -1,7 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Help dialog — global keybindings only (pane-local ones are intentionally
- * omitted), grouped by `src/tui/lib/help-groups.ts`.
+ * Scope-aware keybinding reference and filter, grouped by `src/tui/lib/help-groups.ts`.
  *
  * keybindings.yaml reloads mutate the keymap in place, invisible to React:
  * `useKeymapVersion()` invalidates the rows, and `useT()` re-runs the
@@ -9,12 +8,13 @@
  */
 
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
-import { useMemo, useRef } from "react"
+import { useMemo, useRef, useState } from "react"
 import { formatChord } from "../../tui/lib/chord-glyphs"
 import {
   type HelpGrammarSection,
   type HelpSurface,
   grammarHelpSections,
+  matchesHelpAction,
   scopeCategory,
 } from "../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
@@ -48,6 +48,8 @@ export function HelpDialog(props: {
   const { theme } = useTheme()
   const t = useT()
   const padX = useDialogPaddingX()
+  const [filtering, setFiltering] = useState(false)
+  const [query, setQuery] = useState("")
   const keymapVersion = useKeymapVersion()
   const pureTuiPrefix = currentPrefixConfiguration()
   // biome-ignore lint/correctness/useExhaustiveDependencies: keymapVersion is the invalidation key — the table is mutated in place.
@@ -55,6 +57,12 @@ export function HelpDialog(props: {
     () => grammarHelpSections(RoveKeymap, props.currentScope ?? null, pureTuiPrefix.key, props.reachability),
     [keymapVersion, props.currentScope, props.reachability, pureTuiPrefix.key],
   )
+  const filteredSections = sections
+    .map((section) => ({
+      ...section,
+      rows: section.rows.filter((row) => matchesHelpAction(query, tKeys("desc", row.binding.id), row.primary)),
+    }))
+    .filter((section) => section.rows.length > 0)
   // Standalone full-window page (`rove help-page`) passes its own exit;
   // the in-pane overlay closes by clearing the dialog stack.
   const close = () => (props.onClose ? props.onClose() : dialog.clear())
@@ -75,7 +83,12 @@ export function HelpDialog(props: {
   // `?` again dismisses; esc belongs to DialogProvider — don't re-bind.
   useBindings(() => ({
     bindings: [
-      { key: "?", cmd: close },
+      ...(!filtering
+        ? [
+            { key: "?", cmd: close },
+            { key: "/", cmd: () => setFiltering(true) },
+          ]
+        : []),
       { key: "up", cmd: () => scrollBy(-1) },
       { key: "down", cmd: () => scrollBy(1) },
       { key: "pageup", cmd: () => scrollBy(-(scrollRef.current?.viewport.height ?? 10)) },
@@ -117,6 +130,20 @@ export function HelpDialog(props: {
           </text>
         </box>
       </box>
+      {filtering ? (
+        <input
+          focused
+          value={query}
+          placeholder={t("help.search")}
+          onInput={(value: string) => {
+            setQuery(value)
+            scrollToEdge("top")
+          }}
+        />
+      ) : (
+        <text fg={theme.textMuted}>{t("help.filter")}</text>
+      )}
+      {filteredSections.length === 0 ? <text fg={theme.textMuted}>{t("help.noResults")}</text> : null}
       {/* Long-content dialogs handle their own overflow: flexShrink={1}
           fits the dialog's maxHeight, the scrollbox owns the scrolling. */}
       <scrollbox
@@ -131,7 +158,7 @@ export function HelpDialog(props: {
         }}
       >
         <box paddingBottom={1} gap={1} paddingRight={1}>
-          {sections.map((section, sectionIndex) => (
+          {filteredSections.map((section, sectionIndex) => (
             <box key={`${section.kind}-${section.scope ?? sectionIndex}`} gap={0}>
               <text fg={theme.accent} attributes={TextAttributes.BOLD}>
                 {sectionTitle(section, t)}

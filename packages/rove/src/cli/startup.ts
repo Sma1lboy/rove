@@ -3,6 +3,9 @@ import { migrateRenamedStateKeys } from "../state/state-key-migration.ts"
 
 export function prepareCliStateLayout(env: NodeJS.ProcessEnv = process.env): void {
   const result = migrateRoveClientStateLayout(env)
-  for (const warning of result.warnings) console.error(`[rove] state migration will retry: ${warning}`)
+  for (const warning of result.warnings)
+    console.error(
+      `[rove] state migration will retry: ${warning}. Check the source/destination permissions, then relaunch Rove.`,
+    )
   migrateRenamedStateKeys()
 }

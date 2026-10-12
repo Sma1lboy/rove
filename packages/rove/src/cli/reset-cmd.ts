@@ -183,7 +183,9 @@ export async function runResetSubcommand(argv: readonly string[]): Promise<void>
 
   const legacyTmux = await stopLegacyTmux()
   if (legacyTmux.status === "failed") {
-    console.error(`  legacy tmux: cleanup failed — ${legacyTmux.error ?? "unknown error"}`)
+    console.error(
+      `  legacy tmux: cleanup failed — ${legacyTmux.error ?? "unknown error"}. Run rove doctor to inspect the remaining sessions before retrying reset.`,
+    )
     process.exitCode = 1
     return
   }

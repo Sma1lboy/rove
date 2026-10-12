@@ -715,3 +715,12 @@ each legacy pane process group before killing the retired tmux server (a bare
 `tmux kill-server` would leak engines that ignore `SIGHUP`). Worktrees and the
 task index are untouched; add `--hard` only if you also want to wipe task/UI
 state.
+
+## Next steps inside Rove
+
+Error toasts include a next-step hint. Inline failure messages retain the
+original error and point to retry, permissions, authentication, or `rove doctor`.
+The welcome pane shows doctor's matching Git and engine login/install suggestions
+when those prerequisites are missing. These suggestions only display the fix,
+its command or manual action, and why. They never run it. `rove doctor --fix`
+keeps its per-fix confirmation and never executes manual fixes.

@@ -43,7 +43,9 @@ describe("formatCliFailure", () => {
   })
 
   it("passes an unrecognized message through under the subcommand prefix", () => {
-    expect(formatCliFailure(new Error("disk on fire"), opts)).toBe("rove adopt: disk on fire")
+    expect(formatCliFailure(new Error("disk on fire"), opts)).toBe(
+      "rove adopt: disk on fire\nRun `rove doctor` for diagnosis and next steps.",
+    )
   })
 
   it("keeps the raw throw under ROVE_DEBUG=1 so bug reports still carry the argv", () => {

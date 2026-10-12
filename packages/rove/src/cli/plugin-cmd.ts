@@ -1,3 +1,4 @@
+import { failureHint } from "../lib/failure-hint"
 /**
  * `rove plugin`. A plugin is a dir with `rove-plugin.toml`. Owns `~/.rove/plugins.json`, which the
  * daemon's PluginHost watches, so changes apply without a restart.
@@ -359,10 +360,10 @@ export async function runPluginSubcommand(rest: string[]): Promise<void> {
     }
   } catch (err) {
     if (err instanceof PluginCliError) {
-      console.error(`${CLI_NAME} plugin: ${err.message}`)
+      console.error(`${CLI_NAME} plugin: ${err.message}\nRun ${CLI_NAME} plugin --help for usage.`)
       process.exit(1)
     }
-    console.error(`${CLI_NAME} plugin: ${errorMessage(err)}`)
+    console.error(`${CLI_NAME} plugin: ${errorMessage(err)}\n${failureHint(err, CLI_NAME)}`)
     process.exit(1)
   }
 }

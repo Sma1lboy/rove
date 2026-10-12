@@ -5,6 +5,8 @@
 
 export const en = {
   cancel: "Cancel",
+  failureHint: "Run `{command}` for diagnosis and next steps.",
+  toastFailureHint: "Next: run rove doctor",
   /** Placeholder text a page shows while its data is still null. */
   loading: "Loading…",
   /** Footer verb for a step that leads to another prompt. */
@@ -16,7 +18,8 @@ export const en = {
     title: "This pane crashed",
     hint: "The error was logged to client.log. Retry, or restart Rove if it keeps happening.",
     regionTitle: "The {region} hit an error",
-    regionHint: "The rest of Rove keeps working. The error was logged to client.log.",
+    regionHint:
+      "The rest of Rove keeps working. Retry below; if it persists, inspect client.log and run `rove doctor`.",
     retry: "[ retry ]",
     region: {
       sidebar: "task list",
@@ -42,6 +45,8 @@ export const en = {
 
 export const zh: typeof en = {
   cancel: "取消",
+  failureHint: "运行 `{command}` 查看诊断和后续步骤。",
+  toastFailureHint: "下一步：运行 rove doctor",
   loading: "加载中…",
   create: "创建",
   confirm: "确认",
@@ -49,7 +54,7 @@ export const zh: typeof en = {
     title: "此面板已崩溃",
     hint: "错误已记录到 client.log。可重试；若反复出现请重启 Rove。",
     regionTitle: "{region}出错了",
-    regionHint: "Rove 的其余部分仍可正常使用。错误已记录到 client.log。",
+    regionHint: "Rove 的其余部分仍可正常使用。请在下方重试；若问题持续，请查看 client.log 并运行 `rove doctor`。",
     retry: "[ 重试 ]",
     region: {
       sidebar: "任务列表",

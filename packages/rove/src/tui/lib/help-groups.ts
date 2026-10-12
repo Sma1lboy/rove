@@ -7,6 +7,7 @@
 
 import type { RoveBinding, RoveBindingScope } from "../context/keybindings"
 import { findBinding } from "../context/keybindings"
+import { fuzzyMatch } from "../panes/sidebar/fuzzy"
 import type { BindingReachability } from "./keymap-reachability"
 
 /** Group a flat keymap into categories in declaration order. */
@@ -155,4 +156,10 @@ export function guideCategory(action: string): string {
   if (action.startsWith("chat.fork.") || action.startsWith("task.")) return "Tasks"
   if (action.startsWith("settings.") || action === "workspace.zenToggle") return "Tools"
   return findBinding(action)?.category ?? "Global"
+}
+
+/** Search each field independently so a match cannot straddle unrelated labels. */
+export function matchesHelpAction(query: string, name: string, chord: string): boolean {
+  const trimmed = query.trim()
+  return fuzzyMatch(trimmed, name) || fuzzyMatch(trimmed, chord)
 }
