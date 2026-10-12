@@ -163,7 +163,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
       setFeedbackBody("")
       setBodyRow(0)
     } catch (err) {
-      setFeedbackStatus(`${errorMessage(err)}\n${failureHint(err)}`)
+      setFeedbackStatus(`error: ${errorMessage(err)}\n${failureHint(err)}`)
     }
   }
 
