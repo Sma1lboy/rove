@@ -4,19 +4,30 @@
  * `src/cli/onboarding.ts`. English is the source of truth; `zh: typeof en`
  * keeps the shapes locked together.
  *
- * The environment-report and ready/not-ready keys are deliberately gone: the
- * welcome pane behind the dialog renders that verdict from the same probe,
- * and the dialog shows each answer as its own transcript line, so a closing
- * banner restating them would be a second and third copy of one fact.
  */
 
 export const en = {
+  engineTitle: "Engine and account",
+  engineChecking: "Checking installed engines and accounts…",
+  engineReady: "✓ Ready to start a task",
+  engineMissing: "No usable engine yet",
+  engineUsable: "✓ {engine}: ready",
+  engineSignedOut: "! {engine}: installed, not signed in",
+  engineSetup:
+    "Install an engine using docs.rove.run/rove/engines, then run its CLI and sign in. Run `rove doctor --fix` to check setup; Settings → Engines lists integrations.",
+  engineContinue: "❯ Continue to optional setup",
+  engineLegend: "enter continue · esc skip optional setup",
+  quickStart: "Start a task with a prompt",
+  quickIntent: "Creates an isolated worktree and branch. Use {key} for the full task dialog.",
+  tabShared: "Tabs share this task’s files",
+  tabIsolated: "{key}: new task, isolated worktree",
+
   /** Dialog header */
   title: "Welcome to Rove",
   /** One-liner under the header: what Rove actually does, before any question. */
   subtitle: "Managed tasks get isolated worktrees and branches. Directory and project tasks reuse existing files.",
   /** Step 1 question; {shell} is the detected shell name (zsh/bash/fish) */
-  completionsQuestion: "Install shell completions for {shell}?",
+  completionsQuestion: "Optional: install shell completions for {shell}?",
   /** Step 1 explanation */
   completionsExplain: "Tab-completes rove subcommands. One line is added to your shell config.",
   /** Step 2 question */
@@ -62,9 +73,24 @@ export const en = {
 }
 
 export const zh: typeof en = {
+  engineTitle: "引擎与账户",
+  engineChecking: "正在检查引擎与账户…",
+  engineReady: "✓ 可以开始任务",
+  engineMissing: "还没有可用的引擎",
+  engineUsable: "✓ {engine}：可用",
+  engineSignedOut: "! {engine}：已安装，未登录",
+  engineSetup:
+    "从 docs.rove.run/rove/engines 安装引擎，然后运行其 CLI 并登录。运行 `rove doctor --fix` 检查配置；设置 → 引擎 可查看集成。",
+  engineContinue: "❯ 继续可选设置",
+  engineLegend: "enter 继续 · esc 跳过可选设置",
+  quickStart: "输入提示词开始任务",
+  quickIntent: "创建独立 worktree 和分支。按 {key} 打开完整任务对话框。",
+  tabShared: "标签页共享当前任务的文件",
+  tabIsolated: "{key}：新建任务，使用独立 worktree",
+
   title: "欢迎使用 Rove",
   subtitle: "托管任务使用独立的 worktree 和分支；目录与项目任务复用现有文件。",
-  completionsQuestion: "为 {shell} 安装 shell 补全吗？",
+  completionsQuestion: "可选：为 {shell} 安装 shell 补全吗？",
   completionsExplain: "让 rove 子命令支持 Tab 补全，会在你的 shell 配置里加一行。",
   skillQuestion: "可选：安装 Rove agent skill 吗？",
   skillExplain: "首次任务无需安装。得到第一个结果后，可随时运行 `rove skill install`。选择安装后将在退出 Rove 时执行。",

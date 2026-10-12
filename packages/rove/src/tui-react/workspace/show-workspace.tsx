@@ -55,7 +55,7 @@ export function ShowWorkspace(props: {
   const tasks = useAccessor(props.orchestrator.tasksSignal())
   if (!props.worktree) {
     // Zero tasks = brand-new home: teach instead of pointing at an empty sidebar.
-    if (!tasks.some((task) => !task.deletion)) return <WelcomePane />
+    if (!tasks.some((task) => !task.deletion)) return <WelcomePane onQuickTask={props.onQuickFork} />
     return (
       <box flexGrow={1} alignItems="center" justifyContent="center">
         <text fg={theme.textMuted}>{t("workspace.empty.selectTask")}</text>
