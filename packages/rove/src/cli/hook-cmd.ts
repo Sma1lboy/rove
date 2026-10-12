@@ -50,21 +50,19 @@ export async function readTextWithTimeout(
   }
 }
 
-/**
- * Read stdin to EOF under bun OR node. The published CLI runs under node, where
- * a bare `Bun.stdin` throws and {@link readStdinPayload}'s catch turns it into a
- * silently empty payload (no session id, no cwd).
- *
- * A TTY returns "" at once: hooks always get a pipe, and a human running
- * `rove hook` by hand should get the usage path, not a hang.
- */
-export async function readStdinText(): Promise<string> {
+/** Read stdin under Bun or Node; a TTY returns immediately.
+ * Node stops at a complete payload because some hook writers never close stdin. */
+export async function readStdinText(isComplete?: (text: string) => boolean): Promise<string> {
   const bun = (globalThis as { Bun?: { stdin: { text(): Promise<string> } } }).Bun
+  // Bun reads to EOF; the published Node CLI can stop at a complete payload.
   if (bun) return bun.stdin.text()
   if (process.stdin.isTTY) return ""
   const chunks: Buffer[] = []
   try {
-    for await (const chunk of process.stdin) chunks.push(chunk as Buffer)
+    for await (const chunk of process.stdin) {
+      chunks.push(chunk as Buffer)
+      if (isComplete?.(Buffer.concat(chunks).toString("utf8"))) break
+    }
   } finally {
     // The read refs the event loop; without this a hook whose writer never
     // closes the pipe keeps the process alive past the timeout below.
@@ -73,10 +71,21 @@ export async function readStdinText(): Promise<string> {
   return Buffer.concat(chunks).toString("utf8")
 }
 
-/** The hook's stdin JSON payload, time-bounded; {} on anything odd. */
+/** Incomplete or invalid JSON keeps the reader waiting. */
+function isCompleteJson(text: string): boolean {
+  try {
+    JSON.parse(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Read the hook's stdin JSON payload (Claude Code pipes it), bounded so a
+ *  manual invocation without stdin can't hang. Returns {} on anything odd. */
 async function readStdinPayload(): Promise<Record<string, unknown>> {
   try {
-    const text = await readTextWithTimeout(readStdinText)
+    const text = await readTextWithTimeout(() => readStdinText(isCompleteJson))
     if (!text.trim()) return {}
     const parsed = JSON.parse(text) as unknown
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
