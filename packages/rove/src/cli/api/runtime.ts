@@ -83,6 +83,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       const tabId = target.tab
       return await deliverToExactTab(host.rpc, target.id, tabId, worktree, prompt, {
         engineBin,
+        maxLiveEngines: persistedMaxLiveEngines(),
         // Only with explicit `send --respawn`; lazy so the snapshot is read
         // only when reviving a tab a pty-host restart froze.
         ...(target.respawn
@@ -125,7 +126,20 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       worktree,
       prompt,
       launch,
-      { forceNew: newTab !== undefined, maxLiveEngines: persistedMaxLiveEngines() },
+      {
+        forceNew: newTab !== undefined,
+        maxLiveEngines: persistedMaxLiveEngines(),
+        retryArgs: [
+          "api",
+          "send",
+          "--task-id",
+          target.id,
+          ...(target.tab ? ["--tab", target.tab] : []),
+          ...(target.tabCommand ? ["--command", target.tabCommand] : []),
+          "--prompt",
+          prompt,
+        ],
+      },
     )
     // `started && !delivered` is the real failure. `engineReady` is NOT a
     // stand-in: an engine that never announced bracketed paste can still have
@@ -156,7 +170,13 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
     return result
   } catch (error) {
     // The refusal spawned nothing, so the tab minted for it must not linger in the strip.
-    if (error instanceof ApiError && error.code === "ENGINE_LIMIT" && newTab) closeTabsSnapshot(target.id, newTab)
+    if (
+      error instanceof ApiError &&
+      newTab &&
+      ["ENGINE_LIMIT", "ENGINE_ADMISSION_BUSY", "ENGINE_ADMISSION_UNAVAILABLE"].includes(error.code)
+    ) {
+      closeTabsSnapshot(target.id, newTab)
+    }
     if (error instanceof ApiError) throw error
     throw sessionFailed(
       target.id,

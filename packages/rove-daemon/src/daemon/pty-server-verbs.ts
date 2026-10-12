@@ -9,7 +9,7 @@ import { spawnDetachedDaemon } from "../client/detached-spawn.ts"
 import type { ClientWriter } from "./client-writer.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { objectPayload, optionalBoolean, requireString } from "./handler-validators.ts"
-import { DAEMON_PROTOCOL_VERSION, type DaemonFrame } from "./protocol.ts"
+import { DAEMON_PROTOCOL_VERSION, type DaemonFrame, type PtyCheckedOpenResult } from "./protocol.ts"
 import type { PtyHost } from "./pty-host.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 import { withoutPtyJob } from "./win-pty-job.ts"
@@ -39,9 +39,14 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
   switch (req.name) {
     case "hello":
       return { protocolVersion: DAEMON_PROTOCOL_VERSION, ptyHost: true, pid: process.pid }
+    case "pty.openChecked":
     case "pty.open": {
       const payload = objectPayload(req.payload)
-      return ptys.open(
+      // The comparison and open are synchronous in the one host process.
+      if (req.name === "pty.openChecked" && requireString(payload, "admissionToken") !== admissionToken(ptys)) {
+        return { kind: "changed" } satisfies PtyCheckedOpenResult
+      }
+      const open = ptys.open(
         requireString(payload, "key"),
         {
           cwd: requireString(payload, "cwd"),
@@ -61,6 +66,7 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
         typeof payload.sincePid === "number" ? payload.sincePid : undefined,
         payload.answersQueries === true,
       )
+      return req.name === "pty.openChecked" ? ({ kind: "opened", open } satisfies PtyCheckedOpenResult) : open
     }
     case "pty.write": {
       const payload = objectPayload(req.payload)
@@ -124,6 +130,7 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
         pid: process.pid,
         rssBytes: process.memoryUsage().rss,
         sessions: ptys.list(),
+        admissionToken: admissionToken(ptys),
         stats: ptys.stats(),
         ...(deps.version ? { version: deps.version } : {}),
       }
@@ -169,4 +176,8 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
     default:
       throw new Error(`unknown pty-host request: ${req.name}`)
   }
+}
+
+function admissionToken(ptys: PtyHost): string {
+  return JSON.stringify(ptys.list().map((s) => [s.key, s.generation, s.pid, s.alive]))
 }

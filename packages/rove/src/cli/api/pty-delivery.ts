@@ -6,7 +6,6 @@
  * vendor's launch binary — never a hard-coded vendor name.
  */
 
-import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { PsSnapshot } from "../../engine/foreground.ts"
 import {
@@ -24,11 +23,11 @@ import {
   listHostedSessionsOrNull,
   openHostedSessionHost,
   pastePromptWhenEngineUp,
-  sessionArgvNamesEngine,
 } from "../../engine/hosted-session.ts"
 import { enginePresence } from "../../engine/session-engine-presence.ts"
 import { type EngineSessionLaunch, initMarkerSaysFinished } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
+import { openAdmittedEngine } from "./engine-admission.ts"
 import { restoredTabsOf } from "./tab-respawn.ts"
 import { ApiError, type DeliveredPrompt } from "./types.ts"
 
@@ -97,20 +96,6 @@ export function outcomeFields(outcome: PromptWriteOutcome | null): {
  * fallback once booted an unsandboxed `--dangerously-skip-permissions`
  * engine at the MAIN repo while both sides believed the message delivered.
  */
-/**
- * Live engine sessions across every task: alive tab keys (never split leaves)
- * that are a task's `tab-1` or whose launch argv names a known engine — the
- * same engine-ness rule `hasLiveEngineTab` applies to one task.
- */
-export function countLiveEngineSessions(sessions: readonly PtySessionInfo[]): number {
-  return sessions.filter((s) => {
-    if (!s.alive) return false
-    const parts = s.key.split("::")
-    if (parts.length !== 2) return false
-    return parts[1] === "tab-1" || sessionArgvNamesEngine(s.command)
-  }).length
-}
-
 export async function deliverHostedPrompt(
   rpc: PtyHostRpc,
   target: { readonly id: string; readonly engineBin?: string },
@@ -122,6 +107,7 @@ export async function deliverHostedPrompt(
     readonly snapshot?: PsSnapshot
     /** `engine.maxLiveSessions`; a spawn at or past it refuses with ENGINE_LIMIT. */
     readonly maxLiveEngines?: number
+    readonly retryArgs?: readonly string[]
   },
 ): Promise<DeliveredPrompt> {
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
@@ -175,25 +161,6 @@ export async function deliverHostedPrompt(
     }
   }
 
-  // Everything below SPAWNS.
-  const maxLive = opts?.maxLiveEngines
-  if (maxLive !== undefined) {
-    const live = countLiveEngineSessions(sessions)
-    if (live >= maxLive) {
-      throw new ApiError(
-        `${live} engine sessions are already running (engine.maxLiveSessions is ${maxLive}) — not starting another for task ${target.id}`,
-        "ENGINE_LIMIT",
-        {
-          taskId: target.id,
-          live,
-          limit: maxLive,
-          hint: "wait for a session to finish or close one (`api tab-close`), then retry the same prompt; raise engine.maxLiveSessions in state.json to allow more",
-          nextCommandArgs: ["api", "send", "--task-id", target.id, "--prompt", prompt],
-        },
-      )
-    }
-  }
-
   // Disclose tabs a pty-host restart froze, or this
   // is indistinguishable from a healthy first start. See {@link DeliveredPrompt.frozenTabs}.
   const frozen = restoredTabsOf(sessions, target.id, launch.key)
@@ -205,12 +172,29 @@ export async function deliverHostedPrompt(
 
   // No cols/rows: host defaults to 80×24, and a lost create race must not
   // resize the winner's session.
-  const open = await rpc.request<PtyOpenResult>("pty.open", {
-    key: launch.key,
-    cwd,
-    command: launch.command,
-    defaultColors: readPersistedTerminalDefaultColors(),
-  })
+  const open = await openAdmittedEngine(
+    rpc,
+    {
+      key: launch.key,
+      cwd,
+      command: launch.command,
+      defaultColors: readPersistedTerminalDefaultColors(),
+    },
+    {
+      maxLiveEngines: opts?.maxLiveEngines,
+      snapshot: opts?.snapshot,
+      taskId: target.id,
+      retryArgs: opts?.retryArgs ?? [
+        "api",
+        "send",
+        "--task-id",
+        target.id,
+        ...(opts?.forceNew ? ["--tab", "new"] : []),
+        "--prompt",
+        prompt,
+      ],
+    },
+  )
   try {
     if (!open.alive) {
       return {

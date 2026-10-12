@@ -13,7 +13,7 @@ function session(key: string, command: string[], alive = true): PtySessionInfo {
 }
 
 function psWith(child: string): () => Promise<string> {
-  return async () => `123 1 -zsh\n456 123 ${child}\n`
+  return async () => `123 1 -zsh\n456 123 ${child}\n789 1 /bin/zsh\n`
 }
 
 /** An engine in raw mode (bracketed paste on) that echoes what it is written. */
@@ -39,7 +39,7 @@ describe("deliverHostedPrompt engine.maxLiveSessions", () => {
     session("a::tab-1", ["/bin/zsh", "-ilc", "codex"]),
     session("b::tab-3", ["/bin/zsh", "-ilc", "claude"]),
     session("b::tab-3::leaf-2", ["/bin/zsh", "-ilc", "claude"]),
-    session("c::tab-2", ["/bin/zsh"]),
+    { ...session("c::tab-2", ["/bin/zsh"]), pid: 789 },
     session("d::tab-1", ["claude"], false),
   ]
 
@@ -48,8 +48,8 @@ describe("deliverHostedPrompt engine.maxLiveSessions", () => {
     const rpc = {
       request: async <T>(name: string): Promise<T> => {
         calls.push(name)
-        if (name === "pty.list") return { sessions: [...fleet, ...extra] } as T
-        if (name === "pty.open") return { replay: "", alive: true, created: true } as T
+        if (name === "pty.list") return { sessions: [...fleet, ...extra], admissionToken: "test" } as T
+        if (name === "pty.openChecked") return { kind: "opened", open: { replay: "", alive: true, created: true } } as T
         return {} as T
       },
     }
@@ -75,7 +75,7 @@ describe("deliverHostedPrompt engine.maxLiveSessions", () => {
       limit: 2,
       nextCommandArgs: ["api", "send", "--task-id", "t1", "--prompt", "go"],
     })
-    expect(calls).not.toContain("pty.open")
+    expect(calls).not.toContain("pty.openChecked")
   })
 
   it("starts the session while the fleet is under the cap", async () => {
@@ -85,7 +85,7 @@ describe("deliverHostedPrompt engine.maxLiveSessions", () => {
       maxLiveEngines: 3,
     })
     expect(result).toMatchObject({ started: true })
-    expect(calls).toContain("pty.open")
+    expect(calls).toContain("pty.openChecked")
   })
 
   it("still delivers into a task's running engine at the cap — only new sessions are limited", async () => {
@@ -104,5 +104,26 @@ describe("deliverHostedPrompt engine.maxLiveSessions", () => {
       maxLiveEngines: 1,
     })
     expect(result).toMatchObject({ session: "t1::tab-1", started: false, delivered: true })
+  })
+  it("releases slots after engines exit into keepAlive shells", async () => {
+    const { rpc, calls } = fleetRpc()
+    await deliverHostedPrompt(rpc, { id: "t1" }, "/wt/t1", "go", launch, {
+      snapshot: psWith("sleep 10"),
+      maxLiveEngines: 1,
+    })
+    expect(calls).toContain("pty.openChecked")
+  })
+
+  it("preserves new-tab isolation in a refused retry", async () => {
+    const { rpc } = fleetRpc()
+    await expect(
+      deliverHostedPrompt(rpc, { id: "t1" }, "/wt/t1", "go", launch, {
+        snapshot: psWith("claude"),
+        maxLiveEngines: 1,
+        forceNew: true,
+      }),
+    ).rejects.toMatchObject({
+      data: { nextCommandArgs: ["api", "send", "--task-id", "t1", "--tab", "new", "--prompt", "go"] },
+    })
   })
 })
