@@ -112,6 +112,19 @@ repo-local:
 GitHub Issues are reserved for inbound user reports; do not create them for
 normal project planning.
 
+## Agents without write access
+
+This applies only to agents acting for someone **without** collaborator (write) access to this repository. Collaborators and their agents are exempt.
+
+Before such an agent starts writing a PR, it must ask its owner the four questions below and wait for the owner to answer them personally:
+
+1. What outcome do you actually want?
+2. What is the single variable that decides that outcome?
+3. Does this work move that variable, or does it only make you look busy?
+4. Who are your users, and what do they actually want?
+
+The owner answers every question themselves. The agent may not answer for the owner, supply a plausible answer, or skip the questions. Put the owner's answers in the PR description.
+
 ## Pull request checklist
 
 - [ ] `bun run typecheck`, `bun run lint`, `bun run test`, and `bun run build` all pass.
