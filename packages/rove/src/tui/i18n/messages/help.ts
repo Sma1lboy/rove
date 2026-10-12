@@ -6,6 +6,12 @@
 export const en = {
   /** Dialog title */
   title: "Rove — keybindings",
+  palette: "Search commands",
+  search: "Type an action name or chord…",
+  filter: "/ filter actions",
+  noResults: "No matching actions. Try another name or clear the filter.",
+  run: "↑↓ select · enter run · esc cancel",
+  unavailable: "This action is no longer available. Close and reopen the palette.",
   /** Close / cancel hint */
   esc: "esc",
   /** Corner hint next to `esc`. The list is a scrollbox and routinely runs
@@ -34,6 +40,12 @@ export const en = {
 
 export const zh: typeof en = {
   title: "Rove — 快捷键",
+  palette: "搜索命令",
+  search: "输入操作名称或快捷键…",
+  filter: "/ 筛选操作",
+  noResults: "没有匹配的操作。请换个名称或清空筛选。",
+  run: "↑↓ 选择 · enter 执行 · esc 取消",
+  unavailable: "此操作已不可用。请关闭并重新打开命令面板。",
   esc: "esc",
   scrollKeys: "↑↓ ⇞⇟ 滚动",
   commandLayer: "{prefix} — 更多 Rove 命令",

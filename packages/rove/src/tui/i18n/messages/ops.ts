@@ -31,7 +31,7 @@ export const en = {
     /** git refused. Carries git's own stderr rather than presenting the
      *  absent diff as an absence of changes. */
     previewFailed: "could not load preview",
-    readFailed: "Cannot read {path}. The file may be missing or unreadable.",
+    readFailed: "Cannot read {path}. Check that the file exists and you have permission to read it, then press r.",
     emptyFile: "empty file",
     emptyAdded: "empty file added",
     emptyDeleted: "empty file deleted",
@@ -80,7 +80,7 @@ export const zh: typeof en = {
     imageChanged: "图片已改动",
     modeChanged: "权限位已改动 · {from} → {to}",
     previewFailed: "预览加载失败",
-    readFailed: "无法读取 {path}。文件可能已不存在或不可读。",
+    readFailed: "无法读取 {path}。请检查文件是否存在及读取权限，然后按 r 重试。",
     emptyFile: "空文件",
     emptyAdded: "新增空文件",
     emptyDeleted: "删除空文件",

@@ -26,6 +26,7 @@ import { useBindings } from "../lib/keymap"
 import { useCursorFollow } from "../lib/use-cursor-follow"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import { FailureHint } from "./failure-hint"
 
 /** The two store calls {@link show} binds, instead of the whole orchestrator. */
 interface FieldNotesIO {
@@ -150,7 +151,12 @@ export function FieldNotesDialogView(props: {
       >
         <box gap={1} paddingRight={1}>
           {state.kind === "loading" ? <text fg={theme.textMuted}>{t("tasks.fieldNotes.loading")}</text> : null}
-          {state.kind === "error" ? <text fg={theme.error}>{state.message}</text> : null}
+          {state.kind === "error" ? (
+            <box>
+              <text fg={theme.error}>{state.message}</text>
+              <FailureHint />
+            </box>
+          ) : null}
           {state.kind === "ready" && notes.length === 0 ? (
             <text fg={theme.textMuted}>{t("tasks.fieldNotes.empty")}</text>
           ) : null}

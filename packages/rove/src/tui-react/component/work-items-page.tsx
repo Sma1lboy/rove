@@ -25,6 +25,7 @@ import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { useCursorFollow } from "../lib/use-cursor-follow"
 import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
+import { FailureHint } from "./failure-hint"
 
 /** Repos the user has open, newest-activity first — the source picker. */
 function reposOf(orch: RemoteOrchestrator | null): string[] {
@@ -197,7 +198,10 @@ export function WorkItemsPage(props: {
 
       {error ? (
         <box flexDirection="column" marginTop={1}>
-          <text fg={theme.error}>{error}</text>
+          <box>
+            <text fg={theme.error}>{error}</text>
+            <FailureHint />
+          </box>
           <box marginTop={1}>
             <text fg={theme.textMuted}>{errorHint(error, t)}</text>
           </box>

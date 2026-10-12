@@ -21,6 +21,7 @@ export const en = {
     Inbox: "Inbox",
   },
   desc: {
+    "palette.open": "Search commands",
     "help.open": "Show keybindings help",
     "task.new": "New task",
     "task.new.global": "New task",
@@ -124,6 +125,7 @@ export const zh: typeof en = {
     Inbox: "收件箱",
   },
   desc: {
+    "palette.open": "搜索命令",
     "help.open": "显示快捷键帮助",
     "task.new": "新建任务",
     "task.new.global": "新建任务",

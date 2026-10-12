@@ -27,6 +27,7 @@ import {
   resetPrefixState,
 } from "../../tui/lib/keymap-dispatch"
 import { type BindingReachability, bindingReachability } from "../../tui/lib/keymap-reachability"
+import { capturePaletteActions } from "../../tui/lib/palette-actions"
 import { prefixHudHideDirect, prefixHudShowDirect } from "../../tui/lib/prefix-hud"
 import { directGuideOptions } from "../../tui/lib/shortcut-reveal"
 import { useLatest } from "../lib/use-latest"
@@ -204,4 +205,8 @@ export function pageCloseBindings(cmd: () => void): Binding[] {
     { key: "q", cmd },
     { key: "ctrl+c", cmd },
   ]
+}
+
+export function currentPaletteActions() {
+  return capturePaletteActions(stack)
 }

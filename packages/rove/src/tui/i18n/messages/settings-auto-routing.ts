@@ -61,7 +61,8 @@ export const en = {
     keyNoVariableBody:
       "A custom classifier endpoint is sent no Authorization header until autoRouting.classifierCustomKeyEnv names the variable its key lives in. Set that first — a key stored under a name nothing reads is a key at rest for no purpose.",
     keyWriteFailedTitle: "Key not saved",
-    keyWriteFailedBody: "~/.rove/secrets.json could not be written: {reason}",
+    keyWriteFailedBody:
+      "~/.rove/secrets.json could not be written: {reason}. Check directory permissions and disk space, then save again.",
     keyMissing: "! no key — nothing is chosen and tasks keep their usual depth",
     keyPresentEnv: "● key read from ${env} in this process's environment",
   },
@@ -113,7 +114,7 @@ export const zh: typeof en = {
     keyNoVariableBody:
       "在 autoRouting.classifierCustomKeyEnv 指定存 key 的变量之前，自定义分类器接口不会收到任何 Authorization 头。先设那个——存在一个没人读的名字下面的 key，只是白白落在盘上。",
     keyWriteFailedTitle: "key 没存下",
-    keyWriteFailedBody: "写不了 ~/.rove/secrets.json：{reason}",
+    keyWriteFailedBody: "写不了 ~/.rove/secrets.json：{reason}。请检查目录权限和磁盘空间，再次保存。",
     keyMissing: "! 没有 key——不会替你选档，任务保持原来的档位",
     keyPresentEnv: "● key 来自本进程环境变量 ${env}",
   },

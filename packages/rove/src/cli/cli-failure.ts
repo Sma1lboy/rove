@@ -14,6 +14,7 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
+import { failureHint } from "../lib/failure-hint"
 
 /** `ROVE_DEBUG=1` keeps the raw throw (stack included) for bug reports. */
 function debugEnabled(env: NodeJS.ProcessEnv): boolean {
@@ -42,7 +43,9 @@ export function formatCliFailure(
   opts: { cliName: string; argv: readonly string[]; cwd: string; env: NodeJS.ProcessEnv },
 ): string {
   const subject = failureSubject(opts.cliName, opts.argv)
-  if (debugEnabled(opts.env)) return `${subject}: ${String(err instanceof Error ? (err.stack ?? err) : err)}`
+  if (debugEnabled(opts.env))
+    return `${subject}: ${String(err instanceof Error ? (err.stack ?? err) : err)}\n${failureHint(err, opts.cliName)}`
   const raw = errorMessage(err)
-  return `${subject}: ${summarizeCliGitError(raw, opts.cwd) ?? raw}`
+  const git = summarizeCliGitError(raw, opts.cwd)
+  return `${subject}: ${git ?? `${raw}\n${failureHint(err, opts.cliName)}`}`
 }

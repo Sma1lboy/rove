@@ -869,3 +869,11 @@ any engine/terminal shortcut it may shadow. Then:
    changes.
 5. Verify terminal passthrough for unclaimed keys.
 6. Record the resolution and its reasoning in this file.
+
+## Command palette and help filter (2026-10-12, approved)
+
+The owner approved `ctrl+a /` for the palette and `/` inside F1 help in the
+combined #1242/#1240 scope. The prefix reaches the palette from an engine
+terminal without claiming a typing key. Prefix `/` was unused; sidebar `/`
+remains scoped task search. Help and palette share the action names and matcher.
+The palette invokes typed live commands, preserving scope and confirmation gates.

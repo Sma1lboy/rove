@@ -172,7 +172,9 @@ function printUsage(out: Pick<typeof process.stderr, "write">): void {
 async function printVersionList(io: RunDeps): Promise<void> {
   const releases = await fetchReleaseSummaries(20)
   if (releases.length === 0) {
-    io.stderr.write(`${CLI_NAME} update: could not fetch the release list (offline or rate-limited)\n`)
+    io.stderr.write(
+      `${CLI_NAME} update: could not fetch the release list (offline or rate-limited). Check your connection, then retry ${CLI_NAME} update list.\n`,
+    )
     io.exit(1)
   }
   for (const release of releases) {

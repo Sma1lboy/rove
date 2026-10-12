@@ -7,11 +7,12 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { charWidth } from "../../lib/display-width"
+import { charWidth, displayWidth } from "../../lib/display-width"
 import type { Toast } from "../../tui/lib/notify-state"
 import { truncateEndCells } from "../../tui/lib/truncate"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
+import { useT } from "../i18n"
 import { useTerminalSize } from "../lib/use-terminal-size"
 
 const MAX_VISIBLE = 3
@@ -19,12 +20,13 @@ const CARD_WIDTH = 44
 const RIGHT_MARGIN = 2
 const BOTTOM_MARGIN = 2
 /** Rows per card incl. the stack gap: accent-bar card is 1 or 2 rows + 1 gap. */
-function cardRows(toast: Toast): number {
-  return (toast.body ? 2 : 1) + 1
+function cardRows(toast: Toast, hintRows: number): number {
+  return (toast.body ? 2 : 1) + 1 + (toast.kind === "error" ? hintRows : 0)
 }
 
 export function ToastOverlay() {
   const { theme } = useTheme()
+  const t = useT()
   const dims = useTerminalSize()
   const notif = useNotifications()
 
@@ -32,9 +34,11 @@ export function ToastOverlay() {
   const visibleToasts = notif.toasts.slice(-MAX_VISIBLE)
 
   // Absolute, bottom-right; `zIndex` above panes, below the dialog backdrop (3000).
-  const stackRows = visibleToasts.reduce((rows, toast) => rows + cardRows(toast), 0)
   // Clamp so a narrow terminal doesn't push the card across the neighbour pane.
   const cardWidth = Math.min(CARD_WIDTH, Math.max(12, dims.width - RIGHT_MARGIN * 2))
+  const hint = t("common.toastFailureHint")
+  const hintRows = Math.ceil(displayWidth(hint) / Math.max(1, cardWidth - 3))
+  const stackRows = visibleToasts.reduce((rows, toast) => rows + cardRows(toast, hintRows), 0)
   const left = Math.max(0, dims.width - cardWidth - RIGHT_MARGIN)
   const top = Math.max(0, dims.height - BOTTOM_MARGIN - stackRows)
   // Inner text budget: accent bar (1) + card padding (2) = 3; the title row
@@ -87,6 +91,11 @@ export function ToastOverlay() {
                     {truncateEndCells(toast.body, textBudget, charWidth)}
                   </text>
                 </box>
+              ) : null}
+              {toast.kind === "error" ? (
+                <text fg={theme.warning} wrapMode="char" height={hintRows} flexShrink={0}>
+                  {hint}
+                </text>
               ) : null}
             </box>
           </box>

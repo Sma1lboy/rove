@@ -203,7 +203,8 @@ export const en = {
    *  whole session and reverts at the next launch. */
   stateWrite: {
     failedTitle: "Settings were not saved",
-    failedBody: "{file} could not be written ({keys}) — the change applies to this session only.",
+    failedBody:
+      "{file} could not be written ({keys}). Check its directory permissions and free disk space, then save again.",
   },
   ...autoRoutingEn,
   ...engineCard,
@@ -428,7 +429,7 @@ export const zh: typeof en = {
   /** 防抖写入 `state.json` 抛错时的错误 toast。 */
   stateWrite: {
     failedTitle: "设置未能保存",
-    failedBody: "{file} 写入失败（{keys}）—— 改动只在本次会话生效。",
+    failedBody: "{file} 写入失败（{keys}）。请检查目录权限和磁盘空间，再次保存。",
   },
   ...autoRoutingZh,
   ...engineCardZh,

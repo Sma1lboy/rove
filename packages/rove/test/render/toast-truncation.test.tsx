@@ -15,14 +15,14 @@ const LONG_TITLE = "Fix the sidebar unread lamp across every repository group"
 const LONG_BODY = "fixture-repo › second opinion: root-cause the stale badge before the sweep"
 
 /** Pushes one toast after mount, then renders the overlay under test. */
-function Harness() {
+function Harness({ error = false }: { error?: boolean }) {
   const notif = useNotifications()
   const pushed = useRef(false)
   useEffect(() => {
     if (pushed.current) return
     pushed.current = true
-    notif.notify({ kind: "done", taskId: "t1", tabId: "tab-1", title: LONG_TITLE, body: LONG_BODY })
-  }, [notif])
+    notif.notify({ kind: error ? "error" : "done", taskId: "t1", tabId: "tab-1", title: LONG_TITLE, body: LONG_BODY })
+  }, [notif, error])
   return <ToastOverlay />
 }
 
@@ -46,4 +46,15 @@ describe("ToastOverlay truncation", () => {
     const out = await frame()
     for (const line of out.split("\n")) expect(line.length).toBeLessThanOrEqual(24)
   })
+})
+
+it("keeps an error's next step visible even when its title is truncated", async () => {
+  const { frame } = await renderComponent(<Harness error />, {
+    width: 24,
+    height: 12,
+    providers: { notifications: true },
+  })
+  await act(async () => {})
+  const out = await frame()
+  expect(out.replace(/\s+/g, "")).toContain("Next:runrovedoctor")
 })
