@@ -82,6 +82,7 @@ inspect      --task-id
 read-output  --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
 watch        --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
 deliveries   --task-id(REQ) --limit
+gates        --repo --task-id --status{open|answered|withdrawn|all}(open)
 ```
 <!-- generated:end -->
 
@@ -140,6 +141,9 @@ row-token      --task-id(REQ) --text --ttl(60) --key(default)
 set-active     --task-id --none
 report         --delivery --outcome{done|partial|blocked|failed} --summary --evidence
                --next --json
+gate-raise     --task-id(REQ) --tab --question(REQ) --option --recommend --context
+gate-answer    --gate(REQ) --option --text
+gate-withdraw  --gate(REQ)
 ```
 <!-- generated:end -->
 

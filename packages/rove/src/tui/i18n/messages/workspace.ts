@@ -72,6 +72,10 @@ export const en = {
       routineResponded: "routine responded",
       /** An armed prompt's turn ended without `rove api report`. */
       reportMissing: "report missing",
+      /** An open decision gate: a task asked its owner a question. */
+      decisionNeeded: "decision needed",
+      /** The gate is answered but the engine is not running to receive it. */
+      gateAnswered: "answered · engine not running",
     },
     /** Rate-limited card's context line: when the armed auto-resume fires.
      *  `{time}` is a locale-formatted clock time. */
@@ -128,6 +132,8 @@ export const zh: typeof en = {
       routineFailed: "例行任务需要处理",
       routineResponded: "例行任务已回报",
       reportMissing: "未回报",
+      decisionNeeded: "等你决定",
+      gateAnswered: "已回答 · 引擎未运行",
     },
     resumesAt: "{time} 恢复",
   },

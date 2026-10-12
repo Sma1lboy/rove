@@ -133,7 +133,7 @@ async function startOwnedServer(
 
   // Spread wholesale into the handler context: `DaemonStores` IS its store half.
   const stores = await initDaemonStores(orch, runtime, bus, options.homeDir)
-  const { activity, deletions, rowTokens, automations, deliveries, quotaUsage, inbox } = stores
+  const { activity, deletions, rowTokens, automations, deliveries, quotaUsage, inbox, gates } = stores
   const deliveryDeps: DeliveryDeps = { deliveries, inbox, orch, automations }
   resources.defer(() => activity.close())
   resources.defer(() => rowTokens.close())
@@ -251,6 +251,7 @@ async function startOwnedServer(
       link: () => selfLink,
       plugins: () => pluginHost,
       inbox,
+      gates,
     },
     activity,
     inbox,

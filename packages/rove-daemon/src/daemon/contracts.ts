@@ -52,6 +52,16 @@ export {
   MAX_DELIVERIES_PER_TASK,
   deliveryFooter,
 } from "./delivery-contracts.ts"
+// Decision gates, likewise.
+export type {
+  Gate,
+  GateAnswer,
+  GateAnswerSurface,
+  GateInboxDetail,
+  GateOption,
+  GateStatus,
+  GatesPayload,
+} from "./gate-contracts.ts"
 
 /** Engine id (rove `VendorId`), opaque to the daemon. Plain `string`: a
  *  literal union with `(string & {})` drifts from rove's list and hides the

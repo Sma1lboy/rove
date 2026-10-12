@@ -16,6 +16,7 @@ import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { readOwnDispatcher, resolveDispatcherTab, verifiedSelfSession, withPeerProvenance } from "./dispatcher.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
+import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
 import { filterTaskList, listFilters } from "./list-filter.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
@@ -178,6 +179,9 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)
   const plain = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
+  // Decision-gate answers the owner gave while this tab's engine was away (design § 3).
+  const owed = await takeOwedGateAnswers(daemon, taskId, tab)
+  const withAnswers = owed ? `${owed.text}\n\n${plain}` : plain
   // Read BEFORE delivery: a paste into a failed session still "lands", and the
   // caller has to be told what it landed in.
   const target = tab === "new" ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
@@ -193,7 +197,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
         })
       ).deliveryId
     : undefined
-  const text = deliveryId ? `${plain}\n\n${deliveryFooter(deliveryId, roveApiInvocation())}` : plain
+  const text = deliveryId ? `${withAnswers}\n\n${deliveryFooter(deliveryId, roveApiInvocation())}` : withAnswers
   const settle = async (delivered: boolean, session?: string): Promise<void> => {
     if (!deliveryId) return
     // The hosted session key is `<taskId>::<tabId>`.
@@ -238,6 +242,8 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
   }
   await settle(true, delivered.session)
+  // The answers rode this paste; only now are they the engine's.
+  if (owed) await markGateAnswersDelivered(daemon, owed.gateIds)
   return {
     ok: true,
     taskId,

@@ -16,6 +16,7 @@ export function itemColor(state: AttentionInboxItem["state"], theme: ThemeColors
   if (state === "permission_needed") return theme.warning
   if (state === "turn_complete") return theme.success
   if (state === "rate_limited" || state === "report_missing") return theme.warning
+  if (state === "decision_needed") return theme.warning
   return theme.error
 }
 
@@ -30,8 +31,13 @@ export function itemGlyph(state: AttentionInboxItem["state"], glyphs: GlyphSet =
   if (state === "routine_failed") return glyphs.routineFailed
   // A routine run answered — same done mark as a finished turn.
   if (state === "routine_responded") return glyphs.done
+  // A question only the owner can answer.
+  if (state === "decision_needed") return glyphs.needsInput
   return glyphs.attention
 }
+
+/** Word for a decision the owner answered while the engine was away. */
+export const GATE_ANSWERED_STATE_KEY = "workspace.inbox.state.gateAnswered"
 
 /** i18n key for the state word shown next to the glyph. */
 export function itemStateKey(state: AttentionInboxItem["state"]): string {
@@ -42,6 +48,7 @@ export function itemStateKey(state: AttentionInboxItem["state"]): string {
   if (state === "routine_failed") return "workspace.inbox.state.routineFailed"
   if (state === "report_missing") return "workspace.inbox.state.reportMissing"
   if (state === "routine_responded") return "workspace.inbox.state.routineResponded"
+  if (state === "decision_needed") return "workspace.inbox.state.decisionNeeded"
   return "workspace.inbox.state.error"
 }
 

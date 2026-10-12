@@ -238,6 +238,16 @@ nothing to drop). You rarely need `d`: **visiting
 a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
 
+**Decisions.** A task that needs an answer only you can give (`rove api
+gate-raise`) shows here as `decision needed` with its question. It is not an
+episode: nothing clears it but answering (or the task withdrawing it) — not
+visiting the tab, not `d`, not the tab's next turn. `enter` opens the decision
+dialog instead of the tab: pick an option (the task's recommendation is
+marked and preselected), `tab` to add a note, `enter` to send. A question with
+no options is note-only. The answer goes into the gate's tab. If that engine
+is not running, the row stays as `answered · engine not running` until the
+next message to that tab carries the answer; `enter` then opens the tab.
+
 `F7` jumps straight to the first pending item across **all** projects — the
 oldest blocked one, or the oldest finished turn when nothing is blocked —
 without opening the Inbox, and cycles on repeated presses. It works even

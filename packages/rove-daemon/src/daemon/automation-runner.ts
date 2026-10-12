@@ -28,6 +28,7 @@ import {
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
 import type { DeliveriesStore } from "./deliveries-store.ts"
+import type { GateLedger } from "./gate-handoff.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
 
@@ -91,6 +92,7 @@ interface RunnerDeps {
    *  per recorded run. */
   readonly plugins?: () => { handleUiReport(report: PluginRunReport): void } | null
   readonly inbox?: RunnerInbox
+  readonly gates?: GateLedger
   readonly now?: () => number
   readonly stopped?: () => boolean
 }
@@ -303,6 +305,7 @@ export async function runAutomationOnce(
         orch: deps.orch,
         runtime: deps.runtime,
         link: () => resolveLink(deps.link),
+        ...(deps.gates ? { gates: deps.gates } : {}),
         ...(deps.now ? { now: deps.now } : {}),
       },
       automation,

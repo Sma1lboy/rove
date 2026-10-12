@@ -91,6 +91,7 @@ async function writeStore(path: string, items: readonly AttentionInboxItem[]): P
 
 export class AttentionInboxStore {
   private readonly items = new Map<string, AttentionInboxItem>()
+  private projection: () => AttentionInboxItem[] = () => []
   /** False until one read SUCCEEDED; {@link commit} refuses to write before that. */
   private loaded = false
 
@@ -110,8 +111,18 @@ export class AttentionInboxStore {
     })
   }
 
+  /** Stored episodes plus the projected rows ({@link setProjection}), oldest first. */
   snapshot(): AttentionInboxItem[] {
-    return [...this.items.values()].sort(compareItems)
+    return [...this.items.values(), ...this.projection()].sort(compareItems)
+  }
+
+  /**
+   * Rows computed from another store (decision gates), merged into every
+   * snapshot and push but never written to attention-inbox.json: episode
+   * cleanup (turn-start, open, dismiss, prune) cannot touch what it never held.
+   */
+  setProjection(rows: () => AttentionInboxItem[]): void {
+    this.projection = rows
   }
 
   /**
@@ -310,10 +321,11 @@ export class AttentionInboxStore {
     await writeStore(this.path, items)
     this.items.clear()
     for (const item of items) this.items.set(attentionInboxItemKey(item), item)
-    this.bus.publish("attention.inbox", { items })
+    this.publish()
   }
 
-  private publish(): void {
+  /** Push the current snapshot, e.g. after a projected row appeared or went. */
+  publish(): void {
     this.bus.publish("attention.inbox", { items: this.snapshot() })
   }
 }

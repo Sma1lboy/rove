@@ -32,9 +32,21 @@ import {
   partitionAttentionInboxAvailability,
   windowInboxRows,
 } from "./attention-inbox-core"
-import { itemColor, itemGlyph, itemStateKey, quotaResumeNote, reportMissingNote } from "./inbox-item-view"
+import {
+  GATE_ANSWERED_STATE_KEY,
+  itemColor,
+  itemGlyph,
+  itemStateKey,
+  quotaResumeNote,
+  reportMissingNote,
+} from "./inbox-item-view"
 import { readInboxVisits } from "./inbox-visits"
 import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
+
+/** Episodes the owner may drop; a decision (gate) is answered, not dismissed. */
+function isDismissible(row: InboxRow | undefined): boolean {
+  return row?.kind === "attention" && row.item.state !== "decision_needed"
+}
 
 const MAX_VISIBLE_CARDS = 6
 const CARD_ROWS_WITH_GAP = 3
@@ -269,10 +281,11 @@ export function AttentionInboxPane(props: {
         const row = selected()
         if (row) open(row)
       },
-      // Only episodes are dismissible — a recent task has nothing to drop.
+      // Only episodes are dismissible — a recent task has nothing to drop, and
+      // a decision is answered, never dismissed.
       "inbox.delete": () => {
         const row = selected()
-        if (row?.kind === "attention") props.onDelete(row.item)
+        if (row?.kind === "attention" && isDismissible(row)) props.onDelete(row.item)
       },
     }),
   }))
@@ -348,6 +361,7 @@ export function AttentionInboxPane(props: {
             const tab = tabLabel(item, task, props.kv)
             // A routine episode may have no task: name the ROUTINE instead.
             const routine = item.detail?.routine
+            const gate = item.detail?.gate
             const title = routine?.name ?? task?.title ?? item.taskId ?? ""
             // Surface an armed auto-resume (`Task.quotaResume`): "back at 3:14"
             // vs "stuck, go do something".
@@ -365,10 +379,10 @@ export function AttentionInboxPane(props: {
                       ? `${project} › ${tab.label}`
                       : project || title
                 }
-                subtitle={routine ? (routine.error ?? routine.status) : contextLine}
+                subtitle={routine ? (routine.error ?? routine.status) : gate ? gate.question : contextLine}
                 badge={{
-                  glyph: itemGlyph(item.state, glyphs),
-                  label: t(itemStateKey(item.state)),
+                  glyph: gate?.undelivered ? glyphs.done : itemGlyph(item.state, glyphs),
+                  label: t(gate?.undelivered ? GATE_ANSWERED_STATE_KEY : itemStateKey(item.state)),
                   color: itemColor(item.state, theme),
                 }}
                 age={relativeAge(item.at, now)}
@@ -393,7 +407,7 @@ export function AttentionInboxPane(props: {
          advertise a chord that would silently no-op. */}
         <text
           fg={theme.textMuted}
-          attributes={selected()?.kind === "attention" ? undefined : TextAttributes.DIM}
+          attributes={isDismissible(selected()) ? undefined : TextAttributes.DIM}
           wrapMode="none"
         >
           {t("workspace.inbox.clearHint")}

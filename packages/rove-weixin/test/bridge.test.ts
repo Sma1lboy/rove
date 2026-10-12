@@ -18,6 +18,7 @@ function snapshot(group: Row["group"]): ContextPayload {
     at: "",
     tasks: [{ taskId: TASK, title: "Fix login", branch: "fix-login", group, rank: 0, activity: null }],
     attention: [],
+    gates: [],
     notes: [],
   }
 }

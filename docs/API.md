@@ -34,7 +34,7 @@ so a long line sent in small chunks does not repeatedly scan its accumulated pre
 
 A slow reader also has an 8 MiB queue of unsent response/event bytes, in addition to
 the socket's already accepted write. Complete snapshots for `task.snapshot`,
-`active-task`, `update`, `attention.inbox`, `ui-prefs`, `worktree.changes`,
+`active-task`, `update`, `attention.inbox`, `gates`, `ui-prefs`, `worktree.changes`,
 `transcript.activity`, `usage.snapshot`, and `usage.context` replace only an older
 queued snapshot of the same channel. Other frames retain their order, including
 per-task engine/job updates, per-repo issues, commands, keybinding notifications,
@@ -143,6 +143,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `RUN_NOT_FOUND` | `routine-respond --run` names no routine run (unknown, or pruned from the last 100). |
 | `RESPONSE_TOO_LARGE` | A `routine-respond` response or a `report --summary` over the 32,000-character cap. |
 | `DELIVERY_NOT_FOUND` | `report --delivery` names no delivery (unknown, or pruned past the newest 50 for its task). |
+| `GATE_NOT_FOUND` | `gate-answer` / `gate-withdraw` names no gate. |
+| `GATE_NOT_OPEN` | The gate is already answered or withdrawn. |
+| `BAD_OPTION` | `gate-answer --option` is not one of the gate's option keys (or the gate is free-text only). |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
 | `NOT_A_REPO` | `--repo` does not point at a git repository. |
 | `INVALID_BRANCH` | `--branch` is a name git will not accept (`git check-ref-format --branch`). |
@@ -870,6 +873,25 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   an error (the retention ring may already have evicted that note).
 - `set-active [--task-id ID] [--none]`: set (or clear) the shared active
   task every attached sidebar highlights.
+- `gate-raise --task-id ID [--tab T] --question TEXT [--option KEY=LABEL]…
+  [--recommend KEY] [--context TEXT]`: ask the OWNER a decision only they can
+  make (decision gate). `--option` repeats, up to 6; `--question` ≤ 500
+  chars, `--context` ≤ 4000. `--tab` defaults to the tab you run in. The
+  gate shows in the owner's Inbox as `decision_needed` and in `gates`; it
+  stays until answered or withdrawn. Returns `{ gate }` with the `g-N` id.
+- `gate-answer --gate g-N [--option KEY] [--text TEXT]`: answer an open gate
+  (at least one; `--option` must be one of the gate's keys, else `BAD_OPTION`).
+  The answer is persisted first, then pasted into the gate's tab as
+  `[ROVE GATE g-N answered] <question>` / `Answer: KEY — label` /
+  `Note: TEXT`. No live engine → `{ delivered: false }` and the gate keeps
+  `handoff: "undelivered"`: nothing is queued or retried; the next `send` or
+  routine firing into that tab carries the answer in front of its prompt.
+  Answering a closed gate is `GATE_NOT_OPEN`.
+- `gate-withdraw --gate g-N`: close an open gate nobody needs to answer
+  anymore. Deleting a task withdraws its open gates.
+- `gates [--repo PATH] [--task-id ID] [--status open|answered|withdrawn|all]`:
+  list gates (default `open`). `context` also lists the repo's open gates
+  under `gates`.
 - `pane-open [--task-id ID] [--tab TAB] [--command CMD] [--direction
   right|down] [--placement split|tab] [--title TEXT]`: open a terminal pane
   in a task's workspace: split the focused tab (default, tmux-style

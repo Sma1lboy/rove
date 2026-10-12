@@ -29,6 +29,8 @@ export function requestInboxItemOpen(
 export function dismissEpisode(item: AttentionInboxItem, rpc: InboxOpenRpc): Promise<boolean> {
   const automationId = item.detail?.routine?.automationId
   if (isRoutineInboxState(item.state) && automationId) return rpc.dismissRoutineAttention(automationId)
+  // A decision is answered or withdrawn (`gate.*`), never dismissed.
+  if (item.state === "decision_needed") return Promise.resolve(false)
   // A task-shaped episode always carries its task; the guard is for the type.
   if (item.taskId === null) return Promise.resolve(false)
   // A delivery episode is keyed by its delivery, not (task, tab): the plain form would miss it.
