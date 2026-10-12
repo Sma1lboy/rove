@@ -96,16 +96,22 @@ cd your-repo
 rove
 ```
 
-The welcome dialog asks about optional shell completions and the agent skill,
-then shows **Keyboard basics**. Choose with `j`/`k` or the arrow keys and confirm
-with `enter`. Choose **No** for the skill to start the exercise now;
-you can install it afterwards. Accepted installations are queued for later;
-answering **Yes** does not make them available immediately. `esc` declines
-both installations, including any earlier **Yes** answers.
+The welcome dialog first checks installed engines and accounts. If none is usable,
+it explains how to install an engine and sign in. Press `enter` to continue to
+optional shell completions and the agent skill, followed by **Keyboard basics**.
+Choose with `j`/`k` or the arrow keys and confirm with `enter`. **Not now** skips
+an install; accepted installs run after you quit. `esc` skips unanswered questions
+and preserves earlier confirmed choices.
 
-The workspace welcome panel and `rove doctor` provide the environment check;
-it is not another wizard page. Settings → Engines lists installed CLIs and
-what Rove can detect about login and activity hooks.
+With no tasks and a usable engine, the welcome panel offers **Start a task with
+a prompt** when you launched Rove inside a Git repo with a commit. Click it,
+type a prompt, and press `enter` to create an isolated worktree and open its
+engine tab. It defaults to the current repo and branch and a usable engine.
+`n` still opens the full task dialog for repository, engine, and task intent.
+
+The first `ctrl+t` also shows a one-time reminder that tabs share the current
+task's files. It creates the tab immediately, without a confirmation.
+Settings → Engines lists integrations; `rove doctor` checks the environment again.
 
 **Using Codex?** In its engine pane, open `/hooks` and review/approve the Rove
 hook command yourself. Rove writes the definition but does not grant this

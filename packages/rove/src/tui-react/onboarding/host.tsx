@@ -3,11 +3,7 @@
  * The first-run welcome — a modal over the real workspace, shown once, so
  * dismissing it leaves the user in the product rather than at a shell prompt.
  *
- *   - Questions: completions and the agent skill. Both are re-runnable
- *     (`rove completions --help`, `rove skill install`), so declining is safe.
- *   - No environment report: `workspace/welcome-pane.tsx` behind it renders
- *     the same probe; a copy here could disagree.
- *   - Keyboard basics as the second page, ending at Settings → Engines.
+ * Engine readiness comes first; optional installs follow.
  *
  * Accepted installs are queued until the TUI exits and releases the terminal
  * (`cli/welcome.ts`).
@@ -25,6 +21,8 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, useDialog } from "../ui/dialog"
+import { type WelcomeEnv, probeWelcomeEnv } from "../workspace/welcome-pane"
+import { EngineWelcomePage } from "./engine-page"
 
 /** Confirmed choices survive dismissal; unanswered questions default to No. */
 export interface OnboardingChoices {
@@ -33,7 +31,7 @@ export interface OnboardingChoices {
 }
 
 type StepId = "completions" | "skill"
-type WelcomePageKind = "questions" | "keys"
+type WelcomePageKind = "engine" | "questions" | "keys"
 
 /** Horizontal padding, matching the What's New card. */
 const PAD_X = 2
@@ -41,6 +39,7 @@ const PAD_X = 2
 /** Exported for the render track; production opens it via {@link useWelcomeDialog}. */
 export function WelcomeDialogView(props: {
   shell: ShellKind | null
+  probe?: () => Promise<WelcomeEnv>
   onDone: (choices: OnboardingChoices) => void
   onAnswers?: (choices: OnboardingChoices) => void
 }): ReactNode {
@@ -51,7 +50,18 @@ export function WelcomeDialogView(props: {
   const [stepIndex, setStepIndex] = useState(0)
   const [yes, setYes] = useState(props.shell !== null)
   const [answers, setAnswers] = useState<Partial<Record<StepId, boolean>>>({})
-  const [page, setPage] = useState<WelcomePageKind>("questions")
+  const [page, setPage] = useState<WelcomePageKind>("engine")
+  const [env, setEnv] = useState<WelcomeEnv | null>(null)
+  const probe = props.probe ?? probeWelcomeEnv
+  useEffect(() => {
+    let alive = true
+    void probe().then((value) => {
+      if (alive) setEnv(value)
+    })
+    return () => {
+      alive = false
+    }
+  }, [probe])
 
   const step = steps[stepIndex] as StepId
 
@@ -62,6 +72,10 @@ export function WelcomeDialogView(props: {
   // `choice` defaults to the keyboard cursor; mouse passes its own option
   // explicitly (setYes + read-back in one handler would see a stale render).
   function confirm(choice: boolean = yes): void {
+    if (page === "engine") {
+      if (env !== null) setPage("questions")
+      return
+    }
     if (page === "keys") {
       finish(answers)
       return
@@ -107,7 +121,7 @@ export function WelcomeDialogView(props: {
         </text>
       </box>
       <box flexDirection="column" flexShrink={1}>
-        {steps.slice(0, page === "questions" ? stepIndex : steps.length).map((answered) => (
+        {steps.slice(0, page === "engine" ? 0 : page === "questions" ? stepIndex : steps.length).map((answered) => (
           <box key={answered} flexDirection="row" gap={1}>
             <text fg={theme.textMuted} wrapMode="none">
               ·
@@ -120,7 +134,9 @@ export function WelcomeDialogView(props: {
             </text>
           </box>
         ))}
-        {page === "keys" ? (
+        {page === "engine" ? (
+          <EngineWelcomePage env={env} onContinue={() => confirm()} />
+        ) : page === "keys" ? (
           <box flexDirection="column" onMouseUp={() => confirm()}>
             <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="word">
               {t("onboarding.keysTitle")}
@@ -168,7 +184,13 @@ export function WelcomeDialogView(props: {
       </box>
       <box paddingBottom={1} flexShrink={0}>
         <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none">
-          {t(page === "keys" ? "onboarding.keysLegend" : "onboarding.legend")}
+          {t(
+            page === "engine"
+              ? "onboarding.engineLegend"
+              : page === "keys"
+                ? "onboarding.keysLegend"
+                : "onboarding.legend",
+          )}
         </text>
       </box>
     </box>

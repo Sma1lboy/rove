@@ -316,10 +316,21 @@ describe("PaneKeyHint", () => {
 
 describe("welcome dialog — questions then keyboard basics", () => {
   it("asks the skill question alone when no shell is detected, then shows the keyboard page", async () => {
-    const { frame, mockInput } = await renderComponent(<WelcomeDialogView shell={null} onDone={NOOP} />, {
-      width: 100,
-      height: 24,
-    })
+    const { frame, mockInput } = await renderComponent(
+      <WelcomeDialogView
+        probe={() => Promise.resolve({ engines: ["codex"], signedOut: [], git: true })}
+        shell={null}
+        onDone={NOOP}
+      />,
+      {
+        width: 100,
+        height: 24,
+      },
+    )
+    await settle()
+    expect(await frame()).toContain("Ready to start a task")
+    act(() => mockInput.pressEnter())
+    await settle()
     const first = await frame()
     expect(first).toContain("Rove agent skill")
     // No shell → nothing to hook completions into, so that question never renders.
@@ -334,12 +345,21 @@ describe("welcome dialog — questions then keyboard basics", () => {
     expect(text).toContain("enter finish")
   })
 
-  it("asks completions first when a shell is detected, and records both answers", async () => {
+  it("checks the engine before optional completions, and records both answers", async () => {
     const answers: OnboardingChoices[] = []
     const { frame, mockInput } = await renderComponent(
-      <WelcomeDialogView shell="zsh" onDone={(c) => answers.push(c)} />,
+      <WelcomeDialogView
+        probe={() => Promise.resolve({ engines: ["codex"], signedOut: [], git: true })}
+        shell="zsh"
+        onDone={(c) => answers.push(c)}
+      />,
       { width: 100, height: 24 },
     )
+    await settle()
+    expect(await frame()).toContain("Ready to start a task")
+    expect(await frame()).not.toContain("shell completions for zsh")
+    act(() => mockInput.pressEnter())
+    await settle()
     expect(await frame()).toContain("shell completions for zsh")
     act(() => mockInput.pressEnter())
     await settle()

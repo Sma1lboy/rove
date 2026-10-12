@@ -27,6 +27,8 @@ import { ChipRow, DialogField, DialogFooter, DialogHeader, DialogSection } from 
 import { quickTaskBindings } from "./quick-task-bindings"
 
 export interface QuickTaskComposerOptions {
+  /** Explain isolation when opened without a source task. */
+  readonly intent?: string
   /** Header context, e.g. the repo basename the task lands in. */
   readonly repoLabel: string
   /** Engines to offer (detected built-ins + custom), in cycle order. */
@@ -147,6 +149,11 @@ function QuickTaskComposerView(
   return (
     <box paddingLeft={padX} paddingRight={padX} gap={0}>
       <DialogHeader title={t("quickTask.title", { repoLabel: props.repoLabel })} onClose={() => props.onCancel()} />
+      {props.intent ? (
+        <text fg={theme.textMuted} wrapMode="word">
+          {props.intent}
+        </text>
+      ) : null}
       <box gap={1} paddingTop={1}>
         <DialogSection
           label={t("quickTask.promptLabel")}
