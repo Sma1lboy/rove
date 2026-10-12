@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import run.rove.mobile.R
 import run.rove.mobile.data.TerminalSession
+import run.rove.mobile.domain.QueryReplyFilter
 import java.io.ByteArrayInputStream
 
 // iOS Terminal/TerminalPane.swift: the live terminal, a status banner while not live, the key row and the composer.
@@ -66,8 +67,11 @@ private const val ATTACHING = "connecting"
         flash = text
         flashJob = scope.launch { delay(2500); flash = null }
     }
+    // Query replies xterm emits are dropped first, so they never reach the engine nor consume a pending ctrl.
     // Typed text takes a pending ctrl: a single letter becomes its control byte (letter & 0x1f).
-    val send: (String) -> Unit = { text ->
+    val send: (String) -> Unit = send@{ raw ->
+        val text = QueryReplyFilter.filter(raw)
+        if (text.isEmpty()) return@send
         if (ctrl && text.length == 1 && text[0].code in 64..127) session.input((text[0].code and 31).toChar().toString())
         else session.input(text)
         ctrl = false
