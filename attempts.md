@@ -107,3 +107,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Lesson:** an extra host render is not always an extra commit. Count commits on a clean run before moving a state write earlier.
 
 **Still open:** every `kv.set` rebuilds the KV context, so all `useKV` consumers re-render, `notif` included. `kv-core.set` also makes a new snapshot when the value is unchanged (`Object.is`). That does not matter for `inboxVisits`, which always changes on an A↔B switch.
+
+## 2026-10-12 — notes (main b33df5e)
+
+**No regression.** Run 1 read boot.firstFrame.ms 1492 / boot.ready.ms 5688 (cold first run again). Run 2 flagged only golden.vt-1mb-parse-ms 92.2 → 138.8. `perf:golden --fast` alternated on 23c1cf9 (last night's main) and b33df5e read 120/129.6/143.2/145.5 vs 182.3/152.7/162.6/153.5. The ranges overlap, and the 4 commits since then touch only sidebar menu/i18n code (no VT, no lockfile), so this is machine noise. Baseline not moved.
+
+**Per-switch commit anatomy (clean, cheap trace: a host-hook identity diff plus a Profiler `onRender` log to a file; counts matched an untraced run).** About 10 root commits per switch: (1) `selectedId`, a full tree render of about 7 ms; (2) a nested update in the same pass, which also carried the `inboxVisits` KV write (`kv`, `notif` and `inbox.availableItems` identities changed, so the host re-rendered); (3) workspace nested-update with 0 ms; (4) the daemon's `tasks`/`activeTaskId` echo, a full render; (5–10) the terminal mount waterfall, in workspace only. Pane focus does not flip during perf switches: the row click keeps workspace focus.
+
+**Landed tonight as PR #1237 (`perf/nightly-2026-10-12`):** `writeInboxVisit` uses a new `kv.setQuiet` (persist and `get`, no snapshot notify). Only the Inbox dialog reads the log, when it opens. switch.perOp.stateNotify 4.4 → 3.4/3.7/3.6, stateListener 6.4 → 5.4–5.9, host renders per switch 3 → 2, and commit (2)'s root time 5.75 → 2.36 ms. **Commit counts did not drop:** commit (2) still happens without the KV write, because sidebar and files run their own nested update right after a selection. Find that setState next (likely the sidebar cursor following `selectedId` and the Files pane's `worktreePath` effect; see 10-06 before touching the latter).
+
+**Unmemoized hook returns:** `sidebarWidth`, `pages` and `banner` change identity on every host render. That is harmless unless they reach a memoized child, but check this before trying `React.memo` on panes.
