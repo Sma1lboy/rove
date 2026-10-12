@@ -27,6 +27,8 @@ import {
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
 } from "../../../rove-daemon/src/daemon/handlers.ts"
+import { invokeVerb } from "../../src/cli/api-cmd.ts"
+import { FakeClient, recordingDelivery, stubRuntime } from "../cli/api-handler-fixtures.ts"
 import { NOW, automation, fakeDeps } from "./automation-runner-fixtures.ts"
 
 const TASK = "task-1"
@@ -290,5 +292,60 @@ describe("delivery.settle", () => {
     const landed = (await h.rpc("delivery.arm", { taskId: TASK, promptHead: "p" })) as { deliveryId: string }
     await h.rpc("delivery.settle", { deliveryId: landed.deliveryId, delivered: true, tabId: "tab-3" })
     expect(h.deliveries.get(landed.deliveryId)).toMatchObject({ status: "awaiting", tabId: "tab-3" })
+  })
+})
+
+describe("add --require-report with a first prompt", () => {
+  it("arms the prompt, and a turn that ends without a report leaves the delivery missing", async () => {
+    const h = await harness()
+    const task = { id: TASK, repo: "/repo/x", worktreePath: "/wt/x", kind: "task", vendor: "claude" }
+    const client = new FakeClient({
+      "task.create": () => ({ taskId: TASK, task }),
+      "task.requireReport": () => ({}),
+      "task.get": () => ({ task: { ...task, requireReport: true } }),
+      "task.setPrompt": () => ({}),
+      "delivery.arm": (payload) => h.rpc("delivery.arm", payload as Record<string, unknown>),
+      "delivery.settle": (payload) => h.rpc("delivery.settle", payload as Record<string, unknown>),
+    })
+    const { calls, deliver } = recordingDelivery()
+    await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "ship it", "--require-report"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+
+    expect(calls[0]?.prompt).toMatch(/ship it\n\n\[ROVE\] When this turn ends, report: .* report --delivery d-1 /)
+    expect(h.deliveries.get("d-1")).toMatchObject({ status: "awaiting", tabId: "tab-1", source: "send" })
+
+    await trackDeliveryTurn(h.deps, TASK, "tab-1", "turn-start", undefined)
+    await trackDeliveryTurn(h.deps, TASK, "tab-1", "turn-complete", undefined)
+    expect(h.deliveries.get("d-1")?.status).toBe("missing")
+    expect(h.rows()).toHaveLength(1)
+  })
+
+  it("an add without the flag arms nothing, and a failed spawn drops the delivery", async () => {
+    const h = await harness()
+    const task = { id: TASK, repo: "/repo/x", worktreePath: "/wt/x", kind: "task", vendor: "claude" }
+    const responders = {
+      "task.create": () => ({ taskId: TASK, task }),
+      "task.get": () => ({ task }),
+      "task.setPrompt": () => ({}),
+      "delivery.arm": (payload: unknown) => h.rpc("delivery.arm", payload as Record<string, unknown>),
+      "delivery.settle": (payload: unknown) => h.rpc("delivery.settle", payload as Record<string, unknown>),
+    }
+    const plain = recordingDelivery()
+    await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "hi"], {
+      client: new FakeClient(responders),
+      runtime: stubRuntime({ deliverPrompt: plain.deliver }),
+    })
+    expect(plain.calls[0]?.prompt).toBe("hi")
+    expect(h.deliveries.listForTask(TASK)).toEqual([])
+
+    await expect(
+      invokeVerb("add", ["--repo", "/repo/x", "--prompt", "hi", "--expect-report"], {
+        client: new FakeClient({ ...responders, "task.requireReport": () => ({}) }),
+        runtime: stubRuntime({ deliverPrompt: recordingDelivery({ delivered: false }).deliver }),
+      }),
+    ).rejects.toThrow()
+    expect(h.deliveries.listForTask(TASK)).toEqual([])
   })
 })

@@ -631,10 +631,11 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   (`CONFLICTING_FLAGS`) and refuses a tier that cannot start
   (`TIER_UNAVAILABLE`).
 
-  `--require-report` sets `Task.requireReport`: every later `send` to this
-  task arms a delivery, as if it carried `--expect-report`. For a task
-  ticked unattended. The task's own first `--prompt` is not armed; change
-  the setting with `update --require-report on|off`.
+  `--require-report` sets `Task.requireReport`: the task's own first
+  `--prompt` and every later `send` to it arm a delivery, as if each carried
+  `--expect-report`. For a task ticked unattended; change the setting with
+  `update --require-report on|off`. `add --expect-report` arms the first
+  prompt only. The reply carries `deliveryId`.
 
   `--tier auto` asks a classifier to read `--prompt` and pick the tier for
   you. It needs a prompt (`BAD_FLAG` without one) and it is **off until you

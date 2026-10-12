@@ -9,8 +9,10 @@
  * bookkeeping lives here.
  */
 
+import { deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
+import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { homeDir } from "../../env.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
@@ -32,7 +34,7 @@ import {
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
-import { ApiError, type VerbContext, helpStep } from "./types.ts"
+import { ApiError, type DeliveredPrompt, type PromptTarget, type VerbContext, helpStep } from "./types.ts"
 
 /**
  * `--status` / `--pin` aren't create-time RPC fields — apply them as
@@ -47,6 +49,44 @@ async function applyPostCreateFlags(daemon: DaemonRpc, taskId: string, args: Ver
   const requireReport = args.bool("require-report")
   if (requireReport !== undefined) await daemon.request("task.requireReport", { taskId, required: requireReport })
   return Boolean(status) || pin !== undefined || requireReport !== undefined
+}
+
+/**
+ * Deliver a new task's first prompt. A task created with `--require-report` (or
+ * `--expect-report`) arms its delivery BEFORE the spawn, once the task and its
+ * first tab are known; the footer rides the engine argv with the prompt. A
+ * spawn that fails drops the delivery, as `send` does.
+ */
+async function deliverArmed(
+  ctx: VerbContext,
+  daemon: DaemonRpc,
+  taskId: string,
+  target: PromptTarget,
+  text: string,
+): Promise<DeliveredPrompt & { deliveryId?: string }> {
+  if (ctx.args.bool("require-report") !== true && ctx.args.bool("expect-report") !== true) {
+    return ctx.runtime.deliverPrompt(daemon, target, text)
+  }
+  // A fresh task's first engine tab is always tab-1.
+  const { deliveryId } = await daemon.request<{ deliveryId: string }>("delivery.arm", {
+    taskId,
+    tabId: "tab-1",
+    promptHead: text,
+  })
+  const settle = (delivered: boolean) =>
+    daemon.request("delivery.settle", { deliveryId, delivered, tabId: "tab-1" }).catch(() => {})
+  try {
+    const delivered = await ctx.runtime.deliverPrompt(
+      daemon,
+      target,
+      `${text}\n\n${deliveryFooter(deliveryId, roveApiInvocation())}`,
+    )
+    await settle(delivered.delivered)
+    return { ...delivered, deliveryId }
+  } catch (err) {
+    await settle(false)
+    throw err
+  }
 }
 
 export async function add(ctx: VerbContext): Promise<unknown> {
@@ -147,8 +187,10 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // that leaves an agent unable to tell "it routed to deep and the engine
   // died" from "it never routed at all" without a second round-trip.
   const delivered = await withTierNote(tierNote, () =>
-    ctx.runtime.deliverPrompt(
+    deliverArmed(
+      ctx,
       daemon,
+      taskId,
       {
         id: taskId,
         worktreePath: task.worktreePath,
@@ -190,6 +232,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     // override reads identically to the intended one.
     home: homeDir(),
     started: delivered.started,
+    ...(delivered.deliveryId ? { deliveryId: delivered.deliveryId } : {}),
     engineReady: delivered.engineReady,
     session: delivered.session,
     delivered: delivered.delivered,
@@ -331,8 +374,10 @@ async function addParallel(
 
   const settled = await Promise.allSettled(
     created.map(({ taskId, vendor, task }) =>
-      ctx.runtime.deliverPrompt(
+      deliverArmed(
+        ctx,
         daemon,
+        taskId,
         {
           id: taskId,
           worktreePath: task.worktreePath,

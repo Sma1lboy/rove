@@ -200,7 +200,7 @@ clear the shared active task.
 add     --repo(REQ) --title --branch --base-branch --worktree-name --command --effort
         --tier{swift|standard|deep|auto} --model --count --agents <claude:2,codex:1>
         --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
-        --require-report --activate(false) --prompt|--prompt-file
+        --require-report --expect-report --activate(false) --prompt|--prompt-file
 update  --task-id(REQ) --title --tab --branch --command --model --effort --pinned
         --require-report{on|off}
         --status{backlog|in_progress|in_review|done|canceled|error} --report-branch

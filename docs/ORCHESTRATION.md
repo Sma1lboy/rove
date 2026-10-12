@@ -172,7 +172,7 @@ rove api send --task-id <id> --expect-report --prompt-file tick.md
 
 Or set it once and every `send` to that task is armed:
 `rove api add --require-report …`, `rove api update --task-id <id> --require-report on`.
-The task's own first `--prompt` on `add` is not armed.
+The task's own first `--prompt` on `add` is armed too (`add --expect-report` arms only that prompt).
 
 The delivered prompt ends with a `[ROVE]` line naming the delivery. The agent
 closes the tick as the last step of its turn:
