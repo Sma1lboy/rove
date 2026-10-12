@@ -74,6 +74,8 @@ export interface FlagSpec {
   readonly default?: string
   /** Metavar for help/schema, e.g. PATH / ID / TEXT. */
   readonly placeholder?: string
+  /** May be passed more than once; read with `VerbArgs.list`. */
+  readonly repeatable?: true
 }
 
 /** What a verb handler runs against; all injectable so handlers test without a daemon or PTY host. */

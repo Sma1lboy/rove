@@ -39,6 +39,7 @@ function flagJson(f: FlagSpec): unknown {
     ...(values ? { values } : {}),
     ...(f.default !== undefined ? { default: f.default } : {}),
     ...(f.placeholder ? { placeholder: f.placeholder } : {}),
+    ...(f.repeatable ? { repeatable: true } : {}),
     description: f.description,
   }
 }
@@ -121,7 +122,7 @@ export function verbHelp(verb: VerbSpec): string {
   if (verb.flags.length > 0) {
     lines.push("Flags:")
     for (const f of verb.flags) {
-      const req = f.required ? " (required)" : ""
+      const req = f.required ? " (required)" : f.repeatable ? " (repeatable)" : ""
       const def = f.default !== undefined ? ` [default: ${f.default}]` : ""
       const vals = f.type === "enum" && f.values ? ` {${displayValues(f)!.join("|")}}` : ""
       lines.push(`  --${f.name}${vals}${req}${def}  ${f.description}`)
