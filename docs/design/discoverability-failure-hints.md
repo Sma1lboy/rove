@@ -4,6 +4,8 @@
 - Top-level CLI catch: preserves error text and debug stacks, prints structured hint/nextCommandArgs when supplied, otherwise points to read-only `rove doctor`. Not-a-repository keeps its existing directory-change advice.
 - Plugin CLI: usage failures point to `rove plugin --help`; unexpected failures point to diagnosis.
 - Theme CLI: failed operations point to valid names/options in `rove theme --help`.
+- CLI partial project setup, worktree scan, migration, relaunch, Bun startup, legacy cleanup, and plugin search: name permission/runtime/connection checks and the retry step.
+- Settings feedback submission: retains the error and adds a diagnosis hint.
 - Release listing: connection/rate-limit failure names the retry command.
 - New-task inline errors: correct the indicated field, then retry Create. Routine composer, issue list, and field-notes errors: diagnosis hint below the original error.
 - Files: generic Git failures name `git status`; PR-check lookup names `gh auth status`.

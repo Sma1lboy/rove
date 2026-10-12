@@ -173,6 +173,12 @@ export function UpdatePage(props: { onClose: () => void }) {
         )}
       </box>
 
+      {latestUnknown ? (
+        <text fg={theme.textMuted} wrapMode="word">
+          {t("update.registryRetry")}
+        </text>
+      ) : null}
+
       {/* Green-vs-amber on the version number was the ONLY thing that ever
           said "nothing to install". A colour is not a sentence. */}
       {upToDate ? (

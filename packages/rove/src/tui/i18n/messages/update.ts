@@ -14,7 +14,8 @@ export const en = {
   latest: "latest",
   /** The registry check failed (offline, npm down, timeout). Must stay
    *  distinct from "you are up to date". */
-  latestUnknown: "unknown — check your connection and reopen Update",
+  latestUnknown: "unknown — could not reach the registry",
+  registryRetry: "Check your connection, then close and reopen Update to retry.",
   /** The registry answered and nothing is newer. Distinct from
    *  `latestUnknown`: this one is a checked fact, not a failed lookup. Worded
    *  for BOTH cases it covers — the installed build can equal the published
@@ -102,7 +103,8 @@ export const zh: typeof en = {
   chip: "↑ {version}",
   current: "当前",
   latest: "最新",
-  latestUnknown: "未知 —— 请检查网络连接并重新打开更新页",
+  latestUnknown: "未知 —— 无法连接到 registry",
+  registryRetry: "请检查网络，然后关闭并重新打开更新页重试。",
   upToDate: "没有更新的版本 —— 无需安装。",
   releaseUrlUnavailable: "发布链接不可用；请访问 github.com/Sma1lboy/rove/releases",
   statusReleaseOpened: "已在浏览器中打开发布说明页面。",

@@ -107,7 +107,9 @@ export function relaunchSelf(opts: {
   }
   const result = spawnSync(command, args, { stdio: "inherit", env: opts.env ?? process.env })
   if (result.error) {
-    process.stderr.write(`\nrove: could not relaunch (${result.error.message})\n`)
+    process.stderr.write(
+      `\nrove: could not relaunch (${result.error.message}). Start rove again from your shell; run rove doctor if it still fails.\n`,
+    )
     process.exit(1)
   }
   process.exit(result.status ?? 0)
