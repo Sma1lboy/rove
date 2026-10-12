@@ -14,6 +14,8 @@ export type KVContext = {
   signal<T>(name: string, defaultValue: T): readonly [() => T, (next: T) => void]
   get(key: string, defaultValue?: unknown): unknown
   set(key: string, value: unknown): void
+  /** Persists without rebuilding this context; `get` sees it, `store` does not. */
+  setQuiet(key: string, value: unknown): void
   /** Synchronously flush pending state (standalone pages, before exit). */
   flush(): boolean
   /** Wipe every persisted key; false leaves state and pending edits intact. */
@@ -55,6 +57,7 @@ export function KVProvider(props: { children?: ReactNode }) {
       },
       get: core.get,
       set: core.set,
+      setQuiet: core.setQuiet,
       flush: core.flush,
       clear: core.clear,
       onWriteError: core.onWriteError,

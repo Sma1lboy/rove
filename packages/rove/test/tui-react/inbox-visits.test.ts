@@ -17,7 +17,7 @@ function fakeKv(seed: unknown = undefined) {
   let writes = 0
   return {
     get: (key: string) => store.get(key),
-    set: (key: string, value: unknown) => {
+    setQuiet: (key: string, value: unknown) => {
       writes++
       store.set(key, value)
     },

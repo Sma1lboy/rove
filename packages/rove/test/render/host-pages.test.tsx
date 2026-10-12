@@ -162,6 +162,7 @@ function mockKv(): KVContext {
     signal: (name, defaultValue) => [() => defaultValue, () => {}],
     get: () => undefined,
     set: () => {},
+    setQuiet: () => {},
     flush: () => true,
     clear: () => true,
     onWriteError: () => () => {},
