@@ -11,18 +11,22 @@ import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { detectEngineStatuses, probeableEngineIds, summarizeEngines } from "../../engine/engine-status.ts"
+import { engineDisplayName } from "../../engine/interactive-command"
 import { displayWidth, padEndCells } from "../../lib/display-width"
 import { formatChord } from "../../tui/lib/chord-glyphs"
 import { legendCap } from "../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
+import type { VendorId } from "../../types/vendor"
+import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
+import { FirstTaskStart } from "./first-task-start"
 
 export type WelcomeEnv = {
   /** Engines that can actually run a task: installed AND signed in. */
-  readonly engines: readonly string[]
+  readonly engines: readonly VendorId[]
   /** Installed, but the login Rove can read says there is no account. */
-  readonly signedOut: readonly string[]
+  readonly signedOut: readonly VendorId[]
   readonly git: boolean
 }
 
@@ -31,7 +35,7 @@ export type WelcomeEnv = {
  * Binary-only would show `✓` on the likeliest new-user machine (CLIs installed,
  * none logged in) right after the wizard said `✗ No usable engine yet`.
  */
-async function probeWelcomeEnv(): Promise<WelcomeEnv> {
+export async function probeWelcomeEnv(): Promise<WelcomeEnv> {
   const { usable, signedOut } = await probeableEngineIds()
     .then(detectEngineStatuses)
     .then(summarizeEngines)
@@ -57,7 +61,10 @@ function stepLines(): StepLine[] {
   return lines
 }
 
-export function WelcomePane(props: { probe?: () => Promise<WelcomeEnv> }): ReactNode {
+export function WelcomePane(props: {
+  probe?: () => Promise<WelcomeEnv>
+  onQuickTask?: (repo: string, result: QuickTaskResult) => void
+}): ReactNode {
   const { theme } = useTheme()
   const t = useT()
   const [env, setEnv] = useState<WelcomeEnv | null>(null)
@@ -84,9 +91,13 @@ export function WelcomePane(props: { probe?: () => Promise<WelcomeEnv> }): React
     env === null
       ? null
       : env.engines.length > 0
-        ? { key: "enginesFound" as const, fg: theme.textMuted, list: env.engines.join(" · ") }
+        ? { key: "enginesFound" as const, fg: theme.textMuted, list: env.engines.map(engineDisplayName).join(" · ") }
         : env.signedOut.length > 0
-          ? { key: "enginesSignedOut" as const, fg: theme.warning, list: env.signedOut.join(" · ") }
+          ? {
+              key: "enginesSignedOut" as const,
+              fg: theme.warning,
+              list: env.signedOut.map(engineDisplayName).join(" · "),
+            }
           : { key: "enginesMissing" as const, fg: theme.warning, list: "" }
 
   return (
@@ -134,6 +145,7 @@ export function WelcomePane(props: { probe?: () => Promise<WelcomeEnv> }): React
             ) : null}
           </box>
         ) : null}
+        {env && props.onQuickTask ? <FirstTaskStart env={env} onCreate={props.onQuickTask} /> : null}
         <box paddingTop={1}>
           <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none">
             {t("workspace.welcome.docsHint")}

@@ -32,7 +32,7 @@ describe("WelcomePane", () => {
     expect(out).toContain("shows every shortcut")
     expect(out).toContain("Managed tasks create isolated worktrees")
     expect(out.replace(/\s+/g, " ")).toContain("Directory and project tasks reuse existing files")
-    expect(out).toContain("claude · codex")
+    expect(out).toContain("Claude · Codex")
     // Healthy environment → no doctor escalation.
     expect(out).not.toContain("rove doctor")
     expect(out).toContain("docs.rove.run")
@@ -47,7 +47,7 @@ describe("WelcomePane", () => {
     await flushProbe()
     const out = await frame()
     expect(out).toContain("installed but not signed in")
-    expect(out).toContain("claude · codex")
+    expect(out).toContain("Claude · Codex")
     expect(out).not.toContain("✓ engines")
     // Not "install one" — the CLIs are there.
     expect(out).not.toContain("no engine CLI found")

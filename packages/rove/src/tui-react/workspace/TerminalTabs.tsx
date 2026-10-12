@@ -62,6 +62,7 @@ import { PreviewScreen } from "../ops/preview"
 import { useDialog } from "../ui/dialog"
 import { TerminalSplit } from "./TerminalSplit"
 import { noteEngineTabInput } from "./optimistic-activity"
+import { showSharedFilesHint } from "./shared-files-hint"
 import { TabStrip } from "./tab-strip"
 import { terminalTabsKey } from "./terminal-tabs-persist"
 import { engineScratchTasks, reportTabsDelta, setTaskTabs, tabsByTask } from "./terminal-tabs-shared"
@@ -332,6 +333,12 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       "chat.tab.new": () => {
         const preferred = preferredTabVendor()
         update(pinSession(addTab(state, preferred), preferred))
+        showSharedFilesHint(
+          kv,
+          (title, body) =>
+            notif.notify({ kind: "done", silent: true, taskId: props.taskId, tabId: active.id, title, body }),
+          t,
+        )
       },
       // One dialog: prefix c/f open it with continue/fork pre-flipped.
       "chat.tab.chooseEngine": () => requestNewChat(),
