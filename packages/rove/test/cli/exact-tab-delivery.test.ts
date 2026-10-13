@@ -172,7 +172,7 @@ describe("deliverToExactTab", () => {
     ).rejects.toMatchObject({
       code: "ENGINE_LIMIT",
       data: {
-        nextCommandArgs: ["api", "send", "--task-id", "t1", "--tab", "tab-2", "--respawn", "--prompt", "go"],
+        nextCommandArgs: ["api", "send", "--task-id", "t1", "--tab", "tab-2", "--respawn", "--plain", "--prompt", "go"],
       },
     })
     expect(calls).not.toContain("pty.openChecked")

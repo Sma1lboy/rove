@@ -71,7 +71,7 @@ export async function deliverToExactTab(
           maxLiveEngines: opts.maxLiveEngines,
           snapshot: opts.snapshot,
           taskId,
-          retryArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--respawn", "--prompt", prompt],
+          retryArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--respawn", "--plain", "--prompt", prompt],
         },
       )
       if (open.respawned !== true && open.alive !== true) {
@@ -164,7 +164,7 @@ function restoredTabError(taskId: string, tabId: string, prompt: string): ApiErr
       taskId,
       tabId,
       hint: "revive it with --respawn (resumes the tab's pinned conversation when it has one — `get-task` shows `sessionId`; a tab without one replays its recorded launch command)",
-      nextCommandArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--respawn", "--prompt", prompt],
+      nextCommandArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--respawn", "--plain", "--prompt", prompt],
     },
   )
 }
