@@ -67,4 +67,15 @@ final class GateTests: XCTestCase {
         XCTAssertFalse(try decode(#"{"delivered":false}"#))
         XCTAssertFalse(try decode("{}"))
     }
+
+    func testAnUnreportedTickIsClearedOnlyByAnExplicitDismiss() throws {
+        func item(_ state: String, gate: String? = nil) throws -> AttentionItem {
+            let extra = gate.map { #","gateId":"\#($0)""# } ?? ""
+            return try JSONDecoder().decode(AttentionItem.self, from: Data(#"{"taskId":"T1","tabId":"tab-1","state":"\#(state)","unread":true,"at":1\#(extra)}"#.utf8))
+        }
+        XCTAssertFalse(InboxLogic.clearsOnVisit(try item("report_missing")))
+        XCTAssertFalse(InboxLogic.clearsOnVisit(try item("decision_needed", gate: "g-1")))
+        XCTAssertTrue(InboxLogic.clearsOnVisit(try item("turn_complete")))
+        XCTAssertTrue(InboxLogic.clearsOnVisit(try item("error")))
+    }
 }

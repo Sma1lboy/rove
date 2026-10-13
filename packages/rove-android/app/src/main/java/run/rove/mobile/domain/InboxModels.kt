@@ -20,6 +20,9 @@ object InboxLogic {
     /** Stopped until a person acts: everything except a plain finished turn. */
     fun isBlocking(item: Attention) = item.state != "turn_complete"
 
+    /** Opening or visiting clears an episode, except a decision (answered) and an unreported tick (only a late report or the explicit dismiss clears it). */
+    fun clearsOnVisit(item: Attention) = item.gateId == null && item.state != "report_missing"
+
     /** One episode per tab, the fresh one replacing the stale; a delivery episode is keyed by its delivery, a decision by its gate. */
     fun key(item: Attention): String {
         if (item.gateId != null) return "gate\u0000${item.gateId}"

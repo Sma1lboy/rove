@@ -15,6 +15,10 @@ enum InboxLogic {
     /// Stopped until a person acts: everything except a plain finished turn.
     static func isBlocking(_ item: AttentionItem) -> Bool { item.state != "turn_complete" }
 
+    /// Opening or visiting clears an episode, except a decision (answered) and an unreported tick (only a
+    /// late report or the explicit dismiss clears it).
+    static func clearsOnVisit(_ item: AttentionItem) -> Bool { item.gateId == nil && item.state != "report_missing" }
+
     /// One episode per tab, the fresh one replacing the stale (same key as `attentionInboxItemKey`);
     /// a delivery episode is keyed by its delivery, a decision by its gate.
     static func key(_ item: AttentionItem) -> String {
