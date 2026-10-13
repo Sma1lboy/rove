@@ -1036,6 +1036,12 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   the task card's report summary, so no second `update --report-summary` is
   needed. Daemon RPCs behind this: `delivery.arm`, `delivery.settle`,
   `delivery.report`, `delivery.list`, `task.requireReport`.
+- `attention-dismiss --delivery ID`: dismiss the `report_missing` Inbox row of
+  a delivery. `ID` is the `d-<n>` from the row. This is the explicit way to
+  accept an unreported tick: opening or visiting the row does not clear it,
+  because the verdict keeps blocking the next tick until a late `report` or
+  this dismiss. An unknown id is `DELIVERY_NOT_FOUND`. Daemon RPC:
+  `attention.dismiss` with `deliveryId`.
 
 ## edit
 

@@ -120,31 +120,32 @@ needs numbers, not when you want to know what a task is doing.
 
 <!-- generated:begin drive -->
 ```text
-send           --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
-               --allow-empty --expect-report --if-runnable
-dispatch       --task-id(REQ) --prompt|--prompt-file(REQ) --tab
-interrupt      --task-id(REQ) --tab
-note           --task-id(REQ) --text(REQ)
-note-list      --repo(REQ)
-note-delete    --repo(REQ) --id(REQ)
-pane-open      --task-id --tab --command --direction{right|down}(right)
-               --placement{split|tab}(split) --title
-pane-close     --task-id --title(REQ) --tab
-pane-graphics  --task-id --tab(REQ) --image-id
-tab-close      --task-id(REQ) --tab(REQ)
-notify         --title(REQ) --body --kind(done) --task-id --source
-prompt         --title(REQ) --placeholder --initial --timeout
-engine-report  --task-id
-               --kind{session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end|tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop}(REQ)
-               --engine --tab --detail
-row-token      --task-id(REQ) --text --ttl(60) --key(default)
-               --tone{info|success|warning|error|muted} --clear
-set-active     --task-id --none
-report         --delivery --outcome{done|partial|blocked|failed} --summary --evidence
-               --next --json
-gate-raise     --task-id(REQ) --tab --question(REQ) --option --recommend --context
-gate-answer    --gate(REQ) --option --text
-gate-withdraw  --gate(REQ)
+send               --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
+                   --allow-empty --expect-report --if-runnable
+dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
+interrupt          --task-id(REQ) --tab
+note               --task-id(REQ) --text(REQ)
+note-list          --repo(REQ)
+note-delete        --repo(REQ) --id(REQ)
+pane-open          --task-id --tab --command --direction{right|down}(right)
+                   --placement{split|tab}(split) --title
+pane-close         --task-id --title(REQ) --tab
+pane-graphics      --task-id --tab(REQ) --image-id
+tab-close          --task-id(REQ) --tab(REQ)
+notify             --title(REQ) --body --kind(done) --task-id --source
+prompt             --title(REQ) --placeholder --initial --timeout
+engine-report      --task-id
+                   --kind{session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end|tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop}(REQ)
+                   --engine --tab --detail
+row-token          --task-id(REQ) --text --ttl(60) --key(default)
+                   --tone{info|success|warning|error|muted} --clear
+set-active         --task-id --none
+report             --delivery --outcome{done|partial|blocked|failed} --summary --evidence
+                   --next --json
+attention-dismiss  --delivery(REQ)
+gate-raise         --task-id(REQ) --tab --question(REQ) --option --recommend --context
+gate-answer        --gate(REQ) --option --text
+gate-withdraw      --gate(REQ)
 ```
 <!-- generated:end -->
 
