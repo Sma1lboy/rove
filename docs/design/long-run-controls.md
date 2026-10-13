@@ -1,11 +1,14 @@
 # Long-run controls — reports, should-run, decision gates
 
-> Status: layer 1 (hard reports: deliveries, `report`, `deliveries`,
-> `send --expect-report`, `Task.requireReport`, `report_missing`) is
-> implemented; should-run and decision gates (layers 2 and 3) are still
-> proposed. Three daemon-owned controls for tasks that run unattended
-> (routines, standing sessions, and external schedulers that tick a task via
-> `rove api send`). The owner decided the open questions at the bottom.
+> Status: layers 1 and 2 (hard reports: deliveries, `report`, `deliveries`,
+> `send --expect-report`, `Task.requireReport`, `report_missing`; and
+> should-run: `should-run`, `send --if-runnable`, routine `skipped_blocked`,
+> quota-resume consult, `runnability` on `get-task`/`collect`) are
+> implemented, and so are the daemon, CLI and TUI halves of decision gates
+> (layer 3); gates on the bridges are not. Three daemon-owned controls for
+> tasks that run unattended (routines, standing sessions, and external
+> schedulers that tick a task via `rove api send`). The owner decided the
+> open questions at the bottom.
 
 ## Problem
 
@@ -444,3 +447,47 @@ owner:
   Known limitations: an app that predates the layer shows an error banner when
   a decision row is tapped (Android), and the iOS answer sheet is presented from
   the root, so it waits for any child sheet to close.
+
+## Deviations in layer 2
+
+- **`send --if-runnable` is atomic for the check and the claim, not for the
+  paste.** The paste is made by the calling CLI process (it needs the pty
+  host and the per-tab delivery lockfile), so no daemon-side critical section
+  can span it. Instead `send.admit` evaluates the verdict, claims the tab and
+  arms the delivery with no `await` between the verdict and the claim; the
+  claim reads as `busy` to every other should-run until `send.release` or a
+  90-second expiry (a CLI that died between the two). An unarmed paste keeps
+  the claim 15 more seconds so the engine's own `turn-start` can land; an
+  armed one needs no grace, its awaiting delivery already says `busy`. The
+  guarantee is "no two `--if-runnable` ticks both pass", not "no plain
+  `send` can interleave".
+- **Dismissal is recorded on the delivery** (`dismissedAt`, set by
+  `attention.dismiss` even when the Inbox row was already gone), so the
+  verdict reads one record instead of inferring from a missing Inbox row.
+  Opening a `report_missing` row from the TUI dismisses it, so it unblocks
+  the task as well.
+- **Skipped ticks never count as the tab's "newest delivery".** A refused
+  tick must not clear `report-missing` or look like a prior delivery to
+  `busy`. Repeats of the same refusal on the same tab fold into one
+  `skipped` row (`repeats`), so a once-a-minute ticker cannot push the real
+  reports out of the 50-row retention.
+- **Billing rides the `rate_limited` badge** (`reduceActivity`), but it needs
+  a human, so it is `engine-error`, not `quota`. A `quota` block also ends at
+  `until` while the sticky badge is still up: past its reset the badge is
+  stale and the tick runs.
+- **`send` without `--tab` does not treat a dead engine as a skip**
+  (`send` revives it, as the routine runner does for a standing session);
+  `engine-dead` blocks an exact `--tab tab-N` that was not given
+  `--respawn`. `--tab new` is judged on gates and unreported ticks only; the
+  other tabs' activity is not its concern.
+- **Fresh-task routine targets check only a cached quota snapshot.** The
+  daemon never fetches vendor usage on the firing path; with no snapshot (or
+  an engine with no quota probe) the check is skipped.
+- **A manual `routine-run-now` bypasses should-run**, like the precheck.
+- **quota-resume drops, not defers.** A due resume that should-run refuses
+  for any reason but the quota itself clears its schedule and logs the
+  reason; nothing waits to type into the task later (#959).
+- **`dispatch` and `add --count` do not take `--if-runnable`.** `dispatch`
+  is an agent-to-agent reply routed through `session.deliver` to whichever
+  front end hosts the session, not the `send` path, and a fan-out creates
+  fresh tasks with no prior state to judge.

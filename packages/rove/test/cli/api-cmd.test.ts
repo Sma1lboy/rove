@@ -155,6 +155,7 @@ describe("API surface (full CRUD)", () => {
       "read-output",
       "watch",
       "deliveries",
+      "should-run",
       "add",
       "send",
       "dispatch",

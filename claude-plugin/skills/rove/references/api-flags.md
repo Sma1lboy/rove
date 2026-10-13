@@ -82,6 +82,7 @@ inspect      --task-id
 read-output  --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
 watch        --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
 deliveries   --task-id(REQ) --limit
+should-run   --task-id(REQ) --tab
 gates        --repo --task-id --status{open|answered|withdrawn|all}(open)
 ```
 <!-- generated:end -->
@@ -120,7 +121,7 @@ needs numbers, not when you want to know what a task is doing.
 <!-- generated:begin drive -->
 ```text
 send           --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
-               --allow-empty --expect-report
+               --allow-empty --expect-report --if-runnable
 dispatch       --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 interrupt      --task-id(REQ) --tab
 note           --task-id(REQ) --text(REQ)
@@ -174,6 +175,15 @@ last step, before you stop. A turn that ends without it raises a
 `report_missing` Inbox row for the owner. Reporting again replaces the
 report; a late one clears the flag. `outcome` is `blocked` when you need the
 owner, `failed` when you tried and could not. Summary max 32,000 characters.
+
+**`send --if-runnable` skips a tick the task can't use.** The daemon checks
+`should-run`, claims the tab and arms the delivery in one step, so two ticks
+arriving together cannot both pass. A refusal pastes nothing and replies
+`{skipped: {run:false, reason, detail?, until?, gateIds?}}` with exit 3
+(a `skipped` delivery is recorded when the send would have owed a report).
+`reason` is `awaiting-owner`, `report-missing`, `quota`, `engine-error`,
+`engine-dead`, `awaiting-permission` or `busy`; `should-run` asks the same
+question without sending. A skip is dropped, never queued.
 
 `notify --kind` styles the toast: `done`, `needs_input`, `error` get severity
 treatment and an unread mark, anything else renders neutrally.

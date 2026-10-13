@@ -17,7 +17,9 @@ import {
   type DeliverySource,
   MAX_DELIVERIES_PER_TASK,
 } from "./delivery-contracts.ts"
+import { InflightClaims } from "./inflight-claims.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
+import { type SkipVerdict, parseSkipVerdict } from "./runnability-contracts.ts"
 
 interface DeliveriesFile {
   readonly version: 1
@@ -78,6 +80,7 @@ function normalizeDelivery(value: unknown): Delivery | null {
   if (!id || !/^d-\d+$/.test(id) || !taskId || !at) return null
   if (!SOURCES.includes(raw.source as string) || !STATUSES.includes(raw.status as string)) return null
   const report = normalizeReport(raw.report)
+  const skipped = parseSkipVerdict(raw.skipped)
   const missingAt = str(raw.missing?.at)
   const missing =
     raw.missing && CAUSES.includes(raw.missing.cause) && missingAt
@@ -100,6 +103,9 @@ function normalizeDelivery(value: unknown): Delivery | null {
     ...(str(raw.turnStartedAt) ? { turnStartedAt: raw.turnStartedAt } : {}),
     ...(missing ? { missing } : {}),
     ...(report ? { report } : {}),
+    ...(str(raw.dismissedAt) ? { dismissedAt: raw.dismissedAt } : {}),
+    ...(skipped ? { skipped } : {}),
+    ...(typeof raw.repeats === "number" && raw.repeats > 1 ? { repeats: raw.repeats } : {}),
   }
 }
 
@@ -150,6 +156,8 @@ export class DeliveriesStore {
   private nextId = 1
   /** False until one read SUCCEEDED; {@link commit} refuses to write before that. */
   private loaded = false
+  /** Admitted-but-unpasted `send --if-runnable` prompts; in memory, read by should-run as busy. */
+  readonly claims = new InflightClaims(() => this.now())
 
   constructor(
     private readonly path: string,
@@ -230,6 +238,47 @@ export class DeliveriesStore {
   /** The tab the prompt actually landed in. */
   async setTab(id: string, tabId: string): Promise<Delivery | undefined> {
     return await this.patch(id, (d) => (d.tabId === tabId ? d : { ...d, tabId }))
+  }
+
+  /**
+   * Record a tick should-run refused. A repeat of the task's newest skip (same
+   * tab, same reason) bumps that row instead of adding one, so a ticker that
+   * keeps getting refused cannot push the real reports out of retention.
+   */
+  async recordSkipped(input: {
+    readonly taskId: string
+    readonly tabId: string | null
+    readonly source: DeliverySource
+    readonly promptHead: string
+    readonly skipped: SkipVerdict
+  }): Promise<Delivery> {
+    return await this.mutate((list, nextId) => {
+      const at = new Date(this.now()).toISOString()
+      const last = list.filter((d) => d.taskId === input.taskId).sort(compareNewestFirst)[0]
+      if (last?.status === "skipped" && last.tabId === input.tabId && last.skipped?.reason === input.skipped.reason) {
+        const repeated: Delivery = { ...last, at, skipped: input.skipped, repeats: (last.repeats ?? 1) + 1 }
+        return { list: list.map((d) => (d === last ? repeated : d)), result: repeated }
+      }
+      const delivery: Delivery = {
+        id: `d-${nextId}`,
+        taskId: input.taskId,
+        tabId: input.tabId,
+        source: input.source,
+        promptHead: input.promptHead.slice(0, DELIVERY_PROMPT_HEAD_CHARS),
+        at,
+        status: "skipped",
+        skipped: input.skipped,
+      }
+      return { list: [...list, delivery], result: delivery, nextId: nextId + 1 }
+    })
+  }
+
+  /** The owner dismissed a `missing` delivery's Inbox row: it stops blocking should-run. Idempotent. */
+  async dismiss(id: string): Promise<Delivery | undefined> {
+    const current = this.get(id)
+    if (current?.status !== "missing" || current.dismissedAt) return current
+    const dismissedAt = new Date(this.now()).toISOString()
+    return await this.patch(id, (d) => ({ ...d, dismissedAt }))
   }
 
   /** A `turn-start` on the tab begins the oldest delivery whose turn has not started. */

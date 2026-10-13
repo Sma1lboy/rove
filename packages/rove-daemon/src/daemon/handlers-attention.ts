@@ -26,6 +26,8 @@ export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
       const deleted = deliveryId
         ? await ctx.inbox.deleteDeliveryEpisode(deliveryId)
         : await ctx.inbox.deleteEpisode(taskId, tabId, at)
+      // Recorded even when the row was already gone: the verdict reads the delivery, not the Inbox.
+      if (deliveryId) await ctx.deliveries.dismiss(deliveryId)
       if (deleted) {
         ctx.plugins?.handleUiReport({
           kind: "attention.handled",

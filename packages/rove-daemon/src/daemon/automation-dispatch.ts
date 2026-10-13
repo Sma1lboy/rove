@@ -23,6 +23,7 @@ import { assertAutomationTargetTask, automationTarget } from "./automation-targe
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 import { type GateLedger, carryOwedGateAnswers } from "./gate-handoff.ts"
+import type { RunnabilityVerdict, SkipReason, SkipVerdict } from "./runnability-contracts.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** The orchestrator slice a firing needs. */
@@ -33,6 +34,17 @@ export type DispatchRuntime = Pick<
   "startTaskSessionWithPrompt" | "deliverPromptToLiveEngineDetailed" | "deliverPromptToLiveEngineTabDetailed"
 >
 
+/** Should-run, as a firing sees it. Absent for a manual run, which bypasses it like the precheck. */
+export interface DispatchRunnability {
+  check(taskId: string, tabId: string | null, ignore?: readonly SkipReason[]): RunnabilityVerdict
+  /**
+   * Vendor quota for a firing that creates a task, from the cached usage
+   * snapshot only (no fetch): an unknown quota is no reason to skip. A fresh
+   * task has no other prior state.
+   */
+  freshQuota(vendor: string | undefined): SkipVerdict | undefined
+}
+
 export interface DispatchDeps {
   readonly orch: DispatchOrchestrator
   readonly runtime: DispatchRuntime
@@ -42,6 +54,7 @@ export interface DispatchDeps {
   readonly canDeliver?: () => boolean
   /** Answered decision gates owed to the target tab ride the prompt (design § 3). */
   readonly gates?: GateLedger
+  readonly runnability?: DispatchRunnability
 }
 
 /** `taskId` survives failure too: the task may exist without an engine, and the run record is the only place a human finds it. */
@@ -54,6 +67,8 @@ export interface DispatchOutcome {
   readonly sessionTaskIdToClear?: boolean
   /** Set on the firing that established a standing session. */
   readonly sessionTaskIdToSet?: string
+  /** Set with `skipped_blocked`. */
+  readonly blocked?: SkipVerdict
 }
 
 /**
@@ -70,6 +85,17 @@ export function resolveStandingTask(
   const task = orch.getTask(id)
   if (!task || task.deletion || !task.worktreePath) return { task: null, hadStaleLink: true }
   return { task }
+}
+
+/** The `skipped_blocked` outcome for a refusing verdict; undefined when the firing may go ahead. */
+function blockedOutcome(
+  verdict: RunnabilityVerdict | SkipVerdict | undefined,
+  where: { taskId?: string; tabId?: string },
+): DispatchOutcome | undefined {
+  if (!verdict || verdict.run) return undefined
+  // `error` is the text the Routines row prints beside the status.
+  const error = `${verdict.reason}${verdict.detail ? `: ${verdict.detail}` : ""}${verdict.until ? ` (until ${verdict.until})` : ""}`
+  return { status: "skipped_blocked", ...where, blocked: verdict, error }
 }
 
 /** Create the task a firing runs in, marked as the routine's when standing. */
@@ -141,6 +167,11 @@ export async function dispatchAutomation(
     if (!currentTask || currentTask.deletion || !currentTask.worktreePath) {
       return { status: "skipped_unavailable", taskId: task.id, tabId: target.tabId, error: "target task unavailable" }
     }
+    const blocked = blockedOutcome(deps.runnability?.check(task.id, target.tabId), {
+      taskId: task.id,
+      tabId: target.tabId,
+    })
+    if (blocked) return blocked
     const text = await resolvePrompt(prompt, { taskId: task.id, tabId: target.tabId })
     const owed = carryOwedGateAnswers(deps.gates, task.id, target.tabId, text)
     const result = await deps.runtime.deliverPromptToLiveEngineTabDetailed(
@@ -151,6 +182,8 @@ export async function dispatchAutomation(
     return await liveDeliveryOutcome(deps, automation, task.id, result)
   }
   if (target.kind === "fresh") {
+    const quota = blockedOutcome(deps.runnability?.freshQuota(automation.vendor), {})
+    if (quota) return quota
     const task = await createRunTask(deps, automation)
     // A fresh task's first engine tab is always tab-1.
     return await spawnWithPrompt(
@@ -163,6 +196,8 @@ export async function dispatchAutomation(
 
   const standing = resolveStandingTask(deps.orch, automation)
   if (standing.task === null) {
+    const quota = blockedOutcome(deps.runnability?.freshQuota(automation.vendor), {})
+    if (quota) return quota
     // Build and remember a session, clearing any stale link.
     const task = await createRunTask(deps, automation)
     const outcome = await spawnWithPrompt(
@@ -181,6 +216,9 @@ export async function dispatchAutomation(
   }
 
   const task = standing.task
+  // `engine-dead` is not a skip here: the revive path below respawns it.
+  const blocked = blockedOutcome(deps.runnability?.check(task.id, null, ["engine-dead"]), { taskId: task.id })
+  if (blocked) return blocked
   // Built once: the live attempt and the respawn below carry the same delivery.
   const text = await resolvePrompt(prompt, { taskId: task.id, tabId: null })
   const owed = carryOwedGateAnswers(deps.gates, task.id, null, text)

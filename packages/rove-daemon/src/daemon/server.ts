@@ -37,6 +37,7 @@ import { PromptBroker } from "./prompt-broker.ts"
 import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, serializeTask } from "./protocol.ts"
 import { startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
+import { createDispatchRunnability } from "./runnability.ts"
 import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
 import { DaemonResources } from "./server-resources.ts"
 import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.ts"
@@ -135,6 +136,11 @@ async function startOwnedServer(
   const stores = await initDaemonStores(orch, runtime, bus, options.homeDir)
   const { activity, deletions, rowTokens, automations, deliveries, quotaUsage, inbox, gates } = stores
   const deliveryDeps: DeliveryDeps = { deliveries, inbox, orch, automations }
+  const runnability = createDispatchRunnability(
+    { orch, activity, gates, deliveries },
+    quotaUsage,
+    runtime.defaultTaskVendor,
+  )
   resources.defer(() => activity.close())
   resources.defer(() => rowTokens.close())
   resources.defer(() => deletions.drain())
@@ -252,6 +258,7 @@ async function startOwnedServer(
       plugins: () => pluginHost,
       inbox,
       gates,
+      runnability,
     },
     activity,
     inbox,

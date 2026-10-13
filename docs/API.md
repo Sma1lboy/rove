@@ -116,10 +116,12 @@ rove api land --task-id a              # merge the winning branch
 - Exit codes: `0` success · `1` handler/RPC failure · `2` usage errors
   (unknown verb, bad/missing flag, unreachable daemon — wherever they are
   raised, including a handler rejecting its own argument) · `3` a parallel
-  round that did not fully succeed. Exit 3 does **not** promise anything was
-  created: `--count 1` takes the same path, so a lone failure returns
-  `count: 0` with an empty `tasks`. The full payload still goes to stdout, so
-  whatever *was* created is never lost.
+  round that did not fully succeed, **or** a tick `should-run` /
+  `send --if-runnable` refused (the verdict is on stdout). Exit 3 on a
+  parallel round does **not** promise anything was created: `--count 1`
+  takes the same path, so a lone failure returns `count: 0` with an empty
+  `tasks`. The full payload still goes to stdout, so whatever *was* created
+  is never lost.
 - `rove api <verb> --help` prints that verb's usage and exits 0.
 
 ### Codes the CLI itself raises
@@ -173,6 +175,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. |
 | `TIER_UNAVAILABLE` | Auto routing is not configured, or the tier's target cannot start (engine not listed, not logged in, model/effort its engine cannot carry). |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
+| `SKIPPED` | `should-run` or `send --if-runnable` refused the tick (exit 3). The verdict is the stdout payload, not an error envelope. |
 | `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted. |
 | `WATCH_TIMEOUT` | `watch` reached `--timeout` before any `--until` state; nothing has happened YET. |
 | `DAEMON_GONE` | The daemon died mid-`watch`; the verb never reconnects silently. |
@@ -286,11 +289,14 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   `unknown`. This is Rove's CI truth for the branch, and `passing` is what
   "CI is green" means; a local test run is a different claim. Absent until
   the poller has seen a PR for the branch.
+  `runnability` is the `should-run` verdict for the whole task, so a
+  dashboard shows the answer a scheduler would act on.
 - `collect [--task-ids a,b,c] [--group GROUPID] [--repo PATH]`: read-only
   health snapshot of a parallel round — the one read that answers "what is
   this round's status right now" without fanning out to `get-task` per task.
   Select the tasks by fan-out round (`--group`, the `groupId` that
   `add --count` returns), by repo, or by explicit ids.
+  Each task also carries `runnability` (the `should-run` verdict).
 
   With `--repo`, a repo path that no longer resolves to a readable git
   repository is reported, never filtered away: the target failing to resolve
@@ -566,6 +572,29 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   does not clear it. A late `report` or dismissing the row clears it. A loop prompt can read
   `deliveries --limit 5` instead of a growing notes file.
 
+- `should-run --task-id ID [--tab TAB]`: would a tick sent to this task be
+  used? Prints `{ run: true }` and exits `0`, or `{ run: false, reason,
+  detail?, until?, gateIds? }` and exits `3` (the verdict is on stdout in
+  both cases). The first matching `reason` wins, in this order:
+  `task-missing`; `awaiting-owner` (an open gate; `gateIds`); `report-missing`
+  (the tab's newest delivery ended unreported and its Inbox row is neither
+  dismissed nor answered by a late `report`; skipped ticks do not count);
+  `quota` (`rate_limited`; `until` is the reset time quota-resume armed and
+  the block clears itself there, with no `until` it lasts until the engine's
+  next turn); `engine-error` (a sticky `error`, billing and auth included);
+  `engine-dead` (an exact `--tab` whose engine exited); `awaiting-permission`;
+  `busy` (a turn is running, the newest delivery still awaits its report, or
+  a `send --if-runnable` is mid-paste). A task whose only gate is answered
+  but undelivered is runnable: the next tick carries the answer. Without
+  `--tab` the whole task is judged (any running tab is busy) and a dead
+  engine is not a skip, since `send` revives it; `--tab new` judges only
+  task-level state. Reasons that need a person clear when they act:
+  answering or withdrawing the gate, a late `report` or dismissing the
+  `report_missing` row (TUI, bridge or weixin), the engine's next
+  `turn-start`. The daemon's routine runner and the quota-resume timer ask the
+  same question. `get-task` and `collect` carry the same verdict as
+  `runnability`.
+
 ## create
 
 - `add --repo PATH [--title T] [--branch B] [--base-branch B]
@@ -692,7 +721,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 ## drive
 
 - `send [--task-id ID] (--prompt TEXT | --prompt-file PATH) [--tab TAB]
-  [--command CMD] [--plain] [--allow-empty] [--expect-report]`: paste a
+  [--command CMD] [--plain] [--allow-empty] [--expect-report] [--if-runnable]`: paste a
   follow-up into a task's running engine (one full turn). `--prompt-file`
   reads the text from a file (`-` = stdin) so the shell never sees it:
   backticks inside a double-quoted `--prompt` are command substitution, and
@@ -750,6 +779,21 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `deliveries`). A task with `requireReport` arms every `send` without the
   flag. A send whose paste fails drops its delivery, so a refused send
   leaves nothing awaiting.
+
+  **`--if-runnable` sends only when `should-run` says the task can use the
+  tick.** The daemon evaluates the verdict, claims the tab and (when the send
+  owes a report) arms the delivery in one step, so two ticks arriving
+  together cannot both pass; the paste itself still happens in the calling
+  process, and the claim holds the tab `busy` until it lands (or 90 seconds,
+  for a caller that died). On a skip nothing is pasted and the reply is
+  `{ taskId, skipped: { run: false, reason, detail?, until?, gateIds? } }`
+  with exit `3`; when the send would have armed a delivery it carries
+  `deliveryId` of a `skipped` delivery (`deliveries` lists it). Repeats of
+  the same refusal fold into one row (`repeats`). A skip is dropped, never
+  held for later. `dispatch` and `add --count` do not take the flag:
+  `dispatch` is an agent-to-agent reply into a live session, and a fan-out
+  creates fresh tasks, which have no prior state to judge. `send --tab new`
+  is judged on task-level state only (gates, unreported deliveries).
 
   **`engine.maxLiveSessions` caps new sessions.** When that setting is a
   positive number, a call that would START an engine session (`add` with a
@@ -1136,7 +1180,7 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   `missing`), and `response: { text, at }` once the agent reported; both are
   read from the linked delivery. Runs from before deliveries existed keep
   the response they stored. `revived` describes a
-  respawned standing session; `skipped_cancelled` means disabled, changed or stopped before delivery. Bound deliveries include `taskId`/`tabId`. An unknown id is an error
+  respawned standing session; `skipped_cancelled` means disabled, changed or stopped before delivery; `skipped_blocked` means should-run refused the tick (`blocked` is the verdict, see `should-run`; the cause is already in the Inbox and `routine-run-now` bypasses it). Bound deliveries include `taskId`/`tabId`. An unknown id is an error
   (`automation not found`), not an empty history.
 - `routine-delete --id ID`: delete it and its history (tasks it already
   created are untouched). Idempotent: deleting an id that is already gone

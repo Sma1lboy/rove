@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 60 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 61 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -273,7 +273,7 @@ turn either. These five carry almost all traffic:
 
 ```text
 add      --repo(REQ) --prompt --title --command --count --agents --activate
-send     --prompt|--prompt-file(REQ) --task-id --tab --command --plain --expect-report
+send     --prompt|--prompt-file(REQ) --task-id --tab --command --plain --expect-report --if-runnable
 get-task --task-id(REQ)          list  (no flags)
 collect  --group <groupId> | --task-ids <csv> | --repo
 ```
@@ -294,7 +294,7 @@ Find your section by what you were ASKED, not by Rove's noun for it:
 | track work in Rove's own backlog, move a kanban card | issues |
 | remember this for the repo, leave a field note / 记一笔 | drive |
 | what did the agent do, per-turn cost, read its screen | read |
-| a prompt ends `[ROVE] … report with: rove api report`; tick a task unattended and want proof it reported | drive (`report`, `send --expect-report`) / read (`deliveries`) |
+| a prompt ends `[ROVE] … report with: rove api report`; tick a task unattended and want proof it reported, or skip a tick the task can't use | drive (`report`, `send --expect-report`, `send --if-runnable`) / read (`deliveries`, `should-run`) |
 | make / rename / retarget / land / close a task | create / edit / lifecycle |
 | materialize or adopt a checkout | worktree |
 | which engines exist, send Rove product feedback | discover / feedback |
@@ -656,6 +656,17 @@ task is armed. Read what recent ticks did with `rove api deliveries
 or why it went missing) instead of a growing notes file. Silence still never
 proves a worker is dead — `missing` says the turn ended or the engine died
 without a report; look before you act on it.
+
+**Don't tick a task that can't use it.** `rove api should-run --task-id <id>`
+prints `{run:true}` (exit 0) or `{run:false, reason, detail?, until?,
+gateIds?}` (exit 3, verdict still on stdout). `reason`, first match wins:
+`awaiting-owner` (an open gate), `report-missing` (the last tick ended
+unreported), `quota` (clears itself at `until`), `engine-error`,
+`engine-dead`, `awaiting-permission`, `busy`. Check and send in one step with
+`rove api send --if-runnable --expect-report --task-id <id> --prompt "…"`:
+a refused tick pastes nothing, replies `{skipped: {…}}` with exit 3 and is
+recorded as a `skipped` delivery. Drop the tick; never queue it for later.
+`get-task` and `collect` carry the same verdict as `runnability`.
 
 ### A task is finished when it is GONE
 

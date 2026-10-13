@@ -113,6 +113,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
       awaitingFor: () => undefined,
       awaitingOn: () => [],
       noteTurnStart: () => Promise.resolve(),
+      dismiss: () => Promise.resolve(undefined),
     } as unknown as DeliveriesStore,
     // Gate behavior has its own suite (gates.test.ts, real store); this keeps task.delete's withdraw call alive.
     gates: { withdrawTask: () => Promise.resolve() } as unknown as GatesStore,

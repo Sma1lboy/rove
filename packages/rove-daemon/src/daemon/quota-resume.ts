@@ -11,6 +11,7 @@
 
 import type { PluginHost } from "../plugins/runtime.ts"
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
+import type { DispatchRunnability } from "./automation-dispatch.ts"
 import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
@@ -90,14 +91,29 @@ export async function scheduleQuotaResume(
 
 /**
  * Cleared BEFORE delivery so an overlapping tick can't double-type. A failed
- * delivery is logged and dropped; a later limit hit re-arms.
+ * delivery is logged and dropped; a later limit hit re-arms. A task that
+ * should-run refuses for any reason but the quota itself (awaiting the owner,
+ * report missing, engine error, already running) is not resumed: the schedule
+ * is dropped, not held, so nothing is typed into it later.
  */
 async function resumeDueTask(
   orch: DaemonOrchestrator,
   runtime: DaemonRuntimeAdapter,
   task: DaemonTask,
   plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
+  runnability?: DispatchRunnability,
 ): Promise<void> {
+  const verdict = runnability?.check(task.id, null, ["quota"])
+  if (verdict && !verdict.run) {
+    await orch.setQuotaResume(task.id, null)
+    logDaemonInfo("quota-resume", `declined task=${task.id} reason=${verdict.reason}`)
+    plugins?.()?.handleUiReport({
+      kind: "quota.resumed",
+      taskId: task.id,
+      detail: { delivered: false, declined: verdict.reason },
+    })
+    return
+  }
   await orch.setQuotaResume(task.id, null)
   const delivered = await runtime.deliverPromptToLiveEngine(
     { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
@@ -114,6 +130,7 @@ export function startQuotaResumeRunner(
   tickMs: number = DEFAULT_QUOTA_RESUME_TICK_MS,
   now: () => number = Date.now,
   plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
+  runnability?: DispatchRunnability,
 ): ReturnType<typeof startTicker> {
   // Ungated on purpose. `startTicker` must treat `tickMs <= 0` as disabled:
   // `collectors.ts` passes 0 through `??`, which would be a ~1000 Hz sweep.
@@ -122,7 +139,9 @@ export function startQuotaResumeRunner(
     tickMs,
     run: async () => {
       for (const task of dueQuotaResumes(orch.listTasks(), now())) {
-        await resumeDueTask(orch, runtime, task, plugins).catch((err) => logDaemonError("quota-resume", err))
+        await resumeDueTask(orch, runtime, task, plugins, runnability).catch((err) =>
+          logDaemonError("quota-resume", err),
+        )
       }
     },
   })

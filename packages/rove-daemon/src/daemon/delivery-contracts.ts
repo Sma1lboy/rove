@@ -1,6 +1,8 @@
 /** Deliveries: a prompt handed to an engine tab WITH an expectation of a
  *  structured `rove api report`. Re-exported from `contracts.ts`. */
 
+import type { SkipVerdict } from "./runnability-contracts.ts"
+
 export type DeliverySource = "routine" | "send" | "gate-answer"
 
 /** `skipped` is written only by the should-run layer. */
@@ -51,6 +53,12 @@ export interface Delivery {
   /** Why the expectation failed; set with status `missing`. */
   readonly missing?: { readonly cause: DeliveryMissingCause; readonly note?: string; readonly at: string }
   readonly report?: DeliveryReport
+  /** ISO-8601, the owner dismissed the `report_missing` row: a `missing` delivery stops blocking should-run. */
+  readonly dismissedAt?: string
+  /** Why should-run refused; set with status `skipped`. */
+  readonly skipped?: SkipVerdict
+  /** `skipped` only: how many identical refusals (same task, tab, reason) this row stands for, so a ticker cannot flush the report history. */
+  readonly repeats?: number
 }
 
 /** Stored summary cap, in characters. Over it the verb refuses rather than truncating. */
