@@ -36,6 +36,8 @@ final class InboxState {
     private(set) var toast: Notice?
     /// Key of the item F7 last opened, so a repeat press moves on.
     var lastJumpKey: String?
+    /// The gate whose answer sheet is up; `RootView` presents it, so F7 works from any screen.
+    var answering: String?
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var observer: UUID?
@@ -75,9 +77,15 @@ final class InboxState {
 
 extension AppModel {
     /// Enter on an ATTENTION row: the exact tab (a task-level episode leaves the task's current tab),
-    /// then the item is cleared. A routine episode has no task; it opens the Routines page.
+    /// then the item is cleared. A routine episode has no task; it opens the Routines page. A decision is
+    /// answered, never cleared: an open one presents its answer sheet, an answered one just opens the task.
     func open(attention item: AttentionItem) {
         inbox.lastJumpKey = InboxLogic.key(item)
+        if let gateId = item.gateId {
+            if store.gate(for: item)?.isOpen == true { inbox.answering = gateId }
+            else if let taskId = item.taskId { path.append(item.tabId.map { Route.taskTab(taskId, $0) } ?? .task(taskId)) }
+            return
+        }
         guard let taskId = item.taskId else { path.append(.routines); return }
         path.append(item.tabId.map { Route.taskTab(taskId, $0) } ?? .task(taskId))
         Task { await store.dismissAttention(item) }

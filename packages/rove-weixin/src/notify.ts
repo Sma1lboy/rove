@@ -9,6 +9,7 @@
  *   - only arrivals INTO {@link PUSH_GROUPS} are reported.
  */
 
+import type { Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import type { TaskGroup } from "@sma1lboy/rove/src/lib/task-group.ts"
 import { rowLine } from "./format.ts"
@@ -52,6 +53,23 @@ export class GroupTracker {
     for (const id of [...this.settled.keys()]) if (!present.has(id)) this.settled.delete(id)
     for (const id of [...this.pending.keys()]) if (!present.has(id)) this.pending.delete(id)
     return arrivals
+  }
+}
+
+/**
+ * Open decision gates not seen before. The first snapshot only seeds, like
+ * {@link GroupTracker}: a daemon restart must not re-announce standing questions.
+ */
+export class GateTracker {
+  private readonly seen = new Set<string>()
+  private seeded = false
+
+  observe(gates: readonly Gate[]): Gate[] {
+    const fresh = this.seeded ? gates.filter((g) => !this.seen.has(g.id)) : []
+    this.seeded = true
+    this.seen.clear()
+    for (const g of gates) this.seen.add(g.id)
+    return fresh
   }
 }
 

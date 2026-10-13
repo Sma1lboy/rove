@@ -12,6 +12,19 @@ type Row = ContextPayload["tasks"][number]
 
 const TASK = "01TASKTASKTASKTASKTASK0042"
 
+const GATE = {
+  id: "g-5",
+  taskId: TASK,
+  tabId: null,
+  question: "Which approach?",
+  options: [
+    { key: "a", label: "Rewrite" },
+    { key: "b", label: "Patch" },
+  ],
+  status: "open" as const,
+  createdAt: "2026-10-12T00:00:00.000Z",
+}
+
 function snapshot(group: Row["group"]): ContextPayload {
   return {
     repo: "*",
@@ -39,6 +52,8 @@ const ops: RoveOps = {
   repos: async () => ["/r/app"],
   send,
   add,
+  gates: async () => [],
+  answerGate: async () => ({ delivered: true }),
 }
 
 function start(onUnbound?: () => void): WeixinBridge {
@@ -142,6 +157,24 @@ describe("pushes", () => {
     current = snapshot("waiting-on-you")
     const sends = await fake.waitForSends(2)
     expect(sends[1]?.text).toBe("Needs you:\n• SK0042 Fix login\nReply: send SK0042 <text>")
+  })
+
+  it("pushes a decision that opens after boot with its option keys, never one already standing", async () => {
+    current = { ...snapshot("working"), gates: [GATE] }
+    start()
+    fake.deliver({ from: FAKE_OWNER, text: "help" })
+    await fake.waitForSends(1)
+    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(3))
+    expect(fake.sends).toHaveLength(1)
+
+    current = { ...snapshot("working"), gates: [GATE, { ...GATE, id: "g-6", question: "Ship it?", options: [] }] }
+    const sends = await fake.waitForSends(2)
+    expect(sends[1]?.text).toBe(
+      "Decision needed:\ng-6 SK0042 Fix login\nShip it?\n  free text only\nReply: answer g-6 <text>",
+    )
+    // Announced once, not on every tick.
+    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(8))
+    expect(fake.sends).toHaveLength(2)
   })
 
   it("logs instead of sending once the peer's reply window has closed", async () => {

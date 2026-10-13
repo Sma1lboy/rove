@@ -60,8 +60,8 @@ describe("notice push over the socket", () => {
       token: TOKEN,
       ops: {} as never,
       feed: {
-        current: async () => ({ tasks: [], attention: [] }),
-        refresh: async () => ({ tasks: [], attention: [] }),
+        current: async () => ({ tasks: [], attention: [], gates: [] }),
+        refresh: async () => ({ tasks: [], attention: [], gates: [] }),
         subscribe: () => () => {},
       },
       notices: counted,

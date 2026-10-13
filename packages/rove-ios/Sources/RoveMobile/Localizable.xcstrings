@@ -508,6 +508,26 @@
         }
       }
     },
+    "answer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回答"
+          }
+        }
+      }
+    },
+    "answered · engine away" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已回答 · 引擎未运行"
+          }
+        }
+      }
+    },
     "Ask the engine for a PR…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -748,12 +768,32 @@
         }
       }
     },
+    "Could not send the answer." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法发送回答。"
+          }
+        }
+      }
+    },
     "Create worktree" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "创建 worktree"
+          }
+        }
+      }
+    },
+    "decision" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "决策"
           }
         }
       }
@@ -1468,6 +1508,16 @@
         }
       }
     },
+    "recommended" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推荐"
+          }
+        }
+      }
+    },
     "Reconnecting (try %lld)…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1798,6 +1848,16 @@
         }
       }
     },
+    "send answer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送回答"
+          }
+        }
+      }
+    },
     "Send PR request" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2114,6 +2174,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "输入新名称，或点选本地分支。worktree 存在后会用 git branch -m 重命名。"
+          }
+        }
+      }
+    },
+    "type your answer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入你的回答"
           }
         }
       }
@@ -5606,6 +5676,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开任务"
+          }
+        }
+      }
+    },
+    "optional note for the agent" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "给 agent 的备注（可选）"
+          }
+        }
+      }
+    },
+    "options" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选项"
           }
         }
       }

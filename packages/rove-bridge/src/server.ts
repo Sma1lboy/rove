@@ -10,6 +10,7 @@ import type { Server, ServerWebSocket } from "bun"
 import { presentedToken, tokenMatches } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
 import type { TaskFeed } from "./feed.ts"
+import { dismissHitsOnlyGates } from "./gates.ts"
 import type { NoticeFeed } from "./notices.ts"
 import { AREA_OPS } from "./ops/index.ts"
 import type { BridgeApi, OpTable } from "./ops/types.ts"
@@ -135,9 +136,21 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       if (scope !== "branch" && scope !== "working") throw new BridgeError("BAD_ARGS", "scope is branch|working")
       return ops.diffFile(str(a, "taskId"), str(a, "path"), scope)
     }
-    case "attention.dismiss":
-      await ops.dismissAttention(str(a, "taskId"), optStr(a, "tabId"), optStr(a, "deliveryId"))
+    case "attention.dismiss": {
+      const taskId = str(a, "taskId")
+      const tabId = optStr(a, "tabId")
+      const deliveryId = optStr(a, "deliveryId")
+      // A decision is answered (`gate.answer`), never dismissed. A client that names the gate says
+      // so; one that predates `gateId` is caught when the tab holds nothing but decision rows.
+      if (
+        optStr(a, "gateId") ||
+        (!deliveryId && dismissHitsOnlyGates((await deps.feed.current()).attention, taskId, tabId))
+      ) {
+        throw new BridgeError("GATE_NOT_DISMISSABLE", "a decision is answered with gate.answer, not dismissed")
+      }
+      await ops.dismissAttention(taskId, tabId, deliveryId)
       return {}
+    }
     default: {
       const spec = (deps.areaOps ?? AREA_OPS)[req.op]
       // Unreachable for unregistered names: parseRequest already refused them.

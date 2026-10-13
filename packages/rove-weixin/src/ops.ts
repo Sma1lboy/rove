@@ -4,6 +4,7 @@
  * refusals included.
  */
 
+import type { Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { loadContext } from "@sma1lboy/rove/src/cli/api/handlers-context.ts"
@@ -50,6 +51,21 @@ export function createRoveOps(client: DaemonRpc): RoveOps {
       const landedTab = session?.split("::")[1]
       const started = Boolean(result && typeof result === "object" && Reflect.get(result, "started") === true)
       return { ...(landedTab ? { tab: landedTab } : {}), started }
+    },
+
+    gates: async () => {
+      const { gates } = await client.request<{ gates: Gate[] }>("gate.list", { status: "open" })
+      return gates
+    },
+
+    answerGate: async (gateId, { option, text }) => {
+      const res = await client.request<{ delivered?: boolean }>("gate.answer", {
+        gateId,
+        ...(option ? { option } : {}),
+        ...(text ? { text } : {}),
+        by: "weixin",
+      })
+      return { delivered: res.delivered === true }
     },
 
     add: async (repo, prompt) => {

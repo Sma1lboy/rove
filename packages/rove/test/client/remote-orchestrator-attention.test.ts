@@ -86,3 +86,38 @@ describe("RemoteOrchestrator attention channel", () => {
     expect(orch.attentionInboxSignal()()).toEqual([good])
   })
 })
+
+describe("RemoteOrchestrator gates channel", () => {
+  const gate = {
+    id: "g-1",
+    taskId: "task-a",
+    tabId: null,
+    question: "Which approach?",
+    options: [{ key: "a", label: "Rewrite" }],
+    status: "open" as const,
+    createdAt: "2026-10-12T00:00:00.000Z",
+  }
+
+  it("holds the full active-gate snapshot a bridge renders and answers from", () => {
+    const { client, emit } = fakeClient()
+    const orch = new RemoteOrchestrator(client)
+    expect(orch.gatesSignal()()).toEqual([])
+
+    emit("gates", { gates: [gate] })
+    expect(orch.gatesSignal()()).toEqual([gate])
+
+    emit("gates", { gates: [] })
+    expect(orch.gatesSignal()()).toEqual([])
+  })
+
+  it("a malformed gate costs its own row; an unreadable snapshot keeps the last good one", () => {
+    const { client, emit } = fakeClient()
+    const orch = new RemoteOrchestrator(client)
+    emit("gates", { gates: [gate, { id: 7 }] })
+    expect(orch.gatesSignal()()).toEqual([gate])
+
+    emit("gates", { gates: "bad" })
+    emit("gates", { gates: [{ id: 7 }] })
+    expect(orch.gatesSignal()()).toEqual([gate])
+  })
+})

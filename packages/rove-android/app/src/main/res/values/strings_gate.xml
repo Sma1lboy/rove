@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gate_kicker">decision</string>
+    <string name="gate_options">options</string>
+    <string name="gate_recommended">recommended</string>
+    <string name="gate_note">note</string>
+    <string name="gate_answer">answer</string>
+    <string name="gate_note_placeholder">optional note for the agent</string>
+    <string name="gate_answer_placeholder">type your answer</string>
+    <string name="gate_submit">send answer</string>
+    <string name="gate_failed">Could not send the answer.</string>
+</resources>

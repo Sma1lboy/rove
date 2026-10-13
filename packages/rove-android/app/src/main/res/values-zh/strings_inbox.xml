@@ -20,4 +20,6 @@
     <string name="inbox_state_routine_failed">例行任务失败</string>
     <string name="inbox_state_routine_replied">例行任务已回复</string>
     <string name="inbox_state_report_missing">未回报</string>
+    <string name="inbox_state_decision">待决策</string>
+    <string name="inbox_state_decision_answered">已回答 · 引擎未运行</string>
 </resources>
