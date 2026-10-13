@@ -107,11 +107,6 @@ async function resumeDueTask(
   if (verdict && !verdict.run) {
     await orch.setQuotaResume(task.id, null)
     logDaemonInfo("quota-resume", `declined task=${task.id} reason=${verdict.reason}`)
-    plugins?.()?.handleUiReport({
-      kind: "quota.resumed",
-      taskId: task.id,
-      detail: { delivered: false, declined: verdict.reason },
-    })
     return
   }
   await orch.setQuotaResume(task.id, null)
