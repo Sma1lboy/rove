@@ -83,6 +83,13 @@ export interface EngineHookAdapter {
       quiet?: boolean
     },
   ): Promise<HookEditOutcome>
+  /**
+   * Defined when another mechanism (e.g. an enabled plugin's hooks.json)
+   * already carries this engine's hooks, so the settings install must be
+   * skipped or every event fires twice. `notice` is printed once to stderr.
+   * Optional; omitted = settings-managed hooks only.
+   */
+  externallyManagedHooks?(): Promise<{ readonly notice?: string } | undefined>
   /** Remove the activity hooks this adapter installed. Idempotent. */
   removeActivityHooks(settingsFilePath: string): Promise<void>
 
