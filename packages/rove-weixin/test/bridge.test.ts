@@ -54,6 +54,7 @@ const ops: RoveOps = {
   add,
   gates: async () => [],
   answerGate: async () => ({ delivered: true }),
+  clearReport: async () => {},
 }
 
 function start(onUnbound?: () => void): WeixinBridge {

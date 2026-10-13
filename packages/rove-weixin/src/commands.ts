@@ -42,6 +42,8 @@ export interface RoveOps {
   gates(): Promise<readonly Gate[]>
   /** `by: "weixin"`; `delivered` = the engine received it now. */
   answerGate(gateId: string, answer: { option?: string; text?: string }): Promise<{ readonly delivered: boolean }>
+  /** Dismiss a `report_missing` row (`attention-dismiss --delivery`); throws DELIVERY_NOT_FOUND for an unknown id. */
+  clearReport(deliveryId: string): Promise<void>
 }
 
 /** Fewer characters than this matches too many ids to be a reference. */
@@ -58,6 +60,7 @@ export const HELP_TEXT = [
   "gates — open decisions waiting on you",
   "answer g-12 <key> [note] — answer one",
   "answer g-12 - <text> — free-text answer",
+  "clear d-41 — dismiss an unreported-tick flag (status lists them)",
   "<id> is the 6-char code from status.",
 ].join("\n")
 
@@ -166,6 +169,14 @@ export async function handleCommand(text: string, ops: RoveOps): Promise<string>
           ...(text ? { text } : {}),
         })
         return answeredReply(parsed.answer, delivered)
+      }
+
+      case "clear":
+      case "清除": {
+        const [ref] = head(rest)
+        if (!ref || !/^d-\d+$/i.test(ref)) return "Usage: clear d-N — the delivery id from status"
+        await ops.clearReport(ref.toLowerCase())
+        return `Cleared ${ref.toLowerCase()}. That task can be ticked again.`
       }
 
       default:

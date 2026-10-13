@@ -54,3 +54,27 @@ export const SHOULD_RUN_VERB: VerbSpec = {
   ],
   handler: shouldRun,
 }
+
+async function attentionDismiss(ctx: VerbContext): Promise<unknown> {
+  const delivery = ctx.args.require("delivery")
+  const res = await daemonOf(ctx).request<{ deleted: boolean; found?: boolean }>("attention.dismiss", {
+    deliveryId: delivery,
+  })
+  if (res.found === false) {
+    throw new ApiError(`no delivery ${delivery}`, "DELIVERY_NOT_FOUND", {
+      hint: "`deliveries --task-id <id>` lists a task's delivery ids; the Inbox row names it as d-N.",
+    })
+  }
+  return { ok: true, delivery, cleared: true }
+}
+
+export const ATTENTION_DISMISS_VERB: VerbSpec = {
+  name: "attention-dismiss",
+  group: "drive",
+  summary:
+    'Dismiss a `report_missing` Inbox row by its delivery id (d-N): the owner\'s deliberate "seen, carry on" for a tick that ended without a report. It unblocks `should-run` for the task. Opening or visiting the row never does this, and a late `report` clears it on its own. Idempotent; an unknown id is DELIVERY_NOT_FOUND.',
+  flags: [
+    { name: "delivery", type: "string", required: true, placeholder: "ID", description: "Delivery id, e.g. d-41." },
+  ],
+  handler: attentionDismiss,
+}

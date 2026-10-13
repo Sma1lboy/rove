@@ -18,11 +18,17 @@ export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "attention.dismiss",
     async handle(payload, ctx) {
-      const taskId = requireString(payload, "taskId")
+      // `report_missing` is keyed on its delivery, not the tab, so a delivery id alone names the
+      // episode (`attention-dismiss --delivery`, weixin `clear`): the task comes from the delivery.
+      const deliveryId = optionalString(payload, "deliveryId")
+      if (deliveryId && payload.taskId === undefined && !ctx.deliveries.get(deliveryId)) {
+        return { deleted: false, found: false }
+      }
+      const taskId = deliveryId
+        ? (optionalString(payload, "taskId") ?? (ctx.deliveries.get(deliveryId)?.taskId as string))
+        : requireString(payload, "taskId")
       const tabId = optionalString(payload, "tabId") ?? null
       const at = payload.at === undefined ? undefined : requireNumber(payload, "at")
-      // `report_missing` is keyed on its delivery, not the tab.
-      const deliveryId = optionalString(payload, "deliveryId")
       const deleted = deliveryId
         ? await ctx.inbox.deleteDeliveryEpisode(deliveryId)
         : await ctx.inbox.deleteEpisode(taskId, tabId, at)

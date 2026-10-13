@@ -173,6 +173,7 @@ describe("API surface (full CRUD)", () => {
       "row-token",
       "set-active",
       "report",
+      "attention-dismiss",
       "gate-raise",
       "gate-answer",
       "gate-withdraw",
