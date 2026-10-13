@@ -667,7 +667,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   Otherwise the default is the active task and its canonical engine tab.
   From another Rove task, the message includes `[ROVE PEER]` provenance and
   a tab-precise reply command (`--task-id <sender> --tab <sender's tab>`);
-  `--plain` skips that prefix. `delivered: true` says the bytes landed and
+  `--plain` skips that prefix, and a refused send's retry `nextCommandArgs`
+  carry `--plain` so replaying them does not stack a second prefix. `delivered: true` says the bytes landed and
   nothing more: when the target was already in `error` or `dead`, the
   result carries `targetState` (and `targetDetail`), so a prompt sent into a
   failed session is visible as such. `--tab new` spawns a fresh engine tab, while

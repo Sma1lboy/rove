@@ -73,7 +73,7 @@ describe("deliverHostedPrompt engine.maxLiveSessions", () => {
       taskId: "t1",
       live: 2,
       limit: 2,
-      nextCommandArgs: ["api", "send", "--task-id", "t1", "--prompt", "go"],
+      nextCommandArgs: ["api", "send", "--task-id", "t1", "--plain", "--prompt", "go"],
     })
     expect(calls).not.toContain("pty.openChecked")
   })
@@ -123,7 +123,7 @@ describe("deliverHostedPrompt engine.maxLiveSessions", () => {
         forceNew: true,
       }),
     ).rejects.toMatchObject({
-      data: { nextCommandArgs: ["api", "send", "--task-id", "t1", "--tab", "new", "--prompt", "go"] },
+      data: { nextCommandArgs: ["api", "send", "--task-id", "t1", "--tab", "new", "--plain", "--prompt", "go"] },
     })
   })
 })

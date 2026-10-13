@@ -135,7 +135,7 @@ export async function deliverHostedPrompt(
         "ENGINE_NOT_RUNNING",
         {
           hint: "spawn a fresh engine tab for this prompt with --tab new",
-          nextCommandArgs: ["api", "send", "--task-id", target.id, "--tab", "new", "--prompt", prompt],
+          nextCommandArgs: ["api", "send", "--task-id", target.id, "--tab", "new", "--plain", "--prompt", prompt],
         },
       )
     }
@@ -190,6 +190,7 @@ export async function deliverHostedPrompt(
         "--task-id",
         target.id,
         ...(opts?.forceNew ? ["--tab", "new"] : []),
+        "--plain",
         "--prompt",
         prompt,
       ],

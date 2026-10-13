@@ -76,6 +76,7 @@ it.each(["new", "tab-2"])("enforces the persisted cap through the runtime for --
         "--tab",
         tab,
         ...(tab === "new" ? ["--command", "codex --model chosen"] : ["--respawn"]),
+        "--plain",
         "--prompt",
         "isolated prompt",
       ],

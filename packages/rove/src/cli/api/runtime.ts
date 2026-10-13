@@ -136,6 +136,8 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
           target.id,
           ...(target.tab ? ["--tab", target.tab] : []),
           ...(target.tabCommand ? ["--command", target.tabCommand] : []),
+          // `prompt` already carries any peer header; a re-wrap would stack a second one.
+          "--plain",
           "--prompt",
           prompt,
         ],
