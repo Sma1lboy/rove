@@ -117,3 +117,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Landed tonight as PR #1237 (`perf/nightly-2026-10-12`):** `writeInboxVisit` uses a new `kv.setQuiet` (persist and `get`, no snapshot notify). Only the Inbox dialog reads the log, when it opens. switch.perOp.stateNotify 4.4 → 3.4/3.7/3.6, stateListener 6.4 → 5.4–5.9, host renders per switch 3 → 2, and commit (2)'s root time 5.75 → 2.36 ms. **Commit counts did not drop:** commit (2) still happens without the KV write, because sidebar and files run their own nested update right after a selection. Find that setState next (likely the sidebar cursor following `selectedId` and the Files pane's `worktreePath` effect; see 10-06 before touching the latter).
 
 **Unmemoized hook returns:** `sidebarWidth`, `pages` and `banner` change identity on every host render. That is harmless unless they reach a memoized child, but check this before trying `React.memo` on panes.
+
+## 2026-10-13 — notes (main cc3c2e5)
+
+**No regression.** Run 1 read boot.firstFrame.ms 1047 / boot.ready.ms 3671 and golden.cli-startup-ms 73.1 / vt-1mb-parse-ms 182.1 (cold first run plus machine noise again); run 2 was clean. #1237 landed: switch.perOp.stateNotify 4.5 → 3.3–3.7, stateListener 6.7 → 5.3–5.9, a drop below tolerance in run 2, so the baseline was not moved.
+
+**Tracer that does not perturb batching:** wrap the React dispatcher (`__CLIENT_INTERNALS_…`.H setter; a proxy whose `useState`/`useReducer` return a WeakMap-cached wrapped setter that logs a short stack), plus a Profiler `onRender` log with phase. Counts matched an untraced run. It names the exact setState line behind each commit.
+
+**Landed tonight as a PR from `perf/nightly-2026-10-13`:** commit (2) per switch, the nested update, gets its sidebar part from `SidebarTree`'s follow effect: the click sets the cursor to the worktree row, then the effect moves it to the active tab row. The active-row edge is now followed during render. switch.perOp.commit.sidebar 3.3 → 2.2 / 2.1; root/workspace/files unchanged (the nested commit still happens).
+
+**What else is in that nested commit** (all passive effects after the selection commit): `use-terminal-pty.ts` 101–106/147 (acquire), `Terminal.tsx:294`, `TerminalSplit.tsx:105`, `title-subscriptions.ts:130`, `use-turn-polls.ts` 78/88/166, `notifications.tsx:103` via `TerminalTabs.tsx:248`, and the FileTree wipe `FileTree.tsx` 155–161 + 119. Removing the commit needs all of them gone; see 10-05 and 10-06 before touching terminal or FileTree.
