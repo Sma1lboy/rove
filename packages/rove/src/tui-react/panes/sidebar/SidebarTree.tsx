@@ -90,6 +90,17 @@ export function SidebarTree(props: SidebarTreeProps) {
     cursorRef.current = next
     setCursorIndexState(next)
   }, [])
+  // Follow an active-row change during render, so a row click lands the cursor
+  // in the selection commit instead of a nested one from the effect below.
+  const [followedActive, setFollowedActive] = useState(tree.activeRowId)
+  if (props.moveMode !== true && tree.activeRowId !== followedActive) {
+    setFollowedActive(tree.activeRowId)
+    const at = tree.activeRowId === null ? -1 : (flatIndexOf.get(tree.activeRowId) ?? -1)
+    if (at >= 0 && at !== cursorIndex) {
+      cursorRef.current = at
+      setCursorIndexState(at)
+    }
+  }
   const flatIdsRef = useLatest(tree.flatIds)
   // A reader, not a value: a chord in the same tick as the `j` sees the new row.
   const cursorTaskIdRef = props.cursorTaskIdRef
