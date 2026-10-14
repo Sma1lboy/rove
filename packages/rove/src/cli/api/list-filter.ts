@@ -17,7 +17,12 @@ export interface ListFilters {
   readonly activities?: ReadonlySet<string>
 }
 
-function csvOf(ctx: VerbContext, name: string, allowed: readonly string[]): ReadonlySet<string> | undefined {
+export function csvOf(
+  ctx: VerbContext,
+  name: string,
+  allowed: readonly string[],
+  verb = "list",
+): ReadonlySet<string> | undefined {
   const raw = ctx.args.str(name)
   if (raw === undefined) return undefined
   const values = raw
@@ -26,7 +31,7 @@ function csvOf(ctx: VerbContext, name: string, allowed: readonly string[]): Read
     .filter(Boolean)
   const bad = values.find((v) => !allowed.includes(v))
   if (bad !== undefined || values.length === 0) {
-    throw new ApiError(`--${name} takes a comma list of ${allowed.join(", ")}`, "BAD_FLAG", helpStep("list"))
+    throw new ApiError(`--${name} takes a comma list of ${allowed.join(", ")}`, "BAD_FLAG", helpStep(verb))
   }
   return new Set(values)
 }

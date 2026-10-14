@@ -963,7 +963,10 @@ The daemon-owned issue store (backlog; see
 [WORK-TRACKING.md](./WORK-TRACKING.md)). Statuses: `open`, `doing`, `hold`,
 `done`.
 
-- `issue-list --repo PATH`: list a repo's issues.
+- `issue-list --repo PATH [--status S1,S2] [--search Q]`: list a repo's issues.
+  `--status` keeps any of the listed statuses; `--search` keeps issues whose
+  title or body contains `Q`, ignoring case. Filters AND together. `nextId`
+  and `skipped` still describe the whole board.
 - `issue-create --repo PATH --title T [--body TEXT]`: create an issue.
 - `issue-update --repo PATH --id N [--title T] [--body TEXT] [--task ID]
   [--status S]`: edit title/body, link a task (kanban: In progress; `--task none`
