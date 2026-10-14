@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 57 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 58 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -281,8 +281,8 @@ collect  --group <groupId> | --task-ids <csv> | --repo
 Names that have actually been guessed wrong here: `add --vendor` is
 `--command`; `read-output --task` is `--task-id`; per-field verbs
 (`set-<field>`, `rename`, `pin`) are all `update --<field>`; `dispatch --text` is
-`--prompt` (`--text` belongs to `note`); `issue-list` has no `--state` at all
-— filter its JSON yourself.
+`--prompt` (`--text` belongs to `note`); `issue-list --state` is `--status`
+(a comma list, beside `--search`).
 
 **[`references/api-flags.md`](references/api-flags.md) is every verb and flag.**
 Find your section by what you were ASKED, not by Rove's noun for it:

@@ -37,7 +37,7 @@ Four flag names that have actually been guessed wrong here, and what they are:
 | `add --vendor` | `add --command` (engine id or full command line) |
 | `read-output --task` | `read-output --task-id` |
 | `dispatch --text` | `dispatch --prompt` (`--text` belongs to `note`) |
-| `issue-list --state` | none — `issue-list` takes only `--repo`; filter the JSON yourself |
+| `issue-list --state` | `issue-list --status` (comma list: `open,doing`) |
 
 `--count`/`--agents` require `--prompt`. `--branch` is single-task only.
 `--tab new` is the only placement that accepts `send --command`.
@@ -223,7 +223,7 @@ adopt               --repo(REQ) --worktree(REQ) --branch --command --title
 
 <!-- generated:begin issues -->
 ```text
-issue-list    --repo(REQ)
+issue-list    --repo(REQ) --status <S1,S2> --search
 issue-create  --repo(REQ) --title(REQ) --body
 issue-update  --repo(REQ) --id(REQ) --title --body --task --status{open|doing|hold|done}
 issue-delete  --repo(REQ) --id(REQ)
