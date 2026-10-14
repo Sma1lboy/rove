@@ -127,3 +127,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Landed tonight as a PR from `perf/nightly-2026-10-13`:** commit (2) per switch, the nested update, gets its sidebar part from `SidebarTree`'s follow effect: the click sets the cursor to the worktree row, then the effect moves it to the active tab row. The active-row edge is now followed during render. switch.perOp.commit.sidebar 3.3 → 2.2 / 2.1; root/workspace/files unchanged (the nested commit still happens).
 
 **What else is in that nested commit** (all passive effects after the selection commit): `use-terminal-pty.ts` 101–106/147 (acquire), `Terminal.tsx:294`, `TerminalSplit.tsx:105`, `title-subscriptions.ts:130`, `use-turn-polls.ts` 78/88/166, `notifications.tsx:103` via `TerminalTabs.tsx:248`, and the FileTree wipe `FileTree.tsx` 155–161 + 119. Removing the commit needs all of them gone; see 10-05 and 10-06 before touching terminal or FileTree.
+
+## 2026-10-14 — notes (main 5f277b5)
+
+**No regression.** Run 1 flagged only golden.cli-startup-ms 46.2 → 81.7 (machine noise, as on 10-07/10-08/10-13); run 2 was clean. #1251 landed: switch.perOp.commit.sidebar 3.3 → 2.3–2.6, a drop of 1 at most, so it is not past tolerance and the baseline was not moved.
+
+**Where the Files pane's renders come from (temporary per-render state/prop diff in `FileTree`, written to a file; it does not walk the fiber tree).** On main, one perf run gave 71 FileTree renders. 25 changed only the five callback props, because the host passed inline lambdas and the unstable `editor.*`/`toggleZen`. 16 changed nothing: a context of `HostFilesPane`/`FileTree`, or a parent render with the same props. 13 were `worktreePath` and 11 were the wipe effect's `allFiles,expandedDirs`.
+
+**Landed tonight as a PR from `perf/nightly-2026-10-14`:** `HostFilesPane` is `memo`'d, its callbacks come through `useFilesPaneActions` (stable wrappers over `useLatest`), and its `RenderProfiler` moved inside the memo boundary. A Profiler that is a child of a re-rendering host always ticks, even when everything below it bails out. switch.perOp.commit.files 4.7 → 3.0 (3 of 3 runs), FileTree renders per run 71 → 43, root/workspace unchanged.
+
+**Left in Files per switch:** `worktreePath` (1), the wipe effect (1), plus about 1 empty render (a context). The 10-06 note covers the wipe.
