@@ -31,7 +31,7 @@ import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { FullWindowPage, useHostBanner } from "./host-banner"
-import { HostFilesPane } from "./host-files-pane"
+import { HostFilesPane, useFilesPaneActions } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
 import { useWorkspaceKeybindings } from "./host-keybindings"
 import { type BootDialogs, useHostPagesRender, useHostPagesState } from "./host-pages"
@@ -203,6 +203,13 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
 
   /* --------- zen mode ---------------------------------------------------- */
   const { zen, toggleZen } = useZenMode({ kv, focus })
+  const filesActions = useFilesPaneActions({
+    onOpenFile: (relPath) => void editor.onOpenFile(relPath),
+    onOpenDiff: editor.onOpenDiff,
+    onMention: editor.onMention,
+    onZenToggle: toggleZen,
+    onCreatePR: () => void editor.onCreatePR(),
+  })
 
   // Tab open/close edges report as plugin events; once per host.
   useEffect(() => {
@@ -440,25 +447,19 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           would be showing an unrelated tree beside it. Hidden, same as zen
           (and always in narrow — three panes don't fit 46 cols). */}
       {!zen && pageRender.contentPage == null && pageRender.showSidebar && pageRender.showContent ? (
-        <RenderProfiler id="files">
-          <HostFilesPane
-            sidebarWidth={sidebarWidth.width}
-            worktree={worktree}
-            prBaseRef={selectedTask?.prStatus?.baseRef}
-            focused={activePane === "files"}
-            onOpenFile={(relPath) => void editor.onOpenFile(relPath)}
-            onOpenDiff={editor.onOpenDiff}
-            onMention={editor.onMention}
-            onZenToggle={toggleZen}
-            onCreatePR={() => void editor.onCreatePR()}
-            taskKind={selectedTask?.kind}
-            remoteHost={
-              selectedTask?.origin && selectedTask.origin.machineId !== "local"
-                ? selectedTask.origin.hostLabel
-                : undefined
-            }
-          />
-        </RenderProfiler>
+        <HostFilesPane
+          sidebarWidth={sidebarWidth.width}
+          worktree={worktree}
+          prBaseRef={selectedTask?.prStatus?.baseRef}
+          focused={activePane === "files"}
+          actions={filesActions}
+          taskKind={selectedTask?.kind}
+          remoteHost={
+            selectedTask?.origin && selectedTask.origin.machineId !== "local"
+              ? selectedTask.origin.hostLabel
+              : undefined
+          }
+        />
       ) : null}
 
       {/* Cross-task attention toasts. `useAttention` above fires

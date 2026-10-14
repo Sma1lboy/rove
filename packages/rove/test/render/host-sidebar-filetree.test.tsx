@@ -171,11 +171,13 @@ describe("HostFilesPane", () => {
           worktree={repo}
           prBaseRef={undefined}
           focused={true}
-          onOpenFile={NOOP}
-          onOpenDiff={NOOP}
-          onMention={(p) => mentions.push(p)}
-          onZenToggle={NOOP}
-          onCreatePR={NOOP}
+          actions={{
+            onOpenFile: NOOP,
+            onOpenDiff: NOOP,
+            onMention: (p: string) => void mentions.push(p),
+            onZenToggle: NOOP,
+            onCreatePR: NOOP,
+          }}
           taskKind="task"
         />,
         24,
