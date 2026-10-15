@@ -63,7 +63,11 @@ export function parseAnswer(rest: string, open: readonly Gate[]): Parsed {
   if (!gate) {
     return { ok: false, reply: `No open decision "${ref}". Send "gates" for the list.` }
   }
-  if (gate.options.length === 0) return { ok: true, answer: { gate, text: afterRef.trim() } }
+  if (gate.options.length === 0) {
+    const [word, note] = head(afterRef)
+    const text = (word === "-" ? note : afterRef).trim()
+    return text ? { ok: true, answer: { gate, text } } : { ok: false, reply: `Usage: answer ${gate.id} - <text>` }
+  }
 
   const [word, note] = head(afterRef)
   if (word === "-") {

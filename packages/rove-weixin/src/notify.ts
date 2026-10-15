@@ -59,12 +59,14 @@ export class GroupTracker {
 /**
  * Open decision gates not seen before. The first snapshot only seeds, like
  * {@link GroupTracker}: a daemon restart must not re-announce standing questions.
+ * `null` (gate read failed) leaves the state alone, so a standing decision is not re-announced after it.
  */
 export class GateTracker {
   private readonly seen = new Set<string>()
   private seeded = false
 
-  observe(gates: readonly Gate[]): Gate[] {
+  observe(gates: readonly Gate[] | null): Gate[] {
+    if (gates === null) return []
     const fresh = this.seeded ? gates.filter((g) => !this.seen.has(g.id)) : []
     this.seeded = true
     this.seen.clear()

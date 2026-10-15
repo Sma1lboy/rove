@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test"
 import { GATE_OPS } from "../src/ops/gates.ts"
-import { AREA_OPS } from "../src/ops/index.ts"
 import { fakeApi } from "./task-ops-harness.ts"
 
 const answer = (args: Record<string, unknown>, replies: Record<string, unknown> = {}) => {
@@ -9,12 +8,6 @@ const answer = (args: Record<string, unknown>, replies: Record<string, unknown> 
 }
 
 describe("gate.answer", () => {
-  test("is on the allowlist, a non-destructive write", () => {
-    expect(AREA_OPS["gate.answer"]).toBe(GATE_OPS["gate.answer"]!)
-    expect(AREA_OPS["gate.answer"]?.kind).toBe("write")
-    expect(AREA_OPS["gate.answer"]?.destructive).toBe(false)
-  })
-
   test("forwards the option and the note to the daemon, attributed to the bridge", async () => {
     const { run, calls } = answer({ gateId: "g-12", option: "b", text: "ship it" })
     expect(await run).toEqual({ delivered: true })

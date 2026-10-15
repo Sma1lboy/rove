@@ -176,7 +176,7 @@ A task can ask its owner a question (`rove api gate-raise`, see `docs/design/lon
 ```json
 {"id": "g-7", "taskId": "…", "tabId": null, "question": "Which approach?",
  "options": [{"key": "a", "label": "Rewrite", "detail": "2 days"}, {"key": "b", "label": "Patch"}],
- "recommended": "b", "context": "…", "status": "open", "handoff": null,
+ "recommended": "b", "context": "…", "status": "open",
  "createdAt": "2026-10-12T00:00:00.000Z", "label": "Nightly loop"}
 ```
 

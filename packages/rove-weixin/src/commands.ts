@@ -27,8 +27,8 @@ export interface TaskRef {
 }
 
 export interface RoveOps {
-  /** `repo: null` = every repo. */
-  status(repo: string | null): Promise<ContextPayload>
+  /** `repo: null` = every repo. `gatesUnreadable`: the gate read failed, so `gates` is unknown rather than empty. */
+  status(repo: string | null): Promise<ContextPayload & { gatesUnreadable?: boolean }>
   tasks(): Promise<readonly TaskRef[]>
   /** Saved projects plus every repo a task lives in. */
   repos(): Promise<readonly string[]>

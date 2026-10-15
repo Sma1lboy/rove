@@ -201,6 +201,13 @@ describe("gates and answer", () => {
     expect(reply).toBe("Answered g-13 with your text. Sent to the agent.")
   })
 
+  it("a gate with no options accepts the `-` free-text marker without sending it", async () => {
+    const ops = withGates()
+    await handleCommand("answer g-13 - call it Nightly Loop", ops)
+    expect(ops.answerGate).toHaveBeenCalledWith("g-13", { text: "call it Nightly Loop" })
+    expect(await handleCommand("answer g-13 -", ops)).toBe("Usage: answer g-13 - <text>")
+  })
+
   it("an unknown or closed gate and a missing answer are replies, not sends", async () => {
     const ops = withGates()
     expect(await handleCommand("answer g-99 a", ops)).toBe('No open decision "g-99". Send "gates" for the list.')

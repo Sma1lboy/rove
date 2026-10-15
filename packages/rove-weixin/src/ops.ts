@@ -32,7 +32,13 @@ async function liveTasks(client: DaemonRpc): Promise<SerializedTask[]> {
 
 export function createRoveOps(client: DaemonRpc): RoveOps {
   return {
-    status: async (repo) => (await loadContext(client, defaultApiRuntime, { repo, limit: STATUS_TASK_LIMIT })).payload,
+    status: async (repo) => {
+      const { payload, gatesUnreadable } = await loadContext(client, defaultApiRuntime, {
+        repo,
+        limit: STATUS_TASK_LIMIT,
+      })
+      return { ...payload, gatesUnreadable }
+    },
 
     tasks: async (): Promise<TaskRef[]> =>
       (await liveTasks(client)).map((t) => ({ id: t.id, title: t.title, repo: t.repo })),

@@ -267,7 +267,7 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
       const snapshot = await deps.ops.status(null)
       const arrivals = tracker.observe(snapshot.tasks)
       if (arrivals.length > 0) await push(renderArrivals(arrivals))
-      const decisions = gateTracker.observe(snapshot.gates)
+      const decisions = gateTracker.observe(snapshot.gatesUnreadable ? null : snapshot.gates)
       if (decisions.length > 0) {
         await push(renderGateArrivals(decisions, new Map(snapshot.tasks.map((t) => [t.taskId, t.title]))))
       }
