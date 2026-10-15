@@ -12,6 +12,7 @@ import { ConfirmDialog } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { attachableFiles, putAttachment } from "./kanban-attach.ts"
 import { terminalText } from "./keymap-text.ts"
+import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
 import { focusedTerm, registerTerm, termFor } from "./term-control.ts"
 import { type Notice, SCROLL_PAGE_LINES, type TermHandle, mountTerminal, streamKey } from "./term-mount.ts"
 import { TermSearchBar } from "./term-search.tsx"
@@ -91,7 +92,9 @@ export function TerminalView(props: TerminalViewProps) {
             focusedTerm.set(termFor(mounted.stream) ?? null)
           } else if (focusedTerm.get()?.stream === mounted.stream) focusedTerm.set(null)
         },
-        onExit: () => latest.current.onExit?.(),
+        onExit: () => {
+          if (!exitIsReset(streamKey(taskId, tabId, leafId))) latest.current.onExit?.()
+        },
         copyText,
         focusOnMount: latest.current.focused !== false,
       })
@@ -131,9 +134,20 @@ export function TerminalView(props: TerminalViewProps) {
             body={terminalText("reset.body")}
             confirmLabel={t("workspace.reset")}
             onConfirm={async () => {
-              await client.request("tab.split", { taskId, tabId, action: "reset", leafId: leafId ?? "leaf-1", ...size })
-              await handle.reattach()
-              term.focus()
+              beginReset(stream)
+              try {
+                await client.request("tab.split", {
+                  taskId,
+                  tabId,
+                  action: "reset",
+                  leafId: leafId ?? "leaf-1",
+                  ...size,
+                })
+                await handle.reattach()
+                term.focus()
+              } finally {
+                endReset(stream)
+              }
             }}
           />,
         )
