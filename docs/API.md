@@ -141,6 +141,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
 | `TAB_COLLISION` | `tab-new` found its freshly allocated tab id already running a session; no new tab was created, retry. |
+| `TAB_NOT_SPLITTABLE` | `tab-split` on a content tab; only terminal tabs split. |
+| `LAST_LEAF` | `tab-split --action close` on the only pane; close the tab instead. |
+| `RESET_ENGINE` | `tab-split --action reset` on a pane that runs an engine; only shell panes reset. |
 | `RUN_NOT_FOUND` | `routine-respond --run` names no routine run (unknown, or pruned from the last 100). |
 | `RESPONSE_TOO_LARGE` | A `routine-respond` response over the 32,000-character cap. |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
@@ -899,6 +902,24 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   (`clients` = attached connections told; `0` = none); the tab then lists in
   `get-task .tabs[]`. A session already running under the allocated id fails
   as `TAB_COLLISION`. `--command` with `--kind shell` is `BAD_FLAG`.
+- `tab-split --task-id ID --tab TAB --action open|close|rename|reset
+  [--leaf leaf-N] [--direction right|down] [--title TEXT] [--cols N --rows N]`:
+  edit one Terminal Tab's split panes with no TUI — the TUI's ctrl+\ / ctrl+= /
+  ctrl+w / F2 / F5. `open` splits `--leaf` (default: the tree's active pane)
+  toward `--direction` (default `right`) into a new login shell in the task's
+  worktree; `--cols`/`--rows` are that pane's size, for the minimum-pane gate
+  (too small → `changed: false`, nothing spawned). `close` ends `--leaf` (the
+  last pane is `LAST_LEAF`: close the tab instead), `rename` sets its label
+  (an empty `--title` clears it), `reset` kills a shell pane and spawns a fresh
+  login shell (an engine pane is `RESET_ENGINE`). `leaf-1` is the tab's own
+  process; every other pane is its own hosted session `<taskId>::<tabId>::<leaf>`,
+  swept by `tab-close`. The layout is the tab's persisted split tree in
+  `state.json` (one locked update), then the daemon broadcasts the row over
+  `tab.add` so an attached TUI absorbs the tree instead of overwriting it. No
+  command line is taken: panes are always the login shell. Returns
+  `{ok, taskId, tabId, leaf, changed, split, clients}`; `split` is
+  `{activeLeafId, root}` (null once back to one pane) and `get-task .tabs[].split`
+  carries the same.
 - `notify --title TEXT [--body TEXT] [--kind KIND] [--task-id ID]
   [--source TAG]`: show a toast in every attached Rove UI. `--body` adds a
   second, muted line under the title — context, not a second message.
