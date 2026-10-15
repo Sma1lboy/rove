@@ -3,6 +3,7 @@
  * `schema` verb lives here because it references VERBS/findVerb at load time.
  */
 
+import { DELIVERIES_VERB, REPORT_VERB } from "./handlers-delivery.ts"
 import { ENGINE_LIST_VERB } from "./handlers-engines.ts"
 import { fullSchema, groupSchema, schemaIndex, verbSchema } from "./schema.ts"
 import { ApiError, VERB_GROUP_IDS, type VerbContext, type VerbGroup, type VerbSpec } from "./types.ts"
@@ -140,8 +141,10 @@ export const VERBS: readonly VerbSpec[] = [
   SCHEMA_VERB,
   ENGINE_LIST_VERB,
   ...READ_VERBS,
+  DELIVERIES_VERB,
   ...CREATE_VERBS,
   ...DRIVE_VERBS,
+  REPORT_VERB,
   ...FEEDBACK_VERBS,
   ...ISSUE_VERBS,
   ...ROUTINE_VERBS,

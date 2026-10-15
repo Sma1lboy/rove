@@ -16,7 +16,7 @@ import { renameTabsSnapshot } from "./tab-snapshot.ts"
 import { TASK_STATUSES } from "./task-statuses.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
-const TASK_FIELDS = ["title", "branch", "command", "model", "effort", "pinned", "status"] as const
+const TASK_FIELDS = ["title", "branch", "command", "model", "effort", "pinned", "require-report", "status"] as const
 const REPORT_FLAGS = ["report-branch", "report-pr", "report-summary"] as const
 
 /**
@@ -59,6 +59,7 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   const model = ctx.args.str("model")?.trim()
   const effort = ctx.args.str("effort")?.trim()
   const pinned = ctx.args.bool("pinned")
+  const requireReport = ctx.args.enumOf<"on" | "off">("require-report")
   const status = ctx.args.enumOf<TaskStatus>("status")
   const report = {
     reportBranch: ctx.args.str("report-branch"),
@@ -121,6 +122,9 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   }
   if (title !== undefined) await step(["title"], "task.rename", { title })
   if (pinned !== undefined) await step(["pinned"], "task.pin", { pinned })
+  if (requireReport !== undefined) {
+    await step(["require-report"], "task.requireReport", { required: requireReport === "on" })
+  }
   if (status !== undefined) await step(["status"], "task.status", { status, ...report })
 
   return {
@@ -179,6 +183,13 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         type: "bool",
         placeholder: "BOOL",
         description: "true pins the task to the top of the sidebar, false unpins.",
+      },
+      {
+        name: "require-report",
+        type: "enum",
+        values: ["on", "off"],
+        description:
+          "on: every later `send` to this task arms a delivery the agent must close with `report --delivery <id>` (a turn that ends without one raises a `report_missing` Inbox row); off: back to plain sends.",
       },
       {
         name: "status",

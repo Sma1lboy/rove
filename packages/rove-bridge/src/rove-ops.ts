@@ -70,7 +70,7 @@ export interface RoveOps {
   worktreeOf(taskId: string): Promise<string>
   diffFiles(taskId: string): Promise<{ base: string | null; files: readonly DiffFileRow[] }>
   diffFile(taskId: string, path: string, scope: "branch" | "working"): Promise<unknown>
-  dismissAttention(taskId: string, tabId?: string): Promise<void>
+  dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
 }
 
 /** `rove api` refusals carry a stable `code`; keep it on the wire. */
@@ -141,14 +141,15 @@ function prChipKind(task: SerializedTask): PrChipKind | null {
 
 /**
  * The inbox as the phone sees it. Optional, additive fields: `resumeAt` (a rate-limited task's
- * scheduled auto-resume, from its `quotaResume`) and `label` (a routine episode's name, since
- * its subject is the routine, not a task).
+ * scheduled auto-resume, from its `quotaResume`), `label` (a routine episode's name, since
+ * its subject is the routine, not a task) and `deliveryId` (a `report_missing` episode's key).
  */
 export function attentionRows(items: readonly AttentionInboxItem[], tasks: readonly SerializedTask[]): AttentionRow[] {
   const byId = new Map(tasks.map((t) => [t.id, t]))
   return items.map((i) => {
     const resumeAt = i.state === "rate_limited" && i.taskId ? byId.get(i.taskId)?.quotaResume?.resumeAt : undefined
     const label = i.detail?.routine?.name
+    const deliveryId = i.state === "report_missing" ? i.detail?.delivery?.id : undefined
     return {
       taskId: i.taskId,
       tabId: i.tabId,
@@ -157,6 +158,7 @@ export function attentionRows(items: readonly AttentionInboxItem[], tasks: reado
       at: i.at,
       ...(resumeAt ? { resumeAt } : {}),
       ...(label ? { label } : {}),
+      ...(deliveryId ? { deliveryId } : {}),
     }
   })
 }
@@ -391,8 +393,12 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
       return loadPreviewData(task.worktreePath, path, { base })
     },
 
-    async dismissAttention(taskId, tabId) {
-      await client.request("attention.dismiss", tabId ? { taskId, tabId } : { taskId })
+    async dismissAttention(taskId, tabId, deliveryId) {
+      await client.request("attention.dismiss", {
+        taskId,
+        ...(tabId ? { tabId } : {}),
+        ...(deliveryId ? { deliveryId } : {}),
+      })
     },
   }
 }

@@ -19,4 +19,5 @@
     <string name="inbox_state_done">done</string>
     <string name="inbox_state_routine_failed">routine failed</string>
     <string name="inbox_state_routine_replied">routine replied</string>
+    <string name="inbox_state_report_missing">report missing</string>
 </resources>

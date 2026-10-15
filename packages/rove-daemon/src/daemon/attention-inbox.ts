@@ -166,6 +166,45 @@ export class AttentionInboxStore {
     })
   }
 
+  /**
+   * A `report_missing` episode for an armed delivery that ended unreported.
+   * Keyed on the delivery, so the tab's next `turn-start` does not clear it;
+   * only a late report or a dismiss does.
+   */
+  async recordReportMissing(
+    taskId: string,
+    tabId: string | null,
+    delivery: NonNullable<EngineActivityDetail["delivery"]>,
+    note: string | undefined,
+    at: number,
+  ): Promise<void> {
+    await this.enqueue(async () => {
+      const detail: EngineActivityDetail = { delivery, ...(note ? { note } : {}) }
+      const key = attentionInboxItemKey({ taskId, tabId, state: "report_missing", detail })
+      const next = new Map(this.items)
+      next.delete(key)
+      next.set(key, { taskId, tabId, state: "report_missing", detail, unread: true, at })
+      await this.commit(next)
+    })
+  }
+
+  /** Clear a delivery's `report_missing` episode (late report, or dismiss). */
+  async deleteDeliveryEpisode(deliveryId: string): Promise<boolean> {
+    return await this.enqueue(async () => {
+      const key = attentionInboxItemKey({
+        taskId: null,
+        tabId: null,
+        state: "report_missing",
+        detail: { delivery: { id: deliveryId, cause: "turn-complete" } },
+      })
+      if (!this.items.has(key)) return false
+      const next = new Map(this.items)
+      next.delete(key)
+      await this.commit(next)
+      return true
+    })
+  }
+
   /** Old clients' `attention.markRead`; resolves exactly like {@link deleteEpisode}. */
   async markRead(taskId: string, tabId: string | null, at: number): Promise<boolean> {
     return await this.deleteEpisode(taskId, tabId, at)

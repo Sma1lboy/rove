@@ -62,7 +62,7 @@ import java.util.Locale
         val tab = selected ?: return@LaunchedEffect
         InboxVisits(context).record(taskId, tab)
         model.tasks.value.attention.filter { it.taskId == taskId && (it.tabId == null || it.tabId == tab) }
-            .forEach { runCatching { model.repository.dismissAttention(taskId, it.tabId) } }
+            .forEach { runCatching { model.repository.dismissAttention(taskId, it.tabId, it.deliveryId) } }
     }
     var action by remember { mutableStateOf<String?>(null) }
     var confirmation by remember { mutableIntStateOf(0) }

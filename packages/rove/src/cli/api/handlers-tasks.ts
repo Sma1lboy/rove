@@ -5,9 +5,11 @@
  * in `handlers-lifecycle.ts`.
  */
 
+import { deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
@@ -17,7 +19,7 @@ import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { filterTaskList, listFilters } from "./list-filter.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
-import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec, helpStep, promptMayHaveLanded } from "./types.ts"
 
 export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   const title = ctx.args.str("title")
@@ -175,40 +177,72 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   // Before ANY delivery path (--plain included: a verbatim false claim is the
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)
-  const text = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
+  const plain = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
   // Read BEFORE delivery: a paste into a failed session still "lands", and the
   // caller has to be told what it landed in.
   const target = tab === "new" ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
-  const delivered = await ctx.runtime.deliverPrompt(
-    daemon,
-    {
-      id: taskId,
-      worktreePath: res.task.worktreePath,
-      kind: res.task.kind,
-      // The pinned engine wins for THIS delivery's argv; the task's own
-      // command/protocol stays untouched (a second agent in the worktree is
-      // not a change of the task's engine).
-      vendor: res.task.vendor as VendorId | undefined,
-      command: res.task.command,
-      modelEffort: tabCommand ? undefined : res.task.modelEffort,
-      model: tabCommand ? undefined : res.task.model,
-      repo: res.task.repo,
-      tab,
-      tabVendor,
-      tabCommand,
-      respawn,
-    },
-    text,
-  )
+  // Armed BEFORE the paste: a failed turn can fire its hook within
+  // milliseconds of it, and an unarmed delivery can't be flagged missing.
+  const armed = ctx.args.bool("expect-report") === true || res.task.requireReport === true
+  const deliveryId = armed
+    ? (
+        await daemon.request<{ deliveryId: string }>("delivery.arm", {
+          taskId,
+          ...(tab && tab !== "new" ? { tabId: tab } : {}),
+          promptHead: prompt,
+        })
+      ).deliveryId
+    : undefined
+  const text = deliveryId ? `${plain}\n\n${deliveryFooter(deliveryId, roveApiInvocation())}` : plain
+  const settle = async (delivered: boolean, session?: string): Promise<void> => {
+    if (!deliveryId) return
+    // The hosted session key is `<taskId>::<tabId>`.
+    const landedTab = session?.split("::")[1]
+    await daemon
+      .request("delivery.settle", { deliveryId, delivered, ...(landedTab ? { tabId: landedTab } : {}) })
+      .catch(() => {})
+  }
+  let delivered: Awaited<ReturnType<typeof ctx.runtime.deliverPrompt>>
+  try {
+    delivered = await ctx.runtime.deliverPrompt(
+      daemon,
+      {
+        id: taskId,
+        worktreePath: res.task.worktreePath,
+        kind: res.task.kind,
+        // The pinned engine wins for THIS delivery's argv; the task's own
+        // command/protocol stays untouched (a second agent in the worktree is
+        // not a change of the task's engine).
+        vendor: res.task.vendor as VendorId | undefined,
+        command: res.task.command,
+        modelEffort: tabCommand ? undefined : res.task.modelEffort,
+        model: tabCommand ? undefined : res.task.model,
+        repo: res.task.repo,
+        tab,
+        tabVendor,
+        tabCommand,
+        respawn,
+      },
+      text,
+    )
+  } catch (err) {
+    await settle(false)
+    throw err
+  }
   // A prompt that never landed is a delivery FAILURE the script must see —
   // non-zero exit, not a phantom `ok:true`.
   if (!delivered.delivered) {
+    // Cancel only when nothing was written: an unobserved launch may still start with the prompt.
+    const mayLand = promptMayHaveLanded(delivered)
+    await settle(mayLand, mayLand ? delivered.session : undefined)
     throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
   }
+  await settle(true, delivered.session)
   return {
     ok: true,
     taskId,
     session: delivered.session,
+    ...(deliveryId ? { deliveryId } : {}),
     started: delivered.started,
     engineReady: delivered.engineReady,
     // Measured delivery facts, spelled as `add` spells them.

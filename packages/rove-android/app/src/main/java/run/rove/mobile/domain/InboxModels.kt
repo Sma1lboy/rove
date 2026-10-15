@@ -20,8 +20,9 @@ object InboxLogic {
     /** Stopped until a person acts: everything except a plain finished turn. */
     fun isBlocking(item: Attention) = item.state != "turn_complete"
 
-    /** One episode per tab, the fresh one replacing the stale. */
+    /** One episode per tab, the fresh one replacing the stale; a delivery episode is keyed by its delivery. */
     fun key(item: Attention): String {
+        if (item.deliveryId != null) return "delivery\u0000${item.deliveryId}"
         if (item.taskId == null && item.label != null) return "${item.state}\u0000${item.label}"
         return "${item.taskId.orEmpty()}\u0000${item.tabId.orEmpty()}"
     }

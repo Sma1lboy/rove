@@ -30,5 +30,9 @@ export function dismissEpisode(item: AttentionInboxItem, rpc: InboxOpenRpc): Pro
   const automationId = item.detail?.routine?.automationId
   if (isRoutineInboxState(item.state) && automationId) return rpc.dismissRoutineAttention(automationId)
   // A task-shaped episode always carries its task; the guard is for the type.
-  return item.taskId === null ? Promise.resolve(false) : rpc.dismissAttention(item.taskId, item.tabId, item.at)
+  if (item.taskId === null) return Promise.resolve(false)
+  // A delivery episode is keyed by its delivery, not (task, tab): the plain form would miss it.
+  const deliveryId = item.state === "report_missing" ? item.detail?.delivery?.id : undefined
+  if (deliveryId === undefined) return rpc.dismissAttention(item.taskId, item.tabId, item.at)
+  return rpc.dismissAttention(item.taskId, item.tabId, item.at, deliveryId)
 }

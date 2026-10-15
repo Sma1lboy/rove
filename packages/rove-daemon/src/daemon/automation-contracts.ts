@@ -1,6 +1,7 @@
 /** Scheduled automations ("routines"): the schedule record, its run history, and the edit patch. */
 
 import type { VendorId } from "./contracts.ts"
+import type { DeliveryStatus } from "./delivery-contracts.ts"
 
 /** Back-pointer from a routine's standing session task to its {@link Automation}. */
 export interface TaskRoutineLink {
@@ -113,9 +114,16 @@ export interface AutomationRun {
   readonly error?: string
   /** ISO-8601 event time. */
   readonly at: string
-  /** What the agent reported for THIS run via `routine-respond`. Never
-   *  inferred from a transcript: no call, no response. */
+  /** The delivery armed for this run's prompt. Its report IS the run's
+   *  response: `response` and `deliveryStatus` are read from it, never stored
+   *  twice. */
+  readonly deliveryId?: string
+  /** What the agent reported for THIS run. Never inferred from a transcript:
+   *  no report, no response. Projected from the linked delivery by
+   *  `automation.runs`; stored only on runs that predate deliveries. */
   readonly response?: AutomationRunResponse
+  /** Projected from the linked delivery, never stored. */
+  readonly deliveryStatus?: DeliveryStatus
 }
 
 export interface AutomationRunResponse {
@@ -135,11 +143,15 @@ export const ROUTINE_RESPONSE_WINDOW_MS = 2 * 60 * 60_000
  * prompt (nothing to respond to).
  */
 export function routineRunResponseState(
-  run: Pick<AutomationRun, "status" | "at" | "response">,
+  run: Pick<AutomationRun, "status" | "at" | "response" | "deliveryStatus">,
   nowMs: number,
 ): "responded" | "awaiting" | "missing" | null {
   if (run.response) return "responded"
   if (run.status !== "dispatched" && run.status !== "revived") return null
+  // A delivery knows whether the turn ended unreported; the window is only
+  // the fallback for runs that predate deliveries.
+  if (run.deliveryStatus === "missing") return "missing"
+  if (run.deliveryStatus === "awaiting") return "awaiting"
   return nowMs - Date.parse(run.at) > ROUTINE_RESPONSE_WINDOW_MS ? "missing" : "awaiting"
 }
 

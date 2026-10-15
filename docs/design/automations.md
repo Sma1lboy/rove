@@ -35,8 +35,12 @@ writer). Types in [`contracts.ts`](../../packages/rove-daemon/src/daemon/contrac
   `sessionTaskId` (issue #91). Types in
   [`automation-contracts.ts`](../../packages/rove-daemon/src/daemon/automation-contracts.ts).
 - **`AutomationRun`** — one firing. `scheduledFor` (when it *should* have run),
-  `status`, `trigger`, and the `taskId` it produced. Capped at 100 per
-  automation.
+  `status`, `trigger`, and the `taskId` it produced. A delivered run also
+  carries `deliveryId`: its prompt arms a delivery
+  ([long-run-controls](./long-run-controls.md)), and the run's `response` and
+  `deliveryStatus` are read from that delivery's report, not stored on the
+  run. `routine-respond` writes the same report. Runs from before deliveries
+  keep their stored `response`. Capped at 100 per automation.
 
 ### Run statuses
 

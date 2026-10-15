@@ -136,7 +136,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       return ops.diffFile(str(a, "taskId"), str(a, "path"), scope)
     }
     case "attention.dismiss":
-      await ops.dismissAttention(str(a, "taskId"), optStr(a, "tabId"))
+      await ops.dismissAttention(str(a, "taskId"), optStr(a, "tabId"), optStr(a, "deliveryId"))
       return {}
     default: {
       const spec = (deps.areaOps ?? AREA_OPS)[req.op]

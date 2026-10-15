@@ -39,6 +39,13 @@ class InboxTest {
         assertEquals(listOf(5.0, 4.0), InboxLogic.appending(Visit("a", "t1", 5.0), listOf(Visit("a", "t1", 1.0), Visit("b", "t1", 4.0))).map { it.at })
     }
 
+    @Test fun deliveryEpisodesAreKeyedByDeliveryNotTaskTab() {
+        val a = Attention(taskId = "a", tabId = null, state = "report_missing", deliveryId = "d-1")
+        val b = Attention(taskId = "a", tabId = null, state = "report_missing", deliveryId = "d-2")
+        val plain = item("a", "error", 1.0, tab = null)
+        assertEquals(3, setOf(InboxLogic.key(a), InboxLogic.key(b), InboxLogic.key(plain)).size)
+    }
+
     @Test fun resumeTimeShowsTheDayOnlyWhenNotToday() {
         val zone = ZoneId.of("UTC")
         val now = Instant.parse("2026-10-10T08:00:00Z")
