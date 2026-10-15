@@ -176,9 +176,16 @@ Always screenshot headed. Cost one round of three wrong fixes.
     sync base: no bridge op).
   - User prefix overrides in `keybindings.yaml` are not read by the web.
   - Dialogs focus themselves on open; before, Esc died inside xterm.
-- **Next pick:** Worktrees page (`x`, `worktrees.list`) and terminal tab
-  chords that aren't browser-reserved (Ctrl+1..9 / Ctrl+[ ]), then the
-  palette (`ctrl+a /`).
+- **Owner, 2026-10-15:** no more round-by-round stops or reports. Keep
+  slicing PRs for review, work straight through PARITY, message only when all
+  done (stack order, final PARITY, what can't be done and why) or blocked.
+  An item that genuinely can't exist on the web stays ❌ with the reason.
+- **Round 8** (`web/round-8`): Worktrees page (`worktrees-view.tsx`) over the
+  bridge's existing `worktrees.list`/`worktrees.remove` (grep op names with a
+  loose pattern: some area files register with `spec({`). Direct tab chords
+  in `workspace-keys.tsx`; prefix listener now `stopImmediatePropagation`.
+- **Next pick:** Kanban / Routines / GitHub Issues pages (`issue.*`,
+  `routine.*`, `workitem.*` ops exist), then the remaining ❌ rows top down.
 - **Pending owner stack (#1247→#1246→#1248→#1249, long-run controls):** once
   merged, the Inbox must stop clearing on open for `report_missing` rows
   (clear only via `d` → `attention.dismiss {deliveryId}` or a late report) and

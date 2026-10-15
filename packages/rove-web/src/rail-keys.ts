@@ -10,7 +10,7 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { type NavRow, SORT_MODES, type SortMode } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
-import { toast } from "./ui.ts"
+import { page, toast } from "./ui.ts"
 
 const SORT_KEY = "rove.activeSortMode"
 /** Second `g` of `gg` must land within this. */
@@ -155,6 +155,9 @@ export function useRailKeys(
         break
       case "s":
         opts.onSettings()
+        break
+      case "x":
+        page.set("worktrees")
         break
       default:
         return

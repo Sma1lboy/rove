@@ -15,8 +15,10 @@ import { useStore } from "./store.ts"
 import { NewChatDialog } from "./task-dialogs.tsx"
 import { TerminalView } from "./terminal-view.tsx"
 import { tokenFromInput } from "./token-input.ts"
-import { dialog, preview, zen } from "./ui.ts"
+import { dialog, page, preview, zen } from "./ui.ts"
 import { UsageChips } from "./usage-view.tsx"
+import { useWorkspaceKeys } from "./workspace-keys.tsx"
+import { WorktreesView } from "./worktrees-view.tsx"
 
 export function App({ model }: { model: AppModel }) {
   useLocale()
@@ -28,6 +30,7 @@ export function App({ model }: { model: AppModel }) {
 
 function Shell({ model }: { model: AppModel }) {
   usePrefixLayer(model)
+  useWorkspaceKeys(model)
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
@@ -53,6 +56,14 @@ function Workspace({ model }: { model: AppModel }) {
   const view = useStore(preview)
   const shown = view && task && view.taskId === task.id ? view : null
   const zenOn = useStore(zen)
+  const pageOn = useStore(page)
+  if (pageOn === "worktrees") {
+    return (
+      <main className="workspace">
+        <WorktreesView model={model} />
+      </main>
+    )
+  }
   return (
     <main className="workspace">
       {task && (
