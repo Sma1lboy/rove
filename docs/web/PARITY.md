@@ -1,11 +1,11 @@
 # Web parity with the TUI
 
-Every user action the TUI offers (199 numbered rows, plus two web-only entries marked `—`), and whether `packages/rove-web` does it yet.
+Every user action the TUI offers (199 numbered rows, plus four extra rows marked `—`: two web-only, two for the unmerged long-run controls stack), and whether `packages/rove-web` does it yet.
 Legend: ✅ same as TUI · 🟡 partial or different · ❌ missing (unbuilt) · 🚫 cannot exist in a browser. `Bridge` names the op that would carry the action: `missing` = no op exists, `local` = pure UI.
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
 
-Score: 15 / 201 rows at ✅ (22 🟡, 2 🚫, 162 ❌)
+Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 
 ## Navigation, help, command layer and global chrome
 
@@ -163,6 +163,8 @@ Score: 15 / 201 rows at ✅ (22 🟡, 2 🚫, 162 ❌)
 | 123 | Jump / cycle pending across projects | F7 | ❌ | `attention.dismiss` | Playwright: trigger 'F7'; expect 'jump / cycle pending across projects' as in TUI. Currently absent (via attention.dismiss). |
 | 124 | Open failed-routine attention target | Enter, click | ❌ | `attention.dismiss`, `routine.runs` | Playwright: trigger 'Enter'; expect 'open failed-routine attention target' as in TUI. Currently absent (via attention.dismiss, routine.runs). |
 | 125 | Dismiss toast | toast click / timeout | 🟡 | local | r2: toasts (`copied …`) appear bottom-right and time out after 4 s; no click-to-dismiss. |
+| — | Open a `report_missing` row (long-run controls stack #1247→#1249, unmerged) | Enter, click | 🟡 | `attention.dismiss` (`deliveryId`) | Not yet aligned: today Enter opens AND clears every row. After the stack lands, opening a `report_missing` row (keyed by delivery, `detail.deliveryId`) must NOT clear it; only a late report or an explicit `d` (`attention.dismiss {deliveryId}`) clears it, else a broken loop gets unblocked. Follow TUI `inbox-open-action.ts` and the phones' `InboxLogic.clearsOnVisit`. |
+| — | Answer a `decision_needed` row (same stack, unmerged) | Enter | 🟡 | `gate.answer` (stack) | Not yet aligned: the row carries a `gateId` and cannot be dismissed (daemon: `GATE_NOT_DISMISSABLE`). Enter must open a decision dialog that calls `gate.answer`, not jump-and-clear; `d` must not be offered. |
 
 ## Kanban and local issue store
 
