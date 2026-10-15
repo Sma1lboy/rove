@@ -99,3 +99,11 @@ Always screenshot headed. Cost one round of three wrong fixes.
   `review.*`): a whole TUI pane, ~18 rows. Then a bridge op for a hosted
   shell tab and an empty engine tab (#42, #43, #74, #85). Then footer usage
   (`usage.get`).
+- **Pending owner stack (#1247→#1246→#1248→#1249, long-run controls):** once
+  merged, the Inbox must stop clearing on open for `report_missing` rows
+  (clear only via `d` → `attention.dismiss {deliveryId}` or a late report) and
+  open a decision dialog calling `gate.answer` for `decision_needed` rows
+  (`gateId`; dismiss returns `GATE_NOT_DISMISSABLE`). Reference: TUI
+  `inbox-open-action.ts`, phones' `InboxLogic.clearsOnVisit`. Today
+  `inbox-view.tsx` `open()` dismisses unconditionally; that is the line to
+  change. Two `—` rows in PARITY track it.
