@@ -243,9 +243,18 @@ export interface LiveRowSignals {
 
 export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals): RoveOps {
   let engineCache: { at: number; engines: readonly EngineRow[] } | null = null
+  // One cold load at a time: every `task.tabs` needs the list, and a client fans those out per task.
+  let engineLoad: Promise<readonly EngineRow[]> | null = null
 
-  const engines = async (): Promise<readonly EngineRow[]> => {
-    if (engineCache && Date.now() - engineCache.at < ENGINE_CACHE_MS) return engineCache.engines
+  const engines = (): Promise<readonly EngineRow[]> => {
+    if (engineCache && Date.now() - engineCache.at < ENGINE_CACHE_MS) return Promise.resolve(engineCache.engines)
+    engineLoad ??= loadEngines().finally(() => {
+      engineLoad = null
+    })
+    return engineLoad
+  }
+
+  const loadEngines = async (): Promise<readonly EngineRow[]> => {
     const res = await verb<{ engines: ReadonlyArray<EngineRow> }>(client, "engine-list", [])
     const rows = await Promise.all(
       res.engines.map(async ({ id, name, command, protocol, builtin, models }) => {

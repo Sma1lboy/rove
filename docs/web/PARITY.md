@@ -22,7 +22,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 9 | Focus previous/next pane | prefix h/l, F4 | ❌ | local | Playwright: trigger 'prefix h/l'; expect 'focus previous/next pane' as in TUI. Currently absent (browser-local, no bridge call). |
 | 10 | Return to Tasks, then quit | Ctrl+Q (browser-reserved: web needs a PROPOSED chord, owner sign-off per docs/KEYBINDINGS.md) | ❌ | local | Playwright: trigger 'Ctrl+Q (browser-reserved: web needs a PROPOSED chord'; expect 'return to Tasks, then quit' as in TUI. Currently absent (browser-local, no bridge call). |
 | 11 | Quit with confirmation | sidebar `q` | ❌ | local | Playwright: trigger 'sidebar q'; expect 'quit with confirmation' as in TUI. Currently absent (browser-local, no bridge call). |
-| 12 | Zen: toggle Files visibility | prefix z, Files chip | ❌ | local | Playwright: trigger 'prefix z'; expect 'zen: toggle Files visibility' as in TUI. Currently absent (browser-local, no bridge call). |
+| 12 | Zen: toggle Files visibility | prefix z, Files chip | 🟡 | local | r3: the `Zen` chip hides the Files pane and a `Files` button in the tab strip brings it back; persisted per browser like the TUI's KV. No prefix chord yet (needs a PROPOSED web chord). |
 | 13 | Redraw corrupted screen | prefix r | 🚫 | local | Cannot exist: a browser canvas has no corrupted terminal screen to erase; xterm repaints itself. |
 | 14 | Refresh daemon/TUI build (restart daemon + relaunch) | prefix r when DAEMON OUT OF DATE, confirm | ❌ | missing | Playwright: trigger 'prefix r when DAEMON OUT OF DATE'; expect 'refresh daemon/TUI build (restart daemon + relaunch)' as in TUI. Currently absent (no bridge op yet). |
 | 15 | Open Settings | prefix `,`, sidebar `s`, footer click | ❌ | local | Playwright: trigger 'prefix'; expect 'open Settings' as in TUI. Currently absent (browser-local, no bridge call). |
@@ -132,24 +132,24 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
-| 100 | All / Changes tab | `[` / `]`, header click | ❌ | `diff.files`, `files.list` | Playwright: trigger '[ / ]'; expect 'all / Changes tab' as in TUI. Currently absent (via diff.files, files.list). |
-| 101 | Navigate files | j/k, ↑/↓, click | ❌ | local | Playwright: trigger 'j/k'; expect 'navigate files' as in TUI. Currently absent (browser-local, no bridge call). |
-| 102 | Collapse / expand tree | h/l, ←/→, click dir | ❌ | local | Playwright: trigger 'h/l'; expect 'collapse / expand tree' as in TUI. Currently absent (browser-local, no bridge call). |
-| 103 | Toggle Changes working / branch scope | b | ❌ | `diff.files` | Playwright: trigger 'b'; expect 'toggle Changes working / branch scope' as in TUI. Currently absent (via diff.files). |
-| 104 | Refresh file list | r | ❌ | `diff.files`, `files.list` | Playwright: trigger 'r'; expect 'refresh file list' as in TUI. Currently absent (via diff.files, files.list). |
-| 105 | Open file in configured editor / diff editor | Enter, click | ❌ | missing | Playwright: trigger 'Enter'; expect 'open file in configured editor / diff editor' as in TUI. Currently absent (no bridge op yet). |
-| 106 | Open file/directory read-only diff tab | d | ❌ | `diff.file` | Playwright: trigger 'd'; expect 'open file/directory read-only diff tab' as in TUI. Currently absent (via diff.file). |
-| 107 | Open whole-worktree combined diff | Shift+D, [D] click | ❌ | `diff.file` | Playwright: trigger 'Shift+D'; expect 'open whole-worktree combined diff' as in TUI. Currently absent (via diff.file). |
-| 108 | Reload preview / diff | r | ❌ | `diff.file` | Playwright: trigger 'r'; expect 'reload preview / diff' as in TUI. Currently absent (via diff.file). |
-| 109 | Close preview | q/Esc/Ctrl+C, Ctrl+W | ❌ | local | Playwright: trigger 'q/Esc/Ctrl+C'; expect 'close preview' as in TUI. Currently absent (browser-local, no bridge call). |
+| 100 | All / Changes tab | `[` / `]`, header click | ✅ | `diff.files`, `files.list` | r3/r3b: header click and `[`/`]` switch tabs; Changes is the default, as in the TUI. |
+| 101 | Navigate files | j/k, ↑/↓, click | ✅ | local | r3b: `j`/`k` move the selected row to README.md, then `d` opens it. |
+| 102 | Collapse / expand tree | h/l, ←/→, click dir | ✅ | local | r3: clicking `src` in All expands to `auth` (shot r3-06). |
+| 103 | Toggle Changes working / branch scope | b | ✅ | `diff.files` | r3: `b` switches to "vs main" and lists the committed `A src/auth/refresh.ts` (shot r3-02). |
+| 104 | Refresh file list | r | ✅ | `diff.files`, `files.list` | r3b: a file written after load appears only after `r` (shot r3b-01). |
+| 105 | Open file in configured editor / diff editor | Enter, click | 🟡 | missing | Web Enter/click opens the read-only diff instead; launching the host editor needs a bridge op. |
+| 106 | Open file/directory read-only diff tab | d | ✅ | `diff.file` | r3/r3b: click and `d` open the diff as a `d README.md` tab with old/new gutters (shot r3-04). |
+| 107 | Open whole-worktree combined diff | Shift+D, [D] click | ✅ | `diff.file` | r3: `Shift+D` opens the combined diff naming README.md (shot r3-05). |
+| 108 | Reload preview / diff | r | ✅ | `diff.file` | r3b: a line written to README.md after open appears after `r`. |
+| 109 | Close preview | q/Esc/Ctrl+C, Ctrl+W | 🟡 | local | r3/r3b: `q` and Esc close it and the terminal comes back; Ctrl+C/Ctrl+W are not bound (Ctrl+W is browser-reserved). |
 | 110 | Open binary/image/audio/video/PDF in system app | o | ❌ | missing | Playwright: trigger 'o'; expect 'open binary/image/audio/video/PDF in system app' as in TUI. Currently absent (no bridge op yet). |
-| 111 | Insert @path in engine input | Files `a` | ❌ | `term.input` | Playwright: trigger 'Files a'; expect 'insert @path in engine input' as in TUI. Currently absent (via term.input). |
-| 112 | Ask agent to create PR | prefix p/P, Files chip | ❌ | `tab.requestPR` | Playwright: trigger 'prefix p/P'; expect 'ask agent to create PR' as in TUI. Currently absent (via tab.requestPR). |
-| 113 | Move diff review line cursor | j/k, arrows | ❌ | local | Playwright: trigger 'j/k'; expect 'move diff review line cursor' as in TUI. Currently absent (browser-local, no bridge call). |
-| 114 | Anchor / cancel review range | v | ❌ | local | Playwright: trigger 'v'; expect 'anchor / cancel review range' as in TUI. Currently absent (browser-local, no bridge call). |
-| 115 | Add per-file review note | c | ❌ | `review.add` | Playwright: trigger 'c'; expect 'add per-file review note' as in TUI. Currently absent (via review.add). |
-| 116 | Drop note under cursor | x | ❌ | `review.remove` | Playwright: trigger 'x'; expect 'drop note under cursor' as in TUI. Currently absent (via review.remove). |
-| 117 | Send all unsent review notes | s | ❌ | `review.send` | Playwright: trigger 's'; expect 'send all unsent review notes' as in TUI. Currently absent (via review.send). |
+| 111 | Insert @path in engine input | Files `a` | ✅ | `term.input` | r3: `a` on README.md typed `@README.md ` into the attached session (checked via `rove api read-output`); with no session, a toast with the TUI's wording. |
+| 112 | Ask agent to create PR | prefix p/P, Files chip | 🟡 | `tab.requestPR` | r3b: the chip calls `tab.requestPR`; on the sandbox (engine exited into a shell) it shows the bridge's refusal, as the TUI does. Delivery to a live engine not seen: no sandbox engine stays alive. No prefix chord. |
+| 113 | Move diff review line cursor | j/k, arrows | ✅ | local | r3: `j` walks the cursor to the first added row. |
+| 114 | Anchor / cancel review range | v | ✅ | local | r3b: `v` + `j j` + `c` stores a note with `startLine` two lines above `line` (shot r3b-02). |
+| 115 | Add per-file review note | c | ✅ | `review.add` | r3: the note lands in `state.json` `diffComments.<taskId>` (read back via `review.list`); the row gets the note marker (shot r3-04). |
+| 116 | Drop note under cursor | x | ✅ | `review.remove` | r3: `x` removes it; `review.list` shrinks by one. |
+| 117 | Send all unsent review notes | s | 🟡 | `review.send` | r3b: `s` calls `review.send`; with the engine exited the bridge refuses, the toast says why and notes stay unsent (`sentAt` unset). Delivery to a live engine not seen (same sandbox limit as #112). |
 
 ## Inbox, alerts and attention
 
@@ -276,5 +276,7 @@ Round 1:
 - **#26 Open task/tab**: clicked a task row, then a tab row; the terminal attached and showed the replayed output.
 
 Round 2 (`.scratch/web/e2e-r2.ts`, `e2e-r2b.ts`, `e2e-perm.ts`; shots `r2-*`, `r2b-*`): #41, #44, #46–#49, #56, #67, #71, #120, #121, #199 at ✅; the 🟡 rows above say which half works. Compared with the TUI: the row menu carries the TUI's entries in `tree-menu.ts` order minus the ones the bridge cannot carry (New shell, Open in editor, Reorder, Run again, Fix checks, Sync base); the Inbox is a dialog like `AttentionInboxPane`, with its ATTENTION/RECENT sections and state words.
+
+Round 3 (`.scratch/web/e2e-r3.ts`, `e2e-r3b.ts`; shots `r3-*`, `r3b-*`): #100–#104, #106–#108, #111, #113–#116 at ✅; #12, #105, #109, #112, #117 at 🟡. Compared with the TUI Files pane (`panes/filetree/header-view.tsx`, `preview-review.tsx`): same header (Zen, create-PR chip, All/Changes, scope line with `b to toggle`, status legend, `[D] diff everything`), same status letters and +/− chips, the diff as a `d <file>` tab next to the session tabs, same review keys and footer hints. Difference: Enter opens the diff, not the host editor.
 
 Screenshots are local only. Headless Chromium paints the WebGL terminal blank, so shots are taken headed (see MEMO).

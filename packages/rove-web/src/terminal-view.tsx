@@ -14,6 +14,7 @@ import "@xterm/xterm/css/xterm.css"
 import { useEffect, useRef, useState } from "react"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"
+import { activeStream } from "./ui.ts"
 
 /** The TUI's default `claude` theme, dark (`tui/context/theme/claude.json`). */
 const XTERM_THEME = {
@@ -177,6 +178,7 @@ export function mountTerminal(
       for (const bytes of held) term.write(bytes)
       stream = res.stream
       alive = res.alive
+      if (res.alive) activeStream.set(res.stream)
       setNotice(res.alive ? { kind: "none" } : { kind: "restored" })
     } catch (err) {
       if (disposed) return
@@ -200,7 +202,10 @@ export function mountTerminal(
       if (stream && alive) void client.request("term.resize", { stream, cols, rows }).catch(() => {})
     }, 80)
   })
-  const observer = new ResizeObserver(() => fit.fit())
+  // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY.
+  const observer = new ResizeObserver(() => {
+    if (el.clientWidth > 0 && el.clientHeight > 0) fit.fit()
+  })
   observer.observe(el)
 
   return () => {
@@ -217,6 +222,7 @@ export function mountTerminal(
       owned.delete(expected)
       if (ownership.attached) detach()
     }
+    if (stream && activeStream.get() === stream) activeStream.set(null)
     term.dispose()
   }
 }

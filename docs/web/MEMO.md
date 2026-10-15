@@ -95,10 +95,29 @@ Always screenshot headed. Cost one round of three wrong fixes.
     attached TUI), and `tab.new` requires a first message where the TUI
     picker starts an engine empty. Both need a bridge op that the phones
     would also use.
-- **Next pick:** Files + diff view (`files.list`, `diff.files`, `diff.file`,
-  `review.*`): a whole TUI pane, ~18 rows. Then a bridge op for a hosted
-  shell tab and an empty engine tab (#42, #43, #74, #85). Then footer usage
-  (`usage.get`).
+- **Round 3** (branch `web/round-3`, stacked on round 2): the Files pane
+  (All tree / Changes with working ↔ branch scope, `[` `]` `j` `k` `h` `l`
+  `b` `r` `d` `Shift+D` `a`), the read-only diff opened as a tab in the strip
+  (old/new gutters), line review notes (`j/k`, `v` range, `c`, `x`, `s`, `r`,
+  `q`/Esc) stored in the TUI's own `diffComments.<taskId>`, Zen and the
+  create-PR chip. Scripts: `e2e-r3.ts`, `e2e-r3b.ts` (shots `r3-*`, `r3b-*`).
+  - Notes anchor to the gutter's display line (new-file number for
+    added/context rows, old-file number for removed), the TUI's
+    `DiffComment.line` contract; `diff.ts` is unit-tested on that.
+  - The terminal stays mounted (hidden) under a preview so the PTY session
+    and scrollback survive; `fit()` skips a 0×0 box, otherwise hiding it
+    would shrink the shared PTY for every client.
+  - Bug found by the e2e flake: on a cold bridge every `task.tabs` call ran
+    its own `engine-list` + per-engine status probe, so a page load could
+    wait seconds for any tab, and a task clicked early showed no terminal.
+    Fixed in the bridge (single-flight engine load, phones benefit too) and
+    in the page (`refreshTabs` applies each reply as it lands).
+  - `s` and the PR chip were only seen refusing (sandbox engines exit into a
+    shell). Seeing a delivery needs a live engine in the sandbox: a stub
+    engine command that stays alive would do it.
+- **Next pick:** a bridge op for a hosted shell tab and an empty engine tab
+  (#42, #43, #74, #85), then footer usage (`usage.get`), then a stub
+  long-lived sandbox engine so delivery rows (#112, #117) can go ✅.
 - **Pending owner stack (#1247→#1246→#1248→#1249, long-run controls):** once
   merged, the Inbox must stop clearing on open for `report_missing` rows
   (clear only via `d` → `attention.dismiss {deliveryId}` or a late report) and

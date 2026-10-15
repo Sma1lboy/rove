@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
+import { displayLine, noteRange, parseUnifiedDiff } from "../src/diff.ts"
+import { visibleTree } from "../src/file-tree.ts"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
 import { compactAge, inboxBadge } from "../src/inbox.ts"
@@ -91,4 +93,51 @@ describe("inbox", () => {
     expect(compactAge(3 * 3_600_000)).toBe("3h")
     expect(compactAge(72 * 3_600_000)).toBe("3d")
   })
+})
+
+describe("diff", () => {
+  const text = [
+    "diff --git a/src/x.ts b/src/x.ts",
+    "index 1..2 100644",
+    "--- a/src/x.ts",
+    "+++ b/src/x.ts",
+    "@@ -10,3 +10,3 @@",
+    " keep",
+    "-old",
+    "+new",
+    " tail",
+  ].join("\n")
+
+  test("gutter numbers follow the hunk header; a note anchors to the number the row shows", () => {
+    const rows = parseUnifiedDiff(text)
+    const body = rows.filter((r) => r.kind === "ctx" || r.kind === "add" || r.kind === "del")
+    expect(body.map((r) => [r.kind, displayLine(r), r.path])).toEqual([
+      ["ctx", 10, "src/x.ts"],
+      ["del", 11, "src/x.ts"],
+      ["add", 11, "src/x.ts"],
+      ["ctx", 12, "src/x.ts"],
+    ])
+    expect(rows.filter((r) => r.kind === "meta" || r.kind === "hunk").every((r) => displayLine(r) === null)).toBe(true)
+  })
+
+  test("a v-range spans its two ends in either direction; a header row anchors nothing", () => {
+    const rows = parseUnifiedDiff(text)
+    const first = rows.findIndex((r) => r.kind === "ctx")
+    const last = rows.length - 1
+    expect(noteRange(rows, last, first)).toEqual({ path: "src/x.ts", startLine: 10, line: 12 })
+    expect(noteRange(rows, first, last)).toEqual({ path: "src/x.ts", startLine: 10, line: 12 })
+    expect(noteRange(rows, 0, null)).toBeNull()
+  })
+})
+
+test("file tree: dirs first, only expanded dirs show children, dir paths end in /", () => {
+  const files = ["b.txt", "src/a.ts", "src/lib/c.ts", "a.md"]
+  expect(visibleTree(files, new Set()).map((r) => r.path)).toEqual(["src/", "a.md", "b.txt"])
+  expect(visibleTree(files, new Set(["src/"])).map((r) => [r.path, r.depth])).toEqual([
+    ["src/", 0],
+    ["src/lib/", 1],
+    ["src/a.ts", 1],
+    ["a.md", 0],
+    ["b.txt", 0],
+  ])
 })
