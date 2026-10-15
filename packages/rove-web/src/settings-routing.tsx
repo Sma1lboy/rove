@@ -5,7 +5,7 @@
  * a destination and a secret the Mac would use.
  */
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
@@ -136,6 +136,8 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
   useEffect(() => {
     void load()
   }, [load])
+  // The mode the next press advances from: the last one requested, not the last one rendered.
+  const mode = useRef<{ next: Classifier["mode"]; inFlight: number } | null>(null)
   const write = (op: string, args: Record<string, unknown>) =>
     client
       .request(op, args)
@@ -211,7 +213,14 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
         <button
           type="button"
           className="pref-cycle"
-          onClick={() => void write("autoRouting.setClassifier", { mode: nextMode(c) })}
+          onClick={() => {
+            const next = nextMode({ ...c, mode: mode.current?.next ?? c.mode })
+            const pending = { next, inFlight: (mode.current?.inFlight ?? 0) + 1 }
+            mode.current = pending
+            void write("autoRouting.setClassifier", { mode: next }).then(() => {
+              if (mode.current && --mode.current.inFlight === 0) mode.current = null
+            })
+          }}
         >
           <span className="pref-label">
             {ts("autoRouting.classifierLabel")}: {modeLabel}

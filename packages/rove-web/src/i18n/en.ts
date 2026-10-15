@@ -196,6 +196,10 @@ export const en = {
     unset: "(none)",
     modeAuto: "Auto (follow the browser)",
     resetButton: "Reset",
+    resetHint:
+      "Clears this Mac's saved settings and task list, restarts the Rove daemon, then reloads this page. Worktrees on disk and engine session history are not touched.",
+    resetBody:
+      "Wipes ~/.config/rove/state.json and ~/.rove/tasks.json and restarts the daemon, then reloads this page with an empty task list. Worktrees on disk and engine session history are NOT touched.",
     restartButton: "Restart",
     keysYaml:
       "Rebinding chords is an edit of ~/.rove/settings/keybindings.yaml on the Mac; this page does not write it.",

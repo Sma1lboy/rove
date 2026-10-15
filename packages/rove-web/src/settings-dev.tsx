@@ -51,7 +51,7 @@ export function DevSection({ client }: { client: BridgeClient }) {
       {pending === kind ? (
         <div className="confirm-inline">
           <strong>{ts(`${kind}.title`)}</strong>
-          <p className="muted">{ts(`${kind}.body`)}</p>
+          <p className="muted">{kind === "reset" ? t("prefs.resetBody") : ts("restart.body")}</p>
           <div className="actions">
             <button type="button" className="link" onClick={() => setPending(null)}>
               {t("dialog.cancel")}
@@ -76,7 +76,7 @@ export function DevSection({ client }: { client: BridgeClient }) {
 
   return (
     <>
-      {ask("reset", ts("dev.reset"), ts("dev.resetHint"), t("prefs.resetButton"), true)}
+      {ask("reset", ts("dev.reset"), t("prefs.resetHint"), t("prefs.resetButton"), true)}
       {ask("restart", ts("dev.restart"), ts("dev.restartHint"), t("prefs.restartButton"), false)}
       <p className="muted">{ts("dev.doctorHint")}</p>
       <Group title={ts("dev.experimental")}>

@@ -197,6 +197,10 @@ export const zh: typeof en = {
     unset: "（无）",
     modeAuto: "自动（跟随浏览器）",
     resetButton: "重置",
+    resetHint:
+      "清空这台 Mac 上保存的设置和任务列表,重启 Rove 守护进程,然后刷新本页。磁盘上的工作树和引擎会话历史不受影响。",
+    resetBody:
+      "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json 并重启守护进程,然后刷新本页,任务列表为空。磁盘上的工作树和引擎会话历史不会被动。",
     restartButton: "重启",
     keysYaml: "重绑快捷键是编辑 Mac 上的 ~/.rove/settings/keybindings.yaml；本页不会写它。",
   },
