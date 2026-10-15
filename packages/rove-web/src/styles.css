@@ -359,6 +359,24 @@ button:focus-visible,
   flex: 1;
 }
 
+/* Footer usage: the TUI's chips, gap 2 cells between chips, tone only on the percent. */
+.usage {
+  display: flex;
+  gap: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tone-ok {
+  color: var(--success);
+}
+.tone-warn {
+  color: var(--warning);
+}
+.tone-crit {
+  color: var(--error);
+}
+
 .dot {
   width: 6px;
   height: 6px;

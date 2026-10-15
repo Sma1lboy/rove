@@ -113,11 +113,36 @@ Always screenshot headed. Cost one round of three wrong fixes.
     Fixed in the bridge (single-flight engine load, phones benefit too) and
     in the page (`refreshTabs` applies each reply as it lands).
   - `s` and the PR chip were only seen refusing (sandbox engines exit into a
-    shell). Seeing a delivery needs a live engine in the sandbox: a stub
-    engine command that stays alive would do it.
-- **Next pick:** a bridge op for a hosted shell tab and an empty engine tab
-  (#42, #43, #74, #85), then footer usage (`usage.get`), then a stub
-  long-lived sandbox engine so delivery rows (#112, #117) can go ✅.
+    shell); round 4 saw them delivered.
+- **Round 4** (branch `web/round-4`, stacked on round 3): footer usage, live
+  delivery, faster tabs. Scripts: `e2e-r4.ts`, `e2e-r4c.ts` (shots `r4-*`,
+  `r4c-*`).
+  - `usage.get` takes optional `taskId`+`tabId` and adds `context` (the
+    orchestrator's `contextUsageSignal` for that session, `null` = no
+    reading). Additive: the phones' calls are unchanged.
+  - The web imports the TUI's pure `usage-core.ts` (devDependency
+    `@sma1lboy/rove`), so chip text and tones cannot drift from the TUI.
+  - Bug: `s` and the PR chip sent no tab, so the bridge picked tab-1 (an
+    exited shell) while a live engine sat in tab-2. Now they target the
+    selected engine tab, else the first, as the TUI's `resolveEnginePty`.
+  - `task.tabs` named engines through the full engine list, which probes
+    every binary: 6.9 s on a cold bridge and again after each 60 s cache
+    expiry. It now uses `engineDisplayName` (state.json overrides +
+    registry); cold `task.tabs` is ~75 ms.
+  - Live engine for delivery checks: a Codex tab opened from the web works in
+    the sandbox (Codex is logged in there). The sandbox Claude is NOT logged
+    in, and Codex sessions have no pinned id, so no ctx/Σ reading exists;
+    don't copy real credentials in to get one.
+  - Decided: TUI chords that are not browser-reserved (j/k, r, b, n, /, …)
+    are mirrored on the web in the same pane scope. They are not new or
+    moved chords, so they don't need sign-off; only replacements for
+    Ctrl+W/T/N/Q do.
+- **Next pick:** the rail's keyboard layer (j/k, gg/G, Enter, n, r, b, t, /,
+  Shift+P, `x`, `s`) — mirrors existing TUI chords and lifts many 🟡 rows.
+  Then `rove api tab-new --kind shell|engine` (no prompt) for #42, #43, #74,
+  #85: it must write `terminalTabs.<taskId>` in one locked update and
+  broadcast so an attached TUI's stale KV doesn't overwrite or reuse the id
+  (scout trace: `mintCliTab`, `kv-core.ts`, `pty-host.ts` same-key attach).
 - **Pending owner stack (#1247→#1246→#1248→#1249, long-run controls):** once
   merged, the Inbox must stop clearing on open for `report_missing` rows
   (clear only via `d` → `attention.dismiss {deliveryId}` or a late report) and

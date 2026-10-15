@@ -34,7 +34,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 21 | Toggle collapsed Tasks rail | fold control click | ❌ | local | Playwright: trigger 'fold control click'; expect 'toggle collapsed Tasks rail' as in TUI. Currently absent (browser-local, no bridge call). |
 | 22 | Narrow layout: return to Tasks | click ‹ Tasks, Ctrl+Q | ❌ | local | Playwright: trigger 'click ‹ Tasks'; expect 'narrow layout: return to Tasks' as in TUI. Currently absent (browser-local, no bridge call). |
 | 23 | Footer shortcut hints | click commands/sidebar/help/Settings hint | ❌ | local | Playwright: trigger 'click commands/sidebar/help/Settings hint'; expect 'footer shortcut hints' as in TUI. Currently absent (browser-local, no bridge call). |
-| 24 | Observe quotas / context / token usage in footer | footer (read only) | ❌ | `usage.get` | Playwright: trigger 'footer (read only)'; expect 'observe quotas / context / token usage in footer' as in TUI. Currently absent (via usage.get). |
+| 24 | Observe quotas / context / token usage in footer | footer (read only) | 🟡 | `usage.get` | r4: the footer shows `CODEX 7d 0% → 10/21 23:14`, with the TUI's text and tone from the TUI's own `usage-core.ts` (shot r4-01). `ctx %` / `Σ` come from `usage.get {taskId, tabId}` (bridge unit-tested) but were not seen in a browser: the sandbox Claude is not logged in and Codex sessions carry no pinned id, so the daemon has no reading. No key-hint half (no command layer yet). |
 | — | Open the web client from the printed link (token in fragment, stripped from the address bar) | `rove --web` printed link | ✅ | `hello` | Run `rove --web`, open the printed link (`/#token=…`): the task list loads and `location.hash` is empty after load. |
 
 ## Sidebar, task list, project context menu
@@ -144,12 +144,12 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 109 | Close preview | q/Esc/Ctrl+C, Ctrl+W | 🟡 | local | r3/r3b: `q` and Esc close it and the terminal comes back; Ctrl+C/Ctrl+W are not bound (Ctrl+W is browser-reserved). |
 | 110 | Open binary/image/audio/video/PDF in system app | o | ❌ | missing | Playwright: trigger 'o'; expect 'open binary/image/audio/video/PDF in system app' as in TUI. Currently absent (no bridge op yet). |
 | 111 | Insert @path in engine input | Files `a` | ✅ | `term.input` | r3: `a` on README.md typed `@README.md ` into the attached session (checked via `rove api read-output`); with no session, a toast with the TUI's wording. |
-| 112 | Ask agent to create PR | prefix p/P, Files chip | 🟡 | `tab.requestPR` | r3b: the chip calls `tab.requestPR`; on the sandbox (engine exited into a shell) it shows the bridge's refusal, as the TUI does. Delivery to a live engine not seen: no sandbox engine stays alive. No prefix chord. |
+| 112 | Ask agent to create PR | prefix p/P, Files chip | 🟡 | `tab.requestPR` | r4c: the chip delivers to the selected engine tab (the TUI's rule: active engine tab, else the first); a live Codex tab received the TUI's create-PR prompt and started on it, toast "asked the agent to create the PR" (shot r4c-02). Exited engine: the bridge's refusal (r3b). No prefix chord. |
 | 113 | Move diff review line cursor | j/k, arrows | ✅ | local | r3: `j` walks the cursor to the first added row. |
 | 114 | Anchor / cancel review range | v | ✅ | local | r3b: `v` + `j j` + `c` stores a note with `startLine` two lines above `line` (shot r3b-02). |
 | 115 | Add per-file review note | c | ✅ | `review.add` | r3: the note lands in `state.json` `diffComments.<taskId>` (read back via `review.list`); the row gets the note marker (shot r3-04). |
 | 116 | Drop note under cursor | x | ✅ | `review.remove` | r3: `x` removes it; `review.list` shrinks by one. |
-| 117 | Send all unsent review notes | s | 🟡 | `review.send` | r3b: `s` calls `review.send`; with the engine exited the bridge refuses, the toast says why and notes stay unsent (`sentAt` unset). Delivery to a live engine not seen (same sandbox limit as #112). |
+| 117 | Send all unsent review notes | s | ✅ | `review.send` | r4c: `s` sent the notes to the live Codex tab (it answered `NOTED`), toast "sent 4 notes to the engine", every note got `sentAt` (`review.list`). Exited engine: refused, notes stay unsent (r3b). |
 
 ## Inbox, alerts and attention
 
@@ -278,5 +278,7 @@ Round 1:
 Round 2 (`.scratch/web/e2e-r2.ts`, `e2e-r2b.ts`, `e2e-perm.ts`; shots `r2-*`, `r2b-*`): #41, #44, #46–#49, #56, #67, #71, #120, #121, #199 at ✅; the 🟡 rows above say which half works. Compared with the TUI: the row menu carries the TUI's entries in `tree-menu.ts` order minus the ones the bridge cannot carry (New shell, Open in editor, Reorder, Run again, Fix checks, Sync base); the Inbox is a dialog like `AttentionInboxPane`, with its ATTENTION/RECENT sections and state words.
 
 Round 3 (`.scratch/web/e2e-r3.ts`, `e2e-r3b.ts`; shots `r3-*`, `r3b-*`): #100–#104, #106–#108, #111, #113–#116 at ✅; #12, #105, #109, #112, #117 at 🟡. Compared with the TUI Files pane (`panes/filetree/header-view.tsx`, `preview-review.tsx`): same header (Zen, create-PR chip, All/Changes, scope line with `b to toggle`, status legend, `[D] diff everything`), same status letters and +/− chips, the diff as a `d <file>` tab next to the session tabs, same review keys and footer hints. Difference: Enter opens the diff, not the host editor.
+
+Round 4 (`e2e-r4.ts`, `e2e-r4c.ts`; shots `r4-*`, `r4c-*`): #117 at ✅, #24 at 🟡, #112's delivery seen. Compared with the TUI footer (`host-footer.tsx`): same chip order (ctx, Σ, then per-engine quota), same text and tones, computed by the same `usage-core.ts`; the web keeps link state and host on the right where the TUI has key hints.
 
 Screenshots are local only. Headless Chromium paints the WebGL terminal blank, so shots are taken headed (see MEMO).

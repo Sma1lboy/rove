@@ -111,7 +111,7 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
   }
   const requestPR = () =>
     void model.client
-      .request("tab.requestPR", { taskId: task.id })
+      .request("tab.requestPR", model.engineTarget(task.id))
       .then(() => toast(t("files.prRequested")))
       .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
 

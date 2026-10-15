@@ -117,7 +117,7 @@ export function PreviewView({ model, view }: { model: AppModel; view: Preview })
   }
   const send = () =>
     void c
-      .request<{ sent: number; delivered: boolean; reason?: string }>("review.send", { taskId: view.taskId })
+      .request<{ sent: number; delivered: boolean; reason?: string }>("review.send", model.engineTarget(view.taskId))
       .then((r) => {
         toast(
           r.delivered ? t("preview.sent", { count: r.sent }) : t("preview.notSent", { reason: r.reason ?? "" }),
