@@ -38,6 +38,7 @@ import {
   publishCliTabSnapshot,
   readTabsSnapshot,
 } from "./tab-snapshot.ts"
+import { splitTab } from "./tab-split.ts"
 import { hasLiveEngineTab } from "./task-running.ts"
 import { ApiError, type ApiRuntime, type DeliveredPrompt, type PromptDeliveryOps, type PromptTarget } from "./types.ts"
 
@@ -336,6 +337,7 @@ export const defaultApiRuntime: ApiRuntime = {
   closeTerminalTab: closeHeadlessTerminalTab,
   deliverPrompt: (client, target, prompt) => deliverPrompt(client, target, prompt),
   openTab: async (client, target, kind) => openNewTab(target, await ensureWorktree(client, target), kind),
+  splitTab,
   resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
   isUsableRepo: async (absPath) => {
     const { isGitRepo, isRemoteRepoKey } = await import("../../state/repos.ts")

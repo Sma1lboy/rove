@@ -213,4 +213,10 @@ export const en = {
     forkBranch: "fork from branch",
     openedExternal: "opened in the Mac's app",
   },
+  layout: {
+    splitTooSmall: "Not enough room to split here",
+    railFold: "Fold the task list",
+    railUnfold: "Unfold the task list",
+    railResize: "Drag to resize the task list, double-click to reset",
+  },
 }

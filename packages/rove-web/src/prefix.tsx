@@ -2,35 +2,35 @@
  * The TUI's prefix layer (`keymap-dispatch.ts`): Ctrl+A arms it from anywhere, the
  * terminal included; the next key runs a `prefixKeys` binding; Escape cancels; a miss
  * is swallowed so it can't type into the terminal; an open dialog blocks arming.
- * The HUD (TUI `prefix-hud.tsx`) shows `ctrl+a ⋯` with the live options, then
- * `ctrl+a + z → Toggle zen mode` (or `∅`) for a few seconds.
+ * Holding Ctrl alone for 400 ms reveals the direct shortcuts (`ctrl-hold.ts`).
+ * What the HUD shows is `prefix-guide.tsx`; the state it reads is `prefix-state.ts`.
+ *
+ * Which stroke runs what is read from the command registry, so a stroke registered by
+ * any pane (the terminal's `/`, a split's `w`) competes by focus like the TUI's binding stack.
  */
 
-import { en as keysEn, zh as keysZh } from "@sma1lboy/rove/src/tui/i18n/messages/keys.ts"
+import { CTRL_HOLD_THRESHOLD_MS } from "@sma1lboy/rove/src/tui/lib/ctrl-hold.ts"
 import { useEffect } from "react"
-import { t, useLocale } from "./i18n/index.ts"
+import { type WebCommand, allCommands, appliesOn, currentSurface, registerCommands, specificity } from "./commands.ts"
+import { t } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { NewTaskDialog } from "./new-task-dialog.tsx"
-import { usePrefs } from "./prefs.ts"
+import { openPalette } from "./palette-view.tsx"
+import { focusPane } from "./pane-focus.ts"
+import { PREFIX_TIMEOUT_MS, hud, hudPush } from "./prefix-state.ts"
 import { aimedTask } from "./rail-aim.ts"
 import { SettingsDialog } from "./settings-view.tsx"
-import { ShortcutBadges } from "./shortcut-badges.tsx"
-import { createStore, useStore } from "./store.ts"
+import { isSplit } from "./split-model.ts"
 import { fixChecksFlow, syncBaseFlow } from "./task-flows.tsx"
 import { dialog, page, toast, zen } from "./ui.ts"
-
-const PREFIX_KEY = "ctrl+a"
-/** `DEFAULT_PREFIX_CONFIGURATION.timeoutMs`, `PREFIX_HUD_TTL_MS`. */
-const TIMEOUT_MS = 5000
-const HUD_TTL_MS = 4000
 
 interface PrefixAction {
   readonly strokes: readonly string[]
   /** The TUI binding id: the HUD label comes from its `keys.desc` entry. */
-  readonly id: keyof typeof keysEn.desc
+  readonly id: string
   /** False hides it from the guide and makes the stroke a miss, as an unreachable TUI row. */
   readonly live: (model: AppModel) => boolean
   readonly run: (model: AppModel) => void
@@ -41,28 +41,15 @@ const selectedTask = (model: AppModel) => {
   return model.tasks.get()?.tasks.find((task) => task.id === taskId) ?? null
 }
 
-/** sidebar → workspace → files, as `focus.next`: [pane, what takes focus in it]. */
-const PANES: readonly (readonly [string, string])[] = [
-  [".rail", ".rail"],
-  [".workspace", ".preview, .term-slot:not(.is-hidden) textarea"],
-  [".files", ".files"],
-]
-function focusPane(delta: 1 | -1): void {
-  const at = Math.max(
-    0,
-    PANES.findIndex(([pane]) => document.activeElement?.closest(pane)),
-  )
-  for (let step = 1; step < PANES.length; step++) {
-    const target = PANES[(at + delta * step + PANES.length * 2) % PANES.length]?.[1]
-    const el = target ? document.querySelector<HTMLElement>(target) : null
-    if (el) {
-      el.focus()
-      return
-    }
-  }
+/** The same Ctrl+W route as the split: `workspace.split.close` owns `w` while the tab is split. */
+const unsplit = (model: AppModel): boolean => {
+  const { taskId, tabId } = model.selection.get()
+  const tab = taskId ? model.tabs.get()[taskId]?.find((row) => row.id === tabId) : undefined
+  return !!tab && !isSplit(tab.split)
 }
 
-const ACTIONS: readonly PrefixAction[] = [
+export const ACTIONS: readonly PrefixAction[] = [
+  { strokes: ["/"], id: "palette.open", live: () => true, run: openPalette },
   {
     strokes: ["n"],
     id: "task.new.global",
@@ -113,7 +100,7 @@ const ACTIONS: readonly PrefixAction[] = [
   {
     strokes: ["w"],
     id: "chat.tab.close",
-    live: (m) => !!m.selection.get().tabId,
+    live: (m) => !!m.selection.get().tabId && unsplit(m),
     run: (model) => {
       const { taskId, tabId } = model.selection.get()
       if (!taskId || !tabId) return
@@ -157,97 +144,108 @@ const ACTIONS: readonly PrefixAction[] = [
   },
 ]
 
-interface HudState {
-  readonly armed: boolean
-  readonly last: { readonly stroke: string; readonly id: PrefixAction["id"] | null } | null
-}
-const hud = createStore<HudState>({ armed: false, last: null })
+registerCommands(() =>
+  ACTIONS.map((action) => ({
+    id: action.id,
+    chords: action.strokes,
+    prefix: true,
+    live: action.live,
+    run: action.run,
+  })),
+)
 
 function strokeOf(e: KeyboardEvent): string {
   return e.key.length === 1 ? e.key : e.key.toLowerCase()
 }
 
+/** The prefix command a stroke runs here: the focused pane's own beats the workspace's beats global. */
+function resolve(model: AppModel, stroke: string): WebCommand | undefined {
+  const surface = currentSurface()
+  return allCommands()
+    .filter((c) => c.prefix && c.chords.includes(stroke) && appliesOn(c, surface) && c.live?.(model) !== false)
+    .sort((a, b) => specificity(a, surface) - specificity(b, surface))[0]
+}
+
+let armedAt: number | null = null
+let armTimer: number | null = null
+
+function disarm(): void {
+  armedAt = null
+  if (armTimer !== null) window.clearTimeout(armTimer)
+  armTimer = null
+  const state = hud.get()
+  if (state.guide?.kind === "prefix") hud.set({ ...state, guide: null })
+}
+
+/** The mouse path in (the footer's hint, a keycap badge): arm without a key, like `armPrefixFromCurrentStack`. */
+export function armPrefix(): void {
+  if (dialog.get()) return
+  armedAt = Date.now()
+  hud.set({ ...hud.get(), guide: { kind: "prefix", armedAt } })
+  if (armTimer !== null) window.clearTimeout(armTimer)
+  armTimer = window.setTimeout(disarm, PREFIX_TIMEOUT_MS)
+}
+
+/** Run the armed prefix's stroke (a key, or a click on a guide row); a miss shows `∅`. */
+export function runPrefixStroke(model: AppModel, stroke: string): void {
+  disarm()
+  const command = resolve(model, stroke)
+  hudPush(stroke, command?.id ?? null)
+  command?.run(model)
+}
+
+let holdTimer: number | null = null
+
+function cancelHold(): void {
+  if (holdTimer !== null) window.clearTimeout(holdTimer)
+  holdTimer = null
+  const state = hud.get()
+  if (state.guide?.kind === "direct") hud.set({ ...state, guide: null })
+}
+
+function startHold(): void {
+  if (holdTimer !== null || dialog.get()) return
+  holdTimer = window.setTimeout(() => {
+    disarm()
+    hud.set({ ...hud.get(), guide: { kind: "direct" } })
+  }, CTRL_HOLD_THRESHOLD_MS)
+}
+
 /** Window-level, capture phase: it must see Ctrl+A before xterm does. */
 export function usePrefixLayer(model: AppModel): void {
   useEffect(() => {
-    let armedAt: number | null = null
-    let clear: number | null = null
-    const settle = (last: HudState["last"]) => {
-      hud.set({ armed: false, last })
-      if (clear !== null) window.clearTimeout(clear)
-      clear = window.setTimeout(() => hud.set({ armed: false, last: null }), HUD_TTL_MS)
-    }
     const onKey = (e: KeyboardEvent) => {
-      if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return
-      if (armedAt !== null && Date.now() - armedAt <= TIMEOUT_MS) {
-        armedAt = null
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        if (e.key === "Escape") return settle(null)
-        const stroke = strokeOf(e)
-        const action = ACTIONS.find((a) => a.strokes.includes(stroke) && a.live(model))
-        settle({ stroke, id: action?.id ?? null })
-        action?.run(model)
+      if (e.key === "Control") {
+        if (!e.repeat) startHold()
         return
       }
-      armedAt = null
-      if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "a" && !dialog.get()) {
-        armedAt = Date.now()
+      // Any other key ends a hold, so Ctrl+C or Ctrl+A never flashes the guide.
+      cancelHold()
+      if (["Shift", "Alt", "Meta"].includes(e.key)) return
+      if (armedAt !== null && Date.now() - armedAt <= PREFIX_TIMEOUT_MS) {
         e.preventDefault()
         e.stopImmediatePropagation()
-        hud.set({ armed: true, last: null })
+        if (e.key === "Escape") return disarm()
+        runPrefixStroke(model, strokeOf(e))
+        return
+      }
+      disarm()
+      if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "a" && !dialog.get()) {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        armPrefix()
       }
     }
+    const onKeyUp = (e: KeyboardEvent) => e.key === "Control" && cancelHold()
     window.addEventListener("keydown", onKey, { capture: true })
+    window.addEventListener("keyup", onKeyUp, { capture: true })
+    window.addEventListener("blur", cancelHold)
     return () => {
       window.removeEventListener("keydown", onKey, { capture: true })
-      if (clear !== null) window.clearTimeout(clear)
+      window.removeEventListener("keyup", onKeyUp, { capture: true })
+      window.removeEventListener("blur", cancelHold)
+      cancelHold()
+      disarm()
     }
   }, [model])
-}
-
-/** `keys.desc` clipped at a dash-led elaboration, as the TUI HUD's `actionLabel`. */
-function actionLabel(id: PrefixAction["id"], zh: boolean): string {
-  const label = (zh ? keysZh : keysEn).desc[id]
-  const dash = label.search(/\s—\s|——/)
-  return dash > 0 ? label.slice(0, dash) : label
-}
-
-export function PrefixHud({ model }: { model: AppModel }) {
-  const lang = useLocale()
-  const state = useStore(hud)
-  // Re-read liveness when the selection changes under an armed HUD.
-  useStore(model.selection)
-  const zh = lang === "zh"
-  const { prefs } = usePrefs()
-  if (!state.armed && !state.last) return null
-  return (
-    <>
-      <output className="prefix-hud mono">
-        {state.armed ? (
-          <>
-            <div className="prefix-hud-head">
-              <span className="tone-accent">{PREFIX_KEY}</span> ⋯
-            </div>
-            {ACTIONS.filter((a) => a.live(model)).map((a) => (
-              <div key={a.id} className="prefix-hud-row">
-                <span className="prefix-hud-key">{a.strokes.join(" / ")}</span>
-                <span>{actionLabel(a.id, zh)}</span>
-              </div>
-            ))}
-          </>
-        ) : state.last ? (
-          <div className="prefix-hud-head">
-            <span className="tone-accent">{PREFIX_KEY}</span> + {state.last.stroke} →{" "}
-            {state.last.id ? actionLabel(state.last.id, zh) : <span className="muted">∅</span>}
-          </div>
-        ) : null}
-      </output>
-      {state.armed && prefs.prefixTap === "local" && (
-        <ShortcutBadges
-          rows={ACTIONS.filter((a) => a.live(model)).map((a) => ({ id: a.id, stroke: a.strokes[0] ?? "" }))}
-        />
-      )}
-    </>
-  )
 }

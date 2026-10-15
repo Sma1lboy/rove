@@ -132,11 +132,13 @@ export function PreviewView({ model, view }: { model: AppModel; view: Preview })
     if (k === "j" || k === "ArrowDown") setCursor((i) => Math.min(rows.length - 1, i + 1))
     else if (k === "k" || k === "ArrowUp") setCursor((i) => Math.max(0, i - 1))
     else if (k === "v") setAnchor((a) => (a === null ? cursor : null))
-    else if (k === "c") addNote()
+    else if (k === "c" && !e.ctrlKey) addNote()
     else if (k === "x") dropNote()
     else if (k === "s") send()
     else if (k === "r") setNonce((n) => n + 1)
     else if (k === "q" || k === "Escape") preview.set(null)
+    // Ctrl+C closes it as the TUI's preview does; a text selection keeps the browser's own copy.
+    else if (e.ctrlKey && !e.metaKey && k.toLowerCase() === "c" && !window.getSelection()?.toString()) preview.set(null)
     else return
     e.preventDefault()
   }

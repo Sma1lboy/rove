@@ -104,10 +104,10 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `task.create` | `repo`, `engine?`, `prompt?`, `title?` | `{taskId}` |
 | `task.delete` | `taskId`, `force?` | `{status}` |
 | `task.land` | `taskId`, `strategy?` (`merge`/`squash`) | `{landedOn, commit}` |
-| `task.tabs` | `taskId` | `{tabs: [{id, kind, title, engineName, alive, engineAlive}]}` |
+| `task.tabs` | `taskId` | `{tabs: [{id, kind, title, engineName, alive, engineAlive, split?}]}`; `split` = `{activeLeafId, root}` while the tab is split (`root` is a tree of `{kind: "leaf", id, title, own}` and `{kind: "group", orientation: "row" \| "column", children}`), absent otherwise |
 | `tab.new` | `taskId`, `kind?` (`engine` default / `shell`), `prompt?`, `engine?` | `{tabId}`; with a `prompt` it starts the engine on it (`send --tab new`), without one it opens the tab empty (`tab-new`); a `shell` tab takes no `prompt` or `engine` (`BAD_ARGS`) |
 | `tab.close` | `taskId`, `tabId` | `{}` |
-| `term.attach` | `taskId`, `tabId`, `cols?`+`rows?` | `{stream, alive, replay}` (base64 bytes) |
+| `term.attach` | `taskId`, `tabId`, `leafId?` (a split pane `leaf-N` beyond `leaf-1`; its stream is `taskId::tabId::leaf-N`), `cols?`+`rows?` | `{stream, alive, replay}` (base64 bytes) |
 | `term.input` | `stream`, `data` | `{}` |
 | `term.resize` | `stream`, `cols`, `rows` | `{}` |
 | `term.detach` | `stream` | `{}` |
@@ -178,6 +178,7 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 | --- | --- | --- | --- |
 | `tab.states` | `taskId` | `{tabs: {tab-N: {state, at}}}` | `debug.inspect` (`activity.tabs`) |
 | `tab.rename` | `taskId`, `tabId`, `title` | `{}` | `update --tab --title` |
+| `tab.split` | `taskId`, `tabId`, `action` (`open`/`close`/`rename`/`reset`), `leafId?` (`leaf-N`; required except for `open`), `direction?` (`right` default / `down`, `open` only), `title?` (`rename`; one line, ≤80, empty clears), `cols?`+`rows?` | `{leaf, changed, split}`; `split` is the tab's pane layout (null once back to one pane); `changed: false` = pane too small to split. The shell is always the login shell: no command line is taken | `tab-split` |
 | `tab.interrupt` | `taskId`, `tabId?` | `{}` | `interrupt` |
 | `tab.forkTask` | `repo`, `baseBranch`, `prompt`, `engine?`, `title?`, `count?` (1–5) | `{taskIds}` | `add --base-branch` (`--count` for attempts) |
 | `tab.handoff` | `taskId`, `tabId` | `{kind: "handoff", prompt}` or `{kind: "no-session" \| "no-transcript", engine?}` | `planWorktreeHandoff` |

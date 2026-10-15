@@ -7,6 +7,7 @@
 import type { KeyboardEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import { t } from "./i18n/index.ts"
+import { enterWorkspace } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, moveRow } from "./move-mode.ts"
 import { railCursorTask } from "./rail-aim.ts"
@@ -83,6 +84,7 @@ export function useRailKeys(
     if (row?.kind === "routines") filters.toggleRoutines(row.repo)
     if (row?.kind === "task") model.select(row.task.id)
     if (row?.kind === "tab") model.select(row.task.id, row.tab.id)
+    if (row) enterWorkspace()
   }
   const verb = (row: Stop | undefined, key: string) => {
     if (!row || row.kind === "routines") return

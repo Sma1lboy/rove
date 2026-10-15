@@ -122,6 +122,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     case "term.attach": {
       const taskId = str(a, "taskId")
       const tabId = str(a, "tabId")
+      const leafId = optStr(a, "leafId")
+      if (leafId !== undefined && !/^leaf-\d{1,4}$/.test(leafId))
+        throw new BridgeError("BAD_ARGS", "leafId is not a pane id")
       const cols = optInt(a, "cols", 10, 1000)
       const rows = optInt(a, "rows", 4, 500)
       if ((cols === undefined) !== (rows === undefined)) throw new BridgeError("BAD_ARGS", "cols and rows go together")
@@ -131,6 +134,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         tabId,
         cwd,
         cols !== undefined && rows !== undefined ? { cols, rows } : undefined,
+        leafId,
       )
     }
     case "term.input": {

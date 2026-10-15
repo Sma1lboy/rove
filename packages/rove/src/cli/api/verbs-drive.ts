@@ -9,7 +9,7 @@ import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { PANE_GRAPHICS_VERB } from "./handlers-graphics.ts"
 import { INTERRUPT_VERB } from "./handlers-interrupt.ts"
-import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB, TAB_NEW_VERB } from "./handlers-pane.ts"
+import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB, TAB_NEW_VERB, TAB_SPLIT_VERB } from "./handlers-pane.ts"
 import { ROW_TOKEN_VERB } from "./handlers-row-token.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
 import { ApiError, helpStep } from "./types.ts"
@@ -104,6 +104,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   PANE_GRAPHICS_VERB,
   TAB_CLOSE_VERB,
   TAB_NEW_VERB,
+  TAB_SPLIT_VERB,
   {
     name: "notify",
     group: "drive",

@@ -1,25 +1,26 @@
 /** Layout: Tasks rail | workspace (tab strip + terminal) | Files, over a one-line status footer, like the TUI. */
 
 import { tabStripVisible } from "@sma1lboy/rove/src/state/tab-strip.ts"
-import type { CSSProperties } from "react"
-import { useEffect, useState } from "react"
+import { type CSSProperties, useEffect, useState } from "react"
 import { forgetToken, saveToken } from "./auth.ts"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { clampRailWidth, foldedPx, narrowPane, railFolded, railWidth, surfaceFor, useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { Overlays } from "./overlays.tsx"
 import { PagesHost } from "./pages-host.tsx"
-import { PrefixHud, usePrefixLayer } from "./prefix.tsx"
+import { PrefixHud } from "./prefix-guide.tsx"
+import { usePrefixLayer } from "./prefix.tsx"
 import { usePrefsApply } from "./prefs-apply.ts"
 import { usePrefs } from "./prefs.ts"
 import { PreviewView } from "./preview-view.tsx"
+import { NarrowBackBar, StatusHints } from "./rail-chrome.tsx"
 import { RailView, openMenu, tabLabel } from "./rail-view.tsx"
 import { taskMenu } from "./row-actions.tsx"
-import { SettingsDialog } from "./settings-view.tsx"
+import { SplitPane } from "./split-view.tsx"
 import { useStore } from "./store.ts"
 import { useTaskColor } from "./task-colors.ts"
-import { TerminalView } from "./terminal-view.tsx"
 import { tokenFromInput } from "./token-input.ts"
 import { dialog, page, preview, zen } from "./ui.ts"
 import { UpdateView, checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
@@ -49,20 +50,31 @@ function Shell({ model }: { model: AppModel }) {
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
+  const narrow = useNarrow()
+  const folded = useStore(railFolded)
+  const pinned = useStore(railWidth)
+  const pane = useStore(narrowPane)
+  const pageOn = useStore(page)
+  const { prefs } = usePrefs()
   const task = payload?.tasks.find((row) => row.id === selection.taskId) ?? null
+  const surface = narrow ? surfaceFor(pane, !!task, pageOn !== null) : null
+  const railPx = folded ? foldedPx(prefs.railFold) : pinned === null ? null : clampRailWidth(pinned)
   return (
-    <div className={`app ${zenOn || !task ? "is-zen" : ""}`}>
-      <RailView model={model} />
-      <Workspace model={model} />
-      {task && !zenOn && <FilesView key={task.id} model={model} task={task} />}
-      <StatusBar model={model} />
+    <div
+      className={`app ${zenOn || !task || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""}`}
+      style={railPx !== null && !narrow ? ({ "--rail-w": `${railPx}px` } as CSSProperties) : undefined}
+    >
+      <RailView model={model} narrow={narrow} />
+      <Workspace model={model} narrow={narrow} />
+      {task && !zenOn && !narrow && <FilesView key={task.id} model={model} task={task} />}
+      <StatusBar model={model} narrow={narrow} />
       <Overlays />
       <PrefixHud model={model} />
     </div>
   )
 }
 
-function Workspace({ model }: { model: AppModel }) {
+function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const selection = useStore(model.selection)
   const allTabs = useStore(model.tabs)
   const payload = useStore(model.tasks)
@@ -78,6 +90,7 @@ function Workspace({ model }: { model: AppModel }) {
   if (pageOn === "update") {
     return (
       <main className="workspace">
+        {narrow && <NarrowBackBar />}
         <UpdateView client={model.client} />
       </main>
     )
@@ -85,6 +98,7 @@ function Workspace({ model }: { model: AppModel }) {
   if (pageOn === "worktrees") {
     return (
       <main className="workspace">
+        {narrow && <NarrowBackBar />}
         <WorktreesView model={model} />
       </main>
     )
@@ -92,12 +106,14 @@ function Workspace({ model }: { model: AppModel }) {
   if (pageOn) {
     return (
       <main className="workspace">
+        {narrow && <NarrowBackBar />}
         <PagesHost model={model} page={pageOn} />
       </main>
     )
   }
   return (
     <main className="workspace">
+      {narrow && <NarrowBackBar />}
       {task && (
         <div
           className={`tab-strip ${tabStripVisible(prefs.tabStrip, tabs.length) ? "" : "is-tabs-hidden"}`}
@@ -172,11 +188,11 @@ function Workspace({ model }: { model: AppModel }) {
         {shown && <PreviewView key={`${shown.taskId}:${shown.path}:${shown.scope}`} model={model} view={shown} />}
         {task && selection.tabId && tabs.some((tab) => tab.id === selection.tabId) && (
           <div className={`term-slot ${shown ? "is-hidden" : ""}`}>
-            <TerminalView
+            <SplitPane
               key={`${task.id}::${selection.tabId}`}
-              client={model.client}
+              model={model}
               taskId={task.id}
-              tabId={selection.tabId}
+              tab={tabs.find((tab) => tab.id === selection.tabId) ?? tabs[0]}
             />
           </div>
         )}
@@ -186,7 +202,7 @@ function Workspace({ model }: { model: AppModel }) {
 }
 
 /** TUI order: usage on the left; the right holds what the TUI has no need for (link state, host). */
-function StatusBar({ model }: { model: AppModel }) {
+function StatusBar({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const client = model.client
   const conn = useStore(client.conn)
   const selection = useStore(model.selection)
@@ -210,14 +226,7 @@ function StatusBar({ model }: { model: AppModel }) {
       {conn.hello && (
         <span className="muted">{t("status.host", { host: conn.hello.host, version: conn.hello.roveVersion })}</span>
       )}
-      <button
-        type="button"
-        className="link"
-        data-binding="settings.open"
-        onClick={() => dialog.set(<SettingsDialog client={client} />)}
-      >
-        [{t("settings.open")}]
-      </button>
+      <StatusHints model={model} narrow={narrow} />
     </footer>
   )
 }

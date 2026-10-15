@@ -206,17 +206,3 @@ html[data-working-border="flow"] .pane.is-working {
     animation: none;
   }
 }
-
-/* Prefix tap: keycaps over the controls a prefix stroke reaches. */
-.shortcut-badge {
-  position: fixed;
-  z-index: 45;
-  transform: translate(-100%, -50%);
-  padding: 1px 6px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  background: var(--inset);
-  color: var(--accent);
-  font: 600 11px var(--mono);
-  pointer-events: none;
-}

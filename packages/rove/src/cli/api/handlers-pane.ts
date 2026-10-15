@@ -11,7 +11,9 @@ import type { VendorId } from "../../types/vendor.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
+import { wireSplit } from "./split-wire.ts"
 import type { NewTabKind } from "./tab-new.ts"
+import type { SplitEdit } from "./tab-split.ts"
 import { ApiError, type VerbSpec, helpStep } from "./types.ts"
 
 export const PANE_VERB: VerbSpec = {
@@ -199,5 +201,97 @@ export const TAB_NEW_VERB: VerbSpec = {
     // The row is already on disk; this only stops an attached TUI's stale copy from overwriting it.
     const reply = await daemon.request<{ clients?: number }>("terminalTab.add", { taskId, tab: opened.tab })
     return { ok: true, taskId, tabId: opened.tab.id, session: opened.session, kind, clients: reply.clients ?? 0 }
+  },
+}
+
+export const TAB_SPLIT_VERB: VerbSpec = {
+  name: "tab-split",
+  group: "drive",
+  summary:
+    "Edit one Terminal Tab's split panes without a TUI: `open` splits a pane (the TUI's ctrl+\\ right / ctrl+= down) into a new login shell in the task's worktree, `close` ends a pane, `rename` names it (F2), `reset` kills a shell pane and spawns a fresh one (F5; engine panes refuse). The layout is the tab's persisted split tree and each pane beyond `leaf-1` is its own hosted session `<taskId>::<tabId>::<leaf>`, so an attached TUI absorbs the new row over tab.add and a later `tab-close` sweeps the panes. The shell is always the login shell: no command line is taken. Returns the pane acted on, whether the tree changed (`false` when the pane is too small to split), and the tab's `split` layout (null once back to one pane).",
+  flags: [
+    F.taskId(true),
+    {
+      name: "tab",
+      type: "string",
+      required: true,
+      placeholder: "TAB",
+      description: "Exact Terminal Tab id from get-task .tabs[].id (for example tab-2).",
+    },
+    {
+      name: "action",
+      type: "enum",
+      values: ["open", "close", "rename", "reset"],
+      required: true,
+      placeholder: "ACTION",
+      description: "`open` a new pane, `close` one, `rename` one, or `reset` a shell pane.",
+    },
+    {
+      name: "direction",
+      type: "enum",
+      values: ["right", "down"],
+      default: "right",
+      description: "`open` only: split toward the right (side by side) or down (stacked).",
+    },
+    {
+      name: "leaf",
+      type: "string",
+      placeholder: "LEAF",
+      description:
+        "The pane to act on (`leaf-1` is the tab's own process); for `open`, the pane being split. Default: the tree's active pane.",
+    },
+    {
+      name: "title",
+      type: "string",
+      placeholder: "TEXT",
+      description: "`rename` only: the pane's name; empty clears it back to the default.",
+    },
+    {
+      name: "cols",
+      type: "int",
+      placeholder: "N",
+      description:
+        "Cells wide of the pane acted on; with --rows, `open` refuses a split that would leave a pane under 20x6.",
+    },
+    { name: "rows", type: "int", placeholder: "N", description: "Cells high of the pane acted on (see --cols)." },
+  ],
+  handler: async (ctx) => {
+    const daemon = daemonOf(ctx)
+    const taskId = ctx.args.require("task-id")
+    const tabId = ctx.args.require("tab")
+    const action = ctx.args.requireEnum<"open" | "close" | "rename" | "reset">("action")
+    const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+    if (!task.worktreePath) throw new ApiError(`task ${taskId} has no worktree yet`, "NO_WORKTREE")
+    const cols = ctx.args.int("cols")
+    const rows = ctx.args.int("rows")
+    if ((cols === undefined) !== (rows === undefined)) {
+      throw new ApiError("--cols and --rows go together", "BAD_FLAG", helpStep("tab-split"))
+    }
+    const size = cols !== undefined && rows !== undefined ? { cols, rows } : undefined
+    const leaf = ctx.args.str("leaf") ?? ""
+    if (action !== "open" && !leaf)
+      throw new ApiError(`--leaf is required to ${action}`, "BAD_FLAG", helpStep("tab-split"))
+    const edit: SplitEdit =
+      action === "open"
+        ? { kind: "open", orientation: ctx.args.str("direction") === "down" ? "column" : "row", from: leaf, size }
+        : action === "rename"
+          ? { kind: "rename", leaf, title: ctx.args.str("title") ?? "" }
+          : action === "reset"
+            ? { kind: "reset", leaf, size }
+            : { kind: "close", leaf }
+    const out = await ctx.runtime.splitTab(taskId, tabId, task.worktreePath, edit)
+    // The row is already on disk; this only stops an attached TUI's stale copy from overwriting it.
+    const reply = out.changed
+      ? await daemon.request<{ clients?: number }>("terminalTab.add", { taskId, tab: out.tab })
+      : {}
+    return {
+      ok: true,
+      taskId,
+      tabId,
+      leaf: out.leaf,
+      changed: out.changed,
+      split: wireSplit(out.tab.splitTree),
+      clients: reply.clients ?? 0,
+    }
   },
 }

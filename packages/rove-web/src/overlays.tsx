@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useStore } from "./store.ts"
-import { dialog, menu, toasts } from "./ui.ts"
+import { dialog, dismissToast, menu, toasts } from "./ui.ts"
 
 function ContextMenu() {
   const state = useStore(menu)
@@ -76,9 +76,14 @@ export function Overlays() {
       {current}
       <div className="toasts" aria-live="polite">
         {list.map((item) => (
-          <div key={item.id} className={`toast ${item.tone === "error" ? "is-error" : ""}`}>
+          <button
+            type="button"
+            key={item.id}
+            className={`toast ${item.tone === "error" ? "is-error" : ""}`}
+            onClick={() => dismissToast(item.id)}
+          >
             {item.text}
-          </div>
+          </button>
         ))}
       </div>
     </>

@@ -41,6 +41,9 @@ function stubRuntime(): ApiRuntime {
     openTab: async () => {
       throw new Error("openTab should not run in this test")
     },
+    splitTab: async () => {
+      throw new Error("splitTab should not run in this test")
+    },
     deliverPrompt: async () => {
       throw new Error("deliverPrompt should not run in this test")
     },
