@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.9.247
+
+### Patch Changes
+
+- [#1282](https://github.com/Sma1lboy/rove/pull/1282) [`1f3de60`](https://github.com/Sma1lboy/rove/commit/1f3de601e221b454519f44029a69665a60fb7283) Right-clicking a tab row in the sidebar now offers **Copy tab address**, which puts `--task-id <id> --tab <tab>` on the clipboard, so you can paste it straight into `rove api send` or `read-output` to reach that one terminal tab from another shell or hand it to an agent. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1235](https://github.com/Sma1lboy/rove/pull/1235) [`96f1933`](https://github.com/Sma1lboy/rove/commit/96f19338e7c65fb2dfd4f569f81ebb73c99d0a27) Right-clicking a task or tab row in the sidebar now offers **Copy task ID**, which puts the id that `rove api read-output --task-id`, `watch --task-ids` and the other task verbs take on the clipboard, so you can address a task from another shell or hand it to an agent without looking it up in `rove api list`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1281](https://github.com/Sma1lboy/rove/pull/1281) [`4d868b8`](https://github.com/Sma1lboy/rove/commit/4d868b8ee6912af1ffb69d24eb03e6c441850388) Routine schedules that step one day field from `*` while naming the other now fire only on days that match both, as in standard cron: `0 9 */2 * MON` runs on Mondays that fall on an odd date instead of on every odd date plus every Monday. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1238](https://github.com/Sma1lboy/rove/pull/1238) [`80ceef5`](https://github.com/Sma1lboy/rove/commit/80ceef5293485203a099fcdd45c21f740bb66b47) Set `engine.maxLiveSessions` to cap how many engine sessions `rove api` runs at once: an `add` or `send` that would start one more is refused with `ENGINE_LIMIT` and a ready-to-run retry, so a scripted fan-out can't overload your machine.
+
+  Admission is atomic across CLI processes, includes exact-tab respawns, and releases slots when engines exit into shells. Retry commands preserve new-tab isolation and launch selection. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1244](https://github.com/Sma1lboy/rove/pull/1244) [`dc8f7f0`](https://github.com/Sma1lboy/rove/commit/dc8f7f0fdf6e91de6261264b910fb7eb212e71cf) Check engine and account readiness before optional first-run setup, offer a prompt-first task action in an empty workspace, and explain once that new tabs share task files. Keep existing keybindings and the full `n` task dialog. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1243](https://github.com/Sma1lboy/rove/pull/1243) [`cc3c2e5`](https://github.com/Sma1lboy/rove/commit/cc3c2e59692f859ac89199733871a2ad46442606) Add a fuzzy command palette on ctrl+a / and a shared / filter in F1 help. Show next steps in human-facing failures and read-only doctor suggestions for missing prerequisites. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1253](https://github.com/Sma1lboy/rove/pull/1253) [`3b99847`](https://github.com/Sma1lboy/rove/commit/3b99847e36e299b31940c0cbd72de058ba0140d1) Refactor: the Claude Code plugin check that skips the settings hook install now lives in the Claude hook adapter instead of the hook command. No behavior change. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1256](https://github.com/Sma1lboy/rove/pull/1256) [`377ec26`](https://github.com/Sma1lboy/rove/commit/377ec264fc6fe981e6b2865c2ce4dc072700f19b) `rove api issue-list` takes `--status open,doing` and `--search <text>`, so an agent can ask for the cards it needs instead of filtering the whole board itself. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1237](https://github.com/Sma1lboy/rove/pull/1237) [`58d038d`](https://github.com/Sma1lboy/rove/commit/58d038db7565868d0edeb5e343be2e6cba71f263) Switching tasks no longer re-renders the whole workspace a second time just to record the visit for the Inbox's RECENT order, so each switch does a little less work. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1234](https://github.com/Sma1lboy/rove/pull/1234) [`c2fcbd0`](https://github.com/Sma1lboy/rove/commit/c2fcbd09ef4174e28d6ba703bc9a5e531a518a6a) `rove api read-output --tab tab-N` on an engine tab that has not received its first message now shows that tab's terminal, labeled `history_missing`, instead of an empty history page, so a fresh tab stuck on a trust prompt, login screen or early error is visible to whoever is reading it. `--source history` still returns the empty history page. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1252](https://github.com/Sma1lboy/rove/pull/1252) [`013882c`](https://github.com/Sma1lboy/rove/commit/013882c029c85b35eb5e45d61f7f94e25ba744e8) Retrying a `rove api send` from inside another task with the `nextCommandArgs` an `ENGINE_LIMIT`, `ENGINE_NOT_RUNNING` or `TAB_RESTORED` refusal hands back now delivers the message with a single `[ROVE PEER]` header, instead of stacking a second copy on top of the one the first attempt already added. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1251](https://github.com/Sma1lboy/rove/pull/1251) [`1066153`](https://github.com/Sma1lboy/rove/commit/1066153ec4ebff9f46ba9c0895b01fb0cd79c84a) Switching tasks from the sidebar re-renders the sidebar one time fewer: the cursor now moves to the active tab row in the same update as the selection instead of in a second one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.246
 
 ### Patch Changes
