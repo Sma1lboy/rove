@@ -168,6 +168,10 @@ Area ops in `packages/rove-bridge/src/ops/taskops.ts`; the client never names a 
 | `fs.subdirs` | `path` (absolute or `~`) | `{base, home, names}` (read-only) | `listSubdirs` |
 | `repo.probe` | `path`, `adoptable?` | `{ok, repo, reason?}` or `{ok, repo, branches, current, worktrees?}` (read-only) | `validateRepoPath` + branch helpers |
 | `welcome.env` | — | `{engines: [{id, name}], signedOut: [{id, name}], git, start}` (read-only): the engines installed and signed in, those installed but signed out, git on PATH, and `start` = `{repo, label, baseRef, engine}` for the quick start on the repo `rove --web` was started in (`null` outside a repo, without git, or without a usable engine) | `probeableEngineIds` + `detectEngineStatuses`, `firstTaskRepo` |
+| `file.openInEditor` | `taskId`, `path` (relative to the worktree) | `{tabId}`; opens the file in the Mac's configured editor (`editor.kind` / custom command, else `$VISUAL`/`$EDITOR`) in the task's editor tab, replacing the previous one. Refused for a path that leaves the worktree (`BAD_FLAG`), a missing file, or no editor (`NO_EDITOR`) | `tab-new --kind editor` |
+| `plugin.panes` | — | `{panes: [{id: "<plugin>.<pane>", title, placement: "split" \| "tab"}]}` (read-only): panes of enabled plugins, never their commands | `listPaneLaunches` |
+| `plugin.paneOpen` | `taskId`, `pane`, `tabId?` (the tab to split) | `{tabId, leaf?}`; the pane's argv comes from the plugin manifest on the Mac | `tab-new --kind pane` |
+| `tab.openViewport` | `taskId`, `viewTaskId` (same project) | `{tabId}`; a tab that shows `viewTaskId`'s first engine session (its rows carry `viewOf`) | `tab-new --kind viewport` |
 
 Task rows also carry optional `hasPrompt` (a stored brief exists, for Run again); engine rows carry optional `acceptsModel`.
 

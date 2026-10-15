@@ -20,6 +20,8 @@ import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
 import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
+import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
 import { DEFAULT_GLYPHS } from "@sma1lboy/rove/src/tui/lib/glyphs.ts"
 import { loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
 import {
@@ -29,6 +31,7 @@ import {
   statusFilesBranch,
 } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
 import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
+import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import {
@@ -71,6 +74,8 @@ export interface RoveOps {
   newTab(taskId: string, tab: NewTabRequest): Promise<{ tabId: string }>
   closeTab(taskId: string, tabId: string): Promise<void>
   worktreeOf(taskId: string): Promise<string>
+  /** A viewport tab shows another task's first engine session: where to attach instead; null for any other tab. */
+  viewedSession(taskId: string, tabId: string): { taskId: string; tabId: string; cwd: string } | null
   diffFiles(taskId: string): Promise<{ base: string | null; files: readonly DiffFileRow[] }>
   diffFile(taskId: string, path: string, scope: "branch" | "working"): Promise<unknown>
   dismissAttention(taskId: string, tabId?: string): Promise<void>
@@ -110,6 +115,7 @@ export function tabRows(rows: readonly TaskTabRow[]): TabRow[] {
     alive: t.alive,
     engineAlive: t.engineAlive,
     ...(t.split ? { split: t.split } : {}),
+    ...(t.viewOf ? { viewOf: t.viewOf } : {}),
   }))
 }
 
@@ -402,6 +408,14 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
     },
 
     worktreeOf,
+
+    viewedSession(taskId, tabId) {
+      const snapshot = loadStateFile()[terminalTabsKey(taskId)] as { tabs?: TerminalTab[] } | undefined
+      const tab = snapshot?.tabs?.find((t) => t.id === tabId)
+      return tab?.kind === "engine" && tab.ptyTask
+        ? { taskId: tab.ptyTask.id, tabId: "tab-1", cwd: tab.ptyTask.worktree }
+        : null
+    },
 
     async diffFiles(taskId) {
       const task = await getTask(taskId)

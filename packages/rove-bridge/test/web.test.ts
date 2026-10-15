@@ -39,6 +39,7 @@ function start(extra: Partial<BridgeDeps> = {}): { http: string; ws: string; lin
     newTab: unused,
     closeTab: unused,
     worktreeOf: async () => "/tmp",
+    viewedSession: () => null,
     diffFiles: unused,
     diffFile: unused,
     dismissAttention: unused,

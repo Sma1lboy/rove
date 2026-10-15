@@ -128,10 +128,12 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const cols = optInt(a, "cols", 10, 1000)
       const rows = optInt(a, "rows", 4, 500)
       if ((cols === undefined) !== (rows === undefined)) throw new BridgeError("BAD_ARGS", "cols and rows go together")
-      const cwd = await ops.worktreeOf(taskId)
+      // A viewport tab attaches the session it shows, not one under its own id.
+      const shown = ops.viewedSession(taskId, tabId)
+      const cwd = shown?.cwd ?? (await ops.worktreeOf(taskId))
       return terminal().attach(
-        taskId,
-        tabId,
+        shown?.taskId ?? taskId,
+        shown?.tabId ?? tabId,
         cwd,
         cols !== undefined && rows !== undefined ? { cols, rows } : undefined,
         leafId,

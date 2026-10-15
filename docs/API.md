@@ -141,6 +141,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
 | `TAB_COLLISION` | `tab-new` found its freshly allocated tab id already running a session; no new tab was created, retry. |
+| `FILE_NOT_FOUND` | `tab-new --kind editor --file` names no file in the task's worktree. |
+| `NO_EDITOR` | `tab-new --kind editor` found no editor: none set in Settings → General → Editor, `$VISUAL`/`$EDITOR` unset, and none of nvim/vim/emacs/nano installed. |
+| `PANE_NOT_FOUND` | `tab-new --kind pane --pane` names no pane of an enabled plugin. |
 | `TAB_NOT_SPLITTABLE` | `tab-split` on a content tab; only terminal tabs split. |
 | `LAST_LEAF` | `tab-split --action close` on the only pane; close the tab instead. |
 | `RESET_ENGINE` | `tab-split --action reset` on a pane that runs an engine; only shell panes reset. |
@@ -902,6 +905,20 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   (`clients` = attached connections told; `0` = none); the tab then lists in
   `get-task .tabs[]`. A session already running under the allocated id fails
   as `TAB_COLLISION`. `--command` with `--kind shell` is `BAD_FLAG`.
+  `tab-new` also opens three kinds that run something Rove resolves, never a
+  command line from the caller: `--kind editor --file PATH` opens PATH (relative to
+  the worktree; `..` and a symlink out are `BAD_FLAG`, a missing file
+  `FILE_NOT_FOUND`) in the editor from Settings → General → Editor, else
+  `$VISUAL`/`$EDITOR`, else the first installed of nvim/vim/emacs/nano (`NO_EDITOR`
+  when none), as a command tab in the task's one editor slot: the previous
+  editor tab is closed (through the TUI's close path when one is attached) once the new
+  one runs. `--kind pane --pane PLUGIN.PANE [--tab TAB]` opens a pane of an enabled
+  plugin (`PANE_NOT_FOUND` otherwise), split into `--tab` (default the active tab) or
+  as its own command tab, as the pane's manifest `placement` says and as the TUI's
+  picker does; the result then also carries `leaf` when it split. `--kind viewport
+  --view-task ID` adds an engine tab that shows another task's first engine session
+  (`.tabs[].viewOf` names that task; its liveness is that session's) and
+  starts nothing; the task must be in the same project and have a worktree.
 - `tab-split --task-id ID --tab TAB --action open|close|rename|reset
   [--leaf leaf-N] [--direction right|down] [--title TEXT] [--cols N --rows N]`:
   edit one Terminal Tab's split panes with no TUI — the TUI's ctrl+\ / ctrl+= /

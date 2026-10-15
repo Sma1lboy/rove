@@ -33,7 +33,14 @@ import { ApiError } from "./types.ts"
 
 export type SplitEdit =
   /** Split `from` (the leaf with focus) toward `orientation`; `size` is that leaf's cells, for the min-pane gate. */
-  | { kind: "open"; orientation: "row" | "column"; from: string; size?: { cols: number; rows: number } }
+  | {
+      kind: "open"
+      orientation: "row" | "column"
+      from: string
+      size?: { cols: number; rows: number }
+      /** A plugin pane's argv and label; omitted = a login shell. */
+      command?: { argv: readonly string[]; title: string }
+    }
   | { kind: "close"; leaf: string }
   | { kind: "rename"; leaf: string; title: string }
   /** F5: kill the leaf's shell and spawn a fresh login shell in the same worktree. */
@@ -93,12 +100,12 @@ async function openLeafShell(
   rpc: HostedSessionRpc,
   key: string,
   cwd: string,
-  opts: { size?: { cols: number; rows: number }; identity?: string } = {},
+  opts: { size?: { cols: number; rows: number }; identity?: string; command?: readonly string[] } = {},
 ): Promise<void> {
   await rpc.request<PtyOpenResult>("pty.open", {
     key,
     cwd,
-    command: [resolveLoginShell({ fallback: "/bin/zsh" })],
+    command: opts.command ?? [resolveLoginShell({ fallback: "/bin/zsh" })],
     defaultColors: readPersistedTerminalDefaultColors(),
     ...(opts.size ? { cols: opts.size.cols, rows: opts.size.rows } : {}),
   })
@@ -123,15 +130,17 @@ export async function splitTab(
         const { tab, before, after } = editTree(taskId, tabId, (tree) => {
           const from = leaves(tree.root).some((l) => l.id === edit.from) ? edit.from : tree.activeLeafId
           const base = from === tree.activeLeafId ? tree : { ...tree, activeLeafId: from }
-          const shell = [resolveLoginShell({ fallback: "/bin/zsh" })]
-          const next = splitActive(base, edit.orientation, shell, edit.size ?? null)
-          return next === base ? tree : next
+          const argv = edit.command?.argv ?? [resolveLoginShell({ fallback: "/bin/zsh" })]
+          const next = splitActive(base, edit.orientation, argv, edit.size ?? null)
+          if (next === base) return tree
+          return edit.command ? renameLeaf(next, next.activeLeafId, edit.command.title) : next
         })
         if (after === before) return { tab, leaf: before.activeLeafId, changed: false }
         const leaf = after.activeLeafId
         try {
           await openLeafShell(host.rpc, splitLeafPtyKey(tabPtyKeyFor(taskId, tab), leaf), worktree, {
             size: edit.size,
+            command: edit.command?.argv,
           })
         } catch (error) {
           editTree(taskId, tabId, (tree) => removeLeaf(tree, leaf) ?? tree)

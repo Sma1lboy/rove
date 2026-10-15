@@ -59,6 +59,7 @@ function fakeOps(): RoveOps {
     newTab: reject,
     closeTab: reject,
     worktreeOf: async () => "/tmp/wt",
+    viewedSession: () => null,
     diffFiles: reject,
     diffFile: reject,
     dismissAttention: reject,
@@ -409,6 +410,19 @@ describe("terminal forwarding", () => {
     h.pty.emit("pty.data", { key: "T1::tab-1", data: "CCC=" })
     await c.call("hello")
     expect(c.pushes.filter((p) => p.event === "term.data")).toHaveLength(1)
+  })
+
+  test("a viewport tab attaches the session it shows, under that session's own stream and cwd", async () => {
+    const ops = {
+      ...fakeOps(),
+      viewedSession: (taskId: string, tabId: string) =>
+        taskId === "MAIN" && tabId === "tab-2" ? { taskId: "T1", tabId: "tab-1", cwd: "/wt/shown" } : null,
+    }
+    const h = start({ ops })
+    const c = await connect(h.url, AUTH)
+    const attached = await c.call("term.attach", { taskId: "MAIN", tabId: "tab-2" })
+    expect(attached.result).toMatchObject({ stream: "T1::tab-1", alive: true })
+    expect(h.pty.calls.find(([n]) => n === "pty.open")?.[1]).toMatchObject({ key: "T1::tab-1", cwd: "/wt/shown" })
   })
 
   test("attach never spawns: an unknown tab is refused and a restored corpse is only peeked", async () => {
