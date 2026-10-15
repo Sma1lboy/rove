@@ -203,4 +203,11 @@ export const zh: typeof en = {
   pages: {
     attachTooLarge: "{name} 超过 5 MB",
   },
+  taskops: {
+    set: "设置",
+    retire: "删除",
+    close: "关闭",
+    moveHint: "j/k 移动 · enter 或 esc 完成",
+    fixSent: "已请 agent 修复失败的检查",
+  },
 }

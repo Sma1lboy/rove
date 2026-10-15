@@ -7,16 +7,19 @@ import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { MachineHeaders } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
+import { moveMode } from "./move-mode.ts"
 import { PageNav } from "./pages-host.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, activityGlyph, groupByProject, navRows, repoLabel } from "./rail.ts"
-import { projectMenu, taskMenu } from "./row-actions.tsx"
+import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { useTaskColor } from "./task-colors.ts"
 import { NewTaskDialog } from "./task-dialogs.tsx"
+import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu } from "./ui.ts"
+import "./taskops.css"
 import { UpdateChip } from "./update-view.tsx"
 
 /** Frames a spinner counts to before it wraps: a multiple of every preset's frame count (10, 8, 4). */
@@ -57,8 +60,15 @@ export function RailView({ model }: { model: AppModel }) {
     : null
 
   const filters = useRailFilters()
+  const moving = useStore(moveMode)
   const groups = groupByProject(tasks, filters.sort)
   const rows = navRows(groups, tabsOf, tabLabel, filters.search.active ? filters.search.query : "")
+  const firstMovable = groups.find((group) => group.tasks.some((task) => task.kind === "main"))?.repo
+  const projectInfo = (repo: string): ProjectInfo => ({
+    mainTaskId: groups.find((group) => group.repo === repo)?.tasks.find((task) => task.kind === "main")?.id ?? null,
+    label: repoLabel(repo),
+    first: repo === firstMovable,
+  })
   const keys = useRailKeys(model, rows, filters, {
     selectedId,
     onNewTask: (repo) => dialog.set(<NewTaskDialog model={model} repo={repo} />),
@@ -83,6 +93,12 @@ export function RailView({ model }: { model: AppModel }) {
         </button>
         <UpdateChip />
       </header>
+      {moving && (
+        <div className="rail-search mono">
+          <span className="tone-accent">{tc("tasks", "moveChip").trim()}</span>
+          <span className="muted">{t("taskops.moveHint")}</span>
+        </div>
+      )}
       {filters.search.active && (
         <div className="rail-search mono">
           <span className="tone-accent">/</span>
@@ -111,19 +127,28 @@ export function RailView({ model }: { model: AppModel }) {
             tabCount={row.kind === "task" ? tabsOf(row.task.id).length : 0}
             selected={row.id === selectedId}
             cursor={row.id === keys.cursor}
+            moving={
+              moving &&
+              (row.kind === "project"
+                ? projectInfo(row.repo).mainTaskId === keys.cursor
+                : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
+            }
             onClick={() => {
               keys.setCursor(row.id)
               if (row.kind === "task") model.select(row.task.id)
               if (row.kind === "tab") model.select(row.task.id, row.tab.id)
             }}
-            onMenu={(e) =>
-              openMenu(
-                e,
-                row.kind === "project"
-                  ? projectMenu(model, row.repo)
-                  : taskMenu(model, row.task, row.kind === "tab" ? row.tab : null),
-              )
-            }
+            onMenu={(e) => {
+              // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
+              if (row.kind === "project") {
+                const info = projectInfo(row.repo)
+                if (info.mainTaskId) keys.setCursor(info.mainTaskId)
+                openMenu(e, projectMenu(model, row.repo, info))
+                return
+              }
+              keys.setCursor(row.id)
+              openMenu(e, taskMenu(model, row.task, row.kind === "tab" ? row.tab : null))
+            }}
           />
         ))}
         <MachineHeaders client={model.client} />
@@ -147,6 +172,7 @@ function RailRow(props: {
   tabCount: number
   selected: boolean
   cursor: boolean
+  moving: boolean
   onClick: () => void
   onMenu: (e: MouseEvent) => void
 }) {
@@ -154,10 +180,10 @@ function RailRow(props: {
   const { prefs, glyphSets } = usePrefs()
   const glyphs: GlyphSet | undefined = glyphSets[prefs.glyphSet]
   const mark = useTaskColor(row.kind === "project" ? null : row.task.id)
-  const cursor = props.cursor ? "is-cursor" : ""
+  const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""}`
   if (row.kind === "project") {
     return (
-      <h2 className="project-head" title={row.repo} onContextMenu={props.onMenu}>
+      <h2 className={`project-head ${props.moving ? "is-moving" : ""}`} title={row.repo} onContextMenu={props.onMenu}>
         <span>{repoLabel(row.repo)}</span>
         <span className="rule" />
       </h2>

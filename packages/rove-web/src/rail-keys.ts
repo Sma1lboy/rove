@@ -8,6 +8,8 @@ import type { KeyboardEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { moveMode, moveRow } from "./move-mode.ts"
+import { railCursorTask } from "./rail-aim.ts"
 import { type NavRow, SORT_MODES, type SortMode } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
 import { page, toast } from "./ui.ts"
@@ -55,6 +57,8 @@ export function useRailKeys(
     if (at < 0)
       setCursor(opts.selectedId && rows.some((r) => r.id === opts.selectedId) ? opts.selectedId : (rows[0]?.id ?? null))
   }, [at, rows, opts.selectedId])
+  const cursorTaskId = rows[at]?.task.id ?? null
+  useEffect(() => railCursorTask.set(cursorTaskId), [cursorTaskId])
   // Top match on every search keystroke, as the TUI.
   const firstId = rows[0]?.id ?? null
   useEffect(() => {
@@ -109,6 +113,17 @@ export function useRailKeys(
       e.preventDefault()
       return
     }
+    if (moveMode.get()) {
+      // Only the move keys answer; `sidebar.*` verbs are off while a row is being dragged.
+      if (e.key === "j" || e.key === "ArrowDown") {
+        if (row) void moveRow(model, row, 1)
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        if (row) void moveRow(model, row, -1)
+      } else if (e.key === "Enter" || e.key === "Escape" || e.key === "M") moveMode.set(false)
+      else return
+      e.preventDefault()
+      return
+    }
     switch (e.key) {
       case "j":
       case "ArrowDown":
@@ -143,6 +158,9 @@ export function useRailKeys(
         break
       case "v":
         void cycleEngine(row)
+        break
+      case "M":
+        moveMode.set(true)
         break
       case "t":
         filters.cycleSort()

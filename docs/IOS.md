@@ -152,6 +152,23 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 
 Task rows (`tasks` push and `tasks.list`) also carry optional `pinned`, `order`, `createdAt`, `updatedAt`, `changes` (`{added, deleted, ahead?, behind?}` or `{unreadable: true}`, from the daemon's `worktree.changes` push; absent = not collected), `rowTokens` (`{text, tone?, source, expiresAt}`), `prChip` (`conflict`/`failing`/`passing`), `prChipStale`, and `pr.mergeable`. Engine rows carry optional `models`, `effortLevels` and `ready`. Older apps ignore them; the app decodes rows without them.
 
+### Task-row verb ops
+
+Area ops in `packages/rove-bridge/src/ops/taskops.ts`; the client never names a directory to open, a command or a path to run.
+
+| Op | Args | Result | Wraps |
+| --- | --- | --- | --- |
+| `task.landPreflight` | `taskId` | `{branch, landedOn, ahead?, refusal?, message?, baseDir}` (read-only) | RPC `task.landPreflight` |
+| `task.syncBase` | `taskId` | `{baseRef, alreadyCurrent}`; refusals carry `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY` | RPC `task.syncBase` |
+| `task.fixChecks` | `taskId`, `tabId?` | `{outcome: "sent" \| "none" \| "unavailable", detail?}` | RPC `pr.failingChecks` + CI prompt + `send --plain` |
+| `task.openScratch` | `engine?` | `{taskId}`; always the Mac's `$HOME` as a Scratch task | RPC `task.openDir` |
+| `task.setEngine` | `taskId`, `engine`, `effort?`, `model?` (`""` clears) | `{}` | RPC `task.setVendor` |
+| `tab.move` | `taskId`, `tabId`, `direction` (`up`/`down`) | `{moved}` | `moveTab` on the persisted tab order |
+| `fs.subdirs` | `path` (absolute or `~`) | `{base, home, names}` (read-only) | `listSubdirs` |
+| `repo.probe` | `path`, `adoptable?` | `{ok, repo, reason?}` or `{ok, repo, branches, current, worktrees?}` (read-only) | `validateRepoPath` + branch helpers |
+
+Task rows also carry optional `hasPrompt` (a stored brief exists, for Run again); engine rows carry optional `acceptsModel`.
+
 ### Terminal-tab ops and the `notice` push
 
 Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC or helper and checks its arguments.

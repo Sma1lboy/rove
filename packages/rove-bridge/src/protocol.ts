@@ -92,6 +92,8 @@ export interface TaskRow {
   readonly prChip?: PrChipKind | null
   /** The forge was unreachable on the last poll, so `prChip` is the last good value. */
   readonly prChipStale?: boolean
+  /** The task has a stored brief (`task.prompt`), so "Run again" has something to run. */
+  readonly hasPrompt?: boolean
 }
 
 export interface AttentionRow {

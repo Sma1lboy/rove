@@ -1,16 +1,20 @@
 /**
  * Right-click menus for rail rows, in the TUI's order (`tui/panes/sidebar/
  * tree-menu.ts`): tab rows add Close tab, task rows carry the task verbs,
- * project headers start a task. Entries the bridge cannot carry (Open in
- * editor, Reorder, Run again, Fix checks, Sync base) are left out
- * rather than shown dead; PARITY.md lists them.
+ * project headers carry the project verbs. Open in editor is left out rather than
+ * shown dead; PARITY.md lists it.
  */
 
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { type Choice, ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
+import { ChangeEngineDialog } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { moveMode } from "./move-mode.ts"
 import { NewChatDialog, NewTaskDialog, openTab } from "./task-dialogs.tsx"
+import { deleteTaskDialog, fixChecksFlow, forgetProjectDialog, landFlow, syncBaseFlow } from "./task-flows.tsx"
+import { FieldNotesDialog, RunAgainDialog } from "./taskops-dialogs.tsx"
+import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, toast } from "./ui.ts"
 
 const STATUSES = ["backlog", "in_progress", "in_review", "done", "canceled", "error"] as const
@@ -36,8 +40,50 @@ async function copy(text: string | null | undefined, what: string): Promise<void
   }
 }
 
-export function projectMenu(model: AppModel, repo: string): MenuItem[] {
-  return [{ label: t("menu.newTask"), run: () => dialog.set(<NewTaskDialog model={model} repo={repo} />) }]
+/** What a project header knows about its place in the rail: the main checkout stands in for the project in moves. */
+export interface ProjectInfo {
+  readonly mainTaskId: string | null
+  readonly label: string
+  /** Already the topmost movable project, so "Move to top" would be dead. */
+  readonly first: boolean
+}
+
+export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): MenuItem[] {
+  const items: MenuItem[] = [
+    { label: t("menu.newTask"), run: () => dialog.set(<NewTaskDialog model={model} repo={repo} />) },
+  ]
+  const main = info.mainTaskId
+  if (main) {
+    if (!info.first) {
+      items.push({
+        label: tc("tasks", "menu.moveToTop"),
+        run: () =>
+          void model.client
+            .request("task.move", { taskId: main, direction: "top" })
+            .catch((e) => toast(tc("tasks", "toast.moveFailed", { error: String(e) }), "error")),
+      })
+    }
+    items.push({ label: tc("tasks", "menu.reorderProject"), key: "M", run: () => enterMoveMode() })
+  }
+  items.push({
+    label: tc("tasks", "menu.fieldNotes"),
+    run: () => dialog.set(<FieldNotesDialog model={model} repo={repo} />),
+  })
+  if (main) {
+    items.push({
+      label: tc("tasks", "menu.forgetProject"),
+      danger: true,
+      key: "d",
+      run: () => dialog.set(forgetProjectDialog(model, repo, info.label)),
+    })
+  }
+  return items
+}
+
+/** Shift+M / "Reorder": j/k then move the cursor row at its level; the rail owns the keys, so hand it focus. */
+function enterMoveMode(): void {
+  moveMode.set(!moveMode.get())
+  document.querySelector<HTMLElement>(".rail")?.focus()
 }
 
 export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): MenuItem[] {
@@ -86,6 +132,13 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
         void c.request("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
     })
   }
+  items.push({ label: tc("tasks", "menu.reorder"), key: "M", run: () => enterMoveMode() })
+  if (task.hasPrompt) {
+    items.push({
+      label: tc("tasks", "menu.runAgain"),
+      run: () => dialog.set(<RunAgainDialog model={model} task={task} />),
+    })
+  }
   items.push({
     label: t("menu.setStatus"),
     run: () =>
@@ -127,55 +180,30 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     label: t("menu.changeEngine"),
     // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
     key: "v",
-    run: () =>
-      void c
-        .request<{ engines: Array<{ id: string; name: string }> }>("engines.list")
-        .then((res) =>
-          dialog.set(
-            <ChoiceDialog
-              title={t("menu.changeEngine")}
-              current={task.engine?.id ?? undefined}
-              choices={res.engines.map((e) => ({ value: e.id, label: e.name }))}
-              onPick={(engine) => c.request("task.setCommand", { taskId: task.id, engine }).then(() => {})}
-            />,
-          ),
-        ),
+    run: () => dialog.set(<ChangeEngineDialog model={model} taskId={task.id} />),
   })
-  if (task.kind === "task" && task.branch) {
+  if (task.pr?.checkState === "failing") {
     items.push({
-      label: t("menu.land"),
-      run: () =>
-        dialog.set(
-          <ConfirmDialog
-            title={t("confirm.landTitle", { title: task.title })}
-            body={t("confirm.landBody", { branch: task.branch })}
-            confirmLabel={t("menu.land")}
-            onConfirm={async () => {
-              const res = await c.request<{ landedOn: string; commit: string }>("task.land", { taskId: task.id })
-              toast(t("confirm.landed", { base: res.landedOn, commit: res.commit.slice(0, 8) }))
-            }}
-          />,
-        ),
+      label: tc("tasks", "menu.fixChecks"),
+      key: "ctrl+a k",
+      run: () => void fixChecksFlow(model, task.id, t("taskops.fixSent")),
     })
+  }
+  if (task.kind === "task" && task.branch) {
+    items.push({ label: tc("tasks", "menu.syncBase"), key: "ctrl+a u", run: () => void syncBaseFlow(model, task.id) })
+  }
+  if (task.kind === "task" && task.branch) {
+    items.push({ label: t("menu.land"), run: () => void landFlow(model, task) })
   }
   items.push({
     label: t("menu.delete"),
     key: "d",
     danger: true,
     run: () =>
-      dialog.set(
-        <ConfirmDialog
-          title={t("confirm.deleteTitle", { title: task.title })}
-          body={task.kind === "dir" ? t("confirm.deleteBodyDir") : t("confirm.deleteBodyTask")}
-          confirmLabel={t("confirm.delete")}
-          onConfirm={() => c.request("task.delete", { taskId: task.id }).then(() => {})}
-          escalate={{
-            when: (err) => String(err).includes("DIRTY"),
-            label: t("confirm.forceDelete"),
-            run: () => c.request("task.delete", { taskId: task.id, force: true }).then(() => {}),
-          }}
-        />,
-      ),
+      // A project's main checkout has no worktree to delete: Delete forgets the project (TUI `deleteTaskFlow`).
+      task.kind === "main"
+        ? dialog.set(forgetProjectDialog(model, task.repo, task.title))
+        : dialog.set(deleteTaskDialog(model, task)),
   })
   return items
 }

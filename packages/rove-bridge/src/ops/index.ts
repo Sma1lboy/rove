@@ -10,6 +10,7 @@ import { prefsOps } from "./prefs.ts"
 import { routingOps } from "./routing.ts"
 import { engineOps } from "./settings-engines.ts"
 import { settingsOps } from "./settings.ts"
+import { TASKOPS_OPS } from "./taskops.ts"
 import { TASK_OPS } from "./tasks.ts"
 import { TERMINAL_OPS } from "./terminal.ts"
 import type { OpTable } from "./types.ts"
@@ -40,4 +41,5 @@ export const AREA_OPS: OpTable = mergeOpTables(
   devOps,
   prefsOps,
   routingOps,
+  TASKOPS_OPS,
 )
