@@ -22,6 +22,7 @@
     <string name="routines_status_revived">已重启会话</string>
     <string name="routines_status_skipped_cancelled">交付前已取消</string>
     <string name="routines_status_skipped_precheck">已跳过（预检）</string>
+    <string name="routines_status_skipped_blocked">已跳过（任务暂不能接收）</string>
     <string name="routines_status_skipped_missed">已跳过（错过时间）</string>
     <string name="routines_status_skipped_unavailable">已跳过（不可用）</string>
     <string name="routines_status_dispatch_failed">派发失败</string>

@@ -144,7 +144,7 @@ export function useInboxHost(args: {
   function closeItem(item: AttentionInboxItem): void {
     const gate = item.state === "decision_needed" ? item.detail?.gate : undefined
     if (!gate) {
-      notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
+      notifyInboxRpcFailure(dismissEpisode(item, orch, true), "dismiss", args.notifyError)
       return
     }
     if (!gate.undelivered) return

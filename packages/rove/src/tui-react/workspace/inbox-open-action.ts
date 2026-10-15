@@ -8,7 +8,9 @@ type InboxOpenRpc = Pick<RemoteOrchestrator, "dismissAttention" | "dismissRoutin
  * Opening an item RESOLVES it: the item is removed from the Inbox
  * (there is no read/unread lifecycle). A fresh event on the
  * same Task and Terminal Tab records a new item at the latest position.
- * Unavailable items are stale UI state and resolve the same way.
+ * Unavailable items are stale UI state and resolve the same way. The
+ * exception is `report_missing`: it jumps to the tab and stays until
+ * the owner dismisses it on purpose.
  */
 export function requestInboxItemOpen(
   item: AttentionInboxItem,
@@ -26,11 +28,14 @@ export function requestInboxItemOpen(
  * A routine episode is addressed by its SCHEDULE: `attention.dismiss` takes a
  * taskId, and a routine that cannot run may never have produced one.
  */
-export function dismissEpisode(item: AttentionInboxItem, rpc: InboxOpenRpc): Promise<boolean> {
+export function dismissEpisode(item: AttentionInboxItem, rpc: InboxOpenRpc, explicit = false): Promise<boolean> {
   const automationId = item.detail?.routine?.automationId
   if (isRoutineInboxState(item.state) && automationId) return rpc.dismissRoutineAttention(automationId)
   // A decision is answered or withdrawn (`gate.*`), never dismissed.
   if (item.state === "decision_needed") return Promise.resolve(false)
+  // An unreported tick keeps blocking should-run until a late `report` or the owner's deliberate
+  // dismiss: opening or visiting the row must not read as "seen, carry on".
+  if (item.state === "report_missing" && !explicit) return Promise.resolve(false)
   // A task-shaped episode always carries its task; the guard is for the type.
   if (item.taskId === null) return Promise.resolve(false)
   // A delivery episode is keyed by its delivery, not (task, tab): the plain form would miss it.

@@ -2,6 +2,7 @@
 
 import type { VendorId } from "./contracts.ts"
 import type { DeliveryStatus } from "./delivery-contracts.ts"
+import type { SkipVerdict } from "./runnability-contracts.ts"
 
 /** Back-pointer from a routine's standing session task to its {@link Automation}. */
 export interface TaskRoutineLink {
@@ -78,14 +79,18 @@ export type AutomationRunStatus =
   | "revived"
   | "skipped_cancelled"
   | "skipped_precheck"
+  /** Should-run refused the tick (`AutomationRun.blocked`): the task is busy, awaiting the owner, rate limited, … */
+  | "skipped_blocked"
   | "skipped_missed"
   | "skipped_unavailable"
   | "dispatch_failed"
 
 /**
  * Outcomes that repeat every firing until a human intervenes
- * (`skipped_precheck` must never alarm). The one definition the Inbox and the
- * Routines list share, so they agree on which routines are broken.
+ * (`skipped_precheck` and `skipped_blocked` must never alarm: the underlying
+ * gate, report_missing or error episode is already in the Inbox). The one
+ * definition the Inbox and the Routines list share, so they agree on which
+ * routines are broken.
  */
 export function automationRunNeedsAttention(status: AutomationRunStatus): boolean {
   return status === "dispatch_failed" || status === "skipped_unavailable"
@@ -111,6 +116,8 @@ export interface AutomationRun {
   readonly taskId?: string
   readonly tabId?: string
   readonly precheckResult?: AutomationPrecheckResult
+  /** Why should-run refused this firing; set with `skipped_blocked`, and with `dispatch_failed` when it needs a human. */
+  readonly blocked?: SkipVerdict
   readonly error?: string
   /** ISO-8601 event time. */
   readonly at: string

@@ -88,7 +88,7 @@ extension AppModel {
         }
         guard let taskId = item.taskId else { path.append(.routines); return }
         path.append(item.tabId.map { Route.taskTab(taskId, $0) } ?? .task(taskId))
-        Task { await store.dismissAttention(item) }
+        if InboxLogic.clearsOnVisit(item) { Task { await store.dismissAttention(item) } }
     }
 
     /// F7: jump to the first pending item across every project — the oldest blocked one, else the oldest
@@ -105,7 +105,7 @@ extension AppModel {
     /// desktop: a tab-level episode on that tab, or a task-level one on its task.
     func visit(taskId: String, tabId: String) {
         inbox.record(taskId: taskId, tabId: tabId)
-        for item in store.attention where item.taskId == taskId && (item.tabId == nil || item.tabId == tabId) {
+        for item in store.attention where item.taskId == taskId && (item.tabId == nil || item.tabId == tabId) && InboxLogic.clearsOnVisit(item) {
             Task { await store.dismissAttention(item) }
         }
     }

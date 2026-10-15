@@ -20,6 +20,7 @@ export function visitResolvedEpisodes(
     (item) =>
       // Looking at the tab does not answer its question.
       item.state !== "decision_needed" &&
+      item.state !== "report_missing" &&
       item.taskId === visit.taskId &&
       (item.tabId === null || item.tabId === visit.tabId),
   )
@@ -41,6 +42,9 @@ export function isAttentionInboxItemAvailable(
   // A decision belongs to the question, not to a tab: the daemon withdraws it
   // with its task, and nothing here may delete it as "stale".
   if (item.state === "decision_needed") return true
+  // Likewise an unreported tick: the tab may be gone, the block is not (the task's
+  // deliveries die with the task), and only an explicit dismiss may clear it.
+  if (item.state === "report_missing") return item.taskId !== null && task !== undefined && !task.deletion
   if (item.taskId === null || task === undefined || task.deletion) return false
   if (item.tabId === null) return true
   return hasTab(item.tabId) !== false

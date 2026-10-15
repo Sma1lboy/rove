@@ -52,6 +52,9 @@ export {
   MAX_DELIVERIES_PER_TASK,
   deliveryFooter,
 } from "./delivery-contracts.ts"
+// Should-run verdicts.
+export type { RunnabilityVerdict, SkipReason, SkipVerdict } from "./runnability-contracts.ts"
+export { SHOULD_RUN_SKIP_EXIT_CODE, SKIP_REASONS } from "./runnability-contracts.ts"
 // Decision gates, likewise.
 export type {
   Gate,

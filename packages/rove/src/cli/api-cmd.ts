@@ -205,7 +205,9 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     // PARTIAL_FANOUT carries a full result payload (created tasks + failures)
     // that MUST reach the script — emit it to stdout, then exit 3 so the
     // "non-zero = something failed" contract holds without losing the data.
-    if (err instanceof ApiError && err.code === "PARTIAL_FANOUT") {
+    // SKIPPED (`should-run`, `send --if-runnable`) is the same shape: the
+    // verdict is the answer, and exit 3 says "don't".
+    if (err instanceof ApiError && (err.code === "PARTIAL_FANOUT" || err.code === "SKIPPED")) {
       emit(err.data, parsed.pretty)
       session?.close()
       process.exit(3)

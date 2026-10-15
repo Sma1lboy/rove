@@ -74,6 +74,10 @@ export function createRoveOps(client: DaemonRpc): RoveOps {
       return { delivered: res.delivered === true }
     },
 
+    clearReport: async (deliveryId) => {
+      await invokeVerb("attention-dismiss", ["--delivery", deliveryId], { client })
+    },
+
     add: async (repo, prompt) => {
       // As `runApiSubcommand` does: a repo whose default engine is a plugin's
       // must not launch as `generic`.

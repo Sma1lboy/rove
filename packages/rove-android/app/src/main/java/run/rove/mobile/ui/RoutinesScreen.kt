@@ -59,6 +59,7 @@ catch (_: Exception) { onError(failed); null }
     "revived" -> stringResource(R.string.routines_status_revived)
     "skipped_cancelled" -> stringResource(R.string.routines_status_skipped_cancelled)
     "skipped_precheck" -> stringResource(R.string.routines_status_skipped_precheck)
+    "skipped_blocked" -> stringResource(R.string.routines_status_skipped_blocked)
     "skipped_missed" -> stringResource(R.string.routines_status_skipped_missed)
     "skipped_unavailable" -> stringResource(R.string.routines_status_skipped_unavailable)
     "dispatch_failed" -> stringResource(R.string.routines_status_dispatch_failed)

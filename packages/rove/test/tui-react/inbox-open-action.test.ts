@@ -41,8 +41,25 @@ describe("dismissEpisode", () => {
       at: 456,
     }
 
-    await dismissEpisode(missing, rpc)
+    await dismissEpisode(missing, rpc, true)
     expect(rpc.dismissAttention).toHaveBeenCalledWith("task-1", null, 456, "d-12")
+  })
+
+  it("opening or visiting a report_missing row never clears it; only the explicit dismiss does", async () => {
+    const rpc = { dismissAttention: vi.fn().mockResolvedValue(true), dismissRoutineAttention: vi.fn() }
+    const missing: AttentionInboxItem = {
+      taskId: "task-1",
+      tabId: "tab-1",
+      state: "report_missing",
+      detail: { delivery: { id: "d-12", cause: "turn-complete" } },
+      unread: true,
+      at: 456,
+    }
+    expect(requestInboxItemOpen(missing, true, rpc, vi.fn())).toBe(true)
+    await expect(dismissEpisode(missing, rpc)).resolves.toBe(false)
+    expect(rpc.dismissAttention).not.toHaveBeenCalled()
+    await dismissEpisode(missing, rpc, true)
+    expect(rpc.dismissAttention).toHaveBeenCalledWith("task-1", "tab-1", 456, "d-12")
   })
 })
 

@@ -37,6 +37,7 @@ import { GATE_HANDLERS } from "./handlers-gates.ts"
 import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
+import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
 import { UI_HANDLERS } from "./handlers-ui.ts"
 import { WORK_ITEM_HANDLERS } from "./handlers-work-items.ts"
@@ -286,6 +287,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...GATE_HANDLERS,
     ...AUTOMATION_HANDLERS,
     ...DELIVERY_HANDLERS,
+    ...RUNNABILITY_HANDLERS,
     ...WORK_ITEM_HANDLERS,
     ...AGENT_TURN_HANDLERS,
     ...UI_HANDLERS,
