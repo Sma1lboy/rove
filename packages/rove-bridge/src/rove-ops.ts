@@ -379,6 +379,7 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
         engineName: t.kind === "engine" ? nameOf(t.liveVendor ?? t.vendor) : null,
         alive: t.alive,
         engineAlive: t.engineAlive,
+        ...(t.split ? { split: t.split } : {}),
       }))
     },
 

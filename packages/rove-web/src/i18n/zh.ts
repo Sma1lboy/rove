@@ -213,4 +213,10 @@ export const zh: typeof en = {
     forkBranch: "基于分支",
     openedExternal: "已在 Mac 上用系统应用打开",
   },
+  layout: {
+    splitTooSmall: "这里放不下分屏了",
+    railFold: "折叠任务列表",
+    railUnfold: "展开任务列表",
+    railResize: "拖动调整任务列表宽度，双击还原",
+  },
 }

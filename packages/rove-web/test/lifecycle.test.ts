@@ -13,6 +13,15 @@ class Renderer {
   dispose() {}
   reset() {}
   write() {}
+  textarea = null
+  attachCustomKeyEventHandler() {}
+  onScroll() {
+    return { dispose() {} }
+  }
+  onWriteParsed() {
+    return { dispose() {} }
+  }
+  options = {}
   onData() {
     return { dispose() {} }
   }
@@ -26,6 +35,15 @@ class Addon {
   dispose() {}
 }
 mock.module("@xterm/xterm", () => ({ Terminal: Renderer }))
+class SearchAddon {
+  findNext() {}
+  findPrevious() {}
+  clearDecorations() {}
+  onDidChangeResults() {
+    return { dispose() {} }
+  }
+}
+mock.module("@xterm/addon-search", () => ({ SearchAddon }))
 mock.module("@xterm/addon-fit", () => ({ FitAddon: Addon }))
 mock.module("@xterm/addon-unicode11", () => ({ Unicode11Addon: Addon }))
 mock.module("@xterm/addon-web-links", () => ({ WebLinksAddon: Addon }))
@@ -42,7 +60,7 @@ Object.defineProperty(globalThis, "localStorage", {
   writable: true,
   value: { getItem: () => null, setItem() {} },
 })
-const { mountTerminal } = await import("../src/terminal-view.tsx")
+const { mountTerminal } = await import("../src/term-mount.ts")
 
 const globals = ["window", "localStorage", "ResizeObserver", "document"] as const
 const originals = globals.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const)
@@ -155,6 +173,7 @@ test("a tab-only change with an unchanged task list still updates the tabs", asy
 })
 
 function terminals() {
+  install("document", { addEventListener() {}, removeEventListener() {}, activeElement: null })
   install(
     "ResizeObserver",
     class {
@@ -163,7 +182,20 @@ function terminals() {
     },
   )
   const { client, calls } = protocol()
-  const mount = (tab: string) => mountTerminal({} as HTMLElement, client, "task", tab, () => {})
+  const el = { addEventListener() {}, removeEventListener() {} } as unknown as HTMLElement
+  const mount = (tab: string) =>
+    mountTerminal({
+      client,
+      el,
+      taskId: "task",
+      tabId: tab,
+      setNotice() {},
+      onScrolled() {},
+      onFocusChange() {},
+      onExit() {},
+      copyText: async () => true,
+      focusOnMount: false,
+    }).dispose
   const resolve = async (index: number) => {
     const call = calls.filter((call) => call.op === "term.attach")[index]
     call.resolve({ stream: `task::${call.args.tabId}`, alive: true, replay: "" })

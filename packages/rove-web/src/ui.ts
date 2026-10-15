@@ -28,6 +28,21 @@ export interface Toast {
 export const menu = createStore<MenuState | null>(null)
 /** At most one dialog, like the TUI's modal stack in practice. */
 export const dialog = createStore<ReactNode | null>(null)
+
+/** Closing a dialog hands the keyboard back to where it was opened from (the TUI's dialog stack), read before the dialog's own field takes focus. */
+let dialogOrigin: HTMLElement | null = null
+dialog.subscribe(() => {
+  const active = document.activeElement
+  if (dialog.get() !== null) {
+    if (!dialogOrigin && active instanceof HTMLElement && !active.closest(".dialog")) dialogOrigin = active
+    return
+  }
+  const origin = dialogOrigin
+  dialogOrigin = null
+  window.setTimeout(() => {
+    if (origin?.isConnected && (!document.activeElement || document.activeElement === document.body)) origin.focus()
+  }, 0)
+})
 export const toasts = createStore<readonly Toast[]>([])
 
 /** A read-only file or diff open over the workspace (the TUI's content tab). `path` `.` = whole worktree. */
@@ -48,11 +63,18 @@ export const zen = createStore<boolean>(false)
 
 let nextToast = 1
 const TOAST_MS = 4000
+/** The TUI's overlay shows the newest three. */
+const TOASTS_SHOWN = 3
 
 export function toast(text: string, tone: Toast["tone"] = "info"): void {
   const id = nextToast++
-  toasts.set([...toasts.get(), { id, text, tone }])
-  window.setTimeout(() => toasts.set(toasts.get().filter((t) => t.id !== id)), TOAST_MS)
+  toasts.set([...toasts.get(), { id, text, tone }].slice(-TOASTS_SHOWN))
+  window.setTimeout(() => dismissToast(id), TOAST_MS)
+}
+
+/** A click on the card, or its timer. */
+export function dismissToast(id: number): void {
+  toasts.set(toasts.get().filter((t) => t.id !== id))
 }
 
 export function closeDialog(): void {

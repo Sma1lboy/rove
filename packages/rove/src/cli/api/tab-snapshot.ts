@@ -20,6 +20,7 @@ import {
   setTabTitle,
 } from "../../tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { type WireSplit, wireSplit } from "./split-wire.ts"
 
 /** A death as `pty-exits.json` records it, joined onto a tab row. */
 export type TabExit = PtySessionExit & {
@@ -62,6 +63,8 @@ export interface TaskTabRow {
   /** True only on rows from a LIVE session the snapshot doesn't list. The
    *  pty host is the truth; divergence must render as a row, not vanish. */
   readonly unregistered?: true
+  /** Present while the tab is split: the layout, one pane per hosted shell (`<taskId>::<tabId>::leaf-N`). */
+  readonly split?: WireSplit
 }
 
 /**
@@ -244,6 +247,7 @@ export function joinTaskTabs(
       engineAlive: engineIsAlive,
       // A session death wins: it is the later event and took the engine with it.
       exit: isAlive === false ? deadExit(key) : engineIsAlive === false ? engineExit(key) : null,
+      ...(t.splitTree ? { split: wireSplit(t.splitTree) as WireSplit } : {}),
     }
   })
   // Unlisted live sessions still get a row. kind "engine": headless paths

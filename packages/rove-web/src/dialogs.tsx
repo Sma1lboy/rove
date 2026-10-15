@@ -61,6 +61,8 @@ export function TextDialog(props: {
   title: string
   initial?: string
   submitLabel: string
+  /** A blank value is a valid answer (a rename that clears back to the default name). */
+  allowEmpty?: boolean
   onSubmit: (value: string) => Promise<void>
 }) {
   const [value, setValue] = useState(props.initial ?? "")
@@ -71,7 +73,7 @@ export function TextDialog(props: {
         className="dialog-body"
         onSubmit={(e) => {
           e.preventDefault()
-          if (value.trim()) void submit(() => props.onSubmit(value.trim()))
+          if (value.trim() || props.allowEmpty) void submit(() => props.onSubmit(value.trim()))
         }}
       >
         <input

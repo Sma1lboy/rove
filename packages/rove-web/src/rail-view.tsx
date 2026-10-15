@@ -1,16 +1,19 @@
 /** The Tasks rail: wordmark + inbox count, then project → task → tab rows (TUI `tree-panel`). */
 
 import type { MouseEvent } from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
+import { enterWorkspace, railFolded } from "./layout.ts"
 import { MachineHeaders } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
 import { NewTaskDialog } from "./new-task-dialog.tsx"
 import { PageNav } from "./pages-host.tsx"
+import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
+import { FoldButton, FoldedRail, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, activityGlyph, groupByProject, navRows, repoLabel } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
@@ -44,7 +47,7 @@ function useSpinnerFrame(running: boolean): number {
   return frame
 }
 
-export function RailView({ model }: { model: AppModel }) {
+export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }) {
   useLocale()
   const payload: TasksPayload | null = useStore(model.tasks)
   const tabs = useStore(model.tabs)
@@ -75,22 +78,35 @@ export function RailView({ model }: { model: AppModel }) {
     onSettings: () => dialog.set(<SettingsDialog client={model.client} />),
   })
   const total = navRows(groups, tabsOf, tabLabel).filter((row) => row.kind !== "project").length
+  const rail = useRef<HTMLElement>(null)
+  const folded = useStore(railFolded) && !narrow
+  const recent = narrow ? (tasks.find((task) => task.id === selection.taskId && !task.deleting) ?? null) : null
+  if (folded) {
+    return (
+      <nav className="rail is-folded" ref={rail}>
+        <FoldedRail model={model} frame={frame} selectedTaskId={selection.taskId} />
+        <FoldButton folded />
+      </nav>
+    )
+  }
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the rail takes the TUI sidebar's keys while focused
-    <nav className="rail" tabIndex={0} onKeyDown={keys.onKeyDown}>
+    <nav className="rail" ref={rail} tabIndex={0} onKeyDown={keys.onKeyDown}>
       <header className="rail-head">
         <span className="wordmark">
           <span className="bracket">[</span> rove <span className="bracket">]</span>
         </span>
-        <button
-          type="button"
-          className={`kicker inbox-chip ${unread > 0 ? "is-accent" : ""}`}
-          data-binding="inbox.show"
-          onClick={() => dialog.set(<InboxDialog model={model} />)}
-        >
-          {t("rail.inbox", { count: unread })}
-        </button>
+        <span className="badge-host">
+          <button
+            type="button"
+            className={`kicker inbox-chip ${unread > 0 ? "is-accent" : ""}`}
+            onClick={() => dialog.set(<InboxDialog model={model} />)}
+          >
+            {t("rail.inbox", { count: unread })}
+          </button>
+          <ShortcutBadge model={model} bindingId="inbox.show" />
+        </span>
         <UpdateChip />
       </header>
       {moving && (
@@ -119,6 +135,7 @@ export function RailView({ model }: { model: AppModel }) {
             <p className="muted">{t("rail.emptyHint")}</p>
           </div>
         )}
+        {recent && <RecentRow title={recent.title} />}
         {rows.map((row) => (
           <RailRow
             key={row.id}
@@ -138,6 +155,7 @@ export function RailView({ model }: { model: AppModel }) {
               if (row.kind === "routines") filters.toggleRoutines(row.repo)
               if (row.kind === "task") model.select(row.task.id)
               if (row.kind === "tab") model.select(row.task.id, row.tab.id)
+              if (row.kind !== "project") enterWorkspace()
             }}
             onMenu={(e) => {
               // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
@@ -156,15 +174,15 @@ export function RailView({ model }: { model: AppModel }) {
         ))}
         <MachineHeaders client={model.client} />
       </div>
-      <button
-        type="button"
-        className="row new-task"
-        data-binding="task.new.global"
-        onClick={() => dialog.set(<NewTaskDialog model={model} />)}
-      >
-        <span className="glyph tone-accent">+</span>
-        <span className="row-title">{t("rail.newTask")}</span>
-      </button>
+      <div className="badge-host">
+        <button type="button" className="row new-task" onClick={() => dialog.set(<NewTaskDialog model={model} />)}>
+          <span className="glyph tone-accent">+</span>
+          <span className="row-title">{t("rail.newTask")}</span>
+        </button>
+        <ShortcutBadge model={model} bindingId="task.new.global" />
+      </div>
+      {!narrow && <FoldButton folded={false} />}
+      {!narrow && <RailGrip rail={rail} />}
     </nav>
   )
 }

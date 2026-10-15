@@ -154,7 +154,10 @@ select.input {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--inset);
+  color: var(--ink);
   font: 12px var(--mono);
+  text-align: left;
+  cursor: pointer;
   overflow-wrap: anywhere;
 }
 

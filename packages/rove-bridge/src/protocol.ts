@@ -122,6 +122,18 @@ export interface TabRow {
   readonly engineName: string | null
   readonly alive: boolean | null
   readonly engineAlive: boolean | null
+  /** Present while the tab is split: the pane layout (`rove api get-task` `.tabs[].split`). Absent = one pane. */
+  readonly split?: SplitView
+}
+
+/** A split layout: panes are leaves named `leaf-N`; `leaf-1` is the tab's own process, the rest are hosted login shells. */
+export type SplitNodeView =
+  | { readonly kind: "leaf"; readonly id: string; readonly title: string | null; readonly own: boolean }
+  | { readonly kind: "group"; readonly orientation: "row" | "column"; readonly children: readonly SplitNodeView[] }
+
+export interface SplitView {
+  readonly root: SplitNodeView
+  readonly activeLeafId: string
 }
 
 export interface DiffFileRow {
