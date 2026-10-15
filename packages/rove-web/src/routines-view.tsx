@@ -30,7 +30,7 @@ import {
 } from "./pages-kit.ts"
 import { RoutineComposer } from "./routine-composer.tsx"
 import { useStore } from "./store.ts"
-import { dialog, page, toast } from "./ui.ts"
+import { dialog, page, routineFocus, toast } from "./ui.ts"
 
 const POLL_MS = 5_000
 /** How many runs the history lists (the TUI's `runs.slice(0, 5)`). */
@@ -87,6 +87,15 @@ export function RoutinesView({ model }: { model: AppModel }) {
       live = false
     }
   }, [c, tick])
+
+  // An Inbox row for a failed routine lands the cursor on that routine, once.
+  const wanted = useStore(routineFocus)
+  useEffect(() => {
+    if (wanted === null || !reply) return
+    const index = reply.automations.findIndex((routine) => routine.id === wanted)
+    if (index >= 0) setCursor(index)
+    routineFocus.set(null)
+  }, [wanted, reply])
 
   const rows = reply?.automations ?? []
   const lastRunStatus = reply?.lastRunStatus ?? {}

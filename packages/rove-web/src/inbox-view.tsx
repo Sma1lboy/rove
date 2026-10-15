@@ -8,7 +8,8 @@ import { useEffect, useState } from "react"
 import type { AttentionRow, TaskRow } from "rove-bridge/protocol"
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { compactAge, inboxBadge, sortAttention } from "./inbox.ts"
+import { dismissRoutineEpisode, openRoutineEpisode } from "./inbox-open.ts"
+import { compactAge, inboxBadge, isRoutineState, sortAttention } from "./inbox.ts"
 import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, toast } from "./ui.ts"
@@ -79,12 +80,14 @@ export function InboxDialog({ model }: { model: AppModel }) {
   const current = cards[Math.min(index, cards.length - 1)]
 
   const dismiss = async (card: Card) => {
+    if (card.attention && isRoutineState(card.attention.state)) return dismissRoutineEpisode(model, card.attention)
     if (!card.attention?.taskId) return
     await model.client
       .request("attention.dismiss", { taskId: card.attention.taskId, ...(card.tabId ? { tabId: card.tabId } : {}) })
       .catch((err) => toast(String(err), "error"))
   }
   const open = (card: Card) => {
+    if (card.attention && isRoutineState(card.attention.state)) return openRoutineEpisode(model, card.attention)
     if (card.attention) void dismiss(card)
     if (card.taskId && tasks.has(card.taskId)) {
       model.select(card.taskId, card.tabId)

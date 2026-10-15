@@ -4,7 +4,7 @@ import { displayLine, noteRange, parseUnifiedDiff } from "../src/diff.ts"
 import { visibleTree } from "../src/file-tree.ts"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
-import { compactAge, inboxBadge, nextAttention } from "../src/inbox.ts"
+import { compactAge, inboxBadge, isRoutineState, nextAttention } from "../src/inbox.ts"
 import { activityGlyph, groupByProject, navRows } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
 
@@ -194,5 +194,12 @@ describe("F7 next attention", () => {
   })
   test("an episode whose task is gone is skipped", () => {
     expect(nextAttention([row("gone", "error", 1)], order, { taskId: null, tabId: null })).toBeNull()
+  })
+  test("a routine episode has no task but stays eligible, and its states open the Routines page", () => {
+    const routine = { taskId: null, tabId: null, state: "routine_failed", unread: true, at: 3, automationId: "r-1" }
+    const next = nextAttention([routine], order, { taskId: null, tabId: null })
+    expect(next?.automationId).toBe("r-1")
+    expect(isRoutineState("routine_failed") && isRoutineState("routine_responded")).toBe(true)
+    expect(isRoutineState("error") || isRoutineState("turn_complete")).toBe(false)
   })
 })
