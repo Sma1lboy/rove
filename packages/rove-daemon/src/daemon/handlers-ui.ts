@@ -6,7 +6,7 @@
 
 import { randomUUID } from "node:crypto"
 import { samePath } from "../path-identity.ts"
-import { optionalBoolean, optionalString, requireNumber, requireString } from "./handler-validators.ts"
+import { objectPayload, optionalBoolean, optionalString, requireNumber, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { displayTaskTitle } from "./protocol.ts"
 
@@ -247,6 +247,20 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
       ctx.bus.publish("tab.rename", { taskId, tabId, title, at: Date.now() })
       // No broker: the CLI already wrote the snapshot; this is only the repaint.
+      return { ok: true, clients: ctx.daemon.clientCount() }
+    },
+  },
+  {
+    name: "terminalTab.add",
+    handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const tab = objectPayload(payload.tab)
+      if (typeof tab.id !== "string" || typeof tab.kind !== "string") {
+        throw new Error("tab must be an object with a string id and kind")
+      }
+      if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
+      ctx.bus.publish("tab.add", { taskId, tab, at: Date.now() })
+      // No broker: the CLI already wrote the snapshot; this is only the absorb.
       return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },

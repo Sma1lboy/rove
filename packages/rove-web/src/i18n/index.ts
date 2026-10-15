@@ -1,7 +1,7 @@
 /**
  * `t("ns.key", params)` over the en/zh catalogs. Call it inside render, never
- * into a module-level constant, or the language freezes. The locale follows the
- * browser until Settings exists on the web.
+ * into a module-level constant, or the language freezes. The locale is the one
+ * picked in Settings (per browser), else the browser's.
  */
 
 import { createStore, useStore } from "../store.ts"
@@ -12,7 +12,11 @@ export type Locale = "en" | "zh"
 
 const CATALOGS: Record<Locale, typeof en> = { en, zh }
 
-export const locale = createStore<Locale>(navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en")
+export const LOCALE_KEY = "rove.locale"
+const saved = localStorage.getItem(LOCALE_KEY)
+export const locale = createStore<Locale>(
+  saved === "en" || saved === "zh" ? saved : navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en",
+)
 
 function lookup(tree: unknown, key: string): string | undefined {
   let node = tree

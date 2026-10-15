@@ -66,12 +66,32 @@ export interface RoveOps {
   deleteTask(taskId: string, force: boolean): Promise<{ status: string }>
   landTask(taskId: string, strategy: "merge" | "squash"): Promise<{ landedOn: string; commit: string }>
   tabs(taskId: string): Promise<readonly TabRow[]>
-  newTab(taskId: string, prompt: string, engine?: string): Promise<{ tabId: string }>
+  newTab(taskId: string, tab: NewTabRequest): Promise<{ tabId: string }>
   closeTab(taskId: string, tabId: string): Promise<void>
   worktreeOf(taskId: string): Promise<string>
   diffFiles(taskId: string): Promise<{ base: string | null; files: readonly DiffFileRow[] }>
   diffFile(taskId: string, path: string, scope: "branch" | "working"): Promise<unknown>
   dismissAttention(taskId: string, tabId?: string): Promise<void>
+}
+
+/** What `tab.new` asks for: no `prompt` opens the tab empty (a shell, or an engine awaiting its first message). */
+export interface NewTabRequest {
+  readonly kind: "shell" | "engine"
+  readonly prompt?: string
+  /** Engine id for an engine tab; omitted = the task's own. */
+  readonly engine?: string
+}
+
+/** A prompt starts the engine on it (`send`); without one there is nothing to send, so `tab-new` opens the tab empty. */
+export function newTabInvocation(
+  taskId: string,
+  tab: NewTabRequest,
+): { readonly verb: "send" | "tab-new"; readonly argv: readonly string[] } {
+  const command = tab.engine ? ["--command", tab.engine] : []
+  if (tab.prompt !== undefined) {
+    return { verb: "send", argv: ["--task-id", taskId, "--tab", "new", "--plain", "--prompt", tab.prompt, ...command] }
+  }
+  return { verb: "tab-new", argv: ["--task-id", taskId, "--kind", tab.kind, ...command] }
 }
 
 /** `rove api` refusals carry a stable `code`; keep it on the wire. */
@@ -357,11 +377,10 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
       }))
     },
 
-    async newTab(taskId, prompt, engine) {
-      const argv = ["--task-id", taskId, "--tab", "new", "--plain", "--prompt", prompt]
-      if (engine) argv.push("--command", engine)
-      const res = await verb<{ session?: string }>(client, "send", argv)
-      const tabId = res.session?.split("::")[1]
+    async newTab(taskId, tab) {
+      const call = newTabInvocation(taskId, tab)
+      const res = await verb<{ tabId?: string; session?: string }>(client, call.verb, call.argv)
+      const tabId = res.tabId ?? res.session?.split("::")[1]
       if (!tabId) throw new BridgeError("SESSION_FAILED", "the new tab did not report its session")
       return { tabId }
     },

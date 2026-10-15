@@ -9,6 +9,7 @@ import { Overlays } from "./overlays.tsx"
 import { PreviewView } from "./preview-view.tsx"
 import { RailView, openMenu, tabLabel } from "./rail-view.tsx"
 import { taskMenu } from "./row-actions.tsx"
+import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { NewChatDialog } from "./task-dialogs.tsx"
 import { TerminalView } from "./terminal-view.tsx"
@@ -157,6 +158,9 @@ function StatusBar({ model }: { model: AppModel }) {
       {conn.hello && (
         <span className="muted">{t("status.host", { host: conn.hello.host, version: conn.hello.roveVersion })}</span>
       )}
+      <button type="button" className="link" onClick={() => dialog.set(<SettingsDialog client={client} />)}>
+        [{t("settings.open")}]
+      </button>
     </footer>
   )
 }

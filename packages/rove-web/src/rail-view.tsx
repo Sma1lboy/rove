@@ -9,6 +9,7 @@ import type { AppModel } from "./model.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, SPINNER, activityGlyph, groupByProject, navRows, repoLabel } from "./rail.ts"
 import { projectMenu, taskMenu } from "./row-actions.tsx"
+import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { NewTaskDialog } from "./task-dialogs.tsx"
 import { type MenuItem, dialog, menu } from "./ui.ts"
@@ -51,6 +52,7 @@ export function RailView({ model }: { model: AppModel }) {
   const keys = useRailKeys(model, rows, filters, {
     selectedId,
     onNewTask: (repo) => dialog.set(<NewTaskDialog model={model} repo={repo} />),
+    onSettings: () => dialog.set(<SettingsDialog client={model.client} />),
   })
   const total = navRows(groups, tabsOf, tabLabel).filter((row) => row.kind !== "project").length
 
@@ -180,7 +182,7 @@ function RailRow(props: {
 }
 
 export function tabLabel(tab: TabRow): string {
-  return tab.title ?? tab.engineName ?? (tab.kind === "shell" ? t("tab.shell") : t("tab.engine"))
+  return tab.title ?? tab.engineName ?? (tab.kind === "engine" ? t("tab.engine") : t("tab.shell"))
 }
 
 function prGlyph(kind: NonNullable<TaskRow["prChip"]>): string {

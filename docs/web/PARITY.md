@@ -25,7 +25,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 12 | Zen: toggle Files visibility | prefix z, Files chip | 🟡 | local | r3: the `Zen` chip hides the Files pane and a `Files` button in the tab strip brings it back; persisted per browser like the TUI's KV. No prefix chord yet (needs a PROPOSED web chord). |
 | 13 | Redraw corrupted screen | prefix r | 🚫 | local | Cannot exist: a browser canvas has no corrupted terminal screen to erase; xterm repaints itself. |
 | 14 | Refresh daemon/TUI build (restart daemon + relaunch) | prefix r when DAEMON OUT OF DATE, confirm | ❌ | missing | Playwright: trigger 'prefix r when DAEMON OUT OF DATE'; expect 'refresh daemon/TUI build (restart daemon + relaunch)' as in TUI. Currently absent (no bridge op yet). |
-| 15 | Open Settings | prefix `,`, sidebar `s`, footer click | ❌ | local | Playwright: trigger 'prefix'; expect 'open Settings' as in TUI. Currently absent (browser-local, no bridge call). |
+| 15 | Open Settings | prefix `,`, sidebar `s`, footer click | 🟡 | local | r6: rail `s` and the footer `[settings]` open it, with the TUI's sections in its order (General, Engines, Plugins, Feedback; shot r6s-01). No prefix layer yet. |
 | 16 | Open Worktrees | sidebar `x` | ❌ | `worktrees.list` | Playwright: trigger 'sidebar x'; expect 'open Worktrees' as in TUI. Currently absent (via worktrees.list). |
 | 17 | Open Update | sidebar `u`, update chip | ❌ | missing | Playwright: trigger 'sidebar u'; expect 'open Update' as in TUI. Currently absent (no bridge op yet). |
 | 18 | Open Kanban / Routines / GitHub Issues | prefix 1/2/3, rail click | ❌ | `issue.repos`, `issue.list`, `routine.list`, `workitem.list` | Playwright: trigger 'prefix 1/2/3'; expect 'open Kanban / Routines / GitHub Issues' as in TUI. Currently absent (via issue.repos, issue.list, routine.list, workitem.list). |
@@ -59,8 +59,8 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 39 | Fuzzy search titles/repo/branch/tab | `/` | ✅ | local | r5: `/retry` leaves only "Fix retry backoff" and its tab, header reads `/ retry█ 2/7` (shot r5-02). Fields matched one at a time with the TUI's `fuzzy.ts`; a hit keeps its ancestors (unit-tested). |
 | 40 | Search result navigate / accept / cancel | ↑/↓, Enter, Esc | ✅ | local | r5: Enter opens the top match and closes the query; Esc cancels and the full list returns. |
 | 41 | Open / dismiss right-click task menu | right click, Esc | ✅ | local | r2: right click on task, tab and tab-strip rows opens the menu at the pointer with the TUI's entries in its order; Esc and an outside click dismiss it (`.menu` gone). |
-| 42 | New conversation on a row | row menu | 🟡 | `tab.new` | r2: menu → picker → Claude + first message → tab `2 Claude` appears and attaches. Differs: the bridge opens a tab by delivering a message, so the web needs a first message; the TUI picker does not. |
-| 43 | New shell on a row | row menu | ❌ | missing | `tab.new` only starts engines; `pane-open` needs an attached TUI to perform it. Needs a bridge/daemon op that opens a hosted shell tab. |
+| 42 | New conversation on a row | row menu | ✅ | `tab.new` | r6: menu → picker → Codex with no first message → a live Codex tab (`get-task` vendor codex, engineAlive), as the TUI picker; a message stays optional (r2 path). Bridge `tab.new` without `prompt` calls the new `rove api tab-new`. |
+| 43 | New shell on a row | row menu | ✅ | `tab.new {kind:"shell"}` | r6: menu New shell → hosted shell tab (`get-task` kind `command`, alive), labelled `shell`; `echo shell-from-web-$((6*7))` typed in the web xterm printed 42 (shot r6t-01). An attached TUI absorbs the tab via the daemon's `tab.add` (not a misread engine). |
 | 44 | Close selected tab | tab row menu | ✅ | `tab.close` | r2: tab menu Close tab → confirm → tab count drops by one; `get-task` no longer lists it. Close latency 1–20 s (daemon-side), button shows busy meanwhile. |
 | 45 | Run stored brief again as a new task | row menu + confirm | ❌ | `task.create`, `task.spawn` | Playwright: trigger 'row menu + confirm'; expect 'run stored brief again as a new task' as in TUI. Currently absent (via task.create, task.spawn). |
 | 46 | Set task board status | row menu | ✅ | `task.setStatus` | r2: menu Set status → In review; `rove api list` status `in_review`. Menu-only in the TUI too. |
@@ -101,7 +101,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 |---|---|---|---|---|---|
 | 72 | New engine tab (browser-reserved Ctrl+T; PROPOSED chord needs owner sign-off) | Ctrl+T | 🟡 | `tab.new` | r2: tab-strip `+` opens the new-conversation picker. No chord. |
 | 73 | Open new conversation picker | Ctrl+E | 🟡 | `engines.list` | r2: `+`, row menu, and the empty pane's button open it. Ctrl+E not on the web. |
-| 74 | Choose engine / shell / plugin pane | picker ←/→, Enter, click | 🟡 | `tab.new` | r2: engine chips by click; no shell (#43) or plugin pane, no ←/→. |
+| 74 | Choose engine / shell / plugin pane | picker ←/→, Enter, click | 🟡 | `tab.new` | r6: engine chips plus a `shell` chip (hides the message field) by click; no plugin pane, no ←/→. |
 | 75 | Pick destination tab / fork / scratch | picker Tab/chips | ❌ | `tab.forkTask` | Playwright: trigger 'picker Tab/chips'; expect 'pick destination tab / fork / scratch' as in TUI. Currently absent (via tab.forkTask). |
 | 76 | Pick fresh / continue chat | picker Ctrl+F | ❌ | `tab.handoff` | Playwright: trigger 'picker Ctrl+F'; expect 'pick fresh / continue chat' as in TUI. Currently absent (via tab.handoff). |
 | 77 | Continue chat in same worktree new tab | prefix c | ❌ | `tab.handoff` | Playwright: trigger 'prefix c'; expect 'continue chat in same worktree new tab' as in TUI. Currently absent (via tab.handoff). |
@@ -112,7 +112,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 82 | New Scratch task / shell | picker Scratch | ❌ | `task.create`, `tab.new` | Playwright: trigger 'picker Scratch'; expect 'new Scratch task / shell' as in TUI. Currently absent (via task.create, tab.new). |
 | 83 | Click tab / previous / next / jump N | tab strip click, Ctrl+[ / Ctrl+], Ctrl+1..9 | 🟡 | local | Click each tab in the strip: active terminal switches. Ctrl+1..9 / Ctrl+[ / Ctrl+] not wired: press Ctrl+2 and nothing changes. |
 | 84 | Close active tab (browser-reserved Ctrl+W; PROPOSED chord needs owner sign-off) | Ctrl+W, prefix w, row menu | 🟡 | `tab.close` | r2: via the tab's right-click menu (#44). No chord. |
-| 85 | Reopen empty task session | Enter/Ctrl+E in empty pane | 🟡 | `tab.new` | r2: empty pane shows `New conversation`; needs a first message (#42). No Enter/Ctrl+E. |
+| 85 | Reopen empty task session | Enter/Ctrl+E in empty pane | 🟡 | `tab.new` | r6: empty pane's `New conversation` opens the picker, which now starts an engine with no message. No Enter/Ctrl+E. |
 | 86 | Rename tab | F2 | ❌ | `tab.rename` | Playwright: trigger 'F2'; expect 'rename tab' as in TUI. Currently absent (via tab.rename). |
 | 87 | Split terminal right / down | Ctrl+\\ / Ctrl+= | ❌ | local | Playwright: trigger 'Ctrl+\\ / Ctrl+='; expect 'split terminal right / down' as in TUI. Currently absent (browser-local, no bridge call). |
 | 88 | Focus next split | F3, click leaf | ❌ | local | Playwright: trigger 'F3'; expect 'focus next split' as in TUI. Currently absent (browser-local, no bridge call). |
@@ -215,7 +215,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
-| 156 | Select UI language | General: language | ❌ | local | Playwright: trigger 'General: language'; expect 'select UI language' as in TUI. Currently absent (browser-local, no bridge call). |
+| 156 | Select UI language | General: language | 🟡 | local | r6: General → 中文 switches the whole page (dialog title `设置`, rail `新建任务`) and back. Kept per browser (`localStorage rove.locale`); it does not change the TUI's language setting, nor read it. |
 | 157 | Choose named theme | Appearance: Theme | ❌ | local | Playwright: trigger 'Appearance: Theme'; expect 'choose named theme' as in TUI. Currently absent (browser-local, no bridge call). |
 | 158 | Choose dark / light / system appearance | Appearance: mode | ❌ | local | Playwright: trigger 'Appearance: mode'; expect 'choose dark / light / system appearance' as in TUI. Currently absent (browser-local, no bridge call). |
 | 159 | Toggle background transparency | Appearance | ❌ | local | Playwright: trigger 'Appearance'; expect 'toggle background transparency' as in TUI. Currently absent (browser-local, no bridge call). |
@@ -236,24 +236,24 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 174 | Cycle worktree location / edit custom base path | General rows | ❌ | missing | Playwright: trigger 'General rows'; expect 'cycle worktree location / edit custom base path' as in TUI. Currently absent (no bridge op yet). |
 | 175 | Edit terminal scrollback capacity | General row | ❌ | local | Playwright: trigger 'General row'; expect 'edit terminal scrollback capacity' as in TUI. Currently absent (browser-local, no bridge call). |
 | 176 | Cycle horizontal tab strip never/multiple/always | General row | ❌ | local | Playwright: trigger 'General row'; expect 'cycle horizontal tab strip never/multiple/always' as in TUI. Currently absent (browser-local, no bridge call). |
-| 177 | Enable / disable engine | Engines: Space, checkbox | ❌ | `engine.setEnabled` | Playwright: trigger 'Engines: Space'; expect 'enable / disable engine' as in TUI. Currently absent (via engine.setEnabled). |
+| 177 | Enable / disable engine | Engines: Space, checkbox | ✅ | `engine.setEnabled` | r6: the checkbox turned Copilot off then on; `engines.settings` read back `enabled` each time (state.json `disabledEngineIds`, as the TUI). No Space key: rows are form controls (Space toggles a focused checkbox natively). |
 | 178 | Edit engine command | Engines: Enter | ❌ | missing | Playwright: trigger 'Engines: Enter'; expect 'edit engine command' as in TUI. Currently absent (no bridge op yet). |
-| 179 | Rename engine display name | Engines: r | ❌ | `engine.rename` | Playwright: trigger 'Engines: r'; expect 'rename engine display name' as in TUI. Currently absent (via engine.rename). |
-| 180 | Reset built-in engine / remove custom engine | Engines: x | ❌ | `engine.reset` | Playwright: trigger 'Engines: x'; expect 'reset built-in engine / remove custom engine' as in TUI. Currently absent (via engine.reset). |
-| 181 | Set default engine | Engines: d, radio | ❌ | `engine.setDefault` | Playwright: trigger 'Engines: d'; expect 'set default engine' as in TUI. Currently absent (via engine.setDefault). |
+| 179 | Rename engine display name | Engines: r | ✅ | `engine.rename` | r6: rename → "Codex Web"; `engines.settings` name matches (shot r6s-03). |
+| 180 | Reset built-in engine / remove custom engine | Engines: x | 🟡 | `engine.reset` | r6: `reset` on the renamed Codex restored "Codex". Removing a custom engine not exercised: the sandbox has none. |
+| 181 | Set default engine | Engines: d, radio | ✅ | `engine.setDefault` | r6: radio → Codex, then back to Claude; `defaultId` follows (shot r6s-02). |
 | 182 | Add custom engine and protocol adapter | Add engine row | ❌ | missing | Playwright: trigger 'Add engine row'; expect 'add custom engine and protocol adapter' as in TUI. Currently absent (no bridge op yet). |
 | 183 | Install / uninstall activity hooks | Engines trailing rows | ❌ | missing | Playwright: trigger 'Engines trailing rows'; expect 'install / uninstall activity hooks' as in TUI. Currently absent (no bridge op yet). |
 | 184 | Edit auto-routing tier engine/model/effort | Auto routing tier row | ❌ | `engines.settings` | Playwright: trigger 'Auto routing tier row'; expect 'edit auto-routing tier engine/model/effort' as in TUI. Currently absent (via engines.settings). |
 | 185 | Cycle classifier off/jev/custom | classifier row | ❌ | missing | Playwright: trigger 'classifier row'; expect 'cycle classifier off/jev/custom' as in TUI. Currently absent (no bridge op yet). |
 | 186 | Edit classifier endpoint / threshold / API secret | Auto routing rows | ❌ | missing | Playwright: trigger 'Auto routing rows'; expect 'edit classifier endpoint / threshold / API secret' as in TUI. Currently absent (no bridge op yet). |
-| 187 | Enable / disable registered plugin | Plugins toggle | ❌ | `plugin.setEnabled` | Playwright: trigger 'Plugins toggle'; expect 'enable / disable registered plugin' as in TUI. Currently absent (via plugin.setEnabled). |
+| 187 | Enable / disable registered plugin | Plugins toggle | 🟡 | `plugin.setEnabled` | r6: Plugins section lists the registry ("no plugins registered" in the sandbox); a toggle per plugin is built but no plugin exists to flip. |
 | 188 | Edit manifest-defined plugin setting | plugin child row | ❌ | missing | Playwright: trigger 'plugin child row'; expect 'edit manifest-defined plugin setting' as in TUI. Currently absent (no bridge op yet). |
 | 189 | Browse / install marketplace plugin | Marketplace row | ❌ | missing | Playwright: trigger 'Marketplace row'; expect 'browse / install marketplace plugin' as in TUI. Currently absent (no bridge op yet). |
 | 190 | Create starter keybindings YAML | Keybindings: Create file | ❌ | missing | Playwright: trigger 'Keybindings: Create file'; expect 'create starter keybindings YAML' as in TUI. Currently absent (no bridge op yet). |
 | 191 | Choose prefix-tap guide mode | Keybindings radio | ❌ | local | Playwright: trigger 'Keybindings radio'; expect 'choose prefix-tap guide mode' as in TUI. Currently absent (browser-local, no bridge call). |
 | 192 | Edit direct/prefix/plugin shortcuts | external `~/.rove/settings/keybindings.yaml` | ❌ | missing | Playwright: trigger 'external ~/.rove/settings/keybindings.yaml'; expect 'edit direct/prefix/plugin shortcuts' as in TUI. Currently absent (no bridge op yet). |
 | 193 | Invoke plugin pane/action via custom chord | user YAML plugin chord | ❌ | missing | Playwright: trigger 'user YAML plugin chord'; expect 'invoke plugin pane/action via custom chord' as in TUI. Currently absent (no bridge op yet). |
-| 194 | Send feedback discussion | Feedback title/body, Send | ❌ | `feedback.send` | Playwright: trigger 'Feedback title/body'; expect 'send feedback discussion' as in TUI. Currently absent (via feedback.send). |
+| 194 | Send feedback discussion | Feedback title/body, Send | 🟡 | `feedback.send` | r6: the form is built; Send stays disabled until title and body are set. Never sent in a check: it publishes a public GitHub Discussion. |
 | 195 | Reset UI / task index | Dev: Reset + confirm | ❌ | missing | Playwright: trigger 'Dev: Reset + confirm'; expect 'reset UI / task index' as in TUI. Currently absent (no bridge op yet). |
 | 196 | Restart backend / relaunch UI | Dev: Restart + confirm | ❌ | missing | Playwright: trigger 'Dev: Restart + confirm'; expect 'restart backend / relaunch UI' as in TUI. Currently absent (no bridge op yet). |
 | 197 | Toggle experimental remote projects / auto status / dispatcher | Dev rows | ❌ | missing | Playwright: trigger 'Dev rows'; expect 'toggle experimental remote projects / auto status / dispatcher' as in TUI. Currently absent (no bridge op yet). |
@@ -282,5 +282,7 @@ Round 3 (`.scratch/web/e2e-r3.ts`, `e2e-r3b.ts`; shots `r3-*`, `r3b-*`): #100–
 Round 4 (`e2e-r4.ts`, `e2e-r4c.ts`; shots `r4-*`, `r4c-*`): #117 at ✅, #24 at 🟡, #112's delivery seen. Compared with the TUI footer (`host-footer.tsx`): same chip order (ctx, Σ, then per-engine quota), same text and tones, computed by the same `usage-core.ts`; the web keeps link state and host on the right where the TUI has key hints.
 
 Round 5 (`e2e-r5.ts`; shots `r5-*`): #25, #27, #28, #30–#32, #35, #38–#40 at ✅; `n` and `d` added to #29, #51, #52. Compared with the TUI sidebar (`keybindings-sidebar.ts`, `use-tree-bindings.ts`, `chrome.tsx` `SidebarSearchInput`): same chords in the same scope, cursor separate from selection, `/ query█ n/m` search row, top match on every keystroke, project headers skipped. The row menu shows each entry's chord (`r` `P` `b` `v` `d`) as the TUI's does. Not mirrored: `s`/`x`/`u`/`q` (pages the web lacks yet), `o` (#34), `Shift+M` move mode (#36).
+
+Round 6 (`e2e-r6t.ts`, `e2e-r6s.ts`; shots `r6t-*`, `r6s-*`): #42, #43, #177, #179, #181 at ✅; #15, #74, #85, #156, #180, #187, #194 moved. New: `rove api tab-new --kind shell|engine` and `tab.new` without a prompt (phones get it too). Compared with the TUI: the picker's chips are the TUI's engines plus `shell`; the shell tab is a `command` row with the login shell, labelled `shell` as the TUI's tab; Settings has the TUI's section names and order and its Engines row grammar (checkbox = offered, radio = default, binary · sign-in line).
 
 Screenshots are local only. Headless Chromium paints the WebGL terminal blank, so shots are taken headed (see MEMO).

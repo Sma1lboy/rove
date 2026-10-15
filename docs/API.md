@@ -140,6 +140,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
+| `TAB_COLLISION` | `tab-new` found its freshly allocated tab id already running a session; no new tab was created, retry. |
 | `RUN_NOT_FOUND` | `routine-respond --run` names no routine run (unknown, or pruned from the last 100). |
 | `RESPONSE_TOO_LARGE` | A `routine-respond` response over the 32,000-character cap. |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
@@ -883,6 +884,21 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   open with no session, matching ctrl+w. A tab that still exists in the
   snapshot may be closed after its process dies; an absent or already-closed
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
+- `tab-new --task-id ID --kind shell|engine [--command CMD]`: open a new
+  Terminal Tab with no first message — the TUI's sidebar "New shell" and its
+  picker's Enter on an empty message. `shell` runs the login shell
+  (`$SHELL`) in the task's worktree and types the `ROVE_TASK_ID` /
+  `ROVE_TAB_ID` export into it; `engine` starts the task's engine (or `--command`'s,
+  as `send --tab new --command` pins it) idle, ready for a first message.
+  The worktree is created if needed, and an engine tab respects
+  `engine.maxLiveSessions` (`ENGINE_LIMIT`; the refused tab leaves no row).
+  The tab id and its persisted row are allocated in one locked `state.json`
+  update, then the session spawns, then the daemon broadcasts `tab.add` so
+  attached TUIs absorb the row (a TUI otherwise holds a stale tab list and
+  would overwrite it). Returns `{ok, taskId, tabId, session, kind, clients}`
+  (`clients` = attached connections told; `0` = none); the tab then lists in
+  `get-task .tabs[]`. A session already running under the allocated id fails
+  as `TAB_COLLISION`. `--command` with `--kind shell` is `BAD_FLAG`.
 - `notify --title TEXT [--body TEXT] [--kind KIND] [--task-id ID]
   [--source TAG]`: show a toast in every attached Rove UI. `--body` adds a
   second, muted line under the title — context, not a second message.

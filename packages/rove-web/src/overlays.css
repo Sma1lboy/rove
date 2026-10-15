@@ -243,3 +243,92 @@ div.placeholder {
 div.placeholder p {
   margin: 0;
 }
+
+/* Settings: section list | section, as the TUI's settings dialog. */
+.settings {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 18px;
+  min-height: 360px;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-right: 1px solid var(--line);
+  padding-right: 10px;
+}
+
+.settings-tab {
+  text-align: left;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+}
+
+.settings-tab:hover {
+  background: var(--accent-soft);
+}
+
+.settings-tab.is-active {
+  color: var(--ink);
+  background: var(--inset);
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-group p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.settings-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.engine-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.engine-check input {
+  accent-color: var(--accent);
+}
+
+.engine-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.engine-detail {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.engine-actions {
+  display: flex;
+  gap: 10px;
+  font: 11px var(--mono);
+}
