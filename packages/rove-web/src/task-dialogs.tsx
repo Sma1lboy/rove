@@ -37,13 +37,42 @@ export function useEngineChoice(model: AppModel): EngineChoice {
 /** The picker's own "shell" choice (TUI ctrl+e picker), not an engine id. */
 export const SHELL = "shell"
 
+/** A plugin pane choice is `pane:<plugin>.<pane>`, the TUI picker's `pane:` key. */
+const PANE_PREFIX = "pane:"
+
+export const isPane = (pick: string): boolean => pick.startsWith(PANE_PREFIX)
+export const paneIdOf = (pick: string): string => pick.slice(PANE_PREFIX.length)
+
+/** `plugin.panes` row: a pane an enabled plugin registered. */
+export interface PaneRow {
+  readonly id: string
+  readonly title: string
+}
+
+/** The registered plugin panes, offered beside the engines as the TUI picker does. */
+export function usePanes(model: AppModel): readonly PaneRow[] {
+  const [panes, setPanes] = useState<readonly PaneRow[]>([])
+  useEffect(() => {
+    void model.client
+      .request<{ panes: PaneRow[] }>("plugin.panes")
+      .then((res) => setPanes(res.panes))
+      .catch(() => setPanes([]))
+  }, [model])
+  return panes
+}
+
 export function EnginePicker(props: {
   engines: readonly EngineRow[]
   value: string
   onChange: (id: string) => void
   withShell?: boolean
+  panes?: readonly PaneRow[]
 }) {
-  const choices = props.withShell ? [...props.engines, { id: SHELL, name: t("tab.shell") }] : props.engines
+  const choices = [
+    ...props.engines,
+    ...(props.withShell ? [{ id: SHELL, name: t("tab.shell") }] : []),
+    ...(props.panes ?? []).map((pane) => ({ id: PANE_PREFIX + pane.id, name: pane.title })),
+  ]
   return (
     <ChipRow
       label={t("newTask.engine")}

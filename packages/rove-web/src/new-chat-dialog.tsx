@@ -13,7 +13,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { ATTEMPTS } from "./quick-start-dialog.tsx"
 import { cycleStop } from "./tab-stops.ts"
-import { EnginePicker, SHELL, openTab, useEngineChoice } from "./task-dialogs.tsx"
+import { EnginePicker, SHELL, isPane, openTab, paneIdOf, useEngineChoice, usePanes } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 
 export type NewChatDestination = "tab" | "fork" | "scratch"
@@ -47,8 +47,12 @@ export function NewChatDialog(props: {
 
   // Shell rows exist for fresh tabs here and Scratch; a fork or a continued chat is an engine's.
   const shellOk = context === "fresh" && destination !== "fork"
-  const pick = choice.engine === SHELL && !shellOk ? "" : choice.engine
+  // Plugin panes, like the TUI picker, only run in a fresh tab here.
+  const paneOk = destination === "tab" && context === "fresh"
+  const panes = usePanes(model)
+  const pick = (choice.engine === SHELL && !shellOk) || (isPane(choice.engine) && !paneOk) ? "" : choice.engine
   const shell = pick === SHELL
+  const pane = isPane(pick)
   const fork = destination === "fork"
   const apply = (dest: NewChatDestination, ctx: NewChatContext) => {
     // Scratch is always fresh: asking to continue from there leaves for a tab here.
@@ -92,7 +96,17 @@ export function NewChatDialog(props: {
         const created = res.taskIds[0]
         if (created) model.selectWhenListed(created)
       } else if (shell) await openTab(model, taskId, { kind: "shell" })
-      else await openTab(model, taskId, { kind: "engine", engine: pick, prompt: first })
+      else if (pane) {
+        const { selection } = model
+        const host = selection.get().taskId === taskId ? selection.get().tabId : null
+        const opened = await model.client.request<{ tabId: string }>("plugin.paneOpen", {
+          taskId,
+          pane: paneIdOf(pick),
+          ...(host ? { tabId: host } : {}),
+        })
+        await model.refreshTabsNow()
+        model.select(taskId, opened.tabId)
+      } else await openTab(model, taskId, { kind: "engine", engine: pick, prompt: first })
     })
 
   return (
@@ -138,7 +152,13 @@ export function NewChatDialog(props: {
       >
         <div className="field">
           <span className="kicker">{tc("terminal", "tab.newChat.engine")}</span>
-          <EnginePicker engines={choice.engines} value={pick} onChange={choice.setEngine} withShell={shellOk} />
+          <EnginePicker
+            engines={choice.engines}
+            value={pick}
+            onChange={choice.setEngine}
+            withShell={shellOk}
+            panes={paneOk ? panes : []}
+          />
         </div>
         <div className="field">
           <span className="kicker">{tc("terminal", "tab.newChat.destLabel")}</span>
@@ -190,7 +210,7 @@ export function NewChatDialog(props: {
             </label>
           </>
         )}
-        {!shell && destination !== "scratch" && (
+        {!shell && !pane && destination !== "scratch" && (
           <label className="field">
             <span className="kicker">{t("newChat.prompt")}</span>
             <textarea

@@ -15,7 +15,7 @@ import {
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { ISSUE_STATUSES, type Issue, IssueDrawer, type IssueStatus, type Outcome } from "./kanban-drawer.tsx"
-import { startStory } from "./kanban-start.ts"
+import { type Placement, startStory } from "./kanban-start.ts"
 import type { AppModel } from "./model.ts"
 import {
   errorMessage,
@@ -126,11 +126,7 @@ export function KanbanView({ model }: { model: AppModel }) {
     model.select(taskId)
   }
 
-  const start = async (
-    repo: string,
-    issue: Issue,
-    choice: { engine: string; placement: "worktree" | "project"; jump: boolean },
-  ) => {
+  const start = async (repo: string, issue: Issue, choice: { engine: string; placement: Placement; jump: boolean }) => {
     try {
       const res = await startStory(model.client, { repo, issue, engine: choice.engine, placement: choice.placement })
       for (const warning of res.warnings) {

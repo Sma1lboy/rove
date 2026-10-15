@@ -28,12 +28,12 @@ export interface QuickStart {
   readonly engine: string
 }
 
-export interface EngineChoice {
+export interface EngineChip {
   readonly id: string
   readonly name: string
 }
 
-export function QuickStartDialog(props: { model: AppModel; start: QuickStart; engines: readonly EngineChoice[] }) {
+export function QuickStartDialog(props: { model: AppModel; start: QuickStart; engines: readonly EngineChip[] }) {
   const { model, start, engines } = props
   const [prompt, setPrompt] = useState("")
   const [attempts, setAttempts] = useState("1")

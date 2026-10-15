@@ -3,7 +3,8 @@
  * changed files with their status letter, scoped to the working tree or the
  * branch vs its base. Keys are the TUI pane's own, live only while the pane
  * has focus: j/k move, h/l fold, [ ] switch tab, b scope, r refresh,
- * d (or Enter / click) preview, Shift+D whole diff, a mention `@path`.
+ * Enter (or click) opens the file in the Mac's editor tab, d previews its diff, Shift+D the whole
+ * diff, a mention `@path`, o opens media in the Mac's app.
  */
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
@@ -104,6 +105,21 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
       return next
     })
   const open = (path: string) => preview.set({ taskId: task.id, path, scope: branchScope ? "branch" : "working" })
+  /** The Mac's configured editor in the task's editor tab; a file the branch deleted has nothing to edit, so it shows its diff. */
+  const edit = (r: Row) => {
+    if (r.status === "D") {
+      open(r.path)
+      return
+    }
+    model.client
+      .request<{ tabId: string }>("file.openInEditor", { taskId: task.id, path: r.path })
+      .then(async ({ tabId }) => {
+        await model.refreshTabsNow()
+        preview.set(null)
+        model.select(task.id, tabId)
+      })
+      .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
+  }
   const mention = (path: string) => {
     if (!stream?.startsWith(`${task.id}::`)) {
       toast(t("files.mentionNoEngine"), "error")
@@ -133,8 +149,11 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
       setScope(scope === "working" ? "branch" : "working")
     else if (key === "r") setNonce((n) => n + 1)
     else if (key === "D" && e.shiftKey) open(".")
-    else if ((key === "d" || key === "Enter") && row) open(row.path)
-    else if (key === "a" && row) mention(row.path)
+    else if (key === "d" && row) open(row.path)
+    else if (key === "Enter" && row) {
+      if (row.dir) toggle(row.path)
+      else edit(row)
+    } else if (key === "a" && row) mention(row.path)
     else if (key === "o" && row && !row.dir) openExternal(row.path)
     else return
     e.preventDefault()
@@ -208,7 +227,7 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
               setCursor(i)
               pane.current?.focus()
               if (r.dir) toggle(r.path)
-              else open(r.path)
+              else edit(r)
             }}
           >
             {r.status ? (
