@@ -201,6 +201,10 @@ export const en = {
     resetBody:
       "Wipes ~/.config/rove/state.json and ~/.rove/tasks.json and restarts the daemon, then reloads this page with an empty task list. Worktrees on disk and engine session history are NOT touched.",
     restartButton: "Restart",
+    restartHint:
+      "Stops the Rove daemon and starts a fresh one; this page reconnects on its own. Running engine sessions live in the PTY host and survive it.",
+    restartBody:
+      "Stops the Rove daemon and starts a fresh one, picking up daemon edits. This page reconnects in a few seconds. Running engine sessions survive.",
     keysYaml:
       "Rebinding chords is an edit of ~/.rove/settings/keybindings.yaml on the Mac; this page does not write it.",
   },

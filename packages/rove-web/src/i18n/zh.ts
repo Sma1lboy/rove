@@ -202,6 +202,8 @@ export const zh: typeof en = {
     resetBody:
       "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json 并重启守护进程,然后刷新本页,任务列表为空。磁盘上的工作树和引擎会话历史不会被动。",
     restartButton: "重启",
+    restartHint: "停止 Rove 守护进程并启动新的进程,本页会自动重连。运行中的引擎会话在 PTY 宿主里,不受影响。",
+    restartBody: "停止 Rove 守护进程并启动新的进程,载入守护进程的改动。本页几秒后自动重连,运行中的引擎会话不受影响。",
     keysYaml: "重绑快捷键是编辑 Mac 上的 ~/.rove/settings/keybindings.yaml；本页不会写它。",
   },
   pages: {
