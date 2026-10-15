@@ -44,6 +44,9 @@ export function compactAge(ms: number): string {
   return `${Math.round(h / 24)}d`
 }
 
+/** TUI `isRoutineInboxState`: the episode's subject is a schedule, not a task. */
+export const isRoutineState = (state: string): boolean => state === "routine_failed" || state === "routine_responded"
+
 const keyOf = (row: Pick<AttentionRow, "taskId" | "tabId">) => `${row.taskId ?? ""}:${row.tabId ?? ""}`
 
 /** TUI `sortAttentionInbox`: blocked episodes first, then oldest first, task order breaking ties. */

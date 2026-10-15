@@ -192,7 +192,7 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 
 `attachment.put` checks the file's magic bytes against the declared type. A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
 
-Additive fields and events, ignored by an app that predates them: `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time) and `attention[].label` (a routine episode's name); the push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
+Additive fields and events, ignored by an app that predates them: `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time), `attention[].label` (a routine episode's name) and `attention[].automationId` (that routine's id, for `attention.dismissRoutine` and for opening the Routines page on it); the push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
 
 ### Board, routines, GitHub issues and settings ops
 
@@ -215,6 +215,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `routine.runNow` | `id` | `routine-run-now` | — |
 | `routine.runs` | `id` | `routine-runs` | — |
 | `routine.delete` | `id` | `routine-delete` | yes |
+| `attention.dismissRoutine` | `automationId` | RPC `attention.dismissRoutine`: clears a routine episode (`routine_failed`/`routine_responded`), which is keyed on its schedule and has no task for `attention.dismiss` | — |
 | `workitem.list` | `repo`, `state?`, `assignee?` (`@me`), `search?`, `limit?`, `refresh?` | RPC `workitem.list` | — |
 | `workitem.links` | `repo` | RPC `task.list`, folded to tasks started from an issue | — |
 | `workitem.start` | `repo`, `number`, `engine?` (built-in) | `workitem-start` | — |

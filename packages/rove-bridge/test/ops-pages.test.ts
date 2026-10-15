@@ -243,6 +243,15 @@ describe("routine ops", () => {
     expect(pagesOps["routine.delete"]?.destructive).toBe(true)
     expect((await run("routine.delete", { id: "r-1" })).calls[0]?.name).toBe("routine-delete")
   })
+
+  test("a routine episode is cleared by its schedule id, as one daemon RPC", async () => {
+    expect((await run("attention.dismissRoutine", { automationId: "r-1" })).calls[0]).toEqual({
+      kind: "rpc",
+      name: "attention.dismissRoutine",
+      payload: { automationId: "r-1" },
+    })
+    await expect(run("attention.dismissRoutine", { automationId: "--x" })).rejects.toThrow("not a task id")
+  })
 })
 
 describe("GitHub issue ops", () => {

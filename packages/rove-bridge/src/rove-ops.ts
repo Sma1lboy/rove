@@ -186,14 +186,15 @@ function prChipKind(task: SerializedTask): PrChipKind | null {
 
 /**
  * The inbox as the phone sees it. Optional, additive fields: `resumeAt` (a rate-limited task's
- * scheduled auto-resume, from its `quotaResume`) and `label` (a routine episode's name, since
- * its subject is the routine, not a task).
+ * scheduled auto-resume, from its `quotaResume`), `label` (a routine episode's name, since its
+ * subject is the routine, not a task) and `automationId` (that routine's id).
  */
 export function attentionRows(items: readonly AttentionInboxItem[], tasks: readonly SerializedTask[]): AttentionRow[] {
   const byId = new Map(tasks.map((t) => [t.id, t]))
   return items.map((i) => {
     const resumeAt = i.state === "rate_limited" && i.taskId ? byId.get(i.taskId)?.quotaResume?.resumeAt : undefined
     const label = i.detail?.routine?.name
+    const automationId = i.detail?.routine?.automationId
     return {
       taskId: i.taskId,
       tabId: i.tabId,
@@ -202,6 +203,7 @@ export function attentionRows(items: readonly AttentionInboxItem[], tasks: reado
       at: i.at,
       ...(resumeAt ? { resumeAt } : {}),
       ...(label ? { label } : {}),
+      ...(automationId ? { automationId } : {}),
     }
   })
 }

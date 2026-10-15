@@ -13,7 +13,8 @@ import { type WebCommand, allCommands, appliesOn, currentSurface, registerComman
 import { TextDialog } from "./dialogs.tsx"
 import { openHelp } from "./help-view.tsx"
 import { t } from "./i18n/index.ts"
-import { nextAttention } from "./inbox.ts"
+import { openRoutineEpisode } from "./inbox-open.ts"
+import { isRoutineState, nextAttention } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { focusPane } from "./pane-focus.ts"
@@ -177,6 +178,10 @@ export function jumpToNextAttention(model: AppModel): void {
   )
   if (!row) {
     toast(t("inbox.empty"))
+    return
+  }
+  if (isRoutineState(row.state)) {
+    openRoutineEpisode(model, row)
     return
   }
   if (row.taskId === null) return

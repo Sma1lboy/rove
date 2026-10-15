@@ -234,6 +234,12 @@ export const pagesOps: OpTable = {
     wraps: "rove api routine-delete (the routine and its history; tasks it created stay)",
     run: (args, { api }) => api.verb("routine-delete", [flag("id", taskId(args, "id"))]),
   },
+  "attention.dismissRoutine": {
+    kind: "write",
+    destructive: false,
+    wraps: "daemon RPC attention.dismissRoutine (a routine episode is keyed on its schedule, not a task)",
+    run: (args, { api }) => api.rpc("attention.dismissRoutine", { automationId: taskId(args, "automationId") }),
+  },
 
   // ── GitHub issues (read-only through `gh`, plus start a task on one) ────────────
   "workitem.list": {
