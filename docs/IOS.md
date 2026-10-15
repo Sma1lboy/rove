@@ -164,6 +164,7 @@ Area ops in `packages/rove-bridge/src/ops/taskops.ts`; the client never names a 
 | `task.openScratch` | `engine?` | `{taskId}`; always the Mac's `$HOME` as a Scratch task | RPC `task.openDir` |
 | `task.setEngine` | `taskId`, `engine`, `effort?`, `model?` (`""` clears) | `{}` | RPC `task.setVendor` |
 | `tab.move` | `taskId`, `tabId`, `direction` (`up`/`down`) | `{moved}` | `moveTab` on the persisted tab order |
+| `file.openExternal` | `taskId`, `path` (relative to the worktree) | `{}`; opens an image, audio, video, PDF or font in the Mac's own opener. Refused (`NOT_OPENABLE`) for anything else, anything executable, and any path or symlink that leaves the worktree | helper `openExternally` |
 | `fs.subdirs` | `path` (absolute or `~`) | `{base, home, names}` (read-only) | `listSubdirs` |
 | `repo.probe` | `path`, `adoptable?` | `{ok, repo, reason?}` or `{ok, repo, branches, current, worktrees?}` (read-only) | `validateRepoPath` + branch helpers |
 

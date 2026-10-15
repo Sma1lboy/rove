@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs"
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { type TaskOpsDeps, taskOps } from "../src/ops/taskops.ts"
@@ -10,6 +10,9 @@ const deps = (over: Partial<TaskOpsDeps> = {}): TaskOpsDeps => ({
   homeDir: () => "/home/me",
   buildCIPrompt: async (wt, s) => `fix ${s.branch} in ${wt}: ${s.checks.map((c) => c.jobName).join(",")}`,
   reorderTab: () => true,
+  openExternal: () => {},
+  canonical: (path) => path,
+  runnable: () => false,
   ...over,
 })
 
@@ -204,5 +207,45 @@ describe("fs.subdirs and repo.probe", () => {
     } finally {
       Object.assign(taskOpDeps, saved)
     }
+  })
+})
+
+describe("file.openExternal", () => {
+  const wt = mkdtempSync(join(tmpdir(), "rove-open-"))
+  const outside = mkdtempSync(join(tmpdir(), "rove-outside-"))
+  const real = (opened: string[]) =>
+    deps({
+      openExternal: (p) => opened.push(p),
+      canonical: (p) => {
+        try {
+          return require("node:fs").realpathSync(p)
+        } catch {
+          return null
+        }
+      },
+      runnable: (p) => (require("node:fs").statSync(p).mode & 0o111) !== 0,
+    })
+  const reply = { "get-task": { task: { worktreePath: wt } } }
+  writeFileSync(join(wt, "pic.png"), "x")
+  writeFileSync(join(wt, "run.png"), "x")
+  chmodSync(join(wt, "run.png"), 0o755)
+  writeFileSync(join(wt, "notes.txt"), "x")
+  writeFileSync(join(outside, "secret.png"), "x")
+  symlinkSync(join(outside, "secret.png"), join(wt, "link.png"))
+
+  afterEach(() => {})
+
+  test("opens a media file inside the worktree in the Mac's opener", async () => {
+    const opened: string[] = []
+    await run("file.openExternal", { taskId: T, path: "pic.png" }, reply, real(opened))
+    expect(opened).toEqual([require("node:fs").realpathSync(join(wt, "pic.png"))])
+  })
+
+  test("refuses anything the OS would run, plain text, climbs and symlinks out of the worktree", async () => {
+    const opened: string[] = []
+    for (const path of ["run.png", "notes.txt", "../x.png", "/etc/hosts.png", "link.png", "missing.png"]) {
+      await expect(run("file.openExternal", { taskId: T, path }, reply, real(opened))).rejects.toThrow()
+    }
+    expect(opened).toEqual([])
   })
 })
