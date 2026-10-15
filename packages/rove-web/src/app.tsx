@@ -6,6 +6,7 @@ import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { Overlays } from "./overlays.tsx"
+import { PrefixHud, usePrefixLayer } from "./prefix.tsx"
 import { PreviewView } from "./preview-view.tsx"
 import { RailView, openMenu, tabLabel } from "./rail-view.tsx"
 import { taskMenu } from "./row-actions.tsx"
@@ -26,6 +27,7 @@ export function App({ model }: { model: AppModel }) {
 }
 
 function Shell({ model }: { model: AppModel }) {
+  usePrefixLayer(model)
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
@@ -37,6 +39,7 @@ function Shell({ model }: { model: AppModel }) {
       {task && !zenOn && <FilesView key={task.id} model={model} task={task} />}
       <StatusBar model={model} />
       <Overlays />
+      <PrefixHud model={model} />
     </div>
   )
 }

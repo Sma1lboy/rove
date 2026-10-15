@@ -19,13 +19,13 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 6 | Scroll / close help | ↑/↓, PgUp/PgDn, Home/End, `?`/Esc/click | ❌ | local | Playwright: trigger '↑/↓'; expect 'scroll / close help' as in TUI. Currently absent (browser-local, no bridge call). |
 | 7 | Reveal command layer and clickable badges | tap prefix | ❌ | local | Playwright: trigger 'tap prefix'; expect 'reveal command layer and clickable badges' as in TUI. Currently absent (browser-local, no bridge call). |
 | 8 | Reveal direct Ctrl shortcuts | hold Ctrl 400 ms | ❌ | local | Playwright: trigger 'hold Ctrl 400 ms'; expect 'reveal direct Ctrl shortcuts' as in TUI. Currently absent (browser-local, no bridge call). |
-| 9 | Focus previous/next pane | prefix h/l, F4 | ❌ | local | Playwright: trigger 'prefix h/l'; expect 'focus previous/next pane' as in TUI. Currently absent (browser-local, no bridge call). |
+| 9 | Focus previous/next pane | prefix h/l, F4 | 🟡 | local | r7: prefix `h`/`l` walk rail → workspace → files and wrap (focus checked via `document.activeElement`). F4 not bound. |
 | 10 | Return to Tasks, then quit | Ctrl+Q (browser-reserved: web needs a PROPOSED chord, owner sign-off per docs/KEYBINDINGS.md) | ❌ | local | Playwright: trigger 'Ctrl+Q (browser-reserved: web needs a PROPOSED chord'; expect 'return to Tasks, then quit' as in TUI. Currently absent (browser-local, no bridge call). |
 | 11 | Quit with confirmation | sidebar `q` | ❌ | local | Playwright: trigger 'sidebar q'; expect 'quit with confirmation' as in TUI. Currently absent (browser-local, no bridge call). |
-| 12 | Zen: toggle Files visibility | prefix z, Files chip | 🟡 | local | r3: the `Zen` chip hides the Files pane and a `Files` button in the tab strip brings it back; persisted per browser like the TUI's KV. No prefix chord yet (needs a PROPOSED web chord). |
+| 12 | Zen: toggle Files visibility | prefix z, Files chip | ✅ | local | r3: `Zen` chip hides Files, a `Files` button brings it back. r7: `ctrl+a z` toggles it from the terminal; the HUD reads `ctrl+a + z → Toggle zen mode` (shot r7-02). |
 | 13 | Redraw corrupted screen | prefix r | 🚫 | local | Cannot exist: a browser canvas has no corrupted terminal screen to erase; xterm repaints itself. |
 | 14 | Refresh daemon/TUI build (restart daemon + relaunch) | prefix r when DAEMON OUT OF DATE, confirm | ❌ | missing | Playwright: trigger 'prefix r when DAEMON OUT OF DATE'; expect 'refresh daemon/TUI build (restart daemon + relaunch)' as in TUI. Currently absent (no bridge op yet). |
-| 15 | Open Settings | prefix `,`, sidebar `s`, footer click | 🟡 | local | r6: rail `s` and the footer `[settings]` open it, with the TUI's sections in its order (General, Engines, Plugins, Feedback; shot r6s-01). No prefix layer yet. |
+| 15 | Open Settings | prefix `,`, sidebar `s`, footer click | ✅ | local | r6: rail `s` and footer `[settings]`, TUI section order (shot r6s-01). r7: `ctrl+a ,` opens it from the terminal. |
 | 16 | Open Worktrees | sidebar `x` | ❌ | `worktrees.list` | Playwright: trigger 'sidebar x'; expect 'open Worktrees' as in TUI. Currently absent (via worktrees.list). |
 | 17 | Open Update | sidebar `u`, update chip | ❌ | missing | Playwright: trigger 'sidebar u'; expect 'open Update' as in TUI. Currently absent (no bridge op yet). |
 | 18 | Open Kanban / Routines / GitHub Issues | prefix 1/2/3, rail click | ❌ | `issue.repos`, `issue.list`, `routine.list`, `workitem.list` | Playwright: trigger 'prefix 1/2/3'; expect 'open Kanban / Routines / GitHub Issues' as in TUI. Currently absent (via issue.repos, issue.list, routine.list, workitem.list). |
@@ -46,7 +46,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 26 | Open task / tab / recent task | Enter, l/Space, click | ✅ | `tasks.list`, `task.tabs`, `term.attach` | r1: click a task row, then a tab row: the terminal attaches and replays. r5: Enter on the cursor's task opens it (tab strip title matches). |
 | 27 | Jump to top / bottom | gg / Shift+G | ✅ | local | r5: `G` lands on the last row, `gg` on the first. |
 | 28 | Focus engine from sidebar | → | ✅ | local | r5: `→` moves focus into the attached terminal. |
-| 29 | Start new task (browser-reserved Ctrl+N is not usable; PROPOSED chord needs owner sign-off) | n, prefix n, New task click, project menu | 🟡 | `task.spawn` | r2: rail `+ New task` and project-header menu open the dialog; created "Web created task", `rove api list` lists it and the page selected it. r5: `n` in the rail opens it for the cursor's project. No prefix layer yet. |
+| 29 | Start new task (browser-reserved Ctrl+N is not usable; PROPOSED chord needs owner sign-off) | n, prefix n, New task click, project menu | ✅ | `task.spawn` | r2: rail `+ New task` and project menu (created task listed by `rove api list`). r5: rail `n`. r7: `ctrl+a n` from the terminal. Ctrl+N is the browser's; the TUI's own prefix route covers it. |
 | 30 | Rename task | r, row menu | ✅ | `task.rename` | r2: row menu Rename. r5: `r` on the cursor's task renamed it; `rove api list` shows the new title (then renamed back). Menu shows `r`. |
 | 31 | Rename branch | b, row menu (managed branch) | ✅ | `task.setBranch` | r2: row menu Rename branch → `rove api list` shows it. r5: `b` opens the same dialog filled with the branch. |
 | 32 | Cycle task engine | v | ✅ | `task.setCommand` | r5: `v` moved the task to the next ready engine (`get-task` vendor claude → codex) with the TUI's toast `Engine → Codex (applies on reopen)` (shot r5-07). |
@@ -111,7 +111,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 81 | Attach / drop / paste image or PDF in composer | drop, Ctrl+V, Ctrl+X | ❌ | `attachment.put` | Playwright: trigger 'drop'; expect 'attach / drop / paste image or PDF in composer' as in TUI. Currently absent (via attachment.put). |
 | 82 | New Scratch task / shell | picker Scratch | ❌ | `task.create`, `tab.new` | Playwright: trigger 'picker Scratch'; expect 'new Scratch task / shell' as in TUI. Currently absent (via task.create, tab.new). |
 | 83 | Click tab / previous / next / jump N | tab strip click, Ctrl+[ / Ctrl+], Ctrl+1..9 | 🟡 | local | Click each tab in the strip: active terminal switches. Ctrl+1..9 / Ctrl+[ / Ctrl+] not wired: press Ctrl+2 and nothing changes. |
-| 84 | Close active tab (browser-reserved Ctrl+W; PROPOSED chord needs owner sign-off) | Ctrl+W, prefix w, row menu | 🟡 | `tab.close` | r2: via the tab's right-click menu (#44). No chord. |
+| 84 | Close active tab (browser-reserved Ctrl+W; PROPOSED chord needs owner sign-off) | Ctrl+W, prefix w, row menu | 🟡 | `tab.close` | r2: tab menu Close tab. r7: `ctrl+a w` closed the active tab with no confirm, as the TUI (`get-task` count −1). Ctrl+W is the browser's and cannot be taken. |
 | 85 | Reopen empty task session | Enter/Ctrl+E in empty pane | 🟡 | `tab.new` | r6: empty pane's `New conversation` opens the picker, which now starts an engine with no message. No Enter/Ctrl+E. |
 | 86 | Rename tab | F2 | ❌ | `tab.rename` | Playwright: trigger 'F2'; expect 'rename tab' as in TUI. Currently absent (via tab.rename). |
 | 87 | Split terminal right / down | Ctrl+\\ / Ctrl+= | ❌ | local | Playwright: trigger 'Ctrl+\\ / Ctrl+='; expect 'split terminal right / down' as in TUI. Currently absent (browser-local, no bridge call). |
@@ -144,7 +144,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 109 | Close preview | q/Esc/Ctrl+C, Ctrl+W | 🟡 | local | r3/r3b: `q` and Esc close it and the terminal comes back; Ctrl+C/Ctrl+W are not bound (Ctrl+W is browser-reserved). |
 | 110 | Open binary/image/audio/video/PDF in system app | o | ❌ | missing | Playwright: trigger 'o'; expect 'open binary/image/audio/video/PDF in system app' as in TUI. Currently absent (no bridge op yet). |
 | 111 | Insert @path in engine input | Files `a` | ✅ | `term.input` | r3: `a` on README.md typed `@README.md ` into the attached session (checked via `rove api read-output`); with no session, a toast with the TUI's wording. |
-| 112 | Ask agent to create PR | prefix p/P, Files chip | 🟡 | `tab.requestPR` | r4c: the chip delivers to the selected engine tab (the TUI's rule: active engine tab, else the first); a live Codex tab received the TUI's create-PR prompt and started on it, toast "asked the agent to create the PR" (shot r4c-02). Exited engine: the bridge's refusal (r3b). No prefix chord. |
+| 112 | Ask agent to create PR | prefix p/P, Files chip | ✅ | `tab.requestPR` | r4c: chip delivers to the selected engine tab (live Codex got the create-PR prompt, shot r4c-02). r7: `ctrl+a p` runs the same request; the toast answers. |
 | 113 | Move diff review line cursor | j/k, arrows | ✅ | local | r3: `j` walks the cursor to the first added row. |
 | 114 | Anchor / cancel review range | v | ✅ | local | r3b: `v` + `j j` + `c` stores a note with `startLine` two lines above `line` (shot r3b-02). |
 | 115 | Add per-file review note | c | ✅ | `review.add` | r3: the note lands in `state.json` `diffComments.<taskId>` (read back via `review.list`); the row gets the note marker (shot r3-04). |
@@ -155,7 +155,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
-| 118 | Open Inbox | prefix i, sidebar status click | 🟡 | `tasks.subscribe` | r2: click on the rail's inbox chip; prefix i not on the web. Dialog: ATTENTION from the daemon, RECENT from this browser's visits, TUI glyph/state words (`† engine exited`). |
+| 118 | Open Inbox | prefix i, sidebar status click | ✅ | `tasks.subscribe` | r2: rail inbox chip. r7: `ctrl+a i` opens the same dialog from the terminal. |
 | 119 | Navigate ATTENTION / RECENT rows | j/k, click | 🟡 | local | Built (↑/↓/j/k, hover); keys not exercised this round. |
 | 120 | Open selected tab/task and clear episode | Enter, click | ✅ | `attention.dismiss`, `task.tabs` | r2: Enter on the first card opened that task (tab-strip title matched) and the ATTENTION count dropped by one. |
 | 121 | Dismiss pending ATTENTION without opening | d | ✅ | `attention.dismiss` | r2: `d` dropped one pending card; rail count followed. |
@@ -284,5 +284,7 @@ Round 4 (`e2e-r4.ts`, `e2e-r4c.ts`; shots `r4-*`, `r4c-*`): #117 at ✅, #24 at 
 Round 5 (`e2e-r5.ts`; shots `r5-*`): #25, #27, #28, #30–#32, #35, #38–#40 at ✅; `n` and `d` added to #29, #51, #52. Compared with the TUI sidebar (`keybindings-sidebar.ts`, `use-tree-bindings.ts`, `chrome.tsx` `SidebarSearchInput`): same chords in the same scope, cursor separate from selection, `/ query█ n/m` search row, top match on every keystroke, project headers skipped. The row menu shows each entry's chord (`r` `P` `b` `v` `d`) as the TUI's does. Not mirrored: `s`/`x`/`u`/`q` (pages the web lacks yet), `o` (#34), `Shift+M` move mode (#36).
 
 Round 6 (`e2e-r6t.ts`, `e2e-r6s.ts`; shots `r6t-*`, `r6s-*`): #42, #43, #177, #179, #181 at ✅; #15, #74, #85, #156, #180, #187, #194 moved. New: `rove api tab-new --kind shell|engine` and `tab.new` without a prompt (phones get it too). Compared with the TUI: the picker's chips are the TUI's engines plus `shell`; the shell tab is a `command` row with the login shell, labelled `shell` as the TUI's tab; Settings has the TUI's section names and order and its Engines row grammar (checkbox = offered, radio = default, binary · sign-in line).
+
+Round 7 (`e2e-r7.ts`; shots `r7-*`, 13/13): the TUI prefix layer (`keymap-dispatch.ts`): `ctrl+a` arms from anywhere including the terminal, 5 s window, Esc cancels, a miss is swallowed and shown as `∅`, an open dialog blocks arming; the HUD sits bottom-left over the rail with the TUI's `keys.desc` labels (imported, not copied). Ctrl+A and the cancelled stroke never reached the shell (line `pfx-ok` intact). #12, #15, #29, #112, #118 at ✅; #9, #84 moved. Bug fixed: dialogs opened while xterm had focus could not close on Esc (xterm stops the key); dialogs now take focus on open.
 
 Screenshots are local only. Headless Chromium paints the WebGL terminal blank, so shots are taken headed (see MEMO).
