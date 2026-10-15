@@ -30,6 +30,12 @@ mock.module("@xterm/addon-unicode11", () => ({ Unicode11Addon: Addon }))
 mock.module("@xterm/addon-web-links", () => ({ WebLinksAddon: Addon }))
 mock.module("@xterm/addon-webgl", () => ({ WebglAddon: Addon }))
 mock.module("../src/i18n/index.ts", () => ({ t: (key: string) => key, useLocale() {} }))
+// `ui.ts` reads localStorage at import; each test still installs its own.
+Object.defineProperty(globalThis, "localStorage", {
+  configurable: true,
+  writable: true,
+  value: { getItem: () => null, setItem() {} },
+})
 const { mountTerminal } = await import("../src/terminal-view.tsx")
 
 const globals = ["window", "localStorage", "ResizeObserver", "document"] as const
