@@ -33,7 +33,7 @@ export interface OpenedTab {
 }
 
 /** Tab ids the host holds for `taskId`, dead ones too: a corpse still pins its key (open ignores a new spec for it). */
-function hostTabIds(sessions: readonly { readonly key: string }[], taskId: string): Set<string> {
+export function hostTabIds(sessions: readonly { readonly key: string }[], taskId: string): Set<string> {
   const ids = new Set<string>()
   for (const { key } of sessions) {
     const [task, tab, ...rest] = key.split("::")
@@ -43,7 +43,7 @@ function hostTabIds(sessions: readonly { readonly key: string }[], taskId: strin
 }
 
 /** `open` attached to a session this call did not create. The row stays: the key's owner may be a real tab. */
-function collision(taskId: string, key: string, retryArgs: readonly string[]): ApiError {
+export function collision(taskId: string, key: string, retryArgs: readonly string[]): ApiError {
   return new ApiError(`session ${key} already existed; no new tab was created`, "TAB_COLLISION", {
     taskId,
     hint: "another process took this tab id between allocation and spawn; retry to get a fresh id",
@@ -51,7 +51,7 @@ function collision(taskId: string, key: string, retryArgs: readonly string[]): A
   })
 }
 
-const createdFresh = (open: PtyOpenResult): boolean => open.created ?? open.replay.length === 0
+export const createdFresh = (open: PtyOpenResult): boolean => open.created ?? open.replay.length === 0
 
 async function openShell(rpc: HostedSessionRpc, taskId: string, cwd: string, taken: ReadonlySet<string>) {
   const shell = resolveLoginShell({ fallback: "/bin/zsh" })

@@ -126,6 +126,8 @@ export interface TabRow {
   readonly engineAlive: boolean | null
   /** Present while the tab is split: the pane layout (`rove api get-task` `.tabs[].split`). Absent = one pane. */
   readonly split?: SplitView
+  /** A viewport tab: the task whose session it shows (`rove api get-task` `.tabs[].viewOf`). Absent = its own session. */
+  readonly viewOf?: string
 }
 
 /** A split layout: panes are leaves named `leaf-N`; `leaf-1` is the tab's own process, the rest are hosted login shells. */

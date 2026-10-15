@@ -8,13 +8,15 @@ import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import type { DaemonRpc } from "../daemon-session.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { wireSplit } from "./split-wire.ts"
+import type { LaunchSpec } from "./tab-launch.ts"
 import type { NewTabKind } from "./tab-new.ts"
 import type { SplitEdit } from "./tab-split.ts"
-import { ApiError, type VerbSpec, helpStep } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
 
 export const PANE_VERB: VerbSpec = {
   name: "pane-open",
@@ -149,20 +151,65 @@ export const TAB_CLOSE_VERB: VerbSpec = {
   },
 }
 
+type TabNewKind = NewTabKind | LaunchSpec["kind"]
+
+/** `editor` / `pane` / `viewport`: tabs whose command Rove resolves itself (see `tab-launch.ts`). */
+async function launchKind(ctx: VerbContext, daemon: DaemonRpc, task: SerializedTask, kind: LaunchSpec["kind"]) {
+  const taskId = task.id
+  const worktree = task.worktreePath
+  if (!worktree) throw new ApiError(`task ${taskId} has no worktree yet`, "NO_WORKTREE")
+  let spec: LaunchSpec
+  if (kind === "editor") {
+    spec = { kind, taskId, worktree, file: ctx.args.require("file") }
+  } else if (kind === "pane") {
+    spec = { kind, taskId, worktree, pane: ctx.args.require("pane"), hostTab: ctx.args.str("tab") }
+  } else {
+    const viewId = ctx.args.require("view-task")
+    if (viewId === taskId) throw new ApiError("--view-task must name another task", "BAD_FLAG", helpStep("tab-new"))
+    const { task: shown } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId: viewId })
+    if (!shown.worktreePath) throw new ApiError(`task ${viewId} has no worktree yet`, "NO_WORKTREE")
+    if (shown.repo !== task.repo) {
+      throw new ApiError("--view-task must be a task of the same project", "BAD_FLAG", helpStep("tab-new"))
+    }
+    spec = { kind, taskId, view: { id: viewId, worktree: shown.worktreePath } }
+  }
+  const launched = await ctx.runtime.launchTab(spec)
+  // The row is already on disk; this only stops an attached TUI's stale copy from overwriting it.
+  const reply = await daemon.request<{ clients?: number }>("terminalTab.add", { taskId, tab: launched.tab })
+  if (launched.replaces) {
+    // The TUI's close path when one is attached, else the headless one (as `tab-close`).
+    const closed = await daemon.request<{ handled?: boolean }>("terminalTab.close", {
+      taskId,
+      tabId: launched.replaces,
+    })
+    if (!closed.handled) await ctx.runtime.closeTerminalTab(taskId, launched.replaces)
+  }
+  return {
+    ok: true,
+    taskId,
+    tabId: launched.tab.id,
+    session: launched.session,
+    kind,
+    ...(launched.leaf ? { leaf: launched.leaf } : {}),
+    clients: reply.clients ?? 0,
+  }
+}
+
 export const TAB_NEW_VERB: VerbSpec = {
   name: "tab-new",
   group: "drive",
   summary:
-    "Open a new Terminal Tab with no first message: a login `shell`, or an `engine` tab that starts idle (the TUI's sidebar \"New shell\" and picker Enter). Unlike `send --tab new` it needs no prompt. Allocates the tab id, writes the persisted tab row, and spawns the session in the task's worktree (creating it if needed); an engine tab respects engine.maxLiveSessions. Broadcast over the daemon's tab.add channel so an attached TUI absorbs the row (`clients` = attached connections). Returns the new `tabId` and its pty `session` key; the tab then lists in get-task .tabs[].",
+    "Open a new Terminal Tab with no first message: a login `shell`, or an `engine` tab that starts idle (the TUI's sidebar \"New shell\" and picker Enter). Unlike `send --tab new` it needs no prompt. Allocates the tab id, writes the persisted tab row, and spawns the session in the task's worktree (creating it if needed); an engine tab respects engine.maxLiveSessions. Three more kinds run something Rove resolves itself, never a command line from the caller: `editor` opens `--file` (relative to the worktree) in the editor from Settings → General → Editor / $VISUAL / $EDITOR, in the task's one editor slot (a previous editor tab is closed once the new one is up); `pane` opens a registered plugin pane (`--pane <plugin>.<pane>`), split into `--tab` (default: the active tab) or as its own tab as the pane's manifest says; `viewport` adds a tab onto another task's first engine session (`--view-task`, same project) without starting anything. Broadcast over the daemon's tab.add channel so an attached TUI absorbs the row (`clients` = attached connections). Returns the new `tabId` and its pty `session` key; the tab then lists in get-task .tabs[].",
   flags: [
     F.taskId(true),
     {
       name: "kind",
       type: "enum",
-      values: ["shell", "engine"],
+      values: ["shell", "engine", "editor", "pane", "viewport"],
       required: true,
       placeholder: "KIND",
-      description: "`shell` = the user's login shell; `engine` = an idle engine, ready for a first message.",
+      description:
+        "`shell` = the user's login shell; `engine` = an idle engine, ready for a first message; `editor` = a file in the user's editor; `pane` = a plugin pane; `viewport` = another task's engine session.",
     },
     {
       name: "command",
@@ -171,16 +218,41 @@ export const TAB_NEW_VERB: VerbSpec = {
       description:
         "Engine tabs only: pin the tab to this engine (an engine id from `engine-list` or a full command line), as `send --tab new --command` does. Omitted = the task's own engine.",
     },
+    {
+      name: "file",
+      type: "string",
+      placeholder: "PATH",
+      description: "Editor tabs only: the file to open, relative to the task's worktree.",
+    },
+    {
+      name: "pane",
+      type: "string",
+      placeholder: "ID",
+      description: "Pane tabs only: `<plugin id>.<pane id>` of an enabled plugin's pane.",
+    },
+    {
+      name: "tab",
+      type: "string",
+      placeholder: "TAB",
+      description: "Pane tabs only: the tab a split pane joins (e.g. tab-3); default the task's active tab.",
+    },
+    {
+      name: "view-task",
+      type: "string",
+      placeholder: "ID",
+      description: "Viewport tabs only: the task (same project) whose first engine session the tab shows.",
+    },
   ],
   handler: async (ctx) => {
     const daemon = daemonOf(ctx)
     const taskId = ctx.args.require("task-id")
-    const kind = ctx.args.requireEnum<NewTabKind>("kind")
+    const kind = ctx.args.requireEnum<TabNewKind>("kind")
     const command = ctx.args.str("command")
     if (command && kind !== "engine") {
       throw new ApiError("--command only applies to an engine tab; pass --kind engine", "BAD_FLAG", helpStep("tab-new"))
     }
     const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+    if (kind === "editor" || kind === "pane" || kind === "viewport") return launchKind(ctx, daemon, task, kind)
     const opened = await ctx.runtime.openTab(
       daemon,
       {

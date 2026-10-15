@@ -6,6 +6,7 @@
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
+import type { LaunchSpec, Launched } from "./tab-launch.ts"
 import type { NewTabKind, OpenedTab } from "./tab-new.ts"
 import type { RestoredTabRef } from "./tab-respawn.ts"
 import type { TaskTabRow } from "./tab-snapshot.ts"
@@ -267,6 +268,8 @@ export interface ApiRuntime {
    * engine. Persists the row, spawns the session, and returns the row as saved.
    */
   openTab(client: DaemonRpc, target: PromptTarget, kind: NewTabKind): Promise<OpenedTab>
+  /** Open a tab that runs something Rove resolves itself (`tab-new --kind editor|pane|viewport`). */
+  launchTab(spec: LaunchSpec): Promise<Launched>
   /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */
   splitTab(taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
   /** Canonical source repo for task creation and grouping. */

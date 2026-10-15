@@ -27,6 +27,7 @@ import {
   taskKeys,
 } from "./pty-delivery.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
+import { launchTab } from "./tab-launch.ts"
 import { openNewTab } from "./tab-new.ts"
 import { restoredTabLaunch } from "./tab-respawn.ts"
 import {
@@ -337,6 +338,15 @@ export const defaultApiRuntime: ApiRuntime = {
   closeTerminalTab: closeHeadlessTerminalTab,
   deliverPrompt: (client, target, prompt) => deliverPrompt(client, target, prompt),
   openTab: async (client, target, kind) => openNewTab(target, await ensureWorktree(client, target), kind),
+  launchTab: (spec) =>
+    launchTab(spec, (taskId, tabId, worktree, pane) =>
+      splitTab(taskId, tabId, worktree, {
+        kind: "open",
+        orientation: "row",
+        from: "",
+        command: { argv: pane.argv, title: pane.title },
+      }),
+    ),
   splitTab,
   resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
   isUsableRepo: async (absPath) => {

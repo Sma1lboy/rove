@@ -18,6 +18,7 @@ import {
   closeTab,
   initialTabs,
   setTabTitle,
+  tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { type WireSplit, wireSplit } from "./split-wire.ts"
@@ -65,6 +66,8 @@ export interface TaskTabRow {
   readonly unregistered?: true
   /** Present while the tab is split: the layout, one pane per hosted shell (`<taskId>::<tabId>::leaf-N`). */
   readonly split?: WireSplit
+  /** A viewport tab (`EngineTab.ptyTask`): the task whose session this tab only shows; liveness is that session's. */
+  readonly viewOf?: string
 }
 
 /**
@@ -229,7 +232,7 @@ export function joinTaskTabs(
     }
   }
   const rows: TaskTabRow[] = (snapshot?.tabs ?? []).map((t) => {
-    const key = `${taskId}::${t.id}`
+    const key = tabPtyKeyFor(taskId, t)
     const isAlive = unknown ? null : alive.has(key)
     const walked = isAlive === true && liveVendors?.has(key) === true ? (liveVendors.get(key) ?? null) : undefined
     // Gated on the WALK, not the record: a tab that started a new engine
@@ -248,6 +251,7 @@ export function joinTaskTabs(
       // A session death wins: it is the later event and took the engine with it.
       exit: isAlive === false ? deadExit(key) : engineIsAlive === false ? engineExit(key) : null,
       ...(t.splitTree ? { split: wireSplit(t.splitTree) as WireSplit } : {}),
+      ...(t.kind === "engine" && t.ptyTask ? { viewOf: t.ptyTask.id } : {}),
     }
   })
   // Unlisted live sessions still get a row. kind "engine": headless paths
