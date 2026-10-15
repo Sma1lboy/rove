@@ -12,8 +12,8 @@ import { TextDialog } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { nextAttention } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
+import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { tabLabel } from "./rail-view.tsx"
-import { NewChatDialog } from "./task-dialogs.tsx"
 import { dialog, page, preview, toast } from "./ui.ts"
 
 function typingInField(target: EventTarget | null): boolean {
@@ -21,6 +21,11 @@ function typingInField(target: EventTarget | null): boolean {
   // xterm's own textarea is the terminal, not a field.
   if (target.closest(".xterm")) return false
   return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+}
+
+/** Enter in the rail opens a row; in an empty pane it starts a conversation. */
+function inRail(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && !!target.closest(".rail, button, a")
 }
 
 export function useWorkspaceKeys(model: AppModel): void {
@@ -46,6 +51,8 @@ export function useWorkspaceKeys(model: AppModel): void {
       if (e.ctrlKey && !e.shiftKey && /^[1-9]$/.test(e.key)) go(Number(e.key) - 1)
       else if (e.ctrlKey && e.key === "]" && tabs.length > 0) go((at + 1) % tabs.length)
       else if (e.ctrlKey && e.key === "[" && tabs.length > 0) go((at - 1 + tabs.length) % tabs.length)
+      else if (!e.ctrlKey && !e.shiftKey && e.key === "Enter" && tabs.length === 0 && !inRail(e.target))
+        dialog.set(<NewChatDialog model={model} taskId={taskId} />)
       else if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "e")
         dialog.set(<NewChatDialog model={model} taskId={taskId} />)
       else if (!e.ctrlKey && e.key === "F2" && tabs[at]) {

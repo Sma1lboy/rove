@@ -209,5 +209,7 @@ export const en = {
     close: "close",
     moveHint: "j/k move · enter or esc done",
     fixSent: "asked the agent to fix the failing checks",
+    forkNeedsMessage: "a message is required to fork a task",
+    forkBranch: "fork from branch",
   },
 }

@@ -1,13 +1,8 @@
-/**
- * Create flows: a new task (TUI new-task dialog, Existing mode) and a new
- * conversation tab on a task (TUI ctrl+e picker: an engine or a shell). Both read
- * the engine list from the bridge, so names come from the engine registry.
- */
+/** What the new-task and new-chat dialogs share: the engine list (names come from the engine registry) and the tab opener. */
 
 import { useEffect, useState } from "react"
 import { ChipRow } from "./chip-row.tsx"
-import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
-import { t, useLocale } from "./i18n/index.ts"
+import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 
 /** `engines.list` row; the bridge's `EngineRow`, trimmed to what the page reads. */
@@ -79,52 +74,4 @@ export async function openTab(
   })
   await model.refreshTabsNow()
   model.select(taskId, tabId)
-}
-
-/** TUI ctrl+e picker: an engine (first message optional) or a shell. */
-export function NewChatDialog({ model, taskId }: { model: AppModel; taskId: string }) {
-  useLocale()
-  const { engines, engine, setEngine } = useEngineChoice(model)
-  const [prompt, setPrompt] = useState("")
-  const { busy, error, submit } = useSubmit()
-  const shell = engine === SHELL
-  return (
-    <DialogShell title={t("newChat.title")} wide>
-      <form
-        className="dialog-body"
-        onSubmit={(e) => {
-          e.preventDefault()
-          void submit(() =>
-            shell
-              ? openTab(model, taskId, { kind: "shell" })
-              : openTab(model, taskId, { kind: "engine", engine, prompt: prompt.trim() }),
-          )
-        }}
-      >
-        <div className="field">
-          <span className="kicker">{t("newTask.engine")}</span>
-          <EnginePicker engines={engines} value={engine} onChange={setEngine} withShell />
-        </div>
-        {!shell && (
-          <label className="field">
-            <span className="kicker">{t("newChat.prompt")}</span>
-            <textarea
-              className="input textarea"
-              // biome-ignore lint/a11y/noAutofocus: the dialog's main field
-              autoFocus
-              rows={4}
-              placeholder={t("newChat.promptPlaceholder")}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.currentTarget.form?.requestSubmit()
-              }}
-            />
-          </label>
-        )}
-        {error && <p className="error">{error}</p>}
-        <DialogActions busy={busy} submitLabel={t("newChat.start")} />
-      </form>
-    </DialogShell>
-  )
 }

@@ -209,5 +209,7 @@ export const zh: typeof en = {
     close: "关闭",
     moveHint: "j/k 移动 · enter 或 esc 完成",
     fixSent: "已请 agent 修复失败的检查",
+    forkNeedsMessage: "fork 任务需要填写消息",
+    forkBranch: "基于分支",
   },
 }
