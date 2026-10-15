@@ -69,12 +69,11 @@ struct KeyboardProbe {
     @discardableResult
     func waitUp(timeout: TimeInterval = 12) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
-        var last: CGRect?
         while Date() < deadline {
-            if isUp {
-                let f = frame
-                if let last, last == f { Thread.sleep(forTimeInterval: 0.4); return true }
-                last = f
+            if isUp, let f = frame {
+                // A slow snapshot can consume the polling budget; finish confirming the keyboard we found.
+                Thread.sleep(forTimeInterval: 0.25)
+                if isUp, frame == f { Thread.sleep(forTimeInterval: 0.4); return true }
             }
             Thread.sleep(forTimeInterval: 0.25)
         }
