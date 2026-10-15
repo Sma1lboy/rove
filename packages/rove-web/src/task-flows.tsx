@@ -32,8 +32,15 @@ export function landErrorText(err: unknown): string {
   return tc("worktrees", "land.failed", { error: msg })
 }
 
-/** Preflight first, so a refusal (dirty base, empty branch) replaces the dialog instead of following a confirm. */
-export async function landFlow(model: AppModel, task: Pick<TaskRow, "id" | "title" | "branch">): Promise<void> {
+/**
+ * Preflight first, so a refusal (dirty base, empty branch) replaces the dialog instead of following a confirm.
+ * `onLanded` runs after a successful land (the Worktrees page refetches its list).
+ */
+export async function landFlow(
+  model: AppModel,
+  task: Pick<TaskRow, "id" | "title" | "branch">,
+  onLanded?: () => void,
+): Promise<void> {
   let probe: LandPreflight
   try {
     probe = await model.client.request<LandPreflight>("task.landPreflight", { taskId: task.id })
@@ -67,6 +74,7 @@ export async function landFlow(model: AppModel, task: Pick<TaskRow, "id" | "titl
             taskId: task.id,
           })
           toast(tc("worktrees", "land.done", { branch, landedOn: res.landedOn, commit: res.commit.slice(0, 8) }))
+          onLanded?.()
         } catch (err) {
           throw new Error(landErrorText(err))
         }

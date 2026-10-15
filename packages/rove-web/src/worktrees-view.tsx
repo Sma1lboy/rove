@@ -8,9 +8,10 @@
 import { en as wtEn, zh as wtZh } from "@sma1lboy/rove/src/tui/i18n/messages/worktrees.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
-import { t, useLocale } from "./i18n/index.ts"
+import { useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
+import { landFlow } from "./task-flows.tsx"
 import { dialog, page, toast } from "./ui.ts"
 
 interface WorktreeRow {
@@ -125,19 +126,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
       toast(w.land.noTask, "error")
       return
     }
-    const taskId = row.taskId
-    dialog.set(
-      <ConfirmDialog
-        title={w.land.confirmTitle}
-        body={t("confirm.landBody", { branch: row.branch })}
-        confirmLabel={w.land.button}
-        onConfirm={async () => {
-          const res = await c.request<{ landedOn: string; commit: string }>("task.land", { taskId })
-          toast(fill(w.land.done, { branch: row.branch, landedOn: res.landedOn, commit: res.commit.slice(0, 8) }))
-          refetch()
-        }}
-      />,
-    )
+    void landFlow(model, { id: row.taskId, title: row.branch, branch: row.branch }, refetch)
   }
 
   const onKey = (e: React.KeyboardEvent) => {
