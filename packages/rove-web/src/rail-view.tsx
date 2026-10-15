@@ -13,6 +13,7 @@ import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { NewTaskDialog } from "./task-dialogs.tsx"
 import { type MenuItem, dialog, menu } from "./ui.ts"
+import { UpdateChip } from "./update-view.tsx"
 
 /** Right click opens the row's menu where the pointer is (TUI tree menu). */
 export function openMenu(e: MouseEvent, items: readonly MenuItem[]): void {
@@ -70,6 +71,7 @@ export function RailView({ model }: { model: AppModel }) {
         >
           {t("rail.inbox", { count: unread })}
         </button>
+        <UpdateChip />
       </header>
       {filters.search.active && (
         <div className="rail-search mono">

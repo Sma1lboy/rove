@@ -432,3 +432,60 @@ div.placeholder p {
   margin-top: 16px;
   font-size: 11px;
 }
+
+/* Update page and What's New (TUI update-page.tsx, whats-new-dialog.tsx). */
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.update-versions b {
+  margin-right: 10px;
+}
+
+.update-actions {
+  display: flex;
+  flex-direction: column;
+  margin: 10px 0;
+}
+
+.update-action {
+  display: flex;
+  gap: 12px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-size: 13px;
+}
+
+.update-action.is-cursor {
+  background: var(--inset);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.update-label {
+  min-width: 14ch;
+}
+
+.update-chip {
+  color: var(--warning);
+}
+
+.release-notes h2 {
+  margin: 14px 0 4px;
+  font-size: 13px;
+}
+
+.release-notes pre,
+.whats-new-body pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font: 12px / 1.5 var(--mono);
+  color: var(--muted);
+}
+
+.whats-new-body {
+  max-height: 55vh;
+  overflow-y: auto;
+}

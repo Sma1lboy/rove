@@ -159,6 +159,9 @@ export function useRailKeys(
       case "x":
         page.set("worktrees")
         break
+      case "u":
+        page.set("update")
+        break
       default:
         return
     }
