@@ -1,6 +1,7 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
 import { BridgeClient } from "../src/bridge.ts"
 import { AppModel } from "../src/model.ts"
+import { createStore } from "../src/store.ts"
 
 class Renderer {
   cols = 80
@@ -29,7 +30,12 @@ mock.module("@xterm/addon-fit", () => ({ FitAddon: Addon }))
 mock.module("@xterm/addon-unicode11", () => ({ Unicode11Addon: Addon }))
 mock.module("@xterm/addon-web-links", () => ({ WebLinksAddon: Addon }))
 mock.module("@xterm/addon-webgl", () => ({ WebglAddon: Addon }))
-mock.module("../src/i18n/index.ts", () => ({ t: (key: string) => key, useLocale() {} }))
+mock.module("../src/i18n/index.ts", () => ({
+  t: (key: string) => key,
+  tFrom: (_catalogs: unknown, key: string) => key,
+  useLocale() {},
+  locale: createStore("en"),
+}))
 // `ui.ts` reads localStorage at import; each test still installs its own.
 Object.defineProperty(globalThis, "localStorage", {
   configurable: true,

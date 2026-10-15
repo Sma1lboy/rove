@@ -31,6 +31,7 @@ const SLOTS: Readonly<Record<string, string | null>> = {
   diffAdded: "success",
   diffRemoved: "error",
   diffLineNumber: "textMuted",
+  syntaxType: "info",
   diffAddedBg: "background",
   diffRemovedBg: "background",
 }

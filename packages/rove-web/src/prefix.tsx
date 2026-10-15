@@ -11,7 +11,9 @@ import { useEffect } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import type { AppModel } from "./model.ts"
+import { usePrefs } from "./prefs.ts"
 import { SettingsDialog } from "./settings-view.tsx"
+import { ShortcutBadges } from "./shortcut-badges.tsx"
 import { createStore, useStore } from "./store.ts"
 import { NewTaskDialog } from "./task-dialogs.tsx"
 import { dialog, toast, zen } from "./ui.ts"
@@ -164,27 +166,35 @@ export function PrefixHud({ model }: { model: AppModel }) {
   // Re-read liveness when the selection changes under an armed HUD.
   useStore(model.selection)
   const zh = lang === "zh"
+  const { prefs } = usePrefs()
   if (!state.armed && !state.last) return null
   return (
-    <output className="prefix-hud mono">
-      {state.armed ? (
-        <>
-          <div className="prefix-hud-head">
-            <span className="tone-accent">{PREFIX_KEY}</span> ⋯
-          </div>
-          {ACTIONS.filter((a) => a.live(model)).map((a) => (
-            <div key={a.id} className="prefix-hud-row">
-              <span className="prefix-hud-key">{a.strokes.join(" / ")}</span>
-              <span>{actionLabel(a.id, zh)}</span>
+    <>
+      <output className="prefix-hud mono">
+        {state.armed ? (
+          <>
+            <div className="prefix-hud-head">
+              <span className="tone-accent">{PREFIX_KEY}</span> ⋯
             </div>
-          ))}
-        </>
-      ) : state.last ? (
-        <div className="prefix-hud-head">
-          <span className="tone-accent">{PREFIX_KEY}</span> + {state.last.stroke} →{" "}
-          {state.last.id ? actionLabel(state.last.id, zh) : <span className="muted">∅</span>}
-        </div>
-      ) : null}
-    </output>
+            {ACTIONS.filter((a) => a.live(model)).map((a) => (
+              <div key={a.id} className="prefix-hud-row">
+                <span className="prefix-hud-key">{a.strokes.join(" / ")}</span>
+                <span>{actionLabel(a.id, zh)}</span>
+              </div>
+            ))}
+          </>
+        ) : state.last ? (
+          <div className="prefix-hud-head">
+            <span className="tone-accent">{PREFIX_KEY}</span> + {state.last.stroke} →{" "}
+            {state.last.id ? actionLabel(state.last.id, zh) : <span className="muted">∅</span>}
+          </div>
+        ) : null}
+      </output>
+      {state.armed && prefs.prefixTap === "local" && (
+        <ShortcutBadges
+          rows={ACTIONS.filter((a) => a.live(model)).map((a) => ({ id: a.id, stroke: a.strokes[0] ?? "" }))}
+        />
+      )}
+    </>
   )
 }

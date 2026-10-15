@@ -1,0 +1,222 @@
+/* Settings rows, and what the appearance settings draw (data-* set on <html> by prefs-apply.ts). */
+
+.pref-row,
+.pref-cycle,
+.pref-readonly {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 4px;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+}
+
+.pref-row {
+  cursor: pointer;
+}
+
+.pref-cycle:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.pref-cycle .pref-label::after {
+  content: " ›";
+  color: var(--accent);
+}
+
+.pref-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  align-self: center;
+}
+
+.pref-label {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.pref-hint {
+  font-size: 11px;
+  margin: 0;
+}
+
+.pref-field {
+  border: 0;
+  margin: 0;
+  padding: 4px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pref-field legend {
+  padding: 0;
+  float: left;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.pref-field .chips-row {
+  clear: both;
+}
+
+.pref-number {
+  width: 9ch;
+  padding: 3px 6px;
+}
+
+.pref-readonly .pref-label {
+  color: var(--muted);
+}
+
+.tier-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tier-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.tier-head .link {
+  margin-left: auto;
+}
+
+.tier-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0 2px;
+}
+
+.hook-rows {
+  display: flex;
+  gap: 18px;
+  padding: 10px 4px;
+  font: 12px var(--mono);
+}
+
+.confirm-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+}
+
+.confirm-inline p {
+  margin: 0;
+}
+
+.tone-diff-added {
+  color: var(--diff-added);
+}
+.tone-diff-removed {
+  color: var(--diff-removed);
+}
+
+/* Task colours: a bar of the task's own hue before its rows. */
+.task-mark {
+  flex: none;
+  width: 3px;
+  align-self: stretch;
+  margin: 2px 0;
+  border-radius: 2px;
+}
+
+.tab-row.is-two-row {
+  align-items: flex-start;
+}
+
+.row-caption {
+  display: block;
+  font-size: 11px;
+}
+
+/* Running title: a light band sweeps the label of a running row, then rests. */
+html[data-running-title="shimmer"] .task-row.is-running .row-title {
+  background: linear-gradient(90deg, var(--ink) 0%, var(--ink) 35%, var(--accent) 50%, var(--ink) 65%, var(--ink) 100%)
+    0 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.4s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* Working border: the pane's border flows while the selected task works; `still` leaves it alone. */
+.pane:focus-within {
+  border-color: var(--focus);
+}
+
+html[data-working-border="flow"] .pane.is-working {
+  border-color: transparent;
+  background: linear-gradient(var(--paper), var(--paper)) padding-box,
+    linear-gradient(
+      90deg,
+      var(--line),
+      var(--task-ink, var(--focus)),
+      var(--line),
+      var(--task-ink, var(--focus)),
+      var(--line)
+    )
+    border-box;
+  background-size: 100% 100%, 300% 100%;
+  animation: flow-border 3s linear infinite;
+}
+
+@keyframes flow-border {
+  from {
+    background-position: 0 0, 0% 0;
+  }
+  to {
+    background-position: 0 0, -200% 0;
+  }
+}
+
+/* Tab strip: `chat.tabStrip.mode` hides the session tabs (the rail tree lists them); preview and + stay. */
+.tab-strip.is-tabs-hidden .tab:not(.tab-new):not(.tab-preview) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-running-title="shimmer"] .task-row.is-running .row-title {
+    animation: none;
+    background: none;
+    color: inherit;
+  }
+
+  html[data-working-border="flow"] .pane.is-working {
+    animation: none;
+  }
+}
+
+/* Prefix tap: keycaps over the controls a prefix stroke reaches. */
+.shortcut-badge {
+  position: fixed;
+  z-index: 45;
+  transform: translate(-100%, -50%);
+  padding: 1px 6px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+  color: var(--accent);
+  font: 600 11px var(--mono);
+  pointer-events: none;
+}

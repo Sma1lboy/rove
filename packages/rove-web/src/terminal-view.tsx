@@ -16,6 +16,9 @@ import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { activeStream } from "./ui.ts"
 
+import { terminalTheme } from "./prefs-theme.ts"
+import { prefsStore } from "./prefs.ts"
+
 /** The TUI's default `claude` theme, dark (`tui/context/theme/claude.json`). */
 const XTERM_THEME = {
   background: "#141413",
@@ -109,9 +112,9 @@ export function mountTerminal(
     fontFamily: FONT_FAMILY,
     fontSize: 13,
     lineHeight: 1.15,
-    theme: XTERM_THEME,
+    theme: terminalTheme.get() ?? XTERM_THEME,
     cursorBlink: true,
-    scrollback: 5000,
+    scrollback: prefsStore.get().prefs.scrollbackRows,
     allowProposedApi: true,
   })
   const fit = new FitAddon()
@@ -207,10 +210,15 @@ export function mountTerminal(
     if (el.clientWidth > 0 && el.clientHeight > 0) fit.fit()
   })
   observer.observe(el)
+  // The theme follows Settings live; scrollback is read when the terminal opens, as the TUI's.
+  const offTheme = terminalTheme.subscribe(() => {
+    term.options.theme = terminalTheme.get() ?? XTERM_THEME
+  })
 
   return () => {
     disposed = true
     observer.disconnect()
+    offTheme()
     if (resizeTimer !== null) window.clearTimeout(resizeTimer)
     input.dispose()
     resize.dispose()

@@ -6,6 +6,7 @@
 
 import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
+import type { GlyphSet } from "./prefs.ts"
 
 export type SortMode = "default" | "recent" | "attention" | "name"
 /** `t` cycles in this order, like `use-sidebar-host-state.ts`. */
@@ -97,22 +98,35 @@ export function navRows(
 
 export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "ink"
 
-/** `engine/spinner-frames.ts` DEFAULT_SPINNER_FRAMES. */
-export const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+/** The state marks a row draws, from the chosen glyph set (`tui/lib/glyphs.ts`); braille until the bridge answers. */
+export type RowGlyphs = Pick<GlyphSet, "spinner" | "idle" | "unseen" | "needsInput" | "attention">
 
-export function activityGlyph(state: string | undefined, frame: number): { glyph: string; tone: Tone } {
+/** `engine/spinner-frames.ts` DEFAULT_SPINNER_FRAMES with the braille preset's marks. */
+export const BRAILLE: RowGlyphs = {
+  spinner: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
+  idle: "○",
+  unseen: "●",
+  needsInput: "?",
+  attention: "!",
+}
+
+export function activityGlyph(
+  state: string | undefined,
+  frame: number,
+  glyphs: RowGlyphs = BRAILLE,
+): { glyph: string; tone: Tone } {
   switch (state) {
     case "running":
-      return { glyph: SPINNER[frame % SPINNER.length], tone: "accent" }
+      return { glyph: glyphs.spinner[frame % glyphs.spinner.length] ?? glyphs.idle, tone: "accent" }
     case "permission_needed":
-      return { glyph: "?", tone: "warning" }
+      return { glyph: glyphs.needsInput, tone: "warning" }
     case "rate_limited":
     case "error":
     case "dead":
-      return { glyph: "!", tone: "attention" }
+      return { glyph: glyphs.attention, tone: "attention" }
     case "turn_complete":
-      return { glyph: "●", tone: "accent" }
+      return { glyph: glyphs.unseen, tone: "accent" }
     default:
-      return { glyph: "○", tone: "muted" }
+      return { glyph: glyphs.idle, tone: "muted" }
   }
 }
