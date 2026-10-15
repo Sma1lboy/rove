@@ -7,6 +7,7 @@ import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { clampRailWidth, foldedPx, narrowPane, railFolded, railWidth, surfaceFor, useNarrow } from "./layout.ts"
+import { RemoteNotice } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { Overlays } from "./overlays.tsx"
@@ -53,6 +54,7 @@ function Shell({ model }: { model: AppModel }) {
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
+  const remote = useStore(model.remote)
   const narrow = useNarrow()
   const folded = useStore(railFolded)
   const pinned = useStore(railWidth)
@@ -60,18 +62,24 @@ function Shell({ model }: { model: AppModel }) {
   const pageOn = useStore(page)
   const { prefs } = usePrefs()
   const task = payload?.tasks.find((row) => row.id === selection.taskId) ?? null
-  const surface = narrow ? surfaceFor(pane, !!task, pageOn !== null) : null
+  const remoteTask = remote.find((row) => row.id === selection.taskId)
+  const surface = narrow ? surfaceFor(pane, !!task || !!remoteTask, pageOn !== null) : null
   const railPx = folded ? foldedPx(prefs.railFold) : pinned === null ? null : clampRailWidth(pinned)
   return (
     <div className="app-shell">
       <DaemonBanner onRefresh={() => refreshRove(model.client)} />
       <div
-        className={`app ${zenOn || !task || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""}`}
+        className={`app ${zenOn || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""}`}
         style={railPx !== null && !narrow ? ({ "--rail-w": `${railPx}px` } as CSSProperties) : undefined}
       >
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />
         {task && !zenOn && !narrow && <FilesView key={task.id} model={model} task={task} />}
+        {remoteTask?.machine && !zenOn && !narrow && (
+          <aside className="files">
+            <RemoteNotice host={remoteTask.machine.label} />
+          </aside>
+        )}
         <StatusBar model={model} narrow={narrow} />
         <Overlays />
         <PrefixHud model={model} />
@@ -84,7 +92,9 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const selection = useStore(model.selection)
   const allTabs = useStore(model.tabs)
   const payload = useStore(model.tasks)
+  const remote = useStore(model.remote)
   const task = payload?.tasks.find((row) => row.id === selection.taskId) ?? null
+  const remoteTask = remote.find((row) => row.id === selection.taskId)
   const tabs = task ? (allTabs[task.id] ?? []) : []
   const view = useStore(preview)
   const shown = view && task && view.taskId === task.id ? view : null
@@ -178,8 +188,15 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
         className={`pane ${working ? "is-working" : ""}`}
         style={taskInk ? ({ "--task-ink": taskInk } as CSSProperties) : undefined}
       >
-        {!task && payload && payload.tasks.length === 0 && <WelcomePane model={model} />}
-        {!task && payload && payload.tasks.length > 0 && <p className="placeholder">{t("workspace.pickTask")}</p>}
+        {!task && !remoteTask && payload && payload.tasks.length === 0 && <WelcomePane model={model} />}
+        {!task && !remoteTask && payload && payload.tasks.length > 0 && (
+          <p className="placeholder">{t("workspace.pickTask")}</p>
+        )}
+        {remoteTask?.machine && (
+          <div className="placeholder">
+            <RemoteNotice host={remoteTask.machine.label} />
+          </div>
+        )}
         {task && tabs.length === 0 && !shown && (
           <div className="placeholder">
             <p>{t("workspace.noTabs")}</p>

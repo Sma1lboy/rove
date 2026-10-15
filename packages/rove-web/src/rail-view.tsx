@@ -1,5 +1,6 @@
 /** The Tasks rail: wordmark + inbox count, then project → task → tab rows (TUI `tree-panel`). */
 
+import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import type { MouseEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
@@ -7,7 +8,7 @@ import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace, railFolded } from "./layout.ts"
-import { MachineHeaders } from "./machines-view.tsx"
+import { MachineHead, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
 import { NewTaskDialog } from "./new-task-dialog.tsx"
@@ -16,7 +17,7 @@ import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import { type NavRow, activityGlyph, groupByProject, navRows, repoLabel } from "./rail.ts"
+import { type NavRow, activityGlyph, railRows, repoLabel } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
@@ -49,8 +50,10 @@ function useSpinnerFrame(running: boolean): number {
 }
 
 export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }) {
-  useLocale()
+  const locale = useLocale()
   const payload: TasksPayload | null = useStore(model.tasks)
+  const remoteTasks = useStore(model.remote)
+  const machines = useMachines(model)
   const tabs = useStore(model.tabs)
   const selection = useStore(model.selection)
   const tasks = payload?.tasks ?? []
@@ -65,8 +68,21 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 
   const filters = useRailFilters()
   const moving = useStore(moveMode)
-  const groups = groupByProject(tasks, filters.sort)
-  const rows = navRows(groups, tabsOf, tabLabel, filters.search.active ? filters.search.query : "", filters.routines)
+  const build = (query: string) =>
+    railRows({
+      tasks,
+      remote: remoteTasks,
+      machines,
+      sort: filters.sort,
+      tabsOf,
+      tabLabel,
+      query,
+      routines: filters.routines,
+    })
+  const { rows, groups } = build(filters.search.active ? filters.search.query : "")
+  const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project" && row.kind !== "machine")
+  const words = (locale === "zh" ? tasksZh : tasksEn).machine
+  const offline = new Set(machines.filter((m) => m.state !== "online").map((m) => m.alias))
   const firstMovable = groups.find((group) => group.tasks.some((task) => task.kind === "main"))?.repo
   const projectInfo = (repo: string): ProjectInfo => ({
     mainTaskId: groups.find((group) => group.repo === repo)?.tasks.find((task) => task.kind === "main")?.id ?? null,
@@ -78,7 +94,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     onNewTask: (repo) => dialog.set(<NewTaskDialog model={model} repo={repo} />),
     onSettings: () => dialog.set(<SettingsDialog client={model.client} />),
   })
-  const total = navRows(groups, tabsOf, tabLabel).filter((row) => row.kind !== "project").length
+  const total = stops(build("").rows).length
   const rail = useRef<HTMLElement>(null)
   const folded = useStore(railFolded) && !narrow
   const recent = narrow ? (tasks.find((task) => task.id === selection.taskId && !task.deleting) ?? null) : null
@@ -130,9 +146,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           <span>{filters.search.query}</span>
           <span className="caret">█</span>
           <span className="muted">
-            {filters.search.query
-              ? `${rows.filter((row) => row.kind !== "project").length}/${total}`
-              : t("rail.searchPlaceholder")}
+            {filters.search.query ? `${stops(rows).length}/${total}` : t("rail.searchPlaceholder")}
           </span>
         </div>
       )}
@@ -145,43 +159,52 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           </div>
         )}
         {recent && <RecentRow title={recent.title} />}
-        {rows.map((row) => (
-          <RailRow
-            key={row.id}
-            row={row}
-            frame={frame}
-            tabCount={row.kind === "task" ? tabsOf(row.task.id).length : 0}
-            selected={row.id === selectedId}
-            cursor={row.id === keys.cursor}
-            moving={
-              moving &&
-              (row.kind === "project"
-                ? projectInfo(row.repo).mainTaskId === keys.cursor
-                : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
-            }
-            onClick={() => {
-              keys.setCursor(row.id)
-              if (row.kind === "routines") filters.toggleRoutines(row.repo)
-              if (row.kind === "task") model.select(row.task.id)
-              if (row.kind === "tab") model.select(row.task.id, row.tab.id)
-              if (row.kind !== "project") enterWorkspace()
-            }}
-            onMenu={(e) => {
-              // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
-              if (row.kind === "project") {
-                const info = projectInfo(row.repo)
-                if (info.mainTaskId) keys.setCursor(info.mainTaskId)
-                openMenu(e, projectMenu(model, row.repo, info))
-                return
+        {rows.map((row) => {
+          if (row.kind === "machine") {
+            const machine = machines.find((m) => m.alias === row.alias)
+            return machine ? <MachineHead key={row.id} row={machine} words={words} /> : null
+          }
+          return (
+            <RailRow
+              key={row.id}
+              row={row}
+              frame={frame}
+              tabCount={row.kind === "task" ? tabsOf(row.task.id).length : 0}
+              selected={row.id === selectedId}
+              cursor={row.id === keys.cursor}
+              stale={row.machine !== undefined && offline.has(row.machine)}
+              moving={
+                moving &&
+                row.machine === undefined &&
+                (row.kind === "project"
+                  ? projectInfo(row.repo).mainTaskId === keys.cursor
+                  : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
               }
-              // The routines row names no task, so it has no menu (TUI `use-tree-menu`).
-              if (row.kind === "routines") return
-              keys.setCursor(row.id)
-              openMenu(e, taskMenu(model, row.task, row.kind === "tab" ? row.tab : null))
-            }}
-          />
-        ))}
-        <MachineHeaders client={model.client} />
+              onClick={() => {
+                keys.setCursor(row.id)
+                if (row.kind === "routines") filters.toggleRoutines(row.key)
+                if (row.kind === "task") model.select(row.task.id)
+                if (row.kind === "tab") model.select(row.task.id, row.tab.id)
+                if (row.kind !== "project") enterWorkspace()
+              }}
+              onMenu={(e) => {
+                // Another machine's rows are read-only here: there is no task of ours to aim a verb at.
+                if (row.machine !== undefined) return
+                // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
+                if (row.kind === "project") {
+                  const info = projectInfo(row.repo)
+                  if (info.mainTaskId) keys.setCursor(info.mainTaskId)
+                  openMenu(e, projectMenu(model, row.repo, info))
+                  return
+                }
+                // The routines row names no task, so it has no menu (TUI `use-tree-menu`).
+                if (row.kind === "routines") return
+                keys.setCursor(row.id)
+                openMenu(e, taskMenu(model, row.task, row.kind === "tab" ? row.tab : null))
+              }}
+            />
+          )
+        })}
       </div>
       <PaneKeyHint pane="sidebar" />
       <div className="badge-host">
@@ -198,12 +221,14 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 }
 
 function RailRow(props: {
-  row: NavRow
+  row: Exclude<NavRow, { kind: "machine" }>
   frame: number
   tabCount: number
   selected: boolean
   cursor: boolean
   moving: boolean
+  /** Its machine is unreachable: the last known state, greyed (TUI `task.origin.stale`). */
+  stale: boolean
   onClick: () => void
   onMenu: (e: MouseEvent) => void
 }) {
@@ -211,11 +236,15 @@ function RailRow(props: {
   const { prefs, glyphSets } = usePrefs()
   const glyphs: GlyphSet | undefined = glyphSets[prefs.glyphSet]
   const mark = useTaskColor(row.kind === "project" || row.kind === "routines" ? null : row.task.id)
-  const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""}`
+  const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${row.machine === undefined ? "" : "in-machine"} ${props.stale ? "is-stale" : ""}`
   if (row.kind === "project") {
     return (
-      <h2 className={`project-head ${props.moving ? "is-moving" : ""}`} title={row.repo} onContextMenu={props.onMenu}>
-        <span>{repoLabel(row.repo)}</span>
+      <h2
+        className={`project-head ${props.moving ? "is-moving" : ""} ${row.machine === undefined ? "" : "in-machine"} ${props.stale ? "is-stale" : ""}`}
+        title={row.repo}
+        onContextMenu={props.onMenu}
+      >
+        <span>{row.label}</span>
         <span className="rule" />
       </h2>
     )

@@ -181,6 +181,27 @@ describe("task row extras", () => {
     const [bare] = taskRows([task({ id: "y", prStatus: pr({}) } as never)], null, null, ENGINES, now)
     expect(bare?.pr).not.toHaveProperty("mergeable")
   })
+
+  test("a row another machine served names it; this Mac's rows carry no machine at all", () => {
+    const origin = (stale?: true) => ({ machineId: "narwhal", hostLabel: "narwhal", ...(stale ? { stale } : {}) })
+    const rows = taskRows(
+      [
+        task({ id: "mine" }),
+        task({ id: "stamped-local", origin: { machineId: "local", hostLabel: "local" } }),
+        task({ id: "far", origin: origin() }),
+        task({ id: "far-offline", origin: origin(true) }),
+      ],
+      null,
+      null,
+      ENGINES,
+      now,
+    )
+    const machineOf = (id: string) => rows.find((r) => r.id === id)?.machine
+    expect(machineOf("mine")).toBeUndefined()
+    expect(machineOf("stamped-local")).toBeUndefined()
+    expect(machineOf("far")).toEqual({ id: "narwhal", label: "narwhal" })
+    expect(machineOf("far-offline")).toEqual({ id: "narwhal", label: "narwhal", stale: true })
+  })
 })
 
 describe("diff file path", () => {

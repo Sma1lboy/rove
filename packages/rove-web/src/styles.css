@@ -519,3 +519,29 @@ button:focus-visible,
 .machine-head.is-stale {
   color: var(--subtle);
 }
+
+/* Another machine's rows sit one level under its header, greyed while it is unreachable (TUI `task.origin.stale`). */
+.row.in-machine {
+  width: calc(100% - 12px);
+  margin-left: 12px;
+}
+
+.project-head.in-machine {
+  margin-left: 20px;
+}
+
+.row.is-stale .row-title,
+.row.is-stale .glyph,
+.project-head.is-stale {
+  color: var(--subtle);
+}
+
+/* A task on another machine has no tabs or files here: the pane says where it lives (TUI `host-files-pane.tsx`). */
+.remote-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  font: 12px / 1.5 var(--mono);
+  text-align: left;
+}

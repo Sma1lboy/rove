@@ -96,6 +96,14 @@ export interface TaskRow {
   readonly prChipStale?: boolean
   /** The task has a stored brief (`task.prompt`), so "Run again" has something to run. */
   readonly hasPrompt?: boolean
+  /** Set on a row another registered machine's daemon served (`rove machine add`); absent = this Mac's. `stale` = that machine is unreachable and this is its last known state. */
+  readonly machine?: MachineTag
+}
+
+export interface MachineTag {
+  readonly id: string
+  readonly label: string
+  readonly stale?: boolean
 }
 
 export interface AttentionRow {
