@@ -28,9 +28,9 @@ export interface ParsedCron {
   readonly daysOfMonth: ReadonlySet<number>
   readonly months: ReadonlySet<number>
   readonly daysOfWeek: ReadonlySet<number>
-  /** True when the day-of-month field is anything but `*`. */
+  /** False when the day-of-month field starts with `*`, steps included, as in Vixie cron. */
   readonly dayOfMonthRestricted: boolean
-  /** True when the day-of-week field is anything but `*`. */
+  /** False when the day-of-week field starts with `*`. */
   readonly dayOfWeekRestricted: boolean
 }
 
@@ -141,8 +141,8 @@ export function parseCron(expression: string): ParsedCron {
       // 7 and 0 are both Sunday; fold so matching only ever tests 0-6.
       normalize: (v) => v % 7,
     }),
-    dayOfMonthRestricted: dayOfMonth !== "*",
-    dayOfWeekRestricted: dayOfWeek !== "*",
+    dayOfMonthRestricted: !dayOfMonth.startsWith("*"),
+    dayOfWeekRestricted: !dayOfWeek.startsWith("*"),
   }
 }
 
@@ -185,9 +185,8 @@ function dayMatches(rule: ParsedCron, d: LocalDay): boolean {
   const domMatch = rule.daysOfMonth.has(d.day)
   const dowMatch = rule.daysOfWeek.has(new Date(d.year, d.month - 1, d.day).getDay())
   if (rule.dayOfMonthRestricted && rule.dayOfWeekRestricted) return domMatch || dowMatch
-  if (rule.dayOfMonthRestricted) return domMatch
-  if (rule.dayOfWeekRestricted) return dowMatch
-  return true
+  // A starred field still filters by its own set: `*/2` keeps only odd days.
+  return domMatch && dowMatch
 }
 
 /** "Is this instant an occurrence". The scans don't use it — they enumerate local minutes to stay DST-correct. */
