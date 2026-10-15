@@ -1,6 +1,7 @@
 /**
  * The TUI's direct workspace chords (`keybindings-chat.ts`): Ctrl+1..9 jump to a tab,
- * Ctrl+] / Ctrl+[ cycle, Ctrl+E opens the new-conversation picker, F2 renames the tab.
+ * Ctrl+] / Ctrl+[ cycle, Ctrl+E opens the new-conversation picker, F2 renames the tab, and
+ * (global) F7 jumps to the next Inbox episode.
  * Capture phase so xterm can't take them first; inactive while a dialog is open or a
  * text field has focus. A browser that reserves a chord (Ctrl+1..9 off macOS) never
  * delivers it, which is the browser's call, not the page's.
@@ -9,10 +10,11 @@
 import { useEffect } from "react"
 import { TextDialog } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
+import { nextAttention } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
 import { tabLabel } from "./rail-view.tsx"
 import { NewChatDialog } from "./task-dialogs.tsx"
-import { dialog, page, preview } from "./ui.ts"
+import { dialog, page, preview, toast } from "./ui.ts"
 
 function typingInField(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
@@ -25,6 +27,12 @@ export function useWorkspaceKeys(model: AppModel): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (dialog.get() || page.get() || typingInField(e.target) || e.metaKey || e.altKey) return
+      if (e.key === "F7" && !e.ctrlKey && !e.shiftKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        jumpToNextAttention(model)
+        return
+      }
       const { taskId, tabId } = model.selection.get()
       if (!taskId) return
       const tabs = model.tabs.get()[taskId] ?? []
@@ -60,4 +68,24 @@ export function useWorkspaceKeys(model: AppModel): void {
     window.addEventListener("keydown", onKey, { capture: true })
     return () => window.removeEventListener("keydown", onKey, { capture: true })
   }, [model])
+}
+
+/** F7: open the next pending episode and clear it, as visiting it does in the TUI. */
+export function jumpToNextAttention(model: AppModel): void {
+  const payload = model.tasks.get()
+  if (!payload) return
+  const row = nextAttention(
+    payload.attention,
+    payload.tasks.map((task) => task.id),
+    model.selection.get(),
+  )
+  if (!row) {
+    toast(t("inbox.empty"))
+    return
+  }
+  if (row.taskId === null) return
+  model.select(row.taskId, row.tabId)
+  void model.client
+    .request("attention.dismiss", { taskId: row.taskId, ...(row.tabId ? { tabId: row.tabId } : {}) })
+    .catch((err) => toast(String(err), "error"))
 }

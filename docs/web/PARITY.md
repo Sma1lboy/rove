@@ -156,11 +156,11 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
 | 118 | Open Inbox | prefix i, sidebar status click | ✅ | `tasks.subscribe` | r2: rail inbox chip. r7: `ctrl+a i` opens the same dialog from the terminal. |
-| 119 | Navigate ATTENTION / RECENT rows | j/k, click | 🟡 | local | Built (↑/↓/j/k, hover); keys not exercised this round. |
+| 119 | Navigate ATTENTION / RECENT rows | j/k, click | ✅ | local | me: in the Inbox `j`/`k` move the selected card and back (ATTENTION and RECENT share one list, as the TUI). Click selects-and-opens. |
 | 120 | Open selected tab/task and clear episode | Enter, click | ✅ | `attention.dismiss`, `task.tabs` | r2: Enter on the first card opened that task (tab-strip title matched) and the ATTENTION count dropped by one. |
 | 121 | Dismiss pending ATTENTION without opening | d | ✅ | `attention.dismiss` | r2: `d` dropped one pending card; rail count followed. |
-| 122 | Open RECENT target | Enter, click | 🟡 | `task.get` | Built; RECENT rendered ("Renamed from web 1s"), opening one not exercised. |
-| 123 | Jump / cycle pending across projects | F7 | ❌ | `attention.dismiss` | Playwright: trigger 'F7'; expect 'jump / cycle pending across projects' as in TUI. Currently absent (via attention.dismiss). |
+| 122 | Open RECENT target | Enter, click | ✅ | `task.get` | me: Enter on a RECENT card opened that task (tab-strip title matched) and closed the Inbox. |
+| 123 | Jump / cycle pending across projects | F7 | ✅ | `attention.dismiss` | me: F7 (global, fires from the terminal too) opened the oldest pending episode (Audit tab-2), cleared it (`tasks.list` attention −1), F7 again opened the next (Fix retry backoff tab-11), then toasted `no pending attention`. Order is the TUI's `sortAttentionInbox` (blocked first, oldest first; unit-tested); the Inbox lists in the same order. |
 | 124 | Open failed-routine attention target | Enter, click | ❌ | `attention.dismiss`, `routine.runs` | Playwright: trigger 'Enter'; expect 'open failed-routine attention target' as in TUI. Currently absent (via attention.dismiss, routine.runs). |
 | 125 | Dismiss toast | toast click / timeout | 🟡 | local | r2: toasts (`copied …`) appear bottom-right and time out after 4 s; no click-to-dismiss. |
 | — | Open a `report_missing` row (long-run controls stack #1247→#1249, unmerged) | Enter, click | 🟡 | `attention.dismiss` (`deliveryId`) | Not yet aligned: today Enter opens AND clears every row. After the stack lands, opening a `report_missing` row (keyed by delivery, `detail.deliveryId`) must NOT clear it; only a late report or an explicit `d` (`attention.dismiss {deliveryId}`) clears it, else a broken loop gets unblocked. Follow TUI `inbox-open-action.ts` and the phones' `InboxLogic.clearsOnVisit`. |
@@ -289,6 +289,6 @@ Round 7 (`e2e-r7.ts`; shots `r7-*`, 13/13): the TUI prefix layer (`keymap-dispat
 
 Round 8 (`e2e-r8.ts`; shots `r8-*`): Worktrees page on the phones' existing `worktrees.list`/`worktrees.remove` (no bridge change), plus the direct tab chords (Ctrl+1..9, Ctrl+[ ], Ctrl+E, F2). #16, #73, #83, #86, #148, #150 at ✅; #19, #149 at 🟡. Compared with TUI `worktrees-page.tsx`: same grouping, row grammar (branch + badges, path + age), keys and confirms, same copy.
 
-Update slice (`e2e-me-update.ts`, both `current` and `fake` modes, 8/8 and 5/5): new read-only bridge ops `update.check` / `release.notes` (`ops/update.ts`, documented in docs/IOS.md). #17, #151, #153 at ✅; #152, #154 ❌ (installing from a browser is an owner decision).
+Update slice (`e2e-me-update.ts`, both `current` and `fake` modes, 8/8 and 5/5): new read-only bridge ops `update.check` / `release.notes` (`ops/update.ts`, documented in docs/IOS.md). #17, #151, #153 at ✅; #152, #154 ❌ (installing from a browser is an owner decision). Inbox (`e2e-me-inbox.ts`, 5/5): F7 and the Inbox keys; #119, #122, #123 at ✅.
 
 Screenshots are local only. Headless Chromium paints the WebGL terminal blank, so shots are taken headed (see MEMO).
