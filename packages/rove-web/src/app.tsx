@@ -1,6 +1,6 @@
 /** Layout: Tasks rail | workspace (tab strip + terminal) | Files, over a one-line status footer, like the TUI. */
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { forgetToken, saveToken } from "./auth.ts"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
@@ -16,6 +16,7 @@ import { NewChatDialog } from "./task-dialogs.tsx"
 import { TerminalView } from "./terminal-view.tsx"
 import { tokenFromInput } from "./token-input.ts"
 import { dialog, page, preview, zen } from "./ui.ts"
+import { UpdateView, checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { UsageChips } from "./usage-view.tsx"
 import { useWorkspaceKeys } from "./workspace-keys.tsx"
 import { WorktreesView } from "./worktrees-view.tsx"
@@ -30,6 +31,13 @@ export function App({ model }: { model: AppModel }) {
 
 function Shell({ model }: { model: AppModel }) {
   usePrefixLayer(model)
+  const hello = useStore(model.client.conn).hello
+  // Once per connection: the rail's update chip and the once-per-upgrade What's New.
+  useEffect(() => {
+    if (!hello) return
+    void checkForUpdate(model.client)
+    maybeShowWhatsNew(model.client, hello.roveVersion)
+  }, [hello, model.client])
   useWorkspaceKeys(model)
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
@@ -57,6 +65,13 @@ function Workspace({ model }: { model: AppModel }) {
   const shown = view && task && view.taskId === task.id ? view : null
   const zenOn = useStore(zen)
   const pageOn = useStore(page)
+  if (pageOn === "update") {
+    return (
+      <main className="workspace">
+        <UpdateView client={model.client} />
+      </main>
+    )
+  }
   if (pageOn === "worktrees") {
     return (
       <main className="workspace">
