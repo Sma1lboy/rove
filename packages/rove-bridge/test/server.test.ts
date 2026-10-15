@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { AccessDenied, type AccessVerifier } from "../src/cf-access.ts"
 import { TaskFeed } from "../src/feed.ts"
+import { GATE_OPS } from "../src/ops/gates.ts"
 import type { OpTable } from "../src/ops/types.ts"
 import type { TasksPayload } from "../src/protocol.ts"
 import type { RoveOps } from "../src/rove-ops.ts"
@@ -41,7 +42,7 @@ class FakePty implements PtyHostClient {
   }
 }
 
-const ROWS: TasksPayload = { tasks: [], attention: [] }
+const ROWS: TasksPayload = { tasks: [], attention: [], gates: [] }
 
 function fakeOps(): RoveOps {
   const reject = async (): Promise<never> => {
@@ -263,12 +264,16 @@ describe("task feed", () => {
       report: null,
       deleting: false,
     }
-    h.setRows({ tasks: [row], attention: [] })
+    h.setRows({ tasks: [row], attention: [], gates: [] })
     await h.feed.refresh()
-    h.setRows({ tasks: [{ ...row, activity: { state: "running", forMs: 9000, since: 5000 } }], attention: [] })
+    h.setRows({
+      tasks: [{ ...row, activity: { state: "running", forMs: 9000, since: 5000 } }],
+      attention: [],
+      gates: [],
+    })
     await h.feed.refresh()
     // Same state, but the next turn: the phone must rebase its timer.
-    h.setRows({ tasks: [{ ...row, activity: { state: "running", forMs: 2, since: 60000 } }], attention: [] })
+    h.setRows({ tasks: [{ ...row, activity: { state: "running", forMs: 2, since: 60000 } }], attention: [], gates: [] })
     await h.feed.refresh()
     // The socket is FIFO: a reply after the refreshes trails any push they sent.
     await c.call("hello")
@@ -296,7 +301,7 @@ describe("task feed", () => {
     const feed = new TaskFeed(
       async () => {
         reads++
-        return { tasks: [row], attention: [] }
+        return { tasks: [row], attention: [], gates: [] }
       },
       () => clock,
     )
@@ -368,5 +373,66 @@ describe("attention.dismiss", () => {
     const c = await connect(h.url, AUTH)
     expect((await c.call("attention.dismiss", { taskId: "T1", deliveryId: "d-12" })).ok).toBe(true)
     expect(seen).toEqual([["T1", undefined, "d-12"]])
+  })
+
+  describe("gate rows", () => {
+    const decision = { taskId: "T1", tabId: "tab-1", state: "decision_needed", unread: true, at: 1, gateId: "g-4" }
+    const other = { taskId: "T1", tabId: "tab-1", state: "turn_complete", unread: true, at: 2 }
+
+    async function dismissWith(attention: TasksPayload["attention"], args: Record<string, unknown>) {
+      const seen: unknown[][] = []
+      const ops = { ...fakeOps(), dismissAttention: async (...a: unknown[]) => void seen.push(a) } as RoveOps
+      const h = start({ ops })
+      h.setRows({ tasks: [], attention, gates: [] })
+      const c = await connect(h.url, AUTH)
+      return { reply: await c.call("attention.dismiss", args), seen }
+    }
+
+    test("a dismissal that names the gate is refused and touches nothing", async () => {
+      const { reply, seen } = await dismissWith([decision], { taskId: "T1", tabId: "tab-1", gateId: "g-4" })
+      expect(reply.error?.code).toBe("GATE_NOT_DISMISSABLE")
+      expect(seen).toEqual([])
+    })
+
+    test("a client that predates gateId cannot dismiss a tab that holds only a decision", async () => {
+      const { reply, seen } = await dismissWith([decision], { taskId: "T1", tabId: "tab-1" })
+      expect(reply.error?.code).toBe("GATE_NOT_DISMISSABLE")
+      expect(seen).toEqual([])
+    })
+
+    test("a tab that also holds an ordinary episode still dismisses that episode", async () => {
+      const { reply, seen } = await dismissWith([decision, other], { taskId: "T1", tabId: "tab-1" })
+      expect(reply.ok).toBe(true)
+      expect(seen).toEqual([["T1", "tab-1", undefined]])
+    })
+  })
+})
+
+describe("gate.answer", () => {
+  test("is served over the socket and reaches the daemon as the bridge", async () => {
+    const calls: unknown[] = []
+    const h = start({
+      areaOps: GATE_OPS,
+      api: {
+        verb: async () => {
+          throw new Error("no verbs")
+        },
+        rpc: async (name, payload) => {
+          calls.push([name, payload])
+          return { delivered: true } as never
+        },
+      },
+    })
+    const c = await connect(h.url, AUTH)
+    const reply = await c.call("gate.answer", { gateId: "g-2", option: "a", text: "go" })
+    expect(reply).toMatchObject({ ok: true, result: { delivered: true } })
+    expect(calls).toEqual([["gate.answer", { gateId: "g-2", option: "a", text: "go", by: "bridge" }]])
+  })
+
+  test("the default allowlist knows it", async () => {
+    const h = start({ areaOps: undefined })
+    const c = await connect(h.url, AUTH)
+    // Not UNKNOWN_OP: the id check, not the allowlist, refuses this one.
+    expect((await c.call("gate.answer", { gateId: "nope" })).error?.code).toBe("BAD_ARGS")
   })
 })

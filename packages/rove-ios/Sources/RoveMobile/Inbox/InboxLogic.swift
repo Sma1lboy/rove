@@ -16,8 +16,9 @@ enum InboxLogic {
     static func isBlocking(_ item: AttentionItem) -> Bool { item.state != "turn_complete" }
 
     /// One episode per tab, the fresh one replacing the stale (same key as `attentionInboxItemKey`);
-    /// a delivery episode is keyed by its delivery.
+    /// a delivery episode is keyed by its delivery, a decision by its gate.
     static func key(_ item: AttentionItem) -> String {
+        if let gate = item.gateId { return "gate\u{0}\(gate)" }
         if let delivery = item.deliveryId { return "delivery\u{0}\(delivery)" }
         if item.taskId == nil, let label = item.label { return "\(item.state)\u{0}\(label)" }
         return "\(item.taskId ?? "")\u{0}\(item.tabId ?? "")"
@@ -79,6 +80,7 @@ enum InboxLogic {
         case "routine_failed": String(localized: "routine failed")
         case "routine_responded": String(localized: "routine replied")
         case "report_missing": String(localized: "report missing")
+        case "decision_needed": String(localized: "decision")
         default: state.replacingOccurrences(of: "_", with: " ")
         }
     }
@@ -86,7 +88,7 @@ enum InboxLogic {
     /// The tab-strip glyph that goes with the word.
     static func glyph(_ state: String) -> String {
         switch state {
-        case "permission_needed": "?"
+        case "permission_needed", "decision_needed": "?"
         case "rate_limited": "◷"
         case "error", "routine_failed": "!"
         case "dead": "†"

@@ -21,6 +21,7 @@ import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-eve
 import type { UpdateInfo } from "../version.ts"
 import { handleMapChannel } from "./remote-orchestrator-map-events.ts"
 import {
+  type ActiveGate,
   type AttentionInboxItem,
   type EngineLifecycleState,
   type OrchestratorSignals,
@@ -230,6 +231,22 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
         unread: (item as Partial<AttentionInboxItem>).unread !== false,
       })),
     )
+    return
+  }
+  if (name === "gates") {
+    const gates = (payload as { gates?: unknown } | undefined)?.gates
+    if (!Array.isArray(gates)) {
+      logClientError("orch", `dropped gates event: gates is not an array (${describePayload(gates)})`)
+      return
+    }
+    // Per entry, like the Inbox: one unreadable gate must not hide the others.
+    const kept = gates.filter((g): g is ActiveGate => {
+      if (!g || typeof g !== "object" || Array.isArray(g)) return false
+      const p = g as Partial<ActiveGate>
+      return typeof p.id === "string" && typeof p.taskId === "string" && typeof p.question === "string"
+    })
+    if (kept.length === 0 && gates.length > 0) return
+    signals.setGatesSig(kept.map((g) => ({ ...g, options: Array.isArray(g.options) ? g.options : [] })))
     return
   }
   if (name === "task.jobs") {

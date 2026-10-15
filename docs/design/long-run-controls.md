@@ -436,3 +436,11 @@ owner:
 - **Withdrawing an answered gate is allowed.** The lifecycle only withdrew
   open gates; an answer owed to an engine that never returns (tab gone, task
   deleted) would otherwise stay in the Inbox forever.
+
+## Deviations in layer 3 (bridges)
+
+- **Bridge `gates` carries open gates plus answered-undelivered ones.** The
+  latter are openable on the phone but neither answerable nor dismissable.
+  Known limitations: an app that predates the layer shows an error banner when
+  a decision row is tapped (Android), and the iOS answer sheet is presented from
+  the root, so it waits for any child sheet to close.

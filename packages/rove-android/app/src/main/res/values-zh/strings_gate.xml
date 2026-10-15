@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gate_kicker">决策</string>
+    <string name="gate_options">选项</string>
+    <string name="gate_recommended">推荐</string>
+    <string name="gate_note">备注</string>
+    <string name="gate_answer">回答</string>
+    <string name="gate_note_placeholder">给 agent 的备注（可选）</string>
+    <string name="gate_answer_placeholder">输入你的回答</string>
+    <string name="gate_submit">发送回答</string>
+    <string name="gate_failed">无法发送回答。</string>
+</resources>

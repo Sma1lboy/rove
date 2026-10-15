@@ -31,6 +31,7 @@ import { CURRENT_VERSION, type UpdateInfo } from "../version.ts"
 import { performInit, runReconnectLoop } from "./remote-orchestrator-connect.ts"
 import { handleOrchestratorEvent, writeGraphicsToStdout } from "./remote-orchestrator-events.ts"
 import {
+  type ActiveGate,
   type AttentionInboxItem,
   type ContextUsageMap,
   type DaemonConnectionState,
@@ -51,6 +52,7 @@ import { subscribeTasksOp } from "./remote-orchestrator-reads.ts"
 import * as writes from "./remote-orchestrator-writes.ts"
 
 export type {
+  ActiveGate,
   AttentionInboxItem,
   DaemonConnectionState,
   EngineLifecycleMap,
@@ -92,6 +94,7 @@ export class RemoteOrchestrator {
   private readonly engineStateAcc = createStateCell<ReadonlyMap<string, TaskEngineState>>(new Map())
   private readonly engineTabStateAcc = createStateCell<EngineTabStateMap>(new Map())
   private readonly attentionInboxAcc = createStateCell<readonly AttentionInboxItem[]>([])
+  private readonly gatesAcc = createStateCell<readonly ActiveGate[]>([])
   private readonly taskJobsAcc = createStateCell<ReadonlyMap<string, TaskJobState>>(new Map())
   private readonly rowTokensAcc = createStateCell<RowTokenMap>(new Map())
   private readonly worktreeChangesAcc = createStateCell<WorktreeChangesMap | null>(null)
@@ -151,6 +154,7 @@ export class RemoteOrchestrator {
       engineTabStateAcc: this.engineTabStateAcc,
       setEngineTabStateSig: this.engineTabStateAcc.set,
       setAttentionInboxSig: this.attentionInboxAcc.set,
+      setGatesSig: this.gatesAcc.set,
       taskJobsAcc: this.taskJobsAcc,
       setTaskJobsSig: this.taskJobsAcc.set,
       rowTokensAcc: this.rowTokensAcc,
@@ -289,6 +293,9 @@ export class RemoteOrchestrator {
   readonly engineTabStatesSignal = (): ReadableState<EngineTabStateMap> => this.engineTabStateAcc
 
   readonly attentionInboxSignal = (): ReadableState<readonly AttentionInboxItem[]> => this.attentionInboxAcc
+
+  /** Gates still needing the owner or the engine (the `gates` channel); empty until the daemon says otherwise. */
+  readonly gatesSignal = (): ReadableState<readonly ActiveGate[]> => this.gatesAcc
 
   readonly taskJobsSignal = (): ReadableState<ReadonlyMap<string, TaskJobState>> => this.taskJobsAcc
 

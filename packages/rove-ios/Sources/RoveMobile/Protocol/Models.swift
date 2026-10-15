@@ -121,6 +121,55 @@ struct AttentionItem: Codable, Hashable {
     var label: String?
     /// `report_missing` items: the delivery id, the only key that can dismiss one. Absent from older bridges.
     var deliveryId: String?
+    /// `decision_needed` items: the gate id, the key into `TasksPayload.gates`. A decision is answered, never dismissed.
+    var gateId: String?
+}
+
+struct GateOption: Codable, Hashable {
+    var key: String
+    var label: String
+    var detail: String?
+}
+
+/// A decision a task put to its owner: `open`, or `answered` with the engine not yet holding the answer.
+struct GateRow: Codable, Hashable, Identifiable {
+    var id: String
+    var taskId: String
+    var tabId: String?
+    var question: String
+    var options: [GateOption]
+    var recommended: String?
+    var context: String?
+    var status: String
+    var handoff: String?
+    var createdAt: String
+    /// The task's title.
+    var label: String
+
+    var isOpen: Bool { status == "open" }
+
+    init(id: String, taskId: String, tabId: String? = nil, question: String, options: [GateOption] = [],
+         recommended: String? = nil, context: String? = nil, status: String = "open", handoff: String? = nil,
+         createdAt: String = "", label: String = "") {
+        self.id = id; self.taskId = taskId; self.tabId = tabId; self.question = question; self.options = options
+        self.recommended = recommended; self.context = context; self.status = status; self.handoff = handoff
+        self.createdAt = createdAt; self.label = label
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        taskId = try c.decode(String.self, forKey: .taskId)
+        tabId = try c.decodeIfPresent(String.self, forKey: .tabId)
+        question = try c.decode(String.self, forKey: .question)
+        options = try c.decodeIfPresent([GateOption].self, forKey: .options) ?? []
+        recommended = try c.decodeIfPresent(String.self, forKey: .recommended)
+        context = try c.decodeIfPresent(String.self, forKey: .context)
+        status = try c.decodeIfPresent(String.self, forKey: .status) ?? "open"
+        handoff = try c.decodeIfPresent(String.self, forKey: .handoff)
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+        label = try c.decodeIfPresent(String.self, forKey: .label) ?? ""
+    }
 }
 
 struct TabRow: Codable, Hashable, Identifiable {
@@ -168,12 +217,25 @@ struct HelloResult: Codable, Equatable { var protocolVersion: Int; var roveVersi
 struct TasksPayload: Codable, Equatable {
     var tasks: [TaskRow]
     var attention: [AttentionItem]
-    init(tasks: [TaskRow], attention: [AttentionItem]) { self.tasks = tasks; self.attention = attention }
+    /// Open decisions, and answered ones the engine has not received. Absent from older bridges.
+    var gates: [GateRow]
+    init(tasks: [TaskRow], attention: [AttentionItem], gates: [GateRow] = []) {
+        self.tasks = tasks; self.attention = attention; self.gates = gates
+    }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         tasks = try c.decodeIfPresent([TaskRow].self, forKey: .tasks) ?? []
         attention = try c.decodeIfPresent([AttentionItem].self, forKey: .attention) ?? []
+        gates = try c.decodeIfPresent([GateRow].self, forKey: .gates) ?? []
     }
+}
+/// `gate.answer`: whether the engine took the answer now (false = it rides the task's next message).
+struct GateAnswerResult: Decodable {
+    var delivered: Bool
+    init(from decoder: Decoder) throws {
+        delivered = try decoder.container(keyedBy: CodingKeys.self).decodeIfPresent(Bool.self, forKey: .delivered) ?? false
+    }
+    enum CodingKeys: String, CodingKey { case delivered }
 }
 struct EnginesResult: Codable { var engines: [Engine] }
 struct ReposResult: Codable { var repos: [String] }
