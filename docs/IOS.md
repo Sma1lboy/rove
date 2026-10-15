@@ -150,7 +150,7 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `task.ensureWorktree` | `taskId` | `{worktreePath}` | `ensure-worktree` | |
 | `task.removeWorktree` | `taskId`, `force?` | `{removed, worktreePath?, branch?}` | `remove-worktree` | yes |
 
-Task rows (`tasks` push and `tasks.list`) also carry optional `pinned`, `routine` (a scheduled routine's standing session; clients fold these behind a count row), `order`, `createdAt`, `updatedAt`, `changes` (`{added, deleted, ahead?, behind?}` or `{unreadable: true}`, from the daemon's `worktree.changes` push; absent = not collected), `rowTokens` (`{text, tone?, source, expiresAt}`), `prChip` (`conflict`/`failing`/`passing`), `prChipStale`, and `pr.mergeable`. Engine rows carry optional `models`, `effortLevels` and `ready`. Older apps ignore them; the app decodes rows without them.
+Task rows (`tasks` push and `tasks.list`) also carry optional `pinned`, `routine` (a scheduled routine's standing session; clients fold these behind a count row), `order`, `createdAt`, `updatedAt`, `changes` (`{added, deleted, ahead?, behind?}` or `{unreadable: true}`, from the daemon's `worktree.changes` push; absent = not collected), `rowTokens` (`{text, tone?, source, expiresAt}`), `prChip` (`conflict`/`failing`/`passing`), `prChipStale`, `noWorktree` (`true` when the task has no worktree on disk yet; call `task.ensureWorktree` before opening it), and `pr.mergeable`. Engine rows carry optional `models`, `effortLevels` and `ready`. Older apps ignore them; the app decodes rows without them.
 
 ### Task-row verb ops
 

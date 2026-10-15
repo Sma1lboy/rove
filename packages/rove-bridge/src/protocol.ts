@@ -98,6 +98,8 @@ export interface TaskRow {
   readonly hasPrompt?: boolean
   /** Set on a row another registered machine's daemon served (`rove machine add`); absent = this Mac's. `stale` = that machine is unreachable and this is its last known state. */
   readonly machine?: MachineTag
+  /** No worktree on disk yet (a task created without a first message); selecting it materializes one with `task.ensureWorktree`, as the TUI does. */
+  readonly noWorktree?: true
 }
 
 export interface MachineTag {

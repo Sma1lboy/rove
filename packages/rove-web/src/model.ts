@@ -7,6 +7,7 @@
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import type { BridgeClient } from "./bridge.ts"
 import { type Store, createStore } from "./store.ts"
+import { toast } from "./ui.ts"
 
 export interface Selection {
   readonly taskId: string | null
@@ -67,6 +68,8 @@ export class AppModel {
   private tabSweep = 0
   /** A task just created here: select it once the feed lists it. */
   private pendingSelect: string | null = null
+  /** Tasks whose worktree is being materialized, so a second click doesn't start another. */
+  private readonly provisioning = new Set<string>()
 
   constructor(readonly client: BridgeClient) {
     client.onOpen(() => {
@@ -80,6 +83,12 @@ export class AppModel {
   }
 
   select(taskId: string, tabId: string | null = null): void {
+    // As the TUI's `activateWorkspaceTask`: a task with no worktree yet is materialized first,
+    // and selected only once that worked.
+    if (this.tasks.get()?.tasks.find((task) => task.id === taskId)?.noWorktree) {
+      void this.provisionThenSelect(taskId, tabId)
+      return
+    }
     const tabs = this.tabs.get()[taskId] ?? []
     const next = { taskId, tabId: tabId ?? preferredTab(tabs)?.id ?? null }
     this.selection.set(next)
@@ -90,6 +99,29 @@ export class AppModel {
     ].slice(0, VISITS_MAX)
     this.visits.set(visits)
     localStorage.setItem(VISITS_KEY, JSON.stringify(visits))
+  }
+
+  private async provisionThenSelect(taskId: string, tabId: string | null): Promise<void> {
+    if (this.provisioning.has(taskId)) return
+    this.provisioning.add(taskId)
+    try {
+      await this.client.request("task.ensureWorktree", { taskId })
+    } catch (err) {
+      toast(err instanceof Error ? err.message : String(err), "error")
+      return
+    } finally {
+      this.provisioning.delete(taskId)
+    }
+    this.markProvisioned(taskId)
+    this.select(taskId, tabId)
+  }
+
+  /** The next `tasks` push carries the path; until then the row must not provision again. */
+  private markProvisioned(taskId: string): void {
+    const payload = this.tasks.get()
+    if (!payload) return
+    const tasks = payload.tasks.map((task) => (task.id === taskId ? { ...task, noWorktree: undefined } : task))
+    this.tasks.set({ ...payload, tasks })
   }
 
   selectWhenListed(taskId: string): void {

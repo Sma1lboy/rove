@@ -279,6 +279,7 @@ export function taskRows(
         prChip: chip,
         ...(task.prompt !== undefined ? { hasPrompt: true } : {}),
         prChipStale: chip !== null && pr?.lastError !== undefined,
+        ...(task.worktreePath ? {} : { noWorktree: true as const }),
       },
     ]
   })

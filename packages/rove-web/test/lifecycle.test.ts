@@ -77,10 +77,15 @@ function install(key: string, value: unknown) {
 function protocol() {
   const client = new BridgeClient("ws://test", "test")
   client.conn.set({ state: "open", hello: null, failures: 0 })
-  const calls: Array<{ op: string; args: Record<string, unknown>; resolve: (value: unknown) => void }> = []
+  const calls: Array<{
+    op: string
+    args: Record<string, unknown>
+    resolve: (value: unknown) => void
+    reject: (error: Error) => void
+  }> = []
   spyOn(client, "request").mockImplementation(
     <T>(op: string, args: Record<string, unknown> = {}) =>
-      new Promise<T>((resolve) => calls.push({ op, args, resolve: (value) => resolve(value as T) })),
+      new Promise<T>((resolve, reject) => calls.push({ op, args, resolve: (value) => resolve(value as T), reject })),
   )
   return { client, calls }
 }
@@ -170,6 +175,34 @@ test("a tab-only change with an unchanged task list still updates the tabs", asy
     ["tab-1", "renamed"],
     ["tab-2", null],
   ])
+})
+
+test("selecting a task with no worktree materializes it once, then selects it", async () => {
+  const { model, calls } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }, { id: "B", noWorktree: true }], attention: [] })
+  await flush()
+  model.select("A")
+  model.select("B")
+  model.select("B")
+  const ensures = calls.filter((call) => call.op === "task.ensureWorktree")
+  expect(ensures.map((call) => call.args.taskId)).toEqual(["B"])
+  expect(model.selection.get().taskId).toBe("A")
+  ensures[0].resolve({ worktreePath: "/wt/B" })
+  await flush()
+  expect(model.selection.get().taskId).toBe("B")
+  model.select("B")
+  expect(calls.filter((call) => call.op === "task.ensureWorktree")).toHaveLength(1)
+})
+
+test("a failed worktree materialization leaves the selection where it was", async () => {
+  const { model, calls } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }, { id: "B", noWorktree: true }], attention: [] })
+  await flush()
+  model.select("A")
+  model.select("B")
+  calls.find((call) => call.op === "task.ensureWorktree")?.reject(new Error("repo is gone"))
+  await flush()
+  expect(model.selection.get().taskId).toBe("A")
 })
 
 function terminals() {
