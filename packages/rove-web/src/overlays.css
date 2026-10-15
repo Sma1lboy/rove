@@ -114,10 +114,18 @@ select.input {
 }
 
 .menu-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
   padding: 5px 10px;
   border-radius: var(--radius-sm);
   text-align: left;
   font-size: 13px;
+}
+
+.menu-key {
+  font: 11px var(--mono);
+  color: var(--subtle);
 }
 
 .menu-item.is-selected {

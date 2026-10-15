@@ -63,6 +63,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   items.push({ label: t("menu.newChat"), run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} />) })
   items.push({
     label: t("menu.rename"),
+    key: "r",
     run: () =>
       dialog.set(
         <TextDialog
@@ -76,6 +77,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   if (task.kind !== "main") {
     items.push({
       label: task.pinned ? t("menu.unpin") : t("menu.pin"),
+      key: "P",
       run: () =>
         void c.request("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
     })
@@ -105,6 +107,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   if (task.branch) {
     items.push({
       label: t("menu.renameBranch"),
+      key: "b",
       run: () =>
         dialog.set(
           <TextDialog
@@ -118,6 +121,8 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   }
   items.push({
     label: t("menu.changeEngine"),
+    // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
+    key: "v",
     run: () =>
       void c
         .request<{ engines: Array<{ id: string; name: string }> }>("engines.list")
@@ -151,6 +156,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   }
   items.push({
     label: t("menu.delete"),
+    key: "d",
     danger: true,
     run: () =>
       dialog.set(

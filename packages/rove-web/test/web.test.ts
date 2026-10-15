@@ -5,7 +5,7 @@ import { visibleTree } from "../src/file-tree.ts"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
 import { compactAge, inboxBadge } from "../src/inbox.ts"
-import { activityGlyph, groupByProject } from "../src/rail.ts"
+import { activityGlyph, groupByProject, navRows } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
 
 const TOKEN = "a".repeat(43)
@@ -67,6 +67,47 @@ describe("rail", () => {
       ["beta", ["b0", "b1"]],
       ["alpha", ["a1"]],
     ])
+  })
+
+  test("a sort reorders tasks but the project's main checkout stays first", () => {
+    const main = { ...row("m", "/w/a", 3), kind: "main", title: "zzz" }
+    const tasks = [
+      main,
+      { ...row("x", "/w/a", 0), title: "beta", rank: 1 },
+      { ...row("y", "/w/a", 1), title: "alpha", rank: 0 },
+    ]
+    expect(groupByProject(tasks, "name")[0].tasks.map((t) => t.id)).toEqual(["m", "y", "x"])
+    expect(groupByProject(tasks, "attention")[0].tasks.map((t) => t.id)).toEqual(["m", "y", "x"])
+    expect(groupByProject(tasks, "default")[0].tasks.map((t) => t.id)).toEqual(["m", "x", "y"])
+  })
+
+  test("`/` keeps a hit's ancestors: a task hit keeps its tabs, a tab hit keeps its task", () => {
+    const groups = groupByProject([
+      { ...row("t1", "/w/a", 0), title: "Fix retry" },
+      { ...row("t2", "/w/a", 1), title: "Audit" },
+    ])
+    const tab = (id: string, title: string) => ({
+      id,
+      kind: "engine",
+      title,
+      engineName: null,
+      alive: true,
+      engineAlive: true,
+    })
+    const tabs: Record<string, ReturnType<typeof tab>[]> = {
+      t1: [tab("tab-1", "claude")],
+      t2: [tab("tab-1", "vitest")],
+    }
+    const ids = (q: string) =>
+      navRows(
+        groups,
+        (id) => tabs[id] ?? [],
+        (t) => t.title ?? "",
+        q,
+      ).map((r) => r.id)
+    expect(ids("retry")).toEqual(["project:/w/a", "t1", "t1::tab-1"])
+    expect(ids("vitest")).toEqual(["project:/w/a", "t2", "t2::tab-1"])
+    expect(ids("nomatch")).toEqual([])
   })
 
   test("uses the TUI's glyphs: ? waits on you, ! needs you, ● unseen turn, ○ quiet", () => {

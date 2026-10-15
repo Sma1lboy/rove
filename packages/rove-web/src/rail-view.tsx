@@ -6,7 +6,8 @@ import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import type { AppModel } from "./model.ts"
-import { SPINNER, activityGlyph, groupByProject } from "./rail.ts"
+import { useRailFilters, useRailKeys } from "./rail-keys.ts"
+import { type NavRow, SPINNER, activityGlyph, groupByProject, navRows, repoLabel } from "./rail.ts"
 import { projectMenu, taskMenu } from "./row-actions.tsx"
 import { useStore } from "./store.ts"
 import { NewTaskDialog } from "./task-dialogs.tsx"
@@ -37,9 +38,25 @@ export function RailView({ model }: { model: AppModel }) {
   const tasks = payload?.tasks ?? []
   const frame = useSpinnerFrame(tasks.some((task) => task.activity?.state === "running"))
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
+  const tabsOf = (taskId: string) => tabs[taskId] ?? []
+  const selectedId = selection.taskId
+    ? selection.tabId && tabsOf(selection.taskId).some((tab) => tab.id === selection.tabId)
+      ? `${selection.taskId}::${selection.tabId}`
+      : selection.taskId
+    : null
+
+  const filters = useRailFilters()
+  const groups = groupByProject(tasks, filters.sort)
+  const rows = navRows(groups, tabsOf, tabLabel, filters.search.active ? filters.search.query : "")
+  const keys = useRailKeys(model, rows, filters, {
+    selectedId,
+    onNewTask: (repo) => dialog.set(<NewTaskDialog model={model} repo={repo} />),
+  })
+  const total = navRows(groups, tabsOf, tabLabel).filter((row) => row.kind !== "project").length
 
   return (
-    <nav className="rail">
+    // biome-ignore lint/a11y/noNoninteractiveTabindex: the rail takes the TUI sidebar's keys while focused
+    <nav className="rail" tabIndex={0} onKeyDown={keys.onKeyDown}>
       <header className="rail-head">
         <span className="wordmark">
           <span className="bracket">[</span> rove <span className="bracket">]</span>
@@ -52,6 +69,18 @@ export function RailView({ model }: { model: AppModel }) {
           {t("rail.inbox", { count: unread })}
         </button>
       </header>
+      {filters.search.active && (
+        <div className="rail-search mono">
+          <span className="tone-accent">/</span>
+          <span>{filters.search.query}</span>
+          <span className="caret">█</span>
+          <span className="muted">
+            {filters.search.query
+              ? `${rows.filter((row) => row.kind !== "project").length}/${total}`
+              : t("rail.searchPlaceholder")}
+          </span>
+        </div>
+      )}
       <div className="rail-body">
         {payload && tasks.length === 0 && (
           <div className="empty">
@@ -59,29 +88,28 @@ export function RailView({ model }: { model: AppModel }) {
             <p className="muted">{t("rail.emptyHint")}</p>
           </div>
         )}
-        {groupByProject(tasks).map((group) => (
-          <section key={group.repo} className="project">
-            <h2
-              className="project-head"
-              title={group.repo}
-              onContextMenu={(e) => openMenu(e, projectMenu(model, group.repo))}
-            >
-              <span>{group.label}</span>
-              <span className="rule" />
-            </h2>
-            {group.tasks.map((task) => (
-              <TaskRows
-                key={task.id}
-                task={task}
-                tabs={tabs[task.id] ?? []}
-                frame={frame}
-                selectedTask={selection.taskId === task.id}
-                selectedTab={selection.taskId === task.id ? selection.tabId : null}
-                onSelect={(tabId) => model.select(task.id, tabId)}
-                onMenu={(e, tab) => openMenu(e, taskMenu(model, task, tab))}
-              />
-            ))}
-          </section>
+        {rows.map((row) => (
+          <RailRow
+            key={row.id}
+            row={row}
+            frame={frame}
+            tabCount={row.kind === "task" ? tabsOf(row.task.id).length : 0}
+            selected={row.id === selectedId}
+            cursor={row.id === keys.cursor}
+            onClick={() => {
+              keys.setCursor(row.id)
+              if (row.kind === "task") model.select(row.task.id)
+              if (row.kind === "tab") model.select(row.task.id, row.tab.id)
+            }}
+            onMenu={(e) =>
+              openMenu(
+                e,
+                row.kind === "project"
+                  ? projectMenu(model, row.repo)
+                  : taskMenu(model, row.task, row.kind === "tab" ? row.tab : null),
+              )
+            }
+          />
         ))}
       </div>
       <button type="button" className="row new-task" onClick={() => dialog.set(<NewTaskDialog model={model} />)}>
@@ -92,54 +120,62 @@ export function RailView({ model }: { model: AppModel }) {
   )
 }
 
-function TaskRows(props: {
-  task: TaskRow
-  tabs: readonly TabRow[]
+function RailRow(props: {
+  row: NavRow
   frame: number
-  selectedTask: boolean
-  selectedTab: string | null
-  onSelect: (tabId: string | null) => void
-  onMenu: (e: MouseEvent, tab: TabRow | null) => void
+  tabCount: number
+  selected: boolean
+  cursor: boolean
+  onClick: () => void
+  onMenu: (e: MouseEvent) => void
 }) {
-  const { task, tabs, frame } = props
-  const glyph = activityGlyph(task.activity?.state, frame)
-  const changes = task.changes && "added" in task.changes ? task.changes : null
-  return (
-    <>
+  const { row } = props
+  const cursor = props.cursor ? "is-cursor" : ""
+  if (row.kind === "project") {
+    return (
+      <h2 className="project-head" title={row.repo} onContextMenu={props.onMenu}>
+        <span>{repoLabel(row.repo)}</span>
+        <span className="rule" />
+      </h2>
+    )
+  }
+  if (row.kind === "tab") {
+    const tab = row.tab
+    return (
       <button
         type="button"
-        className={`row task-row ${props.selectedTask && tabs.length === 0 ? "is-selected" : ""}`}
-        title={task.branch || task.title}
-        onClick={() => props.onSelect(null)}
-        onContextMenu={(e) => props.onMenu(e, null)}
+        className={`row tab-row ${props.selected ? "is-selected" : ""} ${cursor}`}
+        onClick={props.onClick}
+        onContextMenu={props.onMenu}
       >
-        <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>
-        <span className="row-title">{task.title}</span>
-        <span className="chips">
-          {task.pinned && <span className="chip muted">▴</span>}
-          {changes && changes.added > 0 && <span className="chip tone-success">+{changes.added}</span>}
-          {changes && changes.deleted > 0 && <span className="chip tone-attention">−{changes.deleted}</span>}
-          {changes?.ahead ? <span className="chip muted">↑{changes.ahead}</span> : null}
-          {task.prChip && (
-            <span className={`chip ${prTone(task.prChip, task.prChipStale)}`}>{prGlyph(task.prChip)}</span>
-          )}
+        <span className={`glyph ${tab.alive === false ? "tone-muted" : "tone-ink"}`}>
+          {tab.alive === false ? "○" : "●"}
         </span>
+        <span className="row-title">{tabLabel(tab)}</span>
       </button>
-      {tabs.map((tab) => (
-        <button
-          type="button"
-          key={tab.id}
-          className={`row tab-row ${props.selectedTab === tab.id ? "is-selected" : ""}`}
-          onClick={() => props.onSelect(tab.id)}
-          onContextMenu={(e) => props.onMenu(e, tab)}
-        >
-          <span className={`glyph ${tab.alive === false ? "tone-muted" : "tone-ink"}`}>
-            {tab.alive === false ? "○" : "●"}
-          </span>
-          <span className="row-title">{tabLabel(tab)}</span>
-        </button>
-      ))}
-    </>
+    )
+  }
+  const task = row.task
+  const glyph = activityGlyph(task.activity?.state, props.frame)
+  const changes = task.changes && "added" in task.changes ? task.changes : null
+  return (
+    <button
+      type="button"
+      className={`row task-row ${props.selected && props.tabCount === 0 ? "is-selected" : ""} ${cursor}`}
+      title={task.branch || task.title}
+      onClick={props.onClick}
+      onContextMenu={props.onMenu}
+    >
+      <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>
+      <span className="row-title">{task.title}</span>
+      <span className="chips">
+        {task.pinned && <span className="chip muted">▴</span>}
+        {changes && changes.added > 0 && <span className="chip tone-success">+{changes.added}</span>}
+        {changes && changes.deleted > 0 && <span className="chip tone-attention">−{changes.deleted}</span>}
+        {changes?.ahead ? <span className="chip muted">↑{changes.ahead}</span> : null}
+        {task.prChip && <span className={`chip ${prTone(task.prChip, task.prChipStale)}`}>{prGlyph(task.prChip)}</span>}
+      </span>
+    </button>
   )
 }
 
