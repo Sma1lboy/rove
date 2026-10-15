@@ -93,8 +93,11 @@ export function TerminalView({ client, taskId, tabId }: { client: BridgeClient; 
   )
 }
 
+// Attachments are shared by stream within a connection, including pending replies.
+const attachments = new WeakMap<BridgeClient, Map<string, { owners: number; attached: boolean }>>()
+
 /** Opens xterm in `el` and wires it to one hosted session; returns its teardown. */
-function mountTerminal(
+export function mountTerminal(
   el: HTMLElement,
   client: BridgeClient,
   taskId: string,
@@ -127,6 +130,15 @@ function mountTerminal(
   term.focus()
 
   const expected = `${taskId}::${tabId}`
+  let owned = attachments.get(client)
+  if (!owned) {
+    owned = new Map()
+    attachments.set(client, owned)
+  }
+  const ownership = owned.get(expected) ?? { owners: 0, attached: false }
+  ownership.owners++
+  owned.set(expected, ownership)
+  const detach = () => void client.request("term.detach", { stream: expected }).catch(() => {})
   let stream: string | null = null
   let alive = false
   let held: Uint8Array[] | null = null
@@ -156,6 +168,9 @@ function mountTerminal(
         cols: term.cols,
         rows: term.rows,
       })
+      const current = owned.get(expected)
+      if (current) current.attached = true
+      else detach()
       if (disposed) return
       term.reset()
       term.write(decode(res.replay))
@@ -197,7 +212,11 @@ function mountTerminal(
     offOpen()
     offData()
     offExit()
-    if (stream) void client.request("term.detach", { stream }).catch(() => {})
+    ownership.owners--
+    if (ownership.owners === 0) {
+      owned.delete(expected)
+      if (ownership.attached) detach()
+    }
     term.dispose()
   }
 }
