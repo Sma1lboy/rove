@@ -13,6 +13,7 @@ import { InboxDialog } from "./inbox-view.tsx"
 import type { AppModel } from "./model.ts"
 import { usePrefs } from "./prefs.ts"
 import { moveMode } from "./move-mode.ts"
+import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { NewTaskDialog } from "./new-task-dialog.tsx"
 import { aimedTask } from "./rail-aim.ts"
 import { SettingsDialog } from "./settings-view.tsx"
@@ -67,6 +68,24 @@ const ACTIONS: readonly PrefixAction[] = [
     id: "task.new.global",
     live: () => true,
     run: (model) => dialog.set(<NewTaskDialog model={model} repo={selectedTask(model)?.repo} />),
+  },
+  {
+    strokes: ["c"],
+    id: "chat.tab.fork",
+    live: (m) => !!selectedTask(m),
+    run: (model) => {
+      const task = selectedTask(model)
+      if (task) dialog.set(<NewChatDialog model={model} taskId={task.id} context="continue" />)
+    },
+  },
+  {
+    strokes: ["f"],
+    id: "chat.fork.new",
+    live: (m) => !!selectedTask(m),
+    run: (model) => {
+      const task = selectedTask(model)
+      if (task) dialog.set(<NewChatDialog model={model} taskId={task.id} destination="fork" />)
+    },
   },
   {
     strokes: [","],
