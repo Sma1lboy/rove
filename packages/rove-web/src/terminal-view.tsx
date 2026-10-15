@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { ConfirmDialog } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { attachableFiles, putAttachment } from "./kanban-attach.ts"
 import { terminalText } from "./keymap-text.ts"
 import { focusedTerm, registerTerm, termFor } from "./term-control.ts"
 import { type Notice, SCROLL_PAGE_LINES, type TermHandle, mountTerminal, streamKey } from "./term-mount.ts"
@@ -28,6 +29,20 @@ export interface TerminalViewProps {
   readonly onActivate?: () => void
   /** The pane's process ended. */
   readonly onExit?: () => void
+}
+
+/** A dropped image or PDF is stored on the Mac (`attachment.put`) and its path typed into the terminal, as a terminal emulator pastes a dropped file's path. */
+async function dropFiles(client: BridgeClient, handle: TermHandle, files: File[]): Promise<void> {
+  const ok = attachableFiles(files)
+  if (ok.length < files.length) toast(t("layout.dropUnsupported"), "error")
+  for (const file of ok) {
+    try {
+      handle.term.paste(`${await putAttachment(client, file)} `)
+    } catch (err) {
+      toast(err instanceof Error ? err.message : String(err), "error")
+    }
+  }
+  handle.term.focus()
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -138,7 +153,16 @@ export function TerminalView(props: TerminalViewProps) {
   }, [props.focused, handle])
 
   return (
-    <div className="term-pane" data-stream={streamKey(taskId, tabId, leafId)}>
+    <div
+      className="term-pane"
+      data-stream={streamKey(taskId, tabId, leafId)}
+      onDragOver={(e) => e.dataTransfer.types.includes("Files") && e.preventDefault()}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length || !handle) return
+        e.preventDefault()
+        void dropFiles(client, handle, Array.from(e.dataTransfer.files))
+      }}
+    >
       <div className="term-host" ref={host} />
       {notice.kind !== "none" && (
         <div className={`term-notice ${notice.kind === "failed" ? "is-error" : ""}`}>{noticeText(notice)}</div>

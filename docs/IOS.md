@@ -104,7 +104,7 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `task.create` | `repo`, `engine?`, `prompt?`, `title?` | `{taskId}` |
 | `task.delete` | `taskId`, `force?` | `{status}` |
 | `task.land` | `taskId`, `strategy?` (`merge`/`squash`) | `{landedOn, commit}` |
-| `task.tabs` | `taskId` | `{tabs: [{id, kind, title, engineName, alive, engineAlive, split?}]}`; `split` = `{activeLeafId, root}` while the tab is split (`root` is a tree of `{kind: "leaf", id, title, own}` and `{kind: "group", orientation: "row" \| "column", children}`), absent otherwise |
+| `task.tabs` | `taskId` | `{tabs: [{id, kind, title, engineName, liveEngine?, alive, engineAlive, split?}]}; `liveEngine` = the engine running in the tab right now (null when the probe has no answer; `engineName` falls back to the configured one)`; `split` = `{activeLeafId, root}` while the tab is split (`root` is a tree of `{kind: "leaf", id, title, own}` and `{kind: "group", orientation: "row" \| "column", children}`), absent otherwise |
 | `tab.new` | `taskId`, `kind?` (`engine` default / `shell`), `prompt?`, `engine?` | `{tabId}`; with a `prompt` it starts the engine on it (`send --tab new`), without one it opens the tab empty (`tab-new`); a `shell` tab takes no `prompt` or `engine` (`BAD_ARGS`) |
 | `tab.close` | `taskId`, `tabId` | `{}` |
 | `term.attach` | `taskId`, `tabId`, `leafId?` (a split pane `leaf-N` beyond `leaf-1`; its stream is `taskId::tabId::leaf-N`), `cols?`+`rows?` | `{stream, alive, replay}` (base64 bytes) |

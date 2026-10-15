@@ -217,7 +217,10 @@ export function mountTerminal(o: MountOpts): TermHandle {
     if (el.clientWidth > 0 && el.clientHeight > 0) fit.fit()
   })
   observer.observe(el)
-  // The theme follows Settings live; scrollback is read when the terminal opens, as the TUI's.
+  // The theme and the scrollback depth follow Settings: a terminal restored before the page's first prefs reply catches up.
+  const offScroll = prefsStore.subscribe(() => {
+    term.options.scrollback = prefsStore.get().prefs.scrollbackRows
+  })
   const offTheme = terminalTheme.subscribe(() => {
     term.options.theme = terminalTheme.get() ?? XTERM_THEME
   })
@@ -272,6 +275,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       disposed = true
       observer.disconnect()
       offTheme()
+      offScroll()
       if (resizeTimer !== null) window.clearTimeout(resizeTimer)
       el.removeEventListener("mousedown", onDown)
       document.removeEventListener("mouseup", onUp)

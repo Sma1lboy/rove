@@ -141,6 +141,11 @@ export function WorktreesView({ model }: { model: AppModel }) {
   }
 
   const onKey = (e: React.KeyboardEvent) => {
+    // Ctrl+C closes, as the TUI's page bindings; a text selection keeps the browser's copy.
+    if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "c" && !window.getSelection()?.toString()) {
+      e.preventDefault()
+      return page.set(null)
+    }
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const row = rows[at]
     if (e.key === "j" || e.key === "ArrowDown") setCursor(Math.min(rows.length - 1, at + 1))

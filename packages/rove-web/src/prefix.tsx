@@ -12,6 +12,7 @@
 import { CTRL_HOLD_THRESHOLD_MS } from "@sma1lboy/rove/src/tui/lib/ctrl-hold.ts"
 import { useEffect } from "react"
 import { type WebCommand, allCommands, appliesOn, currentSurface, registerCommands, specificity } from "./commands.ts"
+import { daemonHealth, refreshRove } from "./daemon-health.tsx"
 import { t } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import type { AppModel } from "./model.ts"
@@ -49,6 +50,13 @@ const unsplit = (model: AppModel): boolean => {
 }
 
 export const ACTIONS: readonly PrefixAction[] = [
+  // Registered only while a refresh is available, so the guide never advertises a no-op (TUI `app.refresh`).
+  {
+    strokes: ["r"],
+    id: "app.refresh",
+    live: () => daemonHealth.get().stale,
+    run: (model) => refreshRove(model.client),
+  },
   { strokes: ["/"], id: "palette.open", live: () => true, run: openPalette },
   {
     strokes: ["n"],

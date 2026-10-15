@@ -11,6 +11,7 @@ import { TextDialog } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { terminalText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
+import { usePrefs } from "./prefs.ts"
 import { tabLabel } from "./rail-view.tsx"
 import { type LeafBox, cycleLeaf, isSplit, layoutSplit, leafNames, leafSignature, leavesOf } from "./split-model.ts"
 import { createStore, useStore } from "./store.ts"
@@ -155,17 +156,18 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
   const active = split ? activeLeafOf(taskId, tab, split) : "leaf-1"
   const names = split ? leafNames(split, tabLabel(tab)) : new Map<string, string>()
   const several = isSplit(split)
+  const { prefs } = usePrefs()
   return (
-    <div className="split">
+    <div className={`split ${several ? `is-${prefs.splitStyle}` : ""}`}>
       {(split ? layoutSplit(split.root) : WHOLE).map((box) => (
         <div
           key={box.id}
           className={`split-leaf ${box.left ? "has-left" : ""} ${box.top ? "has-top" : ""} ${box.id === active ? "is-active" : ""}`}
           style={{
-            left: `${box.x * 100}%`,
-            top: `${box.y * 100}%`,
-            width: `${box.w * 100}%`,
-            height: `${box.h * 100}%`,
+            left: `calc(${box.x * 100}% + var(--ml, 0px))`,
+            top: `calc(${box.y * 100}% + var(--mt, 0px))`,
+            width: `calc(${box.w * 100}% - var(--ml, 0px))`,
+            height: `calc(${box.h * 100}% - var(--mt, 0px))`,
           }}
         >
           <TerminalView
