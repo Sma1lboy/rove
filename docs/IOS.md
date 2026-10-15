@@ -185,7 +185,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `issue.prompt` | `repo`, `id`, `where` (`worktree`/`project`) | `issue-list` + the kanban drawer's prompt builders | — |
 | `task.events` | `taskId`, `limit?` | RPC `task.recentEvents`, newest first | — |
 | `routine.list` | — | `routine-list` | — |
-| `routine.create` | `repo`, `name`, `prompt`, `schedule` | `routine-create` | — |
+| `routine.create` | `repo`, `name`, `prompt`, `schedule`, `targetTask?` + `targetTab?` (both or neither: deliver into that existing engine tab) | `routine-create` | — |
 | `routine.update` | `id`, `name?`, `prompt?`, `schedule?` | `routine-update` | — |
 | `routine.setEnabled` | `id`, `enabled` | `routine-update --enabled` | — |
 | `routine.runNow` | `id` | `routine-run-now` | — |
