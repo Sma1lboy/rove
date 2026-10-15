@@ -2,16 +2,17 @@
  * Story → engine session, sequenced from bridge atoms the way the TUI's `use-issue-chat.ts`
  * does it: `worktree` makes the story's task and links the issue (the link moves the card to
  * In progress); `project` runs a new engine tab on the main checkout and flips the story to
- * `doing`. A link or status refusal is reported but never strands a session that is running.
- * `projectWorktree` (the same task, mirrored as a viewport tab in the project workspace) has
- * no bridge op, so the drawer does not offer it.
+ * `doing`. `projectWorktree` is the `worktree` task plus a viewport tab onto its session in the
+ * project's workspace (`tab.openViewport`). A link or status refusal is reported but never
+ * strands a session that is running.
  */
 
 import type { BridgeClient } from "./bridge.ts"
 import { errorMessage } from "./pages-kit.ts"
 
-export type Placement = "worktree" | "project"
-export const PLACEMENTS: readonly Placement[] = ["worktree", "project"]
+export type Placement = "worktree" | "projectWorktree" | "project"
+/** The TUI drawer's order: the isolated task first. */
+export const PLACEMENTS: readonly Placement[] = ["worktree", "projectWorktree", "project"]
 
 export interface StoryRef {
   readonly id: number
@@ -34,14 +35,14 @@ export interface StartResult {
 }
 
 export async function startStory(client: BridgeClient, req: StartRequest): Promise<StartResult> {
-  const where = req.placement === "worktree" ? "worktree" : "project"
+  const where = req.placement === "project" ? "project" : "worktree"
   const { title, prompt } = await client.request<{ title: string; prompt: string }>("issue.prompt", {
     repo: req.repo,
     id: req.issue.id,
     where,
   })
   const warnings: StartResult["warnings"][number][] = []
-  if (req.placement === "worktree") {
+  if (req.placement !== "project") {
     const { taskId } = await client.request<{ taskId: string }>("task.create", {
       repo: req.repo,
       engine: req.engine,
@@ -51,7 +52,14 @@ export async function startStory(client: BridgeClient, req: StartRequest): Promi
     await client
       .request("issue.update", { repo: req.repo, id: req.issue.id, task: taskId })
       .catch((err: unknown) => warnings.push({ kind: "link", error: errorMessage(err) }))
-    return { taskId, warnings }
+    if (req.placement === "worktree") return { taskId, warnings }
+    // The story's session also appears in the project workspace; jumping lands there.
+    const main = await client.request<{ taskId: string }>("task.openMain", { repo: req.repo })
+    const view = await client.request<{ tabId: string }>("tab.openViewport", {
+      taskId: main.taskId,
+      viewTaskId: taskId,
+    })
+    return { taskId: main.taskId, tabId: view.tabId, warnings }
   }
   const { taskId } = await client.request<{ taskId: string }>("task.openMain", { repo: req.repo })
   const { tabId } = await client.request<{ tabId: string }>("tab.new", {

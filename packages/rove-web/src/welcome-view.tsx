@@ -9,14 +9,14 @@ import { useEffect, useState } from "react"
 import { useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { PREFIX_KEY } from "./prefix-state.ts"
-import { type EngineChoice, type QuickStart, QuickStartDialog } from "./quick-start-dialog.tsx"
+import { type EngineChip, type QuickStart, QuickStartDialog } from "./quick-start-dialog.tsx"
 import { tc } from "./tui-copy.ts"
 import { dialog } from "./ui.ts"
 import "./welcome.css"
 
 interface WelcomeEnv {
-  readonly engines: readonly EngineChoice[]
-  readonly signedOut: readonly EngineChoice[]
+  readonly engines: readonly EngineChip[]
+  readonly signedOut: readonly EngineChip[]
   readonly git: boolean
   readonly start: QuickStart | null
 }
