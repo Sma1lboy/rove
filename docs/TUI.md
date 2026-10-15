@@ -25,7 +25,9 @@ and tabs; right-clicking a sidebar row opens the same common actions available
 from the keyboard, including **New conversation** and **New shell** for that
 Task's worktree, plus **Copy task ID**, **Copy branch name** and **Copy path**,
 which put the Task's id, branch or worktree path on the system clipboard for a
-`rove api` call, a `git checkout` or a `cd` in another shell, and **Open in editor**, **Rename branch**, and
+`rove api` call, a `git checkout` or a `cd` in another shell, **Copy tab address**
+on a tab row, which copies the `--task-id … --tab …` pair that sends a
+`rove api send` to that one tab, and **Open in editor**, **Rename branch**, and
 **Change engine** for the row you clicked. Right-clicking a project header
 offers **New task**, **Field notes** (the notes agents filed on that repo with
 `rove api note`, newest first, each with its author and time — `↑↓` walks them

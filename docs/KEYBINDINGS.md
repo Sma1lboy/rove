@@ -240,7 +240,9 @@ both enter the Task first, exactly as pressing the chord there would.
 These entries have no chord of their own. **Set status** opens a picker over
 the six Task statuses and writes the one you choose. **Copy task ID** puts the
 id `rove api` Task verbs take (`read-output --task-id <id>`, `land --task-id
-<id>`) on the clipboard, and is offered on every Task row. **Copy branch name** and
+<id>`) on the clipboard, and is offered on every Task row. A tab row also
+offers **Copy tab address**, which copies `--task-id <id> --tab <tab>`, the
+flags `rove api send` and `read-output` take to reach that one tab. **Copy branch name** and
 **Copy path** put the Task's branch or recorded worktree path on the system
 clipboard (local clipboard command plus OSC 52, so it also works over SSH);
 copying never creates the worktree, and a project-main or directory row, whose

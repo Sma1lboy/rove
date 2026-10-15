@@ -66,8 +66,8 @@ export type WorkspaceTaskActions = {
   moveTaskToTop: (id: string) => Promise<void>
   /** Tree-menu "Set status" — a picker over the six board statuses. */
   setStatus: (id: string) => Promise<void>
-  /** Tree-menu "Copy task ID" / "Copy branch name" / "Copy path" — system clipboard + toast. */
-  copyTaskField: (id: string, field: TaskCopyField) => void
+  /** Tree-menu "Copy task ID" / "Copy tab address" / "Copy branch name" / "Copy path" — system clipboard + toast. */
+  copyTaskField: (id: string, field: TaskCopyField, tabId?: string) => void
   /** Project-row menu "Field notes" — read-only list of the repo's notes. */
   showFieldNotes: (repo: string) => void
   /** Row menu "Run again": the brief dialog; resolves the task to re-fire, or
@@ -204,8 +204,8 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     moveTask,
     moveTaskToTop,
     setStatus: (id) => setStatusFlow(taskActions, id),
-    copyTaskField: (id, field) => {
-      void copyTaskFieldFlow(taskActions, id, field)
+    copyTaskField: (id, field, tabId) => {
+      void copyTaskFieldFlow(taskActions, id, field, tabId)
     },
     showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, orchestrator }),
     confirmRunAgain,

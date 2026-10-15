@@ -49,6 +49,7 @@ export const en = {
     setStatus: "Set status",
     /** Also chord-less: put the row's task id / branch / worktree path on the clipboard. */
     copyId: "Copy task ID",
+    copyTab: "Copy tab address",
     copyBranch: "Copy branch name",
     copyPath: "Copy path",
     /** The `o` / `b` / `v` chords' menu routes. */
@@ -279,6 +280,7 @@ export const zh: typeof en = {
     runAgain: "重新运行",
     setStatus: "设置状态",
     copyId: "复制任务 ID",
+    copyTab: "复制标签页地址",
     copyBranch: "复制分支名",
     copyPath: "复制路径",
     openEditor: "在编辑器中打开",

@@ -192,6 +192,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "copyId":
           actions.onCopyRequest?.(taskId, "id")
           break
+        case "copyTab":
+          if (row.kind === "tab") actions.onCopyRequest?.(taskId, "tab", row.tab.id)
+          break
         case "copyBranch":
           actions.onCopyRequest?.(taskId, "branch")
           break
