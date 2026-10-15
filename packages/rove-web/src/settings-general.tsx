@@ -8,7 +8,7 @@ import { useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
 import { allowDesktopNotices, chime } from "./notify.ts"
-import { type PrefKey, type Prefs, choicesOf, nextChoice, setPref, usePrefs } from "./prefs.ts"
+import { type PrefKey, type Prefs, choicesOf, nextChoice, prefsStore, setPref, usePrefs } from "./prefs.ts"
 import { AppearanceGroup } from "./settings-appearance.tsx"
 import { ts } from "./settings-copy.ts"
 import { Chips, CycleRow, Group, ReadOnlyRow, Toggle } from "./settings-rows.tsx"
@@ -27,6 +27,8 @@ const WORKTREE_LABEL = {
 export function GeneralSection({ client }: { client: BridgeClient }) {
   const state = usePrefs()
   const { prefs, info } = state
+  // A cycle row reads the store at press time: two quick presses step twice before React re-renders.
+  const latest = () => prefsStore.get().prefs
   const set = <K extends PrefKey>(key: K, value: Prefs[K]) => void setPref(client, key, value)
   const [daemon, setDaemon] = useState<{ daemonVersion?: string; stale?: boolean } | null>(null)
   useEffect(() => {
@@ -34,12 +36,14 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
   }, [client])
 
   // TUI cycle: default → next to project → the remembered custom base (skipped when none) → default.
-  const nextWorktree = (): Prefs["worktreeBase"] =>
-    prefs.worktreeBase === "default"
+  const nextWorktree = (): Prefs["worktreeBase"] => {
+    const current = latest().worktreeBase
+    return current === "default"
       ? "nextToProject"
-      : prefs.worktreeBase === "nextToProject" && info.worktreeCustomPath
+      : current === "nextToProject" && info.worktreeCustomPath
         ? "custom"
         : "default"
+  }
 
   return (
     <>
@@ -71,9 +75,9 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
           label={ts("general.soundVolume", { percent: Math.round(prefs.soundVolume * 100) })}
           hint={t("prefs.soundVolumeHint")}
           onCycle={() => {
-            const next = nextChoice(choicesOf(state, "soundVolume") as number[], prefs.soundVolume)
+            const next = nextChoice(choicesOf(state, "soundVolume") as number[], latest().soundVolume)
             // Hearing the next level is how you pick it, as in the TUI.
-            if (prefs.sound) chime(next)
+            if (latest().sound) chime(next)
             set("soundVolume", next)
           }}
         />
@@ -99,7 +103,7 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
         <CycleRow
           label={ts("general.editorRow", { kind: prefs.editorKind })}
           hint={ts("general.editorRowHint")}
-          onCycle={() => set("editorKind", nextChoice(choicesOf(state, "editorKind") as string[], prefs.editorKind))}
+          onCycle={() => set("editorKind", nextChoice(choicesOf(state, "editorKind") as string[], latest().editorKind))}
         />
         <ReadOnlyRow
           label={ts("general.editorCustom", {
@@ -124,7 +128,7 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
         <CycleRow
           label={ts("general.tabStripRow", { mode: ts(`general.tabStripMode.${prefs.tabStrip}`) })}
           onCycle={() =>
-            set("tabStrip", nextChoice(choicesOf(state, "tabStrip") as Prefs["tabStrip"][], prefs.tabStrip))
+            set("tabStrip", nextChoice(choicesOf(state, "tabStrip") as Prefs["tabStrip"][], latest().tabStrip))
           }
         />
       </Group>
