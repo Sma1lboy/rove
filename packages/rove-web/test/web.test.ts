@@ -4,7 +4,7 @@ import { displayLine, noteRange, parseUnifiedDiff } from "../src/diff.ts"
 import { visibleTree } from "../src/file-tree.ts"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
-import { compactAge, inboxBadge } from "../src/inbox.ts"
+import { compactAge, inboxBadge, nextAttention } from "../src/inbox.ts"
 import { activityGlyph, groupByProject, navRows } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
 
@@ -181,4 +181,18 @@ test("file tree: dirs first, only expanded dirs show children, dir paths end in 
     ["a.md", 0],
     ["b.txt", 0],
   ])
+})
+
+describe("F7 next attention", () => {
+  const row = (taskId: string, state: string, at: number) => ({ taskId, tabId: "tab-1", state, unread: true, at })
+  const rows = [row("done", "turn_complete", 1), row("old", "permission_needed", 5), row("new", "error", 9)]
+  const order = ["done", "old", "new"]
+  test("blocked episodes first, oldest first; then cycles past the one being viewed", () => {
+    expect(nextAttention(rows, order, { taskId: null, tabId: null })?.taskId).toBe("old")
+    expect(nextAttention(rows, order, { taskId: "old", tabId: "tab-1" })?.taskId).toBe("new")
+    expect(nextAttention(rows, order, { taskId: "done", tabId: "tab-1" })?.taskId).toBe("old")
+  })
+  test("an episode whose task is gone is skipped", () => {
+    expect(nextAttention([row("gone", "error", 1)], order, { taskId: null, tabId: null })).toBeNull()
+  })
 })

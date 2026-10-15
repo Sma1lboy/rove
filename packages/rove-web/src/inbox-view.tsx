@@ -8,7 +8,7 @@ import { useEffect, useState } from "react"
 import type { AttentionRow, TaskRow } from "rove-bridge/protocol"
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { compactAge, inboxBadge } from "./inbox.ts"
+import { compactAge, inboxBadge, sortAttention } from "./inbox.ts"
 import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, toast } from "./ui.ts"
@@ -47,19 +47,21 @@ export function InboxDialog({ model }: { model: AppModel }) {
   const tasks = new Map((payload?.tasks ?? []).map((task) => [task.id, task]))
   const tabTitle = (taskId: string | null, tabId: string | null) =>
     (taskId && tabId && tabs[taskId]?.find((tab) => tab.id === tabId)?.title) || ""
-  const attention: Card[] = (payload?.attention ?? []).map((row, i) => {
-    const task = row.taskId ? tasks.get(row.taskId) : undefined
-    return {
-      key: `a${i}:${row.taskId}:${row.tabId}`,
-      section: "attention",
-      taskId: row.taskId,
-      tabId: row.tabId,
-      identity: identityOf(task, row.label ?? row.taskId ?? ""),
-      subtitle: tabTitle(row.taskId, row.tabId) || task?.branch || "",
-      at: row.at,
-      attention: row,
-    }
-  })
+  const attention: Card[] = sortAttention(payload?.attention ?? [], payload?.tasks.map((task) => task.id) ?? []).map(
+    (row, i) => {
+      const task = row.taskId ? tasks.get(row.taskId) : undefined
+      return {
+        key: `a${i}:${row.taskId}:${row.tabId}`,
+        section: "attention",
+        taskId: row.taskId,
+        tabId: row.tabId,
+        identity: identityOf(task, row.label ?? row.taskId ?? ""),
+        subtitle: tabTitle(row.taskId, row.tabId) || task?.branch || "",
+        at: row.at,
+        attention: row,
+      }
+    },
+  )
   const pending = new Set(attention.map((c) => `${c.taskId}:${c.tabId}`))
   const recent: Card[] = visits
     .filter((v: Visit) => tasks.has(v.taskId) && !pending.has(`${v.taskId}:${v.tabId}`))
