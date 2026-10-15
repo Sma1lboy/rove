@@ -58,7 +58,7 @@ const flush = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
-test("a task arriving during the tab debounce gets its live tab without another snapshot", async () => {
+function modelHarness() {
   const timers: Array<() => void> = []
   install("window", {
     setTimeout(fn: () => void) {
@@ -73,15 +73,20 @@ test("a task arriving during the tab debounce gets its live tab without another 
     setItem() {},
   })
   const { client, calls } = protocol()
-  let push: (data: unknown) => void = () => {}
-  spyOn(client, "on").mockImplementation((_event, callback) => {
-    push = callback
+  const handlers = new Map<string, (data: unknown) => void>()
+  spyOn(client, "on").mockImplementation((event, callback) => {
+    handlers.set(event, callback)
     return () => {}
   })
-  const model = new AppModel(client)
+  const push = (event: string, data: unknown) => handlers.get(event)?.(data)
+  return { model: new AppModel(client), calls, timers, push }
+}
+
+test("a task arriving during the tab debounce gets its live tab without another snapshot", async () => {
+  const { model, calls, timers, push } = modelHarness()
   calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
   await flush()
-  push({ tasks: [{ id: "A" }, { id: "B" }], attention: [] })
+  push("tasks", { tasks: [{ id: "A" }, { id: "B" }], attention: [] })
   model.select("B")
   expect(timers).toHaveLength(1)
   timers.shift()?.()
@@ -94,31 +99,12 @@ test("a task arriving during the tab debounce gets its live tab without another 
 })
 
 test("a tab sweep that resolves after a newer one changes neither tabs nor selection", async () => {
-  const timers: Array<() => void> = []
-  install("window", {
-    setTimeout(fn: () => void) {
-      timers.push(fn)
-      return timers.length
-    },
-  })
-  install("localStorage", {
-    getItem() {
-      return null
-    },
-    setItem() {},
-  })
-  const { client, calls } = protocol()
-  let push: (data: unknown) => void = () => {}
-  spyOn(client, "on").mockImplementation((_event, callback) => {
-    push = callback
-    return () => {}
-  })
-  const model = new AppModel(client)
+  const { model, calls, timers, push } = modelHarness()
   calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
   await flush()
   timers.shift()?.()
   const first = calls.filter((call) => call.op === "task.tabs")
-  push({ tasks: [{ id: "A" }], attention: [] })
+  push("tasks", { tasks: [{ id: "A" }], attention: [] })
   timers.shift()?.()
   const second = calls.filter((call) => call.op === "task.tabs" && !first.includes(call))
   expect(second).toHaveLength(1)
@@ -129,6 +115,31 @@ test("a tab sweep that resolves after a newer one changes neither tabs nor selec
   await flush()
   expect(model.tabs.get().A?.map((tab) => tab.id)).toEqual(["new"])
   expect(model.selection.get()).toEqual({ taskId: "A", tabId: "new" })
+})
+
+test("a tab-only change with an unchanged task list still updates the tabs", async () => {
+  const { model, calls, timers, push } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
+  await flush()
+  timers.shift()?.()
+  calls.find((call) => call.op === "task.tabs")?.resolve({ tabs: [{ id: "tab-1", title: "old", alive: true }] })
+  await flush()
+  const before = calls.length
+  push("tabs", { taskIds: ["A"] })
+  timers.shift()?.()
+  const sweep = calls.slice(before).filter((call) => call.op === "task.tabs")
+  expect(sweep).toHaveLength(1)
+  sweep[0].resolve({
+    tabs: [
+      { id: "tab-1", title: "renamed", alive: true },
+      { id: "tab-2", title: null, alive: true },
+    ],
+  })
+  await flush()
+  expect(model.tabs.get().A?.map((tab) => [tab.id, tab.title])).toEqual([
+    ["tab-1", "renamed"],
+    ["tab-2", null],
+  ])
 })
 
 function terminals() {
