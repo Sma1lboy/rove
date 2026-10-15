@@ -21,11 +21,15 @@ export function ChipRow(props: {
   onChange: (id: string) => void
 }) {
   const root = useRef<HTMLDivElement>(null)
+  // Holds the latest choice, so two quick presses step twice before React re-renders.
+  const current = useRef(props.value)
+  current.current = props.value
   const move = (e: React.KeyboardEvent, dir: 1 | -1) => {
     e.preventDefault()
-    const at = props.choices.findIndex((c) => c.id === props.value)
+    const at = props.choices.findIndex((c) => c.id === current.current)
     const next = props.choices[(at + dir + props.choices.length) % props.choices.length]
     if (!next) return
+    current.current = next.id
     props.onChange(next.id)
     // The chip re-renders with tabIndex 0; focus follows once it does.
     requestAnimationFrame(() => root.current?.querySelector<HTMLElement>("[aria-pressed=true]")?.focus())
