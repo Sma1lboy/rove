@@ -184,8 +184,34 @@ Always screenshot headed. Cost one round of three wrong fixes.
   bridge's existing `worktrees.list`/`worktrees.remove` (grep op names with a
   loose pattern: some area files register with `spec({`). Direct tab chords
   in `workspace-keys.tsx`; prefix listener now `stopImmediatePropagation`.
-- **Next pick:** Kanban / Routines / GitHub Issues pages (`issue.*`,
-  `routine.*`, `workitem.*` ops exist), then the remaining ❌ rows top down.
+- **Slices and waves** (after round 8): five parallel slices in their own
+  worktrees (`jaguar-<slice>`), sandboxes (`SBX=<name>`, `.scratch/web/sbx.ts`)
+  and ports, integrated by rebasing each onto the one below; then wave 2,
+  a cross-slice browser regression, and wave 3. Stack order is the PR chain
+  #1257 → … → #1278 → web/w3 → web/parity-final.
+  - Area ops live one file per area (`ops/taskops.ts`, `launch.ts`,
+    `welcome.ts`, `prefs.ts`, `update.ts`, `machines.ts`, …) so slices don't
+    collide in one table; i18n gets one namespace per slice, appended.
+  - Pure TUI cores factored out for the web (no TUI behaviour change):
+    `cron-core.ts`, `automation-*-core.ts`, `keybindings-resolve.ts`,
+    `prefix-hud-timing.ts` (keeps `node:fs` out of the browser bundle).
+  - Every `rove api` flag change regenerates the skill flag table
+    (`scripts/gen-skill-api-flags.ts`) and bumps the skill version (now 61).
+  - Remote machines are read-only on the web, exactly as in the TUI.
+- **Never send feedback from a script.** A copied sandbox without the fake
+  `gh` posted four public Discussions (#1265–#1268); the step is removed from
+  every script. Reported to the owner, not deleted.
+- **Script lessons:** Dev reset wipes the sandbox's tasks — run it last;
+  copied sandbox homes carry a `daemon.owner` pointing at the source daemon;
+  regression FAILs need sorting into product vs fixture drift.
+- **Left in sandboxes (not cleaned, no deletion approved):** worktrees
+  `/private/tmp/wt-*` were removed by the page itself; the `Land me` task was
+  landed into `/private/tmp/rove-web-demo` main; fake machine `ghostbox` and
+  `fakeremote` registered in sandboxes; `w3demo` plugin and
+  `/tmp/w3-editor.sh` fixtures; the slice worktrees `jaguar-*`.
+- **Open for the owner:** #24 ctx/Σ needs a signed-in Claude in a sandbox
+  (or a check against the real daemon); #152/#154 installing a release from
+  a browser; whether to cross the security boundary for any ❌ row.
 - **Pending owner stack (#1247→#1246→#1248→#1249, long-run controls):** once
   merged, the Inbox must stop clearing on open for `report_missing` rows
   (clear only via `d` → `attention.dismiss {deliveryId}` or a late report) and
