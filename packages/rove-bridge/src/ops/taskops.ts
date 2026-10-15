@@ -7,7 +7,7 @@
  * Scratch is always `$HOME`, a typed path is only listed or validated.
  */
 
-import { realpathSync, statSync } from "node:fs"
+import { existsSync, realpathSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 import { extname, join, sep } from "node:path"
 import { updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
@@ -19,6 +19,7 @@ import {
   splitPathForDirSuggest,
   stripTrailingSlash,
 } from "@sma1lboy/rove/src/tui/lib/path-helpers.ts"
+import { type WorktreeOpener, detectWorktreeOpener, openWorktree } from "@sma1lboy/rove/src/tui/lib/worktree-opener.ts"
 import {
   type CIFailingCheck,
   type CIFailingChecksRead,
@@ -43,6 +44,12 @@ export interface TaskOpsDeps {
   reorderTab(taskId: string, tabId: string, delta: -1 | 1): boolean
   /** The Mac's own opener (`open` / `xdg-open`) on an absolute path; fire and forget. */
   openExternal(absPath: string): void
+  /** The Mac's editor for `o`: the `ROVE_OPEN_EDITOR` override, else an installed editor CLI or app; null when none. */
+  detectOpener(): WorktreeOpener | null
+  /** Spawn the editor on a directory, detached; false when it would not start. */
+  openWorktree(path: string, opener: WorktreeOpener): boolean
+  /** The path exists on the Mac. */
+  exists(path: string): boolean
   /** Canonical path (symlinks resolved), or null when it does not exist. */
   canonical(path: string): string | null
   /** Executable bit set, or not a regular file. */
@@ -85,6 +92,9 @@ const OPENABLE = new Set(
 
 const realDeps: TaskOpsDeps = {
   openExternal: openExternally,
+  detectOpener: detectWorktreeOpener,
+  openWorktree,
+  exists: existsSync,
   canonical,
   runnable,
   homeDir: homedir,
@@ -171,6 +181,27 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
         if (a.tabId !== undefined && a.tabId !== null) argv.push(flag("tab", tabId(a)))
         await ctx.api.verb("send", argv)
         return { outcome: "sent" }
+      },
+    },
+
+    "task.openEditor": {
+      kind: "write",
+      destructive: false,
+      wraps: "helpers detectWorktreeOpener + openWorktree (the TUI's `o`) on the task's worktree, via ensure-worktree",
+      async run(a, { api }) {
+        const id = taskId(a)
+        const got = await api.verb<{ task: { worktreePath?: string | null } }>("get-task", [flag("task-id", id)])
+        let path = got.task.worktreePath ?? ""
+        if (!path || !deps.exists(path)) {
+          const made = await api.verb<{ worktreePath?: string }>("ensure-worktree", [flag("task-id", id)])
+          path = made.worktreePath ?? ""
+        }
+        if (!path || !deps.exists(path)) throw new BridgeError("NO_WORKTREE", "this task has no worktree on disk")
+        const opener = deps.detectOpener()
+        // The TUI's two toasts (no editor / couldn't open) are outcomes, not failures: the client words them.
+        if (!opener) return { outcome: "noEditor" }
+        if (!deps.openWorktree(path, opener)) return { outcome: "failed", label: opener.label }
+        return { outcome: "opened", label: opener.label }
       },
     },
 

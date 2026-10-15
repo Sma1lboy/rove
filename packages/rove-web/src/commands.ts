@@ -8,6 +8,7 @@
 
 import { type RoveBinding, RoveKeymap } from "@sma1lboy/rove/src/tui/context/keybindings-table.ts"
 import type { AppModel } from "./model.ts"
+import { userChordsOf } from "./user-keys.ts"
 
 export type Surface = "sidebar" | "workspace" | "files" | "terminal"
 
@@ -39,8 +40,34 @@ export function registerCommands(source: () => readonly WebCommand[]): void {
   sources.push(source)
 }
 
+/** Where a binding's `scope` applies. */
+const SCOPE_SURFACE: Readonly<Record<string, Surface>> = {
+  workspace: "workspace",
+  sidebar: "sidebar",
+  files: "files",
+  terminal: "terminal",
+}
+
+/**
+ * The registered commands with the user's `keybindings.yaml` applied: an id the file rebinds runs on
+ * the file's chords (empty = unbound). A direct chord given to an id the web only registers as a
+ * prefix stroke becomes its own command, as the TUI registers every row's `keys`.
+ */
 export function allCommands(): WebCommand[] {
-  return sources.flatMap((source) => source())
+  const base = sources.flatMap((source) => source())
+  const direct = new Set(base.filter((command) => !command.prefix).map((command) => command.id))
+  const out = base.map((command) => {
+    const chords = userChordsOf(command.id, command.prefix ? "prefix" : "direct")
+    return chords ? { ...command, chords } : command
+  })
+  for (const command of base) {
+    const chords = command.prefix ? userChordsOf(command.id, "direct") : undefined
+    if (!chords || chords.length === 0 || direct.has(command.id)) continue
+    direct.add(command.id)
+    const scope = RoveKeymap.find((row) => row.id === command.id)?.scope ?? "global"
+    out.push({ ...command, prefix: false, chords, ...(SCOPE_SURFACE[scope] ? { surface: SCOPE_SURFACE[scope] } : {}) })
+  }
+  return out
 }
 
 export function appliesOn(command: WebCommand, surface: Surface | null): boolean {
@@ -98,7 +125,15 @@ export function keyInit(chord: string): KeyboardEventInit {
   }
   const shift = mods.includes("shift")
   const key = named[name] ?? (shift && name.length === 1 ? name.toUpperCase() : name)
-  return { key, bubbles: true, cancelable: true, ctrlKey: mods.includes("ctrl"), shiftKey: shift }
+  return {
+    key,
+    bubbles: true,
+    cancelable: true,
+    ctrlKey: mods.includes("ctrl"),
+    metaKey: mods.includes("cmd"),
+    altKey: mods.includes("alt"),
+    shiftKey: shift,
+  }
 }
 
 /** A pane command that has no function of its own: replay its key on the pane, so the key and the palette share one code path. */

@@ -12,6 +12,7 @@ import type { AppModel } from "./model.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { Overlays } from "./overlays.tsx"
 import { PagesHost } from "./pages-host.tsx"
+import { usePluginChords } from "./plugin-keys.ts"
 import { PrefixHud } from "./prefix-guide.tsx"
 import { usePrefixLayer } from "./prefix.tsx"
 import { usePrefsApply } from "./prefs-apply.ts"
@@ -27,6 +28,7 @@ import { tokenFromInput } from "./token-input.ts"
 import { dialog, page, preview, zen } from "./ui.ts"
 import { UpdateView, checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { UsageChips } from "./usage-view.tsx"
+import { useUserKeys } from "./user-keys.ts"
 import { WelcomePane } from "./welcome-view.tsx"
 import { useWorkspaceKeys } from "./workspace-keys.tsx"
 import { WorktreesView } from "./worktrees-view.tsx"
@@ -48,7 +50,9 @@ function Shell({ model }: { model: AppModel }) {
     void checkForUpdate(model.client)
     maybeShowWhatsNew(model.client, hello.roveVersion)
   }, [hello, model.client])
+  usePluginChords(model)
   useWorkspaceKeys(model)
+  useUserKeys(model.client)
   usePrefsApply(model)
   useDaemonHealth(model.client)
   const zenOn = useStore(zen)

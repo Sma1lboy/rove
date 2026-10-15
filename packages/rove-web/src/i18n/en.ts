@@ -202,8 +202,12 @@ export const en = {
       "Stops the Rove daemon and starts a fresh one; this page reconnects on its own. Running engine sessions live in the PTY host and survive it.",
     restartBody:
       "Stops the Rove daemon and starts a fresh one, picking up daemon edits. This page reconnects in a few seconds. Running engine sessions survive.",
-    keysYaml:
-      "Rebinding chords is an edit of ~/.rove/settings/keybindings.yaml on the Mac; this page does not write it.",
+    keysYaml: "The file is read on the Mac; changes apply when you come back to this page.",
+  },
+  keys: {
+    createFile: "Create keybindings.yaml",
+    exists: "keybindings.yaml already exists; nothing was changed.",
+    pluginNoTask: "Select a task before using a plugin chord.",
   },
   pages: {
     attachTooLarge: "{name} is larger than 5 MB",

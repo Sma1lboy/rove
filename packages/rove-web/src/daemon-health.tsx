@@ -6,15 +6,14 @@
  * reconnect that follows: engine sessions live in the PTY host and keep running.
  */
 
-import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
 import { useEffect } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { ConfirmDialog } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { PREFIX_KEY } from "./prefix-state.ts"
 import { createStore, useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
+import { prefixHint, userKeys } from "./user-keys.ts"
 
 interface DaemonHealth {
   readonly stale: boolean
@@ -77,11 +76,12 @@ export function refreshRove(client: BridgeClient): void {
 export function DaemonBanner({ onRefresh }: { onRefresh: () => void }) {
   useLocale()
   const { stale, daemonVersion, bridgeVersion } = useStore(daemonHealth)
+  useStore(userKeys)
   if (!stale) return null
   const hint = tc("update", "skew.hint", {
     daemon: daemonVersion ? `v${daemonVersion}` : tc("update", "skew.olderBuild"),
     clientVersion: bridgeVersion ?? "",
-    keys: `${formatChord(PREFIX_KEY)} r`,
+    keys: prefixHint("app.refresh"),
   })
   return (
     <div className="daemon-banner mono" role="alert">

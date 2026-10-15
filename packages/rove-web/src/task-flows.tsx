@@ -124,6 +124,21 @@ export async function fixChecksFlow(model: AppModel, taskId: string, sent: strin
   }
 }
 
+/** `o`: the task's worktree in the Mac's editor. Silent on success, like the TUI; its two toasts for the rest. */
+export async function openEditorFlow(model: AppModel, taskId: string): Promise<void> {
+  try {
+    const res = await model.client.request<{ outcome: "opened" | "noEditor" | "failed"; label?: string }>(
+      "task.openEditor",
+      { taskId },
+    )
+    if (res.outcome === "noEditor") toast(tc("tasks", "toast.noEditor"), "error")
+    else if (res.outcome === "failed")
+      toast(tc("tasks", "toast.openWorktreeFailed", { label: res.label ?? "" }), "error")
+  } catch (err) {
+    toast(tc("tasks", "toast.worktreeErrorGeneric", { message: errorText(err) }), "error")
+  }
+}
+
 /**
  * Delete a task entry (and its worktree). The first attempt is not forced: a worktree with
  * uncommitted work is refused with DIRTY_WORKTREE and only then does the dialog ask for an

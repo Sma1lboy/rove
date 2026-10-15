@@ -1,10 +1,11 @@
 /**
  * Right-click menus for rail rows, in the TUI's order (`tui/panes/sidebar/
  * tree-menu.ts`): tab rows add Close tab, task rows carry the task verbs,
- * project headers carry the project verbs. Open in editor is left out rather than
- * shown dead; PARITY.md lists it.
+ * project headers carry the project verbs. A verb with a rail key names its TUI binding id,
+ * so the key that runs it and the chord shown beside it are the user's (`keybindings.yaml`).
  */
 
+import { legendCap } from "@sma1lboy/rove/src/tui/lib/help-groups.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { type Choice, ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"
@@ -14,10 +15,18 @@ import { moveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { NewTaskDialog } from "./new-task-dialog.tsx"
 import { openTab } from "./task-dialogs.tsx"
-import { deleteTaskDialog, fixChecksFlow, forgetProjectDialog, landFlow, syncBaseFlow } from "./task-flows.tsx"
+import {
+  deleteTaskDialog,
+  fixChecksFlow,
+  forgetProjectDialog,
+  landFlow,
+  openEditorFlow,
+  syncBaseFlow,
+} from "./task-flows.tsx"
 import { FieldNotesDialog, RunAgainDialog } from "./taskops-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, toast } from "./ui.ts"
+import { prefixHint } from "./user-keys.ts"
 
 const STATUSES = ["backlog", "in_progress", "in_review", "done", "canceled", "error"] as const
 const STATUS_KEYS: Record<(typeof STATUSES)[number], string> = {
@@ -28,6 +37,12 @@ const STATUS_KEYS: Record<(typeof STATUSES)[number], string> = {
   canceled: "status.canceled",
   error: "status.error",
 }
+
+/** A menu entry that mirrors a rail key: the binding it runs by, and the chord it shows. */
+const bound = (binding: string): Pick<MenuItem, "binding" | "key"> => ({
+  binding,
+  key: legendCap(binding) ?? undefined,
+})
 
 async function copy(text: string | null | undefined, what: string): Promise<void> {
   if (!text) {
@@ -65,7 +80,11 @@ export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): M
             .catch((e) => toast(tc("tasks", "toast.moveFailed", { error: String(e) }), "error")),
       })
     }
-    items.push({ label: tc("tasks", "menu.reorderProject"), key: "M", run: () => enterMoveMode() })
+    items.push({
+      label: tc("tasks", "menu.reorderProject"),
+      ...bound("sidebar.localMerge"),
+      run: () => enterMoveMode(),
+    })
   }
   items.push({
     label: tc("tasks", "menu.fieldNotes"),
@@ -75,7 +94,7 @@ export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): M
     items.push({
       label: tc("tasks", "menu.forgetProject"),
       danger: true,
-      key: "d",
+      ...bound("sidebar.delete"),
       run: () => dialog.set(forgetProjectDialog(model, repo, info.label)),
     })
   }
@@ -115,7 +134,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   })
   items.push({
     label: t("menu.rename"),
-    key: "r",
+    ...bound("sidebar.rename"),
     run: () =>
       dialog.set(
         <TextDialog
@@ -129,12 +148,12 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   if (task.kind !== "main") {
     items.push({
       label: task.pinned ? t("menu.unpin") : t("menu.pin"),
-      key: "P",
+      ...bound("sidebar.pin"),
       run: () =>
         void c.request("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
     })
   }
-  items.push({ label: tc("tasks", "menu.reorder"), key: "M", run: () => enterMoveMode() })
+  items.push({ label: tc("tasks", "menu.reorder"), ...bound("sidebar.localMerge"), run: () => enterMoveMode() })
   if (task.hasPrompt) {
     items.push({
       label: tc("tasks", "menu.runAgain"),
@@ -163,10 +182,15 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
         .then((res) => copy(res.task.worktreePath, t("menu.what.path")))
         .catch((e) => toast(String(e), "error")),
   })
+  items.push({
+    label: tc("tasks", "menu.openEditor"),
+    ...bound("tasks.openWorktree"),
+    run: () => void openEditorFlow(model, task.id),
+  })
   if (task.branch) {
     items.push({
       label: t("menu.renameBranch"),
-      key: "b",
+      ...bound("tasks.renameBranch"),
       run: () =>
         dialog.set(
           <TextDialog
@@ -181,25 +205,29 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   items.push({
     label: t("menu.changeEngine"),
     // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
-    key: "v",
+    ...bound("tasks.cycleEngine"),
     run: () => dialog.set(<ChangeEngineDialog model={model} taskId={task.id} />),
   })
   if (task.pr?.checkState === "failing") {
     items.push({
       label: tc("tasks", "menu.fixChecks"),
-      key: "ctrl+a k",
+      key: prefixHint("files.fixChecks"),
       run: () => void fixChecksFlow(model, task.id, t("taskops.fixSent")),
     })
   }
   if (task.kind === "task" && task.branch) {
-    items.push({ label: tc("tasks", "menu.syncBase"), key: "ctrl+a u", run: () => void syncBaseFlow(model, task.id) })
+    items.push({
+      label: tc("tasks", "menu.syncBase"),
+      key: prefixHint("files.syncBase"),
+      run: () => void syncBaseFlow(model, task.id),
+    })
   }
   if (task.kind === "task" && task.branch) {
     items.push({ label: t("menu.land"), run: () => void landFlow(model, task) })
   }
   items.push({
     label: t("menu.delete"),
-    key: "d",
+    ...bound("sidebar.delete"),
     danger: true,
     run: () =>
       // A project's main checkout has no worktree to delete: Delete forgets the project (TUI `deleteTaskFlow`).

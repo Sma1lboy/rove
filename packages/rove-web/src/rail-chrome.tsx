@@ -16,7 +16,6 @@ import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
 import { backToTasks, clampRailWidth, enterWorkspace, railFolded, railWidth } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { ShortcutBadge } from "./prefix-guide.tsx"
-import { PREFIX_KEY } from "./prefix-state.ts"
 import { armPrefix } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
 import { tabLabel } from "./rail-view.tsx"
@@ -24,6 +23,7 @@ import { activityGlyph, groupByProject } from "./rail.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { dialog } from "./ui.ts"
+import { prefixKey, userKeys } from "./user-keys.ts"
 
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
@@ -240,9 +240,10 @@ export function StatusHints({ model, narrow }: { model: AppModel; narrow: boolea
   useFocusTick()
   useStore(dialog)
   useStore(model.selection)
+  useStore(userKeys)
   const { prefs } = usePrefs()
   const modal = dialog.get() !== null
-  const tokens = modal ? [] : statusHintTokens(reachability(model, currentSurface()), PREFIX_KEY)
+  const tokens = modal ? [] : statusHintTokens(reachability(model, currentSurface()), prefixKey())
   const press = {
     commands: armPrefix,
     help: () => openHelp(model),

@@ -201,7 +201,12 @@ export const zh: typeof en = {
     restartButton: "重启",
     restartHint: "停止 Rove 守护进程并启动新的进程,本页会自动重连。运行中的引擎会话在 PTY 宿主里,不受影响。",
     restartBody: "停止 Rove 守护进程并启动新的进程,载入守护进程的改动。本页几秒后自动重连,运行中的引擎会话不受影响。",
-    keysYaml: "重绑快捷键是编辑 Mac 上的 ~/.rove/settings/keybindings.yaml；本页不会写它。",
+    keysYaml: "该文件在 Mac 上读取,改动会在你回到本页时生效。",
+  },
+  keys: {
+    createFile: "创建 keybindings.yaml",
+    exists: "keybindings.yaml 已存在,未做任何改动。",
+    pluginNoTask: "使用插件快捷键前请先选中一个任务。",
   },
   pages: {
     attachTooLarge: "{name} 超过 5 MB",
