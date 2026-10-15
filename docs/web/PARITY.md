@@ -5,7 +5,7 @@ Legend: ✅ same as TUI · 🟡 partial or different · ❌ missing (unbuilt) ·
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
 
-Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
+Score: 186 / 203 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
 
 ## Navigation, help, command layer and global chrome
 

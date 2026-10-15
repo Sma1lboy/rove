@@ -198,6 +198,14 @@ Always screenshot headed. Cost one round of three wrong fixes.
   - Every `rove api` flag change regenerates the skill flag table
     (`scripts/gen-skill-api-flags.ts`) and bumps the skill version (now 61).
   - Remote machines are read-only on the web, exactly as in the TUI.
+- **PARITY score: 186 / 203 ✅ (1 🟡, 3 🚫, 13 ❌).** The Score line sat at
+  round 1's "15 / 203" through every later round while the rows moved, so
+  the file disagreed with itself. Regenerate it from the table with the
+  command on PARITY's Score line at each round's end, and quote that output.
+- **Stacked PRs get no CI.** `ci.yml` / `pr-gates.yml` only run for
+  base=main, so everything above #1257 has only the two non-main checks. Each
+  round ends with a local `bun run build && bun run test` at the top of the
+  stack, results written into the PR body.
 - **Never send feedback from a script.** A copied sandbox without the fake
   `gh` posted four public Discussions (#1265–#1268); the step is removed from
   every script. Reported to the owner, not deleted.
