@@ -17,6 +17,7 @@ import { defaultPtyHostSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { defaultUiPrefsStatePath, resolveProductHomeDir } from "@sma1lboy/rove-daemon/daemon/product-paths"
 import { RemoteOrchestrator } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { ensurePluginEnginesLoaded } from "@sma1lboy/rove/src/engine/plugin-engines.ts"
+import { MachineHub } from "@sma1lboy/rove/src/machines/hub.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
 import { loadOrCreateToken, pairingUrl, webUrl } from "./auth.ts"
@@ -25,6 +26,7 @@ import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs
 import { TaskFeed } from "./feed.ts"
 import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
+import { machineStore } from "./ops/machines.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
 import { TabFeed } from "./tab-feed.ts"
@@ -134,6 +136,12 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   const context = orchestrator.contextUsageSignal()
   usageStore.setContext(context())
   context.subscribe(() => usageStore.setContext(context()))
+  // Other machines (`rove machine add`), as the TUI's sidebar: `attach()` is a no-op with none registered.
+  const hub = new MachineHub(orchestrator)
+  hub.attach()
+  const machines = hub.machinesSignal()
+  machineStore.set(machines.get())
+  machines.subscribe(() => machineStore.set(machines.get()))
   setInterval(() => feed.poke(), TICK_MS)
   const notices = new NoticeFeed()
   const noticeStore = orchestrator.noticeStore()

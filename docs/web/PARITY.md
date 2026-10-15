@@ -262,7 +262,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
-| 198 | View local/remote machine headers and stale state | sidebar machine section (read only) | ❌ | missing | Playwright: trigger 'sidebar machine section (read only)'; expect 'view local/remote machine headers and stale state' as in TUI. Currently absent (no bridge op yet). |
+| 198 | View local/remote machine headers and stale state | sidebar machine section (read only) | 🟡 | `machines.list` | me: the bridge runs the TUI's `MachineHub` and `machines.list` reports it; the rail shows each registered machine below the local rows as `alias · v…` / `· offline` / `· ⚠ … (protocol mismatch)`, greyed unless online (TUI `machineRowLabel`, copy imported). Sandbox machine `ghostbox` (unreachable) read `ghostbox · offline` (shot me-machines-01). Missing: the remote machine's own tasks under its header — the feed and terminals are local-daemon only; routing them per machine is a bridge change not built. |
 | 199 | Respond to engine permission/decision prompts | type/click in the engine terminal | ✅ | `term.input` | r2: a new Claude tab stopped on its folder-trust prompt; ArrowDown + Enter pressed in the web xterm picked "Yes, I trust this folder" and Claude started (screenshot r2-14). The Bash tool prompt was not reached: the sandbox Claude is not logged in. |
 
 ## Verified so far
@@ -289,6 +289,6 @@ Round 7 (`e2e-r7.ts`; shots `r7-*`, 13/13): the TUI prefix layer (`keymap-dispat
 
 Round 8 (`e2e-r8.ts`; shots `r8-*`): Worktrees page on the phones' existing `worktrees.list`/`worktrees.remove` (no bridge change), plus the direct tab chords (Ctrl+1..9, Ctrl+[ ], Ctrl+E, F2). #16, #73, #83, #86, #148, #150 at ✅; #19, #149 at 🟡. Compared with TUI `worktrees-page.tsx`: same grouping, row grammar (branch + badges, path + age), keys and confirms, same copy.
 
-Update slice (`e2e-me-update.ts`, both `current` and `fake` modes, 8/8 and 5/5): new read-only bridge ops `update.check` / `release.notes` (`ops/update.ts`, documented in docs/IOS.md). #17, #151, #153 at ✅; #152, #154 ❌ (installing from a browser is an owner decision). Inbox (`e2e-me-inbox.ts`, 5/5): F7 and the Inbox keys; #119, #122, #123 at ✅.
+Update slice (`e2e-me-update.ts`, both `current` and `fake` modes, 8/8 and 5/5): new read-only bridge ops `update.check` / `release.notes` (`ops/update.ts`, documented in docs/IOS.md). #17, #151, #153 at ✅; #152, #154 ❌ (installing from a browser is an owner decision). Inbox (`e2e-me-inbox.ts`, 5/5): F7 and the Inbox keys; #119, #122, #123 at ✅. Machines (`e2e-me-machines.ts`, 2/2): #198 at 🟡 (headers and state, not remote tasks).
 
 Screenshots are local only. Headless Chromium paints the WebGL terminal blank, so shots are taken headed (see MEMO).

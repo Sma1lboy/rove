@@ -197,6 +197,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `usage.get` | `taskId?`, `tabId?` | the orchestrator's `usageSnapshotSignal()`; `{usage: null}` until the daemon reports. With `taskId`+`tabId`, also `context`: that session's `contextUsageSignal()` reading, or `null` | — |
 | `update.check` | `force?` | `checkLatestVersion` + `fetchReleaseNotesRange`: `{current, info, notes}`; `info: null` = could not look, never "up to date" | — |
 | `release.notes` | `version` (`x.y.z`) | `fetchReleaseNotes`: `{notes}` (GitHub release body, or `null`) | — |
+| `machines.list` | — | the bridge's `MachineHub.machinesSignal()`: `{machines: [{alias, hostLabel, state, version}]}`; read-only | — |
 | `daemon.info` | — | RPC `daemon.status` + `isDaemonVersionStale` against the bridge's build | — |
 | `plugins.list` | — | the Plugins section's `readPluginRows` | — |
 | `plugin.setEnabled` | `id`, `enabled` | `setPluginEnabled` | yes |
