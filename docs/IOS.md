@@ -252,7 +252,7 @@ What the phone cannot do, because each would make the Mac run a command the phon
 | `prefs.set` | `key`, `value` | one allowlisted state.json key | — |
 | `theme.taskColors` | `theme`, `mode` (`dark`/`light`), `taskIds` (≤500) | the TUI's `taskColor(taskId, theme)` | — |
 | `autoRouting.get` | — | tiers (`readAutoRoutingTable` + `tierBlock` verdict), pickable engines (effort levels, takes-model), classifier mode/host/key source | — |
-| `autoRouting.setTier` | `tier` (`swift`/`standard`/`deep`), `engine`, `model?`, `effort?` | state.json `autoRouting.<tier>.engine|model|effort` | yes |
+| `autoRouting.setTier` | `tier` (`swift`/`standard`/`deep`), `engine`, `model?`, `effort?` | state.json `autoRouting.<tier>.engine\|model\|effort` | yes |
 | `autoRouting.setClassifier` | `mode` (`off`/`jev`/`custom`) | state.json `autoRouting.classifier`; `custom` only restores the endpoint the TUI remembered | yes |
 | `engines.hooks.install` | — | `ensureGlobalRoveHooks` | yes |
 | `engines.hooks.uninstall` | — | `removeActivityHooks` for every hook adapter | yes |
