@@ -167,8 +167,18 @@ Always screenshot headed. Cost one round of three wrong fixes.
   - Settings is per bridge op on the TUI's state.json keys; language is per
     browser (`rove.locale`) and does not touch the TUI's. Feedback is never
     sent by a check: it publishes a public Discussion.
-- **Next pick:** the prefix layer (Ctrl+F, the TUI's own prefix) so the
-  prefix-only rows (#15, #29, #112, #12, …) can land; then Worktrees (`x`).
+- **Round 7** (branch `web/round-7`, stacked on round 6): prefix layer
+  (`prefix.tsx`). Script: `e2e-r7.ts`.
+  - The TUI default prefix is `ctrl+a` (`DEFAULT_PREFIX_CONFIGURATION`), not
+    ctrl+f. Listener is window capture-phase so it beats xterm.
+  - Strokes mirrored: n , i h l z p/P w. Not yet: / (palette), m (move), o
+    (can't), r (refresh/redraw), 1/2/3 (pages), c/f (fork), k/u (fix checks,
+    sync base: no bridge op).
+  - User prefix overrides in `keybindings.yaml` are not read by the web.
+  - Dialogs focus themselves on open; before, Esc died inside xterm.
+- **Next pick:** Worktrees page (`x`, `worktrees.list`) and terminal tab
+  chords that aren't browser-reserved (Ctrl+1..9 / Ctrl+[ ]), then the
+  palette (`ctrl+a /`).
 - **Pending owner stack (#1247→#1246→#1248→#1249, long-run controls):** once
   merged, the Inbox must stop clearing on open for `report_missing` rows
   (clear only via `d` → `attention.dismiss {deliveryId}` or a late report) and

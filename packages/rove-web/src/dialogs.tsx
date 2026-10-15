@@ -14,7 +14,10 @@ function errorText(err: unknown): string {
 
 export function DialogShell(props: { title: string; children: ReactNode; wide?: boolean }) {
   useLocale()
+  const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
+    // Opened from the terminal, focus would stay in xterm, which stops keys (Esc too) at itself.
+    if (ref.current && !ref.current.contains(document.activeElement)) ref.current.focus()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault()
@@ -26,7 +29,7 @@ export function DialogShell(props: { title: string; children: ReactNode; wide?: 
   }, [])
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
-      <dialog open className={`dialog ${props.wide ? "is-wide" : ""}`} aria-label={props.title}>
+      <dialog ref={ref} tabIndex={-1} open className={`dialog ${props.wide ? "is-wide" : ""}`} aria-label={props.title}>
         <h1 className="kicker">{props.title}</h1>
         {props.children}
       </dialog>
