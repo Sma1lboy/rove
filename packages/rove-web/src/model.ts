@@ -38,6 +38,8 @@ export class AppModel {
   readonly tabs: Store<Readonly<Record<string, readonly TabRow[]>>> = createStore({})
   readonly selection: Store<Selection> = createStore(loadSelection())
   private tabTimer: number | null = null
+  /** Bumped per sweep; a sweep resolving after a newer one started commits nothing. */
+  private tabSweep = 0
 
   constructor(readonly client: BridgeClient) {
     client.onOpen(() => {
@@ -65,6 +67,7 @@ export class AppModel {
   }
 
   private async refreshTabs(tasks: readonly TaskRow[]): Promise<void> {
+    const sweep = ++this.tabSweep
     const entries = await Promise.all(
       tasks
         .filter((task) => !task.deleting)
@@ -77,6 +80,7 @@ export class AppModel {
           }
         }),
     )
+    if (sweep !== this.tabSweep) return
     this.tabs.set(Object.fromEntries(entries))
     // A selected tab that closed falls back to the task's first live one, like the TUI.
     const { taskId, tabId } = this.selection.get()

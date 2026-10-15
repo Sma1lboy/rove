@@ -93,6 +93,44 @@ test("a task arriving during the tab debounce gets its live tab without another 
   expect(timers).toHaveLength(0)
 })
 
+test("a tab sweep that resolves after a newer one changes neither tabs nor selection", async () => {
+  const timers: Array<() => void> = []
+  install("window", {
+    setTimeout(fn: () => void) {
+      timers.push(fn)
+      return timers.length
+    },
+  })
+  install("localStorage", {
+    getItem() {
+      return null
+    },
+    setItem() {},
+  })
+  const { client, calls } = protocol()
+  let push: (data: unknown) => void = () => {}
+  spyOn(client, "on").mockImplementation((_event, callback) => {
+    push = callback
+    return () => {}
+  })
+  const model = new AppModel(client)
+  calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
+  await flush()
+  timers.shift()?.()
+  const first = calls.filter((call) => call.op === "task.tabs")
+  push({ tasks: [{ id: "A" }], attention: [] })
+  timers.shift()?.()
+  const second = calls.filter((call) => call.op === "task.tabs" && !first.includes(call))
+  expect(second).toHaveLength(1)
+  second[0].resolve({ tabs: [{ id: "new", alive: true }] })
+  await flush()
+  model.select("A", "new")
+  first[0].resolve({ tabs: [{ id: "old", alive: true }] })
+  await flush()
+  expect(model.tabs.get().A?.map((tab) => tab.id)).toEqual(["new"])
+  expect(model.selection.get()).toEqual({ taskId: "A", tabId: "new" })
+})
+
 function terminals() {
   install(
     "ResizeObserver",
