@@ -10,7 +10,8 @@
 import { relativeAge } from "@sma1lboy/rove/src/lib/relative-time.ts"
 import { type ClipboardEvent, type DragEvent, type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { errorText } from "./dialogs.tsx"
-import { attachableFiles, putAttachment, withImagePlaceholders } from "./kanban-attach.ts"
+import { t } from "./i18n/index.ts"
+import { MAX_ATTACHMENT_BYTES, attachableFiles, putAttachment, withImagePlaceholders } from "./kanban-attach.ts"
 import { PLACEMENTS, type Placement } from "./kanban-start.ts"
 import type { AppModel } from "./model.ts"
 import { fill, useCopy } from "./pages-kit.ts"
@@ -168,6 +169,11 @@ export function IssueDrawer(props: {
   }, [])
 
   const attach = async (files: File[]) => {
+    const big = files.find((file) => file.size > MAX_ATTACHMENT_BYTES)
+    if (big) {
+      toast(t("pages.attachTooLarge", { name: big.name || big.type }), "error")
+      return
+    }
     setUploading(true)
     try {
       const paths = await Promise.all(files.map((file) => putAttachment(props.model.client, file)))

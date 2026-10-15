@@ -200,4 +200,7 @@ export const en = {
     keysYaml:
       "Rebinding chords is an edit of ~/.rove/settings/keybindings.yaml on the Mac; this page does not write it.",
   },
+  pages: {
+    attachTooLarge: "{name} is larger than 5 MB",
+  },
 }

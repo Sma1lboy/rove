@@ -200,4 +200,7 @@ export const zh: typeof en = {
     restartButton: "重启",
     keysYaml: "重绑快捷键是编辑 Mac 上的 ~/.rove/settings/keybindings.yaml；本页不会写它。",
   },
+  pages: {
+    attachTooLarge: "{name} 超过 5 MB",
+  },
 }
