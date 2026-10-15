@@ -97,6 +97,22 @@ export function newTabInvocation(
 }
 
 /** `rove api` refusals carry a stable `code`; keep it on the wire. */
+/** `get-task` tab rows as the bridge reports them. Names only: the full engine list probes every binary, seconds on a cold bridge. */
+export function tabRows(rows: readonly TaskTabRow[]): TabRow[] {
+  const nameOf = (vendor: string | null): string | null => (vendor ? engineDisplayName(vendor as VendorId) : null)
+  return rows.map((t) => ({
+    id: t.id,
+    kind: t.kind,
+    title: t.title ?? t.lastTitle ?? t.autoTitle,
+    engineName: t.kind === "engine" ? nameOf(t.liveVendor ?? t.vendor) : null,
+    // Only a running engine: the TUI's two-row caption reads the pty's foreground process, never the configured one.
+    liveEngine: t.kind === "engine" && t.alive !== false ? nameOf(t.liveVendor) : null,
+    alive: t.alive,
+    engineAlive: t.engineAlive,
+    ...(t.split ? { split: t.split } : {}),
+  }))
+}
+
 function verb<T>(client: RoveDaemonClient, name: string, argv: readonly string[]): Promise<T> {
   return createBridgeApi(client).verb<T>(name, argv)
 }
@@ -370,17 +386,7 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
 
     async tabs(taskId) {
       const res = await verb<{ tabs?: readonly TaskTabRow[] }>(client, "get-task", ["--task-id", taskId])
-      // Names only: the full engine list probes every binary, seconds on a cold bridge.
-      const nameOf = (vendor: string | null): string | null => (vendor ? engineDisplayName(vendor as VendorId) : null)
-      return (res.tabs ?? []).map((t) => ({
-        id: t.id,
-        kind: t.kind,
-        title: t.title ?? t.lastTitle ?? t.autoTitle,
-        engineName: t.kind === "engine" ? nameOf(t.liveVendor ?? t.vendor) : null,
-        alive: t.alive,
-        engineAlive: t.engineAlive,
-        ...(t.split ? { split: t.split } : {}),
-      }))
+      return tabRows(res.tabs ?? [])
     },
 
     async newTab(taskId, tab) {

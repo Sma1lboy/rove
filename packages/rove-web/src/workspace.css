@@ -183,16 +183,50 @@
   min-height: 0;
 }
 
-.split-leaf.has-left {
+/* Split border styles (TUI `SplitStyle`, Settings -> Appearance): box frames every pane, line draws only the shared
+   edge, rail a left bar, rule a top rule with the name riding it. */
+.split-leaf {
+  box-sizing: border-box;
+}
+
+.split.is-box .split-leaf {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.split.is-line .split-leaf.has-left {
   border-left: 1px solid var(--line);
 }
 
-.split-leaf.has-top {
+.split.is-line .split-leaf.has-top {
   border-top: 1px solid var(--line);
 }
 
-.split-leaf.is-active.has-left,
-.split-leaf.is-active.has-top {
+.split.is-rail .split-leaf {
+  border-left: 2px solid var(--line);
+}
+
+.split.is-rail .split-leaf.has-top {
+  --mt: 6px;
+}
+
+.split.is-rule .split-leaf {
+  border-top: 1px solid var(--line);
+}
+
+.split.is-rule .split-leaf.has-left {
+  --ml: 8px;
+}
+
+.split.is-rule .split-name {
+  top: -8px;
+}
+
+.split.is-box .split-leaf.is-active,
+.split.is-line .split-leaf.is-active.has-left,
+.split.is-line .split-leaf.is-active.has-top,
+.split.is-rail .split-leaf.is-active,
+.split.is-rule .split-leaf.is-active {
   border-color: var(--accent);
 }
 
@@ -379,4 +413,43 @@
 
 .help-desc {
   flex: 1;
+}
+
+/* Pane key lines (TUI PaneKeyHint) */
+.pane-hint {
+  margin: 0;
+  padding: 4px 14px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Daemon out-of-date banner (TUI VersionSkewBanner) */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-shell > .app {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
+.daemon-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--warning);
+  background: var(--inset);
+  color: var(--warning);
+  font-size: 12px;
+}
+
+.daemon-banner span {
+  color: var(--muted);
 }

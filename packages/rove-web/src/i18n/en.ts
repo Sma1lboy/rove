@@ -217,6 +217,8 @@ export const en = {
     splitTooSmall: "Not enough room to split here",
     railFold: "Fold the task list",
     railUnfold: "Unfold the task list",
+    dropUnsupported: "Only images and PDFs can be dropped into a terminal",
+    refreshTimeout: "The daemon did not come back on the new build in time; check `rove daemon status`",
     railResize: "Drag to resize the task list, double-click to reset",
   },
 }

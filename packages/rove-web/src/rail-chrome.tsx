@@ -6,10 +6,11 @@
  */
 
 import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
-import { statusHintTokens } from "@sma1lboy/rove/src/tui/lib/keyboard-hints.ts"
+import { paneHintTokens, statusHintTokens } from "@sma1lboy/rove/src/tui/lib/keyboard-hints.ts"
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import { currentSurface, reachability } from "./commands.ts"
 import { openHelp } from "./help-view.tsx"
+import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
 import { backToTasks, clampRailWidth, enterWorkspace, railFolded, railWidth } from "./layout.ts"
@@ -18,6 +19,7 @@ import { ShortcutBadge } from "./prefix-guide.tsx"
 import { PREFIX_KEY } from "./prefix-state.ts"
 import { armPrefix } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
+import { tabLabel } from "./rail-view.tsx"
 import { activityGlyph, groupByProject } from "./rail.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
@@ -95,37 +97,101 @@ function railInitials(title: string): string {
   return `${words[0]?.[0] ?? ""}${words[1]?.[0] ?? ""}`
 }
 
+/** The digit a tab cell prints: its `ctrl+<N>` slot, `·` past the ninth (TUI `railTabDigit`). */
+const tabDigit = (index: number): string => (index < 9 ? String(index + 1) : "·")
+
+/** Each task's per-tab activity (`tab.states`), refreshed while the fold is up: the colour of a tab's own cell. */
+function useTabStates(
+  taskIds: readonly string[],
+  client: AppModel["client"],
+): Readonly<Record<string, Record<string, { state: string }>>> {
+  const [states, setStates] = useState<Record<string, Record<string, { state: string }>>>({})
+  const key = taskIds.join(",")
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` is the ids
+  useEffect(() => {
+    let live = true
+    const load = () =>
+      void Promise.all(
+        taskIds.map((taskId) =>
+          client
+            .request<{ tabs: Record<string, { state: string }> }>("tab.states", { taskId })
+            .then((res) => [taskId, res.tabs] as const)
+            .catch(() => null),
+        ),
+      ).then((rows) => {
+        if (live) setStates(Object.fromEntries(rows.filter((row) => row !== null)))
+      })
+    load()
+    const timer = window.setInterval(load, 4000)
+    return () => {
+      live = false
+      window.clearInterval(timer)
+    }
+  }, [key, client])
+  return states
+}
+
 export function FoldedRail({
   model,
   frame,
   selectedTaskId,
 }: { model: AppModel; frame: number; selectedTaskId: string | null }) {
   const payload = useStore(model.tasks)
+  const allTabs = useStore(model.tabs)
   const groups = groupByProject(payload?.tasks ?? [], "default")
   const { prefs } = usePrefs()
   const style = prefs.railFold
+  const states = useTabStates(
+    groups.flatMap((group) => group.tasks.map((task) => task.id)),
+    model.client,
+  )
+  const open = (taskId: string, tabId?: string) => {
+    model.select(taskId, tabId)
+    enterWorkspace()
+  }
   return (
     <div className={`rail-folded-list is-${style}`}>
       {groups.map((group) => (
         <div key={group.repo} className="rail-folded-group">
           <div className="rail-folded-rule" title={group.label} />
-          {group.tasks.map((task) => {
+          {group.tasks.flatMap((task) => {
+            const tabs = style === "hairline" ? [] : (allTabs[task.id] ?? [])
+            // A task whose tabs are known folds to one cell per tab: its `ctrl+<N>` digit in the tab's own state colour.
+            if (tabs.length > 0) {
+              return tabs.map((tab, i) => {
+                const { tone } = activityGlyph(
+                  tab.alive === false ? undefined : states[task.id]?.[tab.id]?.state,
+                  frame,
+                )
+                return (
+                  <button
+                    type="button"
+                    key={`${task.id}::${tab.id}`}
+                    title={`${task.title} · ${tabLabel(tab)}`}
+                    className={`rail-folded-cell is-tab tone-${tab.alive === false ? "muted" : tone === "muted" ? "ink" : tone} ${task.id === selectedTaskId ? "is-selected" : ""}`}
+                    onClick={() => open(task.id, tab.id)}
+                  >
+                    {tabDigit(i)}
+                    {style === "initials" && i === 0 && (
+                      <span className="rail-folded-initials">{railInitials(task.title)}</span>
+                    )}
+                  </button>
+                )
+              })
+            }
             const { glyph, tone } = activityGlyph(task.activity?.state, frame)
-            return (
+            return [
               <button
                 type="button"
                 key={task.id}
                 title={task.title}
                 className={`rail-folded-cell tone-${tone} ${task.id === selectedTaskId ? "is-selected" : ""}`}
-                onClick={() => {
-                  model.select(task.id)
-                  enterWorkspace()
-                }}
+                onClick={() => open(task.id)}
               >
                 {style === "hairline" ? "▌" : glyph}
                 {style === "initials" && <span className="rail-folded-initials">{railInitials(task.title)}</span>}
-              </button>
-            )
+              </button>,
+            ]
           })}
         </div>
       ))}
@@ -174,6 +240,7 @@ export function StatusHints({ model, narrow }: { model: AppModel; narrow: boolea
   useFocusTick()
   useStore(dialog)
   useStore(model.selection)
+  const { prefs } = usePrefs()
   const modal = dialog.get() !== null
   const tokens = modal ? [] : statusHintTokens(reachability(model, currentSurface()), PREFIX_KEY)
   const press = {
@@ -185,6 +252,8 @@ export function StatusHints({ model, narrow }: { model: AppModel; narrow: boolea
     text: narrow ? formatChord(token.chord) : hintText(`status.${token.msg}`, { key: formatChord(token.chord) }),
     onPress: press[token.msg],
   }))
+  // Hints off (Settings -> General): no footer key line at all, [settings] included, as the TUI.
+  if (!prefs.keyHints) return null
   if (!narrow) {
     items.push({
       text: `[${hintText("status.settings")}]`,
@@ -205,5 +274,20 @@ export function StatusHints({ model, narrow }: { model: AppModel; narrow: boolea
         </span>
       ))}
     </span>
+  )
+}
+
+/** A pane's key line (TUI `PaneKeyHint`): the fuller first-use variant until its keys have been used, then its permanent short set. */
+export function PaneKeyHint({ pane }: { pane: HintPane }) {
+  useLocale()
+  const { prefs } = usePrefs()
+  const used = useStore(hintsUsed)[pane]
+  if (!prefs.keyHints) return null
+  const tokens = paneHintTokens(pane, used ? "always" : "firstUse")
+  if (tokens.length === 0) return null
+  return (
+    <p className="pane-hint mono muted">
+      {tokens.map((token) => `${formatChord(token.cap)} ${hintText(`pane.${token.msg}`)}`).join(" · ")}
+    </p>
   )
 }

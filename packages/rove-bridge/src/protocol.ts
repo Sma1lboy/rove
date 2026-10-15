@@ -120,6 +120,8 @@ export interface TabRow {
   readonly kind: string
   readonly title: string | null
   readonly engineName: string | null
+  /** The engine actually running in the tab (the pty's foreground process), or null when unknown: the TUI's two-row caption. */
+  readonly liveEngine?: string | null
   readonly alive: boolean | null
   readonly engineAlive: boolean | null
   /** Present while the tab is split: the pane layout (`rove api get-task` `.tabs[].split`). Absent = one pane. */

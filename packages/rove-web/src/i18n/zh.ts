@@ -217,6 +217,8 @@ export const zh: typeof en = {
     splitTooSmall: "这里放不下分屏了",
     railFold: "折叠任务列表",
     railUnfold: "展开任务列表",
+    dropUnsupported: "终端里只能拖入图片和 PDF",
+    refreshTimeout: "守护进程没能及时以新版本重新上线，请检查 `rove daemon status`",
     railResize: "拖动调整任务列表宽度，双击还原",
   },
 }

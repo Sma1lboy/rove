@@ -5,7 +5,7 @@ import { join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { loadOrCreateToken } from "../src/auth.ts"
-import { type EngineRow, createRoveOps, engineFor, newTabInvocation, taskRows } from "../src/rove-ops.ts"
+import { type EngineRow, createRoveOps, engineFor, newTabInvocation, tabRows, taskRows } from "../src/rove-ops.ts"
 
 const ENGINES: EngineRow[] = [
   { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true },
@@ -221,5 +221,39 @@ describe("pairing token", () => {
     const rotated = loadOrCreateToken(path, true)
     expect(rotated).not.toBe(first)
     expect(readFileSync(path, "utf8").trim()).toBe(rotated)
+  })
+})
+
+describe("tab rows", () => {
+  // Fixture: only the fields the mapping reads.
+  const row = (over: Record<string, unknown>) =>
+    ({
+      id: "tab-1",
+      kind: "engine",
+      title: null,
+      lastTitle: null,
+      autoTitle: null,
+      vendor: null,
+      liveVendor: null,
+      alive: true,
+      engineAlive: true,
+      ...over,
+    }) as unknown as Parameters<typeof tabRows>[0][number]
+
+  test("liveEngine names the engine running in an alive engine tab, from the probe only", () => {
+    const [live, configured] = tabRows([row({ liveVendor: "codex" }), row({ id: "tab-2", vendor: "codex" })])
+    expect(live?.liveEngine).toBe(live?.engineName)
+    expect(live?.liveEngine).toBeTruthy()
+    // The configured engine still names the tab, but the caption stays empty without a live answer.
+    expect(configured?.engineName).toBeTruthy()
+    expect(configured?.liveEngine).toBeNull()
+  })
+
+  test("a shell tab or a dead engine tab has no liveEngine", () => {
+    const rows = tabRows([
+      row({ id: "tab-3", kind: "command", liveVendor: "codex" }),
+      row({ id: "tab-4", alive: false, liveVendor: "codex" }),
+    ])
+    expect(rows.map((r) => r.liveEngine)).toEqual([null, null])
   })
 })

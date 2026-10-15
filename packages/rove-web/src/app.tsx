@@ -3,6 +3,7 @@
 import { tabStripVisible } from "@sma1lboy/rove/src/state/tab-strip.ts"
 import { type CSSProperties, useEffect, useState } from "react"
 import { forgetToken, saveToken } from "./auth.ts"
+import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { clampRailWidth, foldedPx, narrowPane, railFolded, railWidth, surfaceFor, useNarrow } from "./layout.ts"
@@ -47,6 +48,7 @@ function Shell({ model }: { model: AppModel }) {
   }, [hello, model.client])
   useWorkspaceKeys(model)
   usePrefsApply(model)
+  useDaemonHealth(model.client)
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
@@ -60,16 +62,19 @@ function Shell({ model }: { model: AppModel }) {
   const surface = narrow ? surfaceFor(pane, !!task, pageOn !== null) : null
   const railPx = folded ? foldedPx(prefs.railFold) : pinned === null ? null : clampRailWidth(pinned)
   return (
-    <div
-      className={`app ${zenOn || !task || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""}`}
-      style={railPx !== null && !narrow ? ({ "--rail-w": `${railPx}px` } as CSSProperties) : undefined}
-    >
-      <RailView model={model} narrow={narrow} />
-      <Workspace model={model} narrow={narrow} />
-      {task && !zenOn && !narrow && <FilesView key={task.id} model={model} task={task} />}
-      <StatusBar model={model} narrow={narrow} />
-      <Overlays />
-      <PrefixHud model={model} />
+    <div className="app-shell">
+      <DaemonBanner onRefresh={() => refreshRove(model.client)} />
+      <div
+        className={`app ${zenOn || !task || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""}`}
+        style={railPx !== null && !narrow ? ({ "--rail-w": `${railPx}px` } as CSSProperties) : undefined}
+      >
+        <RailView model={model} narrow={narrow} />
+        <Workspace model={model} narrow={narrow} />
+        {task && !zenOn && !narrow && <FilesView key={task.id} model={model} task={task} />}
+        <StatusBar model={model} narrow={narrow} />
+        <Overlays />
+        <PrefixHud model={model} />
+      </div>
     </div>
   )
 }

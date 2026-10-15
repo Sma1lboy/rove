@@ -9,6 +9,7 @@ import { en as newTaskEn, zh as newTaskZh } from "@sma1lboy/rove/src/tui/i18n/me
 import { en as quickEn, zh as quickZh } from "@sma1lboy/rove/src/tui/i18n/messages/quickTask.ts"
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { en as termEn, zh as termZh } from "@sma1lboy/rove/src/tui/i18n/messages/terminal.ts"
+import { en as updateEn, zh as updateZh } from "@sma1lboy/rove/src/tui/i18n/messages/update.ts"
 import { en as wtEn, zh as wtZh } from "@sma1lboy/rove/src/tui/i18n/messages/worktrees.ts"
 import { locale } from "./i18n/index.ts"
 
@@ -18,6 +19,7 @@ const CATALOGS = {
   quickTask: { en: quickEn, zh: quickZh },
   tasks: { en: tasksEn, zh: tasksZh },
   terminal: { en: termEn, zh: termZh },
+  update: { en: updateEn, zh: updateZh },
   worktrees: { en: wtEn, zh: wtZh },
 } as const
 

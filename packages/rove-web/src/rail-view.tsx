@@ -3,6 +3,7 @@
 import type { MouseEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace, railFolded } from "./layout.ts"
@@ -13,7 +14,7 @@ import { NewTaskDialog } from "./new-task-dialog.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
-import { FoldButton, FoldedRail, RailGrip, RecentRow } from "./rail-chrome.tsx"
+import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, activityGlyph, groupByProject, navRows, repoLabel } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
@@ -91,8 +92,16 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   }
 
   return (
-    // biome-ignore lint/a11y/noNoninteractiveTabindex: the rail takes the TUI sidebar's keys while focused
-    <nav className="rail" ref={rail} tabIndex={0} onKeyDown={keys.onKeyDown}>
+    <nav
+      className="rail"
+      ref={rail}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: the rail takes the TUI sidebar's keys while focused
+      tabIndex={0}
+      onKeyDown={(e) => {
+        markHintUsed("sidebar")
+        keys.onKeyDown(e)
+      }}
+    >
       <header className="rail-head">
         <span className="wordmark">
           <span className="bracket">[</span> rove <span className="bracket">]</span>
@@ -174,6 +183,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         ))}
         <MachineHeaders client={model.client} />
       </div>
+      <PaneKeyHint pane="sidebar" />
       <div className="badge-host">
         <button type="button" className="row new-task" onClick={() => dialog.set(<NewTaskDialog model={model} />)}>
           <span className="glyph tone-accent">+</span>
@@ -233,8 +243,8 @@ function RailRow(props: {
   if (row.kind === "tab") {
     const tab = row.tab
     const dead = tab.alive === false
-    // Two-row tabs add the engine running in the tab under its label (TUI `tabRowHeight` 2).
-    const caption = prefs.tabRowHeight === 2 && tab.kind === "engine" ? tab.engineName : null
+    // Two-row tabs add the engine running in the tab (the pty's foreground process, none when unknown) under its label (TUI `tabRowHeight` 2).
+    const caption = prefs.tabRowHeight === 2 && tab.kind === "engine" ? (tab.liveEngine ?? null) : null
     return (
       <button
         type="button"

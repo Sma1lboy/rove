@@ -77,6 +77,11 @@ export function UpdateView({ client }: { client: BridgeClient }) {
     setStatus(url && window.open(url, "_blank", "noopener") !== null ? u.statusReleaseOpened : u.statusReleaseError)
   }
   const onKey = (e: React.KeyboardEvent) => {
+    // Ctrl+C closes, as the TUI's page bindings; a text selection keeps the browser's copy.
+    if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "c" && !window.getSelection()?.toString()) {
+      e.preventDefault()
+      return activate("close")
+    }
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const i = actions.findIndex((a) => a.id === selected)
     if (e.key === "j" || e.key === "ArrowDown") setSelected(actions[(i + 1) % actions.length]?.id ?? "close")
