@@ -32,6 +32,15 @@ final class KeyboardStateTests: XCTestCase {
     func testInputsFixtureDark() throws { try sweepInputs(.dark, fixture: try fixtureURL()) }
     func testInputSampleFixtureDark() throws { try sampleInputs(.dark, fixture: try fixtureURL()) }
 
+    func testVisibleKeyboardSettlesAfterPollingDeadline() throws {
+        try start(.light, fixture: nil)
+        openTask()
+        input("composerField").tap()
+        XCTAssertTrue(kb.isUp)
+        // Snapshot queries exceed this budget even when the keyboard is already visible.
+        XCTAssertTrue(kb.waitUp(timeout: 0.01))
+    }
+
     func testTerminalDemo() throws {
         for look in looks {
             try start(look, fixture: nil)
