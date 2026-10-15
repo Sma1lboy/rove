@@ -4,6 +4,8 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { defaultApiRuntime } from "@sma1lboy/rove/src/cli/api/runtime.ts"
 import type { ActiveGate } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { dismissHitsOnlyGates, gateRows } from "../src/gates.ts"
+import * as bridgeApi from "../src/ops/api.ts"
+import type { BridgeApi } from "../src/ops/types.ts"
 import type { AttentionRow } from "../src/protocol.ts"
 import { attentionRows, createRoveOps } from "../src/rove-ops.ts"
 
@@ -89,9 +91,13 @@ describe("gate rows", () => {
 })
 
 describe("the tasks payload", () => {
-  // `tasks()` asks the machine's PTY host for live tabs; CI has none, so a real call hangs or throws.
+  // `tasks()` also reads the machine: live tabs from its PTY host and an engine scan that probes every
+  // installed CLI. Neither is what these tests pin, and both hang or throw depending on the host.
   beforeEach(() => {
     spyOn(defaultApiRuntime, "liveTaskIds").mockResolvedValue(null)
+    spyOn(bridgeApi, "createBridgeApi").mockReturnValue({
+      verb: async () => ({ engines: [] }),
+    } as unknown as BridgeApi)
   })
   afterEach(() => mock.restore())
 
