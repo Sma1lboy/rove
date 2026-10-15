@@ -8,6 +8,7 @@ import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { Overlays } from "./overlays.tsx"
+import { PagesHost } from "./pages-host.tsx"
 import { PrefixHud, usePrefixLayer } from "./prefix.tsx"
 import { usePrefsApply } from "./prefs-apply.ts"
 import { usePrefs } from "./prefs.ts"
@@ -85,6 +86,13 @@ function Workspace({ model }: { model: AppModel }) {
     return (
       <main className="workspace">
         <WorktreesView model={model} />
+      </main>
+    )
+  }
+  if (pageOn) {
+    return (
+      <main className="workspace">
+        <PagesHost model={model} page={pageOn} />
       </main>
     )
   }

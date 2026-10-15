@@ -16,7 +16,7 @@ import { SettingsDialog } from "./settings-view.tsx"
 import { ShortcutBadges } from "./shortcut-badges.tsx"
 import { createStore, useStore } from "./store.ts"
 import { NewTaskDialog } from "./task-dialogs.tsx"
-import { dialog, toast, zen } from "./ui.ts"
+import { dialog, page, toast, zen } from "./ui.ts"
 
 const PREFIX_KEY = "ctrl+a"
 /** `DEFAULT_PREFIX_CONFIGURATION.timeoutMs`, `PREFIX_HUD_TTL_MS`. */
@@ -102,6 +102,10 @@ const ACTIONS: readonly PrefixAction[] = [
         .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
     },
   },
+  // Rail pages in the rail's top-to-bottom order; they swap only the workspace, so 1 → 2 → 3 hops directly.
+  { strokes: ["1"], id: "kanban.open", live: () => true, run: () => page.set("kanban") },
+  { strokes: ["2"], id: "automations.open", live: () => true, run: () => page.set("routines") },
+  { strokes: ["3"], id: "workItems.open", live: () => true, run: () => page.set("issues") },
 ]
 
 interface HudState {

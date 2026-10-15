@@ -8,6 +8,7 @@ import { InboxDialog } from "./inbox-view.tsx"
 import { MachineHeaders } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
+import { PageNav } from "./pages-host.tsx"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, activityGlyph, groupByProject, navRows, repoLabel } from "./rail.ts"
 import { projectMenu, taskMenu } from "./row-actions.tsx"
@@ -94,6 +95,7 @@ export function RailView({ model }: { model: AppModel }) {
           </span>
         </div>
       )}
+      <PageNav />
       <div className="rail-body">
         {payload && tasks.length === 0 && (
           <div className="empty">
