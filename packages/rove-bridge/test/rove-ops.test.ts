@@ -5,7 +5,7 @@ import { join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { loadOrCreateToken } from "../src/auth.ts"
-import { type EngineRow, createRoveOps, engineFor, taskRows } from "../src/rove-ops.ts"
+import { type EngineRow, createRoveOps, engineFor, newTabInvocation, taskRows } from "../src/rove-ops.ts"
 
 const ENGINES: EngineRow[] = [
   { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true },
@@ -191,6 +191,23 @@ describe("diff file path", () => {
     for (const path of ["/etc/passwd", "../outside", "a/../../b"]) {
       await expect(ops.diffFile("T1", path, "working")).rejects.toMatchObject({ code: "BAD_ARGS" })
     }
+  })
+})
+
+describe("tab.new verb choice", () => {
+  test("a prompt rides `send` unchanged; no prompt opens the tab empty through `tab-new`", () => {
+    expect(newTabInvocation("T1", { kind: "engine", prompt: "hi", engine: "codex" })).toEqual({
+      verb: "send",
+      argv: ["--task-id", "T1", "--tab", "new", "--plain", "--prompt", "hi", "--command", "codex"],
+    })
+    expect(newTabInvocation("T1", { kind: "shell" })).toEqual({
+      verb: "tab-new",
+      argv: ["--task-id", "T1", "--kind", "shell"],
+    })
+    expect(newTabInvocation("T1", { kind: "engine", engine: "codex" })).toEqual({
+      verb: "tab-new",
+      argv: ["--task-id", "T1", "--kind", "engine", "--command", "codex"],
+    })
   })
 })
 

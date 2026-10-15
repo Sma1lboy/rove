@@ -1,5 +1,5 @@
 /**
- * Bridge daemon broadcasts (`rove api notify`, tab open/close/rename,
+ * Bridge daemon broadcasts (`rove api notify`, tab open/close/rename/add,
  * prompts) into the host. Channels replay their last value on connect, so
  * every bridge dedupes on `at` (unique per publish) and drops replays older
  * than {@link STALE_NOTICE_MS}.
@@ -14,12 +14,14 @@ import type {
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { useEffect, useRef } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import type { TabAddSignal } from "../../client/remote-orchestrator-payloads"
 import { createStateCell } from "../../lib/external-store"
 import type { NotifyInput } from "../../tui/lib/notify-state"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import { useKV } from "../context/kv"
 import { t } from "../i18n"
 import type { DialogContext } from "../ui/dialog"
+import { addTaskTab } from "../workspace/terminal-tabs-add"
 import { closeTaskTab } from "../workspace/terminal-tabs-close"
 import { renameTaskTab } from "../workspace/terminal-tabs-rename"
 import { requestPaneClose, requestTabOpen } from "../workspace/terminal-tabs-shared"
@@ -33,6 +35,7 @@ const NO_NOTICES = createStateCell<NoticeEventPayload | null>(null)
 const NO_TAB_OPENS = createStateCell<TabOpenPayload | null>(null)
 const NO_TAB_CLOSES = createStateCell<TabClosePayload | null>(null)
 const NO_TAB_RENAMES = createStateCell<TabRenamePayload | null>(null)
+const NO_TAB_ADDS = createStateCell<TabAddSignal | null>(null)
 const NO_PROMPTS = createStateCell<UiPromptPayload | null>(null)
 
 /** `tab.open` (plugin panes) → the pending tab-open request TerminalTabs consumes. */
@@ -79,6 +82,19 @@ function useDaemonTabRenames(orch: RemoteOrchestrator | null): void {
   }, [request, kv])
 }
 
+/** `tab.add` (`rove api tab-new`): the CLI already persisted the row; absorb it so this TUI's next write keeps it. */
+function useDaemonTabAdds(orch: RemoteOrchestrator | null): void {
+  const kv = useKV()
+  const request = useAccessor(orch ? orch.tabAddStore() : NO_TAB_ADDS)
+  const seenAt = useRef<number | null>(null)
+  useEffect(() => {
+    if (!request || request.at === seenAt.current) return
+    seenAt.current = request.at
+    if (Date.now() - request.at > STALE_NOTICE_MS) return
+    addTaskTab(kv, request.taskId, request.tab)
+  }, [request, kv])
+}
+
 /**
  * `ui.prompt` → input dialog, answered via `ui.promptReply` (undefined =
  * cancel). First attached TUI to answer wins; the daemon drops the rest.
@@ -110,6 +126,7 @@ export function useDaemonNotices(
   useDaemonTabOpens(orch)
   useDaemonTabCloses(orch)
   useDaemonTabRenames(orch)
+  useDaemonTabAdds(orch)
   useDaemonPrompts(orch, dialog)
   const notice = useAccessor(orch ? orch.noticeStore() : NO_NOTICES)
   const seenAt = useRef<number | null>(null)

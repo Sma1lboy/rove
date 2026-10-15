@@ -40,6 +40,7 @@ import {
   type RecentTaskEvent,
   type RemoteOrchestratorOptions,
   type RowTokenMap,
+  type TabAddSignal,
   type TaskEngineState,
   type TaskJobState,
   type TranscriptActivityMap,
@@ -102,6 +103,7 @@ export class RemoteOrchestrator {
   private readonly tabOpenAcc = createStateCell<TabOpenPayload | null>(null)
   private readonly tabCloseAcc = createStateCell<TabClosePayload | null>(null)
   private readonly tabRenameAcc = createStateCell<TabRenamePayload | null>(null)
+  private readonly tabAddAcc = createStateCell<TabAddSignal | null>(null)
   private readonly uiPromptAcc = createStateCell<UiPromptPayload | null>(null)
   private readonly engineLifecycleAcc = createStateCell<EngineLifecycleMap>(new Map())
   private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
@@ -167,6 +169,7 @@ export class RemoteOrchestrator {
       setTabOpenSig: this.tabOpenAcc.set,
       setTabCloseSig: this.tabCloseAcc.set,
       setTabRenameSig: this.tabRenameAcc.set,
+      setTabAddSig: this.tabAddAcc.set,
       setUiPromptSig: this.uiPromptAcc.set,
       engineLifecycleAcc: this.engineLifecycleAcc,
       setEngineLifecycleSig: this.engineLifecycleAcc.set,
@@ -319,6 +322,9 @@ export class RemoteOrchestrator {
 
   /** Latest `tab.rename` request (`rove api update --tab`) — consumers dedupe on `at`. */
   readonly tabRenameStore = (): ExternalStore<TabRenamePayload | null> => this.tabRenameAcc
+
+  /** Latest `tab.add` (`rove api tab-new`) — consumers dedupe on `at`. */
+  readonly tabAddStore = (): ExternalStore<TabAddSignal | null> => this.tabAddAcc
 
   /**
    * Bare request/response for verbs this class doesn't wrap. Narrowed to

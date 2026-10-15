@@ -5,10 +5,14 @@
  */
 
 import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import type { VendorId } from "../../types/vendor.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
-import { ApiError, type VerbSpec } from "./types.ts"
+import type { NewTabKind } from "./tab-new.ts"
+import { ApiError, type VerbSpec, helpStep } from "./types.ts"
 
 export const PANE_VERB: VerbSpec = {
   name: "pane-open",
@@ -140,5 +144,60 @@ export const TAB_CLOSE_VERB: VerbSpec = {
     if (reply.handled) return { ok: true, taskId, tabId, handledBy: "tui" }
     const result = await ctx.runtime.closeTerminalTab(taskId, tabId)
     return { ok: true, taskId, tabId, handledBy: "headless", ...result }
+  },
+}
+
+export const TAB_NEW_VERB: VerbSpec = {
+  name: "tab-new",
+  group: "drive",
+  summary:
+    "Open a new Terminal Tab with no first message: a login `shell`, or an `engine` tab that starts idle (the TUI's sidebar \"New shell\" and picker Enter). Unlike `send --tab new` it needs no prompt. Allocates the tab id, writes the persisted tab row, and spawns the session in the task's worktree (creating it if needed); an engine tab respects engine.maxLiveSessions. Broadcast over the daemon's tab.add channel so an attached TUI absorbs the row (`clients` = attached connections). Returns the new `tabId` and its pty `session` key; the tab then lists in get-task .tabs[].",
+  flags: [
+    F.taskId(true),
+    {
+      name: "kind",
+      type: "enum",
+      values: ["shell", "engine"],
+      required: true,
+      placeholder: "KIND",
+      description: "`shell` = the user's login shell; `engine` = an idle engine, ready for a first message.",
+    },
+    {
+      name: "command",
+      type: "string",
+      placeholder: "CMD",
+      description:
+        "Engine tabs only: pin the tab to this engine (an engine id from `engine-list` or a full command line), as `send --tab new --command` does. Omitted = the task's own engine.",
+    },
+  ],
+  handler: async (ctx) => {
+    const daemon = daemonOf(ctx)
+    const taskId = ctx.args.require("task-id")
+    const kind = ctx.args.requireEnum<NewTabKind>("kind")
+    const command = ctx.args.str("command")
+    if (command && kind !== "engine") {
+      throw new ApiError("--command only applies to an engine tab; pass --kind engine", "BAD_FLAG", helpStep("tab-new"))
+    }
+    const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+    const opened = await ctx.runtime.openTab(
+      daemon,
+      {
+        id: taskId,
+        worktreePath: task.worktreePath,
+        kind: task.kind,
+        vendor: task.vendor as VendorId | undefined,
+        command: task.command,
+        // A pinned engine's own flags replace the task's, as in `send --tab new --command`.
+        modelEffort: command ? undefined : task.modelEffort,
+        model: command ? undefined : task.model,
+        repo: task.repo,
+        tabVendor: command ? resolveCommandProtocol(command) : undefined,
+        tabCommand: command,
+      },
+      kind,
+    )
+    // The row is already on disk; this only stops an attached TUI's stale copy from overwriting it.
+    const reply = await daemon.request<{ clients?: number }>("terminalTab.add", { taskId, tab: opened.tab })
+    return { ok: true, taskId, tabId: opened.tab.id, session: opened.session, kind, clients: reply.clients ?? 0 }
   },
 }

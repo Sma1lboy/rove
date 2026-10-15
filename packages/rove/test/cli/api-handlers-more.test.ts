@@ -38,6 +38,9 @@ function stubRuntime(): ApiRuntime {
     liveTaskIds: async () => null,
     taskTabs: async () => ({ tabs: [], running: false }),
     closeTerminalTab: async () => ({ kind: "engine", wasAlive: false }),
+    openTab: async () => {
+      throw new Error("openTab should not run in this test")
+    },
     deliverPrompt: async () => {
       throw new Error("deliverPrompt should not run in this test")
     },

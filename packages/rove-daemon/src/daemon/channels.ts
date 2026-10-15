@@ -10,6 +10,7 @@ import type {
   GraphicsWritePayload,
   NoticeEventPayload,
   SessionDeliverPayload,
+  TabAddPayload,
   TabClosePayload,
   TabOpenPayload,
   TabRenamePayload,
@@ -30,6 +31,7 @@ export type {
   NoticeEventPayload,
   PaneClosePayload,
   SessionDeliverPayload,
+  TabAddPayload,
   TabClosePayload,
   TabOpenPayload,
   TabRenamePayload,
@@ -208,6 +210,13 @@ export interface ChannelPayloads {
    * snapshot itself (headless case) and both writers converge in any order.
    */
   "tab.rename": TabRenamePayload
+  /**
+   * A tab the CLI created headlessly (`rove api tab-new` → `terminalTab.add`
+   * RPC), carrying its persisted row. EVENT channel. The CLI has already
+   * written the snapshot; this stops an attached TUI's stale copy of the
+   * task's tabs from overwriting it, and tells it the tab's real kind.
+   */
+  "tab.add": TabAddPayload
   /**
    * Low-frequency agent lifecycle (compaction, subagent activity). Excludes
    * the tool family — that volume stays plugin-only via the PluginHost feed.

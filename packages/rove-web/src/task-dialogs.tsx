@@ -1,7 +1,7 @@
 /**
  * Create flows: a new task (TUI new-task dialog, Existing mode) and a new
- * conversation tab on a task (TUI ctrl+e picker, engine choice). Both read the
- * engine list from the bridge, so names come from the engine registry.
+ * conversation tab on a task (TUI ctrl+e picker: an engine or a shell). Both read
+ * the engine list from the bridge, so names come from the engine registry.
  */
 
 import { useEffect, useState } from "react"
@@ -38,10 +38,19 @@ function useEngineChoice(model: AppModel): EngineChoice {
   return { engines, engine, setEngine }
 }
 
-function EnginePicker(props: { engines: readonly EngineRow[]; value: string; onChange: (id: string) => void }) {
+/** The picker's own "shell" choice (TUI ctrl+e picker), not an engine id. */
+const SHELL = "shell"
+
+function EnginePicker(props: {
+  engines: readonly EngineRow[]
+  value: string
+  onChange: (id: string) => void
+  withShell?: boolean
+}) {
+  const choices = props.withShell ? [...props.engines, { id: SHELL, name: t("tab.shell") }] : props.engines
   return (
     <div className="chips-row" aria-label={t("newTask.engine")}>
-      {props.engines.map((engine) => (
+      {choices.map((engine) => (
         <button
           type="button"
           aria-pressed={engine.id === props.value}
@@ -56,6 +65,22 @@ function EnginePicker(props: { engines: readonly EngineRow[]; value: string; onC
       ))}
     </div>
   )
+}
+
+/** Open a tab and select it. No prompt = an empty engine or a shell, as the TUI picker. */
+export async function openTab(
+  model: AppModel,
+  taskId: string,
+  args: { kind: "engine" | "shell"; engine?: string; prompt?: string },
+): Promise<void> {
+  const { tabId } = await model.client.request<{ tabId: string }>("tab.new", {
+    taskId,
+    kind: args.kind,
+    ...(args.engine ? { engine: args.engine } : {}),
+    ...(args.prompt ? { prompt: args.prompt } : {}),
+  })
+  await model.refreshTabsNow()
+  model.select(taskId, tabId)
 }
 
 export function NewTaskDialog({ model, repo }: { model: AppModel; repo?: string }) {
@@ -141,48 +166,47 @@ export function NewTaskDialog({ model, repo }: { model: AppModel; repo?: string 
   )
 }
 
-/** A new engine tab needs a first message: the bridge opens tabs by delivering one. */
+/** TUI ctrl+e picker: an engine (first message optional) or a shell. */
 export function NewChatDialog({ model, taskId }: { model: AppModel; taskId: string }) {
   useLocale()
   const { engines, engine, setEngine } = useEngineChoice(model)
   const [prompt, setPrompt] = useState("")
   const { busy, error, submit } = useSubmit()
+  const shell = engine === SHELL
   return (
     <DialogShell title={t("newChat.title")} wide>
       <form
         className="dialog-body"
         onSubmit={(e) => {
           e.preventDefault()
-          if (!prompt.trim()) return
-          void submit(async () => {
-            const { tabId } = await model.client.request<{ tabId: string }>("tab.new", {
-              taskId,
-              prompt: prompt.trim(),
-              ...(engine ? { engine } : {}),
-            })
-            await model.refreshTabsNow()
-            model.select(taskId, tabId)
-          })
+          void submit(() =>
+            shell
+              ? openTab(model, taskId, { kind: "shell" })
+              : openTab(model, taskId, { kind: "engine", engine, prompt: prompt.trim() }),
+          )
         }}
       >
         <div className="field">
           <span className="kicker">{t("newTask.engine")}</span>
-          <EnginePicker engines={engines} value={engine} onChange={setEngine} />
+          <EnginePicker engines={engines} value={engine} onChange={setEngine} withShell />
         </div>
-        <label className="field">
-          <span className="kicker">{t("newChat.prompt")}</span>
-          <textarea
-            className="input textarea"
-            // biome-ignore lint/a11y/noAutofocus: the dialog's main field
-            autoFocus
-            rows={4}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.currentTarget.form?.requestSubmit()
-            }}
-          />
-        </label>
+        {!shell && (
+          <label className="field">
+            <span className="kicker">{t("newChat.prompt")}</span>
+            <textarea
+              className="input textarea"
+              // biome-ignore lint/a11y/noAutofocus: the dialog's main field
+              autoFocus
+              rows={4}
+              placeholder={t("newChat.promptPlaceholder")}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.currentTarget.form?.requestSubmit()
+              }}
+            />
+          </label>
+        )}
         {error && <p className="error">{error}</p>}
         <DialogActions busy={busy} submitLabel={t("newChat.start")} />
       </form>

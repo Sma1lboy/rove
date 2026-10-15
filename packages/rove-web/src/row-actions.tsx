@@ -1,8 +1,8 @@
 /**
  * Right-click menus for rail rows, in the TUI's order (`tui/panes/sidebar/
  * tree-menu.ts`): tab rows add Close tab, task rows carry the task verbs,
- * project headers start a task. Entries the bridge cannot carry (New shell,
- * Open in editor, Reorder, Run again, Fix checks, Sync base) are left out
+ * project headers start a task. Entries the bridge cannot carry (Open in
+ * editor, Reorder, Run again, Fix checks, Sync base) are left out
  * rather than shown dead; PARITY.md lists them.
  */
 
@@ -10,7 +10,7 @@ import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { type Choice, ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { NewChatDialog, NewTaskDialog } from "./task-dialogs.tsx"
+import { NewChatDialog, NewTaskDialog, openTab } from "./task-dialogs.tsx"
 import { type MenuItem, dialog, toast } from "./ui.ts"
 
 const STATUSES = ["backlog", "in_progress", "in_review", "done", "canceled", "error"] as const
@@ -61,6 +61,10 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     })
   }
   items.push({ label: t("menu.newChat"), run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} />) })
+  items.push({
+    label: t("menu.newShell"),
+    run: () => void openTab(model, task.id, { kind: "shell" }).catch((e) => toast(String(e), "error")),
+  })
   items.push({
     label: t("menu.rename"),
     key: "r",

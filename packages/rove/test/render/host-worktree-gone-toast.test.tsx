@@ -108,6 +108,7 @@ function fakeOrchestrator(initial: readonly Task[]) {
     tabOpenStore: () => NULL_CELL,
     tabCloseStore: () => NULL_CELL,
     tabRenameStore: () => NULL_CELL,
+    tabAddStore: () => NULL_CELL,
     uiPromptStore: () => NULL_CELL,
     noticeStore: () => NULL_CELL,
     reportUiEvent: () => {},

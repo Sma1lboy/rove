@@ -6,6 +6,7 @@
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
+import type { NewTabKind, OpenedTab } from "./tab-new.ts"
 import type { RestoredTabRef } from "./tab-respawn.ts"
 import type { TaskTabRow } from "./tab-snapshot.ts"
 
@@ -260,6 +261,11 @@ export interface ApiRuntime {
   closeTerminalTab(taskId: string, tabId: string): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
   /** Deliver a prompt into a task's engine pane (building the session if needed). */
   deliverPrompt(client: DaemonRpc, target: PromptTarget, prompt: string): Promise<DeliveredPrompt>
+  /**
+   * Open a tab with no first message (`tab-new`): a login shell or an empty
+   * engine. Persists the row, spawns the session, and returns the row as saved.
+   */
+  openTab(client: DaemonRpc, target: PromptTarget, kind: NewTabKind): Promise<OpenedTab>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
   /** Can a worktree be cut from this repo? On the seam so handler tests need no

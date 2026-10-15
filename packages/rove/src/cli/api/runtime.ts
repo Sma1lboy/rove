@@ -20,13 +20,14 @@ import { deliverToExactTab } from "./exact-tab-delivery.ts"
 import { handlePtyList } from "./handler-helpers.ts"
 import {
   deliverHostedPrompt,
-  ensurePtyHost,
   killTaskSessions,
   listSessions,
   listSessionsOrNull,
   openPtyHost,
   taskKeys,
 } from "./pty-delivery.ts"
+import { ensureHostFor, sessionFailed } from "./session-failed.ts"
+import { openNewTab } from "./tab-new.ts"
 import { restoredTabLaunch } from "./tab-respawn.ts"
 import {
   type TaskSessionRow,
@@ -40,34 +41,22 @@ import {
 import { hasLiveEngineTab } from "./task-running.ts"
 import { ApiError, type ApiRuntime, type DeliveredPrompt, type PromptDeliveryOps, type PromptTarget } from "./types.ts"
 
-/**
- * Every SESSION_FAILED refusal. The task already EXISTS when these fire, so
- * the error must carry its id, or a fan-out loses the task it just created.
- */
-function sessionFailed(taskId: string, message: string, hint: string, extra?: Record<string, unknown>): ApiError {
-  return new ApiError(message, "SESSION_FAILED", {
-    taskId,
-    ...extra,
-    hint,
-    // The session's own output is where the cause is, in all four cases.
-    nextCommandArgs: ["api", "read-output", "--task-id", taskId, "--source", "terminal"],
-  })
+/** The task's worktree path, cutting the worktree on first use. */
+async function ensureWorktree(client: DaemonRpc, target: PromptTarget): Promise<string> {
+  if (target.worktreePath) return target.worktreePath
+  const res = await client.request<{ worktreePath: string }>("task.ensureWorktree", { taskId: target.id })
+  if (!res.worktreePath) throw new ApiError(`task ${target.id} has no worktree`, "NO_WORKTREE")
+  return res.worktreePath
 }
 
 /** Ensure and address the task's hosted engine session (`target.tab` routes:
  *  undefined = canonical, "new" = mint + spawn a fresh tab, "tab-N" = that
  *  exact alive tab only). */
 async function deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt> {
-  let host: Awaited<ReturnType<typeof ensurePtyHost>>
-  try {
-    host = await ensurePtyHost()
-  } catch (error) {
-    throw sessionFailed(
-      target.id,
-      `failed to start PTY host for ${target.id}: ${error instanceof Error ? error.message : String(error)}`,
-      "no PTY host to run the engine in — nothing was started; check `rove daemon status`, then retry the same send",
-    )
-  }
+  const host = await ensureHostFor(
+    target.id,
+    "no PTY host to run the engine in — nothing was started; check `rove daemon status`, then retry the same send",
+  )
   let newTab: string | undefined
   try {
     // Exact tab: deliver-only, never spawn — a dead/absent tab is
@@ -245,12 +234,7 @@ export async function deliverPrompt(
   prompt: string,
   ops: PromptDeliveryOps = realPromptDeliveryOps,
 ): Promise<DeliveredPrompt> {
-  let worktree = target.worktreePath
-  if (!worktree) {
-    const res = await client.request<{ worktreePath: string }>("task.ensureWorktree", { taskId: target.id })
-    worktree = res.worktreePath
-  }
-  if (!worktree) throw new ApiError(`task ${target.id} has no worktree`, "NO_WORKTREE")
+  const worktree = await ensureWorktree(client, target)
 
   // Learn the user's language from a NEW task's first prompt, for text Rove
   // injects later with no user message in hand (e.g. a timed quota resume).
@@ -351,6 +335,7 @@ export const defaultApiRuntime: ApiRuntime = {
   },
   closeTerminalTab: closeHeadlessTerminalTab,
   deliverPrompt: (client, target, prompt) => deliverPrompt(client, target, prompt),
+  openTab: async (client, target, kind) => openNewTab(target, await ensureWorktree(client, target), kind),
   resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
   isUsableRepo: async (absPath) => {
     const { isGitRepo, isRemoteRepoKey } = await import("../../state/repos.ts")

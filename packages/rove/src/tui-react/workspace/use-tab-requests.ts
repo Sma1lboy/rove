@@ -1,7 +1,7 @@
 /**
  * Consumes the cross-component tab REQUESTS (`terminal-tabs-shared.ts`) aimed
  * at this task: activation (F7), plugin-pane open/close, tree-menu new-tab and
- * close, adoption, move, rename. Consuming is what CLAIMS a request; one still
+ * close, adoption, move, rename, add. Consuming is what CLAIMS a request; one still
  * pending after the listener sweep is ownerless, and only then may a
  * background writer touch the state (`closeTaskTab` / `adoptTaskTabs`). One
  * place does it so that rule stays true. Mount-only; reads via the caller's
@@ -12,7 +12,7 @@ import { useEffect } from "react"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { closePluginPanes, openPluginPane } from "../../tui/workspace/pane-split"
-import { adoptTabs } from "../../tui/workspace/tabs-adopt"
+import { absorbTab, adoptTabs } from "../../tui/workspace/tabs-adopt"
 import {
   type TabsState,
   moveTab,
@@ -27,6 +27,7 @@ import {
   takeNewTab,
   takePaneClose,
   takeTabActivation,
+  takeTabAdd,
   takeTabAdopt,
   takeTabClose,
   takeTabMove,
@@ -107,6 +108,14 @@ export function useTabRequests(io: TabRequestIO): void {
       if (rename) {
         const prev = stateRef.current
         const next = setTabTitle(prev, rename.tabId, rename.title)
+        if (next !== prev) updateRef.current(next)
+      }
+      // A tab the CLI created (`tab-new`): fold it into this state so the
+      // single writer's next flush keeps it.
+      const added = takeTabAdd(taskId)
+      if (added) {
+        const prev = stateRef.current
+        const next = absorbTab(prev, added)
         if (next !== prev) updateRef.current(next)
       }
       // Claiming here keeps `closeTaskTab` from ALSO writing background state:

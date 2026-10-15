@@ -153,11 +153,22 @@ Always screenshot headed. Cost one round of three wrong fixes.
   - Script lessons: row text starts with the status glyph, read
     `.row-title`; wait for the UI result (the `▴` chip, the toast), not a
     fixed delay (`task.setCommand` ~2–3 s); bound every cursor loop.
-- **Next pick:** `rove api tab-new --kind shell|engine` (no prompt) for #42,
-  #43, #74, #85: it must write `terminalTabs.<taskId>` in one locked update and
-  broadcast so an attached TUI's stale KV doesn't overwrite or reuse the id
-  (scout trace: `mintCliTab`, `kv-core.ts`, `pty-host.ts` same-key attach).
-  Then the prefix layer (Ctrl+F) so prefix-only rows can land.
+- **Round 6** (branch `web/round-6`, stacked on round 5): New shell, empty
+  engine tabs, Settings. Scripts: `e2e-r6t.ts`, `e2e-r6s.ts`.
+  - `rove api tab-new` (`cli/api/tab-new.ts`): one locked allocation in
+    `tab-snapshot.ts` `allocateTab` (`mintCliTab` wraps it), spawn, and a
+    daemon `terminalTab.add` → `tab.add` broadcast that attached TUIs absorb
+    (`absorbTab`: right kind, `nextOrdinal` raised, `activeId` untouched).
+    Attaching to an already-live key is `TAB_COLLISION`, not a new tab.
+  - Bridge `tab.new`: `prompt` optional, `kind: engine|shell`; with a prompt
+    the old `send` path is unchanged for old clients.
+  - Bug found: tab label tested `kind === "shell"` but the bridge sends
+    `command`; anything not `engine` is now a shell, as the TUI.
+  - Settings is per bridge op on the TUI's state.json keys; language is per
+    browser (`rove.locale`) and does not touch the TUI's. Feedback is never
+    sent by a check: it publishes a public Discussion.
+- **Next pick:** the prefix layer (Ctrl+F, the TUI's own prefix) so the
+  prefix-only rows (#15, #29, #112, #12, …) can land; then Worktrees (`x`).
 - **Pending owner stack (#1247→#1246→#1248→#1249, long-run controls):** once
   merged, the Inbox must stop clearing on open for `report_missing` rows
   (clear only via `d` → `attention.dismiss {deliveryId}` or a late report) and

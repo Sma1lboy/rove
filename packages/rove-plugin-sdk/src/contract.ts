@@ -124,6 +124,7 @@ export const DAEMON_CHANNELS = [
   "tab.open",
   "tab.close",
   "tab.rename",
+  "tab.add",
   "engine.lifecycle",
   "notice.event",
   "usage.snapshot",
