@@ -137,3 +137,19 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Landed tonight as a PR from `perf/nightly-2026-10-14`:** `HostFilesPane` is `memo`'d, its callbacks come through `useFilesPaneActions` (stable wrappers over `useLatest`), and its `RenderProfiler` moved inside the memo boundary. A Profiler that is a child of a re-rendering host always ticks, even when everything below it bails out. switch.perOp.commit.files 4.7 → 3.0 (3 of 3 runs), FileTree renders per run 71 → 43, root/workspace unchanged.
 
 **Left in Files per switch:** `worktreePath` (1), the wipe effect (1), plus about 1 empty render (a context). The 10-06 note covers the wipe.
+
+## 2026-10-15 — switch.perOp.commit.root / .workspace (main 377ec26)
+
+**No regression.** Run 1 read boot.firstFrame.ms 1074.7, boot.ready.ms 4261 and golden.cli-startup-ms 97.1 (cold first run plus machine noise again). Run 2 changed only switch.perOp.commit.sidebar 3.3 → 2.1 and stateListener 6.7 → 5.6, both ✓ (#1237 and #1251). **Baseline moved** to run 2, with the three untouched typing counters kept as explicit zeros. #1255 (Files pane memo, 10-14) is still open, so Files was left alone tonight.
+
+**Tracer fix.** The 10-13 dispatcher proxy has to skip values that are already proxies. React saves `H` and restores it, so the setter receives the proxy back. Without the skip it nests a new proxy on every restore, and each setState is logged N times (it read 12 `setCursor` per key). Keep a `WeakSet` of proxies. A Profiler `onRender` line written into the same file (phase plus actualDuration) shows which setState batch became which commit. Wrapping `useSyncExternalStore`'s subscribe callback shows store notifies.
+
+**Per-switch commit anatomy (clean trace, root 9.0–9.6, untraced 9.5).** (1) click selection, about 4 ms; (2) nested: the big passive-effect pass, see 10-13; (3) nested, **0.00 ms**; (4) the daemon echo (`remote-orchestrator-events.ts:108/128` notifies), about 2.5 ms; (5) nested, 0.00–0.09 ms; (6) `geomTick` from the body's layout `onResize` (`use-terminal-geometry.ts:41`); (7) the geometry effect (`setBodyRows`/`setBodyGeometry`); (8) acquire `setPty`; (9) the `[pty]` effect prime plus the first publish. Commits 6–9 are one chain, because each remounted Terminal measures its body from scratch before it acquires.
+
+**Typing:** exactly one publish → `setSnapshot`/`setCursor` → commit per key. That is the paint path (React state → painter, `flushSync` in the frame scheduler), so typing.perOp.commit.root = 1 is the floor without a terminal rewrite.
+
+**Approach.** Commit (3) followed `keyboard-hints.tsx:84` (`useStatusKeyHintItems`' effect) calling `setSnapshot(prev => … ? prev : next)` twice. That effect re-runs because about 12 `bumpStackVersion` calls per switch come from `useBindings` mount and unmount in the remounted terminal tree. The change compared the snapshot against a ref and skipped `setSnapshot` when nothing changed.
+
+**Why it did not count.** The hint calls disappeared from the trace, but the 0.00 commit (3) stayed, so it has a second source that the setState, external-store and mismatch traces don't show. Clean runs read root 10.0 and 10.3, workspace 9.3 and 9.4 (baseline 9.5 / 9.1): no drop. Not kept.
+
+**Next candidates.** (a) Find commit (3)'s real source. A setState from a layout effect, a ref callback or a class component is not traced. Try also wrapping `useLayoutEffect`/`useInsertionEffect` bodies, or log `scheduleUpdateOnFiber` from a patched reconciler copy. (b) Fold commits 6–7: seed the first geometry measurement from the outgoing Terminal's last body size when the layout key is unchanged. Read `use-terminal-geometry.ts`'s header (inline ref, 0x0 first attach) and 10-05 first. (c) Reduce `bumpStackVersion` churn (one bump per effect flush instead of per registration).
