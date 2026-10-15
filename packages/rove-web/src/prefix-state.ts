@@ -1,6 +1,6 @@
 /** The prefix layer's shared state: what the HUD shows (TUI `prefix-hud.ts`). */
 
-import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS } from "@sma1lboy/rove/src/tui/lib/prefix-hud.ts"
+import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS } from "@sma1lboy/rove/src/tui/lib/prefix-hud-timing.ts"
 import { createStore } from "./store.ts"
 
 /** Fast users finish inside this; learners then get the complete command map. */

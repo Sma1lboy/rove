@@ -137,3 +137,20 @@ export function userChordsOf(id: string, kind: "direct" | "prefix"): readonly st
   const theirs = kind === "prefix" ? def?.prefixKeys : def?.keys
   return mine && JSON.stringify(mine) !== JSON.stringify(theirs ?? []) ? mine : undefined
 }
+
+/**
+ * The plugin chord a key press is, as the TUI's `dispatchMode` finds it inside the one entry the
+ * plugin chords share: candidates in order (`shift+p` before `p`), the first one any chord names.
+ */
+export function pluginHit(plugins: readonly PluginChord[], candidates: readonly string[]): PluginChord | undefined {
+  for (const candidate of candidates) {
+    const hit = plugins.find((binding) => binding.chord === candidate)
+    if (hit) return hit
+  }
+  return undefined
+}
+
+/** TUI `workspacePagesClosed`: plugin chords are live unless a dialog or a full-window page (Worktrees, Update) covers the rail. */
+export function pluginChordsLive(open: { dialog: boolean; page: string | null }): boolean {
+  return !open.dialog && open.page !== "worktrees" && open.page !== "update"
+}
