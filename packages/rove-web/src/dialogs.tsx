@@ -6,6 +6,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
+import "./taskops.css"
 import { closeDialog } from "./ui.ts"
 
 function errorText(err: unknown): string {
@@ -94,18 +95,27 @@ export function ConfirmDialog(props: {
   body: string
   confirmLabel: string
   onConfirm: () => Promise<void>
-  /** A refusal that can be retried harder (dirty worktree → force). */
-  escalate?: { readonly when: (err: unknown) => boolean; readonly label: string; readonly run: () => Promise<void> }
+  /** A refusal that can be retried harder (dirty worktree → force). `title`/`body` replace the dialog's own once it fires. */
+  escalate?: {
+    readonly when: (err: unknown) => boolean
+    readonly label: string
+    readonly run: () => Promise<void>
+    readonly title?: string
+    readonly body?: (err: unknown) => string
+  }
 }) {
   const { busy, error, setError, submit } = useSubmit()
   const [escalated, setEscalated] = useState(false)
+  const [refusal, setRefusal] = useState<unknown>(null)
   const confirm = useRef<HTMLButtonElement>(null)
   useEffect(() => confirm.current?.focus(), [])
   return (
-    <DialogShell title={props.title}>
+    <DialogShell title={(escalated && props.escalate?.title) || props.title}>
       <div className="dialog-body">
-        <p className="muted">{props.body}</p>
-        {error && <p className="error">{error}</p>}
+        <p className="muted taskops-body">
+          {escalated && props.escalate?.body ? props.escalate.body(refusal) : props.body}
+        </p>
+        {error && !(escalated && props.escalate?.body) && <p className="error">{error}</p>}
         <div className="actions">
           <button type="button" className="link" onClick={closeDialog}>
             {t("dialog.cancel")}
@@ -122,8 +132,8 @@ export function ConfirmDialog(props: {
                 } catch (err) {
                   if (!escalated && props.escalate?.when(err)) {
                     setEscalated(true)
+                    setRefusal(err)
                     setError(errorText(err))
-                    throw err
                   }
                   throw err
                 }

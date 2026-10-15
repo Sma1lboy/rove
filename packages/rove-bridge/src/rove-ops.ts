@@ -53,6 +53,8 @@ export interface EngineRow {
   readonly models?: ReadonlyArray<{ readonly id: string; readonly name?: string }> | null
   /** Reasoning levels the engine declares; `[]` = takes none. */
   readonly effortLevels?: readonly string[]
+  /** The engine has a model flag, so a model can be pinned for it (`modelArgv` in the engine registry). */
+  readonly acceptsModel?: boolean
   /** Binary present and, where Rove can read the login, signed in (`engine-status.ts`). Absent = could not probe. */
   readonly ready?: boolean
 }
@@ -241,6 +243,7 @@ export function taskRows(
         ...(changes ? { changes } : {}),
         ...(tokens.length > 0 ? { rowTokens: tokens } : {}),
         prChip: chip,
+        ...(task.prompt !== undefined ? { hasPrompt: true } : {}),
         prChipStale: chip !== null && pr?.lastError !== undefined,
       },
     ]
@@ -289,6 +292,7 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
           builtin,
           models: models ?? null,
           effortLevels: [...(engineEntry(protocol).effortLevels ?? [])],
+          acceptsModel: engineEntry(protocol).modelArgv !== undefined,
           ...(status ? { ready: status.binary.found && status.account?.kind !== "none" } : {}),
         }
       }),

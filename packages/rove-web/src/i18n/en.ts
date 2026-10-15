@@ -203,4 +203,11 @@ export const en = {
   pages: {
     attachTooLarge: "{name} is larger than 5 MB",
   },
+  taskops: {
+    set: "set",
+    retire: "delete",
+    close: "close",
+    moveHint: "j/k move · enter or esc done",
+    fixSent: "asked the agent to fix the failing checks",
+  },
 }

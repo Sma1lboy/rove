@@ -12,10 +12,13 @@ import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import type { AppModel } from "./model.ts"
 import { usePrefs } from "./prefs.ts"
+import { moveMode } from "./move-mode.ts"
+import { aimedTask } from "./rail-aim.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { ShortcutBadges } from "./shortcut-badges.tsx"
 import { createStore, useStore } from "./store.ts"
 import { NewTaskDialog } from "./task-dialogs.tsx"
+import { fixChecksFlow, syncBaseFlow } from "./task-flows.tsx"
 import { dialog, page, toast, zen } from "./ui.ts"
 
 const PREFIX_KEY = "ctrl+a"
@@ -106,6 +109,33 @@ const ACTIONS: readonly PrefixAction[] = [
   { strokes: ["1"], id: "kanban.open", live: () => true, run: () => page.set("kanban") },
   { strokes: ["2"], id: "automations.open", live: () => true, run: () => page.set("routines") },
   { strokes: ["3"], id: "workItems.open", live: () => true, run: () => page.set("issues") },
+  {
+    strokes: ["m"],
+    id: "task.moveMode",
+    live: (m) => !!aimedTask(m),
+    run: () => {
+      moveMode.set(!moveMode.get())
+      document.querySelector<HTMLElement>(".rail")?.focus()
+    },
+  },
+  {
+    strokes: ["u"],
+    id: "files.syncBase",
+    live: (m) => aimedTask(m)?.kind === "task",
+    run: (model) => {
+      const task = aimedTask(model)
+      if (task) void syncBaseFlow(model, task.id)
+    },
+  },
+  {
+    strokes: ["k"],
+    id: "files.fixChecks",
+    live: (m) => !!aimedTask(m),
+    run: (model) => {
+      const task = aimedTask(model)
+      if (task) void fixChecksFlow(model, task.id, t("taskops.fixSent"))
+    },
+  },
 ]
 
 interface HudState {
