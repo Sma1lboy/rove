@@ -211,5 +211,6 @@ export const zh: typeof en = {
     fixSent: "已请 agent 修复失败的检查",
     forkNeedsMessage: "fork 任务需要填写消息",
     forkBranch: "基于分支",
+    openedExternal: "已在 Mac 上用系统应用打开",
   },
 }

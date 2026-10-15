@@ -109,6 +109,11 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
     }
     void model.client.request("term.input", { stream, data: `@${path} ` }).catch((e) => toast(String(e), "error"))
   }
+  const openExternal = (path: string) =>
+    void model.client
+      .request("file.openExternal", { taskId: task.id, path })
+      .then(() => toast(t("taskops.openedExternal")))
+      .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
   const requestPR = () =>
     void model.client
       .request("tab.requestPR", model.engineTarget(task.id))
@@ -128,6 +133,7 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
     else if (key === "D" && e.shiftKey) open(".")
     else if ((key === "d" || key === "Enter") && row) open(row.path)
     else if (key === "a" && row) mention(row.path)
+    else if (key === "o" && row && !row.dir) openExternal(row.path)
     else return
     e.preventDefault()
   }

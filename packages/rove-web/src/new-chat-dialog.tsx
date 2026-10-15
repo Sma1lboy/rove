@@ -128,7 +128,13 @@ export function NewChatDialog(props: {
       <form
         className="dialog-body"
         onKeyDown={(e) => {
-          if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "f") {
+          if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "e") {
+            e.preventDefault()
+            e.stopPropagation()
+            const pool = choice.engines.filter((engine) => engine.ready !== false)
+            const next = pool[(pool.findIndex((engine) => engine.id === choice.engine) + 1) % pool.length]
+            if (next) choice.setEngine(next.id)
+          } else if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "f") {
             e.preventDefault()
             e.stopPropagation()
             apply(destination, context === "fresh" ? "continue" : "fresh")

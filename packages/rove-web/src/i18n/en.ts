@@ -211,5 +211,6 @@ export const en = {
     fixSent: "asked the agent to fix the failing checks",
     forkNeedsMessage: "a message is required to fork a task",
     forkBranch: "fork from branch",
+    openedExternal: "opened in the Mac's app",
   },
 }

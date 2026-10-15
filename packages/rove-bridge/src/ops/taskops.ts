@@ -7,7 +7,9 @@
  * Scratch is always `$HOME`, a typed path is only listed or validated.
  */
 
+import { realpathSync, statSync } from "node:fs"
 import { homedir } from "node:os"
+import { extname, join, sep } from "node:path"
 import { updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
 import {
@@ -22,6 +24,7 @@ import {
   type CIFailingChecksRead,
   buildCIPromptForWorktree,
 } from "@sma1lboy/rove/src/tui/ops/ci-prompt.ts"
+import { openExternally } from "@sma1lboy/rove/src/tui/panes/filetree/open-external.ts"
 import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tab-shapes.ts"
 import { moveTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { BridgeError, optStr } from "../protocol.ts"
@@ -38,6 +41,12 @@ export interface TaskOpsDeps {
   buildCIPrompt: typeof buildCIPromptForWorktree
   /** Swap a tab with its neighbour in the persisted strip order; false at an edge or for an unknown tab. */
   reorderTab(taskId: string, tabId: string, delta: -1 | 1): boolean
+  /** The Mac's own opener (`open` / `xdg-open`) on an absolute path; fire and forget. */
+  openExternal(absPath: string): void
+  /** Canonical path (symlinks resolved), or null when it does not exist. */
+  canonical(path: string): string | null
+  /** Executable bit set, or not a regular file. */
+  runnable(path: string): boolean
 }
 
 function reorderPersistedTab(taskId: string, tab: string, delta: -1 | 1): boolean {
@@ -54,7 +63,30 @@ function reorderPersistedTab(taskId: string, tab: string, delta: -1 | 1): boolea
   return moved
 }
 
+function canonical(path: string): string | null {
+  try {
+    return realpathSync(path)
+  } catch {
+    return null
+  }
+}
+
+function runnable(path: string): boolean {
+  const info = statSync(path)
+  return !info.isFile() || (info.mode & 0o111) !== 0
+}
+
+/** What `o` hands to the OS: media and documents, never anything the OS would run or install. */
+const OPENABLE = new Set(
+  "pdf png jpg jpeg gif webp bmp tif tiff heic svg ico mp3 wav m4a aac flac ogg mp4 m4v mov webm mkv avi ttf otf".split(
+    " ",
+  ),
+)
+
 const realDeps: TaskOpsDeps = {
+  openExternal: openExternally,
+  canonical,
+  runnable,
   homeDir: homedir,
   buildCIPrompt: buildCIPromptForWorktree,
   reorderTab: reorderPersistedTab,
@@ -183,6 +215,39 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
       async run(a) {
         const direction = oneOf(a, "direction", ["up", "down"] as const)
         return { moved: deps.reorderTab(taskId(a), tabId(a), direction === "up" ? -1 : 1) }
+      },
+    },
+
+    "file.openExternal": {
+      kind: "write",
+      destructive: false,
+      wraps: "helper openExternally (the Mac's `open`) on a media/document file inside the task's worktree",
+      async run(a, { api }) {
+        const rel = optStr(a, "path") ?? ""
+        if (
+          !rel ||
+          rel.length > PATH_MAX ||
+          rel.startsWith("/") ||
+          rel.includes("\0") ||
+          rel.split(/[\\/]/).includes("..")
+        ) {
+          throw new BridgeError("BAD_ARGS", "path must be relative to the worktree")
+        }
+        const got = await api.verb<{ task: { worktreePath?: string | null } }>("get-task", [flag("task-id", taskId(a))])
+        const worktree = got.task.worktreePath
+        if (!worktree) throw new BridgeError("NO_WORKTREE", "this task has no worktree yet")
+        const root = deps.canonical(worktree)
+        const abs = deps.canonical(join(worktree, rel))
+        if (!root || !abs) throw new BridgeError("NOT_FOUND", `${rel} does not exist`)
+        // A symlink may not carry the open out of the worktree.
+        if (abs !== root && !abs.startsWith(root.endsWith(sep) ? root : root + sep)) {
+          throw new BridgeError("BAD_ARGS", "path is outside the worktree")
+        }
+        if (!OPENABLE.has(extname(abs).slice(1).toLowerCase()) || deps.runnable(abs)) {
+          throw new BridgeError("NOT_OPENABLE", "only images, audio, video, PDFs and fonts open in the system app")
+        }
+        deps.openExternal(abs)
+        return {}
       },
     },
 
