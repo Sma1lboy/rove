@@ -493,3 +493,23 @@ button:focus-visible,
     transform: none;
   }
 }
+
+/* Machine headers (TUI machine-layer.ts): a project-style rule, greyed unless online. */
+.machine-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 8px 4px;
+  font: 700 12px var(--mono);
+  color: var(--ink);
+}
+
+.machine-head .rule {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.machine-head.is-stale {
+  color: var(--subtle);
+}

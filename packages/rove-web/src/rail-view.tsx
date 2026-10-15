@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
+import { MachineHeaders } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, SPINNER, activityGlyph, groupByProject, navRows, repoLabel } from "./rail.ts"
@@ -115,6 +116,7 @@ export function RailView({ model }: { model: AppModel }) {
             }
           />
         ))}
+        <MachineHeaders client={model.client} />
       </div>
       <button type="button" className="row new-task" onClick={() => dialog.set(<NewTaskDialog model={model} />)}>
         <span className="glyph tone-accent">+</span>
