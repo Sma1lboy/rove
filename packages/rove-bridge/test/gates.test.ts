@@ -1,6 +1,7 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { defaultApiRuntime } from "@sma1lboy/rove/src/cli/api/runtime.ts"
 import type { ActiveGate } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { dismissHitsOnlyGates, gateRows } from "../src/gates.ts"
 import type { AttentionRow } from "../src/protocol.ts"
@@ -88,6 +89,12 @@ describe("gate rows", () => {
 })
 
 describe("the tasks payload", () => {
+  // `tasks()` asks the machine's PTY host for live tabs; CI has none, so a real call hangs or throws.
+  beforeEach(() => {
+    spyOn(defaultApiRuntime, "liveTaskIds").mockResolvedValue(null)
+  })
+  afterEach(() => mock.restore())
+
   test("carries the gates signal next to tasks and attention", async () => {
     const client = {
       request: async (name: string) => {
