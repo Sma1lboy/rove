@@ -43,9 +43,11 @@ import {
 import { readInboxVisits } from "./inbox-visits"
 import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
 
-/** Episodes the owner may drop; a decision (gate) is answered, not dismissed. */
+/** Episodes the owner may drop. An open decision is answered, never dismissed; one answered while
+ *  the engine was away can be closed, since no answer will ever deliver it. */
 function isDismissible(row: InboxRow | undefined): boolean {
-  return row?.kind === "attention" && row.item.state !== "decision_needed"
+  if (row?.kind !== "attention") return false
+  return row.item.state !== "decision_needed" || row.item.detail?.gate?.undelivered === true
 }
 
 const MAX_VISIBLE_CARDS = 6
@@ -281,8 +283,7 @@ export function AttentionInboxPane(props: {
         const row = selected()
         if (row) open(row)
       },
-      // Only episodes are dismissible — a recent task has nothing to drop, and
-      // a decision is answered, never dismissed.
+      // Only episodes are dismissible — a recent task has nothing to drop.
       "inbox.delete": () => {
         const row = selected()
         if (row?.kind === "attention" && isDismissible(row)) props.onDelete(row.item)

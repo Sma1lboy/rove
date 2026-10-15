@@ -140,13 +140,26 @@ export function useInboxHost(args: {
     args.focusWorkspace()
   }
 
+  /** `d`: drop an episode, or close a decision answered while the engine was away. */
+  function closeItem(item: AttentionInboxItem): void {
+    const gate = item.state === "decision_needed" ? item.detail?.gate : undefined
+    if (!gate) {
+      notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
+      return
+    }
+    if (!gate.undelivered) return
+    orch
+      .withdrawGate(gate.id)
+      .catch((err) => args.notifyError(t("gates.toast.withdrawFailed", { error: userFacingErrorMessage(err) })))
+  }
+
   function show(): void {
     AttentionInboxDialog.show(args.dialog, {
       orchestrator: orch,
       selectedId: args.selectedId,
       onOpen: openItem,
       onOpenTask: openTask,
-      onDelete: (item) => notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError),
+      onDelete: closeItem,
     })
   }
 

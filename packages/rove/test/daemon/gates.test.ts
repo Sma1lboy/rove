@@ -192,7 +192,6 @@ describe("decision gates", () => {
     await s.inbox.record(TASK.id, "turn-start", undefined, "tab-2")
     const dismissed = await s.call("attention.dismiss", { taskId: TASK.id, tabId: "tab-2" })
     expect(dismissed).toEqual({ deleted: false })
-    await s.call("attention.dismiss", { taskId: TASK.id, tabId: "tab-2", gateId: "g-1" })
     expect((await s.rows()).map((r) => r.state)).toEqual(["decision_needed"])
 
     await s.call("gate.answer", { gateId: "g-1", option: "a" })
@@ -338,6 +337,69 @@ describe("decision gates", () => {
     expect(await s.rows()).toEqual([])
     await expect(s.call("gate.withdraw", { gateId: "g-1" })).rejects.toThrow(/GATE_NOT_OPEN/)
     await expect(s.call("gate.withdraw", { gateId: "g-9" })).rejects.toThrow(/GATE_NOT_FOUND/)
+  })
+
+  it("an answer owed to an engine that is away can be closed by the owner, and only until it is delivered", async () => {
+    const s = await setup({ engine: "none" })
+    await raise(s.call)
+    await s.call("gate.answer", { gateId: "g-1", option: "a" })
+    expect(await s.rows()).toHaveLength(1)
+    expect((await s.call("gate.withdraw", { gateId: "g-1" })).gate.status).toBe("withdrawn")
+    expect(await s.rows()).toEqual([])
+    expect(s.gates.active()).toEqual([])
+    expect((await s.call("gate.takeUndelivered", { taskId: TASK.id, tabId: "tab-2" })).text).toBeNull()
+
+    const live = await setup()
+    await raise(live.call)
+    await live.call("gate.answer", { gateId: "g-1", option: "a" })
+    await expect(live.call("gate.withdraw", { gateId: "g-1" })).rejects.toThrow(/GATE_NOT_OPEN.*delivered/)
+  })
+
+  it("deleting a task closes its answered-but-undelivered gates too", async () => {
+    const s = await setup({ engine: "none" })
+    await raise(s.call)
+    await s.call("gate.answer", { gateId: "g-1", option: "a" })
+    const ctx = {
+      ...s.ctx,
+      orch: { ...s.ctx.orch, prepareTaskDeletion: async () => true },
+      issues: { unlinkTask: async () => null },
+    } as unknown as DaemonHandlerContext
+    await dispatchDaemonRequest(createDaemonHandlerRegistry(), "task.delete", { taskId: TASK.id }, ctx)
+    expect(await s.rows()).toEqual([])
+    expect((s.published.filter((p) => p.channel === "gates").at(-1)?.payload as { gates: Gate[] }).gates).toEqual([])
+  })
+
+  it("a raised gate remembers the delivery it reported blocked", async () => {
+    const s = await setup()
+    const armed = await s.deliveries.arm({ taskId: TASK.id, tabId: "tab-2", source: "send", promptHead: "tick" })
+    const { gate } = await raise(s.call)
+    expect(gate.deliveryId).toBe(armed.id)
+    expect(s.gates.get("g-1")?.deliveryId).toBe(armed.id)
+    expect((await raise(s.call)).gate.deliveryId).toBeUndefined()
+  })
+
+  it("two answers for one tab at once each reach the engine once", async () => {
+    const s = await setup()
+    await raise(s.call)
+    await raise(s.call, { question: "Second?" })
+    const runtime = s.ctx.runtime as unknown as Record<string, unknown>
+    const land = runtime.deliverPromptToLiveEngineTabDetailed as (t: object, text: string) => Promise<unknown>
+    const release = Promise.withResolvers<void>()
+    runtime.deliverPromptToLiveEngineTabDetailed = async (t: object, text: string) => {
+      await release.promise
+      return land(t, text)
+    }
+    const answers = Promise.all([
+      s.call("gate.answer", { gateId: "g-1", option: "a" }),
+      s.call("gate.answer", { gateId: "g-2", option: "b" }),
+    ])
+    await vi.waitFor(() => expect(s.gates.undeliveredFor(TASK.id, "tab-2")).toHaveLength(2))
+    release.resolve()
+    await answers
+    const pasted = s.delivered.map((d) => d.text).join("\n")
+    expect(pasted.match(/GATE g-1 answered/g)).toHaveLength(1)
+    expect(pasted.match(/GATE g-2 answered/g)).toHaveLength(1)
+    expect(s.gates.active()).toEqual([])
   })
 
   it("deleting a task withdraws its open gates, and only its own", async () => {

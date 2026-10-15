@@ -885,10 +885,13 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `[ROVE GATE g-N answered] <question>` / `Answer: KEY — label` /
   `Note: TEXT`. No live engine → `{ delivered: false }` and the gate keeps
   `handoff: "undelivered"`: nothing is queued or retried; the next `send` or
-  routine firing into that tab carries the answer in front of its prompt.
-  Answering a closed gate is `GATE_NOT_OPEN`.
+  routine firing into that tab carries the answer in front of its prompt. A
+  prompt typed into the TUI, a TUI revive, and `dispatch` do not. Answering
+  a closed gate is `GATE_NOT_OPEN`.
 - `gate-withdraw --gate g-N`: close an open gate nobody needs to answer
-  anymore. Deleting a task withdraws its open gates.
+  anymore, or an answered one whose answer never reached the engine (the
+  owner's explicit close; the answer is dropped). A delivered gate is
+  `GATE_NOT_OPEN`. Deleting a task closes its open and undelivered gates.
 - `gates [--repo PATH] [--task-id ID] [--status open|answered|withdrawn|all]`:
   list gates (default `open`). `context` also lists the repo's open gates
   under `gates`.

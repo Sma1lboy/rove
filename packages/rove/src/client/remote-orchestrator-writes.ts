@@ -189,6 +189,11 @@ export async function answerGateOp(
   return { delivered: res.delivered }
 }
 
+/** Close a gate the owner no longer wants delivered (an answer the engine never received). */
+export async function withdrawGateOp(client: RoveDaemonClient, gateId: string): Promise<void> {
+  await client.request("gate.withdraw", { gateId })
+}
+
 /** Legacy compatibility alias: resolving this exact episode removes it. */
 export async function markAttentionReadOp(
   client: RoveDaemonClient,

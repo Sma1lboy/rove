@@ -245,8 +245,12 @@ visiting the tab, not `d`, not the tab's next turn. `enter` opens the decision
 dialog instead of the tab: pick an option (the task's recommendation is
 marked and preselected), `tab` to add a note, `enter` to send. A question with
 no options is note-only. The answer goes into the gate's tab. If that engine
-is not running, the row stays as `answered · engine not running` until the
-next message to that tab carries the answer; `enter` then opens the tab.
+is not running, the row stays as `answered · engine not running`; `enter`
+then opens the tab. The owed answer is delivered by the next `rove api send`
+to that tab or routine firing into it, and by nothing else: a prompt typed
+into the TUI, or restarting the engine from the TUI, does not carry it. To
+close an answer you no longer want delivered, press `d` on the row (`rove api
+gate-withdraw` does the same); the engine never sees it.
 
 `F7` jumps straight to the first pending item across **all** projects — the
 oldest blocked one, or the oldest finished turn when nothing is blocked —

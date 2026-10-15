@@ -292,7 +292,8 @@ stateDiagram-v2
   [*] --> open: rove api gate-raise
   open --> answered: owner answers (TUI / bridge / weixin / cli)
   open --> withdrawn: agent or owner withdraws, or task deleted
-  answered --> answered: undelivered → delivered (rides the next delivery to the tab)
+  answered --> answered: undelivered → delivered (rides the next send or routine firing into the tab)
+  answered --> withdrawn: owner closes an undelivered answer, or task deleted
   answered --> [*]
   withdrawn --> [*]
 ```
@@ -313,12 +314,15 @@ stateDiagram-v2
   through the same delivery path as `send` (arming a delivery when the task
   requires reports). No live engine → `handoff: "undelivered"`. There is no
   queue and no retry timer (see #959): the answer is prepended to the **next**
-  prompt delivered to that tab — a scheduler tick, a `send`, or a revive — and
-  should-run returns `run: true` for a task whose only gate is answered but
-  undelivered, so the next tick carries it. Until then the gate list and the
-  owner's surfaces show "answered, engine not running".
-- **Withdraw:** `rove api gate-withdraw --gate g-12`; task deletion withdraws
-  its open gates.
+  `rove api send` or routine firing into that tab, and nothing else. A prompt
+  typed into the TUI, a TUI revive and `session.deliver` do not carry it, and
+  nothing pastes on session start. Should-run returns `run: true` for a task
+  whose only gate is answered but undelivered, so the next tick carries it.
+  Until then the gate list and the owner's surfaces show "answered, engine not
+  running".
+- **Withdraw:** `rove api gate-withdraw --gate g-12`, or `d` on the Inbox row.
+  Closes an open gate, or an answered one still `undelivered` (the owner's
+  explicit close; the answer is dropped). Task deletion closes both kinds.
 - **List:** `rove api gates [--repo P] [--task-id ID] [--status open]`.
 
 ### Surfaces
@@ -365,8 +369,7 @@ owner:
    `send --if-runnable`, routine `skipped_blocked`, quota-resume consult,
    `runnability` on `get-task`/`collect`.
 4. **Gates (daemon, CLI, TUI)** — `gates.json`, raise/answer/withdraw/list,
-   `decision_needed` Inbox state, decision dialog, pending handoff on
-   session-start, `awaiting-owner` verdict.
+   `decision_needed` Inbox state, decision dialog, `awaiting-owner` verdict.
 5. **Gates on the bridges** — `rove-bridge` protocol + op, Android and iOS
    Inbox rows, weixin commands.
 
@@ -424,3 +427,12 @@ owner:
 - **Pre-#1247 Android and iOS builds are unsupported for `report_missing`
   rows.** They key inbox rows by task and tab and cannot dismiss by delivery
   id (the Android client is an unreleased MVP).
+
+## Deviations in layer 4
+
+- **Bridges briefly show decision rows without an answer path.** Until the
+  bridge layer lands, `attention.list` forwards `decision_needed` rows to
+  phones that cannot answer them. The layers land together.
+- **Withdrawing an answered gate is allowed.** The lifecycle only withdrew
+  open gates; an answer owed to an engine that never returns (tab gone, task
+  deleted) would otherwise stay in the Inbox forever.

@@ -124,3 +124,30 @@ test("the clear hint dims on a RECENT row — only attention rows are dismissibl
   await settle()
   expect((await clearHintAttrs()) & TextAttributes.DIM).not.toBe(0)
 })
+
+test("d closes a decision answered while the engine was away, but never an open one", async () => {
+  const decision = (undelivered: boolean): AttentionInboxItem => ({
+    ...item("t-att", "decision_needed"),
+    detail: { gate: { id: "g-1", question: "Ship?", options: [], ...(undelivered ? { undelivered } : {}) } },
+  })
+  const pressD = async (gateRow: AttentionInboxItem): Promise<AttentionInboxItem[]> => {
+    const deleted: AttentionInboxItem[] = []
+    const { mockInput } = await renderComponent(
+      <AttentionInboxPane
+        items={[gateRow]}
+        tasks={[task("t-att")]}
+        kv={stubKv()}
+        onOpen={() => {}}
+        onOpenTask={() => {}}
+        onDelete={(row) => deleted.push(row)}
+        onClose={() => {}}
+      />,
+      { width: 80, height: 30 },
+    )
+    mockInput.pressKey("d")
+    await settle()
+    return deleted
+  }
+  expect(await pressD(decision(true))).toHaveLength(1)
+  expect(await pressD(decision(false))).toHaveLength(0)
+})

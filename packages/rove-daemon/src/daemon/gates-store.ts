@@ -57,6 +57,10 @@ function isClosed(gate: Gate): boolean {
   return gate.status === "withdrawn" || (gate.status === "answered" && gate.handoff !== "undelivered")
 }
 
+/** Still live: waiting on the owner, or answered but not yet in the engine's hands. */
+const isWithdrawable = (gate: Gate): boolean =>
+  gate.status === "open" || (gate.status === "answered" && gate.handoff === "undelivered")
+
 /** A canonical tab stands in for "no tab named": the task's first engine tab. */
 const norm = (tabId: string | null | undefined): string => tabId ?? "tab-1"
 
@@ -225,24 +229,37 @@ export class GatesStore {
     })
   }
 
+  /** Record the delivery a raised gate reported blocked. */
+  async attachDelivery(id: string, deliveryId: string): Promise<Gate> {
+    return await this.mutate((gates) => {
+      const gate = gates.find((g) => g.id === id)
+      if (!gate) throw new Error(`GATE_NOT_FOUND: no gate ${id}`)
+      const next: Gate = { ...gate, deliveryId }
+      return { gates: gates.map((g) => (g === gate ? next : g)), result: next }
+    })
+  }
+
+  /**
+   * The owner's explicit close: an open gate, or an answered one the engine
+   * never received. Either ends `withdrawn`; a delivered one is already done.
+   */
   async withdraw(id: string): Promise<Gate> {
     return await this.mutate((gates) => {
       const gate = gates.find((g) => g.id === id)
       if (!gate) throw new Error(`GATE_NOT_FOUND: no gate ${id}`)
-      if (gate.status !== "open") throw new Error(`GATE_NOT_OPEN: ${id} is already ${gate.status}`)
+      if (!isWithdrawable(gate))
+        throw new Error(`GATE_NOT_OPEN: ${id} is already ${gate.status === "answered" ? "delivered" : gate.status}`)
       const next: Gate = { ...gate, status: "withdrawn" }
       return { gates: gates.map((g) => (g === gate ? next : g)), result: next }
     })
   }
 
-  /** Task deletion: its open gates can never be answered into anything. */
+  /** Task deletion: nothing can answer into, or deliver to, a deleted task. */
   async withdrawTask(taskId: string): Promise<void> {
     await this.mutate((gates) => {
-      const changed = gates.some((g) => g.taskId === taskId && g.status === "open")
-      const next = gates.map(
-        (g): Gate => (g.taskId === taskId && g.status === "open" ? { ...g, status: "withdrawn" } : g),
-      )
-      return changed ? { gates: next, result: undefined } : { result: undefined }
+      const hit = (g: Gate) => g.taskId === taskId && isWithdrawable(g)
+      if (!gates.some(hit)) return { result: undefined }
+      return { gates: gates.map((g): Gate => (hit(g) ? { ...g, status: "withdrawn" } : g)), result: undefined }
     })
   }
 

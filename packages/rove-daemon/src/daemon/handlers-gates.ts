@@ -21,12 +21,26 @@ function parseOptions(raw: unknown): GateOption[] {
   })
 }
 
+/** Tail of each task's delivery chain: two answers for one tab must not take the same owed answer. */
+const deliveryChains = new Map<string, Promise<unknown>>()
+
+function deliverGateAnswer(ctx: DaemonHandlerContext, gate: Gate): Promise<boolean> {
+  const tail = deliveryChains.get(gate.taskId) ?? Promise.resolve()
+  const run = tail.then(() => pasteGateAnswer(ctx, gate))
+  const next = run.catch(() => {})
+  deliveryChains.set(gate.taskId, next)
+  void next.then(() => {
+    if (deliveryChains.get(gate.taskId) === next) deliveryChains.delete(gate.taskId)
+  })
+  return run
+}
+
 /**
  * Hand an answered gate (and any older answers still owed to the same tab) to
  * the live engine. Never spawns, queues or retries: no live engine leaves the
  * handoff `undelivered`, and the next prompt to that tab carries it.
  */
-async function deliverGateAnswer(ctx: DaemonHandlerContext, gate: Gate): Promise<boolean> {
+async function pasteGateAnswer(ctx: DaemonHandlerContext, gate: Gate): Promise<boolean> {
   const task = ctx.orch.getTask(gate.taskId)
   if (!task || task.deletion || !task.worktreePath) return false
   const handoff = takeUndeliveredGateAnswers(ctx.gates, gate.taskId, gate.tabId)
@@ -72,8 +86,8 @@ export const GATE_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(recommended ? { recommended } : {}),
         ...(context ? { context } : {}),
       })
-      await countGateRaiseAsReport(ctx, gate)
-      return { gate }
+      const reported = await countGateRaiseAsReport(ctx, gate)
+      return { gate: reported ? await ctx.gates.attachDelivery(gate.id, reported.id) : gate }
     },
   },
   {

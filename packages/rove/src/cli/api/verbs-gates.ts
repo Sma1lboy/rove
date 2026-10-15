@@ -56,7 +56,7 @@ export const GATE_VERBS: readonly VerbSpec[] = [
     name: "gate-answer",
     group: "drive",
     summary:
-      "Answer an open decision gate. The answer is saved first, then pasted into the gate's tab; with no live engine the gate is answered but `handoff: undelivered`, and the next prompt sent to that tab carries it. Pass --option (must be one of the gate's keys), --text, or both. Returns { gate, delivered }.",
+      "Answer an open decision gate. The answer is saved first, then pasted into the gate's tab; with no live engine the gate is answered but `handoff: undelivered`, and the next `send` to that tab (or routine firing into it) carries it. A prompt typed into the TUI, or a TUI revive, does not. Pass --option (must be one of the gate's keys), --text, or both. Returns { gate, delivered }.",
     flags: [
       {
         name: "gate",
@@ -74,7 +74,7 @@ export const GATE_VERBS: readonly VerbSpec[] = [
     name: "gate-withdraw",
     group: "drive",
     summary:
-      "Withdraw an open decision gate that no longer needs an answer (the question went moot). Deleting a task withdraws its gates automatically.",
+      "Close a decision gate that no longer needs an answer (the question went moot), or an answer the engine never received and the owner no longer wants delivered. A delivered one cannot be withdrawn. Deleting a task closes its gates automatically.",
     flags: [{ name: "gate", type: "string", required: true, placeholder: "g-N", description: "Gate id." }],
     handler: gateWithdraw,
   },
@@ -82,7 +82,7 @@ export const GATE_VERBS: readonly VerbSpec[] = [
     name: "gates",
     group: "read",
     summary:
-      "List decision gates. Default: the open ones — questions waiting on the owner. `--status answered` shows answered gates, whose `.handoff` says whether the engine has the answer (`undelivered` = it rides the next prompt to that tab).",
+      "List decision gates. Default: the open ones — questions waiting on the owner. `--status answered` shows answered gates, whose `.handoff` says whether the engine has the answer (`undelivered` = it rides the next `send` or routine firing into that tab).",
     flags: [
       F.repo(false),
       F.taskId(false),

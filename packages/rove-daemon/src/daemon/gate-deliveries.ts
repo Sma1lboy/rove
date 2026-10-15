@@ -4,7 +4,7 @@
  */
 
 import type { DaemonTask } from "./contracts.ts"
-import { deliveryFooter } from "./delivery-contracts.ts"
+import { type Delivery, deliveryFooter } from "./delivery-contracts.ts"
 import { reportCurrentDelivery } from "./delivery-ops.ts"
 import type { Gate } from "./gate-contracts.ts"
 import { deliveryDepsOf } from "./handlers-deliveries.ts"
@@ -12,11 +12,12 @@ import type { DaemonHandlerContext } from "./handlers.ts"
 
 /**
  * Raising a gate is the current delivery's report, outcome `blocked`: an agent
- * that asks and stops must not also be flagged `report_missing`. Nothing armed
- * is fine (null): an ordinary chat turn owes no report.
+ * that asks and stops must not also be flagged `report_missing`. Returns the
+ * delivery it settled; null when nothing was armed (an ordinary chat turn owes
+ * no report).
  */
-export async function countGateRaiseAsReport(ctx: DaemonHandlerContext, gate: Gate): Promise<void> {
-  await reportCurrentDelivery(deliveryDepsOf(ctx), gate.taskId, gate.tabId, {
+export async function countGateRaiseAsReport(ctx: DaemonHandlerContext, gate: Gate): Promise<Delivery | null> {
+  return await reportCurrentDelivery(deliveryDepsOf(ctx), gate.taskId, gate.tabId, {
     outcome: "blocked",
     summary: gate.question,
     next: `awaiting owner decision ${gate.id}`,

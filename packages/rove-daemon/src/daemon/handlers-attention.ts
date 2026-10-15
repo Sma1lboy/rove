@@ -18,8 +18,6 @@ export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "attention.dismiss",
     async handle(payload, ctx) {
-      // A decision is answered or withdrawn (`gate.*`), never dismissed.
-      if (optionalString(payload, "gateId")) return { deleted: false }
       const taskId = requireString(payload, "taskId")
       const tabId = optionalString(payload, "tabId") ?? null
       const at = payload.at === undefined ? undefined : requireNumber(payload, "at")

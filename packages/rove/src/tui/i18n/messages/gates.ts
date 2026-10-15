@@ -24,6 +24,7 @@ export const en = {
   },
   toast: {
     answerFailed: "Could not send the answer: {error}",
+    withdrawFailed: "Could not close the decision: {error}",
   },
 }
 
@@ -43,5 +44,6 @@ export const zh: typeof en = {
   },
   toast: {
     answerFailed: "回答发送失败：{error}",
+    withdrawFailed: "关闭决定失败：{error}",
   },
 }
