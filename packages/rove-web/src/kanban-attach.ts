@@ -49,7 +49,6 @@ function base64(bytes: Uint8Array): string {
 
 /** Stores one file; resolves to its path on the machine running rove. */
 export async function putAttachment(client: BridgeClient, file: File): Promise<string> {
-  if (file.size > MAX_ATTACHMENT_BYTES) throw new Error(`${file.name || file.type} is larger than 5 MB`)
   const data = base64(new Uint8Array(await file.arrayBuffer()))
   const res = await client.request<{ path: string }>("attachment.put", { mime: file.type, data })
   return res.path
