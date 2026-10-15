@@ -26,6 +26,7 @@ import { tokenFromInput } from "./token-input.ts"
 import { dialog, page, preview, zen } from "./ui.ts"
 import { UpdateView, checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { UsageChips } from "./usage-view.tsx"
+import { WelcomePane } from "./welcome-view.tsx"
 import { useWorkspaceKeys } from "./workspace-keys.tsx"
 import { WorktreesView } from "./worktrees-view.tsx"
 
@@ -177,7 +178,8 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
         className={`pane ${working ? "is-working" : ""}`}
         style={taskInk ? ({ "--task-ink": taskInk } as CSSProperties) : undefined}
       >
-        {!task && <p className="placeholder">{t("workspace.pickTask")}</p>}
+        {!task && payload && payload.tasks.length === 0 && <WelcomePane model={model} />}
+        {!task && payload && payload.tasks.length > 0 && <p className="placeholder">{t("workspace.pickTask")}</p>}
         {task && tabs.length === 0 && !shown && (
           <div className="placeholder">
             <p>{t("workspace.noTabs")}</p>

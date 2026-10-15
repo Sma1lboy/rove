@@ -15,6 +15,7 @@ import { TASK_OPS } from "./tasks.ts"
 import { TERMINAL_OPS } from "./terminal.ts"
 import type { OpTable } from "./types.ts"
 import { updateOps } from "./update.ts"
+import { welcomeOps } from "./welcome.ts"
 import { WORKSPACE_OPS } from "./workspace.ts"
 
 /** Merge area tables; a name registered twice is a programming error, caught at startup and in tests. */
@@ -44,4 +45,5 @@ export const AREA_OPS: OpTable = mergeOpTables(
   routingOps,
   TASKOPS_OPS,
   WORKSPACE_OPS,
+  welcomeOps,
 )
