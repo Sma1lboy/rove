@@ -164,7 +164,10 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       // Unreachable for unregistered names: parseRequest already refused them.
       if (!spec) throw new BridgeError("UNKNOWN_OP", `unknown op: ${req.op}`)
       if (spec.destructive) logDestructive(deps, req)
-      return spec.run(a, { api: deps.api })
+      return spec.run(a, {
+        api: deps.api,
+        progress: (line) => ws.send(pushEvent("op.progress", { id: req.id, line })),
+      })
     }
   }
 }
