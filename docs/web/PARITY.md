@@ -26,10 +26,10 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 13 | Redraw corrupted screen | prefix r | 🚫 | local | Cannot exist: a browser canvas has no corrupted terminal screen to erase; xterm repaints itself. |
 | 14 | Refresh daemon/TUI build (restart daemon + relaunch) | prefix r when DAEMON OUT OF DATE, confirm | ❌ | missing | Playwright: trigger 'prefix r when DAEMON OUT OF DATE'; expect 'refresh daemon/TUI build (restart daemon + relaunch)' as in TUI. Currently absent (no bridge op yet). |
 | 15 | Open Settings | prefix `,`, sidebar `s`, footer click | ✅ | local | r6: rail `s` and footer `[settings]`, TUI section order (shot r6s-01). r7: `ctrl+a ,` opens it from the terminal. |
-| 16 | Open Worktrees | sidebar `x` | ❌ | `worktrees.list` | Playwright: trigger 'sidebar x'; expect 'open Worktrees' as in TUI. Currently absent (via worktrees.list). |
+| 16 | Open Worktrees | sidebar `x` | ✅ | `worktrees.list` | r8: rail `x` opens the Worktrees page over the workspace (shot r8-01). |
 | 17 | Open Update | sidebar `u`, update chip | ❌ | missing | Playwright: trigger 'sidebar u'; expect 'open Update' as in TUI. Currently absent (no bridge op yet). |
 | 18 | Open Kanban / Routines / GitHub Issues | prefix 1/2/3, rail click | ❌ | `issue.repos`, `issue.list`, `routine.list`, `workitem.list` | Playwright: trigger 'prefix 1/2/3'; expect 'open Kanban / Routines / GitHub Issues' as in TUI. Currently absent (via issue.repos, issue.list, routine.list, workitem.list). |
-| 19 | Close current page | `q`/Esc/Ctrl+C | ❌ | local | Playwright: trigger 'q/Esc/Ctrl+C'; expect 'close current page' as in TUI. Currently absent (browser-local, no bridge call). |
+| 19 | Close current page | `q`/Esc/Ctrl+C | 🟡 | local | r8: `q`/Esc close the Worktrees page. Ctrl+C not bound (it is the terminal's copy/interrupt in a browser). |
 | 20 | Drag Tasks rail width / reset auto width | edge drag / double click | ❌ | local | Playwright: trigger 'edge drag / double click'; expect 'drag Tasks rail width / reset auto width' as in TUI. Currently absent (browser-local, no bridge call). |
 | 21 | Toggle collapsed Tasks rail | fold control click | ❌ | local | Playwright: trigger 'fold control click'; expect 'toggle collapsed Tasks rail' as in TUI. Currently absent (browser-local, no bridge call). |
 | 22 | Narrow layout: return to Tasks | click ‹ Tasks, Ctrl+Q | ❌ | local | Playwright: trigger 'click ‹ Tasks'; expect 'narrow layout: return to Tasks' as in TUI. Currently absent (browser-local, no bridge call). |
@@ -100,7 +100,7 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
 | 72 | New engine tab (browser-reserved Ctrl+T; PROPOSED chord needs owner sign-off) | Ctrl+T | 🟡 | `tab.new` | r2: tab-strip `+` opens the new-conversation picker. No chord. |
-| 73 | Open new conversation picker | Ctrl+E | 🟡 | `engines.list` | r2: `+`, row menu, and the empty pane's button open it. Ctrl+E not on the web. |
+| 73 | Open new conversation picker | Ctrl+E | ✅ | `engines.list` | r2: `+`, row menu, empty pane button. r8: Ctrl+E from the terminal opens it. |
 | 74 | Choose engine / shell / plugin pane | picker ←/→, Enter, click | 🟡 | `tab.new` | r6: engine chips plus a `shell` chip (hides the message field) by click; no plugin pane, no ←/→. |
 | 75 | Pick destination tab / fork / scratch | picker Tab/chips | ❌ | `tab.forkTask` | Playwright: trigger 'picker Tab/chips'; expect 'pick destination tab / fork / scratch' as in TUI. Currently absent (via tab.forkTask). |
 | 76 | Pick fresh / continue chat | picker Ctrl+F | ❌ | `tab.handoff` | Playwright: trigger 'picker Ctrl+F'; expect 'pick fresh / continue chat' as in TUI. Currently absent (via tab.handoff). |
@@ -110,10 +110,10 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 | 80 | Fan out fork attempts | composer attempts >1, submit | ❌ | `task.spawn` | Playwright: trigger 'composer attempts >1'; expect 'fan out fork attempts' as in TUI. Currently absent (via task.spawn). |
 | 81 | Attach / drop / paste image or PDF in composer | drop, Ctrl+V, Ctrl+X | ❌ | `attachment.put` | Playwright: trigger 'drop'; expect 'attach / drop / paste image or PDF in composer' as in TUI. Currently absent (via attachment.put). |
 | 82 | New Scratch task / shell | picker Scratch | ❌ | `task.create`, `tab.new` | Playwright: trigger 'picker Scratch'; expect 'new Scratch task / shell' as in TUI. Currently absent (via task.create, tab.new). |
-| 83 | Click tab / previous / next / jump N | tab strip click, Ctrl+[ / Ctrl+], Ctrl+1..9 | 🟡 | local | Click each tab in the strip: active terminal switches. Ctrl+1..9 / Ctrl+[ / Ctrl+] not wired: press Ctrl+2 and nothing changes. |
+| 83 | Click tab / previous / next / jump N | tab strip click, Ctrl+[ / Ctrl+], Ctrl+1..9 | ✅ | local | r8: tab strip click, Ctrl+2 jumps, Ctrl+] / Ctrl+[ cycle, from inside the terminal. On Linux/Windows Chrome reserves Ctrl+1..9 for its own tabs and never delivers them; macOS delivers them. |
 | 84 | Close active tab (browser-reserved Ctrl+W; PROPOSED chord needs owner sign-off) | Ctrl+W, prefix w, row menu | 🟡 | `tab.close` | r2: tab menu Close tab. r7: `ctrl+a w` closed the active tab with no confirm, as the TUI (`get-task` count −1). Ctrl+W is the browser's and cannot be taken. |
 | 85 | Reopen empty task session | Enter/Ctrl+E in empty pane | 🟡 | `tab.new` | r6: empty pane's `New conversation` opens the picker, which now starts an engine with no message. No Enter/Ctrl+E. |
-| 86 | Rename tab | F2 | ❌ | `tab.rename` | Playwright: trigger 'F2'; expect 'rename tab' as in TUI. Currently absent (via tab.rename). |
+| 86 | Rename tab | F2 | ✅ | `tab.rename` | r8: F2 on the active tab → rename dialog; `get-task` shows title `renamed-by-f2`. |
 | 87 | Split terminal right / down | Ctrl+\\ / Ctrl+= | ❌ | local | Playwright: trigger 'Ctrl+\\ / Ctrl+='; expect 'split terminal right / down' as in TUI. Currently absent (browser-local, no bridge call). |
 | 88 | Focus next split | F3, click leaf | ❌ | local | Playwright: trigger 'F3'; expect 'focus next split' as in TUI. Currently absent (browser-local, no bridge call). |
 | 89 | Close active split (browser-reserved Ctrl+W; PROPOSED chord needs owner sign-off) | Ctrl+W, prefix w in split | ❌ | `tab.close` | Playwright: trigger 'Ctrl+W'; expect 'close active split (browser-reserved Ctrl+W; PROPOSED chord needs owner sign-off)' as in TUI. Currently absent (via tab.close). |
@@ -202,9 +202,9 @@ Score: 15 / 203 rows at ✅ (24 🟡, 2 🚫, 162 ❌)
 
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
-| 148 | Navigate worktree audit | j/k, ↑/↓ | ❌ | `worktrees.list` | Playwright: trigger 'j/k'; expect 'navigate worktree audit' as in TUI. Currently absent (via worktrees.list). |
-| 149 | Land selected worktree | `l` + confirm | ❌ | `task.land` | Playwright: trigger 'l + confirm'; expect 'land selected worktree' as in TUI. Currently absent (via task.land). |
-| 150 | Remove worktree (force confirm if dirty) | `d` + confirm | ❌ | `worktrees.remove` | Playwright: trigger 'd + confirm'; expect 'remove worktree (force confirm if dirty)' as in TUI. Currently absent (via worktrees.remove). |
+| 148 | Navigate worktree audit | j/k, ↑/↓ | ✅ | `worktrees.list` | r8: `j`/`k` move the cursor over every worktree of every saved project, grouped by repo, with the TUI's badges (rove, dirty, dirty?, remote, verdict) and `created … ago` (TUI copy imported from `worktrees.ts`). |
+| 149 | Land selected worktree | `l` + confirm | 🟡 | `task.land` | r8: `l` + confirm landed task `land-me` into main (`git log` shows `Land land-me`). Confirm body lacks the TUI's destination + commit count: no bridge op for `task.landPreflight`. |
+| 150 | Remove worktree (force confirm if dirty) | `d` + confirm | ✅ | `worktrees.remove` | r8: `d` + confirm removed a clean worktree (dir gone); on a dirty one the daemon refuses, the page opens the TUI's force confirm with `Refused because: …` (shot r8-02), force removes it. |
 | 151 | Check updates / release notes | Update page load | ❌ | missing | Playwright: trigger 'Update page load'; expect 'check updates / release notes' as in TUI. Currently absent (no bridge op yet). |
 | 152 | Select / execute Update action | j/k/Enter, `u`, `r` | ❌ | missing | Playwright: trigger 'j/k/Enter'; expect 'select / execute Update action' as in TUI. Currently absent (no bridge op yet). |
 | 153 | Scroll / dismiss What's New | ↑/↓, PgUp/PgDn, q/Esc | ❌ | local | Playwright: trigger '↑/↓'; expect 'scroll / dismiss What's New' as in TUI. Currently absent (browser-local, no bridge call). |
@@ -286,5 +286,7 @@ Round 5 (`e2e-r5.ts`; shots `r5-*`): #25, #27, #28, #30–#32, #35, #38–#40 at
 Round 6 (`e2e-r6t.ts`, `e2e-r6s.ts`; shots `r6t-*`, `r6s-*`): #42, #43, #177, #179, #181 at ✅; #15, #74, #85, #156, #180, #187, #194 moved. New: `rove api tab-new --kind shell|engine` and `tab.new` without a prompt (phones get it too). Compared with the TUI: the picker's chips are the TUI's engines plus `shell`; the shell tab is a `command` row with the login shell, labelled `shell` as the TUI's tab; Settings has the TUI's section names and order and its Engines row grammar (checkbox = offered, radio = default, binary · sign-in line).
 
 Round 7 (`e2e-r7.ts`; shots `r7-*`, 13/13): the TUI prefix layer (`keymap-dispatch.ts`): `ctrl+a` arms from anywhere including the terminal, 5 s window, Esc cancels, a miss is swallowed and shown as `∅`, an open dialog blocks arming; the HUD sits bottom-left over the rail with the TUI's `keys.desc` labels (imported, not copied). Ctrl+A and the cancelled stroke never reached the shell (line `pfx-ok` intact). #12, #15, #29, #112, #118 at ✅; #9, #84 moved. Bug fixed: dialogs opened while xterm had focus could not close on Esc (xterm stops the key); dialogs now take focus on open.
+
+Round 8 (`e2e-r8.ts`; shots `r8-*`): Worktrees page on the phones' existing `worktrees.list`/`worktrees.remove` (no bridge change), plus the direct tab chords (Ctrl+1..9, Ctrl+[ ], Ctrl+E, F2). #16, #73, #83, #86, #148, #150 at ✅; #19, #149 at 🟡. Compared with TUI `worktrees-page.tsx`: same grouping, row grammar (branch + badges, path + age), keys and confirms, same copy.
 
 Screenshots are local only. Headless Chromium paints the WebGL terminal blank, so shots are taken headed (see MEMO).

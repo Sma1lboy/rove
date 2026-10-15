@@ -51,6 +51,7 @@ export const en = {
     closeTab: "Close tab",
     newChat: "New conversation",
     newShell: "New shell",
+    renameTab: "Rename tab",
     newTask: "New task",
     rename: "Rename",
     pin: "Pin",

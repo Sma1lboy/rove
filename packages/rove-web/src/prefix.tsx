@@ -127,7 +127,7 @@ export function usePrefixLayer(model: AppModel): void {
       if (armedAt !== null && Date.now() - armedAt <= TIMEOUT_MS) {
         armedAt = null
         e.preventDefault()
-        e.stopPropagation()
+        e.stopImmediatePropagation()
         if (e.key === "Escape") return settle(null)
         const stroke = strokeOf(e)
         const action = ACTIONS.find((a) => a.strokes.includes(stroke) && a.live(model))
@@ -139,7 +139,7 @@ export function usePrefixLayer(model: AppModel): void {
       if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "a" && !dialog.get()) {
         armedAt = Date.now()
         e.preventDefault()
-        e.stopPropagation()
+        e.stopImmediatePropagation()
         hud.set({ armed: true, last: null })
       }
     }

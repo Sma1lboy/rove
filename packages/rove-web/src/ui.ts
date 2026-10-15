@@ -38,6 +38,8 @@ export interface Preview {
 }
 
 export const preview = createStore<Preview | null>(null)
+/** A full page over the workspace (TUI rail pages); `q`/Esc closes it. */
+export const page = createStore<"worktrees" | null>(null)
 /** The terminal stream this page has attached (`task::tab`); Files `a` pastes into it. */
 export const activeStream = createStore<string | null>(null)
 /** Zen hides the Files pane (TUI prefix z); persisted like the TUI's KV. */

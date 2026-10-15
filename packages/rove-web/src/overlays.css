@@ -367,3 +367,68 @@ div.placeholder p {
 .dialog:focus {
   outline: none;
 }
+
+/* Full pages over the workspace (TUI rail pages). */
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.page:focus {
+  outline: none;
+}
+
+.page-title {
+  margin: 0 0 6px;
+  font: 700 14px var(--sans);
+}
+
+.page-group {
+  margin-top: 12px;
+}
+
+.page-group .project-head {
+  margin-left: 0;
+}
+
+.wt-row {
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.wt-row.is-cursor {
+  background: var(--inset);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.wt-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.wt-line.mono {
+  font-size: 11px;
+  justify-content: space-between;
+}
+
+.wt-branch {
+  font-family: var(--mono);
+}
+
+.wt-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-hints {
+  margin-top: 16px;
+  font-size: 11px;
+}
