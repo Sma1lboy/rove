@@ -48,6 +48,8 @@ export class AppModel {
     client.on("tasks", (data) => {
       if (isTasksPayload(data)) this.acceptTasks(data)
     })
+    // Tab-only changes (a rename, a tab the TUI opened) leave the task rows alone, so no `tasks` push comes.
+    client.on("tabs", () => this.scheduleTabRefresh())
   }
 
   select(taskId: string, tabId: string | null = null): void {
@@ -59,6 +61,10 @@ export class AppModel {
 
   private acceptTasks(payload: TasksPayload): void {
     this.tasks.set(payload)
+    this.scheduleTabRefresh()
+  }
+
+  private scheduleTabRefresh(): void {
     if (this.tabTimer !== null) return
     this.tabTimer = window.setTimeout(() => {
       this.tabTimer = null

@@ -5,6 +5,7 @@ import type { OpTable } from "../src/ops/types.ts"
 import type { TasksPayload } from "../src/protocol.ts"
 import type { RoveOps } from "../src/rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "../src/server.ts"
+import { TabFeed } from "../src/tab-feed.ts"
 import type { PtyHostClient } from "../src/terminal.ts"
 
 const TOKEN = "t".repeat(43)
@@ -305,6 +306,18 @@ describe("task feed", () => {
     const later = await feed.current()
     expect(reads).toBe(1)
     expect(later.tasks[0]?.activity?.forMs).toBe(11_000)
+  })
+
+  test("a task subscriber gets a tabs push naming the tasks whose tabs changed", async () => {
+    let state: Record<string, unknown> = { "terminalTabs.T1": { tabs: [{ id: "tab-1", title: "old" }] } }
+    const tabs = new TabFeed(() => state)
+    const h = start({ tabs })
+    const c = await connect(h.url, AUTH)
+    await c.call("tasks.subscribe")
+    state = { "terminalTabs.T1": { tabs: [{ id: "tab-1", title: "new" }, { id: "tab-2" }] } }
+    tabs.check()
+    await c.call("hello")
+    expect(c.pushes.filter((p) => p.event === "tabs")).toEqual([{ event: "tabs", data: { taskIds: ["T1"] } }])
   })
 })
 

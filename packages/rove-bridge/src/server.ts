@@ -30,6 +30,7 @@ import {
   str,
 } from "./protocol.ts"
 import type { RoveOps } from "./rove-ops.ts"
+import type { TabFeed } from "./tab-feed.ts"
 import { type PtyHostClient, TerminalForwarder } from "./terminal.ts"
 import { type WebRoot, serveWebFile } from "./web-static.ts"
 
@@ -39,6 +40,8 @@ export interface BridgeDeps {
   readonly feed: Pick<TaskFeed, "current" | "refresh" | "subscribe">
   /** `rove api notify` toasts, pushed to every connected phone as a `notice` event. */
   readonly notices?: Pick<NoticeFeed, "subscribe">
+  /** Tasks whose Terminal Tabs changed, pushed as a `tabs` event to task subscribers. */
+  readonly tabs?: Pick<TabFeed, "subscribe">
   /** A fresh PTY Host socket for one phone connection. */
   readonly openPty: () => PtyHostClient
   readonly roveVersion: string
@@ -57,6 +60,7 @@ export interface BridgeDeps {
 interface Conn {
   terminal: TerminalForwarder | null
   unsubscribeTasks: (() => void) | null
+  unsubscribeTabs: (() => void) | null
   unsubscribeNotices: (() => void) | null
 }
 
@@ -77,6 +81,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       // first subscriber pays a read), with `forMs` aged to now — see `TaskFeed.current`.
       const snapshot = await deps.feed.current()
       conn.unsubscribeTasks ??= deps.feed.subscribe((payload) => ws.send(pushEvent("tasks", payload)))
+      conn.unsubscribeTabs ??= deps.tabs?.subscribe((taskIds) => ws.send(pushEvent("tabs", { taskIds }))) ?? null
       return snapshot
     }
     case "tasks.list":
@@ -222,7 +227,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
         return new Response("unauthorized\n", { status: 401 })
       }
-      const data: Conn = { terminal: null, unsubscribeTasks: null, unsubscribeNotices: null }
+      const data: Conn = { terminal: null, unsubscribeTasks: null, unsubscribeTabs: null, unsubscribeNotices: null }
       // A browser drops a socket whose server did not pick one of its offered protocols.
       const headers = offersWebSubprotocol(req) ? { "Sec-WebSocket-Protocol": WEB_SUBPROTOCOL } : undefined
       if (server.upgrade(req, { data, headers })) return undefined
@@ -239,6 +244,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
       },
       close(ws) {
         ws.data.unsubscribeTasks?.()
+        ws.data.unsubscribeTabs?.()
         ws.data.unsubscribeNotices?.()
         ws.data.terminal?.dispose()
       },

@@ -97,7 +97,7 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | Op | Args | Result |
 | --- | --- | --- |
 | `hello` | — | `{protocol, roveVersion, host}` |
-| `tasks.subscribe` | — | `{tasks, attention}`, then `tasks` pushes on change |
+| `tasks.subscribe` | — | `{tasks, attention}`, then `tasks` pushes on change, and `tabs` pushes (`{taskIds}`) when only those tasks' Terminal Tabs changed (re-read them with `task.tabs`; older apps ignore it) |
 | `tasks.list` | — | `{tasks, attention}` (fresh read) |
 | `engines.list` | — | `{engines: [{id, name, command, protocol, builtin}]}` |
 | `repos.list` | — | `{repos}` (saved projects plus repos with tasks) |

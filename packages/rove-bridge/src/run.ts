@@ -12,8 +12,9 @@ import { join } from "node:path"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process"
+import { startFileWatchTrigger } from "@sma1lboy/rove-daemon/daemon/file-watch-trigger"
 import { defaultPtyHostSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
-import { resolveProductHomeDir } from "@sma1lboy/rove-daemon/daemon/product-paths"
+import { defaultUiPrefsStatePath, resolveProductHomeDir } from "@sma1lboy/rove-daemon/daemon/product-paths"
 import { RemoteOrchestrator } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { ensurePluginEnginesLoaded } from "@sma1lboy/rove/src/engine/plugin-engines.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
@@ -26,11 +27,14 @@ import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
+import { TabFeed } from "./tab-feed.ts"
 import { usageStore } from "./usage-store.ts"
 import type { WebRoot } from "./web-static.ts"
 
 /** Re-read the list at least this often: group rules have time windows. */
 const TICK_MS = 15_000
+/** The TUI rewrites state.json in bursts; one diff per burst. */
+const TABS_DEBOUNCE_MS = 200
 
 /** The Mac App Store build ships its CLI inside the app bundle. */
 const TAILSCALE_BINARIES = ["tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale"]
@@ -131,6 +135,23 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   const notices = new NoticeFeed()
   const noticeStore = orchestrator.noticeStore()
   noticeStore.subscribe(() => notices.push(noticeStore.get()))
+  const statePath = defaultUiPrefsStatePath()
+  const readState = (): Record<string, unknown> => {
+    try {
+      const raw: unknown = JSON.parse(readFileSync(statePath, "utf8"))
+      return raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {}
+    } catch {
+      return {}
+    }
+  }
+  const tabs = new TabFeed(readState)
+  startFileWatchTrigger({
+    filePath: statePath,
+    debounceMs: TABS_DEBOUNCE_MS,
+    onTrigger: () => tabs.check(),
+    // Best-effort: the next write re-checks.
+    onError: () => {},
+  })
 
   const ptySocket = defaultPtyHostSocketPath()
   const deps: BridgeDeps = {
@@ -138,6 +159,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     ops,
     feed,
     notices,
+    tabs,
     openPty: () => new RoveDaemonClient(ptySocket),
     roveVersion: CURRENT_VERSION,
     api: createBridgeApi(verbClient),
