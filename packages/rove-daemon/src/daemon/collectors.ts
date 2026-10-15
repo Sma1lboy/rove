@@ -11,12 +11,14 @@ import { createActivityObserverIo } from "./activity-observer-io.ts"
 import { startActivityObserver } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
+import type { DispatchRunnability } from "./automation-dispatch.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
 import { DEFAULT_CONTEXT_USAGE_TICK_MS, startContextUsageCollector } from "./context-usage-collector.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { type DeliveryDeps, sweepStalledDeliveries } from "./delivery-ops.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import {
   DEFAULT_KEYBINDINGS_DEBOUNCE_MS,
@@ -27,6 +29,7 @@ import { DEFAULT_PR_STATUS_POLL_MS, startPrStatusPoller } from "./pr-status-coll
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
 import { type QuotaUsageCache, startQuotaUsagePoller } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 import {
   DEFAULT_TRANSCRIPT_ACTIVITY_TICK_MS,
   startTranscriptActivityCollector,
@@ -57,10 +60,16 @@ export interface DaemonCollectorOptions {
 /** What the automation sweep needs; omitted in tests that don't exercise it. */
 export interface AutomationCollectorDeps {
   readonly store: AutomationsStore
+  /** Deliveries every armed prompt reports into; also the stall sweep's input. */
+  readonly deliveryDeps: DeliveryDeps
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
   /** Plugin host getter (constructed after the collectors start, like `link`). */
   readonly plugins?: () => import("../plugins/runtime.ts").PluginHost | null
   readonly inbox?: import("./automation-runner.ts").RunnerInbox
+  /** Answered decision gates owed to a routine's target tab ride its next firing. */
+  readonly gates?: import("./gate-handoff.ts").GateLedger
+  /** Should-run for the routine runner and quota-resume. */
+  readonly runnability?: DispatchRunnability
 }
 
 /**
@@ -134,7 +143,9 @@ export function startDaemonCollectors(
   activity?: DaemonActivityRegistry,
   inbox?: Pick<import("./attention-inbox").AttentionInboxStore, "record" | "deleteEpisode">,
 ): () => Promise<void> {
-  const receiveStatus = activity ? programStatusActivity(activity, (id) => !!orch.getTask(id), inbox) : undefined
+  const receiveStatus = activity
+    ? programStatusActivity(activity, (id) => !!orch.getTask(id), inbox, automations?.deliveryDeps)
+    : undefined
   const stopStatusWatch = receiveStatus
     ? watchProgramStatus(receiveStatus, { homeDir: options.homeDir })
     : async () => {}
@@ -233,6 +244,7 @@ export function startDaemonCollectors(
     options.quotaResumeTickMs ?? DEFAULT_QUOTA_RESUME_TICK_MS,
     undefined,
     automations?.plugins,
+    automations?.runnability,
   )
 
   // Ungated: a schedule that requires an audience is not a schedule.
@@ -240,15 +252,30 @@ export function startDaemonCollectors(
     ? startAutomationRunner(
         {
           store: automations.store,
+          deliveries: automations.deliveryDeps.deliveries,
           orch,
           runtime,
           link: automations.link,
           ...(automations.plugins ? { plugins: automations.plugins } : {}),
           ...(automations.inbox ? { inbox: automations.inbox } : {}),
+          ...(automations.gates ? { gates: automations.gates } : {}),
+          ...(automations.runnability ? { runnability: automations.runnability } : {}),
         },
         options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
       )
     : () => {}
+
+  // Same cadence and ungated like the schedule sweep: the backstop for an
+  // armed delivery whose engine never signalled a stop.
+  const deliverySweepBootedAt = (automations?.deliveryDeps.now ?? Date.now)()
+  const stopDeliverySweep =
+    automations && activity
+      ? startTicker({
+          name: "delivery-sweep",
+          tickMs: options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
+          run: () => sweepStalledDeliveries(automations.deliveryDeps, activity, deliverySweepBootedAt),
+        })
+      : () => {}
 
   // Gated; the resume scheduler reads the cache on demand. Polls every vendor
   // with a probe, not just ones in use: a balance belongs to the account.
@@ -272,6 +299,7 @@ export function startDaemonCollectors(
         stopPrStatusPoller,
         stopQuotaResumeRunner,
         stopAutomationRunner,
+        stopDeliverySweep,
         stopQuotaUsagePoller,
         stopUiPrefsWatcher,
         stopKeybindingsWatcher,

@@ -57,12 +57,12 @@ import java.util.Locale
     var diff by remember(taskId) { mutableStateOf(false) }
     var history by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    // iOS `select(tab)`: showing a tab records a visit and clears its pending attention.
+    // iOS `select(tab)`: showing a tab records a visit and clears its pending attention (a decision stays until answered).
     LaunchedEffect(taskId, selected) {
         val tab = selected ?: return@LaunchedEffect
         InboxVisits(context).record(taskId, tab)
-        model.tasks.value.attention.filter { it.taskId == taskId && (it.tabId == null || it.tabId == tab) }
-            .forEach { runCatching { model.repository.dismissAttention(taskId, it.tabId) } }
+        model.tasks.value.attention.filter { InboxLogic.clearsOnVisit(it) && it.taskId == taskId && (it.tabId == null || it.tabId == tab) }
+            .forEach { runCatching { model.repository.dismissAttention(taskId, it.tabId, it.deliveryId) } }
     }
     var action by remember { mutableStateOf<String?>(null) }
     var confirmation by remember { mutableIntStateOf(0) }

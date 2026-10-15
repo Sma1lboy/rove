@@ -1,5 +1,6 @@
 import type { DaemonActivityRegistry } from "./activity-registry"
 import type { AttentionInboxStore } from "./attention-inbox"
+import { type DeliveryDeps, trackDeliveryTurn } from "./delivery-ops"
 import { statusActivity } from "./osc-signals"
 import type { ProgramStatusEvent } from "./program-status-event"
 
@@ -8,6 +9,7 @@ export function programStatusActivity(
   activity: DaemonActivityRegistry,
   taskExists: (id: string) => boolean,
   inbox?: Pick<AttentionInboxStore, "record" | "deleteEpisode">,
+  deliveries?: DeliveryDeps,
 ): (event: ProgramStatusEvent) => Promise<void> {
   const seen = new Map<string, { event: ProgramStatusEvent; owns?: () => boolean }>()
   return async (event) => {
@@ -37,5 +39,6 @@ export function programStatusActivity(
     next.owns = activity.reportProgramStatus(taskId, tabId, report.kind, report.detail, undefined, event.at)
     if (event.status.state === "idle") await inbox?.deleteEpisode(taskId, tabId)
     else await inbox?.record(taskId, report.kind, report.detail, tabId)
+    if (deliveries) await trackDeliveryTurn(deliveries, taskId, tabId, report.kind, report.detail)
   }
 }

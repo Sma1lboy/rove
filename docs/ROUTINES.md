@@ -210,12 +210,31 @@ needed:
 | `revived` | Standing session only: its engine had died, so it was respawned in the same worktree. The files carried over, the **conversation did not** |
 | `skipped_cancelled` | The routine was disabled, edited, deleted, or its runner stopped before delivery |
 | `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
+| `skipped_blocked` | The task cannot use a tick right now (`blocked.reason`): an open decision gate, an unreported earlier run, a rate limit, a permission prompt, or a turn still running. The cause is already in the Inbox. Healthy as a status |
 | `skipped_missed` | The occurrence was older than the grace window, **or** the sweep never reached it. A busy sweep no longer drops occurrences silently: one row records how many were passed over and when the first was due |
 | `skipped_unavailable` | The dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which. **Needs you** |
-| `dispatch_failed` | The prompt did not reach an engine — the engine process never started. **Needs you** |
+| `dispatch_failed` | The prompt did not reach an engine — the engine process never started — or should-run refused a bound tab whose engine is dead or in a sticky error (`blocked.reason` `engine-dead` / `engine-error`), which no Inbox row covers. **Needs you** |
 
 `skipped_precheck` and `dispatch_failed` are opposite signals; they never share
 a label.
+
+`skipped_blocked` is the daemon's should-run check (`rove api should-run`)
+declining a scheduled firing at a task that cannot use it. It applies to
+bound-tab and standing-session routines: the run's `blocked` field is the
+verdict (`reason` is one of `awaiting-owner`, `report-missing`, `quota`,
+`awaiting-permission`, `busy`) and `error`
+prints it beside the status. Nothing is pasted, no delivery is armed and the
+occurrence is not retried: a skip is recorded and dropped. It is **not** an
+alarm and raises no Routines Inbox row, because the cause (an open gate, a
+`report_missing` row, a rate limit) is already in the Inbox. The two reasons with no
+Inbox row of their own, `engine-dead` and `engine-error`, are not skips: the
+firing is recorded `dispatch_failed` (keeping `blocked`) and raises the
+routine alarm, so a dead bound tab is not silenced. A standing
+session whose engine died is still revived, not skipped. A firing that
+creates a fresh task has no prior state; it is skipped only when the
+engine's cached quota snapshot already says the window is exhausted (the
+daemon never fetches vendor usage for this), and the check is skipped
+when the quota is unknown. `run now` bypasses the check, like the precheck.
 
 `dispatched` means the engine PROCESS was seen running — not that the terminal
 opened. An engine whose launch command points at something that is not there
@@ -227,38 +246,57 @@ firing nothing when the engine is fine and a few seconds when it is not.
 ## What each run concluded
 
 A run record says the prompt was delivered. What the agent *concluded* is its
-**response**, and every delivered run can carry one. The daemon prefixes each
-routine prompt it delivers (new task, standing session, or bound tab) with one
-line naming the run, then a blank line, then your prompt unchanged:
+**report**, and every delivered run can carry one. Each delivered run is
+linked to a **delivery** (`d-<n>`, see
+[`rove api deliveries`](API.md#read)). The daemon prefixes each routine
+prompt it delivers (new task, standing session, or bound tab) with one line
+naming the run and its delivery, then a blank line, then your prompt
+unchanged:
 
 ```text
-[ROVE ROUTINE] "morning audit" run #12 — when done, report with: rove api routine-respond --run <runId> --prompt-file -
+[ROVE ROUTINE] "morning audit" run #12 — when done, report with: rove api report --delivery d-41 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]
 
 <your prompt>
 ```
 
-The agent answers that run:
+The agent closes the run:
+
+```bash
+rove api report --delivery d-41 --outcome done --summary "No new failures since yesterday."
+rove api report --delivery d-41 --outcome blocked --summary "CI is red on main" \
+  --evidence "run 8123" --next "retry after the revert lands"
+```
+
+`routine-respond --run <runId>` still works. It is the same thing as
+`report --outcome done --summary <text>` on the run's delivery:
 
 ```bash
 rove api routine-respond --run <runId> --text "No new failures since yesterday."
 rove api routine-respond --run <runId> --prompt-file report.md   # `-` reads stdin
 ```
 
-- One response per run. Responding again replaces it.
-- The cap is 32,000 characters. Over it the verb refuses (`RESPONSE_TOO_LARGE`)
-  instead of truncating.
-- An unknown or pruned run id is `RUN_NOT_FOUND`.
-- There is no fallback. An agent that never calls the verb leaves the run
-  without a response; Rove does not read transcripts to guess one.
+- One report per run. Reporting again replaces it.
+- The summary cap is 32,000 characters. Over it the verb refuses
+  (`RESPONSE_TOO_LARGE`) instead of truncating.
+- An unknown or pruned run id is `RUN_NOT_FOUND`; an unknown delivery id is
+  `DELIVERY_NOT_FOUND`.
+- Rove does not read transcripts to guess a report. It does notice when the
+  turn ended without one: the delivery turns `missing` (the turn completed
+  or failed, the engine died, or nothing happened for 10 minutes), and an
+  Inbox entry **report missing** points at the tab. A late `report` clears
+  it.
 
-A delivered run (`dispatched` or `revived`) with no response reads as
-**awaiting response** for two hours, then **no response**, in the warning
-colour. A response raises an Inbox entry (one per routine, the newest
-replacing the last) that opens the Routines page. On the page, the selected
-routine's detail splits in two: run history on the left, its responses on the
-right, newest first, each headed by its run number, status and time, with the
-text rendered as markdown. `routine-runs` includes `response` (`{text, at}`)
-on every answered run.
+A delivered run (`dispatched` or `revived`) reads as **awaiting response**
+until its delivery is reported or goes missing, then **no response**, in the
+warning colour. A run from before deliveries existed has no delivery and
+keeps the old rule: **no response** after two hours. A response raises an
+Inbox entry (one per routine, the newest replacing the last) that opens the
+Routines page. On the page, the selected routine's detail splits in two:
+run history on the left, its responses on the right, newest first, each
+headed by its run number, status and time, with the text rendered as
+markdown. `routine-runs` includes `deliveryId`, `deliveryStatus`
+(`awaiting`, `reported`, `missing`) and, once reported, `response`
+(`{text, at}`) on every run; the last two are read from the delivery.
 
 ### You do not have to go looking
 

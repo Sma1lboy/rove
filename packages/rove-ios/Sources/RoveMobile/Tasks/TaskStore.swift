@@ -42,6 +42,7 @@ enum TaskListLogic {
 final class TaskStore {
     private(set) var tasks: [TaskRow] = []
     private(set) var attention: [AttentionItem] = []
+    private(set) var gates: [GateRow] = []
     private(set) var loaded = false
     /// Bumped on every `tasks` snapshot so detail screens can refresh their tabs.
     private(set) var version = 0
@@ -113,6 +114,7 @@ final class TaskStore {
         snapshot = p.tasks
         tasks = p.tasks
         attention = p.attention
+        gates = p.gates
         loaded = true
         version += 1
         if let f = repoFilter, !repos.contains(f) { repoFilter = nil }
@@ -131,17 +133,34 @@ final class TaskStore {
     /// Back to the not-yet-loaded state (leaving demo mode): the next bridge's first snapshot must neither
     /// show demo rows nor be diffed against them for notifications.
     func reset() {
-        tasks = []; attention = []; tabTitles = [:]
+        tasks = []; attention = []; gates = []; tabTitles = [:]
         loaded = false; error = nil; repoFilter = nil
         snapshot = nil; receivedAt = [:]
         version += 1
     }
 
     func dismissAttention(_ item: AttentionItem) async {
-        guard let taskId = item.taskId else { return }
+        // A decision is answered (`answerGate`), never dismissed.
+        guard let taskId = item.taskId, item.gateId == nil else { return }
         var args: [String: Any] = ["taskId": taskId]
         if let tab = item.tabId { args["tabId"] = tab }
+        if let delivery = item.deliveryId { args["deliveryId"] = delivery }
         _ = try? await client.request("attention.dismiss", args, as: EmptyResult.self)
         await refresh()
+    }
+
+    /// The decision behind a `decision_needed` row; nil for any other row or a gate the list no longer holds.
+    func gate(for item: AttentionItem) -> GateRow? { item.gateId.flatMap { id in gates.first { $0.id == id } } }
+
+    /// Answer a decision: an option key, a note, or both. True when the engine took it now; false when it
+    /// rides the task's next message. A refusal (`GATE_NOT_FOUND`, `GATE_NOT_OPEN`…) is thrown.
+    @discardableResult
+    func answerGate(_ gate: GateRow, option: String?, text: String) async throws -> Bool {
+        var args: [String: Any] = ["gateId": gate.id]
+        if let option { args["option"] = option }
+        let note = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !note.isEmpty { args["text"] = note }
+        defer { Task { await refresh() } }
+        return try await client.request("gate.answer", args, as: GateAnswerResult.self).delivered
     }
 }

@@ -154,6 +154,13 @@ export class TaskEditor {
     await this.store.update(task.id, { pinned: next })
   }
 
+  /** Hold every later send to this task to a `rove api report` (`false` clears). */
+  async setRequireReport(id: TaskId | string, required: boolean): Promise<void> {
+    const task = this.requireTask(id)
+    if ((task.requireReport ?? false) === required) return
+    await this.store.update(task.id, { requireReport: required || undefined })
+  }
+
   /**
    * Within the visible partition: mains among mains (store order IS project
    * order); tasks within their repo (a cross-repo swap would be invisible or

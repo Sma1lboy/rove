@@ -114,6 +114,7 @@ export const DAEMON_CHANNELS = [
   "update",
   "engine-state",
   "attention.inbox",
+  "gates",
   "ui-prefs",
   "keybindings",
   "task.jobs",

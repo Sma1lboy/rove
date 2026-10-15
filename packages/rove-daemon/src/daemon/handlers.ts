@@ -24,15 +24,20 @@ import type { AttentionInboxStore } from "./attention-inbox.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
+import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
+import type { GatesStore } from "./gates-store.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
 import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
+import { DELIVERY_HANDLERS } from "./handlers-deliveries.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
+import { GATE_HANDLERS } from "./handlers-gates.ts"
 import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
+import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
 import { UI_HANDLERS } from "./handlers-ui.ts"
 import { WORK_ITEM_HANDLERS } from "./handlers-work-items.ts"
@@ -80,6 +85,8 @@ export interface DaemonHandlerContext {
   readonly activity: DaemonActivityRegistry
   /** Durable attention episodes; independent from transient activity cleanup. */
   readonly inbox: AttentionInboxStore
+  /** Durable decision gates (`gates.json`); also projected into the Inbox. */
+  readonly gates: GatesStore
   /** In-memory, TTL-bounded plugin row tokens (absent in older test doubles). */
   readonly rowTokens?: import("./row-tokens.ts").RowTokenStore
   /** Starts deduplicated durable background deletion after RPC acceptance. */
@@ -92,6 +99,8 @@ export interface DaemonHandlerContext {
   readonly workItems: WorkItemCache
   /** Daemon-owned scheduled automations + their run history. */
   readonly automations: AutomationsStore
+  /** Armed prompts that owe a `rove api report`, and their reports. */
+  readonly deliveries: DeliveriesStore
   /** In-process RPC client into the daemon's own requests (automation engine launch). */
   readonly selfLink: DaemonRpcClient
   /** Rate-limited cache in front of the engine quota probes. */
@@ -275,7 +284,10 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...TASK_HANDLERS,
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,
+    ...GATE_HANDLERS,
     ...AUTOMATION_HANDLERS,
+    ...DELIVERY_HANDLERS,
+    ...RUNNABILITY_HANDLERS,
     ...WORK_ITEM_HANDLERS,
     ...AGENT_TURN_HANDLERS,
     ...UI_HANDLERS,

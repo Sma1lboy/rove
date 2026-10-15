@@ -1,7 +1,10 @@
+import { userFacingErrorMessage } from "@/lib/error-message"
 import { isRoutineInboxState } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { useCallback, useEffect, useMemo, useRef } from "react"
 import type { AttentionInboxItem, RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { t } from "../../tui/i18n"
 import type { Task } from "../../types/task"
+import { GateDecisionDialog } from "../component/gate-decision-dialog"
 import type { KVContext } from "../context/kv"
 import { useLatest } from "../lib/use-latest"
 import type { DialogContext } from "../ui/dialog"
@@ -101,6 +104,21 @@ export function useInboxHost(args: {
       return
     }
 
+    // A question for the owner: answer it here, don't jump to the tab. An
+    // already-answered one (engine away) has nothing left to decide, so it
+    // opens the tab like any episode.
+    const gate = item.state === "decision_needed" ? item.detail?.gate : undefined
+    if (gate && !gate.undelivered && item.taskId !== null) {
+      const taskTitle = orch.getTask(item.taskId)?.title ?? item.taskId
+      void GateDecisionDialog.show(args.dialog, { gate, taskTitle }).then((answer) => {
+        if (!answer) return
+        orch
+          .answerGate(gate.id, answer)
+          .catch((err) => args.notifyError(t("gates.toast.answerFailed", { error: userFacingErrorMessage(err) })))
+      })
+      return
+    }
+
     const taskId = item.taskId
     if (taskId === null) return
     const task = orch.getTask(taskId)
@@ -122,13 +140,26 @@ export function useInboxHost(args: {
     args.focusWorkspace()
   }
 
+  /** `d`: drop an episode, or close a decision answered while the engine was away. */
+  function closeItem(item: AttentionInboxItem): void {
+    const gate = item.state === "decision_needed" ? item.detail?.gate : undefined
+    if (!gate) {
+      notifyInboxRpcFailure(dismissEpisode(item, orch, true), "dismiss", args.notifyError)
+      return
+    }
+    if (!gate.undelivered) return
+    orch
+      .withdrawGate(gate.id)
+      .catch((err) => args.notifyError(t("gates.toast.withdrawFailed", { error: userFacingErrorMessage(err) })))
+  }
+
   function show(): void {
     AttentionInboxDialog.show(args.dialog, {
       orchestrator: orch,
       selectedId: args.selectedId,
       onOpen: openItem,
       onOpenTask: openTask,
-      onDelete: (item) => notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError),
+      onDelete: closeItem,
     })
   }
 

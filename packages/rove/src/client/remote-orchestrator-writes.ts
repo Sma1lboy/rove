@@ -161,11 +161,13 @@ export async function dismissAttentionOp(
   taskId: TaskId | string,
   tabId: string | null,
   at: number,
+  deliveryId?: string,
 ): Promise<boolean> {
   const res = await client.request<{ deleted: boolean }>("attention.dismiss", {
     taskId: String(taskId),
     ...(tabId !== null ? { tabId } : {}),
     at,
+    ...(deliveryId !== undefined ? { deliveryId } : {}),
   })
   return res.deleted
 }
@@ -175,6 +177,21 @@ export async function dismissAttentionOp(
 export async function dismissRoutineAttentionOp(client: RoveDaemonClient, automationId: string): Promise<boolean> {
   const res = await client.request<{ deleted: boolean }>("attention.dismissRoutine", { automationId })
   return res.deleted
+}
+
+/** Answer a decision gate from the TUI; `delivered` says whether the engine already has it. */
+export async function answerGateOp(
+  client: RoveDaemonClient,
+  gateId: string,
+  answer: { option?: string; text?: string },
+): Promise<{ delivered: boolean }> {
+  const res = await client.request<{ delivered: boolean }>("gate.answer", { gateId, ...answer, by: "tui" })
+  return { delivered: res.delivered }
+}
+
+/** Close a gate the owner no longer wants delivered (an answer the engine never received). */
+export async function withdrawGateOp(client: RoveDaemonClient, gateId: string): Promise<void> {
+  await client.request("gate.withdraw", { gateId })
 }
 
 /** Legacy compatibility alias: resolving this exact episode removes it. */

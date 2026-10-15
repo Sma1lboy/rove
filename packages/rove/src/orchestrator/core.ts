@@ -263,6 +263,8 @@ export class Orchestrator {
   setCommand = (id: TaskId | string, command: string, vendor?: VendorId): Promise<void> =>
     this.editor.setCommand(id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)
+  setRequireReport = (id: TaskId | string, required: boolean): Promise<void> =>
+    this.editor.setRequireReport(id, required)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)
   moveTaskToTop = (id: TaskId | string): Promise<void> => this.editor.moveTaskToTop(id)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => this.editor.setStatus(id, status)

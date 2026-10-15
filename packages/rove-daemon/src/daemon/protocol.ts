@@ -100,6 +100,7 @@ export type DaemonRequestName =
   | "project.forget"
   | "task.ensureWorktree"
   | "task.setActive"
+  | "task.requireReport"
   | "issue.list"
   // Repo roots the issue store holds a record for — a board section means
   // "this repo has a backlog", which the task index cannot answer.
@@ -121,6 +122,15 @@ export type DaemonRequestName =
   // Pending episodes for headless coordinators: the `attention.inbox` channel
   // only reaches an ATTACHED GUI.
   | "attention.list"
+  // Decision gates (docs/design/long-run-controls.md § 3): a task asks its
+  // owner; the answer is persisted, then routed back to the engine tab.
+  // `takeUndelivered`/`markDelivered` serve `send`, whose delivery runs CLI-side.
+  | "gate.raise"
+  | "gate.answer"
+  | "gate.withdraw"
+  | "gate.list"
+  | "gate.takeUndelivered"
+  | "gate.markDelivered"
   // Plugin-written task-row tokens (docs/PLUGIN-AUTHORING.md § Task-row
   // tokens). In-memory, TTL-bounded, broadcast on `task.tokens`.
   | "task.rowToken"
@@ -136,6 +146,20 @@ export type DaemonRequestName =
   | "automation.runNow"
   // One agent-reported response per run; `{run:null}` for an unknown run id.
   | "automation.respond"
+  // Armed deliveries (docs/design/long-run-controls.md): `arm` persists an
+  // awaiting delivery BEFORE the CLI pastes; `settle` pins its tab or drops it
+  // when the paste failed; `report` is the agent's structured result (a late
+  // one clears `report_missing`); `list` is newest first.
+  | "delivery.arm"
+  | "delivery.settle"
+  | "delivery.report"
+  | "delivery.list"
+  // Should-run: `task.runnability` is the read verdict. `send.admit` evaluates,
+  // claims and (when the send owes a report) arms in one daemon tick for
+  // `send --if-runnable`; `send.release` frees the claim after the paste.
+  | "task.runnability"
+  | "send.admit"
+  | "send.release"
   // GitHub issues via `gh` (docs/design/work-items.md): READ-ONLY, plus start a
   // task on one. Never mirrored into the local issue store.
   | "workitem.list"
@@ -332,6 +356,8 @@ export interface SerializedTask {
   readonly linkedWorkItem?: DaemonTask["linkedWorkItem"]
   /** The rove session (task + tab) that dispatched this task's creation. */
   readonly dispatcher?: DaemonTask["dispatcher"]
+  /** Every prompt sent to this task must end in `rove api report`. */
+  readonly requireReport?: DaemonTask["requireReport"]
   /** The task brief: the full delivered `add --prompt` text (never truncated). */
   readonly prompt?: DaemonTask["prompt"]
   /** The recorded fork point (`add --base-branch`) branch signals measure against. */
@@ -384,6 +410,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     quotaResume: task.quotaResume,
     linkedWorkItem: task.linkedWorkItem,
     dispatcher: task.dispatcher,
+    requireReport: task.requireReport,
     prompt: task.prompt,
     baseRef: task.baseRef,
     worktreeName: task.worktreeName,

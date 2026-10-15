@@ -136,6 +136,12 @@ struct RootView: View {
             .background(Theme.paper.ignoresSafeArea())
             .overlay { SheetScrim() }
             .overlay(alignment: .bottom) { ToastHost() }
+            // A decision's answer sheet lives here, not in the Inbox, so F7 can open it from any screen; it
+            // goes with the gate when another surface answers it first.
+            .sheet(item: Binding(
+                get: { model.inbox.answering.flatMap { id in model.store.gates.first { $0.id == id && $0.isOpen } } },
+                set: { if $0 == nil { model.inbox.answering = nil } }
+            )) { GateAnswerSheet(gate: $0) }
         }
     }
 }

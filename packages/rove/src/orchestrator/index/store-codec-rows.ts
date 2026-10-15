@@ -97,6 +97,8 @@ export function coerceTask(value: unknown): Task | null {
     ...(typeof v.worktreeName === "string" && v.worktreeName.trim().length > 0 ? { worktreeName: v.worktreeName } : {}),
     // Worker's outcome claim, read by `collect` long after the fact.
     ...(report ? { report } : {}),
+    // Every send to this task owes a `rove api report`; lost, a loop quietly stops being held to it.
+    ...(v.requireReport === true ? { requireReport: true } : {}),
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   }

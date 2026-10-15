@@ -5,19 +5,23 @@
  * in `handlers-lifecycle.ts`.
  */
 
+import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { readOwnDispatcher, resolveDispatcherTab, verifiedSelfSession, withPeerProvenance } from "./dispatcher.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
+import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
+import { readRunnability } from "./handlers-runnability.ts"
 import { filterTaskList, listFilters } from "./list-filter.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
-import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec, helpStep, promptMayHaveLanded } from "./types.ts"
 
 export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   const title = ctx.args.str("title")
@@ -175,40 +179,96 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   // Before ANY delivery path (--plain included: a verbatim false claim is the
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)
-  const text = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
+  const plain = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
+  // Decision-gate answers the owner gave while this tab's engine was away (design § 3).
+  const owed = await takeOwedGateAnswers(daemon, taskId, tab)
+  const withAnswers = owed ? `${owed.text}\n\n${plain}` : plain
   // Read BEFORE delivery: a paste into a failed session still "lands", and the
   // caller has to be told what it landed in.
   const target = tab === "new" ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
-  const delivered = await ctx.runtime.deliverPrompt(
-    daemon,
-    {
-      id: taskId,
-      worktreePath: res.task.worktreePath,
-      kind: res.task.kind,
-      // The pinned engine wins for THIS delivery's argv; the task's own
-      // command/protocol stays untouched (a second agent in the worktree is
-      // not a change of the task's engine).
-      vendor: res.task.vendor as VendorId | undefined,
-      command: res.task.command,
-      modelEffort: tabCommand ? undefined : res.task.modelEffort,
-      model: tabCommand ? undefined : res.task.model,
-      repo: res.task.repo,
-      tab,
-      tabVendor,
-      tabCommand,
-      respawn,
-    },
-    text,
-  )
+  // Armed BEFORE the paste: a failed turn can fire its hook within
+  // milliseconds of it, and an unarmed delivery can't be flagged missing.
+  const expectReport = ctx.args.bool("expect-report") === true
+  const pinnedTab = tab && tab !== "new" ? { tabId: tab } : {}
+  // `--if-runnable`: the daemon decides, claims the tab and arms in one tick, so
+  // two ticks arriving together cannot both pass. The claim is freed in `settle`.
+  const admit = ctx.args.bool("if-runnable")
+    ? await daemon.request<AdmitReply>("send.admit", {
+        taskId,
+        ...(tab ? { tabId: tab } : {}),
+        ...(respawn ? { respawn } : {}),
+        expectReport,
+        promptHead: prompt,
+      })
+    : undefined
+  if (admit?.skipped) {
+    throw new ApiError(`not sent: ${admit.skipped.reason}`, "SKIPPED", {
+      taskId,
+      skipped: admit.skipped,
+      ...(admit.deliveryId ? { deliveryId: admit.deliveryId } : {}),
+    })
+  }
+  const claimId = admit?.claimId
+  const armed = expectReport || res.task.requireReport === true
+  const deliveryId = admit
+    ? admit.deliveryId
+    : armed
+      ? (await daemon.request<{ deliveryId: string }>("delivery.arm", { taskId, ...pinnedTab, promptHead: prompt }))
+          .deliveryId
+      : undefined
+  const text = deliveryId ? `${withAnswers}\n\n${deliveryFooter(deliveryId, roveApiInvocation())}` : withAnswers
+  const settle = async (delivered: boolean, session?: string): Promise<void> => {
+    if (claimId) await daemon.request("send.release", { claimId, delivered }).catch(() => {})
+    if (!deliveryId) return
+    // The hosted session key is `<taskId>::<tabId>`.
+    const landedTab = session?.split("::")[1]
+    await daemon
+      .request("delivery.settle", { deliveryId, delivered, ...(landedTab ? { tabId: landedTab } : {}) })
+      .catch(() => {})
+  }
+  let delivered: Awaited<ReturnType<typeof ctx.runtime.deliverPrompt>>
+  try {
+    delivered = await ctx.runtime.deliverPrompt(
+      daemon,
+      {
+        id: taskId,
+        worktreePath: res.task.worktreePath,
+        kind: res.task.kind,
+        // The pinned engine wins for THIS delivery's argv; the task's own
+        // command/protocol stays untouched (a second agent in the worktree is
+        // not a change of the task's engine).
+        vendor: res.task.vendor as VendorId | undefined,
+        command: res.task.command,
+        modelEffort: tabCommand ? undefined : res.task.modelEffort,
+        model: tabCommand ? undefined : res.task.model,
+        repo: res.task.repo,
+        tab,
+        tabVendor,
+        tabCommand,
+        respawn,
+      },
+      text,
+    )
+  } catch (err) {
+    await settle(false)
+    throw err
+  }
   // A prompt that never landed is a delivery FAILURE the script must see —
   // non-zero exit, not a phantom `ok:true`.
   if (!delivered.delivered) {
+    // Cancel only when nothing was written: an unobserved launch may still start with the prompt.
+    const mayLand = promptMayHaveLanded(delivered)
+    await settle(mayLand, mayLand ? delivered.session : undefined)
     throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
   }
+  await settle(true, delivered.session)
+  // The answers rode this paste; only now are they the engine's.
+  if (owed) await markGateAnswersDelivered(daemon, owed.gateIds)
   return {
     ok: true,
     taskId,
     session: delivered.session,
+    ...(deliveryId ? { deliveryId } : {}),
     started: delivered.started,
     engineReady: delivered.engineReady,
     // Measured delivery facts, spelled as `add` spells them.
@@ -232,6 +292,13 @@ export async function send(ctx: VerbContext): Promise<unknown> {
 }
 
 const TARGET_FAILED = new Set(["error", "dead"])
+
+/** `send.admit`: either the daemon refused the tick, or it claimed the tab (and armed a delivery when one is owed). */
+interface AdmitReply {
+  readonly skipped?: SkipVerdict
+  readonly claimId?: string
+  readonly deliveryId?: string
+}
 
 async function dispatch(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
@@ -295,7 +362,9 @@ export async function getTask(ctx: VerbContext): Promise<unknown> {
   // One liveness read serves both: `.running` (any live engine tab) and the
   // per-tab `.alive` an agent needs to pick a `send --tab tab-N` target.
   const { tabs, running } = await ctx.runtime.taskTabs(taskId, taskEngineArgv(res.task))
-  return { task: res.task, running, tabs }
+  // The verdict a scheduler would act on, so a dashboard shows the same answer.
+  const runnability = await readRunnability(daemon, taskId)
+  return { task: res.task, running, tabs, ...(runnability ? { runnability } : {}) }
 }
 
 export async function list(ctx: VerbContext): Promise<unknown> {

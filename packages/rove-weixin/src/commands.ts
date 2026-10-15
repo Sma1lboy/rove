@@ -1,10 +1,12 @@
 /**
- * What a WeChat message can ask Rove to do. Three verbs, each the phone-sized
- * twin of a `rove api` verb:
+ * What a WeChat message can ask Rove to do. Each verb is the phone-sized twin of
+ * a `rove api` verb:
  *
  *   status [repo]                 → `context`
  *   send <id> [tab-N] <text>      → `send --task-id <id> [--tab tab-N]`
  *   add <repo> <prompt>           → `add --repo <repo> --prompt <prompt>`
+ *   gates                         → `gates` (decisions a task put to its owner)
+ *   answer <g-N> <key> [note]     → `gate-answer --gate g-N --option key [--text note]`
  *
  * Tasks are named by the last characters of their id (what `status` prints);
  * repos by their directory name. Everything Rove-side goes through
@@ -12,9 +14,11 @@
  */
 
 import { basename } from "node:path"
+import type { Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import { ApiError } from "@sma1lboy/rove/src/cli/api/types.ts"
-import { renderStatus, shortId } from "./format.ts"
+import { head, renderStatus, shortId } from "./format.ts"
+import { answeredReply, parseAnswer, renderGates } from "./gates.ts"
 
 export interface TaskRef {
   readonly id: string
@@ -23,8 +27,8 @@ export interface TaskRef {
 }
 
 export interface RoveOps {
-  /** `repo: null` = every repo. */
-  status(repo: string | null): Promise<ContextPayload>
+  /** `repo: null` = every repo. `gatesUnreadable`: the gate read failed, so `gates` is unknown rather than empty. */
+  status(repo: string | null): Promise<ContextPayload & { gatesUnreadable?: boolean }>
   tasks(): Promise<readonly TaskRef[]>
   /** Saved projects plus every repo a task lives in. */
   repos(): Promise<readonly string[]>
@@ -34,6 +38,12 @@ export interface RoveOps {
     prompt: string,
   ): Promise<{ readonly tab?: string; readonly started?: boolean }>
   add(repo: string, prompt: string): Promise<{ readonly taskId: string }>
+  /** Open decision gates. */
+  gates(): Promise<readonly Gate[]>
+  /** `by: "weixin"`; `delivered` = the engine received it now. */
+  answerGate(gateId: string, answer: { option?: string; text?: string }): Promise<{ readonly delivered: boolean }>
+  /** Dismiss a `report_missing` row (`attention-dismiss --delivery`); throws DELIVERY_NOT_FOUND for an unknown id. */
+  clearReport(deliveryId: string): Promise<void>
 }
 
 /** Fewer characters than this matches too many ids to be a reference. */
@@ -47,6 +57,10 @@ export const HELP_TEXT = [
   "send <id> <text> — message a task's agent",
   "send <id> tab-2 <text> — a specific tab",
   "add <repo> <prompt> — start a new task",
+  "gates — open decisions waiting on you",
+  "answer g-12 <key> [note] — answer one",
+  "answer g-12 - <text> — free-text answer",
+  "clear d-41 — dismiss an unreported-tick flag (status lists them)",
   "<id> is the 6-char code from status.",
 ].join("\n")
 
@@ -88,12 +102,6 @@ function resolveRepo(repos: readonly string[], ref: string): Resolved<string> {
 function failure(err: unknown): string {
   if (err instanceof ApiError) return `Failed (${err.code}): ${err.message}`
   return `Failed: ${err instanceof Error ? err.message : String(err)}`
-}
-
-/** Split off the first whitespace-delimited word. */
-function head(text: string): [string, string] {
-  const match = /^(\S+)\s*([\s\S]*)$/.exec(text.trim())
-  return match ? [match[1] ?? "", match[2] ?? ""] : ["", ""]
 }
 
 /** One inbound message → the reply text. Never throws: a failure is a reply. */
@@ -142,6 +150,33 @@ export async function handleCommand(text: string, ops: RoveOps): Promise<string>
         if (!repo.ok) return repo.reply
         const { taskId } = await ops.add(repo.value, prompt.trim())
         return `Started task ${shortId(taskId)} in ${basename(repo.value)}. I'll message you when it needs you.`
+      }
+
+      case "gates":
+      case "decisions":
+      case "决定": {
+        const [gates, tasks] = await Promise.all([ops.gates(), ops.tasks()])
+        return renderGates(gates, new Map(tasks.map((t) => [t.id, t.title])))
+      }
+
+      case "answer":
+      case "回答": {
+        const parsed = parseAnswer(rest, await ops.gates())
+        if (!parsed.ok) return parsed.reply
+        const { gate, option, text } = parsed.answer
+        const { delivered } = await ops.answerGate(gate.id, {
+          ...(option ? { option } : {}),
+          ...(text ? { text } : {}),
+        })
+        return answeredReply(parsed.answer, delivered)
+      }
+
+      case "clear":
+      case "清除": {
+        const [ref] = head(rest)
+        if (!ref || !/^d-\d+$/i.test(ref)) return "Usage: clear d-N — the delivery id from status"
+        await ops.clearReport(ref.toLowerCase())
+        return `Cleared ${ref.toLowerCase()}. That task can be ticked again.`
       }
 
       default:

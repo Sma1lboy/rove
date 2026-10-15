@@ -146,6 +146,7 @@ final class PagesTests: XCTestCase {
         XCTAssertEqual(RoutineLogic.tone(status: "dispatch_failed"), .error)
         XCTAssertEqual(RoutineLogic.tone(status: "something_new"), .muted)
         XCTAssertEqual(RoutineLogic.label(status: "skipped_precheck"), "skipped precheck")
+        XCTAssertEqual(RoutineLogic.label(status: "skipped_blocked"), "skipped (task can't use it)")
     }
 
     func testNextRunLabels() {

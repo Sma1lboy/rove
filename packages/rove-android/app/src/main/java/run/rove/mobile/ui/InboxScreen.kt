@@ -41,13 +41,20 @@ import java.util.Locale
     val now by produceState(System.currentTimeMillis()) { while (true) { delay(30_000); value = System.currentTimeMillis() } }
     val tabInfo by produceState(emptyMap<String, RecentTab>(), recent) { value = loadTabInfo(model, recent) }
     val titles = remember(tasks) { tasks.tasks.associate { it.id to it.displayTitle } }
+    var answering by rememberSaveable { mutableStateOf<String?>(null) }
 
     // A task-level episode leaves the task's current tab; a routine one has no task and opens the Routines page.
+    // A decision is answered, never dismissed: an open one opens its answer sheet, an answered one just opens the task.
     fun openItem(item: Attention) {
         lastJumpKey = InboxLogic.key(item)
         val taskId = item.taskId ?: return open(Route.Routines)
+        if (item.gateId != null) {
+            if (InboxLogic.gate(item, tasks.gates)?.isOpen == true) answering = item.gateId
+            else open(Route.Task(taskId, item.tabId))
+            return
+        }
         visits = visitLog.record(taskId, item.tabId)
-        model.action { model.repository.dismissAttention(taskId, item.tabId); model.refresh() }
+        if (InboxLogic.clearsOnVisit(item)) model.action { model.repository.dismissAttention(taskId, item.tabId, item.deliveryId); model.refresh() }
         open(Route.Task(taskId, item.tabId))
     }
 
@@ -78,9 +85,10 @@ import java.util.Locale
                 }
                 items(pending, key = { "a:" + InboxLogic.key(it) }) { item ->
                     val title = item.taskId?.let { titles[it] } ?: item.label ?: item.taskId ?: unknownRoutine
-                    AttentionRow(item, title, now, { openItem(item) }) {
+                    val gate = InboxLogic.gate(item, tasks.gates)
+                    AttentionRow(item, title, now, gate, { openItem(item) }) {
                         item.taskId?.let { id ->
-                            model.action { model.repository.dismissAttention(id, item.tabId); model.refresh() }
+                            model.action { model.repository.dismissAttention(id, item.tabId, item.deliveryId); model.refresh() }
                         }
                     }
                 }
@@ -97,6 +105,10 @@ import java.util.Locale
                 }
             }
         }
+    }
+    // The row's gate may close while the sheet is up (answered elsewhere); the sheet goes with it.
+    answering?.let { id -> tasks.gates.firstOrNull { it.id == id && it.isOpen } }?.let { gate ->
+        GateAnswerSheet(model, gate) { answering = null }
     }
 }
 
@@ -115,10 +127,12 @@ import java.util.Locale
     "turn_complete" -> stringResource(R.string.inbox_state_done)
     "routine_failed" -> stringResource(R.string.inbox_state_routine_failed)
     "routine_responded" -> stringResource(R.string.inbox_state_routine_replied)
+    "report_missing" -> stringResource(R.string.inbox_state_report_missing)
+    "decision_needed" -> stringResource(R.string.inbox_state_decision)
     else -> state.replace('_', ' ')
 }
 
-@Composable private fun AttentionRow(item: Attention, title: String, now: Long, onOpen: () -> Unit, onDismiss: () -> Unit) {
+@Composable private fun AttentionRow(item: Attention, title: String, now: Long, gate: GateRow?, onOpen: () -> Unit, onDismiss: () -> Unit) {
     val tone = when { item.state == "error" -> Rove.c.error; InboxLogic.isBlocking(item) -> Rove.c.accent; else -> Rove.c.muted }
     val resume = if (item.state == "rate_limited") InboxLogic.resumeTime(item.resumeAt) else null
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -126,16 +140,18 @@ import java.util.Locale
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(InboxLogic.glyph(item.state), color = tone, style = Rove.mono(12, FontWeight.SemiBold))
-                Text(stateWord(item.state), color = tone, style = Rove.mono(11, FontWeight.SemiBold))
+                Text(if (gate?.isOpen == false) stringResource(R.string.inbox_state_decision_answered) else stateWord(item.state),
+                    color = tone, style = Rove.mono(11, FontWeight.SemiBold))
                 if (resume != null) Text(stringResource(R.string.inbox_resumes, resume), color = Rove.c.muted, style = Rove.mono(11))
             }
             Text(title, color = Rove.c.ink, style = Rove.face(16, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            gate?.let { Text(it.question, color = Rove.c.muted, style = Rove.face(14), maxLines = 2, overflow = TextOverflow.Ellipsis) }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 item.tabId?.let { Text(it, color = Rove.c.muted, style = Rove.mono(12)) }
                 Text(TaskAge.label(now - item.at), color = Rove.c.muted, style = Rove.mono(12))
             }
         }
-        if (item.taskId != null) {
+        if (item.taskId != null && item.gateId == null) {
             val label = stringResource(R.string.inbox_dismiss_label)
             Box(Modifier.heightIn(min = 44.dp).pressable(onClick = onDismiss).padding(horizontal = 10.dp).semantics { contentDescription = label },
                 contentAlignment = Alignment.Center) {

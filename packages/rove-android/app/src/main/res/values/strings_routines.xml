@@ -22,6 +22,7 @@
     <string name="routines_status_revived">revived</string>
     <string name="routines_status_skipped_cancelled">skipped cancelled</string>
     <string name="routines_status_skipped_precheck">skipped precheck</string>
+    <string name="routines_status_skipped_blocked">skipped (task can\'t use it)</string>
     <string name="routines_status_skipped_missed">skipped missed</string>
     <string name="routines_status_skipped_unavailable">skipped unavailable</string>
     <string name="routines_status_dispatch_failed">dispatch failed</string>

@@ -22,6 +22,7 @@ import type { Automation, AutomationPatch, AutomationRun } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
+import { parseSkipVerdict } from "./runnability-contracts.ts"
 
 /** Per-automation run history cap; every write re-serializes the whole document. */
 export const MAX_RUNS_PER_AUTOMATION = 100
@@ -110,12 +111,14 @@ function normalizeRun(value: unknown): AutomationRun | null {
     raw.status !== "revived" &&
     raw.status !== "skipped_cancelled" &&
     raw.status !== "skipped_precheck" &&
+    raw.status !== "skipped_blocked" &&
     raw.status !== "skipped_missed" &&
     raw.status !== "skipped_unavailable" &&
     raw.status !== "dispatch_failed"
   ) {
     return null
   }
+  const blocked = parseSkipVerdict(raw.blocked)
   return {
     id,
     automationId,
@@ -126,7 +129,9 @@ function normalizeRun(value: unknown): AutomationRun | null {
     ...(str(raw.taskId) ? { taskId: raw.taskId } : {}),
     ...(str(raw.tabId) ? { tabId: raw.tabId } : {}),
     ...(raw.precheckResult ? { precheckResult: raw.precheckResult } : {}),
+    ...(blocked ? { blocked } : {}),
     ...(str(raw.error) ? { error: raw.error } : {}),
+    ...(str(raw.deliveryId) ? { deliveryId: raw.deliveryId } : {}),
     ...(typeof raw.response?.text === "string" && str(raw.response.at)
       ? { response: { text: raw.response.text, at: raw.response.at } }
       : {}),

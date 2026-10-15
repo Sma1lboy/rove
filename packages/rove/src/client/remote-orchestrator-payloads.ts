@@ -38,6 +38,9 @@ export type EngineTabStateMap = ReadonlyMap<string, ReadonlyMap<string, TaskEngi
 /** Durable daemon-owned attention episode, pushed as a full snapshot. */
 export type AttentionInboxItem = ChannelPayloads["attention.inbox"]["items"][number]
 
+/** A decision gate still needing the owner (open) or the engine (answered, undelivered). */
+export type ActiveGate = ChannelPayloads["gates"]["gates"][number]
+
 export {
   type WorktreeChangesMap,
   parseWorktreeChangesPayload,
@@ -308,6 +311,7 @@ export function deserializeTask(s: SerializedTask): Task {
     quotaResume: s.quotaResume,
     linkedWorkItem: s.linkedWorkItem,
     dispatcher: s.dispatcher,
+    requireReport: s.requireReport,
     prompt: s.prompt,
     baseRef: s.baseRef,
     worktreeName: s.worktreeName,

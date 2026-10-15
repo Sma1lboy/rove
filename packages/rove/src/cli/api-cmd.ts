@@ -133,7 +133,8 @@ export async function invokeVerb(
   const verb = findVerb(verbName)
   if (!verb) throw unknownVerbError(verbName)
   const booleanFlags = new Set(verb.flags.filter((f) => f.type === "bool").map((f) => f.name))
-  const parsed = parseFlags(argv, booleanFlags)
+  const repeatableFlags = new Set(verb.flags.filter((f) => f.repeatable).map((f) => f.name))
+  const parsed = parseFlags(argv, booleanFlags, repeatableFlags)
   validateAgainstSpec(verb, parsed.flags)
   try {
     return await verb.handler(makeContext(verb, parsed.flags, deps.client, deps.runtime ?? defaultApiRuntime))
@@ -162,7 +163,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   const booleanFlags = new Set(verb.flags.filter((f) => f.type === "bool").map((f) => f.name))
   let parsed: ParsedArgs
   try {
-    parsed = parseFlags(rest, booleanFlags)
+    parsed = parseFlags(rest, booleanFlags, new Set(verb.flags.filter((f) => f.repeatable).map((f) => f.name)))
   } catch (err) {
     if (err instanceof ApiError) fail(err.message, err.code, 2, err.data)
     fail(errorMessage(err), "BAD_FLAG", 2)
@@ -204,7 +205,9 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     // PARTIAL_FANOUT carries a full result payload (created tasks + failures)
     // that MUST reach the script — emit it to stdout, then exit 3 so the
     // "non-zero = something failed" contract holds without losing the data.
-    if (err instanceof ApiError && err.code === "PARTIAL_FANOUT") {
+    // SKIPPED (`should-run`, `send --if-runnable`) is the same shape: the
+    // verdict is the answer, and exit 3 says "don't".
+    if (err instanceof ApiError && (err.code === "PARTIAL_FANOUT" || err.code === "SKIPPED")) {
       emit(err.data, parsed.pretty)
       session?.close()
       process.exit(3)

@@ -156,6 +156,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       ctx.activity.clearTask(taskId)
       // The one lifecycle action allowed to cascade durable Inbox episodes.
       await ctx.inbox.deleteTaskBestEffort(taskId)
+      await ctx.gates.withdrawTask(taskId).catch((err) => logDaemonError("gates-withdraw-task", err))
       // The issue owns the link (`Issue.taskId`); nothing else clears it, so the
       // card would show In progress forever. Best-effort: the deletion already
       // committed, so failures are logged, never a failed delete.
@@ -221,6 +222,15 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setPinned(taskId, optionalBoolean(payload, "pinned"))
+      return {}
+    },
+  },
+  {
+    name: "task.requireReport",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      if (typeof payload.required !== "boolean") throw new Error("required must be a boolean")
+      await ctx.orch.setRequireReport(taskId, payload.required)
       return {}
     },
   },

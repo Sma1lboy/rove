@@ -105,6 +105,7 @@ async function main(): Promise<void> {
   const ops = createRoveOps(verbClient, {
     changes: () => orchestrator.worktreeChangesSignal()(),
     tokens: () => orchestrator.rowTokensSignal()(),
+    gates: () => orchestrator.gatesSignal()(),
   })
   const feed = new TaskFeed(() => ops.tasks())
   for (const signal of [
@@ -113,6 +114,7 @@ async function main(): Promise<void> {
     orchestrator.attentionInboxSignal(),
     orchestrator.worktreeChangesSignal(),
     orchestrator.rowTokensSignal(),
+    orchestrator.gatesSignal(),
   ]) {
     signal.subscribe(() => feed.poke())
   }

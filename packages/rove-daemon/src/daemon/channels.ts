@@ -20,6 +20,7 @@ import type {
   EngineActivityDetail,
   EngineContextUsage,
   EngineQuotaUsage,
+  GatesPayload,
   TaskActivityState,
   UpdateInfo,
 } from "./contracts.ts"
@@ -99,6 +100,12 @@ export interface ChannelPayloads {
    * explicit hard-delete of its task. Full snapshots make reconnect stateless.
    */
   "attention.inbox": { items: AttentionInboxItem[] }
+  /**
+   * Decision gates still needing the owner (open) or the engine (answered,
+   * not yet delivered). Full snapshot, so a bridge can render and answer
+   * them without polling; the TUI gets the same gates as `attention.inbox` rows.
+   */
+  gates: GatesPayload
   /**
    * `state.json` visual prefs, pushed when the daemon's watcher sees them
    * change, so a theme switch, Tasks-pane sort (`t`), keys fold (`?`) or
