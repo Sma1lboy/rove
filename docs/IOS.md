@@ -246,7 +246,7 @@ What the phone cannot do, because each would make the Mac run a command the phon
 | `autoRouting.setClassifier` | `mode` (`off`/`jev`/`custom`) | state.json `autoRouting.classifier`; `custom` only restores the endpoint the TUI remembered | yes |
 | `engines.hooks.install` | — | `ensureGlobalRoveHooks` | yes |
 | `engines.hooks.uninstall` | — | `removeActivityHooks` for every hook adapter | yes |
-| `dev.reset` | — | empty state.json and remove tasks.json (the TUI's "Reset UI state") | yes |
+| `dev.reset` | — | empty state.json and remove tasks.json, then restart the daemon so its in-memory task list goes too (the TUI's "Reset UI state"; the TUI exits instead) | yes |
 | `daemon.restart` | — | RPC `daemon.stop {reason: restart}` | yes |
 
 The classifier's endpoint (shown as a host only), threshold and API key stay Mac-side edits: an endpoint is a destination the Mac would post prompts to, and the key a secret it would store.

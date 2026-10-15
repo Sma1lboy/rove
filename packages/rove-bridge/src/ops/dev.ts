@@ -72,9 +72,12 @@ export function createDevOps(deps: DevDeps): OpTable {
     "dev.reset": {
       kind: "write",
       destructive: true,
-      wraps: "Settings → Dev reset: replaceStateFile({}) and remove tasks.json (worktrees and engine history stay)",
-      async run() {
+      wraps:
+        "Settings → Dev reset: replaceStateFile({}), remove tasks.json, then daemon.stop {reason: restart} so its in-memory tasks go too (worktrees and engine history stay)",
+      async run(_args, { api }) {
         deps.resetState()
+        // The running daemon still holds the old index in memory; the TUI exits and relaunches, the web restarts the daemon.
+        await api.rpc("daemon.stop", { reason: "restart" }).catch(() => undefined)
         return {}
       },
     },
