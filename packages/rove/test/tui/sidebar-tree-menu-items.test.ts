@@ -131,6 +131,7 @@ describe("treeMenuItems", () => {
     expect(actions(mainTab, { tabCount: 2 })).toEqual([
       "open",
       "closeTab",
+      "copyTab",
       "newChat",
       "newShell",
       "rename",
@@ -187,6 +188,7 @@ describe("treeMenuItems", () => {
     expect(actions(tabRow, { tabCount: 2 })).toEqual([
       "open",
       "closeTab",
+      "copyTab",
       "newChat",
       "newShell",
       "rename",
@@ -320,11 +322,20 @@ describe("the chord an entry advertises", () => {
   })
 
   test("the menu-only verbs stay menu-only", () => {
-    // These seven have no chord anywhere in the product; the menu is their one
+    // These eight have no chord anywhere in the product; the menu is their one
     // route. Claiming a bindingId here would print a cap for a key that does
     // not reach them.
     const withId = new Set(everyItem.flatMap((item) => (item.bindingId ? [item.action] : [])))
-    for (const action of ["setStatus", "copyId", "copyBranch", "copyPath", "runAgain", "fieldNotes", "land"]) {
+    for (const action of [
+      "setStatus",
+      "copyId",
+      "copyTab",
+      "copyBranch",
+      "copyPath",
+      "runAgain",
+      "fieldNotes",
+      "land",
+    ]) {
       expect(withId, action).not.toContain(action)
     }
   })
