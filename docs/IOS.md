@@ -211,7 +211,26 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `repo.digest` | `repo`, `sinceDays?` | `digest` | — |
 | `turns.list` | `taskId?`, `repo?`, `sinceDays?`, `limit?` | `agent-turns` | — |
 
-What the phone cannot do, because each would make the Mac run a command the phone wrote: set a routine's precheck, edit an engine's launch command, change a plugin's manifest settings, install a plugin from the marketplace. Engine rows never carry account emails or the launch command's arguments.
+What the phone cannot do, because each would make the Mac run a command the phone wrote: set a routine's precheck, edit an engine's launch command, change a plugin's manifest settings, install a plugin from the marketplace, set the custom editor command. Engine rows never carry account emails or the launch command's arguments.
+
+### Settings preferences
+
+`prefs.get` returns every Settings knob the TUI keeps in state.json, already run through the TUI's normalizers, so a client never restates a default: `prefs` (current values by wire key), `options` (the choices of each enum key, `{min, max}` for `scrollbackRows`), `info` (`editorCustomSet`, `worktreeCustomPath`: read-only facts), `glyphSets` (the TUI's three state-glyph presets) and `themes` (every bundled and user theme resolved to `#rrggbb` for `dark` and `light`, including the colorblind diff pair from the TUI's own `diffInks`). `prefs.set` writes one key per call; the value must be one of `options` (a boolean for flags, an integer in range for `scrollbackRows`), and the reply carries the full `prefs` as the TUI will now read them. Keys: `locale`, `theme`, `themeMode`, `transparent`, `focusAccent`, `splitStyle`, `railFold`, `tabRowHeight`, `workingBorder`, `taskColors`, `glyphSet`, `colorblind`, `runningTitle`, `toast`, `sound`, `soundVolume`, `crossTask`, `keyHints`, `zen`, `editorKind`, `worktreeBase` (`default`, `nextToProject`, or `custom` only when the TUI already remembers a custom base), `scrollbackRows`, `tabStrip`, `prefixTap`, `remoteProjects`, `autoStatus`, `dispatcher`. A running TUI follows theme, mode, transparency, accent and language at once (the daemon's ui-prefs watcher); it reads the rest the next time it starts.
+
+| Op | Args | Wraps | Destructive |
+|---|---|---|---|
+| `prefs.get` | — | state.json Settings keys + resolved theme palettes + glyph sets | — |
+| `prefs.set` | `key`, `value` | one allowlisted state.json key | — |
+| `theme.taskColors` | `theme`, `mode` (`dark`/`light`), `taskIds` (≤500) | the TUI's `taskColor(taskId, theme)` | — |
+| `autoRouting.get` | — | tiers (`readAutoRoutingTable` + `tierBlock` verdict), pickable engines (effort levels, takes-model), classifier mode/host/key source | — |
+| `autoRouting.setTier` | `tier` (`swift`/`standard`/`deep`), `engine`, `model?`, `effort?` | state.json `autoRouting.<tier>.engine|model|effort` | yes |
+| `autoRouting.setClassifier` | `mode` (`off`/`jev`/`custom`) | state.json `autoRouting.classifier`; `custom` only restores the endpoint the TUI remembered | yes |
+| `engines.hooks.install` | — | `ensureGlobalRoveHooks` | yes |
+| `engines.hooks.uninstall` | — | `removeActivityHooks` for every hook adapter | yes |
+| `dev.reset` | — | empty state.json and remove tasks.json (the TUI's "Reset UI state") | yes |
+| `daemon.restart` | — | RPC `daemon.stop {reason: restart}` | yes |
+
+The classifier's endpoint (shown as a host only), threshold and API key stay Mac-side edits: an endpoint is a destination the Mac would post prompts to, and the key a secret it would store.
 
 ## Build the app
 
