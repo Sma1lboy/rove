@@ -59,7 +59,8 @@ function ContextMenu() {
             item.run()
           }}
         >
-          {item.label}
+          <span>{item.label}</span>
+          {item.key && <span className="menu-key">{item.key}</span>}
         </button>
       ))}
     </div>

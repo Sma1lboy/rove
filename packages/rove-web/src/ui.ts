@@ -8,6 +8,8 @@ import { createStore } from "./store.ts"
 export interface MenuItem {
   readonly label: string
   readonly danger?: boolean
+  /** The rail key that runs the same entry (TUI menus mirror a chord): shown as a hint, looked up by `rail-keys.ts`. */
+  readonly key?: string
   readonly run: () => void
 }
 

@@ -5,6 +5,9 @@ export const en = {
     empty: "no tasks yet",
     emptyHint: "start one below, in the TUI, or with `rove api add`",
     newTask: "New task",
+    searchPlaceholder: "fuzzy filter",
+    engineSwitched: "Engine → {engine} (applies on reopen)",
+    engineSwitchFailed: "could not switch engine: {error}",
   },
   workspace: {
     pickTask: "pick a task on the left",

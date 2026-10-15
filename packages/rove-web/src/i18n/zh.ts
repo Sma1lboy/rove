@@ -6,6 +6,9 @@ export const zh: typeof en = {
     empty: "还没有任务",
     emptyHint: "在下面、TUI 里或用 `rove api add` 新建一个",
     newTask: "新建任务",
+    searchPlaceholder: "模糊搜索",
+    engineSwitched: "引擎 → {engine}（重新打开后生效）",
+    engineSwitchFailed: "切换引擎失败：{error}",
   },
   workspace: {
     pickTask: "从左边选一个任务",

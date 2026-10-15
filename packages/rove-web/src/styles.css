@@ -123,8 +123,39 @@ button:focus-visible,
   padding: 4px 6px 12px;
 }
 
-.project + .project {
-  margin-top: 12px;
+.project-head:not(:first-child) {
+  margin-top: 18px;
+}
+
+/* Keyboard cursor: shown only while the rail has focus, as the TUI sidebar's. */
+.rail:focus {
+  outline: none;
+}
+
+.rail:focus-within .is-cursor {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.rail-search {
+  display: flex;
+  gap: 4px;
+  padding: 0 14px 8px;
+  font-size: 12px;
+}
+
+.rail-search .caret {
+  color: var(--accent);
+  animation: blink 1s steps(1) infinite;
+}
+
+.rail-search .muted {
+  margin-left: 6px;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 .project-head {

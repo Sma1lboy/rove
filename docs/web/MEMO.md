@@ -137,12 +137,27 @@ Always screenshot headed. Cost one round of three wrong fixes.
     are mirrored on the web in the same pane scope. They are not new or
     moved chords, so they don't need sign-off; only replacements for
     Ctrl+W/T/N/Q do.
-- **Next pick:** the rail's keyboard layer (j/k, gg/G, Enter, n, r, b, t, /,
-  Shift+P, `x`, `s`) — mirrors existing TUI chords and lifts many 🟡 rows.
-  Then `rove api tab-new --kind shell|engine` (no prompt) for #42, #43, #74,
-  #85: it must write `terminalTabs.<taskId>` in one locked update and
+- **Round 5** (branch `web/round-5`, stacked on round 4): the rail's
+  keyboard layer, from `keybindings-sidebar.ts`. Script: `e2e-r5.ts`
+  (shots `r5-*`).
+  - Row keys look up the right-click entry by `MenuItem.key` and run it, so
+    a key and its menu entry share one code path; the menu shows the key.
+  - Sort + search state lives in `useRailFilters` (the rail builds rows
+    from it); `useRailKeys` only moves the cursor and dispatches. Project
+    headers are not cursor stops (`treeFlatIds`).
+  - Sort is per browser (`localStorage rove.activeSortMode`); the TUI keeps
+    its own in KV and does not sync across clients either.
+  - The web can't import `groups.ts`/`task-group.ts` (`@/` aliases), so the
+    recent/name comparators are re-stated in `rail.ts`; attention uses the
+    bridge's `rank`. `fuzzy.ts` is imported directly.
+  - Script lessons: row text starts with the status glyph, read
+    `.row-title`; wait for the UI result (the `▴` chip, the toast), not a
+    fixed delay (`task.setCommand` ~2–3 s); bound every cursor loop.
+- **Next pick:** `rove api tab-new --kind shell|engine` (no prompt) for #42,
+  #43, #74, #85: it must write `terminalTabs.<taskId>` in one locked update and
   broadcast so an attached TUI's stale KV doesn't overwrite or reuse the id
   (scout trace: `mintCliTab`, `kv-core.ts`, `pty-host.ts` same-key attach).
+  Then the prefix layer (Ctrl+F) so prefix-only rows can land.
 - **Pending owner stack (#1247→#1246→#1248→#1249, long-run controls):** once
   merged, the Inbox must stop clearing on open for `report_missing` rows
   (clear only via `d` → `attention.dismiss {deliveryId}` or a late report) and
