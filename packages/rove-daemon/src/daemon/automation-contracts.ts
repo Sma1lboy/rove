@@ -116,7 +116,7 @@ export interface AutomationRun {
   readonly taskId?: string
   readonly tabId?: string
   readonly precheckResult?: AutomationPrecheckResult
-  /** Why should-run refused this firing; set with `skipped_blocked`. */
+  /** Why should-run refused this firing; set with `skipped_blocked`, and with `dispatch_failed` when it needs a human. */
   readonly blocked?: SkipVerdict
   readonly error?: string
   /** ISO-8601 event time. */

@@ -49,7 +49,7 @@ writer). Types in [`contracts.ts`](../../packages/rove-daemon/src/daemon/contrac
 | `dispatched` | Task created (or delivered into the standing session), engine started with the prompt |
 | `revived` | Standing session whose engine had died, respawned in the same worktree — files kept, transcript not |
 | `skipped_precheck` | The precheck said there was nothing to do — **healthy** |
-| `skipped_blocked` | Should-run declined the tick: the target task is busy, awaiting the owner, rate limited, … (`blocked` carries the verdict; see `long-run-controls.md` § 2) — no alarm, the cause is already in the Inbox |
+| `skipped_blocked` | Should-run declined the tick: the target task is busy, awaiting the owner, rate limited, … (`blocked` carries the verdict; see `long-run-controls.md` § 2) — no alarm, the cause is already in the Inbox. `engine-dead` / `engine-error` have no Inbox row of their own and are recorded `dispatch_failed` instead |
 | `skipped_missed` | The occurrence was older than the grace window |
 | `skipped_unavailable` | The repo/worktree could not be resolved |
 | `dispatch_failed` | Task created but its engine did not start |

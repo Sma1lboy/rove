@@ -13,10 +13,17 @@ import { dispatchAutomation } from "../../../rove-daemon/src/daemon/automation-d
 import type { DispatchRunnability } from "../../../rove-daemon/src/daemon/automation-dispatch.ts"
 import { runAutomationOnce } from "../../../rove-daemon/src/daemon/automation-runner.ts"
 import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
-import type { DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
+import type { DaemonTask, EngineQuotaUsage } from "../../../rove-daemon/src/daemon/contracts.ts"
+import { DeliveriesStore } from "../../../rove-daemon/src/daemon/deliveries-store.ts"
+import { type DeliveryDeps, trackDeliveryTurn } from "../../../rove-daemon/src/daemon/delivery-ops.ts"
+import { GatesStore } from "../../../rove-daemon/src/daemon/gates-store.ts"
 import { startQuotaResumeRunner } from "../../../rove-daemon/src/daemon/quota-resume.ts"
 import type { RunnabilityVerdict, SkipVerdict } from "../../../rove-daemon/src/daemon/runnability-contracts.ts"
-import { type RunnabilityDeps, createDispatchRunnability } from "../../../rove-daemon/src/daemon/runnability.ts"
+import {
+  type ActivityReading,
+  type RunnabilityDeps,
+  createDispatchRunnability,
+} from "../../../rove-daemon/src/daemon/runnability.ts"
 import type { DaemonRuntimeAdapter } from "../../../rove-daemon/src/daemon/runtime.ts"
 import { NOW, REPO, automation, fakeDeps } from "./automation-runner-fixtures.ts"
 
@@ -88,6 +95,41 @@ describe("should-run in the schedulers", () => {
         trigger: "scheduled",
       })
       expect(f.episodes.size).toBe(0)
+    })
+
+    it.each([
+      ["engine-dead", "dispatch_failed", 1],
+      ["engine-error", "dispatch_failed", 1],
+      ["awaiting-owner", "skipped_blocked", 0],
+      ["report-missing", "skipped_blocked", 0],
+      ["quota", "skipped_blocked", 0],
+      ["busy", "skipped_blocked", 0],
+      ["awaiting-permission", "skipped_blocked", 0],
+    ] as const)("a %s refusal is recorded %s and raises %i routine_failed alarm", async (reason, status, alarms) => {
+      const f = await routineSetup({ target: TARGET })
+      const check = vi.fn(() => ({ run: false, reason }) as RunnabilityVerdict)
+      const outcome = await runAutomationOnce(
+        { ...f.deps, runnability: { check, freshQuota: f.freshQuota } },
+        f.routine,
+        { scheduledFor: NOW, trigger: "scheduled" },
+      )
+      expect(outcome).toBe(status)
+      expect(f.deliverTab).not.toHaveBeenCalled()
+      // The verdict stays on the run either way, so the row says why.
+      expect(f.store.runsFor(f.routine.id)[0]).toMatchObject({ status, blocked: { reason }, error: reason })
+      expect(f.episodes.size).toBe(alarms)
+    })
+
+    it("a dead bound tab keeps its alarm across firings instead of being muted by the skip", async () => {
+      const f = await routineSetup({ target: TARGET })
+      const dead = vi.fn(() => ({ run: false, reason: "engine-dead" }) as RunnabilityVerdict)
+      for (let n = 0; n < 2; n++) {
+        await runAutomationOnce({ ...f.deps, runnability: { check: dead, freshQuota: f.freshQuota } }, f.routine, {
+          scheduledFor: NOW + n,
+          trigger: "scheduled",
+        })
+      }
+      expect(f.episodes.size).toBe(1)
     })
 
     it("a manual run-now bypasses it, as it does the precheck", async () => {
@@ -186,6 +228,91 @@ describe("should-run in the schedulers", () => {
       const rig = resumeRig(() => ({ run: true }))
       await rig.run(() => expect(rig.deliverPromptToLiveEngine).toHaveBeenCalled())
       expect(rig.deliverPromptToLiveEngine).toHaveBeenCalled()
+    })
+
+    /** Real deliveries and gates, so the verdict reads what the hooks actually wrote. */
+    async function liveRig(peek: () => EngineQuotaUsage | null = () => null) {
+      const dir = mkdtempSync(join(tmpdir(), "rove-runnability-quota-"))
+      dirs.push(dir)
+      const clock = { ms: NOW }
+      const deliveries = new DeliveriesStore(join(dir, "deliveries.json"), () => clock.ms)
+      await deliveries.init()
+      const gates = new GatesStore(join(dir, "gates.json"), () => new Date(clock.ms))
+      await gates.init()
+      const state = {
+        task: task({
+          requireReport: true,
+          quotaResume: { resumeAt: new Date(NOW + 3_600_000).toISOString(), requestedAt: new Date(NOW).toISOString() },
+        }),
+        activity: { state: "rate_limited", detail: { failure: "rate_limit" } } as ActivityReading,
+      }
+      const runnability = createDispatchRunnability(
+        {
+          orch: { getTask: () => state.task },
+          activity: { entryOf: () => state.activity },
+          gates,
+          deliveries,
+          now: () => clock.ms,
+        },
+        { peek },
+        "claude",
+      )
+      const setQuotaResume = vi.fn(async (_id: string, next: DaemonTask["quotaResume"] | null) => {
+        state.task = task({ ...state.task, quotaResume: next ?? undefined })
+      })
+      const orch = { listTasks: () => [state.task], getTask: () => state.task, setQuotaResume } as never
+      const deliverPromptToLiveEngine = vi.fn(async () => true)
+      const runtime = { deliverPromptToLiveEngine } as unknown as DaemonRuntimeAdapter
+      const sweep = async (): Promise<void> => {
+        const stop = startQuotaResumeRunner(orch, runtime, 5, () => clock.ms, undefined, runnability)
+        try {
+          await vi.waitFor(() => expect(setQuotaResume).toHaveBeenCalled())
+        } finally {
+          stop()
+        }
+      }
+      return { clock, deliveries, gates, state, runnability, sweep, deliverPromptToLiveEngine }
+    }
+
+    it("a rate limit that ended a requireReport tick resumes at the reset: its own missing delivery is not a decline", async () => {
+      const rig = await liveRig()
+      const armed = await rig.deliveries.arm({ taskId: TASK_ID, tabId: null, source: "send", promptHead: "tick" })
+      const deliveryDeps = { deliveries: rig.deliveries } as unknown as DeliveryDeps
+      await trackDeliveryTurn(deliveryDeps, TASK_ID, null, "turn-start", undefined)
+      await trackDeliveryTurn(deliveryDeps, TASK_ID, null, "turn-failed", { failure: "rate_limit" })
+      expect(rig.deliveries.get(armed.id)).toMatchObject({ status: "missing", missing: { cause: "rate-limited" } })
+      expect(rig.runnability.check(TASK_ID, null)).toEqual({ run: false, reason: "quota", until: UNTIL })
+
+      rig.clock.ms = NOW + 3_600_001
+      await rig.sweep()
+      expect(rig.deliverPromptToLiveEngine).toHaveBeenCalled()
+      rig.state.activity = { state: "idle" }
+      expect(rig.runnability.check(TASK_ID, null)).toEqual({ run: true })
+      // The continued turn's late report still lands.
+      await rig.deliveries.setReport(armed.id, { outcome: "done", summary: "finished", evidence: [] })
+      expect(rig.deliveries.get(armed.id)?.status).toBe("reported")
+    })
+
+    it("a decline for another reason does not strand the sticky badge: the quota ends at its reset, or is not held", async () => {
+      const reset = NOW + 7_200_000
+      const usage: EngineQuotaUsage = {
+        capturedAt: NOW,
+        windows: [{ kind: "five_hour", label: "5h", percent: 100, resetsAt: reset }],
+      }
+      const rig = await liveRig(() => usage)
+      await rig.gates.raise({ taskId: TASK_ID, question: "Ship it?" })
+      rig.clock.ms = NOW + 3_600_001
+      await rig.sweep()
+      expect(rig.deliverPromptToLiveEngine).not.toHaveBeenCalled()
+      expect(rig.state.task.quotaResume).toBeUndefined()
+      for (const gate of rig.gates.list({ taskId: TASK_ID, status: "open" })) await rig.gates.withdraw(gate.id)
+      expect(rig.runnability.check(TASK_ID, null)).toEqual({
+        run: false,
+        reason: "quota",
+        until: new Date(reset).toISOString(),
+      })
+      rig.clock.ms = reset
+      expect(rig.runnability.check(TASK_ID, null)).toEqual({ run: true })
     })
   })
 })

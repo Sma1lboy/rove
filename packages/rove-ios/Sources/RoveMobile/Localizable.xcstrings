@@ -6840,6 +6840,16 @@
         }
       }
     },
+    "skipped (task can't use it)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已跳过（任务暂不能接收）"
+          }
+        }
+      }
+    },
     "skipped cancelled" : {
       "localizations" : {
         "zh-Hans" : {

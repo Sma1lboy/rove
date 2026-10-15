@@ -57,6 +57,8 @@ describe("should-run", () => {
     const state = {
       task: task() as DaemonTask | undefined,
       activity: new Map<string, { state: TaskActivityState; detail?: EngineActivityDetail }>(),
+      /** The usage cache's exhausted-window reset, when it knows one. */
+      resetAt: null as number | null,
     }
     const deps: RunnabilityDeps = {
       orch: { getTask: () => state.task },
@@ -64,15 +66,16 @@ describe("should-run", () => {
       gates,
       deliveries,
       now: () => clock,
+      quotaResetAtMs: (_vendor, nowMs) => (state.resetAt !== null && state.resetAt > nowMs ? state.resetAt : null),
     }
     const verdict = (tab: string | null = TAB, ignore: Parameters<typeof evaluateRunnability>[3] = {}) =>
       evaluateRunnability(deps, TASK_ID, tab, ignore)
     const setActivity = (s: TaskActivityState, detail?: EngineActivityDetail, tab = TAB) =>
       state.activity.set(tab, { state: s, ...(detail ? { detail } : {}) })
     /** An armed delivery whose turn ended with no report. */
-    const missingDelivery = async () => {
+    const missingDelivery = async (cause: "turn-complete" | "rate-limited" = "turn-complete") => {
       const d = await deliveries.arm({ taskId: TASK_ID, tabId: TAB, source: "send", promptHead: "tick" })
-      return (await deliveries.markMissing(d.id, "turn-complete"))!
+      return (await deliveries.markMissing(d.id, cause))!
     }
     return {
       deps,
@@ -191,10 +194,40 @@ describe("should-run", () => {
         expect(h.verdict()).toEqual({ run: true })
       })
 
-      it("a rate limit with no known reset still blocks, without until", async () => {
+      it("a rate limit with no known reset does not block: an unknown quota is no reason to skip", async () => {
         const h = await setup()
         h.setActivity("rate_limited", { failure: "rate_limit" })
-        expect(h.verdict()).toEqual({ run: false, reason: "quota" })
+        expect(h.verdict()).toEqual({ run: true })
+      })
+
+      it("keeps its reset after quota-resume cleared the schedule, and ends at it", async () => {
+        const h = await setup()
+        h.setActivity("rate_limited", { failure: "rate_limit" })
+        h.state.resetAt = NOW + 3_600_000
+        expect(h.verdict()).toEqual({ run: false, reason: "quota", until: UNTIL })
+        h.advance(3_600_000)
+        expect(h.verdict()).toEqual({ run: true })
+      })
+
+      it("the armed schedule wins while it is still ahead", async () => {
+        const h = await setup()
+        h.state.task = task({ quotaResume: { resumeAt: UNTIL, requestedAt: new Date(NOW).toISOString() } })
+        h.state.resetAt = NOW + 60_000
+        h.setActivity("rate_limited", { failure: "rate_limit" })
+        expect(h.verdict()).toMatchObject({ reason: "quota", until: UNTIL })
+      })
+
+      it("a delivery the rate limit ended is neither report-missing nor busy", async () => {
+        const h = await setup()
+        h.state.task = task({ quotaResume: { resumeAt: UNTIL, requestedAt: new Date(NOW).toISOString() } })
+        h.setActivity("rate_limited", { failure: "rate_limit" })
+        await h.missingDelivery("rate-limited")
+        // The engine's quota is the real block, and it names the reset.
+        expect(h.verdict()).toEqual({ run: false, reason: "quota", until: UNTIL })
+        h.advance(3_600_000)
+        h.setActivity("idle")
+        expect(h.verdict()).toEqual({ run: true })
+        expect(h.verdict("new")).toEqual({ run: true })
       })
 
       it("billing rides the rate_limited badge but needs a human: engine-error", async () => {
@@ -322,6 +355,10 @@ describe("should-run", () => {
         gates: h.gates,
         deliveries: h.deliveries,
         inbox: { deleteDeliveryEpisode: async () => true },
+        quotaUsage: {
+          peek: () => (h.state.resetAt === null ? null : { windows: [{ percent: 100, resetsAt: h.state.resetAt }] }),
+        },
+        runtime: { defaultTaskVendor: "claude" },
       } as unknown as DaemonHandlerContext
       const registry = createDaemonHandlerRegistry()
       const rpc = (name: string, payload: Record<string, unknown>) =>
@@ -371,6 +408,23 @@ describe("should-run", () => {
       const reply = await h.rpc("send.admit", { taskId: TASK_ID, tabId: TAB, promptHead: "tick" })
       expect(reply).toMatchObject({ deliveryId: expect.stringMatching(/^d-\d+$/) })
       expect(h.deliveries.awaitingFor(TASK_ID, TAB)).toBeDefined()
+    })
+
+    it("a --tab new claim does not block exact-tab sends on the task's other tabs", async () => {
+      const h = await rpcSetup()
+      const fresh = await h.rpc("send.admit", { taskId: TASK_ID, tabId: "new", promptHead: "tick" })
+      expect(fresh).toHaveProperty("claimId")
+      expect(await h.rpc("send.admit", { taskId: TASK_ID, tabId: TAB, promptHead: "tick" })).toHaveProperty("claimId")
+    })
+
+    it("an armed --tab new send stops reading as the other tabs' busy once its delivery is bound to the new tab", async () => {
+      const h = await rpcSetup()
+      h.state.task = task({ requireReport: true })
+      const armed = await h.rpc("send.admit", { taskId: TASK_ID, tabId: "new", promptHead: "tick" })
+      // Until the paste lands the delivery has no tab, and a tab-less delivery matches every tab.
+      expect(await h.rpc("send.admit", { taskId: TASK_ID, tabId: TAB, promptHead: "tick" })).toHaveProperty("skipped")
+      await h.deliveries.setTab(armed.deliveryId as string, "tab-2")
+      expect(await h.rpc("send.admit", { taskId: TASK_ID, tabId: TAB, promptHead: "tick" })).toHaveProperty("claimId")
     })
 
     it("a dead engine on the canonical tab is not a skip: send revives it", async () => {

@@ -578,10 +578,11 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   both cases). The first matching `reason` wins, in this order:
   `task-missing`; `awaiting-owner` (an open gate; `gateIds`); `report-missing`
   (the tab's newest delivery ended unreported and its Inbox row is neither
-  dismissed nor answered by a late `report`; skipped ticks do not count);
-  `quota` (`rate_limited`; `until` is the reset time quota-resume armed and
-  the block clears itself there, with no `until` it lasts until the engine's
-  next turn); `engine-error` (a sticky `error`, billing and auth included);
+  dismissed nor answered by a late `report`; skipped ticks and a delivery the
+  rate limit ended do not count);
+  `quota` (`rate_limited`; `until` is the reset time, from the armed
+  quota-resume or else the usage cache, and the block ends there; with no known
+  reset the quota is not a reason to skip); `engine-error` (a sticky `error`, billing and auth included);
   `engine-dead` (an exact `--tab` whose engine exited); `awaiting-permission`;
   `busy` (a turn is running, the newest delivery still awaits its report, or
   a `send --if-runnable` is mid-paste). A task whose only gate is answered
@@ -1186,7 +1187,7 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   `missing`), and `response: { text, at }` once the agent reported; both are
   read from the linked delivery. Runs from before deliveries existed keep
   the response they stored. `revived` describes a
-  respawned standing session; `skipped_cancelled` means disabled, changed or stopped before delivery; `skipped_blocked` means should-run refused the tick (`blocked` is the verdict, see `should-run`; the cause is already in the Inbox and `routine-run-now` bypasses it). Bound deliveries include `taskId`/`tabId`. An unknown id is an error
+  respawned standing session; `skipped_cancelled` means disabled, changed or stopped before delivery; `skipped_blocked` means should-run refused the tick (`blocked` is the verdict, see `should-run`; the cause is already in the Inbox and `routine-run-now` bypasses it), except `engine-dead` and `engine-error`, which have no Inbox row of their own and are recorded `dispatch_failed` with the same `blocked`. Bound deliveries include `taskId`/`tabId`. An unknown id is an error
   (`automation not found`), not an empty history.
 - `routine-delete --id ID`: delete it and its history (tasks it already
   created are untouched). Idempotent: deleting an id that is already gone

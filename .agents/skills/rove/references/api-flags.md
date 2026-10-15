@@ -93,10 +93,14 @@ gates        --repo --task-id --status{open|answered|withdrawn|all}(open)
 the wider diagnostic — daemon activity, a pty walk, and every tab snapshot.
 
 `deliveries --task-id` is the task's report log, newest first: for each armed
-prompt its `status` (`awaiting`, `reported`, `missing`), the report
+prompt its `status` (`awaiting`, `reported`, `missing`, `skipped`), the report
 (`outcome`, `summary`, `evidence`, `next`) or why it went missing (`cause`,
-`note`). A loop that wakes a task reads `deliveries --limit 5` for what the
-last ticks did, instead of a growing notes file.
+`note`; a `missing` row also carries `dismissedAt` once the owner dismissed it).
+A `skipped` row is a tick `send --if-runnable` refused: `skipped` is
+the verdict (`reason`, `detail`, `until`, `gateIds`) and `repeats` counts the
+identical refusals (same tab, same reason) that one row stands for. A loop that
+wakes a task reads `deliveries --limit 5` for what the last ticks did, instead
+of a growing notes file.
 
 `pty-list` is what `NO_ENGINE_TAB`'s hint points at: when `.tabs[]` and reality
 disagree, it is the ground truth for what is actually alive — key, alive, pid,

@@ -40,7 +40,7 @@ export class InflightClaims {
     else this.claims.delete(id)
   }
 
-  /** A claim on the task's unpinned tab covers any tab, and the reverse. */
+  /** An unpinned claim covers any tab, and the reverse; a `--tab new` claim ("new") covers only the rollup. */
   isClaimed(taskId: string, tabId: string | null): boolean {
     const now = this.now()
     for (const [id, claim] of this.claims) {

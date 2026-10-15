@@ -134,7 +134,7 @@ export const REPORT_VERB: VerbSpec = {
 export const DELIVERIES_VERB: VerbSpec = {
   name: "deliveries",
   group: "read",
-  summary: `A task's armed deliveries, newest first (newest ${MAX_DELIVERIES_PER_TASK} are kept): status awaiting|reported|missing, the report (outcome, summary, evidence, next) and, for missing, why (cause turn-complete|turn-failed|engine-dead|stalled|interrupted|session-end|rate-limited + note). The per-tick log a loop prompt should read instead of a growing MEMO file.`,
+  summary: `A task's armed deliveries, newest first (newest ${MAX_DELIVERIES_PER_TASK} are kept): status awaiting|reported|missing|skipped, the report (outcome, summary, evidence, next) and, for missing, why (cause turn-complete|turn-failed|engine-dead|stalled|interrupted|session-end|rate-limited + note; rate-limited raises no Inbox row and does not block) plus dismissedAt once the owner dismissed it (a missing row blocks \`send --if-runnable\` and routine ticks until a late report or that dismissal). A skipped row is a \`send --if-runnable\` tick should-run refused: \`skipped\` is the verdict {reason, detail?, until?, gateIds?}, \`repeats\` how many identical refusals (same tab, same reason) the one row stands for. The per-tick log a loop prompt should read instead of a growing MEMO file.`,
   flags: [
     F.taskId(true),
     { name: "limit", type: "int", placeholder: "N", description: "At most N entries (default: all retained)." },

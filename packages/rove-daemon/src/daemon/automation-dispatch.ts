@@ -67,7 +67,7 @@ export interface DispatchOutcome {
   readonly sessionTaskIdToClear?: boolean
   /** Set on the firing that established a standing session. */
   readonly sessionTaskIdToSet?: string
-  /** Set with `skipped_blocked`. */
+  /** Set with `skipped_blocked`, and with `dispatch_failed` when the refusal needs a human. */
   readonly blocked?: SkipVerdict
 }
 
@@ -87,7 +87,13 @@ export function resolveStandingTask(
   return { task }
 }
 
-/** The `skipped_blocked` outcome for a refusing verdict; undefined when the firing may go ahead. */
+/**
+ * A refusal whose cause needs a human and has no Inbox row of its own: a skip would stay muted and
+ * hide a dead or errored bound tab, so it is a failure (the `routine_failed` alarm) that keeps `blocked`.
+ */
+const ALARMING_REFUSALS: Partial<Record<SkipReason, true>> = { "engine-dead": true, "engine-error": true }
+
+/** The outcome for a refusing verdict (`dispatch_failed` if it needs a human); undefined when the firing may go ahead. */
 function blockedOutcome(
   verdict: RunnabilityVerdict | SkipVerdict | undefined,
   where: { taskId?: string; tabId?: string },
@@ -95,7 +101,8 @@ function blockedOutcome(
   if (!verdict || verdict.run) return undefined
   // `error` is the text the Routines row prints beside the status.
   const error = `${verdict.reason}${verdict.detail ? `: ${verdict.detail}` : ""}${verdict.until ? ` (until ${verdict.until})` : ""}`
-  return { status: "skipped_blocked", ...where, blocked: verdict, error }
+  const status = ALARMING_REFUSALS[verdict.reason] ? "dispatch_failed" : "skipped_blocked"
+  return { status, ...where, blocked: verdict, error }
 }
 
 /** Create the task a firing runs in, marked as the routine's when standing. */

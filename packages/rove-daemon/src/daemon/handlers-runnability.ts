@@ -3,11 +3,17 @@
 import { optionalBoolean, optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import type { RunnabilityVerdict, SkipReason } from "./runnability-contracts.ts"
-import { type RunnabilityDeps, evaluateRunnability } from "./runnability.ts"
+import { type RunnabilityDeps, evaluateRunnability, quotaResetReader } from "./runnability.ts"
 
 /** The handler context's slice the evaluator reads. */
 export function runnabilityDepsOf(ctx: DaemonHandlerContext): RunnabilityDeps {
-  return { orch: ctx.orch, activity: ctx.activity, gates: ctx.gates, deliveries: ctx.deliveries }
+  return {
+    orch: ctx.orch,
+    activity: ctx.activity,
+    gates: ctx.gates,
+    deliveries: ctx.deliveries,
+    quotaResetAtMs: quotaResetReader(ctx.quotaUsage, ctx.runtime.defaultTaskVendor),
+  }
 }
 
 /**
@@ -56,7 +62,8 @@ export const RUNNABILITY_HANDLERS: readonly DaemonRequestHandler[] = [
           : undefined
         return { skipped: verdict, ...(skipped ? { deliveryId: skipped.id } : {}) }
       }
-      const claimId = ctx.deliveries.claims.claim(taskId, pinnedTab, armed)
+      // A `--tab new` claim is its own slot: it must not read as the canonical tab's and block exact tabs.
+      const claimId = ctx.deliveries.claims.claim(taskId, tabId || null, armed)
       if (!armed) return { claimId }
       try {
         const delivery = await ctx.deliveries.arm({ taskId, tabId: pinnedTab, source: "send", promptHead })
