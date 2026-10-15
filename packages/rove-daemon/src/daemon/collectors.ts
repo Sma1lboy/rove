@@ -65,6 +65,8 @@ export interface AutomationCollectorDeps {
   /** Plugin host getter (constructed after the collectors start, like `link`). */
   readonly plugins?: () => import("../plugins/runtime.ts").PluginHost | null
   readonly inbox?: import("./automation-runner.ts").RunnerInbox
+  /** Answered decision gates owed to a routine's target tab ride its next firing. */
+  readonly gates?: import("./gate-handoff.ts").GateLedger
 }
 
 /**
@@ -252,6 +254,7 @@ export function startDaemonCollectors(
           link: automations.link,
           ...(automations.plugins ? { plugins: automations.plugins } : {}),
           ...(automations.inbox ? { inbox: automations.inbox } : {}),
+          ...(automations.gates ? { gates: automations.gates } : {}),
         },
         options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
       )

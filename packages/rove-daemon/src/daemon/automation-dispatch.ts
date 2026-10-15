@@ -22,6 +22,7 @@
 import { assertAutomationTargetTask, automationTarget } from "./automation-target.ts"
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonInfo } from "./crash-log.ts"
+import { type GateLedger, carryOwedGateAnswers } from "./gate-handoff.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** The orchestrator slice a firing needs. */
@@ -39,6 +40,8 @@ export interface DispatchDeps {
   readonly link: () => import("../client/rpc.ts").DaemonRpcClient
   readonly now?: () => number
   readonly canDeliver?: () => boolean
+  /** Answered decision gates owed to the target tab ride the prompt (design § 3). */
+  readonly gates?: GateLedger
 }
 
 /** `taskId` survives failure too: the task may exist without an engine, and the run record is the only place a human finds it. */
@@ -92,10 +95,12 @@ async function spawnWithPrompt(
   status: AutomationRunStatus,
 ): Promise<DispatchOutcome> {
   if (deps.canDeliver?.() === false) return { status: "skipped_cancelled", taskId }
-  const outcome = await deps.runtime.startTaskSessionWithPrompt(deps.link(), taskId, prompt)
+  const owed = carryOwedGateAnswers(deps.gates, taskId, null, prompt)
+  const outcome = await deps.runtime.startTaskSessionWithPrompt(deps.link(), taskId, owed.prompt)
   if (!outcome.started) {
     return { status: "dispatch_failed", taskId, error: outcome.error ?? "engine session did not start" }
   }
+  await owed.commit()
   return { status, taskId }
 }
 
@@ -137,10 +142,12 @@ export async function dispatchAutomation(
       return { status: "skipped_unavailable", taskId: task.id, tabId: target.tabId, error: "target task unavailable" }
     }
     const text = await resolvePrompt(prompt, { taskId: task.id, tabId: target.tabId })
+    const owed = carryOwedGateAnswers(deps.gates, task.id, target.tabId, text)
     const result = await deps.runtime.deliverPromptToLiveEngineTabDetailed(
       { id: task.id, tabId: target.tabId, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
-      text,
+      owed.prompt,
     )
+    if (result.outcome === "delivered") await owed.commit()
     return await liveDeliveryOutcome(deps, automation, task.id, result)
   }
   if (target.kind === "fresh") {
@@ -176,11 +183,13 @@ export async function dispatchAutomation(
   const task = standing.task
   // Built once: the live attempt and the respawn below carry the same delivery.
   const text = await resolvePrompt(prompt, { taskId: task.id, tabId: null })
+  const owed = carryOwedGateAnswers(deps.gates, task.id, null, text)
   const result = await deps.runtime.deliverPromptToLiveEngineDetailed(
     { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
-    text,
+    owed.prompt,
   )
   if (result.outcome === "delivered") {
+    await owed.commit()
     return await liveDeliveryOutcome(deps, automation, task.id, result)
   }
   // `no-session` (tab gone) and `no-engine` (keepAlive left a login shell):

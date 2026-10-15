@@ -8,7 +8,7 @@
 
 import { TASK_ACTIVITY_STATES, type TaskActivityState } from "@/engine/hook-events"
 import { type TaskActivitySignal, type TaskGroup, taskGroupOf } from "@/lib/task-group"
-import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { AttentionInboxItem, Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 
 /** Must match `NOTE_INJECTION_CAP`, so the coordinator reads the same notes
@@ -49,6 +49,8 @@ export interface ContextPayload {
   readonly omittedTasks?: number
   /** Unhandled attention episodes — what is queued for a person right now. */
   readonly attention: readonly AttentionInboxItem[]
+  /** Open decision gates — questions only the owner can answer. */
+  readonly gates: readonly Gate[]
   /** Newest field notes — the same set injected into fresh sessions. */
   readonly notes: readonly ContextNote[]
 }
@@ -71,6 +73,8 @@ export interface ContextInput {
   readonly liveTaskIds: ReadonlySet<string> | null
   readonly attention: readonly AttentionInboxItem[]
   readonly notes: readonly ContextNote[]
+  /** Open decision gates of the in-scope tasks. */
+  readonly gates: readonly Gate[]
   readonly now: number
   readonly limit: number
 }
@@ -113,6 +117,7 @@ export function buildContext(input: ContextInput): ContextPayload {
     tasks: kept,
     ...(omitted > 0 ? { omittedTasks: omitted } : {}),
     attention: input.attention,
+    gates: input.gates,
     notes: input.notes.slice(0, CONTEXT_NOTE_CAP),
   }
 }
@@ -152,6 +157,13 @@ export function renderContext(payload: ContextPayload): string {
     lines.push(`inbox (${payload.attention.length} unhandled):`)
     for (const item of payload.attention)
       lines.push(`  ${item.state}  ${item.taskId ? shortId(item.taskId) : "routine"}`)
+  }
+  if (payload.gates.length > 0) {
+    lines.push(`open decisions (${payload.gates.length}, answer with \`gate-answer\`):`)
+    for (const gate of payload.gates) {
+      const opts = gate.options.map((o) => `${o.key}${o.key === gate.recommended ? "*" : ""}`).join("/")
+      lines.push(`  ${gate.id}  ${shortId(gate.taskId)}  ${gate.question}${opts ? ` [${opts}]` : ""}`)
+    }
   }
   if (payload.notes.length > 0) {
     lines.push(`field notes (${payload.notes.length}, newest first):`)

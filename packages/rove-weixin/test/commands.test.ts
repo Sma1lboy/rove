@@ -11,7 +11,7 @@ function row(id: string, group: Row["group"], extra: Partial<Row> = {}): Row {
 }
 
 function payload(tasks: Row[]): ContextPayload {
-  return { repo: "*", at: "", tasks, attention: [], notes: [] }
+  return { repo: "*", at: "", tasks, attention: [], gates: [], notes: [] }
 }
 
 function fakeOps(overrides: Partial<RoveOps> = {}): RoveOps {
