@@ -15,7 +15,13 @@
   --muted: #a9a39a;
   --subtle: #6b665f;
   --accent: #cc785c;
-  --accent-soft: rgb(204 120 92 / 14%);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --focus: var(--accent);
+  --info: #61aaf2;
+  --diff-added: var(--success);
+  --diff-removed: var(--error);
+  --diff-added-bg: rgb(154 202 134 / 10%);
+  --diff-removed-bg: rgb(212 117 99 / 10%);
   --error: #d47563;
   --success: #9aca86;
   --warning: #e8c96b;
@@ -56,7 +62,7 @@ button {
 
 button:focus-visible,
 .input:focus-visible {
-  outline: 1px solid var(--accent);
+  outline: 1px solid var(--focus);
   outline-offset: 1px;
 }
 
@@ -133,7 +139,7 @@ button:focus-visible,
 }
 
 .rail:focus-within .is-cursor {
-  box-shadow: inset 0 0 0 1px var(--accent);
+  box-shadow: inset 0 0 0 1px var(--focus);
 }
 
 .rail-search {
@@ -201,7 +207,7 @@ button:focus-visible,
   bottom: 4px;
   width: 2px;
   border-radius: 1px;
-  background: var(--accent);
+  background: var(--focus);
 }
 
 .tab-row {

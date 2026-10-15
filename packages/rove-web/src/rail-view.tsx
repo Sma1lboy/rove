@@ -7,14 +7,21 @@ import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { MachineHeaders } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
+import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import { type NavRow, SPINNER, activityGlyph, groupByProject, navRows, repoLabel } from "./rail.ts"
+import { type NavRow, activityGlyph, groupByProject, navRows, repoLabel } from "./rail.ts"
 import { projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
+import { useTaskColor } from "./task-colors.ts"
 import { NewTaskDialog } from "./task-dialogs.tsx"
 import { type MenuItem, dialog, menu } from "./ui.ts"
 import { UpdateChip } from "./update-view.tsx"
+
+/** Frames a spinner counts to before it wraps: a multiple of every preset's frame count (10, 8, 4). */
+const SPINNER_CYCLE = 120
+/** The braille preset's PR marks, for the first frames before the bridge sends the glyph sets. */
+const BRAILLE_MARKS = { conflict: "≠", checksFailing: "✗", checksPassing: "✓" }
 
 /** Right click opens the row's menu where the pointer is (TUI tree menu). */
 export function openMenu(e: MouseEvent, items: readonly MenuItem[]): void {
@@ -27,7 +34,7 @@ function useSpinnerFrame(running: boolean): number {
   const [frame, setFrame] = useState(0)
   useEffect(() => {
     if (!running) return
-    const timer = window.setInterval(() => setFrame((f) => (f + 1) % SPINNER.length), 90)
+    const timer = window.setInterval(() => setFrame((f) => (f + 1) % SPINNER_CYCLE), 90)
     return () => window.clearInterval(timer)
   }, [running])
   return frame
@@ -68,6 +75,7 @@ export function RailView({ model }: { model: AppModel }) {
         <button
           type="button"
           className={`kicker inbox-chip ${unread > 0 ? "is-accent" : ""}`}
+          data-binding="inbox.show"
           onClick={() => dialog.set(<InboxDialog model={model} />)}
         >
           {t("rail.inbox", { count: unread })}
@@ -118,7 +126,12 @@ export function RailView({ model }: { model: AppModel }) {
         ))}
         <MachineHeaders client={model.client} />
       </div>
-      <button type="button" className="row new-task" onClick={() => dialog.set(<NewTaskDialog model={model} />)}>
+      <button
+        type="button"
+        className="row new-task"
+        data-binding="task.new.global"
+        onClick={() => dialog.set(<NewTaskDialog model={model} />)}
+      >
         <span className="glyph tone-accent">+</span>
         <span className="row-title">{t("rail.newTask")}</span>
       </button>
@@ -136,6 +149,9 @@ function RailRow(props: {
   onMenu: (e: MouseEvent) => void
 }) {
   const { row } = props
+  const { prefs, glyphSets } = usePrefs()
+  const glyphs: GlyphSet | undefined = glyphSets[prefs.glyphSet]
+  const mark = useTaskColor(row.kind === "project" ? null : row.task.id)
   const cursor = props.cursor ? "is-cursor" : ""
   if (row.kind === "project") {
     return (
@@ -145,41 +161,53 @@ function RailRow(props: {
       </h2>
     )
   }
+  const markDot = mark ? <span className="task-mark" style={{ background: mark }} aria-hidden="true" /> : null
   if (row.kind === "tab") {
     const tab = row.tab
+    const dead = tab.alive === false
+    // Two-row tabs add the engine running in the tab under its label (TUI `tabRowHeight` 2).
+    const caption = prefs.tabRowHeight === 2 && tab.kind === "engine" ? tab.engineName : null
     return (
       <button
         type="button"
-        className={`row tab-row ${props.selected ? "is-selected" : ""} ${cursor}`}
+        className={`row tab-row ${props.selected ? "is-selected" : ""} ${cursor} ${caption ? "is-two-row" : ""}`}
         onClick={props.onClick}
         onContextMenu={props.onMenu}
       >
-        <span className={`glyph ${tab.alive === false ? "tone-muted" : "tone-ink"}`}>
-          {tab.alive === false ? "○" : "●"}
+        {markDot}
+        <span className={`glyph ${dead ? "tone-muted" : "tone-ink"}`}>
+          {dead ? (glyphs?.idle ?? "○") : (glyphs?.running ?? "●")}
         </span>
-        <span className="row-title">{tabLabel(tab)}</span>
+        <span className="row-title">
+          {tabLabel(tab)}
+          {caption && <span className="row-caption muted">{caption}</span>}
+        </span>
       </button>
     )
   }
   const task = row.task
-  const glyph = activityGlyph(task.activity?.state, props.frame)
+  const glyph = activityGlyph(task.activity?.state, props.frame, glyphs)
   const changes = task.changes && "added" in task.changes ? task.changes : null
+  const running = task.activity?.state === "running"
   return (
     <button
       type="button"
-      className={`row task-row ${props.selected && props.tabCount === 0 ? "is-selected" : ""} ${cursor}`}
+      className={`row task-row ${props.selected && props.tabCount === 0 ? "is-selected" : ""} ${cursor} ${running ? "is-running" : ""}`}
       title={task.branch || task.title}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
     >
+      {markDot}
       <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>
       <span className="row-title">{task.title}</span>
       <span className="chips">
         {task.pinned && <span className="chip muted">▴</span>}
-        {changes && changes.added > 0 && <span className="chip tone-success">+{changes.added}</span>}
-        {changes && changes.deleted > 0 && <span className="chip tone-attention">−{changes.deleted}</span>}
+        {changes && changes.added > 0 && <span className="chip tone-diff-added">+{changes.added}</span>}
+        {changes && changes.deleted > 0 && <span className="chip tone-diff-removed">−{changes.deleted}</span>}
         {changes?.ahead ? <span className="chip muted">↑{changes.ahead}</span> : null}
-        {task.prChip && <span className={`chip ${prTone(task.prChip, task.prChipStale)}`}>{prGlyph(task.prChip)}</span>}
+        {task.prChip && (
+          <span className={`chip ${prTone(task.prChip, task.prChipStale)}`}>{prGlyph(task.prChip, glyphs)}</span>
+        )}
       </span>
     </button>
   )
@@ -189,8 +217,9 @@ export function tabLabel(tab: TabRow): string {
   return tab.title ?? tab.engineName ?? (tab.kind === "engine" ? t("tab.engine") : t("tab.shell"))
 }
 
-function prGlyph(kind: NonNullable<TaskRow["prChip"]>): string {
-  return kind === "conflict" ? "≠" : kind === "failing" ? "✗" : "✓"
+function prGlyph(kind: NonNullable<TaskRow["prChip"]>, glyphs: GlyphSet | undefined): string {
+  const set = glyphs ?? BRAILLE_MARKS
+  return kind === "conflict" ? set.conflict : kind === "failing" ? set.checksFailing : set.checksPassing
 }
 
 function prTone(kind: NonNullable<TaskRow["prChip"]>, stale: boolean | undefined): string {

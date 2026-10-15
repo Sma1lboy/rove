@@ -1,5 +1,7 @@
 /** Layout: Tasks rail | workspace (tab strip + terminal) | Files, over a one-line status footer, like the TUI. */
 
+import { tabStripVisible } from "@sma1lboy/rove/src/state/tab-strip.ts"
+import type { CSSProperties } from "react"
 import { useEffect, useState } from "react"
 import { forgetToken, saveToken } from "./auth.ts"
 import { FilesView } from "./files-view.tsx"
@@ -7,11 +9,14 @@ import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { Overlays } from "./overlays.tsx"
 import { PrefixHud, usePrefixLayer } from "./prefix.tsx"
+import { usePrefsApply } from "./prefs-apply.ts"
+import { usePrefs } from "./prefs.ts"
 import { PreviewView } from "./preview-view.tsx"
 import { RailView, openMenu, tabLabel } from "./rail-view.tsx"
 import { taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
+import { useTaskColor } from "./task-colors.ts"
 import { NewChatDialog } from "./task-dialogs.tsx"
 import { TerminalView } from "./terminal-view.tsx"
 import { tokenFromInput } from "./token-input.ts"
@@ -39,6 +44,7 @@ function Shell({ model }: { model: AppModel }) {
     maybeShowWhatsNew(model.client, hello.roveVersion)
   }, [hello, model.client])
   useWorkspaceKeys(model)
+  usePrefsApply(model)
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
@@ -65,6 +71,9 @@ function Workspace({ model }: { model: AppModel }) {
   const shown = view && task && view.taskId === task.id ? view : null
   const zenOn = useStore(zen)
   const pageOn = useStore(page)
+  const { prefs } = usePrefs()
+  const taskInk = useTaskColor(task?.id)
+  const working = task?.activity?.state === "running"
   if (pageOn === "update") {
     return (
       <main className="workspace">
@@ -82,7 +91,10 @@ function Workspace({ model }: { model: AppModel }) {
   return (
     <main className="workspace">
       {task && (
-        <div className="tab-strip" role="tablist">
+        <div
+          className={`tab-strip ${tabStripVisible(prefs.tabStrip, tabs.length) ? "" : "is-tabs-hidden"}`}
+          role="tablist"
+        >
           {tabs.map((tab, i) => (
             <button
               type="button"
@@ -132,7 +144,10 @@ function Workspace({ model }: { model: AppModel }) {
           </span>
         </div>
       )}
-      <div className="pane">
+      <div
+        className={`pane ${working ? "is-working" : ""}`}
+        style={taskInk ? ({ "--task-ink": taskInk } as CSSProperties) : undefined}
+      >
         {!task && <p className="placeholder">{t("workspace.pickTask")}</p>}
         {task && tabs.length === 0 && !shown && (
           <div className="placeholder">
@@ -187,7 +202,12 @@ function StatusBar({ model }: { model: AppModel }) {
       {conn.hello && (
         <span className="muted">{t("status.host", { host: conn.hello.host, version: conn.hello.roveVersion })}</span>
       )}
-      <button type="button" className="link" onClick={() => dialog.set(<SettingsDialog client={client} />)}>
+      <button
+        type="button"
+        className="link"
+        data-binding="settings.open"
+        onClick={() => dialog.set(<SettingsDialog client={client} />)}
+      >
         [{t("settings.open")}]
       </button>
     </footer>

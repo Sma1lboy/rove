@@ -42,9 +42,8 @@ export const preview = createStore<Preview | null>(null)
 export const page = createStore<"worktrees" | "update" | null>(null)
 /** The terminal stream this page has attached (`task::tab`); Files `a` pastes into it. */
 export const activeStream = createStore<string | null>(null)
-/** Zen hides the Files pane (TUI prefix z); persisted like the TUI's KV. */
-export const zen = createStore<boolean>(localStorage.getItem("rove.web.zen") === "1")
-zen.subscribe(() => localStorage.setItem("rove.web.zen", zen.get() ? "1" : "0"))
+/** Zen hides the Files pane (TUI prefix z). `prefs-apply.ts` keeps it in step with the TUI's `zen.active`. */
+export const zen = createStore<boolean>(false)
 
 let nextToast = 1
 const TOAST_MS = 4000

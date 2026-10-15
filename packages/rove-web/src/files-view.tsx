@@ -201,8 +201,8 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
               <span className="glyph tone-muted">{r.dir ? (r.open ? "▾" : "▸") : " "}</span>
             )}
             <span className="row-title">{r.label}</span>
-            {r.added ? <span className="chip tone-success">+{r.added}</span> : null}
-            {r.deleted ? <span className="chip tone-attention">−{r.deleted}</span> : null}
+            {r.added ? <span className="chip tone-diff-added">+{r.added}</span> : null}
+            {r.deleted ? <span className="chip tone-diff-removed">−{r.deleted}</span> : null}
           </button>
         ))}
       </div>

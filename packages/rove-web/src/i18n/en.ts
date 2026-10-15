@@ -154,10 +154,7 @@ export const en = {
   settings: {
     title: "Settings",
     open: "settings",
-    sections: { general: "General", engines: "Engines", plugins: "Plugins", feedback: "Feedback" },
     general: {
-      language: "Language",
-      languageHint: "Display language for this page. Kept in this browser.",
       daemon: "Daemon",
       daemonCurrent: "rove {version} · same build as this page",
       daemonStale: "rove {version} · out of date; run `rove daemon restart`",
@@ -166,7 +163,6 @@ export const en = {
       hint: "Every engine Rove can launch, with what was detected locally. [x] = offered when picking an engine; (●) = the global default.",
       enabled: "offer {name} when picking an engine",
       default: "make {name} the default engine",
-      customTag: "  (custom)",
       namePlaceholder: "display name (blank = default)",
       binaryMissing: "{binary} not on PATH",
       loginReady: "signed in",
@@ -184,5 +180,24 @@ export const en = {
       send: "send",
       sent: "feedback posted {url}",
     },
+  },
+  prefs: {
+    terminalOnly: "Terminal only: the TUI changes, this page has nothing to draw.",
+    languageHint: "Display language, shared with the TUI.",
+    toastHint: "popup on this page",
+    soundHint: "chime, plus a desktop notification while this tab is in the background",
+    soundVolumeHint: "click cycles; plays the new level",
+    keyHintsHint: "The key reminder in the footer.",
+    zenHint: "Hide the Files pane. The zen chip and ctrl+a z toggle it and write this same setting.",
+    editorCustomSet: "(set)",
+    editInTui: "edit it in the TUI",
+    tierModel: "model",
+    tierEdit: "edit",
+    unset: "(none)",
+    modeAuto: "Auto (follow the browser)",
+    resetButton: "Reset",
+    restartButton: "Restart",
+    keysYaml:
+      "Rebinding chords is an edit of ~/.rove/settings/keybindings.yaml on the Mac; this page does not write it.",
   },
 }

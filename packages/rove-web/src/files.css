@@ -152,19 +152,19 @@
 }
 
 .diff-row.kind-add {
-  background: rgb(154 202 134 / 10%);
+  background: var(--diff-added-bg);
 }
 .diff-row.kind-add .sign,
 .diff-row.kind-add .code {
-  color: var(--success);
+  color: var(--diff-added);
 }
 
 .diff-row.kind-del {
-  background: rgb(212 117 99 / 10%);
+  background: var(--diff-removed-bg);
 }
 .diff-row.kind-del .sign,
 .diff-row.kind-del .code {
-  color: var(--error);
+  color: var(--diff-removed);
 }
 
 .diff-row.kind-hunk,
