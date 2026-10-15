@@ -46,7 +46,7 @@ export function useRailFilters() {
 
 export type RailFilters = ReturnType<typeof useRailFilters>
 
-type Stop = Exclude<NavRow, { kind: "project" }>
+type Stop = Exclude<NavRow, { kind: "project" | "machine" }>
 
 export function useRailKeys(
   model: AppModel,
@@ -57,8 +57,8 @@ export function useRailKeys(
   const { search, setSearch } = filters
   const [cursor, setCursor] = useState<string | null>(null)
   const gAt = useRef(0)
-  // Project headers are not stops, as the TUI's `treeFlatIds`.
-  const rows = allRows.filter((row): row is Stop => row.kind !== "project")
+  // Project and machine headers are not stops, as the TUI's `treeFlatIds`.
+  const rows = allRows.filter((row): row is Stop => row.kind !== "project" && row.kind !== "machine")
 
   // The cursor rests on the selection until the keys move it, and is re-homed when its row vanishes.
   const at = rows.findIndex((row) => row.id === cursor)
@@ -81,19 +81,19 @@ export function useRailKeys(
     if (row) setCursor(row.id)
   }
   const open = (row: Stop | undefined) => {
-    if (row?.kind === "routines") filters.toggleRoutines(row.repo)
+    if (row?.kind === "routines") filters.toggleRoutines(row.key)
     if (row?.kind === "task") model.select(row.task.id)
     if (row?.kind === "tab") model.select(row.task.id, row.tab.id)
     if (row) enterWorkspace()
   }
   const verb = (row: Stop | undefined, key: string) => {
-    if (!row || row.kind === "routines") return
+    if (!row || row.kind === "routines" || row.machine !== undefined) return
     taskMenu(model, row.task, null)
       .find((item) => item.key === key)
       ?.run()
   }
   const cycleEngine = async (row: Stop | undefined) => {
-    if (!row || row.kind === "routines") return
+    if (!row || row.kind === "routines" || row.machine !== undefined) return
     try {
       const { engines } = await model.client.request<{ engines: Array<{ id: string; name: string; ready?: boolean }> }>(
         "engines.list",
@@ -128,9 +128,9 @@ export function useRailKeys(
     if (moveMode.get()) {
       // Only the move keys answer; `sidebar.*` verbs are off while a row is being dragged.
       if (e.key === "j" || e.key === "ArrowDown") {
-        if (row && row.kind !== "routines") void moveRow(model, row, 1)
+        if (row && row.kind !== "routines" && row.machine === undefined) void moveRow(model, row, 1)
       } else if (e.key === "k" || e.key === "ArrowUp") {
-        if (row && row.kind !== "routines") void moveRow(model, row, -1)
+        if (row && row.kind !== "routines" && row.machine === undefined) void moveRow(model, row, -1)
       } else if (e.key === "Enter" || e.key === "Escape" || e.key === "M") moveMode.set(false)
       else return
       e.preventDefault()
@@ -172,7 +172,7 @@ export function useRailKeys(
         void cycleEngine(row)
         break
       case "M":
-        moveMode.set(true)
+        if (row?.machine === undefined) moveMode.set(true)
         break
       case "t":
         filters.cycleSort()
@@ -181,7 +181,7 @@ export function useRailKeys(
         setSearch({ active: true, query: "" })
         break
       case "n":
-        opts.onNewTask(row?.kind === "routines" ? row.repo : row?.task.repo)
+        opts.onNewTask(row?.machine !== undefined ? undefined : row?.kind === "routines" ? row.repo : row?.task.repo)
         break
       case "s":
         opts.onSettings()

@@ -1,16 +1,17 @@
 /**
- * Machine headers under the local rows (TUI `machine-layer.ts`): `narwhal · v0.9.185`,
- * `narwhal · offline`, `narwhal · ⚠ v0.9.100 (protocol mismatch)`, greyed unless online so a
- * stale snapshot never reads as live. Read-only, from the bridge's `machines.list`.
+ * Machine headers in the rail (TUI `machine-layer.ts`): `narwhal · v0.9.185`, `narwhal · offline`,
+ * `narwhal · ⚠ v0.9.100 (protocol mismatch)`, greyed unless online so a stale snapshot never reads
+ * as live. The state is the bridge's `machines.list`; each machine's tasks come in the task feed.
  */
 
-import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
+import type { en as tasksEn } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { useEffect, useState } from "react"
-import type { BridgeClient } from "./bridge.ts"
 import { useLocale } from "./i18n/index.ts"
+import type { AppModel } from "./model.ts"
 import { useStore } from "./store.ts"
+import { tc } from "./tui-copy.ts"
 
-interface MachineRow {
+export interface MachineRow {
   readonly alias: string
   readonly hostLabel: string
   readonly state: "connecting" | "online" | "offline" | "unsupported" | "mismatch"
@@ -29,15 +30,38 @@ export function machineLabel(row: MachineRow, words: (typeof tasksEn)["machine"]
   return `${name} · ${word}`
 }
 
-export function MachineHeaders({ client }: { client: BridgeClient }) {
-  const words = (useLocale() === "zh" ? tasksZh : tasksEn).machine
-  const conn = useStore(client.conn)
+export function MachineHead({ row, words }: { row: MachineRow; words: (typeof tasksEn)["machine"] }) {
+  return (
+    <h2 className={`machine-head ${row.state === "online" ? "" : "is-stale"}`} title={row.alias}>
+      <span>{machineLabel(row, words)}</span>
+      <span className="rule" />
+    </h2>
+  )
+}
+
+/** What the TUI's Files pane says for a task whose worktree is on another machine (`host-files-pane.tsx`). */
+export function RemoteNotice({ host }: { host: string }) {
+  useLocale()
+  return (
+    <div className="remote-notice">
+      <p className="muted">{tc("tasks", "machine.filesElsewhere", { host })}</p>
+      <p className="muted">{tc("tasks", "machine.filesHint", { host })}</p>
+    </div>
+  )
+}
+
+/** Registered machines, reread when the feed says one of them changed reachability. */
+export function useMachines(model: AppModel): readonly MachineRow[] {
+  const conn = useStore(model.client.conn)
+  const remote = useStore(model.remote)
   const [rows, setRows] = useState<readonly MachineRow[]>([])
+  const reachability = [...new Set(remote.map((task) => `${task.machine?.id}:${task.machine?.stale ?? false}`))].join()
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reachability is a refetch trigger the body doesn't read
   useEffect(() => {
     if (conn.state !== "open") return
     let live = true
     const load = () =>
-      client.request<{ machines: MachineRow[] }>("machines.list").then(
+      model.client.request<{ machines: MachineRow[] }>("machines.list").then(
         (r) => live && setRows(r.machines),
         () => {},
       )
@@ -47,11 +71,6 @@ export function MachineHeaders({ client }: { client: BridgeClient }) {
       live = false
       window.clearInterval(timer)
     }
-  }, [client, conn.state])
-  return rows.map((row) => (
-    <h2 key={row.alias} className={`machine-head ${row.state === "online" ? "" : "is-stale"}`} title={row.alias}>
-      <span>{machineLabel(row, words)}</span>
-      <span className="rule" />
-    </h2>
-  ))
+  }, [model.client, conn.state, reachability])
+  return rows
 }

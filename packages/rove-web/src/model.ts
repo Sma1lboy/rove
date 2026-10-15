@@ -54,7 +54,10 @@ function loadVisits(): readonly Visit[] {
 }
 
 export class AppModel {
+  /** This Mac's rows only: every action and page reads these, so nothing aims a verb at another machine's task. */
   readonly tasks: Store<TasksPayload | null> = createStore<TasksPayload | null>(null)
+  /** Other registered machines' rows (`machine` set): listed under their header, read-only, as the TUI. */
+  readonly remote: Store<readonly TaskRow[]> = createStore<readonly TaskRow[]>([])
   readonly tabs: Store<Readonly<Record<string, readonly TabRow[]>>> = createStore({})
   readonly selection: Store<Selection> = createStore(loadSelection())
   /** Newest first; the Inbox's RECENT section (the TUI keeps its own the same way, per client). */
@@ -107,7 +110,8 @@ export class AppModel {
   }
 
   private acceptTasks(payload: TasksPayload): void {
-    this.tasks.set(payload)
+    this.remote.set(payload.tasks.filter((task) => task.machine))
+    this.tasks.set({ ...payload, tasks: payload.tasks.filter((task) => !task.machine) })
     if (this.pendingSelect && payload.tasks.some((task) => task.id === this.pendingSelect)) {
       this.select(this.pendingSelect)
       this.pendingSelect = null

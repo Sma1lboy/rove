@@ -112,12 +112,24 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     graphicsOut: () => {},
   })
   await orchestrator.init()
+  // Other machines (`rove machine add`), as the TUI's sidebar: `attach()` is a no-op with none registered.
+  const hub = new MachineHub(orchestrator)
+  hub.attach()
+  const machines = hub.machinesSignal()
+  machineStore.set(machines.get())
+  machines.subscribe(() => machineStore.set(machines.get()))
   // Verbs get their own socket: some subscribe as a pane, which must not
   // demote the orchestrator's gui subscription.
   const verbClient = new RoveDaemonClient(daemonSocket)
   const ops = createRoveOps(verbClient, {
     changes: () => orchestrator.worktreeChangesSignal()(),
     tokens: () => orchestrator.rowTokensSignal()(),
+    remote: () =>
+      hub
+        .tasksSignal()
+        .get()
+        .filter((task) => task.origin && task.origin.machineId !== "local")
+        .map((task) => ({ ...task, kind: task.kind ?? "task", pinned: task.pinned ?? false })),
   })
   const feed = new TaskFeed(() => ops.tasks())
   for (const signal of [
@@ -126,6 +138,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     orchestrator.attentionInboxSignal(),
     orchestrator.worktreeChangesSignal(),
     orchestrator.rowTokensSignal(),
+    hub.tasksSignal(),
   ]) {
     signal.subscribe(() => feed.poke())
   }
@@ -136,12 +149,6 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   const context = orchestrator.contextUsageSignal()
   usageStore.setContext(context())
   context.subscribe(() => usageStore.setContext(context()))
-  // Other machines (`rove machine add`), as the TUI's sidebar: `attach()` is a no-op with none registered.
-  const hub = new MachineHub(orchestrator)
-  hub.attach()
-  const machines = hub.machinesSignal()
-  machineStore.set(machines.get())
-  machines.subscribe(() => machineStore.set(machines.get()))
   setInterval(() => feed.poke(), TICK_MS)
   const notices = new NoticeFeed()
   const noticeStore = orchestrator.noticeStore()

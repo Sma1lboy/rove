@@ -18,19 +18,27 @@ export interface ProjectGroup {
   readonly tasks: readonly TaskRow[]
 }
 
+/** Rows under another machine's header carry its alias: read-only here, as the TUI's machine layer. */
+interface Remote {
+  readonly machine?: string
+}
+
 /** One keyboard-navigable rail row, top to bottom. */
 export type NavRow =
-  | { readonly id: string; readonly kind: "project"; readonly repo: string }
-  | { readonly id: string; readonly kind: "task"; readonly task: TaskRow }
-  | { readonly id: string; readonly kind: "tab"; readonly task: TaskRow; readonly tab: TabRow }
-  /** One row folding a project's routine sessions (`tree-core.ts` `routines`). */
-  | {
+  | (Remote & { readonly id: string; readonly kind: "project"; readonly repo: string; readonly label: string })
+  | (Remote & { readonly id: string; readonly kind: "task"; readonly task: TaskRow })
+  | (Remote & { readonly id: string; readonly kind: "tab"; readonly task: TaskRow; readonly tab: TabRow })
+  /** One row folding a project's routine sessions (`tree-core.ts` `routines`); `key` names the fold in `expandedRoutines`. */
+  | (Remote & {
       readonly id: string
       readonly kind: "routines"
       readonly repo: string
+      readonly key: string
       readonly tasks: readonly TaskRow[]
       readonly expanded: boolean
-    }
+    })
+  /** A registered machine's header (`machine-layer.ts`); not a cursor stop. */
+  | { readonly id: string; readonly kind: "machine"; readonly alias: string }
 
 const taskTime = (task: TaskRow): number => {
   const parsed = Date.parse(task.updatedAt ?? task.createdAt ?? "")
@@ -51,9 +59,34 @@ const COMPARE: Record<SortMode, ((a: TaskRow, b: TaskRow) => number) | null> = {
   name: compareName,
 }
 
-export const routinesRowId = (repo: string): string => `~routines:${repo}`
+export const routinesRowId = (key: string): string => `~routines:${key}`
 
 export const repoLabel = (repo: string): string => repo.split("/").filter(Boolean).pop() ?? repo
+
+/** A repo as the label rules see it: its path plus the host it lives on (`""` = this Mac). */
+export interface LabelledRepo {
+  readonly repo: string
+  readonly host: string
+}
+
+/**
+ * `groups.ts` `sidebarProjectLabel` (not importable here: `@/` paths): the narrowest unique header label.
+ * A basename unique on screen reads `rove`; shared on one machine, the last two segments (`gihub/rove`);
+ * shared only with another machine, `host:basename` (`narwhal:rove`), the local one keeping the bare name.
+ */
+export function projectLabel(repo: string, repos: readonly LabelledRepo[], host = ""): string {
+  const base = repoLabel(repo)
+  const collisions = repos.filter(
+    (entry) => (entry.repo !== repo || entry.host !== host) && repoLabel(entry.repo) === base,
+  )
+  if (collisions.length === 0) return base
+  const tailOf = (path: string) => path.split("/").filter(Boolean).slice(-2).join("/")
+  if (collisions.some((entry) => entry.host === host)) {
+    const tailRepeats = collisions.some((entry) => entry.host !== host && tailOf(entry.repo) === tailOf(repo))
+    return tailRepeats && host ? `${host}:${tailOf(repo)}` : tailOf(repo)
+  }
+  return host ? `${host}:${base}` : base
+}
 
 export function groupByProject(tasks: readonly TaskRow[], sort: SortMode = "default"): ProjectGroup[] {
   const ordered = [...tasks].sort((a, b) => (a.order ?? a.rank) - (b.order ?? b.rank))
@@ -85,9 +118,13 @@ export function navRows(
   tabLabel: (tab: TabRow) => string,
   query = "",
   expandedRoutines: ReadonlySet<string> = new Set(),
+  /** The machine these groups came from; ids and fold keys carry it so two machines' same path never collide. */
+  machine?: string,
 ): NavRow[] {
   const q = query.trim()
   const hit = (...fields: string[]) => fields.some((f) => f !== "" && fuzzyMatch(q, f))
+  const remote: Remote = machine === undefined ? {} : { machine }
+  const scope = machine === undefined ? "" : `${machine}\0`
   const rows: NavRow[] = []
   for (const group of groups) {
     const projectHit = q === "" || hit(group.label)
@@ -99,24 +136,83 @@ export function navRows(
       const taskHit = projectHit || hit(task.title, task.branch, repoLabel(task.repo))
       const tabRows = tabs
         .filter((tab) => taskHit || hit(tabLabel(tab)))
-        .map((tab): NavRow => ({ id: `${task.id}::${tab.id}`, kind: "tab", task, tab }))
+        .map((tab): NavRow => ({ id: `${task.id}::${tab.id}`, kind: "tab", task, tab, ...remote }))
       if (!taskHit && tabRows.length === 0) continue
       // Routine sessions are the tail of the group: a count row folds them.
       if (task.routine) {
         routines.push(task)
-        routineRows.push({ id: task.id, kind: "task", task }, ...tabRows)
-      } else under.push({ id: task.id, kind: "task", task }, ...tabRows)
+        routineRows.push({ id: task.id, kind: "task", task, ...remote }, ...tabRows)
+      } else under.push({ id: task.id, kind: "task", task, ...remote }, ...tabRows)
     }
     if (routines.length > 0) {
       // Search builds fully open, so a folded routine stays findable.
-      const expanded = q !== "" || expandedRoutines.has(group.repo)
-      under.push({ id: routinesRowId(group.repo), kind: "routines", repo: group.repo, tasks: routines, expanded })
+      const key = `${scope}${group.repo}`
+      const expanded = q !== "" || expandedRoutines.has(key)
+      under.push({
+        id: routinesRowId(key),
+        kind: "routines",
+        repo: group.repo,
+        key,
+        tasks: routines,
+        expanded,
+        ...remote,
+      })
       if (expanded) under.push(...routineRows)
     }
     if (under.length === 0 && !projectHit) continue
-    rows.push({ id: `project:${group.repo}`, kind: "project", repo: group.repo }, ...under)
+    rows.push(
+      { id: `project:${scope}${group.repo}`, kind: "project", repo: group.repo, label: group.label, ...remote },
+      ...under,
+    )
   }
   return rows
+}
+
+export interface RailInput {
+  /** This Mac's rows. */
+  readonly tasks: readonly TaskRow[]
+  /** Other machines' rows, each with `machine` set. */
+  readonly remote: readonly TaskRow[]
+  /** Registered machines in registration order: a header each, tasks or not. */
+  readonly machines: readonly { readonly alias: string; readonly hostLabel: string }[]
+  readonly sort: SortMode
+  readonly tabsOf: (taskId: string) => readonly TabRow[]
+  readonly tabLabel: (tab: TabRow) => string
+  readonly query: string
+  readonly routines: ReadonlySet<string>
+}
+
+/**
+ * The whole rail, as `applyMachineLayer` shapes it: this Mac's projects at depth 0, then per machine a
+ * header with that machine's projects under it. A remote task has no tab rows (its tab list lives on
+ * its own machine), and rows of a machine that is not registered are dropped, not shown as local.
+ * `groups` is this Mac's projects, labelled against every project on screen.
+ */
+export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGroup[] } {
+  const sections = input.machines.map((machine) => ({
+    machine,
+    host: machine.hostLabel || machine.alias,
+    groups: groupByProject(
+      input.remote.filter((task) => task.machine?.id === machine.alias),
+      input.sort,
+    ),
+  }))
+  const local = groupByProject(input.tasks, input.sort)
+  const onScreen: LabelledRepo[] = [
+    ...local.map((group) => ({ repo: group.repo, host: "" })),
+    ...sections.flatMap((s) => s.groups.map((group) => ({ repo: group.repo, host: s.host }))),
+  ]
+  const labelled = (groups: readonly ProjectGroup[], host: string) =>
+    groups.map((group) => ({ ...group, label: projectLabel(group.repo, onScreen, host) }))
+  const groups = labelled(local, "")
+  const rows = navRows(groups, input.tabsOf, input.tabLabel, input.query, input.routines)
+  for (const s of sections) {
+    rows.push(
+      { id: `machine:${s.machine.alias}`, kind: "machine", alias: s.machine.alias },
+      ...navRows(labelled(s.groups, s.host), () => [], input.tabLabel, input.query, input.routines, s.machine.alias),
+    )
+  }
+  return { rows, groups }
 }
 
 export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "ink"

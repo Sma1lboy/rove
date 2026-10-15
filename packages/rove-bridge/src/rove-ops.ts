@@ -38,6 +38,7 @@ import {
   type AttentionRow,
   BridgeError,
   type DiffFileRow,
+  type MachineTag,
   type PrChipKind,
   type RowChanges,
   type RowTokenChip,
@@ -208,6 +209,13 @@ export function attentionRows(items: readonly AttentionInboxItem[], tasks: reado
   })
 }
 
+/** `machine` for a row another daemon served (`machines/hub.ts` stamps `origin`); a local row has none. */
+function machineOf(task: SerializedTask): { machine?: MachineTag } {
+  const origin: (SerializedTask["origin"] & { stale?: boolean }) | undefined = task.origin
+  if (!origin || origin.machineId === "local") return {}
+  return { machine: { id: origin.machineId, label: origin.hostLabel, ...(origin.stale ? { stale: true } : {}) } }
+}
+
 /** Fold `context`'s grouping over EVERY task (main/dir included) and join display fields. */
 export function taskRows(
   tasks: readonly SerializedTask[],
@@ -265,6 +273,7 @@ export function taskRows(
         order: orderOf.get(task.id) ?? 0,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
+        ...machineOf(task),
         ...(changes ? { changes } : {}),
         ...(tokens.length > 0 ? { rowTokens: tokens } : {}),
         prChip: chip,
@@ -288,6 +297,8 @@ function flatten(entries: readonly StatusEntry[], scope: DiffFileRow["scope"]): 
 export interface LiveRowSignals {
   changes(): WorktreeChangesMap | null
   tokens(): RowTokenMap
+  /** Tasks of the other registered machines (`MachineHub`), each stamped with its `origin`. */
+  remote?(): readonly SerializedTask[]
 }
 
 export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals): RoveOps {
@@ -346,17 +357,21 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
         tryRead(() => defaultApiRuntime.liveTaskIds()),
         tryRead(engines),
       ])
-      return {
-        tasks: taskRows(
-          tasks,
-          inspect?.activity?.tasks ?? null,
-          live,
-          engineRows ?? [],
-          Date.now(),
-          signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined,
-        ),
-        attention: attentionRows(inbox?.items ?? [], tasks),
-      }
+      const now = Date.now()
+      const local = taskRows(
+        tasks,
+        inspect?.activity?.tasks ?? null,
+        live,
+        engineRows ?? [],
+        now,
+        signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined,
+      )
+      // Other machines' rows: their pty host, activity and worktrees are not readable from here, so those stay unknown.
+      const remote = taskRows(signals?.remote?.() ?? [], null, null, engineRows ?? [], now).map((row) => ({
+        ...row,
+        order: (row.order ?? 0) + tasks.length,
+      }))
+      return { tasks: [...local, ...remote], attention: attentionRows(inbox?.items ?? [], tasks) }
     },
 
     engines,
