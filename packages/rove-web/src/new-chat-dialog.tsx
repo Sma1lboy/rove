@@ -6,10 +6,13 @@
  */
 
 import { useState } from "react"
+import { AttachmentChips, useAttachments, withRefs } from "./attachments.tsx"
 import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { ATTEMPTS } from "./quick-start-dialog.tsx"
+import { cycleStop } from "./tab-stops.ts"
 import { EnginePicker, SHELL, openTab, useEngineChoice } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 
@@ -17,28 +20,12 @@ export type NewChatDestination = "tab" | "fork" | "scratch"
 export type NewChatContext = "fresh" | "continue"
 
 const DESTINATIONS: readonly NewChatDestination[] = ["tab", "fork", "scratch"]
-const ATTEMPTS = ["1", "2", "3", "4"] as const
-const MIMES = ["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"]
 
-interface Attachment {
-  readonly path: string
-  readonly kind: string
-  readonly name: string
-}
-
-/** `images[0]: /path` lines, as the TUI appends them to the first prompt. */
-function withRefs(prompt: string, attachments: readonly Attachment[]): string {
-  if (attachments.length === 0) return prompt
-  const refs = attachments.map((a, i) => `${a.kind === "pdf" ? "pdf" : "images"}[${i}]: ${a.path}`).join("\n")
-  return `${prompt}\n\n${refs}`
-}
-
-async function toBase64(file: File): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer())
-  let binary = ""
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  return btoa(binary)
-}
+/**
+ * The fork composer's Tab order (the TUI composer's prompt → attempts → engine → branch), then the
+ * destination chip: here the composer shares a dialog with the picker, so Tab must still reach it.
+ */
+const FORK_STOPS = ["message", "attempts", "engine", "fork-base", "destination"] as const
 
 export function NewChatDialog(props: {
   model: AppModel
@@ -55,8 +42,8 @@ export function NewChatDialog(props: {
   const [attempts, setAttempts] = useState("1")
   const task = model.tasks.get()?.tasks.find((row) => row.id === taskId)
   const [baseRef, setBaseRef] = useState(task?.branch ?? "main")
-  const [attachments, setAttachments] = useState<readonly Attachment[]>([])
   const { busy, error, setError, submit } = useSubmit()
+  const { attachments, attach, remove } = useAttachments(model, setError)
 
   // Shell rows exist for fresh tabs here and Scratch; a fork or a continued chat is an engine's.
   const shellOk = context === "fresh" && destination !== "fork"
@@ -68,21 +55,6 @@ export function NewChatDialog(props: {
     const nextDest = dest === "scratch" && ctx === "continue" && destination === "scratch" ? "tab" : dest
     setDestination(nextDest)
     setContext(nextDest === "scratch" ? "fresh" : ctx)
-  }
-
-  const attach = async (files: Iterable<File>) => {
-    for (const file of files) {
-      if (!MIMES.includes(file.type)) continue
-      try {
-        const res = await model.client.request<{ path: string; kind: string }>("attachment.put", {
-          mime: file.type,
-          data: await toBase64(file),
-        })
-        setAttachments((now) => [...now, { path: res.path, kind: res.kind, name: file.name || res.path }])
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err))
-      }
-    }
   }
 
   const handoff = async (): Promise<string> => {
@@ -128,7 +100,13 @@ export function NewChatDialog(props: {
       <form
         className="dialog-body"
         onKeyDown={(e) => {
-          if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "e") {
+          if (e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey && (fork || !e.shiftKey)) {
+            // Fork: the composer's field cycle. Otherwise the picker's: next destination (Shift+Tab stays the browser's).
+            e.preventDefault()
+            e.stopPropagation()
+            if (fork) cycleStop(e.currentTarget, FORK_STOPS, e.shiftKey ? -1 : 1)
+            else apply(DESTINATIONS[(DESTINATIONS.indexOf(destination) + 1) % DESTINATIONS.length] ?? "tab", context)
+          } else if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "e") {
             e.preventDefault()
             e.stopPropagation()
             const pool = choice.engines.filter((engine) => engine.ready !== false)
@@ -138,6 +116,14 @@ export function NewChatDialog(props: {
             e.preventDefault()
             e.stopPropagation()
             apply(destination, context === "fresh" ? "continue" : "fresh")
+          } else if (
+            e.key === "Enter" &&
+            fork &&
+            (e.target as HTMLElement).closest("[data-field=attempts], [data-field=engine]")
+          ) {
+            // The composer's chip rows have no text cursor, so Enter there creates (as the TUI).
+            e.preventDefault()
+            e.currentTarget.requestSubmit()
           }
         }}
         onSubmit={(e) => {
@@ -228,21 +214,7 @@ export function NewChatDialog(props: {
             />
           </label>
         )}
-        {attachments.length > 0 && (
-          <div className="chips-row" data-field="attachments">
-            {attachments.map((a, i) => (
-              <button
-                type="button"
-                key={a.path}
-                className="chip-button is-active"
-                title={a.path}
-                onClick={() => setAttachments((now) => now.filter((x) => x.path !== a.path))}
-              >
-                {a.kind === "pdf" ? "pdf" : "images"}[{i}] ×
-              </button>
-            ))}
-          </div>
-        )}
+        <AttachmentChips attachments={attachments} onRemove={remove} />
         <p className="muted newtask-legend">{tc("quickTask", "legend")}</p>
         {error && <p className="error">{error}</p>}
         <DialogActions busy={busy} submitLabel={t("newChat.start")} />

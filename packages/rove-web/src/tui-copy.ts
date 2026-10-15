@@ -4,22 +4,30 @@
  * language is the page's (`locale`), not the TUI's.
  */
 
+import { en as commonEn, zh as commonZh } from "@sma1lboy/rove/src/tui/i18n/messages/common.ts"
+import { en as doctorEn, zh as doctorZh } from "@sma1lboy/rove/src/tui/i18n/messages/doctor.ts"
 import { en as filesEn, zh as filesZh } from "@sma1lboy/rove/src/tui/i18n/messages/files.ts"
 import { en as newTaskEn, zh as newTaskZh } from "@sma1lboy/rove/src/tui/i18n/messages/newTask.ts"
+import { en as onboardingEn, zh as onboardingZh } from "@sma1lboy/rove/src/tui/i18n/messages/onboarding.ts"
 import { en as quickEn, zh as quickZh } from "@sma1lboy/rove/src/tui/i18n/messages/quickTask.ts"
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { en as termEn, zh as termZh } from "@sma1lboy/rove/src/tui/i18n/messages/terminal.ts"
 import { en as updateEn, zh as updateZh } from "@sma1lboy/rove/src/tui/i18n/messages/update.ts"
+import { en as workspaceEn, zh as workspaceZh } from "@sma1lboy/rove/src/tui/i18n/messages/workspace.ts"
 import { en as wtEn, zh as wtZh } from "@sma1lboy/rove/src/tui/i18n/messages/worktrees.ts"
 import { locale } from "./i18n/index.ts"
 
 const CATALOGS = {
+  common: { en: commonEn, zh: commonZh },
+  doctor: { en: doctorEn, zh: doctorZh },
   files: { en: filesEn, zh: filesZh },
   newTask: { en: newTaskEn, zh: newTaskZh },
+  onboarding: { en: onboardingEn, zh: onboardingZh },
   quickTask: { en: quickEn, zh: quickZh },
   tasks: { en: tasksEn, zh: tasksZh },
   terminal: { en: termEn, zh: termZh },
   update: { en: updateEn, zh: updateZh },
+  workspace: { en: workspaceEn, zh: workspaceZh },
   worktrees: { en: wtEn, zh: wtZh },
 } as const
 
