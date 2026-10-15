@@ -118,25 +118,32 @@ export class AppModel {
 
   private async refreshTabs(tasks: readonly TaskRow[]): Promise<void> {
     const sweep = ++this.tabSweep
-    const entries = await Promise.all(
-      tasks
-        .filter((task) => !task.deleting)
-        .map(async (task) => {
-          try {
-            const { tabs } = await this.client.request<{ tabs: TabRow[] }>("task.tabs", { taskId: task.id })
-            return [task.id, tabs] as const
-          } catch {
-            return [task.id, this.tabs.get()[task.id] ?? []] as const
-          }
-        }),
+    const live = tasks.filter((task) => !task.deleting)
+    // Each reply lands on its own, so one slow task doesn't hold back the selected one's terminal.
+    await Promise.all(
+      live.map(async (task) => {
+        let tabs: readonly TabRow[]
+        try {
+          tabs = (await this.client.request<{ tabs: TabRow[] }>("task.tabs", { taskId: task.id })).tabs
+        } catch {
+          return
+        }
+        if (sweep !== this.tabSweep) return
+        this.tabs.set({ ...this.tabs.get(), [task.id]: tabs })
+        this.reselectIfClosed(task.id)
+      }),
     )
     if (sweep !== this.tabSweep) return
-    this.tabs.set(Object.fromEntries(entries))
-    // A selected tab that closed falls back to the task's first live one, like the TUI.
-    const { taskId, tabId } = this.selection.get()
-    if (taskId === null) return
-    const tabs = this.tabs.get()[taskId]
-    if (tabs && !tabs.some((tab) => tab.id === tabId)) this.select(taskId)
+    const kept = new Set(live.map((task) => task.id))
+    this.tabs.set(Object.fromEntries(Object.entries(this.tabs.get()).filter(([id]) => kept.has(id))))
+  }
+
+  /** A selected tab that closed falls back to the task's first live one, like the TUI. */
+  private reselectIfClosed(taskId: string): void {
+    const selected = this.selection.get()
+    if (selected.taskId !== taskId) return
+    const tabs = this.tabs.get()[taskId] ?? []
+    if (!tabs.some((tab) => tab.id === selected.tabId)) this.select(taskId)
   }
 }
 
