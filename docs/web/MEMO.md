@@ -56,6 +56,14 @@ Decisions and traps for whoever runs the next round. Coverage lives in
    at `.scratch/web/shots/<prefix>-*.png`. Cross-check terminal input with
    `rove api read-output --source terminal`.
 
+Round 2 scripts: `e2e-r2.ts <link> [create,menu,inbox,chat,close,delete]`,
+`e2e-r2b.ts` (copies, rename branch, engine, Esc paths, Inbox Enter),
+`e2e-perm.ts` (keys into an engine prompt), `op.ts <port> <token> <op> <json>`
+(one bridge op, timed, over the real socket: separates page bugs from
+bridge/daemon latency). Each write is checked through `rove api`, never
+through the page. Wait for a dialog to close, not a fixed delay:
+`task.setCommand` takes ~3 s, `tab.close` 1–20 s.
+
 **Headless Chromium paints the WebGL terminal blank in screenshots.** The
 page is fine (the DOM renderer and headed Chromium both show the session).
 Always screenshot headed. Cost one round of three wrong fixes.
@@ -69,6 +77,25 @@ Always screenshot headed. Cost one round of three wrong fixes.
   rule headers and per-tab rows, bordered workspace, footer); the web has no
   Files column and no footer usage/commands yet. Next: a harness capture of
   the same sandbox for side-by-side shots.
-- **Next pick:** new task + new tab + close tab (`task.spawn`, `tab.new`,
-  `tab.close` exist), then Inbox page (`attention`, `attention.dismiss`),
-  then Files/diff (`files.list`, `diff.*`).
+- **Round 2** (branch `web/round-2`, stacked on round 1): right-click menus
+  on project/task/tab rows in `tree-menu.ts` order, new-task dialog
+  (`task.spawn`), new-conversation picker (`tab.new`), close tab, rename,
+  rename branch, pin, set status, change engine, copy id/branch/path, land
+  and delete with confirms (force escalation on `DIRTY`), the Inbox dialog
+  (ATTENTION + RECENT, Enter / `d`), toasts. #199 answered for real: Claude's
+  folder-trust prompt, from the web xterm.
+  - Menus leave out what the bridge cannot carry instead of showing dead
+    entries (TUI rule: "no entry beats a dead entry").
+  - The Inbox is a dialog, as in the TUI. RECENT is this browser's own visit
+    list (localStorage), as the TUI keeps its own.
+  - Keyboard chords are absent on purpose: every web chord is a PROPOSED
+    binding needing owner sign-off, and Ctrl+W/T/N/Q are the browser's.
+    Rows with a working click path and no chord stay 🟡.
+  - Bridge gaps found: no way to open a hosted shell tab (`pane-open` needs an
+    attached TUI), and `tab.new` requires a first message where the TUI
+    picker starts an engine empty. Both need a bridge op that the phones
+    would also use.
+- **Next pick:** Files + diff view (`files.list`, `diff.files`, `diff.file`,
+  `review.*`): a whole TUI pane, ~18 rows. Then a bridge op for a hosted
+  shell tab and an empty engine tab (#42, #43, #74, #85). Then footer usage
+  (`usage.get`).

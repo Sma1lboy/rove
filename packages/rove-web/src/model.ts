@@ -33,13 +33,37 @@ function isTasksPayload(data: unknown): data is TasksPayload {
   return !!data && typeof data === "object" && "tasks" in data && Array.isArray(data.tasks)
 }
 
+export interface Visit {
+  readonly taskId: string
+  readonly tabId: string | null
+  readonly at: number
+}
+
+const VISITS_KEY = "rove.web.visits"
+const VISITS_MAX = 20
+
+function loadVisits(): readonly Visit[] {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(VISITS_KEY) ?? "[]")
+    return Array.isArray(raw)
+      ? raw.filter((v): v is Visit => !!v && typeof v === "object" && typeof v.taskId === "string")
+      : []
+  } catch {
+    return []
+  }
+}
+
 export class AppModel {
   readonly tasks: Store<TasksPayload | null> = createStore<TasksPayload | null>(null)
   readonly tabs: Store<Readonly<Record<string, readonly TabRow[]>>> = createStore({})
   readonly selection: Store<Selection> = createStore(loadSelection())
+  /** Newest first; the Inbox's RECENT section (the TUI keeps its own the same way, per client). */
+  readonly visits: Store<readonly Visit[]> = createStore(loadVisits())
   private tabTimer: number | null = null
   /** Bumped per sweep; a sweep resolving after a newer one started commits nothing. */
   private tabSweep = 0
+  /** A task just created here: select it once the feed lists it. */
+  private pendingSelect: string | null = null
 
   constructor(readonly client: BridgeClient) {
     client.onOpen(() => {
@@ -57,10 +81,30 @@ export class AppModel {
     const next = { taskId, tabId: tabId ?? preferredTab(tabs)?.id ?? null }
     this.selection.set(next)
     localStorage.setItem(SELECTION_KEY, JSON.stringify(next))
+    const visits = [
+      { ...next, at: Date.now() },
+      ...this.visits.get().filter((v) => v.taskId !== next.taskId || v.tabId !== next.tabId),
+    ].slice(0, VISITS_MAX)
+    this.visits.set(visits)
+    localStorage.setItem(VISITS_KEY, JSON.stringify(visits))
+  }
+
+  selectWhenListed(taskId: string): void {
+    if (this.tasks.get()?.tasks.some((task) => task.id === taskId)) this.select(taskId)
+    else this.pendingSelect = taskId
+  }
+
+  /** After a tab was opened or closed here: don't wait for the next push. */
+  async refreshTabsNow(): Promise<void> {
+    await this.refreshTabs(this.tasks.get()?.tasks ?? [])
   }
 
   private acceptTasks(payload: TasksPayload): void {
     this.tasks.set(payload)
+    if (this.pendingSelect && payload.tasks.some((task) => task.id === this.pendingSelect)) {
+      this.select(this.pendingSelect)
+      this.pendingSelect = null
+    }
     this.scheduleTabRefresh()
   }
 

@@ -27,7 +27,7 @@ export function groupByProject(tasks: readonly TaskRow[]): ProjectGroup[] {
   }))
 }
 
-export type Tone = "accent" | "muted" | "attention" | "warning" | "ink"
+export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "ink"
 
 /** `engine/spinner-frames.ts` DEFAULT_SPINNER_FRAMES. */
 export const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]

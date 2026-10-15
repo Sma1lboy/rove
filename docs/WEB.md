@@ -25,7 +25,16 @@ already paired with `rove-bridge` keeps working: the two share one token.
   (`?` waiting on you, `!` needs you, `●` unseen turn, `○` quiet, a spinner
   while working) and the `+N` / `−N` / `↑N` / PR marks.
 - Click a task or tab to open its terminal session, and type into it. That
-  includes answering an engine's permission prompt.
+  includes answering an engine's prompts.
+- Right-click a project, task or tab for the same menu the TUI has: new
+  conversation, close tab, rename, rename branch, pin, set status, change
+  engine, copy the task ID, branch or path, land, delete.
+- `+ New task` at the bottom of the rail, and `+` in the tab strip for a new
+  conversation. A new tab needs a first message; the TUI's picker does not.
+- The Inbox: click `INBOX n` at the top of the rail. `↑↓` moves, Enter opens
+  the session and clears it, `d` clears it without opening.
+
+There are no keyboard shortcuts outside dialogs and menus yet.
 
 [web/PARITY.md](web/PARITY.md) lists every TUI action and whether the web
 has it yet.

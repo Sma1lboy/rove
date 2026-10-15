@@ -5,10 +5,14 @@ import { forgetToken, saveToken } from "./auth.ts"
 import type { BridgeClient } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { RailView, tabLabel } from "./rail-view.tsx"
+import { Overlays } from "./overlays.tsx"
+import { RailView, openMenu, tabLabel } from "./rail-view.tsx"
+import { taskMenu } from "./row-actions.tsx"
 import { useStore } from "./store.ts"
+import { NewChatDialog } from "./task-dialogs.tsx"
 import { TerminalView } from "./terminal-view.tsx"
 import { tokenFromInput } from "./token-input.ts"
+import { dialog } from "./ui.ts"
 
 export function App({ model }: { model: AppModel }) {
   useLocale()
@@ -20,6 +24,7 @@ export function App({ model }: { model: AppModel }) {
       <RailView model={model} />
       <Workspace model={model} />
       <StatusBar client={model.client} />
+      <Overlays />
     </div>
   )
 }
@@ -42,11 +47,20 @@ function Workspace({ model }: { model: AppModel }) {
               aria-selected={tab.id === selection.tabId}
               className={`tab ${tab.id === selection.tabId ? "is-active" : ""}`}
               onClick={() => model.select(task.id, tab.id)}
+              onContextMenu={(e) => openMenu(e, taskMenu(model, task, tab))}
             >
               <span className="tab-index">{i + 1}</span>
               {tabLabel(tab)}
             </button>
           ))}
+          <button
+            type="button"
+            className="tab tab-new"
+            title={t("menu.newChat")}
+            onClick={() => dialog.set(<NewChatDialog model={model} taskId={task.id} />)}
+          >
+            +
+          </button>
           <span className="tab-strip-title" title={task.branch}>
             {task.title}
           </span>
@@ -54,7 +68,18 @@ function Workspace({ model }: { model: AppModel }) {
       )}
       <div className="pane">
         {!task && <p className="placeholder">{t("workspace.pickTask")}</p>}
-        {task && tabs.length === 0 && <p className="placeholder">{t("workspace.noTabs")}</p>}
+        {task && tabs.length === 0 && (
+          <div className="placeholder">
+            <p>{t("workspace.noTabs")}</p>
+            <button
+              type="button"
+              className="button"
+              onClick={() => dialog.set(<NewChatDialog model={model} taskId={task.id} />)}
+            >
+              {t("menu.newChat")}
+            </button>
+          </div>
+        )}
         {task && selection.tabId && tabs.some((tab) => tab.id === selection.tabId) && (
           <TerminalView
             key={`${task.id}::${selection.tabId}`}
