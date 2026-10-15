@@ -94,3 +94,52 @@
 .taskops-body {
   white-space: pre-line;
 }
+
+.suggest {
+  position: relative;
+}
+
+.suggest-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 2px;
+  max-height: 188px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+  font: 12px var(--mono);
+}
+
+.suggest-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggest-row.is-cursor {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.suggest-row.is-accent {
+  color: var(--accent);
+}
+
+.newtask-legend {
+  margin: 8px 0 0;
+  font: 11px var(--mono);
+  color: var(--subtle);
+}
+
+.dialog-body + div > .dialog-body {
+  margin-top: 14px;
+}
