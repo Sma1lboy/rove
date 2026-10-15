@@ -19,7 +19,7 @@ import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { filterTaskList, listFilters } from "./list-filter.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
-import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec, helpStep, promptMayHaveLanded } from "./types.ts"
 
 export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   const title = ctx.args.str("title")
@@ -232,7 +232,9 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   // A prompt that never landed is a delivery FAILURE the script must see —
   // non-zero exit, not a phantom `ok:true`.
   if (!delivered.delivered) {
-    await settle(false)
+    // Cancel only when nothing was written: an unobserved launch may still start with the prompt.
+    const mayLand = promptMayHaveLanded(delivered)
+    await settle(mayLand, mayLand ? delivered.session : undefined)
     throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
   }
   await settle(true, delivered.session)

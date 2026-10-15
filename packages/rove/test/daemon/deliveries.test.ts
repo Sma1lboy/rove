@@ -125,6 +125,79 @@ describe("a turn that ends without a report", () => {
     })
     expect(h.rows()[0]?.detail).toMatchObject({ note: "API Error: 400" })
   })
+
+  it("settles each queued delivery by its own turn: A's Stop leaves B for B's turn", async () => {
+    const h = await harness()
+    const a = await h.arm()
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-start", undefined)
+    h.advance(1000)
+    // B is pasted while A runs, so it queues behind A.
+    const b = await h.arm()
+
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-complete", undefined)
+    expect(h.deliveries.get(a.id)).toMatchObject({ status: "missing", missing: { cause: "turn-complete" } })
+    expect(h.deliveries.get(b.id)?.status).toBe("awaiting")
+
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-start", undefined)
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-complete", undefined)
+    expect(h.deliveries.get(b.id)).toMatchObject({ status: "missing", missing: { cause: "turn-complete" } })
+    expect(h.rows().map((row) => row.detail?.delivery?.id)).toEqual([a.id, b.id])
+  })
+
+  it("two sends before any turn-start are begun and ended in arming order", async () => {
+    const h = await harness()
+    const a = await h.arm()
+    h.advance(1000)
+    const b = await h.arm()
+
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-start", undefined)
+    expect(h.deliveries.get(a.id)?.turnStartedAt).toBeDefined()
+    expect(h.deliveries.get(b.id)?.turnStartedAt).toBeUndefined()
+
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-complete", undefined)
+    expect(h.deliveries.get(a.id)?.status).toBe("missing")
+    expect(h.deliveries.get(b.id)?.status).toBe("awaiting")
+  })
+
+  it("a failed turn ends the started delivery before a queued one", async () => {
+    const h = await harness()
+    const a = await h.arm()
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-start", undefined)
+    h.advance(1000)
+    const b = await h.arm()
+
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-failed", { failure: "other" })
+    expect(h.deliveries.get(a.id)?.status).toBe("missing")
+    expect(h.deliveries.get(b.id)?.status).toBe("awaiting")
+  })
+
+  it.each([
+    ["turn-interrupted", "interrupted"],
+    ["session-end", "session-end"],
+  ] as const)("a %s ends the started delivery with cause %s", async (kind, cause) => {
+    const h = await harness()
+    const d = await h.arm()
+    await trackDeliveryTurn(h.deps, TASK, TAB, kind, undefined)
+    expect(h.deliveries.get(d.id)?.status).toBe("awaiting")
+
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-start", undefined)
+    await trackDeliveryTurn(h.deps, TASK, TAB, kind, undefined)
+    expect(h.deliveries.get(d.id)).toMatchObject({ status: "missing", missing: { cause } })
+    expect(h.rows()).toHaveLength(1)
+  })
+
+  it("a rate-limited failure marks the delivery without an Inbox row, and a late report still lands", async () => {
+    const h = await harness()
+    const d = await h.arm()
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-start", undefined)
+    await trackDeliveryTurn(h.deps, TASK, TAB, "turn-failed", { failure: "rate_limit" })
+
+    expect(h.deliveries.get(d.id)).toMatchObject({ status: "missing", missing: { cause: "rate-limited" } })
+    expect(h.rows()).toEqual([])
+
+    await reportDelivery(h.deps, d.id, { outcome: "done", summary: "resumed and finished" })
+    expect(h.deliveries.get(d.id)?.status).toBe("reported")
+  })
 })
 
 describe("the report_missing row", () => {
@@ -165,6 +238,34 @@ describe("the report_missing row", () => {
   })
 })
 
+describe("stall sweep across deliveries and restarts", () => {
+  it("flags only the stale delivery, not a fresh one on the same tab", async () => {
+    const h = await harness()
+    const stale = await h.arm()
+    h.advance(DELIVERY_STALL_MS + 1)
+    const fresh = await h.arm()
+
+    await sweepStalledDeliveries(h.deps, { stateOf: () => "idle" })
+    expect(h.deliveries.get(stale.id)?.status).toBe("missing")
+    expect(h.deliveries.get(fresh.id)?.status).toBe("awaiting")
+  })
+
+  it("measures the window from daemon boot, so a restart does not flag work in flight", async () => {
+    const h = await harness()
+    const d = await h.arm()
+    h.advance(DELIVERY_STALL_MS * 2)
+    const bootedAt = NOW + DELIVERY_STALL_MS * 2
+    const unknown = { stateOf: () => undefined }
+
+    await sweepStalledDeliveries(h.deps, unknown, bootedAt)
+    expect(h.deliveries.get(d.id)?.status).toBe("awaiting")
+
+    h.advance(DELIVERY_STALL_MS + 1)
+    await sweepStalledDeliveries(h.deps, unknown, bootedAt)
+    expect(h.deliveries.get(d.id)).toMatchObject({ status: "missing", missing: { cause: "stalled" } })
+  })
+})
+
 describe("stall sweep", () => {
   it("marks an armed delivery missing once its tab has stopped working for 10 minutes", async () => {
     const h = await harness()
@@ -191,26 +292,24 @@ describe("stall sweep", () => {
 })
 
 describe("an engine death", () => {
-  it("ends the delivery pinned to that tab, but not a paste still headed to an unpinned tab", async () => {
+  it("ends every delivery pinned to that tab, but not a paste still headed to an unpinned tab", async () => {
     const h = await harness()
     const pinned = await h.arm()
+    h.advance(1000)
+    const queued = await h.arm()
     const unpinned = await h.deliveries.arm({ taskId: TASK, tabId: null, source: "send", promptHead: "new tab" })
+    const death = { taskId: TASK, cause: "engine-dead", scope: "all", exactTab: true } as const
 
-    await markDeliveryMissing(h.deps, { taskId: TASK, tabId: "tab-9", cause: "engine-dead", exactTab: true })
+    await markDeliveryMissing(h.deps, { ...death, tabId: "tab-9" })
     expect(h.deliveries.get(pinned.id)?.status).toBe("awaiting")
     expect(h.deliveries.get(unpinned.id)?.status).toBe("awaiting")
 
-    await markDeliveryMissing(h.deps, {
-      taskId: TASK,
-      tabId: TAB,
-      cause: "engine-dead",
-      exactTab: true,
-      note: "exit 1",
-    })
+    await markDeliveryMissing(h.deps, { ...death, tabId: TAB, note: "exit 1" })
     expect(h.deliveries.get(pinned.id)).toMatchObject({
       status: "missing",
       missing: { cause: "engine-dead", note: "exit 1" },
     })
+    expect(h.deliveries.get(queued.id)?.status).toBe("missing")
     expect(h.deliveries.get(unpinned.id)?.status).toBe("awaiting")
   })
 })

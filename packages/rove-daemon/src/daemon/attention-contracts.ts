@@ -1,6 +1,8 @@
 /** Engine ACTIVITY and the attention Inbox: what an engine is doing, and what
  *  is waiting for a person. Re-exported from `contracts.ts`. */
 
+import type { DeliveryMissingCause } from "./delivery-contracts.ts"
+
 export type EngineActivityKind =
   | "session-start"
   | "turn-start"
@@ -52,7 +54,7 @@ export interface EngineActivityDetail {
   /** The delivery behind a `report_missing` episode. */
   readonly delivery?: {
     readonly id: string
-    readonly cause: "turn-complete" | "turn-failed" | "engine-dead" | "stalled"
+    readonly cause: Exclude<DeliveryMissingCause, "rate-limited">
   }
 }
 

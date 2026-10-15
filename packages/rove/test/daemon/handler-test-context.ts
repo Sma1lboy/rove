@@ -110,6 +110,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     // No armed deliveries: engine events find nothing awaiting.
     deliveries: {
       awaitingFor: () => undefined,
+      awaitingOn: () => [],
       noteTurnStart: () => Promise.resolve(),
     } as unknown as DeliveriesStore,
     deletions: {

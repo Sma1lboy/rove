@@ -10,7 +10,15 @@ export type DeliveryOutcome = "done" | "partial" | "blocked" | "failed"
 
 export const DELIVERY_OUTCOMES: readonly DeliveryOutcome[] = ["done", "partial", "blocked", "failed"]
 
-export type DeliveryMissingCause = "turn-complete" | "turn-failed" | "engine-dead" | "stalled"
+export type DeliveryMissingCause =
+  | "turn-complete"
+  | "turn-failed"
+  | "engine-dead"
+  | "stalled"
+  | "interrupted"
+  | "session-end"
+  /** The engine hit its quota; quota-resume continues the turn, so no Inbox row. */
+  | "rate-limited"
 
 export interface DeliveryReport {
   readonly outcome: DeliveryOutcome

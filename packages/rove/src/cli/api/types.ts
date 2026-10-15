@@ -217,6 +217,16 @@ export interface DeliveredPrompt {
   readonly reason?: string
 }
 
+/**
+ * Could the prompt still reach the engine? `delivered: false` WITH a `reason`
+ * is a fresh launch whose argv carries the prompt but whose engine process was
+ * not observed in time: it may yet start with it. Without a reason nothing was
+ * written (no live engine to paste into), so a report can never arrive.
+ */
+export function promptMayHaveLanded(delivered: DeliveredPrompt): boolean {
+  return delivered.delivered || delivered.reason !== undefined
+}
+
 /** Hosted prompt delivery seam, injectable for handler/unit tests. */
 export interface PromptDeliveryOps {
   deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt>

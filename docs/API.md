@@ -543,16 +543,24 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   (`{ outcome, summary, evidence[], next?, at }`). A missing one carries
   `missing` (`{ cause, note?, at }`); `cause` is `turn-complete` (the turn
   ended with no report), `turn-failed` (`note` is the failure detail),
-  `engine-dead` (`note` is the last line of the tab's output), or `stalled`
-  (awaiting for over 10 minutes while the tab was neither running nor at a
-  permission prompt; `note` is `tab state: <state>`). A permission prompt
-  does not mark a delivery missing.
+  `interrupted` (the turn was interrupted), `session-end` (the engine
+  session ended), `engine-dead` (`note` is the last line of the tab's
+  output), `rate-limited` (the engine hit its quota; quota-resume
+  continues the turn and a late report still lands), or `stalled` (awaiting
+  for over 10 minutes while the tab was neither running nor at a permission
+  prompt; `note` is `tab state: <state>`). A permission prompt does not mark
+  a delivery missing.
 
-  A turn-complete counts only once the delivery's own turn has started: a
-  Stop that arrives first belongs to an earlier prompt the paste queued
-  behind. A missing delivery raises a `report_missing` Inbox row, keyed by
-  the delivery so the tab's next turn does not clear it. A late `report`
-  or dismissing the row clears it. A loop prompt can read
+  A tab runs its prompts in order, so a turn event settles the OLDEST
+  matching delivery: a `turn-start` begins the oldest one whose turn has not
+  started, and a turn end (`turn-complete`, `interrupted`, `session-end`)
+  ends the oldest one whose turn has started. A Stop that arrives before any
+  turn started belongs to an earlier prompt the paste queued behind. A failed
+  turn ends the oldest started delivery, else the oldest awaiting one; an
+  engine exit ends all of the tab's. A missing delivery raises a
+  `report_missing` Inbox row (none for `rate-limited`: the engine's own
+  rate-limit row covers it), keyed by the delivery so the tab's next turn
+  does not clear it. A late `report` or dismissing the row clears it. A loop prompt can read
   `deliveries --limit 5` instead of a growing notes file.
 
 ## create

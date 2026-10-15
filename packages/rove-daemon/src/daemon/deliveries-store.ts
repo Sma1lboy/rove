@@ -36,7 +36,15 @@ export interface ArmDeliveryInput {
 
 const SOURCES: readonly string[] = ["routine", "send", "gate-answer"]
 const STATUSES: readonly string[] = ["awaiting", "reported", "missing", "skipped"]
-const CAUSES: readonly string[] = ["turn-complete", "turn-failed", "engine-dead", "stalled"]
+const CAUSES: readonly string[] = [
+  "turn-complete",
+  "turn-failed",
+  "engine-dead",
+  "stalled",
+  "interrupted",
+  "session-end",
+  "rate-limited",
+]
 
 function str(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined
@@ -170,15 +178,22 @@ export class DeliveriesStore {
   }
 
   /**
-   * The newest awaiting delivery an event on (taskId, tabId) could be ending.
-   * A delivery whose tab is not pinned yet (`send --tab new`, paste in flight)
-   * answers to any tab's event unless `exact` — a death record names ONE tab
-   * and must not end a paste headed elsewhere.
+   * Awaiting deliveries an event on (taskId, tabId) could be ending, OLDEST
+   * first: a tab's prompts run in arming order, so the oldest is the one the
+   * engine is (or was last) working on. A delivery whose tab is not pinned yet
+   * (`send --tab new`, paste in flight) answers to any tab's event unless
+   * `exact` — a death record names ONE tab and must not end a paste headed
+   * elsewhere.
    */
-  awaitingFor(taskId: string, tabId: string | null, exact = false): Delivery | undefined {
+  awaitingOn(taskId: string, tabId: string | null, exact = false): Delivery[] {
     return this.deliveries
       .filter((d) => d.status === "awaiting" && onTab(d, taskId, tabId) && (!exact || d.tabId === tabId))
-      .sort(compareNewestFirst)[0]
+      .sort((a, b) => -compareNewestFirst(a, b))
+  }
+
+  /** The newest awaiting delivery on the tab: what a report with no id answers. */
+  awaitingFor(taskId: string, tabId: string | null): Delivery | undefined {
+    return this.awaitingOn(taskId, tabId).at(-1)
   }
 
   allAwaiting(): Delivery[] {
@@ -217,10 +232,10 @@ export class DeliveriesStore {
     return await this.patch(id, (d) => (d.tabId === tabId ? d : { ...d, tabId }))
   }
 
-  /** A `turn-start` on the tab: the awaiting delivery's own turn began. */
+  /** A `turn-start` on the tab begins the oldest delivery whose turn has not started. */
   async noteTurnStart(taskId: string, tabId: string | null): Promise<void> {
-    const target = this.awaitingFor(taskId, tabId)
-    if (!target || target.turnStartedAt) return
+    const target = this.awaitingOn(taskId, tabId).find((d) => !d.turnStartedAt)
+    if (!target) return
     await this.patch(target.id, (d) => ({ ...d, turnStartedAt: new Date(this.now()).toISOString() }))
   }
 

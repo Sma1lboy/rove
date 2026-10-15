@@ -34,7 +34,14 @@ import {
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
-import { ApiError, type DeliveredPrompt, type PromptTarget, type VerbContext, helpStep } from "./types.ts"
+import {
+  ApiError,
+  type DeliveredPrompt,
+  type PromptTarget,
+  type VerbContext,
+  helpStep,
+  promptMayHaveLanded,
+} from "./types.ts"
 
 /**
  * `--status` / `--pin` aren't create-time RPC fields — apply them as
@@ -81,7 +88,8 @@ async function deliverArmed(
       target,
       `${text}\n\n${deliveryFooter(deliveryId, roveApiInvocation())}`,
     )
-    await settle(delivered.delivered)
+    // An unconfirmed launch keeps its delivery: the engine may still start with the prompt.
+    await settle(promptMayHaveLanded(delivered))
     return { ...delivered, deliveryId }
   } catch (err) {
     await settle(false)

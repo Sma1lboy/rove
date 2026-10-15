@@ -72,19 +72,25 @@ creates one.
 interface Delivery {
   id: string                    // "d-<n>", monotonic per daemon home
   taskId: string
-  tabId: string
+  tabId: string | null          // null until the tab is known (send --tab new, standing targets)
   source: "routine" | "send" | "gate-answer"
   automationRunId?: string      // source === "routine"
   gateId?: string               // source === "gate-answer"
   promptHead: string            // first 200 chars, for the list view
-  at: string                    // ISO, when delivered (or skipped)
+  at: string                    // ISO, when ARMED (before the paste)
+  /** First turn-start seen after arming; a Stop before it belongs to an earlier prompt. */
+  turnStartedAt?: string
   status: "awaiting" | "reported" | "missing" | "skipped"
   /** Why the expectation failed — set with status "missing". */
-  missing?: { cause: "turn-complete" | "turn-failed" | "engine-dead" | "stalled"; note?: string; at: string }
+  missing?: { cause: DeliveryMissingCause; note?: string; at: string }
   /** Why should-run refused — set with status "skipped". */
   skipped?: RunnabilityVerdict
   report?: DeliveryReport
 }
+
+type DeliveryMissingCause =
+  | "turn-complete" | "turn-failed" | "engine-dead" | "stalled"
+  | "interrupted" | "session-end" | "rate-limited"
 
 interface DeliveryReport {
   outcome: "done" | "partial" | "blocked" | "failed"
@@ -138,7 +144,7 @@ without a second call.
 ### Detecting a missing report
 
 Checked at the three points where an engine stops working on a prompt. Each
-looks up the tab's newest `awaiting` delivery:
+matches the tab's `awaiting` deliveries by lineage, oldest first (see Deviations):
 
 | Event | Where | Result |
 |---|---|---|
@@ -389,3 +395,32 @@ owner:
   `turn-start` was seen.** A prompt pasted while the engine is mid-turn queues
   behind it, and the earlier prompt's Stop would otherwise mark the new
   delivery missing. `turn-failed` and engine exit apply at any time.
+- **Turn events match by lineage, not recency.** A tab runs its prompts in
+  arming order. `turn-start` stamps the OLDEST awaiting delivery without a
+  `turnStartedAt`; `turn-complete` settles the OLDEST one that has it. With A
+  running and B queued behind it, A's Stop marks A missing and leaves B for its
+  own turn. `turn-failed` ends the oldest started delivery, else the oldest
+  awaiting one (a rejected prompt never starts a turn); an engine exit ends
+  every delivery pinned to that tab.
+- **The stall sweep marks the delivery it iterated,** by id, so a stale A never
+  flags a fresh B on the same tab.
+- **The stall window starts at the later of arming and daemon boot.** Activity
+  is in memory, so right after a restart no tab has a state. Measuring from
+  boot avoids flagging work still in flight, and an engine that never emits
+  hooks is still caught 10 minutes after boot.
+- **`turn-interrupted` and `session-end` end the delivery's turn,** with causes
+  `interrupted` and `session-end`, under the same lineage rule as
+  `turn-complete`.
+- **`turn-failed` with `failure: rate_limit` is cause `rate-limited` and raises
+  no `report_missing` row.** The engine's own `rate_limited` episode already
+  covers it, quota-resume continues the turn, and a late report still flips
+  the delivery to `reported`.
+- **A send that is not confirmed keeps its delivery when the prompt may still
+  land.** `delivered: false` with a `reason` is a fresh launch whose argv
+  carries the prompt but whose engine was not observed in time: the delivery
+  stays `awaiting` so a report lands or the sweep catches it. Only a throw, or
+  `delivered: false` with no reason (no live engine to write to), cancels it.
+  `add --require-report` shares the rule.
+- **Pre-#1247 Android and iOS builds are unsupported for `report_missing`
+  rows.** They key inbox rows by task and tab and cannot dismiss by delivery
+  id (the Android client is an unreleased MVP).

@@ -146,10 +146,17 @@ export async function noteDeliveryTurnStart(deps: DeliveryDeps, taskId: string, 
 }
 
 /**
- * Fold a turn boundary into the tab's awaiting delivery. A turn-complete only
- * ends it once the delivery's own turn began (a paste can queue behind the
- * previous prompt); a failed turn always does, since the 400 case may never
- * start one.
+ * Fold a turn boundary into the tab's awaiting deliveries. A tab runs its
+ * prompts in arming order, so events match by lineage, not recency:
+ * - `turn-start` begins the OLDEST delivery whose turn has not started;
+ * - `turn-complete`, `turn-interrupted` and `session-end` end the OLDEST
+ *   delivery whose turn HAS started (a Stop with none started belongs to an
+ *   earlier prompt the paste queued behind);
+ * - `turn-failed` ends the oldest started delivery, else the oldest awaiting
+ *   one: a rejected prompt (400) never starts a turn.
+ * A rate-limited failure marks the delivery without an Inbox row: the
+ * engine's own `rate_limited` episode covers it and quota-resume continues
+ * the turn, after which a late report still lands.
  */
 export async function trackDeliveryTurn(
   deps: DeliveryDeps,
@@ -160,18 +167,29 @@ export async function trackDeliveryTurn(
 ): Promise<void> {
   if (kind === "turn-start") await noteDeliveryTurnStart(deps, taskId, tabId)
   else if (kind === "turn-complete") {
-    await markDeliveryMissing(deps, { taskId, tabId, cause: "turn-complete", needsTurnStart: true })
+    await markDeliveryMissing(deps, { taskId, tabId, cause: "turn-complete", scope: "started" })
+  } else if (kind === "turn-interrupted") {
+    await markDeliveryMissing(deps, { taskId, tabId, cause: "interrupted", scope: "started" })
+  } else if (kind === "session-end") {
+    await markDeliveryMissing(deps, { taskId, tabId, cause: "session-end", scope: "started" })
   } else if (kind === "turn-failed") {
     const note = detail?.note ?? (detail?.failure ? `failure: ${detail.failure}` : undefined)
-    await markDeliveryMissing(deps, { taskId, tabId, cause: "turn-failed", ...(note ? { note } : {}) })
+    await markDeliveryMissing(deps, {
+      taskId,
+      tabId,
+      cause: detail?.failure === "rate_limit" ? "rate-limited" : "turn-failed",
+      scope: "started-or-oldest",
+      ...(note ? { note } : {}),
+    })
   }
 }
 
 /**
- * The engine stopped working on the tab's newest awaiting delivery with no
- * report: mark it `missing` and raise its Inbox row. No-op when nothing is
- * awaiting. `needsTurnStart` guards `turn-complete`: a Stop before the
- * delivery's own `turn-start` ends an EARLIER prompt the paste queued behind.
+ * The engine stopped working on awaiting deliveries with no report: mark them
+ * `missing` and raise their Inbox rows. No-op when nothing matches. `scope`
+ * picks which of the tab's deliveries (oldest first) the stop ends: the oldest
+ * one whose turn started, that or else the oldest, or all of them (the engine
+ * process is gone).
  */
 export async function markDeliveryMissing(
   deps: DeliveryDeps,
@@ -180,25 +198,46 @@ export async function markDeliveryMissing(
     readonly tabId: string | null
     readonly cause: DeliveryMissingCause
     readonly note?: string
-    readonly needsTurnStart?: boolean
-    /** Only a delivery pinned to exactly this tab (engine death). */
+    readonly scope: "started" | "started-or-oldest" | "all"
+    /** Only deliveries pinned to exactly this tab (engine death). */
     readonly exactTab?: boolean
   },
+): Promise<Delivery[]> {
+  const awaiting = deps.deliveries.awaitingOn(event.taskId, event.tabId, event.exactTab)
+  const started = awaiting.filter((d) => d.turnStartedAt)
+  const targets =
+    event.scope === "all"
+      ? awaiting
+      : event.scope === "started"
+        ? started.slice(0, 1)
+        : [started[0] ?? awaiting[0]].filter((d): d is Delivery => d !== undefined)
+  const marked: Delivery[] = []
+  for (const delivery of targets) {
+    const missing = await markOneMissing(deps, delivery, event.cause, event.note, event.tabId)
+    if (missing) marked.push(missing)
+  }
+  return marked
+}
+
+async function markOneMissing(
+  deps: DeliveryDeps,
+  delivery: Delivery,
+  cause: DeliveryMissingCause,
+  note: string | undefined,
+  eventTab: string | null,
 ): Promise<Delivery | null> {
-  const awaiting = deps.deliveries.awaitingFor(event.taskId, event.tabId, event.exactTab)
-  if (!awaiting) return null
-  if (event.needsTurnStart && !awaiting.turnStartedAt) return null
-  const missing = await deps.deliveries.markMissing(awaiting.id, event.cause, event.note).catch((err: unknown) => {
+  const missing = await deps.deliveries.markMissing(delivery.id, cause, note).catch((err: unknown) => {
     logDaemonError("delivery-missing", err)
     return undefined
   })
   if (!missing) return null
+  if (cause === "rate-limited") return missing
   await deps.inbox
     .recordReportMissing(
       missing.taskId,
-      missing.tabId ?? event.tabId,
-      { id: missing.id, cause: event.cause },
-      event.note,
+      missing.tabId ?? eventTab,
+      { id: missing.id, cause },
+      note,
       (deps.now ?? Date.now)(),
     )
     .catch((err: unknown) => logDaemonError("delivery-missing-inbox", err))
@@ -210,21 +249,22 @@ export async function markDeliveryMissing(
  * before any turn started): an awaiting delivery older than
  * {@link DELIVERY_STALL_MS} whose tab is neither `running` nor
  * `permission_needed` is missing. `awaiting-input` is not a stop.
+ *
+ * Activity is in-memory, so after a daemon restart a mid-turn tab reads
+ * unknown until its next hook: age counts from `bootedAt` when that is later
+ * than the delivery, so a restart never flags work still in flight, while an
+ * engine that emits no hooks is still caught {@link DELIVERY_STALL_MS} after boot.
  */
 export async function sweepStalledDeliveries(
   deps: DeliveryDeps,
   activity: { stateOf(taskId: string, tabId: string | null): string | undefined },
+  bootedAt = 0,
 ): Promise<void> {
   const now = (deps.now ?? Date.now)()
   for (const delivery of deps.deliveries.allAwaiting()) {
-    if (now - Date.parse(delivery.at) < DELIVERY_STALL_MS) continue
+    if (now - Math.max(Date.parse(delivery.at), bootedAt) < DELIVERY_STALL_MS) continue
     const state = activity.stateOf(delivery.taskId, delivery.tabId)
     if (state === "running" || state === "permission_needed") continue
-    await markDeliveryMissing(deps, {
-      taskId: delivery.taskId,
-      tabId: delivery.tabId,
-      cause: "stalled",
-      note: `tab state: ${state ?? "unknown"}`,
-    })
+    await markOneMissing(deps, delivery, "stalled", `tab state: ${state ?? "unknown"}`, delivery.tabId)
   }
 }

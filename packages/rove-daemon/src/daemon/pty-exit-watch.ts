@@ -78,6 +78,7 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
         taskId,
         tabId,
         cause: "engine-dead",
+        scope: "all",
         exactTab: true,
         note: exit.lastLine ?? `engine exited (code ${exit.code ?? "?"}${exit.signal ? `, ${exit.signal}` : ""})`,
       }).catch((err) => opts.log?.(`pty-exit delivery: ${String(err)}`))

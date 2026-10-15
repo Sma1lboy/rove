@@ -93,6 +93,25 @@ describe("send --expect-report", () => {
       payload: { deliveryId: "d-7", delivered: false },
     })
   })
+
+  it("keeps the delivery when the launch carried the prompt but its engine was not seen in time", async () => {
+    const client = sendClient()
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "t1", "--prompt", "hi", "--expect-report"], {
+          client,
+          runtime: stubRuntime({
+            deliverPrompt: recordingDelivery({ delivered: false, engineReady: false, reason: "engine not observed" })
+              .deliver,
+          }),
+        }),
+      "NOT_DELIVERED",
+    )
+    expect(deliveryCalls(client).at(-1)).toEqual({
+      name: "delivery.settle",
+      payload: { deliveryId: "d-7", delivered: true, tabId: "tab-1" },
+    })
+  })
 })
 
 describe("report", () => {

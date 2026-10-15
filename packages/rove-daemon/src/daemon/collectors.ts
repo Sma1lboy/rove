@@ -259,12 +259,13 @@ export function startDaemonCollectors(
 
   // Same cadence and ungated like the schedule sweep: the backstop for an
   // armed delivery whose engine never signalled a stop.
+  const deliverySweepBootedAt = (automations?.deliveryDeps.now ?? Date.now)()
   const stopDeliverySweep =
     automations && activity
       ? startTicker({
           name: "delivery-sweep",
           tickMs: options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
-          run: () => sweepStalledDeliveries(automations.deliveryDeps, activity),
+          run: () => sweepStalledDeliveries(automations.deliveryDeps, activity, deliverySweepBootedAt),
         })
       : () => {}
 
