@@ -1,0 +1,237 @@
+/* Overlays: dialogs, the row menu, toasts, the Inbox. Tokens from styles.css. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: start center;
+  padding-top: 12vh;
+  background: rgb(10 10 9 / 55%);
+  z-index: 20;
+}
+
+.dialog {
+  position: static;
+  margin: 0;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(440px, calc(100vw - 32px));
+  max-height: 76vh;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 35%);
+}
+
+.dialog.is-wide {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.dialog-body p {
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.45;
+}
+
+select.input {
+  appearance: none;
+  cursor: pointer;
+}
+
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip-button {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
+.chip-button:hover {
+  background: var(--accent-soft);
+}
+
+.chip-button.is-active {
+  border-color: var(--accent);
+  color: var(--ink);
+  background: var(--accent-soft);
+}
+
+.choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.button.is-danger {
+  background: var(--error);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Row menu */
+
+.menu {
+  position: fixed;
+  z-index: 30;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 35%);
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-item {
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-size: 13px;
+}
+
+.menu-item.is-selected {
+  background: var(--accent-soft);
+}
+
+.menu-item.is-danger {
+  color: var(--error);
+}
+
+/* Toasts */
+
+.toasts {
+  position: fixed;
+  right: 14px;
+  bottom: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 40;
+}
+
+.toast {
+  max-width: 420px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+  font: 12px var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.toast.is-error {
+  color: var(--error);
+}
+
+/* Inbox */
+
+.inbox h2.kicker {
+  margin-top: 4px;
+}
+
+.inbox-hints {
+  color: var(--subtle);
+}
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inbox-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px 10px;
+}
+
+.inbox-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.inbox-badge,
+.inbox-age {
+  flex: none;
+  font: 11px var(--mono);
+}
+
+.inbox-age {
+  color: var(--subtle);
+}
+
+.inbox-sub {
+  font: 11px var(--mono);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono {
+  font: 12px var(--mono);
+}
+
+/* Rail + tab strip additions */
+
+.inbox-chip:hover {
+  color: var(--accent);
+}
+
+.new-task {
+  margin: 4px 6px 10px;
+  width: auto;
+  color: var(--muted);
+}
+
+.tab-new {
+  color: var(--subtle);
+}
+
+div.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+div.placeholder p {
+  margin: 0;
+}

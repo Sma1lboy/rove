@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
+import { compactAge, inboxBadge } from "../src/inbox.ts"
 import { activityGlyph, groupByProject } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
 
@@ -72,5 +73,22 @@ describe("rail", () => {
     expect(activityGlyph("turn_complete", 0).glyph).toBe("●")
     expect(activityGlyph(undefined, 0).glyph).toBe("○")
     expect(activityGlyph("running", 0).glyph).not.toBe(activityGlyph("running", 1).glyph)
+  })
+})
+
+describe("inbox", () => {
+  test("tells a rate limit, a dead engine, a question and a finished turn apart, like the TUI", () => {
+    const glyphs = ["rate_limited", "dead", "permission_needed", "turn_complete", "error"].map(
+      (s) => inboxBadge(s).glyph,
+    )
+    expect(new Set(glyphs).size).toBe(glyphs.length)
+    expect(inboxBadge("permission_needed").stateKey).toBe("inbox.state.needsInput")
+  })
+
+  test("ages compactly across unit boundaries", () => {
+    expect(compactAge(59_000)).toBe("59s")
+    expect(compactAge(60_000)).toBe("1m")
+    expect(compactAge(3 * 3_600_000)).toBe("3h")
+    expect(compactAge(72 * 3_600_000)).toBe("3d")
   })
 })

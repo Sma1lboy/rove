@@ -5,7 +5,7 @@ Legend: ✅ same as TUI · 🟡 partial or different · ❌ missing (unbuilt) ·
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
 
-Score: 3 / 201 rows at ✅ (4 🟡, 2 🚫, 192 ❌)
+Score: 15 / 201 rows at ✅ (22 🟡, 2 🚫, 162 ❌)
 
 ## Navigation, help, command layer and global chrome
 
@@ -46,36 +46,36 @@ Score: 3 / 201 rows at ✅ (4 🟡, 2 🚫, 192 ❌)
 | 26 | Open task / tab / recent task | Enter, l/Space, click | ✅ | `tasks.list`, `task.tabs`, `term.attach` | Open the page, click a task row, then a tab row under it: the terminal pane attaches and shows the tab's replayed output. Keyboard j/k/Enter is not built (#25). |
 | 27 | Jump to top / bottom | gg / Shift+G | ❌ | local | Playwright: trigger 'gg / Shift+G'; expect 'jump to top / bottom' as in TUI. Currently absent (browser-local, no bridge call). |
 | 28 | Focus engine from sidebar | → | ❌ | local | Playwright: trigger '→'; expect 'focus engine from sidebar' as in TUI. Currently absent (browser-local, no bridge call). |
-| 29 | Start new task (browser-reserved Ctrl+N is not usable; PROPOSED chord needs owner sign-off) | n, prefix n, New task click, project menu | ❌ | `task.create` | Playwright: trigger 'n'; expect 'start new task (browser-reserved Ctrl+N is not usable; PROPOSED chord needs owner sign-off)' as in TUI. Currently absent (via task.create). |
-| 30 | Rename task | r, row menu | ❌ | `task.rename` | Playwright: trigger 'r'; expect 'rename task' as in TUI. Currently absent (via task.rename). |
-| 31 | Rename branch | b, row menu (managed branch) | ❌ | `task.setBranch` | Playwright: trigger 'b'; expect 'rename branch' as in TUI. Currently absent (via task.setBranch). |
+| 29 | Start new task (browser-reserved Ctrl+N is not usable; PROPOSED chord needs owner sign-off) | n, prefix n, New task click, project menu | 🟡 | `task.spawn` | r2: rail `+ New task` and project-header menu open the dialog; created "Web created task", `rove api list` lists it and the page selected it. `n` / prefix n not on the web. |
+| 30 | Rename task | r, row menu | 🟡 | `task.rename` | r2: row menu Rename → "Renamed from web"; `rove api list` shows the new title. `r` key not on the web. |
+| 31 | Rename branch | b, row menu (managed branch) | 🟡 | `task.setBranch` | r2: row menu Rename branch → `audit-token-refresh-web`; `rove api list` shows it. `b` key not on the web. |
 | 32 | Cycle task engine | v | ❌ | `task.setCommand` | Playwright: trigger 'v'; expect 'cycle task engine' as in TUI. Currently absent (via task.setCommand). |
-| 33 | Pick task engine / model / effort | row menu Change engine | ❌ | `engines.list`, `task.setCommand`, `task.setModel`, `task.setEffort` | Playwright: trigger 'row menu Change engine'; expect 'pick task engine / model / effort' as in TUI. Currently absent (via engines.list, task.setCommand, task.setModel, task.setEffort). |
+| 33 | Pick task engine / model / effort | row menu Change engine | 🟡 | `engines.list`, `task.setCommand`, `task.setModel`, `task.setEffort` | r2: row menu Change engine → Claude; `get-task` vendor `claude`. Engine only; no model/effort step yet. |
 | 34 | Open task directory in GUI editor | o, prefix o, row menu | 🚫 | missing | Cannot exist: a page cannot launch a local GUI editor and the bridge has no op for it. |
-| 35 | Pin / unpin managed task | Shift+P, menu | ❌ | `task.pin` | Playwright: trigger 'Shift+P'; expect 'pin / unpin managed task' as in TUI. Currently absent (via task.pin). |
+| 35 | Pin / unpin managed task | Shift+P, menu | 🟡 | `task.pin` | r2: row menu Pin → `pinned: true` in `rove api list`, `▴` drawn. Shift+P not on the web. |
 | 36 | Reorder sibling tab/task/project | Shift+M, prefix m, menu | ❌ | `task.move` | Playwright: trigger 'Shift+M'; expect 'reorder sibling tab/task/project' as in TUI. Currently absent (via task.move). |
 | 37 | Move project to top | project header menu | ❌ | `task.move` | Playwright: trigger 'project header menu'; expect 'move project to top' as in TUI. Currently absent (via task.move). |
 | 38 | Change task sort (default/recent/attention/name) | t | ❌ | local | Playwright: trigger 't'; expect 'change task sort (default/recent/attention/name)' as in TUI. Currently absent (browser-local, no bridge call). |
 | 39 | Fuzzy search titles/repo/branch/tab | `/` | ❌ | local | Playwright: trigger '/'; expect 'fuzzy search titles/repo/branch/tab' as in TUI. Currently absent (browser-local, no bridge call). |
 | 40 | Search result navigate / accept / cancel | ↑/↓, Enter, Esc | ❌ | local | Playwright: trigger '↑/↓'; expect 'search result navigate / accept / cancel' as in TUI. Currently absent (browser-local, no bridge call). |
-| 41 | Open / dismiss right-click task menu | right click, Esc | ❌ | local | Playwright: trigger 'right click'; expect 'open / dismiss right-click task menu' as in TUI. Currently absent (browser-local, no bridge call). |
-| 42 | New conversation on a row | row menu | ❌ | `tab.new` | Playwright: trigger 'row menu'; expect 'new conversation on a row' as in TUI. Currently absent (via tab.new). |
-| 43 | New shell on a row | row menu | ❌ | `tab.new` | Playwright: trigger 'row menu'; expect 'new shell on a row' as in TUI. Currently absent (via tab.new). |
-| 44 | Close selected tab | tab row menu | ❌ | `tab.close` | Playwright: trigger 'tab row menu'; expect 'close selected tab' as in TUI. Currently absent (via tab.close). |
+| 41 | Open / dismiss right-click task menu | right click, Esc | ✅ | local | r2: right click on task, tab and tab-strip rows opens the menu at the pointer with the TUI's entries in its order; Esc and an outside click dismiss it (`.menu` gone). |
+| 42 | New conversation on a row | row menu | 🟡 | `tab.new` | r2: menu → picker → Claude + first message → tab `2 Claude` appears and attaches. Differs: the bridge opens a tab by delivering a message, so the web needs a first message; the TUI picker does not. |
+| 43 | New shell on a row | row menu | ❌ | missing | `tab.new` only starts engines; `pane-open` needs an attached TUI to perform it. Needs a bridge/daemon op that opens a hosted shell tab. |
+| 44 | Close selected tab | tab row menu | ✅ | `tab.close` | r2: tab menu Close tab → confirm → tab count drops by one; `get-task` no longer lists it. Close latency 1–20 s (daemon-side), button shows busy meanwhile. |
 | 45 | Run stored brief again as a new task | row menu + confirm | ❌ | `task.create`, `task.spawn` | Playwright: trigger 'row menu + confirm'; expect 'run stored brief again as a new task' as in TUI. Currently absent (via task.create, task.spawn). |
-| 46 | Set task board status | row menu | ❌ | `task.setStatus` | Playwright: trigger 'row menu'; expect 'set task board status' as in TUI. Currently absent (via task.setStatus). |
-| 47 | Copy task id | row menu | ❌ | local | Playwright: trigger 'row menu'; expect 'copy task id' as in TUI. Currently absent (browser-local, no bridge call). |
-| 48 | Copy branch name | row menu | ❌ | local | Playwright: trigger 'row menu'; expect 'copy branch name' as in TUI. Currently absent (browser-local, no bridge call). |
-| 49 | Copy worktree path | row menu | ❌ | local | Playwright: trigger 'row menu'; expect 'copy worktree path' as in TUI. Currently absent (browser-local, no bridge call). |
+| 46 | Set task board status | row menu | ✅ | `task.setStatus` | r2: menu Set status → In review; `rove api list` status `in_review`. Menu-only in the TUI too. |
+| 47 | Copy task id | row menu | ✅ | local | r2: clipboard equals the task id from `rove api list`; toast `copied …`. |
+| 48 | Copy branch name | row menu | ✅ | local | r2: clipboard equals `branch` from `rove api list`. |
+| 49 | Copy worktree path | row menu | ✅ | `task.get` | r2: clipboard equals `worktreePath` from `rove api list`. |
 | 50 | Forget project checkout | project menu, `d` on main + confirm | ❌ | `project.forget` | Playwright: trigger 'project menu'; expect 'forget project checkout' as in TUI. Currently absent (via project.forget). |
-| 51 | Delete directory task record | `d`/menu + confirm | ❌ | `task.delete` | Playwright: trigger 'd/menu + confirm'; expect 'delete directory task record' as in TUI. Currently absent (via task.delete). |
-| 52 | Delete managed task / worktree (force confirm when dirty) | `d`/menu + confirm | ❌ | `task.delete`, `task.removeWorktree` | Playwright: trigger 'd/menu + confirm'; expect 'delete managed task / worktree (force confirm when dirty)' as in TUI. Currently absent (via task.delete, task.removeWorktree). |
+| 51 | Delete directory task record | `d`/menu + confirm | 🟡 | `task.delete` | Menu + confirm built (same flow as #52, dir wording); no dir task in the sandbox yet. `d` key not on the web. |
+| 52 | Delete managed task / worktree (force confirm when dirty) | `d`/menu + confirm | 🟡 | `task.delete` | r2: menu Delete → confirm → task gone from `rove api list`. Dirty → force escalation built, not exercised. `d` key not on the web. |
 | 53 | Read project's field notes | project menu | ❌ | `notes.list` | Playwright: trigger 'project menu'; expect 'read project's field notes' as in TUI. Currently absent (via notes.list). |
 | 54 | Retire selected field note | `d` in notes dialog + confirm | ❌ | `notes.delete` | Playwright: trigger 'd in notes dialog + confirm'; expect 'retire selected field note' as in TUI. Currently absent (via notes.delete). |
 | 55 | Expand/collapse project's routine-session group | Enter/click count row | ❌ | local | Playwright: trigger 'Enter/click count row'; expect 'expand/collapse project's routine-session group' as in TUI. Currently absent (browser-local, no bridge call). |
-| 56 | Open Inbox from brand attention chip | click chip | 🟡 | `tasks.subscribe` | Inbox unread count shows in the rail header; Playwright: send an attention event, count increments. Clicking it opens nothing (no inbox page, see #118). |
+| 56 | Open Inbox from brand attention chip | click chip | ✅ | `tasks.subscribe` | r2: clicking `INBOX n` in the rail head opens the Inbox dialog. |
 | 57 | Go to recent task in narrow layout | Enter/click ↩ Recent row | ❌ | `task.get` | Playwright: trigger 'Enter/click ↩ Recent row'; expect 'go to recent task in narrow layout' as in TUI. Currently absent (via task.get). |
-| 58 | Land managed task into base | row menu + confirm | ❌ | `task.land` | Playwright: trigger 'row menu + confirm'; expect 'land managed task into base' as in TUI. Currently absent (via task.land). |
+| 58 | Land managed task into base | row menu + confirm | 🟡 | `task.land` | Menu entry + confirm built; not exercised (sandbox branches have no commits → EMPTY_BRANCH). |
 | 59 | Sync base branch into task | prefix u, row menu | ❌ | missing | Playwright: trigger 'prefix u'; expect 'sync base branch into task' as in TUI. Currently absent (no bridge op yet). |
 | 60 | Ask agent to fix failing checks | prefix k, row menu on failing PR | ❌ | missing | Playwright: trigger 'prefix k'; expect 'ask agent to fix failing checks' as in TUI. Currently absent (no bridge op yet). |
 
@@ -85,23 +85,23 @@ Score: 3 / 201 rows at ✅ (4 🟡, 2 🚫, 192 ❌)
 |---|---|---|---|---|---|
 | 61 | Switch Existing / New Repo / Adopt mode | Ctrl+[ / Ctrl+], chip | ❌ | local | Playwright: trigger 'Ctrl+[ / Ctrl+]'; expect 'switch Existing / New Repo / Adopt mode' as in TUI. Currently absent (browser-local, no bridge call). |
 | 62 | Move focus / complete repo or clone-parent suggestion | Tab, click field | ❌ | `repos.list` | Playwright: trigger 'Tab'; expect 'move focus / complete repo or clone-parent suggestion' as in TUI. Currently absent (via repos.list). |
-| 63 | Cycle / pick engine in dialog | Ctrl+E, chip | ❌ | `engines.list` | Playwright: trigger 'Ctrl+E'; expect 'cycle / pick engine in dialog' as in TUI. Currently absent (via engines.list). |
-| 64 | Choose existing repository / path | type, ↑/↓, Tab, Enter | ❌ | `repos.list` | Playwright: trigger 'type'; expect 'choose existing repository / path' as in TUI. Currently absent (via repos.list). |
+| 63 | Cycle / pick engine in dialog | Ctrl+E, chip | 🟡 | `engines.list` | r2: engine chips (registry names, `·` marks not-ready) pick the engine; Ctrl+E not on the web. |
+| 64 | Choose existing repository / path | type, ↑/↓, Tab, Enter | 🟡 | `repos.list` | r2: a select of saved projects; no typed path or Tab completion. |
 | 65 | Choose branch / ref | branch picker | ❌ | `repo.branches` | Playwright: trigger 'branch picker'; expect 'choose branch / ref' as in TUI. Currently absent (via repo.branches). |
 | 66 | Open existing project checkout | Existing: Opens project itself, Create | ❌ | `task.openMain` | Playwright: trigger 'Existing: Opens project itself'; expect 'open existing project checkout' as in TUI. Currently absent (via task.openMain). |
-| 67 | Create new worktree from existing repo | Existing Create/Enter | ❌ | `task.create` | Playwright: trigger 'Existing Create/Enter'; expect 'create new worktree from existing repo' as in TUI. Currently absent (via task.create). |
+| 67 | Create new worktree from existing repo | Existing Create/Enter | ✅ | `task.spawn` | r2: Create (or Enter in the title, ⌘↵ in the message) → new managed task in `rove api list`. |
 | 68 | Clone repository and create task | New Repo URL/parent/folder/base, Create | ❌ | `repo.clone`, `task.create` | Playwright: trigger 'New Repo URL/parent/folder/base'; expect 'clone repository and create task' as in TUI. Currently absent (via repo.clone, task.create). |
 | 69 | Filter / select adoptable worktrees | Adopt filter, ↑/↓, Enter, Ctrl+A | ❌ | `worktree.adoptable` | Playwright: trigger 'Adopt filter'; expect 'filter / select adoptable worktrees' as in TUI. Currently absent (via worktree.adoptable). |
 | 70 | Adopt selected worktrees | Adopt Create | ❌ | `worktree.adopt` | Playwright: trigger 'Adopt Create'; expect 'adopt selected worktrees' as in TUI. Currently absent (via worktree.adopt). |
-| 71 | Cancel creation | Esc, close click | ❌ | local | Playwright: trigger 'Esc'; expect 'cancel creation' as in TUI. Currently absent (browser-local, no bridge call). |
+| 71 | Cancel creation | Esc, close click | ✅ | local | r2: Esc and `cancel` close the dialog with no task created. |
 
 ## Workspace tabs, sessions, splits, terminal
 
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
-| 72 | New engine tab (browser-reserved Ctrl+T; PROPOSED chord needs owner sign-off) | Ctrl+T | ❌ | `tab.new` | Playwright: trigger 'Ctrl+T'; expect 'new engine tab (browser-reserved Ctrl+T; PROPOSED chord needs owner sign-off)' as in TUI. Currently absent (via tab.new). |
-| 73 | Open new conversation picker | Ctrl+E | ❌ | `engines.list` | Playwright: trigger 'Ctrl+E'; expect 'open new conversation picker' as in TUI. Currently absent (via engines.list). |
-| 74 | Choose engine / shell / plugin pane | picker ←/→, Enter, click | ❌ | `tab.new` | Playwright: trigger 'picker ←/→'; expect 'choose engine / shell / plugin pane' as in TUI. Currently absent (via tab.new). |
+| 72 | New engine tab (browser-reserved Ctrl+T; PROPOSED chord needs owner sign-off) | Ctrl+T | 🟡 | `tab.new` | r2: tab-strip `+` opens the new-conversation picker. No chord. |
+| 73 | Open new conversation picker | Ctrl+E | 🟡 | `engines.list` | r2: `+`, row menu, and the empty pane's button open it. Ctrl+E not on the web. |
+| 74 | Choose engine / shell / plugin pane | picker ←/→, Enter, click | 🟡 | `tab.new` | r2: engine chips by click; no shell (#43) or plugin pane, no ←/→. |
 | 75 | Pick destination tab / fork / scratch | picker Tab/chips | ❌ | `tab.forkTask` | Playwright: trigger 'picker Tab/chips'; expect 'pick destination tab / fork / scratch' as in TUI. Currently absent (via tab.forkTask). |
 | 76 | Pick fresh / continue chat | picker Ctrl+F | ❌ | `tab.handoff` | Playwright: trigger 'picker Ctrl+F'; expect 'pick fresh / continue chat' as in TUI. Currently absent (via tab.handoff). |
 | 77 | Continue chat in same worktree new tab | prefix c | ❌ | `tab.handoff` | Playwright: trigger 'prefix c'; expect 'continue chat in same worktree new tab' as in TUI. Currently absent (via tab.handoff). |
@@ -111,8 +111,8 @@ Score: 3 / 201 rows at ✅ (4 🟡, 2 🚫, 192 ❌)
 | 81 | Attach / drop / paste image or PDF in composer | drop, Ctrl+V, Ctrl+X | ❌ | `attachment.put` | Playwright: trigger 'drop'; expect 'attach / drop / paste image or PDF in composer' as in TUI. Currently absent (via attachment.put). |
 | 82 | New Scratch task / shell | picker Scratch | ❌ | `task.create`, `tab.new` | Playwright: trigger 'picker Scratch'; expect 'new Scratch task / shell' as in TUI. Currently absent (via task.create, tab.new). |
 | 83 | Click tab / previous / next / jump N | tab strip click, Ctrl+[ / Ctrl+], Ctrl+1..9 | 🟡 | local | Click each tab in the strip: active terminal switches. Ctrl+1..9 / Ctrl+[ / Ctrl+] not wired: press Ctrl+2 and nothing changes. |
-| 84 | Close active tab (browser-reserved Ctrl+W; PROPOSED chord needs owner sign-off) | Ctrl+W, prefix w, row menu | ❌ | `tab.close` | Playwright: trigger 'Ctrl+W'; expect 'close active tab (browser-reserved Ctrl+W; PROPOSED chord needs owner sign-off)' as in TUI. Currently absent (via tab.close). |
-| 85 | Reopen empty task session | Enter/Ctrl+E in empty pane | ❌ | `tab.new` | Playwright: trigger 'Enter/Ctrl+E in empty pane'; expect 'reopen empty task session' as in TUI. Currently absent (via tab.new). |
+| 84 | Close active tab (browser-reserved Ctrl+W; PROPOSED chord needs owner sign-off) | Ctrl+W, prefix w, row menu | 🟡 | `tab.close` | r2: via the tab's right-click menu (#44). No chord. |
+| 85 | Reopen empty task session | Enter/Ctrl+E in empty pane | 🟡 | `tab.new` | r2: empty pane shows `New conversation`; needs a first message (#42). No Enter/Ctrl+E. |
 | 86 | Rename tab | F2 | ❌ | `tab.rename` | Playwright: trigger 'F2'; expect 'rename tab' as in TUI. Currently absent (via tab.rename). |
 | 87 | Split terminal right / down | Ctrl+\\ / Ctrl+= | ❌ | local | Playwright: trigger 'Ctrl+\\ / Ctrl+='; expect 'split terminal right / down' as in TUI. Currently absent (browser-local, no bridge call). |
 | 88 | Focus next split | F3, click leaf | ❌ | local | Playwright: trigger 'F3'; expect 'focus next split' as in TUI. Currently absent (browser-local, no bridge call). |
@@ -155,14 +155,14 @@ Score: 3 / 201 rows at ✅ (4 🟡, 2 🚫, 192 ❌)
 
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
-| 118 | Open Inbox | prefix i, sidebar status click | ❌ | `tasks.subscribe` | Playwright: trigger 'prefix i'; expect 'open Inbox' as in TUI. Currently absent (via tasks.subscribe). |
-| 119 | Navigate ATTENTION / RECENT rows | j/k, click | ❌ | local | Playwright: trigger 'j/k'; expect 'navigate ATTENTION / RECENT rows' as in TUI. Currently absent (browser-local, no bridge call). |
-| 120 | Open selected tab/task and clear episode | Enter, click | ❌ | `attention.dismiss`, `task.tabs` | Playwright: trigger 'Enter'; expect 'open selected tab/task and clear episode' as in TUI. Currently absent (via attention.dismiss, task.tabs). |
-| 121 | Dismiss pending ATTENTION without opening | d | ❌ | `attention.dismiss` | Playwright: trigger 'd'; expect 'dismiss pending ATTENTION without opening' as in TUI. Currently absent (via attention.dismiss). |
-| 122 | Open RECENT target | Enter, click | ❌ | `task.get` | Playwright: trigger 'Enter'; expect 'open RECENT target' as in TUI. Currently absent (via task.get). |
+| 118 | Open Inbox | prefix i, sidebar status click | 🟡 | `tasks.subscribe` | r2: click on the rail's inbox chip; prefix i not on the web. Dialog: ATTENTION from the daemon, RECENT from this browser's visits, TUI glyph/state words (`† engine exited`). |
+| 119 | Navigate ATTENTION / RECENT rows | j/k, click | 🟡 | local | Built (↑/↓/j/k, hover); keys not exercised this round. |
+| 120 | Open selected tab/task and clear episode | Enter, click | ✅ | `attention.dismiss`, `task.tabs` | r2: Enter on the first card opened that task (tab-strip title matched) and the ATTENTION count dropped by one. |
+| 121 | Dismiss pending ATTENTION without opening | d | ✅ | `attention.dismiss` | r2: `d` dropped one pending card; rail count followed. |
+| 122 | Open RECENT target | Enter, click | 🟡 | `task.get` | Built; RECENT rendered ("Renamed from web 1s"), opening one not exercised. |
 | 123 | Jump / cycle pending across projects | F7 | ❌ | `attention.dismiss` | Playwright: trigger 'F7'; expect 'jump / cycle pending across projects' as in TUI. Currently absent (via attention.dismiss). |
 | 124 | Open failed-routine attention target | Enter, click | ❌ | `attention.dismiss`, `routine.runs` | Playwright: trigger 'Enter'; expect 'open failed-routine attention target' as in TUI. Currently absent (via attention.dismiss, routine.runs). |
-| 125 | Dismiss toast | toast click / timeout | ❌ | local | Playwright: trigger 'toast click / timeout'; expect 'dismiss toast' as in TUI. Currently absent (browser-local, no bridge call). |
+| 125 | Dismiss toast | toast click / timeout | 🟡 | local | r2: toasts (`copied …`) appear bottom-right and time out after 4 s; no click-to-dismiss. |
 
 ## Kanban and local issue store
 
@@ -261,14 +261,18 @@ Score: 3 / 201 rows at ✅ (4 🟡, 2 🚫, 192 ❌)
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
 | 198 | View local/remote machine headers and stale state | sidebar machine section (read only) | ❌ | missing | Playwright: trigger 'sidebar machine section (read only)'; expect 'view local/remote machine headers and stale state' as in TUI. Currently absent (no bridge op yet). |
-| 199 | Respond to engine permission/decision prompts | type/click in the engine terminal | 🟡 | `term.input` | Same input path as #91, so it should work, but not yet exercised against a real engine's permission prompt. To verify: start a claude tab that asks for a tool permission, press the answer key in the xterm, see the engine proceed. |
+| 199 | Respond to engine permission/decision prompts | type/click in the engine terminal | ✅ | `term.input` | r2: a new Claude tab stopped on its folder-trust prompt; ArrowDown + Enter pressed in the web xterm picked "Yes, I trust this folder" and Claude started (screenshot r2-14). The Bash tool prompt was not reached: the sandbox Claude is not logged in. |
 
-## Verified this round
+## Verified so far
 
-Real browser, real daemon, `rove --web`:
+Real browser (headed Chromium), real sandbox daemon, `rove --web`. Each write was checked through `rove api`, not through the page.
+
+Round 1:
 
 - **Open from printed link (web-only row)**: opened the printed `/#token=…` link (source run on :7979 and packaged `dist/cli/rove.js` on :7980); the task list loaded and `location.hash` was `""` after load.
 - **See the task list (web-only row)**: the sandbox's three rows (main row `○`, two exited bash engines `!`) under the `rove-web-demo` project rule, each with its `engine` tab row; inbox count `2` matches the two pending attention rows. Compared with `docs/assets/workspace.png`: same rail grammar (project rule header, task row, indented tab rows, selection bar), quill colors instead of the terminal theme.
-- **#26 Open task/tab**: clicked a task row, then a tab row; the terminal attached and showed the replayed output. Click only; keyboard is #25 ❌.
+- **#26 Open task/tab**: clicked a task row, then a tab row; the terminal attached and showed the replayed output.
 
-Partial: #91 typing (`web-typed-42` round trip, but no paste yet), #199 (same input path, no real engine prompt tried yet), #83 tab-strip click, #56 inbox count. Screenshots: `.scratch/web/shots/r1b-*`, `r1headed-*`, `r1dist-*` (local only). Headless Chromium paints the WebGL terminal blank, so shots are taken headed (see MEMO).
+Round 2 (`.scratch/web/e2e-r2.ts`, `e2e-r2b.ts`, `e2e-perm.ts`; shots `r2-*`, `r2b-*`): #41, #44, #46–#49, #56, #67, #71, #120, #121, #199 at ✅; the 🟡 rows above say which half works. Compared with the TUI: the row menu carries the TUI's entries in `tree-menu.ts` order minus the ones the bridge cannot carry (New shell, Open in editor, Reorder, Run again, Fix checks, Sync base); the Inbox is a dialog like `AttentionInboxPane`, with its ATTENTION/RECENT sections and state words.
+
+Screenshots are local only. Headless Chromium paints the WebGL terminal blank, so shots are taken headed (see MEMO).

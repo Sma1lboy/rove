@@ -1,11 +1,22 @@
 /** The Tasks rail: wordmark + inbox count, then project → task → tab rows (TUI `tree-panel`). */
 
+import type { MouseEvent } from "react"
 import { useEffect, useState } from "react"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { t, useLocale } from "./i18n/index.ts"
+import { InboxDialog } from "./inbox-view.tsx"
 import type { AppModel } from "./model.ts"
 import { SPINNER, activityGlyph, groupByProject } from "./rail.ts"
+import { projectMenu, taskMenu } from "./row-actions.tsx"
 import { useStore } from "./store.ts"
+import { NewTaskDialog } from "./task-dialogs.tsx"
+import { type MenuItem, dialog, menu } from "./ui.ts"
+
+/** Right click opens the row's menu where the pointer is (TUI tree menu). */
+export function openMenu(e: MouseEvent, items: readonly MenuItem[]): void {
+  e.preventDefault()
+  menu.set({ x: e.clientX, y: e.clientY, items })
+}
 
 /** One shared spinner clock, only ticking while some row runs. */
 function useSpinnerFrame(running: boolean): number {
@@ -33,7 +44,13 @@ export function RailView({ model }: { model: AppModel }) {
         <span className="wordmark">
           <span className="bracket">[</span> rove <span className="bracket">]</span>
         </span>
-        <span className={`kicker ${unread > 0 ? "is-accent" : ""}`}>{t("rail.inbox", { count: unread })}</span>
+        <button
+          type="button"
+          className={`kicker inbox-chip ${unread > 0 ? "is-accent" : ""}`}
+          onClick={() => dialog.set(<InboxDialog model={model} />)}
+        >
+          {t("rail.inbox", { count: unread })}
+        </button>
       </header>
       <div className="rail-body">
         {payload && tasks.length === 0 && (
@@ -44,7 +61,11 @@ export function RailView({ model }: { model: AppModel }) {
         )}
         {groupByProject(tasks).map((group) => (
           <section key={group.repo} className="project">
-            <h2 className="project-head" title={group.repo}>
+            <h2
+              className="project-head"
+              title={group.repo}
+              onContextMenu={(e) => openMenu(e, projectMenu(model, group.repo))}
+            >
               <span>{group.label}</span>
               <span className="rule" />
             </h2>
@@ -57,11 +78,16 @@ export function RailView({ model }: { model: AppModel }) {
                 selectedTask={selection.taskId === task.id}
                 selectedTab={selection.taskId === task.id ? selection.tabId : null}
                 onSelect={(tabId) => model.select(task.id, tabId)}
+                onMenu={(e, tab) => openMenu(e, taskMenu(model, task, tab))}
               />
             ))}
           </section>
         ))}
       </div>
+      <button type="button" className="row new-task" onClick={() => dialog.set(<NewTaskDialog model={model} />)}>
+        <span className="glyph tone-accent">+</span>
+        <span className="row-title">{t("rail.newTask")}</span>
+      </button>
     </nav>
   )
 }
@@ -73,6 +99,7 @@ function TaskRows(props: {
   selectedTask: boolean
   selectedTab: string | null
   onSelect: (tabId: string | null) => void
+  onMenu: (e: MouseEvent, tab: TabRow | null) => void
 }) {
   const { task, tabs, frame } = props
   const glyph = activityGlyph(task.activity?.state, frame)
@@ -84,6 +111,7 @@ function TaskRows(props: {
         className={`row task-row ${props.selectedTask && tabs.length === 0 ? "is-selected" : ""}`}
         title={task.branch || task.title}
         onClick={() => props.onSelect(null)}
+        onContextMenu={(e) => props.onMenu(e, null)}
       >
         <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>
         <span className="row-title">{task.title}</span>
@@ -103,6 +131,7 @@ function TaskRows(props: {
           key={tab.id}
           className={`row tab-row ${props.selectedTab === tab.id ? "is-selected" : ""}`}
           onClick={() => props.onSelect(tab.id)}
+          onContextMenu={(e) => props.onMenu(e, tab)}
         >
           <span className={`glyph ${tab.alive === false ? "tone-muted" : "tone-ink"}`}>
             {tab.alive === false ? "○" : "●"}
