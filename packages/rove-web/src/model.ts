@@ -94,6 +94,13 @@ export class AppModel {
     else this.pendingSelect = taskId
   }
 
+  /** Where `s` and the PR chip deliver, like the TUI: the selected tab when it is an engine, else the bridge's default (first engine tab). */
+  engineTarget(taskId: string): { taskId: string; tabId?: string } {
+    const { taskId: selectedTask, tabId } = this.selection.get()
+    const tab = selectedTask === taskId ? this.tabs.get()[taskId]?.find((row) => row.id === tabId) : undefined
+    return tab?.kind === "engine" ? { taskId, tabId: tab.id } : { taskId }
+  }
+
   /** After a tab was opened or closed here: don't wait for the next push. */
   async refreshTabsNow(): Promise<void> {
     await this.refreshTabs(this.tasks.get()?.tasks ?? [])

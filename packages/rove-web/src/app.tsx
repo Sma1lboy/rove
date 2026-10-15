@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { forgetToken, saveToken } from "./auth.ts"
-import type { BridgeClient } from "./bridge.ts"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
@@ -15,6 +14,7 @@ import { NewChatDialog } from "./task-dialogs.tsx"
 import { TerminalView } from "./terminal-view.tsx"
 import { tokenFromInput } from "./token-input.ts"
 import { dialog, preview, zen } from "./ui.ts"
+import { UsageChips } from "./usage-view.tsx"
 
 export function App({ model }: { model: AppModel }) {
   useLocale()
@@ -34,7 +34,7 @@ function Shell({ model }: { model: AppModel }) {
       <RailView model={model} />
       <Workspace model={model} />
       {task && !zenOn && <FilesView key={task.id} model={model} task={task} />}
-      <StatusBar client={model.client} />
+      <StatusBar model={model} />
       <Overlays />
     </div>
   )
@@ -132,10 +132,15 @@ function Workspace({ model }: { model: AppModel }) {
   )
 }
 
-function StatusBar({ client }: { client: BridgeClient }) {
+/** TUI order: usage on the left; the right holds what the TUI has no need for (link state, host). */
+function StatusBar({ model }: { model: AppModel }) {
+  const client = model.client
   const conn = useStore(client.conn)
+  const selection = useStore(model.selection)
   return (
     <footer className="status">
+      <UsageChips client={client} taskId={selection.taskId} tabId={selection.tabId} />
+      <span className="spacer" />
       <span className={`dot state-${conn.state}`} />
       <span>
         {conn.state === "open"
@@ -149,7 +154,6 @@ function StatusBar({ client }: { client: BridgeClient }) {
           {t("status.retry")}
         </button>
       )}
-      <span className="spacer" />
       {conn.hello && (
         <span className="muted">{t("status.host", { host: conn.hello.host, version: conn.hello.roveVersion })}</span>
       )}

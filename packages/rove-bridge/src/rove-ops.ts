@@ -17,6 +17,7 @@ import {
   liveRowTokens,
 } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
+import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
 import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
 import { DEFAULT_GLYPHS } from "@sma1lboy/rove/src/tui/lib/glyphs.ts"
@@ -343,12 +344,9 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
     },
 
     async tabs(taskId) {
-      const [res, engineRows] = await Promise.all([
-        verb<{ tabs?: readonly TaskTabRow[] }>(client, "get-task", ["--task-id", taskId]),
-        tryRead(engines),
-      ])
-      const nameOf = (vendor: string | null): string | null =>
-        vendor ? (engineRows?.find((e) => e.builtin && e.protocol === vendor)?.name ?? vendor) : null
+      const res = await verb<{ tabs?: readonly TaskTabRow[] }>(client, "get-task", ["--task-id", taskId])
+      // Names only: the full engine list probes every binary, seconds on a cold bridge.
+      const nameOf = (vendor: string | null): string | null => (vendor ? engineDisplayName(vendor as VendorId) : null)
       return (res.tabs ?? []).map((t) => ({
         id: t.id,
         kind: t.kind,
