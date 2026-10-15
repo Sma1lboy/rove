@@ -62,7 +62,7 @@ export function RailView({ model }: { model: AppModel }) {
   const filters = useRailFilters()
   const moving = useStore(moveMode)
   const groups = groupByProject(tasks, filters.sort)
-  const rows = navRows(groups, tabsOf, tabLabel, filters.search.active ? filters.search.query : "")
+  const rows = navRows(groups, tabsOf, tabLabel, filters.search.active ? filters.search.query : "", filters.routines)
   const firstMovable = groups.find((group) => group.tasks.some((task) => task.kind === "main"))?.repo
   const projectInfo = (repo: string): ProjectInfo => ({
     mainTaskId: groups.find((group) => group.repo === repo)?.tasks.find((task) => task.kind === "main")?.id ?? null,
@@ -135,6 +135,7 @@ export function RailView({ model }: { model: AppModel }) {
             }
             onClick={() => {
               keys.setCursor(row.id)
+              if (row.kind === "routines") filters.toggleRoutines(row.repo)
               if (row.kind === "task") model.select(row.task.id)
               if (row.kind === "tab") model.select(row.task.id, row.tab.id)
             }}
@@ -146,6 +147,8 @@ export function RailView({ model }: { model: AppModel }) {
                 openMenu(e, projectMenu(model, row.repo, info))
                 return
               }
+              // The routines row names no task, so it has no menu (TUI `use-tree-menu`).
+              if (row.kind === "routines") return
               keys.setCursor(row.id)
               openMenu(e, taskMenu(model, row.task, row.kind === "tab" ? row.tab : null))
             }}
@@ -179,7 +182,7 @@ function RailRow(props: {
   const { row } = props
   const { prefs, glyphSets } = usePrefs()
   const glyphs: GlyphSet | undefined = glyphSets[prefs.glyphSet]
-  const mark = useTaskColor(row.kind === "project" ? null : row.task.id)
+  const mark = useTaskColor(row.kind === "project" || row.kind === "routines" ? null : row.task.id)
   const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""}`
   if (row.kind === "project") {
     return (
@@ -190,6 +193,25 @@ function RailRow(props: {
     )
   }
   const markDot = mark ? <span className="task-mark" style={{ background: mark }} aria-hidden="true" /> : null
+  if (row.kind === "routines") {
+    const waiting = row.expanded ? 0 : row.tasks.filter((task) => WAITING.has(task.activity?.state ?? "")).length
+    return (
+      <button
+        type="button"
+        className={`row routines-row ${props.selected ? "is-selected" : ""} ${cursor}`}
+        aria-expanded={row.expanded}
+        onClick={props.onClick}
+      >
+        <span className="glyph tone-muted">{row.expanded ? "▾" : "▸"}</span>
+        <span className="row-title muted">{tc("tasks", "routinesRow", { count: row.tasks.length })}</span>
+        {waiting > 0 && (
+          <span className="chip tone-attention">
+            {tc("tasks", "group.waitingOnYou")}: {waiting}
+          </span>
+        )}
+      </button>
+    )
+  }
   if (row.kind === "tab") {
     const tab = row.tab
     const dead = tab.alive === false
@@ -240,6 +262,9 @@ function RailRow(props: {
     </button>
   )
 }
+
+/** Sessions a closed fold flags: they need a person. */
+const WAITING: ReadonlySet<string> = new Set(["permission_needed", "error", "dead", "rate_limited"])
 
 export function tabLabel(tab: TabRow): string {
   return tab.title ?? tab.engineName ?? (tab.kind === "engine" ? t("tab.engine") : t("tab.shell"))

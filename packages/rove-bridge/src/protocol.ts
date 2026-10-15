@@ -80,6 +80,8 @@ export interface TaskRow {
   readonly deleting: boolean
   /** Additive row fields (all optional: absent = not collected / not known). */
   readonly pinned?: boolean
+  /** The standing session of a scheduled routine; clients fold these behind a per-project count row. */
+  readonly routine?: boolean
   /** Index in the daemon's own task list: the manual ("default") order. */
   readonly order?: number
   readonly createdAt?: string
