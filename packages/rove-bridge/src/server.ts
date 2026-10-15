@@ -1,13 +1,14 @@
 /**
- * The bridge's only network surface: one WebSocket endpoint. The token is
- * checked at the HTTP upgrade, before a socket exists; every frame afterwards
- * rides that authenticated socket and may only name a core op from `OPS` or an
- * area op registered in `ops/index.ts`. There is no other path to an op.
+ * The bridge's only network surface: one WebSocket endpoint, plus (under
+ * `rove --web`) the browser client's static files. The token is checked at the
+ * HTTP upgrade, before a socket exists; every frame afterwards rides that
+ * authenticated socket and may only name a core op from `OPS` or an area op
+ * registered in `ops/index.ts`. There is no other path to an op.
  */
 
 import { hostname as osHostname } from "node:os"
 import type { Server, ServerWebSocket } from "bun"
-import { presentedToken, tokenMatches } from "./auth.ts"
+import { WEB_SUBPROTOCOL, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
 import type { TaskFeed } from "./feed.ts"
 import type { NoticeFeed } from "./notices.ts"
@@ -30,6 +31,7 @@ import {
 } from "./protocol.ts"
 import type { RoveOps } from "./rove-ops.ts"
 import { type PtyHostClient, TerminalForwarder } from "./terminal.ts"
+import { type WebRoot, serveWebFile } from "./web-static.ts"
 
 export interface BridgeDeps {
   readonly token: string
@@ -48,6 +50,8 @@ export interface BridgeDeps {
   readonly api: BridgeApi
   /** Area op allowlist; defaults to `AREA_OPS` (tests inject their own). */
   readonly areaOps?: OpTable
+  /** Serve the browser client's files on plain GETs (`rove --web`). */
+  readonly web?: WebRoot
 }
 
 interface Conn {
@@ -177,6 +181,15 @@ async function onMessage(deps: BridgeDeps, ws: ServerWebSocket<Conn>, raw: strin
   }
 }
 
+/** `Origin` names the same host:port the request was sent to (default ports normalised by URL). */
+function sameHost(origin: string, host: string | null): boolean {
+  try {
+    return host !== null && new URL(origin).host === host.toLowerCase()
+  } catch {
+    return false
+  }
+}
+
 export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; port: number }): Server<Conn> {
   return Bun.serve<Conn, never>({
     hostname: listen.hostname,
@@ -193,12 +206,26 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
           return new Response("unauthorized\n", { status: 401 })
         }
       }
+      const upgrade = req.headers.get("upgrade")?.toLowerCase() === "websocket"
+      if (!upgrade && deps.web) {
+        const file = await serveWebFile(deps.web, req)
+        if (file) return file
+      }
+      // Phones send no Origin. A browser always does; one from another site never gets a socket,
+      // even holding the token. Absent Origin still needs the token below.
+      const origin = req.headers.get("origin")
+      if (origin !== null && !sameHost(origin, req.headers.get("host"))) {
+        log(`[rove-bridge] 403 from ${from}: cross-origin upgrade from ${origin}`)
+        return new Response("forbidden\n", { status: 403 })
+      }
       if (!tokenMatches(deps.token, presentedToken(req))) {
         log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
         return new Response("unauthorized\n", { status: 401 })
       }
       const data: Conn = { terminal: null, unsubscribeTasks: null, unsubscribeNotices: null }
-      if (server.upgrade(req, { data })) return undefined
+      // A browser drops a socket whose server did not pick one of its offered protocols.
+      const headers = offersWebSubprotocol(req) ? { "Sec-WebSocket-Protocol": WEB_SUBPROTOCOL } : undefined
+      if (server.upgrade(req, { data, headers })) return undefined
       return new Response("rove-bridge speaks WebSocket only\n", { status: 426 })
     },
     websocket: {
