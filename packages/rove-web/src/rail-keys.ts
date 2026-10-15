@@ -27,12 +27,20 @@ function loadSort(): SortMode {
 export function useRailFilters() {
   const [sort, setSort] = useState<SortMode>(loadSort)
   const [search, setSearch] = useState({ active: false, query: "" })
+  // Open routine count rows (project repos); session-scoped, as the TUI's `expandedRoutines`.
+  const [routines, setRoutines] = useState<ReadonlySet<string>>(new Set())
+  const toggleRoutines = (repo: string) =>
+    setRoutines((now) => {
+      const next = new Set(now)
+      if (!next.delete(repo)) next.add(repo)
+      return next
+    })
   const cycleSort = () => {
     const next = SORT_MODES[(SORT_MODES.indexOf(sort) + 1) % SORT_MODES.length] ?? "default"
     setSort(next)
     localStorage.setItem(SORT_KEY, next)
   }
-  return { sort, cycleSort, search, setSearch }
+  return { sort, cycleSort, search, setSearch, routines, toggleRoutines }
 }
 
 export type RailFilters = ReturnType<typeof useRailFilters>
@@ -57,7 +65,8 @@ export function useRailKeys(
     if (at < 0)
       setCursor(opts.selectedId && rows.some((r) => r.id === opts.selectedId) ? opts.selectedId : (rows[0]?.id ?? null))
   }, [at, rows, opts.selectedId])
-  const cursorTaskId = rows[at]?.task.id ?? null
+  const cursorRow = rows[at]
+  const cursorTaskId = cursorRow && cursorRow.kind !== "routines" ? cursorRow.task.id : null
   useEffect(() => railCursorTask.set(cursorTaskId), [cursorTaskId])
   // Top match on every search keystroke, as the TUI.
   const firstId = rows[0]?.id ?? null
@@ -71,17 +80,18 @@ export function useRailKeys(
     if (row) setCursor(row.id)
   }
   const open = (row: Stop | undefined) => {
+    if (row?.kind === "routines") filters.toggleRoutines(row.repo)
     if (row?.kind === "task") model.select(row.task.id)
     if (row?.kind === "tab") model.select(row.task.id, row.tab.id)
   }
   const verb = (row: Stop | undefined, key: string) => {
-    if (!row) return
+    if (!row || row.kind === "routines") return
     taskMenu(model, row.task, null)
       .find((item) => item.key === key)
       ?.run()
   }
   const cycleEngine = async (row: Stop | undefined) => {
-    if (!row) return
+    if (!row || row.kind === "routines") return
     try {
       const { engines } = await model.client.request<{ engines: Array<{ id: string; name: string; ready?: boolean }> }>(
         "engines.list",
@@ -116,9 +126,9 @@ export function useRailKeys(
     if (moveMode.get()) {
       // Only the move keys answer; `sidebar.*` verbs are off while a row is being dragged.
       if (e.key === "j" || e.key === "ArrowDown") {
-        if (row) void moveRow(model, row, 1)
+        if (row && row.kind !== "routines") void moveRow(model, row, 1)
       } else if (e.key === "k" || e.key === "ArrowUp") {
-        if (row) void moveRow(model, row, -1)
+        if (row && row.kind !== "routines") void moveRow(model, row, -1)
       } else if (e.key === "Enter" || e.key === "Escape" || e.key === "M") moveMode.set(false)
       else return
       e.preventDefault()
@@ -169,7 +179,7 @@ export function useRailKeys(
         setSearch({ active: true, query: "" })
         break
       case "n":
-        opts.onNewTask(row?.task.repo)
+        opts.onNewTask(row?.kind === "routines" ? row.repo : row?.task.repo)
         break
       case "s":
         opts.onSettings()

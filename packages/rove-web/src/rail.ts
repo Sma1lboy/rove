@@ -23,6 +23,14 @@ export type NavRow =
   | { readonly id: string; readonly kind: "project"; readonly repo: string }
   | { readonly id: string; readonly kind: "task"; readonly task: TaskRow }
   | { readonly id: string; readonly kind: "tab"; readonly task: TaskRow; readonly tab: TabRow }
+  /** One row folding a project's routine sessions (`tree-core.ts` `routines`). */
+  | {
+      readonly id: string
+      readonly kind: "routines"
+      readonly repo: string
+      readonly tasks: readonly TaskRow[]
+      readonly expanded: boolean
+    }
 
 const taskTime = (task: TaskRow): number => {
   const parsed = Date.parse(task.updatedAt ?? task.createdAt ?? "")
@@ -42,6 +50,8 @@ const COMPARE: Record<SortMode, ((a: TaskRow, b: TaskRow) => number) | null> = {
   attention: compareAttention,
   name: compareName,
 }
+
+export const routinesRowId = (repo: string): string => `~routines:${repo}`
 
 export const repoLabel = (repo: string): string => repo.split("/").filter(Boolean).pop() ?? repo
 
@@ -74,6 +84,7 @@ export function navRows(
   tabsOf: (taskId: string) => readonly TabRow[],
   tabLabel: (tab: TabRow) => string,
   query = "",
+  expandedRoutines: ReadonlySet<string> = new Set(),
 ): NavRow[] {
   const q = query.trim()
   const hit = (...fields: string[]) => fields.some((f) => f !== "" && fuzzyMatch(q, f))
@@ -81,6 +92,8 @@ export function navRows(
   for (const group of groups) {
     const projectHit = q === "" || hit(group.label)
     const under: NavRow[] = []
+    const routines: TaskRow[] = []
+    const routineRows: NavRow[] = []
     for (const task of group.tasks) {
       const tabs = tabsOf(task.id)
       const taskHit = projectHit || hit(task.title, task.branch, repoLabel(task.repo))
@@ -88,7 +101,17 @@ export function navRows(
         .filter((tab) => taskHit || hit(tabLabel(tab)))
         .map((tab): NavRow => ({ id: `${task.id}::${tab.id}`, kind: "tab", task, tab }))
       if (!taskHit && tabRows.length === 0) continue
-      under.push({ id: task.id, kind: "task", task }, ...tabRows)
+      // Routine sessions are the tail of the group: a count row folds them.
+      if (task.routine) {
+        routines.push(task)
+        routineRows.push({ id: task.id, kind: "task", task }, ...tabRows)
+      } else under.push({ id: task.id, kind: "task", task }, ...tabRows)
+    }
+    if (routines.length > 0) {
+      // Search builds fully open, so a folded routine stays findable.
+      const expanded = q !== "" || expandedRoutines.has(group.repo)
+      under.push({ id: routinesRowId(group.repo), kind: "routines", repo: group.repo, tasks: routines, expanded })
+      if (expanded) under.push(...routineRows)
     }
     if (under.length === 0 && !projectHit) continue
     rows.push({ id: `project:${group.repo}`, kind: "project", repo: group.repo }, ...under)
