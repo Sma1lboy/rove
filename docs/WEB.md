@@ -30,11 +30,18 @@ already paired with `rove-bridge` keeps working: the two share one token.
   conversation, close tab, rename, rename branch, pin, set status, change
   engine, copy the task ID, branch or path, land, delete.
 - `+ New task` at the bottom of the rail, and `+` in the tab strip for a new
-  conversation. A new tab needs a first message; the TUI's picker does not.
+  conversation. The first message is optional, as in the TUI's picker: without
+  one you get a plain engine (or shell) tab. A fork to new tasks needs one.
 - The Inbox: click `INBOX n` at the top of the rail. `↑↓` moves, Enter opens
   the session and clears it, `d` clears it without opening.
 
-There are no keyboard shortcuts outside dialogs and menus yet.
+The keyboard works as in the TUI: the rail's own keys (`j`/`k`, Enter, `n`,
+`/`, `r`, `d` and the rest of the sidebar chords), the `ctrl+a` prefix layer
+with its guide, F1 help and the command palette, and the direct chords such as
+Ctrl+E, Ctrl+1..9, F2–F5 and F7. Your `~/.rove/settings/keybindings.yaml`
+applies here too. Chords the browser keeps for itself never reach the page:
+close a tab with `ctrl+a w` or the menu instead of Ctrl+W, open one with `+` or
+Ctrl+E instead of Ctrl+T, and there is no Ctrl+Q (a page cannot quit itself).
 
 [web/PARITY.md](web/PARITY.md) lists every TUI action and whether the web
 has it yet.
