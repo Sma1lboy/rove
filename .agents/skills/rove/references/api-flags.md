@@ -123,7 +123,8 @@ pane-open      --task-id --tab --command --direction{right|down}(right)
 pane-close     --task-id --title(REQ) --tab
 pane-graphics  --task-id --tab(REQ) --image-id
 tab-close      --task-id(REQ) --tab(REQ)
-tab-new        --task-id(REQ) --kind{shell|engine}(REQ) --command
+tab-new        --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ) --command
+               --file --pane --tab --view-task
 tab-split      --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
                --direction{right|down}(right) --leaf --title --cols --rows
 notify         --title(REQ) --body --kind(done) --task-id --source
