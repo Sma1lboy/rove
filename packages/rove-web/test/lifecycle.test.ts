@@ -205,6 +205,54 @@ test("a failed worktree materialization leaves the selection where it was", asyn
   expect(model.selection.get().taskId).toBe("A")
 })
 
+test("switching away while a worktree is materializing keeps the newer selection", async () => {
+  const { model, calls } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }, { id: "B", noWorktree: true }], attention: [] })
+  await flush()
+  model.select("A")
+  model.select("B")
+  model.select("A")
+  calls.find((call) => call.op === "task.ensureWorktree")?.resolve({ worktreePath: "/wt/B" })
+  await flush()
+  expect(model.selection.get().taskId).toBe("A")
+  // Provisioned anyway: the next click selects B at once, without a second request.
+  model.select("B")
+  expect(model.selection.get().taskId).toBe("B")
+  expect(calls.filter((call) => call.op === "task.ensureWorktree")).toHaveLength(1)
+})
+
+test("two materializations resolving out of order leave the last click selected", async () => {
+  const { model, calls } = modelHarness()
+  calls[0].resolve({
+    tasks: [{ id: "A" }, { id: "B", noWorktree: true }, { id: "C", noWorktree: true }],
+    attention: [],
+  })
+  await flush()
+  model.select("A")
+  model.select("B")
+  model.select("C")
+  const ensure = (id: string) => calls.find((call) => call.op === "task.ensureWorktree" && call.args.taskId === id)
+  ensure("C")?.resolve({ worktreePath: "/wt/C" })
+  await flush()
+  expect(model.selection.get().taskId).toBe("C")
+  ensure("B")?.resolve({ worktreePath: "/wt/B" })
+  await flush()
+  expect(model.selection.get().taskId).toBe("C")
+  expect(model.tasks.get()?.tasks.filter((task) => task.noWorktree)).toEqual([])
+})
+
+test("a task removed while its worktree materializes is not selected", async () => {
+  const { model, calls, push } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }, { id: "B", noWorktree: true }], attention: [] })
+  await flush()
+  model.select("A")
+  model.select("B")
+  push("tasks", { tasks: [{ id: "A" }], attention: [] })
+  calls.find((call) => call.op === "task.ensureWorktree")?.resolve({ worktreePath: "/wt/B" })
+  await flush()
+  expect(model.selection.get().taskId).toBe("A")
+})
+
 function terminals() {
   install("document", { addEventListener() {}, removeEventListener() {}, activeElement: null })
   install(

@@ -68,8 +68,10 @@ export class AppModel {
   private tabSweep = 0
   /** A task just created here: select it once the feed lists it. */
   private pendingSelect: string | null = null
-  /** Tasks whose worktree is being materialized, so a second click doesn't start another. */
-  private readonly provisioning = new Set<string>()
+  /** Bumped by every user selection; a worktree reply selects only if no newer one happened since. */
+  private selectIntent = 0
+  /** Tasks whose worktree is being materialized, with the selection their reply may still apply. */
+  private readonly provisioning = new Map<string, { intent: number; tabId: string | null }>()
 
   constructor(readonly client: BridgeClient) {
     client.onOpen(() => {
@@ -83,12 +85,18 @@ export class AppModel {
   }
 
   select(taskId: string, tabId: string | null = null): void {
+    const intent = ++this.selectIntent
     // As the TUI's `activateWorkspaceTask`: a task with no worktree yet is materialized first,
     // and selected only once that worked.
     if (this.tasks.get()?.tasks.find((task) => task.id === taskId)?.noWorktree) {
-      void this.provisionThenSelect(taskId, tabId)
+      if (this.provisioning.has(taskId)) this.provisioning.set(taskId, { intent, tabId })
+      else void this.provisionThenSelect(taskId, { intent, tabId })
       return
     }
+    this.commitSelection(taskId, tabId)
+  }
+
+  private commitSelection(taskId: string, tabId: string | null): void {
     const tabs = this.tabs.get()[taskId] ?? []
     const next = { taskId, tabId: tabId ?? preferredTab(tabs)?.id ?? null }
     this.selection.set(next)
@@ -101,19 +109,21 @@ export class AppModel {
     localStorage.setItem(VISITS_KEY, JSON.stringify(visits))
   }
 
-  private async provisionThenSelect(taskId: string, tabId: string | null): Promise<void> {
-    if (this.provisioning.has(taskId)) return
-    this.provisioning.add(taskId)
+  private async provisionThenSelect(taskId: string, request: { intent: number; tabId: string | null }): Promise<void> {
+    this.provisioning.set(taskId, request)
+    let ok = true
     try {
       await this.client.request("task.ensureWorktree", { taskId })
     } catch (err) {
+      ok = false
       toast(err instanceof Error ? err.message : String(err), "error")
-      return
-    } finally {
-      this.provisioning.delete(taskId)
     }
+    const latest = this.provisioning.get(taskId) ?? request
+    this.provisioning.delete(taskId)
+    if (!ok) return
     this.markProvisioned(taskId)
-    this.select(taskId, tabId)
+    const listed = this.tasks.get()?.tasks.some((task) => task.id === taskId) ?? false
+    if (listed && latest.intent === this.selectIntent) this.commitSelection(taskId, latest.tabId)
   }
 
   /** The next `tasks` push carries the path; until then the row must not provision again. */
@@ -186,7 +196,7 @@ export class AppModel {
     const selected = this.selection.get()
     if (selected.taskId !== taskId) return
     const tabs = this.tabs.get()[taskId] ?? []
-    if (!tabs.some((tab) => tab.id === selected.tabId)) this.select(taskId)
+    if (!tabs.some((tab) => tab.id === selected.tabId)) this.commitSelection(taskId, null)
   }
 }
 

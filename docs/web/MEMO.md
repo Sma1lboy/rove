@@ -29,17 +29,23 @@ Decisions and traps for whoever runs the next round. Coverage lives in
   is built by `packages/rove/scripts/build.ts` into `dist/web`; `web-cmd.ts`
   looks there, then at `packages/rove-web/dist` for source runs. The compiled
   standalone binary has neither and says so.
-- **Look.** quill tokens (dark half = the TUI's default `claude` theme), mono
-  for structure, system face for titles, terracotta as the only accent.
-  Layout mirrors the TUI: Tasks rail | workspace, footer across. Light mode
-  and theme choice are PARITY rows, not done.
+- **Look.** quill tokens, mono for structure, system face for titles. Layout
+  mirrors the TUI: Tasks rail | workspace, footer across. Colours come from
+  the TUI's own prefs: `prefs.get` resolves each TUI theme to `#rrggbb` per
+  slot, `prefs-theme.ts` maps the chosen theme's dark or light half onto the
+  `:root` tokens (`auto` follows the browser's colour scheme, as the TUI
+  follows the terminal's), and `prefs-apply.ts` paints them and re-reads on
+  connect and window focus, so a change made in the TUI shows up here.
 - **i18n.** `src/i18n/{en,zh}.ts`, English is the source of truth like the
-  TUI catalog; `test/web.test.ts` checks key and placeholder parity. Locale
-  follows the browser until web Settings exists.
+  TUI catalog; `test/web.test.ts` checks key and placeholder parity. The
+  locale is the TUI's `locale` setting from bridge prefs (`prefs.ts` keeps
+  `i18n/index.ts` in step); the browser language is only the first-load
+  guess before any prefs reply was cached.
 - **Shared PTY size.** The page resizes the session to its own grid, as the
   phones do. The TUI redraws at that size while the page is open. Open.
-- **xterm theme duplicated** from `rove-harness` (frozen). Derive both from
-  `claude.json` when theme switching lands.
+- **xterm colours** come from the same palette (`xtermTheme`, published as
+  `terminalTheme`); `term-mount.ts`'s built-in dark `XTERM_THEME` only shows
+  until the first prefs reply.
 
 ## How to verify a round
 
@@ -76,7 +82,10 @@ Always screenshot headed. Cost one round of three wrong fixes.
   `docs/assets/workspace.png`: same three-region grammar (rail with project
   rule headers and per-tab rows, bordered workspace, footer); the web has no
   Files column and no footer usage/commands yet. Next: a harness capture of
-  the same sandbox for side-by-side shots.
+  the same sandbox for side-by-side shots. At this round light mode, theme
+  choice and the locale were not wired: the page used the dark `claude`
+  tokens, followed the browser's language, and its xterm theme was a copy of
+  `rove-harness`'s.
 - **Round 2** (branch `web/round-2`, stacked on round 1): right-click menus
   on project/task/tab rows in `tree-menu.ts` order, new-task dialog
   (`task.spawn`), new-conversation picker (`tab.new`), close tab, rename,
