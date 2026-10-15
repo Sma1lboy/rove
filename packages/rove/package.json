@@ -24,7 +24,16 @@
   "bin": {
     "rove": "dist/cli/rove.js"
   },
-  "files": ["dist/cli", "dist/completions", "dist/web-ui", "dist/skills", "dist/*.wav", "README.md", "LICENSE"],
+  "files": [
+    "dist/cli",
+    "dist/completions",
+    "dist/web",
+    "dist/web-ui",
+    "dist/skills",
+    "dist/*.wav",
+    "README.md",
+    "LICENSE"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -88,6 +97,7 @@
     "@vitest/coverage-v8": "2.1.9",
     "knip": "^6.14.2",
     "react-devtools-core": "^7.0.1",
+    "rove-bridge": "0.0.8",
     "rove-weixin": "0.0.8",
     "typescript": "5.8.2",
     "vitest": "2.1.9"

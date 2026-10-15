@@ -57,6 +57,7 @@
         "@vitest/coverage-v8": "2.1.9",
         "knip": "^6.14.2",
         "react-devtools-core": "^7.0.1",
+        "rove-bridge": "0.0.8",
         "rove-weixin": "0.0.8",
         "typescript": "5.8.2",
         "vitest": "2.1.9",
@@ -167,6 +168,29 @@
         "@types/node": "^22.20.5",
         "typescript": "5.8.2",
         "vitest": "2.1.9",
+      },
+    },
+    "packages/rove-web": {
+      "name": "rove-web",
+      "version": "0.0.1",
+      "dependencies": {
+        "@fontsource/jetbrains-mono": "^5.2.8",
+        "@xterm/addon-fit": "^0.11.0",
+        "@xterm/addon-unicode11": "^0.9.0",
+        "@xterm/addon-web-links": "^0.12.0",
+        "@xterm/addon-webgl": "^0.19.0",
+        "@xterm/xterm": "^6.0.0",
+        "react": "^19.2.8",
+        "react-dom": "^19.2.8",
+      },
+      "devDependencies": {
+        "@types/bun": "1.3.14",
+        "@types/react": "^19.2.17",
+        "@types/react-dom": "^19.2.0",
+        "@vitejs/plugin-react": "^6.0.4",
+        "rove-bridge": "0.0.8",
+        "typescript": "5.8.2",
+        "vite": "^8.2.2",
       },
     },
     "packages/rove-weixin": {
@@ -2116,6 +2140,8 @@
     "rove-bridge": ["rove-bridge@workspace:packages/rove-bridge"],
 
     "rove-harness": ["rove-harness@workspace:packages/rove-harness"],
+
+    "rove-web": ["rove-web@workspace:packages/rove-web"],
 
     "rove-weixin": ["rove-weixin@workspace:packages/rove-weixin"],
 
