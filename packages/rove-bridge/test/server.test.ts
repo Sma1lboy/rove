@@ -243,6 +243,32 @@ describe("op allowlist", () => {
   })
 })
 
+describe("op.progress", () => {
+  test("an op's progress lines reach only the socket that asked, tagged with that request's id, before its reply", async () => {
+    const areaOps: OpTable = {
+      "demo.slow": {
+        kind: "read",
+        destructive: false,
+        wraps: "test",
+        run: async (_args, ctx) => {
+          ctx.progress?.("one")
+          ctx.progress?.("two")
+          return {}
+        },
+      },
+    }
+    const h = start({ areaOps })
+    const asker = await connect(h.url, AUTH)
+    const bystander = await connect(h.url, AUTH)
+    await asker.call("demo.slow")
+    expect(asker.pushes.filter((p) => p.event === "op.progress").map((p) => p.data)).toEqual([
+      { id: 1, line: "one" },
+      { id: 1, line: "two" },
+    ])
+    expect(bystander.pushes.filter((p) => p.event === "op.progress")).toEqual([])
+  })
+})
+
 describe("tab.new", () => {
   test("without a prompt it opens an empty tab (engine by default); a shell with a prompt or engine is BAD_ARGS", async () => {
     const seen: Array<[string, unknown]> = []

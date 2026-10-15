@@ -35,6 +35,7 @@ export class BridgeRequestError extends Error {
 interface Pending {
   readonly resolve: (value: unknown) => void
   readonly reject: (err: Error) => void
+  readonly progress?: (line: string) => void
 }
 
 const BACKOFF_MS = [500, 1000, 2000, 4000, 8000, 15000]
@@ -74,14 +75,15 @@ export class BridgeClient {
     return () => set.delete(handler)
   }
 
-  request<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
+  /** `onProgress` receives the `op.progress` lines an op streams while it runs (a clone's git output). */
+  request<T>(op: string, args: Record<string, unknown> = {}, onProgress?: (line: string) => void): Promise<T> {
     const ws = this.ws
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       return Promise.reject(new BridgeRequestError("NOT_CONNECTED", "not connected to rove"))
     }
     const id = this.nextId++
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { resolve: (v) => resolve(v as T), reject })
+      this.pending.set(id, { resolve: (v) => resolve(v as T), reject, progress: onProgress })
       ws.send(JSON.stringify({ id, op, args }))
     })
   }
@@ -122,6 +124,11 @@ export class BridgeClient {
     if (!frame || typeof frame !== "object") return
     if ("event" in frame && typeof frame.event === "string") {
       const data = "data" in frame ? frame.data : undefined
+      if (frame.event === "op.progress") {
+        const p = data as { id?: unknown; line?: unknown } | undefined
+        if (typeof p?.id === "number" && typeof p.line === "string") this.pending.get(p.id)?.progress?.(p.line)
+        return
+      }
       for (const handler of this.listeners.get(frame.event) ?? []) handler(data)
       return
     }

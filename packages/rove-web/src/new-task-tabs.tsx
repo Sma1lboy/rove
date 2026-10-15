@@ -25,6 +25,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
   const [parent, setParent] = useState(() => localStorage.getItem(PARENT_KEY) || "~/")
   const [folder, setFolder] = useState<string | null>(null)
   const [baseRef, setBaseRef] = useState("main")
+  const [progress, setProgress] = useState("")
   const [parentOpen, setParentOpen] = useState(false)
   const [dirs, setDirs] = useState<{ base: string; home: string; names: readonly string[] }>({
     base: "",
@@ -57,11 +58,16 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
       }
       let cloned: { path: string }
       try {
-        cloned = await model.client.request<{ path: string }>("repo.clone", {
-          url: url.trim(),
-          parentDir,
-          ...(folder?.trim() ? { folder: folder.trim() } : {}),
-        })
+        setProgress("")
+        cloned = await model.client.request<{ path: string }>(
+          "repo.clone",
+          {
+            url: url.trim(),
+            parentDir,
+            ...(folder?.trim() ? { folder: folder.trim() } : {}),
+          },
+          setProgress,
+        )
       } catch (err) {
         if (err instanceof BridgeRequestError && err.code === "CLONE_FAILED") {
           throw new Error(tc("newTask", "error.cloneFailed", { error: err.message }))
@@ -159,7 +165,11 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
           onChange={(e) => setBaseRef(e.target.value.replace(/[\r\n]+/g, ""))}
         />
       </div>
-      {busy && <p className="muted">{tc("newTask", "clone.progressInto", { target: `${parentDir}/${folderName}` })}</p>}
+      {busy && (
+        <p className="muted" data-field="clone-progress">
+          {progress || tc("newTask", "clone.progressInto", { target: `${parentDir}/${folderName}` })}
+        </p>
+      )}
       {error && <p className="error">※ {error}</p>}
       <DialogActions busy={busy} submitLabel={tc("newTask", busy ? "button.cloning" : "button.create")} />
     </form>
