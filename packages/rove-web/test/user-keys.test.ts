@@ -2,7 +2,16 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { RoveKeymap } from "@sma1lboy/rove/src/tui/context/keybindings-table.ts"
 import { type KeyPress, chordCandidates } from "../src/chord.ts"
 import { allCommands, registerCommands } from "../src/commands.ts"
-import { DEFAULT_USER_KEYS, type UserKeys, prefixHint, setUserKeys, userKeys } from "../src/user-keys.ts"
+import {
+  DEFAULT_USER_KEYS,
+  type PluginChord,
+  type UserKeys,
+  pluginChordsLive,
+  pluginHit,
+  prefixHint,
+  setUserKeys,
+  userKeys,
+} from "../src/user-keys.ts"
 
 const press = (key: string, extra: Partial<KeyPress> = {}): KeyPress => ({
   key,
@@ -104,5 +113,31 @@ describe("the user's keybindings.yaml on the page", () => {
       setUserKeys(file({ rows: [{ id: "chat.tab.close", keys: ["ctrl+w"], prefixKeys: ["x"] }] }))
       expect(allCommands().some((c) => c.id === "chat.tab.close" && !c.prefix)).toBe(false)
     })
+  })
+})
+
+describe("plugin chords against the TUI's dispatch", () => {
+  const ping: PluginChord = { chord: "ctrl+k", kind: "action", target: "acme.ping" }
+  const board: PluginChord = { chord: "f8", kind: "pane", target: "acme.board" }
+  const upper: PluginChord = { chord: "shift+p", kind: "pane", target: "acme.upper" }
+  const lower: PluginChord = { chord: "p", kind: "pane", target: "acme.lower" }
+
+  test("a press is matched by candidate order, not by the order of the file: shift+p beats p", () => {
+    expect(pluginHit([lower, upper], chordCandidates(press("P", { shiftKey: true })))).toBe(upper)
+    expect(pluginHit([lower, upper], chordCandidates(press("p")))).toBe(lower)
+  })
+
+  test("a chord the file does not bind is no hit, and a modifier is part of the chord", () => {
+    expect(pluginHit([ping, board], chordCandidates(press("k")))).toBeUndefined()
+    expect(pluginHit([ping, board], chordCandidates(press("k", { ctrlKey: true })))).toBe(ping)
+    expect(pluginHit([ping, board], chordCandidates(press("F8")))).toBe(board)
+  })
+
+  test("live like the TUI's pagesClosed: off under a dialog, Worktrees or Update; Kanban and the rest stay live", () => {
+    expect(pluginChordsLive({ dialog: false, page: null })).toBe(true)
+    expect(pluginChordsLive({ dialog: false, page: "kanban" })).toBe(true)
+    expect(pluginChordsLive({ dialog: true, page: null })).toBe(false)
+    expect(pluginChordsLive({ dialog: false, page: "worktrees" })).toBe(false)
+    expect(pluginChordsLive({ dialog: false, page: "update" })).toBe(false)
   })
 })

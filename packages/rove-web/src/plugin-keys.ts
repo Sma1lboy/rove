@@ -12,7 +12,7 @@ import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { dialog, page, toast } from "./ui.ts"
-import { type PluginChord, userKeys } from "./user-keys.ts"
+import { type PluginChord, pluginChordsLive, pluginHit, userKeys } from "./user-keys.ts"
 import { typingInField } from "./workspace-keys.tsx"
 
 async function fire(model: AppModel, binding: PluginChord): Promise<void> {
@@ -42,10 +42,9 @@ export function usePluginChords(model: AppModel): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const bound = userKeys.get().plugins
-      const full = page.get() === "worktrees" || page.get() === "update"
-      if (bound.length === 0 || full || dialog.get() || typingInField(e.target)) return
-      const candidates = chordCandidates(e)
-      const hit = bound.find((binding) => candidates.includes(binding.chord))
+      if (bound.length === 0 || !pluginChordsLive({ dialog: dialog.get() !== null, page: page.get() })) return
+      if (typingInField(e.target)) return
+      const hit = pluginHit(bound, chordCandidates(e))
       if (!hit) return
       e.preventDefault()
       e.stopImmediatePropagation()
