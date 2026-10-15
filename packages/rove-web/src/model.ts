@@ -60,7 +60,7 @@ export class AppModel {
     if (this.tabTimer !== null) return
     this.tabTimer = window.setTimeout(() => {
       this.tabTimer = null
-      void this.refreshTabs(payload.tasks)
+      void this.refreshTabs(this.tasks.get()?.tasks ?? [])
     }, TAB_REFRESH_DEBOUNCE_MS)
   }
 
