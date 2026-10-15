@@ -18,8 +18,9 @@ import { DialogShell } from "./dialogs.tsx"
 import { useLocale } from "./i18n/index.ts"
 import { actionDesc, categoryName, helpText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
-import { PREFIX_KEY } from "./prefix-state.ts"
+import { useStore } from "./store.ts"
 import { closeDialog, dialog } from "./ui.ts"
+import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
 
 const displayCap = (cap: string): string =>
   cap
@@ -46,19 +47,21 @@ function HelpDialog({
   origin,
 }: { model: AppModel; surface: Surface | null; origin: HTMLElement | null }) {
   useLocale()
+  const keys = useStore(userKeys)
   const [filtering, setFiltering] = useState(false)
   const [query, setQuery] = useState("")
   const scroll = useRef<HTMLDivElement>(null)
   const reach = useMemo(() => reachability(model, surface), [model, surface])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the user's chords moving re-labels the rows
   const sections = useMemo(
     () =>
       grammarHelpSections(
         boundKeymap(),
         (surface === "terminal" ? "terminal" : surface) as HelpSurface | null,
-        PREFIX_KEY,
+        prefixKey(),
         reach,
       ),
-    [reach, surface],
+    [reach, surface, keys],
   )
   const shown = sections
     .map((section) => ({
@@ -99,7 +102,7 @@ function HelpDialog({
                 ? helpText("focused", { surface: categoryName(scopeCategory(surface)) })
                 : helpText("allBindings")}
             </p>
-            <p className="muted">{helpText("grammar", { prefix: formatChord(PREFIX_KEY) })}</p>
+            <p className="muted">{helpText("grammar", { prefix: prefixCap() })}</p>
           </div>
           <div className="help-corner">
             <span className="subtle">{helpText("scrollKeys")}</span>

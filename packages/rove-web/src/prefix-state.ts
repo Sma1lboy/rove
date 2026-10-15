@@ -1,12 +1,8 @@
-/** The prefix layer's shared state: the key, and what the HUD shows (TUI `prefix-hud.ts`). */
+/** The prefix layer's shared state: what the HUD shows (TUI `prefix-hud.ts`). */
 
 import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS } from "@sma1lboy/rove/src/tui/lib/prefix-hud.ts"
 import { createStore } from "./store.ts"
 
-/** `DEFAULT_PREFIX_CONFIGURATION.key`. */
-export const PREFIX_KEY = "ctrl+a"
-/** `DEFAULT_PREFIX_CONFIGURATION.timeoutMs`. */
-export const PREFIX_TIMEOUT_MS = 5000
 /** Fast users finish inside this; learners then get the complete command map. */
 export const GUIDE_DELAY_MS = PREFIX_GUIDE_DELAY_MS
 /** A resolved line stays this long. */

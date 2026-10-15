@@ -6,6 +6,7 @@
 
 import type { KeyboardEvent } from "react"
 import { useEffect, useRef, useState } from "react"
+import { chordCandidates } from "./chord.ts"
 import { t } from "./i18n/index.ts"
 import { enterWorkspace } from "./layout.ts"
 import type { AppModel } from "./model.ts"
@@ -14,6 +15,7 @@ import { railCursorTask } from "./rail-aim.ts"
 import { type NavRow, SORT_MODES, type SortMode } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
 import { page, toast } from "./ui.ts"
+import { keysOf } from "./user-keys.ts"
 
 const SORT_KEY = "rove.activeSortMode"
 /** Second `g` of `gg` must land within this. */
@@ -47,6 +49,41 @@ export function useRailFilters() {
 export type RailFilters = ReturnType<typeof useRailFilters>
 
 type Stop = Exclude<NavRow, { kind: "project" | "machine" }>
+
+/** The TUI binding ids the rail answers to (`keybindings-sidebar.ts`, `task.new`, Settings, Worktrees). */
+const RAIL_IDS = [
+  "sidebar.nav",
+  "sidebar.goto",
+  "sidebar.select",
+  "sidebar.tree.open",
+  "sidebar.rename",
+  "sidebar.pin",
+  "sidebar.localMerge",
+  "sidebar.delete",
+  "sidebar.sort",
+  "sidebar.search.enter",
+  "tasks.renameBranch",
+  "tasks.cycleEngine",
+  "tasks.openWorktree",
+  "tasks.update",
+  "tasks.focusEngine",
+  "task.new",
+  "settings.open.sidebar",
+  "worktrees.open.sidebar",
+] as const
+
+type RailId = (typeof RAIL_IDS)[number]
+
+/** The rail binding a key press is, by the live keymap (the user's chords included); `slot` is the chord's place in the row's `keys`. */
+function railAction(candidates: readonly string[]): { id: RailId; slot: number } | null {
+  for (const candidate of candidates) {
+    for (const id of RAIL_IDS) {
+      const slot = keysOf(id).indexOf(candidate)
+      if (slot >= 0) return { id, slot }
+    }
+  }
+  return null
+}
 
 export function useRailKeys(
   model: AppModel,
@@ -86,10 +123,10 @@ export function useRailKeys(
     if (row?.kind === "tab") model.select(row.task.id, row.tab.id)
     if (row) enterWorkspace()
   }
-  const verb = (row: Stop | undefined, key: string) => {
+  const verb = (row: Stop | undefined, id: RailId) => {
     if (!row || row.kind === "routines" || row.machine !== undefined) return
     taskMenu(model, row.task, null)
-      .find((item) => item.key === key)
+      .find((item) => item.binding === id)
       ?.run()
   }
   const cycleEngine = async (row: Stop | undefined) => {
@@ -110,9 +147,9 @@ export function useRailKeys(
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if (e.metaKey || e.ctrlKey || e.altKey) return
     const row = rows[at]
     if (search.active) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === "Escape") setSearch({ active: false, query: "" })
       else if (e.key === "Enter") {
         open(row)
@@ -125,71 +162,64 @@ export function useRailKeys(
       e.preventDefault()
       return
     }
+    const hit = railAction(chordCandidates(e))
     if (moveMode.get()) {
       // Only the move keys answer; `sidebar.*` verbs are off while a row is being dragged.
-      if (e.key === "j" || e.key === "ArrowDown") {
-        if (row && row.kind !== "routines" && row.machine === undefined) void moveRow(model, row, 1)
-      } else if (e.key === "k" || e.key === "ArrowUp") {
-        if (row && row.kind !== "routines" && row.machine === undefined) void moveRow(model, row, -1)
-      } else if (e.key === "Enter" || e.key === "Escape" || e.key === "M") moveMode.set(false)
+      const movable = row && row.kind !== "routines" && row.machine === undefined
+      if (hit?.id === "sidebar.nav") {
+        if (movable) void moveRow(model, row, hit.slot % 2 === 0 ? 1 : -1)
+      } else if (hit?.id === "sidebar.localMerge" || e.key === "Enter" || e.key === "Escape") moveMode.set(false)
       else return
       e.preventDefault()
       return
     }
-    switch (e.key) {
-      case "j":
-      case "ArrowDown":
-        move(at + 1)
+    switch (hit?.id) {
+      case "sidebar.nav":
+        move(hit.slot % 2 === 0 ? at + 1 : at - 1)
         break
-      case "k":
-      case "ArrowUp":
-        move(at - 1)
-        break
-      case "g":
-        if (Date.now() - gAt.current < GG_MS) {
+      case "sidebar.goto":
+        if (hit.slot % 2 === 1) move(rows.length - 1)
+        else if (Date.now() - gAt.current < GG_MS) {
           move(0)
           gAt.current = 0
         } else gAt.current = Date.now()
         break
-      case "G":
-        move(rows.length - 1)
-        break
-      case "Enter":
-      case "l":
-      case " ":
+      case "sidebar.select":
+      case "sidebar.tree.open":
         open(row)
         break
-      case "ArrowRight":
+      case "tasks.focusEngine":
         document.querySelector<HTMLElement>(".term-slot:not(.is-hidden) textarea")?.focus()
         break
-      case "r":
-      case "b":
-      case "P":
-      case "d":
-        verb(row, e.key)
+      case "sidebar.rename":
+      case "sidebar.pin":
+      case "sidebar.delete":
+      case "tasks.renameBranch":
+      case "tasks.openWorktree":
+        verb(row, hit.id)
         break
-      case "v":
+      case "tasks.cycleEngine":
         void cycleEngine(row)
         break
-      case "M":
+      case "sidebar.localMerge":
         if (row?.machine === undefined) moveMode.set(true)
         break
-      case "t":
+      case "sidebar.sort":
         filters.cycleSort()
         break
-      case "/":
+      case "sidebar.search.enter":
         setSearch({ active: true, query: "" })
         break
-      case "n":
+      case "task.new":
         opts.onNewTask(row?.machine !== undefined ? undefined : row?.kind === "routines" ? row.repo : row?.task.repo)
         break
-      case "s":
+      case "settings.open.sidebar":
         opts.onSettings()
         break
-      case "x":
+      case "worktrees.open.sidebar":
         page.set("worktrees")
         break
-      case "u":
+      case "tasks.update":
         page.set("update")
         break
       default:

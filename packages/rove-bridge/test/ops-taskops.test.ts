@@ -11,6 +11,9 @@ const deps = (over: Partial<TaskOpsDeps> = {}): TaskOpsDeps => ({
   buildCIPrompt: async (wt, s) => `fix ${s.branch} in ${wt}: ${s.checks.map((c) => c.jobName).join(",")}`,
   reorderTab: () => true,
   openExternal: () => {},
+  detectOpener: () => ({ id: "env", label: "myeditor", command: "myeditor", args: [] }),
+  openWorktree: () => true,
+  exists: () => true,
   canonical: (path) => path,
   runnable: () => false,
   ...over,
@@ -123,6 +126,72 @@ describe("tab.move", () => {
     await expect(run("tab.move", { taskId: T, tabId: "../x", direction: "up" })).rejects.toMatchObject({
       code: "BAD_ARGS",
     })
+  })
+})
+
+describe("task.openEditor", () => {
+  const opener = { id: "env", label: "myeditor", command: "myeditor", args: [] }
+  const task = { "get-task": { task: { worktreePath: "/w/a" } } }
+
+  test("opens the task's worktree with the Mac's editor; the client names only the task", async () => {
+    const spawned: Array<[string, string]> = []
+    const d = deps({
+      detectOpener: () => opener,
+      openWorktree: (path, o) => {
+        spawned.push([path, o.command])
+        return true
+      },
+    })
+    const { result, calls } = await run("task.openEditor", { taskId: T }, task, d)
+    expect(result).toEqual({ outcome: "opened", label: "myeditor" })
+    expect(spawned).toEqual([["/w/a", "myeditor"]])
+    expect(calls).toEqual([{ verb: "get-task", argv: [`--task-id=${T}`] }])
+  })
+
+  test("a task whose worktree is missing on disk is materialised first, as the TUI does", async () => {
+    const spawned: string[] = []
+    const onDisk: Record<string, true> = {}
+    const d = deps({
+      exists: (path) => path in onDisk,
+      openWorktree: (path) => {
+        spawned.push(path)
+        return true
+      },
+    })
+    const replies = {
+      "get-task": { task: { worktreePath: "" } },
+      "ensure-worktree": () => {
+        onDisk["/w/new"] = true
+        return { worktreePath: "/w/new" }
+      },
+    }
+    const { calls } = await run("task.openEditor", { taskId: T }, replies, d)
+    expect(spawned).toEqual(["/w/new"])
+    expect(calls.map((c) => ("verb" in c ? c.verb : c.rpc))).toEqual(["get-task", "ensure-worktree"])
+  })
+
+  test("no editor and a refused spawn are separate outcomes, and nothing is spawned without an editor", async () => {
+    let spawned = 0
+    const none = deps({
+      detectOpener: () => null,
+      openWorktree: () => {
+        spawned++
+        return true
+      },
+    })
+    expect((await run("task.openEditor", { taskId: T }, task, none)).result).toEqual({ outcome: "noEditor" })
+    expect(spawned).toBe(0)
+    const refused = deps({ detectOpener: () => opener, openWorktree: () => false })
+    expect((await run("task.openEditor", { taskId: T }, task, refused)).result).toEqual({
+      outcome: "failed",
+      label: "myeditor",
+    })
+  })
+
+  test("a worktree that cannot be materialised is NO_WORKTREE", async () => {
+    const d = deps({ exists: () => false })
+    const replies = { "get-task": { task: {} }, "ensure-worktree": { worktreePath: "/w/gone" } }
+    await expect(run("task.openEditor", { taskId: T }, replies, d)).rejects.toMatchObject({ code: "NO_WORKTREE" })
   })
 })
 

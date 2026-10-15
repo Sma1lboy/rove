@@ -12,8 +12,9 @@ import { DialogShell } from "./dialogs.tsx"
 import { useLocale } from "./i18n/index.ts"
 import { actionDesc, helpText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
-import { PREFIX_KEY } from "./prefix-state.ts"
+import { useStore } from "./store.ts"
 import { closeDialog, dialog, toast } from "./ui.ts"
+import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
 
 /** Rows shown at once; the list scrolls inside (the TUI caps it at ten). */
 const VISIBLE_ROWS = 10
@@ -45,8 +46,8 @@ export function paletteRows(model: AppModel, surface: Surface | null): PaletteRo
     rows.push({
       command,
       name: actionDesc(command.id),
-      chord: command.prefix ? `${formatChord(PREFIX_KEY)} + ${formatChord(key)}` : formatChord(key),
-      raw: command.prefix ? `${PREFIX_KEY} + ${key}` : key,
+      chord: command.prefix ? `${prefixCap()} + ${formatChord(key)}` : formatChord(key),
+      raw: command.prefix ? `${prefixKey()} + ${key}` : key,
     })
   }
   return rows
@@ -66,7 +67,9 @@ function PaletteDialog({
   const [query, setQuery] = useState("")
   const [selected, setSelected] = useState(0)
   const list = useRef<HTMLDivElement>(null)
-  const rows = useMemo(() => paletteRows(model, surface), [model, surface])
+  const keys = useStore(userKeys)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the user's chords moving re-labels the rows
+  const rows = useMemo(() => paletteRows(model, surface), [model, surface, keys])
   const shown = rows.filter((row) => matchesHelpAction(query, row.name, row.raw))
   const index = Math.min(selected, Math.max(0, shown.length - 1))
 

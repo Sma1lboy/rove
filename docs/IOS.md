@@ -172,6 +172,10 @@ Area ops in `packages/rove-bridge/src/ops/taskops.ts`; the client never names a 
 | `plugin.panes` | — | `{panes: [{id: "<plugin>.<pane>", title, placement: "split" \| "tab"}]}` (read-only): panes of enabled plugins, never their commands | `listPaneLaunches` |
 | `plugin.paneOpen` | `taskId`, `pane`, `tabId?` (the tab to split) | `{tabId, leaf?}`; the pane's argv comes from the plugin manifest on the Mac | `tab-new --kind pane` |
 | `tab.openViewport` | `taskId`, `viewTaskId` (same project) | `{tabId}`; a tab that shows `viewTaskId`'s first engine session (its rows carry `viewOf`) | `tab-new --kind viewport` |
+| `task.openEditor` | `taskId` | `{outcome: "opened" \| "noEditor" \| "failed", label?}`: the task's worktree (materialised first when missing) in the Mac's editor, as the TUI's `o` (`ROVE_OPEN_EDITOR`, else an installed editor CLI or app); the command is never the client's | helpers `detectWorktreeOpener` + `openWorktree` |
+| `keybindings.get` | — | `{path, exists, rows: [{id, keys, prefixKeys?, hint?}], prefix: {key, firstStrokes, timeoutMs}, plugins: [{chord, kind: "pane" \| "action", target}], applied, warnings}` (read-only): what the TUI's `keybindings.yaml` parser makes of the file, only the rows it changed | `resolveUserKeybindings` |
+| `keybindings.createFile` | — | `{path, created}`: writes the fixed, fully commented starter; `created: false` when a `.yaml`/`.yml` already exists (never overwritten) | `createKeybindingsFile` |
+| `plugin.chordAction` | `chord` | `{target}`; runs the plugin action the Mac's own `keybindings.yaml` binds to that chord, detached. `NOT_BOUND` for anything else | `rove plugin action invoke` |
 
 Task rows also carry optional `hasPrompt` (a stored brief exists, for Run again); engine rows carry optional `acceptsModel`.
 

@@ -4,17 +4,16 @@
  * engine → branch; Ctrl+E steps the engine; Ctrl+X drops the last attachment.
  */
 
-import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
 import { useState } from "react"
 import { AttachmentChips, useAttachments, withRefs } from "./attachments.tsx"
 import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { PREFIX_KEY } from "./prefix-state.ts"
 import { cycleStop } from "./tab-stops.ts"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
+import { prefixHint } from "./user-keys.ts"
 
 /** The attempts a prompt can fan out to; the TUI stops at 5 (`ORCHESTRATION.md`: 3-4 is the sweet spot). */
 export const ATTEMPTS = ["1", "2", "3", "4", "5"] as const
@@ -102,7 +101,7 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
           void attach(Array.from(e.dataTransfer.files))
         }}
       >
-        <p className="muted">{tc("onboarding", "quickIntent", { key: `${formatChord(PREFIX_KEY)} n` })}</p>
+        <p className="muted">{tc("onboarding", "quickIntent", { key: prefixHint("task.new.global") })}</p>
         <label className="field">
           <span className="kicker">{tc("quickTask", "promptLabel")}</span>
           <textarea

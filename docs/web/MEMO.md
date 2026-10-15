@@ -174,7 +174,7 @@ Always screenshot headed. Cost one round of three wrong fixes.
   - Strokes mirrored: n , i h l z p/P w. Not yet: / (palette), m (move), o
     (can't), r (refresh/redraw), 1/2/3 (pages), c/f (fork), k/u (fix checks,
     sync base: no bridge op).
-  - User prefix overrides in `keybindings.yaml` are not read by the web.
+  - User prefix overrides in `keybindings.yaml`: see Round w3.
   - Dialogs focus themselves on open; before, Esc died inside xterm.
 - **Owner, 2026-10-15:** no more round-by-round stops or reports. Keep
   slicing PRs for review, work straight through PARITY, message only when all
@@ -194,3 +194,18 @@ Always screenshot headed. Cost one round of three wrong fixes.
   `inbox-open-action.ts`, phones' `InboxLogic.clearsOnVisit`. Today
   `inbox-view.tsx` `open()` dismisses unconditionally; that is the line to
   change. Two `—` rows in PARITY track it.
+- **Round w3** (`web/w3`): Open in editor and the user's `keybindings.yaml`.
+  - `task.openEditor` reuses the TUI's `detectWorktreeOpener`/`openWorktree`; the
+    only editor config is the Mac's (`ROVE_OPEN_EDITOR`). Verify with it pointed at
+    a script that records argv; without it detection falls back to a real GUI app.
+  - `keybindings.get` runs the TUI parser on a copy of the default keymap (the pure
+    `tui/lib/keybindings-resolve.ts`, factored out of `keybindings-user.ts`; no TUI
+    behaviour change). The web applies the changed rows onto its own `RoveKeymap`
+    (`user-keys.ts`), so F1, the palette, the guide and hints read the user's chords.
+  - Chords are matched by `chord.ts` (`chordCandidates`, the TUI's `matchKey` order),
+    not by hard-coded keys; ACTIONS and the rail take their defaults from the keymap.
+    A user override replaces only the kind (direct or prefix) it changed, so
+    browser-reserved defaults are never adopted wholesale.
+  - Live reload is a re-read on window focus; the TUI's is a daemon push.
+  - Plugin `action:` chords go through `plugin.chordAction`, which resolves the target
+    from the Mac's own file; `pane:` chords use `plugin.paneOpen`.

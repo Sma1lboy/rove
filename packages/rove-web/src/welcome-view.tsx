@@ -8,10 +8,11 @@ import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
 import { useEffect, useState } from "react"
 import { useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { PREFIX_KEY } from "./prefix-state.ts"
 import { type EngineChip, type QuickStart, QuickStartDialog } from "./quick-start-dialog.tsx"
+import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog } from "./ui.ts"
+import { prefixCap, prefixHint, userKeys } from "./user-keys.ts"
 import "./welcome.css"
 
 interface WelcomeEnv {
@@ -42,6 +43,7 @@ function fixesFor(env: WelcomeEnv): Array<{ id: string; label: string; action: s
 
 export function WelcomePane({ model }: { model: AppModel }) {
   useLocale()
+  useStore(userKeys)
   const [env, setEnv] = useState<WelcomeEnv | null>(null)
   useEffect(() => {
     let live = true
@@ -55,9 +57,9 @@ export function WelcomePane({ model }: { model: AppModel }) {
   }, [model])
 
   const steps = [
-    { cap: `${formatChord(PREFIX_KEY)} n`, msg: "stepNew" },
+    { cap: prefixHint("task.new.global"), msg: "stepNew" },
     { cap: formatChord("f1"), msg: "stepHelp" },
-    { cap: formatChord(PREFIX_KEY), msg: "stepPrefix" },
+    { cap: prefixCap(), msg: "stepPrefix" },
   ] as const
   const engineLine =
     env === null
@@ -109,7 +111,7 @@ export function WelcomePane({ model }: { model: AppModel }) {
           >
             {tc("onboarding", "quickStart")}
           </button>
-          <p className="muted">{tc("onboarding", "quickIntent", { key: `${formatChord(PREFIX_KEY)} n` })}</p>
+          <p className="muted">{tc("onboarding", "quickIntent", { key: prefixHint("task.new.global") })}</p>
         </div>
       )}
       <p className="muted welcome-docs">{tc("workspace", "welcome.docsHint")}</p>

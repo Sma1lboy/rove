@@ -14,14 +14,16 @@ import {
   shortcutCaption,
 } from "@sma1lboy/rove/src/tui/lib/shortcut-reveal.ts"
 import { useEffect, useState } from "react"
+import { strokeText } from "./chord.ts"
 import { allCommands, appliesOn, currentSurface, reachability, specificity } from "./commands.ts"
 import { useLocale } from "./i18n/index.ts"
 import { actionLabel, categoryName, helpText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
-import { GUIDE_DELAY_MS, HUD_TTL_MS, PREFIX_KEY, hud } from "./prefix-state.ts"
+import { GUIDE_DELAY_MS, HUD_TTL_MS, hud } from "./prefix-state.ts"
 import { runPrefixStroke } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
 import { useStore } from "./store.ts"
+import { prefixKey, userKeys } from "./user-keys.ts"
 
 interface GuideOption {
   readonly stroke: string
@@ -80,6 +82,7 @@ function useDeadline(deadline: number | null): void {
 export function PrefixHud({ model }: { model: AppModel }) {
   useLocale()
   const state = useStore(hud)
+  useStore(userKeys)
   useStore(model.selection)
   const now = Date.now()
   const fresh = state.entries.filter((entry) => now - entry.at < HUD_TTL_MS)
@@ -93,7 +96,7 @@ export function PrefixHud({ model }: { model: AppModel }) {
   if (showGuide && state.guide) {
     const direct = state.guide.kind === "direct"
     const options = direct
-      ? directGuideOptions(reachability(model, currentSurface()), PREFIX_KEY)
+      ? directGuideOptions(reachability(model, currentSurface()), prefixKey())
       : prefixOptions(model)
     return (
       <output
@@ -103,7 +106,7 @@ export function PrefixHud({ model }: { model: AppModel }) {
       >
         <div className="prefix-guide-head">
           <span className="tone-accent">
-            {direct ? helpText("directLayer") : helpText("commandLayer", { prefix: PREFIX_KEY })}
+            {direct ? helpText("directLayer") : helpText("commandLayer", { prefix: prefixKey() ?? "" })}
           </span>
           <span className="muted">{direct ? helpText("releaseCtrl") : helpText("escCancel")}</span>
         </div>
@@ -119,7 +122,7 @@ export function PrefixHud({ model }: { model: AppModel }) {
                   disabled={direct}
                   onClick={() => strokes[0] && runPrefixStroke(model, strokes[0])}
                 >
-                  <span className="prefix-hud-key">{strokes.join("/")}</span>
+                  <span className="prefix-hud-key">{strokes.map(strokeText).join("/")}</span>
                   <span>{labelOf(action)}</span>
                 </button>
               ))}
@@ -134,13 +137,13 @@ export function PrefixHud({ model }: { model: AppModel }) {
     <output className="prefix-hud mono">
       {fresh.map((entry) => (
         <div key={entry.id} className="prefix-hud-head">
-          <span className="tone-accent">{PREFIX_KEY}</span> + {entry.stroke} →{" "}
+          <span className="tone-accent">{prefixKey()}</span> + {entry.stroke} →{" "}
           {entry.action ? labelOf(entry.action) : <span className="muted">∅</span>}
         </div>
       ))}
       {armedAt !== null && (
         <div className="prefix-hud-head">
-          <span className="tone-accent">{PREFIX_KEY}</span> ⋯
+          <span className="tone-accent">{prefixKey()}</span> ⋯
         </div>
       )}
     </output>
@@ -150,12 +153,13 @@ export function PrefixHud({ model }: { model: AppModel }) {
 /** A keycap over a control that already names a binding, shown only while the prefix is armed (`local` mode); a click runs the binding's stroke. */
 export function ShortcutBadge({ model, bindingId }: { model: AppModel; bindingId: string }) {
   const state = useStore(hud)
+  useStore(userKeys)
   const mode = usePrefs().prefs.prefixTap
   if (state.guide?.kind !== "prefix" || mode !== "local") return null
   const caption = shortcutCaption({
     bindingId,
     reachability: reachability(model, currentSurface()),
-    prefixKey: PREFIX_KEY,
+    prefixKey: prefixKey(),
   })
   if (!caption) return null
   const stroke = allCommands().find((command) => command.id === bindingId && command.prefix)?.chords[0]

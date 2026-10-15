@@ -9,6 +9,7 @@
  */
 
 import { useEffect } from "react"
+import { chordCandidates } from "./chord.ts"
 import { type WebCommand, allCommands, appliesOn, currentSurface, registerCommands, specificity } from "./commands.ts"
 import { TextDialog } from "./dialogs.tsx"
 import { openHelp } from "./help-view.tsx"
@@ -22,7 +23,7 @@ import { tabLabel } from "./rail-view.tsx"
 import { isSplit } from "./split-model.ts"
 import { dialog, page, preview, toast } from "./ui.ts"
 
-function typingInField(target: EventTarget | null): boolean {
+export function typingInField(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   // xterm's own textarea is the terminal, not a field.
   if (target.closest(".xterm")) return false
@@ -32,13 +33,6 @@ function typingInField(target: EventTarget | null): boolean {
 /** Enter in the rail opens a row; in an empty pane it starts a conversation. */
 function inRail(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && !!target.closest(".rail, button, a")
-}
-
-/** A keypress as `RoveKeymap` spells it: `ctrl+e`, `f4`, `ctrl+pageup`. */
-function chordOf(e: KeyboardEvent): string {
-  const key = e.key.toLowerCase()
-  const name = key.startsWith("arrow") ? key.slice(5) : key
-  return `${e.ctrlKey ? "ctrl+" : ""}${e.shiftKey && e.key.length > 1 ? "shift+" : ""}${name}`
 }
 
 const tabsOf = (model: AppModel) => model.tabs.get()[model.selection.get().taskId ?? ""] ?? []
@@ -118,8 +112,15 @@ const COMMANDS: readonly WebCommand[] = [
     prefix: false,
     surface: "workspace",
     live: hasTabs,
-    run: (model, chord = "ctrl+1") => go(model, Number(chord.slice("ctrl+".length)) - 1),
+    run: (model, chord = "") => {
+      const slot =
+        allCommands()
+          .find((c) => c.id === "chat.tab.goto" && !c.prefix)
+          ?.chords.indexOf(chord) ?? -1
+      if (slot >= 0) go(model, slot)
+    },
   },
+  { id: "attention.next", chords: ["f7"], prefix: false, run: (model) => jumpToNextAttention(model) },
 ]
 
 registerCommands(() => COMMANDS)
@@ -127,31 +128,35 @@ registerCommands(() => COMMANDS)
 export function useWorkspaceKeys(model: AppModel): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (dialog.get() || typingInField(e.target) || e.metaKey || e.altKey) return
+      if (dialog.get() || typingInField(e.target)) return
       const open = page.get()
       // A full-window page covers the sidebar and the workspace; the rail pages only the workspace.
       if (open === "worktrees") return
-      if (e.key === "F7" && !e.ctrlKey && !e.shiftKey) {
-        e.preventDefault()
-        e.stopPropagation()
-        jumpToNextAttention(model)
-        return
-      }
       const surface = currentSurface() ?? (inTask(model) ? "workspace" : "sidebar")
       const { taskId: taskNow } = model.selection.get()
-      if (!open && taskNow && !e.ctrlKey && !e.shiftKey && e.key === "Enter" && !hasTabs(model) && !inRail(e.target)) {
+      if (
+        !open &&
+        taskNow &&
+        !e.ctrlKey &&
+        !e.shiftKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.key === "Enter" &&
+        !hasTabs(model) &&
+        !inRail(e.target)
+      ) {
         e.preventDefault()
         e.stopPropagation()
         dialog.set(<NewChatDialog model={model} taskId={taskNow} />)
         return
       }
-      const chord = chordOf(e)
+      const candidates = chordCandidates(e)
       const command = allCommands()
         .filter(
           (c) =>
             !c.prefix &&
             !c.native &&
-            c.chords.includes(chord) &&
+            c.chords.some((chord) => candidates.includes(chord)) &&
             appliesOn(c, surface) &&
             !(open && c.surface) &&
             c.live?.(model) !== false,
@@ -160,7 +165,10 @@ export function useWorkspaceKeys(model: AppModel): void {
       if (!command) return
       e.preventDefault()
       e.stopPropagation()
-      command.run(model, chord)
+      command.run(
+        model,
+        candidates.find((candidate) => command.chords.includes(candidate)),
+      )
     }
     window.addEventListener("keydown", onKey, { capture: true })
     return () => window.removeEventListener("keydown", onKey, { capture: true })
