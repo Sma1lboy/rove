@@ -82,9 +82,6 @@ export const zh: typeof en = {
     deleteBodyTask: "删除任务条目和它的 worktree。git 分支会保留。它的托管会话会被停止。",
     delete: "删除",
     forceDelete: "强制删除",
-    landTitle: "合入「{title}」？",
-    landBody: "把 {branch} 合并进它的基础分支。",
-    landed: "已合入 {base} · {commit}",
   },
   newTask: {
     title: "新建任务",

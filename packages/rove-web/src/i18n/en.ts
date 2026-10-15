@@ -81,9 +81,6 @@ export const en = {
     deleteBodyTask: "Removes the task entry and its worktree. The git branch stays. Its hosted sessions are stopped.",
     delete: "delete",
     forceDelete: "force delete",
-    landTitle: 'Land "{title}"?',
-    landBody: "Merges {branch} into its base branch.",
-    landed: "landed on {base} · {commit}",
   },
   newTask: {
     title: "new task",
