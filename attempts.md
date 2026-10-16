@@ -153,3 +153,15 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Why it did not count.** The hint calls disappeared from the trace, but the 0.00 commit (3) stayed, so it has a second source that the setState, external-store and mismatch traces don't show. Clean runs read root 10.0 and 10.3, workspace 9.3 and 9.4 (baseline 9.5 / 9.1): no drop. Not kept.
 
 **Next candidates.** (a) Find commit (3)'s real source. A setState from a layout effect, a ref callback or a class component is not traced. Try also wrapping `useLayoutEffect`/`useInsertionEffect` bodies, or log `scheduleUpdateOnFiber` from a patched reconciler copy. (b) Fold commits 6–7: seed the first geometry measurement from the outgoing Terminal's last body size when the layout key is unchanged. Read `use-terminal-geometry.ts`'s header (inline ref, 0x0 first attach) and 10-05 first. (c) Reduce `bumpStackVersion` churn (one bump per effect flush instead of per registration).
+
+## 2026-10-16 — notes (main 0c4d57a)
+
+**No regression.** Run 1 was clean on every count. Timings moved within tolerance (boot.firstFrame.ms 935). Over the three main runs tonight, root read 9.7/9.9/10.0 and workspace 9.3/9.3/9.3. The baseline was not moved. #1255 (Files memo) is still open, so Files was left alone.
+
+**Landed tonight as a PR from `perf/nightly-2026-10-16`:** candidate (b) from 10-15, in a simpler form. `bumpGeomTick` (the body box's `onSizeChange`) now measures `bodyEl` itself, through a ref mirrored by `setBodyEl`, so `geomTick` and `bodyRows`/`bodyGeometry` land in one batch. The passive effect still measures on attach and on `dims`, and its re-run after the tick sets equal values and bails. This folds commits 6–7 of the 10-15 anatomy. switch.perOp.commit.workspace 9.3 → 8.3/8.7/8.4/8.3 and root 9.7–10.0 → 8.8/9.4/8.8/8.8 over 4 runs. Frame, spawns and timings are unchanged.
+
+**Pre-existing on main (unchanged):** the render tests "the Clone tab's parent dir walks the same way" and "a multi-line paste is delivered as one paste" still fail. Run 1 of the change flagged golden.cli-startup-ms 69.6 (machine noise, as on earlier nights).
+
+**Sandbox:** the harness Playwright asks for headless shell rev 1228 at `chrome-headless-shell-linux64/`; the root asks for 1194 at `chrome-linux/`. The shim needs both.
+
+**Next:** the acquire `setPty` commit (8) still follows the measuring commit. Folding it would mean acquiring in a layout effect or in the measure callback itself. Read the `use-terminal-geometry.ts` header first: the PTY must boot at its real size.
