@@ -10,6 +10,7 @@
  */
 
 import type { EngineUsageSnapshot } from "@/types/engine"
+import { isObject } from "../is-object"
 
 export function copilotUsageToSnapshot(value: unknown): EngineUsageSnapshot | undefined {
   if (!isObject(value)) return undefined
@@ -32,10 +33,6 @@ export function copilotUsageToSnapshot(value: unknown): EngineUsageSnapshot | un
     ...(cached > 0 ? { cache_read_input_tokens: cached } : {}),
     ...(context > 0 ? { context_tokens: context } : {}),
   }
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
 }
 
 function numberOr(value: unknown, fallback: number): number {

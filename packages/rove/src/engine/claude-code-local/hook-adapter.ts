@@ -17,11 +17,11 @@ import { join } from "node:path"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import type { EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
+import { isObject } from "../is-object.ts"
 import { JsonHookAdapter, editJsonSettings } from "../json-hook-adapter.ts"
 import {
   type HookEventSpec,
   buildActivityHooks,
-  isObject,
   mergeActivityHooks as mergeActivityHooksCore,
   removeRoveHooks,
   removeWorktreeWatchHook,

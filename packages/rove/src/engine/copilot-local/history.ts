@@ -5,6 +5,7 @@ import type { EngineHistory, EngineUsageSnapshot, Message } from "@/types/engine
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
 import { createAppendParseCache } from "../history-cache"
 import { sameHistoryWorktree } from "../history-worktree"
+import { isObject } from "../is-object"
 import { vendorConfigHome } from "../vendor-home"
 import { copilotUsageToSnapshot } from "./usage"
 
@@ -274,7 +275,3 @@ function foldEvents(raw: string, prev: CopilotParseState): CopilotParseState {
 }
 
 const PREVIEW_CHAR_CAP = 200
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-}
