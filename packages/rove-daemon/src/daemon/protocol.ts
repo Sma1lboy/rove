@@ -29,6 +29,7 @@ export {
   type NoticeEventPayload,
   type EngineLifecyclePayload,
   type SessionDeliverPayload,
+  type TabAddPayload,
   type TabClosePayload,
   type TabOpenPayload,
   type TabRenamePayload,
@@ -171,6 +172,9 @@ export type DaemonRequestName =
   // Broadcast on `tab.rename` (`rove api update --tab`). No reply: rename is
   // idempotent and the CLI also writes the persisted snapshot.
   | "terminalTab.rename"
+  // Broadcast on `tab.add` (`rove api tab-new`): the CLI already wrote the
+  // persisted row; this tells attached TUIs so they absorb it.
+  | "terminalTab.add"
   // Toast to every attached UI on `notice.event` (`rove api notify`).
   | "notice.send"
   // OPAQUE graphics bytes for each attached GUI's tty (`rove api pane-graphics`),

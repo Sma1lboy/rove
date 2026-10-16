@@ -87,7 +87,10 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   return { taskIds: [res.taskId] }
 }
 
-async function clone(args: Args): Promise<unknown> {
+/** Minimum gap between streamed clone lines; git redraws its counters many times a second. */
+const PROGRESS_GAP_MS = 150
+
+async function clone(args: Args, ctx: OpContext): Promise<unknown> {
   const url = cloneUrl(args)
   const parentDir = absPath(args, "parentDir")
   const urlProblem = taskOpDeps.validateGitUrl(url)
@@ -96,7 +99,13 @@ async function clone(args: Args): Promise<unknown> {
   const folder = cloneFolder(given ?? taskOpDeps.findAvailableFolderName(parentDir, taskOpDeps.deriveFolderName(url)))
   const targetProblem = taskOpDeps.validateCloneTarget(parentDir, folder)
   if (targetProblem) throw new BridgeError("BAD_ARGS", targetProblem)
-  const result = await taskOpDeps.cloneRepo(url, taskOpDeps.resolveCloneTarget(parentDir, folder))
+  let lastSent = 0
+  const result = await taskOpDeps.cloneRepo(url, taskOpDeps.resolveCloneTarget(parentDir, folder), (line) => {
+    const now = Date.now()
+    if (now - lastSent < PROGRESS_GAP_MS) return
+    lastSent = now
+    ctx.progress?.(line)
+  })
   if (!result.ok) throw new BridgeError("CLONE_FAILED", result.error)
   return { path: result.path }
 }
@@ -183,7 +192,7 @@ export const TASK_WRITE_OPS: OpTable = {
     return { taskId: res.task.id }
   }),
   "worktree.adopt": write("rpc worktree.adopt", adopt),
-  "repo.clone": write("helper cloneRepo (git clone, fixed argv)", (a) => clone(a)),
+  "repo.clone": write("helper cloneRepo (git clone, fixed argv)", clone),
   "task.ensureWorktree": write("verb ensure-worktree --task-id", async (a, c) => {
     const res = await c.api.verb<{ worktreePath?: string }>("ensure-worktree", [flag("task-id", taskId(a))])
     if (typeof res.worktreePath !== "string") throw new BridgeError("BAD_RESULT", "ensure-worktree returned no path")

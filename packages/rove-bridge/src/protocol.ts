@@ -80,6 +80,8 @@ export interface TaskRow {
   readonly deleting: boolean
   /** Additive row fields (all optional: absent = not collected / not known). */
   readonly pinned?: boolean
+  /** The standing session of a scheduled routine; clients fold these behind a per-project count row. */
+  readonly routine?: boolean
   /** Index in the daemon's own task list: the manual ("default") order. */
   readonly order?: number
   readonly createdAt?: string
@@ -92,6 +94,18 @@ export interface TaskRow {
   readonly prChip?: PrChipKind | null
   /** The forge was unreachable on the last poll, so `prChip` is the last good value. */
   readonly prChipStale?: boolean
+  /** The task has a stored brief (`task.prompt`), so "Run again" has something to run. */
+  readonly hasPrompt?: boolean
+  /** Set on a row another registered machine's daemon served (`rove machine add`); absent = this Mac's. `stale` = that machine is unreachable and this is its last known state. */
+  readonly machine?: MachineTag
+  /** No worktree on disk yet (a task created without a first message); selecting it materializes one with `task.ensureWorktree`, as the TUI does. */
+  readonly noWorktree?: true
+}
+
+export interface MachineTag {
+  readonly id: string
+  readonly label: string
+  readonly stale?: boolean
 }
 
 export interface AttentionRow {
@@ -104,6 +118,8 @@ export interface AttentionRow {
   readonly resumeAt?: string
   /** Routine episodes: the routine's name (the subject is a schedule, not a task). Optional. */
   readonly label?: string
+  /** Routine episodes: the schedule's id; `attention.dismissRoutine` clears the episode by it and the Routines page lands on that routine. Optional. */
+  readonly automationId?: string
 }
 
 export interface TasksPayload {
@@ -116,8 +132,24 @@ export interface TabRow {
   readonly kind: string
   readonly title: string | null
   readonly engineName: string | null
+  /** The engine actually running in the tab (the pty's foreground process), or null when unknown: the TUI's two-row caption. */
+  readonly liveEngine?: string | null
   readonly alive: boolean | null
   readonly engineAlive: boolean | null
+  /** Present while the tab is split: the pane layout (`rove api get-task` `.tabs[].split`). Absent = one pane. */
+  readonly split?: SplitView
+  /** A viewport tab: the task whose session it shows (`rove api get-task` `.tabs[].viewOf`). Absent = its own session. */
+  readonly viewOf?: string
+}
+
+/** A split layout: panes are leaves named `leaf-N`; `leaf-1` is the tab's own process, the rest are hosted login shells. */
+export type SplitNodeView =
+  | { readonly kind: "leaf"; readonly id: string; readonly title: string | null; readonly own: boolean }
+  | { readonly kind: "group"; readonly orientation: "row" | "column"; readonly children: readonly SplitNodeView[] }
+
+export interface SplitView {
+  readonly root: SplitNodeView
+  readonly activeLeafId: string
 }
 
 export interface DiffFileRow {

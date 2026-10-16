@@ -47,5 +47,6 @@ export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): stri
     "  -v, --version           Print version",
     "  -h, --help              Print this help",
     "  --skill                 Print the agent skill file and exit",
+    "  --web [bridge flags]    Serve the browser client on 127.0.0.1 and print its link",
   ].join("\n")
 }

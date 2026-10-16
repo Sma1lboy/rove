@@ -140,6 +140,13 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
+| `TAB_COLLISION` | `tab-new` found its freshly allocated tab id already running a session; no new tab was created, retry. |
+| `FILE_NOT_FOUND` | `tab-new --kind editor --file` names no file in the task's worktree. |
+| `NO_EDITOR` | `tab-new --kind editor` found no editor: none set in Settings → General → Editor, `$VISUAL`/`$EDITOR` unset, and none of nvim/vim/emacs/nano installed. |
+| `PANE_NOT_FOUND` | `tab-new --kind pane --pane` names no pane of an enabled plugin. |
+| `TAB_NOT_SPLITTABLE` | `tab-split` on a content tab; only terminal tabs split. |
+| `LAST_LEAF` | `tab-split --action close` on the only pane; close the tab instead. |
+| `RESET_ENGINE` | `tab-split --action reset` on a pane that runs an engine; only shell panes reset. |
 | `RUN_NOT_FOUND` | `routine-respond --run` names no routine run (unknown, or pruned from the last 100). |
 | `RESPONSE_TOO_LARGE` | A `routine-respond` response over the 32,000-character cap. |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
@@ -883,6 +890,53 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   open with no session, matching ctrl+w. A tab that still exists in the
   snapshot may be closed after its process dies; an absent or already-closed
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
+- `tab-new --task-id ID --kind shell|engine [--command CMD]`: open a new
+  Terminal Tab with no first message — the TUI's sidebar "New shell" and its
+  picker's Enter on an empty message. `shell` runs the login shell
+  (`$SHELL`) in the task's worktree and types the `ROVE_TASK_ID` /
+  `ROVE_TAB_ID` export into it; `engine` starts the task's engine (or `--command`'s,
+  as `send --tab new --command` pins it) idle, ready for a first message.
+  The worktree is created if needed, and an engine tab respects
+  `engine.maxLiveSessions` (`ENGINE_LIMIT`; the refused tab leaves no row).
+  The tab id and its persisted row are allocated in one locked `state.json`
+  update, then the session spawns, then the daemon broadcasts `tab.add` so
+  attached TUIs absorb the row (a TUI otherwise holds a stale tab list and
+  would overwrite it). Returns `{ok, taskId, tabId, session, kind, clients}`
+  (`clients` = attached connections told; `0` = none); the tab then lists in
+  `get-task .tabs[]`. A session already running under the allocated id fails
+  as `TAB_COLLISION`. `--command` with `--kind shell` is `BAD_FLAG`.
+  `tab-new` also opens three kinds that run something Rove resolves, never a
+  command line from the caller: `--kind editor --file PATH` opens PATH (relative to
+  the worktree; `..` and a symlink out are `BAD_FLAG`, a missing file
+  `FILE_NOT_FOUND`) in the editor from Settings → General → Editor, else
+  `$VISUAL`/`$EDITOR`, else the first installed of nvim/vim/emacs/nano (`NO_EDITOR`
+  when none), as a command tab in the task's one editor slot: the previous
+  editor tab is closed (through the TUI's close path when one is attached) once the new
+  one runs. `--kind pane --pane PLUGIN.PANE [--tab TAB]` opens a pane of an enabled
+  plugin (`PANE_NOT_FOUND` otherwise), split into `--tab` (default the active tab) or
+  as its own command tab, as the pane's manifest `placement` says and as the TUI's
+  picker does; the result then also carries `leaf` when it split. `--kind viewport
+  --view-task ID` adds an engine tab that shows another task's first engine session
+  (`.tabs[].viewOf` names that task; its liveness is that session's) and
+  starts nothing; the task must be in the same project and have a worktree.
+- `tab-split --task-id ID --tab TAB --action open|close|rename|reset
+  [--leaf leaf-N] [--direction right|down] [--title TEXT] [--cols N --rows N]`:
+  edit one Terminal Tab's split panes with no TUI — the TUI's ctrl+\ / ctrl+= /
+  ctrl+w / F2 / F5. `open` splits `--leaf` (default: the tree's active pane)
+  toward `--direction` (default `right`) into a new login shell in the task's
+  worktree; `--cols`/`--rows` are that pane's size, for the minimum-pane gate
+  (too small → `changed: false`, nothing spawned). `close` ends `--leaf` (the
+  last pane is `LAST_LEAF`: close the tab instead), `rename` sets its label
+  (an empty `--title` clears it), `reset` kills a shell pane and spawns a fresh
+  login shell (an engine pane is `RESET_ENGINE`). `leaf-1` is the tab's own
+  process; every other pane is its own hosted session `<taskId>::<tabId>::<leaf>`,
+  swept by `tab-close`. The layout is the tab's persisted split tree in
+  `state.json` (one locked update), then the daemon broadcasts the row over
+  `tab.add` so an attached TUI absorbs the tree instead of overwriting it. No
+  command line is taken: panes are always the login shell. Returns
+  `{ok, taskId, tabId, leaf, changed, split, clients}`; `split` is
+  `{activeLeafId, root}` (null once back to one pane) and `get-task .tabs[].split`
+  carries the same.
 - `notify --title TEXT [--body TEXT] [--kind KIND] [--task-id ID]
   [--source TAG]`: show a toast in every attached Rove UI. `--body` adds a
   second, muted line under the title — context, not a second message.

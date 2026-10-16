@@ -1,0 +1,210 @@
+/* Files pane and the read-only preview. Tokens from styles.css. */
+
+.app {
+  grid-template-columns: minmax(220px, 280px) 1fr minmax(240px, 300px);
+}
+
+.app.is-zen {
+  grid-template-columns: minmax(220px, 280px) 1fr;
+}
+
+.files {
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: 10px 6px 8px 0;
+  outline: none;
+}
+
+.files:focus-within .files-tab.is-active {
+  color: var(--accent);
+}
+
+.files-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 0 8px 8px;
+  font: 11px var(--mono);
+}
+
+.files-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 4px 6px;
+}
+
+.files-tab {
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  font: 600 12px var(--mono);
+  color: var(--muted);
+}
+
+.files-tab.is-active {
+  color: var(--ink);
+  background: var(--inset);
+}
+
+.files-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 0 8px 8px;
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+.files-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.file-row {
+  min-height: 24px;
+  font: 12px var(--mono);
+}
+
+.files:not(:focus) .file-row.is-selected::before {
+  background: var(--line-active);
+}
+
+.status-M {
+  color: var(--warning);
+}
+.status-A,
+.status-untracked {
+  color: var(--success);
+}
+.status-D {
+  color: var(--error);
+}
+.status-R {
+  color: var(--accent);
+}
+
+.placeholder-line {
+  margin: 12px 10px;
+  font: 12px var(--mono);
+  color: var(--subtle);
+}
+
+/* Preview tab */
+
+.tab-preview {
+  cursor: default;
+}
+
+.tab-close {
+  color: var(--subtle);
+  padding: 0 2px;
+}
+
+.tab-close:hover {
+  color: var(--accent);
+}
+
+.term-slot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.term-slot.is-hidden {
+  display: none;
+}
+
+.preview {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+
+.preview-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 0;
+  font: 12px / 1.5 var(--mono);
+}
+
+.diff-row {
+  display: grid;
+  grid-template-columns: 4ch 4ch 2ch 1fr;
+  gap: 0 8px;
+  padding: 0 12px;
+  white-space: pre;
+  cursor: default;
+}
+
+.diff-row .gutter {
+  color: var(--subtle);
+  text-align: right;
+}
+
+.diff-row .code {
+  min-width: 0;
+}
+
+.diff-row.kind-add {
+  background: var(--diff-added-bg);
+}
+.diff-row.kind-add .sign,
+.diff-row.kind-add .code {
+  color: var(--diff-added);
+}
+
+.diff-row.kind-del {
+  background: var(--diff-removed-bg);
+}
+.diff-row.kind-del .sign,
+.diff-row.kind-del .code {
+  color: var(--diff-removed);
+}
+
+.diff-row.kind-hunk,
+.diff-row.kind-meta {
+  color: var(--subtle);
+}
+
+.diff-row.kind-file {
+  margin-top: 8px;
+  color: var(--ink);
+  font-weight: 700;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+
+.diff-row.is-noted .sign {
+  color: var(--accent);
+}
+
+.diff-row.is-noted {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.preview:focus .diff-row.is-cursor {
+  background: var(--accent-soft);
+}
+
+.diff-row.is-cursor {
+  background: var(--inset);
+}
+
+.preview-footer {
+  display: flex;
+  gap: 10px;
+  padding: 5px 12px;
+  border-top: 1px solid var(--line);
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+.preview-footer .spacer {
+  flex: 1;
+}

@@ -1,10 +1,14 @@
 {
   "name": "rove-bridge",
   "version": "0.0.8",
-  "description": "Mac-side WebSocket bridge between the Rove daemon and the Rove iOS client. Off unless started.",
+  "description": "Mac-side WebSocket bridge between the Rove daemon and its phone and browser clients. Off unless started.",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.13",
+  "exports": {
+    ".": "./src/index.ts",
+    "./protocol": "./src/protocol.ts"
+  },
   "scripts": {
     "dev": "bun run src/dev.ts",
     "start": "bun src/main.ts",

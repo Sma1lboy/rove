@@ -80,7 +80,11 @@ them, and a finished `rove update` says so:
 ```bash
 rove            # the TUI (first run: onboarding wizard)
 rove .          # open a directory as a task, the `code .` gesture
+rove --web      # serve the browser client on 127.0.0.1 and print its link
 ```
+
+`rove --web` takes the bridge's flags (`--port`, `--preset`, `--rotate-token`);
+see [WEB.md](WEB.md).
 
 A typo never silently opens the TUI: an unknown subcommand prints usage and
 exits 2.
@@ -119,6 +123,7 @@ Options:
   -v, --version           Print version
   -h, --help              Print this help
   --skill                 Print the agent skill file and exit
+  --web [bridge flags]    Serve the browser client on 127.0.0.1 and print its link
 ```
 
 Bare `rove version` and `rove help` work too, as spelled-out forms of the

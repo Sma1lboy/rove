@@ -182,6 +182,33 @@ describe("routine ops", () => {
     ])
   })
 
+  test("create can target one existing engine tab, by id, both or neither", async () => {
+    const base = { repo: REPO, name: "n", prompt: "p", schedule: "0 9 * * *" }
+    const { calls } = await run("routine.create", {
+      ...base,
+      targetTask: "01M4756MVZKGC84R07M659BEJW",
+      targetTab: "tab-2",
+    })
+    expect(calls[0]?.payload).toEqual([
+      `--repo=${REPO}`,
+      "--name=n",
+      "--prompt=p",
+      "--schedule=0 9 * * *",
+      "--target-task=01M4756MVZKGC84R07M659BEJW",
+      "--target-tab=tab-2",
+    ])
+    await expect(run("routine.create", { ...base, targetTask: "01M4756MVZKGC84R07M659BEJW" })).rejects.toThrow(
+      "go together",
+    )
+    await expect(run("routine.create", { ...base, targetTab: "tab-2" })).rejects.toThrow("go together")
+    await expect(run("routine.create", { ...base, targetTask: "--x", targetTab: "tab-2" })).rejects.toThrow(
+      "not a task id",
+    )
+    await expect(run("routine.create", { ...base, targetTask: "t1", targetTab: "$(id)" })).rejects.toThrow(
+      "not a tab id",
+    )
+  })
+
   test("a schedule must be five cron fields with no shell syntax", async () => {
     const base = { repo: REPO, name: "n", prompt: "p" }
     await expect(run("routine.create", { ...base, schedule: "0 9 * *" })).rejects.toThrow(
@@ -215,6 +242,15 @@ describe("routine ops", () => {
     expect((await run("routine.list", {})).calls[0]).toEqual({ kind: "verb", name: "routine-list", payload: [] })
     expect(pagesOps["routine.delete"]?.destructive).toBe(true)
     expect((await run("routine.delete", { id: "r-1" })).calls[0]?.name).toBe("routine-delete")
+  })
+
+  test("a routine episode is cleared by its schedule id, as one daemon RPC", async () => {
+    expect((await run("attention.dismissRoutine", { automationId: "r-1" })).calls[0]).toEqual({
+      kind: "rpc",
+      name: "attention.dismissRoutine",
+      payload: { automationId: "r-1" },
+    })
+    await expect(run("attention.dismissRoutine", { automationId: "--x" })).rejects.toThrow("not a task id")
   })
 })
 

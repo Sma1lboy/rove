@@ -17,8 +17,11 @@ import {
   liveRowTokens,
 } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
+import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
 import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
+import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
 import { DEFAULT_GLYPHS } from "@sma1lboy/rove/src/tui/lib/glyphs.ts"
 import { loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
 import {
@@ -28,12 +31,14 @@ import {
   statusFilesBranch,
 } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
 import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
+import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import {
   type AttentionRow,
   BridgeError,
   type DiffFileRow,
+  type MachineTag,
   type PrChipKind,
   type RowChanges,
   type RowTokenChip,
@@ -52,6 +57,8 @@ export interface EngineRow {
   readonly models?: ReadonlyArray<{ readonly id: string; readonly name?: string }> | null
   /** Reasoning levels the engine declares; `[]` = takes none. */
   readonly effortLevels?: readonly string[]
+  /** The engine has a model flag, so a model can be pinned for it (`modelArgv` in the engine registry). */
+  readonly acceptsModel?: boolean
   /** Binary present and, where Rove can read the login, signed in (`engine-status.ts`). Absent = could not probe. */
   readonly ready?: boolean
 }
@@ -65,15 +72,54 @@ export interface RoveOps {
   deleteTask(taskId: string, force: boolean): Promise<{ status: string }>
   landTask(taskId: string, strategy: "merge" | "squash"): Promise<{ landedOn: string; commit: string }>
   tabs(taskId: string): Promise<readonly TabRow[]>
-  newTab(taskId: string, prompt: string, engine?: string): Promise<{ tabId: string }>
+  newTab(taskId: string, tab: NewTabRequest): Promise<{ tabId: string }>
   closeTab(taskId: string, tabId: string): Promise<void>
   worktreeOf(taskId: string): Promise<string>
+  /** A viewport tab shows another task's first engine session: where to attach instead; null for any other tab. */
+  viewedSession(taskId: string, tabId: string): { taskId: string; tabId: string; cwd: string } | null
   diffFiles(taskId: string): Promise<{ base: string | null; files: readonly DiffFileRow[] }>
   diffFile(taskId: string, path: string, scope: "branch" | "working"): Promise<unknown>
   dismissAttention(taskId: string, tabId?: string): Promise<void>
 }
 
+/** What `tab.new` asks for: no `prompt` opens the tab empty (a shell, or an engine awaiting its first message). */
+export interface NewTabRequest {
+  readonly kind: "shell" | "engine"
+  readonly prompt?: string
+  /** Engine id for an engine tab; omitted = the task's own. */
+  readonly engine?: string
+}
+
+/** A prompt starts the engine on it (`send`); without one there is nothing to send, so `tab-new` opens the tab empty. */
+export function newTabInvocation(
+  taskId: string,
+  tab: NewTabRequest,
+): { readonly verb: "send" | "tab-new"; readonly argv: readonly string[] } {
+  const command = tab.engine ? ["--command", tab.engine] : []
+  if (tab.prompt !== undefined) {
+    return { verb: "send", argv: ["--task-id", taskId, "--tab", "new", "--plain", "--prompt", tab.prompt, ...command] }
+  }
+  return { verb: "tab-new", argv: ["--task-id", taskId, "--kind", tab.kind, ...command] }
+}
+
 /** `rove api` refusals carry a stable `code`; keep it on the wire. */
+/** `get-task` tab rows as the bridge reports them. Names only: the full engine list probes every binary, seconds on a cold bridge. */
+export function tabRows(rows: readonly TaskTabRow[]): TabRow[] {
+  const nameOf = (vendor: string | null): string | null => (vendor ? engineDisplayName(vendor as VendorId) : null)
+  return rows.map((t) => ({
+    id: t.id,
+    kind: t.kind,
+    title: t.title ?? t.lastTitle ?? t.autoTitle,
+    engineName: t.kind === "engine" ? nameOf(t.liveVendor ?? t.vendor) : null,
+    // Only a running engine: the TUI's two-row caption reads the pty's foreground process, never the configured one.
+    liveEngine: t.kind === "engine" && t.alive !== false ? nameOf(t.liveVendor) : null,
+    alive: t.alive,
+    engineAlive: t.engineAlive,
+    ...(t.split ? { split: t.split } : {}),
+    ...(t.viewOf ? { viewOf: t.viewOf } : {}),
+  }))
+}
+
 function verb<T>(client: RoveDaemonClient, name: string, argv: readonly string[]): Promise<T> {
   return createBridgeApi(client).verb<T>(name, argv)
 }
@@ -141,14 +187,15 @@ function prChipKind(task: SerializedTask): PrChipKind | null {
 
 /**
  * The inbox as the phone sees it. Optional, additive fields: `resumeAt` (a rate-limited task's
- * scheduled auto-resume, from its `quotaResume`) and `label` (a routine episode's name, since
- * its subject is the routine, not a task).
+ * scheduled auto-resume, from its `quotaResume`), `label` (a routine episode's name, since its
+ * subject is the routine, not a task) and `automationId` (that routine's id).
  */
 export function attentionRows(items: readonly AttentionInboxItem[], tasks: readonly SerializedTask[]): AttentionRow[] {
   const byId = new Map(tasks.map((t) => [t.id, t]))
   return items.map((i) => {
     const resumeAt = i.state === "rate_limited" && i.taskId ? byId.get(i.taskId)?.quotaResume?.resumeAt : undefined
     const label = i.detail?.routine?.name
+    const automationId = i.detail?.routine?.automationId
     return {
       taskId: i.taskId,
       tabId: i.tabId,
@@ -157,8 +204,16 @@ export function attentionRows(items: readonly AttentionInboxItem[], tasks: reado
       at: i.at,
       ...(resumeAt ? { resumeAt } : {}),
       ...(label ? { label } : {}),
+      ...(automationId ? { automationId } : {}),
     }
   })
+}
+
+/** `machine` for a row another daemon served (`machines/hub.ts` stamps `origin`); a local row has none. */
+function machineOf(task: SerializedTask): { machine?: MachineTag } {
+  const origin: (SerializedTask["origin"] & { stale?: boolean }) | undefined = task.origin
+  if (!origin || origin.machineId === "local") return {}
+  return { machine: { id: origin.machineId, label: origin.hostLabel, ...(origin.stale ? { stale: true } : {}) } }
 }
 
 /** Fold `context`'s grouping over EVERY task (main/dir included) and join display fields. */
@@ -214,13 +269,17 @@ export function taskRows(
         report: task.report ? { summary: task.report.summary ?? "", at: task.report.at } : null,
         deleting: task.deletion?.phase === "queued" || task.deletion?.phase === "running",
         pinned: task.pinned === true,
+        ...(task.routine ? { routine: true } : {}),
         order: orderOf.get(task.id) ?? 0,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
+        ...machineOf(task),
         ...(changes ? { changes } : {}),
         ...(tokens.length > 0 ? { rowTokens: tokens } : {}),
         prChip: chip,
+        ...(task.prompt !== undefined ? { hasPrompt: true } : {}),
         prChipStale: chip !== null && pr?.lastError !== undefined,
+        ...(task.worktreePath ? {} : { noWorktree: true as const }),
       },
     ]
   })
@@ -239,13 +298,24 @@ function flatten(entries: readonly StatusEntry[], scope: DiffFileRow["scope"]): 
 export interface LiveRowSignals {
   changes(): WorktreeChangesMap | null
   tokens(): RowTokenMap
+  /** Tasks of the other registered machines (`MachineHub`), each stamped with its `origin`. */
+  remote?(): readonly SerializedTask[]
 }
 
 export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals): RoveOps {
   let engineCache: { at: number; engines: readonly EngineRow[] } | null = null
+  // One cold load at a time: every `task.tabs` needs the list, and a client fans those out per task.
+  let engineLoad: Promise<readonly EngineRow[]> | null = null
 
-  const engines = async (): Promise<readonly EngineRow[]> => {
-    if (engineCache && Date.now() - engineCache.at < ENGINE_CACHE_MS) return engineCache.engines
+  const engines = (): Promise<readonly EngineRow[]> => {
+    if (engineCache && Date.now() - engineCache.at < ENGINE_CACHE_MS) return Promise.resolve(engineCache.engines)
+    engineLoad ??= loadEngines().finally(() => {
+      engineLoad = null
+    })
+    return engineLoad
+  }
+
+  const loadEngines = async (): Promise<readonly EngineRow[]> => {
     const res = await verb<{ engines: ReadonlyArray<EngineRow> }>(client, "engine-list", [])
     const rows = await Promise.all(
       res.engines.map(async ({ id, name, command, protocol, builtin, models }) => {
@@ -259,6 +329,7 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
           builtin,
           models: models ?? null,
           effortLevels: [...(engineEntry(protocol).effortLevels ?? [])],
+          acceptsModel: engineEntry(protocol).modelArgv !== undefined,
           ...(status ? { ready: status.binary.found && status.account?.kind !== "none" } : {}),
         }
       }),
@@ -287,17 +358,21 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
         tryRead(() => defaultApiRuntime.liveTaskIds()),
         tryRead(engines),
       ])
-      return {
-        tasks: taskRows(
-          tasks,
-          inspect?.activity?.tasks ?? null,
-          live,
-          engineRows ?? [],
-          Date.now(),
-          signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined,
-        ),
-        attention: attentionRows(inbox?.items ?? [], tasks),
-      }
+      const now = Date.now()
+      const local = taskRows(
+        tasks,
+        inspect?.activity?.tasks ?? null,
+        live,
+        engineRows ?? [],
+        now,
+        signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined,
+      )
+      // Other machines' rows: their pty host, activity and worktrees are not readable from here, so those stay unknown.
+      const remote = taskRows(signals?.remote?.() ?? [], null, null, engineRows ?? [], now).map((row) => ({
+        ...row,
+        order: (row.order ?? 0) + tasks.length,
+      }))
+      return { tasks: [...local, ...remote], attention: attentionRows(inbox?.items ?? [], tasks) }
     },
 
     engines,
@@ -334,27 +409,14 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
     },
 
     async tabs(taskId) {
-      const [res, engineRows] = await Promise.all([
-        verb<{ tabs?: readonly TaskTabRow[] }>(client, "get-task", ["--task-id", taskId]),
-        tryRead(engines),
-      ])
-      const nameOf = (vendor: string | null): string | null =>
-        vendor ? (engineRows?.find((e) => e.builtin && e.protocol === vendor)?.name ?? vendor) : null
-      return (res.tabs ?? []).map((t) => ({
-        id: t.id,
-        kind: t.kind,
-        title: t.title ?? t.lastTitle ?? t.autoTitle,
-        engineName: t.kind === "engine" ? nameOf(t.liveVendor ?? t.vendor) : null,
-        alive: t.alive,
-        engineAlive: t.engineAlive,
-      }))
+      const res = await verb<{ tabs?: readonly TaskTabRow[] }>(client, "get-task", ["--task-id", taskId])
+      return tabRows(res.tabs ?? [])
     },
 
-    async newTab(taskId, prompt, engine) {
-      const argv = ["--task-id", taskId, "--tab", "new", "--plain", "--prompt", prompt]
-      if (engine) argv.push("--command", engine)
-      const res = await verb<{ session?: string }>(client, "send", argv)
-      const tabId = res.session?.split("::")[1]
+    async newTab(taskId, tab) {
+      const call = newTabInvocation(taskId, tab)
+      const res = await verb<{ tabId?: string; session?: string }>(client, call.verb, call.argv)
+      const tabId = res.tabId ?? res.session?.split("::")[1]
       if (!tabId) throw new BridgeError("SESSION_FAILED", "the new tab did not report its session")
       return { tabId }
     },
@@ -364,6 +426,14 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
     },
 
     worktreeOf,
+
+    viewedSession(taskId, tabId) {
+      const snapshot = loadStateFile()[terminalTabsKey(taskId)] as { tabs?: TerminalTab[] } | undefined
+      const tab = snapshot?.tabs?.find((t) => t.id === tabId)
+      return tab?.kind === "engine" && tab.ptyTask
+        ? { taskId: tab.ptyTask.id, tabId: "tab-1", cwd: tab.ptyTask.worktree }
+        : null
+    },
 
     async diffFiles(taskId) {
       const task = await getTask(taskId)

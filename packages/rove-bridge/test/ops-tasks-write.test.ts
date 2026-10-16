@@ -235,6 +235,22 @@ describe("repo.clone", () => {
     })
   })
 
+  test("git's output reaches the caller as progress lines, at most one per gap", async () => {
+    taskOpDeps.cloneRepo = async (_url, target, onProgress) => {
+      for (const line of ["Cloning into 'y'...", "Receiving objects: 10%", "Receiving objects: 20%"]) onProgress?.(line)
+      return { ok: true, path: target }
+    }
+    taskOpDeps.validateCloneTarget = () => null
+    taskOpDeps.findAvailableFolderName = (_p, base) => base
+    const { api } = fakeApi()
+    const lines: string[] = []
+    await TASK_OPS["repo.clone"]?.run(
+      { url: "https://h/x/y", parentDir: "/work" },
+      { api, progress: (l) => lines.push(l) },
+    )
+    expect(lines).toEqual(["Cloning into 'y'..."])
+  })
+
   test("a failed clone surfaces git's message", async () => {
     taskOpDeps.cloneRepo = async () => ({ ok: false, error: "fatal: repository not found" })
     taskOpDeps.validateCloneTarget = () => null

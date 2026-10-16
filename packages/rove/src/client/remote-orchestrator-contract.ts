@@ -14,6 +14,7 @@ import type {
   UiPromptPayload,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ReadableState } from "../lib/external-store.ts"
+import type { CommandTab, EngineTab } from "../tui/workspace/terminal-tabs-core.ts"
 import type { Task } from "../types/task.ts"
 import type { UpdateInfo } from "../version.ts"
 import type {
@@ -28,6 +29,13 @@ import type {
   UsageSnapshotMap,
   WorktreeChangesMap,
 } from "./remote-orchestrator-payloads.ts"
+
+/** A `tab.add` event whose row passed {@link isAddedTab}. */
+export interface TabAddSignal {
+  readonly taskId: string
+  readonly tab: EngineTab | CommandTab
+  readonly at: number
+}
 
 /** Daemon connection lifecycle as observed by the TUI during silent recovery. */
 export type DaemonConnectionState = "online" | "disconnected"
@@ -105,6 +113,7 @@ export interface OrchestratorSignals {
   readonly setTabOpenSig: (next: TabOpenPayload | null) => void
   readonly setTabCloseSig: (next: TabClosePayload | null) => void
   readonly setTabRenameSig: (next: TabRenamePayload | null) => void
+  readonly setTabAddSig: (next: TabAddSignal | null) => void
   readonly setUiPromptSig: (next: UiPromptPayload | null) => void
   readonly engineLifecycleAcc: ReadableState<EngineLifecycleMap>
   readonly setEngineLifecycleSig: (next: EngineLifecycleMap) => void
