@@ -81,6 +81,8 @@ export interface TaskActionContext {
   readonly updateActiveTask?: boolean
   /** Post-delete cursor move; selection is host-owned. The Tasks pane uses `nextTask`, the monitor recomputes. */
   readonly onTaskDeleted?: (taskId: string, nextTask: Task | undefined) => void
+  /** `worktree.deleteBranch` opt-in; absent → a deleted task's branch always stays. */
+  readonly deleteBranchOnDelete?: () => boolean
 }
 
 export function nextActiveTask(tasks: readonly Task[], excludeId: string): Task | undefined {
@@ -155,10 +157,19 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
     await ctx.reload?.()
     return
   }
+  // `-d` only: the forced retry below never deletes the branch, so an
+  // unmerged branch can't vanish behind a dirty-worktree confirm.
+  const deleteBranch = task.kind !== "dir" && ctx.deleteBranchOnDelete?.() === true
   const ok = await ctx.confirm({
     title: t("tasks.confirm.deleteTitle", { title: task.title }),
     // A `dir` task pins the user's own directory; only the entry is dropped.
-    body: t(task.kind === "dir" ? "tasks.confirm.deleteBodyDir" : "tasks.confirm.deleteBodyTask"),
+    body: t(
+      task.kind === "dir"
+        ? "tasks.confirm.deleteBodyDir"
+        : deleteBranch
+          ? "tasks.confirm.deleteBodyTaskBranch"
+          : "tasks.confirm.deleteBodyTask",
+    ),
     cancelLabel: t("tasks.confirm.cancel"),
     confirmLabel: t("tasks.confirm.deleteConfirm"),
     danger: true,
@@ -166,7 +177,7 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
   if (!ok) return
   let deleted = false
   try {
-    await ctx.orch.deleteTask(taskId)
+    await (deleteBranch ? ctx.orch.deleteTask(taskId, { deleteBranch: true }) : ctx.orch.deleteTask(taskId))
     deleted = true
   } catch (err) {
     const reason = dirtyRefusalReason(err)

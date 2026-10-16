@@ -345,6 +345,7 @@ By default new worktrees land under `~/.rove/worktrees/<repo-key>/<slug>`.
 | `worktree.basePath` | string | `~/.rove/worktrees` | Where new worktrees go |
 | `worktree.basePath.custom` | string | unset | Remembers your last custom path in the TUI |
 | `worktree.cloneIgnored` | boolean | `true` | Clone ignored directories into new worktrees; see [below](#cloned-ignored-directories) |
+| `worktree.deleteBranch` | boolean | `false` | Deleting a task from the TUI also deletes its local git branch, by `git branch -d` rules, so an unmerged branch stays, and so does the branch of a force-deleted dirty worktree. Remote branches are never touched. No restart needed |
 
 `worktree.basePath` takes an absolute path, or one starting with the
 `$project_dir` token, which expands to each task's project root, so one setting
