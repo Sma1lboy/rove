@@ -226,9 +226,18 @@ Always screenshot headed. Cost one round of three wrong fixes.
   landed into `/private/tmp/rove-web-demo` main; fake machine `ghostbox` and
   `fakeremote` registered in sandboxes; `w3demo` plugin and
   `/tmp/w3-editor.sh` fixtures; the slice worktrees `jaguar-*`.
-- **Open for the owner:** #24 ctx/Σ needs a signed-in Claude in a sandbox
-  (or a check against the real daemon); #152/#154 installing a release from
-  a browser; whether to cross the security boundary for any ❌ row.
+- **Open for the owner:** #24 `ctx %` needs a Codex tab whose session reaches
+  the daemon, i.e. Rove's hooks trusted in the global `~/.codex/hooks.json`;
+  #152/#154 installing a release from a browser; whether to cross the
+  security boundary for any ❌ row.
+- **Usage readings in a sandbox:** the Mac's plain `claude` is not signed in
+  from an agent shell; `.scratch/web/with-cpa-env.sh` runs a command with the
+  owner's `claudecpa` proxy env, read at run time, never written. A reading
+  also needs the session id to reach the daemon: without Rove's global hooks,
+  launch the tab as `claude --settings .scratch/web/claude-hooks.json`
+  (written by `.scratch/web/mk-hooks.ts`, hooks pointing at the source CLI).
+  Claude readings carry no context window, so they give `Σ` but never `ctx %`,
+  in the TUI too.
 - **Pending owner stack (#1247→#1246→#1248→#1249, long-run controls):** once
   merged, the Inbox must stop clearing on open for `report_missing` rows
   (clear only via `d` → `attention.dismiss {deliveryId}` or a late report) and
