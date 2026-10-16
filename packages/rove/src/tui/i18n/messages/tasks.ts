@@ -168,6 +168,8 @@ export const en = {
     /** A `dir` task pins the user's own directory; deletion never touches it. */
     deleteBodyDir: "Removes the task entry. The directory itself stays on disk. Its hosted sessions are stopped.",
     deleteBodyTask: "Removes the task entry and its worktree. The git branch stays. Its hosted sessions are stopped.",
+    deleteBodyTaskBranch:
+      "Removes the task entry, its worktree, and its git branch if it is merged. An unmerged branch stays. Its hosted sessions are stopped.",
     deleteConfirm: "delete",
     forceDeleteTitle: '"{title}" has uncommitted changes',
     forceDeleteConfirm: "force delete",
@@ -356,6 +358,8 @@ export const zh: typeof en = {
     deleteTitle: "删除「{title}」？",
     deleteBodyDir: "只删除任务条目。目录本身会留在磁盘上。它的托管会话会被停止。",
     deleteBodyTask: "删除任务条目和它的 worktree。git 分支会保留。它的托管会话会被停止。",
+    deleteBodyTaskBranch:
+      "删除任务条目、它的 worktree，以及已合并的 git 分支。未合并的分支会保留。它的托管会话会被停止。",
     deleteConfirm: "删除",
     forceDeleteTitle: "「{title}」有未提交的改动",
     forceDeleteConfirm: "强制删除",

@@ -73,6 +73,7 @@ function makeCtx(opts: {
   confirms?: readonly boolean[]
   updateActiveTask?: boolean
   promptTextResult?: string | undefined
+  deleteBranchOnDelete?: boolean
 }): {
   ctx: TaskActionContext
   confirm: ReturnType<typeof vi.fn>
@@ -101,6 +102,9 @@ function makeCtx(opts: {
     reload,
     updateActiveTask: opts.updateActiveTask,
     onTaskDeleted,
+    ...(opts.deleteBranchOnDelete === undefined
+      ? {}
+      : { deleteBranchOnDelete: () => opts.deleteBranchOnDelete === true }),
   }
   return { ctx, confirm, promptText, notifyError, notifyInfo, onTaskDeleted, reload }
 }
@@ -194,6 +198,43 @@ describe("deleteTaskFlow — dirty-worktree branch", () => {
 
     expect(orch.setActiveTask).toHaveBeenCalledWith("t2")
     expect(killHostedSessions).toHaveBeenCalledWith(expect.anything(), ["t1::tab-1"])
+  })
+})
+
+describe("deleteTaskFlow — worktree.deleteBranch opt-in", () => {
+  test("asks the daemon to delete the branch and says so in the confirm", async () => {
+    const tasks = [makeTask({ id: "t1" })]
+    const orch = makeOrch()
+    const { ctx, confirm } = makeCtx({ tasks, orch, confirms: [true], deleteBranchOnDelete: true })
+
+    await deleteTaskFlow(ctx, "t1")
+
+    expect(confirm.mock.calls[0]?.[0].body).toContain("its git branch if it is merged")
+    expect(orch.deleteTask).toHaveBeenCalledWith("t1", { deleteBranch: true })
+  })
+
+  test("a forced retry of a dirty worktree keeps the branch", async () => {
+    const tasks = [makeTask({ id: "t1" })]
+    const orch = makeOrch({
+      deleteTask: vi.fn(async (_id: string, o?: { force?: boolean }) => {
+        if (!o?.force) throw new Error(`${DIRTY_WORKTREE_CODE}: task t1 worktree has uncommitted changes: a.ts`)
+      }),
+    })
+    const { ctx } = makeCtx({ tasks, orch, confirms: [true, true], deleteBranchOnDelete: true })
+
+    await deleteTaskFlow(ctx, "t1")
+
+    expect(orch.deleteTask).toHaveBeenNthCalledWith(2, "t1", { force: true })
+  })
+
+  test("a directory task has no branch to delete", async () => {
+    const tasks = [makeTask({ id: "d1", kind: "dir" })]
+    const orch = makeOrch()
+    const { ctx } = makeCtx({ tasks, orch, confirms: [true], deleteBranchOnDelete: true })
+
+    await deleteTaskFlow(ctx, "d1")
+
+    expect(orch.deleteTask).toHaveBeenCalledWith("d1")
   })
 })
 
