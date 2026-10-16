@@ -15,6 +15,7 @@
  */
 
 import { AUTO_ROUTING_TIERS, type AutoRoutingTier, isAutoRoutingTier } from "./auto-routing.ts"
+import { isObject } from "./is-object"
 
 /**
  * Probabilities come back rounded to the cent, so a distribution sums to 0.99
@@ -40,10 +41,6 @@ export type Read<T> = { readonly ok: true; readonly value: T } | { readonly ok: 
 
 const bad = (why: string): Read<never> => ({ ok: false, why })
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-}
-
 /** A confidence that is a finite number in [0,1], or nothing. */
 function readConfidence(v: unknown): number | undefined {
   return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1 ? v : undefined
@@ -64,13 +61,13 @@ function readConfidence(v: unknown): number | undefined {
  *      through unscaled.
  */
 export function readChoiceAnswer(answer: unknown): Read<TierVerdict> {
-  if (!isRecord(answer)) return bad("answer is not an object")
+  if (!isObject(answer)) return bad("answer is not an object")
   const choice = answer.choice
   if (typeof choice !== "string" || !isAutoRoutingTier(choice)) {
     return bad(`choice ${JSON.stringify(choice)} is not one of the offered tiers`)
   }
   const probs = answer.probabilities
-  if (!isRecord(probs)) return bad("probabilities is not an object")
+  if (!isObject(probs)) return bad("probabilities is not an object")
   const keys = Object.keys(probs).sort()
   const expected = [...AUTO_ROUTING_TIERS].sort()
   if (keys.length !== expected.length || keys.some((k, i) => k !== expected[i])) {
@@ -97,9 +94,9 @@ export function readChoiceAnswer(answer: unknown): Read<TierVerdict> {
 
 /** `{ model, answers: { verdict: … } }` → a verdict. */
 export function readJevAnswer(payload: unknown): Read<TierVerdict> {
-  if (!isRecord(payload)) return bad("response is not an object")
+  if (!isObject(payload)) return bad("response is not an object")
   const answers = payload.answers
-  if (!isRecord(answers)) return bad("response has no answers")
+  if (!isObject(answers)) return bad("response has no answers")
   return readChoiceAnswer(answers.verdict)
 }
 
@@ -109,7 +106,7 @@ export function readJevAnswer(payload: unknown): Read<TierVerdict> {
  * is the point of offering a URL at all.
  */
 export function readPlainAnswer(payload: unknown): Read<TierVerdict> {
-  if (!isRecord(payload)) return bad("response is not an object")
+  if (!isObject(payload)) return bad("response is not an object")
   const tier = payload.tier
   if (typeof tier !== "string" || !isAutoRoutingTier(tier)) {
     return bad(`tier ${JSON.stringify(tier)} is not one of ${AUTO_ROUTING_TIERS.join(", ")}`)

@@ -10,6 +10,7 @@ import * as claudeHistory from "@/engine/claude-code-local/history"
 import * as codexHistory from "@/engine/codex-local/history"
 import type { VendorId } from "@/types/vendor"
 import { isJsonlLineWithinBound, readTextFileIfRegular } from "./file-bounds"
+import { isObject } from "./is-object"
 import { engineEntry } from "./registry.ts"
 
 /** `needs_input` comes from hooks (`turn-state-merge.ts`) or, for marker-less
@@ -307,8 +308,4 @@ function parseJsonLine(line: string): Record<string, unknown> | null {
 function timestampFromRecord(record: Record<string, unknown>, fallback: number): number {
   const ts = typeof record.timestamp === "string" ? Date.parse(record.timestamp) : Number.NaN
   return Number.isFinite(ts) ? ts : fallback
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
 }
