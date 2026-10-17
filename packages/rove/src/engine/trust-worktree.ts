@@ -17,6 +17,10 @@
  *     wall, which the CURSOR manifest reports as `blocked`.)
  *   - bob 2.0.4 DOES gate ("Do you trust this folder?"). Its hook pre-writes
  *     the trust store; `bob chat --trust` stays in the launch as the backstop.
+ *   - hermes / kilo / mastracode need no launch-time pre-trust write in the
+ *     reviewed startup code (Hermes bed0d535, Kilo 76bcfd40, MastraCode 0.44.1).
+ *     Hermes project-skill trust and each CLI's tool approvals are separate.
+ *     Source review only; no real-CLI launch or hook-delivery capture yet.
  *   - gemini / grok / droid / amp / devin / qodercli / cline / kiro / maki / antigravity:
  *     UNVERIFIED. Don't assume either way.
  *
