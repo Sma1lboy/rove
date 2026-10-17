@@ -203,6 +203,14 @@ worktree, leaving the original untouched. The confirm shows the brief in full
 before anything is created. A Task created without a prompt has no brief to
 re-run, and the entry does not appear for it.
 
+While a Task's pull request has failing checks, the menu also offers **Fix
+failing checks**, which pastes the failing jobs' log tails into the Task's
+engine, and **Re-run failed checks**, which restarts only the failed CI jobs
+(through `gh run rerun --failed`) for a failure that looks flaky rather than
+caused by the change. The `✗` mark turns pending on the next PR refresh.
+Checks that did not run on GitHub Actions cannot be restarted from Rove; the
+toast says so.
+
 The confirmation dialogs state the exact deletion boundary before anything is
 changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 [Sessions](SESSIONS.md#what-actually-ends-a-session) for session teardown.

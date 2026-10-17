@@ -59,6 +59,8 @@ export const en = {
     /** Only while the row's PR checks are red: paste the failing job's log
      *  into this task's engine. */
     fixChecks: "Fix failing checks",
+    /** Also only while red: restart the failed CI jobs, for a flaky failure. */
+    rerunChecks: "Re-run failed checks",
     /** Merge the base INTO this worktree — the `↓N` drift chip's action. */
     syncBase: "Sync with base",
     land: "Land into base branch",
@@ -90,6 +92,13 @@ export const en = {
     conflict: "Merge conflict — resolve then commit: {files}",
     dirty: "Commit the worktree's changes first, then sync: {files}",
     failed: "Sync failed: {error}",
+  },
+  /** Row menu "Re-run failed checks" outcomes. */
+  rerun: {
+    started: "Re-running failed checks",
+    none: "No failed checks to re-run",
+    external: "These checks didn't run on GitHub Actions; re-run them where they ran",
+    refused: "Re-run refused: {detail}",
   },
   /** Change-engine picker dialog (the menu route of `v`). */
   changeEngine: {
@@ -289,6 +298,7 @@ export const zh: typeof en = {
     renameBranch: "重命名分支",
     changeEngine: "切换引擎",
     fixChecks: "修复失败的检查",
+    rerunChecks: "重新运行失败的检查",
     syncBase: "同步基础分支",
     land: "合入基础分支",
     delete: "删除",
@@ -312,6 +322,12 @@ export const zh: typeof en = {
     conflict: "合并冲突——解决后提交：{files}",
     dirty: "请先提交工作树里的改动，再同步：{files}",
     failed: "同步失败：{error}",
+  },
+  rerun: {
+    started: "正在重新运行失败的检查",
+    none: "没有可重新运行的失败检查",
+    external: "这些检查不是在 GitHub Actions 上运行的，请到它们运行的地方重新运行",
+    refused: "无法重新运行：{detail}",
   },
   changeEngine: {
     title: "切换引擎",

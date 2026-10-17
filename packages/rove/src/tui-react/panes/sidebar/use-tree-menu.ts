@@ -214,6 +214,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "fixChecks":
           actions.onFixChecksRequest?.(taskId)
           break
+        case "rerunChecks":
+          actions.onRerunChecksRequest?.(taskId)
+          break
         case "syncBase":
           actions.onSyncBaseRequest?.(taskId)
           break
