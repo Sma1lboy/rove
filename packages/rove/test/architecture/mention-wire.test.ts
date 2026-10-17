@@ -29,7 +29,7 @@ describe("FileTree `a` mention stays wired", () => {
   test("the workspace host passes both halves down to the panes", () => {
     const text = src("tui-react/workspace/host.tsx")
     // The Files pane gets the mention callback…
-    expect(text).toContain("onMention={editor.onMention}")
+    expect(text).toContain("onMention: editor.onMention")
     // …and the workspace hands up the paste handle it needs to deliver it.
     expect(text).toContain("onEnginePasteReady={editor.onEnginePasteReady}")
   })
