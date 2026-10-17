@@ -86,7 +86,7 @@ describe("rerunFailedChecks", () => {
           const result = await rerunFailedChecks({ worktreePath: cwd, prNumber: 7 })
           if (socket.destroyed) return
           socket.write(frameToLine({ type: "event", name: "active-task", payload: { taskId: "t1" } }))
-          socket.write(frameToLine({ type: "response", id: request.id, ok: true, payload: result }))
+          socket.write(frameToLine({ type: "response", id: request.id, payload: result }))
         })()
       })
     })
