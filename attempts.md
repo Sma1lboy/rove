@@ -165,3 +165,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Sandbox:** the harness Playwright asks for headless shell rev 1228 at `chrome-headless-shell-linux64/`; the root asks for 1194 at `chrome-linux/`. The shim needs both.
 
 **Next:** the acquire `setPty` commit (8) still follows the measuring commit. Folding it would mean acquiring in a layout effect or in the measure callback itself. Read the `use-terminal-geometry.ts` header first: the PTY must boot at its real size.
+
+## 2026-10-17 — switch.perOp.commit.root / .workspace (main eb06f85)
+
+**No regression.** Run 1 was clean; the only changes past tolerance were ✓: switch.perOp.commit.files 4.8 → 3 (#1255 landed) and golden.vt-1mb-parse-ms 126.1 → 58.1. **Baseline moved** to run 1, with the four never-ticking typing counters as explicit zeros and vt-1mb-parse kept at 126.1: it has read 92–233 on this sandbox across nights, and a 58 baseline would flag noise every night. #1284 (geomTick fold, 10-16) is still open, so terminal geometry was left alone.
+
+**Approach.** Candidate (c) from 10-15, as a subscription instead of a coalesced bump. `useStatusKeyHintItems` stopped reading `useBindingStackVersion()` (a `useSyncExternalStore`, so every `bumpStackVersion` re-rendered the footer, about 12 per switch). Its effect instead subscribes to the stack through a new `subscribeBindingStack` and re-runs the compare-and-set `setSnapshot`, so the footer renders only when the hint tokens change. Typecheck and the three status-hint render tests passed.
+
+**Why it did not count.** Two clean runs read root 9.6/9.3, workspace 9.4/9.2, frame 4.2/3.7 against 9.5/9.5/4.2 on main tonight: noise. The footer's store-driven renders were already batched into commits that happen anyway (the passive-effect flush), so commit (3)/(5)'s 0.00 ms source is not the footer's store subscription either. The diff is small to redo (keymap.ts `subscribeBindingStack`, keyboard-hints.tsx effect) if a later change needs footer renders down for its own reasons.
+
+**Next:** for commit (3), the setState, external-store and footer-subscription traces are now all ruled out; try logging `scheduleUpdateOnFiber` from a patched reconciler copy (10-15 candidate (a)).
