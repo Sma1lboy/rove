@@ -31,13 +31,18 @@ export async function rerunChecksAction(deps: RerunChecksDeps, taskId: string): 
     const res = await deps.orchestrator.rerunFailedChecks(taskId)
     if (res.unavailable) {
       deps.notifyError(t("files.toast.ciChecksUnavailable", { detail: firstLine(res.unavailable.detail) }))
-    } else if (res.rerunRuns > 0) {
+      return
+    }
+    if (res.rerunRuns > 0) {
       deps.notifyInfo(t("tasks.rerun.started"))
-    } else if (res.refused) {
+    }
+    if (res.refused) {
       deps.notifyError(t("tasks.rerun.refused", { detail: firstLine(res.refused) }))
-    } else if (res.external > 0) {
+    }
+    if (res.external > 0) {
       deps.notifyNeedsInput(t("tasks.rerun.external"))
-    } else {
+    }
+    if (res.rerunRuns === 0 && !res.refused && res.external === 0) {
       // Went green (or the run expired) while the menu was open.
       deps.notifyInfo(t("tasks.rerun.none"))
     }

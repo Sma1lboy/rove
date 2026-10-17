@@ -28,12 +28,30 @@ async function run(result: RerunFailedChecksResult | Error) {
 }
 
 describe("rerunChecksAction", () => {
-  test.each<[string, RerunFailedChecksResult | Error, string]>([
-    [
-      "a restarted run wins over a second run gh refused",
-      { rerunRuns: 1, external: 0, refused: "x" },
+  test.each([
+    [0, 0],
+    [0, 1],
+    [1, 0],
+    [1, 1],
+  ])("reports refusals alongside %i restarts and %i external checks", async (rerunRuns, external) => {
+    expect(
+      await run({ rerunRuns, external, refused: "run 30 cannot be rerun; it is in progress\nhint: wait" }),
+    ).toEqual([
+      ...(rerunRuns ? ["info tasks.rerun.started"] : []),
+      'error tasks.rerun.refused {"detail":"run 30 cannot be rerun; it is in progress"}',
+      ...(external ? ["attention tasks.rerun.external"] : []),
+    ])
+  })
+
+  test("reports unsupported checks alongside a successful restart", async () => {
+    expect(await run({ rerunRuns: 1, external: 1 })).toEqual([
       "info tasks.rerun.started",
-    ],
+      "attention tasks.rerun.external",
+    ])
+  })
+
+  test.each<[string, RerunFailedChecksResult | Error, string]>([
+    ["a successful restart", { rerunRuns: 1, external: 0 }, "info tasks.rerun.started"],
     ["checks outside Actions need the user elsewhere", { rerunRuns: 0, external: 2 }, "attention tasks.rerun.external"],
     ["nothing red any more", { rerunRuns: 0, external: 0 }, "info tasks.rerun.none"],
     [
