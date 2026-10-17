@@ -1,8 +1,11 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { rerunFailedChecks } from "@sma1lboy/rove-daemon/daemon/pr-rerun-checks"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { frameToLine } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const ROLLUP = JSON.stringify({
   statusCheckRollup: [
@@ -22,13 +25,14 @@ describe("rerunFailedChecks", () => {
   let calls: string
   let previousPath: string | undefined
 
-  function fakeGh(refuseRun30: boolean): void {
+  function fakeGh(refuseRun30: boolean, delaySeconds = 0): void {
     writeFileSync(join(binDir, "rollup.json"), ROLLUP)
     writeFileSync(
       join(binDir, "gh"),
       [
         "#!/bin/sh",
         `if [ "$1" = "pr" ]; then cat "${join(binDir, "rollup.json")}"; exit 0; fi`,
+        `sleep ${delaySeconds}`,
         `echo "$*" >> "${calls}"`,
         refuseRun30 ? `if [ "$3" = "30" ]; then echo "run 30 cannot be rerun; it is in progress" >&2; exit 1; fi` : "",
         "exit 0",
@@ -60,6 +64,58 @@ describe("rerunFailedChecks", () => {
     // Run 20 failed twice (a matrix) and is restarted once; passing run 10 is left alone.
     expect(readFileSync(calls, "utf8").trim().split("\n")).toEqual(["run rerun 20 --failed", "run rerun 30 --failed"])
     expect(res).toEqual({ rerunRuns: 2, external: 1 })
+  })
+
+  it("delivers a slow rerun outcome without disconnecting the shared client", async () => {
+    fakeGh(false, 0.1)
+    vi.stubEnv("ROVE_RPC_TIMEOUT_MS", "40")
+    const socketPath = join(cwd, "daemon.sock")
+    let connections = 0
+    let completed: Promise<void> = Promise.resolve()
+    const server = createServer((socket) => {
+      connections++
+      socket.on("error", () => {})
+      let buffer = ""
+      socket.on("data", (data) => {
+        buffer += data.toString()
+        const newline = buffer.indexOf("\n")
+        if (newline < 0) return
+        const request = JSON.parse(buffer.slice(0, newline))
+        buffer = buffer.slice(newline + 1)
+        completed = (async () => {
+          const result = await rerunFailedChecks({ worktreePath: cwd, prNumber: 7 })
+          if (socket.destroyed) return
+          socket.write(frameToLine({ type: "event", name: "active-task", payload: { taskId: "t1" } }))
+          socket.write(frameToLine({ type: "response", id: request.id, ok: true, payload: result }))
+        })()
+      })
+    })
+    const client = new RoveDaemonClient(socketPath)
+    let closes = 0
+    let activeTask: unknown
+    client.onLifecycle("close", () => closes++)
+    client.on("active-task", (frame) => {
+      activeTask = frame.payload
+    })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject)
+        server.listen(socketPath, resolve)
+      })
+      await expect(client.request("pr.rerunFailedChecks", { taskId: "t1" })).resolves.toEqual({
+        rerunRuns: 2,
+        external: 1,
+      })
+      expect(closes).toBe(0)
+      expect(connections).toBe(1)
+      expect(activeTask).toEqual({ taskId: "t1" })
+      expect(readFileSync(calls, "utf8").trim().split("\n")).toEqual(["run rerun 20 --failed", "run rerun 30 --failed"])
+    } finally {
+      client.close()
+      await completed
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+      vi.unstubAllEnvs()
+    }
   })
 
   it("keeps going past a run gh refuses, and quotes the refusal", async () => {

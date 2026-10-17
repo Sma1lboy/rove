@@ -29,6 +29,7 @@ export const PR_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "pr.rerunFailedChecks",
+    blocking: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const task = ctx.orch?.getTask(taskId)

@@ -245,6 +245,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "workitem.start",
   // Precheck subprocess, then a full session start.
   "automation.runNow",
+  // Rollup lookup followed by serial gh reruns, each with its own subprocess budget.
+  "pr.rerunFailedChecks",
   // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
   "task.ensureWorktree",
   "task.ensureMain",

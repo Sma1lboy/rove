@@ -209,7 +209,8 @@ engine, and **Re-run failed checks**, which restarts only the failed CI jobs
 (through `gh run rerun --failed`) for a failure that looks flaky rather than
 caused by the change. The `✗` mark turns pending on the next PR refresh.
 Checks that did not run on GitHub Actions cannot be restarted from Rove; the
-toast says so.
+toast says so. Reruns wait for every `gh run rerun` command to finish; a slow batch
+does not trigger the client's 20-second daemon-disconnect deadline.
 
 The confirmation dialogs state the exact deletion boundary before anything is
 changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
