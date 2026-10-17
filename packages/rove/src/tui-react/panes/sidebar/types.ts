@@ -38,6 +38,8 @@ export type SidebarTaskCallbacks = {
   onChangeEngineRequest?: (taskId: string) => void
   /** Pull failing CI job logs into the engine. Menu-only, while PR checks are red. */
   onFixChecksRequest?: (taskId: string) => void
+  /** Restart the PR's failed CI jobs. Menu-only, while PR checks are red. */
+  onRerunChecksRequest?: (taskId: string) => void
   /** Merge the base branch into the worktree (the `↓N` chip's action). Menu-only. */
   onSyncBaseRequest?: (taskId: string) => void
   /** Project row's "Field notes": read the repo's durable notes. Menu-only. */

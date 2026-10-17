@@ -30,6 +30,7 @@ import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
 import { landTaskAction } from "./land-task-action"
+import { rerunChecksAction } from "./rerun-checks-action"
 import { syncBaseAction } from "./sync-base-action"
 
 export type WorkspaceTaskActionDeps = {
@@ -77,6 +78,8 @@ export type WorkspaceTaskActions = {
   landTask: (id: string) => Promise<void>
   /** Row menu "Sync with base": merge the base branch into the worktree. */
   syncBase: (id: string) => Promise<boolean>
+  /** Row menu "Re-run failed checks": restart the PR's failed CI jobs. */
+  rerunChecks: (id: string) => Promise<void>
 }
 
 export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): WorkspaceTaskActions {
@@ -188,8 +191,15 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
       id,
     )
 
+  const rerunChecks = (id: string): Promise<void> =>
+    rerunChecksAction(
+      { orchestrator, notifyInfo: deps.notifyInfo, notifyNeedsInput: deps.notifyNeedsInput, notifyError, t },
+      id,
+    )
+
   return {
     syncBase,
+    rerunChecks,
     createTask: () => createTaskFlow(taskActions),
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
     renameTask: (id) => renameTaskFlow(taskActions, id),

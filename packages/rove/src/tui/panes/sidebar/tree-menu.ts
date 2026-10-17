@@ -41,6 +41,7 @@ export type TreeMenuAction =
   | "renameBranch"
   | "changeEngine"
   | "fixChecks"
+  | "rerunChecks"
   | "syncBase"
   | "land"
   | "delete"
@@ -113,6 +114,8 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   // `ctrl+a k` is proposed, not signed off (docs/design/keybinding-decisions.md).
   if (task.prStatus?.checkState === "failing") {
     verbs.push({ action: "fixChecks", labelKey: "tasks.menu.fixChecks", bindingId: "files.fixChecks" })
+    // Menu-only: for a red the user reads as flaky, not caused by the change.
+    verbs.push({ action: "rerunChecks", labelKey: "tasks.menu.rerunChecks" })
   }
   // Merge base INTO the worktree (the `↓N` chip's action); gated like `land`.
   // Chord `ctrl+a u` is proposed, not signed off.

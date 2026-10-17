@@ -147,6 +147,8 @@ export type DaemonRequestName =
   // A PR's FAILING check logs, once per human click. Never polled: it
   // downloads whole job logs.
   | "pr.failingChecks"
+  // Restart a PR's failed Actions jobs, once per human click.
+  | "pr.rerunFailedChecks"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
   // Turn store read side; written only by hook ingest on `turn-complete`.
@@ -243,6 +245,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "workitem.start",
   // Precheck subprocess, then a full session start.
   "automation.runNow",
+  // Rollup lookup followed by serial gh reruns, each with its own subprocess budget.
+  "pr.rerunFailedChecks",
   // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
   "task.ensureWorktree",
   "task.ensureMain",
