@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.249
+
+### Patch Changes
+
+- [#1285](https://github.com/Sma1lboy/rove/pull/1285) [`529ff11`](https://github.com/Sma1lboy/rove/commit/529ff1162a557fc0ff02f180598b0c610580194f) Set `worktree.deleteBranch` to `true` in your config and deleting a task from the TUI also deletes its local git branch when that branch is merged, so finished work stops piling up in `git branch`; an unmerged branch, and the branch of a force-deleted dirty worktree, still stay. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1255](https://github.com/Sma1lboy/rove/pull/1255) [`eb06f85`](https://github.com/Sma1lboy/rove/commit/eb06f85b8dbc3d7fa44f566eb66d6a4b88ae8f4c) Switching tasks re-renders the Files pane less often: it now skips workspace updates that don't change what it shows, such as the daemon confirming the new active task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1286](https://github.com/Sma1lboy/rove/pull/1286) [`cca1b41`](https://github.com/Sma1lboy/rove/commit/cca1b41242b312553ba80243e9730f7f87dd88ff) Consolidate engine object validation into a shared guard without changing behavior. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.248
 
 ### Patch Changes
