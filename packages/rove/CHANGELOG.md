@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.250
+
+### Patch Changes
+
+- [#1287](https://github.com/Sma1lboy/rove/pull/1287) [`5452606`](https://github.com/Sma1lboy/rove/commit/545260628dc77f1f50c1af686298efe2a214e1bd) - A routine whose run fell in the hour that repeats when daylight saving ends no longer loses that run if the daemon catches up during the hour's second pass; before, it logged a false missed run every minute until the clock caught up and never ran the real one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1288](https://github.com/Sma1lboy/rove/pull/1288) [`1e48ffd`](https://github.com/Sma1lboy/rove/commit/1e48ffd85680610b5c859ee61e592437b34d96c9) - A task whose pull request checks are red now offers **Re-run failed checks** in its sidebar row menu. It restarts only the failed CI jobs, so a flaky failure can go green again without leaving Rove; checks that did not run on GitHub Actions are named in the toast instead. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.249
 
 ### Patch Changes
