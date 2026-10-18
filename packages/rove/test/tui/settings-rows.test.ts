@@ -112,11 +112,26 @@ describe("engineRows", () => {
 })
 
 describe("devRows", () => {
-  it("with a daemon: reset, restart, then the experimental toggles in order", () => {
+  it("with a daemon: reset, restart, reload, then the experimental toggles in order", () => {
     const rows = devRows(true)
     expect(rows.map((r) => r.kind)).toEqual([
       "devReset",
       "devRestartDaemon",
+      "devReloadSettings",
+      "devRemoteProjects",
+      "devAutoStatus",
+      "devDispatcher",
+    ])
+    expect(rowIndex(rows, "remote-projects")).toBe(3)
+    expect(rowIndex(rows, "auto-status")).toBe(4)
+    expect(rowIndex(rows, "dispatcher")).toBe(5)
+  })
+
+  it("without a daemon: the same list, one row shorter, indices shifted by one", () => {
+    const rows = devRows(false)
+    expect(rows.map((r) => r.kind)).toEqual([
+      "devReset",
+      "devReloadSettings",
       "devRemoteProjects",
       "devAutoStatus",
       "devDispatcher",
@@ -124,14 +139,6 @@ describe("devRows", () => {
     expect(rowIndex(rows, "remote-projects")).toBe(2)
     expect(rowIndex(rows, "auto-status")).toBe(3)
     expect(rowIndex(rows, "dispatcher")).toBe(4)
-  })
-
-  it("without a daemon: the same list, one row shorter, indices shifted by one", () => {
-    const rows = devRows(false)
-    expect(rows.map((r) => r.kind)).toEqual(["devReset", "devRemoteProjects", "devAutoStatus", "devDispatcher"])
-    expect(rowIndex(rows, "remote-projects")).toBe(1)
-    expect(rowIndex(rows, "auto-status")).toBe(2)
-    expect(rowIndex(rows, "dispatcher")).toBe(3)
   })
 })
 
@@ -181,8 +188,8 @@ describe("sectionRows / bodyRowCount", () => {
     expect(bodyRowCount("marketplace", { ...inp, marketplace: [] })).toBe(0)
     expect(bodyRowCount("feedback", inp)).toBe(3)
     // reset + restart + 3 experimental toggles; one fewer without a daemon.
-    expect(bodyRowCount("dev", inp)).toBe(5)
-    expect(bodyRowCount("dev", { ...inp, hasDaemon: false })).toBe(4)
+    expect(bodyRowCount("dev", inp)).toBe(6)
+    expect(bodyRowCount("dev", { ...inp, hasDaemon: false })).toBe(5)
   })
 
   it("row ids are unique within every section", () => {

@@ -165,6 +165,7 @@ function mockKv(): KVContext {
     setQuiet: () => {},
     flush: () => true,
     clear: () => true,
+    reload: () => ({ ok: true, changed: 0 }),
     onWriteError: () => () => {},
   }
 }

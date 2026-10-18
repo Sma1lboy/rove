@@ -68,6 +68,18 @@ export async function confirmRestartDaemon(
   relaunchSelf({ renderer, notice: t("settings.restart.done") })
 }
 
+/** Settings → Dev "Reload settings": the status line the section shows after a reload. */
+export function reloadSettingsStatus(kv: KVContext): string {
+  const result = kv.reload()
+  if (!result.ok) {
+    const error = result.error instanceof Error ? result.error.message : String(result.error)
+    return t("settings.dev.reloadFailed", { error })
+  }
+  return result.changed === 0
+    ? t("settings.dev.reloadUnchanged")
+    : t("settings.dev.reloadDone", { count: result.changed })
+}
+
 /**
  * Install (or refresh) Rove's activity hooks in every engine's config.
  *
