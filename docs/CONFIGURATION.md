@@ -72,7 +72,12 @@ rove uses your configured editor (`editor.kind` below) unless it is `auto`
 (the default), which honors `$VISUAL` / `$EDITOR`, then the first installed
 of nvim, vim, emacs, nano.
 
-Restart Rove to apply a hand edit everywhere.
+To apply a hand edit without restarting, open Settings → Dev and choose
+**Reload settings**. It re-reads `state.json` into the running window and says
+how many settings changed. If the file isn't valid JSON, nothing changes and the
+file stays put so you can finish the edit. A few settings are read only at
+startup and still need a restart; other open windows keep their old
+values until they reload or restart.
 
 **Hand-editing is safe.** Unknown keys are ignored and bad values fall back to
 defaults, so a typo can't wedge the app; worst case a preference resets. If

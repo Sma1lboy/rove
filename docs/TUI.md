@@ -483,7 +483,9 @@ left arrow to return to the section list, and `enter` to activate a row.
 - **Keybindings** shows the active prefix, loaded YAML overrides and warnings.
   Edit the displayed YAML path; changes reload live.
 - **Feedback** submits a GitHub Discussion through an authenticated `gh` CLI.
-- **Dev** contains reset, a backend-exit action and experimental switches. Reset
+- **Dev** contains reset, a backend-exit action, **Reload settings** and
+  experimental switches. Reload settings applies hand edits to `state.json` to
+  this window without a restart. Reset
   clears UI and task-index state after confirmation, but leaves worktrees and
   engine history on disk. The current **Restart backend** action exits only this
   TUI window; other attached windows and hosted sessions remain connected. Use

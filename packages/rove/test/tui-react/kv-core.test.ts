@@ -326,4 +326,40 @@ describe("createKvCore", () => {
     expect(notified).toBe(1)
     expect(kv.get("visits")).toEqual(["set"])
   })
+
+  it("reload() applies a hand edit to state.json and notifies subscribers", () => {
+    const home = isolatedHome({ activeTheme: "tokyonight", removed: 1 })
+    const kv = createKvCore()
+    let notified = 0
+    kv.subscribe(() => notified++)
+    writeState(home, { activeTheme: "nord", added: true })
+    expect(kv.reload()).toEqual({ ok: true, changed: 3 })
+    expect(kv.snapshot()).toEqual({ activeTheme: "nord", added: true })
+    expect(notified).toBe(1)
+    expect(kv.reload()).toEqual({ ok: true, changed: 0 })
+    expect(notified).toBe(1)
+  })
+
+  it("reload() keeps a pending edit and restores a seeded default the file no longer carries", () => {
+    const home = isolatedHome({ zen: true })
+    const kv = createKvCore()
+    kv.seed("zen", false)
+    kv.seed("toast", "bottom")
+    kv.set("sound", "on")
+    writeState(home, { other: "x" })
+    expect(kv.reload().ok).toBe(true)
+    expect(kv.snapshot()).toEqual({ other: "x", sound: "on", zen: false, toast: "bottom" })
+    expect(readState(home)).toEqual({ other: "x", sound: "on" })
+  })
+
+  // Reload runs while the user is editing; a typo must not move their file aside.
+  it("reload() on invalid JSON changes nothing and leaves the file in place", () => {
+    const home = isolatedHome({ activeTheme: "tokyonight" })
+    const kv = createKvCore()
+    writeFileSync(statePath(home), '{"activeTheme": "nord",', "utf8")
+    const result = kv.reload()
+    expect(result.ok).toBe(false)
+    expect(kv.snapshot()).toEqual({ activeTheme: "tokyonight" })
+    expect(readFileSync(statePath(home), "utf8")).toBe('{"activeTheme": "nord",')
+  })
 })

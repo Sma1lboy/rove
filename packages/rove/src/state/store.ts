@@ -81,6 +81,26 @@ function readStateFile(ownsLock: boolean): StateSnapshot {
 }
 
 /**
+ * `loadStateFile` for an explicit reload: a missing file is `{}`, but invalid
+ * JSON throws and stays where it is, since the user is likely mid-edit.
+ */
+export function readStateFileStrict(): StateSnapshot {
+  const path = kvStatePath()
+  let text: string
+  try {
+    text = readFileSync(path, "utf8")
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return {}
+    throw err
+  }
+  const parsed = JSON.parse(text) as unknown
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`${path} is not a JSON object`)
+  }
+  return parsed as StateSnapshot
+}
+
+/**
  * Atomic write via a per-call-unique `state.json.<pid>.<nonce>.tmp` + rename,
  * so a crash never leaves a half-written file. `undefined` values vanish at
  * stringify time (that is how deletion serializes). Throws on I/O failure;
