@@ -175,3 +175,11 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Why it did not count.** Two clean runs read root 9.6/9.3, workspace 9.4/9.2, frame 4.2/3.7 against 9.5/9.5/4.2 on main tonight: noise. The footer's store-driven renders were already batched into commits that happen anyway (the passive-effect flush), so commit (3)/(5)'s 0.00 ms source is not the footer's store subscription either. The diff is small to redo (keymap.ts `subscribeBindingStack`, keyboard-hints.tsx effect) if a later change needs footer renders down for its own reasons.
 
 **Next:** for commit (3), the setState, external-store and footer-subscription traces are now all ruled out; try logging `scheduleUpdateOnFiber` from a patched reconciler copy (10-15 candidate (a)).
+
+## 2026-10-18 — notes, no attempt landed (main 2bbe18a)
+
+**No regression.** All three runs exited 1 on timings only, and every count stayed within tolerance (switch.perOp.commit.root 9.8, workspace 9.8, sidebar 2.8, files 3, idle all 0). The timings swung run to run: golden.vt-1mb-parse-ms read 684.6, 460.9 and 1624.6 (baseline 126.1), and boot.ready.ms read 46598, 25616 and 15296. `perf-golden --fast` alternated between eb06f85 (last night's main) and 2bbe18a read vt-1mb 548.8/446.1 vs 726.4/112.8 and cli-startup 231–386 for both. That is machine noise, not code: the only commits since then are #1287 (routine DST) and #1288 (sidebar re-run checks). Baseline not moved. Tonight's history line is run 3.
+
+**Sandbox:** the shell exports `BUN_OPTIONS=--smol`. Run 3 was taken with it unset. Check whether earlier nights had it set before comparing nights. Fixture `pty-host` processes also outlived teardown (two were left running after runs 1 and 2) and were killed before run 3.
+
+**Tried, not done:** candidate (a) from 10-15 (log `scheduleUpdateOnFiber` from a patched react-reconciler in `node_modules/.bun/react-reconciler@0.33.0…/cjs`). The sandbox permission policy blocks editing `node_modules`. Next time, copy the reconciler into a scratch dir and point the import at it through a bun `--preload` plugin, or ask the owner. #1284 (geomTick fold) is still open, so terminal geometry was left alone. The `git ls-files` per switch is still blocked by the 09-28 invalidation problem (`--others` lists untracked files, so the index mtime is not enough).
