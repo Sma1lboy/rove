@@ -12,7 +12,7 @@
  *   - Writes are debounced (250ms) — no disk write before the window.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -350,6 +350,37 @@ describe("createKvCore", () => {
     expect(kv.reload().ok).toBe(true)
     expect(kv.snapshot()).toEqual({ other: "x", sound: "on", zen: false, toast: "bottom" })
     expect(readState(home)).toEqual({ other: "x", sound: "on" })
+  })
+
+  it("keeps pending writes off an invalid file until repair, across debounce and exit flushes", () => {
+    vi.useFakeTimers()
+    const home = isolatedHome({ activeTheme: "tokyonight", keep: 42 })
+    const kv = createKvCore()
+    const log = vi.spyOn(console, "error").mockImplementation(() => {})
+    try {
+      kv.set("sound", "on")
+      const broken = '{"activeTheme":"nord",'
+      writeFileSync(statePath(home), broken)
+      expect(kv.reload().ok).toBe(false)
+      vi.advanceTimersByTime(400)
+      expect(readFileSync(statePath(home), "utf8")).toBe(broken)
+      kv.setQuiet("visits", 3)
+      kv.set("sound", "off")
+      vi.advanceTimersByTime(400)
+      expect(kv.flush()).toBe(false)
+      expect(readFileSync(statePath(home), "utf8")).toBe(broken)
+      expect(readdirSync(join(home, ".config", "rove"))).toEqual(["state.json"])
+      expect(kv.get("sound")).toBe("off")
+      expect(kv.get("visits")).toBe(3)
+
+      writeState(home, { activeTheme: "nord", keep: 42, external: true })
+      expect(kv.flush()).toBe(true)
+      expect(readState(home)).toEqual({ activeTheme: "nord", keep: 42, external: true, sound: "off", visits: 3 })
+      expect(kv.reload().ok).toBe(true)
+      expect(kv.snapshot()).toEqual(readState(home))
+    } finally {
+      log.mockRestore()
+    }
   })
 
   // Reload runs while the user is editing; a typo must not move their file aside.

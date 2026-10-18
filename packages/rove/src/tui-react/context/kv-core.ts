@@ -59,7 +59,8 @@ export interface KvCore {
   /**
    * Re-read `state.json` into the snapshot. Pending keys flush first; any that
    * still can't reach disk keep their local value. An unreadable or invalid
-   * file changes nothing and is left in place.
+   * file changes nothing and is left in place. Flushes retain pending keys
+   * until the file is repaired.
    */
   reload(): KvReloadResult
   /**
@@ -103,7 +104,7 @@ export function createKvCore(): KvCore {
       const patch: Record<string, unknown> = {}
       const snap = store.get()
       for (const key of dirtyKeys) patch[key] = quiet.has(key) ? quiet.get(key) : snap[key]
-      patchStateFile(patch)
+      patchStateFile(patch, "strict")
       dirtyKeys.clear()
       reportedKeys.clear()
       return true
