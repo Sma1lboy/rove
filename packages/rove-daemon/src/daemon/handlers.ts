@@ -27,6 +27,7 @@ import type { DaemonOrchestrator } from "./contracts.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
 import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
+import { API_HANDLERS } from "./handlers-api.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
@@ -47,6 +48,7 @@ import {
   type DaemonRequestName,
   type DaemonStopReason,
   MIN_COMPATIBLE_PROTOCOL_VERSION,
+  ROVE_API_VERSION,
   isProtocolCompatible,
   parseDaemonStopReason,
   serializeTask,
@@ -224,6 +226,8 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // patch upgrade (same protocol) → non-fatal "restart the daemon" banner.
           roveVersion: ctx.runtime.currentVersion,
           capabilities: [...CHANNEL_NAMES],
+          // The verb contract `api.invoke` serves (same number as `rove api schema`).
+          apiVersion: ROVE_API_VERSION,
           daemonPid: ctx.daemon.pid,
           clientId: ctx.clientId,
           // A client whose home differs must reject `tasks` rather than render
@@ -276,6 +280,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
       },
     },
     // Entry ORDER is not wire-load-bearing (only key order within a payload is).
+    ...API_HANDLERS,
     ...TASK_HANDLERS,
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,

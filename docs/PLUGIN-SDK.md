@@ -171,6 +171,7 @@ call on an instance (`new RoveSocket().connect()`), not a named import.
 | `DaemonInfo` | type (export) | What `hello()` resolves with (fields below). |
 | `.connect` | method: `(opts?: RoveSocketOptions) => Promise<void>` | Connect to the daemon socket. |
 | `.request` | method: `<T>(name, payload?) => Promise<T>` | One request → response; rejects on daemon error frames. |
+| `.invoke` | method: `<T>(verb, params?) => Promise<ApiEnvelope<T>>` | Run one `rove api` verb inside the daemon, without spawning the CLI. A refusal resolves `{ ok: false, error }`. Params are keyed by flag name; paths must be absolute and stdin is unavailable ([API.md](API.md#one-contract-three-transports)). |
 | `.subscribe` | method: `(handler, channels?) => Promise<void>` | Subscribe to channels (`role: "pane"`); omit channels for all. |
 | `.hello` | method: `() => Promise<DaemonInfo>` | Ask the RUNNING daemon its build version and channel list. |
 | `.onClose` | method: `(handler) => void` | Called once when the connection dies (restart, crash, error). Not called for your own `close()`. |
@@ -204,7 +205,8 @@ if (!info.capabilities.includes("usage.snapshot")) {
 
 `DaemonInfo` carries `roveVersion` / `roveVersion` (the same build version
 under both spellings; the wire field is `roveVersion`), `capabilities`,
-`protocolVersion` / `minProtocolVersion`, `daemonPid`, and `homeDir` — a
+`protocolVersion` / `minProtocolVersion`, `apiVersion` (the verb contract
+`invoke` speaks; absent on a daemon without it), `daemonPid`, and `homeDir` — a
 `homeDir` that is not yours means you reached a foreign daemon. It is also
 the way to check `$ROVE_BIN_PATH --version` against the host: in a dev
 checkout those are different builds.
@@ -368,6 +370,8 @@ for the event catalog and channel list, so host and SDK cannot drift.
 | `PluginEventTask` | type | Task block embedded in envelopes that map to a task. |
 | `DaemonChannelName` | type | Union of channel names. |
 | `DaemonFrame` | type | One newline-delimited JSON socket frame. |
+| `ROVE_API_VERSION` | number | The verb contract version this SDK was built against. |
+| `ApiEnvelope` / `ApiErrorBody` / `ApiParams` | types | One verb call's outcome, its refusal object, and its params — identical over the CLI's `--envelope`, the socket and the bridge. |
 
 Event semantics (when each fires, what `detail` contains) are documented in
 the per-event contract in the [plugin event reference](./PLUGIN-EVENTS.md).

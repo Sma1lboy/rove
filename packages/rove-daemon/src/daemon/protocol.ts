@@ -19,6 +19,12 @@ export type {
 
 export { attentionInboxItemKey, isAttentionInboxState, isRoutineInboxState } from "./contracts.ts"
 export type { EngineQuotaUsage, EngineQuotaWindow } from "./contracts.ts"
+export {
+  ROVE_API_VERSION,
+  type ApiEnvelope,
+  type ApiErrorBody,
+  type ApiParams,
+} from "@sma1lboy/rove-plugin-sdk/contract"
 
 export {
   CHANNEL_NAMES,
@@ -64,6 +70,8 @@ export type DaemonFrame =
 
 export type DaemonRequestName =
   | "hello"
+  // Run one `rove api` verb in this process (the shared verb contract).
+  | "api.invoke"
   | "daemon.status"
   | "daemon.stop"
   | "subscribe"
@@ -237,6 +245,8 @@ export type DaemonRequestName =
  * `test/daemon/rpc-deadline.test.ts` fails if the two drift.
  */
 export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonRequestName>([
+  // Any verb, `land` and `add --wait` included; the verb owns its own budget.
+  "api.invoke",
   // Blocks on a human answering the TUI dialog (default 120s, max 600s).
   "ui.prompt",
   // Merge/squash plus optional worktree removal, on a repo of any size.

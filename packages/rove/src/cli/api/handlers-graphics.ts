@@ -22,6 +22,7 @@ async function readStdin(): Promise<Buffer> {
 export const PANE_GRAPHICS_VERB: VerbSpec = {
   name: "pane-graphics",
   group: "drive",
+  cliOnly: true,
   summary:
     "Write opaque graphics bytes (read from stdin) to the terminal of every TUI attached to this task — the transport a pane needs because its own tty is a PTY slave, not the emulator, so it cannot reach the real terminal or measure it. Rove parses nothing: the bytes are your protocol. Call it ONCE with nothing on stdin to be given `imageId` (allocated per tab, so two panes never collide) plus `cellWidth`/`cellHeight` in pixels; build your payload around those, then pipe each frame in with --image-id to replace that picture in place. `wrote` says whether anything was broadcast. Returns `ok: false` with `unsupported` when no attached terminal reported a cell size (`no-cell-size`) or two reported different ones (`mixed-cell-size`) — fall back to whatever you draw without graphics. Task defaults to $ROVE_TASK_ID, then the active task.",
   flags: [
