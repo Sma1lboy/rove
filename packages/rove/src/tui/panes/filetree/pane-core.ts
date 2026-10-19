@@ -146,6 +146,60 @@ export function watchEventRelevant(filename: string): boolean {
 
 type EventedWatcher = ReturnType<typeof watch> & { on(event: "error", listener: (err: Error) => void): void }
 
+type SharedWatch = { watcher: EventedWatcher | null; armedAt: number | null; listeners: Set<() => void> }
+
+const sharedWatches = new Map<string, SharedWatch>()
+
+export interface WorktreeEvents {
+  /** When the watch armed (ms epoch); null = unwatchable or errored, so no change is ever reported. */
+  readonly armedAt: number | null
+  dispose(): void
+}
+
+/**
+ * One recursive watch per worktree, shared by every subscriber, undebounced
+ * and filtered by {@link watchEventRelevant}. An `error` disarms it and fires
+ * the listeners once, since events may have been lost.
+ */
+export function subscribeWorktreeEvents(path: string, onEvent: () => void): WorktreeEvents {
+  let entry = sharedWatches.get(path)
+  if (!entry) {
+    const created: SharedWatch = { watcher: null, armedAt: null, listeners: new Set() }
+    entry = created
+    try {
+      created.watcher = watch(path, { recursive: true }, (_event, filename) => {
+        if (filename == null) return
+        if (!watchEventRelevant(filename.toString())) return
+        for (const l of [...created.listeners]) l()
+      }) as EventedWatcher
+      created.armedAt = Date.now()
+      created.watcher.on("error", () => {
+        created.armedAt = null
+        for (const l of [...created.listeners]) l()
+      })
+    } catch {
+      // Unwatchable path: armedAt stays null.
+    }
+    sharedWatches.set(path, created)
+  }
+  const shared = entry
+  shared.listeners.add(onEvent)
+  let disposed = false
+  return {
+    get armedAt() {
+      return disposed ? null : shared.armedAt
+    },
+    dispose() {
+      if (disposed) return
+      disposed = true
+      shared.listeners.delete(onEvent)
+      if (shared.listeners.size > 0) return
+      sharedWatches.delete(path)
+      shared.watcher?.close()
+    },
+  }
+}
+
 /**
  * Recursive worktree watch, trailing debounce; returns a disposer. Errors
  * degrade to manual `r`. Callers honor `ROVE_FILETREE_WATCH=0` for repos too
@@ -158,25 +212,15 @@ type EventedWatcher = ReturnType<typeof watch> & { on(event: "error", listener: 
  */
 export function watchWorktree(path: string, onChange: () => void, debounceMs = 500): () => void {
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
-  let watcher: EventedWatcher | null = null
-  try {
-    watcher = watch(path, { recursive: true }, (_event, filename) => {
-      if (filename == null) return
-      if (!watchEventRelevant(filename.toString())) return
-      if (debounceTimer != null) clearTimeout(debounceTimer)
-      debounceTimer = setTimeout(() => {
-        debounceTimer = null
-        onChange()
-      }, debounceMs)
-    }) as EventedWatcher
-    watcher.on("error", () => {
-      // Swallowed: `r` is the escape hatch.
-    })
-  } catch {
-    // Unwatchable path: manual refresh only.
-  }
+  const events = subscribeWorktreeEvents(path, () => {
+    if (debounceTimer != null) clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null
+      onChange()
+    }, debounceMs)
+  })
   return () => {
     if (debounceTimer != null) clearTimeout(debounceTimer)
-    if (watcher != null) watcher.close()
+    events.dispose()
   }
 }
