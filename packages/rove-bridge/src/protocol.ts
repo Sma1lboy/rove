@@ -12,6 +12,8 @@ export const BRIDGE_PROTOCOL_VERSION = 1
 
 export const OPS = [
   "hello",
+  // The `rove api` verb contract: {verb, params} → the verb's result, or its full error object.
+  "api.invoke",
   "tasks.subscribe",
   "tasks.list",
   "engines.list",
@@ -176,6 +178,8 @@ export class BridgeError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    /** Recovery fields (`hint`, `nextCommandArgs`, refusal data) sent beside `code` and `message`. */
+    readonly detail?: Readonly<Record<string, unknown>>,
   ) {
     super(message)
     this.name = "BridgeError"
@@ -252,8 +256,13 @@ export function responseOk(id: number, result: unknown): string {
   return JSON.stringify({ id, ok: true, result: result ?? {} })
 }
 
-export function responseError(id: number | null, code: string, message: string): string {
-  return JSON.stringify({ id, ok: false, error: { code, message } })
+export function responseError(
+  id: number | null,
+  code: string,
+  message: string,
+  detail?: Readonly<Record<string, unknown>>,
+): string {
+  return JSON.stringify({ id, ok: false, error: { ...detail, code, message } })
 }
 
 export function pushEvent(event: string, data: unknown): string {

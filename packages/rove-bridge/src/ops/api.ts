@@ -1,13 +1,18 @@
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { DaemonRequestName } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
+import { ApiError, invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { BridgeError } from "../protocol.ts"
 import type { BridgeApi } from "./types.ts"
 
-/** Rethrow with the refusal's stable `code` kept on the wire. */
+/** Rethrow with the refusal's stable `code` and its recovery data kept on the wire. */
 function asBridgeError(err: unknown, fallback: string): BridgeError {
   const code = err && typeof err === "object" && "code" in err ? err.code : undefined
-  return new BridgeError(typeof code === "string" ? code : fallback, err instanceof Error ? err.message : String(err))
+  const data = err instanceof ApiError ? err.data : undefined
+  return new BridgeError(
+    typeof code === "string" ? code : fallback,
+    err instanceof Error ? err.message : String(err),
+    data,
+  )
 }
 
 /** `rove api` verbs in-process and daemon RPCs, both through one daemon client. */

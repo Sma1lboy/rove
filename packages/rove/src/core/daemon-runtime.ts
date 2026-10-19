@@ -56,6 +56,26 @@ function resolveProtocolUpgradeAndLearnPreset(
 
 export const daemonRuntime: DaemonRuntimeAdapter = {
   currentVersion: CURRENT_VERSION,
+  // Lazy: the verb table pulls in most of the CLI, which a daemon that never
+  // serves `api.invoke` should not load.
+  async invokeApi(verb, params, socketPath) {
+    const [{ executeVerb, errorEnvelope }, { REMOTE_CALLER }, { RoveDaemonClient }] = await Promise.all([
+      import("../cli/api/invoke.ts"),
+      import("../cli/api/types.ts"),
+      import("@sma1lboy/rove-daemon/client"),
+    ])
+    // Its own connection back to this daemon: verbs subscribe and wait on
+    // channels the way they do from the CLI.
+    const client = new RoveDaemonClient(socketPath)
+    try {
+      await client.connect()
+      return await executeVerb(verb, { params }, { client, caller: REMOTE_CALLER })
+    } catch (err) {
+      return errorEnvelope(err)
+    } finally {
+      client.close()
+    }
+  },
   defaultTaskVendor: DEFAULT_TASK_VENDOR,
   placeholderTaskTitle: PLACEHOLDER_TASK_TITLE,
   isTaskStatus,
