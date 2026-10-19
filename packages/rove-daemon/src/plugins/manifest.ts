@@ -21,6 +21,7 @@ import {
   asTimeoutMs,
   fail,
 } from "./manifest-coerce.ts"
+import { type PluginPage, parsePages } from "./manifest-pages.ts"
 import { settingKeyRejection } from "./setting-keys.ts"
 
 export { PLUGIN_PLATFORMS, type PluginPlatform }
@@ -117,6 +118,8 @@ export interface PluginEngine {
   readonly firstMessageDelivery?: "argv" | "paste"
 }
 
+export type { PluginPage } from "./manifest-pages.ts"
+
 export interface PluginManifest {
   readonly id: string
   readonly name: string
@@ -131,6 +134,7 @@ export interface PluginManifest {
   readonly actions: readonly PluginAction[]
   readonly events: readonly PluginEventHook[]
   readonly panes: readonly PluginPane[]
+  readonly pages: readonly PluginPage[]
   readonly settings: readonly PluginSetting[]
   readonly fileHandlers: readonly PluginFileHandler[]
   readonly engines: readonly PluginEngine[]
@@ -308,6 +312,8 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
     paneSeen.add(p.id)
   }
 
+  const pages = parsePages(raw.pages, LOCAL_ID_RE)
+
   const events = asTableArray(raw.events, "events").flatMap((t, i) => {
     const on = asString(t.on, `events[${i}].on`)
     const hook = {
@@ -443,6 +449,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       actions,
       events,
       panes,
+      pages,
       settings,
       fileHandlers,
       engines,

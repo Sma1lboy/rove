@@ -168,6 +168,13 @@ placement = "split"              # split (default: joins the focused chattab's
                                  # split group beside the engine) | tab (own tab)
 command = ["node", "$ROVE_PLUGIN_ROOT/board.js"]   # cwd = the TASK WORKTREE
 
+[[pages]]                        # a React page in the content pane, on the rail
+id = "board"                     # rail id: <plugin id>.board
+title = "Board"                  # rail label
+entry = "page.tsx"               # module inside the plugin (see Pages below)
+order = 40                       # rail position; built-in pages sit at 10/20/30
+action = "kanban.open"           # optional; see Pages below
+
 [[settings]]                     # rendered as an editor in Settings → Plugins
 key = "YOU_EXAMPLE_MODE"         # stored as KEY=value in your config .env;
                                  # must be a plain env var name, and may not
@@ -393,6 +400,58 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
 - `homeDir` — its state root. A different home means you reached a foreign
   daemon (a sandbox one on the production socket path).
 
+## Pages (experimental)
+
+A `[[pages]]` entry adds a row to the sidebar rail (beside Kanban, Routines
+and Issues) that opens a React page in the content pane, rendered by the TUI
+itself rather than in a terminal. The module runs **inside the TUI process**,
+with the trust your plugin's commands already have.
+
+The entry's default export is a factory. Rove calls it once with the host API
+and renders what it returns:
+
+```tsx
+/** @jsxRuntime classic */
+/** @jsx h */
+import { createElement as h, useState } from "react"
+
+export default function page(host) {
+  host.i18n.registerMessages("board", { en: { empty: "Nothing yet" }, zh: { empty: "还没有内容" } })
+  return function BoardPage(props) {
+    const { theme } = host.theme.useTheme()
+    const t = host.i18n.useT()
+    host.keymap.useBindings(() => ({
+      enabled: props.focused,
+      bindings: [...host.keymap.pageCloseBindings(props.onClose)],
+    }))
+    return <text fg={theme.textMuted}>{t("board.empty")}</text>
+  }
+}
+```
+
+- **Imports.** `react`, `@opentui/react` and `@opentui/core` resolve to the
+  TUI's own copies, so hooks work. Everything else of Rove's comes through
+  `host` (`apiVersion` 1): `i18n`, `theme`, `keymap`, `notifications`,
+  `dialog`, `ui`, `layout`, `text`, `paths`, `projects`, `tasks`,
+  `engines`, `attachments`, `issues`. The authoritative list is
+  `packages/rove/src/tui-react/pages/host-api.ts`. Keep the shared runtime
+  external if you bundle.
+- **JSX.** Use the classic transform (the two pragma lines above) or plain
+  `createElement` calls. The automatic runtime injects an import Bun
+  resolves before any plugin hook, so a page outside `node_modules` cannot
+  load it.
+- **Props.** `orchestrator` (the TUI's daemon client), `focused` (gate your
+  bare keys on it), `onClose`, `onOpenTask(taskId)`, `selectedTask` and
+  `engineStates`.
+- **Opening it.** A click on its rail row always works. `action` can claim
+  one of the page-open chords, `kanban.open`, `automations.open` or
+  `workItems.open`, and the page with the lowest `order` keeps a chord that
+  two pages claim. Any other action is refused; the page still loads.
+- **Failures.** A page whose module fails to load contributes nothing. Its
+  reason shows under the plugin in Settings → Plugins. Toggling the plugin
+  there adds or removes its rail rows at once; changed page code needs a
+  TUI restart.
+
 ## Interaction surfaces
 
 - **ctrl+e picker**: every enabled plugin's panes are listed by title;
@@ -401,6 +460,8 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
   `~/.rove/settings/keybindings.yaml`:
   `plugins: { ctrl+b: pane:you.example.board, f6: action:you.example.greet }`.
   Ship the suggestion in your README; Rove ships no default plugin chords.
+- **Rail pages**: `[[pages]]` add React pages to the sidebar rail — see
+  [Pages](#pages-experimental).
 - **Files pane**: `[[file_handlers]]` claims opens by pattern.
 - **Engines**: `[[engines]]` contributes a coding CLI to the engine
   selector: identity, launch command, and screen-state rules for

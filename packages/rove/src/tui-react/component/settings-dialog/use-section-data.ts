@@ -14,6 +14,7 @@ import { reloadPluginEngines } from "../../../engine/plugin-engines"
 import type { SectionId } from "../../../tui/component/settings-dialog/model"
 import type { VendorId } from "../../../types/task"
 import { useT } from "../../i18n"
+import { loadPluginPages } from "../../pages/load-plugin-pages"
 import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { RenameTaskDialog } from "../rename-task-dialog"
@@ -110,6 +111,10 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
         // Registry unwritable — the re-read below leaves the row as disk has it.
       }
       setRows(readPluginRows())
+      // Pages mount in this process; a reload adds or drops this plugin's rail rows.
+      void loadPluginPages()
+        .then(() => setRows(readPluginRows()))
+        .catch((err: unknown) => console.error("[rove] plugin pages:", err))
     },
     editSetting: async (pluginId: string, key: string) => {
       const setting = rows.find((p) => p.id === pluginId)?.settings.find((s) => s.key === key)

@@ -99,6 +99,21 @@ describe("parsePluginManifest", () => {
   })
 })
 
+describe("[[pages]]", () => {
+  const withPage = (entry: string) => `${VALID}\n[[pages]]\nid = "board"\ntitle = "Board"\nentry = "${entry}"\n`
+
+  it("parses a page, defaulting its rail order after the built-in pages", () => {
+    expect(parsePluginManifest(withPage("ui/page.tsx")).manifest.pages).toEqual([
+      { id: "board", title: "Board", entry: "ui/page.tsx", order: 100 },
+    ])
+  })
+
+  it("refuses an entry outside the plugin: the TUI would import it", () => {
+    expect(() => parsePluginManifest(withPage("../elsewhere/page.tsx"))).toThrow(/inside the plugin/)
+    expect(() => parsePluginManifest(withPage("/etc/page.tsx"))).toThrow(/inside the plugin/)
+  })
+})
+
 describe("plugin manifest filenames", () => {
   const body = 'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"\nplatforms = ["linux"]'
 

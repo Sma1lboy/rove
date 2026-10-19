@@ -136,7 +136,7 @@ describe("pluginRowView", () => {
       enabled: true,
       linked: false,
       source: "acme/rove-notify",
-      declares: { actions: 1, events: 2, panes: 0 },
+      declares: { actions: 1, events: 2, panes: 0, pages: 0 },
       lastRun: null,
     })
   })

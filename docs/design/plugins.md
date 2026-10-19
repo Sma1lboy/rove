@@ -50,7 +50,20 @@ command = ["sh", "notify.sh"]
 id = "git"
 title = "lazygit"
 command = ["lazygit"]            # cwd = the task worktree; use $ROVE_PLUGIN_ROOT/... for plugin files
+
+[[pages]]                        # a React page in the content pane, listed on the rail
+id = "board"
+title = "Board"
+entry = "page.tsx"               # default export: (host) => Page
 ```
+
+`[[pages]]` is the one in-process surface: the TUI imports the module
+(`tui-react/pages/load-plugin-pages.ts`) and renders it from the page
+registry (`tui-react/pages/registry.ts`) that also holds the host's own
+pages. OpenTUI's Bun runtime plugin maps the module's `react` /
+`@opentui/*` imports onto the host's instances, so there is one React. The
+rest of Rove reaches a page only through the host API object
+(`tui-react/pages/host-api.ts`).
 
 `command` is argv — never run through a shell. Parsing/validation:
 `packages/rove-daemon/src/plugins/manifest.ts` (unknown event names are a
