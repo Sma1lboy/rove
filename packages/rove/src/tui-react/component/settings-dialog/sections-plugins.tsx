@@ -152,6 +152,11 @@ export function PluginSettingsSection(
                           })
                       : t("settings.plugins.manifestUnreadable")}
                   </text>
+                  {plugin.declares && plugin.declares.pages > 0 ? (
+                    <text fg={theme.textMuted} wrapMode="none">
+                      {t("settings.plugins.declaresPages", { pages: String(plugin.declares.pages) })}
+                    </text>
+                  ) : null}
                   <text
                     fg={
                       !plugin.platformOk || plugin.lastRun?.running
@@ -184,6 +189,11 @@ export function PluginSettingsSection(
                           : t("settings.plugins.noHooks")}
                   </text>
                 </box>
+                {plugin.pageErrors.map((detail) => (
+                  <text key={detail} fg={theme.warning} paddingLeft={5} wrapMode="word">
+                    {t("settings.plugins.pageFailed", { detail })}
+                  </text>
+                ))}
                 {plugin.settings.map((setting, s) => (
                   <SettingRow
                     key={setting.key}

@@ -22,6 +22,7 @@ import {
 } from "@sma1lboy/rove-daemon/plugins/registry"
 import { readPluginSettings, writePluginSettings } from "@sma1lboy/rove-daemon/plugins/settings-env"
 import { reloadPluginEngines } from "../../../engine/plugin-engines.ts"
+import { pluginPageErrors } from "../../pages/page-errors"
 import { type PluginSettingRowView, pluginSettingRows } from "./plugin-settings-core"
 
 /** Last appended `log.jsonl` record, normalized for display. */
@@ -41,6 +42,7 @@ interface PluginDeclares {
   readonly events: number
   readonly panes: number
   readonly engines: number
+  readonly pages: number
 }
 
 export interface PluginRowView {
@@ -62,6 +64,8 @@ export interface PluginRowView {
   readonly settings: readonly PluginSettingRowView[]
   /** From the CLI-written outdated cache (`rove plugin outdated`); advisory. */
   readonly updateAvailable: boolean
+  /** Pages the last load could not mount (or mounted without their chord), with why. */
+  readonly pageErrors: readonly string[]
 }
 
 /**
@@ -104,6 +108,7 @@ export function pluginRowView(
   manifestText: string | null,
   logText: string | null,
   settingValues: Record<string, string> = {},
+  pageErrors: readonly string[] = [],
 ): PluginRowView {
   let declares: PluginDeclares | null = null
   let settings: readonly PluginSettingRowView[] = []
@@ -119,6 +124,7 @@ export function pluginRowView(
         events: manifest.events.length,
         panes: manifest.panes.length,
         engines: manifest.engines.length,
+        pages: manifest.pages.length,
       }
       hooksDeclared = manifest.actions.length + manifest.events.length + manifest.startup.length > 0
       platformOk = supportsPlatform({}, manifest, currentPluginPlatform())
@@ -139,6 +145,7 @@ export function pluginRowView(
     lastRun: parseLastRun(logText),
     settings,
     updateAvailable: outdated.has(entry.id),
+    pageErrors,
   }
 }
 
@@ -180,6 +187,9 @@ export function readPluginRows(homeDir?: string): PluginRowView[] {
       readTextOrNull(pluginManifestPath(entry.root)),
       readTail(pluginLogPath(entry.id, homeDir)),
       readPluginSettings(entry.id, homeDir),
+      pluginPageErrors()
+        .filter((error) => error.pluginId === entry.id)
+        .map((error) => `${error.pageId}: ${error.message}`),
     ),
   )
 }

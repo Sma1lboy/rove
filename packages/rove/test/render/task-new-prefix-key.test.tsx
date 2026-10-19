@@ -16,11 +16,13 @@ import { act, renderComponent, settle } from "./harness"
 
 const NOOP = (): void => {}
 
-type OpenPage = "worktreesOpen" | "updateOpen" | "kanbanOpen" | "automationsOpen" | "workItemsOpen"
+/** A full-window page flag, or a rail page id. */
+type OpenPage = "worktreesOpen" | "updateOpen" | "kanban" | "automations" | "issues"
 
 function pages(open?: OpenPage): HostPagesState {
+  const railPage = open !== undefined && open !== "worktreesOpen" && open !== "updateOpen"
   return {
-    nav: "terminal",
+    nav: railPage ? open : "terminal",
     setNav: NOOP,
     goToNav: NOOP,
     settingsOpen: false,
@@ -32,15 +34,8 @@ function pages(open?: OpenPage): HostPagesState {
     updateOpen: open === "updateOpen",
     openUpdate: NOOP,
     closeUpdate: NOOP,
-    kanbanOpen: open === "kanbanOpen",
-    openKanban: NOOP,
-    closeKanban: NOOP,
-    automationsOpen: open === "automationsOpen",
-    openAutomations: NOOP,
-    closeAutomations: NOOP,
-    workItemsOpen: open === "workItemsOpen",
-    openWorkItems: NOOP,
-    closeWorkItems: NOOP,
+    openPage: NOOP,
+    closePage: NOOP,
     whatsNewFrom: null,
     closeWhatsNew: NOOP,
     welcome: null,
@@ -199,7 +194,7 @@ describe("prefix+n New task", () => {
   })
 
   it("opens the dialog from every full-window page", async () => {
-    for (const openPage of ["kanbanOpen", "automationsOpen", "workItemsOpen", "worktreesOpen", "updateOpen"] as const) {
+    for (const openPage of ["kanban", "automations", "issues", "worktreesOpen", "updateOpen"] as const) {
       expect(await pressNewTask({ initialFocus: "workspace", openPage })).toContain("New task dialog opened")
     }
   })

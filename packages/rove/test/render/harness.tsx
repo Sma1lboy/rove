@@ -36,8 +36,12 @@ import { FocusProvider } from "../../src/tui-react/context/focus"
 import { KVProvider } from "../../src/tui-react/context/kv"
 import { NotificationsProvider } from "../../src/tui-react/context/notifications"
 import { ThemeProvider } from "../../src/tui-react/context/theme"
+import { registerCorePages } from "../../src/tui-react/pages/core-pages"
 import { DialogProvider } from "../../src/tui-react/ui/dialog"
 import { setPrefixHudClock } from "../../src/tui/lib/prefix-hud"
+
+// The rail and every page-open chord read the page registry; the TUI boot fills it the same way.
+registerCorePages()
 
 export { act }
 

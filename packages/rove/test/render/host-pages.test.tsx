@@ -18,6 +18,7 @@ import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
 import type { FocusContextValue } from "../../src/tui-react/context/focus"
 import type { KVContext } from "../../src/tui-react/context/kv"
+import { CORE_PAGES, registerCorePages } from "../../src/tui-react/pages/core-pages"
 import type { DialogContext } from "../../src/tui-react/ui/dialog"
 import {
   type HostPageDeps,
@@ -32,6 +33,7 @@ import { act, renderComponent } from "./harness"
 
 // UpdatePage reaches the npm registry on mount unless this hook is set.
 process.env.ROVE_FAKE_UPDATE = "99.0.0"
+registerCorePages()
 
 const WT_ROW = {
   repo: "/x/rove",
@@ -72,19 +74,15 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
   return {
     orchestrator: fakeOrchestrator(),
     selectedTask: undefined,
+    nav: "terminal",
+    pages: CORE_PAGES,
     worktreesOpen: false,
-    automationsOpen: false,
-    workItemsOpen: false,
-    kanbanOpen: false,
     updateOpen: false,
     closeWorktrees: () => {},
-    closeAutomations: () => {},
-    closeWorkItems: () => {},
-    closeKanban: () => {},
+    closePage: () => {},
     closeUpdate: () => {},
     activateTask: () => {},
     contentFocused: true,
-    startIssueChat: async () => {},
     engineStates: new Map(),
     ...overrides,
   }
@@ -119,10 +117,10 @@ test("useHostPagesState clears What's New once, and it cannot be reopened", asyn
 })
 
 test.each([
-  ["ROUTINES", { automationsOpen: true, selectedTask: SELECTED_TASK }],
-  ["ISSUES", { workItemsOpen: true, selectedTask: SELECTED_TASK }],
-  ["Kanban", { kanbanOpen: true }],
-] as const)("renderContentPage routes to the open page (%s)", async (title, overrides) => {
+  ["ROUTINES", { nav: "automations", selectedTask: SELECTED_TASK }],
+  ["ISSUES", { nav: "issues", selectedTask: SELECTED_TASK }],
+  ["Kanban", { nav: "kanban" }],
+] as const)("renderContentPage routes to the page the rail names (%s)", async (title, overrides) => {
   const { frame } = await renderComponent(<box>{renderContentPage(deps(overrides))}</box>, {
     width: 120,
     height: 30,
@@ -178,18 +176,15 @@ test("useHostPagesState opens and closes rail pages", async () => {
   }
   const { frame } = await renderComponent(<StateHarness />)
   expect(await frame()).toContain("terminal")
-  act(() => pagesRef?.openKanban())
+  act(() => pagesRef?.openPage("kanban"))
   await settle()
   expect(await frame()).toContain("kanban")
-  act(() => pagesRef?.closeKanban())
+  act(() => pagesRef?.closePage())
   await settle()
   expect(await frame()).toContain("terminal")
-  act(() => pagesRef?.openAutomations())
+  act(() => pagesRef?.openPage("automations"))
   await settle()
   expect(await frame()).toContain("automations")
-  act(() => pagesRef?.openWorkItems())
-  await settle()
-  expect(await frame()).toContain("issues")
   act(() => pagesRef?.openWorktrees())
   await settle()
   expect(pagesRef!.worktreesOpen).toBe(true)
@@ -222,7 +217,6 @@ function RenderHarness(props: { width: number; initial?: (pages: HostPagesState)
     activeTaskId: "t1",
     tasks: [SELECTED_TASK],
     engineState: new Map(),
-    startIssueChat: async () => {},
     activateTask: () => {},
   })
 
@@ -249,7 +243,7 @@ test("useHostPagesRender surfaces the settings page", async () => {
 })
 
 test("useHostPagesRender computes narrow layout and recent task", async () => {
-  const { frame } = await renderComponent(<RenderHarness width={40} initial={(pages) => pages.openKanban()} />, {
+  const { frame } = await renderComponent(<RenderHarness width={40} initial={(pages) => pages.openPage("kanban")} />, {
     width: 40,
     height: 24,
     providers: { dialog: true, kv: true, notifications: true },

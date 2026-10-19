@@ -9,12 +9,10 @@ import { executeVerb } from "../../src/cli/api/invoke.ts"
 import { REMOTE_CALLER } from "../../src/cli/api/types.ts"
 import type { DaemonRpc } from "../../src/cli/daemon-session.ts"
 
-function fakeClient(): DaemonRpc & { request: ReturnType<typeof vi.fn> } {
-  return {
-    request: vi.fn(async () => ({ notes: [] })),
-    subscribe: async () => ({}),
-    onChannel: () => () => {},
-  }
+function fakeClient() {
+  const request = vi.fn(async (_name: string, _payload?: unknown) => ({ notes: [] }))
+  const client = { request, subscribe: async () => ({}), onChannel: () => () => {} }
+  return client as unknown as DaemonRpc & { request: typeof request }
 }
 
 const remote = (client: DaemonRpc | null = null) => ({ client, caller: REMOTE_CALLER })
