@@ -135,9 +135,7 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
       }
       setRows(readPluginRows(builtInPlugins()))
       // Pages mount in this process; a reload adds or drops this plugin's rail rows.
-      void loadPluginPages()
-        .then(() => setRows(readPluginRows(builtInPlugins())))
-        .catch((err: unknown) => console.error("[rove] plugin pages:", err))
+      void loadPluginPages().then(() => setRows(readPluginRows(builtInPlugins())))
     },
     editSetting: async (pluginId: string, key: string) => {
       const setting = rows.find((p) => p.id === pluginId)?.settings.find((s) => s.key === key)

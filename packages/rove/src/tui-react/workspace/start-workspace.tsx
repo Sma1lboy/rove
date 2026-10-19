@@ -50,7 +50,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       // Rail pages: the host's own now, installed plugins' as their modules load.
       registerCorePages()
       registerBundledPlugins()
-      void loadPluginPages().catch((err: unknown) => console.error("[rove] plugin pages:", err))
+      void loadPluginPages()
       return {
         root: () => (
           <WorkspaceRoot
