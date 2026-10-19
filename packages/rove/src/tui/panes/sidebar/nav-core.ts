@@ -7,30 +7,20 @@
 
 /**
  * What the content pane shows. `terminal` (default) is the selected task's
- * session and has no rail row — selecting a task gets you back.
+ * session and has no rail row — selecting a task gets you back. Anything else
+ * is a registered page's id (`tui-react/pages/registry.ts`).
  */
-export type SidebarNav = "terminal" | "kanban" | "automations" | "issues"
+export type SidebarNav = "terminal" | (string & {})
 
-export interface SidebarNavItem {
-  readonly nav: SidebarNav
-  /** i18n key — callers translate with their own `t`. */
-  readonly labelKey: string
-  /** Existing keymap action represented by this clickable destination. */
-  readonly bindingId: string
-}
+/**
+ * Keymap actions a page may claim as its opener. Closed: a plugin page must
+ * not take over an arbitrary chord. Each opens at most one page.
+ */
+export const PAGE_ACTIONS = ["kanban.open", "automations.open", "workItems.open"] as const
+export type PageAction = (typeof PAGE_ACTIONS)[number]
 
-/** Top to bottom; no `terminal` row — the task list below is that destination. */
-export const SIDEBAR_NAV_ITEMS: readonly SidebarNavItem[] = [
-  { nav: "kanban", labelKey: "tasks.nav.kanban", bindingId: "kanban.open" },
-  { nav: "automations", labelKey: "tasks.nav.automations", bindingId: "automations.open" },
-  { nav: "issues", labelKey: "tasks.nav.issues", bindingId: "workItems.open" },
-]
-
-/** Cycle the rail by `delta`, wrapping. Null for `terminal`, which isn't on it. */
-export function cycleNavTarget(cur: SidebarNav, delta: -1 | 1): SidebarNav | null {
-  const idx = SIDEBAR_NAV_ITEMS.findIndex((item) => item.nav === cur)
-  if (idx < 0) return null
-  return SIDEBAR_NAV_ITEMS[(idx + delta + SIDEBAR_NAV_ITEMS.length) % SIDEBAR_NAV_ITEMS.length]?.nav ?? null
+export function isPageAction(value: string): value is PageAction {
+  return (PAGE_ACTIONS as readonly string[]).includes(value)
 }
 
 /**
