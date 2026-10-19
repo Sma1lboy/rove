@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /** Real-render coverage for the prefix+n New task chord and the ctrl+n terminal boundary. */
 
-import { describe, expect, it } from "bun:test"
+import { afterEach, describe, expect, it } from "bun:test"
 import { useState } from "react"
 import { FocusProvider, type PaneId, useFocus } from "../../src/tui-react/context/focus"
 import { useBindings } from "../../src/tui-react/lib/keymap"
@@ -12,7 +12,11 @@ import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
+import { resetPrefixHud } from "../../src/tui/lib/prefix-hud"
 import { act, renderComponent, settle } from "./harness"
+
+// The HUD feed is process-global: these chords would print `→ New task` into a later file's frames.
+afterEach(() => act(() => resetPrefixHud()))
 
 const NOOP = (): void => {}
 
