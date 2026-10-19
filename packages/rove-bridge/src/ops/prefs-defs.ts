@@ -58,7 +58,7 @@ import {
   type WorktreeBaseKind,
   worktreeBaseKindOf,
 } from "@sma1lboy/rove/src/state/worktree-base.ts"
-import { ZEN_ACTIVE_KEY } from "@sma1lboy/rove/src/state/zen.ts"
+import { ZEN_ACTIVE_KEY, ZEN_DEFAULT } from "@sma1lboy/rove/src/state/zen.ts"
 import { appearanceChoices } from "@sma1lboy/rove/src/tui/component/settings-dialog/appearance.ts"
 import {
   DEFAULT_THEME,
@@ -182,7 +182,7 @@ export const PREF_DEFS: Readonly<Record<string, PrefDef>> = {
   keyHints: bool(KEY_HINTS_ENABLED_KEY, true, (on) =>
     on ? Object.fromEntries(PANE_HINT_USED_KEYS.map((k) => [k, false])) : {},
   ),
-  zen: bool(ZEN_ACTIVE_KEY, false),
+  zen: bool(ZEN_ACTIVE_KEY, ZEN_DEFAULT),
   editorKind: choice(EDITOR_KIND_KEY, EDITOR_KINDS, (raw) => normalizeEditorKind(raw ?? DEFAULT_EDITOR_KIND)),
   worktreeBase: {
     kind: "enum",
