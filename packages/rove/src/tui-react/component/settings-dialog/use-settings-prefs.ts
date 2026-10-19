@@ -39,6 +39,7 @@ import {
   resolveTabStripMode,
 } from "../../../state/tab-strip"
 import { DEFAULT_TASK_COLORS, TASK_COLORS_KEY, type TaskColors, normalizeTaskColors } from "../../../state/task-colors"
+import { UPDATE_CHANNEL_KEY, normalizeReleaseChannel } from "../../../state/update-channel"
 import {
   DEFAULT_WORKING_BORDER,
   WORKING_BORDER_KEY,
@@ -69,6 +70,7 @@ import {
   type PrefixTapPresentation,
   normalizePrefixTapPresentation,
 } from "../../../tui/lib/prefix-tap-presentation"
+import { type ReleaseChannel, channelOf } from "../../../version"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import {
@@ -134,6 +136,14 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function toggleZenDefaultOn(): void {
     kv.set(ZEN_ACTIVE_KEY, !zenDefaultOn())
+  }
+
+  // Update channel (`state/update-channel.ts`): unset reads as the running build's channel.
+  function updateChannel(): ReleaseChannel {
+    return normalizeReleaseChannel(kv.get(UPDATE_CHANNEL_KEY)) ?? channelOf()
+  }
+  function toggleUpdateChannel(): void {
+    kv.set(UPDATE_CHANNEL_KEY, updateChannel() === "nightly" ? "latest" : "nightly")
   }
 
   // Chat tab strip: never / 2+ tabs / always (state/tab-strip.ts); "off" is
@@ -352,6 +362,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     selectSplitStyle,
     zenDefaultOn,
     toggleZenDefaultOn,
+    updateChannel,
+    toggleUpdateChannel,
     railFoldStyle,
     selectRailFoldStyle,
     tabRowHeight,

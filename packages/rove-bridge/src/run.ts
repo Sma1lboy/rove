@@ -15,6 +15,8 @@ import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process
 import { startFileWatchTrigger } from "@sma1lboy/rove-daemon/daemon/file-watch-trigger"
 import { defaultPtyHostSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { defaultUiPrefsStatePath, resolveProductHomeDir } from "@sma1lboy/rove-daemon/daemon/product-paths"
+import { executeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
+import { REMOTE_CALLER } from "@sma1lboy/rove/src/cli/api/types.ts"
 import { RemoteOrchestrator } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { ensurePluginEnginesLoaded } from "@sma1lboy/rove/src/engine/plugin-engines.ts"
 import { MachineHub } from "@sma1lboy/rove/src/machines/hub.ts"
@@ -181,6 +183,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     openPty: () => new RoveDaemonClient(ptySocket),
     roveVersion: CURRENT_VERSION,
     api: createBridgeApi(verbClient),
+    invoke: (verb, params) => executeVerb(verb, { params }, { client: verbClient, caller: REMOTE_CALLER }),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
     ...(opts.web ? { web: opts.web } : {}),
   }

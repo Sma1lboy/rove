@@ -154,7 +154,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     name: "prompt",
     group: "drive",
     summary:
-      "Ask the human for a line of text through the attached TUI's input dialog (plugins' host-provided prompt). Blocks until answered, cancelled, or timed out; returns { value } or { cancelled, reason }.",
+      "Ask the human for a line of text through the attached TUI's input dialog (plugins' host-provided prompt). Blocks until answered, cancelled, or timed out; returns { value } or { cancelled, reason }. With no front-end attached it returns at once with reason `no-gui`.",
     flags: [
       {
         name: "title",
@@ -231,9 +231,12 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
           throw new ApiError("--detail must be valid JSON", "BAD_FLAG", helpStep("engine-report"))
         }
       }
+      if (!taskId && ctx.caller.cwd === undefined) {
+        throw new ApiError("no target task: pass --task-id (this caller has no cwd to map)", "MISSING_TARGET")
+      }
       return simpleRpc(ctx, "engine.reportEvent", {
         kind: ctx.args.str("kind"),
-        ...(taskId ? { taskId } : { cwd: process.cwd() }),
+        ...(taskId ? { taskId } : { cwd: ctx.caller.cwd }),
         ...(ctx.args.str("engine") ? { engine: ctx.args.str("engine") } : {}),
         ...(tabId ? { tabId } : {}),
         ...(detail !== undefined ? { detail } : {}),

@@ -17,28 +17,41 @@
  *     verbatim) so an agent caller can self-heal without parsing prose.
  *   - `--pretty` → indent stdout JSON (humans only)
  *   - `--help`   → render that verb's usage to stdout, exit 0
+ *   - `--envelope` → both outcomes as one `{ apiVersion, ok, result | error }`
+ *     on stdout, the shape the daemon's and bridge's `api.invoke` return
+ *     (exit codes unchanged). The executor is shared: `api/invoke.ts`.
  */
 
 import { errorMessage } from "@/lib/error-message"
+import { ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ensurePluginEnginesLoaded } from "../engine/plugin-engines.ts"
 import { takeIdentityWarning } from "./api/dispatcher.ts"
 import { VerbArgs, buildCountPlan, parseAgentsSpec, parseFlags, validateAgainstSpec } from "./api/flags.ts"
+import {
+  booleanFlagsOf,
+  callVerb,
+  errorBody,
+  errorEnvelope,
+  executeVerb,
+  runVerb,
+  successEnvelope,
+  toApiError,
+} from "./api/invoke.ts"
 import { defaultApiRuntime, deliverPrompt } from "./api/runtime.ts"
 import { API_SCHEMA_VERSION, apiUsage, fullSchema, schemaIndex, verbHelp, verbSchema } from "./api/schema.ts"
-import { ApiError, splitDaemonCode } from "./api/types.ts"
-import type {
-  ApiRuntime,
-  DeliveredPrompt,
-  Flags,
-  ParsedArgs,
-  PromptDeliveryOps,
-  PromptTarget,
-  VerbContext,
-  VerbSpec,
-} from "./api/types.ts"
+import { ApiError } from "./api/types.ts"
+import type { ApiRuntime, DeliveredPrompt, ParsedArgs, PromptDeliveryOps, PromptTarget } from "./api/types.ts"
 import { API_VERBS, VERBS, VERB_GROUPS, findVerb, unknownVerbError } from "./api/verbs.ts"
+import { argvHasFlag } from "./argv.ts"
 import { type DaemonSession, openDaemonSession } from "./daemon-session.ts"
 import type { DaemonRpc } from "./daemon-session.ts"
+
+/** `--envelope`: every outcome is one {@link ApiEnvelope} on stdout, as over the socket and bridge. */
+let envelopeMode = false
+
+function writeJson(value: unknown, pretty: boolean, stream: NodeJS.WriteStream = process.stdout): void {
+  stream.write(`${pretty ? JSON.stringify(value, null, 2) : JSON.stringify(value)}\n`)
+}
 
 function emit(value: unknown, pretty: boolean): void {
   // An UNVERIFIED $ROVE_TASK_ID still succeeds, minus the dispatcher; the
@@ -48,19 +61,16 @@ function emit(value: unknown, pretty: boolean): void {
   // Objects only — spreading an array would flatten it into numeric keys.
   const mergeable = warning && value && typeof value === "object" && !Array.isArray(value)
   const payload = mergeable ? { ...value, identityWarning: warning } : value
-  const text = pretty ? JSON.stringify(payload, null, 2) : JSON.stringify(payload)
-  process.stdout.write(`${text}\n`)
+  writeJson(envelopeMode ? successEnvelope(payload) : payload, pretty)
 }
 
 function fail(message: string, code: string, exitCode = 1, data?: Record<string, unknown>): never {
   // Merge any error `data` (e.g. a taskId from a create-then-deliver failure)
   // into the error object so a script never loses an already-created task.
-  process.stderr.write(`${JSON.stringify({ error: { message, code, ...data } })}\n`)
+  const error = errorBody(new ApiError(message, code, data))
+  if (envelopeMode) writeJson({ apiVersion: ROVE_API_VERSION, ok: false, error }, false)
+  else writeJson({ error }, false, process.stderr)
   process.exit(exitCode)
-}
-
-function makeContext(verb: VerbSpec, flags: Flags, client: DaemonRpc | null, runtime: ApiRuntime): VerbContext {
-  return { args: new VerbArgs(verb, flags), client, runtime }
 }
 
 /**
@@ -78,51 +88,8 @@ const USAGE_ERROR_CODES: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Normalize any handler/RPC failure into an {@link ApiError}. The daemon's
- * prose `task not found: <id>` becomes typed `TASK_NOT_FOUND` with the
- * recovery command (the most common scripted-caller failure).
- *
- * Any other already-CODED error has its code lifted into `code` (prefix
- * stripped) rather than flattened to `RPC_ERROR` — a per-code allowlist would
- * let new codes like `delete`'s `DIRTY_WORKTREE` reach callers untyped.
- */
-export function toApiError(err: unknown): ApiError {
-  if (err instanceof ApiError) return err
-  const message = errorMessage(err)
-  if (/task not found/i.test(message)) {
-    return new ApiError(message, "TASK_NOT_FOUND", {
-      hint: "that task id does not exist (deleted or mistyped) — list live tasks and retry with a real id",
-      nextCommandArgs: ["api", "list"],
-    })
-  }
-  if (/unknown daemon request:/i.test(message)) return versionSkewError(message)
-  const coded = splitDaemonCode(message)
-  if (coded) return new ApiError(coded.rest, coded.code)
-  return new ApiError(message, "RPC_ERROR")
-}
-
-/**
- * The daemon rejected the RPC the verb is BUILT on — which only happens when
- * this CLI and the long-lived daemon are different builds. It is a version
- * skew, not a broken verb, and the recovery is the same in both directions:
- *
- *   - new CLI × old daemon — the daemon predates the verb.
- *   - old CLI × new daemon — the daemon dropped a verb this CLI still ships.
- *
- * Typed because `schema` (served by this CLI) can advertise a verb the daemon
- * rejects; a bare `RPC_ERROR` would read as "retry" rather than "these builds
- * disagree about what exists".
- */
-function versionSkewError(message: string): ApiError {
-  return new ApiError(message, "DAEMON_VERSION_SKEW", {
-    hint: "the running daemon is a different build than this CLI, so it does not serve this verb — restart the daemon to pick up this build, then retry (if the verb is gone for good, `rove api schema` lists what this daemon actually serves)",
-    nextCommandArgs: ["daemon", "restart"],
-  })
-}
-
-/**
- * Parse + validate + run ONE verb against an injected client/runtime —
- * the unit-test (and embedding) entry. Throws {@link ApiError} instead of
+ * Parse + validate + run ONE verb against an injected client/runtime — the
+ * unit-test (and embedding) entry. Throws {@link ApiError} instead of
  * exiting; `runApiSubcommand` keeps the process-exit/JSON-emit wrapper.
  */
 export async function invokeVerb(
@@ -130,20 +97,12 @@ export async function invokeVerb(
   argv: readonly string[],
   deps: { client: DaemonRpc | null; runtime?: ApiRuntime },
 ): Promise<unknown> {
-  const verb = findVerb(verbName)
-  if (!verb) throw unknownVerbError(verbName)
-  const booleanFlags = new Set(verb.flags.filter((f) => f.type === "bool").map((f) => f.name))
-  const parsed = parseFlags(argv, booleanFlags)
-  validateAgainstSpec(verb, parsed.flags)
-  try {
-    return await verb.handler(makeContext(verb, parsed.flags, deps.client, deps.runtime ?? defaultApiRuntime))
-  } catch (err) {
-    throw toApiError(err)
-  }
+  return runVerb(verbName, { argv }, deps)
 }
 
 export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   const [verbName, ...rest] = argv
+  envelopeMode = argvHasFlag(rest, "--envelope")
   if (!verbName || verbName === "--help" || verbName === "-h" || verbName === "help") {
     if (!verbName) fail(apiUsage(), "MISSING_VERB", 2)
     process.stdout.write(`${apiUsage()}\n`)
@@ -159,10 +118,9 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     fail(`${err.message}\n${apiUsage()}`, err.code, 2, err.data)
   }
 
-  const booleanFlags = new Set(verb.flags.filter((f) => f.type === "bool").map((f) => f.name))
   let parsed: ParsedArgs
   try {
-    parsed = parseFlags(rest, booleanFlags)
+    parsed = parseFlags(rest, booleanFlagsOf(verb))
   } catch (err) {
     if (err instanceof ApiError) fail(err.message, err.code, 2, err.data)
     fail(errorMessage(err), "BAD_FLAG", 2)
@@ -198,14 +156,15 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     // Opens no socket when no machine is registered.
     const { assertLocalTask } = await import("../machines/api-merge.ts")
     await assertLocalTask(parsed.flags.get("task-id"))
-    const result = await verb.handler(makeContext(verb, parsed.flags, session?.client ?? null, defaultApiRuntime))
+    const result = await callVerb(verb, parsed.flags, { client: session?.client ?? null })
     emit(result, parsed.pretty)
   } catch (err) {
     // PARTIAL_FANOUT carries a full result payload (created tasks + failures)
     // that MUST reach the script — emit it to stdout, then exit 3 so the
     // "non-zero = something failed" contract holds without losing the data.
     if (err instanceof ApiError && err.code === "PARTIAL_FANOUT") {
-      emit(err.data, parsed.pretty)
+      if (envelopeMode) writeJson(errorEnvelope(err), parsed.pretty)
+      else emit(err.data, parsed.pretty)
       session?.close()
       process.exit(3)
     }
@@ -221,6 +180,8 @@ export {
   API_SCHEMA_VERSION,
   API_VERBS,
   ApiError,
+  executeVerb,
+  toApiError,
   VERBS,
   VERB_GROUPS,
   VerbArgs,
