@@ -45,7 +45,10 @@ async function importPage(root: string, entry: string): Promise<PageComponent> {
   return component as PageComponent
 }
 
-/** (Re)load every enabled plugin's pages; replaces all `plugin:` sources at once. */
+/**
+ * (Re)load every enabled plugin's pages; replaces all `plugin:` sources at once.
+ * Never rejects: each failure is caught where it happens and shown in Settings → Plugins.
+ */
 export async function loadPluginPages(homeDir?: string): Promise<void> {
   const byPlugin = new Map<string, PageEntry[]>()
   const failed: PluginPageError[] = []

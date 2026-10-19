@@ -48,7 +48,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       setMachineHub(machines)
       // Rail pages: the host's own now, installed plugins' as their modules load.
       registerCorePages()
-      void loadPluginPages().catch((err: unknown) => console.error("[rove] plugin pages:", err))
+      void loadPluginPages()
       return {
         root: () => (
           <WorkspaceRoot
