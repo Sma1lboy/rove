@@ -158,12 +158,12 @@ Rove tries the `code`, `cursor`, `windsurf`, and `zed` CLIs in that order,
 then the platform opener. These variables do not change the file tree's
 per-file TTY editor.
 
-The Files pane watches the worktree so edits appear without a keypress, and keeps
-watching the last four it showed so switching back to an unchanged one skips
-re-listing its files. Set
+The Files pane watches the worktree so edits appear without a keypress. Switching
+back displays its cached listing immediately and refreshes it with Git, including
+index and exclude-file changes that the worktree watcher cannot detect. Set
 `ROVE_FILETREE_WATCH=0` to turn that watcher off — worth doing on a repo large
 enough that a recursive watcher costs more than the staleness it removes. With
-it off, `r` is the only thing that repopulates the list.
+it off, `r` and tab or worktree changes refresh the list.
 
 ### Engines
 
