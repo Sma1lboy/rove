@@ -131,6 +131,7 @@ describe("treeMenuItems", () => {
     expect(actions(mainTab, { tabCount: 2 })).toEqual([
       "open",
       "closeTab",
+      "closeOtherTabs",
       "copyTab",
       "newChat",
       "newShell",
@@ -188,6 +189,7 @@ describe("treeMenuItems", () => {
     expect(actions(tabRow, { tabCount: 2 })).toEqual([
       "open",
       "closeTab",
+      "closeOtherTabs",
       "copyTab",
       "newChat",
       "newShell",
@@ -213,6 +215,15 @@ describe("treeMenuItems", () => {
     // the last tab.
     expect(actions(tabRow, { tabCount: 1 })).toContain("closeTab")
     expect(actions(tabRow, { tabCount: 1 })).toContain("newChat")
+  })
+
+  test("Close other tabs needs a sibling to close, and is danger-toned", () => {
+    // It ends every other session on the worktree; with one tab there is
+    // nothing for it to do.
+    expect(actions(tabRow, { tabCount: 1 })).not.toContain("closeOtherTabs")
+    const entry = treeMenuItems(tabRow, { tabCount: 2 }).find((item) => item.action === "closeOtherTabs")
+    expect(entry?.danger).toBe(true)
+    expect(actions(worktreeRow())).not.toContain("closeOtherTabs")
   })
 
   test("a tab row with NO known tabs is offered no close", () => {

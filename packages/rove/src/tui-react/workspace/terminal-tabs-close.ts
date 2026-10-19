@@ -104,3 +104,18 @@ export function closeTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string):
   releaseClosedTabPtys(taskId, closing, closedId)
   return true
 }
+
+/**
+ * Close every tab of `taskId` except `keepId`, one {@link closeTaskTab} each so
+ * both the mounted and background paths apply. Returns how many closed; 0 when
+ * `keepId` isn't a tab of that task (a stale row: nothing is closed then).
+ */
+export function closeOtherTaskTabs(kv: TabsSnapshotKv, taskId: string, keepId: string): number {
+  const state = knownTabsState(kv, taskId)
+  if (!state || !state.tabs.some((tab) => tab.id === keepId)) return 0
+  let closed = 0
+  for (const tab of state.tabs) {
+    if (tab.id !== keepId && closeTaskTab(kv, taskId, tab.id)) closed++
+  }
+  return closed
+}

@@ -36,6 +36,8 @@ export type SidebarTreeProps = SidebarProps & {
   onSelectTab?: (taskId: string, tabId: string) => void
   /** Close one tab of any worktree — offered by the tab row's menu. */
   onCloseTab?: (taskId: string, tabId: string) => void
+  /** Close every other tab of that worktree — the tab row's menu, behind a confirm. */
+  onCloseOtherTabs?: (taskId: string, tabId: string) => void
   /** Open a new conversation ("chat" — the ctrl+e picker) or a bare shell tab
    *  in any worktree — offered by the worktree/tab rows' menu. */
   onNewTab?: (taskId: string, kind: "chat" | "shell") => void
@@ -235,6 +237,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     setCursorIndex,
     onAddTask: props.onAddTask,
     onCloseTab: props.onCloseTab,
+    onCloseOtherTabs: props.onCloseOtherTabs,
     onNewTab: props.onNewTab,
     actions: props,
   })
