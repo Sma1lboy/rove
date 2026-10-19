@@ -116,13 +116,18 @@ model makes it redundant.
 
 ## API — today vs. brief
 
-- **Three contracts:**
-  - the daemon socket (v5)
-  - `rove api`: 51 verbs, `src/cli/api/verbs.ts`. `API_SCHEMA_VERSION=2` appears only in `schema` output; normal output has no version field.
-  - the bridge WebSocket: `BRIDGE_PROTOCOL_VERSION=1`, with its own op allowlist
+- **One contract (done).** The `rove api` verb registry is the contract, run
+  by one executor (`src/cli/api/invoke.ts`) over three transports: the CLI,
+  the daemon's `api.invoke` request and the bridge's `api.invoke` op. One
+  `ROVE_API_VERSION` (`rove-plugin-sdk/src/contract.ts`) is reported by
+  `schema`, both `hello`s and every envelope ([`API.md`](../API.md#one-contract-three-transports)).
+  The daemon's granular RPCs (protocol v5) stay as internal plumbing, and the
+  bridge's older per-op wrappers stay for the shipped phone apps.
 
-  The bridge and the weixin channel already execute `rove api` verbs through
-  `invokeVerb`. That makes the verb registry the de facto product API.
+  Because `api.invoke` runs the verb **inside** the daemon that answers, a
+  verb sent over a machine's forwarded socket now does its work on that
+  machine: this is the seam step 2 needs to replace
+  `NOT_YET_SUPPORTED_REMOTE`.
 - **Events.** `watch` streams engine-state transitions only. Its own header
   calls it "deliberately not a general event bus". There are no sequence
   numbers and no replay (`daemon.md` D4, deferred). The plugin event

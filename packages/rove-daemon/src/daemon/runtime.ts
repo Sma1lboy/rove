@@ -1,3 +1,4 @@
+import type { ApiEnvelope, ApiParams } from "@sma1lboy/rove-plugin-sdk/contract"
 import type { DaemonRpcClient } from "../client/rpc.ts"
 import type {
   AgentTurn,
@@ -29,6 +30,12 @@ export type { PollCadenceConfig, PollScheduleState } from "./poll-scheduling.ts"
 
 export interface DaemonRuntimeAdapter {
   readonly currentVersion: string
+  /**
+   * Run one `rove api` verb in the daemon process, against this daemon's own
+   * socket. Never rejects: a refusal is an `ok: false` envelope. Absent in
+   * test doubles, where `api.invoke` refuses.
+   */
+  invokeApi?(verb: string, params: ApiParams, socketPath: string): Promise<ApiEnvelope>
   readonly defaultTaskVendor: VendorId
   readonly placeholderTaskTitle: string
   isTaskStatus(value: unknown): value is DaemonTask["status"]

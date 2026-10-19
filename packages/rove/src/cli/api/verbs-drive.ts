@@ -231,9 +231,12 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
           throw new ApiError("--detail must be valid JSON", "BAD_FLAG", helpStep("engine-report"))
         }
       }
+      if (!taskId && ctx.caller.cwd === undefined) {
+        throw new ApiError("no target task: pass --task-id (this caller has no cwd to map)", "MISSING_TARGET")
+      }
       return simpleRpc(ctx, "engine.reportEvent", {
         kind: ctx.args.str("kind"),
-        ...(taskId ? { taskId } : { cwd: process.cwd() }),
+        ...(taskId ? { taskId } : { cwd: ctx.caller.cwd }),
         ...(ctx.args.str("engine") ? { engine: ctx.args.str("engine") } : {}),
         ...(tabId ? { tabId } : {}),
         ...(detail !== undefined ? { detail } : {}),
