@@ -38,6 +38,8 @@ export interface DaemonServerOptions {
    * it turns false.
    */
   readonly keepAlive?: () => boolean
+  /** Opt out of GUI-refcounted idle-stop (`rove daemon start --resident`). */
+  readonly resident?: boolean
 }
 
 export interface DaemonServer {

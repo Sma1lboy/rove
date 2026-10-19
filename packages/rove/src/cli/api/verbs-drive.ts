@@ -154,7 +154,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     name: "prompt",
     group: "drive",
     summary:
-      "Ask the human for a line of text through the attached TUI's input dialog (plugins' host-provided prompt). Blocks until answered, cancelled, or timed out; returns { value } or { cancelled, reason }.",
+      "Ask the human for a line of text through the attached TUI's input dialog (plugins' host-provided prompt). Blocks until answered, cancelled, or timed out; returns { value } or { cancelled, reason }. With no front-end attached it returns at once with reason `no-gui`.",
     flags: [
       {
         name: "title",
