@@ -89,11 +89,11 @@ export function PluginSettingsSection(
       <text fg={theme.text} attributes={TextAttributes.BOLD}>
         {t("settings.plugins.title")}
       </text>
-      {/* With nothing registered, the operating hint (toggling, per-plugin
-          settings) describes rows that aren't there, and it repeats the
-          install command the empty state already gives. One or the other. */}
+      {/* With nothing installed (built-ins aside), the install command is the
+          useful line; the operating hint repeats it and describes settings
+          rows that aren't there. One or the other. */}
       <text fg={theme.textMuted} wrapMode="word">
-        {t(props.plugins.length === 0 ? "settings.plugins.empty" : "settings.plugins.hint")}
+        {t(props.plugins.some((plugin) => !plugin.builtIn) ? "settings.plugins.hint" : "settings.plugins.empty")}
       </text>
       {props.plugins.length === 0 ? null : (
         <box flexDirection="column" gap={0}>
