@@ -17,7 +17,7 @@
 import { expect, test } from "bun:test"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
-import { CORE_PAGES } from "../../src/tui-react/pages/core-pages"
+import { pageEntries } from "../../src/tui-react/pages/registry"
 import { type HostPageDeps, renderContentPage } from "../../src/tui-react/workspace/host-pages"
 import type { Task } from "../../src/types/task"
 import { renderComponent } from "./harness"
@@ -49,7 +49,7 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
     orchestrator: fakeOrchestrator(),
     selectedTask: SELECTED_TASK,
     nav: "terminal",
-    pages: CORE_PAGES,
+    pages: pageEntries(),
     worktreesOpen: false,
     updateOpen: false,
     closeWorktrees: () => {},
@@ -93,9 +93,9 @@ type RailPage = {
 const RAIL_PAGES: readonly RailPage[] = [
   // `╭` anchors the board's first column — its rounded corner, matching every
   // other framed surface (see kanban-columns.test.tsx, which pins the style).
-  { title: "Kanban", body: ["rove", "╭"], overrides: { nav: "kanban" } },
+  { title: "Kanban", body: ["rove", "╭"], overrides: { nav: "kanban.board" } },
   { title: "ROUTINES", body: ["No routines scheduled."], overrides: { nav: "automations" } },
-  { title: "ISSUES", body: ["No open issues."], overrides: { nav: "issues" } },
+  { title: "ISSUES", body: ["No open issues."], overrides: { nav: "issues.github" } },
 ]
 
 for (const page of RAIL_PAGES) {

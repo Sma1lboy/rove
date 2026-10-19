@@ -18,7 +18,7 @@ import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
 import type { FocusContextValue } from "../../src/tui-react/context/focus"
 import type { KVContext } from "../../src/tui-react/context/kv"
-import { CORE_PAGES, registerCorePages } from "../../src/tui-react/pages/core-pages"
+import { pageEntries } from "../../src/tui-react/pages/registry"
 import type { DialogContext } from "../../src/tui-react/ui/dialog"
 import {
   type HostPageDeps,
@@ -33,7 +33,6 @@ import { act, renderComponent } from "./harness"
 
 // UpdatePage reaches the npm registry on mount unless this hook is set.
 process.env.ROVE_FAKE_UPDATE = "99.0.0"
-registerCorePages()
 
 const WT_ROW = {
   repo: "/x/rove",
@@ -75,7 +74,7 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
     orchestrator: fakeOrchestrator(),
     selectedTask: undefined,
     nav: "terminal",
-    pages: CORE_PAGES,
+    pages: pageEntries(),
     worktreesOpen: false,
     updateOpen: false,
     closeWorktrees: () => {},
@@ -118,8 +117,8 @@ test("useHostPagesState clears What's New once, and it cannot be reopened", asyn
 
 test.each([
   ["ROUTINES", { nav: "automations", selectedTask: SELECTED_TASK }],
-  ["ISSUES", { nav: "issues", selectedTask: SELECTED_TASK }],
-  ["Kanban", { nav: "kanban" }],
+  ["ISSUES", { nav: "issues.github", selectedTask: SELECTED_TASK }],
+  ["Kanban", { nav: "kanban.board" }],
 ] as const)("renderContentPage routes to the page the rail names (%s)", async (title, overrides) => {
   const { frame } = await renderComponent(<box>{renderContentPage(deps(overrides))}</box>, {
     width: 120,
@@ -176,9 +175,9 @@ test("useHostPagesState opens and closes rail pages", async () => {
   }
   const { frame } = await renderComponent(<StateHarness />)
   expect(await frame()).toContain("terminal")
-  act(() => pagesRef?.openPage("kanban"))
+  act(() => pagesRef?.openPage("kanban.board"))
   await settle()
-  expect(await frame()).toContain("kanban")
+  expect(await frame()).toContain("kanban.board")
   act(() => pagesRef?.closePage())
   await settle()
   expect(await frame()).toContain("terminal")
@@ -243,11 +242,14 @@ test("useHostPagesRender surfaces the settings page", async () => {
 })
 
 test("useHostPagesRender computes narrow layout and recent task", async () => {
-  const { frame } = await renderComponent(<RenderHarness width={40} initial={(pages) => pages.openPage("kanban")} />, {
-    width: 40,
-    height: 24,
-    providers: { dialog: true, kv: true, notifications: true },
-  })
+  const { frame } = await renderComponent(
+    <RenderHarness width={40} initial={(pages) => pages.openPage("kanban.board")} />,
+    {
+      width: 40,
+      height: 24,
+      providers: { dialog: true, kv: true, notifications: true },
+    },
+  )
   await settle()
   const text = await frame()
   // Narrow mode with a content page open shows the sidebar rail only.

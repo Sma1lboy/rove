@@ -485,7 +485,8 @@ export default function page(host) {
   on submit, `{cancelled, reason}` on esc/timeout. Use it instead of
   hand-rolling in-pane prompts.
 - **Settings → Plugins**: enable/disable, declared surfaces, last run,
-  and your `[[settings]]` editors.
+  and your `[[settings]]` editors. Rove's built-in plugins (Kanban, Issues)
+  are listed first; they toggle but never uninstall.
 - **Settings → Marketplace**: your repo's `rove-plugin` topic listing, its
   description, and the install preview built from your manifest's commands.
 - **CLI**: `rove plugin action invoke`, `rove plugin pane open`, `rove

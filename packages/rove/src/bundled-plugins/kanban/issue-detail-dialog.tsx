@@ -22,19 +22,31 @@
 
 import { TextAttributes, type TextareaRenderable } from "@opentui/core"
 import { usePaste } from "@opentui/react"
-import { ISSUE_STATUSES, type IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { useRef, useState } from "react"
-import { ISSUE_CHAT_PLACEMENTS, type IssueChatPlacement, withImagePlaceholders } from "../../state/issue-chat"
-import { stripNewlines } from "../../tui/component/new-task-dialog/state"
-import { asAttachmentPaths, captureClipboardAttachment } from "../../tui/lib/attachments"
+import type { IssueChatPlacement } from "../../state/issue-chat"
+import type { DialogContext } from "../../tui-react/ui/dialog"
 import type { VendorId } from "../../types/task"
-import { useTheme } from "../context/theme"
-import { useT } from "../i18n"
-import { useBindings } from "../lib/keymap"
-import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
-import { ChipButton, ChipRow, DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
+import { host, hostFn } from "./host"
 import type { IssueDetailOptions, IssueDetailOutcome, IssueDraft } from "./issue-detail-contract"
 import { IssueEventsSection } from "./issue-detail-parts"
+
+const withImagePlaceholders = hostFn((h) => h.issues.withImagePlaceholders)
+const stripNewlines = hostFn((h) => h.text.stripNewlines)
+const asAttachmentPaths = hostFn((h) => h.attachments.asAttachmentPaths)
+const captureClipboardAttachment = hostFn((h) => h.attachments.captureClipboardAttachment)
+const useTheme = hostFn((h) => h.theme.useTheme)
+const useT = hostFn((h) => h.i18n.useT)
+const useBindings = hostFn((h) => h.keymap.useBindings)
+const showDialog = hostFn((h) => h.dialog.showDialog)
+const useDialog = hostFn((h) => h.dialog.useDialog)
+const useDialogPaddingX = hostFn((h) => h.dialog.useDialogPaddingX)
+const ChipButton = hostFn((h) => h.dialog.ChipButton)
+const ChipRow = hostFn((h) => h.dialog.ChipRow)
+const DialogField = hostFn((h) => h.dialog.DialogField)
+const DialogFooter = hostFn((h) => h.dialog.DialogFooter)
+const DialogHeader = hostFn((h) => h.dialog.DialogHeader)
+const DialogSection = hostFn((h) => h.dialog.DialogSection)
 
 // Re-exported so the page and render tests keep one import site.
 export type { IssueDetailOptions, IssueDetailOutcome } from "./issue-detail-contract"
@@ -55,6 +67,7 @@ export function IssueDetailDialogView(
   const { theme } = useTheme()
   const t = useT()
   const padX = useDialogPaddingX()
+  const { ISSUE_CHAT_PLACEMENTS, ISSUE_STATUSES } = host().issues
   const issue = props.issue
   const create = props.mode === "create"
   const linkedTaskId = !create && issue.taskId && issue.taskId !== "" ? issue.taskId : null
