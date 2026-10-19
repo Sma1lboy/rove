@@ -27,7 +27,8 @@ Task's worktree, plus **Copy task ID**, **Copy branch name** and **Copy path**,
 which put the Task's id, branch or worktree path on the system clipboard for a
 `rove api` call, a `git checkout` or a `cd` in another shell, **Copy tab address**
 on a tab row, which copies the `--task-id … --tab …` pair that sends a
-`rove api send` to that one tab, and **Open in editor**, **Rename branch**, and
+`rove api send` to that one tab, **Close other tabs** on a tab row of a Task with
+several tabs (it confirms, then ends every other tab's session), and **Open in editor**, **Rename branch**, and
 **Change engine** for the row you clicked. Right-clicking a project header
 offers **New task**, **Field notes** (the notes agents filed on that repo with
 `rove api note`, newest first, each with its author and time — `↑↓` walks them
