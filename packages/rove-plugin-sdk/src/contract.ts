@@ -33,6 +33,7 @@ export const PLUGIN_EVENT_NAMES = [
   "agent.turn-complete",
   "agent.permission-needed",
   "agent.rate-limited",
+  "agent.rate-limit-recovered",
   "agent.error",
   "agent.running",
   "agent.idle",

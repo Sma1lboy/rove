@@ -126,15 +126,15 @@ model makes it redundant.
 - **Events.** `watch` streams engine-state transitions only. Its own header
   calls it "deliberately not a general event bus". There are no sequence
   numbers and no replay (`daemon.md` D4, deferred). The plugin event
-  vocabulary (`rove-plugin-sdk/src/contract.ts`) already names most of what
-  the brief lists:
+  vocabulary (`rove-plugin-sdk/src/contract.ts`) names what the brief lists:
 
   | Brief event | Existing event |
   |---|---|
   | done | `turn.complete`, `task.landed` |
   | needs input | `attention.question`, `attention.permission` |
   | failed | `turn.failed`, `tool.failed` |
-  | rate-limit recovered | **none** |
+  | rate-limited | `agent.rate-limited`, `quota.exhausted` (auto-resume armed) |
+  | rate-limit recovered | `agent.rate-limit-recovered` (first completed turn after the limit), `quota.resumed` (continue prompt sent) |
 - **Idempotency.** There are no request ids and no idempotency keys on `add`,
   `send` or `land`.
 - **Child-to-parent reporting.**
@@ -210,7 +210,7 @@ After slices 2–3, a forwarded request carries the whole operation.
 
 - A version on every output.
 - One event stream with sequence numbers and replay that reuses the plugin
-  event names, plus a new rate-limit event.
+  event names.
 - Idempotency keys on `add`, `send` and `land`.
 - A fleet task address (`machine:taskId`), so child reports cross machines.
 

@@ -73,6 +73,7 @@ after daemon start is baseline — no replay storms):
 | `task.created` / `task.deleted` | `task.snapshot` diff |
 | `worktree.created` | `task.jobs` ensureWorktree → done |
 | `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | `engine-state` transitions, per task+tab |
+| `agent.rate-limit-recovered` | first `turn_complete` after `rate_limited`, per task+tab |
 
 ## Runtime env contract
 
