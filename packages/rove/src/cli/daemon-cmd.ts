@@ -15,6 +15,7 @@ import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
 import { CURRENT_VERSION } from "../version.ts"
+import { argvHasFlag, switchFlag } from "./argv.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
@@ -28,6 +29,7 @@ function printDaemonUsage(out: Pick<typeof process.stderr, "write">): void {
       "Commands:",
       "  status     Print the running daemon's status JSON (default)",
       "  start      Run the daemon in the foreground (this process becomes it)",
+      "             --resident: never idle-stop when the last TUI leaves (headless host)",
       "  stop       Ask the running daemon to shut down",
       "  restart    Stop the daemon (graceful → SIGTERM → SIGKILL) and respawn it",
       "",
@@ -36,7 +38,7 @@ function printDaemonUsage(out: Pick<typeof process.stderr, "write">): void {
 }
 
 export async function runDaemonSubcommand(argv: readonly string[]): Promise<void> {
-  const [command = "status"] = argv
+  const [command = "status", ...flags] = argv
   const socketPath = defaultDaemonSocketPath()
   const pidPath = defaultDaemonPidPath()
 
@@ -48,6 +50,14 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   // Accept-set shared with `rove completions`, so every verb is completable.
   if (!SUBCOMMAND_VERBS.daemon.includes(command)) {
     process.stderr.write(`${CLI_NAME} daemon: unknown command "${command}"\n\n`)
+    printDaemonUsage(process.stderr)
+    process.exit(2)
+  }
+
+  const badFlag = flags.find((flag) => command !== "start" || !argvHasFlag([flag], "--resident"))
+  const resident = switchFlag(flags, "--resident")
+  if (badFlag !== undefined || resident === undefined) {
+    process.stderr.write(`${CLI_NAME} daemon ${command}: bad option "${badFlag ?? flags.join(" ")}"\n\n`)
     printDaemonUsage(process.stderr)
     process.exit(2)
   }
@@ -132,6 +142,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
       plugins: { binPath: resolvePluginBinPath() },
       // A bound chat channel must keep answering after the TUI closes.
       keepAlive: () => channels.some((channel) => channel.keepAlive()),
+      resident,
       onStop: async () => {
         for (const channel of channels) channel.stop()
         await core?.close()
