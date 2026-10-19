@@ -65,8 +65,8 @@ export class CodexHookAdapter extends JsonHookAdapter {
    *  PermissionRequest / PostToolUse / PreCompact / PostCompact / SessionStart /
    *  SessionEnd / UserPromptSubmit / SubagentStart / SubagentStop / Stop. The
    *  failure signal is the app-server thread event `turn.failed`, never a hook,
-   *  so codex reaches `rate_limited` only via its quota probe
-   *  (`vendorsWithQuotaProbe`).
+   *  so codex never reaches `rate_limited`: its quota probe only times a resume
+   *  once some hook has already reported a `rate_limit` failure.
    *
    *  No `subagent-*` branch: the event names are verified, the payload fields
    *  are not (`agent_type`/`agent_id` exist in the binary, unproven for these
