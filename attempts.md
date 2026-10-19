@@ -183,3 +183,11 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Sandbox:** the shell exports `BUN_OPTIONS=--smol`. Run 3 was taken with it unset. Check whether earlier nights had it set before comparing nights. Fixture `pty-host` processes also outlived teardown (two were left running after runs 1 and 2) and were killed before run 3.
 
 **Tried, not done:** candidate (a) from 10-15 (log `scheduleUpdateOnFiber` from a patched react-reconciler in `node_modules/.bun/react-reconciler@0.33.0…/cjs`). The sandbox permission policy blocks editing `node_modules`. Next time, copy the reconciler into a scratch dir and point the import at it through a bun `--preload` plugin, or ask the owner. #1284 (geomTick fold) is still open, so terminal geometry was left alone. The `git ls-files` per switch is still blocked by the 09-28 invalidation problem (`--others` lists untracked files, so the index mtime is not enough).
+
+## 2026-10-19 — notes (main 8c67638)
+
+**No regression.** Run 1 exited 0, every count within tolerance (root 9.1, workspace 9.1, files 3, frame 3.6, spawns 1.5, idle 0). Taken with `BUN_OPTIONS` unset. Baseline not moved.
+
+**Landed tonight as a PR from `perf/nightly-2026-10-19`:** the 09-28 per-switch `git ls-files`, unblocked with the fs watch as the invalidation signal. `file-list-cache.ts` keeps each LRU entry's recursive watch alive (one shared watch per path via `subscribeWorktreeEvents` in `pane-core.ts`, so the shown worktree is not watched twice). A list fetched once that watch has been armed ≥1 s (FSEvents arms async), with no event while the fetch ran or since, is fresh; the worktree-change effect then seeds it and skips the refetch. Remote worktrees and `ROVE_FILETREE_WATCH=0` are never fresh. switch.perOp.spawns 1.5 → 0.7 (2 of 2 runs; `ls-files` per run 12 → 4), commits/frames/timings unchanged. The remaining 0.7 is ~0.5 `ps -A` (2 s foregroundWalk) plus the first two re-lists before each watch settles.
+
+**Blind spots it shares with the pane's existing watch:** `.git/` and `node_modules/` events are filtered, so an index-only change (`git rm --cached`, `git add -f` of an ignored file) leaves a fresh list stale until an event or `r`.
