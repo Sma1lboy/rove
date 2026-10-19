@@ -30,7 +30,10 @@ function manualClock(): { schedule: ScheduleFn; fire: () => void } {
 const GUI: LifetimeClient = { subscribed: true, holdsLifetime: true }
 const PANE: LifetimeClient = { subscribed: true, holdsLifetime: false }
 
-function make(clients: LifetimeClient[], opts: { firstGuiGraceMs?: number; keepAlive?: () => boolean } = {}) {
+function make(
+  clients: LifetimeClient[],
+  opts: { firstGuiGraceMs?: number; keepAlive?: () => boolean; resident?: boolean } = {},
+) {
   const clock = manualClock()
   const onIdleStop = vi.fn()
   const lifetime = new DaemonLifetime({
@@ -136,5 +139,13 @@ describe("keep-alive hold", () => {
     lifetime.reevaluateIdle()
     clock.fire()
     expect(onIdleStop).toHaveBeenCalledOnce()
+  })
+
+  it("resident: neither the last gui leaving nor the first-gui grace stops it", () => {
+    const { lifetime, onIdleStop, clock, clients } = make([GUI], { firstGuiGraceMs: 100, resident: true })
+    clients.length = 0
+    lifetime.clientDisconnected(true)
+    clock.fire()
+    expect(onIdleStop).not.toHaveBeenCalled()
   })
 })

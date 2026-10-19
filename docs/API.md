@@ -843,10 +843,11 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   showing the task performs the split (headless, nothing happens). The result
   carries the resolved `title` — the label `pane-close --title` must match,
   derived from the command's first word when `--title` is omitted — and
-  `clients`, the attached-connection count: `0` means nobody performed the
-  split, so an agent must not report "pane opened" on that verdict. (The
-  calling CLI is itself one connection, so `1` does not prove a TUI is
-  listening; `0` is the unambiguous case.) Task
+  `clients`, the attached-connection count, and `reached`. `reached: false`
+  means no front-end subscribes to the `tab.open` channel, so nobody performed
+  the split and an agent must not report "pane opened". (The calling CLI is
+  itself one connection, so `clients: 1` alone does not prove a TUI is
+  listening; `reached` does.) Task
   defaults to `$ROVE_TASK_ID` (or its Rove alias), then the active task. How far splits can go
   is decided by the terminal's size: a split that would shrink any pane
   below the minimum usable size (20×6 cells) falls back to a tab.
@@ -855,8 +856,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `--title`, the title it was opened with; `--tab tab-N` scopes the match to
   one tab. Engine panes are never closed. Broadcast over the daemon's
   `tab.close` channel; an attached TUI performs the close (headless, nothing
-  happens). The result's `clients` is the reach signal: `0` = no attached TUI
-  performed the close (same semantics as `dispatch`'s).
+  happens). The result's `reached` is the reach signal: `false` = no attached
+  front-end performed the close.
 - `pane-graphics [--task-id ID] --tab TAB [--image-id N]`: hand opaque
   graphics bytes, read from stdin, to every TUI attached to this task, for it
   to write to its own terminal. This is a transport, not a picture format —
@@ -946,7 +947,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 - `prompt --title TEXT [--placeholder T] [--initial T] [--timeout MS]`:
   ask the human for a line of text through the attached TUI's input dialog;
   blocks until answered/cancelled/timeout (default 120000 ms, max 600000)
-  and returns `{ value }` or `{ cancelled, reason }`.
+  and returns `{ value }` or `{ cancelled, reason }`. `reason` is
+  `cancelled`, `timeout`, or `no-gui`: with no front-end attached to show the
+  dialog, it returns at once instead of waiting out the timeout.
 - `engine-report --kind KIND [--task-id ID] [--engine ID] [--tab TAB]
   [--detail JSON]`: report a normalized engine-activity verb for a task,
   the public face of the `engine.reportEvent` RPC the built-in hook adapters

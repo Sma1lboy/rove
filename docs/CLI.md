@@ -406,6 +406,7 @@ that did nothing.
 ```bash
 rove daemon status     # status JSON; exit 1 when nothing is running
 rove daemon start      # run in the FOREGROUND (this process becomes it)
+rove daemon start --resident   # same, and never idle-stop (headless host)
 rove daemon stop
 rove daemon restart    # stop, then respawn in the background
 ```
@@ -415,6 +416,43 @@ Bare `rove daemon` defaults to `status`.
 The daemon auto-starts when the TUI or `rove api` needs it, so `start` is
 mainly for debugging. Logs are at `~/.rove/daemon.log`; read them first when
 something's wrong.
+
+### Headless hosts: `--resident`
+
+By default the daemon stops a few seconds after the last TUI quits (unless a
+live session or an enabled routine holds it). On a devbox or VPS where agents
+run with no terminal attached, start it `--resident` instead: it never
+idle-stops, and agents keep being dispatched, watched and landed through
+`rove api` while nobody is looking.
+
+Residency survives restarts. A resident daemon leaves `daemon.resident` beside
+its pidfile, so `rove daemon restart`, Settings → Dev → **Restart backend**,
+and an autospawn after a crash all come back resident. Only an explicit
+`rove daemon stop` (or stopping the service) clears it.
+
+Run it under your init system so it comes back after a reboot. systemd (user
+unit, `~/.config/systemd/user/rove.service`):
+
+```ini
+[Unit]
+Description=Rove daemon
+
+[Service]
+ExecStart=%h/.bun/bin/rove daemon start --resident
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+Then `systemctl --user enable --now rove` (and `loginctl enable-linger $USER`
+so it runs without a login session). On macOS, a LaunchAgent whose
+`ProgramArguments` are `rove daemon start --resident` with `KeepAlive` set does
+the same.
+
+Headless, the requests that need a front-end answer honestly instead of
+hanging: `rove api prompt` returns `reason: "no-gui"` at once, and
+`pane-open`/`pane-close` report `reached: false`.
 
 > **Working on Rove itself?** Restart after editing daemon/orchestrator/engine
 > code — Bun doesn't hot-reload. `rove daemon restart` reloads the daemon; an

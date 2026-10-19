@@ -6,6 +6,7 @@
 
 import { randomUUID } from "node:crypto"
 import { samePath } from "../path-identity.ts"
+import type { ChannelName } from "./channels.ts"
 import { objectPayload, optionalBoolean, optionalString, requireNumber, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { displayTaskTitle } from "./protocol.ts"
@@ -15,6 +16,11 @@ const PROMPT_DEFAULT_TIMEOUT_MS = 120_000
 const PROMPT_MAX_TIMEOUT_MS = 600_000
 /** A live TUI acks in one render turn; bounded so a stale GUI can't hang a headless close. */
 const TAB_CLOSE_TUI_TIMEOUT_MS = 750
+
+/** Would any subscriber receive this channel? A context without the gate (test doubles) counts as reached. */
+function reaches(ctx: Parameters<DaemonRequestHandler["handle"]>[1], channel: ChannelName): boolean {
+  return ctx.daemon.hasSubscribersFor?.(channel) ?? true
+}
 
 export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
   {
@@ -128,6 +134,8 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       const broker = ctx.prompts
       if (!broker) throw new Error("prompt broker unavailable")
       const title = requireString(payload, "title")
+      // Headless: nobody can show the dialog, so waiting out the timeout only stalls the caller.
+      if (!reaches(ctx, "ui.prompt")) return { cancelled: true, reason: "no-gui" }
       const placeholder = optionalString(payload, "placeholder")
       const initial = optionalString(payload, "initial")
       const rawTimeout = (payload as { timeoutMs?: unknown }).timeoutMs
@@ -185,9 +193,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(direction === "right" || direction === "down" ? { direction } : {}),
         at: Date.now(),
       })
-      // Reach report: `clients` counts CONNECTIONS including the caller, so
-      // only 0 is unambiguous ("nobody opened it").
-      return { ok: true, clients: ctx.daemon.clientCount() }
+      // `clients` counts CONNECTIONS including the caller; `reached` says
+      // whether any front-end subscribed to the channel heard it.
+      return { ok: true, clients: ctx.daemon.clientCount(), reached: reaches(ctx, "tab.open") }
     },
   },
   {
@@ -205,7 +213,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         at: Date.now(),
       })
       // Lets the caller tell "pane closed" from "nobody was listening".
-      return { ok: true, clients: ctx.daemon.clientCount() }
+      return { ok: true, clients: ctx.daemon.clientCount(), reached: reaches(ctx, "tab.close") }
     },
   },
   {

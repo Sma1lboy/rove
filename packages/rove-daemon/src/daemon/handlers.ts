@@ -118,6 +118,8 @@ export interface DaemonHandlerContext {
     readonly homeDir?: string
     /** Reported by `hello` / `daemon.status`. */
     readonly pid: number
+    /** Started with `--resident`: no idle-stop. Absent in older test doubles. */
+    readonly resident?: boolean
     /** Attached-GUI refcount (reported as `attachedClients`). */
     guiCount(): number
     /** Cell pixel size per attached GUI that measured its tty. A GUI whose
@@ -247,6 +249,8 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           attachedClients: ctx.daemon.guiCount(),
           // Why a daemon with zero clients is up; otherwise a schedule looks like a leak.
           automationHold: ctx.automations.hasEnabled(),
+          // `daemon restart` reads this to respawn a resident daemon as resident.
+          resident: ctx.daemon.resident ?? false,
           taskCount: ctx.orch.listTasks().length,
           // Lets `rove doctor` name a daemon from a DIFFERENT home squatting the
           // socket, which otherwise reads as "my tasks vanished".

@@ -194,6 +194,13 @@ TUI may show any task at any time.
 > — there is no separate AGENTS.md section for it; CLAUDE.md's own "Daemon" bullet
 > summarizes it and points back to this doc.
 >
+> **Explicit residency:** `rove daemon start --resident` turns idle-stop off
+> outright (`lifetime.ts` rule 4) for a headless host. It writes
+> `daemon.resident` beside the pidfile; any later boot that finds the marker
+> is resident too, so a restart from any client keeps it. A `stop`-reason
+> shutdown removes the marker; `restart` keeps it (`resident.ts`). See
+> [CLI.md § daemon](../CLI.md#daemon).
+>
 > **Socket succession (issue #10, 2026-08-11):** exactly one daemon may serve
 > `daemon.sock`, and losing the path ends residency. A running daemon watches
 > its socket's inode (`socket-guard.ts`); if the path is removed or rebound by
