@@ -5,16 +5,19 @@
 
 import { relaunchSelf } from "../../../cli/self-relaunch"
 import type { RoveOrchestrator } from "../../../client/remote-orchestrator"
+import { rememberReleaseChannel } from "../../../state/update-channel"
 import {
   type DestroyableRenderer,
   destroyRendererSafely,
   hasRestartableDaemon,
   removeTasksFileForReset,
 } from "../../../tui/component/settings-dialog/actions-core"
+import { type ReleaseChannel, updateCommandFor } from "../../../version"
 import type { KVContext } from "../../context/kv"
 import { t } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
+import { runShellUpdater } from "../run-updater"
 
 export { hasRestartableDaemon } from "../../../tui/component/settings-dialog/actions-core"
 
@@ -66,6 +69,31 @@ export async function confirmRestartDaemon(
   // leaves nothing to stop, and the successor spawns one on first connect.
   await orchestrator.restartDaemon()
   relaunchSelf({ renderer, notice: t("settings.restart.done") })
+}
+
+/**
+ * General → Updates button: install `channel` now and, once the install
+ * succeeds, follow it. The updater replaces this process, so it never returns.
+ */
+export async function confirmTryChannel(
+  dialog: DialogContext,
+  renderer: DestroyableRenderer | null | undefined,
+  channel: ReleaseChannel,
+): Promise<void> {
+  const ok = await DialogConfirm.show(
+    dialog,
+    t(`settings.general.updateTryTitle.${channel}`),
+    t(`settings.general.updateTryBody.${channel}`),
+    "cancel",
+  )
+  if (ok !== true) return
+  await runShellUpdater({
+    renderer: renderer ?? null,
+    t,
+    targetLabel: channel,
+    command: updateCommandFor(channel),
+    onSuccess: () => rememberReleaseChannel(channel),
+  })
 }
 
 /** Settings → Dev "Reload settings": the status line the section shows after a reload. */

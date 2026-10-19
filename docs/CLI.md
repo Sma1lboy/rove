@@ -32,10 +32,10 @@ The installed package exposes only `rove`. Product data lives under `~/.rove`
 and `~/.config/rove/state.json`.
 
 ```bash
-rove update            # newest build on your channel
+rove update            # newest build on the channel you follow
 rove update 0.7.90     # pin a version
-rove update nightly    # switch to the nightly channel (also: --channel nightly)
-rove update latest     # switch back to stable
+rove update --nightly  # install the nightly preview and follow it (also: nightly, --channel nightly)
+rove update --stable   # go back to stable releases (also: latest, stable)
 rove update list       # browse recent versions (also: --list)
 rove update dry-run    # print the command without running it (also: --dry-run)
 ```
@@ -45,10 +45,12 @@ releases. `nightly` is an automated daily cut from `main`: it passes the same
 test gates, but its contents haven't been reviewed as a set, so expect rough
 edges in exchange for changes landing days earlier.
 
-You don't configure a channel — the build you're running *is* the channel, so
-update checks follow whichever one you installed from, and switching is just
-installing from the other. `rove update` with no arguments never moves you
-between channels.
+The channel you pick is remembered in `~/.config/rove/state.json`
+(`update.channel`) once its install succeeds, so a bare `rove update` and the
+update check keep following it. Settings → General → Updates shows the same
+choice, with a button that installs the other channel's newest build. Until you
+pick, Rove follows the channel of the build you are running. A pinned version
+never changes the setting.
 
 rove updates using whichever package manager owns the `rove` on your `PATH`,
 so the new version can't land in a shadowed prefix. Manual fallback:
