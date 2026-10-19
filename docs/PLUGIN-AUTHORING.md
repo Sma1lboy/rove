@@ -280,6 +280,7 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `file.will-open` / `file.opened` / `file.closed` | Files-pane open, before/after; editor tab closed | `path`, `via: plugin\|editor\|external` |
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away (restores don't fire) | `tabId`, `kind`, `title`, `vendor`, `purpose` |
 | `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | activity-STATE transitions, deduped per task+tab | `tabId` when the source state identifies a tab |
+| `agent.rate-limit-recovered` | the first completed turn after that task+tab was rate-limited | `limitedAt`, `limitedForMs`; `tabId` as above |
 | `session.start` / `session.end` | engine session lifecycle (C, K; X start only) | |
 | `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X, K; failed: C, K; **interrupted** is a native hook on K only — on C and X the attached TUI emulates it, so it never fires with no TUI attached) | `failure` class on failed; `turn` (id/model/usage/startedAt/endedAt) on complete when the transcript yielded one |
 | `tool.pre` / `tool.post` / `tool.failed` | every tool call (C, X, K; failed: C, K); **installed into engine config only while some enabled plugin subscribes** | `tool.name`, `tool.id` |
