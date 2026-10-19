@@ -988,6 +988,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   - `--model M`: pin the model (next session rebuild). Passed to the engine
     verbatim in its own spelling; `engine-list`'s `models` are suggestions.
     Rejected (`BAD_MODEL`) when the task's engine declares no model flag.
+    A `--command` that changes the task's engine clears its model and effort
+    pins; pass `--model` / `--effort` in the same call to re-pin them.
   - `--pinned true|false`: pin/unpin the task to the top of the sidebar.
   - `--status S`: lifecycle status: `backlog`, `in_progress`, `in_review`,
     `done`, `canceled`, `error`.
