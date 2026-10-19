@@ -14,16 +14,18 @@ import { availableEngineIds } from "../../engine/account-detect"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { errorMessage } from "../../lib/error-message"
 import { relativeAge } from "../../lib/relative-time"
+import { applyBoardAttention, buildIssueBoard, moveBoardSelection } from "../../state/issue-board"
 import { ISSUE_CHAT_PLACEMENTS, withImagePlaceholders } from "../../state/issue-chat"
 import { isRemoteRepoKey } from "../../state/remote-repos"
 import { getSavedRepos } from "../../state/repos"
 import { clampCursor, stripNewlines } from "../../tui/component/new-task-dialog/state"
-import { registerMessages } from "../../tui/i18n"
+import { registerMessages, t } from "../../tui/i18n"
 import { asAttachmentPaths, captureClipboardAttachment } from "../../tui/lib/attachments"
 import { truncateEnd } from "../../tui/lib/truncate"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
 import { taskGroupIn, taskGroupLabel, taskGroupTone } from "../../tui/panes/sidebar/task-group-view"
 import { FailureHint } from "../component/failure-hint"
+import { EVENT_FEED_LIMIT, eventRows } from "../component/issue-events-core"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -53,7 +55,8 @@ export const PAGE_HOST_API_VERSION = 1
 
 export const pageHost = {
   apiVersion: PAGE_HOST_API_VERSION,
-  i18n: { useT, registerMessages },
+  /** `t` reads the current language once; components use `useT` to follow changes. */
+  i18n: { useT, t, registerMessages },
   theme: { useTheme },
   keymap: { useBindings, pageCloseBindings },
   notifications: { useNotifications },
@@ -82,6 +85,10 @@ export const pageHost = {
     ISSUE_STATUSES,
     ISSUE_CHAT_PLACEMENTS,
     withImagePlaceholders,
+    /** Story board columns from the issue store (shared with `rove --web`). */
+    board: { buildIssueBoard, applyBoardAttention, moveBoardSelection },
+    /** A task's recent engine events as feed rows. */
+    events: { eventRows, EVENT_FEED_LIMIT },
     /** Start an engine session on an issue; the host owns tabs and the PTY. */
     useStartChat: () => usePageServices().startIssueChat,
   },

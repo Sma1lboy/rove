@@ -12,9 +12,9 @@
  */
 
 import { expect, test } from "bun:test"
+import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
 import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
-import { KanbanPage } from "../../src/tui-react/component/kanban-page"
 import { renderComponent, settle } from "./harness"
 
 const ONLINE = createStateCell("online")

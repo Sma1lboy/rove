@@ -153,12 +153,14 @@ describe("plugins and feedback", () => {
       enabled: true,
       linked: true,
       source: "/Users/me/secret/path",
-      declares: { actions: 1, events: 0, panes: 0, engines: 0 },
+      declares: { actions: 1, events: 0, panes: 0, engines: 0, pages: 0 },
       platformOk: true,
       hooksDeclared: true,
       lastRun: { at: 1, label: "startup", exitCode: 0, ok: true, running: false },
       settings: [],
       updateAvailable: false,
+      pageErrors: [],
+      builtIn: false,
     }
     const ops = createSettingsOps(settingsDeps({ listPlugins: () => [row] }).deps)
     const wire = JSON.stringify((await run(ops, "plugins.list", {})).result)

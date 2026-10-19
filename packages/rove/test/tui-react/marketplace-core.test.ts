@@ -27,6 +27,7 @@ function plugin(overrides: Partial<PluginRowView>): PluginRowView {
     settings: [],
     updateAvailable: false,
     pageErrors: [],
+    builtIn: false,
     ...overrides,
   }
 }

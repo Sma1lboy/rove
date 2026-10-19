@@ -79,10 +79,10 @@ the daemon", not "add an API".
 | Brief asks | Today | Gap |
 |---|---|---|
 | A daemon per machine owns worktree, branch, session and engine | The daemon is the index's single writer (`rove-daemon/src/daemon/server.ts`). Engine children belong to the standalone PTY Host, which survives daemon restarts. | The **caller** builds the launch argv (`src/engine/session-launch.ts`) and talks to the PTY Host directly: the TUI via `tui/panes/terminal/pty-hosted*.ts`, the CLI via `cli/api/runtime.ts`. |
-| Headless, resident agents | The daemon is refcounted on attached GUIs: it self-stops 3s after the last GUI leaves (`daemon/lifetime.ts`). It stays up only through two holds, a live PTY session or an enabled automation. An autospawned daemon waits 60s for its first GUI. | Needs an explicit resident mode (service unit, no idle-stop). Today residency is a side effect of the holds. |
+| Headless, resident agents | The daemon is refcounted on attached GUIs: it self-stops 3s after the last GUI leaves (`daemon/lifetime.ts`). It stays up only through two holds, a live PTY session or an enabled automation. An autospawned daemon waits 60s for its first GUI. | **Done:** `rove daemon start --resident` never idle-stops, and residency survives restarts ([CLI.md](../CLI.md#headless-hosts---resident)). |
 | A stable local API | Unix socket, JSON lines, protocol v5. `hello` negotiates a range, minimum v2 (`daemon/protocol-compat.ts`). | Nothing needed at the node level. HTTP adds no value here: remote reach is SSH forwarding or the bridge (below). |
 | The TUI holds no state | It holds no task index; every write goes through `RemoteOrchestrator`. | Still outside the daemon: `terminalTabs` in `state.json` has three writers (TUI `kv-core.ts`, CLI `tab-snapshot.ts`, bridge). File-tree, diff and PR-prompt git runs in the TUI. The machine hub runs in the TUI process. Dev reset deletes `tasks.json` directly. |
-| Works with no TUI attached | — | Four GUI-only obligations hang or drop on a headless node: `ui.prompt` blocks until a TUI answers; plugin `tab.open`/`tab.close` are run by the TUI; `terminalTab.close` waits for a TUI ack; `attention.inbox` reaches only an attached GUI. |
+| Works with no TUI attached | — | **Done:** `ui.prompt` answers `no-gui` at once and `tab.open`/`tab.close` report `reached`. `terminalTab.close` already skips its TUI ack with no GUI, and `attention.list` serves the inbox headless. |
 
 ## Fleet — today vs. brief
 
@@ -169,14 +169,16 @@ review only needs the judge.
 
 ## Shrinking the surface
 
-Plugins can contribute panes, events, actions, settings and engines
-([`plugins.md`](./plugins.md)). A pane is a separate PTY program, and
-**no plugin surface renders React**, so a full page cannot move as-is. No
-shipped feature uses the plugin system today.
+Plugins can now contribute React pages (`[[pages]]`, [`plugins.md`](./plugins.md)),
+rendered in the content pane on the TUI's own React through a versioned
+host API. **Kanban and Issues have moved out of core** into built-in plugins
+(`src/bundled-plugins/`) that use only that API and can be turned off in
+Settings → Plugins. The board logic and copy they share with `rove --web`
+stay in core.
 
 | Feature | Size | Coupling | Recommendation |
 |---|---|---|---|
-| Kanban | ~1.2k lines of board UI, plus the daemon issue store | `host-pages.tsx` imports `KanbanPage`; core keybindings and i18n | Decide on page-level plugin UI first, or rewrite the board as a PTY pane. `examples/task-board` does that in 126 lines. The issue store is this repo's own backlog ([`WORK-TRACKING.md`](../WORK-TRACKING.md)), so it stays in the daemon either way. |
+| Kanban, Issues | ~1.2k + ~0.3k lines of page UI | **Done**: built-in plugins behind the page host API | The issue store is this repo's own backlog ([`WORK-TRACKING.md`](../WORK-TRACKING.md)), so it stays in the daemon. |
 | Routines | ~2k daemon + ~2.4k UI/CLI | Imported by daemon collectors, handlers and contracts; one of the daemon's idle-stop holds | Scheduled dispatch is arguably core to a dispatch layer. Keep the daemon scheduler and move only the page. |
 | Themes | ~1.7k | Theme context used across ~110 files; user themes already load as data | Keep in core. Moving it buys nothing. |
 | Web/bridge, weixin | ~19k, ~1.4k | Already separate, lazy-loaded packages | Nothing to move. |
@@ -187,9 +189,8 @@ This refines the brief's order. Each item below is a PR-sized slice.
 
 **Step 1: the daemon becomes the only actor.**
 
-1. **Resident mode.** `rove daemon start --resident` (or a config key) skips
-   idle-stop and ships with launchd and systemd units. Small, and it unblocks
-   a headless devbox now.
+1. **Resident mode.** *Done.* `rove daemon start --resident`, with systemd and
+   launchd recipes in CLI.md.
 2. **Daemon-owned session launch.** One daemon request builds the argv from
    `session-launch.ts` and drives the PTY Host. The TUI and `ApiRuntime`
    call it instead of launching themselves. This is the largest slice, and
@@ -197,8 +198,7 @@ This refines the brief's order. Each item below is a PR-sized slice.
 3. **Daemon-owned delivery.** `send` and `prompt` pastes, and dispatcher
    reporting, run in the daemon.
 4. **Daemon-owned terminal tabs.** One writer replaces three.
-5. **Headless-safe GUI obligations.** With no GUI attached, `ui.prompt` and
-   attention become events with a timeout instead of blocking.
+5. **Headless-safe GUI obligations.** *Done* (see the Node table).
 6. **Daemon read verbs** for diff and changes, so review works over the wire.
 
 **Step 2: Machines phase 2.**
@@ -209,17 +209,22 @@ This refines the brief's order. Each item below is a PR-sized slice.
   verb.
 - `land` runs on the node and pushes the branch.
 
-After slices 2–3, a forwarded request carries the whole operation.
+`api.invoke` runs a verb inside the daemon that answers, so a verb sent over
+a machine's forwarded socket already does its work on that machine. Slices
+2–4 of step 1 are no longer prerequisites for step 2; they remain worth doing
+so the TUI stops being a second actor.
 
 **Step 3: API as product.**
 
-- A version on every output.
+- A version on every output. *Done:* one contract over CLI, socket and
+  bridge, one `ROVE_API_VERSION`.
 - One event stream with sequence numbers and replay that reuses the plugin
   event names.
 - Idempotency keys on `add`, `send` and `land`.
 - A fleet task address (`machine:taskId`), so child reports cross machines.
 
-**Step 4: shrink.** Starts only after the page-level plugin decision above.
+**Step 4: shrink.** Plugin pages exist; Kanban and Issues are built-in
+plugins. Routines' page could follow; its scheduler stays core.
 
 ## Docs this supersedes on acceptance
 

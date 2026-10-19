@@ -123,11 +123,13 @@ export function PluginSettingsSection(
                     {`${plugin.enabled ? "[x]" : "[ ]"} ${plugin.id}`}
                   </text>
                   <text fg={isCursor ? theme.selectedListItemText : theme.textMuted} wrapMode="none">
-                    {`v${plugin.version}  ${
-                      plugin.linked
-                        ? t("settings.plugins.sourceLink", { path: plugin.source })
-                        : t("settings.plugins.sourceGithub", { spec: plugin.source })
-                    }`}
+                    {plugin.builtIn
+                      ? t("settings.plugins.sourceBuiltIn")
+                      : `v${plugin.version}  ${
+                          plugin.linked
+                            ? t("settings.plugins.sourceLink", { path: plugin.source })
+                            : t("settings.plugins.sourceGithub", { spec: plugin.source })
+                        }`}
                   </text>
                   {plugin.updateAvailable ? (
                     <text fg={theme.warning} wrapMode="none">
@@ -135,60 +137,63 @@ export function PluginSettingsSection(
                     </text>
                   ) : null}
                 </box>
-                <box flexDirection="row" gap={1} paddingLeft={5} paddingRight={1}>
-                  <text fg={plugin.declares ? theme.textMuted : theme.warning} wrapMode="none">
-                    {plugin.declares
-                      ? plugin.declares.engines > 0
-                        ? t("settings.plugins.declaresWithEngines", {
-                            actions: String(plugin.declares.actions),
-                            events: String(plugin.declares.events),
-                            panes: String(plugin.declares.panes),
-                            engines: String(plugin.declares.engines),
-                          })
-                        : t("settings.plugins.declares", {
-                            actions: String(plugin.declares.actions),
-                            events: String(plugin.declares.events),
-                            panes: String(plugin.declares.panes),
-                          })
-                      : t("settings.plugins.manifestUnreadable")}
-                  </text>
-                  {plugin.declares && plugin.declares.pages > 0 ? (
-                    <text fg={theme.textMuted} wrapMode="none">
-                      {t("settings.plugins.declaresPages", { pages: String(plugin.declares.pages) })}
+                {/* A built-in plugin declares nothing but its pages and never runs a hook. */}
+                {plugin.builtIn ? null : (
+                  <box flexDirection="row" gap={1} paddingLeft={5} paddingRight={1}>
+                    <text fg={plugin.declares ? theme.textMuted : theme.warning} wrapMode="none">
+                      {plugin.declares
+                        ? plugin.declares.engines > 0
+                          ? t("settings.plugins.declaresWithEngines", {
+                              actions: String(plugin.declares.actions),
+                              events: String(plugin.declares.events),
+                              panes: String(plugin.declares.panes),
+                              engines: String(plugin.declares.engines),
+                            })
+                          : t("settings.plugins.declares", {
+                              actions: String(plugin.declares.actions),
+                              events: String(plugin.declares.events),
+                              panes: String(plugin.declares.panes),
+                            })
+                        : t("settings.plugins.manifestUnreadable")}
                     </text>
-                  ) : null}
-                  <text
-                    fg={
-                      !plugin.platformOk || plugin.lastRun?.running
-                        ? theme.warning
-                        : plugin.lastRun?.ok === false
-                          ? theme.error
-                          : theme.textMuted
-                    }
-                    wrapMode="none"
-                  >
-                    {!plugin.platformOk
-                      ? t("settings.plugins.unsupportedPlatform")
-                      : plugin.lastRun
-                        ? t("settings.plugins.lastRun", {
-                            label: plugin.lastRun.label,
-                            status: plugin.lastRun.running
-                              ? t("settings.plugins.runRunning")
-                              : plugin.lastRun.ok
-                                ? t("settings.plugins.runOk")
-                                : plugin.lastRun.spawnError
-                                  ? t("settings.plugins.runFailed")
-                                  : t("settings.plugins.runExit", { code: String(plugin.lastRun.exitCode) }),
-                            ago: relativeAge(plugin.lastRun.at, now),
-                          })
-                        : // "never run" only means something when the plugin
-                          // declares commands that could have run; a
-                          // panes/settings/engines-only plugin is quiet by design.
-                          plugin.hooksDeclared
-                          ? t("settings.plugins.neverRun")
-                          : t("settings.plugins.noHooks")}
-                  </text>
-                </box>
+                    {plugin.declares && plugin.declares.pages > 0 ? (
+                      <text fg={theme.textMuted} wrapMode="none">
+                        {t("settings.plugins.declaresPages", { pages: String(plugin.declares.pages) })}
+                      </text>
+                    ) : null}
+                    <text
+                      fg={
+                        !plugin.platformOk || plugin.lastRun?.running
+                          ? theme.warning
+                          : plugin.lastRun?.ok === false
+                            ? theme.error
+                            : theme.textMuted
+                      }
+                      wrapMode="none"
+                    >
+                      {!plugin.platformOk
+                        ? t("settings.plugins.unsupportedPlatform")
+                        : plugin.lastRun
+                          ? t("settings.plugins.lastRun", {
+                              label: plugin.lastRun.label,
+                              status: plugin.lastRun.running
+                                ? t("settings.plugins.runRunning")
+                                : plugin.lastRun.ok
+                                  ? t("settings.plugins.runOk")
+                                  : plugin.lastRun.spawnError
+                                    ? t("settings.plugins.runFailed")
+                                    : t("settings.plugins.runExit", { code: String(plugin.lastRun.exitCode) }),
+                              ago: relativeAge(plugin.lastRun.at, now),
+                            })
+                          : // "never run" only means something when the plugin
+                            // declares commands that could have run; a
+                            // panes/settings/engines-only plugin is quiet by design.
+                            plugin.hooksDeclared
+                            ? t("settings.plugins.neverRun")
+                            : t("settings.plugins.noHooks")}
+                    </text>
+                  </box>
+                )}
                 {plugin.pageErrors.map((detail) => (
                   <text key={detail} fg={theme.warning} paddingLeft={5} wrapMode="word">
                     {t("settings.plugins.pageFailed", { detail })}
