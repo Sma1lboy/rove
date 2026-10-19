@@ -19,6 +19,7 @@ import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
 import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
+import { preferredReleaseChannel } from "../state/update-channel.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
 import type { VendorId } from "../types/vendor.ts"
@@ -78,7 +79,8 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   resolveProtocolUpgrade: resolveProtocolUpgradeAndLearnPreset,
   // An engine without a turn reader reports none.
   readEngineTurns: async (vendor, transcriptPath) => (await protocolEntry(vendor).readTurns?.(transcriptPath)) ?? [],
-  checkLatestVersion,
+  // Read per check, so a channel picked in Settings or the CLI applies without a restart.
+  checkLatestVersion: () => checkLatestVersion({ channel: preferredReleaseChannel() }),
   latestTranscriptMtime,
   deriveTitleFromSession,
   createEngineTurnDetector: (vendor) => createEngineTurnDetector(sessionProtocol(vendor)),

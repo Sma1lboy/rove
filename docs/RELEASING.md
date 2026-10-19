@@ -89,15 +89,18 @@ Worktrees are never part of a reset — the gate's cost to the user is daemon/se
 
 [`nightly.yml`](../.github/workflows/nightly.yml) publishes today's `main` to the npm `nightly` dist-tag every morning (09:00 UTC), behind the same behavior + render + visual gates a release passes. It is less baked by virtue of *what it contains* — unbatched, unreviewed-as-a-set changes — not by skipping verification.
 
-Users opt in and out with the CLI; there is no setting to configure:
+Users opt in and out with the CLI or Settings → General → Updates:
 
 ```bash
-rove update nightly     # switch to the nightly channel
-rove update latest      # switch back to stable
-rove update             # stay on whichever channel you're on
+rove update --nightly   # install the nightly and follow it
+rove update --stable    # go back to stable
+rove update             # newest build on the channel you follow
+curl -fsSL https://rove.run/install.sh | sh -s -- --nightly   # fresh machine
 ```
 
-The channel an install follows is **derived from the version it is running**, not stored: a nightly build carries a `-nightly.<date>` tail, so `channelOf()` reports `nightly` and the update check resolves against the `nightly` dist-tag. Nothing can drift out of sync with reality, and switching channels is just installing from the other one.
+The channel an install follows is state.json `update.channel` (`src/state/update-channel.ts`), written only after an install of a picked channel succeeds. Unset, it falls back to the running build: a nightly carries a `-nightly.<date>` tail, so `channelOf()` reports `nightly`. The update check, the Update page and a bare `rove update` all resolve against that one value, so none of them can offer one channel and install another.
+
+**Stable releases need the owner.** A stable release is cut only when the owner asks for one in that conversation (`changesets.yml` or `release.sh`); nothing in CI cuts one on its own. The nightly is the only automatic publish.
 
 Three properties worth knowing before changing any of this:
 

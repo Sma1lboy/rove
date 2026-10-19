@@ -343,6 +343,16 @@ Zen always keeps the Tasks rail visible, because the rail also contains the
 exit affordance. A `zen.keepTasks` value left in your `state.json` by an older
 Rove is ignored; nothing reads or writes it any more.
 
+### Update channel
+
+Which release line `rove update` and the update check follow. Set it with
+`rove update --nightly` / `--stable` or Settings → General → Updates, whose
+button also installs the other channel's newest build right away.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `update.channel` | `latest` \| `nightly` | the running build's channel | `latest` is stable releases; `nightly` is the daily preview built from `main`. Written after an install of that channel succeeds |
+
 ### Worktree location
 
 By default new worktrees land under `~/.rove/worktrees/<repo-key>/<slug>`.

@@ -4,13 +4,21 @@ set -eu
 PACKAGE="@sma1lboy/rove"
 
 # Optional argument: `curl … | sh -s -- 0.7.90` installs that exact version,
-# `… | sh -s -- nightly` installs the head of a channel (any npm dist-tag),
-# `… | sh -s -- --list` prints recent published versions and exits.
+# `… | sh -s -- nightly` (or `--nightly`) installs the head of a channel (any
+# npm dist-tag), `--stable` the latest release, and `--list` prints recent
+# published versions and exits.
 #
 # Both forms take the same `pkg@<arg>` slot in the install below — npm makes
 # no distinction between a version and a dist-tag there. The only place they
 # diverge is resolving what the target RESOLVES to, for the verify step.
 VERSION="${1:-}"
+
+# Channel shorthands, so `--nightly` can never fall through to a stable install.
+case "$VERSION" in
+  --nightly) VERSION="nightly" ;;
+  --stable | --latest | stable | latest) VERSION="" ;;
+  -*) [ "$VERSION" = "--list" ] || { echo "unknown option: $VERSION (expected a version, nightly, --nightly or --stable)" >&2; exit 2; } ;;
+esac
 
 if [ "$VERSION" = "--list" ]; then
   npm view "$PACKAGE" versions --json 2>/dev/null | sed 's/[][",]//g' | awk 'NF' | tail -n 20
