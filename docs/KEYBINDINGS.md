@@ -138,7 +138,7 @@ for terminal support.
 | `F5` | Confirm and reset the active terminal |
 | `F7` | Jump to the next Inbox item across all projects |
 
-Project and directory tasks that have never opened a session wait on the empty pane. Enter starts their configured engine; Ctrl+E starts the chosen engine and pins its command on the tab. Managed worktree tasks and scratch tasks keep starting automatically.
+Project and directory tasks that have never opened a session wait on the empty pane. Enter starts their configured engine; Ctrl+E starts the chosen engine and pins its command on the tab. The sidebar's New conversation and New shell actions also start these tasks directly. Managed worktree tasks and scratch tasks keep starting automatically.
 
 Overlap resolves by context: `ctrl+w` closes the innermost split when a tab
 is split, otherwise the tab. `F2` follows the same rule. `enter` is bound only
