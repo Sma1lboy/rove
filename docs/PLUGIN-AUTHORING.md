@@ -175,6 +175,10 @@ entry = "page.tsx"               # module inside the plugin (see Pages below)
 order = 40                       # rail position; built-in pages sit at 10/20/30
 action = "kanban.open"           # optional; see Pages below
 
+[mod]                            # one long-lived process that draws native UI in
+command = ["bun", "mod.ts"]      # the TUI and the web alike — see Mods below;
+                                 # cwd = plugin root, restarted if it dies
+
 [[settings]]                     # rendered as an editor in Settings → Plugins
 key = "YOU_EXAMPLE_MODE"         # stored as KEY=value in your config .env;
                                  # must be a plain env var name, and may not
@@ -481,12 +485,17 @@ export default function page(host) {
   adapter in Rove itself; render those surfaces yourself via `[[panes]]`.
 - **Task-row tokens**: put one short label on a task's sidebar/board row —
   see [below](#task-row-tokens).
+- **Mods**: a `[mod]` process draws panes of boxes, text and buttons on the
+  rail's Mods page, natively in both the TUI and the web — see
+  [below](#mods).
 - **Host input dialog**: `rove api prompt --title "…"` (SDK: `promptUser()`)
-  pops the TUI's standard input dialog and blocks for the answer: `{value}`
-  on submit, `{cancelled, reason}` on esc/timeout. Use it instead of
+  pops the standard input dialog in every attached TUI and web page and
+  blocks for the first answer: `{value}` on submit, `{cancelled, reason}` on
+  esc/timeout. Use it instead of
   hand-rolling in-pane prompts.
 - **Settings → Plugins**: enable/disable, declared surfaces, last run,
-  and your `[[settings]]` editors.
+  and your `[[settings]]` editors. Rove's built-in plugins (Kanban, Issues)
+  are listed first; they toggle but never uninstall.
 - **Settings → Marketplace**: your repo's `rove-plugin` topic listing, its
   description, and the install preview built from your manifest's commands.
 - **CLI**: `rove plugin action invoke`, `rove plugin pane open`, `rove
@@ -560,6 +569,92 @@ engine name belongs in one: the engine adapter owns that vocabulary
   you never have to version-gate the call.
 
 Runnable example: [`examples/row-tokens/`](../packages/rove-plugin-sdk/examples/row-tokens).
+
+## Mods
+
+A `[mod]` is one process that keeps running while the daemon does and draws
+**element trees** instead of terminal bytes. Rove validates each tree and
+every attached client draws it with its own widgets: the TUI with OpenTUI
+boxes, the web with DOM elements. A press in either one reaches the same
+process, and every client redraws, so the TUI and the browser always show the
+same state. Design: [design/mods.md](./design/mods.md).
+
+Mods or [pages](#pages-experimental)? A page is a React module inside the TUI
+with the whole host API, and draws only in the TUI. A mod is its own process
+with a small fixed vocabulary, and draws the same thing in the TUI and the
+web. Pick a mod when the UI must work in the browser too.
+
+```ts
+import { Box, Button, Text, runMod } from "@sma1lboy/rove-plugin-sdk"
+
+const mod = runMod()
+let count = 0
+function draw(): void {
+  mod.pane("main", "Counter", Box({
+    direction: "row",
+    gap: 2,
+    children: [
+      Text({ text: `Count: ${count}`, bold: true }),
+      Button({ key: "inc", label: "+1", tone: "success", onPress: () => { count++; draw() } }),
+    ],
+  }))
+}
+draw()
+```
+
+Call `mod.pane(id, title, tree)` whenever your state changes and
+`mod.close(id)` to remove a pane. The rail shows a **Mods** row while any mod
+has a pane open; the page lists every pane with its title and plugin id.
+
+**Elements** (the whole vocabulary, so every client can draw every tree):
+
+| element | props |
+|---|---|
+| `box` | `direction` `"row"`/`"column"` (default column), `gap`, `padding` (steps 0–3: cells in the TUI, a px scale in the web), `border`, `children` |
+| `text` | `text`, `tone`, `bold` |
+| `button` | `key` (unique in the tree), `label` (≤40 chars), `tone` |
+| `input` | `key` (unique, shared with buttons), `placeholder`, `value` — one line; Enter submits its text |
+
+`tone` is a role — `info`, `success`, `warning`, `error`, `muted` — and the
+client's theme picks the colour. A tree with an unknown element or prop, a
+duplicate key, more than 400 elements or deeper than 12 levels is refused
+whole: the last good tree stays on screen and the reason goes to
+`rove plugin log <id>`. A mod holds at most 8 panes.
+
+An `input` keeps what the user types until they press Enter; then its text
+reaches the field's `onSubmit` (SDK: `Input({ key, placeholder, onSubmit })`)
+and the field empties. Draw it with a new `value` to replace what it holds.
+On the Mods page, while a field has focus, letters are typing: only `↑`/`↓`,
+`tab` and `esc` stay page keys.
+
+**Plugin events** reach a running mod directly, with the same envelope an
+`[[events]]` hook gets: `mod.on("task.created", (e) => …)`. A mod receives
+only the events it subscribed to; the `tool.*` family still needs some
+plugin's `[[events]]` hook to switch the engine hooks on (see the
+volume gate in the event reference).
+
+**Without the SDK** the wire is JSON lines on stdio, in any language:
+
+```text
+mod → Rove  {"type":"pane","id":"main","title":"Counter","tree":{…}}
+mod → Rove  {"type":"close","id":"main"}
+mod → Rove  {"type":"subscribe","events":["task.created"]}
+Rove → mod  {"type":"press","pane":"main","key":"inc"}
+Rove → mod  {"type":"submit","pane":"main","key":"note","value":"buy milk"}
+Rove → mod  {"type":"event","event":{"event":"task.created","taskId":"…",…}}
+```
+
+`subscribe` replaces the previous list; a restarted mod starts with none.
+
+Stdout is the protocol, so log to stderr (it lands in `log.jsonl`). A mod
+that exits loses its panes and is restarted after 1s, backing off to 30s; a
+run longer than a minute resets the backoff. Editing the `[mod]` command in
+the manifest restarts it; for a code change, disable and re-enable the
+plugin. The mod gets the usual environment contract with
+`ROVE_PLUGIN_EVENT=mod`; read live state the events do not carry from the
+daemon socket (`RoveSocket`), as the example does.
+
+Runnable example: [`examples/counter-mod/`](../packages/rove-plugin-sdk/examples/counter-mod).
 
 ## Ground rules
 

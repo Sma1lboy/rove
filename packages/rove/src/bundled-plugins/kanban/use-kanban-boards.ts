@@ -10,12 +10,15 @@
  */
 
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
-import { pathIdentity, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import { errorMessage } from "../../lib/error-message"
-import { isRemoteRepoKey } from "../../state/remote-repos"
-import { getSavedRepos } from "../../state/repos"
+import { hostFn } from "./host"
+
+const pathIdentity = hostFn((h) => h.paths.pathIdentity)
+const samePath = hostFn((h) => h.paths.samePath)
+const errorMessage = hostFn((h) => h.text.errorMessage)
+const isRemoteRepoKey = hostFn((h) => h.projects.isRemoteRepoKey)
+const getSavedRepos = hostFn((h) => h.projects.getSavedRepos)
 
 /** Agent moves land within one poll; issue.list is a local JSON read, so
  *  polling while the page is open is cheap. */

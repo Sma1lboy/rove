@@ -15,6 +15,7 @@ import { en as help, zh as helpZh } from "./messages/help"
 import { en as hints, zh as hintsZh } from "./messages/hints"
 import { en as kanban, zh as kanbanZh } from "./messages/kanban"
 import { en as keys, zh as keysZh } from "./messages/keys"
+import { en as mods, zh as modsZh } from "./messages/mods"
 import { en as newTask, zh as newTaskZh } from "./messages/newTask"
 import { en as onboarding, zh as onboardingZh } from "./messages/onboarding"
 import { en as ops, zh as opsZh } from "./messages/ops"
@@ -47,6 +48,7 @@ export const en = {
   automations,
   workItems,
   doctor,
+  mods,
 }
 
 /** Each namespace `zh` is typed `typeof en`, so this annotation just documents the contract. */
@@ -72,6 +74,7 @@ const zh: Messages = {
   automations: automationsZh,
   workItems: workItemsZh,
   doctor: doctorZh,
+  mods: modsZh,
 }
 
 /**

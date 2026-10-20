@@ -538,7 +538,10 @@ tab. Availability and restart behavior vary by engine; see
 
 ## Pages: `ctrl+a` `1` / `2` / `3`
 
-Three pages replace the workspace pane while the sidebar stays put. `esc` or
+Three pages replace the workspace pane while the sidebar stays put. Kanban
+and Issues are built-in plugins you can turn off in Settings → Plugins, and
+installed plugins can add pages of their own
+([Pages](./PLUGIN-AUTHORING.md#pages-experimental)). `esc` or
 `q` closes a page; selecting a task in the sidebar also returns you to the
 workspace. The chords stay live, so you can hop between pages directly.
 
@@ -630,6 +633,16 @@ explicitly marked as an untrusted report), and the task keeps a
 shows that task's title on its detail line, and `enter` opens the task instead
 of creating a second one. Nothing is imported into the local issue store and
 nothing is written back to GitHub.
+
+### Mods
+
+While a plugin's `[mod]` has a pane open, the sidebar rail lists **Mods**
+below Issues. Click it to open the page: each mod pane is drawn with its
+title and plugin id. `↑`/`↓` or `tab` move between buttons and fields,
+`enter` or a click presses a button, `enter` in a field sends its text to the
+mod, `esc` leaves. While a field has focus, letters are typing. The web client draws the same panes, and a press in
+either one updates both. There is no chord for the page yet. Writing a mod:
+[Plugin authoring § Mods](PLUGIN-AUTHORING.md#mods).
 
 ## What's new after an upgrade
 

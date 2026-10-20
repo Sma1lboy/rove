@@ -55,7 +55,7 @@ export interface Preview {
 }
 
 export const preview = createStore<Preview | null>(null)
-export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues"
+export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues" | "mods"
 /** A full page over the workspace (TUI rail pages); `q`/Esc closes it. */
 export const page = createStore<PageId | null>(null)
 /** The routine the Inbox sent the Routines page to; the page puts its cursor there once and clears this. */

@@ -1,6 +1,6 @@
 {
   "name": "@sma1lboy/rove-daemon",
-  "version": "0.7.21",
+  "version": "0.7.22",
   "description": "Daemon server, protocol, lifecycle, and socket client for Rove.",
   "type": "module",
   "private": true,
@@ -90,6 +90,7 @@
     "./plugins/env": "./src/plugins/env.ts",
     "./plugins/events": "./src/plugins/events.ts",
     "./plugins/manifest": "./src/plugins/manifest.ts",
+    "./plugins/mod-tree": "./src/plugins/mod-tree.ts",
     "./plugins/outdated-cache": "./src/plugins/outdated-cache.ts",
     "./plugins/pane-command": "./src/plugins/pane-command.ts",
     "./plugins/plugin-paths": "./src/plugins/plugin-paths.ts",

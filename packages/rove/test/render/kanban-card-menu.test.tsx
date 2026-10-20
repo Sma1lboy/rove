@@ -12,7 +12,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { KanbanPage } from "../../src/tui-react/component/kanban-page"
+import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
 import { act, renderComponent, settle } from "./harness"
 
 const REPO = "/repos/rove"

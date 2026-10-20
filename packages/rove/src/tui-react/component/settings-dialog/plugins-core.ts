@@ -66,6 +66,34 @@ export interface PluginRowView {
   readonly updateAvailable: boolean
   /** Pages the last load could not mount (or mounted without their chord), with why. */
   readonly pageErrors: readonly string[]
+  /** Compiled into Rove (`src/bundled-plugins/`): toggled in state.json, never installed or removed. */
+  readonly builtIn: boolean
+}
+
+/** A built-in plugin as Settings lists it. */
+export interface BuiltInPluginInfo {
+  readonly id: string
+  readonly description: string
+  readonly pages: number
+  readonly enabled: boolean
+}
+
+function builtInRowView(info: BuiltInPluginInfo): PluginRowView {
+  return {
+    id: info.id,
+    version: "",
+    enabled: info.enabled,
+    linked: false,
+    source: info.description,
+    declares: { actions: 0, events: 0, panes: 0, engines: 0, pages: info.pages },
+    platformOk: true,
+    hooksDeclared: false,
+    lastRun: null,
+    settings: [],
+    updateAvailable: false,
+    pageErrors: [],
+    builtIn: true,
+  }
 }
 
 /**
@@ -146,6 +174,7 @@ export function pluginRowView(
     settings,
     updateAvailable: outdated.has(entry.id),
     pageErrors,
+    builtIn: false,
   }
 }
 
@@ -177,10 +206,10 @@ function readTextOrNull(path: string | null): string | null {
   }
 }
 
-/** Every registered plugin, in registry order, ready to render. */
-export function readPluginRows(homeDir?: string): PluginRowView[] {
+/** The built-in plugins first, then every registered one in registry order, ready to render. */
+export function readPluginRows(builtIns: readonly BuiltInPluginInfo[] = [], homeDir?: string): PluginRowView[] {
   const outdated = new Set(readOutdatedCache(homeDir))
-  return loadPluginRegistry(homeDir).plugins.map((entry) =>
+  const registered = loadPluginRegistry(homeDir).plugins.map((entry) =>
     pluginRowView(
       outdated,
       entry,
@@ -192,6 +221,7 @@ export function readPluginRows(homeDir?: string): PluginRowView[] {
         .map((error) => `${error.pageId}: ${error.message}`),
     ),
   )
+  return [...builtIns.map(builtInRowView), ...registered]
 }
 
 /**

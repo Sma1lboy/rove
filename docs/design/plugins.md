@@ -2,6 +2,7 @@
 
 Status: v1 shipped (manifest + CLI + daemon runtime + marketplace page).
 Developer-facing contract/reference: [../PLUGIN-AUTHORING.md](../PLUGIN-AUTHORING.md).
+Native UI that the TUI and the web both draw: [mods.md](./mods.md).
 Model: a manifest plus argv commands, with the host CLI as the plugin API.
 
 ## Philosophy
@@ -64,6 +65,14 @@ pages. OpenTUI's Bun runtime plugin maps the module's `react` /
 `@opentui/*` imports onto the host's instances, so there is one React. The
 rest of Rove reaches a page only through the host API object
 (`tui-react/pages/host-api.ts`).
+
+Kanban and Issues are **built-in plugins** (`src/bundled-plugins/`): the
+same `(host) => Page` factories, compiled into Rove instead of imported at
+runtime, registered as `bundled:<id>` and switched by
+`plugins.bundled.<id>.enabled`. An architecture test keeps them to the
+installed-plugin contract (runtime imports: the shared runtime and their own
+files). The issue-board columns, the event-feed rows and the copy they share
+with `rove --web` stay in core and reach them through `host.issues`.
 
 `command` is argv — never run through a shell. Parsing/validation:
 `packages/rove-daemon/src/plugins/manifest.ts` (unknown event names are a

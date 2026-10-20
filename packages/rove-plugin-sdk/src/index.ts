@@ -20,6 +20,20 @@ export {
   type DaemonInfo,
   type RoveSocketOptions,
 } from "./socket.ts"
+export {
+  Box,
+  Button,
+  Input,
+  Text,
+  runMod,
+  type BoxProps,
+  type Mod,
+  type ModElement,
+  type ModBoxElement,
+  type ModButtonElement,
+  type ModInputElement,
+  type RunModOptions,
+} from "./mod.ts"
 export { Pane, parseKeys, type Key, type PaneOptions } from "./pane.ts"
 export {
   PLUGIN_EVENT_NAMES,
