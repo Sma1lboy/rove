@@ -15,8 +15,11 @@ import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process
 import { startFileWatchTrigger } from "@sma1lboy/rove-daemon/daemon/file-watch-trigger"
 import { defaultPtyHostSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { defaultUiPrefsStatePath, resolveProductHomeDir } from "@sma1lboy/rove-daemon/daemon/product-paths"
+import { executeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
+import { REMOTE_CALLER } from "@sma1lboy/rove/src/cli/api/types.ts"
 import { RemoteOrchestrator } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { ensurePluginEnginesLoaded } from "@sma1lboy/rove/src/engine/plugin-engines.ts"
+import { invokeRouted } from "@sma1lboy/rove/src/machines/forward.ts"
 import { MachineHub } from "@sma1lboy/rove/src/machines/hub.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
@@ -27,6 +30,7 @@ import { TaskFeed } from "./feed.ts"
 import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { machineStore } from "./ops/machines.ts"
+import { PromptFeed } from "./prompts.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
 import { TabFeed } from "./tab-feed.ts"
@@ -153,6 +157,14 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   const notices = new NoticeFeed()
   const noticeStore = orchestrator.noticeStore()
   noticeStore.subscribe(() => notices.push(noticeStore.get()))
+  const prompts = new PromptFeed()
+  const promptStore = orchestrator.uiPromptStore()
+  promptStore.subscribe(() => prompts.push(promptStore.get()))
+  const modPanes = orchestrator.modPanesSignal()
+  const mods: BridgeDeps["mods"] = {
+    current: () => modPanes.get(),
+    subscribe: (listener) => modPanes.subscribe(() => listener(modPanes.get())),
+  }
   const statePath = defaultUiPrefsStatePath()
   const readState = (): Record<string, unknown> => {
     try {
@@ -177,10 +189,24 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     ops,
     feed,
     notices,
+    prompts,
+    mods,
     tabs,
     openPty: () => new RoveDaemonClient(ptySocket),
     roveVersion: CURRENT_VERSION,
     api: createBridgeApi(verbClient),
+    invoke: (verb, params, machine) =>
+      invokeRouted({
+        verb,
+        params,
+        machine,
+        isLocalTask: (id) =>
+          verbClient.request("task.get", { taskId: id }).then(
+            () => true,
+            () => false,
+          ),
+        runHere: () => executeVerb(verb, { params }, { client: verbClient, caller: REMOTE_CALLER }),
+      }),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
     ...(opts.web ? { web: opts.web } : {}),
   }

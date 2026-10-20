@@ -15,6 +15,7 @@ import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../e
 import { createStateCell } from "../../../lib/external-store"
 import { failureHint } from "../../../lib/failure-hint"
 import { submitFeedback } from "../../../lib/feedback"
+import { tryOutChannel } from "../../../state/update-channel"
 import {
   type NavLevel,
   SECTIONS,
@@ -38,8 +39,10 @@ import { useDialog, useDialogPaddingX } from "../../ui/dialog"
 import {
   confirmResetState,
   confirmRestartDaemon,
+  confirmTryChannel,
   hasRestartableDaemon,
   installEngineHooks,
+  reloadSettingsStatus,
   uninstallEngineHooks,
 } from "./actions"
 import { AutoRoutingSettingsSection } from "./sections-auto-routing"
@@ -79,6 +82,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const [feedbackTitle, setFeedbackTitle] = useState("")
   const [feedbackBody, setFeedbackBody] = useState("")
   const [feedbackStatus, setFeedbackStatus] = useState("")
+  const [reloadStatus, setReloadStatus] = useState("")
   const hasDaemon = hasRestartableDaemon(props.orchestrator)
   const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
   const prefs = useSettingsPrefs(props.kv, dialog)
@@ -225,6 +229,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
     keyHints: () => toggleKeyHints(props.kv),
     prefixTapPresentation: (row) => prefs.selectPrefixTapPresentation(row.presentation),
     zenDefaultOn: () => prefs.toggleZenDefaultOn(),
+    updateChannel: () => prefs.toggleUpdateChannel(),
+    updateTry: () => void confirmTryChannel(dialog, renderer, tryOutChannel()),
     editorKind: () => prefs.cycleEditorKind(),
     editorCustom: () => void prefs.editEditorCustom(),
     worktreeBase: () => prefs.cycleWorktreeBase(),
@@ -249,6 +255,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     feedbackSend: () => void sendFeedback(),
     devReset: () => void confirmResetState(dialog, props.kv, renderer),
     devRestartDaemon: () => void confirmRestartDaemon(dialog, props.orchestrator, renderer),
+    devReloadSettings: () => setReloadStatus(reloadSettingsStatus(props.kv)),
     devRemoteProjects: () => prefs.toggleRemoteProjects(),
     devAutoStatus: () => prefs.toggleAutoStatus(),
     devDispatcher: () => prefs.toggleDispatcher(),
@@ -440,6 +447,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
               hasDaemon={hasDaemon}
               confirmReset={() => void confirmResetState(dialog, props.kv, renderer)}
               confirmRestartDaemon={() => void confirmRestartDaemon(dialog, props.orchestrator, renderer)}
+              reloadSettings={() => setReloadStatus(reloadSettingsStatus(props.kv))}
+              reloadStatus={reloadStatus}
             />
           ) : null}
         </box>

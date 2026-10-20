@@ -13,6 +13,7 @@
 import { roveHookInvocation } from "../cli/invocation.ts"
 import { type QuoteShellArgvOptions, quoteShellArgv } from "../lib/shell-command.ts"
 import type { EngineActivityKind } from "./hook-events.ts"
+import { isObject } from "./is-object.ts"
 
 /**
  * Shape version of the hooks Rove writes into an engine's config, stamped
@@ -44,10 +45,6 @@ export interface HookEventSpec {
   readonly event: string
   readonly matcher?: string
   readonly verb: EngineActivityKind
-}
-
-export function isObject(v: unknown): v is Record<string, unknown> {
-  return !!v && typeof v === "object" && !Array.isArray(v)
 }
 
 /**

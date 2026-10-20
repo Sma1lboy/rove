@@ -131,6 +131,32 @@ describe("setVendor", () => {
     await orch.setVendor(t.id, "claude", undefined, "")
     expect(orch.getTask(t.id)?.model).toBeUndefined()
   })
+
+  it("drops the old engine's model and effort on a switch that doesn't re-pick them", async () => {
+    // Kept, `gpt-5-codex` would launch as `claude --model gpt-5-codex` and fail.
+    const t = await makeTask()
+    await orch.setVendor(t.id, "codex", "xhigh", "gpt-5-codex")
+    await orch.setVendor(t.id, "claude")
+    expect(orch.getTask(t.id)?.model).toBeUndefined()
+    expect(orch.getTask(t.id)?.modelEffort).toBeUndefined()
+
+    await orch.setVendor(t.id, "codex", undefined, "gpt-5-codex")
+    expect(orch.getTask(t.id)?.model).toBe("gpt-5-codex")
+  })
+})
+
+describe("setCommand", () => {
+  it("drops the model and effort pins when the command changes engine", async () => {
+    const t = await makeTask()
+    await orch.setVendor(t.id, "codex", "xhigh", "gpt-5-codex")
+    await orch.setCommand(t.id, "codex --search", "codex")
+    expect(orch.getTask(t.id)?.model).toBe("gpt-5-codex")
+
+    await orch.setCommand(t.id, "claude", "claude")
+    expect(orch.getTask(t.id)).toMatchObject({ vendor: "claude", command: "claude" })
+    expect(orch.getTask(t.id)?.model).toBeUndefined()
+    expect(orch.getTask(t.id)?.modelEffort).toBeUndefined()
+  })
 })
 
 describe("setPinned", () => {

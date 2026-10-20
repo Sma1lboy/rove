@@ -11,9 +11,11 @@ import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { ReactNode } from "react"
 import type { TaskGroup } from "../../lib/task-group"
 import type { BoardColumnKey } from "../../state/issue-board"
-import { taskGroupLabel, taskGroupTone } from "../../tui/panes/sidebar/task-group-view"
-import { useTheme } from "../context/theme"
-import { FRAME } from "../ui/frame"
+import { host, hostFn } from "./host"
+
+const taskGroupLabel = hostFn((h) => h.tasks.taskGroupLabel)
+const taskGroupTone = hostFn((h) => h.tasks.taskGroupTone)
+const useTheme = hostFn((h) => h.theme.useTheme)
 
 /**
  * The badge is the linked task's DERIVED group (`lib/task-group.ts`), not raw
@@ -63,7 +65,7 @@ export function KanbanCard(props: {
     <box
       ref={props.boxRef}
       // Rounded to match its column.
-      {...FRAME}
+      {...host().ui.FRAME}
       borderColor={selected ? theme.primary : needsAttention ? theme.warning : columnBorder}
       backgroundColor={transparentBackground ? "transparent" : theme.backgroundElement}
       paddingLeft={1}

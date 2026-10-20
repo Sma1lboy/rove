@@ -96,4 +96,33 @@ describe("PluginEventReducer", () => {
     ])
     expect(feed("b", "rate_limited")).toEqual([expect.objectContaining({ event: "agent.rate-limited", taskId: "b" })])
   })
+
+  it("agent.rate-limit-recovered: once, on the first completed turn after a limit, never from the rollup", () => {
+    let now = 1_000
+    const reducer = new PluginEventReducer(() => now)
+    const feed = (state: string, tabId?: string) =>
+      reducer
+        .reduce({ channel: "engine-state", payload: { taskId: "a", tabId, state, at: 0 } } as never)
+        .filter((e) => e.event === "agent.rate-limit-recovered")
+
+    // Per-tab report, then the registry's tab-less rollup, as published.
+    feed("rate_limited", "tab-1")
+    feed("rate_limited")
+    now = 61_000
+    // The resume prompt starting a turn is not recovery: it can hit the limit again.
+    expect(feed("running", "tab-1")).toEqual([])
+    feed("running")
+    now = 90_000
+    expect(feed("turn_complete", "tab-1")).toEqual([
+      expect.objectContaining({
+        taskId: "a",
+        tabId: "tab-1",
+        detail: { limitedAt: new Date(1_000).toISOString(), limitedForMs: 89_000 },
+      }),
+    ])
+    expect(feed("turn_complete")).toEqual([])
+    // The episode is closed; later turns are ordinary.
+    feed("running", "tab-1")
+    expect(feed("turn_complete", "tab-1")).toEqual([])
+  })
 })

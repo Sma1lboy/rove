@@ -8,7 +8,7 @@
  * with the specific remedy.
  */
 
-import { discoverMachine } from "../machines/discover.ts"
+import { checkHostKey } from "../machines/host-key.ts"
 import {
   type MachineConfig,
   addMachine,
@@ -22,11 +22,15 @@ import {
   sanitizeAlias,
   setMachineIdentity,
   sshTargetOf,
+  updateMachine,
 } from "../machines/registry.ts"
 import { readMachines } from "../machines/registry.ts"
+import { type SetupRuntime, establishMachine } from "../machines/setup.ts"
 import { machineSocketDir } from "../machines/ssh-args.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile } from "../state/store.ts"
+import { CURRENT_VERSION } from "../version.ts"
+import { defaultFixRuntime } from "./doctor-fix.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
@@ -37,7 +41,8 @@ const MACHINE_USAGE = [
   "its tasks appear in the sidebar under a row of its own.",
   "",
   "Commands:",
-  "  add <ssh-target>        Register a machine (verifies it before saving)",
+  "  add <ssh-target>        Register a machine (verifies it, offering fixes, before saving)",
+  "  doctor [alias]          Re-check registered machines and offer the same fixes",
   "  remove <alias>          Forget a machine (nothing on it is touched)",
   "  list                    Show registered machines",
   "",
@@ -45,9 +50,11 @@ const MACHINE_USAGE = [
   "  --alias <name>          Local name for the machine (default: the target you typed)",
   "  --port <n>              SSH port (default: whatever ssh_config says)",
   "  --identity <file>       SSH private key (default: ssh-agent / ssh_config)",
+  "  --yes                   Run every offered fix without asking (add, doctor)",
   "",
   "  <ssh-target> is [user@]host[:port] — usually just an ssh_config Host alias.",
-  "  The machine must already have Rove installed (`npm i -g @sma1lboy/rove`).",
+  "  In a terminal, a key the machine rejects or a missing Rove is offered as",
+  "  a fix (a dedicated hub key, the install script) instead of an error.",
   "",
 ].join("\n")
 
@@ -84,6 +91,7 @@ export async function runMachineSubcommand(argv: readonly string[]): Promise<voi
   }
   if (verb === "list") return list()
   if (verb === "add") return await add(rest)
+  if (verb === "doctor") return await doctor(rest)
   if (verb === "remove") return remove(rest)
   usageError(`unknown verb "${verb}"`)
 }
@@ -112,9 +120,12 @@ async function add(argv: readonly string[]): Promise<void> {
     auth: identity ? { kind: "key", keyPath: identity } : { kind: "key" },
   }
 
+  await confirmHostKey(config)
   process.stderr.write(`${CLI_NAME} machine: contacting ${sshTargetOf(config)}…\n`)
-  const found = await discoverMachine(probeAlias, config)
-  if (!found.ok) fail(found.message)
+  const established = await establishMachine(probeAlias, config, setupRuntime(argv))
+  if (!established.ok) fail("nothing was saved")
+  const found = established.found
+  const settled = established.config
 
   const alias =
     requested ??
@@ -135,19 +146,24 @@ async function add(argv: readonly string[]): Promise<void> {
   const duplicate = duplicateAliasOf(readMachines(loadStateFile()), alias, identityTriple)
 
   const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
-  addMachine(alias, { ...config, identity: identityTriple, sockets })
+  if (found.roveBin) {
+    process.stderr.write(
+      `${CLI_NAME} machine: rove is not on ${alias}'s non-interactive PATH; using ${found.roveBin}\n`,
+    )
+  }
+  addMachine(alias, { ...settled, identity: identityTriple, sockets })
   setMachineIdentity(alias, identityTriple)
   // Forward now, or `rove api list` can't see it until a TUI starts one.
   const { ensureForwards } = await import("../machines/tunnel.ts")
   const up = await ensureForwards({
     alias,
-    config,
+    config: settled,
     remoteDaemonSocket: sockets.daemon,
     remotePtySocket: sockets.pty,
   })
 
   process.stdout.write(
-    `${CLI_NAME} machine: ${alias} → ${sshTargetOf(config)} (rove ${found.status.roveVersion || "?"} on ${found.status.hostname || "?"})\n`,
+    `${CLI_NAME} machine: ${alias} → ${sshTargetOf(settled)} (rove ${found.status.roveVersion || "?"} on ${found.status.hostname || "?"})\n`,
   )
   if (!up) {
     process.stderr.write(
@@ -160,6 +176,87 @@ async function add(argv: readonly string[]): Promise<void> {
       `${CLI_NAME} machine: ${alias} is the same machine as ${duplicate} (hostname/homeDir/pid match) — the sidebar shows one row\n`,
     )
   }
+}
+
+function setupRuntime(argv: readonly string[]): SetupRuntime {
+  const yes = argv.includes("--yes")
+  const fixRuntime = defaultFixRuntime()
+  return {
+    confirm: fixRuntime.confirm,
+    exec: fixRuntime.exec,
+    out: (line) => process.stderr.write(`${line}\n`),
+    ask: !yes,
+    planOnly: !yes && process.stdin.isTTY !== true,
+  }
+}
+
+/**
+ * Re-check registered machines: reachable, Rove answering, socket forwarded.
+ * A machine that drifted (key revoked, Rove uninstalled, moved PATH) gets the
+ * same fixes `add` offers, and its registry entry is refreshed.
+ */
+async function doctor(argv: readonly string[]): Promise<void> {
+  const alias = positionalOf(argv)
+  const entries = listMachines().filter((m) => !alias || m.alias === alias)
+  if (alias && entries.length === 0) fail(`no machine named "${alias}" (see \`${CLI_NAME} machine list\`)`)
+  if (entries.length === 0) {
+    process.stdout.write(`No machines registered. Add one with \`${CLI_NAME} machine add <ssh-target>\`.\n`)
+    return
+  }
+  const rt = setupRuntime(argv)
+  const { ensureForwards } = await import("../machines/tunnel.ts")
+  let failed = 0
+  for (const { alias: name, ...config } of entries) {
+    process.stderr.write(`${CLI_NAME} machine: checking ${name} (${sshTargetOf(config)})…\n`)
+    const established = await establishMachine(name, config, rt)
+    if (!established.ok) {
+      failed++
+      process.stdout.write(`${name}  ✗  ${established.failure.code}\n`)
+      continue
+    }
+    const { found, config: settled } = established
+    const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
+    updateMachine(name, { ...settled, sockets })
+    const up = await ensureForwards({
+      alias: name,
+      config: settled,
+      remoteDaemonSocket: sockets.daemon,
+      remotePtySocket: sockets.pty,
+    })
+    const version = found.status.roveVersion || "?"
+    const skew = version !== CURRENT_VERSION ? ` (this machine runs ${CURRENT_VERSION})` : ""
+    process.stdout.write(
+      `${name}  ${up ? "✓" : "✗ socket not forwarded"}  rove ${version}${skew} on ${found.status.hostname || "?"}\n`,
+    )
+    if (!up) failed++
+  }
+  if (failed > 0) process.exitCode = 1
+}
+
+/**
+ * Show a never-seen host key's fingerprint before trusting it. A terminal is
+ * asked; a script keeps ssh's own trust-on-first-use and gets the fingerprint
+ * on stderr, so the log still records what was trusted.
+ */
+async function confirmHostKey(config: MachineConfig): Promise<void> {
+  const check = await checkHostKey(config)
+  if (check.state !== "unknown") return
+  const write = (line: string): void => {
+    process.stderr.write(`${line}\n`)
+  }
+  write(
+    `${CLI_NAME} machine: first connection to ${sshTargetOf(config)} (${check.destination.knownHostsName}). Its host key:`,
+  )
+  for (const line of check.fingerprints) write(`  ${line}`)
+  if (process.stdin.isTTY !== true) {
+    write(`${CLI_NAME} machine: not a terminal; trusting it on first use, as ssh would`)
+    return
+  }
+  write("Compare it with the machine's own `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` if you can.")
+  if (!(await defaultFixRuntime().confirm("Trust this host key? [y/N] "))) {
+    fail("host key not trusted; nothing was saved")
+  }
+  check.trust()
 }
 
 function remove(argv: readonly string[]): void {
@@ -196,15 +293,17 @@ function list(): void {
   }
 }
 
-/** The first argument that is neither a `--flag` nor a flag's value. Every
- *  flag this command takes carries one, so skipping in pairs is exact. */
+/** Flags that carry no value; every other flag eats the next token. */
+const SWITCHES = new Set(["--yes"])
+
+/** The first argument that is neither a `--flag` nor a flag's value. */
 function positionalOf(argv: readonly string[]): string | undefined {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === undefined) continue
     if (arg.startsWith("--")) {
       // `--flag=value` carries its value; `--flag value` eats the next token.
-      if (!arg.includes("=")) i++
+      if (!arg.includes("=") && !SWITCHES.has(arg)) i++
       continue
     }
     return arg

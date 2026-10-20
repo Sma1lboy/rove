@@ -84,7 +84,7 @@ flowchart LR
 - **Loopback by default.** Remote access is `--preset tailscale` (tailnet address only) or `--preset cf` (loopback behind cloudflared); anything else is an explicit `--host`.
 - **One bearer token.** 32 random bytes, sent only as `Authorization: Bearer`; a token in the URL query is refused, so it never lands in proxy or tunnel logs. It is checked with a constant-time compare at the WebSocket upgrade; a missing or wrong token gets HTTP 401 and no socket. Every later frame rides that authenticated socket. The browser client (`rove --web`, [WEB.md](WEB.md)) cannot set that header, so it offers the same token as the `Sec-WebSocket-Protocol` `rove.bearer.<token>` next to `rove.v1`, and the bridge echoes only `rove.v1`. An upgrade whose `Origin` names another host is refused with 403; phones send no `Origin`.
 - **Cloudflare Access (`--preset cf`).** Before the token, the bridge verifies `Cf-Access-Jwt-Assertion` against the team's published keys (`/cdn-cgi/access/certs`) and checks issuer, AUD and expiry. Both layers must pass; each refusal is logged with the reason, never with the token or JWT.
-- **Closed op list.** The phone can call the operations listed below and nothing else. There is no generic daemon passthrough; anything else is refused with `UNKNOWN_OP`.
+- **Closed op list.** The phone can call the operations listed below and nothing else. There is no generic daemon passthrough; anything else is refused with `UNKNOWN_OP`. `api.invoke` serves the validated `rove api` verb contract, not daemon RPCs: it grants nothing `term.input` into a shell does not, and its destructive verbs are logged like the destructive ops.
 - **Terminal input is scoped.** `term.input` only reaches a session this connection attached, and attach refuses a tab with no hosted session instead of spawning one.
 - **Diff paths stay in the worktree.** Absolute paths and `..` are refused.
 - **What the token grants.** Whoever holds it can do what the app can: read task output, type into engine sessions (which run with your user's permissions), create, land and delete tasks. Treat the pairing URL like a password; rotate it if it leaks.
@@ -92,11 +92,12 @@ flowchart LR
 
 ## Protocol
 
-JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "args": {}}`; reply `{"id": 1, "ok": true, "result": {…}}` or `{"id": 1, "ok": false, "error": {"code", "message"}}`; push `{"event": "tasks" | "term.data" | "term.exit", "data": {…}}`. The types live in `packages/rove-bridge/src/protocol.ts`. A slow op may also stream `{"event": "op.progress", "data": {id, line}}` to the connection that sent it, `id` being the request's; the reply still ends it (`repo.clone` streams git's progress lines, at most one per 150 ms). A client that ignores the event loses only the progress text.
+JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "args": {}}`; reply `{"id": 1, "ok": true, "result": {…}}` or `{"id": 1, "ok": false, "error": {"code", "message", …}}`, where a refusal from a `rove api` verb also carries its `hint`, `nextCommandArgs` and refusal data; push `{"event": "tasks" | "term.data" | "term.exit", "data": {…}}`. The types live in `packages/rove-bridge/src/protocol.ts`. A slow op may also stream `{"event": "op.progress", "data": {id, line}}` to the connection that sent it, `id` being the request's; the reply still ends it (`repo.clone` streams git's progress lines, at most one per 150 ms). A client that ignores the event loses only the progress text.
 
 | Op | Args | Result |
 | --- | --- | --- |
-| `hello` | — | `{protocol, roveVersion, host}` |
+| `hello` | — | `{protocol, apiVersion, roveVersion, host}`; `apiVersion` is the verb contract `api.invoke` speaks |
+| `api.invoke` | `verb`, `params?` (keyed by flag name, as `rove api schema --verb` lists them) | the verb's result; a refusal is the verb's full error object ([API.md](API.md#one-contract-three-transports)) |
 | `tasks.subscribe` | — | `{tasks, attention}`, then `tasks` pushes on change, and `tabs` pushes (`{taskIds}`) when only those tasks' Terminal Tabs changed (re-read them with `task.tabs`; older apps ignore it) |
 | `tasks.list` | — | `{tasks, attention}` (fresh read) |
 | `engines.list` | — | `{engines: [{id, name, command, protocol, builtin}]}` |
@@ -195,6 +196,14 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 | `attachment.put` | `mime` (png/jpeg/gif/webp/pdf), `data` (base64, ≤ 5 MB) | `{path, kind, bytes}` | writes `~/.rove/attachments/attach-<date>-<nonce>.<ext>` |
 
 `attachment.put` checks the file's magic bytes against the declared type. A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
+
+### Mods: the `mods` push and `mod.press`
+
+On connect and on every change the bridge pushes `{"event": "mods", "data": {"panes": [{plugin, id, title, tree}]}}`: every pane a plugin's `[mod]` has open, each `tree` an element tree of `box` / `text` / `button` ([PLUGIN-AUTHORING.md](PLUGIN-AUTHORING.md#mods)). Validate it with the SDK's `parseModUiPayload` rules and drop a pane you cannot draw. `mod.press` (`plugin`, `pane`, `key`) → `{}` forwards one button press to the mod over the daemon's `mod.press` RPC; `MOD_UNAVAILABLE` means the mod is gone or no longer draws that button. `mod.submit` (`plugin`, `pane`, `key`, `value` ≤ 4000 chars, may be empty) → `{}` does the same for an `input` field's Enter. The phone apps do not draw mods yet.
+
+### Plugin input dialog: the `prompt` push and `ui.promptReply`
+
+A plugin's `rove api prompt` arrives as `{"event": "prompt", "data": {promptId, title, placeholder?, initial?, at}}`, once per prompt and only to clients connected when it was asked. Answer with `ui.promptReply` (`promptId`, `value?`) → `{}`; leave out `value` to cancel. The first answer from any client (TUI, web, phone) wins; a later one gets `PROMPT_GONE`.
 
 Additive fields and events, ignored by an app that predates them: `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time), `attention[].label` (a routine episode's name) and `attention[].automationId` (that routine's id, for `attention.dismissRoutine` and for opening the Routines page on it); `tasks[].machine` (`{id, label, stale?}`, set only on a row served by another registered machine, `rove machine add`; `id` is the machine alias, `stale` means it is unreachable and the row is its last known state; absent on this Mac's rows). Remote rows carry no live activity, changes or tabs, and every op that takes a `taskId` refers to this Mac's daemon, so a client lists them read-only. The push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
 

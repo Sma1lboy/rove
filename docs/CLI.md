@@ -32,10 +32,10 @@ The installed package exposes only `rove`. Product data lives under `~/.rove`
 and `~/.config/rove/state.json`.
 
 ```bash
-rove update            # newest build on your channel
+rove update            # newest build on the channel you follow
 rove update 0.7.90     # pin a version
-rove update nightly    # switch to the nightly channel (also: --channel nightly)
-rove update latest     # switch back to stable
+rove update --nightly  # install the nightly preview and follow it (also: nightly, --channel nightly)
+rove update --stable   # go back to stable releases (also: latest, stable)
 rove update list       # browse recent versions (also: --list)
 rove update dry-run    # print the command without running it (also: --dry-run)
 ```
@@ -45,10 +45,12 @@ releases. `nightly` is an automated daily cut from `main`: it passes the same
 test gates, but its contents haven't been reviewed as a set, so expect rough
 edges in exchange for changes landing days earlier.
 
-You don't configure a channel — the build you're running *is* the channel, so
-update checks follow whichever one you installed from, and switching is just
-installing from the other. `rove update` with no arguments never moves you
-between channels.
+The channel you pick is remembered in `~/.config/rove/state.json`
+(`update.channel`) once its install succeeds, so a bare `rove update` and the
+update check keep following it. Settings → General → Updates shows the same
+choice, with a button that installs the other channel's newest build. Until you
+pick, Rove follows the channel of the build you are running. A pinned version
+never changes the setting.
 
 rove updates using whichever package manager owns the `rove` on your `PATH`,
 so the new version can't land in a shadowed prefix. Manual fallback:
@@ -108,7 +110,7 @@ Commands:
   repo <verb>             Per-repo init script + first prompt (show|set|unset)
   api <verb>              Scriptable RPC surface for agents (see `rove api --help`)
   daemon <verb>           Manage the daemon (start|stop|status|restart)
-  machine <verb>          Other computers running Rove (add|remove|list)
+  machine <verb>          Other computers running Rove (add|doctor|remove|list)
   weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny)
   doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
   config [--path]         Open rove's config file (state.json) in your editor
@@ -212,7 +214,7 @@ Completes two levels: the subcommand, then its verb.
 ```text
 rove <TAB>          completions add remove adopt export repo api daemon …
 rove daemon <TAB>   status start stop restart
-rove machine <TAB>  add remove list
+rove machine <TAB>  add doctor remove list
 rove theme <TAB>    list add remove
 rove api routine-<TAB>   routine-list routine-create routine-update …
 ```
@@ -404,6 +406,7 @@ that did nothing.
 ```bash
 rove daemon status     # status JSON; exit 1 when nothing is running
 rove daemon start      # run in the FOREGROUND (this process becomes it)
+rove daemon start --resident   # same, and never idle-stop (headless host)
 rove daemon stop
 rove daemon restart    # stop, then respawn in the background
 ```
@@ -413,6 +416,43 @@ Bare `rove daemon` defaults to `status`.
 The daemon auto-starts when the TUI or `rove api` needs it, so `start` is
 mainly for debugging. Logs are at `~/.rove/daemon.log`; read them first when
 something's wrong.
+
+### Headless hosts: `--resident`
+
+By default the daemon stops a few seconds after the last TUI quits (unless a
+live session or an enabled routine holds it). On a devbox or VPS where agents
+run with no terminal attached, start it `--resident` instead: it never
+idle-stops, and agents keep being dispatched, watched and landed through
+`rove api` while nobody is looking.
+
+Residency survives restarts. A resident daemon leaves `daemon.resident` beside
+its pidfile, so `rove daemon restart`, Settings → Dev → **Restart backend**,
+and an autospawn after a crash all come back resident. Only an explicit
+`rove daemon stop` (or stopping the service) clears it.
+
+Run it under your init system so it comes back after a reboot. systemd (user
+unit, `~/.config/systemd/user/rove.service`):
+
+```ini
+[Unit]
+Description=Rove daemon
+
+[Service]
+ExecStart=%h/.bun/bin/rove daemon start --resident
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+Then `systemctl --user enable --now rove` (and `loginctl enable-linger $USER`
+so it runs without a login session). On macOS, a LaunchAgent whose
+`ProgramArguments` are `rove daemon start --resident` with `KeepAlive` set does
+the same.
+
+Headless, the requests that need a front-end answer honestly instead of
+hanging: `rove api prompt` returns `reason: "no-gui"` at once, and
+`pane-open`/`pane-close` report `reached: false`.
 
 > **Working on Rove itself?** Restart after editing daemon/orchestrator/engine
 > code — Bun doesn't hot-reload. `rove daemon restart` reloads the daemon; an

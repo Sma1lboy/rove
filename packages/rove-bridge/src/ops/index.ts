@@ -7,8 +7,10 @@ import { insightOps } from "./insight.ts"
 import { keybindingsOps } from "./keybindings.ts"
 import { launchOps } from "./launch.ts"
 import { machineOps } from "./machines.ts"
+import { modsOps } from "./mods.ts"
 import { pagesOps } from "./pages.ts"
 import { prefsOps } from "./prefs.ts"
+import { promptOps } from "./prompts.ts"
 import { routingOps } from "./routing.ts"
 import { engineOps } from "./settings-engines.ts"
 import { settingsOps } from "./settings.ts"
@@ -50,4 +52,6 @@ export const AREA_OPS: OpTable = mergeOpTables(
   welcomeOps,
   keybindingsOps,
   launchOps,
+  modsOps,
+  promptOps,
 )

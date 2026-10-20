@@ -39,6 +39,18 @@ describe("DST fall-back", () => {
       "2025-11-04 01:00",
     ])
   })
+
+  // 01:10 EST is twenty minutes after 01:50 EDT. Cutting the scan at the
+  // local minute (50 > 10) returned the previous day's run, so the sweep
+  // logged a false `skipped_missed` every tick and never ran the real one.
+  it("missed-run compensation finds the run from the hour's first pass", () => {
+    const found = latestCronAtOrBefore(
+      "50 1 * * *",
+      new Date("2025-11-02T06:10:00Z").getTime(),
+      new Date(2025, 9, 1).getTime(),
+    )
+    expect(found).toBe(new Date("2025-11-02T05:50:00Z").getTime())
+  })
 })
 
 describe("DST spring-forward", () => {

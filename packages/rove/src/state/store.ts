@@ -81,6 +81,26 @@ function readStateFile(ownsLock: boolean): StateSnapshot {
 }
 
 /**
+ * `loadStateFile` for an explicit reload: a missing file is `{}`, but invalid
+ * JSON throws and stays where it is, since the user is likely mid-edit.
+ */
+export function readStateFileStrict(): StateSnapshot {
+  const path = kvStatePath()
+  let text: string
+  try {
+    text = readFileSync(path, "utf8")
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return {}
+    throw err
+  }
+  const parsed = JSON.parse(text) as unknown
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`${path} is not a JSON object`)
+  }
+  return parsed as StateSnapshot
+}
+
+/**
  * Atomic write via a per-call-unique `state.json.<pid>.<nonce>.tmp` + rename,
  * so a crash never leaves a half-written file. `undefined` values vanish at
  * stringify time (that is how deletion serializes). Throws on I/O failure;
@@ -101,13 +121,17 @@ function writeStateFile(state: StateSnapshot): void {
  * Locked read-merge-write. The FRESH read is the point: writing from an
  * earlier snapshot would resurrect/erase keys another process changed.
  * `mutate` returning `false` skips the write (file stays byte-identical).
+ * Strict reads reject invalid files under the lock without moving them aside.
  * Returns the snapshot now on disk.
  */
-export function updateStateFile(mutate: (state: StateSnapshot) => boolean | undefined): StateSnapshot {
+export function updateStateFile(
+  mutate: (state: StateSnapshot) => boolean | undefined,
+  readMode: "recover" | "strict" = "recover",
+): StateSnapshot {
   const lockPath = `${kvStatePath()}.lock`
   const token = acquireSync(lockPath)
   try {
-    const state = readStateFile(true)
+    const state = readMode === "strict" ? readStateFileStrict() : readStateFile(true)
     const shouldWrite = mutate(state)
     if (shouldWrite !== false) writeStateFile(state)
     return state
@@ -120,14 +144,14 @@ export function updateStateFile(mutate: (state: StateSnapshot) => boolean | unde
  * Multi-process-safe flush: apply ONLY the keys in `patch` (an explicit
  * `undefined` DELETES the key); untouched keys pass through.
  */
-export function patchStateFile(patch: StateSnapshot): StateSnapshot {
+export function patchStateFile(patch: StateSnapshot, readMode: "recover" | "strict" = "recover"): StateSnapshot {
   return updateStateFile((state) => {
     for (const [key, value] of Object.entries(patch)) {
       if (value === undefined) delete state[key]
       else state[key] = value
     }
     return undefined
-  })
+  }, readMode)
 }
 
 /**

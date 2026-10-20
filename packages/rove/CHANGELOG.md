@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.9.252
+
+### Patch Changes
+
+- [#1306](https://github.com/Sma1lboy/rove/pull/1306) [`e8e9766`](https://github.com/Sma1lboy/rove/commit/e8e9766ac839daf286a5aa2e9e975bcf9a884b29) `rove machine add` works against current Rove again and gets further on its own. In 0.9.251 `rove daemon status` refused the `--json` flag that `machine add` sends, so registering a machine running it failed with `bad option "--json"`; it is accepted again. Starting a daemon on the machine no longer hangs for a minute: it is started detached (`rove daemon restart`) instead of in the foreground of the ssh session. A Rove that the machine's non-interactive PATH cannot see (common with bun and nvm installs) is found through the login shell or the usual install directories and remembered, instead of reporting "Rove is not installed". On a first connection `add` shows the host key fingerprints and asks before trusting them. A failed ssh now says which failure it was and what to do: unknown name, refused, timed out, key rejected, host key not trusted, or host key changed. `rove api` also restarts a machine's daemon that went idle instead of reporting the machine unreachable. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1306](https://github.com/Sma1lboy/rove/pull/1306) [`e8e9766`](https://github.com/Sma1lboy/rove/commit/e8e9766ac839daf286a5aa2e9e975bcf9a884b29) `rove api` can now send work to your other machines. Any verb takes `--machine <alias>` and runs inside that machine's daemon, so `rove api add --machine narwhal --repo /srv/rove --prompt "…"` creates the task, its worktree and its engine session over there. A `--task-id` that lives on another machine is routed there by itself, so `send`, `read-output`, `land` and `delete` now act on a remote task the sidebar shows instead of refusing with `NOT_YET_SUPPORTED_REMOTE`. The daemon socket and the bridge (`rove --web`, the phone apps) take the same `"machine"` field on `api.invoke`, which turns a `--resident` daemon on an always-on box into a hub for every machine registered there. Paths are paths on the target machine, and `--prompt-file` is read locally and sent as text. New error codes: `UNKNOWN_MACHINE`, `MACHINE_UNREACHABLE`, `MACHINE_VERSION_SKEW`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1306](https://github.com/Sma1lboy/rove/pull/1306) [`e8e9766`](https://github.com/Sma1lboy/rove/commit/e8e9766ac839daf286a5aa2e9e975bcf9a884b29) `rove machine add` now fixes what it can instead of stopping at the first error. Run in a terminal, it shows the exact command for each fix, asks, runs it and tries again. If the machine accepts none of your keys, it creates a key just for this Rove (`~/.rove/ssh/hub_ed25519`) and adds it to that machine's `authorized_keys`, asking for that machine's password once, through ssh. If Rove is missing there, it runs the official install script; if Rove is too old, it runs `rove update`. `--yes` accepts every fix without asking, and without a terminal the plan is printed and nothing runs. New `rove machine doctor [alias]` re-checks registered machines, offers the same fixes, flags a Rove version different from this one, and exits 1 when a machine is unusable. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.251
+
+### Patch Changes
+
+- [#1293](https://github.com/Sma1lboy/rove/pull/1293) [`fc42f24`](https://github.com/Sma1lboy/rove/commit/fc42f245d31208fb2907cba4d56c3018f62b46fb) Right-clicking a tab row in the sidebar now offers **Close other tabs** when its Task has more than one tab. After a confirmation it closes every other tab of that Task and ends their sessions, leaving only the tab you clicked. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1290](https://github.com/Sma1lboy/rove/pull/1290) [`8c67638`](https://github.com/Sma1lboy/rove/commit/8c67638f9e74debdb41feff7b0e069f496062e38) The Concepts page now says that deleting a task from the TUI keeps its branch unless `worktree.deleteBranch` is set to `true`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1292](https://github.com/Sma1lboy/rove/pull/1292) [`fee2caf`](https://github.com/Sma1lboy/rove/commit/fee2caf0b44779b46260f571a9c0dbfe6f40068d) Switching a task to another engine now drops the model and effort picked for the old one, so a codex task moved to Claude Code no longer relaunches as `claude --model gpt-5-codex` and fails; pick a model in the same change to keep one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1299](https://github.com/Sma1lboy/rove/pull/1299) [`f633c11`](https://github.com/Sma1lboy/rove/commit/f633c110d9fcae6b55e3985d46c5e541241e7ec1) Kanban and Issues now ship as built-in plugins. They look and behave as before, with the same rail rows and the same `ctrl+a` `1` / `3` chords, but Settings → Plugins lists them first and can turn either off. A plugin you turn off takes its rail row and its chord with it. Both pages use only the plugin page API, the same one installed plugins get. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1301](https://github.com/Sma1lboy/rove/pull/1301) [`b7af55c`](https://github.com/Sma1lboy/rove/commit/b7af55c33e3b60158db62bf9b66219da8ef54357) The nightly preview now publishes every day; a bug in the nightly workflow had stopped every run before it built anything. `rove update --nightly` installs it and `rove update --stable` goes back, and Rove now remembers the channel you picked, so a bare `rove update` and the update check keep following it. Settings → General → Updates shows the channel and has a button to try the nightly preview (or return to stable). The Update page's "Update now" no longer installs a stable release when you follow nightly, and the install and update scripts accept `--nightly` and `--stable`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1297](https://github.com/Sma1lboy/rove/pull/1297) [`dbb9671`](https://github.com/Sma1lboy/rove/commit/dbb9671bbfd52b8e1b25a5aaf733a3e4d89dd1c3) `rove api` verbs are now one contract served three ways: the CLI, an `api.invoke` request on the daemon socket, and an `api.invoke` op on the bridge (`rove --web`). The socket and bridge take `{ verb, params }` with params keyed by flag name and answer `{ apiVersion, ok, result | error }`, where `error` is the same object the CLI prints. `rove api --envelope` prints that envelope too, and `rove api schema`, both `hello`s and every envelope report one `apiVersion` (now 3). Bridge refusals keep their `hint` and `nextCommandArgs`, and the plugin SDK's `RoveSocket` gains `invoke(verb, params)`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1298](https://github.com/Sma1lboy/rove/pull/1298) [`1ae33a3`](https://github.com/Sma1lboy/rove/commit/1ae33a318b37daff4f6a88566e601e380f842fe0) Plugins can add React pages to the sidebar rail (experimental). A `[[pages]]` entry in `rove-plugin.toml` names a module whose default export receives the host API and returns a page component. The TUI renders that page in the content pane, on its own React, beside Kanban, Routines and Issues. A page can claim one of the existing page-open chords. Settings → Plugins shows how many pages a plugin declares, and why any page failed to load. See "Pages" in the plugin authoring guide. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1296](https://github.com/Sma1lboy/rove/pull/1296) [`b5978ba`](https://github.com/Sma1lboy/rove/commit/b5978baf89c8a611459c843e2a830d28c59eba44) New plugin event `agent.rate-limit-recovered`: it fires once when a rate-limited task completes its next turn, carrying when the limit began (`limitedAt`) and how long it lasted (`limitedForMs`). A resumed turn that hits the limit again does not count, so a hook on this event runs only when work is actually flowing again. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1289](https://github.com/Sma1lboy/rove/pull/1289) [`515f998`](https://github.com/Sma1lboy/rove/commit/515f9985e2731522d318dc41dd2a0758bd4090fb) - Settings → Dev has a new **Reload settings** action that applies hand edits to `state.json` (from `rove config`) to the running window without a restart. A file left half-edited is reported and stays where it is instead of being moved aside. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1295](https://github.com/Sma1lboy/rove/pull/1295) [`520b2a8`](https://github.com/Sma1lboy/rove/commit/520b2a86ae4d53672c515a7983edbcbc4b27e0f7) `rove daemon start --resident` keeps the daemon running after the last TUI quits, for a devbox or VPS where agents run with no terminal attached. Residency survives `rove daemon restart`, Restart backend and a crash; only `rove daemon stop` ends it. With no front-end attached, `rove api prompt` now returns `reason: "no-gui"` at once instead of waiting out its timeout, and `pane-open`/`pane-close` report `reached: false` so a headless caller can tell nobody performed the split. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1304](https://github.com/Sma1lboy/rove/pull/1304) [`2c9d374`](https://github.com/Sma1lboy/rove/commit/2c9d3746af81b792f53ea0b12ef2841050ba69fc) Plugins can ship a **mod**: a `[mod]` process that draws panes of boxes, text, buttons and one-line input fields, which the TUI and the web client both render natively from the same data. While a mod has a pane open, the sidebar rail shows a **Mods** page in both clients; a button pressed or a note typed in either one reaches the same process, so both redraw together. A running mod can also subscribe to plugin events directly. The plugin SDK adds `runMod()` with `Box`, `Text`, `Button` and `Input`, `mod.on()` for events, and `validateModTree()` on the contract subpath; `examples/counter-mod` is a working mod.
+
+  A plugin's input dialog (`rove api prompt`, `promptUser()`) now also opens in the web client, so a plugin can ask a question when only a browser is attached. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1294](https://github.com/Sma1lboy/rove/pull/1294) [`a3571db`](https://github.com/Sma1lboy/rove/commit/a3571db63559c40058151fa86d4d854ae35d05a6) Split panes now default to the `line` style: one divider between panes instead of a frame around each one, and the divider lights in the focus accent whichever side is focused. Zen is now on by default, so the Files pane stays hidden until you turn off Settings → "Start in zen mode" or press `prefix` `z`. Anyone who already picked a split style or zen setting keeps it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.250
+
+### Patch Changes
+
+- [#1287](https://github.com/Sma1lboy/rove/pull/1287) [`5452606`](https://github.com/Sma1lboy/rove/commit/545260628dc77f1f50c1af686298efe2a214e1bd) - A routine whose run fell in the hour that repeats when daylight saving ends no longer loses that run if the daemon catches up during the hour's second pass; before, it logged a false missed run every minute until the clock caught up and never ran the real one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1288](https://github.com/Sma1lboy/rove/pull/1288) [`1e48ffd`](https://github.com/Sma1lboy/rove/commit/1e48ffd85680610b5c859ee61e592437b34d96c9) - A task whose pull request checks are red now offers **Re-run failed checks** in its sidebar row menu. It restarts only the failed CI jobs, so a flaky failure can go green again without leaving Rove; checks that did not run on GitHub Actions are named in the toast instead. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.249
+
+### Patch Changes
+
+- [#1285](https://github.com/Sma1lboy/rove/pull/1285) [`529ff11`](https://github.com/Sma1lboy/rove/commit/529ff1162a557fc0ff02f180598b0c610580194f) Set `worktree.deleteBranch` to `true` in your config and deleting a task from the TUI also deletes its local git branch when that branch is merged, so finished work stops piling up in `git branch`; an unmerged branch, and the branch of a force-deleted dirty worktree, still stay. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1255](https://github.com/Sma1lboy/rove/pull/1255) [`eb06f85`](https://github.com/Sma1lboy/rove/commit/eb06f85b8dbc3d7fa44f566eb66d6a4b88ae8f4c) Switching tasks re-renders the Files pane less often: it now skips workspace updates that don't change what it shows, such as the daemon confirming the new active task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1286](https://github.com/Sma1lboy/rove/pull/1286) [`cca1b41`](https://github.com/Sma1lboy/rove/commit/cca1b41242b312553ba80243e9730f7f87dd88ff) Consolidate engine object validation into a shared guard without changing behavior. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.248
 
 ### Patch Changes

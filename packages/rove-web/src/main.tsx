@@ -12,6 +12,7 @@ import { createRoot } from "react-dom/client"
 import { App, ConnectScreen } from "./app.tsx"
 import { BridgeClient, bridgeUrl } from "./bridge.ts"
 import { AppModel } from "./model.ts"
+import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
 
 const root = createRoot(document.getElementById("root") as HTMLElement)
 const token = storedToken()
@@ -24,6 +25,10 @@ if (!token) {
 } else {
   const client = new BridgeClient(bridgeUrl(), token)
   const model = new AppModel(client)
+  // A plugin's `rove api prompt`; the dialog is page UI, so it is wired here, not in the model.
+  client.on("prompt", (data) => {
+    if (isPromptPush(data)) openPrompt(client, data)
+  })
   client.start()
   root.render(
     <StrictMode>

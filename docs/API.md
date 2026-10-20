@@ -17,6 +17,62 @@ this page. The rest of the binary is documented in the
 To teach a coding agent this surface, install the bundled agent skill with
 `rove skill install` instead of pasting this page into a prompt.
 
+## One contract, three transports
+
+The verbs on this page are one contract — names, flags, results, error codes —
+served by one executor over three transports:
+
+| Transport | Call | Answer |
+| --- | --- | --- |
+| CLI | `rove api <verb> --flag value` | the result on stdout, or `{ "error": … }` on stderr (below); `--envelope` prints the envelope instead |
+| Daemon socket | request `api.invoke` `{ "verb", "params" }` | the envelope |
+| Bridge WebSocket (`rove --web`, the phone apps) | op `api.invoke` `{ "verb", "params" }` | `result`, or the full `error` object |
+
+The envelope is `{ "apiVersion", "ok": true, "result" }` or
+`{ "apiVersion", "ok": false, "error": { "message", "code", … } }`, where
+`error` is exactly the object the CLI prints on stderr. `params` are keyed by
+flag name (`"task-id"`, not `taskId`) and typed as `schema --verb` lists them:
+a string, a number for `int`/`uint`, a boolean for `bool`, a string list for
+`csv`.
+
+`apiVersion` is the one version of this contract. `rove api schema`, both
+`hello`s (daemon and bridge) and every envelope report the same number.
+
+Over the socket and the bridge the verb runs inside the daemon or the bridge
+process, not beside the caller, so three things differ from the CLI:
+
+- **Paths must be absolute.** There is no caller cwd to resolve `--repo .`
+  against; a relative path is `BAD_FLAG`. Without `--task-id`, no `$ROVE_TASK_ID`
+  applies either: the target is the active task.
+- **No stdin.** `--prompt-file -` is `BAD_FLAG`; pass `--prompt`.
+- **No streaming.** `watch` and `pane-graphics` (`cliOnly: true` in `schema`)
+  answer `CLI_ONLY_VERB`; subscribe to the daemon's channels instead.
+
+## Run a verb on another machine
+
+With machines registered ([MACHINES.md](MACHINES.md)), a verb can run on any
+of them. It crosses the ssh-forwarded daemon socket as `api.invoke` and
+executes inside that machine's daemon: its git, its PTY host, its engine
+logins. This machine only routes.
+
+- `--machine <alias>` on any verb runs it there:
+  `rove api add --machine narwhal --repo /srv/rove --prompt "…"`. Over the
+  socket or the bridge, pass `"machine": "<alias>"` beside `verb` and
+  `params`. `local` names this machine.
+- A `--task-id` that lives on another machine runs on that machine without
+  `--machine`, so a remote task the sidebar shows answers `send`,
+  `read-output`, `delete` and the rest like a local one.
+- The rules for socket callers above apply on the far side: `--repo` and other
+  paths are absolute paths **on that machine**. `--prompt-file` is read here
+  and sent as `--prompt`.
+- A forwarded call is never forwarded again, and `list` over the socket
+  returns only the answering daemon's own tasks, so two machines that
+  registered each other cannot bounce a verb between them.
+
+The bridge logs every destructive verb (`delete`, `land`, `remove-worktree`,
+`tab-close`, `issue-delete`, `routine-delete`, `note-delete`) by verb and id,
+as it does its own destructive ops.
+
 ## Socket limits and recovery
 
 Daemon and standalone PTY Host requests use newline-delimited JSON. Each request
@@ -121,6 +177,8 @@ rove api land --task-id a              # merge the winning branch
   `count: 0` with an empty `tasks`. The full payload still goes to stdout, so
   whatever *was* created is never lost.
 - `rove api <verb> --help` prints that verb's usage and exits 0.
+- `--envelope` prints every outcome, success or error, as one envelope on
+  stdout ([above](#one-contract-three-transports)); exit codes do not change.
 
 ### Codes the CLI itself raises
 
@@ -136,6 +194,10 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_TAB` | A `--tab` value that is not `new` or `tab-N`. |
 | `BAD_DAEMON` | The daemon could not be reached or started. |
 | `DAEMON_VERSION_SKEW` | The daemon is a different build and does not serve this verb. |
+| `CLI_ONLY_VERB` | `api.invoke` (socket or bridge) named a verb that streams over stdout/stdin (`watch`, `pane-graphics`). |
+| `UNKNOWN_MACHINE` | `--machine` (or `"machine"` over the socket) names no registered machine. |
+| `MACHINE_UNREACHABLE` | The machine a verb was routed to did not answer over ssh. |
+| `MACHINE_VERSION_SKEW` | That machine's Rove predates forwarded verbs; upgrade it. |
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
@@ -843,10 +905,11 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   showing the task performs the split (headless, nothing happens). The result
   carries the resolved `title` — the label `pane-close --title` must match,
   derived from the command's first word when `--title` is omitted — and
-  `clients`, the attached-connection count: `0` means nobody performed the
-  split, so an agent must not report "pane opened" on that verdict. (The
-  calling CLI is itself one connection, so `1` does not prove a TUI is
-  listening; `0` is the unambiguous case.) Task
+  `clients`, the attached-connection count, and `reached`. `reached: false`
+  means no front-end subscribes to the `tab.open` channel, so nobody performed
+  the split and an agent must not report "pane opened". (The calling CLI is
+  itself one connection, so `clients: 1` alone does not prove a TUI is
+  listening; `reached` does.) Task
   defaults to `$ROVE_TASK_ID` (or its Rove alias), then the active task. How far splits can go
   is decided by the terminal's size: a split that would shrink any pane
   below the minimum usable size (20×6 cells) falls back to a tab.
@@ -855,8 +918,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `--title`, the title it was opened with; `--tab tab-N` scopes the match to
   one tab. Engine panes are never closed. Broadcast over the daemon's
   `tab.close` channel; an attached TUI performs the close (headless, nothing
-  happens). The result's `clients` is the reach signal: `0` = no attached TUI
-  performed the close (same semantics as `dispatch`'s).
+  happens). The result's `reached` is the reach signal: `false` = no attached
+  front-end performed the close.
 - `pane-graphics [--task-id ID] --tab TAB [--image-id N]`: hand opaque
   graphics bytes, read from stdin, to every TUI attached to this task, for it
   to write to its own terminal. This is a transport, not a picture format —
@@ -946,7 +1009,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 - `prompt --title TEXT [--placeholder T] [--initial T] [--timeout MS]`:
   ask the human for a line of text through the attached TUI's input dialog;
   blocks until answered/cancelled/timeout (default 120000 ms, max 600000)
-  and returns `{ value }` or `{ cancelled, reason }`.
+  and returns `{ value }` or `{ cancelled, reason }`. `reason` is
+  `cancelled`, `timeout`, or `no-gui`: with no front-end attached to show the
+  dialog, it returns at once instead of waiting out the timeout.
 - `engine-report --kind KIND [--task-id ID] [--engine ID] [--tab TAB]
   [--detail JSON]`: report a normalized engine-activity verb for a task,
   the public face of the `engine.reportEvent` RPC the built-in hook adapters
@@ -988,6 +1053,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   - `--model M`: pin the model (next session rebuild). Passed to the engine
     verbatim in its own spelling; `engine-list`'s `models` are suggestions.
     Rejected (`BAD_MODEL`) when the task's engine declares no model flag.
+    A `--command` that changes the task's engine clears its model and effort
+    pins; pass `--model` / `--effort` in the same call to re-pin them.
   - `--pinned true|false`: pin/unpin the task to the top of the sidebar.
   - `--status S`: lifecycle status: `backlog`, `in_progress`, `in_review`,
     `done`, `canceled`, `error`.

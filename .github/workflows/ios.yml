@@ -1,8 +1,9 @@
 # Rove Mobile (packages/rove-ios): build, unit tests and UI tests on a simulator.
 #
-# Own file for the `paths` filter: a PR that touches neither the app nor the
-# bridge it talks to starts no macOS runner. The bridge is in the filter
-# because the app decodes its wire format.
+# Own file for the `paths` filter: a PR that does not touch the app starts no
+# macOS runner. rove-bridge is not in it: these tests talk to the app's own
+# fixture bridge (scripts/fixture-bridge.ts), and the live-bridge tests skip
+# without ROVE_BRIDGE_URL, so a bridge change runs nothing they exercise.
 
 name: iOS
 
@@ -11,13 +12,11 @@ on:
     branches: [main]
     paths:
       - "packages/rove-ios/**"
-      - "packages/rove-bridge/**"
       - ".github/workflows/ios.yml"
   pull_request:
     branches: [main]
     paths:
       - "packages/rove-ios/**"
-      - "packages/rove-bridge/**"
       - ".github/workflows/ios.yml"
   # Re-run the keyboard suite on one commit to judge its stability.
   workflow_dispatch:
@@ -52,14 +51,7 @@ jobs:
               -skip-testing:RoveMobileUITests/KeyboardStateTests/testInputsFixtureDark
               -skip-testing:RoveMobileUITests/KeyboardStateTests/testInputSampleFixtureDark
               -skip-testing:RoveMobileUITests/KeyboardStateTests/testHardwareKeysReachTheTerminal
-          # One dark input of each kind and the dark case of the terminal tests. The full dark sweep stalls on
-          # the hosted runner (60 s app-idle waits per action, docs/KEYBOARD.md) and stays a local run.
-          - suite: keyboard
-            appearance: dark
-            select: >-
-              -only-testing:RoveMobileUITests/KeyboardStateTests/testInputSampleFixtureDark
-              -only-testing:RoveMobileUITests/KeyboardStateTests/testTerminalDemo
-              -only-testing:RoveMobileUITests/KeyboardStateTests/testTerminalFixture
+          # The dark keyboard tests are a local run: on the hosted runner they fail intermittently (docs/KEYBOARD.md).
     name: ${{ matrix.suite }} (${{ matrix.appearance }})
     steps:
       - name: Checkout

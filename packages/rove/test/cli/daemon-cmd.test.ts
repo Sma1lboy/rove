@@ -133,6 +133,13 @@ describe("rove daemon status", () => {
     expect(process.exitCode).toBeUndefined()
   })
 
+  it("accepts --json, which another machine's `machine add` sends", async () => {
+    mocks.daemonRequest.mockResolvedValue({ daemonPid: 7 })
+    await runDaemonSubcommand(["status", "--json"])
+    expect(JSON.parse(output())).toEqual({ daemonPid: 7 })
+    expect(process.exitCode).toBeUndefined()
+  })
+
   it("reports a stale pidfile and sets exitCode 1 when the socket doesn't answer", async () => {
     mocks.daemonRequest.mockRejectedValue(new Error("ECONNREFUSED"))
     writeFileSync(join(home, ".rove", "daemon.pid"), "4242", "utf8")

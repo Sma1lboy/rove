@@ -22,6 +22,7 @@ import {
   type UiPromptPayload,
   isDaemonVersionStale,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import { type ExternalStore, type ReadableState, createStateCell, mapReadableState } from "../lib/external-store.ts"
 import type { Orchestrator, Unsubscribe } from "../orchestrator/core.ts"
 import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
@@ -95,6 +96,7 @@ export class RemoteOrchestrator {
   private readonly attentionInboxAcc = createStateCell<readonly AttentionInboxItem[]>([])
   private readonly taskJobsAcc = createStateCell<ReadonlyMap<string, TaskJobState>>(new Map())
   private readonly rowTokensAcc = createStateCell<RowTokenMap>(new Map())
+  private readonly modPanesAcc = createStateCell<readonly ModPaneView[]>([])
   private readonly worktreeChangesAcc = createStateCell<WorktreeChangesMap | null>(null)
   private readonly usageSnapshotAcc = createStateCell<UsageSnapshotMap | null>(null)
   private readonly contextUsageAcc = createStateCell<ContextUsageMap | null>(null)
@@ -157,6 +159,8 @@ export class RemoteOrchestrator {
       setTaskJobsSig: this.taskJobsAcc.set,
       rowTokensAcc: this.rowTokensAcc,
       setRowTokensSig: this.rowTokensAcc.set,
+      modPanesAcc: this.modPanesAcc,
+      setModPanesSig: this.modPanesAcc.set,
       worktreeChangesAcc: this.worktreeChangesAcc,
       setWorktreeChangesSig: this.worktreeChangesAcc.set,
       usageSnapshotAcc: this.usageSnapshotAcc,
@@ -298,6 +302,17 @@ export class RemoteOrchestrator {
   /** Plugin-written row labels, TTL-bounded (`task.tokens`). An EMPTY map —
    *  no plugin has anything to say — is the resting state, so there is no null. */
   readonly rowTokensSignal = (): ReadableState<RowTokenMap> => this.rowTokensAcc
+
+  /** Every open mod pane (`mod.ui`); empty when no mod draws anything. */
+  readonly modPanesSignal = (): ReadableState<readonly ModPaneView[]> => this.modPanesAcc
+
+  /** Forward a button press to the mod that drew it. */
+  readonly pressMod = (plugin: string, pane: string, key: string): Promise<unknown> =>
+    this.client.request("mod.press", { plugin, pane, key })
+
+  /** Forward an input field's submitted text to the mod that drew it. */
+  readonly submitMod = (plugin: string, pane: string, key: string, value: string): Promise<unknown> =>
+    this.client.request("mod.submit", { plugin, pane, key, value })
 
   /** null means the daemon has not supplied this channel; readers may poll locally. */
   readonly worktreeChangesSignal = (): ReadableState<WorktreeChangesMap | null> => this.worktreeChangesAcc
@@ -461,6 +476,8 @@ export class RemoteOrchestrator {
   deleteFieldNote = (repo: string, id: number) => writes.deleteFieldNoteOp(this.client, repo, id)
   /** A PR's failing checks + log tails (`pr.failingChecks`). On demand only. */
   failingChecks = (taskId: string) => writes.failingChecksOp(this.client, taskId)
+  /** Restart a PR's failed Actions jobs (`pr.rerunFailedChecks`). On demand only. */
+  rerunFailedChecks = (taskId: string) => writes.rerunFailedChecksOp(this.client, taskId)
   /** Merge a task's base branch into its worktree (`task.syncBase`). */
   syncBase = (taskId: string) => writes.syncBaseOp(this.client, taskId)
   startWorkItem = (a: Parameters<typeof writes.startWorkItemOp>[1]) => writes.startWorkItemOp(this.client, a)

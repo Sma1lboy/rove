@@ -36,6 +36,28 @@ export function localeState(): ReadableState<LocaleId> {
   return langState
 }
 
+/** Namespaces a plugin added; a host namespace can never be replaced. */
+const pluginNamespaces = new Set<string>()
+
+/**
+ * Add a plugin page's own namespace to the catalogs, so `t("<ns>.key")`
+ * resolves it. A missing `zh` (or key) falls back to English like any other.
+ */
+export function registerMessages(
+  namespace: string,
+  messages: { readonly en: Record<string, unknown>; readonly zh?: Record<string, unknown> },
+): void {
+  const en = CATALOGS.en as unknown as Record<string, unknown>
+  const zh = CATALOGS.zh as unknown as Record<string, unknown>
+  if (namespace in en && !pluginNamespaces.has(namespace)) {
+    throw new Error(`i18n namespace "${namespace}" belongs to the host`)
+  }
+  pluginNamespaces.add(namespace)
+  en[namespace] = messages.en
+  if (messages.zh) zh[namespace] = messages.zh
+  else delete zh[namespace]
+}
+
 /** Falls back to English, then the raw key (missing strings are loud, not blank). */
 export function t(key: string, params?: Record<string, string | number>): string {
   const lang = langState.get()

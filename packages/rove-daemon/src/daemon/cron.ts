@@ -250,8 +250,9 @@ export function latestCronAtOrBefore(expression: string, nowMs: number, notBefor
   const minutes = sorted(rule.minutes, -1)
   const from = new Date(floorToMinute(nowMs))
   let day = localDayOf(from.getTime())
+  // Hour only: in a repeated hour, 01:10 (second pass) comes after 01:50 (first
+  // pass), so a minute cut would drop an occurrence that already happened.
   let fromHour = from.getHours()
-  let fromMinute = from.getMinutes()
   for (let i = 0; i < SCAN_DAYS; i++) {
     // All remaining candidates are earlier than this day's last minute.
     if (instantOf(day, 23, 59) < notBeforeMs) return null
@@ -259,7 +260,6 @@ export function latestCronAtOrBefore(expression: string, nowMs: number, notBefor
       for (const hour of hours) {
         if (hour > fromHour) continue
         for (const minute of minutes) {
-          if (hour === fromHour && minute > fromMinute) continue
           const at = instantOf(day, hour, minute)
           if (at > nowMs) continue
           return at >= notBeforeMs ? at : null
@@ -268,7 +268,6 @@ export function latestCronAtOrBefore(expression: string, nowMs: number, notBefor
     }
     day = shiftDay(day, -1)
     fromHour = 23
-    fromMinute = 59
   }
   return null
 }

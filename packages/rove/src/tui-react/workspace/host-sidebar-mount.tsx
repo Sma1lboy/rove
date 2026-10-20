@@ -134,6 +134,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onChangeEngineRequest={(id) => void actions.pickVendor(id)}
       onFieldNotesRequest={actions.showFieldNotes}
       onFixChecksRequest={props.onFixChecks}
+      onRerunChecksRequest={(id) => void actions.rerunChecks(id)}
       // Created in quick-fork, which owns the pending-prompt slot for the new task.
       onRunAgainRequest={(id) => void actions.confirmRunAgain(id).then((task) => task && props.runAgain(task))}
       moveMode={props.moveMode}

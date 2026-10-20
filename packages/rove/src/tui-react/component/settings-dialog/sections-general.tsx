@@ -7,10 +7,12 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { useRenderer } from "@opentui/react"
 import { useMemo } from "react"
 import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { engineDisplayName } from "../../../engine/interactive-command"
 import { displayWidth } from "../../../lib/display-width"
+import { tryOutChannel } from "../../../state/update-channel"
 import {
   type NavLevel,
   SECTIONS,
@@ -27,7 +29,8 @@ import { useKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useTerminalSize } from "../../lib/use-terminal-size"
-import { useDialogPaddingX } from "../../ui/dialog"
+import { useDialog, useDialogPaddingX } from "../../ui/dialog"
+import { confirmTryChannel } from "./actions"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
 import { AppearanceSettingsSection } from "./sections-appearance"
 import { usageRows } from "./usage-core"
@@ -121,6 +124,8 @@ export function GeneralSettingsSection(
   const t = useT()
   // Keyboard-hints state lives in keyboard-hints.ts, not prefs, to stay vitest-testable.
   const kv = useKV()
+  const dialog = useDialog()
+  const renderer = useRenderer()
   // A row's body index is its position in the registry: look up by id, never compute.
   const rows = useMemo(() => generalRows(), [])
   const rowIdx = (id: string) => rowIndex(rows, id)
@@ -148,6 +153,9 @@ export function GeneralSettingsSection(
   const crossTaskRow = rowIdx("cross-task")
   const keyHintsRow = rowIdx("key-hints")
   const zenDefaultOnRow = rowIdx("zen-default-on")
+  const updateChannelRow = rowIdx("update-channel")
+  const updateTryRow = rowIdx("update-try")
+  const tryChannel = tryOutChannel()
   const editorKindRow = rowIdx("editor-kind")
   const editorCustomRow = rowIdx("editor-custom")
   const worktreeBaseRow = rowIdx("worktree-base")
@@ -240,6 +248,32 @@ export function GeneralSettingsSection(
             bold={true}
           >
             {`${check(prefs.zenDefaultOn())} ${t("settings.general.zenDefaultOn")}`}
+          </Row>
+        </SubSection>
+        <SubSection title={t("settings.general.updates")} hint={t("settings.general.updatesHint")}>
+          <Row
+            cursor={isBodyCursor(updateChannelRow)}
+            rowRef={props.rowRef(updateChannelRow)}
+            onMouseUp={activate(updateChannelRow, prefs.toggleUpdateChannel)}
+            fg={theme.accent}
+            bold={true}
+            hint={hint("settings.general.updateChannelHint")}
+          >
+            {pad(
+              t("settings.general.updateChannel", {
+                channel: t(`settings.general.updateChannelName.${prefs.updateChannel()}`),
+              }),
+            )}
+          </Row>
+          <Row
+            cursor={isBodyCursor(updateTryRow)}
+            rowRef={props.rowRef(updateTryRow)}
+            onMouseUp={activate(updateTryRow, () => void confirmTryChannel(dialog, renderer, tryChannel))}
+            fg={theme.text}
+            bold={isBodyCursor(updateTryRow)}
+            hint={hint("settings.general.updateTryHint")}
+          >
+            {pad(t(`settings.general.updateTry.${tryChannel}`))}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.editor")} hint={t("settings.general.editorHint")}>

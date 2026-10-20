@@ -160,9 +160,9 @@ export async function land(ctx: VerbContext): Promise<unknown> {
       // UNDEFINED when absent so the orchestrator's default (remove) applies;
       // don't coerce to false.
       removeWorktree: ctx.args.bool("remove-worktree"),
-      // Sent on EVERY land: the daemon refuses to remove the caller's own
-      // worktree, else an agent landing its own task deletes its cwd.
-      callerCwd: process.cwd(),
+      // Sent on EVERY land with a cwd: the daemon refuses to remove the
+      // caller's own worktree, else an agent landing its own task deletes its cwd.
+      ...(ctx.caller.cwd !== undefined ? { callerCwd: ctx.caller.cwd } : {}),
     })
   } catch (err) {
     throw landRecoveryError(err, taskId)
@@ -251,7 +251,7 @@ export async function removeTaskWorktree(ctx: VerbContext): Promise<unknown> {
       "BASE_CHECKOUT",
     )
   }
-  if (pathWithin(wt, canonicalize(process.cwd())) !== null) {
+  if (ctx.caller.cwd !== undefined && pathWithin(wt, canonicalize(ctx.caller.cwd)) !== null) {
     throw new ApiError(
       `refusing to remove the caller's own worktree (${worktreePath}) — re-run from outside it`,
       "CALLER_WORKTREE",

@@ -9,6 +9,7 @@ Small, runnable plugins that demonstrate the surfaces in `docs/PLUGIN-AUTHORING.
 | `settings-demo/` | `[[settings]]`, `[[actions]]` | Declare string/enum/boolean settings; an action reads the config `.env` with `readSettings()` / `setting()`. |
 | `task-board/` | `[[panes]]`, `[[actions]]` | Live task board drawn from `task.snapshot` + `engine-state`; headless `snapshot` action prints one frame. |
 | `row-tokens/` | `[[actions]]`, `[[events]]` | Claim a task and paint the claim on its row with `setRowToken()`; the label fades when the plugin stops refreshing it. |
+| `counter-mod/` | `[mod]` | A native pane the TUI and the web both draw: a shared counter and a live task count, via `runMod()` and `Box`/`Text`/`Button`. |
 | `contrib-engine/` | `[[engines]]` | Manifest-only fake engine with identity and screen-state rules. |
 
 Link any example into a named dev sandbox to try it:

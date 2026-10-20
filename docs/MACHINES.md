@@ -9,10 +9,11 @@ tree is the answer to what is running where.
 
 ## What this needs
 
-- Rove installed on **both** machines (`npm i -g @sma1lboy/rove`).
-- SSH access to the remote one, working non-interactively — `ssh narwhal true`
-  must succeed without a prompt. A `Host` block in `~/.ssh/config` is the
-  usual way; Rove reads it rather than replacing it.
+- Rove installed on **both** machines (`npm i -g @sma1lboy/rove`). Run in a
+  terminal, `machine add` offers to install it on the other one for you.
+- SSH access to the remote one. A `Host` block in `~/.ssh/config` is the usual
+  way; Rove reads it rather than replacing it. If no key you have is accepted
+  there, `machine add` offers to set one up (below).
 
 Nothing else. Rove opens no ports and adds no authentication of its own: the
 remote daemon keeps listening on its private unix socket, and SSH forwards that
@@ -36,6 +37,30 @@ rove machine: Nahuels-Mac-mini → narwhal (rove 0.9.185 on Nahuels-Mac-mini.loc
 `add` verifies before it saves: it asks the machine where its daemon listens
 (`rove daemon status --json`, starting one there if none is up) and refuses if
 the host is unreachable, Rove is not installed, or no daemon can be started.
+
+- **First connection.** If the host key is not in your `known_hosts` yet, `add`
+  prints its fingerprints and asks before trusting it. Run from a script (no
+  terminal), it prints them and trusts on first use, as `ssh` itself would.
+  Hosts reached through `ProxyJump`/`ProxyCommand` are left to ssh.
+- **Rove off the PATH.** A Rove installed with bun or nvm is often missing
+  from the PATH of `ssh narwhal <command>`, because the rc file that adds it
+  only runs for interactive shells. `add` asks the login shell and the usual
+  install directories, then remembers that path for the machine. Your rc files
+  are not touched.
+- **Fixes, not dead ends.** In a terminal, a failure `add` can repair is
+  offered as a fix: it shows the exact command, asks, runs it, and tries
+  again. `--yes` runs every offered fix without asking.
+  - *No key is accepted:* `add` creates `~/.rove/ssh/hub_ed25519`, a key just
+    for this Rove, with no passphrase so it can reconnect unattended, and adds
+    it to the machine's `~/.ssh/authorized_keys`. You type that machine's
+    password once, into ssh. To revoke this Rove's access, delete the line
+    ending in `rove-hub@<this host>` there.
+  - *Rove is missing:* `add` runs the official install script on the machine
+    (`curl -fsSL https://rove.run/install.sh | sh`).
+  - *Rove is too old:* `add` runs `rove update` there.
+- **When ssh fails**, the message names the cause and the fix: a name that
+  does not resolve, a refused or timed-out connection, a rejected key, a host
+  key not trusted yet, or one that **changed** (which `add` will not override).
 Rove never guesses a remote socket path — the remote home may be a different
 user, and the path may have been shortened to fit the platform's socket-name
 limit.
@@ -87,6 +112,19 @@ narwhal · v0.9.185            ← a machine
   old to talk to yours reads `⚠ v0.9.100 (protocol mismatch)` and is the only
   row affected.
 
+## Check a machine again
+
+```console
+$ rove machine doctor
+narwhal  ✓  rove 0.9.251 on Nahuels-Mac-mini.local
+```
+
+`doctor` re-runs the same checks for every registered machine (or the one you
+name) and offers the same fixes, for when something changed underneath: a key
+was revoked, Rove was reinstalled somewhere else, the machine was rebuilt. It
+also says when a machine runs a different Rove version than this one, and
+exits 1 if any machine is not usable.
+
 ## List and remove
 
 ```console
@@ -101,16 +139,30 @@ Registering one machine under two aliases is recognized and reported: Rove
 compares the remote daemon's hostname, state root and pid, and renders one row
 either way.
 
+## Run commands on a machine
+
+Every `rove api` verb takes `--machine <alias>` and runs in that machine's
+daemon, so its tasks, worktrees and engine sessions are created there:
+
+```console
+$ rove api add --machine narwhal --repo /home/nahuel/rove --prompt "fix the flaky test"
+```
+
+A `--task-id` that belongs to another machine goes there on its own: `send`,
+`read-output`, `land` and `delete` work on a remote task the same as on a local
+one. Paths are paths on that machine. [API.md](API.md#run-a-verb-on-another-machine)
+has the details.
+
+A daemon left running with `rove daemon start --resident` on an always-on box
+can be the one you dispatch from: register your machines there, and anything
+that reaches that daemon (`rove api`, `rove --web`, the phone apps) can send
+work to any of them. That also means a bridge token for that daemon runs
+commands on every machine registered there: guard it like an ssh key.
+
 ## What this release does not do yet
 
-This is the first of three. Today machines are **read-only**:
-
-- Opening a remote task's session is not wired up yet — you can see it, not
-  enter it.
-- `rove api` verbs aimed at a remote task refuse with
-  `NOT_YET_SUPPORTED_REMOTE` rather than quietly running against your local
-  daemon, where that task id does not exist. Run the command on that machine
-  instead.
+- Opening a remote task's session in the TUI is not wired up yet. You can see
+  the row and drive it with `rove api`, but not enter it.
 - The file tree and diff panes show `on <host>` for a remote task. Its worktree
   path means nothing on your filesystem, and reading it would list whatever
   happens to sit at the same path here.

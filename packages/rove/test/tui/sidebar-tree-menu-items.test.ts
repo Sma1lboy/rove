@@ -131,6 +131,7 @@ describe("treeMenuItems", () => {
     expect(actions(mainTab, { tabCount: 2 })).toEqual([
       "open",
       "closeTab",
+      "closeOtherTabs",
       "copyTab",
       "newChat",
       "newShell",
@@ -188,6 +189,7 @@ describe("treeMenuItems", () => {
     expect(actions(tabRow, { tabCount: 2 })).toEqual([
       "open",
       "closeTab",
+      "closeOtherTabs",
       "copyTab",
       "newChat",
       "newShell",
@@ -213,6 +215,15 @@ describe("treeMenuItems", () => {
     // the last tab.
     expect(actions(tabRow, { tabCount: 1 })).toContain("closeTab")
     expect(actions(tabRow, { tabCount: 1 })).toContain("newChat")
+  })
+
+  test("Close other tabs needs a sibling to close, and is danger-toned", () => {
+    // It ends every other session on the worktree; with one tab there is
+    // nothing for it to do.
+    expect(actions(tabRow, { tabCount: 1 })).not.toContain("closeOtherTabs")
+    const entry = treeMenuItems(tabRow, { tabCount: 2 }).find((item) => item.action === "closeOtherTabs")
+    expect(entry?.danger).toBe(true)
+    expect(actions(worktreeRow())).not.toContain("closeOtherTabs")
   })
 
   test("a tab row with NO known tabs is offered no close", () => {
@@ -281,23 +292,26 @@ describe("treeMenuItems", () => {
   })
 })
 
-describe("the Fix-failing-checks entry", () => {
+describe("the failing-checks entries", () => {
   // Gated on the PR chip the row already shows: with anything but `failing`
-  // there is no log to fetch, and the entry could only end in a toast.
+  // there is no log to fetch or job to restart, so either could only toast.
   test("is absent without a PR, and for passing / pending / unknown checks", () => {
     expect(actions(worktreeRow())).not.toContain("fixChecks")
+    expect(actions(worktreeRow())).not.toContain("rerunChecks")
     for (const checkState of ["none", "passing", "pending", "unknown"] as const) {
       const row = worktreeRow({ prStatus: { provider: "github", lifecycle: "open", checkState } })
       expect(actions(row), checkState).not.toContain("fixChecks")
+      expect(actions(row), checkState).not.toContain("rerunChecks")
     }
   })
 
   test("appears just before Land when the checks are red — on a tab row too", () => {
     const failing = { provider: "github", lifecycle: "open", checkState: "failing" } as const
     const rowActions = actions(worktreeRow({ prStatus: failing }))
-    expect(rowActions).toContain("fixChecks")
-    // Order: fixChecks → syncBase → land — CI, then drift, then the exit.
-    expect(rowActions.indexOf("fixChecks")).toBe(rowActions.indexOf("syncBase") - 1)
+    // Order: fixChecks → rerunChecks → syncBase → land — CI, then drift, then the exit.
+    const ci = rowActions.indexOf("fixChecks")
+    expect(ci).toBeGreaterThan(-1)
+    expect(rowActions.slice(ci, ci + 3)).toEqual(["fixChecks", "rerunChecks", "syncBase"])
     const tabActions = treeMenuItems({ ...tabRow, task: task({ prStatus: failing }) }).map((item) => item.action)
     expect(tabActions).toContain("fixChecks")
   })

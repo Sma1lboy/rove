@@ -150,7 +150,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           </span>
         </div>
       )}
-      <PageNav />
+      <PageNav model={model} />
       <div className="rail-body">
         {payload && tasks.length === 0 && (
           <div className="empty">

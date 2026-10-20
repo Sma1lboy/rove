@@ -4,7 +4,7 @@
  * the one public import path for the wire protocol.
  */
 
-import { DAEMON_CHANNELS } from "@sma1lboy/rove-plugin-sdk/contract"
+import { DAEMON_CHANNELS, type ModPaneView } from "@sma1lboy/rove-plugin-sdk/contract"
 import type {
   EngineLifecyclePayload,
   GraphicsWritePayload,
@@ -258,6 +258,11 @@ export interface ChannelPayloads {
    * may be attached by several GUIs.
    */
   "graphics.write": GraphicsWritePayload
+  /**
+   * Every open mod pane with its validated element tree (`plugins/mod-host.ts`).
+   * Full list, last-value: a client attaching late draws what is open now.
+   */
+  "mod.ui": { panes: readonly ModPaneView[] }
 }
 
 /** The `ui-prefs` channel payload — the persisted visual prefs snapshot. */

@@ -55,11 +55,7 @@ async function headerLines(taskKind: Task["kind"]): Promise<string[]> {
         worktree={repoWithFile()}
         prBaseRef={undefined}
         focused={false}
-        onOpenFile={NOOP}
-        onOpenDiff={NOOP}
-        onMention={NOOP}
-        onZenToggle={NOOP}
-        onCreatePR={NOOP}
+        actions={{ onOpenFile: NOOP, onOpenDiff: NOOP, onMention: NOOP, onZenToggle: NOOP, onCreatePR: NOOP }}
         taskKind={taskKind}
       />
     </FocusProvider>,

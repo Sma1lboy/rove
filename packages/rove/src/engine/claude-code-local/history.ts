@@ -19,7 +19,7 @@ import { appendFile, mkdir, readdir, stat, unlink } from "node:fs/promises"
 import path from "node:path"
 import type { EngineUsageSnapshot, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
-import { isObject } from "../json-hooks.ts"
+import { isObject } from "../is-object.ts"
 import { vendorConfigHome } from "../vendor-home"
 import { foldSessionUsage, parseSessionRaw } from "./history-parse"
 

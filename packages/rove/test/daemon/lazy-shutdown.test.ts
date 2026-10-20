@@ -1,4 +1,5 @@
-import { existsSync } from "node:fs"
+import { existsSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { type DaemonHarness, bootDaemonHarness, waitFor } from "./harness.ts"
 
@@ -117,5 +118,33 @@ describe("daemon refcounted lazy shutdown", () => {
     await new Promise((r) => setTimeout(r, GRACE_MS + 150))
     expect(existsSync(h.socketPath)).toBe(true)
     second.close()
+  })
+
+  describe("resident (`rove daemon start --resident`)", () => {
+    it("outlives its last gui, and a restart keeps the marker its replacement boots from", async () => {
+      h = await bootDaemonHarness({
+        env: { ROVE_DAEMON_IDLE_GRACE_MS: String(GRACE_MS) },
+        server: { resident: true },
+      })
+      const gui = h.client()
+      await gui.subscribe({ role: "gui" })
+      gui.close()
+      await new Promise((r) => setTimeout(r, GRACE_MS + 150))
+      expect(existsSync(h.socketPath)).toBe(true)
+
+      await h.client().request("daemon.stop", { reason: "restart" })
+      expect(await waitFor(() => !existsSync(h.socketPath), 1000)).toBe(true)
+      expect(existsSync(join(h.dir, "daemon.resident"))).toBe(true)
+    })
+
+    it("a predecessor's marker boots resident without the flag, and an explicit stop clears it", async () => {
+      h = await bootDaemonHarness({ seedHome: (dir) => writeFileSync(join(dir, "daemon.resident"), "") })
+      const status = await h.client().request<{ resident: boolean }>("daemon.status")
+      expect(status.resident).toBe(true)
+
+      await h.client().request("daemon.stop", {})
+      expect(await waitFor(() => !existsSync(h.socketPath), 1000)).toBe(true)
+      expect(await waitFor(() => !existsSync(join(h.dir, "daemon.resident")), 1000)).toBe(true)
+    })
   })
 })

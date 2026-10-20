@@ -60,7 +60,11 @@ export function hookTimeoutMs(spec: PluginCommandSpec, kind: HookKind): number {
   return spec.timeoutMs ?? (kind === "shutdown" ? SHUTDOWN_GRACE_MS : HOOK_TIMEOUT_MS)
 }
 
-function appendRecord(pluginId: string, homeDir: string | undefined, record: Record<string, unknown>): void {
+export function appendPluginLogRecord(
+  pluginId: string,
+  homeDir: string | undefined,
+  record: Record<string, unknown>,
+): void {
   try {
     const logPath = pluginLogPath(pluginId, homeDir)
     // 0600: captured stdout/stderr may contain the plugin's own token.
@@ -83,7 +87,7 @@ export async function runPluginHook(opts: HookRunOptions): Promise<void> {
     mkdirSync(pluginConfigDir(pluginId, homeDir), { recursive: true, mode: OWNER_ONLY_DIR_MODE })
     mkdirSync(pluginStateDir(pluginId, homeDir), { recursive: true, mode: OWNER_ONLY_DIR_MODE })
   } catch (err) {
-    appendRecord(pluginId, homeDir, {
+    appendPluginLogRecord(pluginId, homeDir, {
       at: startedAt,
       kind,
       label,
@@ -133,7 +137,7 @@ export async function runPluginHook(opts: HookRunOptions): Promise<void> {
     deadline.unref?.()
     const slow = setTimeout(
       () => {
-        appendRecord(pluginId, homeDir, {
+        appendPluginLogRecord(pluginId, homeDir, {
           at: startedAt,
           kind,
           label,
@@ -169,7 +173,7 @@ export async function runPluginHook(opts: HookRunOptions): Promise<void> {
       finish()
     })
   })
-  appendRecord(pluginId, homeDir, {
+  appendPluginLogRecord(pluginId, homeDir, {
     at: startedAt,
     kind,
     label,

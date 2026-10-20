@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from "react"
-import { ZEN_ACTIVE_KEY } from "../../state/zen.ts"
+import { ZEN_ACTIVE_KEY, ZEN_DEFAULT } from "../../state/zen.ts"
 import type { FocusContextValue } from "../context/focus"
 import type { KVContext } from "../context/kv"
 
@@ -19,7 +19,7 @@ export type ZenMode = {
 
 export function useZenMode(deps: { kv: KVContext; focus: FocusContextValue }): ZenMode {
   const { kv, focus } = deps
-  const [zen, setZen] = useState(() => kv.get(ZEN_ACTIVE_KEY, false) === true)
+  const [zen, setZen] = useState(() => kv.get(ZEN_ACTIVE_KEY, ZEN_DEFAULT) === true)
 
   function toggleZen(): void {
     const next = !zen

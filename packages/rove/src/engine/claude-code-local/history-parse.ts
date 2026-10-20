@@ -7,7 +7,7 @@
 import type { Message } from "@/types/engine"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
-import { isObject } from "../json-hooks.ts"
+import { isObject } from "../is-object.ts"
 import { normalizeClaudeContent } from "./normalize"
 import { isClaudeCommandBreadcrumb, isSyntheticClaudeRecord } from "./synthetic"
 
