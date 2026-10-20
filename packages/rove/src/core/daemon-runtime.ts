@@ -19,6 +19,7 @@ import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
 import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
+import { preferredReleaseChannel } from "../state/update-channel.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
 import type { VendorId } from "../types/vendor.ts"
@@ -56,6 +57,38 @@ function resolveProtocolUpgradeAndLearnPreset(
 
 export const daemonRuntime: DaemonRuntimeAdapter = {
   currentVersion: CURRENT_VERSION,
+  // Lazy: the verb table pulls in most of the CLI, which a daemon that never
+  // serves `api.invoke` should not load.
+  async invokeApi(verb, params, socketPath, route) {
+    const [{ executeVerb, errorEnvelope }, { REMOTE_CALLER }, { RoveDaemonClient }] = await Promise.all([
+      import("../cli/api/invoke.ts"),
+      import("../cli/api/types.ts"),
+      import("@sma1lboy/rove-daemon/client"),
+    ])
+    // Its own connection back to this daemon: verbs subscribe and wait on
+    // channels the way they do from the CLI.
+    const client = new RoveDaemonClient(socketPath)
+    try {
+      await client.connect()
+      const { invokeRouted } = await import("../machines/forward.ts")
+      return await invokeRouted({
+        verb,
+        params,
+        machine: route?.machine,
+        forwarded: route?.forwarded,
+        isLocalTask: (id) =>
+          client.request("task.get", { taskId: id }).then(
+            () => true,
+            () => false,
+          ),
+        runHere: () => executeVerb(verb, { params }, { client, caller: REMOTE_CALLER }),
+      })
+    } catch (err) {
+      return errorEnvelope(err)
+    } finally {
+      client.close()
+    }
+  },
   defaultTaskVendor: DEFAULT_TASK_VENDOR,
   placeholderTaskTitle: PLACEHOLDER_TASK_TITLE,
   isTaskStatus,
@@ -78,7 +111,8 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   resolveProtocolUpgrade: resolveProtocolUpgradeAndLearnPreset,
   // An engine without a turn reader reports none.
   readEngineTurns: async (vendor, transcriptPath) => (await protocolEntry(vendor).readTurns?.(transcriptPath)) ?? [],
-  checkLatestVersion,
+  // Read per check, so a channel picked in Settings or the CLI applies without a restart.
+  checkLatestVersion: () => checkLatestVersion({ channel: preferredReleaseChannel() }),
   latestTranscriptMtime,
   deriveTitleFromSession,
   createEngineTurnDetector: (vendor) => createEngineTurnDetector(sessionProtocol(vendor)),

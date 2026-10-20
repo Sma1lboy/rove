@@ -33,7 +33,7 @@ export interface EngineDeps {
   readonly defaultCommand: (id: string) => readonly string[]
 }
 
-const realDeps: EngineDeps = {
+export const realDeps: EngineDeps = {
   load: loadStateFile,
   patch: (patch) => {
     patchStateFile(patch)
@@ -56,7 +56,7 @@ function trimmed(state: StateSnapshot, key: string): string {
 }
 
 /** Same order as the TUI section: built-ins, the user's own, then what was detected. */
-async function engineIds(deps: EngineDeps, state: StateSnapshot): Promise<string[]> {
+export async function engineIds(deps: EngineDeps, state: StateSnapshot): Promise<string[]> {
   return [...new Set([...ALL_VENDORS, ...strings(state, "customEngineIds"), ...(await deps.installed())])]
 }
 

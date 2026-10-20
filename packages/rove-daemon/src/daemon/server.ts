@@ -37,6 +37,7 @@ import { PromptBroker } from "./prompt-broker.ts"
 import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, serializeTask } from "./protocol.ts"
 import { startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
+import { clearResidentMarker, residentMarkerPath, resolveResident, writeResidentMarker } from "./resident.ts"
 import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
 import { DaemonResources } from "./server-resources.ts"
 import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.ts"
@@ -102,6 +103,8 @@ async function startOwnedServer(
   // which never touches task sessions (only `rove reset` / `rove
   // kill-sessions` do). Also gates collectors on `hasSubscribers()`. The
   // live `clients` set is the source of truth — no counter to drift.
+  const residentMarker = residentMarkerPath(pidPath)
+  const resident = resolveResident(options.resident ?? false, residentMarker)
   const lifetime = new DaemonLifetime({
     clients: function* () {
       yield* clients
@@ -113,6 +116,7 @@ async function startOwnedServer(
     // unwatched; idle-stopping under a live PTY drops engine hook events and
     // blanks the activity dots.
     keepAlive: () => automations.hasEnabled() || ptyHold.isHeld() || (options.keepAlive?.() ?? false),
+    resident,
     onIdleStop: () => void stopSoon("idle").catch((err) => logDaemonError("daemon-idle-shutdown", err)),
   })
   const ptyHold = new PtyLiveHold({
@@ -335,6 +339,7 @@ async function startOwnedServer(
         socketPath,
         homeDir,
         pid: process.pid,
+        resident: lifetime.isResident(),
         guiCount: () => lifetime.guiCount(),
         guiCellSizes: () => {
           const sizes: CellPixelSize[] = []
@@ -364,6 +369,13 @@ async function startOwnedServer(
   await sockGuard.arm()
   // tmp+rename: a torn pidfile is EMPTY, and empty parses as pid 0.
   await writeTextAtomic(pidPath, `${process.pid}\n`)
+  if (resident) {
+    writeResidentMarker(residentMarker)
+    // A restart keeps the marker so the replacement boots resident too.
+    resources.defer(() => {
+      if (stopReason === "stop") clearResidentMarker(residentMarker)
+    })
+  }
   // A pre-rename binary only knows `.rove`; without these it starts a second
   // daemon on the same task index. See compat-link.ts.
 

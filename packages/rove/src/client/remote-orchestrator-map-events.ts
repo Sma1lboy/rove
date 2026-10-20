@@ -5,6 +5,7 @@
  */
 
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
+import { parseModUiPayload } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { OrchestratorSignals } from "./remote-orchestrator-payloads.ts"
 import {
   describePayload,
@@ -59,6 +60,14 @@ const MAP_CHANNELS: Readonly<Record<string, MapChannel<any>>> = {
     same: sameTranscriptActivityMap,
     read: (signals) => signals.transcriptActivityAcc(),
     write: (signals, next) => signals.setTranscriptActivitySig(next),
+  },
+  "mod.ui": {
+    // Mod trees are third-party: re-validated here, a bad pane is dropped.
+    what: "mod pane list",
+    parse: parseModUiPayload,
+    same: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+    read: (signals) => signals.modPanesAcc(),
+    write: (signals, next) => signals.setModPanesSig(next),
   },
   "task.tokens": {
     // Published by a PLUGIN, so malformed frames are third-party bugs.

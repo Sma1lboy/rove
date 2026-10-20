@@ -7,6 +7,7 @@
 
 import type { BorderCharacters, BorderSides, RGBA } from "@opentui/core"
 import type { SplitStyle } from "../../state/split-style"
+import type { SplitNode } from "./split-core"
 
 export type SplitDivider = "left" | "top"
 
@@ -78,4 +79,15 @@ export function paneBoxProps(
     ...(frame.border === false ? {} : { borderColor: ink.edge }),
     ...(nameOnRule ? { title: ` ${ink.name ?? ""} `, titleAlignment: "right" as const, titleColor: ink.nameInk } : {}),
   }
+}
+
+/**
+ * Whether leaf `id` sits on `node`'s start (`end` false) or end edge along a
+ * parent's `orientation` — i.e. borders the `line` divider on that edge.
+ */
+export function leafOnEdge<T>(node: SplitNode<T>, orientation: "row" | "column", end: boolean, id: string): boolean {
+  if (node.kind === "leaf") return node.id === id
+  if (node.orientation !== orientation) return node.children.some((c) => leafOnEdge(c, orientation, end, id))
+  const edge = end ? node.children[node.children.length - 1] : node.children[0]
+  return edge !== undefined && leafOnEdge(edge, orientation, end, id)
 }

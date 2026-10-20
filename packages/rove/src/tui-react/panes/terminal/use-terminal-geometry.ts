@@ -14,7 +14,7 @@
  */
 
 import type { BoxRenderable } from "@opentui/core"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 
 export interface UseTerminalGeometryResult {
@@ -30,29 +30,40 @@ export interface UseTerminalGeometryResult {
 }
 
 export function useTerminalGeometry(): UseTerminalGeometryResult {
-  const [bodyEl, setBodyEl] = useState<BoxRenderable | null>(null)
+  const [bodyEl, setBodyElState] = useState<BoxRenderable | null>(null)
+  const bodyElRef = useRef<BoxRenderable | null>(null)
   const [bodyRows, setBodyRows] = useState(4)
   const [bodyGeometry, setBodyGeometry] = useState<{ cols: number; rows: number } | null>(null)
   const dims = useTerminalSize()
 
+  const setBodyEl = useCallback((el: BoxRenderable | null): void => {
+    bodyElRef.current = el
+    setBodyElState(el)
+  }, [])
+
+  const measure = useCallback((el: BoxRenderable): void => {
+    // Pre-layout the box reports 0 (or junk); pushing a floored size makes the engine redraw tiny.
+    if (el.width <= 0 || el.height <= 0) return
+    const cols = Math.max(20, el.width)
+    const rows = Math.max(4, el.height)
+    setBodyRows(rows)
+    setBodyGeometry((cur) => (cur && cur.cols === cols && cur.rows === rows ? cur : { cols, rows }))
+  }, [])
+
   // Bumped by `onSizeChange`: catches layout changes with no React state (splitter drags).
+  // Measuring here too puts the new size in the same commit as the tick.
   const [geomTick, setGeomTick] = useState(0)
   const bumpGeomTick = useCallback((): void => {
     setGeomTick((n) => (n + 1) & 0xff)
-  }, [])
+    if (bodyElRef.current) measure(bodyElRef.current)
+  }, [measure])
 
   useEffect(() => {
     // Invalidation keys only: geometry is read imperatively off `bodyEl`.
     void dims
     void geomTick
-    if (!bodyEl) return
-    // Pre-layout the box reports 0 (or junk); pushing a floored size makes the engine redraw tiny.
-    if (bodyEl.width <= 0 || bodyEl.height <= 0) return
-    const cols = Math.max(20, bodyEl.width)
-    const rows = Math.max(4, bodyEl.height)
-    setBodyRows(rows)
-    setBodyGeometry((cur) => (cur && cur.cols === cols && cur.rows === rows ? cur : { cols, rows }))
-  }, [bodyEl, dims, geomTick])
+    if (bodyEl) measure(bodyEl)
+  }, [bodyEl, dims, geomTick, measure])
 
   return { bodyEl, setBodyEl, bodyRows, bodyGeometry, bumpGeomTick, dims, geomTick }
 }

@@ -358,6 +358,11 @@ async function main(): Promise<void> {
     await runSkillSubcommand(["print"])
     return
   }
+  if (subcommand === "--web") {
+    const { runWebSubcommand } = await import("./web-cmd.ts")
+    await runWebSubcommand(rest)
+    return
+  }
 
   const handler = subcommand !== undefined ? COMMANDS.get(subcommand) : undefined
   if (handler) {

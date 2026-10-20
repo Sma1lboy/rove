@@ -56,6 +56,8 @@ export type SettingsRow =
   | { id: "key-hints"; kind: "keyHints" }
   | { id: string; kind: "prefixTapPresentation"; presentation: PrefixTapPresentation }
   | { id: "zen-default-on"; kind: "zenDefaultOn" }
+  | { id: "update-channel"; kind: "updateChannel" }
+  | { id: "update-try"; kind: "updateTry" }
   | { id: "editor-kind"; kind: "editorKind" }
   | { id: "editor-custom"; kind: "editorCustom" }
   | { id: "worktree-base"; kind: "worktreeBase" }
@@ -80,6 +82,7 @@ export type SettingsRow =
   | { id: "feedback-send"; kind: "feedbackSend" }
   | { id: "dev-reset"; kind: "devReset" }
   | { id: "dev-restart"; kind: "devRestartDaemon" }
+  | { id: "dev-reload"; kind: "devReloadSettings" }
   | { id: "remote-projects"; kind: "devRemoteProjects" }
   | { id: "auto-status"; kind: "devAutoStatus" }
   | { id: "dispatcher"; kind: "devDispatcher" }
@@ -147,6 +150,8 @@ export function generalRows(): SettingsRow[] {
     { id: "cross-task", kind: "crossTask" },
     { id: "key-hints", kind: "keyHints" },
     { id: "zen-default-on", kind: "zenDefaultOn" },
+    { id: "update-channel", kind: "updateChannel" },
+    { id: "update-try", kind: "updateTry" },
     { id: "editor-kind", kind: "editorKind" },
     { id: "editor-custom", kind: "editorCustom" },
     { id: "worktree-base", kind: "worktreeBase" },
@@ -266,6 +271,7 @@ export function devRows(hasDaemon: boolean): SettingsRow[] {
   return [
     { id: "dev-reset", kind: "devReset" },
     ...(hasDaemon ? [{ id: "dev-restart", kind: "devRestartDaemon" } as const] : []),
+    { id: "dev-reload", kind: "devReloadSettings" },
     { id: "remote-projects", kind: "devRemoteProjects" },
     { id: "auto-status", kind: "devAutoStatus" },
     { id: "dispatcher", kind: "devDispatcher" },

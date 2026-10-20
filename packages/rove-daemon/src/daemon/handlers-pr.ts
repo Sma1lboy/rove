@@ -1,16 +1,17 @@
 /**
  * `pr.*` daemon RPC handlers.
  *
- * One entry today: the on-demand failing-check log read behind the sidebar's
- * "Fix failing checks". Its own module for the same reason as
+ * The on-demand failing-check reads behind the sidebar's "Fix failing checks"
+ * and "Re-run failed checks". Its own module for the same reason as
  * `handlers-worktree.ts` — the registry is grouped by RPC-name prefix — and
- * because the work itself (two `gh` spawns) lives in `pr-failing-checks.ts`,
- * leaving only the task lookup here.
+ * because the work itself (`gh` spawns) lives in `pr-failing-checks.ts` and
+ * `pr-rerun-checks.ts`, leaving only the task lookup here.
  */
 
 import { requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { readFailingChecks } from "./pr-failing-checks.ts"
+import { rerunFailedChecks } from "./pr-rerun-checks.ts"
 
 export const PR_HANDLERS: readonly DaemonRequestHandler[] = [
   {
@@ -24,6 +25,17 @@ export const PR_HANDLERS: readonly DaemonRequestHandler[] = [
       const prNumber = task?.prStatus?.number
       if (!task?.worktreePath || typeof prNumber !== "number") return { checks: [], totalFailing: 0 }
       return await readFailingChecks({ worktreePath: task.worktreePath, prNumber })
+    },
+  },
+  {
+    name: "pr.rerunFailedChecks",
+    blocking: true,
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const task = ctx.orch?.getTask(taskId)
+      const prNumber = task?.prStatus?.number
+      if (!task?.worktreePath || typeof prNumber !== "number") return { rerunRuns: 0, external: 0 }
+      return await rerunFailedChecks({ worktreePath: task.worktreePath, prNumber })
     },
   },
 ]

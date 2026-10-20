@@ -4,12 +4,13 @@
  * the one public import path for the wire protocol.
  */
 
-import { DAEMON_CHANNELS } from "@sma1lboy/rove-plugin-sdk/contract"
+import { DAEMON_CHANNELS, type ModPaneView } from "@sma1lboy/rove-plugin-sdk/contract"
 import type {
   EngineLifecyclePayload,
   GraphicsWritePayload,
   NoticeEventPayload,
   SessionDeliverPayload,
+  TabAddPayload,
   TabClosePayload,
   TabOpenPayload,
   TabRenamePayload,
@@ -31,6 +32,7 @@ export type {
   NoticeEventPayload,
   PaneClosePayload,
   SessionDeliverPayload,
+  TabAddPayload,
   TabClosePayload,
   TabOpenPayload,
   TabRenamePayload,
@@ -216,6 +218,13 @@ export interface ChannelPayloads {
    */
   "tab.rename": TabRenamePayload
   /**
+   * A tab the CLI created headlessly (`rove api tab-new` → `terminalTab.add`
+   * RPC), carrying its persisted row. EVENT channel. The CLI has already
+   * written the snapshot; this stops an attached TUI's stale copy of the
+   * task's tabs from overwriting it, and tells it the tab's real kind.
+   */
+  "tab.add": TabAddPayload
+  /**
    * Low-frequency agent lifecycle (compaction, subagent activity). Excludes
    * the tool family — that volume stays plugin-only via the PluginHost feed.
    * EVENT channel.
@@ -256,6 +265,11 @@ export interface ChannelPayloads {
    * may be attached by several GUIs.
    */
   "graphics.write": GraphicsWritePayload
+  /**
+   * Every open mod pane with its validated element tree (`plugins/mod-host.ts`).
+   * Full list, last-value: a client attaching late draws what is open now.
+   */
+  "mod.ui": { panes: readonly ModPaneView[] }
 }
 
 /** The `ui-prefs` channel payload — the persisted visual prefs snapshot. */

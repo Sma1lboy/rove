@@ -275,7 +275,7 @@ describe("attention rows", () => {
     )
     expect(rows[0]).toMatchObject({ resumeAt: "2026-10-05T15:14:00Z" })
     expect(rows[1]).not.toHaveProperty("resumeAt")
-    expect(rows[2]).toMatchObject({ label: "nightly" })
+    expect(rows[2]).toMatchObject({ label: "nightly", automationId: "r" })
     expect(rows[2]).not.toHaveProperty("resumeAt")
   })
 

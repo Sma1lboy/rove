@@ -1,0 +1,567 @@
+/* Rail page entries and the Kanban / Routines / Issues pages. Tokens from styles.css. */
+
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 0 6px 8px;
+}
+
+.rail-nav-row {
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  text-align: left;
+}
+
+.rail-nav-row:hover {
+  background: var(--inset);
+}
+
+.rail-nav-row.is-active {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+.pg-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pg-top .page-title {
+  margin: 0;
+}
+
+.pg-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.pg-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Kanban */
+
+.kb-page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.kb-project {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.kb-project-name {
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.kb-project-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.kb-empty {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.kb-board {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.kb-single {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kb-strip {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.kb-strip .is-active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.kb-lane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.kb-single .kb-lane {
+  flex: 1;
+}
+
+.kb-lane-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+  font: 700 12px var(--mono);
+  color: var(--muted);
+}
+
+.kb-lane-in_progress .kb-lane-head {
+  color: var(--accent);
+}
+
+.kb-lane-parked .kb-lane-head {
+  color: var(--warning);
+}
+
+.kb-lane-done .kb-lane-head {
+  color: var(--success);
+}
+
+.kb-cards {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kb-cards p {
+  margin: 0;
+  font-size: 11px;
+}
+
+.kb-card {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.kb-card:hover {
+  border-color: var(--line-active);
+}
+
+.kb-card.is-selected {
+  border-color: var(--accent);
+}
+
+.kb-card.is-attention:not(.is-selected) {
+  border-color: var(--warning);
+}
+
+.kb-card.is-done .kb-card-title {
+  color: var(--muted);
+}
+
+.kb-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kb-card-title {
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.kb-card-body {
+  /* Fixed two lines: a stable card whether or not the story has a description. */
+  height: 2.8em;
+  overflow: hidden;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.kb-card-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+
+/* Story drawer */
+
+.dialog.kb-drawer {
+  width: min(680px, calc(100vw - 32px));
+}
+
+.kb-drawer-head {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+}
+
+.kb-label {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.kb-hint {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.kb-body {
+  font-family: var(--mono);
+  min-height: 160px;
+}
+
+.kb-group {
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.kb-group:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.kb-places {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.kb-place {
+  font: 12px var(--mono);
+  color: var(--muted);
+  white-space: pre;
+}
+
+.kb-place.is-active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.kb-legend {
+  font-size: 11px;
+}
+
+.kb-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kb-section p {
+  margin: 0;
+}
+
+.kb-event {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.kb-age {
+  min-width: 4ch;
+  text-align: right;
+}
+
+/* Routines and Issues lists */
+
+.pg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.pg-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.pg-row.is-cursor {
+  border-color: var(--accent);
+  background: var(--inset);
+}
+
+.pg-row .pg-name {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pg-row.is-off .pg-name {
+  color: var(--muted);
+}
+
+.pg-row .pg-grow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pg-detail {
+  display: flex;
+  gap: 24px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.pg-detail > div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pg-detail p,
+.pg-detail h2 {
+  margin: 0;
+}
+
+.pg-prompt {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pg-run {
+  font-size: 12px;
+}
+
+.pg-response {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.pg-notice {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.pg-cron {
+  display: flex;
+  gap: 18px;
+  padding: 6px 4px;
+}
+
+.pg-cron button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 5ch;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font: 13px var(--mono);
+}
+
+.pg-cron button span {
+  font-size: 10px;
+  color: var(--subtle);
+}
+
+.pg-cron button.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.pg-cron:focus {
+  outline: none;
+}
+
+.pg-issue-line {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.pg-issue-line .pg-num {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.pg-issue-sub {
+  display: flex;
+  gap: 10px;
+  padding-left: 4ch;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pg-issue-sub .pg-grow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pg-issue {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+}
+
+.pg-issue.is-cursor {
+  background: var(--inset);
+  border-left-color: var(--accent);
+}
+
+/* Mods: the DOM half of the mod element vocabulary (the TUI half is mods-page.tsx). */
+
+.mods-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mods-empty p {
+  margin: 4px 0;
+}
+
+.mod-pane {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 12px 12px;
+  font-family: var(--mono);
+}
+
+.mod-pane-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.mod-box {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+}
+
+.mod-box.is-framed {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.mod-text {
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mod-text.is-bold {
+  font-weight: 700;
+}
+
+.mod-button {
+  padding: 2px 10px;
+  border: 1px solid currentcolor;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mod-button:hover,
+.mod-button.is-cursor {
+  background: color-mix(in srgb, currentcolor 18%, transparent);
+}
+
+.mod-text.tone-info,
+.mod-button.tone-info {
+  color: var(--info);
+}
+
+.mod-text.tone-success,
+.mod-button.tone-success {
+  color: var(--success);
+}
+
+.mod-text.tone-warning,
+.mod-button.tone-warning {
+  color: var(--warning);
+}
+
+.mod-text.tone-error,
+.mod-button.tone-error {
+  color: var(--error);
+}
+
+.mod-text.tone-muted,
+.mod-button.tone-muted {
+  color: var(--muted);
+}
+
+.mod-field {
+  display: flex;
+  align-self: stretch;
+  min-width: 0;
+  max-width: 40em;
+}
+
+/* Beside other controls a field takes the spare width, as the TUI's does. */
+.mod-box.is-row > .mod-field {
+  flex: 1 1 12em;
+  align-self: center;
+}
+
+.mod-field .input {
+  width: 100%;
+  font-family: var(--mono);
+}

@@ -235,6 +235,23 @@ Activity-state transitions. Keyed per task+tab: the same state twice in a
 row is suppressed. `tabId` is present when the reporting session identifies
 its tab. No detail beyond the envelope.
 
+### `agent.rate-limit-recovered`
+
+The rate limit lifted: the first **completed** turn after the task+tab went
+`rate_limited`. A turn merely starting (the auto-resume prompt, or yours) is
+not recovery, since it can hit the same limit again; the event waits for the
+turn to finish. Fires once per episode, after that turn's
+`agent.turn-complete`.
+
+| detail field | type | meaning |
+|---|---|---|
+| `limitedAt` | ISO string | when the task+tab entered `rate_limited` |
+| `limitedForMs` | number | how long it stayed limited, up to the completed turn |
+
+`quota.exhausted` / `quota.resumed` describe the auto-resume schedule; this
+event is the outcome. A resume whose turn hits the limit again produces no
+recovery.
+
 ### `turn.prompt` · C, X, K, P, O
 
 A user prompt entered the engine (`turn-start`). One per turn.

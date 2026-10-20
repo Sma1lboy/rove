@@ -11,6 +11,7 @@ export const en = {
     kanban: "Kanban",
     automations: "Routines",
     issues: "Issues",
+    mods: "Mods",
   },
   /** Section headers */
   header: {
@@ -27,6 +28,7 @@ export const en = {
     open: "Open",
     openTab: "Open tab",
     closeTab: "Close tab",
+    closeOtherTabs: "Close other tabs",
     newChat: "New conversation",
     newShell: "New shell",
     newTask: "New task",
@@ -49,6 +51,7 @@ export const en = {
     setStatus: "Set status",
     /** Also chord-less: put the row's task id / branch / worktree path on the clipboard. */
     copyId: "Copy task ID",
+    copyTab: "Copy tab address",
     copyBranch: "Copy branch name",
     copyPath: "Copy path",
     /** The `o` / `b` / `v` chords' menu routes. */
@@ -58,6 +61,8 @@ export const en = {
     /** Only while the row's PR checks are red: paste the failing job's log
      *  into this task's engine. */
     fixChecks: "Fix failing checks",
+    /** Also only while red: restart the failed CI jobs, for a flaky failure. */
+    rerunChecks: "Re-run failed checks",
     /** Merge the base INTO this worktree — the `↓N` drift chip's action. */
     syncBase: "Sync with base",
     land: "Land into base branch",
@@ -89,6 +94,13 @@ export const en = {
     conflict: "Merge conflict — resolve then commit: {files}",
     dirty: "Commit the worktree's changes first, then sync: {files}",
     failed: "Sync failed: {error}",
+  },
+  /** Row menu "Re-run failed checks" outcomes. */
+  rerun: {
+    started: "Re-running failed checks",
+    none: "No failed checks to re-run",
+    external: "These checks didn't run on GitHub Actions; re-run them where they ran",
+    refused: "Re-run refused: {detail}",
   },
   /** Change-engine picker dialog (the menu route of `v`). */
   changeEngine: {
@@ -167,6 +179,8 @@ export const en = {
     /** A `dir` task pins the user's own directory; deletion never touches it. */
     deleteBodyDir: "Removes the task entry. The directory itself stays on disk. Its hosted sessions are stopped.",
     deleteBodyTask: "Removes the task entry and its worktree. The git branch stays. Its hosted sessions are stopped.",
+    deleteBodyTaskBranch:
+      "Removes the task entry, its worktree, and its git branch if it is merged. An unmerged branch stays. Its hosted sessions are stopped.",
     deleteConfirm: "delete",
     forceDeleteTitle: '"{title}" has uncommitted changes',
     forceDeleteConfirm: "force delete",
@@ -254,6 +268,7 @@ export const zh: typeof en = {
     kanban: "看板",
     automations: "例行任务",
     issues: "议题",
+    mods: "Mods",
   },
   header: {
     scratch: "临时",
@@ -265,6 +280,7 @@ export const zh: typeof en = {
     open: "打开",
     openTab: "打开该标签页",
     closeTab: "关闭该标签页",
+    closeOtherTabs: "关闭其他标签页",
     newChat: "新建会话",
     newShell: "新建终端",
     newTask: "新建任务",
@@ -279,12 +295,14 @@ export const zh: typeof en = {
     runAgain: "重新运行",
     setStatus: "设置状态",
     copyId: "复制任务 ID",
+    copyTab: "复制标签页地址",
     copyBranch: "复制分支名",
     copyPath: "复制路径",
     openEditor: "在编辑器中打开",
     renameBranch: "重命名分支",
     changeEngine: "切换引擎",
     fixChecks: "修复失败的检查",
+    rerunChecks: "重新运行失败的检查",
     syncBase: "同步基础分支",
     land: "合入基础分支",
     delete: "删除",
@@ -308,6 +326,12 @@ export const zh: typeof en = {
     conflict: "合并冲突——解决后提交：{files}",
     dirty: "请先提交工作树里的改动，再同步：{files}",
     failed: "同步失败：{error}",
+  },
+  rerun: {
+    started: "正在重新运行失败的检查",
+    none: "没有可重新运行的失败检查",
+    external: "这些检查不是在 GitHub Actions 上运行的，请到它们运行的地方重新运行",
+    refused: "无法重新运行：{detail}",
   },
   changeEngine: {
     title: "切换引擎",
@@ -354,6 +378,8 @@ export const zh: typeof en = {
     deleteTitle: "删除「{title}」？",
     deleteBodyDir: "只删除任务条目。目录本身会留在磁盘上。它的托管会话会被停止。",
     deleteBodyTask: "删除任务条目和它的 worktree。git 分支会保留。它的托管会话会被停止。",
+    deleteBodyTaskBranch:
+      "删除任务条目、它的 worktree，以及已合并的 git 分支。未合并的分支会保留。它的托管会话会被停止。",
     deleteConfirm: "删除",
     forceDeleteTitle: "「{title}」有未提交的改动",
     forceDeleteConfirm: "强制删除",

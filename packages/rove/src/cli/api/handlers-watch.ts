@@ -168,6 +168,7 @@ async function watch(ctx: VerbContext): Promise<unknown> {
 export const WATCH_VERB: VerbSpec = {
   name: "watch",
   group: "read",
+  cliOnly: true,
   summary:
     "Block until a watched task's engine reaches one of --until's states, streaming every transition as NDJSON on the way — the push-driven replacement for a `collect` polling loop. Each line is { taskId, tabId?, state, at }; the usual single result object follows when the watch ends. Exits 0 on a match (with `matched`), WATCH_TIMEOUT when --timeout elapses first, DAEMON_GONE when the daemon dies mid-watch (reconnect and re-run — this verb never reconnects on its own). `dead` is watchable and is the one state polling is worst at: a SIGKILLed engine fires no hook, so the daemon writes it from the pty exit record and pushes it here immediately.",
   flags: [
