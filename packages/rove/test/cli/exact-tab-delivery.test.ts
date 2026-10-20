@@ -50,7 +50,7 @@ describe("deliverToExactTab", () => {
     const rpc = {
       request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push(name)
-        if (name === "pty.list") return { sessions } as T
+        if (name === "pty.list") return { sessions, admissionToken: "test" } as T
         if (name === "pty.peek") return engine.peek() as T
         if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
         return {} as T
@@ -62,6 +62,7 @@ describe("deliverToExactTab", () => {
   it("a DIFFERENT vendor's engine in the addressed tab still receives (cross-vendor send)", async () => {
     const { rpc, calls } = rpcWith([session("t1::tab-2", ["codex"])])
     const result = await deliverToExactTab(rpc, "t1", "tab-2", "/wt/t1", "go", {
+      maxLiveEngines: 1,
       engineBin: "claude", // task vendor is claude; tab runs codex
       snapshot: psWith("codex"),
     })
@@ -156,5 +157,25 @@ describe("deliverToExactTab", () => {
       "--source",
       "terminal",
     ])
+  })
+  it("applies the cap to an exact frozen-tab respawn", async () => {
+    const { rpc, calls } = rpcWith([
+      session("other::tab-1", ["claude"]),
+      { ...session("t1::tab-2", ["claude"], false), restored: true },
+    ])
+    await expect(
+      deliverToExactTab(rpc, "t1", "tab-2", "/wt/t1", "go", {
+        respawn: () => null,
+        maxLiveEngines: 1,
+        snapshot: psWith("claude"),
+      }),
+    ).rejects.toMatchObject({
+      code: "ENGINE_LIMIT",
+      data: {
+        nextCommandArgs: ["api", "send", "--task-id", "t1", "--tab", "tab-2", "--respawn", "--plain", "--prompt", "go"],
+      },
+    })
+    expect(calls).not.toContain("pty.openChecked")
+    expect(calls).not.toContain("pty.write")
   })
 })

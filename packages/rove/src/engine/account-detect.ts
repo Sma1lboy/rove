@@ -28,6 +28,7 @@ import { findCodexBinary } from "./codex-local/binary"
 import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS, pluginEngineIds } from "./contrib-engines"
 import { findCopilotBinary } from "./copilot-local/binary"
 import { readTextFileSyncBounded } from "./file-bounds"
+import { isObject } from "./is-object"
 import { findKimiBinary } from "./kimi-local/binary"
 import { findOmpBinary, findPiBinary } from "./pi-local/binary"
 import {
@@ -383,7 +384,7 @@ export async function detectCopilotAccount(
     }
   }
 
-  if (!isRecord(parsed)) return { binary, account: { kind: "none" } }
+  if (!isObject(parsed)) return { binary, account: { kind: "none" } }
   if (
     hasStringDeep(parsed, [
       "github_token",
@@ -421,7 +422,7 @@ export async function detectBobAccount(deps: DetectDeps = defaultDeps): Promise<
   } catch (err) {
     return { binary, account: { kind: "none" }, accountError: `parse ${secretsPath}: ${errorMessage(err)}` }
   }
-  if (!isRecord(parsed)) return { binary, account: { kind: "none" } }
+  if (!isObject(parsed)) return { binary, account: { kind: "none" } }
   const signedIn = Object.entries(parsed).some(
     ([key, value]) => key.startsWith("bob.auth.tokens-") && typeof value === "string" && value.length > 0,
   )
@@ -444,21 +445,17 @@ export async function detectKimiAccount(deps: DetectDeps = defaultDeps): Promise
   } catch (err) {
     return { binary, account: { kind: "none" }, accountError: `parse ${credPath}: ${errorMessage(err)}` }
   }
-  if (!isRecord(parsed)) return { binary, account: { kind: "none" } }
+  if (!isObject(parsed)) return { binary, account: { kind: "none" } }
   const token = parsed.access_token
   if (typeof token === "string" && token.length > 0) return { binary, account: { kind: "oauth" } }
   return { binary, account: { kind: "none" } }
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-}
-
 function hasStringDeep(value: unknown, interestingKeys: readonly string[], depth = 0): boolean {
-  if (depth > 4 || !isRecord(value)) return false
+  if (depth > 4 || !isObject(value)) return false
   for (const [key, entry] of Object.entries(value)) {
     if (interestingKeys.includes(key) && typeof entry === "string" && entry.length > 0) return true
-    if (isRecord(entry) && hasStringDeep(entry, interestingKeys, depth + 1)) return true
+    if (isObject(entry) && hasStringDeep(entry, interestingKeys, depth + 1)) return true
   }
   return false
 }

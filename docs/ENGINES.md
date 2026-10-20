@@ -150,6 +150,10 @@ The same three places select one:
 An engine that declares no model flag (copilot, contrib, custom) refuses a
 model up front (`BAD_MODEL`) instead of dropping it at launch.
 
+A pinned model and effort belong to the engine they were picked for:
+switching a task to another engine without picking new ones clears them, so
+the next session starts on the new engine's defaults.
+
 ### Auto routing
 
 Rather than picking the three fields by hand, a new task can be started at a

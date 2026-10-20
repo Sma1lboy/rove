@@ -39,6 +39,7 @@ import {
   resolveTabStripMode,
 } from "../../../state/tab-strip"
 import { DEFAULT_TASK_COLORS, TASK_COLORS_KEY, type TaskColors, normalizeTaskColors } from "../../../state/task-colors"
+import { UPDATE_CHANNEL_KEY, normalizeReleaseChannel } from "../../../state/update-channel"
 import {
   DEFAULT_WORKING_BORDER,
   WORKING_BORDER_KEY,
@@ -55,7 +56,7 @@ import {
   normalizeWorktreeBase,
   worktreeBaseKindOf,
 } from "../../../state/worktree-base"
-import { ZEN_ACTIVE_KEY } from "../../../state/zen"
+import { ZEN_ACTIVE_KEY, ZEN_DEFAULT } from "../../../state/zen"
 import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
@@ -69,6 +70,7 @@ import {
   type PrefixTapPresentation,
   normalizePrefixTapPresentation,
 } from "../../../tui/lib/prefix-tap-presentation"
+import { type ReleaseChannel, channelOf } from "../../../version"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import {
@@ -130,10 +132,18 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   // Zen: start collapsed to the engine pane. Same key the runtime toggle writes
   // (`state/zen.ts`), so this row also mirrors the current session.
   function zenDefaultOn(): boolean {
-    return kv.get(ZEN_ACTIVE_KEY, false) === true
+    return kv.get(ZEN_ACTIVE_KEY, ZEN_DEFAULT) === true
   }
   function toggleZenDefaultOn(): void {
     kv.set(ZEN_ACTIVE_KEY, !zenDefaultOn())
+  }
+
+  // Update channel (`state/update-channel.ts`): unset reads as the running build's channel.
+  function updateChannel(): ReleaseChannel {
+    return normalizeReleaseChannel(kv.get(UPDATE_CHANNEL_KEY)) ?? channelOf()
+  }
+  function toggleUpdateChannel(): void {
+    kv.set(UPDATE_CHANNEL_KEY, updateChannel() === "nightly" ? "latest" : "nightly")
   }
 
   // Chat tab strip: never / 2+ tabs / always (state/tab-strip.ts); "off" is
@@ -352,6 +362,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     selectSplitStyle,
     zenDefaultOn,
     toggleZenDefaultOn,
+    updateChannel,
+    toggleUpdateChannel,
     railFoldStyle,
     selectRailFoldStyle,
     tabRowHeight,

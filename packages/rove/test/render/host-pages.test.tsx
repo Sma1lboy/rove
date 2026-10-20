@@ -18,6 +18,7 @@ import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
 import type { FocusContextValue } from "../../src/tui-react/context/focus"
 import type { KVContext } from "../../src/tui-react/context/kv"
+import { pageEntries } from "../../src/tui-react/pages/registry"
 import type { DialogContext } from "../../src/tui-react/ui/dialog"
 import {
   type HostPageDeps,
@@ -72,19 +73,15 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
   return {
     orchestrator: fakeOrchestrator(),
     selectedTask: undefined,
+    nav: "terminal",
+    pages: pageEntries(),
     worktreesOpen: false,
-    automationsOpen: false,
-    workItemsOpen: false,
-    kanbanOpen: false,
     updateOpen: false,
     closeWorktrees: () => {},
-    closeAutomations: () => {},
-    closeWorkItems: () => {},
-    closeKanban: () => {},
+    closePage: () => {},
     closeUpdate: () => {},
     activateTask: () => {},
     contentFocused: true,
-    startIssueChat: async () => {},
     engineStates: new Map(),
     ...overrides,
   }
@@ -119,10 +116,10 @@ test("useHostPagesState clears What's New once, and it cannot be reopened", asyn
 })
 
 test.each([
-  ["ROUTINES", { automationsOpen: true, selectedTask: SELECTED_TASK }],
-  ["ISSUES", { workItemsOpen: true, selectedTask: SELECTED_TASK }],
-  ["Kanban", { kanbanOpen: true }],
-] as const)("renderContentPage routes to the open page (%s)", async (title, overrides) => {
+  ["ROUTINES", { nav: "automations", selectedTask: SELECTED_TASK }],
+  ["ISSUES", { nav: "issues.github", selectedTask: SELECTED_TASK }],
+  ["Kanban", { nav: "kanban.board" }],
+] as const)("renderContentPage routes to the page the rail names (%s)", async (title, overrides) => {
   const { frame } = await renderComponent(<box>{renderContentPage(deps(overrides))}</box>, {
     width: 120,
     height: 30,
@@ -162,8 +159,10 @@ function mockKv(): KVContext {
     signal: (name, defaultValue) => [() => defaultValue, () => {}],
     get: () => undefined,
     set: () => {},
+    setQuiet: () => {},
     flush: () => true,
     clear: () => true,
+    reload: () => ({ ok: true, changed: 0 }),
     onWriteError: () => () => {},
   }
 }
@@ -176,18 +175,15 @@ test("useHostPagesState opens and closes rail pages", async () => {
   }
   const { frame } = await renderComponent(<StateHarness />)
   expect(await frame()).toContain("terminal")
-  act(() => pagesRef?.openKanban())
+  act(() => pagesRef?.openPage("kanban.board"))
   await settle()
-  expect(await frame()).toContain("kanban")
-  act(() => pagesRef?.closeKanban())
+  expect(await frame()).toContain("kanban.board")
+  act(() => pagesRef?.closePage())
   await settle()
   expect(await frame()).toContain("terminal")
-  act(() => pagesRef?.openAutomations())
+  act(() => pagesRef?.openPage("automations"))
   await settle()
   expect(await frame()).toContain("automations")
-  act(() => pagesRef?.openWorkItems())
-  await settle()
-  expect(await frame()).toContain("issues")
   act(() => pagesRef?.openWorktrees())
   await settle()
   expect(pagesRef!.worktreesOpen).toBe(true)
@@ -220,7 +216,6 @@ function RenderHarness(props: { width: number; initial?: (pages: HostPagesState)
     activeTaskId: "t1",
     tasks: [SELECTED_TASK],
     engineState: new Map(),
-    startIssueChat: async () => {},
     activateTask: () => {},
   })
 
@@ -247,11 +242,14 @@ test("useHostPagesRender surfaces the settings page", async () => {
 })
 
 test("useHostPagesRender computes narrow layout and recent task", async () => {
-  const { frame } = await renderComponent(<RenderHarness width={40} initial={(pages) => pages.openKanban()} />, {
-    width: 40,
-    height: 24,
-    providers: { dialog: true, kv: true, notifications: true },
-  })
+  const { frame } = await renderComponent(
+    <RenderHarness width={40} initial={(pages) => pages.openPage("kanban.board")} />,
+    {
+      width: 40,
+      height: 24,
+      providers: { dialog: true, kv: true, notifications: true },
+    },
+  )
   await settle()
   const text = await frame()
   // Narrow mode with a content page open shows the sidebar rail only.

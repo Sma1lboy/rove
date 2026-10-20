@@ -40,6 +40,14 @@ reuse their directory and do not own a Rove-created worktree or branch.
   - `src/tui/` — framework-free keymap, state, terminal, file, sidebar, and
     workspace cores.
   - `src/tui-react/` — the only UI implementation: React 19 over opentui.
+    `tui-react/pages/` is the page registry the rail and content pane read,
+    the host API a page receives, and the loader for installed plugins'
+    `[[pages]]`.
+  - `src/bundled-plugins/` — Kanban and Issues, shipped as built-in plugins:
+    page factories that reach Rove only through the host API
+    (`test/architecture/bundled-plugins.test.ts`). The board logic and copy
+    they share with `rove --web` stay in core (`state/issue-board.ts`, the
+    `kanban` / `workItems` catalogs).
 - `packages/rove-daemon/` — Unix-socket daemon protocol/server, standalone
   PTY Host implementation, and the plugin core
   (`src/plugins/`: manifest, registry, event derivation, daemon-side host —
@@ -107,7 +115,11 @@ it.
 4. deliver the prompt and detach the short-lived client.
 
 The PTY Host's key-level `pty.open` idempotence prevents concurrent callers
-from creating duplicate children.
+from creating duplicate children. Capped CLI launches read the opaque
+`admissionToken` from `pty.list`, count running or pending engines, and call
+`pty.openChecked`. The host compares that inventory token and opens synchronously;
+if another caller changed the inventory, the CLI recounts. Older hosts without
+this capability refuse capped launches rather than opening without admission.
 
 ## 5. Ownership boundaries
 

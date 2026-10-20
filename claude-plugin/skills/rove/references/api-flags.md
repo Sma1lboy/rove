@@ -37,7 +37,7 @@ Four flag names that have actually been guessed wrong here, and what they are:
 | `add --vendor` | `add --command` (engine id or full command line) |
 | `read-output --task` | `read-output --task-id` |
 | `dispatch --text` | `dispatch --prompt` (`--text` belongs to `note`) |
-| `issue-list --state` | none — `issue-list` takes only `--repo`; filter the JSON yourself |
+| `issue-list --state` | `issue-list --status` (comma list: `open,doing`) |
 
 `--count`/`--agents` require `--prompt`. `--branch` is single-task only.
 `--tab new` is the only placement that accepts `send --command`.
@@ -123,6 +123,10 @@ pane-open      --task-id --tab --command --direction{right|down}(right)
 pane-close     --task-id --title(REQ) --tab
 pane-graphics  --task-id --tab(REQ) --image-id
 tab-close      --task-id(REQ) --tab(REQ)
+tab-new        --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ) --command
+               --file --pane --tab --view-task
+tab-split      --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
+               --direction{right|down}(right) --leaf --title --cols --rows
 notify         --title(REQ) --body --kind(done) --task-id --source
 prompt         --title(REQ) --placeholder --initial --timeout
 engine-report  --task-id
@@ -223,7 +227,7 @@ adopt               --repo(REQ) --worktree(REQ) --branch --command --title
 
 <!-- generated:begin issues -->
 ```text
-issue-list    --repo(REQ)
+issue-list    --repo(REQ) --status <S1,S2> --search
 issue-create  --repo(REQ) --title(REQ) --body
 issue-update  --repo(REQ) --id(REQ) --title --body --task --status{open|doing|hold|done}
 issue-delete  --repo(REQ) --id(REQ)

@@ -52,6 +52,9 @@ describe("parseUpdateArgs", () => {
     expect(parseUpdateArgs(["--channel", "nightly"]).channel).toBe("nightly")
     expect(parseUpdateArgs(["--channel=nightly"]).channel).toBe("nightly")
     expect(parseUpdateArgs(["latest"]).channel).toBe("latest")
+    expect(parseUpdateArgs(["--nightly"]).channel).toBe("nightly")
+    expect(parseUpdateArgs(["--stable"]).channel).toBe("latest")
+    expect(parseUpdateArgs(["stable"]).channel).toBe("latest")
     // No channel named = stay on whichever one this build came from.
     expect(parseUpdateArgs([]).channel).toBeUndefined()
     expect(parseUpdateArgs(["0.7.90"]).channel).toBeUndefined()
@@ -192,5 +195,50 @@ describe("runUpdateSubcommand", () => {
     })
     expect(err.join("")).toContain(`rove update: failed to run ${updaterShell()}: ENOENT`)
     expect(exits).toEqual([1])
+  })
+})
+
+describe("runUpdateSubcommand channel preference", () => {
+  function run(args: string[], opts: { stored: "latest" | "nightly"; status: number }) {
+    const out: string[] = []
+    const remembered: string[] = []
+    const spawned: string[] = []
+    const done = runUpdateSubcommand(args, {
+      spawn: ((_cmd: string, argv: string[]) => {
+        spawned.push(argv[1] ?? "")
+        return { status: opts.status }
+      }) as never,
+      stdout: { write: (s: string) => out.push(s) > 0 },
+      stderr: { write: () => true },
+      exit: (() => undefined) as never,
+      channel: { get: () => opts.stored, remember: (c) => remembered.push(c) },
+    })
+    return done.then(() => ({ out: out.join(""), remembered, spawned }))
+  }
+
+  it("a bare update installs the channel the user follows, not stable", async () => {
+    const { spawned, remembered } = await run([], { stored: "nightly", status: 0 })
+    expect(spawned).toEqual([`${UPDATE_COMMAND} -s -- nightly`])
+    // Following a channel is not picking one: nothing is rewritten.
+    expect(remembered).toEqual([])
+  })
+
+  it("--nightly is remembered only once the install succeeded", async () => {
+    expect((await run(["--nightly"], { stored: "latest", status: 1 })).remembered).toEqual([])
+    const ok = await run(["--nightly"], { stored: "latest", status: 0 })
+    expect(ok.spawned).toEqual([`${UPDATE_COMMAND} -s -- nightly`])
+    expect(ok.remembered).toEqual(["nightly"])
+  })
+
+  it("--stable from a nightly preference runs the bare script and switches back", async () => {
+    const { spawned, remembered } = await run(["--stable"], { stored: "nightly", status: 0 })
+    expect(spawned).toEqual([UPDATE_COMMAND])
+    expect(remembered).toEqual(["latest"])
+  })
+
+  it("a pinned version leaves the preference alone", async () => {
+    const { spawned, remembered } = await run(["0.7.90"], { stored: "nightly", status: 0 })
+    expect(spawned).toEqual([`${UPDATE_COMMAND} -s -- 0.7.90`])
+    expect(remembered).toEqual([])
   })
 })

@@ -10,6 +10,7 @@
 import { spawnSync } from "node:child_process"
 import { updaterShell, updaterShellFailureHint } from "../lib/updater-shell.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { preferredReleaseChannel, rememberReleaseChannel } from "../state/update-channel.ts"
 import {
   BREAKING_VERSIONS,
   CURRENT_VERSION,
@@ -23,6 +24,7 @@ import {
   checkLatestVersion,
   fetchReleaseSummaries,
   recommendedGlobalInstallCommand,
+  updateCommandFor,
 } from "../version.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
@@ -38,11 +40,13 @@ type RunDeps = {
   stdout: Pick<typeof process.stdout, "write">
   stderr: Pick<typeof process.stderr, "write">
   exit: (code: number) => never
+  /** The stored channel preference (state.json `update.channel`). */
+  channel: { get: () => ReleaseChannel; remember: (channel: ReleaseChannel) => void }
 }
 
 /** `target` (exact version, or channel = npm dist-tag) rides the same `sh -s -- <arg>` slot. */
 export function updatePlan(target?: string): UpdatePlan {
-  const shell = target === undefined ? UPDATE_COMMAND : `${UPDATE_COMMAND} -s -- ${target}`
+  const shell = updateCommandFor(target)
   return {
     // Not bare `sh`: Windows has none on PATH. See lib/updater-shell.ts.
     command: updaterShell(),
@@ -57,7 +61,7 @@ type ParsedArgs = {
   list: boolean
   /** Pinned target version (`rove update 0.7.90`); undefined = channel head. */
   version?: string
-  /** Explicit `--channel`; undefined = stay on this build's channel. */
+  /** Explicit channel (`--nightly`, `--channel x`, bare name); undefined = the stored preference. */
   channel?: ReleaseChannel
 }
 
@@ -65,6 +69,14 @@ const VERSION_SHAPE = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/
 
 function isReleaseChannel(value: string): value is ReleaseChannel {
   return (RELEASE_CHANNELS as readonly string[]).includes(value)
+}
+
+/** Shorthand flags; `stable` is what users call `latest`. */
+const CHANNEL_FLAGS: Readonly<Record<string, ReleaseChannel>> = {
+  "--nightly": "nightly",
+  "--stable": "latest",
+  "--latest": "latest",
+  stable: "latest",
 }
 
 export function parseUpdateArgs(args: readonly string[]): ParsedArgs {
@@ -102,6 +114,11 @@ export function parseUpdateArgs(args: readonly string[]): ParsedArgs {
       channel = value
       continue
     }
+    const flagged = CHANNEL_FLAGS[arg]
+    if (channel === undefined && flagged !== undefined) {
+      channel = flagged
+      continue
+    }
     // A bare channel name is the shorthand: `rove update nightly`.
     if (channel === undefined && isReleaseChannel(arg)) {
       channel = arg
@@ -135,17 +152,19 @@ function printUsage(out: Pick<typeof process.stderr, "write">): void {
       "  dry-run   Print the command without running it",
       "",
       "Flags:",
-      "  --channel <name>   Install from this channel instead of yours. The",
-      "                     bare name works too: `update nightly`",
+      "  --nightly          Install the nightly preview and stay on it",
+      "  --stable           Go back to stable releases and stay there",
+      "  --channel <name>   The same, by channel name. The bare name works",
+      "                     too: `update nightly`",
       "",
       "Channels:",
-      "  latest    Stable releases (default)",
+      "  latest    Stable releases (default; also spelled `stable`)",
       "  nightly   Automated nightly cut from main — newer, less baked",
       "",
-      `You are on: ${channelOf()}`,
+      `Running: ${channelOf()} build. Following: ${preferredReleaseChannel()}`,
       "",
-      "Switching channels is just installing from the other one; there is",
-      "no stored setting. Update checks follow the build you are running.",
+      "A channel you pick is remembered (state.json `update.channel`, also in",
+      "Settings → General), so a bare `update` and the update check follow it.",
       "",
       "Default command:",
       `  ${UPDATE_COMMAND}`,
@@ -159,8 +178,8 @@ function printUsage(out: Pick<typeof process.stderr, "write">): void {
       "Examples:",
       `  ${CLI_NAME} update`,
       `  ${CLI_NAME} update 0.7.90`,
-      `  ${CLI_NAME} update nightly`,
-      `  ${CLI_NAME} update --channel latest`,
+      `  ${CLI_NAME} update --nightly`,
+      `  ${CLI_NAME} update --stable`,
       `  ${CLI_NAME} update list`,
       `  ${CLI_NAME} update dry-run`,
       "",
@@ -172,7 +191,9 @@ function printUsage(out: Pick<typeof process.stderr, "write">): void {
 async function printVersionList(io: RunDeps): Promise<void> {
   const releases = await fetchReleaseSummaries(20)
   if (releases.length === 0) {
-    io.stderr.write(`${CLI_NAME} update: could not fetch the release list (offline or rate-limited)\n`)
+    io.stderr.write(
+      `${CLI_NAME} update: could not fetch the release list (offline or rate-limited). Check your connection, then retry ${CLI_NAME} update list.\n`,
+    )
     io.exit(1)
   }
   for (const release of releases) {
@@ -230,6 +251,7 @@ export async function runUpdateSubcommand(args: readonly string[], deps?: Partia
     stdout: deps?.stdout ?? process.stdout,
     stderr: deps?.stderr ?? process.stderr,
     exit: deps?.exit ?? ((code) => process.exit(code)),
+    channel: deps?.channel ?? { get: () => preferredReleaseChannel(), remember: rememberReleaseChannel },
   }
   const parsed = parseUpdateArgs(args)
   if (parsed.help) {
@@ -247,11 +269,11 @@ export async function runUpdateSubcommand(args: readonly string[], deps?: Partia
     return
   }
 
-  // Pinned version > explicit --channel > this build's channel.
-  const channel = parsed.channel ?? channelOf()
+  // Pinned version > explicit channel > the stored preference.
+  const channel = parsed.channel ?? io.channel.get()
   const target = parsed.version ?? (channel === DEFAULT_RELEASE_CHANNEL ? undefined : channel)
   const plan = updatePlan(target)
-  const switching = parsed.channel !== undefined && parsed.channel !== channelOf()
+  const switching = parsed.version === undefined && channel !== channelOf()
   io.stdout.write(`${CLI_NAME} ${CURRENT_VERSION} -> ${target ?? channel}\n`)
   if (switching) io.stdout.write(`switching channel: ${channelOf()} -> ${channel}\n`)
   io.stdout.write(`running: ${plan.display}\n`)
@@ -266,6 +288,10 @@ export async function runUpdateSubcommand(args: readonly string[], deps?: Partia
     if (hint) io.stderr.write(hint)
     io.exit(1)
   }
-  if (result.status === 0) io.stdout.write(FOLLOW_UP_NOTE)
+  if (result.status === 0) {
+    // Only a successful install of a picked channel moves the preference.
+    if (parsed.channel !== undefined && parsed.version === undefined) io.channel.remember(parsed.channel)
+    io.stdout.write(FOLLOW_UP_NOTE)
+  }
   io.exit(result.status ?? 1)
 }

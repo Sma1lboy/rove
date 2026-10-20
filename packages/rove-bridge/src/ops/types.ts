@@ -19,6 +19,8 @@ export interface BridgeApi {
 
 export interface OpContext {
   readonly api: BridgeApi
+  /** Streams one progress line to the connection that sent this request (`op.progress`); absent when nobody listens. */
+  readonly progress?: (line: string) => void
 }
 
 export interface OpSpec {

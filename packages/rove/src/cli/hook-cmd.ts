@@ -20,7 +20,6 @@ import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { type EngineSessionRef, activityHookAdapters } from "../engine/hook-adapter.ts"
 import type { EngineActivityDetail } from "../engine/hook-events.ts"
 import { isEngineActivityKind } from "../engine/hook-events.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { getPersistedString, setPersistedString } from "../state/repos.ts"
 import { flagValue } from "./argv.ts"
 
@@ -227,23 +226,18 @@ function persistedSyncPath(stored: string | undefined): string | undefined {
  */
 export async function ensureGlobalRoveHooks(opts: { quiet?: boolean } = {}): Promise<void> {
   try {
-    // 0. With the Rove Claude Code plugin enabled, its hooks.json carries the
-    //    Claude hooks, so the Claude settings install is skipped (both would
+    // 1. Activity hooks, into each engine's own settings file — skipped for an
+    //    engine whose hooks another mechanism already carries (both would
     //    double-fire). Legacy installs are only reported, never removed — that's
     //    `rove hook cleanup`. Caveat: tool.* hooks are settings-managed only, so
     //    a plugin subscribing tool.* events still needs the settings install.
-    const { isRovePluginEnabled, detectLegacyInstalls, migrationHint } = await import(
-      "../engine/claude-code-local/plugin-migration.ts"
-    )
-    const pluginMode = isRovePluginEnabled()
-    if (pluginMode) {
-      const hint = migrationHint(detectLegacyInstalls(), ROVE_PRODUCT_NAME)
-      if (hint) process.stderr.write(`\n${hint}\n`)
-    }
-    // 1. Activity hooks, into each engine's own settings file.
     const toolEvents = pluginsWantToolEvents()
     for (const a of activityHookAdapters()) {
-      if (pluginMode && a.vendor === "claude") continue
+      const external = await a.externallyManagedHooks?.()
+      if (external) {
+        if (external.notice) process.stderr.write(`\n${external.notice}\n`)
+        continue
+      }
       const enginePath = a.globalSettingsPath()
       if (!enginePath) continue
       await a.installActivityHooks(enginePath, { toolEvents, quiet: opts.quiet })

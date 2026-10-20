@@ -13,14 +13,6 @@ export type WorkspacePageState = {
   settingsOpen: boolean
   worktreesOpen: boolean
   updateOpen: boolean
-  /**
-   * Rail pages, NOT part of {@link workspacePagesClosed}: they replace only the
-   * content pane, so sidebar chords (including the prefix, to switch rail pages
-   * without esc) stay live.
-   */
-  kanbanOpen: boolean
-  automationsOpen: boolean
-  workItemsOpen: boolean
 }
 
 /**
@@ -29,7 +21,8 @@ export type WorkspacePageState = {
  */
 export function workspacePagesClosed(s: WorkspacePageState): boolean {
   // Only full-window surfaces gate: they cover the sidebar, so a sidebar chord
-  // would act on something unseen.
+  // would act on something unseen. Rail pages replace only the content pane,
+  // so sidebar chords (the prefix included, to hop between pages) stay live.
   return !s.dialogOpen && !s.settingsOpen && !s.worktreesOpen && !s.updateOpen
 }
 

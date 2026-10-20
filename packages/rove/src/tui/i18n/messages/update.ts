@@ -15,20 +15,21 @@ export const en = {
   /** The registry check failed (offline, npm down, timeout). Must stay
    *  distinct from "you are up to date". */
   latestUnknown: "unknown — could not reach the registry",
+  registryRetry: "Check your connection, then close and reopen Update to retry.",
   /** The registry answered and nothing is newer. Distinct from
    *  `latestUnknown`: this one is a checked fact, not a failed lookup. Worded
    *  for BOTH cases it covers — the installed build can equal the published
    *  release or be ahead of it (a local build, a lagging dist-tag). */
   upToDate: "No newer release — nothing to install.",
-  releaseUrlUnavailable: "release URL unavailable",
+  releaseUrlUnavailable: "release URL unavailable; visit github.com/Sma1lboy/rove/releases",
   statusReleaseOpened: "Opened release page in your browser.",
-  statusReleaseError: "Could not open release URL.",
+  statusReleaseError: "Could not open release URL. Visit github.com/Sma1lboy/rove/releases in your browser.",
   statusRunningUpdater: "Closing the TUI and running the updater in this terminal...",
   loadingNotes: "Loading release notes...",
   notesUnavailable: "Release notes are unavailable. Use Open release to view the GitHub release page.",
   changesSectionHeader: "── changes from v{from} to v{to} ──",
   updateComplete: "Rove update complete. Relaunch Rove to use the new version.",
-  updateFailed: "Rove update failed with exit code {code}.",
+  updateFailed: "Rove update failed with exit code {code}. Check the output above, then run `rove update` to retry.",
   pressAnyKey: "Press any key to close this update window.",
   actions: {
     updateNow: "Update now",
@@ -82,7 +83,7 @@ export const en = {
   versions: {
     pageTitle: "ROVE VERSIONS",
     loading: "Loading releases...",
-    unavailable: "Could not fetch releases (offline or rate-limited).",
+    unavailable: "Could not fetch releases. Check your connection or wait for the rate limit, then reopen this page.",
     tagCurrent: "current",
     tagLatest: "latest",
     tagBreaking: "breaking",
@@ -103,16 +104,17 @@ export const zh: typeof en = {
   current: "当前",
   latest: "最新",
   latestUnknown: "未知 —— 无法连接到 registry",
+  registryRetry: "请检查网络，然后关闭并重新打开更新页重试。",
   upToDate: "没有更新的版本 —— 无需安装。",
-  releaseUrlUnavailable: "发布链接不可用",
+  releaseUrlUnavailable: "发布链接不可用；请访问 github.com/Sma1lboy/rove/releases",
   statusReleaseOpened: "已在浏览器中打开发布说明页面。",
-  statusReleaseError: "无法打开发布链接。",
+  statusReleaseError: "无法打开发布链接。请在浏览器访问 github.com/Sma1lboy/rove/releases。",
   statusRunningUpdater: "正在关闭 TUI，并在当前终端中运行更新程序……",
   loadingNotes: "正在加载发布说明……",
   notesUnavailable: "发布说明不可用。请使用「打开发布页」查看 GitHub 发布页面。",
   changesSectionHeader: "── v{from} 至 v{to} 的变更 ──",
   updateComplete: "Rove 更新完成。请重新启动 Rove 以使用新版本。",
-  updateFailed: "Rove 更新失败，退出码为 {code}。",
+  updateFailed: "Rove 更新失败，退出码为 {code}。请检查上方输出，再运行 `rove update` 重试。",
   pressAnyKey: "按任意键关闭此更新窗口。",
   actions: {
     updateNow: "立即更新",
@@ -150,7 +152,7 @@ export const zh: typeof en = {
   versions: {
     pageTitle: "ROVE 版本列表",
     loading: "正在加载发布列表……",
-    unavailable: "无法获取发布列表（离线或触发限流）。",
+    unavailable: "无法获取发布列表。请检查网络或等待限流解除，然后重新打开本页。",
     tagCurrent: "当前",
     tagLatest: "最新",
     tagBreaking: "breaking",

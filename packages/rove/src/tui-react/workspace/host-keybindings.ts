@@ -7,11 +7,13 @@
 import { useRenderer } from "@opentui/react"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { redrawScreen } from "../../tui/lib/screen-refresh"
+import { CommandPalette } from "../component/command-palette"
 import { HelpDialog } from "../component/help-dialog"
 import type { FocusContextValue, PaneId } from "../context/focus"
 import { bindByIds } from "../context/keybindings"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import type { HostPagesState } from "./host-pages"
@@ -62,6 +64,7 @@ export type WorkspaceKeybindingDeps = {
 }
 
 export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
+  const pageEntries = usePageEntries()
   const { focus, dialog } = deps
   const t = useT()
   const renderer = useRenderer()
@@ -101,9 +104,6 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     settingsOpen: deps.pages.settingsOpen,
     worktreesOpen: deps.pages.worktreesOpen,
     updateOpen: deps.pages.updateOpen,
-    kanbanOpen: deps.pages.kanbanOpen,
-    automationsOpen: deps.pages.automationsOpen,
-    workItemsOpen: deps.pages.workItemsOpen,
   }
   const pagesClosed = workspacePagesClosed(pages)
 
@@ -111,17 +111,21 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     enabled: pagesClosed,
     bindings: [
       ...bindByIds({
-        "help.open": () => HelpDialog.show(dialog, focus.focused),
+        "help.open": prefixAction(() => HelpDialog.show(dialog, focus.focused)),
+        "palette.open": prefixAction(() => CommandPalette.show(dialog)),
         "focus.previous": prefixAction(() => cyclePane(-1)),
         // f4: reserved from terminal passthrough.
         "focus.next": prefixAction(() => cyclePane(1)),
         "workspace.zenToggle": prefixAction(() => deps.toggleZen()),
         // f7: reserved from terminal passthrough too.
-        "attention.next": () => deps.jumpToNextAttention(),
+        "attention.next": prefixAction(() => deps.jumpToNextAttention()),
         "inbox.show": prefixAction(() => deps.openInbox()),
-        "kanban.open": prefixAction(() => deps.pages.openKanban()),
-        "automations.open": prefixAction(() => deps.pages.openAutomations()),
-        "workItems.open": prefixAction(() => deps.pages.openWorkItems()),
+        // A page-open chord exists only while a registered page claims it.
+        ...Object.fromEntries(
+          pageEntries.flatMap((page) =>
+            page.action ? [[page.action, prefixAction(() => deps.pages.openPage(page.id))]] : [],
+          ),
+        ),
         "task.moveMode": prefixAction(() => deps.enterMoveMode()),
         // prefix+,: the global companion to the sidebar's bare `s`.
         "settings.open": prefixAction(() => deps.pages.openSettings()),
@@ -153,11 +157,11 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
   // New task: everywhere but a dialog, Settings, or the sidebar search box.
   useBindings(() => ({
     enabled: !pages.dialogOpen && !pages.settingsOpen && !deps.searchActive,
-    bindings: bindByIds({ "task.new.global": () => deps.createTask() }),
+    bindings: bindByIds({ "task.new.global": prefixAction(() => deps.createTask()) }),
   }))
   useBindings(() => ({
     enabled: pagesClosed && focus.focused !== "sidebar",
-    bindings: bindByIds({ "focus.sidebar": () => focus.setFocused("sidebar") }),
+    bindings: bindByIds({ "focus.sidebar": prefixAction(() => focus.setFocused("sidebar")) }),
   }))
   // PROPOSED prefix+r: redraw and refresh share the stroke with complementary
   // gates, so exactly ONE is registered (no shadowed-chord warning).
@@ -190,9 +194,9 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         }
         void quit()
       },
-      "settings.open.sidebar": () => deps.pages.openSettings(),
-      "worktrees.open.sidebar": () => deps.pages.openWorktrees(),
-      "tasks.update": () => deps.pages.openUpdate(),
+      "settings.open.sidebar": prefixAction(() => deps.pages.openSettings()),
+      "worktrees.open.sidebar": prefixAction(() => deps.pages.openWorktrees()),
+      "tasks.update": prefixAction(() => deps.pages.openUpdate()),
     }),
   }))
   // n/b/v: gated on sidebar focus, no dialog, search inactive. They act on
@@ -200,7 +204,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
   useBindings(() => ({
     enabled: pagesClosed && focus.focused === "sidebar" && !deps.searchActive,
     bindings: bindByIds({
-      "task.new": () => deps.createTask(),
+      "task.new": prefixAction(() => deps.createTask()),
       "tasks.openWorktree": () => {
         const id = deps.cursorTaskId()
         if (id) deps.openTaskWorktree(id)
@@ -214,8 +218,8 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         if (id) deps.cycleVendor(id)
       },
       // Right arrow: focus the workspace terminal.
-      "tasks.focusEngine": () => focus.setFocused("workspace"),
-      "sidebar.sort": () => deps.toggleSortMode(),
+      "tasks.focusEngine": prefixAction(() => focus.setFocused("workspace")),
+      "sidebar.sort": prefixAction(() => deps.toggleSortMode()),
     }),
   }))
   // Settings page close keys; gated on an empty dialog stack so a sub-dialog keeps esc.

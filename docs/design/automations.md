@@ -121,7 +121,8 @@ bans native addons. Two functions, and the second is the interesting one:
   which is the question missed-run compensation actually asks
 
 Day matching follows the Vixie rule: with BOTH day-of-month and weekday
-restricted they are OR'd (`0 0 1 * MON` = the 1st **or** any Monday).
+restricted they are OR'd (`0 0 1 * MON` = the 1st **or** any Monday); a field starting
+with `*`, steps included, is unrestricted and ANDs with the other.
 
 ### Missed runs
 

@@ -74,7 +74,9 @@ export async function fetchMarketplace(query?: string): Promise<MarketplaceResul
 export async function searchMarketplace(query: string | undefined): Promise<void> {
   const { entries, offline } = await fetchMarketplace(query)
   if (offline) {
-    console.error("(GitHub search unreachable — showing first-party plugins only)")
+    console.error(
+      "(GitHub search unreachable — showing first-party plugins only. Check your connection, then retry rove plugin search.)",
+    )
   }
   if (entries.length === 0) {
     console.log(query ? `no plugins match \`${query}\`` : "no plugins found")

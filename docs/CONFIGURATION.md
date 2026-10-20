@@ -72,7 +72,14 @@ rove uses your configured editor (`editor.kind` below) unless it is `auto`
 (the default), which honors `$VISUAL` / `$EDITOR`, then the first installed
 of nvim, vim, emacs, nano.
 
-Restart Rove to apply a hand edit everywhere.
+To apply a hand edit without restarting, open Settings → Dev and choose
+**Reload settings**. It re-reads `state.json` into the running window and says
+how many settings changed. If the file isn't valid JSON, nothing changes and the
+file stays put so you can finish the edit. Pending local edits stay in memory;
+background and exit flushes leave the invalid file untouched. After repairing
+the file, reload again to save those pending edits. A few settings are read only at
+startup and still need a restart; other open windows keep their old
+values until they reload or restart.
 
 **Hand-editing is safe.** Unknown keys are ignored and bad values fall back to
 defaults, so a typo can't wedge the app; worst case a preference resets. If
@@ -117,7 +124,7 @@ files; it does not show your sessions.
 | `themeMode` | `dark` \| `light` \| `auto` | `"dark"` | Which half of a theme's `{ dark, light }` colors Rove draws. `auto` asks the terminal for its background (OSC 11) and switches when the terminal reports an appearance change, so a terminal that follows the OS light/dark setting takes Rove with it. A terminal that never answers leaves `auto` on dark. A theme without light colors looks the same in both modes |
 | `transparentBackground` | boolean | `true`, `false` on Windows | Let the terminal background show through. In transparent mode Rove detects the terminal's actual background (OSC 11) and adjusts body, muted, and host-backed warning text to stay readable on it. Warning text on opaque dialogs and controls keeps the theme color. No setting is needed. Windows starts opaque because Windows Terminal ships acrylic and background images on by default, and a transparent Rove has no opaque surface to scrub stale glyphs against — set it to `true` to turn transparency on there, and a value you have already chosen is never overwritten |
 | `focusAccent` | `primary` \| `success` \| `info` | `primary` | Color of the focused-pane indicator |
-| `appearance.splitStyle` | `box` \| `line` \| `rail` \| `rule` | `box` | `box` frames each split; `line` is the minimal tmux-style look; `rail` marks each split with a left accent bar; `rule` draws a top rule over each split with its name at the right end. The focused split's edge takes the focus accent |
+| `appearance.splitStyle` | `box` \| `line` \| `rail` \| `rule` | `line` | `line` draws one divider between splits (tmux-style), lit when the focused split touches it; `box` frames each split; `rail` marks each split with a left accent bar; `rule` draws a top rule over each split with its name at the right end. The focused split's edge takes the focus accent |
 | `sidebar.tabRowHeight` | `1` \| `2` | `1` | `2` gives each agent tab a second line naming the running engine and, when the task pins a reasoning level that engine declares, the level behind a fill glyph that runs `○` (lowest) to `◉` (highest) along the engine's own level list |
 | `appearance.workingBorder` | `flow` \| `still` | `flow` | While the selected task's engine is running, `flow` runs a colour gradient around the workspace pane's border (derived from the theme accent) and names the task on its top edge; `still` keeps the plain focus border |
 | `appearance.taskColors` | `on` \| `off` | `on` | `on` gives every task its own hue, picked from the task id so it stays the same across restarts: the flowing working border runs in the selected task's hue, and each task's sidebar rows carry a one-cell mark in it. The hue takes its lightness and strength from the theme accent and keeps away from the success, warning and error hues. `off` uses the theme accent everywhere |
@@ -165,6 +172,7 @@ it off, `r` is the only thing that repopulates the list.
 | `engineName.<id>` | string | built-in | Display name |
 | `customEngineIds` | string[] | `[]` | Your own engines; see [Custom engines](#custom-engines) |
 | `engineProtocol.<id>` | built-in engine id | unset | Adapter a custom engine borrows; see [Custom engines](#custom-engines) |
+| `engine.maxLiveSessions` | positive integer | unset | Most engine sessions `rove api` runs at once, counted across all tasks. A `rove api add`/`send` that would start one more is refused with `ENGINE_LIMIT`; sends into running engines are not limited. Admission is atomic across CLI processes and includes exact-tab respawns. Pending launches and failed process probes retain slots; exited engines release them even if their shells stay open. Unset, `0`, or anything else means no cap |
 | `lastActiveVendor.<repo>` | engine id | unset | Per-project last used; outranks `defaultVendor`. Written by Rove |
 | `autoRouting.<tier>.engine` | engine id | `claude` for all three | What the `swift` / `standard` / `deep` depth launches. Set from Settings → Auto routing; an empty string switches auto routing off (no tier is guessed) |
 | `autoRouting.<tier>.model` | string | `sonnet` / `opus` / `fable` | Model for that depth, in the engine's own spelling; empty = the engine's default |
@@ -329,11 +337,21 @@ engine or shell in the workspace remains visible. Toggle with `ctrl+a` `z`.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
-| `zen.active` | boolean | `false` | On/off. Persisted, so switching projects keeps you in zen |
+| `zen.active` | boolean | `true` | On/off. Persisted, so switching projects keeps you in zen. On by default: the Files pane is opt-in — turn off Settings → "Start in zen mode" (or `prefix` `z`) to show it |
 
 Zen always keeps the Tasks rail visible, because the rail also contains the
 exit affordance. A `zen.keepTasks` value left in your `state.json` by an older
 Rove is ignored; nothing reads or writes it any more.
+
+### Update channel
+
+Which release line `rove update` and the update check follow. Set it with
+`rove update --nightly` / `--stable` or Settings → General → Updates, whose
+button also installs the other channel's newest build right away.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `update.channel` | `latest` \| `nightly` | the running build's channel | `latest` is stable releases; `nightly` is the daily preview built from `main`. Written after an install of that channel succeeds |
 
 ### Worktree location
 
@@ -344,6 +362,7 @@ By default new worktrees land under `~/.rove/worktrees/<repo-key>/<slug>`.
 | `worktree.basePath` | string | `~/.rove/worktrees` | Where new worktrees go |
 | `worktree.basePath.custom` | string | unset | Remembers your last custom path in the TUI |
 | `worktree.cloneIgnored` | boolean | `true` | Clone ignored directories into new worktrees; see [below](#cloned-ignored-directories) |
+| `worktree.deleteBranch` | boolean | `false` | Deleting a task from the TUI also deletes its local git branch, by `git branch -d` rules, so an unmerged branch stays, and so does the branch of a force-deleted dirty worktree. Remote branches are never touched. No restart needed |
 
 `worktree.basePath` takes an absolute path, or one starting with the
 `$project_dir` token, which expands to each task's project root, so one setting
@@ -409,6 +428,16 @@ Projects keep their own order in every mode. The choice is saved as
 recognise reads as the persisted order. Older state files may contain
 `tasksPane.projectFilter`; the daemon still mirrors that compatibility value
 for background consumers, but the current PureTUI tree does not consume it.
+
+### Built-in plugins
+
+Kanban and Issues ship as built-in plugins, both on by default. Turn one off
+in Settings → Plugins and its rail row and its `ctrl+a` chord go away.
+
+| Key | Type | Default | What |
+|---|---|---|---|
+| `plugins.bundled.kanban.enabled` | boolean | `true` | The Kanban board (`ctrl+a` `1`) |
+| `plugins.bundled.issues.enabled` | boolean | `true` | The GitHub Issues page (`ctrl+a` `3`) |
 
 ### Machines
 

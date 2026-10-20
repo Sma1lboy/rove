@@ -66,6 +66,14 @@ export type RoveBinding = {
 
 /** The full keymap. Order within a category is the help-dialog order. */
 export const RoveKeymap: readonly RoveBinding[] = [
+  {
+    id: "palette.open",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["/"],
+    category: "Global",
+    description: "Search commands",
+  },
   // ─── Global ───────────────────────────────────────────────────────────
   {
     id: "help.open",

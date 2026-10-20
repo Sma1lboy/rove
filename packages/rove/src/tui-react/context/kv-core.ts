@@ -3,7 +3,7 @@
  *
  *   - Hydrates synchronously from `state.json` at creation, so the first
  *     render has persisted values. Snapshot-only: another process's later
- *     writes are not seen until restart.
+ *     writes and hand edits are not seen until `reload()` or restart.
  *   - Writes are debounced (250ms) and dirty-key merged via `patchStateFile`:
  *     only keys this process changed reach disk, so a concurrent process's
  *     writes are never clobbered. Dirty keys survive a failed flush.
@@ -13,7 +13,7 @@
 
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
-import { loadStateFile, patchStateFile, replaceStateFile } from "../../state/store.ts"
+import { loadStateFile, patchStateFile, readStateFileStrict, replaceStateFile } from "../../state/store.ts"
 
 const WRITE_DEBOUNCE_MS = 250
 
@@ -28,6 +28,11 @@ export interface KvWriteFailure {
 
 export type KvWriteErrorListener = (failure: KvWriteFailure) => void
 
+/** `changed` counts keys whose value differs from the snapshot before the reload. */
+export type KvReloadResult =
+  | { readonly ok: true; readonly changed: number }
+  | { readonly ok: false; readonly error: unknown }
+
 export interface KvCore {
   /** Current in-memory snapshot (immutable per change; React-safe). */
   snapshot(): Record<string, unknown>
@@ -36,6 +41,11 @@ export interface KvCore {
   get(key: string, defaultValue?: unknown): unknown
   /** Set + mark dirty + schedule the debounced disk flush. */
   set(key: string, value: unknown): void
+  /**
+   * `set` without a new snapshot: `get` and disk see it, subscribers don't
+   * re-render. For write-often keys no render reads (the inbox visit log).
+   */
+  setQuiet(key: string, value: unknown): void
   /**
    * In-memory default seeding (the `signal(name, default)` contract): sets
    * the key ONLY when currently undefined, and never marks it dirty — a
@@ -46,6 +56,13 @@ export interface KvCore {
   flush(): boolean
   /** Wipe every persisted key; false preserves the snapshot and pending edits. */
   clear(): boolean
+  /**
+   * Re-read `state.json` into the snapshot. Pending keys flush first; any that
+   * still can't reach disk keep their local value. An unreadable or invalid
+   * file changes nothing and is left in place. Flushes retain pending keys
+   * until the file is repaired.
+   */
+  reload(): KvReloadResult
   /**
    * Subscribe to flushes that did not reach disk. The debounced write is
    * fire-and-forget and `set()` already updated the snapshot, so without this
@@ -60,6 +77,10 @@ export function createKvCore(): KvCore {
 
   /** Keys this process has `set()` since the last successful flush. */
   const dirtyKeys = new Set<string>()
+  /** `setQuiet` values, read over the snapshot until the next `set` of the key. */
+  const quiet = new Map<string, unknown>()
+  /** `seed()` defaults, restored by `reload()` for keys the file doesn't carry. */
+  const seeded = new Map<string, unknown>()
   let writeTimer: ReturnType<typeof setTimeout> | null = null
   const errorListeners = new Set<KvWriteErrorListener>()
   /**
@@ -82,8 +103,8 @@ export function createKvCore(): KvCore {
       // A key set to `undefined` locally becomes a deletion on disk.
       const patch: Record<string, unknown> = {}
       const snap = store.get()
-      for (const key of dirtyKeys) patch[key] = snap[key]
-      patchStateFile(patch)
+      for (const key of dirtyKeys) patch[key] = quiet.has(key) ? quiet.get(key) : snap[key]
+      patchStateFile(patch, "strict")
       dirtyKeys.clear()
       reportedKeys.clear()
       return true
@@ -114,9 +135,10 @@ export function createKvCore(): KvCore {
     snapshot: store.get,
     subscribe: store.subscribe,
     get(key, defaultValue) {
-      return store.get()[key] ?? defaultValue
+      return (quiet.has(key) ? quiet.get(key) : store.get()[key]) ?? defaultValue
     },
     set(key, value) {
+      quiet.delete(key)
       // `undefined` DELETES the key, matching disk. An enumerable `undefined`
       // makes `sweepOrphanTabsSnapshots` (walks `Object.keys`, re-runs on
       // every kv identity change) loop setState forever (React #185).
@@ -130,8 +152,14 @@ export function createKvCore(): KvCore {
       dirtyKeys.add(key)
       scheduleWrite()
     },
+    setQuiet(key, value) {
+      quiet.set(key, value)
+      dirtyKeys.add(key)
+      scheduleWrite()
+    },
     seed(key, value) {
-      if (store.get()[key] !== undefined) return
+      if (!seeded.has(key)) seeded.set(key, value)
+      if (quiet.has(key) || store.get()[key] !== undefined) return
       store.update((s) => ({ ...s, [key]: value }))
     },
     flush() {
@@ -148,8 +176,36 @@ export function createKvCore(): KvCore {
       cancelTimer()
       dirtyKeys.clear()
       reportedKeys.clear()
+      quiet.clear()
       store.set({})
       return true
+    },
+    reload() {
+      try {
+        // Validate before flushing: a flush through a corrupt file would
+        // move the user's half-finished edit aside.
+        readStateFileStrict()
+        cancelTimer()
+        writeNow("reload flush")
+        const fresh = readStateFileStrict()
+        const before = store.get()
+        const next: Record<string, unknown> = { ...fresh }
+        for (const [key, value] of seeded) if (next[key] === undefined) next[key] = value
+        for (const key of dirtyKeys) {
+          if (before[key] === undefined) delete next[key]
+          else next[key] = before[key]
+        }
+        for (const key of [...quiet.keys()]) if (!dirtyKeys.has(key)) quiet.delete(key)
+        if (dirtyKeys.size > 0) scheduleWrite()
+        let changed = 0
+        for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
+          if (JSON.stringify(before[key]) !== JSON.stringify(next[key])) changed++
+        }
+        if (changed > 0) store.set(next)
+        return { ok: true, changed }
+      } catch (error) {
+        return { ok: false, error }
+      }
     },
     onWriteError(listener) {
       errorListeners.add(listener)

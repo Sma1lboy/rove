@@ -81,8 +81,12 @@ function stubKv(): KVContext {
     set: (key: string, value: unknown) => {
       store[key] = value
     },
+    setQuiet: (key: string, value: unknown) => {
+      store[key] = value
+    },
     flush: () => true,
     clear: () => true,
+    reload: () => ({ ok: true, changed: 0 }),
     onWriteError: () => () => {},
   }
 }

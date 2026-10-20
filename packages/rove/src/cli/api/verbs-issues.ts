@@ -7,19 +7,50 @@
  * schema/help/validation see one canonical list.
  */
 
-import { ISSUE_STATUSES } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import { ISSUE_STATUSES, type RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { F } from "./flags.ts"
-import { simpleRpc } from "./handler-helpers.ts"
+import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { issueUpdate } from "./handlers-tasks.ts"
-import type { VerbSpec } from "./types.ts"
+import { csvOf } from "./list-filter.ts"
+import type { VerbContext, VerbSpec } from "./types.ts"
+
+/** Filters AND together; with none passed the daemon's response is returned untouched. */
+async function issueList(ctx: VerbContext): Promise<unknown> {
+  const repoRoot = ctx.args.requireRepo("repo")
+  const statuses = csvOf(ctx, "status", ISSUE_STATUSES, "issue-list")
+  const needle = ctx.args.str("search")?.trim().toLowerCase()
+  if (!statuses && !needle) return simpleRpc(ctx, "issue.list", { repoRoot })
+  const state = await daemonOf(ctx).request<RepoIssues>("issue.list", { repoRoot })
+  const issues = state.issues.filter(
+    (i) =>
+      (!statuses || statuses.has(i.status)) &&
+      (!needle || i.title.toLowerCase().includes(needle) || i.body.toLowerCase().includes(needle)),
+  )
+  return { ...state, issues }
+}
 
 export const ISSUE_VERBS: readonly VerbSpec[] = [
   {
     name: "issue-list",
     group: "issues",
-    summary: "List daemon-owned issues for a repo.",
-    flags: [F.repo()],
-    handler: (ctx) => simpleRpc(ctx, "issue.list", { repoRoot: ctx.args.requireRepo("repo") }),
+    summary:
+      "List daemon-owned issues for a repo. --status and --search AND together; `nextId` and `skipped` still describe the whole board.",
+    flags: [
+      F.repo(),
+      {
+        name: "status",
+        type: "csv",
+        placeholder: "S1,S2",
+        description: `Only issues in these statuses (${ISSUE_STATUSES.join(", ")}).`,
+      },
+      {
+        name: "search",
+        type: "string",
+        placeholder: "Q",
+        description: "Only issues whose title or body contains Q (case-insensitive).",
+      },
+    ],
+    handler: issueList,
   },
   {
     name: "issue-create",

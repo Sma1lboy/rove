@@ -12,11 +12,8 @@
 
 import type { AgentTurn } from "../agent-turn.ts"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds.ts"
+import { isObject } from "../is-object"
 import { isSyntheticClaudeRecord } from "./synthetic.ts"
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-}
 
 /** A human prompt: non-empty string content, or not purely `tool_result` blocks. */
 function opensTurn(content: unknown): boolean {

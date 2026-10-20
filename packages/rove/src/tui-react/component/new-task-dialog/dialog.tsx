@@ -15,6 +15,7 @@ import { useDialogPaddingX } from "../../ui/dialog"
 import { DialogBody } from "../../ui/dialog-body"
 import { ChipRow, DialogActions, DialogFooter, DialogHeader, DialogSection } from "../../ui/dialog-parts"
 import { EngineHookReadiness } from "../engine-hook-readiness"
+import { FailureHint } from "../failure-hint"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
 import { ExistingTab } from "./tab-existing"
@@ -89,9 +90,12 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
         {vm.tab === "adopt" ? <AdoptTab vm={vm} /> : null}
       </DialogBody>
       {vm.submitError ? (
-        <text fg={theme.error} wrapMode="word" flexShrink={0}>
-          ※ {vm.submitError}
-        </text>
+        <box>
+          <text fg={theme.error} wrapMode="word" flexShrink={0}>
+            ※ {vm.submitError}
+          </text>
+          <FailureHint hint={t("newTask.retryHint")} />
+        </box>
       ) : null}
       {/* Enter's caption follows the focused stop: it commits only on Create
           and walks the form at the other four, so a static "enter create" was

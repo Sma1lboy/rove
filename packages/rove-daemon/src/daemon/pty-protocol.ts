@@ -61,6 +61,9 @@ export interface PtyOpenResult {
   readonly sinceValid?: boolean
 }
 
+/** `pty.openChecked` either opens against the counted inventory or asks for a recount. */
+export type PtyCheckedOpenResult = { kind: "changed" } | { kind: "opened"; open: PtyOpenResult }
+
 /** `pty.peek` response — read-only ring snapshot; never attaches, spawns or
  *  resizes, so safe for observation (`rove api read-output` fallback). */
 export interface PtyPeekResult {

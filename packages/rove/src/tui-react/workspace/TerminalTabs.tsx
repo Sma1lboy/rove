@@ -62,6 +62,7 @@ import { PreviewScreen } from "../ops/preview"
 import { useDialog } from "../ui/dialog"
 import { TerminalSplit } from "./TerminalSplit"
 import { noteEngineTabInput } from "./optimistic-activity"
+import { showSharedFilesHint } from "./shared-files-hint"
 import { TabStrip } from "./tab-strip"
 import { terminalTabsKey } from "./terminal-tabs-persist"
 import { engineScratchTasks, reportTabsDelta, setTaskTabs, tabsByTask } from "./terminal-tabs-shared"
@@ -329,15 +330,21 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   useBindings(() => ({
     enabled: props.focused,
     bindings: bindByIds({
-      "chat.tab.new": () => {
+      "chat.tab.new": prefixAction(() => {
         const preferred = preferredTabVendor()
         update(pinSession(addTab(state, preferred), preferred))
-      },
+        showSharedFilesHint(
+          kv,
+          (title, body) =>
+            notif.notify({ kind: "done", silent: true, taskId: props.taskId, tabId: active.id, title, body }),
+          t,
+        )
+      }),
       // One dialog: prefix c/f open it with continue/fork pre-flipped.
-      "chat.tab.chooseEngine": () => requestNewChat(),
+      "chat.tab.chooseEngine": prefixAction(() => requestNewChat()),
       "chat.tab.fork": prefixAction(() => requestNewChat({ context: "continue" })),
-      "chat.tab.cycle-next": () => update(cycleTab(state, 1)),
-      "chat.tab.cycle-prev": () => update(cycleTab(state, -1)),
+      "chat.tab.cycle-next": prefixAction(() => update(cycleTab(state, 1))),
+      "chat.tab.cycle-prev": prefixAction(() => update(cycleTab(state, -1))),
       "chat.tab.goto": (_evt, slot) => update(gotoTab(state, slot ?? 0)),
       "chat.fork.new": prefixAction(() => requestNewChat({ destination: "fork" })),
     }),
@@ -353,7 +360,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     bindings: bindByIds({
       // The HUD's mouse path needs `action`, not just `cmd`.
       "chat.tab.close": prefixAction(() => tabClose.closeActive()),
-      "chat.tab.rename": requestRename,
+      "chat.tab.rename": prefixAction(requestRename),
     }),
   }))
 

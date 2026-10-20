@@ -300,7 +300,9 @@ const SIGNAL_NUMBERS: Record<string, number> = { SIGINT: 2, SIGQUIT: 3, SIGKILL:
 export function relaunchWithBun(bun: string, entry: string, argv: readonly string[], spawn: Spawn = spawnSync): number {
   const result = spawn(bun, [entry, ...argv], { stdio: "inherit" })
   if (result.error) {
-    process.stderr.write(`rove: could not start Bun at ${bun}: ${result.error.message}\n`)
+    process.stderr.write(
+      `rove: could not start Bun at ${bun}: ${result.error.message}. Check that this path is executable, or reinstall Bun from https://bun.sh.\n`,
+    )
     return 1
   }
   return exitCodeOf(result)

@@ -58,16 +58,10 @@ jobs:
       - name: Decide whether there is anything new to ship
         id: check
         run: |
-          BASE=$(node -p "require('./packages/rove/package.json').version")
-          # Next patch + today's date: sorts above the released X.Y.Z it was
-          # cut from... no — BELOW it, per semver (a prerelease ranks under
-          # its release). That's correct and intended: when X.Y.(Z+1) really
-          # ships, every nightly of it is older, so nightly users roll
-          # forward onto the stable build instead of being stranded above it.
-          NEXT=$(node -p "
-            const [maj, min, pat] = require('./packages/rove/package.json').version.split('-')[0].split('.')
-            \`\${maj}.\${min}.\${Number(pat) + 1}\`
-          ")
+          # Next patch + today's date. A prerelease ranks BELOW its release, so
+          # when X.Y.(Z+1) really ships every nightly of it is older.
+          BASE=$(node -p "require('./packages/rove/package.json').version.split('-')[0]")
+          NEXT="${BASE%.*}.$(( ${BASE##*.} + 1 ))"
           VERSION="${NEXT}-nightly.$(date -u +%Y%m%d)"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 

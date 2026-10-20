@@ -18,7 +18,7 @@ import type { DaemonConnectionState } from "../../src/client/remote-orchestrator
 import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { UpdatePage } from "../../src/tui-react/component/update-page"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOW = Date.now()
 const AUTOMATION = {
@@ -77,9 +77,8 @@ test("a failed registry check does not render as green up-to-date", async () => 
   }) as unknown as typeof fetch
   try {
     const { frame } = await renderComponent(<UpdatePage onClose={() => {}} />, { width: 74, height: 20 })
-    await settle(150)
-    const text = await frame()
-    expect(text).toContain("could not reach the registry")
+    const text = await waitForFrameText(frame, "could not reach the registry", { timeoutMs: 3000 })
+    expect(text).toContain("reopen Update to retry")
     expect(text).not.toContain(`latest  v${process.env.npm_package_version ?? ""}`)
   } finally {
     globalThis.fetch = realFetch

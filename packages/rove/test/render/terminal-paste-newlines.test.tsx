@@ -12,6 +12,12 @@ import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
 import { createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scripted"
 import { act, renderComponent, settle } from "./harness"
 
+/** Polls instead of one fixed settle: the pane attaches and delivers asynchronously, slower on loaded runners. */
+async function until(check: () => boolean, timeoutMs = 3_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!check() && Date.now() < deadline) await settle(25)
+}
+
 test("a multi-line paste is delivered as one paste, never as Enter", async () => {
   const harness = createScriptedPtyRegistry()
   const { mockInput, frame } = await renderComponent(
@@ -19,12 +25,13 @@ test("a multi-line paste is delivered as one paste, never as Enter", async () =>
     { width: 60, height: 12, providers: { dialog: true } },
   )
   await frame()
+  // A paste that lands before the pane holds its PTY has nowhere to go.
+  await until(() => harness.ptys.length > 0)
 
   // Exactly what a terminal sends for a two-line paste with the mode on.
   act(() => mockInput.pressKey("\x1b[200~first line\rsecond line\x1b[201~"))
-  await settle()
-
   const pty = harness.last()
+  await until(() => pty.pastes.length > 0)
   expect(pty.pastes).toEqual(["first line\rsecond line"])
   // The carriage return stayed inside the paste: nothing was typed at all.
   expect(pty.writeLog.join("")).not.toContain("\r")

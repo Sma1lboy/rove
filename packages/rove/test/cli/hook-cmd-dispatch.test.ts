@@ -47,16 +47,19 @@ vi.mock("../../src/engine/hook-adapter.ts", () => ({
   // The hook-capable set is no longer the BUILT-IN vendor list: `cursor` is a
   // contrib catalog entry that declares an adapter, and it has to reach the
   // installer exactly like a built-in does.
-  activityHookAdapters: vi.fn(() => HOOK_VENDORS.map((vendor) => ({ ...mocks.adapter, vendor }))),
+  activityHookAdapters: vi.fn(() =>
+    HOOK_VENDORS.map((vendor) => ({
+      ...mocks.adapter,
+      vendor,
+      // Only claude has a plugin that carries its hooks.
+      ...(vendor === "claude"
+        ? { externallyManagedHooks: async () => (mocks.rovePluginEnabled() ? {} : undefined) }
+        : {}),
+    })),
+  ),
 }))
 
 const HOOK_VENDORS = ["claude", "codex", "kimi", "pi", "omp", "cursor"]
-
-vi.mock("../../src/engine/claude-code-local/plugin-migration.ts", () => ({
-  isRovePluginEnabled: mocks.rovePluginEnabled,
-  detectLegacyInstalls: vi.fn(() => ({ legacyHooks: false, legacySkillDirs: [] })),
-  migrationHint: vi.fn(() => null),
-}))
 
 import { ensureGlobalRoveHooks, runHookSubcommand } from "../../src/cli/hook-cmd.ts"
 import { getPersistedString, setPersistedString } from "../../src/state/repos.ts"

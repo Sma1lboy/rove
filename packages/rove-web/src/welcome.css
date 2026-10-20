@@ -1,0 +1,64 @@
+/* The empty workspace while no task exists: three keys, the machine's readiness, a quick start. */
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 72ch;
+  margin: 0 auto;
+  padding: 28px 20px;
+  overflow-y: auto;
+  font: 12px / 1.5 var(--mono);
+}
+
+.welcome p,
+.welcome dl,
+.welcome dd {
+  margin: 0;
+}
+
+.welcome-title {
+  margin: 0;
+  font: 600 14px var(--mono);
+  color: var(--accent);
+}
+
+.welcome-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 6px;
+}
+
+.welcome-step {
+  display: flex;
+  gap: 14px;
+}
+
+.welcome-cap {
+  flex: 0 0 8ch;
+  color: var(--accent);
+}
+
+.welcome-env,
+.welcome-start {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.welcome-start .button {
+  align-self: flex-start;
+}
+
+.welcome-fix {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.welcome-docs {
+  padding-top: 6px;
+  opacity: 0.7;
+}

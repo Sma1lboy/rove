@@ -23,6 +23,7 @@ export const en = {
   checksFailingTitle: 'Checks failed for "{title}"',
   checksResolvedBody: "PR {pr} on {branch}",
   copiedId: "Copied task ID {text}",
+  copiedTab: "Copied tab address {text}",
   copiedBranch: "Copied branch {text}",
   copiedPath: "Copied path {text}",
   // Both clipboard channels refused: no platform clipboard command on PATH
@@ -69,6 +70,7 @@ export const zh: typeof en = {
   checksFailingTitle: "「{title}」的 PR 检查失败了",
   checksResolvedBody: "PR {pr}，分支 {branch}",
   copiedId: "已复制任务 ID {text}",
+  copiedTab: "已复制标签页地址 {text}",
   copiedBranch: "已复制分支 {text}",
   copiedPath: "已复制路径 {text}",
   copyFailed: "无法访问剪贴板——PATH 上没有剪贴板命令，这个终端也拒绝了 OSC 52。",

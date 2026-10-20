@@ -17,7 +17,7 @@ import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "../../state/split-style"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { type SplitDivider, groupChrome, paneBoxProps, paneChrome } from "../../tui/workspace/split-chrome"
+import { type SplitDivider, groupChrome, leafOnEdge, paneBoxProps, paneChrome } from "../../tui/workspace/split-chrome"
 import {
   type SplitLeaf,
   type SplitNode,
@@ -195,10 +195,12 @@ export function TerminalSplit(props: {
 
   /* `line` draws dividers, not frames: a node draws ONLY the single edge it
    * shares with its previous sibling (`left` in a row, `top` in a column) —
-   * tmux's separator-line look, zero padding, no outer wrapping. Whatever
-   * edge a focused LEAF draws lights up in the focus accent. */
+   * tmux's separator-line look, zero padding, no outer wrapping. A divider
+   * lights when the focused leaf touches it from EITHER side (as tmux), so
+   * the first leaf, which draws no edge of its own, still shows focus. */
+  const focusedLeaf = props.focused ? activeLeaf : null
 
-  const renderLeaf = (leaf: SplitLeaf<LeafCommand>, divider?: SplitDivider): ReactNode => {
+  const renderLeaf = (leaf: SplitLeaf<LeafCommand>, divider?: SplitDivider, dividerLit = false): ReactNode => {
     const focusThis = (): void => setActiveLeaf(leaf.id)
     const imeAnchorActive = activeLeaf === leaf.id
     const focused = leafFocused(leaf.id)
@@ -247,7 +249,7 @@ export function TerminalSplit(props: {
         flexShrink={1}
         flexBasis={0}
         {...paneBoxProps(chrome, {
-          edge: focused ? theme.focusAccent : inactiveBorder,
+          edge: (splitStyle === "line" ? dividerLit : focused) ? theme.focusAccent : inactiveBorder,
           name,
           nameInk: focused ? theme.focusAccent : theme.textMuted,
         })}
@@ -260,9 +262,14 @@ export function TerminalSplit(props: {
 
   // Key AT THE PARENT: leaves by id, nested groups by sibling INDEX (stable:
   // split-core returns whole new trees, never reorders in place).
-  const renderNode = (node: SplitNode<LeafCommand>, groupKey: string, divider?: SplitDivider): ReactNode =>
+  const renderNode = (
+    node: SplitNode<LeafCommand>,
+    groupKey: string,
+    divider?: SplitDivider,
+    dividerLit = false,
+  ): ReactNode =>
     node.kind === "leaf" ? (
-      renderLeaf(node, divider)
+      renderLeaf(node, divider, dividerLit)
     ) : (
       <box
         key={groupKey}
@@ -270,15 +277,22 @@ export function TerminalSplit(props: {
         flexGrow={1}
         flexShrink={1}
         flexBasis={0}
-        {...paneBoxProps(groupChrome(splitStyle, divider), { edge: inactiveBorder })}
+        {...paneBoxProps(groupChrome(splitStyle, divider), { edge: dividerLit ? theme.focusAccent : inactiveBorder })}
       >
-        {node.children.map((child, i) =>
-          renderNode(
+        {node.children.map((child, i) => {
+          const prev = node.children[i - 1]
+          const lit =
+            prev !== undefined &&
+            focusedLeaf !== null &&
+            (leafOnEdge(prev, node.orientation, true, focusedLeaf) ||
+              leafOnEdge(child, node.orientation, false, focusedLeaf))
+          return renderNode(
             child,
             child.kind === "leaf" ? child.id : `${groupKey}.${i}`,
             i > 0 ? (node.orientation === "row" ? "left" : "top") : undefined,
-          ),
-        )}
+            lit,
+          )
+        })}
       </box>
     )
 

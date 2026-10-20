@@ -43,14 +43,14 @@ export const en = {
     permissionDenied: "permission denied reading the worktree — check the directory's owner and mode",
     // Wording aligned with `doctor.fix.git` / `doctor.fix.gitAction`.
     gitNotInstalled: "git is not on PATH — install it with your OS package manager",
-    gitFailed: "git command failed",
+    gitFailed: "git command failed; run `git status` in this worktree to diagnose",
   },
   toast: {
     prOnTargetBranch: "Already on the target branch ({branch}) — ask the agent to create the PR from a task branch",
     /** `gh` unavailable, the run expired, or the checks went green while the
      *  menu was open — better than pasting a prompt with no evidence in it. */
     ciNoFailingChecks: "No failing check logs to read — the run may have expired, or the checks are no longer red",
-    ciChecksUnavailable: "gh could not read this PR's checks: {detail}",
+    ciChecksUnavailable: "gh could not read this PR's checks: {detail}. Run `gh auth status`, then retry.",
   },
 }
 
@@ -86,11 +86,11 @@ export const zh: typeof en = {
     pathMissing: "worktree 目录已不存在——重新打开该任务会重建它",
     permissionDenied: "读取 worktree 时权限不足——请检查该目录的属主和权限",
     gitNotInstalled: "PATH 上找不到 git——请用系统包管理器安装",
-    gitFailed: "git 命令失败",
+    gitFailed: "git 命令失败；请在此 worktree 运行 `git status` 诊断",
   },
   toast: {
     prOnTargetBranch: "当前就在目标分支（{branch}）— 请在任务分支上让 agent 创建 PR",
     ciNoFailingChecks: "没有可读的失败检查日志——运行记录可能已过期，或检查已不再是红的",
-    ciChecksUnavailable: "gh 读不到这个 PR 的检查状态：{detail}",
+    ciChecksUnavailable: "gh 读不到这个 PR 的检查状态：{detail}。请运行 `gh auth status`，然后重试。",
   },
 }

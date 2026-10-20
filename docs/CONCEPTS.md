@@ -61,7 +61,9 @@ pass `--delete-branch` on `rove api delete` to drop it too. That runs
 `git branch -d`, which refuses a branch whose commits neither the repo's HEAD
 nor the branch's own upstream already contains — so work that was never pushed
 and never landed survives the flag, and `--force` is what upgrades the delete
-to `git branch -D`. **The remote branch is only touched when you ask for it**,
+to `git branch -D`. Deleting from the TUI keeps the branch too, unless
+you set `worktree.deleteBranch` to `true` ([Configuration](./CONFIGURATION.md)),
+which applies the same `git branch -d` rule. **The remote branch is only touched when you ask for it**,
 with the separate `--delete-remote` — a local branch is recoverable from any
 clone that still has it, a remote one is recoverable by nobody, and deleting
 it closes an open PR, so one flag never implies the other.

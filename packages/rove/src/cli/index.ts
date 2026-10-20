@@ -73,7 +73,9 @@ async function ensureProjectMainTask(repo: string): Promise<void> {
       local: (orch) => orch.ensureMainTask(repo),
     })
   } catch (err) {
-    console.error(`(skipped project main-task setup: ${errorMessage(err)})`)
+    console.error(
+      `(skipped project main-task setup: ${errorMessage(err)}). Run ${CLI_NAME} doctor, then retry ${CLI_NAME} add.`,
+    )
   }
 }
 
@@ -189,7 +191,9 @@ async function adoptAllWorktrees(repo: string): Promise<void> {
   try {
     candidates = await orch.discoverAdoptableWorktrees(repo)
   } catch (err) {
-    console.error(`(skipped worktree scan: ${errorMessage(err)})`)
+    console.error(
+      `(skipped worktree scan: ${errorMessage(err)}). Run git worktree list in the repository, then retry ${CLI_NAME} add.`,
+    )
     return
   }
   if (candidates.length === 0) return
@@ -352,6 +356,11 @@ async function main(): Promise<void> {
     // the `rove api` surface with one command.
     const { runSkillSubcommand } = await import("./skill-cmd.ts")
     await runSkillSubcommand(["print"])
+    return
+  }
+  if (subcommand === "--web") {
+    const { runWebSubcommand } = await import("./web-cmd.ts")
+    await runWebSubcommand(rest)
     return
   }
 

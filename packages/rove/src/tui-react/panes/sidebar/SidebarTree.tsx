@@ -36,6 +36,8 @@ export type SidebarTreeProps = SidebarProps & {
   onSelectTab?: (taskId: string, tabId: string) => void
   /** Close one tab of any worktree — offered by the tab row's menu. */
   onCloseTab?: (taskId: string, tabId: string) => void
+  /** Close every other tab of that worktree — the tab row's menu, behind a confirm. */
+  onCloseOtherTabs?: (taskId: string, tabId: string) => void
   /** Open a new conversation ("chat" — the ctrl+e picker) or a bare shell tab
    *  in any worktree — offered by the worktree/tab rows' menu. */
   onNewTab?: (taskId: string, kind: "chat" | "shell") => void
@@ -90,6 +92,17 @@ export function SidebarTree(props: SidebarTreeProps) {
     cursorRef.current = next
     setCursorIndexState(next)
   }, [])
+  // Follow an active-row change during render, so a row click lands the cursor
+  // in the selection commit instead of a nested one from the effect below.
+  const [followedActive, setFollowedActive] = useState(tree.activeRowId)
+  if (props.moveMode !== true && tree.activeRowId !== followedActive) {
+    setFollowedActive(tree.activeRowId)
+    const at = tree.activeRowId === null ? -1 : (flatIndexOf.get(tree.activeRowId) ?? -1)
+    if (at >= 0 && at !== cursorIndex) {
+      cursorRef.current = at
+      setCursorIndexState(at)
+    }
+  }
   const flatIdsRef = useLatest(tree.flatIds)
   // A reader, not a value: a chord in the same tick as the `j` sees the new row.
   const cursorTaskIdRef = props.cursorTaskIdRef
@@ -224,6 +237,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     setCursorIndex,
     onAddTask: props.onAddTask,
     onCloseTab: props.onCloseTab,
+    onCloseOtherTabs: props.onCloseOtherTabs,
     onNewTab: props.onNewTab,
     actions: props,
   })

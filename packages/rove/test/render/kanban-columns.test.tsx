@@ -11,8 +11,8 @@
  *     says how many need you.
  */
 import { expect, test } from "bun:test"
+import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
 import type { TaskEngineState } from "../../src/client/remote-orchestrator-payloads"
-import { KanbanPage } from "../../src/tui-react/component/kanban-page"
 import { setTransparentBackground } from "../../src/tui-react/context/theme"
 import { act, renderComponent, settle } from "./harness"
 

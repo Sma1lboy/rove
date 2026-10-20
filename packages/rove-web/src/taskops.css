@@ -1,0 +1,145 @@
+/* Task verbs and creation dialogs: Run again, Field notes, Change engine, New task, picker, composer. */
+
+.taskops-hint {
+  font: 11px var(--mono);
+  color: var(--subtle);
+}
+
+.taskops-path {
+  font: 12px var(--mono);
+  word-break: break-all;
+}
+
+.brief {
+  margin: 0;
+  max-height: 38vh;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  font: 12px / 1.5 var(--mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 44vh;
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.note.is-selected,
+.note:focus-visible {
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.note-head {
+  font: 11px var(--mono);
+  color: var(--accent);
+  white-space: pre;
+}
+
+.note-text {
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+}
+
+.note-confirm p {
+  margin: 0;
+}
+
+/* Reorder (move mode): the dragged row and the project header wear the TUI's move mark. */
+
+.row.is-moving,
+.project-head.is-moving {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.project-head.is-moving::after {
+  content: "move";
+  font: 500 10px var(--mono);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* A confirm body may carry a reason after a blank line (force delete). */
+
+.taskops-body {
+  white-space: pre-line;
+}
+
+.suggest {
+  position: relative;
+}
+
+.suggest-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 2px;
+  max-height: 188px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+  font: 12px var(--mono);
+}
+
+.suggest-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggest-row.is-cursor {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.suggest-row.is-accent {
+  color: var(--accent);
+}
+
+.newtask-legend {
+  margin: 8px 0 0;
+  font: 11px var(--mono);
+  color: var(--subtle);
+}
+
+.dialog-body + div > .dialog-body {
+  margin-top: 14px;
+}

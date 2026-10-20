@@ -161,8 +161,14 @@ export function useQuickFork(
       hooks.notify(hooks.t("quickTask.startedRound", { count: outcome.started.length }))
       return
     }
-    const taskId = await runQuickFork(orch, repo, result, hooks)
-    if (taskId) setPending({ taskId, prompt })
+    await runQuickFork(orch, repo, result, {
+      ...hooks,
+      selectTask: (taskId) => {
+        // Selection can mount the engine immediately; its first spawn owns the prompt.
+        setPending({ taskId, prompt })
+        hooks.selectTask(taskId)
+      },
+    })
   }
 
   async function onRunAgain(task: Task): Promise<void> {

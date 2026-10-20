@@ -6,7 +6,7 @@
  */
 
 import { type ReactNode, createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react"
-import { type KvCore, type KvWriteErrorListener, createKvCore } from "./kv-core"
+import { type KvCore, type KvReloadResult, type KvWriteErrorListener, createKvCore } from "./kv-core"
 
 export type KVContext = {
   readonly ready: boolean
@@ -14,10 +14,14 @@ export type KVContext = {
   signal<T>(name: string, defaultValue: T): readonly [() => T, (next: T) => void]
   get(key: string, defaultValue?: unknown): unknown
   set(key: string, value: unknown): void
+  /** Persists without rebuilding this context; `get` sees it, `store` does not. */
+  setQuiet(key: string, value: unknown): void
   /** Synchronously flush pending state (standalone pages, before exit). */
   flush(): boolean
   /** Wipe every persisted key; false leaves state and pending edits intact. */
   clear(): boolean
+  /** Re-read `state.json` so a hand edit applies without a restart. */
+  reload(): KvReloadResult
   /**
    * A subscription, not a constructor callback: the toast sink sits below
    * this provider (Theme > KV > Focus > Dialog > Notifications, see
@@ -55,8 +59,10 @@ export function KVProvider(props: { children?: ReactNode }) {
       },
       get: core.get,
       set: core.set,
+      setQuiet: core.setQuiet,
       flush: core.flush,
       clear: core.clear,
+      reload: core.reload,
       onWriteError: core.onWriteError,
     }),
     [core, snapshot],

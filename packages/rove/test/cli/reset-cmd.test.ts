@@ -127,7 +127,9 @@ describe("runResetSubcommand", () => {
 
     await runResetSubcommand(["--hard", "--yes"])
     expect(process.exitCode).toBe(1)
-    expect(errorSpy).toHaveBeenCalledWith("  legacy tmux: cleanup failed — server still running")
+    expect(errorSpy).toHaveBeenCalledWith(
+      "  legacy tmux: cleanup failed — server still running. Run rove doctor to inspect the remaining sessions before retrying reset.",
+    )
     expect(existsSync(tasksPath)).toBe(true)
     expect(existsSync(statePath)).toBe(true)
     expect(mocks.stampResetGate).not.toHaveBeenCalled()

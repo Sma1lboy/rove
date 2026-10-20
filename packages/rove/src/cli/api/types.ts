@@ -6,8 +6,11 @@
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
+import type { LaunchSpec, Launched } from "./tab-launch.ts"
+import type { NewTabKind, OpenedTab } from "./tab-new.ts"
 import type { RestoredTabRef } from "./tab-respawn.ts"
 import type { TaskTabRow } from "./tab-snapshot.ts"
+import type { SplitEdit, SplitOutcome } from "./tab-split.ts"
 
 export type Flags = Map<string, string>
 
@@ -77,9 +80,29 @@ export interface FlagSpec {
 }
 
 /** What a verb handler runs against; all injectable so handlers test without a daemon or PTY host. */
+/**
+ * Who is calling: the `rove api` process, or a transport (daemon socket,
+ * bridge) whose caller shares no cwd or stdin with the process running the verb.
+ */
+export interface ApiCaller {
+  /** The `rove api` process itself: its stdin, stdout and cwd are the caller's. */
+  readonly cli: boolean
+  /** Base for relative path flags; absent over a transport, where only absolute paths mean anything. */
+  readonly cwd?: string
+}
+
+/** The CLI process itself, read at call time (tests chdir). */
+export function cliCaller(): ApiCaller {
+  return { cli: true, cwd: process.cwd() }
+}
+
+/** A daemon-socket or bridge caller. */
+export const REMOTE_CALLER: ApiCaller = { cli: false }
+
 export interface VerbContext {
   /** Spec-typed flag access — coercion + requiredness derived from the verb's own {@link FlagSpec}s. */
   readonly args: VerbArgs
+  readonly caller: ApiCaller
   /** Daemon RPC surface; `null` only for `offline` verbs (guard with `daemonOf`). */
   readonly client: DaemonRpc | null
   /** Side-effect seam (hosted sessions / git) — swapped for a fake in unit tests. */
@@ -117,6 +140,8 @@ export interface VerbSpec {
   readonly flags: readonly FlagSpec[]
   /** Verbs that don't need the daemon (e.g. `schema`). */
   readonly offline?: boolean
+  /** Streams to stdout or reads stdin bytes, so only the CLI can carry it. */
+  readonly cliOnly?: boolean
   readonly handler: VerbHandler
 }
 
@@ -260,6 +285,15 @@ export interface ApiRuntime {
   closeTerminalTab(taskId: string, tabId: string): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
   /** Deliver a prompt into a task's engine pane (building the session if needed). */
   deliverPrompt(client: DaemonRpc, target: PromptTarget, prompt: string): Promise<DeliveredPrompt>
+  /**
+   * Open a tab with no first message (`tab-new`): a login shell or an empty
+   * engine. Persists the row, spawns the session, and returns the row as saved.
+   */
+  openTab(client: DaemonRpc, target: PromptTarget, kind: NewTabKind): Promise<OpenedTab>
+  /** Open a tab that runs something Rove resolves itself (`tab-new --kind editor|pane|viewport`). */
+  launchTab(spec: LaunchSpec): Promise<Launched>
+  /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */
+  splitTab(taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
   /** Can a worktree be cut from this repo? On the seam so handler tests need no

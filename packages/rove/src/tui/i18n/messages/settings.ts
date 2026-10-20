@@ -14,6 +14,7 @@
  */
 
 import { en as autoRoutingEn, zh as autoRoutingZh } from "./settings-auto-routing"
+import { en as devEn, zh as devZh } from "./settings-dev"
 import { en as engineCard, zh as engineCardZh } from "./settings-engines"
 import { en as pluginsEn, zh as pluginsZh } from "./settings-plugins"
 
@@ -120,6 +121,19 @@ export const en = {
     zen: "Zen mode",
     zenHint: "The `zen` chip and `prefix`+z hide Files, keeping the Tasks rail and workspace.",
     zenDefaultOn: "Start in zen mode",
+    updates: "Updates",
+    updatesHint: "Stable releases are cut by hand; the nightly preview is built from main every day.",
+    updateChannel: "Channel: {channel}",
+    updateChannelHint: "enter switches; `rove update` follows it",
+    updateChannelName: { latest: "stable", nightly: "nightly preview" },
+    updateTry: { latest: "[ Back to stable ]", nightly: "[ Try the nightly preview ]" },
+    updateTryHint: "installs it now and follows that channel",
+    updateTryTitle: { latest: "Go back to stable?", nightly: "Install the nightly preview?" },
+    updateTryBody: {
+      latest: "Rove installs the latest stable release, which can be older than this nightly, then quits.",
+      nightly:
+        "Rove installs today's nightly build of main, then quits. It is newer and less tested; `rove update --stable` goes back.",
+    },
     railFold: "Folded task rail",
     railFoldHint: "What the rail shows once folded away from its corner control.",
     railFoldRow: "Folded rail shows: {style}",
@@ -203,7 +217,8 @@ export const en = {
    *  whole session and reverts at the next launch. */
   stateWrite: {
     failedTitle: "Settings were not saved",
-    failedBody: "{file} could not be written ({keys}) — the change applies to this session only.",
+    failedBody:
+      "{file} could not be written ({keys}). Check its directory permissions and free disk space, then save again.",
   },
   ...autoRoutingEn,
   ...engineCard,
@@ -244,28 +259,7 @@ export const en = {
     descriptionPlaceholder: "What happened? (enter for a new line · tab to Send)",
     send: "[enter] Send to GitHub Discussions",
   },
-  dev: {
-    reset: "Reset UI state",
-    resetHint:
-      "Clears ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch to start fresh. Working session list, pane sizes, theme, model picks all reset. Worktrees on disk and engine session history are not touched.",
-    resetButton: "[enter] Reset",
-    restart: "Restart backend",
-    restartHint:
-      "Stops the Rove daemon and relaunches this window on the installed build — picks up daemon / orchestrator / engine edits without quitting by hand. Running engine sessions live in the PTY host and survive it; other attached Rove windows reconnect on their own.",
-    restartButton: "[enter] Restart",
-    doctorHint:
-      "Daemon wedged or unresponsive? Restart backend above does it from here; from a shell it is `rove daemon restart`. Hosted engine sessions stay alive across a daemon restart.",
-    experimental: "Experimental",
-    remoteHint:
-      "Remote projects (SSH): register a project whose git worktrees live on another host, driven from this local Rove. Unfinished — Hosted PTY engine launch over SSH is not implemented, and file/diff panes still degrade. Enables `rove add --remote`.",
-    remote: "Remote projects",
-    autoStatusHint:
-      "Auto status flow: a backlog task moves to in_progress when its engine starts a turn, and new sessions get a system-prompt note telling the agent to set in_review itself when the work is done. Never touches done/canceled.",
-    autoStatus: "Auto status flow",
-    dispatcherHint:
-      "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), the daemon forwards each to the repo's main session, and that session relays them to the in-flight tasks that benefit (`rove api dispatch`). Web-hosted sessions receive the relays today.",
-    dispatcher: "Field-notes dispatcher",
-  },
+  ...devEn,
 }
 
 export const zh: typeof en = {
@@ -360,6 +354,19 @@ export const zh: typeof en = {
     zen: "禅模式",
     zenHint: "`zen` 标记和 `prefix`+z 隐藏 Files，保留 Tasks 侧栏与 workspace。",
     zenDefaultOn: "启动即进入禅模式",
+    updates: "更新",
+    updatesHint: "稳定版手动发布；nightly 预览版每天从 main 自动构建。",
+    updateChannel: "渠道：{channel}",
+    updateChannelHint: "enter 切换；`rove update` 跟随它",
+    updateChannelName: { latest: "稳定版", nightly: "nightly 预览版" },
+    updateTry: { latest: "[ 回到稳定版 ]", nightly: "[ 试用 nightly 预览版 ]" },
+    updateTryHint: "立即安装并改为跟随该渠道",
+    updateTryTitle: { latest: "回到稳定版？", nightly: "安装 nightly 预览版？" },
+    updateTryBody: {
+      latest: "Rove 会安装最新稳定版（可能比当前 nightly 旧），然后退出。",
+      nightly:
+        "Rove 会安装今天从 main 构建的 nightly，然后退出。它更新、但测试更少；`rove update --stable` 可回到稳定版。",
+    },
     railFold: "折叠后的任务栏",
     railFoldHint: "任务栏从角标折叠之后显示什么。",
     railFoldRow: "折叠后显示：{style}",
@@ -428,7 +435,7 @@ export const zh: typeof en = {
   /** 防抖写入 `state.json` 抛错时的错误 toast。 */
   stateWrite: {
     failedTitle: "设置未能保存",
-    failedBody: "{file} 写入失败（{keys}）—— 改动只在本次会话生效。",
+    failedBody: "{file} 写入失败（{keys}）。请检查目录权限和磁盘空间，再次保存。",
   },
   ...autoRoutingZh,
   ...engineCardZh,
@@ -464,26 +471,5 @@ export const zh: typeof en = {
     descriptionPlaceholder: "发生了什么？(enter 换行 · tab 跳到发送)",
     send: "[enter] 发送到 GitHub Discussions",
   },
-  dev: {
-    reset: "重置 UI 状态",
-    resetHint:
-      "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json，然后退出 Rove——重新启动即可从头开始。工作会话列表、面板尺寸、主题、模型选择都会重置。磁盘上的 worktree 和引擎会话历史不受影响。",
-    resetButton: "[enter] 重置",
-    restart: "重启后端",
-    restartHint:
-      "停止 Rove daemon，并以已安装的版本重新启动当前窗口——无需手动退出即可应用 daemon / orchestrator / engine 的改动。正在运行的引擎会话由 PTY host 托管，不受影响；其他已连接的 Rove 窗口会自行重连。",
-    restartButton: "[enter] 重启",
-    doctorHint:
-      "daemon 卡住或无响应？上面的「重启后端」就能在这里完成；在 shell 里则是 `rove daemon restart`。Hosted PTY 引擎会话不会因 daemon 重启而退出。",
-    experimental: "实验性",
-    remoteHint:
-      "远程项目（SSH）：注册一个 git worktree + 引擎都通过 SSH 跑在另一台主机上、由本地 Rove 驱动的项目。尚未完成——文件/diff 面板对远程仍会降级。启用 `rove add --remote`。",
-    remote: "远程项目",
-    autoStatusHint:
-      "自动状态流转：backlog 任务在其引擎开始一轮时移到 in_progress，新会话会拿到一条系统提示，告诉 agent 完成后自行设为 in_review。绝不触碰 done/canceled。",
-    autoStatus: "自动状态流转",
-    dispatcherHint:
-      "现场笔记调度器：任务会话提交一行经验（`rove api note`），daemon 将每条转发给仓库的主会话，主会话再把它们转达给能受益的进行中任务（`rove api dispatch`）。目前由 Web 托管的会话会收到转达。",
-    dispatcher: "现场笔记调度器",
-  },
+  ...devZh,
 }

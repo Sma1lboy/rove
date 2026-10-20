@@ -14,13 +14,14 @@
  */
 
 import { join } from "node:path"
+import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import type { EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
+import { isObject } from "../is-object.ts"
 import { JsonHookAdapter, editJsonSettings } from "../json-hook-adapter.ts"
 import {
   type HookEventSpec,
   buildActivityHooks,
-  isObject,
   mergeActivityHooks as mergeActivityHooksCore,
   removeRoveHooks,
   removeWorktreeWatchHook,
@@ -173,6 +174,15 @@ export class ClaudeHookAdapter extends JsonHookAdapter {
    */
   isUnattendedSession(env: NodeJS.ProcessEnv): boolean {
     return env.CLAUDE_CODE_SESSION_ATTENDED === "0"
+  }
+
+  /** The Rove Claude Code plugin's hooks.json carries these hooks when enabled. */
+  async externallyManagedHooks(): Promise<{ readonly notice?: string } | undefined> {
+    // Lazy: plugin-migration imports this module.
+    const { isRovePluginEnabled, detectLegacyInstalls, migrationHint } = await import("./plugin-migration.ts")
+    if (!isRovePluginEnabled()) return undefined
+    const notice = migrationHint(detectLegacyInstalls(), ROVE_PRODUCT_NAME)
+    return notice ? { notice } : {}
   }
 
   /** Only Claude ever had the legacy `WorktreeCreate` hook to clean up. */

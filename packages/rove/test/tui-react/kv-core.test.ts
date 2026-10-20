@@ -12,7 +12,7 @@
  *   - Writes are debounced (250ms) — no disk write before the window.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -308,5 +308,89 @@ describe("createKvCore", () => {
     unsubscribe()
     kv.set("k", 3)
     expect(seen).toEqual([1, 2])
+  })
+
+  // The inbox visit log is written on every task switch; a snapshot change there re-renders every useKV consumer.
+  it("setQuiet() persists and reads back without notifying subscribers; a later set() wins", () => {
+    const home = isolatedHome({ visits: ["old"] })
+    const kv = createKvCore()
+    let notified = 0
+    kv.subscribe(() => notified++)
+    kv.setQuiet("visits", ["new"])
+    expect(notified).toBe(0)
+    expect(kv.get("visits")).toEqual(["new"])
+    expect(kv.flush()).toBe(true)
+    expect(readState(home)).toEqual({ visits: ["new"] })
+
+    kv.set("visits", ["set"])
+    expect(notified).toBe(1)
+    expect(kv.get("visits")).toEqual(["set"])
+  })
+
+  it("reload() applies a hand edit to state.json and notifies subscribers", () => {
+    const home = isolatedHome({ activeTheme: "tokyonight", removed: 1 })
+    const kv = createKvCore()
+    let notified = 0
+    kv.subscribe(() => notified++)
+    writeState(home, { activeTheme: "nord", added: true })
+    expect(kv.reload()).toEqual({ ok: true, changed: 3 })
+    expect(kv.snapshot()).toEqual({ activeTheme: "nord", added: true })
+    expect(notified).toBe(1)
+    expect(kv.reload()).toEqual({ ok: true, changed: 0 })
+    expect(notified).toBe(1)
+  })
+
+  it("reload() keeps a pending edit and restores a seeded default the file no longer carries", () => {
+    const home = isolatedHome({ zen: true })
+    const kv = createKvCore()
+    kv.seed("zen", false)
+    kv.seed("toast", "bottom")
+    kv.set("sound", "on")
+    writeState(home, { other: "x" })
+    expect(kv.reload().ok).toBe(true)
+    expect(kv.snapshot()).toEqual({ other: "x", sound: "on", zen: false, toast: "bottom" })
+    expect(readState(home)).toEqual({ other: "x", sound: "on" })
+  })
+
+  it("keeps pending writes off an invalid file until repair, across debounce and exit flushes", () => {
+    vi.useFakeTimers()
+    const home = isolatedHome({ activeTheme: "tokyonight", keep: 42 })
+    const kv = createKvCore()
+    const log = vi.spyOn(console, "error").mockImplementation(() => {})
+    try {
+      kv.set("sound", "on")
+      const broken = '{"activeTheme":"nord",'
+      writeFileSync(statePath(home), broken)
+      expect(kv.reload().ok).toBe(false)
+      vi.advanceTimersByTime(400)
+      expect(readFileSync(statePath(home), "utf8")).toBe(broken)
+      kv.setQuiet("visits", 3)
+      kv.set("sound", "off")
+      vi.advanceTimersByTime(400)
+      expect(kv.flush()).toBe(false)
+      expect(readFileSync(statePath(home), "utf8")).toBe(broken)
+      expect(readdirSync(join(home, ".config", "rove"))).toEqual(["state.json"])
+      expect(kv.get("sound")).toBe("off")
+      expect(kv.get("visits")).toBe(3)
+
+      writeState(home, { activeTheme: "nord", keep: 42, external: true })
+      expect(kv.flush()).toBe(true)
+      expect(readState(home)).toEqual({ activeTheme: "nord", keep: 42, external: true, sound: "off", visits: 3 })
+      expect(kv.reload().ok).toBe(true)
+      expect(kv.snapshot()).toEqual(readState(home))
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  // Reload runs while the user is editing; a typo must not move their file aside.
+  it("reload() on invalid JSON changes nothing and leaves the file in place", () => {
+    const home = isolatedHome({ activeTheme: "tokyonight" })
+    const kv = createKvCore()
+    writeFileSync(statePath(home), '{"activeTheme": "nord",', "utf8")
+    const result = kv.reload()
+    expect(result.ok).toBe(false)
+    expect(kv.snapshot()).toEqual({ activeTheme: "tokyonight" })
+    expect(readFileSync(statePath(home), "utf8")).toBe('{"activeTheme": "nord",')
   })
 })

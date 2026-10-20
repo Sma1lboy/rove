@@ -29,7 +29,7 @@ const THEME_VERB_ALIASES: Readonly<Record<string, string>> = { ls: "list", rm: "
 const BUNDLED_NAMES: readonly string[] = Object.keys(BUNDLED_THEME_JSONS)
 
 function fail(message: string): never {
-  process.stderr.write(`${CLI_NAME} theme: ${message}\n`)
+  process.stderr.write(`${CLI_NAME} theme: ${message}\nRun ${CLI_NAME} theme --help for valid names and options.\n`)
   process.exit(1)
 }
 

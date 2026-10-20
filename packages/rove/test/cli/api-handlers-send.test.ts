@@ -8,6 +8,7 @@ import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
+import { deliverHostedPrompt } from "../../src/cli/api/pty-delivery.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 // Peer provenance AND dispatcher provenance both key off the caller's own
@@ -239,6 +240,51 @@ describe("send handler", () => {
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
       expect(calls[0].prompt).toBe("hi")
+    })
+
+    it("replaying a refused send's nextCommandArgs delivers the peer header once", async () => {
+      const rpc = {
+        request: async <T>(name: string): Promise<T> =>
+          (name === "pty.list"
+            ? {
+                sessions: [{ key: "other::tab-1", alive: true, pid: 123, command: ["claude"], title: "" }],
+                admissionToken: "t",
+              }
+            : {}) as T,
+      }
+      let firstPrompt = ""
+      const err = await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
+        client: peerClient(),
+        runtime: stubRuntime({
+          deliverPrompt: async (_client, target, prompt) => {
+            firstPrompt = prompt
+            return deliverHostedPrompt(
+              rpc,
+              { id: target.id },
+              "/wt/abc",
+              prompt,
+              { key: "abc::tab-1", command: ["claude"] },
+              {
+                maxLiveEngines: 1,
+                snapshot: async () => "123 1 claude\n",
+              },
+            )
+          },
+        }),
+      }).then(
+        () => null,
+        (e) => e as ApiError,
+      )
+      expect(err?.code).toBe("ENGINE_LIMIT")
+      const retry = err?.data?.nextCommandArgs as string[]
+      expect(retry.slice(0, 2)).toEqual(["api", "send"])
+      const { calls, deliver } = recordingDelivery()
+      await invokeVerb("send", retry.slice(2), {
+        client: peerClient(),
+        runtime: stubRuntime({ deliverPrompt: deliver }),
+      })
+      expect(calls[0].prompt).toBe(firstPrompt)
+      expect(calls[0].prompt.match(/\[ROVE PEER\]/g)).toHaveLength(1)
     })
 
     it("a send to yourself stays untouched", async () => {

@@ -6,7 +6,6 @@
  * revive it.
  */
 
-import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { PsSnapshot } from "../../engine/foreground.ts"
 import { awaitEngineProcess, hostedSessionFailureLine } from "../../engine/hosted-session.ts"
@@ -14,6 +13,7 @@ import { enginePresence } from "../../engine/session-engine-presence.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { openAdmittedEngine } from "./engine-admission.ts"
 import {
   ENGINE_NOT_OBSERVED_REASON,
   ENGINE_START_POLL_MS,
@@ -38,6 +38,7 @@ export async function deliverToExactTab(
   cwd: string,
   prompt: string,
   opts?: {
+    readonly maxLiveEngines?: number
     readonly engineBin?: string
     readonly snapshot?: PsSnapshot
     /** Caller consent to revive a freeze-restored tab (`send --respawn`),
@@ -58,12 +59,21 @@ export async function deliverToExactTab(
       const launch = opts.respawn()
       // A size-less open: the host keeps the frozen geometry, and the
       // caller's command (when it has one) wins over the frozen launch.
-      const open = await rpc.request<PtyOpenResult>("pty.open", {
-        key,
-        cwd,
-        ...(launch ? { command: launch.command } : {}),
-        defaultColors: readPersistedTerminalDefaultColors(),
-      })
+      const open = await openAdmittedEngine(
+        rpc,
+        {
+          key,
+          cwd,
+          ...(launch ? { command: launch.command } : {}),
+          defaultColors: readPersistedTerminalDefaultColors(),
+        },
+        {
+          maxLiveEngines: opts.maxLiveEngines,
+          snapshot: opts.snapshot,
+          taskId,
+          retryArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--respawn", "--plain", "--prompt", prompt],
+        },
+      )
       if (open.respawned !== true && open.alive !== true) {
         throw new ApiError(`tab ${tabId} on task ${taskId} could not be respawned`, "SESSION_FAILED", {
           taskId,
@@ -154,7 +164,7 @@ function restoredTabError(taskId: string, tabId: string, prompt: string): ApiErr
       taskId,
       tabId,
       hint: "revive it with --respawn (resumes the tab's pinned conversation when it has one — `get-task` shows `sessionId`; a tab without one replays its recorded launch command)",
-      nextCommandArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--respawn", "--prompt", prompt],
+      nextCommandArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--respawn", "--plain", "--prompt", prompt],
     },
   )
 }

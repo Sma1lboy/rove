@@ -58,7 +58,7 @@ const props = (tasks: readonly Task[]) =>
   }) as const
 
 const frameFor = async (tasks: readonly Task[]): Promise<string> => {
-  const { frame } = await renderComponent(<ShowWorkspace {...props(tasks)} />)
+  const { frame } = await renderComponent(<ShowWorkspace {...props(tasks)} />, { providers: { dialog: true } })
   // Flush the welcome panel's mount-effect environment probe.
   await act(async () => {})
   return await frame()

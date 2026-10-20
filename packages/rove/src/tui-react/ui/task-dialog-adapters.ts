@@ -5,6 +5,7 @@
  */
 
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
+import { isDeleteBranchOnTaskDeleteEnabled } from "../../state/task-delete-branch.ts"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "../../state/vendor-prefs.ts"
 import type { ConfirmPrompt, TextPromptOpts } from "../../tui/lib/task-actions"
 import type { CreateTaskContext } from "../../tui/lib/task-create-flow"
@@ -80,6 +81,7 @@ export function buildBaseCreateTaskContext(deps: BaseCreateTaskContextDeps): Cre
     // Publish the shared active-task focus so every surface follows.
     updateActiveTask: true,
     onTaskDeleted: selectNextAfterDelete(deps),
+    deleteBranchOnDelete: isDeleteBranchOnTaskDeleteEnabled,
     // Default repo: the cursor task's, else the first listed task's.
     cursorRepo: () => {
       const list = deps.tasks()

@@ -37,6 +37,17 @@ before it runs. The setting changes only whether the pending command layer also
 marks controls in place. Both choices use the same prefix, second stroke,
 timeout, pane scope, and cancellation rules.
 
+## Search actions
+
+Open the command palette with `ctrl+a /`. Type a human-readable action name
+or chord, use ↑/↓ to select, and Enter to run. Escape cancels. It lists typed
+commands available in the current pane; scope checks still apply when you run
+one. Event-dependent navigation bindings remain in help as references.
+
+Inside `F1` help, press `/` to filter the same keymap by name or chord. Clear
+the input to restore all sections. Both searches use case-insensitive fuzzy
+matching. The sidebar's bare `/` still searches tasks.
+
 ## The prefix
 
 The default first stroke is `ctrl+a`. Tap it, then press one more key within
@@ -45,6 +56,7 @@ shows only actions that can run right now.
 
 | Sequence | Action |
 |---|---|
+| `ctrl+a` `/` | Search commands by action name, see their chords, and run a selected action |
 | `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch. Its ATTEMPTS row fans one prompt out to a round of up to 5 |
 | `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new tab of the same Task directory |
 | `ctrl+a` `i` | Open the Inbox |
@@ -53,7 +65,7 @@ shows only actions that can run right now.
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |
 | `ctrl+a` `n` | New task |
 | `ctrl+a` `w` | Close the active split, otherwise the tab — the prefix twin of `ctrl+w` |
-| `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues |
+| `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues (Kanban and Issues while their built-in plugins are on) |
 | `ctrl+a` `z` | Toggle zen mode |
 | `ctrl+a` `,` | Open Settings |
 | `ctrl+a` `p` (`P` is the same key) | Create a PR — for the active task, or for the row under the cursor while the sidebar has focus ([the focus rule](#sidebar-and-files)) |
@@ -228,7 +240,11 @@ both enter the Task first, exactly as pressing the chord there would.
 These entries have no chord of their own. **Set status** opens a picker over
 the six Task statuses and writes the one you choose. **Copy task ID** puts the
 id `rove api` Task verbs take (`read-output --task-id <id>`, `land --task-id
-<id>`) on the clipboard, and is offered on every Task row. **Copy branch name** and
+<id>`) on the clipboard, and is offered on every Task row. A tab row also
+offers **Copy tab address**, which copies `--task-id <id> --tab <tab>`, the
+flags `rove api send` and `read-output` take to reach that one tab, and, when
+the Task has more than one tab, **Close other tabs**, which asks first and then
+closes every other tab of that Task, ending their sessions. **Copy branch name** and
 **Copy path** put the Task's branch or recorded worktree path on the system
 clipboard (local clipboard command plus OSC 52, so it also works over SSH);
 copying never creates the worktree, and a project-main or directory row, whose

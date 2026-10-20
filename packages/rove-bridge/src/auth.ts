@@ -29,13 +29,40 @@ export function tokenMatches(expected: string, presented: string | null | undefi
   return timingSafeEqual(a, b)
 }
 
+/** The protocol a browser offers alongside its token, and the one the upgrade echoes back. */
+export const WEB_SUBPROTOCOL = "rove.v1"
+const TOKEN_SUBPROTOCOL_PREFIX = "rove.bearer."
+
 /**
- * The token a WebSocket upgrade presents. Header only: a query-string token
- * lands in proxy and tunnel access logs, so only the pairing QR carries one.
+ * The token a WebSocket upgrade presents. Phones send `Authorization: Bearer`;
+ * a browser cannot set that header, so it offers `rove.bearer.<token>` as a
+ * `Sec-WebSocket-Protocol` instead. Never the query string: a URL token lands
+ * in proxy and tunnel access logs, so only the pairing QR carries one.
  */
 export function presentedToken(req: Request): string | null {
   const header = req.headers.get("authorization")
-  return header?.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : null
+  if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length).trim()
+  for (const offered of (req.headers.get("sec-websocket-protocol") ?? "").split(",")) {
+    const name = offered.trim()
+    if (name.startsWith(TOKEN_SUBPROTOCOL_PREFIX)) return name.slice(TOKEN_SUBPROTOCOL_PREFIX.length)
+  }
+  return null
+}
+
+/** True when the upgrade came from the browser client, which must get its protocol echoed. */
+export function offersWebSubprotocol(req: Request): boolean {
+  return (req.headers.get("sec-websocket-protocol") ?? "").split(",").some((p) => p.trim() === WEB_SUBPROTOCOL)
+}
+
+/**
+ * The link `rove --web` prints. The token rides in the fragment, which the
+ * browser never sends: it reaches no server or proxy log. The page moves it
+ * into storage and strips it from the address bar before anything else runs.
+ */
+export function webUrl(opts: { host: string; port: number; token: string; tls: boolean }): string {
+  const shown = opts.host.includes(":") ? `[${opts.host}]` : opts.host
+  const origin = opts.tls ? `https://${shown}` : `http://${shown}:${opts.port}`
+  return `${origin}/#token=${opts.token}`
 }
 
 /**
