@@ -236,6 +236,7 @@ export function taskRows(
     activity,
     liveTaskIds,
     attention: [],
+    gates: [],
     notes: [],
     now,
     limit: Number.MAX_SAFE_INTEGER,

@@ -131,6 +131,15 @@ export type DaemonRequestName =
   // Pending episodes for headless coordinators: the `attention.inbox` channel
   // only reaches an ATTACHED GUI.
   | "attention.list"
+  // Decision gates (docs/design/long-run-controls.md § 3): a task asks its
+  // owner; the answer is persisted, then routed back to the engine tab.
+  // `takeUndelivered`/`markDelivered` serve `send`, whose delivery runs CLI-side.
+  | "gate.raise"
+  | "gate.answer"
+  | "gate.withdraw"
+  | "gate.list"
+  | "gate.takeUndelivered"
+  | "gate.markDelivered"
   // Plugin-written task-row tokens (docs/PLUGIN-AUTHORING.md § Task-row
   // tokens). In-memory, TTL-bounded, broadcast on `task.tokens`.
   | "task.rowToken"

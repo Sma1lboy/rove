@@ -11,6 +11,7 @@ import { logDaemonError } from "./crash-log.ts"
 import { DeliveriesStore } from "./deliveries-store.ts"
 import { EngineEventLog } from "./engine-events-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
+import { GatesStore, defaultGatesStorePath } from "./gates-store.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
 import { defaultDeliveriesPath } from "./paths.ts"
@@ -22,6 +23,7 @@ import { WorkItemCache } from "./work-items.ts"
 
 /** Every daemon-owned store + the teardown runner, created in one place. */
 export interface DaemonStores {
+  readonly gates: GatesStore
   readonly activity: DaemonActivityRegistry
   readonly inbox: AttentionInboxStore
   readonly agentTurns: AgentTurnsStore
@@ -59,6 +61,14 @@ export async function initDaemonStores(
   )
   const inbox = new AttentionInboxStore(defaultAttentionInboxPath(homeDir), bus)
   await inbox.init().catch((err) => logDaemonError("attention-inbox-init", err))
+  const gates = new GatesStore(defaultGatesStorePath(homeDir))
+  // Gate rows ride the Inbox as a projection; any gate change republishes both.
+  inbox.setProjection(() => gates.inboxItems())
+  gates.setOnChange(() => {
+    bus.publish("gates", { gates: gates.active() })
+    inbox.publish()
+  })
+  await gates.init().catch((err) => logDaemonError("gates-init", err))
   const agentTurns = new AgentTurnsStore(defaultAgentTurnsPath(homeDir))
   await agentTurns.init().catch((err) => logDaemonError("agent-turns-init", err))
   const deliveries = new DeliveriesStore(defaultDeliveriesPath(homeDir))
@@ -67,8 +77,10 @@ export async function initDaemonStores(
   // state its TTL exists to prevent.
   const rowTokens = new RowTokenStore(bus)
   const clearTaskState = (taskId: string) =>
-    inbox
-      .deleteTaskBestEffort(taskId)
+    gates
+      .withdrawTask(taskId)
+      .catch((err) => logDaemonError("gates-withdraw-task", err))
+      .then(() => inbox.deleteTaskBestEffort(taskId))
       .finally(() => deliveries.deleteTaskBestEffort(taskId))
       .finally(() => agentTurns.deleteTask(taskId).catch((err) => logDaemonError("agent-turns-delete", err)))
       .finally(() => activity.clearTask(taskId))
@@ -87,6 +99,7 @@ export async function initDaemonStores(
   const engineEvents = new EngineEventLog()
   return {
     activity,
+    gates,
     inbox,
     agentTurns,
     deletions,

@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 62 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 63 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -420,6 +420,17 @@ grid; screen size bounds splitting — a split that would shrink any pane
 below the minimum usable size (20×6 cells) falls back to a tab.
 Panes land in the USER'S live workspace — open them when asked (monitors,
 logs, dashboards), don't scatter panes for work `add` should own.
+
+## Asking the owner (decision gates)
+
+A question only the owner can answer goes through a gate, not a MEMO line or the tail of a long report. Raise it, then stop and wait; the answer is pasted back into your tab as `[ROVE GATE g-N answered] …`.
+
+| Verb | Purpose |
+|---|---|
+| `gate-raise --task-id "$ROVE_TASK_ID" --question TEXT [--option KEY=LABEL]… [--recommend KEY] [--context TEXT]` | Open a decision gate (≤ 6 options, empty = free text). It shows in the owner's Inbox as `decision_needed`; `--tab` defaults to the tab you run in |
+| `gate-answer --gate g-N [--option KEY] [--text TEXT]` | Answer a gate (owner/coordinator). Saved first, then pasted into the gate's tab; no live engine → `delivered:false`, and the next `send`/routine into that tab carries it |
+| `gate-withdraw --gate g-N` | Drop a question that went moot |
+| `gates [--repo PATH] [--task-id ID] [--status open\|answered\|withdrawn\|all]` | List gates (default open); `context` also carries the repo's open gates |
 
 ## Lifecycle
 

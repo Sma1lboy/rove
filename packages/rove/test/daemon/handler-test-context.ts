@@ -4,6 +4,7 @@ import type { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention
 import type { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
 import type { DeliveriesStore } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
 import type { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
+import type { GatesStore } from "@sma1lboy/rove-daemon/daemon/gates-store"
 import { GraphicsImageIds } from "@sma1lboy/rove-daemon/daemon/graphics-ids"
 import type { IssuesStore } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { FieldNote, NotesStore } from "@sma1lboy/rove-daemon/daemon/notes-store"
@@ -113,6 +114,8 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
       awaitingOn: () => [],
       noteTurnStart: () => Promise.resolve(),
     } as unknown as DeliveriesStore,
+    // Gate behavior has its own suite (gates.test.ts, real store); this keeps task.delete's withdraw call alive.
+    gates: { withdrawTask: () => Promise.resolve() } as unknown as GatesStore,
     deletions: {
       enqueue: (taskId: string) => rec.deletions.push(taskId),
     },

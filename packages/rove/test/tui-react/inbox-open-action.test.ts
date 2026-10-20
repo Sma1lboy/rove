@@ -45,3 +45,19 @@ describe("dismissEpisode", () => {
     expect(rpc.dismissAttention).toHaveBeenCalledWith("task-1", null, 456, "d-12")
   })
 })
+
+// A decision belongs to its gate: only `gate.answer` / `gate.withdraw` end it.
+describe("a decision_needed row", () => {
+  const decision: AttentionInboxItem = {
+    ...item,
+    state: "decision_needed",
+    detail: { gate: { id: "g-1", question: "?", options: [] } },
+  }
+
+  it("is never dismissed, whichever path asks", async () => {
+    const rpc = { dismissAttention: vi.fn().mockResolvedValue(true), dismissRoutineAttention: vi.fn() }
+    expect(requestInboxItemOpen(decision, true, rpc, vi.fn())).toBe(true)
+    await expect(dismissEpisode(decision, rpc)).resolves.toBe(false)
+    expect(rpc.dismissAttention).not.toHaveBeenCalled()
+  })
+})

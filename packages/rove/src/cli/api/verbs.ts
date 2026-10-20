@@ -12,6 +12,7 @@ import { CREATE_VERBS } from "./verbs-create.ts"
 import { DRIVE_VERBS } from "./verbs-drive.ts"
 import { EDIT_VERBS } from "./verbs-edit.ts"
 import { FEEDBACK_VERBS } from "./verbs-feedback.ts"
+import { GATE_VERBS } from "./verbs-gates.ts"
 import { ISSUE_VERBS } from "./verbs-issues.ts"
 import { LIFECYCLE_VERBS } from "./verbs-lifecycle.ts"
 import { READ_VERBS } from "./verbs-read.ts"
@@ -145,6 +146,7 @@ export const VERBS: readonly VerbSpec[] = [
   ...CREATE_VERBS,
   ...DRIVE_VERBS,
   REPORT_VERB,
+  ...GATE_VERBS,
   ...FEEDBACK_VERBS,
   ...ISSUE_VERBS,
   ...ROUTINE_VERBS,

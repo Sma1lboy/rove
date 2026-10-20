@@ -427,6 +427,8 @@ export class RemoteOrchestrator {
     writes.dismissRoutineAttentionOp(this.client, automationId)
   markAttentionRead = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
     writes.markAttentionReadOp(this.client, taskId, tabId, at)
+  answerGate = (gateId: string, answer: writes.GateAnswer) => writes.answerGateOp(this.client, gateId, answer)
+  withdrawGate = (gateId: string): Promise<void> => writes.withdrawGateOp(this.client, gateId)
 
   /** Read-only land probe: destination, commit count, refusal. */
   landPreflight(id: TaskId | string): ReturnType<typeof writes.landPreflightOp> {

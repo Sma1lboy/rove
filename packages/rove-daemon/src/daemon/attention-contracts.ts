@@ -2,6 +2,7 @@
  *  is waiting for a person. Re-exported from `contracts.ts`. */
 
 import type { DeliveryMissingCause } from "./delivery-contracts.ts"
+import { type GateInboxDetail, gateInboxKey } from "./gate-contracts.ts"
 
 export type EngineActivityKind =
   | "session-start"
@@ -56,6 +57,8 @@ export interface EngineActivityDetail {
     readonly id: string
     readonly cause: Exclude<DeliveryMissingCause, "rate-limited">
   }
+  /** The gate behind a `decision_needed` row: a projection of `gates.json`, never stored. */
+  readonly gate?: GateInboxDetail
 }
 
 export type TaskActivityState =
@@ -93,6 +96,9 @@ export const ATTENTION_INBOX_STATES = [
   /** An armed delivery ended without `rove api report`. Keyed on the delivery
    *  (not the tab), so the tab's next turn-start does not erase it. */
   "report_missing",
+  /** A task asked its owner a question ({@link Gate}); a projection of `gates.json`,
+   *  so no turn-start, open or dismiss removes it. Only answering/withdrawing does. */
+  "decision_needed",
 ] as const
 
 /** Episodes whose subject is a routine, not a task. */
@@ -117,6 +123,8 @@ export function attentionInboxItemKey(item: {
   if (isRoutineInboxState(item.state) && item.detail?.routine)
     return `\u0000${item.state}\u0000${item.detail.routine.automationId}`
   if (item.state === "report_missing" && item.detail?.delivery) return `\u0000delivery\u0000${item.detail.delivery.id}`
+  // A decision is keyed on its GATE: the tab's engine episode must not overwrite it.
+  if (item.state === "decision_needed" && item.detail?.gate) return gateInboxKey(item.detail.gate.id)
   // Engine episodes: one per tab, the fresh one replacing the stale.
   return `${item.taskId}\0${item.tabId ?? ""}`
 }
