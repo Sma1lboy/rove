@@ -83,11 +83,12 @@ export function buildEditorCommand(
   if (!tmpl) return null
   const bin = firstToken(tmpl)
   if (!bin) return null
-  // A `{line}` template places the line itself; the path then goes in bare.
-  const target = tmpl.includes(LINE_PLACEHOLDER)
-    ? { arg: shellQuote(absPath), atLine: true }
-    : fileArg(bin, absPath, line)
-  const withLine = tmpl.split(LINE_PLACEHOLDER).join(String(line ?? 1))
+  const hasLine = tmpl.includes(LINE_PLACEHOLDER)
+  const autoPlusLine = !hasLine && line !== undefined && PLUS_LINE_EDITORS.has(bin.split("/").pop() ?? bin)
+  const target = hasLine || autoPlusLine ? { arg: shellQuote(absPath), atLine: true } : fileArg(bin, absPath, line)
+  // Insert the option before any `--`; `{file}` remains a single file operand.
+  const withOption = autoPlusLine ? `${bin} +${line}${tmpl.slice(bin.length)}` : tmpl
+  const withLine = withOption.split(LINE_PLACEHOLDER).join(String(line ?? 1))
   const command = withLine.includes(FILE_PLACEHOLDER)
     ? withLine.split(FILE_PLACEHOLDER).join(target.arg)
     : `${withLine} ${target.arg}`

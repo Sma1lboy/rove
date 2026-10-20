@@ -153,6 +153,9 @@ In `editor.customCommand`, `{file}` is replaced by the quoted file path. Without
 it, the path is appended. `{line}` is replaced by the line `rove api tab-new
 --kind editor --line N` asked for (1 otherwise), for editors that read a line
 some other way, for example `code -w -g {file}:{line}`.
+For editors using `+N`, Rove inserts the automatic line option immediately after
+the executable, before any `--`. For example, `vim -- {file}` becomes
+`vim +42 -- '/path/to/file'` when line 42 is requested.
 
 Set `ROVE_OPEN_EDITOR` to choose the GUI editor for a whole worktree, for
 example `ROVE_OPEN_EDITOR=zed`. Without that variable,
