@@ -23,6 +23,13 @@ const GLOBAL_FLAGS = [
     description:
       "Print every outcome as one { apiVersion, ok, result | error } on stdout — what the daemon's and the bridge's api.invoke return.",
   },
+  {
+    name: "machine",
+    type: "string",
+    placeholder: "ALIAS",
+    description:
+      "Run the verb in that registered machine's daemon (`rove machine list`); paths are paths there. A --task-id on another machine goes there without it.",
+  },
 ]
 
 /**
@@ -107,8 +114,8 @@ export function fullSchema(): unknown {
     },
     transports: {
       cli: "rove api <verb> --flag value",
-      daemon: 'socket request "api.invoke" {verb, params} → the envelope; params are keyed by flag name',
-      bridge: 'WebSocket op "api.invoke" {verb, params} → result, or the full error object',
+      daemon: 'socket request "api.invoke" {verb, params, machine?} → the envelope; params are keyed by flag name',
+      bridge: 'WebSocket op "api.invoke" {verb, params, machine?} → result, or the full error object',
     },
     globalFlags: GLOBAL_FLAGS,
     aliases: VERB_ALIASES,
@@ -144,7 +151,7 @@ export function verbHelp(verb: VerbSpec): string {
     }
     lines.push("")
   }
-  lines.push("Global: [--pretty] [--help] [--envelope]")
+  lines.push("Global: [--pretty] [--help] [--envelope] [--machine ALIAS]")
   return lines.join("\n")
 }
 

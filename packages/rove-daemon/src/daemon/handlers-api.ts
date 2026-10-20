@@ -6,7 +6,7 @@
 
 import { ROVE_API_VERSION } from "@sma1lboy/rove-plugin-sdk/contract"
 import type { ApiEnvelope, ApiParams } from "@sma1lboy/rove-plugin-sdk/contract"
-import { requireString } from "./handler-validators.ts"
+import { optionalBoolean, optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 
 function refusal(code: string, message: string): ApiEnvelope {
@@ -34,7 +34,10 @@ export const API_HANDLERS: readonly DaemonRequestHandler[] = [
       const bad = Object.entries(params).find(([, value]) => !isParamValue(value))
       if (bad) return refusal("BAD_FLAG", `param ${bad[0]} must be a string, number, boolean or string list`)
       if (!ctx.runtime.invokeApi) return refusal("RPC_ERROR", "this daemon cannot run verbs")
-      return ctx.runtime.invokeApi(verb, params as ApiParams, ctx.daemon.socketPath)
+      return ctx.runtime.invokeApi(verb, params as ApiParams, ctx.daemon.socketPath, {
+        machine: optionalString(payload, "machine"),
+        forwarded: optionalBoolean(payload, "forwarded"),
+      })
     },
   },
 ]

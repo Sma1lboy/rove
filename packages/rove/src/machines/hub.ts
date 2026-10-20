@@ -7,9 +7,8 @@
  * returned unchanged, object identity included, so a zero-machine install
  * renders and serializes byte-for-byte as without this module.
  *
- * READ-ONLY across the tunnel: writes aimed at a remote task are refused by
- * {@link guardRemoteTaskRequests} instead of landing on the local daemon,
- * which would not know that id.
+ * READ-ONLY across the tunnel: the TUI does not write to a remote task yet.
+ * `rove api` and `api.invoke` do, by forwarding the verb (`forward.ts`).
  */
 
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"

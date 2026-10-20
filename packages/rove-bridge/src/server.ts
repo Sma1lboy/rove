@@ -52,8 +52,9 @@ export interface BridgeDeps {
   readonly log?: (line: string) => void
   /** One verb or RPC per call, for area ops. */
   readonly api: BridgeApi
-  /** The `api.invoke` op: any verb `api.invoke` serves, run in this process. */
-  readonly invoke?: (verb: string, params: ApiParams) => Promise<ApiEnvelope>
+  /** The `api.invoke` op: any verb `api.invoke` serves, run in this process or
+   *  on the registered machine `machine` names (or whose task it targets). */
+  readonly invoke?: (verb: string, params: ApiParams, machine?: string) => Promise<ApiEnvelope>
   /** Area op allowlist; defaults to `AREA_OPS` (tests inject their own). */
   readonly areaOps?: OpTable
   /** Serve the browser client's files on plain GETs (`rove --web`). */
@@ -93,7 +94,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         throw new BridgeError("BAD_ARGS", "params must be an object keyed by flag name")
       }
       if (DESTRUCTIVE_VERBS.has(verb)) logDestructiveVerb(deps, verb, params as Record<string, unknown>)
-      const envelope = await deps.invoke(verb, params as ApiParams)
+      const envelope = await deps.invoke(verb, params as ApiParams, optStr(a, "machine"))
       if (envelope.ok) return envelope.result
       throw new BridgeError(envelope.error.code, envelope.error.message, envelope.error)
     }

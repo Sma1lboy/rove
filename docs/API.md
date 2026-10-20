@@ -48,6 +48,27 @@ process, not beside the caller, so three things differ from the CLI:
 - **No streaming.** `watch` and `pane-graphics` (`cliOnly: true` in `schema`)
   answer `CLI_ONLY_VERB`; subscribe to the daemon's channels instead.
 
+## Run a verb on another machine
+
+With machines registered ([MACHINES.md](MACHINES.md)), a verb can run on any
+of them. It crosses the ssh-forwarded daemon socket as `api.invoke` and
+executes inside that machine's daemon: its git, its PTY host, its engine
+logins. This machine only routes.
+
+- `--machine <alias>` on any verb runs it there:
+  `rove api add --machine narwhal --repo /srv/rove --prompt "…"`. Over the
+  socket or the bridge, pass `"machine": "<alias>"` beside `verb` and
+  `params`. `local` names this machine.
+- A `--task-id` that lives on another machine runs on that machine without
+  `--machine`, so a remote task the sidebar shows answers `send`,
+  `read-output`, `delete` and the rest like a local one.
+- The rules for socket callers above apply on the far side: `--repo` and other
+  paths are absolute paths **on that machine**. `--prompt-file` is read here
+  and sent as `--prompt`.
+- A forwarded call is never forwarded again, and `list` over the socket
+  returns only the answering daemon's own tasks, so two machines that
+  registered each other cannot bounce a verb between them.
+
 The bridge logs every destructive verb (`delete`, `land`, `remove-worktree`,
 `tab-close`, `issue-delete`, `routine-delete`, `note-delete`) by verb and id,
 as it does its own destructive ops.
@@ -174,6 +195,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_DAEMON` | The daemon could not be reached or started. |
 | `DAEMON_VERSION_SKEW` | The daemon is a different build and does not serve this verb. |
 | `CLI_ONLY_VERB` | `api.invoke` (socket or bridge) named a verb that streams over stdout/stdin (`watch`, `pane-graphics`). |
+| `UNKNOWN_MACHINE` | `--machine` (or `"machine"` over the socket) names no registered machine. |
+| `MACHINE_UNREACHABLE` | The machine a verb was routed to did not answer over ssh. |
+| `MACHINE_VERSION_SKEW` | That machine's Rove predates forwarded verbs; upgrade it. |
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |

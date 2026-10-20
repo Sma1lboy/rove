@@ -19,6 +19,7 @@ import { executeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { REMOTE_CALLER } from "@sma1lboy/rove/src/cli/api/types.ts"
 import { RemoteOrchestrator } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { ensurePluginEnginesLoaded } from "@sma1lboy/rove/src/engine/plugin-engines.ts"
+import { invokeRouted } from "@sma1lboy/rove/src/machines/forward.ts"
 import { MachineHub } from "@sma1lboy/rove/src/machines/hub.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
@@ -183,7 +184,18 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     openPty: () => new RoveDaemonClient(ptySocket),
     roveVersion: CURRENT_VERSION,
     api: createBridgeApi(verbClient),
-    invoke: (verb, params) => executeVerb(verb, { params }, { client: verbClient, caller: REMOTE_CALLER }),
+    invoke: (verb, params, machine) =>
+      invokeRouted({
+        verb,
+        params,
+        machine,
+        isLocalTask: (id) =>
+          verbClient.request("task.get", { taskId: id }).then(
+            () => true,
+            () => false,
+          ),
+        runHere: () => executeVerb(verb, { params }, { client: verbClient, caller: REMOTE_CALLER }),
+      }),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
     ...(opts.web ? { web: opts.web } : {}),
   }

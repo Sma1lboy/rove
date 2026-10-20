@@ -1,6 +1,8 @@
 # Workspace backends and runners
 
-> Status: **design draft, nothing implemented.** Maps the current code
+> Status: **design draft.** Runner routing for `rove api` / `api.invoke`
+> (`--machine`, task-id routing; `packages/rove/src/machines/forward.ts`) has
+> landed; the rest is not implemented. Maps the current code
 > (verified on `main` at 0.9.250) and proposes the seam. Decisions marked
 > **OPEN** need the owner.
 
@@ -198,12 +200,12 @@ surface ships first on git.
 | `api.invoke` runs a verb inside the answering daemon | Exists (`handlers-api.ts`, `core/daemon-runtime.ts:62`) |
 | Resident daemon | Exists (`resident.ts`) |
 | Attach pattern on an existing PTY key, never spawning | Exists in the bridge (`rove-bridge/src/terminal.ts`) |
-| Write guard | **Missing.** `hub.ts:11` documents `guardRemoteTaskRequests`, but no such function exists. Only the argv CLI's `assertLocalTask` refuses, and `api.invoke` callers bypass it |
-| Route writes by `task.runner` / `origin.machineId` | Missing; replaces the refusal |
+| Route `rove api` / `api.invoke` (daemon, bridge) by `--machine` or by the machine holding `--task-id` | **Done** (`machines/forward.ts`); forwarded calls never move again |
+| Route TUI writes on a remote row | Missing; the TUI still treats remote rows as read-only |
 | Per-machine PTY client in the TUI | Missing. `getSharedPtyClient()` is a process singleton, and routes are keyed by `taskId::tabId` with no machine |
 | pty.sock forward | Set up but nothing dials it. The tunnel health check doesn't probe it |
 | Hub in the daemon | Missing. `MachineHub` lives in TUI/bridge processes only |
-| No recursive fan-out | Missing. A remote `list` calls `mergeTaskList` on *its* registry |
+| No recursive fan-out | **Done**: `list` over a transport returns the answering daemon's own tasks |
 | Per-caller auth | None. Socket reachability is the whole access control. Fine over SSH; not fine for anything else |
 
 ## Dispatch: what "the repos are all the same" actually requires
@@ -264,9 +266,8 @@ proceed in parallel.
 
 ## Bugs found while surveying (independent of this design)
 
-- `machines/hub.ts:11` references a `guardRemoteTaskRequests` that does not
-  exist, and `remoteTaskIds()` has no callers. A remote task id sent through
-  `api.invoke` or the bridge is not refused.
+- (Fixed with runner routing) `machines/hub.ts` documented a
+  `guardRemoteTaskRequests` that did not exist; remote task ids now forward.
 - `handlers-pr.ts` → `pr-failing-checks.ts` / `pr-rerun-checks.ts` spawn `gh`
   in a remote task's cwd with no `ssh://` skip. The collector
   (`pr-status-collector.ts:194`) has one.

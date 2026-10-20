@@ -101,16 +101,30 @@ Registering one machine under two aliases is recognized and reported: Rove
 compares the remote daemon's hostname, state root and pid, and renders one row
 either way.
 
+## Run commands on a machine
+
+Every `rove api` verb takes `--machine <alias>` and runs in that machine's
+daemon, so its tasks, worktrees and engine sessions are created there:
+
+```console
+$ rove api add --machine narwhal --repo /home/nahuel/rove --prompt "fix the flaky test"
+```
+
+A `--task-id` that belongs to another machine goes there on its own: `send`,
+`read-output`, `land` and `delete` work on a remote task the same as on a local
+one. Paths are paths on that machine. [API.md](API.md#run-a-verb-on-another-machine)
+has the details.
+
+A daemon left running with `rove daemon start --resident` on an always-on box
+can be the one you dispatch from: register your machines there, and anything
+that reaches that daemon (`rove api`, `rove --web`, the phone apps) can send
+work to any of them. That also means a bridge token for that daemon runs
+commands on every machine registered there: guard it like an ssh key.
+
 ## What this release does not do yet
 
-This is the first of three. Today machines are **read-only**:
-
-- Opening a remote task's session is not wired up yet — you can see it, not
-  enter it.
-- `rove api` verbs aimed at a remote task refuse with
-  `NOT_YET_SUPPORTED_REMOTE` rather than quietly running against your local
-  daemon, where that task id does not exist. Run the command on that machine
-  instead.
+- Opening a remote task's session in the TUI is not wired up yet. You can see
+  the row and drive it with `rove api`, but not enter it.
 - The file tree and diff panes show `on <host>` for a remote task. Its worktree
   path means nothing on your filesystem, and reading it would list whatever
   happens to sit at the same path here.

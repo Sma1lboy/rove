@@ -34,8 +34,17 @@ export interface DaemonRuntimeAdapter {
    * Run one `rove api` verb in the daemon process, against this daemon's own
    * socket. Never rejects: a refusal is an `ok: false` envelope. Absent in
    * test doubles, where `api.invoke` refuses.
+   *
+   * `route.machine` (or a `task-id` held by a registered machine) sends the
+   * verb on to that machine's daemon; `route.forwarded` marks a call that
+   * already crossed one, which never moves again.
    */
-  invokeApi?(verb: string, params: ApiParams, socketPath: string): Promise<ApiEnvelope>
+  invokeApi?(
+    verb: string,
+    params: ApiParams,
+    socketPath: string,
+    route?: { readonly machine?: string; readonly forwarded?: boolean },
+  ): Promise<ApiEnvelope>
   readonly defaultTaskVendor: VendorId
   readonly placeholderTaskTitle: string
   isTaskStatus(value: unknown): value is DaemonTask["status"]
