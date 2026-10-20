@@ -120,6 +120,8 @@ export interface AttentionRow {
   readonly resumeAt?: string
   /** Routine episodes: the routine's name (the subject is a schedule, not a task). Optional. */
   readonly label?: string
+  /** `report_missing` episodes: the delivery id. Dismissal is keyed by it, not by task+tab. Optional. */
+  readonly deliveryId?: string
   /** Routine episodes: the schedule's id; `attention.dismissRoutine` clears the episode by it and the Routines page lands on that routine. Optional. */
   readonly automationId?: string
 }

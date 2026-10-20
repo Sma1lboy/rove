@@ -70,6 +70,8 @@ export const en = {
       /** A routine whose latest firing needs a human. */
       routineFailed: "routine needs you",
       routineResponded: "routine responded",
+      /** An armed prompt's turn ended without `rove api report`. */
+      reportMissing: "report missing",
     },
     /** Rate-limited card's context line: when the armed auto-resume fires.
      *  `{time}` is a locale-formatted clock time. */
@@ -125,6 +127,7 @@ export const zh: typeof en = {
       dead: "引擎已退出",
       routineFailed: "例行任务需要处理",
       routineResponded: "例行任务已回报",
+      reportMissing: "未回报",
     },
     resumesAt: "{time} 恢复",
   },

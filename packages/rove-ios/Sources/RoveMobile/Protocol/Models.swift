@@ -119,6 +119,8 @@ struct AttentionItem: Codable, Hashable {
     var resumeAt: String?
     /// Routine items: the routine's name. Absent from older bridges.
     var label: String?
+    /// `report_missing` items: the delivery id, the only key that can dismiss one. Absent from older bridges.
+    var deliveryId: String?
 }
 
 struct TabRow: Codable, Hashable, Identifiable {

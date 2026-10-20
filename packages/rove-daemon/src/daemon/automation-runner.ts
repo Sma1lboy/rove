@@ -16,7 +16,7 @@
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
-import { dispatchAutomation } from "./automation-dispatch.ts"
+import { type DispatchOutcome, dispatchAutomation } from "./automation-dispatch.ts"
 import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./automation-precheck.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import {
@@ -27,6 +27,7 @@ import {
 } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
+import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
 
@@ -79,6 +80,8 @@ export type AutomationRuntime = Pick<
 
 interface RunnerDeps {
   readonly store: AutomationsStore
+  /** Every dispatched prompt owes a report; the delivery is armed before the paste. */
+  readonly deliveries: Pick<DeliveriesStore, "arm" | "cancel" | "setTab">
   readonly orch: AutomationOrchestrator
   readonly runtime: AutomationRuntime
   /** In-process RPC client, or a getter: the server's self-link is built after
@@ -216,10 +219,11 @@ function droppedOccurrences(automation: Automation, scheduledFor: number): { cou
  */
 export function withRoutineRunHeader(
   automation: Pick<Automation, "name" | "prompt">,
-  run: { id: string; runNumber: number },
+  run: { runNumber: number },
   api: string,
+  deliveryId: string,
 ): string {
-  return `[ROVE ROUTINE] "${automation.name}" run #${run.runNumber} — when done, report with: ${api} routine-respond --run ${run.id} --prompt-file -\n\n${automation.prompt}`
+  return `[ROVE ROUTINE] "${automation.name}" run #${run.runNumber} — when done, report with: ${api} report --delivery ${deliveryId} --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]\n\n${automation.prompt}`
 }
 
 /** Execute one automation now, recording exactly one run. A manual trigger
@@ -237,6 +241,7 @@ export async function runAutomationOnce(
       taskId?: string
       tabId?: string
       error?: string
+      deliveryId?: string
       precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>>
     } = {},
   ): Promise<AutomationRunStatus> => {
@@ -278,7 +283,19 @@ export async function runAutomationOnce(
       error: "routine disabled, changed, deleted or runner stopped before delivery",
     })
 
-  let outcome: Awaited<ReturnType<typeof dispatchAutomation>>
+  let outcome: DispatchOutcome
+  // Armed against the task the prompt lands in, BEFORE the paste: a failed
+  // turn can fire its hook within milliseconds of it.
+  let deliveryId: string | undefined
+  const settleDelivery = async (delivered: { tabId?: string } | null): Promise<void> => {
+    if (!deliveryId) return
+    const id = deliveryId
+    if (delivered === null) deliveryId = undefined
+    await (delivered === null
+      ? deps.deliveries.cancel(id)
+      : deps.deliveries.setTab(id, delivered.tabId ?? "tab-1")
+    ).catch((err: unknown) => logDaemonError("automation-delivery", err))
+  }
   try {
     outcome = await dispatchAutomation(
       {
@@ -289,14 +306,27 @@ export async function runAutomationOnce(
         ...(deps.now ? { now: deps.now } : {}),
       },
       automation,
-      withRoutineRunHeader(automation, reserved, deps.runtime.roveApiInvocation?.() ?? "rove api"),
+      async (target) => {
+        const delivery = await deps.deliveries.arm({
+          taskId: target.taskId,
+          tabId: target.tabId,
+          source: "routine",
+          automationRunId: reserved.id,
+          promptHead: automation.prompt,
+        })
+        deliveryId = delivery.id
+        return withRoutineRunHeader(automation, reserved, deps.runtime.roveApiInvocation?.() ?? "rove api", delivery.id)
+      },
     )
   } catch (err) {
     // A moved or forgotten repo: the target is gone, not the schedule.
     const error = err instanceof Error ? err.message : String(err)
     logDaemonError("automation-dispatch", err)
+    await settleDelivery(null)
     return await record("skipped_unavailable", { error })
   }
+  // Only a prompt that reached an engine owes a report.
+  await settleDelivery(outcome.status === "dispatched" || outcome.status === "revived" ? outcome : null)
 
   // Persist the standing-session link BEFORE recording the run: a crash
   // between the two costs one run record, while the reverse would leave the
@@ -323,6 +353,7 @@ export async function runAutomationOnce(
     ...(outcome.taskId ? { taskId: outcome.taskId } : {}),
     ...(outcome.tabId ? { tabId: outcome.tabId } : {}),
     ...(outcome.error ? { error: outcome.error } : {}),
+    ...(deliveryId ? { deliveryId } : {}),
   })
 }
 

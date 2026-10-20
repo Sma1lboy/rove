@@ -181,6 +181,11 @@ export function defaultPtyExitsPath(homeDir = readRoveHomeDirEnv() ?? homedir())
   return runtimeDataPath(homeDir, "pty-exits.json")
 }
 
+/** Delivery records (`deliveries-store.ts`): armed prompts that owe `rove api report`. */
+export function defaultDeliveriesPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
+  return join(homeDir, ROVE_STATE_DIR_BASENAME, "deliveries.json")
+}
+
 /** PTY sidecar bearer token (`web-token.ts`). Its own 0600 file, not a
  *  `state.json` field: state.json gets pasted into bug reports, and this file
  *  can be chmod'd whole and rotated with one `rm`. */

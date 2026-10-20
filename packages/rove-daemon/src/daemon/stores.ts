@@ -8,10 +8,12 @@ import { initAutomationsStore } from "./automation-wiring.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
+import { DeliveriesStore } from "./deliveries-store.ts"
 import { EngineEventLog } from "./engine-events-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
+import { defaultDeliveriesPath } from "./paths.ts"
 import { QuotaUsageCache } from "./quota-usage-cache.ts"
 import { RowTokenStore } from "./row-tokens.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
@@ -27,6 +29,7 @@ export interface DaemonStores {
   readonly issues: IssuesStore
   readonly notes: NotesStore
   readonly automations: AutomationsStore
+  readonly deliveries: DeliveriesStore
   readonly workItems: WorkItemCache
   readonly quotaUsage: QuotaUsageCache
   readonly engineEvents: EngineEventLog
@@ -58,12 +61,15 @@ export async function initDaemonStores(
   await inbox.init().catch((err) => logDaemonError("attention-inbox-init", err))
   const agentTurns = new AgentTurnsStore(defaultAgentTurnsPath(homeDir))
   await agentTurns.init().catch((err) => logDaemonError("agent-turns-init", err))
+  const deliveries = new DeliveriesStore(defaultDeliveriesPath(homeDir))
+  await deliveries.init().catch((err) => logDaemonError("deliveries-init", err))
   // In memory on purpose: restoring a token whose author is gone is the stale
   // state its TTL exists to prevent.
   const rowTokens = new RowTokenStore(bus)
   const clearTaskState = (taskId: string) =>
     inbox
       .deleteTaskBestEffort(taskId)
+      .finally(() => deliveries.deleteTaskBestEffort(taskId))
       .finally(() => agentTurns.deleteTask(taskId).catch((err) => logDaemonError("agent-turns-delete", err)))
       .finally(() => activity.clearTask(taskId))
       // Else the map keeps republishing tokens for a row nothing renders.
@@ -87,6 +93,7 @@ export async function initDaemonStores(
     issues,
     notes,
     automations,
+    deliveries,
     workItems,
     quotaUsage,
     engineEvents,

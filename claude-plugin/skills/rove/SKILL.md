@@ -273,7 +273,7 @@ turn either. These five carry almost all traffic:
 
 ```text
 add      --repo(REQ) --prompt --title --command --count --agents --activate
-send     --prompt|--prompt-file(REQ) --task-id --tab --command --plain
+send     --prompt|--prompt-file(REQ) --task-id --tab --command --plain --expect-report
 get-task --task-id(REQ)          list  (no flags)
 collect  --group <groupId> | --task-ids <csv> | --repo
 ```
@@ -294,6 +294,7 @@ Find your section by what you were ASKED, not by Rove's noun for it:
 | track work in Rove's own backlog, move a kanban card | issues |
 | remember this for the repo, leave a field note / 记一笔 | drive |
 | what did the agent do, per-turn cost, read its screen | read |
+| a prompt ends `[ROVE] … report with: rove api report`; tick a task unattended and want proof it reported | drive (`report`, `send --expect-report`) / read (`deliveries`) |
 | make / rename / retarget / land / close a task | create / edit / lifecycle |
 | materialize or adopt a checkout | worktree |
 | which engines exist, send Rove product feedback | discover / feedback |
@@ -608,6 +609,42 @@ verify the winner's actual diff before landing. Silence never proves a
 worker died (it may be mid-turn or stuck on a permission prompt): peek with
 `collect`/`get-task`, nudge with `send`, and never mark a silent task failed
 or auto-retry it.
+
+### Reports: close a delivered prompt with `report`
+
+A completion `send` is a message. For work that runs unattended — a routine,
+a standing session, a scheduler ticking a task — Rove can also ask for a
+**report** and notice when it never comes.
+
+**Receiving side.** A prompt that ends with `[ROVE] When this turn ends,
+report: rove api report --delivery d-<n> …` (or opens with a
+`[ROVE ROUTINE] … report with: rove api report --delivery d-<n> …` line)
+is an armed delivery. Make `report` the LAST step of the turn, before you
+stop:
+
+```bash
+rove api report --delivery d-41 --outcome done \
+  --summary "<what you did, conclusion first>" \
+  --evidence "<commit, PR url, test result, path>" --evidence "…" \
+  --next "<what the next tick should do>"
+```
+
+`--outcome` is `done`, `partial`, `blocked` (you need the owner or an
+outside fix) or `failed` (you tried and could not). A turn that ends with no
+report is flagged `report_missing` in the owner's Inbox, and the delivery is
+marked `missing`. Reporting again replaces the report; a late report clears
+the flag. For text with quotes or backticks use `--json -` (stdin) with
+`{delivery, outcome, summary, evidence?, next?}`. `routine-respond` is the
+same report as `--outcome done`.
+
+**Sending side.** Arm the prompt you send: `rove api send --expect-report
+…` (the reply carries `deliveryId`), or set it once with
+`add --require-report` / `update --require-report on` so every `send` to that
+task is armed. Read what recent ticks did with `rove api deliveries
+--task-id <id> --limit 5` (newest first: outcome, summary, evidence, next,
+or why it went missing) instead of a growing notes file. Silence still never
+proves a worker is dead — `missing` says the turn ended or the engine died
+without a report; look before you act on it.
 
 ### A task is finished when it is GONE
 

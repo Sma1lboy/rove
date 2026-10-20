@@ -36,6 +36,23 @@ export {
   isRoutineInboxState,
 } from "./attention-contracts.ts"
 
+// Deliveries (armed prompts that owe a report).
+export type {
+  Delivery,
+  DeliveryMissingCause,
+  DeliveryOutcome,
+  DeliveryReport,
+  DeliverySource,
+  DeliveryStatus,
+} from "./delivery-contracts.ts"
+export {
+  DELIVERY_OUTCOMES,
+  DELIVERY_STALL_MS,
+  DELIVERY_SUMMARY_MAX_CHARS,
+  MAX_DELIVERIES_PER_TASK,
+  deliveryFooter,
+} from "./delivery-contracts.ts"
+
 /** Engine id (rove `VendorId`), opaque to the daemon. Plain `string`: a
  *  literal union with `(string & {})` drifts from rove's list and hides the
  *  drift inside an exhaustive-looking switch. The built-in list the daemon
@@ -157,6 +174,8 @@ export interface DaemonTask {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
+  readonly requireReport?: boolean
   /** The `add --prompt` brief as delivered, verbatim, never truncated; outlives
    *  the engine transcript. Absent until delivered. */
   readonly prompt?: string
@@ -280,6 +299,7 @@ export interface DaemonOrchestrator {
   /** Pin a raw launch command (and its caller-resolved protocol) on a task. */
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
+  setRequireReport(id: string, required: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>
   moveTaskToTop(id: string): Promise<void>
   setStatus(id: string, status: TaskStatus): Promise<void>

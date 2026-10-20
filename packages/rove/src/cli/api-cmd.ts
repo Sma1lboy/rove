@@ -36,6 +36,7 @@ import {
   errorBody,
   errorEnvelope,
   executeVerb,
+  repeatableFlagsOf,
   runVerb,
   successEnvelope,
   toApiError,
@@ -125,7 +126,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
 
   let parsed: ParsedArgs
   try {
-    parsed = parseFlags(rest, booleanFlagsOf(verb))
+    parsed = parseFlags(rest, booleanFlagsOf(verb), repeatableFlagsOf(verb))
   } catch (err) {
     if (err instanceof ApiError) fail(err.message, err.code, 2, err.data)
     fail(errorMessage(err), "BAD_FLAG", 2)

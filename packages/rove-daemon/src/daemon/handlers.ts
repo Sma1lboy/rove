@@ -24,12 +24,14 @@ import type { AttentionInboxStore } from "./attention-inbox.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
+import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
 import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
 import { API_HANDLERS } from "./handlers-api.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
+import { DELIVERY_HANDLERS } from "./handlers-deliveries.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
 import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
@@ -94,6 +96,8 @@ export interface DaemonHandlerContext {
   readonly workItems: WorkItemCache
   /** Daemon-owned scheduled automations + their run history. */
   readonly automations: AutomationsStore
+  /** Armed prompts that owe a `rove api report`, and their reports. */
+  readonly deliveries: DeliveriesStore
   /** In-process RPC client into the daemon's own requests (automation engine launch). */
   readonly selfLink: DaemonRpcClient
   /** Rate-limited cache in front of the engine quota probes. */
@@ -288,6 +292,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,
     ...AUTOMATION_HANDLERS,
+    ...DELIVERY_HANDLERS,
     ...WORK_ITEM_HANDLERS,
     ...AGENT_TURN_HANDLERS,
     ...UI_HANDLERS,

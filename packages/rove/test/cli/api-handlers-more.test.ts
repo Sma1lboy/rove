@@ -152,6 +152,7 @@ describe("schema drill-ins", () => {
       "inspect",
       "read-output",
       "watch",
+      "deliveries",
     ])
     for (const v of result.verbs) expect(v.summary.length).toBeGreaterThan(0)
   })

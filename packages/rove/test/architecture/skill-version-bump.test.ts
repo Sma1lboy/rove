@@ -33,8 +33,8 @@ const SKILL_DIR = join(ROOT, ".agents", "skills", "rove")
 const FINGERPRINT = {
   version: 62,
   sha256: {
-    "SKILL.md": "2a674c3769730a0c2db3069c8c101da9e4ff681dbb1231dd4406d4aba7088ecb",
-    "references/api-flags.md": "91b1b25b92f6629b043c389d76e9756c2bdbc718017e21f4e37963ba8c27dbcd",
+    "SKILL.md": "c073a8921661a7991f86dd512c57a2f5b0444f700f121c98a6c89e1c4379651f",
+    "references/api-flags.md": "8c9b40cf3bb04435b95c0fff74c24cb8aa047d517fad25fabd1382213fbf52d0",
   },
 } as const
 

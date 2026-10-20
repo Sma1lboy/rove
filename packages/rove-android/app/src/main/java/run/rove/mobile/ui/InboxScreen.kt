@@ -47,7 +47,7 @@ import java.util.Locale
         lastJumpKey = InboxLogic.key(item)
         val taskId = item.taskId ?: return open(Route.Routines)
         visits = visitLog.record(taskId, item.tabId)
-        model.action { model.repository.dismissAttention(taskId, item.tabId); model.refresh() }
+        model.action { model.repository.dismissAttention(taskId, item.tabId, item.deliveryId); model.refresh() }
         open(Route.Task(taskId, item.tabId))
     }
 
@@ -80,7 +80,7 @@ import java.util.Locale
                     val title = item.taskId?.let { titles[it] } ?: item.label ?: item.taskId ?: unknownRoutine
                     AttentionRow(item, title, now, { openItem(item) }) {
                         item.taskId?.let { id ->
-                            model.action { model.repository.dismissAttention(id, item.tabId); model.refresh() }
+                            model.action { model.repository.dismissAttention(id, item.tabId, item.deliveryId); model.refresh() }
                         }
                     }
                 }
@@ -115,6 +115,7 @@ import java.util.Locale
     "turn_complete" -> stringResource(R.string.inbox_state_done)
     "routine_failed" -> stringResource(R.string.inbox_state_routine_failed)
     "routine_responded" -> stringResource(R.string.inbox_state_routine_replied)
+    "report_missing" -> stringResource(R.string.inbox_state_report_missing)
     else -> state.replace('_', ' ')
 }
 

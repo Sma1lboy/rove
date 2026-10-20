@@ -168,6 +168,13 @@ final class InboxLogicTests: XCTestCase {
         XCTAssertNil(InboxLogic.next(after: nil, in: [routine]))
     }
 
+    func testDeliveryEpisodesAreKeyedByDeliveryNotTaskTab() {
+        let a = AttentionItem(taskId: "a", tabId: nil, state: "report_missing", unread: true, at: 1, deliveryId: "d-1")
+        let b = AttentionItem(taskId: "a", tabId: nil, state: "report_missing", unread: true, at: 1, deliveryId: "d-2")
+        let plain = item("a", nil, "error", at: 1)
+        XCTAssertEqual(Set([InboxLogic.key(a), InboxLogic.key(b), InboxLogic.key(plain)]).count, 3)
+    }
+
     func testRecentIsNewestFirstDedupedAndSkipsPendingAndDeletedTasks() {
         let visits = [Visit(taskId: "a", tabId: "tab-1", at: 1), Visit(taskId: "b", tabId: "tab-1", at: 5),
                       Visit(taskId: "a", tabId: "tab-1", at: 9), Visit(taskId: "c", tabId: "tab-2", at: 7),

@@ -285,4 +285,21 @@ describe("attention rows", () => {
     ])
     expect(Object.keys(row ?? {}).sort()).toEqual(["at", "state", "tabId", "taskId", "unread"])
   })
+
+  test("a report_missing item exposes its delivery id, the only key that can dismiss it", () => {
+    const rows = attentionRows(
+      [
+        {
+          taskId: "a",
+          tabId: null,
+          state: "report_missing",
+          unread: true,
+          at: 3,
+          detail: { delivery: { id: "d-12", cause: "turn-complete" } },
+        },
+      ] as never,
+      [task("a")],
+    )
+    expect(rows[0]).toMatchObject({ state: "report_missing", taskId: "a", deliveryId: "d-12" })
+  })
 })

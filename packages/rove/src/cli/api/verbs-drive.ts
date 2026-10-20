@@ -58,6 +58,13 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         description:
           "Report success from a task with zero commits (EMPTY_SUCCESS_REPORT is refused otherwise). For work that legitimately produces no commits — an investigation, a review, a question answered.",
       },
+      {
+        name: "expect-report",
+        type: "bool",
+        required: false,
+        description:
+          "Arm a delivery: the prompt gets a [ROVE] footer naming `report --delivery <id>`, the reply carries `deliveryId`, and a turn that ends without that report raises a `report_missing` Inbox row. Implied for a task added with --require-report. See `deliveries`.",
+      },
     ],
     handler: send,
   },

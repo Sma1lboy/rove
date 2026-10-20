@@ -417,8 +417,12 @@ export class RemoteOrchestrator {
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => writes.setPromptOp(this.client, id, prompt)
   deleteTask = (id: TaskId | string, opts?: { force?: boolean; deleteBranch?: boolean }): Promise<void> =>
     writes.deleteTaskOp(this.client, id, opts)
-  dismissAttention = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
-    writes.dismissAttentionOp(this.client, taskId, tabId, at)
+  dismissAttention = (
+    taskId: TaskId | string,
+    tabId: string | null,
+    at: number,
+    deliveryId?: string,
+  ): Promise<boolean> => writes.dismissAttentionOp(this.client, taskId, tabId, at, deliveryId)
   dismissRoutineAttention = (automationId: string): Promise<boolean> =>
     writes.dismissRoutineAttentionOp(this.client, automationId)
   markAttentionRead = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>

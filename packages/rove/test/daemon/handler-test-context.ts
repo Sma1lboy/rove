@@ -2,6 +2,7 @@ import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import type { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import type { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
 import type { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import type { DeliveriesStore } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
 import type { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { GraphicsImageIds } from "@sma1lboy/rove-daemon/daemon/graphics-ids"
 import type { IssuesStore } from "@sma1lboy/rove-daemon/daemon/issues-store"
@@ -106,6 +107,12 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
         return Promise.resolve()
       },
     } as unknown as AttentionInboxStore,
+    // No armed deliveries: engine events find nothing awaiting.
+    deliveries: {
+      awaitingFor: () => undefined,
+      awaitingOn: () => [],
+      noteTurnStart: () => Promise.resolve(),
+    } as unknown as DeliveriesStore,
     deletions: {
       enqueue: (taskId: string) => rec.deletions.push(taskId),
     },

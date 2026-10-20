@@ -16,6 +16,7 @@ import { ClientWriter } from "./client-writer.ts"
 import { startDaemonCollectors } from "./collectors.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import type { DeliveryDeps } from "./delivery-ops.ts"
 import { createDirectLink } from "./direct-link.ts"
 import { DaemonEventBus } from "./event-bus.ts"
 import { GraphicsImageIds } from "./graphics-ids.ts"
@@ -136,7 +137,8 @@ async function startOwnedServer(
 
   // Spread wholesale into the handler context: `DaemonStores` IS its store half.
   const stores = await initDaemonStores(orch, runtime, bus, options.homeDir)
-  const { activity, deletions, rowTokens, automations, quotaUsage, inbox } = stores
+  const { activity, deletions, rowTokens, automations, deliveries, quotaUsage, inbox } = stores
+  const deliveryDeps: DeliveryDeps = { deliveries, inbox, orch, automations }
   resources.defer(() => activity.close())
   resources.defer(() => rowTokens.close())
   resources.defer(() => deletions.drain())
@@ -247,6 +249,7 @@ async function startOwnedServer(
     quotaUsage,
     {
       store: automations,
+      deliveryDeps,
       // Deferred: `selfLink` and `pluginHost` are defined below; the sweep only
       // reads them on a tick, after construction settles.
       link: () => selfLink,
@@ -269,6 +272,7 @@ async function startOwnedServer(
         // A death also becomes the tab's `dead` badge and an Inbox episode.
         activity,
         inbox,
+        deliveries: deliveryDeps,
         log: (line) => logDaemonInfo("plugin-host", line),
       })
     : () => {}

@@ -26,6 +26,8 @@
     "./daemon/row-tokens": "./src/daemon/row-tokens.ts",
     "./daemon/automations-store": "./src/daemon/automations-store.ts",
     "./daemon/contracts": "./src/daemon/contracts.ts",
+    "./daemon/deliveries-store": "./src/daemon/deliveries-store.ts",
+    "./daemon/delivery-ops": "./src/daemon/delivery-ops.ts",
     "./daemon/work-items": "./src/daemon/work-items.ts",
     "./daemon/work-item-start": "./src/daemon/work-item-start.ts",
     "./daemon/automation-runner": "./src/daemon/automation-runner.ts",

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import type { AttentionInboxItem } from "../../src/client/remote-orchestrator"
-import { requestInboxItemOpen } from "../../src/tui-react/workspace/inbox-open-action"
+import { dismissEpisode, requestInboxItemOpen } from "../../src/tui-react/workspace/inbox-open-action"
 
 const item: AttentionInboxItem = {
   taskId: "task-1",
@@ -26,5 +26,22 @@ describe("requestInboxItemOpen", () => {
 
     expect(requestInboxItemOpen(item, false, rpc, vi.fn())).toBe(false)
     expect(rpc.dismissAttention).toHaveBeenCalledWith("task-1", "tab-2", 123)
+  })
+})
+
+describe("dismissEpisode", () => {
+  it("addresses a report_missing episode by its delivery, not task+tab", async () => {
+    const rpc = { dismissAttention: vi.fn().mockResolvedValue(true), dismissRoutineAttention: vi.fn() }
+    const missing: AttentionInboxItem = {
+      taskId: "task-1",
+      tabId: null,
+      state: "report_missing",
+      detail: { delivery: { id: "d-12", cause: "turn-complete" } },
+      unread: true,
+      at: 456,
+    }
+
+    await dismissEpisode(missing, rpc)
+    expect(rpc.dismissAttention).toHaveBeenCalledWith("task-1", null, 456, "d-12")
   })
 })
