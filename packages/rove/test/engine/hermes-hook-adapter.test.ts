@@ -9,6 +9,7 @@
  * it does not understand are REFUSED rather than guessed at.
  */
 
+import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -21,6 +22,12 @@ function enable(content: string): string {
   const edit = setHermesPluginEnabled(content, true)
   if (!edit.ok) throw new Error(`refused: ${edit.reason}`)
   return edit.content
+}
+
+/** Hermes reads the file with a real YAML parser; vitest runs under Node, so ask Bun. */
+function parseYaml(content: string): unknown {
+  const script = "process.stdout.write(JSON.stringify(Bun.YAML.parse(await Bun.stdin.text())))"
+  return JSON.parse(execFileSync("bun", ["-e", script], { input: content, encoding: "utf8" }))
 }
 
 describe("setHermesPluginEnabled — shapes it edits", () => {
@@ -84,6 +91,14 @@ describe("setHermesPluginEnabled — shapes it edits", () => {
 
   it("does not invent a plugins block when asked to disable", () => {
     expect(setHermesPluginEnabled("model: sonnet\n", false)).toEqual({ ok: true, content: "model: sonnet\n" })
+  })
+
+  it.each([`"plugins"`, `'plugins'`])("edits a %s key in place instead of appending a second mapping", (key) => {
+    const before = `model: sonnet\n${key}:\n  "enabled":\n    - other-plugin\n`
+    expect(parseYaml(enable(before))).toEqual({
+      model: "sonnet",
+      plugins: { enabled: [HERMES_PLUGIN_NAME, "other-plugin"] },
+    })
   })
 })
 

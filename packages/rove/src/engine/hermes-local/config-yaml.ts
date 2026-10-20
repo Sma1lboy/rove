@@ -39,17 +39,19 @@ function indentOf(line: string): number | undefined {
   return line[indent] === "\t" ? undefined : indent
 }
 
-/** `<indent spaces><key>:` → the key name, else undefined. */
+/** `<indent spaces><key>:` → the key name, else undefined. The key may be
+ *  quoted: `"plugins":` is the same mapping, and missing it would append a
+ *  second one that a YAML parser lets win. */
 function keyAt(line: string, indent: number): string | undefined {
   if (indentOf(line) !== indent) return undefined
-  const match = /^ *([A-Za-z0-9_.-]+):(?:\s|$)/.exec(line)
-  return match?.[1]
+  const match = /^ *(["']?)([A-Za-z0-9_.-]+)\1:(?:\s|$)/.exec(line)
+  return match?.[2]
 }
 
 /** The value after `<key>:` on the same line, trimmed; "" when the key opens a block. */
 function inlineValue(line: string): string {
-  const match = /^ *[A-Za-z0-9_.-]+:(.*)$/.exec(line)
-  return (match?.[1] ?? "").trim()
+  const match = /^ *(["']?)[A-Za-z0-9_.-]+\1:(.*)$/.exec(line)
+  return (match?.[2] ?? "").trim()
 }
 
 /** `- name` (quoted or not) at `indent` → the item, else undefined. */

@@ -122,9 +122,10 @@ export const RoveAgentState = async (input) => {
     event: async ({ event }) => {
       const type = event && event.type
       const properties = (event && event.properties) || {}
-      const sessionID = text(properties.sessionID)
-
       const info = properties.info
+      // session.created carries the new Session as \`info\`, not a \`sessionID\`.
+      const sessionID = text(properties.sessionID) || (type === "session.created" ? text(info && info.id) : undefined)
+
       if (info && info.id && info.parentID) childSessions.add(info.id)
       if (sessionID && childSessions.has(sessionID)) {
         const verb = CHILD_VERBS.get(type)

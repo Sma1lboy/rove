@@ -127,6 +127,23 @@ describe("generated opencode plugin behaviour", () => {
     expect(spawns.map(verbOf)).toEqual(["turn-start", "turn-complete"])
   })
 
+  // OpenCode's session.created carries the Session as `info`, with no `sessionID`.
+  describe.each(["opencode", "kilo"] as const)("%s session.created", (vendor) => {
+    it("reports the root session's identity from info.id", async () => {
+      const { hooks, spawns } = await loadPlugin(vendor, INPUT)
+      await hooks.event({ event: { type: "session.created", properties: { info: { id: "root" } } } })
+      expect(spawns.map(verbOf)).toEqual(["session-start"])
+      expect(payloadOf(spawns[0]).session_id).toBe("root")
+    })
+
+    it("stays silent for a child session", async () => {
+      const { hooks, spawns } = await loadPlugin(vendor, INPUT)
+      await hooks.event({ event: { type: "session.created", properties: { info: { id: "child", parentID: "root" } } } })
+      await hooks.event({ event: { type: "session.idle", properties: { sessionID: "child" } } })
+      expect(spawns).toHaveLength(0)
+    })
+  })
+
   describe.each(["opencode", "kilo"] as const)("%s lifecycle regressions", (vendor) => {
     it.each(["session.updated", "session.status"])("preserves turn completion across %s", async (type) => {
       const { hooks, spawns } = await loadPlugin(vendor, INPUT)
