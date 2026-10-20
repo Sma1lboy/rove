@@ -14,11 +14,11 @@
  * overlay draws, which neither silent rendering produces.
  */
 import { expect, test } from "bun:test"
+import { WorkItemsPage } from "../../src/bundled-plugins/issues/work-items-page"
+import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
 import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
-import { KanbanPage } from "../../src/tui-react/component/kanban-page"
 import { ToastOverlay } from "../../src/tui-react/component/toast-overlay"
-import { WorkItemsPage } from "../../src/tui-react/component/work-items-page"
 import { renderComponent, settle } from "./harness"
 
 const REPO = "/repos/rove"

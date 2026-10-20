@@ -11,6 +11,7 @@ import { queryCellPixelSize } from "../../tui/lib/cell-pixel-size"
 import { createTerminalGraphics, installTerminalGraphics } from "../../tui/lib/terminal-graphics"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { bootPaneHost } from "../lib/host-boot"
+import { registerBundledPlugins } from "../pages/bundled-pages"
 import { registerCorePages } from "../pages/core-pages"
 import { loadPluginPages } from "../pages/load-plugin-pages"
 import { WorkspaceRoot } from "./host"
@@ -48,6 +49,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       setMachineHub(machines)
       // Rail pages: the host's own now, installed plugins' as their modules load.
       registerCorePages()
+      registerBundledPlugins()
       void loadPluginPages()
       return {
         root: () => (

@@ -21,7 +21,7 @@ afterEach(() => act(() => resetPrefixHud()))
 const NOOP = (): void => {}
 
 /** A full-window page flag, or a rail page id. */
-type OpenPage = "worktreesOpen" | "updateOpen" | "kanban" | "automations" | "issues"
+type OpenPage = "worktreesOpen" | "updateOpen" | "kanban.board" | "automations" | "issues.github"
 
 function pages(open?: OpenPage): HostPagesState {
   const railPage = open !== undefined && open !== "worktreesOpen" && open !== "updateOpen"
@@ -198,7 +198,7 @@ describe("prefix+n New task", () => {
   })
 
   it("opens the dialog from every full-window page", async () => {
-    for (const openPage of ["kanban", "automations", "issues", "worktreesOpen", "updateOpen"] as const) {
+    for (const openPage of ["kanban.board", "automations", "issues.github", "worktreesOpen", "updateOpen"] as const) {
       expect(await pressNewTask({ initialFocus: "workspace", openPage })).toContain("New task dialog opened")
     }
   })

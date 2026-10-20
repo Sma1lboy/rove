@@ -160,6 +160,7 @@ describe("plugins and feedback", () => {
       settings: [],
       updateAvailable: false,
       pageErrors: [],
+      builtIn: false,
     }
     const ops = createSettingsOps(settingsDeps({ listPlugins: () => [row] }).deps)
     const wire = JSON.stringify((await run(ops, "plugins.list", {})).result)
