@@ -55,7 +55,7 @@ describe("the tab map changing under a mounted ShowWorkspace", () => {
     tabsByTask.clear()
     tabsByTask.set("t1", { tabs: [], activeId: "tab-1", nextOrdinal: 2 })
 
-    const { frame } = await renderComponent(<ShowWorkspace {...props()} />)
+    const { frame } = await renderComponent(<ShowWorkspace {...props()} />, { providers: { dialog: true } })
     await act(async () => {})
     expect(await frame()).toContain("No sessions here")
 

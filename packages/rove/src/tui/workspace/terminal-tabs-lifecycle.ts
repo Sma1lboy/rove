@@ -7,7 +7,7 @@
  * Imports only types, so core can re-export these without an import cycle.
  */
 
-import type { TabsState, TerminalTab } from "./terminal-tab-shapes"
+import type { EngineTab, TabsState, TerminalTab } from "./terminal-tab-shapes"
 
 /** A task's initial state: one untitled engine tab, active. */
 export function initialTabs(): TabsState {
@@ -30,16 +30,20 @@ export function reopenHintFor(closed: TerminalTab | undefined): TabsState["reope
  * there, active. `shell` is a `command` tab's respawn argv. An absent
  * `reopenAs` (older snapshot) means the default engine tab, never a refusal.
  */
-export function reopenTabs(state: TabsState, shell: string): TabsState {
+export function reopenTabs(
+  state: TabsState,
+  shell: string,
+  engine?: Required<Pick<EngineTab, "vendor" | "engineCommand">>,
+): TabsState {
   const ordinal = state.nextOrdinal
   const id = `tab-${ordinal}`
   const next = state.nextOrdinal + 1
-  if (state.reopenAs?.kind === "command") {
+  if (!engine && state.reopenAs?.kind === "command") {
     return { tabs: [{ kind: "command", id, title: null, ordinal, command: [shell] }], activeId: id, nextOrdinal: next }
   }
   const vendor = state.reopenAs?.kind === "engine" ? state.reopenAs.vendor : undefined
   return {
-    tabs: [{ kind: "engine", id, title: null, ordinal, ...(vendor ? { vendor } : {}) }],
+    tabs: [{ kind: "engine", id, title: null, ordinal, ...(engine ?? (vendor ? { vendor } : {})) }],
     activeId: id,
     nextOrdinal: next,
   }

@@ -62,6 +62,27 @@ describe("reviveEmptiedTabs", () => {
     expect(tabsByTask.get(TASK)?.tabs[0]?.kind).toBe("engine")
   })
 
+  it.each(["emptied", "never-opened"])("pins the chooser engine and command for a %s task", (path) => {
+    const kv = fakeKv(
+      path === "emptied"
+        ? {
+            [terminalTabsKey(TASK)]: { tabs: [], activeId: "tab-3", nextOrdinal: 4, reopenAs: { kind: "command" } },
+          }
+        : {},
+    )
+    expect(reviveEmptiedTabs(kv, TASK, "/bin/zsh", { vendor: "codex", engineCommand: "codex" })).toBe(true)
+    expect(tabsByTask.get(TASK)?.tabs).toEqual([
+      {
+        kind: "engine",
+        id: path === "emptied" ? "tab-4" : "tab-1",
+        ordinal: path === "emptied" ? 4 : 1,
+        title: null,
+        vendor: "codex",
+        engineCommand: "codex",
+      },
+    ])
+  })
+
   it("leaves a task that still has tabs alone", () => {
     // The common case by far. Reviving here would add a phantom tab on every
     // single task activation.
