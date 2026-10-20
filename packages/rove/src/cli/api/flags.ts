@@ -95,13 +95,25 @@ export const F = {
   }),
 }
 
+/** Separator of a repeatable flag's occurrences in the {@link Flags} map; argv can't carry NUL. */
+export const REPEAT_SEP = "\u0000"
+
+function setFlag(flags: Map<string, string>, key: string, value: string, repeatable: ReadonlySet<string>): void {
+  const prev = flags.get(key)
+  flags.set(key, repeatable.has(key) && prev !== undefined ? `${prev}${REPEAT_SEP}${value}` : value)
+}
+
 /**
  * Parse argv into a flag map + `--pretty` / `--help` booleans. Accepts both
  * `--key=value` and `--key value`. `booleanFlags` (from the verb spec) may be
  * given as standalone presence flags (`--force` ⇒ "true"); without it, only
  * `--pretty` / `--help` are standalone. Unknown forms throw BAD_FLAG.
  */
-export function parseFlags(argv: readonly string[], booleanFlags: ReadonlySet<string> = new Set()): ParsedArgs {
+export function parseFlags(
+  argv: readonly string[],
+  booleanFlags: ReadonlySet<string> = new Set(),
+  repeatableFlags: ReadonlySet<string> = new Set(),
+): ParsedArgs {
   const flags = new Map<string, string>()
   let pretty = false
   let help = false
@@ -122,7 +134,7 @@ export function parseFlags(argv: readonly string[], booleanFlags: ReadonlySet<st
       if (key === "envelope") continue
       if (key === "pretty") pretty = value !== "false" && value !== "0"
       else if (key === "help") help = value !== "false" && value !== "0"
-      else flags.set(key, value)
+      else setFlag(flags, key, value, repeatableFlags)
       continue
     }
     const key = arg.slice(2)
@@ -151,7 +163,7 @@ export function parseFlags(argv: readonly string[], booleanFlags: ReadonlySet<st
     if (next === undefined || next.startsWith("--")) {
       throw new ApiError(`flag --${key} requires a value`, "BAD_FLAG")
     }
-    flags.set(key, next)
+    setFlag(flags, key, next, repeatableFlags)
     i += 1
   }
   return { flags, pretty, help }
@@ -234,6 +246,14 @@ export class VerbArgs {
   present(name: string): boolean {
     this.spec(name)
     return this.flags.get(name) !== undefined
+  }
+
+  /** Every occurrence of a `repeatable` flag, in argv order; empty when absent. */
+  list(name: string): string[] {
+    const f = this.spec(name)
+    if (!f.repeatable) throw new Error(`internal: --${name} is not repeatable on verb "${this.verb.name}"`)
+    const raw = this.flags.get(name)
+    return raw === undefined ? [] : raw.split(REPEAT_SEP).filter((v) => v.length > 0)
   }
 
   /**

@@ -3,7 +3,9 @@
  * `schema` verb lives here because it references VERBS/findVerb at load time.
  */
 
+import { DELIVERIES_VERB, REPORT_VERB } from "./handlers-delivery.ts"
 import { ENGINE_LIST_VERB } from "./handlers-engines.ts"
+import { ATTENTION_DISMISS_VERB, SHOULD_RUN_VERB } from "./handlers-runnability.ts"
 import { fullSchema, groupSchema, schemaIndex, verbSchema } from "./schema.ts"
 import { ApiError, VERB_GROUP_IDS, type VerbContext, type VerbGroup, type VerbSpec } from "./types.ts"
 import { ROUTINE_VERBS } from "./verbs-automations.ts"
@@ -11,6 +13,7 @@ import { CREATE_VERBS } from "./verbs-create.ts"
 import { DRIVE_VERBS } from "./verbs-drive.ts"
 import { EDIT_VERBS } from "./verbs-edit.ts"
 import { FEEDBACK_VERBS } from "./verbs-feedback.ts"
+import { GATE_VERBS } from "./verbs-gates.ts"
 import { ISSUE_VERBS } from "./verbs-issues.ts"
 import { LIFECYCLE_VERBS } from "./verbs-lifecycle.ts"
 import { READ_VERBS } from "./verbs-read.ts"
@@ -140,8 +143,13 @@ export const VERBS: readonly VerbSpec[] = [
   SCHEMA_VERB,
   ENGINE_LIST_VERB,
   ...READ_VERBS,
+  DELIVERIES_VERB,
+  SHOULD_RUN_VERB,
   ...CREATE_VERBS,
   ...DRIVE_VERBS,
+  REPORT_VERB,
+  ATTENTION_DISMISS_VERB,
+  ...GATE_VERBS,
   ...FEEDBACK_VERBS,
   ...ISSUE_VERBS,
   ...ROUTINE_VERBS,

@@ -11,9 +11,9 @@
  */
 
 import { roveHookInvocation } from "../cli/invocation.ts"
+import { isObject } from "../lib/is-object.ts"
 import { type QuoteShellArgvOptions, quoteShellArgv } from "../lib/shell-command.ts"
 import type { EngineActivityKind } from "./hook-events.ts"
-import { isObject } from "./is-object.ts"
 
 /**
  * Shape version of the hooks Rove writes into an engine's config, stamped

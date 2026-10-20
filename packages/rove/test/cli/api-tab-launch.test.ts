@@ -16,8 +16,14 @@ const host = vi.hoisted(() => ({
   editor: true,
 }))
 vi.mock("../../src/tui/lib/editor-launch.ts", () => ({
-  resolveEditorLaunch: async (_worktree: string, abs: string) =>
-    host.editor ? { command: `cat '${abs}'`, label: abs.split("/").pop() } : null,
+  resolveEditorLaunch: async (_worktree: string, abs: string, line?: number) =>
+    host.editor
+      ? {
+          command: line === undefined ? `cat '${abs}'` : `sed -n '${line}p' '${abs}'`,
+          label: abs.split("/").pop(),
+          ...(line === undefined ? {} : { atLine: true }),
+        }
+      : null,
 }))
 vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
   ...(await original<object>()),
@@ -84,6 +90,21 @@ it("a second file names the first editor tab as the one to close, after its own 
 
   expect(second.replaces).toBe("tab-2")
   expect(saved().tabs.map((t) => t.id)).toEqual(["tab-1", "tab-2", "tab-3"])
+})
+
+it("--line reaches the editor command and the launch reports it was taken", async () => {
+  writeFileSync(join(wt, "a.txt"), "1\n2\n3")
+  const launched = await defaultApiRuntime.launchTab({
+    kind: "editor",
+    taskId: "t",
+    worktree: wt,
+    file: "a.txt",
+    line: 2,
+  })
+
+  expect(launched.atLine).toBe(true)
+  const row = saved().tabs[1]
+  expect(row?.kind === "command" ? row.command[2] : "").toMatch(/^sed -n '2p' .*a\.txt/)
 })
 
 it("a file outside the worktree, a directory, a missing file or a missing editor is refused before anything runs", async () => {

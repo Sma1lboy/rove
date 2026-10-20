@@ -90,7 +90,7 @@ so a long line sent in small chunks does not repeatedly scan its accumulated pre
 
 A slow reader also has an 8 MiB queue of unsent response/event bytes, in addition to
 the socket's already accepted write. Complete snapshots for `task.snapshot`,
-`active-task`, `update`, `attention.inbox`, `ui-prefs`, `worktree.changes`,
+`active-task`, `update`, `attention.inbox`, `gates`, `ui-prefs`, `worktree.changes`,
 `transcript.activity`, `usage.snapshot`, and `usage.context` replace only an older
 queued snapshot of the same channel. Other frames retain their order, including
 per-task engine/job updates, per-repo issues, commands, keybinding notifications,
@@ -172,10 +172,12 @@ rove api land --task-id a              # merge the winning branch
 - Exit codes: `0` success · `1` handler/RPC failure · `2` usage errors
   (unknown verb, bad/missing flag, unreachable daemon — wherever they are
   raised, including a handler rejecting its own argument) · `3` a parallel
-  round that did not fully succeed. Exit 3 does **not** promise anything was
-  created: `--count 1` takes the same path, so a lone failure returns
-  `count: 0` with an empty `tasks`. The full payload still goes to stdout, so
-  whatever *was* created is never lost.
+  round that did not fully succeed, **or** a tick `should-run` /
+  `send --if-runnable` refused (the verdict is on stdout). Exit 3 on a
+  parallel round does **not** promise anything was created: `--count 1`
+  takes the same path, so a lone failure returns `count: 0` with an empty
+  `tasks`. The full payload still goes to stdout, so whatever *was* created
+  is never lost.
 - `rove api <verb> --help` prints that verb's usage and exits 0.
 - `--envelope` prints every outcome, success or error, as one envelope on
   stdout ([above](#one-contract-three-transports)); exit codes do not change.
@@ -210,7 +212,11 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `LAST_LEAF` | `tab-split --action close` on the only pane; close the tab instead. |
 | `RESET_ENGINE` | `tab-split --action reset` on a pane that runs an engine; only shell panes reset. |
 | `RUN_NOT_FOUND` | `routine-respond --run` names no routine run (unknown, or pruned from the last 100). |
-| `RESPONSE_TOO_LARGE` | A `routine-respond` response over the 32,000-character cap. |
+| `RESPONSE_TOO_LARGE` | A `routine-respond` response or a `report --summary` over the 32,000-character cap. |
+| `DELIVERY_NOT_FOUND` | `report --delivery` names no delivery (unknown, or pruned past the newest 50 for its task). |
+| `GATE_NOT_FOUND` | `gate-answer` / `gate-withdraw` names no gate. |
+| `GATE_NOT_OPEN` | The gate is already answered or withdrawn. |
+| `BAD_OPTION` | `gate-answer --option` is not one of the gate's option keys (or the gate is free-text only). |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
 | `NOT_A_REPO` | `--repo` does not point at a git repository. |
 | `INVALID_BRANCH` | `--branch` is a name git will not accept (`git check-ref-format --branch`). |
@@ -238,6 +244,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. |
 | `TIER_UNAVAILABLE` | Auto routing is not configured, or the tier's target cannot start (engine not listed, not logged in, model/effort its engine cannot carry). |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
+| `SKIPPED` | `should-run` or `send --if-runnable` refused the tick (exit 3). The verdict is the stdout payload, not an error envelope. |
 | `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted. |
 | `WATCH_TIMEOUT` | `watch` reached `--timeout` before any `--until` state; nothing has happened YET. |
 | `DAEMON_GONE` | The daemon died mid-`watch`; the verb never reconnects silently. |
@@ -351,11 +358,14 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   `unknown`. This is Rove's CI truth for the branch, and `passing` is what
   "CI is green" means; a local test run is a different claim. Absent until
   the poller has seen a PR for the branch.
+  `runnability` is the `should-run` verdict for the whole task, so a
+  dashboard shows the answer a scheduler would act on.
 - `collect [--task-ids a,b,c] [--group GROUPID] [--repo PATH]`: read-only
   health snapshot of a parallel round — the one read that answers "what is
   this round's status right now" without fanning out to `get-task` per task.
   Select the tasks by fan-out round (`--group`, the `groupId` that
   `add --count` returns), by repo, or by explicit ids.
+  Each task also carries `runnability` (the `should-run` verdict).
 
   With `--repo`, a repo path that no longer resolves to a readable git
   repository is reported, never filtered away: the target failing to resolve
@@ -602,12 +612,65 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   or PTY host degrades that section to `null`. **Run and paste this first**
   when reporting a badge, label, engine-identity, or engine-crash bug.
 
+- `deliveries --task-id ID [--limit N]`: the task's armed deliveries, newest
+  first; the daemon keeps the newest 50 per task. A delivery is one prompt
+  that asked for a report (see `report`). Each entry has `id` (`d-<n>`),
+  `source` (`routine`, `send`, `gate-answer`), `tabId`, `promptHead` (first
+  200 characters), `at`, and `status`: `awaiting`, `reported`, `missing` or
+  `skipped`. A reported entry carries `report`
+  (`{ outcome, summary, evidence[], next?, at }`). A missing one carries
+  `missing` (`{ cause, note?, at }`); `cause` is `turn-complete` (the turn
+  ended with no report), `turn-failed` (`note` is the failure detail),
+  `interrupted` (the turn was interrupted), `session-end` (the engine
+  session ended), `engine-dead` (`note` is the last line of the tab's
+  output), `rate-limited` (the engine hit its quota; quota-resume
+  continues the turn and a late report still lands), or `stalled` (awaiting
+  for over 10 minutes while the tab was neither running nor at a permission
+  prompt; `note` is `tab state: <state>`). A permission prompt does not mark
+  a delivery missing.
+
+  A tab runs its prompts in order, so a turn event settles the OLDEST
+  matching delivery: a `turn-start` begins the oldest one whose turn has not
+  started, and a turn end (`turn-complete`, `interrupted`, `session-end`)
+  ends the oldest one whose turn has started. A Stop that arrives before any
+  turn started belongs to an earlier prompt the paste queued behind. A failed
+  turn ends the oldest started delivery, else the oldest awaiting one; an
+  engine exit ends all of the tab's. A missing delivery raises a
+  `report_missing` Inbox row (none for `rate-limited`: the engine's own
+  rate-limit row covers it), keyed by the delivery so the tab's next turn
+  does not clear it. A late `report` or dismissing the row clears it. A loop prompt can read
+  `deliveries --limit 5` instead of a growing notes file.
+
+- `should-run --task-id ID [--tab TAB]`: would a tick sent to this task be
+  used? Prints `{ run: true }` and exits `0`, or `{ run: false, reason,
+  detail?, until?, gateIds? }` and exits `3` (the verdict is on stdout in
+  both cases). The first matching `reason` wins, in this order:
+  `task-missing`; `awaiting-owner` (an open gate; `gateIds`); `report-missing`
+  (the tab's newest delivery ended unreported and its Inbox row is neither
+  dismissed nor answered by a late `report`; skipped ticks and a delivery the
+  rate limit ended do not count);
+  `quota` (`rate_limited`; `until` is the reset time, from the armed
+  quota-resume or else the usage cache, and the block ends there; with no known
+  reset the quota is not a reason to skip); `engine-error` (a sticky `error`, billing and auth included);
+  `engine-dead` (an exact `--tab` whose engine exited); `awaiting-permission`;
+  `busy` (a turn is running, the newest delivery still awaits its report, or
+  a `send --if-runnable` is mid-paste). A task whose only gate is answered
+  but undelivered is runnable: the next tick carries the answer. Without
+  `--tab` the whole task is judged (any running tab is busy) and a dead
+  engine is not a skip, since `send` revives it; `--tab new` judges only
+  task-level state. Reasons that need a person clear when they act:
+  answering or withdrawing the gate, a late `report` or dismissing the
+  `report_missing` row (TUI, bridge or weixin), the engine's next
+  `turn-start`. The daemon's routine runner and the quota-resume timer ask the
+  same question. `get-task` and `collect` carry the same verdict as
+  `runnability`.
+
 ## create
 
 - `add --repo PATH [--title T] [--branch B] [--base-branch B]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
-  [--pin] [--activate] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
+  [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
   sidebar immediately). With `--prompt` it also materializes the worktree,
   starts the engine, and delivers the prompt. Does not steal focus unless
   `--activate`. Alias: `spawn-task`. The result's `.engine`
@@ -678,6 +741,12 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   (`CONFLICTING_FLAGS`) and refuses a tier that cannot start
   (`TIER_UNAVAILABLE`).
 
+  `--require-report` sets `Task.requireReport`: the task's own first
+  `--prompt` and every later `send` to it arm a delivery, as if each carried
+  `--expect-report`. For a task ticked unattended; change the setting with
+  `update --require-report on|off`. `add --expect-report` arms the first
+  prompt only. The reply carries `deliveryId`.
+
   `--tier auto` asks a classifier to read `--prompt` and pick the tier for
   you. It needs a prompt (`BAD_FLAG` without one) and it is **off until you
   configure it** — see
@@ -722,7 +791,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 ## drive
 
 - `send [--task-id ID] (--prompt TEXT | --prompt-file PATH) [--tab TAB]
-  [--command CMD] [--plain] [--allow-empty]`: paste a
+  [--command CMD] [--plain] [--allow-empty] [--expect-report] [--if-runnable]`: paste a
   follow-up into a task's running engine (one full turn). `--prompt-file`
   reads the text from a file (`-` = stdin) so the shell never sees it:
   backticks inside a double-quoted `--prompt` are command substitution, and
@@ -771,6 +840,30 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   task with no live session at all auto-starts its canonical engine tab, in
   the task's worktree. `started: true` in the result marks that fresh
   session (vs. delivery into an existing one).
+
+  **`--expect-report` arms a delivery.** The reply carries `deliveryId`
+  (`d-<n>`), and the pasted prompt ends with a footer line:
+  `[ROVE] When this turn ends, report: rove api report --delivery d-41 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]`.
+  The agent answers with `report`. A turn that ends without one marks the
+  delivery `missing` and raises a `report_missing` Inbox row (see
+  `deliveries`). A task with `requireReport` arms every `send` without the
+  flag. A send whose paste fails drops its delivery, so a refused send
+  leaves nothing awaiting.
+
+  **`--if-runnable` sends only when `should-run` says the task can use the
+  tick.** The daemon evaluates the verdict, claims the tab and (when the send
+  owes a report) arms the delivery in one step, so two ticks arriving
+  together cannot both pass; the paste itself still happens in the calling
+  process, and the claim holds the tab `busy` until it lands (or 90 seconds,
+  for a caller that died). On a skip nothing is pasted and the reply is
+  `{ taskId, skipped: { run: false, reason, detail?, until?, gateIds? } }`
+  with exit `3`; when the send would have armed a delivery it carries
+  `deliveryId` of a `skipped` delivery (`deliveries` lists it). Repeats of
+  the same refusal fold into one row (`repeats`). A skip is dropped, never
+  held for later. `dispatch` and `add --count` do not take the flag:
+  `dispatch` is an agent-to-agent reply into a live session, and a fan-out
+  creates fresh tasks, which have no prior state to judge. `send --tab new`
+  is judged on task-level state only (gates, unreported deliveries).
 
   **`engine.maxLiveSessions` caps new sessions.** When that setting is a
   positive number, a call that would START an engine session (`add` with a
@@ -894,6 +987,28 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   an error (the retention ring may already have evicted that note).
 - `set-active [--task-id ID] [--none]`: set (or clear) the shared active
   task every attached sidebar highlights.
+- `gate-raise --task-id ID [--tab T] --question TEXT [--option KEY=LABEL]…
+  [--recommend KEY] [--context TEXT]`: ask the OWNER a decision only they can
+  make (decision gate). `--option` repeats, up to 6; `--question` ≤ 500
+  chars, `--context` ≤ 4000. `--tab` defaults to the tab you run in. The
+  gate shows in the owner's Inbox as `decision_needed` and in `gates`; it
+  stays until answered or withdrawn. Returns `{ gate }` with the `g-N` id.
+- `gate-answer --gate g-N [--option KEY] [--text TEXT]`: answer an open gate
+  (at least one; `--option` must be one of the gate's keys, else `BAD_OPTION`).
+  The answer is persisted first, then pasted into the gate's tab as
+  `[ROVE GATE g-N answered] <question>` / `Answer: KEY — label` /
+  `Note: TEXT`. No live engine → `{ delivered: false }` and the gate keeps
+  `handoff: "undelivered"`: nothing is queued or retried; the next `send` or
+  routine firing into that tab carries the answer in front of its prompt. A
+  prompt typed into the TUI, a TUI revive, and `dispatch` do not. Answering
+  a closed gate is `GATE_NOT_OPEN`.
+- `gate-withdraw --gate g-N`: close an open gate nobody needs to answer
+  anymore, or an answered one whose answer never reached the engine (the
+  owner's explicit close; the answer is dropped). A delivered gate is
+  `GATE_NOT_OPEN`. Deleting a task closes its open and undelivered gates.
+- `gates [--repo PATH] [--task-id ID] [--status open|answered|withdrawn|all]`:
+  list gates (default `open`). `context` also lists the repo's open gates
+  under `gates`.
 - `pane-open [--task-id ID] [--tab TAB] [--command CMD] [--direction
   right|down] [--placement split|tab] [--title TEXT]`: open a terminal pane
   in a task's workspace: split the focused tab (default, tmux-style
@@ -969,13 +1084,16 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `get-task .tabs[]`. A session already running under the allocated id fails
   as `TAB_COLLISION`. `--command` with `--kind shell` is `BAD_FLAG`.
   `tab-new` also opens three kinds that run something Rove resolves, never a
-  command line from the caller: `--kind editor --file PATH` opens PATH (relative to
+  command line from the caller: `--kind editor --file PATH [--line N]` opens PATH (relative to
   the worktree; `..` and a symlink out are `BAD_FLAG`, a missing file
   `FILE_NOT_FOUND`) in the editor from Settings → General → Editor, else
   `$VISUAL`/`$EDITOR`, else the first installed of nvim/vim/emacs/nano (`NO_EDITOR`
   when none), as a command tab in the task's one editor slot: the previous
   editor tab is closed (through the TUI's close path when one is attached) once the new
-  one runs. `--kind pane --pane PLUGIN.PANE [--tab TAB]` opens a pane of an enabled
+  one runs. `--line N` opens at line N: `+N` for vi/vim/nvim/nano/emacs/emacsclient/micro/kak/mg/joe,
+  `PATH:N` for helix, or wherever `{line}` sits in `editor.customCommand`; the result
+  then carries `atLine` — `false` when the editor has none of those forms and the file
+  opened at its top. `--line` with any other kind is `BAD_FLAG`. `--kind pane --pane PLUGIN.PANE [--tab TAB]` opens a pane of an enabled
   plugin (`PANE_NOT_FOUND` otherwise), split into `--tab` (default the active tab) or
   as its own command tab, as the pane's manifest `placement` says and as the TUI's
   picker does; the result then also carries `leaf` when it split. `--kind viewport
@@ -1022,11 +1140,36 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `turn-complete`, `turn-failed`, `turn-interrupted`, `awaiting-input`,
   `session-end` (activity state), plus `tool-pre/post/failed`,
   `pre/post-compact`, `subagent-start/stop` (plugin-only).
+- `report --delivery ID --outcome O --summary TEXT [--evidence X]… [--next TEXT]`
+  (or `--json PATH|-`): close the report that a delivered prompt asked for.
+  `ID` is the `d-<n>` in the prompt's `[ROVE]` or `[ROVE ROUTINE]` line.
+  `O` is `done`, `partial`, `blocked` or `failed`. `--evidence` repeats: a
+  commit, PR url, test command with its result, or a file path (up to 50
+  items, 2,000 characters each). `--next` says what the next tick should do
+  (4,000 characters). `--summary` is capped at 32,000 characters
+  (`RESPONSE_TOO_LARGE`, never truncated). `--json` reads
+  `{ delivery, outcome, summary, evidence?, next? }` from a file or stdin
+  and cannot be mixed with the individual flags; use it for text with quotes
+  or backticks. An unknown id is `DELIVERY_NOT_FOUND`. Run it as the last
+  step of the turn.
+
+  Reporting again replaces the earlier report. A report on a `missing`
+  delivery flips it to `reported` and clears its `report_missing` Inbox
+  row. The first line of `--summary` (up to 280 characters) also refreshes
+  the task card's report summary, so no second `update --report-summary` is
+  needed. Daemon RPCs behind this: `delivery.arm`, `delivery.settle`,
+  `delivery.report`, `delivery.list`, `task.requireReport`.
+- `attention-dismiss --delivery ID`: dismiss the `report_missing` Inbox row of
+  a delivery. `ID` is the `d-<n>` from the row. This is the explicit way to
+  accept an unreported tick: opening or visiting the row does not clear it,
+  because the verdict keeps blocking the next tick until a late `report` or
+  this dismiss. An unknown id is `DELIVERY_NOT_FOUND`. Daemon RPC:
+  `attention.dismiss` with `deliveryId`.
 
 ## edit
 
 - `update --task-id ID [--title T] [--branch B] [--command CMD] [--model M]
-  [--effort LEVEL] [--pinned true|false] [--status S] [--report-branch B]
+  [--effort LEVEL] [--pinned true|false] [--require-report on|off] [--status S] [--report-branch B]
   [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
   fields in one call. Every field is validated before anything is written,
   then applied in a fixed order: branch → command → model/effort → title →
@@ -1056,6 +1199,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     A `--command` that changes the task's engine clears its model and effort
     pins; pass `--model` / `--effort` in the same call to re-pin them.
   - `--pinned true|false`: pin/unpin the task to the top of the sidebar.
+  - `--require-report on|off`: `on` makes every later `send` to the task arm
+    a delivery, as `add --require-report` does; `off` restores plain sends.
   - `--status S`: lifecycle status: `backlog`, `in_progress`, `in_review`,
     `done`, `canceled`, `error`.
   - `--report-branch` / `--report-pr` / `--report-summary` (require
@@ -1151,14 +1296,22 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
 - `routine-respond --run RUN_ID (--text T | --prompt-file PATH|-)`: store the
-  agent's response on one run. Each delivered routine prompt starts with a
-  `[ROVE ROUTINE] "<name>" run #<n> — when done, report with: … routine-respond --run <runId> --prompt-file -`
+  agent's response on one run. It is the routine spelling of
+  `report --delivery <deliveryId> --outcome done --summary <text>` and writes
+  the same delivery report, so `deliveries` shows it too. Each delivered
+  routine prompt starts with a
+  `[ROVE ROUTINE] "<name>" run #<n> — when done, report with: rove api report --delivery d-<n> --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]`
   line, then the prompt. One response per run, a second call replaces it; cap
   32,000 characters (`RESPONSE_TOO_LARGE`, never truncated); an unknown run id
-  is `RUN_NOT_FOUND`. No response is ever inferred from a transcript.
-- `routine-runs --id ID`: run history, newest first. Answered runs carry
-  `response: { text, at }`. `revived` describes a
-  respawned standing session; `skipped_cancelled` means disabled, changed or stopped before delivery. Bound deliveries include `taskId`/`tabId`. An unknown id is an error
+  is `RUN_NOT_FOUND`. No response is ever inferred from a transcript. Prefer
+  `report` when the run ended `partial`, `blocked` or `failed`, or when you
+  have evidence to attach.
+- `routine-runs --id ID`: run history, newest first. Each delivered run
+  carries `deliveryId` and `deliveryStatus` (`awaiting`, `reported`,
+  `missing`), and `response: { text, at }` once the agent reported; both are
+  read from the linked delivery. Runs from before deliveries existed keep
+  the response they stored. `revived` describes a
+  respawned standing session; `skipped_cancelled` means disabled, changed or stopped before delivery; `skipped_blocked` means should-run refused the tick (`blocked` is the verdict, see `should-run`; the cause is already in the Inbox and `routine-run-now` bypasses it), except `engine-dead` and `engine-error`, which have no Inbox row of their own and are recorded `dispatch_failed` with the same `blocked`. Bound deliveries include `taskId`/`tabId`. An unknown id is an error
   (`automation not found`), not an empty history.
 - `routine-delete --id ID`: delete it and its history (tasks it already
   created are untouched). Idempotent: deleting an id that is already gone

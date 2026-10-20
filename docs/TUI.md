@@ -233,6 +233,12 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
   newer event for the same target replaces the older one, and starting a new
   turn clears it. A rate-limited item also names when its automatic resume is due
   (`resumes 3:14 PM`), so you can tell a wait from a dead end.
+  A **report missing** item means a prompt that asked for a report
+  (`send --expect-report`, a task with `--require-report`, or a routine run)
+  ended its turn, failed, or died without one. It is keyed by the delivery,
+  so the tab's next turn does not clear it; a late `rove api report` or `d`
+  does. `enter` opens the task's tab. See
+  [`rove api deliveries`](API.md#read).
 - **RECENT.** The last handful of tabs you visited, most recent first. These
   aren't pending work, just jump targets; a spinner marks the ones still
   running.
@@ -243,6 +249,20 @@ item. `d` clears without navigating (ATTENTION rows only; RECENT rows have
 nothing to drop). You rarely need `d`: **visiting
 a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
+
+**Decisions.** A task that needs an answer only you can give (`rove api
+gate-raise`) shows here as `decision needed` with its question. It is not an
+episode: nothing clears it but answering (or the task withdrawing it) — not
+visiting the tab, not `d`, not the tab's next turn. `enter` opens the decision
+dialog instead of the tab: pick an option (the task's recommendation is
+marked and preselected), `tab` to add a note, `enter` to send. A question with
+no options is note-only. The answer goes into the gate's tab. If that engine
+is not running, the row stays as `answered · engine not running`; `enter`
+then opens the tab. The owed answer is delivered by the next `rove api send`
+to that tab or routine firing into it, and by nothing else: a prompt typed
+into the TUI, or restarting the engine from the TUI, does not carry it. To
+close an answer you no longer want delivered, press `d` on the row (`rove api
+gate-withdraw` does the same); the engine never sees it.
 
 `F7` jumps straight to the first pending item across **all** projects — the
 oldest blocked one, or the oldest finished turn when nothing is blocked —

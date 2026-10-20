@@ -7,6 +7,7 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { submitFeedback } from "../../lib/feedback.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { daemonOf, repoFilter } from "./handler-helpers.ts"
+import { readRunnability } from "./handlers-runnability.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext } from "./types.ts"
 
@@ -66,6 +67,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       ? await runtime.readBranchSignals(task.worktreePath, task.baseRef)
       : { baseRef: null, ahead: null, behind: null, diff: null }
     const activity = await activityView(registry, task)
+    const runnability = await readRunnability(daemon, task.id)
     out.push({
       taskId: task.id,
       title: task.title,
@@ -80,6 +82,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       ...(task.dispatcher ? { dispatcher: task.dispatcher } : {}),
       running,
       activity,
+      ...(runnability ? { runnability } : {}),
       tabs,
       changes,
       base,

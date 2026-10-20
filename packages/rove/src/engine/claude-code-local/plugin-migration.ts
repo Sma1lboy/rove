@@ -13,8 +13,8 @@
 
 import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
+import { isObject } from "../../lib/is-object.ts"
 import { installedSkillDirs } from "../../lib/skill-install.ts"
-import { isObject } from "../is-object.ts"
 import { hasRoveActivityHooks } from "../json-hooks.ts"
 import { CLAUDE_HOOK_EVENT_MAP, claudeSettingsPath } from "./hook-adapter.ts"
 

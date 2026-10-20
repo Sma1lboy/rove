@@ -159,6 +159,8 @@ export interface Task {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
+  readonly requireReport?: boolean
   /**
    * The brief `add --prompt` delivered, recorded on the delivery path because
    * the engine transcript isn't durable. Verbatim, never truncated: the key

@@ -9,6 +9,7 @@ import {
   nextAttentionInboxTarget,
   nextSelectableRow,
   partitionAttentionInboxAvailability,
+  visitResolvedEpisodes,
   windowInboxRows,
 } from "../../src/tui-react/workspace/attention-inbox-core"
 import type { Task } from "../../src/types/task"
@@ -351,5 +352,36 @@ describe("a routine episode that names a task", () => {
     // it out on `liveTasks.has("task-c")` and announced "nothing needs you".
     const live = item("task-a", "tab-1", "permission_needed", 20)
     expect(nextAttentionInboxTarget([live, routine], ["task-a"], { taskId: "task-a", tabId: "tab-1" })).toEqual(routine)
+  })
+})
+
+describe("a decision_needed row", () => {
+  const decision = {
+    ...item("a", "tab-2", "decision_needed", 5),
+    detail: { gate: { id: "g-1", question: "?", options: [] } },
+  }
+
+  test("stays when its tab is gone or unmounted: the question outlives the tab", () => {
+    expect(isAttentionInboxItemAvailable(decision, task("a", "2026-07-01T00:00:00.000Z"), () => false)).toBe(true)
+    expect(partitionAttentionInboxAvailability([decision], [], () => false).availableItems).toEqual([decision])
+  })
+
+  test("is not resolved by visiting its tab", () => {
+    const engine = item("a", "tab-2", "turn_complete", 4)
+    expect(visitResolvedEpisodes([engine, decision], { taskId: "a", tabId: "tab-2" })).toEqual([engine])
+  })
+
+  test("keys apart from the tab's engine episode, so neither overwrites the other", () => {
+    expect(attentionInboxKey(decision)).not.toBe(attentionInboxKey(item("a", "tab-2", "turn_complete", 4)))
+  })
+
+  test("sorts into the blocked band ahead of finished turns", () => {
+    const done = item("b", "tab-1", "turn_complete", 1)
+    const rows = inboxRows(
+      [done, decision],
+      [task("a", "2026-07-01T00:00:00.000Z"), task("b", "2026-07-01T00:00:00.000Z")],
+    )
+    const attention = rows.filter((r): r is Extract<InboxRow, { kind: "attention" }> => r.kind === "attention")
+    expect(attention.map((r) => r.item.state)).toEqual(["decision_needed", "turn_complete"])
   })
 })

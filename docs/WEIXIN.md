@@ -5,7 +5,7 @@ Check on Rove and hand it work from the WeChat app on your phone.
 You bind a WeChat bot to Rove once by scanning a QR code. After that, a message
 to the bot comes back with the state of your tasks, can be forwarded to a
 task's agent, or can start a new task. Rove also messages you when a task needs
-you, is ready for review, or has a PR ready to merge.
+you, is ready for review, has a PR ready to merge, or asks you a question.
 
 The bot uses Tencent's iLink Bot API, the same one the official
 `@tencent-weixin/openclaw-weixin` plugin uses. Rove talks to it directly; no
@@ -56,6 +56,12 @@ answers by default.
 | `send <id> <text>` | Types `<text>` into the task's engine tab | `rove api send --task-id <id> --plain` |
 | `send <id> tab-2 <text>` | Into that tab | `… --tab tab-2` |
 | `add <repo> <prompt>` | Starts a new task in that repo with the repo's default engine | `rove api add --repo <repo> --prompt` |
+| `gates` (or `decisions`, `决定`) | Every open decision a task is waiting on: the question, each option's key and label, and the recommended one | `rove api gates` |
+| `answer g-12 b` | Answers decision `g-12` with option `b` | `rove api gate-answer --gate g-12 --option b` |
+| `answer g-12 b ship it after lunch` | The option plus a note for the agent | `… --text "ship it after lunch"` |
+| `answer g-12 - use the second approach` | Free text on a decision that has options (`-` stands in for the key) | `… --text …` |
+| `answer g-12 call it Nightly` | On a decision with no options, everything after the id is the answer | `… --text …` |
+| `clear d-41` | Dismisses the unreported-tick flag `status` lists, so that task can be ticked again | `rove api attention-dismiss --delivery d-41` |
 | `help` (or `帮助`) | The command list | |
 
 `<id>` is the six-character code `status` prints in front of each task (the end
@@ -65,6 +71,8 @@ one task; if they match several, the reply lists them.
 `<repo>` is the repository's directory name, such as `rove` for
 `~/code/rove`. It must be a saved project or a repo that already has tasks.
 When two repos share a name, the reply asks for the full path.
+
+`answer` checks the key against the decision's options before anything is sent: a key that is not one of them, or an id that is not open, comes back as a reply listing what is valid. Keys match without regard to case; `g-12` can also be written `12`. The answer is recorded as coming from WeChat. When the task's engine is not running, the reply says so and the answer rides the task's next message, as with `rove api gate-answer`.
 
 `send` and `add` go through the same code as the `rove api` verbs, so a refusal
 there is the reply here, for example
@@ -84,9 +92,12 @@ task **moves into** one of these:
 - **Ready for review**: a report or finished turn nobody has looked at.
 - **Ready to merge**: its PR is open and approved.
 
+- **Decision needed**: a task opened a decision. The message carries the question,
+  the option keys and the line to reply with, such as `Reply: answer g-12 a`.
+
 A task has to stay in the new state for two checks in a row before you hear
-about it. Tasks already in one of these states when the daemon starts are not
-announced.
+about it. A decision is announced as soon as it is seen. Tasks and decisions
+already open when the daemon starts are not announced.
 
 ### The 24-hour limit
 

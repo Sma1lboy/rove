@@ -42,7 +42,8 @@ Push: `{"event":"tasks","data":{...}}`.
 | Operation | Android behavior |
 | --- | --- |
 | `hello` | Require protocol 1 before showing connected |
-| `tasks.subscribe`, `tasks.list` | Initial snapshot, live updates, manual refresh |
+| `tasks.subscribe`, `tasks.list` | Initial snapshot, live updates, manual refresh; `gates` rides along |
+| `gate.answer` | Answer sheet for a `decision_needed` Inbox row: option buttons (recommended marked), optional note. The row is never dismissed by tapping; an answered gate whose engine is away opens its task instead |
 | `engines.list`, `repos.list` | Use server names and IDs in creation forms |
 | `task.tabs`, `tab.new` | List tabs and create a shell tab, or an engine tab with or without a first prompt |
 | `term.attach` | Receive stream ID and base64 replay; only attach existing sessions. An optional `leafId` attaches a split pane of the tab (clients that never split can ignore `task.tabs`' `split`) |

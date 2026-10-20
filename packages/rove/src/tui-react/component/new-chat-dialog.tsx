@@ -42,6 +42,8 @@ export interface NewChatChoice {
 export function NewChatDialogView(props: {
   availableVendors: readonly VendorId[]
   defaultVendor: VendorId
+  /** Empty workspaces have no conversation to continue or fork. */
+  freshTabOnly?: boolean
   /** Offer a trailing "shell" choice (a plain terminal tab). */
   allowShell?: boolean
   /** Offer the trailing "scratch" destination (a new Scratch task); last so
@@ -106,12 +108,19 @@ export function NewChatDialogView(props: {
       { key: "right", cmd: () => cycle(1) },
       { key: "h", cmd: () => cycle(-1) },
       { key: "l", cmd: () => cycle(1) },
-      {
-        key: "tab",
-        cmd: () =>
-          applyCombo(destinations[(destinations.indexOf(destination) + 1) % destinations.length] ?? "tab", context),
-      },
-      { key: "ctrl+f", cmd: () => applyCombo(destination, context === "fresh" ? "continue" : "fresh") },
+      ...(!props.freshTabOnly
+        ? [
+            {
+              key: "tab",
+              cmd: () =>
+                applyCombo(
+                  destinations[(destinations.indexOf(destination) + 1) % destinations.length] ?? "tab",
+                  context,
+                ),
+            },
+            { key: "ctrl+f", cmd: () => applyCombo(destination, context === "fresh" ? "continue" : "fresh") },
+          ]
+        : []),
       { key: "return", cmd: () => commit(pick) },
     ],
   }))
@@ -131,30 +140,34 @@ export function NewChatDialogView(props: {
         <DialogSection label={t("terminal.tab.newChat.engine")} focused={true} hint="←/→">
           <ChipRow choices={choices} selected={pick} display={display} onPick={(v) => commit(v)} />
         </DialogSection>
-        <DialogSection label={t("terminal.tab.newChat.destLabel")} focused={false} hint="tab">
-          <ChipRow
-            choices={destinations}
-            selected={destination}
-            display={(d) =>
-              t(
-                d === "tab"
-                  ? "terminal.tab.newChat.destTab"
-                  : d === "fork"
-                    ? "terminal.tab.newChat.destFork"
-                    : "terminal.tab.newChat.destScratch",
-              )
-            }
-            onPick={(d) => applyCombo(d, context)}
-          />
-        </DialogSection>
-        <DialogSection label={t("terminal.tab.newChat.ctxLabel")} focused={false} hint="ctrl+f">
-          <ChipRow
-            choices={["fresh", "continue"] as const}
-            selected={context}
-            display={(c) => t(c === "fresh" ? "terminal.tab.newChat.ctxFresh" : "terminal.tab.newChat.ctxContinue")}
-            onPick={(c) => applyCombo(destination, c)}
-          />
-        </DialogSection>
+        {!props.freshTabOnly && (
+          <>
+            <DialogSection label={t("terminal.tab.newChat.destLabel")} focused={false} hint="tab">
+              <ChipRow
+                choices={destinations}
+                selected={destination}
+                display={(d) =>
+                  t(
+                    d === "tab"
+                      ? "terminal.tab.newChat.destTab"
+                      : d === "fork"
+                        ? "terminal.tab.newChat.destFork"
+                        : "terminal.tab.newChat.destScratch",
+                  )
+                }
+                onPick={(d) => applyCombo(d, context)}
+              />
+            </DialogSection>
+            <DialogSection label={t("terminal.tab.newChat.ctxLabel")} focused={false} hint="ctrl+f">
+              <ChipRow
+                choices={["fresh", "continue"] as const}
+                selected={context}
+                display={(c) => t(c === "fresh" ? "terminal.tab.newChat.ctxFresh" : "terminal.tab.newChat.ctxContinue")}
+                onPick={(c) => applyCombo(destination, c)}
+              />
+            </DialogSection>
+          </>
+        )}
         <DialogFooter>{t("terminal.tab.chooseEngineHint")}</DialogFooter>
       </box>
     </box>
@@ -166,6 +179,7 @@ function show(
   availableVendors: readonly VendorId[],
   defaultVendor: VendorId,
   opts: {
+    freshTabOnly?: boolean
     allowShell?: boolean
     allowScratch?: boolean
     extraChoices?: readonly { key: string; label: string }[]
@@ -177,6 +191,7 @@ function show(
     <NewChatDialogView
       availableVendors={availableVendors}
       defaultVendor={defaultVendor}
+      freshTabOnly={opts.freshTabOnly}
       allowShell={opts.allowShell}
       allowScratch={opts.allowScratch}
       extraChoices={opts.extraChoices}

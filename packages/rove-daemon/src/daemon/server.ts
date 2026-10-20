@@ -16,6 +16,7 @@ import { ClientWriter } from "./client-writer.ts"
 import { startDaemonCollectors } from "./collectors.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import type { DeliveryDeps } from "./delivery-ops.ts"
 import { createDirectLink } from "./direct-link.ts"
 import { DaemonEventBus } from "./event-bus.ts"
 import { GraphicsImageIds } from "./graphics-ids.ts"
@@ -37,6 +38,7 @@ import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, se
 import { startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import { clearResidentMarker, residentMarkerPath, resolveResident, writeResidentMarker } from "./resident.ts"
+import { createDispatchRunnability } from "./runnability.ts"
 import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
 import { DaemonResources } from "./server-resources.ts"
 import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.ts"
@@ -136,7 +138,13 @@ async function startOwnedServer(
 
   // Spread wholesale into the handler context: `DaemonStores` IS its store half.
   const stores = await initDaemonStores(orch, runtime, bus, options.homeDir)
-  const { activity, deletions, rowTokens, automations, quotaUsage, inbox } = stores
+  const { activity, deletions, rowTokens, automations, deliveries, quotaUsage, inbox, gates } = stores
+  const deliveryDeps: DeliveryDeps = { deliveries, inbox, orch, automations }
+  const runnability = createDispatchRunnability(
+    { orch, activity, gates, deliveries },
+    quotaUsage,
+    runtime.defaultTaskVendor,
+  )
   resources.defer(() => activity.close())
   resources.defer(() => rowTokens.close())
   resources.defer(() => deletions.drain())
@@ -247,11 +255,14 @@ async function startOwnedServer(
     quotaUsage,
     {
       store: automations,
+      deliveryDeps,
       // Deferred: `selfLink` and `pluginHost` are defined below; the sweep only
       // reads them on a tick, after construction settles.
       link: () => selfLink,
       plugins: () => pluginHost,
       inbox,
+      gates,
+      runnability,
     },
     activity,
     inbox,
@@ -269,6 +280,7 @@ async function startOwnedServer(
         // A death also becomes the tab's `dead` badge and an Inbox episode.
         activity,
         inbox,
+        deliveries: deliveryDeps,
         log: (line) => logDaemonInfo("plugin-host", line),
       })
     : () => {}

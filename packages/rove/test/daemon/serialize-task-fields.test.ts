@@ -89,6 +89,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
     url: "https://github.com/o/r/issues/7",
   },
   dispatcher: { taskId: "01ARZ3NDEKTSV4RRFFQ69G5FAX", tabId: "tab-1" },
+  requireReport: true,
   prompt: "the full task brief — never truncated on the way to the wire",
   baseRef: "release/2.x",
   worktreeName: "probe-1",

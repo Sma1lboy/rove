@@ -33,6 +33,7 @@ function base(over: Partial<Parameters<typeof buildContext>[0]> = {}): ContextPa
     activity: null,
     liveTaskIds: null,
     attention: [],
+    gates: [],
     notes: [],
     now: NOW,
     limit: 20,
@@ -148,6 +149,29 @@ describe("context handler", () => {
       runtime,
     })) as ContextPayload
     expect(result.attention.map((i) => i.taskId)).toEqual(["work", null])
+  })
+
+  it("lists this repo's open decisions once: as gates, not also as inbox rows", async () => {
+    const gate = (id: string, taskId: string) => ({ id, taskId, question: `q ${id}`, options: [], status: "open" })
+    const items = [
+      {
+        taskId: "work",
+        tabId: "tab-1",
+        state: "decision_needed",
+        unread: true,
+        at: NOW,
+        detail: { gate: { id: "g-1" } },
+      },
+    ] as unknown as AttentionInboxItem[]
+    const result = (await invokeVerb("context", ["--repo", REPO], {
+      client: client({
+        "attention.list": () => ({ items }),
+        "gate.list": () => ({ gates: [gate("g-1", "work"), gate("g-2", "other")] }),
+      }),
+      runtime,
+    })) as ContextPayload
+    expect(result.gates.map((g) => g.id)).toEqual(["g-1"])
+    expect(result.attention).toEqual([])
   })
 
   it("keeps an inbox episode about the repo's own seat, which the task list filters out", async () => {

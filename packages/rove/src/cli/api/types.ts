@@ -77,6 +77,8 @@ export interface FlagSpec {
   readonly default?: string
   /** Metavar for help/schema, e.g. PATH / ID / TEXT. */
   readonly placeholder?: string
+  /** May be passed more than once; read with `VerbArgs.list`. */
+  readonly repeatable?: true
 }
 
 /** What a verb handler runs against; all injectable so handlers test without a daemon or PTY host. */
@@ -238,6 +240,16 @@ export interface DeliveredPrompt {
    * still running and the prompt rides the not-yet-executed launch argv.
    */
   readonly reason?: string
+}
+
+/**
+ * Could the prompt still reach the engine? `delivered: false` WITH a `reason`
+ * is a fresh launch whose argv carries the prompt but whose engine process was
+ * not observed in time: it may yet start with it. Without a reason nothing was
+ * written (no live engine to paste into), so a report can never arrive.
+ */
+export function promptMayHaveLanded(delivered: DeliveredPrompt): boolean {
+  return delivered.delivered || delivered.reason !== undefined
 }
 
 /** Hosted prompt delivery seam, injectable for handler/unit tests. */

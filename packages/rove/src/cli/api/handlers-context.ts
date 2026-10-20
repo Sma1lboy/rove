@@ -8,7 +8,7 @@
  * rather than `collect`'s per-task `taskTabs` hop.
  */
 
-import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { AttentionInboxItem, Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { DaemonRpc } from "../daemon-session.ts"
 import {
@@ -43,7 +43,7 @@ export async function loadContext(
   daemon: DaemonRpc,
   runtime: ApiRuntime,
   opts: LoadContextOptions,
-): Promise<{ payload: ContextPayload; unresolvableRepos: readonly string[] }> {
+): Promise<{ payload: ContextPayload; unresolvableRepos: readonly string[]; gatesUnreadable: boolean }> {
   const { tasks: allTasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
   // Throws on an unresolvable `--repo`; unresolvable task repos are named.
   const filter =
@@ -69,9 +69,10 @@ export async function loadContext(
       task.deletion?.phase !== "running",
   )
 
-  const [inspect, inbox, notes, liveTaskIds] = await Promise.all([
+  const [inspect, inbox, gates, notes, liveTaskIds] = await Promise.all([
     tryRead(() => daemon.request<{ activity?: { tasks?: Record<string, ActivityEntry> } }>("debug.inspect")),
     tryRead(() => daemon.request<{ items: AttentionInboxItem[] }>("attention.list")),
+    tryRead(() => daemon.request<{ gates: Gate[] }>("gate.list")),
     filter ? tryRead(() => daemon.request<{ notes: ContextNote[] }>("note.list", { repo: filter.target })) : null,
     tryRead(() => runtime.liveTaskIds()),
   ])
@@ -83,13 +84,17 @@ export async function loadContext(
     // `null` = host unreachable; an empty set DOES refute a stale `running`.
     liveTaskIds: liveTaskIds ?? null,
     // Routine episodes (`taskId: null`) have no repo and are never filtered
-    // out — a routine misfiring forever must not hide.
-    attention: (inbox?.items ?? []).filter((item) => item.taskId === null || repoTaskIds.has(item.taskId)),
+    // out — a routine misfiring forever must not hide. Gates get their own
+    // list below; their Inbox rows would repeat them.
+    attention: (inbox?.items ?? []).filter(
+      (item) => item.state !== "decision_needed" && (item.taskId === null || repoTaskIds.has(item.taskId)),
+    ),
+    gates: (gates?.gates ?? []).filter((gate) => repoTaskIds.has(gate.taskId)),
     notes: notes?.notes ?? [],
     now: Date.now(),
     limit: opts.limit,
   })
-  return { payload, unresolvableRepos: filter?.unresolvableRepos ?? [] }
+  return { payload, unresolvableRepos: filter?.unresolvableRepos ?? [], gatesUnreadable: gates === null }
 }
 
 async function context(ctx: VerbContext): Promise<unknown> {

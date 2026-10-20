@@ -12,6 +12,7 @@ import { type ActivityEntry, buildContext } from "@sma1lboy/rove/src/cli/api/con
 import { defaultApiRuntime } from "@sma1lboy/rove/src/cli/api/runtime.ts"
 import type { TaskTabRow } from "@sma1lboy/rove/src/cli/api/tab-snapshot.ts"
 import {
+  type ActiveGate,
   type RowTokenMap,
   type WorktreeChangesMap,
   liveRowTokens,
@@ -33,6 +34,7 @@ import {
 import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
+import { gateRows } from "./gates.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import {
   type AttentionRow,
@@ -79,7 +81,7 @@ export interface RoveOps {
   viewedSession(taskId: string, tabId: string): { taskId: string; tabId: string; cwd: string } | null
   diffFiles(taskId: string): Promise<{ base: string | null; files: readonly DiffFileRow[] }>
   diffFile(taskId: string, path: string, scope: "branch" | "working"): Promise<unknown>
-  dismissAttention(taskId: string, tabId?: string): Promise<void>
+  dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
 }
 
 /** What `tab.new` asks for: no `prompt` opens the tab empty (a shell, or an engine awaiting its first message). */
@@ -188,13 +190,17 @@ function prChipKind(task: SerializedTask): PrChipKind | null {
 /**
  * The inbox as the phone sees it. Optional, additive fields: `resumeAt` (a rate-limited task's
  * scheduled auto-resume, from its `quotaResume`), `label` (a routine episode's name, since its
- * subject is the routine, not a task) and `automationId` (that routine's id).
+ * subject is the routine, not a task), `automationId` (that routine's id), `deliveryId` (a
+ * `report_missing` episode's key) and `gateId` (a `decision_needed` row's key into
+ * `TasksPayload.gates`).
  */
 export function attentionRows(items: readonly AttentionInboxItem[], tasks: readonly SerializedTask[]): AttentionRow[] {
   const byId = new Map(tasks.map((t) => [t.id, t]))
   return items.map((i) => {
     const resumeAt = i.state === "rate_limited" && i.taskId ? byId.get(i.taskId)?.quotaResume?.resumeAt : undefined
     const label = i.detail?.routine?.name
+    const deliveryId = i.state === "report_missing" ? i.detail?.delivery?.id : undefined
+    const gateId = i.state === "decision_needed" ? i.detail?.gate?.id : undefined
     const automationId = i.detail?.routine?.automationId
     return {
       taskId: i.taskId,
@@ -204,6 +210,8 @@ export function attentionRows(items: readonly AttentionInboxItem[], tasks: reado
       at: i.at,
       ...(resumeAt ? { resumeAt } : {}),
       ...(label ? { label } : {}),
+      ...(deliveryId ? { deliveryId } : {}),
+      ...(gateId ? { gateId } : {}),
       ...(automationId ? { automationId } : {}),
     }
   })
@@ -233,6 +241,7 @@ export function taskRows(
     activity,
     liveTaskIds,
     attention: [],
+    gates: [],
     notes: [],
     now,
     limit: Number.MAX_SAFE_INTEGER,
@@ -298,6 +307,8 @@ function flatten(entries: readonly StatusEntry[], scope: DiffFileRow["scope"]): 
 export interface LiveRowSignals {
   changes(): WorktreeChangesMap | null
   tokens(): RowTokenMap
+  /** The daemon's `gates` channel: open decisions and answered ones still owed to the engine. */
+  gates(): readonly ActiveGate[]
   /** Tasks of the other registered machines (`MachineHub`), each stamped with its `origin`. */
   remote?(): readonly SerializedTask[]
 }
@@ -372,7 +383,11 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
         ...row,
         order: (row.order ?? 0) + tasks.length,
       }))
-      return { tasks: [...local, ...remote], attention: attentionRows(inbox?.items ?? [], tasks) }
+      return {
+        tasks: [...local, ...remote],
+        attention: attentionRows(inbox?.items ?? [], tasks),
+        gates: gateRows(signals?.gates() ?? [], tasks),
+      }
     },
 
     engines,
@@ -461,8 +476,12 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
       return loadPreviewData(task.worktreePath, path, { base })
     },
 
-    async dismissAttention(taskId, tabId) {
-      await client.request("attention.dismiss", tabId ? { taskId, tabId } : { taskId })
+    async dismissAttention(taskId, tabId, deliveryId) {
+      await client.request("attention.dismiss", {
+        taskId,
+        ...(tabId ? { tabId } : {}),
+        ...(deliveryId ? { deliveryId } : {}),
+      })
     },
   }
 }

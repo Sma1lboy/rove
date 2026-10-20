@@ -11,6 +11,7 @@ import { en as automations, zh as automationsZh } from "./messages/automations"
 import { en as common, zh as commonZh } from "./messages/common"
 import { en as doctor, zh as doctorZh } from "./messages/doctor"
 import { en as files, zh as filesZh } from "./messages/files"
+import { en as gates, zh as gatesZh } from "./messages/gates"
 import { en as help, zh as helpZh } from "./messages/help"
 import { en as hints, zh as hintsZh } from "./messages/hints"
 import { en as kanban, zh as kanbanZh } from "./messages/kanban"
@@ -47,6 +48,7 @@ export const en = {
   kanban,
   automations,
   workItems,
+  gates,
   doctor,
   mods,
 }
@@ -73,6 +75,7 @@ const zh: Messages = {
   kanban: kanbanZh,
   automations: automationsZh,
   workItems: workItemsZh,
+  gates: gatesZh,
   doctor: doctorZh,
   mods: modsZh,
 }

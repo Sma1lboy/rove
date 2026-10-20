@@ -20,11 +20,19 @@ object InboxLogic {
     /** Stopped until a person acts: everything except a plain finished turn. */
     fun isBlocking(item: Attention) = item.state != "turn_complete"
 
-    /** One episode per tab, the fresh one replacing the stale. */
+    /** Opening or visiting clears an episode, except a decision (answered) and an unreported tick (only a late report or the explicit dismiss clears it). */
+    fun clearsOnVisit(item: Attention) = item.gateId == null && item.state != "report_missing"
+
+    /** One episode per tab, the fresh one replacing the stale; a delivery episode is keyed by its delivery, a decision by its gate. */
     fun key(item: Attention): String {
+        if (item.gateId != null) return "gate\u0000${item.gateId}"
+        if (item.deliveryId != null) return "delivery\u0000${item.deliveryId}"
         if (item.taskId == null && item.label != null) return "${item.state}\u0000${item.label}"
         return "${item.taskId.orEmpty()}\u0000${item.tabId.orEmpty()}"
     }
+
+    /** The decision behind a `decision_needed` row; null for any other row or a gate the list no longer holds. */
+    fun gate(item: Attention, gates: List<GateRow>): GateRow? = item.gateId?.let { id -> gates.firstOrNull { it.id == id } }
 
     fun visitKey(taskId: String, tabId: String?) = "$taskId\u0000${tabId.orEmpty()}"
 
@@ -64,7 +72,7 @@ object InboxLogic {
 
     /** The tab-strip glyph that goes with the state word. */
     fun glyph(state: String) = when (state) {
-        "permission_needed" -> "?"
+        "permission_needed", "decision_needed" -> "?"
         "rate_limited" -> "◷"
         "error", "routine_failed" -> "!"
         "dead" -> "†"

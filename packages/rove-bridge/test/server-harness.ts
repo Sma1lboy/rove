@@ -40,7 +40,7 @@ export class FakePty implements PtyHostClient {
   }
 }
 
-export const ROWS: TasksPayload = { tasks: [], attention: [] }
+export const ROWS: TasksPayload = { tasks: [], attention: [], gates: [] }
 
 export function fakeOps(): RoveOps {
   const reject = async (): Promise<never> => {

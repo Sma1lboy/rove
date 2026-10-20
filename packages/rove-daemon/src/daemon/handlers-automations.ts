@@ -16,7 +16,9 @@ import {
 } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { isValidCron } from "./cron.ts"
+import { reportDelivery, withDeliveryReport } from "./delivery-ops.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
+import { deliveryDepsOf } from "./handlers-deliveries.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 
 /** A persisted bad schedule never fires and is only discoverable by its silence. */
@@ -178,7 +180,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       // `{runs:[]}` for an unknown id would read as "not run yet" and make an
       // agent wait instead of fixing the id.
       if (!ctx.automations.get(automationId)) throw new Error(`automation not found: ${automationId}`)
-      return { runs: ctx.automations.runsFor(automationId) }
+      return { runs: ctx.automations.runsFor(automationId).map((run) => withDeliveryReport(run, ctx.deliveries)) }
     },
   },
   {
@@ -189,6 +191,15 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       if (text.length > ROUTINE_RESPONSE_MAX_CHARS) {
         throw new Error(`response is ${text.length} characters; the cap is ${ROUTINE_RESPONSE_MAX_CHARS}`)
       }
+      const stored = ctx.automations.getRun(runId)
+      if (!stored) return { run: null }
+      // A run armed with a delivery answers through it: `routine-respond` is
+      // the routine-flavoured spelling of `rove api report --outcome done`.
+      if (stored.deliveryId && ctx.deliveries.get(stored.deliveryId)) {
+        await reportDelivery(deliveryDepsOf(ctx), stored.deliveryId, { outcome: "done", summary: text })
+        return { run: withDeliveryReport(stored, ctx.deliveries) }
+      }
+      // Predates deliveries: the response lives on the run itself.
       const run = await ctx.automations.setRunResponse(runId, text)
       if (!run) return { run: null }
       const automation = ctx.automations.get(run.automationId)
@@ -216,6 +227,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const status = await runAutomationOnce(
         {
           store: ctx.automations,
+          deliveries: ctx.deliveries,
           orch: ctx.orch,
           runtime: ctx.runtime,
           link: ctx.selfLink,

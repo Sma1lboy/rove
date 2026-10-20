@@ -5,7 +5,11 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { liveRowTokens, parseRowTokensPayload, sameRowTokenMap } from "../../src/client/remote-orchestrator.ts"
+import {
+  liveRowTokens,
+  parseRowTokensPayload,
+  sameRowTokenMap,
+} from "../../src/client/remote-orchestrator-row-tokens.ts"
 
 const NOW = 1_800_000_000_000
 

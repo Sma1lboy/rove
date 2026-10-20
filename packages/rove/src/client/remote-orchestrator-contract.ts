@@ -19,6 +19,7 @@ import type { CommandTab, EngineTab } from "../tui/workspace/terminal-tabs-core.
 import type { Task } from "../types/task.ts"
 import type { UpdateInfo } from "../version.ts"
 import type {
+  ActiveGate,
   AttentionInboxItem,
   ContextUsageMap,
   EngineLifecycleMap,
@@ -98,6 +99,7 @@ export interface OrchestratorSignals {
   readonly engineTabStateAcc: ReadableState<EngineTabStateMap>
   readonly setEngineTabStateSig: (next: EngineTabStateMap) => void
   readonly setAttentionInboxSig: (next: readonly AttentionInboxItem[]) => void
+  readonly setGatesSig: (next: readonly ActiveGate[]) => void
   readonly taskJobsAcc: ReadableState<ReadonlyMap<string, TaskJobState>>
   readonly setTaskJobsSig: (next: ReadonlyMap<string, TaskJobState>) => void
   readonly rowTokensAcc: ReadableState<RowTokenMap>

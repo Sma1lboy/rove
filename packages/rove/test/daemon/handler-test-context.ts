@@ -2,7 +2,9 @@ import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import type { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import type { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
 import type { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import type { DeliveriesStore } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
 import type { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
+import type { GatesStore } from "@sma1lboy/rove-daemon/daemon/gates-store"
 import { GraphicsImageIds } from "@sma1lboy/rove-daemon/daemon/graphics-ids"
 import type { IssuesStore } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { FieldNote, NotesStore } from "@sma1lboy/rove-daemon/daemon/notes-store"
@@ -106,6 +108,15 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
         return Promise.resolve()
       },
     } as unknown as AttentionInboxStore,
+    // No armed deliveries: engine events find nothing awaiting.
+    deliveries: {
+      awaitingFor: () => undefined,
+      awaitingOn: () => [],
+      noteTurnStart: () => Promise.resolve(),
+      dismiss: () => Promise.resolve(undefined),
+    } as unknown as DeliveriesStore,
+    // Gate behavior has its own suite (gates.test.ts, real store); this keeps task.delete's withdraw call alive.
+    gates: { withdrawTask: () => Promise.resolve() } as unknown as GatesStore,
     deletions: {
       enqueue: (taskId: string) => rec.deletions.push(taskId),
     },

@@ -39,11 +39,25 @@ class InboxTest {
         assertEquals(listOf(5.0, 4.0), InboxLogic.appending(Visit("a", "t1", 5.0), listOf(Visit("a", "t1", 1.0), Visit("b", "t1", 4.0))).map { it.at })
     }
 
+    @Test fun deliveryEpisodesAreKeyedByDeliveryNotTaskTab() {
+        val a = Attention(taskId = "a", tabId = null, state = "report_missing", deliveryId = "d-1")
+        val b = Attention(taskId = "a", tabId = null, state = "report_missing", deliveryId = "d-2")
+        val plain = item("a", "error", 1.0, tab = null)
+        assertEquals(3, setOf(InboxLogic.key(a), InboxLogic.key(b), InboxLogic.key(plain)).size)
+    }
+
     @Test fun resumeTimeShowsTheDayOnlyWhenNotToday() {
         val zone = ZoneId.of("UTC")
         val now = Instant.parse("2026-10-10T08:00:00Z")
         assertEquals("3:14 PM", InboxLogic.resumeTime("2026-10-10T15:14:00.000Z", now, zone, Locale.US))
         assertEquals("Oct 11 3:14 PM", InboxLogic.resumeTime("2026-10-11T15:14:00Z", now, zone, Locale.US))
         assertNull(InboxLogic.resumeTime("soon", now, zone, Locale.US))
+    }
+
+    @Test fun anUnreportedTickIsClearedOnlyByAnExplicitDismiss() {
+        assertEquals(false, InboxLogic.clearsOnVisit(Attention(taskId = "a", state = "report_missing", deliveryId = "d-4")))
+        assertEquals(false, InboxLogic.clearsOnVisit(Attention(taskId = "a", state = "decision_needed", gateId = "g-1")))
+        assertEquals(true, InboxLogic.clearsOnVisit(item("a", "turn_complete", 1.0)))
+        assertEquals(true, InboxLogic.clearsOnVisit(item("a", "error", 1.0)))
     }
 }

@@ -77,6 +77,18 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
       },
       { name: "pin", type: "bool", description: "Pin the task to the top of the sidebar." },
       {
+        name: "require-report",
+        type: "bool",
+        description:
+          "Hold every `send` to this task, and its first --prompt, to a report: each arms a delivery the agent closes with `report --delivery <id>`, and a turn that ends without one raises a `report_missing` Inbox row. For tasks ticked unattended. Change later with `update --require-report on|off`.",
+      },
+      {
+        name: "expect-report",
+        type: "bool",
+        description:
+          "Arm a delivery for this task's first --prompt only (as `send --expect-report` does for a send); later sends are not armed.",
+      },
+      {
         name: "activate",
         type: "bool",
         default: "false",

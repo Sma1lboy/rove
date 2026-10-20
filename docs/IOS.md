@@ -98,8 +98,8 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | --- | --- | --- |
 | `hello` | — | `{protocol, apiVersion, roveVersion, host}`; `apiVersion` is the verb contract `api.invoke` speaks |
 | `api.invoke` | `verb`, `params?` (keyed by flag name, as `rove api schema --verb` lists them) | the verb's result; a refusal is the verb's full error object ([API.md](API.md#one-contract-three-transports)) |
-| `tasks.subscribe` | — | `{tasks, attention}`, then `tasks` pushes on change, and `tabs` pushes (`{taskIds}`) when only those tasks' Terminal Tabs changed (re-read them with `task.tabs`; older apps ignore it) |
-| `tasks.list` | — | `{tasks, attention}` (fresh read) |
+| `tasks.subscribe` | — | `{tasks, attention, gates}`, then `tasks` pushes on change, and `tabs` pushes (`{taskIds}`) when only those tasks' Terminal Tabs changed (re-read them with `task.tabs`; older apps ignore it) |
+| `tasks.list` | — | `{tasks, attention, gates}` (fresh read) |
 | `engines.list` | — | `{engines: [{id, name, command, protocol, builtin}]}` |
 | `repos.list` | — | `{repos}` (saved projects plus repos with tasks) |
 | `task.create` | `repo`, `engine?`, `prompt?`, `title?` | `{taskId}` |
@@ -121,7 +121,8 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `review.send` | `taskId`, `tabId?` | `{sent, delivered, reason?}`; notes are marked sent only when delivery is confirmed |
 | `worktrees.list` | `network?` | `{projects: [{repo, worktrees: [{path, branch, dirty, branchOnRemote, verdict, verdictReason, taskId?, taskKind?, …}]}]}` |
 | `worktrees.remove` | `path`, `force` | `{removed, residue?}`; a dirty worktree is refused with code `DIRTY_WORKTREE` unless `force` (destructive) |
-| `attention.dismiss` | `taskId`, `tabId?` | `{}` |
+| `attention.dismiss` | `taskId`, `tabId?`, `deliveryId?` | `{}`; refused with `GATE_NOT_DISMISSABLE` when `gateId` is named, or when the tab holds only a decision row |
+| `gate.answer` | `gateId`, `option?`, `text?` (at least one) | `{delivered}`; wraps daemon `gate.answer` with `by: "bridge"` |
 
 ### Task area ops
 
@@ -197,6 +198,19 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 
 `attachment.put` checks the file's magic bytes against the declared type. A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
 
+### Decisions
+
+A task can ask its owner a question (`rove api gate-raise`, see `docs/design/long-run-controls.md` § 3). The bridge carries the open ones, and the answered ones the engine has not received yet, in `gates` beside `tasks` and `attention`, and pushes a new `tasks` event when they change:
+
+```json
+{"id": "g-7", "taskId": "…", "tabId": null, "question": "Which approach?",
+ "options": [{"key": "a", "label": "Rewrite", "detail": "2 days"}, {"key": "b", "label": "Patch"}],
+ "recommended": "b", "context": "…", "status": "open",
+ "createdAt": "2026-10-12T00:00:00.000Z", "label": "Nightly loop"}
+```
+
+`status` is `open`, or `answered` with `handoff: "undelivered"` (the engine was not running; the answer rides the task's next message). `label` is the task's title; `options` is empty for a free-text question. Each gate also appears in `attention` as a `decision_needed` row with `gateId` set. That row is answered, never dismissed: the app opens an answer sheet (option buttons, the recommended one marked, an optional note) and sends `gate.answer`. `attention.dismiss` refuses a decision with `GATE_NOT_DISMISSABLE`, and so does an older app that names only `taskId` and `tabId` for a tab that holds nothing else. `gate.answer` keeps the daemon's refusal code on the wire: `GATE_NOT_FOUND`, `GATE_NOT_OPEN` (answered or withdrawn elsewhere first), `BAD_OPTION`.
+
 ### Mods: the `mods` push and `mod.press`
 
 On connect and on every change the bridge pushes `{"event": "mods", "data": {"panes": [{plugin, id, title, tree}]}}`: every pane a plugin's `[mod]` has open, each `tree` an element tree of `box` / `text` / `button` ([PLUGIN-AUTHORING.md](PLUGIN-AUTHORING.md#mods)). Validate it with the SDK's `parseModUiPayload` rules and drop a pane you cannot draw. `mod.press` (`plugin`, `pane`, `key`) → `{}` forwards one button press to the mod over the daemon's `mod.press` RPC; `MOD_UNAVAILABLE` means the mod is gone or no longer draws that button. `mod.submit` (`plugin`, `pane`, `key`, `value` ≤ 4000 chars, may be empty) → `{}` does the same for an `input` field's Enter. The phone apps do not draw mods yet.
@@ -205,7 +219,7 @@ On connect and on every change the bridge pushes `{"event": "mods", "data": {"pa
 
 A plugin's `rove api prompt` arrives as `{"event": "prompt", "data": {promptId, title, placeholder?, initial?, at}}`, once per prompt and only to clients connected when it was asked. Answer with `ui.promptReply` (`promptId`, `value?`) → `{}`; leave out `value` to cancel. The first answer from any client (TUI, web, phone) wins; a later one gets `PROMPT_GONE`.
 
-Additive fields and events, ignored by an app that predates them: `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time), `attention[].label` (a routine episode's name) and `attention[].automationId` (that routine's id, for `attention.dismissRoutine` and for opening the Routines page on it); `tasks[].machine` (`{id, label, stale?}`, set only on a row served by another registered machine, `rove machine add`; `id` is the machine alias, `stale` means it is unreachable and the row is its last known state; absent on this Mac's rows). Remote rows carry no live activity, changes or tabs, and every op that takes a `taskId` refers to this Mac's daemon, so a client lists them read-only. The push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
+Additive fields and events, ignored by an app that predates them: `gates` itself, `attention[].gateId`, `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time), `attention[].label` (a routine episode's name) and `attention[].automationId` (that routine's id, for `attention.dismissRoutine` and for opening the Routines page on it); `tasks[].machine` (`{id, label, stale?}`, set only on a row served by another registered machine, `rove machine add`; `id` is the machine alias, `stale` means it is unreachable and the row is its last known state; absent on this Mac's rows). Remote rows carry no live activity, changes or tabs, and every op that takes a `taskId` refers to this Mac's daemon, so a client lists them read-only. The push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
 
 ### Board, routines, GitHub issues and settings ops
 

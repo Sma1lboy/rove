@@ -91,6 +91,7 @@ async function writeStore(path: string, items: readonly AttentionInboxItem[]): P
 
 export class AttentionInboxStore {
   private readonly items = new Map<string, AttentionInboxItem>()
+  private projection: () => AttentionInboxItem[] = () => []
   /** False until one read SUCCEEDED; {@link commit} refuses to write before that. */
   private loaded = false
 
@@ -110,8 +111,18 @@ export class AttentionInboxStore {
     })
   }
 
+  /** Stored episodes plus the projected rows ({@link setProjection}), oldest first. */
   snapshot(): AttentionInboxItem[] {
-    return [...this.items.values()].sort(compareItems)
+    return [...this.items.values(), ...this.projection()].sort(compareItems)
+  }
+
+  /**
+   * Rows computed from another store (decision gates), merged into every
+   * snapshot and push but never written to attention-inbox.json: episode
+   * cleanup (turn-start, open, dismiss, prune) cannot touch what it never held.
+   */
+  setProjection(rows: () => AttentionInboxItem[]): void {
+    this.projection = rows
   }
 
   /**
@@ -163,6 +174,45 @@ export class AttentionInboxStore {
       next.delete(key)
       next.set(key, { taskId, tabId, state: "dead", detail, unread: true, at })
       await this.commit(next)
+    })
+  }
+
+  /**
+   * A `report_missing` episode for an armed delivery that ended unreported.
+   * Keyed on the delivery, so the tab's next `turn-start` does not clear it;
+   * only a late report or a dismiss does.
+   */
+  async recordReportMissing(
+    taskId: string,
+    tabId: string | null,
+    delivery: NonNullable<EngineActivityDetail["delivery"]>,
+    note: string | undefined,
+    at: number,
+  ): Promise<void> {
+    await this.enqueue(async () => {
+      const detail: EngineActivityDetail = { delivery, ...(note ? { note } : {}) }
+      const key = attentionInboxItemKey({ taskId, tabId, state: "report_missing", detail })
+      const next = new Map(this.items)
+      next.delete(key)
+      next.set(key, { taskId, tabId, state: "report_missing", detail, unread: true, at })
+      await this.commit(next)
+    })
+  }
+
+  /** Clear a delivery's `report_missing` episode (late report, or dismiss). */
+  async deleteDeliveryEpisode(deliveryId: string): Promise<boolean> {
+    return await this.enqueue(async () => {
+      const key = attentionInboxItemKey({
+        taskId: null,
+        tabId: null,
+        state: "report_missing",
+        detail: { delivery: { id: deliveryId, cause: "turn-complete" } },
+      })
+      if (!this.items.has(key)) return false
+      const next = new Map(this.items)
+      next.delete(key)
+      await this.commit(next)
+      return true
     })
   }
 
@@ -271,10 +321,11 @@ export class AttentionInboxStore {
     await writeStore(this.path, items)
     this.items.clear()
     for (const item of items) this.items.set(attentionInboxItemKey(item), item)
-    this.bus.publish("attention.inbox", { items })
+    this.publish()
   }
 
-  private publish(): void {
+  /** Push the current snapshot, e.g. after a projected row appeared or went. */
+  publish(): void {
     this.bus.publish("attention.inbox", { items: this.snapshot() })
   }
 }

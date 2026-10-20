@@ -10,9 +10,9 @@
 
 import type { ContentBlock } from "@/types/content"
 import type { EngineHistory, EngineUsageSnapshot, Message } from "@/types/engine"
+import { isObject } from "../../lib/is-object"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
-import { isObject } from "../is-object"
 import { normalizeCodexContent } from "./normalize"
 import { isSyntheticCodexUserRow } from "./synthetic"
 import { codexUsageToSnapshot } from "./usage"

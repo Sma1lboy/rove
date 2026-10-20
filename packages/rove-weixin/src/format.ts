@@ -20,6 +20,12 @@ export function shortId(taskId: string): string {
   return taskId.slice(-6)
 }
 
+/** Split off the first whitespace-delimited word. */
+export function head(text: string): [string, string] {
+  const match = /^(\S+)\s*([\s\S]*)$/.exec(text.trim())
+  return match ? [match[1] ?? "", match[2] ?? ""] : ["", ""]
+}
+
 function clip(text: string, max: number): string {
   const flat = text.replace(/\s+/g, " ").trim()
   return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`
@@ -74,6 +80,17 @@ export function renderStatus(payload: ContextPayload): string {
     lines.push("", `${label}:`)
     for (const row of rows.slice(0, ITEMS_PER_SECTION)) lines.push(rowLine(row))
     if (rows.length > ITEMS_PER_SECTION) lines.push(`  +${rows.length - ITEMS_PER_SECTION} more`)
+  }
+  // A tick that ended without its report blocks the next one until the owner clears it.
+  const unreported = payload.attention.filter((a) => a.state === "report_missing" && a.detail?.delivery?.id)
+  if (unreported.length > 0) {
+    lines.push("", "Unreported ticks (reply `clear d-N` to unblock):")
+    for (const item of unreported.slice(0, ITEMS_PER_SECTION)) {
+      const row = payload.tasks.find((t) => t.taskId === item.taskId)
+      lines.push(
+        `• ${item.detail?.delivery?.id} ${row ? shortId(row.taskId) : ""} ${clip(row?.title ?? "", TITLE_CHARS)}`.trimEnd(),
+      )
+    }
   }
   return lines.join("\n")
 }

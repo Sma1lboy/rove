@@ -14,7 +14,7 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ensurePluginEnginesLoaded } from "../../engine/plugin-engines.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
-import { VerbArgs, parseFlags, validateAgainstSpec } from "./flags.ts"
+import { REPEAT_SEP, VerbArgs, parseFlags, validateAgainstSpec } from "./flags.ts"
 import { defaultApiRuntime } from "./runtime.ts"
 import {
   type ApiCaller,
@@ -93,8 +93,13 @@ export function errorEnvelope(err: unknown): ApiEnvelope {
   return { apiVersion: ROVE_API_VERSION, ok: false, error: errorBody(toApiError(err)) }
 }
 
-function flagText(name: string, type: FlagSpec["type"] | undefined, value: ApiParams[string]): string {
+function flagText(name: string, spec: FlagSpec | undefined, value: ApiParams[string]): string {
+  const type = spec?.type
   if (typeof value === "string") return value
+  // A repeatable flag's occurrences, as a string list over a transport.
+  if (spec?.repeatable && Array.isArray(value) && value.every((item) => typeof item === "string")) {
+    return value.join(REPEAT_SEP)
+  }
   if (typeof value === "boolean" && (type === "bool" || type === undefined)) return String(value)
   if (typeof value === "number" && (type === "int" || type === "uint" || type === undefined)) return String(value)
   if (Array.isArray(value) && (type === "csv" || type === undefined)) {
@@ -110,13 +115,24 @@ function flagText(name: string, type: FlagSpec["type"] | undefined, value: ApiPa
 export function paramsToFlags(verb: VerbSpec, params: ApiParams): Flags {
   const flags: Flags = new Map()
   for (const [name, value] of Object.entries(params)) {
-    flags.set(name, flagText(name, verb.flags.find((f) => f.name === name)?.type, value))
+    flags.set(
+      name,
+      flagText(
+        name,
+        verb.flags.find((f) => f.name === name),
+        value,
+      ),
+    )
   }
   return flags
 }
 
 export function booleanFlagsOf(verb: VerbSpec): ReadonlySet<string> {
   return new Set(verb.flags.filter((f) => f.type === "bool").map((f) => f.name))
+}
+
+export function repeatableFlagsOf(verb: VerbSpec): ReadonlySet<string> {
+  return new Set(verb.flags.filter((f) => f.repeatable).map((f) => f.name))
 }
 
 /** Run a resolved, validated verb; every failure leaves as an {@link ApiError}. */
@@ -146,7 +162,10 @@ export async function runVerb(verbName: string, input: VerbInput, deps: VerbDeps
       hint: "run it as a CLI command on the machine whose daemon you are talking to",
     })
   }
-  const flags = "argv" in input ? parseFlags(input.argv, booleanFlagsOf(verb)).flags : paramsToFlags(verb, input.params)
+  const flags =
+    "argv" in input
+      ? parseFlags(input.argv, booleanFlagsOf(verb), repeatableFlagsOf(verb)).flags
+      : paramsToFlags(verb, input.params)
   validateAgainstSpec(verb, flags)
   return callVerb(verb, flags, deps)
 }

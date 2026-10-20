@@ -120,13 +120,40 @@ export interface AttentionRow {
   readonly resumeAt?: string
   /** Routine episodes: the routine's name (the subject is a schedule, not a task). Optional. */
   readonly label?: string
+  /** `report_missing` episodes: the delivery id. Dismissal is keyed by it, not by task+tab. Optional. */
+  readonly deliveryId?: string
   /** Routine episodes: the schedule's id; `attention.dismissRoutine` clears the episode by it and the Routines page lands on that routine. Optional. */
   readonly automationId?: string
+  /** `decision_needed` rows: the gate id, the key into `TasksPayload.gates`. A decision is answered (`gate.answer`), never dismissed. Optional. */
+  readonly gateId?: string
+}
+
+/** A decision a task put to its owner (docs/design/long-run-controls.md § 3): open, or answered but not yet handed to the engine. */
+export interface GateRow {
+  /** `g-<n>` */
+  readonly id: string
+  readonly taskId: string
+  /** The tab the answer goes into; `null` = the task's first engine tab. */
+  readonly tabId: string | null
+  readonly question: string
+  /** Empty = free text only. */
+  readonly options: readonly { readonly key: string; readonly label: string; readonly detail?: string }[]
+  /** One of the option keys. */
+  readonly recommended?: string
+  readonly context?: string
+  readonly status: "open" | "answered"
+  /** Answered gates only: `undelivered` = the engine has not received it ("answered, engine not running"). */
+  readonly handoff?: "delivered" | "undelivered"
+  readonly createdAt: string
+  /** The task's title, since the question's subject is a task the row list may not show. */
+  readonly label: string
 }
 
 export interface TasksPayload {
   readonly tasks: readonly TaskRow[]
   readonly attention: readonly AttentionRow[]
+  /** Pushed on change like `attention`. Absent from an older bridge: treat as none. */
+  readonly gates: readonly GateRow[]
 }
 
 export interface TabRow {
