@@ -1,5 +1,17 @@
 # @sma1lboy/rove-plugin-sdk
 
+## 0.1.11
+
+### Patch Changes
+
+- [#1297](https://github.com/Sma1lboy/rove/pull/1297) [`dbb9671`](https://github.com/Sma1lboy/rove/commit/dbb9671bbfd52b8e1b25a5aaf733a3e4d89dd1c3) `rove api` verbs are now one contract served three ways: the CLI, an `api.invoke` request on the daemon socket, and an `api.invoke` op on the bridge (`rove --web`). The socket and bridge take `{ verb, params }` with params keyed by flag name and answer `{ apiVersion, ok, result | error }`, where `error` is the same object the CLI prints. `rove api --envelope` prints that envelope too, and `rove api schema`, both `hello`s and every envelope report one `apiVersion` (now 3). Bridge refusals keep their `hint` and `nextCommandArgs`, and the plugin SDK's `RoveSocket` gains `invoke(verb, params)`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1296](https://github.com/Sma1lboy/rove/pull/1296) [`b5978ba`](https://github.com/Sma1lboy/rove/commit/b5978baf89c8a611459c843e2a830d28c59eba44) New plugin event `agent.rate-limit-recovered`: it fires once when a rate-limited task completes its next turn, carrying when the limit began (`limitedAt`) and how long it lasted (`limitedForMs`). A resumed turn that hits the limit again does not count, so a hook on this event runs only when work is actually flowing again. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1304](https://github.com/Sma1lboy/rove/pull/1304) [`2c9d374`](https://github.com/Sma1lboy/rove/commit/2c9d3746af81b792f53ea0b12ef2841050ba69fc) Plugins can ship a **mod**: a `[mod]` process that draws panes of boxes, text, buttons and one-line input fields, which the TUI and the web client both render natively from the same data. While a mod has a pane open, the sidebar rail shows a **Mods** page in both clients; a button pressed or a note typed in either one reaches the same process, so both redraw together. A running mod can also subscribe to plugin events directly. The plugin SDK adds `runMod()` with `Box`, `Text`, `Button` and `Input`, `mod.on()` for events, and `validateModTree()` on the contract subpath; `examples/counter-mod` is a working mod.
+
+  A plugin's input dialog (`rove api prompt`, `promptUser()`) now also opens in the web client, so a plugin can ask a question when only a browser is attached. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.1.10
 
 ### Patch Changes
