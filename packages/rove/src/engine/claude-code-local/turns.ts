@@ -10,9 +10,9 @@
  * multiplies cost by block count. `model` is the last one seen.
  */
 
+import { isObject } from "../../lib/is-object"
 import type { AgentTurn } from "../agent-turn.ts"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds.ts"
-import { isObject } from "../is-object"
 import { isSyntheticClaudeRecord } from "./synthetic.ts"
 
 /** A human prompt: non-empty string content, or not purely `tool_result` blocks. */

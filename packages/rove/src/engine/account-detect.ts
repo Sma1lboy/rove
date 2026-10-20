@@ -21,6 +21,7 @@ import { homedir } from "node:os"
 import { errorMessage } from "@/lib/error-message"
 import { getCustomEngineIds, getDisabledEngineIds } from "@/state/repos"
 import type { VendorId } from "@/types/vendor"
+import { isObject } from "../lib/is-object"
 import { BinaryNotFoundError } from "./binary-discovery"
 import { findBobBinary } from "./bob-local/binary"
 import { findClaudeBinary } from "./claude-code-local/binary"
@@ -28,7 +29,6 @@ import { findCodexBinary } from "./codex-local/binary"
 import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS, pluginEngineIds } from "./contrib-engines"
 import { findCopilotBinary } from "./copilot-local/binary"
 import { readTextFileSyncBounded } from "./file-bounds"
-import { isObject } from "./is-object"
 import { findKimiBinary } from "./kimi-local/binary"
 import { findOmpBinary, findPiBinary } from "./pi-local/binary"
 import {
@@ -336,10 +336,7 @@ export async function detectCodexAccount(deps: DetectDeps = defaultDeps): Promis
     const email = typeof payload.email === "string" ? payload.email : undefined
     // Plan info lives under the namespaced claim `https://api.openai.com/auth`.
     const authClaimRaw = payload["https://api.openai.com/auth"]
-    const authClaim =
-      typeof authClaimRaw === "object" && authClaimRaw !== null && !Array.isArray(authClaimRaw)
-        ? (authClaimRaw as Record<string, unknown>)
-        : undefined
+    const authClaim = isObject(authClaimRaw) ? authClaimRaw : undefined
     const plan = typeof authClaim?.chatgpt_plan_type === "string" ? authClaim.chatgpt_plan_type : undefined
     if (email) return { binary, account: { kind: "chatgpt", email, plan } }
     // Token but no email: an error, not a silent "not logged in".

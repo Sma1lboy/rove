@@ -5,9 +5,9 @@
  */
 
 import type { Message } from "@/types/engine"
+import { isObject } from "../../lib/is-object.ts"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
-import { isObject } from "../is-object.ts"
 import { normalizeClaudeContent } from "./normalize"
 import { isClaudeCommandBreadcrumb, isSyntheticClaudeRecord } from "./synthetic"
 

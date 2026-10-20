@@ -13,9 +13,9 @@
  * `turn_id`, so it goes to the open turn.
  */
 
+import { isObject } from "../../lib/is-object"
 import type { AgentTurn } from "../agent-turn.ts"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds.ts"
-import { isObject } from "../is-object"
 import { codexUsageToSnapshot } from "./usage.ts"
 
 function num(v: unknown): number {
