@@ -424,6 +424,16 @@ describe("copyTaskFieldFlow", () => {
     expect(notifyInfo.mock.calls[0][0]).toContain("t1")
   })
 
+  test("tab: copies the --task-id/--tab pair `rove api send` takes to reach that one tab", async () => {
+    const tasks = [makeTask({ id: "t1" })]
+    const { ctx, copyText, notifyInfo } = makeCtx({ tasks, orch: makeOrch() })
+
+    await copyTaskFieldFlow(ctx, "t1", "tab", "tab-3")
+
+    expect(copyText).toHaveBeenCalledWith("--task-id t1 --tab tab-3")
+    expect(notifyInfo.mock.calls[0][0]).toContain("--tab tab-3")
+  })
+
   test("an empty branch (main/dir row) copies nothing and shows no toast", async () => {
     const tasks = [makeTask({ id: "t1", branch: "", kind: "main" })]
     const { ctx, copyText, notifyInfo } = makeCtx({ tasks, orch: makeOrch() })

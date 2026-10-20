@@ -29,6 +29,7 @@ import type { DaemonEventBus } from "./event-bus.ts"
 import type { GatesStore } from "./gates-store.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
 import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
+import { API_HANDLERS } from "./handlers-api.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
 import { DELIVERY_HANDLERS } from "./handlers-deliveries.ts"
@@ -51,6 +52,7 @@ import {
   type DaemonRequestName,
   type DaemonStopReason,
   MIN_COMPATIBLE_PROTOCOL_VERSION,
+  ROVE_API_VERSION,
   isProtocolCompatible,
   parseDaemonStopReason,
   serializeTask,
@@ -115,7 +117,10 @@ export interface DaemonHandlerContext {
   /** Pending exact Terminal Tab closes awaiting a TUI acknowledgement. */
   readonly tabCloses?: TabCloseBroker
   /** Plugin sink for agent-lifecycle events — a direct feed, deliberately NOT a bus channel. */
-  readonly plugins?: Pick<import("../plugins/runtime.ts").PluginHost, "handleEngineReport" | "handleUiReport">
+  readonly plugins?: Pick<
+    import("../plugins/runtime.ts").PluginHost,
+    "handleEngineReport" | "handleUiReport" | "pressMod" | "submitMod"
+  >
   /** Daemon-process facts + lifecycle controls handlers surface or drive. */
   readonly daemon: {
     readonly startedAt: Date
@@ -126,6 +131,8 @@ export interface DaemonHandlerContext {
     readonly homeDir?: string
     /** Reported by `hello` / `daemon.status`. */
     readonly pid: number
+    /** Started with `--resident`: no idle-stop. Absent in older test doubles. */
+    readonly resident?: boolean
     /** Attached-GUI refcount (reported as `attachedClients`). */
     guiCount(): number
     /** Cell pixel size per attached GUI that measured its tty. A GUI whose
@@ -230,6 +237,8 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // patch upgrade (same protocol) → non-fatal "restart the daemon" banner.
           roveVersion: ctx.runtime.currentVersion,
           capabilities: [...CHANNEL_NAMES],
+          // The verb contract `api.invoke` serves (same number as `rove api schema`).
+          apiVersion: ROVE_API_VERSION,
           daemonPid: ctx.daemon.pid,
           clientId: ctx.clientId,
           // A client whose home differs must reject `tasks` rather than render
@@ -255,6 +264,8 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           attachedClients: ctx.daemon.guiCount(),
           // Why a daemon with zero clients is up; otherwise a schedule looks like a leak.
           automationHold: ctx.automations.hasEnabled(),
+          // `daemon restart` reads this to respawn a resident daemon as resident.
+          resident: ctx.daemon.resident ?? false,
           taskCount: ctx.orch.listTasks().length,
           // Lets `rove doctor` name a daemon from a DIFFERENT home squatting the
           // socket, which otherwise reads as "my tasks vanished".
@@ -280,6 +291,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
       },
     },
     // Entry ORDER is not wire-load-bearing (only key order within a payload is).
+    ...API_HANDLERS,
     ...TASK_HANDLERS,
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,

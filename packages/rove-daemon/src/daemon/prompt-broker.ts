@@ -6,7 +6,7 @@
 
 export type PromptResult =
   | { readonly value: string }
-  | { readonly cancelled: true; readonly reason: "cancelled" | "timeout" }
+  | { readonly cancelled: true; readonly reason: "cancelled" | "timeout" | "no-gui" }
 
 type Pending = {
   readonly resolve: (result: PromptResult) => void

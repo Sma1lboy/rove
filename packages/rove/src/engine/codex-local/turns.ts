@@ -13,13 +13,10 @@
  * `turn_id`, so it goes to the open turn.
  */
 
+import { isObject } from "../../lib/is-object"
 import type { AgentTurn } from "../agent-turn.ts"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds.ts"
 import { codexUsageToSnapshot } from "./usage.ts"
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-}
 
 function num(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0

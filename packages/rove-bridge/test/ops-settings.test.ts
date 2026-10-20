@@ -82,6 +82,22 @@ describe("usage.get", () => {
     deps.usage.set(new Map())
     expect((await run(createSettingsOps(deps), "usage.get", {})).result).toEqual({ usage: [] })
   })
+
+  test("with taskId+tabId it adds that session's context reading; no reading is null, not zero", async () => {
+    const { deps } = settingsDeps()
+    deps.usage.setContext(
+      new Map([["t1::tab-1", { contextTokens: 50_000, contextWindowTokens: 200_000, inputTokens: 900 }]]),
+    )
+    const ops = createSettingsOps(deps)
+    expect((await run(ops, "usage.get", { taskId: "t1", tabId: "tab-1" })).result).toEqual({
+      usage: null,
+      context: { contextTokens: 50_000, contextWindowTokens: 200_000, inputTokens: 900 },
+    })
+    expect((await run(ops, "usage.get", { taskId: "t1", tabId: "tab-2" })).result).toEqual({
+      usage: null,
+      context: null,
+    })
+  })
 })
 
 describe("daemon.info", () => {
@@ -137,12 +153,14 @@ describe("plugins and feedback", () => {
       enabled: true,
       linked: true,
       source: "/Users/me/secret/path",
-      declares: { actions: 1, events: 0, panes: 0, engines: 0 },
+      declares: { actions: 1, events: 0, panes: 0, engines: 0, pages: 0 },
       platformOk: true,
       hooksDeclared: true,
       lastRun: { at: 1, label: "startup", exitCode: 0, ok: true, running: false },
       settings: [],
       updateAvailable: false,
+      pageErrors: [],
+      builtIn: false,
     }
     const ops = createSettingsOps(settingsDeps({ listPlugins: () => [row] }).deps)
     const wire = JSON.stringify((await run(ops, "plugins.list", {})).result)

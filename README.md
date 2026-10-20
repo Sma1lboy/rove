@@ -112,7 +112,7 @@ Every verb, flag, and exit code is in the [Agent API reference](https://docs.rov
 ## Plugins
 
 <p align="center">
-  <img src="docs/assets/brand/promo-plugins.jpg" alt="Make it yours: rove plugin search lists the first-party plugins notify, github-start, worktree-include, linear-start, lazygit, and browser." />
+  <img src="docs/assets/brand/promo-plugins.jpg" alt="Make it yours: rove plugin search lists the first-party plugins notify, github-start, worktree-include, linear-start, lazygit, and browser, beside a mod's Counter pane that the TUI and the web both draw." />
 </p>
 
 A plugin is a directory with a `rove-plugin.toml` manifest and commands in any language. It can add panes, react to events such as a finished agent turn, register commands and settings, and contribute whole engines. Browse and install from the terminal:
@@ -124,6 +124,8 @@ rove plugin install owner/repo
 
 The same catalog is on [rove.run/plugins](https://rove.run/plugins) and under Settings → Marketplace. Any public GitHub repo tagged `rove-plugin` shows up there; [plugin authoring](./docs/PLUGIN-AUTHORING.md) covers the manifest, the event catalog, and the optional TypeScript SDK.
 
+A plugin can also ship a **mod**: one long-running process that draws panes of text, buttons, and input fields. The TUI and the browser client (`rove --web`) draw the same pane from the same data, so a button pressed in either one updates both. Mods appear on the rail's Mods page; see [Mods](./docs/PLUGIN-AUTHORING.md#mods) and the [`counter-mod` example](./packages/rove-plugin-sdk/examples/counter-mod).
+
 ## More features
 
 - **Review.** Diff views, plus inline notes that go back as one agent prompt.
@@ -131,7 +133,7 @@ The same catalog is on [rove.run/plugins](https://rove.run/plugins) and under Se
 - **Remote ergonomics.** Narrow and mobile layouts, a durable Inbox, notifications, attachments.
 - **Unattended work.** Scheduled routines, with optional prechecks that skip idle runs.
 - **Planning context.** Local Kanban, GitHub issue intake, reusable repository field notes.
-- **Customization.** Themes, and [plugins](#plugins) with custom panes, events, commands, and engines.
+- **Customization.** Themes, and [plugins](#plugins) with custom panes, events, commands, engines, and mods.
 
 Details live in the [TUI guide](./docs/TUI.md), [Routines](./docs/ROUTINES.md), [configuration](./docs/CONFIGURATION.md), and [plugin authoring](./docs/PLUGIN-AUTHORING.md).
 

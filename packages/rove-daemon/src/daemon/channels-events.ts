@@ -95,6 +95,18 @@ export interface TabRenamePayload {
   readonly at: number
 }
 
+/**
+ * The `tab.add` channel payload — a tab the CLI created behind every
+ * attached TUI's back (`rove api tab-new`), as the persisted row. Opaque to
+ * the daemon: the row's shape (`TerminalTab`) belongs to the TUI.
+ */
+export interface TabAddPayload {
+  readonly taskId: string
+  readonly tab: Readonly<Record<string, unknown>>
+  /** Publish time (ms epoch) — the consumer-side dedupe key. */
+  readonly at: number
+}
+
 /** The `ui.prompt` channel payload — one host-dialog text-input request. */
 export interface UiPromptPayload {
   /** Broker key the answering `ui.promptReply` names. */

@@ -1,7 +1,7 @@
 /**
  * Ask a machine where its daemon listens.
  *
- * `ssh <target> 'rove daemon status --json'` (after `rove daemon start` if
+ * `ssh <target> 'rove daemon status --json'` (after `rove daemon restart` if
  * nothing runs). The answer carries the remote socket paths verbatim: the
  * remote home may be another user's, and `fitSocketPath` may have SHORTENED a
  * path for `sun_path`. Rove never guesses a remote socket path.
@@ -9,8 +9,11 @@
 
 import { spawn } from "node:child_process"
 import { mkdirSync } from "node:fs"
-import type { MachineConfig } from "./registry.ts"
+import { posix } from "node:path"
+import { shQuote } from "../exec/exec-host.ts"
+import { type MachineConfig, sshTargetOf } from "./registry.ts"
 import { machineSocketDir, machineSshArgs } from "./ssh-args.ts"
+import { type SshFailureKind, classifySshFailure, sshFailureRemedy } from "./ssh-failure.ts"
 
 export interface RemoteDaemonStatus {
   readonly socketPath: string
@@ -24,11 +27,15 @@ export interface RemoteDaemonStatus {
 export interface DiscoverResult {
   readonly ok: true
   readonly status: RemoteDaemonStatus
+  /** Set when `rove` was found off the non-interactive PATH; persist it as `MachineConfig.roveBin`. */
+  readonly roveBin?: string
 }
 export interface DiscoverFailure {
   readonly ok: false
   readonly code: "SSH_FAILED" | "NO_ROVE" | "NO_DAEMON" | "BAD_STATUS"
   readonly message: string
+  /** For `SSH_FAILED`: the cause read from ssh's stderr. */
+  readonly ssh?: SshFailureKind
 }
 
 /** Run one command on the machine. Never throws; a spawn failure is exit -1. */
@@ -80,32 +87,90 @@ async function runOnMachine(
  * daemon idle-stops once nothing is attached. Failure is classified, not
  * thrown, so `machine add` can say which: unreachable host, Rove not
  * installed, or daemon refused to start.
+ *
+ * A `rove` missing from the non-interactive PATH (the usual case for a
+ * bun- or nvm-installed Rove: the rc file that adds it never runs) is looked
+ * up once and reported back as `roveBin`, so nobody's rc file gets edited.
  */
 export async function discoverMachine(
   alias: string,
   config: MachineConfig,
   opts: { readonly home?: string } = {},
 ): Promise<DiscoverResult | DiscoverFailure> {
-  const first = await runOnMachine(alias, config, "rove daemon status --json", opts)
+  const found = await probe(alias, config, roveCommand(config.roveBin), opts)
+  if (found.ok || found.code !== "NO_ROVE") return found
+  const located = parseLocatedRove((await runOnMachine(alias, config, LOCATE_ROVE_SCRIPT, opts)).stdout)
+  if (!located || located === config.roveBin) return found
+  const retry = await probe(alias, config, roveCommand(located), opts)
+  return retry.ok ? { ...retry, roveBin: located } : retry
+}
+
+/**
+ * The remote `rove` invocation. An absolute binary runs with its own
+ * directory first on PATH: its shebang (`env bun`, `env node`) lives beside
+ * it in every install layout that hides it from a non-interactive shell.
+ */
+export function roveCommand(roveBin: string | undefined): string {
+  if (!roveBin) return "rove"
+  return `PATH=${shQuote(posix.dirname(roveBin))}:"$PATH" ${shQuote(roveBin)}`
+}
+
+/** Asks the login shell first, then the install dirs bun, npm and nvm use. */
+const LOCATE_ROVE_SCRIPT = [
+  `p=$("\${SHELL:-sh}" -lc 'command -v rove' 2>/dev/null)`,
+  `if [ -n "$p" ] && [ -x "$p" ]; then echo "ROVE_BIN=$p"; exit 0; fi`,
+  `for p in "$HOME/.bun/bin/rove" "$HOME/.npm-global/bin/rove" "$HOME/.local/bin/rove" /opt/homebrew/bin/rove /usr/local/bin/rove "$HOME"/.nvm/versions/node/*/bin/rove; do`,
+  `  if [ -x "$p" ]; then echo "ROVE_BIN=$p"; exit 0; fi`,
+  "done",
+  "exit 1",
+].join("\n")
+
+/** The `ROVE_BIN=` line the locate script prints; an absolute path or nothing. */
+export function parseLocatedRove(stdout: string): string | null {
+  const match = /^ROVE_BIN=(\/\S.*)$/m.exec(stdout)
+  return match?.[1]?.trim() ?? null
+}
+
+/**
+ * The shells' own "no such command" phrasings, anchored on the command name,
+ * plus the "no such file" forms a stale absolute `roveBin` produces. A bare
+ * `No such file or directory` is not enough: ssh says exactly that about its
+ * own control socket, whose path contains `.rove`.
+ */
+const ROVE_MISSING =
+  /(?:^|\W)rove:? (?:command not found|not found)|command not found:? rove|\/rove:? No such file or directory|no such file or directory: \S*\/rove\b/i
+
+async function probe(
+  alias: string,
+  config: MachineConfig,
+  rove: string,
+  opts: { readonly home?: string },
+): Promise<DiscoverResult | DiscoverFailure> {
+  const first = await runOnMachine(alias, config, `${rove} daemon status --json`, opts)
   const parsed = parseStatusJson(first.stdout)
   if (parsed) return { ok: true, status: parsed }
   const combined = `${first.stdout}\n${first.stderr}`.trim()
-  // Match the SHELL's own "no such command" phrasings, anchored on the command
-  // name. A bare `No such file or directory` is not enough: ssh says exactly
-  // that about its own control socket, whose path contains `.rove`.
-  if (/(?:^|\W)rove:? (?:command not found|not found)|command not found:? rove/i.test(combined)) {
+  if (ROVE_MISSING.test(combined)) {
     return {
       ok: false,
       code: "NO_ROVE",
-      message: `Rove is not installed on ${alias} (or not on the non-interactive PATH). Install it there with \`npm i -g @sma1lboy/rove\`, then re-run.`,
+      message: `Rove is not installed on ${alias}: not on its PATH, its login shell's PATH, or the usual bun/npm/nvm install dirs. Install it there with \`npm i -g @sma1lboy/rove\`, then re-run.`,
     }
   }
   if (first.exitCode === 255 || first.exitCode === -1) {
-    return { ok: false, code: "SSH_FAILED", message: `ssh to ${alias} failed: ${combined || "no output"}` }
+    const ssh = classifySshFailure(first.stderr)
+    const remedy = sshFailureRemedy(ssh, sshTargetOf(config))
+    return {
+      ok: false,
+      code: "SSH_FAILED",
+      ssh,
+      message: ssh === "unknown" && combined ? `${remedy}\n${combined}` : remedy,
+    }
   }
-  // No daemon over there yet — start one and ask again.
-  const started = await runOnMachine(alias, config, "rove daemon start", { ...opts, timeoutMs: 60_000 })
-  const second = await runOnMachine(alias, config, "rove daemon status --json", opts)
+  // No daemon over there yet — start one and ask again. `restart` spawns it
+  // detached; `start` would make this ssh session the daemon and never return.
+  const started = await runOnMachine(alias, config, `${rove} daemon restart`, { ...opts, timeoutMs: 60_000 })
+  const second = await runOnMachine(alias, config, `${rove} daemon status --json`, opts)
   const retry = parseStatusJson(second.stdout)
   if (retry) return { ok: true, status: retry }
   // A remote Rove predating `ptySocketPath` answers but can't be tunnelled —

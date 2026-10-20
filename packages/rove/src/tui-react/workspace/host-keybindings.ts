@@ -13,6 +13,7 @@ import type { FocusContextValue, PaneId } from "../context/focus"
 import { bindByIds } from "../context/keybindings"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import type { HostPagesState } from "./host-pages"
@@ -63,6 +64,7 @@ export type WorkspaceKeybindingDeps = {
 }
 
 export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
+  const pageEntries = usePageEntries()
   const { focus, dialog } = deps
   const t = useT()
   const renderer = useRenderer()
@@ -102,9 +104,6 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     settingsOpen: deps.pages.settingsOpen,
     worktreesOpen: deps.pages.worktreesOpen,
     updateOpen: deps.pages.updateOpen,
-    kanbanOpen: deps.pages.kanbanOpen,
-    automationsOpen: deps.pages.automationsOpen,
-    workItemsOpen: deps.pages.workItemsOpen,
   }
   const pagesClosed = workspacePagesClosed(pages)
 
@@ -121,9 +120,12 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         // f7: reserved from terminal passthrough too.
         "attention.next": prefixAction(() => deps.jumpToNextAttention()),
         "inbox.show": prefixAction(() => deps.openInbox()),
-        "kanban.open": prefixAction(() => deps.pages.openKanban()),
-        "automations.open": prefixAction(() => deps.pages.openAutomations()),
-        "workItems.open": prefixAction(() => deps.pages.openWorkItems()),
+        // A page-open chord exists only while a registered page claims it.
+        ...Object.fromEntries(
+          pageEntries.flatMap((page) =>
+            page.action ? [[page.action, prefixAction(() => deps.pages.openPage(page.id))]] : [],
+          ),
+        ),
         "task.moveMode": prefixAction(() => deps.enterMoveMode()),
         // prefix+,: the global companion to the sidebar's bare `s`.
         "settings.open": prefixAction(() => deps.pages.openSettings()),

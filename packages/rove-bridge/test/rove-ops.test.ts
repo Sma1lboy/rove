@@ -5,7 +5,7 @@ import { join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { loadOrCreateToken } from "../src/auth.ts"
-import { type EngineRow, createRoveOps, engineFor, taskRows } from "../src/rove-ops.ts"
+import { type EngineRow, createRoveOps, engineFor, newTabInvocation, tabRows, taskRows } from "../src/rove-ops.ts"
 
 const ENGINES: EngineRow[] = [
   { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true },
@@ -181,6 +181,27 @@ describe("task row extras", () => {
     const [bare] = taskRows([task({ id: "y", prStatus: pr({}) } as never)], null, null, ENGINES, now)
     expect(bare?.pr).not.toHaveProperty("mergeable")
   })
+
+  test("a row another machine served names it; this Mac's rows carry no machine at all", () => {
+    const origin = (stale?: true) => ({ machineId: "narwhal", hostLabel: "narwhal", ...(stale ? { stale } : {}) })
+    const rows = taskRows(
+      [
+        task({ id: "mine" }),
+        task({ id: "stamped-local", origin: { machineId: "local", hostLabel: "local" } }),
+        task({ id: "far", origin: origin() }),
+        task({ id: "far-offline", origin: origin(true) }),
+      ],
+      null,
+      null,
+      ENGINES,
+      now,
+    )
+    const machineOf = (id: string) => rows.find((r) => r.id === id)?.machine
+    expect(machineOf("mine")).toBeUndefined()
+    expect(machineOf("stamped-local")).toBeUndefined()
+    expect(machineOf("far")).toEqual({ id: "narwhal", label: "narwhal" })
+    expect(machineOf("far-offline")).toEqual({ id: "narwhal", label: "narwhal", stale: true })
+  })
 })
 
 describe("diff file path", () => {
@@ -194,6 +215,23 @@ describe("diff file path", () => {
   })
 })
 
+describe("tab.new verb choice", () => {
+  test("a prompt rides `send` unchanged; no prompt opens the tab empty through `tab-new`", () => {
+    expect(newTabInvocation("T1", { kind: "engine", prompt: "hi", engine: "codex" })).toEqual({
+      verb: "send",
+      argv: ["--task-id", "T1", "--tab", "new", "--plain", "--prompt", "hi", "--command", "codex"],
+    })
+    expect(newTabInvocation("T1", { kind: "shell" })).toEqual({
+      verb: "tab-new",
+      argv: ["--task-id", "T1", "--kind", "shell"],
+    })
+    expect(newTabInvocation("T1", { kind: "engine", engine: "codex" })).toEqual({
+      verb: "tab-new",
+      argv: ["--task-id", "T1", "--kind", "engine", "--command", "codex"],
+    })
+  })
+})
+
 describe("pairing token", () => {
   test("persists owner-only across restarts and rotation replaces it", () => {
     const path = join(mkdtempSync(join(tmpdir(), "rove-bridge-")), "bridge", "token")
@@ -204,5 +242,39 @@ describe("pairing token", () => {
     const rotated = loadOrCreateToken(path, true)
     expect(rotated).not.toBe(first)
     expect(readFileSync(path, "utf8").trim()).toBe(rotated)
+  })
+})
+
+describe("tab rows", () => {
+  // Fixture: only the fields the mapping reads.
+  const row = (over: Record<string, unknown>) =>
+    ({
+      id: "tab-1",
+      kind: "engine",
+      title: null,
+      lastTitle: null,
+      autoTitle: null,
+      vendor: null,
+      liveVendor: null,
+      alive: true,
+      engineAlive: true,
+      ...over,
+    }) as unknown as Parameters<typeof tabRows>[0][number]
+
+  test("liveEngine names the engine running in an alive engine tab, from the probe only", () => {
+    const [live, configured] = tabRows([row({ liveVendor: "codex" }), row({ id: "tab-2", vendor: "codex" })])
+    expect(live?.liveEngine).toBe(live?.engineName)
+    expect(live?.liveEngine).toBeTruthy()
+    // The configured engine still names the tab, but the caption stays empty without a live answer.
+    expect(configured?.engineName).toBeTruthy()
+    expect(configured?.liveEngine).toBeNull()
+  })
+
+  test("a shell tab or a dead engine tab has no liveEngine", () => {
+    const rows = tabRows([
+      row({ id: "tab-3", kind: "command", liveVendor: "codex" }),
+      row({ id: "tab-4", alive: false, liveVendor: "codex" }),
+    ])
+    expect(rows.map((r) => r.liveEngine)).toEqual([null, null])
   })
 })

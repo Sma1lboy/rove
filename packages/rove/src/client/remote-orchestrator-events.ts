@@ -9,6 +9,7 @@ import {
   type GraphicsWritePayload,
   type NoticeEventPayload,
   type SerializedTask,
+  type TabAddPayload,
   type TabClosePayload,
   type TabOpenPayload,
   type TabRenamePayload,
@@ -18,6 +19,7 @@ import {
   parseDaemonStopReason,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
+import { isAddedTab } from "../tui/workspace/tabs-adopt.ts"
 import type { UpdateInfo } from "../version.ts"
 import { handleMapChannel } from "./remote-orchestrator-map-events.ts"
 import {
@@ -300,6 +302,15 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       return
     }
     signals.setTabRenameSig(p as TabRenamePayload)
+    return
+  }
+  if (name === "tab.add") {
+    const p = payload as Partial<TabAddPayload> | undefined
+    if (typeof p?.taskId !== "string" || typeof p.at !== "number" || !isAddedTab(p.tab)) {
+      logClientError("orch", `dropped tab.add event: malformed payload (${describePayload(payload)})`)
+      return
+    }
+    signals.setTabAddSig({ taskId: p.taskId, tab: p.tab, at: p.at })
     return
   }
   if (name === "ui.prompt") {

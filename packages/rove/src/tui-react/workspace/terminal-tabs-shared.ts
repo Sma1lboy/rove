@@ -9,6 +9,7 @@ import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-prese
 
 import { createStateCell } from "../../lib/external-store"
 import {
+  type CommandTab,
   type EngineTab,
   type TabsState,
   type TerminalTab,
@@ -151,6 +152,7 @@ const tabCloseBox = requestBox<string>()
 const adoptBox = requestBox<readonly string[]>()
 const moveBox = requestBox<{ tabId: string; delta: -1 | 1 }>()
 const renameBox = requestBox<{ tabId: string; title: string }>()
+const addBox = requestBox<EngineTab | CommandTab>()
 
 /**
  * F7 activation: consumed by the mounted TerminalTabs, or on mount once the
@@ -236,6 +238,16 @@ export const takeTabRename = renameBox.take
 export function takeUnclaimedTabRename(): { taskId: string; tabId: string; title: string } | null {
   const claimed = renameBox.takeUnclaimed()
   return claimed && { taskId: claimed.taskId, ...claimed.payload }
+}
+
+/** `tab.add` (`rove api tab-new`); background write is `addTaskTab`. */
+export const requestTabAdd = addBox.request
+export const takeTabAdd = addBox.take
+
+/** The twin of {@link takeUnclaimedTabClose} for added tabs. */
+export function takeUnclaimedTabAdd(): { taskId: string; tab: EngineTab | CommandTab } | null {
+  const claimed = addBox.takeUnclaimed()
+  return claimed && { taskId: claimed.taskId, tab: claimed.payload }
 }
 
 /** Injected `reportUiEvent`; no-op until wired (mock hosts, tests, pure TUI before attach). */

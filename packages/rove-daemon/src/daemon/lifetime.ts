@@ -11,6 +11,8 @@
  *  2. **Collector gate** — background collectors (worktree-changes,
  *     auto-title) pause while nobody (gui OR pane) is subscribed.
  *  3. **Stopping** — once teardown begins, neither rule may re-fire.
+ *  4. **Resident** — `rove daemon start --resident` opts out of rule 1
+ *     entirely: a headless node's daemon outlives every front-end.
  *
  * Truth is the server's live `clients` set, scanned on demand, so no counter
  * can drift with re-subscribes, role changes, or unsubscribed closes. This
@@ -83,6 +85,8 @@ export interface DaemonLifetimeOptions {
    * releases when the last one is deleted or disabled.
    */
   readonly keepAlive?: () => boolean
+  /** Never self-stop, and skip the first-gui grace (`rove daemon start --resident`). */
+  readonly resident?: boolean
   /** Timer factory (default: unref'd setTimeout); injected by tests. */
   readonly schedule?: ScheduleFn
   /** Structured log sink (default: {@link logDaemonInfo}); injected by tests. */
@@ -96,6 +100,7 @@ export class DaemonLifetime {
   private readonly schedule: ScheduleFn
   private readonly log: (event: string, message: string) => void
   private readonly keepAlive: () => boolean
+  private readonly resident: boolean
   private cancelIdle: (() => void) | null = null
   private stopping = false
 
@@ -106,10 +111,12 @@ export class DaemonLifetime {
     this.schedule = options.schedule ?? defaultSchedule
     this.log = options.log ?? logDaemonInfo
     this.keepAlive = options.keepAlive ?? (() => false)
+    this.resident = options.resident ?? false
+    if (this.resident) this.log("idle", "resident — idle-stop disabled")
     // The first guiAttached() cancels this; afterwards only the normal
     // >0 → 0 transition arms shutdown.
     const bootGrace = options.firstGuiGraceMs
-    if (bootGrace !== undefined) {
+    if (bootGrace !== undefined && !this.resident) {
       this.log("idle", `autospawned — arming ${bootGrace}ms first-gui grace`)
       this.cancelIdle = this.schedule(() => {
         this.cancelIdle = null
@@ -148,6 +155,10 @@ export class DaemonLifetime {
       if (!c.channels || c.channels.has(channel)) return true
     }
     return false
+  }
+
+  isResident(): boolean {
+    return this.resident
   }
 
   /** True once teardown has begun; suppresses any further arm/fire. */
@@ -191,7 +202,7 @@ export class DaemonLifetime {
   /** Every reason NOT to self-stop. Checked at arm time AND when the timer
    *  fires, since a hold can appear or vanish during the grace. */
   private shouldStayUp(): boolean {
-    if (this.stopping || this.guiCount() > 0) return true
+    if (this.stopping || this.resident || this.guiCount() > 0) return true
     if (!this.keepAlive()) return false
     this.log("idle", "no gui, but a keep-alive hold is active — staying up")
     return true

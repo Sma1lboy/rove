@@ -280,6 +280,7 @@ export {
   type DaemonConnectionState,
   type OrchestratorSignals,
   type RemoteOrchestratorOptions,
+  type TabAddSignal,
   RECONNECT_LOG_ATTEMPT_CEILING,
   shouldLogReconnectAttempt,
 } from "./remote-orchestrator-contract.ts"

@@ -18,8 +18,10 @@ import {
   closeTab,
   initialTabs,
   setTabTitle,
+  tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { type WireSplit, wireSplit } from "./split-wire.ts"
 
 /** A death as `pty-exits.json` records it, joined onto a tab row. */
 export type TabExit = PtySessionExit & {
@@ -62,6 +64,10 @@ export interface TaskTabRow {
   /** True only on rows from a LIVE session the snapshot doesn't list. The
    *  pty host is the truth; divergence must render as a row, not vanish. */
   readonly unregistered?: true
+  /** Present while the tab is split: the layout, one pane per hosted shell (`<taskId>::<tabId>::leaf-N`). */
+  readonly split?: WireSplit
+  /** A viewport tab (`EngineTab.ptyTask`): the task whose session this tab only shows; liveness is that session's. */
+  readonly viewOf?: string
 }
 
 /**
@@ -226,7 +232,7 @@ export function joinTaskTabs(
     }
   }
   const rows: TaskTabRow[] = (snapshot?.tabs ?? []).map((t) => {
-    const key = `${taskId}::${t.id}`
+    const key = tabPtyKeyFor(taskId, t)
     const isAlive = unknown ? null : alive.has(key)
     const walked = isAlive === true && liveVendors?.has(key) === true ? (liveVendors.get(key) ?? null) : undefined
     // Gated on the WALK, not the record: a tab that started a new engine
@@ -244,6 +250,8 @@ export function joinTaskTabs(
       engineAlive: engineIsAlive,
       // A session death wins: it is the later event and took the engine with it.
       exit: isAlive === false ? deadExit(key) : engineIsAlive === false ? engineExit(key) : null,
+      ...(t.splitTree ? { split: wireSplit(t.splitTree) as WireSplit } : {}),
+      ...(t.kind === "engine" && t.ptyTask ? { viewOf: t.ptyTask.id } : {}),
     }
   })
   // Unlisted live sessions still get a row. kind "engine": headless paths
@@ -306,22 +314,25 @@ export function publishCliTabSnapshot(taskId: string, sessionId?: string | null)
 }
 
 /**
- * Record a `send --tab new` tab's session id after the session started.
- * {@link mintCliTab} runs before the spawn and leaves it unset: claude errors
- * hard on `--resume` of a missing id.
+ * Record a CLI-started tab's session after it spawned (`spawned`, plus the
+ * pinned conversation id when the engine took one). {@link allocateTab} runs
+ * before the spawn and leaves both unset: claude errors hard on `--resume` of
+ * a missing id.
  */
-export function markCliTabSession(taskId: string, tabId: string, sessionId: string): void {
+export function markCliTabSession(taskId: string, tabId: string, sessionId: string | null): void {
   try {
     const key = terminalTabsKey(taskId)
-    const existing = loadStateFile()[key] as TabsState | undefined
-    if (!existing || !Array.isArray(existing.tabs)) return
-    patchStateFile({
-      [key]: {
+    updateStateFile((store) => {
+      const existing = store[key] as TabsState | undefined
+      if (!existing || !Array.isArray(existing.tabs)) return false
+      store[key] = {
         ...existing,
         tabs: existing.tabs.map(
-          (t): TerminalTab => (t.id === tabId && t.kind === "engine" ? { ...t, sessionId, spawned: true } : t),
+          (t): TerminalTab =>
+            t.id === tabId && t.kind === "engine" ? { ...t, ...(sessionId ? { sessionId } : {}), spawned: true } : t,
         ),
-      },
+      }
+      return undefined
     })
   } catch {
     // Same best-effort contract as the snapshot writers above.
@@ -329,43 +340,53 @@ export function markCliTabSession(taskId: string, tabId: string, sessionId: stri
 }
 
 /**
- * Mint the next engine-tab id for `send --tab new` and append it to the
- * snapshot so the TUI can attach it. Keyed off `nextOrdinal` like the TUI,
- * so CLI and TUI ids never collide; hence it MUST write over an existing
- * snapshot (seeding one first if absent). Returns an id even when the write
- * fails — that only costs sidebar visibility.
+ * Allocate the next tab id and append the row `build` makes for it, in ONE
+ * locked state.json update, so two allocations can never take the same id.
+ * Keyed off `nextOrdinal` like the TUI, so CLI and TUI ids never collide;
+ * hence it MUST write over an existing snapshot (seeding the canonical
+ * `tab-1` first if absent). `taken` = ids with a live PTY session but no row,
+ * skipped so a new tab never attaches to an orphan. Throws when state.json
+ * is unwritable.
+ */
+export function allocateTab(
+  taskId: string,
+  build: (id: string, ordinal: number) => TerminalTab,
+  taken: ReadonlySet<string> = new Set(),
+): TerminalTab {
+  const key = terminalTabsKey(taskId)
+  const out: { tab?: TerminalTab } = {}
+  updateStateFile((store) => {
+    const existing = store[key] as TabsState | undefined
+    const state = existing && Array.isArray(existing.tabs) && existing.tabs.length > 0 ? existing : initialTabs()
+    let ordinal = typeof state.nextOrdinal === "number" && state.nextOrdinal > 1 ? state.nextOrdinal : 2
+    while (taken.has(`tab-${ordinal}`) || state.tabs.some((t) => t.id === `tab-${ordinal}`)) ordinal++
+    const tab = build(`tab-${ordinal}`, ordinal)
+    out.tab = tab
+    store[key] = { ...state, tabs: [...state.tabs, tab], activeId: tab.id, nextOrdinal: ordinal + 1 }
+    return undefined
+  })
+  if (!out.tab) throw new Error(`tab allocation for ${taskId} did not run`)
+  return out.tab
+}
+
+/**
+ * Mint the next engine-tab id for `send --tab new`. Returns an id even when
+ * the write fails — that only costs sidebar visibility.
  */
 export function mintCliTab(taskId: string, vendor?: VendorId, command?: string): string {
-  let tabId = "tab-1"
   try {
-    const key = terminalTabsKey(taskId)
-    const existing = loadStateFile()[key] as TabsState | undefined
-    const state = existing && Array.isArray(existing.tabs) && existing.tabs.length > 0 ? existing : initialTabs()
-    const ordinal = typeof state.nextOrdinal === "number" && state.nextOrdinal > 1 ? state.nextOrdinal : 2
-    tabId = `tab-${ordinal}`
-    patchStateFile({
-      [key]: {
-        ...state,
-        // `command`/`vendor` present = tab PINNED to a non-default engine
-        // (`vendor` is the field ctrl+e writes); absent = follows the task.
-        tabs: [
-          ...state.tabs,
-          {
-            kind: "engine",
-            id: tabId,
-            title: null,
-            ordinal,
-            ...(vendor ? { vendor } : {}),
-            ...(command ? { engineCommand: command } : {}),
-          },
-        ],
-        activeId: tabId,
-        nextOrdinal: ordinal + 1,
-      },
-    })
+    return allocateTab(taskId, (id, ordinal) => ({
+      kind: "engine",
+      id,
+      title: null,
+      ordinal,
+      // `command`/`vendor` present = tab PINNED to a non-default engine
+      // (`vendor` is the field ctrl+e writes); absent = follows the task.
+      ...(vendor ? { vendor } : {}),
+      ...(command ? { engineCommand: command } : {}),
+    })).id
   } catch {
     // Time-keyed id cannot collide with ordinal ids.
-    tabId = `tab-cli-${Date.now().toString(36)}`
+    return `tab-cli-${Date.now().toString(36)}`
   }
-  return tabId
 }

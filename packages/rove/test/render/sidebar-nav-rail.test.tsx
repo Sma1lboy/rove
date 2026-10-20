@@ -75,7 +75,7 @@ test("every destination gets its own line, in declared order", async () => {
 test("the task list stays visible whatever the rail selects", async () => {
   // The rail swaps the CONTENT pane on the right; the sidebar is unchanged, so
   // clicking a task while the Kanban is up can switch back to its terminal.
-  for (const nav of ["terminal", "kanban", "automations", "issues"] as const) {
+  for (const nav of ["terminal", "kanban.board", "automations", "issues.github"] as const) {
     const { frame } = await renderComponent(tree({ nav }), { width: 24, height: 40 })
     await new Promise((r) => setTimeout(r, SETTLE))
     expect(await frame(), nav).toContain("feat/a")

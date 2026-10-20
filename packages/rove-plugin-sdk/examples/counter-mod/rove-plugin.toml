@@ -1,0 +1,15 @@
+# A mod: one long-lived process that draws a pane both the TUI and the web
+# render natively (Rail → Mods). It never touches a terminal — it sends an
+# element tree, and every attached client draws the same one.
+#
+# Shows: runMod() / Box / Text / Button / Input, a press or a typed note from
+# any client reaching the same process, a plugin event (`mod.on`), and live
+# data from the daemon socket redrawn into the tree.
+id = "examples.counter-mod"
+name = "Counter Mod"
+version = "0.1.0"
+min_rove_version = "0.9.0"
+description = "A native pane with a shared counter, notes and a live task count"
+
+[mod]
+command = ["bun", "mod.ts"]

@@ -4,18 +4,32 @@
  * called from function bodies, so importing `VERBS` here is safe.
  */
 
+import { ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { registeredEngineIds } from "../../engine/plugin-engines.ts"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import { CURRENT_VERSION } from "../../version.ts"
 import { ApiError, type FlagSpec, type VerbSpec } from "./types.ts"
 import { VERBS, VERB_ALIASES, VERB_GROUPS } from "./verbs.ts"
 
-/** Bumped when the verb/flag shape changes incompatibly. Agents can gate on it. */
-export const API_SCHEMA_VERSION = 2
+/** The one verb-contract version: this schema, every envelope, and both `hello`s. Agents can gate on it. */
+export const API_SCHEMA_VERSION = ROVE_API_VERSION
 
 const GLOBAL_FLAGS = [
   { name: "pretty", type: "bool", description: "Pretty-print stdout JSON." },
   { name: "help", type: "bool", description: "Show usage for the verb and exit." },
+  {
+    name: "envelope",
+    type: "bool",
+    description:
+      "Print every outcome as one { apiVersion, ok, result | error } on stdout — what the daemon's and the bridge's api.invoke return.",
+  },
+  {
+    name: "machine",
+    type: "string",
+    placeholder: "ALIAS",
+    description:
+      "Run the verb in that registered machine's daemon (`rove machine list`); paths are paths there. A --task-id on another machine goes there without it.",
+  },
 ]
 
 /**
@@ -51,6 +65,8 @@ export function verbSchema(v: VerbSpec): unknown {
     group: v.group,
     summary: v.summary,
     offline: v.offline ?? false,
+    // Refused by `api.invoke` (daemon socket, bridge) with CLI_ONLY_VERB.
+    cliOnly: v.cliOnly ?? false,
     flags: v.flags.map(flagJson),
   }
 }
@@ -94,6 +110,13 @@ export function fullSchema(): unknown {
       success: "one JSON object on stdout, newline-terminated, exit 0",
       error: '{"error":{"message","code"}} on stderr, exit != 0',
       pretty: "--pretty indents stdout JSON",
+      envelope:
+        '--envelope prints {"apiVersion","ok","result"} or {"apiVersion","ok","error"} on stdout instead, exit codes unchanged',
+    },
+    transports: {
+      cli: "rove api <verb> --flag value",
+      daemon: 'socket request "api.invoke" {verb, params, machine?} → the envelope; params are keyed by flag name',
+      bridge: 'WebSocket op "api.invoke" {verb, params, machine?} → result, or the full error object',
     },
     globalFlags: GLOBAL_FLAGS,
     aliases: VERB_ALIASES,
@@ -129,7 +152,7 @@ export function verbHelp(verb: VerbSpec): string {
     }
     lines.push("")
   }
-  lines.push("Global: [--pretty] [--help]")
+  lines.push("Global: [--pretty] [--help] [--envelope] [--machine ALIAS]")
   return lines.join("\n")
 }
 

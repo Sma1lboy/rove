@@ -35,6 +35,13 @@ export const UPDATE_SCRIPT_URL = "https://raw.githubusercontent.com/Sma1lboy/rov
 /** Standard update command shown in the update dialog. */
 export const UPDATE_COMMAND = `curl -fsSL ${UPDATE_SCRIPT_URL} | sh`
 
+/** The update script for `target` (exact version or channel); `latest` and none run it bare. */
+export function updateCommandFor(target?: string): string {
+  return target === undefined || target === DEFAULT_RELEASE_CHANNEL
+    ? UPDATE_COMMAND
+    : `${UPDATE_COMMAND} -s -- ${target}`
+}
+
 /**
  * npm prefix owning this build, from `<prefix>/lib/node_modules/<pkg>/…`; null
  * for bun installs, dev checkouts, or any non-npm-global layout.

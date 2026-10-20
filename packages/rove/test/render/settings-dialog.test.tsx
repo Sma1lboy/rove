@@ -7,7 +7,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test"
-import { mkdtempSync, readFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
@@ -118,5 +118,34 @@ describe("SettingsDialog", () => {
       unknown
     >
     expect(persisted[PREFIX_TAP_PRESENTATION_KEY]).toBe("guide")
+  })
+
+  it("Dev → Reload settings applies a hand edit to state.json in place", async () => {
+    const home = mkdtempSync(join(tmpdir(), "rove-reload-setting-"))
+    process.env.ROVE_HOME_DIR = home
+    const { frame, mockInput } = await renderComponent(<Driver />, {
+      width: 110,
+      height: 90,
+      providers: { kv: true, dialog: true },
+    })
+    const press = async (key: string): Promise<string> => {
+      act(() => mockInput.pressKey(key))
+      await settle()
+      return await frame()
+    }
+
+    let text = await press("k") // General wraps up to Dev
+    expect(text).toContain("[ ] Remote projects")
+
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
+    writeFileSync(join(home, ".config", "rove", "state.json"), JSON.stringify({ "experimental.remoteProjects": true }))
+    await press("l")
+    let row = 0
+    while (!text.includes("▸ [enter] Reload") && row++ < 6) text = await press("j")
+    act(() => mockInput.pressEnter())
+    await settle()
+    text = await frame()
+    expect(text).toContain("Reloaded: 1 changed.")
+    expect(text).toContain("[x] Remote projects")
   })
 })

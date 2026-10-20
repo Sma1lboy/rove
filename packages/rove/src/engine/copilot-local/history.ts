@@ -2,6 +2,7 @@ import { readdir, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import type { ContentBlock } from "@/types/content"
 import type { EngineHistory, EngineUsageSnapshot, Message } from "@/types/engine"
+import { isObject } from "../../lib/is-object"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
 import { createAppendParseCache } from "../history-cache"
 import { sameHistoryWorktree } from "../history-worktree"
@@ -274,7 +275,3 @@ function foldEvents(raw: string, prev: CopilotParseState): CopilotParseState {
 }
 
 const PREVIEW_CHAR_CAP = 200
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-}

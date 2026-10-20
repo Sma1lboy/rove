@@ -55,13 +55,15 @@ export class TerminalForwarder {
     ]
   }
 
+  /** `leafId` = a split pane of the tab: its session is `<taskId>::<tabId>::<leafId>`. */
   async attach(
     taskId: string,
     tabId: string,
     cwd: string,
     size?: { cols: number; rows: number },
+    leafId?: string,
   ): Promise<AttachResult> {
-    const stream = `${taskId}::${tabId}`
+    const stream = leafId ? `${taskId}::${tabId}::${leafId}` : `${taskId}::${tabId}`
     const { sessions } = await this.pty.request<{ sessions: readonly PtySessionInfo[] }>("pty.list")
     const session = sessions.find((s) => s.key === stream)
     if (!session) throw new BridgeError("TAB_NOT_LIVE", `tab ${tabId} has no hosted session`)
