@@ -74,7 +74,9 @@ describe("ShowWorkspace empty states", () => {
 const SELECTED = { id: "t1", repo: "/repos/rove", kind: "task" } as unknown as Task
 
 const frameForTask = async (task: Task): Promise<string> => {
-  const { frame } = await renderComponent(<ShowWorkspace {...props(ONE_TASK)} task={task} worktree="/wt/t1" />)
+  const { frame } = await renderComponent(<ShowWorkspace {...props(ONE_TASK)} task={task} worktree="/wt/t1" />, {
+    providers: { dialog: true },
+  })
   await act(async () => {})
   return await frame()
 }
@@ -85,6 +87,12 @@ describe("a task whose last tab was closed", () => {
     // KNOWN and empty: the user closed the last tab.
     tabsByTask.set("t1", { tabs: [], activeId: "tab-1", nextOrdinal: 2 })
     expect(await frameForTask(SELECTED)).toContain("No sessions here")
+  })
+
+  it.each(["main", "dir"] as const)("waits for a choice before a never-opened %s task starts", async (kind) => {
+    tabsByTask.clear()
+    expect(await frameForTask({ ...SELECTED, kind })).toContain("No sessions here")
+    expect(tabsByTask.has("t1")).toBe(false)
   })
 
   it("mounts normally when the tabs are merely UNKNOWN", async () => {

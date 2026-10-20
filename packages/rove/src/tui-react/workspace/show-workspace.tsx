@@ -74,15 +74,20 @@ export function ShowWorkspace(props: {
       </box>
     )
   }
-  // KNOWN-empty tabs (last one closed) must not mount TerminalTabs: it would
-  // mint a replacement, since its `active` tab is non-null by construction
-  // and 17 downstream call sites rely on that. `null` (not mounted since
-  // restart) is NOT empty and mounts. Entering the task revives it
-  // (`reviveEmptiedTabs`), but this still renders for restart-restored or
-  // emptied-on-screen tasks; the pane binds the keys it advertises itself.
+  // Existing checkouts wait for an explicit start; managed and scratch tasks auto-start.
   const known = props.task ? knownTaskTabs(kv, String(props.task.id)) : null
-  if (known && known.tabs.length === 0 && props.task) {
-    return <EmptyWorkspacePane taskId={String(props.task.id)} focused={props.focused} />
+  if (
+    props.task &&
+    (known ? known.tabs.length === 0 : !props.task.scratch && (props.task.kind === "main" || props.task.kind === "dir"))
+  ) {
+    return (
+      <EmptyWorkspacePane
+        taskId={String(props.task.id)}
+        focused={props.focused}
+        vendor={props.task.vendor}
+        command={props.task.command}
+      />
+    )
   }
   return (
     // The center column IS the engine: an in-process PTY running the real

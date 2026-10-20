@@ -127,7 +127,7 @@ for terminal support.
 | `ctrl+t` | New engine tab |
 | `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` cycles the destination (new tab here → fork a child task → new Scratch task in `$HOME`) and `ctrl+f` the context (fresh ⇄ continue this chat). A Scratch destination starts the picked engine, or a bare shell when `shell` is picked |
 | `ctrl+w` | Close the active split, otherwise the tab — closing the last tab leaves the task open with no session |
-| `enter` | Reopen a session in a task whose tabs are all closed (only while that empty pane is showing; `ctrl+e` does the same there) |
+| `enter` | Reopen a session in a task whose tabs are all closed (only while that empty pane is showing; `ctrl+e` opens the engine chooser there) |
 | `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |
 | `ctrl+1` … `ctrl+9` | Tab N of the current task — the number the folded rail prints on it (needs kitty — see below) |
 | `ctrl+\` | Split right |
@@ -137,6 +137,8 @@ for terminal support.
 | `F4` | Cycle focus forward |
 | `F5` | Confirm and reset the active terminal |
 | `F7` | Jump to the next Inbox item across all projects |
+
+Project and directory tasks that have never opened a session wait on the empty pane. Enter starts their configured engine; Ctrl+E starts the chosen engine and pins its command on the tab. Managed worktree tasks and scratch tasks keep starting automatically.
 
 Overlap resolves by context: `ctrl+w` closes the innermost split when a tab
 is split, otherwise the tab. `F2` follows the same rule. `enter` is bound only
