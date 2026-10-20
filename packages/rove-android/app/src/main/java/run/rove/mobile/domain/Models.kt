@@ -38,8 +38,16 @@ data class TaskRow(
 /** One attention-inbox item (iOS `AttentionItem`); `at` is ms since epoch. */
 @Serializable data class Attention(val taskId: String? = null, val tabId: String? = null, val state: String = "",
                                    val unread: Boolean = false, val at: Double = 0.0, val resumeAt: String? = null,
-                                   val label: String? = null, val deliveryId: String? = null)
-@Serializable data class Tasks(val tasks: List<TaskRow> = emptyList(), val attention: List<Attention> = emptyList())
+                                   val label: String? = null, val deliveryId: String? = null, val gateId: String? = null)
+@Serializable data class GateOption(val key: String, val label: String, val detail: String? = null)
+/** A decision a task put to its owner (bridge `GateRow`): `open`, or `answered` with the engine not yet holding the answer. */
+@Serializable data class GateRow(
+    val id: String, val taskId: String, val tabId: String? = null, val question: String,
+    val options: List<GateOption> = emptyList(), val recommended: String? = null, val context: String? = null,
+    val status: String = "open", val handoff: String? = null, val createdAt: String = "", val label: String = "",
+) { val isOpen get() = status == "open" }
+@Serializable data class Tasks(val tasks: List<TaskRow> = emptyList(), val attention: List<Attention> = emptyList(),
+                               val gates: List<GateRow> = emptyList())
 @Serializable data class Engines(val engines: List<Engine>)
 @Serializable data class Repos(val repos: List<String>)
 @Serializable data class TabRow(

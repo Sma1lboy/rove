@@ -43,7 +43,7 @@ export async function loadContext(
   daemon: DaemonRpc,
   runtime: ApiRuntime,
   opts: LoadContextOptions,
-): Promise<{ payload: ContextPayload; unresolvableRepos: readonly string[] }> {
+): Promise<{ payload: ContextPayload; unresolvableRepos: readonly string[]; gatesUnreadable: boolean }> {
   const { tasks: allTasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
   // Throws on an unresolvable `--repo`; unresolvable task repos are named.
   const filter =
@@ -94,7 +94,7 @@ export async function loadContext(
     now: Date.now(),
     limit: opts.limit,
   })
-  return { payload, unresolvableRepos: filter?.unresolvableRepos ?? [] }
+  return { payload, unresolvableRepos: filter?.unresolvableRepos ?? [], gatesUnreadable: gates === null }
 }
 
 async function context(ctx: VerbContext): Promise<unknown> {

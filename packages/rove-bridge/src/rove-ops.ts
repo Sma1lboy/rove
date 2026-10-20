@@ -12,6 +12,7 @@ import { type ActivityEntry, buildContext } from "@sma1lboy/rove/src/cli/api/con
 import { defaultApiRuntime } from "@sma1lboy/rove/src/cli/api/runtime.ts"
 import type { TaskTabRow } from "@sma1lboy/rove/src/cli/api/tab-snapshot.ts"
 import {
+  type ActiveGate,
   type RowTokenMap,
   type WorktreeChangesMap,
   liveRowTokens,
@@ -33,6 +34,7 @@ import {
 import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
+import { gateRows } from "./gates.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import {
   type AttentionRow,
@@ -188,8 +190,9 @@ function prChipKind(task: SerializedTask): PrChipKind | null {
 /**
  * The inbox as the phone sees it. Optional, additive fields: `resumeAt` (a rate-limited task's
  * scheduled auto-resume, from its `quotaResume`), `label` (a routine episode's name, since its
- * subject is the routine, not a task), `automationId` (that routine's id) and `deliveryId` (a
- * `report_missing` episode's key).
+ * subject is the routine, not a task), `automationId` (that routine's id), `deliveryId` (a
+ * `report_missing` episode's key) and `gateId` (a `decision_needed` row's key into
+ * `TasksPayload.gates`).
  */
 export function attentionRows(items: readonly AttentionInboxItem[], tasks: readonly SerializedTask[]): AttentionRow[] {
   const byId = new Map(tasks.map((t) => [t.id, t]))
@@ -197,6 +200,7 @@ export function attentionRows(items: readonly AttentionInboxItem[], tasks: reado
     const resumeAt = i.state === "rate_limited" && i.taskId ? byId.get(i.taskId)?.quotaResume?.resumeAt : undefined
     const label = i.detail?.routine?.name
     const deliveryId = i.state === "report_missing" ? i.detail?.delivery?.id : undefined
+    const gateId = i.state === "decision_needed" ? i.detail?.gate?.id : undefined
     const automationId = i.detail?.routine?.automationId
     return {
       taskId: i.taskId,
@@ -207,6 +211,7 @@ export function attentionRows(items: readonly AttentionInboxItem[], tasks: reado
       ...(resumeAt ? { resumeAt } : {}),
       ...(label ? { label } : {}),
       ...(deliveryId ? { deliveryId } : {}),
+      ...(gateId ? { gateId } : {}),
       ...(automationId ? { automationId } : {}),
     }
   })
@@ -302,6 +307,8 @@ function flatten(entries: readonly StatusEntry[], scope: DiffFileRow["scope"]): 
 export interface LiveRowSignals {
   changes(): WorktreeChangesMap | null
   tokens(): RowTokenMap
+  /** The daemon's `gates` channel: open decisions and answered ones still owed to the engine. */
+  gates(): readonly ActiveGate[]
   /** Tasks of the other registered machines (`MachineHub`), each stamped with its `origin`. */
   remote?(): readonly SerializedTask[]
 }
@@ -376,7 +383,11 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
         ...row,
         order: (row.order ?? 0) + tasks.length,
       }))
-      return { tasks: [...local, ...remote], attention: attentionRows(inbox?.items ?? [], tasks) }
+      return {
+        tasks: [...local, ...remote],
+        attention: attentionRows(inbox?.items ?? [], tasks),
+        gates: gateRows(signals?.gates() ?? [], tasks),
+      }
     },
 
     engines,

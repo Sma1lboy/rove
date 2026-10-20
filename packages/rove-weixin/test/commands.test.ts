@@ -25,6 +25,8 @@ function fakeOps(overrides: Partial<RoveOps> = {}): RoveOps {
     repos: async () => ["/r/app", "/r/site", "/other/app2"],
     send: mock(async () => ({ tab: "tab-1", started: false })),
     add: mock(async () => ({ taskId: "01NEWNEWNEWNEWNEWNEWNEW777" })),
+    gates: async () => [],
+    answerGate: mock(async () => ({ delivered: true })),
     ...overrides,
   }
 }
@@ -131,5 +133,95 @@ describe("toBubbles", () => {
 
   it("hard-wraps a single line longer than a bubble", () => {
     expect(toBubbles("y".repeat(BUBBLE_CHARS + 5)).map((b) => b.length)).toEqual([BUBBLE_CHARS, 5])
+  })
+})
+
+describe("gates and answer", () => {
+  const GATE = {
+    id: "g-12",
+    taskId: "01AAAAAAAAAAAAAAAAAAABC123",
+    tabId: null,
+    question: "Which approach?",
+    options: [
+      { key: "a", label: "Rewrite", detail: "2 days" },
+      { key: "b", label: "Patch" },
+    ],
+    recommended: "b",
+    status: "open" as const,
+    createdAt: "2026-10-12T00:00:00.000Z",
+  }
+  const FREE = { ...GATE, id: "g-13", options: [], recommended: undefined, question: "What name?" }
+  const withGates = (ops: Partial<RoveOps> = {}) => fakeOps({ gates: async () => [GATE, FREE], ...ops })
+
+  it("lists open decisions with their option keys and the recommended one", async () => {
+    const reply = await handleCommand("gates", withGates())
+    expect(reply).toContain("2 open decisions:")
+    expect(reply).toContain("g-12 ABC123 Fix login\nWhich approach?\n  a — Rewrite (2 days)\n  b (recommended) — Patch")
+    expect(reply).toContain("g-13 ABC123 Fix login\nWhat name?\n  free text only")
+    expect(reply).toContain("Usage: answer g-12 <key> [note]")
+  })
+
+  it("says so when nothing is open", async () => {
+    expect(await handleCommand("gates", fakeOps())).toBe("No open decisions.")
+  })
+
+  it("answer <gate> <key> <note> sends the option and the note", async () => {
+    const ops = withGates()
+    const reply = await handleCommand("answer g-12 b ship it after lunch", ops)
+    expect(ops.answerGate).toHaveBeenCalledWith("g-12", { option: "b", text: "ship it after lunch" })
+    expect(reply).toBe("Answered g-12 with b (Patch). Sent to the agent.")
+  })
+
+  it("an option alone is an answer; keys match case-insensitively and a bare number names the gate", async () => {
+    const ops = withGates({ answerGate: mock(async () => ({ delivered: false })) })
+    const reply = await handleCommand("answer 12 A", ops)
+    expect(ops.answerGate).toHaveBeenCalledWith("g-12", { option: "a" })
+    expect(reply).toContain("Answered g-12 with a (Rewrite).")
+    expect(reply).toContain("not running")
+  })
+
+  it("a key that is not an option is refused with the valid ones, and nothing is sent", async () => {
+    const ops = withGates()
+    const reply = await handleCommand("answer g-12 c do it", ops)
+    expect(reply).toBe('"c" is not an option of g-12. Options: a, b (or "answer g-12 - <text>").')
+    expect(ops.answerGate).not.toHaveBeenCalled()
+  })
+
+  it("free text on a gate with options needs the explicit `-`", async () => {
+    const ops = withGates()
+    await handleCommand("answer g-12 - neither, split it in two", ops)
+    expect(ops.answerGate).toHaveBeenCalledWith("g-12", { text: "neither, split it in two" })
+    expect(await handleCommand("answer g-12 -", ops)).toBe("Usage: answer g-12 - <text>")
+  })
+
+  it("a gate with no options takes everything after the id as the text", async () => {
+    const ops = withGates()
+    const reply = await handleCommand("answer g-13 call it Nightly Loop", ops)
+    expect(ops.answerGate).toHaveBeenCalledWith("g-13", { text: "call it Nightly Loop" })
+    expect(reply).toBe("Answered g-13 with your text. Sent to the agent.")
+  })
+
+  it("a gate with no options accepts the `-` free-text marker without sending it", async () => {
+    const ops = withGates()
+    await handleCommand("answer g-13 - call it Nightly Loop", ops)
+    expect(ops.answerGate).toHaveBeenCalledWith("g-13", { text: "call it Nightly Loop" })
+    expect(await handleCommand("answer g-13 -", ops)).toBe("Usage: answer g-13 - <text>")
+  })
+
+  it("an unknown or closed gate and a missing answer are replies, not sends", async () => {
+    const ops = withGates()
+    expect(await handleCommand("answer g-99 a", ops)).toBe('No open decision "g-99". Send "gates" for the list.')
+    expect(await handleCommand("answer nope a", ops)).toBe('No open decision "nope". Send "gates" for the list.')
+    expect(await handleCommand("answer g-12", ops)).toBe("Usage: answer g-12 <key> [note]")
+    expect(ops.answerGate).not.toHaveBeenCalled()
+  })
+
+  it("a daemon refusal comes back as the reply", async () => {
+    const ops = withGates({
+      answerGate: async () => {
+        throw new Error("GATE_NOT_OPEN: g-12 is already answered")
+      },
+    })
+    expect(await handleCommand("answer g-12 a", ops)).toBe("Failed: GATE_NOT_OPEN: g-12 is already answered")
   })
 })

@@ -20,6 +20,12 @@ export function shortId(taskId: string): string {
   return taskId.slice(-6)
 }
 
+/** Split off the first whitespace-delimited word. */
+export function head(text: string): [string, string] {
+  const match = /^(\S+)\s*([\s\S]*)$/.exec(text.trim())
+  return match ? [match[1] ?? "", match[2] ?? ""] : ["", ""]
+}
+
 function clip(text: string, max: number): string {
   const flat = text.replace(/\s+/g, " ").trim()
   return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`

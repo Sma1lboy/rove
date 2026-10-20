@@ -72,18 +72,23 @@ struct InboxView: View {
         let blocking = InboxLogic.isBlocking(item)
         let task = item.taskId.flatMap { store.task(id: $0) }
         let title = task?.displayTitle ?? item.label ?? item.taskId ?? String(localized: "routine")
+        let gate = store.gate(for: item)
         return HStack(spacing: 0) {
             Button { open(item) } label: {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         Text(InboxLogic.glyph(item.state)).font(Theme.mono(12, .semibold))
-                        Text(InboxLogic.stateWord(item.state)).font(Theme.mono(11, .semibold))
+                        Text(gate?.isOpen == false ? String(localized: "answered · engine away") : InboxLogic.stateWord(item.state))
+                            .font(Theme.mono(11, .semibold))
                         if item.state == "rate_limited", let resume = InboxLogic.resumeLabel(iso: item.resumeAt) {
                             Text(resume).font(Theme.mono(11)).foregroundStyle(Theme.muted)
                         }
                     }
                     .foregroundStyle(item.state == "error" ? Theme.error : blocking ? Theme.accent : Theme.muted)
                     Text(title).font(Theme.face(16, .medium)).foregroundStyle(Theme.ink).lineLimit(1)
+                    if let gate {
+                        Text(gate.question).font(Theme.face(14)).foregroundStyle(Theme.muted).lineLimit(2)
+                    }
                     HStack(spacing: 6) {
                         if let tab = item.tabId { Text(tab).font(Theme.mono(12)).foregroundStyle(Theme.muted) }
                         TimelineView(.periodic(from: .distantPast, by: 30)) { ctx in
@@ -97,7 +102,7 @@ struct InboxView: View {
             }
             .buttonStyle(RowButtonStyle())
             .accessibilityIdentifier("attention-\(InboxLogic.key(item))")
-            if item.taskId != nil {
+            if item.taskId != nil && item.gateId == nil {
                 Button { Task { await store.dismissAttention(item) } } label: {
                     Text("dismiss").font(Theme.mono(12)).foregroundStyle(Theme.muted)
                         .padding(.horizontal, 10).frame(minHeight: 44)

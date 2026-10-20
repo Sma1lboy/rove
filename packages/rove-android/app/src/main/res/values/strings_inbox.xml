@@ -20,4 +20,6 @@
     <string name="inbox_state_routine_failed">routine failed</string>
     <string name="inbox_state_routine_replied">routine replied</string>
     <string name="inbox_state_report_missing">report missing</string>
+    <string name="inbox_state_decision">decision</string>
+    <string name="inbox_state_decision_answered">answered · engine away</string>
 </resources>

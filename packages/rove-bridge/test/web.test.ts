@@ -29,7 +29,7 @@ function start(extra: Partial<BridgeDeps> = {}): { http: string; ws: string; lin
     throw new Error("not used")
   }
   const ops: RoveOps = {
-    tasks: async () => ({ tasks: [], attention: [] }),
+    tasks: async () => ({ tasks: [], attention: [], gates: [] }),
     engines: async () => [],
     repos: async () => [],
     createTask: unused,

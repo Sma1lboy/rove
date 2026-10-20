@@ -3,6 +3,7 @@
 import { BridgeError } from "../protocol.ts"
 import { devOps } from "./dev.ts"
 import { filesOps } from "./files.ts"
+import { GATE_OPS } from "./gates.ts"
 import { insightOps } from "./insight.ts"
 import { keybindingsOps } from "./keybindings.ts"
 import { launchOps } from "./launch.ts"
@@ -38,6 +39,7 @@ export const AREA_OPS: OpTable = mergeOpTables(
   TASK_OPS,
   TERMINAL_OPS,
   filesOps,
+  GATE_OPS,
   pagesOps,
   settingsOps,
   engineOps,

@@ -128,6 +128,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   const ops = createRoveOps(verbClient, {
     changes: () => orchestrator.worktreeChangesSignal()(),
     tokens: () => orchestrator.rowTokensSignal()(),
+    gates: () => orchestrator.gatesSignal()(),
     remote: () =>
       hub
         .tasksSignal()
@@ -142,6 +143,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     orchestrator.attentionInboxSignal(),
     orchestrator.worktreeChangesSignal(),
     orchestrator.rowTokensSignal(),
+    orchestrator.gatesSignal(),
     hub.tasksSignal(),
   ]) {
     signal.subscribe(() => feed.poke())

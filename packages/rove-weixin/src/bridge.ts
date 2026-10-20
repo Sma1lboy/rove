@@ -1,7 +1,7 @@
 /**
  * The daemon-side WeChat channel: long-polls iLink for messages from allowed
  * senders, answers them through {@link handleCommand}, and pushes task-group
- * arrivals (needs you / ready for review / ready to merge).
+ * arrivals (needs you / ready for review / ready to merge) and newly opened decisions.
  *
  * The binding is re-read from disk every cycle, so `rove weixin login` /
  * `logout` take effect without a daemon restart. Pushes respect the reply
@@ -12,6 +12,7 @@
 import { setTimeout as delay } from "node:timers/promises"
 import { type RoveOps, handleCommand } from "./commands.ts"
 import { toBubbles } from "./format.ts"
+import { renderGateArrivals } from "./gates.ts"
 import {
   type FetchFn,
   ILINK_BASE_URL,
@@ -25,7 +26,7 @@ import {
   isDirectUserMessage,
   messageText,
 } from "./ilink.ts"
-import { GroupTracker, renderArrivals } from "./notify.ts"
+import { GateTracker, GroupTracker, renderArrivals } from "./notify.ts"
 import { type WeixinAccount, type WeixinRuntimeState, type WeixinStore, isAllowedSender } from "./store.ts"
 
 /** Bot-initiated messages are only accepted within a day of the peer's last message. */
@@ -72,6 +73,7 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
   let state: WeixinRuntimeState | null = null
   const seen = new Set<string>()
   const tracker = new GroupTracker()
+  const gateTracker = new GateTracker()
 
   // Unref'd: a pending retry must never hold the daemon process open.
   const sleep = (ms: number) => delay(ms, undefined, { ref: false })
@@ -262,8 +264,13 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
     if (notifying || stopped || !account) return
     notifying = true
     try {
-      const arrivals = tracker.observe((await deps.ops.status(null)).tasks)
+      const snapshot = await deps.ops.status(null)
+      const arrivals = tracker.observe(snapshot.tasks)
       if (arrivals.length > 0) await push(renderArrivals(arrivals))
+      const decisions = gateTracker.observe(snapshot.gatesUnreadable ? null : snapshot.gates)
+      if (decisions.length > 0) {
+        await push(renderGateArrivals(decisions, new Map(snapshot.tasks.map((t) => [t.taskId, t.title]))))
+      }
     } catch (err) {
       deps.log("weixin", `notify tick failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {

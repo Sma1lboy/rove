@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { decodeUiPrefsPayload } from "../../src/client/remote-orchestrator.ts"
+import { decodeUiPrefsPayload } from "../../src/client/remote-orchestrator-payloads.ts"
 
 describe("decodeUiPrefsPayload — backward-compat defaults", () => {
   it("keeps a payload whose theme is null — state.json names no selection", () => {
