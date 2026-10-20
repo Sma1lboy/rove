@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.253
+
+### Patch Changes
+
+- [#1246](https://github.com/Sma1lboy/rove/pull/1246) [`45f41e3`](https://github.com/Sma1lboy/rove/commit/45f41e39d9ea00fedccb859238e6910d39c7f2a8) Tasks can now ask their owner a question: `rove api gate-raise` opens a decision gate that shows in the Inbox as "decision needed"; Enter opens a dialog to pick an option or write a note, and the answer is pasted back into the task's tab. If the engine isn't running, the answer rides the next `send` or routine firing into that tab. New verbs `gate-raise`, `gate-answer`, `gate-withdraw`, `gates`; `context` lists open gates; repeated `--option` flags are supported. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1247](https://github.com/Sma1lboy/rove/pull/1247) [`6bd6014`](https://github.com/Sma1lboy/rove/commit/6bd6014701f4768d011f0d7a07175d721b863e3e) An owner can now require a report from an unattended agent and see when it never came. `rove api send --expect-report` (or `add --require-report` / `update --require-report on|off`, which arm every `send` to that task) appends a `report --delivery d-N` line to the prompt; the agent closes the turn with the new `rove api report --delivery ID --outcome done|partial|blocked|failed --summary … [--evidence …] [--next …]`, and `rove api deliveries --task-id ID` lists the recent reports newest first.
+  A turn that completes or fails with no report, an engine that dies, or a tab that stalls for 10 minutes marks the delivery missing and raises a **report missing** Inbox row (TUI, bridge, Android, iOS); a late report or dismissing the row clears it. Routine runs are always armed: `routine-runs` gains `deliveryId` and `deliveryStatus`, and `routine-respond` keeps working as `report --outcome done` on the run's delivery.
+  The canonical verb order in `rove api schema` gains `deliveries` and `report`, and the bundled agent skill teaches both. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1307](https://github.com/Sma1lboy/rove/pull/1307) [`d945845`](https://github.com/Sma1lboy/rove/commit/d945845bdead5ddde8e501508bf9ce1e8f927d58) `rove api tab-new --kind editor --line N` opens the file at that line, and `{line}` in `editor.customCommand` places it for any editor. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1310](https://github.com/Sma1lboy/rove/pull/1310) [`e1eed6e`](https://github.com/Sma1lboy/rove/commit/e1eed6eaa563aee416239760d7a93989eaf9c914) Open the engine chooser with Ctrl+E on empty tasks and pin the selected engine on the new tab. Never-opened project and directory tasks wait for Enter or an engine choice before starting a session. Sidebar New conversation and New shell actions start these tasks directly. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1308](https://github.com/Sma1lboy/rove/pull/1308) [`22b7870`](https://github.com/Sma1lboy/rove/commit/22b787050eaf399bae4816220622392c565da189) Internal: one shared plain-object guard replaces six hand-rolled copies. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1284](https://github.com/Sma1lboy/rove/pull/1284) [`628a582`](https://github.com/Sma1lboy/rove/commit/628a582c41c757174545db0e63a42058dcb2bcd9) Switching tasks redraws the terminal pane one fewer time: the pane now takes its new size in the same update that notices the resize. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.252
 
 ### Patch Changes
