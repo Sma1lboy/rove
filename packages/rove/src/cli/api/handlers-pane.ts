@@ -160,7 +160,8 @@ async function launchKind(ctx: VerbContext, daemon: DaemonRpc, task: SerializedT
   if (!worktree) throw new ApiError(`task ${taskId} has no worktree yet`, "NO_WORKTREE")
   let spec: LaunchSpec
   if (kind === "editor") {
-    spec = { kind, taskId, worktree, file: ctx.args.require("file") }
+    const line = ctx.args.int("line")
+    spec = { kind, taskId, worktree, file: ctx.args.require("file"), ...(line === undefined ? {} : { line }) }
   } else if (kind === "pane") {
     spec = { kind, taskId, worktree, pane: ctx.args.require("pane"), hostTab: ctx.args.str("tab") }
   } else {
@@ -191,6 +192,7 @@ async function launchKind(ctx: VerbContext, daemon: DaemonRpc, task: SerializedT
     session: launched.session,
     kind,
     ...(launched.leaf ? { leaf: launched.leaf } : {}),
+    ...(launched.atLine === undefined ? {} : { atLine: launched.atLine }),
     clients: reply.clients ?? 0,
   }
 }
@@ -199,7 +201,7 @@ export const TAB_NEW_VERB: VerbSpec = {
   name: "tab-new",
   group: "drive",
   summary:
-    "Open a new Terminal Tab with no first message: a login `shell`, or an `engine` tab that starts idle (the TUI's sidebar \"New shell\" and picker Enter). Unlike `send --tab new` it needs no prompt. Allocates the tab id, writes the persisted tab row, and spawns the session in the task's worktree (creating it if needed); an engine tab respects engine.maxLiveSessions. Three more kinds run something Rove resolves itself, never a command line from the caller: `editor` opens `--file` (relative to the worktree) in the editor from Settings → General → Editor / $VISUAL / $EDITOR, in the task's one editor slot (a previous editor tab is closed once the new one is up); `pane` opens a registered plugin pane (`--pane <plugin>.<pane>`), split into `--tab` (default: the active tab) or as its own tab as the pane's manifest says; `viewport` adds a tab onto another task's first engine session (`--view-task`, same project) without starting anything. Broadcast over the daemon's tab.add channel so an attached TUI absorbs the row (`clients` = attached connections). Returns the new `tabId` and its pty `session` key; the tab then lists in get-task .tabs[].",
+    "Open a new Terminal Tab with no first message: a login `shell`, or an `engine` tab that starts idle (the TUI's sidebar \"New shell\" and picker Enter). Unlike `send --tab new` it needs no prompt. Allocates the tab id, writes the persisted tab row, and spawns the session in the task's worktree (creating it if needed); an engine tab respects engine.maxLiveSessions. Three more kinds run something Rove resolves itself, never a command line from the caller: `editor` opens `--file` (relative to the worktree, at `--line` when given) in the editor from Settings → General → Editor / $VISUAL / $EDITOR, in the task's one editor slot (a previous editor tab is closed once the new one is up); `pane` opens a registered plugin pane (`--pane <plugin>.<pane>`), split into `--tab` (default: the active tab) or as its own tab as the pane's manifest says; `viewport` adds a tab onto another task's first engine session (`--view-task`, same project) without starting anything. Broadcast over the daemon's tab.add channel so an attached TUI absorbs the row (`clients` = attached connections). Returns the new `tabId` and its pty `session` key; the tab then lists in get-task .tabs[].",
   flags: [
     F.taskId(true),
     {
@@ -225,6 +227,13 @@ export const TAB_NEW_VERB: VerbSpec = {
       description: "Editor tabs only: the file to open, relative to the task's worktree.",
     },
     {
+      name: "line",
+      type: "int",
+      placeholder: "N",
+      description:
+        "Editor tabs only: open at this line. `atLine: false` in the result means the editor takes no line argument Rove knows; add `{line}` to editor.customCommand.",
+    },
+    {
       name: "pane",
       type: "string",
       placeholder: "ID",
@@ -248,6 +257,9 @@ export const TAB_NEW_VERB: VerbSpec = {
     const taskId = ctx.args.require("task-id")
     const kind = ctx.args.requireEnum<TabNewKind>("kind")
     const command = ctx.args.str("command")
+    if (ctx.args.str("line") !== undefined && kind !== "editor") {
+      throw new ApiError("--line only applies to an editor tab; pass --kind editor", "BAD_FLAG", helpStep("tab-new"))
+    }
     if (command && kind !== "engine") {
       throw new ApiError("--command only applies to an engine tab; pass --kind engine", "BAD_FLAG", helpStep("tab-new"))
     }

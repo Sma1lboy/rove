@@ -26,7 +26,14 @@ import type { SplitOutcome } from "./tab-split.ts"
 import { ApiError } from "./types.ts"
 
 export type LaunchSpec =
-  | { readonly kind: "editor"; readonly taskId: string; readonly worktree: string; readonly file: string }
+  | {
+      readonly kind: "editor"
+      readonly taskId: string
+      readonly worktree: string
+      readonly file: string
+      /** 1-based line to open at. */
+      readonly line?: number
+    }
   | {
       readonly kind: "pane"
       readonly taskId: string
@@ -52,6 +59,8 @@ export interface Launched {
   readonly leaf?: string
   /** An editor tab this launch replaced: the caller closes it once the new one is up. */
   readonly replaces?: string
+  /** Editor tabs asked for a line: whether the resolved editor was handed it. */
+  readonly atLine?: boolean
 }
 
 /** Splits a tab for a pane; the runtime's `splitTab` (a seam for tests). */
@@ -128,7 +137,7 @@ async function spawnCommandTab(
 
 async function launchEditor(spec: Extract<LaunchSpec, { kind: "editor" }>): Promise<Launched> {
   const abs = fileInside(spec.worktree, spec.file)
-  const launch = await resolveEditorLaunch(spec.worktree, abs)
+  const launch = await resolveEditorLaunch(spec.worktree, abs, spec.line)
   if (!launch) {
     throw new ApiError("no editor found — set $VISUAL/$EDITOR, or Settings → General → Editor", "NO_EDITOR", {
       hint: "an editor chosen in Settings wins over $EDITOR; `rove config` shows what resolves",
@@ -143,9 +152,22 @@ async function launchEditor(spec: Extract<LaunchSpec, { kind: "editor" }>): Prom
     ["sh", "-c", launch.command],
     launch.label,
     "editor",
-    ["api", "tab-new", "--task-id", spec.taskId, "--kind", "editor", `--file=${spec.file}`],
+    [
+      "api",
+      "tab-new",
+      "--task-id",
+      spec.taskId,
+      "--kind",
+      "editor",
+      `--file=${spec.file}`,
+      ...(spec.line === undefined ? [] : [`--line=${spec.line}`]),
+    ],
   )
-  return previous ? { ...opened, replaces: previous } : opened
+  return {
+    ...opened,
+    ...(previous ? { replaces: previous } : {}),
+    ...(launch.atLine === undefined ? {} : { atLine: launch.atLine }),
+  }
 }
 
 /** The plugin pane the caller named, from the registry on this machine. */

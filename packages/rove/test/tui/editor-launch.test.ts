@@ -46,6 +46,68 @@ describe("buildEditorCommand", () => {
   })
 })
 
+describe("buildEditorCommand at a line", () => {
+  it("terminal editors take +N before the path", () => {
+    expect(buildEditorCommand("nvim", "", "/wt/a.ts", undefined, 42)).toEqual({
+      bin: "nvim",
+      command: "nvim +42 '/wt/a.ts'",
+      atLine: true,
+    })
+    expect(buildEditorCommand("custom", "", "/wt/a.ts", "/usr/bin/micro", 7)?.command).toBe(
+      "/usr/bin/micro +7 '/wt/a.ts'",
+    )
+  })
+
+  it("helix takes the line after the path", () => {
+    expect(buildEditorCommand("custom", "", "/wt/a.ts", "hx", 3)?.command).toBe("hx '/wt/a.ts':3")
+  })
+
+  it.each([
+    ["vim -- {file}", undefined],
+    ["vim --", undefined],
+    ["", "vim --"],
+    ["", "vim -- {file}"],
+  ])("keeps the file operand after -- for custom %s and env %s", (custom, env) => {
+    expect(buildEditorCommand("custom", custom, "/wt/a b.ts", env, 42)).toEqual({
+      bin: "vim",
+      command: "vim +42 -- '/wt/a b.ts'",
+      atLine: true,
+    })
+    expect(buildEditorCommand("custom", custom, "/wt/a b.ts", env)).toEqual({
+      bin: "vim",
+      command: "vim -- '/wt/a b.ts'",
+    })
+  })
+
+  it("keeps explicit line placement before --", () => {
+    expect(buildEditorCommand("custom", "vim +{line} -- {file}", "/wt/a.ts", undefined, 42)).toEqual({
+      bin: "vim",
+      command: "vim +42 -- '/wt/a.ts'",
+      atLine: true,
+    })
+  })
+
+  it("{line} places the line in a custom command, and reads 1 when no line was asked for", () => {
+    expect(buildEditorCommand("custom", "code -g {file}:{line}", "/wt/a.ts", undefined, 9)).toEqual({
+      bin: "code",
+      command: "code -g '/wt/a.ts':9",
+      atLine: true,
+    })
+    expect(buildEditorCommand("custom", "code -g {file}:{line}", "/wt/a.ts")).toEqual({
+      bin: "code",
+      command: "code -g '/wt/a.ts':1",
+    })
+  })
+
+  it("an editor with no known line form opens the file plain and says so", () => {
+    expect(buildEditorCommand("custom", "code -w", "/wt/a.ts", undefined, 9)).toEqual({
+      bin: "code",
+      command: "code -w '/wt/a.ts'",
+      atLine: false,
+    })
+  })
+})
+
 describe("relativeToWorktree", () => {
   it("strips the worktree prefix (with or without a trailing slash)", () => {
     expect(relativeToWorktree("/wt", "/wt/src/a.ts")).toBe("src/a.ts")
