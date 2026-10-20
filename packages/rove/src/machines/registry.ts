@@ -38,6 +38,11 @@ export interface MachineConfig {
    * an SSH round-trip on reconnect. Never derived locally (see `discover.ts`).
    */
   readonly sockets?: { readonly daemon: string; readonly pty: string }
+  /**
+   * Absolute path of `rove` on that machine, when its non-interactive PATH
+   * lacks it (learned by `discover.ts`). Absent → plain `rove`.
+   */
+  readonly roveBin?: string
   /** ISO timestamp of registration, for `machine list` ordering. */
   readonly addedAt?: string
 }

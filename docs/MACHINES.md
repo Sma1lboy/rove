@@ -36,6 +36,19 @@ rove machine: Nahuels-Mac-mini → narwhal (rove 0.9.185 on Nahuels-Mac-mini.loc
 `add` verifies before it saves: it asks the machine where its daemon listens
 (`rove daemon status --json`, starting one there if none is up) and refuses if
 the host is unreachable, Rove is not installed, or no daemon can be started.
+
+- **First connection.** If the host key is not in your `known_hosts` yet, `add`
+  prints its fingerprints and asks before trusting it. Run from a script (no
+  terminal), it prints them and trusts on first use, as `ssh` itself would.
+  Hosts reached through `ProxyJump`/`ProxyCommand` are left to ssh.
+- **Rove off the PATH.** A Rove installed with bun or nvm is often missing
+  from the PATH of `ssh narwhal <command>`, because the rc file that adds it
+  only runs for interactive shells. `add` asks the login shell and the usual
+  install directories, then remembers that path for the machine. Your rc files
+  are not touched.
+- **When ssh fails**, the message names the cause and the fix: a name that
+  does not resolve, a refused or timed-out connection, a rejected key, a host
+  key not trusted yet, or one that **changed** (which `add` will not override).
 Rove never guesses a remote socket path — the remote home may be a different
 user, and the path may have been shortened to fit the platform's socket-name
 limit.

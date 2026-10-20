@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { looksLikeOldStatus, parseStatusJson } from "../../src/machines/discover.ts"
+import { looksLikeOldStatus, parseLocatedRove, parseStatusJson, roveCommand } from "../../src/machines/discover.ts"
 
 const FULL = JSON.stringify({
   daemonPid: 900,
@@ -73,5 +73,18 @@ describe("looksLikeOldStatus", () => {
   it("still recognizes an old status wrapped in shell noise", () => {
     const old = JSON.stringify({ socketPath: "/s.sock", homeDir: "/h" })
     expect(looksLikeOldStatus(`motd\n${old}\nlogout`)).toBe(true)
+  })
+})
+
+describe("a rove off the non-interactive PATH", () => {
+  it("reads the located binary out of login-shell noise", () => {
+    expect(parseLocatedRove("Welcome to narwhal\nROVE_BIN=/home/n/.bun/bin/rove\n")).toBe("/home/n/.bun/bin/rove")
+    expect(parseLocatedRove("ROVE_BIN=rove\n")).toBeNull()
+    expect(parseLocatedRove("")).toBeNull()
+  })
+
+  it("runs it with its own directory first on PATH, so its `env bun` shebang resolves", () => {
+    expect(roveCommand(undefined)).toBe("rove")
+    expect(roveCommand("/home/n/My Tools/rove")).toBe(`PATH='/home/n/My Tools':"$PATH" '/home/n/My Tools/rove'`)
   })
 })

@@ -1,6 +1,8 @@
 # Remote access: auth model and guided setup
 
-> Status: **design draft, nothing implemented.** Companion to
+> Status: **design draft.** Step 1 of "Order of work" (ssh failure
+> classifier, host-key confirmation, `roveBin`) has landed; the rest is not
+> implemented. Companion to
 > [workspace-runner.md](./workspace-runner.md): a hub that dispatches to
 > machines makes "who may run what where" and "how do I get this working"
 > two halves of one problem. Decisions marked **OPEN** need the owner.
@@ -182,12 +184,20 @@ Recommend 2.
 5. Stdio transport + restricted hub key (A5): also unblocks hosts without
    unix-socket forwarding and Windows runners.
 
-## Open questions
+## Decisions (owner, 2026-10-20)
 
-1. Install as a third fix kind (`install`), or keep it manual?
-2. A dedicated hub key without a passphrase (unattended hub) or agent-only?
-3. Command name for bridge setup: `rove remote setup` vs `rove --web --setup`.
-4. A3's default deny list: is `land` denied by default, or allowed (the
-   runner is still the one landing into its own checkout)?
-5. Stdio transport: one channel multiplexing daemon + PTY, or one ssh channel
-   each (simpler, more ssh sessions)?
+1. **Install is part of setup.** A third fix kind, `install`: offered only
+   inside a flow the user started (`machine add`, `machine doctor`,
+   `rove --web --setup`), never by `doctor --fix`.
+2. **Hub key: no passphrase by default.** An unattended hub cannot answer a
+   passphrase prompt. The risk is bounded: the key is dedicated, `0600` under
+   `~/.rove/ssh/`, and revoked by deleting one `authorized_keys` line. When
+   ssh-agent already authenticates the target, no key is created.
+3. **Bridge setup is `rove --web --setup`.**
+4. **`land` is allowed by default.** The default deny list is the
+   irreversible verbs only: `delete`, `remove-worktree`, `reset`. The policy
+   is changed on the runner itself (`rove machine inbound allow|deny <verb>`),
+   never by the hub.
+5. **One ssh channel per stream** (daemon, each PTY attach) over the existing
+   ControlMaster. ssh already multiplexes channels on one connection, so Rove
+   adds no framing of its own.

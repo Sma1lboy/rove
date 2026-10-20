@@ -9,6 +9,7 @@
  */
 
 import { discoverMachine } from "../machines/discover.ts"
+import { checkHostKey } from "../machines/host-key.ts"
 import {
   type MachineConfig,
   addMachine,
@@ -27,6 +28,7 @@ import { readMachines } from "../machines/registry.ts"
 import { machineSocketDir } from "../machines/ssh-args.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile } from "../state/store.ts"
+import { defaultFixRuntime } from "./doctor-fix.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
@@ -112,6 +114,7 @@ async function add(argv: readonly string[]): Promise<void> {
     auth: identity ? { kind: "key", keyPath: identity } : { kind: "key" },
   }
 
+  await confirmHostKey(config)
   process.stderr.write(`${CLI_NAME} machine: contacting ${sshTargetOf(config)}…\n`)
   const found = await discoverMachine(probeAlias, config)
   if (!found.ok) fail(found.message)
@@ -135,7 +138,13 @@ async function add(argv: readonly string[]): Promise<void> {
   const duplicate = duplicateAliasOf(readMachines(loadStateFile()), alias, identityTriple)
 
   const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
-  addMachine(alias, { ...config, identity: identityTriple, sockets })
+  const roveBin = found.roveBin ?? config.roveBin
+  if (found.roveBin) {
+    process.stderr.write(
+      `${CLI_NAME} machine: rove is not on ${alias}'s non-interactive PATH; using ${found.roveBin}\n`,
+    )
+  }
+  addMachine(alias, { ...config, identity: identityTriple, sockets, ...(roveBin ? { roveBin } : {}) })
   setMachineIdentity(alias, identityTriple)
   // Forward now, or `rove api list` can't see it until a TUI starts one.
   const { ensureForwards } = await import("../machines/tunnel.ts")
@@ -160,6 +169,32 @@ async function add(argv: readonly string[]): Promise<void> {
       `${CLI_NAME} machine: ${alias} is the same machine as ${duplicate} (hostname/homeDir/pid match) — the sidebar shows one row\n`,
     )
   }
+}
+
+/**
+ * Show a never-seen host key's fingerprint before trusting it. A terminal is
+ * asked; a script keeps ssh's own trust-on-first-use and gets the fingerprint
+ * on stderr, so the log still records what was trusted.
+ */
+async function confirmHostKey(config: MachineConfig): Promise<void> {
+  const check = await checkHostKey(config)
+  if (check.state !== "unknown") return
+  const write = (line: string): void => {
+    process.stderr.write(`${line}\n`)
+  }
+  write(
+    `${CLI_NAME} machine: first connection to ${sshTargetOf(config)} (${check.destination.knownHostsName}). Its host key:`,
+  )
+  for (const line of check.fingerprints) write(`  ${line}`)
+  if (process.stdin.isTTY !== true) {
+    write(`${CLI_NAME} machine: not a terminal; trusting it on first use, as ssh would`)
+    return
+  }
+  write("Compare it with the machine's own `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` if you can.")
+  if (!(await defaultFixRuntime().confirm("Trust this host key? [y/N] "))) {
+    fail("host key not trusted; nothing was saved")
+  }
+  check.trust()
 }
 
 function remove(argv: readonly string[]): void {

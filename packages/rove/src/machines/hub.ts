@@ -112,7 +112,7 @@ export class MachineHub {
       this.setStatus(entry.alias, { state: "offline", error: found.ok ? undefined : found.message })
       return
     }
-    if (found.ok) updateMachine(entry.alias, { sockets })
+    if (found.ok) updateMachine(entry.alias, { sockets, ...(found.roveBin ? { roveBin: found.roveBin } : {}) })
     const tunnel = startTunnel({
       alias: entry.alias,
       config: entry,

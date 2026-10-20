@@ -54,7 +54,11 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     process.exit(2)
   }
 
-  const badFlag = flags.find((flag) => command !== "start" || !argvHasFlag([flag], "--resident"))
+  // `status --json` is what other machines' `machine add` sends; its output is JSON either way.
+  const badFlag = flags.find(
+    (flag) =>
+      !(command === "start" && argvHasFlag([flag], "--resident")) && !(command === "status" && flag === "--json"),
+  )
   const resident = switchFlag(flags, "--resident")
   if (badFlag !== undefined || resident === undefined) {
     process.stderr.write(`${CLI_NAME} daemon ${command}: bad option "${badFlag ?? flags.join(" ")}"\n\n`)

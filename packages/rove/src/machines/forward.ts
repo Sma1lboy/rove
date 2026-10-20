@@ -16,7 +16,8 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ApiError } from "../cli/api/types.ts"
 import { errorMessage } from "../lib/error-message.ts"
-import { type MachineEntry, dedupeMachines, listMachines } from "./registry.ts"
+import { discoverMachine } from "./discover.ts"
+import { type MachineEntry, dedupeMachines, listMachines, updateMachine } from "./registry.ts"
 import { localDaemonSocketPath } from "./ssh-args.ts"
 import { ensureForwards } from "./tunnel.ts"
 
@@ -26,19 +27,30 @@ export const LOCAL_MACHINE = "local"
 /**
  * The local end of a machine's daemon socket, bringing the forward up when
  * nothing listens. It rides the shared ssh connection, so only the first call
- * after a quiet period pays a connect. Null when the machine is unreachable.
+ * after a quiet period pays a connect. A machine whose ssh answers but whose
+ * daemon idle-stopped gets that daemon started again. Null when unreachable.
  */
 export async function machineDaemonSocket(entry: MachineEntry): Promise<string | null> {
   const socketPath = localDaemonSocketPath(entry.alias)
   if (await answers(socketPath)) return socketPath
-  if (!entry.sockets) return null
-  const up = await ensureForwards({
+  // A forward accepts connections even when nothing listens at its far end,
+  // so only `hello` proves a daemon is there.
+  if (!entry.sockets || !(await forward(entry, entry.sockets))) return null
+  if (await answers(socketPath)) return socketPath
+  const found = await discoverMachine(entry.alias, entry)
+  if (!found.ok) return null
+  const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
+  updateMachine(entry.alias, { sockets, ...(found.roveBin ? { roveBin: found.roveBin } : {}) })
+  return (await forward(entry, sockets)) && (await answers(socketPath)) ? socketPath : null
+}
+
+function forward(entry: MachineEntry, sockets: { readonly daemon: string; readonly pty: string }): Promise<boolean> {
+  return ensureForwards({
     alias: entry.alias,
     config: entry,
-    remoteDaemonSocket: entry.sockets.daemon,
-    remotePtySocket: entry.sockets.pty,
+    remoteDaemonSocket: sockets.daemon,
+    remotePtySocket: sockets.pty,
   })
-  return up ? socketPath : null
 }
 
 async function answers(socketPath: string): Promise<boolean> {
