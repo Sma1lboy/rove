@@ -33,6 +33,7 @@ export const PLUGIN_EVENT_NAMES = [
   "agent.turn-complete",
   "agent.permission-needed",
   "agent.rate-limited",
+  "agent.rate-limit-recovered",
   "agent.error",
   "agent.running",
   "agent.idle",
@@ -158,3 +159,32 @@ export {
   type ModTreeResult,
   type ModPaneView,
 } from "./mod-tree.ts"
+/**
+ * Version of the verb contract — verb names, params, results, error codes —
+ * served identically by `rove api`, the daemon's `api.invoke` request and the
+ * bridge's `api.invoke` op. Bumped when any of those change incompatibly.
+ */
+export const ROVE_API_VERSION = 3
+
+/** A refusal on every transport: a stable `code`, plus recovery data when the verb has it. */
+export interface ApiErrorBody {
+  readonly code: string
+  readonly message: string
+  /** What to do next, in prose. */
+  readonly hint?: string
+  /** Argv for the same `rove` executable that recovers, runnable verbatim. */
+  readonly nextCommandArgs?: readonly string[]
+  /** Refusal data, e.g. the tasks a `PARTIAL_FANOUT` did create. */
+  readonly [key: string]: unknown
+}
+
+/** One verb call's outcome, identical over the CLI (`--envelope`), the daemon socket and the bridge. */
+export type ApiEnvelope<T = unknown> =
+  | { readonly apiVersion: number; readonly ok: true; readonly result: T }
+  | { readonly apiVersion: number; readonly ok: false; readonly error: ApiErrorBody }
+
+/**
+ * Verb params keyed by flag name (`task-id`, not `taskId`), typed as the
+ * verb's `rove api schema --verb` describes. A `csv` flag takes an array.
+ */
+export type ApiParams = Readonly<Record<string, string | number | boolean | readonly string[]>>

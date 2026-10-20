@@ -3,7 +3,9 @@
  *
  *   task.snapshot diff       → task.created / task.deleted / task.changed /
  *                              task.pr-changed / worktree.created
- *   engine-state transitions → agent.* (per task+tab, deduped)
+ *   engine-state transitions → agent.* (per task+tab, deduped), plus
+ *                              agent.rate-limit-recovered on the first
+ *                              completed turn after a rate limit
  *
  * `worktree.created` is snapshot-derived so EVERY materialization path fires
  * it. The first snapshot after daemon start is baseline — replay must not
@@ -92,6 +94,10 @@ function taskContext(task: SerializedTask | undefined): PluginEvent["task"] {
 export class PluginEventReducer {
   private tasks: Map<string, SerializedTask> | undefined
   private readonly agentState = new Map<string, EngineState["state"]>()
+  /** When each task+tab entered `rate_limited`, until a turn completes. */
+  private readonly limitedSince = new Map<string, number>()
+  /** Tasks that report per tab; their tab-less rollup must not open a second episode. */
+  private readonly tabbed = new Set<string>()
   private readonly now: () => number
 
   constructor(now: () => number = Date.now) {
@@ -169,14 +175,40 @@ export class PluginEventReducer {
     if (prev === payload.state) return []
     const event = AGENT_EVENT_BY_STATE[payload.state]
     if (!event) return []
-    return [
-      {
-        event,
-        taskId: payload.taskId,
-        task: taskContext(this.tasks?.get(payload.taskId)),
-        ...(payload.tabId ? { tabId: payload.tabId } : {}),
-        at: this.now(),
-      },
-    ]
+    const at = this.now()
+    const base = {
+      taskId: payload.taskId,
+      task: taskContext(this.tasks?.get(payload.taskId)),
+      ...(payload.tabId ? { tabId: payload.tabId } : {}),
+      at,
+    }
+    const out: PluginEvent[] = [{ event, ...base }]
+    const recovered = this.trackRateLimit(key, payload, at)
+    if (recovered !== undefined) {
+      out.push({
+        event: "agent.rate-limit-recovered",
+        ...base,
+        detail: { limitedAt: new Date(recovered).toISOString(), limitedForMs: at - recovered },
+      })
+    }
+    return out
+  }
+
+  /**
+   * Recovery is a completed turn, not a `turn-start`: a re-prompt can hit the
+   * same limit again. Returns when the episode began once it ends.
+   */
+  private trackRateLimit(key: string, payload: EngineState, at: number): number | undefined {
+    if (payload.tabId) this.tabbed.add(payload.taskId)
+    else if (this.tabbed.has(payload.taskId)) return undefined
+    if (payload.state === "rate_limited") {
+      if (!this.limitedSince.has(key)) this.limitedSince.set(key, at)
+      return undefined
+    }
+    if (payload.state !== "turn_complete") return undefined
+    const since = this.limitedSince.get(key)
+    if (since === undefined) return undefined
+    this.limitedSince.delete(key)
+    return since
   }
 }

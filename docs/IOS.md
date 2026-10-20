@@ -84,7 +84,7 @@ flowchart LR
 - **Loopback by default.** Remote access is `--preset tailscale` (tailnet address only) or `--preset cf` (loopback behind cloudflared); anything else is an explicit `--host`.
 - **One bearer token.** 32 random bytes, sent only as `Authorization: Bearer`; a token in the URL query is refused, so it never lands in proxy or tunnel logs. It is checked with a constant-time compare at the WebSocket upgrade; a missing or wrong token gets HTTP 401 and no socket. Every later frame rides that authenticated socket. The browser client (`rove --web`, [WEB.md](WEB.md)) cannot set that header, so it offers the same token as the `Sec-WebSocket-Protocol` `rove.bearer.<token>` next to `rove.v1`, and the bridge echoes only `rove.v1`. An upgrade whose `Origin` names another host is refused with 403; phones send no `Origin`.
 - **Cloudflare Access (`--preset cf`).** Before the token, the bridge verifies `Cf-Access-Jwt-Assertion` against the team's published keys (`/cdn-cgi/access/certs`) and checks issuer, AUD and expiry. Both layers must pass; each refusal is logged with the reason, never with the token or JWT.
-- **Closed op list.** The phone can call the operations listed below and nothing else. There is no generic daemon passthrough; anything else is refused with `UNKNOWN_OP`.
+- **Closed op list.** The phone can call the operations listed below and nothing else. There is no generic daemon passthrough; anything else is refused with `UNKNOWN_OP`. `api.invoke` serves the validated `rove api` verb contract, not daemon RPCs: it grants nothing `term.input` into a shell does not, and its destructive verbs are logged like the destructive ops.
 - **Terminal input is scoped.** `term.input` only reaches a session this connection attached, and attach refuses a tab with no hosted session instead of spawning one.
 - **Diff paths stay in the worktree.** Absolute paths and `..` are refused.
 - **What the token grants.** Whoever holds it can do what the app can: read task output, type into engine sessions (which run with your user's permissions), create, land and delete tasks. Treat the pairing URL like a password; rotate it if it leaks.
@@ -92,11 +92,12 @@ flowchart LR
 
 ## Protocol
 
-JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "args": {}}`; reply `{"id": 1, "ok": true, "result": {…}}` or `{"id": 1, "ok": false, "error": {"code", "message"}}`; push `{"event": "tasks" | "term.data" | "term.exit", "data": {…}}`. The types live in `packages/rove-bridge/src/protocol.ts`. A slow op may also stream `{"event": "op.progress", "data": {id, line}}` to the connection that sent it, `id` being the request's; the reply still ends it (`repo.clone` streams git's progress lines, at most one per 150 ms). A client that ignores the event loses only the progress text.
+JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "args": {}}`; reply `{"id": 1, "ok": true, "result": {…}}` or `{"id": 1, "ok": false, "error": {"code", "message", …}}`, where a refusal from a `rove api` verb also carries its `hint`, `nextCommandArgs` and refusal data; push `{"event": "tasks" | "term.data" | "term.exit", "data": {…}}`. The types live in `packages/rove-bridge/src/protocol.ts`. A slow op may also stream `{"event": "op.progress", "data": {id, line}}` to the connection that sent it, `id` being the request's; the reply still ends it (`repo.clone` streams git's progress lines, at most one per 150 ms). A client that ignores the event loses only the progress text.
 
 | Op | Args | Result |
 | --- | --- | --- |
-| `hello` | — | `{protocol, roveVersion, host}` |
+| `hello` | — | `{protocol, apiVersion, roveVersion, host}`; `apiVersion` is the verb contract `api.invoke` speaks |
+| `api.invoke` | `verb`, `params?` (keyed by flag name, as `rove api schema --verb` lists them) | the verb's result; a refusal is the verb's full error object ([API.md](API.md#one-contract-three-transports)) |
 | `tasks.subscribe` | — | `{tasks, attention}`, then `tasks` pushes on change, and `tabs` pushes (`{taskIds}`) when only those tasks' Terminal Tabs changed (re-read them with `task.tabs`; older apps ignore it) |
 | `tasks.list` | — | `{tasks, attention}` (fresh read) |
 | `engines.list` | — | `{engines: [{id, name, command, protocol, builtin}]}` |

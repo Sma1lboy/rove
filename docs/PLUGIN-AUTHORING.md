@@ -168,6 +168,13 @@ placement = "split"              # split (default: joins the focused chattab's
                                  # split group beside the engine) | tab (own tab)
 command = ["node", "$ROVE_PLUGIN_ROOT/board.js"]   # cwd = the TASK WORKTREE
 
+[[pages]]                        # a React page in the content pane, on the rail
+id = "board"                     # rail id: <plugin id>.board
+title = "Board"                  # rail label
+entry = "page.tsx"               # module inside the plugin (see Pages below)
+order = 40                       # rail position; built-in pages sit at 10/20/30
+action = "kanban.open"           # optional; see Pages below
+
 [mod]                            # one long-lived process that draws native UI in
 command = ["bun", "mod.ts"]      # the TUI and the web alike — see Mods below;
                                  # cwd = plugin root, restarted if it dies
@@ -284,6 +291,7 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `file.will-open` / `file.opened` / `file.closed` | Files-pane open, before/after; editor tab closed | `path`, `via: plugin\|editor\|external` |
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away (restores don't fire) | `tabId`, `kind`, `title`, `vendor`, `purpose` |
 | `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | activity-STATE transitions, deduped per task+tab | `tabId` when the source state identifies a tab |
+| `agent.rate-limit-recovered` | the first completed turn after that task+tab was rate-limited | `limitedAt`, `limitedForMs`; `tabId` as above |
 | `session.start` / `session.end` | engine session lifecycle (C, K; X start only) | |
 | `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X, K; failed: C, K; **interrupted** is a native hook on K only — on C and X the attached TUI emulates it, so it never fires with no TUI attached) | `failure` class on failed; `turn` (id/model/usage/startedAt/endedAt) on complete when the transcript yielded one |
 | `tool.pre` / `tool.post` / `tool.failed` | every tool call (C, X, K; failed: C, K); **installed into engine config only while some enabled plugin subscribes** | `tool.name`, `tool.id` |
@@ -397,6 +405,58 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
 - `homeDir` — its state root. A different home means you reached a foreign
   daemon (a sandbox one on the production socket path).
 
+## Pages (experimental)
+
+A `[[pages]]` entry adds a row to the sidebar rail (beside Kanban, Routines
+and Issues) that opens a React page in the content pane, rendered by the TUI
+itself rather than in a terminal. The module runs **inside the TUI process**,
+with the trust your plugin's commands already have.
+
+The entry's default export is a factory. Rove calls it once with the host API
+and renders what it returns:
+
+```tsx
+/** @jsxRuntime classic */
+/** @jsx h */
+import { createElement as h, useState } from "react"
+
+export default function page(host) {
+  host.i18n.registerMessages("board", { en: { empty: "Nothing yet" }, zh: { empty: "还没有内容" } })
+  return function BoardPage(props) {
+    const { theme } = host.theme.useTheme()
+    const t = host.i18n.useT()
+    host.keymap.useBindings(() => ({
+      enabled: props.focused,
+      bindings: [...host.keymap.pageCloseBindings(props.onClose)],
+    }))
+    return <text fg={theme.textMuted}>{t("board.empty")}</text>
+  }
+}
+```
+
+- **Imports.** `react`, `@opentui/react` and `@opentui/core` resolve to the
+  TUI's own copies, so hooks work. Everything else of Rove's comes through
+  `host` (`apiVersion` 1): `i18n`, `theme`, `keymap`, `notifications`,
+  `dialog`, `ui`, `layout`, `text`, `paths`, `projects`, `tasks`,
+  `engines`, `attachments`, `issues`. The authoritative list is
+  `packages/rove/src/tui-react/pages/host-api.ts`. Keep the shared runtime
+  external if you bundle.
+- **JSX.** Use the classic transform (the two pragma lines above) or plain
+  `createElement` calls. The automatic runtime injects an import Bun
+  resolves before any plugin hook, so a page outside `node_modules` cannot
+  load it.
+- **Props.** `orchestrator` (the TUI's daemon client), `focused` (gate your
+  bare keys on it), `onClose`, `onOpenTask(taskId)`, `selectedTask` and
+  `engineStates`.
+- **Opening it.** A click on its rail row always works. `action` can claim
+  one of the page-open chords, `kanban.open`, `automations.open` or
+  `workItems.open`, and the page with the lowest `order` keeps a chord that
+  two pages claim. Any other action is refused; the page still loads.
+- **Failures.** A page whose module fails to load contributes nothing. Its
+  reason shows under the plugin in Settings → Plugins. Toggling the plugin
+  there adds or removes its rail rows at once; changed page code needs a
+  TUI restart.
+
 ## Interaction surfaces
 
 - **ctrl+e picker**: every enabled plugin's panes are listed by title;
@@ -405,6 +465,8 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
   `~/.rove/settings/keybindings.yaml`:
   `plugins: { ctrl+b: pane:you.example.board, f6: action:you.example.greet }`.
   Ship the suggestion in your README; Rove ships no default plugin chords.
+- **Rail pages**: `[[pages]]` add React pages to the sidebar rail — see
+  [Pages](#pages-experimental).
 - **Files pane**: `[[file_handlers]]` claims opens by pattern.
 - **Engines**: `[[engines]]` contributes a coding CLI to the engine
   selector: identity, launch command, and screen-state rules for
@@ -432,7 +494,8 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
   esc/timeout. Use it instead of
   hand-rolling in-pane prompts.
 - **Settings → Plugins**: enable/disable, declared surfaces, last run,
-  and your `[[settings]]` editors.
+  and your `[[settings]]` editors. Rove's built-in plugins (Kanban, Issues)
+  are listed first; they toggle but never uninstall.
 - **Settings → Marketplace**: your repo's `rove-plugin` topic listing, its
   description, and the install preview built from your manifest's commands.
 - **CLI**: `rove plugin action invoke`, `rove plugin pane open`, `rove
@@ -515,6 +578,11 @@ every attached client draws it with its own widgets: the TUI with OpenTUI
 boxes, the web with DOM elements. A press in either one reaches the same
 process, and every client redraws, so the TUI and the browser always show the
 same state. Design: [design/mods.md](./design/mods.md).
+
+Mods or [pages](#pages-experimental)? A page is a React module inside the TUI
+with the whole host API, and draws only in the TUI. A mod is its own process
+with a small fixed vocabulary, and draws the same thing in the TUI and the
+web. Pick a mod when the UI must work in the browser too.
 
 ```ts
 import { Box, Button, Text, runMod } from "@sma1lboy/rove-plugin-sdk"

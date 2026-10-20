@@ -10,11 +10,12 @@ import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { ReactNode } from "react"
 import type { TaskGroup } from "../../lib/task-group"
 import type { BoardColumnKey, IssueBoardColumn } from "../../state/issue-board"
-import { useTheme } from "../context/theme"
-import { useT } from "../i18n"
-import type { CursorFollow } from "../lib/use-cursor-follow"
-import { FRAME } from "../ui/frame"
+import type { CursorFollow } from "../../tui-react/lib/use-cursor-follow"
+import { host, hostFn } from "./host"
 import { KanbanCard } from "./kanban-card"
+
+const useTheme = hostFn((h) => h.theme.useTheme)
+const useT = hostFn((h) => h.i18n.useT)
 
 const COLUMN_LABEL_KEY: Record<BoardColumnKey, string> = {
   backlog: "kanban.column.backlog",
@@ -102,7 +103,7 @@ export function KanbanBoard(props: KanbanBoardProps): ReactNode {
         flexGrow={1}
         flexBasis={0}
         // See ui/frame.ts for why this is spread.
-        {...FRAME}
+        {...host().ui.FRAME}
         borderColor={columnBorder}
         paddingLeft={1}
         paddingRight={1}

@@ -80,9 +80,29 @@ export interface FlagSpec {
 }
 
 /** What a verb handler runs against; all injectable so handlers test without a daemon or PTY host. */
+/**
+ * Who is calling: the `rove api` process, or a transport (daemon socket,
+ * bridge) whose caller shares no cwd or stdin with the process running the verb.
+ */
+export interface ApiCaller {
+  /** The `rove api` process itself: its stdin, stdout and cwd are the caller's. */
+  readonly cli: boolean
+  /** Base for relative path flags; absent over a transport, where only absolute paths mean anything. */
+  readonly cwd?: string
+}
+
+/** The CLI process itself, read at call time (tests chdir). */
+export function cliCaller(): ApiCaller {
+  return { cli: true, cwd: process.cwd() }
+}
+
+/** A daemon-socket or bridge caller. */
+export const REMOTE_CALLER: ApiCaller = { cli: false }
+
 export interface VerbContext {
   /** Spec-typed flag access — coercion + requiredness derived from the verb's own {@link FlagSpec}s. */
   readonly args: VerbArgs
+  readonly caller: ApiCaller
   /** Daemon RPC surface; `null` only for `offline` verbs (guard with `daemonOf`). */
   readonly client: DaemonRpc | null
   /** Side-effect seam (hosted sessions / git) — swapped for a fake in unit tests. */
@@ -120,6 +140,8 @@ export interface VerbSpec {
   readonly flags: readonly FlagSpec[]
   /** Verbs that don't need the daemon (e.g. `schema`). */
   readonly offline?: boolean
+  /** Streams to stdout or reads stdin bytes, so only the CLI can carry it. */
+  readonly cliOnly?: boolean
   readonly handler: VerbHandler
 }
 

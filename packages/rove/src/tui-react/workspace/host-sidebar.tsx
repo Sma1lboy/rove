@@ -37,8 +37,6 @@ export interface HostSidebarProps
   readonly collapsedStyle?: CollapsedRailStyle
   readonly nav: SidebarNav
   readonly onNavChange: (nav: SidebarNav) => void
-  /** Some mod has a pane open, so the rail offers the Mods page. */
-  readonly hasMods?: boolean
   readonly tasks: readonly Task[]
   readonly selectedId: string | null
   readonly selectedTabId: string | null

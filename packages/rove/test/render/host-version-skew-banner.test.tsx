@@ -57,7 +57,6 @@ afterEach(() => {
 // forever. Every constant snapshot below is frozen and hoisted.
 const NULL_CELL = createStateCell(null)
 const EMPTY_MAP = createStateCell(new Map())
-const NO_MOD_PANES = createStateCell([])
 const EMPTY_ARR = createStateCell(Object.freeze([]))
 
 /** A fake whose skew + connection cells are drivable, like the real client:
@@ -82,7 +81,6 @@ function fakeOrchestrator() {
     attentionInboxSignal: () => EMPTY_ARR,
     taskJobsSignal: () => EMPTY_MAP,
     rowTokensSignal: () => EMPTY_MAP,
-    modPanesSignal: () => NO_MOD_PANES,
     worktreeChangesSignal: () => NULL_CELL,
     transcriptActivitySignal: () => NULL_CELL,
     transcriptActivityStore: () => NULL_CELL,

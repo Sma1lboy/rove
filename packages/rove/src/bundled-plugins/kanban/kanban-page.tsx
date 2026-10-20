@@ -16,30 +16,34 @@ import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import type { Issue, IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
-import { availableEngineIds } from "../../engine/account-detect"
-import { engineDisplayName } from "../../engine/interactive-command"
-import { errorMessage } from "../../lib/error-message"
 import type { TaskGroup } from "../../lib/task-group"
-import { applyBoardAttention, buildIssueBoard, moveBoardSelection } from "../../state/issue-board"
-import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
-import { taskGroupIn } from "../../tui/panes/sidebar/task-group-view"
+import type { IssueChatStart } from "../../tui-react/workspace/use-issue-chat"
 import type { VendorId } from "../../types/task"
-import { useNotifications } from "../context/notifications"
-import { useTheme } from "../context/theme"
-import { useT } from "../i18n"
-import { pageCloseBindings, useBindings } from "../lib/keymap"
-import { isNarrowWidth } from "../lib/narrow-mode"
-import { useCursorFollow } from "../lib/use-cursor-follow"
-import { useTerminalSize } from "../lib/use-terminal-size"
-import { ContextMenu } from "../ui/context-menu"
-import { useDialog } from "../ui/dialog"
-import { DialogConfirm } from "../ui/dialog-confirm"
-import { quickForkDefaultVendor } from "../workspace/quick-fork"
-import type { IssueChatStart } from "../workspace/use-issue-chat"
+import { host, hostFn } from "./host"
 import { IssueDetailDialog } from "./issue-detail-dialog"
 import { KanbanBoard, needsSingleLane } from "./kanban-board"
 import { type KanbanBoardEntry, useKanbanBoards } from "./use-kanban-boards"
 import { useKanbanCardMenu } from "./use-kanban-card-menu"
+
+const applyBoardAttention = hostFn((h) => h.issues.board.applyBoardAttention)
+const buildIssueBoard = hostFn((h) => h.issues.board.buildIssueBoard)
+const moveBoardSelection = hostFn((h) => h.issues.board.moveBoardSelection)
+const availableEngineIds = hostFn((h) => h.engines.availableEngineIds)
+const engineDisplayName = hostFn((h) => h.engines.engineDisplayName)
+const errorMessage = hostFn((h) => h.text.errorMessage)
+const sidebarProjectLabel = hostFn((h) => h.projects.sidebarProjectLabel)
+const taskGroupIn = hostFn((h) => h.tasks.taskGroupIn)
+const useNotifications = hostFn((h) => h.notifications.useNotifications)
+const useTheme = hostFn((h) => h.theme.useTheme)
+const useT = hostFn((h) => h.i18n.useT)
+const pageCloseBindings = hostFn((h) => h.keymap.pageCloseBindings)
+const useBindings = hostFn((h) => h.keymap.useBindings)
+const isNarrowWidth = hostFn((h) => h.layout.isNarrowWidth)
+const useCursorFollow = hostFn((h) => h.layout.useCursorFollow)
+const useTerminalSize = hostFn((h) => h.layout.useTerminalSize)
+const ContextMenu = hostFn((h) => h.ui.ContextMenu)
+const useDialog = hostFn((h) => h.dialog.useDialog)
+const quickForkDefaultVendor = hostFn((h) => h.engines.quickForkDefaultVendor)
 
 /** paddingLeft + paddingRight on the page root, whose width is what we measure. */
 const PAGE_PADDING_CELLS = 4
@@ -299,26 +303,28 @@ export function KanbanPage(props: {
     const board = activeBoard
     const issue = board?.issues.find((entry) => entry.id === selectedId)
     if (!board || !issue) return
-    void DialogConfirm.show(
-      dialog,
-      t("kanban.confirmDelete.title", { id: String(issue.id) }),
-      t("kanban.confirmDelete.body", { title: issue.title }),
-      undefined,
-      undefined,
-      { danger: true },
-    ).then((confirmed) => {
-      if (!confirmed) return
-      void props.orchestrator
-        ?.mutateIssue(board.repoRoot, { type: "delete", id: issue.id })
-        .then(() => {
-          setSelectedId(null)
-          reload()
-        })
-        .catch((err: unknown) => {
-          console.error("[rove kanban] issue delete failed:", err)
-          notifyError(t("kanban.deleteFailed", { id: String(issue.id), error: errorMessage(err) }))
-        })
-    })
+    void host()
+      .dialog.DialogConfirm.show(
+        dialog,
+        t("kanban.confirmDelete.title", { id: String(issue.id) }),
+        t("kanban.confirmDelete.body", { title: issue.title }),
+        undefined,
+        undefined,
+        { danger: true },
+      )
+      .then((confirmed) => {
+        if (!confirmed) return
+        void props.orchestrator
+          ?.mutateIssue(board.repoRoot, { type: "delete", id: issue.id })
+          .then(() => {
+            setSelectedId(null)
+            reload()
+          })
+          .catch((err: unknown) => {
+            console.error("[rove kanban] issue delete failed:", err)
+            notifyError(t("kanban.deleteFailed", { id: String(issue.id), error: errorMessage(err) }))
+          })
+      })
   }
 
   useBindings(() => ({

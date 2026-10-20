@@ -11,21 +11,24 @@
 
 import { TextAttributes } from "@opentui/core"
 import type { WorkItem } from "@sma1lboy/rove-daemon/daemon/work-items"
-import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import { errorMessage } from "../../lib/error-message"
-import { relativeAge as sharedRelativeAge } from "../../lib/relative-time"
-import { clampCursor } from "../../tui/component/new-task-dialog/state"
-import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
 import type { Task } from "../../types/task"
-import { useNotifications } from "../context/notifications"
-import { useTheme } from "../context/theme"
-import { useT } from "../i18n"
-import { pageCloseBindings, useBindings } from "../lib/keymap"
-import { useCursorFollow } from "../lib/use-cursor-follow"
-import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
-import { FailureHint } from "./failure-hint"
+import { hostFn } from "./host"
+
+const samePath = hostFn((h) => h.paths.samePath)
+const errorMessage = hostFn((h) => h.text.errorMessage)
+const sharedRelativeAge = hostFn((h) => h.text.relativeAge)
+const clampCursor = hostFn((h) => h.text.clampCursor)
+const sidebarProjectLabel = hostFn((h) => h.projects.sidebarProjectLabel)
+const useNotifications = hostFn((h) => h.notifications.useNotifications)
+const useTheme = hostFn((h) => h.theme.useTheme)
+const useT = hostFn((h) => h.i18n.useT)
+const pageCloseBindings = hostFn((h) => h.keymap.pageCloseBindings)
+const useBindings = hostFn((h) => h.keymap.useBindings)
+const useCursorFollow = hostFn((h) => h.layout.useCursorFollow)
+const resolveRowSelectionChrome = hostFn((h) => h.ui.resolveRowSelectionChrome)
+const FailureHint = hostFn((h) => h.ui.FailureHint)
 
 /** Repos the user has open, newest-activity first — the source picker. */
 function reposOf(orch: RemoteOrchestrator | null): string[] {

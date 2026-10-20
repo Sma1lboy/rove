@@ -3,12 +3,13 @@
 
 import { MouseButton, TextAttributes } from "@opentui/core"
 import { legendCap } from "../../../tui/lib/help-groups"
-import { type SidebarNav, sidebarNavItems } from "../../../tui/panes/sidebar/nav-core"
+import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { dividerRule } from "../../lib/rule-divider"
 import { useTerminalSize } from "../../lib/use-terminal-size"
+import { usePageEntries } from "../../pages/registry"
 import { zenChipGlyph } from "./zen-glyph"
 
 export function SectionHeader(props: {
@@ -194,17 +195,20 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   )
 }
 
-/** One destination per line: the 24-cell rail can't fit three chips side by side. */
-export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNav) => void; hasMods?: boolean }) {
+/** One destination per registered page, one per line: the 24-cell rail can't fit chips side by side. */
+export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNav) => void }) {
   const { theme } = useTheme()
-  const t = useT()
+  // Subscribes to the UI language: page titles are read at render.
+  useT()
+  const pages = usePageEntries()
+  if (pages.length === 0) return null
   return (
     <box flexDirection="column" flexShrink={0} paddingBottom={1}>
-      {sidebarNavItems(props.hasMods === true).map((item) => {
-        const active = props.nav === item.nav
+      {pages.map((item) => {
+        const active = props.nav === item.id
         return (
           <box
-            key={item.nav}
+            key={item.id}
             position="relative"
             flexDirection="row"
             flexShrink={0}
@@ -214,7 +218,7 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
               // A bubbled sidebar focus-grab would take focus back from the
               // page, so keys typed into it would fire sidebar chords.
               e.stopPropagation()
-              props.setNav(item.nav)
+              props.setNav(item.id)
             }}
           >
             <text
@@ -224,9 +228,9 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
               wrapMode="none"
               flexGrow={1}
             >
-              {t(item.labelKey)}
+              {item.title()}
             </text>
-            {item.bindingId ? <ShortcutRevealBadge bindingId={item.bindingId} /> : null}
+            {item.action ? <ShortcutRevealBadge bindingId={item.action} /> : null}
           </box>
         )
       })}

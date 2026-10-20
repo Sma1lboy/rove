@@ -11,26 +11,18 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { TaskEngineState } from "../../client/remote-orchestrator-payloads"
 import { type SidebarNav, focusPaneForNav } from "../../tui/panes/sidebar/nav-core"
 import type { Task } from "../../types/task"
-import { AutomationsPage } from "../component/automations-page"
-import { KanbanPage } from "../component/kanban-page"
-import { ModsPage } from "../component/mods-page"
 import { SettingsDialog } from "../component/settings-dialog"
 import { UpdatePage } from "../component/update-page"
-import { WorkItemsPage } from "../component/work-items-page"
 import { WorktreesPage } from "../component/worktrees-page"
 import type { FocusContextValue, PaneId } from "../context/focus"
 import type { KVContext } from "../context/kv"
 import { isNarrowWidth, narrowSurface } from "../lib/narrow-mode"
+import { type PageEntry, usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
 
 interface HostPageState {
   readonly worktreesOpen: boolean
-  readonly automationsOpen: boolean
-  readonly workItemsOpen: boolean
-  readonly kanbanOpen: boolean
   readonly updateOpen: boolean
-  /** Optional: only hosts that subscribe to `mod.ui` can open it. */
-  readonly modsOpen?: boolean
 }
 
 /** One-shot launch dialogs, resolved at the process entry point: both touch
@@ -59,19 +51,15 @@ export interface HostPagesState extends HostPageState {
   readonly closeWorktrees: () => void
   readonly openUpdate: () => void
   readonly closeUpdate: () => void
-  readonly openKanban: () => void
-  readonly closeKanban: () => void
-  readonly openAutomations: () => void
-  readonly closeAutomations: () => void
-  readonly openWorkItems: () => void
-  readonly closeWorkItems: () => void
-  readonly closeMods?: () => void
+  /** Show a registered page (its rail id) and focus it. */
+  readonly openPage: (id: string) => void
+  /** Back to the selected task's terminal. */
+  readonly closePage: () => void
 }
 
 /**
  * Which surface the workspace shows. Settings / Worktrees / Update are full
- * swaps; the rail's pages are ONE `nav` value (separate booleans could
- * represent "two open").
+ * swaps; the rail's pages are ONE `nav` value, a page id from the registry.
  *
  * Opening a rail page moves focus INTO the content pane (`goToNav`): its keys
  * are gated on that focus, else they fall through to sidebar chords.
@@ -108,38 +96,28 @@ export function useHostPagesState(
     updateOpen,
     openUpdate: () => setUpdateOpen(true),
     closeUpdate: () => setUpdateOpen(false),
-    kanbanOpen: nav === "kanban",
-    openKanban: () => goToNav("kanban"),
-    closeKanban: () => goToNav("terminal"),
-    automationsOpen: nav === "automations",
-    openAutomations: () => goToNav("automations"),
-    closeAutomations: () => goToNav("terminal"),
+    openPage: goToNav,
+    closePage: () => goToNav("terminal"),
     whatsNewFrom,
     closeWhatsNew,
     welcome,
     closeWelcome,
-    workItemsOpen: nav === "issues",
-    openWorkItems: () => goToNav("issues"),
-    closeWorkItems: () => goToNav("terminal"),
-    modsOpen: nav === "mods",
-    closeMods: () => goToNav("terminal"),
   }
 }
 
 export interface HostPageDeps extends HostPageState {
-  readonly orchestrator: RemoteOrchestrator | null
+  readonly orchestrator: RemoteOrchestrator
   readonly selectedTask: Task | undefined
+  /** The rail's current page id, or `terminal`. */
+  readonly nav: SidebarNav
+  readonly pages: readonly PageEntry[]
   readonly closeWorktrees: () => void
-  readonly closeAutomations: () => void
-  readonly closeWorkItems: () => void
-  readonly closeKanban: () => void
+  readonly closePage: () => void
   readonly closeUpdate: () => void
-  readonly closeMods?: () => void
   readonly activateTask: (taskId: string) => void
   /** Content pane focused; rail pages gate their bare keys on it. */
   readonly contentFocused: boolean
-  readonly startIssueChat: Parameters<typeof KanbanPage>[0]["onStartChat"]
-  readonly engineStates: Parameters<typeof KanbanPage>[0]["engineStates"]
+  readonly engineStates: ReadonlyMap<string, TaskEngineState>
 }
 
 /** FULL-WINDOW pages (Worktrees, Update) replace everything, sidebar included. */
@@ -153,65 +131,23 @@ export function renderFullWindowPage(deps: HostPageDeps): ReactNode | null {
   return null
 }
 
-/** CONTENT-PANE pages the rail swaps; the task list stays beside them. */
+/** CONTENT-PANE pages the rail swaps; the task list stays beside them. Null for `terminal` or an unregistered id. */
 export function renderContentPage(deps: HostPageDeps): ReactNode | null {
-  const orch = deps.orchestrator
-
-  if (deps.automationsOpen) {
-    return (
-      <AutomationsPage
-        orchestrator={orch}
-        focused={deps.contentFocused}
-        {...(deps.selectedTask ? { focusRepo: deps.selectedTask.repo } : {})}
-        onClose={deps.closeAutomations}
-        onOpenTask={(taskId) => {
-          deps.closeAutomations()
-          deps.activateTask(taskId)
-        }}
-      />
-    )
-  }
-
-  if (deps.workItemsOpen) {
-    return (
-      <WorkItemsPage
-        orchestrator={orch}
-        focused={deps.contentFocused}
-        onClose={deps.closeWorkItems}
-        // Opens on the selected task's project, like the kanban.
-        {...(deps.selectedTask ? { focusRepo: deps.selectedTask.repo } : {})}
-        onOpenTask={(taskId) => {
-          deps.closeWorkItems()
-          deps.activateTask(taskId)
-        }}
-      />
-    )
-  }
-
-  if (deps.modsOpen && orch && deps.closeMods) {
-    return <ModsPage orchestrator={orch} focused={deps.contentFocused} onClose={deps.closeMods} />
-  }
-
-  if (deps.kanbanOpen) {
-    return (
-      <KanbanPage
-        orchestrator={orch}
-        focused={deps.contentFocused}
-        onClose={deps.closeKanban}
-        onStartChat={deps.startIssueChat}
-        engineStates={deps.engineStates}
-        // `c` fires from the sidebar, so the board opens pointed at the
-        // SELECTED task's project + its linked story card.
-        focusTask={deps.selectedTask ? { id: deps.selectedTask.id, repo: deps.selectedTask.repo } : undefined}
-        onOpenTask={(taskId) => {
-          deps.closeKanban()
-          deps.activateTask(taskId)
-        }}
-      />
-    )
-  }
-
-  return null
+  const Page = deps.pages.find((page) => page.id === deps.nav)?.component
+  if (!Page) return null
+  return (
+    <Page
+      orchestrator={deps.orchestrator}
+      focused={deps.contentFocused}
+      onClose={deps.closePage}
+      onOpenTask={(taskId) => {
+        deps.closePage()
+        deps.activateTask(taskId)
+      }}
+      selectedTask={deps.selectedTask}
+      engineStates={deps.engineStates}
+    />
+  )
 }
 
 export interface UseHostPagesRenderOpts {
@@ -225,7 +161,6 @@ export interface UseHostPagesRenderOpts {
   activeTaskId: string | null
   tasks: readonly Task[]
   engineState: ReadonlyMap<string, TaskEngineState>
-  startIssueChat: HostPageDeps["startIssueChat"]
   activateTask: (taskId: string) => void
 }
 
@@ -241,20 +176,9 @@ export interface UseHostPagesRenderResult {
 
 /** Page-render + layout decisions: which surface occupies the workspace. */
 export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRenderResult {
-  const {
-    orchestrator,
-    pages,
-    focus,
-    dialog,
-    kv,
-    dims,
-    selectedTask,
-    activeTaskId,
-    tasks,
-    engineState,
-    startIssueChat,
-    activateTask,
-  } = opts
+  const { orchestrator, pages, focus, dialog, kv, dims, selectedTask, activeTaskId, tasks, engineState, activateTask } =
+    opts
+  const pageEntries = usePageEntries()
 
   const activePane: PaneId | null = dialog.stack.length > 0 ? null : focus.focused
 
@@ -262,24 +186,18 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
     () => ({
       orchestrator,
       selectedTask,
+      nav: pages.nav,
+      pages: pageEntries,
       worktreesOpen: pages.worktreesOpen,
-      automationsOpen: pages.automationsOpen,
-      workItemsOpen: pages.workItemsOpen,
-      kanbanOpen: pages.kanbanOpen,
       updateOpen: pages.updateOpen,
-      modsOpen: pages.modsOpen,
-      closeMods: pages.closeMods,
       closeWorktrees: pages.closeWorktrees,
-      closeAutomations: pages.closeAutomations,
-      closeWorkItems: pages.closeWorkItems,
-      closeKanban: pages.closeKanban,
+      closePage: pages.closePage,
       closeUpdate: pages.closeUpdate,
       activateTask: (taskId: string) => void activateTask(taskId),
-      startIssueChat,
       engineStates: engineState,
       contentFocused: activePane === "workspace",
     }),
-    [orchestrator, selectedTask, pages, startIssueChat, engineState, activePane, activateTask],
+    [orchestrator, selectedTask, pages, pageEntries, engineState, activePane, activateTask],
   )
 
   const fullWindowPage = useMemo(() => renderFullWindowPage(pageDeps), [pageDeps])

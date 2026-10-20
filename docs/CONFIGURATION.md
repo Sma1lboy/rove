@@ -343,6 +343,16 @@ Zen always keeps the Tasks rail visible, because the rail also contains the
 exit affordance. A `zen.keepTasks` value left in your `state.json` by an older
 Rove is ignored; nothing reads or writes it any more.
 
+### Update channel
+
+Which release line `rove update` and the update check follow. Set it with
+`rove update --nightly` / `--stable` or Settings → General → Updates, whose
+button also installs the other channel's newest build right away.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `update.channel` | `latest` \| `nightly` | the running build's channel | `latest` is stable releases; `nightly` is the daily preview built from `main`. Written after an install of that channel succeeds |
+
 ### Worktree location
 
 By default new worktrees land under `~/.rove/worktrees/<repo-key>/<slug>`.
@@ -418,6 +428,16 @@ Projects keep their own order in every mode. The choice is saved as
 recognise reads as the persisted order. Older state files may contain
 `tasksPane.projectFilter`; the daemon still mirrors that compatibility value
 for background consumers, but the current PureTUI tree does not consume it.
+
+### Built-in plugins
+
+Kanban and Issues ship as built-in plugins, both on by default. Turn one off
+in Settings → Plugins and its rail row and its `ctrl+a` chord go away.
+
+| Key | Type | Default | What |
+|---|---|---|---|
+| `plugins.bundled.kanban.enabled` | boolean | `true` | The Kanban board (`ctrl+a` `1`) |
+| `plugins.bundled.issues.enabled` | boolean | `true` | The GitHub Issues page (`ctrl+a` `3`) |
 
 ### Machines
 

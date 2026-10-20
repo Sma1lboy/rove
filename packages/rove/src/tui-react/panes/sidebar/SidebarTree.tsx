@@ -333,11 +333,7 @@ export function SidebarTree(props: SidebarTreeProps) {
       ) : null}
       {/* Rail below the search row (owner 2026-08-02) — Kanban/Routines live
           within the workspace you're in, so they read as children of it. */}
-      <SidebarNavRail
-        nav={props.nav ?? "terminal"}
-        setNav={(next) => props.onNavChange?.(next)}
-        hasMods={props.hasMods === true}
-      />
+      <SidebarNavRail nav={props.nav ?? "terminal"} setNav={(next) => props.onNavChange?.(next)} />
       <SidebarTreeBody
         rows={tree.rows}
         flatIndexOf={flatIndexOf}

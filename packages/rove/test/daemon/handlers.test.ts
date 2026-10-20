@@ -83,6 +83,17 @@ describe("daemon handler registry", () => {
       expect(await dispatch("ui.promptReply", { promptId, value: "late" }, ctx)).toEqual({ ok: false })
     })
 
+    it("answers no-gui at once when no front-end subscribes to the prompt channel", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: () => TASK })
+      ;(ctx as { prompts?: PromptBroker }).prompts = new PromptBroker()
+      const headless = { ...ctx, daemon: { ...ctx.daemon, hasSubscribersFor: () => false } }
+      await expect(dispatch("ui.prompt", { title: "name?" }, headless)).resolves.toEqual({
+        cancelled: true,
+        reason: "no-gui",
+      })
+      expect(rec.published.filter((p) => p.channel === "ui.prompt")).toHaveLength(0)
+    })
+
     it("a value-less reply cancels, and unknown ids settle nothing", async () => {
       const { ctx, rec } = fakeCtx({ getTask: () => TASK })
       ;(ctx as { prompts?: PromptBroker }).prompts = new PromptBroker()
@@ -119,7 +130,7 @@ describe("daemon handler registry", () => {
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
       const before = Date.now()
       const result = await dispatch("tab.close", { taskId: "t1", title: "demo" }, ctx)
-      expect(result).toEqual({ ok: true, clients: 1 })
+      expect(result).toEqual({ ok: true, clients: 1, reached: true })
       const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
       expect(event.channel).toBe("tab.close")
       expect(event.payload).toMatchObject({ taskId: "t1", title: "demo" })
@@ -168,7 +179,7 @@ describe("daemon handler registry", () => {
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
       const before = Date.now()
       const result = await dispatch("tab.open", { taskId: "t1", argv: ["sh", "-lc", "true"], title: "demo" }, ctx)
-      expect(result).toEqual({ ok: true, clients: 1 })
+      expect(result).toEqual({ ok: true, clients: 1, reached: true })
       const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
       expect(event.channel).toBe("tab.open")
       expect(event.payload).toMatchObject({ taskId: "t1", argv: ["sh", "-lc", "true"], title: "demo" })
@@ -280,15 +291,32 @@ describe("daemon handler registry", () => {
     it("tab.open / tab.close / notice.send report clients: 0 when nothing is attached", async () => {
       const { ctx } = fakeCtx({ getTask: () => TASK })
       ;(ctx.daemon as { clientCount: () => number }).clientCount = () => 0
-      await expect(dispatch("tab.open", { taskId: "t1", argv: ["x"], title: "t" }, ctx)).resolves.toEqual({
+      await expect(dispatch("tab.open", { taskId: "t1", argv: ["x"], title: "t" }, ctx)).resolves.toMatchObject({
         ok: true,
         clients: 0,
       })
-      await expect(dispatch("tab.close", { taskId: "t1", title: "t" }, ctx)).resolves.toEqual({
+      await expect(dispatch("tab.close", { taskId: "t1", title: "t" }, ctx)).resolves.toMatchObject({
         ok: true,
         clients: 0,
       })
       await expect(dispatch("notice.send", { title: "t" }, ctx)).resolves.toEqual({ ok: true, clients: 0 })
+    })
+
+    // Headless, the calling CLI is itself a connection, so `clients` is never
+    // 0 for it; only `reached` tells it no front-end heard the pane request.
+    it("tab.open / tab.close report reached: false when no subscriber takes the channel", async () => {
+      const { ctx } = fakeCtx({ getTask: () => TASK })
+      const headless = { ...ctx, daemon: { ...ctx.daemon, hasSubscribersFor: () => false } }
+      await expect(dispatch("tab.open", { taskId: "t1", argv: ["x"], title: "t" }, headless)).resolves.toEqual({
+        ok: true,
+        clients: 1,
+        reached: false,
+      })
+      await expect(dispatch("tab.close", { taskId: "t1", title: "t" }, headless)).resolves.toEqual({
+        ok: true,
+        clients: 1,
+        reached: false,
+      })
     })
   })
 

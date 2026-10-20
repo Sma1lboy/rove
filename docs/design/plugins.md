@@ -51,7 +51,28 @@ command = ["sh", "notify.sh"]
 id = "git"
 title = "lazygit"
 command = ["lazygit"]            # cwd = the task worktree; use $ROVE_PLUGIN_ROOT/... for plugin files
+
+[[pages]]                        # a React page in the content pane, listed on the rail
+id = "board"
+title = "Board"
+entry = "page.tsx"               # default export: (host) => Page
 ```
+
+`[[pages]]` is the one in-process surface: the TUI imports the module
+(`tui-react/pages/load-plugin-pages.ts`) and renders it from the page
+registry (`tui-react/pages/registry.ts`) that also holds the host's own
+pages. OpenTUI's Bun runtime plugin maps the module's `react` /
+`@opentui/*` imports onto the host's instances, so there is one React. The
+rest of Rove reaches a page only through the host API object
+(`tui-react/pages/host-api.ts`).
+
+Kanban and Issues are **built-in plugins** (`src/bundled-plugins/`): the
+same `(host) => Page` factories, compiled into Rove instead of imported at
+runtime, registered as `bundled:<id>` and switched by
+`plugins.bundled.<id>.enabled`. An architecture test keeps them to the
+installed-plugin contract (runtime imports: the shared runtime and their own
+files). The issue-board columns, the event-feed rows and the copy they share
+with `rove --web` stay in core and reach them through `host.issues`.
 
 `command` is argv — never run through a shell. Parsing/validation:
 `packages/rove-daemon/src/plugins/manifest.ts` (unknown event names are a
@@ -74,6 +95,7 @@ after daemon start is baseline — no replay storms):
 | `task.created` / `task.deleted` | `task.snapshot` diff |
 | `worktree.created` | `task.jobs` ensureWorktree → done |
 | `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | `engine-state` transitions, per task+tab |
+| `agent.rate-limit-recovered` | first `turn_complete` after `rate_limited`, per task+tab |
 
 ## Runtime env contract
 

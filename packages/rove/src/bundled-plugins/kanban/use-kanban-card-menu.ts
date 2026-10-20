@@ -5,12 +5,14 @@
  * Menu-only verb, no chord, on purpose.
  */
 
-import { ISSUE_STATUSES, type Issue, type IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import type { Issue, IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { useCallback, useState } from "react"
-import { useT } from "../i18n"
-import { useBindings } from "../lib/keymap"
-import { useGlobalMouseDown } from "../lib/use-global-mouse-down"
-import type { ContextMenuEntry } from "../ui/context-menu"
+import type { ContextMenuEntry } from "../../tui-react/ui/context-menu"
+import { host, hostFn } from "./host"
+
+const useT = hostFn((h) => h.i18n.useT)
+const useBindings = hostFn((h) => h.keymap.useBindings)
+const useGlobalMouseDown = hostFn((h) => h.layout.useGlobalMouseDown)
 
 /** Written out so the `Record` makes the compiler demand a key for a new status. */
 const STATUS_LABEL_KEY: Record<IssueStatus, string> = {
@@ -58,7 +60,7 @@ export function useKanbanCardMenu(deps: {
     (issue: Issue, x: number, y: number): void => {
       // The current status is omitted: it would be a no-op write, and its
       // absence marks which one the card is on.
-      const statuses = ISSUE_STATUSES.filter((status) => status !== issue.status)
+      const statuses = host().issues.ISSUE_STATUSES.filter((status) => status !== issue.status)
       deps.onSelect(issue.id)
       setMenu({ issue, statuses, x, y })
       setCursor(0)

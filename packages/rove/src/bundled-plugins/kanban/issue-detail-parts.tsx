@@ -11,10 +11,13 @@
 
 import { useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import { useTheme } from "../context/theme"
-import { useT } from "../i18n"
-import { DialogLabel } from "../ui/dialog-parts"
-import { EVENT_FEED_LIMIT, type EventRow, eventRows } from "./issue-events-core"
+import type { EventRow } from "../../tui-react/component/issue-events-core"
+import { host, hostFn } from "./host"
+
+const useTheme = hostFn((h) => h.theme.useTheme)
+const useT = hostFn((h) => h.i18n.useT)
+const DialogLabel = hostFn((h) => h.dialog.DialogLabel)
+const eventRows = hostFn((h) => h.issues.events.eventRows)
 
 /** Width of the age column — "999d" is the widest {@link relativeAge} yield. */
 const AGE_CELLS = 4
@@ -35,7 +38,7 @@ export function IssueEventsSection(props: { taskId: string; orchestrator: Remote
     void orch
       .recentTaskEvents(props.taskId)
       .then((result) => {
-        if (live) setRows(eventRows(result.events, Date.now(), EVENT_FEED_LIMIT))
+        if (live) setRows(eventRows(result.events, Date.now(), host().issues.events.EVENT_FEED_LIMIT))
       })
       .catch(() => {
         if (live) setRows([])

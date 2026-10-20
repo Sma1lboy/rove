@@ -28,7 +28,7 @@ No Linear. Backlog: daemon issue store (`rove api issue-*`, [`docs/WORK-TRACKING
 ## Hard rules
 
 ### How work lands on `main`
-- **Default: PR → merge → release, none of it needs fresh approval.** Feature branch (`<area>/<slug>`, e.g. `web/usage-footer`; never a `claude/` prefix, cloud sessions too) → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap) → `gh pr merge --squash --delete-branch`. Green CI IS the gate. Cut the release the same turn unless the change is mid-stack or the owner is still deciding — a fix nobody can install isn't fixed. (Standing authorization, owner 2026-09-01.)
+- **Default: PR → merge, no fresh approval needed.** Feature branch (`<area>/<slug>`, e.g. `web/usage-footer`; never a `claude/` prefix, cloud sessions too) → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap) → `gh pr merge --squash --delete-branch`. Green CI IS the gate. Merged work ships on the next automatic nightly; a **stable release is cut only when the owner asks for it in that turn** ([`docs/RELEASING.md`](./docs/RELEASING.md)).
 - **Skipping the PR** (local merge/cherry-pick into `main`, or a direct push) needs the owner to say so **in that turn** — never inferred, never carried over. Same quality gates either way.
 - `scripts/release.sh` pushes its own `chore: release — X.Y.Z` commit + tag.
 - `git fetch` before pushing. Force-push ONLY your own unmerged PR branch, with `--force-with-lease`; never `main`, a shared branch, or reviewed commits.

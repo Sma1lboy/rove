@@ -538,7 +538,10 @@ tab. Availability and restart behavior vary by engine; see
 
 ## Pages: `ctrl+a` `1` / `2` / `3`
 
-Three pages replace the workspace pane while the sidebar stays put. `esc` or
+Three pages replace the workspace pane while the sidebar stays put. Kanban
+and Issues are built-in plugins you can turn off in Settings → Plugins, and
+installed plugins can add pages of their own
+([Pages](./PLUGIN-AUTHORING.md#pages-experimental)). `esc` or
 `q` closes a page; selecting a task in the sidebar also returns you to the
 workspace. The chords stay live, so you can hop between pages directly.
 

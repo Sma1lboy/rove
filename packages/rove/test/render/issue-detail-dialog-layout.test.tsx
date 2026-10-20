@@ -7,7 +7,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { IssueDetailDialogView } from "../../src/tui-react/component/issue-detail-dialog"
+import { IssueDetailDialogView } from "../../src/bundled-plugins/kanban/issue-detail-dialog"
 import { renderComponent } from "./harness"
 
 test("engine choices keep a breathing row between their labels and lower borders", async () => {

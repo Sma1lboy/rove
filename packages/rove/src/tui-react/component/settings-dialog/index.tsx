@@ -15,6 +15,7 @@ import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../e
 import { createStateCell } from "../../../lib/external-store"
 import { failureHint } from "../../../lib/failure-hint"
 import { submitFeedback } from "../../../lib/feedback"
+import { tryOutChannel } from "../../../state/update-channel"
 import {
   type NavLevel,
   SECTIONS,
@@ -38,6 +39,7 @@ import { useDialog, useDialogPaddingX } from "../../ui/dialog"
 import {
   confirmResetState,
   confirmRestartDaemon,
+  confirmTryChannel,
   hasRestartableDaemon,
   installEngineHooks,
   reloadSettingsStatus,
@@ -227,6 +229,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
     keyHints: () => toggleKeyHints(props.kv),
     prefixTapPresentation: (row) => prefs.selectPrefixTapPresentation(row.presentation),
     zenDefaultOn: () => prefs.toggleZenDefaultOn(),
+    updateChannel: () => prefs.toggleUpdateChannel(),
+    updateTry: () => void confirmTryChannel(dialog, renderer, tryOutChannel()),
     editorKind: () => prefs.cycleEditorKind(),
     editorCustom: () => void prefs.editEditorCustom(),
     worktreeBase: () => prefs.cycleWorktreeBase(),

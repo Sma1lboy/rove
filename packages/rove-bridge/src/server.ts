@@ -7,6 +7,7 @@
  */
 
 import { hostname as osHostname } from "node:os"
+import { type ApiEnvelope, type ApiParams, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
 import { WEB_SUBPROTOCOL, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
@@ -60,6 +61,8 @@ export interface BridgeDeps {
   readonly log?: (line: string) => void
   /** One verb or RPC per call, for area ops. */
   readonly api: BridgeApi
+  /** The `api.invoke` op: any verb `api.invoke` serves, run in this process. */
+  readonly invoke?: (verb: string, params: ApiParams) => Promise<ApiEnvelope>
   /** Area op allowlist; defaults to `AREA_OPS` (tests inject their own). */
   readonly areaOps?: OpTable
   /** Serve the browser client's files on plain GETs (`rove --web`). */
@@ -86,7 +89,25 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
   if (DESTRUCTIVE_CORE[req.op]) logDestructive(deps, req)
   switch (req.op) {
     case "hello":
-      return { protocol: BRIDGE_PROTOCOL_VERSION, roveVersion: deps.roveVersion, host: osHostname() }
+      return {
+        protocol: BRIDGE_PROTOCOL_VERSION,
+        // The verb contract `api.invoke` speaks; the same number as `rove api schema`.
+        apiVersion: ROVE_API_VERSION,
+        roveVersion: deps.roveVersion,
+        host: osHostname(),
+      }
+    case "api.invoke": {
+      if (!deps.invoke) throw new BridgeError("UNKNOWN_OP", "this bridge does not serve verbs")
+      const verb = str(a, "verb")
+      const params = a.params ?? {}
+      if (typeof params !== "object" || params === null || Array.isArray(params)) {
+        throw new BridgeError("BAD_ARGS", "params must be an object keyed by flag name")
+      }
+      if (DESTRUCTIVE_VERBS.has(verb)) logDestructiveVerb(deps, verb, params as Record<string, unknown>)
+      const envelope = await deps.invoke(verb, params as ApiParams)
+      if (envelope.ok) return envelope.result
+      throw new BridgeError(envelope.error.code, envelope.error.message, envelope.error)
+    }
     case "tasks.subscribe": {
       // Snapshot first: subscribing before the read would also push it. Cached (only the
       // first subscriber pays a read), with `forMs` aged to now — see `TaskFeed.current`.
@@ -188,6 +209,28 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
 /** Core ops that lose work or are hard to undo; area ops declare it on their spec. */
 const DESTRUCTIVE_CORE: Readonly<Record<string, true>> = { "task.delete": true, "task.land": true, "tab.close": true }
 
+/**
+ * Verbs that lose work or are hard to undo, audited like {@link DESTRUCTIVE_CORE}.
+ * The token already grants a shell (`term.input`), so serving verbs adds no
+ * power; the audit line is what keeps a destructive call visible.
+ */
+const DESTRUCTIVE_VERBS: ReadonlySet<string> = new Set([
+  "delete",
+  "land",
+  "remove-worktree",
+  "tab-close",
+  "issue-delete",
+  "routine-delete",
+  "note-delete",
+])
+
+function logDestructiveVerb(deps: BridgeDeps, verb: string, params: Record<string, unknown>): void {
+  const ids = ["task-id", "tab", "id"]
+    .filter((key) => typeof params[key] === "string" || typeof params[key] === "number")
+    .map((key) => `${key}=${String(params[key])}`)
+  ;(deps.log ?? ((line: string) => console.error(line)))(`[rove-bridge] api.invoke ${verb} ${ids.join(" ")}`.trimEnd())
+}
+
 /** Audit line for a destructive op: op name and the ids it targets. Never other args, never the token. */
 function logDestructive(deps: BridgeDeps, req: Request): void {
   const ids = ["taskId", "tabId", "path"]
@@ -210,7 +253,8 @@ async function onMessage(deps: BridgeDeps, ws: ServerWebSocket<Conn>, raw: strin
     ws.send(responseOk(req.id, await handle(deps, ws, req)))
   } catch (err) {
     const code = err instanceof BridgeError ? err.code : "INTERNAL"
-    ws.send(responseError(req.id, code, err instanceof Error ? err.message : String(err)))
+    const detail = err instanceof BridgeError ? err.detail : undefined
+    ws.send(responseError(req.id, code, err instanceof Error ? err.message : String(err), detail))
   }
 }
 

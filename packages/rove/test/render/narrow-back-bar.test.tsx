@@ -33,7 +33,6 @@ afterEach(() => {
 // Snapshots must keep identity across reads, or useSyncExternalStore spins.
 const NULL_CELL = createStateCell(null)
 const EMPTY_MAP = createStateCell(new Map())
-const NO_MOD_PANES = createStateCell([])
 const EMPTY_ARR = createStateCell(Object.freeze([]))
 // No worktreePath: the workspace shows its empty state instead of mounting terminals.
 const TASK = Object.freeze({ id: "t1", title: "Phone task", branch: "rove/t1", vendor: "claude", repo: "/repo/x" })
@@ -55,7 +54,6 @@ function fakeOrchestrator(): RemoteOrchestrator {
     attentionInboxSignal: () => EMPTY_ARR,
     taskJobsSignal: () => EMPTY_MAP,
     rowTokensSignal: () => EMPTY_MAP,
-    modPanesSignal: () => NO_MOD_PANES,
     worktreeChangesSignal: () => NULL_CELL,
     transcriptActivitySignal: () => NULL_CELL,
     transcriptActivityStore: () => NULL_CELL,

@@ -74,6 +74,24 @@ while a field has focus only movement and `esc` stay page keys. These are page-l
 keys on the content pane, like the other rail pages' keys; they are recorded
 as PROPOSED in [keybinding-decisions.md](./keybinding-decisions.md).
 
+## Mods and `[[pages]]`
+
+`[[pages]]` (experimental) landed alongside: a plugin module loaded into the
+TUI process that renders OpenTUI React with the full host API (theme, keymap,
+dialogs, tasks). The two answer different questions and coexist:
+
+| | `[[pages]]` | `[mod]` |
+|---|---|---|
+| where it draws | TUI only | TUI and web (phones later), same tree |
+| what runs | a module in the TUI process | its own process, beside the daemon |
+| UI vocabulary | anything OpenTUI React can draw | `box`/`text`/`button`/`input` |
+| state | per TUI | one per mod, shared by every client |
+
+The Mods page itself is registered in the same page registry (`mods` source,
+`tui-react/pages/mods-pages.tsx`), so it sits on the rail like any page.
+Whether pages should later render mod trees in the web, or mods should grow a
+page-sized surface of their own, is an open owner decision.
+
 ## Not yet
 
 - Select, markdown/code and link elements.

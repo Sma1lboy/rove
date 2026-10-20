@@ -26,6 +26,7 @@ import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useTaskColor } from "../lib/use-task-color"
 import { useTerminalSize } from "../lib/use-terminal-size"
 import { useWelcomeDialog } from "../onboarding/host"
+import { PageServicesProvider } from "../pages/services"
 import { useSpinnerFrame } from "../panes/sidebar/row-cards"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"
@@ -92,7 +93,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     taskJobs,
     rowTokens,
     worktreeChanges,
-    modPanes,
   } = useDaemonState(orch)
 
   // Mutes the host's letter chords while typing in sidebar search.
@@ -141,7 +141,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     selectedId,
     selectTask,
     // `pages` is built below; this only runs on a later user action.
-    openAutomations: () => pages.openAutomations(),
+    openAutomations: () => pages.openPage("automations"),
     focusWorkspace: () => focus.setFocused("workspace"),
     notifyError,
   })
@@ -228,7 +228,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   const issueChat = useIssueChat(orch, {
     selectTask: setSelectedId,
     enterTask: activateTask,
-    closeKanban: pages.closeKanban,
+    closeKanban: pages.closePage,
     notifyError,
     notifyInfo,
   })
@@ -244,7 +244,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     activeTaskId,
     tasks,
     engineState,
-    startIssueChat: issueChat.start,
     activateTask,
   })
 
@@ -363,7 +362,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
                 taskJobs,
                 rowTokens,
                 worktreeChanges,
-                modPanes,
               }}
               actions={taskActions}
               pages={pages}
@@ -419,7 +417,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
             its terminal. */}
           {/* Keyed so picking another task, or opening/closing a page, clears a caught error. */}
           <PaneErrorBoundary region="workspace" resetKeys={[selectedId, contentPageType]}>
-            {pageRender.contentPage ?? (
+            {pageRender.contentPage ? (
+              <PageServicesProvider value={{ startIssueChat: issueChat.start }}>
+                {pageRender.contentPage}
+              </PageServicesProvider>
+            ) : (
               <RenderProfiler id="workspace">
                 <ShowWorkspace
                   task={selectedTask}

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
+import { ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { AccessDenied, type AccessVerifier } from "../src/cf-access.ts"
 import { TaskFeed } from "../src/feed.ts"
 import type { OpTable } from "../src/ops/types.ts"
@@ -193,6 +194,43 @@ describe("cloudflare access layer", () => {
     const h = start({ access })
     const c = await connect(h.url, { ...AUTH, "Cf-Access-Jwt-Assertion": "good-jwt" })
     expect((await c.call("hello")).ok).toBe(true)
+  })
+})
+
+describe("api.invoke", () => {
+  test("serves the verb contract: hello names its version, a refusal keeps its recovery data, a destructive verb is audited", async () => {
+    const lines: string[] = []
+    const invoked: Array<[string, unknown]> = []
+    const h = start({
+      log: (line) => lines.push(line),
+      invoke: async (verb, params) => {
+        invoked.push([verb, params])
+        if (verb === "land") {
+          return {
+            apiVersion: ROVE_API_VERSION,
+            ok: false,
+            error: { code: "LAND_CONFLICT", message: "conflict", hint: "rebase first", files: ["a.ts"] },
+          }
+        }
+        return { apiVersion: ROVE_API_VERSION, ok: true, result: { tasks: [] } }
+      },
+    })
+    const c = await connect(h.url, AUTH)
+    lines.length = 0
+    expect((await c.call("hello")).result).toMatchObject({ apiVersion: ROVE_API_VERSION })
+    expect(await c.call("api.invoke", { verb: "list", params: { repo: "/r" } })).toMatchObject({
+      ok: true,
+      result: { tasks: [] },
+    })
+    expect(await c.call("api.invoke", { verb: "land", params: { "task-id": "T1" } })).toMatchObject({
+      ok: false,
+      error: { code: "LAND_CONFLICT", message: "conflict", hint: "rebase first", files: ["a.ts"] },
+    })
+    expect(invoked).toEqual([
+      ["list", { repo: "/r" }],
+      ["land", { "task-id": "T1" }],
+    ])
+    expect(lines).toEqual(["[rove-bridge] api.invoke land task-id=T1"])
   })
 })
 

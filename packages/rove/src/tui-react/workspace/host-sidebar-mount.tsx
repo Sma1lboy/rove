@@ -36,13 +36,7 @@ export interface HostSidebarMountProps {
   readonly activateTask: (id: string) => void | Promise<void>
   readonly daemon: Pick<
     UseDaemonStateResult,
-    | "sidebarEngineState"
-    | "engineTabState"
-    | "engineLifecycle"
-    | "taskJobs"
-    | "rowTokens"
-    | "worktreeChanges"
-    | "modPanes"
+    "sidebarEngineState" | "engineTabState" | "engineLifecycle" | "taskJobs" | "rowTokens" | "worktreeChanges"
   >
   readonly actions: WorkspaceTaskActions
   readonly pages: Pick<HostPagesState, "nav" | "setNav" | "goToNav" | "openUpdate">
@@ -93,7 +87,6 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       }}
       nav={pages.nav}
       onNavChange={pages.goToNav}
-      hasMods={props.daemon.modPanes.length > 0}
       tasks={props.tasks}
       selectedId={props.selectedId}
       selectedTabId={props.selectedTabId}
