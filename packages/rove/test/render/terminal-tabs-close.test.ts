@@ -11,7 +11,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { closeTaskTab } from "../../src/tui-react/workspace/terminal-tabs-close"
+import { closeOtherTaskTabs, closeTaskTab } from "../../src/tui-react/workspace/terminal-tabs-close"
 import { terminalTabsKey } from "../../src/tui-react/workspace/terminal-tabs-persist"
 import { tabActivationListeners, tabsByTask, takeTabClose } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core"
@@ -131,4 +131,22 @@ test("a task with only a restart snapshot still closes", () => {
   kv.store[terminalTabsKey("t9")] = state(["tab-1", "tab-2"])
   expect(closeTaskTab(kv, "t9", "tab-1")).toBe(true)
   expect((kv.store[terminalTabsKey("t9")] as TabsState).tabs.map((tab) => tab.id)).toEqual(["tab-2"])
+})
+
+test("closing the other tabs keeps only the named one, active, in the map and the snapshot", () => {
+  tabsByTask.clear()
+  tabsByTask.set("t1", state(["tab-1", "tab-2", "tab-3"], "tab-1"))
+  const kv = fakeKv()
+  expect(closeOtherTaskTabs(kv, "t1", "tab-2")).toBe(2)
+  expect(tabsByTask.get("t1")?.tabs.map((tab) => tab.id)).toEqual(["tab-2"])
+  expect(tabsByTask.get("t1")?.activeId).toBe("tab-2")
+  expect((kv.store[terminalTabsKey("t1")] as TabsState).tabs.map((tab) => tab.id)).toEqual(["tab-2"])
+})
+
+test("closing the other tabs of a stale tab id closes nothing", () => {
+  // The row went away between the right-click and the confirm.
+  tabsByTask.clear()
+  tabsByTask.set("t1", state(["tab-1", "tab-2"]))
+  expect(closeOtherTaskTabs(fakeKv(), "t1", "tab-9")).toBe(0)
+  expect(tabsByTask.get("t1")?.tabs.map((tab) => tab.id)).toEqual(["tab-1", "tab-2"])
 })

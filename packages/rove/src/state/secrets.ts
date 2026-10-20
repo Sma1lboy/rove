@@ -38,6 +38,7 @@
 import { mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs"
 import { basename, dirname, join } from "node:path"
 import { secretsPath } from "../env.ts"
+import { isObject } from "../lib/is-object.ts"
 import { acquireSync, releaseSync } from "../orchestrator/index/lockfile.ts"
 
 /** How much of a key the hint shows. Enough to recognise, not to use. */
@@ -57,7 +58,7 @@ function readStored(path: string): Record<string, unknown> | "corrupt" {
   }
   try {
     const parsed: unknown = JSON.parse(raw)
-    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+    if (isObject(parsed)) {
       return parsed as Record<string, unknown>
     }
   } catch {

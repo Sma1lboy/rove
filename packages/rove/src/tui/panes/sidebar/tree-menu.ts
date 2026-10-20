@@ -5,7 +5,7 @@
  * entry routes to an existing callback. Tab rows list per-task verbs because
  * the chords already walk up from a tab to its worktree (`withCursorTask`).
  *
- * Exceptions (`setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
+ * Exceptions (`setStatus`, `copyId`, `copyTab`, `closeOtherTabs`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
  * `runAgain`, `moveToTop`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
@@ -24,6 +24,7 @@ export type TreeMenuAction =
   | "forgetProject"
   | "fieldNotes"
   | "closeTab"
+  | "closeOtherTabs"
   | "newChat"
   | "newShell"
   | "newTask"
@@ -34,12 +35,14 @@ export type TreeMenuAction =
   | "runAgain"
   | "setStatus"
   | "copyId"
+  | "copyTab"
   | "copyBranch"
   | "copyPath"
   | "openEditor"
   | "renameBranch"
   | "changeEngine"
   | "fixChecks"
+  | "rerunChecks"
   | "syncBase"
   | "land"
   | "delete"
@@ -112,6 +115,8 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   // `ctrl+a k` is proposed, not signed off (docs/design/keybinding-decisions.md).
   if (task.prStatus?.checkState === "failing") {
     verbs.push({ action: "fixChecks", labelKey: "tasks.menu.fixChecks", bindingId: "files.fixChecks" })
+    // Menu-only: for a red the user reads as flaky, not caused by the change.
+    verbs.push({ action: "rerunChecks", labelKey: "tasks.menu.rerunChecks" })
   }
   // Merge base INTO the worktree (the `↓N` chip's action); gated like `land`.
   // Chord `ctrl+a u` is proposed, not signed off.
@@ -155,5 +160,10 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
   const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab", bindingId: "sidebar.select" }]
   if ((ctx.tabCount ?? 0) > 0)
     tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab", bindingId: "chat.tab.close" })
+  // Ends every sibling's session, so danger-toned and confirmed by the host.
+  if ((ctx.tabCount ?? 0) > 1)
+    tabItems.push({ action: "closeOtherTabs", labelKey: "tasks.menu.closeOtherTabs", danger: true })
+  // The `--task-id … --tab …` pair `rove api send` / `read-output` take to reach THIS tab.
+  tabItems.push({ action: "copyTab", labelKey: "tasks.menu.copyTab" })
   return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task)]
 }

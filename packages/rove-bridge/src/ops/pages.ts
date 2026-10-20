@@ -16,7 +16,7 @@ import { issueChatTaskTitle, issueProjectPrompt, issueWorktreePrompt } from "@sm
 import { detailFragment } from "@sma1lboy/rove/src/tui-react/component/issue-events-core.ts"
 import { ALL_VENDORS } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
-import { absPath, bool, flag, oneOf, optOneOf, optText, taskId, text } from "./args.ts"
+import { absPath, bool, flag, oneOf, optOneOf, optText, tabId, taskId, text } from "./args.ts"
 import type { Args, OpTable } from "./types.ts"
 
 const ISSUE_STATUSES = ["open", "doing", "hold", "done"] as const
@@ -173,14 +173,23 @@ export const pagesOps: OpTable = {
   "routine.create": {
     kind: "write",
     destructive: false,
-    wraps: "rove api routine-create (name, repo, prompt, schedule; never a precheck)",
-    run: (args, { api }) =>
-      api.verb("routine-create", [
+    wraps:
+      "rove api routine-create (name, repo, prompt, schedule, optional existing conversation targetTask+targetTab; never a precheck)",
+    run: (args, { api }) => {
+      const argv = [
         flag("repo", absPath(args, "repo")),
         flag("name", text(args, "name", NAME_MAX).trim()),
         flag("prompt", text(args, "prompt", PROMPT_MAX)),
         flag("schedule", cron(args, "schedule")),
-      ]),
+      ]
+      // Delivers into one existing engine tab instead of a fresh task per run: ids only, both or neither.
+      const hasTask = optStr(args, "targetTask") !== undefined
+      const hasTab = optStr(args, "targetTab") !== undefined
+      if (hasTask !== hasTab) throw new BridgeError("BAD_ARGS", "targetTask and targetTab go together")
+      if (hasTask)
+        argv.push(flag("target-task", taskId(args, "targetTask")), flag("target-tab", tabId(args, "targetTab")))
+      return api.verb("routine-create", argv)
+    },
   },
   "routine.update": {
     kind: "write",
@@ -224,6 +233,12 @@ export const pagesOps: OpTable = {
     destructive: true,
     wraps: "rove api routine-delete (the routine and its history; tasks it created stay)",
     run: (args, { api }) => api.verb("routine-delete", [flag("id", taskId(args, "id"))]),
+  },
+  "attention.dismissRoutine": {
+    kind: "write",
+    destructive: false,
+    wraps: "daemon RPC attention.dismissRoutine (a routine episode is keyed on its schedule, not a task)",
+    run: (args, { api }) => api.rpc("attention.dismissRoutine", { automationId: taskId(args, "automationId") }),
   },
 
   // ── GitHub issues (read-only through `gh`, plus start a task on one) ────────────

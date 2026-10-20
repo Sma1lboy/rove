@@ -5,6 +5,7 @@ set -eu
 #
 #   curl -fsSL https://rove.run/install.sh | sh
 #   curl -fsSL https://rove.run/install.sh | sh -s -- 0.8.136   # pin
+#   curl -fsSL https://rove.run/install.sh | sh -s -- --nightly # nightly preview
 #
 # Rove's CLI is a Bun program, so this script installs Bun first when the
 # machine has none, then installs the package with it. Updating later is
@@ -12,6 +13,13 @@ set -eu
 # owns the binary on PATH.
 PACKAGE="@sma1lboy/rove"
 VERSION="${1:-}"
+
+# Channel shorthands, so `--nightly` can never fall through to a stable install.
+case "$VERSION" in
+  --nightly) VERSION="nightly" ;;
+  --stable | --latest | stable | latest) VERSION="" ;;
+  -*) echo "unknown option: $VERSION (expected a version, nightly, --nightly or --stable)" >&2; exit 2 ;;
+esac
 
 # Oldest Bun Rove runs on. Must match `engines.bun` in packages/rove/package.json
 # and MIN_BUN_VERSION in packages/rove/src/cli/bun-runtime.ts — the three are

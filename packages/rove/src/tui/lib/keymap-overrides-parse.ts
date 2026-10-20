@@ -37,6 +37,8 @@
  *     is no `lctrl`/`rcmd` syntax.
  */
 
+import { isObject } from "../../lib/is-object"
+
 /** One requested override after extraction: `keys: []` means "unbind". */
 export type KeymapOverrideEntry = { id: string; keys: string[] }
 
@@ -147,10 +149,6 @@ export function normalizeChord(raw: string): ChordResult {
   return { chord }
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-}
-
 /** Platform-section spellings accepted in the YAML, per process.platform. */
 function platformSectionNames(platform: string): string[] {
   if (platform === "darwin") return ["darwin", "macos", "mac"]
@@ -159,10 +157,10 @@ function platformSectionNames(platform: string): string[] {
 }
 
 function extractBindingsMap(section: unknown): Record<string, unknown> | null {
-  if (!isRecord(section)) return null
+  if (!isObject(section)) return null
   // Accept both `darwin: { bindings: {...} }` and flat `darwin: {...}`.
   const nested = section.bindings
-  if (isRecord(nested)) return nested
+  if (isObject(nested)) return nested
   return section
 }
 
@@ -173,7 +171,7 @@ function extractBindingsMap(section: unknown): Record<string, unknown> | null {
 export function extractKeybindingOverrides(doc: unknown, platform: string): ExtractedKeybindingOverrides {
   const warnings: string[] = []
   if (doc === null || doc === undefined) return { entries: [], prefixEntries: [], warnings }
-  if (!isRecord(doc)) {
+  if (!isObject(doc)) {
     return {
       entries: [],
       prefixEntries: [],
@@ -187,7 +185,7 @@ export function extractKeybindingOverrides(doc: unknown, platform: string): Extr
 
   const layers: Array<Record<string, unknown>> = []
   if (doc.bindings !== undefined) {
-    if (isRecord(doc.bindings)) layers.push(doc.bindings)
+    if (isObject(doc.bindings)) layers.push(doc.bindings)
     else warnings.push("`bindings:` must be a mapping of id → chord(s)")
   }
   for (const name of platformSectionNames(platform)) {
@@ -201,7 +199,7 @@ export function extractKeybindingOverrides(doc: unknown, platform: string): Extr
   for (const layer of layers) {
     for (const [id, value] of Object.entries(layer)) {
       const modeValues =
-        isRecord(value) && ("direct" in value || "prefix" in value)
+        isObject(value) && ("direct" in value || "prefix" in value)
           ? ([
               [merged, value.direct],
               [prefixMerged, value.prefix],

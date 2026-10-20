@@ -15,14 +15,17 @@
 export const en = {
   plugins: {
     title: "Plugins",
-    hint: "Plugins registered in ~/.rove/plugins.json. enter (or click) toggles one on or off — the daemon watches the file, so the change applies live. Rows indented under a plugin are the settings it declares; enter edits one, and the value reaches the plugin on its next run. Install and remove them from the shell: `rove plugin install <owner/repo>`, `rove plugin link <dir>`.",
+    hint: "Rove's built-in plugins first, then those registered in ~/.rove/plugins.json. enter (or click) toggles one on or off — the daemon watches the file, so the change applies live. Rows indented under a plugin are the settings it declares; enter edits one, and the value reaches the plugin on its next run. Install and remove them from the shell: `rove plugin install <owner/repo>`, `rove plugin link <dir>`.",
     empty:
       "No plugins registered. Install one with `rove plugin install <owner/repo>` — browse the `rove-plugin` topic on GitHub.",
     sourceLink: "linked {path}",
     sourceGithub: "{spec}",
+    sourceBuiltIn: "built into Rove",
     updateAvailable: "update available — rove plugin update",
     declares: "{actions} actions · {events} events · {panes} panes",
     declaresWithEngines: "{actions} actions · {events} events · {panes} panes · {engines} engines",
+    declaresPages: "· {pages} pages",
+    pageFailed: "page {detail}",
     manifestUnreadable: "manifest unreadable; check the rove-plugin.toml path and TOML syntax",
     unsupportedPlatform: "· not supported on this platform",
     noHooks: "· no hooks declared",
@@ -64,14 +67,17 @@ export const en = {
 export const zh: typeof en = {
   plugins: {
     title: "插件",
-    hint: "在 ~/.rove/plugins.json 里注册的插件。enter（或点击）切换启用/禁用——daemon 监听该文件，改动实时生效。插件下方缩进的行是它声明的设置项，enter 编辑，新值在插件下次运行时生效。安装与移除在 shell 里做：`rove plugin install <owner/repo>`、`rove plugin link <dir>`。",
+    hint: "先列 Rove 内置插件，再列在 ~/.rove/plugins.json 里注册的插件。enter（或点击）切换启用/禁用——daemon 监听该文件，改动实时生效。插件下方缩进的行是它声明的设置项，enter 编辑，新值在插件下次运行时生效。安装与移除在 shell 里做：`rove plugin install <owner/repo>`、`rove plugin link <dir>`。",
     empty:
       "尚未注册任何插件。用 `rove plugin install <owner/repo>` 安装一个——可在 GitHub 的 `rove-plugin` 话题下浏览。",
     sourceLink: "本地链接 {path}",
     sourceGithub: "{spec}",
+    sourceBuiltIn: "Rove 内置",
     updateAvailable: "有新版本 — rove plugin update",
     declares: "{actions} 个动作 · {events} 个事件 · {panes} 个面板",
     declaresWithEngines: "{actions} 个动作 · {events} 个事件 · {panes} 个面板 · {engines} 个引擎",
+    declaresPages: "· {pages} 个页面",
+    pageFailed: "页面 {detail}",
     manifestUnreadable: "manifest 无法解析；请检查rove-plugin.toml 的路径和 TOML 语法",
     unsupportedPlatform: "· 不支持当前平台",
     noHooks: "· 未声明钩子",

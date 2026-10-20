@@ -20,13 +20,11 @@ const DIALOG_FILES = [
  * `▸` marker here is the list idiom (`worktrees-page.tsx` renders the same
  * one), not choose-one drift:
  *
- * - `issue-detail-dialog.tsx` — the story drawer's WORKSPACE placements are
- *   whole sentences, which chips would stack three rows tall apiece.
  * - `field-notes-dialog.tsx` — a scrollable list of RECORDS with a delete
  *   cursor, not a field with options. There is nothing to choose; `d` acts on
  *   the row under the cursor.
  */
-const CURSOR_LISTS = new Set(["issue-detail-dialog.tsx", "field-notes-dialog.tsx"])
+const CURSOR_LISTS = new Set(["field-notes-dialog.tsx"])
 
 describe("dialog choose-one grammar", () => {
   it.each(DIALOG_FILES.filter((f) => !CURSOR_LISTS.has(f)))("%s renders no hand-rolled ▸ selector", (file) => {

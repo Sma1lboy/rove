@@ -11,6 +11,10 @@ import { queryCellPixelSize } from "../../tui/lib/cell-pixel-size"
 import { createTerminalGraphics, installTerminalGraphics } from "../../tui/lib/terminal-graphics"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { bootPaneHost } from "../lib/host-boot"
+import { registerBundledPlugins } from "../pages/bundled-pages"
+import { registerCorePages } from "../pages/core-pages"
+import { loadPluginPages } from "../pages/load-plugin-pages"
+import { registerModsPage } from "../pages/mods-pages"
 import { WorkspaceRoot } from "./host"
 import type { BootDialogs } from "./host-pages"
 
@@ -44,6 +48,11 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       const machines = new MachineHub(orchestrator)
       machines.attach()
       setMachineHub(machines)
+      // Rail pages: the host's own now, installed plugins' as their modules load.
+      registerCorePages()
+      const stopModsPage = registerModsPage(orchestrator)
+      registerBundledPlugins()
+      void loadPluginPages()
       return {
         root: () => (
           <WorkspaceRoot
@@ -53,6 +62,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
           />
         ),
         onDestroy: () => {
+          stopModsPage()
           setMachineHub(null)
           machines.dispose()
           orchestrator.dispose()

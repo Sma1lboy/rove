@@ -1,19 +1,23 @@
 /**
- * The bridge's only network surface: one WebSocket endpoint. The token is
- * checked at the HTTP upgrade, before a socket exists; every frame afterwards
- * rides that authenticated socket and may only name a core op from `OPS` or an
- * area op registered in `ops/index.ts`. There is no other path to an op.
+ * The bridge's only network surface: one WebSocket endpoint, plus (under
+ * `rove --web`) the browser client's static files. The token is checked at the
+ * HTTP upgrade, before a socket exists; every frame afterwards rides that
+ * authenticated socket and may only name a core op from `OPS` or an area op
+ * registered in `ops/index.ts`. There is no other path to an op.
  */
 
 import { hostname as osHostname } from "node:os"
+import { type ApiEnvelope, type ApiParams, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
-import { presentedToken, tokenMatches } from "./auth.ts"
+import { WEB_SUBPROTOCOL, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
 import type { TaskFeed } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
 import type { NoticeFeed } from "./notices.ts"
 import { AREA_OPS } from "./ops/index.ts"
 import type { BridgeApi, OpTable } from "./ops/types.ts"
+import type { PromptFeed } from "./prompts.ts"
 import {
   BRIDGE_PROTOCOL_VERSION,
   BridgeError,
@@ -30,7 +34,9 @@ import {
   str,
 } from "./protocol.ts"
 import type { RoveOps } from "./rove-ops.ts"
+import type { TabFeed } from "./tab-feed.ts"
 import { type PtyHostClient, TerminalForwarder } from "./terminal.ts"
+import { type WebRoot, serveWebFile } from "./web-static.ts"
 
 export interface BridgeDeps {
   readonly token: string
@@ -38,6 +44,15 @@ export interface BridgeDeps {
   readonly feed: Pick<TaskFeed, "current" | "refresh" | "subscribe">
   /** `rove api notify` toasts, pushed to every connected phone as a `notice` event. */
   readonly notices?: Pick<NoticeFeed, "subscribe">
+  /** Plugin input dialogs (`rove api prompt`), pushed to every connected client as a `prompt` event. */
+  readonly prompts?: Pick<PromptFeed, "subscribe">
+  /** Open mod panes (`mod.ui`), pushed as a `mods` event on connect and on every change. */
+  readonly mods?: {
+    current(): readonly ModPaneView[]
+    subscribe(listener: (panes: readonly ModPaneView[]) => void): () => void
+  }
+  /** Tasks whose Terminal Tabs changed, pushed as a `tabs` event to task subscribers. */
+  readonly tabs?: Pick<TabFeed, "subscribe">
   /** A fresh PTY Host socket for one phone connection. */
   readonly openPty: () => PtyHostClient
   readonly roveVersion: string
@@ -47,14 +62,22 @@ export interface BridgeDeps {
   readonly log?: (line: string) => void
   /** One verb or RPC per call, for area ops. */
   readonly api: BridgeApi
+  /** The `api.invoke` op: any verb `api.invoke` serves, run in this process or
+   *  on the registered machine `machine` names (or whose task it targets). */
+  readonly invoke?: (verb: string, params: ApiParams, machine?: string) => Promise<ApiEnvelope>
   /** Area op allowlist; defaults to `AREA_OPS` (tests inject their own). */
   readonly areaOps?: OpTable
+  /** Serve the browser client's files on plain GETs (`rove --web`). */
+  readonly web?: WebRoot
 }
 
 interface Conn {
   terminal: TerminalForwarder | null
   unsubscribeTasks: (() => void) | null
+  unsubscribeTabs: (() => void) | null
   unsubscribeNotices: (() => void) | null
+  unsubscribeMods: (() => void) | null
+  unsubscribePrompts: (() => void) | null
 }
 
 async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request): Promise<unknown> {
@@ -68,12 +91,31 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
   if (DESTRUCTIVE_CORE[req.op]) logDestructive(deps, req)
   switch (req.op) {
     case "hello":
-      return { protocol: BRIDGE_PROTOCOL_VERSION, roveVersion: deps.roveVersion, host: osHostname() }
+      return {
+        protocol: BRIDGE_PROTOCOL_VERSION,
+        // The verb contract `api.invoke` speaks; the same number as `rove api schema`.
+        apiVersion: ROVE_API_VERSION,
+        roveVersion: deps.roveVersion,
+        host: osHostname(),
+      }
+    case "api.invoke": {
+      if (!deps.invoke) throw new BridgeError("UNKNOWN_OP", "this bridge does not serve verbs")
+      const verb = str(a, "verb")
+      const params = a.params ?? {}
+      if (typeof params !== "object" || params === null || Array.isArray(params)) {
+        throw new BridgeError("BAD_ARGS", "params must be an object keyed by flag name")
+      }
+      if (DESTRUCTIVE_VERBS.has(verb)) logDestructiveVerb(deps, verb, params as Record<string, unknown>)
+      const envelope = await deps.invoke(verb, params as ApiParams, optStr(a, "machine"))
+      if (envelope.ok) return envelope.result
+      throw new BridgeError(envelope.error.code, envelope.error.message, envelope.error)
+    }
     case "tasks.subscribe": {
       // Snapshot first: subscribing before the read would also push it. Cached (only the
       // first subscriber pays a read), with `forMs` aged to now — see `TaskFeed.current`.
       const snapshot = await deps.feed.current()
       conn.unsubscribeTasks ??= deps.feed.subscribe((payload) => ws.send(pushEvent("tasks", payload)))
+      conn.unsubscribeTabs ??= deps.tabs?.subscribe((taskIds) => ws.send(pushEvent("tabs", { taskIds }))) ?? null
       return snapshot
     }
     case "tasks.list":
@@ -98,23 +140,37 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     }
     case "task.tabs":
       return { tabs: await ops.tabs(str(a, "taskId")) }
-    case "tab.new":
-      return ops.newTab(str(a, "taskId"), str(a, "prompt"), optStr(a, "engine"))
+    case "tab.new": {
+      const prompt = optStr(a, "prompt")
+      const kind = optStr(a, "kind") ?? "engine"
+      if (kind !== "shell" && kind !== "engine") throw new BridgeError("BAD_ARGS", "kind is shell|engine")
+      const engine = optStr(a, "engine")
+      if (kind === "shell" && (prompt !== undefined || engine !== undefined)) {
+        throw new BridgeError("BAD_ARGS", "a shell tab takes no prompt or engine")
+      }
+      return ops.newTab(str(a, "taskId"), { kind, prompt, engine })
+    }
     case "tab.close":
       await ops.closeTab(str(a, "taskId"), str(a, "tabId"))
       return {}
     case "term.attach": {
       const taskId = str(a, "taskId")
       const tabId = str(a, "tabId")
+      const leafId = optStr(a, "leafId")
+      if (leafId !== undefined && !/^leaf-\d{1,4}$/.test(leafId))
+        throw new BridgeError("BAD_ARGS", "leafId is not a pane id")
       const cols = optInt(a, "cols", 10, 1000)
       const rows = optInt(a, "rows", 4, 500)
       if ((cols === undefined) !== (rows === undefined)) throw new BridgeError("BAD_ARGS", "cols and rows go together")
-      const cwd = await ops.worktreeOf(taskId)
+      // A viewport tab attaches the session it shows, not one under its own id.
+      const shown = ops.viewedSession(taskId, tabId)
+      const cwd = shown?.cwd ?? (await ops.worktreeOf(taskId))
       return terminal().attach(
-        taskId,
-        tabId,
+        shown?.taskId ?? taskId,
+        shown?.tabId ?? tabId,
         cwd,
         cols !== undefined && rows !== undefined ? { cols, rows } : undefined,
+        leafId,
       )
     }
     case "term.input": {
@@ -156,13 +212,38 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       // Unreachable for unregistered names: parseRequest already refused them.
       if (!spec) throw new BridgeError("UNKNOWN_OP", `unknown op: ${req.op}`)
       if (spec.destructive) logDestructive(deps, req)
-      return spec.run(a, { api: deps.api })
+      return spec.run(a, {
+        api: deps.api,
+        progress: (line) => ws.send(pushEvent("op.progress", { id: req.id, line })),
+      })
     }
   }
 }
 
 /** Core ops that lose work or are hard to undo; area ops declare it on their spec. */
 const DESTRUCTIVE_CORE: Readonly<Record<string, true>> = { "task.delete": true, "task.land": true, "tab.close": true }
+
+/**
+ * Verbs that lose work or are hard to undo, audited like {@link DESTRUCTIVE_CORE}.
+ * The token already grants a shell (`term.input`), so serving verbs adds no
+ * power; the audit line is what keeps a destructive call visible.
+ */
+const DESTRUCTIVE_VERBS: ReadonlySet<string> = new Set([
+  "delete",
+  "land",
+  "remove-worktree",
+  "tab-close",
+  "issue-delete",
+  "routine-delete",
+  "note-delete",
+])
+
+function logDestructiveVerb(deps: BridgeDeps, verb: string, params: Record<string, unknown>): void {
+  const ids = ["task-id", "tab", "id"]
+    .filter((key) => typeof params[key] === "string" || typeof params[key] === "number")
+    .map((key) => `${key}=${String(params[key])}`)
+  ;(deps.log ?? ((line: string) => console.error(line)))(`[rove-bridge] api.invoke ${verb} ${ids.join(" ")}`.trimEnd())
+}
 
 /** Audit line for a destructive op: op name and the ids it targets. Never other args, never the token. */
 function logDestructive(deps: BridgeDeps, req: Request): void {
@@ -186,7 +267,17 @@ async function onMessage(deps: BridgeDeps, ws: ServerWebSocket<Conn>, raw: strin
     ws.send(responseOk(req.id, await handle(deps, ws, req)))
   } catch (err) {
     const code = err instanceof BridgeError ? err.code : "INTERNAL"
-    ws.send(responseError(req.id, code, err instanceof Error ? err.message : String(err)))
+    const detail = err instanceof BridgeError ? err.detail : undefined
+    ws.send(responseError(req.id, code, err instanceof Error ? err.message : String(err), detail))
+  }
+}
+
+/** `Origin` names the same host:port the request was sent to (default ports normalised by URL). */
+function sameHost(origin: string, host: string | null): boolean {
+  try {
+    return host !== null && new URL(origin).host === host.toLowerCase()
+  } catch {
+    return false
   }
 }
 
@@ -206,17 +297,43 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
           return new Response("unauthorized\n", { status: 401 })
         }
       }
+      const upgrade = req.headers.get("upgrade")?.toLowerCase() === "websocket"
+      if (!upgrade && deps.web) {
+        const file = await serveWebFile(deps.web, req)
+        if (file) return file
+      }
+      // Phones send no Origin. A browser always does; one from another site never gets a socket,
+      // even holding the token. Absent Origin still needs the token below.
+      const origin = req.headers.get("origin")
+      if (origin !== null && !sameHost(origin, req.headers.get("host"))) {
+        log(`[rove-bridge] 403 from ${from}: cross-origin upgrade from ${origin}`)
+        return new Response("forbidden\n", { status: 403 })
+      }
       if (!tokenMatches(deps.token, presentedToken(req))) {
         log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
         return new Response("unauthorized\n", { status: 401 })
       }
-      const data: Conn = { terminal: null, unsubscribeTasks: null, unsubscribeNotices: null }
-      if (server.upgrade(req, { data })) return undefined
+      const data: Conn = {
+        terminal: null,
+        unsubscribeTasks: null,
+        unsubscribeTabs: null,
+        unsubscribeNotices: null,
+        unsubscribeMods: null,
+        unsubscribePrompts: null,
+      }
+      // A browser drops a socket whose server did not pick one of its offered protocols.
+      const headers = offersWebSubprotocol(req) ? { "Sec-WebSocket-Protocol": WEB_SUBPROTOCOL } : undefined
+      if (server.upgrade(req, { data, headers })) return undefined
       return new Response("rove-bridge speaks WebSocket only\n", { status: 426 })
     },
     websocket: {
       open(ws) {
         ws.data.unsubscribeNotices = deps.notices?.subscribe((n) => ws.send(pushEvent("notice", n))) ?? null
+        ws.data.unsubscribePrompts = deps.prompts?.subscribe((p) => ws.send(pushEvent("prompt", p))) ?? null
+        if (deps.mods) {
+          ws.send(pushEvent("mods", { panes: deps.mods.current() }))
+          ws.data.unsubscribeMods = deps.mods.subscribe((panes) => ws.send(pushEvent("mods", { panes })))
+        }
       },
       // Terminal replays reach 512 KiB raw (~700 KiB base64); leave headroom for paste.
       maxPayloadLength: 8 * 1024 * 1024,
@@ -225,7 +342,10 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
       },
       close(ws) {
         ws.data.unsubscribeTasks?.()
+        ws.data.unsubscribeTabs?.()
         ws.data.unsubscribeNotices?.()
+        ws.data.unsubscribeMods?.()
+        ws.data.unsubscribePrompts?.()
         ws.data.terminal?.dispose()
       },
     },

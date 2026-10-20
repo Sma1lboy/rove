@@ -1,13 +1,22 @@
 /** Flag parsing, spec-driven validation, and the spec-typed `VerbArgs` accessor. */
 
 import { readFileSync } from "node:fs"
-import { resolve } from "node:path"
+import { isAbsolute, resolve } from "node:path"
 import { registeredEngineIds } from "../../engine/plugin-engines.ts"
 import { expandTilde } from "../../lib/path-home.ts"
 import { isRemoteRepoKey } from "../../state/repos.ts"
 import { ALL_VENDORS, type VendorId } from "../../types/vendor.ts"
 import { parseBoolLiteral } from "../argv.ts"
-import { ApiError, type FlagSpec, type Flags, type ParsedArgs, type VerbSpec, helpStep } from "./types.ts"
+import {
+  type ApiCaller,
+  ApiError,
+  type FlagSpec,
+  type Flags,
+  type ParsedArgs,
+  type VerbSpec,
+  cliCaller,
+  helpStep,
+} from "./types.ts"
 
 /** Safety cap on a single `add --count` round so a typo can't spawn a runaway fleet. */
 export const FANOUT_CAP = 10
@@ -87,7 +96,7 @@ export const F = {
 }
 
 /** Separator of a repeatable flag's occurrences in the {@link Flags} map; argv can't carry NUL. */
-const REPEAT_SEP = "\u0000"
+export const REPEAT_SEP = "\u0000"
 
 function setFlag(flags: Map<string, string>, key: string, value: string, repeatable: ReadonlySet<string>): void {
   const prev = flags.get(key)
@@ -121,12 +130,15 @@ export function parseFlags(
     if (eq !== -1) {
       const key = arg.slice(2, eq)
       const value = arg.slice(eq + 1)
+      // Read by the CLI wrapper before parsing (`api-cmd.ts`); not a verb flag.
+      if (key === "envelope") continue
       if (key === "pretty") pretty = value !== "false" && value !== "0"
       else if (key === "help") help = value !== "false" && value !== "0"
       else setFlag(flags, key, value, repeatableFlags)
       continue
     }
     const key = arg.slice(2)
+    if (key === "envelope") continue
     if (key === "pretty") {
       pretty = true
       continue
@@ -200,7 +212,18 @@ export class VerbArgs {
   constructor(
     private readonly verb: VerbSpec,
     private readonly flags: Flags,
+    private readonly caller: ApiCaller = cliCaller(),
   ) {}
+
+  /** `~` expanded, then resolved against the caller's cwd; a transport caller has none. */
+  private resolvePath(name: string, raw: string): string {
+    const expanded = expandTilde(raw)
+    if (isAbsolute(expanded)) return expanded
+    if (this.caller.cwd === undefined) {
+      throw new ApiError(`--${name} must be an absolute path: this caller has no working directory`, "BAD_FLAG")
+    }
+    return resolve(this.caller.cwd, expanded)
+  }
 
   private spec(name: string): FlagSpec {
     const f = this.verb.flags.find((s) => s.name === name)
@@ -254,7 +277,10 @@ export class VerbArgs {
       throw new ApiError("pass --prompt or --prompt-file, not both", "BAD_FLAG", helpStep(this.verb.name))
     }
     if (file === undefined) return inline
-    const text = readFileSync(file === "-" ? 0 : resolve(process.cwd(), expandTilde(file)), "utf8")
+    if (file === "-" && !this.caller.cli) {
+      throw new ApiError("--prompt-file - reads stdin, which this caller cannot send; pass --prompt", "BAD_FLAG")
+    }
+    const text = readFileSync(file === "-" ? 0 : this.resolvePath("prompt-file", file), "utf8")
     if (text.trim().length === 0) throw new ApiError(`--prompt-file ${file} is empty`, "BAD_FLAG")
     return text
   }
@@ -332,15 +358,15 @@ export class VerbArgs {
     return n
   }
 
-  /** Optional PATH flag resolved against $PWD (with a leading `~` expanded first). */
+  /** Optional PATH flag resolved against the caller's cwd (with a leading `~` expanded first). */
   path(name: string): string | undefined {
     const v = this.str(name)
-    return v === undefined ? undefined : resolve(process.cwd(), expandTilde(v))
+    return v === undefined ? undefined : this.resolvePath(name, v)
   }
 
-  /** Required PATH flag resolved against $PWD (with a leading `~` expanded first). */
+  /** Required PATH flag resolved against the caller's cwd (with a leading `~` expanded first). */
   requirePath(name: string): string {
-    return resolve(process.cwd(), expandTilde(this.require(name)))
+    return this.resolvePath(name, this.require(name))
   }
 
   /**
@@ -349,7 +375,7 @@ export class VerbArgs {
    */
   requireRepo(name: string): string {
     const raw = this.require(name)
-    return isRemoteRepoKey(raw) ? raw : resolve(process.cwd(), expandTilde(raw))
+    return isRemoteRepoKey(raw) ? raw : this.resolvePath(name, raw)
   }
 }
 

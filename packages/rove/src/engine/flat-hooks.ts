@@ -17,12 +17,12 @@
  */
 
 import { roveHookInvocation } from "../cli/invocation.ts"
+import { isObject } from "../lib/is-object.ts"
 import { quoteShellArgv } from "../lib/shell-command.ts"
 import {
   type HookEventSpec,
   type HookSettingsParse,
   hookCommandQuoting,
-  isObject,
   isRoveHook,
   roveHookArgs,
 } from "./json-hooks.ts"

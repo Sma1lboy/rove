@@ -18,7 +18,7 @@ import {
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { BridgeError } from "../protocol.ts"
 import { type UsageStore, usageStore } from "../usage-store.ts"
-import { bool, flag, optText, text } from "./args.ts"
+import { bool, flag, optText, tabId, taskId, text } from "./args.ts"
 import type { OpTable } from "./types.ts"
 
 const PLUGIN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
@@ -58,13 +58,15 @@ export function createSettingsOps(deps: SettingsDeps): OpTable {
     "usage.get": {
       kind: "read",
       destructive: false,
-      wraps: "the orchestrator's usageSnapshotSignal (daemon usage.snapshot), held by the bridge",
-      async run() {
+      wraps:
+        "the orchestrator's usageSnapshotSignal (daemon usage.snapshot) and, given taskId+tabId, its contextUsageSignal for that session; both held by the bridge",
+      async run(args) {
         const rows = deps.usage.get()
         // `null` = the daemon has not reported yet; the app says so instead of showing zero meters.
-        return {
-          usage: rows === null ? null : rows.map((row) => ({ ...row, name: deps.engineName(row.vendor) })),
-        }
+        const usage = rows === null ? null : rows.map((row) => ({ ...row, name: deps.engineName(row.vendor) }))
+        if (args.taskId === undefined) return { usage }
+        // The footer's ctx% and Σ for one session; null = no reading (never a 0).
+        return { usage, context: deps.usage.context(`${taskId(args)}::${tabId(args)}`) }
       },
     },
     "daemon.info": {

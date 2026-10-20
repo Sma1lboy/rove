@@ -13,10 +13,10 @@ import {
   CURRENT_VERSION,
   type ReleaseNotes,
   type ReleaseSummary,
-  UPDATE_COMMAND,
   breakingVersionsCrossed,
   fetchReleaseNotes,
   fetchReleaseSummaries,
+  updateCommandFor,
 } from "../../version.ts"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -76,7 +76,7 @@ export function VersionsPage(props: {
       renderer,
       t,
       targetLabel: selected.version,
-      command: `${UPDATE_COMMAND} -s -- ${selected.version}`,
+      command: updateCommandFor(selected.version),
     })
   }
 

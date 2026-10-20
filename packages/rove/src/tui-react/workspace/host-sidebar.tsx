@@ -20,9 +20,11 @@ import { SidebarTree } from "../panes/sidebar/SidebarTree"
 import { CollapsedRail, type CollapsedRailStyle, DEFAULT_COLLAPSED_RAIL_STYLE } from "../panes/sidebar/collapsed-rail"
 import type { SidebarTaskCallbacks } from "../panes/sidebar/types"
 import { useSidebarGroups } from "../panes/sidebar/use-sidebar-groups"
-import { closeTaskTab } from "./terminal-tabs-close"
+import { useOptionalDialog } from "../ui/dialog"
+import { DialogConfirm } from "../ui/dialog-confirm"
+import { closeOtherTaskTabs, closeTaskTab } from "./terminal-tabs-close"
 import { moveTaskTab } from "./terminal-tabs-move"
-import { requestNewTab } from "./terminal-tabs-shared"
+import { knownTabsState, requestNewTab } from "./terminal-tabs-shared"
 
 export interface HostSidebarProps
   extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest">>>,
@@ -73,6 +75,7 @@ export function HostSidebar(props: HostSidebarProps) {
   const kv = useKV()
   const notif = useNotifications()
   const t = useT()
+  const dialog = useOptionalDialog()
   // Who owns a tab's state depends on whether its TerminalTabs is mounted;
   // `closeTaskTab` holds that fork. Closing the LAST tab is fine (revived on
   // re-entry); false means a stale row, surfaced as a toast.
@@ -82,6 +85,25 @@ export function HostSidebar(props: HostSidebarProps) {
         notif.notify({ kind: "error", taskId, tabId, title: t("terminal.tab.tabGone") })
     },
     [kv, notif, t],
+  )
+  // Bulk close ends sessions the user isn't looking at, so it asks first.
+  const closeOtherTabs = useCallback(
+    async (taskId: string, tabId: string): Promise<void> => {
+      const count = (knownTabsState(kv, taskId)?.tabs.length ?? 1) - 1
+      if (count < 1 || !dialog) return
+      const ok = await DialogConfirm.show(
+        dialog,
+        t("terminal.tab.closeOthersTitle"),
+        t("terminal.tab.closeOthersBody", { count: String(count) }),
+        t("terminal.tab.closeOthersCancel"),
+        t("terminal.tab.closeOthersConfirm"),
+        { danger: true },
+      )
+      if (ok !== true) return
+      if (closeOtherTaskTabs(kv, taskId, tabId) === 0)
+        notif.notify({ kind: "error", taskId, tabId, title: t("terminal.tab.tabGone") })
+    },
+    [kv, notif, t, dialog],
   )
   // Same mounted-vs-background fork (`moveTaskTab`); an edge-stop is a silent no-op.
   const moveTab = useCallback(
@@ -130,6 +152,7 @@ export function HostSidebar(props: HostSidebarProps) {
       <SidebarTree
         {...treeProps}
         onCloseTab={closeTab}
+        onCloseOtherTabs={(taskId, tabId) => void closeOtherTabs(taskId, tabId)}
         onNewTab={newTab}
         onMoveTabRequest={moveTab}
         recentTask={props.recentTask ?? null}
