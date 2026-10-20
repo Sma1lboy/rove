@@ -14,8 +14,8 @@
  * wearing the model's name.
  */
 
+import { isObject } from "../lib/is-object"
 import { AUTO_ROUTING_TIERS, type AutoRoutingTier, isAutoRoutingTier } from "./auto-routing.ts"
-import { isObject } from "./is-object"
 
 /**
  * Probabilities come back rounded to the cent, so a distribution sums to 0.99

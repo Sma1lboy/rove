@@ -3,6 +3,7 @@
  * Kept apart from direct-chord overrides so each parser has one grammar.
  */
 
+import { isObject } from "../../lib/is-object"
 import { type AppliedOverride, type KeymapOverrideEntry, normalizeChord } from "./keymap-overrides"
 
 export type PrefixOverridableBinding = {
@@ -23,10 +24,6 @@ export type PrefixExtraction = {
   warnings: string[]
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
 function platformKeys(platform: NodeJS.Platform): string[] {
   if (platform === "darwin") return ["darwin", "macos", "mac"]
   if (platform === "win32") return ["win32", "windows"]
@@ -36,7 +33,7 @@ function platformKeys(platform: NodeJS.Platform): string[] {
 function collectEntries(source: unknown, warnings: string[]): Map<string, string[]> {
   const out = new Map<string, string[]>()
   if (source === undefined) return out
-  if (!isRecord(source)) {
+  if (!isObject(source)) {
     warnings.push("prefix.bindings must be a mapping of binding id to chord(s)")
     return out
   }
@@ -117,7 +114,7 @@ function mergePrefixBlock(
   warnings: string[],
 ): void {
   if (raw === undefined) return
-  if (!isRecord(raw)) {
+  if (!isObject(raw)) {
     warnings.push("prefix must be a mapping")
     return
   }
@@ -140,14 +137,14 @@ export function extractPrefixKeybindings(doc: unknown, platform: NodeJS.Platform
   const configuration: PrefixConfigurationOverride = {}
   const warnings: string[] = []
   const entries = new Map<string, string[]>()
-  if (!isRecord(doc)) {
+  if (!isObject(doc)) {
     if (doc !== null && doc !== undefined) warnings.push("keybindings document must be a mapping")
     return { configuration, entries: [], warnings }
   }
   mergePrefixBlock(doc.prefix, configuration, entries, warnings)
   for (const key of platformKeys(platform)) {
     const overlay = doc[key]
-    if (isRecord(overlay)) mergePrefixBlock(overlay.prefix, configuration, entries, warnings)
+    if (isObject(overlay)) mergePrefixBlock(overlay.prefix, configuration, entries, warnings)
   }
   return { configuration, entries: [...entries].map(([id, keys]) => ({ id, keys })), warnings }
 }

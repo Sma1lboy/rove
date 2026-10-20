@@ -10,7 +10,7 @@
  */
 
 import type { ContentBlock } from "@/types/content"
-import { isObject } from "../is-object"
+import { isObject } from "../../lib/is-object"
 
 export function normalizeCodexContent(raw: unknown): ContentBlock[] {
   if (typeof raw === "string") {

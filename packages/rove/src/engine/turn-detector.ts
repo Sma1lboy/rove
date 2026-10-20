@@ -9,8 +9,8 @@ import { stat } from "node:fs/promises"
 import * as claudeHistory from "@/engine/claude-code-local/history"
 import * as codexHistory from "@/engine/codex-local/history"
 import type { VendorId } from "@/types/vendor"
+import { isObject } from "../lib/is-object"
 import { isJsonlLineWithinBound, readTextFileIfRegular } from "./file-bounds"
-import { isObject } from "./is-object"
 import { engineEntry } from "./registry.ts"
 
 /** `needs_input` comes from hooks (`turn-state-merge.ts`) or, for marker-less

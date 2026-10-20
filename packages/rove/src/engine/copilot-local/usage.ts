@@ -10,7 +10,7 @@
  */
 
 import type { EngineUsageSnapshot } from "@/types/engine"
-import { isObject } from "../is-object"
+import { isObject } from "../../lib/is-object"
 
 export function copilotUsageToSnapshot(value: unknown): EngineUsageSnapshot | undefined {
   if (!isObject(value)) return undefined

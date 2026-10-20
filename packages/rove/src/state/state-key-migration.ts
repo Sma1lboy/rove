@@ -33,6 +33,7 @@
 
 import { readFileSync } from "node:fs"
 import { kvStatePath } from "../env.ts"
+import { isObject } from "../lib/is-object.ts"
 import { updateStateFile } from "./store.ts"
 
 /**
@@ -74,7 +75,7 @@ function legacyRename(key: string): string | undefined {
 function isStateObject(text: string): boolean {
   try {
     const parsed: unknown = JSON.parse(text)
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+    return isObject(parsed)
   } catch {
     return false
   }

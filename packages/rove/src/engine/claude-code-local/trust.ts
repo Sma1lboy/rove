@@ -8,7 +8,7 @@
  * read its module doc before changing the write.
  */
 
-import { isObject } from "../is-object.ts"
+import { isObject } from "../../lib/is-object.ts"
 import { updateSharedJsonSync } from "../shared-config-write.ts"
 import { claudeGlobalConfigPath, vendorWriteHomeDeps } from "../vendor-home.ts"
 
