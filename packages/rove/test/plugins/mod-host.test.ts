@@ -28,14 +28,18 @@ async function waitFor(predicate: () => boolean, ms = 10_000): Promise<void> {
 }
 
 // Counts presses of `inc`; `bad` sends a tree no host can draw; `quit` exits.
+// `Last:` shows the newest submitted note or `task.opened` event.
 const COUNTER_MOD = `
 let count = 0
+let last = "-"
 const send = (tree) => process.stdout.write(JSON.stringify({ type: "pane", id: "main", title: "Counter", tree }) + "\\n")
 const draw = () => send({ type: "box", direction: "row", children: [
   { type: "button", key: "inc", label: "Add one" },
   { type: "button", key: "bad", label: "Break" },
   { type: "button", key: "quit", label: "Quit" },
+  { type: "input", key: "note", placeholder: "note" },
   { type: "text", text: "Count: " + count },
+  { type: "text", text: "Last: " + last },
 ] })
 let buf = ""
 process.stdin.on("data", (chunk) => {
@@ -47,8 +51,11 @@ process.stdin.on("data", (chunk) => {
     if (msg.key === "inc") { count++; draw() }
     if (msg.key === "bad") send({ type: "marquee", text: "no" })
     if (msg.key === "quit") process.exit(3)
+    if (msg.type === "submit") { last = msg.value; draw() }
+    if (msg.type === "event") { last = msg.event.event + " " + msg.event.taskId; draw() }
   }
 })
+process.stdout.write(JSON.stringify({ type: "subscribe", events: ["task.opened"] }) + "\\n")
 draw()
 `
 
@@ -82,12 +89,15 @@ function startHost(): { host: PluginHost; latest: () => readonly ModPaneView[]; 
   return { host, latest: () => panes, home }
 }
 
-function countText(panes: readonly ModPaneView[]): string | undefined {
+function textStartingWith(panes: readonly ModPaneView[], prefix: string): string | undefined {
   const tree = panes[0]?.tree
   if (tree?.type !== "box") return undefined
-  const text = tree.children.find((c: { type: string }) => c.type === "text")
-  return text?.type === "text" ? text.text : undefined
+  for (const c of tree.children) if (c.type === "text" && c.text.startsWith(prefix)) return c.text
+  return undefined
 }
+
+const countText = (panes: readonly ModPaneView[]) => textStartingWith(panes, "Count:")
+const lastText = (panes: readonly ModPaneView[]) => textStartingWith(panes, "Last:")
 
 describe("mods", () => {
   it("publishes a mod's tree and redraws it after a client press", async () => {
@@ -125,5 +135,25 @@ describe("mods", () => {
     await waitFor(() => latest().length === 0)
     // A fresh process: its own state starts over.
     await waitFor(() => countText(latest()) === "Count: 0")
+  })
+
+  it("hands submitted input text to the mod, and refuses text for a key that is not an input", async () => {
+    const { host, latest } = startHost()
+    await waitFor(() => lastText(latest()) === "Last: -")
+    expect(host.submitMod("t.counter", "main", "inc", "x")).toBe("no-key")
+    expect(host.submitMod("t.counter", "main", "note", "buy milk")).toBe("sent")
+    await waitFor(() => lastText(latest()) === "Last: buy milk")
+  })
+
+  it("delivers the plugin events the mod subscribed to", async () => {
+    const { host, latest } = startHost()
+    await waitFor(() => lastText(latest()) === "Last: -")
+    host.handleUiReport({ kind: "task.opened", taskId: "T1" })
+    await waitFor(() => lastText(latest()) === "Last: task.opened T1")
+    // Not subscribed: a press round-trips after it, so if it had been sent it would show by then.
+    host.handleUiReport({ kind: "file.opened", taskId: "T0" })
+    host.pressMod("t.counter", "main", "inc")
+    await waitFor(() => countText(latest()) === "Count: 1")
+    expect(lastText(latest())).toBe("Last: task.opened T1")
   })
 })

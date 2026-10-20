@@ -547,3 +547,21 @@
 .mod-button.tone-muted {
   color: var(--muted);
 }
+
+.mod-field {
+  display: flex;
+  align-self: stretch;
+  min-width: 0;
+  max-width: 40em;
+}
+
+/* Beside other controls a field takes the spare width, as the TUI's does. */
+.mod-box.is-row > .mod-field {
+  flex: 1 1 12em;
+  align-self: center;
+}
+
+.mod-field .input {
+  width: 100%;
+  font-family: var(--mono);
+}

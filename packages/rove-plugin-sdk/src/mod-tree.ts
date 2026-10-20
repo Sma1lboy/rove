@@ -37,12 +37,24 @@ export interface ModButton {
   readonly tone?: ModTone
 }
 
-export type ModNode = ModBox | ModText | ModButton
+/** A one-line text field; Enter submits its text to the mod under `key`. */
+export interface ModInput {
+  readonly type: "input"
+  /** Unique in the tree, shared with buttons. */
+  readonly key: string
+  readonly placeholder?: string
+  /** What the field holds when drawn; a redraw with the same value keeps the user's typing. */
+  readonly value?: string
+}
+
+export type ModNode = ModBox | ModText | ModButton | ModInput
 
 export const MOD_TREE_MAX_NODES = 400
 export const MOD_TREE_MAX_DEPTH = 12
 export const MOD_TEXT_MAX = 4000
 export const MOD_LABEL_MAX = 40
+/** Longest text a client submits from an `input`. */
+export const MOD_INPUT_MAX = 4000
 export const MOD_KEY_PATTERN = /^[A-Za-z0-9._:-]{1,64}$/
 /** A mod's own pane id; the host scopes it by plugin id. */
 export const MOD_PANE_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/
@@ -56,6 +68,7 @@ const ALLOWED: Record<ModNode["type"], ReadonlySet<string>> = {
   box: new Set(["type", "direction", "gap", "padding", "border", "children"]),
   text: new Set(["type", "text", "tone", "bold"]),
   button: new Set(["type", "key", "label", "tone"]),
+  input: new Set(["type", "key", "placeholder", "value"]),
 }
 
 function isTone(v: unknown): v is ModTone {
@@ -78,7 +91,7 @@ export function validateModTree(input: unknown): ModTreeResult {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Refused(`${path}: not an element`)
     const el = raw as Record<string, unknown>
     const type = el.type
-    if (type !== "box" && type !== "text" && type !== "button") {
+    if (type !== "box" && type !== "text" && type !== "button" && type !== "input") {
       throw new Refused(`${path}: unknown element ${JSON.stringify(type)}`)
     }
     for (const prop of Object.keys(el)) {
@@ -98,14 +111,35 @@ export function validateModTree(input: unknown): ModTreeResult {
         ...(el.bold ? { bold: true } : {}),
       }
     }
-    if (type === "button") {
-      if (typeof el.key !== "string" || !MOD_KEY_PATTERN.test(el.key)) throw new Refused(`${path}: bad button key`)
+    if (type === "button" || type === "input") {
+      if (typeof el.key !== "string" || !MOD_KEY_PATTERN.test(el.key)) throw new Refused(`${path}: bad ${type} key`)
       if (keys.has(el.key)) throw new Refused(`${path}: duplicate key "${el.key}"`)
       keys.add(el.key)
+    }
+    if (type === "input") {
+      for (const prop of ["placeholder", "value"] as const) {
+        const v = el[prop]
+        if (v !== undefined && (typeof v !== "string" || v.length > MOD_INPUT_MAX)) {
+          throw new Refused(`${path}: ${prop} must be a string of at most ${MOD_INPUT_MAX} chars`)
+        }
+      }
+      return {
+        type,
+        key: el.key as string,
+        ...(el.placeholder !== undefined ? { placeholder: el.placeholder as string } : {}),
+        ...(el.value !== undefined ? { value: el.value as string } : {}),
+      }
+    }
+    if (type === "button") {
       if (typeof el.label !== "string" || el.label.length === 0 || el.label.length > MOD_LABEL_MAX) {
         throw new Refused(`${path}: label must be 1-${MOD_LABEL_MAX} chars`)
       }
-      return { type, key: el.key, label: el.label, ...(el.tone !== undefined ? { tone: el.tone as ModTone } : {}) }
+      return {
+        type,
+        key: el.key as string,
+        label: el.label,
+        ...(el.tone !== undefined ? { tone: el.tone as ModTone } : {}),
+      }
     }
     if (el.direction !== undefined && el.direction !== "row" && el.direction !== "column") {
       throw new Refused(`${path}: direction must be "row" or "column"`)

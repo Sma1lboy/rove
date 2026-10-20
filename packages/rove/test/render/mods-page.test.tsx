@@ -31,27 +31,46 @@ const PANE: ModPaneView = {
           { type: "button", key: "dec", label: "-1" },
         ],
       },
+      { type: "input", key: "note", placeholder: "Add a note" },
     ],
   },
 }
 
-test("draws a mod's tree and presses the focused button on Enter", async () => {
-  const presses: string[] = []
+const PANES = createStateCell<readonly ModPaneView[]>([PANE])
+
+async function renderPage() {
+  const sent: string[] = []
+  let closed = false
   const orchestrator = {
-    modPanesSignal: () => createStateCell<readonly ModPaneView[]>([PANE]),
+    modPanesSignal: () => PANES,
     pressMod: async (plugin: string, pane: string, key: string) => {
-      presses.push(`${plugin}/${pane}/${key}`)
+      sent.push(`press ${plugin}/${pane}/${key}`)
+      return { ok: true }
+    },
+    submitMod: async (plugin: string, pane: string, key: string, value: string) => {
+      sent.push(`submit ${plugin}/${pane}/${key}=${value}`)
       return { ok: true }
     },
   } as unknown as RemoteOrchestrator
-  const { frame, mockInput } = await renderComponent(
-    <ModsPage orchestrator={orchestrator} focused onClose={() => {}} />,
+  const rendered = await renderComponent(
+    <ModsPage
+      orchestrator={orchestrator}
+      focused
+      onClose={() => {
+        closed = true
+      }}
+    />,
     {
       width: 80,
       height: 20,
       providers: { dialog: true, kv: true, notifications: true },
     },
   )
+  return { ...rendered, sent, closed: () => closed }
+}
+
+test("draws a mod's tree and presses the focused button on Enter", async () => {
+  const { frame, mockInput, sent } = await renderPage()
   const text = await frame()
   expect(text).toContain("Counter · examples.counter-mod")
   expect(text).toContain("Count: 3")
@@ -60,5 +79,20 @@ test("draws a mod's tree and presses the focused button on Enter", async () => {
   mockInput.pressArrow("down")
   mockInput.pressEnter()
   await new Promise((r) => setTimeout(r, 50))
-  expect(presses).toEqual(["examples.counter-mod/main/dec"])
+  expect(sent).toEqual(["press examples.counter-mod/main/dec"])
+})
+
+test("typing in a mod field stays in the field, and Enter submits it to the mod", async () => {
+  const { frame, mockInput, sent, closed } = await renderPage()
+  expect(await frame()).toContain("Add a note")
+  mockInput.pressArrow("down")
+  mockInput.pressArrow("down")
+  // `q` closes the page everywhere else on it; in a field it is a letter.
+  await mockInput.typeText("quit early")
+  mockInput.pressEnter()
+  await new Promise((r) => setTimeout(r, 50))
+  expect(closed()).toBe(false)
+  expect(sent).toEqual(["submit examples.counter-mod/main/note=quit early"])
+  // Submitted: the field empties, as the web's does.
+  expect(await frame()).not.toContain("quit early")
 })

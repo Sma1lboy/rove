@@ -1,11 +1,11 @@
 # Web parity with the TUI
 
-Every user action the TUI offers (202 numbered rows, plus four extra rows marked `—`: two web-only, two for the unmerged long-run controls stack), and whether `packages/rove-web` does it yet.
+Every user action the TUI offers (203 numbered rows, plus four extra rows marked `—`: two web-only, two for the unmerged long-run controls stack), and whether `packages/rove-web` does it yet.
 Legend: ✅ same as TUI · 🟡 partial or different · ❌ missing (unbuilt) · 🚫 cannot exist in a browser. `Bridge` names the op that would carry the action: `missing` = no op exists, `local` = pure UI.
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
 
-Score: 188 / 206 rows at ✅ (1 🟡, 3 🚫, 14 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
+Score: 190 / 207 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
 
 ## Navigation, help, command layer and global chrome
 
@@ -259,7 +259,8 @@ Score: 188 / 206 rows at ✅ (1 🟡, 3 🚫, 14 ❌). Regenerate from the table
 | 197 | Toggle experimental remote projects / auto status / dispatcher | Dev rows | ✅ | `prefs.set` | settings: Remote projects, Auto status and Field-notes dispatcher each wrote their `experimental.*` key on and off. Shot 19. |
 | 200 | Open the Mods page (rail row while a mod has a pane open) | click Mods row | ✅ | `mods` push | mods: sandbox with `examples.counter-mod` linked; the rail lists Mods after Issues only while the mod has a pane, and the page shows its pane titled `Counter · examples.counter-mod`, drawn from the same `mod.ui` tree as the TUI's Mods page. Page keys are PROPOSED (design/mods.md). Shot web-01-mods. |
 | 201 | Press a mod button | click, ↑/↓ + Enter | ✅ | `mod.press` | mods: three clicks on `+1` in the browser took the count 0 -> 3; the harness TUI on the same home then showed `Count: 3` (one mod process, every client redraws). Shots web-same-home, tui-synced. |
-| 202 | Answer a plugin's input dialog (`rove api prompt`) | dialog Enter/Esc | ❌ | missing | The bridge does not carry the `ui.prompt` channel or `ui.promptReply`, so with only the web attached `promptUser()` times out and returns null. A mod pane with an input element is the planned replacement (design/mods.md). |
+| 203 | Type into a mod's field and submit | field, Enter | ✅ | `mod.submit` | mods: a note typed into the counter-mod field in the harness TUI appeared on the web page, a note typed on the web appeared in the TUI, and both fields emptied after Enter. Shots tui-after, web-mods-notes. |
+| 202 | Answer a plugin's input dialog (`rove api prompt`) | dialog Enter/Esc | ✅ | `prompt` push, `ui.promptReply` | mods: with only the web attached to the harness sandbox, `rove api prompt --title "Repo to watch?"` opened the web's dialog titled by the plugin; typing `Sma1lboy/rove` and submit made the CLI print `{"value":"Sma1lboy/rove"}`. Esc/cancel replies a cancel; a second client answering later gets PROMPT_GONE (bridge test). Shot web-prompt. |
 
 ## Machines and approval boundary
 

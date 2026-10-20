@@ -27,6 +27,7 @@ import { TaskFeed } from "./feed.ts"
 import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { machineStore } from "./ops/machines.ts"
+import { PromptFeed } from "./prompts.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
 import { TabFeed } from "./tab-feed.ts"
@@ -153,6 +154,9 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   const notices = new NoticeFeed()
   const noticeStore = orchestrator.noticeStore()
   noticeStore.subscribe(() => notices.push(noticeStore.get()))
+  const prompts = new PromptFeed()
+  const promptStore = orchestrator.uiPromptStore()
+  promptStore.subscribe(() => prompts.push(promptStore.get()))
   const modPanes = orchestrator.modPanesSignal()
   const mods: BridgeDeps["mods"] = {
     current: () => modPanes.get(),
@@ -182,6 +186,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     ops,
     feed,
     notices,
+    prompts,
     mods,
     tabs,
     openPty: () => new RoveDaemonClient(ptySocket),

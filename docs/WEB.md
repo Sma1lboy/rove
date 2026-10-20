@@ -35,6 +35,8 @@ already paired with `rove-bridge` keeps working: the two share one token.
 - Mods: while a plugin's `[mod]` has a pane open, the rail lists **Mods**.
   The page draws the same panes as the TUI's Mods page, and a button pressed
   here updates both ([PLUGIN-AUTHORING.md](PLUGIN-AUTHORING.md#mods)).
+- A plugin's input dialog (`rove api prompt`) opens here too; the first
+  answer from the web or a TUI wins.
 - The Inbox: click `INBOX n` at the top of the rail. `↑↓` moves, Enter opens
   the session and clears it, `d` clears it without opening.
 

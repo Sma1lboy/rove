@@ -310,6 +310,10 @@ export class RemoteOrchestrator {
   readonly pressMod = (plugin: string, pane: string, key: string): Promise<unknown> =>
     this.client.request("mod.press", { plugin, pane, key })
 
+  /** Forward an input field's submitted text to the mod that drew it. */
+  readonly submitMod = (plugin: string, pane: string, key: string, value: string): Promise<unknown> =>
+    this.client.request("mod.submit", { plugin, pane, key, value })
+
   /** null means the daemon has not supplied this channel; readers may poll locally. */
   readonly worktreeChangesSignal = (): ReadableState<WorktreeChangesMap | null> => this.worktreeChangesAcc
 

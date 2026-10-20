@@ -15,6 +15,7 @@ import type { TaskFeed } from "./feed.ts"
 import type { NoticeFeed } from "./notices.ts"
 import { AREA_OPS } from "./ops/index.ts"
 import type { BridgeApi, OpTable } from "./ops/types.ts"
+import type { PromptFeed } from "./prompts.ts"
 import {
   BRIDGE_PROTOCOL_VERSION,
   BridgeError,
@@ -41,6 +42,8 @@ export interface BridgeDeps {
   readonly feed: Pick<TaskFeed, "current" | "refresh" | "subscribe">
   /** `rove api notify` toasts, pushed to every connected phone as a `notice` event. */
   readonly notices?: Pick<NoticeFeed, "subscribe">
+  /** Plugin input dialogs (`rove api prompt`), pushed to every connected client as a `prompt` event. */
+  readonly prompts?: Pick<PromptFeed, "subscribe">
   /** Open mod panes (`mod.ui`), pushed as a `mods` event on connect and on every change. */
   readonly mods?: {
     current(): readonly ModPaneView[]
@@ -69,6 +72,7 @@ interface Conn {
   unsubscribeTabs: (() => void) | null
   unsubscribeNotices: (() => void) | null
   unsubscribeMods: (() => void) | null
+  unsubscribePrompts: (() => void) | null
 }
 
 async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request): Promise<unknown> {
@@ -257,6 +261,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         unsubscribeTabs: null,
         unsubscribeNotices: null,
         unsubscribeMods: null,
+        unsubscribePrompts: null,
       }
       // A browser drops a socket whose server did not pick one of its offered protocols.
       const headers = offersWebSubprotocol(req) ? { "Sec-WebSocket-Protocol": WEB_SUBPROTOCOL } : undefined
@@ -266,6 +271,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
     websocket: {
       open(ws) {
         ws.data.unsubscribeNotices = deps.notices?.subscribe((n) => ws.send(pushEvent("notice", n))) ?? null
+        ws.data.unsubscribePrompts = deps.prompts?.subscribe((p) => ws.send(pushEvent("prompt", p))) ?? null
         if (deps.mods) {
           ws.send(pushEvent("mods", { panes: deps.mods.current() }))
           ws.data.unsubscribeMods = deps.mods.subscribe((panes) => ws.send(pushEvent("mods", { panes })))
@@ -281,6 +287,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         ws.data.unsubscribeTabs?.()
         ws.data.unsubscribeNotices?.()
         ws.data.unsubscribeMods?.()
+        ws.data.unsubscribePrompts?.()
         ws.data.terminal?.dispose()
       },
     },

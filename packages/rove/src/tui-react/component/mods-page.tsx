@@ -3,19 +3,20 @@
  * ModsPage — every open mod pane, drawn natively from the element tree the
  * daemon validated (`plugins/mod-host.ts`). The web draws the same trees with
  * DOM elements; this file is the OpenTUI half of that one vocabulary. A press
- * goes back to the mod, which redraws; nothing here holds mod state.
+ * or a submitted field goes back to the mod, which redraws; nothing here holds
+ * mod state except what the user is typing into a field.
  */
 
 import { TextAttributes } from "@opentui/core"
 import type { ModNode, ModPaneView, ModTone } from "@sma1lboy/rove-daemon/plugins/mod-tree"
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import {
-  type ModButtonRef,
-  modButtons,
+  type ModControlRef,
+  modControls,
   moveModCursor,
   resolveModCursor,
-  sameModButton,
+  sameModControl,
 } from "../../tui/panes/mods/mods-core"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
@@ -45,12 +46,25 @@ function toneColor(tone: ModTone | undefined, theme: Theme): Theme["text"] {
   }
 }
 
+/** Two panes may reuse a key; a draft belongs to one field. */
+function draftKey(ref: ModControlRef): string {
+  return `${ref.plugin}/${ref.pane}/${ref.key}`
+}
+
 interface TreeProps {
   readonly node: ModNode
   readonly pane: ModPaneView
-  readonly cursor: ModButtonRef | null
+  readonly cursor: ModControlRef | null
+  /** Page focus: only then does the cursor's field take the keyboard. */
+  readonly focused: boolean
   readonly theme: Theme
-  readonly onPress: (ref: ModButtonRef) => void
+  readonly onPress: (ref: ModControlRef) => void
+  readonly onSubmit: (ref: ModControlRef, value: string) => void
+  readonly onFocusControl: (ref: ModControlRef) => void
+  /** What the user has typed per field (see draftKey) since it was last drawn. */
+  readonly drafts: Map<string, string>
+  /** Bumped by every submit. */
+  readonly epoch: number
 }
 
 /** One element → OpenTUI. Spacing steps are cells; a box's flex is Yoga's. */
@@ -63,9 +77,28 @@ function ModTree(props: TreeProps): ReactNode {
       </text>
     )
   }
+  if (node.type === "input") {
+    const ref = { kind: "input" as const, plugin: props.pane.plugin, pane: props.pane.id, key: node.key }
+    const focused = sameModControl(ref, props.cursor)
+    return (
+      <box flexShrink={0} flexGrow={1} minWidth={12} backgroundColor={theme.backgroundElement}>
+        <input
+          // Remounted on a submit (empties it) or a new `value` from the mod; typing in
+          // other fields survives because it is read back from `drafts`.
+          key={`${node.value ?? ""}#${props.epoch}`}
+          value={props.drafts.get(draftKey(ref)) ?? node.value ?? ""}
+          placeholder={node.placeholder ?? ""}
+          focused={props.focused && focused}
+          onMouseUp={() => props.onFocusControl(ref)}
+          onInput={(value: string) => props.drafts.set(draftKey(ref), value)}
+          onSubmit={() => props.onSubmit(ref, props.drafts.get(draftKey(ref)) ?? node.value ?? "")}
+        />
+      </box>
+    )
+  }
   if (node.type === "button") {
-    const ref = { plugin: props.pane.plugin, pane: props.pane.id, key: node.key }
-    const focused = sameModButton(ref, props.cursor)
+    const ref = { kind: "button" as const, plugin: props.pane.plugin, pane: props.pane.id, key: node.key }
+    const focused = sameModControl(ref, props.cursor)
     return (
       <text
         flexShrink={0}
@@ -105,14 +138,14 @@ export function ModsPage(props: { orchestrator: RemoteOrchestrator; focused: boo
   const dims = useTerminalSize()
   const notif = useNotifications()
   const panes = useAccessor(props.orchestrator.modPanesSignal())
-  const buttons = modButtons(panes)
-  const [rawCursor, setCursor] = useState<ModButtonRef | null>(null)
-  const cursor = resolveModCursor(buttons, rawCursor)
+  const controls = modControls(panes)
+  const [rawCursor, setCursor] = useState<ModControlRef | null>(null)
+  const cursor = resolveModCursor(controls, rawCursor)
+  const drafts = useRef(new Map<string, string>()).current
+  const [epoch, setEpoch] = useState(0)
 
-  const press = (ref: ModButtonRef): void => {
-    setCursor(ref)
-    props.orchestrator
-      .pressMod(ref.plugin, ref.pane, ref.key)
+  const report = (ref: ModControlRef, sent: Promise<unknown>): void => {
+    sent
       .then((res) => {
         const reason =
           (res as { ok?: boolean; reason?: string } | undefined)?.ok === false
@@ -136,15 +169,31 @@ export function ModsPage(props: { orchestrator: RemoteOrchestrator; focused: boo
       )
   }
 
+  const press = (ref: ModControlRef): void => {
+    setCursor(ref)
+    report(ref, props.orchestrator.pressMod(ref.plugin, ref.pane, ref.key))
+  }
+
+  const submit = (ref: ModControlRef, value: string): void => {
+    setCursor(ref)
+    drafts.delete(draftKey(ref))
+    setEpoch((n) => n + 1)
+    report(ref, props.orchestrator.submitMod(ref.plugin, ref.pane, ref.key, value))
+  }
+
+  // In a field, letters are typing: only movement and esc stay page keys, and
+  // enter belongs to the field's own submit.
+  const inField = cursor?.kind === "input"
+
   useBindings(() => ({
     enabled: props.focused,
     bindings: [
-      ...pageCloseBindings(props.onClose),
-      { key: "down", cmd: () => setCursor(moveModCursor(buttons, cursor, 1)) },
-      { key: "tab", cmd: () => setCursor(moveModCursor(buttons, cursor, 1)) },
-      { key: "up", cmd: () => setCursor(moveModCursor(buttons, cursor, -1)) },
-      { key: "shift+tab", cmd: () => setCursor(moveModCursor(buttons, cursor, -1)) },
-      { key: "return", cmd: () => cursor && press(cursor) },
+      ...(inField ? [{ key: "escape", cmd: props.onClose }] : pageCloseBindings(props.onClose)),
+      { key: "down", cmd: () => setCursor(moveModCursor(controls, cursor, 1)) },
+      { key: "tab", cmd: () => setCursor(moveModCursor(controls, cursor, 1)) },
+      { key: "up", cmd: () => setCursor(moveModCursor(controls, cursor, -1)) },
+      { key: "shift+tab", cmd: () => setCursor(moveModCursor(controls, cursor, -1)) },
+      ...(inField ? [] : [{ key: "return", cmd: () => cursor && press(cursor) }]),
     ],
   }))
 
@@ -185,7 +234,18 @@ export function ModsPage(props: { orchestrator: RemoteOrchestrator; focused: boo
                 </text>
                 <text fg={theme.textMuted} wrapMode="none">{`· ${pane.plugin}`}</text>
               </box>
-              <ModTree node={pane.tree} pane={pane} cursor={cursor} theme={theme} onPress={press} />
+              <ModTree
+                node={pane.tree}
+                pane={pane}
+                cursor={cursor}
+                focused={props.focused}
+                theme={theme}
+                onPress={press}
+                onSubmit={submit}
+                onFocusControl={setCursor}
+                drafts={drafts}
+                epoch={epoch}
+              />
             </box>
           ))}
         </scrollbox>

@@ -109,7 +109,7 @@ export interface DaemonHandlerContext {
   /** Plugin sink for agent-lifecycle events — a direct feed, deliberately NOT a bus channel. */
   readonly plugins?: Pick<
     import("../plugins/runtime.ts").PluginHost,
-    "handleEngineReport" | "handleUiReport" | "pressMod"
+    "handleEngineReport" | "handleUiReport" | "pressMod" | "submitMod"
   >
   /** Daemon-process facts + lifecycle controls handlers surface or drive. */
   readonly daemon: {

@@ -427,8 +427,9 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
   rail's Mods page, natively in both the TUI and the web — see
   [below](#mods).
 - **Host input dialog**: `rove api prompt --title "…"` (SDK: `promptUser()`)
-  pops the TUI's standard input dialog and blocks for the answer: `{value}`
-  on submit, `{cancelled, reason}` on esc/timeout. Use it instead of
+  pops the standard input dialog in every attached TUI and web page and
+  blocks for the first answer: `{value}` on submit, `{cancelled, reason}` on
+  esc/timeout. Use it instead of
   hand-rolling in-pane prompts.
 - **Settings → Plugins**: enable/disable, declared surfaces, last run,
   and your `[[settings]]` editors.
@@ -544,6 +545,7 @@ has a pane open; the page lists every pane with its title and plugin id.
 | `box` | `direction` `"row"`/`"column"` (default column), `gap`, `padding` (steps 0–3: cells in the TUI, a px scale in the web), `border`, `children` |
 | `text` | `text`, `tone`, `bold` |
 | `button` | `key` (unique in the tree), `label` (≤40 chars), `tone` |
+| `input` | `key` (unique, shared with buttons), `placeholder`, `value` — one line; Enter submits its text |
 
 `tone` is a role — `info`, `success`, `warning`, `error`, `muted` — and the
 client's theme picks the colour. A tree with an unknown element or prop, a
@@ -551,21 +553,38 @@ duplicate key, more than 400 elements or deeper than 12 levels is refused
 whole: the last good tree stays on screen and the reason goes to
 `rove plugin log <id>`. A mod holds at most 8 panes.
 
+An `input` keeps what the user types until they press Enter; then its text
+reaches the field's `onSubmit` (SDK: `Input({ key, placeholder, onSubmit })`)
+and the field empties. Draw it with a new `value` to replace what it holds.
+On the Mods page, while a field has focus, letters are typing: only `↑`/`↓`,
+`tab` and `esc` stay page keys.
+
+**Plugin events** reach a running mod directly, with the same envelope an
+`[[events]]` hook gets: `mod.on("task.created", (e) => …)`. A mod receives
+only the events it subscribed to; the `tool.*` family still needs some
+plugin's `[[events]]` hook to switch the engine hooks on (see the
+volume gate in the event reference).
+
 **Without the SDK** the wire is JSON lines on stdio, in any language:
 
 ```text
 mod → Rove  {"type":"pane","id":"main","title":"Counter","tree":{…}}
 mod → Rove  {"type":"close","id":"main"}
+mod → Rove  {"type":"subscribe","events":["task.created"]}
 Rove → mod  {"type":"press","pane":"main","key":"inc"}
+Rove → mod  {"type":"submit","pane":"main","key":"note","value":"buy milk"}
+Rove → mod  {"type":"event","event":{"event":"task.created","taskId":"…",…}}
 ```
+
+`subscribe` replaces the previous list; a restarted mod starts with none.
 
 Stdout is the protocol, so log to stderr (it lands in `log.jsonl`). A mod
 that exits loses its panes and is restarted after 1s, backing off to 30s; a
 run longer than a minute resets the backoff. Editing the `[mod]` command in
 the manifest restarts it; for a code change, disable and re-enable the
 plugin. The mod gets the usual environment contract with
-`ROVE_PLUGIN_EVENT=mod`; read live state from the daemon socket
-(`RoveSocket`), as the example does.
+`ROVE_PLUGIN_EVENT=mod`; read live state the events do not carry from the
+daemon socket (`RoveSocket`), as the example does.
 
 Runnable example: [`examples/counter-mod/`](../packages/rove-plugin-sdk/examples/counter-mod).
 

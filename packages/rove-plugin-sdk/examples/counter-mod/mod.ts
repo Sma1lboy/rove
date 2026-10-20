@@ -1,12 +1,15 @@
 /**
  * The mod's whole state lives here, so the TUI and the web always agree:
- * press "+1" in the browser and the TUI redraws the same count.
+ * press "+1" in the browser and the TUI redraws the same count; a note typed
+ * in the TUI shows up in the browser.
  */
-import { Box, Button, RoveSocket, Text, runMod } from "@sma1lboy/rove-plugin-sdk"
+import { Box, Button, Input, RoveSocket, Text, runMod } from "@sma1lboy/rove-plugin-sdk"
 
 const mod = runMod()
 let count = 0
 let tasks: number | null = null
+let lastCreated: string | null = null
+const notes: string[] = []
 
 function draw(): void {
   mod.pane(
@@ -26,7 +29,18 @@ function draw(): void {
             Button({ key: "reset", label: "Reset", tone: "warning", onPress: () => bump(-count) }),
           ],
         }),
+        Input({
+          key: "note",
+          placeholder: "Add a note and press Enter",
+          onSubmit: (value) => {
+            if (!value.trim()) return
+            notes.push(value.trim())
+            draw()
+          },
+        }),
+        ...notes.map((note) => Text(`• ${note}`)),
         Text({ text: tasks === null ? "Tasks: connecting…" : `Tasks: ${tasks}`, tone: "muted" }),
+        Text({ text: `Last task created: ${lastCreated ?? "none yet"}`, tone: "muted" }),
       ],
     }),
   )
@@ -36,6 +50,12 @@ function bump(delta: number): void {
   count += delta
   draw()
 }
+
+// Plugin events reach a running mod directly; no `[[events]]` hook needed.
+mod.on("task.created", (event) => {
+  lastCreated = event.task?.title ?? event.taskId ?? "?"
+  draw()
+})
 
 function connect(): void {
   const daemon = new RoveSocket()

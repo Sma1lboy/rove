@@ -23,6 +23,7 @@ export {
 export {
   Box,
   Button,
+  Input,
   Text,
   runMod,
   type BoxProps,
@@ -30,6 +31,7 @@ export {
   type ModElement,
   type ModBoxElement,
   type ModButtonElement,
+  type ModInputElement,
   type RunModOptions,
 } from "./mod.ts"
 export { Pane, parseKeys, type Key, type PaneOptions } from "./pane.ts"

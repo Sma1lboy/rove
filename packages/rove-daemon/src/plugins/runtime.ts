@@ -135,6 +135,11 @@ export class PluginHost {
     return this.mods?.press(pluginId, paneId, key) ?? "no-mod"
   }
 
+  /** Route a client's submitted input text to the mod that drew the field. */
+  submitMod(pluginId: string, paneId: string, key: string, value: string): ModPressOutcome {
+    return this.mods?.submit(pluginId, paneId, key, value) ?? "no-mod"
+  }
+
   private syncMods(): void {
     if (!this.mods) return
     const platform = currentPluginPlatform()
@@ -258,6 +263,7 @@ export class PluginHost {
 
   /** Fire one event at ONE plugin's matching hooks (registry transitions). */
   private dispatchTo(plugin: LoadedPlugin, event: PluginEvent): void {
+    this.mods?.deliver(new Set([plugin.manifest.id]), event)
     const platform = currentPluginPlatform()
     // Per plugin, so one plugin's data can't cost another its event; also runs
     // from the reload timer, where a throw is an uncaughtException.
@@ -279,6 +285,7 @@ export class PluginHost {
   }
 
   private dispatch(event: PluginEvent): void {
+    this.mods?.deliver(new Set(this.plugins.map((p) => p.manifest.id)), event)
     const platform = currentPluginPlatform()
     for (const plugin of this.plugins) {
       // Per plugin: the callers catch per batch, so one plugin's throw would

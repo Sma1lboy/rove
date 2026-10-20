@@ -861,7 +861,9 @@ picker, or whether the model input should instead sit behind a letter.
 The rail's Mods page (design/mods.md) takes page-local keys while the content
 pane has focus, as Kanban and Routines do: `↑`/`↓` and `tab`/`shift+tab` move
 between mod buttons, `enter` presses the focused one, `esc`/`q`/`ctrl+c`
-leave (the shared `pageCloseBindings`). No global chord opens the page; it is
+leave (the shared `pageCloseBindings`). While a mod field has focus, `q`
+and `enter` belong to the field (typing, submit) and only movement and `esc`
+stay page keys. No global chord opens the page; it is
 reached from its rail row. Awaiting owner sign-off on the page keys and on
 whether the page earns a prefix chord next to `ctrl+a` `1`–`3`.
 

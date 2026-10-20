@@ -86,7 +86,7 @@ channels.
 | `dispatch` | `(taskId, prompt, opts?) => Promise<RoveRunResult>` | `rove api dispatch`; text into a live session. |
 | `listTasks` | `<T>(opts?) => Promise<T>` | `rove api list`; all tasks as daemon-serialized JSON. |
 | `openPane` | `(qualifiedPaneId, opts?) => Promise<RoveRunResult & { clients?: number }>` | `rove plugin pane open`; opens one of your `[[panes]]`. `opts.taskId` picks the task (pass an event's `ctx.taskId`); without it the host uses the active task and fails when there is none. Check `clients` — `0` means no attached UI performed the split. |
-| `promptUser` | `(title, opts?) => Promise<string \| null>` | `rove api prompt`; host input dialog. Returns `null` on cancel, timeout, no attached TUI, or non-zero exit. |
+| `promptUser` | `(title, opts?) => Promise<string \| null>` | `rove api prompt`; host input dialog. Returns `null` on cancel, timeout, no attached TUI or web page, or non-zero exit. |
 
 Combined example:
 
@@ -106,7 +106,7 @@ const answer = await promptUser("Repo to watch?", {
   timeoutMs: 30_000,
 })
 if (answer === null) {
-  // User cancelled, the prompt timed out, or no TUI is attached.
+  // User cancelled, the prompt timed out, or no TUI or web page is attached.
   process.exit(0)
 }
 
@@ -118,7 +118,7 @@ await openPane("you.example.board")
 ```
 
 `promptUser` returns `null` for every non-submit path: the user pressed esc,
-the prompt exceeded `timeoutMs`, no TUI was attached, or the underlying
+the prompt exceeded `timeoutMs`, no TUI or web page was attached, or the underlying
 `rove api prompt` exited non-zero. Always branch on `null`.
 
 Every helper above takes the same optional `RoveRunOptions`:
@@ -364,9 +364,11 @@ limits: [Writing Rove plugins § Mods](./PLUGIN-AUTHORING.md#mods).
 | `runMod` | `(opts?) => Mod` | Start the stdio protocol. `opts.input`/`opts.output` default to stdin/stdout; `opts.onError` gets a throwing `onPress` (default: stderr). |
 | `Mod.pane` | `(id, title, tree) => void` | Open or redraw one pane. Call it again on every state change. |
 | `Mod.close` | `(id) => void` | Remove a pane. |
+| `Mod.on` | `(event, handler) => void` | Receive a plugin event (`[[events]]` envelope) in the running mod. |
 | `Box` | `(props) => ModBoxElement` | `direction`, `gap`, `padding`, `border`, `children`. |
 | `Text` | `(props \| string) => ModText` | `text`, `tone`, `bold`. |
 | `Button` | `(props) => ModButtonElement` | `key`, `label`, `tone`, `onPress`. |
+| `Input` | `(props) => ModInputElement` | `key`, `placeholder`, `value`, `onSubmit(value)`. |
 
 The callbacks never leave your process; only the JSON tree does. The contract
 subpath also exports `validateModTree` and `parseModUiPayload`, the same

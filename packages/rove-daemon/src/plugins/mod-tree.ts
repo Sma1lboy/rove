@@ -3,6 +3,7 @@
  * daemon package like every other wire type. One source: the SDK's `./contract`.
  */
 export {
+  MOD_INPUT_MAX,
   MOD_KEY_PATTERN,
   MOD_PANE_ID_PATTERN,
   type ModNode,
