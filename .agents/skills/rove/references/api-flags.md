@@ -82,6 +82,7 @@ inspect      --task-id
 read-output  --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
 watch        --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
 deliveries   --task-id(REQ) --limit
+should-run   --task-id(REQ) --tab
 gates        --repo --task-id --status{open|answered|withdrawn|all}(open)
 ```
 <!-- generated:end -->
@@ -92,10 +93,14 @@ gates        --repo --task-id --status{open|answered|withdrawn|all}(open)
 the wider diagnostic — daemon activity, a pty walk, and every tab snapshot.
 
 `deliveries --task-id` is the task's report log, newest first: for each armed
-prompt its `status` (`awaiting`, `reported`, `missing`), the report
+prompt its `status` (`awaiting`, `reported`, `missing`, `skipped`), the report
 (`outcome`, `summary`, `evidence`, `next`) or why it went missing (`cause`,
-`note`). A loop that wakes a task reads `deliveries --limit 5` for what the
-last ticks did, instead of a growing notes file.
+`note`; a `missing` row also carries `dismissedAt` once the owner dismissed it).
+A `skipped` row is a tick `send --if-runnable` refused: `skipped` is
+the verdict (`reason`, `detail`, `until`, `gateIds`) and `repeats` counts the
+identical refusals (same tab, same reason) that one row stands for. A loop that
+wakes a task reads `deliveries --limit 5` for what the last ticks did, instead
+of a growing notes file.
 
 `pty-list` is what `NO_ENGINE_TAB`'s hint points at: when `.tabs[]` and reality
 disagree, it is the ground truth for what is actually alive — key, alive, pid,
@@ -119,35 +124,36 @@ needs numbers, not when you want to know what a task is doing.
 
 <!-- generated:begin drive -->
 ```text
-send           --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
-               --allow-empty --expect-report
-dispatch       --task-id(REQ) --prompt|--prompt-file(REQ) --tab
-interrupt      --task-id(REQ) --tab
-note           --task-id(REQ) --text(REQ)
-note-list      --repo(REQ)
-note-delete    --repo(REQ) --id(REQ)
-pane-open      --task-id --tab --command --direction{right|down}(right)
-               --placement{split|tab}(split) --title
-pane-close     --task-id --title(REQ) --tab
-pane-graphics  --task-id --tab(REQ) --image-id
-tab-close      --task-id(REQ) --tab(REQ)
-tab-new        --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ) --command
-               --file --line --pane --tab --view-task
-tab-split      --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
-               --direction{right|down}(right) --leaf --title --cols --rows
-notify         --title(REQ) --body --kind(done) --task-id --source
-prompt         --title(REQ) --placeholder --initial --timeout
-engine-report  --task-id
-               --kind{session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end|tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop}(REQ)
-               --engine --tab --detail
-row-token      --task-id(REQ) --text --ttl(60) --key(default)
-               --tone{info|success|warning|error|muted} --clear
-set-active     --task-id --none
-report         --delivery --outcome{done|partial|blocked|failed} --summary --evidence
-               --next --json
-gate-raise     --task-id(REQ) --tab --question(REQ) --option --recommend --context
-gate-answer    --gate(REQ) --option --text
-gate-withdraw  --gate(REQ)
+send               --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
+                   --allow-empty --expect-report --if-runnable
+dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
+interrupt          --task-id(REQ) --tab
+note               --task-id(REQ) --text(REQ)
+note-list          --repo(REQ)
+note-delete        --repo(REQ) --id(REQ)
+pane-open          --task-id --tab --command --direction{right|down}(right)
+                   --placement{split|tab}(split) --title
+pane-close         --task-id --title(REQ) --tab
+pane-graphics      --task-id --tab(REQ) --image-id
+tab-close          --task-id(REQ) --tab(REQ)
+tab-new            --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ) --command
+                   --file --line --pane --tab --view-task
+tab-split          --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
+                   --direction{right|down}(right) --leaf --title --cols --rows
+notify             --title(REQ) --body --kind(done) --task-id --source
+prompt             --title(REQ) --placeholder --initial --timeout
+engine-report      --task-id
+                   --kind{session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end|tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop}(REQ)
+                   --engine --tab --detail
+row-token          --task-id(REQ) --text --ttl(60) --key(default)
+                   --tone{info|success|warning|error|muted} --clear
+set-active         --task-id --none
+report             --delivery --outcome{done|partial|blocked|failed} --summary --evidence
+                   --next --json
+attention-dismiss  --delivery(REQ)
+gate-raise         --task-id(REQ) --tab --question(REQ) --option --recommend --context
+gate-answer        --gate(REQ) --option --text
+gate-withdraw      --gate(REQ)
 ```
 <!-- generated:end -->
 
@@ -178,6 +184,15 @@ last step, before you stop. A turn that ends without it raises a
 `report_missing` Inbox row for the owner. Reporting again replaces the
 report; a late one clears the flag. `outcome` is `blocked` when you need the
 owner, `failed` when you tried and could not. Summary max 32,000 characters.
+
+**`send --if-runnable` skips a tick the task can't use.** The daemon checks
+`should-run`, claims the tab and arms the delivery in one step, so two ticks
+arriving together cannot both pass. A refusal pastes nothing and replies
+`{skipped: {run:false, reason, detail?, until?, gateIds?}}` with exit 3
+(a `skipped` delivery is recorded when the send would have owed a report).
+`reason` is `awaiting-owner`, `report-missing`, `quota`, `engine-error`,
+`engine-dead`, `awaiting-permission` or `busy`; `should-run` asks the same
+question without sending. A skip is dropped, never queued.
 
 `notify --kind` styles the toast: `done`, `needs_input`, `error` get severity
 treatment and an unread mark, anything else renders neutrally.

@@ -21,6 +21,8 @@ const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   // text carries the lost-context caveat).
   revived: "success",
   skipped_precheck: "muted",
+  // The gate, missing report or error behind it is already in the Inbox.
+  skipped_blocked: "muted",
   skipped_cancelled: "muted",
   skipped_missed: "warning",
   skipped_unavailable: "warning",

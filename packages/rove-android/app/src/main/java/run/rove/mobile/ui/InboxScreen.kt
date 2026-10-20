@@ -54,7 +54,7 @@ import java.util.Locale
             return
         }
         visits = visitLog.record(taskId, item.tabId)
-        model.action { model.repository.dismissAttention(taskId, item.tabId, item.deliveryId); model.refresh() }
+        if (InboxLogic.clearsOnVisit(item)) model.action { model.repository.dismissAttention(taskId, item.tabId, item.deliveryId); model.refresh() }
         open(Route.Task(taskId, item.tabId))
     }
 

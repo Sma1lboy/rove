@@ -289,6 +289,7 @@ enum RoutineLogic {
         case "revived": String(localized: "revived")
         case "skipped_cancelled": String(localized: "skipped cancelled")
         case "skipped_precheck": String(localized: "skipped precheck")
+        case "skipped_blocked": String(localized: "skipped (task can't use it)")
         case "skipped_missed": String(localized: "skipped missed")
         case "skipped_unavailable": String(localized: "skipped unavailable")
         case "dispatch_failed": String(localized: "dispatch failed")

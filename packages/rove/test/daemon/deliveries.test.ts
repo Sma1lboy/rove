@@ -223,7 +223,7 @@ describe("the report_missing row", () => {
     await trackDeliveryTurn(h.deps, TASK, TAB, "turn-complete", undefined)
     await h.inbox.record(TASK, "turn-complete", undefined, TAB)
 
-    const ctx = { inbox: h.inbox } as unknown as DaemonHandlerContext
+    const ctx = { inbox: h.inbox, deliveries: h.deliveries } as unknown as DaemonHandlerContext
     await dispatchDaemonRequest(
       createDaemonHandlerRegistry(),
       "attention.dismiss",

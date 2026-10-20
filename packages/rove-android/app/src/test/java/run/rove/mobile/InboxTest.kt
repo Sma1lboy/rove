@@ -53,4 +53,11 @@ class InboxTest {
         assertEquals("Oct 11 3:14 PM", InboxLogic.resumeTime("2026-10-11T15:14:00Z", now, zone, Locale.US))
         assertNull(InboxLogic.resumeTime("soon", now, zone, Locale.US))
     }
+
+    @Test fun anUnreportedTickIsClearedOnlyByAnExplicitDismiss() {
+        assertEquals(false, InboxLogic.clearsOnVisit(Attention(taskId = "a", state = "report_missing", deliveryId = "d-4")))
+        assertEquals(false, InboxLogic.clearsOnVisit(Attention(taskId = "a", state = "decision_needed", gateId = "g-1")))
+        assertEquals(true, InboxLogic.clearsOnVisit(item("a", "turn_complete", 1.0)))
+        assertEquals(true, InboxLogic.clearsOnVisit(item("a", "error", 1.0)))
+    }
 }

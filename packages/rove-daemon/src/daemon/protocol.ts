@@ -163,6 +163,12 @@ export type DaemonRequestName =
   | "delivery.settle"
   | "delivery.report"
   | "delivery.list"
+  // Should-run: `task.runnability` is the read verdict. `send.admit` evaluates,
+  // claims and (when the send owes a report) arms in one daemon tick for
+  // `send --if-runnable`; `send.release` frees the claim after the paste.
+  | "task.runnability"
+  | "send.admit"
+  | "send.release"
   // GitHub issues via `gh` (docs/design/work-items.md): READ-ONLY, plus start a
   // task on one. Never mirrored into the local issue store.
   | "workitem.list"

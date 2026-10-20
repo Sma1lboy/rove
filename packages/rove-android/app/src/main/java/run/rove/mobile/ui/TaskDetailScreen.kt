@@ -61,7 +61,7 @@ import java.util.Locale
     LaunchedEffect(taskId, selected) {
         val tab = selected ?: return@LaunchedEffect
         InboxVisits(context).record(taskId, tab)
-        model.tasks.value.attention.filter { it.gateId == null && it.taskId == taskId && (it.tabId == null || it.tabId == tab) }
+        model.tasks.value.attention.filter { InboxLogic.clearsOnVisit(it) && it.taskId == taskId && (it.tabId == null || it.tabId == tab) }
             .forEach { runCatching { model.repository.dismissAttention(taskId, it.tabId, it.deliveryId) } }
     }
     var action by remember { mutableStateOf<String?>(null) }

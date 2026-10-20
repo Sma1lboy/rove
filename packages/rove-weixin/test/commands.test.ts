@@ -27,6 +27,7 @@ function fakeOps(overrides: Partial<RoveOps> = {}): RoveOps {
     add: mock(async () => ({ taskId: "01NEWNEWNEWNEWNEWNEWNEW777" })),
     gates: async () => [],
     answerGate: mock(async () => ({ delivered: true })),
+    clearReport: mock(async () => {}),
     ...overrides,
   }
 }
@@ -223,5 +224,29 @@ describe("gates and answer", () => {
       },
     })
     expect(await handleCommand("answer g-12 a", ops)).toBe("Failed: GATE_NOT_OPEN: g-12 is already answered")
+  })
+})
+
+describe("clear", () => {
+  it("dismisses the named delivery's flag", async () => {
+    const clearReport = mock(async () => {})
+    const reply = await handleCommand("clear D-41", fakeOps({ clearReport }))
+    expect(clearReport).toHaveBeenCalledWith("d-41")
+    expect(reply).toContain("d-41")
+  })
+
+  it("refuses a malformed id without calling the daemon", async () => {
+    const clearReport = mock(async () => {})
+    expect(await handleCommand("clear nonsense", fakeOps({ clearReport }))).toContain("Usage: clear d-N")
+    expect(clearReport).not.toHaveBeenCalled()
+  })
+
+  it("an unknown delivery comes back as the reply", async () => {
+    const ops = fakeOps({
+      clearReport: async () => {
+        throw new ApiError("no delivery d-9", "DELIVERY_NOT_FOUND")
+      },
+    })
+    expect(await handleCommand("clear d-9", ops)).toContain("DELIVERY_NOT_FOUND")
   })
 })

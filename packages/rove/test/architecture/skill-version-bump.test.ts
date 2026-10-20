@@ -31,10 +31,10 @@ const SKILL_DIR = join(ROOT, ".agents", "skills", "rove")
  * Regenerate with the command the failure message prints.
  */
 const FINGERPRINT = {
-  version: 63,
+  version: 64,
   sha256: {
-    "SKILL.md": "0a92a2e41fd9a74309d3782a79090f3d9d9336c24a8ab8cb17c2c2e4ef2386ff",
-    "references/api-flags.md": "f0df908f8c94ff4be28cffa0e3b533a1f0e64127cb2ca3e0a727bbf6d7669e8d",
+    "SKILL.md": "a505967ad992de3874f664376fc12c000751f98b18c50d9eb599fee54f78787b",
+    "references/api-flags.md": "090b8e678fcede46e74afa92d49b80e69ca5021541193e1e5f1247ef12c7a75e",
   },
 } as const
 

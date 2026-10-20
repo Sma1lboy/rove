@@ -181,7 +181,9 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     // PARTIAL_FANOUT carries a full result payload (created tasks + failures)
     // that MUST reach the script — emit it to stdout, then exit 3 so the
     // "non-zero = something failed" contract holds without losing the data.
-    if (err instanceof ApiError && err.code === "PARTIAL_FANOUT") {
+    // SKIPPED (`should-run`, `send --if-runnable`) is the same shape: the
+    // verdict is the answer, and exit 3 says "don't".
+    if (err instanceof ApiError && (err.code === "PARTIAL_FANOUT" || err.code === "SKIPPED")) {
       if (envelopeMode) writeJson(errorEnvelope(err), parsed.pretty)
       else emit(err.data, parsed.pretty)
       session?.close()
@@ -228,8 +230,8 @@ async function runForwarded(verb: VerbSpec, parsed: ParsedArgs, resolve: () => P
     return
   }
   const { message, code, ...data } = envelope.error
-  if (code === "PARTIAL_FANOUT") {
-    // Same contract as a local fan-out: the payload on stdout, exit 3.
+  if (code === "PARTIAL_FANOUT" || code === "SKIPPED") {
+    // Same contract as a local fan-out or skip: the payload on stdout, exit 3.
     if (envelopeMode) writeJson(envelope, parsed.pretty)
     else emit(data, parsed.pretty)
     process.exit(3)

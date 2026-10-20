@@ -211,12 +211,31 @@ needed:
 | `revived` | Standing session only: its engine had died, so it was respawned in the same worktree. The files carried over, the **conversation did not** |
 | `skipped_cancelled` | The routine was disabled, edited, deleted, or its runner stopped before delivery |
 | `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
+| `skipped_blocked` | The task cannot use a tick right now (`blocked.reason`): an open decision gate, an unreported earlier run, a rate limit, a permission prompt, or a turn still running. The cause is already in the Inbox. Healthy as a status |
 | `skipped_missed` | The occurrence was older than the grace window, **or** the sweep never reached it. A busy sweep no longer drops occurrences silently: one row records how many were passed over and when the first was due |
 | `skipped_unavailable` | The dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which. **Needs you** |
-| `dispatch_failed` | The prompt did not reach an engine — the engine process never started. **Needs you** |
+| `dispatch_failed` | The prompt did not reach an engine — the engine process never started — or should-run refused a bound tab whose engine is dead or in a sticky error (`blocked.reason` `engine-dead` / `engine-error`), which no Inbox row covers. **Needs you** |
 
 `skipped_precheck` and `dispatch_failed` are opposite signals; they never share
 a label.
+
+`skipped_blocked` is the daemon's should-run check (`rove api should-run`)
+declining a scheduled firing at a task that cannot use it. It applies to
+bound-tab and standing-session routines: the run's `blocked` field is the
+verdict (`reason` is one of `awaiting-owner`, `report-missing`, `quota`,
+`awaiting-permission`, `busy`) and `error`
+prints it beside the status. Nothing is pasted, no delivery is armed and the
+occurrence is not retried: a skip is recorded and dropped. It is **not** an
+alarm and raises no Routines Inbox row, because the cause (an open gate, a
+`report_missing` row, a rate limit) is already in the Inbox. The two reasons with no
+Inbox row of their own, `engine-dead` and `engine-error`, are not skips: the
+firing is recorded `dispatch_failed` (keeping `blocked`) and raises the
+routine alarm, so a dead bound tab is not silenced. A standing
+session whose engine died is still revived, not skipped. A firing that
+creates a fresh task has no prior state; it is skipped only when the
+engine's cached quota snapshot already says the window is exhausted (the
+daemon never fetches vendor usage for this), and the check is skipped
+when the quota is unknown. `run now` bypasses the check, like the precheck.
 
 `dispatched` means the engine PROCESS was seen running — not that the terminal
 opened. An engine whose launch command points at something that is not there

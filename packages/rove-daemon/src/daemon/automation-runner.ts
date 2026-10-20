@@ -16,7 +16,7 @@
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
-import { type DispatchOutcome, dispatchAutomation } from "./automation-dispatch.ts"
+import { type DispatchOutcome, type DispatchRunnability, dispatchAutomation } from "./automation-dispatch.ts"
 import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./automation-precheck.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import {
@@ -29,6 +29,7 @@ import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
 import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { GateLedger } from "./gate-handoff.ts"
+import type { SkipVerdict } from "./runnability-contracts.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
 
@@ -93,6 +94,8 @@ interface RunnerDeps {
   readonly plugins?: () => { handleUiReport(report: PluginRunReport): void } | null
   readonly inbox?: RunnerInbox
   readonly gates?: GateLedger
+  /** Should-run: a scheduled firing at a task that cannot use it is recorded `skipped_blocked`. */
+  readonly runnability?: DispatchRunnability
   readonly now?: () => number
   readonly stopped?: () => boolean
 }
@@ -245,6 +248,7 @@ export async function runAutomationOnce(
       error?: string
       deliveryId?: string
       precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>>
+      blocked?: SkipVerdict
     } = {},
   ): Promise<AutomationRunStatus> => {
     await deps.store.recordRun(
@@ -306,6 +310,8 @@ export async function runAutomationOnce(
         runtime: deps.runtime,
         link: () => resolveLink(deps.link),
         ...(deps.gates ? { gates: deps.gates } : {}),
+        // A manual run is the owner asking now: it bypasses should-run like the precheck.
+        ...(deps.runnability && args.trigger === "scheduled" ? { runnability: deps.runnability } : {}),
         ...(deps.now ? { now: deps.now } : {}),
       },
       automation,
@@ -356,6 +362,7 @@ export async function runAutomationOnce(
     ...(outcome.taskId ? { taskId: outcome.taskId } : {}),
     ...(outcome.tabId ? { tabId: outcome.tabId } : {}),
     ...(outcome.error ? { error: outcome.error } : {}),
+    ...(outcome.blocked ? { blocked: outcome.blocked } : {}),
     ...(deliveryId ? { deliveryId } : {}),
   })
 }

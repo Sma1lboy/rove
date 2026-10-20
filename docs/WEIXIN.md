@@ -61,6 +61,7 @@ answers by default.
 | `answer g-12 b ship it after lunch` | The option plus a note for the agent | `… --text "ship it after lunch"` |
 | `answer g-12 - use the second approach` | Free text on a decision that has options (`-` stands in for the key) | `… --text …` |
 | `answer g-12 call it Nightly` | On a decision with no options, everything after the id is the answer | `… --text …` |
+| `clear d-41` | Dismisses the unreported-tick flag `status` lists, so that task can be ticked again | `rove api attention-dismiss --delivery d-41` |
 | `help` (or `帮助`) | The command list | |
 
 `<id>` is the six-character code `status` prints in front of each task (the end

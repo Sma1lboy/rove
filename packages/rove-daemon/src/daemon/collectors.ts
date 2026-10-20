@@ -11,6 +11,7 @@ import { createActivityObserverIo } from "./activity-observer-io.ts"
 import { startActivityObserver } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
+import type { DispatchRunnability } from "./automation-dispatch.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
@@ -67,6 +68,8 @@ export interface AutomationCollectorDeps {
   readonly inbox?: import("./automation-runner.ts").RunnerInbox
   /** Answered decision gates owed to a routine's target tab ride its next firing. */
   readonly gates?: import("./gate-handoff.ts").GateLedger
+  /** Should-run for the routine runner and quota-resume. */
+  readonly runnability?: DispatchRunnability
 }
 
 /**
@@ -241,6 +244,7 @@ export function startDaemonCollectors(
     options.quotaResumeTickMs ?? DEFAULT_QUOTA_RESUME_TICK_MS,
     undefined,
     automations?.plugins,
+    automations?.runnability,
   )
 
   // Ungated: a schedule that requires an audience is not a schedule.
@@ -255,6 +259,7 @@ export function startDaemonCollectors(
           ...(automations.plugins ? { plugins: automations.plugins } : {}),
           ...(automations.inbox ? { inbox: automations.inbox } : {}),
           ...(automations.gates ? { gates: automations.gates } : {}),
+          ...(automations.runnability ? { runnability: automations.runnability } : {}),
         },
         options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
       )

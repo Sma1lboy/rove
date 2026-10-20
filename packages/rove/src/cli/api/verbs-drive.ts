@@ -65,6 +65,13 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         description:
           "Arm a delivery: the prompt gets a [ROVE] footer naming `report --delivery <id>`, the reply carries `deliveryId`, and a turn that ends without that report raises a `report_missing` Inbox row. Implied for a task added with --require-report. See `deliveries`.",
       },
+      {
+        name: "if-runnable",
+        type: "bool",
+        required: false,
+        description:
+          "Send only when `should-run` says the task can use a tick. The check, the delivery claim and the paste share one decision, so two ticks arriving together cannot both pass. When it refuses, nothing is pasted and the reply is `{skipped: {run:false, reason, detail?, until?, gateIds?}}` with exit 3 (a skip recorded as a `skipped` delivery when the send would have owed a report). A skip is dropped, never held for later. See `should-run`.",
+      },
     ],
     handler: send,
   },
