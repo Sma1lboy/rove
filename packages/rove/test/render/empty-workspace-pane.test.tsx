@@ -1,21 +1,9 @@
 /** @jsxImportSource @opentui/react */
-/**
- * The keys the no-sessions placeholder advertises.
- *
- * The copy reads "press ⏎ or ctrl+e to start one", and both keys are normally
- * registered inside `TerminalTabs`, which this state deliberately does NOT
- * mount (its `active` tab is non-null by construction, so mounting over an
- * empty list would mint a replacement and the close would never appear to
- * take). Without the placeholder's own bindings it names an affordance
- * nothing backs.
- *
- * So the pane binds them itself, and these pin that: a press REVIVES the
- * task's tabs. Asserting on `tabsByTask` rather than the frame is deliberate —
- * the revive is a write to that module map, and the frame after it would show
- * TerminalTabs, which opens a daemon socket.
- */
+import { afterAll, describe, expect, it, spyOn } from "bun:test"
+import * as engines from "../../src/engine/account-detect"
 
-import { describe, expect, it } from "bun:test"
+const available = spyOn(engines, "availableEngineIds").mockResolvedValue(["claude", "codex"])
+afterAll(() => available.mockRestore())
 import { EmptyWorkspacePane } from "../../src/tui-react/workspace/empty-workspace-pane"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { act, renderComponent, settle } from "./harness"
@@ -31,7 +19,8 @@ function seedEmptied(reopenAs?: { kind: "engine"; vendor?: string } | { kind: "c
   } as never)
 }
 
-const render = (focused = true) => renderComponent(<EmptyWorkspacePane taskId="t1" focused={focused} />)
+const render = (focused = true) =>
+  renderComponent(<EmptyWorkspacePane taskId="t1" focused={focused} />, { providers: { dialog: true } })
 
 describe("the no-sessions placeholder's keys", () => {
   it("enter reopens a session", async () => {
@@ -55,6 +44,47 @@ describe("the no-sessions placeholder's keys", () => {
     })
     await settle()
     expect(tabsByTask.get("t1")?.tabs[0]?.kind).toBe("command")
+  })
+
+  it("ctrl+e opens the chooser without starting a tab; cancel leaves it empty", async () => {
+    seedEmptied()
+    const { mockInput, frame } = await render()
+    await act(async () => {
+      mockInput.pressKey("e", { ctrl: true })
+    })
+    await settle()
+    expect(await frame()).toContain("New conversation")
+    expect(tabsByTask.get("t1")?.tabs).toHaveLength(0)
+    await act(async () => {
+      mockInput.pressEscape()
+    })
+    await settle()
+    expect(tabsByTask.get("t1")?.tabs).toHaveLength(0)
+  })
+
+  it.each(["emptied", "never-opened"])("a %s task starts with the chosen non-default engine", async (path) => {
+    if (path === "emptied") seedEmptied({ kind: "command" })
+    else tabsByTask.clear()
+    const { mockInput, frame } = await render()
+    await act(async () => {
+      mockInput.pressKey("e", { ctrl: true })
+    })
+    await settle()
+    expect(await frame()).toContain("New conversation")
+    await act(async () => {
+      mockInput.pressArrow("right")
+    })
+    await settle()
+    await act(async () => {
+      mockInput.pressEnter()
+    })
+    await settle()
+    const tab = tabsByTask.get("t1")?.tabs[0]
+    expect(tab?.kind).toBe("engine")
+    if (tab?.kind === "engine") {
+      expect(tab.vendor).toBe("codex")
+      expect(tab.engineCommand).toBe(tab.vendor)
+    }
   })
 
   it("ignores the keys while the pane is not focused", async () => {

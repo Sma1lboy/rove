@@ -40,16 +40,17 @@ export function setTaskTabs(taskId: string, state: TabsState): void {
   tabsRevision.update((n) => n + 1)
 }
 
-/**
- * Revive a task whose last tab was closed (selecting the row reopens the kind
- * of tab that was there; no `reopenAs` → default engine tab, see
- * {@link reopenTabs}). No-op for a task with tabs, and for one that never
- * opened any (`null`, not empty: TerminalTabs mints its own on mount).
- */
-export function reviveEmptiedTabs(kv: TabsSnapshotKv | null, taskId: string, shell: string): boolean {
+/** An explicit engine choice also seeds a task that has never opened tabs. */
+export function reviveEmptiedTabs(
+  kv: TabsSnapshotKv | null,
+  taskId: string,
+  shell: string,
+  engine?: Required<Pick<EngineTab, "vendor" | "engineCommand">>,
+): boolean {
   const known = knownTabsState(kv, taskId)
-  if (!known || known.tabs.length > 0) return false
-  setTaskTabs(taskId, reopenTabs(known, shell))
+  if (known ? known.tabs.length > 0 : !engine) return false
+  const empty = known ?? { tabs: [], activeId: "", nextOrdinal: 1 }
+  setTaskTabs(taskId, reopenTabs(empty, shell, engine))
   return true
 }
 
