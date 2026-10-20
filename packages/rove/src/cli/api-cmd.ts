@@ -23,10 +23,13 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
-import { ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { type ApiEnvelope, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ensurePluginEnginesLoaded } from "../engine/plugin-engines.ts"
+import { LOCAL_MACHINE, forwardVerb, requireMachine, routeTarget } from "../machines/forward.ts"
+import type { MachineEntry } from "../machines/registry.ts"
 import { takeIdentityWarning } from "./api/dispatcher.ts"
 import { VerbArgs, buildCountPlan, parseAgentsSpec, parseFlags, validateAgainstSpec } from "./api/flags.ts"
+import { forwardParams, takeMachineFlag } from "./api/forward-cli.ts"
 import {
   booleanFlagsOf,
   callVerb,
@@ -40,7 +43,7 @@ import {
 import { defaultApiRuntime, deliverPrompt } from "./api/runtime.ts"
 import { API_SCHEMA_VERSION, apiUsage, fullSchema, schemaIndex, verbHelp, verbSchema } from "./api/schema.ts"
 import { ApiError } from "./api/types.ts"
-import type { ApiRuntime, DeliveredPrompt, ParsedArgs, PromptDeliveryOps, PromptTarget } from "./api/types.ts"
+import type { ApiRuntime, DeliveredPrompt, ParsedArgs, PromptDeliveryOps, PromptTarget, VerbSpec } from "./api/types.ts"
 import { API_VERBS, VERBS, VERB_GROUPS, findVerb, unknownVerbError } from "./api/verbs.ts"
 import { argvHasFlag } from "./argv.ts"
 import { type DaemonSession, openDaemonSession } from "./daemon-session.ts"
@@ -85,6 +88,7 @@ const USAGE_ERROR_CODES: ReadonlySet<string> = new Set([
   "MISSING_FLAG",
   "MISSING_VERB",
   "BAD_DAEMON",
+  "UNKNOWN_MACHINE",
 ])
 
 /**
@@ -101,7 +105,8 @@ export async function invokeVerb(
 }
 
 export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
-  const [verbName, ...rest] = argv
+  const [verbName, ...withMachine] = argv
+  const { machine, rest } = takeMachineFlag(withMachine)
   envelopeMode = argvHasFlag(rest, "--envelope")
   if (!verbName || verbName === "--help" || verbName === "-h" || verbName === "help") {
     if (!verbName) fail(apiUsage(), "MISSING_VERB", 2)
@@ -138,6 +143,12 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     fail(errorMessage(err), "BAD_FLAG", 2)
   }
 
+  // An explicit other machine needs nothing from this machine's daemon.
+  if (machine !== undefined && machine !== LOCAL_MACHINE) {
+    await runForwarded(verb, parsed, async () => requireMachine(machine))
+    return
+  }
+
   let session: DaemonSession | null = null
   if (!verb.offline) {
     try {
@@ -150,12 +161,19 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     }
   }
 
+  // A `--task-id` on ANOTHER machine runs there: the local daemon would
+  // answer TASK_NOT_FOUND for a task the user can see in the sidebar.
+  // Opens no other socket when no machine is registered.
+  const taskId = machine === LOCAL_MACHINE ? undefined : parsed.flags.get("task-id")
+  const client = session?.client ?? null
+  const target = taskId && client ? await machineHolding(taskId, client) : null
+  if (target) {
+    session?.close()
+    await runForwarded(verb, parsed, async () => target)
+    return
+  }
+
   try {
-    // Refuse a `--task-id` on ANOTHER machine here: the local daemon would
-    // answer TASK_NOT_FOUND for a task the user can see in the sidebar.
-    // Opens no socket when no machine is registered.
-    const { assertLocalTask } = await import("../machines/api-merge.ts")
-    await assertLocalTask(parsed.flags.get("task-id"))
     const result = await callVerb(verb, parsed.flags, { client: session?.client ?? null })
     emit(result, parsed.pretty)
   } catch (err) {
@@ -173,6 +191,49 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   } finally {
     session?.close()
   }
+}
+
+async function machineHolding(taskId: string, client: DaemonRpc): Promise<MachineEntry | null> {
+  try {
+    return await routeTarget({
+      taskId,
+      isLocalTask: async (id) => {
+        try {
+          await client.request("task.get", { taskId: id })
+          return true
+        } catch {
+          return false
+        }
+      },
+    })
+  } catch (err) {
+    const apiErr = toApiError(err)
+    fail(apiErr.message, apiErr.code, 1, apiErr.data)
+  }
+}
+
+/** Run the verb in another machine's daemon and print its outcome as if it ran here. */
+async function runForwarded(verb: VerbSpec, parsed: ParsedArgs, resolve: () => Promise<MachineEntry>): Promise<void> {
+  let envelope: ApiEnvelope
+  try {
+    const entry = await resolve()
+    envelope = await forwardVerb(entry, verb.name, forwardParams(verb, parsed.flags))
+  } catch (err) {
+    const apiErr = toApiError(err)
+    fail(apiErr.message, apiErr.code, USAGE_ERROR_CODES.has(apiErr.code) ? 2 : 1, apiErr.data)
+  }
+  if (envelope.ok) {
+    emit(envelope.result, parsed.pretty)
+    return
+  }
+  const { message, code, ...data } = envelope.error
+  if (code === "PARTIAL_FANOUT") {
+    // Same contract as a local fan-out: the payload on stdout, exit 3.
+    if (envelopeMode) writeJson(envelope, parsed.pretty)
+    else emit(data, parsed.pretty)
+    process.exit(3)
+  }
+  fail(message, code, USAGE_ERROR_CODES.has(code) ? 2 : 1, data)
 }
 
 // `./api-cmd.ts` is the stable import path for tests + embedders.
