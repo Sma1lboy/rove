@@ -14,7 +14,7 @@ import {
   type WorktreeChangesMap,
   parseWorktreeChangesPayload,
   sameWorktreeChangesMap,
-} from "../../src/client/remote-orchestrator.ts"
+} from "../../src/client/remote-orchestrator-worktree-changes.ts"
 
 describe("worktree.changes pure helpers", () => {
   it("parseWorktreeChangesPayload maps the daemon's unreadable paths to null", () => {

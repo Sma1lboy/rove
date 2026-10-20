@@ -179,11 +179,13 @@ export async function dismissRoutineAttentionOp(client: RoveDaemonClient, automa
   return res.deleted
 }
 
+export type GateAnswer = { option?: string; text?: string }
+
 /** Answer a decision gate from the TUI; `delivered` says whether the engine already has it. */
 export async function answerGateOp(
   client: RoveDaemonClient,
   gateId: string,
-  answer: { option?: string; text?: string },
+  answer: GateAnswer,
 ): Promise<{ delivered: boolean }> {
   const res = await client.request<{ delivered: boolean }>("gate.answer", { gateId, ...answer, by: "tui" })
   return { delivered: res.delivered }

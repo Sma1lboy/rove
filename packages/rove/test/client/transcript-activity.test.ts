@@ -14,7 +14,8 @@
 
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { describe, expect, it, vi } from "vitest"
-import { RemoteOrchestrator, sameTranscriptActivityMap } from "../../src/client/remote-orchestrator.ts"
+import { sameTranscriptActivityMap } from "../../src/client/remote-orchestrator-payloads.ts"
+import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
 const { logClientError } = vi.hoisted(() => ({ logClientError: vi.fn() }))
 vi.mock("@sma1lboy/rove-daemon/client/client-log", async (importActual) => ({
