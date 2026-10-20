@@ -57,6 +57,7 @@ describe("plugin SDK examples", () => {
       ...manifest.events,
       ...manifest.panes,
       ...manifest.engines,
+      ...(manifest.mod ? [manifest.mod] : []),
     ]
 
     const missing = commands

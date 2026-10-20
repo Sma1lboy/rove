@@ -13,6 +13,7 @@ import { type SidebarNav, focusPaneForNav } from "../../tui/panes/sidebar/nav-co
 import type { Task } from "../../types/task"
 import { AutomationsPage } from "../component/automations-page"
 import { KanbanPage } from "../component/kanban-page"
+import { ModsPage } from "../component/mods-page"
 import { SettingsDialog } from "../component/settings-dialog"
 import { UpdatePage } from "../component/update-page"
 import { WorkItemsPage } from "../component/work-items-page"
@@ -28,6 +29,8 @@ interface HostPageState {
   readonly workItemsOpen: boolean
   readonly kanbanOpen: boolean
   readonly updateOpen: boolean
+  /** Optional: only hosts that subscribe to `mod.ui` can open it. */
+  readonly modsOpen?: boolean
 }
 
 /** One-shot launch dialogs, resolved at the process entry point: both touch
@@ -62,6 +65,7 @@ export interface HostPagesState extends HostPageState {
   readonly closeAutomations: () => void
   readonly openWorkItems: () => void
   readonly closeWorkItems: () => void
+  readonly closeMods?: () => void
 }
 
 /**
@@ -117,6 +121,8 @@ export function useHostPagesState(
     workItemsOpen: nav === "issues",
     openWorkItems: () => goToNav("issues"),
     closeWorkItems: () => goToNav("terminal"),
+    modsOpen: nav === "mods",
+    closeMods: () => goToNav("terminal"),
   }
 }
 
@@ -128,6 +134,7 @@ export interface HostPageDeps extends HostPageState {
   readonly closeWorkItems: () => void
   readonly closeKanban: () => void
   readonly closeUpdate: () => void
+  readonly closeMods?: () => void
   readonly activateTask: (taskId: string) => void
   /** Content pane focused; rail pages gate their bare keys on it. */
   readonly contentFocused: boolean
@@ -179,6 +186,10 @@ export function renderContentPage(deps: HostPageDeps): ReactNode | null {
         }}
       />
     )
+  }
+
+  if (deps.modsOpen && orch && deps.closeMods) {
+    return <ModsPage orchestrator={orch} focused={deps.contentFocused} onClose={deps.closeMods} />
   }
 
   if (deps.kanbanOpen) {
@@ -256,6 +267,8 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
       workItemsOpen: pages.workItemsOpen,
       kanbanOpen: pages.kanbanOpen,
       updateOpen: pages.updateOpen,
+      modsOpen: pages.modsOpen,
+      closeMods: pages.closeMods,
       closeWorktrees: pages.closeWorktrees,
       closeAutomations: pages.closeAutomations,
       closeWorkItems: pages.closeWorkItems,

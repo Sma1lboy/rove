@@ -153,6 +153,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   const notices = new NoticeFeed()
   const noticeStore = orchestrator.noticeStore()
   noticeStore.subscribe(() => notices.push(noticeStore.get()))
+  const modPanes = orchestrator.modPanesSignal()
+  const mods: BridgeDeps["mods"] = {
+    current: () => modPanes.get(),
+    subscribe: (listener) => modPanes.subscribe(() => listener(modPanes.get())),
+  }
   const statePath = defaultUiPrefsStatePath()
   const readState = (): Record<string, unknown> => {
     try {
@@ -177,6 +182,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     ops,
     feed,
     notices,
+    mods,
     tabs,
     openPty: () => new RoveDaemonClient(ptySocket),
     roveVersion: CURRENT_VERSION,

@@ -4,6 +4,7 @@
  * tree), and which task/tab is open. Selection survives a reload.
  */
 
+import { type ModPaneView, parseModUiPayload } from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import type { BridgeClient } from "./bridge.ts"
 import { type Store, createStore } from "./store.ts"
@@ -60,6 +61,8 @@ export class AppModel {
   /** Other registered machines' rows (`machine` set): listed under their header, read-only, as the TUI. */
   readonly remote: Store<readonly TaskRow[]> = createStore<readonly TaskRow[]>([])
   readonly tabs: Store<Readonly<Record<string, readonly TabRow[]>>> = createStore({})
+  /** Every open mod pane, re-validated from the `mods` push (the bridge sends it on connect). */
+  readonly mods: Store<readonly ModPaneView[]> = createStore<readonly ModPaneView[]>([])
   readonly selection: Store<Selection> = createStore(loadSelection())
   /** Newest first; the Inbox's RECENT section (the TUI keeps its own the same way, per client). */
   readonly visits: Store<readonly Visit[]> = createStore(loadVisits())
@@ -82,6 +85,7 @@ export class AppModel {
     })
     // Tab-only changes (a rename, a tab the TUI opened) leave the task rows alone, so no `tasks` push comes.
     client.on("tabs", () => this.scheduleTabRefresh())
+    client.on("mods", (data) => this.mods.set(parseModUiPayload(data) ?? []))
   }
 
   select(taskId: string, tabId: string | null = null): void {

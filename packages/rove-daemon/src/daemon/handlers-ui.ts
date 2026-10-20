@@ -162,6 +162,16 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "mod.press",
+    async handle(payload, ctx) {
+      const plugin = requireString(payload, "plugin")
+      const pane = requireString(payload, "pane")
+      const key = requireString(payload, "key")
+      const outcome = ctx.plugins?.pressMod(plugin, pane, key) ?? "no-mod"
+      return outcome === "sent" ? { ok: true } : { ok: false, reason: outcome }
+    },
+  },
+  {
     name: "tab.open",
     async handle(payload, ctx) {
       // Same trust boundary as `pty.open` (the socket already grants argv

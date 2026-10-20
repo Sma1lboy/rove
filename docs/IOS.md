@@ -196,6 +196,10 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 
 `attachment.put` checks the file's magic bytes against the declared type. A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
 
+### Mods: the `mods` push and `mod.press`
+
+On connect and on every change the bridge pushes `{"event": "mods", "data": {"panes": [{plugin, id, title, tree}]}}`: every pane a plugin's `[mod]` has open, each `tree` an element tree of `box` / `text` / `button` ([PLUGIN-AUTHORING.md](PLUGIN-AUTHORING.md#mods)). Validate it with the SDK's `parseModUiPayload` rules and drop a pane you cannot draw. `mod.press` (`plugin`, `pane`, `key`) → `{}` forwards one button press to the mod over the daemon's `mod.press` RPC; `MOD_UNAVAILABLE` means the mod is gone or no longer draws that button. The phone apps do not draw mods yet.
+
 Additive fields and events, ignored by an app that predates them: `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time), `attention[].label` (a routine episode's name) and `attention[].automationId` (that routine's id, for `attention.dismissRoutine` and for opening the Routines page on it); `tasks[].machine` (`{id, label, stale?}`, set only on a row served by another registered machine, `rove machine add`; `id` is the machine alias, `stale` means it is unreachable and the row is its last known state; absent on this Mac's rows). Remote rows carry no live activity, changes or tabs, and every op that takes a `taskId` refers to this Mac's daemon, so a client lists them read-only. The push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
 
 ### Board, routines, GitHub issues and settings ops

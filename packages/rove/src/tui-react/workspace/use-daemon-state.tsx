@@ -7,6 +7,7 @@
  * from being buried under ten signal reads before it wires any behavior. */
 
 import type { RowTokenMap } from "@/client/remote-orchestrator"
+import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type {
   AttentionInboxItem,
@@ -31,6 +32,7 @@ export interface UseDaemonStateResult {
   taskJobs: ReadonlyMap<string, TaskJobState>
   rowTokens: RowTokenMap
   worktreeChanges: WorktreeChangesMap | null
+  modPanes: readonly ModPaneView[]
 }
 
 export function useDaemonState(orchestrator: RemoteOrchestrator): UseDaemonStateResult {
@@ -46,6 +48,7 @@ export function useDaemonState(orchestrator: RemoteOrchestrator): UseDaemonState
   const taskJobs = useAccessor(orchestrator.taskJobsSignal())
   const rowTokens = useAccessor(orchestrator.rowTokensSignal())
   const worktreeChanges = useAccessor(orchestrator.worktreeChangesSignal())
+  const modPanes = useAccessor(orchestrator.modPanesSignal())
 
   return {
     tasks,
@@ -58,5 +61,6 @@ export function useDaemonState(orchestrator: RemoteOrchestrator): UseDaemonState
     taskJobs,
     rowTokens,
     worktreeChanges,
+    modPanes,
   }
 }

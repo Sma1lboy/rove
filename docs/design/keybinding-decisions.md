@@ -856,6 +856,15 @@ stepping; Settings → Auto routing rows open the picker on the existing
 `enter`. The owner's call is only whether `tab` is the right hop inside the
 picker, or whether the model input should instead sit behind a letter.
 
+## Mods page keys (2026-10-19, PROPOSED)
+
+The rail's Mods page (design/mods.md) takes page-local keys while the content
+pane has focus, as Kanban and Routines do: `↑`/`↓` and `tab`/`shift+tab` move
+between mod buttons, `enter` presses the focused one, `esc`/`q`/`ctrl+c`
+leave (the shared `pageCloseBindings`). No global chord opens the page; it is
+reached from its rail row. Awaiting owner sign-off on the page keys and on
+whether the page earns a prefix chord next to `ctrl+a` `1`–`3`.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and

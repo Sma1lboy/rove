@@ -3,7 +3,7 @@
 
 import { MouseButton, TextAttributes } from "@opentui/core"
 import { legendCap } from "../../../tui/lib/help-groups"
-import { SIDEBAR_NAV_ITEMS, type SidebarNav } from "../../../tui/panes/sidebar/nav-core"
+import { type SidebarNav, sidebarNavItems } from "../../../tui/panes/sidebar/nav-core"
 import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -195,12 +195,12 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
 }
 
 /** One destination per line: the 24-cell rail can't fit three chips side by side. */
-export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNav) => void }) {
+export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNav) => void; hasMods?: boolean }) {
   const { theme } = useTheme()
   const t = useT()
   return (
     <box flexDirection="column" flexShrink={0} paddingBottom={1}>
-      {SIDEBAR_NAV_ITEMS.map((item) => {
+      {sidebarNavItems(props.hasMods === true).map((item) => {
         const active = props.nav === item.nav
         return (
           <box
@@ -226,7 +226,7 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
             >
               {t(item.labelKey)}
             </text>
-            <ShortcutRevealBadge bindingId={item.bindingId} />
+            {item.bindingId ? <ShortcutRevealBadge bindingId={item.bindingId} /> : null}
           </box>
         )
       })}

@@ -7,6 +7,7 @@
  */
 
 import { hostname as osHostname } from "node:os"
+import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
 import { WEB_SUBPROTOCOL, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
@@ -40,6 +41,11 @@ export interface BridgeDeps {
   readonly feed: Pick<TaskFeed, "current" | "refresh" | "subscribe">
   /** `rove api notify` toasts, pushed to every connected phone as a `notice` event. */
   readonly notices?: Pick<NoticeFeed, "subscribe">
+  /** Open mod panes (`mod.ui`), pushed as a `mods` event on connect and on every change. */
+  readonly mods?: {
+    current(): readonly ModPaneView[]
+    subscribe(listener: (panes: readonly ModPaneView[]) => void): () => void
+  }
   /** Tasks whose Terminal Tabs changed, pushed as a `tabs` event to task subscribers. */
   readonly tabs?: Pick<TabFeed, "subscribe">
   /** A fresh PTY Host socket for one phone connection. */
@@ -62,6 +68,7 @@ interface Conn {
   unsubscribeTasks: (() => void) | null
   unsubscribeTabs: (() => void) | null
   unsubscribeNotices: (() => void) | null
+  unsubscribeMods: (() => void) | null
 }
 
 async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request): Promise<unknown> {
@@ -244,7 +251,13 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
         return new Response("unauthorized\n", { status: 401 })
       }
-      const data: Conn = { terminal: null, unsubscribeTasks: null, unsubscribeTabs: null, unsubscribeNotices: null }
+      const data: Conn = {
+        terminal: null,
+        unsubscribeTasks: null,
+        unsubscribeTabs: null,
+        unsubscribeNotices: null,
+        unsubscribeMods: null,
+      }
       // A browser drops a socket whose server did not pick one of its offered protocols.
       const headers = offersWebSubprotocol(req) ? { "Sec-WebSocket-Protocol": WEB_SUBPROTOCOL } : undefined
       if (server.upgrade(req, { data, headers })) return undefined
@@ -253,6 +266,10 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
     websocket: {
       open(ws) {
         ws.data.unsubscribeNotices = deps.notices?.subscribe((n) => ws.send(pushEvent("notice", n))) ?? null
+        if (deps.mods) {
+          ws.send(pushEvent("mods", { panes: deps.mods.current() }))
+          ws.data.unsubscribeMods = deps.mods.subscribe((panes) => ws.send(pushEvent("mods", { panes })))
+        }
       },
       // Terminal replays reach 512 KiB raw (~700 KiB base64); leave headroom for paste.
       maxPayloadLength: 8 * 1024 * 1024,
@@ -263,6 +280,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         ws.data.unsubscribeTasks?.()
         ws.data.unsubscribeTabs?.()
         ws.data.unsubscribeNotices?.()
+        ws.data.unsubscribeMods?.()
         ws.data.terminal?.dispose()
       },
     },

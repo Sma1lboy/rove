@@ -107,7 +107,10 @@ export interface DaemonHandlerContext {
   /** Pending exact Terminal Tab closes awaiting a TUI acknowledgement. */
   readonly tabCloses?: TabCloseBroker
   /** Plugin sink for agent-lifecycle events — a direct feed, deliberately NOT a bus channel. */
-  readonly plugins?: Pick<import("../plugins/runtime.ts").PluginHost, "handleEngineReport" | "handleUiReport">
+  readonly plugins?: Pick<
+    import("../plugins/runtime.ts").PluginHost,
+    "handleEngineReport" | "handleUiReport" | "pressMod"
+  >
   /** Daemon-process facts + lifecycle controls handlers surface or drive. */
   readonly daemon: {
     readonly startedAt: Date

@@ -50,6 +50,8 @@ export type SidebarProps = SidebarTaskCallbacks & {
   /** Highlighted destination; owned by the workspace host, which swaps surfaces. */
   nav?: SidebarNav
   onNavChange?: (nav: SidebarNav) => void
+  /** Show the rail's Mods row (some mod has a pane open). */
+  hasMods?: boolean
   tasks: readonly Task[]
   selectedId: string | null
   onSelect: (id: string) => void

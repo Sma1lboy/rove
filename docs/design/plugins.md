@@ -2,6 +2,7 @@
 
 Status: v1 shipped (manifest + CLI + daemon runtime + marketplace page).
 Developer-facing contract/reference: [../PLUGIN-AUTHORING.md](../PLUGIN-AUTHORING.md).
+Native UI that the TUI and the web both draw: [mods.md](./mods.md).
 Model: a manifest plus argv commands, with the host CLI as the plugin API.
 
 ## Philosophy

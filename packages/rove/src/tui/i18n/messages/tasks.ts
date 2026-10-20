@@ -11,6 +11,7 @@ export const en = {
     kanban: "Kanban",
     automations: "Routines",
     issues: "Issues",
+    mods: "Mods",
   },
   /** Section headers */
   header: {
@@ -267,6 +268,7 @@ export const zh: typeof en = {
     kanban: "看板",
     automations: "例行任务",
     issues: "议题",
+    mods: "Mods",
   },
   header: {
     scratch: "临时",

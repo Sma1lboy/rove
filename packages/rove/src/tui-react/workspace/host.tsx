@@ -92,6 +92,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     taskJobs,
     rowTokens,
     worktreeChanges,
+    modPanes,
   } = useDaemonState(orch)
 
   // Mutes the host's letter chords while typing in sidebar search.
@@ -362,6 +363,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
                 taskJobs,
                 rowTokens,
                 worktreeChanges,
+                modPanes,
               }}
               actions={taskActions}
               pages={pages}

@@ -1,11 +1,11 @@
 # Web parity with the TUI
 
-Every user action the TUI offers (199 numbered rows, plus four extra rows marked `—`: two web-only, two for the unmerged long-run controls stack), and whether `packages/rove-web` does it yet.
+Every user action the TUI offers (202 numbered rows, plus four extra rows marked `—`: two web-only, two for the unmerged long-run controls stack), and whether `packages/rove-web` does it yet.
 Legend: ✅ same as TUI · 🟡 partial or different · ❌ missing (unbuilt) · 🚫 cannot exist in a browser. `Bridge` names the op that would carry the action: `missing` = no op exists, `local` = pure UI.
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
 
-Score: 186 / 203 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
+Score: 188 / 206 rows at ✅ (1 🟡, 3 🚫, 14 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
 
 ## Navigation, help, command layer and global chrome
 
@@ -257,6 +257,9 @@ Score: 186 / 203 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table
 | 195 | Reset UI / task index | Dev: Reset + confirm | ✅ | `dev.reset` | w2-settings: TUI reset = kv.clear + remove tasks.json + exit (no daemon restart; I confirmed a bare tasks.json delete leaves a live daemon listing its tasks). Web `dev.reset` now wipes the same two files, then sends `daemon.stop {reason: restart}`. With 4 seeded tasks, Reset → confirm → page reloaded, `rove api list` gave `tasks: []`, tasks.json absent, rail "no tasks yet", status "connected". Shots w2-settings-01-reset-confirm, w2-settings-02-after-reset (looked at). |
 | 196 | Restart backend / relaunch UI | Dev: Restart + confirm | ✅ | `daemon.restart` | settings: Restart (inline confirm) sent `daemon.stop {reason: restart}`; after about 6 s `rove api list` answered again with the same tasks and the page showed "connected". The TUI also relaunches itself; the web just reconnects. |
 | 197 | Toggle experimental remote projects / auto status / dispatcher | Dev rows | ✅ | `prefs.set` | settings: Remote projects, Auto status and Field-notes dispatcher each wrote their `experimental.*` key on and off. Shot 19. |
+| 200 | Open the Mods page (rail row while a mod has a pane open) | click Mods row | ✅ | `mods` push | mods: sandbox with `examples.counter-mod` linked; the rail lists Mods after Issues only while the mod has a pane, and the page shows its pane titled `Counter · examples.counter-mod`, drawn from the same `mod.ui` tree as the TUI's Mods page. Page keys are PROPOSED (design/mods.md). Shot web-01-mods. |
+| 201 | Press a mod button | click, ↑/↓ + Enter | ✅ | `mod.press` | mods: three clicks on `+1` in the browser took the count 0 -> 3; the harness TUI on the same home then showed `Count: 3` (one mod process, every client redraws). Shots web-same-home, tui-synced. |
+| 202 | Answer a plugin's input dialog (`rove api prompt`) | dialog Enter/Esc | ❌ | missing | The bridge does not carry the `ui.prompt` channel or `ui.promptReply`, so with only the web attached `promptUser()` times out and returns null. A mod pane with an input element is the planned replacement (design/mods.md). |
 
 ## Machines and approval boundary
 

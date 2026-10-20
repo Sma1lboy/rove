@@ -9,14 +9,14 @@
  * What the content pane shows. `terminal` (default) is the selected task's
  * session and has no rail row — selecting a task gets you back.
  */
-export type SidebarNav = "terminal" | "kanban" | "automations" | "issues"
+export type SidebarNav = "terminal" | "kanban" | "automations" | "issues" | "mods"
 
 export interface SidebarNavItem {
   readonly nav: SidebarNav
   /** i18n key — callers translate with their own `t`. */
   readonly labelKey: string
-  /** Existing keymap action represented by this clickable destination. */
-  readonly bindingId: string
+  /** Existing keymap action represented by this clickable destination; absent = click only. */
+  readonly bindingId?: string
 }
 
 /** Top to bottom; no `terminal` row — the task list below is that destination. */
@@ -25,6 +25,14 @@ export const SIDEBAR_NAV_ITEMS: readonly SidebarNavItem[] = [
   { nav: "automations", labelKey: "tasks.nav.automations", bindingId: "automations.open" },
   { nav: "issues", labelKey: "tasks.nav.issues", bindingId: "workItems.open" },
 ]
+
+/** Shown only while some mod has a pane open: an empty page is not a destination. */
+export const MODS_NAV_ITEM: SidebarNavItem = { nav: "mods", labelKey: "tasks.nav.mods" }
+
+/** The rail's rows for this moment. */
+export function sidebarNavItems(hasMods: boolean): readonly SidebarNavItem[] {
+  return hasMods ? [...SIDEBAR_NAV_ITEMS, MODS_NAV_ITEM] : SIDEBAR_NAV_ITEMS
+}
 
 /** Cycle the rail by `delta`, wrapping. Null for `terminal`, which isn't on it. */
 export function cycleNavTarget(cur: SidebarNav, delta: -1 | 1): SidebarNav | null {

@@ -187,7 +187,7 @@ the shape your target Rove version actually emits. The channel names are the
 `attention.inbox`, `ui-prefs`, `keybindings`, `task.jobs`, `worktree.changes`,
 `transcript.activity`, `session.deliver`, `tab.open`, `tab.close`, `tab.add`,
 `engine.lifecycle`, `notice.event`, `usage.snapshot`, `usage.context`,
-`ui.prompt`, `graphics.write`.
+`ui.prompt`, `graphics.write`, `mod.ui`.
 
 A name the daemon does not know is dropped from the filter, not rejected: the
 subscribe succeeds and that channel simply never arrives. So a channel can be
@@ -352,6 +352,26 @@ pane.onKey((k) => { if (k.name === "q") pane.exit(0) })
 pane.onResize(frame)
 frame()
 ```
+
+## Mods
+
+Sugar for a `[mod]` entrypoint: build element trees, show them as panes, and
+get each button's `onPress` called when a client presses it. Contract and
+limits: [Writing Rove plugins § Mods](./PLUGIN-AUTHORING.md#mods).
+
+| Export | Signature | Purpose |
+|---|---|---|
+| `runMod` | `(opts?) => Mod` | Start the stdio protocol. `opts.input`/`opts.output` default to stdin/stdout; `opts.onError` gets a throwing `onPress` (default: stderr). |
+| `Mod.pane` | `(id, title, tree) => void` | Open or redraw one pane. Call it again on every state change. |
+| `Mod.close` | `(id) => void` | Remove a pane. |
+| `Box` | `(props) => ModBoxElement` | `direction`, `gap`, `padding`, `border`, `children`. |
+| `Text` | `(props \| string) => ModText` | `text`, `tone`, `bold`. |
+| `Button` | `(props) => ModButtonElement` | `key`, `label`, `tone`, `onPress`. |
+
+The callbacks never leave your process; only the JSON tree does. The contract
+subpath also exports `validateModTree` and `parseModUiPayload`, the same
+checks the daemon and both clients run, so a test can assert a tree is
+drawable without a host.
 
 ## Contract exports
 

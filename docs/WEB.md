@@ -32,6 +32,9 @@ already paired with `rove-bridge` keeps working: the two share one token.
 - `+ New task` at the bottom of the rail, and `+` in the tab strip for a new
   conversation. The first message is optional, as in the TUI's picker: without
   one you get a plain engine (or shell) tab. A fork to new tasks needs one.
+- Mods: while a plugin's `[mod]` has a pane open, the rail lists **Mods**.
+  The page draws the same panes as the TUI's Mods page, and a button pressed
+  here updates both ([PLUGIN-AUTHORING.md](PLUGIN-AUTHORING.md#mods)).
 - The Inbox: click `INBOX n` at the top of the rail. `↑↓` moves, Enter opens
   the session and clears it, `d` clears it without opening.
 

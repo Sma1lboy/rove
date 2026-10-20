@@ -13,6 +13,7 @@ import type {
   UiPrefsPayload,
   UiPromptPayload,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { ReadableState } from "../lib/external-store.ts"
 import type { CommandTab, EngineTab } from "../tui/workspace/terminal-tabs-core.ts"
 import type { Task } from "../types/task.ts"
@@ -100,6 +101,8 @@ export interface OrchestratorSignals {
   readonly taskJobsAcc: ReadableState<ReadonlyMap<string, TaskJobState>>
   readonly setTaskJobsSig: (next: ReadonlyMap<string, TaskJobState>) => void
   readonly rowTokensAcc: ReadableState<RowTokenMap>
+  readonly modPanesAcc: ReadableState<readonly ModPaneView[]>
+  readonly setModPanesSig: (next: readonly ModPaneView[]) => void
   readonly setRowTokensSig: (next: RowTokenMap) => void
   readonly worktreeChangesAcc: ReadableState<WorktreeChangesMap | null>
   readonly setWorktreeChangesSig: (next: WorktreeChangesMap | null) => void
