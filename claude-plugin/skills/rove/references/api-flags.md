@@ -326,9 +326,11 @@ respawned — files kept, conversation did not), `skipped_precheck` (nothing to 
 
 <!-- generated:begin discover,feedback -->
 ```text
-schema       --verb --group --all
-engine-list  (none)
-feedback     --title(REQ) --body(REQ) --category(feedback)
+schema        --verb --group --all
+engine-list   (none)
+node-status   (none)
+fleet-status  (none)
+feedback      --title(REQ) --body(REQ) --category(feedback)
 ```
 <!-- generated:end -->
 

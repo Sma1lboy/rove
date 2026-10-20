@@ -111,18 +111,37 @@ export async function routeTarget(args: {
   return null
 }
 
+/** One `api.invoke` call as it crosses a forwarded socket. */
+export interface InvokePayload {
+  readonly verb: string
+  readonly params: ApiParams
+  /** A fleet target (`any`/`auto`) for a center to schedule. */
+  readonly machine?: string
+  /** Runs where it lands, never routed again. */
+  readonly forwarded?: boolean
+  /** Sent by a center's router: never handed to another center. */
+  readonly viaCenter?: boolean
+  /** Normalized `origin` of `--repo`, resolved where that path exists. */
+  readonly repoRemote?: string
+}
+
 /** Run `verb` inside `entry`'s daemon. Never rejects: failures come back as an error envelope. */
-export async function forwardVerb(
+export function forwardVerb(
   entry: MachineEntry,
   verb: string,
   params: ApiParams,
   socketPath?: string,
 ): Promise<ApiEnvelope> {
+  return invokeOn(entry, { verb, params, forwarded: true }, socketPath)
+}
+
+/** Send `payload` to `entry`'s daemon. Never rejects. */
+export async function invokeOn(entry: MachineEntry, payload: InvokePayload, socketPath?: string): Promise<ApiEnvelope> {
   const target = socketPath ?? (await machineDaemonSocket(entry))
   if (!target) return offline(entry.alias)
   const client = new RoveDaemonClient(target)
   try {
-    return await client.request<ApiEnvelope>("api.invoke", { verb, params, forwarded: true })
+    return await client.request<ApiEnvelope>("api.invoke", { ...payload })
   } catch (err) {
     const message = errorMessage(err)
     if (/unknown daemon request:/i.test(message)) return tooOld(entry.alias)
@@ -148,34 +167,43 @@ function tooOld(alias: string): ApiEnvelope {
   })
 }
 
-function failure(code: string, message: string, data: Record<string, unknown>): ApiEnvelope {
+export function failure(code: string, message: string, data: Record<string, unknown>): ApiEnvelope {
   return { apiVersion: ROVE_API_VERSION, ok: false, error: { message, code, ...data } }
 }
 
 /**
- * The routing step every `api.invoke` server shares (daemon, bridge): forward
- * to the machine the call names or whose task it targets, else run here.
+ * The routing step every `api.invoke` server shares (daemon, bridge, CLI):
+ * a fleet target goes to the center, a call naming a machine or one of its
+ * tasks goes there, a task no machine here knows goes to the center, and
+ * anything else runs here.
  */
 export async function invokeRouted(args: {
   readonly verb: string
   readonly params: ApiParams
   readonly machine?: string
   readonly forwarded?: boolean
+  readonly viaCenter?: boolean
+  readonly repoRemote?: string
   readonly isLocalTask: (taskId: string) => Promise<boolean>
-  readonly runHere: () => Promise<ApiEnvelope>
+  readonly runHere: (verb: string, params: ApiParams) => Promise<ApiEnvelope>
 }): Promise<ApiEnvelope> {
-  if (args.forwarded) return args.runHere()
-  const taskId = args.params["task-id"]
+  if (args.forwarded) return args.runHere(args.verb, args.params)
+  const fleet = await import("../fleet/dispatch.ts")
+  if (fleet.isFleetTarget(args.machine)) {
+    return fleet.dispatchToFleet({ ...args, mode: args.machine })
+  }
+  const taskId = typeof args.params["task-id"] === "string" ? args.params["task-id"] : undefined
   let target: MachineEntry | null
   try {
-    target = await routeTarget({
-      machine: args.machine,
-      taskId: typeof taskId === "string" ? taskId : undefined,
-      isLocalTask: args.isLocalTask,
-    })
+    target = await routeTarget({ machine: args.machine, taskId, isLocalTask: args.isLocalTask })
   } catch (err) {
     if (!(err instanceof ApiError)) throw err
     return failure(err.code, err.message, err.data ?? {})
   }
-  return target ? forwardVerb(target, args.verb, args.params) : args.runHere()
+  if (target) return forwardVerb(target, args.verb, args.params)
+  if (taskId && args.machine === undefined && !args.viaCenter && !(await args.isLocalTask(taskId))) {
+    const viaCenter = await fleet.askCenterForTask(args.verb, args.params)
+    if (viaCenter) return viaCenter
+  }
+  return args.runHere(args.verb, args.params)
 }

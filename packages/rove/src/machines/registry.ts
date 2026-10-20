@@ -63,8 +63,11 @@ export type MachineEntry = { readonly alias: string } & MachineConfig
 /** Aliases must survive being a path segment (`machines/<alias>/daemon.sock`). */
 const ALIAS_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 
+/** `--machine` values that name a fleet target, never a machine. */
+const RESERVED_ALIASES: ReadonlySet<string> = new Set([LOCAL_MACHINE_ID, "any", "auto"])
+
 export function isValidMachineAlias(alias: string): boolean {
-  return alias !== LOCAL_MACHINE_ID && alias.length <= 64 && ALIAS_RE.test(alias)
+  return !RESERVED_ALIASES.has(alias) && alias.length <= 64 && ALIAS_RE.test(alias)
 }
 
 /**

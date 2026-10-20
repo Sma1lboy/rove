@@ -25,11 +25,12 @@
 import { errorMessage } from "@/lib/error-message"
 import { type ApiEnvelope, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ensurePluginEnginesLoaded } from "../engine/plugin-engines.ts"
-import { LOCAL_MACHINE, forwardVerb, requireMachine, routeTarget } from "../machines/forward.ts"
+import { isFleetTarget } from "../fleet/dispatch.ts"
+import { LOCAL_MACHINE, forwardVerb, invokeRouted, requireMachine, routeTarget } from "../machines/forward.ts"
 import type { MachineEntry } from "../machines/registry.ts"
 import { takeIdentityWarning } from "./api/dispatcher.ts"
 import { VerbArgs, buildCountPlan, parseAgentsSpec, parseFlags, validateAgainstSpec } from "./api/flags.ts"
-import { forwardParams, takeMachineFlag } from "./api/forward-cli.ts"
+import { fleetParams, forwardParams, takeMachineFlag } from "./api/forward-cli.ts"
 import {
   booleanFlagsOf,
   callVerb,
@@ -144,7 +145,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   }
 
   // An explicit other machine needs nothing from this machine's daemon.
-  if (machine !== undefined && machine !== LOCAL_MACHINE) {
+  if (machine !== undefined && machine !== LOCAL_MACHINE && !isFleetTarget(machine)) {
     await runForwarded(verb, parsed, async () => requireMachine(machine))
     return
   }
@@ -172,6 +173,28 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     await runForwarded(verb, parsed, async () => target)
     return
   }
+  if (client && isFleetTarget(machine)) {
+    const envelope = await invokeRouted({
+      verb: verb.name,
+      params: fleetParams(verb, parsed.flags),
+      machine,
+      isLocalTask: (id) => taskIsLocal(client, id),
+      runHere: (name, params) => executeVerb(name, { params }, { client }),
+    })
+    session?.close()
+    printEnvelope(envelope, parsed)
+    return
+  }
+  // A task no registered machine holds may be on a worker only the center knows.
+  if (taskId && client && !(await taskIsLocal(client, taskId))) {
+    const { askCenterForTask } = await import("../fleet/dispatch.ts")
+    const envelope = await askCenterForTask(verb.name, forwardParams(verb, parsed.flags))
+    if (envelope) {
+      session?.close()
+      printEnvelope(envelope, parsed)
+      return
+    }
+  }
 
   try {
     const result = await callVerb(verb, parsed.flags, { client: session?.client ?? null })
@@ -197,14 +220,7 @@ async function machineHolding(taskId: string, client: DaemonRpc): Promise<Machin
   try {
     return await routeTarget({
       taskId,
-      isLocalTask: async (id) => {
-        try {
-          await client.request("task.get", { taskId: id })
-          return true
-        } catch {
-          return false
-        }
-      },
+      isLocalTask: (id) => taskIsLocal(client, id),
     })
   } catch (err) {
     const apiErr = toApiError(err)
@@ -222,6 +238,20 @@ async function runForwarded(verb: VerbSpec, parsed: ParsedArgs, resolve: () => P
     const apiErr = toApiError(err)
     fail(apiErr.message, apiErr.code, USAGE_ERROR_CODES.has(apiErr.code) ? 2 : 1, apiErr.data)
   }
+  printEnvelope(envelope, parsed)
+}
+
+async function taskIsLocal(client: DaemonRpc, taskId: string): Promise<boolean> {
+  try {
+    await client.request("task.get", { taskId })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Print an envelope from another daemon as if the verb ran here. */
+function printEnvelope(envelope: ApiEnvelope, parsed: ParsedArgs): void {
   if (envelope.ok) {
     emit(envelope.result, parsed.pretty)
     return

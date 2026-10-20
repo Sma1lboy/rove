@@ -76,12 +76,14 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
         params,
         machine: route?.machine,
         forwarded: route?.forwarded,
+        viaCenter: route?.viaCenter,
+        repoRemote: route?.repoRemote,
         isLocalTask: (id) =>
           client.request("task.get", { taskId: id }).then(
             () => true,
             () => false,
           ),
-        runHere: () => executeVerb(verb, { params }, { client, caller: REMOTE_CALLER }),
+        runHere: (name, args) => executeVerb(name, { params: args }, { client, caller: REMOTE_CALLER }),
       })
     } catch (err) {
       return errorEnvelope(err)

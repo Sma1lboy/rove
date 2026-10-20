@@ -65,6 +65,18 @@ logins. This machine only routes.
 - The rules for socket callers above apply on the far side: `--repo` and other
   paths are absolute paths **on that machine**. `--prompt-file` is read here
   and sent as `--prompt`.
+- `add --machine any|auto` hands the choice to a fleet center, which places
+  the task on the least-loaded worker (`any`) or the one the prompt fits
+  (`auto`). The result gains `dispatch: { machine, host, reason, skipped }`.
+  `--repo` is matched by its `origin`, and the task is created at that
+  worker's path. Over the socket, pass `"machine": "any"`. Other verbs refuse
+  a fleet target with `BAD_FLAG`: they follow the task they name. See
+  [MACHINES.md](MACHINES.md#let-a-center-pick-the-machine).
+- A `--task-id` no machine here knows is asked of the fleet center, when
+  `fleet.centers` names one.
+- `node-status` reports one machine's load, engines, tags and repos (what a
+  center probes). `fleet-status` reports the center your calls go to and every
+  node's load.
 - A forwarded call is never forwarded again, and `list` over the socket
   returns only the answering daemon's own tasks, so two machines that
   registered each other cannot bounce a verb between them.
@@ -198,6 +210,8 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `UNKNOWN_MACHINE` | `--machine` (or `"machine"` over the socket) names no registered machine. |
 | `MACHINE_UNREACHABLE` | The machine a verb was routed to did not answer over ssh. |
 | `MACHINE_VERSION_SKEW` | That machine's Rove predates forwarded verbs; upgrade it. |
+| `NO_CENTER` | `--machine any\|auto`: no machine in `fleet.centers` answered. |
+| `NO_ELIGIBLE_NODE` | No machine has the repo, the engine and room under its session cap; `rejected` gives each one's reason. |
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |

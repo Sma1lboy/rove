@@ -43,7 +43,12 @@ export interface DaemonRuntimeAdapter {
     verb: string,
     params: ApiParams,
     socketPath: string,
-    route?: { readonly machine?: string; readonly forwarded?: boolean },
+    route?: {
+      readonly machine?: string
+      readonly forwarded?: boolean
+      readonly viaCenter?: boolean
+      readonly repoRemote?: string
+    },
   ): Promise<ApiEnvelope>
   readonly defaultTaskVendor: VendorId
   readonly placeholderTaskTitle: string

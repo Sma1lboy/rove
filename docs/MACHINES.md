@@ -159,6 +159,92 @@ that reaches that daemon (`rove api`, `rove --web`, the phone apps) can send
 work to any of them. That also means a bridge token for that daemon runs
 commands on every machine registered there: guard it like an ssh key.
 
+## Let a center pick the machine
+
+`--machine any` and `--machine auto` on `rove api add` hand the choice to a
+**center**: one machine that knows the others and places each new task on a
+worker.
+
+```mermaid
+flowchart LR
+  C[You: CLI, web, phone, an agent] -->|add --machine any/auto| Center
+  Center -->|node-status| A[Worker A]
+  Center -->|node-status| B[Worker B]
+  Center -->|add| B
+```
+
+- `any` puts the task on the least-loaded worker.
+- `auto` reads the prompt and sends it to the worker it fits best. When the
+  prompt fits no worker better than the others, load decides.
+
+Any machine can be the center. It needs the workers registered with
+`rove machine add`, which a resident daemon on an always-on box usually
+already has. On every other machine, name it in `fleet.centers`:
+
+```jsonc
+// state.json on your laptop
+"fleet.centers": ["mini", "studio"]   // try mini first, then studio
+```
+
+With no `fleet.centers`, the machine you run the command on is its own center.
+Put `local` in the list to mean "this machine".
+
+### How the center picks
+
+The center asks itself and every registered machine for `rove api
+node-status`, in parallel. A machine that does not answer within 5 seconds is
+skipped, so one stuck worker cannot stall a dispatch. A machine can take the
+task only if:
+
+- it has a checkout of the repo. Checkouts are matched by `origin` URL, so
+  `/Users/me/app` on your laptop and `/srv/app` on a worker are the same repo.
+  The task is created at the worker's own path.
+- it has the engine `--vendor` names, if you named one.
+- it is below its `engine.maxLiveSessions` cap, if it has one.
+
+The center does not take tasks itself while a worker can, so dispatching
+never adds load to the machine doing the dispatching. Set
+`fleet.centerTakesTasks: true` to let it compete like any worker. When no
+worker qualifies, the center runs the task itself if it can.
+
+For `auto`, each machine describes itself in its own `state.json`:
+
+```jsonc
+// on the GPU box
+"fleet.tags": ["gpu", "cuda", "训练"],
+"fleet.description": "RTX 4090, the staging database, internal mirrors"
+```
+
+A tag that appears in the prompt counts more than a matching description
+word. Matching is by substring, so CJK tags work. For real semantic routing,
+point `fleet.router` at an endpoint that reads the prompt and names the
+machine (see [Configuration](CONFIGURATION.md#fleet)). If it times out or
+names a machine that was not offered, the built-in match decides.
+
+The result says where the task went and why:
+
+```json
+"dispatch": { "machine": "studio", "host": "studio.local", "reason": "least loaded (load 0.31)",
+              "skipped": [{ "machine": "mini", "why": "at its session cap (4)" }] }
+```
+
+`rove api fleet-status` shows which center your calls go to right now and each
+machine's load. `NO_ELIGIBLE_NODE` lists every machine with the reason it was
+passed over.
+
+### When a center goes down
+
+Calls go to the first machine in `fleet.centers` that answers. If it does not
+answer, or drops during the call, the next one is asked. Nothing has to be
+handed over: the center keeps no state of its own. Tasks live on the workers,
+and each candidate reads the worker list from its own machine registry. So
+register the workers on every machine in `fleet.centers`, not just the first.
+
+After dispatch, `send`, `read-output` and the other task verbs find the task
+by its id. They check this machine, then the machines registered here, then
+ask the center. A task placed on a worker your laptop never registered is
+still reachable.
+
 ## What this release does not do yet
 
 - Opening a remote task's session in the TUI is not wired up yet. You can see

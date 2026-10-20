@@ -144,6 +144,8 @@ describe("API surface (full CRUD)", () => {
     expect([...API_VERBS]).toEqual([
       "schema",
       "engine-list",
+      "node-status",
+      "fleet-status",
       "list",
       "get-task",
       "pty-list",

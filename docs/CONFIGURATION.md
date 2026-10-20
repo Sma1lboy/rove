@@ -459,6 +459,26 @@ in Settings → Plugins and its rail row and its `ctrl+a` chord go away.
 | `sockets` | `{daemon, pty}` remote socket paths the machine last reported, cached so a reconnect skips a second SSH round-trip. Absent until the first successful connect; never derived locally |
 | `addedAt` | ISO timestamp of registration |
 
+### Fleet
+
+How this machine takes part in `--machine any|auto`
+([Machines](MACHINES.md#let-a-center-pick-the-machine)). Read on every call;
+no restart needed.
+
+| Key | Type | Default | What |
+|---|---|---|---|
+| `fleet.centers` | list of machine aliases, or a comma-separated string | empty (this machine schedules) | Machines that schedule for this one, tried in order. `local` means this machine |
+| `fleet.tags` | list of strings | empty | What this machine offers (`gpu`, `db`, …). `auto` sends a prompt that mentions a tag here |
+| `fleet.description` | string | empty | One line about this machine; its words count toward an `auto` match |
+| `fleet.centerTakesTasks` | boolean | `false` | When this machine is the center, let it take tasks while a worker could |
+| `fleet.router` | `http(s)://` URL | unset | Endpoint that picks the machine for `auto`. Anything else reads as unset |
+| `fleet.routerTimeoutMs` | number, 200–60000 | `4000` | How long to wait for the router before the built-in match decides |
+
+`fleet.router` receives the prompt, which leaves your machines. The center
+POSTs `{ "prompt", "nodes": [{ "alias", "tags", "description", "load" }] }`
+and reads `{ "node": "<alias>" }`. Any other answer, an error or a timeout
+means no pick. An alias that was not in `nodes` is ignored.
+
 ### Experimental
 
 Off by default. These can change without notice.

@@ -46,10 +46,12 @@ describe("parseSshTarget", () => {
 })
 
 describe("isValidMachineAlias", () => {
-  it("accepts a path-safe name and rejects the reserved local id", () => {
+  it("accepts a path-safe name and rejects the reserved targets", () => {
     expect(isValidMachineAlias("narwhal")).toBe(true)
     expect(isValidMachineAlias("Nahuels-Mac-mini.local")).toBe(true)
     expect(isValidMachineAlias("local")).toBe(false)
+    expect(isValidMachineAlias("any")).toBe(false)
+    expect(isValidMachineAlias("auto")).toBe(false)
   })
 
   it("rejects anything that would escape its own socket directory", () => {

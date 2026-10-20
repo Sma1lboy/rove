@@ -11,6 +11,7 @@ import { CREATE_VERBS } from "./verbs-create.ts"
 import { DRIVE_VERBS } from "./verbs-drive.ts"
 import { EDIT_VERBS } from "./verbs-edit.ts"
 import { FEEDBACK_VERBS } from "./verbs-feedback.ts"
+import { FLEET_VERBS } from "./verbs-fleet.ts"
 import { ISSUE_VERBS } from "./verbs-issues.ts"
 import { LIFECYCLE_VERBS } from "./verbs-lifecycle.ts"
 import { READ_VERBS } from "./verbs-read.ts"
@@ -139,6 +140,7 @@ const SCHEMA_VERB: VerbSpec = {
 export const VERBS: readonly VerbSpec[] = [
   SCHEMA_VERB,
   ENGINE_LIST_VERB,
+  ...FLEET_VERBS,
   ...READ_VERBS,
   ...CREATE_VERBS,
   ...DRIVE_VERBS,

@@ -4,6 +4,7 @@
  * before the verb's own flags are parsed.
  */
 
+import { resolve } from "node:path"
 import type { ApiParams } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { VerbArgs } from "./flags.ts"
 import type { Flags, VerbSpec } from "./types.ts"
@@ -35,4 +36,10 @@ export function forwardParams(verb: VerbSpec, flags: Flags): ApiParams {
   const text = new VerbArgs(verb, flags).promptText()
   const params = Object.fromEntries([...flags].filter(([name]) => name !== "prompt-file"))
   return text === undefined ? params : { ...params, prompt: text }
+}
+
+/** {@link forwardParams} with `--repo` made absolute: the center reads its origin from this machine's path. */
+export function fleetParams(verb: VerbSpec, flags: Flags): ApiParams {
+  const params = forwardParams(verb, flags)
+  return typeof params.repo === "string" ? { ...params, repo: resolve(params.repo) } : params
 }

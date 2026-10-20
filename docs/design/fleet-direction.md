@@ -103,7 +103,7 @@ brief's Node + Fleet shape, and it is read-only:
 
 | Brief asks | Today | Gap |
 |---|---|---|
-| `add --target any\|<node>` | No scheduler. `engine-list` is an offline verb that reads the **local** `PATH`. | Node capability and load must come from that node's daemon. The scheduler needs both. |
+| `add --target any\|<node>` | **Done** as `add --machine any\|auto\|<alias>`. Each node reports its load, engines, tags and repos from its own daemon (`node-status`). A center picked from `fleet.centers` (first that answers) schedules: by load for `any`, by prompt match or a `fleet.router` endpoint for `auto` ([MACHINES.md](../MACHINES.md#let-a-center-pick-the-machine)). | The center is stateless, so failover is "next candidate", with no election protocol. Each candidate must register the workers itself. |
 | Aggregate status, diff, output | Status is aggregated. Diff panes show `on <host>` for a remote task. | Diff and output need daemon read verbs that work over the forwarded socket. |
 | Aggregate cost | Tokens per turn exist: `agent-turns-store.ts`, and `rove api agent-turns` sums them. Only claude and codex implement `readTurns`. There is no USD figure anywhere. | Pricing is vendor data, so the engine adapter owns it (engine-owned UI data rule), not the control plane. |
 | Review and land from a laptop or phone | `rove api land` uses `merge --no-ff` or `--squash` with preflight and conflict reporting (`orchestrator/land.ts`). `update --report-branch/--report-pr` records results. `rove --web` plus the bridge (bearer token, Tailscale and CF Access presets) already reach a phone. | Remote `land` is a write, so it is blocked by `NOT_YET_SUPPORTED_REMOTE`. |
@@ -206,7 +206,7 @@ This refines the brief's order. Each item below is a PR-sized slice.
 - Route `rove api` writes for a remote-origin task through the forwarded
   socket.
 - Add `add --target <machine>`, then `--target any` backed by a node-load
-  verb.
+  verb. *Done:* `--machine <alias>|any|auto`, `node-status`, `fleet-status`.
 - `land` runs on the node and pushes the branch.
 
 `api.invoke` runs a verb inside the daemon that answers, so a verb sent over
