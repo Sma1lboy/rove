@@ -150,7 +150,9 @@ action and `rove config`. Opening an entire worktree (`o` in the sidebar or
 | `editor.customCommand` | string | unset | Command for `custom`, e.g. `code -w` |
 
 In `editor.customCommand`, `{file}` is replaced by the quoted file path. Without
-it, the path is appended.
+it, the path is appended. `{line}` is replaced by the line `rove api tab-new
+--kind editor --line N` asked for (1 otherwise), for editors that read a line
+some other way, for example `code -w -g {file}:{line}`.
 
 Set `ROVE_OPEN_EDITOR` to choose the GUI editor for a whole worktree, for
 example `ROVE_OPEN_EDITOR=zed`. Without that variable,

@@ -969,13 +969,16 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `get-task .tabs[]`. A session already running under the allocated id fails
   as `TAB_COLLISION`. `--command` with `--kind shell` is `BAD_FLAG`.
   `tab-new` also opens three kinds that run something Rove resolves, never a
-  command line from the caller: `--kind editor --file PATH` opens PATH (relative to
+  command line from the caller: `--kind editor --file PATH [--line N]` opens PATH (relative to
   the worktree; `..` and a symlink out are `BAD_FLAG`, a missing file
   `FILE_NOT_FOUND`) in the editor from Settings → General → Editor, else
   `$VISUAL`/`$EDITOR`, else the first installed of nvim/vim/emacs/nano (`NO_EDITOR`
   when none), as a command tab in the task's one editor slot: the previous
   editor tab is closed (through the TUI's close path when one is attached) once the new
-  one runs. `--kind pane --pane PLUGIN.PANE [--tab TAB]` opens a pane of an enabled
+  one runs. `--line N` opens at line N: `+N` for vi/vim/nvim/nano/emacs/emacsclient/micro/kak/mg/joe,
+  `PATH:N` for helix, or wherever `{line}` sits in `editor.customCommand`; the result
+  then carries `atLine` — `false` when the editor has none of those forms and the file
+  opened at its top. `--line` with any other kind is `BAD_FLAG`. `--kind pane --pane PLUGIN.PANE [--tab TAB]` opens a pane of an enabled
   plugin (`PANE_NOT_FOUND` otherwise), split into `--tab` (default the active tab) or
   as its own command tab, as the pane's manifest `placement` says and as the TUI's
   picker does; the result then also carries `leaf` when it split. `--kind viewport
