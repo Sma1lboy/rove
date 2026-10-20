@@ -110,7 +110,7 @@ Commands:
   repo <verb>             Per-repo init script + first prompt (show|set|unset)
   api <verb>              Scriptable RPC surface for agents (see `rove api --help`)
   daemon <verb>           Manage the daemon (start|stop|status|restart)
-  machine <verb>          Other computers running Rove (add|remove|list)
+  machine <verb>          Other computers running Rove (add|doctor|remove|list)
   weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny)
   doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
   config [--path]         Open rove's config file (state.json) in your editor
@@ -214,7 +214,7 @@ Completes two levels: the subcommand, then its verb.
 ```text
 rove <TAB>          completions add remove adopt export repo api daemon …
 rove daemon <TAB>   status start stop restart
-rove machine <TAB>  add remove list
+rove machine <TAB>  add doctor remove list
 rove theme <TAB>    list add remove
 rove api routine-<TAB>   routine-list routine-create routine-update …
 ```

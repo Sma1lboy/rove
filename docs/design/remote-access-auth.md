@@ -1,8 +1,10 @@
 # Remote access: auth model and guided setup
 
-> Status: **design draft.** Step 1 of "Order of work" (ssh failure
-> classifier, host-key confirmation, `roveBin`) has landed; the rest is not
-> implemented. Companion to
+> Status: **design draft.** Steps 1–2 of "Order of work" have landed: the ssh
+> failure classifier, host-key confirmation and `roveBin`, then guided
+> `machine add` / `machine doctor` (`machines/setup.ts`) with the hub key and
+> `install` fixes. Tailscale SSH detection and the resident prompt are not
+> done; steps 3–5 are not implemented. Companion to
 > [workspace-runner.md](./workspace-runner.md): a hub that dispatches to
 > machines makes "who may run what where" and "how do I get this working"
 > two halves of one problem. Decisions marked **OPEN** need the owner.

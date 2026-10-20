@@ -9,10 +9,11 @@ tree is the answer to what is running where.
 
 ## What this needs
 
-- Rove installed on **both** machines (`npm i -g @sma1lboy/rove`).
-- SSH access to the remote one, working non-interactively — `ssh narwhal true`
-  must succeed without a prompt. A `Host` block in `~/.ssh/config` is the
-  usual way; Rove reads it rather than replacing it.
+- Rove installed on **both** machines (`npm i -g @sma1lboy/rove`). Run in a
+  terminal, `machine add` offers to install it on the other one for you.
+- SSH access to the remote one. A `Host` block in `~/.ssh/config` is the usual
+  way; Rove reads it rather than replacing it. If no key you have is accepted
+  there, `machine add` offers to set one up (below).
 
 Nothing else. Rove opens no ports and adds no authentication of its own: the
 remote daemon keeps listening on its private unix socket, and SSH forwards that
@@ -46,6 +47,17 @@ the host is unreachable, Rove is not installed, or no daemon can be started.
   only runs for interactive shells. `add` asks the login shell and the usual
   install directories, then remembers that path for the machine. Your rc files
   are not touched.
+- **Fixes, not dead ends.** In a terminal, a failure `add` can repair is
+  offered as a fix: it shows the exact command, asks, runs it, and tries
+  again. `--yes` runs every offered fix without asking.
+  - *No key is accepted:* `add` creates `~/.rove/ssh/hub_ed25519`, a key just
+    for this Rove, with no passphrase so it can reconnect unattended, and adds
+    it to the machine's `~/.ssh/authorized_keys`. You type that machine's
+    password once, into ssh. To revoke this Rove's access, delete the line
+    ending in `rove-hub@<this host>` there.
+  - *Rove is missing:* `add` runs the official install script on the machine
+    (`curl -fsSL https://rove.run/install.sh | sh`).
+  - *Rove is too old:* `add` runs `rove update` there.
 - **When ssh fails**, the message names the cause and the fix: a name that
   does not resolve, a refused or timed-out connection, a rejected key, a host
   key not trusted yet, or one that **changed** (which `add` will not override).
@@ -99,6 +111,19 @@ narwhal · v0.9.185            ← a machine
   explains most of what otherwise looks like a bug. A machine whose Rove is too
   old to talk to yours reads `⚠ v0.9.100 (protocol mismatch)` and is the only
   row affected.
+
+## Check a machine again
+
+```console
+$ rove machine doctor
+narwhal  ✓  rove 0.9.251 on Nahuels-Mac-mini.local
+```
+
+`doctor` re-runs the same checks for every registered machine (or the one you
+name) and offers the same fixes, for when something changed underneath: a key
+was revoked, Rove was reinstalled somewhere else, the machine was rebuilt. It
+also says when a machine runs a different Rove version than this one, and
+exits 1 if any machine is not usable.
 
 ## List and remove
 
