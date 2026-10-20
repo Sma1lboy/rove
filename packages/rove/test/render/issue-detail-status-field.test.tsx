@@ -13,7 +13,7 @@
 import { expect, test } from "bun:test"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { ReactNode } from "react"
-import { IssueDetailDialogView, type IssueDetailOutcome } from "../../src/tui-react/component/issue-detail-dialog"
+import { IssueDetailDialogView, type IssueDetailOutcome } from "../../src/bundled-plugins/kanban/issue-detail-dialog"
 import { act, renderComponent, settle } from "./harness"
 
 /** Unlinked and not done: the drawer's `startable` shape, whose cycle is

@@ -44,8 +44,8 @@ Push: `{"event":"tasks","data":{...}}`.
 | `hello` | Require protocol 1 before showing connected |
 | `tasks.subscribe`, `tasks.list` | Initial snapshot, live updates, manual refresh |
 | `engines.list`, `repos.list` | Use server names and IDs in creation forms |
-| `task.tabs`, `tab.new` | List tabs and create an engine tab with a prompt |
-| `term.attach` | Receive stream ID and base64 replay; only attach existing sessions |
+| `task.tabs`, `tab.new` | List tabs and create a shell tab, or an engine tab with or without a first prompt |
+| `term.attach` | Receive stream ID and base64 replay; only attach existing sessions. An optional `leafId` attaches a split pane of the tab (clients that never split can ignore `task.tabs`' `split`) |
 | `term.data`, `term.exit` pushes | Decode bytes in xterm; stop input after exit |
 | `term.input`, `term.resize`, `term.detach` | Send text, resize within bridge bounds, detach on screen exit |
 | `diff.files`, `diff.file` | Preserve the bridge's `branch` or `working` scope |

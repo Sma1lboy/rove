@@ -25,7 +25,10 @@ and tabs; right-clicking a sidebar row opens the same common actions available
 from the keyboard, including **New conversation** and **New shell** for that
 Task's worktree, plus **Copy task ID**, **Copy branch name** and **Copy path**,
 which put the Task's id, branch or worktree path on the system clipboard for a
-`rove api` call, a `git checkout` or a `cd` in another shell, and **Open in editor**, **Rename branch**, and
+`rove api` call, a `git checkout` or a `cd` in another shell, **Copy tab address**
+on a tab row, which copies the `--task-id … --tab …` pair that sends a
+`rove api send` to that one tab, **Close other tabs** on a tab row of a Task with
+several tabs (it confirms, then ends every other tab's session), and **Open in editor**, **Rename branch**, and
 **Change engine** for the row you clicked. Right-clicking a project header
 offers **New task**, **Field notes** (the notes agents filed on that repo with
 `rove api note`, newest first, each with its author and time — `↑↓` walks them
@@ -200,6 +203,15 @@ so the entry re-runs those exact words in a NEW Task with its own branch and
 worktree, leaving the original untouched. The confirm shows the brief in full
 before anything is created. A Task created without a prompt has no brief to
 re-run, and the entry does not appear for it.
+
+While a Task's pull request has failing checks, the menu also offers **Fix
+failing checks**, which pastes the failing jobs' log tails into the Task's
+engine, and **Re-run failed checks**, which restarts only the failed CI jobs
+(through `gh run rerun --failed`) for a failure that looks flaky rather than
+caused by the change. The `✗` mark turns pending on the next PR refresh.
+Checks that did not run on GitHub Actions cannot be restarted from Rove; the
+toast says so. Reruns wait for every `gh run rerun` command to finish; a slow batch
+does not trigger the client's 20-second daemon-disconnect deadline.
 
 The confirmation dialogs state the exact deletion boundary before anything is
 changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
@@ -478,7 +490,9 @@ left arrow to return to the section list, and `enter` to activate a row.
 - **Keybindings** shows the active prefix, loaded YAML overrides and warnings.
   Edit the displayed YAML path; changes reload live.
 - **Feedback** submits a GitHub Discussion through an authenticated `gh` CLI.
-- **Dev** contains reset, a backend-exit action and experimental switches. Reset
+- **Dev** contains reset, a backend-exit action, **Reload settings** and
+  experimental switches. Reload settings applies hand edits to `state.json` to
+  this window without a restart. Reset
   clears UI and task-index state after confirmation, but leaves worktrees and
   engine history on disk. The current **Restart backend** action exits only this
   TUI window; other attached windows and hosted sessions remain connected. Use
@@ -530,7 +544,10 @@ tab. Availability and restart behavior vary by engine; see
 
 ## Pages: `ctrl+a` `1` / `2` / `3`
 
-Three pages replace the workspace pane while the sidebar stays put. `esc` or
+Three pages replace the workspace pane while the sidebar stays put. Kanban
+and Issues are built-in plugins you can turn off in Settings → Plugins, and
+installed plugins can add pages of their own
+([Pages](./PLUGIN-AUTHORING.md#pages-experimental)). `esc` or
 `q` closes a page; selecting a task in the sidebar also returns you to the
 workspace. The chords stay live, so you can hop between pages directly.
 
@@ -622,6 +639,16 @@ explicitly marked as an untrusted report), and the task keeps a
 shows that task's title on its detail line, and `enter` opens the task instead
 of creating a second one. Nothing is imported into the local issue store and
 nothing is written back to GitHub.
+
+### Mods
+
+While a plugin's `[mod]` has a pane open, the sidebar rail lists **Mods**
+below Issues. Click it to open the page: each mod pane is drawn with its
+title and plugin id. `↑`/`↓` or `tab` move between buttons and fields,
+`enter` or a click presses a button, `enter` in a field sends its text to the
+mod, `esc` leaves. While a field has focus, letters are typing. The web client draws the same panes, and a press in
+either one updates both. There is no chord for the page yet. Writing a mod:
+[Plugin authoring § Mods](PLUGIN-AUTHORING.md#mods).
 
 ## What's new after an upgrade
 

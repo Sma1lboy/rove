@@ -12,72 +12,22 @@
  */
 
 import { readKeybindingsFile, resetKeybindingsFileCache } from "../../state/keybindings-file"
-import {
-  DEFAULT_PREFIX_CONFIGURATION,
-  configurePrefix,
-  prefixFirstStrokes,
-  resetPrefixConfiguration,
-} from "../lib/keymap-dispatch"
-import { type AppliedOverride, applyKeymapOverrides, extractKeybindingOverrides } from "../lib/keymap-overrides"
-import { type PluginKeyBinding, extractPluginKeybindings } from "../lib/keymap-plugin-bindings"
-import { applyPrefixKeymapOverrides, extractPrefixKeybindings } from "../lib/keymap-prefix-overrides"
+import { type UserKeybindingsReport, resolveUserKeybindings } from "../lib/keybindings-resolve"
+import { configurePrefix, resetPrefixConfiguration } from "../lib/keymap-dispatch"
+import type { PluginKeyBinding } from "../lib/keymap-plugin-bindings"
 import { RoveKeymap, bumpKeymapVersion, resetKeymapToDefaults } from "./keybindings"
 
-export type UserKeybindingsReport = {
-  /** Canonical config path (the `.yaml` spelling, even when `.yml` was read). */
-  path: string
-  /** Whether a config file was found at all. */
-  exists: boolean
-  /** Overrides that landed in the workspace keymap. */
-  applied: AppliedOverride[]
-  /** User chords bound to plugin panes/actions (`plugins:` section). */
-  plugins: PluginKeyBinding[]
-  /** Everything that didn't parse / validate / apply, human-readable. */
-  warnings: string[]
-}
+export type { UserKeybindingsReport }
 
 let cached: UserKeybindingsReport | null = null
 
 /** Idempotent (cached report). Warnings also go to `console.warn` so they reach the log even if Settings → Keybindings is never opened. */
 export function applyUserKeybindings(): UserKeybindingsReport {
   if (cached) return cached
-  const file = readKeybindingsFile()
-  if (!file.exists) {
-    cached = { path: file.path, exists: false, applied: [], plugins: [], warnings: [] }
-    return cached
-  }
-
-  const warnings: string[] = [...file.warnings]
-  const extracted = extractKeybindingOverrides(file.doc, process.platform)
-  warnings.push(...extracted.warnings)
-  const prefix = extractPrefixKeybindings(file.doc, process.platform)
-  warnings.push(...prefix.warnings)
-  const prefixConfiguration = { ...DEFAULT_PREFIX_CONFIGURATION, ...prefix.configuration }
-  configurePrefix(prefixConfiguration)
-
-  const result = applyKeymapOverrides(RoveKeymap, extracted.entries)
-  warnings.push(...result.warnings)
-  const applied: AppliedOverride[] = [...result.applied]
-  const customPrefix = prefix.configuration.key === undefined ? [] : prefixFirstStrokes(prefixConfiguration)
-  for (const prefixKey of customPrefix) {
-    const directOwner = RoveKeymap.find((row) => row.keys.includes(prefixKey))
-    if (directOwner) warnings.push(`prefix.key "${prefixKey}" collides with direct binding ${directOwner.id}`)
-  }
-  const prefixResult = applyPrefixKeymapOverrides(RoveKeymap, [...extracted.prefixEntries, ...prefix.entries])
-  warnings.push(...prefixResult.warnings)
-  applied.push(...prefixResult.applied)
-
-  // Collisions with catalogue chords are the user's call: warn but apply
-  // (host-level plugin bindings sit above pane bindings in the stack).
-  const plugins = extractPluginKeybindings(file.doc, process.platform)
-  warnings.push(...plugins.warnings)
-  for (const p of plugins.entries) {
-    const owner = RoveKeymap.find((row) => row.keys.includes(p.chord))
-    if (owner) warnings.push(`plugins: ${p.chord} shadows ${owner.id}`)
-  }
-
-  for (const w of warnings) console.warn(`[rove/keybindings] ${w}`)
-  cached = { path: file.path, exists: true, applied, plugins: plugins.entries, warnings }
+  const { report, prefix } = resolveUserKeybindings(readKeybindingsFile(), RoveKeymap, process.platform)
+  if (report.exists) configurePrefix(prefix)
+  for (const w of report.warnings) console.warn(`[rove/keybindings] ${w}`)
+  cached = report
   return cached
 }
 

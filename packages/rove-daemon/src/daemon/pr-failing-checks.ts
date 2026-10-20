@@ -155,7 +155,7 @@ export function joinFailingChecks(
  * One `gh` command under a timeout. Returns the failure rather than `""`, so
  * callers can tell absent `gh`, unauthenticated `gh` and a real empty answer apart.
  */
-async function ghText(
+export async function ghText(
   args: readonly string[],
   cwd: string,
   timeoutMs: number,

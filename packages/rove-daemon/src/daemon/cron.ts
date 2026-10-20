@@ -28,9 +28,9 @@ export interface ParsedCron {
   readonly daysOfMonth: ReadonlySet<number>
   readonly months: ReadonlySet<number>
   readonly daysOfWeek: ReadonlySet<number>
-  /** True when the day-of-month field is anything but `*`. */
+  /** False when the day-of-month field starts with `*`, steps included, as in Vixie cron. */
   readonly dayOfMonthRestricted: boolean
-  /** True when the day-of-week field is anything but `*`. */
+  /** False when the day-of-week field starts with `*`. */
   readonly dayOfWeekRestricted: boolean
 }
 
@@ -141,8 +141,8 @@ export function parseCron(expression: string): ParsedCron {
       // 7 and 0 are both Sunday; fold so matching only ever tests 0-6.
       normalize: (v) => v % 7,
     }),
-    dayOfMonthRestricted: dayOfMonth !== "*",
-    dayOfWeekRestricted: dayOfWeek !== "*",
+    dayOfMonthRestricted: !dayOfMonth.startsWith("*"),
+    dayOfWeekRestricted: !dayOfWeek.startsWith("*"),
   }
 }
 
@@ -185,9 +185,8 @@ function dayMatches(rule: ParsedCron, d: LocalDay): boolean {
   const domMatch = rule.daysOfMonth.has(d.day)
   const dowMatch = rule.daysOfWeek.has(new Date(d.year, d.month - 1, d.day).getDay())
   if (rule.dayOfMonthRestricted && rule.dayOfWeekRestricted) return domMatch || dowMatch
-  if (rule.dayOfMonthRestricted) return domMatch
-  if (rule.dayOfWeekRestricted) return dowMatch
-  return true
+  // A starred field still filters by its own set: `*/2` keeps only odd days.
+  return domMatch && dowMatch
 }
 
 /** "Is this instant an occurrence". The scans don't use it — they enumerate local minutes to stay DST-correct. */
@@ -251,8 +250,9 @@ export function latestCronAtOrBefore(expression: string, nowMs: number, notBefor
   const minutes = sorted(rule.minutes, -1)
   const from = new Date(floorToMinute(nowMs))
   let day = localDayOf(from.getTime())
+  // Hour only: in a repeated hour, 01:10 (second pass) comes after 01:50 (first
+  // pass), so a minute cut would drop an occurrence that already happened.
   let fromHour = from.getHours()
-  let fromMinute = from.getMinutes()
   for (let i = 0; i < SCAN_DAYS; i++) {
     // All remaining candidates are earlier than this day's last minute.
     if (instantOf(day, 23, 59) < notBeforeMs) return null
@@ -260,7 +260,6 @@ export function latestCronAtOrBefore(expression: string, nowMs: number, notBefor
       for (const hour of hours) {
         if (hour > fromHour) continue
         for (const minute of minutes) {
-          if (hour === fromHour && minute > fromMinute) continue
           const at = instantOf(day, hour, minute)
           if (at > nowMs) continue
           return at >= notBeforeMs ? at : null
@@ -269,7 +268,6 @@ export function latestCronAtOrBefore(expression: string, nowMs: number, notBefor
     }
     day = shiftDay(day, -1)
     fromHour = 23
-    fromMinute = 59
   }
   return null
 }

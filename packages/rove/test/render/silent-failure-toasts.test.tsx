@@ -18,7 +18,7 @@
  */
 import { expect, test } from "bun:test"
 import { useEffect } from "react"
-import { KanbanPage } from "../../src/tui-react/component/kanban-page"
+import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
 import { ToastOverlay } from "../../src/tui-react/component/toast-overlay"
 import { useNotifications } from "../../src/tui-react/context/notifications"
 import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"

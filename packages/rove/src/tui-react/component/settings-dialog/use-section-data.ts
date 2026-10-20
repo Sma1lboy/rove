@@ -6,6 +6,7 @@
 
 import { errorMessage } from "@/lib/error-message"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { BUNDLED_PLUGINS, isBundledPluginEnabled, setBundledPluginEnabled } from "../../../bundled-plugins"
 import { type PluginInstallPreview, preparePluginInstall } from "../../../cli/plugin-install"
 import { type MarketEntry, fetchMarketplace } from "../../../cli/plugin-search"
 import { type EngineStatus, detectEngineStatuses } from "../../../engine/engine-status"
@@ -14,12 +15,20 @@ import { reloadPluginEngines } from "../../../engine/plugin-engines"
 import type { SectionId } from "../../../tui/component/settings-dialog/model"
 import type { VendorId } from "../../../types/task"
 import { useT } from "../../i18n"
+import { registerBundledPlugins } from "../../pages/bundled-pages"
+import { loadPluginPages } from "../../pages/load-plugin-pages"
 import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { RenameTaskDialog } from "../rename-task-dialog"
 import { type MarketplaceRowView, installedSpecIds, marketplaceRowViews } from "./marketplace-core"
 import { nextEnumValue, normalizeNumberInput, toggledBooleanValue } from "./plugin-settings-core"
-import { type PluginRowView, readPluginRows, setPluginEnabled, setPluginSetting } from "./plugins-core"
+import {
+  type BuiltInPluginInfo,
+  type PluginRowView,
+  readPluginRows,
+  setPluginEnabled,
+  setPluginSetting,
+} from "./plugins-core"
 
 /**
  * "Installed + logged in" detection for EVERY listed engine (binary-only for
@@ -79,13 +88,22 @@ export interface PluginSettings {
   readonly editSetting: (pluginId: string, key: string) => Promise<void>
 }
 
+function builtInPlugins(): BuiltInPluginInfo[] {
+  return BUNDLED_PLUGINS.map((plugin) => ({
+    id: plugin.id,
+    description: plugin.description,
+    pages: plugin.pages.length,
+    enabled: isBundledPluginEnabled(plugin.id),
+  }))
+}
+
 /** Registered plugins, re-read on every section open. */
 export function usePluginSettings(section: SectionId, dialog: DialogContext): PluginSettings {
   const [rows, setRows] = useState<readonly PluginRowView[]>([])
   const t = useT()
   useEffect(() => {
     if (section !== "plugins") return
-    setRows(readPluginRows())
+    setRows(readPluginRows(builtInPlugins()))
   }, [section])
 
   /** Every write goes through here: store, then re-read so disk wins. */
@@ -95,21 +113,29 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
     } catch {
       // .env unwritable — the re-read leaves the row showing what disk has.
     }
-    setRows(readPluginRows())
+    setRows(readPluginRows(builtInPlugins()))
   }
 
   return {
     rows,
-    refresh: () => setRows(readPluginRows()),
+    refresh: () => setRows(readPluginRows(builtInPlugins())),
     toggle: (id: string) => {
       const row = rows.find((p) => p.id === id)
       if (!row) return
+      if (row.builtIn) {
+        setBundledPluginEnabled(id, !row.enabled)
+        registerBundledPlugins()
+        setRows(readPluginRows(builtInPlugins()))
+        return
+      }
       try {
         setPluginEnabled(id, !row.enabled)
       } catch {
         // Registry unwritable — the re-read below leaves the row as disk has it.
       }
-      setRows(readPluginRows())
+      setRows(readPluginRows(builtInPlugins()))
+      // Pages mount in this process; a reload adds or drops this plugin's rail rows.
+      void loadPluginPages().then(() => setRows(readPluginRows(builtInPlugins())))
     },
     editSetting: async (pluginId: string, key: string) => {
       const setting = rows.find((p) => p.id === pluginId)?.settings.find((s) => s.key === key)

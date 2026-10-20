@@ -17,6 +17,62 @@ this page. The rest of the binary is documented in the
 To teach a coding agent this surface, install the bundled agent skill with
 `rove skill install` instead of pasting this page into a prompt.
 
+## One contract, three transports
+
+The verbs on this page are one contract — names, flags, results, error codes —
+served by one executor over three transports:
+
+| Transport | Call | Answer |
+| --- | --- | --- |
+| CLI | `rove api <verb> --flag value` | the result on stdout, or `{ "error": … }` on stderr (below); `--envelope` prints the envelope instead |
+| Daemon socket | request `api.invoke` `{ "verb", "params" }` | the envelope |
+| Bridge WebSocket (`rove --web`, the phone apps) | op `api.invoke` `{ "verb", "params" }` | `result`, or the full `error` object |
+
+The envelope is `{ "apiVersion", "ok": true, "result" }` or
+`{ "apiVersion", "ok": false, "error": { "message", "code", … } }`, where
+`error` is exactly the object the CLI prints on stderr. `params` are keyed by
+flag name (`"task-id"`, not `taskId`) and typed as `schema --verb` lists them:
+a string, a number for `int`/`uint`, a boolean for `bool`, a string list for
+`csv`.
+
+`apiVersion` is the one version of this contract. `rove api schema`, both
+`hello`s (daemon and bridge) and every envelope report the same number.
+
+Over the socket and the bridge the verb runs inside the daemon or the bridge
+process, not beside the caller, so three things differ from the CLI:
+
+- **Paths must be absolute.** There is no caller cwd to resolve `--repo .`
+  against; a relative path is `BAD_FLAG`. Without `--task-id`, no `$ROVE_TASK_ID`
+  applies either: the target is the active task.
+- **No stdin.** `--prompt-file -` is `BAD_FLAG`; pass `--prompt`.
+- **No streaming.** `watch` and `pane-graphics` (`cliOnly: true` in `schema`)
+  answer `CLI_ONLY_VERB`; subscribe to the daemon's channels instead.
+
+## Run a verb on another machine
+
+With machines registered ([MACHINES.md](MACHINES.md)), a verb can run on any
+of them. It crosses the ssh-forwarded daemon socket as `api.invoke` and
+executes inside that machine's daemon: its git, its PTY host, its engine
+logins. This machine only routes.
+
+- `--machine <alias>` on any verb runs it there:
+  `rove api add --machine narwhal --repo /srv/rove --prompt "…"`. Over the
+  socket or the bridge, pass `"machine": "<alias>"` beside `verb` and
+  `params`. `local` names this machine.
+- A `--task-id` that lives on another machine runs on that machine without
+  `--machine`, so a remote task the sidebar shows answers `send`,
+  `read-output`, `delete` and the rest like a local one.
+- The rules for socket callers above apply on the far side: `--repo` and other
+  paths are absolute paths **on that machine**. `--prompt-file` is read here
+  and sent as `--prompt`.
+- A forwarded call is never forwarded again, and `list` over the socket
+  returns only the answering daemon's own tasks, so two machines that
+  registered each other cannot bounce a verb between them.
+
+The bridge logs every destructive verb (`delete`, `land`, `remove-worktree`,
+`tab-close`, `issue-delete`, `routine-delete`, `note-delete`) by verb and id,
+as it does its own destructive ops.
+
 ## Socket limits and recovery
 
 Daemon and standalone PTY Host requests use newline-delimited JSON. Each request
@@ -121,6 +177,8 @@ rove api land --task-id a              # merge the winning branch
   `count: 0` with an empty `tasks`. The full payload still goes to stdout, so
   whatever *was* created is never lost.
 - `rove api <verb> --help` prints that verb's usage and exits 0.
+- `--envelope` prints every outcome, success or error, as one envelope on
+  stdout ([above](#one-contract-three-transports)); exit codes do not change.
 
 ### Codes the CLI itself raises
 
@@ -136,10 +194,21 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_TAB` | A `--tab` value that is not `new` or `tab-N`. |
 | `BAD_DAEMON` | The daemon could not be reached or started. |
 | `DAEMON_VERSION_SKEW` | The daemon is a different build and does not serve this verb. |
+| `CLI_ONLY_VERB` | `api.invoke` (socket or bridge) named a verb that streams over stdout/stdin (`watch`, `pane-graphics`). |
+| `UNKNOWN_MACHINE` | `--machine` (or `"machine"` over the socket) names no registered machine. |
+| `MACHINE_UNREACHABLE` | The machine a verb was routed to did not answer over ssh. |
+| `MACHINE_VERSION_SKEW` | That machine's Rove predates forwarded verbs; upgrade it. |
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
+| `TAB_COLLISION` | `tab-new` found its freshly allocated tab id already running a session; no new tab was created, retry. |
+| `FILE_NOT_FOUND` | `tab-new --kind editor --file` names no file in the task's worktree. |
+| `NO_EDITOR` | `tab-new --kind editor` found no editor: none set in Settings → General → Editor, `$VISUAL`/`$EDITOR` unset, and none of nvim/vim/emacs/nano installed. |
+| `PANE_NOT_FOUND` | `tab-new --kind pane --pane` names no pane of an enabled plugin. |
+| `TAB_NOT_SPLITTABLE` | `tab-split` on a content tab; only terminal tabs split. |
+| `LAST_LEAF` | `tab-split --action close` on the only pane; close the tab instead. |
+| `RESET_ENGINE` | `tab-split --action reset` on a pane that runs an engine; only shell panes reset. |
 | `RUN_NOT_FOUND` | `routine-respond --run` names no routine run (unknown, or pruned from the last 100). |
 | `RESPONSE_TOO_LARGE` | A `routine-respond` response or a `report --summary` over the 32,000-character cap. |
 | `DELIVERY_NOT_FOUND` | `report --delivery` names no delivery (unknown, or pruned past the newest 50 for its task). |
@@ -881,10 +950,11 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   showing the task performs the split (headless, nothing happens). The result
   carries the resolved `title` — the label `pane-close --title` must match,
   derived from the command's first word when `--title` is omitted — and
-  `clients`, the attached-connection count: `0` means nobody performed the
-  split, so an agent must not report "pane opened" on that verdict. (The
-  calling CLI is itself one connection, so `1` does not prove a TUI is
-  listening; `0` is the unambiguous case.) Task
+  `clients`, the attached-connection count, and `reached`. `reached: false`
+  means no front-end subscribes to the `tab.open` channel, so nobody performed
+  the split and an agent must not report "pane opened". (The calling CLI is
+  itself one connection, so `clients: 1` alone does not prove a TUI is
+  listening; `reached` does.) Task
   defaults to `$ROVE_TASK_ID` (or its Rove alias), then the active task. How far splits can go
   is decided by the terminal's size: a split that would shrink any pane
   below the minimum usable size (20×6 cells) falls back to a tab.
@@ -893,8 +963,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `--title`, the title it was opened with; `--tab tab-N` scopes the match to
   one tab. Engine panes are never closed. Broadcast over the daemon's
   `tab.close` channel; an attached TUI performs the close (headless, nothing
-  happens). The result's `clients` is the reach signal: `0` = no attached TUI
-  performed the close (same semantics as `dispatch`'s).
+  happens). The result's `reached` is the reach signal: `false` = no attached
+  front-end performed the close.
 - `pane-graphics [--task-id ID] --tab TAB [--image-id N]`: hand opaque
   graphics bytes, read from stdin, to every TUI attached to this task, for it
   to write to its own terminal. This is a transport, not a picture format —
@@ -928,6 +998,56 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   open with no session, matching ctrl+w. A tab that still exists in the
   snapshot may be closed after its process dies; an absent or already-closed
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
+- `tab-new --task-id ID --kind shell|engine [--command CMD]`: open a new
+  Terminal Tab with no first message — the TUI's sidebar "New shell" and its
+  picker's Enter on an empty message. `shell` runs the login shell
+  (`$SHELL`) in the task's worktree and types the `ROVE_TASK_ID` /
+  `ROVE_TAB_ID` export into it; `engine` starts the task's engine (or `--command`'s,
+  as `send --tab new --command` pins it) idle, ready for a first message.
+  The worktree is created if needed, and an engine tab respects
+  `engine.maxLiveSessions` (`ENGINE_LIMIT`; the refused tab leaves no row).
+  The tab id and its persisted row are allocated in one locked `state.json`
+  update, then the session spawns, then the daemon broadcasts `tab.add` so
+  attached TUIs absorb the row (a TUI otherwise holds a stale tab list and
+  would overwrite it). Returns `{ok, taskId, tabId, session, kind, clients}`
+  (`clients` = attached connections told; `0` = none); the tab then lists in
+  `get-task .tabs[]`. A session already running under the allocated id fails
+  as `TAB_COLLISION`. `--command` with `--kind shell` is `BAD_FLAG`.
+  `tab-new` also opens three kinds that run something Rove resolves, never a
+  command line from the caller: `--kind editor --file PATH [--line N]` opens PATH (relative to
+  the worktree; `..` and a symlink out are `BAD_FLAG`, a missing file
+  `FILE_NOT_FOUND`) in the editor from Settings → General → Editor, else
+  `$VISUAL`/`$EDITOR`, else the first installed of nvim/vim/emacs/nano (`NO_EDITOR`
+  when none), as a command tab in the task's one editor slot: the previous
+  editor tab is closed (through the TUI's close path when one is attached) once the new
+  one runs. `--line N` opens at line N: `+N` for vi/vim/nvim/nano/emacs/emacsclient/micro/kak/mg/joe,
+  `PATH:N` for helix, or wherever `{line}` sits in `editor.customCommand`; the result
+  then carries `atLine` — `false` when the editor has none of those forms and the file
+  opened at its top. `--line` with any other kind is `BAD_FLAG`. `--kind pane --pane PLUGIN.PANE [--tab TAB]` opens a pane of an enabled
+  plugin (`PANE_NOT_FOUND` otherwise), split into `--tab` (default the active tab) or
+  as its own command tab, as the pane's manifest `placement` says and as the TUI's
+  picker does; the result then also carries `leaf` when it split. `--kind viewport
+  --view-task ID` adds an engine tab that shows another task's first engine session
+  (`.tabs[].viewOf` names that task; its liveness is that session's) and
+  starts nothing; the task must be in the same project and have a worktree.
+- `tab-split --task-id ID --tab TAB --action open|close|rename|reset
+  [--leaf leaf-N] [--direction right|down] [--title TEXT] [--cols N --rows N]`:
+  edit one Terminal Tab's split panes with no TUI — the TUI's ctrl+\ / ctrl+= /
+  ctrl+w / F2 / F5. `open` splits `--leaf` (default: the tree's active pane)
+  toward `--direction` (default `right`) into a new login shell in the task's
+  worktree; `--cols`/`--rows` are that pane's size, for the minimum-pane gate
+  (too small → `changed: false`, nothing spawned). `close` ends `--leaf` (the
+  last pane is `LAST_LEAF`: close the tab instead), `rename` sets its label
+  (an empty `--title` clears it), `reset` kills a shell pane and spawns a fresh
+  login shell (an engine pane is `RESET_ENGINE`). `leaf-1` is the tab's own
+  process; every other pane is its own hosted session `<taskId>::<tabId>::<leaf>`,
+  swept by `tab-close`. The layout is the tab's persisted split tree in
+  `state.json` (one locked update), then the daemon broadcasts the row over
+  `tab.add` so an attached TUI absorbs the tree instead of overwriting it. No
+  command line is taken: panes are always the login shell. Returns
+  `{ok, taskId, tabId, leaf, changed, split, clients}`; `split` is
+  `{activeLeafId, root}` (null once back to one pane) and `get-task .tabs[].split`
+  carries the same.
 - `notify --title TEXT [--body TEXT] [--kind KIND] [--task-id ID]
   [--source TAG]`: show a toast in every attached Rove UI. `--body` adds a
   second, muted line under the title — context, not a second message.
@@ -937,7 +1057,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 - `prompt --title TEXT [--placeholder T] [--initial T] [--timeout MS]`:
   ask the human for a line of text through the attached TUI's input dialog;
   blocks until answered/cancelled/timeout (default 120000 ms, max 600000)
-  and returns `{ value }` or `{ cancelled, reason }`.
+  and returns `{ value }` or `{ cancelled, reason }`. `reason` is
+  `cancelled`, `timeout`, or `no-gui`: with no front-end attached to show the
+  dialog, it returns at once instead of waiting out the timeout.
 - `engine-report --kind KIND [--task-id ID] [--engine ID] [--tab TAB]
   [--detail JSON]`: report a normalized engine-activity verb for a task,
   the public face of the `engine.reportEvent` RPC the built-in hook adapters
@@ -998,6 +1120,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   - `--model M`: pin the model (next session rebuild). Passed to the engine
     verbatim in its own spelling; `engine-list`'s `models` are suggestions.
     Rejected (`BAD_MODEL`) when the task's engine declares no model flag.
+    A `--command` that changes the task's engine clears its model and effort
+    pins; pass `--model` / `--effort` in the same call to re-pin them.
   - `--pinned true|false`: pin/unpin the task to the top of the sidebar.
   - `--require-report on|off`: `on` makes every later `send` to the task arm
     a delivery, as `add --require-report` does; `off` restores plain sends.

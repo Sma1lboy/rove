@@ -294,6 +294,25 @@ export async function failingChecksOp(client: RoveDaemonClient, taskId: string):
   }
 }
 
+/** What `pr.rerunFailedChecks` restarted. `unavailable` means the rollup could not be read. */
+export interface RerunFailedChecksResult {
+  readonly rerunRuns: number
+  readonly external: number
+  readonly refused?: string
+  readonly unavailable?: { readonly reason: string; readonly detail: string }
+}
+
+/** Restart a PR's failed Actions jobs. One `gh` call per run; never poll it. */
+export async function rerunFailedChecksOp(client: RoveDaemonClient, taskId: string): Promise<RerunFailedChecksResult> {
+  const res = await client.request<Partial<RerunFailedChecksResult>>("pr.rerunFailedChecks", { taskId })
+  return {
+    rerunRuns: res.rerunRuns ?? 0,
+    external: res.external ?? 0,
+    ...(res.refused ? { refused: res.refused } : {}),
+    ...(res.unavailable ? { unavailable: res.unavailable } : {}),
+  }
+}
+
 /** A repo's daemon-owned issues (`issue.list`) — the TUI kanban page's read. */
 export async function listIssuesOp(client: RoveDaemonClient, repoRoot: string): Promise<RepoIssues> {
   return client.request<RepoIssues>("issue.list", { repoRoot })

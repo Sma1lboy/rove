@@ -3,7 +3,7 @@
  *
  *   - Hydrates synchronously from `state.json` at creation, so the first
  *     render has persisted values. Snapshot-only: another process's later
- *     writes are not seen until restart.
+ *     writes and hand edits are not seen until `reload()` or restart.
  *   - Writes are debounced (250ms) and dirty-key merged via `patchStateFile`:
  *     only keys this process changed reach disk, so a concurrent process's
  *     writes are never clobbered. Dirty keys survive a failed flush.
@@ -13,7 +13,7 @@
 
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
-import { loadStateFile, patchStateFile, replaceStateFile } from "../../state/store.ts"
+import { loadStateFile, patchStateFile, readStateFileStrict, replaceStateFile } from "../../state/store.ts"
 
 const WRITE_DEBOUNCE_MS = 250
 
@@ -27,6 +27,11 @@ export interface KvWriteFailure {
 }
 
 export type KvWriteErrorListener = (failure: KvWriteFailure) => void
+
+/** `changed` counts keys whose value differs from the snapshot before the reload. */
+export type KvReloadResult =
+  | { readonly ok: true; readonly changed: number }
+  | { readonly ok: false; readonly error: unknown }
 
 export interface KvCore {
   /** Current in-memory snapshot (immutable per change; React-safe). */
@@ -52,6 +57,13 @@ export interface KvCore {
   /** Wipe every persisted key; false preserves the snapshot and pending edits. */
   clear(): boolean
   /**
+   * Re-read `state.json` into the snapshot. Pending keys flush first; any that
+   * still can't reach disk keep their local value. An unreadable or invalid
+   * file changes nothing and is left in place. Flushes retain pending keys
+   * until the file is repaired.
+   */
+  reload(): KvReloadResult
+  /**
    * Subscribe to flushes that did not reach disk. The debounced write is
    * fire-and-forget and `set()` already updated the snapshot, so without this
    * a failed write shows fine all session and reverts next launch
@@ -67,6 +79,8 @@ export function createKvCore(): KvCore {
   const dirtyKeys = new Set<string>()
   /** `setQuiet` values, read over the snapshot until the next `set` of the key. */
   const quiet = new Map<string, unknown>()
+  /** `seed()` defaults, restored by `reload()` for keys the file doesn't carry. */
+  const seeded = new Map<string, unknown>()
   let writeTimer: ReturnType<typeof setTimeout> | null = null
   const errorListeners = new Set<KvWriteErrorListener>()
   /**
@@ -90,7 +104,7 @@ export function createKvCore(): KvCore {
       const patch: Record<string, unknown> = {}
       const snap = store.get()
       for (const key of dirtyKeys) patch[key] = quiet.has(key) ? quiet.get(key) : snap[key]
-      patchStateFile(patch)
+      patchStateFile(patch, "strict")
       dirtyKeys.clear()
       reportedKeys.clear()
       return true
@@ -144,6 +158,7 @@ export function createKvCore(): KvCore {
       scheduleWrite()
     },
     seed(key, value) {
+      if (!seeded.has(key)) seeded.set(key, value)
       if (quiet.has(key) || store.get()[key] !== undefined) return
       store.update((s) => ({ ...s, [key]: value }))
     },
@@ -164,6 +179,33 @@ export function createKvCore(): KvCore {
       quiet.clear()
       store.set({})
       return true
+    },
+    reload() {
+      try {
+        // Validate before flushing: a flush through a corrupt file would
+        // move the user's half-finished edit aside.
+        readStateFileStrict()
+        cancelTimer()
+        writeNow("reload flush")
+        const fresh = readStateFileStrict()
+        const before = store.get()
+        const next: Record<string, unknown> = { ...fresh }
+        for (const [key, value] of seeded) if (next[key] === undefined) next[key] = value
+        for (const key of dirtyKeys) {
+          if (before[key] === undefined) delete next[key]
+          else next[key] = before[key]
+        }
+        for (const key of [...quiet.keys()]) if (!dirtyKeys.has(key)) quiet.delete(key)
+        if (dirtyKeys.size > 0) scheduleWrite()
+        let changed = 0
+        for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
+          if (JSON.stringify(before[key]) !== JSON.stringify(next[key])) changed++
+        }
+        if (changed > 0) store.set(next)
+        return { ok: true, changed }
+      } catch (error) {
+        return { ok: false, error }
+      }
     },
     onWriteError(listener) {
       errorListeners.add(listener)

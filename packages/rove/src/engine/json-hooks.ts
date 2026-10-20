@@ -11,6 +11,7 @@
  */
 
 import { roveHookInvocation } from "../cli/invocation.ts"
+import { isObject } from "../lib/is-object.ts"
 import { type QuoteShellArgvOptions, quoteShellArgv } from "../lib/shell-command.ts"
 import type { EngineActivityKind } from "./hook-events.ts"
 
@@ -44,10 +45,6 @@ export interface HookEventSpec {
   readonly event: string
   readonly matcher?: string
   readonly verb: EngineActivityKind
-}
-
-export function isObject(v: unknown): v is Record<string, unknown> {
-  return !!v && typeof v === "object" && !Array.isArray(v)
 }
 
 /**

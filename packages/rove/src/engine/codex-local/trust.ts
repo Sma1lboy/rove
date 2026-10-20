@@ -7,7 +7,7 @@
 import { appendFileSync, closeSync, mkdirSync, openSync, unlinkSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { TomlError, type TomlTable, parse as parseToml } from "smol-toml"
-import { isObject } from "../json-hooks.ts"
+import { isObject } from "../../lib/is-object.ts"
 import { readSharedConfigSync } from "../shared-config-write.ts"
 import { vendorConfigHome, vendorWriteHomeDeps } from "../vendor-home.ts"
 

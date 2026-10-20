@@ -5,7 +5,7 @@
  */
 
 import { type Socket, createConnection } from "node:net"
-import type { DaemonFrame } from "./contract.ts"
+import type { ApiEnvelope, ApiParams, DaemonFrame } from "./contract.ts"
 
 export interface RoveSocketOptions {
   /** Defaults to `process.env.ROVE_SOCKET_PATH`. */
@@ -31,6 +31,8 @@ export interface DaemonInfo {
   /** Channels THIS daemon broadcasts; `DAEMON_CHANNELS` is only what your SDK
    *  was built against. */
   readonly capabilities: readonly string[]
+  /** The verb contract version `invoke` speaks; absent on a daemon without `api.invoke`. */
+  readonly apiVersion?: number
   readonly daemonPid?: number
   /** The daemon's state root; a plugin whose own home differs is talking to a
    *  foreign daemon. */
@@ -83,6 +85,16 @@ export class RoveSocket {
   }
 
   /**
+   * Run one `rove api` verb inside the daemon — the same contract as the CLI,
+   * minus the process spawn. Resolves the envelope; a refusal is
+   * `{ ok: false, error }`, not a rejection. Paths in params must be absolute
+   * (the daemon has no cwd of yours), and stdin is unavailable.
+   */
+  invoke<T = unknown>(verb: string, params: ApiParams = {}): Promise<ApiEnvelope<T>> {
+    return this.request<ApiEnvelope<T>>("api.invoke", { verb, params })
+  }
+
+  /**
    * Build version and broadcast channel list of the running daemon — the only
    * runtime compatibility check. An unknown channel name is silently dropped
    * from a `subscribe` filter.
@@ -95,6 +107,7 @@ export class RoveSocket {
       minProtocolVersion: Number(raw.minProtocolVersion ?? 0),
       roveVersion: version,
       capabilities: Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : [],
+      ...(typeof raw.apiVersion === "number" ? { apiVersion: raw.apiVersion } : {}),
       ...(typeof raw.daemonPid === "number" ? { daemonPid: raw.daemonPid } : {}),
       ...(typeof raw.homeDir === "string" ? { homeDir: raw.homeDir } : {}),
     }

@@ -10,6 +10,7 @@
 
 import type { ContentBlock } from "@/types/content"
 import type { EngineHistory, EngineUsageSnapshot, Message } from "@/types/engine"
+import { isObject } from "../../lib/is-object"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
 import { normalizeCodexContent } from "./normalize"
@@ -351,8 +352,4 @@ function parseMaybeJson(value: unknown): unknown {
 function parseTimestampMs(value: string): number | null {
   const ms = new Date(value).getTime()
   return Number.isFinite(ms) ? ms : null
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
 }

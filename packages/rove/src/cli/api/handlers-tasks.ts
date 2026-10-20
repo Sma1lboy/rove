@@ -335,9 +335,11 @@ export async function getTask(ctx: VerbContext): Promise<unknown> {
 export async function list(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const local = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
-  // With no machine registered, returns the daemon's response untouched.
+  // With no machine registered, returns the daemon's response untouched. A
+  // transport caller gets this daemon's own tasks: a hub that forwarded the
+  // call already merges, and fanning out again could loop back to it.
   const { mergeTaskList } = await import("../../machines/api-merge.ts")
-  const merged = await mergeTaskList(local)
+  const merged = ctx.caller.cli ? await mergeTaskList(local) : local
   const filters = listFilters(ctx)
   if (!filters) return merged
   return { ...merged, ...(await filterTaskList(ctx, daemon, merged.tasks ?? [], filters)) }

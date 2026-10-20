@@ -11,14 +11,15 @@ import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { useEffect, useState } from "react"
 import { openWithSystemViewer } from "../../lib/open-external.ts"
+import { preferredReleaseChannel } from "../../state/update-channel.ts"
 import {
   CURRENT_VERSION,
   type ReleaseNotesRangeItem,
-  UPDATE_COMMAND,
   type UpdateInfo,
   checkLatestVersion,
   fetchReleaseNotesRange,
   releasePageUrl,
+  updateCommandFor,
 } from "../../version.ts"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -49,6 +50,9 @@ export function UpdatePage(props: { onClose: () => void }) {
    */
   const [selected, setSelected] = useState<ActionId>("close")
   const [status, setStatus] = useState<string | null>(null)
+  // Read once: the check and the install must agree on the channel.
+  const [channel] = useState(() => preferredReleaseChannel())
+  const command = updateCommandFor(channel)
 
   const latest = info?.latest ?? CURRENT_VERSION
   const latestUnknown = checked && info === null
@@ -58,9 +62,7 @@ export function UpdatePage(props: { onClose: () => void }) {
   const releaseUrl = releaseNotes[0]?.url ?? releasePageUrl(latest)
   const actions: ReadonlyArray<{ id: ActionId; key: string; label: string; detail: string }> = [
     // Offered only when there IS a newer release.
-    ...(hasUpdate
-      ? [{ id: "update" as const, key: "U", label: t("update.actions.updateNow"), detail: UPDATE_COMMAND }]
-      : []),
+    ...(hasUpdate ? [{ id: "update" as const, key: "U", label: t("update.actions.updateNow"), detail: command }] : []),
     {
       id: "release",
       key: "R",
@@ -79,7 +81,7 @@ export function UpdatePage(props: { onClose: () => void }) {
     // Nothing to catch: `checkLatestVersion` answers null on fetch errors
     // (`checked` turns that into "could not reach the registry"), and
     // `fetchReleaseNotesRange` answers [].
-    const next = await checkLatestVersion({ force: true })
+    const next = await checkLatestVersion({ force: true, channel })
     setInfo(next)
     setChecked(true)
     if (next?.hasUpdate) setSelected("update")
@@ -115,7 +117,7 @@ export function UpdatePage(props: { onClose: () => void }) {
   async function runUpdater(): Promise<void> {
     setStatus(t("update.statusRunningUpdater"))
     await new Promise((resolve) => setTimeout(resolve, 30))
-    await runShellUpdater({ renderer, t, targetLabel: latest, command: UPDATE_COMMAND })
+    await runShellUpdater({ renderer, t, targetLabel: latest, command })
   }
 
   useBindings(() => ({

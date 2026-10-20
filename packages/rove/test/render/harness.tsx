@@ -36,8 +36,15 @@ import { FocusProvider } from "../../src/tui-react/context/focus"
 import { KVProvider } from "../../src/tui-react/context/kv"
 import { NotificationsProvider } from "../../src/tui-react/context/notifications"
 import { ThemeProvider } from "../../src/tui-react/context/theme"
+import { registerBundledPlugins } from "../../src/tui-react/pages/bundled-pages"
+import { registerCorePages } from "../../src/tui-react/pages/core-pages"
 import { DialogProvider } from "../../src/tui-react/ui/dialog"
 import { setPrefixHudClock } from "../../src/tui/lib/prefix-hud"
+
+// The rail and every page-open chord read the page registry; the TUI boot fills it the same way.
+registerCorePages()
+// Every built-in plugin on, whatever the operator's state.json says.
+registerBundledPlugins(() => true)
 
 export { act }
 

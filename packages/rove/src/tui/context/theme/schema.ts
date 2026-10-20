@@ -17,6 +17,7 @@
  *   - `$schema` content: editor autocomplete only.
  */
 
+import { isObject } from "../../../lib/is-object"
 import type { ThemeJson } from "../theme-core"
 import { isRgbLiteral, parseRgbLiteral } from "./color-literal"
 
@@ -33,17 +34,13 @@ function badRgbLiteral(value: string): string | null {
 
 export type ValidateResult = { ok: true; theme: ThemeJson } | { ok: false; reason: string }
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-}
-
 export function isHex(s: string): boolean {
   return HEX_RE.test(s)
 }
 
 /** The one-line `reason` feeds the disk loader's `console.warn` and `rove theme add`'s error. */
 export function validateTheme(value: unknown): ValidateResult {
-  if (!isPlainObject(value)) {
+  if (!isObject(value)) {
     return { ok: false, reason: "theme must be a JSON object at the top level" }
   }
   const obj = value as Record<string, unknown>
@@ -52,12 +49,12 @@ export function validateTheme(value: unknown): ValidateResult {
     return { ok: false, reason: "missing required key `theme`" }
   }
   const theme = obj.theme
-  if (!isPlainObject(theme)) {
+  if (!isObject(theme)) {
     return { ok: false, reason: "`theme` must be an object map" }
   }
 
   if ("defs" in obj && obj.defs !== undefined) {
-    if (!isPlainObject(obj.defs)) {
+    if (!isObject(obj.defs)) {
       return { ok: false, reason: "`defs` must be an object map" }
     }
     for (const [k, v] of Object.entries(obj.defs)) {
@@ -75,7 +72,7 @@ export function validateTheme(value: unknown): ValidateResult {
       if (bad) return { ok: false, reason: `theme.${slot}: ${bad}` }
       continue
     }
-    if (!isPlainObject(raw)) {
+    if (!isObject(raw)) {
       return {
         ok: false,
         reason: `theme.${slot} must be a string or a { dark, light } object (got ${raw === null ? "null" : Array.isArray(raw) ? "array" : typeof raw})`,

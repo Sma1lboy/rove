@@ -35,6 +35,20 @@ import { pathSyntax, pathWithin } from "@sma1lboy/rove-daemon/path-identity"
 
 /** Token replaced with the (shell-quoted) file path in a custom command. */
 const FILE_PLACEHOLDER = "{file}"
+/** Token replaced with the requested line (1 when none was asked for). */
+const LINE_PLACEHOLDER = "{line}"
+
+/** Editors that take `+N <file>` to open at line N. */
+const PLUS_LINE_EDITORS = new Set(["vi", "vim", "nvim", "nano", "emacs", "emacsclient", "micro", "kak", "mg", "joe"])
+/** Editors that take `<file>:N` instead. */
+const SUFFIX_LINE_EDITORS = new Set(["hx", "helix"])
+
+/** `atLine` reports whether a requested line made it into `command`. */
+export interface EditorCommand {
+  readonly bin: string
+  readonly command: string
+  readonly atLine?: boolean
+}
 
 function firstToken(cmd: string): string {
   return cmd.trim().split(/\s+/)[0] ?? ""
@@ -48,26 +62,54 @@ function firstToken(cmd: string): string {
  * - custom → `customCommand` with `{file}` replaced by the quoted path, or the
  *   path appended when there's no placeholder. Empty custom falls back to
  *   `envEditor` (`$VISUAL` / `$EDITOR`), then `null`.
+ *
+ * `line` opens at that line: `{line}` in a custom command, else `+N` / `:N`
+ * for editors known to take it; any other editor opens the file plain
+ * (`atLine: false`).
  */
 export function buildEditorCommand(
   kind: EditorKind,
   customCommand: string,
   absPath: string,
   envEditor?: string,
-): { bin: string; command: string } | null {
-  const file = shellQuote(absPath)
-  if (kind === "vim") return { bin: "vim", command: `vim ${file}` }
-  if (kind === "nvim") return { bin: "nvim", command: `nvim ${file}` }
-  if (kind === "nano") return { bin: "nano", command: `nano ${file}` }
-  if (kind === "emacs") return { bin: "emacs", command: `emacs ${file}` }
+  line?: number,
+): EditorCommand | null {
+  if (kind === "vim" || kind === "nvim" || kind === "nano" || kind === "emacs") {
+    return plainEditorCommand(kind, absPath, line)
+  }
 
   // `custom`, and `auto`'s env path (envEditor as the template).
   const tmpl = (customCommand.trim() || (envEditor ?? "").trim()).trim()
   if (!tmpl) return null
   const bin = firstToken(tmpl)
   if (!bin) return null
-  const command = tmpl.includes(FILE_PLACEHOLDER) ? tmpl.split(FILE_PLACEHOLDER).join(file) : `${tmpl} ${file}`
-  return { bin, command }
+  const hasLine = tmpl.includes(LINE_PLACEHOLDER)
+  const autoPlusLine = !hasLine && line !== undefined && PLUS_LINE_EDITORS.has(bin.split("/").pop() ?? bin)
+  const target = hasLine || autoPlusLine ? { arg: shellQuote(absPath), atLine: true } : fileArg(bin, absPath, line)
+  // Insert the option before any `--`; `{file}` remains a single file operand.
+  const withOption = autoPlusLine ? `${bin} +${line}${tmpl.slice(bin.length)}` : tmpl
+  const withLine = withOption.split(LINE_PLACEHOLDER).join(String(line ?? 1))
+  const command = withLine.includes(FILE_PLACEHOLDER)
+    ? withLine.split(FILE_PLACEHOLDER).join(target.arg)
+    : `${withLine} ${target.arg}`
+  return line === undefined ? { bin, command } : { bin, command, atLine: target.atLine }
+}
+
+/** `<bin> <file>`, with the line when asked for. */
+function plainEditorCommand(bin: string, absPath: string, line?: number): EditorCommand {
+  const target = fileArg(bin, absPath, line)
+  const command = `${bin} ${target.arg}`
+  return line === undefined ? { bin, command } : { bin, command, atLine: target.atLine }
+}
+
+/** The quoted path, carrying the line in the form `bin` reads it. */
+function fileArg(bin: string, absPath: string, line?: number): { arg: string; atLine: boolean } {
+  const file = shellQuote(absPath)
+  if (line === undefined) return { arg: file, atLine: false }
+  const name = bin.split("/").pop() ?? bin
+  if (PLUS_LINE_EDITORS.has(name)) return { arg: `+${line} ${file}`, atLine: true }
+  if (SUFFIX_LINE_EDITORS.has(name)) return { arg: `${file}:${line}`, atLine: true }
+  return { arg: file, atLine: false }
 }
 
 /**
@@ -101,15 +143,14 @@ export function relativeToWorktree(worktree: string, absPath: string): string | 
  * {@link AUTO_EDITOR_CANDIDATES} (nvim → vim → emacs → nano); that probe is
  * why this is async.
  */
-export async function resolveEditorCommand(absPath: string): Promise<{ bin: string; command: string } | null> {
+export async function resolveEditorCommand(absPath: string, line?: number): Promise<EditorCommand | null> {
   const kind = normalizeEditorKind(getPersistedString(EDITOR_KIND_KEY))
   const custom = getPersistedString(EDITOR_CUSTOM_KEY) ?? ""
   const env = (process.env.VISUAL ?? process.env.EDITOR ?? "").trim()
-  if (kind !== "auto") return buildEditorCommand(kind, custom, absPath, env)
-  if (env) return buildEditorCommand("custom", "", absPath, env)
-  const file = shellQuote(absPath)
+  if (kind !== "auto") return buildEditorCommand(kind, custom, absPath, env, line)
+  if (env) return buildEditorCommand("custom", "", absPath, env, line)
   for (const bin of AUTO_EDITOR_CANDIDATES) {
-    if (await binaryAvailable(bin)) return { bin, command: `${bin} ${file}` }
+    if (await binaryAvailable(bin)) return plainEditorCommand(bin, absPath, line)
   }
   return null
 }
@@ -149,16 +190,22 @@ export async function fileHasDiff(worktree: string, relPath: string): Promise<bo
   }
 }
 
-/** Resolve + maybe diff-upgrade, without launching. `null` → caller falls back to preview / an external opener. */
+/**
+ * Resolve + maybe diff-upgrade, without launching. `null` → caller falls back
+ * to preview / an external opener. A `line` open is never diff-upgraded: the
+ * command no longer matches the plain `<bin> <file>` form.
+ */
 export async function resolveEditorLaunch(
   worktree: string,
   absPath: string,
-): Promise<{ command: string; label: string } | null> {
-  const resolved = await resolveEditorCommand(absPath)
+  line?: number,
+): Promise<{ command: string; label: string; atLine?: boolean } | null> {
+  const resolved = await resolveEditorCommand(absPath, line)
   if (!resolved) return null
   if (!(await binaryAvailable(resolved.bin))) return null
   const command = await maybeDiffCommand(resolved, worktree, absPath)
-  return { command, label: editorWindowLabel(absPath) }
+  const label = editorWindowLabel(absPath)
+  return resolved.atLine === undefined ? { command, label } : { command, label, atLine: resolved.atLine }
 }
 
 /**
@@ -166,11 +213,7 @@ export async function resolveEditorLaunch(
  * `$EDITOR=nvim`); a custom `nvim -u … {file}` is a deliberate invocation and
  * is left untouched.
  */
-async function maybeDiffCommand(
-  resolved: { bin: string; command: string },
-  worktree: string,
-  absPath: string,
-): Promise<string> {
+async function maybeDiffCommand(resolved: EditorCommand, worktree: string, absPath: string): Promise<string> {
   const { bin, command } = resolved
   if (bin !== "nvim" && bin !== "vim") return command
   if (command !== `${bin} ${shellQuote(absPath)}`) return command

@@ -174,7 +174,8 @@ field):
 
 Day matching follows the Vixie rule: when **both** day-of-month and weekday are
 restricted they are OR'd, so `0 0 1 * MON` means the 1st **or** any Monday, not
-"a Monday the 1st".
+"a Monday the 1st". A field that starts with `*` counts as unrestricted even
+with a step, so `0 0 */2 * MON` means Mondays that fall on an odd day.
 
 ## The precheck: don't burn a turn on an idle repo
 

@@ -132,6 +132,8 @@ export function DevSettingsSection(
     hasDaemon: boolean
     confirmReset: () => void
     confirmRestartDaemon: () => void
+    reloadSettings: () => void
+    reloadStatus: string
   },
 ) {
   const { prefs } = props
@@ -202,6 +204,23 @@ export function DevSettingsSection(
       <text fg={theme.textMuted} wrapMode="word">
         {t("settings.dev.doctorHint")}
       </text>
+      <SubSection title={t("settings.dev.reload")} hint={t("settings.dev.reloadHint")}>
+        <Row
+          cursor={isBodyCursor(rowIndex(rows, "dev-reload"))}
+          rowRef={props.rowRef(rowIndex(rows, "dev-reload"))}
+          onMouseUp={activate(rowIndex(rows, "dev-reload"), props.reloadSettings)}
+          fg={theme.accent}
+          bold={true}
+          idleBackground={theme.backgroundElement}
+        >
+          {t("settings.dev.reloadButton")}
+        </Row>
+        {props.reloadStatus ? (
+          <text fg={theme.textMuted} wrapMode="word">
+            {props.reloadStatus}
+          </text>
+        ) : null}
+      </SubSection>
 
       <box flexDirection="column" gap={0} paddingTop={1}>
         <text fg={theme.text} attributes={TextAttributes.BOLD}>
