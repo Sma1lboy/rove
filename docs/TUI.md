@@ -634,6 +634,16 @@ shows that task's title on its detail line, and `enter` opens the task instead
 of creating a second one. Nothing is imported into the local issue store and
 nothing is written back to GitHub.
 
+### Mods
+
+While a plugin's `[mod]` has a pane open, the sidebar rail lists **Mods**
+below Issues. Click it to open the page: each mod pane is drawn with its
+title and plugin id. `↑`/`↓` or `tab` move between buttons and fields,
+`enter` or a click presses a button, `enter` in a field sends its text to the
+mod, `esc` leaves. While a field has focus, letters are typing. The web client draws the same panes, and a press in
+either one updates both. There is no chord for the page yet. Writing a mod:
+[Plugin authoring § Mods](PLUGIN-AUTHORING.md#mods).
+
 ## What's new after an upgrade
 
 The first launch on a newly installed version opens a **What's New** dialog

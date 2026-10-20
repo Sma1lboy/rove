@@ -1,0 +1,255 @@
+/** @jsxImportSource @opentui/react */
+/**
+ * ModsPage — every open mod pane, drawn natively from the element tree the
+ * daemon validated (`plugins/mod-host.ts`). The web draws the same trees with
+ * DOM elements; this file is the OpenTUI half of that one vocabulary. A press
+ * or a submitted field goes back to the mod, which redraws; nothing here holds
+ * mod state except what the user is typing into a field.
+ */
+
+import { TextAttributes } from "@opentui/core"
+import type { ModNode, ModPaneView, ModTone } from "@sma1lboy/rove-daemon/plugins/mod-tree"
+import { type ReactNode, useRef, useState } from "react"
+import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import {
+  type ModControlRef,
+  modControls,
+  moveModCursor,
+  resolveModCursor,
+  sameModControl,
+} from "../../tui/panes/mods/mods-core"
+import { useNotifications } from "../context/notifications"
+import { useTheme } from "../context/theme"
+import { useT } from "../i18n"
+import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { dividerRule } from "../lib/rule-divider"
+import { useAccessor } from "../lib/use-accessor"
+import { useTerminalSize } from "../lib/use-terminal-size"
+import { FRAME } from "../ui/frame"
+
+type Theme = ReturnType<typeof useTheme>["theme"]
+
+function toneColor(tone: ModTone | undefined, theme: Theme): Theme["text"] {
+  switch (tone) {
+    case "info":
+      return theme.info
+    case "success":
+      return theme.success
+    case "warning":
+      return theme.warning
+    case "error":
+      return theme.error
+    case "muted":
+      return theme.textMuted
+    default:
+      return theme.text
+  }
+}
+
+/** Two panes may reuse a key; a draft belongs to one field. */
+function draftKey(ref: ModControlRef): string {
+  return `${ref.plugin}/${ref.pane}/${ref.key}`
+}
+
+interface TreeProps {
+  readonly node: ModNode
+  readonly pane: ModPaneView
+  readonly cursor: ModControlRef | null
+  /** Page focus: only then does the cursor's field take the keyboard. */
+  readonly focused: boolean
+  readonly theme: Theme
+  readonly onPress: (ref: ModControlRef) => void
+  readonly onSubmit: (ref: ModControlRef, value: string) => void
+  readonly onFocusControl: (ref: ModControlRef) => void
+  /** What the user has typed per field (see draftKey) since it was last drawn. */
+  readonly drafts: Map<string, string>
+  /** Bumped by every submit. */
+  readonly epoch: number
+}
+
+/** One element → OpenTUI. Spacing steps are cells; a box's flex is Yoga's. */
+function ModTree(props: TreeProps): ReactNode {
+  const { node, theme } = props
+  if (node.type === "text") {
+    return (
+      <text fg={toneColor(node.tone, theme)} attributes={node.bold ? TextAttributes.BOLD : undefined}>
+        {node.text}
+      </text>
+    )
+  }
+  if (node.type === "input") {
+    const ref = { kind: "input" as const, plugin: props.pane.plugin, pane: props.pane.id, key: node.key }
+    const focused = sameModControl(ref, props.cursor)
+    return (
+      <box flexShrink={0} flexGrow={1} minWidth={12} backgroundColor={theme.backgroundElement}>
+        <input
+          // Remounted on a submit (empties it) or a new `value` from the mod; typing in
+          // other fields survives because it is read back from `drafts`.
+          key={`${node.value ?? ""}#${props.epoch}`}
+          value={props.drafts.get(draftKey(ref)) ?? node.value ?? ""}
+          placeholder={node.placeholder ?? ""}
+          focused={props.focused && focused}
+          onMouseUp={() => props.onFocusControl(ref)}
+          onInput={(value: string) => props.drafts.set(draftKey(ref), value)}
+          onSubmit={() => props.onSubmit(ref, props.drafts.get(draftKey(ref)) ?? node.value ?? "")}
+        />
+      </box>
+    )
+  }
+  if (node.type === "button") {
+    const ref = { kind: "button" as const, plugin: props.pane.plugin, pane: props.pane.id, key: node.key }
+    const focused = sameModControl(ref, props.cursor)
+    return (
+      <text
+        flexShrink={0}
+        wrapMode="none"
+        fg={toneColor(node.tone ?? "info", theme)}
+        // The house focus mark (see the dialogs' selector fields).
+        attributes={focused ? TextAttributes.BOLD | TextAttributes.UNDERLINE : TextAttributes.BOLD}
+        onMouseUp={(e: { stopPropagation(): void }) => {
+          e.stopPropagation()
+          props.onPress(ref)
+        }}
+      >
+        {`[ ${node.label} ]`}
+      </text>
+    )
+  }
+  return (
+    <box
+      flexDirection={node.direction ?? "column"}
+      gap={node.gap ?? 0}
+      padding={node.padding ?? 0}
+      flexShrink={0}
+      {...(node.border ? { ...FRAME, borderColor: theme.border } : {})}
+    >
+      {node.children.map((child, i) => (
+        // Children carry no stable id; position is the identity a redraw keeps.
+        // biome-ignore lint/suspicious/noArrayIndexKey: see above
+        <ModTree key={i} {...props} node={child} />
+      ))}
+    </box>
+  )
+}
+
+export function ModsPage(props: { orchestrator: RemoteOrchestrator; focused: boolean; onClose: () => void }) {
+  const { theme } = useTheme()
+  const t = useT()
+  const dims = useTerminalSize()
+  const notif = useNotifications()
+  const panes = useAccessor(props.orchestrator.modPanesSignal())
+  const controls = modControls(panes)
+  const [rawCursor, setCursor] = useState<ModControlRef | null>(null)
+  const cursor = resolveModCursor(controls, rawCursor)
+  const drafts = useRef(new Map<string, string>()).current
+  const [epoch, setEpoch] = useState(0)
+
+  const report = (ref: ModControlRef, sent: Promise<unknown>): void => {
+    sent
+      .then((res) => {
+        const reason =
+          (res as { ok?: boolean; reason?: string } | undefined)?.ok === false
+            ? (res as { reason?: string }).reason
+            : null
+        if (reason)
+          notif.notify({
+            kind: "error",
+            taskId: "",
+            tabId: "",
+            title: t("mods.pressFailed", { plugin: ref.plugin, reason }),
+          })
+      })
+      .catch((err: unknown) =>
+        notif.notify({
+          kind: "error",
+          taskId: "",
+          tabId: "",
+          title: t("mods.pressFailed", { plugin: ref.plugin, reason: String(err) }),
+        }),
+      )
+  }
+
+  const press = (ref: ModControlRef): void => {
+    setCursor(ref)
+    report(ref, props.orchestrator.pressMod(ref.plugin, ref.pane, ref.key))
+  }
+
+  const submit = (ref: ModControlRef, value: string): void => {
+    setCursor(ref)
+    drafts.delete(draftKey(ref))
+    setEpoch((n) => n + 1)
+    report(ref, props.orchestrator.submitMod(ref.plugin, ref.pane, ref.key, value))
+  }
+
+  // In a field, letters are typing: only movement and esc stay page keys, and
+  // enter belongs to the field's own submit.
+  const inField = cursor?.kind === "input"
+
+  useBindings(() => ({
+    enabled: props.focused,
+    bindings: [
+      ...(inField ? [{ key: "escape", cmd: props.onClose }] : pageCloseBindings(props.onClose)),
+      { key: "down", cmd: () => setCursor(moveModCursor(controls, cursor, 1)) },
+      { key: "tab", cmd: () => setCursor(moveModCursor(controls, cursor, 1)) },
+      { key: "up", cmd: () => setCursor(moveModCursor(controls, cursor, -1)) },
+      { key: "shift+tab", cmd: () => setCursor(moveModCursor(controls, cursor, -1)) },
+      ...(inField ? [] : [{ key: "return", cmd: () => cursor && press(cursor) }]),
+    ],
+  }))
+
+  return (
+    <box flexDirection="column" flexGrow={1} paddingTop={1} paddingLeft={2} paddingRight={2}>
+      <box flexDirection="row" gap={1} flexShrink={0}>
+        <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none" flexShrink={0}>
+          {t("mods.title")}
+        </text>
+        <text fg={theme.borderSubtle} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
+          {dividerRule(dims.width)}
+        </text>
+        <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+          {t("mods.keys")}
+        </text>
+      </box>
+      {panes.length === 0 ? (
+        <box flexDirection="column" paddingTop={1}>
+          <text fg={theme.text}>{t("mods.empty")}</text>
+          <text fg={theme.textMuted}>{t("mods.emptyHint")}</text>
+        </box>
+      ) : (
+        <scrollbox flexGrow={1} paddingTop={1}>
+          {panes.map((pane) => (
+            <box
+              key={`${pane.plugin}/${pane.id}`}
+              flexDirection="column"
+              flexShrink={0}
+              marginBottom={1}
+              paddingLeft={1}
+              paddingRight={1}
+              {...FRAME}
+              borderColor={theme.border}
+            >
+              <box flexDirection="row" gap={1} flexShrink={0}>
+                <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
+                  {pane.title}
+                </text>
+                <text fg={theme.textMuted} wrapMode="none">{`· ${pane.plugin}`}</text>
+              </box>
+              <ModTree
+                node={pane.tree}
+                pane={pane}
+                cursor={cursor}
+                focused={props.focused}
+                theme={theme}
+                onPress={press}
+                onSubmit={submit}
+                onFocusControl={setCursor}
+                drafts={drafts}
+                epoch={epoch}
+              />
+            </box>
+          ))}
+        </scrollbox>
+      )}
+    </box>
+  )
+}

@@ -132,10 +132,33 @@ export const DAEMON_CHANNELS = [
   "usage.context",
   "ui.prompt",
   "graphics.write",
+  "mod.ui",
 ] as const
 
 export type DaemonChannelName = (typeof DAEMON_CHANNELS)[number]
 
+export {
+  MOD_TONES,
+  MOD_TREE_MAX_NODES,
+  MOD_TREE_MAX_DEPTH,
+  MOD_TEXT_MAX,
+  MOD_LABEL_MAX,
+  MOD_INPUT_MAX,
+  MOD_KEY_PATTERN,
+  MOD_PANE_ID_PATTERN,
+  MOD_TITLE_MAX,
+  validateModTree,
+  parseModUiPayload,
+  type ModTone,
+  type ModSpace,
+  type ModBox,
+  type ModText,
+  type ModButton,
+  type ModInput,
+  type ModNode,
+  type ModTreeResult,
+  type ModPaneView,
+} from "./mod-tree.ts"
 /**
  * Version of the verb contract — verb names, params, results, error codes —
  * served identically by `rove api`, the daemon's `api.invoke` request and the

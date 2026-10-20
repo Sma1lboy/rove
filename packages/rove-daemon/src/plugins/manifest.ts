@@ -138,6 +138,8 @@ export interface PluginManifest {
   readonly settings: readonly PluginSetting[]
   readonly fileHandlers: readonly PluginFileHandler[]
   readonly engines: readonly PluginEngine[]
+  /** `[mod]`: one long-lived process that draws element trees (`mod-host.ts`). */
+  readonly mod?: PluginCommandSpec
 }
 
 export interface ParsedPluginManifest {
@@ -435,6 +437,14 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
     engineSeen.add(e.id)
   }
 
+  let mod: PluginCommandSpec | undefined
+  if (raw.mod !== undefined) {
+    if (!raw.mod || typeof raw.mod !== "object" || Array.isArray(raw.mod)) fail("`mod` must be a table")
+    const t = raw.mod as Record<string, unknown>
+    if (t.timeout_ms !== undefined) warnings.push("`mod` declares `timeout_ms`; a mod runs until the daemon stops")
+    mod = { command: asCommand(t.command, "mod.command"), platforms: asPlatforms(t.platforms, "mod.platforms") }
+  }
+
   return {
     manifest: {
       id,
@@ -453,6 +463,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       settings,
       fileHandlers,
       engines,
+      ...(mod ? { mod } : {}),
     },
     warnings,
   }

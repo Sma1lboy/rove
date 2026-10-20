@@ -170,6 +170,10 @@ export type DaemonRequestName =
   // answers via `ui.promptReply` or the broker times out.
   | "ui.prompt"
   | "ui.promptReply"
+  // A client pressed a mod's button: forward it to the mod process.
+  | "mod.press"
+  // A client submitted a mod input field's text: forward it to the mod.
+  | "mod.submit"
   // Plugin panes: publish `tab.open` so the hosting TUI runs argv in a tab.
   // Same trust boundary as `pty.open`; the daemon only validates + publishes.
   | "tab.open"
