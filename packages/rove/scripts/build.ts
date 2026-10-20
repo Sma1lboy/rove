@@ -24,7 +24,8 @@
  * that registry.
  *
  * The published artifact carries the `rove-harness` capture page alongside
- * the TUI, in dist/web-ui, together with the PTY sidecar modules it needs.
+ * the TUI, in dist/web-ui, together with the PTY sidecar modules it needs; and
+ * the `rove --web` browser client (`rove-web`) in dist/web.
  */
 
 import { existsSync } from "node:fs"
@@ -58,6 +59,8 @@ const WEB_PTY_SIDE_CAR_FILES = [
   "pty-session-lifecycle.mjs",
   "pty-server.mjs",
 ]
+const BROWSER_CLIENT_DIR = "../rove-web"
+const BROWSER_CLIENT_OUT_DIR = "./dist/web"
 
 async function buildWebUi(): Promise<void> {
   if (!existsSync(`${WEB_PACKAGE_DIR}/package.json`)) return
@@ -68,6 +71,16 @@ async function buildWebUi(): Promise<void> {
   })
   const code = await proc.exited
   if (code !== 0) process.exit(code)
+}
+
+/** `rove --web` resolves `dist/web` next to `dist/cli`; a build without it would ship a flag that can only error. */
+async function buildBrowserClient(): Promise<void> {
+  const proc = Bun.spawn(["bun", "run", "build"], { cwd: BROWSER_CLIENT_DIR, stdout: "inherit", stderr: "inherit" })
+  const code = await proc.exited
+  if (code !== 0) process.exit(code)
+  // Hashed asset names: wipe first so old generations never ship (see copyWebUi).
+  await rm(BROWSER_CLIENT_OUT_DIR, { recursive: true, force: true })
+  await cp(`${BROWSER_CLIENT_DIR}/dist`, BROWSER_CLIENT_OUT_DIR, { recursive: true, force: true })
 }
 
 async function copyWebUi(): Promise<void> {
@@ -119,6 +132,7 @@ async function writeCompletionScripts(): Promise<void> {
 }
 
 await buildWebUi()
+await buildBrowserClient()
 
 // Empty dist/cli before the CLI build, for the same reason copyWebUi() empties
 // dist/web-ui: splitting names chunks by content hash, so every build whose

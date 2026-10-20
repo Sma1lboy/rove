@@ -72,6 +72,14 @@ describe("cronMatches day-field OR rule", () => {
     expect(cronMatches(domOnly, at(2026, 9, 15))).toBe(true)
     expect(cronMatches(domOnly, at(2026, 9, 16))).toBe(false)
   })
+
+  it("treats a starred step like `*/2` as unrestricted, so the day fields AND", () => {
+    // Sep 7 2026 is an odd-day Monday, Sep 14 an even-day Monday, Sep 3 an odd-day Thursday.
+    const oddMondays = parseCron("0 0 */2 * MON")
+    expect(cronMatches(oddMondays, at(2026, 9, 7))).toBe(true)
+    expect(cronMatches(oddMondays, at(2026, 9, 14))).toBe(false)
+    expect(cronMatches(oddMondays, at(2026, 9, 3))).toBe(false)
+  })
 })
 
 describe("nextCronAfter", () => {

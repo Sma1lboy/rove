@@ -10,6 +10,7 @@
  */
 
 import type { ContentBlock } from "@/types/content"
+import { isObject } from "../is-object"
 
 export function normalizeCodexContent(raw: unknown): ContentBlock[] {
   if (typeof raw === "string") {
@@ -35,8 +36,4 @@ export function normalizeCodexContent(raw: unknown): ContentBlock[] {
     if (t) blocks.push({ type: "text", text: `[codex: ${t}]` })
   }
   return blocks
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
 }

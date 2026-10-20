@@ -35,6 +35,8 @@ export async function runShellUpdater(opts: {
   targetLabel: string
   /** Full shell command to run (UPDATE_COMMAND, optionally `-s -- <v>`). */
   command: string
+  /** Runs only after the install succeeded. */
+  onSuccess?: () => void
 }): Promise<never> {
   opts.renderer?.destroy()
   process.stdout.write(`\nrove ${CURRENT_VERSION} -> ${opts.targetLabel}\n`)
@@ -49,6 +51,7 @@ export async function runShellUpdater(opts: {
     const hint = updaterShellFailureHint()
     if (hint) process.stderr.write(hint)
   }
+  if (code === 0) opts.onSuccess?.()
   process.stdout.write(
     code === 0
       ? `\n${opts.t("update.updateComplete")}\n`

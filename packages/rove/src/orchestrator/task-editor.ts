@@ -115,34 +115,44 @@ export class TaskEditor {
   /**
    * Pure metadata; the next fresh engine session uses it. `effort` and `model`
    * are tri-state: `undefined` keeps, `""` clears (engine default), else sets —
-   * otherwise a codex task could never go back off `xhigh`. The same-vendor
-   * early return must not swallow an effort/model-only change.
+   * otherwise a codex task could never go back off `xhigh`. "Keeps" holds only
+   * on the same engine: a switch clears an unpassed pin, since another engine's
+   * model would launch as `claude --model gpt-5-codex`. The same-vendor early
+   * return must not swallow an effort/model-only change.
    */
   async setVendor(id: TaskId | string, vendor: VendorId, effort?: string, model?: string): Promise<void> {
     const task = this.requireTask(id)
-    const nextEffort = effort?.trim() ? effort.trim() : undefined
-    const effortChanges = effort !== undefined && task.modelEffort !== nextEffort
-    const nextModel = model?.trim() ? model.trim() : undefined
-    const modelChanges = model !== undefined && task.model !== nextModel
-    if (task.vendor === vendor && !effortChanges && !modelChanges) return
+    const switching = task.vendor !== vendor
+    const effortArg = effort ?? (switching ? "" : undefined)
+    const modelArg = model ?? (switching ? "" : undefined)
+    const nextEffort = effortArg?.trim() ? effortArg.trim() : undefined
+    const effortChanges = effortArg !== undefined && task.modelEffort !== nextEffort
+    const nextModel = modelArg?.trim() ? modelArg.trim() : undefined
+    const modelChanges = modelArg !== undefined && task.model !== nextModel
+    if (!switching && !effortChanges && !modelChanges) return
     await this.store.update(task.id, {
       vendor,
-      ...(effort !== undefined ? { modelEffort: nextEffort } : {}),
-      ...(model !== undefined ? { model: nextModel } : {}),
+      ...(effortArg !== undefined ? { modelEffort: nextEffort } : {}),
+      ...(modelArg !== undefined ? { model: nextModel } : {}),
     })
   }
 
   /**
    * Pin a RAW launch command (`update --command`); metadata like {@link setVendor}.
    * `vendor` is the protocol the caller resolved from the preset registry;
-   * omitted leaves the recorded one rather than guessing.
+   * omitted leaves the recorded one rather than guessing. A vendor change
+   * clears the model/effort pins, as in {@link setVendor}.
    */
   async setCommand(id: TaskId | string, command: string, vendor?: VendorId): Promise<void> {
     const trimmed = command.trim()
     if (!trimmed) throw new Error("setCommand: command is required (empty or whitespace-only rejected)")
     const task = this.requireTask(id)
-    if (task.command === trimmed && (vendor === undefined || task.vendor === vendor)) return
-    await this.store.update(task.id, { command: trimmed, ...(vendor ? { vendor } : {}) })
+    const switching = vendor !== undefined && task.vendor !== vendor
+    if (task.command === trimmed && !switching) return
+    await this.store.update(task.id, {
+      command: trimmed,
+      ...(switching ? { vendor, model: undefined, modelEffort: undefined } : {}),
+    })
   }
 
   /** No-op for `main` (always pinned). */

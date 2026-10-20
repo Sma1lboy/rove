@@ -27,6 +27,7 @@ import {
   readPluginManifest,
   supportsPlatform,
 } from "./manifest.ts"
+import { ModHost, type ModPressOutcome, type ModSpec } from "./mod-host.ts"
 import { pluginRegistryPath } from "./plugin-paths.ts"
 import { loadPluginRegistry } from "./registry.ts"
 
@@ -36,6 +37,8 @@ export interface PluginHostOptions {
   /** Path plugins should exec to call back into rove (packaged `rove` on PATH, or a dev override). */
   readonly binPath: string
   readonly log?: (line: string) => void
+  /** Publishes `mod.ui`; absent = no mods run (test doubles). */
+  readonly publishMods?: (panes: readonly import("@sma1lboy/rove-plugin-sdk/contract").ModPaneView[]) => void
 }
 
 interface LoadedPlugin {
@@ -62,6 +65,10 @@ function fileStamp(path: string | null): string {
 interface PluginHostBus {
   onPublish(sink: (event: ChannelEvent) => void): () => void
   snapshot(): ChannelEvent[]
+  publish?(
+    channel: "mod.ui",
+    payload: { panes: readonly import("@sma1lboy/rove-plugin-sdk/contract").ModPaneView[] },
+  ): void
 }
 
 /** Compose a host onto the daemon's bus: subscribe, seed, then start. */
@@ -85,7 +92,13 @@ export function maybeStartPluginHost(
   log: (line: string) => void,
 ): PluginHost | null {
   if (!options.plugins) return null
-  return startPluginHost(bus, { homeDir: options.homeDir, socketPath, binPath: options.plugins.binPath, log })
+  return startPluginHost(bus, {
+    homeDir: options.homeDir,
+    socketPath,
+    binPath: options.plugins.binPath,
+    log,
+    ...(bus.publish ? { publishMods: (panes) => bus.publish?.("mod.ui", { panes }) } : {}),
+  })
 }
 
 export class PluginHost {
@@ -102,9 +115,42 @@ export class PluginHost {
   private reloadTimer: ReturnType<typeof setTimeout> | undefined
   private readonly inFlight: HookKillSet = new Set()
   private stopped = false
+  private readonly mods: ModHost | null
 
   constructor(opts: PluginHostOptions) {
     this.opts = opts
+    this.mods = opts.publishMods
+      ? new ModHost({
+          homeDir: opts.homeDir,
+          socketPath: opts.socketPath,
+          binPath: opts.binPath,
+          publish: opts.publishMods,
+          log: opts.log,
+        })
+      : null
+  }
+
+  /** Route a client's press to the mod that drew the button. */
+  pressMod(pluginId: string, paneId: string, key: string): ModPressOutcome {
+    return this.mods?.press(pluginId, paneId, key) ?? "no-mod"
+  }
+
+  /** Route a client's submitted input text to the mod that drew the field. */
+  submitMod(pluginId: string, paneId: string, key: string, value: string): ModPressOutcome {
+    return this.mods?.submit(pluginId, paneId, key, value) ?? "no-mod"
+  }
+
+  private syncMods(): void {
+    if (!this.mods) return
+    const platform = currentPluginPlatform()
+    const specs: ModSpec[] = []
+    for (const plugin of this.plugins) {
+      const mod = plugin.manifest.mod
+      if (mod && supportsPlatform(mod, plugin.manifest, platform)) {
+        specs.push({ pluginId: plugin.manifest.id, root: plugin.root, mod })
+      }
+    }
+    this.mods.sync(specs)
   }
 
   /** Load the registry, run startup hooks, and begin watching for changes. */
@@ -112,6 +158,7 @@ export class PluginHost {
     // Stamp BEFORE the first load so no write can fall between the two.
     this.watchRegistry()
     this.plugins = this.loadPlugins()
+    this.syncMods()
     for (const plugin of this.plugins) {
       for (const [i, hook] of plugin.manifest.startup.entries()) {
         if (!supportsPlatform(hook, plugin.manifest, currentPluginPlatform())) continue
@@ -131,6 +178,7 @@ export class PluginHost {
     this.stopped = true
     if (this.reloadTimer) clearTimeout(this.reloadTimer)
     if (this.pollTimer) clearInterval(this.pollTimer)
+    this.mods?.stop()
     // Reap running hooks FIRST: they hold our stdout/stderr pipes, so a hook
     // wedged on its 30s deadline would make every stop take 30s.
     for (const kill of [...this.inFlight]) kill()
@@ -215,6 +263,7 @@ export class PluginHost {
 
   /** Fire one event at ONE plugin's matching hooks (registry transitions). */
   private dispatchTo(plugin: LoadedPlugin, event: PluginEvent): void {
+    this.mods?.deliver(new Set([plugin.manifest.id]), event)
     const platform = currentPluginPlatform()
     // Per plugin, so one plugin's data can't cost another its event; also runs
     // from the reload timer, where a throw is an uncaughtException.
@@ -236,6 +285,7 @@ export class PluginHost {
   }
 
   private dispatch(event: PluginEvent): void {
+    this.mods?.deliver(new Set(this.plugins.map((p) => p.manifest.id)), event)
     const platform = currentPluginPlatform()
     for (const plugin of this.plugins) {
       // Per plugin: the callers catch per batch, so one plugin's throw would
@@ -319,6 +369,7 @@ export class PluginHost {
           const loadedBefore = new Map(this.plugins.map((p) => [p.manifest.id, p]))
           const enabledBefore = this.enabledIds
           this.plugins = this.loadPlugins()
+          this.syncMods()
           this.opts.log?.(`plugin registry reloaded (${this.plugins.length} enabled)`)
           // Delivered only to the affected plugin, diffed against registry
           // membership so a syntax error never fires teardown.

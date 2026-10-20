@@ -5,7 +5,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { WorkItemsPage } from "../../src/tui-react/component/work-items-page"
+import { WorkItemsPage } from "../../src/bundled-plugins/issues/work-items-page"
 import { renderComponent, settle } from "./harness"
 
 const REPO = "/x/rove"

@@ -9,7 +9,7 @@ import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { PANE_GRAPHICS_VERB } from "./handlers-graphics.ts"
 import { INTERRUPT_VERB } from "./handlers-interrupt.ts"
-import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB } from "./handlers-pane.ts"
+import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB, TAB_NEW_VERB, TAB_SPLIT_VERB } from "./handlers-pane.ts"
 import { ROW_TOKEN_VERB } from "./handlers-row-token.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
 import { ApiError, helpStep } from "./types.ts"
@@ -103,6 +103,8 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   PANE_CLOSE_VERB,
   PANE_GRAPHICS_VERB,
   TAB_CLOSE_VERB,
+  TAB_NEW_VERB,
+  TAB_SPLIT_VERB,
   {
     name: "notify",
     group: "drive",
@@ -152,7 +154,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     name: "prompt",
     group: "drive",
     summary:
-      "Ask the human for a line of text through the attached TUI's input dialog (plugins' host-provided prompt). Blocks until answered, cancelled, or timed out; returns { value } or { cancelled, reason }.",
+      "Ask the human for a line of text through the attached TUI's input dialog (plugins' host-provided prompt). Blocks until answered, cancelled, or timed out; returns { value } or { cancelled, reason }. With no front-end attached it returns at once with reason `no-gui`.",
     flags: [
       {
         name: "title",
@@ -229,9 +231,12 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
           throw new ApiError("--detail must be valid JSON", "BAD_FLAG", helpStep("engine-report"))
         }
       }
+      if (!taskId && ctx.caller.cwd === undefined) {
+        throw new ApiError("no target task: pass --task-id (this caller has no cwd to map)", "MISSING_TARGET")
+      }
       return simpleRpc(ctx, "engine.reportEvent", {
         kind: ctx.args.str("kind"),
-        ...(taskId ? { taskId } : { cwd: process.cwd() }),
+        ...(taskId ? { taskId } : { cwd: ctx.caller.cwd }),
         ...(ctx.args.str("engine") ? { engine: ctx.args.str("engine") } : {}),
         ...(tabId ? { tabId } : {}),
         ...(detail !== undefined ? { detail } : {}),

@@ -19,6 +19,12 @@ export type {
 
 export { attentionInboxItemKey, isAttentionInboxState, isRoutineInboxState } from "./contracts.ts"
 export type { EngineQuotaUsage, EngineQuotaWindow } from "./contracts.ts"
+export {
+  ROVE_API_VERSION,
+  type ApiEnvelope,
+  type ApiErrorBody,
+  type ApiParams,
+} from "@sma1lboy/rove-plugin-sdk/contract"
 
 export {
   CHANNEL_NAMES,
@@ -29,6 +35,7 @@ export {
   type NoticeEventPayload,
   type EngineLifecyclePayload,
   type SessionDeliverPayload,
+  type TabAddPayload,
   type TabClosePayload,
   type TabOpenPayload,
   type TabRenamePayload,
@@ -63,6 +70,8 @@ export type DaemonFrame =
 
 export type DaemonRequestName =
   | "hello"
+  // Run one `rove api` verb in this process (the shared verb contract).
+  | "api.invoke"
   | "daemon.status"
   | "daemon.stop"
   | "subscribe"
@@ -146,6 +155,8 @@ export type DaemonRequestName =
   // A PR's FAILING check logs, once per human click. Never polled: it
   // downloads whole job logs.
   | "pr.failingChecks"
+  // Restart a PR's failed Actions jobs, once per human click.
+  | "pr.rerunFailedChecks"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
   // Turn store read side; written only by hook ingest on `turn-complete`.
@@ -159,6 +170,10 @@ export type DaemonRequestName =
   // answers via `ui.promptReply` or the broker times out.
   | "ui.prompt"
   | "ui.promptReply"
+  // A client pressed a mod's button: forward it to the mod process.
+  | "mod.press"
+  // A client submitted a mod input field's text: forward it to the mod.
+  | "mod.submit"
   // Plugin panes: publish `tab.open` so the hosting TUI runs argv in a tab.
   // Same trust boundary as `pty.open`; the daemon only validates + publishes.
   | "tab.open"
@@ -171,6 +186,9 @@ export type DaemonRequestName =
   // Broadcast on `tab.rename` (`rove api update --tab`). No reply: rename is
   // idempotent and the CLI also writes the persisted snapshot.
   | "terminalTab.rename"
+  // Broadcast on `tab.add` (`rove api tab-new`): the CLI already wrote the
+  // persisted row; this tells attached TUIs so they absorb it.
+  | "terminalTab.add"
   // Toast to every attached UI on `notice.event` (`rove api notify`).
   | "notice.send"
   // OPAQUE graphics bytes for each attached GUI's tty (`rove api pane-graphics`),
@@ -231,6 +249,8 @@ export type DaemonRequestName =
  * `test/daemon/rpc-deadline.test.ts` fails if the two drift.
  */
 export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonRequestName>([
+  // Any verb, `land` and `add --wait` included; the verb owns its own budget.
+  "api.invoke",
   // Blocks on a human answering the TUI dialog (default 120s, max 600s).
   "ui.prompt",
   // Merge/squash plus optional worktree removal, on a repo of any size.
@@ -239,6 +259,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "workitem.start",
   // Precheck subprocess, then a full session start.
   "automation.runNow",
+  // Rollup lookup followed by serial gh reruns, each with its own subprocess budget.
+  "pr.rerunFailedChecks",
   // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
   "task.ensureWorktree",
   "task.ensureMain",

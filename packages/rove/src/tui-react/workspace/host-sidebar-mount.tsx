@@ -128,12 +128,13 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onRenameRequest={(id) => void actions.renameTask(id)}
       onPinRequest={(id) => void actions.togglePin(id)}
       onSetStatusRequest={(id) => void actions.setStatus(id)}
-      onCopyRequest={(id, field) => actions.copyTaskField(id, field)}
+      onCopyRequest={(id, field, tabId) => actions.copyTaskField(id, field, tabId)}
       onOpenEditorRequest={props.openTaskWorktree}
       onRenameBranchRequest={(id) => void actions.renameBranch(id)}
       onChangeEngineRequest={(id) => void actions.pickVendor(id)}
       onFieldNotesRequest={actions.showFieldNotes}
       onFixChecksRequest={props.onFixChecks}
+      onRerunChecksRequest={(id) => void actions.rerunChecks(id)}
       // Created in quick-fork, which owns the pending-prompt slot for the new task.
       onRunAgainRequest={(id) => void actions.confirmRunAgain(id).then((task) => task && props.runAgain(task))}
       moveMode={props.moveMode}

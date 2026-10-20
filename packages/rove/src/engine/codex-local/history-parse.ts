@@ -12,6 +12,7 @@ import type { ContentBlock } from "@/types/content"
 import type { EngineHistory, EngineUsageSnapshot, Message } from "@/types/engine"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
+import { isObject } from "../is-object"
 import { normalizeCodexContent } from "./normalize"
 import { isSyntheticCodexUserRow } from "./synthetic"
 import { codexUsageToSnapshot } from "./usage"
@@ -351,8 +352,4 @@ function parseMaybeJson(value: unknown): unknown {
 function parseTimestampMs(value: string): number | null {
   const ms = new Date(value).getTime()
   return Number.isFinite(ms) ? ms : null
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
 }
