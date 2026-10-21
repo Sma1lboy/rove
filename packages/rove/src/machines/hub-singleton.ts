@@ -38,3 +38,14 @@ function noopSubscribe(): () => void {
 function emptyRows(): readonly MachineLayerEntry[] {
   return NO_MACHINES
 }
+
+/** The registered machine a task lives on, or null for this machine's own (and with no hub). */
+export function machineOfTask(taskId: string | null | undefined): string | null {
+  if (!hub || !taskId) return null
+  const task = hub
+    .tasksSignal()
+    .get()
+    .find((row) => String(row.id) === taskId)
+  const alias = task?.origin?.machineId
+  return alias && alias !== "local" ? alias : null
+}

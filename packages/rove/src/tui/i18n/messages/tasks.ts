@@ -204,7 +204,10 @@ export const en = {
     mismatch: "protocol mismatch",
     /** Files/diff placeholder for a task whose worktree is on another machine */
     filesElsewhere: "on {host}",
-    filesHint: "This task's worktree lives on {host}. Opening remote files arrives in a later release.",
+    filesHint: "{host} is unreachable right now; its files show here again when it reconnects.",
+    /** Workspace placeholder for a task on another machine, until its terminals can be opened here */
+    terminalElsewhere:
+      "This task runs on {host}. Its files are in the Files pane; open its terminal from rove --web or on {host}.",
   },
   /** Empty-state messages */
   empty: {
@@ -408,7 +411,8 @@ export const zh: typeof en = {
     unsupported: "不支持",
     mismatch: "协议不兼容",
     filesElsewhere: "在 {host} 上",
-    filesHint: "这个任务的 worktree 在 {host} 上。读取远端文件会在后续版本提供。",
+    filesHint: "{host} 暂时连不上；重新连上后这里会再显示它的文件。",
+    terminalElsewhere: "这个任务跑在 {host} 上。文件在右侧面板；终端请在 rove --web 或 {host} 上打开。",
   },
   empty: {
     noMatchSearch: "无匹配任务——按 esc 清除。",

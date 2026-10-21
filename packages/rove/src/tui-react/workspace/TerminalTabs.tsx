@@ -16,6 +16,7 @@
  */
 
 import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
+import { machineOfTask } from "../../machines/hub-singleton.ts"
 
 import { getCapabilities } from "@/engine/registry"
 import { resolveMainRepoRoot } from "@/state/repos"
@@ -397,6 +398,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           worktree={props.worktree}
           relPath={active.relPath}
           base={active.base}
+          remote={remoteOf(props.taskId)}
           focused={props.focused}
           onClose={() => tabClose.closeExited(active.id)}
           // Per-task, kv-persisted notes, sent over the PTY paste path.
@@ -430,4 +432,10 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       )}
     </box>
   )
+}
+
+/** The preview's remote source, when this task lives on another machine. */
+function remoteOf(taskId: string): { machine: string; taskId: string } | undefined {
+  const machine = machineOfTask(taskId)
+  return machine ? { machine, taskId } : undefined
 }
