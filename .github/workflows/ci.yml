@@ -376,6 +376,35 @@ jobs:
           path: packages/rove-harness/test-results
           if-no-files-found: ignore
 
+  clean-linux-install:
+    # The packed CLI installed the way a user installs it, on a Linux box
+    # with no C/C++ toolchain (a fresh WSL distro, a `rove machine add`
+    # target), then one real PTY session through it. The other jobs run from
+    # the workspace, where bun already installed and compiled everything.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build and pack (rove package)
+        run: |
+          bun run build
+          mkdir -p "$RUNNER_TEMP/pkg"
+          (cd packages/rove && npm pack --pack-destination "$RUNNER_TEMP/pkg")
+
+      - name: Install in a bare ubuntu:24.04 and open a PTY
+        run: |
+          docker run --rm -v "$RUNNER_TEMP/pkg:/pkg:ro" -v "$PWD/scripts:/s:ro" ubuntu:24.04 \
+            bash -c 'bash /s/clean-linux-install.sh /pkg/*.tgz'
+
   harness-windows-lifetime:
     runs-on: windows-latest
     steps:

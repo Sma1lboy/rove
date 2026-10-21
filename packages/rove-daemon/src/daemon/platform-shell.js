@@ -15,9 +15,11 @@
  * module is the ONLY place that knows any of that — callers keep passing
  * `-il` / `-ilc` and keep composing one POSIX script.
  *
- * POSIX behaviour is deliberately unchanged: each call site passes the
- * fallback it always used (`/bin/zsh`, `/bin/bash`, `/bin/sh`), so this is
- * additive on macOS and Linux.
+ * On POSIX an explicit `$SHELL` always wins. Without one, each call site's
+ * historical fallback (`/bin/zsh`, `/bin/bash`, `/bin/sh`) is used when it
+ * exists, else the first of `/bin/bash`, `/bin/sh` that does: a Linux box
+ * with no zsh and no `$SHELL` (a container, a systemd unit, cron) otherwise
+ * failed every task spawn with `ENOENT … '/bin/zsh'` and showed nothing.
  */
 
 import { existsSync } from "node:fs"
@@ -64,7 +66,7 @@ const cache = new Map()
  * Resolve the login shell for a PTY.
  *
  * @param {object} [options]
- * @param {string} [options.fallback] Shell to use on POSIX when `$SHELL` is unset.
+ * @param {string} [options.fallback] Preferred shell on POSIX when `$SHELL` is unset, if it exists.
  * @param {NodeJS.Platform} [options.platform]
  * @param {Readonly<Record<string, string | undefined>>} [options.env]
  * @param {(path: string) => boolean} [options.exists] Filesystem probe; injected by tests
@@ -90,7 +92,10 @@ export function resolveLoginShell(options = {}) {
 
 function resolveUncached(fallback, platform, env, exists) {
   const explicit = env.SHELL?.trim()
-  if (platform !== "win32") return explicit || fallback
+  if (platform !== "win32") {
+    if (explicit) return explicit
+    return [fallback, "/bin/bash", "/bin/sh"].find((candidate) => exists(candidate)) ?? fallback
+  }
   // Honour an explicit SHELL only when it is a POSIX shell that is BOTH shaped
   // like something CreateProcess can launch and actually present.
   if (explicit && isPosixShell(explicit) && isWindowsSpawnable(explicit) && exists(explicit)) return explicit

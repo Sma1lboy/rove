@@ -20,8 +20,22 @@ describe("resolveLoginShell", () => {
   test("POSIX keeps $SHELL, and each call site keeps its own historical fallback", () => {
     const env = { SHELL: "/usr/local/bin/fish" }
     expect(resolveLoginShell({ platform: "darwin", env })).toBe("/usr/local/bin/fish")
-    expect(resolveLoginShell({ platform: "darwin", env: {}, fallback: "/bin/zsh" })).toBe("/bin/zsh")
-    expect(resolveLoginShell({ platform: "linux", env: {} })).toBe("/bin/bash")
+    const posix = diskWith("/bin/zsh", "/bin/bash", "/bin/sh")
+    expect(resolveLoginShell({ platform: "darwin", env: {}, fallback: "/bin/zsh", exists: posix })).toBe("/bin/zsh")
+    expect(resolveLoginShell({ platform: "linux", env: {}, exists: posix })).toBe("/bin/bash")
+  })
+
+  test("POSIX without $SHELL skips a fallback that is not installed", () => {
+    // A bare container or systemd unit: no $SHELL, no zsh. The task spawn used
+    // to die with ENOENT on '/bin/zsh' and the tab stayed empty.
+    expect(
+      resolveLoginShell({ platform: "linux", env: {}, fallback: "/bin/zsh", exists: diskWith("/bin/bash", "/bin/sh") }),
+    ).toBe("/bin/bash")
+    expect(resolveLoginShell({ platform: "linux", env: {}, fallback: "/bin/zsh", exists: diskWith("/bin/sh") })).toBe(
+      "/bin/sh",
+    )
+    // An explicit $SHELL is still taken at its word.
+    expect(resolveLoginShell({ platform: "linux", env: { SHELL: "/bin/zsh" }, exists: EMPTY_DISK })).toBe("/bin/zsh")
   })
 
   test("Windows searches the other Git install roots", () => {
