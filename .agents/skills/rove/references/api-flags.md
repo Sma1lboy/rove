@@ -376,6 +376,7 @@ respawned — files kept, conversation did not), `skipped_precheck` (nothing to 
 ```text
 schema       --verb --group --all
 engine-list  (none)
+repo-match   --origin --root
 feedback     --title(REQ) --body(REQ) --category(feedback)
 ```
 <!-- generated:end -->

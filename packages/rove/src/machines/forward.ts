@@ -18,6 +18,7 @@ import { ApiError } from "../cli/api/types.ts"
 import { errorMessage } from "../lib/error-message.ts"
 import { discoverMachine } from "./discover.ts"
 import { type MachineEntry, dedupeMachines, listMachines, updateMachine } from "./registry.ts"
+import { isLocalCheckout, repoIdentity } from "./repo-identity.ts"
 import { localDaemonSocketPath } from "./ssh-args.ts"
 import { ensureForwards } from "./tunnel.ts"
 
@@ -122,7 +123,9 @@ export async function forwardVerb(
   if (!target) return offline(entry.alias)
   const client = new RoveDaemonClient(target)
   try {
-    return await client.request<ApiEnvelope>("api.invoke", { verb, params, forwarded: true })
+    const repo = await translateRepo(client, entry.alias, params)
+    if (repo.failure) return repo.failure
+    return await client.request<ApiEnvelope>("api.invoke", { verb, params: repo.params, forwarded: true })
   } catch (err) {
     const message = errorMessage(err)
     if (/unknown daemon request:/i.test(message)) return tooOld(entry.alias)
@@ -132,6 +135,39 @@ export async function forwardVerb(
     })
   } finally {
     client.close()
+  }
+}
+
+/**
+ * `--repo` naming a checkout on THIS machine means "that repo", not that path: the target is
+ * asked for its own checkout of it (`repo-match`) and the path swapped. A path that is not a
+ * checkout here passes through as the target's own path, as before. A target too old to know
+ * `repo-match` gets the path unchanged.
+ */
+async function translateRepo(
+  client: RoveDaemonClient,
+  alias: string,
+  params: ApiParams,
+): Promise<{ params: ApiParams; failure?: undefined } | { failure: ApiEnvelope }> {
+  const repo = params.repo
+  if (typeof repo !== "string" || !isLocalCheckout(repo)) return { params }
+  const identity = repoIdentity(repo)
+  if (!identity?.origin && !identity?.root) return { params }
+  const ask = await client.request<ApiEnvelope>("api.invoke", {
+    verb: "repo-match",
+    params: {
+      ...(identity.origin ? { origin: identity.origin } : {}),
+      ...(identity.root ? { root: identity.root } : {}),
+    },
+    forwarded: true,
+  })
+  if (!ask.ok) return ask.error.code === "UNKNOWN_VERB" ? { params } : { failure: ask }
+  const found = (ask.result as { repo?: string | null }).repo
+  if (found) return { params: { ...params, repo: found } }
+  return {
+    failure: failure("NO_REMOTE_CHECKOUT", `machine "${alias}" has no checkout of ${identity.origin ?? repo}`, {
+      hint: `clone it on ${alias} (and open it there once so Rove knows it), or pass --repo with ${alias}'s own path`,
+    }),
   }
 }
 
