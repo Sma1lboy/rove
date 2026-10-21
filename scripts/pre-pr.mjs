@@ -186,9 +186,9 @@ function heavyJobs(touched) {
     job("render track PTY half", [bun(["scripts/render-track.mjs", ...renderArgs, "--half=pty"], ROVE)]),
     job("rove unit tests", [bun(["x", "vitest", "run", "--passWithNoTests", "--minWorkers=1", "--maxWorkers=8"], ROVE)]),
     // Serial within a shard, as test:behavior is; each file isolates its own ROVE_HOME, so shards can overlap.
-    ...[1, 2].map((i) =>
-      job(`behavior ${i}/2`, [
-        bun(["x", "vitest", "run", "test/behavior", "--pool", "forks", "--minWorkers=1", "--maxWorkers=1", "--retry=2", "--passWithNoTests", `--shard=${i}/2`], ROVE, {
+    ...[1, 2, 3].map((i) =>
+      job(`behavior ${i}/3`, [
+        bun(["x", "vitest", "run", "test/behavior", "--pool", "forks", "--minWorkers=1", "--maxWorkers=1", "--retry=2", "--passWithNoTests", `--shard=${i}/3`], ROVE, {
           ROVE_INCLUDE_BEHAVIOR: "1",
         }),
       ]),
