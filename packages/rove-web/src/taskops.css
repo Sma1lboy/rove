@@ -126,7 +126,7 @@
 }
 
 .suggest-row.is-cursor {
-  background: var(--accent-soft);
+  background: var(--hover);
   color: var(--ink);
 }
 

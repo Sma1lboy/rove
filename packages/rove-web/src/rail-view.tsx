@@ -35,7 +35,8 @@ const BRAILLE_MARKS = { conflict: "≠", checksFailing: "✗", checksPassing: "�
 /** Right click opens the row's menu where the pointer is (TUI tree menu). */
 export function openMenu(e: MouseEvent, items: readonly MenuItem[]): void {
   e.preventDefault()
-  menu.set({ x: e.clientX, y: e.clientY, items })
+  // A keyboard contextmenu (Shift+F10) reports button 0; a right click reports 2.
+  menu.set({ x: e.clientX, y: e.clientY, items, target: e.currentTarget as Element, fromKeyboard: e.button !== 2 })
 }
 
 /** One shared spinner clock, only ticking while some row runs. */

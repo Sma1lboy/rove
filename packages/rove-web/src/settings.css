@@ -17,7 +17,7 @@
 }
 
 .pref-cycle:hover:not(:disabled) {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 
 .pref-cycle .pref-label::after {
