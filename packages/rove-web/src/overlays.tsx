@@ -12,22 +12,30 @@ function ContextMenu() {
 
   useLayoutEffect(() => {
     if (!state || !ref.current) return
-    setIndex(0)
-    // Keep the menu on screen, like the TUI clamps it to the terminal.
+    // A pointer-opened menu highlights nothing until the pointer or a key picks an entry.
+    setIndex(state.fromKeyboard ? 0 : -1)
+    // Flip to the pointer's other side when the menu would run off screen, as native menus do.
     const { width, height } = ref.current.getBoundingClientRect()
-    setPos({
-      x: Math.min(state.x, window.innerWidth - width - 8),
-      y: Math.min(state.y, window.innerHeight - height - 8),
-    })
+    const flip = (at: number, size: number, room: number) =>
+      at + size + 8 <= room ? at : Math.max(8, Math.min(at - size, room - size - 8))
+    setPos({ x: flip(state.x, width, window.innerWidth), y: flip(state.y, height, window.innerHeight) })
+    const target = state.target
+    target?.setAttribute("data-menu-open", "")
+    return () => target?.removeAttribute("data-menu-open")
   }, [state])
 
   useEffect(() => {
     if (!state) return
+    const last = state.items.length - 1
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") menu.set(null)
-      else if (e.key === "ArrowDown" || e.key === "j") setIndex((i) => (i + 1) % state.items.length)
-      else if (e.key === "ArrowUp" || e.key === "k") setIndex((i) => (i - 1 + state.items.length) % state.items.length)
+      else if (e.key === "ArrowDown" || e.key === "j") setIndex((i) => (i >= last ? 0 : i + 1))
+      else if (e.key === "ArrowUp" || e.key === "k") setIndex((i) => (i <= 0 ? last : i - 1))
+      else if (e.key === "Home") setIndex(0)
+      else if (e.key === "End") setIndex(last)
       else if (e.key === "Enter") {
+        // Nothing highlighted yet: swallow it, so it doesn't reach the row under the menu.
+        if (index < 0) return e.preventDefault()
         menu.set(null)
         state.items[index]?.run()
       } else return
@@ -54,6 +62,7 @@ function ContextMenu() {
           key={item.label}
           className={`menu-item ${i === index ? "is-selected" : ""} ${item.danger ? "is-danger" : ""}`}
           onMouseEnter={() => setIndex(i)}
+          onMouseLeave={() => setIndex(-1)}
           onClick={() => {
             menu.set(null)
             item.run()

@@ -19,6 +19,10 @@ export interface MenuState {
   readonly x: number
   readonly y: number
   readonly items: readonly MenuItem[]
+  /** The element right-clicked: it reads as hovered (`data-menu-open`) while its menu is up. */
+  readonly target?: Element
+  /** Opened from the keyboard (Shift+F10, the menu key): the first entry starts highlighted, as in a native menu. */
+  readonly fromKeyboard?: boolean
 }
 
 export interface Toast {

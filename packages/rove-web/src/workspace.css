@@ -306,7 +306,7 @@
   border-radius: var(--radius-sm);
   background: var(--surface);
   font-size: 12px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+  box-shadow: var(--shadow-popover);
 }
 
 .prefix-guide-head {
@@ -336,7 +336,7 @@
 }
 
 .prefix-guide-row:hover:not(:disabled) {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 
 .prefix-guide-row:disabled {
@@ -363,7 +363,7 @@
 }
 
 .palette-row.is-selected {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 
 .palette-chord {

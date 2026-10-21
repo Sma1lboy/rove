@@ -16,6 +16,9 @@
   --subtle: #6b665f;
   --accent: #cc785c;
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  /* Pointer hover and a menu's highlight are a neutral ink wash, as claude.ai's; the accent stays for selection and focus. */
+  --hover: color-mix(in srgb, var(--ink) 7%, transparent);
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 32%), 0 2px 6px rgb(0 0 0 / 20%);
   --focus: var(--accent);
   --info: #61aaf2;
   --diff-added: var(--success);
@@ -269,8 +272,10 @@ button:focus-visible,
   position: relative;
 }
 
-.row:hover {
-  background: var(--accent-soft);
+.row:hover,
+.row[data-menu-open],
+.tab[data-menu-open] {
+  background: var(--hover);
 }
 
 .row.is-selected {
@@ -381,7 +386,7 @@ button:focus-visible,
 }
 
 .tab:hover {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 
 .tab.is-active {
