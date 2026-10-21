@@ -40,7 +40,7 @@ async function ready(url) {
   throw new Error(`server did not start: ${url}`)
 }
 try {
-  start("daemon", process.execPath, [cli, "daemon", "start"], repo)
+  start("daemon", "node", [join(import.meta.dirname, "plugin-windows-console.mjs"), process.execPath, cli, "daemon", "start"], repo)
   // The real registry entry must have started before checking either client.
   for (let i = 0; i < 240; i++) {
     try { if (Number(readFileSync(join(root, "initial-mod.pid"), "utf8")) > 0) break } catch {}
