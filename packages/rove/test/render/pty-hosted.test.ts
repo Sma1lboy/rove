@@ -76,6 +76,14 @@ async function until(cond: () => boolean, label: string, ms = 5000): Promise<voi
   }
 }
 
+/** Write markers as `\x1b[0m<marker>`: the tty echo renders the ESC as `^[`,
+ *  so only cat's own output leaves a bare `<marker>` row. That row last, with
+ *  the cursor back at column 0, means every byte cat will send is parsed. */
+function settledOn(pty: HostedTaskPty, marker: string): boolean {
+  const rows = text(pty).trimEnd().split("\n")
+  return rows[rows.length - 1]?.trimEnd() === marker && pty.captureCursor()?.x === 0
+}
+
 const OPTS = { cwd: dir, command: ["/bin/cat"], cols: 60, rows: 12 }
 
 describe("HostedTaskPty over a real pty-host socket", () => {
@@ -305,9 +313,11 @@ describe("HostedTaskPty over a real pty-host socket", () => {
     const parkee = new HostedTaskPty({ taskId: key, ...OPTS_P })
     const oracle = new HostedTaskPty({ taskId: key, ...OPTS_P })
     for (let i = 0; i < 60; i++) parkee.write(`\x1b[3${(i % 6) + 1}mpre-park line ${i}\x1b[0m\n`)
-    parkee.write("PRE-PARK-END\n")
-    await until(() => text(parkee).includes("PRE-PARK-END"), "parkee sees pre-park content")
-    await until(() => text(oracle).includes("PRE-PARK-END"), "oracle sees pre-park content")
+    parkee.write("\x1b[0mPRE-PARK-END\n")
+    // capturePark records every byte RECEIVED but serializes only what xterm
+    // has PARSED; production parks only after a quiet period, so settle first.
+    await until(() => settledOn(parkee, "PRE-PARK-END"), "parkee parsed pre-park content")
+    await until(() => settledOn(oracle, "PRE-PARK-END"), "oracle parsed pre-park content")
 
     const screen = parkee.capturePark()
     expect(screen).not.toBeNull()
@@ -315,11 +325,11 @@ describe("HostedTaskPty over a real pty-host socket", () => {
 
     // Output produced WHILE parked — only these bytes may be replayed.
     oracle.write("while-parked output\n")
-    oracle.write("WAKE-MARKER\n")
-    await until(() => text(oracle).includes("WAKE-MARKER"), "oracle sees while-parked output")
+    oracle.write("\x1b[0mWAKE-MARKER\n")
+    await until(() => settledOn(oracle, "WAKE-MARKER"), "oracle parsed while-parked output")
 
     const woken = new HostedTaskPty({ taskId: key, ...OPTS_P, restore: screen ?? undefined })
-    await until(() => text(woken).includes("WAKE-MARKER"), "woken handle sees the while-parked delta")
+    await until(() => settledOn(woken, "WAKE-MARKER"), "woken handle parsed the while-parked delta")
     // Full-screen equality against the never-parked oracle — scrollback,
     // colors, and the pre-park content a bounded 512KB ring would lose.
     expect(text(woken)).toBe(text(oracle))
