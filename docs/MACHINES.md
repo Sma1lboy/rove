@@ -9,8 +9,10 @@ tree is the answer to what is running where.
 
 ## What this needs
 
-- Rove installed on **both** machines (`npm i -g @sma1lboy/rove`). Run in a
-  terminal, `machine add` offers to install it on the other one for you.
+- Rove installed on **both** machines (`curl -fsSL https://rove.run/install.sh | sh`,
+  which installs Bun too). Run in a terminal, `machine add` offers to install
+  it on the other one for you. On Windows, run the hub inside WSL: Windows
+  OpenSSH cannot forward the daemon socket.
 - SSH access to the remote one. A `Host` block in `~/.ssh/config` is the usual
   way; Rove reads it rather than replacing it. If no key you have is accepted
   there, `machine add` offers to set one up (below).

@@ -138,10 +138,17 @@ describe("Rove package distribution", () => {
     // tarball installed into a clean npm prefix). knip flags it as
     // unused because it cannot see the dynamic import — that is a false
     // positive, suppressed in knip.json, not a license to delete.
-    const pkg = json<{ dependencies: Record<string, string> }>("packages/rove/package.json")
+    //
+    // Optional, not required: only Windows loads it. node-pty@1.1.0 ships no
+    // linux prebuild, so as a hard dependency a Linux box without a C++
+    // toolchain failed the whole `npm i -g` compiling a module it never uses.
+    const pkg = json<{ dependencies: Record<string, string>; optionalDependencies?: Record<string, string> }>(
+      "packages/rove/package.json",
+    )
     const knip = json<{ ignoreDependencies?: string[] }>("packages/rove/knip.json")
 
-    expect(pkg.dependencies["node-pty"]).toBeDefined()
+    expect(pkg.optionalDependencies?.["node-pty"]).toBeDefined()
+    expect(pkg.dependencies["node-pty"]).toBeUndefined()
     expect(knip.ignoreDependencies).toContain("node-pty")
   })
 
