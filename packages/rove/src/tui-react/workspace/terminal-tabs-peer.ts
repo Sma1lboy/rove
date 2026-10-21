@@ -12,7 +12,9 @@
  * neither re-reported to plugins nor echoed back out.
  */
 
+import { useEffect } from "react"
 import type { PeerTabEvent } from "../../client/remote-orchestrator-contract"
+import type { PeerTabChannel } from "../../client/remote-orchestrator-peer-tabs"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { absorbTab } from "../../tui/workspace/tabs-adopt"
 import { type CommandTab, type EngineTab, closeTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core"
@@ -21,6 +23,7 @@ import {
   asPeerChange,
   requestPeerTabClose,
   requestTabAdd,
+  setPeerTabReporter,
   setTaskTabs,
   tabsByTask,
   takeUnclaimedPeerTabClose,
@@ -66,4 +69,16 @@ function peerClosed(kv: TabsSnapshotKv, taskId: string, tabId: string): void {
 /** Drop this process's handle on the closed tab's PTY; the peer already ended the host session. */
 export function releasePeerClosedPty(taskId: string, tab: Parameters<typeof tabPtyKeyFor>[1]): void {
   getDefaultPtyRegistry().release(tabPtyKeyFor(taskId, tab))
+}
+
+/** Once per host: relay this TUI's tab changes out, apply the other TUIs' in. */
+export function usePeerTabSync(channel: PeerTabChannel, kv: TabsSnapshotKv): void {
+  useEffect(() => {
+    setPeerTabReporter(channel.report)
+    const off = channel.on((event) => applyPeerTabChange(kv, event))
+    return () => {
+      setPeerTabReporter(null)
+      off()
+    }
+  }, [channel, kv])
 }
