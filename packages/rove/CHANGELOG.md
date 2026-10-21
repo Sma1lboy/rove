@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.258
+
+### Patch Changes
+
+- [#1326](https://github.com/Sma1lboy/rove/pull/1326) [`5978aa7`](https://github.com/Sma1lboy/rove/commit/5978aa7de50882d75426272cc6b20ac45935d5d0) A prompt or title from the phone or `rove --web` that starts with `--`, such as "--force-push is broken, look into it", now reaches the task. Before, the new tab or new task was refused with "flag --prompt requires a value" and nothing was sent. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1324](https://github.com/Sma1lboy/rove/pull/1324) [`79a8f9f`](https://github.com/Sma1lboy/rove/commit/79a8f9f5abc82504fc21c756d1878358183cdc21) Every session of one user now reaches the same Rove daemon, even when their `XDG_RUNTIME_DIR` differs. On WSL a shell gets `/mnt/wslg/runtime-dir` while an ssh login into the same distro gets none, so the ssh side looked for the daemon somewhere else, decided none was running and restarted it, about once a minute when another machine had this one registered. That knocked out a `rove --web` running in the WSL shell. The daemon and the PTY host now record the socket they listen on next to their pidfile, and a session that finds them alive connects there. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1327](https://github.com/Sma1lboy/rove/pull/1327) [`cc802ab`](https://github.com/Sma1lboy/rove/commit/cc802ab16ae420b2c9e92a4d9b52215a6ee0938a) `rove api workitem-list --author USER` lists only the GitHub issues that user opened; `--author @me` shows the ones you filed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.257
 
 ### Patch Changes
