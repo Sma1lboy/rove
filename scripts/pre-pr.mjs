@@ -6,14 +6,16 @@
 // Usage:
 //   bun run pre-pr -- --body-file pr.md   # the same file you give `gh pr create`
 //   bun run pre-pr -- --quick             # the few-second subset (pre-push hook)
-//   options: --base <branch> (default main), --no-fetch, --jobs <n> (default 4)
+//   options: --base <branch> (default main), --no-fetch, --jobs <n> (default 4),
+//            --no-wsl (Windows: run the POSIX suites natively instead of in WSL)
 
 import { spawn, spawnSync } from "node:child_process"
-import { createWriteStream, existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs"
+import { createWriteStream, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { dirname, join, resolve } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { validateUiEvidence } from "./ui-evidence.mjs"
+import { wslDistro, wslScript } from "./pre-pr-wsl.mjs"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 
@@ -56,12 +58,15 @@ export function touchedAreas(files) {
 }
 
 function parseArgs(argv) {
-  const opts = { base: "main", bodyFile: null, quick: false, fetch: true, jobs: 4 }
+  const opts = { base: "main", bodyFile: null, quick: false, fetch: true, jobs: 4, wsl: true, suitesOnly: false, touchedFile: null }
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split(/=(.*)/s)
     const value = () => inline ?? argv[++i]
     if (flag === "--quick") opts.quick = true
     else if (flag === "--no-fetch") opts.fetch = false
+    else if (flag === "--no-wsl") opts.wsl = false
+    else if (flag === "--suites-only") opts.suitesOnly = true
+    else if (flag === "--touched-file") opts.touchedFile = value()
     else if (flag === "--base") opts.base = value()
     else if (flag === "--body-file") opts.bodyFile = value()
     else if (flag === "--jobs") opts.jobs = Math.max(1, Number(value()) || 1)
@@ -161,21 +166,26 @@ const ROVE = join(ROOT, "packages", "rove")
 const HARNESS = join(ROOT, "packages", "rove-harness")
 const bun = (args, cwd, env) => ({ cmd: "bun", args, cwd, env })
 
+const harnessJob = (tests) => job("harness PTY lifecycle", [bun(["run", "test", ...tests], HARNESS)])
+const WINDOWS_HARNESS = ["test/pty-session-lifecycle.test.ts", "test/pty-sidecar-shutdown.test.mjs"]
+
 function heavyJobs(touched) {
   const areas = touchedAreas(touched)
   const harnessTests =
     process.platform === "win32"
-      ? ["test/pty-session-lifecycle.test.ts", "test/pty-sidecar-shutdown.test.mjs"]
+      ? WINDOWS_HARNESS
       : ["test/pty-session-lifecycle.test.ts", "test/pty-tree-lifecycle.test.mjs", "test/pty-sidecar-shutdown.test.mjs"]
+  // On Linux, macOS's ratchet list is known to fail; macOS runs everything.
+  const renderArgs = process.platform === "linux" ? ["--platform=linux"] : []
   const jobs = [
     job("rove unit tests", [bun(["x", "vitest", "run", "--passWithNoTests", "--minWorkers=1", "--maxWorkers=8"], ROVE)]),
-    job("render track", [bun(["scripts/render-track.mjs"], ROVE)]),
+    job("render track", [bun(["scripts/render-track.mjs", ...renderArgs], ROVE)]),
     job("behavior", [
       bun(["x", "vitest", "run", "test/behavior", "--pool", "forks", "--minWorkers=1", "--maxWorkers=1", "--retry=2", "--passWithNoTests"], ROVE, {
         ROVE_INCLUDE_BEHAVIOR: "1",
       }),
     ]),
-    job("harness PTY lifecycle", [bun(["run", "test", ...harnessTests], HARNESS)]),
+    harnessJob(harnessTests),
     job("visual ground truth", [bun(["x", "playwright", "install", "chromium"], HARNESS), bun(["run", "visual"], HARNESS)]),
     job("built CLI carries weixin", [bun(["packages/rove/dist/cli/rove.js", "weixin", "--help"])]),
     ...packagesToTest(touched, readManifests()).map((name) => job(`${name} tests`, [bun(["--filter", name, "test"])])),
@@ -183,6 +193,18 @@ function heavyJobs(touched) {
   if (areas.docs) jobs.push(job("docs site build", [bun(["run", "--filter", "@sma1lboy/rove-docs", "build"])]))
   if (areas.ios) jobs.push(job("iOS color guard", [{ cmd: bashPath(), args: ["scripts/lint-colors.sh"], cwd: join(ROOT, "packages", "rove-ios") }]))
   return jobs
+}
+
+/** Windows: the Windows harness tests here, every POSIX suite in WSL against HEAD. */
+function windowsJobs(touched, distro, jobs) {
+  const name = basename(ROOT.replace(/[\\/]+$/, ""))
+  const ref = `refs/pre-pr/${name}`
+  const touchedFile = join(LOGS, "touched.txt")
+  writeFileSync(touchedFile, touched.join("\n"))
+  const gitDir = resolve(ROOT, git(["rev-parse", "--git-common-dir"])[0])
+  git(["update-ref", ref, "HEAD"])
+  const script = wslScript({ name, gitDir, ref, touchedFile, jobs })
+  return [harnessJob(WINDOWS_HARNESS), job(`WSL ${distro}: POSIX suites`, [{ cmd: "wsl.exe", args: ["-d", distro, "-e", "bash", "-lc", script] }])]
 }
 
 function skippedNotes(touched) {
@@ -199,9 +221,15 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2))
   LOGS = mkdtempSync(join(tmpdir(), "rove-pre-pr-"))
   const range = `origin/${opts.base}...HEAD`
-  if (opts.fetch) {
+  if (opts.fetch && !opts.suitesOnly) {
     const f = spawnSync("git", ["fetch", "--quiet", "origin", opts.base], { cwd: ROOT, stdio: "inherit" })
     if (f.status !== 0) console.warn(`warning: git fetch origin ${opts.base} failed; diffing against the local ref`)
+  }
+  if (opts.suitesOnly) {
+    // The WSL half: HEAD is a detached copy with no origin, so the host passes the diff.
+    const touched = readFileSync(opts.touchedFile, "utf8").split("\n").filter(Boolean)
+    if (step("build", () => run("bun", ["run", "build"]))) await pool(heavyJobs(touched), opts.jobs)
+    return finish()
   }
   const changed = git(["diff", "--name-only", "--diff-filter=ACMR", range])
   const added = git(["diff", "--name-only", "--diff-filter=A", range])
@@ -237,7 +265,9 @@ async function main() {
     const built = step("typecheck", () => run("bun", ["run", "typecheck"])) && step("build", () => run("bun", ["run", "build"]))
     if (built) {
       process.stdout.write(`\n▶ suites in parallel (--jobs ${opts.jobs}), logs in ${LOGS}\n`)
-      await pool(heavyJobs(touched), opts.jobs)
+      const distro = process.platform === "win32" && opts.wsl ? wslDistro() : null
+      if (process.platform === "win32" && opts.wsl && !distro) console.warn("warning: no WSL distro found; running the POSIX suites natively (many fail on Windows)")
+      await pool(distro ? windowsJobs(touched, distro, opts.jobs) : heavyJobs(touched), opts.jobs)
       // It rewrites daemon plugin sources to a baseline and back, so nothing else may run beside it.
       if (touchedAreas(touched).pluginWindows && process.platform === "win32")
         step("plugin-windows acceptance", () =>
@@ -246,11 +276,14 @@ async function main() {
     }
     for (const note of skippedNotes(touched)) console.log(`skip ${note}`)
   }
+  finish()
+}
 
+function finish() {
   const failed = results.filter((r) => !r.ok)
   for (const r of failed.filter((r) => r.log)) {
     const lines = readFileSync(r.log, "utf8").trimEnd().split("\n")
-    console.log(`\n── ${r.name} (last 40 lines of ${r.log}) ──\n${lines.slice(-40).join("\n")}`)
+    console.log(`\n── ${r.name} (last 60 lines of ${r.log}) ──\n${lines.slice(-60).join("\n")}`)
   }
   console.log(`\npre-pr: ${results.length - failed.length}/${results.length} passed`)
   for (const r of failed) console.log(`  ✗ ${r.name}`)
