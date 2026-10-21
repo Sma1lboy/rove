@@ -107,7 +107,8 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
   const open = (path: string) => preview.set({ taskId: task.id, path, scope: branchScope ? "branch" : "working" })
   /** The Mac's configured editor in the task's editor tab; a file the branch deleted has nothing to edit, so it shows its diff. */
   const edit = (r: Row) => {
-    if (r.status === "D") {
+    // A file on another machine has no editor here: its diff is what this machine can show.
+    if (r.status === "D" || task.machine) {
       open(r.path)
       return
     }
@@ -128,10 +129,12 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
     void model.client.request("term.input", { stream, data: `@${path} ` }).catch((e) => toast(String(e), "error"))
   }
   const openExternal = (path: string) =>
-    void model.client
-      .request("file.openExternal", { taskId: task.id, path })
-      .then(() => toast(t("taskops.openedExternal")))
-      .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
+    task.machine
+      ? toast(t("files.remoteNoExternal", { host: task.machine.label }), "error")
+      : void model.client
+          .request("file.openExternal", { taskId: task.id, path })
+          .then(() => toast(t("taskops.openedExternal")))
+          .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
   const requestPR = () =>
     void model.client
       .request("tab.requestPR", model.engineTarget(task.id))

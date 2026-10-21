@@ -178,3 +178,11 @@ export async function executeVerb(verbName: string, input: VerbInput, deps: Verb
     return errorEnvelope(err)
   }
 }
+
+/** A verb's argv as the params map `api.invoke` carries, so an in-process call can be forwarded to another machine. */
+export function argvToParams(verbName: string, argv: readonly string[]): ApiParams {
+  const verb = findVerb(verbName)
+  if (!verb) throw unknownVerbError(verbName)
+  const { flags } = parseFlags(argv, booleanFlagsOf(verb), repeatableFlagsOf(verb))
+  return Object.fromEntries(flags)
+}

@@ -15,6 +15,8 @@ export interface BridgeApi {
   verb<T>(name: string, argv: readonly string[]): Promise<T>
   /** A daemon RPC by name. */
   rpc<T>(name: DaemonRequestName, payload?: unknown): Promise<T>
+  /** The registered machine a task lives on; undefined = this machine. `verb` already routes there by `--task-id`. */
+  machineOf?(taskId: string): string | undefined
 }
 
 export interface OpContext {

@@ -65,8 +65,10 @@ function Shell({ model }: { model: AppModel }) {
   const pane = useStore(narrowPane)
   const pageOn = useStore(page)
   const { prefs } = usePrefs()
-  const task = payload?.tasks.find((row) => row.id === selection.taskId) ?? null
-  const remoteTask = remote.find((row) => row.id === selection.taskId)
+  // A task on a machine that answers opens like a local one; an unreachable one says where it lives.
+  const reachable = remote.find((row) => row.id === selection.taskId && !row.machine?.stale)
+  const task = payload?.tasks.find((row) => row.id === selection.taskId) ?? reachable ?? null
+  const remoteTask = reachable ? undefined : remote.find((row) => row.id === selection.taskId)
   const surface = narrow ? surfaceFor(pane, !!task || !!remoteTask, pageOn !== null) : null
   const railPx = folded ? foldedPx(prefs.railFold) : pinned === null ? null : clampRailWidth(pinned)
   return (
@@ -97,8 +99,9 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const allTabs = useStore(model.tabs)
   const payload = useStore(model.tasks)
   const remote = useStore(model.remote)
-  const task = payload?.tasks.find((row) => row.id === selection.taskId) ?? null
-  const remoteTask = remote.find((row) => row.id === selection.taskId)
+  const reachable = remote.find((row) => row.id === selection.taskId && !row.machine?.stale)
+  const task = payload?.tasks.find((row) => row.id === selection.taskId) ?? reachable ?? null
+  const remoteTask = reachable ? undefined : remote.find((row) => row.id === selection.taskId)
   const tabs = task ? (allTabs[task.id] ?? []) : []
   const view = useStore(preview)
   const shown = view && task && view.taskId === task.id ? view : null

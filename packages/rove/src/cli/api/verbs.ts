@@ -17,6 +17,7 @@ import { GATE_VERBS } from "./verbs-gates.ts"
 import { ISSUE_VERBS } from "./verbs-issues.ts"
 import { LIFECYCLE_VERBS } from "./verbs-lifecycle.ts"
 import { READ_VERBS } from "./verbs-read.ts"
+import { REVIEW_VERBS } from "./verbs-review.ts"
 import { WORK_ITEM_VERBS } from "./verbs-work-items.ts"
 import { WORKTREE_VERBS } from "./verbs-worktree.ts"
 
@@ -143,6 +144,7 @@ export const VERBS: readonly VerbSpec[] = [
   SCHEMA_VERB,
   ENGINE_LIST_VERB,
   ...READ_VERBS,
+  ...REVIEW_VERBS,
   DELIVERIES_VERB,
   SHOULD_RUN_VERB,
   ...CREATE_VERBS,

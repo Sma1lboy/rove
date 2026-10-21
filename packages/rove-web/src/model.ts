@@ -152,7 +152,12 @@ export class AppModel {
 
   /** After a tab was opened or closed here: don't wait for the next push. */
   async refreshTabsNow(): Promise<void> {
-    await this.refreshTabs(this.tasks.get()?.tasks ?? [])
+    await this.refreshTabs(this.tabbedTasks())
+  }
+
+  /** Every task whose tabs can be read: this machine's, and those of the other machines that answer. */
+  private tabbedTasks(): readonly TaskRow[] {
+    return [...(this.tasks.get()?.tasks ?? []), ...this.remote.get().filter((task) => !task.machine?.stale)]
   }
 
   private acceptTasks(payload: TasksPayload): void {
@@ -169,7 +174,7 @@ export class AppModel {
     if (this.tabTimer !== null) return
     this.tabTimer = window.setTimeout(() => {
       this.tabTimer = null
-      void this.refreshTabs(this.tasks.get()?.tasks ?? [])
+      void this.refreshTabs(this.tabbedTasks())
     }, TAB_REFRESH_DEBOUNCE_MS)
   }
 
