@@ -1255,7 +1255,8 @@ GitHub's, and nothing is copied into Rove's own issue store. Mechanics:
 [design/work-items.md](./design/work-items.md).
 
 - `workitem-list --repo PATH [--state open|closed|all] [--limit N] [--search Q]
-  [--assignee USER] [--label L]`: list issues. `--assignee @me` for your own.
+  [--assignee USER] [--author USER] [--label L]`: list issues. `--assignee @me`
+  for the ones assigned to you, `--author @me` for the ones you opened.
 - `workitem-start --repo PATH --number N [--vendor V] [--base-branch B]`:
   create a task for issue N and start its engine with the issue title, body,
   and URL as the first message. The task keeps a `linkedWorkItem` pointing
