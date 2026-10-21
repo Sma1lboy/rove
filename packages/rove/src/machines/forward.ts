@@ -19,7 +19,7 @@ import { errorMessage } from "../lib/error-message.ts"
 import { discoverMachine } from "./discover.ts"
 import { type MachineEntry, dedupeMachines, listMachines, updateMachine } from "./registry.ts"
 import { isLocalCheckout, repoIdentity, unpushedCommits } from "./repo-identity.ts"
-import { localDaemonSocketPath } from "./ssh-args.ts"
+import { localDaemonSocketPath, localPtySocketPath } from "./ssh-args.ts"
 import { ensureForwards } from "./tunnel.ts"
 
 /** `--machine local` names this machine explicitly. */
@@ -238,4 +238,14 @@ export async function invokeRouted(args: {
     return failure(err.code, err.message, err.data ?? {})
   }
   return target ? forwardVerb(target, args.verb, args.params) : args.runHere()
+}
+
+/** The local end of `alias`'s forwarded PTY-host socket, once its tunnel is up. */
+export async function machinePtySocket(alias: string): Promise<string> {
+  const entry = requireMachine(alias)
+  // Both forwards go up together: a live daemon socket means the PTY socket is live too.
+  if (!(await machineDaemonSocket(entry))) {
+    throw new ApiError(`machine "${alias}" did not answer`, "MACHINE_UNREACHABLE")
+  }
+  return localPtySocketPath(alias)
 }

@@ -16,6 +16,7 @@ import { useT } from "../i18n"
 import { useAccessor } from "../lib/use-accessor"
 import { TerminalTabs } from "./TerminalTabs"
 import { EmptyWorkspacePane } from "./empty-workspace-pane"
+import { RemoteTerminalTabs } from "./remote-terminal-tabs"
 import { knownTaskTabs, tabsRevision } from "./terminal-tabs-shared"
 import { WelcomePane } from "./welcome-pane"
 
@@ -76,12 +77,23 @@ export function ShowWorkspace(props: {
   }
   // A task on another machine: its tabs, KV and engine live there. Mounting the local tab host
   // would spawn an engine on THIS machine in a directory that only exists over there.
-  const machine = props.task?.origin && props.task.origin.machineId !== "local" ? props.task.origin.hostLabel : null
-  if (machine) {
+  const origin = props.task?.origin && props.task.origin.machineId !== "local" ? props.task.origin : null
+  if (origin && props.task) {
+    if (origin.stale) {
+      return (
+        <box flexGrow={1} alignItems="center" justifyContent="center">
+          <text fg={theme.textMuted}>{t("tasks.machine.terminalElsewhere", { host: origin.hostLabel })}</text>
+        </box>
+      )
+    }
     return (
-      <box flexGrow={1} alignItems="center" justifyContent="center">
-        <text fg={theme.textMuted}>{t("tasks.machine.terminalElsewhere", { host: machine })}</text>
-      </box>
+      <RemoteTerminalTabs
+        taskId={String(props.task.id)}
+        machine={origin.machineId}
+        host={origin.hostLabel}
+        worktree={path ?? ""}
+        focused={props.focused}
+      />
     )
   }
   // Existing checkouts wait for an explicit start; managed and scratch tasks auto-start.

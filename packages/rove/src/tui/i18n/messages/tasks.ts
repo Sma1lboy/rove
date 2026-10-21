@@ -206,8 +206,9 @@ export const en = {
     filesElsewhere: "on {host}",
     filesHint: "{host} is unreachable right now; its files show here again when it reconnects.",
     /** Workspace placeholder for a task on another machine, until its terminals can be opened here */
-    terminalElsewhere:
-      "This task runs on {host}. Its files are in the Files pane; open its terminal from rove --web or on {host}.",
+    terminalElsewhere: "This task runs on {host}, which is unreachable right now.",
+    runsOn: "on {host}",
+    noTabs: "No tabs on {host} yet — prefix t opens one there.",
   },
   /** Empty-state messages */
   empty: {
@@ -412,7 +413,9 @@ export const zh: typeof en = {
     mismatch: "协议不兼容",
     filesElsewhere: "在 {host} 上",
     filesHint: "{host} 暂时连不上；重新连上后这里会再显示它的文件。",
-    terminalElsewhere: "这个任务跑在 {host} 上。文件在右侧面板；终端请在 rove --web 或 {host} 上打开。",
+    terminalElsewhere: "这个任务跑在 {host} 上，暂时连不上。",
+    runsOn: "在 {host} 上",
+    noTabs: "{host} 上还没有 tab——按 prefix t 在那里新开一个。",
   },
   empty: {
     noMatchSearch: "无匹配任务——按 esc 清除。",

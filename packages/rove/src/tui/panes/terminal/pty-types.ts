@@ -20,6 +20,11 @@ export type TaskPtyOpts = {
   cwd: string
   /** Stable id used by the registry. Required. */
   taskId: string
+  /**
+   * The registered machine whose PTY host holds this session; absent = this machine. A remote
+   * session is only ever ATTACHED (its tab was made over there): no spawn, no typed input.
+   */
+  machine?: string
   /** Initial pane size. Default 80x24. */
   cols?: number
   /** Initial pane size. Default 80x24. */
