@@ -293,9 +293,15 @@ button:focus-visible,
   background: var(--focus);
 }
 
+/* A tab sits one level under its task, but its colour mark stays in the task's
+   column (TUI: the bar is flush left, the tree indents what follows it), so the
+   indent goes on the glyph, not on the row. */
 .tab-row {
-  padding-left: 26px;
   color: var(--muted);
+}
+
+.tab-row > .glyph {
+  margin-left: 18px;
 }
 
 .tab-row.is-selected {
