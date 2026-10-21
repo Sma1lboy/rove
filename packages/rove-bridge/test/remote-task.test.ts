@@ -10,7 +10,11 @@ describe("a task on another machine", () => {
     const far = new FakePty()
     const opened: string[] = []
     const h = start({
-      ops: { ...fakeOps(), machineOf: (id) => (id === "T1" ? "mac" : undefined), worktreeOf: async () => "/Users/me/wt" },
+      ops: {
+        ...fakeOps(),
+        machineOf: (id) => (id === "T1" ? "mac" : undefined),
+        worktreeOf: async () => "/Users/me/wt",
+      },
       openMachinePty: async (alias) => {
         opened.push(alias)
         return far
@@ -35,7 +39,7 @@ describe("a task on another machine", () => {
       ops: { ...fakeOps(), machineOf: () => "mac" },
       openMachinePty: async () => {
         tries++
-        throw Object.assign(new Error("machine \"mac\" did not answer"), { code: "MACHINE_UNREACHABLE" })
+        throw Object.assign(new Error('machine "mac" did not answer'), { code: "MACHINE_UNREACHABLE" })
       },
     })
     const c = await connect(h.url, { Authorization: `Bearer ${"t".repeat(43)}` })
@@ -72,7 +76,11 @@ describe("verbs for a task on another machine", () => {
     const api = createBridgeApi(client, {
       machineOf: () => "mac",
       forward: async () =>
-        ({ apiVersion: 1, ok: false, error: { code: "NO_WORKTREE", message: "task far has no worktree yet" } }) as never,
+        ({
+          apiVersion: 1,
+          ok: false,
+          error: { code: "NO_WORKTREE", message: "task far has no worktree yet" },
+        }) as never,
     })
     await expect(api.verb("worktree-files", ["--task-id=far"])).rejects.toMatchObject({ code: "NO_WORKTREE" })
   })
