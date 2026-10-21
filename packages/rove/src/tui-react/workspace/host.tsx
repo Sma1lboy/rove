@@ -46,6 +46,7 @@ import { selfRefreshAction } from "./self-refresh-action"
 import { ShowWorkspace } from "./show-workspace"
 import { useSidebarResizeGesture } from "./sidebar-resize-gesture"
 import { SidebarResizeGrip } from "./sidebar-resize-grip"
+import { usePeerTabSync } from "./terminal-tabs-peer"
 import { activeTabIdFor, forgetTaskTabs, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
 import { requestCreatePR } from "./use-create-pr"
@@ -217,6 +218,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     setUiEventReporter((kind, taskId, detail) => orch.reportUiEvent(kind, taskId, detail))
     return () => setUiEventReporter(null)
   }, [orch])
+
+  usePeerTabSync(orch.peerTabs, kv)
 
   const pages = useHostPagesState(focus, { whatsNewFrom: props.whatsNewFrom ?? null, welcome: props.welcome ?? null })
   // Modals, opened here because the dialog stack lives here.

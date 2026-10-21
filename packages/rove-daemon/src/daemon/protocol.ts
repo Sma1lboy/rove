@@ -214,6 +214,7 @@ export type DaemonRequestName =
   // Broadcast on `tab.add` (`rove api tab-new`): the CLI already wrote the
   // persisted row; this tells attached TUIs so they absorb it.
   | "terminalTab.add"
+  | "terminalTab.peerSync"
   // Toast to every attached UI on `notice.event` (`rove api notify`).
   | "notice.send"
   // OPAQUE graphics bytes for each attached GUI's tty (`rove api pane-graphics`),

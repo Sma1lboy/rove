@@ -59,6 +59,8 @@ function useDaemonTabCloses(orch: RemoteOrchestrator | null): void {
     if (!request || request.at === seenAt.current) return
     seenAt.current = request.at
     if (Date.now() - request.at > STALE_NOTICE_MS) return
+    // Peer closes never reach this cell (`onPeerTab` takes them); the guard narrows the type.
+    if ("origin" in request) return
     if ("requestId" in request) {
       const closed = closeTaskTab(kv, request.taskId, request.tabId)
       orch?.replyTerminalTabClose(request.requestId, closed)
