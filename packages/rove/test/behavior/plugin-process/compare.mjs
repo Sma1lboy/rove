@@ -8,20 +8,21 @@ const evidence = join(repo, "plugin-evidence")
 mkdirSync(evidence, { recursive: true })
 const paths = ["mod-host", "hook-run"].map((name) => `packages/rove-daemon/src/plugins/${name}.ts`)
 const saved = paths.map((path) => readFileSync(join(repo, path)))
+const scenario = process.env.ROVE_PLUGIN_SCENARIO ?? "native"
+const entry =
+  scenario === "clients"
+    ? join(repo, "packages/rove-harness/e2e/plugin-windows.mjs")
+    : join(import.meta.dirname, "native.mjs")
 const base = process.env.BASE_SHA
 assert.ok(base, "BASE_SHA must identify the unfixed revision")
 function run(label) {
-  const child = spawnSync(
-    process.execPath,
-    [join(import.meta.dirname, "native.mjs"), ...(label === "baseline" ? ["--baseline"] : [])],
-    {
-      cwd: repo,
-      env: { ...process.env, ROVE_PLUGIN_REPORT: join(evidence, `${label}.json`) },
-      encoding: "utf8",
-      timeout: 240000,
-    },
-  )
-  writeFileSync(join(evidence, `${label}.log`), `${child.stdout}\n${child.stderr}`)
+  const child = spawnSync(process.execPath, [entry, ...(label === "baseline" ? ["--baseline"] : [])], {
+    cwd: repo,
+    env: { ...process.env, ROVE_PLUGIN_REPORT: join(evidence, `${label}-${scenario}.json`) },
+    encoding: "utf8",
+    timeout: 240000,
+  })
+  writeFileSync(join(evidence, `${label}-${scenario}.log`), `${child.stdout}\n${child.stderr}`)
   console.log(child.stdout, child.stderr)
   assert.equal(child.status, 0, `${label} native run failed: ${child.error ?? "see report"}`)
 }

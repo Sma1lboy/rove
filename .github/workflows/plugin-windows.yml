@@ -28,6 +28,16 @@ jobs:
         env:
           BASE_SHA: 61c4532cc642039ce4ce3f6739d1ee35f2c58cd0
         run: bun packages/rove/test/behavior/plugin-process/compare.mjs
+      - name: Build the real web client
+        run: bun --filter rove-web build
+      - name: Install browser
+        working-directory: packages/rove-harness
+        run: bun x playwright install chromium
+      - name: Real TUI and web baseline and head acceptance
+        env:
+          BASE_SHA: 61c4532cc642039ce4ce3f6739d1ee35f2c58cd0
+          ROVE_PLUGIN_SCENARIO: clients
+        run: bun packages/rove/test/behavior/plugin-process/compare.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

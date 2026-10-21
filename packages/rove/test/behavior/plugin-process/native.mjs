@@ -12,6 +12,13 @@ assert.ok(process.versions.bun, "The plugin host must run under Bun")
 const baseline = process.argv.includes("--baseline")
 const root = mkdtempSync(join(tmpdir(), "rove-native-plugins-"))
 const fixture = join(import.meta.dirname, "child.mjs")
+function command(home, mode, generation = "initial") {
+  const args = [process.execPath, fixture, mode, home, generation]
+  if (process.platform !== "win32") return args
+  const wrapper = join(home, `${generation}-${mode}.cmd`)
+  writeFileSync(wrapper, `@echo off\r\n${args.map((arg) => `"${arg}"`).join(" ")}\r\n`)
+  return [process.env.ComSpec ?? "cmd.exe", "/d", "/c", wrapper]
+}
 const results = []
 const owners = new Set()
 const alive = (pid) => {
@@ -68,7 +75,7 @@ try {
     const home = join(root, action)
     mkdirSync(home)
     const host = new ModHost({ homeDir: home, socketPath: "unused", binPath: "rove", publish() {} })
-    const spec = { pluginId: "test.native", root: home, mod: { command: [process.execPath, fixture, "mod", home] } }
+    const spec = { pluginId: "test.native", root: home, mod: { command: command(home, "mod") } }
     host.sync([spec])
     try {
       const tree = await started(home, "initial", "mod")
@@ -79,7 +86,7 @@ try {
       })
       if (action === "stop") host.stop()
       else if (action === "disable") host.sync([])
-      else host.sync([{ ...spec, mod: { command: [...spec.mod.command, "replacement"] } }])
+      else host.sync([{ ...spec, mod: { command: command(home, "mod", "replacement") } }])
       await check(`mod ${action}: descendants terminated`, () => waitFor(() => tree.every((pid) => !alive(pid))))
       if (action === "replacement") {
         const replacement = await started(home, "replacement", "mod")
@@ -103,7 +110,7 @@ try {
       pluginRoot: outputHome,
       socketPath: "unused",
       binPath: "rove",
-      spec: { command: [process.execPath, fixture, "output", outputHome] },
+      spec: { command: command(outputHome, "output") },
       kind: "startup",
       label: "output",
       extraEnv: {},
@@ -123,7 +130,7 @@ try {
       socketPath: "unused",
       binPath: "rove",
       spec: {
-        command: [process.execPath, fixture, "hook", home],
+        command: command(home, "hook"),
         timeoutMs: action === "timeout" ? 4000 : 120000,
       },
       kind: "startup",
