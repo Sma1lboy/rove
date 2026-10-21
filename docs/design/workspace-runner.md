@@ -297,24 +297,45 @@ Rove's answer: build caches never enter the mount.
 The blocker is visibility. A Sandbox's only mount is the Store volume, so a
 Workspace exists only inside its container, at a `/workspaces/N` that LayerFS
 numbers and reuses. Rove's engines, PTY host, hooks and collectors run on the
-Runner host and need a stable host path (the invariant above). Two routes:
+Runner host and need a stable host path (the invariant above). Docker is
+LayerFS's packaging, not its core: it supplies FUSE on macOS (via the Docker
+VM), the mount privilege and an agent sandbox. Developing inside a container
+fights Rove's model (host toolchain, keys, editor, engine history), so:
 
-| | A: engine inside the Sandbox | B: mount surfaces on the host |
-|---|---|---|
-| How | PTY host spawns `docker exec -it -w /workspaces/N … claude` | Sandbox bind-mounts a host dir `rshared`; the FUSE mount appears at `~/.rove/lfs/<project>/<task>` |
-| Engine history, trust, hooks | Live in the container; need `~/.claude`, `rove` and `daemon.sock` mounted in | Unchanged: `worktreePath` is the host path |
-| Upstream change | Extra mounts per Sandbox | Host mount dir, a stable per-Workspace name, uid mapping (exec runs as `501:20`) |
-| Fit | Breaks most consumers of `worktreePath` | Keeps the invariant |
+| | A: engine inside the Sandbox | B: mount surfaces from the Sandbox | C: native mount, no Docker |
+|---|---|---|---|
+| How | PTY host spawns `docker exec -it -w /workspaces/N … claude` | Sandbox bind-mounts a host dir `rshared`; the mount appears at `~/.rove/lfs/<project>/<task>` | The FUSE daemon runs on the host and mounts at `~/.rove/lfs/<project>/<task>` |
+| Linux | Works, breaks most `worktreePath` consumers | Works | `fusermount3`, unprivileged |
+| macOS | Docker VM | Docker VM; host sees it only through the VM | macFUSE (FSKit backend) or an NFS loopback mount |
+| Upstream change | Extra mounts per Sandbox | Host mount dir, stable names, uid mapping (exec runs as `501:20`) | A Docker-free daemon mode; a macOS port of the FUSE layer |
 
-Route B is the target. Everything else maps onto existing pieces:
+Route C is the target; B is the fallback if upstream keeps Docker.
+
+**macOS trial (local, next).** Install macFUSE, build the LayerFS FUSE daemon
+for macOS (or wrap its store behind a macFUSE/NFS shim), mount one Workspace
+under `~/.rove/lfs/`, point a real Rove task at it, and record: mount/fork
+latency, `git status` and dev-server cold start, socket/xattr failures, and
+whether macFUSE's FSKit backend needs a kernel extension approval. The Store's
+filesystem check refuses APFS today, so the Store may have to live on a
+disk image formatted for it, or upstream relaxes the check.
+
+**Not suited for (keep these on git worktrees).** Unix sockets and FIFOs are
+refused inside the mount (git fsmonitor, watchman, local databases, Rove's own
+harness sidecar), there are no xattrs (quarantine, codesign), fsync is a no-op,
+and an uncommitted overlay dies with its daemon. Under Docker, dev-server ports,
+browsers and iOS simulators do not reach the host at all. LayerFS fits headless
+loops: edit, test, commit, many parallel attempts, cloud Runners. The backend
+advertises `interactive: false` and the hub keeps UI/e2e tasks off it.
+
+Everything else maps onto existing pieces:
 
 ```mermaid
 flowchart LR
   hub[Hub daemon] -->|api.invoke over ssh| rd[Runner daemon]
   rd --> be[WorkspaceBackend: layerfs]
-  be -->|SDK in a Node sidecar| sb[LayerFS Sandbox]
-  sb --> st[(store.sqlite per Runner)]
-  sb -->|FUSE, rshared| hp[host path ~/.rove/lfs/..]
+  be -->|SDK in a Node sidecar| fd[LayerFS FUSE daemon on the host]
+  fd --> st[(store.sqlite per Runner)]
+  fd -->|FUSE| hp[host path ~/.rove/lfs/..]
   pty[PTY host: engine CLI] --> hp
 ```
 
@@ -331,14 +352,15 @@ flowchart LR
 
 ### TODO
 
-- [ ] Upstream (route B): host-visible mount dir with propagation, stable
-      per-Workspace names, host uid mapping.
+- [ ] Upstream (route C): a Docker-free daemon mode mounting at a
+      caller-chosen host path; route B (propagated mount) as the fallback.
+- [ ] Local macOS trial with macFUSE (above).
 - [ ] Spike on Linux + Docker: run a real engine CLI and 6 concurrent
       builds in surfaced mounts; measure FUSE overhead, overlay size, store
       growth per commit, lock behaviour.
 - [ ] Check the SDK (Node, native addon) under Bun; else a Node sidecar.
 - [ ] Phase 0 seam first; then a `layerfs` backend with capabilities
-      `{ fork: "committed", checkpoint: true, cheapClone: true, ownsBranch: false }`.
+      `{ fork: "committed", checkpoint: true, cheapClone: true, ownsBranch: false, interactive: false }`.
 - [ ] Wire checkpoints to `workspace.commit` at turn boundaries; surface
       that uncommitted work dies with the Sandbox.
 - [ ] Runner capability probe in `machine doctor`: Docker, `/dev/fuse`,
