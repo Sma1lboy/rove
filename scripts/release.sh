@@ -49,35 +49,20 @@ cd "$REPO_ROOT"
 # The tag is what publishes, and the version number it carries is single-use.
 # So the tag only gets created after the release COMMIT is green on GitHub CI
 # (ubuntu + macos), which the local gate on this machine cannot prove
-# (platform-dependent reds: v0.8.66's darwin-only test path). ci.yml's
-# main-push jobs (typecheck-and-test, behavior, render-track,
+# (platform-dependent reds: v0.8.66's darwin-only test path). ci.yml's full
+# job set (typecheck-and-test, behavior, render-track,
 # visual-ground-truth) are the same set release.yml makes `publish` wait on.
+# ci.yml has no push trigger, so scripts/ci-run-for-sha.sh dispatches it.
 await_ci_then_tag() {
-  local version="$1" tag="v$1" sha run_id="" tries=0 concl
+  local version="$1" tag="v$1" sha run_id="" concl
   sha=$(git rev-parse HEAD)
-  echo "Waiting for CI on ${sha:0:9} (the same Linux/macOS gates that block publish)…"
-  while [ -z "$run_id" ]; do
-    tries=$((tries + 1))
-    if [ "$tries" -gt 36 ]; then
-      echo "Error: no ci.yml run appeared for $sha within ~3min. Check gh auth / Actions." >&2
-      return 1
-    fi
-    sleep 5
-    run_id=$(gh run list --workflow=ci.yml --branch main --limit 15 --json databaseId,headSha \
-      --jq ".[] | select(.headSha == \"$sha\") | .databaseId" | head -1)
-  done
-  echo "  ci.yml run $run_id — watching to completion…"
-  if ! gh run watch "$run_id" --exit-status >/dev/null; then
-    concl=$(gh run view "$run_id" --json conclusion --jq .conclusion)
-    if [ "$concl" = "cancelled" ]; then
-      echo "CI run was CANCELLED (a newer main push superseded it — ci.yml cancels in-progress runs)." >&2
-      echo "Nothing was tagged. Pull main and re-run scripts/release.sh to resume $tag." >&2
-    else
-      echo "CI FAILED on the release commit. NO tag was pushed — $version is NOT burned." >&2
-      echo "  Logs:   gh run view $run_id --log-failed" >&2
-      echo "  Recover: land the fix on main, re-run scripts/release.sh — it resumes and" >&2
-      echo "           tags $tag at the fixed HEAD (package.json still carries $version)." >&2
-    fi
+  echo "Running the full CI suite on ${sha:0:9} (the same Linux/macOS gates that block publish)…"
+  if ! run_id=$(bash "$REPO_ROOT/scripts/ci-run-for-sha.sh" "$sha"); then
+    concl=$( [ -n "$run_id" ] && gh run view "$run_id" --json conclusion --jq .conclusion || echo "no run")
+    echo "CI did not pass on the release commit ($concl). NO tag was pushed — $version is NOT burned." >&2
+    [ -n "$run_id" ] && echo "  Logs:   gh run view $run_id --log-failed" >&2
+    echo "  Recover: land the fix on main, re-run scripts/release.sh — it resumes and" >&2
+    echo "           tags $tag at the fixed HEAD (package.json still carries $version)." >&2
     return 1
   fi
   echo "✓  CI green on the release commit"

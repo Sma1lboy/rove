@@ -34,7 +34,7 @@ export function toWslPath(winPath) {
  * A worktree's own `.git` file holds a Windows path Linux git cannot follow,
  * hence the ref in the common dir. No double quotes: wsl.exe re-quotes argv.
  */
-export function wslScript({ name, gitDir, ref, touchedFile, jobs }) {
+export function wslScript({ name, gitDir, ref, touchedFile, jobs, full = false }) {
   const repo = `$HOME/.cache/rove-pre-pr/${name}`
   return [
     "set -e",
@@ -45,6 +45,6 @@ export function wslScript({ name, gitDir, ref, touchedFile, jobs }) {
     "git checkout --quiet --force --detach refs/remotes/win/head",
     "git clean -fdq",
     "bun install --frozen-lockfile",
-    `node scripts/pre-pr.mjs --suites-only --touched-file ${toWslPath(touchedFile)} --jobs ${jobs}`,
+    `node scripts/pre-pr.mjs --suites-only --touched-file ${toWslPath(touchedFile)} --jobs ${jobs}${full ? " --full" : ""}`,
   ].join("; ")
 }
