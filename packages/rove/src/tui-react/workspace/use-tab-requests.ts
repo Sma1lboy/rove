@@ -15,6 +15,7 @@ import { closePluginPanes, openPluginPane } from "../../tui/workspace/pane-split
 import { absorbTab, adoptTabs } from "../../tui/workspace/tabs-adopt"
 import {
   type TabsState,
+  closeTab,
   moveTab,
   openCommandTab,
   selectTab,
@@ -22,10 +23,12 @@ import {
   splitLeafPtyKey,
   tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core"
+import { releasePeerClosedPty } from "./terminal-tabs-peer"
 import {
   tabActivationListeners,
   takeNewTab,
   takePaneClose,
+  takePeerTabClose,
   takeTabActivation,
   takeTabAdd,
   takeTabAdopt,
@@ -117,6 +120,17 @@ export function useTabRequests(io: TabRequestIO): void {
         const prev = stateRef.current
         const next = absorbTab(prev, added)
         if (next !== prev) updateRef.current(next)
+      }
+      // Another TUI closed it: drop the row so this copy's next write can't revive it. Not
+      // `closeById`, which would re-report the close and run this TUI's close flow.
+      const peerClosedId = takePeerTabClose(taskId)
+      if (peerClosedId) {
+        const prev = stateRef.current
+        const tab = prev.tabs.find((x) => x.id === peerClosedId)
+        if (tab) {
+          updateRef.current(closeTab(prev, peerClosedId, { allowEmpty: true }).state)
+          releasePeerClosedPty(taskId, tab)
+        }
       }
       // Claiming here keeps `closeTaskTab` from ALSO writing background state:
       // while mounted, this component owns it.

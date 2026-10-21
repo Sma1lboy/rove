@@ -282,6 +282,7 @@ export function sameTranscriptActivityMap(a: TranscriptActivityMap, b: Transcrip
 export {
   type DaemonConnectionState,
   type OrchestratorSignals,
+  type PeerTabEvent,
   type RemoteOrchestratorOptions,
   type TabAddSignal,
   RECONNECT_LOG_ATTEMPT_CEILING,

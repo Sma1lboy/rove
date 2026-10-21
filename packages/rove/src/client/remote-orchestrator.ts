@@ -5,6 +5,7 @@
  * read methods return, not `this`.
  */
 
+import { randomUUID } from "node:crypto"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient } from "@sma1lboy/rove-daemon/client/client-log"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
@@ -39,6 +40,7 @@ import {
   type EngineLifecycleMap,
   type EngineTabStateMap,
   type OrchestratorSignals,
+  type PeerTabEvent,
   type RecentTaskEvent,
   type RemoteOrchestratorOptions,
   type RowTokenMap,
@@ -73,6 +75,9 @@ export { liveRowTokens } from "./remote-orchestrator-payloads.ts"
 
 export type RoveOrchestrator = Orchestrator | RemoteOrchestrator
 
+/** A relayed tab change older than this is a reconnect replay; the tabs already caught up. */
+const PEER_TAB_STALE_MS = 10_000
+
 export class RemoteOrchestrator {
   private readonly tasksAcc = createStateCell<Task[]>([], "orchestrator.tasks")
   private readonly activeTaskAcc = createStateCell<string | null>(null, "orchestrator.active-task")
@@ -100,6 +105,9 @@ export class RemoteOrchestrator {
   private readonly tabCloseAcc = createStateCell<TabClosePayload | null>(null)
   private readonly tabRenameAcc = createStateCell<TabRenamePayload | null>(null)
   private readonly tabAddAcc = createStateCell<TabAddSignal | null>(null)
+  private readonly peerTabListeners = new Set<(event: PeerTabEvent) => void>()
+  /** This TUI's id on the peer tab channel, so it skips its own relayed changes. */
+  readonly instanceId = randomUUID()
   private readonly uiPromptAcc = createStateCell<UiPromptPayload | null>(null)
   private readonly engineLifecycleAcc = createStateCell<EngineLifecycleMap>(new Map())
   private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
@@ -169,6 +177,11 @@ export class RemoteOrchestrator {
       setTabCloseSig: this.tabCloseAcc.set,
       setTabRenameSig: this.tabRenameAcc.set,
       setTabAddSig: this.tabAddAcc.set,
+      emitPeerTab: (event) => {
+        // Channels replay their last value on connect: an old one is an echo, not news.
+        if (event.origin === this.instanceId || Date.now() - event.at > PEER_TAB_STALE_MS) return
+        for (const listener of this.peerTabListeners) listener(event)
+      },
       setUiPromptSig: this.uiPromptAcc.set,
       engineLifecycleAcc: this.engineLifecycleAcc,
       setEngineLifecycleSig: this.engineLifecycleAcc.set,
@@ -338,6 +351,16 @@ export class RemoteOrchestrator {
 
   /** Latest `tab.add` (`rove api tab-new`) — consumers dedupe on `at`. */
   readonly tabAddStore = (): ExternalStore<TabAddSignal | null> => this.tabAddAcc
+
+  /** Another TUI's tab open/close, one call per event. */
+  readonly onPeerTab = (listener: (event: PeerTabEvent) => void): Unsubscribe => {
+    this.peerTabListeners.add(listener)
+    return () => this.peerTabListeners.delete(listener)
+  }
+
+  /** Tell the other attached TUIs about this one's tab open/close. */
+  readonly reportPeerTab = (change: Parameters<typeof writes.reportPeerTabOp>[2]): void =>
+    writes.reportPeerTabOp(this.client, this.instanceId, change)
 
   /**
    * Bare request/response for verbs this class doesn't wrap. Narrowed to

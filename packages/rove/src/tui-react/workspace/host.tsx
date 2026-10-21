@@ -46,7 +46,8 @@ import { selfRefreshAction } from "./self-refresh-action"
 import { ShowWorkspace } from "./show-workspace"
 import { useSidebarResizeGesture } from "./sidebar-resize-gesture"
 import { SidebarResizeGrip } from "./sidebar-resize-grip"
-import { activeTabIdFor, forgetTaskTabs, setUiEventReporter } from "./terminal-tabs-shared"
+import { applyPeerTabChange } from "./terminal-tabs-peer"
+import { activeTabIdFor, forgetTaskTabs, setPeerTabReporter, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
 import { requestCreatePR } from "./use-create-pr"
 import { useDaemonState } from "./use-daemon-state"
@@ -217,6 +218,16 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     setUiEventReporter((kind, taskId, detail) => orch.reportUiEvent(kind, taskId, detail))
     return () => setUiEventReporter(null)
   }, [orch])
+
+  // Tab open/close kept in step with the other TUIs attached to this daemon.
+  useEffect(() => {
+    setPeerTabReporter((change) => orch.reportPeerTab(change))
+    const off = orch.onPeerTab((event) => applyPeerTabChange(kv, event))
+    return () => {
+      setPeerTabReporter(null)
+      off()
+    }
+  }, [orch, kv])
 
   const pages = useHostPagesState(focus, { whatsNewFrom: props.whatsNewFrom ?? null, welcome: props.welcome ?? null })
   // Modals, opened here because the dialog stack lives here.

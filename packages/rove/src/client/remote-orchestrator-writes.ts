@@ -439,6 +439,21 @@ export function replyTabCloseOp(client: RoveDaemonClient, requestId: string, clo
   void client.request("terminalTab.closeReply", { requestId, closed }).catch(() => {})
 }
 
+/** Relay this TUI's own tab open/close to the other attached TUIs. Fire-and-forget: the 2s orphan poll is the fallback. */
+export function reportPeerTabOp(
+  client: RoveDaemonClient,
+  origin: string,
+  change:
+    | { readonly op: "opened"; readonly taskId: string; readonly tab: object }
+    | {
+        readonly op: "closed"
+        readonly taskId: string
+        readonly tabId: string
+      },
+): void {
+  void client.request("terminalTab.peerSync", { origin, ...change }).catch(() => {})
+}
+
 /** Answer a `ui.prompt`; omitting `value` = cancel. Fire-and-forget (broker times out). */
 export function replyPromptOp(client: RoveDaemonClient, promptId: string, value?: string): void {
   void client.request("ui.promptReply", { promptId, ...(value !== undefined ? { value } : {}) }).catch(() => {})

@@ -292,6 +292,19 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
   }
   if (name === "tab.close") {
     const p = payload as Partial<TabClosePayload> | undefined
+    if (p && "kind" in p && p.kind === "peer-closed") {
+      if (
+        typeof p.taskId !== "string" ||
+        typeof p.tabId !== "string" ||
+        typeof p.origin !== "string" ||
+        typeof p.at !== "number"
+      ) {
+        logClientError("orch", `dropped tab.close event: malformed payload (${describePayload(payload)})`)
+        return
+      }
+      signals.emitPeerTab({ op: "closed", taskId: p.taskId, tabId: p.tabId, origin: p.origin, at: p.at })
+      return
+    }
     const terminalTab = p && "kind" in p && p.kind === "terminal-tab"
     const valid = terminalTab
       ? typeof p.taskId === "string" &&
@@ -325,6 +338,10 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     const p = payload as Partial<TabAddPayload> | undefined
     if (typeof p?.taskId !== "string" || typeof p.at !== "number" || !isAddedTab(p.tab)) {
       logClientError("orch", `dropped tab.add event: malformed payload (${describePayload(payload)})`)
+      return
+    }
+    if (typeof p.origin === "string") {
+      signals.emitPeerTab({ op: "opened", taskId: p.taskId, tab: p.tab, origin: p.origin, at: p.at })
       return
     }
     signals.setTabAddSig({ taskId: p.taskId, tab: p.tab, at: p.at })

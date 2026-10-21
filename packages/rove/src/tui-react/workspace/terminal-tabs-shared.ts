@@ -241,6 +241,17 @@ export function takeUnclaimedTabRename(): { taskId: string; tabId: string; title
   return claimed && { taskId: claimed.taskId, ...claimed.payload }
 }
 
+/** Another TUI closed this tab (`tab.close` peer variant); background write is `applyPeerTabChange`. */
+const peerCloseBox = requestBox<string>()
+export const requestPeerTabClose = peerCloseBox.request
+export const takePeerTabClose = peerCloseBox.take
+
+/** The twin of {@link takeUnclaimedTabClose} for peer closes. */
+export function takeUnclaimedPeerTabClose(): { taskId: string; tabId: string } | null {
+  const claimed = peerCloseBox.takeUnclaimed()
+  return claimed && { taskId: claimed.taskId, tabId: claimed.payload }
+}
+
 /** `tab.add` (`rove api tab-new`); background write is `addTaskTab`. */
 export const requestTabAdd = addBox.request
 export const takeTabAdd = addBox.take
@@ -259,6 +270,38 @@ export function setUiEventReporter(fn: UiEventReporter | null): void {
   uiEventReporter = fn
 }
 
+/** Injected relay to the other attached TUIs (`terminalTab.peerSync`); no-op until wired. */
+export type PeerTabChange =
+  | { readonly op: "opened"; readonly taskId: string; readonly tab: EngineTab | CommandTab }
+  | { readonly op: "closed"; readonly taskId: string; readonly tabId: string }
+let peerTabReporter: ((change: PeerTabChange) => void) | null = null
+
+export function setPeerTabReporter(fn: ((change: PeerTabChange) => void) | null): void {
+  peerTabReporter = fn
+}
+
+let applyingPeerChange = false
+
+/**
+ * Run a write that mirrors ANOTHER TUI's tab change. Its open/close was already
+ * reported to plugins and relayed by that TUI, so this one stays quiet: no
+ * second plugin event, no echo back out.
+ */
+export function asPeerChange<T>(write: () => T): T {
+  const outer = applyingPeerChange
+  applyingPeerChange = true
+  try {
+    return write()
+  } finally {
+    applyingPeerChange = outer
+  }
+}
+
+/** The rows a peer can absorb: the PTY-backed kinds `tab.add` carries. */
+function relayableTab(tab: TerminalTab): tab is EngineTab | CommandTab {
+  return tab.kind === "engine" || tab.kind === "command"
+}
+
 function tabDetail(tab: TerminalTab): Record<string, unknown> {
   return {
     tabId: tab.id,
@@ -274,14 +317,24 @@ function tabDetail(tab: TerminalTab): Record<string, unknown> {
  * transition. Mount-time restores never pass through, so they don't re-announce.
  */
 export function reportTabsDelta(taskId: string, prev: readonly TerminalTab[], next: readonly TerminalTab[]): void {
-  if (!uiEventReporter || prev === next) return
-  const report = uiEventReporter
-  const prevIds = new Set(prev.map((tab) => tab.id))
+  if (applyingPeerChange || prev === next) return
+  const relay = peerTabReporter
+  const report = uiEventReporter ?? (() => {})
+  if (!uiEventReporter && !relay) return
+  const prevById = new Map(prev.map((tab) => [tab.id, tab]))
   const nextIds = new Set(next.map((tab) => tab.id))
-  for (const tab of next) if (!prevIds.has(tab.id)) report("tab.opened", taskId, tabDetail(tab))
+  for (const tab of next) {
+    const before = prevById.get(tab.id)
+    // Rows are immutable: a new object is a changed row (spawned, a pinned session id), which a
+    // peer must learn too or its next whole-key write drops it. Only a new id is a plugin event.
+    if (before === tab) continue
+    if (!before) report("tab.opened", taskId, tabDetail(tab))
+    if (relay && relayableTab(tab)) relay({ op: "opened", taskId, tab })
+  }
   for (const tab of prev) {
     if (nextIds.has(tab.id)) continue
     report("tab.closed", taskId, tabDetail(tab))
+    relay?.({ op: "closed", taskId, tabId: tab.id })
     if (tab.kind === "command" && tab.purpose === "editor") {
       // The editor tab's argv ends with the absolute file path (host-built).
       const path = [...tab.command].reverse().find((arg) => arg.startsWith("/"))
