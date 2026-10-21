@@ -141,6 +141,30 @@ Registering one machine under two aliases is recognized and reported: Rove
 compares the remote daemon's hostname, state root and pid, and renders one row
 either way.
 
+## When the other machine cannot reach this one
+
+Registering works in one direction: the machine that runs `machine add` must
+reach the other over SSH. To see this machine from the other side too, when
+it cannot dial you (a WSL distro behind Windows NAT, a laptop behind a home
+router), have this machine keep a reverse tunnel open to it:
+
+```console
+$ rove machine tunnel mac --install
+rove machine: wrote ~/.config/systemd/user/rove-tunnel-mac.service
+rove machine: tunnel to mac is up and restarts on its own. On mac, register this machine with `rove machine add <you>@127.0.0.1:2222`.
+```
+
+`127.0.0.1:2222` on `mac` now leads to this machine's sshd. The tunnel runs as
+a systemd user service on Linux and a launchd agent on macOS, so it restarts
+when the link drops and comes back at login. Without `--install` the command
+prints the `ssh -N -R …` line and the service file and changes nothing;
+`--uninstall` removes it. `--remote-port` and `--local-port` pick the two
+ports (defaults 2222 and 22). This machine still needs an sshd that accepts
+the other machine's key; keep it on loopback if nothing else should reach it.
+
+On WSL this needs systemd (`[boot] systemd=true` in `/etc/wsl.conf`, the
+Ubuntu default).
+
 ## Run commands on a machine
 
 Every `rove api` verb takes `--machine <alias>` and runs in that machine's
