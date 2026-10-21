@@ -25,7 +25,14 @@
 import { errorMessage } from "@/lib/error-message"
 import { type ApiEnvelope, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ensurePluginEnginesLoaded } from "../engine/plugin-engines.ts"
-import { LOCAL_MACHINE, forwardVerb, requireMachine, routeTarget } from "../machines/forward.ts"
+import {
+  AUTO_MACHINE,
+  LOCAL_MACHINE,
+  forwardVerb,
+  pickMachine,
+  requireMachine,
+  routeTarget,
+} from "../machines/forward.ts"
 import type { MachineEntry } from "../machines/registry.ts"
 import { takeIdentityWarning } from "./api/dispatcher.ts"
 import { VerbArgs, buildCountPlan, parseAgentsSpec, parseFlags, validateAgainstSpec } from "./api/flags.ts"
@@ -145,7 +152,28 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   }
 
   // An explicit other machine needs nothing from this machine's daemon.
-  if (machine !== undefined && machine !== LOCAL_MACHINE) {
+  // `--machine auto` places the work: the least-busy machine, this one on a tie.
+  if (machine === AUTO_MACHINE) {
+    const { RoveDaemonClient } = await import("@sma1lboy/rove-daemon/client")
+    const { defaultDaemonSocketPath } = await import("@sma1lboy/rove-daemon/daemon/paths")
+    const local = new RoveDaemonClient(defaultDaemonSocketPath())
+    const picked = await pickMachine(() =>
+      local
+        .request<{ tasks?: Array<{ status?: string }> }>("task.list")
+        .then((res) => res.tasks ?? [])
+        .finally(() => local.close()),
+    )
+    process.stderr.write(
+      `rove api: --machine auto → ${picked.entry?.alias ?? LOCAL_MACHINE} (in progress: ${Object.entries(picked.loads)
+        .map(([name, n]) => `${name} ${n}`)
+        .join(", ")})\n`,
+    )
+    const entry = picked.entry
+    if (entry) {
+      await runForwarded(verb, parsed, async () => entry)
+      return
+    }
+  } else if (machine !== undefined && machine !== LOCAL_MACHINE) {
     await runForwarded(verb, parsed, async () => requireMachine(machine))
     return
   }
