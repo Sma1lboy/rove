@@ -9,26 +9,16 @@
 import { spawnSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import { join } from "node:path"
+import { normalizeRemoteUrl } from "@sma1lboy/rove-daemon/repo-id"
+
+// One normalizer for both sides: the daemon's task `repoId` and this match must agree.
+export { normalizeRemoteUrl }
 
 export interface RepoIdentity {
   /** `origin` normalized to `host/owner/name`, lowercased; absent with no origin. */
   readonly origin?: string
   /** The first parentless commit; absent in a shallow clone or an empty repo. */
   readonly root?: string
-}
-
-/**
- * `git@github.com:Me/Rove.git`, `https://github.com/me/rove`, `ssh://git@github.com/me/rove/`
- * all become `github.com/me/rove`. Not a URL parser: just enough to compare two remotes.
- */
-export function normalizeRemoteUrl(url: string): string {
-  let u = url.trim()
-  u = u.replace(/^[a-z+]+:\/\//i, "") // scheme
-  u = u.replace(/^[^@/]+@/, "") // user@
-  u = u.replace(/^([^/:]+):(?!\d+\/)/, "$1/") // scp-style host:path (not host:port/)
-  u = u.replace(/^([^/:]+):\d+\//, "$1/") // drop an explicit port
-  u = u.replace(/\/+$/, "").replace(/\.git$/i, "")
-  return u.toLowerCase()
 }
 
 function git(cwd: string, args: readonly string[]): string | null {

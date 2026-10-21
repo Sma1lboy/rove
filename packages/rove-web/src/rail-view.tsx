@@ -160,51 +160,55 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           </div>
         )}
         {recent && <RecentRow title={recent.title} />}
-        {rows.map((row) => {
-          const machine = row.machine === undefined ? undefined : machines.find((m) => m.alias === row.machine)
-          return (
-            <RailRow
-              key={row.id}
-              row={row}
-              machineChip={row.kind === "project" && machine ? machineChip(machine, words) : null}
-              frame={frame}
-              tabCount={row.kind === "task" ? tabsOf(row.task.id).length : 0}
-              selected={row.id === selectedId}
-              cursor={row.id === keys.cursor}
-              stale={row.machine !== undefined && offline.has(row.machine)}
-              moving={
-                moving &&
-                row.machine === undefined &&
-                (row.kind === "project"
-                  ? projectInfo(row.repo).mainTaskId === keys.cursor
-                  : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
+        {rows.map((row) => (
+          <RailRow
+            key={row.id}
+            row={row}
+            machineChips={
+              row.kind === "project"
+                ? (row.spans ?? []).flatMap((alias) => {
+                    const machine = machines.find((m) => m.alias === alias)
+                    return machine ? [machineChip(machine, words)] : []
+                  })
+                : []
+            }
+            frame={frame}
+            tabCount={row.kind === "task" ? tabsOf(row.task.id).length : 0}
+            selected={row.id === selectedId}
+            cursor={row.id === keys.cursor}
+            stale={row.machine !== undefined && offline.has(row.machine)}
+            moving={
+              moving &&
+              row.machine === undefined &&
+              (row.kind === "project"
+                ? projectInfo(row.repo).mainTaskId === keys.cursor
+                : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
+            }
+            onClick={() => {
+              keys.setCursor(row.id)
+              if (row.kind === "routines") filters.toggleRoutines(row.key)
+              if (row.kind === "task") model.select(row.task.id)
+              if (row.kind === "tab") model.select(row.task.id, row.tab.id)
+              if (row.kind !== "project") enterWorkspace()
+            }}
+            onMenu={(e) => {
+              // Another machine's project has no checkout here, so its header has no menu; its
+              // tasks and tabs do (their verbs run on that machine, `taskMenu` drops the local-only ones).
+              if (row.machine !== undefined && row.kind === "project") return
+              // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
+              if (row.kind === "project") {
+                const info = projectInfo(row.repo)
+                if (info.mainTaskId) keys.setCursor(info.mainTaskId)
+                openMenu(e, projectMenu(model, row.repo, info))
+                return
               }
-              onClick={() => {
-                keys.setCursor(row.id)
-                if (row.kind === "routines") filters.toggleRoutines(row.key)
-                if (row.kind === "task") model.select(row.task.id)
-                if (row.kind === "tab") model.select(row.task.id, row.tab.id)
-                if (row.kind !== "project") enterWorkspace()
-              }}
-              onMenu={(e) => {
-                // Another machine's project has no checkout here, so its header has no menu; its
-                // tasks and tabs do (their verbs run on that machine, `taskMenu` drops the local-only ones).
-                if (row.machine !== undefined && row.kind === "project") return
-                // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
-                if (row.kind === "project") {
-                  const info = projectInfo(row.repo)
-                  if (info.mainTaskId) keys.setCursor(info.mainTaskId)
-                  openMenu(e, projectMenu(model, row.repo, info))
-                  return
-                }
-                // The routines row names no task, so it has no menu (TUI `use-tree-menu`).
-                if (row.kind === "routines") return
-                keys.setCursor(row.id)
-                openMenu(e, taskMenu(model, row.task, row.kind === "tab" ? row.tab : null))
-              }}
-            />
-          )
-        })}
+              // The routines row names no task, so it has no menu (TUI `use-tree-menu`).
+              if (row.kind === "routines") return
+              keys.setCursor(row.id)
+              openMenu(e, taskMenu(model, row.task, row.kind === "tab" ? row.tab : null))
+            }}
+          />
+        ))}
       </div>
       <PaneKeyHint pane="sidebar" />
       <div className="badge-host">
@@ -222,8 +226,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 
 function RailRow(props: {
   row: NavRow
-  /** A remote project's header names its machine. */
-  machineChip?: { readonly text: string; readonly title: string } | null
+  /** A project header names the other machines it has tasks on. */
+  machineChips: readonly { readonly text: string; readonly title: string }[]
   frame: number
   tabCount: number
   selected: boolean
@@ -247,11 +251,11 @@ function RailRow(props: {
         onContextMenu={props.onMenu}
       >
         <span>{row.label}</span>
-        {props.machineChip && (
-          <span className="chip machine-chip" title={props.machineChip.title}>
-            {props.machineChip.text}
+        {props.machineChips.map((chip) => (
+          <span key={chip.text} className="chip machine-chip" title={chip.title}>
+            {chip.text}
           </span>
-        )}
+        ))}
         <span className="rule" />
       </h2>
     )
@@ -328,7 +332,7 @@ function RailRow(props: {
 }
 
 /**
- * Every remote project carries this, so an online machine reads as just its name (`mac`); the version
+ * A project header carries one per other machine it spans, so an online machine reads as just its name (`mac`); the version
  * and any trouble (`mac · offline`, `mac · ⚠ v0.9.100 (protocol mismatch)`) show only when they matter,
  * the full label always on hover.
  */

@@ -163,6 +163,7 @@ export function taskRows(
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
         ...machineOf(task),
+        ...(task.repoId ? { repoId: task.repoId } : {}),
         ...(changes ? { changes } : {}),
         ...(tokens.length > 0 ? { rowTokens: tokens } : {}),
         prChip: chip,
