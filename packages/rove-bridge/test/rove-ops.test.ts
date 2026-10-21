@@ -4,7 +4,9 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { loadOrCreateToken } from "../src/auth.ts"
+import type { BridgeApi } from "../src/ops/types.ts"
 import { type EngineRow, createRoveOps, engineFor, newTabInvocation, tabRows, taskRows } from "../src/rove-ops.ts"
 
 const ENGINES: EngineRow[] = [
@@ -216,19 +218,29 @@ describe("diff file path", () => {
 })
 
 describe("tab.new verb choice", () => {
-  test("a prompt rides `send` unchanged; no prompt opens the tab empty through `tab-new`", () => {
-    expect(newTabInvocation("T1", { kind: "engine", prompt: "hi", engine: "codex" })).toEqual({
-      verb: "send",
-      argv: ["--task-id", "T1", "--tab", "new", "--plain", "--prompt", "hi", "--command", "codex"],
-    })
-    expect(newTabInvocation("T1", { kind: "shell" })).toEqual({
-      verb: "tab-new",
-      argv: ["--task-id", "T1", "--kind", "shell"],
-    })
-    expect(newTabInvocation("T1", { kind: "engine", engine: "codex" })).toEqual({
-      verb: "tab-new",
-      argv: ["--task-id", "T1", "--kind", "engine", "--command", "codex"],
-    })
+  test("a prompt rides `send`; no prompt opens the tab empty through `tab-new`", () => {
+    expect(newTabInvocation("T1", { kind: "engine", prompt: "hi", engine: "codex" }).verb).toBe("send")
+    const empty = newTabInvocation("T1", { kind: "shell" })
+    expect(empty.verb).toBe("tab-new")
+    expect(argvToParams(empty.verb, empty.argv)).toEqual({ "task-id": "T1", kind: "shell" })
+  })
+})
+
+describe("phone text that starts with --", () => {
+  test("reaches the verb as the value, not a flag", async () => {
+    const calls: { name: string; argv: readonly string[] }[] = []
+    const api: BridgeApi = {
+      async verb<T>(name: string, argv: readonly string[]) {
+        calls.push({ name, argv })
+        return { taskId: "T2", tabId: "tab-2" } as T
+      },
+      rpc: () => Promise.reject(new Error("unused")),
+    }
+    const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
+    await ops.newTab("T1", { kind: "engine", prompt: "--force-push is broken" })
+    await ops.createTask({ repo: "/r", title: "--help", prompt: "--yes, do it" })
+    expect(argvToParams(calls[0].name, calls[0].argv)).toMatchObject({ prompt: "--force-push is broken", tab: "new" })
+    expect(argvToParams(calls[1].name, calls[1].argv)).toMatchObject({ title: "--help", prompt: "--yes, do it" })
   })
 })
 

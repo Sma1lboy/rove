@@ -32,6 +32,7 @@ import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { type WorktreeDiff, worktreeDiff } from "@sma1lboy/rove/src/worktree/review-read.ts"
 import { gateRows } from "./gates.ts"
 import { createBridgeApi } from "./ops/api.ts"
+import { flag } from "./ops/args.ts"
 import type { BridgeApi } from "./ops/types.ts"
 import {
   type AttentionRow,
@@ -96,11 +97,14 @@ export function newTabInvocation(
   taskId: string,
   tab: NewTabRequest,
 ): { readonly verb: "send" | "tab-new"; readonly argv: readonly string[] } {
-  const command = tab.engine ? ["--command", tab.engine] : []
+  const command = tab.engine ? [flag("command", tab.engine)] : []
   if (tab.prompt !== undefined) {
-    return { verb: "send", argv: ["--task-id", taskId, "--tab", "new", "--plain", "--prompt", tab.prompt, ...command] }
+    return {
+      verb: "send",
+      argv: [flag("task-id", taskId), "--tab=new", "--plain", flag("prompt", tab.prompt), ...command],
+    }
   }
-  return { verb: "tab-new", argv: ["--task-id", taskId, "--kind", tab.kind, ...command] }
+  return { verb: "tab-new", argv: [flag("task-id", taskId), flag("kind", tab.kind), ...command] }
 }
 
 /** `rove api` refusals carry a stable `code`; keep it on the wire. */
@@ -345,7 +349,7 @@ export function createRoveOps(
   }
 
   const getTask = async (taskId: string): Promise<SerializedTask> => {
-    const res = await api.verb<{ task: SerializedTask }>("get-task", ["--task-id", taskId])
+    const res = await api.verb<{ task: SerializedTask }>("get-task", [flag("task-id", taskId)])
     return res.task
   }
 
@@ -393,16 +397,16 @@ export function createRoveOps(
     },
 
     async createTask({ repo, engine, prompt, title }) {
-      const argv = ["--repo", repo]
-      if (engine) argv.push("--command", engine)
-      if (title) argv.push("--title", title)
-      if (prompt) argv.push("--prompt", prompt)
+      const argv = [flag("repo", repo)]
+      if (engine) argv.push(flag("command", engine))
+      if (title) argv.push(flag("title", title))
+      if (prompt) argv.push(flag("prompt", prompt))
       const res = await api.verb<{ taskId: string }>("add", argv)
       return { taskId: res.taskId }
     },
 
     async deleteTask(taskId, force) {
-      const argv = ["--task-id", taskId, "--wait"]
+      const argv = [flag("task-id", taskId), "--wait"]
       if (force) argv.push("--force")
       const res = await api.verb<{ status?: string; queued?: boolean }>("delete", argv)
       return { status: res.status ?? (res.queued ? "queued" : "removed") }
@@ -410,16 +414,14 @@ export function createRoveOps(
 
     async landTask(taskId, strategy) {
       const res = await api.verb<{ landedOn: string; commit: string }>("land", [
-        "--task-id",
-        taskId,
-        "--strategy",
-        strategy,
+        flag("task-id", taskId),
+        flag("strategy", strategy),
       ])
       return { landedOn: res.landedOn, commit: res.commit }
     },
 
     async tabs(taskId) {
-      const res = await api.verb<{ tabs?: readonly TaskTabRow[] }>("get-task", ["--task-id", taskId])
+      const res = await api.verb<{ tabs?: readonly TaskTabRow[] }>("get-task", [flag("task-id", taskId)])
       return tabRows(res.tabs ?? [])
     },
 
@@ -432,7 +434,7 @@ export function createRoveOps(
     },
 
     async closeTab(taskId, tabId) {
-      await api.verb<unknown>("tab-close", ["--task-id", taskId, "--tab", tabId])
+      await api.verb<unknown>("tab-close", [flag("task-id", taskId), flag("tab", tabId)])
     },
 
     worktreeOf,
@@ -449,7 +451,7 @@ export function createRoveOps(
 
     async diffFiles(taskId) {
       // Another machine's worktree is read there: its git, its files.
-      if (api.machineOf?.(taskId)) return api.verb<WorktreeDiff>("worktree-diff", ["--task-id", taskId])
+      if (api.machineOf?.(taskId)) return api.verb<WorktreeDiff>("worktree-diff", [flag("task-id", taskId)])
       const task = await getTask(taskId)
       if (!task.worktreePath) return { base: null, files: [] }
       return worktreeDiff(task.worktreePath, task.prStatus?.baseRef)
@@ -462,7 +464,11 @@ export function createRoveOps(
         throw new BridgeError("BAD_ARGS", "path must be relative to the worktree")
       }
       if (api.machineOf?.(taskId)) {
-        return api.verb<unknown>("worktree-diff-file", ["--task-id", taskId, "--path", path, "--scope", scope])
+        return api.verb<unknown>("worktree-diff-file", [
+          flag("task-id", taskId),
+          flag("path", path),
+          flag("scope", scope),
+        ])
       }
       const task = await getTask(taskId)
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
