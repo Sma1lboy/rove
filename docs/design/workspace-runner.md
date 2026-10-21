@@ -292,17 +292,62 @@ build-time cache miss through one userspace daemon. Cargo fingerprints also
 embed absolute paths, so `/workspaces/N` must be stable per Workspace.
 Rove's answer: build caches never enter the mount.
 
+### Integrating it as a Runner's workspace backend
+
+The blocker is visibility. A Sandbox's only mount is the Store volume, so a
+Workspace exists only inside its container, at a `/workspaces/N` that LayerFS
+numbers and reuses. Rove's engines, PTY host, hooks and collectors run on the
+Runner host and need a stable host path (the invariant above). Two routes:
+
+| | A: engine inside the Sandbox | B: mount surfaces on the host |
+|---|---|---|
+| How | PTY host spawns `docker exec -it -w /workspaces/N … claude` | Sandbox bind-mounts a host dir `rshared`; the FUSE mount appears at `~/.rove/lfs/<project>/<task>` |
+| Engine history, trust, hooks | Live in the container; need `~/.claude`, `rove` and `daemon.sock` mounted in | Unchanged: `worktreePath` is the host path |
+| Upstream change | Extra mounts per Sandbox | Host mount dir, a stable per-Workspace name, uid mapping (exec runs as `501:20`) |
+| Fit | Breaks most consumers of `worktreePath` | Keeps the invariant |
+
+Route B is the target. Everything else maps onto existing pieces:
+
+```mermaid
+flowchart LR
+  hub[Hub daemon] -->|api.invoke over ssh| rd[Runner daemon]
+  rd --> be[WorkspaceBackend: layerfs]
+  be -->|SDK in a Node sidecar| sb[LayerFS Sandbox]
+  sb --> st[(store.sqlite per Runner)]
+  sb -->|FUSE, rshared| hp[host path ~/.rove/lfs/..]
+  pty[PTY host: engine CLI] --> hp
+```
+
+| Rove | LayerFS |
+|---|---|
+| Repo on a Runner | Project, `init` from a clean checkout (no build output) |
+| Task | Branch; `materialize` = fork + mount, metadata only |
+| Fork a task | Commit, then `branch.fork` from it |
+| Checkpoint (turn boundary) | `workspace.commit` |
+| Rewind | Remount a branch forked at an older Commit (fork-at-commit unverified) |
+| Land / PR | Unchanged: `.git` is inside the tree, the agent pushes from it |
+| Task moves Runner | git push/fetch; stores are per host |
+| Runner reboot | `ensureMounted` remounts the last Commit; uncommitted work is lost |
+
 ### TODO
 
-- [ ] Init LayerFS from a clean checkout so no build output enters the store.
-- [ ] Rove injects `CARGO_TARGET_DIR` (and peers) pointing outside the mount.
-- [ ] Seed that dir from the parent task by reflink (`clone-ignored.ts`:
-      Linux btrfs/xfs `FICLONE`, macOS `clonefile`); optional shared sccache.
-- [ ] Stable in-container path per Workspace, so fingerprints survive remounts.
-- [ ] Spike on Linux + Docker: 6 concurrent `cargo build`s, measure FUSE
-      overhead, overlay size, store growth per commit, lock behaviour.
-- [ ] Upstream candidates: a commit path filter or ignore file; store GC;
-      the "10 copies → 0.31" and "5 min → 0.05 s" claims have no benchmark.
+- [ ] Upstream (route B): host-visible mount dir with propagation, stable
+      per-Workspace names, host uid mapping.
+- [ ] Spike on Linux + Docker: run a real engine CLI and 6 concurrent
+      builds in surfaced mounts; measure FUSE overhead, overlay size, store
+      growth per commit, lock behaviour.
+- [ ] Check the SDK (Node, native addon) under Bun; else a Node sidecar.
+- [ ] Phase 0 seam first; then a `layerfs` backend with capabilities
+      `{ fork: "committed", checkpoint: true, cheapClone: true, ownsBranch: false }`.
+- [ ] Wire checkpoints to `workspace.commit` at turn boundaries; surface
+      that uncommitted work dies with the Sandbox.
+- [ ] Runner capability probe in `machine doctor`: Docker, `/dev/fuse`,
+      local ext4/xfs/btrfs; the hub places `layerfs` tasks only there.
+- [ ] Build caches outside the mount: Rove sets `CARGO_TARGET_DIR` and
+      peers to a host dir, seeded by reflink from the parent task
+      (`clone-ignored.ts`), optional shared sccache.
+- [ ] Upstream asks beyond B: a commit path filter or ignore file, store GC,
+      a durable profile; benchmarks for the "0.31" and "0.05 s" claims.
 
 ## Bugs found while surveying (independent of this design)
 
