@@ -4,13 +4,13 @@
 
 ### Patch Changes
 
+- [#1315](https://github.com/Sma1lboy/rove/pull/1315) [`ab0d2c1`](https://github.com/Sma1lboy/rove/commit/ab0d2c18f9716298aeded9f8fc923cf9466ec1ed) Rove installs on a fresh Linux box without a C++ toolchain. `node-pty` is now an optional dependency: only the Windows PTY host loads it, macOS and Linux run terminals through Bun, and node-pty ships no Linux prebuild, so as a required dependency `npm i -g @sma1lboy/rove` failed compiling a module Linux never uses. Windows installs it exactly as before. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 - [#1316](https://github.com/Sma1lboy/rove/pull/1316) [`333ab26`](https://github.com/Sma1lboy/rove/commit/333ab268ad98e4bb00653d5a4a0000a0eb1e5e28) Tasks start on a Linux box that has no `$SHELL` and no zsh, such as a container, a systemd unit or cron. Rove fell back to `/bin/zsh` there, every task's terminal failed to spawn with `ENOENT`, and the tab stayed empty with nothing on screen. Without `$SHELL`, Rove now uses the first of its usual fallback, `/bin/bash` and `/bin/sh` that is installed. An explicit `$SHELL` is used as before. — [@Sma1lboy](https://github.com/Sma1lboy)
 
 ## 0.9.255
 
-### Patch Changes
-
-- [#1315](https://github.com/Sma1lboy/rove/pull/1315) [`ab0d2c1`](https://github.com/Sma1lboy/rove/commit/ab0d2c18f9716298aeded9f8fc923cf9466ec1ed) Rove installs on a fresh Linux box without a C++ toolchain. `node-pty` is now an optional dependency: only the Windows PTY host loads it, macOS and Linux run terminals through Bun, and node-pty ships no Linux prebuild, so as a required dependency `npm i -g @sma1lboy/rove` failed compiling a module Linux never uses. Windows installs it exactly as before. — [@Sma1lboy](https://github.com/Sma1lboy)
+Tagged but never published to npm: the release run's render track hit a flake before `npm publish`. Its change ships in 0.9.256.
 
 ## 0.9.254
 
