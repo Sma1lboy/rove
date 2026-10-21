@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.257
+
+### Patch Changes
+
+- [#1322](https://github.com/Sma1lboy/rove/pull/1322) [`9969b9b`](https://github.com/Sma1lboy/rove/commit/9969b9b38e66508fb1c7fadd16696a262d78eab6) The browser client's right-click menu behaves like a native one. It flips to the pointer's other side instead of sliding over the row you clicked, and highlights nothing until you point at an entry or press a key; Home and End jump to the ends. **Delete** sits below a divider and fills red when highlighted, and the row you right-clicked stays highlighted while its menu is open. Hover and list highlights across the rail, tabs, palette and settings now use a neutral wash, which leaves the accent colour for selection and focus. Menus and popovers get a softer two-layer shadow and open with a short fade. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1318](https://github.com/Sma1lboy/rove/pull/1318) [`2ee508e`](https://github.com/Sma1lboy/rove/commit/2ee508e9bd8c0dd2e854e917db15c58d338ecc8a) `rove --web` lists every machine's projects in one rail instead of a section per machine. A project on another machine carries that machine's name on its header (`mac`), with its version or `offline` shown only when it matters, and the full status on hover. When this machine has no tasks but another one does, the web no longer shows "no tasks yet" and the welcome screen: the other machines' tasks are the list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1320](https://github.com/Sma1lboy/rove/pull/1320) [`c088597`](https://github.com/Sma1lboy/rove/commit/c0885978460b233b4d96d1fe4e3e072cf7fa1ecc) `rove --web` opens a task on another registered machine like a local one. Its tabs list under it in the rail, its terminal is that machine's live session (you can watch and type), and the Files pane shows that machine's worktree: the file list, the changed files and each file's diff. Before, clicking it only said the worktree lived elsewhere. Three read verbs back the Files pane and work on any task from the CLI too: `rove api worktree-files`, `worktree-diff` and `worktree-diff-file --path P --scope branch|working`; run against a task on another machine they execute there. The other machine needs a Rove with these verbs; opening a file in an editor stays on the machine that has it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1319](https://github.com/Sma1lboy/rove/pull/1319) [`0fcce22`](https://github.com/Sma1lboy/rove/commit/0fcce2247c717350311415cab2711d77096c770d) The browser client (`rove --web`) draws thin scrollbars that match the rest of the page: a faint rounded thumb on a transparent track, no arrow buttons, brightening when you hover or drag it, in the light and dark halves of every theme. Lists such as the Tasks rail and Files keep the scrollbar's lane, so rows no longer shift sideways when the thumb appears, and the terminal's slider is rounded without its dark inset shadow. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.256
 
 ### Patch Changes
