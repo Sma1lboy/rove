@@ -24,7 +24,7 @@ import { MachineHub } from "@sma1lboy/rove/src/machines/hub.ts"
 import { localPtySocketPath } from "@sma1lboy/rove/src/machines/ssh-args.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
-import { loadOrCreateToken, pairingUrl, webUrl } from "./auth.ts"
+import { addDevice, deviceOf, listDevices, loadOrCreateToken, pairingUrl, revokeDevice, webUrl } from "./auth.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
 import { TaskFeed } from "./feed.ts"
@@ -107,7 +107,24 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   Reflect.deleteProperty(process.env, "ROVE_TAB_ID")
   ensurePluginEnginesLoaded()
 
-  const token = loadOrCreateToken(join(bridgeDir, "token"), args.rotateToken)
+  const devicesPath = join(bridgeDir, "devices.json")
+  if (args.action === "list-devices") {
+    const devices = listDevices(devicesPath)
+    console.log(devices.length ? devices.map((d) => `${d.name}  since ${d.createdAt}`).join("\n") : "no device tokens")
+    return
+  }
+  if (args.action === "revoke-device") {
+    const name = args.device ?? ""
+    console.log(revokeDevice(devicesPath, name) ? `revoked ${name}` : `no device named ${name}`)
+    return
+  }
+  if (args.action === "setup") {
+    printSetup(args.port)
+    return
+  }
+  const sharedToken = loadOrCreateToken(join(bridgeDir, "token"), args.rotateToken)
+  // `--device` prints that device's own link; the bridge still accepts every valid token.
+  const token = args.device ? addDevice(devicesPath, args.device) : sharedToken
 
   const daemonSocket = await ensureDaemonReachable(undefined, "autospawn")
   await ensurePtyHostReachable()
@@ -215,6 +232,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     prompts,
     mods,
     tabs,
+    deviceOf: (presented) => deviceOf(devicesPath, presented),
     openPty: () => new RoveDaemonClient(ptySocket),
     openMachinePty: async (alias) => {
       const entry = requireMachine(alias)
@@ -276,4 +294,36 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   console.log(
     `\nThe ${opts.web ? "links are passwords" : "pairing URL is a password"}. \`--rotate-token\` revokes every paired phone${opts.web ? " and browser" : ""}.`,
   )
+}
+
+/**
+ * `--setup`: what reaching this bridge from a phone takes, checked against this machine. It only
+ * reads (`tailscale status`, `cloudflared --version`) and prints commands; it exposes nothing.
+ */
+function printSetup(port: number): void {
+  const has = (cmd: string, args: readonly string[]) => {
+    const res = spawnSync(cmd, args, { encoding: "utf8" })
+    return res.status === 0 ? (res.stdout ?? "").trim() : null
+  }
+  const ts = has("tailscale", ["status", "--json"])
+  const cf = has("cloudflared", ["--version"])
+  const lines = ["Reaching this bridge from another device:", ""]
+  if (ts) {
+    lines.push(
+      "  Tailscale is up here. Private to your tailnet:",
+      `    rove --web --preset tailscale --port ${port}`,
+      "  With HTTPS on your MagicDNS name (needed for a phone browser):",
+      `    tailscale serve --bg ${port}   then   rove --web --preset tailscale --public-host <this-machine>.<tailnet>.ts.net`,
+    )
+  } else lines.push("  Tailscale: not running here (https://tailscale.com/download), the simplest private path.")
+  lines.push("")
+  if (cf) {
+    lines.push(
+      `  cloudflared is installed (${cf.split("\n")[0]}). Behind Cloudflare Access:`,
+      `    cloudflared tunnel --url http://127.0.0.1:${port}   (or a named tunnel to your hostname)`,
+      "    rove --web --preset cf --public-host <hostname> --cf-team <team> --cf-aud <aud>",
+    )
+  } else lines.push("  cloudflared: not installed; only needed to publish through Cloudflare Access.")
+  lines.push("", "  Give each phone its own token: rove --web --device <name>; revoke one with --revoke-device <name>.")
+  console.log(lines.join("\n"))
 }

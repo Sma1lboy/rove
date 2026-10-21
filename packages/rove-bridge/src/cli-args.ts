@@ -25,6 +25,10 @@ export interface BridgeArgs {
   readonly cloudflare: CloudflareAccess | null
   readonly rotateToken: boolean
   readonly qr: boolean
+  /** Print a link carrying this device's own token (minted on first use) instead of the shared one. */
+  readonly device: string | null
+  /** One-shot actions that print and exit instead of serving. */
+  readonly action: "serve" | "list-devices" | "revoke-device" | "setup"
 }
 
 /** `<ROVE_HOME>/.rove/bridge/config.json`; flags override it. `publicHost` applies to `--preset cf` only. */
@@ -43,7 +47,8 @@ export const DEFAULT_BRIDGE_PORT = 7878
 
 export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf] [--host <addr>]... [--port <n>]
                   [--public-host <name>] [--cf-team <team>] [--cf-aud <aud>]
-                  [--rotate-token] [--no-qr]
+                  [--rotate-token] [--no-qr] [--device <name>]
+                  [--list-devices] [--revoke-device <name>] [--setup]
 
   (no preset)          listen on 127.0.0.1 only (or each --host you name)
   --preset tailscale   listen on this Mac's Tailscale IPv4 only; fails if Tailscale
@@ -55,6 +60,12 @@ export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf] [--host 
   --port <n>           TCP port (default ${DEFAULT_BRIDGE_PORT})
   --rotate-token       mint a new pairing token, revoking every paired phone
   --no-qr              print the pairing URL without a QR code
+  --device <name>      give this phone/browser its own token and print its link;
+                       revoke it alone later with --revoke-device <name>
+  --list-devices       show the devices that have their own token, then exit
+  --revoke-device <n>  revoke one device's token (others keep working), then exit
+  --setup              check Tailscale / cloudflared here and print the exact
+                       commands to reach this bridge from a phone; changes nothing
 
   --cf-team, --cf-aud and --public-host may also live in
   <ROVE_HOME>/.rove/bridge/config.json as cfTeam, cfAud, publicHost.`
@@ -84,6 +95,8 @@ export function parseBridgeArgs(
   let cfAud = config.cfAud
   let rotateToken = false
   let qr = true
+  let device: string | null = null
+  let action: BridgeArgs["action"] = "serve"
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     const value = (): string => {
@@ -106,6 +119,12 @@ export function parseBridgeArgs(
     else if (arg === "--cf-aud") cfAud = value()
     else if (arg === "--rotate-token") rotateToken = true
     else if (arg === "--no-qr") qr = false
+    else if (arg === "--device") device = value()
+    else if (arg === "--list-devices") action = "list-devices"
+    else if (arg === "--revoke-device") {
+      device = value()
+      action = "revoke-device"
+    } else if (arg === "--setup") action = "setup"
     else throw new Error(`unknown argument ${arg}\n${BRIDGE_USAGE}`)
   }
   // The saved tunnel hostname is a Cloudflare setting; Tailscale never inherits it.
@@ -115,7 +134,7 @@ export function parseBridgeArgs(
   }
   if (preset !== "none" && hosts.length > 0)
     throw new Error("--host cannot be combined with --preset; the preset picks the address")
-  const base = { port, rotateToken, qr }
+  const base = { port, rotateToken, qr, device, action }
 
   if (preset === "tailscale") {
     const ts = deps.tailscale?.() ?? { ipv4: null, dnsName: null }
