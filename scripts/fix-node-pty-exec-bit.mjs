@@ -6,7 +6,7 @@
 // node-pty@1.1.0 && tar -tvzf …` shows it), and neither bun nor npm invents
 // an exec bit the archive never carried. spawn-helper is the binary node-pty
 // forks for every PTY on macOS, so without +x every spawn fails — and since
-// `.rove/init.sh` runs `bun install` in each new worktree, the breakage came
+// every `bun install` in a fresh worktree reinstalls the tarball, the breakage came
 // back on every task Rove created. Linux prebuilds ship no spawn-helper, so
 // CI never saw it (issue #85).
 //

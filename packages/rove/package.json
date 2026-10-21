@@ -82,10 +82,12 @@
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/addon-unicode11": "^0.9.0",
     "@xterm/headless": "^6.0.0",
-    "node-pty": "^1.1.0",
     "react": "^19.2.8",
     "smol-toml": "^1.7.1",
     "ws": "^8.21.3"
+  },
+  "optionalDependencies": {
+    "node-pty": "^1.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
