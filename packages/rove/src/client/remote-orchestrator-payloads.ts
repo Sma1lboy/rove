@@ -317,6 +317,7 @@ export function deserializeTask(s: SerializedTask): Task {
     baseRef: s.baseRef,
     worktreeName: s.worktreeName,
     report: s.report,
+    ...(s.repoId ? { repoId: s.repoId } : {}),
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
   }

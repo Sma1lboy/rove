@@ -204,6 +204,28 @@ describe("task row extras", () => {
     expect(machineOf("far")).toEqual({ id: "narwhal", label: "narwhal" })
     expect(machineOf("far-offline")).toEqual({ id: "narwhal", label: "narwhal", stale: true })
   })
+
+  test("the serving daemon's repo id reaches local and remote rows alike; none stays absent", () => {
+    const remote = { machineId: "narwhal", hostLabel: "narwhal" }
+    const rows = taskRows(
+      [
+        task({ id: "mine", repoId: "github.com/me/rove" }),
+        task({ id: "far", repoId: "github.com/me/rove", origin: remote }),
+        task({ id: "bare" }),
+      ],
+      null,
+      null,
+      ENGINES,
+      now,
+    )
+    const row = (id: string) => rows.find((r) => r.id === id)
+    expect([row("mine")?.repoId, row("far")?.repoId, row("far")?.machine?.id]).toEqual([
+      "github.com/me/rove",
+      "github.com/me/rove",
+      "narwhal",
+    ])
+    expect("repoId" in (row("bare") ?? {})).toBe(false)
+  })
 })
 
 describe("diff file path", () => {

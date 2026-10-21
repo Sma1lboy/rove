@@ -106,6 +106,12 @@ narwhal · v0.9.185            ← a machine
   it is the one you are sitting at. Two checkouts of `rove` on the *same*
   machine take the path instead (`gihub/rove`, `i/rove`): there the machine
   name would say nothing.
+- **The web app shows one project per repo.** It knows a repo by its `origin`
+  (`github.com/me/rove`), or its first commit when there is no `origin`, not
+  by its path. `rove` on this machine and on `narwhal` is one `rove` header
+  with a `narwhal` chip, its tasks from both machines underneath. Each task
+  still runs on its own machine. Two different repos with one name read
+  `me/rove` and `other/rove`.
 - **Offline machines keep their rows.** A laptop whose lid closed has not
   stopped having those tasks, so the row stays and greys out instead of
   vanishing. Rove reconnects in the background and the rows come back to life.

@@ -193,6 +193,12 @@ export interface Task {
    * single-machine `rove api list` payload carries no trace of machines.
    */
   readonly origin?: TaskOrigin
+  /**
+   * The repo across machines, derived by the serving daemon on the wire
+   * (`rove-daemon/src/repo-id.ts`), never persisted: `host/owner/name`, else
+   * `root:<sha>`; absent outside a repo.
+   */
+  readonly repoId?: string
   readonly createdAt: string
   readonly updatedAt: string
 }

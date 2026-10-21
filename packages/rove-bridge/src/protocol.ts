@@ -100,6 +100,8 @@ export interface TaskRow {
   readonly hasPrompt?: boolean
   /** Set on a row another registered machine's daemon served (`rove machine add`); absent = this Mac's. `stale` = that machine is unreachable and this is its last known state. */
   readonly machine?: MachineTag
+  /** The repo across machines (`host/owner/name`, else `root:<sha>`), from the serving daemon; absent outside a repo. Clients group projects by it, else by `repo`. */
+  readonly repoId?: string
   /** No worktree on disk yet (a task created without a first message); selecting it materializes one with `task.ensureWorktree`, as the TUI does. */
   readonly noWorktree?: true
 }

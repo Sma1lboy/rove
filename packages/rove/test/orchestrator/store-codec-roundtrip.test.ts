@@ -49,7 +49,8 @@ type DeepRequired<T> = {
  * merging several machines' task lists (`machines/hub.ts`), so a round-trip
  * guard demanding it survive would be asserting the opposite of the design.
  */
-const FULL_TASK: DeepRequired<Omit<Task, "origin">> = {
+/** `repoId` too: derived on the wire, never stored. */
+const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   id: toTaskId("01ARZ3NDEKTSV4RRFFQ69G5FAV"),
   title: "round-trip fixture",
   repo: "/repo",

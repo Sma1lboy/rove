@@ -6,6 +6,7 @@
  * file is the wire VOCABULARY (frames, request names, task serialization).
  */
 
+import { repoIdOf } from "../repo-id.ts"
 import type { ChannelName } from "./channels.ts"
 import type { DaemonTask } from "./contracts.ts"
 export type {
@@ -395,6 +396,8 @@ export interface SerializedTask {
    * without casts.
    */
   readonly origin?: { readonly machineId: string; readonly hostLabel: string }
+  /** The repo across machines (`repo-id.ts`): `host/owner/name`, else `root:<sha>`; absent outside a repo. */
+  readonly repoId?: string
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -409,6 +412,7 @@ export function displayTaskTitle(task: Pick<DaemonTask, "title" | "branch" | "wo
 }
 
 export function serializeTask(task: DaemonTask): SerializedTask {
+  const repoId = repoIdOf(task.repo)
   return {
     id: task.id,
     title: displayTaskTitle(task),
@@ -437,6 +441,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     baseRef: task.baseRef,
     worktreeName: task.worktreeName,
     report: task.report,
+    ...(repoId ? { repoId } : {}),
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   }
