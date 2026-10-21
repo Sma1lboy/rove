@@ -663,7 +663,8 @@ Runnable example: [`examples/counter-mod/`](../packages/rove-plugin-sdk/examples
   output is capped at 8 KB per run in `log.jsonl`.
 - **Every hook has a deadline.** 30s for `[[startup]]` and `[[events]]`, 3s
   for `[[shutdown]]`, or whatever `timeout_ms` you declare. At the deadline
-  the host SIGKILLs the hook's whole process group, so a `curl` with no
+  the host kills the hook's process tree (`SIGKILL` to the process group
+  on POSIX, `taskkill /pid <pid> /T /F` on Windows), so a `curl` with no
   `--max-time` on a `tool.post` hook stops one process short of leaking one
   per tool call. A hook still running after ~2s gets a `phase: "running"`
   record in `log.jsonl`, ahead of the record its exit will write.

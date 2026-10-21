@@ -16,7 +16,7 @@
  * panes, not the daemon every task depends on.
  */
 
-import { type ChildProcess, spawn } from "node:child_process"
+import { type ChildProcess, execFile, spawn } from "node:child_process"
 import { mkdirSync } from "node:fs"
 import {
   MOD_INPUT_MAX,
@@ -26,6 +26,7 @@ import {
   type ModPaneView,
   validateModTree,
 } from "@sma1lboy/rove-plugin-sdk/contract"
+import { detachOptions } from "../client/detached-spawn.ts"
 import { OWNER_ONLY_DIR_MODE } from "../daemon/owner-only.ts"
 import { buildPluginEnv } from "./env.ts"
 import { appendPluginLogRecord } from "./hook-run.ts"
@@ -48,6 +49,7 @@ export interface ModSpec {
 }
 
 export interface ModHostOptions {
+  readonly platform?: NodeJS.Platform
   readonly homeDir?: string
   readonly socketPath: string
   readonly binPath: string
@@ -151,7 +153,7 @@ export class ModHost {
     if (!running) return
     this.mods.delete(pluginId)
     if (running.restartTimer) clearTimeout(running.restartTimer)
-    if (running.child) killGroup(running.child)
+    if (running.child) killGroup(running.child, this.opts.platform)
     running.child = null
   }
 
@@ -191,8 +193,8 @@ export class ModHost {
           extra: { ROVE_PLUGIN_EVENT: "mod" },
         }),
         stdio: ["pipe", "pipe", "pipe"],
-        // Own process group, so retiring the mod takes its children too.
-        detached: true,
+        // Windows must keep pipes attached; POSIX owns a process group.
+        ...detachOptions(this.opts.platform),
       })
     } catch (err) {
       this.record(running, { spawnError: String(err) })
@@ -282,9 +284,13 @@ function sameCommand(a: PluginCommandSpec, b: PluginCommandSpec): boolean {
   return a.command.length === b.command.length && a.command.every((part, i) => part === b.command[i])
 }
 
-function killGroup(child: ChildProcess): void {
+function killGroup(child: ChildProcess, platform: NodeJS.Platform = process.platform): void {
   try {
-    if (child.pid) process.kill(-child.pid, "SIGTERM")
+    if (child.pid && platform === "win32") {
+      execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true }, (err) => {
+        if (err) child.kill("SIGTERM")
+      })
+    } else if (child.pid) process.kill(-child.pid, "SIGTERM")
     else child.kill("SIGTERM")
   } catch {
     child.kill("SIGTERM")
