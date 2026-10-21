@@ -73,7 +73,9 @@ button:focus-visible,
  * Scrollbars, as claude.ai's: thin, transparent track, no arrows, a faint pill that brightens on
  * hover and while dragged. Not hidden until the list is hovered, as Claude's sidebar does it:
  * Chromium doesn't repaint a webkit thumb on its parent's `:hover`, so it would stick shown or
- * hidden. Tokens only, so the theme's light and dark halves both follow. Chromium and Safari
+ * hidden. A container that doesn't overflow shows nothing: every scroller is `overflow: auto` and
+ * none reserves a `scrollbar-gutter`, which would leave an empty lane beside short lists.
+ * Tokens only, so the theme's light and dark halves both follow. Chromium and Safari
  * paint `::-webkit-scrollbar` (the standard properties, once set, would switch those off), so
  * the standard pair is only for Firefox.
  */
@@ -124,16 +126,6 @@ button:focus-visible,
   ::-webkit-scrollbar-thumb:active {
     background-color: var(--scroll-thumb-active);
   }
-}
-
-/* Lists that grow and shrink keep the thumb's lane, so rows don't jump sideways when it comes and goes. */
-.rail-body,
-.rail-folded-list,
-.files-body,
-.palette-list,
-.suggest-list,
-.notes {
-  scrollbar-gutter: stable;
 }
 
 /* xterm 6 draws its own overlay slider (fades in on hover and scroll): round it, drop VS Code's black inset shadow. */
