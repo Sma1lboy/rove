@@ -56,8 +56,10 @@ opentui boxes are Yoga flexbox. Default to flex flow (`flexGrow`/`flexShrink`/`f
 
 ## Before opening a PR
 
-Run `bun run pre-pr -- --body-file <body>` before `gh pr create --body-file <body>`. It runs CI's fast deterministic gates locally, from the same scripts: changeset-cap and frontmatter, lint, the silent-catch scan, file-size-cap and UI evidence against that body, the script tests, typecheck, and the tests of each package the diff touches. `--base <branch>` diffs against something other than `main`.
+PRs start no cloud CI: `ci.yml` runs on push to `main` (and by hand on any branch), so the local run is the gate. Run `bun run pre-pr -- --body-file <body>` before `gh pr create --body-file <body>`, and paste its summary into the PR.
 
-It leaves out what CI runs sharded or on another OS (the `@sma1lboy/rove` unit shards, behavior, render-track, visual-ground-truth, clean-linux-install, harness-windows-lifetime): serial on a laptop they take longer than the whole CI run. CI stays the gate.
+It runs, from the same scripts CI uses: changeset-cap and frontmatter, lint, the silent-catch scan, file-size-cap and UI evidence against that body, the script tests, typecheck and build. Then a parallel pool (`--jobs`, default 4, logs in a temp dir) runs the rove unit tests, the render track, behavior, the harness PTY lifecycle tests, the visual ground truth, `rove-bridge`/`rove-weixin` plus every touched package's tests, and the docs-site build when `docs/` changed. On Windows it also runs the plugin-windows acceptance when its paths changed.
 
-`bun run hooks:install` also enables a pre-push hook that runs only `pre-pr --quick` (changeset gates, lint, silent-catch, a few seconds). The pre-commit hook stays milliseconds-only.
+What a laptop cannot run is skipped with a note and still runs on push to `main`: clean-linux-install (needs docker on Linux/macOS), the iOS simulator suite, and the other OS's render and PTY halves. `gh workflow run ci.yml --ref <branch>` runs the full cloud suite on a branch when you need the other OS before merging; `pr-gates.yml` runs the body gates for a PR by hand.
+
+`bun run hooks:install` also enables a pre-push hook that runs only `pre-pr --quick` (changeset gates, lint, silent-catch: a few seconds). The pre-commit hook stays milliseconds-only.

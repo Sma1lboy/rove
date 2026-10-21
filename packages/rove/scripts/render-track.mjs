@@ -21,7 +21,8 @@
 
 import { spawnSync } from "node:child_process"
 import { readFileSync, readdirSync } from "node:fs"
-import { join } from "node:path"
+// posix: these paths are matched against the ratchet list, which uses `/` on every OS.
+import { posix } from "node:path"
 
 const ROOT = "test/render"
 
@@ -29,7 +30,7 @@ const ROOT = "test/render"
 function testFiles(dir) {
   const found = []
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name)
+    const path = posix.join(dir, entry.name)
     if (entry.isDirectory()) found.push(...testFiles(path))
     else if (/\.test\.tsx?$/.test(entry.name)) found.push(path)
   }
@@ -115,7 +116,7 @@ if (platformArg && platformArg !== "linux" && platformArg !== "macos") {
   process.exit(2)
 }
 const ratchet = new Set(
-  readFileSync(join("test", "render-linux-known-failing.txt"), "utf8")
+  readFileSync(posix.join("test", "render-linux-known-failing.txt"), "utf8")
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith("#")),

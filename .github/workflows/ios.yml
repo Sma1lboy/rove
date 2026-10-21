@@ -13,11 +13,6 @@ on:
     paths:
       - "packages/rove-ios/**"
       - ".github/workflows/ios.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "packages/rove-ios/**"
-      - ".github/workflows/ios.yml"
   # Re-run the keyboard suite on one commit to judge its stability.
   workflow_dispatch:
 

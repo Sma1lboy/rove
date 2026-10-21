@@ -1,31 +1,28 @@
 #!/usr/bin/env node
-// Local pre-PR gate: CI's fast, deterministic checks, run before `gh pr create`
-// so a failure costs seconds instead of a push-fail-fix round trip. It reuses
-// the scripts CI runs. CI stays the enforcement boundary; the cross-OS and
-// sharded suites (unit shards, behavior, render-track, visual-ground-truth,
-// clean-linux-install, harness-windows-lifetime) are not mirrored here.
+// The PR gate. PRs start no cloud CI (ci.yml runs on push to main only), so
+// this runs every suite CI used to run on a PR, locally, from the same
+// scripts: gates and typecheck first, then the heavy suites in a parallel pool.
 //
 // Usage:
 //   bun run pre-pr -- --body-file pr.md   # the same file you give `gh pr create`
-//   bun run pre-pr -- --quick             # the sub-10s subset (pre-push hook)
-//   options: --base <branch> (default main), --no-fetch
+//   bun run pre-pr -- --quick             # the few-second subset (pre-push hook)
+//   options: --base <branch> (default main), --no-fetch, --jobs <n> (default 4)
 
-import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync, readdirSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { createWriteStream, existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { validateUiEvidence } from "./ui-evidence.mjs"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 
-// Packages whose suites CI runs sharded or on another OS: serial on a laptop
-// they are slower than the whole CI run.
-export const CI_ONLY_PACKAGES = new Map([
-  ["@sma1lboy/rove", "unit-tests x4 + render-track run it in CI"],
-  ["rove-harness", "visual-ground-truth runs it in CI"],
-])
+// Their suites have dedicated steps below rather than their `test` script.
+const DEDICATED = new Set(["@sma1lboy/rove", "rove-harness"])
+// CI ran these on every PR whatever the diff touched.
+const ALWAYS = ["rove-bridge", "rove-weixin"]
 
-/** Mirrors ci.yml's changeset-cap: published-package source needs an added changeset. */
+/** Mirrors the old changeset-cap job: published-package source needs an added changeset. */
 export function missingChangeset(changedFiles, addedFiles) {
   const userFacing = changedFiles.some((f) => /^packages\/(rove|rove-daemon)\/src\//.test(f))
   const added = addedFiles.some((f) => /^\.changeset\/[^/]+\.md$/.test(f) && !f.endsWith("README.md"))
@@ -33,33 +30,42 @@ export function missingChangeset(changedFiles, addedFiles) {
 }
 
 /**
- * Workspace packages the diff touches that have a `test` script and are not
- * CI-only. `manifests` maps a `packages/<dir>` name to its package.json.
+ * Package `test` scripts to run: the always-run ones plus every touched
+ * package with a `test` script. `manifests` maps `packages/<dir>` to package.json.
  */
 export function packagesToTest(files, manifests) {
   const dirs = new Set(files.map((f) => f.match(/^packages\/([^/]+)\//)?.[1]).filter(Boolean))
-  const run = []
-  const skipped = []
-  for (const dir of [...dirs].sort()) {
+  const names = new Set(ALWAYS)
+  for (const dir of dirs) {
     const pkg = manifests[dir]
-    if (!pkg?.name || !pkg.scripts?.test) continue
-    if (CI_ONLY_PACKAGES.has(pkg.name)) skipped.push(pkg.name)
-    else run.push(pkg.name)
+    if (pkg?.name && pkg.scripts?.test && !DEDICATED.has(pkg.name)) names.add(pkg.name)
   }
-  return { run, skipped }
+  return [...names].sort()
+}
+
+/** Path-filtered suites, matching the `paths` filters of their workflows. */
+export function touchedAreas(files) {
+  const any = (re) => files.some((f) => re.test(f))
+  return {
+    docs: any(/^(docs\/|packages\/rove-docs\/|\.github\/workflows\/docs-site\.yml$)/),
+    ios: any(/^(packages\/rove-ios\/|\.github\/workflows\/ios\.yml$)/),
+    pluginWindows: any(
+      /^(packages\/rove-daemon\/src\/plugins\/|packages\/rove-daemon\/src\/client\/detached-spawn\.ts$|packages\/rove\/test\/behavior\/plugin-process\/|packages\/rove-harness\/e2e\/plugin-windows|\.github\/workflows\/plugin-windows\.yml$)/,
+    ),
+  }
 }
 
 function parseArgs(argv) {
-  const opts = { base: "main", bodyFile: null, quick: false, fetch: true }
+  const opts = { base: "main", bodyFile: null, quick: false, fetch: true, jobs: 4 }
   for (let i = 0; i < argv.length; i++) {
-    const a = argv[i]
-    if (a === "--quick") opts.quick = true
-    else if (a === "--no-fetch") opts.fetch = false
-    else if (a === "--base") opts.base = argv[++i]
-    else if (a === "--body-file") opts.bodyFile = argv[++i]
-    else if (a.startsWith("--base=")) opts.base = a.slice(7)
-    else if (a.startsWith("--body-file=")) opts.bodyFile = a.slice(12)
-    else throw new Error(`unknown argument: ${a}`)
+    const [flag, inline] = argv[i].split(/=(.*)/s)
+    const value = () => inline ?? argv[++i]
+    if (flag === "--quick") opts.quick = true
+    else if (flag === "--no-fetch") opts.fetch = false
+    else if (flag === "--base") opts.base = value()
+    else if (flag === "--body-file") opts.bodyFile = value()
+    else if (flag === "--jobs") opts.jobs = Math.max(1, Number(value()) || 1)
+    else throw new Error(`unknown argument: ${argv[i]}`)
   }
   return opts
 }
@@ -88,7 +94,16 @@ function readManifests() {
 }
 
 const results = []
+let LOGS
 
+function record(name, ok, start, log) {
+  const secs = ((Date.now() - start) / 1000).toFixed(1)
+  results.push({ name, ok, secs, log })
+  process.stdout.write(`${ok ? "✓" : "✗"} ${name} (${secs}s)\n`)
+  return ok
+}
+
+/** Inline step: output streams to the terminal. */
 function step(name, fn) {
   const start = Date.now()
   process.stdout.write(`\n▶ ${name}\n`)
@@ -99,19 +114,90 @@ function step(name, fn) {
     console.error(String(err?.message ?? err))
     ok = false
   }
-  const secs = ((Date.now() - start) / 1000).toFixed(1)
-  results.push({ name, ok, secs })
-  process.stdout.write(`${ok ? "✓" : "✗"} ${name} (${secs}s)\n`)
+  return record(name, ok, start)
 }
 
-function run(cmd, args, env) {
-  const r = spawnSync(cmd, args, { cwd: ROOT, stdio: "inherit", env: { ...process.env, ...env } })
+function run(cmd, args, env, cwd = ROOT) {
+  const r = spawnSync(cmd, args, { cwd, stdio: "inherit", env: { ...process.env, ...env } })
   if (r.error) throw r.error
   return r.status === 0
 }
 
-function main() {
+/** Pooled job: a list of commands run in order, output to a log file. */
+function job(name, commands) {
+  return async () => {
+    const start = Date.now()
+    const log = join(LOGS, `${name.replace(/[^\w.-]+/g, "_")}.log`)
+    const out = createWriteStream(log)
+    let ok = true
+    for (const { cmd, args, cwd = ROOT, env } of commands) {
+      out.write(`$ ${cmd} ${args.join(" ")}\n`)
+      ok = await new Promise((done) => {
+        const child = spawn(cmd, args, { cwd, env: { ...process.env, ...env } })
+        child.stdout.pipe(out, { end: false })
+        child.stderr.pipe(out, { end: false })
+        child.on("error", (err) => {
+          out.write(`${err.message}\n`)
+          done(false)
+        })
+        child.on("close", (code) => done(code === 0))
+      })
+      if (!ok) break
+    }
+    out.end()
+    return record(name, ok, start, log)
+  }
+}
+
+async function pool(jobs, size) {
+  const queue = [...jobs]
+  const worker = async () => {
+    while (queue.length) await queue.shift()()
+  }
+  await Promise.all(Array.from({ length: Math.min(size, queue.length) }, worker))
+}
+
+const ROVE = join(ROOT, "packages", "rove")
+const HARNESS = join(ROOT, "packages", "rove-harness")
+const bun = (args, cwd, env) => ({ cmd: "bun", args, cwd, env })
+
+function heavyJobs(touched) {
+  const areas = touchedAreas(touched)
+  const harnessTests =
+    process.platform === "win32"
+      ? ["test/pty-session-lifecycle.test.ts", "test/pty-sidecar-shutdown.test.mjs"]
+      : ["test/pty-session-lifecycle.test.ts", "test/pty-tree-lifecycle.test.mjs", "test/pty-sidecar-shutdown.test.mjs"]
+  const jobs = [
+    job("rove unit tests", [bun(["x", "vitest", "run", "--passWithNoTests", "--minWorkers=1", "--maxWorkers=8"], ROVE)]),
+    job("render track", [bun(["scripts/render-track.mjs"], ROVE)]),
+    job("behavior", [
+      bun(["x", "vitest", "run", "test/behavior", "--pool", "forks", "--minWorkers=1", "--maxWorkers=1", "--retry=2", "--passWithNoTests"], ROVE, {
+        ROVE_INCLUDE_BEHAVIOR: "1",
+      }),
+    ]),
+    job("harness PTY lifecycle", [bun(["run", "test", ...harnessTests], HARNESS)]),
+    job("visual ground truth", [bun(["x", "playwright", "install", "chromium"], HARNESS), bun(["run", "visual"], HARNESS)]),
+    job("built CLI carries weixin", [bun(["packages/rove/dist/cli/rove.js", "weixin", "--help"])]),
+    ...packagesToTest(touched, readManifests()).map((name) => job(`${name} tests`, [bun(["--filter", name, "test"])])),
+  ]
+  if (areas.docs) jobs.push(job("docs site build", [bun(["run", "--filter", "@sma1lboy/rove-docs", "build"])]))
+  if (areas.ios) jobs.push(job("iOS color guard", [{ cmd: bashPath(), args: ["scripts/lint-colors.sh"], cwd: join(ROOT, "packages", "rove-ios") }]))
+  return jobs
+}
+
+function skippedNotes(touched) {
+  const areas = touchedAreas(touched)
+  const notes = []
+  if (process.platform === "win32" || spawnSync("docker", ["info"], { stdio: "ignore" }).status !== 0)
+    notes.push("clean-linux-install: needs docker on Linux/macOS; runs on push to main")
+  if (areas.ios) notes.push("iOS simulator suite: run it in Xcode; ios.yml runs it on push to main")
+  if (areas.pluginWindows && process.platform !== "win32") notes.push("plugin-windows acceptance: needs Windows; run plugin-windows.yml by hand")
+  return notes
+}
+
+async function main() {
   const opts = parseArgs(process.argv.slice(2))
+  LOGS = mkdtempSync(join(tmpdir(), "rove-pre-pr-"))
   const range = `origin/${opts.base}...HEAD`
   if (opts.fetch) {
     const f = spawnSync("git", ["fetch", "--quiet", "origin", opts.base], { cwd: ROOT, stdio: "inherit" })
@@ -133,14 +219,8 @@ function main() {
   step("no silent catch", () => run("node", ["scripts/no-silent-catch.mjs"]))
 
   if (!opts.quick) {
-    // The CI job reads the live PR body via the API; locally the body file stands in.
     step("file-size-cap", () =>
-      run(bashPath(), ["scripts/file-size-check.sh"], {
-        BASE_REF: opts.base,
-        PR_BODY: body ?? "",
-        PR_NUMBER: "",
-        GH_TOKEN: "",
-      }),
+      run(bashPath(), ["scripts/file-size-check.sh"], { BASE_REF: opts.base, PR_BODY: body ?? "", PR_NUMBER: "", GH_TOKEN: "" }),
     )
     step("ui-evidence", () => {
       if (body === null) {
@@ -152,18 +232,30 @@ function main() {
       for (const e of errors) console.error(e)
       return errors.length === 0
     })
-    step("script tests", () => run("node", ["--test", "scripts/scan-plugins.test.mjs", "scripts/pre-pr.test.mjs"]))
-    step("typecheck", () => run("bun", ["run", "typecheck"]))
-    const { run: pkgs, skipped } = packagesToTest(touched, readManifests())
-    for (const name of skipped) console.log(`\nskip ${name} tests: ${CI_ONLY_PACKAGES.get(name)}`)
-    for (const name of pkgs) step(`${name} tests`, () => run("bun", ["--filter", name, "test"]))
+    step("script tests", () => run("node", ["--test", "scripts/scan-plugins.test.mjs", "scripts/ui-evidence.test.mjs", "scripts/pre-pr.test.mjs"]))
+    // Both rebuild the plugin SDK's dist, which every pooled suite reads: run them before the pool.
+    const built = step("typecheck", () => run("bun", ["run", "typecheck"])) && step("build", () => run("bun", ["run", "build"]))
+    if (built) {
+      process.stdout.write(`\n▶ suites in parallel (--jobs ${opts.jobs}), logs in ${LOGS}\n`)
+      await pool(heavyJobs(touched), opts.jobs)
+      // It rewrites daemon plugin sources to a baseline and back, so nothing else may run beside it.
+      if (touchedAreas(touched).pluginWindows && process.platform === "win32")
+        step("plugin-windows acceptance", () =>
+          run("bun", ["packages/rove/test/behavior/plugin-process/compare.mjs"], { BASE_SHA: "61c4532cc642039ce4ce3f6739d1ee35f2c58cd0" }),
+        )
+    }
+    for (const note of skippedNotes(touched)) console.log(`skip ${note}`)
   }
 
   const failed = results.filter((r) => !r.ok)
+  for (const r of failed.filter((r) => r.log)) {
+    const lines = readFileSync(r.log, "utf8").trimEnd().split("\n")
+    console.log(`\n── ${r.name} (last 40 lines of ${r.log}) ──\n${lines.slice(-40).join("\n")}`)
+  }
   console.log(`\npre-pr: ${results.length - failed.length}/${results.length} passed`)
   for (const r of failed) console.log(`  ✗ ${r.name}`)
   process.exit(failed.length ? 1 : 0)
 }
 
 const norm = (p) => (process.platform === "win32" ? resolve(p).toLowerCase() : resolve(p))
-if (process.argv[1] && norm(process.argv[1]) === norm(fileURLToPath(import.meta.url))) main()
+if (process.argv[1] && norm(process.argv[1]) === norm(fileURLToPath(import.meta.url))) await main()
