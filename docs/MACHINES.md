@@ -163,11 +163,16 @@ commands on every machine registered there: guard it like an ssh key.
 
 ## What this release does not do yet
 
-- Opening a remote task's session in the TUI is not wired up yet. You can see
-  the row and drive it with `rove api`, but not enter it.
-- The file tree and diff panes show `on <host>` for a remote task. Its worktree
-  path means nothing on your filesystem, and reading it would list whatever
-  happens to sit at the same path here.
+- In the TUI, opening a remote task's session is not wired up yet. You can see
+  the row and drive it with `rove api`, but not enter it; its file tree and
+  diff panes show `on <host>`.
+
+`rove --web` on the hub already opens a remote task like a local one: its tabs
+list under it, its terminal attaches through that machine's PTY host, and the
+Files pane reads that machine's worktree through the `worktree-files`,
+`worktree-diff` and `worktree-diff-file` verbs, which run inside its daemon. The
+remote needs a Rove that has those verbs. Opening a file in an editor or another
+app stays on the machine that has it.
 
 Windows can register and list machines, but cannot open the tunnel: OpenSSH on
 Windows has no unix-socket forwarding. Such a machine's row reads

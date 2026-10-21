@@ -122,6 +122,7 @@ export const zh: typeof en = {
     show: "文件",
     createPR: "让代理创建 PR",
     prRequested: "已让代理去创建 PR",
+    remoteNoExternal: "这个文件在 {host} 上，请到那台机器上打开",
     mentionNoEngine: "这个任务没有打开的引擎会话——没有地方可以提及。",
     all: "全部",
     changes: "变更",

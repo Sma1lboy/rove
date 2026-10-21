@@ -19,8 +19,9 @@ import { executeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { REMOTE_CALLER } from "@sma1lboy/rove/src/cli/api/types.ts"
 import { RemoteOrchestrator } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { ensurePluginEnginesLoaded } from "@sma1lboy/rove/src/engine/plugin-engines.ts"
-import { invokeRouted } from "@sma1lboy/rove/src/machines/forward.ts"
+import { forwardVerb, invokeRouted, machineDaemonSocket, requireMachine } from "@sma1lboy/rove/src/machines/forward.ts"
 import { MachineHub } from "@sma1lboy/rove/src/machines/hub.ts"
+import { localPtySocketPath } from "@sma1lboy/rove/src/machines/ssh-args.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
 import { loadOrCreateToken, pairingUrl, webUrl } from "./auth.ts"
@@ -31,6 +32,7 @@ import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { machineStore } from "./ops/machines.ts"
 import { PromptFeed } from "./prompts.ts"
+import { BridgeError } from "./protocol.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
 import { TabFeed } from "./tab-feed.ts"
@@ -125,17 +127,34 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   // Verbs get their own socket: some subscribe as a pane, which must not
   // demote the orchestrator's gui subscription.
   const verbClient = new RoveDaemonClient(daemonSocket)
-  const ops = createRoveOps(verbClient, {
-    changes: () => orchestrator.worktreeChangesSignal()(),
-    tokens: () => orchestrator.rowTokensSignal()(),
-    gates: () => orchestrator.gatesSignal()(),
-    remote: () =>
-      hub
-        .tasksSignal()
-        .get()
-        .filter((task) => task.origin && task.origin.machineId !== "local")
-        .map((task) => ({ ...task, kind: task.kind ?? "task", pinned: task.pinned ?? false })),
+  // A task the hub lists under another machine: its verbs run there, its terminal is that machine's PTY host.
+  const machineOf = (taskId: string): string | undefined => {
+    const task = hub
+      .tasksSignal()
+      .get()
+      .find((row) => String(row.id) === taskId)
+    const alias = task?.origin?.machineId
+    return alias && alias !== "local" ? alias : undefined
+  }
+  const api = createBridgeApi(verbClient, {
+    machineOf,
+    forward: (alias, verb, params) => forwardVerb(requireMachine(alias), verb, params),
   })
+  const ops = createRoveOps(
+    verbClient,
+    {
+      changes: () => orchestrator.worktreeChangesSignal()(),
+      tokens: () => orchestrator.rowTokensSignal()(),
+      gates: () => orchestrator.gatesSignal()(),
+      remote: () =>
+        hub
+          .tasksSignal()
+          .get()
+          .filter((task) => task.origin && task.origin.machineId !== "local")
+          .map((task) => ({ ...task, kind: task.kind ?? "task", pinned: task.pinned ?? false })),
+    },
+    api,
+  )
   const feed = new TaskFeed(() => ops.tasks())
   for (const signal of [
     orchestrator.tasksSignal(),
@@ -195,8 +214,16 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     mods,
     tabs,
     openPty: () => new RoveDaemonClient(ptySocket),
+    openMachinePty: async (alias) => {
+      const entry = requireMachine(alias)
+      // Both forwards go up together: a live daemon socket means the PTY socket is live too.
+      if (!(await machineDaemonSocket(entry))) {
+        throw new BridgeError("MACHINE_UNREACHABLE", `machine "${alias}" did not answer`)
+      }
+      return new RoveDaemonClient(localPtySocketPath(alias))
+    },
     roveVersion: CURRENT_VERSION,
-    api: createBridgeApi(verbClient),
+    api,
     invoke: (verb, params, machine) =>
       invokeRouted({
         verb,

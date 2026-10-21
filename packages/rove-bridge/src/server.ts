@@ -55,6 +55,8 @@ export interface BridgeDeps {
   readonly tabs?: Pick<TabFeed, "subscribe">
   /** A fresh PTY Host socket for one phone connection. */
   readonly openPty: () => PtyHostClient
+  /** The PTY host of a registered machine, over its forwarded socket; absent = this bridge serves no machines. */
+  readonly openMachinePty?: (alias: string) => Promise<PtyHostClient>
   readonly roveVersion: string
   /** Cloudflare Access check, run before the token check (`--preset cf`). */
   readonly access?: AccessVerifier
@@ -73,6 +75,10 @@ export interface BridgeDeps {
 
 interface Conn {
   terminal: TerminalForwarder | null
+  /** One forwarder per other machine whose terminal this connection opened. */
+  machineTerminals: Map<string, Promise<TerminalForwarder>>
+  /** Which forwarder owns each attached stream, so input/resize/detach reach the right machine. */
+  streamOwner: Map<string, TerminalForwarder>
   unsubscribeTasks: (() => void) | null
   unsubscribeTabs: (() => void) | null
   unsubscribeNotices: (() => void) | null
@@ -88,6 +94,22 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     conn.terminal ??= new TerminalForwarder(deps.openPty(), (frame) => ws.send(frame))
     return conn.terminal
   }
+  /** The forwarder for the machine a task lives on: this one's, or that machine's PTY host. */
+  const terminalFor = async (taskId: string): Promise<TerminalForwarder> => {
+    const alias = ops.machineOf?.(taskId)
+    if (alias === undefined) return terminal()
+    if (!deps.openMachinePty) throw new BridgeError("MACHINE_UNREACHABLE", `this bridge cannot reach machine ${alias}`)
+    const open = deps.openMachinePty
+    let pending = conn.machineTerminals.get(alias)
+    if (!pending) {
+      pending = open(alias).then((pty) => new TerminalForwarder(pty, (frame) => ws.send(frame)))
+      // A failed open is not cached: the next attach retries once the machine is back.
+      pending.catch(() => conn.machineTerminals.delete(alias))
+      conn.machineTerminals.set(alias, pending)
+    }
+    return pending
+  }
+  const owner = (stream: string): TerminalForwarder => conn.streamOwner.get(stream) ?? terminal()
   if (DESTRUCTIVE_CORE[req.op]) logDestructive(deps, req)
   switch (req.op) {
     case "hello":
@@ -162,28 +184,43 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const cols = optInt(a, "cols", 10, 1000)
       const rows = optInt(a, "rows", 4, 500)
       if ((cols === undefined) !== (rows === undefined)) throw new BridgeError("BAD_ARGS", "cols and rows go together")
-      // A viewport tab attaches the session it shows, not one under its own id.
-      const shown = ops.viewedSession(taskId, tabId)
+      // A viewport tab attaches the session it shows, not one under its own id. Another
+      // machine's tab state lives there, so its tabs attach as they are.
+      const remote = ops.machineOf?.(taskId) !== undefined
+      const shown = remote ? null : ops.viewedSession(taskId, tabId)
+      const target = shown?.taskId ?? taskId
+      const forwarder = await terminalFor(target)
       const cwd = shown?.cwd ?? (await ops.worktreeOf(taskId))
-      return terminal().attach(
-        shown?.taskId ?? taskId,
+      const attached = await forwarder.attach(
+        target,
         shown?.tabId ?? tabId,
         cwd,
         cols !== undefined && rows !== undefined ? { cols, rows } : undefined,
         leafId,
       )
+      conn.streamOwner.set(attached.stream, forwarder)
+      return attached
     }
     case "term.input": {
       const data = a.data
       if (typeof data !== "string") throw new BridgeError("BAD_ARGS", "data must be a string")
-      await terminal().input(str(a, "stream"), data)
+      await owner(str(a, "stream")).input(str(a, "stream"), data)
       return {}
     }
     case "term.resize":
-      await terminal().resize(str(a, "stream"), optInt(a, "cols", 10, 1000) ?? 80, optInt(a, "rows", 4, 500) ?? 24)
+      await owner(str(a, "stream")).resize(
+        str(a, "stream"),
+        optInt(a, "cols", 10, 1000) ?? 80,
+        optInt(a, "rows", 4, 500) ?? 24,
+      )
       return {}
     case "term.detach":
-      await conn.terminal?.detach(str(a, "stream"))
+      {
+        const stream = str(a, "stream")
+        const forwarder = conn.streamOwner.get(stream) ?? conn.terminal
+        conn.streamOwner.delete(stream)
+        await forwarder?.detach(stream)
+      }
       return {}
     case "diff.files":
       return ops.diffFiles(str(a, "taskId"))
@@ -315,6 +352,8 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
       }
       const data: Conn = {
         terminal: null,
+        machineTerminals: new Map(),
+        streamOwner: new Map(),
         unsubscribeTasks: null,
         unsubscribeTabs: null,
         unsubscribeNotices: null,
@@ -347,6 +386,12 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         ws.data.unsubscribeMods?.()
         ws.data.unsubscribePrompts?.()
         ws.data.terminal?.dispose()
+        for (const pending of ws.data.machineTerminals.values()) {
+          pending.then(
+            (forwarder) => forwarder.dispose(),
+            () => {},
+          )
+        }
       },
     },
   })

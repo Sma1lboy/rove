@@ -113,8 +113,11 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
       destructive: false,
       wraps: "listFiles(worktree) — tracked + untracked-not-ignored files",
       async run(args, { api }) {
-        const worktree = await worktreeOf(api, taskId(args))
-        const all = await deps.listFiles(worktree)
+        const id = taskId(args)
+        // Another machine's worktree is listed there, next to its files.
+        const all = api.machineOf?.(id)
+          ? (await api.verb<{ files: string[] }>("worktree-files", [flag("task-id", id)])).files
+          : await deps.listFiles(await worktreeOf(api, id))
         const truncated = all.length > MAX_FILES
         return { files: truncated ? all.slice(0, MAX_FILES) : all, truncated }
       },

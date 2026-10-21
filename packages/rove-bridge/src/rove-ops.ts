@@ -25,17 +25,14 @@ import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
 import { DEFAULT_GLYPHS } from "@sma1lboy/rove/src/tui/lib/glyphs.ts"
 import { loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
-import {
-  type StatusEntry,
-  resolveBase,
-  statusFiles,
-  statusFilesBranch,
-} from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
+import { resolveBase } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
 import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
+import { type WorktreeDiff, worktreeDiff } from "@sma1lboy/rove/src/worktree/review-read.ts"
 import { gateRows } from "./gates.ts"
 import { createBridgeApi } from "./ops/api.ts"
+import type { BridgeApi } from "./ops/types.ts"
 import {
   type AttentionRow,
   BridgeError,
@@ -79,6 +76,8 @@ export interface RoveOps {
   worktreeOf(taskId: string): Promise<string>
   /** A viewport tab shows another task's first engine session: where to attach instead; null for any other tab. */
   viewedSession(taskId: string, tabId: string): { taskId: string; tabId: string; cwd: string } | null
+  /** The registered machine a task lives on; undefined = this machine. */
+  machineOf?(taskId: string): string | undefined
   diffFiles(taskId: string): Promise<{ base: string | null; files: readonly DiffFileRow[] }>
   diffFile(taskId: string, path: string, scope: "branch" | "working"): Promise<unknown>
   dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
@@ -120,10 +119,6 @@ export function tabRows(rows: readonly TaskTabRow[]): TabRow[] {
     ...(t.split ? { split: t.split } : {}),
     ...(t.viewOf ? { viewOf: t.viewOf } : {}),
   }))
-}
-
-function verb<T>(client: RoveDaemonClient, name: string, argv: readonly string[]): Promise<T> {
-  return createBridgeApi(client).verb<T>(name, argv)
 }
 
 async function tryRead<T>(read: () => Promise<T>): Promise<T | null> {
@@ -295,14 +290,6 @@ export function taskRows(
 }
 
 /** Untracked directories arrive as one row with children; the phone wants files. */
-function flatten(entries: readonly StatusEntry[], scope: DiffFileRow["scope"]): DiffFileRow[] {
-  return entries.flatMap((e): DiffFileRow[] =>
-    e.children?.length
-      ? flatten(e.children, scope)
-      : [{ path: e.path, status: e.status, added: e.added ?? null, deleted: e.deleted ?? null, scope }],
-  )
-}
-
 /** Optional live signals the feed joins into rows (the orchestrator's `worktree.changes` and `task.tokens` pushes). */
 export interface LiveRowSignals {
   changes(): WorktreeChangesMap | null
@@ -313,7 +300,15 @@ export interface LiveRowSignals {
   remote?(): readonly SerializedTask[]
 }
 
-export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals): RoveOps {
+/**
+ * `api` runs the verbs; give it the hub's {@link RemoteVerbs} (`createBridgeApi(client, remote)`) and
+ * every verb-backed op — tabs, tab-new/close, get-task — serves a task on another machine as well.
+ */
+export function createRoveOps(
+  client: RoveDaemonClient,
+  signals?: LiveRowSignals,
+  api: BridgeApi = createBridgeApi(client),
+): RoveOps {
   let engineCache: { at: number; engines: readonly EngineRow[] } | null = null
   // One cold load at a time: every `task.tabs` needs the list, and a client fans those out per task.
   let engineLoad: Promise<readonly EngineRow[]> | null = null
@@ -327,7 +322,7 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
   }
 
   const loadEngines = async (): Promise<readonly EngineRow[]> => {
-    const res = await verb<{ engines: ReadonlyArray<EngineRow> }>(client, "engine-list", [])
+    const res = await api.verb<{ engines: ReadonlyArray<EngineRow> }>("engine-list", [])
     const rows = await Promise.all(
       res.engines.map(async ({ id, name, command, protocol, builtin, models }) => {
         // `engine-status.ts`: binary found AND (where Rove can read the login) an account exists.
@@ -350,7 +345,7 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
   }
 
   const getTask = async (taskId: string): Promise<SerializedTask> => {
-    const res = await verb<{ task: SerializedTask }>(client, "get-task", ["--task-id", taskId])
+    const res = await api.verb<{ task: SerializedTask }>("get-task", ["--task-id", taskId])
     return res.task
   }
 
@@ -402,19 +397,19 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
       if (engine) argv.push("--command", engine)
       if (title) argv.push("--title", title)
       if (prompt) argv.push("--prompt", prompt)
-      const res = await verb<{ taskId: string }>(client, "add", argv)
+      const res = await api.verb<{ taskId: string }>("add", argv)
       return { taskId: res.taskId }
     },
 
     async deleteTask(taskId, force) {
       const argv = ["--task-id", taskId, "--wait"]
       if (force) argv.push("--force")
-      const res = await verb<{ status?: string; queued?: boolean }>(client, "delete", argv)
+      const res = await api.verb<{ status?: string; queued?: boolean }>("delete", argv)
       return { status: res.status ?? (res.queued ? "queued" : "removed") }
     },
 
     async landTask(taskId, strategy) {
-      const res = await verb<{ landedOn: string; commit: string }>(client, "land", [
+      const res = await api.verb<{ landedOn: string; commit: string }>("land", [
         "--task-id",
         taskId,
         "--strategy",
@@ -424,20 +419,20 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
     },
 
     async tabs(taskId) {
-      const res = await verb<{ tabs?: readonly TaskTabRow[] }>(client, "get-task", ["--task-id", taskId])
+      const res = await api.verb<{ tabs?: readonly TaskTabRow[] }>("get-task", ["--task-id", taskId])
       return tabRows(res.tabs ?? [])
     },
 
     async newTab(taskId, tab) {
       const call = newTabInvocation(taskId, tab)
-      const res = await verb<{ tabId?: string; session?: string }>(client, call.verb, call.argv)
+      const res = await api.verb<{ tabId?: string; session?: string }>(call.verb, call.argv)
       const tabId = res.tabId ?? res.session?.split("::")[1]
       if (!tabId) throw new BridgeError("SESSION_FAILED", "the new tab did not report its session")
       return { tabId }
     },
 
     async closeTab(taskId, tabId) {
-      await verb<unknown>(client, "tab-close", ["--task-id", taskId, "--tab", tabId])
+      await api.verb<unknown>("tab-close", ["--task-id", taskId, "--tab", tabId])
     },
 
     worktreeOf,
@@ -450,16 +445,14 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
         : null
     },
 
+    machineOf: (taskId) => api.machineOf?.(taskId),
+
     async diffFiles(taskId) {
+      // Another machine's worktree is read there: its git, its files.
+      if (api.machineOf?.(taskId)) return api.verb<WorktreeDiff>("worktree-diff", ["--task-id", taskId])
       const task = await getTask(taskId)
       if (!task.worktreePath) return { base: null, files: [] }
-      // Same base ladder as the TUI changes pane (PR base first).
-      const base = await resolveBase(task.worktreePath, task.prStatus?.baseRef)
-      const [branch, working] = await Promise.all([
-        base ? statusFilesBranch(task.worktreePath, base) : Promise.resolve([]),
-        statusFiles(task.worktreePath),
-      ])
-      return { base, files: [...flatten(branch, "branch"), ...flatten(working, "working")] }
+      return worktreeDiff(task.worktreePath, task.prStatus?.baseRef)
     },
 
     async diffFile(taskId, path, scope) {
@@ -467,6 +460,9 @@ export function createRoveOps(client: RoveDaemonClient, signals?: LiveRowSignals
       // file itself: refuse anything that could name a file outside it.
       if (isAbsolute(path) || normalize(path).split(/[\\/]/).includes("..")) {
         throw new BridgeError("BAD_ARGS", "path must be relative to the worktree")
+      }
+      if (api.machineOf?.(taskId)) {
+        return api.verb<unknown>("worktree-diff-file", ["--task-id", taskId, "--path", path, "--scope", scope])
       }
       const task = await getTask(taskId)
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)

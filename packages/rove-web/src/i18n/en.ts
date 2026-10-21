@@ -121,6 +121,7 @@ export const en = {
     show: "Files",
     createPR: "Ask agent to create PR",
     prRequested: "asked the agent to create the PR",
+    remoteNoExternal: "this file is on {host}; open it there",
     mentionNoEngine: "No engine session open in this task — nothing to mention into.",
     all: "All",
     changes: "Changes",

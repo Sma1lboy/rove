@@ -186,8 +186,8 @@ const newest = (group: ProjectGroup): number => Math.max(0, ...group.tasks.map(t
  * The whole rail as ONE list of projects from every machine, the way Claude Desktop lists sessions
  * from every environment together: no per-machine section, a remote project carries its machine on
  * its header row instead. `default` keeps this machine's own project order first, then each machine's
- * in registration order; `recent` and `name` interleave all of them. A remote task has no tab rows
- * (its tab list lives on its own machine). `groups` is this machine's projects, labelled against
+ * in registration order; `recent` and `name` interleave all of them. A remote task lists its tabs
+ * like a local one (read from its own machine). `groups` is this machine's projects, labelled against
  * every project on screen.
  */
 export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGroup[] } {
@@ -216,7 +216,7 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   const rows = all.flatMap(({ group, machine }) =>
     machine === undefined
       ? navRows([group], input.tabsOf, input.tabLabel, input.query, input.routines)
-      : navRows([group], () => [], input.tabLabel, input.query, input.routines, machine),
+      : navRows([group], input.tabsOf, input.tabLabel, input.query, input.routines, machine),
   )
   return { rows, groups }
 }

@@ -71,19 +71,22 @@ see both.
 
 <!-- generated:begin read -->
 ```text
-list         --repo --status <S1,S2> --activity <A1,A2>
-get-task     --task-id(REQ)
-pty-list     (none)
-collect      --task-ids <a,b,c> --group --repo
-context      --repo(REQ) --limit(20) --text
-digest       --repo(REQ) --since-days(7)
-agent-turns  --task-id --repo --since-days(7) --limit(200)
-inspect      --task-id
-read-output  --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
-watch        --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
-deliveries   --task-id(REQ) --limit
-should-run   --task-id(REQ) --tab
-gates        --repo --task-id --status{open|answered|withdrawn|all}(open)
+list                --repo --status <S1,S2> --activity <A1,A2>
+get-task            --task-id(REQ)
+pty-list            (none)
+collect             --task-ids <a,b,c> --group --repo
+context             --repo(REQ) --limit(20) --text
+digest              --repo(REQ) --since-days(7)
+agent-turns         --task-id --repo --since-days(7) --limit(200)
+inspect             --task-id
+read-output         --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
+watch               --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
+worktree-files      --task-id(REQ)
+worktree-diff       --task-id(REQ)
+worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working}(REQ)
+deliveries          --task-id(REQ) --limit
+should-run          --task-id(REQ) --tab
+gates               --repo --task-id --status{open|answered|withdrawn|all}(open)
 ```
 <!-- generated:end -->
 
