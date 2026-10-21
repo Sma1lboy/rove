@@ -17,6 +17,7 @@ export function normalizeRemoteUrl(url: string): string {
   u = u.replace(/^([^/:]+):(?!\d+\/)/, "$1/") // scp-style host:path (not host:port/)
   u = u.replace(/^([^/:]+):\d+\//, "$1/") // drop an explicit port
   u = u.replace(/\/+$/, "").replace(/\.git$/i, "")
+  u = u.replace(/^ssh\.github\.com\//i, "github.com/") // GitHub's ssh-over-443 host
   return u.toLowerCase()
 }
 

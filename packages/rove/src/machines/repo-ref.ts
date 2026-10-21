@@ -146,7 +146,11 @@ export function cloneRepo(ref: { readonly id: string; readonly cloneUrl: string 
   const dir = cloneDirFor(ref.id, home)
   if (repoIdentity(dir)) return dir
   mkdirSync(dirname(dir), { recursive: true })
-  const res = spawnSync("git", ["clone", ref.cloneUrl, dir], { encoding: "utf8", timeout: 600_000 })
+  const res = spawnSync("git", ["clone", ref.cloneUrl, dir], {
+    encoding: "utf8",
+    timeout: 600_000,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+  })
   if (res.status !== 0) throw new Error((res.stderr || res.stdout || "git clone failed").trim())
   return dir
 }

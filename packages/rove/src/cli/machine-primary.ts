@@ -8,9 +8,10 @@ import { resolve } from "node:path"
 import { repoIdentity } from "../machines/repo-identity.ts"
 import { primaryCheckouts, repoIdOf, setPrimaryCheckout } from "../machines/repo-ref.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { argvHasFlag } from "./argv.ts"
 
 export function machinePrimary(argv: readonly string[], fail: (message: string) => never): void {
-  const clear = argv.includes("--clear")
+  const clear = argvHasFlag(argv, "--clear")
   const target = argv.find((a) => !a.startsWith("--"))
   if (!target) {
     const marks = Object.entries(primaryCheckouts())

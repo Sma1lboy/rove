@@ -3,7 +3,7 @@
  * forwards `add --repo <its own path or a repo id>` asks the target this first and
  * swaps in the answer (`machines/forward.ts`), so a dispatch names the repo, not a path.
  * `repo-list`: every repo this machine has, by id — what `--machine auto` and
- * `rove machine repos` read.
+ * `rove api repo-list --machine <alias>` read.
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
