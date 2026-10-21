@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
 import { homedir, tmpdir } from "node:os"
-import { join } from "node:path"
+import { basename, dirname, join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv, readRoveHomeDirEnv } from "../compat-env.ts"
 import { preRenameStateDir } from "./pre-rename-runtime.ts"
 
@@ -65,11 +65,38 @@ export function fitSocketPath(naturalPath: string, homeDir: string, role: string
 }
 
 /**
+ * The file a host writes beside its pidfile once it listens: the socket path
+ * it actually bound. `daemon.pid` → `daemon.endpoint`, `pty.pid` → `pty.endpoint`.
+ */
+export function endpointPathFor(pidPath: string): string {
+  return join(dirname(pidPath), `${basename(pidPath).replace(/\.pid$/, "")}.endpoint`)
+}
+
+/**
+ * Where the LIVE host of the ambient home listens, as it recorded at bind; null
+ * when none runs. `XDG_RUNTIME_DIR` differs between sessions of one user — a WSL
+ * shell has `/mnt/wslg/runtime-dir`, an ssh login into it has none — so a path
+ * derived from it sends a second session to a socket nobody serves, and that
+ * session's "no daemon, start one" kills the live one. Asking the pidfile first
+ * makes every session of a home meet at one socket.
+ */
+function liveEndpoint(pidPath: string): string | null {
+  if (!pidIsLive(pidPath)) return null
+  try {
+    const recorded = readFileSync(endpointPathFor(pidPath), "utf8").trim()
+    return recorded.length > 0 && existsSync(dirname(recorded)) ? recorded : null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Resolution order (after the `DAEMON_SOCKET_PATH` override):
  *   1. `homeDir` argument → `<homeDir>/.rove/daemon.sock`.
  *   2. `ROVE_HOME_DIR` → `$ROVE_HOME_DIR/.rove/daemon.sock`.
- *   3. `XDG_RUNTIME_DIR` → `$XDG_RUNTIME_DIR/rove.sock`.
- *   4. `~/.rove/daemon.sock`.
+ *   3. The live daemon's recorded endpoint ({@link liveEndpoint}).
+ *   4. `XDG_RUNTIME_DIR` → `$XDG_RUNTIME_DIR/rove.sock`.
+ *   5. `~/.rove/daemon.sock`.
  * Every result goes through {@link fitSocketPath}. Clients can attach to a
  * pre-rename endpoint after the canonical connection fails.
  *
@@ -87,6 +114,8 @@ export function defaultDaemonSocketPath(homeDir?: string): string {
   if (explicit && explicit.length > 0) {
     return fitSocketPath(join(explicit, ROVE_STATE_DIR_BASENAME, "daemon.sock"), explicit, "daemon")
   }
+  const live = liveEndpoint(defaultDaemonPidPath(homedir()))
+  if (live) return live
   const runtimeDir = process.env.XDG_RUNTIME_DIR
   if (runtimeDir && runtimeDir.length > 0) {
     return fitSocketPath(join(runtimeDir, "rove.sock"), runtimeDir, "daemon")
@@ -157,6 +186,8 @@ export function defaultPtyHostSocketPath(homeDir?: string, platform: NodeJS.Plat
   if (explicit && explicit.length > 0) {
     return fitSocketPath(join(explicit, ROVE_STATE_DIR_BASENAME, "pty.sock"), explicit, "pty")
   }
+  const live = liveEndpoint(defaultPtyHostPidPath(homedir()))
+  if (live) return live
   const runtimeDir = process.env.XDG_RUNTIME_DIR
   if (runtimeDir && runtimeDir.length > 0) {
     return fitSocketPath(join(runtimeDir, "rove-pty.sock"), runtimeDir, "pty")

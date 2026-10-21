@@ -88,10 +88,60 @@ describe("defaultDaemonSocketPath", () => {
   })
 
   test("falls back to XDG_RUNTIME_DIR when no home override is set", () => {
-    process.env.XDG_RUNTIME_DIR = "/run/user/1000"
-    expect(defaultDaemonSocketPath()).toBe("/run/user/1000/rove.sock")
+    withHome(mkdtempSync(join(tmpdir(), "rove-home-")), () => {
+      process.env.XDG_RUNTIME_DIR = "/run/user/1000"
+      expect(defaultDaemonSocketPath()).toBe("/run/user/1000/rove.sock")
+    })
+  })
+
+  test("a live daemon's recorded socket wins over this session's XDG_RUNTIME_DIR", () => {
+    // WSL: the shell that started the daemon had /mnt/wslg/runtime-dir, an ssh login has
+    // another runtime dir (or none). Both must reach the ONE daemon of this home, or the
+    // second session's "no daemon, start one" kills it.
+    const home = mkdtempSync(join(tmpdir(), "rove-home-"))
+    const runtime = mkdtempSync(join(tmpdir(), "rove-wslg-"))
+    mkdirSync(join(home, ".rove"), { recursive: true })
+    writeFileSync(join(home, ".rove", "daemon.pid"), `${process.pid}\n`)
+    writeFileSync(join(home, ".rove", "daemon.endpoint"), `${join(runtime, "rove.sock")}\n`)
+    writeFileSync(join(home, ".rove", "pty.pid"), `${process.pid}\n`)
+    writeFileSync(join(home, ".rove", "pty.endpoint"), `${join(runtime, "rove-pty.sock")}\n`)
+    withHome(home, () => {
+      process.env.XDG_RUNTIME_DIR = "/run/user/1000"
+      expect(defaultDaemonSocketPath()).toBe(join(runtime, "rove.sock"))
+      expect(defaultPtyHostSocketPath(undefined, "linux")).toBe(join(runtime, "rove-pty.sock"))
+      Reflect.deleteProperty(process.env, "XDG_RUNTIME_DIR")
+      expect(defaultDaemonSocketPath()).toBe(join(runtime, "rove.sock"))
+    })
+  })
+
+  test("a recorded socket is ignored once its daemon is gone", () => {
+    const home = mkdtempSync(join(tmpdir(), "rove-home-"))
+    mkdirSync(join(home, ".rove"), { recursive: true })
+    // pid 1 never counts as a live owner (`pidIsLive`), so this reads as no daemon.
+    writeFileSync(join(home, ".rove", "daemon.pid"), "1\n")
+    writeFileSync(join(home, ".rove", "daemon.endpoint"), `${join(tmpdir(), "rove.sock")}\n`)
+    withHome(home, () => {
+      process.env.XDG_RUNTIME_DIR = "/run/user/1000"
+      expect(defaultDaemonSocketPath()).toBe("/run/user/1000/rove.sock")
+    })
   })
 })
+
+/** Run `body` with the ambient home (what `os.homedir()` reads) pointed at `home`. */
+function withHome(home: string, body: () => void): void {
+  const prev = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE }
+  process.env.HOME = home
+  process.env.USERPROFILE = home
+  try {
+    body()
+  } finally {
+    for (const [key, value] of Object.entries(prev)) {
+      if (value === undefined) Reflect.deleteProperty(process.env, key)
+      else process.env[key] = value
+    }
+    rmSync(home, { recursive: true, force: true })
+  }
+}
 
 describe("defaultDaemonPidPath", () => {
   test("uses ROVE_HOME_DIR when set (XDG never relevant for pidfile)", () => {

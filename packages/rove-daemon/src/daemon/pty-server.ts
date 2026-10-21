@@ -25,6 +25,7 @@ import {
   defaultPtyFreezeDir,
   defaultPtyHostPidPath,
   defaultPtyHostSocketPath,
+  endpointPathFor,
   isWindowsPipePath,
   resolveDaemonHomeDir,
 } from "./paths.ts"
@@ -326,6 +327,8 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
   await listenOnUnixSocket(server, socketPath)
   // tmp+rename: a torn pidfile is EMPTY, and empty parses as pid 0.
   await writeTextAtomic(pidPath, `${process.pid}\n`)
+  // Where we listen, for sessions whose XDG_RUNTIME_DIR would point elsewhere (paths.ts `liveEndpoint`).
+  if (!pipeSocket) await writeTextAtomic(endpointPathFor(pidPath), `${socketPath}\n`)
   armIdle()
   log("boot", `pty host listening on ${socketPath}`)
   return api
