@@ -260,9 +260,49 @@ proceed in parallel.
 2. Unreachable base ref on dispatch: refuse, or fetch from the hub?
 3. Freeze `remote-projects` in favour of machines?
 4. Hub placement: explicit `--runner` only at first, or a default policy?
-5. Phase 4 candidate: LayerFS (shared store across machines, Linux + Docker)
-   or AgentFS (single SQLite, CoW overlay)? Both need a long-lived mount mode.
-   Neither's docs confirm one.
+5. Phase 4 candidate: LayerFS or AgentFS? LayerFS v1.0 is surveyed below and
+   has the long-lived mount; AgentFS is not yet surveyed.
+
+## LayerFS v1.0 survey (phase 4 candidate)
+
+Read from the v1.0.0 source; no part of it was run here (no Docker).
+
+- **Shape.** One `store.sqlite` per host: content-addressed BLAKE3 objects,
+  append-only, no GC. A Workspace is an immutable base Commit plus a private
+  SQLite overlay, served over FUSE at `/workspaces/N` inside a Docker sandbox
+  (`CAP_SYS_ADMIN`). Mount is O(1); reads fetch only touched chunks; writes
+  record byte ranges, with no whole-file copy-up.
+- **Long-lived mount exists.** `workspace.mount` stays until `unmount`;
+  `exec` creates no history; only `workspace.commit` (or `fs.*` writes)
+  does. That fits Rove taking commits as checkpoints at turn boundaries.
+- **Single host, not shared across machines.** One writer per store
+  (`flock` + queue), network filesystems refused. A Runner owns its own store.
+- **Import takes everything.** `init` ignores `.gitignore`, so `target/`,
+  `node_modules` and `.git` enter history, and no commit can exclude a path.
+- **Disposable durability.** `synchronous=OFF`, fsync a no-op; an
+  uncommitted overlay dies with the container.
+- **FUSE gaps.** No xattrs; fsync, FIFOs and Unix sockets refused; locks
+  are kernel-local (no lock capability negotiated).
+
+### Build caches (Rust as the worst case)
+
+Build output inside the mount makes every commit carry `target/` churn into
+the GC-less store, makes merges conflict on binaries, and routes every
+build-time cache miss through one userspace daemon. Cargo fingerprints also
+embed absolute paths, so `/workspaces/N` must be stable per Workspace.
+Rove's answer: build caches never enter the mount.
+
+### TODO
+
+- [ ] Init LayerFS from a clean checkout so no build output enters the store.
+- [ ] Rove injects `CARGO_TARGET_DIR` (and peers) pointing outside the mount.
+- [ ] Seed that dir from the parent task by reflink (`clone-ignored.ts`:
+      Linux btrfs/xfs `FICLONE`, macOS `clonefile`); optional shared sccache.
+- [ ] Stable in-container path per Workspace, so fingerprints survive remounts.
+- [ ] Spike on Linux + Docker: 6 concurrent `cargo build`s, measure FUSE
+      overhead, overlay size, store growth per commit, lock behaviour.
+- [ ] Upstream candidates: a commit path filter or ignore file; store GC;
+      the "10 copies → 0.31" and "5 min → 0.05 s" claims have no benchmark.
 
 ## Bugs found while surveying (independent of this design)
 
