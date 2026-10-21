@@ -53,3 +53,11 @@ opentui boxes are Yoga flexbox. Default to flex flow (`flexGrow`/`flexShrink`/`f
 ## File size
 
 ~500 lines is a refactor prompt, not a budget. Write the clear thing, then split along a named seam (this half owns X, that half owns Y), never by line count. Growing a file that is over, or pushing one past it, means you own the split; "no seam" is a valid answer in the PR. CI gates growth only (`pr-gates.yml` file-size-cap). Exempt: generated, lockfiles, fixtures, `refs/`; a deliberate exception needs one line of justification.
+
+## Before opening a PR
+
+Run `bun run pre-pr -- --body-file <body>` before `gh pr create --body-file <body>`. It runs CI's fast deterministic gates locally, from the same scripts: changeset-cap and frontmatter, lint, the silent-catch scan, file-size-cap and UI evidence against that body, the script tests, typecheck, and the tests of each package the diff touches. `--base <branch>` diffs against something other than `main`.
+
+It leaves out what CI runs sharded or on another OS (the `@sma1lboy/rove` unit shards, behavior, render-track, visual-ground-truth, clean-linux-install, harness-windows-lifetime): serial on a laptop they take longer than the whole CI run. CI stays the gate.
+
+`bun run hooks:install` also enables a pre-push hook that runs only `pre-pr --quick` (changeset gates, lint, silent-catch, a few seconds). The pre-commit hook stays milliseconds-only.

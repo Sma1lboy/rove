@@ -28,7 +28,8 @@
     "changeset": "changeset",
     "changeset:check": "bun scripts/check-changeset.mjs",
     "changeset:status": "changeset status",
-    "hooks:install": "git config core.hooksPath .githooks && echo 'pre-commit hook enabled (.githooks)'",
+    "hooks:install": "git config core.hooksPath .githooks && echo 'pre-commit + pre-push hooks enabled (.githooks)'",
+    "pre-pr": "node scripts/pre-pr.mjs",
     "ci:version": "changeset version && bun install && bun run lint:fix",
     "release": "scripts/release.sh",
     "preview:install": "scripts/preview-install.sh"

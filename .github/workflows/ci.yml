@@ -146,8 +146,8 @@ jobs:
         # + build. Biome at root sees all packages.
         run: bun run lint
 
-      - name: Plugin directory scanner tests
-        run: node --test scripts/scan-plugins.test.mjs
+      - name: Plugin scanner and pre-pr tests
+        run: node --test scripts/scan-plugins.test.mjs scripts/pre-pr.test.mjs
 
       - name: No silent catch handlers in the TUI
         # Under an alternate screen a bare `console.error` in a catch reaches
