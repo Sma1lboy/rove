@@ -14,8 +14,11 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { homeDir } from "../../env.ts"
+import { errorMessage } from "../../lib/error-message.ts"
+import { cloneDirFor, cloneRepo, parseRepoRef } from "../../machines/repo-ref.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
+import { addSavedRepo } from "../../state/repos.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
@@ -42,6 +45,7 @@ import {
   helpStep,
   promptMayHaveLanded,
 } from "./types.ts"
+import { resolveLocalRepo } from "./verbs-repo-match.ts"
 
 /**
  * `--status` / `--pin` aren't create-time RPC fields — apply them as
@@ -99,7 +103,7 @@ async function deliverArmed(
 
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
-  const requestedRepo = args.requireRepo("repo")
+  const requestedRepo = await repoFlag(ctx)
   const repo = await runtime.resolveRepoRoot(requestedRepo)
   // Without this a non-git `--repo` SUCCEEDS: `resolveRepoRoot` falls back to
   // the path verbatim and the row persists with an empty branch and
@@ -133,6 +137,31 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   const resolvedFrom = pathWithin(repo, requestedRepo) ? { repoResolvedFrom: requestedRepo } : undefined
   const result = parallel ? await addParallel(ctx, repo, count, agentsSpec) : await addOne(ctx, repo)
   return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
+}
+
+/**
+ * `--repo` as a checkout path: a path as given, a repo id (`owner/name`, a URL) as this
+ * machine's checkout of it — cloned first with `--clone`, else a NO_LOCAL_CHECKOUT naming the fix.
+ */
+async function repoFlag(ctx: VerbContext): Promise<string> {
+  const ref = parseRepoRef(ctx.args.require("repo"), ctx.caller.cwd ?? process.cwd())
+  if (ref.kind === "path") return ctx.args.requireRepo("repo")
+  const found = await resolveLocalRepo(ctx, { origin: ref.id })
+  if (found.repo) return found.repo
+  if (ctx.args.bool("clone") !== true) {
+    throw new ApiError(`no checkout of ${ref.id} on this machine`, "NO_LOCAL_CHECKOUT", {
+      hint: `pass --clone to clone it into ${cloneDirFor(ref.id)}, or --repo with a checkout's path`,
+    })
+  }
+  try {
+    const dir = cloneRepo(ref)
+    addSavedRepo(dir)
+    return dir
+  } catch (err) {
+    throw new ApiError(`could not clone ${ref.cloneUrl}: ${errorMessage(err)}`, "CLONE_FAILED", {
+      hint: "check this machine can fetch it (`git ls-remote <url>`), or clone it yourself and pass its path",
+    })
+  }
 }
 
 /** The typed-out engine fields: `--command` / `--effort` / `--model`, each gated. */

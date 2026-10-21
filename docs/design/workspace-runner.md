@@ -2,7 +2,8 @@
 
 > Status: **design draft; the dispatch half has landed** (0.9.258+). Shipped:
 > runner routing for `rove api` / `api.invoke` (`--machine <alias>|auto`,
-> task-id routing), dispatch by repo identity (`repo-match`), refusal of an
+> task-id routing), dispatch by repo identity (`repo-match`; `--repo` takes a
+> repo id, with primary checkouts, fork refusal and `--clone`), refusal of an
 > unpushed base, `land` on a remote task as push + PR (`publish`), remote tasks
 > opened in the web and the TUI (terminals + Files), the runner's inbound
 > policy, the stdio transport (native Windows hubs) and `machine tunnel`.

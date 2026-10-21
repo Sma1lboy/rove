@@ -39,6 +39,7 @@ import { loadStateFile } from "../state/store.ts"
 import { CURRENT_VERSION } from "../version.ts"
 import { argvHasFlag } from "./argv.ts"
 import { defaultFixRuntime } from "./doctor-fix.ts"
+import { machinePrimary } from "./machine-primary.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
@@ -55,6 +56,7 @@ const MACHINE_USAGE = [
   "  list                    Show registered machines",
   "  tunnel <alias>          Keep a reverse tunnel to <alias> so it can reach THIS machine",
   "  inbound [allow|deny <class>]  What other machines' hubs may run here (default: everything)",
+  "  primary [<path>] [--clear]    The checkout a repo id resolves to here when there are several",
   "",
   "Add options:",
   "  --alias <name>          Local name for the machine (default: the target you typed)",
@@ -113,6 +115,7 @@ export async function runMachineSubcommand(argv: readonly string[]): Promise<voi
   if (verb === "remove") return remove(rest)
   if (verb === "tunnel") return tunnel(rest)
   if (verb === "inbound") return inbound(rest)
+  if (verb === "primary") return machinePrimary(rest, usageError)
   usageError(`unknown verb "${verb}"`)
 }
 

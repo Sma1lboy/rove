@@ -17,9 +17,11 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ApiError } from "../cli/api/types.ts"
 import { errorMessage } from "../lib/error-message.ts"
+import { getSavedRepos } from "../state/repos.ts"
 import { discoverMachine } from "./discover.ts"
 import { type MachineEntry, dedupeMachines, listMachines, updateMachine } from "./registry.ts"
-import { isLocalCheckout, repoIdentity, unpushedCommits } from "./repo-identity.ts"
+import { type RepoIdentity, isLocalCheckout, repoIdentity, unpushedCommits } from "./repo-identity.ts"
+import { findCheckouts, parseRepoRef } from "./repo-ref.ts"
 import { localDaemonSocketPath, localPtySocketPath } from "./ssh-args.ts"
 import { ensureForwards } from "./tunnel.ts"
 
@@ -100,32 +102,86 @@ const busy = (tasks: ReadonlyArray<{ readonly status?: string }>): number =>
 
 /**
  * Where `--machine auto` sends new work: the machine with the fewest tasks in progress, this one
- * winning ties. A machine that does not answer is skipped. `loads` is what was measured, so the
- * caller can say why.
+ * winning ties. A machine that does not answer is skipped. With `hosts`, only the machines it
+ * accepts (null = this one) are candidates, e.g. those that have the repo; when it accepts none,
+ * load alone decides. `loads` and `skipped` are what was measured, so the caller can say why.
  */
 export async function pickMachine(
   localTasks: () => Promise<ReadonlyArray<{ readonly status?: string }>>,
   readTasks: (entry: MachineEntry) => Promise<ReadonlyArray<{ readonly status?: string }> | null> = machineTasks,
   machines: readonly MachineEntry[] = dedupeMachines(listMachines()),
-): Promise<{ readonly entry: MachineEntry | null; readonly loads: Readonly<Record<string, number>> }> {
+  hosts?: (entry: MachineEntry | null) => Promise<boolean>,
+): Promise<{
+  readonly entry: MachineEntry | null
+  readonly loads: Readonly<Record<string, number>>
+  readonly skipped?: readonly string[]
+}> {
   const [local, ...remote] = await Promise.all([
     localTasks().catch(() => [] as const),
     ...machines.map((entry) => readTasks(entry)),
   ])
   const loads: Record<string, number> = { [LOCAL_MACHINE]: busy(local) }
-  let best: MachineEntry | null = null
-  let bestLoad = loads[LOCAL_MACHINE] ?? 0
   machines.forEach((entry, i) => {
     const tasks = remote[i]
-    if (!tasks) return
-    const load = busy(tasks)
-    loads[entry.alias] = load
+    if (tasks) loads[entry.alias] = busy(tasks)
+  })
+  let pool: (MachineEntry | null)[] = [null, ...machines.filter((entry) => loads[entry.alias] !== undefined)]
+  let skipped: string[] | undefined
+  if (hosts) {
+    const ok = await Promise.all(pool.map((entry) => hosts(entry).catch(() => false)))
+    if (ok.some(Boolean)) {
+      skipped = pool.filter((_, i) => !ok[i]).map((entry) => entry?.alias ?? LOCAL_MACHINE)
+      pool = pool.filter((_, i) => ok[i])
+    }
+  }
+  let best: MachineEntry | null = null
+  let bestLoad = Number.POSITIVE_INFINITY
+  for (const entry of pool) {
+    const load = loads[entry?.alias ?? LOCAL_MACHINE] ?? 0
     if (load < bestLoad) {
       best = entry
       bestLoad = load
     }
-  })
-  return { entry: best, loads }
+  }
+  return { entry: best, loads, ...(skipped ? { skipped } : {}) }
+}
+
+/** The identity a `--repo` value names, judged here; null when there is nothing here to compare. */
+export function repoWanted(repo: unknown): RepoIdentity | null {
+  if (typeof repo !== "string") return null
+  const ref = parseRepoRef(repo)
+  if (ref.kind === "id") return { origin: ref.id }
+  return isLocalCheckout(ref.path) ? repoIdentity(ref.path) : null
+}
+
+/**
+ * `--machine auto`'s filter: does a machine (null = this one) have the repo `params.repo` names?
+ * Undefined — no filter — without a comparable `--repo`, or with `--clone` (any machine can fetch it).
+ */
+export function repoHosts(params: ApiParams): ((entry: MachineEntry | null) => Promise<boolean>) | undefined {
+  if (flagOn(params.clone)) return undefined
+  const want = repoWanted(params.repo)
+  if (!want || (!want.origin && !want.root)) return undefined
+  return async (entry) => {
+    if (entry === null) {
+      if (typeof params.repo === "string" && parseRepoRef(params.repo).kind === "path") return true
+      return getSavedRepos().some((path) => findCheckouts(want, [{ path, identity: repoIdentity(path) ?? {} }]).length)
+    }
+    const socket = await machineDaemonSocket(entry)
+    if (!socket) return false
+    const client = new RoveDaemonClient(socket)
+    try {
+      const res = await client.request<ApiEnvelope>("api.invoke", {
+        verb: "repo-match",
+        params: { ...(want.origin ? { origin: want.origin } : {}), ...(want.root ? { root: want.root } : {}) },
+        forwarded: true,
+        from: hostname(),
+      })
+      return res.ok && Boolean((res.result as { repo?: string | null }).repo)
+    } finally {
+      client.close()
+    }
+  }
 }
 
 /**
@@ -139,9 +195,12 @@ export async function routeTarget(args: {
   readonly isLocalTask: (taskId: string) => Promise<boolean>
   /** This machine's tasks, for `--machine auto`'s load comparison. */
   readonly localTasks?: () => Promise<ReadonlyArray<{ readonly status?: string }>>
+  /** The verb's params: `--machine auto` only places where the `--repo` they name is. */
+  readonly params?: ApiParams
 }): Promise<MachineEntry | null> {
   if (args.machine === AUTO_MACHINE) {
-    return (await pickMachine(args.localTasks ?? (async () => []))).entry
+    const hosts = args.params ? repoHosts(args.params) : undefined
+    return (await pickMachine(args.localTasks ?? (async () => []), machineTasks, undefined, hosts)).entry
   }
   if (args.machine !== undefined && args.machine !== LOCAL_MACHINE) return requireMachine(args.machine)
   if (args.machine === LOCAL_MACHINE || !args.taskId) return null
@@ -199,8 +258,9 @@ export async function forwardVerb(
 /**
  * `--repo` naming a checkout on THIS machine means "that repo", not that path: the target is
  * asked for its own checkout of it (`repo-match`) and the path swapped. A path that is not a
- * checkout here passes through as the target's own path, as before. A target too old to know
- * `repo-match` gets the path unchanged.
+ * checkout here passes through as the target's own path, as before. A repo id (`owner/name`,
+ * a URL) is matched by origin the same way, with or without a checkout here. A target too old
+ * to know `repo-match` gets the value unchanged.
  */
 async function translateRepo(
   client: RoveDaemonClient,
@@ -208,24 +268,30 @@ async function translateRepo(
   params: ApiParams,
 ): Promise<{ params: ApiParams; failure?: undefined } | { failure: ApiEnvelope }> {
   const repo = params.repo
-  if (typeof repo !== "string" || !isLocalCheckout(repo)) return { params }
-  const identity = repoIdentity(repo)
+  if (typeof repo !== "string") return { params }
+  const ref = parseRepoRef(repo)
+  const local = ref.kind === "path" && isLocalCheckout(ref.path)
+  if (ref.kind === "path" && !local) return { params }
+  const identity: RepoIdentity | null = ref.kind === "id" ? { origin: ref.id } : repoIdentity(repo)
   if (!identity?.origin && !identity?.root) return { params }
+  const allowFork = flagOn(params["allow-fork"])
   const ask = await client.request<ApiEnvelope>("api.invoke", {
     verb: "repo-match",
     params: {
       ...(identity.origin ? { origin: identity.origin } : {}),
       ...(identity.root ? { root: identity.root } : {}),
+      ...(allowFork ? { "allow-fork": true } : {}),
     },
     forwarded: true,
     from: hostname(),
   })
   if (!ask.ok) return ask.error.code === "UNKNOWN_VERB" ? { params } : { failure: ask }
-  const found = (ask.result as { repo?: string | null }).repo
+  const answer = ask.result as { repo?: string | null; fork?: string }
+  const found = answer.repo
   if (found) {
     // The runner only has what was pushed: a base with commits no remote has cannot be built on there.
     const base = params["base-branch"]
-    const unpushed = typeof base === "string" ? unpushedCommits(repo, base) : null
+    const unpushed = local && typeof base === "string" ? unpushedCommits(repo, base) : null
     if (typeof base === "string" && unpushed) {
       return {
         failure: failure(
@@ -237,12 +303,29 @@ async function translateRepo(
     }
     return { params: { ...params, repo: found } }
   }
+  if (answer.fork) {
+    return {
+      failure: failure(
+        "FORK_MATCH",
+        `machine "${alias}" only has ${answer.fork}, a fork of ${identity.origin ?? repo} (same history, other origin)`,
+        { hint: "pass --allow-fork to use it, or --clone with the repo id to fetch the repo itself there" },
+      ),
+    }
+  }
+  // The target lacks it: with --clone it fetches the repo itself (`add` resolves the id there).
+  if (flagOn(params.clone) && identity.origin) {
+    return { params: { ...params, repo: ref.kind === "id" ? repo : identity.origin } }
+  }
   return {
     failure: failure("NO_REMOTE_CHECKOUT", `machine "${alias}" has no checkout of ${identity.origin ?? repo}`, {
-      hint: `clone it on ${alias} (and open it there once so Rove knows it), or pass --repo with ${alias}'s own path`,
+      hint: identity.origin
+        ? `pass --clone to clone it on ${alias}, or --repo with ${alias}'s own path`
+        : `clone it on ${alias} (and open it there once so Rove knows it), or pass --repo with ${alias}'s own path`,
     }),
   }
 }
+
+const flagOn = (value: unknown): boolean => value === true || value === "true"
 
 function offline(alias: string): ApiEnvelope {
   return failure("MACHINE_UNREACHABLE", `machine "${alias}" did not answer`, {
@@ -283,6 +366,7 @@ export async function invokeRouted(args: {
       taskId: typeof taskId === "string" ? taskId : undefined,
       isLocalTask: args.isLocalTask,
       ...(args.localTasks ? { localTasks: args.localTasks } : {}),
+      params: args.params,
     })
   } catch (err) {
     if (!(err instanceof ApiError)) throw err

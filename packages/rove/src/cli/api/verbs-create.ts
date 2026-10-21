@@ -17,7 +17,26 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
     group: "create",
     summary: `Create a task (shows in the sidebar immediately). With --prompt it also starts the engine and delivers it. PARALLEL ATTEMPTS: --count N spawns N sibling tasks of the SAME prompt, each in its own worktree/branch (--agents claude:2,codex:1 for a mixed fleet); capped at ${FANOUT_CAP}, prefer 3-4. Does NOT steal focus — pass --activate to make it the active task. The sidebar shows .task.title and .task.branch — name a task by those (or its id), never by the directory in .task.worktreePath, which the UI never renders. \`.engine\` ({ vendor, command, model, effort }; per row with --count/--agents) is what the task actually launches once the flags and the repo default are resolved — check it before trusting the run. \`.warnings\` flags a --model that plainly belongs to another engine's vendor (e.g. codex given a claude-* id); the task is still created. Alias: spawn-task.`,
     flags: [
-      F.repo(),
+      {
+        name: "repo",
+        type: "string",
+        required: true,
+        placeholder: "PATH|REPO",
+        description:
+          "Repo root (git toplevel; relative paths resolve against $PWD), or a repo id: `owner/name` (GitHub), `host/owner/name`, or a remote URL. An id resolves to this machine's checkout of it (the primary one, else a clean one) — or, with --machine, to that machine's.",
+      },
+      {
+        name: "clone",
+        type: "bool",
+        description:
+          "With a repo id this machine (or --machine's) has no checkout of: clone it into ~/.rove/repos/<host>/<owner>/<name> first.",
+      },
+      {
+        name: "allow-fork",
+        type: "bool",
+        description:
+          "With --machine: accept a checkout there that shares the repo's history under another origin (a fork).",
+      },
       F.title(),
       {
         name: "branch",

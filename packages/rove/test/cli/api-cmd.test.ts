@@ -158,6 +158,7 @@ describe("API surface (full CRUD)", () => {
       "worktree-diff",
       "worktree-diff-file",
       "repo-match",
+      "repo-list",
       "publish",
       "deliveries",
       "should-run",

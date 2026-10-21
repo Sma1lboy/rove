@@ -224,8 +224,9 @@ clear the shared active task.
 <!-- generated:begin create,edit,lifecycle -->
 ```text
 publish  --task-id(REQ) --remote
-add      --repo(REQ) --title --branch --base-branch --worktree-name --command --effort
-         --tier{swift|standard|deep|auto} --model --count --agents <claude:2,codex:1>
+add      --repo(REQ) --clone --allow-fork --title --branch --base-branch --worktree-name
+         --command --effort --tier{swift|standard|deep|auto} --model --count
+         --agents <claude:2,codex:1>
          --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
          --require-report --expect-report --activate(false) --prompt|--prompt-file
 update   --task-id(REQ) --title --tab --branch --command --model --effort --pinned
@@ -377,7 +378,8 @@ respawned — files kept, conversation did not), `skipped_precheck` (nothing to 
 ```text
 schema       --verb --group --all
 engine-list  (none)
-repo-match   --origin --root
+repo-match   --origin --root --allow-fork
+repo-list    (none)
 feedback     --title(REQ) --body(REQ) --category(feedback)
 ```
 <!-- generated:end -->
@@ -385,6 +387,17 @@ feedback     --title(REQ) --body(REQ) --category(feedback)
 Bare `schema` is the compact index; `--verb <name>` drills into one verb,
 `--group <g>` lists one group, `--all` dumps everything. `engine-list` is the
 ids + RAW launch command + protocol.
+
+`--repo` takes a repo id as well as a path: `owner/name` (GitHub),
+`host/owner/name`, or a remote URL. An id resolves to the checkout on the
+machine that runs the verb (its `rove machine primary`, else a clean one).
+`add --repo <id> --clone` clones it into `~/.rove/repos/<host>/<owner>/<name>`
+when that machine has none; `--allow-fork` accepts a checkout there under
+another origin. Forwarded with `--machine`, a missing checkout is
+`NO_REMOTE_CHECKOUT` and a fork-only one is `FORK_MATCH`. `repo-match` answers which checkout an `--origin`/`--root`
+resolves to (`{ repo, fork?, checkouts, searched }`); `repo-list` lists a
+machine's repos by id (`{ repos: [{ id, primary, checkouts }] }`) — pass
+`--machine <alias>` to ask another machine.
 
 `feedback` opens a GitHub Discussion in the Rove repo through `gh` — Rove's own
 product feedback channel, not a way to file work for another project (that is
@@ -414,6 +427,8 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `DAEMON_GONE` | the daemon died mid-`watch` | `rove daemon status`, then re-run the watch |
 | `WORKTREE_NAME_TAKEN` | `add --worktree-name` names a directory already in use | pick another name, or omit the flag for a generated one |
 | `INVALID_WORKTREE_NAME` | `--worktree-name` is not one plain path segment | letters/digits/`.`/`_`/`-`, not starting with `.` |
+| `NO_LOCAL_CHECKOUT` | `add --repo <id>`, and this machine has no checkout of it | `--clone`, or `--repo` with a checkout's path |
+| `CLONE_FAILED` | `--clone` could not `git clone` the repo | check `git ls-remote <url>` there, or clone by hand and pass the path |
 
 Daemon-side refusals carry their OWN code (`DIRTY_WORKTREE`, `LAND_CONFLICT`,
 `MISSING_REF`, `GIT_COMMAND_FAILED`, …), not `RPC_ERROR`. Match on `code`; the

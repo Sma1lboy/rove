@@ -26,3 +26,28 @@ describe("--machine auto", () => {
     expect(picked.entry).toBeNull()
   })
 })
+
+describe("--machine auto with a repo", () => {
+  test("only machines that have the repo are candidates, however idle the others", async () => {
+    const remote: Record<string, Array<{ status: string }>> = { mac: busy(3), box: busy(0) }
+    const picked = await pickMachine(
+      async () => busy(0),
+      async (e) => remote[e.alias] ?? null,
+      [machine("mac"), machine("box")],
+      async (e) => e?.alias === "mac",
+    )
+    expect(picked.entry?.alias).toBe("mac")
+    expect(picked.skipped).toEqual(["local", "box"])
+  })
+
+  test("when no machine has it, load alone decides", async () => {
+    const picked = await pickMachine(
+      async () => busy(2),
+      async () => busy(1),
+      [machine("mac")],
+      async () => false,
+    )
+    expect(picked.entry?.alias).toBe("mac")
+    expect(picked.skipped).toBeUndefined()
+  })
+})

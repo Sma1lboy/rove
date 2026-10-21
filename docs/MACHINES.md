@@ -215,9 +215,60 @@ sync-with-base.
 
 Dispatch names the repo, not a path: `rove api add --machine mac --repo
 ~/code/rove` finds the Mac's own checkout (`repo-match`, root commit or
-origin). A base branch with unpushed commits is refused (`UNPUSHED_BASE`).
-`land` on a remote task pushes its branch there and opens a PR (`publish`).
-`--machine auto` picks the machine with the fewest tasks in progress.
+origin), and so does `--repo sma1lboy/rove`
+([below](#repos-are-named-by-id-not-path)). A base branch with unpushed
+commits is refused (`UNPUSHED_BASE`). `land` on a remote task pushes its
+branch there and opens a PR (`publish`). `--machine auto` picks the machine
+with the fewest tasks in progress among those that have the repo.
+
+## Repos are named by id, not path
+
+A repo's id is its normalized `origin`: `github.com/sma1lboy/rove`, whatever
+the remote URL's form. A repo with no origin is `root:<sha>`, its first
+commit. A path is only one machine's checkout of it, so `--repo` takes the id
+too:
+
+```console
+$ rove api add --machine narwhal --repo sma1lboy/rove --prompt "fix the flaky test"
+```
+
+`owner/name` means GitHub; `host/owner/name` and any remote URL name other
+hosts. A value that could be a path (absolute, `~` or `.` first, or a
+directory that exists) stays a path, and a path that is a checkout here is
+read as that checkout's repo before it crosses to another machine.
+
+- **Which checkout.** A machine looks through its saved repos and every
+  task's repo. With several checkouts of one id, its primary one wins, then a
+  clean one (no uncommitted changes to tracked files), then the first found.
+- **Forks.** A checkout with the same first commit under another origin is a
+  fork. It is never picked silently: dispatch fails with `FORK_MATCH`, naming
+  it, and `--allow-fork` accepts it.
+- **`--clone`.** When the machine has no checkout (`NO_REMOTE_CHECKOUT`, or
+  `NO_LOCAL_CHECKOUT` here), `--clone` has it run `git clone` into
+  `~/.rove/repos/<host>/<owner>/<name>` and save it as a repo. A later
+  dispatch finds it there. It needs a repo with an origin, and that machine
+  must be able to fetch it; otherwise `CLONE_FAILED` carries git's error.
+- **`--machine auto`** only considers machines that have the repo, and its
+  stderr line names the ones it skipped. When none has it, load alone
+  decides. With `--clone`, every machine is a candidate.
+
+Pick the primary checkout on each machine, in that machine's shell:
+
+```console
+$ rove machine primary ~/code/rove          # this checkout answers for its repo id
+$ rove machine primary                      # list the marks
+$ rove machine primary ~/code/rove --clear  # back to clean-then-first
+```
+
+The marks live in that machine's `state.json` (`repoPrimary`). To see what a
+machine has, by id, with each repo's checkouts and primary:
+
+```console
+$ rove api repo-list --machine narwhal
+```
+
+The sidebar in `rove --web` groups projects by repo id too: a repo you have
+on several machines is one project, with each machine's tasks under it.
 
 ## What this release does not do yet
 
@@ -240,6 +291,8 @@ forwarding.
 | Path | What |
 | --- | --- |
 | `state.json` → `machines` | The registry: host, user, port, auth, learned identity |
+| `state.json` → `repoPrimary` | Repo id → this machine's primary checkout (`rove machine primary`) |
+| `<home>/.rove/repos/<host>/<owner>/<name>` | Where `--clone` puts a repo it fetches |
 | `<home>/.rove/machines/<alias>/daemon.sock` | Local end of the forwarded daemon socket |
 | `<home>/.rove/machines/<alias>/pty.sock` | Local end of the forwarded PTY-host socket |
 | `<home>/.rove/machines/<alias>/cm` | The shared SSH connection (ControlMaster) |
