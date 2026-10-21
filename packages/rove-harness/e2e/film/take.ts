@@ -4,13 +4,16 @@
  * No video is recorded here — `render.ts` makes every frame from the cast.
  */
 
-import { writeFile } from "node:fs/promises"
+import { mkdir, writeFile } from "node:fs/promises"
+import { dirname, join } from "node:path"
 import { gzipSync } from "node:zlib"
 import { chromium } from "@playwright/test"
-import { look } from "../hero-capture.ts"
+import { look, REPO_ROOT } from "../hero-capture.ts"
 import { fixtureAuthHeaders, HERO_PTY_PORT, HERO_WEB_PORT } from "../hero-env.ts"
 import { castPath, type Film, type TakeSession, VIEWPORT } from "./film.ts"
+import { assertColorProbes, castGrid } from "./probe.ts"
 import { assertCastClean, redactCast } from "./redact.ts"
+import { openReplay } from "./render.ts"
 
 /**
  * Exact strings a take must never show, registered at RUN time — a real API
@@ -40,6 +43,7 @@ export async function take(film: Film): Promise<string> {
   const url = `http://localhost:${HERO_WEB_PORT}/harness?run=${runId}${wallpaper}`
   const browser = await chromium.launch({ headless: true })
   let cast: string | null = null
+  let failed: unknown = null
   try {
     const page = await browser.newPage({ viewport: film.viewport ?? VIEWPORT })
     await page.goto(url)
@@ -61,7 +65,9 @@ export async function take(film: Film): Promise<string> {
         await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })
       },
     }
-    await film.take(page, cue, session)
+    await film.take(page, cue, session).catch((err: unknown) => {
+      failed = err
+    })
   } finally {
     // Read the recording before the close; the close must happen on EVERY exit
     // so a failed take cannot leave a TUI running on the fixture.
@@ -71,9 +77,33 @@ export async function take(film: Film): Promise<string> {
   }
   if (!cast) throw new Error(`no recording for ${tab}`)
   const redacted = redactCast(cast, forbiddenLiterals)
-  await assertCastClean(redacted, forbiddenLiterals)
+  try {
+    if (failed) throw failed
+    await assertCastClean(redacted, forbiddenLiterals)
+    await probeTake(film, redacted)
+  } catch (err) {
+    // A take can cost real turns: park it for inspection rather than drop it,
+    // but never over the committed cast. `.scratch/` is gitignored, so a take
+    // that failed the identity check is kept local.
+    const rejected = join(REPO_ROOT, ".scratch", "film", `${film.name}.rejected.cast.gz`)
+    await mkdir(dirname(rejected), { recursive: true })
+    await writeFile(rejected, gzipSync(redacted, { level: 9 }))
+    throw new Error(`${err instanceof Error ? err.message : String(err)}\nrejected take kept at ${rejected}`)
+  }
   const path = castPath(film.name)
   await writeFile(path, gzipSync(redacted, { level: 9 }))
   await film.afterTake?.()
   return path
+}
+
+/** The colour probes, on the take's own replay through the warm stack's Vite. */
+async function probeTake(film: Film, cast: string): Promise<void> {
+  if (!film.colorProbes?.length) return
+  const browser = await chromium.launch({ headless: true })
+  try {
+    const { page, markers } = await openReplay(browser, `http://localhost:${HERO_WEB_PORT}`, film, cast)
+    await assertColorProbes(page, film, markers, castGrid(cast))
+  } finally {
+    await browser.close()
+  }
 }

@@ -65,7 +65,7 @@ function film(scenes) {
       hasCaption: Boolean(scene.caption),
       openIn: Boolean(scene.openIn),
       closeOut: Boolean(scene.closeOut),
-      zoomSidebar: Boolean(scene.zoomSidebar),
+      zoom: scene.zoom ?? null,
       keyCount: scene.kind === "keys" ? KEYS.length : 0,
       keyPress: keyClip ? (keyClip.start + keyClip.frames) / FPS - scene.keyPress.fromEnd : null,
       kickers: (scene.kickerChanges ?? []).map((change, i) => ({ slot: i + 1, at: clipNamed(change.clip).start / FPS + change.at })),
@@ -114,7 +114,7 @@ export function build() {
         // Sized inline, in window pixels: the renderer swaps each video for its
         // extracted frames and keeps only inline styles, so a stylesheet 100%
         // leaves a 2x capture at its intrinsic size.
-        `              <video id="clip-${clip.id}" src="clips/${clip.id}.mp4" data-start="${seconds(clip.start)}" data-duration="${seconds(clip.frames)}" data-track-index="0" muted playsinline style="position:absolute;left:0;top:0;width:1483.2px;height:834.3px;object-fit:fill"></video>`,
+        `              <video id="clip-${clip.id}" src="clips/${clip.id}.mp4" data-start="${seconds(clip.start)}" data-duration="${seconds(clip.frames)}" data-track-index="0" muted playsinline style="position:absolute;left:0;top:0;width:1440px;height:810px;object-fit:fill"></video>`,
     )
   const keyRings = scenes
     .filter((scene) => scene.keyPress)

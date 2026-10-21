@@ -46,10 +46,14 @@ export function ReplayTerminal({
   renderer,
   transparent,
   hostBackground,
+  scale = 1,
 }: {
   renderer: TerminalRendererMode
   transparent: boolean
   hostBackground?: string
+  /** Font multiple: the cell grid is the cast's, each cell `scale`× larger.
+   *  A device scale factor would instead reflow the grid (see `render.ts`). */
+  scale?: number
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -67,6 +71,7 @@ export function ReplayTerminal({
         transparent,
         hostBackground,
         cursorBlink: false,
+        fontScale: scale,
       })
       term = t
       let cast: Cast | null = null
@@ -110,7 +115,7 @@ export function ReplayTerminal({
       delete window.__replay
       term?.dispose()
     }
-  }, [renderer, transparent, hostBackground])
+  }, [renderer, transparent, hostBackground, scale])
 
   return (
     <div

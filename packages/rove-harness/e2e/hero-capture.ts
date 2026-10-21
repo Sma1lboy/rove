@@ -61,29 +61,30 @@ const CELL = { width: 7, height: 16 } as const
  *
  * `nth` picks a later match when several rows share the text (sibling tasks
  * with one title); `below` clicks that many rows under the match — the chat
- * tab nested under a task has no text of its own to find.
+ * tab nested under a task has no text of its own to find. `maxCol` keeps the
+ * match left of a column, e.g. inside the sidebar.
  */
 export async function clickText(
   page: Page,
   needle: string,
   minCol = 0,
-  { nth = 0, below = 0 }: { nth?: number; below?: number } = {},
+  { nth = 0, below = 0, maxCol = Number.POSITIVE_INFINITY }: { nth?: number; below?: number; maxCol?: number } = {},
 ): Promise<void> {
   const hit = await page.getByTestId("opentui-buffer").evaluate(
-    (el, [text, min, skip]) => {
+    (el, [text, min, skip, max]) => {
       const lines = (el.textContent ?? "").split("\n")
       let seen = 0
       for (const [row, line] of lines.entries()) {
         const col = line.indexOf(text as string, min as number)
-        if (col < 0) continue
+        if (col < 0 || col >= (max as number)) continue
         if (seen === skip) return { row, col }
         seen += 1
       }
       return null
     },
-    [needle, minCol, nth] as const,
+    [needle, minCol, nth, maxCol] as const,
   )
-  if (!hit) throw new Error(`no ${JSON.stringify(needle)} (match ${nth}) on screen right of column ${minCol}`)
+  if (!hit) throw new Error(`no ${JSON.stringify(needle)} (match ${nth}) on screen between columns ${minCol} and ${maxCol}`)
   await click(page, (hit.col + 1) * CELL.width, (hit.row + below) * CELL.height + CELL.height / 2)
 }
 

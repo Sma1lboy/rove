@@ -91,6 +91,8 @@ export type HarnessTerminalOptions = {
   hostBackground?: string
   /** Off for replay: a timer-driven blink would make frames depend on wall time. */
   cursorBlink: boolean
+  /** Multiplies the 12px font; the film replay uses it for a 2× source. */
+  fontScale?: number
 }
 
 /** Open the harness xterm in `el`. Call after {@link loadTerminalFont}. */
@@ -101,6 +103,7 @@ export function openHarnessTerminal(
     transparent,
     hostBackground,
     cursorBlink,
+    fontScale = 1,
   }: HarnessTerminalOptions,
 ): Terminal {
   const term = new Terminal({
@@ -115,7 +118,7 @@ export function openHarnessTerminal(
       : CLAUDE_XTERM_THEME,
     allowTransparency: transparent,
     fontFamily: TERMINAL_FONT_FAMILY,
-    fontSize: 12,
+    fontSize: 12 * fontScale,
     cursorBlink,
     allowProposedApi: true,
     scrollback: 5000,

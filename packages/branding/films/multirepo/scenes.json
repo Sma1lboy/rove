@@ -20,8 +20,8 @@
     {
       "kind": "take",
       "kicker": "3 repos · 2 engines · 3 agents",
-      "caption": "All running at once.",
-      "zoomSidebar": true,
+      "caption": "All of them working at once.",
+      "zoom": "sidebar",
       "clips": ["running"]
     },
     {
@@ -36,13 +36,21 @@
       "kicker": "the daemon kept them going",
       "caption": "Nothing stopped.",
       "openIn": true,
-      "zoomSidebar": true,
+      "zoom": "sidebar",
       "clips": ["reopened"]
     },
     {
       "kind": "take",
-      "kicker": "orbit-sdk · its own branch",
+      "kicker": "3 turns finished while you were away",
+      "caption": "The Inbox has what's done.",
+      "zoom": "inbox",
+      "clips": ["inbox"]
+    },
+    {
+      "kind": "take",
+      "kicker": "orbit-sdk · request-timeout · its own branch",
       "caption": "Open one. Read the diff.",
+      "zoom": "files",
       "clips": ["diff"]
     },
     { "kind": "end", "seconds": 2.4 }

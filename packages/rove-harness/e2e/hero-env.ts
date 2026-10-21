@@ -149,9 +149,18 @@ export function ensureCaptureShell(): void {
   )
 }
 
+/**
+ * Variables that switch an engine's colour off. An agent-driven take inherits
+ * them from the operator's shell (Claude Code exports `CI=true` and
+ * `NO_COLOR=1` to its tools), and chalk/supports-color reads `CI` without a
+ * known vendor as "no colour" — the engine under capture then draws in
+ * monochrome while Rove's own chrome stays coloured.
+ */
+const COLOR_SUPPRESSORS = ["NO_COLOR", "CI", "FORCE_COLOR"] as const
+
 export function heroEnv(parent: NodeJS.ProcessEnv = process.env): Record<string, string> {
   assertHeroIsolation()
-  return buildFixtureEnv({
+  const env = buildFixtureEnv({
     root: HERO_ROOT,
     home: HERO_HOME,
     ports: PORTS,
@@ -159,12 +168,14 @@ export function heroEnv(parent: NodeJS.ProcessEnv = process.env): Record<string,
     parentEnv: parent,
     extra: { ...classifierKeyEnv(parent), ZDOTDIR: CAPTURE_SHELL_DIR },
   })
+  for (const name of COLOR_SUPPRESSORS) delete env[name]
+  return env
 }
 
 /**
  * `sh -lc` string the PTY sidecar runs as the harness TUI. A login shell
  * re-reads the operator's rc files, so every isolation variable is re-stated
- * inline rather than trusted to survive the hop.
+ * inline, and every colour suppressor unset, rather than trusted to survive the hop.
  */
 export function heroPtyCommand(): string {
   const inline = [
@@ -184,5 +195,5 @@ export function heroPtyCommand(): string {
     // Single-quoted: a Windows path's backslashes are escapes to an unquoted sh word.
     .map((pair) => pair.replace(/=(.+)$/, (_, value: string) => `='${value}'`))
     .join(" ")
-  return `unset ${CLAUDE_MARKERS.join(" ")}; ${inline} bun run dev:sandbox`
+  return `unset ${[...CLAUDE_MARKERS, ...COLOR_SUPPRESSORS].join(" ")}; ${inline} bun run dev:sandbox`
 }

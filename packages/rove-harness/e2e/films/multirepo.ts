@@ -1,7 +1,8 @@
 /**
  * The landing film: three repos, a task started in each from the TUI (Claude
- * Code, Codex, Claude Code), the terminal closed and reopened with all three
- * still running, then one task's diff.
+ * Code, Codex, Claude Code), each agent seen at work, the terminal closed
+ * while they run, then reopened on an Inbox of finished turns, one of which
+ * is opened to its changed files and diff.
  *
  *   HERO_ROOT=/tmp/rove-hero-multi bun e2e/film.ts setup multirepo   # its own 3-repo fixture
  *   HERO_ROOT=/tmp/rove-hero-multi bun e2e/hero-serve.ts             # keep running
@@ -75,26 +76,35 @@ const REPOS = { orbit: HERO_REPO, atlas: join(HERO_ROOT, "atlas-web"), ledger: j
 /**
  * One task per repo, in the order they are started on camera. None of them
  * commits: the Changes pane diffs the WORKING TREE, and a committed turn
- * would leave the closing diff beat with nothing to show.
+ * would leave the closing diff beat with nothing to show. `branch` is the
+ * sidebar row's label and `title` the Inbox card's: the dialog has no name
+ * field, and the daemon's prompt-derived rename lands too late for the take,
+ * so the storyboard sets both through `rove api update` as each task is created.
  */
 const TAKES = [
   {
     repo: "orbit-sdk",
     engine: "claude",
+    branch: "request-timeout",
+    title: "Request timeout and retry",
     prompt:
-      "Add a configurable request timeout (default 5s) to createClient in src/client.ts that aborts the fetch, cover it in test/client.test.ts, run bun test until green, and describe it in README.md. Don't commit.",
+      "Add a configurable request timeout (default 5s) to createClient in src/client.ts that aborts the fetch, and retry 5xx responses with exponential backoff up to maxAttempts. Cover each behaviour with its own test in test/client.test.ts, run bun test until green, and document both in README.md. Don't commit.",
   },
   {
     repo: "atlas-web",
     engine: "codex",
+    branch: "byte-units",
+    title: "Byte, duration and relative formats",
     prompt:
-      "Make formatBytes handle KB, MB, GB and TB, add a formatDuration helper, test both in test/format.test.ts, run bun test until green, and describe it in README.md. Don't commit.",
+      "Make formatBytes handle KB, MB, GB and TB with one decimal, add formatDuration (ms to '1h 2m 3s') and formatRelative (a Date to '3 days ago') helpers, use them in renderRow, test all three in test/format.test.ts, run bun test until green, and describe them in README.md. Don't commit.",
   },
   {
     repo: "ledger-api",
     engine: "claude",
+    branch: "transfer-guards",
+    title: "Transfer guards and history",
     prompt:
-      "Make transfer() reject non-positive amounts and overdrafts, record each transfer in a history log, cover it all in the tests, run bun test until green, and describe it in README.md. Don't commit.",
+      "Make transfer() reject non-positive amounts, overdrafts and same-account transfers with typed errors, record each transfer in a timestamped history log, add a balanceAt(account, time) query over that log, cover it all in the tests, run bun test until green, and describe it in README.md. Don't commit.",
   },
 ] as const
 
@@ -167,6 +177,12 @@ async function setup(): Promise<void> {
     defaultVendor: "claude",
     "engineCommand.claude": claudeCommand(),
     "engineCommand.codex": `${engineBin("codex")} ${CODEX_ARGS}`,
+    // Room for the branch labels, and only the pages this film is about.
+    "sidebar.width": SIDEBAR_WIDTH,
+    "plugins.bundled.kanban.enabled": false,
+    "plugins.bundled.issues.enabled": false,
+    // Zen starts on by default and hides the Files pane, whose Changes tab the diff beat needs.
+    "zen.active": false,
     ...(skillVersion ? { [`skillHintSeen:v${skillVersion}`]: "1" } : {}),
   }
   await mkdir(join(HERO_CONFIG, "rove"), { recursive: true })
@@ -177,12 +193,38 @@ async function setup(): Promise<void> {
   console.log(`[multirepo] fixture at ${HERO_ROOT}`)
 }
 
-type Task = { repo: string; kind?: string; branch?: string }
+type Task = { id: string; repo: string; kind?: string; branch?: string; activity?: { state?: string } | null }
 
-function tasks(): Task[] {
-  const result = runRoveApi(HERO_CLI, ["list"], REPOS.orbit, env)
+function tasks(...args: string[]): Task[] {
+  const result = runRoveApi(HERO_CLI, ["list", ...args], REPOS.orbit, env)
   const list = result && typeof result === "object" && "tasks" in result ? result.tasks : undefined
   return Array.isArray(list) ? list.filter((t): t is Task => typeof t?.repo === "string") : []
+}
+
+/** The take's worktree task in `repo` (each repo also has a main row). */
+function taskIn(repo: string): Task | undefined {
+  return tasks().find((task) => task.repo.endsWith(repo) && task.kind !== "main")
+}
+
+/**
+ * Wait, with no TUI attached, until no take task is still working. A turn
+ * that ends unseen is what puts a `done` row in the Inbox the reopen films;
+ * one that stops on a prompt instead puts a "needs input" row there, which
+ * films just as well, so nothing here throws away a take that cost real turns.
+ */
+async function turnsSettled(timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  let states: string[] = []
+  while (Date.now() < deadline) {
+    // `--activity` is what makes `list` carry `.activity`; every state is named so none is filtered out.
+    const live = tasks("--activity", "idle,turn_complete,running,permission_needed,rate_limited,error,dead")
+    states = TAKES.map(
+      (spec) => live.find((task) => task.repo.endsWith(spec.repo) && task.kind !== "main")?.activity?.state ?? "unknown",
+    )
+    if (!states.some((state) => state === "running" || state === "unknown")) break
+    await Bun.sleep(5_000)
+  }
+  console.error(`[multirepo] reopening with turns ${states.join(", ")}`)
 }
 
 /**
@@ -228,14 +270,19 @@ async function startTask(page: Page, cue: Cue, spec: (typeof TAKES)[number], ind
   await press(page, "tab")
   await cue(`repo-${index}`)
   await page.waitForTimeout(700)
-  // Enter → FROM BRANCH, Enter → create. The repo check can fail on a slow
-  // git spawn; the dialog stays open with a reason, and Enter re-submits.
-  await press(page, "enter", "enter")
-  for (let attempt = 0; attempt < 3 && (await look(page, "isn't a git repository", 1_500)); attempt += 1) {
+  // Enter walks (OPENS →) FROM BRANCH → create; OPENS only exists once the
+  // repo has a main task, so Enter repeats until the task appears. The repo
+  // check can fail on a slow git spawn; the dialog then stays open with a
+  // reason, and Enter re-submits.
+  for (let attempt = 0; attempt < 5 && tasks().length === before; attempt += 1) {
     await press(page, "enter")
+    await page.waitForTimeout(600)
   }
   await cue(`created-${index}`)
-  for (let i = 0; i < 40 && tasks().length === before; i += 1) await page.waitForTimeout(500)
+  for (let i = 0; i < 40 && !taskIn(spec.repo); i += 1) await page.waitForTimeout(500)
+  const created = taskIn(spec.repo)
+  if (!created) throw new Error(`no task appeared in ${spec.repo}`)
+  runRoveApi(HERO_CLI, ["update", "--task-id", created.id, "--title", spec.title, "--branch", spec.branch], REPOS.orbit, env)
   // Each engine asks, in its own words, before working in a directory it has
   // never seen — the throwaway fixture repo is what gets trusted.
   const trust = TRUST[spec.engine]
@@ -272,16 +319,31 @@ async function startTask(page: Page, cue: Cue, spec: (typeof TAKES)[number], ind
   await cue(`prompted-${index}`)
 }
 
-/** Columns right of this belong to the Changes/files pane at 1440 wide. */
-const RIGHT_PANE_COL = 160
+/** Pinned rail width (`sidebar.width`): fits `ledger-api` and every branch label. */
+const SIDEBAR_WIDTH = 30
+/** Columns right of this belong to the Files pane at 1120 wide (158 cells, pane clamped to 34). */
+const RIGHT_PANE_COL = 120
 
 export const multirepo: Film = {
   name: "multirepo",
   setup,
   ready: "Welcome to Rove",
-  // 16:9, so the window fills a 16:9 film without looking tall and narrow;
-  // 810 rows of pixels keep the 16px cell grid.
-  viewport: { width: 1440, height: 810 },
+  // 16:9 at ~158×39 cells: few enough columns that a README-width gif can be
+  // read. The 2× render keeps the grid and sharpens the pixels.
+  viewport: { width: 1120, height: 630 },
+  renderScale: 2,
+  colorProbes: [
+    {
+      // Claude Code's banner, in the workspace only: Rove's own clay (204,120,92)
+      // sits in the sidebar and borders, ~12 RGB units away.
+      label: "Claude orange in the first Claude session",
+      at: "ready-0",
+      region: { col0: SIDEBAR_WIDTH + 1, row0: 2, col1: RIGHT_PANE_COL - 2, row1: 37 },
+      rgb: [215, 119, 87],
+      tolerance: 6,
+      minPixels: 150,
+    },
+  ],
   async take(page, cue, session) {
     engineAt = 0
     await cue("tui-up")
@@ -290,33 +352,44 @@ export const multirepo: Film = {
       await startTask(page, cue, spec, index)
       await page.waitForTimeout(3_000)
     }
+    // The last agent started, at work, with all three live in the sidebar.
+    // The others are not revisited: a turn that ends while its tab is in view
+    // is consumed there and never reaches the Inbox.
     await cue("all-running")
-    // Hold on the sidebar with three live rows.
-    await page.waitForTimeout(5_000)
+    await page.waitForTimeout(10_000)
+    // Park on a main row so the last one's tab is out of view too.
+    await clickText(page, "main", 0, { maxCol: SIDEBAR_WIDTH })
+    await page.waitForTimeout(1_500)
 
     // Close the terminal: the TUI process goes away, the daemon keeps the engines.
     await cue("close")
     await session.close()
     await page.waitForTimeout(3_000)
     await cue("closed")
-    await page.waitForTimeout(4_000)
+    await turnsSettled(20 * 60_000)
     await cue("reopen")
     await session.reopen()
     await look(page, "ledger-api", 60_000)
-    await page.waitForTimeout(1_000)
+    await page.waitForTimeout(1_500)
     await cue("reopened")
-    await page.waitForTimeout(8_000)
+    await page.waitForTimeout(2_000)
+    // The sidebar's INBOX label opens it.
+    await clickText(page, "INBOX", 0, { maxCol: SIDEBAR_WIDTH })
+    await look(page, " › ", 10_000)
+    await cue("inbox")
+    await page.waitForTimeout(4_000)
 
-    // Open the first task and diff it. Its row label is the branch slug, which
-    // is only known now; each repo also has a main row to not land on.
-    const orbitTask = tasks().find((task) => task.repo.endsWith("orbit-sdk") && task.kind !== "main")
-    const slug = orbitTask?.branch?.split("/").pop()?.slice(0, 12) ?? "add-a-"
-    await clickText(page, slug)
+    // Open orbit-sdk's finished turn from the Inbox (any card if it is not
+    // there), then its changes.
+    const orbitCard = await look(page, "orbit-sdk ›", 1_000)
+    await clickText(page, orbitCard ? "orbit-sdk ›" : " › ", SIDEBAR_WIDTH)
     await cue("task-open")
-    await page.waitForTimeout(3_000)
+    // Claude Code may follow a turn with a "Teach auto mode" prompt; Esc is its own "not now".
+    if (await look(page, "Teach auto mode", 2_000)) await press(page, "esc")
+    await page.waitForTimeout(4_000)
     await clickText(page, "Changes", RIGHT_PANE_COL)
     await cue("changes")
-    await page.waitForTimeout(2_000)
+    await page.waitForTimeout(3_000)
     await clickText(page, "diff everything", RIGHT_PANE_COL)
     await cue("diff")
     await page.waitForTimeout(9_000)
