@@ -91,6 +91,8 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
         params,
         machine: route?.machine,
         forwarded: route?.forwarded,
+        localTasks: () =>
+          client.request<{ tasks?: Array<{ status?: string }> }>("task.list").then((res) => res.tasks ?? []),
         isLocalTask: (id) =>
           client.request("task.get", { taskId: id }).then(
             () => true,

@@ -92,6 +92,42 @@ export function requireMachine(alias: string): MachineEntry {
   })
 }
 
+/** `--machine auto`: let Rove place the work. */
+export const AUTO_MACHINE = "auto"
+
+const busy = (tasks: ReadonlyArray<{ readonly status?: string }>): number =>
+  tasks.filter((task) => task.status === "in_progress").length
+
+/**
+ * Where `--machine auto` sends new work: the machine with the fewest tasks in progress, this one
+ * winning ties. A machine that does not answer is skipped. `loads` is what was measured, so the
+ * caller can say why.
+ */
+export async function pickMachine(
+  localTasks: () => Promise<ReadonlyArray<{ readonly status?: string }>>,
+  readTasks: (entry: MachineEntry) => Promise<ReadonlyArray<{ readonly status?: string }> | null> = machineTasks,
+  machines: readonly MachineEntry[] = dedupeMachines(listMachines()),
+): Promise<{ readonly entry: MachineEntry | null; readonly loads: Readonly<Record<string, number>> }> {
+  const [local, ...remote] = await Promise.all([
+    localTasks().catch(() => [] as const),
+    ...machines.map((entry) => readTasks(entry)),
+  ])
+  const loads: Record<string, number> = { [LOCAL_MACHINE]: busy(local) }
+  let best: MachineEntry | null = null
+  let bestLoad = loads[LOCAL_MACHINE] ?? 0
+  machines.forEach((entry, i) => {
+    const tasks = remote[i]
+    if (!tasks) return
+    const load = busy(tasks)
+    loads[entry.alias] = load
+    if (load < bestLoad) {
+      best = entry
+      bestLoad = load
+    }
+  })
+  return { entry: best, loads }
+}
+
 /**
  * Which machine a verb should run on: the explicit `--machine`, else the
  * machine holding `--task-id`, else null (this machine). A task id this
@@ -101,7 +137,12 @@ export async function routeTarget(args: {
   readonly machine?: string
   readonly taskId?: string
   readonly isLocalTask: (taskId: string) => Promise<boolean>
+  /** This machine's tasks, for `--machine auto`'s load comparison. */
+  readonly localTasks?: () => Promise<ReadonlyArray<{ readonly status?: string }>>
 }): Promise<MachineEntry | null> {
+  if (args.machine === AUTO_MACHINE) {
+    return (await pickMachine(args.localTasks ?? (async () => []))).entry
+  }
   if (args.machine !== undefined && args.machine !== LOCAL_MACHINE) return requireMachine(args.machine)
   if (args.machine === LOCAL_MACHINE || !args.taskId) return null
   const machines = dedupeMachines(listMachines())
@@ -230,6 +271,7 @@ export async function invokeRouted(args: {
   readonly machine?: string
   readonly forwarded?: boolean
   readonly isLocalTask: (taskId: string) => Promise<boolean>
+  readonly localTasks?: () => Promise<ReadonlyArray<{ readonly status?: string }>>
   readonly runHere: () => Promise<ApiEnvelope>
 }): Promise<ApiEnvelope> {
   if (args.forwarded) return args.runHere()
@@ -240,6 +282,7 @@ export async function invokeRouted(args: {
       machine: args.machine,
       taskId: typeof taskId === "string" ? taskId : undefined,
       isLocalTask: args.isLocalTask,
+      ...(args.localTasks ? { localTasks: args.localTasks } : {}),
     })
   } catch (err) {
     if (!(err instanceof ApiError)) throw err

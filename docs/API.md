@@ -58,7 +58,9 @@ logins. This machine only routes.
 - `--machine <alias>` on any verb runs it there:
   `rove api add --machine narwhal --repo /srv/rove --prompt "…"`. Over the
   socket or the bridge, pass `"machine": "<alias>"` beside `verb` and
-  `params`. `local` names this machine.
+  `params`. `local` names this machine. `auto` places the call: the machine with the
+  fewest tasks in progress (this one wins a tie; a machine that does not
+  answer is skipped), reported on stderr as `--machine auto → <alias>`.
 - A `--task-id` that lives on another machine runs on that machine without
   `--machine`, so a remote task the sidebar shows answers `send`,
   `read-output`, `delete` and the rest like a local one.
