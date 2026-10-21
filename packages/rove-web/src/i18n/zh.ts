@@ -97,6 +97,11 @@ export const zh: typeof en = {
     promptPlaceholder: "可选；⌘↵ 创建",
     create: "创建",
     needRepo: "先选一个项目",
+    machine: "机器",
+    thisMachine: "本机",
+    remoteRepoPlaceholder: "{host} 上的仓库路径",
+    remoteRepoHint: "填 {host} 上的路径；会列出它上面已有的项目",
+    baseBranch: "基于分支",
   },
   newChat: {
     title: "新建会话",

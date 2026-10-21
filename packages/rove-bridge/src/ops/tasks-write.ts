@@ -51,6 +51,8 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const status = optOneOf(args, "status", STATUSES)
   const pin = optBool(args, "pin")
   const engineGiven = args.engine !== undefined && args.engine !== null && args.engine !== ""
+  // Another registered machine: `add` runs in its daemon, against its paths and its engines.
+  const machine = optText(args, "machine", 64)
 
   const parallel = count !== undefined || agentsGiven
   if (count !== undefined && agentsGiven) throw new BridgeError("BAD_ARGS", "count and agents are exclusive")
@@ -58,8 +60,9 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   if (parallel && branch) throw new BridgeError("BAD_ARGS", "branch cannot be shared by parallel tasks")
   if (agentsGiven && engineGiven) throw new BridgeError("BAD_ARGS", "engine conflicts with agents")
   const plan = agentsGiven ? parseAgents(args) : undefined
-  if (plan) await checkAgentEngines(plan, ctx)
-  const engine = engineGiven ? await engineId(args, "engine", ctx) : undefined
+  if (plan && !machine) await checkAgentEngines(plan, ctx)
+  // This machine's engine list says nothing about another's; that machine's `add` validates it.
+  const engine = !engineGiven ? undefined : machine ? text(args, "engine", 64) : await engineId(args, "engine", ctx)
 
   const argv = [flag("repo", repo)]
   if (title) argv.push(flag("title", title))
@@ -78,7 +81,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
     taskId?: string
     groupId?: string
     tasks?: ReadonlyArray<{ taskId?: string }>
-  }>("add", argv)
+  }>("add", argv, machine)
   if (Array.isArray(res.tasks)) {
     const taskIds = res.tasks.flatMap((t) => (typeof t.taskId === "string" ? [t.taskId] : []))
     return { taskIds, ...(res.groupId ? { groupId: res.groupId } : {}) }

@@ -11,8 +11,11 @@ export type Args = Readonly<Record<string, unknown>>
 
 /** How the bridge reaches Rove: one verb or one RPC per call. Faked in tests. */
 export interface BridgeApi {
-  /** `rove api <name> <argv>` in-process; refusals keep their stable `code`. */
-  verb<T>(name: string, argv: readonly string[]): Promise<T>
+  /**
+   * `rove api <name> <argv>` in-process; refusals keep their stable `code`. `machine` runs it in that
+   * registered machine's daemon instead; without it, a `--task-id` on another machine routes there.
+   */
+  verb<T>(name: string, argv: readonly string[], machine?: string): Promise<T>
   /** A daemon RPC by name. */
   rpc<T>(name: DaemonRequestName, payload?: unknown): Promise<T>
   /** The registered machine a task lives on; undefined = this machine. `verb` already routes there by `--task-id`. */

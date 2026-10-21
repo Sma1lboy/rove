@@ -451,7 +451,13 @@ export function createRoveOps(
 
     async diffFiles(taskId) {
       // Another machine's worktree is read there: its git, its files.
-      if (api.machineOf?.(taskId)) return api.verb<WorktreeDiff>("worktree-diff", [flag("task-id", taskId)])
+      if (api.machineOf?.(taskId)) {
+        // A task that has not started has no worktree on either machine: no changes, as below.
+        return api.verb<WorktreeDiff>("worktree-diff", [flag("task-id", taskId)]).catch((err: unknown) => {
+          if (err instanceof BridgeError && err.code === "NO_WORKTREE") return { base: null, files: [] }
+          throw err
+        })
+      }
       const task = await getTask(taskId)
       if (!task.worktreePath) return { base: null, files: [] }
       return worktreeDiff(task.worktreePath, task.prStatus?.baseRef)

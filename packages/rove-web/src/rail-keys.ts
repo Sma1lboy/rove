@@ -89,7 +89,7 @@ export function useRailKeys(
   model: AppModel,
   allRows: readonly NavRow[],
   filters: RailFilters,
-  opts: { onNewTask: (repo?: string) => void; onSettings: () => void; selectedId: string | null },
+  opts: { onNewTask: (repo?: string, machine?: string) => void; onSettings: () => void; selectedId: string | null },
 ): { cursor: string | null; setCursor: (id: string) => void; onKeyDown: (e: KeyboardEvent) => void } {
   const { search, setSearch } = filters
   const [cursor, setCursor] = useState<string | null>(null)
@@ -210,7 +210,8 @@ export function useRailKeys(
         setSearch({ active: true, query: "" })
         break
       case "task.new":
-        opts.onNewTask(row?.machine !== undefined ? undefined : row?.kind === "routines" ? row.repo : row?.task.repo)
+        // On another machine's row the dialog opens on that machine, with that row's repo.
+        opts.onNewTask(row?.kind === "routines" ? row.repo : row?.task.repo, row?.machine)
         break
       case "settings.open.sidebar":
         opts.onSettings()
