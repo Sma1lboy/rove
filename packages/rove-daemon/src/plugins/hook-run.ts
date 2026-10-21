@@ -9,8 +9,9 @@
  *   "running"` record**, so `rove plugin log` isn't silent about a hang.
  */
 
-import { spawn } from "node:child_process"
+import { execFile, spawn } from "node:child_process"
 import { appendFileSync, mkdirSync } from "node:fs"
+import { detachOptions } from "../client/detached-spawn.ts"
 import { rotateLogIfNeeded } from "../daemon/log-rotate.ts"
 import { OWNER_ONLY_DIR_MODE, OWNER_ONLY_FILE_MODE } from "../daemon/owner-only.ts"
 import { buildPluginEnv } from "./env.ts"
@@ -48,6 +49,7 @@ export interface HookRunOptions {
   /** Event name / `startup` / `shutdown[i]` — whatever the log should show. */
   readonly label: string
   readonly extraEnv: Record<string, string>
+  readonly platform?: NodeJS.Platform
   readonly homeDir?: string
   readonly socketPath: string
   readonly binPath: string
@@ -117,14 +119,18 @@ export async function runPluginHook(opts: HookRunOptions): Promise<void> {
         extra: opts.extraEnv,
       }),
       stdio: ["ignore", "pipe", "pipe"],
-      // Own process group, so the deadline kill takes the hook's children too.
-      detached: true,
+      // Windows must keep pipes attached; POSIX owns a process group.
+      ...detachOptions(opts.platform),
     })
     const kill = (): void => {
       try {
         // Negative pid = the whole group. The group only exists once the
         // child is spawned, so fall back to the child itself.
-        if (child.pid) process.kill(-child.pid, "SIGKILL")
+        if (child.pid && (opts.platform ?? process.platform) === "win32") {
+          execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true }, (err) => {
+            if (err) child.kill("SIGKILL")
+          })
+        } else if (child.pid) process.kill(-child.pid, "SIGKILL")
         else child.kill("SIGKILL")
       } catch {
         child.kill("SIGKILL")
