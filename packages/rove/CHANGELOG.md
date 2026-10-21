@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.255
+
+### Patch Changes
+
+- [#1315](https://github.com/Sma1lboy/rove/pull/1315) [`ab0d2c1`](https://github.com/Sma1lboy/rove/commit/ab0d2c18f9716298aeded9f8fc923cf9466ec1ed) Rove installs on a fresh Linux box without a C++ toolchain. `node-pty` is now an optional dependency: only the Windows PTY host loads it, macOS and Linux run terminals through Bun, and node-pty ships no Linux prebuild, so as a required dependency `npm i -g @sma1lboy/rove` failed compiling a module Linux never uses. Windows installs it exactly as before. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.254
 
 ### Patch Changes
