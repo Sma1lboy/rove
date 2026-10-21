@@ -9,6 +9,7 @@
  */
 
 import { checkHostKey } from "../machines/host-key.ts"
+import { INBOUND_CLASSES, deniedClasses, setInbound } from "../machines/inbound.ts"
 import {
   type MachineConfig,
   addMachine,
@@ -52,6 +53,7 @@ const MACHINE_USAGE = [
   "  remove <alias>          Forget a machine (nothing on it is touched)",
   "  list                    Show registered machines",
   "  tunnel <alias>          Keep a reverse tunnel to <alias> so it can reach THIS machine",
+  "  inbound [allow|deny <class>]  What other machines' hubs may run here (default: everything)",
   "",
   "Add options:",
   "  --alias <name>          Local name for the machine (default: the target you typed)",
@@ -109,6 +111,7 @@ export async function runMachineSubcommand(argv: readonly string[]): Promise<voi
   if (verb === "doctor") return await doctor(rest)
   if (verb === "remove") return remove(rest)
   if (verb === "tunnel") return tunnel(rest)
+  if (verb === "inbound") return inbound(rest)
   usageError(`unknown verb "${verb}"`)
 }
 
@@ -337,6 +340,26 @@ No service manager Rove supports here; keep the command above running yourself.
   } catch (err) {
     fail(err instanceof Error ? err.message : String(err))
   }
+}
+
+/**
+ * This machine's policy for verbs another machine's hub forwards here. Classes are the verb groups
+ * plus `land` (land, publish). Nothing is denied until you deny it.
+ */
+function inbound(argv: readonly string[]): void {
+  const [action, cls] = argv
+  if (action === "allow" || action === "deny") {
+    if (!cls || !INBOUND_CLASSES.includes(cls))
+      usageError(`inbound ${action} needs one of: ${INBOUND_CLASSES.join(", ")}`)
+    const denied = setInbound(cls, action === "allow")
+    process.stdout.write(
+      `${CLI_NAME} machine: other machines ${action === "allow" ? "may now" : "may no longer"} run "${cls}" verbs here. Denied: ${denied.length ? denied.join(", ") : "nothing"}\n`,
+    )
+    return
+  }
+  if (action !== undefined) usageError("inbound takes allow|deny <class>, or nothing to show the policy")
+  const denied = new Set(deniedClasses())
+  for (const c of INBOUND_CLASSES) process.stdout.write(`${c.padEnd(11)} ${denied.has(c) ? "deny" : "allow"}\n`)
 }
 
 function list(): void {
