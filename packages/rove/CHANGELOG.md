@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.256
+
+### Patch Changes
+
+- [#1316](https://github.com/Sma1lboy/rove/pull/1316) [`333ab26`](https://github.com/Sma1lboy/rove/commit/333ab268ad98e4bb00653d5a4a0000a0eb1e5e28) Tasks start on a Linux box that has no `$SHELL` and no zsh, such as a container, a systemd unit or cron. Rove fell back to `/bin/zsh` there, every task's terminal failed to spawn with `ENOENT`, and the tab stayed empty with nothing on screen. Without `$SHELL`, Rove now uses the first of its usual fallback, `/bin/bash` and `/bin/sh` that is installed. An explicit `$SHELL` is used as before. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.255
 
 ### Patch Changes

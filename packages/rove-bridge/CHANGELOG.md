@@ -1,5 +1,12 @@
 # rove-bridge
 
+## 0.0.17
+
+### Patch Changes
+
+- Updated dependencies [[`333ab26`](https://github.com/Sma1lboy/rove/commit/333ab268ad98e4bb00653d5a4a0000a0eb1e5e28)]:
+  - @sma1lboy/rove@0.9.256
+
 ## 0.0.16
 
 ### Patch Changes
