@@ -68,3 +68,17 @@ export function matchRepo(
   }
   return null
 }
+
+/**
+ * Commits on `ref` in the checkout at `path` that no remote has: ahead of its upstream, or — with
+ * no upstream — not contained in any remote-tracking branch. Null when `ref` is not a local ref
+ * here (a name only the other machine knows), so the caller has nothing to judge.
+ */
+export function unpushedCommits(path: string, ref: string): number | null {
+  if (git(path, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]) === null) return null
+  const ahead = git(path, ["rev-list", "--count", `${ref}@{upstream}..${ref}`])
+  if (ahead !== null) return Number.parseInt(ahead, 10) || 0
+  // No upstream: count what no remote-tracking branch reaches.
+  const lone = git(path, ["rev-list", "--count", ref, "--not", "--remotes"])
+  return lone === null ? null : Number.parseInt(lone, 10) || 0
+}
