@@ -6,12 +6,12 @@ describe("stdio transport", () => {
     expect(useStdioTransport("win32")).toBe(true)
     const prev = process.env.ROVE_MACHINE_TRANSPORT
     try {
-      delete process.env.ROVE_MACHINE_TRANSPORT
+      Reflect.deleteProperty(process.env, "ROVE_MACHINE_TRANSPORT")
       expect(useStdioTransport("linux")).toBe(false)
       process.env.ROVE_MACHINE_TRANSPORT = "stdio"
       expect(useStdioTransport("darwin")).toBe(true)
     } finally {
-      if (prev === undefined) delete process.env.ROVE_MACHINE_TRANSPORT
+      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_MACHINE_TRANSPORT")
       else process.env.ROVE_MACHINE_TRANSPORT = prev
     }
   })
