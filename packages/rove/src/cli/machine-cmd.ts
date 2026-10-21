@@ -37,6 +37,7 @@ import { machineSocketDir } from "../machines/ssh-args.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile } from "../state/store.ts"
 import { CURRENT_VERSION } from "../version.ts"
+import { argvHasFlag } from "./argv.ts"
 import { defaultFixRuntime } from "./doctor-fix.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
@@ -302,7 +303,7 @@ function tunnel(argv: readonly string[]): void {
     return n
   }
   const ports = { remotePort: port("remote-port", 2222), localPort: port("local-port", 22) }
-  if (argv.includes("--uninstall")) {
+  if (argvHasFlag(argv, "--uninstall")) {
     const removed = uninstallReverseTunnel(alias)
     process.stdout.write(
       removed
@@ -313,7 +314,7 @@ function tunnel(argv: readonly string[]): void {
     )
     return
   }
-  if (!argv.includes("--install")) {
+  if (!argvHasFlag(argv, "--install")) {
     process.stdout.write(`${reverseTunnelArgv(entry, ports).join(" ")}
 `)
     const path = tunnelServicePath(alias)
