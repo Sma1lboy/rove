@@ -48,7 +48,7 @@ export function useRailFilters() {
 
 export type RailFilters = ReturnType<typeof useRailFilters>
 
-type Stop = Exclude<NavRow, { kind: "project" | "machine" }>
+type Stop = Exclude<NavRow, { kind: "project" }>
 
 /** The TUI binding ids the rail answers to (`keybindings-sidebar.ts`, `task.new`, Settings, Worktrees). */
 const RAIL_IDS = [
@@ -95,7 +95,7 @@ export function useRailKeys(
   const [cursor, setCursor] = useState<string | null>(null)
   const gAt = useRef(0)
   // Project and machine headers are not stops, as the TUI's `treeFlatIds`.
-  const rows = allRows.filter((row): row is Stop => row.kind !== "project" && row.kind !== "machine")
+  const rows = allRows.filter((row): row is Stop => row.kind !== "project")
 
   // The cursor rests on the selection until the keys move it, and is re-homed when its row vanishes.
   const at = rows.findIndex((row) => row.id === cursor)

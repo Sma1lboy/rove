@@ -8,7 +8,7 @@ import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace, railFolded } from "./layout.ts"
-import { MachineHead, useMachines } from "./machines-view.tsx"
+import { type MachineRow, machineLabel, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
 import { NewTaskDialog } from "./new-task-dialog.tsx"
@@ -80,7 +80,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       routines: filters.routines,
     })
   const { rows, groups } = build(filters.search.active ? filters.search.query : "")
-  const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project" && row.kind !== "machine")
+  const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project")
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
   const offline = new Set(machines.filter((m) => m.state !== "online").map((m) => m.alias))
   const firstMovable = groups.find((group) => group.tasks.some((task) => task.kind === "main"))?.repo
@@ -152,7 +152,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       )}
       <PageNav model={model} />
       <div className="rail-body">
-        {payload && tasks.length === 0 && (
+        {payload && tasks.length === 0 && remoteTasks.length === 0 && (
           <div className="empty">
             <p>{t("rail.empty")}</p>
             <p className="muted">{t("rail.emptyHint")}</p>
@@ -160,14 +160,12 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         )}
         {recent && <RecentRow title={recent.title} />}
         {rows.map((row) => {
-          if (row.kind === "machine") {
-            const machine = machines.find((m) => m.alias === row.alias)
-            return machine ? <MachineHead key={row.id} row={machine} words={words} /> : null
-          }
+          const machine = row.machine === undefined ? undefined : machines.find((m) => m.alias === row.machine)
           return (
             <RailRow
               key={row.id}
               row={row}
+              machineChip={row.kind === "project" && machine ? machineChip(machine, words) : null}
               frame={frame}
               tabCount={row.kind === "task" ? tabsOf(row.task.id).length : 0}
               selected={row.id === selectedId}
@@ -221,7 +219,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 }
 
 function RailRow(props: {
-  row: Exclude<NavRow, { kind: "machine" }>
+  row: NavRow
+  /** A remote project's header names its machine. */
+  machineChip?: { readonly text: string; readonly title: string } | null
   frame: number
   tabCount: number
   selected: boolean
@@ -236,15 +236,20 @@ function RailRow(props: {
   const { prefs, glyphSets } = usePrefs()
   const glyphs: GlyphSet | undefined = glyphSets[prefs.glyphSet]
   const mark = useTaskColor(row.kind === "project" || row.kind === "routines" ? null : row.task.id)
-  const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${row.machine === undefined ? "" : "in-machine"} ${props.stale ? "is-stale" : ""}`
+  const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""}`
   if (row.kind === "project") {
     return (
       <h2
-        className={`project-head ${props.moving ? "is-moving" : ""} ${row.machine === undefined ? "" : "in-machine"} ${props.stale ? "is-stale" : ""}`}
+        className={`project-head ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""}`}
         title={row.repo}
         onContextMenu={props.onMenu}
       >
         <span>{row.label}</span>
+        {props.machineChip && (
+          <span className="chip machine-chip" title={props.machineChip.title}>
+            {props.machineChip.text}
+          </span>
+        )}
         <span className="rule" />
       </h2>
     )
@@ -318,6 +323,16 @@ function RailRow(props: {
       </span>
     </button>
   )
+}
+
+/**
+ * Every remote project carries this, so an online machine reads as just its name (`mac`); the version
+ * and any trouble (`mac · offline`, `mac · ⚠ v0.9.100 (protocol mismatch)`) show only when they matter,
+ * the full label always on hover.
+ */
+function machineChip(machine: MachineRow, words: Parameters<typeof machineLabel>[1]) {
+  const title = machineLabel(machine, words)
+  return { text: machine.state === "online" ? machine.hostLabel || machine.alias : title, title }
 }
 
 /** Sessions a closed fold flags: they need a person. */

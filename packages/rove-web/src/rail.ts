@@ -37,8 +37,6 @@ export type NavRow =
       readonly tasks: readonly TaskRow[]
       readonly expanded: boolean
     })
-  /** A registered machine's header (`machine-layer.ts`); not a cursor stop. */
-  | { readonly id: string; readonly kind: "machine"; readonly alias: string }
 
 const taskTime = (task: TaskRow): number => {
   const parsed = Date.parse(task.updatedAt ?? task.createdAt ?? "")
@@ -169,11 +167,11 @@ export function navRows(
 }
 
 export interface RailInput {
-  /** This Mac's rows. */
+  /** This machine's rows. */
   readonly tasks: readonly TaskRow[]
   /** Other machines' rows, each with `machine` set. */
   readonly remote: readonly TaskRow[]
-  /** Registered machines in registration order: a header each, tasks or not. */
+  /** Registered machines in registration order; a remote row whose machine is not here is dropped. */
   readonly machines: readonly { readonly alias: string; readonly hostLabel: string }[]
   readonly sort: SortMode
   readonly tabsOf: (taskId: string) => readonly TabRow[]
@@ -182,11 +180,15 @@ export interface RailInput {
   readonly routines: ReadonlySet<string>
 }
 
+const newest = (group: ProjectGroup): number => Math.max(0, ...group.tasks.map(taskTime))
+
 /**
- * The whole rail, as `applyMachineLayer` shapes it: this Mac's projects at depth 0, then per machine a
- * header with that machine's projects under it. A remote task has no tab rows (its tab list lives on
- * its own machine), and rows of a machine that is not registered are dropped, not shown as local.
- * `groups` is this Mac's projects, labelled against every project on screen.
+ * The whole rail as ONE list of projects from every machine, the way Claude Desktop lists sessions
+ * from every environment together: no per-machine section, a remote project carries its machine on
+ * its header row instead. `default` keeps this machine's own project order first, then each machine's
+ * in registration order; `recent` and `name` interleave all of them. A remote task has no tab rows
+ * (its tab list lives on its own machine). `groups` is this machine's projects, labelled against
+ * every project on screen.
  */
 export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGroup[] } {
   const sections = input.machines.map((machine) => ({
@@ -205,13 +207,17 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   const labelled = (groups: readonly ProjectGroup[], host: string) =>
     groups.map((group) => ({ ...group, label: projectLabel(group.repo, onScreen, host) }))
   const groups = labelled(local, "")
-  const rows = navRows(groups, input.tabsOf, input.tabLabel, input.query, input.routines)
-  for (const s of sections) {
-    rows.push(
-      { id: `machine:${s.machine.alias}`, kind: "machine", alias: s.machine.alias },
-      ...navRows(labelled(s.groups, s.host), () => [], input.tabLabel, input.query, input.routines, s.machine.alias),
-    )
-  }
+  const all: { group: ProjectGroup; machine?: string }[] = [
+    ...groups.map((group) => ({ group })),
+    ...sections.flatMap((s) => labelled(s.groups, s.host).map((group) => ({ group, machine: s.machine.alias }))),
+  ]
+  if (input.sort === "recent") all.sort((a, b) => newest(b.group) - newest(a.group))
+  if (input.sort === "name") all.sort((a, b) => collator.compare(a.group.label, b.group.label))
+  const rows = all.flatMap(({ group, machine }) =>
+    machine === undefined
+      ? navRows([group], input.tabsOf, input.tabLabel, input.query, input.routines)
+      : navRows([group], () => [], input.tabLabel, input.query, input.routines, machine),
+  )
   return { rows, groups }
 }
 

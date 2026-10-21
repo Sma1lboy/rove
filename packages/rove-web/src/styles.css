@@ -500,34 +500,12 @@ button:focus-visible,
   }
 }
 
-/* Machine headers (TUI machine-layer.ts): a project-style rule, greyed unless online. */
-.machine-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 18px 8px 4px;
-  font: 700 12px var(--mono);
-  color: var(--ink);
-}
-
-.machine-head .rule {
-  flex: 1;
-  height: 1px;
-  background: var(--line);
-}
-
-.machine-head.is-stale {
+/* One list across machines: a remote project's header names its machine; its rows sit flush with
+   local ones and grey out while that machine is unreachable (TUI `task.origin.stale`). */
+.machine-chip {
+  font-weight: 400;
   color: var(--subtle);
-}
-
-/* Another machine's rows sit one level under its header, greyed while it is unreachable (TUI `task.origin.stale`). */
-.row.in-machine {
-  width: calc(100% - 12px);
-  margin-left: 12px;
-}
-
-.project-head.in-machine {
-  margin-left: 20px;
+  white-space: nowrap;
 }
 
 .row.is-stale .row-title,
