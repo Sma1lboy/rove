@@ -53,3 +53,13 @@ opentui boxes are Yoga flexbox. Default to flex flow (`flexGrow`/`flexShrink`/`f
 ## File size
 
 ~500 lines is a refactor prompt, not a budget. Write the clear thing, then split along a named seam (this half owns X, that half owns Y), never by line count. Growing a file that is over, or pushing one past it, means you own the split; "no seam" is a valid answer in the PR. CI gates growth only (`pr-gates.yml` file-size-cap). Exempt: generated, lockfiles, fixtures, `refs/`; a deliberate exception needs one line of justification.
+
+## Before opening a PR
+
+PRs start no cloud CI: `ci.yml` runs on push to `main` (and by hand on any branch), so the local run is the gate. Run `bun run pre-pr -- --body-file <body>` before `gh pr create --body-file <body>`, and paste its summary into the PR.
+
+It runs, from the same scripts CI uses: changeset-cap and frontmatter, lint, the silent-catch scan, file-size-cap and UI evidence against that body, the script tests, typecheck and build. Then a parallel pool (`--jobs`, default half the cores, logs in a temp dir) runs the rove unit tests, the render track in four shards, behavior, the harness PTY lifecycle tests, the visual ground truth, `rove-bridge`/`rove-weixin` plus every touched package's tests, and the docs-site build when `docs/` changed. On Windows it also runs the plugin-windows acceptance when its paths changed.
+
+What a laptop cannot run is skipped with a note and still runs on push to `main`: clean-linux-install (needs docker on Linux/macOS), the iOS simulator suite, and the other OS's render and PTY halves. `gh workflow run ci.yml --ref <branch>` runs the full cloud suite on a branch when you need the other OS before merging; `pr-gates.yml` runs the body gates for a PR by hand.
+
+`bun run hooks:install` also enables a pre-push hook that runs only `pre-pr --quick` (changeset gates, lint, silent-catch: a few seconds). The pre-commit hook stays milliseconds-only.

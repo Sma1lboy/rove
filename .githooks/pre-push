@@ -1,0 +1,10 @@
+#!/bin/sh
+# Repo-versioned pre-push hook (enabled by `bun run hooks:install`).
+#
+# Only the sub-10s subset of `bun run pre-pr`: changeset gates, lint, the
+# silent-catch scan. Typecheck and tests stay out — a slow hook gets skipped
+# with --no-verify, and run `bun run pre-pr` before `gh pr create` instead.
+# CI remains the enforcement boundary.
+
+set -e
+exec node scripts/pre-pr.mjs --quick

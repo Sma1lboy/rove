@@ -62,10 +62,11 @@ fill in `Capture:`, `Viewport:`, `Fixture:` and `Theme:`. Use durable image URLs
 in the PR, not local paths or an expiring review-board URL. For remote review,
 publish both states on one share-server series board as well.
 
-The CI evidence check covers `packages/rove/src/tui/`,
+The evidence check covers `packages/rove/src/tui/`,
 `packages/rove/src/tui-react/` and `packages/rove-harness/src/`, including deleted
-or renamed files. It reads the current PR description and reruns on body edits; it lives in
-`pr-gates.yml`, so an edit re-runs only the gates, not the test jobs. A change
+or renamed files. `bun run pre-pr -- --body-file <body>` runs it against the body
+you will open the PR with; `pr-gates.yml` re-runs it by hand on a PR's current
+description. A change
 that cannot move a frame (a dropped import, a type moved to another module) may
 instead carry one `ui-evidence: none — <reason>` line; the reason is what the
 reviewer judges.

@@ -1,0 +1,61 @@
+{
+  "platform": "win32",
+  "os": "10.0.26200",
+  "bun": "1.4.2",
+  "executable": "C:\\Users\\jackson\\.bun\\bin\\bun.exe",
+  "baseline": false,
+  "results": [
+    {
+      "name": "mod stop: pane and press",
+      "pass": true
+    },
+    {
+      "name": "mod stop: descendants terminated",
+      "pass": true
+    },
+    {
+      "name": "mod disable: pane and press",
+      "pass": true
+    },
+    {
+      "name": "mod disable: descendants terminated",
+      "pass": true
+    },
+    {
+      "name": "mod replacement: pane and press",
+      "pass": true
+    },
+    {
+      "name": "mod replacement: descendants terminated",
+      "pass": true
+    },
+    {
+      "name": "replacement mod publishes",
+      "pass": true
+    },
+    {
+      "name": "replacement mod stop reaps descendants",
+      "pass": true
+    },
+    {
+      "name": "hook captures stdout and stderr",
+      "pass": true
+    },
+    {
+      "name": "hook timeout: descendants terminated",
+      "pass": true
+    },
+    {
+      "name": "hook timeout: captured output after close",
+      "pass": true
+    },
+    {
+      "name": "hook shutdown: descendants terminated",
+      "pass": true
+    },
+    {
+      "name": "hook shutdown: captured output after close",
+      "pass": true
+    }
+  ]
+}

@@ -26,12 +26,7 @@ on:
       - "docs/**"
       - "packages/rove-docs/**"
       - ".github/workflows/docs-site.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "docs/**"
-      - "packages/rove-docs/**"
-      - ".github/workflows/docs-site.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read

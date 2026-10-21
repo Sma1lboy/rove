@@ -1,0 +1,74 @@
+{
+  "platform": "win32",
+  "os": "10.0.26200",
+  "bun": "1.4.2",
+  "executable": "C:\\Users\\jackson\\.bun\\bin\\bun.exe",
+  "baseline": true,
+  "results": [
+    {
+      "name": "mod stop: pane and press",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: condition did not become true before deadline"
+    },
+    {
+      "name": "mod stop: descendants terminated",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: condition did not become true before deadline"
+    },
+    {
+      "name": "mod disable: pane and press",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: condition did not become true before deadline"
+    },
+    {
+      "name": "mod disable: descendants terminated",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: condition did not become true before deadline"
+    },
+    {
+      "name": "mod replacement: pane and press",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: condition did not become true before deadline"
+    },
+    {
+      "name": "mod replacement: descendants terminated",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: condition did not become true before deadline"
+    },
+    {
+      "name": "replacement mod publishes",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: condition did not become true before deadline"
+    },
+    {
+      "name": "replacement mod stop reaps descendants",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: condition did not become true before deadline"
+    },
+    {
+      "name": "hook captures stdout and stderr",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hook stdout received/. Input:\n\n'{\"at\":1792568086770,\"kind\":\"startup\",\"label\":\"output\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-KDqOpH\\\\\\\\output\\\\\\\\initial-output.cmd\"],\"exitCode\":0,\"durationMs\":373}\\n'\n"
+    },
+    {
+      "name": "hook timeout: descendants terminated",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: condition did not become true before deadline"
+    },
+    {
+      "name": "hook timeout: captured output after close",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hanging hook ready/. Input:\n\n'{\"at\":1792568087150,\"kind\":\"startup\",\"label\":\"timeout\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-KDqOpH\\\\\\\\timeout\\\\\\\\initial-hook.cmd\"],\"phase\":\"running\",\"runningMs\":2014,\"timeoutMs\":4000}\\n' +\n  '{\"at\":1792568087150,\"kind\":\"startup\",\"label\":\"timeout\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-KDqOpH\\\\\\\\timeout\\\\\\\\initial-hook.cmd\"],\"exitCode\":null,\"durationMs\":8664,\"timedOut\":true,\"timeoutMs\":4000}\\n'\n"
+    },
+    {
+      "name": "hook shutdown: descendants terminated",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: condition did not become true before deadline"
+    },
+    {
+      "name": "hook shutdown: captured output after close",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hanging hook ready/. Input:\n\n'{\"at\":1792568095821,\"kind\":\"startup\",\"label\":\"shutdown\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-KDqOpH\\\\\\\\shutdown\\\\\\\\initial-hook.cmd\"],\"phase\":\"running\",\"runningMs\":2014,\"timeoutMs\":120000}\\n' +\n  '{\"at\":1792568095821,\"kind\":\"startup\",\"label\":\"shutdown\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-KDqOpH\\\\\\\\shutdown\\\\\\\\initial-hook.cmd\"],\"exitCode\":null,\"durationMs\":8668}\\n'\n"
+    }
+  ]
+}
