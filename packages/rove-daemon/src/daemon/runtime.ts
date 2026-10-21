@@ -43,7 +43,8 @@ export interface DaemonRuntimeAdapter {
     verb: string,
     params: ApiParams,
     socketPath: string,
-    route?: { readonly machine?: string; readonly forwarded?: boolean },
+    /** `from`: the hub's hostname on a forwarded call, for the refusal and the log. */
+    route?: { readonly machine?: string; readonly forwarded?: boolean; readonly from?: string },
   ): Promise<ApiEnvelope>
   readonly defaultTaskVendor: VendorId
   readonly placeholderTaskTitle: string

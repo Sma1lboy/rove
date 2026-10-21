@@ -3,10 +3,11 @@
  * daemon socket as `api.invoke`, so it executes inside THAT machine's daemon —
  * its git, its PTY host, its engine logins. This machine only routes.
  *
- * A forwarded call carries `forwarded: true` and is never routed again, so two
+ * A forwarded call carries `forwarded: true, from: hostname()` and is never routed again, so two
  * machines that registered each other cannot bounce a verb between them.
  */
 
+import { hostname } from "node:os"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import {
   type ApiEnvelope,
@@ -132,10 +133,16 @@ export async function forwardVerb(
         verb: "publish",
         params: { "task-id": params["task-id"] } as ApiParams,
         forwarded: true,
+        from: hostname(),
       })
       if (published.ok || published.error.code !== "UNKNOWN_VERB") return published
     }
-    return await client.request<ApiEnvelope>("api.invoke", { verb, params: repo.params, forwarded: true })
+    return await client.request<ApiEnvelope>("api.invoke", {
+      verb,
+      params: repo.params,
+      forwarded: true,
+      from: hostname(),
+    })
   } catch (err) {
     const message = errorMessage(err)
     if (/unknown daemon request:/i.test(message)) return tooOld(entry.alias)
@@ -170,6 +177,7 @@ async function translateRepo(
       ...(identity.root ? { root: identity.root } : {}),
     },
     forwarded: true,
+    from: hostname(),
   })
   if (!ask.ok) return ask.error.code === "UNKNOWN_VERB" ? { params } : { failure: ask }
   const found = (ask.result as { repo?: string | null }).repo

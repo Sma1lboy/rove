@@ -67,6 +67,21 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     ])
     // Its own connection back to this daemon: verbs subscribe and wait on
     // channels the way they do from the CLI.
+    // A call another machine's hub forwarded runs only if THIS machine's inbound policy allows its class.
+    if (route?.forwarded) {
+      const { inboundRefusal } = await import("../machines/inbound.ts")
+      const denied = inboundRefusal(verb)
+      if (denied) {
+        const { ApiError } = await import("../cli/api/types.ts")
+        return errorEnvelope(
+          new ApiError(
+            `this machine refuses "${denied}" verbs from other machines (${verb} from ${route.from ?? "a hub"})`,
+            "INBOUND_DENIED",
+            { hint: `on this machine: rove machine inbound allow ${denied}` },
+          ),
+        )
+      }
+    }
     const client = new RoveDaemonClient(socketPath)
     try {
       await client.connect()

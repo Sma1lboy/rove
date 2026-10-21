@@ -185,6 +185,23 @@ that reaches that daemon (`rove api`, `rove --web`, the phone apps) can send
 work to any of them. That also means a bridge token for that daemon runs
 commands on every machine registered there: guard it like an ssh key.
 
+## What other machines may do here
+
+A verb another machine's hub forwards here runs as this machine's own Rove,
+so this machine decides what it accepts. Nothing is refused until you say so:
+
+```console
+$ rove machine inbound            # the policy, one class per line
+$ rove machine inbound deny land  # refuse land/publish from any hub
+$ rove machine inbound allow land
+```
+
+Classes are the verb groups (`rove api schema --group …`: `read`, `create`,
+`drive`, `edit`, `lifecycle`, …) plus `land` for `land` and `publish`. A
+refused call comes back as `INBOUND_DENIED`, naming the class and the hub's
+hostname, with the command that lifts it. The policy lives in this machine's
+`state.json` (`machineInbound`); the hub has no say in it.
+
 ## What this release does not do yet
 
 - In the TUI, opening a remote task's session is not wired up yet. You can see
