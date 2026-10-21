@@ -14,7 +14,7 @@ import { moveMode, moveRow } from "./move-mode.ts"
 import { railCursorTask } from "./rail-aim.ts"
 import { type NavRow, SORT_MODES, type SortMode } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
-import { page, toast } from "./ui.ts"
+import { findBinding, page, toast } from "./ui.ts"
 import { keysOf } from "./user-keys.ts"
 
 const SORT_KEY = "rove.activeSortMode"
@@ -125,9 +125,7 @@ export function useRailKeys(
   }
   const verb = (row: Stop | undefined, id: RailId) => {
     if (!row || row.kind === "routines" || row.machine !== undefined) return
-    taskMenu(model, row.task, null)
-      .find((item) => item.binding === id)
-      ?.run()
+    findBinding(taskMenu(model, row.task, null), id)?.run?.()
   }
   const cycleEngine = async (row: Stop | undefined) => {
     if (!row || row.kind === "routines" || row.machine !== undefined) return

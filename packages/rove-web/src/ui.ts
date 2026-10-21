@@ -12,7 +12,23 @@ export interface MenuItem {
   readonly key?: string
   /** The TUI binding id whose rail key runs this entry: `rail-keys.ts` looks the entry up by it. */
   readonly binding?: string
-  readonly run: () => void
+  /** Entries sharing a section sit together; a divider falls where the section changes (claude.ai's grouped menus). */
+  readonly section?: string
+  /** A choice list one level down, opened to the side (`Set status ›`, `Copy ›`). An entry has this or `run`. */
+  readonly children?: readonly MenuItem[]
+  /** The current pick in a choice list: drawn with a check. */
+  readonly checked?: boolean
+  readonly run?: () => void
+}
+
+/** The entry a rail key runs, wherever it sits in the menu tree. */
+export function findBinding(items: readonly MenuItem[], binding: string): MenuItem | undefined {
+  for (const item of items) {
+    if (item.binding === binding) return item
+    const inner = item.children && findBinding(item.children, binding)
+    if (inner) return inner
+  }
+  return undefined
 }
 
 export interface MenuState {

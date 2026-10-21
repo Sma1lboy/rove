@@ -157,22 +157,40 @@ select.input {
   color: var(--error);
 }
 
-/* Destructive entries sit apart from the rest, and fill red when highlighted (claude.ai's danger item). */
-.menu-item:not(.is-danger) + .menu-item.is-danger {
-  position: relative;
-  margin-top: 9px;
-}
-
-.menu-item:not(.is-danger) + .menu-item.is-danger::before {
-  content: "";
-  position: absolute;
-  left: -4px;
-  right: -4px;
-  top: -5px;
+/* Sections: a full-bleed hairline between groups (claude.ai's separators run to the menu's border). */
+.menu-sep {
+  flex: none;
   height: 1px;
+  margin: 4px -4px;
+  border: 0;
   background: var(--line);
 }
 
+/* An entry with choices a level down: a chevron, and it stays lit while they are open. */
+.menu-chevron,
+.menu-check {
+  font: 12px var(--mono);
+  color: var(--subtle);
+}
+
+.menu-check {
+  color: var(--accent);
+}
+
+.menu-item.is-open {
+  background: var(--hover);
+}
+
+.menu-item.is-selected .menu-chevron,
+.menu-item.is-open .menu-chevron {
+  color: var(--ink);
+}
+
+.menu-sub {
+  min-width: 160px;
+}
+
+/* Destructive entries fill red when highlighted (claude.ai's danger item). */
 .menu-item.is-danger.is-selected {
   background: var(--error);
   color: var(--paper);
