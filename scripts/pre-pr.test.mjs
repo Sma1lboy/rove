@@ -38,12 +38,12 @@ test('Windows hands the POSIX suites to a real WSL distro, never Docker Desktop'
   assert.equal(pickDistro(list), 'Ubuntu-24.04')
   assert.equal(pickDistro('docker-desktop\r\n'), null)
   assert.equal(pickDistro(list, 'Debian'), 'Debian')
-  assert.equal(toWslPath('C:\Users\me\rove\.git'), '/mnt/c/Users/me/rove/.git')
+  assert.equal(toWslPath('C:\\Users\\me\\rove\\.git'), '/mnt/c/Users/me/rove/.git')
   assert.equal(toWslPath('D:/work/'), '/mnt/d/work')
 })
 
 test('the WSL script survives wsl.exe argv re-quoting', () => {
-  const script = wslScript({ name: 'wt', gitDir: 'C:/r/.git', ref: 'refs/pre-pr/wt', touchedFile: 'C:\T\touched.txt', jobs: 4 })
+  const script = wslScript({ name: 'wt', gitDir: 'C:/r/.git', ref: 'refs/pre-pr/wt', touchedFile: 'C:\\T\\touched.txt', jobs: 4 })
   assert.ok(!script.includes('"') && !script.includes('\n'))
   assert.match(script, /--touched-file \/mnt\/c\/T\/touched\.txt --jobs 4$/)
 })
