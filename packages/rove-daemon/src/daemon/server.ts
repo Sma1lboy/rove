@@ -32,7 +32,7 @@ import { writeTextAtomic } from "./json-file.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
 import { LineReceiver } from "./line-receiver.ts"
 import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
-import { defaultDaemonPidPath, defaultDaemonSocketPath, resolveDaemonHomeDir } from "./paths.ts"
+import { defaultDaemonPidPath, defaultDaemonSocketPath, endpointPathFor, resolveDaemonHomeDir } from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
 import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, serializeTask } from "./protocol.ts"
 import { startPtyExitWatch } from "./pty-exit-watch.ts"
@@ -376,6 +376,8 @@ async function startOwnedServer(
   await sockGuard.arm()
   // tmp+rename: a torn pidfile is EMPTY, and empty parses as pid 0.
   await writeTextAtomic(pidPath, `${process.pid}\n`)
+  // Where we listen, for sessions whose XDG_RUNTIME_DIR would point elsewhere (paths.ts `liveEndpoint`).
+  await writeTextAtomic(endpointPathFor(pidPath), `${socketPath}\n`)
   if (resident) {
     writeResidentMarker(residentMarker)
     // A restart keeps the marker so the replacement boots resident too.
