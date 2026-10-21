@@ -9,8 +9,8 @@
 #
 # What runs here is otherwise unchanged from the automatic version:
 #
-#   1. Wait for HEAD's ci.yml run to go green (the full Linux/macOS gate
-#      set). A red or cancelled run releases nothing.
+#   1. Run the full ci.yml suite on HEAD and wait for it (the full
+#      Linux/macOS/Windows gate set). A red or cancelled run releases nothing.
 #   2. `bun run ci:version` — changeset version + lockfile refresh +
 #      lint:fix — then verify with `bun install --frozen-lockfile` and the
 #      lint gate, so the bookkeeping commit can't be the thing that breaks.
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # push the release commit + tag
-      actions: write # dispatch release.yml
+      actions: write # dispatch ci.yml and release.yml
     steps:
       - name: Checkout main
         uses: actions/checkout@v5
@@ -85,36 +85,19 @@ jobs:
             echo "mode=skip" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Wait for the released commit's ci.yml to go green
+      - name: Run the full ci.yml suite on the released commit
         if: steps.gate.outputs.mode == 'release'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          # Watch the run for the commit being RELEASED — main's HEAD as
-          # checked out above — not $GITHUB_SHA, which on a dispatch is
-          # whatever main pointed at when the run was queued.
-          SHA=$(git rev-parse HEAD)
-          run_id=""
-          tries=0
-          while [ -z "$run_id" ]; do
-            tries=$((tries + 1))
-            if [ "$tries" -gt 36 ]; then
-              echo "::error::no ci.yml run appeared for $SHA within ~3min"
-              exit 1
-            fi
-            sleep 5
-            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow=ci.yml --branch main \
-              --limit 15 --json databaseId,headSha \
-              --jq ".[] | select(.headSha == \"$SHA\") | .databaseId" | head -1)
-          done
-          echo "watching ci.yml run $run_id"
-          if ! gh run watch --repo "$GITHUB_REPOSITORY" "$run_id" --exit-status >/dev/null; then
-            concl=$(gh run view --repo "$GITHUB_REPOSITORY" "$run_id" --json conclusion --jq .conclusion)
-            # A cancelled run is a FAILED release now, not a deferral. Under
-            # the push trigger a newer push had its own run to hand off to;
-            # a dispatch has no successor, so exiting 0 here would report
-            # success for a release that never happened.
-            echo "::error::ci.yml $concl on $SHA — nothing released. Land a fix, then run this workflow again."
+          # The commit being RELEASED is main's HEAD as checked out above, not
+          # $GITHUB_SHA (whatever main pointed at when this run was queued).
+          # ci.yml has no push trigger; the script dispatches it, or reuses a
+          # run already going for this commit. A red or cancelled run releases
+          # nothing.
+          if ! bash scripts/ci-run-for-sha.sh "$(git rev-parse HEAD)"; then
+            echo "::error::ci.yml did not pass on $(git rev-parse HEAD) — nothing released. Land a fix, then run this workflow again."
             exit 1
           fi
           echo "green=true" >> "$GITHUB_OUTPUT"

@@ -1,9 +1,9 @@
-# Main-branch CI.
-#
-# Runs on every push to main, and by hand (workflow_dispatch) on any branch.
-# Pull requests start no cloud runs: `bun run pre-pr` runs these suites
-# locally before `gh pr create` (docs/agents/dev-loop.md "Before opening a
-# PR"). This stays as the post-merge check and for the OSes a laptop lacks.
+# The full suite. It runs:
+#   - on main every two hours, as a batch over whatever merged since
+#     (the owner's PRs merge on `bun run pre-pr`'s fast tier, not on this);
+#   - before every release (scripts/ci-run-for-sha.sh dispatches it);
+#   - on pull requests from anyone but the owner;
+#   - by hand on any branch (`gh workflow run ci.yml --ref <branch>`).
 #
 # Behavior tests (test/behavior/) run in their own `behavior` job: they
 # drive the BUILT rove CLI black-box in a temp home with isolated daemon and
@@ -26,20 +26,23 @@
 # `paths` filter — it ran on every PR and cost ~60s on changes that could not
 # affect it. GitHub only supports that filter at the workflow level.
 #
-# The PR-only gates (changeset-cap, file-size-cap, UI evidence) run in
-# `bun run pre-pr`; pr-gates.yml can still run the last two by hand.
+# The PR-only gates (changeset-cap, file-size-cap, UI evidence) live in
+# pr-gates.yml.
 
 name: CI
 
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: "17 */2 * * *"
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
 
-# Cancel in-flight CI for older pushes on the same branch — saves
-# minutes when several commits land back-to-back.
+# Keyed by event too: a scheduled batch must never cancel the run a release
+# dispatched and is waiting on.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
@@ -48,6 +51,8 @@ permissions:
 
 jobs:
   typecheck-and-test:
+    # The owner's PRs merge on pre-pr's fast tier; main's batch covers them.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -116,6 +121,7 @@ jobs:
     #
     # Four ways, not eight: at ~23s a shard the fixed cost (checkout + install,
     # ~10s warm) starts to dominate, so more slices buy less each time.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -144,6 +150,7 @@ jobs:
     # lifecycle regressions unit mocks cannot see.
     #
     # Three shards: at two, shard 2 ran ~45s of tests and set the wall clock.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -197,6 +204,7 @@ jobs:
     # (run 35453490576) passed 545 of 546 tests — so Linux takes the bulk at
     # eight shards, and `render-track-macos` runs only what Linux cannot pass
     # (test/render-linux-known-failing.txt) plus the PTY half.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -224,6 +232,7 @@ jobs:
     # one macOS slot. The PTY files are deliberately never sharded — they are
     # the one part of this suite that has deadlocked CI, and they keep their
     # own process and deadlock ceiling (PTY_TIMEOUT_MS in render-track.mjs).
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: macos-14
     timeout-minutes: 15
     steps:
@@ -246,6 +255,7 @@ jobs:
     # The hosted macOS images reject node-pty's POSIX PTY spawn before the
     # child starts. Linux compiles node-pty from source and exercises the same
     # browser → xterm → PTY → real OpenTUI contract.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -314,6 +324,7 @@ jobs:
     # with no C/C++ toolchain (a fresh WSL distro, a `rove machine add`
     # target), then one real PTY session through it. The other jobs run from
     # the workspace, where bun already installed and compiled everything.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -339,6 +350,7 @@ jobs:
             bash -c 'bash /s/clean-linux-install.sh /pkg/*.tgz'
 
   harness-windows-lifetime:
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5

@@ -28,7 +28,7 @@ No Linear. Backlog: daemon issue store (`rove api issue-*`, [`docs/WORK-TRACKING
 ## Hard rules
 
 ### How work lands on `main`
-- **Default: PR → merge, no fresh approval needed.** Feature branch (`<area>/<slug>`, e.g. `web/usage-footer`; never a `claude/` prefix, cloud sessions too) → commits → `bun run pre-pr -- --body-file <body>` green → `gh pr create --body-file <body>` → `gh pr merge --squash --delete-branch`. PRs start no cloud CI; a green `pre-pr` IS the gate (paste its summary in the PR). Merged work ships on the next automatic nightly; a **stable release is cut only when the owner asks for it in that turn** ([`docs/RELEASING.md`](./docs/RELEASING.md)).
+- **Default: PR → merge, no fresh approval needed.** Feature branch (`<area>/<slug>`, e.g. `web/usage-footer`; never a `claude/` prefix, cloud sessions too) → commits → `bun run pre-pr -- --body-file <body>` green → `gh pr create --body-file <body>` → `gh pr merge --squash --delete-branch` at once. The owner's PRs start no cloud CI: the fast `pre-pr` IS the gate, and the full suite runs on main every two hours and before each release. Others' PRs run the full cloud CI. Merged work ships on the next automatic nightly; a **stable release is cut only when the owner asks for it in that turn** ([`docs/RELEASING.md`](./docs/RELEASING.md)).
 - **Skipping the PR** (local merge/cherry-pick into `main`, or a direct push) needs the owner to say so **in that turn** — never inferred, never carried over. Same quality gates either way.
 - `scripts/release.sh` pushes its own `chore: release — X.Y.Z` commit + tag.
 - `git fetch` before pushing. Force-push ONLY your own unmerged PR branch, with `--force-with-lease`; never `main`, a shared branch, or reviewed commits.

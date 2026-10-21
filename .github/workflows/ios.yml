@@ -13,6 +13,12 @@ on:
     paths:
       - "packages/rove-ios/**"
       - ".github/workflows/ios.yml"
+  # Others' PRs; the owner's are covered by the push to main.
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/rove-ios/**"
+      - ".github/workflows/ios.yml"
   # Re-run the keyboard suite on one commit to judge its stability.
   workflow_dispatch:
 
@@ -25,6 +31,7 @@ concurrency:
 
 jobs:
   test:
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     # macos-26 defaults to Xcode 26.6, the toolchain the app is developed with; macos-15's
     # Xcode 16 rejects Swift that 26 accepts (Optional<Bool> switches, Substring interpolation).
     runs-on: macos-26

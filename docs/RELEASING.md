@@ -35,7 +35,7 @@ Worth the two seconds: a bad package name is only caught downstream, by `package
 
 **Merging a PR banks its changeset; it does not release.** A release happens when someone runs [`changesets.yml`](../.github/workflows/changesets.yml) (Actions → Changesets → Run workflow), and it consumes every changeset banked since the last one. The workflow:
 
-1. Waits for main's HEAD `ci.yml` run to go green (a red or cancelled run releases nothing — land the fix and run the workflow again).
+1. Runs the full `ci.yml` suite on main's HEAD and waits for it (`scripts/ci-run-for-sha.sh`: it reuses a run already going for that commit, else dispatches one; a red or cancelled run releases nothing — land the fix and run the workflow again).
 2. Runs the same regeneration `release.sh` does (`changeset version` + lockfile refresh + lint:fix), verifies with `bun install --frozen-lockfile` + the lint gate, commits `chore: release — X.Y.Z`, pushes it, and tags `vX.Y.Z`.
 3. Dispatches `release.yml` on the tag (a GITHUB_TOKEN tag push never fires tag triggers — the dispatch is explicit), which re-runs every publish gate from the tag checkout before `npm publish`.
 
@@ -64,7 +64,7 @@ With a green gate, it consumes every pending `.changeset/*.md`:
 2. Runs `bun install`, then `bun install --frozen-lockfile`, so `bun.lock` matches the workspace package versions before the release commit is made.
 3. Re-runs Biome `--write` on the touched `package.json` / `CHANGELOG.md` so the generated JSON formatting can't fail the lint gate (Changesets and the release script both reserialize `package.json`, which used to re-expand the single-line `files` array). This step is no longer error-swallowed — a `lint:fix` failure stops the release.
 4. Commits `chore: release — X.Y.Z`. **No tag yet.**
-5. (After confirming) pushes the release commit to `main`, then **waits for that commit's `ci.yml` run** — typecheck-and-test, behavior, render-track, visual-ground-truth on real CI hardware, the same set `release.yml` makes `publish` wait on. Only when it's green does the script tag `vX.Y.Z` and push the tag.
+5. (After confirming) pushes the release commit to `main`, then **runs the full `ci.yml` suite on it and waits** (`scripts/ci-run-for-sha.sh`) — typecheck-and-test, behavior, render-track, visual-ground-truth on real CI hardware, the same set `release.yml` makes `publish` wait on. Only when it's green does the script tag `vX.Y.Z` and push the tag.
 
 If CI comes back red, **no tag exists and the version number is not burned**: `package.json` on `main` already carries X.Y.Z, so land the fix on `main` (no new changeset needed) and re-run `scripts/release.sh` — with zero pending changesets and an untagged committed version it enters **resume mode**: waits for CI at the fixed HEAD, then tags the same `vX.Y.Z` there. The same resume path covers answering `N` at the push prompt, a CI run cancelled by a newer main push, and any failure of the tag step itself (v0.9.61 hit `fatal: no tag message?` on a machine with `tag.gpgSign = true`, since a signed tag must be annotated — the script now tags with `-a -m`).
 

@@ -46,4 +46,5 @@ test('the WSL script survives wsl.exe argv re-quoting', () => {
   const script = wslScript({ name: 'wt', gitDir: 'C:/r/.git', ref: 'refs/pre-pr/wt', touchedFile: 'C:\\T\\touched.txt', jobs: 4 })
   assert.ok(!script.includes('"') && !script.includes('\n'))
   assert.match(script, /--touched-file \/mnt\/c\/T\/touched\.txt --jobs 4$/)
+  assert.match(wslScript({ name: 'wt', gitDir: 'C:/r/.git', ref: 'r', touchedFile: 'C:/t', jobs: 2, full: true }), /--jobs 2 --full$/)
 })

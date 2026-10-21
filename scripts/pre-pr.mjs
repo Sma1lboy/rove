@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-// The PR gate. PRs start no cloud CI (ci.yml runs on push to main only), so
-// this runs every suite CI used to run on a PR, locally, from the same
-// scripts: gates and typecheck first, then the heavy suites in a parallel pool.
+// The owner's PR gate, from the same scripts CI runs. The default tier is
+// fast (gates, typecheck, touched packages' tests: well under a minute);
+// the full suite runs on main's scheduled batch, before every release, and
+// on other people's PRs (ci.yml). `--full` runs that suite here instead.
 //
 // Usage:
 //   bun run pre-pr -- --body-file pr.md   # the same file you give `gh pr create`
+//   bun run pre-pr -- --full              # every suite, in a parallel pool
 //   bun run pre-pr -- --quick             # the few-second subset (pre-push hook)
 //   options: --base <branch> (default main), --no-fetch, --jobs <n> (default: half the cores),
 //            --no-wsl (Windows: run the POSIX suites natively instead of in WSL)
@@ -58,11 +60,12 @@ export function touchedAreas(files) {
 }
 
 function parseArgs(argv) {
-  const opts = { base: "main", bodyFile: null, quick: false, fetch: true, jobs: Math.max(4, Math.floor(availableParallelism() / 2)), wsl: true, suitesOnly: false, touchedFile: null }
+  const opts = { base: "main", bodyFile: null, quick: false, full: false, fetch: true, jobs: Math.max(4, Math.floor(availableParallelism() / 2)), wsl: true, suitesOnly: false, touchedFile: null }
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split(/=(.*)/s)
     const value = () => inline ?? argv[++i]
     if (flag === "--quick") opts.quick = true
+    else if (flag === "--full") opts.full = true
     else if (flag === "--no-fetch") opts.fetch = false
     else if (flag === "--no-wsl") opts.wsl = false
     else if (flag === "--suites-only") opts.suitesOnly = true
@@ -203,6 +206,13 @@ function heavyJobs(touched) {
   return jobs
 }
 
+/** The fast tier's suites: the package tests the diff calls for, and the docs build. */
+function fastJobs(touched) {
+  const jobs = packagesToTest(touched, readManifests()).map((name) => job(`${name} tests`, [bun(["--filter", name, "test"])]))
+  if (touchedAreas(touched).docs) jobs.push(job("docs site build", [bun(["run", "--filter", "@sma1lboy/rove-docs", "build"])]))
+  return jobs
+}
+
 /**
  * It swaps daemon plugin sources to a baseline and back, so nothing else on
  * this checkout may run beside it (WSL has its own copy), and it rewrites the
@@ -216,15 +226,15 @@ async function pluginWindowsAcceptance() {
   if (evidenceClean) git(["checkout", "--", "plugin-evidence"])
 }
 
-/** Windows: every POSIX suite in WSL, against a copy of HEAD. */
-function wslJob(touched, distro, jobs) {
+/** Windows: the tier's POSIX suites in WSL, against a copy of HEAD. */
+function wslJob(touched, distro, jobs, full) {
   const name = basename(ROOT.replace(/[\\/]+$/, ""))
   const ref = `refs/pre-pr/${name}`
   const touchedFile = join(LOGS, "touched.txt")
   writeFileSync(touchedFile, touched.join("\n"))
   const gitDir = resolve(ROOT, git(["rev-parse", "--git-common-dir"])[0])
   git(["update-ref", ref, "HEAD"])
-  const script = wslScript({ name, gitDir, ref, touchedFile, jobs })
+  const script = wslScript({ name, gitDir, ref, touchedFile, jobs, full })
   return job(`WSL ${distro}: POSIX suites`, [{ cmd: "wsl.exe", args: ["-d", distro, "-e", "bash", "-lc", script] }])
 }
 
@@ -249,7 +259,8 @@ async function main() {
   if (opts.suitesOnly) {
     // The WSL half: HEAD is a detached copy with no origin, so the host passes the diff.
     const touched = readFileSync(opts.touchedFile, "utf8").split("\n").filter(Boolean)
-    if (step("build", () => run("bun", ["run", "build"]))) await pool(heavyJobs(touched), opts.jobs)
+    if (!opts.full) await pool(fastJobs(touched), opts.jobs)
+    else if (step("build", () => run("bun", ["run", "build"]))) await pool(heavyJobs(touched), opts.jobs)
     return finish()
   }
   const changed = git(["diff", "--name-only", "--diff-filter=ACMR", range])
@@ -284,17 +295,19 @@ async function main() {
     step("script tests", () => run("node", ["--test", "scripts/scan-plugins.test.mjs", "scripts/ui-evidence.test.mjs", "scripts/pre-pr.test.mjs"]))
     const distro = process.platform === "win32" && opts.wsl ? wslDistro() : null
     if (process.platform === "win32" && opts.wsl && !distro) console.warn("warning: no WSL distro found; running the POSIX suites natively (many fail on Windows)")
-    process.stdout.write(`\n▶ suites in parallel (--jobs ${opts.jobs}), logs in ${LOGS}\n`)
+    process.stdout.write(`\n▶ ${opts.full ? "full" : "fast"} tier, suites in parallel (--jobs ${opts.jobs}), logs in ${LOGS}\n`)
     // WSL builds its own copy, so it need not wait for this checkout's typecheck.
-    const wsl = distro ? wslJob(touched, distro, opts.jobs)() : null
-    // Both rebuild the plugin SDK's dist, which the suites here read: run them first.
-    const built = (await job("typecheck", [bun(["run", "typecheck"])])()) && (await job("build", [bun(["run", "build"])])())
-    if (built) {
+    const wsl = distro ? wslJob(touched, distro, opts.jobs, opts.full)() : null
+    // Typecheck and build rebuild the plugin SDK's dist, which the suites here read: run them first.
+    if (!opts.full) {
+      if (await job("typecheck", [bun(["run", "typecheck"])])()) await pool(distro ? [] : fastJobs(touched), opts.jobs)
+    } else if ((await job("typecheck", [bun(["run", "typecheck"])])()) && (await job("build", [bun(["run", "build"])])())) {
       await pool(distro ? [harnessJob(WINDOWS_HARNESS)] : heavyJobs(touched), opts.jobs)
       if (touchedAreas(touched).pluginWindows && process.platform === "win32") await pluginWindowsAcceptance()
     }
     await wsl
-    for (const note of skippedNotes(touched)) console.log(`skip ${note}`)
+    if (opts.full) for (const note of skippedNotes(touched)) console.log(`skip ${note}`)
+    else console.log("fast tier: unit, render, behavior, visual and the cross-OS suites run on main's batch and before release (--full runs them here)")
   }
   finish()
 }

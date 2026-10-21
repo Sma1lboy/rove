@@ -1,8 +1,16 @@
 name: Windows plugin acceptance
-# PRs start no cloud runs; `bun run pre-pr` runs this on Windows when the paths change.
+# The owner's PRs run this in `bun run pre-pr` on Windows when the paths change.
 on:
   workflow_dispatch:
   push:
+    branches: [main]
+    paths:
+      - 'packages/rove-daemon/src/plugins/**'
+      - 'packages/rove-daemon/src/client/detached-spawn.ts'
+      - 'packages/rove/test/behavior/plugin-process/**'
+      - 'packages/rove-harness/e2e/plugin-windows*'
+      - '.github/workflows/plugin-windows.yml'
+  pull_request:
     branches: [main]
     paths:
       - 'packages/rove-daemon/src/plugins/**'
@@ -14,12 +22,14 @@ permissions:
   contents: read
 jobs:
   plugin-windows:
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.3

@@ -26,6 +26,13 @@ on:
       - "docs/**"
       - "packages/rove-docs/**"
       - ".github/workflows/docs-site.yml"
+  # Others' PRs; the owner's run `bun run pre-pr`, which builds the site when docs change.
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "packages/rove-docs/**"
+      - ".github/workflows/docs-site.yml"
   workflow_dispatch:
 
 permissions:
@@ -37,6 +44,7 @@ concurrency:
 
 jobs:
   docs-site:
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
