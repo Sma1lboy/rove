@@ -32,5 +32,6 @@ export class PsProbeUnavailableError extends Error {
  * instead of forking the walk per platform.
  */
 export function serializeProcRows(rows: readonly ProcRow[]): string {
-  return rows.map((r) => `${r.pid} ${r.ppid} ${r.args}`).join("\n")
+  // Command text must not introduce record delimiters or break the parser's line match.
+  return rows.map((r) => `${r.pid} ${r.ppid} ${r.args.replace(/[\r\n\u2028\u2029]/g, " ")}`).join("\n")
 }
