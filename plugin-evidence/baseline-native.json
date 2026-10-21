@@ -48,7 +48,7 @@
     {
       "name": "hook captures stdout and stderr",
       "pass": false,
-      "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hook stdout received/. Input:\n\n'{\"at\":1792567577907,\"kind\":\"startup\",\"label\":\"output\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-XnNXVi\\\\\\\\output\\\\\\\\initial-output.cmd\"],\"exitCode\":0,\"durationMs\":417}\\n'\n"
+      "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hook stdout received/. Input:\n\n'{\"at\":1792568086770,\"kind\":\"startup\",\"label\":\"output\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-KDqOpH\\\\\\\\output\\\\\\\\initial-output.cmd\"],\"exitCode\":0,\"durationMs\":373}\\n'\n"
     },
     {
       "name": "hook timeout: descendants terminated",
@@ -58,7 +58,7 @@
     {
       "name": "hook timeout: captured output after close",
       "pass": false,
-      "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hanging hook ready/. Input:\n\n'{\"at\":1792567578331,\"kind\":\"startup\",\"label\":\"timeout\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-XnNXVi\\\\\\\\timeout\\\\\\\\initial-hook.cmd\"],\"phase\":\"running\",\"runningMs\":2015,\"timeoutMs\":4000}\\n' +\n  '{\"at\":1792567578331,\"kind\":\"startup\",\"label\":\"timeout\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-XnNXVi\\\\\\\\timeout\\\\\\\\initial-hook.cmd\"],\"exitCode\":null,\"durationMs\":8673,\"timedOut\":true,\"timeoutMs\":4000}\\n'\n"
+      "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hanging hook ready/. Input:\n\n'{\"at\":1792568087150,\"kind\":\"startup\",\"label\":\"timeout\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-KDqOpH\\\\\\\\timeout\\\\\\\\initial-hook.cmd\"],\"phase\":\"running\",\"runningMs\":2014,\"timeoutMs\":4000}\\n' +\n  '{\"at\":1792568087150,\"kind\":\"startup\",\"label\":\"timeout\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-KDqOpH\\\\\\\\timeout\\\\\\\\initial-hook.cmd\"],\"exitCode\":null,\"durationMs\":8664,\"timedOut\":true,\"timeoutMs\":4000}\\n'\n"
     },
     {
       "name": "hook shutdown: descendants terminated",
@@ -68,7 +68,7 @@
     {
       "name": "hook shutdown: captured output after close",
       "pass": false,
-      "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hanging hook ready/. Input:\n\n'{\"at\":1792567587011,\"kind\":\"startup\",\"label\":\"shutdown\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-XnNXVi\\\\\\\\shutdown\\\\\\\\initial-hook.cmd\"],\"phase\":\"running\",\"runningMs\":2016,\"timeoutMs\":120000}\\n' +\n  '{\"at\":1792567587011,\"kind\":\"startup\",\"label\":\"shutdown\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-XnNXVi\\\\\\\\shutdown\\\\\\\\initial-hook.cmd\"],\"exitCode\":null,\"durationMs\":8671}\\n'\n"
+      "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hanging hook ready/. Input:\n\n'{\"at\":1792568095821,\"kind\":\"startup\",\"label\":\"shutdown\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-KDqOpH\\\\\\\\shutdown\\\\\\\\initial-hook.cmd\"],\"phase\":\"running\",\"runningMs\":2014,\"timeoutMs\":120000}\\n' +\n  '{\"at\":1792568095821,\"kind\":\"startup\",\"label\":\"shutdown\",\"command\":[\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\cmd.exe\",\"/d\",\"/c\",\"C:\\\\\\\\Users\\\\\\\\jackson\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\rove-native-plugins-KDqOpH\\\\\\\\shutdown\\\\\\\\initial-hook.cmd\"],\"exitCode\":null,\"durationMs\":8668}\\n'\n"
     }
   ]
 }

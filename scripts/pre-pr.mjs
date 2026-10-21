@@ -6,12 +6,12 @@
 // Usage:
 //   bun run pre-pr -- --body-file pr.md   # the same file you give `gh pr create`
 //   bun run pre-pr -- --quick             # the few-second subset (pre-push hook)
-//   options: --base <branch> (default main), --no-fetch, --jobs <n> (default 4),
+//   options: --base <branch> (default main), --no-fetch, --jobs <n> (default: half the cores),
 //            --no-wsl (Windows: run the POSIX suites natively instead of in WSL)
 
 import { spawn, spawnSync } from "node:child_process"
 import { createWriteStream, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { availableParallelism, tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { validateUiEvidence } from "./ui-evidence.mjs"
@@ -58,7 +58,7 @@ export function touchedAreas(files) {
 }
 
 function parseArgs(argv) {
-  const opts = { base: "main", bodyFile: null, quick: false, fetch: true, jobs: 4, wsl: true, suitesOnly: false, touchedFile: null }
+  const opts = { base: "main", bodyFile: null, quick: false, fetch: true, jobs: Math.max(4, Math.floor(availableParallelism() / 2)), wsl: true, suitesOnly: false, touchedFile: null }
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split(/=(.*)/s)
     const value = () => inline ?? argv[++i]
@@ -177,9 +177,14 @@ function heavyJobs(touched) {
       : ["test/pty-session-lifecycle.test.ts", "test/pty-tree-lifecycle.test.mjs", "test/pty-sidecar-shutdown.test.mjs"]
   // On Linux, macOS's ratchet list is known to fail; macOS runs everything.
   const renderArgs = process.platform === "linux" ? ["--platform=linux"] : []
+  // The render track is the long pole serially (~3.5 min); shard it as CI does.
+  const renderShards = [1, 2, 3, 4].map((i) =>
+    job(`render track ${i}/4`, [bun(["scripts/render-track.mjs", ...renderArgs, "--half=main", `--shard=${i}/4`], ROVE)]),
+  )
   const jobs = [
+    ...renderShards,
+    job("render track PTY half", [bun(["scripts/render-track.mjs", ...renderArgs, "--half=pty"], ROVE)]),
     job("rove unit tests", [bun(["x", "vitest", "run", "--passWithNoTests", "--minWorkers=1", "--maxWorkers=8"], ROVE)]),
-    job("render track", [bun(["scripts/render-track.mjs", ...renderArgs], ROVE)]),
     job("behavior", [
       bun(["x", "vitest", "run", "test/behavior", "--pool", "forks", "--minWorkers=1", "--maxWorkers=1", "--retry=2", "--passWithNoTests"], ROVE, {
         ROVE_INCLUDE_BEHAVIOR: "1",
