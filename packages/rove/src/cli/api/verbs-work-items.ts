@@ -29,6 +29,12 @@ export const WORK_ITEM_VERBS: readonly VerbSpec[] = [
         placeholder: "USER",
         description: "Only items assigned to this user; `@me` for yourself.",
       },
+      {
+        name: "author",
+        type: "string",
+        placeholder: "USER",
+        description: "Only items opened by this user; `@me` for yourself.",
+      },
       { name: "label", type: "string", placeholder: "L", description: "Only items carrying this label." },
     ],
     handler: (ctx) =>
@@ -38,6 +44,7 @@ export const WORK_ITEM_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.int("limit") !== undefined ? { limit: ctx.args.int("limit") } : {}),
         ...(ctx.args.str("search") ? { search: ctx.args.str("search") } : {}),
         ...(ctx.args.str("assignee") ? { assignee: ctx.args.str("assignee") } : {}),
+        ...(ctx.args.str("author") ? { author: ctx.args.str("author") } : {}),
         ...(ctx.args.str("label") ? { labels: [ctx.args.str("label")] } : {}),
       }),
   },

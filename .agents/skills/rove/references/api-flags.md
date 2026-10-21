@@ -291,7 +291,7 @@ own store. These are the INBOUND user reports; Rove issues are the backlog.
 <!-- generated:begin workitems -->
 ```text
 workitem-list   --repo(REQ) --state{open|closed|all}(open) --limit(20) --search --assignee
-                --label
+                --author --label
 workitem-start  --repo(REQ) --number(REQ) --vendor{claude|codex|copilot|kimi|pi|omp|bob}
                 --base-branch
 ```

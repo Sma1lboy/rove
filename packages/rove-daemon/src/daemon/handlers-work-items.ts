@@ -48,6 +48,7 @@ export const WORK_ITEM_HANDLERS: readonly DaemonRequestHandler[] = [
               ...(optionalStringField(payload, "assignee")
                 ? { assignee: optionalStringField(payload, "assignee") }
                 : {}),
+              ...(optionalStringField(payload, "author") ? { author: optionalStringField(payload, "author") } : {}),
               ...(optionalStringList(payload, "labels") ? { labels: optionalStringList(payload, "labels") } : {}),
             },
             payload.refresh === true,
