@@ -25,7 +25,13 @@ writeFileSync(join(configDir, "state.json"), JSON.stringify({
   skillHintSeen: "1", ...Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`skillHintSeen:v${i}`, "1"])),
 }))
 await writeFixtureWebToken(home)
-writeFileSync(join(root, "rove-plugin.toml"), `id = "test.native"\nname = "Native counter"\nversion = "0.1.0"\nmin_rove_version = "0.1.0"\n[mod]\ncommand = ${JSON.stringify([process.execPath, child, "mod", root])}\n`)
+let modCommand = [process.execPath, child, "mod", root]
+if (process.platform === "win32") {
+  const wrapper = join(root, "counter.cmd")
+  writeFileSync(wrapper, `@echo off\r\n${modCommand.map((arg) => `"${arg}"`).join(" ")}\r\n`)
+  modCommand = [process.env.ComSpec ?? "cmd.exe", "/d", "/c", wrapper]
+}
+writeFileSync(join(root, "rove-plugin.toml"), `id = "test.native"\nname = "Native counter"\nversion = "0.1.0"\nmin_rove_version = "0.1.0"\n[mod]\ncommand = ${JSON.stringify(modCommand)}\n`)
 savePluginRegistry({ plugins: [{ id: "test.native", root, source: { kind: "link" }, enabled: true, version: "0.1.0", installedAt: 1 }] }, home)
 const processes = []
 function start(name, command, args, cwd, extra = {}) {
@@ -82,6 +88,9 @@ try {
     } catch {}
   }
   for (const role of ["mod", "descendant", "leaf"]) {
-    try { process.kill(Number(readFileSync(join(root, `initial-${role}.pid`), "utf8")), "SIGKILL") } catch {}
+    try {
+      const pid = Number(readFileSync(join(root, `initial-${role}.pid`), "utf8"))
+      if (Number.isInteger(pid) && pid > 1) process.kill(pid, "SIGKILL")
+    } catch {}
   }
 }

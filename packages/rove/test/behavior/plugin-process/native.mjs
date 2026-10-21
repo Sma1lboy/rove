@@ -50,6 +50,7 @@ function pids(dir, generation, mode) {
   return [mode, "descendant", "leaf"].map((role) => {
     try {
       const pid = Number(readFileSync(join(dir, `${generation}-${role}.pid`), "utf8"))
+      if (!Number.isInteger(pid) || pid <= 1) return 0
       owners.add(pid)
       return pid
     } catch {
