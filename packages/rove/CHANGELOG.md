@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.254
+
+### Patch Changes
+
+- [#1055](https://github.com/Sma1lboy/rove/pull/1055) [`2b64829`](https://github.com/Sma1lboy/rove/commit/2b64829616a1b3b51c6acc461b80e1bf2e06d12f) Add Hermes, Kilo, and MastraCode to the engine catalog. Add session hooks for Grok and Hermes, and turn lifecycle hooks for OpenCode, Kilo, and MastraCode. OpenCode and Kilo preserve turn completion across session updates and distinguish rate limits from billing failures.
+
+  Hook installation preserves user configuration and skips absent CLI config directories. Hooks now read complete JSON payloads without waiting for engines to close stdin. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1248](https://github.com/Sma1lboy/rove/pull/1248) [`ce869fe`](https://github.com/Sma1lboy/rove/commit/ce869fe94d6ab6bc11c8de7c857c5901548ad242) Decision gates can now be answered from the phone and from WeChat. The Android and iOS Inbox show each open decision with its question; tapping one opens an answer sheet with the options (the recommended one marked) and an optional note instead of dismissing it, and the answer reaches the task like `rove api gate-answer`. In WeChat, `gates` lists open decisions with their option keys, `answer g-12 b [note]` answers one, and a newly opened decision is pushed to you. The bridge carries `gates` in its task payload and a new `gate.answer` op, and refuses to dismiss a decision from the Inbox. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1249](https://github.com/Sma1lboy/rove/pull/1249) [`0297cc0`](https://github.com/Sma1lboy/rove/commit/0297cc09177897fa13bf6c4840a1ede210474f19) Should-run: skip a tick the task can't use. `rove api should-run --task-id ID [--tab T]` answers `{run:true}` (exit 0) or a reason (exit 3: awaiting-owner, report-missing, quota, engine-error, engine-dead, awaiting-permission, busy). `send --if-runnable` checks, claims the tab and arms the delivery in one daemon step and records a skipped delivery when it refuses. Routines record a blocked firing as `skipped_blocked` instead of pasting into a busy or waiting task (a dead or errored bound tab is `dispatch_failed` and keeps the routine alarm), quota-resume no longer resumes a task awaiting its owner, and `get-task` / `collect` carry `runnability`. A `quota` skip always names its reset `until` and a delivery ended by a rate limit is not an unreported tick, so a rate-limited task resumes at the reset instead of staying blocked.
+
+  `rove api attention-dismiss --delivery ID` (and WeChat `clear d-N`) dismisses an unreported-tick row explicitly; opening or visiting a `report_missing` row no longer clears it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1313](https://github.com/Sma1lboy/rove/pull/1313) [`8333492`](https://github.com/Sma1lboy/rove/commit/83334924996593c799a7a8f02fb92f2256f00733) Fix missing mod panes and hook output on Windows by keeping plugin stdio attached. Stop plugin process trees with taskkill on Windows while preserving POSIX process-group cleanup. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.253
 
 ### Patch Changes
