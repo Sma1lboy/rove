@@ -13,6 +13,9 @@
 
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/rove-daemon/client/client-log"
+import type { TaskEngineState } from "../client/remote-orchestrator-payloads.ts"
+import type { RowTokenMap } from "../client/remote-orchestrator-row-tokens.ts"
+import type { WorktreeChangesMap } from "../client/remote-orchestrator-worktree-changes.ts"
 import { RemoteOrchestrator } from "../client/remote-orchestrator.ts"
 import type { ReadableState } from "../lib/external-store.ts"
 import { createStateCell } from "../lib/external-store.ts"
@@ -48,6 +51,19 @@ export interface MachineStatus {
   readonly error?: string
 }
 
+/**
+ * What the other machines' daemons push about their own tasks, merged: engine state by task id,
+ * worktree changes by (that machine's) worktree path, token chips by task id. Task ids are unique
+ * across machines, and a worktree path only matches the rows of the machine that reported it.
+ */
+export interface RemoteLive {
+  readonly activity: ReadonlyMap<string, TaskEngineState>
+  readonly changes: WorktreeChangesMap
+  readonly tokens: RowTokenMap
+}
+
+const NO_LIVE: RemoteLive = { activity: new Map(), changes: new Map(), tokens: new Map() }
+
 interface MachineSlot {
   readonly entry: MachineEntry
   tunnel?: TunnelHandle
@@ -60,6 +76,7 @@ export class MachineHub {
   private readonly slots = new Map<string, MachineSlot>()
   private readonly machinesAcc = createStateCell<readonly MachineStatus[]>([], "machines.status")
   private readonly mergedAcc = createStateCell<Task[]>([], "machines.tasks")
+  private readonly liveAcc = createStateCell<RemoteLive>(NO_LIVE, "machines.live")
   private localUnsubscribe: (() => void) | null = null
   private disposed = false
 
@@ -74,6 +91,11 @@ export class MachineHub {
   tasksSignal(): ReadableState<Task[]> {
     if (this.slots.size === 0) return this.local.tasksSignal()
     return this.mergedAcc
+  }
+
+  /** The other machines' live readings (engine state, changes, tokens), re-published on every push. */
+  liveSignal(): ReadableState<RemoteLive> {
+    return this.liveAcc
   }
 
   /** Task ids that live on a machine other than this one. */
@@ -171,14 +193,35 @@ export class MachineHub {
       this.setStatus(entry.alias, { state: connected ? "online" : "offline" })
       this.republishTasks()
     })
+    const live = [
+      orchestrator.engineStateSignal(),
+      orchestrator.worktreeChangesSignal(),
+      orchestrator.rowTokensSignal(),
+    ].map((signal) => signal.subscribe(() => this.republishLive()))
     slot.unsubscribe = () => {
       stopTasks()
       stopConnection()
+      for (const stop of live) stop()
     }
     slot.tasks = orchestrator.tasksSignal().get()
     this.setStatus(entry.alias, { state: "online", version: orchestrator.daemonVersionSignal().get() ?? undefined })
     this.republishTasks()
+    this.republishLive()
     logClient("machines", `${entry.alias} online (${slot.tasks.length} tasks)`)
+  }
+
+  private republishLive(): void {
+    const activity = new Map<string, TaskEngineState>()
+    const changes = new Map<string, WorktreeChangesMap extends ReadonlyMap<string, infer V> ? V : never>()
+    const tokens = new Map<string, RowTokenMap extends ReadonlyMap<string, infer V> ? V : never>()
+    for (const slot of this.slots.values()) {
+      const o = slot.orchestrator
+      if (!o) continue
+      for (const [id, state] of o.engineStateSignal().get()) activity.set(id, state)
+      for (const [path, change] of o.worktreeChangesSignal().get() ?? []) changes.set(path, change)
+      for (const [id, chips] of o.rowTokensSignal().get()) tokens.set(id, chips)
+    }
+    this.liveAcc.set({ activity, changes, tokens })
   }
 
   private onPeerIdentity(

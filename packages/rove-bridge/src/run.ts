@@ -152,6 +152,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
           .get()
           .filter((task) => task.origin && task.origin.machineId !== "local")
           .map((task) => ({ ...task, kind: task.kind ?? "task", pinned: task.pinned ?? false })),
+      remoteLive: () => hub.liveSignal().get(),
     },
     api,
   )
@@ -164,6 +165,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     orchestrator.rowTokensSignal(),
     orchestrator.gatesSignal(),
     hub.tasksSignal(),
+    hub.liveSignal(),
   ]) {
     signal.subscribe(() => feed.poke())
   }
