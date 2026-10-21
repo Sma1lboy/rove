@@ -192,8 +192,8 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
         className={`pane ${working ? "is-working" : ""}`}
         style={taskInk ? ({ "--task-ink": taskInk } as CSSProperties) : undefined}
       >
-        {!task && !remoteTask && payload && payload.tasks.length === 0 && <WelcomePane model={model} />}
-        {!task && !remoteTask && payload && payload.tasks.length > 0 && (
+        {!task && !remoteTask && payload && payload.tasks.length + remote.length === 0 && <WelcomePane model={model} />}
+        {!task && !remoteTask && payload && payload.tasks.length + remote.length > 0 && (
           <p className="placeholder">{t("workspace.pickTask")}</p>
         )}
         {remoteTask?.machine && (

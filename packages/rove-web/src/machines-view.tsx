@@ -1,7 +1,7 @@
 /**
- * Machine headers in the rail (TUI `machine-layer.ts`): `narwhal · v0.9.185`, `narwhal · offline`,
- * `narwhal · ⚠ v0.9.100 (protocol mismatch)`, greyed unless online so a stale snapshot never reads
- * as live. The state is the bridge's `machines.list`; each machine's tasks come in the task feed.
+ * Machine labels in the rail (TUI `machine-layer.ts`): `narwhal · v0.9.185`, `narwhal · offline`,
+ * `narwhal · ⚠ v0.9.100 (protocol mismatch)`, on a remote project's header, greyed unless online so a
+ * stale snapshot never reads as live. The state is the bridge's `machines.list`; each machine's tasks come in the task feed.
  */
 
 import type { en as tasksEn } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
@@ -28,15 +28,6 @@ export function machineLabel(row: MachineRow, words: (typeof tasksEn)["machine"]
   const word = words[row.state]
   if (row.state === "mismatch") return row.version ? `${name} · ⚠ v${row.version} (${word})` : `${name} · ⚠ ${word}`
   return `${name} · ${word}`
-}
-
-export function MachineHead({ row, words }: { row: MachineRow; words: (typeof tasksEn)["machine"] }) {
-  return (
-    <h2 className={`machine-head ${row.state === "online" ? "" : "is-stale"}`} title={row.alias}>
-      <span>{machineLabel(row, words)}</span>
-      <span className="rule" />
-    </h2>
-  )
 }
 
 /** What the TUI's Files pane says for a task whose worktree is on another machine (`host-files-pane.tsx`). */
