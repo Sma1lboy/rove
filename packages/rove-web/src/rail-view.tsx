@@ -187,8 +187,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 if (row.kind !== "project") enterWorkspace()
               }}
               onMenu={(e) => {
-                // Another machine's rows are read-only here: there is no task of ours to aim a verb at.
-                if (row.machine !== undefined) return
+                // Another machine's project has no checkout here, so its header has no menu; its
+                // tasks and tabs do (their verbs run on that machine, `taskMenu` drops the local-only ones).
+                if (row.machine !== undefined && row.kind === "project") return
                 // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
                 if (row.kind === "project") {
                   const info = projectInfo(row.repo)

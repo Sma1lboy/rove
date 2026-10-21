@@ -151,12 +151,17 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       run: () => dialog.set(<RunAgainDialog model={model} task={task} />),
     })
   }
-  items.push({
-    label: tc("tasks", "menu.openEditor"),
-    section: "open",
-    ...bound("tasks.openWorktree"),
-    run: () => void openEditorFlow(model, task.id),
-  })
+  // A task on another machine runs its verbs there; what only this machine can do stays off its menu:
+  // an editor on its files, the local rail order, and this machine's engine list.
+  const local = !task.machine
+  if (local) {
+    items.push({
+      label: tc("tasks", "menu.openEditor"),
+      section: "open",
+      ...bound("tasks.openWorktree"),
+      run: () => void openEditorFlow(model, task.id),
+    })
+  }
 
   // Edit: the task's own fields and place in the rail.
   items.push({
@@ -182,12 +187,14 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
         void c.request("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
     })
   }
-  items.push({
-    label: tc("tasks", "menu.reorder"),
-    section: "edit",
-    ...bound("sidebar.localMerge"),
-    run: () => enterMoveMode(),
-  })
+  if (local) {
+    items.push({
+      label: tc("tasks", "menu.reorder"),
+      section: "edit",
+      ...bound("sidebar.localMerge"),
+      run: () => enterMoveMode(),
+    })
+  }
   items.push({
     label: t("menu.setStatus"),
     section: "edit",
@@ -200,13 +207,15 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       }),
     ),
   })
-  items.push({
-    label: t("menu.changeEngine"),
-    section: "edit",
-    // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
-    ...bound("tasks.cycleEngine"),
-    run: () => dialog.set(<ChangeEngineDialog model={model} taskId={task.id} />),
-  })
+  if (local) {
+    items.push({
+      label: t("menu.changeEngine"),
+      section: "edit",
+      // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
+      ...bound("tasks.cycleEngine"),
+      run: () => dialog.set(<ChangeEngineDialog model={model} taskId={task.id} />),
+    })
+  }
 
   // Git: the branch and its PR.
   if (task.pr?.checkState === "failing") {

@@ -124,7 +124,8 @@ export function useRailKeys(
     if (row) enterWorkspace()
   }
   const verb = (row: Stop | undefined, id: RailId) => {
-    if (!row || row.kind === "routines" || row.machine !== undefined) return
+    if (!row || row.kind === "routines") return
+    // A remote task's menu holds only what runs on its machine, so a key with no entry there does nothing.
     findBinding(taskMenu(model, row.task, null), id)?.run?.()
   }
   const cycleEngine = async (row: Stop | undefined) => {
