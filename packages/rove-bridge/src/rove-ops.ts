@@ -302,6 +302,12 @@ export interface LiveRowSignals {
   gates(): readonly ActiveGate[]
   /** Tasks of the other registered machines (`MachineHub`), each stamped with its `origin`. */
   remote?(): readonly SerializedTask[]
+  /** What those machines' daemons push about their tasks (`MachineHub.liveSignal`). */
+  remoteLive?(): {
+    readonly activity: ReadonlyMap<string, ActivityEntry>
+    readonly changes: WorktreeChangesMap | null
+    readonly tokens: RowTokenMap
+  }
 }
 
 /**
@@ -377,8 +383,17 @@ export function createRoveOps(
         now,
         signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined,
       )
-      // Other machines' rows: their pty host, activity and worktrees are not readable from here, so those stay unknown.
-      const remote = taskRows(signals?.remote?.() ?? [], null, null, engineRows ?? [], now).map((row) => ({
+      // Other machines' rows: engine state, changes and tokens as their daemons push them through the hub.
+      // Liveness (which tabs run) lives in their pty hosts, so that stays unknown here.
+      const pushed = signals?.remoteLive?.()
+      const remote = taskRows(
+        signals?.remote?.() ?? [],
+        pushed ? Object.fromEntries(pushed.activity) : null,
+        null,
+        engineRows ?? [],
+        now,
+        pushed ? { changes: pushed.changes, tokens: pushed.tokens } : undefined,
+      ).map((row) => ({
         ...row,
         order: (row.order ?? 0) + tasks.length,
       }))
