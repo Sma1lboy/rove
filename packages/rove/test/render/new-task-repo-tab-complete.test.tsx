@@ -26,7 +26,7 @@ import { mkdirSync, mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
-import { type Field, type NewTaskInput, nextField } from "../../src/tui/component/new-task-dialog/state"
+import { type DialogTab, type Field, type NewTaskInput, nextField } from "../../src/tui/component/new-task-dialog/state"
 import { act, renderComponent, settle } from "./harness"
 
 function repo(name: string): string {
@@ -59,14 +59,14 @@ async function pressTab(handle: { mockInput: { pressTab: () => void } }, times =
   }
 }
 
-/** Stops from the dialog's opening field (`tabs`) to the repo input. */
+/** Stops from the dialog's opening field (`tabs`) to `target` on `tab`. */
 /** Counted from the focus chain, not hard-coded: this was 4 until the
  *  depth/model/effort rows left the dialog in 2026-09, after which it pointed
  *  at the wrong field and every test here failed about repo completion. */
-function stopsTo(target: Field): number {
+function stopsTo(target: Field, tab: DialogTab = "existing"): number {
   let field: Field = "tabs"
   for (let i = 1; i <= 24; i++) {
-    field = nextField(field, "existing", {
+    field = nextField(field, tab, {
       intentVisible: false,
       effortVisible: false,
       modelVisible: false,
@@ -169,11 +169,11 @@ test("the Clone tab's parent dir walks the same way — one key, both path field
   mkdirSync(join(parent, "level1", "level2"))
   const h = await mount(repo("origin"))
 
-  // → on the mode selector switches to "For New Repo"; Tab then walks
-  // depth → engine → model → git url → parent dir.
+  // → on the mode selector switches to "For New Repo". Overshooting is not
+  // safe: a Tab on a parent dir that lists `$HOME` completes instead of moving.
   act(() => h.mockInput.pressArrow("right"))
   await settle()
-  await pressTab(h, 5)
+  await pressTab(h, stopsTo("cloneParent", "clone"))
   await act(async () => h.mockInput.typeText("\x15"))
   await settle()
   await act(async () => h.mockInput.typeText(`${parent}/`))
