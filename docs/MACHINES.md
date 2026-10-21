@@ -202,18 +202,30 @@ refused call comes back as `INBOUND_DENIED`, naming the class and the hub's
 hostname, with the command that lifts it. The policy lives in this machine's
 `state.json` (`machineInbound`); the hub has no say in it.
 
+## Working on a remote task
+
+The web and the TUI open a task on another machine like a local one. Its tabs
+are listed from that machine. Its terminal attaches that machine's live
+session: you can watch and type, and new and closed tabs happen over there.
+The Files pane reads that machine's worktree through the `worktree-files`,
+`worktree-diff` and `worktree-diff-file` verbs. Nothing is spawned on the hub
+for a remote task. The other machine needs a Rove with those verbs. Opening a
+file in an editor or another app stays on the machine that has it, and so does
+sync-with-base.
+
+Dispatch names the repo, not a path: `rove api add --machine mac --repo
+~/code/rove` finds the Mac's own checkout (`repo-match`, root commit or
+origin). A base branch with unpushed commits is refused (`UNPUSHED_BASE`).
+`land` on a remote task pushes its branch there and opens a PR (`publish`).
+`--machine auto` picks the machine with the fewest tasks in progress.
+
 ## What this release does not do yet
 
-- In the TUI, opening a remote task's session is not wired up yet. You can see
-  the row and drive it with `rove api`, but not enter it; its file tree and
-  diff panes show `on <host>`.
-
-`rove --web` on the hub already opens a remote task like a local one: its tabs
-list under it, its terminal attaches through that machine's PTY host, and the
-Files pane reads that machine's worktree through the `worktree-files`,
-`worktree-diff` and `worktree-diff-file` verbs, which run inside its daemon. The
-remote needs a Rove that has those verbs. Opening a file in an editor or another
-app stays on the machine that has it.
+- No leader election or failover: every machine owns its own tasks, and any
+  machine with the others registered can be the panel. A central scheduler
+  would need one.
+- The SSH key a hub uses is not restricted to Rove's relay
+  (`authorized_keys command=…`).
 
 On native Windows, OpenSSH has no unix-socket forwarding and no connection
 multiplexing, so the hub serves each machine's two sockets itself and relays

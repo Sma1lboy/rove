@@ -1,10 +1,13 @@
 # Workspace backends and runners
 
-> Status: **design draft.** Runner routing for `rove api` / `api.invoke`
-> (`--machine`, task-id routing; `packages/rove/src/machines/forward.ts`) has
-> landed; the rest is not implemented. Maps the current code
-> (verified on `main` at 0.9.250) and proposes the seam. Decisions marked
-> **OPEN** need the owner.
+> Status: **design draft; the dispatch half has landed** (0.9.258+). Shipped:
+> runner routing for `rove api` / `api.invoke` (`--machine <alias>|auto`,
+> task-id routing), dispatch by repo identity (`repo-match`), refusal of an
+> unpushed base, `land` on a remote task as push + PR (`publish`), remote tasks
+> opened in the web and the TUI (terminals + Files), the runner's inbound
+> policy, the stdio transport (native Windows hubs) and `machine tunnel`.
+> Not implemented: the `WorkspaceBackend` seam (phase 0) and checkpoint/rewind
+> (phase 1) below. Decisions marked **OPEN** need the owner.
 
 ## Why
 
