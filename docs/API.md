@@ -60,13 +60,21 @@ logins. This machine only routes.
   socket or the bridge, pass `"machine": "<alias>"` beside `verb` and
   `params`. `local` names this machine. `auto` places the call: the machine with the
   fewest tasks in progress (this one wins a tie; a machine that does not
-  answer is skipped), reported on stderr as `--machine auto → <alias>`.
+  answer is skipped), reported on stderr as `--machine auto → <alias>`. With a
+  `--repo` it can compare, `auto` only considers machines that have that repo
+  (the stderr line lists the ones skipped); when none has it, load alone
+  decides. `--clone` lifts the filter, since any machine can fetch the repo.
 - A `--task-id` that lives on another machine runs on that machine without
   `--machine`, so a remote task the sidebar shows answers `send`,
   `read-output`, `delete` and the rest like a local one.
-- The rules for socket callers above apply on the far side: `--repo` and other
-  paths are absolute paths **on that machine**. `--prompt-file` is read here
-  and sent as `--prompt`.
+- The rules for socket callers above apply on the far side: paths are
+  absolute paths **on that machine**. `--prompt-file` is read here and sent as
+  `--prompt`. `--repo` is the exception: a path that is a checkout here, or a
+  repo id (`owner/name`, `host/owner/name`, a remote URL), names the repo, and
+  the target is asked for its own checkout of it (`repo-match`). A checkout
+  there that is only a fork (same history, other origin) is `FORK_MATCH`
+  unless you pass `--allow-fork`; no checkout at all is `NO_REMOTE_CHECKOUT`,
+  or, with `--clone` and a repo that has an origin, the target clones it.
 - A forwarded call is never forwarded again, and `list` over the socket
   returns only the answering daemon's own tasks, so two machines that
   registered each other cannot bounce a verb between them.
@@ -201,7 +209,10 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CLI_ONLY_VERB` | `api.invoke` (socket or bridge) named a verb that streams over stdout/stdin (`watch`, `pane-graphics`). |
 | `UNKNOWN_MACHINE` | `--machine` (or `"machine"` over the socket) names no registered machine. |
 | `MACHINE_UNREACHABLE` | The machine a verb was routed to did not answer over ssh. |
-| `NO_REMOTE_CHECKOUT` | `--repo` names a checkout here, and the target machine has no checkout of that repo (`repo-match`). |
+| `NO_REMOTE_CHECKOUT` | `--repo` names a checkout here or a repo id, and the target machine has no checkout of that repo (`repo-match`). Pass `--clone` to have the target clone it. |
+| `FORK_MATCH` | The target machine's only checkout of the `--repo` shares its history under another origin (a fork). Pass `--allow-fork` to use it, or `--clone` with the repo id. |
+| `NO_LOCAL_CHECKOUT` | `add --repo` names a repo id and this machine has no checkout of it. Pass `--clone`, or `--repo` with a checkout's path. |
+| `CLONE_FAILED` | `add --clone` could not `git clone` the repo id into `~/.rove/repos/<host>/<owner>/<name>`; the message carries git's error. |
 | `UNPUSHED_BASE` | `--base-branch` has commits no remote has; the target machine could not base a task on it. |
 | `INBOUND_DENIED` | The target machine's inbound policy refuses this verb's class from other machines (`rove machine inbound`). |
 | `PUSH_FAILED` | `publish` (or `land` of a remote task) could not push the task's branch. |
@@ -303,6 +314,20 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   screen rules and identity Rove drives it with, so it is not `generic`. What
   it prints is what a launch runs, so an entry can be copied into `--command`
   verbatim or edited first. Returns `{ engines }`.
+- `repo-match (--origin URL | --root SHA) [--allow-fork]`: this machine's
+  checkout of a repo, matched by identity: `--origin` (any git remote form,
+  compared normalized as `host/owner/name`) or `--root` (its first commit).
+  Searches the saved repos and every task's repo. With several checkouts the
+  primary one wins (`rove machine primary`), else a clean one, else the first.
+  A checkout with the same root but another origin is a fork and matches only
+  with `--allow-fork`. Returns `{ repo, fork?, checkouts, searched }`: `repo`
+  is null when nothing matched, `fork` names a fork that was skipped,
+  `checkouts` every match. A hub asks a machine this before forwarding
+  `add --repo`.
+- `repo-list`: this machine's repos by id (`host/owner/name`, or
+  `root:<sha>` for a repo with no origin), each with its checkouts and its
+  primary one. Returns `{ repos: [{ id, primary, checkouts }] }`.
+  `rove api repo-list --machine <alias>` answers for another machine.
 
 ## read
 
@@ -673,7 +698,7 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
 
 ## create
 
-- `add --repo PATH [--title T] [--branch B] [--base-branch B]
+- `add --repo PATH|REPO [--clone] [--allow-fork] [--title T] [--branch B] [--base-branch B]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
   [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
@@ -702,6 +727,16 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   SUBDIRECTORY is accepted and climbs. When it does, the result carries
   `repoResolvedFrom` with the path you passed — absent when `--repo` already
   named the root.
+
+  `--repo` also takes a repo id: `owner/name` (GitHub), `host/owner/name`, or
+  a remote URL. A value that could be a path (absolute, `~`/`.`-led, or an
+  existing directory) is a path. An id resolves to this machine's checkout of
+  it, by the rules of `repo-match`. With no checkout it is
+  `NO_LOCAL_CHECKOUT`, unless `--clone` is passed: then the repo is cloned
+  into `~/.rove/repos/<host>/<owner>/<name>` (reused if already there) and
+  saved as a repo (`CLONE_FAILED` if git refuses). With `--machine`, the id
+  resolves to that machine's checkout, and `--allow-fork` accepts a fork there
+  ([above](#run-a-verb-on-another-machine)).
 
   A `--title` is flattened to one line: newlines, tabs and other control
   characters collapse to single spaces (the sidebar row does not wrap, and a

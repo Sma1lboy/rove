@@ -30,6 +30,7 @@ import {
   LOCAL_MACHINE,
   forwardVerb,
   pickMachine,
+  repoHosts,
   requireMachine,
   routeTarget,
 } from "../machines/forward.ts"
@@ -157,16 +158,21 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     const { RoveDaemonClient } = await import("@sma1lboy/rove-daemon/client")
     const { defaultDaemonSocketPath } = await import("@sma1lboy/rove-daemon/daemon/paths")
     const local = new RoveDaemonClient(defaultDaemonSocketPath())
-    const picked = await pickMachine(() =>
-      local
-        .request<{ tasks?: Array<{ status?: string }> }>("task.list")
-        .then((res) => res.tasks ?? [])
-        .finally(() => local.close()),
+    const picked = await pickMachine(
+      () =>
+        local
+          .request<{ tasks?: Array<{ status?: string }> }>("task.list")
+          .then((res) => res.tasks ?? [])
+          .finally(() => local.close()),
+      undefined,
+      undefined,
+      repoHosts(forwardParams(verb, parsed.flags)),
     )
+    const skipped = picked.skipped?.length ? `; without the repo: ${picked.skipped.join(", ")}` : ""
     process.stderr.write(
       `rove api: --machine auto → ${picked.entry?.alias ?? LOCAL_MACHINE} (in progress: ${Object.entries(picked.loads)
         .map(([name, n]) => `${name} ${n}`)
-        .join(", ")})\n`,
+        .join(", ")}${skipped})\n`,
     )
     const entry = picked.entry
     if (entry) {

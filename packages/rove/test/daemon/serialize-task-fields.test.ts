@@ -39,7 +39,8 @@ type DeepRequired<T> = {
  * merging several machines' task lists (`machines/hub.ts`), so a round-trip
  * guard demanding it survive would be asserting the opposite of the design.
  */
-const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
+/** `repoId` too: the daemon derives it from the repo on disk (`repo-id.ts`), not from a task field. */
+const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
   id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
   title: "wire fixture",
   repo: "/repo",

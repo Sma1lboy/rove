@@ -13,19 +13,34 @@ export type SortMode = "default" | "recent" | "attention" | "name"
 export const SORT_MODES: readonly SortMode[] = ["default", "recent", "attention", "name"]
 
 export interface ProjectGroup {
+  /** The checkout project-level actions use: this machine's when it has one, else the first machine's. */
   readonly repo: string
   readonly label: string
   readonly tasks: readonly TaskRow[]
+  /** The repo across machines (bridge `TaskRow.repoId`); absent outside a repo. */
+  readonly repoId?: string
+  /** Row ids and fold keys: the repo id, else the (machine-scoped) path. Defaults to `repo`. */
+  readonly key?: string
+  /** The machine `repo` lives on; absent = this one. */
+  readonly machine?: string
+  /** Other machines this project has tasks on, in registration order. */
+  readonly spans?: readonly string[]
 }
 
-/** Rows under another machine's header carry its alias: read-only here, as the TUI's machine layer. */
+/** A row from another machine carries its alias, so its menu and keys run there. */
 interface Remote {
   readonly machine?: string
 }
 
 /** One keyboard-navigable rail row, top to bottom. */
 export type NavRow =
-  | (Remote & { readonly id: string; readonly kind: "project"; readonly repo: string; readonly label: string })
+  | (Remote & {
+      readonly id: string
+      readonly kind: "project"
+      readonly repo: string
+      readonly label: string
+      readonly spans?: readonly string[]
+    })
   | (Remote & { readonly id: string; readonly kind: "task"; readonly task: TaskRow })
   | (Remote & { readonly id: string; readonly kind: "tab"; readonly task: TaskRow; readonly tab: TabRow })
   /** One row folding a project's routine sessions (`tree-core.ts` `routines`); `key` names the fold in `expandedRoutines`. */
@@ -96,14 +111,22 @@ export function groupByProject(tasks: readonly TaskRow[], sort: SortMode = "defa
     else groups.set(task.repo, [task])
   }
   const compare = COMPARE[sort]
-  return [...groups].map(([repo, rows]) => ({
-    repo,
-    label: repoLabel(repo),
-    tasks: compare
-      ? rows.sort((a, b) => ((a.kind === "main") === (b.kind === "main") ? compare(a, b) : a.kind === "main" ? -1 : 1))
-      : rows,
-  }))
+  return [...groups].map(([repo, rows]) => {
+    const repoId = rows.find((task) => task.repoId)?.repoId
+    return {
+      repo,
+      label: repoLabel(repo),
+      tasks: compare ? rows.sort(mainFirst(compare)) : rows,
+      ...(repoId ? { repoId } : {}),
+    }
+  })
 }
+
+/** The project's main checkouts head its group, whatever the sort. */
+const mainFirst =
+  (compare: (a: TaskRow, b: TaskRow) => number) =>
+  (a: TaskRow, b: TaskRow): number =>
+    (a.kind === "main") === (b.kind === "main") ? compare(a, b) : a.kind === "main" ? -1 : 1
 
 /**
  * Flatten to navigable rows, pruned to `query` like `filterTreeRows`: each field
@@ -116,20 +139,19 @@ export function navRows(
   tabLabel: (tab: TabRow) => string,
   query = "",
   expandedRoutines: ReadonlySet<string> = new Set(),
-  /** The machine these groups came from; ids and fold keys carry it so two machines' same path never collide. */
-  machine?: string,
 ): NavRow[] {
   const q = query.trim()
   const hit = (...fields: string[]) => fields.some((f) => f !== "" && fuzzyMatch(q, f))
-  const remote: Remote = machine === undefined ? {} : { machine }
-  const scope = machine === undefined ? "" : `${machine}\0`
   const rows: NavRow[] = []
   for (const group of groups) {
     const projectHit = q === "" || hit(group.label)
+    const head: Remote = group.machine === undefined ? {} : { machine: group.machine }
+    const key = group.key ?? group.repo
     const under: NavRow[] = []
     const routines: TaskRow[] = []
     const routineRows: NavRow[] = []
     for (const task of group.tasks) {
+      const remote: Remote = task.machine ? { machine: task.machine.id } : {}
       const tabs = tabsOf(task.id)
       const taskHit = projectHit || hit(task.title, task.branch, repoLabel(task.repo))
       const tabRows = tabs
@@ -144,7 +166,6 @@ export function navRows(
     }
     if (routines.length > 0) {
       // Search builds fully open, so a folded routine stays findable.
-      const key = `${scope}${group.repo}`
       const expanded = q !== "" || expandedRoutines.has(key)
       under.push({
         id: routinesRowId(key),
@@ -153,13 +174,20 @@ export function navRows(
         key,
         tasks: routines,
         expanded,
-        ...remote,
+        ...head,
       })
       if (expanded) under.push(...routineRows)
     }
     if (under.length === 0 && !projectHit) continue
     rows.push(
-      { id: `project:${scope}${group.repo}`, kind: "project", repo: group.repo, label: group.label, ...remote },
+      {
+        id: `project:${key}`,
+        kind: "project",
+        repo: group.repo,
+        label: group.label,
+        ...head,
+        ...(group.spans && group.spans.length > 0 ? { spans: group.spans } : {}),
+      },
       ...under,
     )
   }
@@ -182,42 +210,99 @@ export interface RailInput {
 
 const newest = (group: ProjectGroup): number => Math.max(0, ...group.tasks.map(taskTime))
 
+/** One machine's checkout of a project: a per-path group plus where it lives (`host` `""` = this machine). */
+interface Part {
+  readonly group: ProjectGroup
+  readonly machine?: string
+  readonly host: string
+}
+
+type Project = ProjectGroup & { readonly host: string }
+
+/** `owner/name` of a `host/owner/name` id; a `root:` id has no readable name. */
+const repoIdTail = (id: string): string | null => (id.startsWith("root:") ? null : id.split("/").slice(-2).join("/"))
+
+/**
+ * The repo's basename, widened only when a DIFFERENT project shares it: a repo id reads `owner/name`
+ * (the whole id when even that repeats), a path-only project takes {@link projectLabel}'s rules.
+ */
+function mergedLabel(project: Project, all: readonly Project[]): string {
+  const base = repoLabel(project.repo)
+  const others = all.filter((other) => other !== project && repoLabel(other.repo) === base)
+  if (others.length === 0) return base
+  const id = project.repoId
+  const tail = id ? repoIdTail(id) : null
+  if (id && tail) {
+    return others.some((other) => other.repoId && other.repoId !== id && repoIdTail(other.repoId) === tail) ? id : tail
+  }
+  return projectLabel(project.repo, [project, ...others], project.host)
+}
+
 /**
  * The whole rail as ONE list of projects from every machine, the way Claude Desktop lists sessions
- * from every environment together: no per-machine section, a remote project carries its machine on
- * its header row instead. `default` keeps this machine's own project order first, then each machine's
- * in registration order; `recent` and `name` interleave all of them. A remote task lists its tabs
- * like a local one (read from its own machine). `groups` is this machine's projects, labelled against
- * every project on screen.
+ * from every environment together. A repo is one project wherever it is checked out: groups with the
+ * same `repoId` merge into one header (keyed by that id), its tasks from every machine underneath,
+ * each row keeping its own `machine`; groups without one stay per machine and path. The header acts
+ * on this machine's checkout when there is one, else the first machine's, and names the other
+ * machines it spans. `default` keeps this machine's project order first, then each machine's in
+ * registration order; `recent` and `name` interleave all of them. `groups` is this machine's
+ * per-path projects, labelled as their headers.
  */
 export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGroup[] } {
-  const sections = input.machines.map((machine) => ({
-    machine,
-    host: machine.hostLabel || machine.alias,
-    groups: groupByProject(
-      input.remote.filter((task) => task.machine?.id === machine.alias),
-      input.sort,
+  const parts: Part[] = [
+    ...groupByProject(input.tasks, input.sort).map((group) => ({ group, host: "" })),
+    ...input.machines.flatMap((machine) =>
+      groupByProject(
+        input.remote.filter((task) => task.machine?.id === machine.alias),
+        input.sort,
+      ).map((group) => ({ group, machine: machine.alias, host: machine.hostLabel || machine.alias })),
     ),
-  }))
-  const local = groupByProject(input.tasks, input.sort)
-  const onScreen: LabelledRepo[] = [
-    ...local.map((group) => ({ repo: group.repo, host: "" })),
-    ...sections.flatMap((s) => s.groups.map((group) => ({ repo: group.repo, host: s.host }))),
   ]
-  const labelled = (groups: readonly ProjectGroup[], host: string) =>
-    groups.map((group) => ({ ...group, label: projectLabel(group.repo, onScreen, host) }))
-  const groups = labelled(local, "")
-  const all: { group: ProjectGroup; machine?: string }[] = [
-    ...groups.map((group) => ({ group })),
-    ...sections.flatMap((s) => labelled(s.groups, s.host).map((group) => ({ group, machine: s.machine.alias }))),
-  ]
-  if (input.sort === "recent") all.sort((a, b) => newest(b.group) - newest(a.group))
-  if (input.sort === "name") all.sort((a, b) => collator.compare(a.group.label, b.group.label))
-  const rows = all.flatMap(({ group, machine }) =>
-    machine === undefined
-      ? navRows([group], input.tabsOf, input.tabLabel, input.query, input.routines)
-      : navRows([group], input.tabsOf, input.tabLabel, input.query, input.routines, machine),
-  )
+  const buckets = new Map<string, Part[]>()
+  for (const part of parts) {
+    const { repoId, repo } = part.group
+    const key = repoId ?? (part.machine === undefined ? repo : `${part.machine}\0${repo}`)
+    const bucket = buckets.get(key)
+    if (bucket) bucket.push(part)
+    else buckets.set(key, [part])
+  }
+  const compare = COMPARE[input.sort]
+  const projectOf = new Map<Part, Project>()
+  const projects: Project[] = []
+  for (const [key, bucket] of buckets) {
+    const head = bucket[0]
+    if (!head) continue
+    const all = bucket.flatMap((part) => part.group.tasks)
+    const spans = [...new Set(bucket.flatMap((part) => (part.machine === undefined ? [] : [part.machine])))]
+    const project: Project = {
+      repo: head.group.repo,
+      label: "",
+      host: head.host,
+      key,
+      tasks:
+        bucket.length === 1
+          ? head.group.tasks
+          : compare
+            ? all.sort(mainFirst(compare))
+            : [...all.filter((task) => task.kind === "main"), ...all.filter((task) => task.kind !== "main")],
+      ...(head.group.repoId ? { repoId: head.group.repoId } : {}),
+      ...(head.machine === undefined ? {} : { machine: head.machine }),
+      ...(spans.length > 0 ? { spans } : {}),
+    }
+    projects.push(project)
+    for (const part of bucket) projectOf.set(part, project)
+  }
+  const labels = new Map(projects.map((project) => [project, mergedLabel(project, projects)]))
+  const labelled = projects.map((project) => ({ ...project, label: labels.get(project) ?? project.label }))
+  if (input.sort === "recent") labelled.sort((a, b) => newest(b) - newest(a))
+  if (input.sort === "name") labelled.sort((a, b) => collator.compare(a.label, b.label))
+  const rows = navRows(labelled, input.tabsOf, input.tabLabel, input.query, input.routines)
+  const groups = parts
+    .filter((part) => part.machine === undefined)
+    .map((part) => {
+      const project = projectOf.get(part)
+      return { ...part.group, label: (project && labels.get(project)) ?? part.group.label }
+    })
   return { rows, groups }
 }
 

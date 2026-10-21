@@ -13,6 +13,8 @@ describe("normalizeRemoteUrl", () => {
       "https://github.com/sma1lboy/rove.git/",
       "ssh://git@github.com/Sma1lboy/rove.git",
       "ssh://git@github.com:22/Sma1lboy/rove",
+      "ssh://git@ssh.github.com:443/Sma1lboy/rove.git",
+      "https://user:token@github.com/Sma1lboy/rove",
     ]
     expect(new Set(forms.map(normalizeRemoteUrl))).toEqual(new Set(["github.com/sma1lboy/rove"]))
   })

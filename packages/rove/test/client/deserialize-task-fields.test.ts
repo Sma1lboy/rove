@@ -99,6 +99,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
     summary: "worker's own account of what it delivered",
     at: "2026-08-27T00:00:00.000Z",
   },
+  repoId: "github.com/o/r",
   createdAt: "2026-08-30T00:00:00.000Z",
   updatedAt: "2026-08-30T00:00:00.000Z",
 }
