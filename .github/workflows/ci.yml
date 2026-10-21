@@ -143,13 +143,12 @@ jobs:
     # isolated daemon + hosted PTY engine. Catches packaged-path and session
     # lifecycle regressions unit mocks cannot see.
     #
-    # Two shards: these were 49s of the 87s that made this job the wall
-    # clock's long pole once the render track was sharded (run 35456145607).
+    # Three shards: at two, shard 2 ran ~45s of tests and set the wall clock.
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -170,17 +169,17 @@ jobs:
         # bun:test, not vitest: the bridge's server is Bun.serve.
         run: bun --filter rove-bridge test
 
-      - name: Behavior tests (Rove package, shard ${{ matrix.shard }}/2)
+      - name: Behavior tests (Rove package, shard ${{ matrix.shard }}/3)
         # Same flags as `test:behavior`, plus vitest's --shard. The serial
         # pool and the retry stay INSIDE each shard: these drive the built
         # CLI black-box and are not safe to run concurrently with each
         # other, but separate runners are separate machines, so slicing
-        # across jobs is. Verified locally: 6 + 5 = 11 files, the whole set.
+        # across jobs is.
         working-directory: packages/rove
         run: |
           ROVE_INCLUDE_BEHAVIOR=1 bun x vitest run test/behavior \
             --pool forks --minWorkers=1 --maxWorkers=1 --retry=2 \
-            --passWithNoTests --shard=${{ matrix.shard }}/2
+            --passWithNoTests --shard=${{ matrix.shard }}/3
 
   render-track:
     # OpenTUI's native renderer runs under Bun, not Vitest's Node worker.
@@ -349,8 +348,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Only the harness's closure: the whole workspace is ~2000 packages and
+      # took ~95s to link on Windows, against 360 in ~6s.
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun install --frozen-lockfile --filter rove-harness
       - name: Verify console cleanup and detached service survival
         working-directory: packages/rove-harness
         run: bun run test test/pty-session-lifecycle.test.ts test/pty-sidecar-shutdown.test.mjs
