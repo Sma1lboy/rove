@@ -44,6 +44,8 @@ export type TerminalProps = {
   cwd: string | null
   /** Stable id used for pty registry keying. */
   taskId: string | null
+  /** The registered machine whose PTY host holds this session; it is attached, never spawned. */
+  machine?: string
   focused?: boolean
   /** Raw keystroke bytes just written: the optimistic activity feed (engine tabs only). */
   onUserInput?: (data: string) => void
@@ -122,6 +124,7 @@ function TerminalSession(props: TerminalProps) {
   const { pty, snapshot, snapshotWindow, wrapped, cursor, exited, acquireError, forceReacquire } = useTerminalPty({
     cwd: props.cwd,
     taskId: props.taskId,
+    machine: props.machine,
     command: props.command,
     initialInput: props.initialInput,
     firstMessage: props.firstMessage,

@@ -20,7 +20,7 @@ import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { SerializeAddon } from "@xterm/addon-serialize"
 import { pastePromptWhenEngineUp } from "../../../engine/hosted-session.ts"
-import { getSharedPtyClient, routeAdd, routeCount, routeRemove } from "./pty-hosted-client"
+import { getMachinePtyClient, getSharedPtyClient, routeAdd, routeCount, routeRemove } from "./pty-hosted-client"
 import type { ParkedScreen, PtyDetachOpts, TaskPtyOpts } from "./pty-types"
 import { XtermTaskPty } from "./pty-xterm-base"
 import { type SessionRecovery, sessionRecovery } from "./session-recovery"
@@ -62,8 +62,10 @@ export class HostedTaskPty extends XtermTaskPty {
   /** See {@link TaskPtyLike.shellPid}. Walkable only because the host runs on
    *  this machine; a remote host would need a host-side walk (not wired). */
   get shellPid(): number | null {
-    return this.sessionPid ?? null
+    // A pid on another machine means nothing to this one's process walks (live engine, turn polls).
+    return this.machine ? null : (this.sessionPid ?? null)
   }
+  private machine: string | undefined
   /** SerializeAddon riding our emulator — `capturePark` reads it. */
   private readonly serializer = new SerializeAddon()
   /** Host byte offset consumed: open response `offset` + every frame since.
@@ -86,9 +88,18 @@ export class HostedTaskPty extends XtermTaskPty {
 
   private async openRemote(opts: TaskPtyOpts): Promise<void> {
     try {
-      const client = await getSharedPtyClient()
+      this.machine = opts.machine
+      const client = opts.machine ? await getMachinePtyClient(opts.machine) : await getSharedPtyClient()
       if (this.killed) return
       this.client = client
+      if (opts.machine) {
+        // Attach only: a key the other host doesn't hold would be SPAWNED here-style over there.
+        const { sessions } = await client.request<{ sessions: ReadonlyArray<{ key: string }> }>("pty.list")
+        if (!sessions.some((s) => s.key === this.taskId)) {
+          this.remoteGone()
+          return
+        }
+      }
       // Shared O(1) dispatcher, not a per-handle `on("pty.data")` the client
       // would walk for every tab per chunk.
       routeAdd(this)
@@ -99,8 +110,8 @@ export class HostedTaskPty extends XtermTaskPty {
       const res = await client.request<PtyOpenResult>("pty.open", {
         key: this.taskId,
         cwd: this.cwd,
-        command: opts.command,
-        shell: opts.shell,
+        command: opts.machine ? undefined : opts.command,
+        shell: opts.machine ? undefined : opts.shell,
         cols: this.cols,
         rows: this.rows,
         defaultColors: opts.defaultColors,
@@ -139,11 +150,11 @@ export class HostedTaskPty extends XtermTaskPty {
       }
       // Engine line first (it belongs to the spawn), then queued keystrokes.
       const fresh = HostedTaskPty.createdFresh(res)
-      if (opts.initialInput && fresh) this.sendInput(opts.initialInput)
+      if (opts.initialInput && fresh && !opts.machine) this.sendInput(opts.initialInput)
       // Paste-delivery vendors (kimi) can't take the first message in argv
       // (positional slot is a subcommand); paste it once the engine is up,
       // fresh spawns only.
-      if (opts.firstMessage && fresh) {
+      if (opts.firstMessage && fresh && !opts.machine) {
         void pastePromptWhenEngineUp(client, this.taskId, opts.engineBin, opts.firstMessage).catch((err) =>
           logClientError("pty-hosted", err),
         )

@@ -90,6 +90,33 @@ export function getSharedPtyClient(): Promise<RoveDaemonClient> {
   return p
 }
 
+/** One connection per other machine's PTY host, over its forwarded `pty.sock`. */
+const machineClients = new Map<string, Promise<RoveDaemonClient>>()
+
+/**
+ * The PTY host of a registered machine. Frames route through the same key table: task ids are
+ * unique across machines. A dropped tunnel closes the client, and the next call dials again.
+ */
+export function getMachinePtyClient(machine: string): Promise<RoveDaemonClient> {
+  const cached = machineClients.get(machine)
+  if (cached) return cached
+  const p = (async () => {
+    const { machinePtySocket } = await import("../../../machines/forward.ts")
+    const client = new RoveDaemonClient(await machinePtySocket(machine))
+    await client.connect()
+    installDispatch(client)
+    client.onLifecycle("close", () => {
+      if (machineClients.get(machine) === p) machineClients.delete(machine)
+    })
+    return client
+  })()
+  p.catch(() => {
+    if (machineClients.get(machine) === p) machineClients.delete(machine)
+  })
+  machineClients.set(machine, p)
+  return p
+}
+
 /**
  * The shared connection only if one exists; never dials. Under a test runner
  * `getSharedPtyClient()` would cache a client on whatever socket was current and
