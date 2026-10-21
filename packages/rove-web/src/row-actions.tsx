@@ -226,7 +226,8 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       run: () => void fixChecksFlow(model, task.id, t("taskops.fixSent")),
     })
   }
-  if (task.kind === "task" && task.branch) {
+  // Sync with base runs this daemon's merge; another machine's worktree is not here.
+  if (task.kind === "task" && task.branch && local) {
     items.push({
       label: tc("tasks", "menu.syncBase"),
       section: "git",

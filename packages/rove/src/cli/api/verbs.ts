@@ -16,6 +16,7 @@ import { FEEDBACK_VERBS } from "./verbs-feedback.ts"
 import { GATE_VERBS } from "./verbs-gates.ts"
 import { ISSUE_VERBS } from "./verbs-issues.ts"
 import { LIFECYCLE_VERBS } from "./verbs-lifecycle.ts"
+import { PUBLISH_VERB } from "./verbs-publish.ts"
 import { READ_VERBS } from "./verbs-read.ts"
 import { REPO_MATCH_VERB } from "./verbs-repo-match.ts"
 import { REVIEW_VERBS } from "./verbs-review.ts"
@@ -147,6 +148,7 @@ export const VERBS: readonly VerbSpec[] = [
   ...READ_VERBS,
   ...REVIEW_VERBS,
   REPO_MATCH_VERB,
+  PUBLISH_VERB,
   DELIVERIES_VERB,
   SHOULD_RUN_VERB,
   ...CREATE_VERBS,

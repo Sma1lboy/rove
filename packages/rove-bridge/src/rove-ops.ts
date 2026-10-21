@@ -53,7 +53,15 @@ export interface RoveOps {
   repos(): Promise<readonly string[]>
   createTask(input: { repo: string; engine?: string; prompt?: string; title?: string }): Promise<{ taskId: string }>
   deleteTask(taskId: string, force: boolean): Promise<{ status: string }>
-  landTask(taskId: string, strategy: "merge" | "squash"): Promise<{ landedOn: string; commit: string }>
+  landTask(
+    taskId: string,
+    strategy: "merge" | "squash",
+  ): Promise<{
+    landedOn: string
+    commit: string
+    /** Set when the task lives on another machine: its branch was pushed and a PR opened there. */
+    published?: { branch: string; prUrl: string | null; prError: string | null }
+  }>
   tabs(taskId: string): Promise<readonly TabRow[]>
   newTab(taskId: string, tab: NewTabRequest): Promise<{ tabId: string }>
   closeTab(taskId: string, tabId: string): Promise<void>
@@ -253,11 +261,20 @@ export function createRoveOps(
     },
 
     async landTask(taskId, strategy) {
-      const res = await api.verb<{ landedOn: string; commit: string }>("land", [
-        flag("task-id", taskId),
-        flag("strategy", strategy),
-      ])
-      return { landedOn: res.landedOn, commit: res.commit }
+      // Another machine's task is published there (push + PR) rather than merged: see `publish`.
+      const res = await api.verb<{
+        landedOn?: string
+        commit?: string
+        branch?: string
+        pr?: { url: string } | null
+        prError?: string
+      }>("land", [flag("task-id", taskId), flag("strategy", strategy)])
+      if (res.landedOn !== undefined) return { landedOn: res.landedOn, commit: res.commit ?? "" }
+      return {
+        landedOn: res.pr?.url ?? `${res.branch ?? "branch"} (pushed)`,
+        commit: "",
+        published: { branch: res.branch ?? "", prUrl: res.pr?.url ?? null, prError: res.prError ?? null },
+      }
     },
 
     async tabs(taskId) {
