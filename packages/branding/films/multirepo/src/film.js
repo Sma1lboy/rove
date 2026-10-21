@@ -43,6 +43,18 @@ function springEase(config, frames) {
 const SOFT = { damping: 200 }
 const tl = gsap.timeline({ paused: true })
 
+/**
+ * Camera moves a scene can name (`scenes.json` `zoom`), in window pixels: the
+ * 1120x630 capture at 1.2857x. Sidebar: the three project groups (capture
+ * rows 5..18). Inbox: the dialog's centre. Files: the right edge beside the
+ * changed-file list, so the diff and its +/- counts fill the frame.
+ */
+const ZOOMS = {
+  sidebar: { origin: "0px 247px", scale: 1.32, ring: "#ring-sidebar" },
+  inbox: { origin: "711px 370px", scale: 1.3 },
+  files: { origin: "1440px 330px", scale: 1.2 },
+}
+
 /** fromTo with explicit start values, so seeking anywhere lands on the right pose. */
 function seg(target, from, to, start, duration, ease = "none", first = false) {
   tl.fromTo(target, from, { ...to, duration, ease, immediateRender: first }, start)
@@ -91,11 +103,16 @@ function take(scene) {
   if (scene.closeOut) {
     seg("#win", { opacity: 1, y: 0, scale: 1 }, { opacity: 0, y: 40, scale: 0.94 }, end - 0.55, 0.55, "power3.in")
   }
-  if (scene.zoomSidebar) {
-    seg("#zoomer", { scale: 1 }, { scale: 1.32 }, scene.start, 0.8, "power3.inOut")
-    seg("#zoomer", { scale: 1.32 }, { scale: 1 }, end - 0.35, 0.35, "power3.inOut")
-    seg("#ring-sidebar", { opacity: 0 }, { opacity: 1 }, scene.start + 0.6, 0.4)
-    seg("#ring-sidebar", { opacity: 1 }, { opacity: 0 }, end - 0.5, 0.2)
+  if (scene.zoom) {
+    const zoom = ZOOMS[scene.zoom]
+    if (!zoom) throw new Error(`unknown zoom ${scene.zoom}`)
+    tl.set("#zoomer", { transformOrigin: zoom.origin }, scene.start)
+    seg("#zoomer", { scale: 1 }, { scale: zoom.scale }, scene.start, 0.8, "power3.inOut")
+    seg("#zoomer", { scale: zoom.scale }, { scale: 1 }, end - 0.35, 0.35, "power3.inOut")
+    if (zoom.ring) {
+      seg(zoom.ring, { opacity: 0 }, { opacity: 1 }, scene.start + 0.6, 0.4)
+      seg(zoom.ring, { opacity: 1 }, { opacity: 0 }, end - 0.5, 0.2)
+    }
   }
   if (scene.keyPress !== null) {
     const ring = `#ring-key-${scene.index}`

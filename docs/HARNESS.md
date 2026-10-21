@@ -262,7 +262,7 @@ bun e2e/hero-plugins.ts           # link the five SDK examples (BEFORE serve)
 bun e2e/film.ts take task-board   # also contrib-engine, settings-demo, hello-events, turn-notify
                                   # → docs/assets/plugins/<name>.gif (render [name…] to re-encode)
 
-# landing hero + README demo: three repos, Claude Code + Codex, detach/reattach, a diff
+# landing hero + README demo: three repos, Claude Code + Codex, close/reopen, the Inbox, a diff
 HERO_ROOT=/tmp/rove-hero-multi bun e2e/film.ts setup multirepo   # its own 3-repo fixture (stops the old stack)
 HERO_ROOT=/tmp/rove-hero-multi bun e2e/hero-serve.ts             # keep running
 HERO_ROOT=/tmp/rove-hero-multi bun e2e/film.ts take multirepo    # REAL turns: quota
@@ -279,6 +279,24 @@ so a re-take changes nothing by hand. Point `HERO_ROOT` at a neutral
 directory — fixture paths are on camera. Out of Claude quota? Set
 `HERO_ANTHROPIC_BASE_URL` + `HERO_ANTHROPIC_AUTH_TOKEN` at `setup` to route
 the Claude tasks through an Anthropic-compatible proxy.
+
+- **Engine colour is checked, twice.** `hero-env.ts` drops `NO_COLOR`, `CI`
+  and `FORCE_COLOR` from the whole hero stack: a take driven from inside a
+  Claude Code session inherits `CI=true`/`NO_COLOR=1`, and an engine that sees
+  either draws in monochrome while Rove's own chrome stays coloured. A film's
+  `colorProbes` then fail the take (parked in `.scratch/film/`, never over the
+  committed cast) and every render unless enough pixels of the named colour
+  show in the named cells — for `multirepo`, Claude Code's orange in the first
+  session. The composition's `publish.mjs` repeats the check on the finished
+  gif for Claude orange and the diff's green and red, so a palette that merges
+  them fails too.
+- **`renderScale` sharpens the render, not the layout.** The replay page draws
+  the take's own cell grid at n× the font (`/harness?replay&scale=n`) on an
+  n× viewport, so clips come out n× sharper with the layout the take filmed.
+- **The take turns Zen off and never revisits a working tab.** Zen now starts
+  on and hides the Files pane the diff beat clicks; and a turn that ends while
+  its tab is in view is consumed there, so it never reaches the Inbox the
+  reopen films.
 
 `hero-capture.ts` holds the input helpers every storyboard drives the TUI with
 (typed-and-verified text, keys, clicks on on-screen text, waits), so a film

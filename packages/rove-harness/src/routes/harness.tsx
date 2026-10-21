@@ -40,6 +40,11 @@ function PtyHarness() {
   // `?replay` renders a recorded take for the film renderer (`e2e/film.ts`)
   // instead of attaching a PTY; the page is otherwise identical.
   const replay = new URLSearchParams(window.location.search).has("replay")
+  // `?scale=<n>` (replay only) draws the take's cell grid at n× the font, for
+  // a sharper film without a device scale factor (see `ReplayTerminal`).
+  const replayScale = Number(
+    new URLSearchParams(window.location.search).get("scale") ?? "1",
+  )
   const [status, setStatus] = useState<WsStatus>("connecting")
   const [buffer, setBuffer] = useState("")
 
@@ -80,6 +85,7 @@ function PtyHarness() {
           renderer={renderer}
           transparent={wallpaper !== null || hostbg !== null}
           hostBackground={hostbg ?? undefined}
+          scale={replayScale >= 1 && replayScale <= 4 ? replayScale : 1}
         />
       ) : (
         <>

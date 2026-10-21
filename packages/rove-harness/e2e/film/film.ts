@@ -42,6 +42,23 @@ export type ClipsOutput = {
   readonly fps: number
 }
 
+/** Cells `[col0, col1) × [row0, row1)` of the take's grid. */
+export type CellRegion = { readonly col0: number; readonly row0: number; readonly col1: number; readonly row1: number }
+
+/**
+ * A colour one frame of the take must show: at least `minPixels` pixels
+ * within `tolerance` (per channel) of `rgb` inside `region`. A take whose
+ * engine drew in monochrome still replays; it just films grey.
+ */
+export type ColorProbe = {
+  readonly label: string
+  readonly at: Point
+  readonly region: CellRegion
+  readonly rgb: readonly [number, number, number]
+  readonly tolerance: number
+  readonly minPixels: number
+}
+
 export type Film = {
   readonly name: string
   /** Rebuild the fixture this film's take expects. */
@@ -65,6 +82,11 @@ export type Film = {
   /** Same-origin `/harness?wallpaper=` backdrop, used by take AND render: a
    *  transparent terminal answers OSC 11 differently, so the TUI draws differently. */
   readonly wallpaper?: string
+  /** Font multiple the render draws the take at (`/harness?replay&scale=`):
+   *  same cell grid, sharper pixels. Clips come out `scale`× the viewport. */
+  readonly renderScale?: number
+  /** Checked against the fresh cast after `take`, and again before `render`. */
+  readonly colorProbes?: readonly ColorProbe[]
 }
 
 export const VIEWPORT = { width: 1280, height: 800 } as const
@@ -75,15 +97,18 @@ export function castPath(name: string): string {
   return join(FILMS_DIR, `${name}.cast.gz`)
 }
 
+/** Cast time of `point`. */
+export function pointTime(point: Point, markers: readonly CastMarker[]): number {
+  if (typeof point === "number") return point
+  const cue = typeof point === "string" ? point : point.cue
+  const marker = markers.find((m) => m.label === cue)
+  if (!marker) throw new Error(`cut references cue ${JSON.stringify(cue)}, which the take never recorded`)
+  return marker.t + (typeof point === "string" ? 0 : point.offset)
+}
+
 /** Cast time of every output frame the cut produces at `fps`. */
 export function frameTimes(cut: readonly Segment[], markers: readonly CastMarker[], fps: number): number[] {
-  const at = (point: Point): number => {
-    if (typeof point === "number") return point
-    const cue = typeof point === "string" ? point : point.cue
-    const marker = markers.find((m) => m.label === cue)
-    if (!marker) throw new Error(`cut references cue ${JSON.stringify(cue)}, which the take never recorded`)
-    return marker.t + (typeof point === "string" ? 0 : point.offset)
-  }
+  const at = (point: Point): number => pointTime(point, markers)
   const times: number[] = []
   for (const segment of cut) {
     const from = at(segment.from)

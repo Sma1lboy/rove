@@ -13,6 +13,7 @@ import type { CastMarker } from "../../src/lib/cast.ts"
 import { REPO_ROOT } from "../hero-capture.ts"
 import { encode, encodeClip } from "./encode.ts"
 import { castPath, type Film, FPS, frameTimes, type Segment, VIEWPORT } from "./film.ts"
+import { assertColorProbes, castGrid } from "./probe.ts"
 
 const HARNESS_DIR = resolve(import.meta.dirname, "../..")
 
@@ -47,16 +48,20 @@ async function startVite(): Promise<{ url: string; stop: () => void }> {
  * A replay page with the take loaded. Always DPR 1: at a higher device scale
  * xterm lays cells out at device size, overflows the viewport, and the frame
  * shows a corner of the TUI (the same fault HARNESS.md records for stills).
+ * `renderScale` sharpens through the font instead, on a viewport that grows
+ * with it, so the cell grid stays the take's.
  */
-async function openReplay(
+export async function openReplay(
   browser: Browser,
   baseUrl: string,
   film: Film,
   cast: string,
 ): Promise<{ page: Page; markers: CastMarker[] }> {
-  const page = await browser.newPage({ viewport: film.viewport ?? VIEWPORT })
+  const { width, height } = film.viewport ?? VIEWPORT
+  const scale = film.renderScale ?? 1
+  const page = await browser.newPage({ viewport: { width: width * scale, height: height * scale } })
   const wallpaper = film.wallpaper ? `&wallpaper=${encodeURIComponent(film.wallpaper)}` : ""
-  await page.goto(`${baseUrl}/harness?replay${wallpaper}`)
+  await page.goto(`${baseUrl}/harness?replay&scale=${scale}${wallpaper}`)
   await page.locator('[data-replay-ready="true"]').waitFor({ timeout: 30_000 })
   const loaded = await page.evaluate((text) => window.__replay?.load(text), cast)
   if (!loaded) throw new Error("the replay page never exposed window.__replay")
@@ -99,9 +104,12 @@ export async function render(film: Film): Promise<void> {
   const browser = await chromium.launch({ headless: true })
   try {
     const { page, markers } = await openReplay(browser, vite.url, film, cast)
+    await assertColorProbes(page, film, markers, castGrid(cast))
     if (own) await shoot(page, frameTimes(own, markers, FPS), join(workDir, "frames"), film.name)
     if (clips) {
-      const { width, height } = film.viewport ?? VIEWPORT
+      const scale = film.renderScale ?? 1
+      const width = (film.viewport ?? VIEWPORT).width * scale
+      const height = (film.viewport ?? VIEWPORT).height * scale
       for (const [id, cut] of Object.entries(clipCuts)) {
         const times = frameTimes(cut, markers, clips.fps)
         await shoot(page, times, join(workDir, "clips", id), `${film.name}/${id}`)
