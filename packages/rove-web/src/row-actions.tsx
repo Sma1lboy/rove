@@ -7,7 +7,7 @@
 
 import { legendCap } from "@sma1lboy/rove/src/tui/lib/help-groups.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
-import { type Choice, ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
+import { ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
@@ -67,13 +67,14 @@ export interface ProjectInfo {
 
 export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): MenuItem[] {
   const items: MenuItem[] = [
-    { label: t("menu.newTask"), run: () => dialog.set(<NewTaskDialog model={model} repo={repo} />) },
+    { label: t("menu.newTask"), section: "open", run: () => dialog.set(<NewTaskDialog model={model} repo={repo} />) },
   ]
   const main = info.mainTaskId
   if (main) {
     if (!info.first) {
       items.push({
         label: tc("tasks", "menu.moveToTop"),
+        section: "edit",
         run: () =>
           void model.client
             .request("task.move", { taskId: main, direction: "top" })
@@ -82,17 +83,20 @@ export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): M
     }
     items.push({
       label: tc("tasks", "menu.reorderProject"),
+      section: "edit",
       ...bound("sidebar.localMerge"),
       run: () => enterMoveMode(),
     })
   }
   items.push({
     label: tc("tasks", "menu.fieldNotes"),
+    section: "notes",
     run: () => dialog.set(<FieldNotesDialog model={model} repo={repo} />),
   })
   if (main) {
     items.push({
       label: tc("tasks", "menu.forgetProject"),
+      section: "danger",
       danger: true,
       ...bound("sidebar.delete"),
       run: () => dialog.set(forgetProjectDialog(model, repo, info.label)),
@@ -113,6 +117,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   if (tab) {
     items.push({
       label: t("menu.closeTab"),
+      section: "tab",
       run: () =>
         dialog.set(
           <ConfirmDialog
@@ -127,13 +132,36 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
         ),
     })
   }
-  items.push({ label: t("menu.newChat"), run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} />) })
+
+  // Open: what starts work in this task.
   items.push({
-    label: t("menu.newShell"),
-    run: () => void openTab(model, task.id, { kind: "shell" }).catch((e) => toast(String(e), "error")),
+    label: t("menu.newChat"),
+    section: "open",
+    run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} />),
   })
   items.push({
+    label: t("menu.newShell"),
+    section: "open",
+    run: () => void openTab(model, task.id, { kind: "shell" }).catch((e) => toast(String(e), "error")),
+  })
+  if (task.hasPrompt) {
+    items.push({
+      label: tc("tasks", "menu.runAgain"),
+      section: "open",
+      run: () => dialog.set(<RunAgainDialog model={model} task={task} />),
+    })
+  }
+  items.push({
+    label: tc("tasks", "menu.openEditor"),
+    section: "open",
+    ...bound("tasks.openWorktree"),
+    run: () => void openEditorFlow(model, task.id),
+  })
+
+  // Edit: the task's own fields and place in the rail.
+  items.push({
     label: t("menu.rename"),
+    section: "edit",
     ...bound("sidebar.rename"),
     run: () =>
       dialog.set(
@@ -148,48 +176,59 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   if (task.kind !== "main") {
     items.push({
       label: task.pinned ? t("menu.unpin") : t("menu.pin"),
+      section: "edit",
       ...bound("sidebar.pin"),
       run: () =>
         void c.request("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
     })
   }
-  items.push({ label: tc("tasks", "menu.reorder"), ...bound("sidebar.localMerge"), run: () => enterMoveMode() })
-  if (task.hasPrompt) {
-    items.push({
-      label: tc("tasks", "menu.runAgain"),
-      run: () => dialog.set(<RunAgainDialog model={model} task={task} />),
-    })
-  }
+  items.push({
+    label: tc("tasks", "menu.reorder"),
+    section: "edit",
+    ...bound("sidebar.localMerge"),
+    run: () => enterMoveMode(),
+  })
   items.push({
     label: t("menu.setStatus"),
-    run: () =>
-      dialog.set(
-        <ChoiceDialog
-          title={t("menu.setStatus")}
-          current={task.status}
-          choices={STATUSES.map((s): Choice => ({ value: s, label: t(STATUS_KEYS[s]) }))}
-          onPick={(status) => c.request("task.setStatus", { taskId: task.id, status }).then(() => {})}
-        />,
-      ),
-  })
-  items.push({ label: t("menu.copyId"), run: () => void copy(task.id, t("menu.what.id")) })
-  if (task.branch) items.push({ label: t("menu.copyBranch"), run: () => void copy(task.branch, t("menu.what.branch")) })
-  items.push({
-    label: t("menu.copyPath"),
-    run: () =>
-      void c
-        .request<{ task: { worktreePath?: string } }>("task.get", { taskId: task.id })
-        .then((res) => copy(res.task.worktreePath, t("menu.what.path")))
-        .catch((e) => toast(String(e), "error")),
+    section: "edit",
+    children: STATUSES.map(
+      (s): MenuItem => ({
+        label: t(STATUS_KEYS[s]),
+        checked: s === task.status,
+        run: () =>
+          void c.request("task.setStatus", { taskId: task.id, status: s }).catch((e) => toast(String(e), "error")),
+      }),
+    ),
   })
   items.push({
-    label: tc("tasks", "menu.openEditor"),
-    ...bound("tasks.openWorktree"),
-    run: () => void openEditorFlow(model, task.id),
+    label: t("menu.changeEngine"),
+    section: "edit",
+    // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
+    ...bound("tasks.cycleEngine"),
+    run: () => dialog.set(<ChangeEngineDialog model={model} taskId={task.id} />),
   })
+
+  // Git: the branch and its PR.
+  if (task.pr?.checkState === "failing") {
+    items.push({
+      label: tc("tasks", "menu.fixChecks"),
+      section: "git",
+      key: prefixHint("files.fixChecks"),
+      run: () => void fixChecksFlow(model, task.id, t("taskops.fixSent")),
+    })
+  }
+  if (task.kind === "task" && task.branch) {
+    items.push({
+      label: tc("tasks", "menu.syncBase"),
+      section: "git",
+      key: prefixHint("files.syncBase"),
+      run: () => void syncBaseFlow(model, task.id),
+    })
+  }
   if (task.branch) {
     items.push({
       label: t("menu.renameBranch"),
+      section: "git",
       ...bound("tasks.renameBranch"),
       run: () =>
         dialog.set(
@@ -202,31 +241,27 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
         ),
     })
   }
-  items.push({
-    label: t("menu.changeEngine"),
-    // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
-    ...bound("tasks.cycleEngine"),
-    run: () => dialog.set(<ChangeEngineDialog model={model} taskId={task.id} />),
+  if (task.kind === "task" && task.branch) {
+    items.push({ label: t("menu.land"), section: "git", run: () => void landFlow(model, task) })
+  }
+
+  // Copy: one entry, its choices a level down.
+  const copies: MenuItem[] = [{ label: t("menu.copyWhat.id"), run: () => void copy(task.id, t("menu.what.id")) }]
+  if (task.branch)
+    copies.push({ label: t("menu.copyWhat.branch"), run: () => void copy(task.branch, t("menu.what.branch")) })
+  copies.push({
+    label: t("menu.copyWhat.path"),
+    run: () =>
+      void c
+        .request<{ task: { worktreePath?: string } }>("task.get", { taskId: task.id })
+        .then((res) => copy(res.task.worktreePath, t("menu.what.path")))
+        .catch((e) => toast(String(e), "error")),
   })
-  if (task.pr?.checkState === "failing") {
-    items.push({
-      label: tc("tasks", "menu.fixChecks"),
-      key: prefixHint("files.fixChecks"),
-      run: () => void fixChecksFlow(model, task.id, t("taskops.fixSent")),
-    })
-  }
-  if (task.kind === "task" && task.branch) {
-    items.push({
-      label: tc("tasks", "menu.syncBase"),
-      key: prefixHint("files.syncBase"),
-      run: () => void syncBaseFlow(model, task.id),
-    })
-  }
-  if (task.kind === "task" && task.branch) {
-    items.push({ label: t("menu.land"), run: () => void landFlow(model, task) })
-  }
+  items.push({ label: t("menu.copy"), section: "copy", children: copies })
+
   items.push({
     label: t("menu.delete"),
+    section: "danger",
     ...bound("sidebar.delete"),
     danger: true,
     run: () =>
