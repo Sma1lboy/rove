@@ -40,6 +40,8 @@ import { type WebRoot, serveWebFile } from "./web-static.ts"
 
 export interface BridgeDeps {
   readonly token: string
+  /** A per-device token's owner (`auth.ts` devices), or null; absent = only the shared token works. */
+  readonly deviceOf?: (presented: string | null) => string | null
   readonly ops: RoveOps
   readonly feed: Pick<TaskFeed, "current" | "refresh" | "subscribe">
   /** `rove api notify` toasts, pushed to every connected phone as a `notice` event. */
@@ -346,10 +348,13 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         log(`[rove-bridge] 403 from ${from}: cross-origin upgrade from ${origin}`)
         return new Response("forbidden\n", { status: 403 })
       }
-      if (!tokenMatches(deps.token, presentedToken(req))) {
+      const presented = presentedToken(req)
+      const device = tokenMatches(deps.token, presented) ? null : (deps.deviceOf?.(presented) ?? undefined)
+      if (device === undefined) {
         log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
         return new Response("unauthorized\n", { status: 401 })
       }
+      if (device) log(`[rove-bridge] device ${device} connected from ${from}`)
       const data: Conn = {
         terminal: null,
         machineTerminals: new Map(),

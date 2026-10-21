@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from "node:crypto"
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto"
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 
@@ -81,4 +81,67 @@ export function pairingUrl(opts: {
   const origin = opts.tls ? `wss://${shown}` : `ws://${shown}:${opts.port}`
   const preset = opts.preset === "none" ? "" : `&preset=${opts.preset}`
   return `${origin}/?token=${opts.token}${preset}`
+}
+
+/**
+ * Per-device credentials: each phone or browser can get its own token, revoked on its own, beside
+ * the shared one (`--rotate-token` still revokes everything). Only a SHA-256 of each token is kept,
+ * owner-only, so the file cannot be replayed as a credential.
+ */
+export interface DeviceRecord {
+  readonly name: string
+  readonly sha256: string
+  readonly createdAt: string
+}
+
+const hashToken = (token: string): string => createHash("sha256").update(token).digest("hex")
+
+export function listDevices(path: string): DeviceRecord[] {
+  if (!existsSync(path)) return []
+  try {
+    const raw: unknown = JSON.parse(readFileSync(path, "utf8"))
+    return Array.isArray(raw)
+      ? raw.filter(
+          (d): d is DeviceRecord =>
+            !!d && typeof d === "object" && typeof d.name === "string" && /^[0-9a-f]{64}$/.test(d.sha256),
+        )
+      : []
+  } catch {
+    return []
+  }
+}
+
+function writeDevices(path: string, devices: readonly DeviceRecord[]): void {
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
+  writeFileSync(path, `${JSON.stringify(devices, null, 2)}\n`, { mode: 0o600 })
+  chmodSync(path, 0o600)
+}
+
+/** Mint a token for `name`, replacing any it had. Returns the token; only its hash is stored. */
+export function addDevice(path: string, name: string, now: Date = new Date()): string {
+  if (!/^[\w.-]{1,40}$/.test(name)) throw new Error(`device name must be 1-40 letters, digits, . _ or -, got ${name}`)
+  const token = randomBytes(32).toString("base64url")
+  const rest = listDevices(path).filter((d) => d.name !== name)
+  writeDevices(path, [...rest, { name, sha256: hashToken(token), createdAt: now.toISOString() }])
+  return token
+}
+
+/** Forget `name`'s token; true when there was one. */
+export function revokeDevice(path: string, name: string): boolean {
+  const devices = listDevices(path)
+  const rest = devices.filter((d) => d.name !== name)
+  if (rest.length === devices.length) return false
+  writeDevices(path, rest)
+  return true
+}
+
+/** The device a presented token belongs to, or null. Constant-time per record. */
+export function deviceOf(path: string, presented: string | null | undefined): string | null {
+  if (!presented) return null
+  const hash = Buffer.from(hashToken(presented))
+  for (const device of listDevices(path)) {
+    const stored = Buffer.from(device.sha256)
+    if (stored.length === hash.length && timingSafeEqual(stored, hash)) return device.name
+  }
+  return null
 }

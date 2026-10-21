@@ -63,6 +63,12 @@ has it yet.
   browser cannot set the `Authorization` header phones use. A socket opened
   from another site is refused even with the token.
 - `--rotate-token` revokes every browser and phone at once.
+- `--device <name>` gives one phone or browser its own token and prints its
+  link; `--revoke-device <name>` revokes just that one, and
+  `--list-devices` shows them. Only a SHA-256 of each device token is kept
+  (`<home>/.rove/bridge/devices.json`, owner-only).
+- `--setup` checks for Tailscale and cloudflared on this machine and prints
+  the commands to reach the bridge from another device. It changes nothing.
 
 The page's files are served without the token (they carry none); every
 operation needs it. With `--preset cf`, Cloudflare Access gates the page too.
