@@ -201,6 +201,10 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CLI_ONLY_VERB` | `api.invoke` (socket or bridge) named a verb that streams over stdout/stdin (`watch`, `pane-graphics`). |
 | `UNKNOWN_MACHINE` | `--machine` (or `"machine"` over the socket) names no registered machine. |
 | `MACHINE_UNREACHABLE` | The machine a verb was routed to did not answer over ssh. |
+| `NO_REMOTE_CHECKOUT` | `--repo` names a checkout here, and the target machine has no checkout of that repo (`repo-match`). |
+| `UNPUSHED_BASE` | `--base-branch` has commits no remote has; the target machine could not base a task on it. |
+| `INBOUND_DENIED` | The target machine's inbound policy refuses this verb's class from other machines (`rove machine inbound`). |
+| `PUSH_FAILED` | `publish` (or `land` of a remote task) could not push the task's branch. |
 | `MACHINE_VERSION_SKEW` | That machine's Rove predates forwarded verbs; upgrade it. |
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |

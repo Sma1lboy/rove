@@ -58,7 +58,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   // refuses streamlocal) runs `ssh <here> rove daemon relay [--pty]` and speaks to this daemon
   // (or PTY host) through the session's stdin/stdout. Bytes in, bytes out; nothing parsed here.
   if (command === "relay") {
-    const pty = flags.includes("--pty")
+    const pty = argvHasFlag(flags, "--pty")
     const { ensureDaemonReachable } = await import("@sma1lboy/rove-daemon/client/daemon-process")
     const { ensurePtyHostReachable } = await import("@sma1lboy/rove-daemon/client/pty-process")
     const target = pty ? await ensurePtyHostReachable() : await ensureDaemonReachable(undefined, "autospawn")
