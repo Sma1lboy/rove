@@ -444,7 +444,7 @@ export function reportPeerTabOp(
   client: RoveDaemonClient,
   origin: string,
   change:
-    | { readonly op: "opened"; readonly taskId: string; readonly tab: object }
+    | { readonly op: "opened"; readonly taskId: string; readonly tab: object; readonly after?: string | null }
     | {
         readonly op: "closed"
         readonly taskId: string

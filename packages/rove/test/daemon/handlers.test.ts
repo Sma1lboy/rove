@@ -129,11 +129,11 @@ describe("daemon handler registry", () => {
     it("relays a TUI's open on tab.add and its close on tab.close, both carrying the origin", async () => {
       const { ctx, rec } = fakeCtx({ getTask: () => TASK })
       const tab = { kind: "engine", id: "tab-3", title: null, ordinal: 3 }
-      await dispatch("terminalTab.peerSync", { taskId: "t1", origin: "A", op: "opened", tab }, ctx)
+      await dispatch("terminalTab.peerSync", { taskId: "t1", origin: "A", op: "opened", tab, after: "tab-2" }, ctx)
       await dispatch("terminalTab.peerSync", { taskId: "t1", origin: "A", op: "closed", tabId: "tab-3" }, ctx)
       const events = rec.published as { channel: string; payload: Record<string, unknown> }[]
       expect(events.map((e) => e.channel)).toEqual(["tab.add", "tab.close"])
-      expect(events[0]?.payload).toMatchObject({ taskId: "t1", tab, origin: "A" })
+      expect(events[0]?.payload).toMatchObject({ taskId: "t1", tab, origin: "A", after: "tab-2" })
       expect(events[1]?.payload).toMatchObject({ kind: "peer-closed", taskId: "t1", tabId: "tab-3", origin: "A" })
     })
 

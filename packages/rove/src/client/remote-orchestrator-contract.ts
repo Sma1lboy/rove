@@ -48,6 +48,8 @@ export type PeerTabEvent =
       readonly op: "opened"
       readonly taskId: string
       readonly tab: EngineTab | CommandTab
+      /** The tab it sits behind (null = first); absent for a changed row. */
+      readonly after?: string | null
       readonly origin: string
       readonly at: number
     }

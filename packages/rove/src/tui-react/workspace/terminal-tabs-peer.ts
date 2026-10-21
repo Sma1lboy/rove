@@ -16,6 +16,7 @@ import { useEffect } from "react"
 import type { PeerTabEvent } from "../../client/remote-orchestrator-contract"
 import type { PeerTabChannel } from "../../client/remote-orchestrator-peer-tabs"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
+import { noteClosedPtyKey } from "../../tui/workspace/closed-tab-suppress"
 import { absorbTab } from "../../tui/workspace/tabs-adopt"
 import { type CommandTab, type EngineTab, closeTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
@@ -38,17 +39,17 @@ function asPeerRow(tab: EngineTab | CommandTab): EngineTab | CommandTab {
 export function applyPeerTabChange(kv: TabsSnapshotKv, event: PeerTabEvent): void {
   asPeerChange(() =>
     event.op === "opened"
-      ? peerOpened(kv, event.taskId, asPeerRow(event.tab))
+      ? peerOpened(kv, event.taskId, asPeerRow(event.tab), event.after)
       : peerClosed(kv, event.taskId, event.tabId),
   )
 }
 
-function peerOpened(kv: TabsSnapshotKv, taskId: string, tab: EngineTab | CommandTab): void {
-  requestTabAdd(taskId, tab)
+function peerOpened(kv: TabsSnapshotKv, taskId: string, tab: EngineTab | CommandTab, after?: string | null): void {
+  requestTabAdd(taskId, tab, after)
   if (!takeUnclaimedTabAdd()) return
   const known = tabsByTask.get(taskId)
   if (!known) return
-  const next = absorbTab(known, tab)
+  const next = absorbTab(known, tab, after)
   if (next === known) return
   setTaskTabs(taskId, next)
   kv.set(terminalTabsKey(taskId), next)
@@ -68,7 +69,11 @@ function peerClosed(kv: TabsSnapshotKv, taskId: string, tabId: string): void {
 
 /** Drop this process's handle on the closed tab's PTY; the peer already ended the host session. */
 export function releasePeerClosedPty(taskId: string, tab: Parameters<typeof tabPtyKeyFor>[1]): void {
-  getDefaultPtyRegistry().release(tabPtyKeyFor(taskId, tab))
+  const key = tabPtyKeyFor(taskId, tab)
+  getDefaultPtyRegistry().release(key)
+  // The host's session list is polled every 2s: until it sees the exit, the orphan backstop would
+  // adopt the closed session straight back (closed-tab-suppress.ts), as for this TUI's own closes.
+  noteClosedPtyKey(key)
 }
 
 /** Once per host: relay this TUI's tab changes out, apply the other TUIs' in. */

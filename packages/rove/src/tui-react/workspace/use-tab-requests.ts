@@ -118,7 +118,7 @@ export function useTabRequests(io: TabRequestIO): void {
       const added = takeTabAdd(taskId)
       if (added) {
         const prev = stateRef.current
-        const next = absorbTab(prev, added)
+        const next = absorbTab(prev, added.tab, added.after)
         if (next !== prev) updateRef.current(next)
       }
       // Another TUI closed it: drop the row so this copy's next write can't revive it. Not

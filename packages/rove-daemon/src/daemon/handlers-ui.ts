@@ -311,7 +311,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         if (typeof tab.id !== "string" || typeof tab.kind !== "string") {
           throw new Error("tab must be an object with a string id and kind")
         }
-        ctx.bus.publish("tab.add", { taskId, tab, origin, at })
+        const after = payload.after
+        const place = typeof after === "string" || after === null ? { after } : {}
+        ctx.bus.publish("tab.add", { taskId, tab, origin, ...place, at })
       } else if (op === "closed") {
         const tabId = requireString(payload, "tabId")
         ctx.bus.publish("tab.close", { kind: "peer-closed", taskId, tabId, origin, at })

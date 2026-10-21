@@ -341,7 +341,8 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       return
     }
     if (typeof p.origin === "string") {
-      signals.emitPeerTab({ op: "opened", taskId: p.taskId, tab: p.tab, origin: p.origin, at: p.at })
+      const after = typeof p.after === "string" || p.after === null ? { after: p.after } : {}
+      signals.emitPeerTab({ op: "opened", taskId: p.taskId, tab: p.tab, ...after, origin: p.origin, at: p.at })
       return
     }
     signals.setTabAddSig({ taskId: p.taskId, tab: p.tab, at: p.at })

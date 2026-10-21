@@ -23,7 +23,8 @@ import {
   tabsByTask,
   takePeerTabClose,
 } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import { type EngineTab, type TabsState, addTab } from "../../src/tui/workspace/terminal-tabs-core"
+import { isRecentlyClosedPtyKey } from "../../src/tui/workspace/closed-tab-suppress"
+import { type EngineTab, type TabsState, addTab, tabPtyKey } from "../../src/tui/workspace/terminal-tabs-core"
 
 function engine(id: string, ordinal: number): EngineTab {
   return { kind: "engine", id, title: null, ordinal, vendor: "claude" }
@@ -128,7 +129,7 @@ test("this TUI's own open and close go to plugins once and to the peers", () => 
   reportTabsDelta("t1", added, prev)
   expect(reports.plugin).toEqual(["tab.opened:tab-3", "tab.closed:tab-3"])
   expect(reports.peer).toEqual([
-    { op: "opened", taskId: "t1", tab: engine("tab-3", 3) },
+    { op: "opened", taskId: "t1", tab: engine("tab-3", 3), after: "tab-2" },
     { op: "closed", taskId: "t1", tabId: "tab-3" },
   ])
 })
@@ -140,4 +141,16 @@ test("a changed row (a pinned session id) is relayed to peers but is not a plugi
   reportTabsDelta("t1", prev, [pinned])
   expect(reports.plugin).toEqual([])
   expect(reports.peer).toEqual([{ op: "opened", taskId: "t1", tab: pinned }])
+})
+
+test("a peer's new tab lands where its creator put it, so both copies keep one order", () => {
+  tabsByTask.set("t1", state(["tab-1", "tab-2", "tab-3"]))
+  applyPeerTabChange(fakeKv(), { ...opened("t1", engine("tab-4", 4)), after: "tab-1" } as PeerTabEvent)
+  expect(tabsByTask.get("t1")?.tabs.map((tab) => tab.id)).toEqual(["tab-1", "tab-4", "tab-2", "tab-3"])
+})
+
+test("a peer-closed session is not re-adopted by the orphan poll before the host sees it exit", () => {
+  tabsByTask.set("t1", state(["tab-1", "tab-2"]))
+  applyPeerTabChange(fakeKv(), closed("t1", "tab-2"))
+  expect(isRecentlyClosedPtyKey(tabPtyKey("t1", "tab-2"))).toBe(true)
 })

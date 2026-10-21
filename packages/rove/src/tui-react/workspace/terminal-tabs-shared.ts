@@ -153,7 +153,7 @@ const tabCloseBox = requestBox<string>()
 const adoptBox = requestBox<readonly string[]>()
 const moveBox = requestBox<{ tabId: string; delta: -1 | 1 }>()
 const renameBox = requestBox<{ tabId: string; title: string }>()
-const addBox = requestBox<EngineTab | CommandTab>()
+const addBox = requestBox<{ tab: EngineTab | CommandTab; after?: string | null }>()
 
 /**
  * F7 activation: consumed by the mounted TerminalTabs, or on mount once the
@@ -253,13 +253,15 @@ export function takeUnclaimedPeerTabClose(): { taskId: string; tabId: string } |
 }
 
 /** `tab.add` (`rove api tab-new`); background write is `addTaskTab`. */
-export const requestTabAdd = addBox.request
+export function requestTabAdd(taskId: string, tab: EngineTab | CommandTab, after?: string | null): void {
+  addBox.request(taskId, after === undefined ? { tab } : { tab, after })
+}
 export const takeTabAdd = addBox.take
 
 /** The twin of {@link takeUnclaimedTabClose} for added tabs. */
 export function takeUnclaimedTabAdd(): { taskId: string; tab: EngineTab | CommandTab } | null {
   const claimed = addBox.takeUnclaimed()
-  return claimed && { taskId: claimed.taskId, tab: claimed.payload }
+  return claimed && { taskId: claimed.taskId, tab: claimed.payload.tab }
 }
 
 /** Injected `reportUiEvent`; no-op until wired (mock hosts, tests, pure TUI before attach). */
@@ -272,7 +274,13 @@ export function setUiEventReporter(fn: UiEventReporter | null): void {
 
 /** Injected relay to the other attached TUIs (`terminalTab.peerSync`); no-op until wired. */
 export type PeerTabChange =
-  | { readonly op: "opened"; readonly taskId: string; readonly tab: EngineTab | CommandTab }
+  /** `after`: the tab it sits behind (null = first), so peers keep the same order. Absent for a changed row. */
+  | {
+      readonly op: "opened"
+      readonly taskId: string
+      readonly tab: EngineTab | CommandTab
+      readonly after?: string | null
+    }
   | { readonly op: "closed"; readonly taskId: string; readonly tabId: string }
 let peerTabReporter: ((change: PeerTabChange) => void) | null = null
 
@@ -323,13 +331,15 @@ export function reportTabsDelta(taskId: string, prev: readonly TerminalTab[], ne
   if (!uiEventReporter && !relay) return
   const prevById = new Map(prev.map((tab) => [tab.id, tab]))
   const nextIds = new Set(next.map((tab) => tab.id))
-  for (const tab of next) {
+  for (const [i, tab] of next.entries()) {
     const before = prevById.get(tab.id)
     // Rows are immutable: a new object is a changed row (spawned, a pinned session id), which a
     // peer must learn too or its next whole-key write drops it. Only a new id is a plugin event.
     if (before === tab) continue
     if (!before) report("tab.opened", taskId, tabDetail(tab))
-    if (relay && relayableTab(tab)) relay({ op: "opened", taskId, tab })
+    if (relay && relayableTab(tab)) {
+      relay(before ? { op: "opened", taskId, tab } : { op: "opened", taskId, tab, after: next[i - 1]?.id ?? null })
+    }
   }
   for (const tab of prev) {
     if (nextIds.has(tab.id)) continue

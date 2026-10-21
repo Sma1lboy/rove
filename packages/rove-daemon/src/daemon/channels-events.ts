@@ -119,6 +119,8 @@ export interface TabAddPayload {
   readonly tab: Readonly<Record<string, unknown>>
   /** Set when another TUI created the tab (`terminalTab.peerSync`): its instance id, so it skips its own echo. */
   readonly origin?: string
+  /** With `origin`: the tab it sits behind in that TUI (null = first), so every copy keeps one order. */
+  readonly after?: string | null
   /** Publish time (ms epoch) — the consumer-side dedupe key. */
   readonly at: number
 }
