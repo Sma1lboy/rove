@@ -33,13 +33,13 @@ const model = { client: { request: async () => ({}) } } as unknown as AppModel
 const labels = (row: TaskRow) => taskMenu(model, row, null).map((item) => item.label)
 
 describe("a task on another machine keeps its menu", () => {
-  test("it drops only what this machine alone can do: editor, rail order, engine pick", () => {
+  test("it drops only what this machine alone can do: editor, rail order, engine pick, sync with base", () => {
     const here = labels(task())
     const there = labels(task({ machine: { id: "mac", label: "mac" } }))
     const dropped = here.filter((label) => !there.includes(label))
-    expect(dropped).toHaveLength(3)
+    expect(dropped).toHaveLength(4)
     // Everything else — new chat/shell, rename, pin, status, branch, land, copy, delete — stays.
-    expect(there.length).toBe(here.length - 3)
+    expect(there.length).toBe(here.length - 4)
     expect(there).toEqual(here.filter((label) => !dropped.includes(label)))
   })
 })

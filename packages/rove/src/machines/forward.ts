@@ -125,6 +125,16 @@ export async function forwardVerb(
   try {
     const repo = await translateRepo(client, entry.alias, params)
     if (repo.failure) return repo.failure
+    // Merging into a base checkout only makes sense where that checkout is; from a hub,
+    // landing another machine's task means sending its branch back through the remote.
+    if (verb === "land" && params["dry-run"] === undefined) {
+      const published = await client.request<ApiEnvelope>("api.invoke", {
+        verb: "publish",
+        params: { "task-id": params["task-id"] } as ApiParams,
+        forwarded: true,
+      })
+      if (published.ok || published.error.code !== "UNKNOWN_VERB") return published
+    }
     return await client.request<ApiEnvelope>("api.invoke", { verb, params: repo.params, forwarded: true })
   } catch (err) {
     const message = errorMessage(err)

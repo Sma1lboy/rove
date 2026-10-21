@@ -222,6 +222,11 @@ export const en = {
     attachTooLarge: "{name} is larger than 5 MB",
   },
   taskops: {
+    publishTitle: "publish to the remote",
+    publishBody: "{branch} lives on {host}. Push it from there and open a pull request?",
+    publishButton: "push & open PR",
+    publishedPr: "pushed {branch} — PR {url}",
+    publishedNoPr: "pushed {branch}, but no PR: {reason}",
     set: "set",
     retire: "delete",
     close: "close",

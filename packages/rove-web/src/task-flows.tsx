@@ -8,6 +8,7 @@
 import type { TaskRow } from "rove-bridge/protocol"
 import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
+import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
@@ -38,9 +39,13 @@ export function landErrorText(err: unknown): string {
  */
 export async function landFlow(
   model: AppModel,
-  task: Pick<TaskRow, "id" | "title" | "branch">,
+  task: Pick<TaskRow, "id" | "title" | "branch" | "machine">,
   onLanded?: () => void,
 ): Promise<void> {
+  if (task.machine) {
+    publishFlow(model, task, task.machine.label, onLanded)
+    return
+  }
   let probe: LandPreflight
   try {
     probe = await model.client.request<LandPreflight>("task.landPreflight", { taskId: task.id })
@@ -78,6 +83,35 @@ export async function landFlow(
         } catch (err) {
           throw new Error(landErrorText(err))
         }
+      }}
+    />,
+  )
+}
+
+/**
+ * Landing a task that lives on another machine: there is no base checkout of it here to merge
+ * into, so its branch is pushed from that machine and a PR opened (`publish`).
+ */
+function publishFlow(
+  model: AppModel,
+  task: Pick<TaskRow, "id" | "title" | "branch">,
+  host: string,
+  onLanded?: () => void,
+): void {
+  const branch = task.branch || task.title
+  dialog.set(
+    <ConfirmDialog
+      title={t("taskops.publishTitle")}
+      body={t("taskops.publishBody", { branch, host })}
+      confirmLabel={t("taskops.publishButton")}
+      onConfirm={async () => {
+        const res = await model.client.request<{
+          published?: { prUrl: string | null; prError: string | null }
+        }>("task.land", { taskId: task.id })
+        const pr = res.published?.prUrl
+        if (pr) toast(t("taskops.publishedPr", { branch, url: pr }))
+        else toast(t("taskops.publishedNoPr", { branch, reason: firstLine(res.published?.prError ?? "") }), "error")
+        onLanded?.()
       }}
     />,
   )

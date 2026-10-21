@@ -221,6 +221,11 @@ export const zh: typeof en = {
     attachTooLarge: "{name} 超过 5 MB",
   },
   taskops: {
+    publishTitle: "推送到远端",
+    publishBody: "{branch} 在 {host} 上。要从那台机器推送它并开一个 PR 吗？",
+    publishButton: "推送并开 PR",
+    publishedPr: "已推送 {branch} — PR {url}",
+    publishedNoPr: "已推送 {branch}，但没开成 PR：{reason}",
     set: "设置",
     retire: "删除",
     close: "关闭",
