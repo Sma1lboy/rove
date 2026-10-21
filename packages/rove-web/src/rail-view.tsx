@@ -92,7 +92,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   })
   const keys = useRailKeys(model, rows, filters, {
     selectedId,
-    onNewTask: (repo) => dialog.set(<NewTaskDialog model={model} repo={repo} />),
+    onNewTask: (repo, machine) => dialog.set(<NewTaskDialog model={model} repo={repo} machine={machine} />),
     onSettings: () => dialog.set(<SettingsDialog client={model.client} />),
   })
   const total = stops(build("").rows).length

@@ -6,6 +6,18 @@ import { type Call, REPO, T, fakeApi, isolateTaskOpDeps, refused, run } from "./
 isolateTaskOpDeps()
 
 describe("task.spawn", () => {
+  test("on another machine: add runs there, and the engine is that machine's to check", async () => {
+    const { calls } = await run(
+      "task.spawn",
+      { repo: "/Users/me/app", machine: "mac", engine: "only-on-mac", baseBranch: "main" },
+      { add: { taskId: "N1", task: {} } },
+    )
+    // No engine-list read here: this machine's engines say nothing about the Mac's.
+    expect(calls).toEqual([
+      { verb: "add", argv: ["--repo=/Users/me/app", "--base-branch=main", "--command=only-on-mac"], machine: "mac" },
+    ])
+  })
+
   test("single task: every flag goes through --name=value", async () => {
     const { result, calls } = await run(
       "task.spawn",

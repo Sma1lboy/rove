@@ -44,8 +44,12 @@ export function SuggestField(props: {
   const active = useRef<HTMLLIElement>(null)
   const { onCursor } = props
   useEffect(() => onCursor?.(at), [at, onCursor])
+  // Braced: newer Chromium returns a Promise from scrollIntoView, and an effect that returns it hands
+  // React a "cleanup" it then calls — a TypeError that blanks the whole page on the next re-render.
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll when the cursor or the list moves
-  useEffect(() => active.current?.scrollIntoView({ block: "nearest" }), [at, props.items])
+  useEffect(() => {
+    active.current?.scrollIntoView({ block: "nearest" })
+  }, [at, props.items])
 
   const key = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing) return

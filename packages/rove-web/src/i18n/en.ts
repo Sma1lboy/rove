@@ -96,6 +96,11 @@ export const en = {
     promptPlaceholder: "optional; ⌘↵ creates",
     create: "create",
     needRepo: "pick a project first",
+    machine: "machine",
+    thisMachine: "this machine",
+    remoteRepoPlaceholder: "a repo path on {host}",
+    remoteRepoHint: "paths are {host}'s; known projects there are suggested",
+    baseBranch: "from branch",
   },
   newChat: {
     title: "new conversation",
