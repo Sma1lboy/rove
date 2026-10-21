@@ -215,9 +215,13 @@ Files pane reads that machine's worktree through the `worktree-files`,
 remote needs a Rove that has those verbs. Opening a file in an editor or another
 app stays on the machine that has it.
 
-Windows can register and list machines, but cannot open the tunnel: OpenSSH on
-Windows has no unix-socket forwarding. Such a machine's row reads
-`unsupported`.
+On native Windows, OpenSSH has no unix-socket forwarding and no connection
+multiplexing, so the hub serves each machine's two sockets itself and relays
+every connection through `ssh <machine> rove daemon relay` (and `… --pty` for
+terminals) over the session's stdin and stdout. Nothing extra is needed on
+either side. Any hub can use the same transport with
+`ROVE_MACHINE_TRANSPORT=stdio`, for a host whose sshd refuses `streamlocal`
+forwarding.
 
 ## Where things live
 

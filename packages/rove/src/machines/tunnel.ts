@@ -20,6 +20,7 @@ import { connect as netConnect } from "node:net"
 import { homeDir } from "../env.ts"
 import type { MachineConfig } from "./registry.ts"
 import { localDaemonSocketPath, localPtySocketPath, machineSocketDir, machineSshArgs } from "./ssh-args.ts"
+import { ensureStdioForwards, stopStdioForwards, useStdioTransport } from "./stdio-forward.ts"
 
 /** Owner-only, like every other directory under `<home>/.rove`: the sockets in
  *  here reach a daemon that runs commands as its owner. */
@@ -86,25 +87,29 @@ export function startTunnel(opts: StartTunnelOptions): TunnelHandle {
     },
     stop: () => {
       stopped = true
+      if (useStdioTransport()) stopStdioForwards(opts.alias, home)
     },
   }
 
-  if (process.platform === "win32") {
-    setState("unsupported")
-    return handle
-  }
-
   const schedule = opts.setTimeoutFn ?? ((fn: () => void, ms: number) => setTimeout(fn, ms))
+  // A hub that cannot forward unix sockets over ssh (native Windows) serves them itself and relays
+  // each connection through `ssh … rove daemon relay` (stdio-forward.ts).
+  const stdio = (): Promise<boolean> =>
+    ensureStdioForwards({ alias: opts.alias, config: opts.config, home })
+      .then(() => socketAnswers(daemonSocketPath))
+      .catch(() => false)
   const ensure =
     opts.ensureFn ??
-    (() =>
-      ensureForwards({
-        alias: opts.alias,
-        config: opts.config,
-        remoteDaemonSocket: opts.remoteDaemonSocket,
-        remotePtySocket: opts.remotePtySocket,
-        home,
-      }))
+    (useStdioTransport()
+      ? stdio
+      : () =>
+          ensureForwards({
+            alias: opts.alias,
+            config: opts.config,
+            remoteDaemonSocket: opts.remoteDaemonSocket,
+            remotePtySocket: opts.remotePtySocket,
+            home,
+          }))
   const check = opts.checkFn ?? (() => socketAnswers(daemonSocketPath))
 
   const attempt = async (): Promise<void> => {
@@ -146,8 +151,13 @@ export async function ensureForwards(args: {
   readonly remotePtySocket: string
   readonly home?: string
 }): Promise<boolean> {
-  if (process.platform === "win32") return false
   const home = args.home ?? homeDir()
+  if (useStdioTransport()) {
+    // No unix-socket forwarding here: serve the sockets locally, each connection relayed over ssh stdio.
+    return ensureStdioForwards({ alias: args.alias, config: args.config, home })
+      .then(() => socketAnswers(localDaemonSocketPath(args.alias, home)))
+      .catch(() => false)
+  }
   const daemonLocal = localDaemonSocketPath(args.alias, home)
   const ptyLocal = localPtySocketPath(args.alias, home)
   try {

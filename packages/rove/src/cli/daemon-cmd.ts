@@ -54,10 +54,31 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     process.exit(2)
   }
 
+  // The stdio transport: a hub that cannot forward unix sockets (native Windows, a host whose sshd
+  // refuses streamlocal) runs `ssh <here> rove daemon relay [--pty]` and speaks to this daemon
+  // (or PTY host) through the session's stdin/stdout. Bytes in, bytes out; nothing parsed here.
+  if (command === "relay") {
+    const pty = flags.includes("--pty")
+    const { ensureDaemonReachable } = await import("@sma1lboy/rove-daemon/client/daemon-process")
+    const { ensurePtyHostReachable } = await import("@sma1lboy/rove-daemon/client/pty-process")
+    const target = pty ? await ensurePtyHostReachable() : await ensureDaemonReachable(undefined, "autospawn")
+    const { connect } = await import("node:net")
+    const socket = connect(target)
+    process.stdin.pipe(socket)
+    socket.pipe(process.stdout)
+    await new Promise<void>((resolve) => {
+      socket.on("close", () => resolve())
+      process.stdin.on("end", () => socket.end())
+    })
+    process.exit(0)
+  }
+
   // `status --json` is what other machines' `machine add` sends; its output is JSON either way.
   const badFlag = flags.find(
     (flag) =>
-      !(command === "start" && argvHasFlag([flag], "--resident")) && !(command === "status" && flag === "--json"),
+      !(command === "start" && argvHasFlag([flag], "--resident")) &&
+      !(command === "status" && flag === "--json") &&
+      !(command === "relay" && flag === "--pty"),
   )
   const resident = switchFlag(flags, "--resident")
   if (badFlag !== undefined || resident === undefined) {
