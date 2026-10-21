@@ -4,6 +4,8 @@ import { mkdirSync, mkdtempSync, openSync, readFileSync, writeFileSync } from "n
 import { tmpdir, release } from "node:os"
 import { join, resolve } from "node:path"
 import { buildFixtureEnv, writeFixtureWebToken } from "../../rove/scripts/fixture-core.ts"
+import { resolveNodePtyHostSpawn } from "../../rove-daemon/src/client/pty-process.ts"
+import { testDaemonResponds } from "../../rove-daemon/src/client/daemon-process.ts"
 import { savePluginRegistry } from "../../rove-daemon/src/plugins/registry.ts"
 
 const baseline = process.argv.includes("--baseline")
@@ -45,6 +47,13 @@ try {
   for (let i = 0; i < 240; i++) {
     try { if (Number(readFileSync(join(root, "initial-mod.pid"), "utf8")) > 0) break } catch {}
     if (i === 239) throw new Error("daemon did not start the linked mod")
+    await Bun.sleep(250)
+  }
+  const hostCommand = await resolveNodePtyHostSpawn() ?? [process.execPath, cli, "pty-host"]
+  start("host", hostCommand[0], hostCommand.slice(1), repo)
+  for (let i = 0; i < 120; i++) {
+    if (await testDaemonResponds(env.ROVE_PTY_SOCKET_PATH)) break
+    if (i === 119) throw new Error("real PTY host did not answer hello; see host log")
     await Bun.sleep(250)
   }
   start("web", process.execPath, [cli, "--web", "--host", "127.0.0.1", "--port", "5276"], repo)
