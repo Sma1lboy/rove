@@ -357,7 +357,7 @@ function inbound(argv: readonly string[]): void {
     )
     return
   }
-  if (action !== undefined) usageError(`inbound takes allow|deny <class>, or nothing to show the policy`)
+  if (action !== undefined) usageError("inbound takes allow|deny <class>, or nothing to show the policy")
   const denied = new Set(deniedClasses())
   for (const c of INBOUND_CLASSES) process.stdout.write(`${c.padEnd(11)} ${denied.has(c) ? "deny" : "allow"}\n`)
 }
