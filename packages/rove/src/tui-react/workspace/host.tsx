@@ -463,6 +463,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               ? selectedTask.origin.hostLabel
               : undefined
           }
+          remote={
+            selectedTask?.origin && selectedTask.origin.machineId !== "local" && !selectedTask.origin.stale
+              ? { machine: selectedTask.origin.machineId, taskId: String(selectedTask.id) }
+              : undefined
+          }
         />
       ) : null}
 

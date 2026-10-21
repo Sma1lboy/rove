@@ -12,6 +12,7 @@ import { execHostForWorktreePath } from "../../exec/resolve"
 import { errorMessage } from "../../lib/error-message"
 import { formatBytes } from "../../lib/format-bytes"
 import { openWithSystemViewer } from "../../lib/open-external"
+import { remotePreview } from "../../machines/remote-worktree.ts"
 import type { DiffReviewApi } from "../../tui/ops/diff-comments"
 import {
   type PatchNote,
@@ -45,6 +46,8 @@ export interface OpsPreviewArgs {
   /** Line-anchored review notes (diff kind only) — supplied by the
    *  workspace content-tab host; absent for the standalone entrypoint. */
   readonly review?: DiffReviewApi
+  /** A task on another machine: its diff is read there (`worktree-diff-file`). */
+  readonly remote?: { readonly machine: string; readonly taskId: string }
 }
 
 export function PreviewScreen(props: OpsPreviewArgs) {
@@ -73,7 +76,12 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER — the effect body doesn't read it.
   useEffect(() => {
     let disposed = false
-    void loadPreviewData(props.worktree, props.relPath, base ? { base } : undefined)
+    const remote = props.remote
+    void (
+      remote
+        ? remotePreview(remote.machine, remote.taskId, props.relPath, base)
+        : loadPreviewData(props.worktree, props.relPath, base ? { base } : undefined)
+    )
       .then((d) => {
         if (!disposed) setLoaded({ identity, data: d })
       })

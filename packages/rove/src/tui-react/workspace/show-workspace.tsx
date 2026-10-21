@@ -74,6 +74,16 @@ export function ShowWorkspace(props: {
       </box>
     )
   }
+  // A task on another machine: its tabs, KV and engine live there. Mounting the local tab host
+  // would spawn an engine on THIS machine in a directory that only exists over there.
+  const machine = props.task?.origin && props.task.origin.machineId !== "local" ? props.task.origin.hostLabel : null
+  if (machine) {
+    return (
+      <box flexGrow={1} alignItems="center" justifyContent="center">
+        <text fg={theme.textMuted}>{t("tasks.machine.terminalElsewhere", { host: machine })}</text>
+      </box>
+    )
+  }
   // Existing checkouts wait for an explicit start; managed and scratch tasks auto-start.
   const known = props.task ? knownTaskTabs(kv, String(props.task.id)) : null
   if (
