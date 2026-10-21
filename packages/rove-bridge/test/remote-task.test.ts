@@ -65,7 +65,16 @@ describe("verbs for a task on another machine", () => {
         return { apiVersion: 1, ok: true, result: { files: ["a.ts"] } } as never
       },
     })
-    expect(await api.verb("worktree-diff-file", ["--task-id", "far", "--path", "a.ts", "--scope", "working"])).toEqual({
+    expect(
+      await api.verb<{ files: string[] }>("worktree-diff-file", [
+        "--task-id",
+        "far",
+        "--path",
+        "a.ts",
+        "--scope",
+        "working",
+      ]),
+    ).toEqual({
       files: ["a.ts"],
     })
     expect(forwarded).toEqual([["mac", "worktree-diff-file", { "task-id": "far", path: "a.ts", scope: "working" }]])
