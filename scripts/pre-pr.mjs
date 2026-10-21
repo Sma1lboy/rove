@@ -185,11 +185,14 @@ function heavyJobs(touched) {
     ...renderShards,
     job("render track PTY half", [bun(["scripts/render-track.mjs", ...renderArgs, "--half=pty"], ROVE)]),
     job("rove unit tests", [bun(["x", "vitest", "run", "--passWithNoTests", "--minWorkers=1", "--maxWorkers=8"], ROVE)]),
-    job("behavior", [
-      bun(["x", "vitest", "run", "test/behavior", "--pool", "forks", "--minWorkers=1", "--maxWorkers=1", "--retry=2", "--passWithNoTests"], ROVE, {
-        ROVE_INCLUDE_BEHAVIOR: "1",
-      }),
-    ]),
+    // Serial within a shard, as test:behavior is; each file isolates its own ROVE_HOME, so shards can overlap.
+    ...[1, 2].map((i) =>
+      job(`behavior ${i}/2`, [
+        bun(["x", "vitest", "run", "test/behavior", "--pool", "forks", "--minWorkers=1", "--maxWorkers=1", "--retry=2", "--passWithNoTests", `--shard=${i}/2`], ROVE, {
+          ROVE_INCLUDE_BEHAVIOR: "1",
+        }),
+      ]),
+    ),
     harnessJob(harnessTests),
     job("visual ground truth", [bun(["x", "playwright", "install", "chromium"], HARNESS), bun(["run", "visual"], HARNESS)]),
     job("built CLI carries weixin", [bun(["packages/rove/dist/cli/rove.js", "weixin", "--help"])]),
@@ -200,8 +203,21 @@ function heavyJobs(touched) {
   return jobs
 }
 
-/** Windows: the Windows harness tests here, every POSIX suite in WSL against HEAD. */
-function windowsJobs(touched, distro, jobs) {
+/**
+ * It swaps daemon plugin sources to a baseline and back, so nothing else on
+ * this checkout may run beside it (WSL has its own copy), and it rewrites the
+ * tracked `plugin-evidence/`, which is put back unless it was already edited.
+ */
+async function pluginWindowsAcceptance() {
+  const evidenceClean = git(["status", "--porcelain", "--", "plugin-evidence"]).length === 0
+  await job("plugin-windows acceptance", [
+    bun(["packages/rove/test/behavior/plugin-process/compare.mjs"], ROOT, { BASE_SHA: "61c4532cc642039ce4ce3f6739d1ee35f2c58cd0" }),
+  ])()
+  if (evidenceClean) git(["checkout", "--", "plugin-evidence"])
+}
+
+/** Windows: every POSIX suite in WSL, against a copy of HEAD. */
+function wslJob(touched, distro, jobs) {
   const name = basename(ROOT.replace(/[\\/]+$/, ""))
   const ref = `refs/pre-pr/${name}`
   const touchedFile = join(LOGS, "touched.txt")
@@ -209,7 +225,7 @@ function windowsJobs(touched, distro, jobs) {
   const gitDir = resolve(ROOT, git(["rev-parse", "--git-common-dir"])[0])
   git(["update-ref", ref, "HEAD"])
   const script = wslScript({ name, gitDir, ref, touchedFile, jobs })
-  return [harnessJob(WINDOWS_HARNESS), job(`WSL ${distro}: POSIX suites`, [{ cmd: "wsl.exe", args: ["-d", distro, "-e", "bash", "-lc", script] }])]
+  return job(`WSL ${distro}: POSIX suites`, [{ cmd: "wsl.exe", args: ["-d", distro, "-e", "bash", "-lc", script] }])
 }
 
 function skippedNotes(touched) {
@@ -266,19 +282,18 @@ async function main() {
       return errors.length === 0
     })
     step("script tests", () => run("node", ["--test", "scripts/scan-plugins.test.mjs", "scripts/ui-evidence.test.mjs", "scripts/pre-pr.test.mjs"]))
-    // Both rebuild the plugin SDK's dist, which every pooled suite reads: run them before the pool.
-    const built = step("typecheck", () => run("bun", ["run", "typecheck"])) && step("build", () => run("bun", ["run", "build"]))
+    const distro = process.platform === "win32" && opts.wsl ? wslDistro() : null
+    if (process.platform === "win32" && opts.wsl && !distro) console.warn("warning: no WSL distro found; running the POSIX suites natively (many fail on Windows)")
+    process.stdout.write(`\n▶ suites in parallel (--jobs ${opts.jobs}), logs in ${LOGS}\n`)
+    // WSL builds its own copy, so it need not wait for this checkout's typecheck.
+    const wsl = distro ? wslJob(touched, distro, opts.jobs)() : null
+    // Both rebuild the plugin SDK's dist, which the suites here read: run them first.
+    const built = (await job("typecheck", [bun(["run", "typecheck"])])()) && (await job("build", [bun(["run", "build"])])())
     if (built) {
-      process.stdout.write(`\n▶ suites in parallel (--jobs ${opts.jobs}), logs in ${LOGS}\n`)
-      const distro = process.platform === "win32" && opts.wsl ? wslDistro() : null
-      if (process.platform === "win32" && opts.wsl && !distro) console.warn("warning: no WSL distro found; running the POSIX suites natively (many fail on Windows)")
-      await pool(distro ? windowsJobs(touched, distro, opts.jobs) : heavyJobs(touched), opts.jobs)
-      // It rewrites daemon plugin sources to a baseline and back, so nothing else may run beside it.
-      if (touchedAreas(touched).pluginWindows && process.platform === "win32")
-        step("plugin-windows acceptance", () =>
-          run("bun", ["packages/rove/test/behavior/plugin-process/compare.mjs"], { BASE_SHA: "61c4532cc642039ce4ce3f6739d1ee35f2c58cd0" }),
-        )
+      await pool(distro ? [harnessJob(WINDOWS_HARNESS)] : heavyJobs(touched), opts.jobs)
+      if (touchedAreas(touched).pluginWindows && process.platform === "win32") await pluginWindowsAcceptance()
     }
+    await wsl
     for (const note of skippedNotes(touched)) console.log(`skip ${note}`)
   }
   finish()
