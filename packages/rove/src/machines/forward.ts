@@ -18,7 +18,7 @@ import { ApiError } from "../cli/api/types.ts"
 import { errorMessage } from "../lib/error-message.ts"
 import { discoverMachine } from "./discover.ts"
 import { type MachineEntry, dedupeMachines, listMachines, updateMachine } from "./registry.ts"
-import { isLocalCheckout, repoIdentity } from "./repo-identity.ts"
+import { isLocalCheckout, repoIdentity, unpushedCommits } from "./repo-identity.ts"
 import { localDaemonSocketPath } from "./ssh-args.ts"
 import { ensureForwards } from "./tunnel.ts"
 
@@ -163,7 +163,21 @@ async function translateRepo(
   })
   if (!ask.ok) return ask.error.code === "UNKNOWN_VERB" ? { params } : { failure: ask }
   const found = (ask.result as { repo?: string | null }).repo
-  if (found) return { params: { ...params, repo: found } }
+  if (found) {
+    // The runner only has what was pushed: a base with commits no remote has cannot be built on there.
+    const base = params["base-branch"]
+    const unpushed = typeof base === "string" ? unpushedCommits(repo, base) : null
+    if (typeof base === "string" && unpushed) {
+      return {
+        failure: failure(
+          "UNPUSHED_BASE",
+          `${base} has ${unpushed} commit${unpushed === 1 ? "" : "s"} no remote has; ${alias} cannot base a task on it`,
+          { hint: `push it first (\`git -C ${repo} push -u origin ${base}\`), then dispatch again` },
+        ),
+      }
+    }
+    return { params: { ...params, repo: found } }
+  }
   return {
     failure: failure("NO_REMOTE_CHECKOUT", `machine "${alias}" has no checkout of ${identity.origin ?? repo}`, {
       hint: `clone it on ${alias} (and open it there once so Rove knows it), or pass --repo with ${alias}'s own path`,
