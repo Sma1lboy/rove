@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.264
+
+### Patch Changes
+
+- [#1364](https://github.com/Sma1lboy/rove/pull/1364) [`94d4fb2`](https://github.com/Sma1lboy/rove/commit/94d4fb2ccab49ef9371693003c528ec11d42e49a) The TUI sidebar no longer splits tasks into a section per machine. The same repo on several machines is one project, every machine's tasks listed under it, and a task that lives on another machine shows a ☁ after its title (amber when that machine is offline or out of date). With the cursor on such a row the sidebar says which machine it is on and its state. Projects with different repos but the same folder name read `owner/name`, never `host:name`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1363](https://github.com/Sma1lboy/rove/pull/1363) [`e3a6556`](https://github.com/Sma1lboy/rove/commit/e3a6556b2bd484f91a5d34a19e1a77297c9a4016) The web rail no longer labels projects with machine names. Every machine's tasks are listed together, and a task that lives on another machine shows a small cloud next to its title; hover it to see which machine and whether that machine is offline or out of date. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.263
 
 ### Patch Changes
