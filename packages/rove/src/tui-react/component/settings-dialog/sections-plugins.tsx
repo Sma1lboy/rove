@@ -124,7 +124,7 @@ export function PluginSettingsSection(
                   </text>
                   <text fg={isCursor ? theme.selectedListItemText : theme.textMuted} wrapMode="none">
                     {plugin.builtIn
-                      ? t("settings.plugins.sourceBuiltIn")
+                      ? t(plugin.enabled ? "settings.plugins.sourceBuiltInInstalled" : "settings.plugins.sourceBuiltIn")
                       : `v${plugin.version}  ${
                           plugin.linked
                             ? t("settings.plugins.sourceLink", { path: plugin.source })
@@ -137,7 +137,7 @@ export function PluginSettingsSection(
                     </text>
                   ) : null}
                 </box>
-                {/* A built-in plugin declares nothing but its pages and never runs a hook. */}
+                {/* A first-party mod declares nothing but its pages and never runs a hook. */}
                 {plugin.builtIn ? null : (
                   <box flexDirection="row" gap={1} paddingLeft={5} paddingRight={1}>
                     <text fg={plugin.declares ? theme.textMuted : theme.warning} wrapMode="none">

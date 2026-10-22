@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import type { BuiltinModId } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import type { EngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import type { PluginRowView } from "@sma1lboy/rove/src/tui-react/component/settings-dialog/plugins-core.ts"
 import { insightOps } from "../src/ops/insight.ts"
@@ -35,6 +36,7 @@ async function run<T = unknown>(table: OpTable, op: string, args: Args, replies:
 
 function settingsDeps(over: Partial<SettingsDeps> = {}): { deps: SettingsDeps; toggled: [string, boolean][] } {
   const toggled: [string, boolean][] = []
+  const mods = new Set<BuiltinModId>()
   const deps: SettingsDeps = {
     usage: new UsageStore(),
     bridgeVersion: "0.9.240",
@@ -42,6 +44,8 @@ function settingsDeps(over: Partial<SettingsDeps> = {}): { deps: SettingsDeps; t
     listPlugins: () => [],
     pluginIds: () => ["notes"],
     setPluginEnabled: (id, enabled) => toggled.push([id, enabled]),
+    installedMods: () => [...mods],
+    setModInstalled: (id, installed) => (installed ? mods.add(id) : mods.delete(id)),
     ...over,
   }
   return { deps, toggled }
@@ -144,6 +148,24 @@ describe("plugins and feedback", () => {
     )
     await expect(run(ops, "plugin.setEnabled", { id: "notes", enabled: "on" })).rejects.toThrow("boolean")
     expect(toggled).toHaveLength(1)
+  })
+
+  test("a first-party mod lists as not installed until installed, and only its ids are accepted", async () => {
+    const ops = createSettingsOps(settingsDeps().deps)
+    const listed = async () =>
+      (await run<{ mods: { id: string; installed: boolean }[] }>(ops, "builtinMods.list", {})).result.mods
+    expect(await listed()).toMatchObject([
+      { id: "kanban", installed: false },
+      { id: "issues", installed: false },
+    ])
+    await run(ops, "builtinMod.setInstalled", { id: "kanban", installed: true })
+    expect((await listed()).map((m) => [m.id, m.installed])).toEqual([
+      ["kanban", true],
+      ["issues", false],
+    ])
+    await expect(run(ops, "builtinMod.setInstalled", { id: "notes", installed: true })).rejects.toThrow(
+      "not a first-party mod",
+    )
   })
 
   test("the plugin list drops install paths and manifest settings", async () => {

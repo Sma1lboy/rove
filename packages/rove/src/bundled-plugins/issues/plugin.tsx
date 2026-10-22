@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/react */
-/** Issues: a project's open GitHub issues, startable as tasks, shipped as a built-in plugin. */
+/** Issues: a project's open GitHub issues, startable as tasks, shipped as a first-party mod. */
 
 import type { PageProps } from "../../tui-react/pages/registry"
 import type { BundledPlugin } from "../types"

@@ -3,11 +3,19 @@
  * feedback. Engines live in `settings-engines.ts`.
  *
  * Deliberately absent, because each would let the phone make the Mac run something it authored:
- *  - plugin install / marketplace: installing runs the repo's own build commands;
+ *  - plugin install / marketplace: installing runs the repo's own build commands (a first-party
+ *    mod's install runs nothing, so `builtinMod.setInstalled` is here);
  *  - plugin manifest settings: stored values become env vars of plugin-authored commands.
  */
 
 import { isDaemonVersionStale } from "@sma1lboy/rove-daemon/daemon/protocol"
+import {
+  BUILTIN_MODS,
+  type BuiltinModId,
+  installedBuiltinMods,
+  isBuiltinModId,
+  setBuiltinModInstalled,
+} from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import {
@@ -33,6 +41,8 @@ export interface SettingsDeps {
   readonly listPlugins: () => readonly PluginRowView[]
   readonly pluginIds: () => readonly string[]
   readonly setPluginEnabled: (id: string, enabled: boolean) => void
+  readonly installedMods: () => readonly BuiltinModId[]
+  readonly setModInstalled: (id: BuiltinModId, installed: boolean) => void
 }
 
 const realDeps: SettingsDeps = {
@@ -42,6 +52,8 @@ const realDeps: SettingsDeps = {
   listPlugins: () => readPluginRows(),
   pluginIds: () => loadPluginRegistry().plugins.map((p) => p.id),
   setPluginEnabled: (id, enabled) => setPluginEnabled(id, enabled),
+  installedMods: () => installedBuiltinMods(),
+  setModInstalled: (id, installed) => setBuiltinModInstalled(id, installed),
 }
 
 interface DaemonStatus {
@@ -121,6 +133,35 @@ export function createSettingsOps(deps: SettingsDeps): OpTable {
         const enabled = bool(args, "enabled")
         deps.setPluginEnabled(id, enabled)
         return { id, enabled }
+      },
+    },
+    "builtinMods.list": {
+      kind: "read",
+      destructive: false,
+      wraps: "builtin-mods.json: the first-party mods (Kanban, Issues) and which are installed",
+      async run() {
+        const installed = new Set(deps.installedMods())
+        return {
+          mods: BUILTIN_MODS.map((mod) => ({
+            id: mod.id,
+            name: mod.name,
+            description: mod.description,
+            installed: installed.has(mod.id),
+          })),
+        }
+      },
+    },
+    "builtinMod.setInstalled": {
+      kind: "write",
+      // Uninstalling only hides the feature; its data stays and a reinstall picks it up.
+      destructive: false,
+      wraps: "builtin-mods.json (the TUI, the daemon and `rove api` read the same file)",
+      async run(args) {
+        const id = text(args, "id", 64)
+        if (!isBuiltinModId(id)) throw new BridgeError("BAD_ARGS", `${id} is not a first-party mod`)
+        const installed = bool(args, "installed")
+        deps.setModInstalled(id, installed)
+        return { id, installed }
       },
     },
     "feedback.send": {

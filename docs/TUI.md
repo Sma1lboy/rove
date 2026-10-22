@@ -559,7 +559,8 @@ tab. Availability and restart behavior vary by engine; see
 ## Pages: `ctrl+a` `1` / `2` / `3`
 
 Three pages replace the workspace pane while the sidebar stays put. Kanban
-and Issues are built-in plugins you can turn off in Settings → Plugins, and
+and Issues are first-party mods: they show only once installed, from
+Settings → Plugins or with `rove plugin install kanban` / `issues`, and
 installed plugins can add pages of their own
 ([Pages](./PLUGIN-AUTHORING.md#pages-experimental)). `esc` or
 `q` closes a page; selecting a task in the sidebar also returns you to the

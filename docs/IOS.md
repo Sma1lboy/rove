@@ -253,6 +253,8 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `daemon.info` | — | RPC `daemon.status` + `isDaemonVersionStale` against the bridge's build | — |
 | `plugins.list` | — | the Plugins section's `readPluginRows` | — |
 | `plugin.setEnabled` | `id`, `enabled` | `setPluginEnabled` | yes |
+| `builtinMods.list` | — | `builtin-mods.json`: `{mods: [{id, name, description, installed}]}` for Kanban and Issues | — |
+| `builtinMod.setInstalled` | `id` (`kanban`/`issues`), `installed` | `setBuiltinModInstalled`; uninstalling keeps the mod's data | — |
 | `feedback.send` | `title`, `body`, `category?` | `feedback` (a public GitHub Discussion) | yes |
 | `engines.settings` | — | engine registry + `detectEngineStatuses` + `engineIntegrations` + state.json switches | — |
 | `engine.setEnabled` | `id`, `enabled` | state.json `disabledEngineIds` (+ `defaultVendor` hand-off) | yes |

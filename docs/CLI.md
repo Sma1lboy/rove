@@ -306,8 +306,9 @@ tasks``, no pre-installed skill required.
 
 ```text
 rove plugin install <owner/repo[/subdir]> [--yes] [--ref <rev>]
+rove plugin install kanban | issues            install a first-party mod
 rove plugin link <dir>                         register a local directory (dev)
-rove plugin list                               installed + linked plugins
+rove plugin list                               first-party mods, installed + linked plugins
 rove plugin search [query]                     browse the marketplace
 rove plugin outdated                           check installs against upstream
 rove plugin update <id…> | --all [--yes]       reinstall stale plugins

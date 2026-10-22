@@ -2,13 +2,14 @@
  * Settings, as the TUI's settings dialog: a section list on the left and the section on the
  * right. Every write is a bridge op on the same state.json keys the TUI writes, so both
  * surfaces read the same settings. The marketplace section is left out: installing a plugin
- * runs the repo's own build commands on the Mac.
+ * runs the repo's own build commands on the Mac. First-party mods install here: that runs nothing.
  */
 
 import { useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import type { AppModel } from "./model.ts"
 import { ts } from "./settings-copy.ts"
 import { DevSection } from "./settings-dev.tsx"
 import { EnginesSection } from "./settings-engines.tsx"
@@ -21,17 +22,18 @@ import { RoutingSection } from "./settings-routing.tsx"
 const SECTIONS = ["general", "engines", "autoRouting", "plugins", "keys", "feedback", "dev"] as const
 type Section = (typeof SECTIONS)[number]
 
-const BODY: Record<Section, (props: { client: BridgeClient }) => React.ReactNode> = {
-  general: (p) => <GeneralSection {...p} />,
-  engines: (p) => <EnginesSection {...p} />,
-  autoRouting: (p) => <RoutingSection {...p} />,
-  plugins: (p) => <PluginsSection {...p} />,
-  keys: (p) => <KeysSection {...p} />,
-  feedback: (p) => <FeedbackSection {...p} />,
-  dev: (p) => <DevSection {...p} />,
+const BODY: Record<Section, (props: { client: BridgeClient; model: AppModel }) => React.ReactNode> = {
+  general: (p) => <GeneralSection client={p.client} />,
+  engines: (p) => <EnginesSection client={p.client} />,
+  autoRouting: (p) => <RoutingSection client={p.client} />,
+  plugins: (p) => <PluginsSection model={p.model} />,
+  keys: (p) => <KeysSection client={p.client} />,
+  feedback: (p) => <FeedbackSection client={p.client} />,
+  dev: (p) => <DevSection client={p.client} />,
 }
 
-export function SettingsDialog({ client }: { client: BridgeClient }) {
+export function SettingsDialog({ model }: { model: AppModel }) {
+  const client = model.client
   useLocale()
   const [section, setSection] = useState<Section>("general")
   return (
@@ -49,7 +51,7 @@ export function SettingsDialog({ client }: { client: BridgeClient }) {
             </button>
           ))}
         </nav>
-        <div className="settings-body">{BODY[section]({ client })}</div>
+        <div className="settings-body">{BODY[section]({ client, model })}</div>
       </div>
     </DialogShell>
   )

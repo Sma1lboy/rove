@@ -66,6 +66,8 @@ export class AppModel {
   readonly tabs: Store<Readonly<Record<string, readonly TabRow[]>>> = createStore({})
   /** Every open mod pane, re-validated from the `mods` push (the bridge sends it on connect). */
   readonly mods: Store<readonly ModPaneView[]> = createStore<readonly ModPaneView[]>([])
+  /** First-party mods (Kanban, Issues) installed on this machine; none until `builtinMods.list` answers. */
+  readonly installedMods: Store<ReadonlySet<string>> = createStore<ReadonlySet<string>>(new Set())
   readonly selection: Store<Selection> = createStore(loadSelection())
   /** Newest first; the Inbox's RECENT section (the TUI keeps its own the same way, per client). */
   readonly visits: Store<readonly Visit[]> = createStore(loadVisits())
@@ -88,10 +90,15 @@ export class AppModel {
       // The bridge forgot what a closed socket showed.
       this.viewingSent = NOTHING_SHOWN
       this.reportViewing()
+      void this.refreshMods()
     })
     // A hidden page shows nothing: its finished turns stay unseen until someone looks.
     if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
-      document.addEventListener("visibilitychange", () => this.reportViewing())
+      document.addEventListener("visibilitychange", () => {
+        this.reportViewing()
+        // A mod installed from the TUI or the CLI meanwhile shows when the page is looked at again.
+        if (document.visibilityState === "visible") void this.refreshMods()
+      })
     }
     if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
       window.addEventListener("pagehide", () => this.reportViewing(true))
@@ -102,6 +109,15 @@ export class AppModel {
     // Tab-only changes (a rename, a tab the TUI opened) leave the task rows alone, so no `tasks` push comes.
     client.on("tabs", () => this.scheduleTabRefresh())
     client.on("mods", (data) => this.mods.set(parseModUiPayload(data) ?? []))
+  }
+
+  async refreshMods(): Promise<void> {
+    try {
+      const { mods } = await this.client.request<{ mods: { id: string; installed: boolean }[] }>("builtinMods.list")
+      this.installedMods.set(new Set(mods.filter((mod) => mod.installed).map((mod) => mod.id)))
+    } catch {
+      // A bridge without the op predates first-party mods: keep what we had.
+    }
   }
 
   select(taskId: string, tabId: string | null = null): void {

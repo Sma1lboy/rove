@@ -187,7 +187,13 @@ export const zh: typeof en = {
       reset: "重置",
       remove: "移除",
     },
-    plugins: { empty: "没有已注册的插件" },
+    plugins: {
+      empty: "没有其他已注册的插件",
+      install: "安装",
+      uninstall: "卸载",
+      modInstalled: "官方 mod，已安装",
+      modAvailable: "官方 mod，未安装",
+    },
     feedback: {
       hint: "通过运行 rove 那台机器上的 `gh`，在 Rove 仓库发一条公开的 GitHub Discussion。",
       titleLabel: "标题",

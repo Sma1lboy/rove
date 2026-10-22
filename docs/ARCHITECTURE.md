@@ -43,7 +43,8 @@ reuse their directory and do not own a Rove-created worktree or branch.
     `tui-react/pages/` is the page registry the rail and content pane read,
     the host API a page receives, and the loader for installed plugins'
     `[[pages]]`.
-  - `src/bundled-plugins/` — Kanban and Issues, shipped as built-in plugins:
+  - `src/bundled-plugins/` — Kanban and Issues, shipped as first-party mods
+    that show only once installed (`rove-daemon/src/plugins/builtin-mods.ts`):
     page factories that reach Rove only through the host API
     (`test/architecture/bundled-plugins.test.ts`). The board logic and copy
     they share with `rove --web` stay in core (`state/issue-board.ts`, the
