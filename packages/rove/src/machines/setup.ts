@@ -21,6 +21,7 @@ import { shQuote } from "../exec/exec-host.ts"
 import { type DiscoverFailure, type DiscoverResult, discoverMachine, remoteRove } from "./discover.ts"
 import { type MachineConfig, sshTargetOf } from "./registry.ts"
 import { machineSshArgs } from "./ssh-args.ts"
+import { isWindowsMachine, windowsAuthorizeKeySteps } from "./windows-remote.ts"
 
 export type SetupFix =
   | {
@@ -53,21 +54,25 @@ export function fixesFor(
 ): SetupFix[] {
   const target = sshTargetOf(config)
   const ssh = (cmd: string, batch = true): string[] => [...machineSshArgs(alias, config, { batch }), cmd]
+  if (failure.code === "SSH_FAILED" && failure.ssh === "auth-denied" && config.auth.kind === "key" && failure.windows) {
+    // The sh one-liner below cannot run there, and an administrator's key file is writable only elevated.
+    if (!existsSync(`${keyPath}.pub`)) return [hubKeyFix(keyPath)]
+    const steps = windowsAuthorizeKeySteps(readFileSync(`${keyPath}.pub`, "utf8"))
+    return [
+      {
+        kind: "manual",
+        id: "windows-authorize-hub-key",
+        label: `Authorize this hub's key on ${target}`,
+        action: [
+          `on ${target}, in PowerShell:`,
+          ...steps.map((step) => `      ${step}`),
+          `    then: rove machine add ${target}${config.port ? ` --port ${config.port}` : ""} --alias ${alias} --identity ${keyPath}`,
+        ].join("\n"),
+      },
+    ]
+  }
   if (failure.code === "SSH_FAILED" && failure.ssh === "auth-denied" && config.auth.kind === "key") {
-    const fixes: SetupFix[] = []
-    if (!existsSync(keyPath)) {
-      fixes.push({
-        kind: "run",
-        id: "hub-key",
-        label: "Create a key this hub logs in with",
-        shown: `ssh-keygen -t ed25519 -N "" -C ${hubKeyComment()} -f ${keyPath}`,
-        why: "A dedicated key revokes this hub alone: delete its one line on the machine. No passphrase, so the hub can reconnect unattended; the file is owner-only.",
-        argv: () => {
-          mkdirSync(join(keyPath, ".."), { recursive: true, mode: 0o700 })
-          return ["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", hubKeyComment(), "-f", keyPath]
-        },
-      })
-    }
+    const fixes: SetupFix[] = existsSync(keyPath) ? [] : [hubKeyFix(keyPath)]
     fixes.push({
       kind: "run",
       id: "install-hub-key",
@@ -81,6 +86,18 @@ export function fixesFor(
   }
   // The failure's own message already names the cause and the remedy.
   if (failure.code === "SSH_FAILED") return []
+  if (failure.code === "NO_ROVE" && failure.windows) {
+    return [
+      {
+        kind: "install",
+        id: "install-rove",
+        label: `Install Rove on ${target}`,
+        shown: `ssh ${target} '${WINDOWS_INSTALL}'`,
+        why: "The Windows install: npm puts rove on that user's PATH (it needs Node.js and Git for Windows there).",
+        argv: () => ssh(WINDOWS_INSTALL),
+      },
+    ]
+  }
   if (failure.code === "NO_ROVE") {
     return [
       {
@@ -100,19 +117,31 @@ export function fixesFor(
         id: "update-rove",
         label: `Update Rove on ${target}`,
         shown: `ssh ${target} 'rove update'`,
-        why: "Its Rove predates machines; `rove update` moves it to the current release.",
+        why: "Its Rove is too old for this hub; `rove update` moves it to the current release.",
         argv: () => ssh(remoteRove(config.roveBin, ["update"])),
       },
     ]
   }
-  return [
-    {
-      kind: "manual",
-      id: "daemon-log",
-      label: `Rove on ${target} would not start its daemon`,
-      action: `ssh ${target} 'tail -n 40 ~/.rove/daemon.log'`,
+  const log = isWindowsMachine(config)
+    ? `ssh ${target} 'powershell -NoProfile -Command "Get-Content -Tail 40 $env:USERPROFILE\\.rove\\daemon.log"'`
+    : `ssh ${target} 'tail -n 40 ~/.rove/daemon.log'`
+  return [{ kind: "manual", id: "daemon-log", label: `Rove on ${target} would not start its daemon`, action: log }]
+}
+
+const WINDOWS_INSTALL = "npm install -g @sma1lboy/rove"
+
+function hubKeyFix(keyPath: string): SetupFix {
+  return {
+    kind: "run",
+    id: "hub-key",
+    label: "Create a key this hub logs in with",
+    shown: `ssh-keygen -t ed25519 -N "" -C ${hubKeyComment()} -f ${keyPath}`,
+    why: "A dedicated key revokes this hub alone: delete its one line on the machine. No passphrase, so the hub can reconnect unattended; the file is owner-only.",
+    argv: () => {
+      mkdirSync(join(keyPath, ".."), { recursive: true, mode: 0o700 })
+      return ["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", hubKeyComment(), "-f", keyPath]
     },
-  ]
+  }
 }
 
 function hubKeyComment(): string {

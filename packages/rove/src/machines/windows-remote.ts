@@ -80,3 +80,31 @@ export function windowsNoRoveMessage(alias: string, output: string): string {
     `If it is installed elsewhere, add that folder to your user PATH on ${alias}, then restart sshd (elevated: Restart-Service sshd) so new sessions see it.`,
   ].join("\n")
 }
+
+/** `ssh -v`'s line naming the server software, before any authentication. */
+export const WINDOWS_SSHD_BANNER = /remote software version OpenSSH_for_Windows/i
+
+/** The OpenSSH Server steps on a Windows machine, each line runnable in an elevated PowerShell there. */
+export const WINDOWS_SSHD_STEPS: readonly string[] = [
+  "Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0",
+  "Set-Service sshd -StartupType Automatic; Start-Service sshd",
+  "if (-not (Get-NetFirewallRule -Name OpenSSH-Server-In-TCP -ErrorAction SilentlyContinue)) { New-NetFirewallRule -Name OpenSSH-Server-In-TCP -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 }",
+]
+
+/**
+ * Authorizing a hub's key on a Windows machine, printed for the user to run
+ * there: OpenSSH for Windows reads an administrator's keys from
+ * `%ProgramData%\ssh\administrators_authorized_keys` (writable only elevated,
+ * and ignored unless only SYSTEM and Administrators can read it), everyone
+ * else's from `~\.ssh\authorized_keys`.
+ */
+export function windowsAuthorizeKeySteps(publicKey: string): readonly string[] {
+  const key = psQuote(publicKey.trim())
+  return [
+    "# Administrator account (elevated PowerShell):",
+    `Add-Content -Path "$env:ProgramData\\ssh\\administrators_authorized_keys" -Value ${key}`,
+    `icacls.exe "$env:ProgramData\\ssh\\administrators_authorized_keys" /inheritance:r /grant "*S-1-5-32-544:F" /grant "SYSTEM:F"`,
+    "# Standard account (normal PowerShell):",
+    `New-Item -ItemType Directory -Force "$HOME\\.ssh" | Out-Null; Add-Content -Path "$HOME\\.ssh\\authorized_keys" -Value ${key}`,
+  ]
+}

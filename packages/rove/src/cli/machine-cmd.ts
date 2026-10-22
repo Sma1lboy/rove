@@ -8,7 +8,7 @@
  * with the specific remedy.
  */
 
-import { learnedFrom } from "../machines/discover.ts"
+import { type DiscoverResult, learnedFrom, sshServerIsWindows } from "../machines/discover.ts"
 import { checkHostKey } from "../machines/host-key.ts"
 import { INBOUND_CLASSES, deniedClasses, setInbound } from "../machines/inbound.ts"
 import {
@@ -35,6 +35,7 @@ import {
 } from "../machines/reverse-tunnel.ts"
 import { type SetupRuntime, establishMachine } from "../machines/setup.ts"
 import { machineSocketDir } from "../machines/ssh-args.ts"
+import { isWindowsMachine } from "../machines/windows-remote.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile } from "../state/store.ts"
 import { CURRENT_VERSION } from "../version.ts"
@@ -255,9 +256,32 @@ async function doctor(argv: readonly string[]): Promise<void> {
     process.stdout.write(
       `${name}  ${up ? "✓" : "✗ socket not forwarded"}  rove ${version}${skew} on ${found.status.hostname || "?"}\n`,
     )
+    for (const note of await doctorNotes(name, settled, found)) process.stdout.write(`  ${note}\n`)
     if (!up) failed++
   }
   if (failed > 0) process.exitCode = 1
+}
+
+/** What a working machine still gets wrong: version skew, a noisy shell, a Windows sshd that runs a Unix shell. */
+async function doctorNotes(name: string, config: MachineConfig, found: DiscoverResult): Promise<string[]> {
+  const notes: string[] = []
+  const windows = isWindowsMachine(config)
+  if (found.status.roveVersion && found.status.roveVersion !== CURRENT_VERSION) {
+    notes.push(
+      `versions differ: update the older side (\`rove update\`${windows ? " or `npm install -g @sma1lboy/rove`" : ""}), then \`rove daemon restart\` there.`,
+    )
+  }
+  if (windows && found.shellNoise) {
+    notes.push(
+      `${name}'s shell prints ${found.shellNoise} bytes before every command (a PowerShell profile?). Rove skips them, but each connection waits for that profile. Keep it to your own logins: wrap it in \`if (-not [Console]::IsOutputRedirected) { … }\`.`,
+    )
+  }
+  if (!windows && (await sshServerIsWindows(name, config))) {
+    notes.push(
+      `${name}'s sshd is OpenSSH for Windows, but its commands run in a Unix shell (DefaultShell is bash or WSL), so this is the Rove in that shell, not native Windows Rove. For native Rove, set DefaultShell back (elevated): Remove-ItemProperty -Path HKLM:\\SOFTWARE\\OpenSSH -Name DefaultShell`,
+    )
+  }
+  return notes
 }
 
 /**
