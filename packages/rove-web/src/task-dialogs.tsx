@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { ChipRow } from "./chip-row.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { toast } from "./ui.ts"
 
 /** `engines.list` row; the bridge's `EngineRow`, trimmed to what the page reads. */
 export interface EngineRow {
@@ -90,16 +91,22 @@ export function EnginePicker(props: {
 }
 
 /** Open a tab and select it. No prompt = an empty engine or a shell, as the TUI picker. */
+/** "New conversation": a tab here on the engine this project used last, no picker (the TUI's ctrl+t). */
+export function newChatHere(model: AppModel, taskId: string): Promise<void> {
+  return openTab(model, taskId, { kind: "engine", latest: true }).catch((e) => toast(String(e), "error"))
+}
+
 export async function openTab(
   model: AppModel,
   taskId: string,
-  args: { kind: "engine" | "shell"; engine?: string; prompt?: string },
+  args: { kind: "engine" | "shell"; engine?: string; prompt?: string; latest?: boolean },
 ): Promise<void> {
   const { tabId } = await model.client.request<{ tabId: string }>("tab.new", {
     taskId,
     kind: args.kind,
     ...(args.engine ? { engine: args.engine } : {}),
     ...(args.prompt ? { prompt: args.prompt } : {}),
+    ...(args.latest ? { latest: true } : {}),
   })
   await model.refreshTabsNow()
   model.select(taskId, tabId)

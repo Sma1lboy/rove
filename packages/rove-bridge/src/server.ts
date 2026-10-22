@@ -174,10 +174,11 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const kind = optStr(a, "kind") ?? "engine"
       if (kind !== "shell" && kind !== "engine") throw new BridgeError("BAD_ARGS", "kind is shell|engine")
       const engine = optStr(a, "engine")
-      if (kind === "shell" && (prompt !== undefined || engine !== undefined)) {
+      const latest = optBool(a, "latest")
+      if (kind === "shell" && (prompt !== undefined || engine !== undefined || latest)) {
         throw new BridgeError("BAD_ARGS", "a shell tab takes no prompt or engine")
       }
-      return ops.newTab(str(a, "taskId"), { kind, prompt, engine })
+      return ops.newTab(str(a, "taskId"), { kind, prompt, engine, ...(latest ? { latest } : {}) })
     }
     case "tab.close":
       await ops.closeTab(str(a, "taskId"), str(a, "tabId"))

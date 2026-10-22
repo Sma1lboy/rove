@@ -1109,12 +1109,14 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   open with no session, matching ctrl+w. A tab that still exists in the
   snapshot may be closed after its process dies; an absent or already-closed
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
-- `tab-new --task-id ID --kind shell|engine [--command CMD]`: open a new
+- `tab-new --task-id ID --kind shell|engine [--command CMD | --latest]`: open a new
   Terminal Tab with no first message — the TUI's sidebar "New shell" and its
   picker's Enter on an empty message. `shell` runs the login shell
   (`$SHELL`) in the task's worktree and types the `ROVE_TASK_ID` /
   `ROVE_TAB_ID` export into it; `engine` starts the task's engine (or `--command`'s,
   as `send --tab new --command` pins it) idle, ready for a first message.
+  `--latest` instead starts the engine this project used last, else the
+  default engine (the TUI's ctrl+t; the web's new-conversation click).
   The worktree is created if needed, and an engine tab respects
   `engine.maxLiveSessions` (`ENGINE_LIMIT`; the refused tab leaves no row).
   The daemon's tab store mints the tab id and adds the row (one `tabs.apply`,
@@ -1123,7 +1125,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   client sees the row through `tabs.changed`. Returns `{ok, taskId, tabId, session, kind, clients}`
   (`clients` = attached connections told; `0` = none); the tab then lists in
   `get-task .tabs[]`. A session already running under the allocated id fails
-  as `TAB_COLLISION`. `--command` with `--kind shell` is `BAD_FLAG`.
+  as `TAB_COLLISION`. `--command` or `--latest` with `--kind shell` is `BAD_FLAG`.
   `tab-new` also opens three kinds that run something Rove resolves, never a
   command line from the caller: `--kind editor --file PATH [--line N]` opens PATH (relative to
   the worktree; `..` and a symlink out are `BAD_FLAG`, a missing file

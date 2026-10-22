@@ -56,6 +56,8 @@ export const en = {
   menu: {
     closeTab: "Close tab",
     newChat: "New conversation",
+    newChatPick: "New conversation with…",
+    newChatHint: "New conversation · right-click or ctrl+e to pick an engine",
     newShell: "New shell",
     renameTab: "Rename tab",
     newTask: "New task",
