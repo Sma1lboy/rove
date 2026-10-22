@@ -43,6 +43,17 @@ export const en = {
     failing: "can't reach rove. Is `rove --web` still running? After `--rotate-token`, open the new link.",
     forget: "forget this link",
   },
+  login: {
+    title: "sign in",
+    body: "Enter the password set with `rove --web --set-password`.",
+    field: "password",
+    submit: "sign in",
+    checking: "checking…",
+    wrong: "that did not work",
+    locked: "too many tries from here; try again in {minutes} min",
+    lockedHost: "password login is locked; run `rove --web --unlock` on the host",
+    unreachable: "can't reach rove. Is `rove --web` still running?",
+  },
   dialog: {
     cancel: "cancel",
     save: "save",
@@ -172,6 +183,9 @@ export const en = {
       daemon: "Daemon",
       daemonCurrent: "rove {version} · same build as this page",
       daemonStale: "rove {version} · out of date; run `rove daemon restart`",
+      browser: "This browser",
+      browserHint: "Forget this browser's token. A login token is revoked on the host too.",
+      signOut: "Sign out",
     },
     engines: {
       enabled: "Offer {name} when picking an engine",

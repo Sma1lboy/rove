@@ -31,6 +31,7 @@ import { TaskFeed } from "./feed.ts"
 import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { machineStore } from "./ops/machines.ts"
+import { runPasswordAction } from "./password-cmd.ts"
 import { PromptFeed } from "./prompts.ts"
 import { BridgeError } from "./protocol.ts"
 import { createRoveOps } from "./rove-ops.ts"
@@ -38,6 +39,8 @@ import { RowStatusFeed } from "./row-status.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
 import { TabFeed } from "./tab-feed.ts"
 import { usageStore } from "./usage-store.ts"
+import { createWebLogin } from "./web-login.ts"
+import { readPassword, webPasswordPaths } from "./web-password.ts"
 import type { WebRoot } from "./web-static.ts"
 
 /** Re-read the list at least this often: group rules have time windows. */
@@ -125,6 +128,15 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   }
   if (args.action === "setup") {
     printSetup(args.port)
+    return
+  }
+  if (args.action === "set-password" || args.action === "clear-password" || args.action === "unlock") {
+    try {
+      process.exitCode = await runPasswordAction(args.action, bridgeDir)
+    } catch (err) {
+      console.error(`${opts.name}: ${err instanceof Error ? err.message : String(err)}`)
+      process.exitCode = 1
+    }
     return
   }
   const sharedToken = loadOrCreateToken(join(bridgeDir, "token"), args.rotateToken)
@@ -286,6 +298,18 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
       }),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
     ...(opts.web ? { web: opts.web } : {}),
+    ...(opts.web
+      ? {
+          login: createWebLogin({
+            bridgeDir,
+            devicesPath,
+            publicHost: args.publicHost,
+            trustForwardedIp: args.preset === "cf" || (args.preset === "none" && args.publicHost !== null),
+            log: (line) => console.error(line),
+          }),
+        }
+      : {}),
+    publicHost: args.publicHost,
   }
   const servers = args.hosts.map((hostname) => {
     try {
@@ -309,6 +333,9 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     }
     const publicHost = args.publicHost ?? host
     if (opts.web) console.log(`\nopen: ${webUrl({ host: publicHost, port, token, tls: args.tls })}`)
+    if (opts.web && readPassword(webPasswordPaths(bridgeDir).password)) {
+      console.log(`password login: on at ${webUrl({ host: publicHost, port, token: "", tls: args.tls }).split("#")[0]}`)
+    }
     const url = pairingUrl({ host: publicHost, port, token, tls: args.tls, preset: args.preset })
     console.log(`${opts.web ? "" : "\n"}pair: ${url}`)
     if (args.qr && !opts.web) console.log(renderUnicodeCompact(url))

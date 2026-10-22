@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
+import { signOut } from "./login.ts"
 import { allowDesktopNotices, chime } from "./notify.ts"
 import { type PrefKey, type Prefs, choicesOf, nextChoice, prefsStore, setPref, usePrefs } from "./prefs.ts"
 import { AppearanceGroup } from "./settings-appearance.tsx"
@@ -141,6 +142,13 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
           </p>
         </Group>
       )}
+      <Group title={t("settings.general.browser")} hint={t("settings.general.browserHint")}>
+        <div className="actions">
+          <button type="button" className="button" onClick={() => void signOut().then(() => window.location.reload())}>
+            {t("settings.general.signOut")}
+          </button>
+        </div>
+      </Group>
     </>
   )
 }

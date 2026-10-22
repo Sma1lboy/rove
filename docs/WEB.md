@@ -73,6 +73,58 @@ has it yet.
 The page's files are served without the token (they carry none); every
 operation needs it. With `--preset cf`, Cloudflare Access gates the page too.
 
+### Password login
+
+So you can open the page on a phone or another computer without carrying the
+token link, you can set a password:
+
+```bash
+rove --web --set-password     # asks twice, nothing echoed
+rove --web --clear-password   # remove it
+rove --web --unlock           # lift a lockout
+```
+
+The password is only ever typed at that prompt, never passed as an argument
+or an environment variable, so it reaches no shell history or process list.
+Only a scrypt hash with a random salt is kept, in
+`<home>/.rove/bridge/web-password.json` (owner-only).
+
+With a password set, a browser that has no token shows a password field
+instead of asking for the link. A right password mints a new device token
+named `web-login-<date>-<time>` (UTC) and the page keeps it as it would a
+`#token=` link. Each login shows in `--list-devices`, and
+`--revoke-device <name>` signs that browser out. **Sign out** in Settings →
+General forgets the token in this browser and revokes it on the host.
+
+Wrong guesses are slowed and counted, and the counts survive a restart:
+
+- 5 wrong passwords from one address lock that address for 15 minutes.
+- 20 wrong passwords in 24 hours, from anywhere, lock password login for
+  everyone until you run `rove --web --unlock` (or `--set-password` again).
+- Each failure and each lock is logged with its time and address; the
+  password never is.
+
+To reach it from elsewhere through a plain tunnel to `127.0.0.1` (cloudflared
+without Access):
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:7878      # or a named tunnel to your hostname
+rove --web --public-host rove.example.com
+```
+
+`--public-host` keeps the bridge on `127.0.0.1`; it only tells the bridge the
+page's https address, so a page served from it is accepted and every other
+site is still refused. Behind such a tunnel the address counted is the one
+Cloudflare reports (`CF-Connecting-IP`); otherwise it is the connecting socket.
+
+What the password changes: it is one more door in front of the token, not a
+replacement for it. Anyone who can reach the page can try passwords, slowly,
+until the lockout stops them; a long, unique password matters. Token links,
+phone pairing and device tokens keep working as before. Cloudflare Access
+(`--preset cf`) is still the stronger choice when you have it, because nobody
+reaches the page at all without passing Access first. With no password set,
+none of this exists: there is no login route and the page asks for the link.
+
 ## Limits
 
 - The standalone `rove` binary does not include the page; `rove --web`

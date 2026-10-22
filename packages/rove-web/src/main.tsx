@@ -11,6 +11,8 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App, ConnectScreen } from "./app.tsx"
 import { BridgeClient, bridgeUrl } from "./bridge.ts"
+import { LoginScreen } from "./login-view.tsx"
+import { passwordLoginOn } from "./login.ts"
 import { AppModel } from "./model.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
 import { watchBridgeVersion } from "./version-reload.ts"
@@ -18,10 +20,9 @@ import { watchBridgeVersion } from "./version-reload.ts"
 const root = createRoot(document.getElementById("root") as HTMLElement)
 const token = storedToken()
 if (!token) {
-  root.render(
-    <StrictMode>
-      <ConnectScreen />
-    </StrictMode>,
+  // With a password set on the host, a page without a token signs in instead of asking for the link.
+  void passwordLoginOn().then((password) =>
+    root.render(<StrictMode>{password ? <LoginScreen /> : <ConnectScreen />}</StrictMode>),
   )
 } else {
   const client = new BridgeClient(bridgeUrl(), token)

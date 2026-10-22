@@ -10,7 +10,7 @@ import { hostname as osHostname } from "node:os"
 import { type ApiEnvelope, type ApiParams, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
-import { WEB_SUBPROTOCOL, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
+import { WEB_SUBPROTOCOL, browserOriginAllowed, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
 import type { TaskFeed } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
@@ -37,6 +37,7 @@ import type { RoveOps } from "./rove-ops.ts"
 import type { RowStatusFeed } from "./row-status.ts"
 import type { TabFeed } from "./tab-feed.ts"
 import { type PtyHostClient, TerminalForwarder } from "./terminal.ts"
+import type { WebLogin } from "./web-login.ts"
 import { type WebRoot, serveWebFile } from "./web-static.ts"
 
 export interface BridgeDeps {
@@ -76,6 +77,10 @@ export interface BridgeDeps {
   readonly areaOps?: OpTable
   /** Serve the browser client's files on plain GETs (`rove --web`). */
   readonly web?: WebRoot
+  /** `/login` and `/logout` for the browser client (`web-login.ts`). */
+  readonly login?: WebLogin
+  /** The tunnel hostname (`--public-host`): a browser whose Origin is `https://<it>` is this page. */
+  readonly publicHost?: string | null
 }
 
 interface Conn {
@@ -324,15 +329,6 @@ async function onMessage(deps: BridgeDeps, ws: ServerWebSocket<Conn>, raw: strin
   }
 }
 
-/** `Origin` names the same host:port the request was sent to (default ports normalised by URL). */
-function sameHost(origin: string, host: string | null): boolean {
-  try {
-    return host !== null && new URL(origin).host === host.toLowerCase()
-  } catch {
-    return false
-  }
-}
-
 /** Names each connection's screen for `ui.viewing`; unique across every server this process runs. */
 let nextViewer = 0
 
@@ -353,6 +349,10 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         }
       }
       const upgrade = req.headers.get("upgrade")?.toLowerCase() === "websocket"
+      if (!upgrade && deps.login) {
+        const answer = await deps.login.handle(req, server.requestIP(req)?.address ?? "?")
+        if (answer) return answer
+      }
       if (!upgrade && deps.web) {
         const file = await serveWebFile(deps.web, req)
         if (file) return file
@@ -360,7 +360,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
       // Phones send no Origin. A browser always does; one from another site never gets a socket,
       // even holding the token. Absent Origin still needs the token below.
       const origin = req.headers.get("origin")
-      if (origin !== null && !sameHost(origin, req.headers.get("host"))) {
+      if (origin !== null && !browserOriginAllowed(origin, req.headers.get("host"), deps.publicHost ?? null)) {
         log(`[rove-bridge] 403 from ${from}: cross-origin upgrade from ${origin}`)
         return new Response("forbidden\n", { status: 403 })
       }

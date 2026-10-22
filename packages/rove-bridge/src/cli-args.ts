@@ -28,7 +28,7 @@ export interface BridgeArgs {
   /** Print a link carrying this device's own token (minted on first use) instead of the shared one. */
   readonly device: string | null
   /** One-shot actions that print and exit instead of serving. */
-  readonly action: "serve" | "list-devices" | "revoke-device" | "setup"
+  readonly action: "serve" | "list-devices" | "revoke-device" | "setup" | "set-password" | "clear-password" | "unlock"
 }
 
 /** `<ROVE_HOME>/.rove/bridge/config.json`; flags override it. `publicHost` applies to `--preset cf` only. */
@@ -49,8 +49,11 @@ export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf] [--host 
                   [--public-host <name>] [--cf-team <team>] [--cf-aud <aud>]
                   [--rotate-token] [--no-qr] [--device <name>]
                   [--list-devices] [--revoke-device <name>] [--setup]
+                  [--set-password] [--clear-password] [--unlock]
 
-  (no preset)          listen on 127.0.0.1 only (or each --host you name)
+  (no preset)          listen on 127.0.0.1 only (or each --host you name). With
+                       --public-host <name> (a tunnel to 127.0.0.1 serving https://<name>)
+                       the links name it and a page from that origin is accepted.
   --preset tailscale   listen on this Mac's Tailscale IPv4 only; fails if Tailscale
                        is not up. With --public-host <name> (a \`tailscale serve\`
                        HTTPS name) the phone dials wss://<name>.
@@ -66,6 +69,11 @@ export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf] [--host 
   --revoke-device <n>  revoke one device's token (others keep working), then exit
   --setup              check Tailscale / cloudflared here and print the exact
                        commands to reach this bridge from a phone; changes nothing
+  --set-password       prompt (twice, no echo) for a browser login password; the page
+                       then offers a password field that mints its own device token.
+                       Also lifts a lockout. Never taken from argv or the environment.
+  --clear-password     remove the browser login password, then exit
+  --unlock             lift a password-login lockout, then exit
 
   --cf-team, --cf-aud and --public-host may also live in
   <ROVE_HOME>/.rove/bridge/config.json as cfTeam, cfAud, publicHost.`
@@ -125,6 +133,13 @@ export function parseBridgeArgs(
       device = value()
       action = "revoke-device"
     } else if (arg === "--setup") action = "setup"
+    else if (arg === "--set-password") {
+      // Refuse without echoing it: a password typed here is already in shell history.
+      if (argv[i + 1] !== undefined && !argv[i + 1]?.startsWith("--"))
+        throw new Error("--set-password takes no value; it prompts on the terminal")
+      action = "set-password"
+    } else if (arg === "--clear-password") action = "clear-password"
+    else if (arg === "--unlock") action = "unlock"
     else throw new Error(`unknown argument ${arg}\n${BRIDGE_USAGE}`)
   }
   // The saved tunnel hostname is a Cloudflare setting; Tailscale never inherits it.
@@ -169,8 +184,9 @@ export function parseBridgeArgs(
     ...base,
     preset,
     hosts: hosts.length > 0 ? [...new Set(hosts)] : ["127.0.0.1"],
-    publicHost: null,
-    tls: false,
+    // A plain tunnel to 127.0.0.1 (cloudflared without Access) terminates TLS at <publicHost>.
+    publicHost,
+    tls: publicHost !== null,
     cloudflare: null,
   }
 }

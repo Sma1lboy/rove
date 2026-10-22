@@ -49,6 +49,20 @@ export function presentedToken(req: Request): string | null {
   return null
 }
 
+/**
+ * A browser request's `Origin` is this page: the same host:port the request was sent to, or
+ * `https://<publicHost>` when a tunnel serves the page under that name (`--public-host`).
+ */
+export function browserOriginAllowed(origin: string, host: string | null, publicHost: string | null): boolean {
+  try {
+    const url = new URL(origin)
+    if (host !== null && url.host === host.toLowerCase()) return true
+    return publicHost !== null && url.protocol === "https:" && url.host === publicHost.toLowerCase()
+  } catch {
+    return false
+  }
+}
+
 /** True when the upgrade came from the browser client, which must get its protocol echoed. */
 export function offersWebSubprotocol(req: Request): boolean {
   return (req.headers.get("sec-websocket-protocol") ?? "").split(",").some((p) => p.trim() === WEB_SUBPROTOCOL)
