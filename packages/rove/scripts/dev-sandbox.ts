@@ -24,6 +24,7 @@ import { mkdir } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { readRoveEnv } from "@sma1lboy/rove-daemon/compat-env"
 import { stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
+import { setBuiltinModInstalled } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { pluginStateDir } from "@sma1lboy/rove-daemon/plugins/plugin-paths"
 import { parseSandboxArgs } from "./dev-sandbox-args.ts"
 import { sandboxChildEnv, sandboxRuntimePaths } from "./dev-sandbox-env.ts"
@@ -213,6 +214,8 @@ async function smoketest(): Promise<never> {
   if (added.code !== 0) fail(`api add exited ${added.code}`)
   if (!(await seen("task.created"))) fail(`no task.created in ${eventsFile} after 15s`)
 
+  // The issue store belongs to the Kanban mod, which a fresh home does not have.
+  setBuiltinModInstalled("kanban", true, home)
   const created = runRove(["api", "issue-create", "--repo", repo, "--title", `smoke ${Date.now()}`], "pipe")
   if (created.code !== 0) fail(`issue-create exited ${created.code}`)
   if (!(await seen("issue.changed"))) fail(`no issue.changed in ${eventsFile} after 15s`)

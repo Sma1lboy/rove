@@ -92,6 +92,8 @@ describe("plugin command workflow", () => {
   it("installs first-party mods on demand, and uninstalling leaves their data on disk", async () => {
     const home = tempDir("rove-plugin-cmd-home-")
     vi.stubEnv("ROVE_HOME_DIR", home)
+    // The suite-wide override answers for every home; this test is about the file.
+    vi.stubEnv("ROVE_TEST_BUILTIN_MODS", undefined)
     const output: string[] = []
     vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.map(String).join(" ")))
     expect(installedBuiltinMods(home)).toEqual([])

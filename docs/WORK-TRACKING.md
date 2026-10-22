@@ -13,7 +13,10 @@ rove work is tracked locally. There is no external issue tracker. Agents should 
 ## Issues / backlog: daemon issue store
 
 The daemon owns active issue state so every worktree's agents and TUIs see the
-same data. Deliberately low-ceremony: no type taxonomy,
+same data. The store is part of the Kanban first-party mod, which is not
+installed by default: without it `rove api issue-*` fails with
+`MOD_NOT_INSTALLED`, and `rove plugin install kanban` brings the store back with
+everything it held. Deliberately low-ceremony: no type taxonomy,
 just a `status`. The persisted daemon file is keyed by each repo's git
 common-dir, so the source checkout and its worktrees share one issue record:
 

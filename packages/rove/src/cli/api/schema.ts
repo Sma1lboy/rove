@@ -5,10 +5,19 @@
  */
 
 import { ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { isBuiltinModInstalled } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { registeredEngineIds } from "../../engine/plugin-engines.ts"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import { CURRENT_VERSION } from "../../version.ts"
-import { ApiError, type FlagSpec, type VerbSpec } from "./types.ts"
+import {
+  ApiError,
+  type FlagSpec,
+  GROUP_MOD,
+  type VerbGroup,
+  type VerbSpec,
+  requireVerbInstalled,
+  verbInstalled,
+} from "./types.ts"
 import { VERBS, VERB_ALIASES, VERB_GROUPS } from "./verbs.ts"
 
 /** The one verb-contract version: this schema, every envelope, and both `hello`s. Agents can gate on it. */
@@ -58,6 +67,20 @@ function flagJson(f: FlagSpec): unknown {
   }
 }
 
+/** Every verb but those of a first-party mod that is not installed. */
+function installedVerbs(): readonly VerbSpec[] {
+  return VERBS.filter(verbInstalled)
+}
+
+function installedGroups(): Partial<Record<string, readonly string[]>> {
+  return Object.fromEntries(
+    Object.entries(VERB_GROUPS).filter(([group]) => {
+      const mod = GROUP_MOD[group as VerbGroup]
+      return mod === undefined || isBuiltinModInstalled(mod)
+    }),
+  )
+}
+
 /** ONE verb, full detail (flags + types). The drill-in level. */
 export function verbSchema(v: VerbSpec): unknown {
   return {
@@ -79,8 +102,8 @@ export function schemaIndex(): unknown {
     apiVersion: API_SCHEMA_VERSION,
     roveVersion: CURRENT_VERSION,
     hint: `Compact index. Drill into ONE verb: \`${cliName} api schema --verb <name>\` (or \`${cliName} api <verb> --help\`). One group: \`--group <g>\`. Whole spec: \`--all\`.`,
-    groups: VERB_GROUPS,
-    verbs: VERBS.map((v) => ({ name: v.name, group: v.group, summary: v.summary })),
+    groups: installedGroups(),
+    verbs: installedVerbs().map((v) => ({ name: v.name, group: v.group, summary: v.summary })),
     globalFlags: GLOBAL_FLAGS,
     aliases: VERB_ALIASES,
   }
@@ -89,8 +112,9 @@ export function schemaIndex(): unknown {
 /** The verbs in ONE group (compact), from the same `VerbSpec.group` as the index. */
 export function groupSchema(group: string): unknown {
   const verbs = VERBS.filter((v) => v.group === group)
+  if (verbs[0]) requireVerbInstalled(verbs[0])
   if (verbs.length === 0) {
-    throw new ApiError(`unknown group: ${group}. Groups: ${Object.keys(VERB_GROUPS).join(", ")}`, "BAD_VERB", {
+    throw new ApiError(`unknown group: ${group}. Groups: ${Object.keys(installedGroups()).join(", ")}`, "BAD_VERB", {
       hint: "that group does not exist — the compact index lists every group and the verbs in it",
       nextCommandArgs: ["api", "schema"],
     })
@@ -120,8 +144,8 @@ export function fullSchema(): unknown {
     },
     globalFlags: GLOBAL_FLAGS,
     aliases: VERB_ALIASES,
-    groups: VERB_GROUPS,
-    verbs: VERBS.map(verbSchema),
+    groups: installedGroups(),
+    verbs: installedVerbs().map(verbSchema),
   }
 }
 
@@ -159,7 +183,7 @@ export function verbHelp(verb: VerbSpec): string {
 /** One-line-per-verb usage banner for `<active CLI> api` with no/bad verb. */
 export function apiUsage(): string {
   const cliName = ROVE_PRODUCT_NAME
-  const rows = VERBS.map((v) => `  ${v.name.padEnd(18)} ${v.summary}`)
+  const rows = installedVerbs().map((v) => `  ${v.name.padEnd(18)} ${v.summary}`)
   return [
     `usage: ${cliName} api <verb> [flags] [--pretty] [--help]`,
     "",

@@ -3,6 +3,12 @@
  * (`ApiRuntime`, `PromptDeliveryOps`) — importable without the dispatcher.
  */
 
+import {
+  type BuiltinModId,
+  MOD_NOT_INSTALLED,
+  builtinModMissingMessage,
+  isBuiltinModInstalled,
+} from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
@@ -145,6 +151,23 @@ export interface VerbSpec {
   /** Streams to stdout or reads stdin bytes, so only the CLI can carry it. */
   readonly cliOnly?: boolean
   readonly handler: VerbHandler
+}
+
+/** Verb groups a first-party mod owns: absent from help and refused until that mod is installed. */
+export const GROUP_MOD: Partial<Readonly<Record<VerbGroup, BuiltinModId>>> = { issues: "kanban", workitems: "issues" }
+
+export function verbInstalled(verb: VerbSpec): boolean {
+  const mod = GROUP_MOD[verb.group]
+  return mod === undefined || isBuiltinModInstalled(mod)
+}
+
+export function requireVerbInstalled(verb: VerbSpec): void {
+  const mod = GROUP_MOD[verb.group]
+  if (mod === undefined || isBuiltinModInstalled(mod)) return
+  throw new ApiError(`${verb.name}: ${builtinModMissingMessage(mod)}`, MOD_NOT_INSTALLED, {
+    hint: `install the ${mod} mod, then retry`,
+    nextCommandArgs: ["plugin", "install", mod],
+  })
 }
 
 // ── Prompt delivery (shared by add / send) ───────────────────────────────────

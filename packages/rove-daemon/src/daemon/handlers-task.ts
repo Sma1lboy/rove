@@ -4,6 +4,7 @@
  * `handlers.ts` (byte-equivalent payloads, key order load-bearing) applies.
  */
 
+import { isBuiltinModInstalled } from "../plugins/builtin-mods.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import { publishIssueSnapshot } from "./handlers-issues.ts"
@@ -160,7 +161,8 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       // The issue owns the link (`Issue.taskId`); nothing else clears it, so the
       // card would show In progress forever. Best-effort: the deletion already
       // committed, so failures are logged, never a failed delete.
-      if (task) {
+      // Without the Kanban mod the store stays as it was left, links included.
+      if (task && isBuiltinModInstalled("kanban", ctx.daemon.homeDir)) {
         try {
           const next = await ctx.issues.unlinkTask(task.repo, taskId)
           if (next) publishIssueSnapshot(ctx, next)
@@ -262,7 +264,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       // issue-store lock so a concurrent reopen isn't clobbered. Only on a real
       // transition, so re-firing done never re-clobbers a manually reopened
       // issue. The status already committed: failures are logged, not thrown.
-      if (status === "done" && prevStatus !== "done" && linked) {
+      if (status === "done" && prevStatus !== "done" && linked && isBuiltinModInstalled("kanban", ctx.daemon.homeDir)) {
         try {
           const next = await ctx.issues.mirrorTaskDone(linked.repo, taskId)
           if (next) publishIssueSnapshot(ctx, next)

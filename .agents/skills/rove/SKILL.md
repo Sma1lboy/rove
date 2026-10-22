@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 70 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 71 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -462,7 +462,10 @@ two flags are never implied by one another.
 
 ## Issue tracker
 
-Issues are daemon-owned, not repo files:
+Issues are daemon-owned, not repo files. The store belongs to the Kanban mod
+and `workitem-*` to the Issues mod; a `MOD_NOT_INSTALLED` error means the user
+has not installed it: tell them (`rove plugin install kanban`), never install it
+yourself.
 
 ```bash
 rove api issue-list --repo "$PWD" --pretty

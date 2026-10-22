@@ -1,7 +1,9 @@
 /** Daemon-owned issue store RPCs (`docs/WORK-TRACKING.md`). A mutation
  *  republishes the repo's whole snapshot, so every attached surface renders
- *  from one truth instead of patching its own copy. */
+ *  from one truth instead of patching its own copy. The store belongs to the
+ *  Kanban mod: refused while it is not installed. */
 
+import { requireBuiltinMod } from "../plugins/builtin-mods.ts"
 import { requireString } from "./handler-validators.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import type { RepoIssues } from "./issues-store.ts"
@@ -23,18 +25,21 @@ export const ISSUE_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "issue.list",
     async handle(payload, ctx) {
+      requireBuiltinMod("kanban", ctx.daemon.homeDir)
       return ctx.issues.list(requireString(payload, "repoRoot"))
     },
   },
   {
     name: "issue.repos",
     async handle(_payload, ctx) {
+      requireBuiltinMod("kanban", ctx.daemon.homeDir)
       return { repos: await ctx.issues.repos() }
     },
   },
   {
     name: "issue.mutate",
     async handle(payload, ctx) {
+      requireBuiltinMod("kanban", ctx.daemon.homeDir)
       const repoRoot = requireString(payload, "repoRoot")
       // The store only type-checks `taskId`, so a typo'd id would leave a card
       // In progress pointing at nothing. Checked here (every caller funnels

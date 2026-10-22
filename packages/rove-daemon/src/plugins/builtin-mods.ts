@@ -37,8 +37,13 @@ export function isBuiltinModId(value: string): value is BuiltinModId {
   return (BUILTIN_MOD_IDS as readonly string[]).includes(value)
 }
 
+/** Test suites set this (comma-separated ids) instead of seeding every throwaway home. */
+const TEST_OVERRIDE_ENV = "ROVE_TEST_BUILTIN_MODS"
+
 /** Installed ids in catalogue order; an unreadable or corrupt file reads as none installed. */
 export function installedBuiltinMods(homeDir?: string): readonly BuiltinModId[] {
+  const override = process.env[TEST_OVERRIDE_ENV]
+  if (override !== undefined) return BUILTIN_MOD_IDS.filter((id) => override.split(",").includes(id))
   let raw: unknown
   try {
     raw = JSON.parse(readFileSync(builtinModsPath(homeDir), "utf8"))
@@ -64,8 +69,16 @@ export function setBuiltinModInstalled(id: BuiltinModId, installed: boolean, hom
   writeFileSync(path, `${JSON.stringify({ installed: next }, null, 2)}\n`, { mode: OWNER_ONLY_FILE_MODE })
 }
 
+/** Daemon refusals carry it as a `CODE: ` message prefix; `rove api` reports it as the error code. */
+export const MOD_NOT_INSTALLED = "MOD_NOT_INSTALLED"
+
 /** The refusal every gated surface returns, so the fix reads the same from the CLI, the TUI and the web. */
 export function builtinModMissingMessage(id: BuiltinModId): string {
   const mod = BUILTIN_MODS.find((m) => m.id === id)
   return `the ${mod?.name ?? id} mod is not installed; install it with \`rove plugin install ${id}\` or from Settings → Plugins`
+}
+
+/** A daemon handler's gate: throws the coded refusal unless `id` is installed. */
+export function requireBuiltinMod(id: BuiltinModId, homeDir?: string): void {
+  if (!isBuiltinModInstalled(id, homeDir)) throw new Error(`${MOD_NOT_INSTALLED}: ${builtinModMissingMessage(id)}`)
 }
