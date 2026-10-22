@@ -21,6 +21,8 @@ describe("release notes", () => {
     expect(first?.text.startsWith("[#1347](https://github.com/Sma1lboy/rove/pull/1347) Each phone")).toBe(true)
     expect(first?.text).not.toContain("e7a958d")
     expect(first?.text).not.toContain("@Sma1lboy")
-    expect(second?.text).toBe("[#1340](https://github.com/Sma1lboy/rove/pull/1340) Dispatching refuses an unpushed base.")
+    expect(second?.text).toBe(
+      "[#1340](https://github.com/Sma1lboy/rove/pull/1340) Dispatching refuses an unpushed base.",
+    )
   })
 })
