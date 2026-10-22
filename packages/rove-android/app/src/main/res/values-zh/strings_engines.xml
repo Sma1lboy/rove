@@ -60,7 +60,11 @@
     <string name="plugins_title">插件</string>
     <string name="plugins_empty_title">无插件</string>
     <string name="plugins_empty_detail">Mac 上未安装任何插件</string>
-    <string name="plugins_hint_install">安装和配置插件会运行其自带命令，因此只能在 Mac 上进行（rove plugin …）</string>
+    <string name="plugins_hint_install">安装和配置其他插件会运行其自带命令，因此只能在 Mac 上进行（rove plugin …）</string>
+    <string name="plugins_mod_installed">官方 mod，已安装</string>
+    <string name="plugins_mod_available">官方 mod，未安装</string>
+    <string name="plugins_mod_install">安装</string>
+    <string name="plugins_mod_uninstall">卸载</string>
     <string name="plugins_kicker">插件</string>
     <string name="plugins_confirm_on">开启 %1$s？</string>
     <string name="plugins_confirm_off">关闭 %1$s？</string>

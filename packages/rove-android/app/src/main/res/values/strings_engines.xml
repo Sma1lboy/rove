@@ -60,7 +60,11 @@
     <string name="plugins_title">plugins</string>
     <string name="plugins_empty_title">no plugins</string>
     <string name="plugins_empty_detail">none are installed on the mac</string>
-    <string name="plugins_hint_install">installing and configuring plugins runs their own commands, so it stays on the mac (rove plugin …)</string>
+    <string name="plugins_hint_install">installing and configuring other plugins runs their own commands, so it stays on the mac (rove plugin …)</string>
+    <string name="plugins_mod_installed">first-party mod, installed</string>
+    <string name="plugins_mod_available">first-party mod, not installed</string>
+    <string name="plugins_mod_install">install</string>
+    <string name="plugins_mod_uninstall">uninstall</string>
     <string name="plugins_kicker">plugin</string>
     <string name="plugins_confirm_on">switch on %1$s?</string>
     <string name="plugins_confirm_off">switch off %1$s?</string>

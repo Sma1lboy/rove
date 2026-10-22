@@ -51,6 +51,7 @@ internal data class ListActions(
     val host by model.host.collectAsStateWithLifecycle()
     val engines by model.engines.collectAsStateWithLifecycle()
     val connection by model.bridge.state.collectAsStateWithLifecycle()
+    val mods by model.mods.collectAsStateWithLifecycle()
     val controls = rememberListControls()
     var tabTitles by remember { mutableStateOf<Map<String, List<String>>>(emptyMap()) }
     // Task rows do not carry tab titles; they are read once when the search opens.
@@ -91,7 +92,7 @@ internal data class ListActions(
     val pull = rememberPullToRefreshState()
     Column(Modifier.fillMaxSize().background(Rove.c.paper)) {
         ScreenHeader(trailing = {
-            ListHeaderControls(controls, repos, TaskListLogic.attentionCount(tasks.attention), actions.onInbox, actions.onPage)
+            ListHeaderControls(controls, repos, TaskListLogic.attentionCount(tasks.attention), actions.onInbox, actions.onPage, mods)
         }) { Wordmark(19) }
         ConnectionStrip(host, connection, shown, filter) { controls.filter = null }
         if (controls.searching) ListSearchBar(controls)

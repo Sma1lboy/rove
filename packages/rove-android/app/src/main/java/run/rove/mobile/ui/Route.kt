@@ -1,6 +1,7 @@
 package run.rove.mobile.ui
 
 import androidx.compose.runtime.saveable.Saver
+import run.rove.mobile.domain.ModGate
 
 /** The screens RoveApp stacks above the task list (iOS `Route`). */
 sealed interface Route {
@@ -11,6 +12,13 @@ sealed interface Route {
     data object Issues : Route
     data object Worktrees : Route
     data object Settings : Route
+}
+
+/** The pages a mod owns, so the stack can drop one whose mod went away. */
+fun ModGate.allows(route: Route): Boolean = when (route) {
+    Route.Board -> shows("kanban")
+    Route.Issues -> shows("issues")
+    else -> true
 }
 
 /** Saves the stack across rotation and process death: a task as `task`, id, tab; a page by its name. */

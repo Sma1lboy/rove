@@ -20,6 +20,8 @@ class AppModel(application: Application) : AndroidViewModel(application) {
     val error = MutableStateFlow<String?>(null)
     val demo = MutableStateFlow(false)
     val paired = MutableStateFlow(false)
+    /** First-party mods installed on the Mac; they gate the Board and GitHub issues pages. */
+    val mods = MutableStateFlow<ModGate>(ModGate.Pending)
     private var previous: List<TaskRow>? = null
 
     init {
@@ -34,6 +36,7 @@ class AppModel(application: Application) : AndroidViewModel(application) {
             bridge.state.collectLatest { state ->
                 if (state is Connection.Connected) {
                     previous = null
+                    refreshMods()
                     try {
                         snapshot(repository.subscribeTasks())
                         engines.value = repository.engines()
@@ -75,10 +78,16 @@ class AppModel(application: Application) : AndroidViewModel(application) {
     fun unpair() {
         bridge.disconnect()
         if (!demo.value) runCatching { credentials.clear() }.onFailure { error.value = "Could not clear saved pairing" }
-        paired.value = false; demo.value = false; previous = null
+        paired.value = false; demo.value = false; previous = null; mods.value = ModGate.Pending
         tasks.value = Tasks(); engines.value = emptyList(); repos.value = emptyList(); host.value = ""
     }
     fun refresh() = action { snapshot(repository.listTasks()) }
+    /** A failed first read means an older Mac; a failed re-read keeps what was known. */
+    fun refreshMods(): Job = viewModelScope.launch {
+        try { mods.value = ModGate.Loaded(repository.builtinMods()) }
+        catch (e: CancellationException) { throw e }
+        catch (_: Exception) { if (mods.value == ModGate.Pending) mods.value = ModGate.Legacy }
+    }
     fun action(block: suspend () -> Unit): Job = viewModelScope.launch {
         try { block() }
         catch (e: CancellationException) { throw e }

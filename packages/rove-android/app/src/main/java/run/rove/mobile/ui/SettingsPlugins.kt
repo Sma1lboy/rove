@@ -12,6 +12,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import run.rove.mobile.R
 import run.rove.mobile.data.*
 import run.rove.mobile.domain.*
@@ -26,6 +27,7 @@ private data class PluginSwitch(val id: String, val enabled: Boolean)
     var pending by remember { mutableStateOf<PluginSwitch?>(null) }
 
     suspend fun load() {
+        model.refreshMods()
         engineSettingsCall(fallback) { model.repository.pluginList() }
             .onSuccess { state = SettingsLoad.Loaded(it); reloadError = null }
             .onFailure { if (state.value == null) state = SettingsLoad.Failed(it.message.orEmpty()) else reloadError = it.message }
@@ -38,6 +40,7 @@ private data class PluginSwitch(val id: String, val enabled: Boolean)
             is SettingsLoad.Failed -> ErrorLine(s.message)
             is SettingsLoad.Loaded -> {
                 reloadError?.let { ErrorLine(it) }
+                BuiltinModsGroup(model)
                 if (s.value.plugins.isEmpty()) EmptyState(stringResource(R.string.plugins_empty_title), stringResource(R.string.plugins_empty_detail))
                 else EngineSettingsGroup {
                     s.value.plugins.forEachIndexed { index, plugin ->
@@ -58,6 +61,35 @@ private data class PluginSwitch(val id: String, val enabled: Boolean)
             prose = stringResource(if (change.enabled) R.string.plugins_prose_on else R.string.plugins_prose_off, change.id),
             label = label, onDismiss = { pending = null },
             run = { model.repository.setPluginEnabled(change.id, change.enabled); load() }, failed = { load() })
+    }
+}
+
+/** iOS `BuiltinModsTile`: Kanban and Issues with install / uninstall; installing runs nothing on the Mac. */
+@Composable private fun BuiltinModsGroup(model: AppModel) {
+    val gate by model.mods.collectAsStateWithLifecycle()
+    val mods = gate.loaded
+    if (mods.isEmpty()) return
+    EngineSettingsGroup {
+        mods.forEachIndexed { index, mod ->
+            if (index > 0) SettingsDivider()
+            BuiltinModRow(mod) {
+                model.action { model.repository.setBuiltinModInstalled(mod.id, !mod.installed); model.refreshMods().join() }
+            }
+        }
+    }
+}
+
+@Composable private fun BuiltinModRow(mod: BuiltinMod, toggle: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(mod.name, color = if (mod.installed) Rove.c.ink else Rove.c.muted, style = Rove.mono(14, FontWeight.Medium))
+            Text(stringResource(if (mod.installed) R.string.plugins_mod_installed else R.string.plugins_mod_available),
+                color = if (mod.installed) Rove.c.success else Rove.c.muted, style = Rove.mono(11))
+            Text(mod.description, color = Rove.c.muted, style = Rove.mono(12))
+        }
+        TileLabel(stringResource(if (mod.installed) R.string.plugins_mod_uninstall else R.string.plugins_mod_install),
+            size = 12, onClick = toggle)
     }
 }
 

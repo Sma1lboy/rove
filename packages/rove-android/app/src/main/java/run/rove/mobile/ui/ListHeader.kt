@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import run.rove.mobile.R
+import run.rove.mobile.domain.ModGate
 import run.rove.mobile.domain.TaskSortMode
 
 // iOS Tasks/TaskListView.swift header: bell, filter, search, sort, pages, settings (HeaderIcon grammar: muted 17pt glyph in a 36 box).
@@ -133,7 +134,7 @@ private fun DrawScope.drawGlyph(glyph: HeaderGlyph, tint: Color) {
 
 /** Trailing controls of the list header, in iOS order. */
 @Composable internal fun ListHeaderControls(controls: ListControls, repos: List<String>, unread: Int, onInbox: () -> Unit,
-                                            onPage: (Route) -> Unit) {
+                                            onPage: (Route) -> Unit, mods: ModGate = ModGate.Legacy) {
     // iOS spaces the icons 10 apart; narrower phones give the gap up before the wordmark clips.
     val gap = ((LocalConfiguration.current.screenWidthDp - 364) / 5).coerceIn(0, 10).dp
     Row(horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.CenterVertically) {
@@ -158,9 +159,9 @@ private fun DrawScope.drawGlyph(glyph: HeaderGlyph, tint: Color) {
             TaskSortMode.entries.forEach { mode -> RoveMenuItem(sortLabel(mode), controls.sort == mode) { close(); controls.pick(mode) } }
         }
         HeaderMenu(HeaderGlyph.Grid, stringResource(R.string.listheader_pages_a11y)) { close ->
-            RoveMenuItem(stringResource(R.string.listheader_page_board)) { close(); onPage(Route.Board) }
+            if (mods.allows(Route.Board)) RoveMenuItem(stringResource(R.string.listheader_page_board)) { close(); onPage(Route.Board) }
             RoveMenuItem(stringResource(R.string.listheader_page_routines)) { close(); onPage(Route.Routines) }
-            RoveMenuItem(stringResource(R.string.listheader_page_issues)) { close(); onPage(Route.Issues) }
+            if (mods.allows(Route.Issues)) RoveMenuItem(stringResource(R.string.listheader_page_issues)) { close(); onPage(Route.Issues) }
             RoveMenuItem(stringResource(R.string.listheader_page_worktrees)) { close(); onPage(Route.Worktrees) }
         }
         HeaderButton(stringResource(R.string.listheader_settings_a11y), { onPage(Route.Settings) }) { GlyphIcon(HeaderGlyph.Gear, Rove.c.muted) }
