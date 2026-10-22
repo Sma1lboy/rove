@@ -18,12 +18,22 @@ import { findBinding, page, toast } from "./ui.ts"
 import { keysOf } from "./user-keys.ts"
 
 const SORT_KEY = "rove.activeSortMode"
+const COLLAPSED_KEY = "rove.collapsedProjects"
 /** Second `g` of `gg` must land within this. */
 const GG_MS = 600
 
 function loadSort(): SortMode {
   const saved = localStorage.getItem(SORT_KEY)
   return SORT_MODES.find((mode) => mode === saved) ?? "default"
+}
+
+function loadCollapsed(): ReadonlySet<string> {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]")
+    return new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : [])
+  } catch {
+    return new Set()
+  }
 }
 
 /** Sort + `/` query: owned by the rail, which builds the rows from them before the keys see them. */
@@ -38,12 +48,25 @@ export function useRailFilters() {
       if (!next.delete(repo)) next.add(repo)
       return next
     })
+  // Collapsed project headers (row ids); kept per browser, as Claude's sidebar sections.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(loadCollapsed)
+  const toggleProject = (id: string) =>
+    setCollapsed((now) => {
+      const next = new Set(now)
+      if (!next.delete(id)) next.add(id)
+      try {
+        localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]))
+      } catch {
+        // Storage off: the fold lasts this page only.
+      }
+      return next
+    })
   const cycleSort = () => {
     const next = SORT_MODES[(SORT_MODES.indexOf(sort) + 1) % SORT_MODES.length] ?? "default"
     setSort(next)
     localStorage.setItem(SORT_KEY, next)
   }
-  return { sort, cycleSort, search, setSearch, routines, toggleRoutines }
+  return { sort, cycleSort, search, setSearch, routines, toggleRoutines, collapsed, toggleProject }
 }
 
 export type RailFilters = ReturnType<typeof useRailFilters>

@@ -70,6 +70,7 @@ export class AppModel {
   /** Newest first; the Inbox's RECENT section (the TUI keeps its own the same way, per client). */
   readonly visits: Store<readonly Visit[]> = createStore(loadVisits())
   private tabTimer: number | null = null
+  private tabsLoaded = false
   /** Bumped per sweep; a sweep resolving after a newer one started commits nothing. */
   private tabSweep = 0
   /** A task just created here: select it once the feed lists it. */
@@ -205,10 +206,13 @@ export class AppModel {
 
   private scheduleTabRefresh(): void {
     if (this.tabTimer !== null) return
+    // The first load reads tabs at once; the debounce only batches later pushes.
+    const delay = this.tabsLoaded ? TAB_REFRESH_DEBOUNCE_MS : 0
+    this.tabsLoaded = true
     this.tabTimer = window.setTimeout(() => {
       this.tabTimer = null
       void this.refreshTabs(this.tabbedTasks())
-    }, TAB_REFRESH_DEBOUNCE_MS)
+    }, delay)
   }
 
   private async refreshTabs(tasks: readonly TaskRow[]): Promise<void> {

@@ -283,19 +283,80 @@ button:focus-visible,
   }
 }
 
+/* A project section header, as Claude's sidebar: the name and a chevron fold it; + starts a task in it. */
 .project-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   margin: 6px 8px 4px;
   font: 700 12px var(--mono);
   color: var(--muted);
 }
 
-.project-head .rule {
-  flex: 1;
-  height: 1px;
-  background: var(--line);
+.project-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.project-toggle:hover {
+  color: var(--ink);
+}
+
+.project-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-chevron {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.project-chevron.is-collapsed {
+  transform: rotate(-90deg);
+  opacity: 1;
+}
+
+.project-head:hover .project-chevron,
+.project-toggle:focus-visible .project-chevron {
+  opacity: 1;
+}
+
+.project-add {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  font: 400 15px / 1 var(--sans);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.project-head:hover .project-add,
+.project-add:focus-visible {
+  opacity: 1;
+}
+
+.project-add:hover {
+  color: var(--ink);
+  background: var(--hover);
 }
 
 .row {
