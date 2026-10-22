@@ -49,6 +49,7 @@ function replacementKey(frame: DaemonFrame): string | null {
     case "attention.inbox":
     case "gates":
     case "ui-prefs":
+    case "state":
     case "worktree.changes":
     case "transcript.activity":
     case "usage.snapshot":

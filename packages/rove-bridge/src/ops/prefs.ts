@@ -5,8 +5,7 @@
  * in `prefs-defs.ts`; nothing here accepts a free-form string that the Mac later runs or stores.
  * `theme.taskColors` is the read half for the per-task colour setting.
  *
- * Only theme, mode, transparency, accent and language reach a running TUI live (the daemon's
- * ui-prefs watcher); the TUI reads the other keys again the next time it starts.
+ * A running TUI picks every key up live from the daemon's `state` push.
  */
 
 import { type StateSnapshot, loadStateFile, patchStateFile } from "@sma1lboy/rove/src/state/store.ts"

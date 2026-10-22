@@ -100,7 +100,7 @@ so a long line sent in small chunks does not repeatedly scan its accumulated pre
 
 A slow reader also has an 8 MiB queue of unsent response/event bytes, in addition to
 the socket's already accepted write. Complete snapshots for `task.snapshot`,
-`active-task`, `update`, `attention.inbox`, `gates`, `ui-prefs`, `worktree.changes`,
+`active-task`, `update`, `attention.inbox`, `gates`, `ui-prefs`, `state`, `worktree.changes`,
 `transcript.activity`, `usage.snapshot`, and `usage.context` replace only an older
 queued snapshot of the same channel. Other frames retain their order, including
 per-task engine/job updates, per-repo issues, commands, keybinding notifications,

@@ -22,6 +22,8 @@ export type KVContext = {
   clear(): boolean
   /** Re-read `state.json` so a hand edit applies without a restart. */
   reload(): KvReloadResult
+  /** Adopt the daemon's `state` push (`kv-core.ts`). Stable across snapshots. */
+  follow(shared: Readonly<Record<string, unknown>>): void
   /**
    * A subscription, not a constructor callback: the toast sink sits below
    * this provider (Theme > KV > Focus > Dialog > Notifications, see
@@ -63,6 +65,7 @@ export function KVProvider(props: { children?: ReactNode }) {
       flush: core.flush,
       clear: core.clear,
       reload: core.reload,
+      follow: core.follow,
       onWriteError: core.onWriteError,
     }),
     [core, snapshot],

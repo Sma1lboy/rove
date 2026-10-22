@@ -2,8 +2,8 @@
  * Framework-free KV core (data + persistence) behind the React `KVProvider`.
  *
  *   - Hydrates synchronously from `state.json` at creation, so the first
- *     render has persisted values. Snapshot-only: another process's later
- *     writes and hand edits are not seen until `reload()` or restart.
+ *     render has persisted values, then follows the daemon's `state` push
+ *     (`follow`), so another process's writes and hand edits show up live.
  *   - Writes are debounced (250ms) and dirty-key merged via `patchStateFile`:
  *     only keys this process changed reach disk, so a concurrent process's
  *     writes are never clobbered. Dirty keys survive a failed flush.
@@ -14,10 +14,15 @@
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
+import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
 import { loadStateFile, patchStateFile, readStateFileStrict, replaceStateFile } from "../../state/store.ts"
 import { TERMINAL_TABS_PREFIX } from "../../state/tabs-persistence.ts"
+import { ZEN_ACTIVE_KEY } from "../../state/zen.ts"
 
 const WRITE_DEBOUNCE_MS = 250
+
+/** Per-window layout: another window folding its rail must not fold this one. The file keeps the last write, for the next launch. */
+const PER_WINDOW_KEYS: ReadonlySet<string> = new Set([SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY, ZEN_ACTIVE_KEY])
 
 /** A debounced or exit flush that did not reach disk. */
 export interface KvWriteFailure {
@@ -65,6 +70,11 @@ export interface KvCore {
    * until the file is repaired.
    */
   reload(): KvReloadResult
+  /**
+   * Adopt the daemon's `state` push (every key but `terminalTabs.*`), the
+   * way `reload` adopts the file: unflushed local keys win until they land.
+   */
+  follow(shared: Readonly<Record<string, unknown>>): void
   /**
    * Subscribe to flushes that did not reach disk. The debounced write is
    * fire-and-forget and `set()` already updated the snapshot, so without this
@@ -133,6 +143,25 @@ export function createKvCore(): KvCore {
     }, WRITE_DEBOUNCE_MS)
   }
 
+  /** Adopt `fresh` as the snapshot, keeping this process's unflushed keys and seeded defaults. Returns the keys that moved. */
+  function merge(fresh: Record<string, unknown>): number {
+    const before = store.get()
+    const next: Record<string, unknown> = { ...fresh }
+    for (const [key, value] of seeded) if (next[key] === undefined) next[key] = value
+    for (const key of dirtyKeys) {
+      if (before[key] === undefined) delete next[key]
+      else next[key] = before[key]
+    }
+    for (const key of [...quiet.keys()]) if (!dirtyKeys.has(key)) quiet.delete(key)
+    if (dirtyKeys.size > 0) scheduleWrite()
+    let changed = 0
+    for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
+      if (JSON.stringify(before[key]) !== JSON.stringify(next[key])) changed++
+    }
+    if (changed > 0) store.set(next)
+    return changed
+  }
+
   return {
     snapshot: store.get,
     subscribe: store.subscribe,
@@ -195,25 +224,19 @@ export function createKvCore(): KvCore {
         readStateFileStrict()
         cancelTimer()
         writeNow("reload flush")
-        const fresh = readStateFileStrict()
-        const before = store.get()
-        const next: Record<string, unknown> = { ...fresh }
-        for (const [key, value] of seeded) if (next[key] === undefined) next[key] = value
-        for (const key of dirtyKeys) {
-          if (before[key] === undefined) delete next[key]
-          else next[key] = before[key]
-        }
-        for (const key of [...quiet.keys()]) if (!dirtyKeys.has(key)) quiet.delete(key)
-        if (dirtyKeys.size > 0) scheduleWrite()
-        let changed = 0
-        for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
-          if (JSON.stringify(before[key]) !== JSON.stringify(next[key])) changed++
-        }
-        if (changed > 0) store.set(next)
-        return { ok: true, changed }
+        return { ok: true, changed: merge(readStateFileStrict()) }
       } catch (error) {
         return { ok: false, error }
       }
+    },
+    follow(shared) {
+      // The push leaves out the daemon-owned tab keys; keep ours.
+      const next: Record<string, unknown> = { ...shared }
+      for (const key of PER_WINDOW_KEYS) delete next[key]
+      for (const [key, value] of Object.entries(store.get())) {
+        if (key.startsWith(TERMINAL_TABS_PREFIX) || PER_WINDOW_KEYS.has(key)) next[key] = value
+      }
+      merge(next)
     },
     onWriteError(listener) {
       errorListeners.add(listener)

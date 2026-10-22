@@ -419,6 +419,15 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     signals.setUiPrefsSig(decoded)
     return
   }
+  if (name === "state") {
+    const state = (payload as { state?: unknown } | undefined)?.state
+    if (!state || typeof state !== "object" || Array.isArray(state)) {
+      logClientError("orch", `dropped state event: state must be an object (got ${describePayload(state)})`)
+      return
+    }
+    signals.setSharedStateSig(state as Record<string, unknown>)
+    return
+  }
   if (name === "keybindings") {
     const p = payload as { rev?: number } | undefined
     if (typeof p?.rev !== "number") {

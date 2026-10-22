@@ -29,6 +29,7 @@ import { DEFAULT_PR_STATUS_POLL_MS, startPrStatusPoller } from "./pr-status-coll
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
 import { type QuotaUsageCache, startQuotaUsagePoller } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { DEFAULT_STATE_DEBOUNCE_MS, startStateWatcher } from "./state-watcher.ts"
 import { startTicker } from "./ticker.ts"
 import {
   DEFAULT_TRANSCRIPT_ACTIVITY_TICK_MS,
@@ -188,6 +189,12 @@ export function startDaemonCollectors(
     debounceMs: options.uiPrefsDebounceMs ?? DEFAULT_UI_PREFS_DEBOUNCE_MS,
   })
 
+  const stopStateWatcher = startStateWatcher(
+    bus,
+    defaultUiPrefsStatePath(options.homeDir),
+    options.uiPrefsDebounceMs ?? DEFAULT_STATE_DEBOUNCE_MS,
+  )
+
   const stopKeybindingsWatcher = startKeybindingsWatcher(bus, {
     path: defaultKeybindingsPath(options.homeDir),
     debounceMs: options.keybindingsDebounceMs ?? DEFAULT_KEYBINDINGS_DEBOUNCE_MS,
@@ -302,6 +309,7 @@ export function startDaemonCollectors(
         stopDeliverySweep,
         stopQuotaUsagePoller,
         stopUiPrefsWatcher,
+        stopStateWatcher,
         stopKeybindingsWatcher,
         stopWorktreeChangesCollector,
         stopTranscriptActivityCollector,

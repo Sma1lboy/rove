@@ -4,8 +4,8 @@
  * wraps. `savedRepos` is a `string[]` of repo paths the user added.
  *
  * All writes go through `store.ts` read-merge-write transactions, so
- * concurrent writers never erase each other's keys. A running TUI won't see
- * an external addition until restart — deliberately no file watching.
+ * concurrent writers never erase each other's keys. Running clients see a
+ * change through the daemon's `state` push (`state-watcher.ts`).
  */
 
 import { spawnSync } from "node:child_process"

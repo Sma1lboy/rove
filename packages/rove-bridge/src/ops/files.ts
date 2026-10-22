@@ -2,7 +2,6 @@
  * Files area: the worktree file list (F1), diff review notes (F5) and the Worktrees page (P10).
  * Each op wraps ONE Rove helper, verb or RPC. Review notes live where the TUI keeps them
  * (`state.json` key `diffComments.<taskId>`), read and written through the TUI's own helpers.
- * An attached TUI hydrates that key once, so it only sees notes written here after a restart.
  */
 
 import { updateStateFile } from "@sma1lboy/rove/src/state/store.ts"

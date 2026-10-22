@@ -43,6 +43,7 @@ import type { RepoIssues } from "./issues-store.ts"
 import type { SerializedTask } from "./protocol.ts"
 import type { RowStatusPayload } from "./row-status-store.ts"
 import type { RowTokenMap } from "./row-tokens.ts"
+import type { SharedStatePayload } from "./state-watcher.ts"
 import type { TabsChangedPayload } from "./tabs-store.ts"
 
 /**
@@ -151,6 +152,12 @@ export interface ChannelPayloads {
    * matter; panes skip the first (replayed) value since they read it at boot.
    */
   keybindings: { rev: number }
+  /**
+   * The shared state file minus `terminalTabs.*` (`state-watcher.ts`), whole,
+   * after every change by any writer. Clients follow it instead of keeping a
+   * boot-time copy.
+   */
+  state: SharedStatePayload
   /**
    * Plugin-written row tokens, the FULL map, republished on every write and
    * as each token's TTL expires (`row-tokens.ts`) — the expiry republish is
