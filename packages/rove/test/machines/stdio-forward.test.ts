@@ -17,9 +17,9 @@ describe("stdio transport", () => {
   })
 
   test("the relay runs the machine's own rove, with its directory on PATH for an nvm shebang", () => {
-    expect(relayCommand(undefined, false)).toBe("rove daemon relay")
-    expect(relayCommand(undefined, true)).toBe("rove daemon relay --pty")
-    const nvm = relayCommand("/Users/me/.nvm/versions/node/v22/bin/rove", true)
+    expect(relayCommand({}, false)).toBe("rove daemon relay")
+    expect(relayCommand({}, true)).toBe("rove daemon relay --pty")
+    const nvm = relayCommand({ roveBin: "/Users/me/.nvm/versions/node/v22/bin/rove" }, true)
     expect(nvm).toContain("PATH='/Users/me/.nvm/versions/node/v22/bin'")
     expect(nvm.endsWith("daemon relay --pty")).toBe(true)
   })

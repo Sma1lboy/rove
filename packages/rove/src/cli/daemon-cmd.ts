@@ -11,6 +11,7 @@ import type { ChatChannel } from "../channels/chat-channel.ts"
 import { startChatChannels } from "../channels/registry.ts"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { type RoveCore, createRoveCore } from "../core/index.ts"
+import { RELAY_PREAMBLE } from "../machines/relay-preamble.ts"
 import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
@@ -64,6 +65,8 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     const target = pty ? await ensurePtyHostReachable() : await ensureDaemonReachable(undefined, "autospawn")
     const { connect } = await import("node:net")
     const socket = connect(target)
+    // Whatever the remote shell printed before this process (a profile, an rc echo) ends here.
+    if (argvHasFlag(flags, "--preamble")) process.stdout.write(RELAY_PREAMBLE)
     process.stdin.pipe(socket)
     socket.pipe(process.stdout)
     await new Promise<void>((resolve) => {
@@ -91,7 +94,8 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     const client = new RoveDaemonClient(socketPath)
     try {
       const status = await client.request<Record<string, unknown>>("daemon.status")
-      console.log(JSON.stringify(status, null, 2))
+      // Not the daemon's: what THIS `rove` can do when a hub runs it over ssh.
+      console.log(JSON.stringify({ ...status, relayPreamble: true }, null, 2))
     } catch {
       const pid = await readPidFile(pidPath)
       if (pid) console.log(`${CLI_NAME} daemon: no daemon socket at ${socketPath} (stale pidfile pid=${pid})`)

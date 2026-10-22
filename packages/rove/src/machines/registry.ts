@@ -43,6 +43,8 @@ export interface MachineConfig {
    * lacks it (learned by `discover.ts`). Absent → plain `rove`.
    */
   readonly roveBin?: string
+  /** That `rove` marks where its relayed bytes start (`daemon relay --preamble`). */
+  readonly relayPreamble?: boolean
   /** ISO timestamp of registration, for `machine list` ordering. */
   readonly addedAt?: string
 }
