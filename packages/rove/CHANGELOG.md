@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.260
+
+### Patch Changes
+
+- [#1353](https://github.com/Sma1lboy/rove/pull/1353) [`74650eb`](https://github.com/Sma1lboy/rove/commit/74650eb86b774720217575c298678fe76c2c0329) Terminal tabs are now owned by the daemon. Every TUI, the web, the CLI and other machines change a task's tabs by sending the daemon an operation, and all of them show the one list it keeps. A tab closed in one client disappears from all of them and cannot come back, a tab opened in one shows up in the others at once, and two clients opening tabs at the same moment always get two tabs with different numbers, in the same order everywhere. Which tab you are looking at stays your own. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1351](https://github.com/Sma1lboy/rove/pull/1351) [`3237ad5`](https://github.com/Sma1lboy/rove/commit/3237ad5166f0c8cacd0d258050d38263c05be3d3) `rove api add --repo` takes a repo id as well as a path: `owner/name` for GitHub, `host/owner/name`, or a remote URL. It resolves to the checkout on the machine that runs the task, so `rove api add --machine narwhal --repo sma1lboy/rove` works without knowing where narwhal keeps it. When a machine has several checkouts, the one you mark with `rove machine primary <path>` wins, else a clean one. A checkout that is only a fork (same history, another origin) is refused with `FORK_MATCH` unless you pass `--allow-fork`. With `--clone`, a machine that has no checkout clones the repo into `~/.rove/repos/<host>/<owner>/<name>` first; without it you get `NO_LOCAL_CHECKOUT` or `NO_REMOTE_CHECKOUT` naming the fix. `--machine auto` now only places work on machines that have the repo, falling back to the least-busy machine when none does. `rove api repo-list` lists a machine's repos by id with their checkouts and primary, and `repo-match` gains `--allow-fork`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1351](https://github.com/Sma1lboy/rove/pull/1351) [`3237ad5`](https://github.com/Sma1lboy/rove/commit/3237ad5166f0c8cacd0d258050d38263c05be3d3) The web app shows one project per repo across your machines. Tasks now carry a `repoId` (the repo's normalized `origin`, or its first commit when it has none), and the rail groups by it: `rove` on this machine and on `narwhal` is one header with a `narwhal` chip, every task underneath still running on its own machine. Two different repos with the same folder name read `me/rove` and `other/rove`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1354](https://github.com/Sma1lboy/rove/pull/1354) [`6ac3aa6`](https://github.com/Sma1lboy/rove/commit/6ac3aa6065a0d02fd5cbe5b7a0894836d032b1d8) The web's dialogs can be closed with the mouse: every dialog has a close button in its corner, and What's New ends with Continue and Open release notes buttons (q and Esc still work). Release notes on What's New and the Update page are shown as formatted text with clickable PR links and wrapped lines, instead of raw markdown that scrolled sideways. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.259
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "rove-bridge",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "Mac-side WebSocket bridge between the Rove daemon and its phone and browser clients. Off unless started.",
   "private": true,
   "type": "module",
