@@ -15,9 +15,11 @@ Before shows the active checkout spinner without a percentage. After shows
 21% beside the spinner. Both checkouts finish successfully, and the capture
 script verifies the contents of the final file.
 
-![Before](before.png)
+![Before](https://raw.githubusercontent.com/Sma1lboy/rove/f823b815fad8a86c479d05c4338dfdd07ffef9d3/docs/assets/reviews/checkout-progress/before.png)
 
-![After](after.png)
+![After](https://raw.githubusercontent.com/Sma1lboy/rove/f823b815fad8a86c479d05c4338dfdd07ffef9d3/docs/assets/reviews/checkout-progress/after.png)
+
+Screenshots are hosted at the original evidence commit, pinned by SHA. The final PR diff contains no PNG files.
 
 ## Reproduce
 
