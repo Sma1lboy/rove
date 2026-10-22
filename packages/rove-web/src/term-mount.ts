@@ -43,7 +43,32 @@ const XTERM_THEME = {
   brightWhite: "#eae7df",
 }
 
-const FONT_FAMILY = '"JetBrains Mono", "Symbols Nerd Font Mono", "SF Mono", ui-monospace, Menlo, monospace'
+/**
+ * The bundled JetBrains Mono first; then any Nerd Font installed on the viewer's machine, so the
+ * icons engines draw (Claude Code's status line, prompt themes) render instead of boxes. Nerd Fonts
+ * v3 family names; the browser falls back per glyph, so only the icon code points come from these.
+ */
+const NERD_FALLBACKS = [
+  "Symbols Nerd Font Mono",
+  "JetBrainsMono Nerd Font Mono",
+  "JetBrainsMonoNL Nerd Font Mono",
+  "FiraCode Nerd Font Mono",
+  "Hack Nerd Font Mono",
+  "MesloLGS Nerd Font Mono",
+  "CaskaydiaCove Nerd Font Mono",
+  "Symbols Nerd Font",
+  "JetBrainsMono Nerd Font",
+  "FiraCode Nerd Font",
+  "MesloLGS NF",
+]
+const FONT_FAMILY = [
+  '"JetBrains Mono"',
+  ...NERD_FALLBACKS.map((f) => `"${f}"`),
+  '"SF Mono"',
+  "ui-monospace",
+  "Menlo",
+  "monospace",
+].join(", ")
 
 /** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
 export const SCROLL_PAGE_LINES = 10
