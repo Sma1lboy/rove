@@ -151,9 +151,9 @@ button:focus-visible,
   background-color: var(--scroll-thumb-active);
 }
 
-/* Only there to size the scrollbar lane; rove draws no decorations on it. */
+/* Only there to size the scrollbar lane; rove draws no decorations on it (xterm sets `display` inline). */
 .term-host .xterm-decoration-overview-ruler {
-  display: none;
+  display: none !important;
 }
 
 /*
