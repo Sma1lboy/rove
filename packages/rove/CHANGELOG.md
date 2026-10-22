@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.263
+
+### Patch Changes
+
+- [#1361](https://github.com/Sma1lboy/rove/pull/1361) [`9cfccc3`](https://github.com/Sma1lboy/rove/commit/9cfccc3b1726b7d82192d31177fc2a945e59cc0a) The TUI and the web show the same status for every task and tab, because the daemon now decides it. It reads the engine activity, the attention inbox, the terminal sessions (alive, restored after a restart), worktree jobs and deletions itself, and every client only draws what it sends. Looking at a tab in any client clears its unread mark everywhere, and answering a question clears its `?` everywhere. Each tab row shows its own status, a task row shows the summary only when its tabs are folded, rate limits read amber and errors red in both, and tasks on other machines show a status in the TUI as well. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1360](https://github.com/Sma1lboy/rove/pull/1360) [`21c8745`](https://github.com/Sma1lboy/rove/commit/21c87456e2b319f72364547d50378329e02a17f4) WeChat can replace a separate assistant bot. `rove weixin agent <task-id>` sends plain (non-command) messages to that task's agent, which answers with the new `rove weixin send`; any script can use `rove weixin send` to message you too. Routines gain `--script`, which runs a shell command with no engine or worktree (stdout is the run's response), and `--notify`, which pushes each run's response and any failure to WeChat. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.262
 
 ### Patch Changes
