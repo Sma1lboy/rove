@@ -295,35 +295,6 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // One TUI's own tab open/close, relayed to the other attached TUIs. Each TUI keeps its own copy
-    // of a task's tabs and writes it whole, so without this a peer's stale copy resurrects a closed
-    // tab and never sees a new one (only the 2s orphan poll would). Plugins are told once, by
-    // `ui.reportEvent`; this is only state sync.
-    name: "terminalTab.peerSync",
-    handle(payload, ctx) {
-      const taskId = requireString(payload, "taskId")
-      const origin = requireString(payload, "origin")
-      const op = requireString(payload, "op")
-      if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
-      const at = Date.now()
-      if (op === "opened") {
-        const tab = objectPayload(payload.tab)
-        if (typeof tab.id !== "string" || typeof tab.kind !== "string") {
-          throw new Error("tab must be an object with a string id and kind")
-        }
-        const after = payload.after
-        const place = typeof after === "string" || after === null ? { after } : {}
-        ctx.bus.publish("tab.add", { taskId, tab, origin, ...place, at })
-      } else if (op === "closed") {
-        const tabId = requireString(payload, "tabId")
-        ctx.bus.publish("tab.close", { kind: "peer-closed", taskId, tabId, origin, at })
-      } else {
-        throw new Error(`unknown peerSync op: ${op}`)
-      }
-      return { ok: true }
-    },
-  },
-  {
     name: "notice.send",
     async handle(payload, ctx) {
       // One toast per attached UI; each host dedupes replays on `at`.

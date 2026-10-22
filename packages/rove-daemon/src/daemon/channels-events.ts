@@ -81,22 +81,8 @@ export interface TerminalTabClosePayload {
   readonly at: number
 }
 
-/**
- * The `tab.close` channel's peer variant: another attached TUI already closed
- * this tab (its PTY is gone, its plugins were told). Every other TUI drops the
- * row from its own copy so its next write cannot bring it back. No reply.
- */
-export interface PeerTabClosedPayload {
-  readonly kind: "peer-closed"
-  readonly taskId: string
-  readonly tabId: string
-  /** The reporting TUI's instance id; that TUI ignores its own echo. */
-  readonly origin: string
-  readonly at: number
-}
-
-/** Pane closes retain their existing wire shape; exact and peer closes discriminate by `kind`. */
-export type TabClosePayload = PaneClosePayload | TerminalTabClosePayload | PeerTabClosedPayload
+/** Pane closes retain their existing wire shape; exact tab closes discriminate by `kind`. */
+export type TabClosePayload = PaneClosePayload | TerminalTabClosePayload
 
 /** The `tab.rename` channel payload — one "name this Terminal Tab". */
 export interface TabRenamePayload {
@@ -117,10 +103,6 @@ export interface TabRenamePayload {
 export interface TabAddPayload {
   readonly taskId: string
   readonly tab: Readonly<Record<string, unknown>>
-  /** Set when another TUI created the tab (`terminalTab.peerSync`): its instance id, so it skips its own echo. */
-  readonly origin?: string
-  /** With `origin`: the tab it sits behind in that TUI (null = first), so every copy keeps one order. */
-  readonly after?: string | null
   /** Publish time (ms epoch) — the consumer-side dedupe key. */
   readonly at: number
 }

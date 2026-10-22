@@ -125,32 +125,6 @@ describe("daemon handler registry", () => {
     })
   })
 
-  describe("terminalTab.peerSync", () => {
-    it("relays a TUI's open on tab.add and its close on tab.close, both carrying the origin", async () => {
-      const { ctx, rec } = fakeCtx({ getTask: () => TASK })
-      const tab = { kind: "engine", id: "tab-3", title: null, ordinal: 3 }
-      await dispatch("terminalTab.peerSync", { taskId: "t1", origin: "A", op: "opened", tab, after: "tab-2" }, ctx)
-      await dispatch("terminalTab.peerSync", { taskId: "t1", origin: "A", op: "closed", tabId: "tab-3" }, ctx)
-      const events = rec.published as { channel: string; payload: Record<string, unknown> }[]
-      expect(events.map((e) => e.channel)).toEqual(["tab.add", "tab.close"])
-      expect(events[0]?.payload).toMatchObject({ taskId: "t1", tab, origin: "A", after: "tab-2" })
-      expect(events[1]?.payload).toMatchObject({ kind: "peer-closed", taskId: "t1", tabId: "tab-3", origin: "A" })
-    })
-
-    it("rejects an unknown task, op or tab row", async () => {
-      const { ctx } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
-      await expect(
-        dispatch("terminalTab.peerSync", { taskId: "nope", origin: "A", op: "closed", tabId: "tab-1" }, ctx),
-      ).rejects.toThrow(/task not found/)
-      await expect(dispatch("terminalTab.peerSync", { taskId: "t1", origin: "A", op: "moved" }, ctx)).rejects.toThrow(
-        /unknown peerSync op/,
-      )
-      await expect(
-        dispatch("terminalTab.peerSync", { taskId: "t1", origin: "A", op: "opened", tab: { id: 3 } }, ctx),
-      ).rejects.toThrow(/string id and kind/)
-    })
-  })
-
   describe("tab.close", () => {
     it("publishes a tab.close event for a known task and rejects an unknown one", async () => {
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })

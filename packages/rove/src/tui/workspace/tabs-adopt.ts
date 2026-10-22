@@ -64,11 +64,8 @@ export function isAddedTab(raw: unknown): raw is EngineTab | CommandTab {
  * another kind replaces it; same kind merges, keeping the TUI-owned `title`
  * and live fields. Raises `nextOrdinal` so a local tab can't reuse the id; never
  * steals `activeId`. Returns `state` itself when nothing changes.
- *
- * `after` places a NEW row where its creator put it: after that tab id, first for
- * null, appended when absent or unknown here. A known row keeps its place.
  */
-export function absorbTab(state: TabsState, tab: EngineTab | CommandTab, after?: string | null): TabsState {
+export function absorbTab(state: TabsState, tab: EngineTab | CommandTab): TabsState {
   const nextOrdinal = Math.max(state.nextOrdinal, tab.ordinal + 1)
   const known = state.tabs.find((t) => t.id === tab.id)
   if (known?.kind === tab.kind) {
@@ -78,12 +75,6 @@ export function absorbTab(state: TabsState, tab: EngineTab | CommandTab, after?:
     if (same && nextOrdinal === state.nextOrdinal) return state
   }
   const merged: TerminalTab = known?.kind === tab.kind ? { ...known, ...tab, title: known.title } : tab
-  const tabs = known ? state.tabs.map((t) => (t === known ? merged : t)) : insertAt(state.tabs, merged, after)
+  const tabs = known ? state.tabs.map((t) => (t === known ? merged : t)) : [...state.tabs, merged]
   return { ...state, tabs, nextOrdinal }
-}
-
-function insertAt(tabs: readonly TerminalTab[], tab: TerminalTab, after: string | null | undefined): TerminalTab[] {
-  if (after === null) return [tab, ...tabs]
-  const i = after === undefined ? -1 : tabs.findIndex((t) => t.id === after)
-  return i < 0 ? [...tabs, tab] : [...tabs.slice(0, i + 1), tab, ...tabs.slice(i + 1)]
 }
