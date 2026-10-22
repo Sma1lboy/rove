@@ -191,6 +191,11 @@ test("switching tabs reports ui.viewing for the new tab, and leaving reports non
     ["alpha", "tab-2"],
   ])
   destroy()
-  await settle(10)
+  // The unmount report rides a cleanup effect: wait for it in real time, bounded (a loaded runner is slow).
+  for (let deadline = Date.now() + 2_000; Date.now() < deadline; ) {
+    const last = viewing.at(-1)
+    if (last?.[0] === null && last?.[1] === null) break
+    await settle(20)
+  }
   expect(viewing.at(-1)).toEqual([null, null])
 })
