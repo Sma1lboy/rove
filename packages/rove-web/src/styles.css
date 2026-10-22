@@ -336,8 +336,10 @@ button:focus-visible,
   opacity: 1;
 }
 
+/* Centered on the task rows' cloud column (12px wide, at the same right edge). */
 .project-add {
   margin-left: auto;
+  margin-right: -4px;
   width: 20px;
   height: 20px;
   border: 0;
