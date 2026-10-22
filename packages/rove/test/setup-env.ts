@@ -56,6 +56,9 @@ Reflect.deleteProperty(process.env, "CODEX_HOME")
 // not litter tmpdir with one per test file. `tmpdir()`, never a literal
 // `/tmp`: `pathRejection()` decides `roveInternal` before `temporary`, so a
 // home under a temp root still reports the specific reason.
+// Kanban and Issues ship uninstalled; the suites exercise them in every throwaway home.
+process.env.ROVE_TEST_BUILTIN_MODS = "kanban,issues"
+
 const home = join(tmpdir(), `rove-vitest-home-${process.pid}`)
 mkdirSync(home, { recursive: true })
 process.env.ROVE_HOME_DIR = home

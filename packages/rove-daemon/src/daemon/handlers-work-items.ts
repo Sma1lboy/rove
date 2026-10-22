@@ -1,5 +1,6 @@
-/** External work-item RPC handlers — read a tracker, start work on one item. */
+/** External work-item RPC handlers — read a tracker, start work on one item. The Issues mod owns them. */
 
+import { requireBuiltinMod } from "../plugins/builtin-mods.ts"
 import { optionalNumber, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { startWorkItem } from "./work-item-start.ts"
@@ -36,6 +37,7 @@ export const WORK_ITEM_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "workitem.list",
     async handle(payload, ctx) {
+      requireBuiltinMod("issues", ctx.daemon.homeDir)
       const state = optionalStringField(payload, "state")
       try {
         return {
@@ -63,6 +65,7 @@ export const WORK_ITEM_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "workitem.start",
     blocking: true,
     async handle(payload, ctx) {
+      requireBuiltinMod("issues", ctx.daemon.homeDir)
       const repo = requireString(payload, "repo")
       const number = requireNumberField(payload, "number")
       // Always re-fetch the single item: the list view omits bodies, and the

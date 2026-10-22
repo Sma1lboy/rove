@@ -51,7 +51,7 @@ import {
 } from "./api/invoke.ts"
 import { defaultApiRuntime, deliverPrompt } from "./api/runtime.ts"
 import { API_SCHEMA_VERSION, apiUsage, fullSchema, schemaIndex, verbHelp, verbSchema } from "./api/schema.ts"
-import { ApiError } from "./api/types.ts"
+import { ApiError, requireVerbInstalled, verbInstalled } from "./api/types.ts"
 import type { ApiRuntime, DeliveredPrompt, ParsedArgs, PromptDeliveryOps, PromptTarget, VerbSpec } from "./api/types.ts"
 import { API_VERBS, VERBS, VERB_GROUPS, findVerb, unknownVerbError } from "./api/verbs.ts"
 import { argvHasFlag } from "./argv.ts"
@@ -141,6 +141,13 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   }
 
   if (parsed.help) {
+    if (!verbInstalled(verb)) {
+      try {
+        requireVerbInstalled(verb)
+      } catch (err) {
+        if (err instanceof ApiError) fail(err.message, err.code, 2, err.data)
+      }
+    }
     process.stdout.write(`${verbHelp(verb)}\n`)
     return
   }

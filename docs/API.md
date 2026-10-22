@@ -1269,7 +1269,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
 The daemon-owned issue store (backlog; see
 [WORK-TRACKING.md](./WORK-TRACKING.md)). Statuses: `open`, `doing`, `hold`,
-`done`.
+`done`. The store belongs to the Kanban first-party mod: until it is installed
+(`rove plugin install kanban`), these verbs are left out of `schema` and
+`--help` and fail with `MOD_NOT_INSTALLED` (`nextCommandArgs` installs it), and
+the daemon refuses the `issue.*` RPCs the same way.
 
 - `issue-list --repo PATH [--status S1,S2] [--search Q]`: list a repo's issues.
   `--status` keeps any of the listed statuses; `--search` keeps issues whose
@@ -1292,7 +1295,8 @@ The daemon-owned issue store (backlog; see
 ## workitems
 
 A **read-only** view of a repo's GitHub issues (through the `gh` CLI), plus one
-action: start a task on one. Deliberately not an import; the issue stays
+action: start a task on one. Owned by the Issues first-party mod: absent and
+refused with `MOD_NOT_INSTALLED` until `rove plugin install issues`. Deliberately not an import; the issue stays
 GitHub's, and nothing is copied into Rove's own issue store. Mechanics:
 [design/work-items.md](./design/work-items.md).
 
