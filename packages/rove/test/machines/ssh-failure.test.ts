@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { classifySshFailure } from "../../src/machines/ssh-failure.ts"
+import { classifySshFailure, sshFailureRemedy } from "../../src/machines/ssh-failure.ts"
+import { WINDOWS_SSHD_BANNER } from "../../src/machines/windows-remote.ts"
 
 /** Captured from OpenSSH 9 (Linux) unless noted; each kind has a different remedy. */
 describe("classifySshFailure", () => {
@@ -27,5 +28,27 @@ describe("classifySshFailure", () => {
       "Host key verification failed.",
     ].join("\n")
     expect(classifySshFailure(stderr)).toBe("host-key-changed")
+  })
+})
+
+describe("sshFailureRemedy on a Windows machine", () => {
+  it("names the OpenSSH Server steps when nothing listens", () => {
+    const remedy = sshFailureRemedy("refused", "win", true)
+    expect(remedy).toContain("Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0")
+    expect(remedy).toContain("Start-Service sshd")
+    expect(remedy).toContain("OpenSSH-Server-In-TCP")
+  })
+
+  it("sends an administrator to the one key file OpenSSH for Windows reads", () => {
+    expect(sshFailureRemedy("auth-denied", "win", true)).toContain("administrators_authorized_keys")
+  })
+
+  it("reads the server banner `ssh -v` prints before any login", () => {
+    // Verbatim from OpenSSH for Windows 9.5.
+    const stderr = "debug1: Remote protocol version 2.0, remote software version OpenSSH_for_Windows_9.5"
+    expect(WINDOWS_SSHD_BANNER.test(stderr)).toBe(true)
+    expect(WINDOWS_SSHD_BANNER.test("debug1: Remote protocol version 2.0, remote software version OpenSSH_9.6")).toBe(
+      false,
+    )
   })
 })

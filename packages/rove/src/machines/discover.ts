@@ -18,6 +18,8 @@ import {
   WINDOWS_LOCATE_ROVE,
   WINDOWS_ROVE_MISSING,
   WINDOWS_SCRIPTS_DISABLED,
+  WINDOWS_SSHD_BANNER,
+  isWindowsMachine,
   isWindowsPath,
   windowsNoRoveMessage,
   windowsRoveCommand,
@@ -39,6 +41,8 @@ export interface DiscoverResult {
   readonly status: RemoteDaemonStatus
   /** Set when `rove` was found off the non-interactive PATH; persist it as `MachineConfig.roveBin`. */
   readonly roveBin?: string
+  /** Bytes the remote shell printed before Rove's output (a login banner, a PowerShell profile). */
+  readonly shellNoise?: number
 }
 export interface DiscoverFailure {
   readonly ok: false
@@ -55,7 +59,7 @@ async function runOnMachine(
   alias: string,
   config: MachineConfig,
   command: string,
-  opts: { readonly home?: string; readonly timeoutMs?: number } = {},
+  opts: { readonly home?: string; readonly timeoutMs?: number; readonly sshFlags?: readonly string[] } = {},
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   // The ControlPath's directory must exist first, else ssh's `Control socket
   // connect(...): No such file or directory` reads like a missing Rove.
@@ -64,7 +68,9 @@ async function runOnMachine(
   } catch {
     /* already there, or a filesystem without modes */
   }
-  const argv = [...machineSshArgs(alias, config, { home: opts.home }), command]
+  // Extra flags (`-v`) want a fresh connection: through a shared master, ssh says nothing about the server.
+  const base = machineSshArgs(alias, config, { home: opts.home, mux: opts.sshFlags === undefined })
+  const argv = [base[0] ?? "ssh", ...(opts.sshFlags ?? []), ...base.slice(1), command]
   return await new Promise((resolve) => {
     let stdout = ""
     let stderr = ""
@@ -181,7 +187,7 @@ async function probe(
   const status = remoteRove(roveBin, ["daemon", "status", "--json"])
   const first = await runOnMachine(alias, config, status, opts)
   const parsed = parseStatusJson(first.stdout)
-  if (parsed) return windowsReady(alias, parsed)
+  if (parsed) return withNoise(windowsReady(alias, parsed), first.stdout)
   const combined = `${first.stdout}\n${first.stderr}`.trim()
   if (WINDOWS_ROVE_MISSING.test(combined) || WINDOWS_SCRIPTS_DISABLED.test(combined)) {
     return { ok: false, code: "NO_ROVE", windows: true, message: windowsNoRoveMessage(alias, combined) }
@@ -195,11 +201,15 @@ async function probe(
   }
   if (first.exitCode === 255 || first.exitCode === -1) {
     const ssh = classifySshFailure(first.stderr)
-    const remedy = sshFailureRemedy(ssh, sshTargetOf(config))
+    // A rejected key is fixed differently on Windows; its sshd says what it is before any login.
+    const windows =
+      isWindowsMachine(config) || (ssh === "auth-denied" && (await sshServerIsWindows(alias, config, opts)))
+    const remedy = sshFailureRemedy(ssh, sshTargetOf(config), windows)
     return {
       ok: false,
       code: "SSH_FAILED",
       ssh,
+      ...(windows ? { windows } : {}),
       message: ssh === "unknown" && combined ? `${remedy}\n${combined}` : remedy,
     }
   }
@@ -211,7 +221,7 @@ async function probe(
   })
   const second = await runOnMachine(alias, config, status, opts)
   const retry = parseStatusJson(second.stdout)
-  if (retry) return windowsReady(alias, retry)
+  if (retry) return withNoise(windowsReady(alias, retry), second.stdout)
   // A remote Rove predating `ptySocketPath` answers but can't be tunnelled —
   // report that, not a daemon that would not start.
   if (looksLikeOldStatus(second.stdout)) {
@@ -226,6 +236,21 @@ async function probe(
     code: started.exitCode === 0 ? "BAD_STATUS" : "NO_DAEMON",
     message: `could not read a daemon status from ${alias}: ${`${second.stdout}\n${second.stderr}\n${started.stderr}`.trim() || "no output"}`,
   }
+}
+
+function withNoise(found: DiscoverResult | DiscoverFailure, stdout: string): DiscoverResult | DiscoverFailure {
+  const noise = Buffer.byteLength(stdout.slice(0, Math.max(0, stdout.indexOf("{"))), "utf8")
+  return found.ok && noise > 0 ? { ...found, shellNoise: noise } : found
+}
+
+/** Whether the machine's sshd is OpenSSH for Windows, read from `ssh -v` before authentication. */
+export async function sshServerIsWindows(
+  alias: string,
+  config: MachineConfig,
+  opts: { readonly home?: string } = {},
+): Promise<boolean> {
+  const run = await runOnMachine(alias, config, "exit", { ...opts, timeoutMs: 15_000, sshFlags: ["-v"] })
+  return WINDOWS_SSHD_BANNER.test(run.stderr)
 }
 
 /**

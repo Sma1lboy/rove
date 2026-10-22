@@ -133,6 +133,13 @@ was revoked, Rove was reinstalled somewhere else, the machine was rebuilt. It
 also says when a machine runs a different Rove version than this one, and
 exits 1 if any machine is not usable.
 
+A Windows machine gets Windows answers: an OpenSSH Server that is off comes
+with the PowerShell lines that turn it on, a rejected key with the lines that
+authorize this hub's key there (an administrator's key file differs), a
+PowerShell profile that prints on every command with how to keep it to your
+own logins, and an sshd whose `DefaultShell` is bash or WSL with the reason
+you reached that shell's Rove instead of the native one.
+
 ## List and remove
 
 ```console
