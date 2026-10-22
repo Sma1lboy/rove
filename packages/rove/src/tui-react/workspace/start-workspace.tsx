@@ -42,12 +42,10 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
           write: (data) => orchestrator.writeGraphics(data),
         }),
       )
-      // Other machines running Rove. `attach()` is sync and a no-op when none
-      // are registered; lazy imports keep machine-free installs from loading any of it.
-      const { MachineHub } = await import("../../machines/hub.ts")
+      // Other machines running Rove, as the daemon's hub publishes them.
+      const { MachineFeed } = await import("../../machines/feed.ts")
       const { setMachineHub } = await import("../../machines/hub-singleton.ts")
-      const machines = new MachineHub(orchestrator)
-      machines.attach()
+      const machines = new MachineFeed(orchestrator)
       setMachineHub(machines)
       // Other machines' tasks have no row status here; build it from the hub's relay.
       const stopRemoteStatus = followRemoteActivity(machines.liveSignal())

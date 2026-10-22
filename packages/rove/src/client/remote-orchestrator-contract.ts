@@ -84,6 +84,8 @@ export interface RemoteOrchestratorOptions {
  * Accessor/setter closures `handleOrchestratorEvent` and `performInit` use in
  * place of `this`; built once from the same state the class's read methods return.
  */
+export type RawChannel = "state" | "machines"
+
 export interface OrchestratorSignals {
   /** Write one `graphics.write` payload verbatim. Not a signal: storing a
    *  picture would replay it on every reconnect. */
@@ -129,8 +131,8 @@ export interface OrchestratorSignals {
   readonly engineLifecycleAcc: ReadableState<EngineLifecycleMap>
   readonly setEngineLifecycleSig: (next: EngineLifecycleMap) => void
   readonly setUiPrefsSig: (next: UiPrefsPayload | null) => void
-  /** `state`: the shared state file minus `terminalTabs.*`, whole. */
-  readonly setSharedStateSig: (next: Readonly<Record<string, unknown>>) => void
+  /** Whole-snapshot channels a consumer decodes itself: `state` (`kv-core.ts`), `machines` (`machines/feed.ts`). */
+  readonly setRawSig: (name: RawChannel, payload: unknown) => void
   readonly setKeybindingsRevSig: (next: number | null) => void
   readonly setConnectionState: (next: DaemonConnectionState) => void
 }

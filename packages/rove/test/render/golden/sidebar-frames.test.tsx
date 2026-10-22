@@ -21,7 +21,7 @@
 
 import { afterAll, beforeAll, expect, test } from "bun:test"
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
-import type { MachineHub } from "@/machines/hub"
+import type { MachineFeed } from "@/machines/feed"
 import { setMachineHub } from "@/machines/hub-singleton"
 import { currentLang, setLocaleLang } from "@/tui/i18n"
 import type { MachineLayerEntry } from "@/tui/panes/sidebar/machine-layer"
@@ -83,9 +83,9 @@ beforeAll(() => {
   setPlatform("linux")
 })
 /** Just the registry the sidebar reads (`useMachineRows`); scene tasks arrive as props. */
-function sceneHub(machines: readonly MachineLayerEntry[] | undefined): MachineHub | null {
+function sceneHub(machines: readonly MachineLayerEntry[] | undefined): MachineFeed | null {
   if (!machines) return null
-  return { machinesSignal: () => ({ get: () => machines, subscribe: () => () => {} }) } as unknown as MachineHub
+  return { machinesSignal: () => ({ get: () => machines, subscribe: () => () => {} }) } as unknown as MachineFeed
 }
 
 afterAll(() => {

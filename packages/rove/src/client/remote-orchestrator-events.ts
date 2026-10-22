@@ -419,13 +419,8 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     signals.setUiPrefsSig(decoded)
     return
   }
-  if (name === "state") {
-    const state = (payload as { state?: unknown } | undefined)?.state
-    if (!state || typeof state !== "object" || Array.isArray(state)) {
-      logClientError("orch", `dropped state event: state must be an object (got ${describePayload(state)})`)
-      return
-    }
-    signals.setSharedStateSig(state as Record<string, unknown>)
+  if (name === "state" || name === "machines") {
+    signals.setRawSig(name, payload)
     return
   }
   if (name === "keybindings") {

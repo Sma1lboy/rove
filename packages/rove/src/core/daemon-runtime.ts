@@ -59,6 +59,18 @@ function resolveProtocolUpgradeAndLearnPreset(
 export const daemonRuntime: DaemonRuntimeAdapter = {
   currentVersion: CURRENT_VERSION,
   tabsPersistence: stateFileTabsPersistence,
+  // Lazy, like `invokeApi`: a daemon nobody reads `machines` from never loads the machine code.
+  startMachineHub(bus) {
+    let stop: (() => void) | null = null
+    let stopped = false
+    void import("../machines/daemon-hub.ts").then(({ startDaemonMachineHub }) => {
+      if (!stopped) stop = startDaemonMachineHub(bus)
+    })
+    return () => {
+      stopped = true
+      stop?.()
+    }
+  },
   // Lazy: the verb table pulls in most of the CLI, which a daemon that never
   // serves `api.invoke` should not load.
   async invokeApi(verb, params, socketPath, route) {

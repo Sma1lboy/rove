@@ -108,6 +108,47 @@ export function createProtocolUpgradeReporter(
   }
 }
 
+const MACHINE_HUB_GATE_MS = 1_000
+/** Grace before a hub nobody reads lets its machines go: a TUI restarting must not flap every connection. */
+const MACHINE_HUB_IDLE_MS = 15_000
+
+/**
+ * Run the machine hub only while some client reads `machines`. A peer's hub
+ * subscribes here without it (`PEER_CHANNELS` in rove `machines/hub.ts`), so
+ * two machines registered to each other never keep each other's hubs up.
+ */
+function gateMachineHub(
+  start: NonNullable<DaemonRuntimeAdapter["startMachineHub"]>,
+  bus: DaemonEventBus,
+  hasSubscribersFor: (channel: ChannelName) => boolean,
+): () => void {
+  let stop: (() => void) | null = null
+  let idleSince: number | null = null
+  const tick = (): void => {
+    try {
+      if (hasSubscribersFor("machines")) {
+        idleSince = null
+        stop ??= start(bus)
+      } else if (stop) {
+        idleSince ??= Date.now()
+        if (Date.now() - idleSince >= MACHINE_HUB_IDLE_MS) {
+          stop()
+          stop = null
+        }
+      }
+    } catch (err) {
+      logDaemonError("machine-hub", err)
+    }
+  }
+  tick()
+  const timer = setInterval(tick, MACHINE_HUB_GATE_MS)
+  timer.unref?.()
+  return () => {
+    clearInterval(timer)
+    stop?.()
+  }
+}
+
 /**
  * Start every daemon-owned collector; returns one `stop()`. Each is gated on
  * the channel it PUBLISHES, so a client subscribed only to
@@ -194,6 +235,8 @@ export function startDaemonCollectors(
     defaultUiPrefsStatePath(options.homeDir),
     options.uiPrefsDebounceMs ?? DEFAULT_STATE_DEBOUNCE_MS,
   )
+
+  const stopMachineHub = runtime.startMachineHub ? gateMachineHub(runtime.startMachineHub, bus, hasSubscribersFor) : () => {}
 
   const stopKeybindingsWatcher = startKeybindingsWatcher(bus, {
     path: defaultKeybindingsPath(options.homeDir),
@@ -310,6 +353,7 @@ export function startDaemonCollectors(
         stopQuotaUsagePoller,
         stopUiPrefsWatcher,
         stopStateWatcher,
+        stopMachineHub,
         stopKeybindingsWatcher,
         stopWorktreeChangesCollector,
         stopTranscriptActivityCollector,

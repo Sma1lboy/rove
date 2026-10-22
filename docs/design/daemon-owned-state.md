@@ -1,6 +1,6 @@
 # Daemon-owned shared state
 
-Status: in progress. The `state` channel shipped; the machine hub move is next.
+Status: shipped (`state` channel, daemon-owned machine hub).
 
 ## Rule
 
@@ -36,7 +36,7 @@ client. "Before" is how a running client saw another process's change.
 
 | State | Where | Before | Now | Class |
 |---|---|---|---|---|
-| Registered machines + live remote tasks | `machines` key; `MachineHub` in each TUI and bridge | read once at client start | daemon hub (next PR) | a |
+| Registered machines + live remote tasks | `machines` key; `MachineHub` in each TUI and bridge | read once at client start | daemon hub, `machines` channel | a |
 | Saved repos, project rows | `savedRepos`; `kind:"main"` tasks | rail from daemon tasks; picker and bridge read per call | unchanged, already live | a |
 | Repo settings, remote repos | `repoConfigs`, `remoteRepos`, `repoPrimary` | read per call | unchanged | a |
 | A repo's last engine, default engine | `lastActiveVendor.*`, `defaultVendor` | read per call; Settings dialog seeded once | `state` push | a |
@@ -56,6 +56,23 @@ client. "Before" is how a running client saw another process's change.
 | Web selection, rail width, collapsed projects; phone tab marks | browser localStorage, UserDefaults, SharedPreferences | per device | unchanged | b |
 | Onboarding and version bookkeeping | `app.*`, welcome keys | per machine CLI | unchanged | b |
 | Secrets, bridge auth | `secrets.json`, `~/.rove/bridge/` | local only | unchanged | b |
+
+## Machines
+
+The machine hub (`rove/src/machines/hub.ts`) runs in the daemon
+(`daemon-hub.ts`, through the runtime adapter's `startMachineHub`). It follows
+the registry on the `state` channel and publishes, whole, on `machines`: each
+machine's connection state, its tasks stamped with their origin, and the engine
+state, worktree changes and token chips its daemon pushes. Clients
+(`machines/feed.ts`) merge that with their local tasks and hold no connection.
+Remote verbs and terminals use the machine's local socket paths, which the
+daemon's tunnel keeps up.
+
+The hub runs only while some client subscribes to `machines`, and stops 15 s
+after the last one leaves. A hub connects to another machine's daemon as a
+`gui` (so that daemon stays up while someone looks) but without `machines` in
+its channel filter, so two machines registered to each other never keep each
+other's hubs, and daemons, up.
 
 ## Not covered
 

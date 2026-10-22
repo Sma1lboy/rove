@@ -143,9 +143,9 @@ export interface LiveRowSignals {
   gates(): readonly ActiveGate[]
   /** The daemon's `row.status` (`RowStatusFeed`): every row's status and its tabs'; null before the first answer. */
   rowStatus?(): RowStatuses | null
-  /** Tasks of the other registered machines (`MachineHub`), each stamped with its `origin`. */
+  /** Tasks of the other registered machines (`MachineFeed`, from the daemon's hub), each stamped with its `origin`. */
   remote?(): readonly SerializedTask[]
-  /** What those machines' daemons push about their tasks (`MachineHub.liveSignal`). */
+  /** What those machines' daemons push about their tasks (`MachineFeed.liveSignal`). */
   remoteLive?(): {
     readonly activity: ReadonlyMap<string, ActivityEntry>
     readonly changes: WorktreeChangesMap | null

@@ -1,5 +1,5 @@
 /**
- * The process's one {@link MachineHub} — a module singleton so it isn't threaded
+ * The process's one {@link MachineFeed} — a module singleton so it isn't threaded
  * through every component to the sidebar. Absent by default: every read then
  * answers "no machines" (pane hosts, test renders).
  */
@@ -8,11 +8,11 @@ import { useSyncExternalStore } from "react"
 import type { RemoteOrchestrator } from "../client/remote-orchestrator.ts"
 import type { MachineLayerEntry } from "../tui/panes/sidebar/machine-layer.ts"
 import type { Task } from "../types/task.ts"
-import type { MachineHub } from "./hub.ts"
+import type { MachineFeed } from "./feed.ts"
 
-let hub: MachineHub | null = null
+let hub: MachineFeed | null = null
 
-export function setMachineHub(next: MachineHub | null): void {
+export function setMachineHub(next: MachineFeed | null): void {
   hub = next
 }
 

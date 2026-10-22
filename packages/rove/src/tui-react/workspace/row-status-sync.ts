@@ -120,7 +120,7 @@ export function acceptRemoteActivity(
   publish()
 }
 
-/** Follow a hub's relay (`MachineHub.liveSignal`); returns the unsubscribe. */
+/** Follow a hub's relay (`MachineFeed.liveSignal`); returns the unsubscribe. */
 export function followRemoteActivity(live: {
   get(): {
     readonly activity: ReadonlyMap<string, RelayedActivity>

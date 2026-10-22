@@ -44,6 +44,11 @@ export interface DaemonRuntimeAdapter {
    * verb on to that machine's daemon; `route.forwarded` marks a call that
    * already crossed one, which never moves again.
    */
+  /**
+   * Connect the registered machines and publish them on `machines`, following
+   * the registry on `state`. Returns stop(). Absent in test doubles.
+   */
+  startMachineHub?(bus: Pick<import("./event-bus.ts").DaemonEventBus, "publish" | "onPublish">): () => void
   invokeApi?(
     verb: string,
     params: ApiParams,
