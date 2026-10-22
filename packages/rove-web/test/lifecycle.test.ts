@@ -21,6 +21,13 @@ class Renderer {
   onWriteParsed() {
     return { dispose() {} }
   }
+  onKey() {
+    return { dispose() {} }
+  }
+  parser = {
+    registerCsiHandler: () => ({ dispose() {} }),
+    registerEscHandler: () => ({ dispose() {} }),
+  }
   options = {}
   onData() {
     return { dispose() {} }
@@ -291,7 +298,7 @@ function terminals() {
     },
   )
   const { client, calls } = protocol()
-  const el = { addEventListener() {}, removeEventListener() {} } as unknown as HTMLElement
+  const el = { addEventListener() {}, removeEventListener() {}, style: {} } as unknown as HTMLElement
   const mount = (tab: string) =>
     mountTerminal({
       client,
