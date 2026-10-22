@@ -122,3 +122,26 @@ test("the client's own engine activity lights nothing: only the daemon's row sta
   await new Promise((r) => setTimeout(r, SETTLE))
   expect(spinnerCells(await frame())).toBe(0)
 })
+
+test("a materializing row shows how far its checkout got, beside the spinner", async () => {
+  tabsByTask.clear()
+  jobs(["s1", "s2"])
+  const { frame } = await renderComponent(
+    <SidebarTree
+      tasks={SIBLINGS}
+      selectedId="s1"
+      selectedTabId={null}
+      onSelect={() => {}}
+      focused={true}
+      width={30}
+      taskJobs={new Map([["s1", { kind: "ensureWorktree" as const, progress: 42 }]])}
+    />,
+    { width: 30, height: 20 },
+  )
+  await new Promise((r) => setTimeout(r, SETTLE))
+  const text = await frame()
+  const row = text.split("\n").find((line) => line.includes("42%"))
+  expect(row && [...row].some((ch) => SPINNER.has(ch))).toBe(true)
+  // A job git has not reported a percent for yet shows the spinner alone.
+  expect(text.split("%").length - 1).toBe(1)
+})

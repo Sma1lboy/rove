@@ -62,6 +62,8 @@ export {
  */
 export interface TaskJobState {
   readonly kind: "ensureWorktree"
+  /** The checkout's whole percent, once git reports one. */
+  readonly progress?: number
 }
 
 /** Bounded description (type + 120-char prefix) of a dropped payload for `client.log`. */

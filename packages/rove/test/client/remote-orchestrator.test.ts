@@ -203,6 +203,15 @@ describe("RemoteOrchestrator channel handling", () => {
       expect(orch.taskJobsSignal()().size).toBe(0)
     })
 
+    it("carries the checkout percent, and a bare running frame keeps it", () => {
+      const { client, emit } = fakeClient()
+      const orch = new RemoteOrchestrator(client)
+      emit("task.jobs", { taskId: "t1", kind: "ensureWorktree", phase: "running", progress: 37 })
+      // A second caller joining the same add publishes `running` with no percent.
+      emit("task.jobs", { taskId: "t1", kind: "ensureWorktree", phase: "running" })
+      expect(orch.taskJobsSignal()().get("t1")).toEqual({ kind: "ensureWorktree", progress: 37 })
+    })
+
     it("a replayed terminal phase for an untracked task is a true no-op (no map churn)", () => {
       const { client, emit } = fakeClient()
       const orch = new RemoteOrchestrator(client)

@@ -120,6 +120,10 @@ export function WorktreeTreeRow(props: {
   const rollupMark = rowStatusGlyph(showGlyph ? rollup : undefined, glyphs)
   const spinning = showGlyph && rollupMark.spinning
   const frame = useSpinnerFrame(spinning)
+  // A slow checkout says how far it got, beside its spinner.
+  const checkoutPercent =
+    rollup?.kind === "busy" && rollup.reason === "job" ? shared.taskJobs?.get(task.id)?.progress : undefined
+  const checkoutText = checkoutPercent === undefined ? null : `${checkoutPercent}%`
   // Rides beside the branch label, not in place of it: a failed deletion
   // leaves the branch, and rows all reading "delete failed" are unusable.
   const deletionWord =
@@ -136,6 +140,7 @@ export function WorktreeTreeRow(props: {
     // A plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
+    (checkoutText ? clusterCells(checkoutText) : 0) +
     (remote ? clusterCells(glyphs.remote) : 0) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
@@ -192,6 +197,11 @@ export function WorktreeTreeRow(props: {
           </text>
         ) : null}
         <MoveChip rowId={props.rowId} shared={shared} />
+        {checkoutText ? (
+          <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+            {checkoutText}
+          </text>
+        ) : null}
         {/* The right edge, as Claude Desktop's list: a job or deletion spinner, then the cloud of a task elsewhere. */}
         {showGlyph ? (
           <text

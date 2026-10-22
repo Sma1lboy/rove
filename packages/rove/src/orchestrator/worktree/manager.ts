@@ -17,6 +17,7 @@ import type { ExecHost } from "../../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
 import { parseDirtyPaths } from "../dirty-paths.ts"
+import { checkoutProgressReader } from "./checkout-progress.ts"
 import { type CloneIgnoredDeps, cloneIgnoredDirs, defaultCloneDeps, regenerableDirNames } from "./clone-ignored.ts"
 import { type ExecCtx, type WorktreeExecDeps, defaultExecDeps } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
@@ -68,7 +69,7 @@ export class GitWorktreeManager implements WorktreeManager {
     // Read-only probes must not compete with an engine's commit for
     // `.git/index.lock`; the flag wins over caller env.
     const env = opts.readOnly ? { ...opts.env, ...READ_ONLY_GIT_ENV } : opts.env
-    const r = await exec.run(["git", ...args], { cwd: opts.cwd, env })
+    const r = await exec.run(["git", ...args], { cwd: opts.cwd, env, onStderr: opts.onStderr })
     const result: GitRunResult = { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode }
     if (result.exitCode !== 0 && !opts.allowFail) {
       throw new GitCommandError(args, opts.cwd, result)
@@ -79,8 +80,15 @@ export class GitWorktreeManager implements WorktreeManager {
    * `baseRef` (anything `worktree add -b <new> <path> <baseRef>` accepts,
    * default HEAD) applies only to a fresh branch; an existing branch ignores
    * it rather than being moved onto a new base. See {@link createForTask}.
+   * `onProgress` gets the checkout's whole percents while `worktree add` runs.
    */
-  async create(repo: string, branch: string, worktreePath: string, baseRef?: string): Promise<WorktreeInfo> {
+  async create(
+    repo: string,
+    branch: string,
+    worktreePath: string,
+    baseRef?: string,
+    onProgress?: (percent: number) => void,
+  ): Promise<WorktreeInfo> {
     const ctx = this.ctxFor(repo)
     requireAbsolute("repo", ctx.dir)
     requireAbsolute("path", worktreePath)
@@ -110,7 +118,10 @@ export class GitWorktreeManager implements WorktreeManager {
         ? ["worktree", "add", "-b", branch, worktreePath, baseRef]
         : ["worktree", "add", "-b", branch, worktreePath]
 
-    await this.runGit(ctx.exec, args, { cwd: ctx.dir })
+    await this.runGit(ctx.exec, args, {
+      cwd: ctx.dir,
+      ...(onProgress ? { onStderr: checkoutProgressReader(onProgress) } : {}),
+    })
 
     // Fail here, not at the first downstream `currentBranch()`.
     const info = await this.tryDescribe(ctx, worktreePath)
@@ -134,13 +145,14 @@ export class GitWorktreeManager implements WorktreeManager {
     slug: string
     branch: string
     baseRef?: string
+    onProgress?: (percent: number) => void
   }): Promise<WorktreeInfo> {
     // Remote: under its basePath, not the local `~/.rove/worktrees`.
     const basePath = this.execDeps.remoteBasePath(args.repo)
     const target = basePath ? remoteWorktreePathFor(basePath, args.slug) : worktreePathFor(args.repo, args.slug)
     const ctx = this.ctxFor(args.repo)
     const skipClone = ctx.remote || (await ctx.exec.exists(target))
-    const info = await this.create(args.repo, args.branch, target, args.baseRef)
+    const info = await this.create(args.repo, args.branch, target, args.baseRef, args.onProgress)
     if (!skipClone) await cloneIgnoredDirs(ctx.exec, args.repo, info.path, this.cloneDeps(ctx.exec))
     return info
   }

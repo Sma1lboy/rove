@@ -255,6 +255,23 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       ])
     })
 
+    it("publishes the checkout's percents as running frames before done", async () => {
+      const { ctx, rec } = fakeCtx({
+        ensureWorktree: async (id: string, opts?: { onProgress?: (percent: number) => void }) => {
+          opts?.onProgress?.(40)
+          opts?.onProgress?.(100)
+          return `/worktrees/${id}`
+        },
+      })
+      await dispatch("task.ensureWorktree", { taskId: "t1" }, ctx)
+      expect(rec.published.map((p) => p.payload)).toEqual([
+        { taskId: "t1", kind: "ensureWorktree", phase: "running" },
+        { taskId: "t1", kind: "ensureWorktree", phase: "running", progress: 40 },
+        { taskId: "t1", kind: "ensureWorktree", phase: "running", progress: 100 },
+        { taskId: "t1", kind: "ensureWorktree", phase: "done" },
+      ])
+    })
+
     it("publishes task.jobs running → error (with the message) when the orchestrator throws, and rethrows", async () => {
       const { ctx, rec } = fakeCtx({
         ensureWorktree: async () => {
