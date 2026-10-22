@@ -289,8 +289,8 @@ button:focus-visible,
   align-items: center;
   gap: 4px;
   margin: 6px 8px 4px;
-  font: 700 12px var(--mono);
-  color: var(--muted);
+  font: 600 11px var(--mono);
+  color: var(--subtle);
 }
 
 .project-toggle {
@@ -702,6 +702,7 @@ button:focus-visible,
 .task-row > .row-title {
   flex: 1 1 auto;
   min-width: 0;
+  font-size: 14px;
 }
 .task-row > .chips {
   margin-left: auto;
