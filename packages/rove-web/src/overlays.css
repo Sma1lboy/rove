@@ -570,6 +570,8 @@ div.placeholder p {
 
 .update-chip {
   color: var(--warning);
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .release-notes h2 {

@@ -185,15 +185,18 @@ button:focus-visible,
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--line);
 }
 
+/* One line, whatever the rail's width: the wordmark left, the inbox count and the update arrow right. */
 .rail-head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   padding: 14px 14px 10px;
+  white-space: nowrap;
+}
+.rail-head .wordmark {
+  margin-right: auto;
 }
 
 .rail-body {
