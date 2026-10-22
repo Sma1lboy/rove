@@ -41,7 +41,7 @@ import {
   reportMissingNote,
 } from "./inbox-item-view"
 import { readInboxVisits } from "./inbox-visits"
-import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
+import { activeTabIdFor, knownTaskTab, tabsRevision, taskTabExists } from "./terminal-tabs-shared"
 
 /** Episodes the owner may drop. An open decision is answered, never dismissed; one answered while
  *  the engine was away can be closed, since no answer will ever deliver it. */
@@ -209,13 +209,15 @@ export function AttentionInboxPane(props: {
   const dimensions = useTerminalSize()
   const [cursor, setCursor] = useState(0)
   const [now, setNow] = useState(() => Date.now())
+  // Tab existence comes from the daemon's tabs (`tabs-sync.ts`), not the kv: recompute on its revision.
+  const tabsRev = useAccessor(tabsRevision)
   const { availableItems } = useMemo(
     () =>
       // Tri-state, same predicate as the host's partition: "don't know" is not "gone".
       partitionAttentionInboxAvailability(props.items, props.tasks, (taskId, tabId) =>
         taskTabExists(props.kv, taskId, tabId),
       ),
-    [props.items, props.tasks, props.kv],
+    [props.items, props.tasks, props.kv, tabsRev],
   )
   // Every episode is pending (opening removes it), so ATTENTION always leads.
   // Unavailable targets hide here; the Workspace host dismisses them. RECENT
@@ -232,7 +234,7 @@ export function AttentionInboxPane(props: {
         visits,
         tabExists: (taskId, tabId) => taskTabExists(props.kv, taskId, tabId),
       }),
-    [availableItems, props.tasks, props.selectedId, selectedTabId, visits, props.kv],
+    [availableItems, props.tasks, props.selectedId, selectedTabId, visits, props.kv, tabsRev],
   )
   const attentionCount = rows.filter((row) => row.kind === "attention").length
   const anyRunning = rows.some(
