@@ -129,6 +129,8 @@ export interface OrchestratorSignals {
   readonly engineLifecycleAcc: ReadableState<EngineLifecycleMap>
   readonly setEngineLifecycleSig: (next: EngineLifecycleMap) => void
   readonly setUiPrefsSig: (next: UiPrefsPayload | null) => void
+  /** `state`: the shared state file minus `terminalTabs.*`, whole. */
+  readonly setSharedStateSig: (next: Readonly<Record<string, unknown>>) => void
   readonly setKeybindingsRevSig: (next: number | null) => void
   readonly setConnectionState: (next: DaemonConnectionState) => void
 }

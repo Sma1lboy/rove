@@ -107,6 +107,7 @@ export class RemoteOrchestrator {
   private readonly uiPromptAcc = createStateCell<UiPromptPayload | null>(null)
   private readonly engineLifecycleAcc = createStateCell<EngineLifecycleMap>(new Map())
   private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
+  private readonly sharedStateAcc = createStateCell<Readonly<Record<string, unknown>> | null>(null)
   private readonly keybindingsRevAcc = createStateCell<number | null>(null)
   private readonly connectionStateAcc = createStateCell<DaemonConnectionState>("online", "orchestrator.connection")
   /** Set once, by the reconnect loop giving up — see {@link staleInstallSignal}. */
@@ -181,6 +182,7 @@ export class RemoteOrchestrator {
       engineLifecycleAcc: this.engineLifecycleAcc,
       setEngineLifecycleSig: this.engineLifecycleAcc.set,
       setUiPrefsSig: this.uiPrefsAcc.set,
+      setSharedStateSig: this.sharedStateAcc.set,
       setKeybindingsRevSig: this.keybindingsRevAcc.set,
       setConnectionState: this.connectionStateAcc.set,
     }
@@ -386,6 +388,8 @@ export class RemoteOrchestrator {
   readonly uiPrefsSignal = (): ReadableState<UiPrefsPayload | null> => this.uiPrefsAcc
 
   readonly uiPrefsStore = (): ExternalStore<UiPrefsPayload | null> => this.uiPrefsAcc
+  /** The daemon's `state` push; null until the first one. */
+  readonly sharedStateSignal = (): ReadableState<Readonly<Record<string, unknown>> | null> => this.sharedStateAcc
 
   readonly keybindingsRevSignal = (): ReadableState<number | null> => this.keybindingsRevAcc
 

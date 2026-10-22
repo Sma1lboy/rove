@@ -120,6 +120,7 @@ export const DAEMON_CHANNELS = [
   "gates",
   "ui-prefs",
   "keybindings",
+  "state",
   "task.jobs",
   "task.tokens",
   "worktree.changes",

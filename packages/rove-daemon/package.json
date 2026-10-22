@@ -91,6 +91,7 @@
     "./daemon/terminal-colors": "./src/daemon/terminal-colors.ts",
     "./daemon/terminal-modes": "./src/daemon/terminal-modes.ts",
     "./daemon/transcript-activity-collector": "./src/daemon/transcript-activity-collector.ts",
+    "./daemon/state-watcher": "./src/daemon/state-watcher.ts",
     "./daemon/ui-prefs-watcher": "./src/daemon/ui-prefs-watcher.ts",
     "./daemon/web-token": "./src/daemon/web-token.ts",
     "./daemon/worktree-paths": "./src/daemon/worktree-paths.ts",

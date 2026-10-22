@@ -34,7 +34,7 @@ import { createHostImeOutput } from "../../tui/lib/ime-anchor-output"
 import { type PersistedUiPrefs, readPersistedUiPrefs } from "../../tui/lib/persisted-ui-prefs"
 import { installScreenSelfHeal } from "../../tui/lib/screen-refresh"
 import { FocusProvider } from "../context/focus"
-import { KVProvider } from "../context/kv"
+import { KVProvider, useOptionalKV } from "../context/kv"
 import { KvWriteErrorToasts } from "../context/kv-write-error-toasts"
 import { NotificationsProvider } from "../context/notifications"
 import {
@@ -104,6 +104,8 @@ const themeTarget: UiPrefsTarget = {
  * after unmount is disposed on the spot.
  */
 function UiPrefsSync() {
+  // `follow` is the core's, stable for the provider's life.
+  const follow = useOptionalKV()?.follow
   useEffect(() => {
     let disposed = false
     let orch: RemoteOrchestrator | null = null
@@ -111,7 +113,7 @@ function UiPrefsSync() {
     void (async () => {
       const remote = await connectPaneOrchestrator({
         logTag: "ui-prefs",
-        channels: ["ui-prefs", "keybindings"],
+        channels: follow ? ["ui-prefs", "keybindings", "state"] : ["ui-prefs", "keybindings"],
       })
       if (!remote) return
       if (disposed) {
@@ -129,6 +131,16 @@ function UiPrefsSync() {
       const prefsStore = remote.uiPrefsStore()
       applyPrefs(prefsStore.get())
       disposers.push(prefsStore.subscribe(() => applyPrefs(prefsStore.get())))
+
+      if (follow) {
+        const shared = remote.sharedStateSignal()
+        const adopt = () => {
+          const state = shared.get()
+          if (state) follow(state)
+        }
+        adopt()
+        disposers.push(shared.subscribe(adopt))
+      }
 
       const revStore = remote.keybindingsRevStore()
       // The first rev is the boot replay, already applied by applyUserKeybindings.
@@ -148,7 +160,7 @@ function UiPrefsSync() {
       for (const dispose of disposers) dispose()
       orch?.dispose()
     }
-  }, [])
+  }, [follow])
   return null
 }
 

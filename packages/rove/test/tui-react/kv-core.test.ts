@@ -360,6 +360,22 @@ describe("createKvCore", () => {
     expect(readState(home)).toEqual({ other: "x", sound: "on" })
   })
 
+  it("follow() adopts another process's write from the daemon push, keeping unflushed edits, tab keys and per-window layout", () => {
+    vi.useFakeTimers()
+    isolatedHome({ disabledEngineIds: [], "terminalTabs.t1": { tabs: [] }, "sidebar.collapsed": false })
+    const kv = createKvCore()
+    kv.set("diffComments.t1", ["mine"])
+    kv.follow({ disabledEngineIds: ["codex"], savedRepos: ["/b"], "sidebar.collapsed": true })
+    expect(kv.snapshot()).toEqual({
+      disabledEngineIds: ["codex"],
+      savedRepos: ["/b"],
+      "diffComments.t1": ["mine"],
+      "terminalTabs.t1": { tabs: [] },
+      // Another window's rail fold stays its own.
+      "sidebar.collapsed": false,
+    })
+  })
+
   it("keeps pending writes off an invalid file until repair, across debounce and exit flushes", () => {
     vi.useFakeTimers()
     const home = isolatedHome({ activeTheme: "tokyonight", keep: 42 })
