@@ -42,6 +42,8 @@ export interface RowStatusDeps {
   readonly readEpisode: (taskId: string, tabId: string | null, at: number) => Promise<unknown>
   /** True while some full client (a TUI, the bridge) is attached: poll the host faster. */
   readonly anyGui: () => boolean
+  /** The task's tab ids as the tab store holds them; null when it has no record. A closed tab drops out. */
+  readonly tabIdsOf?: (taskId: string) => readonly string[] | null
   readonly now?: () => number
 }
 
@@ -133,6 +135,8 @@ export class RowStatusStore {
       this.tasks = (payload as { tasks?: SerializedTask[] }).tasks ?? []
       return true
     }
+    // A closed tab leaves the tab store: its row goes with it (`tabIdsOf`).
+    if (channel === "tabs.changed") return true
     if (channel === "task.jobs") {
       const p = payload as { taskId?: string; phase?: string }
       if (typeof p.taskId !== "string") return false
@@ -202,6 +206,9 @@ export class RowStatusStore {
           if (tabId) tabIds.add(tabId)
         }
       }
+      // A tab the tab store no longer lists is closed: its ledger and inbox leftovers are not a row.
+      const listed = this.deps.tabIdsOf?.(task.id)
+      if (listed) for (const tabId of [...tabIds]) if (!listed.includes(tabId)) tabIds.delete(tabId)
       const tabs: Record<string, TabStatus> = {}
       for (const tabId of tabIds) {
         const key = tabKey(task.id, tabId)

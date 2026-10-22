@@ -156,6 +156,7 @@ async function startOwnedServer(
     listSessions: createActivityObserverIo(options.homeDir, runtime, activity).listSessions,
     readEpisode: (taskId, tabId, at) => inbox.markRead(taskId, tabId, at),
     anyGui: () => lifetime.guiCount() > 0,
+    tabIdsOf: (taskId) => stores.tabs.get(taskId).state?.tabs.map((tab) => tab.id) ?? null,
   })
   resources.defer(() => rowStatus.close())
   resources.defer(() => deletions.drain())

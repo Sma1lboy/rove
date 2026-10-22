@@ -71,7 +71,7 @@ describe("one glyph mapping for every client", () => {
 })
 
 describe("the store", () => {
-  function harness(sessions: StatusSession[] = []) {
+  function harness(sessions: StatusSession[] = [], tabIdsOf?: (taskId: string) => readonly string[] | null) {
     vi.useFakeTimers()
     const sinks = new Set<(e: { channel: string; payload: unknown }) => void>()
     const published: { tasks: Record<string, unknown>; rev: number }[] = []
@@ -93,6 +93,7 @@ describe("the store", () => {
       readEpisode: async (taskId, tabId) => void reads.push(`${taskId}:${tabId}`),
       anyGui: () => true,
       now: () => 1000,
+      ...(tabIdsOf ? { tabIdsOf } : {}),
     })
     const emit = (channel: string, payload: unknown) => bus.publish(channel, payload)
     emit("task.snapshot", { tasks: [{ id: "t", repo: "/r" }] })
@@ -135,6 +136,22 @@ describe("the store", () => {
     store.dropClient(7)
     await flush()
     expect(latest().tabs["tab-1"]?.kind).toBe("unseen")
+    store.close()
+    vi.useRealTimers()
+  })
+
+  it("a tab the tab store no longer lists drops out of the row, whatever the ledger still holds", async () => {
+    let listed = ["tab-1", "tab-2"]
+    const { store, emit, latest, flush } = harness([], () => listed)
+    emit("engine-state", { taskId: "t", tabId: "tab-1", state: "running", at: 10 })
+    emit("engine-state", { taskId: "t", tabId: "tab-2", state: "error", at: 11 })
+    await flush()
+    expect(Object.keys(latest().tabs).sort()).toEqual(["tab-1", "tab-2"])
+    listed = ["tab-1"]
+    emit("tabs.changed", { taskId: "t", state: null, rev: 2, at: 12 })
+    await flush()
+    expect(Object.keys(latest().tabs)).toEqual(["tab-1"])
+    expect(latest().task.kind).toBe("running")
     store.close()
     vi.useRealTimers()
   })

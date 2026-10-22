@@ -6,10 +6,11 @@
  * and the mobile clients only map the result to their own glyphs
  * (`rove/src/lib/row-status-glyph.ts`).
  *
- * Precedence, highest first (the TUI sidebar's, `tui/panes/sidebar/row-view.ts`):
- * a task-level job or deletion → an attention state (rate limited, error, dead,
- * a freeze-restored session) → running → needs input (unless just answered) →
- * a finished turn nobody has looked at → idle.
+ * One tab's state, highest first: a freeze-restored session or an attention
+ * state (rate limited, error, dead) → running → needs input (unless just
+ * answered) → a finished turn nobody has looked at → idle. The task row: a job
+ * or deletion, else its most urgent tab, ranked attention → needs input →
+ * running → unseen → idle (a question outranks a sibling that is still working).
  */
 
 import type { TaskActivityState } from "./contracts.ts"

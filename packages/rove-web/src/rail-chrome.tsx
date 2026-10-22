@@ -123,11 +123,11 @@ export function FoldedRail({
           {group.tasks.flatMap((task) => {
             const tabs = style === "hairline" ? [] : (allTabs[task.id] ?? [])
             // A task whose tabs are known folds to one cell per tab: its `ctrl+<N>` digit in the colour of
-            // the tab's own status (pushed with the row); a quiet live tab reads as ink, a dead one muted.
+            // the tab's own status (pushed with the row); a quiet tab is muted, as in the TUI's folded rail.
             if (tabs.length > 0) {
               return tabs.map((tab, i) => {
                 const { tone } = statusGlyph(tabStatusOf(task, tab), frame, glyphs)
-                const cell = tone !== "muted" ? tone : tab.alive === false ? "muted" : "ink"
+                const cell = tone
                 return (
                   <button
                     type="button"
