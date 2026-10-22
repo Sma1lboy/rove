@@ -95,11 +95,306 @@
   padding: 8px 0 2px;
 }
 
-.hook-rows {
+/* Settings → Engines: one row per engine, its facts in a detail area under it. */
+.eng-list {
   display: flex;
-  gap: 18px;
-  padding: 10px 4px;
-  font: 12px var(--mono);
+  flex-direction: column;
+}
+
+.eng-list-head,
+.eng-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px 72px;
+  align-items: center;
+  gap: 12px;
+}
+
+.eng-list-head {
+  padding: 0 4px 6px 30px;
+  border-bottom: 1px solid var(--line);
+  font: 500 10px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--subtle);
+}
+
+.eng-list-head span:not(:first-child) {
+  text-align: center;
+}
+
+.eng-item {
+  border-bottom: 1px solid var(--line);
+}
+
+.eng-row {
+  padding: 4px 4px 4px 0;
+  border-radius: var(--radius-sm);
+}
+
+.eng-row:hover {
+  background: var(--hover);
+}
+
+.eng-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 0 6px 6px;
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+
+.eng-chevron {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--subtle);
+  transition: transform 120ms ease;
+}
+
+.eng-item.is-open .eng-chevron {
+  transform: rotate(90deg);
+  color: var(--muted);
+}
+
+.eng-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.eng-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eng-sub {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--subtle);
+}
+
+.eng-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.eng-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--subtle);
+}
+
+.eng-status.is-ready .eng-dot {
+  background: var(--success);
+}
+.eng-status.is-attention .eng-dot {
+  background: var(--warning);
+}
+.eng-status.is-error .eng-dot {
+  background: var(--error);
+}
+.eng-status.is-error {
+  color: var(--error);
+}
+
+.eng-item.is-off .eng-name {
+  color: var(--muted);
+}
+
+.eng-default {
+  display: flex;
+  justify-content: center;
+}
+
+.eng-pill {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: 500 11px var(--sans);
+  text-transform: capitalize;
+}
+
+.eng-make-default {
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.eng-row:hover .eng-make-default,
+.eng-row:focus-within .eng-make-default {
+  opacity: 1;
+}
+
+.eng-make-default:hover {
+  color: var(--ink);
+  border-color: var(--line-active);
+}
+
+/* The on/off switch: a track and a knob, accent when on. */
+.switch {
+  position: relative;
+  justify-self: center;
+  width: 30px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.switch[aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch[aria-checked="true"] .switch-knob {
+  transform: translateX(12px);
+  background: var(--paper);
+}
+
+.eng-detail-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 4px 10px 28px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+}
+
+.eng-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 14px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.eng-facts dt {
+  color: var(--subtle);
+}
+
+.eng-facts dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.eng-facts dd.tone-warning {
+  color: var(--warning);
+}
+
+.eng-actions,
+.eng-rename,
+.eng-integrations-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eng-rename .input {
+  flex: 1;
+  padding: 5px 8px;
+}
+
+.eng-action {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.eng-action:hover {
+  border-color: var(--line-active);
+  background: var(--hover);
+}
+
+.eng-integrations {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.eng-integrations-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.eng-integrations-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.eng-integrations-actions {
+  margin-top: 4px;
+}
+
+.eng-integrations-actions .button {
+  padding: 5px 12px;
+  font: 500 12px var(--sans);
+}
+
+.eng-facts dd span {
+  display: block;
+}
+
+.eng-uptodate {
+  font-size: 12px;
+  color: var(--success);
+}
+
+.eng-summary:focus-visible,
+.switch:focus-visible,
+.eng-action:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eng-chevron,
+  .switch,
+  .switch-knob,
+  .eng-make-default {
+    transition: none;
+  }
 }
 
 .confirm-inline {

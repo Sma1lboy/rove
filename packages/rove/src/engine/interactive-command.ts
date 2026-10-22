@@ -58,6 +58,18 @@ export function humanizeSlug(id: string): string {
 }
 
 /**
+ * The name an engine had before the user renamed it, or `undefined` when the
+ * `override` is blank or just the seeded default (a custom engine added with
+ * no name is seeded with its humanized id, which is not a rename).
+ */
+export function engineRenamedFrom(vendor: VendorId, override: string): string | undefined {
+  const name = override.trim()
+  const base = engineEntry(vendor).displayName
+  if (!name || name === base || name === humanizeSlug(vendor)) return undefined
+  return base
+}
+
+/**
  * Built-in default launch argv (undefined → claude). A custom engine's
  * command is its `engineCommand.<id>` override, read first by
  * {@link interactiveEngineCommand}; if that is empty the registry runs a bare

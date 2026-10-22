@@ -1,23 +1,26 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings → Engines: configure AND inspect each engine in one two-line card.
- * The navigable line has the switch, ● default marker, name and launch
- * command; the muted line has detection results (binary, and login for
- * built-ins). Accounts deliberately share this section rather than a second
- * list of the same names.
+ * Settings → Engines: one line per engine (name, a plain-language status with
+ * a coloured dot, the `available` and `default` marks), the facts of the
+ * focused engine below the list, then Rove's engine integrations (the
+ * activity hooks) as their own block. Accounts share this section rather than
+ * a second list of the same names.
  */
 
-import { TextAttributes } from "@opentui/core"
-import type { ReactNode } from "react"
-import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
+import { type RGBA, TextAttributes } from "@opentui/core"
+import { useRef } from "react"
+import { type EngineHealthTone, engineHealth, engineLogin } from "../../../engine/engine-health"
+import type { EngineStatus } from "../../../engine/engine-status"
 import type { EngineIntegration } from "../../../engine/integration-status"
 import { displayWidth } from "../../../lib/display-width"
-import { tildify } from "../../../lib/path-home"
 import type { VendorId } from "../../../types/task"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import type { SectionCursorProps } from "./rows"
-import { EngineIntegrationLine } from "./sections-engines-integration"
+import { EngineDetails } from "./sections-engines-details"
+
+/** Cap on the name column so one long custom name doesn't push every status right. */
+const NAME_MAX = 22
 
 export function EngineSettingsSection(
   props: SectionCursorProps & {
@@ -26,17 +29,19 @@ export function EngineSettingsSection(
     statuses: readonly EngineStatus[] | null
     /** Display label for a vendor — custom name override, else VENDOR_LABEL. */
     displayName: (vendor: VendorId) => string
+    /** The registry name when the user renamed the engine (muted subtitle). */
+    renamedFrom: (vendor: VendorId) => string | undefined
     /** Current launch command shown for a vendor (override or default). */
     commandText: (vendor: VendorId) => string
-    /** Whether the engine is fully at its built-in default (dims it). */
-    isDefault: (vendor: VendorId) => boolean
-    /** True for a user-added engine (shown with a `(custom)` tag; `x` removes it). */
+    /** True when the launch command is the user's own. */
+    hasCommandOverride: (vendor: VendorId) => boolean
+    /** True for a user-added engine (`x` removes it). */
     isCustom: (vendor: VendorId) => boolean
     /** Built-in adapter a CUSTOM engine borrows; `undefined` = the generic one. */
     engineProtocol: (vendor: VendorId) => VendorId | undefined
     /** False for an engine switched off — kept here, not offered for new tasks. */
     isEnabled: (vendor: VendorId) => boolean
-    /** True for the DEFAULT engine for new tasks (the ● marker; set with `d`). */
+    /** True for the DEFAULT engine for new tasks (set with `d`). */
     isDefaultEngine: (vendor: VendorId) => boolean
     /** Open the editor for a vendor's launch command (`enter`). */
     editEngine: (vendor: VendorId) => void
@@ -65,26 +70,63 @@ export function EngineSettingsSection(
   const isBodyCursor = (row: number) => props.level === "body" && props.bodyRow === row
   const byVendor = new Map((props.statuses ?? []).map((s) => [s.vendor, s]))
   const integrationByVendor = new Map((props.integrations ?? []).map((row) => [row.vendor, row]))
-  // Shared name column so commands line up; capped so one long custom name
-  // doesn't push every command right.
-  const nameWidth = Math.min(
-    16,
-    props.vendors.reduce((max, v) => Math.max(max, displayWidth(props.displayName(v))), 0),
-  )
-  const padName = (name: string): string => name + " ".repeat(Math.max(0, nameWidth - displayWidth(name)))
-  /**
-   * Protocol chip, CUSTOM engines only (built-in/contrib engines ARE their
-   * protocol). An undeclared custom engine silently gets the generic adapter:
-   * no transcript reader, account detection or resume.
-   */
-  const protocolChip = (vendor: VendorId): { label: string; declared: boolean } | undefined => {
-    if (!props.isCustom(vendor)) return undefined
-    const declared = props.engineProtocol(vendor)
-    return {
-      label: t("settings.engines.protocolRow", { protocol: declared ?? t("settings.engines.protocolGeneric") }),
-      declared: declared !== undefined,
-    }
+
+  // The details follow the cursor; off an engine row (the add/install rows,
+  // the sidebar) they keep showing the engine last focused, so stepping down
+  // to "Install" still shows what it will fix.
+  const lastFocused = useRef<VendorId | undefined>(undefined)
+  const cursorVendor = props.level === "body" ? props.vendors[props.bodyRow] : undefined
+  if (cursorVendor) lastFocused.current = cursorVendor
+  const focused =
+    lastFocused.current && props.vendors.includes(lastFocused.current) ? lastFocused.current : props.vendors[0]
+
+  const health = (vendor: VendorId) => {
+    const status = byVendor.get(vendor)
+    const integration = integrationByVendor.get(vendor)
+    return engineHealth({
+      binaryFound: props.statuses === null ? undefined : (status?.binary.found ?? null),
+      login: engineLogin(status),
+      hooks: integration ? (integration.hooksSupported ? integration.hookState : "unsupported") : "unsupported",
+      configIssue: integration?.configIssue,
+      commandChosen: props.isCustom(vendor) || props.hasCommandOverride(vendor),
+    })
   }
+  const toneColor = (tone: EngineHealthTone): RGBA =>
+    tone === "ready"
+      ? theme.success
+      : tone === "attention"
+        ? theme.warning
+        : tone === "error"
+          ? theme.error
+          : theme.textMuted
+
+  const nameText = (vendor: VendorId): string => props.displayName(vendor)
+  const subText = (vendor: VendorId): string => {
+    const from = props.renamedFrom(vendor)
+    if (from) return ` (${from})`
+    return props.isCustom(vendor) ? ` (${t("settings.engines.customTag")})` : ""
+  }
+  const nameWidth = Math.min(
+    NAME_MAX,
+    props.vendors.reduce((max, v) => Math.max(max, displayWidth(nameText(v) + subText(v))), 0),
+  )
+  const rows = props.vendors.map((vendor) => ({ vendor, health: health(vendor) }))
+  const statusWidth = rows.reduce((max, r) => Math.max(max, displayWidth(t(r.health.key))), 0)
+  const pad = (text: string, width: number): string => text + " ".repeat(Math.max(0, width - displayWidth(text)))
+  const availableLabel = t("settings.engines.available")
+  const offLabel = t("settings.engines.off")
+  const markWidth = Math.max(displayWidth(availableLabel), displayWidth(offLabel))
+  const defaultLabel = t("settings.engines.defaultMark")
+
+  // An engine whose CLI is not on this machine has nothing to install into:
+  // it neither counts toward the total nor keeps "Install" lit.
+  const present = (vendor: VendorId) => byVendor.get(vendor)?.binary.found !== false
+  const installCount = props.needsHookInstall.filter(present).length
+  const removeCount = props.hooksInstalled.length
+  const hookable = (props.integrations ?? []).filter((row) => row.hooksSupported && present(row.vendor))
+  const hookTotal = hookable.length
+  const hookCurrent = hookable.filter((row) => row.hookState === "installed").length
+
   return (
     <box flexDirection="column" gap={1}>
       <text fg={theme.text} attributes={TextAttributes.BOLD}>
@@ -94,93 +136,80 @@ export function EngineSettingsSection(
         {t("settings.engines.hint")}
       </text>
       <box flexDirection="column" gap={0}>
-        {props.vendors.map((vendor, i) => {
+        {rows.map(({ vendor, health: h }, i) => {
           const isCursor = isBodyCursor(i)
           const enabled = props.isEnabled(vendor)
-          // A switched-off engine reads as inert: no accent anywhere, name and
-          // command dimmed to the same muted tone as its detection line.
-          const nameFg = isCursor ? theme.selectedListItemText : enabled ? theme.text : theme.textMuted
-          const commandFg = isCursor
-            ? theme.selectedListItemText
-            : !enabled || props.isDefault(vendor)
-              ? theme.textMuted
-              : theme.accent
+          const isDefault = props.isDefaultEngine(vendor)
+          const on = (idle: RGBA): RGBA => (isCursor ? theme.selectedListItemText : idle)
+          const name = nameText(vendor)
+          const sub = subText(vendor)
+          // The name keeps its room; only the subtitle gives way when the column caps.
+          const subFits = displayWidth(name + sub) <= nameWidth ? sub : ""
           return (
-            // Cursor-follow registers the whole two-line card, so the detection
-            // line scrolls into view with the cursor line.
-            <box key={vendor} flexDirection="column" gap={0} ref={props.rowRef(i)}>
-              <box
-                flexDirection="row"
-                gap={1}
-                paddingLeft={1}
-                paddingRight={1}
-                overflow="hidden"
-                backgroundColor={isCursor ? theme.primary : undefined}
-                onMouseUp={() => {
-                  props.setLevel("body")
-                  props.setBodyRow(i)
-                  props.editEngine(vendor)
-                }}
-              >
-                {/* Two 3-cell hit zones, different shapes on purpose: `[x]` is
-                    a checkbox (this engine is offered at all), `(●)` is a radio
-                    (exactly one engine is the default for new tasks). Both wide
-                    enough to click; a bare glyph is a one-cell target sitting
-                    next to another one-cell target.
-
-                    `stopPropagation` on both: opentui bubbles to the parent,
-                    and the row's own handler opens the launch-command editor —
-                    without it a click on either control fires two actions. */}
-                <text
-                  fg={isCursor ? theme.selectedListItemText : enabled ? theme.text : theme.textMuted}
-                  wrapMode="none"
-                  onMouseUp={(evt: { stopPropagation(): void }) => {
-                    evt.stopPropagation()
-                    props.setLevel("body")
-                    props.setBodyRow(i)
-                    props.toggleEngine(vendor)
-                  }}
-                >
-                  {enabled ? "[x]" : "[ ]"}
+            <box
+              key={vendor}
+              ref={props.rowRef(i)}
+              flexDirection="row"
+              gap={2}
+              paddingLeft={1}
+              paddingRight={1}
+              overflow="hidden"
+              backgroundColor={isCursor ? theme.primary : undefined}
+              onMouseUp={() => {
+                props.setLevel("body")
+                props.setBodyRow(i)
+                props.editEngine(vendor)
+              }}
+            >
+              <box flexDirection="row" flexShrink={1} overflow="hidden">
+                <text fg={on(enabled ? theme.text : theme.textMuted)} attributes={TextAttributes.BOLD} wrapMode="none">
+                  {name}
                 </text>
-                <text
-                  fg={
-                    isCursor
-                      ? theme.selectedListItemText
-                      : props.isDefaultEngine(vendor)
-                        ? theme.accent
-                        : theme.textMuted
-                  }
-                  attributes={TextAttributes.BOLD}
-                  wrapMode="none"
-                  onMouseUp={(evt: { stopPropagation(): void }) => {
-                    evt.stopPropagation()
-                    props.setLevel("body")
-                    props.setBodyRow(i)
-                    props.chooseDefault(vendor)
-                  }}
-                >
-                  {props.isDefaultEngine(vendor) ? "(●)" : "( )"}
+                {/* An empty <text> still takes a cell, so it is left out when there is nothing to pad. */}
+                {displayWidth(name) < nameWidth || subFits ? (
+                  <text fg={on(theme.textMuted)} wrapMode="none">
+                    {pad(subFits, nameWidth - displayWidth(name))}
+                  </text>
+                ) : null}
+              </box>
+              <box flexDirection="row" gap={1} flexShrink={0}>
+                <text fg={on(toneColor(h.tone))} wrapMode="none">
+                  ●
                 </text>
-                <text fg={nameFg} attributes={TextAttributes.BOLD} wrapMode="none">
-                  {padName(props.displayName(vendor))}
-                </text>
-                {/* No "(default)" tag on an untouched command: the ● column
-                    already spends the word "default" on the engine choice, and
-                    two of them in one row read as one claim. Dimming says it. */}
-                <text fg={commandFg} wrapMode="none" flexShrink={1}>
-                  {props.commandText(vendor) + (props.isCustom(vendor) ? t("settings.engines.customTag") : "")}
+                <text fg={on(enabled ? theme.text : theme.textMuted)} wrapMode="none">
+                  {pad(t(h.key), statusWidth)}
                 </text>
               </box>
-              <EngineStatusLine
-                status={byVendor.get(vendor) ?? null}
-                probing={props.statuses === null}
-                protocol={protocolChip(vendor)}
-              />
-              <EngineIntegrationLine
-                integration={integrationByVendor.get(vendor) ?? null}
-                binaryFound={byVendor.get(vendor)?.binary.found}
-              />
+              {/* Both marks are click targets of a fixed width, so the
+                  columns stay put. `stopPropagation`: opentui bubbles to the
+                  row, whose own click opens the launch-command editor. */}
+              <text
+                fg={on(enabled ? theme.text : theme.textMuted)}
+                wrapMode="none"
+                flexShrink={0}
+                onMouseUp={(evt: { stopPropagation(): void }) => {
+                  evt.stopPropagation()
+                  props.setLevel("body")
+                  props.setBodyRow(i)
+                  props.toggleEngine(vendor)
+                }}
+              >
+                {pad(enabled ? availableLabel : offLabel, markWidth)}
+              </text>
+              <text
+                fg={on(isDefault ? theme.accent : theme.textMuted)}
+                attributes={isDefault ? TextAttributes.BOLD : 0}
+                wrapMode="none"
+                flexShrink={0}
+                onMouseUp={(evt: { stopPropagation(): void }) => {
+                  evt.stopPropagation()
+                  props.setLevel("body")
+                  props.setBodyRow(i)
+                  props.chooseDefault(vendor)
+                }}
+              >
+                {pad(isDefault ? defaultLabel : "", displayWidth(defaultLabel))}
+              </text>
             </box>
           )
         })}
@@ -201,143 +230,104 @@ export function EngineSettingsSection(
             {t("settings.engines.addEngine")}
           </text>
         </box>
-        {/* Install and remove, side by side. Always both present, even with
-            nothing to do: a button that appears only when something is broken
-            is a button nobody knows exists, and both actions are idempotent by
-            contract. Two cursor stops on one line — j/k walks them, enter
-            fires the one under the cursor, so neither needs a chord. */}
+      </box>
+      {focused ? (
+        <EngineDetails
+          name={props.displayName(focused)}
+          status={byVendor.get(focused) ?? null}
+          probing={props.statuses === null}
+          integration={integrationByVendor.get(focused) ?? null}
+          commandText={props.commandText(focused)}
+          commandIsOwn={props.isCustom(focused) || props.hasCommandOverride(focused)}
+          protocol={props.isCustom(focused) ? { declared: props.engineProtocol(focused) ?? null } : undefined}
+        />
+      ) : null}
+      {/* Engine integrations: what they are, how many are in, and the two
+          actions. Both always present, even with nothing to do: a button
+          that appears only when something is broken is one nobody knows
+          exists, and both actions are idempotent. Two cursor stops on one
+          line — j/k walks them, enter fires the one under the cursor. */}
+      <box flexDirection="column" gap={0}>
+        <box flexDirection="row" gap={2} paddingLeft={1}>
+          <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
+            {t("settings.engines.integrations.title")}
+          </text>
+          {props.integrations ? (
+            <text fg={theme.textMuted} wrapMode="none">
+              {t("settings.engines.integrations.summary", {
+                installed: String(hookCurrent),
+                total: String(hookTotal),
+              })}
+            </text>
+          ) : null}
+        </box>
+        <box paddingLeft={1} paddingRight={1}>
+          <text fg={theme.textMuted} wrapMode="word">
+            {t("settings.engines.integrations.hint")}
+          </text>
+        </box>
         <box flexDirection="row" gap={2} paddingLeft={1} paddingRight={1}>
-          <box
-            ref={props.rowRef(addRowIndex + 1)}
-            flexDirection="row"
-            backgroundColor={isBodyCursor(addRowIndex + 1) ? theme.primary : undefined}
-            onMouseUp={() => {
+          <IntegrationButton
+            rowRef={props.rowRef(addRowIndex + 1)}
+            cursor={isBodyCursor(addRowIndex + 1)}
+            live={installCount > 0}
+            label={
+              installCount > 0
+                ? t("settings.engines.integrations.install", { count: String(installCount) })
+                : t("settings.engines.integrations.upToDate")
+            }
+            onPress={() => {
               props.setLevel("body")
               props.setBodyRow(addRowIndex + 1)
               props.onInstallHooks()
             }}
-          >
-            <text
-              fg={
-                isBodyCursor(addRowIndex + 1)
-                  ? theme.selectedListItemText
-                  : props.needsHookInstall.length > 0
-                    ? theme.primary
-                    : theme.textMuted
-              }
-              wrapMode="none"
-            >
-              {props.needsHookInstall.length > 0
-                ? t("settings.engines.installHooks", { count: String(props.needsHookInstall.length) })
-                : t("settings.engines.installHooksDone")}
-            </text>
-          </box>
-          <box
-            ref={props.rowRef(addRowIndex + 2)}
-            flexDirection="row"
-            backgroundColor={isBodyCursor(addRowIndex + 2) ? theme.primary : undefined}
-            onMouseUp={() => {
+          />
+          <IntegrationButton
+            rowRef={props.rowRef(addRowIndex + 2)}
+            cursor={isBodyCursor(addRowIndex + 2)}
+            live={removeCount > 0}
+            label={
+              removeCount > 0
+                ? t("settings.engines.integrations.remove", { count: String(removeCount) })
+                : t("settings.engines.integrations.noneInstalled")
+            }
+            onPress={() => {
               props.setLevel("body")
               props.setBodyRow(addRowIndex + 2)
               props.onUninstallHooks()
             }}
-          >
-            <text
-              fg={
-                isBodyCursor(addRowIndex + 2)
-                  ? theme.selectedListItemText
-                  : props.hooksInstalled.length > 0
-                    ? theme.text
-                    : theme.textMuted
-              }
-              wrapMode="none"
-            >
-              {props.hooksInstalled.length > 0
-                ? t("settings.engines.uninstallHooks", { count: String(props.hooksInstalled.length) })
-                : t("settings.engines.uninstallHooksDone")}
-            </text>
-          </box>
+          />
         </box>
       </box>
+      <box paddingLeft={1}>
+        <text fg={theme.textMuted} wrapMode="word">
+          {t("settings.engines.keys")}
+        </text>
+      </box>
     </box>
   )
 }
 
-/**
- * Muted second line of an engine card: binary path, plus login state only for
- * engines with an account detector ("not logged in" elsewhere would be a guess).
- */
-function EngineStatusLine(props: {
-  status: EngineStatus | null
-  probing: boolean
-  /** Custom engines only — which adapter this preset borrows. */
-  protocol?: { label: string; declared: boolean }
+function IntegrationButton(props: {
+  rowRef: ReturnType<SectionCursorProps["rowRef"]>
+  cursor: boolean
+  live: boolean
+  label: string
+  onPress: () => void
 }) {
   const { theme } = useTheme()
-  const t = useT()
-  const s = props.status
-  // In BOTH branches: the protocol needs no probe, so it must not blink in later.
-  const protocol = props.protocol ? (
-    <text fg={props.protocol.declared ? theme.accent : theme.textMuted} wrapMode="none">
-      {props.protocol.label}
-    </text>
-  ) : null
-  if (!s)
-    return (
-      <box flexDirection="row" gap={1} paddingLeft={6} overflow="hidden">
-        {protocol}
-        <text fg={theme.textMuted}>{props.probing ? t("settings.accounts.checking") : " "}</text>
-      </box>
-    )
   return (
-    // Login first: when the line doesn't fit, the path is what shrinks.
-    // `overflow="hidden"` + `wrapMode="none"` clip instead of overdrawing.
-    <box flexDirection="row" gap={1} paddingLeft={6} overflow="hidden">
-      {protocol}
-      {s.account === null ? null : <AccountLine account={s.account} />}
-      {s.accountError ? (
-        <text fg={theme.warning} wrapMode="none">
-          {`! ${s.accountError}`}
-        </text>
-      ) : null}
-      <text fg={s.binary.found ? theme.textMuted : theme.warning} wrapMode="none" flexShrink={1}>
-        {(s.account === null ? "" : "· ") +
-          (s.binary.found ? tildify((s.binary as { path: string }).path) : (s.binary as { error: string }).error)}
+    <box
+      ref={props.rowRef}
+      flexDirection="row"
+      paddingLeft={1}
+      paddingRight={1}
+      backgroundColor={props.cursor ? theme.primary : theme.backgroundElement}
+      onMouseUp={props.onPress}
+    >
+      <text fg={props.cursor ? theme.selectedListItemText : props.live ? theme.text : theme.textMuted} wrapMode="none">
+        {props.label}
       </text>
     </box>
   )
-}
-
-/** The resolved login line for any built-in engine's account shape. */
-function AccountLine({ account }: { account: EngineAccount }): ReactNode {
-  const { theme } = useTheme()
-  const t = useT()
-  if (account.kind === "oauth") {
-    // Claude's oauth carries an identity; copilot's and kimi's don't.
-    if (!("email" in account))
-      return (
-        <text fg={theme.success} wrapMode="none">
-          {t("settings.accounts.detected")}
-        </text>
-      )
-    // Billing type only: a personal account's org name is derived from the
-    // email already shown, and the row is shared with the binary path.
-    const tail = account.billingType
-    return (
-      <text fg={theme.success} wrapMode="none" flexShrink={1}>
-        {t("settings.accounts.loggedIn", { email: account.email }) + (tail ? ` (${tail})` : "")}
-      </text>
-    )
-  }
-  if (account.kind === "chatgpt") {
-    return (
-      <text fg={theme.success} wrapMode="none" flexShrink={1}>
-        {t("settings.accounts.chatgptLogin", { email: account.email }) + (account.plan ? ` (${account.plan})` : "")}
-      </text>
-    )
-  }
-  if (account.kind === "apikey") return <text fg={theme.success}>{t("settings.accounts.apiKeyConfigured")}</text>
-  if (account.kind === "token")
-    return <text fg={theme.success}>{t("settings.accounts.tokenConfigured", { source: account.source })}</text>
-  return <text fg={theme.textMuted}>{t("settings.accounts.notLoggedIn")}</text>
 }

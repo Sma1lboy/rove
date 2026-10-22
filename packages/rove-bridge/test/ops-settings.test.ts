@@ -258,6 +258,19 @@ describe("engines.settings", () => {
     expect(result.engines.find((e) => e.id === "claude")?.login).toBe("yes")
     expect(result.engines.find((e) => e.id === "codex")?.login).toBe("unknown")
   })
+
+  test("names what a renamed engine was called, and nothing for a seeded custom name", async () => {
+    const { ops } = engineHarness({
+      customEngineIds: ["my-agent"],
+      "engineName.my-agent": "My Agent",
+      "engineName.codex": "Work Codex",
+    })
+    const { result } = await run<{ engines: { id: string; renamedFrom: string | null }[] }>(ops, "engines.settings", {})
+    const by = (id: string) => result.engines.find((e) => e.id === id)?.renamedFrom
+    expect(by("codex")).toBe("Codex")
+    expect(by("claude")).toBeNull()
+    expect(by("my-agent")).toBeNull()
+  })
 })
 
 describe("engine switches keep the section's invariants", () => {

@@ -59,8 +59,9 @@ describe("SettingsDialog", () => {
     // Engines now carries what was the Accounts section: each engine's row is
     // followed by what detection found for it.
     text = await press("j") // → Engines
-    expect(text).toContain("Every engine Rove can launch")
-    expect(text).toMatch(/\[x\]/) // the on/off switch column
+    expect(text).toContain("Engines Rove can start on this machine")
+    expect(text).toMatch(/Claude\s+● .*available/) // one line per engine: name, status, the on/off mark
+    expect(text).toContain("Engine integrations")
     text = await press("j") // → Auto routing
     expect(text).toContain("Routing by depth: a task says how deep the work is")
     // The rows, not the verdict: whether claude is logged in is a fact about

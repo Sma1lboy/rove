@@ -1,13 +1,18 @@
 /** @jsxImportSource @opentui/react */
 import { describe, expect, it } from "bun:test"
 import { useState } from "react"
-import { EngineIntegrationLine } from "../../src/tui-react/component/settings-dialog/sections-engines-integration"
+import { EngineDetails } from "../../src/tui-react/component/settings-dialog/sections-engines-details"
 import { act, renderComponent } from "./harness"
 
 describe("hook setup guidance", () => {
   it("does not present written hooks as trusted", async () => {
     const { frame } = await renderComponent(
-      <EngineIntegrationLine
+      <EngineDetails
+        name="Codex"
+        status={null}
+        probing={false}
+        commandText="codex"
+        commandIsOwn={false}
         integration={{
           vendor: "codex",
           hooksSupported: true,
