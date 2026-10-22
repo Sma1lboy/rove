@@ -232,3 +232,22 @@ export async function loadNodePty(): Promise<typeof import("node-pty") | null> {
     return null
   }
 }
+
+/**
+ * Change a task's tabs the way every client must: through the daemon's tab store, which outlives
+ * the TUI and is the only writer of `terminalTabs.*` (an edit of state.json behind its back is
+ * overwritten). Ops as `tabs.apply` takes them (`rove-daemon/src/daemon/tabs-ops.ts`).
+ */
+export async function applyTabOps(
+  env: BehaviorEnv,
+  taskId: string,
+  ops: readonly Record<string, unknown>[],
+): Promise<void> {
+  const { RoveDaemonClient } = await import("@sma1lboy/rove-daemon/client")
+  const daemon = new RoveDaemonClient(defaultDaemonSocketPath(env.home))
+  try {
+    await daemon.request("tabs.apply", { taskId, ops })
+  } finally {
+    daemon.close()
+  }
+}
