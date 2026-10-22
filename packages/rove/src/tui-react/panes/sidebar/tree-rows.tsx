@@ -49,16 +49,7 @@ import { ShimmerLabel } from "../../lib/shimmer-label"
 import { useGlyphs } from "../../lib/use-glyphs"
 import { useTaskColor } from "../../lib/use-task-color"
 import { useTabRowStatus, useTaskRowStatus } from "../../workspace/row-status-sync"
-import {
-  ChangeStats,
-  UNKNOWN_CHANGES_MARK,
-  completionStampOf,
-  useChanges,
-  useClockTick,
-  useDonePulse,
-  usePollOnClock,
-  useSpinnerFrame,
-} from "./row-cards"
+import { completionStampOf, useClockTick, useDonePulse, usePollOnClock, useSpinnerFrame } from "./row-cards"
 import { MoveChip, RowShell, type TreeRowShared, clusterCells, treeLabelBudget } from "./tree-row-shell"
 
 /** Cells of the title a remote row's cursor caption must leave standing. */
@@ -89,7 +80,7 @@ function statusAgeLabel(status: RowStatus | undefined): string | null {
  * With no tab list under it (`tabsListed` false), the row stands for the
  * whole task and shows the daemon's rollup, as the folded rail does.
  *
- * A task on ANOTHER machine (`remote`) wears a cloud after its title — muted
+ * A task on ANOTHER machine (`remote`) wears a cloud at the row's right edge — muted
  * while that machine is online, warning-toned (and the title greyed) while it
  * is offline, connecting or mismatched. Under the cursor the cloud also says
  * where: `on <host> · <state>`. Machines are not sections; this mark is the
@@ -112,7 +103,6 @@ export function WorktreeTreeRow(props: {
   const glyphs = useGlyphs()
   const shared = props.shared
   const task = props.task
-  const changes = useChanges(shared, task)
   const chip = prChip(task, glyphs)
   // Named by BRANCH (`worktreeRowLabel`). Main checkouts and directory/scratch
   // tasks store none and move freely, so they poll their own HEAD.
@@ -149,12 +139,6 @@ export function WorktreeTreeRow(props: {
     (remote ? clusterCells(glyphs.remote) : 0) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
-    // The unknown mark replaces the whole ↑/+/−/↓ cluster.
-    (changes === null ? clusterCells(UNKNOWN_CHANGES_MARK) : 0) +
-    ((changes?.ahead ?? 0) > 0 ? clusterCells(`↑${changes?.ahead}`) : 0) +
-    ((changes?.added ?? 0) > 0 ? clusterCells(`+${changes?.added}`) : 0) +
-    ((changes?.deleted ?? 0) > 0 ? clusterCells(`−${changes?.deleted}`) : 0) +
-    ((changes?.behind ?? 0) > 0 ? clusterCells(`↓${changes?.behind}`) : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   // The cursor's caption takes what the title leaves (the title keeps up to
   // REMOTE_TITLE_CELLS), clipped with `…`, so a narrow rail never loses the branch.
@@ -168,20 +152,6 @@ export function WorktreeTreeRow(props: {
   const mark = useTaskColor(task.id)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared} mark={mark}>
-      {showGlyph ? (
-        <text
-          fg={
-            spinning
-              ? breathColor(theme.primary, theme.textMuted, frame)
-              : toneColor(theme, sidebarTone(rollupMark.tone))
-          }
-          wrapMode="none"
-          width={2}
-          flexShrink={0}
-        >
-          {`${spinning ? breathGlyph(glyphs.spinner, frame) : rollupMark.glyph} `}
-        </text>
-      ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
         {/* A row from an unreachable machine is the LAST KNOWN state, not a
             live one — it keeps its place and drops to muted rather than
@@ -195,8 +165,6 @@ export function WorktreeTreeRow(props: {
           flexShrink={1}
         >
           {truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) - 1 : 0), charWidth)}
-          {/* Inline, so the cloud sits right after the title rather than at the right edge. */}
-          {remoteText ? <span fg={remoteLive ? theme.textMuted : theme.warning}>{` ${remoteText}`}</span> : null}
         </text>
         {task.pinned === true ? (
           <text fg={theme.warning} wrapMode="none" flexShrink={0}>
@@ -218,13 +186,31 @@ export function WorktreeTreeRow(props: {
             {token.text}
           </text>
         ))}
-        <ChangeStats changes={changes} />
         {deletionWord ? (
           <text fg={deleteFailed ? theme.error : theme.textMuted} wrapMode="none" flexShrink={0}>
             {deletionWord}
           </text>
         ) : null}
         <MoveChip rowId={props.rowId} shared={shared} />
+        {/* The right edge, as Claude Desktop's list: a job or deletion spinner, then the cloud of a task elsewhere. */}
+        {showGlyph ? (
+          <text
+            fg={
+              spinning
+                ? breathColor(theme.primary, theme.textMuted, frame)
+                : toneColor(theme, sidebarTone(rollupMark.tone))
+            }
+            wrapMode="none"
+            flexShrink={0}
+          >
+            {spinning ? breathGlyph(glyphs.spinner, frame) : rollupMark.glyph}
+          </text>
+        ) : null}
+        {remoteText ? (
+          <text fg={remoteLive ? theme.textMuted : theme.warning} wrapMode="none" flexShrink={0}>
+            {remoteText}
+          </text>
+        ) : null}
       </box>
     </RowShell>
   )
