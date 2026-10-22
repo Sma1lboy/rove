@@ -470,7 +470,7 @@ rove weixin allow <user-id> # let another WeChat user send commands
 rove weixin deny <user-id>
 rove weixin logout          # remove the binding and its credentials
 rove weixin send "text"     # message the owner from a script or agent (--file, --subject, stdin)
-rove weixin agent <task-id> # plain-text messages go to this task's engine; `agent off` undoes it
+rove weixin agent           # the WeChat agent and its conversations; `agent <task-id>` uses an existing task
 ```
 
 Lets you ask for task status, message a task's agent and start tasks from
