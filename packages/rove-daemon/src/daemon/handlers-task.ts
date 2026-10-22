@@ -76,6 +76,17 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         groupId: optionalString(payload, "groupId"),
         dispatcher,
       })
+      if (dispatcher) {
+        // The first prompt rides the session launch, after this reply; the engine's first turn settles it.
+        ctx.dispatches?.record({
+          kind: "add",
+          from: dispatcher,
+          to: { taskId: task.id, tabId: "tab-1" },
+          // `add` titles the task from its prompt; the prompt itself rides the launch, past the daemon.
+          promptHead: task.title,
+          delivered: true,
+        })
+      }
       return { taskId: task.id, task: serializeTask(task) }
     },
   },

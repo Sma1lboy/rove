@@ -12,6 +12,7 @@ import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
 import { WEB_SUBPROTOCOL, browserOriginAllowed, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
+import type { DispatchFeed } from "./dispatch-feed.ts"
 import type { TaskFeed } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
 import type { NoticeFeed } from "./notices.ts"
@@ -55,6 +56,8 @@ export interface BridgeDeps {
     current(): readonly ModPaneView[]
     subscribe(listener: (panes: readonly ModPaneView[]) => void): () => void
   }
+  /** The daemon's dispatch ledger, pushed as a `dispatch` event on connect and on every change. */
+  readonly dispatches?: Pick<DispatchFeed, "current" | "subscribe">
   /** Tasks whose Terminal Tabs changed, pushed as a `tabs` event to task subscribers. */
   readonly tabs?: Pick<TabFeed, "subscribe">
   /** The daemon's row status: where `ui.viewing` and answered questions (`term.input`) are reported. */
@@ -96,6 +99,7 @@ interface Conn {
   unsubscribeNotices: (() => void) | null
   unsubscribeMods: (() => void) | null
   unsubscribePrompts: (() => void) | null
+  unsubscribeDispatches: (() => void) | null
 }
 
 async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request): Promise<unknown> {
@@ -381,6 +385,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         unsubscribeNotices: null,
         unsubscribeMods: null,
         unsubscribePrompts: null,
+        unsubscribeDispatches: null,
       }
       // A browser drops a socket whose server did not pick one of its offered protocols.
       const headers = offersWebSubprotocol(req) ? { "Sec-WebSocket-Protocol": WEB_SUBPROTOCOL } : undefined
@@ -394,6 +399,13 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         if (deps.mods) {
           ws.send(pushEvent("mods", { panes: deps.mods.current() }))
           ws.data.unsubscribeMods = deps.mods.subscribe((panes) => ws.send(pushEvent("mods", { panes })))
+        }
+        if (deps.dispatches) {
+          const now = deps.dispatches.current()
+          if (now) ws.send(pushEvent("dispatch", now))
+          ws.data.unsubscribeDispatches = deps.dispatches.subscribe((snapshot) =>
+            ws.send(pushEvent("dispatch", snapshot)),
+          )
         }
       },
       // Terminal replays reach 512 KiB raw (~700 KiB base64); leave headroom for paste.
@@ -409,6 +421,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         ws.data.unsubscribeNotices?.()
         ws.data.unsubscribeMods?.()
         ws.data.unsubscribePrompts?.()
+        ws.data.unsubscribeDispatches?.()
         ws.data.terminal?.dispose()
         for (const pending of ws.data.machineTerminals.values()) {
           pending.then(

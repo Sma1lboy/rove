@@ -33,6 +33,7 @@ import { API_HANDLERS } from "./handlers-api.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
 import { DELIVERY_HANDLERS } from "./handlers-deliveries.ts"
+import { DISPATCH_HANDLERS } from "./handlers-dispatch.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
 import { GATE_HANDLERS } from "./handlers-gates.ts"
 import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
@@ -97,6 +98,8 @@ export interface DaemonHandlerContext {
   readonly tabs?: import("./tabs-store.ts").TabsStore
   /** What every rail shows (absent in older test doubles). */
   readonly rowStatus?: import("./row-status-store.ts").RowStatusStore
+  /** Prompts sessions handed each other and how far each got (absent in older test doubles). */
+  readonly dispatches?: import("./dispatch-ledger.ts").DispatchLedger
   /** Starts deduplicated durable background deletion after RPC acceptance. */
   readonly deletions: TaskDeletionScheduler
   /** Daemon-owned issue tracker store, keyed by git common-dir. */
@@ -305,6 +308,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...GATE_HANDLERS,
     ...AUTOMATION_HANDLERS,
     ...DELIVERY_HANDLERS,
+    ...DISPATCH_HANDLERS,
     ...RUNNABILITY_HANDLERS,
     ...WORK_ITEM_HANDLERS,
     ...AGENT_TURN_HANDLERS,

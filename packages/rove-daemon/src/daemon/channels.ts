@@ -39,6 +39,7 @@ export type {
   TerminalTabClosePayload,
   UiPromptPayload,
 } from "./channels-events.ts"
+import type { DispatchSnapshot } from "./dispatch-ledger.ts"
 import type { RepoIssues } from "./issues-store.ts"
 import type { SerializedTask } from "./protocol.ts"
 import type { RowStatusPayload } from "./row-status-store.ts"
@@ -79,6 +80,8 @@ export interface ChannelPayloads {
    * change. Clients render it (`rove/src/lib/row-status-glyph.ts`); none derives a status.
    */
   "row.status": RowStatusPayload
+  /** Every in-flight prompt one session handed another, plus recent settled ones (`dispatch-ledger.ts`), whole. */
+  "dispatch.snapshot": DispatchSnapshot
   /**
    * The task last switched into, shared so every Tasks pane and the monitor
    * highlight the same focus. `null` = none yet. Set via `task.setActive`.

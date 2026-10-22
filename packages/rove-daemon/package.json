@@ -19,6 +19,7 @@
     "./daemon/tabs-ops": "./src/daemon/tabs-ops.ts",
     "./daemon/row-status": "./src/daemon/row-status.ts",
     "./daemon/row-status-store": "./src/daemon/row-status-store.ts",
+    "./daemon/dispatch-ledger": "./src/daemon/dispatch-ledger.ts",
     "./daemon/tabs-store": "./src/daemon/tabs-store.ts",
     "./daemon/pty-data-migration": "./src/daemon/pty-data-migration.ts",
     "./daemon/agent-turns-ingest": "./src/daemon/agent-turns-ingest.ts",

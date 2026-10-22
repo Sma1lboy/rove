@@ -27,6 +27,7 @@ import { renderUnicodeCompact } from "uqr"
 import { addDevice, deviceOf, listDevices, loadOrCreateToken, pairingUrl, revokeDevice, webUrl } from "./auth.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
+import { DispatchFeed } from "./dispatch-feed.ts"
 import { TaskFeed } from "./feed.ts"
 import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
@@ -173,11 +174,14 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   // daemon clears a connection's reports when it closes, so this one lives as long as the bridge.
   const statusClient = new RoveDaemonClient(daemonSocket)
   const rowStatus = new RowStatusFeed(statusClient)
+  // Same socket: like row status, it is a whole snapshot to resync after the daemon comes back.
+  const dispatches = new DispatchFeed(statusClient)
   let statusRetryMs = STATUS_RECONNECT_MS
   const syncStatus = async (): Promise<void> => {
     try {
-      await statusClient.subscribe({ channels: ["row.status"], role: "pane" })
+      await statusClient.subscribe({ channels: ["row.status", "dispatch.snapshot"], role: "pane" })
       await rowStatus.resync()
+      await dispatches.resync()
       statusRetryMs = STATUS_RECONNECT_MS
     } catch {
       // Daemon mid-restart: try again, backing off while it stays away.
@@ -271,6 +275,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     mods,
     tabs,
     rowStatus,
+    dispatches,
     deviceOf: (presented) => deviceOf(devicesPath, presented),
     openPty: () => new RoveDaemonClient(ptySocket),
     openMachinePty: async (alias) => {

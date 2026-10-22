@@ -6,6 +6,7 @@
  */
 
 import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { DISPATCH_PROMPT_HEAD_CHARS } from "@sma1lboy/rove-daemon/daemon/dispatch-ledger"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
@@ -219,9 +220,10 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   const text = deliveryId ? `${withAnswers}\n\n${deliveryFooter(deliveryId, roveApiInvocation())}` : withAnswers
   const settle = async (delivered: boolean, session?: string): Promise<void> => {
     if (claimId) await daemon.request("send.release", { claimId, delivered }).catch(() => {})
-    if (!deliveryId) return
     // The hosted session key is `<taskId>::<tabId>`.
-    const landedTab = session?.split("::")[1]
+    const landedTab = session?.split("::")[1] ?? (tab && tab !== "new" ? tab : undefined)
+    await recordSend(daemon, { taskId, tabId: landedTab, prompt, delivered, deliveryId })
+    if (!deliveryId) return
     await daemon
       .request("delivery.settle", { deliveryId, delivered, ...(landedTab ? { tabId: landedTab } : {}) })
       .catch(() => {})
@@ -293,6 +295,24 @@ export async function send(ctx: VerbContext): Promise<unknown> {
 
 const TARGET_FAILED = new Set(["error", "dead"])
 
+/** Tell the daemon's dispatch ledger about a paste it never saw; best-effort, an older daemon refuses the verb. */
+async function recordSend(
+  daemon: DaemonRpc,
+  sent: { taskId: string; tabId?: string; prompt: string; delivered: boolean; deliveryId?: string },
+): Promise<void> {
+  const self = await verifiedSelfSession().catch(() => null)
+  await daemon
+    .request("dispatch.record", {
+      taskId: sent.taskId,
+      ...(sent.tabId ? { tabId: sent.tabId } : {}),
+      promptHead: sent.prompt.slice(0, DISPATCH_PROMPT_HEAD_CHARS),
+      delivered: sent.delivered,
+      ...(sent.deliveryId ? { deliveryId: sent.deliveryId } : {}),
+      ...(self ? { fromTaskId: self.taskId, fromTabId: self.tabId } : {}),
+    })
+    .catch(() => {})
+}
+
 /** `send.admit`: either the daemon refused the tick, or it claimed the tab (and armed a delivery when one is owed). */
 interface AdmitReply {
   readonly skipped?: SkipVerdict
@@ -305,11 +325,14 @@ async function dispatch(ctx: VerbContext): Promise<unknown> {
   const taskId = ctx.args.require("task-id")
   const text = requirePromptText(ctx, "dispatch")
   const tabId = ctx.args.str("tab")
+  // The sender, for the daemon's dispatch ledger.
+  const self = await verifiedSelfSession().catch(() => null)
   const reply = (await daemon.request("session.deliver", {
     taskId,
     text,
     ...(tabId !== undefined ? { tabId } : {}),
     source: "dispatcher",
+    ...(self ? { fromTaskId: self.taskId, fromTabId: self.tabId } : {}),
   })) as { clients?: number; delivered?: boolean; reason?: string; layer?: string; tabId?: string } | undefined
   // `delivered: true` is OBSERVED (a paste landed in a live engine). `false`
   // means refused (busy composer) or broadcast, where `clients` is a raw

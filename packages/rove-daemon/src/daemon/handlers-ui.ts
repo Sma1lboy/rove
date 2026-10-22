@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto"
 import { samePath } from "../path-identity.ts"
 import type { ChannelName } from "./channels.ts"
 import { objectPayload, optionalBoolean, optionalString, requireNumber, requireString } from "./handler-validators.ts"
+import { senderOf } from "./handlers-dispatch.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { displayTaskTitle } from "./protocol.ts"
 
@@ -62,6 +63,18 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
           ...(tabId !== undefined ? { tabId } : {}),
           at: Date.now(),
           source: source ?? "dispatcher",
+        })
+      }
+      if (source !== "note") {
+        ctx.dispatches?.record({
+          kind: "dispatch",
+          from: senderOf(payload),
+          to: { taskId, tabId: "tabId" in outcome ? outcome.tabId : (tabId ?? null) },
+          promptHead: text,
+          delivered: outcome.outcome === "delivered",
+          ...(outcome.outcome === "delivered"
+            ? {}
+            : { reason: outcome.outcome === "no-session" ? "broadcast" : outcome.outcome }),
         })
       }
       ctx.plugins?.handleUiReport({

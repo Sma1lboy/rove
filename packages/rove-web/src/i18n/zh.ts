@@ -128,6 +128,23 @@ export const zh: typeof en = {
     start: "开始",
     promptPlaceholder: "可选；留空则直接打开引擎，不发消息",
   },
+  dispatch: {
+    nav: "调度",
+    title: "调度",
+    hint: "会话之间互派的消息 · 点一行打开目标 · q 关闭",
+    inFlight: "进行中",
+    recent: "最近",
+    empty: "还没有派发",
+    emptyHint: "agent 用 rove api send、add、dispatch 派活，或 routine 触发时会出现在这里",
+    you: "你",
+    status: {
+      delivered: "已送达",
+      working: "干活中",
+      asking: "在提问",
+      done: "完成",
+      failed: "失败",
+    },
+  },
   inbox: {
     title: "收件箱",
     hints: "↑↓ 移动 · enter 打开 · d 清除 · esc 关闭",

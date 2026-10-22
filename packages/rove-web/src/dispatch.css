@@ -1,0 +1,188 @@
+/* Dispatch page (dispatch-view.tsx) */
+
+.dp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.dp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dp-section .kicker {
+  margin: 0 0 4px;
+}
+
+.dp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 0;
+  text-align: center;
+}
+
+.dp-empty p {
+  margin: 0;
+}
+
+.dp-lane,
+.dp-past {
+  display: grid;
+  align-items: center;
+  column-gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dp-lane:hover,
+.dp-past:hover {
+  background: var(--hover);
+}
+
+.dp-lane {
+  grid-template-columns: minmax(0, 18ch) minmax(16ch, 1fr) minmax(0, 18ch) 11ch;
+  grid-template-areas:
+    "from track to status"
+    ". prompt prompt prompt";
+  row-gap: 2px;
+}
+
+.dp-lane > .dp-end:first-child {
+  grid-area: from;
+  text-align: right;
+}
+
+.dp-lane > .dp-end:nth-child(3) {
+  grid-area: to;
+}
+
+.dp-lane > .dp-status {
+  grid-area: status;
+}
+
+.dp-lane > .dp-prompt {
+  grid-area: prompt;
+}
+
+.dp-end,
+.dp-route,
+.dp-prompt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.dp-prompt {
+  font-family: var(--sans);
+}
+
+/* The lane: a path the courier runs along. The rail is the track minus one sprite width,
+   so translateX(100%) of it puts the courier's left edge where its body touches the target. */
+.dp-track {
+  grid-area: track;
+  position: relative;
+  min-width: 0;
+  height: calc(3 * 1.15em);
+  font-size: 12px;
+  background: linear-gradient(var(--line), var(--line)) left 72% / 100% 1px no-repeat;
+}
+
+.dp-rail {
+  position: absolute;
+  inset: 0 4ch 0 0;
+  transition: transform 160ms linear;
+}
+
+.dp-sprite {
+  display: block;
+  white-space: pre;
+  width: 4ch;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.15;
+  /* JetBrains Mono joins `<|` and `|>` into arrows; the courier's limbs are separate strokes. */
+  font-variant-ligatures: none;
+  color: var(--accent);
+  background: var(--paper);
+}
+
+.dp-sprite.is-ask,
+.dp-sprite.is-knock {
+  color: var(--warning);
+}
+
+.dp-sprite.is-failed {
+  color: var(--error);
+}
+
+.dp-empty .dp-sprite {
+  color: var(--subtle);
+  background: transparent;
+}
+
+.dp-status {
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.dp-status.is-working {
+  color: var(--accent);
+}
+
+.dp-status.is-asking {
+  color: var(--warning);
+}
+
+.dp-status.is-failed {
+  color: var(--error);
+}
+
+.dp-status.is-done {
+  color: var(--success);
+}
+
+.dp-past {
+  grid-template-columns: 2ch minmax(0, auto) minmax(0, 1fr) auto;
+  padding: 3px 8px;
+}
+
+.dp-age {
+  font-size: 11px;
+}
+
+/* Phone width: the lane stacks its names over the track. */
+@media (max-width: 560px) {
+  .dp-lane {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "from status"
+      "track track"
+      "to to"
+      "prompt prompt";
+  }
+
+  .dp-lane > .dp-end:first-child {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-rail {
+    transition: none;
+  }
+}
