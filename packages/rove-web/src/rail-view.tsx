@@ -1,7 +1,7 @@
 /** The Tasks rail: wordmark + inbox count, then project → task → tab rows (TUI `tree-panel`). */
 
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
-import type { MouseEvent } from "react"
+import type { DragEvent, HTMLAttributes, MouseEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { markHintUsed } from "./hint-state.ts"
@@ -10,14 +10,23 @@ import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace, railFolded } from "./layout.ts"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
-import { moveMode } from "./move-mode.ts"
+import { moveMode, moveTaskBy } from "./move-mode.ts"
 import { NewTaskDialog } from "./new-task-dialog.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import { type NavRow, anySpinning, needsPerson, railRows, repoLabel, tabRowGlyph, taskRowGlyph } from "./rail.ts"
+import {
+  type NavRow,
+  anySpinning,
+  dragSteps,
+  needsPerson,
+  railRows,
+  repoLabel,
+  tabRowGlyph,
+  taskRowGlyph,
+} from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
@@ -102,6 +111,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     onNewTask: (repo, machine) => dialog.set(<NewTaskDialog model={model} repo={repo} machine={machine} />),
     onSettings: () => dialog.set(<SettingsDialog model={model} />),
   })
+  const drag = useRowDrag(model, tasks, filters.sort === "default" && !filters.search.active, projectInfo)
   const total = stops(build("").rows).length
   const rail = useRef<HTMLElement>(null)
   const folded = useStore(railFolded) && !narrow
@@ -179,6 +189,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             cursor={row.id === keys.cursor}
             stale={row.machine !== undefined && offline.has(row.machine)}
             collapsed={row.kind === "project" && filters.collapsed.has(row.id)}
+            drag={drag.props(row)}
+            dropTarget={drag.over?.id === row.id ? drag.over.side : null}
             onNewTask={
               row.kind === "project"
                 ? () => dialog.set(<NewTaskDialog model={model} repo={row.repo} machine={row.machine} />)
@@ -245,6 +257,10 @@ function RailRow(props: {
   moving: boolean
   /** Its machine is unreachable: the last known state, greyed (TUI `task.origin.stale`). */
   stale: boolean
+  /** Drag-to-reorder handlers, on a row that can move. */
+  drag?: DragProps
+  /** A dragged row would land here, taking this row's place from above or below. */
+  dropTarget: "above" | "below" | null
   /** A project header whose rows are folded away. */
   collapsed?: boolean
   /** A project header's +: a new task in that project. */
@@ -256,12 +272,14 @@ function RailRow(props: {
   const { prefs, glyphSets } = usePrefs()
   const glyphs: GlyphSet | undefined = glyphSets[prefs.glyphSet]
   const mark = useTaskColor(row.kind === "project" || row.kind === "routines" ? null : row.task.id)
-  const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""}`
+  const drop = props.dropTarget ? `is-drop-${props.dropTarget}` : ""
+  const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""} ${drop}`
   if (row.kind === "project") {
     return (
       <h2
-        className={`project-head ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""}`}
+        className={`project-head ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""} ${drop}`}
         onContextMenu={props.onMenu}
+        {...props.drag}
       >
         <button
           type="button"
@@ -345,6 +363,7 @@ function RailRow(props: {
       title={task.branch || task.title}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
+      {...props.drag}
     >
       {markDot}
       <span className="row-title">{task.title}</span>
@@ -359,6 +378,63 @@ function RailRow(props: {
       </span>
     </button>
   )
+}
+
+type DragProps = Pick<
+  HTMLAttributes<HTMLElement>,
+  "draggable" | "onDragStart" | "onDragEnd" | "onDragOver" | "onDragLeave" | "onDrop"
+>
+
+/**
+ * Drag a project header among projects, or a task among its project's tasks (same pin), as the
+ * TUI's move mode does with keys. Only in the default sort, where the rail shows the moved order.
+ */
+function useRowDrag(
+  model: AppModel,
+  tasks: readonly TaskRow[],
+  enabled: boolean,
+  projectInfo: (repo: string) => ProjectInfo,
+) {
+  // A ref, not state: the first dragover can arrive before the dragstart's render.
+  const dragging = useRef<TaskRow | null>(null)
+  const [over, setOver] = useState<{ id: string; side: "above" | "below" } | null>(null)
+  const end = () => {
+    dragging.current = null
+    setOver(null)
+  }
+  const taskOf = (row: NavRow): TaskRow | null => {
+    if (!enabled || row.machine !== undefined) return null
+    if (row.kind === "project") return tasks.find((task) => task.id === projectInfo(row.repo).mainTaskId) ?? null
+    return row.kind === "task" && row.task.kind !== "main" ? row.task : null
+  }
+  const props = (row: NavRow): DragProps | undefined => {
+    const task = taskOf(row)
+    if (!task) return undefined
+    const steps = () => (dragging.current ? dragSteps(tasks, dragging.current, task) : null)
+    return {
+      draggable: true,
+      onDragStart: (e: DragEvent) => {
+        e.dataTransfer.effectAllowed = "move"
+        e.dataTransfer.setData("text/plain", task.id)
+        dragging.current = task
+      },
+      onDragEnd: end,
+      onDragOver: (e: DragEvent) => {
+        const n = steps()
+        if (n === null) return
+        e.preventDefault()
+        if (over?.id !== row.id) setOver({ id: row.id, side: n < 0 ? "above" : "below" })
+      },
+      onDragLeave: () => setOver((at) => (at?.id === row.id ? null : at)),
+      onDrop: (e: DragEvent) => {
+        e.preventDefault()
+        const n = steps()
+        if (dragging.current && n) void moveTaskBy(model, dragging.current.id, n)
+        end()
+      },
+    }
+  }
+  return { props, over }
 }
 
 export function tabLabel(tab: TabRow): string {

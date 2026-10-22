@@ -89,6 +89,18 @@
   color: var(--accent);
 }
 
+/* Drag to reorder: where the dragged row would land. */
+
+.row.is-drop-above,
+.project-head.is-drop-above {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.row.is-drop-below,
+.project-head.is-drop-below {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
 /* A confirm body may carry a reason after a blank line (force delete). */
 
 .taskops-body {

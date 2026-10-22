@@ -29,3 +29,13 @@ export async function moveRow(model: AppModel, row: Movable, delta: -1 | 1): Pro
     toast(tc("tasks", "toast.moveFailed", { error: err instanceof Error ? err.message : String(err) }), "error")
   }
 }
+
+/** A drop: `steps` single moves, one after another, as the daemon moves one place at a time. */
+export async function moveTaskBy(model: AppModel, taskId: string, steps: number): Promise<void> {
+  const direction = steps < 0 ? "up" : "down"
+  try {
+    for (let i = 0; i < Math.abs(steps); i++) await model.client.request("task.move", { taskId, direction })
+  } catch (err) {
+    toast(tc("tasks", "toast.moveFailed", { error: err instanceof Error ? err.message : String(err) }), "error")
+  }
+}

@@ -369,3 +369,19 @@ export function anySpinning(tasks: readonly TaskRow[]): boolean {
 export function needsPerson(task: TaskRow): boolean {
   return task.rowStatus?.kind === "needs-input" || task.rowStatus?.kind === "attention"
 }
+
+/**
+ * How many `task.move` steps take `from` to `to`'s place, in the daemon's move partition
+ * (`movePartition`): all mains (projects), or one repo's tasks with the same pin. Null across partitions.
+ */
+export function dragSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow): number | null {
+  const main = from.kind === "main"
+  const same = (task: TaskRow) =>
+    main ? task.kind === "main" : task.kind !== "main" && task.repo === from.repo && !task.pinned === !from.pinned
+  if (from.id === to.id || !same(to)) return null
+  const ids = tasks
+    .filter(same)
+    .sort((a, b) => (a.order ?? a.rank) - (b.order ?? b.rank))
+    .map((task) => task.id)
+  return ids.indexOf(to.id) - ids.indexOf(from.id)
+}
