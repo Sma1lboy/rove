@@ -7,8 +7,8 @@
  *
  * Every glyph is the daemon's row status (`row-status-sync.ts`) drawn through
  * `rowStatusGlyph`. Each tab row shows its own tab's; a worktree row shows the
- * task rollup only when its tabs are not listed under it (none known, or
- * filtered out), else only a task-level job or deletion (the rollup's `busy`).
+ * no activity glyph: status lives on its tab rows. It spins only for a
+ * task-level job or deletion (the rollup's `busy`).
  *
  * An AGENT tab row can opt in to a second cell naming the live engine
  * (`state/tab-row-height.ts`, off by default: it roughly halves how many rows
@@ -125,7 +125,8 @@ export function WorktreeTreeRow(props: {
   const deletionPhase = task.deletion?.phase
   const deleting = deletionPhase === "queued" || deletionPhase === "running"
   const deleteFailed = deletionPhase === "error"
-  const showGlyph = props.tabsListed !== true || rollup?.kind === "busy"
+  // Status lives on tab rows (the owner's rule); a task row only spins while its worktree is made or it is deleted.
+  const showGlyph = rollup?.kind === "busy"
   const rollupMark = rowStatusGlyph(showGlyph ? rollup : undefined, glyphs)
   const spinning = showGlyph && rollupMark.spinning
   const frame = useSpinnerFrame(spinning)
