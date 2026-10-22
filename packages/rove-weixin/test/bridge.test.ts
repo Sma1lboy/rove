@@ -4,7 +4,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import { REPLY_WINDOW_MS, type WeixinBridge, startWeixinBridge } from "../src/bridge.ts"
-import type { RoveOps } from "../src/commands.ts"
+import { type RoveOps, agentPrompt } from "../src/commands.ts"
+import type { NotifyingRoutine } from "../src/routines.ts"
 import { WeixinStore } from "../src/store.ts"
 import { FAKE_BOT_ID, FAKE_OWNER, FAKE_TOKEN, FakeIlink, waitFor } from "./fake-ilink.ts"
 
@@ -40,6 +41,7 @@ let fake: FakeIlink
 let store: WeixinStore
 let bridge: WeixinBridge | null
 let current: ContextPayload
+let routines: NotifyingRoutine[] = []
 let clock: number
 const logs: string[] = []
 
@@ -55,6 +57,7 @@ const ops: RoveOps = {
   gates: async () => [],
   answerGate: async () => ({ delivered: true }),
   clearReport: async () => {},
+  notifyingRoutineRuns: async () => routines,
 }
 
 function start(onUnbound?: () => void): WeixinBridge {
@@ -82,6 +85,7 @@ beforeEach(async () => {
     savedAt: "",
   })
   current = snapshot("working")
+  routines = []
   clock = Date.now()
   logs.length = 0
   bridge = null
@@ -136,6 +140,17 @@ describe("inbound", () => {
     expect(store.readUndelivered()).toEqual([])
   })
 
+  it("hands free text to the bound agent without replying, while commands still answer", async () => {
+    store.writeAccount({ ...(store.readAccount() ?? fail()), agent: { taskId: TASK } })
+    start()
+    fake.deliver({ from: FAKE_OWNER, text: "帮我看看昨天的 PR", id: "m1" })
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(send).toHaveBeenCalledWith(TASK, undefined, agentPrompt("帮我看看昨天的 PR", "rove"))
+    fake.deliver({ from: FAKE_OWNER, text: "status", id: "m2" })
+    const sends = await fake.waitForSends(1)
+    expect(sends.map((s) => s.text.split("\n")[0])).toEqual(["Nothing needs you. 1 running"])
+  })
+
   it("routes `send` to the task's engine through RoveOps", async () => {
     start()
     fake.deliver({ from: FAKE_OWNER, text: "send 0042 please rebase" })
@@ -176,6 +191,43 @@ describe("pushes", () => {
     // Announced once, not on every tick.
     await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(8))
     expect(fake.sends).toHaveLength(2)
+  })
+
+  it("pushes a --notify routine's new response and failure, never runs from before boot", async () => {
+    const run = (n: number, extra: Record<string, unknown>) => ({
+      id: `run-${n}`,
+      automationId: "r1",
+      runNumber: n,
+      scheduledFor: "2026-10-22T00:00:00.000Z",
+      trigger: "scheduled" as const,
+      at: "2026-10-22T00:00:00.000Z",
+      status: "ran" as const,
+      ...extra,
+    })
+    routines = [{ id: "r1", name: "janitor", runs: [run(1, { response: { text: "old news", at: "" } })] }]
+    start()
+    fake.deliver({ from: FAKE_OWNER, text: "help" })
+    await fake.waitForSends(1)
+    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(2))
+
+    routines = [
+      {
+        id: "r1",
+        name: "janitor",
+        runs: [
+          run(3, { status: "script_failed", error: "script exited 2" }),
+          run(2, { response: { text: "removed 3 worktrees", at: "" } }),
+          ...(routines[0]?.runs ?? []),
+        ],
+      },
+    ]
+    const sends = await fake.waitForSends(3)
+    expect(sends.slice(1).map((s) => s.text)).toEqual([
+      "[janitor] #2\nremoved 3 worktrees",
+      "[janitor] #3 script failed\nscript exited 2",
+    ])
+    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(8))
+    expect(fake.sends).toHaveLength(3)
   })
 
   it("logs instead of sending once the peer's reply window has closed", async () => {

@@ -111,7 +111,7 @@ Commands:
   api <verb>              Scriptable RPC surface for agents (see `rove api --help`)
   daemon <verb>           Manage the daemon (start|stop|status|restart)
   machine <verb>          Other computers running Rove (add|doctor|remove|list)
-  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny)
+  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny|send|agent)
   doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
   config [--path]         Open rove's config file (state.json) in your editor
   reset [--hard]          Stop runtimes; optionally wipe task/UI state
@@ -468,6 +468,8 @@ rove weixin status          # binding, allowed senders, reply windows, undeliver
 rove weixin allow <user-id> # let another WeChat user send commands
 rove weixin deny <user-id>
 rove weixin logout          # remove the binding and its credentials
+rove weixin send "text"     # message the owner from a script or agent (--file, --subject, stdin)
+rove weixin agent <task-id> # plain-text messages go to this task's engine; `agent off` undoes it
 ```
 
 Lets you ask for task status, message a task's agent and start tasks from

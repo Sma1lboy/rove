@@ -316,13 +316,15 @@ it fires with no TUI attached.
 <!-- generated:begin routine -->
 ```text
 routine-list     (none)
-routine-create   --repo(REQ) --name(REQ) --prompt|--prompt-file(REQ) --schedule(REQ)
+routine-create   --repo(REQ) --name(REQ) --prompt|--prompt-file --schedule(REQ)
                  --vendor{claude|codex|copilot|kimi|pi|omp|bob} --model --effort
-                 --base-branch --precheck --precheck-timeout(120) --grace(60)
-                 --persistent-session --target-task --target-tab --disabled
+                 --base-branch --precheck --precheck-timeout(120) --script
+                 --script-timeout(120) --notify --grace(60) --persistent-session
+                 --target-task --target-tab --disabled
 routine-update   --id(REQ) --name --prompt|--prompt-file --schedule --vendor --model
-                 --effort --base-branch --precheck --precheck-timeout(120) --grace(60)
-                 --persistent-session --target-task --target-tab --enabled
+                 --effort --base-branch --precheck --precheck-timeout(120) --script
+                 --script-timeout(120) --notify --grace(60) --persistent-session
+                 --target-task --target-tab --enabled
 routine-delete   --id(REQ)
 routine-run-now  --id(REQ)
 routine-respond  --run(REQ) --text --prompt-file

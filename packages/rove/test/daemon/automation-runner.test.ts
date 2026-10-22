@@ -114,6 +114,27 @@ describe("runAutomationOnce", () => {
     expect(store.runsFor(a.id)[0]?.precheckResult?.exitCode).toBe(1)
   })
 
+  it("runs a script routine with no task or engine; stdout is the response, a bad exit needs a human", async () => {
+    const store = await tempStore()
+    const { deps, created, prompts } = fakeDeps({ store })
+    const ok = await store.create(
+      automation({ prompt: "", script: { command: "echo removed 3 worktrees", timeoutSeconds: 10 } }),
+    )
+    const bad = await store.create(
+      automation({ prompt: "", script: { command: "echo partial; echo boom >&2; exit 2", timeoutSeconds: 10 } }),
+    )
+
+    expect(await runAutomationOnce(deps, ok, { scheduledFor: NOW, trigger: "scheduled" })).toBe("ran")
+    expect(await runAutomationOnce(deps, bad, { scheduledFor: NOW, trigger: "scheduled" })).toBe("script_failed")
+
+    expect(created).toEqual([])
+    expect(prompts).toEqual([])
+    expect(store.runsFor(ok.id)[0]?.response?.text).toBe("removed 3 worktrees")
+    const failed = store.runsFor(bad.id)[0]
+    expect(failed?.response?.text).toBe("partial")
+    expect(failed?.error).toMatch(/^script exited 2: [\s\S]*boom/)
+  })
+
   it("ignores the precheck on a manual trigger", async () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })

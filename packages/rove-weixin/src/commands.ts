@@ -19,6 +19,7 @@ import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import { ApiError } from "@sma1lboy/rove/src/cli/api/types.ts"
 import { head, renderStatus, shortId } from "./format.ts"
 import { answeredReply, parseAnswer, renderGates } from "./gates.ts"
+import type { NotifyingRoutine } from "./routines.ts"
 
 export interface TaskRef {
   readonly id: string
@@ -44,6 +45,14 @@ export interface RoveOps {
   answerGate(gateId: string, answer: { option?: string; text?: string }): Promise<{ readonly delivered: boolean }>
   /** Dismiss a `report_missing` row (`attention-dismiss --delivery`); throws DELIVERY_NOT_FOUND for an unknown id. */
   clearReport(deliveryId: string): Promise<void>
+  /** Routines created with `--notify`, each with its run history. */
+  notifyingRoutineRuns(): Promise<readonly NotifyingRoutine[]>
+}
+
+/** The agent free text goes to (`rove weixin agent <task-id> [tab-N]`). */
+export interface AgentBinding {
+  readonly taskId: string
+  readonly tab?: string
 }
 
 /** Fewer characters than this matches too many ids to be a reference. */
@@ -104,8 +113,62 @@ function failure(err: unknown): string {
   return `Failed: ${err instanceof Error ? err.message : String(err)}`
 }
 
+/** First words {@link handleCommand} answers; anything else is free text. */
+const COMMAND_WORDS = new Set([
+  "",
+  "help",
+  "h",
+  "?",
+  "帮助",
+  "status",
+  "s",
+  "ls",
+  "状态",
+  "send",
+  "add",
+  "new",
+  "gates",
+  "decisions",
+  "决定",
+  "answer",
+  "回答",
+  "clear",
+  "清除",
+])
+
+/**
+ * The prompt the bound agent sees. It names the reply verb because the bridge
+ * does not read the agent's output: the agent answers by pushing.
+ */
+export function agentPrompt(text: string, cli: string): string {
+  return `[WeChat] ${text}\n\n(From the owner on WeChat. Reply there with \`${cli} weixin send "<reply>"\` — or --file for long text — in the language they wrote in.)`
+}
+
+/**
+ * One inbound message → the reply text, or "" when the bound agent will
+ * answer by itself. Commands keep their meaning with an agent bound; only
+ * free text goes to it.
+ */
+export async function handleInbound(
+  text: string,
+  ops: RoveOps,
+  agent: AgentBinding | null,
+  cli = "rove",
+): Promise<string> {
+  const [word] = head(text)
+  if (!agent || COMMAND_WORDS.has(word.toLowerCase())) return await handleCommand(text, ops, agent !== null)
+  try {
+    const result = await ops.send(agent.taskId, agent.tab, agentPrompt(text.trim(), cli))
+    return result.started ? "Agent was not running — started it; it will reply here." : ""
+  } catch (err) {
+    return `${failure(err)}\nThe bound agent did not get your message (${CLI_HINT}).`
+  }
+}
+
+const CLI_HINT = "rebind with `rove weixin agent <task-id>` on the Rove machine"
+
 /** One inbound message → the reply text. Never throws: a failure is a reply. */
-export async function handleCommand(text: string, ops: RoveOps): Promise<string> {
+export async function handleCommand(text: string, ops: RoveOps, agentBound = false): Promise<string> {
   const [word, rest] = head(text)
   try {
     switch (word.toLowerCase()) {
@@ -114,7 +177,7 @@ export async function handleCommand(text: string, ops: RoveOps): Promise<string>
       case "h":
       case "?":
       case "帮助":
-        return HELP_TEXT
+        return agentBound ? `${HELP_TEXT}\nAnything else goes to your bound agent.` : HELP_TEXT
 
       case "status":
       case "s":
@@ -180,7 +243,7 @@ export async function handleCommand(text: string, ops: RoveOps): Promise<string>
       }
 
       default:
-        return `Unknown command "${word}".\n${HELP_TEXT}`
+        return `Unknown command "${word}".\n${HELP_TEXT}\nTo chat in plain text, bind an agent: \`rove weixin agent <task-id>\` on the Rove machine.`
     }
   } catch (err) {
     return failure(err)

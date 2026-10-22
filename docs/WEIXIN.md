@@ -82,6 +82,45 @@ Replies are kept short for a phone. A long reply is split into at most three
 messages; anything beyond that is cut and the last message says how many lines
 were dropped.
 
+## Talk to an agent in plain text
+
+By default a message that is not a command gets the command list back. Bind
+one agent and plain text goes to it instead, like chatting with an assistant:
+
+```console
+$ rove weixin agent 0042            # a task id, or the code status prints
+$ rove weixin agent 0042 tab-2      # a specific engine tab
+$ rove weixin agent                 # show the binding
+$ rove weixin agent off             # back to commands only
+```
+
+The binding lives with the WeChat binding on this machine. Commands keep their
+meaning: `status`, `send`, `gates` and the rest still answer directly, and only
+other text reaches the agent. A dead engine is started for you, the same as
+`send`.
+
+The agent receives your words prefixed with `[WeChat]` and a line telling it how
+to answer. The bridge does not read the agent's screen, so the agent replies by
+running `rove weixin send` (next section). A long-lived task works best here,
+for example a project-main or directory task you keep as your phone assistant.
+
+## Push a message from a script or agent
+
+```bash
+rove weixin send "deploy finished"
+rove weixin send --subject "[nightly]" --file report.md
+some-check | rove weixin send
+```
+
+The message goes to the owner who scanned the QR code. It follows the same
+24-hour rule as notifications (below): outside that window nothing is sent,
+the text goes to `undelivered.jsonl`, and the command exits 1. `send` talks to
+iLink itself, so it works without the daemon running.
+
+Routines can do this without a script of their own: create one with
+`--notify` and every run's response is pushed here (see
+[Routines](ROUTINES.md#tell-me-on-wechat)).
+
 ## Notifications
 
 Every 20 seconds the daemon checks every repo's tasks and messages you when a
@@ -94,6 +133,10 @@ task **moves into** one of these:
 
 - **Decision needed**: a task opened a decision. The message carries the question,
   the option keys and the line to reply with, such as `Reply: answer g-12 a`.
+
+- **Routine output**: for a routine created with `--notify`, each run's
+  response once it exists, headed `[<routine name>] #<run>`, and any run that
+  needs you (`script failed`, `dispatch failed`, …) with its error.
 
 A task has to stay in the new state for two checks in a row before you hear
 about it. A decision is announced as soon as it is seen. Tasks and decisions

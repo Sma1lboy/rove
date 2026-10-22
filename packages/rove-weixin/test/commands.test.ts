@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from "bun:test"
 import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import { ApiError } from "@sma1lboy/rove/src/cli/api/types.ts"
-import { HELP_TEXT, type RoveOps, handleCommand } from "../src/commands.ts"
+import { HELP_TEXT, type RoveOps, agentPrompt, handleCommand, handleInbound } from "../src/commands.ts"
 import { BUBBLE_CHARS, MAX_BUBBLES, toBubbles } from "../src/format.ts"
 
 type Row = ContextPayload["tasks"][number]
@@ -28,6 +28,7 @@ function fakeOps(overrides: Partial<RoveOps> = {}): RoveOps {
     gates: async () => [],
     answerGate: mock(async () => ({ delivered: true })),
     clearReport: mock(async () => {}),
+    notifyingRoutineRuns: async () => [],
     ...overrides,
   }
 }
@@ -116,7 +117,16 @@ describe("add", () => {
 
 it("answers help and unknown words with the command list", async () => {
   expect(await handleCommand("帮助", fakeOps())).toBe(HELP_TEXT)
-  expect(await handleCommand("deploy prod", fakeOps())).toBe(`Unknown command "deploy".\n${HELP_TEXT}`)
+  expect(await handleCommand("deploy prod", fakeOps())).toStartWith(`Unknown command "deploy".\n${HELP_TEXT}\n`)
+})
+
+it("with an agent bound, free text goes to it and commands keep their meaning", async () => {
+  const ops = fakeOps()
+  const agent = { taskId: "01AAAAAAAAAAAAAAAAAAQQQ999", tab: "tab-2" }
+  expect(await handleInbound("deploy prod please", ops, agent)).toBe("")
+  expect(ops.send).toHaveBeenCalledWith(agent.taskId, "tab-2", agentPrompt("deploy prod please", "rove"))
+  expect(await handleInbound("help", ops, agent)).toEndWith("Anything else goes to your bound agent.")
+  expect(ops.send).toHaveBeenCalledTimes(1)
 })
 
 describe("toBubbles", () => {

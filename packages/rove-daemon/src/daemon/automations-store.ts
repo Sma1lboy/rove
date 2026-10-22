@@ -18,7 +18,7 @@ import {
   mergeAutomationTargetOptions,
   readAutomationTarget,
 } from "./automation-target.ts"
-import type { Automation, AutomationPatch, AutomationRun } from "./contracts.ts"
+import type { Automation, AutomationPatch, AutomationPrecheck, AutomationRun } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
@@ -41,6 +41,16 @@ function str(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined
 }
 
+/** A precheck or script `{command, timeoutSeconds}`; a missing or bad timeout reads as 120. */
+function readTimedCommand(value: unknown): AutomationPrecheck | undefined {
+  if (!value || typeof value !== "object") return undefined
+  const raw = value as Partial<AutomationPrecheck>
+  const command = str(raw.command)
+  if (!command) return undefined
+  const timeoutSeconds = typeof raw.timeoutSeconds === "number" && raw.timeoutSeconds > 0 ? raw.timeoutSeconds : 120
+  return { command, timeoutSeconds }
+}
+
 function normalizeAutomation(value: unknown): Automation | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
   const raw = value as Partial<Automation>
@@ -50,7 +60,8 @@ function normalizeAutomation(value: unknown): Automation | null {
   const prompt = str(raw.prompt)
   const schedule = str(raw.schedule)
   const nextRunAt = str(raw.nextRunAt)
-  if (!id || !name || !repo || !prompt || !schedule || !nextRunAt) return null
+  const script = readTimedCommand(raw.script)
+  if (!id || !name || !repo || !(prompt || script) || !schedule || !nextRunAt) return null
   if (!Number.isFinite(Date.parse(nextRunAt))) return null
 
   let target: Automation["target"]
@@ -60,7 +71,7 @@ function normalizeAutomation(value: unknown): Automation | null {
   } catch {
     return null
   }
-  const precheckCommand = str(raw.precheck?.command)
+  const precheck = readTimedCommand(raw.precheck)
   // `lastRunAt` is the legacy on-disk spelling; read it so existing files keep the value.
   const lastOccurrenceAt = str(raw.lastOccurrenceAt ?? (value as { lastRunAt?: unknown }).lastRunAt)
   const grace = raw.missedRunGraceMinutes
@@ -69,7 +80,7 @@ function normalizeAutomation(value: unknown): Automation | null {
     id,
     name,
     repo,
-    prompt,
+    prompt: prompt ?? "",
     schedule,
     nextRunAt,
     ...(target ? { target } : {}),
@@ -78,17 +89,9 @@ function normalizeAutomation(value: unknown): Automation | null {
     ...(raw.vendor ? { vendor: raw.vendor } : {}),
     ...(str(raw.model) ? { model: raw.model } : {}),
     ...(str(raw.modelEffort) ? { modelEffort: raw.modelEffort } : {}),
-    ...(precheckCommand
-      ? {
-          precheck: {
-            command: precheckCommand,
-            timeoutSeconds:
-              typeof raw.precheck?.timeoutSeconds === "number" && raw.precheck.timeoutSeconds > 0
-                ? raw.precheck.timeoutSeconds
-                : 120,
-          },
-        }
-      : {}),
+    ...(precheck ? { precheck } : {}),
+    ...(script ? { script } : {}),
+    ...(raw.notify === true ? { notify: true } : {}),
     ...(str(raw.baseRef) ? { baseRef: raw.baseRef } : {}),
     ...(raw.persistentSession === true ? { persistentSession: true } : {}),
     ...(str(raw.sessionTaskId) ? { sessionTaskId: raw.sessionTaskId } : {}),
@@ -114,7 +117,9 @@ function normalizeRun(value: unknown): AutomationRun | null {
     raw.status !== "skipped_blocked" &&
     raw.status !== "skipped_missed" &&
     raw.status !== "skipped_unavailable" &&
-    raw.status !== "dispatch_failed"
+    raw.status !== "dispatch_failed" &&
+    raw.status !== "ran" &&
+    raw.status !== "script_failed"
   ) {
     return null
   }
@@ -289,6 +294,8 @@ export class AutomationsStore {
           : patch.precheck !== undefined
             ? { precheck: patch.precheck }
             : {}),
+        ...(patch.script === null ? { script: undefined } : patch.script !== undefined ? { script: patch.script } : {}),
+        ...(patch.notify !== undefined ? { notify: patch.notify } : {}),
         // Re-anchor, else a stale nextRunAt fires on the replaced rule.
         ...(reanchor ? { nextRunAt: new Date(nextCronAfter(schedule, nowMs)).toISOString() } : {}),
         updatedAt: new Date(nowMs).toISOString(),

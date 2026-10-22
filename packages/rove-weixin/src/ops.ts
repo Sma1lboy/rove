@@ -4,7 +4,7 @@
  * refusals included.
  */
 
-import type { Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { Automation, AutomationRun, Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { loadContext } from "@sma1lboy/rove/src/cli/api/handlers-context.ts"
@@ -72,6 +72,18 @@ export function createRoveOps(client: DaemonRpc): RoveOps {
         by: "weixin",
       })
       return { delivered: res.delivered === true }
+    },
+
+    notifyingRoutineRuns: async () => {
+      const { automations } = await client.request<{ automations: Automation[] }>("automation.list")
+      return await Promise.all(
+        automations
+          .filter((a) => a.notify)
+          .map(async (a) => {
+            const { runs } = await client.request<{ runs: AutomationRun[] }>("automation.runs", { id: a.id })
+            return { id: a.id, name: a.name, runs }
+          }),
+      )
     },
 
     clearReport: async (deliveryId) => {

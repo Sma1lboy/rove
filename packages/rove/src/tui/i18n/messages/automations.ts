@@ -88,6 +88,8 @@ export const en = {
     skipped_missed: "skipped (missed)",
     skipped_unavailable: "skipped (unavailable)",
     dispatch_failed: "dispatch failed",
+    ran: "ran",
+    script_failed: "script failed",
   },
   cronNever: "valid, but never fires",
   missing: {
@@ -203,6 +205,8 @@ export const zh: typeof en = {
     skipped_missed: "已跳过（错过时间）",
     skipped_unavailable: "已跳过（不可用）",
     dispatch_failed: "派发失败",
+    ran: "已运行",
+    script_failed: "脚本失败",
   },
   cronNever: "语法合法，但永远不会触发",
   missing: {
