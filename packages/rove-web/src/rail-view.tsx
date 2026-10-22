@@ -296,7 +296,6 @@ function RailRow(props: {
   }
   const task = row.task
   const glyph = taskRowGlyph(task, props.frame, glyphs)
-  const changes = task.changes && "added" in task.changes ? task.changes : null
   const running = task.rowStatus?.kind === "running"
   return (
     <button
@@ -307,17 +306,15 @@ function RailRow(props: {
       onContextMenu={props.onMenu}
     >
       {markDot}
-      <span className={`glyph ${glyph ? `tone-${glyph.tone}` : ""}`}>{glyph?.glyph ?? ""}</span>
       <span className="row-title">{task.title}</span>
-      {props.cloud && <CloudMark label={props.cloud} />}
       <span className="chips">
         {task.pinned && <span className="chip muted">▴</span>}
-        {changes && changes.added > 0 && <span className="chip tone-diff-added">+{changes.added}</span>}
-        {changes && changes.deleted > 0 && <span className="chip tone-diff-removed">−{changes.deleted}</span>}
-        {changes?.ahead ? <span className="chip muted">↑{changes.ahead}</span> : null}
         {task.prChip && (
           <span className={`chip ${prTone(task.prChip, task.prChipStale)}`}>{prGlyph(task.prChip, glyphs)}</span>
         )}
+        {/* The right edge, as Claude Desktop's list: a job or deletion spinner, then the cloud of a task elsewhere. */}
+        {glyph && <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>}
+        {props.cloud && <CloudMark label={props.cloud} />}
       </span>
     </button>
   )
