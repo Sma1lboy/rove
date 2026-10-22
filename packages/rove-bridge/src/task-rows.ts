@@ -1,11 +1,13 @@
 /**
- * The feed's row builders: a daemon task becomes the phone's `TaskRow` (engine, activity, change
- * and token chips, PR chip, machine tag), and inbox items become `AttentionRow`s. Pure functions
- * over what `RoveOps.tasks()` gathered; split from rove-ops.ts so it stays within the size cap.
+ * The feed's row builders: a daemon task becomes the phone's `TaskRow` (engine, the daemon's row
+ * status, change and token chips, PR chip, machine tag), and inbox items become `AttentionRow`s.
+ * Pure functions over what `RoveOps.tasks()` gathered; split from rove-ops.ts so it stays within
+ * the size cap.
  */
 
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { type TaskStatus, tabStatus, taskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { type ActivityEntry, buildContext } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import {
   type RowTokenMap,
@@ -104,11 +106,48 @@ function machineOf(task: SerializedTask): { machine?: MachineTag } {
   return { machine: { id: origin.machineId, label: origin.hostLabel, ...(origin.stale ? { stale: true } : {}) } }
 }
 
+/** The daemon's row status (`row.status`) the rows are built on. */
+export interface RowStatusInput {
+  readonly tasks: Readonly<Record<string, TaskStatus>>
+  /** The tabs' `alive` is a PTY host's word. False for statuses built from another machine's pushes, which carry no liveness. */
+  readonly liveness: boolean
+}
+
+/**
+ * Another machine's rows: the hub relays its daemon's `engine-state` (one reading per task), not its
+ * `row.status`, so the row status is the daemon's own rule applied to that reading.
+ */
+export function remoteRowStatus(activity: ReadonlyMap<string, ActivityEntry>): RowStatusInput {
+  const tasks: Record<string, TaskStatus> = {}
+  for (const [taskId, entry] of activity) {
+    const tabless = tabStatus({ activity: { state: entry.state as never, at: entry.at }, viewed: false })
+    tasks[taskId] = { task: taskStatus({}, { tabless }), tabs: {} }
+  }
+  return { tasks, liveness: false }
+}
+
+/**
+ * The grouping's inputs, read off the daemon's status instead of derived here: the rollup's engine
+ * state and when it began, and which tasks have a live tab.
+ */
+function groupingInputs(status: RowStatusInput | null): {
+  activity: Record<string, ActivityEntry> | null
+  liveTaskIds: ReadonlySet<string> | null
+} {
+  if (!status) return { activity: null, liveTaskIds: null }
+  const activity: Record<string, ActivityEntry> = {}
+  const live = new Set<string>()
+  for (const [taskId, { task, tabs }] of Object.entries(status.tasks)) {
+    if (task.state) activity[taskId] = { state: task.state, at: task.since }
+    if (Object.values(tabs).some((tab) => tab.alive)) live.add(taskId)
+  }
+  return { activity, liveTaskIds: status.liveness ? live : null }
+}
+
 /** Fold `context`'s grouping over EVERY task (main/dir included) and join display fields. */
 export function taskRows(
   tasks: readonly SerializedTask[],
-  activity: Readonly<Record<string, ActivityEntry>> | null,
-  liveTaskIds: ReadonlySet<string> | null,
+  status: RowStatusInput | null,
   engines: readonly EngineRow[],
   now: number,
   extras?: RowExtras,
@@ -118,8 +157,7 @@ export function taskRows(
   const context = buildContext({
     repo: "",
     tasks,
-    activity,
-    liveTaskIds,
+    ...groupingInputs(status),
     attention: [],
     gates: [],
     notes: [],
@@ -133,6 +171,7 @@ export function taskRows(
     const changes = rowChanges(extras?.changes ?? null, task.worktreePath)
     const tokens = rowTokenChips(extras?.tokens, task.id, now)
     const chip = prChipKind(task)
+    const daemon = status?.tasks[task.id]
     return [
       {
         id: task.id,
@@ -144,6 +183,7 @@ export function taskRows(
         group: row.group,
         rank: row.rank,
         activity: row.activity ? { ...row.activity, since: now - row.activity.forMs } : null,
+        ...(daemon ? { rowStatus: daemon.task, tabStatus: daemon.tabs } : {}),
         engine: engineFor(task, engines),
         pr: pr
           ? {

@@ -34,6 +34,7 @@ import {
   str,
 } from "./protocol.ts"
 import type { RoveOps } from "./rove-ops.ts"
+import type { RowStatusFeed } from "./row-status.ts"
 import type { TabFeed } from "./tab-feed.ts"
 import { type PtyHostClient, TerminalForwarder } from "./terminal.ts"
 import { type WebRoot, serveWebFile } from "./web-static.ts"
@@ -55,6 +56,8 @@ export interface BridgeDeps {
   }
   /** Tasks whose Terminal Tabs changed, pushed as a `tabs` event to task subscribers. */
   readonly tabs?: Pick<TabFeed, "subscribe">
+  /** The daemon's row status: where `ui.viewing` and answered questions (`term.input`) are reported. */
+  readonly rowStatus?: Pick<RowStatusFeed, "setViewing" | "noteInput">
   /** A fresh PTY Host socket for one phone connection. */
   readonly openPty: () => PtyHostClient
   /** The PTY host of a registered machine, over its forwarded socket; absent = this bridge serves no machines. */
@@ -76,6 +79,8 @@ export interface BridgeDeps {
 }
 
 interface Conn {
+  /** This connection's screen as the daemon's row status knows it (`ui.viewing`'s `viewer`). */
+  readonly viewer: string
   terminal: TerminalForwarder | null
   /** One forwarder per other machine whose terminal this connection opened. */
   machineTerminals: Map<string, Promise<TerminalForwarder>>
@@ -207,6 +212,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const data = a.data
       if (typeof data !== "string") throw new BridgeError("BAD_ARGS", "data must be a string")
       await owner(str(a, "stream")).input(str(a, "stream"), data)
+      deps.rowStatus?.noteInput(str(a, "stream"), data)
       return {}
     }
     case "term.resize":
@@ -244,6 +250,12 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         throw new BridgeError("GATE_NOT_DISMISSABLE", "a decision is answered with gate.answer, not dismissed")
       }
       await ops.dismissAttention(taskId, tabId, deliveryId)
+      return {}
+    }
+    case "ui.viewing": {
+      // `taskId: null` = this screen shows no task (the page went hidden).
+      const taskId = a.taskId === null ? null : str(a, "taskId")
+      deps.rowStatus?.setViewing(conn.viewer, taskId, taskId === null ? null : (optStr(a, "tabId") ?? null))
       return {}
     }
     default: {
@@ -320,6 +332,9 @@ function sameHost(origin: string, host: string | null): boolean {
   }
 }
 
+/** Names each connection's screen for `ui.viewing`; unique across every server this process runs. */
+let nextViewer = 0
+
 export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; port: number }): Server<Conn> {
   return Bun.serve<Conn, never>({
     hostname: listen.hostname,
@@ -356,6 +371,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
       }
       if (device) log(`[rove-bridge] device ${device} connected from ${from}`)
       const data: Conn = {
+        viewer: `bridge-${++nextViewer}`,
         terminal: null,
         machineTerminals: new Map(),
         streamOwner: new Map(),
@@ -385,6 +401,8 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         void onMessage(deps, ws, typeof message === "string" ? message : message.toString("utf8"))
       },
       close(ws) {
+        // What this screen showed is no longer looked at.
+        deps.rowStatus?.setViewing(ws.data.viewer, null, null)
         ws.data.unsubscribeTasks?.()
         ws.data.unsubscribeTabs?.()
         ws.data.unsubscribeNotices?.()

@@ -17,6 +17,7 @@ import { loadPluginPages } from "../pages/load-plugin-pages"
 import { registerModsPage } from "../pages/mods-pages"
 import { WorkspaceRoot } from "./host"
 import type { BootDialogs } from "./host-pages"
+import { followRemoteActivity } from "./row-status-sync"
 
 export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> {
   await bootPaneHost({
@@ -48,6 +49,8 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       const machines = new MachineHub(orchestrator)
       machines.attach()
       setMachineHub(machines)
+      // Other machines' tasks have no row status here; build it from the hub's relay.
+      const stopRemoteStatus = followRemoteActivity(machines.liveSignal())
       // Rail pages: the host's own now, installed plugins' as their modules load.
       registerCorePages()
       const stopModsPage = registerModsPage(orchestrator)
@@ -63,6 +66,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
         ),
         onDestroy: () => {
           stopModsPage()
+          stopRemoteStatus()
           setMachineHub(null)
           machines.dispose()
           orchestrator.dispose()

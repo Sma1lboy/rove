@@ -131,7 +131,6 @@ export function HostSidebar(props: HostSidebarProps) {
         engineState={props.engineState}
         engineTabState={props.engineTabState}
         engineLifecycle={props.engineLifecycle}
-        taskJobs={props.taskJobs}
         onSelect={props.onSelect}
         onSelectTab={props.onSelectTab}
         onExpand={() => props.onToggleCollapsed?.()}
@@ -176,7 +175,6 @@ function CollapsedSidebar(props: {
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
-  readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly onSelect: (taskId: string) => void
   readonly onSelectTab: (taskId: string, tabId: string) => void
   readonly onExpand: () => void
@@ -195,10 +193,8 @@ function CollapsedSidebar(props: {
       groups={groups}
       tabsByTask={tabsByTask}
       selectedId={props.selectedId}
-      engineState={props.engineState}
       engineTabState={props.engineTabState}
       engineLifecycle={props.engineLifecycle}
-      taskJobs={props.taskJobs}
       onSelect={props.onSelect}
       onSelectTab={props.onSelectTab}
       onExpand={props.onExpand}

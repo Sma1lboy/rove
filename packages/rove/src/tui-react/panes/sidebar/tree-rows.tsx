@@ -2,22 +2,29 @@
 /**
  * Tree rows: project header flush, worktrees one cell in, tab rows at the
  * SAME column as their worktree (the state glyph carries the hierarchy). A
- * worktree row is `[job spinner] · label` plus the right-edge cluster and
- * stays ONE cell tall: a dozen worktrees must fit the rail.
+ * worktree row is `[status] · label` plus the right-edge cluster and stays
+ * ONE cell tall: a dozen worktrees must fit the rail.
+ *
+ * Every glyph is the daemon's row status (`row-status-sync.ts`) drawn through
+ * `rowStatusGlyph`. Each tab row shows its own tab's; a worktree row shows the
+ * task rollup only when its tabs are not listed under it (none known, or
+ * filtered out), else only a task-level job or deletion (the rollup's `busy`).
  *
  * An AGENT tab row can opt in to a second cell naming the live engine
  * (`state/tab-row-height.ts`, off by default: it roughly halves how many rows
  * fit). Non-agent tabs stay one cell.
  */
 
-import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
+import { type TaskEngineState, liveRowTokens } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { TextAttributes } from "@opentui/core"
+import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useMemo } from "react"
 import { engineDisplayName } from "../../../engine/interactive-command"
 import { engineEntry } from "../../../engine/registry"
 import { charWidth, displayWidth } from "../../../lib/display-width"
 import { relativeAge } from "../../../lib/relative-time"
+import { rowStatusGlyph } from "../../../lib/row-status-glyph"
 import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
 import { TAB_ROW_HEIGHT_KEY, normalizeTabRowHeight } from "../../../state/tab-row-height"
 import { breathColor, breathGlyph, mixInk } from "../../../tui/lib/breathe"
@@ -25,7 +32,7 @@ import { effortMark } from "../../../tui/lib/effort-glyph"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
-import { buildSidebarRowView, isAttentionActivity, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
+import { buildSidebarRowView, sidebarTone, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
 import { rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import { useOptionalKV } from "../../context/kv"
@@ -34,15 +41,14 @@ import { useT } from "../../i18n"
 import { ShimmerLabel } from "../../lib/shimmer-label"
 import { useGlyphs } from "../../lib/use-glyphs"
 import { useTaskColor } from "../../lib/use-task-color"
+import { useTabRowStatus, useTaskRowStatus } from "../../workspace/row-status-sync"
 import {
   ChangeStats,
   UNKNOWN_CHANGES_MARK,
-  completionSeenFor,
   completionStampOf,
   useChanges,
   useClockTick,
   useDonePulse,
-  useDurableCompletionSeen,
   usePollOnClock,
   useSpinnerFrame,
 } from "./row-cards"
@@ -53,26 +59,25 @@ import { MoveChip, RowShell, type TreeRowShared, clusterCells, treeLabelBudget }
  * otherwise, or every idle tab would wear a number. A row showing one
  * re-renders on the poll clock (`useClockTick`).
  */
-function activityAgeLabel(activity: TaskEngineState | undefined, loading: boolean): string | null {
-  if (activity === undefined) return null
-  if (!loading && !isAttentionActivity(activity.state)) return null
+function statusAgeLabel(status: RowStatus | undefined): string | null {
+  if (!status || status.since <= 0) return null
+  if (status.kind !== "running" && status.kind !== "attention" && status.kind !== "needs-input") return null
   // `relativeAge` clamps a clock skewed ahead of the daemon to `0s`.
-  return relativeAge(activity.at)
+  return relativeAge(status.since)
 }
 
 /**
- * A worktree row carries NO engine state glyph (that lives on the tab row);
- * only worktree-level facts: branch, pin, PR chip, ±stats, and
- * materializing/deleting.
+ * A worktree row whose tabs are listed under it carries NO engine glyph (each
+ * tab row carries its own); only worktree-level facts: branch, pin, PR chip,
+ * ±stats, and the rollup's `busy` (materializing, deleting).
  *
  * Both jobs must show HERE: a materializing task has no tab rows yet (a tab
  * is recorded only once delivery succeeds), and `TaskDeletionCoordinator`
  * sweeps PTYs before touching the worktree, so a failed deletion has no tab
- * or activity to carry a `!`.
+ * to carry it.
  *
- * Reads `taskJobs` DIRECTLY, not `buildSidebarRowView`'s `loading`, which
- * folds in engine activity and would leak the task rollup onto this row. A
- * job is task-scoped (one per taskId, one worktree per task).
+ * With no tab list under it (`tabsListed` false), the row stands for the
+ * whole task and shows the daemon's rollup, as the folded rail does.
  */
 export function WorktreeTreeRow(props: {
   readonly rowId: string
@@ -80,6 +85,8 @@ export function WorktreeTreeRow(props: {
   readonly task: Task
   /** Tree depth — 1 at rest, one deeper under a machine header. */
   readonly depth?: number
+  /** This task's tab rows follow this row. */
+  readonly tabsListed?: boolean
   readonly shared: TreeRowShared
 }) {
   const { theme } = useTheme()
@@ -95,14 +102,14 @@ export function WorktreeTreeRow(props: {
   usePollOnClock(livePath, pollCurrentBranch)
   const label = worktreeRowLabel(task, livePath ? { liveBranch: currentBranch(livePath) } : {})
   const moving = shared.movingRowId === props.rowId
-  // Presence in the map IS "running" — the daemon removes the entry on both
-  // terminal phases (see `TaskJobState`).
-  const materializing = shared.taskJobs?.get(task.id) !== undefined
-  // Task-scoped like `taskJobs`, so read directly.
+  const rollup = useTaskRowStatus(task.id)
+  // The deletion WORD is a task fact; the glyph is the daemon's.
   const deletionPhase = task.deletion?.phase
   const deleting = deletionPhase === "queued" || deletionPhase === "running"
   const deleteFailed = deletionPhase === "error"
-  const spinning = materializing || deleting
+  const showGlyph = props.tabsListed !== true || rollup?.kind === "busy"
+  const rollupMark = rowStatusGlyph(showGlyph ? rollup : undefined, glyphs)
+  const spinning = showGlyph && rollupMark.spinning
   const frame = useSpinnerFrame(spinning)
   // Rides beside the branch label, not in place of it: a failed deletion
   // leaves the branch, and rows all reading "delete failed" are unusable.
@@ -112,8 +119,8 @@ export function WorktreeTreeRow(props: {
   useClockTick((shared.rowTokens?.get(task.id)?.length ?? 0) > 0)
   const tokens = liveRowTokens(shared.rowTokens, task.id, Date.now())
   const reserved =
-    // The glyph column exists only while a job runs.
-    (spinning ? 2 : 0) +
+    // The glyph column exists only when the row shows a status.
+    (showGlyph ? 2 : 0) +
     // A plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
@@ -129,9 +136,18 @@ export function WorktreeTreeRow(props: {
   const mark = useTaskColor(task.id)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared} mark={mark}>
-      {spinning ? (
-        <text fg={breathColor(theme.primary, theme.textMuted, frame)} wrapMode="none" width={2} flexShrink={0}>
-          {`${breathGlyph(glyphs.spinner, frame)} `}
+      {showGlyph ? (
+        <text
+          fg={
+            spinning
+              ? breathColor(theme.primary, theme.textMuted, frame)
+              : toneColor(theme, sidebarTone(rollupMark.tone))
+          }
+          wrapMode="none"
+          width={2}
+          flexShrink={0}
+        >
+          {`${spinning ? breathGlyph(glyphs.spinner, frame) : rollupMark.glyph} `}
         </text>
       ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
@@ -186,92 +202,55 @@ export function WorktreeTreeRow(props: {
  */
 export function useTabRowBaseView(args: {
   readonly task: Task
-  readonly activity: TaskEngineState | undefined
+  readonly status: RowStatus | undefined
   readonly lifecycle: { readonly subagents: number } | undefined
-  readonly job: TaskJobState | undefined
-  readonly completionSeen: boolean
 }): ReturnType<typeof buildSidebarRowView> {
   const t = useT()
   const glyphs = useGlyphs()
-  const { task, activity, lifecycle, job, completionSeen } = args
+  const { task, status, lifecycle } = args
   return useMemo(() => {
     // Rebuild on language change: buildSidebarRowView reads the global `t`.
     void t
     return buildSidebarRowView({
       task,
-      activity,
+      status,
       lifecycle,
-      job,
       spinnerFrame: 0,
       subtitleBudget: 0,
       truncateBranch: truncateBranchLabel,
-      completionSeen,
       glyphs,
     })
-  }, [task, activity, lifecycle, job, completionSeen, t, glyphs])
+  }, [task, status, lifecycle, t, glyphs])
 }
 
 /**
- * A tab's state cell — glyph and colour — as the tree's tab row draws it. The
- * folded rail colours its tab digit from the same hook, so fold and tree agree.
+ * A tab's state cell — glyph and colour — as the tree's tab row draws it: the
+ * daemon's status for THIS tab (never the task rollup). The folded rail
+ * colours its tab digit from the same hook, so fold and tree agree.
  */
 export function useTabStateCell(args: {
   readonly task: Task
   readonly tab: TreeTab
+  /** The daemon's per-tab engine activity for this task: only the landing pulse reads it. */
   readonly tabStates: ReadonlyMap<string, TaskEngineState> | undefined
   readonly lifecycle: { readonly subagents: number } | undefined
-  readonly job: TaskJobState | undefined
-  /** This tab is on screen: sitting in it digests ● to ✓. */
-  readonly viewing: boolean
 }) {
   const { theme } = useTheme()
-  const glyphs = useGlyphs()
-  const { task, tab, viewing } = args
-  // Only an AGENT tab with daemon-reported activity wears a live state glyph.
-  const isAgent = tab.engine === true
-  const activity = isAgent ? tabRowActivity({ tabId: tab.id, tabActivities: args.tabStates }) : undefined
-  // Own activity only; counting "is the active tab" would leak the task rollup.
-  const carriesState = activity !== undefined
-  // ONLY a row carrying activity may run the completion bookkeeping: a
-  // sibling's state=undefined would wipe the bit the active row just recorded
-  // (✓ → ● flip on task switch). The durable half survives a restart, as the
-  // daemon's activity entry does.
-  const durableSeen = useDurableCompletionSeen(
-    task.id,
-    tab.id,
-    carriesState ? completionStampOf(activity) : undefined,
-    viewing,
-  )
-  const completionSeen = carriesState
-    ? completionSeenFor(task.id, activity?.state, viewing, tab.id, durableSeen)
-    : false
-  const baseView = useTabRowBaseView({
-    task,
-    activity,
-    lifecycle: carriesState ? args.lifecycle : undefined,
-    job: carriesState ? args.job : undefined,
-    completionSeen,
-  })
-  const frame = useSpinnerFrame(carriesState && baseView.loading)
+  const { task, tab } = args
+  const status = useTabRowStatus(task.id, tab.id)
+  const baseView = useTabRowBaseView({ task, status, lifecycle: args.lifecycle })
+  const frame = useSpinnerFrame(baseView.loading)
   const rowView = withSpinnerFrame(baseView, () => frame)
-  // A freeze-restored tab's process is dead and OPENING it re-runs the launch
-  // command, first prompt and all. It must not read `○` ("nothing to do");
-  // it takes the dead-engine `!`.
-  const restored = tab.restored === true
-  // No daemon signal rests at the same `○` as known-idle.
-  const glyph = restored ? glyphs.attention : isAgent && carriesState ? rowView.stateGlyph : glyphs.idle
-  // Gated on `carriesState`, or a sibling would flash for another tab's turn.
-  const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
+  // The landing flash keys on the engine's completion stamp, so a turn that
+  // ends while you watch still flashes and a re-render of a read one does not.
+  const activity = tabRowActivity({ tabId: tab.id, tabActivities: args.tabStates })
+  const pulsing = useDonePulse(completionStampOf(activity))
   const fg = pulsing
     ? theme.success
-    : restored
-      ? theme.error
-      : carriesState
-        ? rowView.loading && rowView.tone === "primary"
-          ? breathColor(theme.primary, theme.textMuted, frame)
-          : toneColor(theme, rowView.tone)
-        : theme.textMuted
-  return { activity, carriesState, rowView, glyph, fg, pulsing, frame }
+    : rowView.loading && rowView.tone === "primary"
+      ? breathColor(theme.primary, theme.textMuted, frame)
+      : toneColor(theme, rowView.tone)
+  return { status, rowView, glyph: rowView.stateGlyph, fg, pulsing, frame }
 }
 
 export function TabTreeRow(props: {
@@ -286,15 +265,13 @@ export function TabTreeRow(props: {
   const { theme } = useTheme()
   const t = useT()
   const shared = props.shared
-  const { activity, carriesState, rowView, glyph, fg, pulsing, frame } = useTabStateCell({
+  const { status, rowView, glyph, fg, pulsing, frame } = useTabStateCell({
     task: props.task,
     tab: props.tab,
     tabStates: shared.engineTabState?.get(props.task.id),
     lifecycle: shared.engineLifecycle?.get(props.task.id),
-    job: shared.taskJobs?.get(props.task.id),
-    viewing: shared.selectedTaskId === props.task.id && props.tab.active === true,
   })
-  const age = carriesState ? activityAgeLabel(activity, rowView.loading) : null
+  const age = statusAgeLabel(status)
   useClockTick(age !== null)
   // Second line, agent tabs only: the engine RUNNING, probed from the pty's
   // process tree (`TreeTab.liveVendor`), not task config (usually unset).

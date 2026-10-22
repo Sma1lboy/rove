@@ -62,7 +62,7 @@ import { useLatest } from "../lib/use-latest"
 import { PreviewScreen } from "../ops/preview"
 import { useDialog } from "../ui/dialog"
 import { TerminalSplit } from "./TerminalSplit"
-import { noteEngineTabInput } from "./optimistic-activity"
+import { noteAnswerInput } from "./row-status-sync"
 import { showSharedFilesHint } from "./shared-files-hint"
 import { TabStrip } from "./tab-strip"
 import { ensureTabReservation, releaseTabReservation, tabsLoaded, taskTabsView } from "./tabs-sync"
@@ -250,8 +250,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   /* --------- auto-naming + existence tracking, mount-only --------------- */
   useTabNaming({ stateRef, propsRef, update })
 
-  /* --------- per-tab turn state (hook-first, poll-fallback) --------- */
-  const { turnStates, liveTitles, turnVendors, seenTabs } = useTabTurnState({
+  /* --------- per-tab titles, engine identity, background toasts --------- */
+  const { liveTitles, turnVendors } = useTabTurnState({
     taskId: props.taskId,
     worktree: props.worktree,
     vendor: props.vendor,
@@ -392,14 +392,13 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       {/* Tab strip — flush to the pane edge, dense; hides itself for a lone
           tab only when the Settings → Terminal toggle asks it to. */}
       <TabStrip
+        taskId={props.taskId}
         tabs={state.tabs}
         activeId={state.activeId}
-        turnStates={turnStates}
         onSelect={(tabId) => update(selectTab(state, tabId))}
         vendor={props.vendor}
         liveTitles={liveTitles}
         turnVendors={turnVendors}
-        seenTabs={seenTabs}
       />
       {active.kind === "engine" ? (
         <EngineHookReadiness
@@ -437,11 +436,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           terminalPresentation={
             active.kind === "engine" ? getCapabilities(active.vendor ?? props.vendor)?.terminalPresentation : undefined
           }
-          onUserInput={
-            active.kind === "engine"
-              ? (data) => noteEngineTabInput(data, props.taskId, active.id, props.hookTabStates?.get(active.id)?.state)
-              : undefined
-          }
+          onUserInput={active.kind === "engine" ? (data) => noteAnswerInput(data, props.taskId, active.id) : undefined}
           splitTree={active.splitTree ?? null}
           onSplitChange={(next) => update(setTabSplit(state, active.id, next))}
           onExit={tabClose.handleActiveExit}

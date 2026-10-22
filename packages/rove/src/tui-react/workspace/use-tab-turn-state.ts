@@ -1,21 +1,18 @@
 /**
- * Per-tab turn state for the tab strip, hook-first with poll fallback: the
- * daemon's hook-driven per-tab state wins per tabId (`turn-state-merge.ts`)
- * over `useTurnPolls` (which also supplies `liveTitles`/`turnVendors`).
+ * The tab strip's per-tab inputs that are not status: live titles and engine
+ * identity (`useTurnPolls`), the ESC-interrupt report, and the background-tab
+ * toasts. What each tab SHOWS is the daemon's row status (`row-status-sync.ts`);
+ * nothing here derives one.
  *
- * Owns background-tab notifications: a rising edge into done/error/needs_input
- * on a NON-active tab toasts + marks unread (a dispatched task's tabs stay
- * silent — see `taskDispatched`). `attentionEdges`' seed rule keeps a
- * replayed sticky `turn_complete` from re-toasting; TerminalTabs remounts per
- * task, so switches re-seed.
- *
- * Also owns the strip's half of the DURABLE seen bit (`completion-seen.ts`,
- * shared with the sidebar lamp) so a read completion doesn't look fresh after
- * a restart. The strip writes its own because narrow layout hides the rail.
+ * Owns background-tab notifications, read off the daemon's tab statuses: a
+ * rising edge into done/error/needs_input on a NON-active tab toasts + marks
+ * unread (a dispatched task's tabs stay silent — see `taskDispatched`).
+ * `attentionEdges`' seed rule keeps a replayed finished turn from re-toasting;
+ * TerminalTabs remounts per task, so switches re-seed.
  */
 
+import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useEffect, useMemo, useRef } from "react"
-import type { ChatTabTurnState } from "../../engine/turn-detector"
 import { attentionEdges, chipAttentionKind } from "../../tui/lib/notify-state"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { InterruptObserver } from "../../tui/workspace/interrupt-observer"
@@ -27,13 +24,12 @@ import {
   setTabLastTitle,
   setTabLiveVendor,
 } from "../../tui/workspace/terminal-tabs-core"
-import { type HookTabState, mergeTurnStates } from "../../tui/workspace/turn-state-merge"
+import type { HookTabState } from "../../tui/workspace/turn-state-merge"
 import { soloKey } from "../../tui/workspace/turn-target"
 import type { VendorId } from "../../types/vendor"
-import { useOptionalKV } from "../context/kv"
 import type { NotificationsContext } from "../context/notifications"
 import { useLatest } from "../lib/use-latest"
-import { completionSeenKey, markCompletionSeen, seenCompletionTabs } from "./completion-seen"
+import { useRowStatusMap } from "./row-status-sync"
 import { tabTitle } from "./tab-strip"
 import { useTurnPolls } from "./use-turn-polls"
 
@@ -55,15 +51,12 @@ export function useTabTurnState(deps: {
   onEngineInterrupt?: (tabId: string) => void
   onScreenInput?: (tabId: string, blocked: boolean) => Promise<void>
 }): {
-  turnStates: ReadonlyMap<string, ChatTabTurnState>
   liveTitles: ReadonlyMap<string, string>
   turnVendors: ReadonlyMap<string, VendorId>
-  /** Tabs whose current completion the durable record already covers. */
-  seenTabs: ReadonlySet<string>
 } {
-  const { turnStates: pollStates, liveTitles, rawTitles, turnVendors } = useTurnPolls(deps)
-
-  const turnStates = useMemo(() => mergeTurnStates(deps.hookTabStates, pollStates), [deps.hookTabStates, pollStates])
+  const { liveTitles, rawTitles, turnVendors } = useTurnPolls(deps)
+  const tabStatuses = useRowStatusMap()[deps.taskId]?.tabs
+  const turnStates = useMemo(() => notifyTurns(tabStatuses), [tabStatuses])
 
   // ESC interrupt: a hook-claimed `running` tab whose RAW title flipped to the
   // resting form ended its turn with no hook (claude-code's abort runs none).
@@ -138,8 +131,9 @@ export function useTabTurnState(deps: {
   const taskTitleRef = useLatest(deps.taskTitle)
   const dispatchedRef = useLatest(deps.taskDispatched)
   useEffect(() => {
-    const next = new Map<string, string>()
-    for (const [tabId, turn] of turnStates) next.set(tabId, turn)
+    // Nothing from the daemon for this task yet: wait, so its first snapshot seeds rather than toasts.
+    if (turnStates === null) return
+    const next = turnStates
     const edges = attentionEdges(prevRef.current, next, stateRef.current.activeId, chipAttentionKind)
     prevRef.current = next
     for (const { key: tabId, kind } of edges) {
@@ -157,36 +151,30 @@ export function useTabTurnState(deps: {
     }
   }, [turnStates])
 
-  const seenTabs = useDurableTabSeen(deps.taskId, deps.hookTabStates, deps.state.activeId)
-
-  return { turnStates, liveTitles, turnVendors, seenTabs }
+  return { liveTitles, turnVendors }
 }
 
 /**
- * The strip's counterpart to the sidebar's `useDurableCompletionSeen`. Only a
- * HOOK completion carries the stamp the mark is keyed on; poll-inferred `done`
- * has none, so poll-only tabs never digest rather than use an invented stamp.
- * The write is an effect because `kv.set` re-renders every KV consumer.
+ * The daemon's tab statuses as the toast vocabulary (`chipAttentionKind`): a
+ * finished turn nobody has seen is `done`; a restored session announces nothing.
  */
-export function useDurableTabSeen(
-  taskId: string,
-  hookTabStates: ReadonlyMap<string, HookTabState> | undefined,
-  activeId: string,
-): ReadonlySet<string> {
-  const kv = useOptionalKV()
-  const stamps: [string, number | undefined][] = []
-  for (const [tabId, entry] of hookTabStates ?? []) {
-    if (entry.state === "turn_complete") stamps.push([tabId, entry.at])
+export function notifyTurns(tabs: Readonly<Record<string, TabStatus>> | undefined): ReadonlyMap<string, string> | null {
+  if (tabs === undefined) return null
+  const out = new Map<string, string>()
+  for (const [tabId, status] of Object.entries(tabs)) {
+    switch (status.kind) {
+      case "unseen":
+        out.set(tabId, "done")
+        break
+      case "needs-input":
+        out.set(tabId, "needs_input")
+        break
+      case "attention":
+        out.set(tabId, status.reason ?? "error")
+        break
+      default:
+        out.set(tabId, status.kind)
+    }
   }
-  const seenTabs = seenCompletionTabs(kv, taskId, stamps)
-  // Sitting in a finished tab consumes it ("seen means consumed"), recorded
-  // here so it holds when the rail is off screen.
-  const activeAt = hookTabStates?.get(activeId)
-  const at = activeAt?.state === "turn_complete" ? activeAt.at : undefined
-  const activeSeen = seenTabs.has(activeId)
-  useEffect(() => {
-    if (!kv || at === undefined || activeSeen) return
-    markCompletionSeen(kv, completionSeenKey(taskId, activeId), at)
-  }, [kv, taskId, activeId, at, activeSeen])
-  return seenTabs
+  return out
 }

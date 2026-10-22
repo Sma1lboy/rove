@@ -10,6 +10,7 @@ import { dirname } from "node:path"
 import { ptyHostHasLiveSessions, sweepPtyHostSessions } from "../client/pty-process.ts"
 import { tightenInstalledPluginPermissions } from "../plugins/permissions.ts"
 import { maybeStartPluginHost } from "../plugins/runtime.ts"
+import { createActivityObserverIo } from "./activity-observer-io.ts"
 import type { CellPixelSize } from "./channels-events.ts"
 import { type ClientState, broadcast, handleClientLine, writeFrame } from "./client-connection.ts"
 import { ClientWriter } from "./client-writer.ts"
@@ -38,6 +39,7 @@ import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, se
 import { startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import { clearResidentMarker, residentMarkerPath, resolveResident, writeResidentMarker } from "./resident.ts"
+import { RowStatusStore } from "./row-status-store.ts"
 import { createDispatchRunnability } from "./runnability.ts"
 import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
 import { DaemonResources } from "./server-resources.ts"
@@ -148,6 +150,15 @@ async function startOwnedServer(
   resources.defer(() => activity.close())
   resources.defer(() => rowTokens.close())
   resources.defer(() => stores.tabs.flush())
+  // What every rail shows, from the ledger, the inbox and the PTY host itself (`row-status-store.ts`).
+  const rowStatus = new RowStatusStore({
+    bus,
+    listSessions: createActivityObserverIo(options.homeDir, runtime, activity).listSessions,
+    readEpisode: (taskId, tabId, at) => inbox.markRead(taskId, tabId, at),
+    anyGui: () => lifetime.guiCount() > 0,
+    tabIdsOf: (taskId) => stores.tabs.get(taskId).state?.tabs.map((tab) => tab.id) ?? null,
+  })
+  resources.defer(() => rowStatus.close())
   resources.defer(() => deletions.drain())
   resources.defer(async () => {
     await Promise.allSettled(requests)
@@ -199,6 +210,7 @@ async function startOwnedServer(
     socket.on("error", () => {})
     socket.on("close", () => {
       clients.delete(client)
+      rowStatus.dropClient(client.id)
       if (client.subscribed) {
         logDaemonInfo(
           "conn",
@@ -337,6 +349,7 @@ async function startOwnedServer(
       runtime,
       bus,
       ...stores,
+      rowStatus,
       selfLink,
       ...(pluginHost ? { plugins: pluginHost } : {}),
       prompts,

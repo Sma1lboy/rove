@@ -5,20 +5,16 @@
  * The pty host thaws a dead session with its scrollback intact and marks it
  * `restored`; opening such a tab silently re-runs the recorded launch
  * command. The row used to wear `○` — the one glyph that means "nothing to
- * do here" — and the tree had the fact in hand the whole time.
- *
- * Why this mounts `TabTreeRow` rather than adding a `SidebarTree` scene:
- * `restored` reaches the tree through `useHostSessions`, whose poll is
- * disabled under every test runner on purpose (it caches one process-wide
- * pty client and would steal the socket `pty-hosted.test.ts` owns). So the
- * whole-tree path cannot carry the flag in this track, and the row component
- * is the widest boundary a render test can actually drive.
+ * do here". The daemon now folds the host's session list into the tab's row
+ * status (`attention`, reason `restored`), so the row draws what it is told.
  */
 
-import { expect, test } from "bun:test"
+import { afterEach, expect, test } from "bun:test"
 import type { BoxRenderable } from "@opentui/core"
+import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { TreeRowShared } from "../../src/tui-react/panes/sidebar/tree-row-shell"
 import { TabTreeRow } from "../../src/tui-react/panes/sidebar/tree-rows"
+import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 import type { TreeTab } from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"
@@ -51,25 +47,32 @@ function shared(): TreeRowShared {
   }
 }
 
-function tab(over: Partial<TreeTab> = {}): TreeTab {
-  return { id: "tab-1", label: "build", engine: true, ...over } as TreeTab
-}
+const TAB: TreeTab = { id: "tab-1", label: "build", engine: true }
 
-async function glyphOf(t: TreeTab): Promise<string> {
+async function glyphOf(status: TabStatus): Promise<string> {
+  resetRowStatusForTests({ alpha: { task: status, tabs: { "tab-1": status } } })
   const { frame } = await renderComponent(
-    <TabTreeRow rowId="alpha::tab-1" flatIndex={0} task={TASK} tab={t} shared={shared()} />,
+    <TabTreeRow rowId="alpha::tab-1" flatIndex={0} task={TASK} tab={TAB} shared={shared()} />,
     { width: 30, height: 4 },
   )
   await settle(90)
   return await frame()
 }
 
+afterEach(() => resetRowStatusForTests())
+
 test("a restored tab wears the attention glyph, a quiet one does not", async () => {
-  // Both rows are otherwise identical and carry NO daemon activity, which is
-  // exactly the case the bug hid in: with no engine state the row falls back
-  // to `○`, so a corpse awaiting respawn looked like an idle tab.
-  const quiet = await glyphOf(tab())
-  const restored = await glyphOf(tab({ restored: true }))
+  // Both rows carry NO engine activity, which is exactly the case the bug hid
+  // in: only the host knows the session is a corpse awaiting respawn.
+  const quiet = await glyphOf({ kind: "idle", since: 0, alive: true, restored: false, tracked: false })
+  const restored = await glyphOf({
+    kind: "attention",
+    reason: "restored",
+    since: 0,
+    alive: false,
+    restored: true,
+    tracked: false,
+  })
 
   expect(quiet).toContain(NO_STATE_GLYPH)
   expect(quiet).not.toContain(ATTENTION_GLYPH)

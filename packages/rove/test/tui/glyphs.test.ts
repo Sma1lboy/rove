@@ -76,7 +76,14 @@ describe("glyph presets", () => {
     const row = (state: "running" | "turn_complete" | "idle", glyphs: GlyphSet) =>
       buildSidebarRowView({
         task,
-        activity: state === "idle" ? undefined : { state, at: Date.parse("2026-01-01T00:00:00.000Z") },
+        status:
+          state === "idle"
+            ? undefined
+            : {
+                kind: state === "running" ? "running" : "unseen",
+                since: Date.parse("2026-01-01T00:00:00.000Z"),
+                state,
+              },
         lifecycle: { subagents: 2 },
         spinnerFrame: 0,
         subtitleBudget: 40,

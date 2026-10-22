@@ -1,8 +1,10 @@
 /** @jsxImportSource @opentui/react */
 /**
  * The sidebar's COLLAPSED rail: the task list folded to a strip a few cells
- * wide. Glyph and tone come from `buildSidebarRowView`, so a folded row can't
- * disagree with its card; groups are the expanded tree's `SidebarGroup[]`.
+ * wide. Glyph and tone are the daemon's row status (`row-status-sync.ts`)
+ * through `buildSidebarRowView`, so a folded row can't disagree with the
+ * tree; groups are the expanded tree's `SidebarGroup[]`. A task folded to one
+ * cell shows the task rollup; a tab cell shows that tab's own status.
  *
  * `glyphs` is the default: the row's own status glyph in its state colour is
  * the most a four-cell strip can say about a task. The rest stay as a
@@ -14,19 +16,20 @@
  * `hairline` has no room for a digit and stays one cell per task.
  */
 
-import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
+import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { type RGBA, TextAttributes } from "@opentui/core"
 import { Fragment, useMemo } from "react"
 import { displayWidth } from "../../../lib/display-width"
 import { breathColor } from "../../../tui/lib/breathe"
 import { type SidebarGroup, ownTasks } from "../../../tui/panes/sidebar/project-groups"
-import { buildSidebarRowView, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
+import { buildSidebarRowView, rowIsLoading, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
 import type { TreeTab } from "../../../tui/panes/sidebar/tree-core"
 import { toneColor } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { useGlyphs } from "../../lib/use-glyphs"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
+import { taskRowStatus, useRowStatusMap } from "../../workspace/row-status-sync"
 import { CollapseButton } from "./collapse-button"
 import { useSpinnerFrame } from "./row-cards"
 import { useTabStateCell } from "./tree-rows"
@@ -84,14 +87,13 @@ function useRailSections(props: {
   groups: readonly SidebarGroup[]
   tabsByTask?: ReadonlyMap<string, readonly TreeTab[]>
   selectedId: string | null
-  engineState?: ReadonlyMap<string, TaskEngineState>
-  taskJobs?: ReadonlyMap<string, TaskJobState>
 }): readonly RailSection[] {
   // Routine sessions take no cell: the fold has no room for the tree's count
   // row, and a daily schedule would make the folded rail the longer surface.
   const tasks = useMemo(() => props.groups.flatMap(ownTasks), [props.groups])
   // One spinner clock: per-row hooks would put rows out of phase.
-  const spinning = tasks.some((task) => props.taskJobs?.get(task.id) !== undefined)
+  const statuses = useRowStatusMap()
+  const spinning = tasks.some((task) => rowIsLoading(taskRowStatus(statuses, task.id)))
   const frame = useSpinnerFrame(spinning)
   const glyphs = useGlyphs()
   // An all-routine project has nothing to draw, so no divider either.
@@ -103,8 +105,7 @@ function useRailSections(props: {
       rows: ownTasks(group).map((task) => {
         const base = buildSidebarRowView({
           task,
-          activity: props.engineState?.get(task.id),
-          job: props.taskJobs?.get(task.id),
+          status: taskRowStatus(statuses, task.id),
           spinnerFrame: frame,
           subtitleBudget: 0,
           truncateBranch: (branch) => branch,
@@ -131,11 +132,9 @@ export interface CollapsedRailProps {
   /** Each task's tabs; absent (or no entry) keeps that task one cell. */
   readonly tabsByTask?: ReadonlyMap<string, readonly TreeTab[]>
   readonly selectedId: string | null
-  readonly engineState?: ReadonlyMap<string, TaskEngineState>
-  /** Per-tab activity, keyed taskId → tabId: colours the tab cells. */
+  /** Per-tab engine activity, keyed taskId → tabId: only the tab cells' landing pulse reads it. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
-  readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly onSelect: (taskId: string) => void
   /** Clicking a tab cell; absent falls back to selecting its task. */
   readonly onSelectTab?: (taskId: string, tabId: string) => void
@@ -255,8 +254,6 @@ function RailTabRowView(props: { row: RailRow; tab: TreeTab; index: number; rail
     tab,
     tabStates: rail.engineTabState?.get(taskId),
     lifecycle: rail.engineLifecycle?.get(taskId),
-    job: rail.taskJobs?.get(taskId),
-    viewing: row.selected && tab.active === true,
   })
   const selected = row.selected && tab.active === true
   const chrome = resolveRowSelectionChrome(theme, { cursor: selected })

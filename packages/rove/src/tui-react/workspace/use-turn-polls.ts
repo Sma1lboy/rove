@@ -1,11 +1,15 @@
-/** Per-tab PTY title subscriptions and session-scoped turn polling.
- * Hook-confirmed session identities select exact transcripts; this hook never
- * consumes worktree-wide activity. PTY identity changes dispose the old poll.
+/** Per-tab PTY title subscriptions, and the screen poll that tells the daemon
+ * when a marker-less engine (no hooks) is blocked on the user.
+ *
+ * No turn state comes out of here: what a tab shows is the daemon's row
+ * status (`row-status-sync.ts`), whose activity observer does the quiescence
+ * and title detection. The poll runs only for engines with a screen manifest,
+ * whose "blocked" reading only this process can see. PTY identity changes
+ * dispose the old poll.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { engineEntry, stripEngineStatusPrefix } from "../../engine/registry"
-import type { ChatTabTurnState } from "../../engine/turn-detector"
 import { startTurnStatusPoll } from "../../tui/ops/activity-monitor"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
@@ -28,7 +32,6 @@ export function useTurnPolls(deps: {
   hookTabStates?: ReadonlyMap<string, HookTabState>
   onScreenInput?: (tabId: string, blocked: boolean) => Promise<void>
 }): {
-  turnStates: ReadonlyMap<string, ChatTabTurnState>
   /** tabId → live OSC title minus the engine's status prefix; the tab strip's dynamic default names. */
   liveTitles: ReadonlyMap<string, string>
   /** tabId → UNSTRIPPED OSC title, for the ESC-interrupt observer's working→rest flip. */
@@ -37,7 +40,6 @@ export function useTurnPolls(deps: {
    *  user-typed; the strip's "does this process own its status" input. */
   turnVendors: ReadonlyMap<string, VendorId>
 } {
-  const [turnStates, setTurnStates] = useState<ReadonlyMap<string, ChatTabTurnState>>(new Map())
   const [liveTitles, setLiveTitles] = useState<ReadonlyMap<string, string>>(new Map())
   const [rawTitles, setRawTitles] = useState<ReadonlyMap<string, string>>(new Map())
   const [turnVendors, setTurnVendors] = useState<ReadonlyMap<string, VendorId>>(new Map())
@@ -116,13 +118,20 @@ export function useTurnPolls(deps: {
       if (!reg.has(target.key)) continue
       const tabId = tab.id
       const entry = engineEntry(target.vendor)
+      // No manifest = nothing only this process can see: track the vendor, poll nothing.
+      if (!entry.screenManifest) {
+        turnPolls.set(tabId, { dispose: () => {}, vendor: target.vendor, key: target.key })
+        attached.add(tabId)
+        continue
+      }
+      const screenManifest = entry.screenManifest
       const detector = entry.createTurnDetector()
       const dispose = startTurnStatusPoll(
         {
           detector,
           // Marker-less engines (copilot/kimi without hooks) classify the
-          // capture declaratively instead of publishing "unknown".
-          ...(entry.screenManifest ? { screenManifest: entry.screenManifest } : {}),
+          // capture declaratively; a "blocked" screen is reported upstream.
+          screenManifest,
           session: () => {
             const state = hookTabStatesRef.current?.get(tabId)
             return state?.sessionId && state.transcriptPath
@@ -141,10 +150,8 @@ export function useTurnPolls(deps: {
               .map((row) => row.map((chunk) => chunk.text).join(""))
               .join("\n")
           },
-          // Notification edges are detected downstream on the merged map (`use-tab-turn-state`).
-          setTurnState: async (turn) => {
-            setTurnStates((prev) => new Map(prev).set(tabId, turn))
-          },
+          // The daemon's row status is what the tab shows; the poll's own reading goes nowhere.
+          setTurnState: async () => {},
         },
       )
       turnPolls.set(tabId, { dispose, vendor: target.vendor, key: target.key })
@@ -156,11 +163,6 @@ export function useTurnPolls(deps: {
       if (attached.has(id)) continue
       poll.dispose()
       turnPolls.delete(id)
-      setTurnStates((prev) => {
-        const next = new Map(prev)
-        next.delete(id)
-        return next
-      })
     }
 
     setTurnVendors((prev) => {
@@ -217,5 +219,5 @@ export function useTurnPolls(deps: {
     }
   }, [])
 
-  return { turnStates, liveTitles, rawTitles, turnVendors }
+  return { liveTitles, rawTitles, turnVendors }
 }

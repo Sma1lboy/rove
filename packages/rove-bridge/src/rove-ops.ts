@@ -1,7 +1,8 @@
 /**
  * Everything the bridge asks Rove, through Rove's own code paths: `rove api`
- * verbs via `invokeVerb`, the `context` grouping via `buildContext`, and the
- * TUI's changes-pane git helpers. The bridge derives nothing itself.
+ * verbs via `invokeVerb`, the `context` grouping via `buildContext`, the
+ * daemon's row status (`row.status`), and the TUI's changes-pane git helpers.
+ * The bridge derives nothing itself.
  */
 
 import { isAbsolute, normalize } from "node:path"
@@ -9,7 +10,6 @@ import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ActivityEntry } from "@sma1lboy/rove/src/cli/api/context-view.ts"
-import { defaultApiRuntime } from "@sma1lboy/rove/src/cli/api/runtime.ts"
 import type { TaskTabRow } from "@sma1lboy/rove/src/cli/api/tab-snapshot.ts"
 import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
@@ -28,7 +28,8 @@ import { createBridgeApi } from "./ops/api.ts"
 import { flag } from "./ops/args.ts"
 import type { BridgeApi } from "./ops/types.ts"
 import { BridgeError, type DiffFileRow, type TabRow, type TasksPayload } from "./protocol.ts"
-import { attentionRows, taskRows } from "./task-rows.ts"
+import type { RowStatuses } from "./row-status.ts"
+import { attentionRows, remoteRowStatus, taskRows } from "./task-rows.ts"
 
 export interface EngineRow {
   readonly id: string
@@ -99,8 +100,11 @@ export function newTabInvocation(
 }
 
 /** `rove api` refusals carry a stable `code`; keep it on the wire. */
-/** `get-task` tab rows as the bridge reports them. Names only: the full engine list probes every binary, seconds on a cold bridge. */
-export function tabRows(rows: readonly TaskTabRow[]): TabRow[] {
+/**
+ * `get-task` tab rows as the bridge reports them, each with the daemon's status of that tab when it
+ * has one. Names only: the full engine list probes every binary, seconds on a cold bridge.
+ */
+export function tabRows(rows: readonly TaskTabRow[], statuses?: RowStatuses[string]["tabs"]): TabRow[] {
   const nameOf = (vendor: string | null): string | null => (vendor ? engineDisplayName(vendor as VendorId) : null)
   return rows.map((t) => ({
     id: t.id,
@@ -113,6 +117,7 @@ export function tabRows(rows: readonly TaskTabRow[]): TabRow[] {
     engineAlive: t.engineAlive,
     ...(t.split ? { split: t.split } : {}),
     ...(t.viewOf ? { viewOf: t.viewOf } : {}),
+    ...(statuses?.[t.id] ? { status: statuses[t.id] } : {}),
   }))
 }
 
@@ -133,6 +138,8 @@ export interface LiveRowSignals {
   tokens(): RowTokenMap
   /** The daemon's `gates` channel: open decisions and answered ones still owed to the engine. */
   gates(): readonly ActiveGate[]
+  /** The daemon's `row.status` (`RowStatusFeed`): every row's status and its tabs'; null before the first answer. */
+  rowStatus?(): RowStatuses | null
   /** Tasks of the other registered machines (`MachineHub`), each stamped with its `origin`. */
   remote?(): readonly SerializedTask[]
   /** What those machines' daemons push about their tasks (`MachineHub.liveSignal`). */
@@ -201,17 +208,15 @@ export function createRoveOps(
   return {
     async tasks() {
       const { tasks } = await client.request<{ tasks: SerializedTask[] }>("task.list")
-      const [inspect, inbox, live, engineRows] = await Promise.all([
-        tryRead(() => client.request<{ activity?: { tasks?: Record<string, ActivityEntry> } }>("debug.inspect")),
+      const [inbox, engineRows] = await Promise.all([
         tryRead(() => client.request<{ items: AttentionInboxItem[] }>("attention.list")),
-        tryRead(() => defaultApiRuntime.liveTaskIds()),
         tryRead(engines),
       ])
       const now = Date.now()
+      const statuses = signals?.rowStatus?.() ?? null
       const local = taskRows(
         tasks,
-        inspect?.activity?.tasks ?? null,
-        live,
+        statuses ? { tasks: statuses, liveness: true } : null,
         engineRows ?? [],
         now,
         signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined,
@@ -221,8 +226,7 @@ export function createRoveOps(
       const pushed = signals?.remoteLive?.()
       const remote = taskRows(
         signals?.remote?.() ?? [],
-        pushed ? Object.fromEntries(pushed.activity) : null,
-        null,
+        pushed ? remoteRowStatus(pushed.activity) : null,
         engineRows ?? [],
         now,
         pushed ? { changes: pushed.changes, tokens: pushed.tokens } : undefined,
@@ -279,7 +283,7 @@ export function createRoveOps(
 
     async tabs(taskId) {
       const res = await api.verb<{ tabs?: readonly TaskTabRow[] }>("get-task", [flag("task-id", taskId)])
-      return tabRows(res.tabs ?? [])
+      return tabRows(res.tabs ?? [], signals?.rowStatus?.()?.[taskId]?.tabs)
     },
 
     async newTab(taskId, tab) {
@@ -351,4 +355,4 @@ export function createRoveOps(
   }
 }
 
-export { attentionRows, engineFor, taskRows, type RowExtras } from "./task-rows.ts"
+export { attentionRows, engineFor, remoteRowStatus, taskRows, type RowExtras } from "./task-rows.ts"

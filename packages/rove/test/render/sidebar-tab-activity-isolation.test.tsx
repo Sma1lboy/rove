@@ -1,6 +1,7 @@
 /** @jsxImportSource @opentui/react */
-import { expect, test } from "bun:test"
+import { afterEach, expect, test } from "bun:test"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
+import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { type Task, toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
@@ -18,6 +19,11 @@ const task: Task = {
   updatedAt: "2026-08-01T00:00:00.000Z",
 }
 
+afterEach(() => {
+  resetRowStatusForTests()
+  tabsByTask.clear()
+})
+
 for (const selectedTabId of ["tab-1", "tab-2"]) {
   test(`task-only running does not light selected ${selectedTabId} or its sibling`, async () => {
     tabsByTask.set(task.id, {
@@ -28,6 +34,8 @@ for (const selectedTabId of ["tab-1", "tab-2"]) {
       activeId: selectedTabId,
       nextOrdinal: 3,
     })
+    // The daemon's rollup runs (a tab-less report), but no TAB of the task does.
+    resetRowStatusForTests({ [task.id]: { task: { kind: "running", since: Date.now(), state: "running" }, tabs: {} } })
     const { frame } = await renderComponent(
       <SidebarTree
         tasks={[task]}

@@ -99,6 +99,7 @@ export function SidebarTreeBody(props: {
             )
           }
           if (row.kind === "worktree") {
+            const next = props.rows[i + 1]
             return (
               <WorktreeTreeRow
                 key={row.id}
@@ -106,6 +107,8 @@ export function SidebarTreeBody(props: {
                 flatIndex={props.flatIndexOf.get(row.id) ?? -1}
                 task={row.task}
                 depth={row.depth}
+                // Tab rows follow their worktree row; none here (unknown, or filtered out) = the row stands for the task.
+                tabsListed={next?.kind === "tab" && next.task.id === row.task.id}
                 shared={props.shared}
               />
             )

@@ -19,7 +19,7 @@ import { ShortcutBadge } from "./prefix-guide.tsx"
 import { armPrefix } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
 import { tabLabel } from "./rail-view.tsx"
-import { activityGlyph, groupByProject } from "./rail.ts"
+import { groupByProject, statusGlyph, tabStatusOf } from "./rail.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { dialog } from "./ui.ts"
@@ -100,37 +100,6 @@ function railInitials(title: string): string {
 /** The digit a tab cell prints: its `ctrl+<N>` slot, `·` past the ninth (TUI `railTabDigit`). */
 const tabDigit = (index: number): string => (index < 9 ? String(index + 1) : "·")
 
-/** Each task's per-tab activity (`tab.states`), refreshed while the fold is up: the colour of a tab's own cell. */
-function useTabStates(
-  taskIds: readonly string[],
-  client: AppModel["client"],
-): Readonly<Record<string, Record<string, { state: string }>>> {
-  const [states, setStates] = useState<Record<string, Record<string, { state: string }>>>({})
-  const key = taskIds.join(",")
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` is the ids
-  useEffect(() => {
-    let live = true
-    const load = () =>
-      void Promise.all(
-        taskIds.map((taskId) =>
-          client
-            .request<{ tabs: Record<string, { state: string }> }>("tab.states", { taskId })
-            .then((res) => [taskId, res.tabs] as const)
-            .catch(() => null),
-        ),
-      ).then((rows) => {
-        if (live) setStates(Object.fromEntries(rows.filter((row) => row !== null)))
-      })
-    load()
-    const timer = window.setInterval(load, 4000)
-    return () => {
-      live = false
-      window.clearInterval(timer)
-    }
-  }, [key, client])
-  return states
-}
-
 export function FoldedRail({
   model,
   frame,
@@ -139,12 +108,9 @@ export function FoldedRail({
   const payload = useStore(model.tasks)
   const allTabs = useStore(model.tabs)
   const groups = groupByProject(payload?.tasks ?? [], "default")
-  const { prefs } = usePrefs()
+  const { prefs, glyphSets } = usePrefs()
+  const glyphs = glyphSets[prefs.glyphSet]
   const style = prefs.railFold
-  const states = useTabStates(
-    groups.flatMap((group) => group.tasks.map((task) => task.id)),
-    model.client,
-  )
   const open = (taskId: string, tabId?: string) => {
     model.select(taskId, tabId)
     enterWorkspace()
@@ -156,19 +122,18 @@ export function FoldedRail({
           <div className="rail-folded-rule" title={group.label} />
           {group.tasks.flatMap((task) => {
             const tabs = style === "hairline" ? [] : (allTabs[task.id] ?? [])
-            // A task whose tabs are known folds to one cell per tab: its `ctrl+<N>` digit in the tab's own state colour.
+            // A task whose tabs are known folds to one cell per tab: its `ctrl+<N>` digit in the colour of
+            // the tab's own status (pushed with the row); a quiet tab is muted, as in the TUI's folded rail.
             if (tabs.length > 0) {
               return tabs.map((tab, i) => {
-                const { tone } = activityGlyph(
-                  tab.alive === false ? undefined : states[task.id]?.[tab.id]?.state,
-                  frame,
-                )
+                const { tone } = statusGlyph(tabStatusOf(task, tab), frame, glyphs)
+                const cell = tone
                 return (
                   <button
                     type="button"
                     key={`${task.id}::${tab.id}`}
                     title={`${task.title} · ${tabLabel(tab)}`}
-                    className={`rail-folded-cell is-tab tone-${tab.alive === false ? "muted" : tone === "muted" ? "ink" : tone} ${task.id === selectedTaskId ? "is-selected" : ""}`}
+                    className={`rail-folded-cell is-tab tone-${cell} ${task.id === selectedTaskId ? "is-selected" : ""}`}
                     onClick={() => open(task.id, tab.id)}
                   >
                     {tabDigit(i)}
@@ -179,7 +144,8 @@ export function FoldedRail({
                 )
               })
             }
-            const { glyph, tone } = activityGlyph(task.activity?.state, frame)
+            // Folded, the task's one cell is its rollup.
+            const { glyph, tone } = statusGlyph(task.rowStatus, frame, glyphs)
             return [
               <button
                 type="button"

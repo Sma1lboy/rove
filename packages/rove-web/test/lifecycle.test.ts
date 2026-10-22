@@ -253,6 +253,34 @@ test("a task removed while its worktree materializes is not selected", async () 
   expect(model.selection.get().taskId).toBe("A")
 })
 
+test("the page reports what it shows to the daemon, and nothing once hidden", async () => {
+  let onVisibility = () => {}
+  const page = {
+    visibilityState: "visible",
+    addEventListener(_: string, fn: () => void) {
+      onVisibility = fn
+    },
+  }
+  install("document", page)
+  const { model, calls, timers } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
+  await flush()
+  timers.shift()?.()
+  calls.find((call) => call.op === "task.tabs")?.resolve({ tabs: [{ id: "tab-1", alive: true }] })
+  await flush()
+  const viewing = () => calls.filter((call) => call.op === "ui.viewing").map((call) => call.args)
+  // Nothing selected on a fresh socket: nothing to report.
+  expect(viewing()).toEqual([])
+  model.select("A")
+  model.select("A", "tab-1")
+  expect(viewing()).toEqual([{ taskId: "A", tabId: "tab-1" }])
+  page.visibilityState = "hidden"
+  onVisibility()
+  page.visibilityState = "visible"
+  onVisibility()
+  expect(viewing()).toEqual([{ taskId: "A", tabId: "tab-1" }, { taskId: null }, { taskId: "A", tabId: "tab-1" }])
+})
+
 function terminals() {
   install("document", { addEventListener() {}, removeEventListener() {}, activeElement: null })
   install(

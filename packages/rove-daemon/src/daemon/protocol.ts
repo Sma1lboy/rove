@@ -121,6 +121,9 @@ export type DaemonRequestName =
   | "tabs.get"
   | "tabs.reserve"
   | "tabs.release"
+  | "status.list"
+  | "ui.viewing"
+  | "activity.answered"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"
   // Cross-project worktree audit: every worktree of every local saved project

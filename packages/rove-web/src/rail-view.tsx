@@ -17,7 +17,7 @@ import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import { type NavRow, activityGlyph, railRows, repoLabel } from "./rail.ts"
+import { type NavRow, anySpinning, needsPerson, railRows, repoLabel, tabRowGlyph, taskRowGlyph } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
@@ -58,7 +58,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const tabs = useStore(model.tabs)
   const selection = useStore(model.selection)
   const tasks = payload?.tasks ?? []
-  const frame = useSpinnerFrame(tasks.some((task) => task.activity?.state === "running"))
+  const frame = useSpinnerFrame(anySpinning(tasks) || anySpinning(remoteTasks))
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
   const tabsOf = (taskId: string) => tabs[taskId] ?? []
   const selectedId = selection.taskId
@@ -81,6 +81,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       routines: filters.routines,
     })
   const { rows, groups } = build(filters.search.active ? filters.search.query : "")
+  // A task whose tabs are listed under it leaves the status to them (`taskRowGlyph`).
+  const tabsShown = new Set(rows.flatMap((row) => (row.kind === "tab" ? [row.task.id] : [])))
   const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project")
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
   const offline = new Set(machines.filter((m) => m.state !== "online").map((m) => m.alias))
@@ -174,6 +176,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             }
             frame={frame}
             tabCount={row.kind === "task" ? tabsOf(row.task.id).length : 0}
+            tabsShown={row.kind === "task" && tabsShown.has(row.task.id)}
             selected={row.id === selectedId}
             cursor={row.id === keys.cursor}
             stale={row.machine !== undefined && offline.has(row.machine)}
@@ -230,6 +233,8 @@ function RailRow(props: {
   machineChips: readonly { readonly text: string; readonly title: string }[]
   frame: number
   tabCount: number
+  /** The task's tab rows are on screen under it. */
+  tabsShown: boolean
   selected: boolean
   cursor: boolean
   moving: boolean
@@ -262,7 +267,7 @@ function RailRow(props: {
   }
   const markDot = mark ? <span className="task-mark" style={{ background: mark }} aria-hidden="true" /> : null
   if (row.kind === "routines") {
-    const waiting = row.expanded ? 0 : row.tasks.filter((task) => WAITING.has(task.activity?.state ?? "")).length
+    const waiting = row.expanded ? 0 : row.tasks.filter(needsPerson).length
     return (
       <button
         type="button"
@@ -282,7 +287,7 @@ function RailRow(props: {
   }
   if (row.kind === "tab") {
     const tab = row.tab
-    const dead = tab.alive === false
+    const glyph = tabRowGlyph(row.task, tab, props.frame, glyphs)
     // Two-row tabs add the engine running in the tab (the pty's foreground process, none when unknown) under its label (TUI `tabRowHeight` 2).
     const caption = prefs.tabRowHeight === 2 && tab.kind === "engine" ? (tab.liveEngine ?? null) : null
     return (
@@ -293,9 +298,7 @@ function RailRow(props: {
         onContextMenu={props.onMenu}
       >
         {markDot}
-        <span className={`glyph ${dead ? "tone-muted" : "tone-ink"}`}>
-          {dead ? (glyphs?.idle ?? "○") : (glyphs?.running ?? "●")}
-        </span>
+        <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>
         <span className="row-title">
           {tabLabel(tab)}
           {caption && <span className="row-caption muted">{caption}</span>}
@@ -304,9 +307,9 @@ function RailRow(props: {
     )
   }
   const task = row.task
-  const glyph = activityGlyph(task.activity?.state, props.frame, glyphs)
+  const glyph = taskRowGlyph(task, props.tabsShown, props.frame, glyphs)
   const changes = task.changes && "added" in task.changes ? task.changes : null
-  const running = task.activity?.state === "running"
+  const running = task.rowStatus?.kind === "running"
   return (
     <button
       type="button"
@@ -316,7 +319,7 @@ function RailRow(props: {
       onContextMenu={props.onMenu}
     >
       {markDot}
-      <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>
+      <span className={`glyph ${glyph ? `tone-${glyph.tone}` : ""}`}>{glyph?.glyph ?? ""}</span>
       <span className="row-title">{task.title}</span>
       <span className="chips">
         {task.pinned && <span className="chip muted">▴</span>}
@@ -340,9 +343,6 @@ function machineChip(machine: MachineRow, words: Parameters<typeof machineLabel>
   const title = machineLabel(machine, words)
   return { text: machine.state === "online" ? machine.hostLabel || machine.alias : title, title }
 }
-
-/** Sessions a closed fold flags: they need a person. */
-const WAITING: ReadonlySet<string> = new Set(["permission_needed", "error", "dead", "rate_limited"])
 
 export function tabLabel(tab: TabRow): string {
   return tab.title ?? tab.engineName ?? (tab.kind === "engine" ? t("tab.engine") : t("tab.shell"))

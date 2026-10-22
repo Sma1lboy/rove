@@ -41,6 +41,7 @@ import { useWorkspaceTaskActions } from "./host-task-actions"
 import { NarrowBackBar } from "./narrow-back-bar"
 import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
+import { useRowStatusSync } from "./row-status-sync"
 import { runningPaneFlow, runningPaneTitle } from "./running-pane-chrome"
 import { selfRefreshAction } from "./self-refresh-action"
 import { ShowWorkspace } from "./show-workspace"
@@ -89,7 +90,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     engineState,
     engineLifecycle,
     engineTabState,
-    sidebarEngineState,
     inboxItems,
     taskJobs,
     rowTokens,
@@ -218,8 +218,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     setUiEventReporter((kind, taskId, detail) => orch.reportUiEvent(kind, taskId, detail))
     return () => setUiEventReporter(null)
   }, [orch])
-  // Every tab comes from the daemon's tab store (`tabs-sync.ts`).
+  // Every tab comes from the daemon's tab store (`tabs-sync.ts`), every row status from its row-status store.
   useTabsSync(orch.tabs, orch.connectionStateSignal())
+  useRowStatusSync(orch.rowStatus, orch.connectionStateSignal())
 
   const pages = useHostPagesState(focus, { whatsNewFrom: props.whatsNewFrom ?? null, welcome: props.welcome ?? null })
   // Modals, opened here because the dialog stack lives here.
@@ -359,7 +360,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               selectTask={selectTask}
               activateTask={activateTask}
               daemon={{
-                sidebarEngineState,
+                engineState,
                 engineTabState,
                 engineLifecycle,
                 taskJobs,

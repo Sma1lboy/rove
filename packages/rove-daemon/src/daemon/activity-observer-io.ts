@@ -99,6 +99,7 @@ export function createActivityObserverIo(
             pid?: number | null
             title?: string
             totalBytes?: number
+            restored?: boolean
             programStatusEvent?: import("./program-status-event").ProgramStatusEvent
           }>
         }>("pty.list")
@@ -109,6 +110,7 @@ export function createActivityObserverIo(
           pid: typeof s.pid === "number" ? s.pid : null,
           title: typeof s.title === "string" ? s.title : "",
           totalBytes: typeof s.totalBytes === "number" ? s.totalBytes : 0,
+          restored: s.restored === true,
         }))
       } catch {
         return null
