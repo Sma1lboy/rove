@@ -35,6 +35,21 @@ function issue(id: number, over: Record<string, unknown> = {}) {
   return { id, title: `story-${id}`, status: "open", created: "2026-08-01", body: "", ...over }
 }
 
+/** Poll the frame until it shows every `needle` (or `timeoutMs` passes): fixed sleeps flake on a loaded CI runner. */
+async function frameShowing(
+  frame: () => Promise<string>,
+  needles: readonly string[],
+  timeoutMs = 4_000,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs
+  let text = await frame()
+  while (!needles.every((n) => text.includes(n)) && Date.now() < deadline) {
+    await settle(50)
+    text = await frame()
+  }
+  return text
+}
+
 test("kanban: a rejected detail-drawer edit shows an error toast, not the stale card", async () => {
   const orch = {
     listTasks: () => [{ repo: REPO }],
@@ -63,8 +78,7 @@ test("kanban: a rejected detail-drawer edit shows an error toast, not the stale 
   mockInput.pressArrow("down")
   await settle()
   mockInput.pressEnter()
-  await settle(300)
-  expect(await frame()).toContain("TITLE")
+  expect(await frameShowing(frame, ["TITLE"])).toContain("TITLE")
   // A startable story opens focused on WORKSPACE (see issue-detail-dialog's
   // initial `field`); the field ring is title→description→engine→workspace→
   // jump, so two tabs wrap around onto the title input.
@@ -73,17 +87,15 @@ test("kanban: a rejected detail-drawer edit shows an error toast, not the stale 
   mockInput.pressTab()
   await settle()
   mockInput.typeText("-edited")
-  await settle(150)
-  expect(await frame()).toContain("story-1-edited")
+  expect(await frameShowing(frame, ["story-1-edited"])).toContain("story-1-edited")
   mockInput.pressEscape()
-  await settle(400)
-  const text = await frame()
+  const text = await frameShowing(frame, ["✕", "Couldn't save story #1"])
   // The board repainted from the store, so the card still reads `story-1`.
   // Without the toast that is the ONLY thing on screen — and it looks exactly
   // like an edit that was never made.
   expect(text).toContain("✕")
   expect(text).toContain("Couldn't save story #1")
-})
+}, 15_000)
 
 /**
  * A project whose issue read REJECTS must keep its slot on the board.
@@ -118,11 +130,9 @@ test("kanban: a project whose issue read rejects keeps its slot, says why, and t
     </>,
     { width: 120, height: 30, providers: { dialog: true, kv: true, notifications: true } },
   )
-  await settle(300)
-
   // The counter is the proof the project was not dropped: `1/2`, not a bare
   // single-project label. Sorted by repoRoot, `/repos/broken` leads.
-  const first = await frame()
+  const first = await frameShowing(frame, ["1/2", "✕", "Couldn't read stories for", "Unterminated string"])
   expect(first).toContain("1/2")
   expect(first).toContain("✕")
   expect(first).toContain("Couldn't read stories for")
@@ -134,11 +144,10 @@ test("kanban: a project whose issue read rejects keeps its slot, says why, and t
 
   // The healthy project is still fully reachable — tab cycles onto its board.
   mockInput.pressTab()
-  await settle(200)
-  const second = await frame()
+  const second = await frameShowing(frame, ["story-1"])
   expect(second).toContain("story-1")
   expect(second).not.toContain("Couldn't read this project's stories")
-})
+}, 15_000)
 
 /**
  * The terminal's acquire-failure state must not be a dead end.
