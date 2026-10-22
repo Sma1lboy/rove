@@ -25,8 +25,6 @@ export interface ProjectGroup {
   readonly key?: string
   /** The machine `repo` lives on; absent = this one. */
   readonly machine?: string
-  /** Other machines this project has tasks on, in registration order. */
-  readonly spans?: readonly string[]
 }
 
 /** A row from another machine carries its alias, so its menu and keys run there. */
@@ -41,7 +39,6 @@ export type NavRow =
       readonly kind: "project"
       readonly repo: string
       readonly label: string
-      readonly spans?: readonly string[]
     })
   | (Remote & { readonly id: string; readonly kind: "task"; readonly task: TaskRow })
   | (Remote & { readonly id: string; readonly kind: "tab"; readonly task: TaskRow; readonly tab: TabRow })
@@ -188,7 +185,6 @@ export function navRows(
         repo: group.repo,
         label: group.label,
         ...head,
-        ...(group.spans && group.spans.length > 0 ? { spans: group.spans } : {}),
       },
       ...under,
     )
@@ -212,21 +208,21 @@ export interface RailInput {
 
 const newest = (group: ProjectGroup): number => Math.max(0, ...group.tasks.map(taskTime))
 
-/** One machine's checkout of a project: a per-path group plus where it lives (`host` `""` = this machine). */
+/** One machine's checkout of a project: a per-path group plus the machine it lives on (absent = this one). */
 interface Part {
   readonly group: ProjectGroup
   readonly machine?: string
-  readonly host: string
 }
 
-type Project = ProjectGroup & { readonly host: string }
+type Project = ProjectGroup
 
 /** `owner/name` of a `host/owner/name` id; a `root:` id has no readable name. */
 const repoIdTail = (id: string): string | null => (id.startsWith("root:") ? null : id.split("/").slice(-2).join("/"))
 
 /**
  * The repo's basename, widened only when a DIFFERENT project shares it: a repo id reads `owner/name`
- * (the whole id when even that repeats), a path-only project takes {@link projectLabel}'s rules.
+ * (the whole id when even that repeats), a path-only project its path tail ({@link projectLabel} with
+ * every checkout as one host): the header never names a machine, the rows' cloud marks do.
  */
 function mergedLabel(project: Project, all: readonly Project[]): string {
   const base = repoLabel(project.repo)
@@ -237,7 +233,10 @@ function mergedLabel(project: Project, all: readonly Project[]): string {
   if (id && tail) {
     return others.some((other) => other.repoId && other.repoId !== id && repoIdTail(other.repoId) === tail) ? id : tail
   }
-  return projectLabel(project.repo, [project, ...others], project.host)
+  return projectLabel(
+    project.repo,
+    [project, ...others].map((entry) => ({ repo: entry.repo, host: "" })),
+  )
 }
 
 /**
@@ -245,19 +244,19 @@ function mergedLabel(project: Project, all: readonly Project[]): string {
  * from every environment together. A repo is one project wherever it is checked out: groups with the
  * same `repoId` merge into one header (keyed by that id), its tasks from every machine underneath,
  * each row keeping its own `machine`; groups without one stay per machine and path. The header acts
- * on this machine's checkout when there is one, else the first machine's, and names the other
- * machines it spans. `default` keeps this machine's project order first, then each machine's in
- * registration order; `recent` and `name` interleave all of them. `groups` is this machine's
+ * on this machine's checkout when there is one, else the first machine's, and names no machine:
+ * a task row from elsewhere carries a cloud mark instead (`rail-view.tsx`). `default` keeps this
+ * machine's project order first, then each machine's in registration order; `recent` and `name` interleave all of them. `groups` is this machine's
  * per-path projects, labelled as their headers.
  */
 export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGroup[] } {
   const parts: Part[] = [
-    ...groupByProject(input.tasks, input.sort).map((group) => ({ group, host: "" })),
+    ...groupByProject(input.tasks, input.sort).map((group) => ({ group })),
     ...input.machines.flatMap((machine) =>
       groupByProject(
         input.remote.filter((task) => task.machine?.id === machine.alias),
         input.sort,
-      ).map((group) => ({ group, machine: machine.alias, host: machine.hostLabel || machine.alias })),
+      ).map((group) => ({ group, machine: machine.alias })),
     ),
   ]
   const buckets = new Map<string, Part[]>()
@@ -275,11 +274,9 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
     const head = bucket[0]
     if (!head) continue
     const all = bucket.flatMap((part) => part.group.tasks)
-    const spans = [...new Set(bucket.flatMap((part) => (part.machine === undefined ? [] : [part.machine])))]
     const project: Project = {
       repo: head.group.repo,
       label: "",
-      host: head.host,
       key,
       tasks:
         bucket.length === 1
@@ -289,7 +286,6 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
             : [...all.filter((task) => task.kind === "main"), ...all.filter((task) => task.kind !== "main")],
       ...(head.group.repoId ? { repoId: head.group.repoId } : {}),
       ...(head.machine === undefined ? {} : { machine: head.machine }),
-      ...(spans.length > 0 ? { spans } : {}),
     }
     projects.push(project)
     for (const part of bucket) projectOf.set(part, project)

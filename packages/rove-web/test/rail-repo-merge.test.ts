@@ -41,10 +41,8 @@ describe("one project per repo across machines", () => {
       ["mine::tab-1", "tab", undefined],
       ["far", "task", "narwhal"],
     ])
-    // Project actions use this machine's checkout; the header names the other machine it spans.
-    expect(heads(rows)).toEqual([
-      { id: "project:github.com/me/rove", kind: "project", repo: "/w/rove", label: "rove", spans: ["narwhal"] },
-    ])
+    // Project actions use this machine's checkout; the header names no machine (the remote row's cloud does).
+    expect(heads(rows)).toEqual([{ id: "project:github.com/me/rove", kind: "project", repo: "/w/rove", label: "rove" }])
     expect(groups.map((group) => [group.repo, group.label])).toEqual([["/w/rove", "rove"]])
   })
 
@@ -62,7 +60,6 @@ describe("one project per repo across machines", () => {
         repo: "/srv/rove",
         label: "rove",
         machine: "narwhal",
-        spans: ["narwhal", "mac"],
       },
     ])
     expect(rows.slice(1).map((row) => [row.id, row.machine])).toEqual([
@@ -100,7 +97,7 @@ describe("one project per repo across machines", () => {
     ])
   })
 
-  test("rows without a repo id keep one header per machine and path", () => {
+  test("rows without a repo id keep one header per machine and path, neither naming a machine", () => {
     const { rows } = railRows({
       ...base,
       tasks: [task("mine", "/w/app")],
@@ -109,7 +106,7 @@ describe("one project per repo across machines", () => {
     })
     expect(heads(rows).map((row) => [row.id, row.kind === "project" && row.label, row.machine])).toEqual([
       ["project:/w/app", "app", undefined],
-      ["project:narwhal\0/w/app", "narwhal:app", "narwhal"],
+      ["project:narwhal\0/w/app", "app", "narwhal"],
     ])
   })
 

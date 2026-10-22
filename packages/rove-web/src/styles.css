@@ -581,12 +581,21 @@ button:focus-visible,
   }
 }
 
-/* One list across machines: a remote project's header names its machine; its rows sit flush with
-   local ones and grey out while that machine is unreachable (TUI `task.origin.stale`). */
-.machine-chip {
-  font-weight: 400;
+/* One list across machines, no machine names: a task from another machine sits flush with local
+   ones, a small cloud after its title, and greys out while that machine is unreachable (TUI
+   `task.origin.stale`). The title shrinks to its text so the cloud follows it; the chips stay right. */
+.task-row > .row-title {
+  flex: 0 1 auto;
+}
+.task-row > .chips {
+  margin-left: auto;
+}
+.cloud-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  margin-left: -2px;
   color: var(--subtle);
-  white-space: nowrap;
 }
 
 .row.is-stale .row-title,
