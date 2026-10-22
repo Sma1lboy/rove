@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test"
+import { describe, expect, it } from "vitest"
 import { type EngineHealthFacts, engineHealth, engineLogin } from "../../src/engine/engine-health"
 
 const ready: EngineHealthFacts = { binaryFound: true, login: "yes", hooks: "installed", commandChosen: false }

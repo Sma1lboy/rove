@@ -69,7 +69,7 @@ describe("SettingsDialog", () => {
     // by settings-auto-routing-section.test.tsx with a stubbed verdict.
     expect(text).toContain("swift      Claude · sonnet · engine default")
     text = await press("j") // → Plugins
-    expect(text).toContain("No plugins registered")
+    expect(text).toContain("Kanban and Issues are first-party mods")
     text = await press("j") // → Marketplace
     await settle(120)
     text = await frame()
