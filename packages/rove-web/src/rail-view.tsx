@@ -8,7 +8,7 @@ import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace, railFolded } from "./layout.ts"
-import { type MachineRow, machineLabel, useMachines } from "./machines-view.tsx"
+import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
 import { NewTaskDialog } from "./new-task-dialog.tsx"
@@ -166,14 +166,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           <RailRow
             key={row.id}
             row={row}
-            machineChips={
-              row.kind === "project"
-                ? (row.spans ?? []).flatMap((alias) => {
-                    const machine = machines.find((m) => m.alias === alias)
-                    return machine ? [machineChip(machine, words)] : []
-                  })
-                : []
-            }
+            cloud={rowCloud(row, machines, words)}
             frame={frame}
             tabCount={row.kind === "task" ? tabsOf(row.task.id).length : 0}
             tabsShown={row.kind === "task" && tabsShown.has(row.task.id)}
@@ -229,8 +222,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 
 function RailRow(props: {
   row: NavRow
-  /** A project header names the other machines it has tasks on. */
-  machineChips: readonly { readonly text: string; readonly title: string }[]
+  /** A task on another machine: its cloud mark's text (`on mac · offline`); null for this machine's rows. */
+  cloud: string | null
   frame: number
   tabCount: number
   /** The task's tab rows are on screen under it. */
@@ -256,11 +249,6 @@ function RailRow(props: {
         onContextMenu={props.onMenu}
       >
         <span>{row.label}</span>
-        {props.machineChips.map((chip) => (
-          <span key={chip.text} className="chip machine-chip" title={chip.title}>
-            {chip.text}
-          </span>
-        ))}
         <span className="rule" />
       </h2>
     )
@@ -321,6 +309,7 @@ function RailRow(props: {
       {markDot}
       <span className={`glyph ${glyph ? `tone-${glyph.tone}` : ""}`}>{glyph?.glyph ?? ""}</span>
       <span className="row-title">{task.title}</span>
+      {props.cloud && <CloudMark label={props.cloud} />}
       <span className="chips">
         {task.pinned && <span className="chip muted">▴</span>}
         {changes && changes.added > 0 && <span className="chip tone-diff-added">+{changes.added}</span>}
@@ -332,16 +321,6 @@ function RailRow(props: {
       </span>
     </button>
   )
-}
-
-/**
- * A project header carries one per other machine it spans, so an online machine reads as just its name (`mac`); the version
- * and any trouble (`mac · offline`, `mac · ⚠ v0.9.100 (protocol mismatch)`) show only when they matter,
- * the full label always on hover.
- */
-function machineChip(machine: MachineRow, words: Parameters<typeof machineLabel>[1]) {
-  const title = machineLabel(machine, words)
-  return { text: machine.state === "online" ? machine.hostLabel || machine.alias : title, title }
 }
 
 export function tabLabel(tab: TabRow): string {
