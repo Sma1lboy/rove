@@ -47,6 +47,12 @@ export const zh: typeof en = {
   dialog: {
     cancel: "取消",
     save: "保存",
+    close: "关闭",
+  },
+  whatsNew: {
+    continue: "继续",
+    openRelease: "打开发布说明",
+    keys: "q / esc",
   },
   menu: {
     closeTab: "关闭该标签页",
