@@ -49,7 +49,7 @@ export function windowsRoveCommand(roveBin: string, args: readonly string[]): st
  * may not be in the session's copy yet.
  */
 const WINDOWS_LOCATE_SCRIPT = [
-  "$dirs = @(\"$env:APPDATA\\npm\", \"$env:USERPROFILE\\.bun\\bin\", \"$env:LOCALAPPDATA\\pnpm\", $env:NVM_SYMLINK)",
+  '$dirs = @("$env:APPDATA\\npm", "$env:USERPROFILE\\.bun\\bin", "$env:LOCALAPPDATA\\pnpm", $env:NVM_SYMLINK)',
   "$dirs += [Environment]::GetEnvironmentVariable('Path', 'User') -split ';'",
   "foreach ($d in $dirs) { if (-not $d) { continue }",
   "  foreach ($n in 'rove.cmd', 'rove.exe') { $p = Join-Path $d $n; if (Test-Path -LiteralPath $p) { \"ROVE_BIN=$p\"; exit 0 } } }",
@@ -76,7 +76,7 @@ export function windowsNoRoveMessage(alias: string, output: string): string {
   }
   return [
     `Rove is not on the PATH of ssh sessions on ${alias} (Windows), nor in %APPDATA%\\npm, ~\\.bun\\bin or the user PATH.`,
-    `Install it there in a PowerShell: npm install -g @sma1lboy/rove`,
+    "Install it there in a PowerShell: npm install -g @sma1lboy/rove",
     `If it is installed elsewhere, add that folder to your user PATH on ${alias}, then restart sshd (elevated: Restart-Service sshd) so new sessions see it.`,
   ].join("\n")
 }

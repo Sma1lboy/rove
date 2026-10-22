@@ -17,7 +17,15 @@ const DENIED: DiscoverFailure = {
 const NO_ROVE: DiscoverFailure = { ok: false, code: "NO_ROVE", message: "Rove is not installed on otter" }
 const OK: DiscoverResult = {
   ok: true,
-  status: { socketPath: "/s", ptySocketPath: "/p", homeDir: "/h", hostname: "otter", roveVersion: "1", daemonPid: 1, relayPreamble: true },
+  status: {
+    socketPath: "/s",
+    ptySocketPath: "/p",
+    homeDir: "/h",
+    hostname: "otter",
+    roveVersion: "1",
+    daemonPid: 1,
+    relayPreamble: true,
+  },
 }
 
 /** A runtime whose `exec` records argv and creates the key a real ssh-keygen would. */

@@ -52,11 +52,15 @@ describe("a native Windows machine", () => {
     const bin = "C:\\Users\\O'Neil Smith\\AppData\\Roaming\\npm\\rove.cmd"
     const command = relayCommand({ roveBin: bin, relayPreamble: true }, true)
     // Base64 carries nothing cmd, pwsh or sh would quote or expand.
-    expect(command).toMatch(/^powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand [A-Za-z0-9+/=]+$/)
+    expect(command).toMatch(
+      /^powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand [A-Za-z0-9+/=]+$/,
+    )
     expect(decoded(command)).toBe(
       "& 'C:\\Users\\O''Neil Smith\\AppData\\Roaming\\npm\\rove.cmd' 'daemon' 'relay' '--pty' '--preamble'; exit $LASTEXITCODE",
     )
-    expect(remoteRove("/home/n/.bun/bin/rove", ["update"])).toBe(`PATH='/home/n/.bun/bin':"$PATH" '/home/n/.bun/bin/rove' update`)
+    expect(remoteRove("/home/n/.bun/bin/rove", ["update"])).toBe(
+      `PATH='/home/n/.bun/bin':"$PATH" '/home/n/.bun/bin/rove' update`,
+    )
   })
 
   test("takes the located rove from the locate script's output", () => {
@@ -70,10 +74,12 @@ describe("a native Windows machine", () => {
 describe("rove missing from a Windows ssh session", () => {
   // Each verbatim from that shell.
   const CMD = "'rove' is not recognized as an internal or external command,\r\noperable program or batch file."
-  const PWSH = "rove: The term 'rove' is not recognized as a name of a cmdlet, function, script file, or executable program."
+  const PWSH =
+    "rove: The term 'rove' is not recognized as a name of a cmdlet, function, script file, or executable program."
   const POWERSHELL =
     "rove : The term 'rove' is not recognized as the name of a cmdlet, function, script file, or operable program."
-  const STALE = "& : The term 'C:\\x\\rove.cmd' is not recognized as the name of a cmdlet, function, script file, or operable program."
+  const STALE =
+    "& : The term 'C:\\x\\rove.cmd' is not recognized as the name of a cmdlet, function, script file, or operable program."
   const BLOCKED =
     "rove : File C:\\Users\\j\\AppData\\Roaming\\npm\\rove.ps1 cannot be loaded because running scripts is disabled on this system."
 

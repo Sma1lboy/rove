@@ -11,8 +11,8 @@ tree is the answer to what is running where.
 
 - Rove installed on **both** machines (`curl -fsSL https://rove.run/install.sh | sh`,
   which installs Bun too). Run in a terminal, `machine add` offers to install
-  it on the other one for you. On Windows, run the hub inside WSL: Windows
-  OpenSSH cannot forward the daemon socket.
+  it on the other one for you. Either side can be native Windows
+  ([below](#a-windows-machine)).
 - SSH access to the remote one. A `Host` block in `~/.ssh/config` is the usual
   way; Rove reads it rather than replacing it. If no key you have is accepted
   there, `machine add` offers to set one up (below).
@@ -276,6 +276,48 @@ $ rove api repo-list --machine narwhal
 The sidebar in `rove --web` groups projects by repo id too: a repo you have
 on several machines is one project, with each machine's tasks under it.
 
+## A Windows machine
+
+A Windows PC running native Rove registers like any other machine:
+
+```console
+$ rove machine add jackson@192.168.1.45 --alias win
+```
+
+It needs the OpenSSH Server, which Windows ships but leaves off. In an
+elevated PowerShell on that PC:
+
+```powershell
+Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+Set-Service sshd -StartupType Automatic; Start-Service sshd
+```
+
+The `OpenSSH-Server-In-TCP` firewall rule comes with it; check it with
+`Get-NetFirewallRule -Name OpenSSH-Server-In-TCP`.
+
+- **Keys.** For an account in the Administrators group, OpenSSH for Windows
+  reads `%ProgramData%\ssh\administrators_authorized_keys`, not
+  `~\.ssh\authorized_keys`, and only if nobody but SYSTEM and Administrators
+  can read it. Elevated, on that PC, with the hub's public key:
+
+  ```powershell
+  Add-Content "$env:ProgramData\ssh\administrators_authorized_keys" '<public key>'
+  icacls.exe "$env:ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "*S-1-5-32-544:F" /grant "SYSTEM:F"
+  ```
+
+- **Shell.** sshd runs commands in cmd or PowerShell (its `DefaultShell`), and
+  Rove sends nothing either would misread. A `rove` that is not on that
+  session's PATH is looked for in `%APPDATA%\npm`, `~\.bun\bin` and the user
+  PATH, and run through Windows PowerShell.
+- **Profile output.** A PowerShell profile that prints (a fastfetch banner) runs
+  before every command. Rove skips it, but each connection waits for it. Guard
+  it with `if (-not [Console]::IsOutputRedirected) { … }` to keep it for your
+  own logins only.
+- **Transport.** The daemon socket and the PTY host's named pipe cannot be
+  forwarded by ssh, so a hub always reaches a Windows machine through
+  `rove daemon relay`, below. The Windows machine needs a Rove that marks
+  where its relayed bytes start; an older one is reported as too old.
+
 ## What this release does not do yet
 
 - No leader election or failover: every machine owns its own tasks, and any
@@ -287,7 +329,8 @@ on several machines is one project, with each machine's tasks under it.
 On native Windows, OpenSSH has no unix-socket forwarding and no connection
 multiplexing, so the hub serves each machine's two sockets itself and relays
 every connection through `ssh <machine> rove daemon relay` (and `… --pty` for
-terminals) over the session's stdin and stdout. Nothing extra is needed on
+terminals) over the session's stdin and stdout. A hub does the same for a
+Windows machine, whatever the hub runs on. Nothing extra is needed on
 either side. Any hub can use the same transport with
 `ROVE_MACHINE_TRANSPORT=stdio`, for a host whose sshd refuses `streamlocal`
 forwarding.
