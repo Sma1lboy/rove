@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.266
+
+### Patch Changes
+
+- [#1382](https://github.com/Sma1lboy/rove/pull/1382) [`79a592f`](https://github.com/Sma1lboy/rove/commit/79a592f03f83c1c736ed7e4b42ea6176d0adcfaa) The iOS and Android apps follow the Mac's first-party mods: the Board shows in the Pages menu only while Kanban is installed, and GitHub issues only while Issues is. Both apps re-check when they connect and when they come back to the front, and Settings → Plugins lists the two mods with install and uninstall. A Mac on an older build still shows both pages. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1383](https://github.com/Sma1lboy/rove/pull/1383) [`7325b76`](https://github.com/Sma1lboy/rove/commit/7325b768f107702e3a4a4fb11dd3626a6b3f0889) While your WeChat agent works on a message, the chat shows 对方正在输入 ("typing…"). It stays up while the agent's turn runs and clears when the turn ends; commands such as `/status` answer at once without it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.265
 
 ### Patch Changes
