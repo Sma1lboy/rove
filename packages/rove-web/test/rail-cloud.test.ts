@@ -53,14 +53,14 @@ describe("the rail names no machine; a remote task carries a cloud", () => {
     expect(JSON.stringify(head)).not.toMatch(/mac|studio/)
   })
 
-  test("only the remote task row gets a cloud, titled with where it lives", () => {
+  test("only the remote task row gets a cloud, titled with the machine's registered name and host", () => {
     const rows = rail([mac("online")])
     const clouds = rows.map((row) => [row.id, rowCloud(row, [mac("online")], words)])
     expect(clouds).toEqual([
       ["project:github.com/me/rove", null],
       ["here", null],
       ["here::t1", null],
-      ["there", "on studio.local"],
+      ["there", "on mac (studio.local)"],
       // A tab row under a remote task says nothing: its task row already does.
       ["there::t1", null],
     ])
@@ -69,14 +69,14 @@ describe("the rail names no machine; a remote task carries a cloud", () => {
   test("a machine that is not online adds its state to the cloud's text", () => {
     const [there] = rail([mac("offline")]).filter((row) => row.id === "there")
     if (!there) throw new Error("no remote row")
-    expect(rowCloud(there, [mac("offline")], words)).toBe("on studio.local · offline")
+    expect(rowCloud(there, [mac("offline")], words)).toBe("on mac (studio.local) · offline")
     expect(rowCloud(there, [mac("mismatch", "0.9.100")], words)).toBe(
-      "on studio.local · ⚠ v0.9.100 (protocol mismatch)",
+      "on mac (studio.local) · ⚠ v0.9.100 (protocol mismatch)",
     )
-    expect(rowCloud(there, [mac("connecting")], words)).toBe("on studio.local · connecting…")
+    expect(rowCloud(there, [mac("connecting")], words)).toBe("on mac (studio.local) · connecting…")
     // Before the machine list loads, the row's own machine label stands in.
     expect(rowCloud(there, [], words)).toBe("on mac")
-    expect(remoteLabel("mac", mac("offline"), tasksZh.machine)).toBe("在 studio.local 上 · 离线")
+    expect(remoteLabel("mac", mac("offline"), tasksZh.machine)).toBe("在 mac (studio.local) 上 · 离线")
   })
 
   test("the cloud mark carries its text as tooltip and aria-label", () => {
