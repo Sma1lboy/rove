@@ -2,6 +2,8 @@
 
 ## 0.9.260
 
+Tagged but never published to npm: the release run's render track failed on a test race (fixed in #1356) before `npm publish`. Its changes ship in 0.9.261.
+
 ### Patch Changes
 
 - [#1353](https://github.com/Sma1lboy/rove/pull/1353) [`74650eb`](https://github.com/Sma1lboy/rove/commit/74650eb86b774720217575c298678fe76c2c0329) Terminal tabs are now owned by the daemon. Every TUI, the web, the CLI and other machines change a task's tabs by sending the daemon an operation, and all of them show the one list it keeps. A tab closed in one client disappears from all of them and cannot come back, a tab opened in one shows up in the others at once, and two clients opening tabs at the same moment always get two tabs with different numbers, in the same order everywhere. Which tab you are looking at stays your own. — [@Sma1lboy](https://github.com/Sma1lboy)
