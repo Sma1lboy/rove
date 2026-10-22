@@ -1,3 +1,4 @@
+import { PRE_RENAME_VERSION_KEY } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { describe, expect, test } from "vitest"
 import { parseLocatedRove, parseStatusJson, remoteRove } from "../../src/machines/discover.ts"
 import { relayCommand, useStdioTransport } from "../../src/machines/stdio-forward.ts"
@@ -39,7 +40,10 @@ describe("a native Windows machine", () => {
   })
 
   test("reads the version a pre-rename daemon reports", () => {
-    const old = WINDOWS_STATUS.replace('"roveVersion"', '"kobeVersion"').replace(',"relayPreamble":true', "")
+    const old = WINDOWS_STATUS.replace('"roveVersion"', `"${PRE_RENAME_VERSION_KEY}"`).replace(
+      ',"relayPreamble":true',
+      "",
+    )
     expect(parseStatusJson(old)).toMatchObject({ roveVersion: "0.9.266", relayPreamble: false })
   })
 

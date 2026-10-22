@@ -10,6 +10,7 @@
 import { spawn } from "node:child_process"
 import { mkdirSync } from "node:fs"
 import { posix } from "node:path"
+import { PRE_RENAME_VERSION_KEY } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { shQuote } from "../exec/exec-host.ts"
 import { type MachineConfig, sshTargetOf } from "./registry.ts"
 import { machineSocketDir, machineSshArgs } from "./ssh-args.ts"
@@ -338,8 +339,9 @@ export function parseStatusJson(stdout: string): RemoteDaemonStatus | null {
   }
 }
 
-/** Daemons from before the rename report `kobeVersion`; naming it still explains a skew. */
+/** A pre-rename daemon's version still explains a skew. */
 function statusVersion(o: Record<string, unknown>): string {
   if (typeof o.roveVersion === "string") return o.roveVersion
-  return typeof o.kobeVersion === "string" ? o.kobeVersion : ""
+  const old = o[PRE_RENAME_VERSION_KEY]
+  return typeof old === "string" ? old : ""
 }

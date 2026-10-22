@@ -128,7 +128,7 @@ describe("rove daemon status", () => {
     mocks.daemonRequest.mockResolvedValue({ daemonPid: 7, taskCount: 2 })
     await runDaemonSubcommand(["status"])
     expect(mocks.daemonRequest).toHaveBeenCalledWith("daemon.status")
-    expect(JSON.parse(output())).toEqual({ daemonPid: 7, taskCount: 2 })
+    expect(JSON.parse(output())).toEqual({ daemonPid: 7, taskCount: 2, relayPreamble: true })
     expect(mocks.daemonClose).toHaveBeenCalledTimes(1)
     expect(process.exitCode).toBeUndefined()
   })
@@ -136,7 +136,7 @@ describe("rove daemon status", () => {
   it("accepts --json, which another machine's `machine add` sends", async () => {
     mocks.daemonRequest.mockResolvedValue({ daemonPid: 7 })
     await runDaemonSubcommand(["status", "--json"])
-    expect(JSON.parse(output())).toEqual({ daemonPid: 7 })
+    expect(JSON.parse(output())).toEqual({ daemonPid: 7, relayPreamble: true })
     expect(process.exitCode).toBeUndefined()
   })
 
