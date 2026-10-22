@@ -198,6 +198,10 @@ button:focus-visible,
 .rail-head .wordmark {
   margin-right: auto;
 }
+.rail-head {
+  min-width: 0;
+  overflow: hidden;
+}
 
 .rail-body {
   flex: 1;
