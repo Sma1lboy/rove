@@ -16,6 +16,8 @@
     "./client/pty-process": "./src/client/pty-process.ts",
     "./client/rpc": "./src/client/rpc.ts",
     "./daemon/activity-arbitrate": "./src/daemon/activity-arbitrate.ts",
+    "./daemon/tabs-ops": "./src/daemon/tabs-ops.ts",
+    "./daemon/tabs-store": "./src/daemon/tabs-store.ts",
     "./daemon/pty-data-migration": "./src/daemon/pty-data-migration.ts",
     "./daemon/agent-turns-ingest": "./src/daemon/agent-turns-ingest.ts",
     "./daemon/agent-turns-store": "./src/daemon/agent-turns-store.ts",

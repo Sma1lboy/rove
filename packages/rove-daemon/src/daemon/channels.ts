@@ -42,6 +42,7 @@ export type {
 import type { RepoIssues } from "./issues-store.ts"
 import type { SerializedTask } from "./protocol.ts"
 import type { RowTokenMap } from "./row-tokens.ts"
+import type { TabsChangedPayload } from "./tabs-store.ts"
 
 /**
  * Daemon→client push channels. Each carries a last value the daemon caches
@@ -65,6 +66,12 @@ export interface ChannelPayloads {
    * `lifetime.hasSubscribersFor`: free with nobody attached.
    */
   "issue.snapshot": RepoIssues
+  /**
+   * One task's whole terminal-tab state after a `tabs.apply` (`tabs-store.ts`).
+   * Replay carries only the last changed task: a client lists them all
+   * (`tabs.list`) when it connects and keeps the highest `rev` per task.
+   */
+  "tabs.changed": TabsChangedPayload
   /**
    * The task last switched into, shared so every Tasks pane and the monitor
    * highlight the same focus. `null` = none yet. Set via `task.setActive`.

@@ -1,5 +1,6 @@
 /** Constructs every daemon-owned store plus the per-task teardown chain. */
 
+import { TabsStore } from "./tabs-store.ts"
 import { readActivityLiveness } from "./activity-liveness.ts"
 import { type ActivityLivenessProbe, DaemonActivityRegistry } from "./activity-registry.ts"
 import { AgentTurnsStore, defaultAgentTurnsPath } from "./agent-turns-store.ts"
@@ -36,6 +37,7 @@ export interface DaemonStores {
   readonly quotaUsage: QuotaUsageCache
   readonly engineEvents: EngineEventLog
   readonly rowTokens: RowTokenStore
+  readonly tabs: TabsStore
 }
 
 /**
@@ -76,6 +78,9 @@ export async function initDaemonStores(
   // In memory on purpose: restoring a token whose author is gone is the stale
   // state its TTL exists to prevent.
   const rowTokens = new RowTokenStore(bus)
+  // Sole writer of every task's terminal tabs; clients send it operations.
+  const tabs = new TabsStore(runtime.tabsPersistence, bus)
+  tabs.init()
   const clearTaskState = (taskId: string) =>
     gates
       .withdrawTask(taskId)
@@ -86,6 +91,7 @@ export async function initDaemonStores(
       .finally(() => activity.clearTask(taskId))
       // Else the map keeps republishing tokens for a row nothing renders.
       .finally(() => rowTokens.clearTask(taskId))
+      .finally(() => tabs.forget(taskId))
   const deletions = new TaskDeletionRunner(orch, runtime, clearTaskState, bus)
   // Keyed by git common-dir.
   const issues = new IssuesStore(defaultIssuesStorePath(homeDir))
@@ -111,5 +117,6 @@ export async function initDaemonStores(
     quotaUsage,
     engineEvents,
     rowTokens,
+    tabs,
   }
 }

@@ -147,6 +147,7 @@ async function startOwnedServer(
   )
   resources.defer(() => activity.close())
   resources.defer(() => rowTokens.close())
+  resources.defer(() => stores.tabs.flush())
   resources.defer(() => deletions.drain())
   resources.defer(async () => {
     await Promise.allSettled(requests)

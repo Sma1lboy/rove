@@ -116,6 +116,11 @@ export type DaemonRequestName =
   // "this repo has a backlog", which the task index cannot answer.
   | "issue.repos"
   | "issue.mutate"
+  | "tabs.apply"
+  | "tabs.list"
+  | "tabs.get"
+  | "tabs.reserve"
+  | "tabs.release"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"
   // Cross-project worktree audit: every worktree of every local saved project
