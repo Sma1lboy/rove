@@ -12,34 +12,52 @@
 import { type ChildProcess, spawn } from "node:child_process"
 import { mkdirSync, rmSync } from "node:fs"
 import { type Server, createServer } from "node:net"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
-import { roveCommand } from "./discover.ts"
+import { remoteRove } from "./discover.ts"
 import type { MachineConfig } from "./registry.ts"
+import { PreambleStripper } from "./relay-preamble.ts"
 import { localDaemonSocketPath, localPtySocketPath, machineSocketDir, machineSshArgs } from "./ssh-args.ts"
+import { isWindowsMachine } from "./windows-remote.ts"
 
-/** Hubs that cannot use `ssh -L sock:sock` — or anyone who asks for it. */
-export function useStdioTransport(platform: NodeJS.Platform = process.platform): boolean {
-  return platform === "win32" || process.env.ROVE_MACHINE_TRANSPORT === "stdio"
+/**
+ * Hubs that cannot use `ssh -L sock:sock`, machines whose sockets ssh cannot
+ * forward (a Windows daemon socket, a named-pipe PTY host), or anyone who asks.
+ */
+export function useStdioTransport(
+  platform: NodeJS.Platform = process.platform,
+  machine: Pick<MachineConfig, "sockets" | "roveBin"> = {},
+): boolean {
+  return platform === "win32" || process.env.ROVE_MACHINE_TRANSPORT === "stdio" || isWindowsMachine(machine)
 }
 
-/** The remote command one relay runs. `roveBin` is the machine's own Rove when discovery found one off PATH. */
-export function relayCommand(roveBin: string | undefined, pty: boolean): string {
-  // `roveCommand` puts the binary's own dir on PATH: an nvm install's shebang needs its `node`.
-  return `${roveCommand(roveBin)} daemon relay${pty ? " --pty" : ""}`
+/** The remote command one relay runs, with the machine's own Rove when discovery found one off PATH. */
+export function relayCommand(machine: Pick<MachineConfig, "roveBin" | "relayPreamble">, pty: boolean): string {
+  const flags = [...(pty ? ["--pty"] : []), ...(machine.relayPreamble ? ["--preamble"] : [])]
+  return remoteRove(machine.roveBin, ["daemon", "relay", ...flags])
 }
 
 const servers = new Map<string, Server>()
 
-function serve(path: string, argv: readonly string[]): Promise<void> {
+function serve(path: string, argv: readonly string[], preamble: boolean): Promise<void> {
   if (servers.has(path)) return Promise.resolve()
   const server = createServer((conn) => {
     const [cmd, ...args] = argv
     const child: ChildProcess = spawn(cmd ?? "ssh", args, { stdio: ["pipe", "pipe", "ignore"], windowsHide: true })
     conn.pipe(child.stdin as NodeJS.WritableStream)
-    child.stdout?.pipe(conn)
     const end = () => {
       conn.destroy()
       child.kill()
+    }
+    if (preamble) {
+      const stripper = new PreambleStripper()
+      child.stdout?.on("data", (chunk: Buffer) => {
+        const out = stripper.push(chunk)
+        if (out === null) end()
+        else if (out.length > 0) conn.write(out)
+      })
+    } else {
+      child.stdout?.pipe(conn)
     }
     conn.on("close", () => child.kill())
     conn.on("error", end)
@@ -57,20 +75,40 @@ function serve(path: string, argv: readonly string[]): Promise<void> {
     })
     // A previous run's socket file would make listen fail with EADDRINUSE.
     rmSync(path, { force: true })
+    // Open connections keep a process alive; an idle relay must not keep a one-shot CLI from exiting.
+    server.unref()
     server.listen(path, () => resolve())
   })
+}
+
+/**
+ * Whether the machine's daemon answers through the relay. The local socket
+ * always accepts (this process serves it), so only a `hello` that crosses ssh
+ * says the far end is there.
+ */
+export async function relayAnswers(alias: string, home?: string): Promise<boolean> {
+  const client = new RoveDaemonClient(localDaemonSocketPath(alias, home))
+  try {
+    await client.request("hello", {})
+    return true
+  } catch {
+    return false
+  } finally {
+    client.close()
+  }
 }
 
 /** Serve `alias`'s daemon and PTY sockets here, relayed over ssh. Idempotent; resolves once listening. */
 export async function ensureStdioForwards(args: {
   readonly alias: string
-  readonly config: MachineConfig & { readonly roveBin?: string }
+  readonly config: MachineConfig
   readonly home?: string
 }): Promise<void> {
   mkdirSync(machineSocketDir(args.alias, args.home), { recursive: true })
   const ssh = machineSshArgs(args.alias, args.config, { home: args.home })
-  await serve(localDaemonSocketPath(args.alias, args.home), [...ssh, relayCommand(args.config.roveBin, false)])
-  await serve(localPtySocketPath(args.alias, args.home), [...ssh, relayCommand(args.config.roveBin, true)])
+  const preamble = args.config.relayPreamble === true
+  await serve(localDaemonSocketPath(args.alias, args.home), [...ssh, relayCommand(args.config, false)], preamble)
+  await serve(localPtySocketPath(args.alias, args.home), [...ssh, relayCommand(args.config, true)], preamble)
 }
 
 /** Stop serving `alias`'s relayed sockets (tunnel stop / machine remove). */

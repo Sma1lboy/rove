@@ -18,7 +18,7 @@ import {
 import { ApiError } from "../cli/api/types.ts"
 import { errorMessage } from "../lib/error-message.ts"
 import { getSavedRepos } from "../state/repos.ts"
-import { discoverMachine } from "./discover.ts"
+import { discoverMachine, learnedFrom } from "./discover.ts"
 import { type MachineEntry, dedupeMachines, listMachines, updateMachine } from "./registry.ts"
 import { type RepoIdentity, isLocalCheckout, repoIdentity, unpushedCommits } from "./repo-identity.ts"
 import { findCheckouts, parseRepoRef } from "./repo-ref.ts"
@@ -43,15 +43,15 @@ export async function machineDaemonSocket(entry: MachineEntry): Promise<string |
   if (await answers(socketPath)) return socketPath
   const found = await discoverMachine(entry.alias, entry)
   if (!found.ok) return null
-  const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
-  updateMachine(entry.alias, { sockets, ...(found.roveBin ? { roveBin: found.roveBin } : {}) })
-  return (await forward(entry, sockets)) && (await answers(socketPath)) ? socketPath : null
+  const learned = learnedFrom(found)
+  updateMachine(entry.alias, learned)
+  return (await forward({ ...entry, ...learned }, learned.sockets)) && (await answers(socketPath)) ? socketPath : null
 }
 
 function forward(entry: MachineEntry, sockets: { readonly daemon: string; readonly pty: string }): Promise<boolean> {
   return ensureForwards({
     alias: entry.alias,
-    config: entry,
+    config: { ...entry, sockets },
     remoteDaemonSocket: sockets.daemon,
     remotePtySocket: sockets.pty,
   })

@@ -20,7 +20,7 @@ import { connect as netConnect } from "node:net"
 import { homeDir } from "../env.ts"
 import type { MachineConfig } from "./registry.ts"
 import { localDaemonSocketPath, localPtySocketPath, machineSocketDir, machineSshArgs } from "./ssh-args.ts"
-import { ensureStdioForwards, stopStdioForwards, useStdioTransport } from "./stdio-forward.ts"
+import { ensureStdioForwards, relayAnswers, stopStdioForwards, useStdioTransport } from "./stdio-forward.ts"
 
 /** Owner-only, like every other directory under `<home>/.rove`: the sockets in
  *  here reach a daemon that runs commands as its owner. */
@@ -87,20 +87,20 @@ export function startTunnel(opts: StartTunnelOptions): TunnelHandle {
     },
     stop: () => {
       stopped = true
-      if (useStdioTransport()) stopStdioForwards(opts.alias, home)
+      if (useStdioTransport(undefined, opts.config)) stopStdioForwards(opts.alias, home)
     },
   }
 
   const schedule = opts.setTimeoutFn ?? ((fn: () => void, ms: number) => setTimeout(fn, ms))
-  // A hub that cannot forward unix sockets over ssh (native Windows) serves them itself and relays
-  // each connection through `ssh … rove daemon relay` (stdio-forward.ts).
+  // A hub that cannot forward unix sockets over ssh (native Windows), or a Windows machine whose
+  // sockets ssh cannot forward, serves them here and relays each connection (stdio-forward.ts).
   const stdio = (): Promise<boolean> =>
     ensureStdioForwards({ alias: opts.alias, config: opts.config, home })
-      .then(() => socketAnswers(daemonSocketPath))
+      .then(() => relayAnswers(opts.alias, home))
       .catch(() => false)
   const ensure =
     opts.ensureFn ??
-    (useStdioTransport()
+    (useStdioTransport(undefined, opts.config)
       ? stdio
       : () =>
           ensureForwards({
@@ -152,10 +152,10 @@ export async function ensureForwards(args: {
   readonly home?: string
 }): Promise<boolean> {
   const home = args.home ?? homeDir()
-  if (useStdioTransport()) {
+  if (useStdioTransport(undefined, args.config)) {
     // No unix-socket forwarding here: serve the sockets locally, each connection relayed over ssh stdio.
     return ensureStdioForwards({ alias: args.alias, config: args.config, home })
-      .then(() => socketAnswers(localDaemonSocketPath(args.alias, home)))
+      .then(() => relayAnswers(args.alias, home))
       .catch(() => false)
   }
   const daemonLocal = localDaemonSocketPath(args.alias, home)

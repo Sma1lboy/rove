@@ -22,7 +22,7 @@ import type { ReadableState } from "../lib/external-store.ts"
 import { createStateCell } from "../lib/external-store.ts"
 import { loadStateFile } from "../state/store.ts"
 import type { Task } from "../types/task.ts"
-import { discoverMachine } from "./discover.ts"
+import { discoverMachine, learnedFrom } from "./discover.ts"
 import {
   type MachineEntry,
   dedupeMachines,
@@ -135,10 +135,11 @@ export class MachineHub {
       this.setStatus(entry.alias, { state: "offline", error: found.ok ? undefined : found.message })
       return
     }
-    if (found.ok) updateMachine(entry.alias, { sockets, ...(found.roveBin ? { roveBin: found.roveBin } : {}) })
+    const learned = found.ok ? learnedFrom(found) : {}
+    if (found.ok) updateMachine(entry.alias, learned)
     const tunnel = startTunnel({
       alias: entry.alias,
-      config: entry,
+      config: { ...entry, ...learned, sockets },
       remoteDaemonSocket: sockets.daemon,
       remotePtySocket: sockets.pty,
     })

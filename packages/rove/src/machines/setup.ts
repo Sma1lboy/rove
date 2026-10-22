@@ -18,7 +18,7 @@ import { hostname } from "node:os"
 import { join } from "node:path"
 import { homeDir } from "../env.ts"
 import { shQuote } from "../exec/exec-host.ts"
-import { type DiscoverFailure, type DiscoverResult, discoverMachine, roveCommand } from "./discover.ts"
+import { type DiscoverFailure, type DiscoverResult, discoverMachine, remoteRove } from "./discover.ts"
 import { type MachineConfig, sshTargetOf } from "./registry.ts"
 import { machineSshArgs } from "./ssh-args.ts"
 
@@ -101,7 +101,7 @@ export function fixesFor(
         label: `Update Rove on ${target}`,
         shown: `ssh ${target} 'rove update'`,
         why: "Its Rove predates machines; `rove update` moves it to the current release.",
-        argv: () => ssh(`${roveCommand(config.roveBin)} update`),
+        argv: () => ssh(remoteRove(config.roveBin, ["update"])),
       },
     ]
   }

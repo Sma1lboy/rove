@@ -8,6 +8,7 @@
  * with the specific remedy.
  */
 
+import { learnedFrom } from "../machines/discover.ts"
 import { checkHostKey } from "../machines/host-key.ts"
 import { INBOUND_CLASSES, deniedClasses, setInbound } from "../machines/inbound.ts"
 import {
@@ -168,19 +169,20 @@ async function add(argv: readonly string[]): Promise<void> {
   }
   const duplicate = duplicateAliasOf(readMachines(loadStateFile()), alias, identityTriple)
 
-  const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
+  const learned = learnedFrom(found)
+  const sockets = learned.sockets
   if (found.roveBin) {
     process.stderr.write(
       `${CLI_NAME} machine: rove is not on ${alias}'s non-interactive PATH; using ${found.roveBin}\n`,
     )
   }
-  addMachine(alias, { ...settled, identity: identityTriple, sockets })
+  addMachine(alias, { ...settled, ...learned, identity: identityTriple })
   setMachineIdentity(alias, identityTriple)
   // Forward now, or `rove api list` can't see it until a TUI starts one.
   const { ensureForwards } = await import("../machines/tunnel.ts")
   const up = await ensureForwards({
     alias,
-    config: settled,
+    config: { ...settled, ...learned },
     remoteDaemonSocket: sockets.daemon,
     remotePtySocket: sockets.pty,
   })
@@ -237,9 +239,11 @@ async function doctor(argv: readonly string[]): Promise<void> {
       process.stdout.write(`${name}  ✗  ${established.failure.code}\n`)
       continue
     }
-    const { found, config: settled } = established
-    const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
-    updateMachine(name, { ...settled, sockets })
+    const { found } = established
+    const learned = learnedFrom(found)
+    const sockets = learned.sockets
+    const settled = { ...established.config, ...learned }
+    updateMachine(name, settled)
     const up = await ensureForwards({
       alias: name,
       config: settled,
