@@ -1,11 +1,11 @@
 # Web parity with the TUI
 
-Every user action the TUI offers (203 numbered rows, plus four extra rows marked `—`: two web-only, two for the unmerged long-run controls stack), and whether `packages/rove-web` does it yet.
+Every user action the TUI offers (203 numbered rows, plus five extra rows marked `—`: three web-only, two for the unmerged long-run controls stack), and whether `packages/rove-web` does it yet.
 Legend: ✅ same as TUI · 🟡 partial or different · ❌ missing (unbuilt) · 🚫 cannot exist in a browser. `Bridge` names the op that would carry the action: `missing` = no op exists, `local` = pure UI.
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
 
-Score: 190 / 207 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
+Score: 191 / 208 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
 
 ## Navigation, help, command layer and global chrome
 
@@ -30,6 +30,7 @@ Score: 190 / 207 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table
 | 17 | Open Update | sidebar `u`, update chip | ✅ | `update.check` | me: rail `u` and the brand-row `↑ 0.9.999` chip (shown only when the registry is newer) open the Update page (shot me-update-fake-02). |
 | 18 | Open Kanban / Routines / GitHub Issues | prefix 1/2/3, rail click | ✅ | `issue.repos`, `issue.list`, `routine.list`, `workitem.list` | pages: Headed Chromium (e2e-pages-kanban1.ts): rail lists Kanban / Routines / Issues (TUI `SIDEBAR_NAV_ITEMS` order, TUI `tasks.nav` copy) under the search row; each click opens its page and marks the row active; from the page, `ctrl+a 1`→`2`→`3` hops straight Kanban→Routines→Issues (ids `kanban.open`/`automations.open`/`workItems.open`, HUD label from TUI `keys.desc`). Picking a task in the rail closes the page. Shots pages-kb-01-board, rt-01-empty, is-01-list. |
 | 19 | Close current page | `q`/Esc/Ctrl+C | ✅ | local | workspace: e2e-w2chrome-a: Ctrl+C closes Kanban, Routines, Issues, Worktrees and Update pages; with text selected it keeps the page (browser copy). |
+| — | Watch dispatches: prompts sessions hand each other, in flight and recent (web-only; the TUI has no counterpart yet) | rail Dispatch | ✅ | `dispatch` push (daemon `dispatch.snapshot`) | dpanel sandbox: seed's three `api send`s walk delivered → working → done from real claude turns; staged rows show knock / working / asking / failed; a new row's courier runs the lane mid-flight (shot dp-1440b). Click opens the target tab; `q`/Esc closes. |
 | 20 | Drag Tasks rail width / reset auto width | edge drag / double click | ✅ | local | workspace: Dragging the rail's right edge widens it, width survives reload (localStorage px), clamps to leave the workspace 40 cells, double-click on the edge resets to auto (shot 10). Gesture/clamp mirror `sidebar-resize-gesture.ts`/`resolveSidebarWidth`; cell = 8 px. |
 | 21 | Toggle collapsed Tasks rail | fold control click | ✅ | local | workspace: Folded rail: a task with known tabs folds to one digit cell per tab (1..9, then ·), coloured by tab.states (muted when dead), count restarts per task; hairline stays one cell per task. Shot 15. |
 | 22 | Narrow layout: return to Tasks | click ‹ Tasks, Ctrl+Q | ✅ | local | workspace: At <560 px only one panel shows (TUI `narrowSurface`); content panel carries a clickable `‹ Tasks` bar (TUI catalog `workspace.narrowBack`), click returns to the list (shots 21/22). Ctrl+Q is browser-reserved: not bound, no keycap shown. Files pane is unmounted while narrow. Ctrl+Q itself is the browser's and can't be bound; the `‹ Tasks` route works. |

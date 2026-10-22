@@ -71,6 +71,7 @@ export interface AutomationCollectorDeps {
   readonly gates?: import("./gate-handoff.ts").GateLedger
   /** Should-run for the routine runner and quota-resume. */
   readonly runnability?: DispatchRunnability
+  readonly dispatches?: import("./automation-runner.ts").RunnerDeps["dispatches"]
 }
 
 /**
@@ -312,6 +313,7 @@ export function startDaemonCollectors(
           ...(automations.inbox ? { inbox: automations.inbox } : {}),
           ...(automations.gates ? { gates: automations.gates } : {}),
           ...(automations.runnability ? { runnability: automations.runnability } : {}),
+          ...(automations.dispatches ? { dispatches: automations.dispatches } : {}),
         },
         options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
       )

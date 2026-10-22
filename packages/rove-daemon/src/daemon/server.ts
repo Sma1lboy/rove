@@ -159,6 +159,7 @@ async function startOwnedServer(
     tabIdsOf: (taskId) => stores.tabs.get(taskId).state?.tabs.map((tab) => tab.id) ?? null,
   })
   resources.defer(() => rowStatus.close())
+  resources.defer(() => stores.dispatches.close())
   resources.defer(() => deletions.drain())
   resources.defer(async () => {
     await Promise.allSettled(requests)
@@ -276,6 +277,7 @@ async function startOwnedServer(
       inbox,
       gates,
       runnability,
+      dispatches: stores.dispatches,
     },
     activity,
     inbox,

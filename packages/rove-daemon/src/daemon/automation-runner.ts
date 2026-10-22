@@ -31,6 +31,7 @@ import {
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
 import type { DeliveriesStore } from "./deliveries-store.ts"
+import type { DispatchLedger } from "./dispatch-ledger.ts"
 import type { GateLedger } from "./gate-handoff.ts"
 import type { SkipVerdict } from "./runnability-contracts.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
@@ -83,7 +84,7 @@ export type AutomationRuntime = Pick<
 > &
   Partial<Pick<DaemonRuntimeAdapter, "roveApiInvocation">>
 
-interface RunnerDeps {
+export interface RunnerDeps {
   readonly store: AutomationsStore
   /** Every dispatched prompt owes a report; the delivery is armed before the paste. */
   readonly deliveries: Pick<DeliveriesStore, "arm" | "cancel" | "setTab">
@@ -99,6 +100,8 @@ interface RunnerDeps {
   readonly gates?: GateLedger
   /** Should-run: a scheduled firing at a task that cannot use it is recorded `skipped_blocked`. */
   readonly runnability?: DispatchRunnability
+  /** The dispatch ledger: a firing that reached (or failed to reach) a task is a row there. */
+  readonly dispatches?: Pick<DispatchLedger, "record">
   readonly now?: () => number
   readonly stopped?: () => boolean
 }
@@ -139,6 +142,17 @@ function emitRunEvent(
   args: { scheduledFor: number; trigger: "scheduled" | "manual" },
   extra: { taskId?: string; tabId?: string; error?: string },
 ): void {
+  if (extra.taskId && (status === "dispatched" || status === "revived" || status === "dispatch_failed")) {
+    deps.dispatches?.record({
+      kind: "routine",
+      from: null,
+      routine: automation.name,
+      to: { taskId: extra.taskId, tabId: extra.tabId ?? null },
+      promptHead: automation.prompt,
+      delivered: status !== "dispatch_failed",
+      ...(extra.error ? { reason: extra.error } : {}),
+    })
+  }
   // handleUiReport guards its own dispatch; the getter is a plain closure.
   deps.plugins?.()?.handleUiReport({
     kind: runEventFor(status),

@@ -127,6 +127,23 @@ export const en = {
     start: "start",
     promptPlaceholder: "optional; empty opens the engine without a message",
   },
+  dispatch: {
+    nav: "Dispatch",
+    title: "dispatch",
+    hint: "prompts sessions hand each other · click a row to open its target · q close",
+    inFlight: "in flight",
+    recent: "recent",
+    empty: "nothing dispatched yet",
+    emptyHint: "rove api send, add and dispatch from an agent, and routine firings, show up here",
+    you: "you",
+    status: {
+      delivered: "delivered",
+      working: "working",
+      asking: "asking",
+      done: "done",
+      failed: "failed",
+    },
+  },
   inbox: {
     title: "inbox",
     hints: "↑↓ move · enter open · d clear · esc close",

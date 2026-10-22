@@ -9,6 +9,7 @@ import type { AutomationsStore } from "./automations-store.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { DeliveriesStore } from "./deliveries-store.ts"
+import { DispatchLedger } from "./dispatch-ledger.ts"
 import { EngineEventLog } from "./engine-events-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { GatesStore, defaultGatesStorePath } from "./gates-store.ts"
@@ -38,6 +39,7 @@ export interface DaemonStores {
   readonly engineEvents: EngineEventLog
   readonly rowTokens: RowTokenStore
   readonly tabs: TabsStore
+  readonly dispatches: DispatchLedger
 }
 
 /**
@@ -119,5 +121,6 @@ export async function initDaemonStores(
     engineEvents,
     rowTokens,
     tabs,
+    dispatches: new DispatchLedger(bus),
   }
 }

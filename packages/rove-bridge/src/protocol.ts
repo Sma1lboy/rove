@@ -11,6 +11,7 @@
 import type { RowStatus, TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 
 export type { RowStatus, TabStatus }
+export type { DispatchRow, DispatchSnapshot } from "@sma1lboy/rove-daemon/daemon/dispatch-ledger"
 
 export const BRIDGE_PROTOCOL_VERSION = 1
 

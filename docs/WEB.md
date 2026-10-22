@@ -41,6 +41,13 @@ already paired with `rove-bridge` keeps working: the two share one token.
   here updates both ([PLUGIN-AUTHORING.md](PLUGIN-AUTHORING.md#mods)).
 - A plugin's input dialog (`rove api prompt`) opens here too; the first
   answer from the web or a TUI wins.
+- Dispatch (rail): every prompt one session hands another — `rove api send`,
+  `api dispatch`, `api add` from an agent, a routine firing — while it is in
+  flight and for a while after. A small ASCII courier runs from sender to
+  target, then knocks (delivered, the engine has not started on it), works,
+  asks (`?`, the engine waits on you) or lies down (failed). The daemon keeps
+  this state, so a page opened mid-flight shows what is still on its way; a
+  `rove daemon restart` clears it. Click a row to open the target tab.
 - The Inbox: click `INBOX n` at the top of the rail. `↑↓` moves, Enter opens
   the session and clears it, `d` clears it without opening.
 
