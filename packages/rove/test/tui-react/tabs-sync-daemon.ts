@@ -21,6 +21,15 @@ export interface TabsSyncDaemon {
 /** Let the transport's promises (replies, reservations, the initial `tabs.list`) settle. */
 export const flushTabs = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
 
+/**
+ * Wait (real time, bounded) until `ready()` holds: a commit reaches the daemon from a React
+ * effect, which a loaded runner can run well after the key press that caused it.
+ */
+export async function untilDaemon(ready: () => boolean, timeoutMs = 3_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!ready() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20))
+}
+
 const wire = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
 /** Attach a daemon holding `seed` (task id → its tabs) and wait for its tabs to load. */

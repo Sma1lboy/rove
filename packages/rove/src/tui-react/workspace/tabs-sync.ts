@@ -299,10 +299,13 @@ export function resetTabsSyncForTests(): void {
 
 /** Once per host: attach this TUI to its daemon's tab store, and reload after every reconnect. */
 export function useTabsSync(
-  channel: TabsTransport,
-  connection: { (): string; subscribe(listener: () => void): () => void },
+  channel: TabsTransport | undefined,
+  connection: { (): string; subscribe(listener: () => void): () => void } | undefined,
 ): void {
   useEffect(() => {
+    // A host without a tab channel (an orchestrator double, an older client) leaves whatever
+    // transport is attached alone: detaching here would cut every other writer off the daemon.
+    if (!channel || !connection) return
     const detach = attachTabsTransport(channel)
     let last = connection()
     const off = connection.subscribe(() => {

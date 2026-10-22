@@ -1,6 +1,22 @@
 # Changelog
 
+## 0.9.262
+
+### Patch Changes
+
+- [#1359](https://github.com/Sma1lboy/rove/pull/1359) [`ff2db4b`](https://github.com/Sma1lboy/rove/commit/ff2db4b4871924512b802c47db0575d7111ac895) Ships everything tagged as 0.9.260 and 0.9.261, neither of which reached npm: terminal tabs owned by the daemon so every client shows the same list, `rove api add --repo owner/name` dispatching by repo id across machines, one project per repo on the web rail, and web dialogs that close with the mouse and render release notes. A TUI host without a tab channel no longer detaches the daemon connection other parts of the TUI use for tabs. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.261
+
+Tagged but never published to npm: the release run's render track failed on test isolation (fixed in the next release) before `npm publish`. Its changes ship in 0.9.262.
+
+### Patch Changes
+
+- [#1357](https://github.com/Sma1lboy/rove/pull/1357) [`438407b`](https://github.com/Sma1lboy/rove/commit/438407bb514e47c3e89859b39eeb7d40e9b2f030) Ships everything tagged as 0.9.260, which was never published to npm: terminal tabs owned by the daemon so every client shows the same list, `rove api add --repo owner/name` dispatching by repo id across machines, one project per repo on the web rail, and web dialogs that close with the mouse and render release notes. See 0.9.260 below for the details. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.260
+
+Tagged but never published to npm: the release run's render track failed on a test race (fixed in #1356) before `npm publish`. Its changes ship in 0.9.261.
 
 ### Patch Changes
 
