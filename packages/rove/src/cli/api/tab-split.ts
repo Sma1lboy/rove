@@ -3,7 +3,7 @@
  * ctrl+w / F2 / F5 on a tab's split tree, for clients with no TUI of their own.
  *
  * Same model as `TerminalSplit`: the layout is the tab's persisted `splitTree`
- * (`terminalTabs.<taskId>` in state.json), every leaf beyond `leaf-1` is its own
+ * (stored through the daemon's `tabs.apply`), every leaf beyond `leaf-1` is its own
  * hosted login shell under `<taskId>::<tabId>::leaf-N`, and a closed tab's
  * teardown already sweeps those keys. The shell is always the login shell: no
  * caller supplies a command line. An attached TUI hears the new row over
@@ -13,8 +13,6 @@
 import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { HostedSessionRpc } from "../../engine/hosted-session.ts"
-import { updateStateFile } from "../../state/store.ts"
-import { terminalTabsKey } from "../../tui-react/workspace/terminal-tabs-persist.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import { initialSplit, leaves, removeLeaf, renameLeaf, splitActive } from "../../tui/workspace/split-core.ts"
 import { shellIdentityInput } from "../../tui/workspace/terminal-tab-spawn.ts"
@@ -23,12 +21,12 @@ import {
   type TabsState,
   type TerminalTab,
   collapseSplit,
-  setTabSplit,
   splitLeafPtyKey,
   tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core.ts"
 import { killTaskSessions } from "./pty-delivery.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
+import { type TabsRpc, patchTabSplit, readDaemonTabs } from "./tab-snapshot.ts"
 import { ApiError } from "./types.ts"
 
 export type SplitEdit =
@@ -55,45 +53,41 @@ export interface SplitOutcome {
   readonly changed: boolean
 }
 
+function tabNotFound(taskId: string, tabId: string): ApiError {
+  return new ApiError(`tab ${tabId} does not exist on task ${taskId}`, "TAB_NOT_FOUND", {
+    hint: "refresh the task's tab ids with get-task, then retry with one of its .tabs[].id values",
+    nextCommandArgs: ["api", "get-task", "--task-id", taskId],
+  })
+}
+
 function locate(taskId: string, tabId: string, state: TabsState | undefined): { state: TabsState; tab: TerminalTab } {
   const tab = state && Array.isArray(state.tabs) ? state.tabs.find((t) => t.id === tabId) : undefined
-  if (!state || !tab) {
-    throw new ApiError(`tab ${tabId} does not exist on task ${taskId}`, "TAB_NOT_FOUND", {
-      hint: "refresh the task's tab ids with get-task, then retry with one of its .tabs[].id values",
-      nextCommandArgs: ["api", "get-task", "--task-id", taskId],
-    })
-  }
+  if (!state || !tab) throw tabNotFound(taskId, tabId)
   if (tab.kind === "content") {
     throw new ApiError(`tab ${tabId} is a content tab; only terminal tabs split`, "TAB_NOT_SPLITTABLE")
   }
   return { state, tab }
 }
 
-/** One locked read-modify-write of the tab's tree; `edit` returns the next tree, or the same one for a no-op. */
-function editTree(
+/**
+ * Edit the tab's tree as the daemon holds it and store the result as one
+ * `patch` of `splitTree` (`tabs.apply`); `edit` returns the next tree, or the
+ * same one for a no-op (nothing is sent).
+ */
+async function editTree(
+  client: TabsRpc,
   taskId: string,
   tabId: string,
   edit: (tree: PersistedSplit) => PersistedSplit,
-): { tab: TerminalTab; before: PersistedSplit; after: PersistedSplit } {
-  const out: { tab?: TerminalTab; before?: PersistedSplit; after?: PersistedSplit } = {}
-  const key = terminalTabsKey(taskId)
-  updateStateFile((store) => {
-    const { state, tab } = locate(taskId, tabId, store[key] as TabsState | undefined)
-    const before = tab.splitTree ?? initialSplit(null)
-    const after = edit(before)
-    out.before = before
-    out.after = after
-    if (after === before) {
-      out.tab = tab
-      return false
-    }
-    const next = setTabSplit(state, tabId, collapseSplit(after))
-    store[key] = next
-    out.tab = next.tabs.find((t) => t.id === tabId)
-    return undefined
-  })
-  if (!out.tab || !out.before || !out.after) throw new Error(`split edit for ${taskId}/${tabId} did not run`)
-  return { tab: out.tab, before: out.before, after: out.after }
+): Promise<{ tab: TerminalTab; before: PersistedSplit; after: PersistedSplit }> {
+  const { tab } = locate(taskId, tabId, await readDaemonTabs(client, taskId))
+  const before = tab.splitTree ?? initialSplit(null)
+  const after = edit(before)
+  if (after === before) return { tab, before, after }
+  const saved = await patchTabSplit(client, taskId, tabId, collapseSplit(after))
+  // Gone in between (another client closed it): the same miss as before the read.
+  if (!saved) throw tabNotFound(taskId, tabId)
+  return { tab: saved, before, after }
 }
 
 async function openLeafShell(
@@ -115,6 +109,7 @@ async function openLeafShell(
 }
 
 export async function splitTab(
+  client: TabsRpc,
   taskId: string,
   tabId: string,
   worktree: string,
@@ -127,7 +122,7 @@ export async function splitTab(
   try {
     switch (edit.kind) {
       case "open": {
-        const { tab, before, after } = editTree(taskId, tabId, (tree) => {
+        const { tab, before, after } = await editTree(client, taskId, tabId, (tree) => {
           const from = leaves(tree.root).some((l) => l.id === edit.from) ? edit.from : tree.activeLeafId
           const base = from === tree.activeLeafId ? tree : { ...tree, activeLeafId: from }
           const argv = edit.command?.argv ?? [resolveLoginShell({ fallback: "/bin/zsh" })]
@@ -143,7 +138,7 @@ export async function splitTab(
             command: edit.command?.argv,
           })
         } catch (error) {
-          editTree(taskId, tabId, (tree) => removeLeaf(tree, leaf) ?? tree)
+          await editTree(client, taskId, tabId, (tree) => removeLeaf(tree, leaf) ?? tree).catch(() => undefined)
           throw sessionFailed(
             taskId,
             `opening a split shell failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -153,7 +148,7 @@ export async function splitTab(
         return { tab, leaf, changed: true }
       }
       case "close": {
-        const { tab, before, after } = editTree(taskId, tabId, (tree) => {
+        const { tab, before, after } = await editTree(client, taskId, tabId, (tree) => {
           const next = removeLeaf(tree, edit.leaf)
           if (next === null) throw new ApiError(`${edit.leaf} is the only pane; close the tab instead`, "LAST_LEAF")
           return next
@@ -163,11 +158,13 @@ export async function splitTab(
         return { tab, leaf: edit.leaf, changed: true }
       }
       case "rename": {
-        const { tab, before, after } = editTree(taskId, tabId, (tree) => renameLeaf(tree, edit.leaf, edit.title))
+        const { tab, before, after } = await editTree(client, taskId, tabId, (tree) =>
+          renameLeaf(tree, edit.leaf, edit.title),
+        )
         return { tab, leaf: edit.leaf, changed: after !== before }
       }
       case "reset": {
-        const { tab } = editTree(taskId, tabId, (tree) => tree)
+        const { tab } = await editTree(client, taskId, tabId, (tree) => tree)
         const shellTab = tab.kind === "command"
         if (!shellTab && edit.leaf === "leaf-1") {
           throw new ApiError("reset respawns a login shell; this pane runs an engine", "RESET_ENGINE", {

@@ -7,37 +7,34 @@
 
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets"
 
-import { createStateCell } from "../../lib/external-store"
 import {
   type CommandTab,
   type EngineTab,
   type TabsState,
   type TerminalTab,
-  initialTabs,
-  rehydrateTabs,
   reopenTabs,
 } from "../../tui/workspace/terminal-tabs-core"
 import type { VendorId } from "../../types/vendor"
-import { type TabsSnapshotKv, forgetTaskTabsSnapshot, terminalTabsKey } from "./terminal-tabs-persist"
+import {
+  commitTaskTabs,
+  forgetTaskTabsView,
+  openTaskTab,
+  tabsByTask,
+  tabsLoaded,
+  tabsRevision,
+  taskTabsView,
+} from "./tabs-sync"
+import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
 
-/** Per-task tab state for the process lifetime.
- *
- *  Write only through `setTaskTabs` / `deleteTaskTabs`: a raw Map mutation is
- *  invisible to React, and `ShowWorkspace` decides whether to mount
- *  `TerminalTabs` from this map, so closing the last tab would leave it
- *  mounted dereferencing a vanished `active` tab. */
-export const tabsByTask = new Map<string, TabsState>()
-
-/** Bumped on every `tabsByTask` write so React readers re-render; a counter, not a copy. */
-export const tabsRevision = createStateCell(0, "tabs.revision")
+export { tabsByTask, tabsRevision }
 
 /** Scratch tasks opened onto an engine rather than a bare shell. The first
  *  `TerminalTabs` mount deletes the id and seeds an engine tab-1. */
 export const engineScratchTasks = new Set<string>()
 
-export function setTaskTabs(taskId: string, state: TabsState): void {
-  tabsByTask.set(taskId, state)
-  tabsRevision.update((n) => n + 1)
+/** Write a task's tabs: through the daemon (`tabs-sync.ts`), which tells every client. */
+export function setTaskTabs(taskId: string, state: TabsState, base?: TabsState): TabsState {
+  return commitTaskTabs(taskId, state, base)
 }
 
 /** An explicit engine choice also seeds a task that has never opened tabs. */
@@ -54,11 +51,6 @@ export function reviveEmptiedTabs(
   return true
 }
 
-function deleteTaskTabs(taskId: string): void {
-  if (!tabsByTask.delete(taskId)) return
-  tabsRevision.update((n) => n + 1)
-}
-
 /** The attention jump's "where am I". Null when the task never mounted tabs. */
 export function activeTabIdFor(taskId: string): string | null {
   return tabsByTask.get(taskId)?.activeId ?? null
@@ -68,8 +60,9 @@ export function activeTabIdFor(taskId: string): string | null {
  *  `kv` is nullable so a surface without a KV provider (render tests, early
  *  mounts) still sees live tabs; the map is authoritative for running tasks. */
 export function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
-  const live = tabsByTask.get(taskId)
-  if (live) return live
+  const live = tabsByTask.get(taskId) ?? taskTabsView(taskId)
+  if (live || tabsLoaded()) return live
+  // Before the daemon's tabs arrive: the state.json copy this process started with.
   const saved = kv?.store[terminalTabsKey(taskId)] as TabsState | null | undefined
   return saved && Array.isArray(saved.tabs) ? saved : null
 }
@@ -291,63 +284,44 @@ export function reportTabsDelta(taskId: string, prev: readonly TerminalTab[], ne
 }
 
 /**
- * DELETE flow only: drop the otherwise only-growing `tabsByTask` entry and the
- * kv snapshot. PTYs are released by the host's deleting-task sweep / tab exit.
+ * DELETE flow only: the daemon drops the task's tabs in its own delete flow;
+ * this forgets the local copy. PTYs are released by the host's deleting-task
+ * sweep / tab exit.
  */
-export function forgetTaskTabs(kv: TabsSnapshotKv, taskId: string): void {
-  deleteTaskTabs(taskId)
-  forgetTaskTabsSnapshot(kv, taskId)
-}
-
-/** Live entry, else persisted snapshot, else a fresh single tab. */
-function currentTabsState(kv: TabsSnapshotKv, taskId: string, shell: string): TabsState {
-  const inMemory = tabsByTask.get(taskId)
-  if (inMemory) return inMemory
-  const saved = kv.store[terminalTabsKey(taskId)] as TabsState | null | undefined
-  return saved && Array.isArray(saved.tabs) ? rehydrateTabs(saved, [shell]) : initialTabs()
+export function forgetTaskTabs(_kv: TabsSnapshotKv, taskId: string): void {
+  forgetTaskTabsView(taskId)
 }
 
 /**
- * Append an already-spawned engine tab to an UNMOUNTED task (kanban
- * issue-start). Writes the map AND kv so the next mount or restart attaches to
- * the live PTY; the caller spawns it under `tabPtyKeyFor(taskId, tab)`.
+ * Append an already-running engine tab to a task this TUI may not be showing
+ * (kanban issue-start). The daemon mints its id; the caller spawns it under
+ * `tabPtyKeyFor(taskId, tab)` once this resolves. Null when the daemon refused.
  */
-export function appendBackgroundEngineTab(
-  kv: TabsSnapshotKv,
+export async function appendBackgroundEngineTab(
   taskId: string,
-  shell: string,
   spec: {
     vendor: VendorId
     /** Viewport tab: the referenced session's id, so a dead-reattach resumes it. Omit to pin a fresh one. */
     sessionId?: string | null
     ptyTask?: EngineTab["ptyTask"]
   },
-): { state: TabsState; tab: EngineTab } {
-  const state = currentTabsState(kv, taskId, shell)
-  const ordinal = state.nextOrdinal
+): Promise<EngineTab | null> {
   const sessionId =
     spec.sessionId !== undefined
       ? spec.sessionId
       : withPinnedSessionId(engineLaunchArgv({ vendor: spec.vendor }), spec.vendor).sessionId
-  const tab: EngineTab = {
-    kind: "engine",
-    id: `tab-${ordinal}`,
+  const row = {
+    kind: "engine" as const,
     title: null,
-    ordinal,
     vendor: spec.vendor,
     sessionId,
     spawned: true,
     ...(spec.ptyTask ? { ptyTask: spec.ptyTask } : {}),
   }
-  const next: TabsState = {
-    tabs: [...state.tabs, tab],
-    activeId: tab.id,
-    nextOrdinal: ordinal + 1,
-  }
-  setTaskTabs(taskId, next)
-  kv.set(terminalTabsKey(taskId), next)
-  // A real open: otherwise the tab's `tab.closed` is the first a plugin hears
-  // of it and open-pane counts underflow.
-  reportTabsDelta(taskId, state.tabs, next.tabs)
-  return { state: next, tab }
+  const id = await openTaskTab(taskId, row)
+  if (!id) return null
+  const tab = taskTabsView(taskId)?.tabs.find((t) => t.id === id)
+  // A real open: otherwise the tab's `tab.closed` is the first a plugin hears of it.
+  if (tab) reportTabsDelta(taskId, [], [tab])
+  return (tab as EngineTab | undefined) ?? null
 }

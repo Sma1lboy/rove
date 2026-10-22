@@ -2,9 +2,10 @@
  * Headless "new tab, no first message" (`rove api tab-new`): the plain shell
  * and the empty engine tab the TUI opens from its sidebar and picker.
  *
- * The row is written BEFORE the spawn, in the same locked update that picks
- * its id (`allocateTab`), so the pty key `<taskId>::<tabId>` is reserved the
- * moment anything can see it. A refused or failed spawn takes the row back.
+ * The row is opened BEFORE the spawn, by the daemon that mints its id
+ * (`allocateTab` → `tabs.apply`), so the pty key `<taskId>::<tabId>` is
+ * reserved the moment anything can see it. A refused or failed spawn takes the
+ * row back.
  */
 
 import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
@@ -18,9 +19,8 @@ import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-color
 import { shellIdentityInput } from "../../tui/workspace/terminal-tab-spawn.ts"
 import type { TerminalTab } from "../../tui/workspace/terminal-tabs-core.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
-import { listSessions } from "./pty-delivery.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
-import { allocateTab, closeTabsSnapshot, markCliTabSession, readTabsSnapshot } from "./tab-snapshot.ts"
+import { type TabsRpc, allocateTab, closeTabsSnapshot, markCliTabSession } from "./tab-snapshot.ts"
 import { ApiError, type PromptTarget } from "./types.ts"
 
 export type NewTabKind = "shell" | "engine"
@@ -32,34 +32,23 @@ export interface OpenedTab {
   readonly session: string
 }
 
-/** Tab ids the host holds for `taskId`, dead ones too: a corpse still pins its key (open ignores a new spec for it). */
-export function hostTabIds(sessions: readonly { readonly key: string }[], taskId: string): Set<string> {
-  const ids = new Set<string>()
-  for (const { key } of sessions) {
-    const [task, tab, ...rest] = key.split("::")
-    if (task === taskId && tab && rest.length === 0) ids.add(tab)
-  }
-  return ids
-}
-
-/** `open` attached to a session this call did not create. The row stays: the key's owner may be a real tab. */
+/**
+ * `open` attached to a session this call did not create (a live orphan held
+ * the id the daemon minted). The row stays: the key's owner may be a real tab.
+ */
 export function collision(taskId: string, key: string, retryArgs: readonly string[]): ApiError {
   return new ApiError(`session ${key} already existed; no new tab was created`, "TAB_COLLISION", {
     taskId,
-    hint: "another process took this tab id between allocation and spawn; retry to get a fresh id",
+    hint: "a session already held the tab id the daemon minted; retry to get a fresh id",
     nextCommandArgs: retryArgs,
   })
 }
 
 export const createdFresh = (open: PtyOpenResult): boolean => open.created ?? open.replay.length === 0
 
-async function openShell(rpc: HostedSessionRpc, taskId: string, cwd: string, taken: ReadonlySet<string>) {
+async function openShell(client: TabsRpc, rpc: HostedSessionRpc, taskId: string, cwd: string) {
   const shell = resolveLoginShell({ fallback: "/bin/zsh" })
-  const tab = allocateTab(
-    taskId,
-    (id, ordinal) => ({ kind: "command", id, title: null, ordinal, command: [shell] }),
-    taken,
-  )
+  const tab = await allocateTab(client, taskId, { kind: "command", title: null, command: [shell] })
   const key = `${taskId}::${tab.id}`
   try {
     let open: PtyOpenResult
@@ -71,7 +60,7 @@ async function openShell(rpc: HostedSessionRpc, taskId: string, cwd: string, tak
         defaultColors: readPersistedTerminalDefaultColors(),
       })
     } catch (error) {
-      closeTabsSnapshot(taskId, tab.id)
+      await closeTabsSnapshot(client, taskId, tab.id).catch(() => undefined)
       throw error
     }
     if (!createdFresh(open)) throw collision(taskId, key, ["api", "tab-new", "--task-id", taskId, "--kind", "shell"])
@@ -83,21 +72,15 @@ async function openShell(rpc: HostedSessionRpc, taskId: string, cwd: string, tak
   return { tab, key }
 }
 
-async function openEngine(rpc: HostedSessionRpc, target: PromptTarget, cwd: string, taken: ReadonlySet<string>) {
+async function openEngine(client: TabsRpc, rpc: HostedSessionRpc, target: PromptTarget, cwd: string) {
   const taskId = target.id
-  const tab = allocateTab(
-    taskId,
-    (id, ordinal) => ({
-      kind: "engine",
-      id,
-      title: null,
-      ordinal,
-      // Pinned to a non-default engine, as `send --tab new --command` records it.
-      ...(target.tabVendor ? { vendor: target.tabVendor } : {}),
-      ...(target.tabCommand ? { engineCommand: target.tabCommand } : {}),
-    }),
-    taken,
-  )
+  let tab: TerminalTab = await allocateTab(client, taskId, {
+    kind: "engine",
+    title: null,
+    // Pinned to a non-default engine, as `send --tab new --command` records it.
+    ...(target.tabVendor ? { vendor: target.tabVendor } : {}),
+    ...(target.tabCommand ? { engineCommand: target.tabCommand } : {}),
+  })
   const key = `${taskId}::${tab.id}`
   const retryArgs = [
     "api",
@@ -143,7 +126,7 @@ async function openEngine(rpc: HostedSessionRpc, target: PromptTarget, cwd: stri
       )
     } catch (error) {
       // Nothing spawned (limit refusal, launch refusal, host error): the row must not linger in the strip.
-      closeTabsSnapshot(taskId, tab.id)
+      await closeTabsSnapshot(client, taskId, tab.id).catch(() => undefined)
       throw error
     }
     if (!createdFresh(open) && open.respawned !== true) throw collision(taskId, key, retryArgs)
@@ -155,7 +138,9 @@ async function openEngine(rpc: HostedSessionRpc, target: PromptTarget, cwd: stri
         { session: key },
       )
     }
-    markCliTabSession(taskId, tab.id, sessionId)
+    // The row as the daemon holds it now: with the session id the TUI needs.
+    const marked = await markCliTabSession(client, taskId, tab.id, sessionId)
+    tab = marked?.tabs.find((t) => t.id === tab.id) ?? tab
   } finally {
     await rpc.request("pty.detach", { key }).catch(() => {})
   }
@@ -163,26 +148,28 @@ async function openEngine(rpc: HostedSessionRpc, target: PromptTarget, cwd: stri
 }
 
 /** Allocate, spawn and persist one tab with no first message; the caller broadcasts it. */
-export async function openNewTab(target: PromptTarget, worktree: string, kind: NewTabKind): Promise<OpenedTab> {
+export async function openNewTab(
+  client: TabsRpc,
+  target: PromptTarget,
+  worktree: string,
+  kind: NewTabKind,
+): Promise<OpenedTab> {
   const host = await ensureHostFor(
     target.id,
     "no PTY host to run the tab in — nothing was started; check `rove daemon status`, then retry",
   )
   try {
-    const taken = hostTabIds(await listSessions(host.rpc), target.id)
     const opened =
       kind === "shell"
-        ? await openShell(host.rpc, target.id, worktree, taken)
-        : await openEngine(host.rpc, target, worktree, taken)
-    // Re-read: markCliTabSession may have added the session id the TUI needs.
-    const saved = readTabsSnapshot(target.id)?.tabs.find((t) => t.id === opened.tab.id)
-    return { tab: saved ?? opened.tab, session: opened.key }
+        ? await openShell(client, host.rpc, target.id, worktree)
+        : await openEngine(client, host.rpc, target, worktree)
+    return { tab: opened.tab, session: opened.key }
   } catch (error) {
     if (error instanceof ApiError) throw error
     throw sessionFailed(
       target.id,
       `opening a ${kind} tab failed for ${target.id}: ${error instanceof Error ? error.message : String(error)}`,
-      "the PTY host or state.json refused the new tab — check `rove daemon status` and that state.json is writable, then retry",
+      "the PTY host or the daemon refused the new tab — check `rove daemon status`, then retry",
     )
   } finally {
     host.close()

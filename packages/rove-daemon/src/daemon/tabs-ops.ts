@@ -33,7 +33,7 @@ export interface SharedTabs {
 }
 
 export type TabOp =
-  /** Seed a task that has no tabs record yet; ignored when one exists. */
+  /** Seed a task that has no tabs yet (no record, or an empty one); ignored once it has tabs. */
   | { readonly op: "seed"; readonly state: SharedTabs }
   /**
    * Add a row. `row.id` is one this client reserved, a live session's id (orphan
@@ -104,7 +104,11 @@ export function applyTabOps(
   for (const op of ops) {
     switch (op.op) {
       case "seed": {
-        if (state === null) set({ ...op.state, nextOrdinal: Math.max(op.state.nextOrdinal, maxOrdinal(op.state) + 1) })
+        // An empty record counts as none: a reservation alone creates one before any tab exists.
+        if (state === null || state.tabs.length === 0) {
+          const floor = Math.max(op.state.nextOrdinal, maxOrdinal(op.state) + 1, state?.nextOrdinal ?? 0)
+          set({ ...op.state, nextOrdinal: floor })
+        }
         break
       }
       case "forget": {
@@ -118,7 +122,8 @@ export function applyTabOps(
           opened.push(null)
           break
         }
-        const ordinal = wanted !== undefined ? (tabOrdinalOf(wanted) ?? op.row.ordinal ?? base.nextOrdinal) : base.nextOrdinal
+        const ordinal =
+          wanted !== undefined ? (tabOrdinalOf(wanted) ?? op.row.ordinal ?? base.nextOrdinal) : base.nextOrdinal
         const id = wanted ?? `tab-${ordinal}`
         const row = { ...op.row, id, ordinal } as TabRow
         set({
@@ -250,6 +255,7 @@ export function diffTabs(prev: SharedTabs | null, next: SharedTabs): TabOp[] {
   const kept = next.tabs.filter((t) => prevById.has(t.id)).map((t) => t.id)
   const prevKept = prev.tabs.filter((t) => nextIds.has(t.id)).map((t) => t.id)
   if (kept.some((id, i) => id !== prevKept[i])) ops.push({ op: "order", ids: next.tabs.map((t) => t.id) })
-  if (!sameValue(prev.reopenAs, next.reopenAs) && next.tabs.length > 0) ops.push({ op: "meta", reopenAs: next.reopenAs })
+  if (!sameValue(prev.reopenAs, next.reopenAs) && next.tabs.length > 0)
+    ops.push({ op: "meta", reopenAs: next.reopenAs })
   return ops
 }

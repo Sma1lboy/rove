@@ -18,6 +18,7 @@ import {
   isRoutineInboxState,
   parseDaemonStopReason,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
 import { isAddedTab } from "../tui/workspace/tabs-adopt.ts"
 import type { UpdateInfo } from "../version.ts"
@@ -319,6 +320,20 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       return
     }
     signals.setTabRenameSig(p as TabRenamePayload)
+    return
+  }
+  if (name === "tabs.changed") {
+    const p = payload as Partial<TabsChangedPayload> | undefined
+    const state = p?.state
+    if (
+      typeof p?.taskId !== "string" ||
+      typeof p.rev !== "number" ||
+      (state !== null && (typeof state !== "object" || !Array.isArray(state?.tabs)))
+    ) {
+      logClientError("orch", `dropped tabs.changed event: malformed payload (${describePayload(payload)})`)
+      return
+    }
+    signals.emitTabsChanged(p as TabsChangedPayload)
     return
   }
   if (name === "tab.add") {

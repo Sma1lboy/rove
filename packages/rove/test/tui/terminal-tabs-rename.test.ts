@@ -8,12 +8,15 @@
  *
  * The idempotence in `setTabTitle` is load-bearing, not a micro-optimisation:
  * it is why the rename needs no request/reply broker the way the CLOSE path
- * does. The CLI writes the persisted snapshot AND broadcasts, so both writers
+ * does. The CLI renames through the daemon AND broadcasts, so both writers
  * run — and a second write that returns the same object costs no re-render
- * and no second persist.
+ * and no second daemon write. A background rename lands in the view
+ * (`tabsByTask`) and the daemon's tab store; the kv is never written.
  */
 
-import { afterEach, describe, expect, it } from "vitest"
+import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync.ts"
 import type { TabsSnapshotKv } from "../../src/tui-react/workspace/terminal-tabs-persist.ts"
 import { renameTaskTab } from "../../src/tui-react/workspace/terminal-tabs-rename.ts"
 import {
@@ -22,6 +25,7 @@ import {
   takeTabRename,
 } from "../../src/tui-react/workspace/terminal-tabs-shared.ts"
 import { type TabsState, rehydrateTabs, setTabTitle } from "../../src/tui/workspace/terminal-tabs-core.ts"
+import { type TabsSyncDaemon, attachTabsDaemon, flushTabs } from "../tui-react/tabs-sync-daemon.ts"
 
 function state(ids: readonly string[]): TabsState {
   return {
@@ -67,54 +71,78 @@ describe("setTabTitle (core)", () => {
 })
 
 describe("renameTaskTab (background write)", () => {
-  afterEach(() => tabsByTask.clear())
+  let daemon: TabsSyncDaemon | null = null
+
+  beforeEach(() => resetTabsSyncForTests())
+  afterEach(() => {
+    daemon?.detach()
+    daemon = null
+  })
+
+  /** A daemon holding these tasks' tabs, attached and loaded. */
+  async function withDaemon(tasks: Record<string, TabsState>): Promise<TabsSyncDaemon> {
+    daemon = await attachTabsDaemon(tasks as unknown as Record<string, SharedTabs>)
+    return daemon
+  }
 
   function kvStub(): TabsSnapshotKv & { writes: Array<[string, unknown]> } {
     const writes: Array<[string, unknown]> = []
     return { store: {}, writes, set: (key, value) => void writes.push([key, value]) }
   }
 
-  it("writes the module map and kv snapshot when no component owns the task", () => {
+  it("writes the view and the daemon's tabs when no component owns the task — never the kv", async () => {
     const kv = kvStub()
-    tabsByTask.set("t1", state(["tab-1", "tab-2"]))
+    const { tabs } = await withDaemon({ t1: state(["tab-1", "tab-2"]) })
     expect(renameTaskTab(kv, "t1", "tab-2", "e2e")).toBe(true)
     expect(titleOf(tabsByTask.get("t1") as TabsState, "tab-2")).toBe("e2e")
-    expect(kv.writes.map(([key]) => key)).toEqual(["terminalTabs.t1"])
+    await flushTabs()
+    expect(titleOf(tabs("t1") as TabsState, "tab-2")).toBe("e2e")
+    expect(titleOf(tabsByTask.get("t1") as TabsState, "tab-2")).toBe("e2e")
+    expect(kv.writes).toEqual([])
   })
 
-  it("reads the kv snapshot for a task not in the module map", () => {
+  it("before the daemon's tabs load, reads the kv snapshot and renames in the view only", () => {
     const kv = kvStub()
     kv.store["terminalTabs.t2"] = state(["tab-1"])
     expect(renameTaskTab(kv, "t2", "tab-1", "logs")).toBe(true)
     expect(titleOf(tabsByTask.get("t2") as TabsState, "tab-1")).toBe("logs")
+    expect(kv.writes).toEqual([])
   })
 
-  it("returns false for a tab the task does not have, and for a task with no tabs", () => {
+  it("returns false for a tab the task does not have, and for a task with no tabs", async () => {
     // Checked BEFORE publishing, so an unknown id can never report success
     // for a rename that made no transition.
     const kv = kvStub()
-    tabsByTask.set("t1", state(["tab-1"]))
+    const { store } = await withDaemon({ t1: state(["tab-1"]) })
+    const before = store.get("t1")
     expect(renameTaskTab(kv, "t1", "tab-9", "x")).toBe(false)
     expect(renameTaskTab(kv, "ghost", "tab-1", "x")).toBe(false)
+    await flushTabs()
+    expect(store.get("t1")).toEqual(before)
+    expect(store.get("ghost").state).toBeNull()
     expect(kv.writes).toEqual([])
   })
 
-  it("re-applying the same name writes NOTHING but still reports the state holds", () => {
-    // The CLI writes the snapshot then broadcasts, so this path routinely
-    // runs against a tab that already carries the title.
+  it("re-applying the same name writes NOTHING but still reports the state holds", async () => {
+    // The CLI renames through the daemon then broadcasts, so this path
+    // routinely runs against a tab that already carries the title.
     const kv = kvStub()
-    tabsByTask.set("t1", setTabTitle(state(["tab-1"]), "tab-1", "logs"))
+    const { store } = await withDaemon({ t1: setTabTitle(state(["tab-1"]), "tab-1", "logs") })
+    const before = store.get("t1")
     expect(renameTaskTab(kv, "t1", "tab-1", "logs")).toBe(true)
+    await flushTabs()
+    expect(store.get("t1")).toEqual(before)
     expect(kv.writes).toEqual([])
   })
 
-  it("a mounted claimant owns the write — background touches nothing", () => {
+  it("a mounted claimant owns the write — background touches nothing", async () => {
     // Same claim protocol as closeTaskTab/moveTaskTab: a listener that
     // consumes the request stands in for the mounted TerminalTabs, which
-    // renames through its own state writer (and persists there).
+    // renames through its own state writer.
     const kv = kvStub()
-    const s = state(["tab-1", "tab-2"])
-    tabsByTask.set("t1", s)
+    const { store } = await withDaemon({ t1: state(["tab-1", "tab-2"]) })
+    const before = store.get("t1")
+    const shown = tabsByTask.get("t1")
     const claims: Array<{ tabId: string; title: string }> = []
     const claimant = (): void => {
       const req = takeTabRename("t1")
@@ -127,7 +155,9 @@ describe("renameTaskTab (background write)", () => {
       tabActivationListeners.delete(claimant)
     }
     expect(claims).toEqual([{ tabId: "tab-2", title: "e2e" }])
-    expect(tabsByTask.get("t1")).toBe(s)
+    await flushTabs()
+    expect(tabsByTask.get("t1")).toBe(shown)
+    expect(store.get("t1")).toEqual(before)
     expect(kv.writes).toEqual([])
   })
 })

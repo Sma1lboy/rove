@@ -314,7 +314,7 @@ describe("deliverPrompt", () => {
   function fakeOps(overrides: Partial<PromptDeliveryOps> = {}) {
     const calls: Array<{ target: PromptTarget; worktree: string; prompt: string }> = []
     const ops: PromptDeliveryOps = {
-      deliverHosted: async (target, worktree, prompt) => {
+      deliverHosted: async (_client, target, worktree, prompt) => {
         calls.push({ target, worktree, prompt })
         return {
           session: `${target.id}::tab-1`,

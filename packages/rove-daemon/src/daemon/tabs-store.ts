@@ -8,15 +8,9 @@
  * every older reader still reads, and the daemon is the only one writing them.
  */
 
-import type { DaemonEventBus } from "./event-bus.ts"
 import { logDaemonError } from "./crash-log.ts"
-import {
-  type SharedTabs,
-  type TabOp,
-  applyTabOps,
-  releaseOrdinals,
-  reserveOrdinals,
-} from "./tabs-ops.ts"
+import type { DaemonEventBus } from "./event-bus.ts"
+import { type SharedTabs, type TabOp, applyTabOps, releaseOrdinals, reserveOrdinals } from "./tabs-ops.ts"
 
 export interface TabsPersistence {
   /** Every task's saved tabs, keyed by task id. */
@@ -36,7 +30,14 @@ export interface TabsChangedPayload {
 
 /** Closed ids remembered per task: enough to outlast any stale copy or a slow orphan poll. */
 const TOMBSTONE_CAP = 256
-const SAVE_DEBOUNCE_MS = 100
+const SAVE_DEBOUNCE_MS = 250
+/** Probe caches every mounted TUI refreshes as an engine's title changes. */
+const VOLATILE_FIELDS: ReadonlySet<string> = new Set(["lastTitle", "liveVendor"])
+
+function isStructural(op: TabOp): boolean {
+  if (op.op !== "patch") return true
+  return [...Object.keys(op.set ?? {}), ...(op.unset ?? [])].some((key) => !VOLATILE_FIELDS.has(key))
+}
 
 export class TabsStore {
   private readonly tabs = new Map<string, SharedTabs>()
@@ -62,6 +63,22 @@ export class TabsStore {
     }
   }
 
+  /**
+   * Drop records of tasks that no longer exist (deleted while no daemon ran, or by an older
+   * build). Skipped when no task is live: an empty list is what a not-yet-loaded or corrupt
+   * index looks like, and sweeping on it would wipe every task's tabs.
+   */
+  sweep(isLive: (taskId: string) => boolean, anyLive: boolean): number {
+    if (!anyLive) return 0
+    let swept = 0
+    for (const taskId of [...this.tabs.keys()]) {
+      if (isLive(taskId)) continue
+      this.forget(taskId)
+      swept += 1
+    }
+    return swept
+  }
+
   get(taskId: string): { state: SharedTabs | null; rev: number } {
     return { state: this.tabs.get(taskId) ?? null, rev: this.revs.get(taskId) ?? 0 }
   }
@@ -70,9 +87,12 @@ export class TabsStore {
     return { tasks: Object.fromEntries(this.tabs), rev: this.rev }
   }
 
-  apply(taskId: string, ops: readonly TabOp[]): { state: SharedTabs | null; rev: number; opened: readonly (string | null)[] } {
+  apply(
+    taskId: string,
+    ops: readonly TabOp[],
+  ): { state: SharedTabs | null; rev: number; opened: readonly (string | null)[] } {
     const result = applyTabOps(this.tabs.get(taskId) ?? null, ops, this.tombstonesOf(taskId))
-    if (result.changed) this.commit(taskId, result.state, true)
+    if (result.changed) this.commit(taskId, result.state, true, ops.some(isStructural))
     return { state: result.state, rev: this.revs.get(taskId) ?? this.rev, opened: result.opened }
   }
 
@@ -111,11 +131,14 @@ export class TabsStore {
     }
   }
 
-  private commit(taskId: string, state: SharedTabs | null, publish: boolean): void {
+  private commit(taskId: string, state: SharedTabs | null, publish: boolean, now = true): void {
     if (state) this.tabs.set(taskId, state)
     else this.tabs.delete(taskId)
     this.dirty.set(taskId, state)
-    this.timer ??= setTimeout(() => this.flush(), SAVE_DEBOUNCE_MS)
+    // Readers of state.json (CLI `get-task`, the bridge's feed) must see a tab open or close at
+    // once; only the title probes, which churn with every OSC title, wait for the debounce.
+    if (now) this.flush()
+    else this.timer ??= setTimeout(() => this.flush(), SAVE_DEBOUNCE_MS)
     if (!publish) return
     this.rev += 1
     this.revs.set(taskId, this.rev)

@@ -1,6 +1,5 @@
 /** Constructs every daemon-owned store plus the per-task teardown chain. */
 
-import { TabsStore } from "./tabs-store.ts"
 import { readActivityLiveness } from "./activity-liveness.ts"
 import { type ActivityLivenessProbe, DaemonActivityRegistry } from "./activity-registry.ts"
 import { AgentTurnsStore, defaultAgentTurnsPath } from "./agent-turns-store.ts"
@@ -19,6 +18,7 @@ import { defaultDeliveriesPath } from "./paths.ts"
 import { QuotaUsageCache } from "./quota-usage-cache.ts"
 import { RowTokenStore } from "./row-tokens.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { TabsStore } from "./tabs-store.ts"
 import { TaskDeletionRunner } from "./task-deletion-runner.ts"
 import { WorkItemCache } from "./work-items.ts"
 
@@ -81,6 +81,7 @@ export async function initDaemonStores(
   // Sole writer of every task's terminal tabs; clients send it operations.
   const tabs = new TabsStore(runtime.tabsPersistence, bus)
   tabs.init()
+  tabs.sweep((taskId) => orch.getTask(taskId) !== undefined, orch.listTasks().length > 0)
   const clearTaskState = (taskId: string) =>
     gates
       .withdrawTask(taskId)

@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { type TaskOpsDeps, taskOps } from "../src/ops/taskops.ts"
+import { type TaskOpsDeps, reorderDaemonTab, taskOps } from "../src/ops/taskops.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import { ENGINES, T, fakeApi } from "./task-ops-harness.ts"
 
 const deps = (over: Partial<TaskOpsDeps> = {}): TaskOpsDeps => ({
   homeDir: () => "/home/me",
   buildCIPrompt: async (wt, s) => `fix ${s.branch} in ${wt}: ${s.checks.map((c) => c.jobName).join(",")}`,
-  reorderTab: () => true,
+  reorderTab: async () => true,
   openExternal: () => {},
   detectOpener: () => ({ id: "env", label: "myeditor", command: "myeditor", args: [] }),
   openWorktree: () => true,
@@ -102,7 +102,7 @@ describe("tab.move", () => {
   test("up swaps with the previous tab and down with the next; the answer says whether anything moved", async () => {
     const moves: Array<[string, string, number]> = []
     const d = deps({
-      reorderTab: (task, tab, delta) => {
+      reorderTab: async (task, tab, delta) => {
         moves.push([task, tab, delta])
         return tab !== "tab-1"
       },
@@ -117,6 +117,22 @@ describe("tab.move", () => {
       [T, "tab-2", -1],
       [T, "tab-1", 1],
     ])
+  })
+
+  test("the real mover sends the TUI's moveTab as one daemon order op, and nothing at an edge", async () => {
+    const tabs = (ids: string[]) => ({
+      state: { tabs: ids.map((id, i) => ({ kind: "engine", id, ordinal: i + 1 })), nextOrdinal: 4 },
+      rev: 1,
+    })
+    const { api, calls } = fakeApi({ "tabs.get": tabs(["tab-1", "tab-2", "tab-3"]), "tabs.apply": {} })
+    expect(await reorderDaemonTab(T, "tab-3", -1, api)).toBe(true)
+    expect(await reorderDaemonTab(T, "tab-1", -1, api)).toBe(false)
+    expect(await reorderDaemonTab(T, "tab-9", 1, api)).toBe(false)
+    expect(calls.filter((c) => "rpc" in c && c.rpc === "tabs.apply")).toEqual([
+      { rpc: "tabs.apply", payload: { taskId: T, ops: [{ op: "order", ids: ["tab-1", "tab-3", "tab-2"] }] } },
+    ])
+    const none = fakeApi({ "tabs.get": { state: null, rev: 0 } })
+    expect(await reorderDaemonTab(T, "tab-1", 1, none.api)).toBe(false)
   })
 
   test("refuses a direction that is not up or down, and a tab id that is not a tab", async () => {

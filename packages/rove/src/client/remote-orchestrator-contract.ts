@@ -13,6 +13,7 @@ import type {
   UiPrefsPayload,
   UiPromptPayload,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { ReadableState } from "../lib/external-store.ts"
 import type { CommandTab, EngineTab } from "../tui/workspace/terminal-tabs-core.ts"
@@ -119,6 +120,8 @@ export interface OrchestratorSignals {
   readonly setTabCloseSig: (next: TabClosePayload | null) => void
   readonly setTabRenameSig: (next: TabRenamePayload | null) => void
   readonly setTabAddSig: (next: TabAddSignal | null) => void
+  /** `tabs.changed`, one call per event (`remote-orchestrator-tabs.ts`). */
+  readonly emitTabsChanged: (event: TabsChangedPayload) => void
   readonly setUiPromptSig: (next: UiPromptPayload | null) => void
   readonly engineLifecycleAcc: ReadableState<EngineLifecycleMap>
   readonly setEngineLifecycleSig: (next: EngineLifecycleMap) => void

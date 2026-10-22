@@ -1,17 +1,26 @@
 /**
- * Tab snapshots for sessions the CLI started. The sidebar renders a task's
- * tabs from `terminalTabs.<taskId>`; without a snapshot, a headlessly
- * started engine (`api add --prompt`, `api send`, a routine) is invisible.
+ * Tab snapshots for sessions the CLI started, and the CLI's tab edits. The
+ * sidebar renders a task's tabs from the daemon's tab store; without a row, a
+ * headlessly started engine (`api add --prompt`, `api send`, a routine) is
+ * invisible.
  *
- * Seeding is WRITE-ONCE: a mounted TUI owns tab state (ordinals, titles,
- * splits, closes), and `api send` into an open task reuses its session, so
- * overwriting would clobber live state with a one-tab stub.
+ * The daemon owns every task's tabs (`tabs-store.ts`): it mints ids from one
+ * counter, applies edits in arrival order and persists `terminalTabs.<taskId>`
+ * in state.json itself. So the writers here never touch state.json: each is a
+ * `tabs.apply` of operations, and the read half (`readTabsSnapshot`) keeps
+ * reading the file the daemon writes.
+ *
+ * Seeding is WRITE-ONCE (`seed` is ignored when a record exists): a mounted
+ * TUI owns tab state (ordinals, titles, splits, closes), and `api send` into
+ * an open task reuses its session, so overwriting would clobber live state
+ * with a one-tab stub.
  */
 
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { type SharedTabs, type TabOp, diffTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import { loadStateFile, patchStateFile, updateStateFile } from "../../state/store.ts"
-import { terminalTabsKey } from "../../tui-react/workspace/terminal-tabs-persist.ts"
+import { loadStateFile } from "../../state/store.ts"
+import { terminalTabsKey } from "../../state/tabs-persistence.ts"
 import {
   type TabsState,
   type TerminalTab,
@@ -21,7 +30,11 @@ import {
   tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import type { DaemonRpc } from "../daemon-session.ts"
 import { type WireSplit, wireSplit } from "./split-wire.ts"
+
+/** The slice of a daemon client the tab writers need. */
+export type TabsRpc = Pick<DaemonRpc, "request">
 
 /** A death as `pty-exits.json` records it, joined onto a tab row. */
 export type TabExit = PtySessionExit & {
@@ -99,50 +112,106 @@ export function readTabsSnapshot(taskId: string): TabsState | undefined {
   }
 }
 
+/** A `tabs.apply` / `tabs.get` answer. */
+interface DaemonTabsReply {
+  readonly state: SharedTabs | null
+  readonly rev: number
+  readonly opened?: readonly (string | null)[]
+}
+
+/** The daemon's tabs as the TUI's reducers take them. `activeId` is only the last focus any client reported. */
+function asTabsState(state: SharedTabs | null | undefined): TabsState | undefined {
+  if (!state || !Array.isArray(state.tabs)) return undefined
+  return { ...state, activeId: state.activeId ?? state.tabs[0]?.id ?? "" } as unknown as TabsState
+}
+
+const asShared = (state: TabsState): SharedTabs => state as unknown as SharedTabs
+
+/** One `tabs.apply`; the state the daemon answers with after every op, and the ids its `open`s produced. */
+export async function applyTabOps(
+  client: TabsRpc,
+  taskId: string,
+  ops: readonly TabOp[],
+): Promise<{ state: TabsState | undefined; opened: readonly (string | null)[] }> {
+  const reply = await client.request<DaemonTabsReply>("tabs.apply", { taskId, ops })
+  return { state: asTabsState(reply?.state), opened: reply?.opened ?? [] }
+}
+
 /**
- * Remove one persisted tab via ctrl+w's transition; undefined when the
- * snapshot doesn't name it. The fresh-state transaction keeps a stale CLI
- * read from overwriting a newer TUI tab list.
+ * The task's tabs as the daemon holds them NOW (`tabs.get`). Edits read this,
+ * not state.json: the daemon persists on a short debounce, so the file can
+ * trail a change the daemon already applied.
  */
-export function closeTabsSnapshot(taskId: string, tabId: string): TerminalTab | undefined {
+export async function readDaemonTabs(client: TabsRpc, taskId: string): Promise<TabsState | undefined> {
+  return asTabsState((await client.request<DaemonTabsReply>("tabs.get", { taskId }))?.state)
+}
+
+/**
+ * Edit the daemon's copy with one of the TUI's reducers and send the
+ * difference (`diffTabs`): id-keyed ops, so an edit another client made in
+ * between survives. `edit` returning the same object sends nothing; a task
+ * with no tabs record is never edited.
+ */
+async function editTabs(client: TabsRpc, taskId: string, edit: (state: TabsState) => TabsState): Promise<void> {
+  const before = await readDaemonTabs(client, taskId)
+  if (!before) return
+  const next = edit(before)
+  if (next === before) return
+  const ops = diffTabs(asShared(before), asShared(next))
+  if (ops.length > 0) await applyTabOps(client, taskId, ops)
+}
+
+/**
+ * Remove one tab via ctrl+w's transition (emptying the strip leaves its
+ * re-seed hint); undefined when the daemon's tabs don't name it.
+ */
+export async function closeTabsSnapshot(
+  client: TabsRpc,
+  taskId: string,
+  tabId: string,
+): Promise<TerminalTab | undefined> {
   let closing: TerminalTab | undefined
-  const key = terminalTabsKey(taskId)
-  updateStateFile((store) => {
-    const state = store[key] as TabsState | undefined
-    if (!state || !Array.isArray(state.tabs)) return false
+  await editTabs(client, taskId, (state) => {
     closing = state.tabs.find((tab) => tab.id === tabId)
-    if (!closing) return false
-    const { state: next, closedId } = closeTab(state, tabId, { allowEmpty: true })
-    if (!closedId) {
-      closing = undefined
-      return false
-    }
-    store[key] = next
-    return undefined
+    if (!closing) return state
+    // Closed as the focused one: `activeId` is only some client's last focus,
+    // and the last tab's close must record `reopenAs` either way.
+    const { state: next, closedId } = closeTab({ ...state, activeId: tabId }, tabId, { allowEmpty: true })
+    if (!closedId) closing = undefined
+    return closedId ? next : state
   })
   return closing
 }
 
 /**
  * Set one tab's user title via f2's transition (empty clears to default).
- * False = the snapshot doesn't name the tab (the one miss `rename --tab`
- * reports). Transactional like {@link closeTabsSnapshot}.
+ * False = the daemon's tabs don't name the tab (the one miss `rename --tab`
+ * reports).
  */
-export function renameTabsSnapshot(taskId: string, tabId: string, title: string): boolean {
+export async function renameTabsSnapshot(
+  client: TabsRpc,
+  taskId: string,
+  tabId: string,
+  title: string,
+): Promise<boolean> {
   let found = false
-  const key = terminalTabsKey(taskId)
-  updateStateFile((store) => {
-    const state = store[key] as TabsState | undefined
-    if (!state || !Array.isArray(state.tabs)) return false
-    if (!state.tabs.some((tab) => tab.id === tabId)) return false
-    found = true
-    const next = setTabTitle(state, tabId, title)
-    // Same object = already named that; don't rewrite.
-    if (next === state) return false
-    store[key] = next
-    return undefined
+  await editTabs(client, taskId, (state) => {
+    found = state.tabs.some((tab) => tab.id === tabId)
+    // Same object = already named that; nothing is sent.
+    return found ? setTabTitle(state, tabId, title) : state
   })
   return found
+}
+
+/** Store one tab's split tree (`tab-split`); the tab as the daemon answers, undefined once it is gone. */
+export async function patchTabSplit(
+  client: TabsRpc,
+  taskId: string,
+  tabId: string,
+  tree: TerminalTab["splitTree"],
+): Promise<TerminalTab | undefined> {
+  const { state } = await applyTabOps(client, taskId, [{ op: "patch", id: tabId, set: { splitTree: tree ?? null } }])
+  return state?.tabs.find((t) => t.id === tabId)
 }
 
 const aliveKeysOf = (sessions: readonly TaskSessionRow[]): Set<string> =>
@@ -286,107 +355,97 @@ function engineAliveOf(
 }
 
 /**
- * Seed the canonical first engine tab when the task has no snapshot. Never
- * throws — sidebar visibility must not fail a good session start.
+ * Seed the canonical first engine tab when the task has no tabs record (the
+ * daemon ignores `seed` over an existing one). Never throws — sidebar
+ * visibility must not fail a good session start.
  *
  * `sessionId` (the pinned conversation id, passed only after a successful
  * delivery, hence `spawned`) makes a later dead-reattach `--resume` it.
  */
-export function publishCliTabSnapshot(taskId: string, sessionId?: string | null): void {
+export async function publishCliTabSnapshot(client: TabsRpc, taskId: string, sessionId?: string | null): Promise<void> {
   if (!taskId) return
   try {
-    const key = terminalTabsKey(taskId)
-    if (loadStateFile()[key] !== undefined) return
     // One active engine tab `tab-1`, matching the CLI launch's PTY key
     // (`engineSessionKey` → `<taskId>::tab-1`).
     const seeded = initialTabs()
-    patchStateFile({
-      [key]: sessionId
-        ? {
-            ...seeded,
-            tabs: seeded.tabs.map((t): TerminalTab => (t.kind === "engine" ? { ...t, sessionId, spawned: true } : t)),
-          }
-        : seeded,
-    })
+    const state: TabsState = sessionId
+      ? {
+          ...seeded,
+          tabs: seeded.tabs.map((t): TerminalTab => (t.kind === "engine" ? { ...t, sessionId, spawned: true } : t)),
+        }
+      : seeded
+    await applyTabOps(client, taskId, [{ op: "seed", state: asShared(state) }])
   } catch {
-    // Unwritable state.json: the tab just stays unlisted until the TUI opens the task.
+    // Daemon refused or unreachable: the tab just stays unlisted until the TUI opens the task.
   }
 }
 
 /**
- * Record a CLI-started tab's session after it spawned (`spawned`, plus the
- * pinned conversation id when the engine took one). {@link allocateTab} runs
- * before the spawn and leaves both unset: claude errors hard on `--resume` of
- * a missing id.
+ * Record a CLI-started ENGINE tab's session after it spawned (`spawned`, plus
+ * the pinned conversation id when the engine took one). {@link allocateTab}
+ * runs before the spawn and leaves both unset: claude errors hard on
+ * `--resume` of a missing id. Best-effort: the tabs after the patch, or
+ * undefined when nothing was sent or the daemon could not be asked.
  */
-export function markCliTabSession(taskId: string, tabId: string, sessionId: string | null): void {
-  try {
-    const key = terminalTabsKey(taskId)
-    updateStateFile((store) => {
-      const existing = store[key] as TabsState | undefined
-      if (!existing || !Array.isArray(existing.tabs)) return false
-      store[key] = {
-        ...existing,
-        tabs: existing.tabs.map(
-          (t): TerminalTab =>
-            t.id === tabId && t.kind === "engine" ? { ...t, ...(sessionId ? { sessionId } : {}), spawned: true } : t,
-        ),
-      }
-      return undefined
-    })
-  } catch {
-    // Same best-effort contract as the snapshot writers above.
-  }
-}
-
-/**
- * Allocate the next tab id and append the row `build` makes for it, in ONE
- * locked state.json update, so two allocations can never take the same id.
- * Keyed off `nextOrdinal` like the TUI, so CLI and TUI ids never collide;
- * hence it MUST write over an existing snapshot (seeding the canonical
- * `tab-1` first if absent). `taken` = ids with a live PTY session but no row,
- * skipped so a new tab never attaches to an orphan. Throws when state.json
- * is unwritable.
- */
-export function allocateTab(
+export async function markCliTabSession(
+  client: TabsRpc,
   taskId: string,
-  build: (id: string, ordinal: number) => TerminalTab,
-  taken: ReadonlySet<string> = new Set(),
-): TerminalTab {
-  const key = terminalTabsKey(taskId)
-  const out: { tab?: TerminalTab } = {}
-  updateStateFile((store) => {
-    const existing = store[key] as TabsState | undefined
-    const state = existing && Array.isArray(existing.tabs) && existing.tabs.length > 0 ? existing : initialTabs()
-    let ordinal = typeof state.nextOrdinal === "number" && state.nextOrdinal > 1 ? state.nextOrdinal : 2
-    while (taken.has(`tab-${ordinal}`) || state.tabs.some((t) => t.id === `tab-${ordinal}`)) ordinal++
-    const tab = build(`tab-${ordinal}`, ordinal)
-    out.tab = tab
-    store[key] = { ...state, tabs: [...state.tabs, tab], activeId: tab.id, nextOrdinal: ordinal + 1 }
+  tabId: string,
+  sessionId: string | null,
+): Promise<TabsState | undefined> {
+  try {
+    const tab = (await readDaemonTabs(client, taskId))?.tabs.find((t) => t.id === tabId)
+    if (tab?.kind !== "engine") return undefined
+    const set = { ...(sessionId ? { sessionId } : {}), spawned: true }
+    return (await applyTabOps(client, taskId, [{ op: "patch", id: tabId, set }])).state
+  } catch {
+    // Same best-effort contract as the seed above.
     return undefined
-  })
-  if (!out.tab) throw new Error(`tab allocation for ${taskId} did not run`)
-  return out.tab
+  }
 }
 
+/** A new tab's row before the daemon gives it an id and ordinal. */
+export type NewTabRow = TerminalTab extends infer T
+  ? T extends TerminalTab
+    ? Omit<T, "id" | "ordinal">
+    : never
+  : never
+
+type OpenRow = Extract<TabOp, { op: "open" }>["row"]
+
 /**
- * Mint the next engine-tab id for `send --tab new`. Returns an id even when
- * the write fails — that only costs sidebar visibility.
+ * Open a tab whose id the DAEMON mints (`open` without an id): one counter
+ * for every client, so two allocations — two CLIs, a CLI and a TUI — can
+ * never take the same id, and a closed id is never handed out again. A task
+ * with no tabs record gets the canonical `tab-1` seeded first in the same
+ * apply, so the new tab never lands on the engine's own `<taskId>::tab-1`
+ * key. Throws when the daemon refuses (unknown task, no daemon).
  */
-export function mintCliTab(taskId: string, vendor?: VendorId, command?: string): string {
-  try {
-    return allocateTab(taskId, (id, ordinal) => ({
-      kind: "engine",
-      id,
-      title: null,
-      ordinal,
-      // `command`/`vendor` present = tab PINNED to a non-default engine
-      // (`vendor` is the field ctrl+e writes); absent = follows the task.
-      ...(vendor ? { vendor } : {}),
-      ...(command ? { engineCommand: command } : {}),
-    })).id
-  } catch {
-    // Time-keyed id cannot collide with ordinal ids.
-    return `tab-cli-${Date.now().toString(36)}`
-  }
+export async function allocateTab(client: TabsRpc, taskId: string, row: NewTabRow): Promise<TerminalTab> {
+  const { state, opened } = await applyTabOps(client, taskId, [
+    { op: "seed", state: asShared(initialTabs()) },
+    { op: "open", row: row as unknown as OpenRow },
+  ])
+  const id = opened[0]
+  const tab = id ? state?.tabs.find((t) => t.id === id) : undefined
+  if (!tab) throw new Error(`the daemon opened no tab for ${taskId}`)
+  return tab
+}
+
+/** Mint the next engine tab for `send --tab new`. Throws when the daemon refuses; nothing has spawned yet. */
+export async function mintCliTab(
+  client: TabsRpc,
+  taskId: string,
+  vendor?: VendorId,
+  command?: string,
+): Promise<string> {
+  const tab = await allocateTab(client, taskId, {
+    kind: "engine",
+    title: null,
+    // `command`/`vendor` present = tab PINNED to a non-default engine
+    // (`vendor` is the field ctrl+e writes); absent = follows the task.
+    ...(vendor ? { vendor } : {}),
+    ...(command ? { engineCommand: command } : {}),
+  })
+  return tab.id
 }

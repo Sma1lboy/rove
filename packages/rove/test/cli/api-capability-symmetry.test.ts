@@ -20,8 +20,9 @@
 
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { mintCliTab, publishCliTabSnapshot, readTabsSnapshot } from "../../src/cli/api/tab-snapshot.ts"
+import { mintCliTab, publishCliTabSnapshot } from "../../src/cli/api/tab-snapshot.ts"
 import { FakeClient, expectApiError, recordingTearDown, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+import { tabsDaemon } from "./tabs-daemon-fake.ts"
 
 describe("issue-delete", () => {
   it("sends the store's delete op, the same one the kanban page's `d` runs", async () => {
@@ -170,41 +171,44 @@ describe("remove-worktree", () => {
 })
 
 describe("update --tab", () => {
-  /** Seed a real two-tab snapshot in the worker's isolated ROVE_HOME_DIR —
-   *  the same writers the CLI's own launch path uses. */
-  function seedTabs(taskId: string): string {
-    publishCliTabSnapshot(taskId)
-    return mintCliTab(taskId)
+  /** A daemon holding a real two-tab record — seeded by the same writers the CLI's own launch path uses. */
+  async function seedTabs(taskId: string, broadcast: Record<string, () => unknown> = {}) {
+    const daemon = tabsDaemon({ extra: broadcast })
+    await publishCliTabSnapshot(daemon.client, taskId)
+    const tabId = await mintCliTab(daemon.client, taskId)
+    daemon.requests.length = 0
+    return { daemon, tabId }
   }
 
-  it("writes the persisted snapshot AND broadcasts, so headless and attached both land", async () => {
-    // Both halves are needed and neither is a fallback: the write is the whole
-    // rename with no TUI attached, the broadcast is what repaints an attached
-    // one before its next tab mutation overwrites the file.
-    const tabId = seedTabs("rename-both")
-    const client = new FakeClient({ "terminalTab.rename": () => ({ ok: true, clients: 2 }) })
+  it("renames through the daemon's tab store, then broadcasts for older listeners", async () => {
+    // The daemon's apply is the whole rename (it publishes `tabs.changed` to
+    // every attached TUI); `terminalTab.rename` is kept for older listeners.
+    const { daemon, tabId } = await seedTabs("rename-both", {
+      "terminalTab.rename": () => ({ ok: true, clients: 2 }),
+    })
     const res = await invokeVerb("update", ["--task-id", "rename-both", "--tab", tabId, "--title", "e2e"], {
-      client,
+      client: daemon.client,
       runtime: stubRuntime(),
     })
-    expect(readTabsSnapshot("rename-both")?.tabs.find((t) => t.id === tabId)?.title).toBe("e2e")
-    expect(client.requests).toEqual([
-      { name: "terminalTab.rename", payload: { taskId: "rename-both", tabId, title: "e2e" } },
-    ])
+    expect(daemon.tabs("rename-both")?.tabs.find((t) => t.id === tabId)?.title).toBe("e2e")
+    expect(daemon.requests).toEqual(["tabs.get", "tabs.apply", "terminalTab.rename"])
+    expect(daemon.applied.at(-1)).toEqual({
+      taskId: "rename-both",
+      ops: [{ op: "patch", id: tabId, set: { title: "e2e" } }],
+    })
     expect(res).toMatchObject({ taskId: "rename-both", tabId, title: "e2e", renamed: true, clients: 2 })
   })
 
-  it("refuses a tab id the snapshot does not name instead of broadcasting into nothing", async () => {
-    seedTabs("rename-missing")
-    const client = new FakeClient({})
+  it("refuses a tab id the daemon does not hold instead of broadcasting into nothing", async () => {
+    const { daemon } = await seedTabs("rename-missing")
     await expectApiError(
       () =>
         invokeVerb("update", ["--task-id", "rename-missing", "--tab", "tab-9", "--title", "x"], {
-          client,
+          client: daemon.client,
           runtime: stubRuntime(),
         }),
       "TAB_NOT_FOUND",
     )
-    expect(client.requests).toEqual([])
+    expect(daemon.requests).toEqual(["tabs.get"])
   })
 })

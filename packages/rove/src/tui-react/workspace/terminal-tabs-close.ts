@@ -18,7 +18,7 @@ import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { noteClosedPtyKey } from "../../tui/workspace/closed-tab-suppress"
 import { type TerminalTab, closeTab, tabPtyKey, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core"
 import { releaseSplitLeaves } from "./TerminalSplit"
-import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
+import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import {
   knownTabsState,
   reportTabsDelta,
@@ -99,7 +99,6 @@ export function closeTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string):
   const { state: next, closedId } = closeTab(state, tabId, { allowEmpty: true })
   if (!closedId) return false
   setTaskTabs(taskId, next)
-  kv.set(terminalTabsKey(taskId), next)
   reportTabsDelta(taskId, state.tabs, next.tabs)
   releaseClosedTabPtys(taskId, closing, closedId)
   return true

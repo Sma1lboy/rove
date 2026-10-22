@@ -2,11 +2,11 @@ const TABS_PREFIX = "terminalTabs."
 
 /**
  * Which tasks' Terminal Tabs changed. Tabs live in the persisted
- * `terminalTabs.<taskId>` snapshots (the TUI writes one on every tab mutation,
- * `rove api rename --tab` writes it headless), and none of that moves a task
- * row, so the task feed never pushes for it. Diffing the snapshots covers
- * every writer, including tabs a TUI opens on its own, which no daemon event
- * announces.
+ * `terminalTabs.<taskId>` snapshots (the daemon's tab store writes them for
+ * every client's `tabs.apply`: TUIs, `rove api tab-new` / `update --tab`, the
+ * bridge's own `tab.move`), and none of that moves a task row, so the task
+ * feed never pushes for it. Diffing the snapshots covers every change; the
+ * daemon's `tabs.changed` channel says the same, a debounce sooner.
  */
 export class TabFeed {
   private latest: Map<string, string>

@@ -37,6 +37,7 @@ import {
   markCliTabSession,
   mintCliTab,
   publishCliTabSnapshot,
+  readDaemonTabs,
   readTabsSnapshot,
 } from "./tab-snapshot.ts"
 import { splitTab } from "./tab-split.ts"
@@ -54,7 +55,12 @@ async function ensureWorktree(client: DaemonRpc, target: PromptTarget): Promise<
 /** Ensure and address the task's hosted engine session (`target.tab` routes:
  *  undefined = canonical, "new" = mint + spawn a fresh tab, "tab-N" = that
  *  exact alive tab only). */
-async function deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt> {
+async function deliverHosted(
+  client: DaemonRpc,
+  target: PromptTarget,
+  worktree: string,
+  prompt: string,
+): Promise<DeliveredPrompt> {
   const host = await ensureHostFor(
     target.id,
     "no PTY host to run the engine in — nothing was started; check `rove daemon status`, then retry the same send",
@@ -84,7 +90,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
           : {}),
       })
     }
-    newTab = target.tab === "new" ? mintCliTab(target.id, target.tabVendor, target.tabCommand) : undefined
+    newTab = target.tab === "new" ? await mintCliTab(client, target.id, target.tabVendor, target.tabCommand) : undefined
     // A `--tab new` pin (command and/or protocol) applies to THIS launch
     // only; the task's own engine is left alone.
     const launchVendor = target.tabVendor ?? target.vendor
@@ -151,14 +157,14 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
     }
     // Make the session visible in the sidebar (`--tab new` already appended
     // its tab in mintCliTab). Write-once; see `tab-snapshot.ts`.
-    if (!newTab) publishCliTabSnapshot(target.id, result.started ? sessionId : undefined)
+    if (!newTab) await publishCliTabSnapshot(client, target.id, result.started ? sessionId : undefined)
     if (result.started && sessionId) {
       // publishCliTabSnapshot no-ops on an existing snapshot, which would
       // leave the PREVIOUS conversation's id after a host-restart respawn of
       // tab-1, and `--resume` would reopen the wrong one. Recording the id of
       // a session this process just started doesn't fight the TUI.
       const startedTab = newTab ?? result.session.split("::")[1]
-      if (startedTab) markCliTabSession(target.id, startedTab, sessionId)
+      if (startedTab) await markCliTabSession(client, target.id, startedTab, sessionId)
     }
     return result
   } catch (error) {
@@ -168,7 +174,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       newTab &&
       ["ENGINE_LIMIT", "ENGINE_ADMISSION_BUSY", "ENGINE_ADMISSION_UNAVAILABLE"].includes(error.code)
     ) {
-      closeTabsSnapshot(target.id, newTab)
+      await closeTabsSnapshot(client, target.id, newTab).catch(() => undefined)
     }
     if (error instanceof ApiError) throw error
     throw sessionFailed(
@@ -186,13 +192,14 @@ const realPromptDeliveryOps: PromptDeliveryOps = { deliverHosted }
 /** Headless half of ctrl+w: remove the persisted tab, then end every hosted
  * PTY the tab owns. Attached TUIs run their existing close path instead. */
 async function closeHeadlessTerminalTab(
+  client: DaemonRpc,
   taskId: string,
   tabId: string,
 ): Promise<{ kind: TerminalTab["kind"]; wasAlive: boolean }> {
   const host = await openPtyHost()
   try {
     const sessions = host ? await listSessions(host.rpc) : []
-    const snapshot = readTabsSnapshot(taskId)
+    const snapshot = await readDaemonTabs(client, taskId)
     const saved = snapshot?.tabs.find((tab) => tab.id === tabId)
     const directKey = `${taskId}::${tabId}`
     const unregisteredAlive = sessions.some((session) => session.key === directKey && session.alive)
@@ -203,7 +210,7 @@ async function closeHeadlessTerminalTab(
       })
     }
 
-    const closing = saved ? closeTabsSnapshot(taskId, tabId) : undefined
+    const closing = saved ? await closeTabsSnapshot(client, taskId, tabId) : undefined
     if (saved && !closing) {
       throw new ApiError(`tab ${tabId} no longer exists on task ${taskId}`, "TAB_NOT_FOUND", {
         hint: "the tab closed while this command was running; refresh with get-task before retrying",
@@ -245,7 +252,7 @@ export async function deliverPrompt(
     await client.request("task.observeLanguage", { taskId: target.id, text: prompt }).catch(() => {})
   }
 
-  const hosted = await ops.deliverHosted(target, worktree, prompt)
+  const hosted = await ops.deliverHosted(client, target, worktree, prompt)
   if (!hosted)
     throw sessionFailed(
       target.id,
@@ -337,10 +344,10 @@ export const defaultApiRuntime: ApiRuntime = {
   },
   closeTerminalTab: closeHeadlessTerminalTab,
   deliverPrompt: (client, target, prompt) => deliverPrompt(client, target, prompt),
-  openTab: async (client, target, kind) => openNewTab(target, await ensureWorktree(client, target), kind),
-  launchTab: (spec) =>
-    launchTab(spec, (taskId, tabId, worktree, pane) =>
-      splitTab(taskId, tabId, worktree, {
+  openTab: async (client, target, kind) => openNewTab(client, target, await ensureWorktree(client, target), kind),
+  launchTab: (client, spec) =>
+    launchTab(client, spec, (taskId, tabId, worktree, pane) =>
+      splitTab(client, taskId, tabId, worktree, {
         kind: "open",
         orientation: "row",
         from: "",

@@ -51,6 +51,7 @@ import {
   shouldLogReconnectAttempt,
 } from "./remote-orchestrator-payloads.ts"
 import { subscribeTasksOp } from "./remote-orchestrator-reads.ts"
+import { TabsChannel } from "./remote-orchestrator-tabs.ts"
 import * as writes from "./remote-orchestrator-writes.ts"
 
 export type {
@@ -100,6 +101,7 @@ export class RemoteOrchestrator {
   private readonly tabCloseAcc = createStateCell<TabClosePayload | null>(null)
   private readonly tabRenameAcc = createStateCell<TabRenamePayload | null>(null)
   private readonly tabAddAcc = createStateCell<TabAddSignal | null>(null)
+  readonly tabs: TabsChannel // the daemon's tab store: RPCs + `tabs.changed`
   private readonly uiPromptAcc = createStateCell<UiPromptPayload | null>(null)
   private readonly engineLifecycleAcc = createStateCell<EngineLifecycleMap>(new Map())
   private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
@@ -134,6 +136,7 @@ export class RemoteOrchestrator {
     this.subscribesTasks = !options.channels || options.channels.includes("task.snapshot")
     this.expectForeignHome = options.expectForeignHome === true
     this.onPeerIdentity = options.onPeerIdentity
+    this.tabs = new TabsChannel(client)
     this.signals = {
       // A pane has no tty of its own worth drawing on, so the default sink is
       // a gui's own fd 1 and nothing otherwise. Injectable for tests.
@@ -169,6 +172,7 @@ export class RemoteOrchestrator {
       setTabCloseSig: this.tabCloseAcc.set,
       setTabRenameSig: this.tabRenameAcc.set,
       setTabAddSig: this.tabAddAcc.set,
+      emitTabsChanged: this.tabs.emit,
       setUiPromptSig: this.uiPromptAcc.set,
       engineLifecycleAcc: this.engineLifecycleAcc,
       setEngineLifecycleSig: this.engineLifecycleAcc.set,

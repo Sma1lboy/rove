@@ -1,13 +1,12 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Orphan-sweep timing in useWorkspaceSelection: the sweep of `terminalTabs.*`
- * snapshots whose task is gone must run on EVERY task-list identity change,
- * not once per session. forgetTaskTabs only fires for THIS client's delete
- * flow — a sibling client (`rove api` / web board) removing a task lands here
- * purely as a changed list, and a once-per-session ref leaves those orphans on
- * disk until the next launch, taxing every later kv write. This probe seeds two snapshots, then removes
- * a task from the list the way a foreign delete does, and pins the sweep to
- * follow THAT change — plus the load-bearing `tasks.length === 0` guard.
+ * Orphan `terminalTabs.*` records (a task deleted by a sibling client, or while
+ * no daemon ran) are the DAEMON's to sweep now (`TabsStore.sweep`, pinned in
+ * test/daemon/tabs-store.test.ts, including its never-on-an-empty-list guard).
+ * useWorkspaceSelection used to sweep the kv on every task-list change; a TUI
+ * writing those keys is the multi-writer race the daemon exists to end. This
+ * probe pins that a task-list change — a foreign delete, or the empty list of a
+ * pre-connection render — writes no tabs key from the TUI at all.
  */
 
 import { expect, test } from "bun:test"
@@ -37,17 +36,22 @@ function task(id: string): Task {
   }
 }
 
-/** Fake kv: `set(k, undefined)` deletes the key, matching kv-core. */
-function fakeKv(initial: Record<string, unknown> = {}): TabsSnapshotKv {
+/** Fake kv: `set(k, undefined)` deletes the key, matching kv-core; records every key written. */
+function fakeKv(initial: Record<string, unknown> = {}): TabsSnapshotKv & { writes: string[] } {
   const store: Record<string, unknown> = { ...initial }
+  const writes: string[] = []
   return {
     store,
+    writes,
     set(key, value) {
+      writes.push(key)
       if (value === undefined) delete store[key]
       else store[key] = value
     },
   }
 }
+
+const tabsWrites = (kv: { writes: string[] }) => kv.writes.filter((key) => key.startsWith("terminalTabs."))
 
 function mockOrchestrator(): RemoteOrchestrator {
   return {
@@ -77,7 +81,7 @@ function Probe(props: { orch: RemoteOrchestrator; kv: TabsSnapshotKv; initial: T
 
 const savedHome = process.env.ROVE_HOME_DIR
 
-test("a task deleted by a sibling client is swept on the next task-list change, without touching live snapshots", async () => {
+test("a task deleted by a sibling client leaves its tabs record to the daemon — the TUI writes no tabs key", async () => {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-orphan-sweep-"))
   const kv = fakeKv({
     [terminalTabsKey("alpha")]: { tabs: [] },
@@ -88,29 +92,23 @@ test("a task deleted by a sibling client is swept on the next task-list change, 
     height: 24,
   })
   await act(async () => {})
-  // Both tasks are live — the sweep ran and removed nothing.
-  expect(kv.store[terminalTabsKey("alpha")]).toEqual({ tabs: [] })
-  expect(kv.store[terminalTabsKey("bravo")]).toEqual({ tabs: [] })
 
   // Sibling client deletes bravo: the change arrives as a new list identity.
   await act(async () => {
     setTasksList([task("alpha")])
   })
-  expect(kv.store[terminalTabsKey("bravo")]).toBeUndefined()
-  expect(kv.store[terminalTabsKey("alpha")]).toEqual({ tabs: [] })
-
-  // A later re-render with a FRESH array identity re-sweeps (idempotent) and
-  // still cannot touch a live task's snapshot.
+  // A later re-render with a FRESH array identity.
   await act(async () => {
     setTasksList([task("alpha")])
   })
+  expect(tabsWrites(kv)).toEqual([])
   expect(kv.store[terminalTabsKey("alpha")]).toEqual({ tabs: [] })
 
   if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
   else process.env.ROVE_HOME_DIR = savedHome
 })
 
-test("an empty task list sweeps nothing — the guard is load-bearing", async () => {
+test("an empty task list writes no tabs key either", async () => {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-orphan-sweep-empty-"))
   const kv = fakeKv({
     [terminalTabsKey("alpha")]: { tabs: [] },
@@ -120,7 +118,8 @@ test("an empty task list sweeps nothing — the guard is load-bearing", async ()
     setTasksList([])
   })
   // Empty is the shape of a pre-connection render AND a corrupt-manifest
-  // recovery; sweeping on it would wipe every live snapshot on the machine.
+  // recovery; nothing here may wipe a live record.
+  expect(tabsWrites(kv)).toEqual([])
   expect(kv.store[terminalTabsKey("alpha")]).toEqual({ tabs: [] })
 
   if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")

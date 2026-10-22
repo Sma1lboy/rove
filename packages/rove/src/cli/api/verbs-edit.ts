@@ -20,10 +20,10 @@ const TASK_FIELDS = ["title", "branch", "command", "model", "effort", "pinned", 
 const REPORT_FLAGS = ["report-branch", "report-pr", "report-summary"] as const
 
 /**
- * `--tab` writes the snapshot, THEN broadcasts: the write is the whole rename
- * with no TUI attached; the broadcast stops an attached one overwriting the
- * file with the old name. `setTabTitle` is idempotent, so no request/reply
- * broker is needed (unlike `tab-close`).
+ * `--tab` renames through the daemon's tab store (`tabs.apply`), which every
+ * attached TUI follows on `tabs.changed`; the `terminalTab.rename` broadcast
+ * after it is kept for older listeners. `setTabTitle` is idempotent, so no
+ * request/reply broker is needed (unlike `tab-close`).
  */
 async function renameTab(ctx: VerbContext, taskId: string, tabId: string): Promise<unknown> {
   const title = ctx.args.str("title")
@@ -33,13 +33,14 @@ async function renameTab(ctx: VerbContext, taskId: string, tabId: string): Promi
       hint: "Update the task's own fields in a separate call without --tab.",
     })
   }
-  if (!renameTabsSnapshot(taskId, tabId, title)) {
+  const daemon = daemonOf(ctx)
+  if (!(await renameTabsSnapshot(daemon, taskId, tabId, title))) {
     throw new ApiError(`task ${taskId} has no tab ${tabId}`, "TAB_NOT_FOUND", {
       hint: "`get-task` lists the addressable tab ids in .tabs[].id",
       nextCommandArgs: ["api", "get-task", "--task-id", taskId],
     })
   }
-  const reply = await daemonOf(ctx).request<{ clients?: number }>("terminalTab.rename", { taskId, tabId, title })
+  const reply = await daemon.request<{ clients?: number }>("terminalTab.rename", { taskId, tabId, title })
   return { ok: true, taskId, tabId, title, renamed: true, clients: reply.clients ?? 0 }
 }
 

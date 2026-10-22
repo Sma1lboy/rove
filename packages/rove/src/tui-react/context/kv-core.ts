@@ -11,9 +11,11 @@
  *     including other processes' keys.
  */
 
+import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
 import { loadStateFile, patchStateFile, readStateFileStrict, replaceStateFile } from "../../state/store.ts"
+import { TERMINAL_TABS_PREFIX } from "../../state/tabs-persistence.ts"
 
 const WRITE_DEBOUNCE_MS = 250
 
@@ -138,6 +140,12 @@ export function createKvCore(): KvCore {
       return (quiet.has(key) ? quiet.get(key) : store.get()[key]) ?? defaultValue
     },
     set(key, value) {
+      // The daemon is the only writer of terminal tabs (`tabs-store.ts`); a whole-key write from
+      // here would be the multi-writer race it exists to end.
+      if (key.startsWith(TERMINAL_TABS_PREFIX)) {
+        logClientError("kv", new Error(`refused a local write of ${key}: tabs go through the daemon`))
+        return
+      }
       quiet.delete(key)
       // `undefined` DELETES the key, matching disk. An enumerable `undefined`
       // makes `sweepOrphanTabsSnapshots` (walks `Object.keys`, re-runs on
