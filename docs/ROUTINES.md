@@ -199,6 +199,35 @@ It fails closed on purpose. A broken precheck must never quietly degrade into
 `routine-run-now` skips the precheck entirely; asking for the run by hand *is*
 the answer to "should this run?".
 
+## Script routines: no engine at all
+
+```bash
+rove api routine-create --repo . --name janitor --schedule "0 * * * *" \
+  --script "./scripts/janitor.sh" --notify
+```
+
+`--script` runs the command in the repo through your login shell, and that is
+the whole run: no task, no worktree, no agent turn. Use it for cheap checks
+that run often, where an engine session per firing would cost more than the
+work. Exit 0 records `ran`, anything else `script_failed` (which raises the
+routine alarm like `dispatch_failed`). Non-empty stdout, the last 4000
+characters, is the run's response. The timeout is `--script-timeout` (120s by
+default, at most 600s). Scripts run inside the serial sweep, so a slow one
+delays the routines due after it.
+
+`--script` replaces `--prompt`, so the engine flags (`--vendor`, `--model`,
+`--effort`, `--base-branch`, `--persistent-session`, `--target-*`) are refused
+with it. A `--precheck` still works. `routine-update --script ''` turns it back
+into a prompt routine (pass `--prompt` in the same call).
+
+## Tell me on WeChat
+
+`--notify` (on create or update) pushes every run's response, and every run
+that needs a human, to the bound chat channel. For a script routine that is
+its stdout; for an engine routine, the summary the agent reports. Bind the
+channel first with `rove weixin login` ([WeChat](WEIXIN.md)). Only runs that
+finish after the daemon starts are pushed.
+
 ## What each run did
 
 Run outcomes are deliberately distinct rather than a single "didn't run", because

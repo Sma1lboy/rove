@@ -39,6 +39,11 @@ export interface Automation {
   /** Five-field cron, evaluated in the daemon host's local time. */
   readonly schedule: string
   readonly precheck?: AutomationPrecheck
+  /** Script routine: run this command instead of an engine. `prompt` is empty,
+   *  and non-empty stdout becomes the run's response. */
+  readonly script?: AutomationPrecheck
+  /** Push each run's response, and runs that need a human, to bound chat channels (WeChat). */
+  readonly notify?: boolean
   readonly baseRef?: string
   /**
    * Re-deliver into ONE standing task instead of a fresh worktree per firing.
@@ -84,6 +89,10 @@ export type AutomationRunStatus =
   | "skipped_missed"
   | "skipped_unavailable"
   | "dispatch_failed"
+  /** A script routine's command exited 0. */
+  | "ran"
+  /** A script routine's command exited non-zero, timed out or could not start. */
+  | "script_failed"
 
 /**
  * Outcomes that repeat every firing until a human intervenes
@@ -93,7 +102,7 @@ export type AutomationRunStatus =
  * routines are broken.
  */
 export function automationRunNeedsAttention(status: AutomationRunStatus): boolean {
-  return status === "dispatch_failed" || status === "skipped_unavailable"
+  return status === "dispatch_failed" || status === "skipped_unavailable" || status === "script_failed"
 }
 
 export interface AutomationPrecheckResult {
@@ -171,6 +180,8 @@ export interface AutomationPatch {
   readonly modelEffort?: string | null
   readonly schedule?: string
   readonly precheck?: AutomationPrecheck | null
+  readonly script?: AutomationPrecheck | null
+  readonly notify?: boolean
   readonly baseRef?: string | null
   readonly enabled?: boolean
   readonly missedRunGraceMinutes?: number

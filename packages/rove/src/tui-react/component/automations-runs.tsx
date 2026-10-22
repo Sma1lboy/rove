@@ -27,6 +27,8 @@ const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   skipped_missed: "warning",
   skipped_unavailable: "warning",
   dispatch_failed: "error",
+  ran: "success",
+  script_failed: "error",
 }
 
 /** A run's tone as a colour; shared with the list so glyph and history line agree. */

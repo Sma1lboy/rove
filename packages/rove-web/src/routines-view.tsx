@@ -51,6 +51,8 @@ const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   skipped_missed: "warning",
   skipped_unavailable: "warning",
   dispatch_failed: "error",
+  ran: "success",
+  script_failed: "error",
 }
 const TONE_CLASS = {
   success: "tone-success",

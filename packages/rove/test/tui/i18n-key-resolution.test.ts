@@ -130,6 +130,8 @@ const RUN_STATUS_KEYS: Record<AutomationRunStatus, true> = {
   skipped_missed: true,
   skipped_unavailable: true,
   dispatch_failed: true,
+  ran: true,
+  script_failed: true,
 }
 const AUTOMATION_RUN_STATUSES = Object.keys(RUN_STATUS_KEYS)
 

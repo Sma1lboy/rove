@@ -1,8 +1,8 @@
 /**
  * `<home>/.rove/weixin/` — the WeChat binding's on-disk state, owner-only.
  *
- *   - `account.json`  credentials + allowlist. Written by the CLI (`rove
- *     weixin login|logout|allow|deny`), read by the daemon.
+ *   - `account.json`  credentials, allowlist, bound agent. Written by the CLI
+ *     (`rove weixin login|logout|allow|deny|agent`), read by the daemon.
  *   - `state.json`    long-poll cursor, per-peer context tokens, recently
  *     refused senders. Written by the daemon only; stamped with the account
  *     id so a re-bind never resumes another account's cursor.
@@ -31,6 +31,8 @@ export interface WeixinAccount {
   /** Additional senders allowed to command Rove. */
   readonly allow: readonly string[]
   readonly savedAt: string
+  /** Where free text (not a command) goes: one engine tab of one task. */
+  readonly agent?: { readonly taskId: string; readonly tab?: string }
 }
 
 interface WeixinPeer {
@@ -102,6 +104,14 @@ export class WeixinStore {
       ownerUserId: typeof raw.ownerUserId === "string" ? raw.ownerUserId : "",
       allow: Array.isArray(raw.allow) ? raw.allow.filter((id): id is string => typeof id === "string") : [],
       savedAt: typeof raw.savedAt === "string" ? raw.savedAt : "",
+      ...(raw.agent && typeof raw.agent.taskId === "string" && raw.agent.taskId
+        ? {
+            agent: {
+              taskId: raw.agent.taskId,
+              ...(typeof raw.agent.tab === "string" && raw.agent.tab ? { tab: raw.agent.tab } : {}),
+            },
+          }
+        : {}),
     }
   }
 

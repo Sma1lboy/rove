@@ -10,15 +10,13 @@
  */
 
 import { setTimeout as delay } from "node:timers/promises"
-import { type RoveOps, handleCommand } from "./commands.ts"
-import { toBubbles } from "./format.ts"
+import { type RoveOps, handleInbound as routeInbound } from "./commands.ts"
 import { renderGateArrivals } from "./gates.ts"
 import {
   type FetchFn,
   ILINK_BASE_URL,
   IlinkClient,
   type IlinkMessage,
-  type IlinkStatus,
   LONG_POLL_TIMEOUT_MS,
   type UpdatesResponse,
   classifyIlink,
@@ -27,6 +25,8 @@ import {
   messageText,
 } from "./ilink.ts"
 import { GateTracker, GroupTracker, renderArrivals } from "./notify.ts"
+import { RoutineTracker, renderRoutineRuns } from "./routines.ts"
+import { sendBubbles } from "./send.ts"
 import { type WeixinAccount, type WeixinRuntimeState, type WeixinStore, isAllowedSender } from "./store.ts"
 
 /** Bot-initiated messages are only accepted within a day of the peer's last message. */
@@ -36,7 +36,6 @@ const RETRY_MS = 2_000
 const BACKOFF_MS = 30_000
 const MAX_CONSECUTIVE_FAILURES = 3
 const EXPIRED_PAUSE_MS = 10 * 60 * 1000
-const BUBBLE_GAP_MS = 300
 const DEFAULT_NOTIFY_TICK_MS = 20_000
 /** Inbound message ids remembered for dedup (iLink redelivers on hiccups). */
 const SEEN_CAP = 256
@@ -74,6 +73,7 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
   const seen = new Set<string>()
   const tracker = new GroupTracker()
   const gateTracker = new GateTracker()
+  const routineTracker = new RoutineTracker()
 
   // Unref'd: a pending retry must never hold the daemon process open.
   const sleep = (ms: number) => delay(ms, undefined, { ref: false })
@@ -121,49 +121,12 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
     deps.log("weixin", `push to ${redact(to)} not delivered: ${reason}`)
   }
 
-  /**
-   * Send `text` as bubbles. A stale context token gets one tokenless retry
-   * (iLink's degraded path), a rate limit one delayed retry; anything else
-   * lands in the undelivered log. Returns whether every bubble went out.
-   */
+  /** Send `text` as bubbles ({@link sendBubbles}); what fails lands in the undelivered log. */
   async function deliver(to: string, text: string): Promise<boolean> {
     if (!client || !state) return false
-    const bubbles = toBubbles(text)
-    for (let i = 0; i < bubbles.length; i++) {
-      const bubble = bubbles[i] ?? ""
-      let token: string | null = state.peers[to]?.contextToken ?? null
-      let retried = false
-      for (;;) {
-        let resp: IlinkStatus
-        try {
-          resp = await client.sendText(to, bubble, token)
-        } catch (err) {
-          recordUndelivered(
-            to,
-            `network: ${err instanceof Error ? err.message : String(err)}`,
-            bubbles.slice(i).join("\n"),
-          )
-          return false
-        }
-        const outcome = classifyIlink(resp)
-        if (outcome === "ok") break
-        if (!retried && outcome === "session-expired" && token) {
-          retried = true
-          token = null
-          continue
-        }
-        if (!retried && outcome === "rate-limited") {
-          retried = true
-          await sleep(RETRY_MS)
-          continue
-        }
-        const hint = outcome === "session-expired" ? " — they need to message the bot first" : ""
-        recordUndelivered(to, `iLink refused: ${describeIlink(resp)}${hint}`, bubbles.slice(i).join("\n"))
-        return false
-      }
-      if (i < bubbles.length - 1) await sleep(BUBBLE_GAP_MS)
-    }
-    return true
+    const result = await sendBubbles(client, to, text, state.peers[to]?.contextToken ?? null, sleep)
+    if (!result.ok) recordUndelivered(to, result.reason, result.rest)
+    return result.ok
   }
 
   async function handleInbound(message: IlinkMessage): Promise<void> {
@@ -193,8 +156,10 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
       },
     })
     const text = messageText(message)
-    const reply = text ? await handleCommand(text, deps.ops) : "Text messages only. Send help for commands."
-    await deliver(from, reply)
+    const reply = text
+      ? await routeInbound(text, deps.ops, account.agent ?? null)
+      : "Text messages only. Send help for commands."
+    if (reply) await deliver(from, reply)
   }
 
   async function pollLoop(): Promise<void> {
@@ -271,6 +236,8 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
       if (decisions.length > 0) {
         await push(renderGateArrivals(decisions, new Map(snapshot.tasks.map((t) => [t.taskId, t.title]))))
       }
+      const runs = routineTracker.observe(await deps.ops.notifyingRoutineRuns())
+      for (const text of renderRoutineRuns(runs)) await push(text)
     } catch (err) {
       deps.log("weixin", `notify tick failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {

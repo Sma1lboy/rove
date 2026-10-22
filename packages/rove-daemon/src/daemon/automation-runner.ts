@@ -21,6 +21,9 @@ import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./aut
 import type { AutomationsStore } from "./automations-store.ts"
 import {
   type Automation,
+  type AutomationPrecheck,
+  type AutomationPrecheckResult,
+  type AutomationRunResponse,
   type AutomationRunStatus,
   type DaemonOrchestrator,
   automationRunNeedsAttention,
@@ -119,8 +122,8 @@ type PluginRunReport = {
 }
 
 function runEventFor(status: AutomationRunStatus): PluginRunReport["kind"] {
-  if (status === "dispatched" || status === "revived") return "automation.dispatched"
-  if (status === "dispatch_failed") return "automation.failed"
+  if (status === "dispatched" || status === "revived" || status === "ran") return "automation.dispatched"
+  if (status === "dispatch_failed" || status === "script_failed") return "automation.failed"
   return "automation.skipped"
 }
 
@@ -231,6 +234,34 @@ export function withRoutineRunHeader(
   return `[ROVE ROUTINE] "${automation.name}" run #${run.runNumber} — when done, report with: ${api} report --delivery ${deliveryId} --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]\n\n${automation.prompt}`
 }
 
+/**
+ * A script routine's whole run: the command in the repo, no engine. Non-empty
+ * stdout is the response; a failure carries its stderr as the error. Shares
+ * the precheck's shell, output cap and timeout ceiling, and like the precheck
+ * it runs inside the serial sweep, so a slow script delays later routines.
+ */
+async function runScript(
+  script: AutomationPrecheck,
+  automation: Automation,
+  record: (
+    status: AutomationRunStatus,
+    extra: { error?: string; response?: AutomationRunResponse; precheckResult?: AutomationPrecheckResult },
+  ) => Promise<AutomationRunStatus>,
+  now: () => number,
+): Promise<AutomationRunStatus> {
+  const result = await runAutomationPrecheck(script, automation.repo)
+  const stdout = result.stdout.trim()
+  const response = stdout ? { response: { text: stdout, at: new Date(now()).toISOString() } } : {}
+  if (precheckPassed(result)) return await record("ran", response)
+  const reason = formatPrecheckSkip(result).replace(/^precheck/, "script")
+  const stderr = result.stderr.trim()
+  logDaemonInfo("automation", `${automation.name}: ${reason}`)
+  return await record("script_failed", {
+    ...response,
+    error: stderr ? `${reason}: ${stderr.slice(-500)}` : reason,
+  })
+}
+
 /** Execute one automation now, recording exactly one run. A manual trigger
  *  (`automation.runNow`) skips the precheck. */
 export async function runAutomationOnce(
@@ -249,6 +280,7 @@ export async function runAutomationOnce(
       deliveryId?: string
       precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>>
       blocked?: SkipVerdict
+      response?: AutomationRunResponse
     } = {},
   ): Promise<AutomationRunStatus> => {
     await deps.store.recordRun(
@@ -288,6 +320,8 @@ export async function runAutomationOnce(
     return await record("skipped_cancelled", {
       error: "routine disabled, changed, deleted or runner stopped before delivery",
     })
+
+  if (automation.script) return await runScript(automation.script, automation, record, now)
 
   let outcome: DispatchOutcome
   // Armed against the task the prompt lands in, BEFORE the paste: a failed
