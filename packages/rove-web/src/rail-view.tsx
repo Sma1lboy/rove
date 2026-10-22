@@ -80,7 +80,12 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       query,
       routines: filters.routines,
     })
-  const { rows, groups } = build(filters.search.active ? filters.search.query : "")
+  const built = build(filters.search.active ? filters.search.query : "")
+  const { groups } = built
+  // A collapsed project keeps its header and hides what is under it; search shows everything.
+  const rows = filters.search.active
+    ? built.rows
+    : foldProjects(dropIdleProjects(built.rows, tabsOf, selection.taskId), filters.collapsed)
   // A task whose tabs are listed under it leaves the status to them (`taskRowGlyph`).
   const tabsShown = new Set(rows.flatMap((row) => (row.kind === "tab" ? [row.task.id] : [])))
   const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project")
@@ -173,6 +178,12 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             selected={row.id === selectedId}
             cursor={row.id === keys.cursor}
             stale={row.machine !== undefined && offline.has(row.machine)}
+            collapsed={row.kind === "project" && filters.collapsed.has(row.id)}
+            onNewTask={
+              row.kind === "project"
+                ? () => dialog.set(<NewTaskDialog model={model} repo={row.repo} machine={row.machine} />)
+                : undefined
+            }
             moving={
               moving &&
               row.machine === undefined &&
@@ -183,6 +194,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             onClick={() => {
               keys.setCursor(row.id)
               if (row.kind === "routines") filters.toggleRoutines(row.key)
+              if (row.kind === "project") filters.toggleProject(row.id)
               if (row.kind === "task") model.select(row.task.id)
               if (row.kind === "tab") model.select(row.task.id, row.tab.id)
               if (row.kind !== "project") enterWorkspace()
@@ -233,6 +245,10 @@ function RailRow(props: {
   moving: boolean
   /** Its machine is unreachable: the last known state, greyed (TUI `task.origin.stale`). */
   stale: boolean
+  /** A project header whose rows are folded away. */
+  collapsed?: boolean
+  /** A project header's +: a new task in that project. */
+  onNewTask?: () => void
   onClick: () => void
   onMenu: (e: MouseEvent) => void
 }) {
@@ -245,11 +261,36 @@ function RailRow(props: {
     return (
       <h2
         className={`project-head ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""}`}
-        title={row.repo}
         onContextMenu={props.onMenu}
       >
-        <span>{row.label}</span>
-        <span className="rule" />
+        <button
+          type="button"
+          className="project-toggle"
+          title={row.repo}
+          aria-expanded={!props.collapsed}
+          onClick={props.onClick}
+        >
+          <span className="project-label">{row.label}</span>
+          <svg
+            className={`project-chevron ${props.collapsed ? "is-collapsed" : ""}`}
+            viewBox="0 0 10 10"
+            aria-hidden="true"
+          >
+            <path
+              d="M2.5 3.75 5 6.25l2.5-2.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        {props.onNewTask && (
+          <button type="button" className="project-add" title={t("rail.newTask")} onClick={props.onNewTask}>
+            +
+          </button>
+        )}
       </h2>
     )
   }
@@ -332,4 +373,49 @@ function prGlyph(kind: NonNullable<TaskRow["prChip"]>, glyphs: GlyphSet | undefi
 function prTone(kind: NonNullable<TaskRow["prChip"]>, stale: boolean | undefined): string {
   if (stale) return "muted"
   return kind === "passing" ? "tone-success" : "tone-attention"
+}
+
+/** The rows under a collapsed project header drop out until the next header. */
+function foldProjects(rows: readonly NavRow[], collapsed: ReadonlySet<string>): readonly NavRow[] {
+  if (collapsed.size === 0) return rows
+  let hiding = false
+  return rows.filter((row) => {
+    if (row.kind === "project") {
+      hiding = collapsed.has(row.id)
+      return true
+    }
+    return !hiding
+  })
+}
+
+/**
+ * A project with nothing going on (only its repo row, no tab open, not selected) is not listed,
+ * as Claude's sidebar lists only projects with sessions; New task still reaches it.
+ */
+function dropIdleProjects(
+  rows: readonly NavRow[],
+  tabsOf: (taskId: string) => readonly unknown[],
+  selectedTaskId: string | null,
+): readonly NavRow[] {
+  const out: NavRow[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const head = rows[i]
+    if (head?.kind !== "project") {
+      if (head) out.push(head)
+      continue
+    }
+    let end = i + 1
+    while (end < rows.length && rows[end]?.kind !== "project") end++
+    const under = rows.slice(i + 1, end)
+    const idle = under.every(
+      (row) =>
+        row.kind === "task" &&
+        row.task.kind === "main" &&
+        row.task.id !== selectedTaskId &&
+        tabsOf(row.task.id).length === 0,
+    )
+    if (!idle) out.push(head, ...under)
+    i = end - 1
+  }
+  return out
 }
