@@ -85,7 +85,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   // A collapsed project keeps its header and hides what is under it; search shows everything.
   const rows = filters.search.active
     ? built.rows
-    : foldProjects(dropIdleProjects(built.rows, tabsOf, selection.taskId), filters.collapsed)
+    : foldProjects(dropIdleProjects(built.rows, tabs, selection.taskId), filters.collapsed)
   // A task whose tabs are listed under it leaves the status to them (`taskRowGlyph`).
   const tabsShown = new Set(rows.flatMap((row) => (row.kind === "tab" ? [row.task.id] : [])))
   const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project")
@@ -394,7 +394,7 @@ function foldProjects(rows: readonly NavRow[], collapsed: ReadonlySet<string>): 
  */
 function dropIdleProjects(
   rows: readonly NavRow[],
-  tabsOf: (taskId: string) => readonly unknown[],
+  tabs: Readonly<Record<string, readonly unknown[]>>,
   selectedTaskId: string | null,
 ): readonly NavRow[] {
   const out: NavRow[] = []
@@ -412,7 +412,8 @@ function dropIdleProjects(
         row.kind === "task" &&
         row.task.kind === "main" &&
         row.task.id !== selectedTaskId &&
-        tabsOf(row.task.id).length === 0,
+        // Only a tab list that arrived and is empty: unknown (not loaded, or the read failed) keeps the project.
+        tabs[row.task.id]?.length === 0,
     )
     if (!idle) out.push(head, ...under)
     i = end - 1
