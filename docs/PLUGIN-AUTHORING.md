@@ -494,8 +494,9 @@ export default function page(host) {
   esc/timeout. Use it instead of
   hand-rolling in-pane prompts.
 - **Settings → Plugins**: enable/disable, declared surfaces, last run,
-  and your `[[settings]]` editors. Rove's built-in plugins (Kanban, Issues)
-  are listed first; they toggle but never uninstall.
+  and your `[[settings]]` editors. Rove's first-party mods (Kanban, Issues)
+  are listed first, not installed until you install them there or with
+  `rove plugin install kanban`.
 - **Settings → Marketplace**: your repo's `rove-plugin` topic listing, its
   description, and the install preview built from your manifest's commands.
 - **CLI**: `rove plugin action invoke`, `rove plugin pane open`, `rove

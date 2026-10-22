@@ -1,6 +1,8 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { defaultIssuesStorePath } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import { installedBuiltinMods } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { pluginLogPath } from "@sma1lboy/rove-daemon/plugins/plugin-paths"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -85,6 +87,26 @@ describe("plugin command workflow", () => {
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
     await runPluginSubcommand(["--help"])
     expect(stdout.mock.calls.map((call) => String(call[0])).join("")).toContain("GitHub topic rove-plugin")
+  })
+
+  it("installs first-party mods on demand, and uninstalling leaves their data on disk", async () => {
+    const home = tempDir("rove-plugin-cmd-home-")
+    vi.stubEnv("ROVE_HOME_DIR", home)
+    const output: string[] = []
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.map(String).join(" ")))
+    expect(installedBuiltinMods(home)).toEqual([])
+
+    await runPluginSubcommand(["install", "kanban"])
+    expect(installedBuiltinMods(home)).toEqual(["kanban"])
+    await runPluginSubcommand(["list"])
+    expect(output.join("\n")).toMatch(/kanban {2}first-party {2}installed/)
+    expect(output.join("\n")).toMatch(/issues {2}first-party {2}not installed/)
+
+    const issues = defaultIssuesStorePath(home)
+    writeFileSync(issues, '{"version":1,"repos":{}}\n')
+    await runPluginSubcommand(["uninstall", "kanban"])
+    expect(installedBuiltinMods(home)).toEqual([])
+    expect(readFileSync(issues, "utf8")).toBe('{"version":1,"repos":{}}\n')
   })
 
   it("resolves dotted plugin ids by longest registered prefix for actions", async () => {

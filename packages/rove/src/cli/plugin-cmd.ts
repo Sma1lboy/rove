@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process"
 import { readFileSync, rmSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
 import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
+import { isBuiltinModId } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { buildPluginEnv } from "@sma1lboy/rove-daemon/plugins/env"
 import {
   type PluginManifest,
@@ -28,6 +29,7 @@ import {
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { flagValue } from "./argv.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
+import { builtinModRows, setBuiltinMod } from "./plugin-builtin.ts"
 import { PluginCliError, installPlugin, linkPlugin } from "./plugin-install.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
@@ -39,8 +41,9 @@ function printUsage(out: NodeJS.WriteStream): void {
       `usage: ${CLI_NAME} plugin <command>`,
       "",
       "  install <owner/repo[/subdir]> [--yes] [--ref <rev>]   clone from GitHub, preview, build, register",
+      "  install kanban | issues                               install a first-party mod (uninstall keeps its data)",
       "  link <dir>                                            register a local plugin directory (dev)",
-      "  list                                                  installed + linked plugins",
+      "  list                                                  first-party mods, installed + linked plugins",
       "  search [query]                                        browse the marketplace (GitHub topic rove-plugin)",
       "  outdated                                              check GitHub-installed plugins against upstream",
       "  update <id…> | --all [--yes]                          reinstall stale plugins from GitHub",
@@ -82,10 +85,11 @@ function requireEntry(id: string): PluginRegistryEntry {
 }
 
 function listPlugins(): void {
+  for (const row of builtinModRows()) console.log(row)
   const all = loadAll()
   if (all.length === 0) {
     console.log(
-      `no plugins installed. Try: ${CLI_NAME} plugin install <owner/repo> — browse the \`rove-plugin\` GitHub topic.`,
+      `no other plugins installed. Try: ${CLI_NAME} plugin install <owner/repo> — browse the \`rove-plugin\` GitHub topic.`,
     )
     return
   }
@@ -259,6 +263,10 @@ export async function runPluginSubcommand(rest: string[]): Promise<void> {
       case "install": {
         const spec = args.find((a) => !a.startsWith("-"))
         if (!spec) throw new PluginCliError("install needs <owner/repo[/subdir]>")
+        if (isBuiltinModId(spec)) {
+          console.log(setBuiltinMod(spec, true))
+          return
+        }
         await installPlugin(spec, { yes: args.includes("--yes"), ref: flagValue(args, "--ref") })
         return
       }
@@ -291,7 +299,9 @@ export async function runPluginSubcommand(rest: string[]): Promise<void> {
       case "enable":
       case "disable": {
         if (!args[0]) throw new PluginCliError(`${command} needs a plugin id`)
-        setEnabled(args[0], command === "enable")
+        // A first-party mod has no disabled-but-installed state: enable installs it.
+        if (isBuiltinModId(args[0])) console.log(setBuiltinMod(args[0], command === "enable"))
+        else setEnabled(args[0], command === "enable")
         return
       }
       case "unlink": {
@@ -301,7 +311,8 @@ export async function runPluginSubcommand(rest: string[]): Promise<void> {
       }
       case "uninstall": {
         if (!args[0]) throw new PluginCliError("uninstall needs a plugin id or owner/repo spec")
-        uninstall(args[0])
+        if (isBuiltinModId(args[0])) console.log(setBuiltinMod(args[0], false))
+        else uninstall(args[0])
         return
       }
       case "config-dir": {

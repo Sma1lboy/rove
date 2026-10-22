@@ -102,6 +102,7 @@
     "./plugins/mod-tree": "./src/plugins/mod-tree.ts",
     "./plugins/outdated-cache": "./src/plugins/outdated-cache.ts",
     "./plugins/pane-command": "./src/plugins/pane-command.ts",
+    "./plugins/builtin-mods": "./src/plugins/builtin-mods.ts",
     "./plugins/plugin-paths": "./src/plugins/plugin-paths.ts",
     "./plugins/registry": "./src/plugins/registry.ts",
     "./plugins/runtime": "./src/plugins/runtime.ts",

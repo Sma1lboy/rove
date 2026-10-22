@@ -177,10 +177,8 @@ async function setup(): Promise<void> {
     defaultVendor: "claude",
     "engineCommand.claude": claudeCommand(),
     "engineCommand.codex": `${engineBin("codex")} ${CODEX_ARGS}`,
-    // Room for the branch labels, and only the pages this film is about.
+    // Room for the branch labels; Kanban and Issues stay uninstalled, so only this film's pages show.
     "sidebar.width": SIDEBAR_WIDTH,
-    "plugins.bundled.kanban.enabled": false,
-    "plugins.bundled.issues.enabled": false,
     // Zen starts on by default and hides the Files pane, whose Changes tab the diff beat needs.
     "zen.active": false,
     ...(skillVersion ? { [`skillHintSeen:v${skillVersion}`]: "1" } : {}),

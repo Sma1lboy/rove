@@ -65,7 +65,7 @@ shows only actions that can run right now.
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |
 | `ctrl+a` `n` | New task |
 | `ctrl+a` `w` | Close the active split, otherwise the tab — the prefix twin of `ctrl+w` |
-| `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues (Kanban and Issues while their built-in plugins are on) |
+| `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues (Kanban and Issues while their first-party mods are installed) |
 | `ctrl+a` `z` | Toggle zen mode |
 | `ctrl+a` `,` | Open Settings |
 | `ctrl+a` `p` (`P` is the same key) | Create a PR — for the active task, or for the row under the cursor while the sidebar has focus ([the focus rule](#sidebar-and-files)) |

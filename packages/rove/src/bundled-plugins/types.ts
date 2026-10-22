@@ -1,9 +1,10 @@
 /**
- * A plugin compiled into Rove: the same page factory an installed plugin's
+ * A first-party mod compiled into Rove: the same page factory an installed plugin's
  * `[[pages]]` module exports, with its manifest as data. It reaches the host
  * only through the `PageHost` its factory receives.
  */
 
+import type { BuiltinModId } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import type { PageHost } from "../tui-react/pages/host-api"
 import type { PageComponent } from "../tui-react/pages/registry"
 import type { PageAction } from "../tui/panes/sidebar/nav-core"
@@ -18,7 +19,7 @@ export interface BundledPage {
 }
 
 export interface BundledPlugin {
-  readonly id: string
+  readonly id: BuiltinModId
   readonly name: string
   readonly description: string
   readonly pages: readonly BundledPage[]

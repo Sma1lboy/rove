@@ -11,6 +11,7 @@
 import { existsSync } from "node:fs"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
+import { BUILTIN_MOD_IDS, setBuiltinModInstalled } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { createTaskWithChatTab, runInFixture, runRoveApi, seedGitRepo, writeFixtureWebToken } from "../../rove/scripts/fixture-core.ts"
 import { HERO_CLI, HERO_CONFIG, HERO_HOME, HERO_REPO, HERO_ROOT, ROVE_DIR, heroEnv, stopHeroStack } from "./hero-env.ts"
 import { HERO_COMMITS, HERO_FILES } from "./hero-repo.ts"
@@ -80,6 +81,8 @@ async function seedSettings(): Promise<void> {
   await mkdir(HERO_HOME, { recursive: true })
   await mkdir(dir, { recursive: true })
   await writeFile(join(dir, "state.json"), `${JSON.stringify(state, null, 2)}\n`)
+  // The stills show the Kanban and Issues pages, which are first-party mods.
+  for (const id of BUILTIN_MOD_IDS) setBuiltinModInstalled(id, true, HERO_HOME)
 }
 
 async function seedRepo(): Promise<void> {

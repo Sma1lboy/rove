@@ -82,7 +82,7 @@ export const ACTIONS: readonly PrefixAction[] = [
   {
     id: "settings.open",
     live: () => true,
-    run: (model) => dialog.set(<SettingsDialog client={model.client} />),
+    run: (model) => dialog.set(<SettingsDialog model={model} />),
   },
   { id: "inbox.show", live: () => true, run: (model) => dialog.set(<InboxDialog model={model} />) },
   { id: "focus.previous", live: () => true, run: () => focusPane(-1) },
@@ -114,9 +114,9 @@ export const ACTIONS: readonly PrefixAction[] = [
     },
   },
   // Rail pages in the rail's top-to-bottom order; they swap only the workspace, so 1 → 2 → 3 hops directly.
-  { id: "kanban.open", live: () => true, run: () => page.set("kanban") },
+  { id: "kanban.open", live: (m) => m.installedMods.get().has("kanban"), run: () => page.set("kanban") },
   { id: "automations.open", live: () => true, run: () => page.set("routines") },
-  { id: "workItems.open", live: () => true, run: () => page.set("issues") },
+  { id: "workItems.open", live: (m) => m.installedMods.get().has("issues"), run: () => page.set("issues") },
   {
     id: "task.moveMode",
     live: (m) => !!aimedTask(m),

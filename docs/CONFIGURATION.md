@@ -434,15 +434,17 @@ recognise reads as the persisted order. Older state files may contain
 `tasksPane.projectFilter`; the daemon still mirrors that compatibility value
 for background consumers, but the current PureTUI tree does not consume it.
 
-### Built-in plugins
+### First-party mods
 
-Kanban and Issues ship as built-in plugins, both on by default. Turn one off
-in Settings → Plugins and its rail row and its `ctrl+a` chord go away.
+Kanban and Issues ship with Rove as first-party mods, none installed by
+default. Install one with `rove plugin install kanban` (or `issues`), or from
+Settings → Plugins in the TUI or the web; its rail row and its `ctrl+a`
+chord appear in both. Uninstalling removes them again and leaves the mod's
+data (the issue store) on disk for a later install.
 
-| Key | Type | Default | What |
-|---|---|---|---|
-| `plugins.bundled.kanban.enabled` | boolean | `true` | The Kanban board (`ctrl+a` `1`) |
-| `plugins.bundled.issues.enabled` | boolean | `true` | The GitHub Issues page (`ctrl+a` `3`) |
+The installed ids live in `~/.rove/builtin-mods.json`
+(`{"installed": ["kanban"]}`); the TUI, the web and `rove api` all read it.
+The old `plugins.bundled.<id>.enabled` state.json keys are ignored.
 
 ### Machines
 

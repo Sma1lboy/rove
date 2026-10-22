@@ -224,7 +224,7 @@ export function StatusHints({ model, narrow }: { model: AppModel; narrow: boolea
   if (!narrow) {
     items.push({
       text: `[${hintText("status.settings")}]`,
-      onPress: () => dialog.set(<SettingsDialog client={model.client} />),
+      onPress: () => dialog.set(<SettingsDialog model={model} />),
       bindingId: "settings.open",
     })
   }

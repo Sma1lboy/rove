@@ -11,7 +11,7 @@ import { queryCellPixelSize } from "../../tui/lib/cell-pixel-size"
 import { createTerminalGraphics, installTerminalGraphics } from "../../tui/lib/terminal-graphics"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { bootPaneHost } from "../lib/host-boot"
-import { registerBundledPlugins } from "../pages/bundled-pages"
+import { followBundledPlugins, registerBundledPlugins } from "../pages/bundled-pages"
 import { registerCorePages } from "../pages/core-pages"
 import { loadPluginPages } from "../pages/load-plugin-pages"
 import { registerModsPage } from "../pages/mods-pages"
@@ -55,6 +55,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       registerCorePages()
       const stopModsPage = registerModsPage(orchestrator)
       registerBundledPlugins()
+      const stopBundledPlugins = followBundledPlugins()
       void loadPluginPages()
       return {
         root: () => (
@@ -65,6 +66,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
           />
         ),
         onDestroy: () => {
+          stopBundledPlugins()
           stopModsPage()
           stopRemoteStatus()
           setMachineHub(null)

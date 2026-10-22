@@ -186,7 +186,13 @@ export const en = {
       reset: "reset",
       remove: "remove",
     },
-    plugins: { empty: "no plugins registered" },
+    plugins: {
+      empty: "no other plugins registered",
+      install: "install",
+      uninstall: "uninstall",
+      modInstalled: "first-party mod, installed",
+      modAvailable: "first-party mod, not installed",
+    },
     feedback: {
       hint: "Posts a public GitHub Discussion in the Rove repo, through `gh` on the machine running rove.",
       titleLabel: "title",

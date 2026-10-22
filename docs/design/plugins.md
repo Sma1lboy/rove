@@ -66,10 +66,11 @@ pages. OpenTUI's Bun runtime plugin maps the module's `react` /
 rest of Rove reaches a page only through the host API object
 (`tui-react/pages/host-api.ts`).
 
-Kanban and Issues are **built-in plugins** (`src/bundled-plugins/`): the
+Kanban and Issues are **first-party mods** (`src/bundled-plugins/`): the
 same `(host) => Page` factories, compiled into Rove instead of imported at
-runtime, registered as `bundled:<id>` and switched by
-`plugins.bundled.<id>.enabled`. An architecture test keeps them to the
+runtime, registered as `bundled:<id>` only while installed. Installed ids live
+in `~/.rove/builtin-mods.json` (`rove-daemon/src/plugins/builtin-mods.ts`), so
+the TUI, the web and the daemon agree; none is installed by default. An architecture test keeps them to the
 installed-plugin contract (runtime imports: the shared runtime and their own
 files). The issue-board columns, the event-feed rows and the copy they share
 with `rove --web` stay in core and reach them through `host.issues`.
