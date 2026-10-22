@@ -1830,6 +1830,22 @@
       }
     ]
   },
+  "builtinMods.list": {
+    "mods": [
+      {
+        "id": "kanban",
+        "name": "Kanban",
+        "description": "Stories as a Backlog / In progress / Parked / Done board, with the `rove api issue-*` store",
+        "installed": true
+      },
+      {
+        "id": "issues",
+        "name": "Issues",
+        "description": "Open GitHub issues for the selected project via `gh`, with `rove api workitem-*`",
+        "installed": true
+      }
+    ]
+  },
   "engines.settings": {
     "defaultId": "claude",
     "engines": [

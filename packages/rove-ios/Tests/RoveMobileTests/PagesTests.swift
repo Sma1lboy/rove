@@ -8,6 +8,16 @@ final class PagesTests: XCTestCase {
         try JSONDecoder().decode(T.self, from: Data(json.utf8))
     }
 
+    // MARK: First-party mods
+
+    func testModGateHidesUntilAnsweredShowsAllForAnOlderMacAndFollowsInstalls() throws {
+        let payload = try decode(#"{"mods":[{"id":"kanban","name":"Kanban","description":"","installed":true},{"id":"issues","name":"Issues","description":"","installed":false}]}"#, as: BuiltinModsPayload.self)
+        let loaded = ModGate.loaded(payload.mods)
+        XCTAssertEqual([ModGate.pending.shows("kanban"), ModGate.legacy.shows("issues")], [false, true])
+        XCTAssertEqual([loaded.shows("kanban"), loaded.shows("issues")], [true, false])
+        XCTAssertEqual([Route.board, .issues, .routines, .settings].filter(loaded.allows), [.board, .routines, .settings])
+    }
+
     // MARK: Issue store
 
     func testStoryWithAndWithoutLink() throws {
