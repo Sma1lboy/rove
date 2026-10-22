@@ -23,7 +23,7 @@ import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { type WorktreeGoneEvent, useWorkspaceSelection } from "../../src/tui-react/workspace/use-workspace-selection"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { type TabsSyncDaemon, attachTabsDaemon, flushTabs } from "../tui-react/tabs-sync-daemon"
+import { type TabsSyncDaemon, attachTabsDaemon, untilDaemon } from "../tui-react/tabs-sync-daemon"
 import { act, renderComponent, settle } from "./harness"
 
 function task(id: string, worktreePath: string): Task {
@@ -160,7 +160,7 @@ describe("a worktree vanishing under a live task", () => {
   test("the daemon drops the vanished worktree's tabs too", async () => {
     await vanish()
     // The forget rides an async `tabs.apply` sent from the selection effect: wait for it, bounded.
-    for (let i = 0; i < 100 && daemon.tabs("alpha") !== undefined; i++) await flushTabs()
+    await untilDaemon(() => daemon.tabs("alpha") === undefined)
     expect(daemon.tabs("alpha")).toBeUndefined()
   })
 })
