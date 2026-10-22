@@ -32,8 +32,8 @@ export function machineLabel(row: MachineRow, words: (typeof tasksEn)["machine"]
 }
 
 /**
- * The cloud mark's hover and aria text on a task that lives on another machine: `on mac` while it is
- * online, then its trouble (`on mac · offline`, `on mac · ⚠ v0.9.100 (protocol mismatch)`). A machine
+ * The cloud mark's hover and aria text on a task that lives on another machine: its registered name,
+ * then its hostname when different (`on mac (Mac.lan)`) while it is online, then its trouble (`on mac · offline`, `on mac · ⚠ v0.9.100 (protocol mismatch)`). A machine
  * the list has not loaded yet reads as just its name.
  */
 export function remoteLabel(
@@ -42,11 +42,12 @@ export function remoteLabel(
   words: (typeof tasksEn)["machine"],
   fallback = alias,
 ): string {
-  const name = row ? row.hostLabel || row.alias : fallback
-  const on = words.runsOn.replace("{host}", name)
+  // The name the machine was registered under (`rove machine add … <alias>`), then its hostname when that differs.
+  const host = row?.hostLabel && row.hostLabel !== alias ? ` (${row.hostLabel})` : ""
+  const on = words.runsOn.replace("{host}", row ? `${alias}${host}` : fallback)
   if (!row || row.state === "online") return on
   const full = machineLabel(row, words)
-  return `${on}${full.slice(name.length)}`
+  return `${on}${full.slice((row.hostLabel || row.alias).length)}`
 }
 
 /** A task row from another machine gets a cloud mark with this text; this machine's rows, headers and tab rows get none. */
