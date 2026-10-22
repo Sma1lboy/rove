@@ -19,8 +19,8 @@ import { executeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { REMOTE_CALLER } from "@sma1lboy/rove/src/cli/api/types.ts"
 import { RemoteOrchestrator } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { ensurePluginEnginesLoaded } from "@sma1lboy/rove/src/engine/plugin-engines.ts"
+import { MachineFeed } from "@sma1lboy/rove/src/machines/feed.ts"
 import { forwardVerb, invokeRouted, machineDaemonSocket, requireMachine } from "@sma1lboy/rove/src/machines/forward.ts"
-import { MachineHub } from "@sma1lboy/rove/src/machines/hub.ts"
 import { localPtySocketPath } from "@sma1lboy/rove/src/machines/ssh-args.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
@@ -152,9 +152,8 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     graphicsOut: () => {},
   })
   await orchestrator.init()
-  // Other machines (`rove machine add`), as the TUI's sidebar: `attach()` is a no-op with none registered.
-  const hub = new MachineHub(orchestrator)
-  hub.attach()
+  // Other machines (`rove machine add`), as the daemon's hub publishes them.
+  const hub = new MachineFeed(orchestrator)
   const machines = hub.machinesSignal()
   machineStore.set(machines.get())
   machines.subscribe(() => machineStore.set(machines.get()))

@@ -1,6 +1,6 @@
 /**
  * Registered machines (`rove machine add`) and their connection state, for the sidebar's machine
- * headers (TUI `machine-layer.ts`). Read-only: the bridge runs the same `MachineHub` the TUI does
+ * headers (TUI `machine-layer.ts`). Read-only: the bridge reads the same daemon `machines` feed the TUI does
  * and this op reports its `machinesSignal`; adding or removing a machine stays on the CLI.
  */
 
@@ -39,7 +39,7 @@ export function createMachineOps(store: MachineStore = machineStore): OpTable {
     "machines.list": {
       kind: "read",
       destructive: false,
-      wraps: "MachineHub.machinesSignal (the TUI sidebar's machine layer), held by the bridge",
+      wraps: "MachineFeed.machinesSignal (the daemon's machines channel, as the TUI sidebar shows it)",
       async run() {
         return { machines: store.get() }
       },

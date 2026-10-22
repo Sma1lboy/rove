@@ -1,11 +1,9 @@
 /**
- * The machine hub: one `RemoteOrchestrator` per machine, one merged task list.
- * Every machine is connected at once and its tasks stamped with a
- * {@link TaskOrigin}; there is no "current machine".
- *
- * With NO machines registered it does nothing: the local task signal is
- * returned unchanged, object identity included, so a zero-machine install
- * renders and serializes byte-for-byte as without this module.
+ * The machine hub: one `RemoteOrchestrator` per machine, their tasks stamped
+ * with a {@link TaskOrigin}; there is no "current machine". It runs in the
+ * daemon (`daemon-hub.ts`), which publishes what it holds on `machines`;
+ * clients read that (`feed.ts`), so a machine added or removed from any shell
+ * reaches every client.
  *
  * Writes to a remote task go through the verb forwarding in `forward.ts`
  * (`rove api`, `api.invoke`, the TUI's remote tabs); terminals attach that
@@ -14,6 +12,7 @@
 
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/rove-daemon/client/client-log"
+import type { ChannelName } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { TaskEngineState } from "../client/remote-orchestrator-payloads.ts"
 import type { RowTokenMap } from "../client/remote-orchestrator-row-tokens.ts"
 import type { WorktreeChangesMap } from "../client/remote-orchestrator-worktree-changes.ts"
@@ -66,32 +65,31 @@ export interface RemoteLive {
 const NO_LIVE: RemoteLive = { activity: new Map(), changes: new Map(), tokens: new Map() }
 
 interface MachineSlot {
-  readonly entry: MachineEntry
+  entry: MachineEntry
   tunnel?: TunnelHandle
   orchestrator?: RemoteOrchestrator
   unsubscribe?: () => void
   tasks: readonly Task[]
 }
 
+/** What the hub reads from each machine's daemon. Never `machines`: a peer whose hub reads ours must not wake ours. */
+const PEER_CHANNELS: readonly ChannelName[] = ["task.snapshot", "engine-state", "worktree.changes", "task.tokens"]
+
 export class MachineHub {
   private readonly slots = new Map<string, MachineSlot>()
   private readonly machinesAcc = createStateCell<readonly MachineStatus[]>([], "machines.status")
-  private readonly mergedAcc = createStateCell<Task[]>([], "machines.tasks")
+  private readonly tasksAcc = createStateCell<Task[]>([], "machines.tasks")
   private readonly liveAcc = createStateCell<RemoteLive>(NO_LIVE, "machines.live")
-  private localUnsubscribe: (() => void) | null = null
   private disposed = false
-
-  constructor(private readonly local: RemoteOrchestrator) {}
 
   /** Registered machines and their live connection state. */
   machinesSignal(): ReadableState<readonly MachineStatus[]> {
     return this.machinesAcc
   }
 
-  /** With no machine registered, the LOCAL signal itself (same identity). */
+  /** The other machines' tasks, stamped with their origin, in registration order. */
   tasksSignal(): ReadableState<Task[]> {
-    if (this.slots.size === 0) return this.local.tasksSignal()
-    return this.mergedAcc
+    return this.tasksAcc
   }
 
   /** The other machines' live readings (engine state, changes, tokens), re-published on every push. */
@@ -107,27 +105,56 @@ export class MachineHub {
   }
 
   /**
-   * SYNCHRONOUS on purpose: `tasksSignal()` picks its cell by whether any
-   * machine exists, so slots must be in place before the UI mounts. Connections
-   * are not awaited — an asleep machine must never delay the awake ones.
+   * Match the registry: connect machines added since the last call, drop removed
+   * ones, reconnect one whose address changed. Call again on every registry
+   * change. Connections are not awaited — an asleep machine must never delay
+   * the awake ones.
    */
-  attach(): void {
-    const entries = dedupeMachines(listMachines())
-    if (entries.length === 0) return
-    for (const entry of entries) {
-      this.slots.set(entry.alias, { entry, tasks: [] })
+  sync(entries: readonly MachineEntry[] = dedupeMachines(listMachines())): void {
+    if (this.disposed) return
+    const wanted = new Map(entries.map((entry) => [entry.alias, entry]))
+    const fresh: MachineEntry[] = []
+    for (const [alias, slot] of this.slots) {
+      const next = wanted.get(alias)
+      if (next && sameAddress(slot.entry, next)) slot.entry = next
+      else this.drop(alias)
     }
-    this.publishStatuses()
-    this.localUnsubscribe = this.local.tasksSignal().subscribe(() => this.republishTasks())
+    for (const entry of entries) {
+      if (this.slots.has(entry.alias)) continue
+      this.slots.set(entry.alias, { entry, tasks: [] })
+      fresh.push(entry)
+    }
+    if (fresh.length === 0 && wanted.size === this.slots.size && this.machinesAcc.get().length === wanted.size) return
+    const known = new Map(this.machinesAcc.get().map((row) => [row.alias, row]))
+    this.machinesAcc.set(
+      [...this.slots.values()].map(
+        (slot) =>
+          known.get(slot.entry.alias) ?? {
+            alias: slot.entry.alias,
+            hostLabel: slot.entry.alias,
+            state: "connecting" as const,
+          },
+      ),
+    )
     this.republishTasks()
-    for (const entry of entries) void this.connect(entry)
+    this.republishLive()
+    for (const entry of fresh) void this.connect(entry)
+  }
+
+  private drop(alias: string): void {
+    const slot = this.slots.get(alias)
+    if (!slot) return
+    this.slots.delete(alias)
+    slot.unsubscribe?.()
+    slot.orchestrator?.dispose()
+    slot.tunnel?.stop()
   }
 
   private async connect(entry: MachineEntry): Promise<void> {
     const slot = this.slots.get(entry.alias)
     if (!slot || this.disposed) return
     const found = await discoverMachine(entry.alias, entry)
-    if (this.disposed) return
+    if (this.disposed || this.slots.get(entry.alias) !== slot) return
     // A failed probe falls back to the known socket paths (they don't move),
     // so the tunnel's backoff waits out a machine that is merely asleep.
     const sockets = found.ok ? { daemon: found.status.socketPath, pty: found.status.ptySocketPath } : entry.sockets
@@ -152,6 +179,7 @@ export class MachineHub {
       return
     }
     tunnel.onState((state) => {
+      if (this.slots.get(entry.alias) !== slot) return
       if (state === "online") void this.openOrchestrator(entry, tunnel)
       // A dropped tunnel keeps the last snapshot on screen, greyed. See `docs/MACHINES.md`.
       else if (state === "offline") {
@@ -171,12 +199,14 @@ export class MachineHub {
       // on screen; a pane watcher doesn't, and the remote daemon idle-stops ~3s
       // after its own last window closes, flapping the row.
       role: "gui",
+      channels: PEER_CHANNELS,
       expectForeignHome: true,
       onPeerIdentity: (peer) => this.onPeerIdentity(entry.alias, peer),
     })
     slot.orchestrator = orchestrator
     try {
       await orchestrator.init()
+      if (this.slots.get(entry.alias) !== slot) return
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       this.setStatus(entry.alias, { state: classifyHandshakeFailure(message), error: message })
@@ -247,23 +277,8 @@ export class MachineHub {
     this.machinesAcc.set(next)
   }
 
-  private publishStatuses(): void {
-    this.machinesAcc.set(
-      [...this.slots.values()].map((slot) => ({
-        alias: slot.entry.alias,
-        hostLabel: slot.entry.alias,
-        state: "connecting" as const,
-      })),
-    )
-  }
-
-  /** Local tasks first, then each machine's in registration order. Local ones are
-   *  stamped too, so no consumer has to read an absent `origin` as "local". */
   private republishTasks(): void {
-    const merged: Task[] = this.local
-      .tasksSignal()
-      .get()
-      .map((task) => stampOrigin(task, "local", "local"))
+    const merged: Task[] = []
     for (const slot of this.slots.values()) {
       const status = this.machinesAcc.get().find((row) => row.alias === slot.entry.alias)
       if (status?.duplicateOf) continue
@@ -271,18 +286,12 @@ export class MachineHub {
       const stale = status?.state !== "online"
       for (const task of slot.tasks) merged.push(stampOrigin(task, slot.entry.alias, hostLabel, stale))
     }
-    this.mergedAcc.set(merged)
+    this.tasksAcc.set(merged)
   }
 
   dispose(): void {
     this.disposed = true
-    this.localUnsubscribe?.()
-    for (const slot of this.slots.values()) {
-      slot.unsubscribe?.()
-      slot.orchestrator?.dispose()
-      slot.tunnel?.stop()
-    }
-    this.slots.clear()
+    for (const alias of [...this.slots.keys()]) this.drop(alias)
   }
 }
 
@@ -295,6 +304,13 @@ export function classifyHandshakeFailure(message: string): MachineStatus["state"
   return /protocol v\d/i.test(message) ? "mismatch" : "offline"
 }
 
-function stampOrigin(task: Task, machineId: string, hostLabel: string, stale = false): Task {
+/** What a connection is made from; identity, cached sockets and `roveBin` are learned, not addressed. */
+function sameAddress(a: MachineEntry, b: MachineEntry): boolean {
+  return (
+    a.host === b.host && a.user === b.user && a.port === b.port && JSON.stringify(a.auth) === JSON.stringify(b.auth)
+  )
+}
+
+export function stampOrigin(task: Task, machineId: string, hostLabel: string, stale = false): Task {
   return { ...task, origin: { machineId, hostLabel, ...(stale ? { stale: true } : {}) } }
 }

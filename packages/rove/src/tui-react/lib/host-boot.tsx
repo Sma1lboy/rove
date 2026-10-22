@@ -133,10 +133,10 @@ function UiPrefsSync() {
       disposers.push(prefsStore.subscribe(() => applyPrefs(prefsStore.get())))
 
       if (follow) {
-        const shared = remote.sharedStateSignal()
+        const shared = remote.rawChannelSignal("state")
         const adopt = () => {
-          const state = shared.get()
-          if (state) follow(state)
+          const state = (shared.get() as { state?: unknown } | null)?.state
+          if (state && typeof state === "object" && !Array.isArray(state)) follow(state as Record<string, unknown>)
         }
         adopt()
         disposers.push(shared.subscribe(adopt))

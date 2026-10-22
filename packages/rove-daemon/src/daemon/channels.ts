@@ -159,6 +159,13 @@ export interface ChannelPayloads {
    */
   state: SharedStatePayload
   /**
+   * Other registered machines as the daemon's hub holds them (rove
+   * `machines/daemon-hub.ts`), whole after any change: each machine's
+   * connection state, its tasks stamped with their origin, and what its daemon
+   * pushes about them. Published only while someone subscribes to it.
+   */
+  machines: MachinesPayload
+  /**
    * Plugin-written row tokens, the FULL map, republished on every write and
    * as each token's TTL expires (`row-tokens.ts`) — the expiry republish is
    * what makes an abandoned label fade.
@@ -295,6 +302,27 @@ export interface ChannelPayloads {
 }
 
 /** The `ui-prefs` channel payload — the persisted visual prefs snapshot. */
+export interface MachineStatusWire {
+  readonly alias: string
+  readonly hostLabel: string
+  readonly hostname?: string
+  readonly state: "connecting" | "online" | "offline" | "unsupported" | "mismatch"
+  readonly version?: string
+  readonly duplicateOf?: string
+  readonly error?: string
+}
+
+export interface MachinesPayload {
+  readonly machines: readonly MachineStatusWire[]
+  readonly tasks: readonly SerializedTask[]
+  /** Engine state by task id, worktree changes by that machine's path, token chips by task id. */
+  readonly live: {
+    readonly activity: Readonly<Record<string, unknown>>
+    readonly changes: Readonly<Record<string, unknown>>
+    readonly tokens: Readonly<Record<string, unknown>>
+  }
+}
+
 export type UiPrefsPayload = ChannelPayloads["ui-prefs"]
 
 /** The `worktree.changes` channel payload — daemon-collected change counts. */

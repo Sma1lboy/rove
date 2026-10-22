@@ -25,8 +25,11 @@ Both machines need a Rove new enough to have machines — an older one reports n
 PTY socket in `rove daemon status`, and `machine add` says so rather than
 half-connecting.
 
-While a machine's rows are on screen, Rove counts as one attached window on
-that machine, so its daemon stays up for as long as you are looking at it.
+Your daemon holds the connections, not each window: every open TUI, the web
+app and a paired phone read the same machine list from it. While any of them is
+open, your daemon counts as one attached window on each machine, so their
+daemons stay up for as long as you are looking. Fifteen seconds after the last
+one closes, it lets them go.
 
 ## Add a machine
 
@@ -149,6 +152,9 @@ narwhal  narwhal  Nahuels-Mac-mini.local
 $ rove machine remove narwhal
 rove machine: removed narwhal. Nothing on that machine was changed — its daemon, tasks and worktrees are untouched.
 ```
+
+`add` and `remove` take effect in every open window, the web app and a paired
+phone within a few seconds; nothing needs a restart.
 
 Registering one machine under two aliases is recognized and reported: Rove
 compares the remote daemon's hostname, state root and pid, and renders one row

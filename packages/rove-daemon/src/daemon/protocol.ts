@@ -33,6 +33,8 @@ export {
   type ChannelName,
   type ChannelPayloads,
   type GraphicsWritePayload,
+  type MachineStatusWire,
+  type MachinesPayload,
   type NoticeEventPayload,
   type EngineLifecyclePayload,
   type SessionDeliverPayload,
