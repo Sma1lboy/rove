@@ -4,8 +4,10 @@
  *   - `account.json`  credentials, allowlist, bound agent. Written by the CLI
  *     (`rove weixin login|logout|allow|deny|agent`), read by the daemon.
  *   - `state.json`    long-poll cursor, per-peer context tokens, recently
- *     refused senders. Written by the daemon only; stamped with the account
- *     id so a re-bind never resumes another account's cursor.
+ *     refused senders, the WeChat agent's conversations. Written by the
+ *     daemon only; stamped with the account id so a re-bind never resumes
+ *     another account's cursor.
+ *   - `agent/`        the WeChat agent's working directory (its own project).
  *   - `undelivered.jsonl`  pushes that could not be sent (reply window shut,
  *     iLink refused), so nothing is dropped silently.
  *
@@ -41,11 +43,29 @@ interface WeixinPeer {
   readonly lastInboundAt: number
 }
 
+/** The WeChat agent: one task, one engine tab per conversation; `tab` is the live one. */
+export interface WeixinAgentState {
+  readonly taskId: string
+  readonly tab: string
+  readonly conversations: readonly { readonly tab: string; readonly startedAt: number }[]
+}
+
 export interface WeixinRuntimeState {
   readonly accountId: string
   readonly syncBuf: string
   readonly peers: Readonly<Record<string, WeixinPeer>>
   readonly rejected: readonly { readonly userId: string; readonly at: number }[]
+  readonly agent?: WeixinAgentState
+}
+
+function readAgentState(raw: unknown): WeixinAgentState | undefined {
+  if (!raw || typeof raw !== "object") return undefined
+  const a = raw as Partial<WeixinAgentState>
+  if (typeof a.taskId !== "string" || !a.taskId || typeof a.tab !== "string" || !a.tab) return undefined
+  const conversations = Array.isArray(a.conversations)
+    ? a.conversations.filter((c) => c && typeof c.tab === "string" && typeof c.startedAt === "number")
+    : []
+  return { taskId: a.taskId, tab: a.tab, conversations }
 }
 
 export interface UndeliveredEntry {
@@ -137,6 +157,7 @@ export class WeixinStore {
       syncBuf: typeof raw.syncBuf === "string" ? raw.syncBuf : "",
       peers: raw.peers && typeof raw.peers === "object" ? raw.peers : {},
       rejected: Array.isArray(raw.rejected) ? raw.rejected : [],
+      ...(readAgentState(raw.agent) ? { agent: readAgentState(raw.agent) } : {}),
     }
   }
 

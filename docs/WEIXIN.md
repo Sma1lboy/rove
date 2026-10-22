@@ -2,10 +2,11 @@
 
 Check on Rove and hand it work from the WeChat app on your phone.
 
-You bind a WeChat bot to Rove once by scanning a QR code. After that, a message
-to the bot comes back with the state of your tasks, can be forwarded to a
-task's agent, or can start a new task. Rove also messages you when a task needs
-you, is ready for review, has a PR ready to merge, or asks you a question.
+You bind a WeChat bot to Rove once by scanning a QR code. After that, what you
+write goes to your own agent, running on your preferred coding harness with the
+rove skill, which answers you on WeChat. Commands such as `/status` get a
+direct answer from Rove. Rove also messages you when a task needs you, is ready
+for review, has a PR ready to merge, or asks you a question.
 
 The bot uses Tencent's iLink Bot API, the same one the official
 `@tencent-weixin/openclaw-weixin` plugin uses. Rove talks to it directly; no
@@ -31,7 +32,7 @@ Scan with WeChat (微信 → 扫一扫), then confirm on the phone:
 …
 Or open: https://…
 Scanned — confirm on your phone…
-Bound. Send the bot `help` from WeChat to try it.
+Bound. Send the bot `/help` from WeChat to try it.
 ```
 
 1. Run `rove weixin login` in a terminal.
@@ -47,7 +48,33 @@ seconds; no restart is needed.
 The WeChat account that scanned is the **owner** and is the only sender Rove
 answers by default.
 
+## Your WeChat agent
+
+Plain text is a conversation with your own agent, not a command. The first
+plain message creates it: a directory task in `~/.rove/weixin/agent`, pinned
+and shown as its own **WeChat** project in the sidebar, running your preferred
+engine (the one `rove .` would start). Its first message tells it who it is,
+that it has the rove skill and `rove api`, and to reply with `rove weixin send`
+(the bridge does not read its screen). Your words arrive prefixed `[WeChat]`.
+
+It holds one conversation at a time:
+
+| Message | What happens |
+|---|---|
+| anything without a leading `/` | goes to the live conversation; a dead engine is restarted for you |
+| `/new` (or `/new <text>`) | opens a new conversation, a new engine tab in the same project; earlier ones stay as tabs you can open in Rove |
+| `/status`, `/gates`, `/send …`, `/help` … | the commands in the next section, answered by Rove directly |
+
+```console
+$ rove weixin agent                 # the agent's task, live conversation, and every conversation
+$ rove weixin agent 0042 [tab-2]    # use an existing task instead (an id or the code status prints)
+$ rove weixin agent off             # back to the WeChat project
+```
+
 ## What you can send
+
+Commands start with `/` (`/status`, `/send 0042 rebase`); the table leaves the
+slash out. Without it the message goes to your agent.
 
 | Message | What happens | Same as |
 |---|---|---|
@@ -81,28 +108,6 @@ there is the reply here, for example
 Replies are kept short for a phone. A long reply is split into at most three
 messages; anything beyond that is cut and the last message says how many lines
 were dropped.
-
-## Talk to an agent in plain text
-
-By default a message that is not a command gets the command list back. Bind
-one agent and plain text goes to it instead, like chatting with an assistant:
-
-```console
-$ rove weixin agent 0042            # a task id, or the code status prints
-$ rove weixin agent 0042 tab-2      # a specific engine tab
-$ rove weixin agent                 # show the binding
-$ rove weixin agent off             # back to commands only
-```
-
-The binding lives with the WeChat binding on this machine. Commands keep their
-meaning: `status`, `send`, `gates` and the rest still answer directly, and only
-other text reaches the agent. A dead engine is started for you, the same as
-`send`.
-
-The agent receives your words prefixed with `[WeChat]` and a line telling it how
-to answer. The bridge does not read the agent's screen, so the agent replies by
-running `rove weixin send` (next section). A long-lived task works best here,
-for example a project-main or directory task you keep as your phone assistant.
 
 ## Push a message from a script or agent
 
@@ -150,7 +155,7 @@ it sends a notification only if that person messaged the bot in the last 24
 hours. Otherwise the notification is written to
 `~/.rove/weixin/undelivered.jsonl` and the daemon log instead, and
 `rove weixin status` shows the count and the latest reason. Any message to the
-bot (even `s`) opens the window again.
+bot (even `/s`) opens the window again.
 
 The same log gets messages iLink refused, such as an expired session after
 Rove has already retried once without the stale session token.
@@ -254,9 +259,9 @@ curl -s localhost:18733/_sends                            # what Rove replied
 
 1. `rove weixin login`, scan, confirm. `rove weixin status` shows `Bound` and
    the owner id.
-2. With the daemon running, send `s` to the bot. The reply starts with a count
+2. With the daemon running, send `/s` to the bot. The reply starts with a count
    line such as `Nothing needs you. 2 running`.
-3. Send `send <id> say hi` for a task from that list. The text appears in that
+3. Send `/send <id> say hi` for a task from that list. The text appears in that
    task's engine tab and the bot answers `Sent to <id> …`.
 4. Let a task hit a permission prompt. Within about a minute the bot sends
    `Needs you:` with that task.

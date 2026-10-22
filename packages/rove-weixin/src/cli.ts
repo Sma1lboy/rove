@@ -34,8 +34,8 @@ const WEIXIN_USAGE = [
   "  deny <user-id>      Revoke a user added with allow",
   "  send [text]         Message the owner (routines, scripts, agents). Text from the",
   "                      arguments, --file <path>, or stdin; --subject <line> prepends a header",
-  "  agent [<task-id> [tab-N]]  Send plain (non-command) messages to this task's engine tab;",
-  "                      no argument shows the binding, `agent off` removes it",
+  "  agent [<task-id> [tab-N]]  Show the WeChat agent and its conversations, or use an",
+  "                      existing task for it; `agent off` returns to the WeChat project",
   "",
 ].join("\n")
 
@@ -98,7 +98,7 @@ async function login(store: WeixinStore): Promise<void> {
   if (!result.ok) fail(`login failed: ${result.reason}`)
   process.stdout.write(
     [
-      "Bound. Send the bot `help` from WeChat to try it.",
+      "Bound. Send the bot `/help` from WeChat to try it.",
       `Credentials: ${store.accountPath} (owner-only)`,
       (await daemonRunning())
         ? "The running daemon picks this up within seconds."
@@ -205,24 +205,33 @@ async function bindAgent(store: WeixinStore, args: readonly string[]): Promise<v
   if (!account) fail(`not bound — run \`${CLI_NAME} weixin login\` first`)
   const [ref, tab] = args
   if (!ref) {
-    process.stdout.write(
+    const live = store.readState(account.accountId).agent
+    const lines = [
       account.agent
-        ? `Plain messages go to ${account.agent.taskId}${account.agent.tab ? ` ${account.agent.tab}` : ""}.\n`
-        : `No agent bound: plain messages get the command help. Bind one with \`${CLI_NAME} weixin agent <task-id> [tab-N]\`.\n`,
-    )
+        ? `Using task ${account.agent.taskId}${account.agent.tab ? ` ${account.agent.tab}` : ""} (set with \`agent <task-id>\`).`
+        : "Using the WeChat project Rove creates on the first plain message.",
+    ]
+    if (live) {
+      lines.push(`Live conversation: ${live.taskId} ${live.tab}`, `Conversations (${live.conversations.length}):`)
+      for (const c of live.conversations) lines.push(`  ${c.tab}  started ${new Date(c.startedAt).toISOString()}`)
+    }
+    process.stdout.write(`${lines.join("\n")}\n`)
     return
   }
   if (ref === "off") {
     const { agent: _dropped, ...rest } = account
     store.writeAccount(rest)
-    process.stdout.write(account.agent ? "Agent unbound.\n" : "No agent was bound.\n")
+    process.stdout.write(
+      account.agent ? "Back to the WeChat project Rove manages.\n" : "Already using the WeChat project Rove manages.\n",
+    )
     return
   }
   if (tab !== undefined && !/^tab-[A-Za-z0-9-]+$/.test(tab)) usageError(`expected a tab id like tab-2, got "${tab}"`)
   const taskId = await resolveTaskId(ref)
   store.writeAccount({ ...account, agent: { taskId, ...(tab ? { tab } : {}) } })
   process.stdout.write(
-    `Plain WeChat messages now go to ${taskId}${tab ? ` ${tab}` : ""}; commands (status, send, …) work as before.\n`,
+    `Plain WeChat messages now go to ${taskId}${tab ? ` ${tab}` : ""}; commands need a leading / (/status), /new opens a new tab.
+`,
   )
 }
 

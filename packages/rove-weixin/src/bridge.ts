@@ -9,7 +9,9 @@
  * messaged; the push goes to `undelivered.jsonl` and the daemon log instead.
  */
 
+import { join } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
+import { createAgentControl } from "./agent.ts"
 import { type RoveOps, handleInbound as routeInbound } from "./commands.ts"
 import { renderGateArrivals } from "./gates.ts"
 import {
@@ -74,6 +76,16 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
   const tracker = new GroupTracker()
   const gateTracker = new GateTracker()
   const routineTracker = new RoutineTracker()
+  const agent = createAgentControl({
+    ops: deps.ops,
+    dir: join(deps.store.dir, "agent"),
+    override: () => deps.store.readAccount()?.agent ?? null,
+    read: () => state?.agent,
+    write: (next) => {
+      if (state) saveState({ ...state, agent: next })
+    },
+    now,
+  })
 
   // Unref'd: a pending retry must never hold the daemon process open.
   const sleep = (ms: number) => delay(ms, undefined, { ref: false })
@@ -156,9 +168,7 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
       },
     })
     const text = messageText(message)
-    const reply = text
-      ? await routeInbound(text, deps.ops, account.agent ?? null)
-      : "Text messages only. Send help for commands."
+    const reply = text ? await routeInbound(text, deps.ops, agent) : "Text messages only. Send help for commands."
     if (reply) await deliver(from, reply)
   }
 

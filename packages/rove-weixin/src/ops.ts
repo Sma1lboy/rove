@@ -86,6 +86,23 @@ export function createRoveOps(client: DaemonRpc): RoveOps {
       )
     },
 
+    openAgentTask: async (dir, title) => {
+      // The preferred engine is resolved by `task.openDir`, as for `rove .`.
+      const { taskId } = await client.request<{ taskId: string }>("task.openDir", { dir })
+      await client.request("task.rename", { taskId, title })
+      await client.request("task.pin", { taskId, pinned: true })
+      return { taskId }
+    },
+
+    newConversation: async (taskId, prompt) => {
+      const result = await invokeVerb("send", ["--task-id", taskId, "--tab", "new", "--plain", "--prompt", prompt], {
+        client,
+      })
+      const tab = stringField(result, "session")?.split("::")[1]
+      if (!tab) throw new Error("send --tab new returned no tab")
+      return { tab }
+    },
+
     clearReport: async (deliveryId) => {
       await invokeVerb("attention-dismiss", ["--delivery", deliveryId], { client })
     },
