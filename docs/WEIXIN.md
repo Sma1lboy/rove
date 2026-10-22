@@ -61,7 +61,7 @@ It holds one conversation at a time:
 
 | Message | What happens |
 |---|---|
-| anything without a leading `/` | goes to the live conversation; a dead engine is restarted for you |
+| anything without a leading `/` | goes to the live conversation; a dead engine is restarted for you. The chat shows 对方正在输入 while the agent's turn runs, and clears when it ends |
 | `/new` (or `/new <text>`) | opens a new conversation, a new engine tab in the same project; earlier ones stay as tabs you can open in Rove |
 | `/status`, `/gates`, `/send …`, `/help` … | the commands in the next section, answered by Rove directly |
 

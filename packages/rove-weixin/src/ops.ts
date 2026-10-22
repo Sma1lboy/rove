@@ -103,6 +103,11 @@ export function createRoveOps(client: DaemonRpc): RoveOps {
       return { tab }
     },
 
+    taskRunning: async (taskId) => {
+      const { payload } = await loadContext(client, defaultApiRuntime, { repo: null, limit: STATUS_TASK_LIMIT })
+      return payload.tasks.find((t) => t.taskId === taskId)?.activity?.state === "running"
+    },
+
     clearReport: async (deliveryId) => {
       await invokeVerb("attention-dismiss", ["--delivery", deliveryId], { client })
     },

@@ -31,6 +31,7 @@ function fakeOps(overrides: Partial<RoveOps> = {}): RoveOps {
     notifyingRoutineRuns: async () => [],
     openAgentTask: async () => ({ taskId: "01AGENT" }),
     newConversation: async () => ({ tab: "tab-1" }),
+    taskRunning: async () => false,
     ...overrides,
   }
 }
