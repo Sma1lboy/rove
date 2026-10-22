@@ -72,7 +72,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
           to: { taskId, tabId: "tabId" in outcome ? outcome.tabId : (tabId ?? null) },
           promptHead: text,
           delivered: outcome.outcome === "delivered",
-          ...(outcome.outcome === "delivered" ? {} : { reason: outcome.outcome }),
+          ...(outcome.outcome === "delivered"
+            ? {}
+            : { reason: outcome.outcome === "no-session" ? "broadcast" : outcome.outcome }),
         })
       }
       ctx.plugins?.handleUiReport({

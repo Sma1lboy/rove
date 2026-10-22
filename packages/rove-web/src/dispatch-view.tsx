@@ -71,9 +71,9 @@ export function DispatchView({ model }: { model: AppModel }) {
       </div>
       {snapshot === null ? null : open.length === 0 && done.length === 0 ? (
         <div className="dp-empty">
-          <pre className="dp-sprite" aria-hidden="true">
+          <span className="dp-sprite" aria-hidden="true">
             {runnerOf(IDLE, 0, 0).sprite.join("\n")}
-          </pre>
+          </span>
           <p>{t("dispatch.empty")}</p>
           <p className="muted">{t("dispatch.emptyHint")}</p>
         </div>
@@ -94,7 +94,7 @@ export function DispatchView({ model }: { model: AppModel }) {
                 <span className="dp-end mono">{name(row.from, row)}</span>
                 <span className="dp-track" aria-hidden="true">
                   <span className="dp-rail" style={{ transform: `translateX(${runner.x * 100}%)` }}>
-                    <pre className={`dp-sprite is-${runner.pose}`}>{runner.sprite.join("\n")}</pre>
+                    <span className={`dp-sprite is-${runner.pose}`}>{runner.sprite.join("\n")}</span>
                   </span>
                 </span>
                 <span className="dp-end mono">{name(row.to, row)}</span>

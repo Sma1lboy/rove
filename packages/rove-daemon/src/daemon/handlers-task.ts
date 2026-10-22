@@ -82,7 +82,8 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
           kind: "add",
           from: dispatcher,
           to: { taskId: task.id, tabId: "tab-1" },
-          promptHead: optionalString(payload, "promptHead") ?? task.title ?? "",
+          // `add` titles the task from its prompt; the prompt itself rides the launch, past the daemon.
+          promptHead: task.title,
           delivered: true,
         })
       }

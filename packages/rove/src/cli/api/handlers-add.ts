@@ -10,7 +10,6 @@
  */
 
 import { deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
-import { DISPATCH_PROMPT_HEAD_CHARS } from "@sma1lboy/rove-daemon/daemon/dispatch-ledger"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
@@ -193,8 +192,6 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   }
   const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
   if (title) payload.title = title
-  // For the dispatch ledger's row; a daemon without it ignores the field.
-  if (prompt && payload.dispatcherTaskId) payload.promptHead = prompt.slice(0, DISPATCH_PROMPT_HEAD_CHARS)
   const branch = args.str("branch")
   if (branch) payload.branch = branch
   const baseRef = args.str("base-branch")
@@ -398,7 +395,6 @@ async function addParallel(
     }
     if (title) payload.title = plan.length > 1 ? `${title} #${i + 1}/${plan.length}` : title
     if (baseRef) payload.baseRef = baseRef
-    if (payload.dispatcherTaskId) payload.promptHead = prompt.slice(0, DISPATCH_PROMPT_HEAD_CHARS)
     try {
       const res = await daemon.request<{ taskId: string; task: SerializedTask }>("task.create", payload)
       created.push({ taskId: res.taskId, vendor, task: res.task })

@@ -108,7 +108,8 @@
 }
 
 .dp-sprite {
-  margin: 0;
+  display: block;
+  white-space: pre;
   width: 4ch;
   font-family: var(--mono);
   font-size: 12px;
