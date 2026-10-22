@@ -223,6 +223,8 @@ Additive fields and events, ignored by an app that predates them: `gates` itself
 
 ### Board, routines, GitHub issues and settings ops
 
+The Board needs the Mac's Kanban mod and GitHub issues its Issues mod. The app reads `builtinMods.list` on every connect and when it comes back to the front, offers only the installed pages in the Pages menu, and lists both mods with install / uninstall in Settings → Plugins. A Mac whose bridge predates the op shows both pages, as before.
+
 Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in `ops/index.ts`). Each wraps one `rove api` verb, daemon RPC or Rove helper and validates its own arguments; ops marked **destructive** are logged with their ids, and the app asks for a second confirmation before sending them.
 
 | Op | Args | Wraps | Destructive |

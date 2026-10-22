@@ -968,6 +968,26 @@
         }
       }
     },
+    "first-party mod, installed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "官方 mod，已安装"
+          }
+        }
+      }
+    },
+    "first-party mod, not installed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "官方 mod，未安装"
+          }
+        }
+      }
+    },
     "Force remove — discard changes" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1044,6 +1064,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "信息"
+          }
+        }
+      }
+    },
+    "install" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安装"
+          }
+        }
+      }
+    },
+    "installing and configuring other plugins runs their own commands, so it stays on the mac (rove plugin …)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安装和配置其他插件会运行它们自己的命令，所以只能在 Mac 上进行（rove plugin …）"
           }
         }
       }
@@ -2184,6 +2224,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "输入你的回答"
+          }
+        }
+      }
+    },
+    "uninstall" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卸载"
           }
         }
       }
@@ -4206,16 +4256,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在 Mac 上安装 gh CLI"
-          }
-        }
-      }
-    },
-    "installing and configuring plugins runs their own commands, so it stays on the mac (rove plugin …)" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "安装和配置插件会运行其自带命令，因此只能在 Mac 上进行（rove plugin …）"
           }
         }
       }

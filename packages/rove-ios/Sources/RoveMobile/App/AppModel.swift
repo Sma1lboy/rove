@@ -7,6 +7,8 @@ final class AppModel {
     let store: TaskStore
     /// Phone-local Inbox state: visit log, F7 cursor, `notify` toast.
     let inbox: InboxState
+    /// First-party mods installed on the Mac; they gate the Board and GitHub issues pages.
+    let mods: BuiltinModsState
     @ObservationIgnored private let keychain = KeychainStore()
     @ObservationIgnored let notifier = Notifier()
     private(set) var pairing: Pairing?
@@ -24,6 +26,7 @@ final class AppModel {
     init() {
         store = TaskStore(client: client)
         inbox = InboxState(client: client)
+        mods = BuiltinModsState(client: client)
         store.onNotice = { [weak self] in
             guard let self, !self.demo else { return }
             self.notifier.post($0)
@@ -62,6 +65,7 @@ final class AppModel {
         demo = false
         client.disconnect()
         store.reset()
+        mods.reset()
         path = []
     }
 
@@ -72,6 +76,7 @@ final class AppModel {
         client.disconnect()
         keychain.delete()
         pairing = nil
+        mods.reset()
         path = []
     }
 }
@@ -107,6 +112,7 @@ struct RoveMobileApp: App {
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         if model.pairing == nil && !model.demo {
@@ -136,6 +142,13 @@ struct RootView: View {
             .background(Theme.paper.ignoresSafeArea())
             .overlay { SheetScrim() }
             .overlay(alignment: .bottom) { ToastHost() }
+            // A mod installed or removed on the Mac shows when the app comes back to the front.
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await model.mods.refresh() } }
+            }
+            .onChange(of: model.mods.gate) { _, gate in
+                if gate != .pending { model.path.removeAll { !gate.allows($0) } }
+            }
             // A decision's answer sheet lives here, not in the Inbox, so F7 can open it from any screen; it
             // goes with the gate when another surface answers it first.
             .sheet(item: Binding(

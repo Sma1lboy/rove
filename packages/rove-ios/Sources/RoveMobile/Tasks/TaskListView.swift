@@ -61,9 +61,13 @@ struct TaskListView: View {
                 searchButton
                 sortMenu
                 Menu {
-                    Button("board") { model.path.append(.board) }.accessibilityIdentifier("page-board")
+                    if model.mods.gate.shows("kanban") {
+                        Button("board") { model.path.append(.board) }.accessibilityIdentifier("page-board")
+                    }
                     Button("routines") { model.path.append(.routines) }.accessibilityIdentifier("page-routines")
-                    Button("github issues") { model.path.append(.issues) }.accessibilityIdentifier("page-issues")
+                    if model.mods.gate.shows("issues") {
+                        Button("github issues") { model.path.append(.issues) }.accessibilityIdentifier("page-issues")
+                    }
                     Button("worktrees") { model.path.append(.worktrees) }.accessibilityIdentifier("page-worktrees")
                 } label: { HeaderIcon(systemName: "square.grid.2x2") }
                     .accessibilityLabel("Pages")

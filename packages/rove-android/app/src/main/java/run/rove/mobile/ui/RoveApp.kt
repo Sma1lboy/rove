@@ -11,7 +11,9 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import run.rove.mobile.domain.ModGate
 import run.rove.mobile.R
 
 @Composable fun RoveApp(model: AppModel, pairingUrl: String, onUrl: (String) -> Unit,
@@ -28,6 +30,13 @@ import run.rove.mobile.R
     val pop: () -> Unit = { stack = stack.dropLast(1) }
     val leave = { model.unpair(); stack = emptyList() }
     LaunchedEffect(paired) { if (!paired) stack = emptyList() }
+    val mods by model.mods.collectAsStateWithLifecycle()
+    // A mod installed or removed on the Mac shows when the app comes back to the front.
+    LifecycleResumeEffect(paired) {
+        if (paired) model.refreshMods()
+        onPauseOrDispose {}
+    }
+    LaunchedEffect(mods) { if (mods != ModGate.Pending) stack = stack.filter(mods::allows) }
     BackHandler(stack.isNotEmpty(), pop)
     // A focusable root absorbs the initial focus Compose grants in non-touch mode (after any key
     // event), so launching never lands on the pairing field and raises the keyboard.

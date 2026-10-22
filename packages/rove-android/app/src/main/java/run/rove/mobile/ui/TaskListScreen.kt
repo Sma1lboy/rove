@@ -51,6 +51,7 @@ internal data class ListActions(
     val host by model.host.collectAsStateWithLifecycle()
     val engines by model.engines.collectAsStateWithLifecycle()
     val connection by model.bridge.state.collectAsStateWithLifecycle()
+    val mods by model.mods.collectAsStateWithLifecycle()
     val controls = rememberListControls()
     var tabTitles by remember { mutableStateOf<Map<String, List<String>>>(emptyMap()) }
     // Task rows do not carry tab titles; they are read once when the search opens.
@@ -60,13 +61,14 @@ internal data class ListActions(
     var request by remember { mutableStateOf<ProjectRequest?>(null) }
     val actions = ListActions(onSelect, model::refresh, onCreate, { open(Route.Inbox) }, open, model::unpair,
         { id, direction -> model.action { model.repository.moveTask(id, direction); model.refresh() } }, { request = it })
-    TaskListContent(tasks, host, connection, engines, controls, tabTitles, actions)
+    TaskListContent(tasks, host, connection, engines, controls, tabTitles, actions, mods)
     ProjectSheets(model, request) { request = it }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun TaskListContent(tasks: Tasks, host: String, connection: Connection, engines: List<Engine>,
-                                         controls: ListControls, tabTitles: Map<String, List<String>>, actions: ListActions) {
+                                         controls: ListControls, tabTitles: Map<String, List<String>>, actions: ListActions,
+                                         mods: ModGate = ModGate.Legacy) {
     val repos = remember(tasks.tasks) { TaskListLogic.repos(tasks.tasks) }
     // A filter whose project disappeared (forgotten, say) stops filtering, as iOS clears it.
     val filter = controls.filter?.takeIf { it in repos }
@@ -91,7 +93,7 @@ internal data class ListActions(
     val pull = rememberPullToRefreshState()
     Column(Modifier.fillMaxSize().background(Rove.c.paper)) {
         ScreenHeader(trailing = {
-            ListHeaderControls(controls, repos, TaskListLogic.attentionCount(tasks.attention), actions.onInbox, actions.onPage)
+            ListHeaderControls(controls, repos, TaskListLogic.attentionCount(tasks.attention), actions.onInbox, actions.onPage, mods)
         }) { Wordmark(19) }
         ConnectionStrip(host, connection, shown, filter) { controls.filter = null }
         if (controls.searching) ListSearchBar(controls)
