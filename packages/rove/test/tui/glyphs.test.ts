@@ -32,6 +32,7 @@ describe("glyph presets", () => {
       conflict: "≠",
       checksFailing: "✗",
       checksPassing: "✓",
+      remote: "☁",
     })
   })
 

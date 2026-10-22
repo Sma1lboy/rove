@@ -18,6 +18,7 @@ import type { TaskActivityState } from "@/engine/hook-events"
 import { SidebarTree } from "@/tui-react/panes/sidebar/SidebarTree"
 import { resetRowStatusForTests } from "@/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "@/tui-react/workspace/terminal-tabs-shared"
+import type { MachineLayerEntry } from "@/tui/panes/sidebar/machine-layer"
 import type { TabsState } from "@/tui/workspace/terminal-tabs-core"
 import { type Task, toTaskId } from "@/types/task"
 import type { RowStatus, TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
@@ -139,6 +140,8 @@ export interface Scene {
    * also swallow that row's plain `·`.
    */
   readonly animated?: boolean
+  /** Registered machines the sidebar reads during this scene; absent = none. */
+  readonly machines?: readonly MachineLayerEntry[]
 }
 
 function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
@@ -159,7 +162,42 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
   )
 }
 
+/**
+ * One repo checked out here, on a mac and on an offline vps (same `repoId`):
+ * ONE project, every machine's task under it, the remote ones wearing a cloud.
+ */
+const REPO_ID = "github.com/sma1lboy/rove"
+const MACHINES: readonly MachineLayerEntry[] = [
+  { alias: "mac", hostLabel: "mac-mini", state: "online", version: "0.9.259" },
+  { alias: "vps", hostLabel: "vps", state: "offline" },
+]
+const MERGED_TASKS = [
+  task("alpha", { repoId: REPO_ID }),
+  task("charlie", { repoId: REPO_ID, repo: "/Users/n/rove", origin: { machineId: "mac", hostLabel: "mac-mini" } }),
+  task("delta", {
+    repoId: REPO_ID,
+    repo: "/srv/rove",
+    origin: { machineId: "vps", hostLabel: "vps", stale: true },
+  }),
+  task("echo", { repo: "/repos/api" }),
+]
+const seedMerged = () => seedTabs([{ taskId: "alpha", tabs: [{ id: "tab-1", title: "build" }] }])
+
 export const SCENES: readonly Scene[] = [
+  {
+    name: "machines-merged",
+    about: "one repo on three machines is ONE project; no machine headers, remote rows wear a cloud (offline: warning)",
+    setup: seedMerged,
+    machines: MACHINES,
+    element: tree({ tasks: MERGED_TASKS }),
+  },
+  {
+    name: "machines-remote-cursor",
+    about: "the cursor on a remote row spells out where it lives: on <host> · <version or state>",
+    setup: seedMerged,
+    machines: MACHINES,
+    element: tree({ tasks: MERGED_TASKS, selectedId: "delta", selectedTabId: null }),
+  },
   {
     name: "tree-unknown",
     about: "no daemon status at all — every tab rests at the quiet glyph",

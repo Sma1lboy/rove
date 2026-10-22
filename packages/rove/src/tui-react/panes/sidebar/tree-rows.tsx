@@ -31,9 +31,16 @@ import { breathColor, breathGlyph, mixInk } from "../../../tui/lib/breathe"
 import { effortMark } from "../../../tui/lib/effort-glyph"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
+import { remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
 import { buildSidebarRowView, sidebarTone, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
-import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
+import {
+  type RemoteMark,
+  type TreeTab,
+  rowLiveBranchPath,
+  tabRowActivity,
+  worktreeRowLabel,
+} from "../../../tui/panes/sidebar/tree-core"
 import { rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
@@ -53,6 +60,9 @@ import {
   useSpinnerFrame,
 } from "./row-cards"
 import { MoveChip, RowShell, type TreeRowShared, clusterCells, treeLabelBudget } from "./tree-row-shell"
+
+/** Cells of the title a remote row's cursor caption must leave standing. */
+const REMOTE_TITLE_CELLS = 12
 
 /**
  * Age in the current state (`12m`) for WORKING or STOPPED rows only; null
@@ -78,13 +88,21 @@ function statusAgeLabel(status: RowStatus | undefined): string | null {
  *
  * With no tab list under it (`tabsListed` false), the row stands for the
  * whole task and shows the daemon's rollup, as the folded rail does.
+ *
+ * A task on ANOTHER machine (`remote`) wears a cloud after its title — muted
+ * while that machine is online, warning-toned (and the title greyed) while it
+ * is offline, connecting or mismatched. Under the cursor the cloud also says
+ * where: `on <host> · <state>`. Machines are not sections; this mark is the
+ * only place a row says it lives elsewhere.
  */
 export function WorktreeTreeRow(props: {
   readonly rowId: string
   readonly flatIndex: number
   readonly task: Task
-  /** Tree depth — 1 at rest, one deeper under a machine header. */
+  /** Tree depth — 1 at rest. */
   readonly depth?: number
+  /** Set when the task lives on another machine (`applyMachineLayer`). */
+  readonly remote?: RemoteMark
   /** This task's tab rows follow this row. */
   readonly tabsListed?: boolean
   readonly shared: TreeRowShared
@@ -118,12 +136,16 @@ export function WorktreeTreeRow(props: {
   // Expired plugin tokens drop at RENDER time too, before the daemon's republish.
   useClockTick((shared.rowTokens?.get(task.id)?.length ?? 0) > 0)
   const tokens = liveRowTokens(shared.rowTokens, task.id, Date.now())
+  const remote = props.remote
+  const remoteLive = remote ? remoteMarkLive(remote) : true
+  const caption = remote && shared.cursorIndex === props.flatIndex ? remoteRowCaption(remote, t) : null
   const reserved =
     // The glyph column exists only when the row shows a status.
     (showGlyph ? 2 : 0) +
     // A plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
+    (remote ? clusterCells(glyphs.remote) : 0) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
     // The unknown mark replaces the whole ↑/+/−/↓ cluster.
@@ -133,6 +155,15 @@ export function WorktreeTreeRow(props: {
     ((changes?.deleted ?? 0) > 0 ? clusterCells(`−${changes?.deleted}`) : 0) +
     ((changes?.behind ?? 0) > 0 ? clusterCells(`↓${changes?.behind}`) : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
+  // The cursor's caption takes what the title leaves (the title keeps up to
+  // REMOTE_TITLE_CELLS), clipped with `…`, so a narrow rail never loses the branch.
+  const budget = treeLabelBudget(shared, reserved)
+  const captionCells = caption ? Math.max(0, budget - Math.min(displayWidth(label), REMOTE_TITLE_CELLS) - 1) : 0
+  const remoteText = remote
+    ? captionCells > 2
+      ? `${glyphs.remote} ${truncateEndCells(caption ?? "", captionCells, charWidth)}`
+      : glyphs.remote
+    : null
   const mark = useTaskColor(task.id)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared} mark={mark}>
@@ -156,13 +187,15 @@ export function WorktreeTreeRow(props: {
             disappearing, which would erase the only record of where the work
             is. */}
         <text
-          fg={task.origin?.stale ? theme.textMuted : theme.text}
+          fg={task.origin?.stale || !remoteLive ? theme.textMuted : theme.text}
           wrapMode="none"
           flexBasis={0}
           flexGrow={1}
           flexShrink={1}
         >
-          {truncateEndCells(label, treeLabelBudget(shared, reserved), charWidth)}
+          {truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) - 1 : 0), charWidth)}
+          {/* Inline, so the cloud sits right after the title rather than at the right edge. */}
+          {remoteText ? <span fg={remoteLive ? theme.textMuted : theme.warning}>{` ${remoteText}`}</span> : null}
         </text>
         {task.pinned === true ? (
           <text fg={theme.warning} wrapMode="none" flexShrink={0}>
@@ -258,7 +291,7 @@ export function TabTreeRow(props: {
   readonly flatIndex: number
   readonly task: Task
   readonly tab: TreeTab
-  /** Tree depth — 1 at rest, one deeper under a machine header. */
+  /** Tree depth — 1 at rest. */
   readonly depth?: number
   readonly shared: TreeRowShared
 }) {

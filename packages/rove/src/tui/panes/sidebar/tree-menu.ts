@@ -155,8 +155,8 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
       ...taskVerbs(row.task),
     ]
   }
-  // Routines/machine rows have no task for any verb to act on.
-  if (row.kind === "routines" || row.kind === "machine") return []
+  // Routines rows have no task for any verb to act on.
+  if (row.kind === "routines") return []
   const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab", bindingId: "sidebar.select" }]
   if ((ctx.tabCount ?? 0) > 0)
     tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab", bindingId: "chat.tab.close" })

@@ -6,7 +6,6 @@
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
-import { machineRowLabel } from "../../../tui/panes/sidebar/machine-layer"
 import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
@@ -41,21 +40,6 @@ export function SidebarTreeBody(props: {
     >
       <box flexShrink={0} gap={0}>
         {props.rows.map((row, i) => {
-          if (row.kind === "machine") {
-            // Machine header, one rung above projects. Offline/mismatched
-            // machines grey out: a stale snapshot must not read as live.
-            return (
-              <SectionHeader
-                key={row.id}
-                label={machineRowLabel(
-                  { alias: row.alias, hostLabel: row.label, state: row.state, version: row.version },
-                  t,
-                )}
-                topPad={i > 0}
-                muted={row.state !== "online"}
-              />
-            )
-          }
           if (row.kind === "project") {
             // Scratch is a fixed section, not a repo: no context menu.
             const isScratch = row.id === SCRATCH_SECTION_ID
@@ -107,6 +91,7 @@ export function SidebarTreeBody(props: {
                 flatIndex={props.flatIndexOf.get(row.id) ?? -1}
                 task={row.task}
                 depth={row.depth}
+                remote={row.remote}
                 // Tab rows follow their worktree row; none here (unknown, or filtered out) = the row stands for the task.
                 tabsListed={next?.kind === "tab" && next.task.id === row.task.id}
                 shared={props.shared}

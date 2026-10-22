@@ -14,7 +14,7 @@ import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { useCallback, useMemo, useState } from "react"
 import { currentBranch } from "../../../tui/panes/sidebar/git-head"
-import { sidebarProjectKeyOfTask } from "../../../tui/panes/sidebar/groups"
+import { sidebarProjectKeyResolver } from "../../../tui/panes/sidebar/groups"
 import { type MachineLayerEntry, applyMachineLayer } from "../../../tui/panes/sidebar/machine-layer"
 import {
   type TreeRow,
@@ -49,7 +49,8 @@ export interface TreeStateOpts {
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
   /** Bumps when a git poll lands a changed value; re-runs search over fresh HEADs. */
   readonly branchTick?: number
-  /** Registered machines. Absent/empty: no header row, no extra indent. */
+  /** Registered machines: stamps each remote row with its machine's state (the cloud mark).
+   *  Absent/empty: rows come back untouched. */
   readonly machines?: readonly MachineLayerEntry[]
 }
 
@@ -115,7 +116,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
       return path ? currentBranch(path) : ""
     }
     return {
-      // Machine layer runs LAST; with no machines it returns its input unchanged.
+      // Machine layer runs LAST; it adds no rows, and with no machines it returns its input unchanged.
       rows: applyMachineLayer(
         searching ? filterTreeRows(all, query, liveBranch) : withRecentRow(all, recentTask),
         machines,
@@ -138,13 +139,16 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     (projectId: string): string | null => mainTaskIdOfProject(tasks, projectId),
     [tasks],
   )
+  // The merged project a task sits under — another machine's checkout of the
+  // same repo answers the home checkout's key, as the tree renders it.
+  const projectKeyOf = useMemo(() => sidebarProjectKeyResolver(tasks), [tasks])
   const projectIdOfTask = useCallback(
     (taskId: string): string | null => {
       const task = tasks.find((candidate) => candidate.id === taskId)
       if (!task || task.kind === "dir") return null
-      return sidebarProjectKeyOfTask(task)
+      return projectKeyOf(task)
     },
-    [tasks],
+    [tasks, projectKeyOf],
   )
 
   return {

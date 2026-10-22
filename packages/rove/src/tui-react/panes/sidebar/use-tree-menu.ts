@@ -93,8 +93,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
     (flatIndex: number, rowId: string, x: number, y: number): void => {
       const row = tree.rows.find((candidate) => candidate.id === rowId)
       // Shortcut rows ("↩ recent", routine count) name no task: no menu.
-      if (!row || row.kind === "project" || row.kind === "machine" || row.kind === "recent" || row.kind === "routines")
-        return
+      if (!row || row.kind === "project" || row.kind === "recent" || row.kind === "routines") return
       // Menu and highlight must agree on the target row.
       setCursorIndex(flatIndex)
       openAt(row, { tabCount: tree.tabCount(row.task.id) }, x, y)
@@ -160,7 +159,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         return
       }
       // Only reachable through a stale `menu`.
-      if (row.kind === "routines" || row.kind === "machine") return
+      if (row.kind === "routines") return
       const taskId = row.task.id
       switch (action) {
         case "open":
