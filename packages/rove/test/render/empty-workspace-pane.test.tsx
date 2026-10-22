@@ -7,7 +7,7 @@ afterAll(() => available.mockRestore())
 import { EmptyWorkspacePane } from "../../src/tui-react/workspace/empty-workspace-pane"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import { type TabsSyncDaemon, attachTabsDaemon } from "../tui-react/tabs-sync-daemon"
+import { type TabsSyncDaemon, attachTabsDaemon, untilDaemon } from "../tui-react/tabs-sync-daemon"
 import { act, renderComponent, settle } from "./harness"
 
 let daemon: TabsSyncDaemon | null = null
@@ -42,6 +42,7 @@ describe("the no-sessions placeholder's keys", () => {
     })
     await settle()
     expect(tabsByTask.get("t1")?.tabs.length).toBe(1)
+    await untilDaemon(() => tabs("t1")?.tabs.length === 1)
     expect(tabs("t1")?.tabs.length).toBe(1)
   })
 
@@ -96,6 +97,7 @@ describe("the no-sessions placeholder's keys", () => {
       expect(tab.vendor).toBe("codex")
       expect(tab.engineCommand).toBe(tab.vendor)
     }
+    await untilDaemon(() => tabs("t1")?.tabs.length === 1)
     expect(tabs("t1")?.tabs.map((row) => row.id)).toEqual([tab?.id as string])
   })
 
