@@ -144,9 +144,11 @@ export const TAB_CLOSE_VERB: VerbSpec = {
   handler: async (ctx) => {
     const taskId = ctx.args.require("task-id")
     const tabId = ctx.args.require("tab")
-    const reply = await daemonOf(ctx).request<{ handled?: boolean }>("terminalTab.close", { taskId, tabId })
+    const daemon = daemonOf(ctx)
+    // Still asked first: a mounted TUI kills the PTY and runs its own close flow.
+    const reply = await daemon.request<{ handled?: boolean }>("terminalTab.close", { taskId, tabId })
     if (reply.handled) return { ok: true, taskId, tabId, handledBy: "tui" }
-    const result = await ctx.runtime.closeTerminalTab(taskId, tabId)
+    const result = await ctx.runtime.closeTerminalTab(daemon, taskId, tabId)
     return { ok: true, taskId, tabId, handledBy: "headless", ...result }
   },
 }
@@ -174,8 +176,8 @@ async function launchKind(ctx: VerbContext, daemon: DaemonRpc, task: SerializedT
     }
     spec = { kind, taskId, view: { id: viewId, worktree: shown.worktreePath } }
   }
-  const launched = await ctx.runtime.launchTab(spec)
-  // The row is already on disk; this only stops an attached TUI's stale copy from overwriting it.
+  const launched = await ctx.runtime.launchTab(daemon, spec)
+  // The daemon already holds the row (and published it on `tabs.changed`); this announces it on `tab.add`.
   const reply = await daemon.request<{ clients?: number }>("terminalTab.add", { taskId, tab: launched.tab })
   if (launched.replaces) {
     // The TUI's close path when one is attached, else the headless one (as `tab-close`).
@@ -183,7 +185,7 @@ async function launchKind(ctx: VerbContext, daemon: DaemonRpc, task: SerializedT
       taskId,
       tabId: launched.replaces,
     })
-    if (!closed.handled) await ctx.runtime.closeTerminalTab(taskId, launched.replaces)
+    if (!closed.handled) await ctx.runtime.closeTerminalTab(daemon, taskId, launched.replaces)
   }
   return {
     ok: true,
@@ -282,7 +284,7 @@ export const TAB_NEW_VERB: VerbSpec = {
       },
       kind,
     )
-    // The row is already on disk; this only stops an attached TUI's stale copy from overwriting it.
+    // The daemon already holds the row (and published it on `tabs.changed`); this announces it on `tab.add`.
     const reply = await daemon.request<{ clients?: number }>("terminalTab.add", { taskId, tab: opened.tab })
     return { ok: true, taskId, tabId: opened.tab.id, session: opened.session, kind, clients: reply.clients ?? 0 }
   },
@@ -363,8 +365,8 @@ export const TAB_SPLIT_VERB: VerbSpec = {
           : action === "reset"
             ? { kind: "reset", leaf, size }
             : { kind: "close", leaf }
-    const out = await ctx.runtime.splitTab(taskId, tabId, task.worktreePath, edit)
-    // The row is already on disk; this only stops an attached TUI's stale copy from overwriting it.
+    const out = await ctx.runtime.splitTab(daemon, taskId, tabId, task.worktreePath, edit)
+    // The daemon already holds the tree (and published it on `tabs.changed`); this announces it on `tab.add`.
     const reply = out.changed
       ? await daemon.request<{ clients?: number }>("terminalTab.add", { taskId, tab: out.tab })
       : {}

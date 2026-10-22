@@ -13,6 +13,7 @@ import type {
   UiPrefsPayload,
   UiPromptPayload,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { ReadableState } from "../lib/external-store.ts"
 import type { CommandTab, EngineTab } from "../tui/workspace/terminal-tabs-core.ts"
@@ -38,28 +39,6 @@ export interface TabAddSignal {
   readonly tab: EngineTab | CommandTab
   readonly at: number
 }
-
-/**
- * Another attached TUI opened or closed a tab (`terminalTab.peerSync`). Delivered one by one,
- * never coalesced like the `*Sig` cells: two quick closes must both land.
- */
-export type PeerTabEvent =
-  | {
-      readonly op: "opened"
-      readonly taskId: string
-      readonly tab: EngineTab | CommandTab
-      /** The tab it sits behind (null = first); absent for a changed row. */
-      readonly after?: string | null
-      readonly origin: string
-      readonly at: number
-    }
-  | {
-      readonly op: "closed"
-      readonly taskId: string
-      readonly tabId: string
-      readonly origin: string
-      readonly at: number
-    }
 
 /** Daemon connection lifecycle as observed by the TUI during silent recovery. */
 export type DaemonConnectionState = "online" | "disconnected"
@@ -141,7 +120,8 @@ export interface OrchestratorSignals {
   readonly setTabCloseSig: (next: TabClosePayload | null) => void
   readonly setTabRenameSig: (next: TabRenamePayload | null) => void
   readonly setTabAddSig: (next: TabAddSignal | null) => void
-  readonly emitPeerTab: (event: PeerTabEvent) => void
+  /** `tabs.changed`, one call per event (`remote-orchestrator-tabs.ts`). */
+  readonly emitTabsChanged: (event: TabsChangedPayload) => void
   readonly setUiPromptSig: (next: UiPromptPayload | null) => void
   readonly engineLifecycleAcc: ReadableState<EngineLifecycleMap>
   readonly setEngineLifecycleSig: (next: EngineLifecycleMap) => void

@@ -1104,8 +1104,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   id returned by `get-task` in `.tabs[].id`. Engine, interactive-shell,
   command, and content tabs are all valid. With an attached TUI, the command
   runs the same close path as ctrl+w, so the tab strip updates immediately;
-  headless, it removes the persisted tab snapshot and ends the tab's hosted
-  PTY plus any split-leaf PTYs directly. Closing the last tab leaves the task
+  headless, it closes the tab in the daemon's tab store and ends the tab's
+  hosted PTY plus any split-leaf PTYs directly. Closing the last tab leaves the task
   open with no session, matching ctrl+w. A tab that still exists in the
   snapshot may be closed after its process dies; an absent or already-closed
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
@@ -1117,10 +1117,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   as `send --tab new --command` pins it) idle, ready for a first message.
   The worktree is created if needed, and an engine tab respects
   `engine.maxLiveSessions` (`ENGINE_LIMIT`; the refused tab leaves no row).
-  The tab id and its persisted row are allocated in one locked `state.json`
-  update, then the session spawns, then the daemon broadcasts `tab.add` so
-  attached TUIs absorb the row (a TUI otherwise holds a stale tab list and
-  would overwrite it). Returns `{ok, taskId, tabId, session, kind, clients}`
+  The daemon's tab store mints the tab id and adds the row (one `tabs.apply`,
+  `docs/design/daemon-owned-tabs.md`), so it never collides with a tab another
+  client opens at the same moment, then the session spawns; every attached
+  client sees the row through `tabs.changed`. Returns `{ok, taskId, tabId, session, kind, clients}`
   (`clients` = attached connections told; `0` = none); the tab then lists in
   `get-task .tabs[]`. A session already running under the allocated id fails
   as `TAB_COLLISION`. `--command` with `--kind shell` is `BAD_FLAG`.
@@ -1152,9 +1152,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   (an empty `--title` clears it), `reset` kills a shell pane and spawns a fresh
   login shell (an engine pane is `RESET_ENGINE`). `leaf-1` is the tab's own
   process; every other pane is its own hosted session `<taskId>::<tabId>::<leaf>`,
-  swept by `tab-close`. The layout is the tab's persisted split tree in
-  `state.json` (one locked update), then the daemon broadcasts the row over
-  `tab.add` so an attached TUI absorbs the tree instead of overwriting it. No
+  swept by `tab-close`. The layout is the tab's split tree in the daemon's tab
+  store (one `patch`), which every attached client then shows. No
   command line is taken: panes are always the login shell. Returns
   `{ok, taskId, tabId, leaf, changed, split, clients}`; `split` is
   `{activeLeafId, root}` (null once back to one pane) and `get-task .tabs[].split`

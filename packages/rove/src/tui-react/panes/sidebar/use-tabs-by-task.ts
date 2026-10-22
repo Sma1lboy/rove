@@ -3,8 +3,8 @@
  * "does this task have tabs" decides whether its project shows at all.
  *
  * Three sources, in order of authority:
- *   1. the KV snapshot (`knownTaskTabs`), for tasks whose `TerminalTabs`
- *      never mounted (every task after a restart);
+ *   1. the daemon's tabs (`knownTaskTabs`, kept by `tabs-sync.ts`), live for
+ *      every task whether or not its `TerminalTabs` is mounted;
  *   2. the live pty host inventory: titles and freeze-restored corpses;
  *   3. the orphan backstop: live sessions no snapshot claims, adopted into
  *      the snapshot.
@@ -19,9 +19,10 @@ import { isRecentlyClosedPtyKey } from "../../../tui/workspace/closed-tab-suppre
 import { getDefaultLiveEngines } from "../../../tui/workspace/live-engine"
 import { tabTitleStable } from "../../../tui/workspace/terminal-tab-split"
 import { tabPtyKeyFor } from "../../../tui/workspace/terminal-tabs-core"
+import { useAccessor } from "../../lib/use-accessor"
 import { adoptTaskTabs } from "../../workspace/terminal-tabs-adopt"
 import type { TabsSnapshotKv } from "../../workspace/terminal-tabs-persist"
-import { knownTaskTabs } from "../../workspace/terminal-tabs-shared"
+import { knownTaskTabs, tabsRevision } from "../../workspace/terminal-tabs-shared"
 import { filterKnownOrphanTabs, orphanTabsByTask } from "./orphan-tabs"
 import { useHostSessions } from "./use-host-sessions"
 
@@ -43,6 +44,9 @@ export function useTabsByTask(opts: TabsByTaskOpts): ReadonlyMap<string, readonl
   useEffect(() => liveEngines.subscribe(() => setLiveTick((tick) => tick + 1)), [liveEngines])
 
   const hostSessions = useHostSessions()
+  // Every tab change, this TUI's or another client's, lands in `tabsByTask` (the daemon's tab
+  // store via `tabs-sync.ts`) and bumps this; without it the tree waits for the next unrelated tick.
+  const tabsRev = useAccessor(tabsRevision)
 
   // The local PTY registry only knows tabs THIS process attached; aux pids let
   // the probe see every task's hosted tabs.
@@ -79,6 +83,7 @@ export function useTabsByTask(opts: TabsByTaskOpts): ReadonlyMap<string, readonl
   // Recomputing on every `tasks` echo is correct: that's when live titles move.
   const snapshotTabs = useMemo<ReadonlyMap<string, readonly TreeTab[]>>(() => {
     void liveTick
+    void tabsRev
     const map = new Map<string, readonly TreeTab[]>()
     for (const task of tasks) {
       const known = knownTaskTabs(kv, task.id)
@@ -110,7 +115,7 @@ export function useTabsByTask(opts: TabsByTaskOpts): ReadonlyMap<string, readonl
       )
     }
     return map
-  }, [tasks, kv, liveEngines, liveTick, liveTitles, restoredKeys])
+  }, [tasks, kv, liveEngines, liveTick, tabsRev, liveTitles, restoredKeys])
 
   // Backstop: see `orphan-tabs.ts`.
   const orphansByTask = useMemo<ReadonlyMap<string, readonly TreeTab[]>>(() => {

@@ -19,13 +19,15 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
+  allocateTab,
   closeTabsSnapshot,
   markCliTabSession,
   mintCliTab,
   publishCliTabSnapshot,
   readTabsSnapshot,
+  renameTabsSnapshot,
 } from "../../src/cli/api/tab-snapshot.ts"
-import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core.ts"
+import { tabsDaemon } from "./tabs-daemon-fake.ts"
 
 let home: string
 let originalHome: string | undefined
@@ -35,10 +37,6 @@ const statePath = (): string => join(home, ".config", "rove", "state.json")
 function writeState(state: Record<string, unknown>): void {
   mkdirSync(join(home, ".config", "rove"), { recursive: true })
   writeFileSync(statePath(), JSON.stringify(state), "utf8")
-}
-
-function readState(): Record<string, unknown> {
-  return JSON.parse(readFileSync(statePath(), "utf8"))
 }
 
 beforeEach(() => {
@@ -55,91 +53,117 @@ afterEach(() => {
   rmSync(home, { recursive: true, force: true })
 })
 
+/** The writers go through the daemon only: state.json stays exactly as the test left it. */
+function expectStateUntouched(before: Record<string, unknown>): void {
+  expect(JSON.parse(readFileSync(statePath(), "utf8"))).toEqual(before)
+}
+
 describe("publishCliTabSnapshot", () => {
-  it("seeds the canonical first engine tab so the tree can render a row", () => {
+  it("seeds the canonical first engine tab so the tree can render a row", async () => {
     writeState({})
-    publishCliTabSnapshot("t1")
-    const snapshot = readState()["terminalTabs.t1"] as { tabs: { id: string; kind: string }[]; activeId: string }
+    const daemon = tabsDaemon()
+    await publishCliTabSnapshot(daemon.client, "t1")
+    const snapshot = daemon.tabs("t1")
     // `tab-1` matches the pty key the CLI launch path uses (`engineSessionKey`
     // → `<taskId>::tab-1`), so the row and the live process agree.
-    expect(snapshot.tabs).toHaveLength(1)
-    expect(snapshot.tabs[0]).toMatchObject({ id: "tab-1", kind: "engine" })
-    expect(snapshot.activeId).toBe("tab-1")
+    expect(snapshot?.tabs).toHaveLength(1)
+    expect(snapshot?.tabs[0]).toMatchObject({ id: "tab-1", kind: "engine" })
+    expect(snapshot?.activeId).toBe("tab-1")
+    expect(daemon.applied.map((a) => a.ops.map((op) => op.op))).toEqual([["seed"]])
+    expectStateUntouched({})
   })
 
-  it("never overwrites an existing snapshot — a mounted TUI owns tab state", () => {
+  it("never overwrites an existing record — a mounted TUI owns tab state", async () => {
     const mine = {
       tabs: [{ kind: "engine", id: "tab-7", title: "mine", ordinal: 7 }],
       activeId: "tab-7",
       nextOrdinal: 8,
     }
-    writeState({ "terminalTabs.t1": mine })
-    publishCliTabSnapshot("t1")
-    expect(readState()["terminalTabs.t1"]).toEqual(mine)
+    const daemon = tabsDaemon({ seed: { t1: mine } })
+    await publishCliTabSnapshot(daemon.client, "t1")
+    expect(daemon.tabs("t1")).toEqual(mine)
   })
 
-  it("leaves other tasks' snapshots untouched", () => {
-    writeState({ "terminalTabs.other": { tabs: [], activeId: "tab-1", nextOrdinal: 2 }, unrelated: "keep" })
-    publishCliTabSnapshot("t1")
-    const state = readState()
-    expect(state["terminalTabs.other"]).toEqual({ tabs: [], activeId: "tab-1", nextOrdinal: 2 })
-    expect(state.unrelated).toBe("keep")
-    expect(state["terminalTabs.t1"]).toBeDefined()
-  })
-
-  it("records the pinned session id + spawned when the delivery started the session", () => {
-    writeState({})
-    publishCliTabSnapshot("t1", "uuid-abc")
-    const snapshot = readState()["terminalTabs.t1"] as {
-      tabs: { id: string; sessionId?: string; spawned?: boolean }[]
-    }
+  it("records the pinned session id + spawned when the delivery started the session", async () => {
+    const daemon = tabsDaemon()
+    await publishCliTabSnapshot(daemon.client, "t1", "uuid-abc")
     // The dead-reattach rule (engineTabArgv) reads exactly these two fields
     // to `--resume` the conversation after a pty-host restart.
-    expect(snapshot.tabs[0]).toMatchObject({ id: "tab-1", sessionId: "uuid-abc", spawned: true })
+    expect(daemon.tabs("t1")?.tabs[0]).toMatchObject({ id: "tab-1", sessionId: "uuid-abc", spawned: true })
+  })
+
+  it("never throws when the daemon refuses", async () => {
+    const refusing = {
+      request: async () => {
+        throw new Error("task not found: t1")
+      },
+    }
+    await expect(publishCliTabSnapshot(refusing, "t1")).resolves.toBeUndefined()
   })
 })
 
 describe("markCliTabSession", () => {
-  it("patches an existing minted tab with its session id once the session started", () => {
-    writeState({})
-    const id = mintCliTab("t1")
-    markCliTabSession("t1", id, "uuid-xyz")
-    const snapshot = readState()["terminalTabs.t1"] as {
-      tabs: { id: string; sessionId?: string; spawned?: boolean }[]
-    }
-    expect(snapshot.tabs.find((t) => t.id === id)).toMatchObject({ sessionId: "uuid-xyz", spawned: true })
+  it("patches an existing minted tab with its session id once the session started", async () => {
+    const daemon = tabsDaemon()
+    const id = await mintCliTab(daemon.client, "t1")
+    await markCliTabSession(daemon.client, "t1", id, "uuid-xyz")
+    const tabs = daemon.tabs("t1")?.tabs ?? []
+    expect(tabs.find((t) => t.id === id)).toMatchObject({ sessionId: "uuid-xyz", spawned: true })
     // The canonical tab keeps having no id — its session was never CLI-pinned.
-    expect(snapshot.tabs.find((t) => t.id === "tab-1")?.sessionId).toBeUndefined()
+    expect(tabs.find((t) => t.id === "tab-1")).not.toHaveProperty("sessionId")
+    expect(daemon.applied.at(-1)?.ops).toEqual([{ op: "patch", id, set: { sessionId: "uuid-xyz", spawned: true } }])
+  })
+
+  it("leaves a non-engine tab alone", async () => {
+    const daemon = tabsDaemon()
+    const shell = await allocateTab(daemon.client, "t1", { kind: "command", title: null, command: ["/bin/sh"] })
+    expect(await markCliTabSession(daemon.client, "t1", shell.id, "uuid")).toBeUndefined()
+    expect(daemon.tabs("t1")?.tabs.find((t) => t.id === shell.id)).not.toHaveProperty("spawned")
   })
 })
 
 describe("mintCliTab", () => {
-  it("consumes the snapshot's nextOrdinal so CLI and TUI ids never collide", () => {
-    writeState({
-      "terminalTabs.t1": {
-        tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1 }],
-        activeId: "tab-1",
-        nextOrdinal: 4, // TUI already minted tab-2/tab-3 and closed them
+  it("takes the daemon's counter, so CLI and TUI ids never collide", async () => {
+    const daemon = tabsDaemon({
+      seed: {
+        t1: {
+          tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1 }],
+          activeId: "tab-1",
+          nextOrdinal: 4, // TUI already minted tab-2/tab-3 and closed them
+        },
       },
     })
-    const id = mintCliTab("t1")
+    const id = await mintCliTab(daemon.client, "t1", "codex", "codex --yolo")
     expect(id).toBe("tab-4")
-    const snapshot = readState()["terminalTabs.t1"] as {
-      tabs: { id: string }[]
-      activeId: string
-      nextOrdinal: number
-    }
-    expect(snapshot.tabs.map((t) => t.id)).toEqual(["tab-1", "tab-4"])
-    expect(snapshot.activeId).toBe("tab-4")
-    expect(snapshot.nextOrdinal).toBe(5)
+    const snapshot = daemon.tabs("t1")
+    expect(snapshot?.tabs.map((t) => t.id)).toEqual(["tab-1", "tab-4"])
+    expect(snapshot?.tabs[1]).toMatchObject({ kind: "engine", vendor: "codex", engineCommand: "codex --yolo" })
+    expect(snapshot?.nextOrdinal).toBe(5)
+    // The daemon mints the id: the open carries none.
+    const open = daemon.applied[0]?.ops.find((op) => op.op === "open")
+    expect(open && "row" in open ? open.row.id : "absent").toBeUndefined()
   })
 
-  it("seeds a task with no snapshot and mints tab-2 alongside the canonical tab", () => {
-    writeState({})
-    const id = mintCliTab("t1")
-    expect(id).toBe("tab-2")
-    const snapshot = readState()["terminalTabs.t1"] as { tabs: { id: string }[] }
-    expect(snapshot.tabs.map((t) => t.id)).toEqual(["tab-1", "tab-2"])
+  it("seeds a task with no record and mints tab-2 alongside the canonical tab", async () => {
+    const daemon = tabsDaemon()
+    expect(await mintCliTab(daemon.client, "t1")).toBe("tab-2")
+    expect(daemon.tabs("t1")?.tabs.map((t) => t.id)).toEqual(["tab-1", "tab-2"])
+  })
+
+  it("never hands out a closed id again", async () => {
+    const daemon = tabsDaemon()
+    const first = await mintCliTab(daemon.client, "t1")
+    await closeTabsSnapshot(daemon.client, "t1", first)
+    expect(await mintCliTab(daemon.client, "t1")).not.toBe(first)
+  })
+
+  it("throws when the daemon refuses instead of inventing an id", async () => {
+    const refusing = {
+      request: async () => {
+        throw new Error("task not found: t1")
+      },
+    }
+    await expect(mintCliTab(refusing, "t1")).rejects.toThrow("task not found")
   })
 })
 
@@ -154,18 +178,43 @@ describe("readTabsSnapshot", () => {
 })
 
 describe("closeTabsSnapshot", () => {
-  it("uses ctrl+w semantics, including closing the last tab", () => {
-    writeState({
-      "terminalTabs.t1": {
-        tabs: [{ kind: "command", id: "tab-4", title: "shell", ordinal: 4, command: ["/bin/zsh"] }],
-        activeId: "tab-4",
-        nextOrdinal: 5,
+  it("uses ctrl+w semantics, including closing the last tab, and sends a close op", async () => {
+    writeState({ unrelated: "keep" })
+    const daemon = tabsDaemon({
+      seed: {
+        t1: {
+          tabs: [{ kind: "command", id: "tab-4", title: "shell", ordinal: 4, command: ["/bin/zsh"] }],
+          activeId: "tab-4",
+          nextOrdinal: 5,
+        },
       },
-      unrelated: "keep",
     })
-    expect(closeTabsSnapshot("t1", "tab-4")).toMatchObject({ id: "tab-4", kind: "command" })
-    const state = readState()
-    expect((state["terminalTabs.t1"] as TabsState).tabs).toEqual([])
-    expect(state.unrelated).toBe("keep")
+    expect(await closeTabsSnapshot(daemon.client, "t1", "tab-4")).toMatchObject({ id: "tab-4", kind: "command" })
+    expect(daemon.tabs("t1")?.tabs).toEqual([])
+    // The emptied strip keeps the TUI's re-seed hint.
+    expect(daemon.applied).toEqual([
+      { taskId: "t1", ops: [{ op: "close", id: "tab-4", reopenAs: { kind: "command" } }] },
+    ])
+    expectStateUntouched({ unrelated: "keep" })
+  })
+
+  it("is undefined, and sends nothing, for a tab the daemon does not hold", async () => {
+    const daemon = tabsDaemon({ seed: { t1: { tabs: [], nextOrdinal: 2 } } })
+    expect(await closeTabsSnapshot(daemon.client, "t1", "tab-9")).toBeUndefined()
+    expect(await closeTabsSnapshot(daemon.client, "nope", "tab-1")).toBeUndefined()
+    expect(daemon.applied).toEqual([])
+  })
+})
+
+describe("renameTabsSnapshot", () => {
+  it("patches the title, is a no-op for the same name, and misses an unknown tab", async () => {
+    const daemon = tabsDaemon({
+      seed: { t1: { tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1 }], nextOrdinal: 2 } },
+    })
+    expect(await renameTabsSnapshot(daemon.client, "t1", "tab-1", "  review  ")).toBe(true)
+    expect(daemon.tabs("t1")?.tabs[0]?.title).toBe("review")
+    expect(await renameTabsSnapshot(daemon.client, "t1", "tab-1", "review")).toBe(true)
+    expect(await renameTabsSnapshot(daemon.client, "t1", "tab-9", "x")).toBe(false)
+    expect(daemon.applied).toEqual([{ taskId: "t1", ops: [{ op: "patch", id: "tab-1", set: { title: "review" } }] }])
   })
 })

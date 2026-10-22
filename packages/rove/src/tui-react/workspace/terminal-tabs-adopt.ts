@@ -7,7 +7,7 @@
 
 import { adoptTabs } from "../../tui/workspace/tabs-adopt"
 import type { TabsState } from "../../tui/workspace/terminal-tabs-core"
-import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
+import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { knownTabsState, requestTabAdopt, setTaskTabs, takeUnclaimedTabAdopt } from "./terminal-tabs-shared"
 
 /**
@@ -29,6 +29,5 @@ export function adoptTaskTabs(kv: TabsSnapshotKv, taskId: string, tabIds: readon
   if (state && next === state) return false
 
   setTaskTabs(taskId, next)
-  kv.set(terminalTabsKey(taskId), next)
   return true
 }

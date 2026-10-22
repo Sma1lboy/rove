@@ -41,7 +41,7 @@ import {
   reportMissingNote,
 } from "./inbox-item-view"
 import { readInboxVisits } from "./inbox-visits"
-import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
+import { activeTabIdFor, knownTaskTab, tabsRevision, taskTabExists } from "./terminal-tabs-shared"
 
 /** Episodes the owner may drop. An open decision is answered, never dismissed; one answered while
  *  the engine was away can be closed, since no answer will ever deliver it. */
@@ -209,14 +209,15 @@ export function AttentionInboxPane(props: {
   const dimensions = useTerminalSize()
   const [cursor, setCursor] = useState(0)
   const [now, setNow] = useState(() => Date.now())
-  const { availableItems } = useMemo(
-    () =>
-      // Tri-state, same predicate as the host's partition: "don't know" is not "gone".
-      partitionAttentionInboxAvailability(props.items, props.tasks, (taskId, tabId) =>
-        taskTabExists(props.kv, taskId, tabId),
-      ),
-    [props.items, props.tasks, props.kv],
-  )
+  // Tab existence comes from the daemon's tabs (`tabs-sync.ts`), not the kv: recompute on its revision.
+  const tabsRev = useAccessor(tabsRevision)
+  const { availableItems } = useMemo(() => {
+    void tabsRev
+    // Tri-state, same predicate as the host's partition: "don't know" is not "gone".
+    return partitionAttentionInboxAvailability(props.items, props.tasks, (taskId, tabId) =>
+      taskTabExists(props.kv, taskId, tabId),
+    )
+  }, [props.items, props.tasks, props.kv, tabsRev])
   // Every episode is pending (opening removes it), so ATTENTION always leads.
   // Unavailable targets hide here; the Workspace host dismisses them. RECENT
   // follows the visit log; memoized on KV identity (changes only on a real
@@ -224,16 +225,15 @@ export function AttentionInboxPane(props: {
   const visits = useMemo(() => readInboxVisits(props.kv), [props.kv])
   // Drop only the tab you're on; its sibling tabs are what RECENT is for.
   const selectedTabId = props.selectedId ? activeTabIdFor(props.selectedId) : null
-  const rows = useMemo(
-    () =>
-      inboxRows(availableItems, props.tasks, {
-        selectedId: props.selectedId,
-        selectedTabId,
-        visits,
-        tabExists: (taskId, tabId) => taskTabExists(props.kv, taskId, tabId),
-      }),
-    [availableItems, props.tasks, props.selectedId, selectedTabId, visits, props.kv],
-  )
+  const rows = useMemo(() => {
+    void tabsRev
+    return inboxRows(availableItems, props.tasks, {
+      selectedId: props.selectedId,
+      selectedTabId,
+      visits,
+      tabExists: (taskId, tabId) => taskTabExists(props.kv, taskId, tabId),
+    })
+  }, [availableItems, props.tasks, props.selectedId, selectedTabId, visits, props.kv, tabsRev])
   const attentionCount = rows.filter((row) => row.kind === "attention").length
   const anyRunning = rows.some(
     (row) => row.kind === "recent" && props.engineStates?.get(row.task.id)?.state === "running",

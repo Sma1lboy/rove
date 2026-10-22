@@ -18,6 +18,7 @@ import {
   isRoutineInboxState,
   parseDaemonStopReason,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
 import { isAddedTab } from "../tui/workspace/tabs-adopt.ts"
 import type { UpdateInfo } from "../version.ts"
@@ -292,19 +293,6 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
   }
   if (name === "tab.close") {
     const p = payload as Partial<TabClosePayload> | undefined
-    if (p && "kind" in p && p.kind === "peer-closed") {
-      if (
-        typeof p.taskId !== "string" ||
-        typeof p.tabId !== "string" ||
-        typeof p.origin !== "string" ||
-        typeof p.at !== "number"
-      ) {
-        logClientError("orch", `dropped tab.close event: malformed payload (${describePayload(payload)})`)
-        return
-      }
-      signals.emitPeerTab({ op: "closed", taskId: p.taskId, tabId: p.tabId, origin: p.origin, at: p.at })
-      return
-    }
     const terminalTab = p && "kind" in p && p.kind === "terminal-tab"
     const valid = terminalTab
       ? typeof p.taskId === "string" &&
@@ -334,15 +322,24 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     signals.setTabRenameSig(p as TabRenamePayload)
     return
   }
+  if (name === "tabs.changed") {
+    const p = payload as Partial<TabsChangedPayload> | undefined
+    const state = p?.state
+    if (
+      typeof p?.taskId !== "string" ||
+      typeof p.rev !== "number" ||
+      (state !== null && (typeof state !== "object" || !Array.isArray(state?.tabs)))
+    ) {
+      logClientError("orch", `dropped tabs.changed event: malformed payload (${describePayload(payload)})`)
+      return
+    }
+    signals.emitTabsChanged(p as TabsChangedPayload)
+    return
+  }
   if (name === "tab.add") {
     const p = payload as Partial<TabAddPayload> | undefined
     if (typeof p?.taskId !== "string" || typeof p.at !== "number" || !isAddedTab(p.tab)) {
       logClientError("orch", `dropped tab.add event: malformed payload (${describePayload(payload)})`)
-      return
-    }
-    if (typeof p.origin === "string") {
-      const after = typeof p.after === "string" || p.after === null ? { after: p.after } : {}
-      signals.emitPeerTab({ op: "opened", taskId: p.taskId, tab: p.tab, ...after, origin: p.origin, at: p.at })
       return
     }
     signals.setTabAddSig({ taskId: p.taskId, tab: p.tab, at: p.at })

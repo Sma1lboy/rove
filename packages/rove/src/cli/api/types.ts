@@ -254,7 +254,8 @@ export function promptMayHaveLanded(delivered: DeliveredPrompt): boolean {
 
 /** Hosted prompt delivery seam, injectable for handler/unit tests. */
 export interface PromptDeliveryOps {
-  deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt>
+  /** `client` is the daemon the tab rows go through (`tabs.apply`). */
+  deliverHosted(client: DaemonRpc, target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt>
 }
 
 /**
@@ -293,8 +294,12 @@ export interface ApiRuntime {
    * round-trip per task). `null` = no pty host to ask, never "nothing running".
    */
   liveTaskIds(): Promise<ReadonlySet<string> | null>
-  /** Close one exact Terminal Tab without a mounted TUI. */
-  closeTerminalTab(taskId: string, tabId: string): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
+  /** Close one exact Terminal Tab without a mounted TUI (the row goes through the daemon's `tabs.apply`). */
+  closeTerminalTab(
+    client: DaemonRpc,
+    taskId: string,
+    tabId: string,
+  ): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
   /** Deliver a prompt into a task's engine pane (building the session if needed). */
   deliverPrompt(client: DaemonRpc, target: PromptTarget, prompt: string): Promise<DeliveredPrompt>
   /**
@@ -303,9 +308,9 @@ export interface ApiRuntime {
    */
   openTab(client: DaemonRpc, target: PromptTarget, kind: NewTabKind): Promise<OpenedTab>
   /** Open a tab that runs something Rove resolves itself (`tab-new --kind editor|pane|viewport`). */
-  launchTab(spec: LaunchSpec): Promise<Launched>
+  launchTab(client: DaemonRpc, spec: LaunchSpec): Promise<Launched>
   /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */
-  splitTab(taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
+  splitTab(client: DaemonRpc, taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
   /** Can a worktree be cut from this repo? On the seam so handler tests need no

@@ -111,6 +111,7 @@ export type DaemonFrame =
 export const DAEMON_CHANNELS = [
   "task.snapshot",
   "issue.snapshot",
+  "tabs.changed",
   "active-task",
   "update",
   "engine-state",

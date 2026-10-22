@@ -11,6 +11,7 @@
 
 import { getSharedPtyClient } from "../../tui/panes/terminal/pty-hosted-client"
 import { tabPtyKey } from "../../tui/workspace/terminal-tabs-core"
+import { reserveTabOrdinals } from "./tabs-sync"
 import { adoptTaskTabs } from "./terminal-tabs-adopt"
 import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { knownTaskTabs } from "./terminal-tabs-shared"
@@ -19,6 +20,8 @@ export interface ScratchFoldIO {
   readonly kv: TabsSnapshotKv
   /** `pty.rename`; false = source gone, target taken, or an older host. */
   readonly rename?: (from: string, to: string) => Promise<boolean>
+  /** Fresh ordinals from the daemon's counter (`tabs-sync.ts`); null = no daemon, count locally. */
+  readonly reserve?: (taskId: string, count: number) => Promise<number[] | null>
 }
 
 async function renameHostedSession(from: string, to: string): Promise<boolean> {
@@ -45,20 +48,24 @@ export async function foldScratchShell(
   // The scratch shell is tab-1 by construction; extra tabs the user opened
   // in the scratch task ride along under their own new ids.
   const scratchTabIds = (knownTaskTabs(io.kv, scratchTaskId)?.tabs ?? [{ id: "tab-1" }]).map((tab) => tab.id)
-  let next =
+  // Ids come from the daemon's counter (one spare per tab for the bump retry), so no other
+  // client can be minting the same ones; detached, count past the target's own tabs.
+  const reserved = await (io.reserve ?? reserveTabOrdinals)(targetTaskId, scratchTabIds.length * 2).catch(() => null)
+  let fallback =
     1 + (knownTaskTabs(io.kv, targetTaskId)?.tabs ?? []).reduce((max, tab) => Math.max(max, tabNumber(tab.id)), 0)
+  const nextId = (): string => `tab-${reserved?.shift() ?? fallback++}`
   const folded: string[] = []
   for (const tabId of scratchTabIds) {
     const from = tabPtyKey(scratchTaskId, tabId)
     // One bump retry: an unadopted orphan can occupy the computed id.
-    let ok = await rename(from, tabPtyKey(targetTaskId, `tab-${next}`))
+    let to = nextId()
+    let ok = await rename(from, tabPtyKey(targetTaskId, to))
     if (!ok) {
-      next++
-      ok = await rename(from, tabPtyKey(targetTaskId, `tab-${next}`))
+      to = nextId()
+      ok = await rename(from, tabPtyKey(targetTaskId, to))
     }
     if (!ok) continue
-    folded.push(`tab-${next}`)
-    next++
+    folded.push(to)
     // The `from` handle dies in the caller's task-PTY sweep; `pty.kill` on the
     // pre-rename key is a host-side no-op, so the moved session survives.
   }

@@ -19,6 +19,7 @@ import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
 import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
+import { stateFileTabsPersistence } from "../state/tabs-persistence.ts"
 import { preferredReleaseChannel } from "../state/update-channel.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
@@ -57,6 +58,7 @@ function resolveProtocolUpgradeAndLearnPreset(
 
 export const daemonRuntime: DaemonRuntimeAdapter = {
   currentVersion: CURRENT_VERSION,
+  tabsPersistence: stateFileTabsPersistence,
   // Lazy: the verb table pulls in most of the CLI, which a daemon that never
   // serves `api.invoke` should not load.
   async invokeApi(verb, params, socketPath, route) {

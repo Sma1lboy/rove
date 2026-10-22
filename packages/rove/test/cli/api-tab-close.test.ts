@@ -35,7 +35,7 @@ describe("tab-close handler", () => {
     const result = await invokeVerb("tab-close", ["--task-id", "t1", "--tab", "tab-2"], {
       client,
       runtime: stubRuntime({
-        closeTerminalTab: async (taskId, tabId) => {
+        closeTerminalTab: async (_client, taskId, tabId) => {
           calls.push([taskId, tabId])
           return { kind: "command", wasAlive: false }
         },

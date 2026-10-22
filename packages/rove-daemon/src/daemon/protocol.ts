@@ -116,6 +116,11 @@ export type DaemonRequestName =
   // "this repo has a backlog", which the task index cannot answer.
   | "issue.repos"
   | "issue.mutate"
+  | "tabs.apply"
+  | "tabs.list"
+  | "tabs.get"
+  | "tabs.reserve"
+  | "tabs.release"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"
   // Cross-project worktree audit: every worktree of every local saved project
@@ -214,7 +219,6 @@ export type DaemonRequestName =
   // Broadcast on `tab.add` (`rove api tab-new`): the CLI already wrote the
   // persisted row; this tells attached TUIs so they absorb it.
   | "terminalTab.add"
-  | "terminalTab.peerSync"
   // Toast to every attached UI on `notice.event` (`rove api notify`).
   | "notice.send"
   // OPAQUE graphics bytes for each attached GUI's tty (`rove api pane-graphics`),

@@ -18,6 +18,7 @@ import { defaultDeliveriesPath } from "./paths.ts"
 import { QuotaUsageCache } from "./quota-usage-cache.ts"
 import { RowTokenStore } from "./row-tokens.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { TabsStore } from "./tabs-store.ts"
 import { TaskDeletionRunner } from "./task-deletion-runner.ts"
 import { WorkItemCache } from "./work-items.ts"
 
@@ -36,6 +37,7 @@ export interface DaemonStores {
   readonly quotaUsage: QuotaUsageCache
   readonly engineEvents: EngineEventLog
   readonly rowTokens: RowTokenStore
+  readonly tabs: TabsStore
 }
 
 /**
@@ -76,6 +78,10 @@ export async function initDaemonStores(
   // In memory on purpose: restoring a token whose author is gone is the stale
   // state its TTL exists to prevent.
   const rowTokens = new RowTokenStore(bus)
+  // Sole writer of every task's terminal tabs; clients send it operations.
+  const tabs = new TabsStore(runtime.tabsPersistence, bus)
+  tabs.init()
+  tabs.sweep((taskId) => orch.getTask(taskId) !== undefined, orch.listTasks().length > 0)
   const clearTaskState = (taskId: string) =>
     gates
       .withdrawTask(taskId)
@@ -86,6 +92,7 @@ export async function initDaemonStores(
       .finally(() => activity.clearTask(taskId))
       // Else the map keeps republishing tokens for a row nothing renders.
       .finally(() => rowTokens.clearTask(taskId))
+      .finally(() => tabs.forget(taskId))
   const deletions = new TaskDeletionRunner(orch, runtime, clearTaskState, bus)
   // Keyed by git common-dir.
   const issues = new IssuesStore(defaultIssuesStorePath(homeDir))
@@ -111,5 +118,6 @@ export async function initDaemonStores(
     quotaUsage,
     engineEvents,
     rowTokens,
+    tabs,
   }
 }

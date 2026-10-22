@@ -16,6 +16,7 @@
 import { describe, expect, it } from "bun:test"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { ShowWorkspace } from "../../src/tui-react/workspace/show-workspace"
+import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import type { Task } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
@@ -83,14 +84,14 @@ const frameForTask = async (task: Task): Promise<string> => {
 
 describe("a task whose last tab was closed", () => {
   it("renders the no-sessions placeholder instead of mounting tabs", async () => {
-    tabsByTask.clear()
+    resetTabsSyncForTests()
     // KNOWN and empty: the user closed the last tab.
     tabsByTask.set("t1", { tabs: [], activeId: "tab-1", nextOrdinal: 2 })
     expect(await frameForTask(SELECTED)).toContain("No sessions here")
   })
 
   it.each(["main", "dir"] as const)("waits for a choice before a never-opened %s task starts", async (kind) => {
-    tabsByTask.clear()
+    resetTabsSyncForTests()
     expect(await frameForTask({ ...SELECTED, kind })).toContain("No sessions here")
     expect(tabsByTask.has("t1")).toBe(false)
   })
@@ -98,7 +99,7 @@ describe("a task whose last tab was closed", () => {
   it("mounts normally when the tabs are merely UNKNOWN", async () => {
     // Absent from the map = never mounted since restart, which is every task
     // on a cold boot. Treating that as empty would leave the workspace blank.
-    tabsByTask.clear()
+    resetTabsSyncForTests()
     expect(await frameForTask(SELECTED)).not.toContain("No sessions here")
   })
 })
@@ -113,7 +114,7 @@ describe("a task on a remote ssh:// project", () => {
   const REMOTE = { id: "t1", repo: "ssh://me@buildbox", kind: "task" } as unknown as Task
 
   const frameForRemote = async (task: Task, worktree: string): Promise<string> => {
-    tabsByTask.clear()
+    resetTabsSyncForTests()
     const { frame } = await renderComponent(<ShowWorkspace {...props(ONE_TASK)} task={task} worktree={worktree} />)
     await act(async () => {})
     return await frame()

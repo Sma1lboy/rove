@@ -8,6 +8,7 @@
  *   - `seed()` (the signal-default path) is in-memory only — reading a
  *     default must never persist it.
  *   - `set(key, undefined)` serializes as a DELETION.
+ *   - `terminalTabs.*` keys are refused: the daemon owns terminal tabs.
  *   - `clear()` is the one whole-file write: it wipes even foreign keys.
  *   - Writes are debounced (250ms) — no disk write before the window.
  */
@@ -17,11 +18,6 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { type KvWriteFailure, createKvCore } from "../../src/tui-react/context/kv-core"
-import {
-  type TabsSnapshotKv,
-  sweepOrphanTabsSnapshots,
-  terminalTabsKey,
-} from "../../src/tui-react/workspace/terminal-tabs-persist"
 
 let savedHome: string | undefined
 
@@ -92,49 +88,61 @@ describe("createKvCore", () => {
 
   it("set(key, undefined) removes the key from the in-memory snapshot", () => {
     // A spread `{ ...s, [key]: undefined }` would keep the deleted key
-    // ENUMERABLE in the snapshot, so the orphan sweep
-    // (`sweepOrphanTabsSnapshots`, which walks Object.keys and re-deletes)
-    // re-sets it on every task-list change — each set a new snapshot identity,
-    // each identity a re-run of the sweep effect: an infinite setState loop
-    // (React #185) that crashes the workspace whenever a stale
-    // `terminalTabs.*` key exists. Deletion must actually shrink Object.keys.
-    isolatedHome({ "terminalTabs.dead": { tabs: [] }, kept: 1 })
+    // ENUMERABLE in the snapshot, so a sweep that walks Object.keys and
+    // re-deletes re-sets it on every change — each set a new snapshot
+    // identity, each identity a re-run of the sweep effect: an infinite
+    // setState loop (React #185). Deletion must actually shrink Object.keys.
+    isolatedHome({ "draft.dead": { text: "" }, kept: 1 })
     const kv = createKvCore()
-    kv.set("terminalTabs.dead", undefined)
+    kv.set("draft.dead", undefined)
     expect(Object.keys(kv.snapshot())).toEqual(["kept"])
     // Idempotent: deleting an absent key must not mint a new snapshot
     // identity (that identity churn is what re-armed the sweep effect).
     const before = kv.snapshot()
-    kv.set("terminalTabs.dead", undefined)
+    kv.set("draft.dead", undefined)
     expect(kv.snapshot()).toBe(before)
   })
 
   it("an orphan sweep triggered by kv snapshot changes converges instead of recursively rearming itself", () => {
-    isolatedHome({ [terminalTabsKey("orphan")]: { tabs: [] } })
+    isolatedHome({ "draft.orphan": { text: "" }, "draft.live": { text: "x" } })
     const kv = createKvCore()
-    const sweepKv: TabsSnapshotKv = {
-      get store() {
-        return kv.snapshot()
-      },
-      set: kv.set,
-    }
     let sweeps = 0
     const runSweep = () => {
       sweeps++
       if (sweeps > 5) throw new Error("orphan sweep recursively rearmed")
-      sweepOrphanTabsSnapshots(sweepKv, ["live"])
+      for (const key of Object.keys(kv.snapshot())) {
+        if (key.startsWith("draft.") && key !== "draft.live") kv.set(key, undefined)
+      }
     }
     const unsubscribe = kv.subscribe(runSweep)
 
-    // Models useWorkspaceSelection's effect: the first sweep changes the KV
-    // identity and triggers one follow-up sweep. The follow-up sees no orphan,
-    // performs no write, and the subscription chain settles.
+    // Models a subscribed effect: the first sweep changes the KV identity and
+    // triggers one follow-up sweep. The follow-up sees no orphan, performs no
+    // write, and the subscription chain settles.
     runSweep()
 
     expect(sweeps).toBe(2)
-    expect(Object.keys(kv.snapshot())).toEqual([])
+    expect(Object.keys(kv.snapshot())).toEqual(["draft.live"])
     unsubscribe()
     expect(kv.flush()).toBe(true)
+  })
+
+  it("refuses a terminalTabs.* write: not in memory, not dirty, never on disk", () => {
+    const home = isolatedHome({ "terminalTabs.t": { tabs: [], nextOrdinal: 1 } })
+    const kv = createKvCore()
+    const before = kv.snapshot()
+    const changed = vi.fn()
+    const unsubscribe = kv.subscribe(changed)
+    kv.set("terminalTabs.x", { tabs: [], nextOrdinal: 1 })
+    kv.set("terminalTabs.t", undefined)
+    expect(kv.snapshot()).toBe(before)
+    expect(kv.get("terminalTabs.x")).toBeUndefined()
+    expect(changed).not.toHaveBeenCalled()
+    unsubscribe()
+    // Nothing dirty: another process's later write survives our flush.
+    writeState(home, { "terminalTabs.t": { tabs: [], nextOrdinal: 1 }, theirs: 1 })
+    expect(kv.flush()).toBe(true)
+    expect(readState(home)).toEqual({ "terminalTabs.t": { tabs: [], nextOrdinal: 1 }, theirs: 1 })
   })
 
   it("seed() is visible in memory but never persisted", () => {

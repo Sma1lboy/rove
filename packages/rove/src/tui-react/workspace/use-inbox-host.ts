@@ -6,6 +6,7 @@ import { t } from "../../tui/i18n"
 import type { Task } from "../../types/task"
 import { GateDecisionDialog } from "../component/gate-decision-dialog"
 import type { KVContext } from "../context/kv"
+import { useAccessor } from "../lib/use-accessor"
 import { useLatest } from "../lib/use-latest"
 import type { DialogContext } from "../ui/dialog"
 import { AttentionInboxDialog } from "./AttentionInboxPane"
@@ -19,7 +20,7 @@ import {
 import { dismissEpisode, requestInboxItemOpen } from "./inbox-open-action"
 import { notifyInboxRpcFailure } from "./inbox-rpc-errors"
 import { writeInboxVisit } from "./inbox-visits"
-import { activeTabIdFor, requestTabActivation, taskTabExists } from "./terminal-tabs-shared"
+import { activeTabIdFor, requestTabActivation, tabsRevision, taskTabExists } from "./terminal-tabs-shared"
 
 function episodeKey(item: AttentionInboxItem): string {
   return `${attentionInboxKey(item)}\0${item.at}`
@@ -43,16 +44,19 @@ export function useInboxHost(args: {
   notifyError: (message: string) => void
 }) {
   const { orchestrator: orch } = args
-  const { availableItems, unavailableItems } = useMemo(
-    () =>
+  // Tab existence comes from the daemon's tabs (`tabs-sync.ts`), not the kv: recompute on its revision.
+  const tabsRev = useAccessor(tabsRevision)
+  const { availableItems, unavailableItems } = useMemo(() => {
+    void tabsRev
+    return (
       // Tri-state (see taskTabExists): `undefined` when this task has no
       // readable tab list here, so an episode is never deleted just because
       // its task hasn't mounted in this process.
       partitionAttentionInboxAvailability(args.items, args.tasks, (taskId, tabId) =>
         taskTabExists(args.kv, taskId, tabId),
-      ),
-    [args.items, args.tasks, args.kv],
-  )
+      )
+    )
+  }, [args.items, args.tasks, args.kv, tabsRev])
   // Episodes targeting what you're ALREADY looking at never surface: the
   // daemon records them unconditionally and the push beats the background
   // dismiss below, so without this sync filter the count flashes 1 → 0 on

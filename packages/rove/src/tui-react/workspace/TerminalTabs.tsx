@@ -65,8 +65,9 @@ import { TerminalSplit } from "./TerminalSplit"
 import { noteEngineTabInput } from "./optimistic-activity"
 import { showSharedFilesHint } from "./shared-files-hint"
 import { TabStrip } from "./tab-strip"
+import { ensureTabReservation, releaseTabReservation, tabsLoaded, taskTabsView } from "./tabs-sync"
 import { terminalTabsKey } from "./terminal-tabs-persist"
-import { engineScratchTasks, reportTabsDelta, setTaskTabs, tabsByTask } from "./terminal-tabs-shared"
+import { engineScratchTasks, reportTabsDelta, setTaskTabs, tabsByTask, tabsRevision } from "./terminal-tabs-shared"
 import { useTabClose } from "./use-tab-close"
 import { useTabDialogs } from "./use-tab-dialogs"
 import { useTabHandoffs } from "./use-tab-handoffs"
@@ -142,16 +143,16 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   // True when rehydrated from disk: `spawned` flags are up to 5s stale and
   // must be re-verified before anything spawns.
   const rehydratedRef = useRef(false)
+  // The daemon owns the tabs (`tabs-sync.ts`): render its state, write through it.
   const initState = (): TabsState => {
-    const existing = tabsByTask.get(props.taskId)
-    if (existing) return existing
-    const saved = kv.get(persistKey, null) as TabsState | null
-    const fromDisk = saved && Array.isArray(saved.tabs) ? rehydrateTabs(saved, [defaultShell()]) : null
-    rehydratedRef.current = fromDisk !== null
+    const existing = tabsByTask.get(props.taskId) ?? taskTabsView(props.taskId)
+    const saved = existing ?? (tabsLoaded() ? null : (kv.get(persistKey, null) as TabsState | null))
+    // `spawned` flags from another process or a restart are re-verified before anything spawns.
+    const fromDaemon = saved && Array.isArray(saved.tabs) ? rehydrateTabs(saved, [defaultShell()]) : null
+    rehydratedRef.current = fromDaemon !== null
+    if (fromDaemon) return fromDaemon
     const shellScratch = props.scratch === true && !engineScratchTasks.delete(props.taskId)
-    const fresh = fromDisk ?? (shellScratch ? initialShellTabs(defaultShell()) : pinSession(initialTabs(), undefined))
-    tabsByTask.set(props.taskId, fresh) // silent: render phase, see setTaskTabs
-    return fresh
+    return shellScratch ? initialShellTabs(defaultShell()) : pinSession(initialTabs(), undefined)
   }
 
   const [state, setState] = useState<TabsState>(initState)
@@ -159,11 +160,32 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
 
   const update = (next: TabsState): void => {
     reportTabsDelta(propsRef.current.taskId, stateRef.current.tabs, next.tabs)
-    setTaskTabs(propsRef.current.taskId, next)
-    stateRef.current = next
-    setState(next)
-    kv.set(persistKey, next)
+    const shown = setTaskTabs(propsRef.current.taskId, next, stateRef.current)
+    stateRef.current = shown
+    setState(shown)
   }
+
+  // Seed a task the daemon has no tabs for, reserve ordinals to mint from, and follow every
+  // other client's changes (`tabs.changed`) for as long as this task is on screen.
+  useEffect(() => {
+    const taskId = props.taskId
+    if (!tabsByTask.has(taskId)) {
+      const shown = setTaskTabs(taskId, stateRef.current)
+      stateRef.current = shown
+      setState(shown)
+    }
+    ensureTabReservation(taskId)
+    const off = tabsRevision.subscribe(() => {
+      const live = tabsByTask.get(taskId)
+      if (!live || live === stateRef.current) return
+      stateRef.current = live
+      setState(live)
+    })
+    return () => {
+      off()
+      releaseTabReservation(taskId)
+    }
+  }, [props.taskId])
 
   const updateRef = useLatest(update)
 

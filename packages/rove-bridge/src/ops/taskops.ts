@@ -10,8 +10,7 @@
 import { existsSync, realpathSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 import { extname, join, sep } from "node:path"
-import { updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
-import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
+import type { SharedTabs, TabOp } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import {
   expandHome,
   filterSubdirs,
@@ -31,7 +30,7 @@ import { moveTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { BridgeError, optStr } from "../protocol.ts"
 import { flag, oneOf, tabId, taskId } from "./args.ts"
 import { effortLevel, engineId, model, taskOpDeps } from "./tasks-shared.ts"
-import type { Args, OpContext, OpTable } from "./types.ts"
+import type { Args, BridgeApi, OpContext, OpTable } from "./types.ts"
 
 /** More names than a picker can show; the client filters the rest by typing. */
 const SUBDIR_CAP = 200
@@ -40,8 +39,8 @@ const PATH_MAX = 1000
 export interface TaskOpsDeps {
   homeDir(): string
   buildCIPrompt: typeof buildCIPromptForWorktree
-  /** Swap a tab with its neighbour in the persisted strip order; false at an edge or for an unknown tab. */
-  reorderTab(taskId: string, tabId: string, delta: -1 | 1): boolean
+  /** Swap a tab with its neighbour in the daemon's strip order; false at an edge or for an unknown tab. */
+  reorderTab(taskId: string, tabId: string, delta: -1 | 1, api: BridgeApi): Promise<boolean>
   /** The Mac's own opener (`open` / `xdg-open`) on an absolute path; fire and forget. */
   openExternal(absPath: string): void
   /** The Mac's editor for `o`: the `ROVE_OPEN_EDITOR` override, else an installed editor CLI or app; null when none. */
@@ -56,18 +55,22 @@ export interface TaskOpsDeps {
   runnable(path: string): boolean
 }
 
-function reorderPersistedTab(taskId: string, tab: string, delta: -1 | 1): boolean {
-  let moved = false
-  updateStateFile((store) => {
-    const state = store[terminalTabsKey(taskId)] as TabsState | undefined
-    if (!state || !Array.isArray(state.tabs)) return false
-    const next = moveTab(state, tab, delta)
-    if (next === state) return false
-    store[terminalTabsKey(taskId)] = next
-    moved = true
-    return undefined
-  })
-  return moved
+/**
+ * The TUI's `moveTab` on the daemon's current tabs (`tabs.get`), sent as one
+ * `order` op: the daemon owns the tabs and publishes the new order on
+ * `tabs.changed`. Ids only, so a tab another client opened in between keeps
+ * its place after the ones named.
+ */
+export async function reorderDaemonTab(taskId: string, tab: string, delta: -1 | 1, api: BridgeApi): Promise<boolean> {
+  const { state } = await api.rpc<{ state: SharedTabs | null }>("tabs.get", { taskId })
+  if (!state || !Array.isArray(state.tabs)) return false
+  // `moveTab` reads only the order; `activeId` is no client's here.
+  const current = { ...state, activeId: state.activeId ?? "" } as unknown as TabsState
+  const next = moveTab(current, tab, delta)
+  if (next === current) return false
+  const ops: TabOp[] = [{ op: "order", ids: next.tabs.map((t) => t.id) }]
+  await api.rpc("tabs.apply", { taskId, ops })
+  return true
 }
 
 function canonical(path: string): string | null {
@@ -99,7 +102,7 @@ const realDeps: TaskOpsDeps = {
   runnable,
   homeDir: homedir,
   buildCIPrompt: buildCIPromptForWorktree,
-  reorderTab: reorderPersistedTab,
+  reorderTab: reorderDaemonTab,
 }
 
 /** A typed path as the dialog holds it: absolute or `~`-led, never relative to the bridge's cwd. */
@@ -242,10 +245,10 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
     "tab.move": {
       kind: "write",
       destructive: false,
-      wraps: "state.json terminalTabs.<task> order (moveTab)",
-      async run(a) {
+      wraps: "rpc tabs.apply order (the TUI's moveTab on tabs.get)",
+      async run(a, { api }) {
         const direction = oneOf(a, "direction", ["up", "down"] as const)
-        return { moved: deps.reorderTab(taskId(a), tabId(a), direction === "up" ? -1 : 1) }
+        return { moved: await deps.reorderTab(taskId(a), tabId(a), direction === "up" ? -1 : 1, api) }
       },
     },
 

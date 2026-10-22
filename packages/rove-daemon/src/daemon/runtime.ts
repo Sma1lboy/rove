@@ -31,6 +31,11 @@ export type { PollCadenceConfig, PollScheduleState } from "./poll-scheduling.ts"
 export interface DaemonRuntimeAdapter {
   readonly currentVersion: string
   /**
+   * Where the tab store keeps tasks' terminal tabs (rove: the `terminalTabs.*`
+   * keys of state.json). Absent in test doubles: tabs live in memory only.
+   */
+  readonly tabsPersistence?: import("./tabs-store.ts").TabsPersistence
+  /**
    * Run one `rove api` verb in the daemon process, against this daemon's own
    * socket. Never rejects: a refusal is an `ok: false` envelope. Absent in
    * test doubles, where `api.invoke` refuses.

@@ -13,7 +13,7 @@ import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import type { Task } from "../../types/task.ts"
 import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
-import { type TabsSnapshotKv, sweepOrphanTabsSnapshots } from "./terminal-tabs-persist"
+import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { forgetTaskTabs, knownTaskTabs, reviveEmptiedTabs } from "./terminal-tabs-shared"
 import { activateWorkspaceTask, activationErrorMessage, firstSelectableTask } from "./use-task-selection"
 
@@ -80,25 +80,6 @@ export function useWorkspaceSelection(args: {
     // while disk knows the real one.
     setSelectedId(firstSelectableTask(tasks, activeTaskId, readLastActiveTaskId())?.id ?? null)
   }, [tasks, activeTaskId, selectedId, args.focusWorkspace])
-
-  // Orphan sweep of `terminalTabs.*` on EVERY task-list change: a sibling
-  // client's delete only arrives as a changed list (forgetTaskTabs covers this
-  // client's deletes alone), and orphans tax every kv write. Idempotent and
-  // cheap; a live task's id is always in the list.
-  //
-  // The `tasks.length === 0` guard is load-bearing and SUFFICIENT: the list only
-  // comes from the daemon's index (`hello.tasks` / `task.snapshot`), a corrupt
-  // manifest recovers to EMPTY not truncated, and a foreign-home daemon is
-  // rejected first. So non-empty is authoritative. Empty is exactly what a
-  // pre-connection render and a corrupt-manifest recovery look like; sweeping
-  // on it would wipe every live snapshot. Don't relax it.
-  useEffect(() => {
-    if (tasks.length === 0) return
-    sweepOrphanTabsSnapshots(
-      kv,
-      tasks.map((task) => task.id),
-    )
-  }, [tasks, kv])
 
   // The one place tab shells die with their task: tab PTYs are keyed
   // `taskId::tabId` in the default registry, invisible once the pane unmounts,
