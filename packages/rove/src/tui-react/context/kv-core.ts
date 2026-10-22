@@ -14,8 +14,8 @@
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
-import { loadStateFile, patchStateFile, readStateFileStrict, replaceStateFile } from "../../state/store.ts"
 import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
+import { loadStateFile, patchStateFile, readStateFileStrict, replaceStateFile } from "../../state/store.ts"
 import { TERMINAL_TABS_PREFIX } from "../../state/tabs-persistence.ts"
 import { ZEN_ACTIVE_KEY } from "../../state/zen.ts"
 

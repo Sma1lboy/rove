@@ -29,12 +29,12 @@ import { DEFAULT_PR_STATUS_POLL_MS, startPrStatusPoller } from "./pr-status-coll
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
 import { type QuotaUsageCache, startQuotaUsagePoller } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { DEFAULT_STATE_DEBOUNCE_MS, startStateWatcher } from "./state-watcher.ts"
 import { startTicker } from "./ticker.ts"
 import {
   DEFAULT_TRANSCRIPT_ACTIVITY_TICK_MS,
   startTranscriptActivityCollector,
 } from "./transcript-activity-collector.ts"
-import { DEFAULT_STATE_DEBOUNCE_MS, startStateWatcher } from "./state-watcher.ts"
 import { DEFAULT_UI_PREFS_DEBOUNCE_MS, defaultUiPrefsStatePath, startUiPrefsWatcher } from "./ui-prefs-watcher.ts"
 import { DEFAULT_WORKTREE_CHANGES_TICK_MS, startWorktreeChangesCollector } from "./worktree-changes-collector.ts"
 

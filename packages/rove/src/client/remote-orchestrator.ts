@@ -386,13 +386,9 @@ export class RemoteOrchestrator {
     writes.reportEngineInterruptOp(this.client, String(taskId), tabId)
 
   readonly uiPrefsSignal = (): ReadableState<UiPrefsPayload | null> => this.uiPrefsAcc
-
   readonly uiPrefsStore = (): ExternalStore<UiPrefsPayload | null> => this.uiPrefsAcc
-  /** The daemon's `state` push; null until the first one. */
   readonly sharedStateSignal = (): ReadableState<Readonly<Record<string, unknown>> | null> => this.sharedStateAcc
-
   readonly keybindingsRevSignal = (): ReadableState<number | null> => this.keybindingsRevAcc
-
   readonly keybindingsRevStore = (): ExternalStore<number | null> => this.keybindingsRevAcc
 
   readonly listTasks = (): Task[] => this.tasksAcc()
