@@ -31,8 +31,8 @@ already paired with `rove-bridge` keeps working: the two share one token.
   engine, copy the task ID, branch or path, land, delete.
 - Drag a project header up or down among projects, or a task among its
   project's tasks (pinned and unpinned tasks stay in their own groups). The
-  order is the daemon's, so the TUI and phones follow. Only in the default
-  sort, outside a search.
+  other rows slide aside to show where it lands. The order is the daemon's, so
+  the TUI and phones follow. Only in the default sort, outside a search.
 - `+ New task` at the bottom of the rail, and `+` in the tab strip for a new
   conversation. The first message is optional, as in the TUI's picker: without
   one you get a plain engine (or shell) tab. A fork to new tasks needs one.

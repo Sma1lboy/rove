@@ -89,16 +89,21 @@
   color: var(--accent);
 }
 
-/* Drag to reorder: where the dragged row would land. */
+/* Drag to reorder: the rows already stand where the drop leaves them; the dragged one is washed. */
 
-.row.is-drop-above,
-.project-head.is-drop-above {
-  box-shadow: inset 0 2px 0 var(--accent);
+.row.is-dragging,
+.project-head.is-dragging {
+  background: var(--accent-soft);
 }
 
-.row.is-drop-below,
-.project-head.is-drop-below {
-  box-shadow: inset 0 -2px 0 var(--accent);
+.rail-body.is-sorting > [data-row] {
+  transition: transform 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-body.is-sorting > [data-row] {
+    transition: none;
+  }
 }
 
 /* A confirm body may carry a reason after a blank line (force delete). */

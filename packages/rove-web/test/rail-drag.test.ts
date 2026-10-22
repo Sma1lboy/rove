@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
-import { dragSteps } from "../src/rail.ts"
+import { type NavRow, dragSteps, dropSteps, previewDrop } from "../src/rail.ts"
 
 const task = (id: string, repo: string, order: number, extra: Partial<TaskRow> = {}): TaskRow =>
   ({ id, title: id, repo, kind: "task", branch: id, rank: 1, order, ...extra }) as TaskRow
@@ -26,4 +26,27 @@ test("a drop across projects, pins or kinds is refused", () => {
   expect(dragSteps(tasks, a1, pinned)).toBeNull()
   expect(dragSteps(tasks, a1, mainA)).toBeNull()
   expect(dragSteps(tasks, a1, a1)).toBeNull()
+})
+
+test("a drop lands right above or below the row it was let go on", () => {
+  expect(dropSteps(tasks, a1, a3, "below")).toBe(2)
+  expect(dropSteps(tasks, a1, a3, "above")).toBe(1)
+  expect(dropSteps(tasks, a3, a1, "above")).toBe(-2)
+  expect(dropSteps(tasks, a3, a1, "below")).toBe(-1)
+})
+
+test("the preview moves a row with everything nested under it", () => {
+  const row = (id: string, kind: NavRow["kind"]) => ({ id, kind }) as NavRow
+  const rows = [
+    row("A", "project"),
+    row("a1", "task"),
+    row("a1::tab-1", "tab"),
+    row("a2", "task"),
+    row("B", "project"),
+    row("b1", "task"),
+  ]
+  const ids = (out: readonly NavRow[]) => out.map((r) => r.id)
+  expect(ids(previewDrop(rows, "a1", "a2", "below"))).toEqual(["A", "a2", "a1", "a1::tab-1", "B", "b1"])
+  expect(ids(previewDrop(rows, "B", "A", "above"))).toEqual(["B", "b1", "A", "a1", "a1::tab-1", "a2"])
+  expect(ids(previewDrop(rows, "A", "B", "below"))).toEqual(["B", "b1", "A", "a1", "a1::tab-1", "a2"])
 })
