@@ -43,7 +43,32 @@ const XTERM_THEME = {
   brightWhite: "#eae7df",
 }
 
-const FONT_FAMILY = '"JetBrains Mono", "Symbols Nerd Font Mono", "SF Mono", ui-monospace, Menlo, monospace'
+/**
+ * The bundled JetBrains Mono first; then any Nerd Font installed on the viewer's machine, so the
+ * icons engines draw (Claude Code's status line, prompt themes) render instead of boxes. Nerd Fonts
+ * v3 family names; the browser falls back per glyph, so only the icon code points come from these.
+ */
+const NERD_FALLBACKS = [
+  "Symbols Nerd Font Mono",
+  "JetBrainsMono Nerd Font Mono",
+  "JetBrainsMonoNL Nerd Font Mono",
+  "FiraCode Nerd Font Mono",
+  "Hack Nerd Font Mono",
+  "MesloLGS Nerd Font Mono",
+  "CaskaydiaCove Nerd Font Mono",
+  "Symbols Nerd Font",
+  "JetBrainsMono Nerd Font",
+  "FiraCode Nerd Font",
+  "MesloLGS NF",
+]
+const FONT_FAMILY = [
+  '"JetBrains Mono"',
+  ...NERD_FALLBACKS.map((f) => `"${f}"`),
+  '"SF Mono"',
+  "ui-monospace",
+  "Menlo",
+  "monospace",
+].join(", ")
 
 /** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
 export const SCROLL_PAGE_LINES = 10
@@ -200,6 +225,22 @@ export function mountTerminal(o: MountOpts): TermHandle {
       for (const bytes of held) term.write(bytes)
       stream = res.stream
       alive = res.alive
+      // The ring replay of a long session starts mid-repaint, so a reattach at an unchanged size
+      // draws a mostly blank screen. A one-row size nudge makes the engine repaint in full (the
+      // host only SIGWINCHes on a size change).
+      if (res.alive && term.rows > 2) {
+        const { cols, rows } = term
+        const owner = res.stream
+        void client
+          .request("term.resize", { stream: owner, cols, rows: rows - 1 })
+          .then(() => new Promise((ok) => window.setTimeout(ok, 60)))
+          .then(() =>
+            stream === owner
+              ? client.request("term.resize", { stream: owner, cols: term.cols, rows: term.rows })
+              : undefined,
+          )
+          .catch(() => {})
+      }
       if (res.alive && document.activeElement === term.textarea) activeStream.set(res.stream)
       o.setNotice(res.alive ? { kind: "none" } : { kind: "restored" })
     } catch (err) {
