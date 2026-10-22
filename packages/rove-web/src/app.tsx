@@ -104,6 +104,8 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const task = payload?.tasks.find((row) => row.id === selection.taskId) ?? reachable ?? null
   const remoteTask = reachable ? undefined : remote.find((row) => row.id === selection.taskId)
   const tabs = task ? (allTabs[task.id] ?? []) : []
+  // Before the first `task.tabs` reply the task's tabs are unknown, not empty: no "no sessions" flash.
+  const tabsKnown = task ? task.id in allTabs : false
   const view = useStore(preview)
   const shown = view && task && view.taskId === task.id ? view : null
   const zenOn = useStore(zen)
@@ -209,7 +211,7 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
             <RemoteNotice host={remoteTask.machine.label} />
           </div>
         )}
-        {task && tabs.length === 0 && !shown && (
+        {task && tabsKnown && tabs.length === 0 && !shown && (
           <div className="placeholder">
             <p>{t("workspace.noTabs")}</p>
             <button type="button" className="button" onClick={() => void newChatHere(model, task.id)}>
