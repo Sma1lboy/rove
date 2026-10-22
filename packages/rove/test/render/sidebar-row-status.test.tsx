@@ -117,15 +117,14 @@ async function worktreeFrame(tabsListed: boolean): Promise<string> {
   return await frame()
 }
 
-test("a task row shows the rollup only when its tab list is not showing", async () => {
+test("a task row shows no status, listed tabs or not: status lives on tab rows", async () => {
   seed({ kind: "needs-input", since: NOW, state: "permission_needed" })
-  expect(await worktreeFrame(false)).toContain(`${DEFAULT_GLYPHS.needsInput} feat/alpha`)
   // (A trailing `?` on the row is the unknown-changes mark, not a status.)
+  expect(await worktreeFrame(false)).not.toContain(`${DEFAULT_GLYPHS.needsInput} feat/alpha`)
   expect(await worktreeFrame(true)).not.toContain(`${DEFAULT_GLYPHS.needsInput} feat/alpha`)
 
   seed({ kind: "unseen", since: NOW })
-  expect(await worktreeFrame(false)).toContain(`${DEFAULT_GLYPHS.unseen} feat/alpha`)
-  expect(await worktreeFrame(true)).not.toContain(`${DEFAULT_GLYPHS.unseen} feat/alpha`)
+  expect(await worktreeFrame(false)).not.toContain(`${DEFAULT_GLYPHS.unseen} feat/alpha`)
 })
 
 test("another machine's task row shows the status built from the hub's relayed tab readings", async () => {
@@ -142,7 +141,8 @@ test("another machine's task row shows the status built from the hub's relayed t
       ],
     ]),
   )
-  expect(await worktreeFrame(false)).toContain(`${DEFAULT_GLYPHS.needsInput} feat/alpha`)
+  // The status shows on the tab rows, not on the task row.
+  expect(await worktreeFrame(false)).not.toContain(`${DEFAULT_GLYPHS.needsInput} feat/alpha`)
   const { frame } = await renderComponent(
     <TabTreeRow rowId="alpha::tab-1" flatIndex={0} task={TASK} tab={TAB} shared={shared()} />,
     { width: 30, height: 3 },

@@ -295,7 +295,7 @@ function RailRow(props: {
     )
   }
   const task = row.task
-  const glyph = taskRowGlyph(task, props.tabsShown, props.frame, glyphs)
+  const glyph = taskRowGlyph(task, props.frame, glyphs)
   const changes = task.changes && "added" in task.changes ? task.changes : null
   const running = task.rowStatus?.kind === "running"
   return (

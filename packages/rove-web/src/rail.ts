@@ -353,13 +353,9 @@ export function tabRowGlyph(task: TaskRow, tab: TabRow, frame: number, glyphs: R
  * tab shows its own and the task row shows none, except a task-level job or deletion (`busy`),
  * which belongs to no tab.
  */
-export function taskRowGlyph(
-  task: TaskRow,
-  tabsShown: boolean,
-  frame: number,
-  glyphs: RowGlyphs = BRAILLE,
-): StatusMark | null {
-  if (tabsShown && task.rowStatus?.kind !== "busy") return null
+export function taskRowGlyph(task: TaskRow, frame: number, glyphs: RowGlyphs = BRAILLE): StatusMark | null {
+  // Status lives on tab rows; a task row only spins while its worktree is made or the task deleted.
+  if (task.rowStatus?.kind !== "busy") return null
   return statusGlyph(task.rowStatus, frame, glyphs)
 }
 

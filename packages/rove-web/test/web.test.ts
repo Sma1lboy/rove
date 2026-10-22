@@ -175,14 +175,13 @@ describe("row status marks (the daemon's, through row-status-glyph)", () => {
     expect(tabRowGlyph(rowWith(undefined), listed, 0).glyph).toBe("○")
   })
 
-  test("a task row shows the rollup only when its tabs are not listed under it", () => {
-    const task = rowWith(st("needs-input"), { a: tabSt("needs-input") })
-    expect(taskRowGlyph(task, true, 0)).toBeNull()
-    expect(taskRowGlyph(task, false, 0)).toEqual({ glyph: "?", tone: "warning", spinning: false })
-    // A task-level job or deletion belongs to no tab: it spins on the task row either way.
+  test("a task row shows no status (tab rows do); it only spins for a job or deletion", () => {
+    expect(taskRowGlyph(rowWith(st("needs-input"), { a: tabSt("needs-input") }), 0)).toBeNull()
+    expect(taskRowGlyph(rowWith(st("unseen")), 0)).toBeNull()
+    expect(taskRowGlyph(rowWith(undefined), 0)).toBeNull()
+    // A task-level job or deletion belongs to no tab: it spins on the task row.
     const deleting = rowWith({ kind: "busy", reason: "deleting", since: 1 }, { a: tabSt("idle") })
-    expect(taskRowGlyph(deleting, true, 0)).toMatchObject({ tone: "accent", spinning: true })
-    expect(taskRowGlyph(rowWith(undefined), false, 0)).toEqual({ glyph: "○", tone: "muted", spinning: false })
+    expect(taskRowGlyph(deleting, 0)).toMatchObject({ tone: "accent", spinning: true })
   })
 
   test("the spinner ticks for a running tab or a busy row; a fold counts rows that need a person", () => {
