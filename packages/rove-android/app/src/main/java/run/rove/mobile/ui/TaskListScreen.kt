@@ -61,13 +61,14 @@ internal data class ListActions(
     var request by remember { mutableStateOf<ProjectRequest?>(null) }
     val actions = ListActions(onSelect, model::refresh, onCreate, { open(Route.Inbox) }, open, model::unpair,
         { id, direction -> model.action { model.repository.moveTask(id, direction); model.refresh() } }, { request = it })
-    TaskListContent(tasks, host, connection, engines, controls, tabTitles, actions)
+    TaskListContent(tasks, host, connection, engines, controls, tabTitles, actions, mods)
     ProjectSheets(model, request) { request = it }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun TaskListContent(tasks: Tasks, host: String, connection: Connection, engines: List<Engine>,
-                                         controls: ListControls, tabTitles: Map<String, List<String>>, actions: ListActions) {
+                                         controls: ListControls, tabTitles: Map<String, List<String>>, actions: ListActions,
+                                         mods: ModGate = ModGate.Legacy) {
     val repos = remember(tasks.tasks) { TaskListLogic.repos(tasks.tasks) }
     // A filter whose project disappeared (forgotten, say) stops filtering, as iOS clears it.
     val filter = controls.filter?.takeIf { it in repos }
