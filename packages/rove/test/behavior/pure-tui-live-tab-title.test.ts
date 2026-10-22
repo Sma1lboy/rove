@@ -24,6 +24,7 @@ import { SIDEBAR_WIDTH } from "../../src/tui/panes/sidebar/view-core.ts"
 import {
   type BehaviorEnv,
   DIST_ROVE_CLI,
+  applyTabOps,
   closeTui,
   loadNodePty,
   makeBehaviorEnv,
@@ -124,9 +125,8 @@ describe.skipIf(!nodePty)("Pure TUI sidebar shows an unselected task's live tab 
     const state = await readState()
     const snapshot = state[key] as { tabs: { id: string; lastTitle?: string | null }[] }
     expect(snapshot?.tabs?.[0]?.id, "B's snapshot never listed tab-1").toBe("tab-1")
-    const firstTab = snapshot.tabs[0] as { lastTitle?: string | null }
-    firstTab.lastTitle = STALE
-    await writeFile(statePath, JSON.stringify(state))
+    // Recorded through the daemon, the tabs' only writer.
+    await applyTabOps(env, taskB, [{ op: "patch", id: "tab-1", set: { lastTitle: STALE } }])
 
     const term = new Terminal({ cols: COLS, rows: ROWS, allowProposedApi: true })
     // This child would inherit vitest's markers, and the host-session poll —

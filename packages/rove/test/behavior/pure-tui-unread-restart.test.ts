@@ -21,6 +21,7 @@ import { SIDEBAR_WIDTH } from "../../src/tui/panes/sidebar/view-core.ts"
 import {
   type BehaviorEnv,
   DIST_ROVE_CLI,
+  applyTabOps,
   closeTui,
   loadNodePty,
   makeBehaviorEnv,
@@ -164,27 +165,24 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
       expect(await readState(), "launch #1 never recorded the completion as read").toHaveProperty("completionSeen")
     })
 
-    // The ordering this whole test rests on. Launch #1 flushes its KV store
-    // from `process.on("exit")`, dirty-key-merging its own `terminalTabs`
-    // snapshot onto the file — so if it is still alive here, that flush lands
-    // AFTER the rewrite below and silently reverts it.
-    expect(alive(lastTuiPid), "launch #1 was still running when the test rewrote its state").toBe(false)
+    // Launch #2 must be a fresh process, with none of launch #1's session-only seen bits.
+    expect(alive(lastTuiPid), "launch #1 was still running before launch #2").toBe(false)
 
-    // Between launches the user leaves that tab: tab-2 is what the next
-    // launch opens, so tab-1's row is a session nobody is looking at.
+    // Between launches the user leaves that tab: tab-2 is what the next launch opens, so tab-1's
+    // row is a session nobody is looking at. Tabs are the daemon's (`tabs-store.ts`), which outlives
+    // the TUI and is the only writer of them, so the change goes through it rather than state.json.
+    // Idempotent for a `--retry`: tab-2 already open is refused, focus is a set.
     const state = await readState()
-    const snapshot = state[key] as { tabs: unknown[]; activeId: string; nextOrdinal: number }
-    expect((snapshot?.tabs?.[0] as { id?: string } | undefined)?.id).toBe("tab-1")
-    // Write the WHOLE snapshot rather than pushing onto whatever is there:
-    // vitest does not re-run `beforeAll` for a `--retry`, so a
-    // read-modify-write would stack a SECOND tab-2 on attempt 2 and the retry
-    // would exercise a tab list this test never described.
-    state[key] = {
-      tabs: [snapshot.tabs[0], { kind: "engine", id: "tab-2", title: null, ordinal: 2 }],
-      activeId: "tab-2",
-      nextOrdinal: 3,
-    }
-    await writeFile(statePath, JSON.stringify(state))
+    const snapshot = state[key] as { tabs: { id?: string }[] } | undefined
+    expect(snapshot?.tabs?.[0]?.id).toBe("tab-1")
+    await applyTabOps(env, taskId, [
+      { op: "open", row: { kind: "engine", id: "tab-2", title: null, ordinal: 2 } },
+      { op: "focus", id: "tab-2" },
+    ])
+    await poll(
+      async () => ((await readState())[key] as { activeId?: string } | undefined)?.activeId === "tab-2",
+      10_000,
+    )
 
     // Launch #2 — the daemon replays the very same turn_complete it never
     // forgot, against a process whose in-memory seen bits are empty.
