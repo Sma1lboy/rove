@@ -10,6 +10,11 @@ describe("presets", () => {
     expect(parseBridgeArgs([], { tailscale: TS })).toMatchObject({ preset: "none", hosts: ["127.0.0.1"], tls: false })
   })
 
+  test("a plain tunnel keeps loopback and names its https host", () => {
+    const a = parseBridgeArgs(["--public-host", "rove.example.com"], { config: { publicHost: "saved.example.com" } })
+    expect(a).toMatchObject({ preset: "none", hosts: ["127.0.0.1"], publicHost: "rove.example.com", tls: true })
+  })
+
   test("tailscale binds only the tailnet address and pairs over MagicDNS", () => {
     const a = parseBridgeArgs(["--preset", "tailscale"], { tailscale: TS })
     expect(a).toMatchObject({ hosts: ["100.64.1.2"], publicHost: "mac.tail1234.ts.net", tls: false })

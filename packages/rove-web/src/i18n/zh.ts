@@ -44,6 +44,17 @@ export const zh: typeof en = {
     failing: "连不上 rove。`rove --web` 还在运行吗？用过 `--rotate-token` 的话，请打开新的链接。",
     forget: "忘掉这个链接",
   },
+  login: {
+    title: "登录",
+    body: "输入用 `rove --web --set-password` 设置的密码。",
+    field: "密码",
+    submit: "登录",
+    checking: "验证中…",
+    wrong: "登录失败",
+    locked: "这里尝试次数过多；{minutes} 分钟后再试",
+    lockedHost: "密码登录已锁定；在主机上运行 `rove --web --unlock`",
+    unreachable: "连不上 rove。`rove --web` 还在运行吗？",
+  },
   dialog: {
     cancel: "取消",
     save: "保存",
@@ -173,6 +184,9 @@ export const zh: typeof en = {
       daemon: "守护进程",
       daemonCurrent: "rove {version} · 与本页同一版本",
       daemonStale: "rove {version} · 版本过旧；运行 `rove daemon restart`",
+      browser: "此浏览器",
+      browserHint: "忘掉此浏览器的令牌。登录得到的令牌也会在主机上吊销。",
+      signOut: "退出登录",
     },
     engines: {
       enabled: "选引擎时列出 {name}",
