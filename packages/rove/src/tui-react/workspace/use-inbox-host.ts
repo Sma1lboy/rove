@@ -46,16 +46,17 @@ export function useInboxHost(args: {
   const { orchestrator: orch } = args
   // Tab existence comes from the daemon's tabs (`tabs-sync.ts`), not the kv: recompute on its revision.
   const tabsRev = useAccessor(tabsRevision)
-  const { availableItems, unavailableItems } = useMemo(
-    () =>
+  const { availableItems, unavailableItems } = useMemo(() => {
+    void tabsRev
+    return (
       // Tri-state (see taskTabExists): `undefined` when this task has no
       // readable tab list here, so an episode is never deleted just because
       // its task hasn't mounted in this process.
       partitionAttentionInboxAvailability(args.items, args.tasks, (taskId, tabId) =>
         taskTabExists(args.kv, taskId, tabId),
-      ),
-    [args.items, args.tasks, args.kv, tabsRev],
-  )
+      )
+    )
+  }, [args.items, args.tasks, args.kv, tabsRev])
   // Episodes targeting what you're ALREADY looking at never surface: the
   // daemon records them unconditionally and the push beats the background
   // dismiss below, so without this sync filter the count flashes 1 → 0 on
