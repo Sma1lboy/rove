@@ -1,5 +1,5 @@
 # sidebar frame: tab-idle
-# a KNOWN-idle tab (the daemon reported it) wears the hollow circle, unlike its unknown siblings
+# a KNOWN-idle tab (the daemon reported it) wears the hollow circle, like its unreported siblings
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |

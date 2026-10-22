@@ -7,7 +7,7 @@
  *     → `rove hook <verb>` gate (`isEngineActivityKind`)
  *     → adapter fire-time translation (stdin payload → neutral detail)
  *     → daemon reduce (`DaemonActivityRegistry` / `reduceActivity`)
- *     → `engine-state` payload → the `TaskEngineState` a sidebar row gets
+ *     → `engine-state` payload → the daemon's row status (`tabStatus`)
  *     → `buildSidebarRowView` badge.
  *
  * The point: the neutral vocabulary (`EngineActivityKind` →
@@ -19,6 +19,7 @@
 
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
+import { tabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { describe, expect, it } from "vitest"
 import type { TaskEngineState } from "../../src/client/remote-orchestrator.ts"
 import { ClaudeHookAdapter, claudeVerbForHookEvent } from "../../src/engine/claude-code-local/hook-adapter.ts"
@@ -74,10 +75,19 @@ function rowAfterClaudeHook(event: string, payload: Record<string, unknown>) {
     const activity: TaskEngineState | undefined = published
       ? { state: published.state, detail: published.detail, at: published.at }
       : undefined
-    // 6. Render: the sidebar badge.
+    // 6. The daemon's row status for the task row (`row-status-store.ts`): a
+    //    finished turn also opens an inbox episode, unseen until viewed.
+    const status = activity
+      ? tabStatus({
+          activity: { state: activity.state, at: activity.at },
+          ...(activity.state === "turn_complete" ? { pending: { state: "turn_complete", at: activity.at } } : {}),
+          viewed: false,
+        })
+      : undefined
+    // 7. Render: the sidebar badge.
     return buildSidebarRowView({
       task: task(),
-      activity,
+      status,
       spinnerFrame: 0,
       subtitleBudget: 80,
       truncateBranch: (b) => b,

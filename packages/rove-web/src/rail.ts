@@ -1,11 +1,13 @@
 /**
  * The Tasks rail's shape: project → task → tab, with the TUI's sort modes
- * (`project-groups.ts`), `/` filter (`tree-search.ts`) and status glyph
- * vocabulary (`tui/panes/sidebar/row-view.ts`, braille preset).
+ * (`project-groups.ts`) and `/` filter (`tree-search.ts`), and what each row's
+ * status mark is: the daemon's row status (`row.status`) through the one mapping
+ * every client uses (`rove/src/lib/row-status-glyph.ts`).
  */
 
+import { type RowTone, rowStatusGlyph } from "@sma1lboy/rove/src/lib/row-status-glyph.ts"
 import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
-import type { TabRow, TaskRow } from "rove-bridge/protocol"
+import type { RowStatus, TabRow, TabStatus, TaskRow } from "rove-bridge/protocol"
 import type { GlyphSet } from "./prefs.ts"
 
 export type SortMode = "default" | "recent" | "attention" | "name"
@@ -320,23 +322,58 @@ export const BRAILLE: RowGlyphs = {
   attention: "!",
 }
 
-export function activityGlyph(
-  state: string | undefined,
+/** The web palette for a status tone: a wait you can clear is amber, what stays broken is red. */
+const TONE: Readonly<Record<RowTone, Tone>> = {
+  accent: "accent",
+  warning: "warning",
+  error: "attention",
+  muted: "muted",
+}
+
+export interface StatusMark {
+  readonly glyph: string
+  readonly tone: Tone
+  readonly spinning: boolean
+}
+
+/** A daemon status as a rail draws it; no status (no reading yet) is a quiet row. */
+export function statusGlyph(status: RowStatus | undefined, frame: number, glyphs: RowGlyphs = BRAILLE): StatusMark {
+  const mark = rowStatusGlyph(status, glyphs, frame)
+  return { glyph: mark.glyph, tone: TONE[mark.tone], spinning: mark.spinning }
+}
+
+/** The daemon's status of one of a task's tabs: the pushed one on the row, else the one read with the tab list. */
+export function tabStatusOf(task: TaskRow, tab: TabRow): TabStatus | undefined {
+  return task.tabStatus?.[tab.id] ?? tab.status
+}
+
+/** A tab row's mark: its own status (a dead tab the daemon says nothing about stays a muted idle). */
+export function tabRowGlyph(task: TaskRow, tab: TabRow, frame: number, glyphs: RowGlyphs = BRAILLE): StatusMark {
+  return statusGlyph(tabStatusOf(task, tab), frame, glyphs)
+}
+
+/**
+ * A task row's mark. The rollup is what a folded row shows: with its tabs listed underneath, each
+ * tab shows its own and the task row shows none, except a task-level job or deletion (`busy`),
+ * which belongs to no tab.
+ */
+export function taskRowGlyph(
+  task: TaskRow,
+  tabsShown: boolean,
   frame: number,
   glyphs: RowGlyphs = BRAILLE,
-): { glyph: string; tone: Tone } {
-  switch (state) {
-    case "running":
-      return { glyph: glyphs.spinner[frame % glyphs.spinner.length] ?? glyphs.idle, tone: "accent" }
-    case "permission_needed":
-      return { glyph: glyphs.needsInput, tone: "warning" }
-    case "rate_limited":
-    case "error":
-    case "dead":
-      return { glyph: glyphs.attention, tone: "attention" }
-    case "turn_complete":
-      return { glyph: glyphs.unseen, tone: "accent" }
-    default:
-      return { glyph: glyphs.idle, tone: "muted" }
-  }
+): StatusMark | null {
+  if (tabsShown && task.rowStatus?.kind !== "busy") return null
+  return statusGlyph(task.rowStatus, frame, glyphs)
+}
+
+/** Some row on screen spins: the shared spinner clock must tick. */
+export function anySpinning(tasks: readonly TaskRow[]): boolean {
+  const spins = (status: RowStatus | undefined) => status?.kind === "running" || status?.kind === "busy"
+  return tasks.some((task) => spins(task.rowStatus) || Object.values(task.tabStatus ?? {}).some(spins))
+}
+
+/** A folded group's rows that need a person: something to answer or something broken. */
+export function needsPerson(task: TaskRow): boolean {
+  return task.rowStatus?.kind === "needs-input" || task.rowStatus?.kind === "attention"
 }

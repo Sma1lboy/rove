@@ -34,6 +34,7 @@ import { machineStore } from "./ops/machines.ts"
 import { PromptFeed } from "./prompts.ts"
 import { BridgeError } from "./protocol.ts"
 import { createRoveOps } from "./rove-ops.ts"
+import { RowStatusFeed } from "./row-status.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
 import { TabFeed } from "./tab-feed.ts"
 import { usageStore } from "./usage-store.ts"
@@ -43,6 +44,10 @@ import type { WebRoot } from "./web-static.ts"
 const TICK_MS = 15_000
 /** The TUI rewrites state.json in bursts; one diff per burst. */
 const TABS_DEBOUNCE_MS = 200
+
+/** Wait before reopening the row-status socket after the daemon dropped it. */
+const STATUS_RECONNECT_MS = 1_000
+const STATUS_RECONNECT_MAX_MS = 30_000
 
 /** The Mac App Store build ships its CLI inside the app bundle. */
 const TAILSCALE_BINARIES = ["tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale"]
@@ -153,6 +158,27 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     const alias = task?.origin?.machineId
     return alias && alias !== "local" ? alias : undefined
   }
+  // The daemon's row status gets its own socket too: `ui.viewing` is keyed by connection, and the
+  // daemon clears a connection's reports when it closes, so this one lives as long as the bridge.
+  const statusClient = new RoveDaemonClient(daemonSocket)
+  const rowStatus = new RowStatusFeed(statusClient)
+  let statusRetryMs = STATUS_RECONNECT_MS
+  const syncStatus = async (): Promise<void> => {
+    try {
+      await statusClient.subscribe({ channels: ["row.status"], role: "pane" })
+      await rowStatus.resync()
+      statusRetryMs = STATUS_RECONNECT_MS
+    } catch {
+      // Daemon mid-restart: try again, backing off while it stays away.
+      statusClient.forceDisconnect()
+      setTimeout(() => void syncStatus(), statusRetryMs)
+      statusRetryMs = Math.min(statusRetryMs * 2, STATUS_RECONNECT_MAX_MS)
+    }
+  }
+  statusClient.onLifecycle("close", () => {
+    setTimeout(() => void syncStatus(), STATUS_RECONNECT_MS)
+  })
+  await syncStatus()
   const api = createBridgeApi(verbClient, {
     machineOf,
     forward: (alias, verb, params) => forwardVerb(requireMachine(alias), verb, params),
@@ -170,13 +196,14 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
           .filter((task) => task.origin && task.origin.machineId !== "local")
           .map((task) => ({ ...task, kind: task.kind ?? "task", pinned: task.pinned ?? false })),
       remoteLive: () => hub.liveSignal().get(),
+      rowStatus: () => rowStatus.current(),
     },
     api,
   )
   const feed = new TaskFeed(() => ops.tasks())
   for (const signal of [
     orchestrator.tasksSignal(),
-    orchestrator.engineStateSignal(),
+    rowStatus,
     orchestrator.attentionInboxSignal(),
     orchestrator.worktreeChangesSignal(),
     orchestrator.rowTokensSignal(),
@@ -232,6 +259,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     prompts,
     mods,
     tabs,
+    rowStatus,
     deviceOf: (presented) => deviceOf(devicesPath, presented),
     openPty: () => new RoveDaemonClient(ptySocket),
     openMachinePty: async (alias) => {

@@ -3,7 +3,8 @@
  * The `--count N` fan-out's most visible minute: N freshly created siblings
  * with no branch yet, no engine activity yet, and no tab rows yet, while the
  * daemon publishes `task.jobs {phase:"running"}` for every one of them through
- * a minutes-long `git worktree add`.
+ * a minutes-long `git worktree add`, which its row status folds into each
+ * task's rollup as `busy` (reason `job`).
  *
  * The rows the user stares at during that minute are WORKTREE rows, and the
  * task's active TAB row — the natural place for a materializing spinner —
@@ -15,9 +16,10 @@
  * "the spinner reaches the frame", and the failure mode is a signal that
  * arrives everywhere except the cells.
  */
-import { expect, test } from "bun:test"
+import { afterEach, expect, test } from "bun:test"
 import { DEFAULT_SPINNER_FRAMES } from "../../src/engine/spinner-frames"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
+import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
@@ -44,10 +46,24 @@ function sibling(id: string): Task {
 
 const SIBLINGS = [sibling("s1"), sibling("s2"), sibling("s3")]
 
-/** `TaskJobState` for every task id — presence in the map IS "running". */
-function jobs(ids: readonly string[]): ReadonlyMap<string, { readonly kind: "ensureWorktree" }> {
-  return new Map(ids.map((id) => [id, { kind: "ensureWorktree" as const }]))
+/** The daemon's row status with a worktree job in flight for each of `ids`; the rest idle. */
+function jobs(ids: readonly string[]): void {
+  resetRowStatusForTests(
+    Object.fromEntries(
+      SIBLINGS.map((task) => [
+        task.id,
+        {
+          task: ids.includes(task.id)
+            ? { kind: "busy" as const, reason: "job" as const, since: 1 }
+            : { kind: "idle" as const, since: 0 },
+          tabs: {},
+        },
+      ]),
+    ),
+  )
 }
+
+afterEach(() => resetRowStatusForTests())
 
 function spinnerCells(frame: string): number {
   let n = 0
@@ -57,16 +73,9 @@ function spinnerCells(frame: string): number {
 
 test("every materializing sibling shows a spinner, with no tab row anywhere", async () => {
   tabsByTask.clear()
+  jobs(["s1", "s2", "s3"])
   const { frame } = await renderComponent(
-    <SidebarTree
-      tasks={SIBLINGS}
-      selectedId="s1"
-      selectedTabId={null}
-      onSelect={() => {}}
-      focused={true}
-      width={30}
-      taskJobs={jobs(["s1", "s2", "s3"])}
-    />,
+    <SidebarTree tasks={SIBLINGS} selectedId="s1" selectedTabId={null} onSelect={() => {}} focused={true} width={30} />,
     { width: 30, height: 20 },
   )
   await new Promise((r) => setTimeout(r, SETTLE))
@@ -84,27 +93,19 @@ test("only the tasks WITH a job spin — a sibling that finished stops", async (
   // The daemon removes an entry on `done`/`error`, so a partially-finished
   // fan-out must show exactly the still-running count, not all-or-nothing.
   tabsByTask.clear()
+  jobs(["s2"])
   const { frame } = await renderComponent(
-    <SidebarTree
-      tasks={SIBLINGS}
-      selectedId="s1"
-      selectedTabId={null}
-      onSelect={() => {}}
-      focused={true}
-      width={30}
-      taskJobs={jobs(["s2"])}
-    />,
+    <SidebarTree tasks={SIBLINGS} selectedId="s1" selectedTabId={null} onSelect={() => {}} focused={true} width={30} />,
     { width: 30, height: 20 },
   )
   await new Promise((r) => setTimeout(r, SETTLE))
   expect(spinnerCells(await frame())).toBe(1)
 })
 
-test("a job does NOT leak the task-level activity rollup onto sibling tabs", async () => {
-  // The guard: the worktree row reads `taskJobs` directly and must
-  // not start routing task-level ENGINE activity onto rows that have no tab
-  // identity — that rollup leak is what `carriesState` exists to stop.
-  // A task-level `running` entry with no job in flight must light nothing.
+test("the client's own engine activity lights nothing: only the daemon's row status does", async () => {
+  // A task-level `running` entry in the TUI's engine-state cache, with the
+  // daemon reporting nothing for the task, must not be turned into a status
+  // here: the daemon decides, the rail draws.
   tabsByTask.clear()
   const { frame } = await renderComponent(
     <SidebarTree

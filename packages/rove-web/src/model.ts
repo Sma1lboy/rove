@@ -1,7 +1,8 @@
 /**
  * What the page knows: the task feed (`tasks.subscribe` + `tasks` pushes), the
  * tabs of every task (the rail lists them all, like the TUI's always-expanded
- * tree), and which task/tab is open. Selection survives a reload.
+ * tree), and which task/tab is open. Selection survives a reload, and what is
+ * open is reported to the daemon (`ui.viewing`), which decides every row's status.
  */
 
 import { type ModPaneView, parseModUiPayload } from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
@@ -16,6 +17,8 @@ export interface Selection {
 }
 
 const SELECTION_KEY = "rove.web.selection"
+/** `ui.viewing`'s key for "shows no task". */
+const NOTHING_SHOWN = "null"
 /** Pushes arrive in bursts while engines work; one tab sweep per burst is enough. */
 const TAB_REFRESH_DEBOUNCE_MS = 300
 
@@ -75,11 +78,23 @@ export class AppModel {
   private selectIntent = 0
   /** Tasks whose worktree is being materialized, with the selection their reply may still apply. */
   private readonly provisioning = new Map<string, { intent: number; tabId: string | null }>()
+  /** What this socket last reported as shown (`ui.viewing`); a fresh socket has reported nothing. */
+  private viewingSent = NOTHING_SHOWN
 
   constructor(readonly client: BridgeClient) {
     client.onOpen(() => {
       void client.request<TasksPayload>("tasks.subscribe").then((payload) => this.acceptTasks(payload))
+      // The bridge forgot what a closed socket showed.
+      this.viewingSent = NOTHING_SHOWN
+      this.reportViewing()
     })
+    // A hidden page shows nothing: its finished turns stay unseen until someone looks.
+    if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+      document.addEventListener("visibilitychange", () => this.reportViewing())
+    }
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+      window.addEventListener("pagehide", () => this.reportViewing(true))
+    }
     client.on("tasks", (data) => {
       if (isTasksPayload(data)) this.acceptTasks(data)
     })
@@ -111,6 +126,24 @@ export class AppModel {
     ].slice(0, VISITS_MAX)
     this.visits.set(visits)
     localStorage.setItem(VISITS_KEY, JSON.stringify(visits))
+    this.reportViewing()
+  }
+
+  /**
+   * Tell the daemon what this page shows (`ui.viewing`): the selected task and tab while the page
+   * is visible, nothing once it is hidden or leaving. A tab being looked at never shows unseen.
+   */
+  private reportViewing(leaving = false): void {
+    const { taskId, tabId } = this.selection.get()
+    const hidden = leaving || (typeof document !== "undefined" && document.visibilityState === "hidden")
+    const shown = hidden || !taskId ? null : { taskId, ...(tabId ? { tabId } : {}) }
+    const key = JSON.stringify(shown)
+    if (key === this.viewingSent) return
+    this.viewingSent = key
+    void this.client.request("ui.viewing", shown ?? { taskId: null }).catch(() => {
+      // Not connected: the next open reports again.
+      if (this.viewingSent === key) this.viewingSent = NOTHING_SHOWN
+    })
   }
 
   private async provisionThenSelect(taskId: string, request: { intent: number; tabId: string | null }): Promise<void> {

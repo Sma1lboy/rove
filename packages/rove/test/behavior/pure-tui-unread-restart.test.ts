@@ -4,9 +4,10 @@
  *
  * The bug is environment-shaped, which is why this test spends two real TUI
  * processes on it: the daemon's activity registry outlives the TUI, so the
- * second launch is handed the very same `turn_complete` — while the seen bit
- * that digests the lamp lived only in the first process's memory. Nothing
- * short of an actual restart against a live daemon reproduces it.
+ * second launch is handed the very same `turn_complete`. "Unseen" is the
+ * daemon's to say now (its attention inbox, cleared when a client reports
+ * viewing the tab with `ui.viewing`), so the read must outlive the TUI that
+ * made it. Nothing short of an actual restart against a live daemon proves it.
  *
  * Shape: complete a turn on tab-1, let launch #1 sit in that tab (reading
  * it), then make tab-2 the active tab so launch #2 opens somewhere else and
@@ -159,13 +160,14 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
         screen().some((line) => line.includes("scratch-repo")),
         "the rail never hydrated",
       ).toBe(true)
-      // The durable receipt of that read. Polled, not raced: the KV write is
-      // debounced, and launch #2 must not start before it lands.
-      await poll(async () => (await readState()).completionSeen !== undefined, 30_000)
-      expect(await readState(), "launch #1 never recorded the completion as read").toHaveProperty("completionSeen")
+      // The daemon's receipt of that read: viewing the tab cleared its inbox
+      // episode, and the row status it publishes back rests at ○. Polled, not
+      // raced: launch #2 must not start before the daemon has it.
+      await poll(() => (tabRows(screen())[0] ?? "").includes(SEEN), 30_000)
+      expect(tabRows(screen())[0] ?? "", "launch #1 never saw its read reach the daemon").toContain(SEEN)
     })
 
-    // Launch #2 must be a fresh process, with none of launch #1's session-only seen bits.
+    // Launch #2 must be a fresh process: nothing of launch #1 survives but the daemon.
     expect(alive(lastTuiPid), "launch #1 was still running before launch #2").toBe(false)
 
     // Between launches the user leaves that tab: tab-2 is what the next launch opens, so tab-1's
@@ -185,7 +187,7 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
     )
 
     // Launch #2 — the daemon replays the very same turn_complete it never
-    // forgot, against a process whose in-memory seen bits are empty.
+    // forgot, to a process that has viewed nothing yet.
     await withTui(async (screen) => {
       // Wait for that activity to reach the rail (the row leaves the "no
       // signal" glyph). Whether it lands on ● or ○ is the question below.
@@ -197,8 +199,8 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
       expect(row, "a completion already read came back unread after the restart").not.toContain(UNREAD)
       expect(row, "tab-1's row never received the daemon's activity").toContain(SEEN)
       // ...and the row genuinely was one nobody was looking at. Had this
-      // launch landed back in tab-1, the session-only seen bit would digest
-      // the lamp on its own and the assertions above would say nothing.
+      // launch landed back in tab-1, viewing it would digest the lamp on its
+      // own and the assertions above would say nothing.
       const parked = (await readState())[key] as { activeId?: string } | undefined
       expect(parked?.activeId, "launch #2 did not stay parked on tab-2").toBe("tab-2")
     })

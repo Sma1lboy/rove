@@ -109,7 +109,7 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const pageOn = useStore(page)
   const { prefs } = usePrefs()
   const taskInk = useTaskColor(task?.id)
-  const working = task?.activity?.state === "running"
+  const working = task?.rowStatus?.kind === "running"
   if (pageOn === "update") {
     return (
       <main className="workspace">

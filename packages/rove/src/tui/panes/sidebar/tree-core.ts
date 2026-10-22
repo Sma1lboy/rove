@@ -45,11 +45,6 @@ export interface TreeTab {
    * not config. `null`/absent = not an engine, or nothing answered.
    */
   readonly liveVendor?: VendorId | null
-  /**
-   * Freeze-restored: scrollback kept, process gone; the next open respawns
-   * the recorded launch command. Otherwise looks like a quiet tab.
-   */
-  readonly restored?: boolean
 }
 
 export type TreeRow =

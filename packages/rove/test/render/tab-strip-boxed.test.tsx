@@ -18,10 +18,11 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { useState } from "react"
-import type { ChatTabTurnState } from "../../src/engine/turn-detector"
 import { TAB_STRIP_MODE_KEY } from "../../src/state/tab-strip"
 import { useBindings } from "../../src/tui-react/lib/keymap"
-import { TURN_GLYPHS, TabStrip } from "../../src/tui-react/workspace/tab-strip"
+import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
+import { TabStrip } from "../../src/tui-react/workspace/tab-strip"
+import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
@@ -52,9 +53,9 @@ function StripDriver(props: { tabs: readonly TerminalTab[]; start: string; width
   }))
   return (
     <TabStrip
+      taskId="alpha"
       tabs={props.tabs}
       activeId={activeId}
-      turnStates={new Map<string, ChatTabTurnState>()}
       onSelect={setActiveId}
       vendor="claude"
       liveTitles={new Map()}
@@ -88,9 +89,9 @@ test("a title wider than the pane is ellipsised inside its own frame", async () 
   ]
   const { frame } = await renderComponent(
     <TabStrip
+      taskId="alpha"
       tabs={tabs}
       activeId="tab-1"
-      turnStates={new Map<string, ChatTabTurnState>()}
       onSelect={() => {}}
       vendor="claude"
       liveTitles={new Map()}
@@ -140,16 +141,16 @@ test("the running chip uses the semantic info color, never the focus accent", as
     { kind: "engine", id: "tab-2", title: "two", ordinal: 2 },
     { kind: "engine", id: "tab-3", title: "three", ordinal: 3 },
   ]
+  // The daemon says two tabs run (`row.status`).
+  const running = { kind: "running", since: 1, state: "running", alive: true, restored: false, tracked: true } as const
+  resetRowStatusForTests({
+    alpha: { task: { kind: "running", since: 1 }, tabs: { "tab-1": running, "tab-2": running } },
+  })
   const { spans } = await renderComponent(
     <TabStrip
+      taskId="alpha"
       tabs={tabs}
       activeId="tab-3"
-      turnStates={
-        new Map<string, ChatTabTurnState>([
-          ["tab-1", "running"],
-          ["tab-2", "running"],
-        ])
-      }
       onSelect={() => {}}
       vendor="claude"
       liveTitles={new Map()}
@@ -159,7 +160,7 @@ test("the running chip uses the semantic info color, never the focus accent", as
   )
   const chips = (await spans()).lines
     .flatMap((line) => line.spans)
-    .filter((span) => span.text.includes(TURN_GLYPHS.running))
+    .filter((span) => DEFAULT_GLYPHS.spinner.some((frame) => span.text.includes(frame)))
   // Two running tabs → two chips. The defect painted them with
   // `focusAccent`: on the default claude theme that is the SAME #CC785C as
   // the active tab's frame, so several running tabs drowned the "you are

@@ -4,10 +4,19 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { RowStatus, TabStatus, TaskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { loadOrCreateToken } from "../src/auth.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
-import { type EngineRow, createRoveOps, engineFor, newTabInvocation, tabRows, taskRows } from "../src/rove-ops.ts"
+import {
+  type EngineRow,
+  createRoveOps,
+  engineFor,
+  newTabInvocation,
+  remoteRowStatus,
+  tabRows,
+  taskRows,
+} from "../src/rove-ops.ts"
 
 const ENGINES: EngineRow[] = [
   { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true },
@@ -27,6 +36,15 @@ function task(over: Partial<SerializedTask> & { id: string }): SerializedTask {
   return { ...base, ...over } as SerializedTask
 }
 
+function tab(over: Partial<TabStatus> & Pick<TabStatus, "kind" | "since">): TabStatus {
+  return { alive: true, restored: false, tracked: true, ...over }
+}
+
+/** A task whose one tab is the rollup. */
+function daemonStatus(rollup: RowStatus): TaskStatus {
+  return { task: rollup, tabs: { "tab-1": tab(rollup) } }
+}
+
 describe("task rows", () => {
   const now = 10_000_000
 
@@ -34,11 +52,13 @@ describe("task rows", () => {
     const rows = taskRows(
       [task({ id: "busy" }), task({ id: "blocked" }), task({ id: "main", kind: "main" }), task({ id: "dark" })],
       {
-        busy: { state: "running", at: now - 1000 },
-        blocked: { state: "permission_needed", at: now - 1000 },
-        main: { state: "idle", at: now - 1000 },
+        tasks: {
+          busy: daemonStatus({ kind: "running", state: "running", since: now - 1000 }),
+          blocked: daemonStatus({ kind: "needs-input", state: "permission_needed", since: now - 1000 }),
+          main: daemonStatus({ kind: "idle", state: "idle", since: now - 1000 }),
+        },
+        liveness: true,
       },
-      new Set(["busy", "blocked", "main"]),
       ENGINES,
       now,
     )
@@ -51,10 +71,57 @@ describe("task rows", () => {
     ])
   })
 
+  test("each row carries the daemon's rollup and its tabs' statuses as row.status sent them", () => {
+    const tabs = {
+      "tab-1": tab({ kind: "attention", reason: "rate_limited", state: "rate_limited", since: now - 5 }),
+      "tab-2": tab({ kind: "running", state: "running", since: now - 9 }),
+    }
+    const rollup = { kind: "attention", reason: "rate_limited", state: "rate_limited", since: now - 5 } as const
+    const [row, dark] = taskRows(
+      [task({ id: "a" }), task({ id: "b" })],
+      { tasks: { a: { task: rollup, tabs } }, liveness: true },
+      ENGINES,
+      now,
+    )
+    expect(row?.rowStatus).toEqual(rollup)
+    expect(row?.tabStatus).toEqual(tabs)
+    // The engine state clients still read is the rollup's, not a separate reading.
+    expect(row?.activity).toEqual({ state: "rate_limited", forMs: 5, since: now - 5 })
+    expect(dark).not.toHaveProperty("rowStatus")
+    expect(dark).not.toHaveProperty("tabStatus")
+  })
+
+  test("a task whose tabs the daemon reports dead waits on you once the death settles", () => {
+    const at = now - 120_000
+    const [row] = taskRows(
+      [task({ id: "a" })],
+      {
+        tasks: {
+          a: {
+            task: { kind: "idle", state: "turn_complete", since: at },
+            tabs: { "tab-1": tab({ kind: "idle", state: "turn_complete", since: at, alive: false }) },
+          },
+        },
+        liveness: true,
+      },
+      ENGINES,
+      now,
+    )
+    expect(row?.group).toBe("waiting-on-you")
+    // Another machine's statuses say nothing about liveness, so the same reading is only finished work.
+    const [far] = taskRows(
+      [task({ id: "a" })],
+      remoteRowStatus(new Map([["a", { state: "turn_complete", at }]])),
+      ENGINES,
+      now,
+    )
+    expect(far?.group).toBe("ready-for-review")
+    expect(far?.rowStatus).toMatchObject({ kind: "idle", state: "turn_complete" })
+  })
+
   test("a task being deleted is flagged so the phone can grey it out", () => {
     const [row] = taskRows(
       [task({ id: "gone", deletion: { phase: "running" } as SerializedTask["deletion"] })],
-      null,
       null,
       ENGINES,
       now,
@@ -90,7 +157,6 @@ describe("task row extras", () => {
         task({ id: "b", pinned: true, createdAt: "c2", updatedAt: "u2" } as never),
       ],
       null,
-      null,
       ENGINES,
       now,
     )
@@ -120,7 +186,6 @@ describe("task row extras", () => {
         task({ id: "new", worktreePath: "/w/new" }),
       ],
       null,
-      null,
       ENGINES,
       now,
       extras,
@@ -132,7 +197,7 @@ describe("task row extras", () => {
     expect(by("bad")?.changes).toEqual({ unreadable: true })
     expect(by("new")).not.toHaveProperty("changes")
     // The daemon has not supplied the channel at all.
-    const none = taskRows([task({ id: "ok", worktreePath: "/w/ok" })], null, null, ENGINES, now, {
+    const none = taskRows([task({ id: "ok", worktreePath: "/w/ok" })], null, ENGINES, now, {
       changes: null,
       tokens: new Map(),
     })
@@ -151,7 +216,7 @@ describe("task row extras", () => {
       ],
       ["b", [{ source: "plug", key: "k", text: "old", expiresAt: now - 10 }]],
     ])
-    const rows = taskRows([task({ id: "a" }), task({ id: "b" })], null, null, ENGINES, now, { changes: null, tokens })
+    const rows = taskRows([task({ id: "a" }), task({ id: "b" })], null, ENGINES, now, { changes: null, tokens })
     expect(rows.find((r) => r.id === "a")?.rowTokens).toEqual([
       { text: "live", tone: "info", source: "plug", expiresAt: now + 5000 },
       { text: "plain", source: "cli", expiresAt: now + 1 },
@@ -161,7 +226,7 @@ describe("task row extras", () => {
 
   test("pr chip follows the sidebar rules: conflict beats failing beats passing; stale on lastError", () => {
     const chipOf = (prStatus: unknown) => {
-      const [row] = taskRows([task({ id: "x", prStatus } as never)], null, null, ENGINES, now)
+      const [row] = taskRows([task({ id: "x", prStatus } as never)], null, ENGINES, now)
       return [row?.prChip, row?.prChipStale]
     }
     expect(chipOf(pr({ mergeable: "CONFLICTING", checkState: "passing" }))).toEqual(["conflict", false])
@@ -175,12 +240,11 @@ describe("task row extras", () => {
     const [row] = taskRows(
       [task({ id: "x", prStatus: pr({ mergeable: "MERGEABLE", number: 4 }) } as never)],
       null,
-      null,
       ENGINES,
       now,
     )
     expect(row?.pr).toEqual({ number: 4, lifecycle: "open", checkState: "pending", mergeable: "MERGEABLE" })
-    const [bare] = taskRows([task({ id: "y", prStatus: pr({}) } as never)], null, null, ENGINES, now)
+    const [bare] = taskRows([task({ id: "y", prStatus: pr({}) } as never)], null, ENGINES, now)
     expect(bare?.pr).not.toHaveProperty("mergeable")
   })
 
@@ -193,7 +257,6 @@ describe("task row extras", () => {
         task({ id: "far", origin: origin() }),
         task({ id: "far-offline", origin: origin(true) }),
       ],
-      null,
       null,
       ENGINES,
       now,
@@ -213,7 +276,6 @@ describe("task row extras", () => {
         task({ id: "far", repoId: "github.com/me/rove", origin: remote }),
         task({ id: "bare" }),
       ],
-      null,
       null,
       ENGINES,
       now,

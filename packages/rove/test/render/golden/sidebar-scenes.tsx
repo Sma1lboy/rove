@@ -16,9 +16,11 @@
 import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { TaskActivityState } from "@/engine/hook-events"
 import { SidebarTree } from "@/tui-react/panes/sidebar/SidebarTree"
+import { resetRowStatusForTests } from "@/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "@/tui-react/workspace/terminal-tabs-shared"
 import type { TabsState } from "@/tui/workspace/terminal-tabs-core"
 import { type Task, toTaskId } from "@/types/task"
+import type { RowStatus, TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { ReactNode } from "react"
 
 /**
@@ -64,6 +66,8 @@ function seedTabs(
   }>,
 ): void {
   tabsByTask.clear()
+  // No daemon status unless a scene says so: the module-level copy outlives a scene.
+  resetRowStatusForTests()
   for (const entry of entries) {
     tabsByTask.set(entry.taskId, {
       tabs: entry.tabs.map((tab, i) => ({
@@ -95,6 +99,28 @@ function seedStandard(): void {
 
 function tabState(state: TaskActivityState): ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>> {
   return new Map([["alpha", new Map([["tab-1", { state, at: AT }]])]])
+}
+
+const SESSION = { alive: true, restored: false, tracked: true } as const
+
+/** The daemon's row status (`row.status`) for alpha: `tabId` in `status`, its siblings idle. */
+function seedStatus(status: RowStatus, tabId = "tab-1"): void {
+  const idle: TabStatus = { kind: "idle", since: 0, ...SESSION }
+  resetRowStatusForTests({
+    alpha: {
+      task: status,
+      tabs: { "tab-1": idle, "tab-2": idle, [tabId]: { ...status, ...SESSION } },
+    },
+    bravo: { task: { kind: "idle", since: 0 }, tabs: { "tab-1": idle } },
+  })
+}
+
+/** The standard tree, with the daemon reporting `status` for one of alpha's tabs. */
+function standardWith(status: RowStatus, tabId?: string): () => void {
+  return () => {
+    seedStandard()
+    seedStatus(status, tabId)
+  }
 }
 
 export interface Scene {
@@ -136,26 +162,26 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
 export const SCENES: readonly Scene[] = [
   {
     name: "tree-unknown",
-    about: "no daemon signal at all — every agent tab rests at the dotted unknown glyph, never a claimed idle",
+    about: "no daemon status at all — every tab rests at the quiet glyph",
     setup: seedStandard,
     element: tree(),
   },
   {
     name: "tab-idle",
-    about: "a KNOWN-idle tab (the daemon reported it) wears the hollow circle, unlike its unknown siblings",
-    setup: seedStandard,
+    about: "a KNOWN-idle tab (the daemon reported it) wears the hollow circle, like its unreported siblings",
+    setup: standardWith({ kind: "idle", since: AT, state: "idle" }),
     element: tree({ engineTabState: tabState("idle") }),
   },
   {
     name: "tab-turn-complete",
-    about: "unread completion lamp on the tab that finished",
-    setup: seedStandard,
+    about: "unread completion lamp on the tab that finished: the daemon says unseen",
+    setup: standardWith({ kind: "unseen", since: AT, state: "turn_complete" }),
     element: tree({ engineTabState: tabState("turn_complete"), selectedId: "bravo", selectedTabId: "tab-1" }),
   },
   {
     name: "tab-still-writing",
     about: "a sibling transcript cannot turn this completed tab back into a spinner",
-    setup: seedStandard,
+    setup: standardWith({ kind: "unseen", since: AT, state: "turn_complete" }),
     element: tree({
       engineTabState: tabState("turn_complete"),
       selectedId: "bravo",
@@ -167,32 +193,32 @@ export const SCENES: readonly Scene[] = [
   {
     name: "tab-permission-needed",
     about: "blocked on the user — the one state whose glyph literally asks a question",
-    setup: seedStandard,
+    setup: standardWith({ kind: "needs-input", since: AT, state: "permission_needed" }),
     element: tree({ engineTabState: tabState("permission_needed") }),
   },
   {
     name: "tab-rate-limited",
-    about: "quota exhausted — the subtitle spells out WHY the row is stuck, outranking the branch",
-    setup: seedStandard,
+    about: "quota exhausted — an amber attention glyph, with how long it has been stuck",
+    setup: standardWith({ kind: "attention", reason: "rate_limited", since: AT, state: "rate_limited" }),
     element: tree({ engineTabState: tabState("rate_limited") }),
   },
   {
     name: "tab-error",
-    about: "the engine reported a failed turn",
-    setup: seedStandard,
+    about: "the engine reported a failed turn — a red attention glyph",
+    setup: standardWith({ kind: "attention", reason: "error", since: AT, state: "error" }),
     element: tree({ engineTabState: tabState("error") }),
   },
   {
     name: "tab-running",
     about: "a live turn — the glyph cell animates, so it is masked; everything AROUND it is still locked",
-    setup: seedStandard,
+    setup: standardWith({ kind: "running", since: AT, state: "running" }),
     element: tree({ engineTabState: tabState("running") }),
     animated: true,
   },
   {
     name: "tab-running-sibling",
     about: "work in a NON-active tab must light THAT row and leave the active one alone (the borrowed-spinner bug)",
-    setup: seedStandard,
+    setup: standardWith({ kind: "running", since: AT, state: "running" }, "tab-2"),
     element: tree({
       engineTabState: new Map([["alpha", new Map([["tab-2", { state: "running" as const, at: AT }]])]]),
     }),

@@ -8,6 +8,10 @@
  * bridge never becomes a generic daemon passthrough.
  */
 
+import type { RowStatus, TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
+
+export type { RowStatus, TabStatus }
+
 export const BRIDGE_PROTOCOL_VERSION = 1
 
 export const OPS = [
@@ -31,6 +35,8 @@ export const OPS = [
   "diff.files",
   "diff.file",
   "attention.dismiss",
+  // What this connection's screen shows ({taskId|null, tabId?}), for the daemon's row status.
+  "ui.viewing",
 ] as const
 
 export type Op = (typeof OPS)[number]
@@ -58,6 +64,7 @@ export interface TaskRow {
   readonly repo: string
   readonly kind: string
   readonly status: string
+  /** `taskGroupOf` over the daemon's row status (its rollup's engine state, its tabs' liveness). */
   readonly group: TaskGroup
   readonly rank: number
   /**
@@ -65,8 +72,16 @@ export interface TaskRow {
    * `since` (optional, additive) = when that episode began on the bridge's clock. Clients
    * never need it — they age `forMs` locally — but the feed keys on it, so a new episode in
    * the same state (turn ends, next starts) still pushes a fresh `forMs`.
+   * It is the engine state of the daemon's rollup (`rowStatus.state`), kept for clients that read it.
    */
   readonly activity: { readonly state: string; readonly forMs: number; readonly since?: number } | null
+  /**
+   * The daemon's status for the task row (`row.status`): what the row shows when its tabs are not
+   * listed under it. Clients map it with `rove/src/lib/row-status-glyph.ts`. Absent = no reading.
+   */
+  readonly rowStatus?: RowStatus
+  /** The daemon's status of each of the task's tabs, by tab id, pushed with the row. Absent = no reading. */
+  readonly tabStatus?: Readonly<Record<string, TabStatus>>
   /** Display name comes from the engine registry; the app never hardcodes vendors. */
   readonly engine: { readonly id: string | null; readonly name: string } | null
   readonly pr: {
@@ -171,6 +186,8 @@ export interface TabRow {
   readonly split?: SplitView
   /** A viewport tab: the task whose session it shows (`rove api get-task` `.tabs[].viewOf`). Absent = its own session. */
   readonly viewOf?: string
+  /** The daemon's status of this tab (`row.status`); `TaskRow.tabStatus` pushes it as it changes. Absent = no reading. */
+  readonly status?: TabStatus
 }
 
 /** A split layout: panes are leaves named `leaf-N`; `leaf-1` is the tab's own process, the rest are hosted login shells. */

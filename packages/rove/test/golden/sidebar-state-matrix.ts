@@ -2,16 +2,17 @@
  * The sidebar's state vocabulary, enumerated.
  *
  * `buildSidebarRowView` is the single place that decides what a sidebar row
- * SAYS: which status glyph it wears, which tone colours it, whether it
- * animates, and what its subtitle reads. Every one of those answers falls out
- * of a priority ladder — deletion outranks a materializing job, which outranks
- * a hook-driven activity word, which outranks the branch — and the ladder is
- * exactly the kind of thing that drifts one rung at a time under unrelated
- * fixes. Prose assertions catch the rung someone thought to write down.
+ * SAYS from the daemon's row status (`row.status`): which status glyph it
+ * wears, which tone colours it, whether it animates, and what its subtitle
+ * reads. The STATUS is the daemon's to decide (`rove-daemon/.../row-status.ts`
+ * has its own precedence tests); this pins the mapping from every status the
+ * daemon can send to what the TUI draws, plus the subtitle ladder (deletion
+ * outranks a materializing job, which outranks the branch) that is still the
+ * row's own.
  *
- * So this module renders the ladder's WHOLE input space to text instead. It
- * owns no assertions: it produces the canonical rows, and
- * `sidebar-row-state.test.ts` locks them against the committed golden.
+ * So this module renders the WHOLE input space to text. It owns no
+ * assertions: it produces the canonical rows, and `sidebar-row-state.test.ts`
+ * locks them against the committed golden.
  *
  * Keeping it separate from the test file is what lets the enumeration stay
  * exhaustive without the test file outgrowing the size cap, and it means the
@@ -19,9 +20,6 @@
  * while investigating a diff.
  */
 
-import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
-import type { TaskActivityState } from "@/engine/hook-events"
-import { TASK_ACTIVITY_STATES } from "@/engine/hook-events"
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import type { SidebarRowView } from "@/tui/panes/sidebar/row-view"
 import { buildSidebarRowView, rowIsLoading, withSpinnerFrame } from "@/tui/panes/sidebar/row-view"
@@ -29,11 +27,11 @@ import { tabRowActivity } from "@/tui/panes/sidebar/tree-core"
 import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
 import { type Task, type TaskDeletionPhase, type TaskStatus, toTaskId } from "@/types/task"
 import { BUILTIN_VENDORS } from "@/types/vendor"
+import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { pad } from "./golden-file"
 
-/** Fixed instant every `at` / `mtimeMs` in the matrix is expressed against —
- *  the row view compares timestamps, so a wall-clock read would make the
- *  golden depend on when it ran. */
+/** Fixed instant every `since` in the matrix is expressed against, so the
+ *  golden never depends on when it ran. */
 export const NOW = 1_760_000_000_000
 
 /** Wide enough that nothing in the matrix truncates by accident, so a
@@ -46,10 +44,25 @@ const BRANCH = "feat/sidebar"
 /** A non-builtin engine id — the "no transcript store to watch" branch. */
 const CUSTOM_VENDOR = "my-engine"
 
-/** `undefined` is a real, distinct INPUT everywhere below — no activity entry
- *  at all reaches different code than an `idle` one, even though both render
- *  as the same quiet `○`. Keeping them apart here is what proves that. */
-const ACTIVITY_STATES: ReadonlyArray<TaskActivityState | undefined> = [undefined, ...TASK_ACTIVITY_STATES]
+/** Every status the daemon can send, by name. `-` (no record at all) is a
+ *  real, distinct INPUT: it must rest at the same quiet `○` as `idle`. */
+const STATUSES: ReadonlyArray<readonly [string, RowStatus | undefined]> = [
+  ["-", undefined],
+  ["idle", { kind: "idle", since: NOW }],
+  ["idle/turn_complete", { kind: "idle", since: NOW, state: "turn_complete" }],
+  ["unseen", { kind: "unseen", since: NOW, state: "turn_complete" }],
+  ["running", { kind: "running", since: NOW, state: "running" }],
+  ["needs-input", { kind: "needs-input", since: NOW, state: "permission_needed" }],
+  ["attention/rate_limited", { kind: "attention", reason: "rate_limited", since: NOW, state: "rate_limited" }],
+  ["attention/error", { kind: "attention", reason: "error", since: NOW, state: "error" }],
+  ["attention/dead", { kind: "attention", reason: "dead", since: NOW, state: "dead" }],
+  ["attention/restored", { kind: "attention", reason: "restored", since: 0 }],
+  ["attention/delete_failed", { kind: "attention", reason: "delete_failed", since: NOW }],
+  ["busy/job", { kind: "busy", reason: "job", since: NOW }],
+  ["busy/deleting", { kind: "busy", reason: "deleting", since: NOW }],
+]
+
+const statusNamed = (name: string): RowStatus | undefined => STATUSES.find(([n]) => n === name)?.[1]
 
 const DELETION_PHASES = [undefined, "queued", "running", "error"] as const
 
@@ -82,12 +95,6 @@ export function task(over: Partial<Task> = {}): Task {
   } as Task
 }
 
-function activityOf(state: TaskActivityState | undefined, at = NOW): TaskEngineState | undefined {
-  return state === undefined ? undefined : { state, at }
-}
-
-const JOB: TaskJobState = { kind: "ensureWorktree" }
-
 /**
  * Every scalar field of `SidebarRowView`, in the order the golden prints them.
  *
@@ -100,7 +107,7 @@ const JOB: TaskJobState = { kind: "ensureWorktree" }
  * fails loudly until someone decides where it belongs.
  *
  * `spinnerFrames` is the one deliberate omission: it is constant per vendor and
- * printed in full by {@link spinnerBlock}, so repeating it on every activity row
+ * printed in full by {@link spinnerBlock}, so repeating it on every status row
  * would be noise, not coverage.
  */
 export const RECORDED_FIELDS = [
@@ -132,75 +139,45 @@ function row(inputs: readonly string[], view: SidebarRowView): string {
 
 function build(opts: {
   task: Task
-  activity?: TaskEngineState
-  job?: TaskJobState
-  transcript?: { mtimeMs: number }
+  status?: RowStatus
   lifecycle?: { subagents: number }
   spinnerFrame?: number
-  completionSeen?: boolean
   mainBranch?: string
   subtitleBudget?: number
 }) {
   return buildSidebarRowView({
     task: opts.task,
-    activity: opts.activity,
-    job: opts.job,
-    ...{ transcript: opts.transcript },
+    status: opts.status,
     lifecycle: opts.lifecycle,
     spinnerFrame: opts.spinnerFrame ?? 0,
     subtitleBudget: opts.subtitleBudget ?? SUBTITLE_BUDGET,
     truncateBranch: truncateBranchLabel,
-    completionSeen: opts.completionSeen,
     mainBranch: opts.mainBranch,
   })
 }
 
 /**
- * The full cross product of the five vendor-independent priority inputs.
+ * Every daemon status crossed with the task's deletion phase (the one task
+ * fact the row still reads itself, for its subtitle word).
  *
  * Not a sampled selection: every combination is emitted, so a change that
  * reorders two rungs shows up as a block of moved lines instead of hiding in
  * whichever combination nobody wrote a case for.
  */
-export function activityCrossProduct(): string[] {
+export function statusCrossProduct(): string[] {
   const lines: string[] = []
   const vendor = "claude"
-  for (const state of ACTIVITY_STATES) {
-    for (const seen of [false, true]) {
-      for (const job of [false, true]) {
-        for (const deletion of DELETION_PHASES) {
-          for (const tx of [false, true]) {
-            const subject = task({
-              vendor,
-              deletion:
-                deletion === undefined
-                  ? undefined
-                  : { phase: deletion, force: false, requestedAt: "2026-01-01T00:00:00.000Z" },
-            })
-            // Directory transcript changes must not override a tab's activity.
-            const view = build({
-              task: subject,
-              activity: activityOf(state),
-              job: job ? JOB : undefined,
-              transcript: tx ? { mtimeMs: NOW + 10_000 } : undefined,
-              completionSeen: seen,
-            })
-            lines.push(
-              row(
-                [
-                  pad(`act=${state ?? "-"}`, 22),
-                  `seen=${seen ? 1 : 0}`,
-                  `job=${job ? 1 : 0}`,
-                  pad(`del=${deletion ?? "-"}`, 12),
-                  pad(`vendor=${vendor}`, 17),
-                  `tx=${tx ? "after" : "-"}`,
-                ],
-                view,
-              ),
-            )
-          }
-        }
-      }
+  for (const [name, status] of STATUSES) {
+    for (const deletion of DELETION_PHASES) {
+      const subject = task({
+        vendor,
+        deletion:
+          deletion === undefined
+            ? undefined
+            : { phase: deletion, force: false, requestedAt: "2026-01-01T00:00:00.000Z" },
+      })
+      const view = build({ task: subject, status })
+      lines.push(row([pad(`status=${name}`, 30), pad(`del=${deletion ?? "-"}`, 12), pad(`vendor=${vendor}`, 17)], view))
     }
   }
   return lines
@@ -209,11 +186,11 @@ export function activityCrossProduct(): string[] {
 /** Only the subtitle depends on vendor identity; spinnerBlock records the frame sets. */
 export function vendorBlock(): string[] {
   return VENDORS.map((vendor) => {
-    const subtitles = [undefined, "idle", "running"] as const
+    const subtitles = ["-", "idle", "running"] as const
     return `${pad(`vendor=${vendor}`, 17)} ${subtitles
-      .map((state) => {
-        const view = build({ task: task({ vendor }), activity: activityOf(state) })
-        return `${state ?? "absent"}=${view.subtitleText}`
+      .map((name) => {
+        const view = build({ task: task({ vendor }), status: statusNamed(name) })
+        return `${name === "-" ? "absent" : name}=${view.subtitleText}`
       })
       .join(" | ")}`
   })
@@ -224,13 +201,13 @@ export function vendorBlock(): string[] {
 export function mainRowBlock(): string[] {
   const lines: string[] = []
   for (const mainBranch of ["main", "feat/long-running-branch", ""]) {
-    for (const state of ACTIVITY_STATES) {
+    for (const [name, status] of STATUSES) {
       const view = build({
         task: task({ kind: "main", branch: "", title: "rove" }),
-        activity: activityOf(state),
+        status,
         mainBranch,
       })
-      lines.push(row([pad(`mainBranch=${mainBranch || "-"}`, 34), pad(`act=${state ?? "-"}`, 22)], view))
+      lines.push(row([pad(`mainBranch=${mainBranch || "-"}`, 34), pad(`status=${name}`, 30)], view))
     }
   }
   return lines
@@ -250,7 +227,7 @@ export function spinnerBlock(): string[] {
     for (let frame = 0; frame < 26; frame++) {
       const view = build({
         task: task({ vendor: vendor as Task["vendor"] }),
-        activity: activityOf("running"),
+        status: statusNamed("running"),
         spinnerFrame: frame,
       })
       frames.push(view.stateGlyph)
@@ -266,21 +243,21 @@ export function spinnerBlock(): string[] {
   // that frame — every field, not just the one it rewrites. A divergence in
   // tone or subtitle between the two paths means an animating row and a
   // freshly-built one disagree about the same state.
-  for (const state of ACTIVITY_STATES) {
+  for (const [name, status] of STATUSES) {
     // Frame 0 reproduces the view it was built with (identity must survive);
     // 3 is an ordinary live frame; a frame past the set's length must wrap
     // rather than blank the glyph.
     for (const frame of [0, 3, 14, 99]) {
-      const base = build({ task: task(), activity: activityOf(state) })
+      const base = build({ task: task(), status })
       let reads = 0
       const overlaid = withSpinnerFrame(base, () => {
         reads++
         return frame
       })
-      const direct = build({ task: task(), activity: activityOf(state), spinnerFrame: frame })
+      const direct = build({ task: task(), status, spinnerFrame: frame })
       const sameAsDirect = RECORDED_FIELDS.every((field) => overlaid[field] === direct[field])
       lines.push(
-        `${pad(`act=${state ?? "-"}`, 22)} ${pad(`frame=${frame}`, 10)} overlay: base=${base.stateGlyph} after=${
+        `${pad(`status=${name}`, 30)} ${pad(`frame=${frame}`, 10)} overlay: base=${base.stateGlyph} after=${
           overlaid.stateGlyph
         } ${pad(`tone=${overlaid.tone}`, 16)} ${pad(`sub=${overlaid.subtitleText}`, 20)} frameReads=${reads} sameObject=${
           overlaid === base ? 1 : 0
@@ -293,77 +270,37 @@ export function spinnerBlock(): string[] {
 }
 
 /**
- * Persisted board lifecycle (`TaskStatus`) crossed with runtime activity.
+ * Persisted board lifecycle (`TaskStatus`) crossed with the daemon's status.
  *
  * The row is a RUNTIME projection: `status` is user-driven and must never
  * reach it, so every column here should be identical down the `status` axis
- * and vary only with `act`. Written as a golden block rather than left to the
+ * and vary only with `row`. Written as a golden block rather than left to the
  * collapse assertion in `sidebar-row-view.test.ts` because that one only
- * proves the collapse with activity ABSENT — the case this block adds back is
+ * proves the collapse with no status — the case this block adds back is
  * "a `done` task whose engine is asking for permission still shows `?`".
  */
 export function statusVsActivityBlock(): string[] {
   const statuses: readonly TaskStatus[] = ["backlog", "in_progress", "in_review", "done", "canceled", "error"]
   const lines: string[] = []
   for (const status of statuses) {
-    for (const state of ACTIVITY_STATES) {
-      const view = build({ task: task({ status }), activity: activityOf(state) })
-      lines.push(row([pad(`status=${status}`, 20), pad(`act=${state ?? "-"}`, 22)], view))
+    for (const [name, rowStatus] of STATUSES) {
+      const view = build({ task: task({ status }), status: rowStatus })
+      lines.push(row([pad(`status=${status}`, 20), pad(`row=${name}`, 30)], view))
     }
   }
   return lines
 }
 
 /**
- * Directory transcript timestamps cannot override this tab's completion,
- * including timestamps beyond the former two-second grace boundary.
+ * `rowIsLoading` is the predicate the pane-level spinner gate is built on: it
+ * must agree with the view's own `loading` for every status, or a
+ * genuinely-working row freezes mid-animation.
  */
-export function completionGraceBlock(): string[] {
-  const lines: string[] = []
-  for (const offset of [-5_000, -1, 0, 1, 1_999, 2_000, 2_001, 60_000]) {
-    for (const seen of [false, true]) {
-      const view = build({
-        task: task(),
-        activity: activityOf("turn_complete"),
-        transcript: { mtimeMs: NOW + offset },
-        completionSeen: seen,
-      })
-      lines.push(row([pad(`mtime=at${offset >= 0 ? "+" : ""}${offset}ms`, 22), `seen=${seen ? 1 : 0}`], view))
-    }
-  }
-  // No transcript facts at all, and a ZERO mtime (a record the collector wrote
-  // before it could stat the file) — both take the no-facts path, which must
-  // render from what it has rather than guessing.
-  for (const seen of [false, true]) {
-    const view = build({ task: task(), activity: activityOf("turn_complete"), completionSeen: seen })
-    lines.push(row([pad("mtime=<none>", 22), `seen=${seen ? 1 : 0}`], view))
-  }
-  for (const seen of [false, true]) {
-    const view = build({
-      task: task(),
-      activity: activityOf("turn_complete"),
-      transcript: { mtimeMs: 0 },
-      completionSeen: seen,
-    })
-    lines.push(row([pad("mtime=0", 22), `seen=${seen ? 1 : 0}`], view))
-  }
-  // The same fact read through `rowIsLoading`, the predicate the pane-level
-  // spinner gate is built on: it must agree with the view's own `loading` for
-  // every one of these, or a genuinely-working row freezes mid-animation.
-  for (const offset of [-5_000, 1_999, 2_001, 60_000]) {
-    const inputs = {
-      task: task(),
-      activity: activityOf("turn_complete"),
-      transcript: { mtimeMs: NOW + offset },
-    }
-    const view = build(inputs)
-    lines.push(
-      `${pad(`mtime=at${offset >= 0 ? "+" : ""}${offset}ms`, 22)} rowIsLoading=${rowIsLoading(inputs) ? 1 : 0} viewLoading=${
-        view.loading ? 1 : 0
-      }`,
-    )
-  }
-  return lines
+export function loadingAgreementBlock(): string[] {
+  return STATUSES.map(([name, status]) => {
+    const view = build({ task: task(), status })
+    return `${pad(`status=${name}`, 30)} rowIsLoading=${rowIsLoading(status) ? 1 : 0} viewLoading=${view.loading ? 1 : 0}`
+  })
 }
 
 /** Subagent marks ride as a `◇N` prefix — and ONLY while the row animates, so
@@ -371,18 +308,15 @@ export function completionGraceBlock(): string[] {
 export function subagentBlock(): string[] {
   const lines: string[] = []
   for (const subagents of [0, 1, 3, 12]) {
-    for (const state of ACTIVITY_STATES) {
+    for (const [name, status] of STATUSES) {
       for (const branch of [BRANCH, ""]) {
         const view = build({
           task: task({ branch }),
-          activity: activityOf(state),
+          status,
           lifecycle: { subagents },
         })
         lines.push(
-          row(
-            [pad(`subagents=${subagents}`, 14), pad(`act=${state ?? "-"}`, 22), pad(`branch=${branch || "-"}`, 20)],
-            view,
-          ),
+          row([pad(`subagents=${subagents}`, 14), pad(`status=${name}`, 30), pad(`branch=${branch || "-"}`, 20)], view),
         )
       }
     }
@@ -396,16 +330,16 @@ export function subtitleBudgetBlock(): string[] {
   const lines: string[] = []
   const branch = "feature/a-very-long-branch-name-indeed"
   for (const budget of [0, 1, 4, 8, 16, 24, 40]) {
-    for (const state of [undefined, "running", "rate_limited", "error"] as const) {
-      const view = build({ task: task({ branch }), activity: activityOf(state), subtitleBudget: budget })
-      lines.push(row([pad(`budget=${budget}`, 11), pad(`act=${state ?? "-"}`, 22)], view))
+    for (const name of ["-", "running", "attention/rate_limited", "attention/error"] as const) {
+      const view = build({ task: task({ branch }), status: statusNamed(name), subtitleBudget: budget })
+      lines.push(row([pad(`budget=${budget}`, 11), pad(`status=${name}`, 30)], view))
     }
   }
   return lines
 }
 
 /**
- * Which activity entry a TAB row is allowed to read.
+ * Which activity entry a TAB row is allowed to read (its landing pulse).
  *
  * Neither selection nor a task rollup may supply missing tab identity.
  */

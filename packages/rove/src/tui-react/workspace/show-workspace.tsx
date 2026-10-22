@@ -17,6 +17,7 @@ import { useAccessor } from "../lib/use-accessor"
 import { TerminalTabs } from "./TerminalTabs"
 import { EmptyWorkspacePane } from "./empty-workspace-pane"
 import { RemoteTerminalTabs } from "./remote-terminal-tabs"
+import { useViewingReport } from "./row-status-sync"
 import { knownTaskTabs, tabsRevision } from "./terminal-tabs-shared"
 import { WelcomePane } from "./welcome-pane"
 
@@ -54,6 +55,11 @@ export function ShowWorkspace(props: {
   useAccessor(tabsRevision)
   const engineTabStates = useAccessor(props.orchestrator.engineTabStatesSignal())
   const tasks = useAccessor(props.orchestrator.tasksSignal())
+  // The daemon decides unseen from what every client shows: this pane shows the
+  // selected local task's active tab (a remote task's daemon is another machine's).
+  const localTask = props.worktree && props.task && (props.task.origin?.machineId ?? "local") === "local"
+  const viewingTaskId = localTask && props.task ? String(props.task.id) : null
+  useViewingReport(viewingTaskId, viewingTaskId ? (knownTaskTabs(kv, viewingTaskId)?.activeId ?? null) : null)
   if (!props.worktree) {
     // Zero tasks = brand-new home: teach instead of pointing at an empty sidebar.
     if (!tasks.some((task) => !task.deletion)) return <WelcomePane onQuickTask={props.onQuickFork} />

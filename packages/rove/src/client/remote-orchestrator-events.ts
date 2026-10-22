@@ -18,6 +18,7 @@ import {
   isRoutineInboxState,
   parseDaemonStopReason,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
 import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
 import { isAddedTab } from "../tui/workspace/tabs-adopt.ts"
@@ -334,6 +335,15 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       return
     }
     signals.emitTabsChanged(p as TabsChangedPayload)
+    return
+  }
+  if (name === "row.status") {
+    const p = payload as Partial<RowStatusPayload> | undefined
+    if (typeof p?.rev !== "number" || typeof p.tasks !== "object" || p.tasks === null) {
+      logClientError("orch", `dropped row.status event: malformed payload (${describePayload(payload)})`)
+      return
+    }
+    signals.emitRowStatus(p as RowStatusPayload)
     return
   }
   if (name === "tab.add") {

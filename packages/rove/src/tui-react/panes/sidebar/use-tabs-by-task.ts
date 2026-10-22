@@ -5,7 +5,8 @@
  * Three sources, in order of authority:
  *   1. the daemon's tabs (`knownTaskTabs`, kept by `tabs-sync.ts`), live for
  *      every task whether or not its `TerminalTabs` is mounted;
- *   2. the live pty host inventory: titles and freeze-restored corpses;
+ *   2. the live pty host inventory: titles (a tab's STATUS, restored or not,
+ *      is the daemon's row status, not this poll's);
  *   3. the orphan backstop: live sessions no snapshot claims, adopted into
  *      the snapshot.
  */
@@ -73,13 +74,6 @@ export function useTabsByTask(opts: TabsByTaskOpts): ReadonlyMap<string, readonl
     return map
   }, [hostSessions])
 
-  // ptyKeys the host holds as freeze-restored corpses (opening one respawns).
-  const restoredKeys = useMemo<ReadonlySet<string>>(() => {
-    const keys = new Set<string>()
-    for (const session of hostSessions) if (session.restored === true) keys.add(session.key)
-    return keys
-  }, [hostSessions])
-
   // Recomputing on every `tasks` echo is correct: that's when live titles move.
   const snapshotTabs = useMemo<ReadonlyMap<string, readonly TreeTab[]>>(() => {
     void liveTick
@@ -109,13 +103,12 @@ export function useTabsByTask(opts: TabsByTaskOpts): ReadonlyMap<string, readonl
             // engine process: hosted PTYs outlive a TUI restart.
             engine: tab.kind === "engine" || (live ?? null) !== null,
             liveVendor: live ?? null,
-            restored: restoredKeys.has(ptyKey),
           }
         }),
       )
     }
     return map
-  }, [tasks, kv, liveEngines, liveTick, tabsRev, liveTitles, restoredKeys])
+  }, [tasks, kv, liveEngines, liveTick, tabsRev, liveTitles])
 
   // Backstop: see `orphan-tabs.ts`.
   const orphansByTask = useMemo<ReadonlyMap<string, readonly TreeTab[]>>(() => {
