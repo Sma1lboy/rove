@@ -21,7 +21,10 @@
 
 import { afterAll, beforeAll, expect, test } from "bun:test"
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
+import type { MachineHub } from "@/machines/hub"
+import { setMachineHub } from "@/machines/hub-singleton"
 import { currentLang, setLocaleLang } from "@/tui/i18n"
+import type { MachineLayerEntry } from "@/tui/panes/sidebar/machine-layer"
 import { goldenPath, matchGolden } from "../../golden/golden-file"
 import { act, renderComponent, settle } from "../harness"
 import { SCENES, SCENE_HEIGHT, SCENE_WIDTH, type Scene } from "./sidebar-scenes"
@@ -79,7 +82,14 @@ beforeAll(() => {
   restorePlatform = process.platform
   setPlatform("linux")
 })
+/** Just the registry the sidebar reads (`useMachineRows`); scene tasks arrive as props. */
+function sceneHub(machines: readonly MachineLayerEntry[] | undefined): MachineHub | null {
+  if (!machines) return null
+  return { machinesSignal: () => ({ get: () => machines, subscribe: () => () => {} }) } as unknown as MachineHub
+}
+
 afterAll(() => {
+  setMachineHub(null)
   setLocaleLang(restoreLang as Parameters<typeof setLocaleLang>[0])
   setPlatform(restorePlatform)
 })
@@ -87,6 +97,7 @@ afterAll(() => {
 for (const scene of SCENES) {
   test(`sidebar frame golden: ${scene.name}`, async () => {
     scene.setup()
+    setMachineHub(sceneHub(scene.machines))
     const { frame, mockInput } = await renderComponent(scene.element, {
       width: SCENE_WIDTH,
       height: SCENE_HEIGHT,

@@ -20,7 +20,6 @@ export { filterTreeRows } from "./tree-search"
 export {
   RECENT_ROW_ID,
   SCRATCH_SECTION_ID,
-  machineRowId,
   parseRowId,
   projectKeyOfRoutinesRow,
   tabRowId,
@@ -47,27 +46,35 @@ export interface TreeTab {
   readonly liveVendor?: VendorId | null
 }
 
+/**
+ * Where a row from ANOTHER machine lives, stamped by the machine layer
+ * (`machine-layer.ts`): the row wears a cloud mark, toned by `state`.
+ */
+export interface RemoteMark {
+  /** Remote hostname when known, else the alias. */
+  readonly host: string
+  readonly state: MachineRowState
+  readonly version?: string
+}
+
 export type TreeRow =
-  /** Header for another computer's Rove daemon; emitted only when a machine is registered. */
-  | {
-      readonly kind: "machine"
-      readonly id: string
-      readonly alias: string
-      readonly label: string
-      readonly state: MachineRowState
-      readonly version?: string
-      readonly depth: 0
-    }
   | {
       readonly kind: "project"
       readonly id: string
       readonly repo: string
       readonly label: string
-      /** Which machine's checkout this is; `"local"` for this computer. */
+      /** The home checkout's machine (what the header's actions act on); `"local"` for this computer. */
       readonly machineId: string
       readonly depth: number
     }
-  | { readonly kind: "worktree"; readonly id: string; readonly task: Task; readonly depth: number }
+  | {
+      readonly kind: "worktree"
+      readonly id: string
+      readonly task: Task
+      readonly depth: number
+      /** Set when the task lives on another machine. */
+      readonly remote?: RemoteMark
+    }
   | {
       readonly kind: "tab"
       readonly id: string
@@ -190,14 +197,14 @@ function pushWorktree(rows: TreeRow[], task: Task, tabsByTask: ReadonlyMap<strin
 }
 
 /**
- * The cursor's id list. Project/machine headers are excluded: `enter` would
- * have no session and every per-task chord (d/a/r) would need a header guard.
+ * The cursor's id list. Project headers are excluded: `enter` would have no
+ * session and every per-task chord (d/a/r) would need a header guard.
  */
 export function treeFlatIds(rows: readonly TreeRow[]): string[] {
   const ids: string[] = []
   for (const row of rows) {
     // The routines row IS navigable: opening it is its whole point.
-    if (row.kind !== "project" && row.kind !== "machine") ids.push(row.id)
+    if (row.kind !== "project") ids.push(row.id)
   }
   return ids
 }
@@ -208,6 +215,9 @@ export function treeFlatIds(rows: readonly TreeRow[]): string[] {
  * Null (reorder is a no-op) when the repo has no main checkout.
  */
 export function mainTaskIdOfProject(tasks: readonly Task[], projectKey: string): string | null {
+  // A merged project's key is its HOME checkout's, so only the home main
+  // answers: another machine's main of the same repo is not this header's to
+  // reorder or forget.
   for (const task of tasks) {
     if (task.kind !== "main") continue
     if (sidebarProjectKeyOfTask(task) === projectKey) return String(task.id)

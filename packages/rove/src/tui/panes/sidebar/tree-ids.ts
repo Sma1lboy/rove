@@ -21,11 +21,6 @@ export const RECENT_ROW_ID = "~recent"
  */
 export const SCRATCH_SECTION_ID = "~scratch"
 
-/** Navigation id of a machine section header. */
-export function machineRowId(alias: string): string {
-  return `~machine:${alias}`
-}
-
 /** A project's routine count row id; carries the project key so rows stay distinct. */
 export function routinesRowId(projectKey: string): string {
   return `~routines:${projectKey}`

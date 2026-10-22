@@ -12,12 +12,14 @@
 import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import {
-  type LabelledRepo,
+  type LabelledProject,
+  type ProjectKeyOf,
   type TaskSortMode,
   compareName,
   compareRecent,
   sidebarProjectKeyOfTask,
-  sidebarProjectLabel,
+  sidebarProjectKeyResolver,
+  sidebarRepoLabel,
 } from "./groups"
 import { compareTaskGroup } from "./task-group-view"
 import { SCRATCH_SECTION_ID } from "./tree-ids"
@@ -33,12 +35,14 @@ const SCRATCH_SECTION_LABEL = "Scratch"
 export interface SidebarGroup {
   /** Project key, or `SCRATCH_SECTION_ID` for the scratch bench. */
   readonly key: string
-  /** The repo path the header names; `""` for scratch. */
+  /** The HOME checkout's repo path (see `sidebarProjectKeyResolver`); `""` for scratch. */
   readonly repo: string
   /** Header text, already disambiguated against every other VISIBLE group —
    *  so `~/work/api` and `~/oss/api` never both render as `api`. */
   readonly label: string
-  /** Which machine's checkout this is; `"local"` for this computer. */
+  /** The home checkout's machine — what a project action on the header acts
+   *  on; `"local"` when the repo is checked out on this computer. Its tasks
+   *  may live on any machine (each keeps its own `origin`). */
   readonly machineId: string
   /** Every visible task, in render order: the user's own, then routines. */
   readonly tasks: readonly Task[]
@@ -56,6 +60,17 @@ export interface SidebarGroupInput {
   /** Live activity per task id — read only by `attention` sort, which ranks by
    *  the derived task group and so needs the entry, not just its state. */
   readonly activityOf?: (taskId: string) => TaskEngineState | undefined
+}
+
+/** One project while it is being gathered: the home checkout plus every machine's tasks. */
+interface ProjectEntry {
+  repo: string
+  repoId?: string
+  machineId: string
+  /** The home checkout's main has been seen (it heads `mains`). */
+  homeMain: boolean
+  mains: Task[]
+  rest: Task[]
 }
 
 /** True for a task the sidebar sorts to the end of its project. */
@@ -88,16 +103,13 @@ function isClosedDownProject(tasks: readonly Task[], tabsByTask: SidebarGroupInp
   return tabsByTask.get(only.id)?.length === 0
 }
 
-/** The host a group's header displays under — undefined for the local
- *  machine, so a machine-free sidebar carries no host anywhere. */
-function hostLabelOf(task: Task | undefined): string | undefined {
-  const origin = task?.origin
-  if (!origin || origin.machineId === "local") return undefined
-  return origin.hostLabel || origin.machineId
-}
-
 /**
  * Build the sidebar's sections.
+ *
+ * ONE list of projects from every machine (Claude Desktop's sidebar, the web
+ * rail): checkouts of the same repo (`repoId`) on several machines are one
+ * project, its tasks from every machine under it; which machine a row lives
+ * on is the row's business (`task.origin`), not a section of its own.
  *
  * Projects follow their MAIN task's stored order (the partition `moveTask`
  * reorders, so project move-mode visibly moves the header); keying on any
@@ -137,18 +149,35 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   const scratchTasks = tasks.filter(isScratchTask)
   if (compare) scratchTasks.sort(compare)
 
-  const byProject = new Map<string, { repo: string; tasks: Task[] }>()
+  const keyOf = sidebarProjectKeyResolver(tasks)
+  const byProject = new Map<string, ProjectEntry>()
   for (const task of tasks) {
     if (isScratchTask(task)) continue
-    const key = sidebarProjectKeyOfTask(task)
-    const entry = byProject.get(key) ?? { repo: task.repo, tasks: [] }
-    // Main's `repo` wins, keeping the header stable if they ever disagree.
-    if (task.kind === "main") {
-      entry.repo = task.repo
-      entry.tasks.unshift(task)
-    } else {
-      entry.tasks.push(task)
+    const key = keyOf(task)
+    const entry = byProject.get(key) ?? {
+      repo: task.repo,
+      machineId: task.origin?.machineId ?? "local",
+      homeMain: false,
+      mains: [],
+      rest: [],
     }
+    if (!entry.repoId && task.repoId) entry.repoId = task.repoId
+    // The header names the HOME checkout (the one the key came from), its
+    // main's `repo` winning so the header stays stable if they disagree.
+    const home = sidebarProjectKeyOfTask(task) === key
+    if (home && !entry.homeMain) {
+      entry.repo = task.repo
+      entry.machineId = task.origin?.machineId ?? "local"
+      entry.homeMain = task.kind === "main"
+      // The home main heads the project; other machines' mains follow it.
+      if (entry.homeMain) {
+        entry.mains.unshift(task)
+        byProject.set(key, entry)
+        continue
+      }
+    }
+    if (task.kind === "main") entry.mains.push(task)
+    else entry.rest.push(task)
     byProject.set(key, entry)
   }
 
@@ -157,7 +186,7 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   const seen = new Set<string>()
   for (const task of tasks) {
     if (task.kind !== "main") continue
-    const key = sidebarProjectKeyOfTask(task)
+    const key = keyOf(task)
     if (!seen.has(key)) {
       seen.add(key)
       orderedKeys.push(key)
@@ -170,28 +199,26 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
     }
   }
 
-  if (compare) {
-    for (const entry of byProject.values()) {
-      entry.tasks.sort((a, b) => {
-        // Main stays first; only regular worktrees reorder.
-        if (a.kind === "main" && b.kind !== "main") return -1
-        if (b.kind === "main" && a.kind !== "main") return 1
-        return compare(a, b)
-      })
-    }
+  // Mains stay first; only regular worktrees reorder.
+  const ordered = new Map<string, Task[]>()
+  for (const [key, entry] of byProject) {
+    if (compare) entry.rest.sort(compare)
+    ordered.set(key, [...entry.mains, ...entry.rest])
   }
 
   // Labels disambiguate against every other VISIBLE project (`~/work/api` vs
   // `~/oss/api` must not both read `api`). Hidden projects are dropped first
   // so they can't influence that.
   const visibleKeys = orderedKeys.filter((key) => {
-    const entry = byProject.get(key)
-    return entry ? !isClosedDownProject(entry.tasks, tabsByTask) : false
+    const list = ordered.get(key)
+    return list ? !isClosedDownProject(list, tabsByTask) : false
   })
-  const projectRepos: LabelledRepo[] = visibleKeys.map((key) => {
+  const labelled = new Map<string, LabelledProject>()
+  for (const key of visibleKeys) {
     const entry = byProject.get(key)
-    return { repo: entry?.repo ?? "", hostLabel: hostLabelOf(entry?.tasks[0]) }
-  })
+    if (entry) labelled.set(key, { repo: entry.repo, ...(entry.repoId ? { repoId: entry.repoId } : {}) })
+  }
+  const projects = [...labelled.values()]
 
   const groups: SidebarGroup[] = []
   if (scratchTasks.length > 0) {
@@ -207,16 +234,18 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   }
   for (const key of visibleKeys) {
     const entry = byProject.get(key)
-    if (!entry) continue
+    const list = ordered.get(key)
+    const project = labelled.get(key)
+    if (!entry || !list || !project) continue
     // Routines go last so a schedule's output never pushes the user's own
     // tasks down the pane.
-    const own = entry.tasks.filter((task) => !isRoutineTask(task))
-    const routines = entry.tasks.filter(isRoutineTask)
+    const own = list.filter((task) => !isRoutineTask(task))
+    const routines = list.filter(isRoutineTask)
     groups.push({
       key,
       repo: entry.repo,
-      label: sidebarProjectLabel(entry.repo, projectRepos, hostLabelOf(entry.tasks[0])),
-      machineId: entry.tasks[0]?.origin?.machineId ?? "local",
+      label: sidebarRepoLabel(project, projects),
+      machineId: entry.machineId,
       tasks: [...own, ...routines],
       routineCount: routines.length,
     })
@@ -230,10 +259,11 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
  * caller names keys, it doesn't render rows.
  */
 export function projectKeysOf(tasks: readonly Task[]): string[] {
+  const keyOf = sidebarProjectKeyResolver(tasks)
   const keys: string[] = []
   const seen = new Set<string>()
   for (const task of tasks) {
-    const key = ownerProjectKey(task)
+    const key = ownerProjectKey(task, keyOf)
     if (key === null || seen.has(key)) continue
     seen.add(key)
     keys.push(key)
@@ -241,12 +271,13 @@ export function projectKeysOf(tasks: readonly Task[]): string[] {
   return keys
 }
 
-/** The project a task belongs to — exported for `tree-search`, which prunes by
- *  the same grouping this module builds with. A `dir` task's project is its
- *  directory; a scratch task's is the one shared bench. */
-export function ownerProjectKey(task: Task): string | null {
+/** The project a task belongs to. A `dir` task's project is its directory; a
+ *  scratch task's is the one shared bench. `keyOf` is the list's
+ *  {@link sidebarProjectKeyResolver} — without it a task on another machine
+ *  answers its own checkout, not the merged project. */
+export function ownerProjectKey(task: Task, keyOf: ProjectKeyOf = sidebarProjectKeyOfTask): string | null {
   if (isScratchTask(task)) return SCRATCH_SECTION_ID
-  return sidebarProjectKeyOfTask(task)
+  return keyOf(task)
 }
 
 /**

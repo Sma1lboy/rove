@@ -8,7 +8,7 @@
 import type { Task } from "@/types/task"
 import { fuzzyMatch } from "./fuzzy"
 import { repoBasename } from "./groups"
-import { type TreeRow, ownerProjectKey, worktreeRowLabel } from "./tree-core"
+import { type TreeRow, worktreeRowLabel } from "./tree-core"
 
 /**
  * Fields matched ONE AT A TIME (see `matchesRow`). A worktree row starts from
@@ -20,8 +20,6 @@ import { type TreeRow, ownerProjectKey, worktreeRowLabel } from "./tree-core"
  */
 function rowHaystacks(row: TreeRow, liveBranch?: (task: Task) => string): readonly string[] {
   if (row.kind === "project") return [row.label]
-  // Shown name plus the `rove machine add` alias, which differ when the alias is shorter.
-  if (row.kind === "machine") return [row.label, row.alias]
   // A translated count, and dropped from searches anyway (see `filterTreeRows`).
   if (row.kind === "routines") return []
   if (row.kind === "tab") return [row.tab.label]
@@ -55,6 +53,16 @@ export function filterTreeRows(
   const q = query.trim()
   if (q === "") return [...rows]
 
+  // A row's project is the header it sits under — the grouping already
+  // merged every machine's checkout of a repo, so a task's own checkout key
+  // would name a header that isn't there.
+  const projectOf = new Map<string, string>()
+  let header: string | null = null
+  for (const row of rows) {
+    if (row.kind === "project") header = row.id
+    else if (header !== null) projectOf.set(row.id, header)
+  }
+
   // Pass 1: self-matches, plus the ancestors each keeps alive.
   const selfMatch = new Set<string>()
   const keep = new Set<string>()
@@ -62,10 +70,10 @@ export function filterTreeRows(
     if (!matchesRow(q, row, liveBranch)) continue
     selfMatch.add(row.id)
     keep.add(row.id)
-    if (row.kind === "project" || row.kind === "machine" || row.kind === "routines") continue
+    if (row.kind === "project" || row.kind === "routines") continue
     if (row.kind === "tab") keep.add(row.task.id)
-    const project = ownerProjectKey(row.task)
-    if (project !== null) keep.add(project)
+    const project = projectOf.get(row.id)
+    if (project !== undefined) keep.add(project)
   }
 
   // Pass 2: emit if matched, kept by a descendant, or under a matched project.
@@ -75,36 +83,16 @@ export function filterTreeRows(
       if (keep.has(row.id)) out.push(row)
       continue
     }
-    // Decided in a final pass: a header survives only if something under it did.
-    if (row.kind === "machine") {
-      out.push(row)
-      continue
-    }
     // Search shows matching routine sessions directly (folded rows must stay
     // findable), so the fold toggle would have nothing under it.
     if (row.kind === "routines") continue
-    const project = ownerProjectKey(row.task)
-    const underMatchedProject = project !== null && selfMatch.has(project)
+    const project = projectOf.get(row.id)
+    const underMatchedProject = project !== undefined && selfMatch.has(project)
     if (row.kind === "worktree") {
       if (underMatchedProject || keep.has(row.id)) out.push(row)
       continue
     }
     if (underMatchedProject || selfMatch.has(row.task.id) || keep.has(row.id)) out.push(row)
-  }
-  return dropEmptyMachineSections(out)
-}
-
-/** Drop a machine header that no surviving row follows. */
-function dropEmptyMachineSections(rows: readonly TreeRow[]): TreeRow[] {
-  const out: TreeRow[] = []
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]
-    if (!row) continue
-    if (row.kind === "machine") {
-      const next = rows[i + 1]
-      if (!next || next.kind === "machine") continue
-    }
-    out.push(row)
   }
   return out
 }

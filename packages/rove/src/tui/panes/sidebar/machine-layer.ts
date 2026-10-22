@@ -1,17 +1,18 @@
 /**
- * The MACHINE layer of the sidebar tree: gathers each remote machine's
- * project subtrees (project keys carry the machine) behind one header,
- * indented by one.
+ * The MACHINE layer of the sidebar tree. Machines are not sections: projects
+ * from every machine already share one list (`buildSidebarGroups` merges a
+ * repo's checkouts by `repoId`). This layer only says, per row, where a task
+ * from ANOTHER machine lives — the renderer draws that as a cloud mark.
  *
  *  1. Zero machines → returns the SAME array (identity included), so
  *     machine-free sidebar goldens match byte for byte.
- *  2. The local machine gets no header; its projects stay at depth 0.
+ *  2. Local rows are untouched; this computer is home.
  *
  * An OFFLINE machine keeps its rows (greyed by the renderer): a vanished row
  * would take the only record of where the work was.
  */
 
-import { type MachineRowState, type TreeRow, machineRowId } from "./tree-core"
+import type { MachineRowState, RemoteMark, TreeRow } from "./tree-core"
 
 /** One registered machine, as this layer needs it. */
 export interface MachineLayerEntry {
@@ -22,9 +23,9 @@ export interface MachineLayerEntry {
   readonly version?: string
 }
 
-/** i18n key for a machine's state word; null when online (shows its version).
+/** i18n key for a machine's state word; null when online.
  *  A key, not a string, so the language isn't frozen here. */
-function machineStateKey(state: MachineRowState): string | null {
+export function machineStateKey(state: MachineRowState): string | null {
   switch (state) {
     case "online":
       return null
@@ -40,24 +41,30 @@ function machineStateKey(state: MachineRowState): string | null {
 }
 
 /**
- * Machine header text: `narwhal · v0.9.185`, `narwhal · offline`, or
- * `narwhal · ⚠ v0.9.100 (protocol mismatch)`. The version is on the row
- * because version skew explains most cross-machine "bugs".
+ * Where a remote row lives, for the row the cursor is on: `on mac-mini · v0.9.185`
+ * when online (version skew explains most cross-machine "bugs"), else
+ * `on mac-mini · offline` / `on mac-mini · protocol mismatch`.
  */
-export function machineRowLabel(entry: MachineLayerEntry, t: (key: string) => string): string {
-  const name = entry.hostLabel || entry.alias
-  const word = machineStateKey(entry.state)
-  if (!word) return entry.version ? `${name} · v${entry.version}` : name
-  if (entry.state === "mismatch") {
-    return entry.version ? `${name} · ⚠ v${entry.version} (${t(word)})` : `${name} · ⚠ ${t(word)}`
-  }
-  return `${name} · ${t(word)}`
+export function remoteRowCaption(
+  mark: RemoteMark,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  const where = t("tasks.machine.runsOn", { host: mark.host })
+  const word = machineStateKey(mark.state)
+  if (word) return `${where} · ${t(word)}`
+  return mark.version ? `${where} · v${mark.version}` : where
+}
+
+/** A remote row reads as live only while its machine is online. */
+export function remoteMarkLive(mark: RemoteMark): boolean {
+  return mark.state === "online"
 }
 
 /**
- * Insert a header per remote machine and indent its rows under it. Non-project
- * rows inherit the machine of the project row above. Rows of an unregistered
- * machine (mid-removal) are dropped — headerless they'd read as local.
+ * Stamp each worktree row of a remote task with its machine (host + state).
+ * Rows of an unregistered machine (mid-removal) are dropped, and a project
+ * header left with nothing under it goes with them — a stranded header would
+ * read as an empty local project.
  */
 export function applyMachineLayer(
   rows: readonly TreeRow[],
@@ -65,35 +72,48 @@ export function applyMachineLayer(
 ): readonly TreeRow[] {
   if (machines.length === 0) return rows
   const byAlias = new Map(machines.map((entry) => [entry.alias, entry]))
-  const local: TreeRow[] = []
-  const remote = new Map<string, TreeRow[]>()
-  let current = "local"
+  const kept: TreeRow[] = []
+  // Index of the current project header in `kept`, and whether a row it had dropped.
+  let header = -1
+  let dropped = false
+  const closeHeader = (): void => {
+    if (header >= 0 && dropped && header === kept.length - 1) kept.pop()
+  }
   for (const row of rows) {
-    if (row.kind === "machine") continue
-    if (row.kind === "project") current = row.machineId
-    if (current === "local") {
-      local.push(row)
+    if (row.kind === "project") {
+      closeHeader()
+      header = kept.length
+      dropped = false
+      kept.push(row)
       continue
     }
-    if (!byAlias.has(current)) continue
-    const bucket = remote.get(current) ?? []
-    bucket.push({ ...row, depth: row.depth + 1 } as TreeRow)
-    remote.set(current, bucket)
-  }
-  const out: TreeRow[] = [...local]
-  // Registration order, so a machine doesn't move by waking up first.
-  for (const entry of machines) {
-    // A handshaking machine shows just its header.
-    out.push({
-      kind: "machine",
-      id: machineRowId(entry.alias),
-      alias: entry.alias,
-      label: entry.hostLabel || entry.alias,
-      state: entry.state,
-      ...(entry.version ? { version: entry.version } : {}),
-      depth: 0,
+    if (row.kind === "routines" || row.kind === "recent") {
+      kept.push(row)
+      continue
+    }
+    const alias = row.task.origin?.machineId ?? "local"
+    if (alias === "local") {
+      kept.push(row)
+      continue
+    }
+    const entry = byAlias.get(alias)
+    if (!entry) {
+      dropped = true
+      continue
+    }
+    if (row.kind === "tab") {
+      kept.push(row)
+      continue
+    }
+    kept.push({
+      ...row,
+      remote: {
+        host: entry.hostLabel || row.task.origin?.hostLabel || alias,
+        state: entry.state,
+        ...(entry.version ? { version: entry.version } : {}),
+      },
     })
-    for (const row of remote.get(entry.alias) ?? []) out.push(row)
   }
-  return out
+  closeHeader()
+  return kept
 }
