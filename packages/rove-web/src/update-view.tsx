@@ -41,8 +41,14 @@ export function UpdateChip() {
   const state = useStore(updateState)
   if (!state?.info?.hasUpdate) return null
   return (
-    <button type="button" className="kicker update-chip" onClick={() => page.set("update")}>
-      {fill(u.chip, { version: state.info.latest })}
+    // A narrow rail keeps only the arrow (the version is in the title); a wide one shows both.
+    <button
+      type="button"
+      className="kicker update-chip"
+      title={fill(u.chip, { version: state.info.latest })}
+      onClick={() => page.set("update")}
+    >
+      ↑<span className="update-chip-version"> {state.info.latest}</span>
     </button>
   )
 }

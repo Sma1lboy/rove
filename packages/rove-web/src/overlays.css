@@ -570,6 +570,16 @@ div.placeholder p {
 
 .update-chip {
   color: var(--warning);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.rail {
+  container-type: inline-size;
+}
+@container (max-width: 250px) {
+  .update-chip-version {
+    display: none;
+  }
 }
 
 .release-notes h2 {
