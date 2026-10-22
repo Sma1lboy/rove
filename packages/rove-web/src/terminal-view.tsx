@@ -115,7 +115,7 @@ export function TerminalView(props: TerminalViewProps) {
     const control = {
       stream,
       focus: () => term.focus(),
-      scrollPages: (direction: 1 | -1) => term.scrollLines(direction * SCROLL_PAGE_LINES),
+      scrollPages: (direction: 1 | -1) => handle.scrollLines(direction * SCROLL_PAGE_LINES),
       hasSelection: () => term.hasSelection(),
       copySelection: () => {
         const text = term.getSelection()
@@ -184,10 +184,10 @@ export function TerminalView(props: TerminalViewProps) {
       {scrolled > 0 && !searching && handle && (
         <div className="term-scrolled mono">
           <span className="tone-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>
-          <button type="button" className="link tone-info" onClick={() => handle.term.scrollToTop()}>
+          <button type="button" className="link tone-info" onClick={() => handle.scrollToTop()}>
             {terminalText("scrollFirst")}
           </button>
-          <button type="button" className="link tone-info" onClick={() => handle.term.scrollToBottom()}>
+          <button type="button" className="link tone-info" onClick={() => handle.scrollToBottom()}>
             {terminalText("scrollLatest")}
           </button>
         </div>

@@ -15,6 +15,7 @@ import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
+import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
 import { activeStream } from "./ui.ts"
 
 /** The TUI's default `claude` theme, dark (`tui/context/theme/claude.json`). */
@@ -46,6 +47,9 @@ const FONT_FAMILY = '"JetBrains Mono", "Symbols Nerd Font Mono", "SF Mono", ui-m
 
 /** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
 export const SCROLL_PAGE_LINES = 10
+
+/** Width of xterm's overlay scrollbar lane (its default is 14); the fit addon reserves the same. */
+const SCROLLBAR_WIDTH = 8
 
 export type Notice =
   | { readonly kind: "none" }
@@ -90,6 +94,10 @@ export interface TermHandle {
   readonly term: Terminal
   readonly search: SearchAddon
   readonly stream: string
+  /** User scrolls (keys, the scroll chips): negative = toward older output. */
+  scrollLines(lines: number): void
+  scrollToTop(): void
+  scrollToBottom(): void
   /** Attach again (a reset respawned the session under the same key). */
   reattach(): Promise<void>
   dispose(): void
@@ -119,6 +127,10 @@ export function mountTerminal(o: MountOpts): TermHandle {
     cursorBlink: true,
     scrollback: prefsStore.get().prefs.scrollbackRows,
     allowProposedApi: true,
+    // xterm sizes its scrollbar from the overview ruler's width; the ruler itself is hidden in CSS.
+    overviewRuler: { width: SCROLLBAR_WIDTH },
+    // xterm would also jump to the bottom on mouse reports sent to the app; typing is handled below.
+    scrollOnUserInput: false,
   })
   const fit = new FitAddon()
   const search = new SearchAddon()
@@ -221,8 +233,14 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const offScroll = prefsStore.subscribe(() => {
     term.options.scrollback = prefsStore.get().prefs.scrollbackRows
   })
+  // The host shows through below the last whole row: paint it the terminal's own background.
+  const paintHost = () => {
+    el.style.backgroundColor = (terminalTheme.get() ?? XTERM_THEME).background ?? ""
+  }
+  paintHost()
   const offTheme = terminalTheme.subscribe(() => {
     term.options.theme = terminalTheme.get() ?? XTERM_THEME
+    paintHost()
   })
 
   // Copy: ctrl+c with a selection copies and drops it, otherwise it stays the interrupt (TUI `copySelectionIfAny`).
@@ -250,14 +268,68 @@ export function mountTerminal(o: MountOpts): TermHandle {
   el.addEventListener("mousedown", onDown)
   document.addEventListener("mouseup", onUp)
 
-  const reportScroll = () => {
-    const buffer = term.buffer.active
-    o.onScrolled(Math.max(0, buffer.baseY - buffer.viewportY))
-  }
-  const scroll = term.onScroll(reportScroll)
-  const written = term.onWriteParsed(reportScroll)
-
+  // Scrolling as the TUI pane does it. A wheel the app does not take moves the scrollback by whole
+  // lines here, not through xterm's scrollable, which drops a sub-line touchpad delta whenever new
+  // output lands before it adds up to a row. A view at the bottom follows output; a scrolled one
+  // stays put, and if the app wipes the scrollback under it (ESC[3J, ESC c: a full repaint) it
+  // keeps its distance from the bottom while the wipes go on. Typing returns to the bottom.
   const textarea = term.textarea
+  let wheelCarry = 0
+  let heldBack: number | null = null
+  let lastWipe = 0
+  const onWheel = (e: WheelEvent) => {
+    if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+    const alternateScreen = term.buffer.active.type === "alternate"
+    if (wheelOwner({ alternateScreen, mouseTracking: term.modes.mouseTrackingMode !== "none" }) === "app") return
+    e.preventDefault()
+    e.stopPropagation()
+    const screen = term.element?.querySelector<HTMLElement>(".xterm-screen")
+    const cellHeight = screen && term.rows > 0 ? screen.clientHeight / term.rows : 0
+    const step = wheelLines(wheelCarry, e, cellHeight || 15, term.rows)
+    wheelCarry = step.carry
+    if (step.lines === 0) return
+    heldBack = null
+    term.scrollLines(step.lines)
+  }
+  el.addEventListener("wheel", onWheel, { capture: true, passive: false })
+  const onScrollbarDown = (e: MouseEvent) => {
+    if (e.target instanceof Element && e.target.closest(".scrollbar")) heldBack = null
+  }
+  el.addEventListener("mousedown", onScrollbarDown, { capture: true })
+  const noteWipe = () => {
+    if (term.buffer.active.type === "normal") {
+      const back = linesFromBottom(term.buffer.active)
+      if (heldBack === null && back > 0) heldBack = back
+      lastWipe = performance.now()
+    }
+    return false
+  }
+  const wipeScrollback = term.parser.registerCsiHandler({ final: "J" }, (params) =>
+    params[0] === 3 ? noteWipe() : false,
+  )
+  const wipeAll = term.parser.registerEscHandler({ final: "c" }, noteWipe)
+  const followInput = () => {
+    heldBack = null
+    if (linesFromBottom(term.buffer.active) > 0) term.scrollToBottom()
+  }
+  const typed = term.onKey(followInput)
+  textarea?.addEventListener("paste", followInput)
+  textarea?.addEventListener("compositionend", followInput)
+
+  const reportScroll = () => o.onScrolled(linesFromBottom(term.buffer.active))
+  const scroll = term.onScroll(reportScroll)
+  const written = term.onWriteParsed(() => {
+    // A second without a wipe: plain output again, which xterm already holds against.
+    if (heldBack !== null && performance.now() - lastWipe > 1000) heldBack = null
+    const target = viewportAfterWrite(heldBack, term.buffer.active)
+    if (target !== null) term.scrollToLine(target)
+    reportScroll()
+  })
+  const userScroll = (move: () => void) => {
+    heldBack = null
+    move()
+  }
+
   const focused = () => {
     activeStream.set(stream)
     o.onFocusChange(true)
@@ -270,10 +342,20 @@ export function mountTerminal(o: MountOpts): TermHandle {
     term,
     search,
     stream: expected,
+    scrollLines: (lines) => userScroll(() => term.scrollLines(lines)),
+    scrollToTop: () => userScroll(() => term.scrollToTop()),
+    scrollToBottom: () => userScroll(() => term.scrollToBottom()),
     reattach: attach,
     dispose() {
       disposed = true
       observer.disconnect()
+      el.removeEventListener("wheel", onWheel, { capture: true })
+      el.removeEventListener("mousedown", onScrollbarDown, { capture: true })
+      textarea?.removeEventListener("paste", followInput)
+      textarea?.removeEventListener("compositionend", followInput)
+      wipeScrollback.dispose()
+      wipeAll.dispose()
+      typed.dispose()
       offTheme()
       offScroll()
       if (resizeTimer !== null) window.clearTimeout(resizeTimer)

@@ -13,6 +13,7 @@ import { App, ConnectScreen } from "./app.tsx"
 import { BridgeClient, bridgeUrl } from "./bridge.ts"
 import { AppModel } from "./model.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
+import { watchBridgeVersion } from "./version-reload.ts"
 
 const root = createRoot(document.getElementById("root") as HTMLElement)
 const token = storedToken()
@@ -29,6 +30,8 @@ if (!token) {
   client.on("prompt", (data) => {
     if (isPromptPush(data)) openPrompt(client, data)
   })
+  // An upgrade restarts the bridge under the open page: reload once into the new client.
+  watchBridgeVersion(client)
   client.start()
   root.render(
     <StrictMode>

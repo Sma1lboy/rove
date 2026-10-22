@@ -128,11 +128,42 @@ button:focus-visible,
   }
 }
 
-/* xterm 6 draws its own overlay slider (fades in on hover and scroll): round it, drop VS Code's black inset shadow. */
+/*
+ * xterm 6 draws its own overlay slider (fades in on hover and scroll). Its lane is 8px
+ * (`SCROLLBAR_WIDTH` in term-mount.ts); a 1px inset leaves the page's 6px pill in the page's
+ * thumb colours, which beat the theme colours xterm injects. Drop VS Code's black inset shadow.
+ */
 .xterm .xterm-scrollable-element > .scrollbar > .slider {
-  border: 3px solid transparent;
+  border: 1px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
+}
+
+.term-host .xterm .xterm-scrollable-element > .scrollbar > .slider {
+  background-color: var(--scroll-thumb);
+}
+
+.term-host .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
+  background-color: var(--scroll-thumb-hover);
+}
+
+.term-host .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
+  background-color: var(--scroll-thumb-active);
+}
+
+/* Only there to size the scrollbar lane; rove draws no decorations on it. */
+.term-host .xterm-decoration-overview-ruler {
+  display: none;
+}
+
+/*
+ * xterm 6 scrolls through its scrollable element; the legacy viewport underneath is a black
+ * `overflow-y: scroll` box that showed as a dark bar below the last row and could grow native
+ * scrollbars of its own.
+ */
+.term-host .xterm .xterm-viewport {
+  overflow: hidden;
+  background-color: transparent;
 }
 
 .xterm .xterm-scrollable-element > .shadow {
@@ -448,14 +479,21 @@ button:focus-visible,
   display: flex;
 }
 
+/*
+ * The fit addon measures the host's box and subtracts the padding of `.xterm`, not the host's:
+ * padding here made it size the terminal for the padded box, so the grid overflowed by the
+ * padding (a clipped last row, the pane scrolling sideways).
+ */
 .term-host {
   flex: 1;
   min-width: 0;
-  padding: 6px 4px 4px 8px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .term-host .xterm {
   height: 100%;
+  padding: 6px 4px 4px 8px;
 }
 
 .term-notice {
