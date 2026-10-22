@@ -112,6 +112,7 @@ export const DAEMON_CHANNELS = [
   "task.snapshot",
   "issue.snapshot",
   "tabs.changed",
+  "row.status",
   "active-task",
   "update",
   "engine-state",

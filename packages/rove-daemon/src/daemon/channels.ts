@@ -41,6 +41,7 @@ export type {
 } from "./channels-events.ts"
 import type { RepoIssues } from "./issues-store.ts"
 import type { SerializedTask } from "./protocol.ts"
+import type { RowStatusPayload } from "./row-status-store.ts"
 import type { RowTokenMap } from "./row-tokens.ts"
 import type { TabsChangedPayload } from "./tabs-store.ts"
 
@@ -72,6 +73,11 @@ export interface ChannelPayloads {
    * (`tabs.list`) when it connects and keeps the highest `rev` per task.
    */
   "tabs.changed": TabsChangedPayload
+  /**
+   * What every rail shows for every task and tab (`row-status-store.ts`), whole, after any
+   * change. Clients render it (`rove/src/lib/row-status-glyph.ts`); none derives a status.
+   */
+  "row.status": RowStatusPayload
   /**
    * The task last switched into, shared so every Tasks pane and the monitor
    * highlight the same focus. `null` = none yet. Set via `task.setActive`.

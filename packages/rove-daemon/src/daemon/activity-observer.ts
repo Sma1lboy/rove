@@ -65,6 +65,8 @@ export interface ObservedPtySession {
   readonly title: string
   /** Monotonic total bytes the child ever wrote — the output heartbeat. */
   readonly totalBytes: number
+  /** A freeze-restored session not yet reopened (`row-status-store.ts`). */
+  readonly restored?: boolean
 }
 
 export interface ActivityObserverIo {

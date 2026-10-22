@@ -38,6 +38,7 @@ import { GATE_HANDLERS } from "./handlers-gates.ts"
 import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
+import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
 import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
 import { TAB_HANDLERS } from "./handlers-tabs.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
@@ -94,6 +95,8 @@ export interface DaemonHandlerContext {
   readonly rowTokens?: import("./row-tokens.ts").RowTokenStore
   /** The one writer of terminal tabs (absent in older test doubles). */
   readonly tabs?: import("./tabs-store.ts").TabsStore
+  /** What every rail shows (absent in older test doubles). */
+  readonly rowStatus?: import("./row-status-store.ts").RowStatusStore
   /** Starts deduplicated durable background deletion after RPC acceptance. */
   readonly deletions: TaskDeletionScheduler
   /** Daemon-owned issue tracker store, keyed by git common-dir. */
@@ -309,6 +312,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...GRAPHICS_HANDLERS,
     ...ISSUE_HANDLERS,
     ...TAB_HANDLERS,
+    ...ROW_STATUS_HANDLERS,
     ...PR_HANDLERS,
     {
       // `rove api inspect`: raw transient state, read-only. Wire payloads hide
