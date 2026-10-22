@@ -155,7 +155,9 @@ test("another machine's task row shows the status built from the hub's relayed t
 test("a task-level job spins the task row even with its tabs listed", async () => {
   seed({ kind: "busy", reason: "job", since: NOW })
   const listed = await worktreeFrame(true)
-  expect(DEFAULT_GLYPHS.spinner.some((frame) => listed.includes(`${frame} feat/alpha`))).toBe(true)
+  // The spinner sits at the row's right edge (#1367), on the task's own line.
+  const row = listed.split("\n").find((line) => line.includes("feat/alpha")) ?? ""
+  expect(DEFAULT_GLYPHS.spinner.some((frame) => row.includes(frame))).toBe(true)
 })
 
 /** The shown tab, as a module store the way the workspace reads the daemon's tabs (`tabs-sync.ts`). */
