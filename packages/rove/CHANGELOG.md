@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.9.265
+
+### Patch Changes
+
+- [#1374](https://github.com/Sma1lboy/rove/pull/1374) [`dd2ab6d`](https://github.com/Sma1lboy/rove/commit/dd2ab6d37e2c2e73b621fb1b133c05dc484cc7c4) Settings → Engines is rebuilt in the web client and the TUI: one row per engine with its name (a renamed engine shows its original name beside it), a one-line status with a colored dot (Ready, Not installed, Not on PATH, Sign in needed, Integration outdated or blocked), and Default and Available columns. Expanding a row explains the program, sign-in and live status in full sentences, with rename and reset or remove. Engine integrations sit below the list with how many are installed; Install only counts engines whose program is on this machine. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1372](https://github.com/Sma1lboy/rove/pull/1372) [`c30f3af`](https://github.com/Sma1lboy/rove/commit/c30f3af1870fe67b526fb6239ac9e474ccb2f3c6) Kanban and Issues are now first-party mods that are not installed by default, in the TUI and the web alike. Install one from Settings → Plugins (an Install button in the web, enter in the TUI) or with `rove plugin install kanban` / `rove plugin install issues`; its rail row and `ctrl+a` chord appear everywhere at once. Uninstalling hides them again and leaves the issue store on disk, so a later install picks your stories back up. The old `plugins.bundled.<id>.enabled` switches are ignored. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1376](https://github.com/Sma1lboy/rove/pull/1376) [`1c84fcf`](https://github.com/Sma1lboy/rove/commit/1c84fcfa745acc1a2e231188672db2224f249f7f) `rove api issue-*` now belongs to the Kanban mod and `rove api workitem-*` to the Issues mod. Until the mod is installed those verbs are left out of `rove api schema` and `--help`, and calling one fails with `MOD_NOT_INSTALLED` and the `rove plugin install` command that fixes it; the daemon refuses the matching RPCs the same way, so the web and other machines get the same answer. Without Kanban, deleting a task or marking it done no longer touches the issue store, which stays as it was for a later install. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1368](https://github.com/Sma1lboy/rove/pull/1368) [`a16a59a`](https://github.com/Sma1lboy/rove/commit/a16a59a492c4f83de5477b5ccc91d61520c913f3) The web rail head stays on one line: the wordmark, the inbox count and the update mark no longer wrap, and a narrow rail shows only the update arrow (the version is in its tooltip). The rail no longer draws a full-height divider that ran past the workspace's top edge. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1367](https://github.com/Sma1lboy/rove/pull/1367) [`29ba0de`](https://github.com/Sma1lboy/rove/commit/29ba0de0a1c1e63979c867350a69bec746068022) Task rows in the TUI sidebar and the web rail line up with their project header: no status cell on the left, the title first, and at the right edge the PR mark, a spinner while the worktree is created or the task deleted, then the cloud of a task on another machine. Task rows no longer show file change counts or how many commits the branch is ahead, and the web rail's scrollbar is hidden (it still scrolls). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1366](https://github.com/Sma1lboy/rove/pull/1366) [`8ba9ea5`](https://github.com/Sma1lboy/rove/commit/8ba9ea5357d46ad86944ca68e7394f0a4e0a0d63) Task rows in the TUI sidebar and the web rail no longer show a status mark; each tab row shows its own. A task row only spins while its worktree is being created or the task is being deleted. The folded (narrow) rail still colours each task by its summary. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1370](https://github.com/Sma1lboy/rove/pull/1370) [`b2e4f76`](https://github.com/Sma1lboy/rove/commit/b2e4f7617e876b949bf60e6c73ad1b6e92e92818) In the web client, "New conversation" (the tab strip's +, a task's menu, an empty task) opens a tab right away on the engine the project used last, as ctrl+t does in the TUI. Picking another engine, forking or starting in Scratch is "New conversation with…" in the task menu, a right-click on +, or ctrl+e. `rove api tab-new --kind engine --latest` and the bridge's `tab.new` with `latest: true` open a tab the same way. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1371](https://github.com/Sma1lboy/rove/pull/1371) [`74698dc`](https://github.com/Sma1lboy/rove/commit/74698dc4b9eedb1b5bf896d60e07925ce331f0c1) Opening the web client no longer flashes "no open sessions in this task" before the task's tabs arrive: the empty state waits for the first tab list, which is now read right away instead of after a 300ms debounce. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1378](https://github.com/Sma1lboy/rove/pull/1378) [`9aa8b43`](https://github.com/Sma1lboy/rove/commit/9aa8b4378e0b57583ad3dedec79ed8d8e6755160) The + on a web rail project header lines up with the cloud marks of the task rows below it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1371](https://github.com/Sma1lboy/rove/pull/1371) [`74698dc`](https://github.com/Sma1lboy/rove/commit/74698dc4b9eedb1b5bf896d60e07925ce331f0c1) The web rail's project headers work like Claude's sidebar sections: click a project's name to collapse or expand it (remembered per browser), and the + that appears on hover starts a new task in that project. The divider line after each name is gone, and a project with nothing going on (only its repo row, no open tab) is no longer listed; New task still reaches it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1377](https://github.com/Sma1lboy/rove/pull/1377) [`fdd7004`](https://github.com/Sma1lboy/rove/commit/fdd7004607664f930bff54d65dc5d0cc53072f86) In the web rail, project names are smaller and quieter (11px) and task rows larger (14px), so each branch reads first and the project only labels the group. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1375](https://github.com/Sma1lboy/rove/pull/1375) [`9b3f90f`](https://github.com/Sma1lboy/rove/commit/9b3f90fb262627ab038e6645feb2e396fafebd2b) Tab rows in the web rail sit closer under their task: the indent before a tab's status mark is 6px instead of 18px. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1369](https://github.com/Sma1lboy/rove/pull/1369) [`46b48bf`](https://github.com/Sma1lboy/rove/commit/46b48bf844d1241bf1d6355ef842d33f735fea36) The web terminal's scrollbar is a thin 6px thumb in the page's colors, the black strip under the last row is gone (the grid now fits its box), and scrolling up stays put while output keeps arriving: trackpad scrolls add up to whole lines, mouse reports to the program no longer jump to the bottom, and a full redraw keeps your place. An open web page reloads itself once when the bridge it reconnects to runs a newer Rove. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1379](https://github.com/Sma1lboy/rove/pull/1379) [`167558e`](https://github.com/Sma1lboy/rove/commit/167558e1c753a727729b3e9a28b9d1125e5f1cc0) WeChat now talks to your own agent instead of a command parser. The first plain message creates a pinned **WeChat** project running your preferred engine with the rove skill, and the agent answers you on WeChat. It keeps one live conversation; `/new` opens a fresh one and earlier conversations stay as tabs in that project. Commands now start with `/` (`/status`, `/gates`, `/send …`), and `rove weixin agent` shows the agent and its conversations. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.264
 
 ### Patch Changes
