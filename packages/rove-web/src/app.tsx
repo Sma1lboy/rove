@@ -24,6 +24,7 @@ import { taskMenu } from "./row-actions.tsx"
 import { SplitPane } from "./split-view.tsx"
 import { useStore } from "./store.ts"
 import { useTaskColor } from "./task-colors.ts"
+import { newChatHere } from "./task-dialogs.tsx"
 import { tokenFromInput } from "./token-input.ts"
 import { dialog, page, preview, zen } from "./ui.ts"
 import { UpdateView, checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
@@ -176,8 +177,12 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
           <button
             type="button"
             className="tab tab-new"
-            title={t("menu.newChat")}
-            onClick={() => dialog.set(<NewChatDialog model={model} taskId={task.id} />)}
+            title={t("menu.newChatHint")}
+            onClick={() => void newChatHere(model, task.id)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              dialog.set(<NewChatDialog model={model} taskId={task.id} />)
+            }}
           >
             +
           </button>
@@ -207,12 +212,15 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
         {task && tabs.length === 0 && !shown && (
           <div className="placeholder">
             <p>{t("workspace.noTabs")}</p>
+            <button type="button" className="button" onClick={() => void newChatHere(model, task.id)}>
+              {t("menu.newChat")}
+            </button>{" "}
             <button
               type="button"
               className="button"
               onClick={() => dialog.set(<NewChatDialog model={model} taskId={task.id} />)}
             >
-              {t("menu.newChat")}
+              {t("menu.newChatPick")}
             </button>
           </div>
         )}

@@ -7,6 +7,7 @@
 import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { resolvePreferredVendor } from "../../state/vendor-prefs.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { F } from "./flags.ts"
@@ -223,6 +224,12 @@ export const TAB_NEW_VERB: VerbSpec = {
         "Engine tabs only: pin the tab to this engine (an engine id from `engine-list` or a full command line), as `send --tab new --command` does. Omitted = the task's own engine.",
     },
     {
+      name: "latest",
+      type: "bool",
+      description:
+        "Engine tabs only: open on the engine this project used last (the TUI's ctrl+t), else the default engine, instead of the task's own. Ignored beside `--command`.",
+    },
+    {
       name: "file",
       type: "string",
       placeholder: "PATH",
@@ -258,14 +265,21 @@ export const TAB_NEW_VERB: VerbSpec = {
     const daemon = daemonOf(ctx)
     const taskId = ctx.args.require("task-id")
     const kind = ctx.args.requireEnum<TabNewKind>("kind")
-    const command = ctx.args.str("command")
+    const latest = ctx.args.bool("latest") === true
     if (ctx.args.str("line") !== undefined && kind !== "editor") {
       throw new ApiError("--line only applies to an editor tab; pass --kind editor", "BAD_FLAG", helpStep("tab-new"))
     }
-    if (command && kind !== "engine") {
-      throw new ApiError("--command only applies to an engine tab; pass --kind engine", "BAD_FLAG", helpStep("tab-new"))
+    if ((ctx.args.str("command") || latest) && kind !== "engine") {
+      throw new ApiError(
+        "--command and --latest only apply to an engine tab; pass --kind engine",
+        "BAD_FLAG",
+        helpStep("tab-new"),
+      )
     }
     const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+    // The project's last engine; the task's own when it is the same, so its model and effort carry over.
+    const preferred = latest ? resolvePreferredVendor(task.repo) : undefined
+    const command = ctx.args.str("command") || (preferred && preferred !== task.vendor ? preferred : undefined)
     if (kind === "editor" || kind === "pane" || kind === "viewport") return launchKind(ctx, daemon, task, kind)
     const opened = await ctx.runtime.openTab(
       daemon,

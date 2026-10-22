@@ -57,6 +57,8 @@ export const zh: typeof en = {
   menu: {
     closeTab: "关闭该标签页",
     newChat: "新建会话",
+    newChatPick: "选择引擎新建会话…",
+    newChatHint: "新建会话 · 右键或 ctrl+e 选择引擎",
     newShell: "新建终端",
     renameTab: "重命名标签页",
     newTask: "新建任务",

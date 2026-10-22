@@ -308,6 +308,11 @@ describe("tab.new verb choice", () => {
     expect(empty.verb).toBe("tab-new")
     expect(argvToParams(empty.verb, empty.argv)).toEqual({ "task-id": "T1", kind: "shell" })
   })
+
+  test("`latest` asks for the project's last engine; a named engine wins", () => {
+    expect(newTabInvocation("T1", { kind: "engine", latest: true }).argv).toContain("--latest")
+    expect(newTabInvocation("T1", { kind: "engine", engine: "codex", latest: true }).argv).not.toContain("--latest")
+  })
 })
 
 describe("phone text that starts with --", () => {
