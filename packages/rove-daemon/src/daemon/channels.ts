@@ -169,6 +169,8 @@ export interface ChannelPayloads {
     taskId: string
     kind: "ensureWorktree"
     phase: "running" | "done" | "error"
+    /** On `running` only, once git starts checking out files: whole percent, 0-100. */
+    progress?: number
     /** Present only on `phase: "error"` — the thrown message, for UI hints. */
     error?: string
   }

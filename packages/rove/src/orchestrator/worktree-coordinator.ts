@@ -99,10 +99,10 @@ export class WorktreeCoordinator {
 
   /** `task` is already known unmaterialised (the Orchestrator short-circuits
    *  the rest). Idempotent + delete-safe via {@link worktreeLocks}. */
-  async ensure(task: Task): Promise<string> {
+  async ensure(task: Task, onProgress?: (percent: number) => void): Promise<string> {
     const inflight = this.worktreeLocks.get(task.id)
     if (inflight) return inflight
-    const work = this.createWorktree(task)
+    const work = this.createWorktree(task, onProgress)
     this.worktreeLocks.set(task.id, work)
     try {
       return await work
@@ -118,7 +118,7 @@ export class WorktreeCoordinator {
    * Returns the path directly so a delete right after creation can't turn
    * success into a spurious {@link TaskNotFoundError}.
    */
-  private async createWorktree(task: Task): Promise<string> {
+  private async createWorktree(task: Task, onProgress?: (percent: number) => void): Promise<string> {
     // Already claimed at create time; re-claiming would refuse its own
     // pending reservation.
     const slug = task.worktreeName || (await this.slugs.allocate(task.repo))
@@ -128,7 +128,7 @@ export class WorktreeCoordinator {
     const baseRef = task.baseRef
     let info: WorktreeInfo
     try {
-      info = await this.worktrees.createForTask({ repo: task.repo, slug, branch, baseRef })
+      info = await this.worktrees.createForTask({ repo: task.repo, slug, branch, baseRef, onProgress })
     } catch (err) {
       this.slugs.cancel(task.repo, slug)
       throw err

@@ -219,8 +219,9 @@ export class Orchestrator {
    * recorded dir vanished (a delete that didn't clear the index, a manual `rm`,
    * a crash mid-`deleteTask`), prune git's stale registration and re-materialise
    * onto the task's OWN branch, so committed work is recovered.
+   * `onProgress`: the checkout's percents, only when this call runs the add.
    */
-  async ensureWorktree(id: TaskId | string): Promise<string> {
+  async ensureWorktree(id: TaskId | string, opts?: { onProgress?: (percent: number) => void }): Promise<string> {
     const task = this.requireTask(id)
     if (task.deletion) throw new TaskDeletingError(String(task.id))
     if (task.kind === "main") return repoWorkingDir(task.repo)
@@ -231,9 +232,9 @@ export class Orchestrator {
       // Prune first, else `worktree add` on the same path errors.
       await this.worktrees.pruneWorktrees(task.repo)
       await this.store.update(task.id, { worktreePath: "" })
-      return this.worktreeCoordinator.ensure({ ...task, worktreePath: "" })
+      return this.worktreeCoordinator.ensure({ ...task, worktreePath: "" }, opts?.onProgress)
     }
-    return this.worktreeCoordinator.ensure(task)
+    return this.worktreeCoordinator.ensure(task, opts?.onProgress)
   }
 
   /**

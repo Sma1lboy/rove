@@ -150,7 +150,7 @@ anything of you:
 
 | Glyph | Meaning |
 |---|---|
-| spinner | Engine is working (also shown while a worktree materializes or deletes) |
+| spinner | Engine is working (also shown while a worktree materializes or deletes; a materializing row also shows its checkout percent once git reports one) |
 | `!` | Needs you: a permission prompt, a rate limit, an errored turn, a dead engine process, or a failed worktree deletion. Open the tab to see which |
 | `●` | Turn finished, and you haven't looked yet |
 | `○` | Quiet: idle, not yet observed, a finished turn you've already seen, a shell tab, or a custom engine without activity tracking |

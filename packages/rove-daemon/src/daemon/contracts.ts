@@ -301,7 +301,7 @@ export interface DaemonOrchestrator {
   /** Migrate a scratch task into `repo`: repoint the
    *  task at the repo root and clear the scratch flag. */
   adoptScratchRepo(id: string, repo: string): Promise<void>
-  ensureWorktree(id: string): Promise<string>
+  ensureWorktree(id: string, opts?: { onProgress?: (percent: number) => void }): Promise<string>
   forgetProject(repo: string): Promise<void>
   setTitle(id: string, title: string): Promise<void>
   setBranch(id: string, branch: string): Promise<void>

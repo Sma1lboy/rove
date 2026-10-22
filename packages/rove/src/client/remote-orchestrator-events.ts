@@ -254,7 +254,7 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     return
   }
   if (name === "task.jobs") {
-    const p = payload as { taskId?: string; kind?: string; phase?: string } | undefined
+    const p = payload as { taskId?: string; kind?: string; phase?: string; progress?: unknown } | undefined
     if (typeof p?.taskId !== "string" || p.kind !== "ensureWorktree") {
       logClientError(
         "orch",
@@ -264,8 +264,11 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     }
     const current = signals.taskJobsAcc()
     if (p.phase === "running") {
+      // A bare `running` (a second caller joining the same add) keeps the percent already shown.
+      const progress =
+        typeof p.progress === "number" && Number.isFinite(p.progress) ? p.progress : current.get(p.taskId)?.progress
       const next = new Map(current)
-      next.set(p.taskId, { kind: p.kind })
+      next.set(p.taskId, progress === undefined ? { kind: p.kind } : { kind: p.kind, progress })
       signals.setTaskJobsSig(next)
       return
     }

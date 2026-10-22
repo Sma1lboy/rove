@@ -324,7 +324,10 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       // the last value, so late subscribers would see `running` forever.
       ctx.bus.publish("task.jobs", { taskId, kind: "ensureWorktree", phase: "running" })
       try {
-        const path = await ctx.orch.ensureWorktree(taskId)
+        const path = await ctx.orch.ensureWorktree(taskId, {
+          onProgress: (progress) =>
+            ctx.bus.publish("task.jobs", { taskId, kind: "ensureWorktree", phase: "running", progress }),
+        })
         ctx.bus.publish("task.jobs", { taskId, kind: "ensureWorktree", phase: "done" })
         return { worktreePath: path }
       } catch (err) {
