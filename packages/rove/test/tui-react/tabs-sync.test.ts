@@ -13,9 +13,11 @@ import {
   attachTabsTransport,
   commitTaskTabs,
   ensureTabReservation,
+  releaseTabReservation,
   reloadTabs,
   resetTabsSyncForTests,
   tabsByTask,
+  tabsRevision,
 } from "../../src/tui-react/workspace/tabs-sync"
 import { type TabsState, addTab, closeTab, selectTab } from "../../src/tui/workspace/terminal-tabs-core"
 
@@ -106,6 +108,16 @@ describe("tabs-sync", () => {
     expect(new Set(all).size).toBe(all.length)
     expect(all).toHaveLength(5)
     expect(ids(tabsByTask.get("t"))).toEqual(all)
+  })
+
+  it("a task switch's release and re-reserve wakes no tab readers", async () => {
+    ensureTabReservation("t")
+    await flush()
+    const before = tabsRevision()
+    releaseTabReservation("t")
+    ensureTabReservation("t")
+    await flush()
+    expect(tabsRevision()).toBe(before)
   })
 
   it("catches up after a reconnect on changes it missed", async () => {

@@ -114,8 +114,16 @@ function publish(taskId: string): TabsState | null {
     return null
   }
   const ui = uiState(task, view)
+  // A remount's `tabs.reserve` reply usually changes nothing shown; republishing it would wake
+  // every `tabsRevision` reader on each task switch.
+  const shown = tabsByTask.get(taskId)
+  if (shown && sameUiState(shown, ui)) return shown
   setTaskTabs(taskId, ui)
   return ui
+}
+
+function sameUiState(a: TabsState, b: TabsState): boolean {
+  return a.tabs === b.tabs && a.activeId === b.activeId && a.nextOrdinal === b.nextOrdinal && a.reopenAs === b.reopenAs
 }
 
 function toShared(state: TabsState): SharedTabs {
