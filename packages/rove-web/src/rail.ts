@@ -385,3 +385,37 @@ export function dragSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow)
     .map((task) => task.id)
   return ids.indexOf(to.id) - ids.indexOf(from.id)
 }
+
+export type DropSide = "above" | "below"
+
+/** {@link dragSteps} for a drop that lands right above or right below `to`. */
+export function dropSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow, side: DropSide): number | null {
+  const steps = dragSteps(tasks, from, to)
+  if (steps === null) return null
+  if (side === "above" && steps > 0) return steps - 1
+  if (side === "below" && steps < 0) return steps + 1
+  return steps
+}
+
+const DEPTH = { project: 0, routines: 1, task: 1, tab: 2 } as const
+
+/** Where the block starting at `i` (the row and every row nested under it) ends. */
+export function blockEnd(rows: readonly NavRow[], i: number): number {
+  const depth = DEPTH[rows[i]?.kind ?? "project"]
+  let end = i + 1
+  while (end < rows.length && DEPTH[rows[end]?.kind ?? "project"] > depth) end++
+  return end
+}
+
+/** `rows` with the dragged row's block moved right above or below the target's block, as it would land. */
+export function previewDrop(rows: readonly NavRow[], fromId: string, toId: string, side: DropSide): readonly NavRow[] {
+  const from = rows.findIndex((row) => row.id === fromId)
+  if (from < 0 || fromId === toId) return rows
+  const end = blockEnd(rows, from)
+  const block = rows.slice(from, end)
+  const rest = [...rows.slice(0, from), ...rows.slice(end)]
+  const to = rest.findIndex((row) => row.id === toId)
+  if (to < 0) return rows
+  const at = side === "above" ? to : blockEnd(rest, to)
+  return [...rest.slice(0, at), ...block, ...rest.slice(at)]
+}

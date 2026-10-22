@@ -220,6 +220,12 @@ only last.
 - **Near-duplicate scales and token drift.** Three or more one-off values in one component (a
   15px font, a 7px radius, an off-palette grey) mean it was built without opening `styles.css`.
 - **Eyebrow and kicker overuse:** more than one uppercase tracked label in a region.
+- **Insertion lines for drag and drop.** A drag that reorders shows the rows already in the order
+  the drop would leave them: the others slide aside and the dragged row keeps a quiet
+  `--accent-soft` wash. Don't use a 1–2px accent line above or below a row, a dashed drop zone or
+  a ghost slot. The owner rejected the line as AI slop. Slide rows with `transform`, not by
+  reordering the DOM, because Chrome cancels a drag whose source node moves. The working pattern
+  is `rail-drag.ts`. Check: mid-drag, each row's rect equals its rect after the drop lands.
 - **Inventing behaviour:** a setting, toggle or claim that the daemon does not implement. A page
   shows what the daemon publishes, nothing more.
 - **Over-correction is also slop.** Don't strip Rove's own identity (the bracket wordmark, mono
