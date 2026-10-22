@@ -51,6 +51,7 @@ const send = mock(async () => ({ tab: "tab-1" }))
 const add = mock(async () => ({ taskId: "01NEW" }))
 const openAgentTask = mock(async () => ({ taskId: TASK }))
 let nextTab = 1
+let agentRunning = false
 const newConversation = mock(async () => ({ tab: `tab-${nextTab++}` }))
 const ops: RoveOps = {
   status,
@@ -64,6 +65,7 @@ const ops: RoveOps = {
   notifyingRoutineRuns: async () => routines,
   openAgentTask,
   newConversation,
+  taskRunning: async () => agentRunning,
 }
 
 function start(onUnbound?: () => void): WeixinBridge {
@@ -73,6 +75,7 @@ function start(onUnbound?: () => void): WeixinBridge {
     log: (_event, message) => logs.push(message),
     notifyTickMs: 40,
     pollTimeoutMs: 2_000,
+    typingTimings: { keepaliveMs: 20, warmupMs: 200, maxMs: 5_000 },
     now: () => clock,
     ...(onUnbound ? { onUnbound } : {}),
   })
@@ -97,6 +100,7 @@ beforeEach(async () => {
   bridge = null
   for (const fn of [status, send, add, openAgentTask, newConversation]) fn.mockClear()
   nextTab = 1
+  agentRunning = false
 })
 
 afterEach(async () => {
@@ -145,6 +149,25 @@ describe("inbound", () => {
     const sends = await fake.waitForSends(2)
     expect(sends.map((s) => s.contextToken)).toEqual(["stale", undefined])
     expect(store.readUndelivered()).toEqual([])
+  })
+
+  it("shows the owner the agent typing while its task runs, and clears it when the turn ends", async () => {
+    start()
+    agentRunning = true
+    fake.deliver({ from: FAKE_OWNER, text: "查一下昨晚的 CI" })
+    await waitFor(() => expect(fake.typing.filter((t) => t.on).length).toBeGreaterThan(2))
+    expect(fake.typing[0]).toEqual({ to: FAKE_OWNER, ticket: `ticket-${FAKE_OWNER}`, on: true })
+    expect(fake.typing.some((t) => !t.on)).toBe(false)
+
+    agentRunning = false
+    await waitFor(() => expect(fake.typing.at(-1)?.on).toBe(false))
+    const settled = fake.typing.length
+    await new Promise((r) => setTimeout(r, 100))
+    expect(fake.typing).toHaveLength(settled)
+    // Commands answer at once and never show the agent typing.
+    fake.deliver({ from: FAKE_OWNER, text: "/status" })
+    await fake.waitForSends(1)
+    expect(fake.typing).toHaveLength(settled)
   })
 
   it("plain text opens the WeChat agent's project once, then talks to its live conversation; /new starts another", async () => {

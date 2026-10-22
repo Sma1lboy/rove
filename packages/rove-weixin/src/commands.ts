@@ -52,6 +52,8 @@ export interface RoveOps {
   openAgentTask(dir: string, title: string): Promise<{ readonly taskId: string }>
   /** A new engine tab in `taskId` whose first message is `prompt`. */
   newConversation(taskId: string, prompt: string): Promise<{ readonly tab: string }>
+  /** The daemon shows `taskId`'s engine mid-turn. */
+  taskRunning(taskId: string): Promise<boolean>
 }
 
 /** The agent free text goes to (`rove weixin agent <task-id> [tab-N]`). */
@@ -118,34 +120,47 @@ function failure(err: unknown): string {
   return `Failed: ${err instanceof Error ? err.message : String(err)}`
 }
 
+/** What an inbound message produced: a reply to send, and the agent task now working on it, if any. */
+export interface InboundResult {
+  readonly reply: string
+  readonly agentTaskId?: string
+}
+
 /**
- * One inbound message → the reply text, or "" when the agent will answer by
- * itself. With an agent, plain text is a conversation and commands need a
- * leading `/` (`/status`, `/new` for a fresh conversation); without one,
- * every message is a command.
+ * One inbound message → the reply text ("" when the agent will answer by
+ * itself) and, when it went to the agent, that agent's task. With an agent,
+ * plain text is a conversation and commands need a leading `/` (`/status`,
+ * `/new` for a fresh conversation); without one, every message is a command.
  */
-export async function handleInbound(text: string, ops: RoveOps, agent: AgentControl | null): Promise<string> {
+export async function handleInbound(text: string, ops: RoveOps, agent: AgentControl | null): Promise<InboundResult> {
   const trimmed = text.trim()
-  if (!agent) return await handleCommand(trimmed, ops)
+  if (!agent) return { reply: await handleCommand(trimmed, ops) }
   if (trimmed.startsWith("/")) {
     const command = trimmed.slice(1)
     const [word, rest] = head(command)
-    if (word.toLowerCase() !== "new") return await handleCommand(command, ops, true)
+    if (word.toLowerCase() !== "new") return { reply: await handleCommand(command, ops, true) }
     try {
-      const next = await agent.startNew(rest.trim() || undefined)
-      return `New conversation (#${next.conversations.length}). Earlier ones stay in Rove's ${AGENT_TITLE} project.`
+      const firstMessage = rest.trim() || undefined
+      const next = await agent.startNew(firstMessage)
+      return {
+        reply: `New conversation (#${next.conversations.length}). Earlier ones stay in Rove's ${AGENT_TITLE} project.`,
+        ...(firstMessage ? { agentTaskId: next.taskId } : {}),
+      }
     } catch (err) {
-      return failure(err)
+      return { reply: failure(err) }
     }
   }
   try {
     const { agent: live, created } = await agent.current(trimmed)
     // A just-created conversation already carried this message.
-    if (created) return ""
+    if (created) return { reply: "", agentTaskId: live.taskId }
     const result = await ops.send(live.taskId, live.tab, agentPrompt(trimmed))
-    return result.started ? "The agent was not running; started it again, it will reply here." : ""
+    return {
+      reply: result.started ? "The agent was not running; started it again, it will reply here." : "",
+      agentTaskId: live.taskId,
+    }
   } catch (err) {
-    return `${failure(err)}\nYour message did not reach the agent. Send /status for commands.`
+    return { reply: `${failure(err)}\nYour message did not reach the agent. Send /status for commands.` }
   }
 }
 

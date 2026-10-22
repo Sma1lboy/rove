@@ -30,6 +30,7 @@ import { GateTracker, GroupTracker, renderArrivals } from "./notify.ts"
 import { RoutineTracker, renderRoutineRuns } from "./routines.ts"
 import { sendBubbles } from "./send.ts"
 import { type WeixinAccount, type WeixinRuntimeState, type WeixinStore, isAllowedSender } from "./store.ts"
+import { type TypingHandle, type TypingTimings, startTyping } from "./typing.ts"
 
 /** Bot-initiated messages are only accepted within a day of the peer's last message. */
 export const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000
@@ -51,6 +52,7 @@ export interface WeixinBridgeDeps {
   readonly onUnbound?: () => void
   readonly notifyTickMs?: number
   readonly pollTimeoutMs?: number
+  readonly typingTimings?: TypingTimings
   readonly now?: () => number
 }
 
@@ -133,6 +135,33 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
     deps.log("weixin", `push to ${redact(to)} not delivered: ${reason}`)
   }
 
+  /** One indicator per peer; a message while one is live just rides it. */
+  const typing = new Map<string, TypingHandle>()
+  function showTyping(to: string, taskId: string): void {
+    if (!client || !state || typing.has(to)) return
+    const ilink = client
+    const contextToken = state.peers[to]?.contextToken ?? null
+    let ticket: Promise<string> | null = null
+    const handle = startTyping(
+      {
+        send: async (on) => {
+          ticket ??= ilink.typingTicket(to, contextToken)
+          const t = await ticket
+          if (t) await ilink.sendTyping(to, t, on)
+        },
+        isRunning: () => deps.ops.taskRunning(taskId),
+        sleep,
+        now,
+        log: (message) => deps.log("weixin", message),
+      },
+      deps.typingTimings,
+    )
+    typing.set(to, handle)
+    void handle.done.finally(() => {
+      if (typing.get(to) === handle) typing.delete(to)
+    })
+  }
+
   /** Send `text` as bubbles ({@link sendBubbles}); what fails lands in the undelivered log. */
   async function deliver(to: string, text: string): Promise<boolean> {
     if (!client || !state) return false
@@ -168,8 +197,9 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
       },
     })
     const text = messageText(message)
-    const reply = text ? await routeInbound(text, deps.ops, agent) : "Text messages only. Send help for commands."
-    if (reply) await deliver(from, reply)
+    const result = text ? await routeInbound(text, deps.ops, agent) : { reply: "Text messages only. Send /help." }
+    if (result.reply) await deliver(from, result.reply)
+    if (result.agentTaskId) showTyping(from, result.agentTaskId)
   }
 
   async function pollLoop(): Promise<void> {
@@ -266,6 +296,7 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
     isBound: () => account !== null,
     stop: () => {
       stopped = true
+      for (const handle of typing.values()) handle.stop()
       clearInterval(notifyTimer)
     },
   }

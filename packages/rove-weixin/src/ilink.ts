@@ -26,6 +26,9 @@ const ITEM_TEXT = 1
 const ITEM_VOICE = 3
 const MSG_TYPE_BOT = 2
 const MSG_STATE_FINISH = 2
+/** `ilink/bot/sendtyping` status: 1 shows the indicator, 2 clears it. */
+const TYPING_ON = 1
+const TYPING_OFF = 2
 
 const SESSION_EXPIRED = -14
 const RATE_LIMITED = -2
@@ -253,6 +256,25 @@ export class IlinkClient {
           ...(contextToken ? { context_token: contextToken } : {}),
         },
       },
+      API_TIMEOUT_MS,
+    )
+  }
+
+  /** The per-user ticket the typing indicator needs ("" when iLink gives none). */
+  async typingTicket(to: string, contextToken: string | null): Promise<string> {
+    const resp = await this.post<IlinkStatus & { typing_ticket?: string }>(
+      "ilink/bot/getconfig",
+      { ilink_user_id: to, ...(contextToken ? { context_token: contextToken } : {}) },
+      API_TIMEOUT_MS,
+    )
+    return classifyIlink(resp) === "ok" ? (resp.typing_ticket ?? "") : ""
+  }
+
+  /** Show ("对方正在输入") or clear the typing indicator in `to`'s chat with the bot. */
+  sendTyping(to: string, ticket: string, typing: boolean): Promise<IlinkStatus> {
+    return this.post<IlinkStatus>(
+      "ilink/bot/sendtyping",
+      { ilink_user_id: to, typing_ticket: ticket, status: typing ? TYPING_ON : TYPING_OFF },
       API_TIMEOUT_MS,
     )
   }

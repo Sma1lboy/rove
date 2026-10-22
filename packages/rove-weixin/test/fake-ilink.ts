@@ -47,6 +47,8 @@ export async function waitFor(check: () => void, timeoutMs = 4_000): Promise<voi
 
 export class FakeIlink {
   readonly sends: RecordedSend[] = []
+  /** `sendtyping` calls, in order. */
+  readonly typing: Array<{ readonly to: string; readonly ticket: string; readonly on: boolean }> = []
   /** `getupdates` request bodies, in order. */
   readonly polls: Array<{ readonly buf: string; readonly authorization?: string }> = []
   /** Answers for the next `sendmessage` calls; default `{ret: 0}`. */
@@ -143,6 +145,15 @@ export class FakeIlink {
         })
         return reply(this.sendAnswers.shift() ?? { ret: 0 })
       }
+      case "/ilink/bot/getconfig":
+        return reply({ ret: 0, typing_ticket: `ticket-${String(body.ilink_user_id ?? "")}` })
+      case "/ilink/bot/sendtyping":
+        this.typing.push({
+          to: String(body.ilink_user_id ?? ""),
+          ticket: String(body.typing_ticket ?? ""),
+          on: body.status === 1,
+        })
+        return reply({ ret: 0 })
       // Demo controls, not iLink endpoints.
       case "/_inject":
         this.deliver({ from: String(body.from ?? FAKE_OWNER), text: String(body.text ?? "") })
