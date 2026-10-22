@@ -12,11 +12,11 @@
 
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/rove-daemon/client/client-log"
+import type { ChannelName } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { TaskEngineState } from "../client/remote-orchestrator-payloads.ts"
 import type { RowTokenMap } from "../client/remote-orchestrator-row-tokens.ts"
 import type { WorktreeChangesMap } from "../client/remote-orchestrator-worktree-changes.ts"
 import { RemoteOrchestrator } from "../client/remote-orchestrator.ts"
-import type { ChannelName } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ReadableState } from "../lib/external-store.ts"
 import { createStateCell } from "../lib/external-store.ts"
 import { loadStateFile } from "../state/store.ts"
@@ -306,7 +306,9 @@ export function classifyHandshakeFailure(message: string): MachineStatus["state"
 
 /** What a connection is made from; identity, cached sockets and `roveBin` are learned, not addressed. */
 function sameAddress(a: MachineEntry, b: MachineEntry): boolean {
-  return a.host === b.host && a.user === b.user && a.port === b.port && JSON.stringify(a.auth) === JSON.stringify(b.auth)
+  return (
+    a.host === b.host && a.user === b.user && a.port === b.port && JSON.stringify(a.auth) === JSON.stringify(b.auth)
+  )
 }
 
 export function stampOrigin(task: Task, machineId: string, hostLabel: string, stale = false): Task {

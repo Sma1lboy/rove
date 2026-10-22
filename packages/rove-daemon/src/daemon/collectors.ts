@@ -236,7 +236,9 @@ export function startDaemonCollectors(
     options.uiPrefsDebounceMs ?? DEFAULT_STATE_DEBOUNCE_MS,
   )
 
-  const stopMachineHub = runtime.startMachineHub ? gateMachineHub(runtime.startMachineHub, bus, hasSubscribersFor) : () => {}
+  const stopMachineHub = runtime.startMachineHub
+    ? gateMachineHub(runtime.startMachineHub, bus, hasSubscribersFor)
+    : () => {}
 
   const stopKeybindingsWatcher = startKeybindingsWatcher(bus, {
     path: defaultKeybindingsPath(options.homeDir),

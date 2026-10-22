@@ -12,8 +12,12 @@ vi.mock("../../src/machines/discover.ts", () => ({ discoverMachine: discover, le
 import { MachineHub } from "../../src/machines/hub.ts"
 import type { MachineEntry } from "../../src/machines/registry.ts"
 
-const box: MachineEntry = { alias: "box", host: "box", auth: { kind: "agent" } } as MachineEntry
-const aliases = (hub: MachineHub) => hub.machinesSignal().get().map((m) => m.alias)
+const box: MachineEntry = { alias: "box", host: "box", auth: { kind: "key" } }
+const aliases = (hub: MachineHub) =>
+  hub
+    .machinesSignal()
+    .get()
+    .map((m) => m.alias)
 
 describe("MachineHub.sync", () => {
   it("connects added machines, drops removed ones, and ignores learned fields", async () => {

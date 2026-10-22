@@ -33,11 +33,21 @@ describe("MachineFeed", () => {
 
     const remote = task("box-1", { origin: { machineId: "box", hostLabel: "box" } })
     machines.set(push(["box"], [remote]))
-    expect(feed.tasksSignal().get().map((t) => [t.id, t.origin?.machineId])).toEqual([
+    expect(
+      feed
+        .tasksSignal()
+        .get()
+        .map((t) => [t.id, t.origin?.machineId]),
+    ).toEqual([
       ["local-1", "local"],
       ["box-1", "box"],
     ])
-    expect(feed.machinesSignal().get().map((m) => m.alias)).toEqual(["box"])
+    expect(
+      feed
+        .machinesSignal()
+        .get()
+        .map((m) => m.alias),
+    ).toEqual(["box"])
     expect(feed.liveSignal().get().activity.get("box-1")?.state).toBe("working")
 
     machines.set(push([], []))
