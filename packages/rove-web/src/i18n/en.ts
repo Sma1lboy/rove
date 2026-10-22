@@ -46,6 +46,12 @@ export const en = {
   dialog: {
     cancel: "cancel",
     save: "save",
+    close: "close",
+  },
+  whatsNew: {
+    continue: "Continue",
+    openRelease: "Open release notes",
+    keys: "q / esc",
   },
   menu: {
     closeTab: "Close tab",

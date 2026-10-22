@@ -10,7 +10,8 @@ import type { ReleaseNotesRangeItem, UpdateInfo } from "@sma1lboy/rove/src/versi
 import { useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
-import { useLocale } from "./i18n/index.ts"
+import { t, useLocale } from "./i18n/index.ts"
+import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
 
@@ -137,7 +138,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
       {notes.map((n) => (
         <section key={n.version} className="release-notes">
           <h2 className="mono">v{n.version}</h2>
-          <pre>{n.body}</pre>
+          <ReleaseNotes body={n.body} />
         </section>
       ))}
     </div>
@@ -170,6 +171,9 @@ export function maybeShowWhatsNew(client: BridgeClient, version: string): void {
 
 function WhatsNewDialog(props: { from: string; to: string; notes: ReleaseNotesRangeItem | null }) {
   const u = useCatalog()
+  // Enter takes the primary button, as any dialog; q / esc still close it.
+  const ok = useRef<HTMLButtonElement>(null)
+  useEffect(() => ok.current?.focus(), [])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "q") dialog.set(null)
@@ -181,11 +185,21 @@ function WhatsNewDialog(props: { from: string; to: string; notes: ReleaseNotesRa
     <DialogShell title={u.whatsNew.title} wide>
       <p className="muted">{fill(u.whatsNew.upgraded, { from: props.from, to: props.to })}</p>
       <div className="whats-new-body">
-        {props.notes ? <pre>{props.notes.body}</pre> : <p className="muted">{u.whatsNew.notesUnavailable}</p>}
+        {props.notes ? (
+          <ReleaseNotes body={props.notes.body} />
+        ) : (
+          <p className="muted">{u.whatsNew.notesUnavailable}</p>
+        )}
       </div>
-      <p className="mono muted">
-        {props.notes ? fill(u.whatsNew.sourceHint, { url: props.notes.url }) : ""} · {u.whatsNew.closeHint}
-      </p>
+      <div className="actions">
+        <span className="mono muted whats-new-keys">{t("whatsNew.keys")}</span>
+        <a className="link" href={props.notes?.url ?? releaseUrl(props.to)} target="_blank" rel="noopener noreferrer">
+          {t("whatsNew.openRelease")}
+        </a>
+        <button ref={ok} type="button" className="button" onClick={() => dialog.set(null)}>
+          {t("whatsNew.continue")}
+        </button>
+      </div>
     </DialogShell>
   )
 }
