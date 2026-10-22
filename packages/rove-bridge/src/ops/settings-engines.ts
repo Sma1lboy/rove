@@ -12,7 +12,11 @@
 import { installedEngineIds } from "@sma1lboy/rove/src/engine/account-detect.ts"
 import { type EngineStatus, detectEngineStatuses } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { type EngineIntegration, engineIntegrations } from "@sma1lboy/rove/src/engine/integration-status.ts"
-import { defaultEngineCommand, engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
+import {
+  defaultEngineCommand,
+  engineDisplayName,
+  engineRenamedFrom,
+} from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { type StateSnapshot, loadStateFile, patchStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { ALL_VENDORS, isBuiltinVendor } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
@@ -127,6 +131,8 @@ export function createEngineOps(deps: EngineDeps): OpTable {
               // The program only: arguments may carry keys.
               binary: command[0] ?? null,
               customized: override.length > 0 || trimmed(state, `engineName.${id}`).length > 0,
+              // The registry's name when the user renamed this engine, for a muted subtitle.
+              renamedFrom: engineRenamedFrom(id, trimmed(state, `engineName.${id}`)) ?? null,
               protocol: trimmed(state, `engineProtocol.${id}`) || null,
               binaryFound: status ? status.binary.found : null,
               binaryPath: status?.binary.found ? (status.binary.path ?? null) : null,

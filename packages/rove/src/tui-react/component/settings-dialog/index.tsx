@@ -386,8 +386,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
               toggleEngine={engines.toggleEngineEnabled}
               chooseDefault={engines.chooseDefaultEngine}
               displayName={engines.engineName}
+              renamedFrom={engines.engineRenamedFromName}
               commandText={engines.engineCommandText}
-              isDefault={engines.engineIsDefault}
+              hasCommandOverride={engines.engineHasCommandOverride}
               isDefaultEngine={(v) => engines.defaultEngine === v}
               editEngine={(v) => void engines.editEngine(v)}
               onAddEngine={() => void engines.addEngineFlow()}

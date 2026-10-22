@@ -1,14 +1,15 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings → Engines, third line: which reporting layers each engine has, and
- * whether the hooks Rove installs are the CURRENT shape.
+ * Settings → Engines, the focused engine's "Live status" facts: which
+ * reporting layers it has, and whether the hooks Rove installs are the
+ * CURRENT shape.
  *
  * Driven end to end through the real dialog rather than asserted on a fixture:
  * the state that matters here is produced by a WRITE (the install row rewrites
  * the engine's own settings file), and a hand-built fixture proves nothing
  * about a write path. So the test seeds an engine config the way an older Rove
- * left it, reads `hooks outdated` off the frame, presses the install row, and
- * reads `hooks installed` off the next one.
+ * left it, reads "older version" off the frame, presses the install button,
+ * and reads "hooks are installed" off the next one.
  *
  * Every vendor config home is redirected into a temp dir. Without that the
  * install row would rewrite the operator's real `~/.claude/settings.json`
@@ -77,7 +78,7 @@ test("an engine config written by an older Rove reads outdated, and the install 
   await settle()
 
   const before = await frame()
-  expect(before).toContain("hooks outdated")
+  expect(before).toContain("from an older version")
   expect(home.length).toBeGreaterThan(0)
 
   // `k` from the first row wraps to the LAST one, then one more lands on the
@@ -98,8 +99,14 @@ test("an engine config written by an older Rove reads outdated, and the install 
   const after = readFileSync(settings, "utf8")
   expect(after).toContain("--hook-version")
   expect((JSON.parse(after) as { model: string }).model).toBe("opus")
-  // …and the panel re-read it rather than showing the state it booted with.
-  expect(await frame()).toContain("hooks written")
+  // …and the panel re-read it rather than showing the state it booted with;
+  // the details still show claude while the cursor sits on the button.
+  let done = await frame()
+  for (let i = 0; i < 50 && !done.includes("hooks are installed"); i++) {
+    await settle()
+    done = await frame()
+  }
+  expect(done).toContain("hooks are installed")
 })
 
 test("an engine with no hook adapter says so instead of reading as broken", async () => {
@@ -117,7 +124,7 @@ test("an engine with no hook adapter says so instead of reading as broken", asyn
   const text = await frame()
   // Claude reports every state through hooks, so it declares no screen rules
   // — that is the correct row, not a missing layer.
-  expect(text).toContain("no screen rules")
-  // And the layer vocabulary is on screen at all.
-  expect(text.includes("markers") || text.includes("no markers")).toBe(true)
+  expect(text).toContain("No screen rules")
+  // And the layer vocabulary is on screen at all, as sentences.
+  expect(text).toContain("turn-complete markers")
 })
