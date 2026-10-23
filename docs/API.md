@@ -1424,6 +1424,13 @@ one branch is a branch nobody can land. One extra run status comes with it —
 `revived` (the engine had exited, so it was respawned in the same worktree; the
 files carried over, the conversation did not).
 
+**`--webhook`** also fires the routine on a POST to the web server's
+`/hooks/routines/<id>` signed with `.webhook.secret` (GitHub's
+`X-Hub-Signature-256`). The precheck still runs, with `ROVE_WEBHOOK_EVENT` and
+`ROVE_WEBHOOK_ACTION` set. The run records `trigger: "webhook"` and an `event`
+line, which also opens the delivered prompt. `--webhook false` forgets the
+secret. See [Routines](./ROUTINES.md#fire-it-from-a-webhook).
+
 **Existing target:** the daemon payload is `target: {kind: "existing-tab", taskId, tabId}`.
 The repo must match the task repo; `vendor`, `model`, `effort`, `baseRef` and `persistentSession`
 are incompatible with this mode. Updates validate the merged record; clear old

@@ -86,6 +86,13 @@ const GRACE_FLAG = {
     "How late a missed occurrence may still run when the daemon was down. Only the most recent missed occurrence is ever run.",
 } as const
 
+const WEBHOOK_FLAG = {
+  name: "webhook",
+  type: "bool",
+  description:
+    "Also fire on a signed POST to the web server's /hooks/routines/<id> (GitHub's X-Hub-Signature-256). Turning it on generates the secret, shown as .webhook.secret; paste it into the GitHub webhook with content type application/json. The precheck still runs, with ROVE_WEBHOOK_EVENT and ROVE_WEBHOOK_ACTION set, and the prompt starts with what fired it. Off again forgets the secret.",
+} as const
+
 const PERSISTENT_FLAG = {
   name: "persistent-session",
   type: "bool",
@@ -195,6 +202,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       ...PRECHECK_FLAGS,
       ...SCRIPT_FLAGS,
       NOTIFY_FLAG,
+      WEBHOOK_FLAG,
       GRACE_FLAG,
       PERSISTENT_FLAG,
       ...TARGET_FLAGS,
@@ -211,6 +219,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(script.script ? script : { prompt: requirePromptText(ctx, "routine-create") }),
         schedule: ctx.args.require("schedule"),
         ...(ctx.args.bool("notify") ? { notify: true } : {}),
+        ...(ctx.args.bool("webhook") ? { webhook: true } : {}),
         ...(await createEngineFields(ctx, repo)),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),
         ...precheckPayload(ctx),
@@ -246,6 +255,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       ...PRECHECK_FLAGS,
       ...SCRIPT_FLAGS,
       { ...NOTIFY_FLAG, placeholder: "BOOL" },
+      { ...WEBHOOK_FLAG, placeholder: "BOOL" },
       GRACE_FLAG,
       PERSISTENT_FLAG,
       ...TARGET_FLAGS,
@@ -265,6 +275,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...precheckPayload(ctx),
         ...scriptPayload(ctx),
         ...(ctx.args.present("notify") ? { notify: ctx.args.bool("notify") ?? true } : {}),
+        ...(ctx.args.present("webhook") ? { webhook: ctx.args.bool("webhook") ?? true } : {}),
         ...targetPayload(ctx),
         ...(ctx.args.nonNegativeInt("grace") !== undefined
           ? { missedRunGraceMinutes: ctx.args.nonNegativeInt("grace") }

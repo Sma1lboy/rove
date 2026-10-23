@@ -91,6 +91,8 @@ export function runAutomationPrecheck(
   precheck: AutomationPrecheck,
   cwd: string,
   shell = resolveLoginShell({ fallback: "/bin/sh" }),
+  /** Added to the daemon's env, e.g. what fired a webhook run. */
+  env?: Readonly<Record<string, string>>,
 ): Promise<AutomationPrecheckResult> {
   const startedAt = Date.now()
   const timeoutMs = Math.min(Math.max(precheck.timeoutSeconds, 1), MAX_TIMEOUT_SECONDS) * 1000
@@ -139,6 +141,7 @@ export function runAutomationPrecheck(
       // +1s so a live daemon's timer wins and reports a timeout, not a bare signal death.
       child = spawn(shell, ["-ilc", withWatchdog(precheck.command, timeoutMs / 1000 + 1)], {
         cwd,
+        ...(env ? { env: { ...process.env, ...env } } : {}),
         stdio: ["ignore", "pipe", "pipe"],
         // Own process group, so a timeout kills the command's children too.
         detached: process.platform !== "win32",

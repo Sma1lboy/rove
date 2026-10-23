@@ -1,13 +1,14 @@
 /** Automation CRUD + manual-trigger RPC handlers. */
 
 import { assertRoutineBaseRef, assertRoutineRepo } from "./automation-repo-check.ts"
-import { runAutomationOnce } from "./automation-runner.ts"
+import { type RunnerDeps, runAutomationOnce } from "./automation-runner.ts"
 import {
   assertAutomationTargetOptions,
   assertAutomationTargetTask,
   mergeAutomationTargetOptions,
   readAutomationTarget,
 } from "./automation-target.ts"
+import { newWebhookSecret, readWebhookEvent, webhookSignatureValid } from "./automation-webhook.ts"
 import {
   type AutomationPatch,
   type AutomationPrecheck,
@@ -19,7 +20,22 @@ import { isValidCron } from "./cron.ts"
 import { reportDelivery, withDeliveryReport } from "./delivery-ops.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import { deliveryDepsOf } from "./handlers-deliveries.ts"
-import type { DaemonRequestHandler } from "./handlers.ts"
+import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
+
+function runnerDepsOf(ctx: DaemonHandlerContext): RunnerDeps {
+  return {
+    store: ctx.automations,
+    deliveries: ctx.deliveries,
+    orch: ctx.orch,
+    runtime: ctx.runtime,
+    link: ctx.selfLink,
+    ...(ctx.plugins ? { plugins: () => ctx.plugins ?? null } : {}),
+    inbox: ctx.inbox,
+  }
+}
+
+/** Why a webhook POST did or did not fire; the web server maps it to an HTTP status. */
+export type WebhookVerdict = "fired" | "pong" | "not_found" | "bad_signature" | "disabled"
 
 /** A persisted bad schedule never fires and is only discoverable by its silence. */
 function requireSchedule(payload: Record<string, unknown>, key: string): string {
@@ -130,6 +146,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         prompt: script ? "" : prompt,
         ...(script ? { script } : {}),
         ...(optionalBoolean(payload, "notify") === true ? { notify: true } : {}),
+        ...(optionalBoolean(payload, "webhook") === true ? { webhook: { secret: newWebhookSecret() } } : {}),
         schedule: requireSchedule(payload, "schedule"),
         missedRunGraceMinutes: readGraceMinutes(payload) ?? 60,
         ...(optionalVendor(payload, "vendor") ? { vendor: optionalVendor(payload, "vendor") } : {}),
@@ -154,7 +171,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const nextBaseRef = "baseRef" in payload ? optionalString(payload, "baseRef") : undefined
       const currentRepo = ctx.automations.get(id)?.repo
       if (nextBaseRef && currentRepo) await assertRoutineBaseRef(currentRepo, nextBaseRef)
-      const patch: AutomationPatch = {
+      let patch: AutomationPatch = {
         ...(optionalString(payload, "name") !== undefined ? { name: optionalString(payload, "name") } : {}),
         ...(optionalString(payload, "prompt") !== undefined ? { prompt: optionalString(payload, "prompt") } : {}),
         ...(payload.vendor === null
@@ -179,6 +196,11 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       }
       const current = ctx.automations.get(id)
       if (!current) throw new Error(`automation not found: ${id}`)
+      // Turning it on again keeps the secret, so a configured sender keeps working.
+      const webhook = optionalBoolean(payload, "webhook")
+      if (webhook !== undefined) {
+        patch = { ...patch, webhook: webhook ? (current.webhook ?? { secret: newWebhookSecret() }) : null }
+      }
       const targetOptions = mergeAutomationTargetOptions(current, patch)
       assertAutomationTargetOptions(targetOptions)
       assertScriptOptions({
@@ -259,20 +281,36 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const automation = ctx.automations.get(id)
       if (!automation) throw new Error(`automation not found: ${id}`)
       // `manual` skips the precheck: the user asking is the answer.
-      const status = await runAutomationOnce(
-        {
-          store: ctx.automations,
-          deliveries: ctx.deliveries,
-          orch: ctx.orch,
-          runtime: ctx.runtime,
-          link: ctx.selfLink,
-          ...(ctx.plugins ? { plugins: () => ctx.plugins ?? null } : {}),
-          inbox: ctx.inbox,
-        },
-        automation,
-        { scheduledFor: Date.now(), trigger: "manual" },
-      )
+      const status = await runAutomationOnce(runnerDepsOf(ctx), automation, {
+        scheduledFor: Date.now(),
+        trigger: "manual",
+      })
       return { status }
+    },
+  },
+  {
+    // A signed POST from the web server (`/hooks/routines/<id>`). Answers at once and runs in the
+    // background: GitHub gives a delivery 10s, a run takes longer.
+    name: "automation.webhook",
+    async handle(payload, ctx) {
+      const automation = ctx.automations.get(requireString(payload, "id"))
+      // An unknown id and a routine without a webhook look the same from outside.
+      if (!automation?.webhook) return { verdict: "not_found" satisfies WebhookVerdict }
+      const body = typeof payload.body === "string" ? payload.body : ""
+      if (!webhookSignatureValid(automation.webhook.secret, body, optionalString(payload, "signature"))) {
+        return { verdict: "bad_signature" satisfies WebhookVerdict }
+      }
+      const name = optionalString(payload, "event")
+      // GitHub's hello when a hook is added; nothing to run.
+      if (name === "ping") return { verdict: "pong" satisfies WebhookVerdict }
+      if (!automation.enabled) return { verdict: "disabled" satisfies WebhookVerdict }
+      const event = readWebhookEvent(name, body)
+      void runAutomationOnce(runnerDepsOf(ctx), automation, {
+        scheduledFor: Date.now(),
+        trigger: "webhook",
+        event,
+      }).catch((err: unknown) => logDaemonError("automation-webhook", err))
+      return { verdict: "fired" satisfies WebhookVerdict, event: event.summary }
     },
   },
 ]

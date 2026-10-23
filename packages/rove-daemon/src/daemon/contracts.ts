@@ -13,6 +13,7 @@ export type {
   AutomationRun,
   AutomationRunResponse,
   AutomationRunStatus,
+  AutomationTrigger,
   TaskRoutineLink,
 } from "./automation-contracts.ts"
 export {

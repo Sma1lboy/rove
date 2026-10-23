@@ -34,6 +34,7 @@ import {
   responseOk,
   str,
 } from "./protocol.ts"
+import { routineHook } from "./routine-hook.ts"
 import type { RoveOps } from "./rove-ops.ts"
 import type { RowStatusFeed } from "./row-status.ts"
 import type { TabFeed } from "./tab-feed.ts"
@@ -353,6 +354,10 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         }
       }
       const upgrade = req.headers.get("upgrade")?.toLowerCase() === "websocket"
+      if (!upgrade) {
+        const hook = await routineHook(deps.api, req, log)
+        if (hook) return hook
+      }
       if (!upgrade && deps.login) {
         const answer = await deps.login.handle(req, server.requestIP(req)?.address ?? "?")
         if (answer) return answer
