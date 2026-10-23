@@ -66,7 +66,7 @@ async function taskCell(task: Task = TASK): Promise<{ text: string; fg: number[]
     { width: 30, height: 3 },
   )
   await settle(30)
-  const label = task.parentTaskId ? task.title : task.branch
+  const label = task.title
   // Joined per line: a running label may shimmer, one span per character.
   const line = (await spans()).lines.find((l) =>
     l.spans
@@ -160,7 +160,7 @@ test("a task-level job spins the task row", async () => {
     },
   )
   await settle(30)
-  const row = (await frame()).split("\n").find((line) => line.includes("feat/alpha")) ?? ""
+  const row = (await frame()).split("\n").find((line) => line.includes("alpha")) ?? ""
   expect(DEFAULT_GLYPHS.spinner.some((frame) => row.includes(frame))).toBe(true)
 })
 

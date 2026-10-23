@@ -10,8 +10,8 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-| ▎○ refactor/tab-strip-r… ▴ ✓ |
-|▌▎○ feat/alpha                |
+| ▎○ Restart the tab stri… ▴ ✓ |
+|▌▎○ alpha                     |
 |                              |
 |                              |
 |                              |

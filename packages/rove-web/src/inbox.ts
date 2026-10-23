@@ -5,7 +5,7 @@
  */
 
 import type { AttentionRow } from "rove-bridge/protocol"
-import type { Tone } from "./rail.ts"
+import type { Tone } from "./rail-glyphs.ts"
 
 export interface InboxBadge {
   readonly glyph: string

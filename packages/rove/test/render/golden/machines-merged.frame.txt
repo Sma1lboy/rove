@@ -10,12 +10,12 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|▌▎○ feat/alpha                |
-| ▎○ feat/charlie            ☁ |
-| ▎○ feat/delta              ☁ |
+|▌▎○ alpha                     |
+| ▎○ charlie                 ☁ |
+| ▎○ delta                   ☁ |
 |                              |
 | api ──────────────────────── |
-| ▎○ feat/echo                 |
+| ▎○ echo                      |
 |                              |
 |                              |
 |                              |

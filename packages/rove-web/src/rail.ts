@@ -1,14 +1,11 @@
 /**
  * The Tasks rail's shape: project → task → child tasks, with the TUI's sort modes
- * (`project-groups.ts`) and `/` filter (`tree-search.ts`), and what each row's
- * status mark is: the daemon's row status (`row.status`) through the one mapping
- * every client uses (`rove/src/lib/row-status-glyph.ts`).
+ * (`project-groups.ts`) and `/` filter (`tree-search.ts`). The status marks
+ * rows draw live in `rail-glyphs.ts`.
  */
 
-import { type RowTone, rowStatusGlyph } from "@sma1lboy/rove/src/lib/row-status-glyph.ts"
 import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
-import type { RowStatus, TaskRow } from "rove-bridge/protocol"
-import type { GlyphSet } from "./prefs.ts"
+import type { TaskRow } from "rove-bridge/protocol"
 
 export type SortMode = "default" | "recent" | "attention" | "name"
 /** `t` cycles in this order, like `use-sidebar-host-state.ts`. */
@@ -389,76 +386,6 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
       return { ...part.group, label: (project && labels.get(project)) ?? part.group.label }
     })
   return { rows, groups }
-}
-
-export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "ink"
-
-/** The state marks a row draws, from the chosen glyph set (`tui/lib/glyphs.ts`); braille until the bridge answers. */
-export type RowGlyphs = Pick<GlyphSet, "spinner" | "idle" | "unseen" | "needsInput" | "attention">
-
-/** `engine/spinner-frames.ts` DEFAULT_SPINNER_FRAMES with the braille preset's marks. */
-export const BRAILLE: RowGlyphs = {
-  spinner: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-  idle: "○",
-  unseen: "●",
-  needsInput: "?",
-  attention: "!",
-}
-
-/** The web palette for a status tone: a wait you can clear is amber, what stays broken is red. */
-const TONE: Readonly<Record<RowTone, Tone>> = {
-  accent: "accent",
-  warning: "warning",
-  error: "attention",
-  muted: "muted",
-}
-
-export interface StatusMark {
-  readonly glyph: string
-  readonly tone: Tone
-  readonly spinning: boolean
-}
-
-/** A daemon status as a rail draws it; no status (no reading yet) is a quiet row. */
-export function statusGlyph(status: RowStatus | undefined, frame: number, glyphs: RowGlyphs = BRAILLE): StatusMark {
-  const mark = rowStatusGlyph(status, glyphs, frame)
-  return { glyph: mark.glyph, tone: TONE[mark.tone], spinning: mark.spinning }
-}
-
-/** A task row's mark: the daemon's rollup of its one conversation. */
-export function taskRowGlyph(task: TaskRow, frame: number, glyphs: RowGlyphs = BRAILLE): StatusMark {
-  return statusGlyph(task.rowStatus, frame, glyphs)
-}
-
-/** Some row on screen spins: the shared spinner clock must tick. */
-export function anySpinning(tasks: readonly TaskRow[]): boolean {
-  return tasks.some((task) => task.rowStatus?.kind === "running" || task.rowStatus?.kind === "busy")
-}
-
-/** A folded group's rows that need a person: something to answer or something broken. */
-export function needsPerson(task: TaskRow): boolean {
-  return task.rowStatus?.kind === "needs-input" || task.rowStatus?.kind === "attention"
-}
-
-// `rove-daemon/daemon/row-status.ts` RANK (not importable here): what a task row ranks its tabs by.
-const URGENCY: Readonly<Record<RowStatus["kind"], number>> = {
-  busy: 0,
-  attention: 1,
-  "needs-input": 2,
-  running: 3,
-  unseen: 4,
-  idle: 5,
-}
-
-/** The most urgent rollup among `tasks` (a folded parent's hidden children), or undefined when none has a status yet. */
-export function mostUrgentStatus(tasks: readonly TaskRow[]): RowStatus | undefined {
-  let best: RowStatus | undefined
-  for (const { rowStatus: status } of tasks) {
-    if (!status) continue
-    if (!best || URGENCY[status.kind] < URGENCY[best.kind]) best = status
-    else if (status.kind === best.kind && status.since > best.since) best = status
-  }
-  return best
 }
 
 /**

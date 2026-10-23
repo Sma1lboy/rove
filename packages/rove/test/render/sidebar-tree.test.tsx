@@ -131,13 +131,13 @@ test("escape leaves search and restores the full tree", async () => {
   await new Promise((r) => setTimeout(r, SETTLE))
   mockInput.typeText("bravo")
   await new Promise((r) => setTimeout(r, SETTLE))
-  expect(await frame()).not.toContain("feat/a")
+  expect(await frame()).not.toContain("alpha")
 
   mockInput.pressEscape()
   await new Promise((r) => setTimeout(r, SETTLE))
   const text = await frame()
-  expect(text).toContain("feat/a")
-  expect(text).not.toContain("/bravo")
+  expect(text).toContain("alpha")
+  expect(text).toContain("bravo")
 })
 
 // ─── Move mode is scope-aware: the cursor row's LEVEL moves ───

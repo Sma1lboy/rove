@@ -58,7 +58,7 @@ test("a folded parent is still folded after a restart", async () => {
   await settle(80)
   const open = await first.frame()
   expect(open).toContain("check types")
-  const line = open.split("\n").find((l) => l.includes("feat/parent")) ?? ""
+  const line = open.split("\n").find((l) => l.includes("parent")) ?? ""
   await first.mockMouse.click(line.indexOf("▾"), open.split("\n").indexOf(line), 0)
   await settle(400)
   expect(await first.frame()).not.toContain("check types")

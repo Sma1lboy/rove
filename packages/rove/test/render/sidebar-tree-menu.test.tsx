@@ -19,7 +19,7 @@ import { renderComponent } from "./harness"
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
     id: toTaskId(id),
-    title: id,
+    title: `row-${id}`,
     repo: "/repos/rove",
     branch: `feat/${id}`,
     worktreePath: `/wt/${id}`,
@@ -64,7 +64,7 @@ test("escape closes the menu and hands j/k back to the tree", async () => {
     height: 24,
   })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
   expect(await frame()).toContain("Rename")
 
@@ -195,7 +195,7 @@ test("left-click still activates the row it lands on", async () => {
     height: 24,
   })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/b"), 0)
+  await mockMouse.click(2, lineOf(await frame(), "row-b"), 0)
   await settle()
 
   expect(chosen).toEqual(["b"])
@@ -207,7 +207,7 @@ test("a parent's menu folds its children away", async () => {
   const { frame, mockMouse, mockInput } = await renderComponent(tree({ tasks }), { width: 40, height: 24 })
   await settle()
   expect(await frame()).toContain("kid")
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
   expect(await frame()).toContain("Collapse children")
 
@@ -230,7 +230,7 @@ test("a worktree row's menu opens a new conversation in that task", async () => 
     { width: 40, height: 24 },
   )
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
   expect(await frame()).toContain("New conversation")
 
@@ -256,7 +256,7 @@ test("a press anywhere else dismisses the menu", async () => {
   tabsByTask.clear()
   const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
   expect(await frame()).toContain("Rename")
 
@@ -277,7 +277,7 @@ test("a press ON the menu still picks its entry", async () => {
     height: 24,
   })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
 
   const entry = posOf(await frame(), "Rename")
@@ -303,7 +303,7 @@ test("Set status fires the row's callback with that row's task", async () => {
     height: 24,
   })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/b"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-b"), RIGHT)
   await settle()
   expect(await frame()).toContain("Set status")
 
@@ -328,7 +328,7 @@ test("the menu panel sits on `backgroundMenu`, a step above the inset it covers"
   tabsByTask.clear()
   const { frame, spans, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
   const rename = (await spans()).lines.flatMap((line) => line.spans).find((span) => span.text.includes("Rename"))
   expect(rename).toBeDefined()

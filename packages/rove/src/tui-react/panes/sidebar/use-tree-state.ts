@@ -19,6 +19,7 @@ import { type MachineLayerEntry, applyMachineLayer } from "../../../tui/panes/si
 import {
   type TreeRow,
   buildRowsFromGroups,
+  conversationTitleOf,
   filterTreeRows,
   mainTaskIdOfProject,
   projectKeyOfRoutinesRow,
@@ -107,7 +108,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     [kv],
   )
 
-  const { groups } = useSidebarGroups({
+  const { groups, tabsByTask } = useSidebarGroups({
     tasks,
     kv,
     sortMode: opts.sortMode,
@@ -119,8 +120,14 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   const { rows, totalCount } = useMemo(() => {
     // Search builds fully expanded so folded rows stay findable;
     // `filterTreeRows` drops the emptied count row.
+    const conversationTitles = new Map<string, string>()
+    for (const task of tasks) {
+      const title = conversationTitleOf(task, tabsByTask)
+      if (title) conversationTitles.set(task.id, title)
+    }
     const all = buildRowsFromGroups({
       groups,
+      conversationTitles,
       expandedRoutines: searching ? new Set(groups.map((group) => group.key)) : expandedRoutines,
       collapsedTasks: searching ? undefined : collapsedTasks,
     })
@@ -141,7 +148,18 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
       ),
       totalCount: total,
     }
-  }, [groups, searching, query, recentTask, expandedRoutines, collapsedTasks, machines, opts.branchTick])
+  }, [
+    groups,
+    tabsByTask,
+    tasks,
+    searching,
+    query,
+    recentTask,
+    expandedRoutines,
+    collapsedTasks,
+    machines,
+    opts.branchTick,
+  ])
   const flatIds = useMemo(() => treeFlatIds(rows), [rows])
 
   // One task = one conversation, so the row naming what the right pane shows is the task's.

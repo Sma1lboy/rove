@@ -189,6 +189,8 @@ export function WorktreeTreeRow(props: {
   readonly level?: number
   /** Set on a task with children. */
   readonly fold?: TreeFold
+  /** The engine conversation's own name (`TreeRow.title`), when it has one. */
+  readonly title?: string
   /** Set when the task lives on another machine (`applyMachineLayer`). */
   readonly remote?: RemoteMark
   readonly shared: TreeRowShared
@@ -200,11 +202,14 @@ export function WorktreeTreeRow(props: {
   const shared = props.shared
   const task = props.task
   const chip = prChip(task, glyphs)
-  // Named by BRANCH (`worktreeRowLabel`). Main checkouts and directory/scratch
-  // tasks store none and move freely, so they poll their own HEAD.
+  // Named by its conversation (`worktreeRowLabel`). Main checkouts and directory/scratch
+  // tasks store no branch and move freely, so they poll their own HEAD.
   const livePath = rowLiveBranchPath(task)
   usePollOnClock(livePath, pollCurrentBranch)
-  const label = worktreeRowLabel(task, livePath ? { liveBranch: currentBranch(livePath) } : {})
+  const label = worktreeRowLabel(task, {
+    liveTitle: props.title,
+    ...(livePath ? { liveBranch: currentBranch(livePath) } : {}),
+  })
   const moving = shared.movingRowId === props.rowId
   const { status, rowView, fg, pulsing, frame } = useTaskStateCell(task, shared)
   const age = statusAgeLabel(status)

@@ -4,7 +4,8 @@
  * still-running parent-keyed PTY comes and goes here.
  */
 
-import type { MigratedChildInput, TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
+import type { TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { Task } from "../types/task.ts"
 import { TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"

@@ -29,7 +29,7 @@ function task(id: string, over: Partial<Task> = {}): Task {
 
 const PARENT = toTaskId("parent")
 const TASKS = [
-  task("parent", { branch: "feat/parent" }),
+  task("parent", { branch: "parent" }),
   task("shared", { title: "check types", parentTaskId: PARENT, sharesWorkspaceOf: PARENT }),
   task("own", { title: "port tree builder", parentTaskId: PARENT }),
 ]
@@ -59,17 +59,17 @@ test("a collapsed parent shows its child count and the most urgent child's state
   const open = await frame()
   expect(lineWith(open, "check types")).toContain("⑂")
   expect(lineWith(open, "port tree builder")).toContain("⎇")
-  expect(lineWith(open, "feat/parent")).toContain("▾")
+  expect(lineWith(open, "parent")).toContain("▾")
 
   // Folding is a click on the parent's fold glyph.
-  const parentLine = lineWith(open, "feat/parent")
+  const parentLine = lineWith(open, "parent")
   await mockMouse.click(parentLine.indexOf("▾"), open.split("\n").indexOf(parentLine), 0)
   await settle(80)
 
   const folded = await frame()
   expect(folded).not.toContain("check types")
   expect(folded).not.toContain("port tree builder")
-  const summary = lineWith(folded, "feat/parent")
+  const summary = lineWith(folded, "parent")
   expect(summary).toContain("▸ 2")
   // A question outranks a sibling that is still working.
   expect(summary).toContain(DEFAULT_GLYPHS.needsInput)

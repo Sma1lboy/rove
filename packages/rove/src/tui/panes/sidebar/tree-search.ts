@@ -25,7 +25,15 @@ function rowHaystacks(row: TreeRow, liveBranch?: (task: Task) => string): readon
   const task = row.task
   // A `dir` task's title is hidden on screen, so it must not match either.
   const title = task.kind === "dir" ? "" : task.title
-  return [worktreeRowLabel(task, { liveBranch: liveBranch?.(task) }), title, repoBasename(task.repo)]
+  const liveBranchName = liveBranch?.(task)
+  const liveTitle = row.kind === "worktree" ? row.title : undefined
+  // The branch no longer names the row, but it stays findable.
+  return [
+    worktreeRowLabel(task, { liveBranch: liveBranchName, liveTitle }),
+    liveBranchName || task.branch,
+    title,
+    repoBasename(task.repo),
+  ]
 }
 
 /**
@@ -40,7 +48,7 @@ function matchesRow(query: string, row: TreeRow, liveBranch?: (task: Task) => st
 /**
  * Prune to matches, keeping every hit's ANCESTORS.
  *   - project  → repo basename; a hit keeps the WHOLE subtree.
- *   - worktree → rendered label (branch, live HEAD, or path), title, repo
+ *   - worktree → rendered label (conversation title, task title, branch, live HEAD, or path), branch, title, repo
  *     basename; a hit keeps its child tasks and the parents above it.
  */
 export function filterTreeRows(

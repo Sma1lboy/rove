@@ -150,7 +150,7 @@ function SortHost() {
 
 /** Negative when `aaa` renders above `zzz`. */
 function orderOf(frame: string): number {
-  return frame.indexOf("feat/aaa") - frame.indexOf("feat/zzz")
+  return frame.indexOf("Zebra") - frame.indexOf("Apple")
 }
 
 test("t cycles the sidebar through default → recent → attention → name", async () => {

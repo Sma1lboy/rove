@@ -191,6 +191,27 @@ export function tabTitleStable(
 }
 
 /**
+ * What the engine conversation behind `tab` is actually called, or null when
+ * it has no name yet: a rename wins, then the host's live title, then the
+ * recorded one. Unlike {@link tabTitleStable} there is no "claude 1" fallback,
+ * and an engine's bare product name ("Claude Code", the title it shows before
+ * it has named the session) is no name — the caller falls back to something
+ * that tells rows apart.
+ */
+export function conversationTitle(tab: TerminalTab, taskVendor: VendorId, liveTitle?: string | null): string | null {
+  const renamed = tab.title?.trim()
+  if (renamed) return renamed
+  const vendor = titleVendor(tab, taskVendor)
+  const named = stableRecordedTitle(liveTitle?.trim() || tab.lastTitle, vendor)
+  if (!named) return null
+  const entry = engineEntry(vendor)
+  const generic = [entry.displayName, entry.defaultCommand[0]].map((name) => name?.toLowerCase())
+  // "Claude Code", "Gemini CLI": the product name, with or without its suffix.
+  const lowered = named.toLowerCase()
+  return generic.includes(lowered) || generic.includes(lowered.replace(/ (code|cli)$/, "")) ? null : named
+}
+
+/**
  * Whose title rules judge this tab's name: running now, else launched as, else
  * the task's engine. A confirmed-dead engine still falls back to the pin —
  * "is this a name" is about the SHAPE the engine writes.

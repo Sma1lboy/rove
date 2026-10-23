@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import type { DaemonOrchestrator, DaemonTask, MigratedChildInput } from "../../../rove-daemon/src/daemon/contracts.ts"
+import type { MigratedChildInput } from "../../../rove-daemon/src/daemon/child-contracts.ts"
+import type { DaemonOrchestrator, DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
 import { migrateEngineTabs } from "../../../rove-daemon/src/daemon/engine-tab-migration.ts"
 import type { SharedTabs, TabRow } from "../../../rove-daemon/src/daemon/tabs-ops.ts"
 import { TabsStore } from "../../../rove-daemon/src/daemon/tabs-store.ts"

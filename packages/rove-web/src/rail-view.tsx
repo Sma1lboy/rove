@@ -17,19 +17,9 @@ import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
+import { anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import {
-  type NavRow,
-  type RowFold,
-  anySpinning,
-  childMarkerOf,
-  mostUrgentStatus,
-  needsPerson,
-  railRows,
-  repoLabel,
-  statusGlyph,
-  taskRowGlyph,
-} from "./rail.ts"
+import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"

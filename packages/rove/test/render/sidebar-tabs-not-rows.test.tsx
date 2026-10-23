@@ -24,7 +24,7 @@ afterEach(() => {
   tabsByTask.clear()
 })
 
-test("a task with several tabs is one row — tabs live in the tab strip, not the sidebar", async () => {
+test("a task with several tabs is one row named by its first conversation — the other tabs live in the tab strip", async () => {
   tabsByTask.set(task.id, {
     tabs: [
       { kind: "engine", id: "tab-1", title: "first", ordinal: 1 },
@@ -39,6 +39,8 @@ test("a task with several tabs is one row — tabs live in the tab strip, not th
     { width: 30, height: 20 },
   )
   const rendered = await frame()
-  expect(rendered).toContain("feat/unattributed")
-  for (const title of ["first", "second", "build shell"]) expect(rendered).not.toContain(title)
+  expect(rendered).toContain("first")
+  for (const title of ["second", "build shell", "Unattributed", "feat/unattributed"]) {
+    expect(rendered).not.toContain(title)
+  }
 })

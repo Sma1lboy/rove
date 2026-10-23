@@ -92,6 +92,7 @@ export function SidebarTreeBody(props: {
               depth={row.depth}
               level={row.level}
               fold={row.fold}
+              title={row.title}
               remote={row.remote}
               shared={props.shared}
             />

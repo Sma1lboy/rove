@@ -10,8 +10,8 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|▌▎! feat/alpha            22m |
-| ▎○ feat/bravo                |
+|▌▎! alpha                 22m |
+| ▎○ bravo                     |
 |                              |
 |                              |
 |                              |

@@ -10,8 +10,8 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|▌▎○ feat/alpha           move |
-| ▎○ feat/bravo                |
+|▌▎○ alpha                move |
+| ▎○ bravo                     |
 |                              |
 |                              |
 |                              |

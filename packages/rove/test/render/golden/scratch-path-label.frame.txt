@@ -13,7 +13,7 @@
 | ▎○ …deep/nested/project-dir  |
 |                              |
 | rove ─────────────────────── |
-|▌▎○ feat/alpha                |
+|▌▎○ alpha                     |
 |                              |
 |                              |
 |                              |

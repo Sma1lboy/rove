@@ -177,4 +177,10 @@ rove
 - Each child shows a marker: shared directory (`⑂`) or own worktree (`⎇`).
 - Engine tabs are no longer sidebar rows. Shell and other non-engine tabs live
   in the task's tab strip.
+- **A row is a conversation, so it is named like one.** Every task row, top-level
+  and child alike, reads: the engine session's own title (live from the pty host,
+  else the recorded one), else the task title, else the branch. An engine's bare
+  product name ("Claude Code") is not a title. A `main` row keeps its live HEAD
+  and a `dir` row its directory, unless the conversation is named. Search still
+  finds a row by its branch.
 - Project rows, Scratch, the routine fold, and the machine layer are unchanged.

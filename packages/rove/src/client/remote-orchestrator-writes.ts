@@ -5,12 +5,8 @@
  */
 
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import type {
-  Automation,
-  AutomationRun,
-  AutomationRunStatus,
-  TaskDeleteOptions,
-} from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { TaskDeleteOptions } from "@sma1lboy/rove-daemon/daemon/child-contracts"
+import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"

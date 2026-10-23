@@ -86,6 +86,26 @@ export async function runReconnectLoop(deps: {
   }
 }
 
+/**
+ * One shared retry task: repeated close events and an explicit reconnect join
+ * the same loop instead of racing two hello/subscribe handshakes.
+ */
+export function singleFlightReconnect(
+  deps: Omit<Parameters<typeof runReconnectLoop>[0], "spawnDaemon">,
+): (spawnDaemon: boolean) => Promise<void> {
+  let current: Promise<void> | null = null
+  return (spawnDaemon) => {
+    if (current) return current
+    const task = runReconnectLoop({ ...deps, spawnDaemon })
+    current = task
+    const clear = (): void => {
+      if (current === task) current = null
+    }
+    task.then(clear, clear)
+    return task
+  }
+}
+
 /** Open the daemon socket, hello, subscribe to the task snapshot stream. */
 export async function performInit(
   client: RoveDaemonClient,

@@ -1,13 +1,14 @@
 /**
- * Regression pin: a sidebar tab row's TITLE must
- * track the live session, like the state glyph beside it already does — not
- * wait for you to click into that task.
+ * Regression pin: a sidebar task row's NAME must track the live session, like
+ * the state glyph beside it already does — not wait for you to click into that
+ * task. A task is one conversation, so its row is named by that conversation's
+ * title (over the task title and the branch).
  *
  * The OSC title only ever reached a tab through `useTabTurnState`, which is
  * mounted by `TerminalTabs` — and `TerminalTabs` exists only for the SELECTED
- * task. So every other row rendered the persisted `lastTitle`: a recording of
- * whatever the tab was called the last time you were in it, sitting next to a
- * state glyph the daemon keeps live. One row, one live signal and one frozen
+ * task. So every other row would render the persisted `lastTitle`: a recording
+ * of whatever the tab was called the last time you were in it, sitting next to
+ * a state glyph the daemon keeps live. One row, one live signal and one frozen
  * one.
  *
  * Shape: two tasks, focus pinned to A, and B's snapshot deliberately carrying
@@ -36,7 +37,7 @@ const nodePty = await loadNodePty()
 
 const COLS = 140
 const ROWS = 40
-/** What the fake engine publishes as its OSC 0 window title. */
+/** Prefix of what the fake engine publishes as its OSC 0 window title (suffixed with its cwd, so A and B differ). */
 const LIVE = "LIVEX"
 /** What B's snapshot claims the tab was called — the frozen recording. */
 const STALE = "STALEX"
@@ -55,6 +56,8 @@ describe.skipIf(!nodePty)("Pure TUI sidebar shows an unselected task's live tab 
   let statePath: string
   let taskA: string
   let taskB: string
+  /** The title B's engine published, as the pty host observed it. */
+  let liveTitleB = ""
   const branchA = "rove/pin-a"
   const branchB = "rove/pin-b"
 
@@ -69,7 +72,7 @@ describe.skipIf(!nodePty)("Pure TUI sidebar shows an unselected task's live tab 
     // the whole subject of the test and no other suite should have to care.
     await writeFile(
       join(env.bin, "claude"),
-      `#!/bin/sh\nprintf '\\033]0;${LIVE}\\007'\necho "fake-claude ready $*"\nwhile :; do read -r _ignored || sleep 600; done\n`,
+      `#!/bin/sh\nprintf '\\033]0;${LIVE}-%s\\007' "$(basename "$PWD")"\necho "fake-claude ready $*"\nwhile :; do read -r _ignored || sleep 600; done\n`,
     )
     await chmod(join(env.bin, "claude"), 0o755)
 
@@ -101,22 +104,26 @@ describe.skipIf(!nodePty)("Pure TUI sidebar shows an unselected task's live tab 
       const sessions = JSON.parse(runRove(["api", "pty-list"], env).stdout) as {
         sessions?: { key: string; alive?: boolean; title?: string }[]
       }
-      return sessions.sessions?.some((s) => s.key === `${taskB}::tab-1` && s.alive && s.title === LIVE) === true
+      return (
+        sessions.sessions?.some((s) => s.key === `${taskB}::tab-1` && s.alive && s.title?.startsWith(LIVE) === true) ===
+        true
+      )
     }, 30_000)
     const listed = JSON.parse(runRove(["api", "pty-list"], env).stdout) as {
       sessions?: { key: string; title?: string }[]
     }
+    liveTitleB = listed.sessions?.find((s) => s.key === `${taskB}::tab-1`)?.title ?? ""
     expect(
-      listed.sessions?.find((s) => s.key === `${taskB}::tab-1`)?.title,
+      liveTitleB,
       "the pty host never observed the engine's OSC title — the test cannot say anything about the sidebar",
-    ).toBe(LIVE)
+    ).toContain(LIVE)
   }, 180_000)
 
   afterAll(async () => {
     await env.dispose()
   })
 
-  it("renders B's live title on a row nobody opened, over the stale recording", async () => {
+  it("names B's row by its live title, though nobody opened it", async () => {
     if (!nodePty) throw new Error("unreachable: suite is skipped without node-pty")
     const key = `terminalTabs.${taskB}`
 
@@ -140,26 +147,22 @@ describe.skipIf(!nodePty)("Pure TUI sidebar shows an unselected task's live tab 
       for (let y = 0; y < ROWS; y++) lines.push(buffer.getLine(y)?.translateToString(true) ?? "")
       return lines
     }
-    /** The rail rows below B's worktree row, i.e. B's tabs. */
-    const bTabRows = (): string[] => {
-      const rail = screen().map((line) => line.slice(0, SIDEBAR_WIDTH))
-      const worktree = rail.findIndex((line) => line.includes(branchB))
-      return worktree < 0 ? [] : rail.slice(worktree + 1, worktree + 2)
-    }
+    /** The rail rows that carry B's live title (the rail clips long names, so match its head). */
+    const head = liveTitleB.slice(0, 12)
+    const bRows = (): string[] =>
+      screen()
+        .map((line) => line.slice(0, SIDEBAR_WIDTH))
+        .filter((line) => line.includes(head))
 
     try {
-      await poll(() => screen().some((line) => line.includes(branchB)), 30_000)
-      expect(
-        screen().some((line) => line.includes(branchB)),
-        "B's worktree row never appeared in the rail",
-      ).toBe(true)
       // The sidebar polls the host every 2s, so the live title lands a tick
       // or two after the row does.
-      await poll(() => bTabRows()[0]?.includes(LIVE) === true, 30_000)
+      await poll(() => bRows().length > 0, 30_000)
 
-      const row = bTabRows()[0] ?? ""
-      expect(row, "B's tab row never showed the live session title").toContain(LIVE)
-      expect(row, "B's tab row is still rendering the frozen recording").not.toContain(STALE)
+      const row = bRows()[0] ?? ""
+      expect(row, "B's task row never showed the live session title").toContain(head)
+      const rail = screen().map((line) => line.slice(0, SIDEBAR_WIDTH))
+      expect(rail.join("\n"), "the rail is still rendering the frozen recording").not.toContain(STALE)
 
       // ...and B genuinely was a task nobody opened. A mounted `TerminalTabs`
       // RECORDS the live title it sees, so B's `lastTitle` still reading

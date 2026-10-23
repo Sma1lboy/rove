@@ -6,7 +6,8 @@
  */
 
 import { isAbsolute, relative, resolve, sep } from "node:path"
-import type { SpawnChildInput, TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { SpawnChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
+import type { TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { taskCwd } from "@sma1lboy/rove-daemon/task-tree"
 import { isGitRepo, isRemoteRepoKey, resolveMainRepoRoot } from "../state/repos.ts"
 import type { Task, TaskId } from "../types/task.ts"

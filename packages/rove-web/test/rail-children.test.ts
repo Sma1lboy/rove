@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
-import { childMarkerOf, groupByProject, mostUrgentStatus, navRows } from "../src/rail.ts"
+import { mostUrgentStatus } from "../src/rail-glyphs.ts"
+import { childMarkerOf, groupByProject, navRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
   ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow

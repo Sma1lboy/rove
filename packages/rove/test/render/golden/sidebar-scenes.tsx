@@ -263,6 +263,7 @@ export const SCENES: readonly Scene[] = [
     element: tree({
       tasks: [
         task("wordy", {
+          title: "Restart the tab strip without losing scrollback",
           branch: "refactor/tab-strip-restart-scrollback",
           pinned: true,
           prStatus: { checkState: "passing" } as Task["prStatus"],

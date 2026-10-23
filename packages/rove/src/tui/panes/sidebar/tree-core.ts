@@ -25,7 +25,7 @@ export {
   projectKeyOfRoutinesRow,
   tabRowId,
 } from "./tree-ids"
-export { rowLiveBranchPath, worktreeRowLabel } from "./tree-labels"
+export { conversationTitleOf, rowLiveBranchPath, worktreeRowLabel } from "./tree-labels"
 
 /** One shared grouping (project-groups.ts), so tree and folded rail agree on which projects exist. */
 export { ownerProjectKey, projectKeysOf } from "./project-groups"
@@ -35,6 +35,8 @@ export interface TreeTab {
   readonly id: string
   /** Already-resolved display name; precedence is the tab module's job. */
   readonly label: string
+  /** What the engine conversation is called, when it has a name (`conversationTitle`); absent = unnamed. */
+  readonly title?: string
   /** The task's ACTIVE tab — carries the session's state glyph. */
   readonly active?: boolean
   /** Coding-agent tab. Shell/command/content tabs always wear the plain dot. */
@@ -78,6 +80,8 @@ export type TreeRow =
       readonly level?: number
       /** Set on a task with children. */
       readonly fold?: TreeFold
+      /** The engine conversation's own name, when it has one; the label prefers it. */
+      readonly title?: string
       /** Set when the task lives on another machine. */
       readonly remote?: RemoteMark
     }
@@ -133,6 +137,8 @@ export interface TreeInput extends SidebarGroupInput {
   readonly expandedRoutines?: ReadonlySet<string>
   /** Task ids whose children are folded away; absent = all open. */
   readonly collapsedTasks?: ReadonlySet<string>
+  /** taskId → its conversation's name (`conversationTitleOf`); absent = unnamed. */
+  readonly conversationTitles?: ReadonlyMap<string, string>
 }
 
 export interface TreeRowsInput {
@@ -140,6 +146,8 @@ export interface TreeRowsInput {
   readonly groups: readonly SidebarGroup[]
   readonly expandedRoutines?: ReadonlySet<string>
   readonly collapsedTasks?: ReadonlySet<string>
+  /** taskId → its conversation's name (`conversationTitleOf`); absent = unnamed. */
+  readonly conversationTitles?: ReadonlyMap<string, string>
 }
 
 interface ChildIndex {
@@ -188,6 +196,7 @@ function descendantIds(children: ChildIndex["children"], id: string, out: string
 
 interface PushContext extends ChildIndex {
   readonly collapsed: ReadonlySet<string> | undefined
+  readonly titles: ReadonlyMap<string, string> | undefined
 }
 
 /** A task's row, then its children's (unless folded), one indent level deeper each. */
@@ -195,6 +204,7 @@ function pushTask(rows: TreeRow[], task: Task, generation: number, ctx: PushCont
   const kids = ctx.children.get(task.id)
   const collapsed = kids !== undefined && ctx.collapsed?.has(task.id) === true
   const level = generation + 1
+  const title = ctx.titles?.get(task.id)
   const ids = kids ? descendantIds(ctx.children, task.id) : []
   rows.push({
     kind: "worktree",
@@ -203,6 +213,7 @@ function pushTask(rows: TreeRow[], task: Task, generation: number, ctx: PushCont
     depth: Math.min(level, MAX_TREE_DEPTH),
     ...(level > MAX_TREE_DEPTH ? { level } : {}),
     ...(kids ? { fold: { count: ids.length, collapsed, descendantIds: ids } } : {}),
+    ...(title ? { title } : {}),
   })
   if (collapsed || !kids) return
   for (const child of kids) pushTask(rows, child, generation + 1, ctx)
@@ -216,7 +227,11 @@ function pushTask(rows: TreeRow[], task: Task, generation: number, ctx: PushCont
  * row: the header is a repo, not a checkout, so main can carry children.
  */
 export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
-  const ctx: PushContext = { ...indexChildren(input.groups), collapsed: input.collapsedTasks }
+  const ctx: PushContext = {
+    ...indexChildren(input.groups),
+    collapsed: input.collapsedTasks,
+    titles: input.conversationTitles,
+  }
   const rows: TreeRow[] = []
   for (const group of input.groups) {
     // Routine sessions are the TAIL of `group.tasks`; the count row sits at the seam.
@@ -259,6 +274,7 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
     groups: buildSidebarGroups(input),
     expandedRoutines: input.expandedRoutines,
     collapsedTasks: input.collapsedTasks,
+    conversationTitles: input.conversationTitles,
   })
 }
 

@@ -5,7 +5,8 @@ import { visibleTree } from "../src/file-tree.ts"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
 import { compactAge, inboxBadge, isRoutineState, nextAttention } from "../src/inbox.ts"
-import { anySpinning, groupByProject, navRows, needsPerson, statusGlyph, taskRowGlyph } from "../src/rail.ts"
+import { anySpinning, needsPerson, statusGlyph, taskRowGlyph } from "../src/rail-glyphs.ts"
+import { groupByProject, navRows } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
 
 const TOKEN = "a".repeat(43)

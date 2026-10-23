@@ -4,7 +4,8 @@
  * Interactive engine processes and Terminal Tab state have separate owners.
  */
 
-import type { MigratedChildInput, TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
+import type { TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
