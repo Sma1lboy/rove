@@ -225,3 +225,15 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Fix, PR #1384 (`perf/nightly-2026-10-22`):** `publish()` returns the shown state when `tabs`/`activeId`/`nextOrdinal`/`reopenAs` are identical. Two runs: stateListener 6.3/6.3, root 8.5/8.5, workspace 7.5/7.5 (below the pre-regression 8.3), sidebar 2.4/2.3; frames and timings unchanged. A `tabs-sync.test.ts` case pins it. No separate optimization tonight (regression night). Baseline not moved: the run had ✗ entries. Tonight's history line is main run 2.
 
 **Sandbox:** the harness Playwright now asks for headless shell rev 1194 at `chrome-linux/` (same as the root); the 1228 shim was kept too. `BUN_OPTIONS=--smol` exported again and unset for every run. A leftover fixture `pty-host` survived run 1; killing it was blocked by the sandbox policy, and run 2 read the same counts anyway.
+
+## 2026-10-23 — regression, fixed (main 10b6ad5)
+
+**Regression, reproduced twice:** switch.perOp.frame 4.2 → 7.0/6.8, commit.root 9.5 → 11.1/10.8, sidebar 2.4 → 4.0/3.8, stateNotify 3.6 → 10.4/10.4, stateListener 5.8 → 11.5/10.6 (all ✗). golden.cli-startup-ms flagged too (81/72, usual noise). **Bisected** by direct measure: 437a8b4 good (frame 4, root 8, notify 3), 115f663 bad (6.8 / 10.8 / 8.4) — #1390, the daemon `state` channel.
+
+**Cause:** each switch writes `lastActive.taskId` (orchestrator, `patchStateFile`) and `inboxVisits` (kv `setQuiet`). The daemon's state watcher pushes state.json back; `kv.follow` → `merge` saw both keys differ from the snapshot (quiet keys never live in the snapshot; lastActive is never written through kv) and called `store.set`, waking every kv subscriber: ~2.7 extra commits and frames per switch. Each push also notifies two raw `state` cells (main orchestrator subscribes to all channels, 0 listeners; UiPrefsSync, 1).
+
+**Fix, PR #1400 (`perf/nightly-2026-10-23`):** the push omits `lastActive.taskId` (`isUnpublishedStateKey` in state-watcher.ts; follow keeps its local copy), and `follow` (not `reload`, whose test pins snapshot = file) absorbs flushed quiet keys into the quiet map without a snapshot change. Two runs: frame 4.3/4.1, root 8.4/8.1, workspace 7.4/7.1, sidebar 2.3/2.0, stateNotify 7.5/7.0, stateListener 9.4/8.0. Timings unchanged. No separate optimization (regression night). Baseline not moved.
+
+**Left over (owner's call, not fixed):** stateNotify stays ~7 vs 3. ~2.4/switch is #1394's `MachineFeed.tasksAcc` forwarding every local `task.snapshot` (before, zero machines returned the local cell itself); ~2.5 is the raw `state` cell pair per `inboxVisits` push. Neither causes commits or frames. Folding the feed forward back means a derived ReadableState (subscribe to local + remote, memoized get).
+
+**Sandbox:** harness Playwright asks for headless shell rev 1228 again (`chrome-headless-shell-linux64/` + `INSTALLATION_COMPLETE`); 1194 is a plain dir symlink. Render suite has 6–8 timing flakes on main under full load (toast/delete tests); they pass in isolation.
