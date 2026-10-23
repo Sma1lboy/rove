@@ -1,5 +1,12 @@
 # rove-weixin
 
+## 0.0.31
+
+### Patch Changes
+
+- Updated dependencies [[`5c70266`](https://github.com/Sma1lboy/rove/commit/5c7026602cd1f7de4ba506d222f8e836cf05ea4e)]:
+  - @sma1lboy/rove@0.9.270
+
 ## 0.0.30
 
 ### Patch Changes
