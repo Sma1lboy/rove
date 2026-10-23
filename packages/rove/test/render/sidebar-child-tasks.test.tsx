@@ -93,3 +93,19 @@ test("a child that has children of its own keeps its marker and fold glyph in se
   // The marker is not glued to the fold glyph: a wide-drawn ⎇ would smear into it.
   expect(line).toMatch(/…\s+⎇ ▾/)
 })
+
+test("the task-colour bar stays in one column while child titles indent past it", async () => {
+  tabsByTask.clear()
+  resetRowStatusForTests()
+  const { frame } = await renderComponent(
+    <SidebarTree tasks={TASKS} selectedId="parent" onSelect={() => {}} focused={true} width={40} />,
+    { width: 40, height: 16 },
+  )
+  await settle(80)
+
+  const open = await frame()
+  const parent = lineWith(open, "parent")
+  const child = lineWith(open, "check types")
+  expect(child.indexOf("▎")).toBe(parent.indexOf("▎"))
+  expect(child.indexOf("check types")).toBeGreaterThan(parent.indexOf("parent"))
+})

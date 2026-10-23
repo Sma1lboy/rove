@@ -16,7 +16,7 @@ import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
 /** One cell per depth level: the rail is narrow and the glyph column already separates levels. */
 const INDENT_CELLS = 1
-/** The task-colour mark; it takes the indent's last cell, so it never pushes the label. */
+/** The task-colour mark; it takes the indent's FIRST cell, so it stays one column while children indent past it. */
 const TASK_MARK = "▎"
 
 export type TreeRowShared = {
@@ -126,7 +126,7 @@ export function RowShell(props: {
       </text>
       {props.mark && props.depth > 0 ? (
         <text fg={props.mark} wrapMode="none" flexShrink={0}>
-          {`${" ".repeat(props.depth * INDENT_CELLS - 1)}${TASK_MARK}`}
+          {`${TASK_MARK}${" ".repeat(props.depth * INDENT_CELLS - 1)}`}
         </text>
       ) : (
         <text wrapMode="none" flexShrink={0}>
