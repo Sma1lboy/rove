@@ -44,7 +44,8 @@ afterEach(() => {
   else process.env.ROVE_HOME_DIR = prevHome
   if (prevDelay === undefined) Reflect.deleteProperty(process.env, "GIT_PROGRESS_DELAY")
   else process.env.GIT_PROGRESS_DELAY = prevDelay
-  fs.rmSync(tmpRoot, { recursive: true, force: true })
+  // Git can still be writing into `.git` as the test ends (ENOTEMPTY on Linux CI); rmSync retries that.
+  fs.rmSync(tmpRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })
 
 test("creating a task's worktree reports the checkout's percents up to 100", async () => {
