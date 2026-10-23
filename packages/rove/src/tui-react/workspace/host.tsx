@@ -372,6 +372,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               inbox={inbox}
               update={banner.update}
               onFixChecks={editor.onFixChecks}
+              onResolveConflicts={editor.onResolveConflicts}
               runAgain={quickFork.runAgain}
               activePane={activePane}
               zen={zen}

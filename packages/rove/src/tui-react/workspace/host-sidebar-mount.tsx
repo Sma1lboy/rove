@@ -41,8 +41,9 @@ export interface HostSidebarMountProps {
   readonly focus: FocusContextValue
   readonly inbox: { readonly counts: { readonly total: number }; readonly show: () => void }
   readonly update: { readonly hasUpdate: boolean; readonly latest: string } | null | undefined
-  /** The one row verb that must run where the engine is (`useEditorHandles`). */
+  /** The row verbs that must run where the engine is (`useEditorHandles`). */
   readonly onFixChecks: (taskId: string) => void
+  readonly onResolveConflicts: (taskId: string) => void
   readonly runAgain: (task: Task) => void
   readonly activePane: string | null
   readonly zen: boolean
@@ -117,6 +118,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onChangeEngineRequest={(id) => void actions.pickVendor(id)}
       onFieldNotesRequest={actions.showFieldNotes}
       onFixChecksRequest={props.onFixChecks}
+      onResolveConflictsRequest={props.onResolveConflicts}
       onRerunChecksRequest={(id) => void actions.rerunChecks(id)}
       // Created in quick-fork, which owns the pending-prompt slot for the new task.
       onRunAgainRequest={(id) => void actions.confirmRunAgain(id).then((task) => task && props.runAgain(task))}

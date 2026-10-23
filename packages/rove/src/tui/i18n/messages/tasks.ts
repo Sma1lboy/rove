@@ -64,6 +64,8 @@ export const en = {
     rerunChecks: "Re-run failed checks",
     /** Merge the base INTO this worktree — the `↓N` drift chip's action. */
     syncBase: "Sync with base",
+    /** Only while a merge/rebase/cherry-pick/revert is paused in the worktree. */
+    resolveConflicts: "Resolve conflicts",
     land: "Land into base branch",
     delete: "Delete",
   },
@@ -311,6 +313,7 @@ export const zh: typeof en = {
     fixChecks: "修复失败的检查",
     rerunChecks: "重新运行失败的检查",
     syncBase: "同步基础分支",
+    resolveConflicts: "让 agent 解决冲突",
     land: "合入基础分支",
     delete: "删除",
   },

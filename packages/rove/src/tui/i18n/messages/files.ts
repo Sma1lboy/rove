@@ -49,6 +49,7 @@ export const en = {
     prOnTargetBranch: "Already on the target branch ({branch}) — ask the agent to create the PR from a task branch",
     /** `gh` unavailable, the run expired, or the checks went green while the
      *  menu was open — better than pasting a prompt with no evidence in it. */
+    noPausedOperation: "Nothing to resolve — no merge, rebase or cherry-pick is paused here",
     ciNoFailingChecks: "No failing check logs to read — the run may have expired, or the checks are no longer red",
     ciChecksUnavailable: "gh could not read this PR's checks: {detail}. Run `gh auth status`, then retry.",
   },
@@ -90,6 +91,7 @@ export const zh: typeof en = {
   },
   toast: {
     prOnTargetBranch: "当前就在目标分支（{branch}）— 请在任务分支上让 agent 创建 PR",
+    noPausedOperation: "没有要解决的冲突——这里没有暂停中的合并、变基或拣选",
     ciNoFailingChecks: "没有可读的失败检查日志——运行记录可能已过期，或检查已不再是红的",
     ciChecksUnavailable: "gh 读不到这个 PR 的检查状态：{detail}。请运行 `gh auth status`，然后重试。",
   },

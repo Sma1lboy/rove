@@ -7,6 +7,7 @@
 import { useCallback, useState } from "react"
 import { formatChord } from "../../../tui/lib/chord-glyphs"
 import { legendCap } from "../../../tui/lib/help-groups"
+import { pausedGitOperation } from "../../../tui/ops/conflict-prompt"
 import type { TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import { type TreeMenuAction, type TreeMenuContext, treeMenuItems } from "../../../tui/panes/sidebar/tree-menu"
 import { useT } from "../../i18n"
@@ -92,7 +93,10 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       if (!row || row.kind === "project" || row.kind === "recent" || row.kind === "routines") return
       // Menu and highlight must agree on the target row.
       setCursorIndex(flatIndex)
-      openAt(row, {}, x, y)
+      // Another machine's worktree path means nothing on this filesystem.
+      const local = (row.task.origin?.machineId ?? "local") === "local"
+      const operationPaused = local && pausedGitOperation(row.task.worktreePath) !== null
+      openAt(row, { operationPaused }, x, y)
     },
     [tree.rows, openAt, setCursorIndex],
   )
@@ -213,6 +217,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
         case "syncBase":
           actions.onSyncBaseRequest?.(taskId)
+          break
+        case "resolveConflicts":
+          actions.onResolveConflictsRequest?.(taskId)
           break
         case "land":
           actions.onLandRequest?.(taskId)
