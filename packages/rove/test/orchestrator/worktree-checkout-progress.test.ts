@@ -17,7 +17,9 @@ let prevHome: string | undefined
 let prevDelay: string | undefined
 
 function git(cwd: string, ...args: string[]): void {
-  const r = spawnSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", ...args], {
+  // No auto gc/maintenance: `commit` detaches one that can still be writing `.git/objects` at teardown.
+  const config = ["user.email=t@t", "user.name=t", "commit.gpgsign=false", "gc.auto=0", "maintenance.auto=false"]
+  const r = spawnSync("git", [...config.flatMap((c) => ["-c", c]), ...args], {
     cwd,
     encoding: "utf8",
   })
@@ -44,8 +46,7 @@ afterEach(() => {
   else process.env.ROVE_HOME_DIR = prevHome
   if (prevDelay === undefined) Reflect.deleteProperty(process.env, "GIT_PROGRESS_DELAY")
   else process.env.GIT_PROGRESS_DELAY = prevDelay
-  // Git can still be writing into `.git` as the test ends (ENOTEMPTY on Linux CI); rmSync retries that.
-  fs.rmSync(tmpRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+  fs.rmSync(tmpRoot, { recursive: true, force: true })
 })
 
 test("creating a task's worktree reports the checkout's percents up to 100", async () => {
