@@ -53,6 +53,9 @@ export interface Automation {
   readonly persistentSession?: boolean
   /** Exact user-owned conversation. Never creates or revives a task or tab. */
   readonly target?: { readonly kind: "existing-tab"; readonly taskId: string; readonly tabId: string }
+  /** Webhook trigger: a POST to `/hooks/routines/<id>` signed with this secret
+   *  (GitHub's `X-Hub-Signature-256`) fires one run, precheck included. */
+  readonly webhook?: { readonly secret: string }
   /** The standing task {@link persistentSession} delivers into. Set on the
    *  first firing; cleared when that task or its worktree is gone, so the next
    *  firing rebuilds. */
@@ -113,6 +116,9 @@ export interface AutomationPrecheckResult {
   readonly durationMs: number
 }
 
+/** `manual` (run-now) skips the precheck; `webhook` runs it, like `scheduled`. */
+export type AutomationTrigger = "scheduled" | "manual" | "webhook"
+
 export interface AutomationRun {
   readonly id: string
   readonly automationId: string
@@ -121,7 +127,9 @@ export interface AutomationRun {
   /** When this occurrence was SUPPOSED to run — not when it actually did. */
   readonly scheduledFor: string
   readonly status: AutomationRunStatus
-  readonly trigger: "scheduled" | "manual"
+  readonly trigger: AutomationTrigger
+  /** What fired a `webhook` run, one line (`issues.opened Sma1lboy/rove#12 <url>`). */
+  readonly event?: string
   readonly taskId?: string
   readonly tabId?: string
   readonly precheckResult?: AutomationPrecheckResult
@@ -188,6 +196,8 @@ export interface AutomationPatch {
   readonly persistentSession?: boolean
   /** Exact user-owned conversation. Never creates or revives a task or tab. */
   readonly target?: Automation["target"] | null
+  /** `null` turns the webhook trigger off. */
+  readonly webhook?: Automation["webhook"] | null
   /** `null` clears the standing session link; absent leaves it untouched. */
   readonly sessionTaskId?: string | null
 }

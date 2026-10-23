@@ -18,6 +18,7 @@
 import type { DaemonRpcClient } from "../client/rpc.ts"
 import { type DispatchOutcome, type DispatchRunnability, dispatchAutomation } from "./automation-dispatch.ts"
 import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./automation-precheck.ts"
+import { type WebhookEvent, webhookPrecheckEnv } from "./automation-webhook.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import {
   type Automation,
@@ -25,6 +26,7 @@ import {
   type AutomationPrecheckResult,
   type AutomationRunResponse,
   type AutomationRunStatus,
+  type AutomationTrigger,
   type DaemonOrchestrator,
   automationRunNeedsAttention,
 } from "./contracts.ts"
@@ -140,7 +142,7 @@ function emitRunEvent(
   deps: RunnerDeps,
   automation: Automation,
   status: AutomationRunStatus,
-  args: { scheduledFor: number; trigger: "scheduled" | "manual" },
+  args: { scheduledFor: number; trigger: AutomationTrigger },
   extra: { taskId?: string; tabId?: string; error?: string },
 ): void {
   if (extra.taskId && (status === "dispatched" || status === "revived" || status === "dispatch_failed")) {
@@ -245,8 +247,10 @@ export function withRoutineRunHeader(
   run: { runNumber: number },
   api: string,
   deliveryId: string,
+  event?: WebhookEvent,
 ): string {
-  return `[ROVE ROUTINE] "${automation.name}" run #${run.runNumber} — when done, report with: ${api} report --delivery ${deliveryId} --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]\n\n${automation.prompt}`
+  const fired = event ? `Fired by webhook: ${event.summary}\n\n` : ""
+  return `[ROVE ROUTINE] "${automation.name}" run #${run.runNumber} — when done, report with: ${api} report --delivery ${deliveryId} --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]\n\n${fired}${automation.prompt}`
 }
 
 /**
@@ -263,8 +267,9 @@ async function runScript(
     extra: { error?: string; response?: AutomationRunResponse; precheckResult?: AutomationPrecheckResult },
   ) => Promise<AutomationRunStatus>,
   now: () => number,
+  env?: Readonly<Record<string, string>>,
 ): Promise<AutomationRunStatus> {
-  const result = await runAutomationPrecheck(script, automation.repo)
+  const result = await runAutomationPrecheck(script, automation.repo, undefined, env)
   const stdout = result.stdout.trim()
   const response = stdout ? { response: { text: stdout, at: new Date(now()).toISOString() } } : {}
   if (precheckPassed(result)) return await record("ran", response)
@@ -278,12 +283,14 @@ async function runScript(
 }
 
 /** Execute one automation now, recording exactly one run. A manual trigger
- *  (`automation.runNow`) skips the precheck. */
+ *  (`automation.runNow`) skips the precheck; a webhook one runs it with the
+ *  event in its env. */
 export async function runAutomationOnce(
   deps: RunnerDeps,
   automation: Automation,
-  args: { scheduledFor: number; trigger: "scheduled" | "manual" },
+  args: { scheduledFor: number; trigger: AutomationTrigger; event?: WebhookEvent },
 ): Promise<AutomationRunStatus> {
+  const env = args.event ? webhookPrecheckEnv(args.event) : undefined
   const now = deps.now ?? Date.now
   const reserved = deps.store.reserveRun(automation.id)
   const record = async (
@@ -304,6 +311,7 @@ export async function runAutomationOnce(
         scheduledFor: new Date(args.scheduledFor).toISOString(),
         status,
         trigger: args.trigger,
+        ...(args.event ? { event: args.event.summary } : {}),
         at: new Date(now()).toISOString(),
         ...extra,
       },
@@ -317,14 +325,14 @@ export async function runAutomationOnce(
   const cancelled = (): boolean =>
     deps.stopped?.() === true ||
     deps.store.get(automation.id) !== automation ||
-    (args.trigger === "scheduled" && !automation.enabled)
+    (args.trigger !== "manual" && !automation.enabled)
   if (cancelled())
     return await record("skipped_cancelled", {
       error: "routine disabled, changed, deleted or runner stopped before delivery",
     })
 
-  if (args.trigger === "scheduled" && automation.precheck) {
-    const result = await runAutomationPrecheck(automation.precheck, automation.repo)
+  if (args.trigger !== "manual" && automation.precheck) {
+    const result = await runAutomationPrecheck(automation.precheck, automation.repo, undefined, env)
     if (!precheckPassed(result)) {
       logDaemonInfo("automation", `skip ${automation.name}: ${formatPrecheckSkip(result)}`)
       return await record("skipped_precheck", { precheckResult: result, error: formatPrecheckSkip(result) })
@@ -336,7 +344,7 @@ export async function runAutomationOnce(
       error: "routine disabled, changed, deleted or runner stopped before delivery",
     })
 
-  if (automation.script) return await runScript(automation.script, automation, record, now)
+  if (automation.script) return await runScript(automation.script, automation, record, now, env)
 
   let outcome: DispatchOutcome
   // Armed against the task the prompt lands in, BEFORE the paste: a failed
@@ -360,7 +368,7 @@ export async function runAutomationOnce(
         link: () => resolveLink(deps.link),
         ...(deps.gates ? { gates: deps.gates } : {}),
         // A manual run is the owner asking now: it bypasses should-run like the precheck.
-        ...(deps.runnability && args.trigger === "scheduled" ? { runnability: deps.runnability } : {}),
+        ...(deps.runnability && args.trigger !== "manual" ? { runnability: deps.runnability } : {}),
         ...(deps.now ? { now: deps.now } : {}),
       },
       automation,
@@ -373,7 +381,13 @@ export async function runAutomationOnce(
           promptHead: automation.prompt,
         })
         deliveryId = delivery.id
-        return withRoutineRunHeader(automation, reserved, deps.runtime.roveApiInvocation?.() ?? "rove api", delivery.id)
+        return withRoutineRunHeader(
+          automation,
+          reserved,
+          deps.runtime.roveApiInvocation?.() ?? "rove api",
+          delivery.id,
+          args.event,
+        )
       },
     )
   } catch (err) {

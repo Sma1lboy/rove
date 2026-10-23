@@ -443,6 +443,47 @@ reads like one that had yesterday in front of it.
 If the standing task is deleted, the routine simply builds a new one on its next
 firing rather than failing forever.
 
+## Fire it from a webhook
+
+A schedule finds a new issue up to fifteen minutes late. A webhook finds it
+straight away. Turn the trigger on and the routine also fires when a signed POST
+reaches the web server (`rove --web`):
+
+```bash
+rove api routine-update --id <id> --webhook --persistent-session
+```
+
+The result carries `.webhook.secret`. In the repo's GitHub settings, add a
+webhook with:
+
+- **Payload URL**: `https://<your --public-host>/hooks/routines/<id>`
+- **Content type**: `application/json`
+- **Secret**: that value
+- **Events**: the ones you want, for example *Issues*
+
+The daemon checks GitHub's `X-Hub-Signature-256` against the secret. It
+answers 202 at once and runs in the background, so GitHub's 10-second limit
+never matters. GitHub's `ping` gets a 200 and runs nothing. A bad signature
+gets a 401, an unknown id a 404, and a paused routine a 409.
+
+A webhook run still goes through the precheck, with `ROVE_WEBHOOK_EVENT` and
+`ROVE_WEBHOOK_ACTION` set, so the precheck can filter. Triage only opened and
+reopened issues:
+
+```bash
+rove api routine-update --id <id> \
+  --precheck '[ "$ROVE_WEBHOOK_ACTION" = opened ] || [ "$ROVE_WEBHOOK_ACTION" = reopened ] || [ -z "$ROVE_WEBHOOK_EVENT" ]'
+```
+
+The last test keeps scheduled runs, which have no event, working.
+
+The prompt starts with the event, for example
+`Fired by webhook: issues.opened Sma1lboy/rove#7 <url>`. With
+`--persistent-session`, every firing lands in the same conversation. The run's
+history records `trigger: "webhook"` and that same line as `event`.
+
+`--webhook false` forgets the secret. Turning it back on makes a new one.
+
 ## Restarts, and runs you missed
 
 The next run is stored as an **absolute timestamp on disk**, never an in-memory

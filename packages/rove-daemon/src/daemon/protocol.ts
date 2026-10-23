@@ -166,6 +166,8 @@ export type DaemonRequestName =
   | "automation.delete"
   | "automation.runs"
   | "automation.runNow"
+  // A signed POST relayed by the web server; fires one run in the background.
+  | "automation.webhook"
   // One agent-reported response per run; `{run:null}` for an unknown run id.
   | "automation.respond"
   // Armed deliveries (docs/design/long-run-controls.md): `arm` persists an

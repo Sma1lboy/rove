@@ -41,6 +41,7 @@ const FULL: Omit<DeepRequired<Automation>, "id" | "nextRunAt" | "createdAt" | "u
   precheck: { command: "git fetch --dry-run", timeoutSeconds: 45 },
   script: { command: "./sweep.sh", timeoutSeconds: 30 },
   notify: true,
+  webhook: { secret: "s3cret-a" },
   baseRef: "release/1.x",
   persistentSession: true,
   sessionTaskId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
@@ -61,6 +62,7 @@ const PATCH: Omit<DeepRequired<AutomationPatch>, "target"> = {
   precheck: { command: "true", timeoutSeconds: 5 },
   script: { command: "./other.sh", timeoutSeconds: 9 },
   notify: false,
+  webhook: { secret: "s3cret-b" },
   baseRef: "main",
   enabled: false,
   missedRunGraceMinutes: 120,
@@ -141,6 +143,7 @@ describe("Automation field round-trip", () => {
       sessionTaskId: null,
       model: null,
       modelEffort: null,
+      webhook: null,
     })
 
     const reborn = new AutomationsStore(path, () => NOW)
@@ -151,5 +154,6 @@ describe("Automation field round-trip", () => {
     expect(loaded).not.toHaveProperty("sessionTaskId")
     expect(loaded).not.toHaveProperty("model")
     expect(loaded).not.toHaveProperty("modelEffort")
+    expect(loaded).not.toHaveProperty("webhook")
   })
 })
