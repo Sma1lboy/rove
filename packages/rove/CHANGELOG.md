@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.9.267
+
+### Patch Changes
+
+- [#1399](https://github.com/Sma1lboy/rove/pull/1399) [`1d4eb96`](https://github.com/Sma1lboy/rove/commit/1d4eb96902ad30d57e496f131ccf678286f45497) A task now holds one conversation, and a second conversation is a child task shown under it in the sidebar, the folded rail and the web rail. `ctrl+t`, the engine picker, `send --tab new`, `tab-new --kind engine` and the web `+` open a child that shares the task's directory. Agents can call `rove api spawn` to start a child in its own worktree, cut from the parent's branch tip, or in the same directory with `--no-worktree`. Sidebar rows now show the conversation's title instead of the branch name. Existing tasks with several engine tabs split into child tasks on the next daemon start, and running sessions keep running. Deleting a task with children promotes them to the top level by default (`delete --cascade` removes the whole subtree), and a directory is removed only once no task still uses it. Downgrading after this release drops the child links from `tasks.json`, so don't delete tasks on an older version until you upgrade again. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1394](https://github.com/Sma1lboy/rove/pull/1394) [`17bc833`](https://github.com/Sma1lboy/rove/commit/17bc833d002993d0d28733059c25be7f6b57a456) `rove machine add` and `rove machine remove` now reach every open TUI, the web app and a paired phone within a second or two, no restart. The daemon holds the machine connections and publishes them on a new `machines` channel; clients no longer connect to other machines themselves. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1390](https://github.com/Sma1lboy/rove/pull/1390) [`115f663`](https://github.com/Sma1lboy/rove/commit/115f6635429f6dce3bded85c52d2d31c759bd128) A setting changed anywhere (another TUI, the web, a phone, a CLI verb, a hand edit of state.json) now applies to every running TUI at once. The daemon publishes the shared state file on a new `state` channel and the TUI follows it instead of keeping the copy it read at launch; per-window layout (rail fold and width, zen) stays per window. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1384](https://github.com/Sma1lboy/rove/pull/1384) [`63ebece`](https://github.com/Sma1lboy/rove/commit/63ebececd0e968e73503fe92ba26ed2c517a4861) Switching tasks re-renders less again. Since terminal tabs moved to the daemon, each switch re-sent the task's unchanged tabs to the sidebar, the inbox and the workspace, adding about two React commits per switch; that no longer happens. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1389](https://github.com/Sma1lboy/rove/pull/1389) [`57662c8`](https://github.com/Sma1lboy/rove/commit/57662c8b42abfa1f08a7beacb5163499dd708f47) Hovering a remote task's cloud in the web rail names the machine as you registered it (`rove machine add … <alias>`), then its hostname when that differs: `on mac (Mac.lan)`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1398](https://github.com/Sma1lboy/rove/pull/1398) [`972d8ee`](https://github.com/Sma1lboy/rove/commit/972d8ee4ba932815afd33db6f2b7c4926564c92c) The web client has a Dispatch page: every prompt one session hands another (`rove api send`, `api dispatch`, `api add` from an agent, a routine firing) shows as a lane an ASCII courier runs from sender to target, then waits, works, asks or fails there as the target's engine reports. The daemon keeps each dispatch's progress in a new `dispatch.snapshot` channel, so a page opened mid-flight still sees what is on its way. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1387](https://github.com/Sma1lboy/rove/pull/1387) [`a7d36c7`](https://github.com/Sma1lboy/rove/commit/a7d36c74320618a202df41c863303527c1a5737b) The web rail no longer hides every project while their tab lists have not arrived (or failed to load): only a project whose tab list came back empty counts as idle. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1388](https://github.com/Sma1lboy/rove/pull/1388) [`71baed1`](https://github.com/Sma1lboy/rove/commit/71baed1bb17346b803aba55d6d9862a4e2838790) The web terminal draws Nerd Font icons (Claude Code's status line, prompt themes) with any Nerd Font installed on the viewing machine instead of showing boxes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1386](https://github.com/Sma1lboy/rove/pull/1386) [`607a748`](https://github.com/Sma1lboy/rove/commit/607a748c13a0832fa8d0caf1df6b339ffc5a8069) `rove --web --set-password` lets you open the web client on another device with a password instead of the token link. Each login gets its own device token (listed by `--list-devices`, revoked by `--revoke-device` or **Sign out** in Settings), wrong guesses lock one address after 5 tries and all password logins after 20 in a day until `rove --web --unlock`, and `--public-host` now also works without a preset for a plain tunnel to 127.0.0.1. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1397](https://github.com/Sma1lboy/rove/pull/1397) [`2b597e6`](https://github.com/Sma1lboy/rove/commit/2b597e6062e1581de7c6b1393f11b1bae5be2a65) On the web, dragging a project or task now slides the other rows aside to show where it will land, instead of drawing a line. You can let go anywhere in the rail. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1396](https://github.com/Sma1lboy/rove/pull/1396) [`24827f6`](https://github.com/Sma1lboy/rove/commit/24827f68f6be8d042a4d3e2c0ffc7f32421cf729) On the web, drag a project header to reorder projects, or a task to reorder it within its project. The order is shared with the TUI and phones. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1388](https://github.com/Sma1lboy/rove/pull/1388) [`71baed1`](https://github.com/Sma1lboy/rove/commit/71baed1bb17346b803aba55d6d9862a4e2838790) Reopening or reconnecting a web terminal on a long-running engine no longer shows a mostly blank screen: after attaching, the page nudges the session's size so the engine repaints in full. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1391](https://github.com/Sma1lboy/rove/pull/1391) [`437a8b4`](https://github.com/Sma1lboy/rove/commit/437a8b4463cb327ba034053c3fd0a26d8b48a20c) On Windows, a daemon or PTY host started in the background no longer holds on to the terminal or ssh session that started it: `rove daemon restart` over ssh returns at once instead of when the daemon exits. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1393](https://github.com/Sma1lboy/rove/pull/1393) [`b97d7c8`](https://github.com/Sma1lboy/rove/commit/b97d7c8688715d0560661bbb05a9916c421f4a31) `rove machine add` and `rove machine doctor` answer Windows failures with Windows steps: the PowerShell lines that start the OpenSSH Server, the key file an administrator's account actually reads, `npm install -g` instead of the sh install script, a PowerShell profile slowing every connection, and an sshd that runs bash or WSL instead of native Windows Rove. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1392](https://github.com/Sma1lboy/rove/pull/1392) [`46d7296`](https://github.com/Sma1lboy/rove/commit/46d7296d88822bfa5c5594b3abf497cdd74810ea) A native Windows Rove can be registered with `rove machine add` from any other machine: its tasks show in the rail, terminals attach, and verbs, files and diffs run there. The hub relays to it over ssh whatever shell sshd starts (cmd or PowerShell), skips a PowerShell profile's output, and finds a `rove` missing from the ssh session's PATH in the usual Windows install folders. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1385](https://github.com/Sma1lboy/rove/pull/1385) [`427d31b`](https://github.com/Sma1lboy/rove/commit/427d31bf4bdf10d5f19473dea9b64c38b747cc3b) A task whose worktree is still being created now shows how far the checkout got (`42%`) beside its sidebar spinner, so a slow first open on a large repo no longer looks stuck. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.266
 
 ### Patch Changes
