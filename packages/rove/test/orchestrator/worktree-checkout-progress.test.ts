@@ -17,7 +17,9 @@ let prevHome: string | undefined
 let prevDelay: string | undefined
 
 function git(cwd: string, ...args: string[]): void {
-  const r = spawnSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", ...args], {
+  // No auto gc/maintenance: `commit` detaches one that can still be writing `.git/objects` at teardown.
+  const config = ["user.email=t@t", "user.name=t", "commit.gpgsign=false", "gc.auto=0", "maintenance.auto=false"]
+  const r = spawnSync("git", [...config.flatMap((c) => ["-c", c]), ...args], {
     cwd,
     encoding: "utf8",
   })
