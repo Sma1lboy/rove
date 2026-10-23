@@ -20,8 +20,9 @@ the web or a phone stayed invisible until restart, and a TUI writing a whole
 list key from its stale copy could erase it.
 
 - `rove-daemon/src/daemon/state-watcher.ts` stat-polls the file and publishes
-  it whole (minus `terminalTabs.*`, which the tab store publishes) on `state`
-  after every change, whoever made it. The last value replays to a late
+  it whole (minus `terminalTabs.*`, which the tab store publishes, and
+  `lastActive.taskId`, which every task switch writes and only boot reads) on
+  `state` after every change, whoever made it. The last value replays to a late
   subscriber.
 - The TUI's kv core follows it (`kv-core.ts` `follow`, wired in `host-boot.tsx`
   `UiPrefsSync`): pushed keys replace the snapshot, this process's unflushed
@@ -50,7 +51,7 @@ client. "Before" is how a running client saw another process's change.
 | Keybindings | `settings/keybindings.yaml` | daemon `keybindings` ping | unchanged | a |
 | Plugins | `plugins.json` | daemon plugin runtime watches it | unchanged | a |
 | First-party mods installed | `builtin-mods.json` | read when the Plugins section opens | unchanged; gap noted | a |
-| Inbox visit log (RECENT order) | TUI `inboxVisits`; web, iOS, Android each their own | per client | TUI copies now follow each other; web and phones keep their own | b for now |
+| Inbox visit log (RECENT order) | TUI `inboxVisits`; web, iOS, Android each their own | per client | TUI copies follow changed remote visits, suppressing identical local-write echoes; web and phones keep their own | b for now |
 | Rail sort, project filter | `activeSortMode`, `tasksPane.projectFilter`; web localStorage | seeded once per host | unchanged: following another session's sort is a product call (`use-sidebar-host-state.tsx`) | b |
 | Rail fold/width, zen, split style, key hints, keys legend fold | `sidebar.*`, `zen.active`, `hints.*`; web localStorage | per window | the kv core keeps `sidebar.collapsed`, `sidebar.width`, `zen.active` per window when following | b |
 | Web selection, rail width, collapsed projects; phone tab marks | browser localStorage, UserDefaults, SharedPreferences | per device | unchanged | b |

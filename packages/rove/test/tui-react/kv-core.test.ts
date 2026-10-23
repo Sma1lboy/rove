@@ -376,6 +376,39 @@ describe("createKvCore", () => {
     })
   })
 
+  it("follow() suppresses identical quiet echoes but publishes changed remote values", () => {
+    vi.useFakeTimers()
+    isolatedHome({ "lastActive.taskId": "t1" })
+    const kv = createKvCore()
+    let notified = 0
+    kv.subscribe(() => notified++)
+    kv.setQuiet("inboxVisits", ["t1"])
+    vi.advanceTimersByTime(400)
+    kv.follow({ inboxVisits: ["t1"] })
+    expect(notified).toBe(0)
+    kv.follow({ inboxVisits: ["t2", "t1"] })
+    expect(kv.get("inboxVisits")).toEqual(["t2", "t1"])
+    expect(kv.get("lastActive.taskId")).toBe("t1")
+    expect(notified).toBe(1)
+  })
+
+  it.each([undefined, ["original"]])(
+    "notifies when a remote quiet value reverts to the old snapshot: %j",
+    (original) => {
+      isolatedHome(original === undefined ? {} : { inboxVisits: original })
+      const kv = createKvCore()
+      kv.setQuiet("inboxVisits", ["local"])
+      kv.flush()
+      let notified = 0
+      kv.subscribe(() => notified++)
+      kv.follow(original === undefined ? {} : { inboxVisits: original })
+      expect(kv.get("inboxVisits")).toEqual(original)
+      expect(notified).toBe(1)
+      kv.follow(original === undefined ? {} : { inboxVisits: original })
+      expect(notified).toBe(1)
+    },
+  )
+
   it("keeps pending writes off an invalid file until repair, across debounce and exit flushes", () => {
     vi.useFakeTimers()
     const home = isolatedHome({ activeTheme: "tokyonight", keep: 42 })
