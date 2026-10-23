@@ -78,6 +78,8 @@ async function deleteOne(
   // A SEPARATE opt-in, never implied by --delete-branch: a remote delete is
   // unrecoverable by anyone and breaks an open PR. Two radii, two consents.
   const deleteRemote = ctx.args.bool("delete-remote") ?? false
+  // Opt-in: the whole subtree goes; default re-parents the task's children.
+  const cascade = ctx.args.bool("cascade") ?? false
   // Read BEFORE the delete: the task row is gone once removal resolves.
   const subject =
     deleteBranch || deleteRemote
@@ -85,27 +87,35 @@ async function deleteOne(
       : undefined
   // The daemon's audit line names WHO asked, from the verified identity —
   // never the bare env: unverifiable stays unattributed.
-  let res: { taskId: string; queued: boolean }
+  let res: { taskId: string; queued: boolean; deleted?: string[] }
   try {
     res = (await daemon.request("task.delete", {
       taskId,
       force,
       deleteBranch,
+      ...(cascade ? { cascade } : {}),
       ...(self ? { requestedByTaskId: self.taskId, requestedByTabId: self.tabId } : {}),
-    })) as { taskId: string; queued: boolean }
+    })) as { taskId: string; queued: boolean; deleted?: string[] }
   } catch (err) {
     throw deleteRecoveryError(err, taskId)
   }
   // task.delete never kills the hosted session; without this the
   // `rove-<id>` session + engine orphan invisibly. Mirrors the TUI's
-  // finishDeletedTaskFlow, after the RPC succeeds.
-  await ctx.runtime.tearDownSession(taskId)
+  // finishDeletedTaskFlow, after the RPC succeeds. A cascade tears down every
+  // task of the subtree, not just the one named.
+  const removing = res.deleted ?? [taskId]
+  for (const id of removing) await ctx.runtime.tearDownSession(id)
   if (!res.queued) return { ...res, status: "not_found" as const }
   // Removal runs in the background; `--wait` asks for the OUTCOME. A branch
   // flag implies it: git refuses to delete a branch a live worktree holds, so
   // the branch report is only truthful once removal has resolved.
   if (!ctx.args.bool("wait") && !subject) return { ...res, status: "queued" as const }
-  const outcome = await awaitDeletion(daemon, taskId)
+  const outcomes = []
+  for (const id of removing) outcomes.push(await awaitDeletion(daemon, id))
+  // One verdict for the whole subtree: the first failure, else a still-pending member, else removed.
+  const outcome =
+    outcomes.find((o) => o.status === "failed") ?? outcomes.find((o) => o.status === "pending") ?? outcomes[0]
+  if (!outcome) return { ...res, status: "removed" as const }
   // Only after `removed`: otherwise git's refusal describes the live worktree.
   const branch =
     subject && outcome.status === "removed"

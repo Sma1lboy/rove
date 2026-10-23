@@ -8,6 +8,7 @@ import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { remoteKeyForRepo } from "../../exec/resolve.ts"
+import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useOptionalKV } from "../context/kv"
@@ -69,7 +70,10 @@ export function ShowWorkspace(props: {
       </box>
     )
   }
-  const path = props.worktree
+  // Where the tabs run: the worktree plus the task's own subdirectory, if it has one.
+  const path = props.task
+    ? taskCwd({ worktreePath: props.worktree, cwdSubpath: props.task.cwdSubpath })
+    : props.worktree
   // Remote (`ssh://`) project: the PTY host spawns locally only and
   // `buildEngineSessionLaunch` refuses. Say so instead of letting the refusal
   // throw through render as an uninformative "This pane crashed".

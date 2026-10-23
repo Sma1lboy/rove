@@ -17,6 +17,7 @@ import { homeDir } from "../../env.ts"
 import { errorMessage } from "../../lib/error-message.ts"
 import { cloneDirFor, cloneRepo, parseRepoRef } from "../../machines/repo-ref.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
+import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import { addSavedRepo } from "../../state/repos.ts"
 import type { TaskStatus } from "../../types/task.ts"
@@ -230,7 +231,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       taskId,
       {
         id: taskId,
-        worktreePath: task.worktreePath,
+        worktreePath: taskCwd(task),
         kind: task.kind,
         vendor: task.vendor as VendorId | undefined,
         command: task.command,
@@ -417,7 +418,7 @@ async function addParallel(
         taskId,
         {
           id: taskId,
-          worktreePath: task.worktreePath,
+          worktreePath: taskCwd(task),
           kind: task.kind,
           vendor,
           command: task.command,

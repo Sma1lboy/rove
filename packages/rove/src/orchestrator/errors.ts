@@ -262,3 +262,57 @@ export class InvalidWorktreeNameError extends Error {
     this.name = "InvalidWorktreeNameError"
   }
 }
+
+export const NOT_A_GIT_REPO_CODE = "NOT_A_GIT_REPO"
+
+/** `spawn --worktree` from a directory in no git repo: never a silent fallback to a shared directory. */
+export class NotAGitRepoError extends Error {
+  constructor(public readonly dir: string) {
+    super(
+      `${NOT_A_GIT_REPO_CODE}: ${dir} is not inside a git repository, so a child cannot get its own worktree — pass --no-worktree to share the directory`,
+    )
+    this.name = "NotAGitRepoError"
+  }
+}
+
+export const NOT_A_LINKED_REPO_CODE = "NOT_A_LINKED_REPO"
+
+/** `spawn --isolate-in` names something other than a top-level symlink to an outside git checkout. */
+export class NotALinkedRepoError extends Error {
+  constructor(
+    public readonly link: string,
+    public readonly available: readonly string[],
+  ) {
+    super(
+      `${NOT_A_LINKED_REPO_CODE}: '${link}' is not a top-level symlink to a git checkout in the parent workspace (linked repos: ${available.length > 0 ? available.join(", ") : "none"})`,
+    )
+    this.name = "NotALinkedRepoError"
+  }
+}
+
+export const REMOTE_PARENT_UNSUPPORTED_CODE = "REMOTE_PARENT_UNSUPPORTED"
+
+/** A child is spawned on the parent's own machine, through local git. */
+export class RemoteParentUnsupportedError extends Error {
+  constructor(public readonly taskId: string) {
+    super(
+      `${REMOTE_PARENT_UNSUPPORTED_CODE}: task ${taskId} lives on a remote project — spawn from that machine's rove`,
+    )
+    this.name = "RemoteParentUnsupportedError"
+  }
+}
+
+export const HAS_ALIASED_CHILD_CODE = "HAS_ALIASED_CHILD"
+
+/** A surviving child's conversation is a live PTY keyed under the task being deleted; deleting it would kill that session. */
+export class HasAliasedChildError extends Error {
+  constructor(
+    public readonly taskId: string,
+    public readonly childIds: readonly string[],
+  ) {
+    super(
+      `${HAS_ALIASED_CHILD_CODE}: task ${taskId} hosts the live session of ${childIds.join(", ")} — delete those first (or use --cascade), or the session dies with it`,
+    )
+    this.name = "HasAliasedChildError"
+  }
+}

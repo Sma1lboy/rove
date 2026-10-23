@@ -144,6 +144,13 @@ export interface TaskDispatcher {
   readonly tabId: string
 }
 
+/** A migrated child whose conversation is still the live hosted PTY keyed
+ *  `<taskId>::<tabId>` under its parent (mirrors rove/types/task.ts). */
+export interface TaskPtyAlias {
+  readonly taskId: string
+  readonly tabId: string
+}
+
 /** Pointer back to the external issue a task was started from. Snapshot for
  *  display; `url` is the durable way to the live item. Never synced. */
 export interface TaskLinkedWorkItem {
@@ -187,6 +194,14 @@ export interface DaemonTask {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /** Tree lineage: the task this one was spawned from. Distinct from `dispatcher` (report routing). */
+  readonly parentTaskId?: string
+  /** Set on a child running in another task's directory (that task = the workspace owner). */
+  readonly sharesWorkspaceOf?: string
+  /** Engine cwd relative to `worktreePath` (a child spawned from a git subdirectory). */
+  readonly cwdSubpath?: string
+  /** Present only on a migrated child whose live hosted PTY is still keyed under its parent. */
+  readonly ptyAlias?: TaskPtyAlias
   /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
   readonly requireReport?: boolean
   /** The `add --prompt` brief as delivered, verbatim, never truncated; outlives
@@ -202,6 +217,40 @@ export interface DaemonTask {
   readonly report?: TaskWorkerReport
   readonly createdAt: string
   readonly updatedAt: string
+}
+
+/** What `deleteTask` / `prepareTaskDeletion` accept. */
+export interface TaskDeleteOptions {
+  readonly force?: boolean
+  readonly deleteBranch?: boolean
+  /** Delete the whole subtree; default re-parents the task's children instead. */
+  readonly cascade?: boolean
+}
+
+/** Input to `spawnChildTask` / `task.spawn`: a new conversation as a child of `parentTaskId`. */
+export interface SpawnChildInput {
+  readonly parentTaskId: string
+  /** `true`: its own worktree cut from the parent's current branch tip; `false`: share the parent's directory. */
+  readonly worktree: boolean
+  /** Overrides the cut point of a new worktree. */
+  readonly baseRef?: string
+  /** Name of a symlink in the parent workspace: cut the worktree in the linked repo instead. */
+  readonly isolateIn?: string
+  readonly title?: string
+  readonly vendor?: VendorId
+  readonly command?: string
+  /** The brief, kept on the row; delivery is the caller's. */
+  readonly prompt?: string
+  readonly dispatcher?: TaskDispatcher
+}
+
+/** Result of `spawnChildTask` / `task.spawn`. */
+export interface SpawnChildResult {
+  readonly task: DaemonTask
+  /** The parent's directory had uncommitted changes; a new worktree does not carry them. */
+  readonly parentDirty: boolean
+  /** Workspace-relative symlinks to outside git checkouts that this child does NOT isolate. */
+  readonly sharedLinks: string[]
 }
 
 /**
@@ -327,8 +376,11 @@ export interface DaemonOrchestrator {
   setQuotaResume(id: string, state: TaskQuotaResumeState | null): Promise<void>
   /** Record the task brief (the delivered `add --prompt` text) on the task. */
   setPrompt(id: string, prompt: string): Promise<void>
-  deleteTask(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<void>
-  prepareTaskDeletion(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<boolean>
+  deleteTask(id: string, options?: TaskDeleteOptions): Promise<void>
+  /** Persist the deletion request(s) after the dirty-worktree gate; `cascade` queues the whole subtree. */
+  prepareTaskDeletion(id: string, options?: TaskDeleteOptions): Promise<boolean>
+  /** Spawn a child task of `input.parentTaskId` (see {@link SpawnChildInput}). */
+  spawnChildTask(input: SpawnChildInput): Promise<SpawnChildResult>
   beginTaskDeletion(id: string): Promise<boolean>
   finishTaskDeletion(id: string): Promise<void>
   /** Read-only land probe — no writes; see {@link LandPreflightResult}. */

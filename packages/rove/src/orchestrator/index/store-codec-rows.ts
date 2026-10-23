@@ -56,6 +56,7 @@ export function coerceTask(value: unknown): Task | null {
   const quotaResume = coerceQuotaResume(v.quotaResume)
   const linkedWorkItem = coerceLinkedWorkItem(v.linkedWorkItem)
   const dispatcher = coerceDispatcher(v.dispatcher)
+  const lineage = coerceLineage(v, kind)
   const routine = coerceRoutine(v.routine)
 
   const report = coerceWorkerReport(v.report)
@@ -87,6 +88,7 @@ export function coerceTask(value: unknown): Task | null {
     ...(linkedWorkItem ? { linkedWorkItem } : {}),
     // Sub-task's route home in the collaboration loop; older records → undefined.
     ...(dispatcher ? { dispatcher } : {}),
+    ...lineage,
     // The only durable copy of the brief; the engine transcript dies with the engine.
     ...(typeof v.prompt === "string" && v.prompt.length > 0 ? { prompt: v.prompt } : {}),
     // Fork point: lost before the lazy worktree materialises, the branch is
@@ -123,6 +125,38 @@ function coerceDispatcher(value: unknown): TaskDispatcher | undefined {
   if (typeof v.taskId !== "string" || v.taskId.length === 0) return undefined
   if (typeof v.tabId !== "string" || v.tabId.length === 0) return undefined
   return { taskId: v.taskId, tabId: v.tabId }
+}
+
+/** A task id pointing at the row itself is lineage corruption (a self-parent hides the row from every tree walk). */
+function coerceTaskRef(value: unknown, selfId: string): string | undefined {
+  return typeof value === "string" && value.length > 0 && value !== selfId ? value : undefined
+}
+
+/** Engine cwd below the worktree root: relative, no `..` segment, never escaping. */
+function coerceCwdSubpath(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length === 0) return undefined
+  if (/^[/\\]|^[a-z]:/i.test(value)) return undefined
+  return value.split(/[/\\]/).includes("..") ? undefined : value
+}
+
+/**
+ * Tree lineage fields. `sharesWorkspaceOf` only means anything on a `dir`/`task`
+ * row (a sharer is never `main`), so it is dropped elsewhere rather than
+ * leaving a main row that the project coordinator would skip.
+ */
+function coerceLineage(v: Record<string, unknown>, kind: Task["kind"]): Partial<Task> {
+  const selfId = v.id as string
+  const parentTaskId = coerceTaskRef(v.parentTaskId, selfId)
+  const sharesWorkspaceOf = kind === "main" ? undefined : coerceTaskRef(v.sharesWorkspaceOf, selfId)
+  const cwdSubpath = coerceCwdSubpath(v.cwdSubpath)
+  // Same {taskId, tabId} session-pointer shape as the dispatcher.
+  const ptyAlias = coerceDispatcher(v.ptyAlias)
+  return {
+    ...(parentTaskId ? { parentTaskId: toTaskId(parentTaskId) } : {}),
+    ...(sharesWorkspaceOf ? { sharesWorkspaceOf: toTaskId(sharesWorkspaceOf) } : {}),
+    ...(cwdSubpath ? { cwdSubpath } : {}),
+    ...(ptyAlias ? { ptyAlias } : {}),
+  }
 }
 
 /** Routine back-pointer. No automation id → dropped, so the task reads as

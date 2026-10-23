@@ -11,6 +11,7 @@ import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
+import { taskCwd } from "../../orchestrator/task-tree.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
@@ -234,7 +235,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
       daemon,
       {
         id: taskId,
-        worktreePath: res.task.worktreePath,
+        worktreePath: taskCwd(res.task),
         kind: res.task.kind,
         // The pinned engine wins for THIS delivery's argv; the task's own
         // command/protocol stays untouched (a second agent in the worktree is

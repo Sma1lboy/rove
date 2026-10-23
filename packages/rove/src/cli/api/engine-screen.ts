@@ -82,7 +82,9 @@ export async function engineScreenError(
   const pattern = protocolEntry(task.vendor as VendorId | undefined).errorLine
   if (!pattern) return undefined
   try {
-    const page = await peekTaskTerminal(task.id, taskEngineArgv(task)[0], undefined)
+    // A migrated child's engine screen is the parent-keyed PTY its alias names.
+    const alias = task.ptyAlias
+    const page = await peekTaskTerminal(alias?.taskId ?? task.id, taskEngineArgv(task)[0], alias?.tabId)
     if (!page || page === "host-unreachable") return undefined
     return screenErrorLine(pattern, boundedTail(page.text).tail, opts)
   } catch {

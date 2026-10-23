@@ -202,7 +202,9 @@ export class WorktreeCoordinator {
   }
 
   private async adoptLocked(input: AdoptWorktreeInput, target: string): Promise<Task> {
-    const existing = this.store.list().find((t) => t.worktreePath && this.canonPath(t.worktreePath) === target)
+    // Sharers sit on the same path: answer with the owner, never a child.
+    const holders = this.store.list().filter((t) => t.worktreePath && this.canonPath(t.worktreePath) === target)
+    const existing = holders.find((t) => !t.sharesWorkspaceOf) ?? holders[0]
     if (existing) {
       if (input.ifExists === "return") return existing
       throw new Error(`adoptWorktree: ${input.worktreePath} is already adopted as a task`)

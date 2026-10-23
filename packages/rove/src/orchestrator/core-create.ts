@@ -77,6 +77,8 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
     ...(input.tier?.trim() ? { tier: input.tier.trim() } : {}),
     ...(input.groupId ? { groupId: input.groupId } : {}),
     ...(input.dispatcher ? { dispatcher: input.dispatcher } : {}),
+    ...(input.parentTaskId ? { parentTaskId: input.parentTaskId } : {}),
+    ...(input.cwdSubpath ? { cwdSubpath: input.cwdSubpath } : {}),
     ...(input.routine ? { routine: input.routine } : {}),
     // Persisted ON the task: `ensureWorktree` may run in a later daemon
     // process, and `collect` compares against this recorded fork point.

@@ -7,6 +7,7 @@
 import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { resolvePreferredVendor } from "../../state/vendor-prefs.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
@@ -159,7 +160,7 @@ type TabNewKind = NewTabKind | LaunchSpec["kind"]
 /** `editor` / `pane` / `viewport`: tabs whose command Rove resolves itself (see `tab-launch.ts`). */
 async function launchKind(ctx: VerbContext, daemon: DaemonRpc, task: SerializedTask, kind: LaunchSpec["kind"]) {
   const taskId = task.id
-  const worktree = task.worktreePath
+  const worktree = taskCwd(task)
   if (!worktree) throw new ApiError(`task ${taskId} has no worktree yet`, "NO_WORKTREE")
   let spec: LaunchSpec
   if (kind === "editor") {
@@ -285,7 +286,7 @@ export const TAB_NEW_VERB: VerbSpec = {
       daemon,
       {
         id: taskId,
-        worktreePath: task.worktreePath,
+        worktreePath: taskCwd(task),
         kind: task.kind,
         vendor: task.vendor as VendorId | undefined,
         command: task.command,
@@ -379,7 +380,7 @@ export const TAB_SPLIT_VERB: VerbSpec = {
           : action === "reset"
             ? { kind: "reset", leaf, size }
             : { kind: "close", leaf }
-    const out = await ctx.runtime.splitTab(daemon, taskId, tabId, task.worktreePath, edit)
+    const out = await ctx.runtime.splitTab(daemon, taskId, tabId, taskCwd(task), edit)
     // The daemon already holds the tree (and published it on `tabs.changed`); this announces it on `tab.add`.
     const reply = out.changed
       ? await daemon.request<{ clients?: number }>("terminalTab.add", { taskId, tab: out.tab })

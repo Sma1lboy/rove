@@ -19,6 +19,7 @@ import { enginePresence } from "../engine/session-engine-presence.ts"
 import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
 import { TaskDeletingError } from "../orchestrator/errors.ts"
+import { taskCwd } from "../orchestrator/task-tree.ts"
 import type { PromptDeliveryIntent } from "../state/repo-init.ts"
 import type { VendorId } from "../types/task.ts"
 
@@ -29,13 +30,14 @@ async function getTask(link: DaemonRpcClient, taskId: string): Promise<Serialize
   return task
 }
 
+/** `worktreePath` is where the engine runs: the worktree root plus the task's `cwdSubpath`. */
 async function ensureTaskWorktree(link: DaemonRpcClient, taskId: string) {
   const task = await getTask(link, taskId)
   if (task.deletion) throw new TaskDeletingError(taskId)
-  if (task.worktreePath) return { task, worktreePath: task.worktreePath }
+  if (task.worktreePath) return { task, worktreePath: taskCwd(task) }
   const { worktreePath } = await link.request<{ worktreePath: string | null }>("task.ensureWorktree", { taskId })
   if (!worktreePath) throw new Error(`task ${taskId} has no worktree`)
-  return { task, worktreePath }
+  return { task, worktreePath: taskCwd({ worktreePath, cwdSubpath: task.cwdSubpath }) }
 }
 
 export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: string) {

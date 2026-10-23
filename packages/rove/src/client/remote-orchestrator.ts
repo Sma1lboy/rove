@@ -9,6 +9,7 @@ import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient } from "@sma1lboy/rove-daemon/client/client-log"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
+import type { TaskDeleteOptions } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import {
   type CellPixelSize,
@@ -25,6 +26,7 @@ import {
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import { type ExternalStore, type ReadableState, createStateCell, mapReadableState } from "../lib/external-store.ts"
 import type { Orchestrator, Unsubscribe } from "../orchestrator/core.ts"
+import type { SpawnChildInput, SpawnChildResult } from "../orchestrator/spawn-child.ts"
 import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
@@ -421,8 +423,9 @@ export class RemoteOrchestrator {
   moveTaskToTop = (id: TaskId | string): Promise<void> => writes.moveTaskToTopOp(this.client, id)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => writes.setStatusOp(this.client, id, status)
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => writes.setPromptOp(this.client, id, prompt)
-  deleteTask = (id: TaskId | string, opts?: { force?: boolean; deleteBranch?: boolean }): Promise<void> =>
+  deleteTask = (id: TaskId | string, opts?: TaskDeleteOptions): Promise<void> =>
     writes.deleteTaskOp(this.client, id, opts)
+  spawnChildTask = (input: SpawnChildInput): Promise<SpawnChildResult> => writes.spawnChildTaskOp(this.client, input)
   dismissAttention = (
     taskId: TaskId | string,
     tabId: string | null,

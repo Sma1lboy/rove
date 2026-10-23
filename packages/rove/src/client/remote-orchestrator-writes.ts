@@ -5,12 +5,18 @@
  */
 
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type {
+  Automation,
+  AutomationRun,
+  AutomationRunStatus,
+  TaskDeleteOptions,
+} from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { WorkItem } from "@sma1lboy/rove-daemon/daemon/work-items"
 import type { LandPreflight } from "../orchestrator/land-preflight.ts"
 import type { LandResult } from "../orchestrator/land.ts"
+import type { SpawnChildInput, SpawnChildResult } from "../orchestrator/spawn-child.ts"
 import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { StoredFieldNote } from "../state/field-notes.ts"
 import type { CIFailingCheck, CIFailingChecksRead } from "../tui/ops/ci-prompt.ts"
@@ -146,13 +152,27 @@ export async function setStatusOp(client: RoveDaemonClient, id: TaskId | string,
 export async function deleteTaskOp(
   client: RoveDaemonClient,
   id: TaskId | string,
-  opts?: { force?: boolean; deleteBranch?: boolean },
+  opts?: TaskDeleteOptions,
 ): Promise<void> {
   await client.request("task.delete", {
     taskId: String(id),
     force: opts?.force,
     deleteBranch: opts?.deleteBranch,
+    cascade: opts?.cascade,
   })
+}
+
+/** A child of `input.parentTaskId`; the wire spells the dispatcher as two ids. */
+export async function spawnChildTaskOp(client: RoveDaemonClient, input: SpawnChildInput): Promise<SpawnChildResult> {
+  const { dispatcher, ...rest } = input
+  const res = await client.request<{ task: SerializedTask; parentDirty: boolean; sharedLinks: string[] }>(
+    "task.spawn",
+    {
+      ...rest,
+      ...(dispatcher ? { dispatcherTaskId: dispatcher.taskId, dispatcherTabId: dispatcher.tabId } : {}),
+    },
+  )
+  return { task: deserializeTask(res.task), parentDirty: res.parentDirty, sharedLinks: res.sharedLinks }
 }
 
 /** Explicitly delete one durable attention episode. */
