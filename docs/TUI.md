@@ -213,6 +213,15 @@ Checks that did not run on GitHub Actions cannot be restarted from Rove; the
 toast says so. Reruns wait for every `gh run rerun` command to finish; a slow batch
 does not trigger the client's 20-second daemon-disconnect deadline.
 
+While a Task's worktree has a merge, rebase, cherry-pick or revert stopped on
+conflicts (a conflicted **Sync with base** leaves its merge in place), the menu
+also offers **Resolve conflicts**. It sends the Task's engine the operation,
+the conflicted files, and the command that finishes it. The engine is told to
+ask rather than pick a side when a conflict needs your decision, and never to
+abort the operation on its own. If Git cannot read the conflicted files, the
+action shows an error without sending a prompt. If delivery fails, it asks you
+to open an engine tab in the Task and retry.
+
 The confirmation dialogs state the exact deletion boundary before anything is
 changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 [Sessions](SESSIONS.md#what-actually-ends-a-session) for session teardown.

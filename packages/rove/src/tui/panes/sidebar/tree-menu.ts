@@ -5,7 +5,7 @@
  * entry routes to an existing callback.
  *
  * Exceptions (`setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
- * `runAgain`, `moveToTop`, `toggleFold`) are menu-only until the owner agrees a chord (AGENTS.md,
+ * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
  * "New chat" routes to the row's workspace ctrl+e picker, like pressing the
@@ -41,6 +41,7 @@ export type TreeMenuAction =
   | "fixChecks"
   | "rerunChecks"
   | "syncBase"
+  | "resolveConflicts"
   | "land"
   | "delete"
 
@@ -62,6 +63,8 @@ export interface TreeMenuContext {
   readonly projectMovable?: boolean
   /** Project rows: already the topmost movable project, so "Move to top" would be dead. */
   readonly projectFirst?: boolean
+  /** Task rows: the worktree has a merge/rebase/cherry-pick/revert stopped on conflicts. */
+  readonly operationPaused?: boolean
 }
 
 /** The ctrl+e picker, plus a direct shell tab (what the picker's "shell" choice mints). */
@@ -77,7 +80,7 @@ function newTabVerbs(): TreeMenuItem[] {
  * Per-task verbs for worktree and tab rows. Rule throughout: no entry beats a
  * dead entry — e.g. no pin on `main` (always pinned; `setPinned` no-ops).
  */
-function taskVerbs(task: Task): TreeMenuItem[] {
+function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   const verbs: TreeMenuItem[] = [{ action: "rename", labelKey: "tasks.menu.rename", bindingId: "sidebar.rename" }]
   if (task.kind !== "main") {
     verbs.push({
@@ -118,6 +121,8 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   if (task.kind === "task" && task.branch !== "") {
     verbs.push({ action: "syncBase", labelKey: "tasks.menu.syncBase", bindingId: "files.syncBase" })
   }
+  // Menu-only: hand the paused operation's conflicts to the engine.
+  if (ctx.operationPaused === true) verbs.push({ action: "resolveConflicts", labelKey: "tasks.menu.resolveConflicts" })
   // Menu-only (landing's chord is the Worktrees page `l`). `landTask` throws
   // for `main`/`dir`; an unmaterialised task has no branch.
   if (task.kind === "task" && task.branch !== "") {
@@ -151,7 +156,7 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
         labelKey: row.fold.collapsed ? "tasks.menu.expandChildren" : "tasks.menu.collapseChildren",
       })
     }
-    return [...items, ...newTabVerbs(), ...taskVerbs(row.task)]
+    return [...items, ...newTabVerbs(), ...taskVerbs(row.task, ctx)]
   }
   // Routines and "recent" rows have no task for any verb to act on.
   return []

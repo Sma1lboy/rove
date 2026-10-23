@@ -17,8 +17,10 @@
  */
 
 import { afterEach, describe, expect, test } from "bun:test"
+import { resolveConflictsAction } from "../../src/tui-react/workspace/use-resolve-conflicts"
 import { buildEnginePaste, buildEngineSend, useTabHandoffs } from "../../src/tui-react/workspace/use-tab-handoffs"
 import { _resetDefaultPtyRegistry, getDefaultPtyRegistry } from "../../src/tui/panes/terminal/registry"
+import { initialShellTabs } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
 type Op = { readonly op: "paste" | "write"; readonly text: string }
@@ -47,6 +49,32 @@ afterEach(() => {
 })
 
 describe("engine send vs paste", () => {
+  test("Resolve conflicts reports failed delivery when only a shell tab remains", async () => {
+    const errors: string[] = []
+    const send = buildEngineSend({
+      stateRef: { current: initialShellTabs("/bin/sh") },
+      propsRef: { current: { taskId: "T1", worktree: "/wt/a" } },
+      engineTabSpawnRef: {
+        current: () => {
+          throw new Error("unexpected engine spawn")
+        },
+      },
+    })
+    await resolveConflictsAction({
+      worktree: "/wt/a",
+      sendToEngineFn: { current: send },
+      selectedWorktreeRef: { current: "/wt/a" },
+      notifyError: (message) => {
+        errors.push(message)
+      },
+      t: (key) => key,
+      getBranch: () => "feature",
+      readOperation: () => "merge",
+      readConflicts: async () => ["a.txt"],
+    })("T1")
+    expect(errors).toEqual(["files.toast.conflictSendFailed"])
+  })
+
   test("both answer false when the task has no engine tab — `ctrl+w` on the last one", () => {
     const { ops, io } = harness()
     const state = io as unknown as { stateRef: { current: { activeId: string; tabs: unknown[] } } }

@@ -247,6 +247,17 @@ describe("the failing-checks entries", () => {
   })
 })
 
+describe("the resolve-conflicts entry", () => {
+  // Gated on a paused merge/rebase in the worktree: otherwise the engine would
+  // get a prompt about conflicts that do not exist.
+  test("appears between Sync with base and Land only while an operation is paused", () => {
+    expect(actions(worktreeRow())).not.toContain("resolveConflicts")
+    const rowActions = actions(worktreeRow(), { operationPaused: true })
+    const at = rowActions.indexOf("syncBase")
+    expect(rowActions.slice(at, at + 3)).toEqual(["syncBase", "resolveConflicts", "land"])
+  })
+})
+
 describe("the chord an entry advertises", () => {
   const everyItem = [
     ...treeMenuItems(projectRow),
