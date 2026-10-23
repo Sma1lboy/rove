@@ -12,9 +12,9 @@
 | rove ─────────────────────── |
 |▌▎○ alpha                   ▾ |
 |  ▎? check types        22m ⑂ |
-|  ▎~ port tree builder 22m ⎇▾ |
-|   ▎○ wire fold glyph      ⎇▾ |
-|   ▎○ cover depth cap    4 ⎇▾ |
+|  ▎~ port tree build… 22m ⎇ ▾ |
+|   ▎○ wire fold glyph     ⎇ ▾ |
+|   ▎○ cover depth cap   4 ⎇ ▾ |
 |   ▎○ fifth generation    5 ⎇ |
 | ▎○ bravo                     |
 |                              |

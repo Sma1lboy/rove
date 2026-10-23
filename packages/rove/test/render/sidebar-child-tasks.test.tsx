@@ -74,3 +74,22 @@ test("a collapsed parent shows its child count and the most urgent child's state
   // A question outranks a sibling that is still working.
   expect(summary).toContain(DEFAULT_GLYPHS.needsInput)
 })
+
+test("a child that has children of its own keeps its marker and fold glyph in separate cells and truncates the title before them", async () => {
+  tabsByTask.clear()
+  resetRowStatusForTests()
+  const OWN = toTaskId("own")
+  const tasks = [
+    task("parent", { branch: "feat/parent" }),
+    task("own", { title: "A very long child title that cannot fit", parentTaskId: PARENT }),
+    task("grand", { title: "grandchild", parentTaskId: OWN }),
+  ]
+  const { frame } = await renderComponent(
+    <SidebarTree tasks={tasks} selectedId="parent" onSelect={() => {}} focused={true} width={30} />,
+    { width: 30, height: 16 },
+  )
+  await settle(80)
+  const line = lineWith(await frame(), "A very long")
+  // The marker is not glued to the fold glyph: a wide-drawn ⎇ would smear into it.
+  expect(line).toMatch(/…\s+⎇ ▾/)
+})
