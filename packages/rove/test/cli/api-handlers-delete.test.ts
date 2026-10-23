@@ -84,13 +84,31 @@ describe("task delete handler", () => {
       runtime: stubRuntime({ tearDownSession }),
     })) as { status: string; branch?: { branch: string } }
 
-    expect(client.requests.map((r) => r.name)).toEqual(["task.get", "task.delete", "task.list"])
+    expect(client.requests.map((r) => r.name)).toEqual(["task.get", "task.delete", "task.list", "task.list"])
     expect(client.requests[1].payload).toEqual({ taskId: "t1", force: false, deleteBranch: true })
+    // The second `task.list` asks whether another task still holds the branch.
     // The task is gone from `task.list`, so the removal resolved; the branch
     // half is then read off git — which cannot see this fixture repo, so it
     // reports the branch as absent rather than inventing a refusal.
     expect(result.status).toBe("removed")
     expect(result.branch).toMatchObject({ branch: "fix/x", deleted: true })
+  })
+
+  it("--delete-branch --delete-remote on a row whose branch another task still holds deletes nothing", async () => {
+    const holder = taskFixture({ id: "owner", title: "Owner", repo: "/nonexistent-repo", branch: "fix/x" })
+    const client = new FakeClient({
+      "task.get": () => ({ task: taskFixture({ id: "t1", repo: "/nonexistent-repo", branch: "fix/x" }) }),
+      "task.delete": () => ({ taskId: "t1", queued: true }),
+      "task.list": () => ({ tasks: [holder] }),
+    })
+    const { tearDownSession } = recordingTearDown()
+    const result = (await invokeVerb("delete", ["--task-id", "t1", "--delete-branch", "--delete-remote"], {
+      client,
+      runtime: stubRuntime({ tearDownSession }),
+    })) as { branch?: { deleted: boolean; keptReason?: string; remote?: { deleted: boolean; error?: string } } }
+
+    expect(result.branch).toMatchObject({ deleted: false, keptReason: expect.stringContaining("Owner") })
+    expect(result.branch?.remote).toMatchObject({ deleted: false, error: expect.stringContaining("skipped") })
   })
 
   // The three outcomes of a delete must be three

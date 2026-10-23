@@ -333,14 +333,14 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
 
   /** What ctrl+t and the sidebar's "New conversation" run. Always CONCRETE: an
    *  "inherit" mode would let a later task-vendor switch re-target every earlier conversation. */
-  const openNewConversation = (): void => {
+  const openNewConversation = (): boolean => {
     let vendor = props.vendor
     try {
       vendor = resolvePreferredVendor(resolveMainRepoRoot(props.worktree))
     } catch {
       /* keep the task's own engine */
     }
-    newConversation(vendor)
+    return newConversation(vendor)
   }
   const openNewConversationRef = useLatest(openNewConversation)
 
@@ -359,7 +359,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     enabled: props.focused,
     bindings: bindByIds({
       "chat.tab.new": prefixAction(() => {
-        openNewConversation()
+        // The hint is about children: a pick that only retargeted a tab here shares nothing.
+        if (!openNewConversation()) return
         showSharedFilesHint(
           kv,
           (title, body) =>

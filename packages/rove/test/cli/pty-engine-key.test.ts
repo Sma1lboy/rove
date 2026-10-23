@@ -8,6 +8,7 @@
  * same worktree.
  */
 
+import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { describe, expect, it } from "vitest"
 import { findEngineKey, isTaskKey, taskKeys } from "../../src/cli/api/pty-delivery.ts"
@@ -82,6 +83,50 @@ describe("findEngineKey", () => {
   it("a live SHELL-only tab is still not an engine (no cross-vendor false positive)", () => {
     const sessions = [session("t1::tab-4", ["/bin/zsh", "-il"])]
     expect(findEngineKey(sessions, "t1", "claudecpa")).toBeNull()
+  })
+})
+
+describe("findEngineKey with a migrated child's alias", () => {
+  const alias = { taskId: "p", tabId: "tab-3" }
+  const parentScope = { claimed: ["p::tab-3"] }
+  const childScope = { alias, claimed: ["p::tab-3"] }
+
+  it("never hands a parent the PTY a child's conversation lives in", () => {
+    // The parent's own tab-1 is gone; the only live engine under its key is the child's.
+    const sessions = [session("p::tab-3", ["claude"])]
+    expect(findEngineKey(sessions, "p", "claude")).toBe("p::tab-3")
+    expect(findEngineKey(sessions, "p", "claude", parentScope)).toBeNull()
+  })
+
+  it("still finds the parent's own tabs beside the child's", () => {
+    const sessions = [session("p::tab-3", ["claude"]), session("p::tab-5", ["claude"])]
+    expect(findEngineKey(sessions, "p", "claude", parentScope)).toBe("p::tab-5")
+  })
+
+  it("resolves the child to the PTY its alias names", () => {
+    const sessions = [session("p::tab-1", ["claude"]), session("p::tab-3", ["claude"])]
+    expect(findEngineKey(sessions, "kid", "claude", childScope)).toBe("p::tab-3")
+  })
+
+  it("falls back to the child's own tabs once the aliased PTY is dead", () => {
+    const sessions = [session("p::tab-3", ["claude"], false), session("kid::tab-1", ["claude"])]
+    expect(findEngineKey(sessions, "kid", "claude", childScope)).toBe("kid::tab-1")
+  })
+})
+
+describe("hostedKeyFor", () => {
+  const alias = { taskId: "p", tabId: "tab-3" }
+
+  it("names the parent-keyed PTY for the child's aliased tab and the child's own key for any other", () => {
+    const scope = { alias, claimed: ["p::tab-3"] }
+    expect(hostedKeyFor("kid", "tab-3", scope)).toBe("p::tab-3")
+    expect(hostedKeyFor("kid", "tab-7", scope)).toBe("kid::tab-7")
+  })
+
+  it("refuses a parent's tab that a child's alias claims", () => {
+    const scope = { claimed: ["p::tab-3"] }
+    expect(hostedKeyFor("p", "tab-3", scope)).toBeNull()
+    expect(hostedKeyFor("p", "tab-1", scope)).toBe("p::tab-1")
   })
 })
 

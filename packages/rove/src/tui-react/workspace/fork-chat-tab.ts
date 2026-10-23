@@ -135,12 +135,22 @@ export function forkFirstTab(pick: VendorId, protocol: VendorId, sourceSessionId
 }
 
 /**
+ * Whether the task's own conversation already runs: an engine tab that spawned
+ * (a transcript exists), or its canonical (first) engine tab holding a live PTY
+ * even before a transcript (the engine may sit at a first-run prompt).
+ */
+export function engineStarted(state: TabsState, isLive: (tab: EngineTab) => boolean): boolean {
+  const engines = state.tabs.filter((tab): tab is EngineTab => tab.kind === "engine")
+  return engines.some((tab) => tab.spawned) || (engines[0] !== undefined && isLive(engines[0]))
+}
+
+/**
  * The task's own engine tab when no conversation ever ran in it. A pick
  * there is the task's first conversation, not a second one.
  */
-export function unstartedEngineTab(state: TabsState): EngineTab | undefined {
-  const engines = state.tabs.filter((tab): tab is EngineTab => tab.kind === "engine")
-  return engines.some((tab) => tab.spawned) ? undefined : engines[0]
+export function unstartedEngineTab(state: TabsState, isLive: (tab: EngineTab) => boolean): EngineTab | undefined {
+  if (engineStarted(state, isLive)) return undefined
+  return state.tabs.find((tab): tab is EngineTab => tab.kind === "engine")
 }
 
 /** Point a never-started engine tab at `vendor` with a fresh pinned session, and show it. */

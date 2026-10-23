@@ -17,7 +17,6 @@ import { ClientWriter } from "./client-writer.ts"
 import { startDaemonCollectors } from "./collectors.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
-import { resolvePtyOwner } from "./cwd-task.ts"
 import type { DeliveryDeps } from "./delivery-ops.ts"
 import { createDirectLink } from "./direct-link.ts"
 import { DaemonEventBus } from "./event-bus.ts"
@@ -38,7 +37,7 @@ import { defaultDaemonPidPath, defaultDaemonSocketPath, endpointPathFor, resolve
 import { PromptBroker } from "./prompt-broker.ts"
 import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, serializeTask } from "./protocol.ts"
 import { aliasedKeys } from "./pty-alias.ts"
-import { startPtyExitWatch } from "./pty-exit-watch.ts"
+import { type PtyOwnerResolver, startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import { clearResidentMarker, residentMarkerPath, resolveResident, writeResidentMarker } from "./resident.ts"
 import { RowStatusStore } from "./row-status-store.ts"
@@ -263,6 +262,8 @@ async function startOwnedServer(
   // "no focus" beats a cold channel. Optional-chained for partial test doubles.
   bus.publish("active-task", { taskId: orch.activeTaskSignal?.()?.() ?? null })
 
+  // A migrated child owns the PTY keyed under its parent, also for a death noticed after the alias was released.
+  const ownerOf: PtyOwnerResolver = (taskId, tabId, at) => stores.aliases.ownerOf(taskId, tabId, at)
   // Per-tick work is gated on subscribers so a gui-less daemon never polls
   // npm / git / gh for nobody.
   const stopCollectors = startDaemonCollectors(
@@ -270,7 +271,7 @@ async function startOwnedServer(
     runtime,
     bus,
     (channel) => lifetime.hasSubscribersFor(channel),
-    options,
+    { ...options, ownerOf },
     quotaUsage,
     {
       store: automations,
@@ -302,7 +303,7 @@ async function startOwnedServer(
         inbox,
         deliveries: deliveryDeps,
         // A migrated child owns the PTY keyed under its parent, so a death there is the child's.
-        ownerOf: (taskId, tabId) => resolvePtyOwner(orch.listTasks(), taskId, tabId),
+        ownerOf,
         log: (line) => logDaemonInfo("plugin-host", line),
       })
     : () => {}

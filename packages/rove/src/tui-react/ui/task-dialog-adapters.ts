@@ -13,6 +13,7 @@ import type { Task, VendorId } from "../../types/task.ts"
 import { NewTaskDialog, type NewTaskDialogOptions } from "../component/new-task-dialog"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import type { DialogContext } from "./dialog"
+import { DialogChoice } from "./dialog-choice"
 import { DialogConfirm } from "./dialog-confirm"
 
 /** The dialog-surfacing callbacks of `TaskActionContext`/`CreateTaskContext`. */
@@ -29,13 +30,18 @@ function taskDialogAdapters(dialog: DialogContext): {
   return {
     confirm: async (p) =>
       (await DialogConfirm.show(dialog, p.title, p.body, p.cancelLabel, p.confirmLabel, { danger: p.danger })) === true,
-    // The confirm dialog's two buttons: Promote (left, focused) and Delete with children; esc aborts.
-    pickChildren: async (p) => {
-      const choice = await DialogConfirm.show(dialog, p.title, p.body, p.promoteLabel, p.cascadeLabel, {
-        danger: true,
-      })
-      return choice === undefined ? undefined : choice ? "cascade" : "promote"
-    },
+    // Promote (focused), Delete with children, Cancel; esc aborts too.
+    pickChildren: (p) =>
+      DialogChoice.show<"promote" | "cascade">(dialog, {
+        title: p.title,
+        message: p.body,
+        options: [
+          { value: "promote", label: p.promoteLabel },
+          { value: "cascade", label: p.cascadeLabel, danger: true },
+          { value: undefined, label: p.cancelLabel },
+        ],
+        initial: 0,
+      }),
     promptText: (initial, opts) => RenameTaskDialog.show(dialog, initial, opts),
     promptNewTask: (defaultRepo, repos, opts) => NewTaskDialog.show(dialog, defaultRepo, repos, opts),
   }

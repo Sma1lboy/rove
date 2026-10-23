@@ -17,6 +17,8 @@ let worktrees: {
   dirtyPaths: ReturnType<typeof vi.fn>
   ignoredWork: ReturnType<typeof vi.fn>
   remove: ReturnType<typeof vi.fn>
+  renameBranch: ReturnType<typeof vi.fn>
+  pathExists: ReturnType<typeof vi.fn>
 }
 
 beforeEach(async () => {
@@ -27,6 +29,8 @@ beforeEach(async () => {
     dirtyPaths: vi.fn(async () => []),
     ignoredWork: vi.fn(async () => []),
     remove: vi.fn(async () => {}),
+    renameBranch: vi.fn(async () => {}),
+    pathExists: vi.fn(async () => true),
   }
   orch = new Orchestrator({ store, worktrees: worktrees as unknown as GitWorktreeManager })
 })
@@ -173,5 +177,89 @@ describe("deleting a task whose PTY hosts a child's conversation", { timeout: DU
     await store.update(twin.id, { ptyAlias: { taskId: other.id, tabId: "tab-2" } })
     await orch.deleteTask(other.id, { cascade: true })
     expect(ids()).toEqual(["migrated"])
+  })
+})
+
+describe("deleting an owner whose shared child survives", { timeout: DURABLE_WRITE_TIMEOUT_MS }, () => {
+  it("promotes the shared child to a top-level task on the kept directory", async () => {
+    const owner = await row("owner")
+    const shared = await row("shared", { parent: owner, shares: owner })
+    const forked = await row("forked", { parent: owner, path: "/wt/forked" })
+
+    await orch.deleteTask(owner.id)
+
+    expect(store.get(shared.id)).toMatchObject({ worktreePath: "/wt/owner", branch: "b/owner" })
+    expect(store.get(shared.id)?.parentTaskId).toBeUndefined()
+    expect(store.get(shared.id)?.sharesWorkspaceOf).toBeUndefined()
+    // Nothing of the owner's deletion leaks onto the survivor, or the sidebar would hide it.
+    expect(store.get(shared.id)?.deletion).toBeUndefined()
+    expect(store.get(forked.id)?.parentTaskId).toBeUndefined()
+    expect(worktrees.remove).not.toHaveBeenCalled()
+  })
+
+  it("runs the dirty gate when the owner and a cascaded branch of its sharers are deleted at the same moment", async () => {
+    const owner = await row("owner")
+    const mid = await row("mid", { parent: owner, shares: owner })
+    await row("leaf", { parent: mid, shares: owner })
+    worktrees.dirtyPaths.mockResolvedValue(["wip.ts"])
+
+    const results = await Promise.allSettled([
+      orch.prepareTaskDeletion(mid.id, { cascade: true }),
+      orch.prepareTaskDeletion(owner.id),
+    ])
+
+    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1)
+    expect(worktrees.remove).not.toHaveBeenCalled()
+  })
+
+  it("carries deleteBranch from the first row out to the last row standing", async () => {
+    const owner = await row("owner")
+    const child = await row("child", { parent: owner, shares: owner })
+
+    await orch.deleteTask(owner.id, { deleteBranch: true })
+    expect(worktrees.remove).not.toHaveBeenCalled()
+    expect(store.get(child.id)?.deleteBranchPending).toBe(true)
+
+    await orch.deleteTask(child.id)
+    expect(worktrees.remove).toHaveBeenCalledWith("/wt/owner", expect.objectContaining({ deleteBranch: true }))
+  })
+
+  it("hands deleteBranch to a sibling that is leaving at the same time", async () => {
+    const owner = await row("owner")
+    const child = await row("child", { parent: owner, shares: owner })
+    await orch.prepareTaskDeletion(owner.id, { deleteBranch: true })
+    await orch.prepareTaskDeletion(child.id)
+
+    await orch.beginTaskDeletion(owner.id)
+    await orch.finishTaskDeletion(owner.id)
+    await orch.beginTaskDeletion(child.id)
+    await orch.finishTaskDeletion(child.id)
+
+    expect(worktrees.remove).toHaveBeenCalledWith("/wt/owner", expect.objectContaining({ deleteBranch: true }))
+  })
+})
+
+describe("the branch of rows that share a directory", { timeout: DURABLE_WRITE_TIMEOUT_MS }, () => {
+  it("follows a rename made from the owner or from a sharer, on every row of the directory", async () => {
+    const owner = await row("owner")
+    const first = await row("first", { parent: owner, shares: owner })
+    const second = await row("second", { parent: first, shares: owner })
+    const other = await row("other")
+
+    await orch.setBranch(first.id, "renamed")
+
+    for (const id of [owner.id, first.id, second.id]) expect(store.get(id)?.branch).toBe("renamed")
+    expect(store.get(other.id)?.branch).toBe("b/other")
+    expect(worktrees.renameBranch).toHaveBeenCalledTimes(1)
+  })
+
+  it("is re-read from the owner when a sharer is next entered", async () => {
+    const owner = await row("owner")
+    const sharer = await row("sharer", { parent: owner, shares: owner })
+    await store.update(owner.id, { branch: "moved-on" })
+
+    await orch.ensureWorktree(sharer.id)
+
+    expect(store.get(sharer.id)?.branch).toBe("moved-on")
   })
 })

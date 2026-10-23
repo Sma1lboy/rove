@@ -8,12 +8,14 @@
  *   (`ptyAlias`) and its own tab list holds one viewport tab onto it.
  *   Nothing is re-keyed or restarted.
  * - Dead tab with a `sessionId`: the child's `tab-1` resumes that session.
- * - Dead tab without one: nothing to resume, dropped.
+ * - Dead tab without one but with a transcript (`spawned`): the child's `tab-1`
+ *   continues from the directory's own history.
+ * - Dead tab that never ran: nothing to resume, dropped.
  *
  * Done-ness is structural: a migrated tab leaves the parent's snapshot, so a
  * task with one engine tab left plans nothing. A crash between "child exists"
- * and "parent tab closed" re-finds the child (alias, or the session its tab
- * pins) instead of minting a second one.
+ * and "parent tab closed" re-finds the child (alias, the session its tab pins,
+ * or an unseeded child of the same title) instead of minting a second one.
  */
 
 import { taskCwd } from "../task-tree.ts"
@@ -103,28 +105,31 @@ async function migrateTab(
   const session = sessions.find((s) => s.key === `${task.id}::${tab.id}`)
   const live = session?.alive === true && session.restored !== true
   const sessionId = stringField(tab.sessionId)
-  if (!live && !sessionId) {
-    log(`task ${task.id} tab ${tab.id} dropped: no live PTY and no session to resume`)
+  // `spawned` = the engine ran and left a transcript, even where it minted no id we know (kimi, codex).
+  if (!live && !sessionId && tab.spawned !== true) {
+    log(`task ${task.id} tab ${tab.id} dropped: no live PTY, no session and no transcript`)
     return "dropped"
   }
 
   const alias = live ? { taskId: task.id, tabId: tab.id } : undefined
-  const existing = deps.orch
-    .listTasks()
-    .find(
-      (t) =>
-        t.parentTaskId === task.id &&
-        (alias
-          ? t.ptyAlias?.taskId === alias.taskId && t.ptyAlias.tabId === alias.tabId
-          : deps.tabs.get(t.id).state?.tabs.some((row) => row.sessionId === sessionId)),
-    )
   const vendor = stringField(tab.vendor)
   const command = stringField(tab.engineCommand)
+  const title = stringField(tab.title) ?? stringField(tab.lastTitle) ?? stringField(tab.autoTitle) ?? ""
+  const existing = deps.orch.listTasks().find((t) => {
+    if (t.parentTaskId !== task.id) return false
+    if (alias) return t.ptyAlias?.taskId === alias.taskId && t.ptyAlias.tabId === alias.tabId
+    const tabs = deps.tabs.get(t.id).state?.tabs ?? []
+    if (sessionId && tabs.some((row) => row.sessionId === sessionId)) return true
+    // A crash after the child was created but before its tab was seeded left it empty.
+    return (
+      !t.ptyAlias && tabs.length === 0 && (title === "" || t.title === title) && t.vendor === (vendor ?? task.vendor)
+    )
+  })
   const child =
     existing ??
     (await deps.orch.createMigratedChild({
       parentTaskId: task.id,
-      title: stringField(tab.title) ?? stringField(tab.lastTitle) ?? stringField(tab.autoTitle) ?? "",
+      title,
       ...(vendor ? { vendor } : {}),
       ...(command ? { command } : {}),
       ...(alias ? { ptyAlias: alias } : {}),
@@ -154,7 +159,7 @@ async function migrateTab(
   log(
     alias
       ? `task ${task.id} tab ${tab.id} → child ${child.id}, still running in its PTY`
-      : `task ${task.id} tab ${tab.id} → child ${child.id}, resumes session ${sessionId}`,
+      : `task ${task.id} tab ${tab.id} → child ${child.id}, resumes ${sessionId ? `session ${sessionId}` : "its transcript"}`,
   )
   return alias ? "aliased" : "resumable"
 }

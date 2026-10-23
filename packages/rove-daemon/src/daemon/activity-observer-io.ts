@@ -13,7 +13,7 @@ import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 import { defaultPtyExitsPath, defaultPtyHostSocketPath } from "./paths.ts"
 import { engineExitCodeFromTail, plainTail, readPtyExitRecords, recordEngineExit } from "./pty-exit-store.ts"
-import { engineDeathOf } from "./pty-exit-watch.ts"
+import { type PtyOwnerResolver, engineDeathOf } from "./pty-exit-watch.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 export function createActivityObserverIo(
@@ -24,7 +24,7 @@ export function createActivityObserverIo(
    *  restart re-badge. */
   activity?: Pick<DaemonActivityRegistry, "recordEngineDeath">,
   /** The task a PTY's conversation belongs to (a migrated child owns its parent-keyed PTY); default the key's task. */
-  ownerOf: (taskId: string, tabId: string) => string = (taskId) => taskId,
+  ownerOf: PtyOwnerResolver = (taskId) => taskId,
 ): ActivityObserverIo {
   const peek = async (key: string): Promise<string> => {
     const client = new RoveDaemonClient(defaultPtyHostSocketPath(homeDir))
@@ -76,7 +76,10 @@ export function createActivityObserverIo(
       if (existing) {
         const death = engineDeathOf(existing)
         // No `at` guard: the boot registry has no hook claim to bury, and the walk found no engine.
-        if (death) activity?.recordEngineDeath(ownerOf(death.taskId, death.tabId), death.tabId, death.exit, death.at)
+        if (death) {
+          const owner = ownerOf(death.taskId, death.tabId, death.at)
+          activity?.recordEngineDeath(owner, death.tabId, death.exit, death.at)
+        }
         return
       }
       return peek(key)

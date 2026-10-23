@@ -24,7 +24,7 @@
  * so plain-HOME sandboxing silently reads the real home.
  */
 
-import { afterAll, beforeAll, describe, expect, test } from "bun:test"
+import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test"
 import { spawnSync } from "node:child_process"
 import * as fs from "node:fs"
 import * as os from "node:os"
@@ -35,6 +35,7 @@ import { useT } from "../../src/tui-react/i18n"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import type { ChildSpawnRequest } from "../../src/tui-react/workspace/quick-fork"
 import { type NewChatPreset, useTabDialogs } from "../../src/tui-react/workspace/use-tab-dialogs"
+import { getDefaultPtyRegistry } from "../../src/tui/panes/terminal/registry"
 import { type EngineTab, type TabsState, engineTabArgv } from "../../src/tui/workspace/terminal-tabs-core"
 import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
@@ -170,6 +171,23 @@ describe("requestNewChat dispatch", () => {
     expect(captured.updates).toHaveLength(1)
     expect(captured.updates[0]!.tabs).toHaveLength(1)
     expect(captured.updates[0]!.tabs[0]).toMatchObject({ kind: "engine", id: "tab-1", vendor: "claude" })
+  })
+
+  test("a task whose engine has a live PTY but no transcript yet still gets a child", async () => {
+    // The engine may sit at a first-run prompt: the PTY is up, nothing is on disk.
+    const live = spyOn(getDefaultPtyRegistry(), "get").mockReturnValue({ killed: false } as never)
+    try {
+      const { frame, mockInput, captured } = await mountFlow(tabs())
+      act(() => captured.request())
+      await waitForFrameText(frame, "New conversation")
+      act(() => mockInput.pressEnter())
+      await settle()
+      await frame()
+      expect(captured.spawns).toEqual([{ parentTaskId: "task-under-test", vendor: "claude" }])
+      expect(captured.updates).toHaveLength(0)
+    } finally {
+      live.mockRestore()
+    }
   })
 
   // Why: `claudecpa` is a zsh function that ends up running the real claude

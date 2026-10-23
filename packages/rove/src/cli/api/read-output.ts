@@ -384,11 +384,13 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
     tabHistory: (tabId) => snapshotTabHistory(task, tabId),
     // The task's own conversation: its aliased tab, else its canonical engine tab.
     ownHistory: () => snapshotTabHistory(task, alias?.tabId),
+    // Computed lazily: only a terminal read needs the task list.
     peekTerminal: async (tabId, sinceOffset) => {
+      const scope = await ptyScopeOf(daemon, task)
       // The aliased tab is the parent-keyed PTY; any other tab the child names keys under the child.
       const owner = alias && (tabId === undefined || tabId === alias.tabId) ? alias.taskId : taskId
       try {
-        return await peekTaskTerminal(owner, engineBin, tabId ?? alias?.tabId, sinceOffset)
+        return await peekTaskTerminal(owner, engineBin, tabId ?? alias?.tabId, sinceOffset, scope)
       } catch (err) {
         // An aliased child's default tab is a fact, not a flag: a dead one reads as "no session".
         if (!tabId && alias && err instanceof ApiError && err.code === "TAB_NOT_FOUND") return null

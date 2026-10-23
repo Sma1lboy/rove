@@ -9,12 +9,13 @@ import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/c
 import { DISPATCH_PROMPT_HEAD_CHARS } from "@sma1lboy/rove-daemon/daemon/dispatch-ledger"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
-import { readOwnDispatcher, resolveDispatcherTab, verifiedSelfSession, withPeerProvenance } from "./dispatcher.ts"
+import { ownSession, readOwnDispatcher, resolveDispatcherTab, withPeerProvenance } from "./dispatcher.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
@@ -77,7 +78,7 @@ async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt
   if (ctx.args.bool("allow-empty")) return
   // Fullwidth colon too: a CJK IME types `succeeded：` without the agent noticing.
   if (!/^\s*succeeded\s*[:\uff1a]/i.test(prompt)) return
-  const self = await verifiedSelfSession()
+  const self = await ownSession(daemon)
   if (!self) return
   let sender: SerializedTask
   try {
@@ -163,7 +164,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     const dispatcher = await readOwnDispatcher(daemon)
     if (dispatcher) {
       taskId = dispatcher.taskId
-      if (tab === undefined) tab = await resolveDispatcherTab(ctx.runtime, dispatcher)
+      if (tab === undefined) tab = await resolveDispatcherTab(ctx.runtime, daemon, dispatcher)
     } else {
       const active = await resolveActiveTaskId(daemon)
       if (!active) {
@@ -193,6 +194,15 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   // delivered to exactly (a dead one is TAB_NOT_FOUND, never a second engine beside the live one).
   const alias = res.task.ptyAlias
   if (alias && tab === undefined) tab = alias.tabId
+  // The same tab id under the parent names the child's conversation: not this task's to write into.
+  if (tab && hostedKeyFor(taskId, tab, await ptyScopeOf(daemon, res.task)) === null) {
+    throw new ApiError(`tab ${tab} on task ${taskId} belongs to a child task's conversation`, "TAB_NOT_FOUND", {
+      taskId,
+      tabId: tab,
+      hint: "address the child itself with its own --task-id (`list` shows the lineage)",
+      nextCommandArgs: ["api", "get-task", "--task-id", taskId],
+    })
+  }
   const plain = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
   // Decision-gate answers the owner gave while this tab's engine was away (design § 3).
   // A fresh child is a different conversation: the answer stays owed to its own.
@@ -332,7 +342,7 @@ async function recordSend(
   daemon: DaemonRpc,
   sent: { taskId: string; tabId?: string; prompt: string; delivered: boolean; deliveryId?: string },
 ): Promise<void> {
-  const self = await verifiedSelfSession().catch(() => null)
+  const self = await ownSession(daemon).catch(() => null)
   await daemon
     .request("dispatch.record", {
       taskId: sent.taskId,
@@ -358,7 +368,7 @@ async function dispatch(ctx: VerbContext): Promise<unknown> {
   const text = requirePromptText(ctx, "dispatch")
   const tabId = ctx.args.str("tab")
   // The sender, for the daemon's dispatch ledger.
-  const self = await verifiedSelfSession().catch(() => null)
+  const self = await ownSession(daemon).catch(() => null)
   const reply = (await daemon.request("session.deliver", {
     taskId,
     text,

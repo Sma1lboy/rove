@@ -11,6 +11,7 @@ import { objectPayload, optionalBoolean, optionalString, requireNumber, requireS
 import { senderOf } from "./handlers-dispatch.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { displayTaskTitle } from "./protocol.ts"
+import { ptyScopeFor } from "./pty-alias.ts"
 
 /** `ui.prompt` timeout bounds — a plugin must not hang the CLI forever. */
 const PROMPT_DEFAULT_TIMEOUT_MS = 120_000
@@ -39,15 +40,23 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       }
       const task = ctx.orch.getTask(taskId)
       if (!task) throw new Error(`task not found: ${taskId}`)
+      const scope = ptyScopeFor(ctx.orch.listTasks(), task.id)
       // Neither adapter spawns: `dispatch` requires an already-hosted session.
       const outcome = task.worktreePath
         ? await (tabId === undefined
             ? ctx.runtime.deliverPromptToLiveEngineDetailed(
-                { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+                { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath, scope },
                 text,
               )
             : ctx.runtime.deliverPromptToLiveEngineTabDetailed(
-                { id: task.id, tabId, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+                {
+                  id: task.id,
+                  tabId,
+                  vendor: task.vendor,
+                  command: task.command,
+                  worktreePath: task.worktreePath,
+                  scope,
+                },
                 text,
               )
           ).catch(() => ({ outcome: "no-session" }) as const)

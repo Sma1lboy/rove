@@ -2,7 +2,7 @@
 
 import type { Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { DaemonRpc } from "../daemon-session.ts"
-import { verifiedSelfSession } from "./dispatcher.ts"
+import { ownSession } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
 
@@ -23,7 +23,7 @@ export async function gateRaise(ctx: VerbContext): Promise<unknown> {
   // env only for the task it verifiably runs in.
   let tabId = args.str("tab")
   if (!tabId) {
-    const self = await verifiedSelfSession()
+    const self = await ownSession(daemon)
     if (self?.taskId === taskId) tabId = self.tabId
   }
   const res = await daemon.request<{ gate: Gate }>("gate.raise", {

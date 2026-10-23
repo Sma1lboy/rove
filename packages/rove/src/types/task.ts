@@ -187,6 +187,11 @@ export interface Task {
    * conversation, so attach/send/activity/hooks all resolve there.
    */
   readonly ptyAlias?: TaskPtyAlias
+  /**
+   * A row that shared this directory was deleted with `deleteBranch` while this
+   * one still held the branch; the request waits here for the last row.
+   */
+  readonly deleteBranchPending?: boolean
   /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
   readonly requireReport?: boolean
   /**

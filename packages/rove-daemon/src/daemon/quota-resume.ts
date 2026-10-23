@@ -14,6 +14,7 @@ import type { ObservedLanguage } from "../prompts/observed-language.ts"
 import type { DispatchRunnability } from "./automation-dispatch.ts"
 import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { ptyScopeFor } from "./pty-alias.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
@@ -111,7 +112,13 @@ async function resumeDueTask(
   }
   await orch.setQuotaResume(task.id, null)
   const delivered = await runtime.deliverPromptToLiveEngine(
-    { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+    {
+      id: task.id,
+      vendor: task.vendor,
+      command: task.command,
+      worktreePath: task.worktreePath,
+      scope: ptyScopeFor(orch.listTasks(), task.id),
+    },
     quotaResumeContinuePrompt(task.observedLanguage),
   )
   logDaemonInfo("quota-resume", `resume task=${task.id} delivered=${delivered}`)

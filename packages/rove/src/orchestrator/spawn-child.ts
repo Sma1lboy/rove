@@ -36,7 +36,7 @@ export interface SpawnChildResult {
 
 export interface SpawnChildDeps {
   readonly store: TaskIndexStore
-  readonly worktrees: Pick<GitWorktreeManager, "dirtyPaths">
+  readonly worktrees: Pick<GitWorktreeManager, "dirtyPaths" | "remove">
   readonly createTask: (input: CreateTaskInput) => Promise<Task>
   /** Materialises a managed task's worktree (a sharer resolves to its owner's). */
   readonly ensureWorktree: (id: TaskId) => Promise<string>
@@ -127,6 +127,13 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
   try {
     await deps.ensureWorktree(child.id)
   } catch (err) {
+    // A checkout that got as far as the row is brand new: take it and its fresh branch down too.
+    const partial = deps.store.get(child.id)
+    if (partial?.worktreePath) {
+      await deps.worktrees
+        .remove(partial.worktreePath, { force: true, deleteBranch: true, repo: partial.repo, branch: partial.branch })
+        .catch((cleanup) => console.error(`[rove] spawn rollback failed for ${partial.worktreePath}:`, cleanup))
+    }
     await deps.store.remove(child.id)
     throw err
   }

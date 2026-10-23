@@ -12,7 +12,7 @@ import { taskCwd } from "../../orchestrator/task-tree.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { launchedEngine } from "./add-engine-fields.ts"
-import { dispatcherEnvPayload, verifiedSelfSession, withPeerProvenance } from "./dispatcher.ts"
+import { dispatcherEnvPayload, ownSession, withPeerProvenance } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
 
@@ -24,7 +24,7 @@ import { ApiError, type VerbContext, helpStep } from "./types.ts"
 async function resolveParent(ctx: VerbContext, daemon: DaemonRpc): Promise<string> {
   const explicit = ctx.args.str("parent")
   if (explicit) return explicit
-  const self = await verifiedSelfSession()
+  const self = await ownSession(daemon)
   if (!self) {
     throw new ApiError(
       "no --parent given and the caller is not a verified rove session — pass --parent ID",
@@ -32,9 +32,7 @@ async function resolveParent(ctx: VerbContext, daemon: DaemonRpc): Promise<strin
       helpStep("spawn"),
     )
   }
-  const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list", {})
-  const aliased = tasks.find((t) => t.ptyAlias?.taskId === self.taskId && t.ptyAlias.tabId === self.tabId)
-  return aliased?.id ?? self.taskId
+  return self.taskId
 }
 
 /**
@@ -77,7 +75,8 @@ export async function failSharedChild(
 ): Promise<never> {
   if (!(err instanceof ApiError)) throw err
   if (ENGINE_REFUSALS[err.code]) {
-    await daemon.request("task.delete", { taskId: childTaskId, force: true }).catch(() => undefined)
+    // Not forced: if the parent went first, this child is the last row and must keep its dirty gate.
+    await daemon.request("task.delete", { taskId: childTaskId }).catch(() => undefined)
     throw new ApiError(err.message, err.code, { ...err.data, nextCommandArgs: retryArgs })
   }
   throw new ApiError(err.message, err.code, { ...err.data, childTaskId })
@@ -112,7 +111,7 @@ export async function spawn(ctx: VerbContext): Promise<unknown> {
   }>("task.spawn", {
     parentTaskId,
     worktree,
-    ...(await dispatcherEnvPayload()),
+    ...(await dispatcherEnvPayload(daemon)),
     ...(args.str("base-branch") ? { baseRef: args.str("base-branch") } : {}),
     ...(args.str("isolate-in") ? { isolateIn: args.str("isolate-in") } : {}),
     ...(args.str("title") ? { title: args.str("title") } : {}),

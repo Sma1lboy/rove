@@ -13,7 +13,7 @@ The code keeps the name *Task*. Renaming it to *Session* is a separate change.
 | Before | Now |
 |---|---|
 | A Task holds N engine tabs in one directory | A Task holds one engine conversation. Other conversations are child Tasks |
-| `ctrl+t`, `ctrl+e`, `send --tab new`, `tab-new --kind engine`, and the web `+` add an engine tab | The same entry points create a **shared child Task** |
+| `ctrl+t`, `ctrl+e`, `send --tab new`, `tab-new --kind engine`, and the web `+` add an engine tab | The same entry points create a **shared child Task** (in the TUI once the task's own engine tab has a live PTY or a transcript; before that the pick is the task's own first conversation) |
 | Sidebar: project → task → tab rows | Sidebar: project → task → child tasks |
 | `rove api add` from inside a task makes a flat sibling | `rove api spawn` makes a child. `add` still makes top-level tasks |
 
@@ -83,9 +83,23 @@ root, because git copies the link.
 - **A directory is removed only when no remaining task points at it** (a path
   refcount). Deleting a shared child never touches the directory. When the
   owner goes and sharers remain, ownership passes to the first sharer.
+- **A branch goes with the last row on it.** `--delete-branch` on a row that
+  is not the last one on its directory keeps the branch and parks the request
+  on a surviving row, so the last row to leave honours it (still `-d`, never
+  forced). `--delete-remote` is never pushed while another task holds the
+  branch or directory, and the reply says which task. Renaming a branch
+  renames it on every row of the directory.
+- **Rows deleted together are gated together.** Preparing a deletion takes the
+  path lock of every directory it touches, so an owner and its sharers deleted
+  at the same moment cannot each skip the dirty gate for the other. A spawn
+  whose checkout fails mid-way removes the worktree and the branch it cut.
 - **Deleting a task with children:**
-  - The TUI shows one extra dialog. The default is to promote the children; the
-    alternative deletes the whole subtree.
+  - The TUI shows one dialog in place of the plain confirm: "<task> has N child
+    tasks" with Promote children (default, focused), Delete with children, and
+    Cancel. A task without children keeps the plain confirm.
+  - After the delete the TUI stops the PTYs of the tasks the daemon reports
+    (`deleted`/`teardown`), never a set it worked out itself, so an older daemon
+    that ignored `cascade` does not lose its children's sessions.
   - The API promotes by default; `delete --cascade` deletes the subtree.
   - Each removed worktree still passes the dirty gate.
 - **Attribution never guesses between rows on the same path.** Hooks and
@@ -109,9 +123,15 @@ conversations and never move.
   `<parent>::<tabId>`.
 - A dead tab with a `sessionId` (or a freeze-restored corpse) becomes a child
   whose `tab-1` resumes that conversation.
-- A dead tab without a `sessionId` is dropped and noted in `daemon.log`.
+- A dead tab with a transcript (`spawned`) but no `sessionId` we know (kimi,
+  codex mint their own) becomes a child that continues from the directory.
+- A dead tab that never ran is dropped and noted in `daemon.log`.
 - An unreadable PTY host defers the whole pass to the next boot, so a live tab
-  is never filed as dead.
+  is never filed as dead. So does a missing host while frozen sessions wait on
+  disk: they come back as corpses when it starts.
+- A crash between creating a dead tab's child and seeding its tab leaves an
+  empty child; the next boot reuses it (same parent and title) instead of
+  minting a second.
 
 Shell, editor, and content tabs stay with the task that owns the directory.
 A migrated tab leaves the parent's tab list, so a task with one engine tab left
@@ -121,6 +141,17 @@ plans nothing and a second pass is a no-op.
 as the child's: deleting the parent promotes the child and leaves the PTY
 running, deleting the child ends it, and closing its only tab ends it. The
 parent no longer lists that PTY as one of its tabs or counts it as running.
+
+Every reader and writer of a hosted PTY honours the alias, not only the tab
+list. The parent never resolves to the PTY (`send`, `interrupt`, quota resume,
+gate answers, routines, `read-output`, `context` liveness), and the child
+resolves to it for all of them. The PTY's environment still names the parent,
+so a verified session is mapped through the alias before it is used as an
+identity: the `dispatcher` a child stamps on its own children, the `[ROVE PEER]`
+reply address, gate identity and the audit line of `delete` all name the child
+on its aliased tab. Exit records and activity for that PTY are the child's too,
+including a death record that arrives after the alias was released, as long as
+the death happened before the release.
 
 **When the PTY ends.** The daemon clears `ptyAlias` the next time it sees the
 session gone, dead or freeze-restored. The child's viewport tab becomes an
@@ -139,7 +170,8 @@ rove
   fix flaky test
 ```
 
-- Children indent under their parent and collapse.
+- Children indent under their parent and collapse. The fold persists across a
+  TUI restart (`sidebar.collapsedTasks` in the TUI's KV store).
   - A collapsed parent shows the child count and the most urgent child state.
   - Indentation stops growing at 3 levels.
 - Each child shows a marker: shared directory (`⑂`) or own worktree (`⎇`).

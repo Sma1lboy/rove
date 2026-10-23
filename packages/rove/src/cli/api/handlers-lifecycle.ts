@@ -13,7 +13,7 @@ import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orc
 import { canonicalize } from "../../orchestrator/worktree/paths.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { reportBranchDeletion } from "./delete-branch-report.ts"
-import { verifiedSelfSession } from "./dispatcher.ts"
+import { type Dispatcher, ownSession } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, splitDaemonCode } from "./types.ts"
 
@@ -33,7 +33,7 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   if (groupId && taskIdFlag) throw new ApiError("pass --task-id or --group, not both", "BAD_FLAG")
   if (!groupId && !taskIdFlag) throw new ApiError("delete needs --task-id ID or --group GROUPID", "MISSING_TARGET")
   // One identity read for the whole round — it shells out to verify.
-  const self = await verifiedSelfSession()
+  const self = await ownSession(daemon)
   if (!groupId) return deleteOne(ctx, taskIdFlag as string, self)
 
   const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
@@ -67,11 +67,7 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   return { groupId, count: members.length, failures, results }
 }
 
-async function deleteOne(
-  ctx: VerbContext,
-  taskId: string,
-  self: Awaited<ReturnType<typeof verifiedSelfSession>>,
-): Promise<unknown> {
+async function deleteOne(ctx: VerbContext, taskId: string, self: Dispatcher | null): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const force = ctx.args.bool("force") ?? false
   // Opt-in: by default git keeps the branch as the durable record.
@@ -84,7 +80,11 @@ async function deleteOne(
   // Read BEFORE the delete: the task row is gone once removal resolves.
   const subject =
     deleteBranch || deleteRemote
-      ? (await daemon.request<{ task: { repo: string; branch?: string } }>("task.get", { taskId })).task
+      ? (
+          await daemon.request<{ task: { repo: string; branch?: string; worktreePath?: string } }>("task.get", {
+            taskId,
+          })
+        ).task
       : undefined
   // The daemon's audit line names WHO asked, from the verified identity —
   // never the bare env: unverifiable stays unattributed.
@@ -121,9 +121,30 @@ async function deleteOne(
   // Only after `removed`: otherwise git's refusal describes the live worktree.
   const branch =
     subject && outcome.status === "removed"
-      ? reportBranchDeletion(subject.repo, subject.branch ?? "", { deleteBranch, force, deleteRemote })
+      ? reportBranchDeletion(subject.repo, subject.branch ?? "", {
+          deleteBranch,
+          force,
+          deleteRemote,
+          heldBy: await branchHolder(daemon, subject, removing),
+        })
       : undefined
   return { ...res, ...outcome, ...(branch ? { branch } : {}) }
+}
+
+/** Title of a row outside `gone` that still holds the deleted task's branch or directory. */
+async function branchHolder(
+  daemon: DaemonRpc,
+  subject: { repo: string; branch?: string; worktreePath?: string },
+  gone: readonly string[],
+): Promise<string | undefined> {
+  const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
+  const holder = tasks.find(
+    (t) =>
+      !gone.includes(t.id) &&
+      ((subject.worktreePath && t.worktreePath && samePath(t.worktreePath, subject.worktreePath)) ||
+        (subject.branch && t.branch === subject.branch && t.repo === subject.repo && t.kind === "task")),
+  )
+  return holder?.title
 }
 
 /**

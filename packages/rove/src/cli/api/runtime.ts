@@ -4,9 +4,16 @@
  * so unit tests never open a PTY host or git.
  */
 
+import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { type AliasRef, aliasKey, isUnderKey } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import {
+  type AliasRef,
+  type AliasTask,
+  aliasKey,
+  isUnderKey,
+  unclaimedSessions,
+} from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
 
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
@@ -27,7 +34,7 @@ import {
   openPtyHost,
   taskKeys,
 } from "./pty-delivery.ts"
-import { unclaimedSessions } from "./pty-scope.ts"
+import { ptyScopeOf } from "./pty-scope.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { launchTab } from "./tab-launch.ts"
 import { openNewTab } from "./tab-new.ts"
@@ -112,7 +119,8 @@ async function deliverHosted(
     })
     const result = await deliverHostedPrompt(
       host.rpc,
-      { id: target.id, engineBin: argv[0] },
+      // Another task's alias may claim a PTY under this task's key: never fall back to it.
+      { id: target.id, engineBin: argv[0], scope: await ptyScopeOf(client, { id: target.id }) },
       worktree,
       prompt,
       launch,
@@ -246,16 +254,17 @@ export async function deliverPrompt(
 
 /**
  * Task ids owning a live session, from one fleet-wide `pty.list` (keys are
- * `<taskId>::<tabId>`). `null` when there is no host to ask.
+ * `<taskId>::<tabId>`; a migrated child's aliased key counts for the child, not
+ * the parent it is keyed under). `null` when there is no host to ask.
  */
-async function readLiveTaskIds(): Promise<ReadonlySet<string> | null> {
+async function readLiveTaskIds(tasks: readonly AliasTask[]): Promise<ReadonlySet<string> | null> {
   const listed = (await handlePtyList()) as { sessions?: readonly { key?: string; alive?: boolean }[] | null }
   if (!listed?.sessions) return null
   const live = new Set<string>()
   for (const row of listed.sessions) {
     if (row.alive === false || typeof row.key !== "string") continue
-    const taskId = row.key.split("::")[0]
-    if (taskId) live.add(taskId)
+    const [taskId, tabId] = row.key.split("::")
+    if (taskId) live.add(resolvePtyOwner(tasks, taskId, tabId))
   }
   return live
 }

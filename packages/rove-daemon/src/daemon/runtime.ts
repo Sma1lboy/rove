@@ -11,7 +11,7 @@ import type {
   VendorId,
   WorktreeChanges,
 } from "./contracts.ts"
-import type { TeardownScope } from "./pty-alias.ts"
+import type { PtyScope, TeardownScope } from "./pty-alias.ts"
 
 export interface EngineTurnDetectorAdapter {
   latestActivity(worktreePath: string): Promise<{
@@ -158,6 +158,8 @@ export interface DaemonRuntimeAdapter {
       /** Raw launch command pinned on the task; wins over `vendor` when set. */
       readonly command?: string
       readonly worktreePath: string
+      /** Whose PTYs the delivery may pick from (`ptyScopeFor`): a migrated child's conversation lives under its parent's key. */
+      readonly scope?: PtyScope
     },
     prompt: string,
   ): Promise<boolean>
@@ -172,6 +174,7 @@ export interface DaemonRuntimeAdapter {
       readonly vendor?: VendorId
       readonly command?: string
       readonly worktreePath: string
+      readonly scope?: PtyScope
     },
     prompt: string,
   ): Promise<
@@ -187,6 +190,7 @@ export interface DaemonRuntimeAdapter {
       readonly vendor?: VendorId
       readonly command?: string
       readonly worktreePath: string
+      readonly scope?: PtyScope
     },
     prompt: string,
   ): Promise<

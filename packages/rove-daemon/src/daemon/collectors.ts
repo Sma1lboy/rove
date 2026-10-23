@@ -27,6 +27,7 @@ import {
   startKeybindingsWatcher,
 } from "./keybindings-watcher.ts"
 import { DEFAULT_PR_STATUS_POLL_MS, startPrStatusPoller } from "./pr-status-collector.ts"
+import type { PtyOwnerResolver } from "./pty-exit-watch.ts"
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
 import { type QuotaUsageCache, startQuotaUsagePoller } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
@@ -57,6 +58,8 @@ export interface DaemonCollectorOptions {
   readonly quotaResumeTickMs?: number
   readonly quotaUsageTickMs?: number
   readonly automationTickMs?: number
+  /** Whose a hosted PTY is (default: the child aliased to it, else the key's task); the server adds released aliases. */
+  readonly ownerOf?: PtyOwnerResolver
 }
 
 /** What the automation sweep needs; omitted in tests that don't exercise it. */
@@ -189,7 +192,8 @@ export function startDaemonCollectors(
 ): () => Promise<void> {
   // A migrated child owns the PTY keyed under its parent: its observed activity, program status and
   // death records are the child's, as its hook events already are.
-  const ownerOf = (taskId: string, tabId: string): string => resolvePtyOwner(orch.listTasks(), taskId, tabId)
+  const ownerOf: PtyOwnerResolver =
+    options.ownerOf ?? ((taskId, tabId) => resolvePtyOwner(orch.listTasks(), taskId, tabId))
   const receiveStatus = activity
     ? programStatusActivity(activity, (id) => !!orch.getTask(id), inbox, automations?.deliveryDeps, ownerOf)
     : undefined

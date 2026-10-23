@@ -89,6 +89,7 @@ export function coerceTask(value: unknown): Task | null {
     // Sub-task's route home in the collaboration loop; older records → undefined.
     ...(dispatcher ? { dispatcher } : {}),
     ...lineage,
+    ...(v.deleteBranchPending === true ? { deleteBranchPending: true } : {}),
     // The only durable copy of the brief; the engine transcript dies with the engine.
     ...(typeof v.prompt === "string" && v.prompt.length > 0 ? { prompt: v.prompt } : {}),
     // Fork point: lost before the lazy worktree materialises, the branch is

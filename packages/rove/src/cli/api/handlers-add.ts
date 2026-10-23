@@ -188,7 +188,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const warned = warnings.length > 0 ? { warnings } : {}
   const payload: Record<string, string> = {
     repo,
-    ...(await dispatcherEnvPayload()),
+    ...(await dispatcherEnvPayload(daemon)),
     ...enginePayload(fields.choice, fields.effort, fields.model, fields.tier),
   }
   const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
@@ -384,7 +384,7 @@ async function addParallel(
   // already-created tasks into PARTIAL_FANOUT so a script doesn't double-spawn.
   const created: Array<{ taskId: string; vendor: VendorId; task: SerializedTask }> = []
   let createFailure: { vendor: VendorId; error: { message: string; code: string } } | null = null
-  const dispatcher = await dispatcherEnvPayload()
+  const dispatcher = await dispatcherEnvPayload(daemon)
   for (const [i, vendor] of plan.entries()) {
     // `--agents` picks engines BY ID (command = id); `--count` reuses `--command` verbatim.
     const engine: EngineChoice = agentsSpec ? { command: vendor, vendor } : { ...choice, vendor }

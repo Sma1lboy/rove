@@ -3,7 +3,13 @@ import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process"
 import { defaultPtyHostSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import type { PtyOpenResult, PtyPeekResult } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { type TeardownScope, isUnderKey } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import {
+  type PtyScope,
+  type TeardownScope,
+  aliasKey,
+  isUnderKey,
+  unclaimedSessions,
+} from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { TerminalDefaultColors } from "@sma1lboy/rove-daemon/daemon/terminal-colors"
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
@@ -163,13 +169,22 @@ function tabOrder(key: string): number {
  * `claude` would otherwise refuse with NO_ENGINE_TAB). It matches the
  * delivery gate (`engineProcessIn`) and cross-vendor `--tab tab-N`; the
  * caller still re-checks the pick against a live `ps` walk before writing.
+ *
+ * `scope`: a migrated child's conversation is the PTY its alias names, so
+ * that is the child's pick while it lives; a PTY another task's alias claims is
+ * never the key-owner's pick.
  */
 export function findHostedEngineKey(
   sessions: readonly PtySessionInfo[],
   taskId: string,
   engineBin?: string,
+  scope?: PtyScope,
 ): string | null {
-  const mine = sessions
+  if (scope?.alias) {
+    const key = aliasKey(scope.alias)
+    if (sessions.some((s) => s.alive && s.key === key)) return key
+  }
+  const mine = unclaimedSessions(sessions, scope)
     .filter((s) => s.alive && isHostedTaskKey(s.key, taskId))
     .sort((a, b) => tabOrder(a.key) - tabOrder(b.key))
   const tab1 = mine.find((s) => s.key === `${taskId}::tab-1`)

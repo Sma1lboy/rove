@@ -3,7 +3,7 @@
  * (`ApiRuntime`, `PromptDeliveryOps`) — importable without the dispatcher.
  */
 
-import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import type { AliasTask, PtyScope, TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import {
   type BuiltinModId,
   MOD_NOT_INSTALLED,
@@ -13,7 +13,6 @@ import {
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
-import type { PtyScope } from "./pty-scope.ts"
 import type { LaunchSpec, Launched } from "./tab-launch.ts"
 import type { NewTabKind, OpenedTab } from "./tab-new.ts"
 import type { RestoredTabRef } from "./tab-respawn.ts"
@@ -312,9 +311,10 @@ export interface ApiRuntime {
   ): Promise<{ tabs: readonly TaskTabRowWithSession[]; running: boolean | null }>
   /**
    * Task ids with a LIVE session, from one fleet-wide `pty.list` (not one
-   * round-trip per task). `null` = no pty host to ask, never "nothing running".
+   * round-trip per task). `tasks` say whose a migrated child's aliased PTY is.
+   * `null` = no pty host to ask, never "nothing running".
    */
-  liveTaskIds(): Promise<ReadonlySet<string> | null>
+  liveTaskIds(tasks: readonly AliasTask[]): Promise<ReadonlySet<string> | null>
   /** Close one exact Terminal Tab without a mounted TUI (the row goes through the daemon's `tabs.apply`). */
   closeTerminalTab(
     client: DaemonRpc,

@@ -15,6 +15,17 @@ import { defaultPtyExitsPath } from "./paths.ts"
 import { ENGINE_EXIT_BANNER, type PtyExitRecord, readPtyExitStore } from "./pty-exit-store.ts"
 
 const DEBOUNCE_MS = 250
+/**
+ * The task a report from hosted PTY `taskId::tabId` speaks for. `at` is when the reported event happened: a
+ * report can trail the release of the alias it was made under.
+ */
+export type PtyOwnerResolver = (taskId: string, tabId: string, at?: number) => string
+
+const finiteTime = (iso: string): number | undefined => {
+  const at = Date.parse(iso)
+  return Number.isFinite(at) ? at : undefined
+}
+
 /** Session key shape: `taskId::tabId` (pty registry convention). */
 const KEY_RE = /^(.+?)::(.+)$/
 
@@ -29,7 +40,7 @@ export interface PtyExitWatchOptions {
   readonly deliveries?: DeliveryDeps
   readonly log?: (line: string) => void
   /** The task a PTY's conversation belongs to (a migrated child owns its parent-keyed PTY); default the key's task. */
-  readonly ownerOf?: (taskId: string, tabId: string) => string
+  readonly ownerOf?: PtyOwnerResolver
   /** Test seam. */
   readonly path?: string
 }
@@ -72,7 +83,7 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
     const death = engineDeathOf(record)
     if (!death) return
     const { taskId: keyTask, tabId, exit, at } = death
-    const taskId = ownerOf(keyTask, tabId)
+    const taskId = ownerOf(keyTask, tabId, at)
     registry?.recordEngineDeath(taskId, tabId, exit, at)
     opts.inbox
       ?.recordEngineDeath(taskId, tabId, { exit }, at)
@@ -145,11 +156,11 @@ export function lastErrorLine(tail: readonly string[]): string | undefined {
 
 function exitReport(
   record: PtyExitRecord,
-  ownerOf: (taskId: string, tabId: string) => string,
+  ownerOf: PtyOwnerResolver,
 ): { taskId?: string; detail: Record<string, unknown> } {
   const match = KEY_RE.exec(record.key)
   return {
-    ...(match?.[1] ? { taskId: match[2] ? ownerOf(match[1], match[2]) : match[1] } : {}),
+    ...(match?.[1] ? { taskId: match[2] ? ownerOf(match[1], match[2], finiteTime(record.at)) : match[1] } : {}),
     detail: {
       key: record.key,
       ...(match?.[2] ? { tabId: match[2] } : {}),

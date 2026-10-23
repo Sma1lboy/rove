@@ -107,6 +107,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   sharesWorkspaceOf: toTaskId("01ARZ3NDEKTSV4RRFFQ69G5FB3"),
   cwdSubpath: "packages/app",
   ptyAlias: { taskId: "01ARZ3NDEKTSV4RRFFQ69G5FB4", tabId: "tab-2" },
+  deleteBranchPending: true,
   requireReport: true,
   prompt: "the full task brief — never truncated on the way to disk",
   baseRef: "release/2.x",

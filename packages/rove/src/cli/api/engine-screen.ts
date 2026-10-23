@@ -5,6 +5,7 @@
  */
 
 import type { PtyPeekResult, SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { type PtyScope, unclaimedSessions } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { protocolEntry } from "../../engine/engine-presets.ts"
 import { screenErrorLine } from "../../engine/screen-state.ts"
 import type { VendorId } from "../../types/vendor.ts"
@@ -24,6 +25,8 @@ export async function peekTaskTerminal(
   engineBin: string | undefined,
   tab: string | undefined,
   sinceOffset?: number,
+  /** Without a `tab`: PTYs another task's alias claims are not this task's screen. */
+  scope?: PtyScope,
 ): Promise<TerminalPeekPage | null | "host-unreachable"> {
   const host = await openPtyHost()
   if (!host) return "host-unreachable"
@@ -35,7 +38,9 @@ export async function peekTaskTerminal(
       // Tri-state: an unaskable host is not "no sessions".
       const sessions = await listSessionsOrNull(host.rpc)
       if (sessions === null) return "host-unreachable"
-      key = findEngineKey(sessions, taskId, engineBin) ?? sessions.find((s) => s.key === `${taskId}::tab-1`)?.key
+      key =
+        findEngineKey(sessions, taskId, engineBin, scope) ??
+        unclaimedSessions(sessions, scope).find((s) => s.key === `${taskId}::tab-1`)?.key
     }
     if (!key) return null
     // With --tab this is the first RPC; its failure means unreachable, not empty.

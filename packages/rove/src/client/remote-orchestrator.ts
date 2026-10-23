@@ -423,7 +423,7 @@ export class RemoteOrchestrator {
   moveTaskToTop = (id: TaskId | string): Promise<void> => writes.moveTaskToTopOp(this.client, id)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => writes.setStatusOp(this.client, id, status)
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => writes.setPromptOp(this.client, id, prompt)
-  deleteTask = (id: TaskId | string, opts?: TaskDeleteOptions): Promise<void> =>
+  deleteTask = (id: TaskId | string, opts?: TaskDeleteOptions): Promise<writes.TaskDeleteReply> =>
     writes.deleteTaskOp(this.client, id, opts)
   spawnChildTask = (input: SpawnChildInput): Promise<SpawnChildResult> => writes.spawnChildTaskOp(this.client, input)
   dismissAttention = (

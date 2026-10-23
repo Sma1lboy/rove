@@ -27,6 +27,7 @@ import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { type PaneLaunch, listPaneLaunches } from "@sma1lboy/rove-daemon/plugins/pane-command"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
+import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { openPluginPane } from "../../tui/workspace/pane-split"
 import {
   type TabsState,
@@ -34,6 +35,7 @@ import {
   addTab,
   openCommandTab,
   renameActiveTab,
+  tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core"
 import {
   type NewChatChoice,
@@ -48,6 +50,7 @@ import {
   type ChatForkPlan,
   addForkTab,
   addHandoffTab,
+  engineStarted,
   forkFirstTab,
   liveSourceProtocol,
   planChatContinuation,
@@ -90,7 +93,8 @@ export function useTabDialogs(deps: {
 }): {
   requestRename: () => void
   requestNewChat: (preset?: NewChatPreset) => void
-  newConversation: (vendor: VendorId) => void
+  /** True when the pick became a child task rather than a tab here. */
+  newConversation: (vendor: VendorId) => boolean
 } {
   const { dialog, t, state, active, update, pinSession } = deps
 
@@ -115,15 +119,18 @@ export function useTabDialogs(deps: {
     )
 
   /** A new conversation here; true when it became a child task. The task's first
-   *  one runs in its own engine tab; once that has started, another is a child
-   *  sharing the directory. No `onSpawnChild` (a remote task) keeps the second tab. */
+   *  one runs in its own engine tab; once that has a live PTY or a transcript, another is
+   *  a child sharing the directory. No `onSpawnChild` (a remote task) keeps the second tab. */
   const newConversation = (vendor: VendorId): boolean => {
-    const started = state.tabs.some((tab) => tab.kind === "engine" && tab.spawned)
-    if (started && deps.onSpawnChild) {
+    const isLive = (tab: TerminalTab): boolean => {
+      const pty = getDefaultPtyRegistry().get(tabPtyKeyFor(deps.taskId, tab))
+      return pty != null && !pty.killed
+    }
+    if (engineStarted(state, isLive) && deps.onSpawnChild) {
       deps.onSpawnChild({ parentTaskId: deps.taskId, vendor })
       return true
     }
-    const unstarted = unstartedEngineTab(state)
+    const unstarted = unstartedEngineTab(state, isLive)
     update(unstarted ? retargetUnstartedEngine(state, unstarted.id, vendor) : pinSession(addTab(state, vendor), vendor))
     return false
   }

@@ -64,7 +64,7 @@ describe("tab-new handler", () => {
       "ENGINE_LIMIT",
     )
 
-    expect(client.requests.find((r) => r.name === "task.delete")?.payload).toEqual({ taskId: "kid", force: true })
+    expect(client.requests.find((r) => r.name === "task.delete")?.payload).toEqual({ taskId: "kid" })
   })
 
   it("--kind shell still opens a tab on the task itself", async () => {

@@ -76,7 +76,8 @@ export function resolveDueOccurrence(
 
 /** The slice of the orchestrator this runner needs. `getTask` resolves a
  *  standing session's task before re-delivering into it. */
-export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask">
+export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask"> &
+  Partial<Pick<DaemonOrchestrator, "listTasks">>
 
 export type AutomationRuntime = Pick<
   DaemonRuntimeAdapter,

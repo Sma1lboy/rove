@@ -64,6 +64,19 @@ export class TaskDeletionCoordinator {
     if (!task) return false
     if (task.kind === "main") throw new CannotDeleteMainTaskError()
     if (isLeaving(task)) return true
+    // Gate + queue per directory, one at a time: two rows deleted together would
+    // each see the other as a survivor, skip the dirty gate, and the last one
+    // would remove the directory unchecked.
+    const keys = this.targets(task.id, opts).flatMap((targetId) => {
+      const target = this.store.get(targetId)
+      return target?.worktreePath && target.kind !== "dir" ? [canonPath(target.worktreePath)] : []
+    })
+    return this.withPathLocks([...new Set(keys)].sort(), () => this.prepareLocked(task.id, opts))
+  }
+
+  private async prepareLocked(id: TaskId, opts?: TaskDeletionOpts): Promise<boolean> {
+    const task = this.store.get(id)
+    if (!task || isLeaving(task)) return task !== undefined
 
     const force = opts?.force === true
     const doomed = this.targets(task.id, opts)
@@ -109,8 +122,9 @@ export class TaskDeletionCoordinator {
         deletion: {
           phase: "queued",
           force,
-          // Never implied by `force`: the branch is git's durable record.
-          deleteBranch: opts?.deleteBranch === true,
+          // Never implied by `force`: the branch is git's durable record. A sharer
+          // deleted earlier with the flag leaves it on the row that still held the branch.
+          deleteBranch: opts?.deleteBranch === true || target.deleteBranchPending === true,
           requestedAt: new Date().toISOString(),
         },
       })
@@ -144,6 +158,7 @@ export class TaskDeletionCoordinator {
         this.store.list().some((t) => t.id !== task.id && t.worktreePath && canonPath(t.worktreePath) === key)
       try {
         if (ownsDirectory && !shared) await this.removeWorktree(task, task.deletion as NonNullable<Task["deletion"]>)
+        else if (ownsDirectory && task.deletion?.deleteBranch) await this.handBranchDeleteOn(task, key)
       } catch (cause) {
         const failure = new WorktreeRemoveFailedError(task.id, cause)
         await this.store.update(task.id, {
@@ -200,6 +215,18 @@ export class TaskDeletionCoordinator {
     })
   }
 
+  /** The branch stays with the rows still on the path; the request moves to one of them, so the last row to leave honours it. */
+  private async handBranchDeleteOn(leaving: Task, key: string | null): Promise<void> {
+    const holder = this.store
+      .list()
+      .find((t) => t.id !== leaving.id && t.worktreePath && canonPath(t.worktreePath) === key)
+    if (holder && isLeaving(holder)) {
+      // Already on its way out: its own frozen request is the one that counts.
+      await this.store.update(holder.id, { deletion: { ...holder.deletion!, deleteBranch: true } })
+    } else if (holder) await this.store.update(holder.id, { deleteBranchPending: true })
+    this.onBranchKept?.(leaving.id, { branch: leaving.branch, reason: "another task still uses this branch" })
+  }
+
   /**
    * An owner leaving while sharers remain hands the directory to the first
    * remaining sharer, so the survivors keep one consistent owner. A sharer
@@ -222,6 +249,13 @@ export class TaskDeletionCoordinator {
     for (const child of this.store.list().filter((t) => t.parentTaskId === deleted.id)) {
       await this.store.update(child.id, { parentTaskId: deleted.parentTaskId })
     }
+  }
+
+  /** Locks taken in the order given (callers pass them sorted) so two multi-path holders can't deadlock. */
+  private async withPathLocks<T>(keys: readonly string[], fn: () => Promise<T>): Promise<T> {
+    const [first, ...rest] = keys
+    if (first === undefined) return fn()
+    return this.withPathLock(first, () => this.withPathLocks(rest, fn))
   }
 
   private async withPathLock<T>(key: string | null, fn: () => Promise<T>): Promise<T> {

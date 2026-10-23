@@ -23,11 +23,13 @@ import { assertAutomationTargetTask, automationTarget } from "./automation-targe
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 import { type GateLedger, carryOwedGateAnswers } from "./gate-handoff.ts"
+import { ptyScopeFor } from "./pty-alias.ts"
 import type { RunnabilityVerdict, SkipReason, SkipVerdict } from "./runnability-contracts.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** The orchestrator slice a firing needs. */
-export type DispatchOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask">
+export type DispatchOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask"> &
+  Partial<Pick<DaemonOrchestrator, "listTasks">>
 
 export type DispatchRuntime = Pick<
   DaemonRuntimeAdapter,
@@ -182,7 +184,14 @@ export async function dispatchAutomation(
     const text = await resolvePrompt(prompt, { taskId: task.id, tabId: target.tabId })
     const owed = carryOwedGateAnswers(deps.gates, task.id, target.tabId, text)
     const result = await deps.runtime.deliverPromptToLiveEngineTabDetailed(
-      { id: task.id, tabId: target.tabId, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+      {
+        id: task.id,
+        tabId: target.tabId,
+        vendor: task.vendor,
+        command: task.command,
+        worktreePath: task.worktreePath,
+        scope: ptyScopeFor(deps.orch.listTasks?.() ?? [], task.id),
+      },
       owed.prompt,
     )
     if (result.outcome === "delivered") await owed.commit()
@@ -230,7 +239,13 @@ export async function dispatchAutomation(
   const text = await resolvePrompt(prompt, { taskId: task.id, tabId: null })
   const owed = carryOwedGateAnswers(deps.gates, task.id, null, text)
   const result = await deps.runtime.deliverPromptToLiveEngineDetailed(
-    { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+    {
+      id: task.id,
+      vendor: task.vendor,
+      command: task.command,
+      worktreePath: task.worktreePath,
+      scope: ptyScopeFor(deps.orch.listTasks?.() ?? [], task.id),
+    },
     owed.prompt,
   )
   if (result.outcome === "delivered") {

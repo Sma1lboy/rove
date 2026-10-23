@@ -1,10 +1,10 @@
 /**
  * Sidebar tree state: the flat row list and the row id (a task id).
  *
- * Two folds, both session-scoped on purpose (closed/open is not remembered
- * across a restart): a project's routine count row (schedule-created sessions
- * only; a folded routine stays findable by search and openable from the Inbox
- * and Routines page), and a task's children, open by default.
+ * Two folds: a project's routine count row (session-scoped on purpose;
+ * schedule-created sessions only, and a folded routine stays findable by search
+ * and openable from the Inbox and Routines page), and a task's children, open
+ * by default and remembered across a restart in `COLLAPSED_TASKS_KEY`.
  *
  * Which tasks show, under which project, comes from `use-sidebar-groups.ts`
  * (shared with the folded rail); this turns that into rows.
@@ -12,7 +12,7 @@
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { currentBranch } from "../../../tui/panes/sidebar/git-head"
 import { type TaskSortMode, sidebarProjectKeyResolver } from "../../../tui/panes/sidebar/groups"
 import { type MachineLayerEntry, applyMachineLayer } from "../../../tui/panes/sidebar/machine-layer"
@@ -51,6 +51,14 @@ export interface TreeStateOpts {
   readonly machines?: readonly MachineLayerEntry[]
 }
 
+/** KV key holding the ids of tasks whose children are folded away. */
+export const COLLAPSED_TASKS_KEY = "sidebar.collapsedTasks"
+
+function readCollapsedTasks(kv: TabsSnapshotKv | null): ReadonlySet<string> {
+  const stored = kv?.store[COLLAPSED_TASKS_KEY]
+  return new Set(Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : [])
+}
+
 /** Shared, so no machines never invalidates the memo with a fresh literal. */
 const EMPTY_MACHINES: readonly MachineLayerEntry[] = []
 
@@ -78,7 +86,9 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
 
   // Open routine count rows, and tasks whose children are folded away.
   const [expandedRoutines, setExpandedRoutines] = useState<ReadonlySet<string>>(() => new Set())
-  const [collapsedTasks, setCollapsedTasks] = useState<ReadonlySet<string>>(() => new Set())
+  const [collapsedTasks, setCollapsedTasks] = useState<ReadonlySet<string>>(() => readCollapsedTasks(kv))
+  // The latest set, so a toggle persists what it just built rather than a stale render's.
+  const collapsedRef = useRef(collapsedTasks)
   const toggleRoutines = useCallback((projectKey: string): void => {
     setExpandedRoutines((current) => {
       const next = new Set(current)
@@ -86,13 +96,16 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
       return next
     })
   }, [])
-  const toggleTaskFold = useCallback((taskId: string): void => {
-    setCollapsedTasks((current) => {
-      const next = new Set(current)
+  const toggleTaskFold = useCallback(
+    (taskId: string): void => {
+      const next = new Set(collapsedRef.current)
       if (!next.delete(taskId)) next.add(taskId)
-      return next
-    })
-  }, [])
+      collapsedRef.current = next
+      setCollapsedTasks(next)
+      kv?.set(COLLAPSED_TASKS_KEY, [...next])
+    },
+    [kv],
+  )
 
   const { groups } = useSidebarGroups({
     tasks,

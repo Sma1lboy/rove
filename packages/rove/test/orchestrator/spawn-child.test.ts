@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { afterEach, beforeEach, describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import { taskCwd } from "../../src/orchestrator/task-tree.ts"
@@ -127,6 +127,24 @@ describe("worktree children", () => {
 
     await expect(orch.spawnChildTask({ parentTaskId: parent.id, worktree: true })).rejects.toThrow(/NOT_A_GIT_REPO/)
     expect(store.list().filter((t) => t.parentTaskId === parent.id)).toEqual([])
+  })
+})
+
+describe("a worktree child whose checkout cannot be recorded", () => {
+  test("leaves no row, directory or branch behind", async () => {
+    const parent = await mainRow()
+    const branchesBefore = git(repo, "branch", "--list")
+    const update = store.update.bind(store)
+    vi.spyOn(store, "update").mockImplementation((id, patch) => {
+      if ("worktreePath" in patch && patch.worktreePath) return Promise.reject(new Error("disk full"))
+      return update(id, patch)
+    })
+
+    await expect(orch.spawnChildTask({ parentTaskId: parent.id, worktree: true })).rejects.toThrow("disk full")
+
+    expect(store.list().filter((t) => t.parentTaskId === parent.id)).toEqual([])
+    expect(git(repo, "worktree", "list", "--porcelain").match(/^worktree /gm)).toHaveLength(1)
+    expect(git(repo, "branch", "--list")).toBe(branchesBefore)
   })
 })
 

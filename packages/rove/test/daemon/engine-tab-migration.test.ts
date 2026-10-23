@@ -166,3 +166,32 @@ describe("migrating extra engine tabs into child tasks", () => {
     expect(viewport.ids("parent")).toEqual(["tab-1", "tab-2"])
   })
 })
+
+describe("migration edge cases", () => {
+  it("re-finds a dead tab's child that a crash left without tabs, instead of minting a second", async () => {
+    const r = rig([engine("tab-1"), engine("tab-2", { title: "second", sessionId: "s2", spawned: true })], [])
+    r.tasks.push({
+      ...parentTask(),
+      id: "early",
+      parentTaskId: "parent",
+      sharesWorkspaceOf: "parent",
+      title: "second",
+    } as unknown as DaemonTask)
+
+    await r.run()
+
+    expect(r.tasks).toHaveLength(2)
+    expect(r.ids("early")).toEqual(["tab-1"])
+    expect(r.ids("parent")).toEqual(["tab-1"])
+  })
+
+  it("keeps a dead tab that has a transcript but no session id we know, and resumes it in the child", async () => {
+    const r = rig([engine("tab-1"), engine("tab-2", { spawned: true })], [])
+
+    expect(await r.run()).toEqual({ aliased: 0, resumable: 1, dropped: 0 })
+
+    expect(r.tabs.get(r.tasks[1]?.id as string).state?.tabs).toEqual([
+      expect.objectContaining({ id: "tab-1", kind: "engine", spawned: true }),
+    ])
+  })
+})

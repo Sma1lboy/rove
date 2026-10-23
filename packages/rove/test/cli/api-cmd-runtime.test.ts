@@ -236,7 +236,8 @@ describe("defaultApiRuntime", () => {
 
 describe("realPromptDeliveryOps (deliverPrompt with the default ops)", () => {
   const client: DaemonRpc = {
-    request: async () => {
+    request: async (name: string) => {
+      if (name === "task.list") return { tasks: [{ id: "kid", ptyAlias: { taskId: "t1", tabId: "tab-3" } }] } as never
       throw new Error("no RPC expected — the target already has a worktree")
     },
     subscribe: async () => ({}),
@@ -269,7 +270,8 @@ describe("realPromptDeliveryOps (deliverPrompt with the default ops)", () => {
     )
     expect(mocks.deliverHostedPrompt).toHaveBeenCalledWith(
       expect.anything(),
-      { id: "t1", engineBin: "claude" },
+      // The parent is told which of its keys a migrated child's conversation owns.
+      { id: "t1", engineBin: "claude", scope: { claimed: ["t1::tab-3"] } },
       "/wt/t1",
       "go",
       expect.objectContaining({ key: "t1::tab-1" }),

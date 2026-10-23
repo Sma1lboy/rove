@@ -253,7 +253,9 @@ export class Orchestrator {
     const owner = task.sharesWorkspaceOf ? this.store.get(task.sharesWorkspaceOf) : undefined
     if (owner) {
       const path = await this.ensureWorktree(owner.id, opts)
-      if (path !== task.worktreePath) await this.store.update(task.id, { worktreePath: path, branch: owner.branch })
+      if (path !== task.worktreePath || owner.branch !== task.branch) {
+        await this.store.update(task.id, { worktreePath: path, branch: owner.branch })
+      }
       return path
     }
     if (task.worktreePath) {

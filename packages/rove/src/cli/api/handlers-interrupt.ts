@@ -9,12 +9,14 @@
  * one of them quits.
  */
 
+import { type AliasRef, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { openHostedSessionHost } from "../../engine/hosted-session.ts"
 import { findHostedEngineKey, listHostedSessions } from "../../engine/hosted-session.ts"
 import { getCapabilities } from "../../engine/registry.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
+import { ptyScopeOf } from "./pty-scope.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
@@ -22,6 +24,7 @@ interface InterruptTask {
   readonly id: string
   readonly vendor?: string
   readonly command?: string
+  readonly ptyAlias?: AliasRef
 }
 
 /**
@@ -58,7 +61,11 @@ async function interruptTask(ctx: VerbContext): Promise<unknown> {
   }
   try {
     const sessions = await listHostedSessions(host.rpc)
-    const key = tabFlag ? `${taskId}::${tabFlag}` : findHostedEngineKey(sessions, taskId, taskEngineArgv(task)[0])
+    // A migrated child's tab is the parent-keyed PTY; a PTY another task's alias claims is not this task's to stop.
+    const scope = await ptyScopeOf(daemonOf(ctx), task)
+    const key = tabFlag
+      ? hostedKeyFor(taskId, tabFlag, scope)
+      : findHostedEngineKey(sessions, taskId, taskEngineArgv(task)[0], scope)
     if (!key || !sessions.some((session) => session.key === key && session.alive)) {
       throw new ApiError(
         tabFlag ? `task ${taskId} has no live tab ${tabFlag}` : `task ${taskId} has no live engine tab to interrupt`,

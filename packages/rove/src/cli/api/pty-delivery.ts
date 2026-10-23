@@ -6,6 +6,7 @@
  * vendor's launch binary — never a hard-coded vendor name.
  */
 
+import type { PtyScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { PsSnapshot } from "../../engine/foreground.ts"
 import {
@@ -98,7 +99,7 @@ export function outcomeFields(outcome: PromptWriteOutcome | null): {
  */
 export async function deliverHostedPrompt(
   rpc: PtyHostRpc,
-  target: { readonly id: string; readonly engineBin?: string },
+  target: { readonly id: string; readonly engineBin?: string; readonly scope?: PtyScope },
   cwd: string,
   prompt: string,
   launch: EngineSessionLaunch,
@@ -110,7 +111,7 @@ export async function deliverHostedPrompt(
   },
 ): Promise<DeliveredPrompt> {
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
-  const existingKey = findEngineKey(sessions, target.id, target.engineBin)
+  const existingKey = findEngineKey(sessions, target.id, target.engineBin, target.scope)
   if (existingKey) {
     // Foreground gate: the engine may have exited into the keepAlive shell,
     // where a paste runs as shell commands. See {@link enginePresence}.

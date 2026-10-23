@@ -239,7 +239,8 @@ export function WorktreeTreeRow(props: {
     (checkoutText ? clusterCells(checkoutText) : 0) +
     (age ? clusterCells(age) : 0) +
     (props.level !== undefined ? clusterCells(String(props.level)) : 0) +
-    (marker ? clusterCells(SHARED_MARK) : 0) +
+    // Beside a fold glyph the marker sits flush against it (no gap), so the pair costs two cells.
+    (marker ? (fold ? displayWidth(SHARED_MARK) : clusterCells(SHARED_MARK)) : 0) +
     (fold
       ? clusterCells(fold.collapsed ? FOLD_CLOSED : FOLD_OPEN) +
         (fold.collapsed ? clusterCells(String(fold.count)) + clusterCells(glyphs.idle) : 0)
@@ -328,12 +329,16 @@ export function WorktreeTreeRow(props: {
             {String(props.level)}
           </text>
         ) : null}
-        {marker ? (
-          <text fg={marker === "shared" ? theme.info : theme.textMuted} wrapMode="none" flexShrink={0}>
-            {marker === "shared" ? SHARED_MARK : WORKTREE_MARK}
-          </text>
+        {marker || fold ? (
+          <box flexDirection="row" flexShrink={0}>
+            {marker ? (
+              <text fg={marker === "shared" ? theme.info : theme.textMuted} wrapMode="none" flexShrink={0}>
+                {marker === "shared" ? SHARED_MARK : WORKTREE_MARK}
+              </text>
+            ) : null}
+            {fold ? <FoldCluster task={task} fold={fold} shared={shared} /> : null}
+          </box>
         ) : null}
-        {fold ? <FoldCluster task={task} fold={fold} shared={shared} /> : null}
         {remoteText ? (
           <text fg={remoteLive ? theme.textMuted : theme.warning} wrapMode="none" flexShrink={0}>
             {remoteText}

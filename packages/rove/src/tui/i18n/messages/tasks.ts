@@ -181,7 +181,7 @@ export const en = {
     deleteBodyTaskBranch:
       "Removes the task entry, its worktree, and its git branch if it is merged. An unmerged branch stays. Its hosted sessions are stopped.",
     deleteConfirm: "delete",
-    /** Second dialog when the task being deleted has child tasks; the default keeps them. */
+    /** The delete dialog when the task has child tasks (it replaces the plain confirm); the default keeps them. */
     childrenTitle: '"{title}" has {count} child tasks',
     childrenBody:
       "Promote moves them up one level and keeps their worktrees and sessions. Delete with children removes them too.",

@@ -1,7 +1,7 @@
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import { type PtyScope, type TeardownScope, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { engineLaunchArgv } from "../engine/engine-presets.ts"
 import {
   awaitEngineProcess,
@@ -162,6 +162,7 @@ export async function deliverPromptToLiveEngineAdapter(
     readonly vendor?: VendorId
     readonly command?: string
     readonly worktreePath: string
+    readonly scope?: PtyScope
   },
   prompt: string,
 ): Promise<boolean> {
@@ -173,7 +174,7 @@ export async function deliverPromptToLiveEngineAdapter(
       command: task.command,
       vendor: task.vendor,
     })
-    const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
+    const key = findHostedEngineKey(sessions, task.id, engineArgv[0], task.scope)
     if (!key) return false
     const presence = await enginePresence(sessions.find((s) => s.key === key)?.pid, engineArgv)
     if (presence.kind !== "engine") return false
@@ -201,6 +202,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
     readonly vendor?: VendorId
     readonly command?: string
     readonly worktreePath: string
+    readonly scope?: PtyScope
   },
   prompt: string,
 ): Promise<
@@ -214,7 +216,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
       command: task.command,
       vendor: task.vendor,
     })
-    const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
+    const key = findHostedEngineKey(sessions, task.id, engineArgv[0], task.scope)
     if (!key) return { outcome: "no-session" }
     const presence = await enginePresence(sessions.find((s) => s.key === key)?.pid, engineArgv)
     if (presence.kind !== "engine") {
@@ -238,6 +240,7 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
     readonly vendor?: VendorId
     readonly command?: string
     readonly worktreePath: string
+    readonly scope?: PtyScope
   },
   prompt: string,
 ): Promise<
@@ -246,7 +249,8 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
   const host = await openHostedSessionHost()
   if (!host) return { outcome: "no-session" }
   try {
-    const key = `${target.id}::${target.tabId}`
+    const key = hostedKeyFor(target.id, target.tabId, target.scope)
+    if (!key) return { outcome: "no-session" }
     let sessions: Awaited<ReturnType<typeof listHostedSessions>>
     try {
       sessions = await listHostedSessions(host.rpc)

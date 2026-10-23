@@ -1,6 +1,6 @@
 /** Constructs every daemon-owned store plus the per-task teardown chain. */
 
-import { listPtyHostSessions } from "../client/pty-process.ts"
+import { hasFrozenPtySessions, listPtyHostSessions } from "../client/pty-process.ts"
 import { readActivityLiveness } from "./activity-liveness.ts"
 import { type ActivityLivenessProbe, DaemonActivityRegistry } from "./activity-registry.ts"
 import { AgentTurnsStore, defaultAgentTurnsPath } from "./agent-turns-store.ts"
@@ -94,7 +94,9 @@ export async function initDaemonStores(
   const tasks = orch.listTasks()
   if (tasks.some((t) => t.ptyAlias || ownEngineTabs(tabs.get(t.id).state?.tabs ?? []).length > 1)) {
     try {
-      const sessions = await listPtyHostSessions(homeDir)
+      const listed = await listPtyHostSessions(homeDir)
+      // No host but frozen records: those conversations return as corpses when it starts, so wait for it.
+      const sessions = listed?.length === 0 && (await hasFrozenPtySessions(homeDir)) ? null : listed
       await migrateEngineTabs({ orch, tabs }, sessions)
       if (sessions) await aliases.reconcile(sessions)
     } catch (err) {

@@ -17,7 +17,7 @@
  */
 
 import { beforeEach, describe, expect, test, vi } from "vitest"
-import { killHostedSessions, openHostedSessionHost } from "../../src/engine/hosted-session"
+import { hostedTaskKeys, killHostedSessions, openHostedSessionHost } from "../../src/engine/hosted-session"
 import { DIRTY_WORKTREE_CODE } from "../../src/orchestrator/errors"
 
 vi.mock("../../src/engine/hosted-session", () => ({
@@ -116,6 +116,7 @@ function makeCtx(opts: {
 
 beforeEach(() => {
   vi.mocked(killHostedSessions).mockClear()
+  vi.mocked(hostedTaskKeys).mockClear()
   vi.mocked(openHostedSessionHost).mockResolvedValue({
     rpc: { request: vi.fn() },
     close: vi.fn(),
@@ -264,7 +265,7 @@ describe("deleteTaskFlow — child tasks", () => {
 
   test("promoting keeps the children: a plain delete, only the named task torn down", async () => {
     const orch = makeOrch()
-    const { ctx, pickChildren, onTaskDeleted } = makeCtx({
+    const { ctx, confirm, pickChildren, onTaskDeleted } = makeCtx({
       tasks: family(),
       orch,
       confirms: [true],
@@ -272,13 +273,15 @@ describe("deleteTaskFlow — child tasks", () => {
     })
     await deleteTaskFlow(ctx, "p")
     expect(pickChildren.mock.calls[0]?.[0]).toMatchObject({ title: '"p" has 1 child tasks' })
+    // One dialog, not a confirm followed by the picker.
+    expect(confirm).not.toHaveBeenCalled()
     expect(orch.deleteTask).toHaveBeenCalledWith("p")
     expect(killHostedSessions).toHaveBeenCalledTimes(1)
     expect(onTaskDeleted.mock.calls.map((call) => call[0])).toEqual(["p"])
   })
 
   test("deleting with children cascades, and every removed task is torn down deepest first", async () => {
-    const orch = makeOrch()
+    const orch = makeOrch({ deleteTask: vi.fn(async () => ({ deleted: ["g", "c", "p"] })) })
     const { ctx, onTaskDeleted } = makeCtx({ tasks: family(), orch, confirms: [true], childChoice: "cascade" })
     await deleteTaskFlow(ctx, "p")
     expect(orch.deleteTask).toHaveBeenCalledWith("p", { cascade: true })
@@ -290,6 +293,22 @@ describe("deleteTaskFlow — child tasks", () => {
     expect(onTaskDeleted.mock.calls.map((call) => call[0])).toEqual(["g", "c", "p"])
     // The next task to land on is never one that just went.
     expect(onTaskDeleted.mock.calls.every((call) => call[1]?.id === "other")).toBe(true)
+  })
+
+  test("an older daemon ignores the cascade: only the task it deleted is torn down", async () => {
+    const orch = makeOrch() // replies with neither `deleted` nor `teardown`
+    const { ctx, onTaskDeleted } = makeCtx({ tasks: family(), orch, confirms: [true], childChoice: "cascade" })
+    await deleteTaskFlow(ctx, "p")
+    expect(vi.mocked(killHostedSessions).mock.calls.map((call) => call[1])).toEqual([["p::tab-1"]])
+    expect(onTaskDeleted.mock.calls.map((call) => call[0])).toEqual(["p"])
+  })
+
+  test("the daemon's teardown scope decides which PTYs are spared", async () => {
+    const scope = { spare: ["p::tab-3"], also: [] }
+    const orch = makeOrch({ deleteTask: vi.fn(async () => ({ deleted: ["p"], teardown: { p: scope } })) })
+    const { ctx } = makeCtx({ tasks: family(), orch, confirms: [true], childChoice: "promote" })
+    await deleteTaskFlow(ctx, "p")
+    expect(vi.mocked(hostedTaskKeys).mock.calls[0]?.[2]).toEqual(scope)
   })
 
   test("dismissing the extra dialog abandons the delete", async () => {
