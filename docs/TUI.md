@@ -218,7 +218,9 @@ conflicts (a conflicted **Sync with base** leaves its merge in place), the menu
 also offers **Resolve conflicts**. It sends the Task's engine the operation,
 the conflicted files, and the command that finishes it. The engine is told to
 ask rather than pick a side when a conflict needs your decision, and never to
-abort the operation on its own.
+abort the operation on its own. If Git cannot read the conflicted files, the
+action shows an error without sending a prompt. If delivery fails, it asks you
+to open an engine tab in the Task and retry.
 
 The confirmation dialogs state the exact deletion boundary before anything is
 changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and

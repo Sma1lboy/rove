@@ -16,7 +16,12 @@ function deps(over: Partial<Parameters<typeof resolveConflictsAction>[0]> = {}) 
   const errors: string[] = []
   const base = {
     worktree: "/wt/a",
-    sendToEngineFn: { current: (text: string) => void sent.push(text) },
+    sendToEngineFn: {
+      current: (text: string) => {
+        sent.push(text)
+        return true
+      },
+    },
     selectedWorktreeRef: { current: "/wt/a" },
     notifyError: (message: string) => void errors.push(message),
     t: (key: string) => key,
@@ -42,6 +47,21 @@ describe("resolveConflictsAction", () => {
     await resolveConflictsAction(base)("t1")
     expect(sent).toEqual([])
     expect(errors).toEqual(["files.toast.noPausedOperation"])
+  })
+
+  test("reports a failed Git read without sending a clean-conflicts claim", async () => {
+    const { base, sent, errors } = deps({ readConflicts: async () => null })
+    await resolveConflictsAction(base)("t1")
+    expect(sent).toEqual([])
+    expect(errors).toEqual(["files.toast.conflictReadFailed"])
+  })
+
+  test("sends completion instructions when Git successfully reports no unmerged files", async () => {
+    const { base, sent, errors } = deps({ readConflicts: async () => [] })
+    await resolveConflictsAction(base)("t1")
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toContain("Git reports no unmerged files left")
+    expect(errors).toEqual([])
   })
 
   test("drops the prompt when the user switched tasks during the git read", async () => {

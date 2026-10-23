@@ -16,7 +16,7 @@ import { useT } from "../i18n"
 
 export type ResolveConflictsDeps = {
   worktree: string | null
-  sendToEngineFn: MutableRefObject<((text: string) => void) | null>
+  sendToEngineFn: MutableRefObject<((text: string) => boolean) | null>
   selectedWorktreeRef: { readonly current: string | null }
   notifyError: (message: string) => void
   t: (key: string, params?: Record<string, string | number>) => string
@@ -37,9 +37,12 @@ export function resolveConflictsAction(deps: ResolveConflictsDeps): (taskId: str
     // Re-read at send time: the user may have finished it by hand since the menu opened.
     const operation = readOperation(wt)
     if (!operation) return deps.notifyError(deps.t("files.toast.noPausedOperation"))
-    const files = (await readConflicts(wt)) ?? []
+    const files = await readConflicts(wt)
     if (deps.selectedWorktreeRef.current !== wt || deps.sendToEngineFn.current !== send) return
-    send(buildConflictPrompt({ operation, branch: branch || "HEAD", files }))
+    if (files === null) return deps.notifyError(deps.t("files.toast.conflictReadFailed"))
+    if (!send(buildConflictPrompt({ operation, branch: branch || "HEAD", files }))) {
+      deps.notifyError(deps.t("files.toast.conflictSendFailed"))
+    }
   }
 }
 
