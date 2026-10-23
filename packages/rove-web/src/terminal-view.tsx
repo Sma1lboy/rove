@@ -51,6 +51,23 @@ async function dropFiles(client: BridgeClient, handle: TermHandle, files: File[]
   handle.term.focus()
 }
 
+/** The images and PDFs on the browser's clipboard; empty when the page may not read it (no https, permission refused). */
+async function clipboardFiles(): Promise<File[]> {
+  if (!navigator.clipboard?.read) return []
+  try {
+    const files: File[] = []
+    for (const item of await navigator.clipboard.read()) {
+      for (const type of item.types) {
+        const blob = await item.getType(type)
+        files.push(new File([blob], "clipboard", { type }))
+      }
+    }
+    return attachableFiles(files)
+  } catch {
+    return []
+  }
+}
+
 async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text)
@@ -102,6 +119,12 @@ export function TerminalView(props: TerminalViewProps) {
           if (!exitIsReset(streamKey(taskId, tabId, leafId))) latest.current.onExit?.()
         },
         copyText,
+        pasteImage: async () => {
+          const files = mounted ? await clipboardFiles() : []
+          if (!mounted || files.length === 0) return false
+          await dropFiles(client, mounted, files)
+          return true
+        },
         focusOnMount: latest.current.focused !== false,
       })
       setHandle(mounted)

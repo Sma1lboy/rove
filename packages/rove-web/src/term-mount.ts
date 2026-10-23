@@ -113,6 +113,8 @@ export interface MountOpts {
   readonly onExit: (code: number | null) => void
   /** Copy-on-release and the copy chords; true = it reached the clipboard. */
   readonly copyText: (text: string) => Promise<boolean>
+  /** Ctrl+V: attaches an image on the browser's clipboard; false = none, so the key goes to the engine as before. */
+  readonly pasteImage: () => Promise<boolean>
   readonly focusOnMount: boolean
 }
 
@@ -291,6 +293,13 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   // Copy: ctrl+c with a selection copies and drops it, otherwise it stays the interrupt (TUI `copySelectionIfAny`).
   term.attachCustomKeyEventHandler((e) => {
+    // Ctrl+V would ask the engine to read the Mac's clipboard, not this browser's.
+    if (e.type === "keydown" && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "v") {
+      void o.pasteImage().then((attached) => {
+        if (!attached) term.input("\x16")
+      })
+      return false
+    }
     const chord = isCopyChord(e)
     if (!chord) return true
     const text = term.getSelection()
