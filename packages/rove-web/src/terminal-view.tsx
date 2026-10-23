@@ -116,25 +116,19 @@ export function TerminalView(props: TerminalViewProps) {
           if (!exitIsReset(streamKey(taskId, tabId, leafId))) latest.current.onExit?.()
         },
         copyText,
+        // Never the engine's own Ctrl+V: it reads the rove machine's clipboard, which is not this browser's
+        // from anywhere else (a tunnel to localhost included), and is the same clipboard on that machine.
         pasteImage: async () => {
-          if (!mounted) return false
-          // A page on this Mac may let the engine read the clipboard itself; from elsewhere that is the wrong clipboard.
-          const local = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname)
+          if (!mounted) return
           let files: File[]
           try {
             files = await clipboardFiles()
           } catch (err) {
-            if (local) return false
             toast(t("layout.pasteNoAccess", { error: err instanceof Error ? err.message : String(err) }), "error")
-            return true
+            return
           }
-          if (files.length === 0) {
-            if (local) return false
-            toast(t("layout.pasteNoImage"), "error")
-            return true
-          }
-          await dropFiles(client, mounted, files)
-          return true
+          if (files.length === 0) toast(t("layout.pasteNoImage"), "error")
+          else await dropFiles(client, mounted, files)
         },
         focusOnMount: latest.current.focused !== false,
       })

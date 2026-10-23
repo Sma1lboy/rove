@@ -113,8 +113,8 @@ export interface MountOpts {
   readonly onExit: (code: number | null) => void
   /** Copy-on-release and the copy chords; true = it reached the clipboard. */
   readonly copyText: (text: string) => Promise<boolean>
-  /** Ctrl+V: attaches an image on the browser's clipboard; false = none, so the key goes to the engine as before. */
-  readonly pasteImage: () => Promise<boolean>
+  /** Mac Ctrl+V: attaches the image on the browser's clipboard, or says why it can't. */
+  readonly pasteImage: () => Promise<void>
   readonly focusOnMount: boolean
 }
 
@@ -298,9 +298,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     const ctrlV =
       e.type === "keydown" && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "v"
     if (ctrlV && /Mac|iPhone|iPad/.test(navigator.platform)) {
-      void o.pasteImage().then((attached) => {
-        if (!attached) term.input("\x16")
-      })
+      void o.pasteImage()
       return false
     }
     const chord = isCopyChord(e)
