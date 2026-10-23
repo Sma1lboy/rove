@@ -6,6 +6,7 @@
 
 import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
 import type { TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { lineageRootId } from "@sma1lboy/rove-daemon/task-tree"
 import type { Task } from "../types/task.ts"
 import { TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
@@ -24,6 +25,7 @@ export async function createMigratedChildRow(
   // A tab that pinned no engine ran what its parent runs.
   const inherit = !input.vendor && !input.command
   const row = sharedChildRow(parent, parent.worktreePath, {
+    parentTaskId: lineageRootId(deps.store.list(), parent.id),
     title: sanitizeTaskTitle(input.title) || PLACEHOLDER_TASK_TITLE,
     vendor: input.vendor ?? parent.vendor,
     command: input.command ?? (inherit ? parent.command : undefined),

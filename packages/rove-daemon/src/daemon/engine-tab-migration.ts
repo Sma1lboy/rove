@@ -18,7 +18,7 @@
  * or an unseeded child of the same title) instead of minting a second one.
  */
 
-import { taskCwd } from "../task-tree.ts"
+import { lineageRootId, taskCwd, workspaceOwnerId } from "../task-tree.ts"
 import type { DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 import { canonicalEngineTab, ownEngineTabs } from "./engine-tabs.ts"
@@ -115,9 +115,15 @@ async function migrateTab(
   const vendor = stringField(tab.vendor)
   const command = stringField(tab.engineCommand)
   const title = stringField(tab.title) ?? stringField(tab.lastTitle) ?? stringField(tab.autoTitle) ?? ""
-  const existing = deps.orch.listTasks().find((t) => {
-    if (t.parentTaskId !== task.id) return false
+  // Migrated children hang under the root and share this task's directory.
+  const tasks = deps.orch.listTasks()
+  const root = lineageRootId(tasks, task.id)
+  const owner = workspaceOwnerId(task)
+  const existing = tasks.find((t) => {
+    if (t.parentTaskId !== root) return false
     if (alias) return t.ptyAlias?.taskId === alias.taskId && t.ptyAlias.tabId === alias.tabId
+    // Root children from other directories are someone else's conversations.
+    if (t.sharesWorkspaceOf !== owner) return false
     const tabs = deps.tabs.get(t.id).state?.tabs ?? []
     if (sessionId && tabs.some((row) => row.sessionId === sessionId)) return true
     // A crash after the child was created but before its tab was seeded left it empty.
