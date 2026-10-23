@@ -113,8 +113,10 @@ describe("HostedTaskPty over a real pty-host socket", () => {
   test("detach survives, reattach replays, kill ends the child", async () => {
     // Attach #1: live stream.
     const a = new HostedTaskPty({ taskId: "smoke::t1", ...OPTS })
-    a.write("persist-me\n")
-    await until(() => text(a).includes("persist-me"), "first attach sees output")
+    a.write("\x1b[0mpersist-me\n")
+    // Settle on cat's copy: one still in flight at detach would reach the
+    // reattached handle as a live frame and stamp its quiet clock.
+    await until(() => settledOn(a, "persist-me"), "first attach parsed cat's output")
 
     // TUI quit: detach — the child must keep running in the host.
     a.detach()
@@ -123,7 +125,7 @@ describe("HostedTaskPty over a real pty-host socket", () => {
     // Attach #2 (fresh TUI): the ring-buffer replay repaints the screen,
     // and the session is still interactive.
     const b = new HostedTaskPty({ taskId: "smoke::t1", ...OPTS })
-    await until(() => text(b).includes("persist-me"), "reattach replays scrollback")
+    await until(() => settledOn(b, "persist-me"), "reattach replays scrollback")
     // The replay came in the open response, not as live frames — the park
     // sweep's quiet clock must still read "never streamed".
     expect(b.lastOutputAtMs()).toBeNull()
