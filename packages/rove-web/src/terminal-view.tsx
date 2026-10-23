@@ -176,6 +176,13 @@ export function TerminalView(props: TerminalViewProps) {
         e.preventDefault()
         void dropFiles(client, handle, Array.from(e.dataTransfer.files))
       }}
+      // A pasted image goes the way of a dropped one; xterm only pastes text, so it never sees it.
+      onPasteCapture={(e) => {
+        if (!handle || attachableFiles(e.clipboardData.files).length === 0) return
+        e.preventDefault()
+        e.stopPropagation()
+        void dropFiles(client, handle, attachableFiles(e.clipboardData.files))
+      }}
     >
       <div className="term-host" ref={host} />
       {notice.kind !== "none" && (
