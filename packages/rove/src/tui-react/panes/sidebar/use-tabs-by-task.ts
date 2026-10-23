@@ -114,6 +114,8 @@ export function useTabsByTask(opts: TabsByTaskOpts): ReadonlyMap<string, readonl
   const orphansByTask = useMemo<ReadonlyMap<string, readonly TreeTab[]>>(() => {
     const registered = new Set<string>()
     for (const [taskId, tabs] of snapshotTabs) for (const tab of tabs) registered.add(tabRowId(taskId, tab.id))
+    // A migrated child's conversation is a PTY keyed under its parent: the child answers for it, not the parent.
+    for (const task of tasks) if (task.ptyAlias) registered.add(tabRowId(task.ptyAlias.taskId, task.ptyAlias.tabId))
     // A just-closed tab's session can outlive it in the 2s poll; don't re-adopt it.
     const sessions = hostSessions.filter((session) => !isRecentlyClosedPtyKey(session.key))
     return filterKnownOrphanTabs(tasks, orphanTabsByTask(sessions, registered))

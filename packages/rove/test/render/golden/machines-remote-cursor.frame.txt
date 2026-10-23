@@ -10,13 +10,13 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-| ▎feat/alpha                  |
-| ▎○ build                     |
-| ▎feat/charlie              ☁ |
-|▌▎feat/delta ☁ on vps · offl… |
+| ▎○ feat/alpha                |
+| ▎○ feat/charlie            ☁ |
+|▌▎○ feat/delta ☁ on vps · of… |
 |                              |
 | api ──────────────────────── |
-| ▎feat/echo                   |
+| ▎○ feat/echo                 |
+|                              |
 |                              |
 |                              |
 |                              |

@@ -20,6 +20,7 @@ import type { AttentionInboxItem, TaskActivityState } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import type { SerializedTask } from "./protocol.ts"
+import { aliasKey } from "./pty-alias.ts"
 import { type RowStatus, type TabStatus, type TaskStatus, sameTaskStatus, tabStatus, taskStatus } from "./row-status.ts"
 
 export interface RowStatusPayload {
@@ -44,6 +45,8 @@ export interface RowStatusDeps {
   readonly anyGui: () => boolean
   /** The task's tab ids as the tab store holds them; null when it has no record. A closed tab drops out. */
   readonly tabIdsOf?: (taskId: string) => readonly string[] | null
+  /** Every successful session listing, for owners that follow PTY lifetimes (migrated children's aliases). */
+  readonly onSessions?: (sessions: readonly StatusSession[]) => void
   readonly now?: () => number
 }
 
@@ -169,6 +172,7 @@ export class RowStatusStore {
     try {
       const list = await this.deps.listSessions()
       if (list) {
+        this.deps.onSessions?.(list)
         const next = new Map(list.map((s) => [s.key, { alive: s.alive, restored: s.restored === true }]))
         if (JSON.stringify([...next]) !== JSON.stringify([...this.sessions])) {
           this.sessions = next
@@ -199,6 +203,7 @@ export class RowStatusStore {
     }
     const next: Record<string, TaskStatus> = {}
     for (const task of this.tasks) {
+      const alias = task.ptyAlias
       const tabIds = new Set<string>()
       for (const key of [...this.tabActivity.keys(), ...this.sessions.keys(), ...pending.keys()]) {
         if (key.startsWith(`${task.id}::`)) {
@@ -206,6 +211,9 @@ export class RowStatusStore {
           if (tabId) tabIds.add(tabId)
         }
       }
+      // A migrated child's PTY is keyed under its parent, so its own tab finds the session there.
+      const aliasSession = alias ? this.sessions.get(aliasKey(alias)) : undefined
+      if (alias && aliasSession) tabIds.add(alias.tabId)
       // A tab the tab store no longer lists is closed: its ledger and inbox leftovers are not a row.
       const listed = this.deps.tabIdsOf?.(task.id)
       if (listed) for (const tabId of [...tabIds]) if (!listed.includes(tabId)) tabIds.delete(tabId)
@@ -213,12 +221,13 @@ export class RowStatusStore {
       for (const tabId of tabIds) {
         const key = tabKey(task.id, tabId)
         const activity = this.tabActivity.get(key)
+        const session = this.sessions.get(key) ?? (alias?.tabId === tabId ? aliasSession : undefined)
         tabs[tabId] = tabStatus({
           ...(activity && activity.state !== "idle" ? { activity } : activity ? { activity } : {}),
           ...(pending.has(key) ? { pending: pending.get(key) } : {}),
           viewed: this.isViewed(task.id, tabId),
           ...(this.answered.has(key) ? { answeredAt: this.answered.get(key) } : {}),
-          ...(this.sessions.has(key) ? { session: this.sessions.get(key) } : {}),
+          ...(session ? { session } : {}),
         })
       }
       const tablessActivity = this.taskActivity.get(task.id)

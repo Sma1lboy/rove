@@ -60,6 +60,7 @@ for (const kind of ["main", "dir"] as const) {
             onEngineSendReady={() => {}}
             onEnginePasteReady={() => {}}
             onDiffTabReady={() => {}}
+            onSpawnChild={() => {}}
             onQuickFork={() => {}}
           />,
           { providers: { dialog: true } },

@@ -1,6 +1,6 @@
 /**
  * The TUI's one "start a new chat" dialog (`tui-react/component/new-chat-dialog.tsx`): an engine
- * (or a shell), where it lands (a tab here, a forked child task, a Scratch task in $HOME) and
+ * (or a shell), where it lands (a child task sharing this directory, a forked child task with its own worktree, a Scratch task in $HOME) and
  * what it starts from (fresh, or this conversation handed over). A fork carries the composer:
  * message, attempts, branch, attachments.
  */

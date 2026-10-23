@@ -34,7 +34,6 @@ import {
   type EngineTab,
   type TabSpawn,
   type TabsState,
-  addTab,
   cycleTab,
   engineTabSpawnFor,
   gotoTab,
@@ -62,6 +61,7 @@ import { useLatest } from "../lib/use-latest"
 import { PreviewScreen } from "../ops/preview"
 import { useDialog } from "../ui/dialog"
 import { TerminalSplit } from "./TerminalSplit"
+import type { ChildSpawnRequest } from "./quick-fork"
 import { noteAnswerInput } from "./row-status-sync"
 import { showSharedFilesHint } from "./shared-files-hint"
 import { TabStrip } from "./tab-strip"
@@ -103,6 +103,8 @@ export interface TerminalTabsProps {
   /** Parent gets an "open read-only diff tab" function (FileTree `d`); a
    *  content swap, not a focus grab. */
   onDiffTabReady?: (open: (relPath: string, label: string, base?: string) => void) => void
+  /** A second conversation here (ctrl+t, the picker, the sidebar): the host spawns a child sharing this directory. */
+  onSpawnChild?: (request: ChildSpawnRequest) => void
   /** Quick-fork submitted: parent creates the child in `repo` (the source's main repo root). */
   onQuickFork?: (repo: string, result: QuickTaskResult) => void
   /** Prompt for the first engine tab, riding its FIRST spawn's argv only. */
@@ -309,7 +311,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   // The mount-only pending-close listener reads the CURRENT hook via ref.
   const tabCloseRef = useLatest(tabClose)
 
-  const { requestRename, requestNewChat } = useTabDialogs({
+  const { requestRename, requestNewChat, newConversation } = useTabDialogs({
     dialog,
     t,
     state,
@@ -322,40 +324,42 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     pinSession,
     activeLeafSize,
     onChooseEngine: props.onChooseEngine,
+    // A remote task has no local directory to share, so its conversations stay tabs.
+    onSpawnChild: remoteOf(props.taskId) ? undefined : props.onSpawnChild,
     onQuickFork: props.onQuickFork,
     onOpenScratch: props.onOpenScratch,
     notifyError: (title) => notif.notify({ kind: "error", taskId: props.taskId, tabId: active.id, title }),
   })
 
-  const requestNewChatRef = useLatest(requestNewChat)
+  /** What ctrl+t and the sidebar's "New conversation" run. Always CONCRETE: an
+   *  "inherit" mode would let a later task-vendor switch re-target every earlier conversation. */
+  const openNewConversation = (): void => {
+    let vendor = props.vendor
+    try {
+      vendor = resolvePreferredVendor(resolveMainRepoRoot(props.worktree))
+    } catch {
+      /* keep the task's own engine */
+    }
+    newConversation(vendor)
+  }
+  const openNewConversationRef = useLatest(openNewConversation)
 
   // Cross-component tab requests. Declared AFTER the dialogs hook so the
-  // picker opener exists to hand over.
+  // conversation opener exists to hand over.
   useTabRequests({
     stateRef,
     propsRef,
     updateRef,
     tabCloseRef,
     activeLeafSizeRef,
-    requestNewChatRef,
+    openNewConversationRef,
   })
-
-  /** What ctrl+t runs. Always CONCRETE: an "inherit" mode would let a later
-   *  task-vendor switch re-target every earlier tab. */
-  const preferredTabVendor = (): VendorId => {
-    try {
-      return resolvePreferredVendor(resolveMainRepoRoot(props.worktree))
-    } catch {
-      return props.vendor
-    }
-  }
 
   useBindings(() => ({
     enabled: props.focused,
     bindings: bindByIds({
       "chat.tab.new": prefixAction(() => {
-        const preferred = preferredTabVendor()
-        update(pinSession(addTab(state, preferred), preferred))
+        openNewConversation()
         showSharedFilesHint(
           kv,
           (title, body) =>

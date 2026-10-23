@@ -42,7 +42,7 @@ client. "Before" is how a running client saw another process's change.
 | A repo's last engine, default engine | `lastActiveVendor.*`, `defaultVendor` | read per call; Settings dialog seeded once | `state` push | a |
 | Engine settings | `customEngineIds`, `disabledEngineIds`, `engineCommand/Name/Protocol.*`, `autoRouting.*` | TUI kv snapshot, whole-key writes from it | `state` push | a |
 | Diff review notes | `diffComments.<taskId>` | TUI kv snapshot; TUI write erased notes the phone added | `state` push | a |
-| Visual and notification prefs | `appearance.*`, `notifications.*`, `chat.tabStrip.*`, `sidebar.tabRowHeight` | theme/mode/accent/locale live (`ui-prefs`), the rest kv snapshot | `state` push | a |
+| Visual and notification prefs | `appearance.*`, `notifications.*`, `chat.tabStrip.*` | theme/mode/accent/locale live (`ui-prefs`), the rest kv snapshot | `state` push | a |
 | Editor, worktree base, scrollback, live-session cap, experiments, release channel | `editor.*`, `worktree.*`, `terminal.*`, `engine.*`, `experimental.*`, `update.channel` | read per call; Settings view kv snapshot | `state` push | a |
 | Pins, rail order, task status/labels, active task | task records | daemon RPCs (`task.*`) | unchanged | a |
 | Terminal tabs | `terminalTabs.*` | daemon tab store | unchanged | a |

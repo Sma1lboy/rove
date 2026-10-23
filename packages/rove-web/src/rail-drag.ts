@@ -63,7 +63,8 @@ export function useRowDrag(
   const taskOf = (row: NavRow): TaskRow | null => {
     if (!enabled || row.machine !== undefined) return null
     if (row.kind === "project") return tasks.find((task) => task.id === mainTaskOf(row.repo).mainTaskId) ?? null
-    return row.kind === "task" && row.task.kind !== "main" ? row.task : null
+    // Only top-level tasks move: a child's place is under its parent, and the daemon orders the flat list.
+    return row.kind === "task" && row.depth === 1 && row.task.kind !== "main" ? row.task : null
   }
   const props = (row: NavRow): DragProps | undefined => {
     const task = taskOf(row)
@@ -90,12 +91,11 @@ export function useRowDrag(
     }
   }
   // The row a drag over `rows[i]` aims at: for a project, the project that row is in (its header,
-  // standing for its main task); for a task, that task (a tab row stands for its task).
+  // standing for its main task); for a task, that task.
   const targetAt = (rows: readonly NavRow[], i: number, now: Drag): { row: string; task: TaskRow } | null => {
     let at = i
     if (now.from.kind === "main") while (at > 0 && rows[at]?.kind !== "project") at--
-    const hit = rows[at]
-    const row = hit?.kind === "tab" ? rows.find((r) => r.id === hit.task.id) : hit
+    const row = rows[at]
     const task = row && taskOf(row)
     if (!row || !task || dragSteps(tasks, now.from, task) === null) return null
     return { row: row.id, task }

@@ -18,8 +18,7 @@ import type { AppModel } from "./model.ts"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { armPrefix } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
-import { tabLabel } from "./rail-view.tsx"
-import { groupByProject, statusGlyph, tabStatusOf } from "./rail.ts"
+import { type NavRow, childMarkerOf, groupByProject, navRows, statusGlyph } from "./rail.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { dialog } from "./ui.ts"
@@ -97,8 +96,7 @@ function railInitials(title: string): string {
   return `${words[0]?.[0] ?? ""}${words[1]?.[0] ?? ""}`
 }
 
-/** The digit a tab cell prints: its `ctrl+<N>` slot, `·` past the ninth (TUI `railTabDigit`). */
-const tabDigit = (index: number): string => (index < 9 ? String(index + 1) : "·")
+type TaskNavRow = Extract<NavRow, { kind: "task" }>
 
 export function FoldedRail({
   model,
@@ -106,58 +104,43 @@ export function FoldedRail({
   selectedTaskId,
 }: { model: AppModel; frame: number; selectedTaskId: string | null }) {
   const payload = useStore(model.tasks)
-  const allTabs = useStore(model.tabs)
-  const groups = groupByProject(payload?.tasks ?? [], "default")
   const { prefs, glyphSets } = usePrefs()
   const glyphs = glyphSets[prefs.glyphSet]
   const style = prefs.railFold
-  const open = (taskId: string, tabId?: string) => {
-    model.select(taskId, tabId)
+  const open = (taskId: string) => {
+    model.select(taskId)
     enterWorkspace()
+  }
+  // The tree's own rows, so a child nests under its parent here too. Routine sessions take no cell.
+  const sections: { id: string; label: string; tasks: TaskNavRow[] }[] = []
+  for (const row of navRows(groupByProject(payload?.tasks ?? [], "default"))) {
+    if (row.kind === "project") sections.push({ id: row.id, label: row.label, tasks: [] })
+    else if (row.kind === "task" && !row.task.routine) sections.at(-1)?.tasks.push(row)
   }
   return (
     <div className={`rail-folded-list is-${style}`}>
-      {groups.map((group) => (
-        <div key={group.repo} className="rail-folded-group">
-          <div className="rail-folded-rule" title={group.label} />
-          {group.tasks.flatMap((task) => {
-            const tabs = style === "hairline" ? [] : (allTabs[task.id] ?? [])
-            // A task whose tabs are known folds to one cell per tab: its `ctrl+<N>` digit in the colour of
-            // the tab's own status (pushed with the row); a quiet tab is muted, as in the TUI's folded rail.
-            if (tabs.length > 0) {
-              return tabs.map((tab, i) => {
-                const { tone } = statusGlyph(tabStatusOf(task, tab), frame, glyphs)
-                const cell = tone
-                return (
-                  <button
-                    type="button"
-                    key={`${task.id}::${tab.id}`}
-                    title={`${task.title} · ${tabLabel(tab)}`}
-                    className={`rail-folded-cell is-tab tone-${cell} ${task.id === selectedTaskId ? "is-selected" : ""}`}
-                    onClick={() => open(task.id, tab.id)}
-                  >
-                    {tabDigit(i)}
-                    {style === "initials" && i === 0 && (
-                      <span className="rail-folded-initials">{railInitials(task.title)}</span>
-                    )}
-                  </button>
-                )
-              })
-            }
-            // Folded, the task's one cell is its rollup.
+      {sections.map((section) => (
+        <div key={section.id} className="rail-folded-group">
+          <div className="rail-folded-rule" title={section.label} />
+          {section.tasks.map((row) => {
+            // Folded, a task's one cell is its rollup; a child steps in per generation and wears its marker.
+            const { task } = row
             const { glyph, tone } = statusGlyph(task.rowStatus, frame, glyphs)
-            return [
+            const marker = childMarkerOf(task)
+            return (
               <button
                 type="button"
                 key={task.id}
                 title={task.title}
                 className={`rail-folded-cell tone-${tone} ${task.id === selectedTaskId ? "is-selected" : ""}`}
+                style={row.depth > 1 && style !== "hairline" ? { paddingLeft: (row.depth - 1) * 6 } : undefined}
                 onClick={() => open(task.id)}
               >
                 {style === "hairline" ? "▌" : glyph}
+                {marker && style !== "hairline" && (marker === "shared" ? "⑂" : "⎇")}
                 {style === "initials" && <span className="rail-folded-initials">{railInitials(task.title)}</span>}
-              </button>,
-            ]
+              </button>
+            )
           })}
         </div>
       ))}

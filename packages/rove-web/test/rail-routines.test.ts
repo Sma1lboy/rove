@@ -7,14 +7,7 @@ const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
 
 describe("routine sessions in the rail", () => {
   const groups = groupByProject([task("own"), task("sched-a", { routine: true }), task("sched-b", { routine: true })])
-  const ids = (open: string[], query = "") =>
-    navRows(
-      groups,
-      () => [],
-      () => "",
-      query,
-      new Set(open),
-    ).map((row) => row.id)
+  const ids = (open: string[], query = "") => navRows(groups, query, new Set(open)).map((row) => row.id)
 
   test("a closed fold is one count row after the project's own tasks", () => {
     expect(ids([])).toEqual(["project:/r/app", "own", "~routines:/r/app"])

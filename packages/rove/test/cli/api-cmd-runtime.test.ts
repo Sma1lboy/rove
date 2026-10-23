@@ -220,9 +220,10 @@ describe("defaultApiRuntime", () => {
     await expect(defaultApiRuntime.defaultVendor()).resolves.toBeUndefined()
   })
 
-  it("tearDownSession kills every hosted task key and closes the probe client", async () => {
-    await defaultApiRuntime.tearDownSession("t1")
-    expect(mocks.taskKeys).toHaveBeenCalledWith(expect.any(Array), "t1")
+  it("tearDownSession kills every hosted task key, honouring the alias scope, and closes the probe client", async () => {
+    const scope = { spare: ["t1::tab-2"], also: [] }
+    await defaultApiRuntime.tearDownSession("t1", scope)
+    expect(mocks.taskKeys).toHaveBeenCalledWith(expect.any(Array), "t1", scope)
     expect(mocks.killTaskSessions).toHaveBeenCalledWith(expect.anything(), ["t1::tab-1", "t1::tab-2"])
     expect(mocks.closePtyHost).toHaveBeenCalledOnce()
   })
@@ -272,7 +273,7 @@ describe("realPromptDeliveryOps (deliverPrompt with the default ops)", () => {
       "/wt/t1",
       "go",
       expect.objectContaining({ key: "t1::tab-1" }),
-      expect.objectContaining({ forceNew: false }),
+      expect.objectContaining({ retryArgs: ["api", "send", "--task-id", "t1", "--plain", "--prompt", "go"] }),
     )
     expect(mocks.closePtyHost).toHaveBeenCalledOnce()
     expect(result).toEqual({

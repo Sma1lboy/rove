@@ -1,5 +1,5 @@
-# sidebar frame: tab-idle
-# a KNOWN-idle tab (the daemon reported it) wears the hollow circle, like its unreported siblings
+# sidebar frame: task-rate-limited
+# quota exhausted — an amber attention glyph, with how long it has been stuck
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
@@ -10,11 +10,11 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-| ▎feat/alpha                  |
-|▌▎○ build                     |
-| ▎○ review                    |
-| ▎feat/bravo                  |
-| ▎○ tests                     |
+|▌▎! feat/alpha            22m |
+| ▎○ feat/bravo                |
+|                              |
+|                              |
+|                              |
 |                              |
 |                              |
 |                              |

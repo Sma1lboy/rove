@@ -27,10 +27,12 @@ export function rowLiveBranchPath(task: Task): string {
 }
 
 /**
- * Branch if any; a branchless `dir` task by its tail-truncated directory
- * (stored title ignored — dir titles are auto-generated noise like
- * `jacksonc-xxxx`, and this needs no data migration); a regular task before
- * its worktree exists by its title; then the path; then "scratch", never blank.
+ * A child task by its own title (its branch and directory belong to its
+ * parent, so they would read as the parent's twin); else branch if any; a
+ * branchless `dir` task by its tail-truncated directory (stored title ignored
+ * — dir titles are auto-generated noise like `jacksonc-xxxx`, and this needs
+ * no data migration); a regular task before its worktree exists by its title;
+ * then the path; then "scratch", never blank.
  *
  * `liveBranch` is the caller-resolved HEAD for branchless rows
  * ({@link rowLiveBranchPath}, `git-head.ts`); `home` is injectable for tests.
@@ -39,6 +41,7 @@ export function worktreeRowLabel(
   task: Task,
   opts: { readonly liveBranch?: string; readonly home?: string } = {},
 ): string {
+  if (task.parentTaskId !== undefined && task.title.trim()) return task.title
   const branch = (opts.liveBranch ?? task.branch) || task.branch
   if (branch) return branch
   if (task.kind !== "dir" && task.title) return task.title

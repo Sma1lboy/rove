@@ -8,6 +8,7 @@ import { submitFeedback } from "../../lib/feedback.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { daemonOf, repoFilter } from "./handler-helpers.ts"
 import { readRunnability } from "./handlers-runnability.ts"
+import { ptyScopeOf } from "./pty-scope.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext } from "./types.ts"
 
@@ -57,7 +58,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
     // Tabs included so a coordinator can pick a `send --tab` target without
     // a get-task hop.
-    const { tabs, running } = await runtime.taskTabs(taskId, taskEngineArgv(task))
+    const { tabs, running } = await runtime.taskTabs(taskId, taskEngineArgv(task), await ptyScopeOf(daemon, task))
     // `changes` is UNCOMMITTED; `base` is committed (ahead/behind + diffstat
     // vs merge-base). An attempt that commits reads +0/−0 in `changes`.
     // `null` when there's no worktree or the read failed — never `{0,0}`,

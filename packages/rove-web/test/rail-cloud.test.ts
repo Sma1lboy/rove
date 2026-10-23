@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import type { TabRow, TaskRow } from "rove-bridge/protocol"
+import type { TaskRow } from "rove-bridge/protocol"
 import type { MachineRow } from "../src/machines-view.tsx"
 import { railRows } from "../src/rail.ts"
 
@@ -40,8 +40,6 @@ const rail = (machines: readonly MachineRow[]) =>
     remote: [onMac("there", "/Users/me/rove", rove)],
     machines,
     sort: "default",
-    tabsOf: (): readonly TabRow[] => [{ id: "t1", kind: "engine", title: null } as TabRow],
-    tabLabel: () => "tab",
     query: "",
     routines: new Set<string>(),
   }).rows
@@ -59,10 +57,7 @@ describe("the rail names no machine; a remote task carries a cloud", () => {
     expect(clouds).toEqual([
       ["project:github.com/me/rove", null],
       ["here", null],
-      ["here::t1", null],
       ["there", "on mac (studio.local)"],
-      // A tab row under a remote task says nothing: its task row already does.
-      ["there::t1", null],
     ])
   })
 

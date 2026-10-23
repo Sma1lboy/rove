@@ -103,6 +103,8 @@ describe("gate verbs", () => {
     function sendClient(take: () => unknown) {
       return new FakeClient({
         "task.get": () => ({ task: taskFixture({ kind: "task" }) }),
+        "task.spawn": () => ({ taskId: "kid", task: taskFixture({ id: "kid", kind: "task" }) }),
+        "task.setPrompt": () => ({}),
         "gate.takeUndelivered": take,
         "gate.markDelivered": () => ({}),
         "debug.inspect": () => ({ activity: { tasks: {} } }),
@@ -138,7 +140,7 @@ describe("gate verbs", () => {
       expect(client.requestNames).not.toContain("gate.markDelivered")
     })
 
-    it("a new tab never takes them, and a plain send is unchanged when none are owed", async () => {
+    it("a new child never takes them, and a plain send is unchanged when none are owed", async () => {
       const client = sendClient(() => ({ text: null, gateIds: [] }))
       const { calls, deliver } = recordingDelivery()
       await invokeVerb("send", ["--task-id", "t1", "--tab", "new", "--plain", "--prompt", "hi"], {

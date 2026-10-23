@@ -75,8 +75,6 @@ export async function takeOwedGateAnswers(
   taskId: string,
   tab: string | undefined,
 ): Promise<{ text: string; gateIds: string[] } | null> {
-  // A fresh tab is a different conversation: the answer stays owed to its own.
-  if (tab === "new") return null
   try {
     const owed = await daemon.request<{ text: string | null; gateIds: string[] }>("gate.takeUndelivered", {
       taskId,

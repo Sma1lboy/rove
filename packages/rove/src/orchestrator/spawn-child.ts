@@ -20,7 +20,7 @@ import {
   TaskDeletingError,
   TaskNotFoundError,
 } from "./errors.ts"
-import type { TaskIndexStore } from "./index/store.ts"
+import type { TaskCreateInput, TaskIndexStore } from "./index/store.ts"
 import { type LinkedRepo, scanLinkedRepos } from "./linked-repos.ts"
 import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "./title.ts"
 import { git } from "./worktree/git.ts"
@@ -40,6 +40,36 @@ export interface SpawnChildDeps {
   readonly createTask: (input: CreateTaskInput) => Promise<Task>
   /** Materialises a managed task's worktree (a sharer resolves to its owner's). */
   readonly ensureWorktree: (id: TaskId) => Promise<string>
+}
+
+/** Fields the caller picks for a child; everything else comes from the parent. */
+export interface ChildRowFields {
+  readonly title: string
+  readonly vendor: Task["vendor"]
+  readonly command?: string
+  readonly dispatcher?: TaskDispatcher
+  readonly prompt?: string
+}
+
+/** The row of a child that shares `parent`'s directory (`workspace`), owner resolved through the parent's own sharing. */
+export function sharedChildRow(parent: Task, workspace: string, fields: ChildRowFields): TaskCreateInput {
+  const command = fields.command?.trim()
+  return {
+    repo: parent.repo,
+    branch: parent.kind === "task" ? parent.branch : "",
+    worktreePath: workspace,
+    status: "backlog",
+    kind: parent.kind === "task" ? "task" : "dir",
+    title: fields.title,
+    vendor: fields.vendor,
+    ...(command ? { command } : {}),
+    ...(fields.dispatcher ? { dispatcher: fields.dispatcher } : {}),
+    ...(parent.kind === "task" && parent.baseRef ? { baseRef: parent.baseRef } : {}),
+    ...(parent.cwdSubpath ? { cwdSubpath: parent.cwdSubpath } : {}),
+    ...(fields.prompt ? { prompt: fields.prompt } : {}),
+    parentTaskId: parent.id,
+    sharesWorkspaceOf: toTaskId(parent.sharesWorkspaceOf ?? parent.id),
+  }
 }
 
 export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildInput): Promise<SpawnChildResult> {
@@ -62,26 +92,11 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
     vendor: input.vendor ?? parent.vendor,
     command: input.command ?? (inherit ? parent.command : undefined),
     dispatcher: input.dispatcher as TaskDispatcher | undefined,
+    prompt: input.prompt,
   }
 
   if (!input.worktree) {
-    const owner = toTaskId(parent.sharesWorkspaceOf ?? parent.id)
-    const task = await deps.store.create({
-      repo: parent.repo,
-      branch: parent.kind === "task" ? parent.branch : "",
-      worktreePath: workspace,
-      status: "backlog",
-      kind: parent.kind === "task" ? "task" : "dir",
-      title: common.title,
-      vendor: common.vendor,
-      ...(common.command?.trim() ? { command: common.command.trim() } : {}),
-      ...(common.dispatcher ? { dispatcher: common.dispatcher } : {}),
-      ...(parent.kind === "task" && parent.baseRef ? { baseRef: parent.baseRef } : {}),
-      ...(parent.cwdSubpath ? { cwdSubpath: parent.cwdSubpath } : {}),
-      ...(input.prompt ? { prompt: input.prompt } : {}),
-      parentTaskId: parent.id,
-      sharesWorkspaceOf: owner,
-    })
+    const task = await deps.store.create(sharedChildRow(parent, workspace, common))
     return { task, parentDirty: await isDirty(deps, cwd), sharedLinks: links.map((l) => l.name) }
   }
 

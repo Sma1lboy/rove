@@ -18,6 +18,7 @@ import type { ChannelName } from "./channels.ts"
 import { DEFAULT_CONTEXT_USAGE_TICK_MS, startContextUsageCollector } from "./context-usage-collector.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { resolvePtyOwner } from "./cwd-task.ts"
 import { type DeliveryDeps, sweepStalledDeliveries } from "./delivery-ops.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import {
@@ -186,8 +187,11 @@ export function startDaemonCollectors(
   activity?: DaemonActivityRegistry,
   inbox?: Pick<import("./attention-inbox").AttentionInboxStore, "record" | "deleteEpisode">,
 ): () => Promise<void> {
+  // A migrated child owns the PTY keyed under its parent: its observed activity, program status and
+  // death records are the child's, as its hook events already are.
+  const ownerOf = (taskId: string, tabId: string): string => resolvePtyOwner(orch.listTasks(), taskId, tabId)
   const receiveStatus = activity
-    ? programStatusActivity(activity, (id) => !!orch.getTask(id), inbox, automations?.deliveryDeps)
+    ? programStatusActivity(activity, (id) => !!orch.getTask(id), inbox, automations?.deliveryDeps, ownerOf)
     : undefined
   const stopStatusWatch = receiveStatus
     ? watchProgramStatus(receiveStatus, { homeDir: options.homeDir })
@@ -197,11 +201,12 @@ export function startDaemonCollectors(
     ? startActivityObserver(
         activity,
         {
-          ...createActivityObserverIo(options.homeDir, runtime, activity),
+          ...createActivityObserverIo(options.homeDir, runtime, activity, ownerOf),
           onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
           onProgramStatusEvent: receiveStatus,
         },
         () => hasSubscribersFor("engine-state"),
+        { ownerOf },
       )
     : () => {}
   const checkUpdate = options.checkUpdate ?? runtime.checkLatestVersion

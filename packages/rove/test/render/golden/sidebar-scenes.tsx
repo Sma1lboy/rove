@@ -19,14 +19,13 @@ import { SidebarTree } from "@/tui-react/panes/sidebar/SidebarTree"
 import { resetRowStatusForTests } from "@/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "@/tui-react/workspace/terminal-tabs-shared"
 import type { MachineLayerEntry } from "@/tui/panes/sidebar/machine-layer"
-import type { TabsState } from "@/tui/workspace/terminal-tabs-core"
 import { type Task, toTaskId } from "@/types/task"
-import type { RowStatus, TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
+import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { ReactNode } from "react"
 
 /**
  * Every activity `at`, as a fixed AGE rather than a fixed instant: a working
- * or blocked tab row prints how long it has been that way, so a hard-coded
+ * or blocked task row prints how long it has been that way, so a hard-coded
  * epoch would render a number that grows by one every day and re-break these
  * goldens on a schedule.
  *
@@ -59,68 +58,24 @@ function task(id: string, over: Partial<Task> = {}): Task {
 const ALPHA = task("alpha")
 const BRAVO = task("bravo")
 
-/** Seed the module-level tab map the tree projects its child rows from. */
-function seedTabs(
-  entries: ReadonlyArray<{
-    taskId: string
-    tabs: ReadonlyArray<{ id: string; title: string; kind?: "engine" | "command" }>
-  }>,
-): void {
+/** A clean slate: the module-level tab map and daemon status outlive a scene. */
+function resetScene(): void {
   tabsByTask.clear()
-  // No daemon status unless a scene says so: the module-level copy outlives a scene.
   resetRowStatusForTests()
-  for (const entry of entries) {
-    tabsByTask.set(entry.taskId, {
-      tabs: entry.tabs.map((tab, i) => ({
-        kind: tab.kind ?? ("engine" as const),
-        id: tab.id,
-        title: tab.title,
-        ordinal: i + 1,
-        ...(tab.kind === "command" ? { command: ["bash"] } : {}),
-      })),
-      activeId: entry.tabs[0]?.id ?? "tab-1",
-      nextOrdinal: entry.tabs.length + 1,
-    } as TabsState)
-  }
 }
 
-/** Two agent tabs on `alpha`, one on `bravo` — the standard tree shape. */
-function seedStandard(): void {
-  seedTabs([
-    {
-      taskId: "alpha",
-      tabs: [
-        { id: "tab-1", title: "build" },
-        { id: "tab-2", title: "review" },
-      ],
-    },
-    { taskId: "bravo", tabs: [{ id: "tab-1", title: "tests" }] },
-  ])
-}
-
-function tabState(state: TaskActivityState): ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>> {
+function taskState(state: TaskActivityState): ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>> {
   return new Map([["alpha", new Map([["tab-1", { state, at: AT }]])]])
 }
 
-const SESSION = { alive: true, restored: false, tracked: true } as const
-
-/** The daemon's row status (`row.status`) for alpha: `tabId` in `status`, its siblings idle. */
-function seedStatus(status: RowStatus, tabId = "tab-1"): void {
-  const idle: TabStatus = { kind: "idle", since: 0, ...SESSION }
-  resetRowStatusForTests({
-    alpha: {
-      task: status,
-      tabs: { "tab-1": idle, "tab-2": idle, [tabId]: { ...status, ...SESSION } },
-    },
-    bravo: { task: { kind: "idle", since: 0 }, tabs: { "tab-1": idle } },
-  })
-}
-
-/** The standard tree, with the daemon reporting `status` for one of alpha's tabs. */
-function standardWith(status: RowStatus, tabId?: string): () => void {
+/** The standard tree, with the daemon reporting `status` for alpha and bravo at rest. */
+function standardWith(status: RowStatus): () => void {
   return () => {
-    seedStandard()
-    seedStatus(status, tabId)
+    resetScene()
+    resetRowStatusForTests({
+      alpha: { task: status, tabs: {} },
+      bravo: { task: { kind: "idle", since: 0 }, tabs: {} },
+    })
   }
 }
 
@@ -129,15 +84,15 @@ export interface Scene {
   readonly name: string
   /** Why this frame is worth locking — printed into the golden's header. */
   readonly about: string
-  /** Runs before mounting: seeds the module-level tab map. */
+  /** Runs before mounting: seeds the module-level tab map and row status. */
   readonly setup: () => void
   readonly element: ReactNode
   /** Keys to type after mount, before capture. */
   readonly keys?: readonly string[]
   /**
    * The frame animates, so the spinner cell must be masked before comparing.
-   * Only set on scenes with NO non-agent tab, since the mask would otherwise
-   * also swallow that row's plain `·`.
+   * Only set on scenes whose other rows never wear a plain `·`, since the
+   * mask would otherwise swallow it too.
    */
   readonly animated?: boolean
   /** Registered machines the sidebar reads during this scene; absent = none. */
@@ -149,7 +104,6 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
     <SidebarTree
       tasks={[ALPHA, BRAVO]}
       selectedId="alpha"
-      selectedTabId="tab-1"
       onSelect={() => {}}
       // Present so the labelled create row renders — its absence is a
       // different (host-less) chrome, and the rail's first affordance is
@@ -181,107 +135,101 @@ const MERGED_TASKS = [
   }),
   task("echo", { repo: "/repos/api" }),
 ]
-const seedMerged = () => seedTabs([{ taskId: "alpha", tabs: [{ id: "tab-1", title: "build" }] }])
+
+/** A lineage five generations deep, to show the indent stopping and the level number taking over. */
+const CHILD_TASKS = [
+  ALPHA,
+  task("c-shared", {
+    title: "check types",
+    parentTaskId: ALPHA.id,
+    sharesWorkspaceOf: ALPHA.id,
+  }),
+  task("c-own", { title: "port tree builder", parentTaskId: ALPHA.id }),
+  task("g-own", { title: "wire fold glyph", parentTaskId: toTaskId("c-own") }),
+  task("gg-own", { title: "cover depth cap", parentTaskId: toTaskId("g-own") }),
+  task("ggg-own", { title: "fifth generation", parentTaskId: toTaskId("gg-own") }),
+  BRAVO,
+]
+
+const seedChildStatus = (): void => {
+  resetScene()
+  resetRowStatusForTests({
+    alpha: { task: { kind: "idle", since: 0 }, tabs: {} },
+    "c-shared": { task: { kind: "needs-input", since: AT, state: "permission_needed" }, tabs: {} },
+    "c-own": { task: { kind: "running", since: AT, state: "running" }, tabs: {} },
+  })
+}
 
 export const SCENES: readonly Scene[] = [
   {
     name: "machines-merged",
     about: "one repo on three machines is ONE project; no machine headers, remote rows wear a cloud (offline: warning)",
-    setup: seedMerged,
+    setup: resetScene,
     machines: MACHINES,
     element: tree({ tasks: MERGED_TASKS }),
   },
   {
     name: "machines-remote-cursor",
     about: "the cursor on a remote row spells out where it lives: on <host> · <version or state>",
-    setup: seedMerged,
+    setup: resetScene,
     machines: MACHINES,
-    element: tree({ tasks: MERGED_TASKS, selectedId: "delta", selectedTabId: null }),
+    element: tree({ tasks: MERGED_TASKS, selectedId: "delta" }),
   },
   {
     name: "tree-unknown",
-    about: "no daemon status at all — every tab rests at the quiet glyph",
-    setup: seedStandard,
+    about: "no daemon status at all — every task rests at the quiet glyph",
+    setup: resetScene,
     element: tree(),
   },
   {
-    name: "tab-idle",
-    about: "a KNOWN-idle tab (the daemon reported it) wears the hollow circle, like its unreported siblings",
+    name: "task-idle",
+    about: "a KNOWN-idle task (the daemon reported it) wears the hollow circle, like its unreported siblings",
     setup: standardWith({ kind: "idle", since: AT, state: "idle" }),
-    element: tree({ engineTabState: tabState("idle") }),
+    element: tree({ engineTabState: taskState("idle") }),
   },
   {
-    name: "tab-turn-complete",
-    about: "unread completion lamp on the tab that finished: the daemon says unseen",
+    name: "task-turn-complete",
+    about: "unread completion lamp on the task that finished: the daemon says unseen",
     setup: standardWith({ kind: "unseen", since: AT, state: "turn_complete" }),
-    element: tree({ engineTabState: tabState("turn_complete"), selectedId: "bravo", selectedTabId: "tab-1" }),
+    element: tree({ engineTabState: taskState("turn_complete"), selectedId: "bravo" }),
   },
   {
-    name: "tab-still-writing",
-    about: "a sibling transcript cannot turn this completed tab back into a spinner",
-    setup: standardWith({ kind: "unseen", since: AT, state: "turn_complete" }),
-    element: tree({
-      engineTabState: tabState("turn_complete"),
-      selectedId: "bravo",
-      selectedTabId: "tab-1",
-      ...{ transcriptActivity: new Map([["/wt/alpha", { mtimeMs: AT + 60_000 }]]) },
-    }),
-    animated: true,
-  },
-  {
-    name: "tab-permission-needed",
+    name: "task-permission-needed",
     about: "blocked on the user — the one state whose glyph literally asks a question",
     setup: standardWith({ kind: "needs-input", since: AT, state: "permission_needed" }),
-    element: tree({ engineTabState: tabState("permission_needed") }),
+    element: tree({ engineTabState: taskState("permission_needed") }),
   },
   {
-    name: "tab-rate-limited",
+    name: "task-rate-limited",
     about: "quota exhausted — an amber attention glyph, with how long it has been stuck",
     setup: standardWith({ kind: "attention", reason: "rate_limited", since: AT, state: "rate_limited" }),
-    element: tree({ engineTabState: tabState("rate_limited") }),
+    element: tree({ engineTabState: taskState("rate_limited") }),
   },
   {
-    name: "tab-error",
+    name: "task-error",
     about: "the engine reported a failed turn — a red attention glyph",
     setup: standardWith({ kind: "attention", reason: "error", since: AT, state: "error" }),
-    element: tree({ engineTabState: tabState("error") }),
+    element: tree({ engineTabState: taskState("error") }),
   },
   {
-    name: "tab-running",
+    name: "task-running",
     about: "a live turn — the glyph cell animates, so it is masked; everything AROUND it is still locked",
     setup: standardWith({ kind: "running", since: AT, state: "running" }),
-    element: tree({ engineTabState: tabState("running") }),
+    element: tree({ engineTabState: taskState("running") }),
     animated: true,
   },
   {
-    name: "tab-running-sibling",
-    about: "work in a NON-active tab must light THAT row and leave the active one alone (the borrowed-spinner bug)",
-    setup: standardWith({ kind: "running", since: AT, state: "running" }, "tab-2"),
-    element: tree({
-      engineTabState: new Map([["alpha", new Map([["tab-2", { state: "running" as const, at: AT }]])]]),
-    }),
+    name: "child-tasks",
+    about:
+      "children nest under their parent with a shared (⑂) or own-worktree (⎇) marker; the indent stops at three levels and deeper rows wear their level",
+    setup: seedChildStatus,
+    element: tree({ tasks: CHILD_TASKS }),
     animated: true,
-  },
-  {
-    name: "tab-non-agent",
-    about: "a shell/command tab is outside the state vocabulary entirely — plain dot, no circle",
-    setup: () =>
-      seedTabs([
-        {
-          taskId: "alpha",
-          tabs: [
-            { id: "tab-1", title: "build" },
-            { id: "tab-2", title: "shell", kind: "command" },
-          ],
-        },
-        { taskId: "bravo", tabs: [{ id: "tab-1", title: "tests" }] },
-      ]),
-    element: tree(),
   },
   {
     name: "worktree-pin-and-pr",
     about: "worktree-level facts share one right-edge cluster: pin, PR check chip, jump digit",
-    setup: seedStandard,
+    setup: resetScene,
     element: tree({
       tasks: [
         task("alpha", { pinned: true, prStatus: { checkState: "passing" } as Task["prStatus"] }),
@@ -292,7 +240,7 @@ export const SCENES: readonly Scene[] = [
   {
     name: "worktree-status-chip",
     about: "the board status never reaches the rail; only the PR chip does, and a conflict outranks green checks",
-    setup: () => seedTabs([]),
+    setup: resetScene,
     element: tree({
       tasks: [
         // in_review beside a passing PR: the pair the agent protocol produces
@@ -311,14 +259,7 @@ export const SCENES: readonly Scene[] = [
     name: "long-labels",
     about:
       "a clipped label ends in a visible … (never Yoga's bare hard cut), and the right-edge cluster still gets its cells",
-    setup: () =>
-      seedTabs([
-        {
-          taskId: "wordy",
-          tabs: [{ id: "tab-1", title: "persist scrollback across daemon restarts without dropping" }],
-        },
-        { taskId: "alpha", tabs: [{ id: "tab-1", title: "build" }] },
-      ]),
+    setup: resetScene,
     element: tree({
       tasks: [
         task("wordy", {
@@ -333,51 +274,47 @@ export const SCENES: readonly Scene[] = [
   {
     name: "search-pruned",
     about: "the query row plus a tree pruned to matches and their ancestors — a hit never floats free",
-    setup: seedStandard,
+    setup: resetScene,
     element: tree(),
     keys: ["/", "bravo"],
   },
   {
-    name: "search-tab-title",
-    about: "the query reaches a live TAB title and drags its worktree along — the tree's own increment",
-    setup: seedStandard,
-    element: tree(),
-    keys: ["/", "review"],
+    name: "search-child-title",
+    about: "the query reaches a child task's title and drags its parent along — a hit never floats free",
+    setup: resetScene,
+    element: tree({ tasks: CHILD_TASKS.slice(0, 3) }),
+    keys: ["/", "types"],
   },
   {
     name: "move-mode",
     about: "scope-aware reorder mode (issue #43) — the dragged ROW wears the chip and j/k drag instead of walking",
-    setup: seedStandard,
+    setup: resetScene,
     element: tree({ moveMode: true }),
   },
   {
     name: "recent-jump-row",
     about: "narrow mode's one-keystroke way back into the task you were last inside",
-    setup: seedStandard,
+    setup: resetScene,
     element: tree({ recentTask: BRAVO }),
   },
   {
     name: "zen-chip",
     about: "the zen affordance sits below the tree body, not inside it",
-    setup: seedStandard,
+    setup: resetScene,
     element: tree({ zenActive: true }),
   },
   {
     name: "scratch-flat",
-    about: "a scratch task renders no middle worktree row — its shell tab hangs directly under SCRATCH (issue #41)",
-    setup: () =>
-      seedTabs([
-        { taskId: "scratchy", tabs: [{ id: "tab-1", title: "shell 1", kind: "command" }] },
-        { taskId: "alpha", tabs: [{ id: "tab-1", title: "build" }] },
-      ]),
+    about: "a scratch task is one row under SCRATCH, whatever tabs it has (issue #41)",
+    setup: resetScene,
     element: tree({
       tasks: [task("scratchy", { kind: "dir", scratch: true, repo: "/Users/me", branch: "" } as Partial<Task>), ALPHA],
     }),
   },
   {
     name: "scratch-path-label",
-    about: "a scratch row with unknown tabs is named by its tail-truncated path, never a stored auto-name (issue #42)",
-    setup: () => seedTabs([{ taskId: "alpha", tabs: [{ id: "tab-1", title: "build" }] }]),
+    about: "a scratch row is named by its tail-truncated path, never a stored auto-name (issue #42)",
+    setup: resetScene,
     element: tree({
       tasks: [
         task("scratchy", {
@@ -395,7 +332,7 @@ export const SCENES: readonly Scene[] = [
   {
     name: "empty",
     about: "no tasks at all — the rail still renders its chrome rather than collapsing",
-    setup: () => tabsByTask.clear(),
-    element: tree({ tasks: [], selectedId: null, selectedTabId: null }),
+    setup: resetScene,
+    element: tree({ tasks: [], selectedId: null }),
   },
 ]

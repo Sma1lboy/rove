@@ -432,20 +432,10 @@ export async function allocateTab(client: TabsRpc, taskId: string, row: NewTabRo
   return tab
 }
 
-/** Mint the next engine tab for `send --tab new`. Throws when the daemon refuses; nothing has spawned yet. */
-export async function mintCliTab(
-  client: TabsRpc,
-  taskId: string,
-  vendor?: VendorId,
-  command?: string,
-): Promise<string> {
-  const tab = await allocateTab(client, taskId, {
-    kind: "engine",
-    title: null,
-    // `command`/`vendor` present = tab PINNED to a non-default engine
-    // (`vendor` is the field ctrl+e writes); absent = follows the task.
-    ...(vendor ? { vendor } : {}),
-    ...(command ? { engineCommand: command } : {}),
-  })
-  return tab.id
+/** The task's own `tab-1`, seeded when it has no tabs yet: the tab an engine takes over a task's first conversation. */
+export async function seedCanonicalTab(client: TabsRpc, taskId: string): Promise<TerminalTab> {
+  const { state } = await applyTabOps(client, taskId, [{ op: "seed", state: asShared(initialTabs()) }])
+  const tab = state?.tabs.find((t) => t.id === "tab-1")
+  if (!tab) throw new Error(`the daemon holds no tab-1 for ${taskId}`)
+  return tab
 }

@@ -3,28 +3,25 @@
  * The sidebar's COLLAPSED rail: the task list folded to a strip a few cells
  * wide. Glyph and tone are the daemon's row status (`row-status-sync.ts`)
  * through `buildSidebarRowView`, so a folded row can't disagree with the
- * tree; groups are the expanded tree's `SidebarGroup[]`. A task folded to one
- * cell shows the task rollup; a tab cell shows that tab's own status.
+ * tree; rows are the expanded tree's (`buildRowsFromGroups`), so a child task
+ * nests under its parent here too. A task is ONE cell; its tabs are the tab
+ * strip's business, not the rail's.
  *
  * `glyphs` is the default: the row's own status glyph in its state colour is
  * the most a four-cell strip can say about a task. The rest stay as a
- * preference.
- *
- * A task whose tabs are known folds to ONE CELL PER TAB instead: the tab's
- * number (what `ctrl+<N>` reaches) in that tab's own state colour, so a second
- * chat's turn is visible folded. The count restarting at 1 marks the next task.
- * `hairline` has no room for a digit and stays one cell per task.
+ * preference. A child steps in one cell per generation and wears the tree's
+ * `⑂` shared / `⎇` own-worktree marker wherever the width has room;
+ * `hairline` has no room for either.
  */
 
-import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { type RGBA, TextAttributes } from "@opentui/core"
 import { Fragment, useMemo } from "react"
 import { displayWidth } from "../../../lib/display-width"
 import { breathColor } from "../../../tui/lib/breathe"
-import { type SidebarGroup, ownTasks } from "../../../tui/panes/sidebar/project-groups"
+import type { SidebarGroup } from "../../../tui/panes/sidebar/project-groups"
 import { buildSidebarRowView, rowIsLoading, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
-import type { TreeTab } from "../../../tui/panes/sidebar/tree-core"
+import { type ChildMarker, buildRowsFromGroups, childMarkerOf } from "../../../tui/panes/sidebar/tree-core"
 import { toneColor } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { useGlyphs } from "../../lib/use-glyphs"
@@ -32,7 +29,7 @@ import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import { taskRowStatus, useRowStatusMap } from "../../workspace/row-status-sync"
 import { CollapseButton } from "./collapse-button"
 import { useSpinnerFrame } from "./row-cards"
-import { useTabStateCell } from "./tree-rows"
+import { SHARED_MARK, WORKTREE_MARK } from "./tree-rows"
 
 export type CollapsedRailStyle = "hairline" | "glyphs" | "initials"
 
@@ -66,13 +63,10 @@ interface RailRow {
   /** Shared spinner tick while the row runs; its accent breathes on it. */
   readonly breath?: number
   readonly selected: boolean
-  /** Set when the task folds to one cell per tab (see the file header). */
-  readonly tabs?: readonly TreeTab[]
-}
-
-/** The digit a tab cell prints: its `ctrl+<N>` slot, `·` past the ninth. */
-export function railTabDigit(index: number): string {
-  return index < 9 ? String(index + 1) : "·"
+  /** The tree's indent level: 1 for a top-level task, +1 per generation, held at the tree's cap. */
+  readonly depth: number
+  /** Set on a child task: where it runs. */
+  readonly marker: ChildMarker | null
 }
 
 /** One divider plus the rows under it — a project, or the scratch bench. */
@@ -83,61 +77,56 @@ interface RailSection {
 }
 
 function useRailSections(props: {
-  style: CollapsedRailStyle
   groups: readonly SidebarGroup[]
-  tabsByTask?: ReadonlyMap<string, readonly TreeTab[]>
   selectedId: string | null
 }): readonly RailSection[] {
-  // Routine sessions take no cell: the fold has no room for the tree's count
-  // row, and a daily schedule would make the folded rail the longer surface.
-  const tasks = useMemo(() => props.groups.flatMap(ownTasks), [props.groups])
+  // The tree's own rows, so the rail nests exactly as the tree does. Routine
+  // sessions take no cell: the fold has no room for the tree's count row, and a
+  // daily schedule would make the folded rail the longer surface. Their rows
+  // only exist while the (here never opened) fold is open.
+  const treeRows = useMemo(() => buildRowsFromGroups({ groups: props.groups }), [props.groups])
+  const tasks = useMemo(() => treeRows.flatMap((row) => (row.kind === "worktree" ? [row.task] : [])), [treeRows])
   // One spinner clock: per-row hooks would put rows out of phase.
   const statuses = useRowStatusMap()
   const spinning = tasks.some((task) => rowIsLoading(taskRowStatus(statuses, task.id)))
   const frame = useSpinnerFrame(spinning)
   const glyphs = useGlyphs()
-  // An all-routine project has nothing to draw, so no divider either.
-  return props.groups
-    .filter((group) => ownTasks(group).length > 0)
-    .map((group) => ({
-      key: group.key,
-      label: group.label,
-      rows: ownTasks(group).map((task) => {
-        const base = buildSidebarRowView({
-          task,
-          status: taskRowStatus(statuses, task.id),
-          spinnerFrame: frame,
-          subtitleBudget: 0,
-          truncateBranch: (branch) => branch,
-          glyphs,
-        })
-        const view = withSpinnerFrame(base, () => frame)
-        const tabs = props.style === "hairline" ? undefined : props.tabsByTask?.get(task.id)
-        return {
-          task,
-          glyph: view.stateGlyph,
-          tone: view.tone,
-          breath: spinning && view.loading ? frame : undefined,
-          selected: task.id === props.selectedId,
-          tabs: tabs && tabs.length > 0 ? tabs : undefined,
-        }
-      }),
-    }))
+  // A project drawn only by tasks nested elsewhere has no header row, so no divider either.
+  const sections: { key: string; label: string; rows: RailRow[] }[] = []
+  for (const row of treeRows) {
+    if (row.kind === "project") {
+      sections.push({ key: row.id, label: row.label, rows: [] })
+      continue
+    }
+    if (row.kind !== "worktree") continue
+    const base = buildSidebarRowView({
+      task: row.task,
+      status: taskRowStatus(statuses, row.task.id),
+      spinnerFrame: frame,
+      subtitleBudget: 0,
+      truncateBranch: (branch) => branch,
+      glyphs,
+    })
+    const view = withSpinnerFrame(base, () => frame)
+    sections[sections.length - 1]?.rows.push({
+      task: row.task,
+      glyph: view.stateGlyph,
+      tone: view.tone,
+      breath: spinning && view.loading ? frame : undefined,
+      selected: row.task.id === props.selectedId,
+      depth: row.depth,
+      marker: childMarkerOf(row.task),
+    })
+  }
+  return sections
 }
 
 export interface CollapsedRailProps {
   readonly style: CollapsedRailStyle
   /** The very sections the expanded tree renders. */
   readonly groups: readonly SidebarGroup[]
-  /** Each task's tabs; absent (or no entry) keeps that task one cell. */
-  readonly tabsByTask?: ReadonlyMap<string, readonly TreeTab[]>
   readonly selectedId: string | null
-  /** Per-tab engine activity, keyed taskId → tabId: only the tab cells' landing pulse reads it. */
-  readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
-  readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly onSelect: (taskId: string) => void
-  /** Clicking a tab cell; absent falls back to selecting its task. */
-  readonly onSelectTab?: (taskId: string, tabId: string) => void
   readonly onExpand: () => void
 }
 
@@ -162,15 +151,9 @@ export function CollapsedRail(props: CollapsedRailProps) {
           <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
             {projectHeading(section.label, width)}
           </text>
-          {section.rows.map((row) =>
-            row.tabs ? (
-              row.tabs.map((tab, index) => (
-                <RailTabRowView key={`${row.task.id}:${tab.id}`} row={row} tab={tab} index={index} rail={props} />
-              ))
-            ) : (
-              <RailRowView key={row.task.id} row={row} style={props.style} onSelect={props.onSelect} />
-            ),
-          )}
+          {section.rows.map((row) => (
+            <RailRowView key={row.task.id} row={row} style={props.style} onSelect={props.onSelect} />
+          ))}
         </Fragment>
       ))}
       <CollapseButton collapsed onToggle={props.onExpand} />
@@ -209,78 +192,47 @@ function RailRowView(props: { row: RailRow; style: CollapsedRailStyle; onSelect:
 function RailCell(props: { row: RailRow; style: CollapsedRailStyle; fg: string | RGBA }) {
   const { theme } = useTheme()
   const { row, fg } = props
+  const bold = row.selected ? TextAttributes.BOLD : undefined
+  // A child steps in one cell per generation, as far as the style's width has spare cells.
+  const indent = " ".repeat(Math.min(row.depth - 1, props.style === "initials" ? 2 : 1))
+  const mark = row.marker ? (
+    <text fg={row.marker === "shared" ? theme.info : theme.textMuted} wrapMode="none" flexShrink={0}>
+      {row.marker === "shared" ? SHARED_MARK : WORKTREE_MARK}
+    </text>
+  ) : null
   switch (props.style) {
-    // A: the colour IS the message; two columns.
+    // A: the colour IS the message; two columns, no room to nest.
     case "hairline":
       return (
         <text fg={fg} wrapMode="none">
           {row.selected ? "█ " : "▎ "}
         </text>
       )
-    // B: the status glyph.
+    // B: the status glyph, then the child marker.
     case "glyphs":
       return (
-        <text fg={fg} attributes={row.selected ? TextAttributes.BOLD : undefined} wrapMode="none">
-          {`${row.glyph}  `}
-        </text>
+        <box flexDirection="row" flexShrink={0}>
+          <text fg={fg} attributes={bold} wrapMode="none" flexShrink={0}>
+            {`${indent}${row.glyph}`}
+          </text>
+          {mark}
+          <text wrapMode="none" flexShrink={0}>
+            {" ".repeat(Math.max(0, 2 - indent.length - (mark ? 1 : 0)))}
+          </text>
+        </box>
       )
     // C: glyph + two title letters; the only style identifiable without counting.
     default:
       return (
         <box flexDirection="row" flexShrink={0}>
           <text fg={fg} wrapMode="none" flexShrink={0}>
-            {`${row.glyph} `}
+            {`${indent}${row.glyph}${mark ? "" : " "}`}
           </text>
-          <text
-            fg={row.selected ? theme.text : theme.textMuted}
-            attributes={row.selected ? TextAttributes.BOLD : undefined}
-            wrapMode="none"
-            flexShrink={0}
-          >
+          {mark}
+          <text fg={row.selected ? theme.text : theme.textMuted} attributes={bold} wrapMode="none" flexShrink={0}>
             {railInitials(row.task.title ?? "")}
           </text>
         </box>
       )
   }
-}
-
-/** One tab of a task folded to per-tab cells: the digit takes the glyph's cell. */
-function RailTabRowView(props: { row: RailRow; tab: TreeTab; index: number; rail: CollapsedRailProps }) {
-  const { theme } = useTheme()
-  const { row, tab, rail } = props
-  const taskId = row.task.id
-  const cell = useTabStateCell({
-    task: row.task,
-    tab,
-    tabStates: rail.engineTabState?.get(taskId),
-    lifecycle: rail.engineLifecycle?.get(taskId),
-  })
-  const selected = row.selected && tab.active === true
-  const chrome = resolveRowSelectionChrome(theme, { cursor: selected })
-  const bold = selected || cell.pulsing ? TextAttributes.BOLD : undefined
-  const onSelect = () => (rail.onSelectTab ? rail.onSelectTab(taskId, tab.id) : rail.onSelect(taskId))
-  return (
-    <box flexShrink={0} flexDirection="row" backgroundColor={chrome.backgroundColor} onMouseUp={onSelect}>
-      <text fg={chrome.markerColor ?? cell.fg} wrapMode="none" flexShrink={0}>
-        {selected ? chrome.marker : " "}
-      </text>
-      <text fg={cell.fg} attributes={bold} wrapMode="none" flexShrink={0}>
-        {`${railTabDigit(props.index)} `}
-      </text>
-      {rail.style === "initials" ? (
-        <text
-          fg={row.selected ? theme.text : theme.textMuted}
-          attributes={row.selected ? TextAttributes.BOLD : undefined}
-          wrapMode="none"
-          flexShrink={0}
-        >
-          {props.index === 0 ? railInitials(row.task.title ?? "") : "  "}
-        </text>
-      ) : (
-        <text wrapMode="none" flexShrink={0}>
-          {" "}
-        </text>
-      )}
-    </box>
-  )
 }

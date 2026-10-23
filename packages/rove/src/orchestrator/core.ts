@@ -4,6 +4,7 @@
  * Interactive engine processes and Terminal Tab state have separate owners.
  */
 
+import type { MigratedChildInput, TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
@@ -18,6 +19,7 @@ import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { type LandPreflight, landPreflight } from "./land-preflight.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
 import { MainTaskCoordinator } from "./main-task.ts"
+import { createMigratedChildRow, setPtyAliasRow } from "./migrated-child.ts"
 import { promotableDirTasks } from "./promote-dir-tasks.ts"
 import { type SpawnChildInput, type SpawnChildResult, spawnChildTaskRow } from "./spawn-child.ts"
 import { TaskDeletionCoordinator, type TaskDeletionOpts } from "./task-deletion.ts"
@@ -221,6 +223,13 @@ export class Orchestrator {
       },
       input,
     )
+
+  /** Lift a migrated engine tab into a shared child — see `migrated-child.ts`. */
+  createMigratedChild = (input: MigratedChildInput): Promise<Task> =>
+    createMigratedChildRow({ store: this.store }, input)
+
+  setPtyAlias = (id: TaskId | string, alias: TaskPtyAlias | null): Promise<void> =>
+    setPtyAliasRow({ store: this.store }, String(id), alias)
 
   /** Ensure the repo's `kind:"main"` sidebar row exists — see {@link MainTaskCoordinator.ensure}. */
   async ensureMainTask(repo: string): Promise<Task> {

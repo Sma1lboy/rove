@@ -4,14 +4,22 @@
  * Only the join: fork flags live in `engineForkArgv`, tab state in `terminal-tabs-core`.
  */
 
-import { engineCanFork, getEngineProtocol, protocolEntry } from "@/engine/engine-presets"
+import {
+  engineCanFork,
+  engineLaunchArgv,
+  getEngineProtocol,
+  protocolEntry,
+  withPinnedSessionId,
+} from "@/engine/engine-presets"
 import { engineDisplayName } from "@/engine/interactive-command"
 import { buildHandoffPrompt } from "@/engine/session-handoff"
 import type { VendorId } from "@/types/vendor"
 import {
+  type EngineTab,
   type TabsState,
   type TerminalTab,
   addTab,
+  initialTabs,
   setTabEngineCommand,
   setTabForkFrom,
   setTabInitialPrompt,
@@ -103,4 +111,46 @@ export function addForkTab(state: TabsState, pick: VendorId, protocol: VendorId,
 export function addHandoffTab(state: TabsState, vendor: VendorId, prompt: string): TabsState {
   const next = addTab(state, vendor)
   return setTabInitialPrompt(next, next.activeId, prompt)
+}
+
+/** A child task's `tab-1` forking `sourceSessionId`: {@link addForkTab}'s tab, as the first one. */
+export function forkFirstTab(pick: VendorId, protocol: VendorId, sourceSessionId: string): TabsState {
+  const { sessionId } = withPinnedSessionId(engineLaunchArgv({ vendor: protocol }), protocol)
+  const seed = initialTabs()
+  return {
+    ...seed,
+    tabs: seed.tabs.map(
+      (tab): TerminalTab =>
+        tab.kind === "engine"
+          ? {
+              ...tab,
+              vendor: protocol,
+              ...(pick === protocol ? {} : { engineCommand: pick }),
+              forkFrom: sourceSessionId,
+              ...(sessionId ? { sessionId } : {}),
+            }
+          : tab,
+    ),
+  }
+}
+
+/**
+ * The task's own engine tab when no conversation ever ran in it. A pick
+ * there is the task's first conversation, not a second one.
+ */
+export function unstartedEngineTab(state: TabsState): EngineTab | undefined {
+  const engines = state.tabs.filter((tab): tab is EngineTab => tab.kind === "engine")
+  return engines.some((tab) => tab.spawned) ? undefined : engines[0]
+}
+
+/** Point a never-started engine tab at `vendor` with a fresh pinned session, and show it. */
+export function retargetUnstartedEngine(state: TabsState, tabId: string, vendor: VendorId): TabsState {
+  const { sessionId } = withPinnedSessionId(engineLaunchArgv({ vendor }), vendor)
+  return {
+    ...state,
+    activeId: tabId,
+    tabs: state.tabs.map(
+      (tab): TerminalTab => (tab.id === tabId && tab.kind === "engine" ? { ...tab, vendor, sessionId } : tab),
+    ),
+  }
 }

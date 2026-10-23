@@ -11,6 +11,7 @@ import type {
   VendorId,
   WorktreeChanges,
 } from "./contracts.ts"
+import type { TeardownScope } from "./pty-alias.ts"
 
 export interface EngineTurnDetectorAdapter {
   latestActivity(worktreePath: string): Promise<{
@@ -137,7 +138,8 @@ export interface DaemonRuntimeAdapter {
     taskId: string,
     prompt: string,
   ): Promise<{ started: boolean; error?: string }>
-  tearDownTaskSession(taskId: string): Promise<void>
+  /** Kill the task's hosted PTYs; `scope` spares surviving children's aliased ones and adds the task's own. */
+  tearDownTaskSession(taskId: string, scope?: TeardownScope): Promise<void>
   /**
    * Vendor account usage windows, or null when unknowable. Hits the vendor's
    * rate-limited API — ONLY QuotaUsageCache may call this.

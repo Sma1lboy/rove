@@ -17,6 +17,7 @@ import { ClientWriter } from "./client-writer.ts"
 import { startDaemonCollectors } from "./collectors.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { resolvePtyOwner } from "./cwd-task.ts"
 import type { DeliveryDeps } from "./delivery-ops.ts"
 import { createDirectLink } from "./direct-link.ts"
 import { DaemonEventBus } from "./event-bus.ts"
@@ -36,6 +37,7 @@ import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import { defaultDaemonPidPath, defaultDaemonSocketPath, endpointPathFor, resolveDaemonHomeDir } from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
 import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, serializeTask } from "./protocol.ts"
+import { aliasedKeys } from "./pty-alias.ts"
 import { startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import { clearResidentMarker, residentMarkerPath, resolveResident, writeResidentMarker } from "./resident.ts"
@@ -154,6 +156,8 @@ async function startOwnedServer(
   const rowStatus = new RowStatusStore({
     bus,
     listSessions: createActivityObserverIo(options.homeDir, runtime, activity).listSessions,
+    onSessions: (sessions) =>
+      void stores.aliases.reconcile(sessions).catch((err) => logDaemonError("alias-reconcile", err)),
     readEpisode: (taskId, tabId, at) => inbox.markRead(taskId, tabId, at),
     anyGui: () => lifetime.guiCount() > 0,
     tabIdsOf: (taskId) => stores.tabs.get(taskId).state?.tabs.map((tab) => tab.id) ?? null,
@@ -236,6 +240,7 @@ async function startOwnedServer(
         await sweepPtyHostSessions(
           () => (lifetime.isStopping() ? null : orch.listTasks().map((task) => task.id)),
           options.homeDir,
+          () => aliasedKeys(orch.listTasks()),
         )
       }
     })().finally(() => {
@@ -296,6 +301,8 @@ async function startOwnedServer(
         activity,
         inbox,
         deliveries: deliveryDeps,
+        // A migrated child owns the PTY keyed under its parent, so a death there is the child's.
+        ownerOf: (taskId, tabId) => resolvePtyOwner(orch.listTasks(), taskId, tabId),
         log: (line) => logDaemonInfo("plugin-host", line),
       })
     : () => {}

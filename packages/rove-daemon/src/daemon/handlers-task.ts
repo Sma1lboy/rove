@@ -12,6 +12,7 @@ import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requir
 import { publishIssueSnapshot } from "./handlers-issues.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
+import { teardownScope } from "./pty-alias.ts"
 import { auditDeletionRequested } from "./task-deletion-audit.ts"
 
 /**
@@ -232,11 +233,24 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       }
       const accepted = await ctx.orch.prepareTaskDeletion(taskId, { force, deleteBranch, cascade })
       for (const id of targets) await releaseDeletedTask(ctx, id, tasks.get(id))
+      // Per removed task, the PTYs its teardown must spare (a surviving child's conversation) or also take
+      // (its own aliased one). Read now: the runner drops the rows from the index. Absent when nothing differs.
+      const teardown = Object.fromEntries(
+        targets.flatMap((id) => {
+          const scope = teardownScope(ctx.orch.listTasks(), id, new Set(targets))
+          return scope.spare.length > 0 || scope.also.length > 0 ? [[id, scope]] : []
+        }),
+      )
       if (accepted) for (const id of targets) ctx.deletions.enqueue(id)
       // Removal runs in the background (teardown can take tens of seconds), so
       // this reports only that the request was taken. `queued: false`: no such
       // task id, nothing will ever run.
-      return { taskId, queued: accepted, ...(cascade ? { deleted: targets } : {}) }
+      return {
+        taskId,
+        queued: accepted,
+        ...(cascade ? { deleted: targets } : {}),
+        ...(Object.keys(teardown).length > 0 ? { teardown } : {}),
+      }
     },
   },
   {

@@ -96,16 +96,37 @@ root, because git copies the link.
 
 ## 5. Migration of existing tasks
 
-At load, every task with more than one engine tab keeps its canonical engine
-tab. Each other engine tab becomes a shared child task:
+The daemon runs this once per boot, after the task index and the tab store
+load and before any client connects. A task with more than one engine tab keeps
+its canonical engine tab (`tab-1` when it is an engine tab, else the first).
+Each other engine tab becomes a shared child task, in the order of the parent's
+tab list. Viewport tabs (`ptyTask` onto another task's session) are not
+conversations and never move.
 
-- A tab whose hosted PTY is live keeps running. The child gets
-  `ptyAlias: { taskId: parent, tabId }`, and nothing is re-keyed or killed. The
-  parent stays in the index, so the daemon's orphan sweep leaves the PTY alone.
-- A dead tab with a `sessionId` becomes a child whose `tab-1` resumes that
-  conversation.
+- A tab whose hosted PTY is alive keeps running. The child gets
+  `ptyAlias: { taskId: parent, tabId }`, and nothing is re-keyed or killed. Its
+  own tab list holds one engine tab with the same id, a viewport onto
+  `<parent>::<tabId>`.
+- A dead tab with a `sessionId` (or a freeze-restored corpse) becomes a child
+  whose `tab-1` resumes that conversation.
+- A dead tab without a `sessionId` is dropped and noted in `daemon.log`.
+- An unreadable PTY host defers the whole pass to the next boot, so a live tab
+  is never filed as dead.
 
 Shell, editor, and content tabs stay with the task that owns the directory.
+A migrated tab leaves the parent's tab list, so a task with one engine tab left
+plans nothing and a second pass is a no-op.
+
+**While aliased.** The boot PTY sweep and task deletion treat `<parent>::<tabId>`
+as the child's: deleting the parent promotes the child and leaves the PTY
+running, deleting the child ends it, and closing its only tab ends it. The
+parent no longer lists that PTY as one of its tabs or counts it as running.
+
+**When the PTY ends.** The daemon clears `ptyAlias` the next time it sees the
+session gone, dead or freeze-restored. The child's viewport tab becomes an
+ordinary `tab-1` pinned to its last `sessionId`, so the next open resumes in
+`<child>::tab-1`. An engine that exits into its login shell leaves the session
+alive, so the alias stays.
 
 ## 6. Sidebar
 

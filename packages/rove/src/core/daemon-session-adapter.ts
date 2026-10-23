@@ -1,6 +1,7 @@
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { engineLaunchArgv } from "../engine/engine-presets.ts"
 import {
   awaitEngineProcess,
@@ -267,13 +268,14 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
   }
 }
 
-export async function tearDownTaskSessionAdapter(taskId: string): Promise<void> {
+export async function tearDownTaskSessionAdapter(taskId: string, scope?: TeardownScope): Promise<void> {
   const host = await openHostedSessionHost()
   if (!host) return
   try {
     // `wait`: every caller removes the worktree next, and on Windows a child
     // still exiting with its cwd inside makes it undeletable.
-    await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId), { wait: true })
+    const keys = hostedTaskKeys(await listHostedSessions(host.rpc), taskId, scope)
+    await killHostedSessions(host.rpc, keys, { wait: true })
   } catch {
     // Task mutation already committed; teardown remains best-effort.
   } finally {

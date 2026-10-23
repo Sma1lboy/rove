@@ -30,7 +30,6 @@ const CHOICE_LABEL: Partial<Record<PrefKey, Record<string, string>>> = {
     initials: "general.railFoldInitials",
     hairline: "general.railFoldHairline",
   },
-  tabRowHeight: { "1": "appearance.singleRow", "2": "appearance.doubleRow" },
   workingBorder: { flow: "appearance.borderFlow", still: "appearance.borderStill" },
   taskColors: { on: "appearance.enabled", off: "appearance.disabled" },
   glyphSet: {
@@ -50,7 +49,6 @@ const ROWS: readonly { key: PrefKey; label: string; hint?: string; terminalOnly?
   { key: "focusAccent", label: "general.focusAccent", hint: "general.focusAccentHint" },
   { key: "splitStyle", label: "general.splitStyle", terminalOnly: true },
   { key: "railFold", label: "general.railFold", hint: "general.railFoldHint" },
-  { key: "tabRowHeight", label: "general.tabRowHeight", hint: "general.tabRowHeightHint" },
   { key: "workingBorder", label: "general.workingBorder" },
   { key: "taskColors", label: "general.taskColors" },
   { key: "glyphSet", label: "general.glyphSet" },

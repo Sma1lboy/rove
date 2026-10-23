@@ -22,8 +22,6 @@ export const en = {
   appearance: {
     enabled: "On",
     disabled: "Off",
-    singleRow: "Single row",
-    doubleRow: "Two rows",
     borderFlow: "Flowing gradient",
     borderStill: "Still",
     glyphsBraille: "Braille",
@@ -36,7 +34,6 @@ export const en = {
     terminal: "Terminal",
     files: "Files",
     testsPassed: "Tests passed",
-    modelDetail: "model · effort",
     transparent: "Transparent background",
     opaque: "Opaque background",
     modeDark: "Dark",
@@ -83,11 +80,6 @@ export const en = {
     appearanceHint: "How split panes draw.",
     /** The split-style rows inside that group. */
     splitStyle: "Split panes",
-    /** How tall an agent tab row is in the sidebar tree. */
-    tabRowHeight: "Tab row height",
-    tabRowHeightHint: "Two cells adds the model and reasoning level under an agent tab, and halves how many rows fit.",
-    tabRowHeightRow: "{cells}-cell agent tab rows",
-    tabRowHeightRowHint: "enter cycles",
     /** The workspace pane border while the selected task is working. */
     workingBorder: "Working border",
     /** Each task's own hue on the working border and its sidebar rows. */
@@ -266,8 +258,6 @@ export const zh: typeof en = {
   appearance: {
     enabled: "开启",
     disabled: "关闭",
-    singleRow: "单行",
-    doubleRow: "双行",
     borderFlow: "流动渐变",
     borderStill: "静止",
     glyphsBraille: "盲文点",
@@ -280,7 +270,6 @@ export const zh: typeof en = {
     terminal: "终端",
     files: "文件",
     testsPassed: "测试通过",
-    modelDetail: "模型 · 推理强度",
     transparent: "透明背景",
     opaque: "不透明背景",
     modeDark: "深色",
@@ -324,10 +313,6 @@ export const zh: typeof en = {
     appearance: "外观",
     appearanceHint: "分屏面板怎么画边。",
     splitStyle: "分屏面板",
-    tabRowHeight: "Tab 行高",
-    tabRowHeightHint: "两格会在引擎 tab 下面加一行模型和推理档位，可见行数减半。",
-    tabRowHeightRow: "引擎 tab 行占 {cells} 格",
-    tabRowHeightRowHint: "enter 切换",
     workingBorder: "运行中边框",
     taskColors: "任务配色",
     glyphSet: "状态符号",

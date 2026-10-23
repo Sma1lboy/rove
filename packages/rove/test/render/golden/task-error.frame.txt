@@ -1,0 +1,26 @@
+# sidebar frame: task-error
+# the engine reported a failed turn — a red attention glyph
+# 30x22
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
+|                              |
+| ROVE                         |
+| New task                + n  |
+| Kanban                       |
+| Routines                     |
+| Issues                       |
+|                              |
+| rove ─────────────────────── |
+|▌▎! feat/alpha            22m |
+| ▎○ feat/bravo                |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |

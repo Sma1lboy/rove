@@ -39,7 +39,6 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
     <SidebarTree
       tasks={[MAIN, task("a"), task("b")]}
       selectedId="a"
-      selectedTabId={null}
       onSelect={() => {}}
       focused={true}
       width={24}

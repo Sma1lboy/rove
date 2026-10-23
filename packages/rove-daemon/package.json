@@ -18,6 +18,8 @@
     "./client/rpc": "./src/client/rpc.ts",
     "./daemon/activity-arbitrate": "./src/daemon/activity-arbitrate.ts",
     "./daemon/tabs-ops": "./src/daemon/tabs-ops.ts",
+    "./daemon/engine-tabs": "./src/daemon/engine-tabs.ts",
+    "./daemon/pty-alias": "./src/daemon/pty-alias.ts",
     "./daemon/row-status": "./src/daemon/row-status.ts",
     "./daemon/row-status-store": "./src/daemon/row-status-store.ts",
     "./daemon/dispatch-ledger": "./src/daemon/dispatch-ledger.ts",

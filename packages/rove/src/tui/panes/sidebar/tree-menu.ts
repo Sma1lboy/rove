@@ -2,16 +2,15 @@
  * The tree sidebar's right-click menu per row.
  *
  * Rule: **a row's menu is what that row's KEYBOARD already does** — every
- * entry routes to an existing callback. Tab rows list per-task verbs because
- * the chords already walk up from a tab to its worktree (`withCursorTask`).
+ * entry routes to an existing callback.
  *
- * Exceptions (`setStatus`, `copyId`, `copyTab`, `closeOtherTabs`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
- * `runAgain`, `moveToTop`) are menu-only until the owner agrees a chord (AGENTS.md,
+ * Exceptions (`setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
+ * `runAgain`, `moveToTop`, `toggleFold`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
  * "New chat" routes to the row's workspace ctrl+e picker, like pressing the
- * chord there. No Expand/Collapse entries: projects don't fold (the routines
- * row is toggled by opening it).
+ * chord there. A task with children offers Collapse/Expand; projects don't
+ * fold, and the routines row is toggled by opening it.
  *
  * Labels are i18n KEYS; the renderer runs them through `t()`.
  */
@@ -21,10 +20,9 @@ import type { TreeRow } from "./tree-core"
 
 export type TreeMenuAction =
   | "open"
+  | "toggleFold"
   | "forgetProject"
   | "fieldNotes"
-  | "closeTab"
-  | "closeOtherTabs"
   | "newChat"
   | "newShell"
   | "newTask"
@@ -35,7 +33,6 @@ export type TreeMenuAction =
   | "runAgain"
   | "setStatus"
   | "copyId"
-  | "copyTab"
   | "copyBranch"
   | "copyPath"
   | "openEditor"
@@ -61,8 +58,6 @@ export interface TreeMenuItem {
 }
 
 export interface TreeMenuContext {
-  /** Tabs on the row's worktree. Closing the LAST is allowed (the task re-opens on ⏎ / ctrl+e). */
-  readonly tabCount?: number
   /** Project rows: it has a `main` checkout, the handle every project move goes through. */
   readonly projectMovable?: boolean
   /** Project rows: already the topmost movable project, so "Move to top" would be dead. */
@@ -149,21 +144,15 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
     return items
   }
   if (row.kind === "worktree") {
-    return [
-      { action: "open", labelKey: "tasks.menu.open", bindingId: "sidebar.select" },
-      ...newTabVerbs(),
-      ...taskVerbs(row.task),
-    ]
+    const items: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.open", bindingId: "sidebar.select" }]
+    if (row.fold) {
+      items.push({
+        action: "toggleFold",
+        labelKey: row.fold.collapsed ? "tasks.menu.expandChildren" : "tasks.menu.collapseChildren",
+      })
+    }
+    return [...items, ...newTabVerbs(), ...taskVerbs(row.task)]
   }
-  // Routines rows have no task for any verb to act on.
-  if (row.kind === "routines") return []
-  const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab", bindingId: "sidebar.select" }]
-  if ((ctx.tabCount ?? 0) > 0)
-    tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab", bindingId: "chat.tab.close" })
-  // Ends every sibling's session, so danger-toned and confirmed by the host.
-  if ((ctx.tabCount ?? 0) > 1)
-    tabItems.push({ action: "closeOtherTabs", labelKey: "tasks.menu.closeOtherTabs", danger: true })
-  // The `--task-id … --tab …` pair `rove api send` / `read-output` take to reach THIS tab.
-  tabItems.push({ action: "copyTab", labelKey: "tasks.menu.copyTab" })
-  return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task)]
+  // Routines and "recent" rows have no task for any verb to act on.
+  return []
 }

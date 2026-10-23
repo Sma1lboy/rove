@@ -3,6 +3,7 @@ import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process"
 import { defaultPtyHostSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import type { PtyOpenResult, PtyPeekResult } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { type TeardownScope, isUnderKey } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { TerminalDefaultColors } from "@sma1lboy/rove-daemon/daemon/terminal-colors"
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
@@ -73,8 +74,15 @@ export function isHostedTaskKey(key: string, taskId: string): boolean {
   return (key.split("::")[0] ?? key) === taskId
 }
 
-export function hostedTaskKeys(sessions: readonly PtySessionInfo[], taskId: string): string[] {
-  return sessions.filter((session) => isHostedTaskKey(session.key, taskId)).map((session) => session.key)
+/** A task's session keys, minus the aliased conversations of surviving children (`scope.spare`) plus its own aliased one (`scope.also`). */
+export function hostedTaskKeys(sessions: readonly PtySessionInfo[], taskId: string, scope?: TeardownScope): string[] {
+  return sessions
+    .filter(
+      (session) =>
+        (isHostedTaskKey(session.key, taskId) && !scope?.spare.some((base) => isUnderKey(session.key, base))) ||
+        (scope?.also.some((base) => isUnderKey(session.key, base)) ?? false),
+    )
+    .map((session) => session.key)
 }
 
 export interface KillHostedSessionsOpts {

@@ -37,6 +37,52 @@ async function resolveParent(ctx: VerbContext, daemon: DaemonRpc): Promise<strin
   return aliased?.id ?? self.taskId
 }
 
+/**
+ * The shared child that stands in for a second engine tab on `parentTaskId`
+ * (`send --tab new`, `tab-new --kind engine`): same directory, the pinned
+ * `command` or else the parent's engine. No dispatcher: these verbs never set one.
+ */
+export async function spawnSharedChild(
+  daemon: DaemonRpc,
+  parentTaskId: string,
+  command: string | undefined,
+): Promise<SerializedTask> {
+  const vendor = command ? resolveCommandProtocol(command) : undefined
+  const res = await daemon.request<{ task: SerializedTask }>("task.spawn", {
+    parentTaskId,
+    worktree: false,
+    ...(command ? { command } : {}),
+    ...(vendor ? { vendor } : {}),
+  })
+  return res.task
+}
+
+/** Refusals before any session started: nothing ran, so the caller may retry from scratch. */
+const ENGINE_REFUSALS: Record<string, true> = {
+  ENGINE_LIMIT: true,
+  ENGINE_ADMISSION_BUSY: true,
+  ENGINE_ADMISSION_UNAVAILABLE: true,
+}
+
+/**
+ * A shared child whose engine did not start. A refusal before anything ran takes
+ * the empty child back and points the retry at the parent (`retryArgs`); any other
+ * failure keeps the child and names it.
+ */
+export async function failSharedChild(
+  daemon: DaemonRpc,
+  err: unknown,
+  childTaskId: string,
+  retryArgs: readonly string[],
+): Promise<never> {
+  if (!(err instanceof ApiError)) throw err
+  if (ENGINE_REFUSALS[err.code]) {
+    await daemon.request("task.delete", { taskId: childTaskId, force: true }).catch(() => undefined)
+    throw new ApiError(err.message, err.code, { ...err.data, nextCommandArgs: retryArgs })
+  }
+  throw new ApiError(err.message, err.code, { ...err.data, childTaskId })
+}
+
 export async function spawn(ctx: VerbContext): Promise<unknown> {
   const { args } = ctx
   const daemon = daemonOf(ctx)

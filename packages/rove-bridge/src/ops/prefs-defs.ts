@@ -35,11 +35,6 @@ import {
 import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "@sma1lboy/rove/src/state/split-style.ts"
 import type { StateSnapshot } from "@sma1lboy/rove/src/state/store.ts"
 import {
-  DEFAULT_TAB_ROW_HEIGHT,
-  TAB_ROW_HEIGHT_KEY,
-  normalizeTabRowHeight,
-} from "@sma1lboy/rove/src/state/tab-row-height.ts"
-import {
   TAB_STRIP_HIDE_SINGLE_KEY,
   TAB_STRIP_MODES,
   TAB_STRIP_MODE_KEY,
@@ -159,9 +154,6 @@ export const PREF_DEFS: Readonly<Record<string, PrefDef>> = {
   splitStyle: choice(SPLIT_STYLE_KEY, appearance("splitStyle"), normalizeSplitStyle),
   railFold: choice(RAIL_FOLD_STYLE_KEY, RAIL_FOLD_STYLES, (raw) =>
     RAIL_FOLD_STYLES.includes(raw as string) ? (raw as string) : "glyphs",
-  ),
-  tabRowHeight: choice(TAB_ROW_HEIGHT_KEY, appearance("tabRowHeight"), (raw) =>
-    normalizeTabRowHeight(raw ?? DEFAULT_TAB_ROW_HEIGHT),
   ),
   workingBorder: choice(WORKING_BORDER_KEY, appearance("workingBorder"), (raw) =>
     normalizeWorkingBorder(raw ?? DEFAULT_WORKING_BORDER),

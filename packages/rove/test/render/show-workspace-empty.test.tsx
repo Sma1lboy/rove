@@ -55,6 +55,7 @@ const props = (tasks: readonly Task[]) =>
     onEngineSendReady: () => {},
     onEnginePasteReady: () => {},
     onDiffTabReady: () => {},
+    onSpawnChild: () => {},
     onQuickFork: () => {},
   }) as const
 

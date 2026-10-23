@@ -38,10 +38,6 @@ export interface TreeMenuDeps {
   readonly activateRow: (rowId: string) => void
   readonly setCursorIndex: (index: number) => void
   readonly onAddTask?: () => void
-  /** Close one tab; the host owns the mounted/background split. */
-  readonly onCloseTab?: (taskId: string, tabId: string) => void
-  /** Close every tab of the task but `tabId`; the host confirms first. */
-  readonly onCloseOtherTabs?: (taskId: string, tabId: string) => void
   /** `"chat"` opens the ctrl+e picker there, `"shell"` a bare shell tab. */
   readonly onNewTab?: (taskId: string, kind: "chat" | "shell") => void
   readonly actions: SidebarTaskCallbacks
@@ -96,9 +92,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       if (!row || row.kind === "project" || row.kind === "recent" || row.kind === "routines") return
       // Menu and highlight must agree on the target row.
       setCursorIndex(flatIndex)
-      openAt(row, { tabCount: tree.tabCount(row.task.id) }, x, y)
+      openAt(row, {}, x, y)
     },
-    [tree.rows, tree.tabCount, openAt, setCursorIndex],
+    [tree.rows, openAt, setCursorIndex],
   )
 
   const openForProject = useCallback(
@@ -165,11 +161,8 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "open":
           activateRow(row.id)
           break
-        case "closeTab":
-          if (row.kind === "tab") deps.onCloseTab?.(taskId, row.tab.id)
-          break
-        case "closeOtherTabs":
-          if (row.kind === "tab") deps.onCloseOtherTabs?.(taskId, row.tab.id)
+        case "toggleFold":
+          tree.toggleTaskFold(taskId)
           break
         case "newChat":
           deps.onNewTab?.(taskId, "chat")
@@ -195,9 +188,6 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
         case "copyId":
           actions.onCopyRequest?.(taskId, "id")
-          break
-        case "copyTab":
-          if (row.kind === "tab") actions.onCopyRequest?.(taskId, "tab", row.tab.id)
           break
         case "copyBranch":
           actions.onCopyRequest?.(taskId, "branch")
@@ -234,16 +224,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
       }
     },
-    [
-      menu,
-      activateRow,
-      actions,
-      deps.onAddTask,
-      deps.onCloseTab,
-      deps.onCloseOtherTabs,
-      deps.onNewTab,
-      deps.tree.mainTaskIdOfProject,
-    ],
+    [menu, activateRow, actions, deps.onAddTask, deps.onNewTab, deps.tree.mainTaskIdOfProject, tree.toggleTaskFold],
   )
 
   const pickCurrent = useCallback((): void => fire(menu?.actions[cursor]), [fire, menu, cursor])

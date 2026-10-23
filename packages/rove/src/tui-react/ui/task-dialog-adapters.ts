@@ -7,7 +7,7 @@
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { isDeleteBranchOnTaskDeleteEnabled } from "../../state/task-delete-branch.ts"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "../../state/vendor-prefs.ts"
-import type { ConfirmPrompt, TextPromptOpts } from "../../tui/lib/task-actions"
+import type { ChildrenPrompt, ConfirmPrompt, TextPromptOpts } from "../../tui/lib/task-actions"
 import type { CreateTaskContext } from "../../tui/lib/task-create-flow"
 import type { Task, VendorId } from "../../types/task.ts"
 import { NewTaskDialog, type NewTaskDialogOptions } from "../component/new-task-dialog"
@@ -15,9 +15,10 @@ import { RenameTaskDialog } from "../component/rename-task-dialog"
 import type { DialogContext } from "./dialog"
 import { DialogConfirm } from "./dialog-confirm"
 
-/** The three dialog-surfacing callbacks of `TaskActionContext`/`CreateTaskContext`. */
+/** The dialog-surfacing callbacks of `TaskActionContext`/`CreateTaskContext`. */
 function taskDialogAdapters(dialog: DialogContext): {
   confirm: (p: ConfirmPrompt) => Promise<boolean>
+  pickChildren: (p: ChildrenPrompt) => Promise<"promote" | "cascade" | undefined>
   promptText: (initial: string, opts?: TextPromptOpts) => Promise<string | undefined>
   promptNewTask: (
     defaultRepo: string,
@@ -28,6 +29,13 @@ function taskDialogAdapters(dialog: DialogContext): {
   return {
     confirm: async (p) =>
       (await DialogConfirm.show(dialog, p.title, p.body, p.cancelLabel, p.confirmLabel, { danger: p.danger })) === true,
+    // The confirm dialog's two buttons: Promote (left, focused) and Delete with children; esc aborts.
+    pickChildren: async (p) => {
+      const choice = await DialogConfirm.show(dialog, p.title, p.body, p.promoteLabel, p.cascadeLabel, {
+        danger: true,
+      })
+      return choice === undefined ? undefined : choice ? "cascade" : "promote"
+    },
     promptText: (initial, opts) => RenameTaskDialog.show(dialog, initial, opts),
     promptNewTask: (defaultRepo, repos, opts) => NewTaskDialog.show(dialog, defaultRepo, repos, opts),
   }

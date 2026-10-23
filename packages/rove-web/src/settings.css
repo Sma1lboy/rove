@@ -427,15 +427,6 @@
   border-radius: 2px;
 }
 
-.tab-row.is-two-row {
-  align-items: flex-start;
-}
-
-.row-caption {
-  display: block;
-  font-size: 11px;
-}
-
 /* Running title: a light band sweeps the label of a running row, then rests. */
 html[data-running-title="shimmer"] .task-row.is-running .row-title {
   background: linear-gradient(90deg, var(--ink) 0%, var(--ink) 35%, var(--accent) 50%, var(--ink) 65%, var(--ink) 100%)

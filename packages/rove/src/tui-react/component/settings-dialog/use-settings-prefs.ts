@@ -26,12 +26,6 @@ import {
 } from "../../../state/sound-volume"
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
 import {
-  DEFAULT_TAB_ROW_HEIGHT,
-  TAB_ROW_HEIGHT_KEY,
-  type TabRowHeight,
-  normalizeTabRowHeight,
-} from "../../../state/tab-row-height"
-import {
   TAB_STRIP_HIDE_SINGLE_KEY,
   TAB_STRIP_MODES,
   TAB_STRIP_MODE_KEY,
@@ -183,12 +177,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function selectRailFoldStyle(style: CollapsedRailStyle): void {
     kv.set(RAIL_FOLD_STYLE_KEY, style)
-  }
-  function tabRowHeight(): TabRowHeight {
-    return normalizeTabRowHeight(kv.get(TAB_ROW_HEIGHT_KEY, DEFAULT_TAB_ROW_HEIGHT))
-  }
-  function selectTabRowHeight(height: TabRowHeight): void {
-    kv.set(TAB_ROW_HEIGHT_KEY, height)
   }
   function workingBorder(): WorkingBorder {
     return normalizeWorkingBorder(kv.get(WORKING_BORDER_KEY, DEFAULT_WORKING_BORDER))
@@ -366,8 +354,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     toggleUpdateChannel,
     railFoldStyle,
     selectRailFoldStyle,
-    tabRowHeight,
-    selectTabRowHeight,
     workingBorder,
     selectWorkingBorder,
     taskColors,

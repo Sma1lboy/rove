@@ -48,6 +48,10 @@ export function buildIssueChatBackgroundSpawn(input: {
   vendor: VendorId
   /** Shell-ready `rove api` prefix for the prompt's status protocol. */
   api: string
+  /** The task's kind (default `task`); a child sharing the main checkout is `dir`. */
+  kind?: "main" | "task" | "dir"
+  /** Replaces the worktree story prompt (the `project` placement's variant). */
+  prompt?: string
   shell?: string
 }): IssueChatBackgroundSpawn {
   const base = interactiveEngineCommand(input.vendor)
@@ -58,8 +62,8 @@ export function buildIssueChatBackgroundSpawn(input: {
   const spawn = engineTabSpawnFor(state, tab, base, {
     live: false,
     shell: input.shell ?? defaultShell(),
-    prompt: issueWorktreePrompt(input.issue, input.api),
-    task: { id: input.taskId, kind: "task", vendor: input.vendor, repo: input.repoRoot },
+    prompt: input.prompt ?? issueWorktreePrompt(input.issue, input.api),
+    task: { id: input.taskId, kind: input.kind ?? "task", vendor: input.vendor, repo: input.repoRoot },
     worktreePath: input.worktreePath,
     inlineImages: terminalDrawsKitty(),
   })

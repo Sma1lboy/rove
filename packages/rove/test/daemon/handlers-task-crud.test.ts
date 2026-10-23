@@ -350,4 +350,27 @@ describe("daemon handler registry — child tasks", () => {
     expect(rec.deletions).toEqual(["leaf", "mid", "top"])
     expect(rec.inboxTaskDeleted).toEqual(["leaf", "mid", "top"])
   })
+
+  it("task.delete tells the caller which PTYs to spare for a surviving aliased child, and which to add", async () => {
+    const tree = [
+      { ...TASK, id: "p" },
+      { ...TASK, id: "keeps", parentTaskId: "p", ptyAlias: { taskId: "p", tabId: "tab-2" } },
+      { ...TASK, id: "goes", parentTaskId: "p", ptyAlias: { taskId: "p", tabId: "tab-3" } },
+    ]
+    const { ctx } = fakeCtx({
+      listTasks: () => tree,
+      getTask: (id: string) => tree.find((t) => t.id === id),
+      prepareTaskDeletion: async () => true,
+    })
+
+    const parent = await dispatch("task.delete", { taskId: "p" }, ctx)
+    expect(parent).toEqual({
+      taskId: "p",
+      queued: true,
+      teardown: { p: { spare: ["p::tab-2", "p::tab-3"], also: [] } },
+    })
+
+    const child = await dispatch("task.delete", { taskId: "goes" }, ctx)
+    expect(child).toEqual({ taskId: "goes", queued: true, teardown: { goes: { spare: [], also: ["p::tab-3"] } } })
+  })
 })

@@ -1,5 +1,5 @@
 # sidebar frame: scratch-flat
-# a scratch task renders no middle worktree row — its shell tab hangs directly under SCRATCH (issue #41)
+# a scratch task is one row under SCRATCH, whatever tabs it has (issue #41)
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
@@ -10,11 +10,11 @@
 | Issues                       |
 |                              |
 | SCRATCH ──────────────────── |
-| ▎○ shell 1                   |
+| ▎○ /wt/scratchy              |
 |                              |
 | rove ─────────────────────── |
-| ▎feat/alpha                  |
-|▌▎○ build                     |
+|▌▎○ feat/alpha                |
+|                              |
 |                              |
 |                              |
 |                              |

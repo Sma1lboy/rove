@@ -253,6 +253,17 @@ export interface SpawnChildResult {
   readonly sharedLinks: string[]
 }
 
+/** One extra engine conversation of a task, lifted into a shared child task (`createMigratedChild`). */
+export interface MigratedChildInput {
+  readonly parentTaskId: string
+  readonly title: string
+  /** The tab's own engine; neither field set = the child runs what its parent runs. */
+  readonly vendor?: VendorId
+  readonly command?: string
+  /** The live hosted PTY `<taskId>::<tabId>` that already IS the conversation. */
+  readonly ptyAlias?: TaskPtyAlias
+}
+
 /**
  * Result of a `task.landPreflight` — the read-only "may this land, and into
  * what" probe. Mirrors the orchestrator's `LandPreflight`. `refusal` set means
@@ -381,6 +392,10 @@ export interface DaemonOrchestrator {
   prepareTaskDeletion(id: string, options?: TaskDeleteOptions): Promise<boolean>
   /** Spawn a child task of `input.parentTaskId` (see {@link SpawnChildInput}). */
   spawnChildTask(input: SpawnChildInput): Promise<SpawnChildResult>
+  /** Add a shared child for a migrated engine tab; never materialises a worktree. */
+  createMigratedChild(input: MigratedChildInput): Promise<DaemonTask>
+  /** Set the PTY alias of a migrated child, or clear it (`null`) once that PTY is gone. */
+  setPtyAlias(id: string, alias: TaskPtyAlias | null): Promise<void>
   beginTaskDeletion(id: string): Promise<boolean>
   finishTaskDeletion(id: string): Promise<void>
   /** Read-only land probe — no writes; see {@link LandPreflightResult}. */

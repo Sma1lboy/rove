@@ -20,7 +20,6 @@ import {
 import type { HostPagesState } from "./host-pages"
 import { HostSidebar } from "./host-sidebar"
 import type { WorkspaceTaskActions } from "./host-task-actions"
-import { requestTabActivation } from "./terminal-tabs-shared"
 import type { UseDaemonStateResult } from "./use-daemon-state"
 import { useSidebarCollapsed, useSidebarWidth } from "./use-sidebar-layout"
 
@@ -31,7 +30,6 @@ export interface HostSidebarMountProps {
   readonly recentTask: Task | null | undefined
   readonly tasks: readonly Task[]
   readonly selectedId: string | null
-  readonly selectedTabId: string | null
   readonly selectTask: (id: string) => void
   readonly activateTask: (id: string) => void | Promise<void>
   readonly daemon: Pick<
@@ -89,7 +87,6 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onNavChange={pages.goToNav}
       tasks={props.tasks}
       selectedId={props.selectedId}
-      selectedTabId={props.selectedTabId}
       // Picking a task returns the content pane to its terminal.
       onSelect={(id) => {
         props.selectTask(id)
@@ -98,20 +95,6 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onActivate={(id) => {
         pages.setNav("terminal")
         void props.activateTask(id)
-      }}
-      // Picking a TAB enters the session: focus to the terminal, or sidebar
-      // letter chords (d!) stay live under your typing. Re-clicking the tab
-      // you're ALREADY in flips focus back to the sidebar; keyboard enter and
-      // a click returning from a rail page are exempt.
-      onSelectTab={(taskId, tabId) => {
-        const reClick =
-          pages.nav === "terminal" &&
-          focus.focused !== "sidebar" &&
-          taskId === props.selectedId &&
-          tabId === props.selectedTabId
-        pages.setNav("terminal")
-        requestTabActivation(taskId, tabId)
-        focus.setFocused(reClick ? "sidebar" : "workspace")
       }}
       engineState={props.daemon.engineState}
       engineTabState={props.daemon.engineTabState}

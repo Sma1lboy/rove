@@ -64,7 +64,7 @@ export interface RoveOps {
     published?: { branch: string; prUrl: string | null; prError: string | null }
   }>
   tabs(taskId: string): Promise<readonly TabRow[]>
-  newTab(taskId: string, tab: NewTabRequest): Promise<{ tabId: string }>
+  newTab(taskId: string, tab: NewTabRequest): Promise<{ tabId: string; taskId?: string }>
   closeTab(taskId: string, tabId: string): Promise<void>
   worktreeOf(taskId: string): Promise<string>
   /** A viewport tab shows another task's first engine session: where to attach instead; null for any other tab. */
@@ -76,7 +76,7 @@ export interface RoveOps {
   dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
 }
 
-/** What `tab.new` asks for: no `prompt` opens the tab empty (a shell, or an engine awaiting its first message). */
+/** What `tab.new` asks for: no `prompt` opens the tab empty (a shell, or an engine awaiting its first message). An engine is a new child task sharing the task's directory; the reply's `taskId` names it. */
 export interface NewTabRequest {
   readonly kind: "shell" | "engine"
   readonly prompt?: string
@@ -114,8 +114,6 @@ export function tabRows(rows: readonly TaskTabRow[], statuses?: RowStatuses[stri
     kind: t.kind,
     title: t.title ?? t.lastTitle ?? t.autoTitle,
     engineName: t.kind === "engine" ? nameOf(t.liveVendor ?? t.vendor) : null,
-    // Only a running engine: the TUI's two-row caption reads the pty's foreground process, never the configured one.
-    liveEngine: t.kind === "engine" && t.alive !== false ? nameOf(t.liveVendor) : null,
     alive: t.alive,
     engineAlive: t.engineAlive,
     ...(t.split ? { split: t.split } : {}),
@@ -291,10 +289,10 @@ export function createRoveOps(
 
     async newTab(taskId, tab) {
       const call = newTabInvocation(taskId, tab)
-      const res = await api.verb<{ tabId?: string; session?: string }>(call.verb, call.argv)
+      const res = await api.verb<{ tabId?: string; session?: string; childTaskId?: string }>(call.verb, call.argv)
       const tabId = res.tabId ?? res.session?.split("::")[1]
       if (!tabId) throw new BridgeError("SESSION_FAILED", "the new tab did not report its session")
-      return { tabId }
+      return { tabId, ...(res.childTaskId ? { taskId: res.childTaskId } : {}) }
     },
 
     async closeTab(taskId, tabId) {
@@ -307,7 +305,7 @@ export function createRoveOps(
       const snapshot = loadStateFile()[terminalTabsKey(taskId)] as { tabs?: TerminalTab[] } | undefined
       const tab = snapshot?.tabs?.find((t) => t.id === tabId)
       return tab?.kind === "engine" && tab.ptyTask
-        ? { taskId: tab.ptyTask.id, tabId: "tab-1", cwd: tab.ptyTask.worktree }
+        ? { taskId: tab.ptyTask.id, tabId: tab.ptyTask.tabId ?? "tab-1", cwd: tab.ptyTask.worktree }
         : null
     },
 

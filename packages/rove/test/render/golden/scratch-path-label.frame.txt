@@ -1,5 +1,5 @@
 # sidebar frame: scratch-path-label
-# a scratch row with unknown tabs is named by its tail-truncated path, never a stored auto-name (issue #42)
+# a scratch row is named by its tail-truncated path, never a stored auto-name (issue #42)
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
@@ -10,11 +10,11 @@
 | Issues                       |
 |                              |
 | SCRATCH ──────────────────── |
-| ▎…deep/nested/project-dir    |
+| ▎○ …deep/nested/project-dir  |
 |                              |
 | rove ─────────────────────── |
-| ▎feat/alpha                  |
-|▌▎○ build                     |
+|▌▎○ feat/alpha                |
+|                              |
 |                              |
 |                              |
 |                              |

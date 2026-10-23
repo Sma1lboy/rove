@@ -94,14 +94,21 @@ export interface ActivityObserverIo {
    * hook's blind spot). Once per vendor→no-engine transition; never for a
    * session never walked with an engine.
    */
-  onEngineExit?(info: { taskId: string; tabId: string; vendor: string; pid: number | null }): void | Promise<void>
+  onEngineExit?(info: {
+    taskId: string
+    tabId: string
+    /** The PTY session's own key: `taskId` is its owner, which for a migrated child is not the key's prefix. */
+    key: string
+    vendor: string
+    pid: number | null
+  }): void | Promise<void>
   /**
    * A live session had NO engine on this daemon's first walk, so no
    * vendor→null edge exists: whatever died there died unwatched. Once per
    * pre-existing session, boot walk only. The loop can't tell that from a
    * never-started engine; the consumer judges (it reads the session's ring).
    */
-  onEngineAbsentAtStart?(info: { taskId: string; tabId: string }): void | Promise<void>
+  onEngineAbsentAtStart?(info: { taskId: string; tabId: string; key: string }): void | Promise<void>
 }
 
 export interface ActivityObserverOptions {
@@ -113,10 +120,14 @@ export interface ActivityObserverOptions {
   readonly unsubscribedEveryTicks?: number
   readonly correctAfterMs?: number
   readonly log?: (event: string, message: string) => void
+  /** The task whose conversation a PTY is, from its key: a migrated child owns its parent-keyed PTY. Default: the key's task. */
+  readonly ownerOf?: (taskId: string, tabId: string) => string
 }
 
 interface SessionTrack {
+  /** The owning task (see {@link ActivityObserverOptions.ownerOf}); `key` is the session's own. */
   readonly taskId: string
+  readonly key: string
   readonly tabId: string
   firstSeenAt: number
   lastTotalBytes: number
@@ -149,6 +160,7 @@ export function startActivityObserver(
   const unsubscribedEvery = Math.max(1, options.unsubscribedEveryTicks ?? DEFAULT_UNSUBSCRIBED_EVERY_TICKS)
   const correctAfterMs = options.correctAfterMs ?? DEFAULT_CORRECT_AFTER_MS
   const log = options.log ?? logDaemonInfo
+  const ownerOf = options.ownerOf ?? ((taskId: string) => taskId)
   const tracks = new Map<string, SessionTrack>()
   let tickCount = 0
   let unsubscribedTicks = 0
@@ -209,14 +221,18 @@ export function startActivityObserver(
         if (!s.alive) {
           // Exited is positive evidence even if never tracked alive: a stale hook `running` still gets corrected.
           const track = tracks.get(s.key)
-          applyRest(track ?? { taskId: parts[0], tabId: parts[1], vendor: undefined }, "session exited")
+          applyRest(
+            track ?? { taskId: ownerOf(parts[0], parts[1]), tabId: parts[1], vendor: undefined },
+            "session exited",
+          )
           tracks.delete(s.key)
           continue
         }
         let track = tracks.get(s.key)
         if (!track) {
           track = {
-            taskId: parts[0],
+            taskId: ownerOf(parts[0], parts[1]),
+            key: s.key,
             tabId: parts[1],
             firstSeenAt: now,
             lastTotalBytes: s.totalBytes,
@@ -243,22 +259,20 @@ export function startActivityObserver(
       }
 
       // Walk every `walkEvery` ticks, plus immediately for new or never-walked sessions.
-      const toWalk = live.filter((t) => walkTick || newborn.has(`${t.taskId}::${t.tabId}`) || t.vendor === undefined)
+      const toWalk = live.filter((t) => walkTick || newborn.has(t.key) || t.vendor === undefined)
       if (toWalk.length > 0) {
         const pidByKey = new Map<string, number>()
         for (const s of sessions) {
           if (s.alive && s.pid !== null) pidByKey.set(s.key, s.pid)
         }
         try {
-          const pids = toWalk
-            .map((t) => pidByKey.get(`${t.taskId}::${t.tabId}`))
-            .filter((pid): pid is number => pid !== undefined)
+          const pids = toWalk.map((t) => pidByKey.get(t.key)).filter((pid): pid is number => pid !== undefined)
           const verdicts = await io.foregroundEngines(pids)
           if (stopped) return
           const bootWalk = !bootWalkDone
           bootWalkDone = true
           for (const track of toWalk) {
-            const pid = pidByKey.get(`${track.taskId}::${track.tabId}`)
+            const pid = pidByKey.get(track.key)
             if (pid === undefined || !verdicts.has(pid)) continue
             const found = verdicts.get(pid) ?? null
             // Engine-death edge: no engine where the last walk saw one, session
@@ -269,6 +283,7 @@ export function startActivityObserver(
                 io.onEngineExit?.({
                   taskId: track.taskId,
                   tabId: track.tabId,
+                  key: track.key,
                   vendor: track.vendor,
                   pid: track.enginePid,
                 }),
@@ -276,7 +291,7 @@ export function startActivityObserver(
             } else if (found === null && track.vendor === undefined && bootWalk) {
               // Never walked, no engine: tracks start at `vendor: undefined`, so
               // no edge will ever fire. The consumer judges whether one died.
-              effects.push(io.onEngineAbsentAtStart?.({ taskId: track.taskId, tabId: track.tabId }))
+              effects.push(io.onEngineAbsentAtStart?.({ taskId: track.taskId, tabId: track.tabId, key: track.key }))
             }
             track.vendor = found?.vendor ?? null
             track.enginePid = found?.pid ?? null
@@ -293,7 +308,7 @@ export function startActivityObserver(
       // (restart seeding: a busy claude re-lights off ⠂/⠐ alone); full
       // silence → rest; quiet, never moved, no verdict → unknown.
       for (const track of live) {
-        const key = `${track.taskId}::${track.tabId}`
+        const key = track.key
         const session = sessions.find((s) => s.key === key)
         if (!session || track.vendor === undefined) continue
         effects.push(

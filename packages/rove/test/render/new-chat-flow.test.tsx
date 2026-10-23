@@ -33,6 +33,7 @@ import { encodeCwd } from "../../src/engine/claude-code-local/history"
 import type { QuickTaskResult } from "../../src/tui-react/component/quick-task-composer"
 import { useT } from "../../src/tui-react/i18n"
 import { useDialog } from "../../src/tui-react/ui/dialog"
+import type { ChildSpawnRequest } from "../../src/tui-react/workspace/quick-fork"
 import { type NewChatPreset, useTabDialogs } from "../../src/tui-react/workspace/use-tab-dialogs"
 import { type EngineTab, type TabsState, engineTabArgv } from "../../src/tui/workspace/terminal-tabs-core"
 import { act, renderComponent, settle, waitForFrameText } from "./harness"
@@ -93,9 +94,9 @@ afterAll(() => {
   fs.rmSync(root, { recursive: true, force: true })
 })
 
-function tabs(sessionId?: string): TabsState {
+function tabs(extra: { sessionId?: string; spawned?: true } = {}): TabsState {
   return {
-    tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1, vendor: "claude", sessionId }],
+    tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1, vendor: "claude", ...extra }],
     activeId: "tab-1",
     nextOrdinal: 2,
   }
@@ -103,6 +104,8 @@ function tabs(sessionId?: string): TabsState {
 
 interface Captured {
   updates: TabsState[]
+  spawns: ChildSpawnRequest[]
+  chosen: string[]
   errors: string[]
   forks: { repo: string; result: QuickTaskResult }[]
   request: (preset?: NewChatPreset) => void
@@ -123,6 +126,8 @@ function Driver(props: { state: TabsState; captured: Captured }) {
     update: (next) => props.captured.updates.push(next),
     pinSession: (s) => s,
     activeLeafSize: () => null,
+    onSpawnChild: (request) => props.captured.spawns.push(request),
+    onChooseEngine: (vendor) => props.captured.chosen.push(vendor),
     onQuickFork: (r, result) => props.captured.forks.push({ repo: r, result }),
     notifyError: (title) => props.captured.errors.push(title),
   })
@@ -131,7 +136,7 @@ function Driver(props: { state: TabsState; captured: Captured }) {
 }
 
 async function mountFlow(state: TabsState) {
-  const captured: Captured = { updates: [], errors: [], forks: [], request: () => {} }
+  const captured: Captured = { updates: [], spawns: [], chosen: [], errors: [], forks: [], request: () => {} }
   const handle = await renderComponent(<Driver state={state} captured={captured} />, {
     providers: { dialog: true, notifications: true },
   })
@@ -139,18 +144,32 @@ async function mountFlow(state: TabsState) {
 }
 
 describe("requestNewChat dispatch", () => {
-  test("default combo lands a sibling engine tab (old ctrl+e)", async () => {
+  test("default combo spawns a child sharing the directory once the task's engine has started (old ctrl+e)", async () => {
+    const { frame, mockInput, captured } = await mountFlow(tabs({ spawned: true }))
+    act(() => captured.request())
+    await waitForFrameText(frame, "New conversation")
+    act(() => mockInput.pressEnter())
+    await settle()
+    await frame()
+    expect(captured.spawns).toEqual([{ parentTaskId: "task-under-test", vendor: "claude" }])
+    // No second engine tab beside the parent's own.
+    expect(captured.updates).toHaveLength(0)
+    // The parent's own default engine is not rewritten by a pick that became a child.
+    expect(captured.chosen).toHaveLength(0)
+    expect(captured.errors).toHaveLength(0)
+  })
+
+  test("a task whose engine never started takes the pick as its own first conversation", async () => {
     const { frame, mockInput, captured } = await mountFlow(tabs())
     act(() => captured.request())
     await waitForFrameText(frame, "New conversation")
     act(() => mockInput.pressEnter())
     await settle()
     await frame()
+    expect(captured.spawns).toHaveLength(0)
     expect(captured.updates).toHaveLength(1)
-    const next = captured.updates[0]!
-    expect(next.tabs).toHaveLength(2)
-    expect(next.tabs[1]).toMatchObject({ kind: "engine", vendor: "claude" })
-    expect(captured.errors).toHaveLength(0)
+    expect(captured.updates[0]!.tabs).toHaveLength(1)
+    expect(captured.updates[0]!.tabs[0]).toMatchObject({ kind: "engine", id: "tab-1", vendor: "claude" })
   })
 
   // Why: `claudecpa` is a zsh function that ends up running the real claude
@@ -187,14 +206,16 @@ describe("requestNewChat dispatch", () => {
       act(() => captured.request({ context: "continue" }))
       await waitForFrameText(frame, "continue this conversation")
       act(() => mockInput.pressEnter())
-      await waitFor(() => captured.updates.length > 0 || captured.errors.length > 0)
+      await waitFor(() => captured.spawns.length > 0 || captured.errors.length > 0)
       expect(captured.errors).toHaveLength(0)
 
-      const next = captured.updates[0]!
-      const forked = next.tabs[1]!
+      expect(captured.updates).toHaveLength(0)
+      const request = captured.spawns[0]!
+      expect(request).toMatchObject({ parentTaskId: "task-under-test", vendor: "claudecpa" })
+      const forked = request.tabs!.tabs[0]!
       // Still LAUNCHES the preset the user picked; only the protocol is claude's.
-      expect(forked).toMatchObject({ kind: "engine", engineCommand: "claudecpa", vendor: "claude" })
-      expect(engineTabArgv(forked as EngineTab, ["claudecpa"], false)).toEqual([
+      expect(forked).toMatchObject({ kind: "engine", id: "tab-1", engineCommand: "claudecpa", vendor: "claude" })
+      expect(engineTabArgv(forked as EngineTab, ["claudecpa"], false).slice(0, 4)).toEqual([
         "claudecpa",
         "--resume",
         "wrapped",
@@ -231,7 +252,7 @@ describe("requestNewChat dispatch", () => {
     fs.mkdirSync(projectDir, { recursive: true })
     fs.writeFileSync(path.join(projectDir, "s1.jsonl"), "{}\n")
 
-    const { frame, mockInput, captured } = await mountFlow(tabs("s1"))
+    const { frame, mockInput, captured } = await mountFlow(tabs({ sessionId: "s1" }))
     act(() => captured.request({ destination: "fork", context: "continue" }))
     await waitForFrameText(frame, "fork a child task")
     act(() => mockInput.pressEnter())

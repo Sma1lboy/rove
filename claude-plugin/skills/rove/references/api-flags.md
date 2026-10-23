@@ -229,13 +229,15 @@ add      --repo(REQ) --clone --allow-fork --title --branch --base-branch --workt
          --agents <claude:2,codex:1>
          --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
          --require-report --expect-report --activate(false) --prompt|--prompt-file
+spawn    --parent --worktree(true) --no-worktree --base-branch --isolate-in --title
+         --command --prompt|--prompt-file
 update   --task-id(REQ) --title --tab --branch --command --model --effort --pinned
          --require-report{on|off}
          --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
          --report-pr --report-summary
 land     --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
          --remove-worktree(true)
-delete   --task-id --group --force --delete-branch --delete-remote --wait
+delete   --task-id --group --cascade --force --delete-branch --delete-remote --wait
 ```
 <!-- generated:end -->
 

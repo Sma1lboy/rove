@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
-import { DirtyWorktreeError, HasAliasedChildError } from "../../src/orchestrator/errors.ts"
+import { DirtyWorktreeError } from "../../src/orchestrator/errors.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import type { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 import type { Task, TaskId } from "../../src/types/task.ts"
@@ -158,16 +158,20 @@ describe("deleting a task that has children", { timeout: DURABLE_WRITE_TIMEOUT_M
   })
 })
 
-describe("deleting a task that hosts a child's live session", { timeout: DURABLE_WRITE_TIMEOUT_MS }, () => {
-  it("refuses while a surviving child's PTY is keyed under the task, and allows a cascade", async () => {
+describe("deleting a task whose PTY hosts a child's conversation", { timeout: DURABLE_WRITE_TIMEOUT_MS }, () => {
+  it("promotes the aliased child and keeps its alias; a cascade takes it along", async () => {
     const parent = await row("parent")
     const migrated = await row("migrated", { parent, shares: parent })
     await store.update(migrated.id, { ptyAlias: { taskId: parent.id, tabId: "tab-2" } })
 
-    await expect(orch.deleteTask(parent.id)).rejects.toThrow(HasAliasedChildError)
-    expect(store.get(parent.id)?.deletion).toBeUndefined()
+    await orch.deleteTask(parent.id)
+    expect(ids()).toEqual(["migrated"])
+    expect(store.get(migrated.id)?.ptyAlias).toEqual({ taskId: parent.id, tabId: "tab-2" })
 
-    await orch.deleteTask(parent.id, { cascade: true })
-    expect(ids()).toEqual([])
+    const other = await row("other")
+    const twin = await row("twin", { parent: other, shares: other })
+    await store.update(twin.id, { ptyAlias: { taskId: other.id, tabId: "tab-2" } })
+    await orch.deleteTask(other.id, { cascade: true })
+    expect(ids()).toEqual(["migrated"])
   })
 })

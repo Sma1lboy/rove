@@ -1,5 +1,5 @@
 /**
- * The Tasks rail's shape: project → task → tab, with the TUI's sort modes
+ * The Tasks rail's shape: project → task → child tasks, with the TUI's sort modes
  * (`project-groups.ts`) and `/` filter (`tree-search.ts`), and what each row's
  * status mark is: the daemon's row status (`row.status`) through the one mapping
  * every client uses (`rove/src/lib/row-status-glyph.ts`).
@@ -7,7 +7,7 @@
 
 import { type RowTone, rowStatusGlyph } from "@sma1lboy/rove/src/lib/row-status-glyph.ts"
 import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
-import type { RowStatus, TabRow, TabStatus, TaskRow } from "rove-bridge/protocol"
+import type { RowStatus, TaskRow } from "rove-bridge/protocol"
 import type { GlyphSet } from "./prefs.ts"
 
 export type SortMode = "default" | "recent" | "attention" | "name"
@@ -32,6 +32,13 @@ interface Remote {
   readonly machine?: string
 }
 
+/** What a task row says about its children: every descendant (not just direct ones), and their ids so a folded row can rank them. */
+export interface RowFold {
+  readonly count: number
+  readonly collapsed: boolean
+  readonly descendantIds: readonly string[]
+}
+
 /** One keyboard-navigable rail row, top to bottom. */
 export type NavRow =
   | (Remote & {
@@ -40,8 +47,17 @@ export type NavRow =
       readonly repo: string
       readonly label: string
     })
-  | (Remote & { readonly id: string; readonly kind: "task"; readonly task: TaskRow })
-  | (Remote & { readonly id: string; readonly kind: "tab"; readonly task: TaskRow; readonly tab: TabRow })
+  | (Remote & {
+      readonly id: string
+      readonly kind: "task"
+      readonly task: TaskRow
+      /** Indent level: 1 for a top-level task, +1 per generation, held at {@link MAX_ROW_DEPTH}. */
+      readonly depth: number
+      /** The real generation of a row deeper than the indent cap; absent while the indent still tells. */
+      readonly level?: number
+      /** Set on a task with children: how many descendants, and whether they are folded away. */
+      readonly fold?: RowFold
+    })
   /** One row folding a project's routine sessions (`tree-core.ts` `routines`); `key` names the fold in `expandedRoutines`. */
   | (Remote & {
       readonly id: string
@@ -127,41 +143,112 @@ const mainFirst =
   (a: TaskRow, b: TaskRow): number =>
     (a.kind === "main") === (b.kind === "main") ? compare(a, b) : a.kind === "main" ? -1 : 1
 
+/** Indent stops growing here; a deeper row keeps this depth and shows its real level (TUI `MAX_TREE_DEPTH`). */
+export const MAX_ROW_DEPTH = 3
+
+/** `shared` = runs in its parent's directory, `worktree` = its own checkout; null for a task nobody spawned. */
+export type ChildMarker = "shared" | "worktree"
+
+export function childMarkerOf(task: TaskRow): ChildMarker | null {
+  if (task.parentTaskId === undefined) return null
+  return task.sharesWorkspaceOf === undefined ? "worktree" : "shared"
+}
+
+/** True when `task`'s parent chain comes back to `task`. */
+function loopsBack(task: TaskRow, byId: ReadonlyMap<string, TaskRow>): boolean {
+  const seen = new Set<string>([task.id])
+  for (let at = task.parentTaskId; at !== undefined; at = byId.get(at)?.parentTaskId) {
+    if (seen.has(at)) return at === task.id
+    seen.add(at)
+  }
+  return false
+}
+
+/**
+ * Children nest under their parent wherever it sits, another project's included. One whose parent is
+ * not on screen (or whose lineage loops) stays top level; routine sessions stay in their fold.
+ * Children keep list order (`tree-core.ts` `indexChildren`).
+ */
+function indexChildren(groups: readonly ProjectGroup[]): {
+  children: ReadonlyMap<string, readonly TaskRow[]>
+  nested: ReadonlySet<string>
+} {
+  const byId = new Map<string, TaskRow>()
+  for (const group of groups) for (const task of group.tasks) byId.set(task.id, task)
+  const children = new Map<string, TaskRow[]>()
+  const nested = new Set<string>()
+  for (const task of byId.values()) {
+    const parent = task.parentTaskId
+    if (parent === undefined || task.routine || !byId.has(parent) || loopsBack(task, byId)) continue
+    nested.add(task.id)
+    const siblings = children.get(parent)
+    if (siblings) siblings.push(task)
+    else children.set(parent, [task])
+  }
+  return { children, nested }
+}
+
+function descendantIds(children: ReadonlyMap<string, readonly TaskRow[]>, id: string, out: string[] = []): string[] {
+  for (const child of children.get(id) ?? []) {
+    out.push(child.id)
+    descendantIds(children, child.id, out)
+  }
+  return out
+}
+
 /**
  * Flatten to navigable rows, pruned to `query` like `filterTreeRows`: each field
- * matched on its own; a project hit keeps its whole subtree, a task hit its tabs,
- * a tab hit its task and project.
+ * matched on its own; a project hit keeps its whole subtree, a task hit its
+ * children, a child hit its parents and project. A task in `collapsedTasks` hides its children.
  */
 export function navRows(
   groups: readonly ProjectGroup[],
-  tabsOf: (taskId: string) => readonly TabRow[],
-  tabLabel: (tab: TabRow) => string,
   query = "",
   expandedRoutines: ReadonlySet<string> = new Set(),
+  collapsedTasks: ReadonlySet<string> = new Set(),
 ): NavRow[] {
   const q = query.trim()
   const hit = (...fields: string[]) => fields.some((f) => f !== "" && fuzzyMatch(q, f))
+  const { children, nested } = indexChildren(groups)
   const rows: NavRow[] = []
   for (const group of groups) {
     const projectHit = q === "" || hit(group.label)
     const head: Remote = group.machine === undefined ? {} : { machine: group.machine }
     const key = group.key ?? group.repo
+    const selfHit = (task: TaskRow) => projectHit || hit(task.title, task.branch, repoLabel(task.repo))
+    // A task survives the filter on its own hit or a descendant's.
+    const hasHit = (task: TaskRow): boolean => selfHit(task) || (children.get(task.id) ?? []).some(hasHit)
+    // A task, then its children one level deeper each.
+    const push = (out: NavRow[], task: TaskRow, generation: number, inherited = false): void => {
+      const level = generation + 1
+      const remote: Remote = task.machine ? { machine: task.machine.id } : {}
+      const kids = children.get(task.id)
+      const ids = kids ? descendantIds(children, task.id) : []
+      // A search shows everything, so a folded parent stays open under it (the TUI's rule).
+      const folded = kids !== undefined && q === "" && collapsedTasks.has(task.id)
+      out.push({
+        id: task.id,
+        kind: "task",
+        task,
+        depth: Math.min(level, MAX_ROW_DEPTH),
+        ...(level > MAX_ROW_DEPTH ? { level } : {}),
+        ...(kids ? { fold: { count: ids.length, collapsed: folded, descendantIds: ids } } : {}),
+        ...remote,
+      })
+      const open = inherited || selfHit(task)
+      if (folded) return
+      for (const child of kids ?? []) if (open || hasHit(child)) push(out, child, generation + 1, open)
+    }
     const under: NavRow[] = []
     const routines: TaskRow[] = []
     const routineRows: NavRow[] = []
     for (const task of group.tasks) {
-      const remote: Remote = task.machine ? { machine: task.machine.id } : {}
-      const tabs = tabsOf(task.id)
-      const taskHit = projectHit || hit(task.title, task.branch, repoLabel(task.repo))
-      const tabRows = tabs
-        .filter((tab) => taskHit || hit(tabLabel(tab)))
-        .map((tab): NavRow => ({ id: `${task.id}::${tab.id}`, kind: "tab", task, tab, ...remote }))
-      if (!taskHit && tabRows.length === 0) continue
+      if (nested.has(task.id) || !hasHit(task)) continue
       // Routine sessions are the tail of the group: a count row folds them.
       if (task.routine) {
         routines.push(task)
-        routineRows.push({ id: task.id, kind: "task", task, ...remote }, ...tabRows)
-      } else under.push({ id: task.id, kind: "task", task, ...remote }, ...tabRows)
+        push(routineRows, task, 0)
+      } else push(under, task, 0)
     }
     if (routines.length > 0) {
       // Search builds fully open, so a folded routine stays findable.
@@ -200,10 +287,10 @@ export interface RailInput {
   /** Registered machines in registration order; a remote row whose machine is not here is dropped. */
   readonly machines: readonly { readonly alias: string; readonly hostLabel: string }[]
   readonly sort: SortMode
-  readonly tabsOf: (taskId: string) => readonly TabRow[]
-  readonly tabLabel: (tab: TabRow) => string
   readonly query: string
   readonly routines: ReadonlySet<string>
+  /** Task ids whose children are folded away; absent = all open. */
+  readonly folded?: ReadonlySet<string>
 }
 
 const newest = (group: ProjectGroup): number => Math.max(0, ...group.tasks.map(taskTime))
@@ -294,7 +381,7 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   const labelled = projects.map((project) => ({ ...project, label: labels.get(project) ?? project.label }))
   if (input.sort === "recent") labelled.sort((a, b) => newest(b) - newest(a))
   if (input.sort === "name") labelled.sort((a, b) => collator.compare(a.label, b.label))
-  const rows = navRows(labelled, input.tabsOf, input.tabLabel, input.query, input.routines)
+  const rows = navRows(labelled, input.query, input.routines, input.folded)
   const groups = parts
     .filter((part) => part.machine === undefined)
     .map((part) => {
@@ -338,36 +425,40 @@ export function statusGlyph(status: RowStatus | undefined, frame: number, glyphs
   return { glyph: mark.glyph, tone: TONE[mark.tone], spinning: mark.spinning }
 }
 
-/** The daemon's status of one of a task's tabs: the pushed one on the row, else the one read with the tab list. */
-export function tabStatusOf(task: TaskRow, tab: TabRow): TabStatus | undefined {
-  return task.tabStatus?.[tab.id] ?? tab.status
-}
-
-/** A tab row's mark: its own status (a dead tab the daemon says nothing about stays a muted idle). */
-export function tabRowGlyph(task: TaskRow, tab: TabRow, frame: number, glyphs: RowGlyphs = BRAILLE): StatusMark {
-  return statusGlyph(tabStatusOf(task, tab), frame, glyphs)
-}
-
-/**
- * A task row's mark. The rollup is what a folded row shows: with its tabs listed underneath, each
- * tab shows its own and the task row shows none, except a task-level job or deletion (`busy`),
- * which belongs to no tab.
- */
-export function taskRowGlyph(task: TaskRow, frame: number, glyphs: RowGlyphs = BRAILLE): StatusMark | null {
-  // Status lives on tab rows; a task row only spins while its worktree is made or the task deleted.
-  if (task.rowStatus?.kind !== "busy") return null
+/** A task row's mark: the daemon's rollup of its one conversation. */
+export function taskRowGlyph(task: TaskRow, frame: number, glyphs: RowGlyphs = BRAILLE): StatusMark {
   return statusGlyph(task.rowStatus, frame, glyphs)
 }
 
 /** Some row on screen spins: the shared spinner clock must tick. */
 export function anySpinning(tasks: readonly TaskRow[]): boolean {
-  const spins = (status: RowStatus | undefined) => status?.kind === "running" || status?.kind === "busy"
-  return tasks.some((task) => spins(task.rowStatus) || Object.values(task.tabStatus ?? {}).some(spins))
+  return tasks.some((task) => task.rowStatus?.kind === "running" || task.rowStatus?.kind === "busy")
 }
 
 /** A folded group's rows that need a person: something to answer or something broken. */
 export function needsPerson(task: TaskRow): boolean {
   return task.rowStatus?.kind === "needs-input" || task.rowStatus?.kind === "attention"
+}
+
+// `rove-daemon/daemon/row-status.ts` RANK (not importable here): what a task row ranks its tabs by.
+const URGENCY: Readonly<Record<RowStatus["kind"], number>> = {
+  busy: 0,
+  attention: 1,
+  "needs-input": 2,
+  running: 3,
+  unseen: 4,
+  idle: 5,
+}
+
+/** The most urgent rollup among `tasks` (a folded parent's hidden children), or undefined when none has a status yet. */
+export function mostUrgentStatus(tasks: readonly TaskRow[]): RowStatus | undefined {
+  let best: RowStatus | undefined
+  for (const { rowStatus: status } of tasks) {
+    if (!status) continue
+    if (!best || URGENCY[status.kind] < URGENCY[best.kind]) best = status
+    else if (status.kind === best.kind && status.since > best.since) best = status
+  }
+  return best
 }
 
 /**
@@ -397,13 +488,15 @@ export function dropSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow,
   return steps
 }
 
-const DEPTH = { project: 0, routines: 1, task: 1, tab: 2 } as const
+/** A row's nesting level: a project 0, its tasks and routine count 1, a child task one deeper per generation. */
+const depthOf = (row: NavRow | undefined): number =>
+  row === undefined || row.kind === "project" ? 0 : row.kind === "task" ? row.depth : 1
 
 /** Where the block starting at `i` (the row and every row nested under it) ends. */
 export function blockEnd(rows: readonly NavRow[], i: number): number {
-  const depth = DEPTH[rows[i]?.kind ?? "project"]
+  const depth = depthOf(rows[i])
   let end = i + 1
-  while (end < rows.length && DEPTH[rows[end]?.kind ?? "project"] > depth) end++
+  while (end < rows.length && depthOf(rows[end]) > depth) end++
   return end
 }
 

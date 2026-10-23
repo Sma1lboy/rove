@@ -20,7 +20,7 @@ import { shellIdentityInput } from "../../tui/workspace/terminal-tab-spawn.ts"
 import type { TerminalTab } from "../../tui/workspace/terminal-tabs-core.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
-import { type TabsRpc, allocateTab, closeTabsSnapshot, markCliTabSession } from "./tab-snapshot.ts"
+import { type TabsRpc, allocateTab, closeTabsSnapshot, markCliTabSession, seedCanonicalTab } from "./tab-snapshot.ts"
 import { ApiError, type PromptTarget } from "./types.ts"
 
 export type NewTabKind = "shell" | "engine"
@@ -72,63 +72,39 @@ async function openShell(client: TabsRpc, rpc: HostedSessionRpc, taskId: string,
   return { tab, key }
 }
 
+/** Start the task's own engine in `tab-1`: a second conversation is a child task, never a second engine tab. */
 async function openEngine(client: TabsRpc, rpc: HostedSessionRpc, target: PromptTarget, cwd: string) {
   const taskId = target.id
-  let tab: TerminalTab = await allocateTab(client, taskId, {
-    kind: "engine",
-    title: null,
-    // Pinned to a non-default engine, as `send --tab new --command` records it.
-    ...(target.tabVendor ? { vendor: target.tabVendor } : {}),
-    ...(target.tabCommand ? { engineCommand: target.tabCommand } : {}),
-  })
+  let tab: TerminalTab = await seedCanonicalTab(client, taskId)
   const key = `${taskId}::${tab.id}`
-  const retryArgs = [
-    "api",
-    "tab-new",
-    "--task-id",
-    taskId,
-    "--kind",
-    "engine",
-    ...(target.tabCommand ? ["--command", target.tabCommand] : []),
-  ]
+  const retryArgs = ["api", "tab-new", "--task-id", taskId, "--kind", "engine"]
   try {
-    let open: PtyOpenResult
-    let sessionId: string | null
-    try {
-      const launchVendor = target.tabVendor ?? target.vendor
-      const launchCommand = target.tabCommand ?? (target.tabVendor ? undefined : target.command)
-      // Pin the conversation id up front (same contract as the TUI) so a
-      // reattach after a pty-host restart resumes THIS conversation.
-      const pinned = withPinnedSessionId(
-        engineLaunchArgv({
-          command: launchCommand,
-          vendor: launchVendor,
-          effort: target.modelEffort,
-          model: target.model,
-        }),
-        launchVendor,
-      )
-      sessionId = pinned.sessionId
-      // A hosted session can't answer a trust dialog; no-op for generic protocols.
-      trustEngineWorktree(launchVendor, cwd)
-      const launch = buildEngineSessionLaunch({
-        task: { id: taskId, kind: target.kind, vendor: launchVendor, repo: target.repo },
-        worktreePath: cwd,
-        shell: resolveLoginShell({ fallback: "/bin/zsh" }),
-        argv: pinned.argv,
-        promptIntent: { kind: "none" },
-        tabId: tab.id,
-      })
-      open = await openAdmittedEngine(
-        rpc,
-        { key: launch.key, cwd, command: launch.command, defaultColors: readPersistedTerminalDefaultColors() },
-        { maxLiveEngines: persistedMaxLiveEngines(), taskId, retryArgs },
-      )
-    } catch (error) {
-      // Nothing spawned (limit refusal, launch refusal, host error): the row must not linger in the strip.
-      await closeTabsSnapshot(client, taskId, tab.id).catch(() => undefined)
-      throw error
-    }
+    // Pin the conversation id up front (same contract as the TUI) so a
+    // reattach after a pty-host restart resumes THIS conversation.
+    const pinned = withPinnedSessionId(
+      engineLaunchArgv({
+        command: target.command,
+        vendor: target.vendor,
+        effort: target.modelEffort,
+        model: target.model,
+      }),
+      target.vendor,
+    )
+    // A hosted session can't answer a trust dialog; no-op for generic protocols.
+    trustEngineWorktree(target.vendor, cwd)
+    const launch = buildEngineSessionLaunch({
+      task: { id: taskId, kind: target.kind, vendor: target.vendor, repo: target.repo },
+      worktreePath: cwd,
+      shell: resolveLoginShell({ fallback: "/bin/zsh" }),
+      argv: pinned.argv,
+      promptIntent: { kind: "none" },
+      tabId: tab.id,
+    })
+    const open = await openAdmittedEngine(
+      rpc,
+      { key: launch.key, cwd, command: launch.command, defaultColors: readPersistedTerminalDefaultColors() },
+      { maxLiveEngines: persistedMaxLiveEngines(), taskId, retryArgs },
+    )
     if (!createdFresh(open) && open.respawned !== true) throw collision(taskId, key, retryArgs)
     if (!open.alive) {
       throw sessionFailed(
@@ -139,7 +115,7 @@ async function openEngine(client: TabsRpc, rpc: HostedSessionRpc, target: Prompt
       )
     }
     // The row as the daemon holds it now: with the session id the TUI needs.
-    const marked = await markCliTabSession(client, taskId, tab.id, sessionId)
+    const marked = await markCliTabSession(client, taskId, tab.id, pinned.sessionId)
     tab = marked?.tabs.find((t) => t.id === tab.id) ?? tab
   } finally {
     await rpc.request("pty.detach", { key }).catch(() => {})

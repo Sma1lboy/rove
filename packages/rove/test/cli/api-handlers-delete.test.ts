@@ -35,6 +35,26 @@ describe("task delete handler", () => {
     expect(order).toEqual(["rpc", "kill"])
   })
 
+  it("hands the daemon's per-task teardown scope to each hosted-session teardown", async () => {
+    const scope = { spare: ["p::tab-2"], also: [] }
+    const client = new FakeClient({
+      "task.delete": () => ({ taskId: "p", queued: true, deleted: ["c", "p"], teardown: { p: scope } }),
+    })
+    const seen: Array<[string, unknown]> = []
+    await invokeVerb("delete", ["--task-id", "p", "--cascade"], {
+      client,
+      runtime: stubRuntime({
+        tearDownSession: async (id, passed) => {
+          seen.push([id, passed])
+        },
+      }),
+    })
+    expect(seen).toEqual([
+      ["c", undefined],
+      ["p", scope],
+    ])
+  })
+
   it("keeps the branch by default and passes --delete-branch through as opt-in", async () => {
     const client = new FakeClient({ "task.delete": () => ({ taskId: "t1", queued: true }) })
     const { tearDownSession } = recordingTearDown()

@@ -23,6 +23,8 @@ export function createActivityObserverIo(
    *  the registry (`pty-exit-watch` baselines its record). Without it, no
    *  restart re-badge. */
   activity?: Pick<DaemonActivityRegistry, "recordEngineDeath">,
+  /** The task a PTY's conversation belongs to (a migrated child owns its parent-keyed PTY); default the key's task. */
+  ownerOf: (taskId: string, tabId: string) => string = (taskId) => taskId,
 ): ActivityObserverIo {
   const peek = async (key: string): Promise<string> => {
     const client = new RoveDaemonClient(defaultPtyHostSocketPath(homeDir))
@@ -38,8 +40,7 @@ export function createActivityObserverIo(
   }
   return {
     // Persist the PTY tail (where the provider error / usage-limit line is). Best-effort.
-    onEngineExit({ taskId, tabId, vendor, pid }) {
-      const key = `${taskId}::${tabId}`
+    onEngineExit({ key, vendor, pid }) {
       const pending = peek(key)
         .then((tail) =>
           recordEngineExit({ key, vendor, pid, at: new Date().toISOString(), tail }, defaultPtyExitsPath(homeDir)),
@@ -69,14 +70,13 @@ export function createActivityObserverIo(
      * republish the same corpse forever; give the record a real clock (a
      * freeze-store timestamp) if that ceiling bites.
      */
-    onEngineAbsentAtStart({ taskId, tabId }) {
-      const key = `${taskId}::${tabId}`
+    onEngineAbsentAtStart({ key }) {
       const path = defaultPtyExitsPath(homeDir)
       const existing = readPtyExitRecords(path)[`${key}#engine`]
       if (existing) {
         const death = engineDeathOf(existing)
         // No `at` guard: the boot registry has no hook claim to bury, and the walk found no engine.
-        if (death) activity?.recordEngineDeath(death.taskId, death.tabId, death.exit, death.at)
+        if (death) activity?.recordEngineDeath(ownerOf(death.taskId, death.tabId), death.tabId, death.exit, death.at)
         return
       }
       return peek(key)

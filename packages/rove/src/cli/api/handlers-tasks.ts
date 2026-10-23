@@ -9,7 +9,6 @@ import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/c
 import { DISPATCH_PROMPT_HEAD_CHARS } from "@sma1lboy/rove-daemon/daemon/dispatch-ledger"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
 import type { VendorId } from "../../types/vendor.ts"
@@ -20,7 +19,9 @@ import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
 import { readRunnability } from "./handlers-runnability.ts"
+import { failSharedChild, spawnSharedChild } from "./handlers-spawn.ts"
 import { filterTaskList, listFilters } from "./list-filter.ts"
+import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep, promptMayHaveLanded } from "./types.ts"
@@ -134,8 +135,8 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   if (tab && tab !== "new" && !/^tab-[A-Za-z0-9-]+$/.test(tab)) {
     throw new ApiError(`--tab must be "new" or a tab id like tab-2 (got ${JSON.stringify(tab)})`, "BAD_TAB")
   }
-  // A pinned engine only applies to a tab being CREATED; refuse rather than
-  // hand a caller who asked for codex a claude tab and a success exit.
+  // A pinned engine only applies to the child `--tab new` creates; refuse rather than
+  // hand a caller who asked for codex a claude conversation and a success exit.
   const tabCommand = ctx.args.str("command")
   if (tabCommand && tab !== "new") {
     throw new ApiError(
@@ -154,9 +155,6 @@ export async function send(ctx: VerbContext): Promise<unknown> {
       helpStep("send"),
     )
   }
-  // Protocol resolution happens HERE, in the CLI, because the preset
-  // registry lives in rove's state.json — the same tier-(a) read `add` does.
-  const tabVendor = tabCommand ? resolveCommandProtocol(tabCommand) : undefined
   let taskId = ctx.args.str("task-id")
   if (!taskId) {
     // Inside a sub-task a bare `send` replies to its DISPATCHER (task + tab),
@@ -177,21 +175,36 @@ export async function send(ctx: VerbContext): Promise<unknown> {
       taskId = active
     }
   }
-  const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  let res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
   // Before ANY delivery path (--plain included: a verbatim false claim is the
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)
+  const requestedTaskId = taskId
+  // `--tab new` is a second conversation, so it becomes a shared child and the
+  // prompt goes to that child's own engine.
+  let childTaskId: string | undefined
+  if (tab === "new") {
+    res = { task: await spawnSharedChild(daemon, taskId, tabCommand) }
+    childTaskId = res.task.id
+    taskId = childTaskId
+    tab = undefined
+  }
+  // A migrated child's conversation is a hosted PTY keyed under its parent: its default tab IS that one,
+  // delivered to exactly (a dead one is TAB_NOT_FOUND, never a second engine beside the live one).
+  const alias = res.task.ptyAlias
+  if (alias && tab === undefined) tab = alias.tabId
   const plain = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
   // Decision-gate answers the owner gave while this tab's engine was away (design § 3).
-  const owed = await takeOwedGateAnswers(daemon, taskId, tab)
+  // A fresh child is a different conversation: the answer stays owed to its own.
+  const owed = childTaskId ? null : await takeOwedGateAnswers(daemon, taskId, tab)
   const withAnswers = owed ? `${owed.text}\n\n${plain}` : plain
   // Read BEFORE delivery: a paste into a failed session still "lands", and the
   // caller has to be told what it landed in.
-  const target = tab === "new" ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
+  const target = childTaskId ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
   // Armed BEFORE the paste: a failed turn can fire its hook within
   // milliseconds of it, and an unarmed delivery can't be flagged missing.
   const expectReport = ctx.args.bool("expect-report") === true
-  const pinnedTab = tab && tab !== "new" ? { tabId: tab } : {}
+  const pinnedTab = tab ? { tabId: tab } : {}
   // `--if-runnable`: the daemon decides, claims the tab and arms in one tick, so
   // two ticks arriving together cannot both pass. The claim is freed in `settle`.
   const admit = ctx.args.bool("if-runnable")
@@ -234,27 +247,34 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     delivered = await ctx.runtime.deliverPrompt(
       daemon,
       {
-        id: taskId,
+        id: alias && tab === alias.tabId ? alias.taskId : taskId,
         worktreePath: taskCwd(res.task),
         kind: res.task.kind,
-        // The pinned engine wins for THIS delivery's argv; the task's own
-        // command/protocol stays untouched (a second agent in the worktree is
-        // not a change of the task's engine).
         vendor: res.task.vendor as VendorId | undefined,
         command: res.task.command,
-        modelEffort: tabCommand ? undefined : res.task.modelEffort,
-        model: tabCommand ? undefined : res.task.model,
+        modelEffort: res.task.modelEffort,
+        model: res.task.model,
         repo: res.task.repo,
         tab,
-        tabVendor,
-        tabCommand,
         respawn,
       },
       text,
     )
   } catch (err) {
     await settle(false)
-    throw err
+    if (!childTaskId) throw err
+    return failSharedChild(daemon, err, childTaskId, [
+      "api",
+      "send",
+      "--task-id",
+      requestedTaskId,
+      "--tab",
+      "new",
+      ...(tabCommand ? ["--command", tabCommand] : []),
+      "--plain",
+      "--prompt",
+      prompt,
+    ])
   }
   // A prompt that never landed is a delivery FAILURE the script must see —
   // non-zero exit, not a phantom `ok:true`.
@@ -262,14 +282,25 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     // Cancel only when nothing was written: an unobserved launch may still start with the prompt.
     const mayLand = promptMayHaveLanded(delivered)
     await settle(mayLand, mayLand ? delivered.session : undefined)
-    throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
+    throw new ApiError(
+      `prompt was not confirmed in ${taskId}'s engine (paste did not land)`,
+      "NOT_DELIVERED",
+      childTaskId ? { childTaskId } : undefined,
+    )
   }
   await settle(true, delivered.session)
   // The answers rode this paste; only now are they the engine's.
   if (owed) await markGateAnswersDelivered(daemon, owed.gateIds)
+  if (childTaskId) {
+    // `.task.prompt` means "the engine was given exactly this text": recorded only once delivery confirmed.
+    await daemon.request("task.setPrompt", { taskId, prompt }).catch((err: unknown) => {
+      console.error(`[rove api send] task.setPrompt failed for ${taskId}:`, err)
+    })
+  }
   return {
     ok: true,
-    taskId,
+    taskId: requestedTaskId,
+    ...(childTaskId ? { childTaskId } : {}),
     session: delivered.session,
     ...(deliveryId ? { deliveryId } : {}),
     started: delivered.started,
@@ -385,7 +416,11 @@ export async function getTask(ctx: VerbContext): Promise<unknown> {
   const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
   // One liveness read serves both: `.running` (any live engine tab) and the
   // per-tab `.alive` an agent needs to pick a `send --tab tab-N` target.
-  const { tabs, running } = await ctx.runtime.taskTabs(taskId, taskEngineArgv(res.task))
+  const { tabs, running } = await ctx.runtime.taskTabs(
+    taskId,
+    taskEngineArgv(res.task),
+    await ptyScopeOf(daemon, res.task),
+  )
   // The verdict a scheduler would act on, so a dashboard shows the same answer.
   const runnability = await readRunnability(daemon, taskId)
   return { task: res.task, running, tabs, ...(runnability ? { runnability } : {}) }

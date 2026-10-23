@@ -2,9 +2,9 @@
 /**
  * The one "start a new chat" dialog. Default: the `chat.tab.chooseEngine`
  * (ctrl+e) picker — engines (+ shell + plugin panes), ←/→ cycles, enter opens
- * a fresh tab here. Two toggles, each its own chip row:
+ * a fresh conversation (a child task sharing this directory). Two toggles, each its own chip row:
  *
- *   - `tab`    — destination: new tab here → fork a child task worktree →
+ *   - `tab`    — destination: child task here → fork a child task worktree →
  *                a Scratch task in $HOME (engine or bare shell)
  *   - `ctrl+f` — context: fresh conversation ⇄ continue the current one
  *

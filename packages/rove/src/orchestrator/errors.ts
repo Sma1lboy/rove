@@ -301,18 +301,3 @@ export class RemoteParentUnsupportedError extends Error {
     this.name = "RemoteParentUnsupportedError"
   }
 }
-
-export const HAS_ALIASED_CHILD_CODE = "HAS_ALIASED_CHILD"
-
-/** A surviving child's conversation is a live PTY keyed under the task being deleted; deleting it would kill that session. */
-export class HasAliasedChildError extends Error {
-  constructor(
-    public readonly taskId: string,
-    public readonly childIds: readonly string[],
-  ) {
-    super(
-      `${HAS_ALIASED_CHILD_CODE}: task ${taskId} hosts the live session of ${childIds.join(", ")} — delete those first (or use --cascade), or the session dies with it`,
-    )
-    this.name = "HasAliasedChildError"
-  }
-}

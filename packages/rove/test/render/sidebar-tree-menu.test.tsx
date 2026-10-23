@@ -41,7 +41,6 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
     <SidebarTree
       tasks={[MAIN, task("a"), task("b")]}
       selectedId="a"
-      selectedTabId={null}
       onSelect={() => {}}
       focused={true}
       width={40}
@@ -202,35 +201,23 @@ test("left-click still activates the row it lands on", async () => {
   expect(chosen).toEqual(["b"])
 })
 
-/** Seed a task with N tabs so the tab rows render. */
-function seedTabs(taskId: string, tabIds: readonly string[]): void {
-  tabsByTask.set(taskId, {
-    tabs: tabIds.map((id, i) => ({ kind: "engine" as const, id, title: `tab ${i + 1}`, ordinal: i + 1 })),
-    activeId: tabIds[0] ?? "tab-1",
-    nextOrdinal: tabIds.length + 1,
-  })
-}
-
-test("a tab row's menu closes that tab, naming the (task, tab) pair", async () => {
+test("a parent's menu folds its children away", async () => {
   tabsByTask.clear()
-  seedTabs("a", ["tab-1", "tab-2"])
-  const closed: Array<[string, string]> = []
-  const { frame, mockMouse, mockInput } = await renderComponent(
-    tree({ onCloseTab: (taskId, tabId) => closed.push([taskId, tabId]) }),
-    { width: 40, height: 24 },
-  )
+  const tasks = [MAIN, task("a"), task("kid", { parentTaskId: toTaskId("a") })]
+  const { frame, mockMouse, mockInput } = await renderComponent(tree({ tasks }), { width: 40, height: 24 })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "tab 2"), RIGHT)
+  expect(await frame()).toContain("kid")
+  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
   await settle()
-  expect(await frame()).toContain("Close tab")
+  expect(await frame()).toContain("Collapse children")
 
-  // Highlight starts on "Open tab"; j steps to "Close tab".
+  // Highlight starts on "Open"; j steps to the fold entry.
   mockInput.typeText("j")
   await settle()
   mockInput.pressEnter()
   await settle()
 
-  expect(closed).toEqual([["a", "tab-2"]])
+  expect(await frame()).not.toContain("kid")
 })
 
 test("a worktree row's menu opens a new conversation in that task", async () => {
@@ -254,21 +241,6 @@ test("a worktree row's menu opens a new conversation in that task", async () => 
   await settle()
 
   expect(asked).toEqual([["a", "chat"]])
-})
-
-test("a worktree's LAST tab DOES offer a close", async () => {
-  // Closing it leaves the task with no sessions — the row stays and re-opens
-  // on ⏎ / ctrl+e — so there is nothing for the menu to withhold.
-  tabsByTask.clear()
-  seedTabs("a", ["tab-1"])
-  const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "tab 1"), RIGHT)
-  await settle()
-
-  const after = await frame()
-  expect(after).toContain("Open tab")
-  expect(after).toContain("Close tab")
 })
 
 /** Screen position of the first occurrence of `needle`. */

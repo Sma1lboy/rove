@@ -14,7 +14,6 @@ import {
   engineFor,
   newTabInvocation,
   remoteRowStatus,
-  tabRows,
   taskRows,
 } from "../src/rove-ops.ts"
 
@@ -313,6 +312,22 @@ describe("tab.new verb choice", () => {
     expect(newTabInvocation("T1", { kind: "engine", latest: true }).argv).toContain("--latest")
     expect(newTabInvocation("T1", { kind: "engine", engine: "codex", latest: true }).argv).not.toContain("--latest")
   })
+
+  test("an engine tab is a child task: the reply names it so a client can open it", async () => {
+    const verbs: Array<{ name: string; reply: unknown }> = [
+      { name: "send", reply: { taskId: "T1", childTaskId: "KID", session: "KID::tab-1" } },
+      { name: "tab-new", reply: { taskId: "T1", childTaskId: "KID", tabId: "tab-1", session: "KID::tab-1" } },
+    ]
+    for (const { name, reply } of verbs) {
+      const api: BridgeApi = {
+        verb: async <T>() => reply as T,
+        rpc: () => Promise.reject(new Error("unused")),
+      }
+      const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
+      const request = name === "send" ? { kind: "engine" as const, prompt: "go" } : { kind: "engine" as const }
+      expect(await ops.newTab("T1", request)).toEqual({ tabId: "tab-1", taskId: "KID" })
+    }
+  })
 })
 
 describe("phone text that starts with --", () => {
@@ -343,39 +358,5 @@ describe("pairing token", () => {
     const rotated = loadOrCreateToken(path, true)
     expect(rotated).not.toBe(first)
     expect(readFileSync(path, "utf8").trim()).toBe(rotated)
-  })
-})
-
-describe("tab rows", () => {
-  // Fixture: only the fields the mapping reads.
-  const row = (over: Record<string, unknown>) =>
-    ({
-      id: "tab-1",
-      kind: "engine",
-      title: null,
-      lastTitle: null,
-      autoTitle: null,
-      vendor: null,
-      liveVendor: null,
-      alive: true,
-      engineAlive: true,
-      ...over,
-    }) as unknown as Parameters<typeof tabRows>[0][number]
-
-  test("liveEngine names the engine running in an alive engine tab, from the probe only", () => {
-    const [live, configured] = tabRows([row({ liveVendor: "codex" }), row({ id: "tab-2", vendor: "codex" })])
-    expect(live?.liveEngine).toBe(live?.engineName)
-    expect(live?.liveEngine).toBeTruthy()
-    // The configured engine still names the tab, but the caption stays empty without a live answer.
-    expect(configured?.engineName).toBeTruthy()
-    expect(configured?.liveEngine).toBeNull()
-  })
-
-  test("a shell tab or a dead engine tab has no liveEngine", () => {
-    const rows = tabRows([
-      row({ id: "tab-3", kind: "command", liveVendor: "codex" }),
-      row({ id: "tab-4", alive: false, liveVendor: "codex" }),
-    ])
-    expect(rows.map((r) => r.liveEngine)).toEqual([null, null])
   })
 })

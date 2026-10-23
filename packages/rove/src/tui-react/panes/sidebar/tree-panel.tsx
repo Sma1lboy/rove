@@ -1,8 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
  * The sidebar tree's body: ONE scrollbox of one-line rows (the cursor indexes
- * one flat id list). The only fold is a project's routine count row, which
- * hides sessions a SCHEDULE created; everything a human opened shows.
+ * one flat id list). A project's routine count row folds the sessions a
+ * SCHEDULE created, and a task folds its child tasks; everything a human
+ * opened shows.
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
@@ -13,7 +14,7 @@ import { useT } from "../../i18n"
 import { SectionHeader } from "./chrome"
 import { RoutinesTreeRow } from "./routines-row"
 import type { TreeRowShared } from "./tree-row-shell"
-import { RecentJumpRow, TabTreeRow, WorktreeTreeRow } from "./tree-rows"
+import { RecentJumpRow, WorktreeTreeRow } from "./tree-rows"
 
 export function SidebarTreeBody(props: {
   readonly rows: readonly TreeRow[]
@@ -82,30 +83,16 @@ export function SidebarTreeBody(props: {
               />
             )
           }
-          if (row.kind === "worktree") {
-            const next = props.rows[i + 1]
-            return (
-              <WorktreeTreeRow
-                key={row.id}
-                rowId={row.id}
-                flatIndex={props.flatIndexOf.get(row.id) ?? -1}
-                task={row.task}
-                depth={row.depth}
-                remote={row.remote}
-                // Tab rows follow their worktree row; none here (unknown, or filtered out) = the row stands for the task.
-                tabsListed={next?.kind === "tab" && next.task.id === row.task.id}
-                shared={props.shared}
-              />
-            )
-          }
           return (
-            <TabTreeRow
+            <WorktreeTreeRow
               key={row.id}
               rowId={row.id}
               flatIndex={props.flatIndexOf.get(row.id) ?? -1}
               task={row.task}
-              tab={row.tab}
-              depth={row.depth - 1}
+              depth={row.depth}
+              level={row.level}
+              fold={row.fold}
+              remote={row.remote}
               shared={props.shared}
             />
           )

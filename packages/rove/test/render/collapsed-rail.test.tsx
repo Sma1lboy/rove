@@ -117,25 +117,30 @@ test("project headings fit every fold, including wide project initials", async (
 })
 
 /**
- * A task with several chats folds to one numbered cell per tab, so the second
- * chat's turn stays visible folded, and the digit is the `ctrl+<N>` it answers
- * to. A task with no known tabs keeps its single glyph.
+ * One task is one cell, whatever tabs it holds. A child task folds under its
+ * parent, stepped in a cell, wearing the tree's marker (`⑂` shared directory,
+ * `⎇` own worktree).
  */
-test("a task with tabs folds to one numbered cell per tab", async () => {
-  const tab = (id: string, active = false) => ({ id, label: id, active, engine: true, liveVendor: null })
-  const picked: string[] = []
-  const { frame, mockMouse } = await renderComponent(
-    <Rail
-      {...railProps({
-        tabsByTask: new Map([["t1", [tab("a", true), tab("b"), tab("c")]]]),
-        onSelectTab: (taskId: string, tabId: string) => picked.push(`${taskId}:${tabId}`),
-      })}
-    />,
-    { width: 10, height: 10 },
-  )
-  const lines = (await frame()).split("\n")
-  expect(lines.slice(1, 4).map((line) => line.trim())).toEqual(["▌1", "2", "3"])
-
-  await mockMouse.click(1, 3)
-  expect(picked).toEqual(["t1:c"])
+test("a child task folds under its parent with its marker", async () => {
+  const child = (id: string, title: string, over: Partial<Task>): Task =>
+    ({ ...task(id, title), parentTaskId: "t1", ...over }) as Task
+  const tasks = [
+    task("t1", "Visual Fixture"),
+    child("k1", "shared kid", { sharesWorkspaceOf: "t1" } as Partial<Task>),
+    child("k2", "own kid", {}),
+    task("t2", "fix completions"),
+  ]
+  const { frame } = await renderComponent(<Rail {...railProps({ groups: groupsOf(tasks) })} />, {
+    width: 10,
+    height: 10,
+  })
+  const rows = (await frame()).split("\n").slice(1, 5)
+  // First ink column and marker per row: the selected parent, two indented children, the next top-level task.
+  const shape = rows.map((line) => [line.search(/\S/), line.includes("⑂") ? "⑂" : line.includes("⎇") ? "⎇" : ""])
+  expect(shape).toEqual([
+    [0, ""],
+    [2, "⑂"],
+    [2, "⎇"],
+    [1, ""],
+  ])
 })

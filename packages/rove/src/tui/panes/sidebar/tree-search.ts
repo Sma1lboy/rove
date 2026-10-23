@@ -22,7 +22,6 @@ function rowHaystacks(row: TreeRow, liveBranch?: (task: Task) => string): readon
   if (row.kind === "project") return [row.label]
   // A translated count, and dropped from searches anyway (see `filterTreeRows`).
   if (row.kind === "routines") return []
-  if (row.kind === "tab") return [row.tab.label]
   const task = row.task
   // A `dir` task's title is hidden on screen, so it must not match either.
   const title = task.kind === "dir" ? "" : task.title
@@ -42,8 +41,7 @@ function matchesRow(query: string, row: TreeRow, liveBranch?: (task: Task) => st
  * Prune to matches, keeping every hit's ANCESTORS.
  *   - project  → repo basename; a hit keeps the WHOLE subtree.
  *   - worktree → rendered label (branch, live HEAD, or path), title, repo
- *     basename; a hit keeps its tabs.
- *   - tab      → its live OSC window title ("which tab is running that").
+ *     basename; a hit keeps its child tasks and the parents above it.
  */
 export function filterTreeRows(
   rows: readonly TreeRow[],
@@ -57,10 +55,17 @@ export function filterTreeRows(
   // merged every machine's checkout of a repo, so a task's own checkout key
   // would name a header that isn't there.
   const projectOf = new Map<string, string>()
+  const taskRows = new Map<string, TreeRow>()
   let header: string | null = null
   for (const row of rows) {
     if (row.kind === "project") header = row.id
     else if (header !== null) projectOf.set(row.id, header)
+    if (row.kind === "worktree") taskRows.set(row.id, row)
+  }
+  // The row of a task's parent, when it is on screen (a parent elsewhere left the child top-level).
+  const parentRowId = (row: TreeRow): string | undefined => {
+    const parent = row.kind === "worktree" ? row.task.parentTaskId : undefined
+    return parent !== undefined && taskRows.has(parent) ? parent : undefined
   }
 
   // Pass 1: self-matches, plus the ancestors each keeps alive.
@@ -71,12 +76,27 @@ export function filterTreeRows(
     selfMatch.add(row.id)
     keep.add(row.id)
     if (row.kind === "project" || row.kind === "routines") continue
-    if (row.kind === "tab") keep.add(row.task.id)
     const project = projectOf.get(row.id)
     if (project !== undefined) keep.add(project)
+    for (let up = parentRowId(row); up !== undefined && !keep.has(up); ) {
+      keep.add(up)
+      const parentRow = taskRows.get(up)
+      up = parentRow ? parentRowId(parentRow) : undefined
+    }
   }
 
-  // Pass 2: emit if matched, kept by a descendant, or under a matched project.
+  const underMatchedParent = (row: TreeRow): boolean => {
+    const seen = new Set<string>()
+    for (let up = parentRowId(row); up !== undefined && !seen.has(up); ) {
+      if (selfMatch.has(up)) return true
+      seen.add(up)
+      const parentRow = taskRows.get(up)
+      up = parentRow ? parentRowId(parentRow) : undefined
+    }
+    return false
+  }
+
+  // Pass 2: emit if matched, kept by a descendant, or under a matched project or parent.
   const out: TreeRow[] = []
   for (const row of rows) {
     if (row.kind === "project") {
@@ -88,11 +108,7 @@ export function filterTreeRows(
     if (row.kind === "routines") continue
     const project = projectOf.get(row.id)
     const underMatchedProject = project !== undefined && selfMatch.has(project)
-    if (row.kind === "worktree") {
-      if (underMatchedProject || keep.has(row.id)) out.push(row)
-      continue
-    }
-    if (underMatchedProject || selfMatch.has(row.task.id) || keep.has(row.id)) out.push(row)
+    if (underMatchedProject || keep.has(row.id) || underMatchedParent(row)) out.push(row)
   }
   return out
 }

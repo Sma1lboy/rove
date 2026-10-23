@@ -30,12 +30,14 @@ import {
 /**
  * Release a closing tab's split leaves and its own PTY. A viewport tab
  * (`ptyTask`) only views another task's session, so it isn't killed — same
- * carve-out as `chat.tab.close`.
+ * carve-out as `chat.tab.close`. A migrated child's tab names the tab it
+ * lives in (`ptyTask.tabId`): that session IS the child's conversation, so
+ * closing the tab ends it like any other engine tab.
  */
 export function releaseClosedTabPtys(taskId: string, closing: TerminalTab | undefined, closedId: string): void {
   const key = closing ? tabPtyKeyFor(taskId, closing) : tabPtyKey(taskId, closedId)
   releaseSplitLeaves(key, closing?.splitTree ?? null)
-  if (closing?.kind === "engine" && closing.ptyTask) return
+  if (closing?.kind === "engine" && closing.ptyTask && closing.ptyTask.tabId === undefined) return
   // The orphan backstop polls the host every 2s and would re-adopt the session
   // before it sees the kill (ctrl+w needing two presses); note the key so
   // orphan detection skips it meanwhile.

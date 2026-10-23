@@ -26,9 +26,9 @@ export const en = {
    *  set of rules. */
   menu: {
     open: "Open",
-    openTab: "Open tab",
-    closeTab: "Close tab",
-    closeOtherTabs: "Close other tabs",
+    /** A task with children: fold or unfold them. Menu-only (no chord yet). */
+    collapseChildren: "Collapse children",
+    expandChildren: "Expand children",
     newChat: "New conversation",
     newShell: "New shell",
     newTask: "New task",
@@ -51,7 +51,6 @@ export const en = {
     setStatus: "Set status",
     /** Also chord-less: put the row's task id / branch / worktree path on the clipboard. */
     copyId: "Copy task ID",
-    copyTab: "Copy tab address",
     copyBranch: "Copy branch name",
     copyPath: "Copy path",
     /** The `o` / `b` / `v` chords' menu routes. */
@@ -182,6 +181,12 @@ export const en = {
     deleteBodyTaskBranch:
       "Removes the task entry, its worktree, and its git branch if it is merged. An unmerged branch stays. Its hosted sessions are stopped.",
     deleteConfirm: "delete",
+    /** Second dialog when the task being deleted has child tasks; the default keeps them. */
+    childrenTitle: '"{title}" has {count} child tasks',
+    childrenBody:
+      "Promote moves them up one level and keeps their worktrees and sessions. Delete with children removes them too.",
+    childrenPromote: "promote children",
+    childrenCascade: "delete with children",
     forceDeleteTitle: '"{title}" has uncommitted changes',
     forceDeleteConfirm: "force delete",
   },
@@ -282,9 +287,8 @@ export const zh: typeof en = {
   },
   menu: {
     open: "打开",
-    openTab: "打开该标签页",
-    closeTab: "关闭该标签页",
-    closeOtherTabs: "关闭其他标签页",
+    collapseChildren: "折叠子任务",
+    expandChildren: "展开子任务",
     newChat: "新建会话",
     newShell: "新建终端",
     newTask: "新建任务",
@@ -299,7 +303,6 @@ export const zh: typeof en = {
     runAgain: "重新运行",
     setStatus: "设置状态",
     copyId: "复制任务 ID",
-    copyTab: "复制标签页地址",
     copyBranch: "复制分支名",
     copyPath: "复制路径",
     openEditor: "在编辑器中打开",
@@ -385,6 +388,10 @@ export const zh: typeof en = {
     deleteBodyTaskBranch:
       "删除任务条目、它的 worktree，以及已合并的 git 分支。未合并的分支会保留。它的托管会话会被停止。",
     deleteConfirm: "删除",
+    childrenTitle: "「{title}」有 {count} 个子任务",
+    childrenBody: "提升会把它们上移一级，并保留它们的 worktree 和会话。连同子任务删除会把它们一并删除。",
+    childrenPromote: "提升子任务",
+    childrenCascade: "连同子任务删除",
     forceDeleteTitle: "「{title}」有未提交的改动",
     forceDeleteConfirm: "强制删除",
   },

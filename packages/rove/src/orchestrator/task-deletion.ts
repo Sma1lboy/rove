@@ -1,12 +1,7 @@
 import { errorMessage } from "../lib/error-message.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { canonPath } from "./core-helpers.ts"
-import {
-  CannotDeleteMainTaskError,
-  DirtyWorktreeError,
-  HasAliasedChildError,
-  WorktreeRemoveFailedError,
-} from "./errors.ts"
+import { CannotDeleteMainTaskError, DirtyWorktreeError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import { subtreeIds } from "./task-tree.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
@@ -77,9 +72,6 @@ export class TaskDeletionCoordinator {
     const leaving = new Set(doomed.map((t) => String(t.id)))
     // Rows already on their way out don't keep a directory alive.
     const survivors = this.store.list().filter((t) => !leaving.has(String(t.id)) && !isLeaving(t))
-    // Deleting a task tears down every PTY keyed under it, including the one a surviving child still lives in.
-    const hosted = survivors.filter((s) => s.ptyAlias && leaving.has(s.ptyAlias.taskId)).map((s) => String(s.id))
-    if (hosted.length > 0) throw new HasAliasedChildError(String(task.id), hosted)
 
     const gated = new Set<string>()
     for (const target of doomed) {

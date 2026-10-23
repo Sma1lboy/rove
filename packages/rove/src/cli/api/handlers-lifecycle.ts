@@ -6,6 +6,7 @@
 
 import { errorMessage } from "@/lib/error-message"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { pathWithin, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
@@ -87,7 +88,7 @@ async function deleteOne(
       : undefined
   // The daemon's audit line names WHO asked, from the verified identity —
   // never the bare env: unverifiable stays unattributed.
-  let res: { taskId: string; queued: boolean; deleted?: string[] }
+  let res: { taskId: string; queued: boolean; deleted?: string[]; teardown?: Record<string, TeardownScope> }
   try {
     res = (await daemon.request("task.delete", {
       taskId,
@@ -95,7 +96,7 @@ async function deleteOne(
       deleteBranch,
       ...(cascade ? { cascade } : {}),
       ...(self ? { requestedByTaskId: self.taskId, requestedByTabId: self.tabId } : {}),
-    })) as { taskId: string; queued: boolean; deleted?: string[] }
+    })) as typeof res
   } catch (err) {
     throw deleteRecoveryError(err, taskId)
   }
@@ -104,7 +105,8 @@ async function deleteOne(
   // finishDeletedTaskFlow, after the RPC succeeds. A cascade tears down every
   // task of the subtree, not just the one named.
   const removing = res.deleted ?? [taskId]
-  for (const id of removing) await ctx.runtime.tearDownSession(id)
+  // `teardown` (from the daemon, which knows the aliases): PTYs surviving children still live in are spared.
+  for (const id of removing) await ctx.runtime.tearDownSession(id, res.teardown?.[id])
   if (!res.queued) return { ...res, status: "not_found" as const }
   // Removal runs in the background; `--wait` asks for the OUTCOME. A branch
   // flag implies it: git refuses to delete a branch a live worktree holds, so

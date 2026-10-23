@@ -139,7 +139,6 @@ function SortHost() {
     <SidebarTree
       tasks={[MAIN, OLDER, NEWER]}
       selectedId={OLDER.id}
-      selectedTabId={null}
       onSelect={() => {}}
       focused={focus.focused === "sidebar"}
       sortMode={sortMode}
