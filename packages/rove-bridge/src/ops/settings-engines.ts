@@ -17,7 +17,7 @@ import {
   engineDisplayName,
   engineRenamedFrom,
 } from "@sma1lboy/rove/src/engine/interactive-command.ts"
-import { type StateSnapshot, loadStateFile, patchStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { type StateSnapshot, loadStateFile, patchStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { ALL_VENDORS, isBuiltinVendor } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
 import { bool, text } from "./args.ts"
@@ -29,6 +29,11 @@ export interface EngineDeps {
   readonly load: () => StateSnapshot
   /** `undefined` values delete their key (patchStateFile's contract). */
   readonly patch: (patch: StateSnapshot) => void
+  /**
+   * Locked fresh read, then the patch `compute` derives from it (`undefined` deletes a key).
+   * A write built from an earlier `load` would erase what another client just switched.
+   */
+  readonly update: (compute: (fresh: StateSnapshot) => StateSnapshot) => void
   /** Contrib engines whose CLI is on PATH and plugin-registered engines. */
   readonly installed: () => Promise<readonly string[]>
   readonly statuses: (ids: readonly string[]) => Promise<readonly EngineStatus[]>
@@ -41,6 +46,15 @@ export const realDeps: EngineDeps = {
   load: loadStateFile,
   patch: (patch) => {
     patchStateFile(patch)
+  },
+  update: (compute) => {
+    updateStateFile((state) => {
+      for (const [key, value] of Object.entries(compute(state))) {
+        if (value === undefined) delete state[key]
+        else state[key] = value
+      }
+      return undefined
+    })
   },
   installed: installedEngineIds,
   statuses: detectEngineStatuses,
@@ -161,13 +175,12 @@ export function createEngineOps(deps: EngineDeps): OpTable {
         const ids = await engineIds(deps, state)
         const id = listedId(args, ids)
         const enabled = bool(args, "enabled")
-        const off = strings(state, "disabledEngineIds")
-        if (enabled) {
-          deps.patch({ disabledEngineIds: without(off, id) })
-        } else if (!off.includes(id)) {
-          const handoff = afterLeaving(state, ids, id, off)
-          deps.patch({ disabledEngineIds: [...off, id], ...handoff })
-        }
+        deps.update((fresh) => {
+          const off = strings(fresh, "disabledEngineIds")
+          if (enabled) return { disabledEngineIds: without(off, id) }
+          if (off.includes(id)) return {}
+          return { disabledEngineIds: [...off, id], ...afterLeaving(fresh, ids, id, off) }
+        })
         return { id, enabled }
       },
     },
@@ -182,9 +195,11 @@ export function createEngineOps(deps: EngineDeps): OpTable {
         if (!canBeDefault(state, id)) {
           throw new BridgeError("BAD_ARGS", `${id} cannot be the default; only built-in and custom engines can`)
         }
-        const off = strings(state, "disabledEngineIds")
         // A switched-off default would never be offered, so choosing it switches it back on.
-        deps.patch({ defaultVendor: id, ...(off.includes(id) ? { disabledEngineIds: without(off, id) } : {}) })
+        deps.update((fresh) => {
+          const off = strings(fresh, "disabledEngineIds")
+          return { defaultVendor: id, ...(off.includes(id) ? { disabledEngineIds: without(off, id) } : {}) }
+        })
         return { id }
       },
     },
@@ -200,7 +215,7 @@ export function createEngineOps(deps: EngineDeps): OpTable {
         if (raw.length > NAME_MAX || /[\u0000-\u001f\u007f]/.test(raw)) {
           throw new BridgeError("BAD_ARGS", `name must be at most ${NAME_MAX} printable characters`)
         }
-        deps.patch({ [`engineName.${id}`]: raw.length > 0 ? raw : undefined })
+        deps.update(() => ({ [`engineName.${id}`]: raw.length > 0 ? raw : undefined }))
         return { id, name: raw.length > 0 ? raw : deps.engineName(id) }
       },
     },
@@ -213,22 +228,23 @@ export function createEngineOps(deps: EngineDeps): OpTable {
         const ids = await engineIds(deps, state)
         const id = listedId(args, ids)
         const clear = { [`engineCommand.${id}`]: undefined, [`engineName.${id}`]: undefined }
-        const custom = strings(state, "customEngineIds")
-        if (!custom.includes(id)) {
+        let removed = false
+        deps.update((fresh) => {
+          const custom = strings(fresh, "customEngineIds")
           // Built-in and detected engines only ever lose their overrides.
-          deps.patch(clear)
-          return { id, removed: false }
-        }
-        const off = strings(state, "disabledEngineIds")
-        const handoff = off.includes(id) ? {} : afterLeaving(state, ids, id, off)
-        deps.patch({
-          ...clear,
-          [`engineProtocol.${id}`]: undefined,
-          customEngineIds: without(custom, id),
-          disabledEngineIds: without(off, id),
-          ...handoff,
+          if (!custom.includes(id)) return clear
+          removed = true
+          const off = strings(fresh, "disabledEngineIds")
+          const handoff = off.includes(id) ? {} : afterLeaving(fresh, ids, id, off)
+          return {
+            ...clear,
+            [`engineProtocol.${id}`]: undefined,
+            customEngineIds: without(custom, id),
+            disabledEngineIds: without(off, id),
+            ...handoff,
+          }
         })
-        return { id, removed: true }
+        return { id, removed }
       },
     },
   }

@@ -213,6 +213,9 @@ function engineHarness(initial: Record<string, unknown> = {}, installed: string[
         else state[key] = value
       }
     },
+    update: (compute) => {
+      deps.patch(compute({ ...state }))
+    },
     installed: async () => installed,
     statuses: async (ids) =>
       ids.map(
@@ -279,6 +282,15 @@ describe("engine switches keep the section's invariants", () => {
     await run(ops, "engine.setEnabled", { id: "claude", enabled: false })
     expect(state.disabledEngineIds).toEqual(["claude"])
     expect(state.defaultVendor).toBe("codex")
+  })
+
+  test("two clients switching different engines off at once both stick", async () => {
+    const { ops, state } = engineHarness({ defaultVendor: "claude" })
+    await Promise.all([
+      run(ops, "engine.setEnabled", { id: "codex", enabled: false }),
+      run(ops, "engine.setEnabled", { id: "gemini", enabled: false }),
+    ])
+    expect(new Set(state.disabledEngineIds as string[])).toEqual(new Set(["codex", "gemini"]))
   })
 
   test("the last enabled engine stays on", async () => {
