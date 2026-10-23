@@ -293,8 +293,11 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   // Copy: ctrl+c with a selection copies and drops it, otherwise it stays the interrupt (TUI `copySelectionIfAny`).
   term.attachCustomKeyEventHandler((e) => {
-    // Ctrl+V would ask the engine to read the Mac's clipboard, not this browser's.
-    if (e.type === "keydown" && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "v") {
+    // On a Mac, Ctrl+V would ask the engine to read the rove machine's clipboard, not this browser's.
+    // Elsewhere it is the browser's own paste, which the paste event already covers.
+    const ctrlV =
+      e.type === "keydown" && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "v"
+    if (ctrlV && /Mac|iPhone|iPad/.test(navigator.platform)) {
       void o.pasteImage().then((attached) => {
         if (!attached) term.input("\x16")
       })

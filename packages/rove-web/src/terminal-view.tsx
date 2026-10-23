@@ -51,21 +51,18 @@ async function dropFiles(client: BridgeClient, handle: TermHandle, files: File[]
   handle.term.focus()
 }
 
-/** The images and PDFs on the browser's clipboard; empty when the page may not read it (no https, permission refused). */
+/** The images and PDFs on the browser's clipboard; throws when the page may not read it (plain http, permission refused). */
 async function clipboardFiles(): Promise<File[]> {
-  if (!navigator.clipboard?.read) return []
-  try {
-    const files: File[] = []
-    for (const item of await navigator.clipboard.read()) {
-      for (const type of item.types) {
-        const blob = await item.getType(type)
-        files.push(new File([blob], "clipboard", { type }))
+  if (!navigator.clipboard?.read) throw new Error(t("layout.pasteNeedsHttps"))
+  const files: File[] = []
+  for (const item of await navigator.clipboard.read()) {
+    for (const type of item.types) {
+      if (type.startsWith("image/") || type === "application/pdf") {
+        files.push(new File([await item.getType(type)], "clipboard", { type }))
       }
     }
-    return attachableFiles(files)
-  } catch {
-    return []
   }
+  return attachableFiles(files)
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -120,8 +117,22 @@ export function TerminalView(props: TerminalViewProps) {
         },
         copyText,
         pasteImage: async () => {
-          const files = mounted ? await clipboardFiles() : []
-          if (!mounted || files.length === 0) return false
+          if (!mounted) return false
+          // A page on this Mac may let the engine read the clipboard itself; from elsewhere that is the wrong clipboard.
+          const local = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname)
+          let files: File[]
+          try {
+            files = await clipboardFiles()
+          } catch (err) {
+            if (local) return false
+            toast(t("layout.pasteNoAccess", { error: err instanceof Error ? err.message : String(err) }), "error")
+            return true
+          }
+          if (files.length === 0) {
+            if (local) return false
+            toast(t("layout.pasteNoImage"), "error")
+            return true
+          }
           await dropFiles(client, mounted, files)
           return true
         },
