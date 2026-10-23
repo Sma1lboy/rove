@@ -376,6 +376,21 @@ describe("createKvCore", () => {
     })
   })
 
+  it("follow() takes a flushed quiet key and the echo of this process's own write without re-rendering", () => {
+    vi.useFakeTimers()
+    isolatedHome({ "lastActive.taskId": "t1" })
+    const kv = createKvCore()
+    let notified = 0
+    kv.subscribe(() => notified++)
+    kv.setQuiet("inboxVisits", ["t1"])
+    vi.advanceTimersByTime(400)
+    kv.follow({ inboxVisits: ["t1"] })
+    kv.follow({ inboxVisits: ["t2", "t1"] })
+    expect(kv.get("inboxVisits")).toEqual(["t2", "t1"])
+    expect(kv.get("lastActive.taskId")).toBe("t1")
+    expect(notified).toBe(0)
+  })
+
   it("keeps pending writes off an invalid file until repair, across debounce and exit flushes", () => {
     vi.useFakeTimers()
     const home = isolatedHome({ activeTheme: "tokyonight", keep: 42 })

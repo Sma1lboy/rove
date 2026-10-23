@@ -12,6 +12,7 @@
  */
 
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
+import { isUnpublishedStateKey } from "@sma1lboy/rove-daemon/daemon/state-watcher"
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
 import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
@@ -71,7 +72,7 @@ export interface KvCore {
    */
   reload(): KvReloadResult
   /**
-   * Adopt the daemon's `state` push (every key but `terminalTabs.*`), the
+   * Adopt the daemon's `state` push (every key but `isUnpublishedStateKey`), the
    * way `reload` adopts the file: unflushed local keys win until they land.
    */
   follow(shared: Readonly<Record<string, unknown>>): void
@@ -143,8 +144,11 @@ export function createKvCore(): KvCore {
     }, WRITE_DEBOUNCE_MS)
   }
 
-  /** Adopt `fresh` as the snapshot, keeping this process's unflushed keys and seeded defaults. Returns the keys that moved. */
-  function merge(fresh: Record<string, unknown>): number {
+  /**
+   * Adopt `fresh` as the snapshot, keeping this process's unflushed keys and seeded defaults. Returns the keys that moved.
+   * `keepQuiet` leaves flushed quiet keys out of the snapshot, so a push (often this process's own echo) re-renders nobody.
+   */
+  function merge(fresh: Record<string, unknown>, keepQuiet: boolean): number {
     const before = store.get()
     const next: Record<string, unknown> = { ...fresh }
     for (const [key, value] of seeded) if (next[key] === undefined) next[key] = value
@@ -152,7 +156,16 @@ export function createKvCore(): KvCore {
       if (before[key] === undefined) delete next[key]
       else next[key] = before[key]
     }
-    for (const key of [...quiet.keys()]) if (!dirtyKeys.has(key)) quiet.delete(key)
+    for (const key of [...quiet.keys()]) {
+      if (dirtyKeys.has(key)) continue
+      if (!keepQuiet) {
+        quiet.delete(key)
+        continue
+      }
+      quiet.set(key, fresh[key])
+      if (before[key] === undefined) delete next[key]
+      else next[key] = before[key]
+    }
     if (dirtyKeys.size > 0) scheduleWrite()
     let changed = 0
     for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
@@ -224,19 +237,19 @@ export function createKvCore(): KvCore {
         readStateFileStrict()
         cancelTimer()
         writeNow("reload flush")
-        return { ok: true, changed: merge(readStateFileStrict()) }
+        return { ok: true, changed: merge(readStateFileStrict(), false) }
       } catch (error) {
         return { ok: false, error }
       }
     },
     follow(shared) {
-      // The push leaves out the daemon-owned tab keys; keep ours.
+      // The push leaves out the unpublished keys; keep ours.
       const next: Record<string, unknown> = { ...shared }
       for (const key of PER_WINDOW_KEYS) delete next[key]
       for (const [key, value] of Object.entries(store.get())) {
-        if (key.startsWith(TERMINAL_TABS_PREFIX) || PER_WINDOW_KEYS.has(key)) next[key] = value
+        if (isUnpublishedStateKey(key) || PER_WINDOW_KEYS.has(key)) next[key] = value
       }
-      merge(next)
+      merge(next, true)
     },
     onWriteError(listener) {
       errorListeners.add(listener)

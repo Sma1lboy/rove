@@ -20,8 +20,9 @@ the web or a phone stayed invisible until restart, and a TUI writing a whole
 list key from its stale copy could erase it.
 
 - `rove-daemon/src/daemon/state-watcher.ts` stat-polls the file and publishes
-  it whole (minus `terminalTabs.*`, which the tab store publishes) on `state`
-  after every change, whoever made it. The last value replays to a late
+  it whole (minus `terminalTabs.*`, which the tab store publishes, and
+  `lastActive.taskId`, which every task switch writes and only boot reads) on
+  `state` after every change, whoever made it. The last value replays to a late
   subscriber.
 - The TUI's kv core follows it (`kv-core.ts` `follow`, wired in `host-boot.tsx`
   `UiPrefsSync`): pushed keys replace the snapshot, this process's unflushed

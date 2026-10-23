@@ -156,7 +156,7 @@ export interface ChannelPayloads {
    */
   keybindings: { rev: number }
   /**
-   * The shared state file minus `terminalTabs.*` (`state-watcher.ts`), whole,
+   * The shared state file minus `isUnpublishedStateKey` (`state-watcher.ts`), whole,
    * after every change by any writer. Clients follow it instead of keeping a
    * boot-time copy.
    */

@@ -43,8 +43,8 @@ async function waitFor(cond: () => boolean): Promise<void> {
   expect(cond()).toBe(true)
 }
 
-test("another process's write reaches subscribers without the tab store's keys, and a no-op write publishes nothing", async () => {
-  patchStateFile({ savedRepos: ["/a"], "terminalTabs.t1": { tabs: [] } })
+test("another process's write reaches subscribers without the unpublished keys, and a no-op write publishes nothing", async () => {
+  patchStateFile({ savedRepos: ["/a"], "terminalTabs.t1": { tabs: [] }, "lastActive.taskId": "t1" })
   stop = startStateWatcher(bus, defaultUiPrefsStatePath(home), 25)
   expect(pushes).toEqual([{ savedRepos: ["/a"] }])
 
@@ -52,7 +52,8 @@ test("another process's write reaches subscribers without the tab store's keys, 
   await waitFor(() => pushes.length === 2)
   expect(pushes[1]).toEqual({ savedRepos: ["/a", "/b"], machines: { box: { host: "box" } } })
 
-  patchStateFile({ "terminalTabs.t1": { tabs: [{ id: "tab-1" }] } })
+  // A task switch writes these; no client reads them live.
+  patchStateFile({ "terminalTabs.t1": { tabs: [{ id: "tab-1" }] }, "lastActive.taskId": "t2" })
   await new Promise((r) => setTimeout(r, 600))
   expect(pushes).toHaveLength(2)
 })

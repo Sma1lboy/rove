@@ -7,8 +7,10 @@
  * added until restart.
  *
  * `terminalTabs.*` is left out: the tab store owns and publishes those
- * (`tabs.changed`). Same mechanics as `ui-prefs-watcher.ts`: stat-poll,
- * debounce, changed-only publish, an initial publish for replay.
+ * (`tabs.changed`). So is `lastActive.taskId`: it changes on every task
+ * switch and is read from the file once at boot, never live. Same mechanics
+ * as `ui-prefs-watcher.ts`: stat-poll, debounce, changed-only publish, an
+ * initial publish for replay.
  */
 
 import { readFileSync } from "node:fs"
@@ -20,9 +22,15 @@ import { startFileWatchTrigger } from "./file-watch-trigger.ts"
 export const DEFAULT_STATE_DEBOUNCE_MS = 100
 
 const TABS_PREFIX = "terminalTabs."
+const LAST_ACTIVE_KEY = "lastActive.taskId"
+
+/** Keys the `state` push leaves out; a follower keeps its own copy of them. */
+export function isUnpublishedStateKey(key: string): boolean {
+  return key.startsWith(TABS_PREFIX) || key === LAST_ACTIVE_KEY
+}
 
 export interface SharedStatePayload {
-  /** Every key except `terminalTabs.*`. Whole each time: one publisher, FIFO per socket, so the last one wins. */
+  /** Every key except the unpublished ones (`isUnpublishedStateKey`). Whole each time: one publisher, FIFO per socket, so the last one wins. */
   readonly state: Readonly<Record<string, unknown>>
 }
 
@@ -38,7 +46,7 @@ export function readSharedState(statePath: string): Record<string, unknown> | nu
     const parsed = JSON.parse(text) as unknown
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null
     const out: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(parsed)) if (!key.startsWith(TABS_PREFIX)) out[key] = value
+    for (const [key, value] of Object.entries(parsed)) if (!isUnpublishedStateKey(key)) out[key] = value
     return out
   } catch {
     return null
