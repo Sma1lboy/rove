@@ -83,6 +83,7 @@ export class DispatchLedger {
   private rows: DispatchRow[] = []
   private seq = 1
   private rev = 0
+  private expiry: ReturnType<typeof setTimeout> | null = null
   private readonly off: () => void
   private readonly now: () => number
 
@@ -122,6 +123,7 @@ export class DispatchLedger {
 
   close(): void {
     this.off()
+    this.clearExpiry()
   }
 
   private take(payload: unknown): void {
@@ -151,6 +153,29 @@ export class DispatchLedger {
     this.rows = prune(this.rows, this.now())
     this.rev += 1
     this.bus.publish("dispatch.snapshot", this.list())
+    this.scheduleExpiry()
+  }
+
+  /** A stuck row must leave on its own: on a quiet daemon no other change would publish the prune. */
+  private scheduleExpiry(): void {
+    this.clearExpiry()
+    const open = this.rows.filter((r) => !SETTLED.has(r.status))
+    if (open.length === 0) return
+    const due = Math.min(...open.map((r) => r.statusAt)) + OPEN_TTL_MS
+    this.expiry = setTimeout(
+      () => {
+        this.expiry = null
+        if (prune(this.rows, this.now()).length !== this.rows.length) this.publish()
+        else this.scheduleExpiry()
+      },
+      Math.max(0, due - this.now()),
+    )
+    this.expiry.unref?.()
+  }
+
+  private clearExpiry(): void {
+    if (this.expiry) clearTimeout(this.expiry)
+    this.expiry = null
   }
 }
 

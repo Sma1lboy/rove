@@ -2,7 +2,7 @@
 
 import { DispatchLedger, type DispatchSnapshot } from "@sma1lboy/rove-daemon/daemon/dispatch-ledger"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 function setup(now = 1_000) {
   const bus = new DaemonEventBus()
@@ -55,5 +55,27 @@ describe("dispatch ledger", () => {
       ["failed", "no-session"],
       ["failed", "dead"],
     ])
+  })
+
+  describe("an in-flight row nothing moves", () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it("leaves the published snapshot after six hours even when nothing else changes", () => {
+      vi.useFakeTimers({ now: 1_000 })
+      const bus = new DaemonEventBus()
+      const ledger = new DispatchLedger(bus)
+      const published = () => bus.snapshot().find((e) => e.channel === "dispatch.snapshot")?.payload as DispatchSnapshot
+      ledger.record({ ...send, to: { taskId: "w", tabId: "tab-1" }, delivered: true })
+      ledger.record({ ...send, to: { taskId: "x", tabId: "tab-1" }, delivered: false, reason: "no-session" })
+
+      vi.advanceTimersByTime(6 * 60 * 60_000 - 1)
+      expect(published().rows.map((r) => r.status)).toEqual(["delivered", "failed"])
+      vi.advanceTimersByTime(1)
+      expect(published().rows.map((r) => r.status)).toEqual(["failed"])
+      expect(ledger.list().rows).toEqual(published().rows)
+      ledger.close()
+    })
   })
 })
