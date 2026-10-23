@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.268
+
+### Patch Changes
+
+- [#1401](https://github.com/Sma1lboy/rove/pull/1401) [`87f76e7`](https://github.com/Sma1lboy/rove/commit/87f76e72d04002270591ab312e53595de9fc7e08) A prompt on the web Dispatch page whose target never reported back now leaves the in-flight lanes six hours after its last update even when nothing else happens; before, a quiet daemon kept its courier running there until some other dispatch changed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1403](https://github.com/Sma1lboy/rove/pull/1403) [`f71810c`](https://github.com/Sma1lboy/rove/commit/f71810c24fc2fc5bae0469a08d0943c39b00e99f) Switching engines on or off, choosing the default or resetting a custom engine from the web or phone no longer erases a change another window made a moment earlier. The disabled-engine list is now updated from a locked fresh read instead of the snapshot taken before the request awaited. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1405](https://github.com/Sma1lboy/rove/pull/1405) [`02a0bea`](https://github.com/Sma1lboy/rove/commit/02a0beabf6fe0304ad6c2bd308e2665fb871c3e6) A conversation started from a child task now becomes that child's sibling under the same parent, so the sidebar tree stays one level deep. It still runs in the directory of the child that started it and reports back to that child. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1402](https://github.com/Sma1lboy/rove/pull/1402) [`72d1bc0`](https://github.com/Sma1lboy/rove/commit/72d1bc05b0bb5eeefa799526634f272780ab59f8) A task whose merge, rebase or cherry-pick stopped on conflicts offers "Resolve conflicts" in its row menu, which hands the conflicted files and the command that finishes the operation to the task's engine. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1400](https://github.com/Sma1lboy/rove/pull/1400) [`bc63b75`](https://github.com/Sma1lboy/rove/commit/bc63b7528d1b00deeaa0e4a72f51183da3760061) A task switch no longer re-renders the whole TUI twice when the daemon echoes its own state writes back: the shared state push leaves out the last-focused task id, and identical inbox visit echoes are adopted without a repaint. Changed visits from other windows still update an open Inbox. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1404](https://github.com/Sma1lboy/rove/pull/1404) [`708c611`](https://github.com/Sma1lboy/rove/commit/708c61142cea8b9f65607cf8ce56fd54293c0b0b) Pasting an image or PDF into a task terminal on the web now works like dropping one: the file is stored on the machine running rove and its path is typed into the terminal. Before, a pasted image was silently dropped. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.267
 
 ### Patch Changes
