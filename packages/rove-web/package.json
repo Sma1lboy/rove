@@ -28,7 +28,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.4",
-    "rove-bridge": "0.0.29",
+    "rove-bridge": "0.0.30",
     "typescript": "5.8.2",
     "vite": "^8.2.2"
   }
