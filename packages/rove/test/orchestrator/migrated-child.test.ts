@@ -80,4 +80,13 @@ describe("createMigratedChild", () => {
     await reloaded.load()
     expect(reloaded.get(child.id)?.ptyAlias).toBeUndefined()
   })
+
+  it("hangs a tab migrated out of a child under the child's parent, in the child's directory", async () => {
+    const root = await parentRow("task")
+    const child = await orch.createMigratedChild({ parentTaskId: root.id, title: "child" })
+
+    const sibling = await orch.createMigratedChild({ parentTaskId: child.id, title: "from child" })
+
+    expect(sibling).toMatchObject({ parentTaskId: root.id, sharesWorkspaceOf: root.id, worktreePath: "/wt/parent" })
+  })
 })

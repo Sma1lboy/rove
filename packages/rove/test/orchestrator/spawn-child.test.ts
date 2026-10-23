@@ -172,14 +172,25 @@ describe("shared children", () => {
     expect(task.sharesWorkspaceOf).toBe(parent.id)
   })
 
-  test("a grandchild shares the directory's owner, not the sharer it was spawned from", async () => {
+  test("a conversation started from a child is its sibling, sharing the directory's owner", async () => {
     const owner = await mainRow()
     const { task: child } = await orch.spawnChildTask({ parentTaskId: owner.id, worktree: false })
 
-    const { task: grandchild } = await orch.spawnChildTask({ parentTaskId: child.id, worktree: false })
+    const { task: sibling } = await orch.spawnChildTask({ parentTaskId: child.id, worktree: false })
 
-    expect(grandchild.parentTaskId).toBe(child.id)
-    expect(grandchild.sharesWorkspaceOf).toBe(owner.id)
+    expect(sibling.parentTaskId).toBe(owner.id)
+    expect(sibling.sharesWorkspaceOf).toBe(owner.id)
+  })
+
+  test("a child with its own worktree hands its directory, not its place in the tree, to what it starts", async () => {
+    const root = await mainRow()
+    const { task: isolated } = await orch.spawnChildTask({ parentTaskId: root.id, worktree: true })
+
+    const { task: sibling } = await orch.spawnChildTask({ parentTaskId: isolated.id, worktree: false })
+
+    expect(sibling.parentTaskId).toBe(root.id)
+    expect(sibling.sharesWorkspaceOf).toBe(isolated.id)
+    expect(sibling.worktreePath).toBe(orch.getTask(isolated.id)?.worktreePath)
   })
 
   test("a shared child on a repo root is never promoted to, or adopted as, the project row", async () => {

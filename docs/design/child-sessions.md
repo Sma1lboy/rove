@@ -37,8 +37,12 @@ classDiagram
     Task "1" <-- "0..*" Task : sharesWorkspaceOf (same directory)
 ```
 
-- `parentTaskId` is the tree link. Deleting a parent promotes its children to
-  the parent's own parent, or to top level.
+- `parentTaskId` is the tree link, and it is **one level deep**. A
+  conversation started from a child becomes that child's sibling: its
+  `parentTaskId` is the top-level task (`lineageRootId`). Its directory still
+  follows the child that started it (shared or cut from that child's branch
+  tip), and `dispatcher` still reports back to that child. Deleting a parent
+  promotes its children to top level.
 - `sharesWorkspaceOf` is set on a child that runs in another task's directory.
   That other task is the **workspace owner**.
   - A shared child of a managed `task` keeps `kind: "task"` with the owner's

@@ -8,7 +8,7 @@
 import { isAbsolute, relative, resolve, sep } from "node:path"
 import type { SpawnChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
 import type { TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
-import { taskCwd } from "@sma1lboy/rove-daemon/task-tree"
+import { lineageRootId, taskCwd } from "@sma1lboy/rove-daemon/task-tree"
 import { isGitRepo, isRemoteRepoKey, resolveMainRepoRoot } from "../state/repos.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { toTaskId } from "../types/task.ts"
@@ -45,6 +45,8 @@ export interface SpawnChildDeps {
 
 /** Fields the caller picks for a child; everything else comes from the parent. */
 export interface ChildRowFields {
+  /** The tree parent: the spawning task's top-level ancestor ({@link lineageRootId}). */
+  readonly parentTaskId: string
   readonly title: string
   readonly vendor: Task["vendor"]
   readonly command?: string
@@ -68,7 +70,7 @@ export function sharedChildRow(parent: Task, workspace: string, fields: ChildRow
     ...(parent.kind === "task" && parent.baseRef ? { baseRef: parent.baseRef } : {}),
     ...(parent.cwdSubpath ? { cwdSubpath: parent.cwdSubpath } : {}),
     ...(fields.prompt ? { prompt: fields.prompt } : {}),
-    parentTaskId: parent.id,
+    parentTaskId: toTaskId(fields.parentTaskId),
     sharesWorkspaceOf: toTaskId(parent.sharesWorkspaceOf ?? parent.id),
   }
 }
@@ -89,6 +91,7 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
   // A child with neither engine field set runs what its parent runs.
   const inherit = !input.vendor && !input.command
   const common = {
+    parentTaskId: lineageRootId(deps.store.list(), parent.id),
     title: sanitizeTaskTitle(input.title ?? PLACEHOLDER_TASK_TITLE) || PLACEHOLDER_TASK_TITLE,
     vendor: input.vendor ?? parent.vendor,
     command: input.command ?? (inherit ? parent.command : undefined),
@@ -120,7 +123,7 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
     vendor: common.vendor,
     command: common.command,
     dispatcher: common.dispatcher,
-    parentTaskId: parent.id,
+    parentTaskId: toTaskId(common.parentTaskId),
     cwdSubpath,
     projectIntent: "derived",
   })

@@ -29,6 +29,23 @@ export function isSharedChild(task: TreeTask): boolean {
   return task.sharesWorkspaceOf !== undefined
 }
 
+/**
+ * The top-level task `id` hangs under. A conversation started from a child
+ * becomes a sibling of it, so children never nest. A missing ancestor or a
+ * cycle stops the walk at the last task seen.
+ */
+export function lineageRootId(tasks: readonly TreeTask[], id: string): string {
+  const byId = new Map(tasks.map((task) => [task.id, task]))
+  const seen = new Set<string>()
+  let current = id
+  for (;;) {
+    seen.add(current)
+    const up = byId.get(current)?.parentTaskId
+    if (!up || seen.has(up) || !byId.has(up)) return current
+    current = up
+  }
+}
+
 /** `id` and every descendant, deepest first (a node always follows its children). */
 export function subtreeIds(tasks: readonly TreeTask[], id: string): string[] {
   const out: string[] = []

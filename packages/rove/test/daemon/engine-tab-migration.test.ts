@@ -186,6 +186,23 @@ describe("migration edge cases", () => {
     expect(r.ids("parent")).toEqual(["tab-1"])
   })
 
+  it("re-finds a migrated child under the root when the migrating task is itself a child", async () => {
+    const r = rig([engine("tab-1"), engine("tab-2", { title: "second", sessionId: "s2", spawned: true })], [])
+    Object.assign(r.tasks[0] as DaemonTask, { parentTaskId: "root" })
+    r.tasks.push(
+      { ...parentTask(), id: "root", worktreePath: "/wt/root" } as unknown as DaemonTask,
+      // A same-titled root child in another directory is not this tab's conversation.
+      { ...parentTask(), id: "other", parentTaskId: "root", sharesWorkspaceOf: "root", title: "second" } as never,
+      { ...parentTask(), id: "early", parentTaskId: "root", sharesWorkspaceOf: "parent", title: "second" } as never,
+    )
+
+    await r.run()
+
+    expect(r.tasks).toHaveLength(4)
+    expect(r.ids("early")).toEqual(["tab-1"])
+    expect(r.ids("other")).toBeUndefined()
+  })
+
   it("keeps a dead tab that has a transcript but no session id we know, and resumes it in the child", async () => {
     const r = rig([engine("tab-1"), engine("tab-2", { spawned: true })], [])
 

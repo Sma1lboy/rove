@@ -838,10 +838,12 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `--parent`): a second conversation that shows under its parent. A Task is
   one engine conversation; `add` makes a top-level task and `spawn` makes a
   child. `--parent` defaults to the caller's verified `$ROVE_TASK_ID` /
-  `$ROVE_TAB_ID` (an unverifiable env is `MISSING_TARGET`, never a guess). The
-  child runs on the parent's machine, on the parent's engine unless `--command`
-  says otherwise, and its `dispatcher` is stamped, so a bare `send` from it
-  reports back to the caller.
+  `$ROVE_TAB_ID` (an unverifiable env is `MISSING_TARGET`, never a guess).
+  Children never nest: spawned from a child, the new task hangs under that
+  child's parent, while its directory and `dispatcher` still come from the
+  child that spawned it, so a bare `send` from it reports back to that child.
+  The child runs on the parent's machine, on the parent's engine unless
+  `--command` says otherwise.
 
   **Where the child works.** By default the child gets its own worktree, on a
   branch cut from the parent's *current* branch tip (`--base-branch` overrides
