@@ -51,7 +51,7 @@ export interface KvCore {
   set(key: string, value: unknown): void
   /**
    * `set` without a new snapshot: `get` and disk see it, subscribers don't
-   * re-render. For write-often keys no render reads (the inbox visit log).
+   * re-render. For write-often keys whose local writes need no render (the inbox visit log).
    */
   setQuiet(key: string, value: unknown): void
   /**
@@ -90,7 +90,7 @@ export function createKvCore(): KvCore {
 
   /** Keys this process has `set()` since the last successful flush. */
   const dirtyKeys = new Set<string>()
-  /** `setQuiet` values, read over the snapshot until the next `set` of the key. */
+  /** `setQuiet` values, read over the snapshot until `set` or a changed remote value. */
   const quiet = new Map<string, unknown>()
   /** `seed()` defaults, restored by `reload()` for keys the file doesn't carry. */
   const seeded = new Map<string, unknown>()
@@ -146,7 +146,7 @@ export function createKvCore(): KvCore {
 
   /**
    * Adopt `fresh` as the snapshot, keeping this process's unflushed keys and seeded defaults. Returns the keys that moved.
-   * `keepQuiet` leaves flushed quiet keys out of the snapshot, so a push (often this process's own echo) re-renders nobody.
+   * `keepQuiet` suppresses identical echoes of flushed quiet writes; changed remote values notify readers.
    */
   function merge(fresh: Record<string, unknown>, keepQuiet: boolean): number {
     const before = store.get()
@@ -156,13 +156,14 @@ export function createKvCore(): KvCore {
       if (before[key] === undefined) delete next[key]
       else next[key] = before[key]
     }
+    let quietChanged = false
     for (const key of [...quiet.keys()]) {
       if (dirtyKeys.has(key)) continue
-      if (!keepQuiet) {
+      if (!keepQuiet || JSON.stringify(quiet.get(key)) !== JSON.stringify(fresh[key])) {
+        quietChanged = true
         quiet.delete(key)
         continue
       }
-      quiet.set(key, fresh[key])
       if (before[key] === undefined) delete next[key]
       else next[key] = before[key]
     }
@@ -171,7 +172,8 @@ export function createKvCore(): KvCore {
     for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
       if (JSON.stringify(before[key]) !== JSON.stringify(next[key])) changed++
     }
-    if (changed > 0) store.set(next)
+    // A remote value can equal the snapshot while differing from the quiet overlay.
+    if (changed > 0 || quietChanged) store.set(next)
     return changed
   }
 

@@ -51,7 +51,7 @@ client. "Before" is how a running client saw another process's change.
 | Keybindings | `settings/keybindings.yaml` | daemon `keybindings` ping | unchanged | a |
 | Plugins | `plugins.json` | daemon plugin runtime watches it | unchanged | a |
 | First-party mods installed | `builtin-mods.json` | read when the Plugins section opens | unchanged; gap noted | a |
-| Inbox visit log (RECENT order) | TUI `inboxVisits`; web, iOS, Android each their own | per client | TUI copies now follow each other; web and phones keep their own | b for now |
+| Inbox visit log (RECENT order) | TUI `inboxVisits`; web, iOS, Android each their own | per client | TUI copies follow changed remote visits, suppressing identical local-write echoes; web and phones keep their own | b for now |
 | Rail sort, project filter | `activeSortMode`, `tasksPane.projectFilter`; web localStorage | seeded once per host | unchanged: following another session's sort is a product call (`use-sidebar-host-state.tsx`) | b |
 | Rail fold/width, zen, split style, key hints, keys legend fold | `sidebar.*`, `zen.active`, `hints.*`; web localStorage | per window | the kv core keeps `sidebar.collapsed`, `sidebar.width`, `zen.active` per window when following | b |
 | Web selection, rail width, collapsed projects; phone tab marks | browser localStorage, UserDefaults, SharedPreferences | per device | unchanged | b |
