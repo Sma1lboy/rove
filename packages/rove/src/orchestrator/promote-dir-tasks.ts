@@ -27,14 +27,15 @@ export interface PromotableDeps {
  *   - **scratch** rows — a scratch shell started inside a repo is still scratch;
  *   - roots that ALREADY have a main row — that would mint a duplicate;
  *   - a `dir` task pinned to a SUBDIRECTORY (`my-monorepo/packages/app` is a
- *     deliberate choice; promoting would re-target the whole monorepo).
+ *     deliberate choice; promoting would re-target the whole monorepo);
+ *   - a **shared child** — a conversation inside another task's directory.
  */
 export function promotableDirTasks(deps: PromotableDeps): readonly Task[] {
   const claimed = new Set(deps.tasks.filter((task) => task.kind === "main").map((task) => pathIdentity(task.repo)))
   const seen = new Set<string>()
   const out: Task[] = []
   for (const task of deps.tasks) {
-    if (task.kind !== "dir" || task.scratch === true) continue
+    if (task.kind !== "dir" || task.scratch === true || task.sharesWorkspaceOf) continue
     // A dir task's `repo` IS its pinned directory: "is it a repo root", not "inside one".
     const path = task.repo
     const key = pathIdentity(path)

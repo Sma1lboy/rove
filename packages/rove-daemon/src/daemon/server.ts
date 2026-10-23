@@ -36,7 +36,8 @@ import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import { defaultDaemonPidPath, defaultDaemonSocketPath, endpointPathFor, resolveDaemonHomeDir } from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
 import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, serializeTask } from "./protocol.ts"
-import { startPtyExitWatch } from "./pty-exit-watch.ts"
+import { aliasedKeys } from "./pty-alias.ts"
+import { type PtyOwnerResolver, startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import { clearResidentMarker, residentMarkerPath, resolveResident, writeResidentMarker } from "./resident.ts"
 import { RowStatusStore } from "./row-status-store.ts"
@@ -154,6 +155,8 @@ async function startOwnedServer(
   const rowStatus = new RowStatusStore({
     bus,
     listSessions: createActivityObserverIo(options.homeDir, runtime, activity).listSessions,
+    onSessions: (sessions) =>
+      void stores.aliases.reconcile(sessions).catch((err) => logDaemonError("alias-reconcile", err)),
     readEpisode: (taskId, tabId, at) => inbox.markRead(taskId, tabId, at),
     anyGui: () => lifetime.guiCount() > 0,
     tabIdsOf: (taskId) => stores.tabs.get(taskId).state?.tabs.map((tab) => tab.id) ?? null,
@@ -236,6 +239,7 @@ async function startOwnedServer(
         await sweepPtyHostSessions(
           () => (lifetime.isStopping() ? null : orch.listTasks().map((task) => task.id)),
           options.homeDir,
+          () => aliasedKeys(orch.listTasks()),
         )
       }
     })().finally(() => {
@@ -258,6 +262,8 @@ async function startOwnedServer(
   // "no focus" beats a cold channel. Optional-chained for partial test doubles.
   bus.publish("active-task", { taskId: orch.activeTaskSignal?.()?.() ?? null })
 
+  // A migrated child owns the PTY keyed under its parent, also for a death noticed after the alias was released.
+  const ownerOf: PtyOwnerResolver = (taskId, tabId, at) => stores.aliases.ownerOf(taskId, tabId, at)
   // Per-tick work is gated on subscribers so a gui-less daemon never polls
   // npm / git / gh for nobody.
   const stopCollectors = startDaemonCollectors(
@@ -265,7 +271,7 @@ async function startOwnedServer(
     runtime,
     bus,
     (channel) => lifetime.hasSubscribersFor(channel),
-    options,
+    { ...options, ownerOf },
     quotaUsage,
     {
       store: automations,
@@ -296,6 +302,8 @@ async function startOwnedServer(
         activity,
         inbox,
         deliveries: deliveryDeps,
+        // A migrated child owns the PTY keyed under its parent, so a death there is the child's.
+        ownerOf,
         log: (line) => logDaemonInfo("plugin-host", line),
       })
     : () => {}

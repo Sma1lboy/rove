@@ -7,12 +7,19 @@
 
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import { rename, rm } from "node:fs/promises"
+import { readdir, rename, rm, stat } from "node:fs/promises"
 import { basename, delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { logDaemonInfo } from "../daemon/crash-log.ts"
 import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
-import { defaultPtyHostLogPath, defaultPtyHostPidPath, defaultPtyHostSocketPath } from "../daemon/paths.ts"
+import {
+  defaultPtyFreezeDir,
+  defaultPtyHostLogPath,
+  defaultPtyHostPidPath,
+  defaultPtyHostSocketPath,
+} from "../daemon/paths.ts"
+import { isUnderKey } from "../daemon/pty-alias.ts"
+import { FREEZE_TTL_MS } from "../daemon/pty-freeze-store.ts"
 import type { PtySessionInfo } from "../daemon/pty-observability.ts"
 import { readPidFile } from "../daemon/socket-guard.ts"
 import { resolveRoveSpawn, testDaemonResponds } from "./daemon-process.ts"
@@ -296,23 +303,29 @@ export async function ensurePtyHostReachable(): Promise<string> {
   )
 }
 
-/** Observe sessions before consulting current tasks; never send a captured negative task list. */
+/**
+ * Observe sessions before consulting current tasks; never send a captured negative task list.
+ * `aliasedKeys` = PTYs a migrated child still lives in: owned by that child even when the task
+ * their key names is gone.
+ */
 export async function sweepPtyHostSessions(
   liveTaskIds: () => readonly string[] | null,
   homeDir?: string,
+  aliasedKeys: () => readonly string[] = () => [],
 ): Promise<void> {
   const client = new RoveDaemonClient(defaultPtyHostSocketPath(homeDir))
   try {
     await client.connect()
     const { sessions } = await client.request<{ sessions: PtySessionInfo[] }>("pty.list")
-    let currentTasks: Set<string> | undefined
+    let current: { tasks: Set<string>; aliased: readonly string[] } | undefined
     for (const session of sessions) {
-      if (!currentTasks) {
+      if (!current) {
         const ids = liveTaskIds()
         if (ids === null) return // daemon shutdown supersedes pending observations
-        currentTasks = new Set(ids)
+        current = { tasks: new Set(ids), aliased: aliasedKeys() }
       }
-      if (currentTasks.has(session.key.split("::")[0] ?? session.key)) continue
+      if (current.tasks.has(session.key.split("::")[0] ?? session.key)) continue
+      if (current.aliased.some((base) => isUnderKey(session.key, base))) continue
       if (!session.generation) {
         logDaemonInfo(
           "pty-sweep",
@@ -321,7 +334,7 @@ export async function sweepPtyHostSessions(
         continue
       }
       await client.request("pty.kill", { key: session.key, expectedGeneration: session.generation })
-      currentTasks = undefined // refresh only after yielding to another task mutation
+      current = undefined // refresh only after yielding to another task mutation
     }
   } catch {
     // An unavailable host is not permission to retry a destructive request.
@@ -330,21 +343,51 @@ export async function sweepPtyHostSessions(
   }
 }
 
-/** true/false are observed session state; null means the host could not be read. Never spawns. */
-export async function ptyHostHasLiveSessions(homeDir?: string): Promise<boolean | null> {
+/**
+ * The host's sessions. `[]` = no host is running (nothing can be alive); null = a host exists but
+ * could not be read, which is not evidence of anything. Never spawns.
+ */
+export async function listPtyHostSessions(homeDir?: string): Promise<PtySessionInfo[] | null> {
   const client = new RoveDaemonClient(defaultPtyHostSocketPath(homeDir))
   try {
     await client.connect()
-    const result = await client.request<{ sessions?: Array<{ alive?: boolean }> }>("pty.list")
-    if (!Array.isArray(result.sessions) || result.sessions.some((s) => typeof s.alive !== "boolean")) return null
-    return result.sessions.some((s) => s.alive)
+    const result = await client.request<{ sessions?: PtySessionInfo[] }>("pty.list")
+    return Array.isArray(result.sessions) ? result.sessions : null
   } catch (err) {
     if (err instanceof Error && "code" in err && (err.code === "ENOENT" || err.code === "ECONNREFUSED")) {
       const pid = await readPidFile(defaultPtyHostPidPath(homeDir))
-      return pid !== null && isProcessAlive(pid) ? null : false
+      return pid !== null && isProcessAlive(pid) ? null : []
     }
     return null
   } finally {
     client.close()
   }
+}
+
+/**
+ * Whether a restart left conversations frozen on disk that the next host will
+ * thaw. With no host running, `listPtyHostSessions` answers `[]` for those too,
+ * which is "not yet known", not "nothing was running".
+ */
+export async function hasFrozenPtySessions(homeDir?: string): Promise<boolean> {
+  const dir = defaultPtyFreezeDir(homeDir)
+  try {
+    for (const name of await readdir(dir)) {
+      if (!name.endsWith(".json")) continue
+      const mtimeMs = await stat(join(dir, name))
+        .then((st) => st.mtimeMs)
+        .catch(() => 0)
+      if (Date.now() - mtimeMs <= FREEZE_TTL_MS) return true
+    }
+  } catch {
+    // No directory: nothing frozen.
+  }
+  return false
+}
+
+/** true/false are observed session state; null means the host could not be read. Never spawns. */
+export async function ptyHostHasLiveSessions(homeDir?: string): Promise<boolean | null> {
+  const sessions = await listPtyHostSessions(homeDir)
+  if (!sessions || sessions.some((s) => typeof s.alive !== "boolean")) return null
+  return sessions.some((s) => s.alive)
 }

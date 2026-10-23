@@ -19,6 +19,7 @@ import { keysOf } from "./user-keys.ts"
 
 const SORT_KEY = "rove.activeSortMode"
 const COLLAPSED_KEY = "rove.collapsedProjects"
+const FOLDED_TASKS_KEY = "rove.foldedTasks"
 /** Second `g` of `gg` must land within this. */
 const GG_MS = 600
 
@@ -27,13 +28,27 @@ function loadSort(): SortMode {
   return SORT_MODES.find((mode) => mode === saved) ?? "default"
 }
 
-function loadCollapsed(): ReadonlySet<string> {
+function loadSet(key: string): ReadonlySet<string> {
   try {
-    const saved: unknown = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]")
+    const saved: unknown = JSON.parse(localStorage.getItem(key) ?? "[]")
     return new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : [])
   } catch {
     return new Set()
   }
+}
+
+function saveSet(key: string, ids: ReadonlySet<string>): void {
+  try {
+    localStorage.setItem(key, JSON.stringify([...ids]))
+  } catch {
+    // Storage off: the fold lasts this page only.
+  }
+}
+
+const toggled = (now: ReadonlySet<string>, id: string): ReadonlySet<string> => {
+  const next = new Set(now)
+  if (!next.delete(id)) next.add(id)
+  return next
 }
 
 /** Sort + `/` query: owned by the rail, which builds the rows from them before the keys see them. */
@@ -42,23 +57,21 @@ export function useRailFilters() {
   const [search, setSearch] = useState({ active: false, query: "" })
   // Open routine count rows (project repos); session-scoped, as the TUI's `expandedRoutines`.
   const [routines, setRoutines] = useState<ReadonlySet<string>>(new Set())
-  const toggleRoutines = (repo: string) =>
-    setRoutines((now) => {
-      const next = new Set(now)
-      if (!next.delete(repo)) next.add(repo)
-      return next
-    })
+  const toggleRoutines = (repo: string) => setRoutines((now) => toggled(now, repo))
   // Collapsed project headers (row ids); kept per browser, as Claude's sidebar sections.
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(loadCollapsed)
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => loadSet(COLLAPSED_KEY))
   const toggleProject = (id: string) =>
     setCollapsed((now) => {
-      const next = new Set(now)
-      if (!next.delete(id)) next.add(id)
-      try {
-        localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]))
-      } catch {
-        // Storage off: the fold lasts this page only.
-      }
+      const next = toggled(now, id)
+      saveSet(COLLAPSED_KEY, next)
+      return next
+    })
+  // Task ids whose children are folded away; per browser too, open until folded.
+  const [foldedTasks, setFoldedTasks] = useState<ReadonlySet<string>>(() => loadSet(FOLDED_TASKS_KEY))
+  const toggleTaskFold = (id: string) =>
+    setFoldedTasks((now) => {
+      const next = toggled(now, id)
+      saveSet(FOLDED_TASKS_KEY, next)
       return next
     })
   const cycleSort = () => {
@@ -66,7 +79,18 @@ export function useRailFilters() {
     setSort(next)
     localStorage.setItem(SORT_KEY, next)
   }
-  return { sort, cycleSort, search, setSearch, routines, toggleRoutines, collapsed, toggleProject }
+  return {
+    sort,
+    cycleSort,
+    search,
+    setSearch,
+    routines,
+    toggleRoutines,
+    collapsed,
+    toggleProject,
+    foldedTasks,
+    toggleTaskFold,
+  }
 }
 
 export type RailFilters = ReturnType<typeof useRailFilters>
@@ -143,7 +167,6 @@ export function useRailKeys(
   const open = (row: Stop | undefined) => {
     if (row?.kind === "routines") filters.toggleRoutines(row.key)
     if (row?.kind === "task") model.select(row.task.id)
-    if (row?.kind === "tab") model.select(row.task.id, row.tab.id)
     if (row) enterWorkspace()
   }
   const verb = (row: Stop | undefined, id: RailId) => {

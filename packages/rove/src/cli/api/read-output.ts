@@ -21,17 +21,24 @@
  *     lifecycle (terminal reads use `pty.peek`).
  *
  * Without `--tab` the read is the task's engine: the worktree's newest
- * session, else the canonical engine tab's terminal. `--tab tab-N` reads that
- * tab: its pinned conversation when it has one, else its terminal.
+ * session, else the canonical engine tab's terminal. A task that shares its
+ * directory with others reads its own pinned conversation instead — the
+ * newest session in a shared directory may belong to a sibling.
+ * `--tab tab-N` reads that tab: its pinned conversation when it has one, else
+ * its terminal.
  */
 
+import { canonicalEngineTab } from "@sma1lboy/rove-daemon/daemon/engine-tabs"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { protocolEntry, sessionProtocol } from "../../engine/engine-presets.ts"
 import { type EngineHistoryReader, supportsStructuredHistory } from "../../engine/registry.ts"
 import type { Message } from "../../types/engine.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import type { DaemonRpc } from "../daemon-session.ts"
 import { engineScreenError, peekTaskTerminal } from "./engine-screen.ts"
 import { daemonOf } from "./handler-helpers.ts"
+import { ptyScopeOf } from "./pty-scope.ts"
 import {
   DEFAULT_PAGE_MESSAGES,
   DEFAULT_TAIL_LINES,
@@ -82,6 +89,8 @@ export interface ReadOutputDeps {
   /** `--tab`'s conversation: null = not an engine tab (a terminal is all it
    *  has); a FallbackReason = an engine tab whose history can't be read. */
   tabHistory(tab: string): PinnedHistory | FallbackReason | null
+  /** The task's OWN conversation (its pinned canonical or aliased engine tab) for a task that shares its directory. */
+  ownHistory?(): PinnedHistory | FallbackReason | null
   /** `tab` undefined = canonical engine tab. `null` = host answered, no such
    *  session; `"host-unreachable"` = couldn't ask — must not render as empty. */
   peekTerminal(tab: string | undefined, sinceOffset?: number): Promise<TerminalPeekPage | null | "host-unreachable">
@@ -94,6 +103,8 @@ export interface ReadOutputInput {
   readonly source: ReadSourceArg
   /** Exact tab to read (`tab-N`) instead of the task's engine. */
   readonly tab?: string
+  /** Another task runs in this task's directory, or its conversation is a PTY keyed under a parent. */
+  readonly sharesWorkspace?: boolean
   readonly cursor?: string
   /** Messages (history) or lines (terminal) per page. */
   readonly limit?: number
@@ -159,13 +170,18 @@ export async function readTaskOutput(input: ReadOutputInput, deps: ReadOutputDep
   return historyEnvelope(input, pinned.sessionId, messages, { before: messages.length }, messageLimit)
 }
 
-/** The conversation the read targets: the tab's pinned session, else the
- *  worktree's newest (worktrees are task-exclusive, so it's this task's). */
+/** The conversation the read targets: the tab's pinned session; else, in a
+ *  shared directory, the task's own pinned one; else the worktree's newest
+ *  (an exclusive worktree's newest session is this task's). */
 async function resolveHistory(
   input: ReadOutputInput,
   deps: ReadOutputDeps,
 ): Promise<PinnedHistory | FallbackReason | null> {
   if (input.tab) return deps.tabHistory(input.tab)
+  // Several tasks can run in one directory (a parent and its spawned
+  // children), so "the newest session in it" may be someone else's
+  // conversation: read the task's own pinned one, or none.
+  if (input.sharesWorkspace) return deps.ownHistory?.() ?? "history_missing"
   if (!deps.history) return "engine_unsupported"
   if (!input.worktree) return "history_missing"
   let ids: readonly string[]
@@ -312,14 +328,36 @@ async function continueTerminal(
 
 // ── Real deps + the verb ─────────────────────────────────────────────────────
 
-/** A tab's pinned conversation, from the persisted tab snapshot. */
-function snapshotTabHistory(task: SerializedTask, tabId: string): PinnedHistory | FallbackReason | null {
-  const tab = readTabsSnapshot(task.id)?.tabs.find((t) => t.id === tabId)
+/**
+ * A tab's pinned conversation, from the task's own persisted tab snapshot. A
+ * migrated child's aliased tab is in it too (it carries the session id), so
+ * the child's tab ids are the only namespace a `--tab` is read in.
+ */
+function snapshotTabHistory(task: SerializedTask, tabId: string | undefined): PinnedHistory | FallbackReason | null {
+  const tabs = readTabsSnapshot(task.id)?.tabs ?? []
+  // No tab named = the canonical engine tab.
+  const tab = tabId ? tabs.find((t) => t.id === tabId) : canonicalEngineTab(tabs)
   if (!tab || tab.kind !== "engine") return null
   const vendor = tab.vendor ?? (task.vendor as VendorId | undefined)
   if (!vendor || !supportsStructuredHistory(sessionProtocol(vendor))) return "engine_unsupported"
   // Vendors that can't take a caller-set id (codex/custom) pin none.
   return tab.sessionId ? { reader: protocolEntry(vendor).history, sessionId: tab.sessionId } : "history_missing"
+}
+
+/**
+ * Whether another task runs in this task's directory (it owns the directory
+ * that others share, or shares another's). The task list is advisory: an
+ * unreadable one leaves only the sharer's own marker to go by.
+ */
+async function sharesDirectory(daemon: DaemonRpc, task: SerializedTask): Promise<boolean> {
+  if (task.sharesWorkspaceOf) return true
+  if (!task.worktreePath) return false
+  try {
+    const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
+    return tasks.some((t) => t.id !== task.id && samePath(t.worktreePath, task.worktreePath))
+  } catch {
+    return false
+  }
 }
 
 async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
@@ -333,6 +371,9 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
     taskId = active
   }
   const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  // A migrated child's conversation is still a PTY keyed under its parent.
+  const alias = task.ptyAlias
+  const sharesWorkspace = alias !== undefined || (await sharesDirectory(daemon, task))
   const vendor = task.vendor as VendorId | undefined
   // The task's OWN launch binary: `findEngineKey` matches spawn argv, and a
   // wrapper command (`claudecpa`, custom presets) never carries the vendor's word.
@@ -341,12 +382,27 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
   const deps: ReadOutputDeps = {
     history: vendor && supportsStructuredHistory(sessionProtocol(vendor)) ? protocolEntry(vendor).history : null,
     tabHistory: (tabId) => snapshotTabHistory(task, tabId),
-    peekTerminal: (tabId, sinceOffset) => peekTaskTerminal(taskId, engineBin, tabId, sinceOffset),
+    // The task's own conversation: its aliased tab, else its canonical engine tab.
+    ownHistory: () => snapshotTabHistory(task, alias?.tabId),
+    // Computed lazily: only a terminal read needs the task list.
+    peekTerminal: async (tabId, sinceOffset) => {
+      const scope = await ptyScopeOf(daemon, task)
+      // The aliased tab is the parent-keyed PTY; any other tab the child names keys under the child.
+      const owner = alias && (tabId === undefined || tabId === alias.tabId) ? alias.taskId : taskId
+      try {
+        return await peekTaskTerminal(owner, engineBin, tabId ?? alias?.tabId, sinceOffset, scope)
+      } catch (err) {
+        // An aliased child's default tab is a fact, not a flag: a dead one reads as "no session".
+        if (!tabId && alias && err instanceof ApiError && err.code === "TAB_NOT_FOUND") return null
+        throw err
+      }
+    },
   }
   const envelope = await readTaskOutput(
     {
       taskId,
       worktree: task.worktreePath ?? null,
+      sharesWorkspace,
       source: ctx.args.enumOf<ReadSourceArg>("source") ?? "auto",
       tab,
       cursor: ctx.args.str("cursor"),
@@ -354,7 +410,7 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
     },
     deps,
   )
-  const running = await ctx.runtime.isTaskRunning(taskId, taskEngineArgv(task))
+  const running = await ctx.runtime.isTaskRunning(taskId, taskEngineArgv(task), await ptyScopeOf(daemon, task))
   // A history page can't show a turn that failed before the engine wrote
   // anything; the engine's own error row on screen can.
   const engineError = envelope.source === "history" && !tab ? await engineScreenError(task) : undefined

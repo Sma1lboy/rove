@@ -124,3 +124,21 @@ describe("reportBranchDeletion", () => {
     expect(localExists(repo, "fix/never-pushed")).toBe(true)
   })
 })
+
+describe("a branch another task still holds", () => {
+  it("is neither deleted locally nor pushed away on the remote", () => {
+    const { repo, remote } = fixture()
+    branch(repo, "feature/shared", { push: true, merge: true })
+
+    const report = reportBranchDeletion(repo, "feature/shared", {
+      deleteBranch: true,
+      force: false,
+      deleteRemote: true,
+      heldBy: "owner",
+    })
+
+    expect(report).toMatchObject({ deleted: false, remote: { deleted: false } })
+    expect(git(repo, "branch", "--list", "feature/shared")).toContain("feature/shared")
+    expect(git(repo, "ls-remote", "--heads", remote, "feature/shared")).toContain("feature/shared")
+  })
+})

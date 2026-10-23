@@ -28,7 +28,7 @@ import { tabsDaemon } from "./tabs-daemon-fake.ts"
 
 afterEach(() => vi.unstubAllEnvs())
 
-it.each(["new", "tab-2"])("enforces the persisted cap through the runtime for --tab %s", async (tab) => {
+it("enforces the persisted cap through the runtime for --tab tab-2", async () => {
   const home = mkdtempSync(join(tmpdir(), "rove-api-admission-"))
   vi.stubEnv("ROVE_HOME_DIR", home)
   fixture.opens = 0
@@ -55,8 +55,8 @@ it.each(["new", "tab-2"])("enforces the persisted cap through the runtime for --
         worktreePath: home,
         repo: home,
         vendor: "claude",
-        tab,
-        ...(tab === "new" ? { tabCommand: "codex --model chosen", tabVendor: "codex" } : { respawn: true }),
+        tab: "tab-2",
+        respawn: true,
       },
       "isolated prompt",
     ),
@@ -69,8 +69,8 @@ it.each(["new", "tab-2"])("enforces the persisted cap through the runtime for --
         "--task-id",
         "t",
         "--tab",
-        tab,
-        ...(tab === "new" ? ["--command", "codex --model chosen"] : ["--respawn"]),
+        "tab-2",
+        "--respawn",
         "--plain",
         "--prompt",
         "isolated prompt",
@@ -78,7 +78,7 @@ it.each(["new", "tab-2"])("enforces the persisted cap through the runtime for --
     },
   })
   expect(fixture.opens).toBe(0)
-  // A refused `--tab new` takes its minted row back; nothing touched state.json.
+  // A refusal leaves the tabs and state.json as they were.
   expect(daemon.tabs("t")?.tabs).toEqual(tabs.tabs)
   expect(JSON.parse(readFileSync(statePath, "utf8"))["terminalTabs.t"].tabs).toEqual(tabs.tabs)
 })

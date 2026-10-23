@@ -394,19 +394,20 @@ button:focus-visible,
   background: var(--focus);
 }
 
-/* A tab sits one level under its task, but its colour mark stays in the task's
-   column (TUI: the bar is flush left, the tree indents what follows it), so the
-   indent goes on the glyph, not on the row. */
-.tab-row {
-  color: var(--muted);
+/* A child steps in under its parent; the colour mark stays flush in the task's column. */
+.child-indent {
+  flex: none;
 }
 
-.tab-row > .glyph {
-  margin-left: 6px;
+.child-mark {
+  font-family: var(--mono);
 }
 
-.tab-row.is-selected {
-  color: var(--ink);
+.fold-toggle {
+  display: inline-flex;
+  gap: 4px;
+  font-family: var(--mono);
+  cursor: pointer;
 }
 
 .glyph {

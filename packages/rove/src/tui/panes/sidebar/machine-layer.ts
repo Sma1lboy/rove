@@ -101,10 +101,6 @@ export function applyMachineLayer(
       dropped = true
       continue
     }
-    if (row.kind === "tab") {
-      kept.push(row)
-      continue
-    }
     kept.push({
       ...row,
       remote: {

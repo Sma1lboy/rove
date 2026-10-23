@@ -1,5 +1,5 @@
-# sidebar frame: tab-rate-limited
-# quota exhausted — an amber attention glyph, with how long it has been stuck
+# sidebar frame: task-permission-needed
+# blocked on the user — the one state whose glyph literally asks a question
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
@@ -10,11 +10,11 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-| ▎feat/alpha                  |
-|▌▎! build                 22m |
-| ▎○ review                    |
-| ▎feat/bravo                  |
-| ▎○ tests                     |
+|▌▎? alpha                 22m |
+| ▎○ bravo                     |
+|                              |
+|                              |
+|                              |
 |                              |
 |                              |
 |                              |

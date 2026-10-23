@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The tree sidebar: project → Task → Terminal Tab. Everything starts
+ * The tree sidebar: project → Task → child Tasks. Everything starts
  * expanded; the collapse sets hold only what you folded by hand. The cursor
- * indexes one flat id list, so a tab row is selected exactly like a task.
+ * indexes one flat id list of tasks.
  */
 
 import type { Task } from "@/types/task"
@@ -11,7 +11,7 @@ import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useStat
 import { useMachineRows } from "../../../machines/hub-singleton"
 import { subscribeBackgroundPolls } from "../../../tui/lib/background-poll"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
-import { RECENT_ROW_ID, parseRowId } from "../../../tui/panes/sidebar/tree-core"
+import { RECENT_ROW_ID } from "../../../tui/panes/sidebar/tree-core"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import { usePaneHintMark } from "../../component/keyboard-hints"
 import { useOptionalKV } from "../../context/kv"
@@ -30,19 +30,9 @@ import { useTreeSearch } from "./use-tree-search"
 import { useTreeState } from "./use-tree-state"
 
 export type SidebarTreeProps = SidebarProps & {
-  /** The selected task's active tab, so the tree can mark the live row. */
-  selectedTabId?: string | null
-  /** Activate a specific tab of a task. */
-  onSelectTab?: (taskId: string, tabId: string) => void
-  /** Close one tab of any worktree — offered by the tab row's menu. */
-  onCloseTab?: (taskId: string, tabId: string) => void
-  /** Close every other tab of that worktree — the tab row's menu, behind a confirm. */
-  onCloseOtherTabs?: (taskId: string, tabId: string) => void
   /** Open a new conversation ("chat" — the ctrl+e picker) or a bare shell tab
-   *  in any worktree — offered by the worktree/tab rows' menu. */
+   *  in any worktree — offered by the worktree row's menu. */
   onNewTab?: (taskId: string, kind: "chat" | "shell") => void
-  /** Move one tab within its task (move mode on a tab row). */
-  onMoveTabRequest?: (taskId: string, tabId: string, delta: -1 | 1) => void
   /** Narrow mode's "↩ recent" row: first navigable row; ⏎ re-enters that task. */
   recentTask?: Task | null
   /** Filled with a reader of the task under the cursor, so the host's
@@ -70,7 +60,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     tasks: props.tasks,
     kv,
     selectedTaskId: props.selectedId,
-    selectedTabId: props.selectedTabId ?? null,
     query: search.active ? search.query : "",
     recentTask: props.recentTask ?? null,
     sortMode: props.sortMode,
@@ -155,7 +144,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     setCursorIndex(0)
   }, [search.active, search.query, setCursorIndex])
 
-  /** A worktree row switches task; a tab row switches task AND tab, via the host. */
+  /** A task row switches to its task; the host enters it on ⏎. */
   const recentTaskRef = useLatest(props.recentTask ?? null)
   const toggleRoutinesRow = tree.toggleRoutinesRow
   const activateRow = useCallback(
@@ -164,16 +153,11 @@ export function SidebarTree(props: SidebarTreeProps) {
       if (toggleRoutinesRow(rowId)) return
       // The "↩ recent" jump row IS its task — ⏎ re-enters that workspace.
       const recent = rowId === RECENT_ROW_ID ? recentTaskRef.current : null
-      const { taskId, tabId } = recent ? { taskId: recent.id, tabId: null } : parseRowId(rowId)
+      const taskId = recent ? recent.id : rowId
       props.onSelect(taskId)
-      if (tabId === null) {
-        props.onActivate?.(taskId)
-        return
-      }
-      props.onSelectTab?.(taskId, tabId)
       props.onActivate?.(taskId)
     },
-    [props.onSelect, props.onActivate, props.onSelectTab, toggleRoutinesRow],
+    [props.onSelect, props.onActivate, toggleRoutinesRow],
   )
   const activateRowRef = useLatest(activateRow)
 
@@ -189,20 +173,15 @@ export function SidebarTree(props: SidebarTreeProps) {
   const ctrl = controllerRef.current
 
   /**
-   * Move mode is SCOPE-AWARE: a tab row moves within its task; a task row
-   * within its repo group; a `main` row moves the whole PROJECT, since project
-   * order IS the mains' stored order. Every level edge-stops, no wrap.
+   * Move mode is SCOPE-AWARE: a task row moves within its repo group; a
+   * `main` row moves the whole PROJECT, since project order IS the mains'
+   * stored order. Every level edge-stops, no wrap.
    */
   const tasksRef = useLatest(props.tasks)
   const moveCursorRow = useCallback(
     (delta: -1 | 1): void => {
-      const rowId = flatIdsRef.current[cursorRef.current]
-      if (rowId === undefined || rowId === RECENT_ROW_ID) return
-      const { taskId, tabId } = parseRowId(rowId)
-      if (tabId !== null) {
-        props.onMoveTabRequest?.(taskId, tabId, delta)
-        return
-      }
+      const taskId = flatIdsRef.current[cursorRef.current]
+      if (taskId === undefined || taskId === RECENT_ROW_ID) return
       const task = tasksRef.current.find((candidate) => candidate.id === taskId)
       if (!task) return
       if (task.kind !== "main") {
@@ -216,18 +195,15 @@ export function SidebarTree(props: SidebarTreeProps) {
       if (mainId === null) return
       props.onMoveRequest?.(mainId, delta)
     },
-    [tree.projectIdOfTask, tree.mainTaskIdOfProject, props.onMoveRequest, props.onMoveTabRequest],
+    [tree.projectIdOfTask, tree.mainTaskIdOfProject, props.onMoveRequest],
   )
 
   // A main row drags its PROJECT, so the header wears the move chip.
   const cursorRowId = tree.flatIds[cursorIndex]
   const cursorMove = useMemo((): { projectId: string | null; rowId: string | null } => {
     if (cursorRowId === undefined || cursorRowId === RECENT_ROW_ID) return { projectId: null, rowId: null }
-    const { taskId, tabId } = parseRowId(cursorRowId)
-    if (tabId === null) {
-      const task = props.tasks.find((candidate) => candidate.id === taskId)
-      if (task?.kind === "main") return { projectId: tree.projectIdOfTask(taskId), rowId: null }
-    }
+    const task = props.tasks.find((candidate) => candidate.id === cursorRowId)
+    if (task?.kind === "main") return { projectId: tree.projectIdOfTask(cursorRowId), rowId: null }
     return { projectId: null, rowId: cursorRowId }
   }, [cursorRowId, props.tasks, tree.projectIdOfTask])
 
@@ -236,8 +212,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     activateRow,
     setCursorIndex,
     onAddTask: props.onAddTask,
-    onCloseTab: props.onCloseTab,
-    onCloseOtherTabs: props.onCloseOtherTabs,
     onNewTab: props.onNewTab,
     actions: props,
   })
@@ -299,6 +273,7 @@ export function SidebarTree(props: SidebarTreeProps) {
       activateRow(rowId)
     },
     onContextMenu: menu.openForRow,
+    onToggleFold: tree.toggleTaskFold,
     branchTick,
     engineState: props.engineState,
     engineTabState: props.engineTabState,

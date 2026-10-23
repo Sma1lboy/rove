@@ -416,9 +416,14 @@ another row fails, and Rove reports the result count.
 
 ## Tabs and terminal splits
 
-`ctrl+t` starts a fresh engine tab immediately; `ctrl+e` opens the full engine,
-shell, and plugin picker. Tabs share the Task's worktree but keep separate
-processes, scrollback, titles, and engine conversations. `ctrl+[` / `ctrl+]`
+`ctrl+t` starts a new conversation immediately: a **child task** under the
+current one, sharing its directory, on the engine this project used last. It
+appears under its parent in the sidebar and you land in it. `ctrl+e` opens the
+full engine, shell, and plugin picker. A task's first conversation still runs
+in its own engine tab; a second one is always a child. Children share the
+parent's worktree but keep separate processes, scrollback, titles, and engine
+conversations. A shell, editor, or preview opened from the picker is still a
+tab of the current task. `ctrl+[` / `ctrl+]`
 switch tabs, `F2` renames one, and `ctrl+w` closes it — including the last
 one, which leaves the Task open with no session. Re-entering that Task from
 the sidebar reopens the kind of tab that was there; from the empty pane
@@ -520,7 +525,7 @@ leaving zen. There is no setting for this.
 `ctrl+e` is the one dialog for starting anything. It lists your detected
 engines, a `shell`, and any plugin panes. Two toggles set what happens:
 
-- `tab` flips the **destination**: a new tab in this worktree ⇄ a forked
+- `tab` flips the **destination**: a child task sharing this directory ⇄ a forked
   child task in a fresh worktree.
 - `ctrl+f` flips the **context**: a fresh conversation ⇄ continue this one.
 
@@ -548,12 +553,12 @@ because that one is "carry on from here". The chip stops at 5 where the CLI
 allows 10; [Orchestration](ORCHESTRATION.md) calls 3-4 the sweet spot, and past
 five the shell command is the better tool.
 
-`ctrl+a` `c` (continue in a new tab) and `ctrl+a` `f` (fork a child task)
+`ctrl+a` `c` (continue in a new child task) and `ctrl+a` `f` (fork a child task)
 open the same dialog with the toggles pre-set.
 
 To resume a conversation that is not already represented by a tab, use the
-engine's own picker (e.g. claude-code's `/resume`) inside a fresh engine
-tab. Availability and restart behavior vary by engine; see
+engine's own picker (e.g. claude-code's `/resume`) inside a fresh
+conversation. Availability and restart behavior vary by engine; see
 [Resuming a conversation](SESSIONS.md#resuming-a-conversation).
 
 ## Pages: `ctrl+a` `1` / `2` / `3`

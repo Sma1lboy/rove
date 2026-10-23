@@ -6,6 +6,7 @@ import { type GateAnswerDelivery, armGateAnswerDelivery, countGateRaiseAsReport 
 import { takeUndeliveredGateAnswers } from "./gate-handoff.ts"
 import { optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
+import { ptyScopeFor } from "./pty-alias.ts"
 
 const SURFACES: readonly GateAnswerSurface[] = ["tui", "bridge", "weixin", "cli"]
 const STATUS_FILTERS: readonly (GateStatus | "all")[] = ["open", "answered", "withdrawn", "all"]
@@ -45,7 +46,13 @@ async function pasteGateAnswer(ctx: DaemonHandlerContext, gate: Gate): Promise<b
   if (!task || task.deletion || !task.worktreePath) return false
   const handoff = takeUndeliveredGateAnswers(ctx.gates, gate.taskId, gate.tabId)
   if (!handoff) return false
-  const target = { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath }
+  const target = {
+    id: task.id,
+    vendor: task.vendor,
+    command: task.command,
+    worktreePath: task.worktreePath,
+    scope: ptyScopeFor(ctx.orch.listTasks(), task.id),
+  }
   // Arms a delivery when the task requires reports; its footer rides the paste.
   let armed: GateAnswerDelivery | null = null
   try {

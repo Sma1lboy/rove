@@ -8,6 +8,7 @@
 
 import { F, FANOUT_CAP } from "./flags.ts"
 import { add } from "./handlers-add.ts"
+import { spawn } from "./handlers-spawn.ts"
 import { TASK_STATUSES } from "./task-statuses.ts"
 import type { VerbSpec } from "./types.ts"
 
@@ -120,5 +121,53 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
       F.promptFile(),
     ],
     handler: add,
+  },
+  {
+    name: "spawn",
+    group: "create",
+    summary:
+      "Spawn a CHILD task of the calling session (or --parent): a second conversation that shows under its parent. Default = its own git worktree, branch cut from the parent's CURRENT branch tip (a main checkout's HEAD; a `dir` task inside a git repo gets a worktree at the repo root and runs in the same relative subdirectory; a `dir` outside any repo fails NOT_A_GIT_REPO — never a silent fallback to a shared directory). --no-worktree shares the parent's directory instead (read-only parallel work: two engines writing one tree will collide). The child always runs on the parent's machine, with the parent's engine unless --command says otherwise. Uncommitted changes are NOT carried into a new worktree: `parentDirty:true` in the reply means the parent has some, so commit first if the child needs them. `sharedLinks` lists the workspace's top-level symlinks to OTHER git checkouts, which a new worktree does not isolate (edits under them still land in the one shared repo); --isolate-in LINK cuts the worktree in the linked repo instead (NOT_A_LINKED_REPO if LINK is not such a link). With --prompt the child's engine starts and the brief is delivered; the child's bare `send` replies to the spawning session. Returns { taskId, task, parentDirty, sharedLinks } (+ delivery fields with --prompt); the task carries `.parentTaskId` and, for a shared child, `.sharesWorkspaceOf`.",
+    flags: [
+      {
+        name: "parent",
+        type: "string",
+        placeholder: "ID",
+        description:
+          "Task to spawn under. Default: the calling session, from the verified $ROVE_TASK_ID/$ROVE_TAB_ID (an unverifiable env is MISSING_TARGET, never a guess).",
+      },
+      {
+        name: "worktree",
+        type: "bool",
+        default: "true",
+        description:
+          "Give the child its own worktree, cut from the parent's current branch tip (default). `--worktree=false` is `--no-worktree`.",
+      },
+      {
+        name: "no-worktree",
+        type: "bool",
+        description: "Share the parent's directory instead of cutting a worktree.",
+      },
+      {
+        name: "base-branch",
+        type: "string",
+        placeholder: "B",
+        description: "Cut the new worktree from this ref instead of the parent's current tip.",
+      },
+      {
+        name: "isolate-in",
+        type: "string",
+        placeholder: "LINK",
+        description:
+          "Name of a top-level symlink in the parent's workspace that points at another git checkout (see `sharedLinks`): cut the worktree in THAT repo and run the child there. NOT_A_LINKED_REPO when it is not one.",
+      },
+      F.title(),
+      F.command(),
+      F.prompt(
+        false,
+        "Optional first message — when set, starts the child's engine and pastes it, prefixed with who spawned it.",
+      ),
+      F.promptFile(),
+    ],
+    handler: spawn,
   },
 ]

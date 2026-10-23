@@ -259,6 +259,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
 | `BAD_MODEL` | The task's engine declares no model flag, so a model cannot be passed to it. |
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. |
+| `NOT_A_GIT_REPO` | `spawn` (worktree) from a `dir` task that is not inside a git repository. |
+| `NOT_A_LINKED_REPO` | `spawn --isolate-in` names something that is not a top-level symlink to another git checkout. |
+| `REMOTE_PARENT_UNSUPPORTED` | `spawn` under a task that lives on another machine's project. |
 | `TIER_UNAVAILABLE` | Auto routing is not configured, or the tier's target cannot start (engine not listed, not logged in, model/effort its engine cannot carry). |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
 | `SKIPPED` | `should-run` or `send --if-runnable` refused the tick (exit 3). The verdict is the stdout payload, not an error envelope. |
@@ -549,8 +552,8 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   [--cursor C] [--limit N]`: a task's engine output as bounded, cursor-paged
   JSON: structured history when the engine has it, else a labeled terminal
   tail (`fallbackReason`). Read-only: it never attaches to a session or types
-  into one. Without `--tab` it reads the worktree's NEWEST engine session —
-  once a task has a second engine tab, that can be the second tab's; pass
+  into one. Without `--tab` it reads the task's own conversation, never a
+  sibling's in a shared directory; pass
   `--tab` (ids from `get-task` `.tabs[]`) to read one specific session.
 
   The first page is the NEWEST: the last `--limit` messages (history; default
@@ -829,6 +832,46 @@ only facts about its own worktree; the standing worker instructions, naming its
 branch included, live in the Rove agent skill. Prompts into existing sessions
 (`send`, `send --tab new`, `dispatch`) are never modified.
 
+- `spawn [--parent ID] [--worktree | --no-worktree] [--base-branch B]
+  [--isolate-in LINK] [--title T] [--command CMD] [--prompt TEXT |
+  --prompt-file PATH]`: start a **child task** of the calling session (or
+  `--parent`): a second conversation that shows under its parent. A Task is
+  one engine conversation; `add` makes a top-level task and `spawn` makes a
+  child. `--parent` defaults to the caller's verified `$ROVE_TASK_ID` /
+  `$ROVE_TAB_ID` (an unverifiable env is `MISSING_TARGET`, never a guess). The
+  child runs on the parent's machine, on the parent's engine unless `--command`
+  says otherwise, and its `dispatcher` is stamped, so a bare `send` from it
+  reports back to the caller.
+
+  **Where the child works.** By default the child gets its own worktree, on a
+  branch cut from the parent's *current* branch tip (`--base-branch` overrides
+  the cut point). A main checkout cuts from its HEAD; a `dir` task inside a git
+  repo gets a worktree at the repo root and runs in the same relative
+  subdirectory; a `dir` task outside any repo fails `NOT_A_GIT_REPO`.
+  `--no-worktree` (or `--worktree=false`) shares the parent's directory
+  instead. That suits parallel reading and review; two engines writing one
+  tree collide.
+
+  **Uncommitted changes are never copied** into a new worktree: `parentDirty:
+  true` in the reply says the parent had some. Top-level entries of the parent
+  directory that are symlinks to a git checkout outside it are not isolated by
+  a worktree of the root, because git copies the link; they come back as
+  `sharedLinks`. `--isolate-in LINK` cuts the worktree in that linked repo
+  instead (`NOT_A_LINKED_REPO` for a name that is not one).
+
+  **Reply.** `{taskId, task, engine, parentDirty, sharedLinks, started}`. With
+  `--prompt` the child's engine starts and the text is pasted, prefixed with who
+  spawned it; the reply then also carries the delivery facts `send` reports
+  (`session`, `delivered`, `engineReady`, ...). A prompt that did not land is
+  `NOT_DELIVERED`, and the error still carries the child's `taskId`. A parent on
+  another machine's project is `REMOTE_PARENT_UNSUPPORTED`: spawn from that
+  machine's rove.
+
+  The TUI's and the web's "new conversation" gestures do the same with
+  `--no-worktree`: `ctrl+t`, `ctrl+e` with the tab destination, `send --tab
+  new` and `tab-new --kind engine` each create a shared child, never a second
+  engine tab. Deleting the parent promotes its children; see `delete --cascade`.
+
 ## drive
 
 - `send [--task-id ID] (--prompt TEXT | --prompt-file PATH) [--tab TAB]
@@ -850,7 +893,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   carry `--plain` so replaying them does not stack a second prefix. `delivered: true` says the bytes landed and
   nothing more: when the target was already in `error` or `dead`, the
   result carries `targetState` (and `targetDetail`), so a prompt sent into a
-  failed session is visible as such. `--tab new` spawns a fresh engine tab, while
+  failed session is visible as such. `--tab new` starts a second conversation: a shared child task of the target
+  (same directory, as `spawn --no-worktree`) that receives the prompt, and the reply adds `childTaskId`
+  (`session`, `delivered` and the other delivery facts describe the child; `taskId` stays the target), while
   `--tab tab-N` targets that exact tab (`TAB_NOT_FOUND` if it is dead or
   absent). A tab a **pty-host restart froze** is neither: it is listed by
   `pty-list` with its scrollback and launch command intact, and it refuses
@@ -866,8 +911,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   freeze-restored engine tabs it did not use, the reply carries `frozenTabs`
   — `{tab, sessionId}` for each — because otherwise "opened a blank agent
   while your two real conversations are frozen" reports exactly like a
-  healthy first start, and `get-task` then says `running: true`. `--command CMD` is valid only with `--tab new`: it pins that new
-  tab to that engine without changing the task's own. Using it with an
+  healthy first start, and `get-task` then says `running: true`. `--command CMD` is valid only with `--tab new`: it runs
+  that new child on that engine without changing the target's own. Using it with an
   existing tab is a `BAD_FLAG` error rather than a silent switch.
   Delivery needs a live engine in that tab: one that exited into the
   keep-alive shell refuses with `ENGINE_NOT_RUNNING` and a `--tab new` hint
@@ -1113,17 +1158,22 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   Terminal Tab with no first message — the TUI's sidebar "New shell" and its
   picker's Enter on an empty message. `shell` runs the login shell
   (`$SHELL`) in the task's worktree and types the `ROVE_TASK_ID` /
-  `ROVE_TAB_ID` export into it; `engine` starts the task's engine (or `--command`'s,
-  as `send --tab new --command` pins it) idle, ready for a first message.
+  `ROVE_TAB_ID` export into it. `engine` starts a new conversation: a shared
+  child task of `--task-id` (same directory, see `spawn --no-worktree`) whose
+  engine, the task's own or `--command`'s as `send --tab new --command` pins it,
+  starts idle in the child's own `tab-1`, ready for a first message. A task
+  holds one engine conversation, so this never adds a second engine tab to it.
   `--latest` instead starts the engine this project used last, else the
   default engine (the TUI's ctrl+t; the web's new-conversation click).
-  The worktree is created if needed, and an engine tab respects
-  `engine.maxLiveSessions` (`ENGINE_LIMIT`; the refused tab leaves no row).
+  The worktree is created if needed, and an engine start respects
+  `engine.maxLiveSessions` (`ENGINE_LIMIT`; the refused child is removed).
   The daemon's tab store mints the tab id and adds the row (one `tabs.apply`,
   `docs/design/daemon-owned-tabs.md`), so it never collides with a tab another
   client opens at the same moment, then the session spawns; every attached
-  client sees the row through `tabs.changed`. Returns `{ok, taskId, tabId, session, kind, clients}`
-  (`clients` = attached connections told; `0` = none); the tab then lists in
+  client sees the row through `tabs.changed`. A shell returns `{ok, taskId, tabId, session, kind, clients}`
+  (`clients` = attached connections told; `0` = none); an engine returns
+  `{ok, taskId, childTaskId, tabId, session, kind}` with `tabId` `tab-1` of the
+  child and no `clients`. The tab then lists in
   `get-task .tabs[]`. A session already running under the allocated id fails
   as `TAB_COLLISION`. `--command` or `--latest` with `--kind shell` is `BAD_FLAG`.
   `tab-new` also opens three kinds that run something Rove resolves, never a
@@ -1427,7 +1477,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   base checkout, the caller's own worktree) — keeps the branch. The result
   says so in `branchKept` (`{ reason }`) and writes no `branchAnchor`.
 - `delete (--task-id ID | --group GROUPID) [--force] [--delete-branch]
-  [--delete-remote] [--wait]`: remove a task
+  [--delete-remote] [--cascade] [--wait]`: remove a task
   and its worktree. **The git branch stays** unless `--delete-branch` is
   passed; git is the durable record, the task row is not. Needs `--force` on a
   dirty worktree; `--force` never implies `--delete-branch`.
@@ -1503,6 +1553,13 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   common one) is RECORDED rather than thrown, because aborting there would
   leave the caller unable to tell which of N were already removed. Mutually
   exclusive with `--task-id`.
+
+  **A task with children** (`spawn`) is not orphaned. By default its children
+  are promoted to the deleted task's own parent, or to top level, and keep
+  running; `--cascade` deletes the whole subtree instead, and the reply lists
+  every removed id as `deleted`. A directory goes only once no remaining task
+  points at it, so deleting a shared child never touches its parent's files,
+  and every removed worktree still passes the dirty gate.
 
 ## worktree
 

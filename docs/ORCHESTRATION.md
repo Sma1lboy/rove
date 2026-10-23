@@ -10,30 +10,39 @@ engine session Rove manages: an agent with `rove` on its PATH can spawn and
 supervise its own workers with the same commands, and Rove records who
 spawned whom so replies route home automatically.
 
-## Task, tab, or split?
+## Task, shared child, or split?
 
 The most common orchestration mistake is picking the wrong isolation level.
-The three units nest — **Task ⊃ Terminal Tab ⊃ Split** — and isolation drops
-at each level down:
+A Task is one engine conversation. Another conversation is a **child task**
+under it, and a child either shares its parent's directory or gets its own
+worktree. Isolation drops at each step down:
 
 ```text
-new Task → own worktree + own branch   (parallel work can't collide)
-new Tab  → own conversation, SAME files (a helper in the same checkout)
-new Split → same screen, one tab divided (a monitor beside the work)
+new Task            → own worktree + own branch   (parallel work can't collide)
+child, own worktree → own worktree, branch cut from the parent's tip (`spawn`)
+child, shared dir   → own conversation, SAME files (`spawn --no-worktree`, `send --tab new`)
+new Split           → same screen, one tab divided (a monitor beside the work)
 ```
 
 | You want | Use | Because |
 |---|---|---|
 | Independent attempts, comparable results | New tasks (`add`) | Each gets its own worktree and branch; nothing can overwrite anything |
-| A second opinion on the *same* working tree | New tab (`send --tab new`) | Separate conversation, shared files — deliberate, and deliberate collisions too |
-| A different engine on the same files | New tab with `--command` | The tab pins its own engine; the task's default is untouched |
+| Sub-work that builds on this branch's current state | `spawn` | Its own worktree, branched from the parent's tip, shown under the parent; uncommitted changes do not come along (`parentDirty` says so) |
+| A second opinion on the *same* working tree | Shared child (`send --tab new`, `spawn --no-worktree`) | Separate conversation, shared files — deliberate, and deliberate collisions too |
+| A different engine on the same files | Shared child with `--command` | The child pins its own engine; the parent's is untouched |
 | Logs, tests, `btop` next to the work | Split (`pane-open`) | A split is layout, not delegation — it isolates nothing |
 
-The rule that decides every ambiguous case: **a new tab shares the worktree
-and branch; only a new task gets its own.** Two tabs editing the same file
+The rule that decides every ambiguous case: **a shared child uses the
+parent's directory and branch; only a new task or a `spawn` with a worktree
+gets its own.** Two conversations editing the same file
 will conflict — that's a feature when you asked for a helper, a bug when you
 wanted parallel attempts. When in doubt, take a new task: it is the only
 choice whose isolation cannot corrupt work in progress.
+
+Deleting a parent promotes its children to the parent's own parent (or to top
+level) and leaves them running; `delete --cascade` removes the whole subtree.
+A directory is deleted only when no remaining task points at it, so removing a
+shared child never touches the parent's files.
 
 One boundary the worktree isolation does NOT cover: **`git stash` is never
 safe in a managed worktree.** The stash stack lives in the repo's common dir
@@ -259,7 +268,7 @@ everything, passed everything, committed nothing. `land` fails with
 
 **`send` refuses instead of guessing.** A task whose live tabs include no
 engine gets `NO_ENGINE_TAB` (address one with `--tab tab-N` from `get-task`'s
-`.tabs[]`, or spawn one with `--tab new`); an engine that exited back to its
+`.tabs[]`, or start another conversation with `--tab new`); an engine that exited back to its
 shell gets `ENGINE_NOT_RUNNING`. Errors carry a `hint` and often
 `nextCommandArgs` — argv you can run verbatim to recover.
 

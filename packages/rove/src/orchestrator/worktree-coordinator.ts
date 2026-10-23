@@ -140,7 +140,8 @@ export class WorktreeCoordinator {
     try {
       await this.store.update(task.id, { worktreePath: info.path, branch })
     } catch (err) {
-      await this.rollbackWorktree(info.path)
+      // A branch we derived is fresh (no commits), so it goes with its checkout.
+      await this.rollbackWorktree(info.path, task.branch ? undefined : { repo: task.repo, branch })
       this.slugs.cancel(task.repo, slug)
       throw err
     }
@@ -163,10 +164,11 @@ export class WorktreeCoordinator {
   }
 
   /** `force`: brand-new checkout, no user work. Logged, not thrown, so the
-   *  caller's real persist error isn't masked. */
-  private async rollbackWorktree(worktreePath: string): Promise<void> {
+   *  caller's real persist error isn't masked. `fresh`: the branch was cut
+   *  for this checkout alone, so it is deleted with it. */
+  private async rollbackWorktree(worktreePath: string, fresh?: { repo: string; branch: string }): Promise<void> {
     try {
-      await this.worktrees.remove(worktreePath, { force: true })
+      await this.worktrees.remove(worktreePath, fresh ? { force: true, deleteBranch: true, ...fresh } : { force: true })
     } catch (err) {
       console.error(`[rove] ensureWorktree rollback failed for ${worktreePath}:`, err)
     }
@@ -202,7 +204,9 @@ export class WorktreeCoordinator {
   }
 
   private async adoptLocked(input: AdoptWorktreeInput, target: string): Promise<Task> {
-    const existing = this.store.list().find((t) => t.worktreePath && this.canonPath(t.worktreePath) === target)
+    // Sharers sit on the same path: answer with the owner, never a child.
+    const holders = this.store.list().filter((t) => t.worktreePath && this.canonPath(t.worktreePath) === target)
+    const existing = holders.find((t) => !t.sharesWorkspaceOf) ?? holders[0]
     if (existing) {
       if (input.ifExists === "return") return existing
       throw new Error(`adoptWorktree: ${input.worktreePath} is already adopted as a task`)

@@ -12,19 +12,13 @@ import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../tui/panes/sidebar/nav-core"
 import type { WorktreeChanges } from "../../tui/panes/sidebar/worktree-changes"
 import { PaneKeyHint } from "../component/keyboard-hints"
-import { useKV, useOptionalKV } from "../context/kv"
-import { useNotifications } from "../context/notifications"
+import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"
-import { useT } from "../i18n"
 import { SidebarTree } from "../panes/sidebar/SidebarTree"
 import { CollapsedRail, type CollapsedRailStyle, DEFAULT_COLLAPSED_RAIL_STYLE } from "../panes/sidebar/collapsed-rail"
 import type { SidebarTaskCallbacks } from "../panes/sidebar/types"
 import { useSidebarGroups } from "../panes/sidebar/use-sidebar-groups"
-import { useOptionalDialog } from "../ui/dialog"
-import { DialogConfirm } from "../ui/dialog-confirm"
-import { closeOtherTaskTabs, closeTaskTab } from "./terminal-tabs-close"
-import { moveTaskTab } from "./terminal-tabs-move"
-import { knownTabsState, requestNewTab } from "./terminal-tabs-shared"
+import { requestNewTab } from "./terminal-tabs-shared"
 
 export interface HostSidebarProps
   extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest">>>,
@@ -39,13 +33,11 @@ export interface HostSidebarProps
   readonly onNavChange: (nav: SidebarNav) => void
   readonly tasks: readonly Task[]
   readonly selectedId: string | null
-  readonly selectedTabId: string | null
   readonly onSelect: (taskId: string) => void
   readonly onActivate: (taskId: string) => void
-  readonly onSelectTab: (taskId: string, tabId: string) => void
   readonly focused: boolean
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
-  /** Per-tab activity, keyed taskId → tabId. The tree lights the exact tab. */
+  /** Per-tab activity, keyed taskId → tabId: a row's landing pulse. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
@@ -72,46 +64,6 @@ export interface HostSidebarProps
 export function HostSidebar(props: HostSidebarProps) {
   const { onFocusRequest: _rail, recentTask: _recent, ...treeProps } = props
   const { theme } = useTheme()
-  const kv = useKV()
-  const notif = useNotifications()
-  const t = useT()
-  const dialog = useOptionalDialog()
-  // Who owns a tab's state depends on whether its TerminalTabs is mounted;
-  // `closeTaskTab` holds that fork. Closing the LAST tab is fine (revived on
-  // re-entry); false means a stale row, surfaced as a toast.
-  const closeTab = useCallback(
-    (taskId: string, tabId: string): void => {
-      if (!closeTaskTab(kv, taskId, tabId))
-        notif.notify({ kind: "error", taskId, tabId, title: t("terminal.tab.tabGone") })
-    },
-    [kv, notif, t],
-  )
-  // Bulk close ends sessions the user isn't looking at, so it asks first.
-  const closeOtherTabs = useCallback(
-    async (taskId: string, tabId: string): Promise<void> => {
-      const count = (knownTabsState(kv, taskId)?.tabs.length ?? 1) - 1
-      if (count < 1 || !dialog) return
-      const ok = await DialogConfirm.show(
-        dialog,
-        t("terminal.tab.closeOthersTitle"),
-        t("terminal.tab.closeOthersBody", { count: String(count) }),
-        t("terminal.tab.closeOthersCancel"),
-        t("terminal.tab.closeOthersConfirm"),
-        { danger: true },
-      )
-      if (ok !== true) return
-      if (closeOtherTaskTabs(kv, taskId, tabId) === 0)
-        notif.notify({ kind: "error", taskId, tabId, title: t("terminal.tab.tabGone") })
-    },
-    [kv, notif, t, dialog],
-  )
-  // Same mounted-vs-background fork (`moveTaskTab`); an edge-stop is a silent no-op.
-  const moveTab = useCallback(
-    (taskId: string, tabId: string, delta: -1 | 1): void => {
-      moveTaskTab(kv, taskId, tabId, delta)
-    },
-    [kv],
-  )
   // No background path: the picker is a dialog and a shell tab needs its PTY
   // where tabs render, so ENTER the task; its workspace claims the request.
   const newTab = useCallback(
@@ -129,10 +81,7 @@ export function HostSidebar(props: HostSidebarProps) {
         sortMode={props.sortMode}
         selectedId={props.selectedId}
         engineState={props.engineState}
-        engineTabState={props.engineTabState}
-        engineLifecycle={props.engineLifecycle}
         onSelect={props.onSelect}
-        onSelectTab={props.onSelectTab}
         onExpand={() => props.onToggleCollapsed?.()}
       />
     )
@@ -148,14 +97,7 @@ export function HostSidebar(props: HostSidebarProps) {
       {/* HostSidebarProps is SidebarTreeProps plus the rail's own two props,
           so the tree takes the rest wholesale rather than a re-listing of
           thirty names that can silently fall out of date. */}
-      <SidebarTree
-        {...treeProps}
-        onCloseTab={closeTab}
-        onCloseOtherTabs={(taskId, tabId) => void closeOtherTabs(taskId, tabId)}
-        onNewTab={newTab}
-        onMoveTabRequest={moveTab}
-        recentTask={props.recentTask ?? null}
-      />
+      <SidebarTree {...treeProps} onNewTab={newTab} recentTask={props.recentTask ?? null} />
       {/* First-use key hint (component/keyboard-hints.tsx): renders until
           the sidebar's own keys have been used, then never again. */}
       <box flexShrink={0} paddingLeft={1} paddingBottom={0}>
@@ -173,15 +115,12 @@ function CollapsedSidebar(props: {
   readonly sortMode?: TaskSortMode
   readonly selectedId: string | null
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
-  readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
-  readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly onSelect: (taskId: string) => void
-  readonly onSelectTab: (taskId: string, tabId: string) => void
   readonly onExpand: () => void
 }) {
   // No KV provider: tabs unknown, which the hide rules read as "never mounted".
   const kv = useOptionalKV()
-  const { groups, tabsByTask } = useSidebarGroups({
+  const { groups } = useSidebarGroups({
     tasks: props.tasks,
     kv,
     sortMode: props.sortMode,
@@ -191,12 +130,8 @@ function CollapsedSidebar(props: {
     <CollapsedRail
       style={props.style}
       groups={groups}
-      tabsByTask={tabsByTask}
       selectedId={props.selectedId}
-      engineTabState={props.engineTabState}
-      engineLifecycle={props.engineLifecycle}
       onSelect={props.onSelect}
-      onSelectTab={props.onSelectTab}
       onExpand={props.onExpand}
     />
   )

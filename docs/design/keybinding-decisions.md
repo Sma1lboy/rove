@@ -888,3 +888,12 @@ combined #1242/#1240 scope. The prefix reaches the palette from an engine
 terminal without claiming a typing key. Prefix `/` was unused; sidebar `/`
 remains scoped task search. Help and palette share the action names and matcher.
 The palette invokes typed live commands, preserving scope and confirmation gates.
+
+## Second conversations open a child task (2026-10-22, approved)
+
+The owner approved keeping `ctrl+t`, `ctrl+e` and `ctrl+a c` on their keys
+while changing what they open. A task is now one conversation, so each of
+these opens a shared child task under the current one instead of a second
+engine tab (see [`child-sessions.md`](./child-sessions.md)). Keys stay put so
+muscle memory survives the model change. The child-task fold has no chord: it
+is reached through the row menu, like other row actions.

@@ -31,12 +31,12 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         required: false,
         placeholder: "TAB",
         description:
-          'Tab addressing: "new" spawns the prompt in a fresh engine tab; "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab.',
+          'Tab addressing: "new" starts a second conversation as a shared child task of the target (same directory) and sends the prompt to it — the reply adds `childTaskId`, and `session` is the child\'s; "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab.',
       },
       {
         ...F.command(),
         description:
-          "Engine launch command for a `--tab new` tab — the API twin of the TUI's ctrl+e pick. Lets one worktree run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; pinned to that tab, so it survives restarts and a later `update --command` on the task. Only valid with --tab new.",
+          "Engine launch command for the child `--tab new` creates — the API twin of the TUI's ctrl+e pick. Lets one directory run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; stored on the child, so it survives restarts. Only valid with --tab new.",
       },
       {
         name: "respawn",

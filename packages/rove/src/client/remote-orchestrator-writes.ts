@@ -5,12 +5,15 @@
  */
 
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
+import type { TaskDeleteOptions } from "@sma1lboy/rove-daemon/daemon/child-contracts"
 import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { WorkItem } from "@sma1lboy/rove-daemon/daemon/work-items"
 import type { LandPreflight } from "../orchestrator/land-preflight.ts"
 import type { LandResult } from "../orchestrator/land.ts"
+import type { SpawnChildInput, SpawnChildResult } from "../orchestrator/spawn-child.ts"
 import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { StoredFieldNote } from "../state/field-notes.ts"
 import type { CIFailingCheck, CIFailingChecksRead } from "../tui/ops/ci-prompt.ts"
@@ -143,16 +146,38 @@ export async function setStatusOp(client: RoveDaemonClient, id: TaskId | string,
   await client.request("task.status", { taskId: String(id), status })
 }
 
+/** What the daemon removes, so a client tears down exactly that. An older daemon sends neither field. */
+export interface TaskDeleteReply {
+  /** Every task the request took (the subtree under `cascade`). */
+  readonly deleted?: readonly string[]
+  /** Per removed task, the PTYs its teardown spares or also takes. */
+  readonly teardown?: Readonly<Record<string, TeardownScope>>
+}
+
 export async function deleteTaskOp(
   client: RoveDaemonClient,
   id: TaskId | string,
-  opts?: { force?: boolean; deleteBranch?: boolean },
-): Promise<void> {
-  await client.request("task.delete", {
+  opts?: TaskDeleteOptions,
+): Promise<TaskDeleteReply> {
+  return client.request<TaskDeleteReply>("task.delete", {
     taskId: String(id),
     force: opts?.force,
     deleteBranch: opts?.deleteBranch,
+    cascade: opts?.cascade,
   })
+}
+
+/** A child of `input.parentTaskId`; the wire spells the dispatcher as two ids. */
+export async function spawnChildTaskOp(client: RoveDaemonClient, input: SpawnChildInput): Promise<SpawnChildResult> {
+  const { dispatcher, ...rest } = input
+  const res = await client.request<{ task: SerializedTask; parentDirty: boolean; sharedLinks: string[] }>(
+    "task.spawn",
+    {
+      ...rest,
+      ...(dispatcher ? { dispatcherTaskId: dispatcher.taskId, dispatcherTabId: dispatcher.tabId } : {}),
+    },
+  )
+  return { task: deserializeTask(res.task), parentDirty: res.parentDirty, sharedLinks: res.sharedLinks }
 }
 
 /** Explicitly delete one durable attention episode. */

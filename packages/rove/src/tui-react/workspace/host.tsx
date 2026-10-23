@@ -356,7 +356,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               recentTask={pageRender.recentTask}
               tasks={tasks}
               selectedId={selectedId}
-              selectedTabId={selectedTabId}
               selectTask={selectTask}
               activateTask={activateTask}
               daemon={{
@@ -437,6 +436,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
                   onEngineSendReady={editor.onEngineSendReady}
                   onEnginePasteReady={editor.onEnginePasteReady}
                   onDiffTabReady={editor.onDiffTabReady}
+                  onSpawnChild={quickFork.onSpawnChild}
                   onQuickFork={quickFork.onQuickFork}
                   initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
                   onTabVisited={inbox.resolveVisited}

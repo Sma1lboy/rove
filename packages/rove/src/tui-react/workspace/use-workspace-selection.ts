@@ -5,6 +5,7 @@
  * this hook owns only the reactivity.
  */
 
+import { aliasedKeys, isUnderKey } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { readLastActiveTaskId } from "../../state/last-active.ts"
@@ -94,8 +95,13 @@ export function useWorkspaceSelection(args: {
   useEffect(() => {
     const next = new Set<string>(tasks.filter((task) => !task.deletion).map((task) => task.id))
     const registry = getDefaultPtyRegistry()
+    // A surviving child's conversation may still be keyed under the task that left.
+    const aliased = aliasedKeys(tasks.filter((task) => !task.deletion))
     for (const id of liveTaskIdsRef.current) {
-      if (!next.has(id)) registry.releaseWhere((key) => key === id || key.startsWith(`${id}::`))
+      if (next.has(id)) continue
+      registry.releaseWhere(
+        (key) => (key === id || key.startsWith(`${id}::`)) && !aliased.some((base) => isUnderKey(key, base)),
+      )
     }
     liveTaskIdsRef.current = next
     // Tabs die WITH their worktree: a worktree removed elsewhere clears

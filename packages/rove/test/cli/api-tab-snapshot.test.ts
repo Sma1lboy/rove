@@ -22,12 +22,11 @@ import {
   allocateTab,
   closeTabsSnapshot,
   markCliTabSession,
-  mintCliTab,
   publishCliTabSnapshot,
   readTabsSnapshot,
   renameTabsSnapshot,
 } from "../../src/cli/api/tab-snapshot.ts"
-import { tabsDaemon } from "./tabs-daemon-fake.ts"
+import { mintEngineTab, tabsDaemon } from "./tabs-daemon-fake.ts"
 
 let home: string
 let originalHome: string | undefined
@@ -105,7 +104,7 @@ describe("publishCliTabSnapshot", () => {
 describe("markCliTabSession", () => {
   it("patches an existing minted tab with its session id once the session started", async () => {
     const daemon = tabsDaemon()
-    const id = await mintCliTab(daemon.client, "t1")
+    const id = await mintEngineTab(daemon.client, "t1")
     await markCliTabSession(daemon.client, "t1", id, "uuid-xyz")
     const tabs = daemon.tabs("t1")?.tabs ?? []
     expect(tabs.find((t) => t.id === id)).toMatchObject({ sessionId: "uuid-xyz", spawned: true })
@@ -122,7 +121,7 @@ describe("markCliTabSession", () => {
   })
 })
 
-describe("mintCliTab", () => {
+describe("allocateTab", () => {
   it("takes the daemon's counter, so CLI and TUI ids never collide", async () => {
     const daemon = tabsDaemon({
       seed: {
@@ -133,7 +132,7 @@ describe("mintCliTab", () => {
         },
       },
     })
-    const id = await mintCliTab(daemon.client, "t1", "codex", "codex --yolo")
+    const id = await mintEngineTab(daemon.client, "t1", "codex", "codex --yolo")
     expect(id).toBe("tab-4")
     const snapshot = daemon.tabs("t1")
     expect(snapshot?.tabs.map((t) => t.id)).toEqual(["tab-1", "tab-4"])
@@ -146,15 +145,15 @@ describe("mintCliTab", () => {
 
   it("seeds a task with no record and mints tab-2 alongside the canonical tab", async () => {
     const daemon = tabsDaemon()
-    expect(await mintCliTab(daemon.client, "t1")).toBe("tab-2")
+    expect(await mintEngineTab(daemon.client, "t1")).toBe("tab-2")
     expect(daemon.tabs("t1")?.tabs.map((t) => t.id)).toEqual(["tab-1", "tab-2"])
   })
 
   it("never hands out a closed id again", async () => {
     const daemon = tabsDaemon()
-    const first = await mintCliTab(daemon.client, "t1")
+    const first = await mintEngineTab(daemon.client, "t1")
     await closeTabsSnapshot(daemon.client, "t1", first)
-    expect(await mintCliTab(daemon.client, "t1")).not.toBe(first)
+    expect(await mintEngineTab(daemon.client, "t1")).not.toBe(first)
   })
 
   it("throws when the daemon refuses instead of inventing an id", async () => {
@@ -163,7 +162,7 @@ describe("mintCliTab", () => {
         throw new Error("task not found: t1")
       },
     }
-    await expect(mintCliTab(refusing, "t1")).rejects.toThrow("task not found")
+    await expect(mintEngineTab(refusing, "t1")).rejects.toThrow("task not found")
   })
 })
 

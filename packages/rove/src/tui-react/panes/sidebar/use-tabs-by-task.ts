@@ -18,7 +18,7 @@ import type { TreeTab } from "../../../tui/panes/sidebar/tree-core"
 import { tabRowId } from "../../../tui/panes/sidebar/tree-core"
 import { isRecentlyClosedPtyKey } from "../../../tui/workspace/closed-tab-suppress"
 import { getDefaultLiveEngines } from "../../../tui/workspace/live-engine"
-import { tabTitleStable } from "../../../tui/workspace/terminal-tab-split"
+import { conversationTitle, tabTitleStable } from "../../../tui/workspace/terminal-tab-split"
 import { tabPtyKeyFor } from "../../../tui/workspace/terminal-tabs-core"
 import { useAccessor } from "../../lib/use-accessor"
 import { adoptTaskTabs } from "../../workspace/terminal-tabs-adopt"
@@ -92,12 +92,14 @@ export function useTabsByTask(opts: TabsByTaskOpts): ReadonlyMap<string, readonl
           const ptyKey = tabPtyKeyFor(task.id, tab)
           const probed = liveEngines.resolve(ptyKey)
           const live = probed === undefined ? tab.liveVendor : probed
+          const title = conversationTitle(tab, vendor, liveTitles.get(ptyKey))
           return {
             id: tab.id,
             // `tabTitleStable`, NOT `tabTitle`: a status-owning engine's title
             // IS its status (`⠐ 利用自进化…`), contradicting the state glyph.
             // The host's live title goes through the same strip.
             label: tabTitleStable(tab, vendor, live, liveTitles.get(ptyKey)),
+            ...(title ? { title } : {}),
             active: tab.id === known.activeId,
             // Agent = engine tab, OR a live (or, when unprobeable, recorded)
             // engine process: hosted PTYs outlive a TUI restart.
@@ -114,6 +116,8 @@ export function useTabsByTask(opts: TabsByTaskOpts): ReadonlyMap<string, readonl
   const orphansByTask = useMemo<ReadonlyMap<string, readonly TreeTab[]>>(() => {
     const registered = new Set<string>()
     for (const [taskId, tabs] of snapshotTabs) for (const tab of tabs) registered.add(tabRowId(taskId, tab.id))
+    // A migrated child's conversation is a PTY keyed under its parent: the child answers for it, not the parent.
+    for (const task of tasks) if (task.ptyAlias) registered.add(tabRowId(task.ptyAlias.taskId, task.ptyAlias.tabId))
     // A just-closed tab's session can outlive it in the 2s poll; don't re-adopt it.
     const sessions = hostSessions.filter((session) => !isRecentlyClosedPtyKey(session.key))
     return filterKnownOrphanTabs(tasks, orphanTabsByTask(sessions, registered))

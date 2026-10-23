@@ -5,15 +5,15 @@
 |                              |
 | ROVE                         |
 | New task                + n  |
-| /bravo█ 2/5                  |
+| /bravo█ 1/2                  |
 |                              |
 | Kanban                       |
 | Routines                     |
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|▌▎feat/bravo                  |
-| ▎○ tests                     |
+|▌▎○ bravo                     |
+|                              |
 |                              |
 |                              |
 |                              |

@@ -51,7 +51,6 @@ describe("prefs.get", () => {
       focusAccent: "primary",
       glyphSet: "braille",
       railFold: "glyphs",
-      tabRowHeight: 1,
       taskColors: "on",
       runningTitle: "shimmer",
       workingBorder: "flow",
@@ -77,12 +76,11 @@ describe("prefs.get", () => {
   test("stale or hand-edited values read through the normalizers, as the TUI would", async () => {
     const { ops } = prefs({
       "appearance.glyphSet": "emoji",
-      "sidebar.tabRowHeight": "2",
       "chat.tabStrip.hideSingle": true,
       locale: "fr",
     })
     const r = (await call(ops, "prefs.get")) as { prefs: State }
-    expect(r.prefs).toMatchObject({ glyphSet: "braille", tabRowHeight: 2, tabStrip: "multipleOnly", locale: "en" })
+    expect(r.prefs).toMatchObject({ glyphSet: "braille", tabStrip: "multipleOnly", locale: "en" })
   })
 })
 
@@ -114,7 +112,6 @@ describe("prefs.set", () => {
       { key: "scrollbackRows", value: 50 },
       { key: "scrollbackRows", value: 1000.5 },
       { key: "soundVolume", value: 0.33 },
-      { key: "tabRowHeight", value: "2" },
     ]) {
       await expect(call(ops, "prefs.set", args)).rejects.toMatchObject({ code: "BAD_ARGS" })
     }

@@ -11,6 +11,7 @@ import type {
   VendorId,
   WorktreeChanges,
 } from "./contracts.ts"
+import type { PtyScope, TeardownScope } from "./pty-alias.ts"
 
 export interface EngineTurnDetectorAdapter {
   latestActivity(worktreePath: string): Promise<{
@@ -137,7 +138,8 @@ export interface DaemonRuntimeAdapter {
     taskId: string,
     prompt: string,
   ): Promise<{ started: boolean; error?: string }>
-  tearDownTaskSession(taskId: string): Promise<void>
+  /** Kill the task's hosted PTYs; `scope` spares surviving children's aliased ones and adds the task's own. */
+  tearDownTaskSession(taskId: string, scope?: TeardownScope): Promise<void>
   /**
    * Vendor account usage windows, or null when unknowable. Hits the vendor's
    * rate-limited API — ONLY QuotaUsageCache may call this.
@@ -156,6 +158,8 @@ export interface DaemonRuntimeAdapter {
       /** Raw launch command pinned on the task; wins over `vendor` when set. */
       readonly command?: string
       readonly worktreePath: string
+      /** Whose PTYs the delivery may pick from (`ptyScopeFor`): a migrated child's conversation lives under its parent's key. */
+      readonly scope?: PtyScope
     },
     prompt: string,
   ): Promise<boolean>
@@ -170,6 +174,7 @@ export interface DaemonRuntimeAdapter {
       readonly vendor?: VendorId
       readonly command?: string
       readonly worktreePath: string
+      readonly scope?: PtyScope
     },
     prompt: string,
   ): Promise<
@@ -185,6 +190,7 @@ export interface DaemonRuntimeAdapter {
       readonly vendor?: VendorId
       readonly command?: string
       readonly worktreePath: string
+      readonly scope?: PtyScope
     },
     prompt: string,
   ): Promise<

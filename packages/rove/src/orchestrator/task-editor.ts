@@ -97,6 +97,14 @@ export class TaskEditor {
       await this.worktrees.renameBranch(task.worktreePath, task.branch, trimmed)
     }
     await this.store.update(task.id, { branch: trimmed })
+    // Sharers copy the owner's branch string; the rename moved it for every row in the directory.
+    if (!task.worktreePath) return
+    for (const holder of this.store.list()) {
+      if (holder.id === task.id || holder.kind !== "task" || holder.branch !== task.branch) continue
+      if (holder.worktreePath && samePath(holder.worktreePath, task.worktreePath)) {
+        await this.store.update(holder.id, { branch: trimmed })
+      }
+    }
   }
 
   /**

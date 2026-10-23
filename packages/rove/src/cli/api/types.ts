@@ -3,6 +3,7 @@
  * (`ApiRuntime`, `PromptDeliveryOps`) — importable without the dispatcher.
  */
 
+import type { AliasTask, PtyScope, TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import {
   type BuiltinModId,
   MOD_NOT_INSTALLED,
@@ -184,17 +185,10 @@ export interface PromptTarget {
   readonly model?: string
   readonly repo?: string
   /**
-   * `send --tab`: `"new"` spawns an engine in the next tab-N; `"tab-N"` targets
-   * that exact alive tab (TAB_NOT_FOUND otherwise). Undefined = canonical tab.
+   * `send --tab tab-N`: targets that exact alive tab (TAB_NOT_FOUND
+   * otherwise). Undefined = canonical tab.
    */
   readonly tab?: string
-  /**
-   * Engine PROTOCOL pinned on a `--tab new` tab, recorded like the TUI's ctrl+e
-   * pick so it survives restarts and a later task `update --command`.
-   */
-  readonly tabVendor?: VendorId
-  /** Raw launch command for a `--tab new` tab — the command half of {@link tabVendor}. */
-  readonly tabCommand?: string
   /**
    * FIRST prompt of a just-created task (`add --prompt`, single or `--count`):
    * gets the branch-rename coda (`PromptDeliveryIntent`'s `new-task`). `send`
@@ -296,7 +290,7 @@ type TaskTabRowWithSession = TaskTabRow & { readonly sessionId?: string }
  */
 export interface ApiRuntime {
   /** {@link taskTabs}'s `.running`, for callers that need nothing else. */
-  isTaskRunning(taskId: string, engineArgv?: readonly string[]): Promise<boolean | null>
+  isTaskRunning(taskId: string, engineArgv?: readonly string[], scope?: PtyScope): Promise<boolean | null>
   /**
    * Persisted terminal tabs joined with session liveness, plus `.running`,
    * from one host round-trip.
@@ -307,16 +301,20 @@ export interface ApiRuntime {
    *
    * Pass `engineArgv` (`engineLaunchArgv({command, vendor})`): without it a
    * custom wrapper engine reads as "no engine" and the task as stopped.
+   * Pass `scope` (`ptyScopeOf`) so a migrated child reads the PTY its conversation lives in and its
+   * parent does not count that PTY as its own.
    */
   taskTabs(
     taskId: string,
     engineArgv?: readonly string[],
+    scope?: PtyScope,
   ): Promise<{ tabs: readonly TaskTabRowWithSession[]; running: boolean | null }>
   /**
    * Task ids with a LIVE session, from one fleet-wide `pty.list` (not one
-   * round-trip per task). `null` = no pty host to ask, never "nothing running".
+   * round-trip per task). `tasks` say whose a migrated child's aliased PTY is.
+   * `null` = no pty host to ask, never "nothing running".
    */
-  liveTaskIds(): Promise<ReadonlySet<string> | null>
+  liveTaskIds(tasks: readonly AliasTask[]): Promise<ReadonlySet<string> | null>
   /** Close one exact Terminal Tab without a mounted TUI (the row goes through the daemon's `tabs.apply`). */
   closeTerminalTab(
     client: DaemonRpc,
@@ -361,7 +359,8 @@ export interface ApiRuntime {
   }>
   /**
    * Stop a task's hosted sessions, only after `task.delete` succeeded. Never
-   * throws: teardown must not fail the already-committed RPC.
+   * throws: teardown must not fail the already-committed RPC. `scope` spares
+   * the aliased PTYs of surviving children and adds the task's own.
    */
-  tearDownSession(taskId: string): Promise<void>
+  tearDownSession(taskId: string, scope?: TeardownScope): Promise<void>
 }

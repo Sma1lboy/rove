@@ -15,6 +15,17 @@ import { defaultPtyExitsPath } from "./paths.ts"
 import { ENGINE_EXIT_BANNER, type PtyExitRecord, readPtyExitStore } from "./pty-exit-store.ts"
 
 const DEBOUNCE_MS = 250
+/**
+ * The task a report from hosted PTY `taskId::tabId` speaks for. `at` is when the reported event happened: a
+ * report can trail the release of the alias it was made under.
+ */
+export type PtyOwnerResolver = (taskId: string, tabId: string, at?: number) => string
+
+const finiteTime = (iso: string): number | undefined => {
+  const at = Date.parse(iso)
+  return Number.isFinite(at) ? at : undefined
+}
+
 /** Session key shape: `taskId::tabId` (pty registry convention). */
 const KEY_RE = /^(.+?)::(.+)$/
 
@@ -28,12 +39,15 @@ export interface PtyExitWatchOptions {
   /** Armed deliveries — a death with one awaiting leaves it `missing`. */
   readonly deliveries?: DeliveryDeps
   readonly log?: (line: string) => void
+  /** The task a PTY's conversation belongs to (a migrated child owns its parent-keyed PTY); default the key's task. */
+  readonly ownerOf?: PtyOwnerResolver
   /** Test seam. */
   readonly path?: string
 }
 
 export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
   const path = opts.path ?? defaultPtyExitsPath(opts.homeDir)
+  const ownerOf = opts.ownerOf ?? ((taskId: string) => taskId)
   const seen = new Map<string, string>()
   /** True once ONE read succeeded — at start, or on a later sweep if unreadable then. */
   let baselined = false
@@ -54,7 +68,7 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
       seen.set(storeKey, record.at)
       // Absorb until baselined: losing one notification beats re-announcing fifty old deaths.
       if (!baselined) continue
-      host.handleUiReport({ kind: "session.exited", ...exitReport(record) })
+      host.handleUiReport({ kind: "session.exited", ...exitReport(record, ownerOf) })
       publishDeath(record)
     }
     baselined = true
@@ -68,7 +82,8 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
     if (!registry && !opts.inbox && !opts.deliveries) return
     const death = engineDeathOf(record)
     if (!death) return
-    const { taskId, tabId, exit, at } = death
+    const { taskId: keyTask, tabId, exit, at } = death
+    const taskId = ownerOf(keyTask, tabId, at)
     registry?.recordEngineDeath(taskId, tabId, exit, at)
     opts.inbox
       ?.recordEngineDeath(taskId, tabId, { exit }, at)
@@ -139,10 +154,13 @@ export function lastErrorLine(tail: readonly string[]): string | undefined {
   return last
 }
 
-function exitReport(record: PtyExitRecord): { taskId?: string; detail: Record<string, unknown> } {
+function exitReport(
+  record: PtyExitRecord,
+  ownerOf: PtyOwnerResolver,
+): { taskId?: string; detail: Record<string, unknown> } {
   const match = KEY_RE.exec(record.key)
   return {
-    ...(match?.[1] ? { taskId: match[1] } : {}),
+    ...(match?.[1] ? { taskId: match[2] ? ownerOf(match[1], match[2], finiteTime(record.at)) : match[1] } : {}),
     detail: {
       key: record.key,
       ...(match?.[2] ? { tabId: match[2] } : {}),

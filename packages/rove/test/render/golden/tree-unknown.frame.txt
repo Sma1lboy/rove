@@ -1,5 +1,5 @@
 # sidebar frame: tree-unknown
-# no daemon status at all — every tab rests at the quiet glyph
+# no daemon status at all — every task rests at the quiet glyph
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
@@ -10,11 +10,11 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-| ▎feat/alpha                  |
-|▌▎○ build                     |
-| ▎○ review                    |
-| ▎feat/bravo                  |
-| ▎○ tests                     |
+|▌▎○ alpha                     |
+| ▎○ bravo                     |
+|                              |
+|                              |
+|                              |
 |                              |
 |                              |
 |                              |

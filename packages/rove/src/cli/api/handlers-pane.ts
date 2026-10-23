@@ -6,12 +6,13 @@
 
 import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { resolvePreferredVendor } from "../../state/vendor-prefs.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
+import { failSharedChild, spawnSharedChild } from "./handlers-spawn.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { wireSplit } from "./split-wire.ts"
 import type { LaunchSpec } from "./tab-launch.ts"
@@ -159,7 +160,7 @@ type TabNewKind = NewTabKind | LaunchSpec["kind"]
 /** `editor` / `pane` / `viewport`: tabs whose command Rove resolves itself (see `tab-launch.ts`). */
 async function launchKind(ctx: VerbContext, daemon: DaemonRpc, task: SerializedTask, kind: LaunchSpec["kind"]) {
   const taskId = task.id
-  const worktree = task.worktreePath
+  const worktree = taskCwd(task)
   if (!worktree) throw new ApiError(`task ${taskId} has no worktree yet`, "NO_WORKTREE")
   let spec: LaunchSpec
   if (kind === "editor") {
@@ -204,7 +205,7 @@ export const TAB_NEW_VERB: VerbSpec = {
   name: "tab-new",
   group: "drive",
   summary:
-    "Open a new Terminal Tab with no first message: a login `shell`, or an `engine` tab that starts idle (the TUI's sidebar \"New shell\" and picker Enter). Unlike `send --tab new` it needs no prompt. Allocates the tab id, writes the persisted tab row, and spawns the session in the task's worktree (creating it if needed); an engine tab respects engine.maxLiveSessions. Three more kinds run something Rove resolves itself, never a command line from the caller: `editor` opens `--file` (relative to the worktree, at `--line` when given) in the editor from Settings → General → Editor / $VISUAL / $EDITOR, in the task's one editor slot (a previous editor tab is closed once the new one is up); `pane` opens a registered plugin pane (`--pane <plugin>.<pane>`), split into `--tab` (default: the active tab) or as its own tab as the pane's manifest says; `viewport` adds a tab onto another task's first engine session (`--view-task`, same project) without starting anything. Broadcast over the daemon's tab.add channel so an attached TUI absorbs the row (`clients` = attached connections). Returns the new `tabId` and its pty `session` key; the tab then lists in get-task .tabs[].",
+    "Open a new Terminal Tab with no first message: a login `shell`, or an `engine` conversation that starts idle (the TUI's sidebar \"New shell\" and picker Enter). An `engine` is a new shared child task of --task-id (same directory; the reply carries `childTaskId`) whose engine starts in its own `tab-1`, never a second engine tab on the parent; it respects engine.maxLiveSessions. Unlike `send --tab new` it needs no prompt. A `shell` allocates the tab id, writes the persisted tab row, and spawns the session in the task's worktree (creating it if needed). Three more kinds run something Rove resolves itself, never a command line from the caller: `editor` opens `--file` (relative to the worktree, at `--line` when given) in the editor from Settings → General → Editor / $VISUAL / $EDITOR, in the task's one editor slot (a previous editor tab is closed once the new one is up); `pane` opens a registered plugin pane (`--pane <plugin>.<pane>`), split into `--tab` (default: the active tab) or as its own tab as the pane's manifest says; `viewport` adds a tab onto another task's first engine session (`--view-task`, same project) without starting anything. Broadcast over the daemon's tab.add channel so an attached TUI absorbs the row (`clients` = attached connections; a `shell` and the non-engine kinds only). Returns the new `tabId` and its pty `session` key; the tab then lists in get-task .tabs[].",
   flags: [
     F.taskId(true),
     {
@@ -214,14 +215,14 @@ export const TAB_NEW_VERB: VerbSpec = {
       required: true,
       placeholder: "KIND",
       description:
-        "`shell` = the user's login shell; `engine` = an idle engine, ready for a first message; `editor` = a file in the user's editor; `pane` = a plugin pane; `viewport` = another task's engine session.",
+        "`shell` = the user's login shell; `engine` = an idle engine in a new shared child task; `editor` = a file in the user's editor; `pane` = a plugin pane; `viewport` = another task's engine session.",
     },
     {
       name: "command",
       type: "string",
       placeholder: "CMD",
       description:
-        "Engine tabs only: pin the tab to this engine (an engine id from `engine-list` or a full command line), as `send --tab new --command` does. Omitted = the task's own engine.",
+        "Engine only: run the new child task on this engine (an engine id from `engine-list` or a full command line), as `send --tab new --command` does. Omitted = the task's own engine.",
     },
     {
       name: "latest",
@@ -281,20 +282,44 @@ export const TAB_NEW_VERB: VerbSpec = {
     const preferred = latest ? resolvePreferredVendor(task.repo) : undefined
     const command = ctx.args.str("command") || (preferred && preferred !== task.vendor ? preferred : undefined)
     if (kind === "editor" || kind === "pane" || kind === "viewport") return launchKind(ctx, daemon, task, kind)
+    // A second conversation is a shared child task, started idle in its own `tab-1`.
+    if (kind === "engine") {
+      const child = await spawnSharedChild(daemon, taskId, command)
+      try {
+        const opened = await ctx.runtime.openTab(
+          daemon,
+          {
+            id: child.id,
+            worktreePath: taskCwd(child),
+            kind: child.kind,
+            vendor: child.vendor as VendorId | undefined,
+            command: child.command,
+            repo: child.repo,
+          },
+          kind,
+        )
+        return { ok: true, taskId, childTaskId: child.id, tabId: opened.tab.id, session: opened.session, kind }
+      } catch (err) {
+        return failSharedChild(daemon, err, child.id, [
+          "api",
+          "tab-new",
+          "--task-id",
+          taskId,
+          "--kind",
+          "engine",
+          ...(command ? ["--command", command] : []),
+        ])
+      }
+    }
     const opened = await ctx.runtime.openTab(
       daemon,
       {
         id: taskId,
-        worktreePath: task.worktreePath,
+        worktreePath: taskCwd(task),
         kind: task.kind,
         vendor: task.vendor as VendorId | undefined,
         command: task.command,
-        // A pinned engine's own flags replace the task's, as in `send --tab new --command`.
-        modelEffort: command ? undefined : task.modelEffort,
-        model: command ? undefined : task.model,
         repo: task.repo,
-        tabVendor: command ? resolveCommandProtocol(command) : undefined,
-        tabCommand: command,
       },
       kind,
     )
@@ -379,7 +404,7 @@ export const TAB_SPLIT_VERB: VerbSpec = {
           : action === "reset"
             ? { kind: "reset", leaf, size }
             : { kind: "close", leaf }
-    const out = await ctx.runtime.splitTab(daemon, taskId, tabId, task.worktreePath, edit)
+    const out = await ctx.runtime.splitTab(daemon, taskId, tabId, taskCwd(task), edit)
     // The daemon already holds the tree (and published it on `tabs.changed`); this announces it on `tab.add`.
     const reply = out.changed
       ? await daemon.request<{ clients?: number }>("terminalTab.add", { taskId, tab: out.tab })

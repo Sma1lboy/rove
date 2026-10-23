@@ -99,16 +99,24 @@ checkout or directory. Use a managed Task when you want isolation.
 The worktree outlives everything else. Killing a session, quitting the TUI,
 dropping SSH, restarting the daemon: none of them touch it.
 
-> **One thing to watch:** Terminal Tabs inside the same managed Task share one worktree,
-> and Rove does not coordinate their writes. Two tabs editing the same file
-> at once will conflict. If you need real isolation, open a new task.
+> **One thing to watch:** a child that shares its parent's directory shares its
+> worktree, and Rove does not coordinate their writes. Two conversations editing
+> the same file at once will conflict. If you need real isolation, open a new
+> task or `spawn` a child with its own worktree.
 
 ## Terminal Tabs and engine sessions
 
-A Task owns N Terminal Tabs. An engine tab runs an engine inside an interactive
-shell and can resume an engine-owned conversation. Other tabs can be shells,
-fixed commands/editors, or read-only file/diff content; those are not engine
-conversations. Splits add more shell leaves inside a tab.
+A Task is one engine conversation: its `tab-1`. A second conversation is a
+**child task**, shown under its parent in the sidebar. A child either shares
+the parent's directory (`ctrl+t`, `ctrl+e`, `send --tab new`,
+`spawn --no-worktree`) or gets its own worktree cut from the parent's branch tip
+(`spawn`). Deleting a parent promotes its children; `delete --cascade` removes
+the subtree.
+
+A Task owns its Terminal Tabs. The engine tab runs an engine inside an
+interactive shell and can resume an engine-owned conversation. Other tabs can be
+shells, fixed commands/editors, or read-only file/diff content; those are not
+engine conversations. Splits add more shell leaves inside a tab.
 
 Tabs let you ask a side question or open a shell without changing directories.
 Close a tab when you're done; the Task's directory stays. Exiting the engine
@@ -125,10 +133,10 @@ the saved repository both stay on disk. To bring it back, open New task
 new task worktree (see [TUI](./TUI.md#creating-a-task)). Forgetting a project
 (`d` on its row) is the separate, un-saving gesture.
 
-Each engine tab may pin its own engine; otherwise it inherits the Task's engine,
-so tabs in one Task can use different vendors. A Task-level reasoning-effort
-choice is forwarded when that engine supports it. The embedded engine CLI owns
-its own model and permission controls.
+A Task-level reasoning-effort choice is forwarded when the engine supports it.
+A child task runs the engine it was started with, so conversations in one
+directory can use different vendors. The embedded engine CLI owns its own model
+and permission controls.
 
 Conversation history belongs to the engine, not to Rove (Claude Code, for
 example, keeps JSONL transcripts under `~/.claude/projects/**`). Hosted

@@ -58,7 +58,7 @@ shows only actions that can run right now.
 |---|---|
 | `ctrl+a` `/` | Search commands by action name, see their chords, and run a selected action |
 | `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch. Its ATTEMPTS row fans one prompt out to a round of up to 5 |
-| `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new tab of the same Task directory |
+| `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new child task sharing the same Task directory |
 | `ctrl+a` `i` | Open the Inbox |
 | `ctrl+a` `h` / `l` | Move focus left / right across panes |
 | `ctrl+a` `o` | Open the Task directory in your editor |
@@ -124,8 +124,8 @@ for terminal support.
 |---|---|
 | `F1` | The live keymap; works from every pane, including inside the terminal (not while a dialog or a full-page view — Settings / Worktrees / Update — is open) |
 | `ctrl+q` | Focus the sidebar; pressed again there, quit immediately (`q` in the sidebar quits with a confirm) |
-| `ctrl+t` | New engine tab |
-| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` cycles the destination (new tab here → fork a child task → new Scratch task in `$HOME`) and `ctrl+f` the context (fresh ⇄ continue this chat). A Scratch destination starts the picked engine, or a bare shell when `shell` is picked |
+| `ctrl+t` | New conversation: a child task under this one, sharing its directory, on the engine this project used last |
+| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` cycles the destination (child task here → fork a child task in a new worktree → new Scratch task in `$HOME`) and `ctrl+f` the context (fresh ⇄ continue this chat). A shell or plugin pane opens as a tab of this Task. A Scratch destination starts the picked engine, or a bare shell when `shell` is picked |
 | `ctrl+w` | Close the active split, otherwise the tab — closing the last tab leaves the task open with no session |
 | `enter` | Reopen a session in a task whose tabs are all closed (only while that empty pane is showing; `ctrl+e` opens the engine chooser there) |
 | `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |
@@ -236,8 +236,8 @@ orphaned.
 
 Right-click any row for its context menu; `j`/`k` and `⏎` drive it, and a press
 anywhere else, or `esc`, dismisses it. Common row actions also have direct
-chords. A Task or tab row also offers **New conversation** (the `ctrl+e`
-engine/shell picker) and **New shell** (a bare shell tab) for that worktree,
+chords. A Task or tab row also offers **New conversation** (what `ctrl+t`
+does: a child task sharing the worktree) and **New shell** (a bare shell tab) for that worktree,
 both enter the Task first, exactly as pressing the chord there would.
 These entries have no chord of their own. **Set status** opens a picker over
 the six Task statuses and writes the one you choose. **Copy task ID** puts the

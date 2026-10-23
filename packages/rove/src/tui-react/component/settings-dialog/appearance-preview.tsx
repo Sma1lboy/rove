@@ -34,7 +34,6 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
     { id: "api", label: { glyphs: ` ${done}`, initials: ` ${done} API`, hairline: "▎" }[fold] },
     { id: "review", label: { glyphs: ` ${idle}`, initials: ` ${idle} QA`, hairline: "▎" }[fold] },
   ]
-  const railActive = props.active === "tabRowHeight"
   // Sample ids; the mark sits where the real rail's indent cell does.
   const marked = current.taskColors === "on"
   const mark = (id: string) => (marked ? <text fg={taskColor(`preview-${id}`, theme)}>▎</text> : null)
@@ -45,7 +44,7 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
   const pane = (divider: "left" | undefined, edge: typeof theme.border, name: string, nameInk: typeof theme.border) =>
     paneBoxProps(paneChrome(current.splitStyle, divider), { edge, name, nameInk })
   const namesOnRule = paneChrome(current.splitStyle, undefined).nameOnRule
-  const tasksInk = railActive ? theme.focusAccent : theme.textMuted
+  const tasksInk = theme.textMuted
   return (
     <box flexDirection="column" flexShrink={0} border borderColor={theme.border} backgroundColor={theme.background}>
       <box
@@ -83,12 +82,7 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
             flexBasis={0}
             flexShrink={1}
             flexDirection="column"
-            {...pane(
-              undefined,
-              railActive ? theme.focusAccent : theme.border,
-              t("settings.appearance.tasks"),
-              tasksInk,
-            )}
+            {...pane(undefined, theme.border, t("settings.appearance.tasks"), theme.textMuted)}
             paddingLeft={1}
             paddingRight={1}
             backgroundColor={theme.backgroundPanel}
@@ -113,12 +107,6 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
                 )}
               </text>
             </box>
-            {current.tabRowHeight === 2 && (
-              <text fg={theme.textMuted} wrapMode="none">
-                {" "}
-                {t("settings.appearance.modelDetail")}
-              </text>
-            )}
             <box flexDirection="row">
               <text wrapMode="none"> </text>
               {mark("api")}
@@ -126,12 +114,6 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
                 API tests {done}
               </text>
             </box>
-            {current.tabRowHeight === 2 && (
-              <text fg={theme.textMuted} wrapMode="none">
-                {" "}
-                {t("settings.appearance.modelDetail")}
-              </text>
-            )}
             {!short && (
               <box flexDirection="row">
                 <text wrapMode="none"> </text>
@@ -188,7 +170,6 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
           <text fg={theme.text} wrapMode="none">
             $ ▌
           </text>
-          {current.tabRowHeight === 2 && !narrow && <text> </text>}
         </box>
         {!narrow && (
           <box

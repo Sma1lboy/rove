@@ -134,7 +134,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   }
 
   // Open: what starts work in this task.
-  // A click opens a tab here on the engine this project used last (the TUI's ctrl+t); the picker is its own item.
+  // A click starts a child task sharing this directory on the engine this project used last (the TUI's ctrl+t); the picker is its own item.
   items.push({
     label: t("menu.newChat"),
     section: "open",

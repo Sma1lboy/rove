@@ -6,13 +6,14 @@
 
 import { errorMessage } from "@/lib/error-message"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { pathWithin, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
 import { canonicalize } from "../../orchestrator/worktree/paths.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { reportBranchDeletion } from "./delete-branch-report.ts"
-import { verifiedSelfSession } from "./dispatcher.ts"
+import { type Dispatcher, ownSession } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, splitDaemonCode } from "./types.ts"
 
@@ -32,7 +33,7 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   if (groupId && taskIdFlag) throw new ApiError("pass --task-id or --group, not both", "BAD_FLAG")
   if (!groupId && !taskIdFlag) throw new ApiError("delete needs --task-id ID or --group GROUPID", "MISSING_TARGET")
   // One identity read for the whole round — it shells out to verify.
-  const self = await verifiedSelfSession()
+  const self = await ownSession(daemon)
   if (!groupId) return deleteOne(ctx, taskIdFlag as string, self)
 
   const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
@@ -66,11 +67,7 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   return { groupId, count: members.length, failures, results }
 }
 
-async function deleteOne(
-  ctx: VerbContext,
-  taskId: string,
-  self: Awaited<ReturnType<typeof verifiedSelfSession>>,
-): Promise<unknown> {
+async function deleteOne(ctx: VerbContext, taskId: string, self: Dispatcher | null): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const force = ctx.args.bool("force") ?? false
   // Opt-in: by default git keeps the branch as the durable record.
@@ -78,40 +75,76 @@ async function deleteOne(
   // A SEPARATE opt-in, never implied by --delete-branch: a remote delete is
   // unrecoverable by anyone and breaks an open PR. Two radii, two consents.
   const deleteRemote = ctx.args.bool("delete-remote") ?? false
+  // Opt-in: the whole subtree goes; default re-parents the task's children.
+  const cascade = ctx.args.bool("cascade") ?? false
   // Read BEFORE the delete: the task row is gone once removal resolves.
   const subject =
     deleteBranch || deleteRemote
-      ? (await daemon.request<{ task: { repo: string; branch?: string } }>("task.get", { taskId })).task
+      ? (
+          await daemon.request<{ task: { repo: string; branch?: string; worktreePath?: string } }>("task.get", {
+            taskId,
+          })
+        ).task
       : undefined
   // The daemon's audit line names WHO asked, from the verified identity —
   // never the bare env: unverifiable stays unattributed.
-  let res: { taskId: string; queued: boolean }
+  let res: { taskId: string; queued: boolean; deleted?: string[]; teardown?: Record<string, TeardownScope> }
   try {
     res = (await daemon.request("task.delete", {
       taskId,
       force,
       deleteBranch,
+      ...(cascade ? { cascade } : {}),
       ...(self ? { requestedByTaskId: self.taskId, requestedByTabId: self.tabId } : {}),
-    })) as { taskId: string; queued: boolean }
+    })) as typeof res
   } catch (err) {
     throw deleteRecoveryError(err, taskId)
   }
   // task.delete never kills the hosted session; without this the
   // `rove-<id>` session + engine orphan invisibly. Mirrors the TUI's
-  // finishDeletedTaskFlow, after the RPC succeeds.
-  await ctx.runtime.tearDownSession(taskId)
+  // finishDeletedTaskFlow, after the RPC succeeds. A cascade tears down every
+  // task of the subtree, not just the one named.
+  const removing = res.deleted ?? [taskId]
+  // `teardown` (from the daemon, which knows the aliases): PTYs surviving children still live in are spared.
+  for (const id of removing) await ctx.runtime.tearDownSession(id, res.teardown?.[id])
   if (!res.queued) return { ...res, status: "not_found" as const }
   // Removal runs in the background; `--wait` asks for the OUTCOME. A branch
   // flag implies it: git refuses to delete a branch a live worktree holds, so
   // the branch report is only truthful once removal has resolved.
   if (!ctx.args.bool("wait") && !subject) return { ...res, status: "queued" as const }
-  const outcome = await awaitDeletion(daemon, taskId)
+  const outcomes = []
+  for (const id of removing) outcomes.push(await awaitDeletion(daemon, id))
+  // One verdict for the whole subtree: the first failure, else a still-pending member, else removed.
+  const outcome =
+    outcomes.find((o) => o.status === "failed") ?? outcomes.find((o) => o.status === "pending") ?? outcomes[0]
+  if (!outcome) return { ...res, status: "removed" as const }
   // Only after `removed`: otherwise git's refusal describes the live worktree.
   const branch =
     subject && outcome.status === "removed"
-      ? reportBranchDeletion(subject.repo, subject.branch ?? "", { deleteBranch, force, deleteRemote })
+      ? reportBranchDeletion(subject.repo, subject.branch ?? "", {
+          deleteBranch,
+          force,
+          deleteRemote,
+          heldBy: await branchHolder(daemon, subject, removing),
+        })
       : undefined
   return { ...res, ...outcome, ...(branch ? { branch } : {}) }
+}
+
+/** Title of a row outside `gone` that still holds the deleted task's branch or directory. */
+async function branchHolder(
+  daemon: DaemonRpc,
+  subject: { repo: string; branch?: string; worktreePath?: string },
+  gone: readonly string[],
+): Promise<string | undefined> {
+  const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
+  const holder = tasks.find(
+    (t) =>
+      !gone.includes(t.id) &&
+      ((subject.worktreePath && t.worktreePath && samePath(t.worktreePath, subject.worktreePath)) ||
+        (subject.branch && t.branch === subject.branch && t.repo === subject.repo && t.kind === "task")),
+  )
+  return holder?.title
 }
 
 /**

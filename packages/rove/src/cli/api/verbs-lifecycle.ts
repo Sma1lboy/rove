@@ -53,7 +53,7 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
     name: "delete",
     group: "lifecycle",
     summary:
-      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome. With --delete-branch / --delete-remote the reply also carries `branch` — { branch, deleted, keptReason?, remote? } — so `the branch went with it` is a fact you read rather than an assumption. Pass --group instead of --task-id to close a whole fan-out round in one call: it returns { groupId, count, failures, results } with one entry per sibling, and a refusal on one (a dirty worktree) is recorded there rather than aborting the rest.",
+      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome. With --delete-branch / --delete-remote the reply also carries `branch` — { branch, deleted, keptReason?, remote? } — so `the branch went with it` is a fact you read rather than an assumption. Pass --group instead of --task-id to close a whole fan-out round in one call: it returns { groupId, count, failures, results } with one entry per sibling, and a refusal on one (a dirty worktree) is recorded there rather than aborting the rest. CHILDREN (`spawn`): by default the task's children are promoted — they keep running, re-parented to the deleted task's own parent (or top level); --cascade deletes the whole subtree instead, each worktree still passing the dirty gate before ANY of it is queued. A directory more than one task runs in (an owner and its shared children) is removed only with its last task; deleting a shared child never touches the directory, and an owner leaving hands the directory to a remaining child.",
     flags: [
       F.taskId(false),
       {
@@ -62,6 +62,12 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
         placeholder: "GROUPID",
         description:
           "Delete every task of one fan-out round (the `groupId` that `add --count` returns, the same selector `collect --group` takes). Mutually exclusive with --task-id.",
+      },
+      {
+        name: "cascade",
+        type: "bool",
+        description:
+          "Also delete every descendant of the task (its `spawn` children, recursively). Default: children are promoted instead. The reply lists the ids as `deleted`.",
       },
       {
         name: "force",

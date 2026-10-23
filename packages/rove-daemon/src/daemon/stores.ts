@@ -1,8 +1,10 @@
 /** Constructs every daemon-owned store plus the per-task teardown chain. */
 
+import { hasFrozenPtySessions, listPtyHostSessions } from "../client/pty-process.ts"
 import { readActivityLiveness } from "./activity-liveness.ts"
 import { type ActivityLivenessProbe, DaemonActivityRegistry } from "./activity-registry.ts"
 import { AgentTurnsStore, defaultAgentTurnsPath } from "./agent-turns-store.ts"
+import { AliasKeeper } from "./alias-keeper.ts"
 import { AttentionInboxStore, defaultAttentionInboxPath } from "./attention-inbox.ts"
 import { initAutomationsStore } from "./automation-wiring.ts"
 import type { AutomationsStore } from "./automations-store.ts"
@@ -11,6 +13,8 @@ import { logDaemonError } from "./crash-log.ts"
 import { DeliveriesStore } from "./deliveries-store.ts"
 import { DispatchLedger } from "./dispatch-ledger.ts"
 import { EngineEventLog } from "./engine-events-log.ts"
+import { migrateEngineTabs } from "./engine-tab-migration.ts"
+import { ownEngineTabs } from "./engine-tabs.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { GatesStore, defaultGatesStorePath } from "./gates-store.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
@@ -40,6 +44,7 @@ export interface DaemonStores {
   readonly rowTokens: RowTokenStore
   readonly tabs: TabsStore
   readonly dispatches: DispatchLedger
+  readonly aliases: AliasKeeper
 }
 
 /**
@@ -84,6 +89,20 @@ export async function initDaemonStores(
   const tabs = new TabsStore(runtime.tabsPersistence, bus)
   tabs.init()
   tabs.sweep((taskId) => orch.getTask(taskId) !== undefined, orch.listTasks().length > 0)
+  const aliases = new AliasKeeper({ orch, tabs })
+  // Extra engine tabs become child tasks and dead aliases are released before any client reads the index.
+  const tasks = orch.listTasks()
+  if (tasks.some((t) => t.ptyAlias || ownEngineTabs(tabs.get(t.id).state?.tabs ?? []).length > 1)) {
+    try {
+      const listed = await listPtyHostSessions(homeDir)
+      // No host but frozen records: those conversations return as corpses when it starts, so wait for it.
+      const sessions = listed?.length === 0 && (await hasFrozenPtySessions(homeDir)) ? null : listed
+      await migrateEngineTabs({ orch, tabs }, sessions)
+      if (sessions) await aliases.reconcile(sessions)
+    } catch (err) {
+      logDaemonError("tabs-migration", err)
+    }
+  }
   const clearTaskState = (taskId: string) =>
     gates
       .withdrawTask(taskId)
@@ -122,5 +141,6 @@ export async function initDaemonStores(
     rowTokens,
     tabs,
     dispatches: new DispatchLedger(bus),
+    aliases,
   }
 }

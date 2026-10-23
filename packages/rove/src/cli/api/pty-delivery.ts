@@ -6,6 +6,7 @@
  * vendor's launch binary — never a hard-coded vendor name.
  */
 
+import type { PtyScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { PsSnapshot } from "../../engine/foreground.ts"
 import {
@@ -98,12 +99,11 @@ export function outcomeFields(outcome: PromptWriteOutcome | null): {
  */
 export async function deliverHostedPrompt(
   rpc: PtyHostRpc,
-  target: { readonly id: string; readonly engineBin?: string },
+  target: { readonly id: string; readonly engineBin?: string; readonly scope?: PtyScope },
   cwd: string,
   prompt: string,
   launch: EngineSessionLaunch,
   opts?: {
-    readonly forceNew?: boolean
     readonly snapshot?: PsSnapshot
     /** `engine.maxLiveSessions`; a spawn at or past it refuses with ENGINE_LIMIT. */
     readonly maxLiveEngines?: number
@@ -111,8 +111,7 @@ export async function deliverHostedPrompt(
   },
 ): Promise<DeliveredPrompt> {
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
-  // `forceNew` (--tab new) must never reroute into the existing engine.
-  const existingKey = opts?.forceNew ? null : findEngineKey(sessions, target.id, target.engineBin)
+  const existingKey = findEngineKey(sessions, target.id, target.engineBin, target.scope)
   if (existingKey) {
     // Foreground gate: the engine may have exited into the keepAlive shell,
     // where a paste runs as shell commands. See {@link enginePresence}.
@@ -147,18 +146,16 @@ export async function deliverHostedPrompt(
 
   // Spawn only when no session is alive; an unidentified alive tab means a
   // duplicate engine the receiver never sees. Fail loud.
-  if (!opts?.forceNew) {
-    const aliveTabs = sessions.filter((s) => s.alive && isTaskKey(s.key, target.id)).map((s) => s.key)
-    if (aliveTabs.length > 0) {
-      throw new ApiError(
-        `task ${target.id} has live tabs (${aliveTabs.join(", ")}) but none resolves as its engine tab — refusing to spawn a new engine`,
-        "NO_ENGINE_TAB",
-        {
-          hint: "address a live engine tab explicitly with --tab <tab-N> (see pty-list), or spawn a fresh engine tab with --tab new",
-          nextCommandArgs: ["api", "pty-list"],
-        },
-      )
-    }
+  const aliveTabs = sessions.filter((s) => s.alive && isTaskKey(s.key, target.id)).map((s) => s.key)
+  if (aliveTabs.length > 0) {
+    throw new ApiError(
+      `task ${target.id} has live tabs (${aliveTabs.join(", ")}) but none resolves as its engine tab — refusing to spawn a new engine`,
+      "NO_ENGINE_TAB",
+      {
+        hint: "address a live engine tab explicitly with --tab <tab-N> (see pty-list), or start another conversation with --tab new",
+        nextCommandArgs: ["api", "pty-list"],
+      },
+    )
   }
 
   // Disclose tabs a pty-host restart froze, or this
@@ -184,16 +181,7 @@ export async function deliverHostedPrompt(
       maxLiveEngines: opts?.maxLiveEngines,
       snapshot: opts?.snapshot,
       taskId: target.id,
-      retryArgs: opts?.retryArgs ?? [
-        "api",
-        "send",
-        "--task-id",
-        target.id,
-        ...(opts?.forceNew ? ["--tab", "new"] : []),
-        "--plain",
-        "--prompt",
-        prompt,
-      ],
+      retryArgs: opts?.retryArgs ?? ["api", "send", "--task-id", target.id, "--plain", "--prompt", prompt],
     },
   )
   try {

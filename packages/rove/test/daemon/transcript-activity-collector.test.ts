@@ -112,6 +112,12 @@ describe("trackedWorktrees", () => {
     // First task at the shared path (main1, vendor claude) picks the vendor.
     expect(map.get("/repo")).toBe("claude")
   })
+
+  test("a directory's owner picks its vendor, not whichever child is listed first", () => {
+    const owner = task({ id: "owner", worktreePath: "/wt/shared", vendor: "claude" })
+    const child = task({ id: "child", worktreePath: "/wt/shared", vendor: "codex", sharesWorkspaceOf: owner.id })
+    expect(trackedWorktrees([child, owner], "claude").get("/wt/shared")).toBe("claude")
+  })
 })
 
 describe("TranscriptActivityCollector", () => {

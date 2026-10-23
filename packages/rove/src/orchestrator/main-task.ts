@@ -60,9 +60,10 @@ export class MainTaskCoordinator {
       // visible but unpickable, and hiding its last tab loses it for good.
       // `explicit`: the gate above already passed.
       addSavedRepo(normalizedRepo, { intent: "explicit" })
+      // A shared child on the root is a conversation in this checkout, not the project row.
       const adoptable = this.store
         .list()
-        .find((task) => task.kind === "dir" && task.scratch !== true && onThisRoot(task))
+        .find((task) => task.kind === "dir" && task.scratch !== true && !task.sharesWorkspaceOf && onThisRoot(task))
       // Retitled (the auto-name named a session); its engine choice survives.
       if (adoptable) return await this.store.update(adoptable.id, this.mainShape(normalizedRepo))
       return await this.store.create({
@@ -111,6 +112,15 @@ export class MainTaskCoordinator {
       if (normalizeMainRepo(task.repo).key !== key) continue
       await this.store.remove(task.id)
       this.forgetWorktree(task.id)
+      // Children outlive the project row: they keep running as ordinary
+      // dir tasks rather than pointing at a row that is gone.
+      for (const dependent of this.store.list()) {
+        if (dependent.parentTaskId !== task.id && dependent.sharesWorkspaceOf !== task.id) continue
+        await this.store.update(dependent.id, {
+          ...(dependent.parentTaskId === task.id ? { parentTaskId: undefined } : {}),
+          ...(dependent.sharesWorkspaceOf === task.id ? { sharesWorkspaceOf: undefined } : {}),
+        })
+      }
     }
   }
 }

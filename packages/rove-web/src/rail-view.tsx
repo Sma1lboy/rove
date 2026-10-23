@@ -1,9 +1,9 @@
-/** The Tasks rail: wordmark + inbox count, then project → task → tab rows (TUI `tree-panel`). */
+/** The Tasks rail: wordmark + inbox count, then project → task → child task rows (TUI `tree-panel`). */
 
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import type { MouseEvent } from "react"
 import { useEffect, useRef, useState } from "react"
-import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
@@ -17,8 +17,9 @@ import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
+import { anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import { type NavRow, anySpinning, needsPerson, railRows, repoLabel, tabRowGlyph, taskRowGlyph } from "./rail.ts"
+import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
@@ -61,12 +62,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const tasks = payload?.tasks ?? []
   const frame = useSpinnerFrame(anySpinning(tasks) || anySpinning(remoteTasks))
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
-  const tabsOf = (taskId: string) => tabs[taskId] ?? []
   const selectedId = selection.taskId
-    ? selection.tabId && tabsOf(selection.taskId).some((tab) => tab.id === selection.tabId)
-      ? `${selection.taskId}::${selection.tabId}`
-      : selection.taskId
-    : null
+  const byId = new Map([...tasks, ...remoteTasks].map((task) => [task.id, task]))
 
   const filters = useRailFilters()
   const moving = useStore(moveMode)
@@ -76,10 +73,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       remote: remoteTasks,
       machines,
       sort: filters.sort,
-      tabsOf,
-      tabLabel,
       query,
       routines: filters.routines,
+      folded: filters.foldedTasks,
     })
   const built = build(filters.search.active ? filters.search.query : "")
   const { groups } = built
@@ -87,8 +83,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const rows = filters.search.active
     ? built.rows
     : foldProjects(dropIdleProjects(built.rows, tabs, selection.taskId), filters.collapsed)
-  // A task whose tabs are listed under it leaves the status to them (`taskRowGlyph`).
-  const tabsShown = new Set(rows.flatMap((row) => (row.kind === "tab" ? [row.task.id] : [])))
   const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project")
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
   const offline = new Set(machines.filter((m) => m.state !== "online").map((m) => m.alias))
@@ -176,8 +170,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             row={row}
             cloud={rowCloud(row, machines, words)}
             frame={frame}
-            tabCount={row.kind === "task" ? tabsOf(row.task.id).length : 0}
-            tabsShown={row.kind === "task" && tabsShown.has(row.task.id)}
             selected={row.id === selectedId}
             cursor={row.id === keys.cursor}
             stale={row.machine !== undefined && offline.has(row.machine)}
@@ -197,17 +189,22 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 ? projectInfo(row.repo).mainTaskId === keys.cursor
                 : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
             }
+            foldUrgent={
+              row.kind === "task" && row.fold?.collapsed
+                ? mostUrgentStatus(row.fold.descendantIds.flatMap((id) => byId.get(id) ?? []))
+                : undefined
+            }
+            onToggleFold={() => filters.toggleTaskFold(row.id)}
             onClick={() => {
               keys.setCursor(row.id)
               if (row.kind === "routines") filters.toggleRoutines(row.key)
               if (row.kind === "project") filters.toggleProject(row.id)
               if (row.kind === "task") model.select(row.task.id)
-              if (row.kind === "tab") model.select(row.task.id, row.tab.id)
               if (row.kind !== "project") enterWorkspace()
             }}
             onMenu={(e) => {
               // Another machine's project has no checkout here, so its header has no menu; its
-              // tasks and tabs do (their verbs run on that machine, `taskMenu` drops the local-only ones).
+              // tasks do (their verbs run on that machine, `taskMenu` drops the local-only ones).
               if (row.machine !== undefined && row.kind === "project") return
               // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
               if (row.kind === "project") {
@@ -219,7 +216,10 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               // The routines row names no task, so it has no menu (TUI `use-tree-menu`).
               if (row.kind === "routines") return
               keys.setCursor(row.id)
-              openMenu(e, taskMenu(model, row.task, row.kind === "tab" ? row.tab : null))
+              openMenu(
+                e,
+                withFoldEntry(taskMenu(model, row.task, null), row.fold, () => filters.toggleTaskFold(row.id)),
+              )
             }}
           />
         ))}
@@ -243,9 +243,6 @@ function RailRow(props: {
   /** A task on another machine: its cloud mark's text (`on mac · offline`); null for this machine's rows. */
   cloud: string | null
   frame: number
-  tabCount: number
-  /** The task's tab rows are on screen under it. */
-  tabsShown: boolean
   selected: boolean
   cursor: boolean
   moving: boolean
@@ -263,6 +260,9 @@ function RailRow(props: {
   onNewTask?: () => void
   onClick: () => void
   onMenu: (e: MouseEvent) => void
+  /** A folded task's most urgent hidden child. */
+  foldUrgent?: RowStatus
+  onToggleFold: () => void
 }) {
   const { row } = props
   const { prefs, glyphSets } = usePrefs()
@@ -330,35 +330,15 @@ function RailRow(props: {
       </button>
     )
   }
-  if (row.kind === "tab") {
-    const tab = row.tab
-    const glyph = tabRowGlyph(row.task, tab, props.frame, glyphs)
-    // Two-row tabs add the engine running in the tab (the pty's foreground process, none when unknown) under its label (TUI `tabRowHeight` 2).
-    const caption = prefs.tabRowHeight === 2 && tab.kind === "engine" ? (tab.liveEngine ?? null) : null
-    return (
-      <button
-        type="button"
-        className={`row tab-row ${props.selected ? "is-selected" : ""} ${cursor} ${caption ? "is-two-row" : ""}`}
-        onClick={props.onClick}
-        onContextMenu={props.onMenu}
-        {...props.place}
-      >
-        {markDot}
-        <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>
-        <span className="row-title">
-          {tabLabel(tab)}
-          {caption && <span className="row-caption muted">{caption}</span>}
-        </span>
-      </button>
-    )
-  }
+
   const task = row.task
   const glyph = taskRowGlyph(task, props.frame, glyphs)
+  const marker = childMarkerOf(task)
   const running = task.rowStatus?.kind === "running"
   return (
     <button
       type="button"
-      className={`row task-row ${props.selected && props.tabCount === 0 ? "is-selected" : ""} ${cursor} ${running ? "is-running" : ""}`}
+      className={`row task-row ${props.selected ? "is-selected" : ""} ${cursor} ${running ? "is-running" : ""}`}
       title={task.branch || task.title}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
@@ -366,20 +346,75 @@ function RailRow(props: {
       {...props.drag}
     >
       {markDot}
+      {row.depth > 1 && <span className="child-indent" style={{ width: (row.depth - 1) * 12 }} aria-hidden="true" />}
       <span className="row-title">{task.title}</span>
       <span className="chips">
+        {row.level !== undefined && <span className="chip muted">{row.level}</span>}
+        {marker && (
+          <span className={`chip child-mark ${marker === "shared" ? "tone-accent" : "muted"}`} aria-hidden="true">
+            {marker === "shared" ? "⑂" : "⎇"}
+          </span>
+        )}
+        {row.fold && (
+          <FoldToggle
+            fold={row.fold}
+            urgent={props.foldUrgent}
+            frame={props.frame}
+            glyphs={glyphs}
+            onToggle={props.onToggleFold}
+          />
+        )}
         {task.pinned && <span className="chip muted">▴</span>}
         {task.prChip && (
           <span className={`chip ${prTone(task.prChip, task.prChipStale)}`}>{prGlyph(task.prChip, glyphs)}</span>
         )}
-        {/* The right edge, as Claude Desktop's list: a job or deletion spinner, then the cloud of a task elsewhere. */}
-        {glyph && <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>}
+        {/* The right edge, as Claude Desktop's list: the row's state, then the cloud of a task elsewhere. */}
+        <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>
         {props.cloud && <CloudMark label={props.cloud} />}
       </span>
     </button>
   )
 }
 
+/** `▸ 3 ●` on a folded task: the fold, how many descendants it hides, and the most urgent of them (a click on a row's fold; the menu and the keyboard use its entry). */
+function FoldToggle(props: {
+  fold: RowFold
+  urgent: RowStatus | undefined
+  frame: number
+  glyphs: GlyphSet | undefined
+  onToggle: () => void
+}) {
+  const { fold } = props
+  const mark = statusGlyph(props.urgent, props.frame, props.glyphs)
+  const label = tc("tasks", fold.collapsed ? "menu.expandChildren" : "menu.collapseChildren")
+  return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: a button cannot nest in the row's button; the row's menu entry is the keyboard path
+    <span
+      className="chip fold-toggle muted"
+      title={label}
+      onClick={(e) => {
+        e.stopPropagation()
+        props.onToggle()
+      }}
+    >
+      {fold.collapsed ? "▸" : "▾"}
+      {fold.collapsed && ` ${fold.count}`}
+      {fold.collapsed && props.urgent && <span className={`glyph tone-${mark.tone}`}>{mark.glyph}</span>}
+    </span>
+  )
+}
+
+/** The fold entry sits with what opens the task, ahead of the edit and danger sections. */
+function withFoldEntry(items: MenuItem[], fold: RowFold | undefined, toggle: () => void): MenuItem[] {
+  if (!fold) return items
+  const entry: MenuItem = {
+    label: tc("tasks", fold.collapsed ? "menu.expandChildren" : "menu.collapseChildren"),
+    section: "open",
+    run: toggle,
+  }
+  const at = items.map((item) => item.section).lastIndexOf("open")
+  return [...items.slice(0, at + 1), entry, ...items.slice(at + 1)]
+}
 export function tabLabel(tab: TabRow): string {
   return tab.title ?? tab.engineName ?? (tab.kind === "engine" ? t("tab.engine") : t("tab.shell"))
 }

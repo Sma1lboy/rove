@@ -56,7 +56,7 @@ describe("generalRows", () => {
   it("keeps language first and each appearance setting reachable exactly once", () => {
     const rows = generalRows()
     expect(rows.slice(0, LANG).map((r) => (r.kind === "language" ? r.locale : "?"))).toEqual(LOCALES.map((l) => l.id))
-    expect(rows.slice(LANG, LANG + 12)).toEqual(
+    expect(rows.slice(LANG, LANG + 11)).toEqual(
       [
         "theme",
         "themeMode",
@@ -64,7 +64,6 @@ describe("generalRows", () => {
         "focusAccent",
         "splitStyle",
         "railFold",
-        "tabRowHeight",
         "workingBorder",
         "taskColors",
         "glyphSet",
@@ -76,7 +75,7 @@ describe("generalRows", () => {
         setting,
       })),
     )
-    expect(rowIndex(rows, "toast")).toBe(LANG + 12)
+    expect(rowIndex(rows, "toast")).toBe(LANG + 11)
     expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length)
   })
 })
@@ -179,7 +178,7 @@ describe("sectionRows / bodyRowCount", () => {
 
   it("matches the old per-section count formulas for a representative input", () => {
     const inp = input({ engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
-    expect(bodyRowCount("general", inp)).toBe(LANG + 12 + 14) // language + appearance summaries + remaining preferences
+    expect(bodyRowCount("general", inp)).toBe(LANG + 11 + 14) // language + appearance summaries + remaining preferences
     expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 3) // built-ins + 2 custom + add + install + remove
     // swift / standard / deep, then the classifier: mode, endpoint, floor, key.
     expect(bodyRowCount("autoRouting", inp)).toBe(3 + 4)

@@ -4,6 +4,8 @@
  * Interactive engine processes and Terminal Tab state have separate owners.
  */
 
+import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
+import type { TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
@@ -18,7 +20,9 @@ import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { type LandPreflight, landPreflight } from "./land-preflight.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
 import { MainTaskCoordinator } from "./main-task.ts"
+import { createMigratedChildRow, setPtyAliasRow } from "./migrated-child.ts"
 import { promotableDirTasks } from "./promote-dir-tasks.ts"
+import { type SpawnChildInput, type SpawnChildResult, spawnChildTaskRow } from "./spawn-child.ts"
 import { TaskDeletionCoordinator, type TaskDeletionOpts } from "./task-deletion.ts"
 import { TaskEditor } from "./task-editor.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
@@ -209,6 +213,25 @@ export class Orchestrator {
   adoptScratchRepo = (id: TaskId | string, repo: string): Promise<void> =>
     adoptScratchRepoRow({ store: this.store }, id, repo)
 
+  /** Spawn a child task of `input.parentTaskId` — rules and body in `spawn-child.ts`. */
+  spawnChildTask = (input: SpawnChildInput): Promise<SpawnChildResult> =>
+    spawnChildTaskRow(
+      {
+        store: this.store,
+        worktrees: this.worktrees,
+        createTask: this.createTask,
+        ensureWorktree: (id) => this.ensureWorktree(id),
+      },
+      input,
+    )
+
+  /** Lift a migrated engine tab into a shared child — see `migrated-child.ts`. */
+  createMigratedChild = (input: MigratedChildInput): Promise<Task> =>
+    createMigratedChildRow({ store: this.store }, input)
+
+  setPtyAlias = (id: TaskId | string, alias: TaskPtyAlias | null): Promise<void> =>
+    setPtyAliasRow({ store: this.store }, String(id), alias)
+
   /** Ensure the repo's `kind:"main"` sidebar row exists — see {@link MainTaskCoordinator.ensure}. */
   async ensureMainTask(repo: string): Promise<Task> {
     return await this.mainTasks.ensure(repo)
@@ -227,6 +250,15 @@ export class Orchestrator {
     if (task.kind === "main") return repoWorkingDir(task.repo)
     // A dir task pins a user-owned directory — never prune/re-materialise it.
     if (task.kind === "dir") return task.worktreePath
+    // A sharer has no worktree of its own: it follows its owner's, and picks up a re-materialised path.
+    const owner = task.sharesWorkspaceOf ? this.store.get(task.sharesWorkspaceOf) : undefined
+    if (owner) {
+      const path = await this.ensureWorktree(owner.id, opts)
+      if (path !== task.worktreePath || owner.branch !== task.branch) {
+        await this.store.update(task.id, { worktreePath: path, branch: owner.branch })
+      }
+      return path
+    }
     if (task.worktreePath) {
       if (await this.worktrees.pathExists(task.worktreePath)) return task.worktreePath
       // Prune first, else `worktree add` on the same path errors.
@@ -249,8 +281,13 @@ export class Orchestrator {
     // user's directory (blanking it makes `ensureWorktree` return "" for good),
     // a `main` task's is the checkout.
     if (task.kind === "main" || task.kind === "dir") return
-    await this.store.update(task.id, { worktreePath: "" })
-    this.worktreeCoordinator.forget(task.id)
+    // The directory went for every row in it, not just the one asked about.
+    const gone = canonPath(task.worktreePath)
+    for (const holder of this.store.list()) {
+      if (holder.kind !== "task" || !holder.worktreePath || canonPath(holder.worktreePath) !== gone) continue
+      await this.store.update(holder.id, { worktreePath: "" })
+      this.worktreeCoordinator.forget(holder.id)
+    }
   }
 
   // Pure forwarding to TaskEditor; the rules are documented on its methods.
@@ -330,6 +367,13 @@ export class Orchestrator {
       worktrees: this.worktrees,
       clearWorktreePath: (tid) => this.clearWorktreePath(tid),
       tearDownSession: this.tearDownSession,
+      // Sharers keep running in the directory a land would unlink.
+      sharesWorktree: (landed) =>
+        this.store
+          .list()
+          .some(
+            (t) => t.id !== landed.id && t.worktreePath && canonPath(t.worktreePath) === canonPath(landed.worktreePath),
+          ),
     })
   }
 

@@ -19,7 +19,7 @@ export const en = {
   engineLegend: "enter continue · esc skip optional setup",
   quickStart: "Start a task with a prompt",
   quickIntent: "Creates an isolated worktree and branch. Use {key} for the full task dialog.",
-  tabShared: "Tabs share this task’s files",
+  tabShared: "New conversations share this task’s files",
   tabIsolated: "{key}: new task, isolated worktree",
 
   /** Dialog header */
@@ -85,7 +85,7 @@ export const zh: typeof en = {
   engineLegend: "enter 继续 · esc 跳过可选设置",
   quickStart: "输入提示词开始任务",
   quickIntent: "创建独立 worktree 和分支。按 {key} 打开完整任务对话框。",
-  tabShared: "标签页共享当前任务的文件",
+  tabShared: "新对话共享当前任务的文件",
   tabIsolated: "{key}：新建任务，使用独立 worktree",
 
   title: "欢迎使用 Rove",

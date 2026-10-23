@@ -20,9 +20,9 @@
 
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { mintCliTab, publishCliTabSnapshot } from "../../src/cli/api/tab-snapshot.ts"
+import { publishCliTabSnapshot } from "../../src/cli/api/tab-snapshot.ts"
 import { FakeClient, expectApiError, recordingTearDown, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
-import { tabsDaemon } from "./tabs-daemon-fake.ts"
+import { mintEngineTab, tabsDaemon } from "./tabs-daemon-fake.ts"
 
 describe("issue-delete", () => {
   it("sends the store's delete op, the same one the kanban page's `d` runs", async () => {
@@ -175,7 +175,7 @@ describe("update --tab", () => {
   async function seedTabs(taskId: string, broadcast: Record<string, () => unknown> = {}) {
     const daemon = tabsDaemon({ extra: broadcast })
     await publishCliTabSnapshot(daemon.client, taskId)
-    const tabId = await mintCliTab(daemon.client, taskId)
+    const tabId = await mintEngineTab(daemon.client, taskId)
     daemon.requests.length = 0
     return { daemon, tabId }
   }

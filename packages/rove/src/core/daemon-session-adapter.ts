@@ -1,6 +1,7 @@
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { type PtyScope, type TeardownScope, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { engineLaunchArgv } from "../engine/engine-presets.ts"
 import {
   awaitEngineProcess,
@@ -19,6 +20,7 @@ import { enginePresence } from "../engine/session-engine-presence.ts"
 import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
 import { TaskDeletingError } from "../orchestrator/errors.ts"
+import { taskCwd } from "../orchestrator/task-tree.ts"
 import type { PromptDeliveryIntent } from "../state/repo-init.ts"
 import type { VendorId } from "../types/task.ts"
 
@@ -29,13 +31,14 @@ async function getTask(link: DaemonRpcClient, taskId: string): Promise<Serialize
   return task
 }
 
+/** `worktreePath` is where the engine runs: the worktree root plus the task's `cwdSubpath`. */
 async function ensureTaskWorktree(link: DaemonRpcClient, taskId: string) {
   const task = await getTask(link, taskId)
   if (task.deletion) throw new TaskDeletingError(taskId)
-  if (task.worktreePath) return { task, worktreePath: task.worktreePath }
+  if (task.worktreePath) return { task, worktreePath: taskCwd(task) }
   const { worktreePath } = await link.request<{ worktreePath: string | null }>("task.ensureWorktree", { taskId })
   if (!worktreePath) throw new Error(`task ${taskId} has no worktree`)
-  return { task, worktreePath }
+  return { task, worktreePath: taskCwd({ worktreePath, cwdSubpath: task.cwdSubpath }) }
 }
 
 export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: string) {
@@ -159,6 +162,7 @@ export async function deliverPromptToLiveEngineAdapter(
     readonly vendor?: VendorId
     readonly command?: string
     readonly worktreePath: string
+    readonly scope?: PtyScope
   },
   prompt: string,
 ): Promise<boolean> {
@@ -170,7 +174,7 @@ export async function deliverPromptToLiveEngineAdapter(
       command: task.command,
       vendor: task.vendor,
     })
-    const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
+    const key = findHostedEngineKey(sessions, task.id, engineArgv[0], task.scope)
     if (!key) return false
     const presence = await enginePresence(sessions.find((s) => s.key === key)?.pid, engineArgv)
     if (presence.kind !== "engine") return false
@@ -198,6 +202,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
     readonly vendor?: VendorId
     readonly command?: string
     readonly worktreePath: string
+    readonly scope?: PtyScope
   },
   prompt: string,
 ): Promise<
@@ -211,7 +216,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
       command: task.command,
       vendor: task.vendor,
     })
-    const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
+    const key = findHostedEngineKey(sessions, task.id, engineArgv[0], task.scope)
     if (!key) return { outcome: "no-session" }
     const presence = await enginePresence(sessions.find((s) => s.key === key)?.pid, engineArgv)
     if (presence.kind !== "engine") {
@@ -235,6 +240,7 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
     readonly vendor?: VendorId
     readonly command?: string
     readonly worktreePath: string
+    readonly scope?: PtyScope
   },
   prompt: string,
 ): Promise<
@@ -243,7 +249,8 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
   const host = await openHostedSessionHost()
   if (!host) return { outcome: "no-session" }
   try {
-    const key = `${target.id}::${target.tabId}`
+    const key = hostedKeyFor(target.id, target.tabId, target.scope)
+    if (!key) return { outcome: "no-session" }
     let sessions: Awaited<ReturnType<typeof listHostedSessions>>
     try {
       sessions = await listHostedSessions(host.rpc)
@@ -265,13 +272,14 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
   }
 }
 
-export async function tearDownTaskSessionAdapter(taskId: string): Promise<void> {
+export async function tearDownTaskSessionAdapter(taskId: string, scope?: TeardownScope): Promise<void> {
   const host = await openHostedSessionHost()
   if (!host) return
   try {
     // `wait`: every caller removes the worktree next, and on Windows a child
     // still exiting with its cwd inside makes it undeletable.
-    await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId), { wait: true })
+    const keys = hostedTaskKeys(await listHostedSessions(host.rpc), taskId, scope)
+    await killHostedSessions(host.rpc, keys, { wait: true })
   } catch {
     // Task mutation already committed; teardown remains best-effort.
   } finally {

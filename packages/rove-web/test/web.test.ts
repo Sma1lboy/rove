@@ -1,19 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import type { RowStatus, TabRow, TabStatus, TaskRow } from "rove-bridge/protocol"
+import type { RowStatus, TaskRow } from "rove-bridge/protocol"
 import { displayLine, noteRange, parseUnifiedDiff } from "../src/diff.ts"
 import { visibleTree } from "../src/file-tree.ts"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
 import { compactAge, inboxBadge, isRoutineState, nextAttention } from "../src/inbox.ts"
-import {
-  anySpinning,
-  groupByProject,
-  navRows,
-  needsPerson,
-  statusGlyph,
-  tabRowGlyph,
-  taskRowGlyph,
-} from "../src/rail.ts"
+import { anySpinning, needsPerson, statusGlyph, taskRowGlyph } from "../src/rail-glyphs.ts"
+import { groupByProject, navRows } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
 
 const TOKEN = "a".repeat(43)
@@ -89,32 +82,16 @@ describe("rail", () => {
     expect(groupByProject(tasks, "default")[0].tasks.map((t) => t.id)).toEqual(["m", "x", "y"])
   })
 
-  test("`/` keeps a hit's ancestors: a task hit keeps its tabs, a tab hit keeps its task", () => {
+  test("`/` keeps a hit's ancestors: a task hit keeps its children, a child hit keeps its parent", () => {
     const groups = groupByProject([
       { ...row("t1", "/w/a", 0), title: "Fix retry" },
-      { ...row("t2", "/w/a", 1), title: "Audit" },
+      { ...row("c1", "/w/a", 1), title: "claude", parentTaskId: "t1" },
+      { ...row("t2", "/w/a", 2), title: "Audit" },
+      { ...row("c2", "/w/a", 3), title: "vitest", parentTaskId: "t2" },
     ])
-    const tab = (id: string, title: string) => ({
-      id,
-      kind: "engine",
-      title,
-      engineName: null,
-      alive: true,
-      engineAlive: true,
-    })
-    const tabs: Record<string, ReturnType<typeof tab>[]> = {
-      t1: [tab("tab-1", "claude")],
-      t2: [tab("tab-1", "vitest")],
-    }
-    const ids = (q: string) =>
-      navRows(
-        groups,
-        (id) => tabs[id] ?? [],
-        (t) => t.title ?? "",
-        q,
-      ).map((r) => r.id)
-    expect(ids("retry")).toEqual(["project:/w/a", "t1", "t1::tab-1"])
-    expect(ids("vitest")).toEqual(["project:/w/a", "t2", "t2::tab-1"])
+    const ids = (q: string) => navRows(groups, q).map((r) => r.id)
+    expect(ids("retry")).toEqual(["project:/w/a", "t1", "c1"])
+    expect(ids("vitest")).toEqual(["project:/w/a", "t2", "c2"])
     expect(ids("nomatch")).toEqual([])
   })
 
@@ -133,61 +110,29 @@ const st = (kind: RowStatus["kind"], reason?: RowStatus["reason"]): RowStatus =>
   since: 1,
   ...(reason ? { reason } : {}),
 })
-const tabSt = (kind: RowStatus["kind"], reason?: RowStatus["reason"], alive = true): TabStatus => ({
-  ...st(kind, reason),
-  alive,
-  restored: false,
-  tracked: true,
-})
 
 describe("row status marks (the daemon's, through row-status-glyph)", () => {
-  const tab = (id: string, alive: boolean | null = true) => ({ id, kind: "engine", title: null, alive }) as TabRow
-  const rowWith = (rollup: RowStatus | undefined, tabs: Record<string, TabStatus> = {}) =>
-    ({ id: "t", rowStatus: rollup, tabStatus: tabs }) as unknown as TaskRow
+  const rowWith = (rollup: RowStatus | undefined) => ({ id: "t", rowStatus: rollup }) as unknown as TaskRow
 
-  test("each tab row draws its own status, in the tone of its kind", () => {
-    const tabs: Record<string, TabStatus> = {
-      run: tabSt("running"),
-      ask: tabSt("needs-input"),
-      wait: tabSt("attention", "rate_limited"),
-      err: tabSt("attention", "error"),
-      dead: tabSt("attention", "dead", false),
-      seen: tabSt("unseen"),
-      quiet: tabSt("idle"),
-    }
-    const task = rowWith(st("attention", "error"), tabs)
-    const mark = (id: string) => tabRowGlyph(task, tab(id), 0)
-    expect(mark("run")).toMatchObject({ tone: "accent", spinning: true })
-    expect(mark("ask")).toEqual({ glyph: "?", tone: "warning", spinning: false })
+  test("a task row draws the rollup of its one conversation, in the tone of its kind", () => {
+    const mark = (status: RowStatus | undefined) => taskRowGlyph(rowWith(status), 0)
+    expect(mark(st("running"))).toMatchObject({ tone: "accent", spinning: true })
+    expect(mark(st("needs-input"))).toEqual({ glyph: "?", tone: "warning", spinning: false })
     // A rate limit clears itself: amber. An error stays until you act: red.
-    expect(mark("wait")).toEqual({ glyph: "!", tone: "warning", spinning: false })
-    expect(mark("err")).toEqual({ glyph: "!", tone: "attention", spinning: false })
-    expect(mark("dead")).toEqual({ glyph: "!", tone: "attention", spinning: false })
-    expect(mark("seen")).toEqual({ glyph: "●", tone: "accent", spinning: false })
-    expect(mark("quiet")).toEqual({ glyph: "○", tone: "muted", spinning: false })
-    // A dead tab the daemon says nothing about stays a quiet mark.
-    expect(tabRowGlyph(task, tab("gone", false), 0)).toEqual({ glyph: "○", tone: "muted", spinning: false })
+    expect(mark(st("attention", "rate_limited"))).toEqual({ glyph: "!", tone: "warning", spinning: false })
+    expect(mark(st("attention", "error"))).toEqual({ glyph: "!", tone: "attention", spinning: false })
+    expect(mark(st("attention", "dead"))).toEqual({ glyph: "!", tone: "attention", spinning: false })
+    expect(mark(st("unseen"))).toEqual({ glyph: "●", tone: "accent", spinning: false })
+    expect(mark(st("idle"))).toEqual({ glyph: "○", tone: "muted", spinning: false })
+    // No reading yet is a quiet row.
+    expect(mark(undefined)).toEqual({ glyph: "○", tone: "muted", spinning: false })
+    expect(mark({ kind: "busy", reason: "deleting", since: 1 })).toMatchObject({ tone: "accent", spinning: true })
   })
 
-  test("the pushed tab status wins over the one read with the tab list", () => {
-    const listed = { ...tab("a"), status: tabSt("idle") } as TabRow
-    expect(tabRowGlyph(rowWith(undefined, { a: tabSt("needs-input") }), listed, 0).glyph).toBe("?")
-    expect(tabRowGlyph(rowWith(undefined), listed, 0).glyph).toBe("○")
-  })
-
-  test("a task row shows no status (tab rows do); it only spins for a job or deletion", () => {
-    expect(taskRowGlyph(rowWith(st("needs-input"), { a: tabSt("needs-input") }), 0)).toBeNull()
-    expect(taskRowGlyph(rowWith(st("unseen")), 0)).toBeNull()
-    expect(taskRowGlyph(rowWith(undefined), 0)).toBeNull()
-    // A task-level job or deletion belongs to no tab: it spins on the task row.
-    const deleting = rowWith({ kind: "busy", reason: "deleting", since: 1 }, { a: tabSt("idle") })
-    expect(taskRowGlyph(deleting, 0)).toMatchObject({ tone: "accent", spinning: true })
-  })
-
-  test("the spinner ticks for a running tab or a busy row; a fold counts rows that need a person", () => {
-    expect(anySpinning([rowWith(st("idle"), { a: tabSt("running") })])).toBe(true)
+  test("the spinner ticks for a running or busy row; a fold counts rows that need a person", () => {
+    expect(anySpinning([rowWith(st("running"))])).toBe(true)
     expect(anySpinning([rowWith({ kind: "busy", reason: "job", since: 1 })])).toBe(true)
-    expect(anySpinning([rowWith(st("unseen"), { a: tabSt("idle") })])).toBe(false)
+    expect(anySpinning([rowWith(st("unseen"))])).toBe(false)
     const rows = [st("needs-input"), st("attention", "rate_limited"), st("unseen"), st("running"), undefined]
     expect(rows.map((s) => needsPerson(rowWith(s)))).toEqual([true, true, false, false, false])
   })

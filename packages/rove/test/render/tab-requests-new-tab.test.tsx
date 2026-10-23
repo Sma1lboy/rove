@@ -36,7 +36,7 @@ function harnessFor(taskId: string) {
     },
     tabCloseRef: { current: { closeById: () => {} } },
     activeLeafSizeRef: { current: () => null },
-    requestNewChatRef: { current: () => chats.push(1) },
+    openNewConversationRef: { current: () => chats.push(1) },
   }
   const Probe = () => {
     useTabRequests(io)
@@ -45,7 +45,7 @@ function harnessFor(taskId: string) {
   return { Probe, writes, chats, stateRef }
 }
 
-test("'new conversation' opens the task's ctrl+e picker", async () => {
+test("'new conversation' runs the task's ctrl+t new-conversation action", async () => {
   const { Probe, chats, writes } = harnessFor("newtab-chat")
   await renderComponent(<Probe />, { width: 20, height: 4 })
   await settle()
@@ -55,7 +55,7 @@ test("'new conversation' opens the task's ctrl+e picker", async () => {
   })
 
   expect(chats.length).toBe(1)
-  // The picker owns what lands — nothing is written before the user picks.
+  // The action owns what lands (a child task); the tab state itself is untouched.
   expect(writes.length).toBe(0)
 })
 

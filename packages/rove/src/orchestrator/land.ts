@@ -41,6 +41,8 @@ export interface LandDeps {
   /** Kill the engine before its worktree goes. Injected: the session host in
    *  `core/` already imports this layer. Unset = no session to tear down. */
   readonly tearDownSession?: (id: TaskId | string) => Promise<void>
+  /** True when another task runs in this task's directory; a land then keeps it. */
+  readonly sharesWorktree?: (task: Task) => boolean
 }
 
 /** Reported, never thrown. `reason` can accompany `removed: true` when only
@@ -117,6 +119,9 @@ async function removeLandedWorktree(
   // canonicalizer that matched this worktree to its task.
   const wt = canonicalize(worktreePath)
   if (samePath(wt, canonicalize(task.repo))) return { removed: false, reason: "refusing to remove the base checkout" }
+  if (deps.sharesWorktree?.(task)) {
+    return { removed: false, reason: `kept ${worktreePath}: other tasks still run in this directory` }
+  }
   if (callerCwd) {
     if (pathWithin(wt, canonicalize(callerCwd)) !== null) {
       return {

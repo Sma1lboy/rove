@@ -128,12 +128,14 @@ async function asSession(taskId: string, tabId: string, opts?: { detached?: bool
   await verifiedSelfSession({ ROVE_TASK_ID: taskId, ROVE_TAB_ID: tabId }, probeFor(`${taskId}::${tabId}`, opts))
 }
 
+const created = (client: FakeClient): unknown => client.requests.find((r) => r.name === "task.create")?.payload
+
 describe("create records the dispatcher ($ROVE_TASK_ID/$ROVE_TAB_ID)", () => {
   it("add sends the caller's task + tab to task.create", async () => {
     await asSession("disp-1", "tab-2")
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
     await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
-    expect(client.requests[0].payload).toEqual({
+    expect(created(client)).toEqual({
       repo: "/repo/x",
       dispatcherTaskId: "disp-1",
       dispatcherTabId: "tab-2",
@@ -144,7 +146,7 @@ describe("create records the dispatcher ($ROVE_TASK_ID/$ROVE_TAB_ID)", () => {
     await verifiedSelfSession({ ROVE_TASK_ID: "disp-1" }, probeFor("disp-1::tab-1"))
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
     await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
-    expect(client.requests[0].payload).toMatchObject({ dispatcherTaskId: "disp-1", dispatcherTabId: "tab-1" })
+    expect(created(client)).toMatchObject({ dispatcherTaskId: "disp-1", dispatcherTabId: "tab-1" })
   })
 
   it("add from a plain shell records nothing", async () => {
@@ -306,6 +308,95 @@ describe("bare send replies to the dispatcher", () => {
       runtime: stubRuntime({ deliverPrompt: deliver }),
     })
     expect(calls[0].prompt).toBe("hi")
+  })
+})
+
+function requestedTaskId(payload: unknown): string {
+  if (payload && typeof payload === "object" && "taskId" in payload && typeof payload.taskId === "string") {
+    return payload.taskId
+  }
+  throw new Error("request carries no taskId")
+}
+
+describe("a migrated child's PTY env names its parent", () => {
+  const alias = { taskId: "parent", tabId: "tab-3" }
+  const listed = () => ({ tasks: [taskFixture({ id: "parent" }), taskFixture({ id: "child", ptyAlias: alias })] })
+  const createClient = () =>
+    new FakeClient({ "task.list": listed, "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+
+  it("stamps the child that lives in the PTY as the dispatcher, on its own tab", async () => {
+    await asSession("parent", "tab-3")
+    const client = createClient()
+    await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
+    expect(created(client)).toMatchObject({ dispatcherTaskId: "child", dispatcherTabId: "tab-3" })
+  })
+
+  it("leaves the parent's other tabs the parent's", async () => {
+    await asSession("parent", "tab-1")
+    const client = createClient()
+    await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
+    expect(created(client)).toMatchObject({ dispatcherTaskId: "parent", dispatcherTabId: "tab-1" })
+  })
+
+  it("refuses a parent's explicit --tab that a child's alias claims, and still serves the child itself", async () => {
+    const client = new FakeClient({
+      "task.list": listed,
+      "task.get": (payload) => {
+        const taskId = requestedTaskId(payload)
+        return { task: taskFixture({ id: taskId, ...(taskId === "child" ? { ptyAlias: alias } : {}) }) }
+      },
+    })
+    const { calls, deliver } = recordingDelivery()
+    const runtime = stubRuntime({ deliverPrompt: deliver })
+    await expectApiError(
+      () => invokeVerb("send", ["--task-id", "parent", "--tab", "tab-3", "--prompt", "hi"], { client, runtime }),
+      "TAB_NOT_FOUND",
+    )
+    expect(calls).toHaveLength(0)
+
+    await invokeVerb("send", ["--task-id", "child", "--tab", "tab-3", "--prompt", "hi"], { client, runtime })
+    expect(calls[0].target).toMatchObject({ id: "parent", tab: "tab-3" })
+  })
+
+  it("signs a peer prompt with the child's address, not the parent's", async () => {
+    await asSession("parent", "tab-3")
+    const client = new FakeClient({
+      "task.list": listed,
+      "task.get": (payload) => ({ task: taskFixture({ id: requestedTaskId(payload), title: "Child chat" }) }),
+    })
+    const { calls, deliver } = recordingDelivery()
+    await invokeVerb("send", ["--task-id", "other", "--prompt", "hi"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    expect(calls[0].prompt).toContain('[ROVE PEER] from "Child chat" (task child')
+    expect(calls[0].prompt).toContain("send --task-id child --tab tab-3")
+  })
+
+  it("a reply to a child dispatcher lands in the PTY its alias names", async () => {
+    await asSession("worker-1", "tab-9")
+    const client = new FakeClient({
+      "task.get": (payload) => {
+        const taskId = requestedTaskId(payload)
+        if (taskId === "worker-1")
+          return { task: taskFixture({ id: taskId, dispatcher: { taskId: "child", tabId: "tab-3" } }) }
+        return { task: taskFixture({ id: taskId, ...(taskId === "child" ? { ptyAlias: alias } : {}) }) }
+      },
+    })
+    const { calls, deliver } = recordingDelivery()
+    const scopes: unknown[] = []
+    await invokeVerb("send", ["--prompt", "succeeded: done"], {
+      client,
+      runtime: stubRuntime({
+        deliverPrompt: deliver,
+        taskTabs: async (_id, _argv, scope) => {
+          scopes.push(scope?.alias)
+          return { tabs: [{ id: "tab-3", kind: "engine", alive: true } as never], running: true }
+        },
+      }),
+    })
+    expect(scopes).toEqual([alias])
+    expect(calls[0].target).toMatchObject({ id: "parent", tab: "tab-3" })
   })
 })
 

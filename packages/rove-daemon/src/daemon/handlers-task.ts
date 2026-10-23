@@ -5,12 +5,42 @@
  */
 
 import { isBuiltinModInstalled } from "../plugins/builtin-mods.ts"
+import { subtreeIds } from "../task-tree.ts"
+import type { DaemonTask } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import { publishIssueSnapshot } from "./handlers-issues.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
+import { teardownScope } from "./pty-alias.ts"
 import { auditDeletionRequested } from "./task-deletion-audit.ts"
+
+/**
+ * Everything outside the index that hangs off a task being deleted: activity,
+ * Inbox episodes, gates, and the issue link.
+ */
+async function releaseDeletedTask(
+  ctx: DaemonHandlerContext,
+  taskId: string,
+  task: DaemonTask | undefined,
+): Promise<void> {
+  ctx.activity.clearTask(taskId)
+  // The one lifecycle action allowed to cascade durable Inbox episodes.
+  await ctx.inbox.deleteTaskBestEffort(taskId)
+  await ctx.gates.withdrawTask(taskId).catch((err) => logDaemonError("gates-withdraw-task", err))
+  // The issue owns the link (`Issue.taskId`); nothing else clears it, so the
+  // card would show In progress forever. Best-effort: the deletion already
+  // committed, so failures are logged, never a failed delete.
+  // Without the Kanban mod the store stays as it was left, links included.
+  if (task && isBuiltinModInstalled("kanban", ctx.daemon.homeDir)) {
+    try {
+      const next = await ctx.issues.unlinkTask(task.repo, taskId)
+      if (next) publishIssueSnapshot(ctx, next)
+    } catch (err) {
+      logDaemonError("issue-delete-unlink", err)
+    }
+  }
+}
 
 /**
  * `update --report-*` fields, or undefined when none were sent — never an
@@ -91,6 +121,37 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    // `git worktree add` on a big repo takes minutes: no client deadline.
+    name: "task.spawn",
+    blocking: true,
+    async handle(payload, ctx) {
+      const parentTaskId = requireString(payload, "parentTaskId")
+      // The CLI sends its verified $ROVE_TASK_ID/$ROVE_TAB_ID; tab defaults to tab-1.
+      const dispatcherTaskId = optionalString(payload, "dispatcherTaskId")
+      const dispatcher = dispatcherTaskId
+        ? { taskId: dispatcherTaskId, tabId: optionalString(payload, "dispatcherTabId") || "tab-1" }
+        : undefined
+      const result = await ctx.orch.spawnChildTask({
+        parentTaskId,
+        // A child gets its own worktree unless the caller says to share.
+        worktree: optionalBoolean(payload, "worktree") ?? true,
+        baseRef: optionalString(payload, "baseRef"),
+        isolateIn: optionalString(payload, "isolateIn"),
+        title: optionalString(payload, "title"),
+        vendor: optionalVendor(payload, "vendor"),
+        command: optionalString(payload, "command"),
+        prompt: optionalString(payload, "prompt"),
+        dispatcher,
+      })
+      return {
+        taskId: result.task.id,
+        task: serializeTask(result.task),
+        parentDirty: result.parentDirty,
+        sharedLinks: result.sharedLinks,
+      }
+    },
+  },
+  {
     name: "task.rename",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
@@ -149,43 +210,47 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       const force = optionalBoolean(payload, "force")
       const deleteBranch = optionalBoolean(payload, "deleteBranch")
+      const cascade = optionalBoolean(payload, "cascade")
+      // Deepest first. Without `cascade` only the task itself goes and its
+      // children are promoted by `prepareTaskDeletion`.
+      const targets = cascade ? subtreeIds(ctx.orch.listTasks(), taskId) : [taskId]
       // Audit before `prepareTaskDeletion`, which can throw: refusals get
-      // recorded too. Read the task now; the runner removes it from the index.
-      const task = ctx.orch.getTask(taskId)
+      // recorded too. Read the tasks now; the runner removes them from the index.
+      const tasks = new Map(targets.map((id) => [id, ctx.orch.getTask(id)]))
       const byTaskId = optionalString(payload, "requestedByTaskId")
-      auditDeletionRequested(
-        taskId,
-        task,
-        {
-          clientId: ctx.clientId,
-          ...(byTaskId
-            ? { requestedBy: { taskId: byTaskId, tabId: optionalString(payload, "requestedByTabId") || "tab-1" } }
-            : {}),
-        },
-        { force, deleteBranch },
-      )
-      const accepted = await ctx.orch.prepareTaskDeletion(taskId, { force, deleteBranch })
-      ctx.activity.clearTask(taskId)
-      // The one lifecycle action allowed to cascade durable Inbox episodes.
-      await ctx.inbox.deleteTaskBestEffort(taskId)
-      await ctx.gates.withdrawTask(taskId).catch((err) => logDaemonError("gates-withdraw-task", err))
-      // The issue owns the link (`Issue.taskId`); nothing else clears it, so the
-      // card would show In progress forever. Best-effort: the deletion already
-      // committed, so failures are logged, never a failed delete.
-      // Without the Kanban mod the store stays as it was left, links included.
-      if (task && isBuiltinModInstalled("kanban", ctx.daemon.homeDir)) {
-        try {
-          const next = await ctx.issues.unlinkTask(task.repo, taskId)
-          if (next) publishIssueSnapshot(ctx, next)
-        } catch (err) {
-          logDaemonError("issue-delete-unlink", err)
-        }
+      for (const id of targets) {
+        auditDeletionRequested(
+          id,
+          tasks.get(id),
+          {
+            clientId: ctx.clientId,
+            ...(byTaskId
+              ? { requestedBy: { taskId: byTaskId, tabId: optionalString(payload, "requestedByTabId") || "tab-1" } }
+              : {}),
+          },
+          { force, deleteBranch },
+        )
       }
-      if (accepted) ctx.deletions.enqueue(taskId)
+      const accepted = await ctx.orch.prepareTaskDeletion(taskId, { force, deleteBranch, cascade })
+      for (const id of targets) await releaseDeletedTask(ctx, id, tasks.get(id))
+      // Per removed task, the PTYs its teardown must spare (a surviving child's conversation) or also take
+      // (its own aliased one). Read now: the runner drops the rows from the index. Absent when nothing differs.
+      const teardown = Object.fromEntries(
+        targets.flatMap((id) => {
+          const scope = teardownScope(ctx.orch.listTasks(), id, new Set(targets))
+          return scope.spare.length > 0 || scope.also.length > 0 ? [[id, scope]] : []
+        }),
+      )
+      if (accepted) for (const id of targets) ctx.deletions.enqueue(id)
       // Removal runs in the background (teardown can take tens of seconds), so
       // this reports only that the request was taken. `queued: false`: no such
       // task id, nothing will ever run.
-      return { taskId, queued: accepted }
+      return {
+        taskId,
+        queued: accepted,
+        ...(cascade ? { deleted: targets } : {}),
+        ...(Object.keys(teardown).length > 0 ? { teardown } : {}),
+      }
     },
   },
   {

@@ -6,7 +6,7 @@
 
 import { ingestAgentTurnsBestEffort } from "./agent-turns-ingest.ts"
 import { logDaemonError } from "./crash-log.ts"
-import { findAdoptableWorktree, matchTaskByCwd } from "./cwd-task.ts"
+import { findAdoptableWorktree, matchTaskByCwd, resolvePtyOwner } from "./cwd-task.ts"
 import { trackDeliveryTurn } from "./delivery-ops.ts"
 import { optionalActivityDetail, optionalString, requireString } from "./handler-validators.ts"
 import { deliveryDepsOf } from "./handlers-deliveries.ts"
@@ -17,8 +17,9 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
   name: "engine.reportEvent",
   async handle(payload, ctx) {
     if (payload.source === "screen") {
-      const taskId = requireString(payload, "taskId")
       const tabId = requireString(payload, "tabId")
+      // The PTY's env names its (parent) task; a migrated child aliased to that session owns the screen.
+      const taskId = resolvePtyOwner(ctx.orch.listTasks(), requireString(payload, "taskId"), tabId)
       if (typeof payload.blocked !== "boolean") throw new Error("blocked must be a boolean")
       if (ctx.activity.reportScreen(taskId, tabId, payload.blocked)) {
         await ctx.inbox.record(taskId, payload.blocked ? "awaiting-input" : "turn-start", undefined, tabId)
@@ -31,8 +32,12 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     // `CODE: ` message prefix so a mistyped kind reads BAD_EVENT_KIND, not a
     // bare RPC_ERROR. `rove api engine-report` rejects it earlier, at the flag.
     if (!ctx.runtime.isEngineActivityKind(kind)) throw new Error(`BAD_EVENT_KIND: unknown engine event kind: ${kind}`)
-    // `taskId` (legacy/direct) wins; otherwise resolve from `cwd`.
-    const explicitId = optionalString(payload, "taskId")
+    // The inherited ROVE_TAB_ID.
+    const tabId = optionalString(payload, "tabId")
+    // `taskId` (legacy/direct) wins; otherwise resolve from `cwd`. A migrated
+    // child's PTY still carries its parent's id: the aliased tab says whose it is.
+    const rawId = optionalString(payload, "taskId")
+    const explicitId = rawId ? resolvePtyOwner(ctx.orch.listTasks(), rawId, tabId) : undefined
     const cwd = optionalString(payload, "cwd")
     // A session starting in an unadopted worktree under a tracked repo's
     // managed root is auto-adopted so the cwd maps below. `session-start`
@@ -50,8 +55,6 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     const taskId = explicitId ?? (cwd ? matchTaskByCwd(ctx.orch.listTasks(), cwd) : undefined)
     if (!taskId) return {} // unmatched cwd → drop
     const detail = optionalActivityDetail(payload)
-    // The inherited ROVE_TAB_ID.
-    const tabId = optionalString(payload, "tabId")
     // From the hook payload; an old hook omits it.
     const sessionId = optionalString(payload, "sessionId")
     const transcriptPath = optionalString(payload, "transcriptPath")

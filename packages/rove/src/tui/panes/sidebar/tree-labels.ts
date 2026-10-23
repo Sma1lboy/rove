@@ -27,18 +27,41 @@ export function rowLiveBranchPath(task: Task): string {
 }
 
 /**
- * Branch if any; a branchless `dir` task by its tail-truncated directory
- * (stored title ignored — dir titles are auto-generated noise like
- * `jacksonc-xxxx`, and this needs no data migration); a regular task before
- * its worktree exists by its title; then the path; then "scratch", never blank.
+ * The name of the task's one engine conversation: a migrated child reads its
+ * parent's aliased tab, any other task its first named engine tab. Absent
+ * until the engine has named the session.
+ */
+export function conversationTitleOf(
+  task: Task,
+  tabsByTask: ReadonlyMap<string, readonly { readonly id: string; readonly title?: string }[]>,
+): string | undefined {
+  const alias = task.ptyAlias
+  const tabs = tabsByTask.get(alias?.taskId ?? task.id)
+  if (!tabs) return undefined
+  if (alias) return tabs.find((tab) => tab.id === alias.tabId)?.title
+  return tabs.find((tab) => tab.title !== undefined)?.title
+}
+
+/**
+ * A row is a conversation, so it is named like one: the engine session's own
+ * title (`liveTitle`, from {@link conversationTitleOf}), else the task's
+ * title, else its branch. The task title only names `task` rows and children:
+ * a `main` row reads its live HEAD, and a `dir` row its tail-truncated
+ * directory (stored dir titles are auto-generated noise like `jacksonc-xxxx`,
+ * and this needs no data migration). Then the path; then "scratch", never
+ * blank. The branch stays searchable (`tree-search.ts`).
  *
  * `liveBranch` is the caller-resolved HEAD for branchless rows
  * ({@link rowLiveBranchPath}, `git-head.ts`); `home` is injectable for tests.
  */
 export function worktreeRowLabel(
   task: Task,
-  opts: { readonly liveBranch?: string; readonly home?: string } = {},
+  opts: { readonly liveBranch?: string; readonly liveTitle?: string; readonly home?: string } = {},
 ): string {
+  const live = opts.liveTitle?.trim()
+  if (live) return live
+  const title = task.title.trim()
+  if (title && (task.parentTaskId !== undefined || task.kind === "task")) return title
   const branch = (opts.liveBranch ?? task.branch) || task.branch
   if (branch) return branch
   if (task.kind !== "dir" && task.title) return task.title

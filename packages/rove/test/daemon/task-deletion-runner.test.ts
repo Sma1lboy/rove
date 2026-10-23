@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import type { DaemonOrchestrator, DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
 import { TaskDeletionRunner } from "../../../rove-daemon/src/daemon/task-deletion-runner.ts"
+import { hostedTaskKeys } from "../../src/engine/hosted-session.ts"
 
 function task(id: string, phase: "queued" | "running" | "error"): DaemonTask {
   return {
@@ -34,6 +35,7 @@ describe("TaskDeletionRunner", () => {
           }),
       ),
       getTask: vi.fn(() => task("t1", "running")),
+      listTasks: vi.fn(() => []),
     } as unknown as DaemonOrchestrator
     const tearDownTaskSession = vi.fn(async () => {
       order.push("teardown")
@@ -62,6 +64,7 @@ describe("TaskDeletionRunner", () => {
       }),
       finishTaskDeletion: vi.fn(async () => {}),
       getTask: vi.fn((id: string) => task(id, "running")),
+      listTasks: vi.fn(() => []),
     } as unknown as DaemonOrchestrator
     const runner = new TaskDeletionRunner(orch, { tearDownTaskSession: async () => {} }, () => {})
 
@@ -90,6 +93,7 @@ describe("TaskDeletionRunner", () => {
       // Mirrors production: after `finishTaskDeletion` the task is GONE from
       // the index, so the audit has to have snapshotted it beforehand.
       getTask: vi.fn((id: string) => task(id, "running")),
+      listTasks: vi.fn(() => []),
     } as unknown as DaemonOrchestrator
     const runner = new TaskDeletionRunner(orch, { tearDownTaskSession: async () => {} }, () => {})
 
@@ -103,5 +107,39 @@ describe("TaskDeletionRunner", () => {
     expect(log).toContain("/wt/ok")
     expect(log).toContain("failed task boom")
     expect(log).toContain("is not a git worktree")
+  })
+
+  // The host here is a key list: the runner hands the runtime a scope, the same `hostedTaskKeys` applies it.
+  it("tears a parent down without the PTYs its surviving children live in, and a child takes its own along", async () => {
+    const sessions = ["p::tab-1", "p::tab-2", "p::tab-2::leaf-1", "p::tab-3", "other::tab-1"].map((key) => ({ key }))
+    const tasks = [
+      { ...task("p", "running") },
+      { ...task("keeps", "running"), deletion: undefined, ptyAlias: { taskId: "p", tabId: "tab-2" } },
+      { ...task("leaves", "running"), ptyAlias: { taskId: "p", tabId: "tab-3" } },
+    ]
+    const killed: Record<string, string[]> = {}
+    const orch = {
+      beginTaskDeletion: vi.fn(async () => true),
+      finishTaskDeletion: vi.fn(async () => {}),
+      getTask: vi.fn((id: string) => tasks.find((t) => t.id === id)),
+      listTasks: vi.fn(() => tasks),
+    } as unknown as DaemonOrchestrator
+    const runner = new TaskDeletionRunner(
+      orch,
+      {
+        tearDownTaskSession: async (id, scope) => {
+          killed[id] = hostedTaskKeys(sessions as never, id, scope)
+        },
+      },
+      () => {},
+    )
+
+    runner.enqueue("p")
+    runner.enqueue("leaves")
+    await runner.drain()
+
+    // `keeps` has no `deletion`: its conversation survives; `leaves` is going too.
+    expect(killed.p).toEqual(["p::tab-1", "p::tab-3"])
+    expect(killed.leaves).toEqual(["p::tab-3"])
   })
 })

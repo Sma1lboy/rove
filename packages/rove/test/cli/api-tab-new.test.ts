@@ -95,7 +95,7 @@ it("two concurrent tab-news get two distinct ids from the daemon", async () => {
 
   const [a, b] = await Promise.all([
     defaultApiRuntime.openTab(daemon.client, target(), "shell"),
-    defaultApiRuntime.openTab(daemon.client, target(), "engine"),
+    defaultApiRuntime.openTab(daemon.client, target(), "shell"),
   ])
 
   expect(a.tab.id).not.toBe(b.tab.id)
@@ -108,14 +108,15 @@ it("two concurrent tab-news get two distinct ids from the daemon", async () => {
   ).toEqual(["tab-1", a.tab.id, b.tab.id].sort())
 })
 
-it("an engine tab records its spawn and returns the row as the daemon holds it", async () => {
+it("an engine starts the task's own tab-1, not a second tab beside an empty one", async () => {
   seed({})
-  const daemon = tabsDaemon({ seed: { t: oneEngineTab() } })
+  const daemon = tabsDaemon()
 
   const opened = await defaultApiRuntime.openTab(daemon.client, target(), "engine")
 
-  expect(opened.tab).toMatchObject({ kind: "engine", id: "tab-2", spawned: true })
-  expect(daemon.tabs("t")?.tabs[1]).toEqual(opened.tab)
+  expect(opened.session).toBe("t::tab-1")
+  expect(opened.tab).toMatchObject({ kind: "engine", id: "tab-1", spawned: true })
+  expect(daemon.tabs("t")?.tabs).toEqual([opened.tab])
 })
 
 it("attaching to a session that already existed is a refusal, not a new tab", async () => {
@@ -130,17 +131,14 @@ it("attaching to a session that already existed is a refusal, not a new tab", as
   expect(host.calls.some((c) => c.name === "pty.write")).toBe(false)
 })
 
-it("an engine tab refused by engine.maxLiveSessions takes its row back", async () => {
-  const tabs = oneEngineTab()
+it("an engine refused by engine.maxLiveSessions starts nothing", async () => {
   seed({ "engine.maxLiveSessions": 1 })
-  const daemon = tabsDaemon({ seed: { t: tabs } })
+  const daemon = tabsDaemon()
   host.sessions = [{ key: "other::tab-1", pid: 123, alive: true, command: ["claude"], title: "" }]
 
   await expect(defaultApiRuntime.openTab(daemon.client, target(), "engine")).rejects.toMatchObject({
     code: "ENGINE_LIMIT",
   })
 
-  expect(daemon.tabs("t")?.tabs).toEqual(tabs.tabs)
-  expect(daemon.applied.at(-1)?.ops).toEqual([{ op: "close", id: "tab-2" }])
   expect(host.calls.some((c) => c.name === "pty.openChecked")).toBe(false)
 })

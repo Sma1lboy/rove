@@ -17,6 +17,7 @@ import { homeDir } from "../../env.ts"
 import { errorMessage } from "../../lib/error-message.ts"
 import { cloneDirFor, cloneRepo, parseRepoRef } from "../../machines/repo-ref.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
+import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import { addSavedRepo } from "../../state/repos.ts"
 import type { TaskStatus } from "../../types/task.ts"
@@ -187,7 +188,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const warned = warnings.length > 0 ? { warnings } : {}
   const payload: Record<string, string> = {
     repo,
-    ...(await dispatcherEnvPayload()),
+    ...(await dispatcherEnvPayload(daemon)),
     ...enginePayload(fields.choice, fields.effort, fields.model, fields.tier),
   }
   const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
@@ -230,7 +231,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       taskId,
       {
         id: taskId,
-        worktreePath: task.worktreePath,
+        worktreePath: taskCwd(task),
         kind: task.kind,
         vendor: task.vendor as VendorId | undefined,
         command: task.command,
@@ -383,7 +384,7 @@ async function addParallel(
   // already-created tasks into PARTIAL_FANOUT so a script doesn't double-spawn.
   const created: Array<{ taskId: string; vendor: VendorId; task: SerializedTask }> = []
   let createFailure: { vendor: VendorId; error: { message: string; code: string } } | null = null
-  const dispatcher = await dispatcherEnvPayload()
+  const dispatcher = await dispatcherEnvPayload(daemon)
   for (const [i, vendor] of plan.entries()) {
     // `--agents` picks engines BY ID (command = id); `--count` reuses `--command` verbatim.
     const engine: EngineChoice = agentsSpec ? { command: vendor, vendor } : { ...choice, vendor }
@@ -417,7 +418,7 @@ async function addParallel(
         taskId,
         {
           id: taskId,
-          worktreePath: task.worktreePath,
+          worktreePath: taskCwd(task),
           kind: task.kind,
           vendor,
           command: task.command,

@@ -51,7 +51,6 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
     <SidebarTree
       tasks={[MAIN, task("a"), task("b")]}
       selectedId="a"
-      selectedTabId={null}
       onSelect={() => {}}
       focused={true}
       width={28}
@@ -60,22 +59,23 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
   )
 }
 
-test("enter on a tab row activates that tab, not just its task", async () => {
-  seedTabs("a", ["tab-1", "tab-2"])
-  const picked: Array<[string, string]> = []
-  const { mockInput } = await renderComponent(tree({ onSelectTab: (taskId, tabId) => picked.push([taskId, tabId]) }), {
+test("a child task is its own row: j reaches it and enter selects it", async () => {
+  tabsByTask.clear()
+  const chosen: string[] = []
+  const tasks = [MAIN, task("a"), task("kid", { parentTaskId: toTaskId("a") }), task("b")]
+  const { mockInput } = await renderComponent(tree({ tasks, onSelect: (id) => chosen.push(id) }), {
     width: 28,
     height: 20,
   })
   await new Promise((r) => setTimeout(r, SETTLE))
 
-  // Cursor lands on the selected worktree; j steps onto its first tab row.
+  // Cursor lands on the selected `a`; j steps onto its child.
   mockInput.typeText("j")
   await new Promise((r) => setTimeout(r, SETTLE))
   mockInput.pressEnter()
   await new Promise((r) => setTimeout(r, SETTLE))
 
-  expect(picked).toEqual([["a", "tab-1"]])
+  expect(chosen).toEqual(["kid"])
 })
 
 test("j/k move the cursor over worktree rows", async () => {
@@ -131,13 +131,13 @@ test("escape leaves search and restores the full tree", async () => {
   await new Promise((r) => setTimeout(r, SETTLE))
   mockInput.typeText("bravo")
   await new Promise((r) => setTimeout(r, SETTLE))
-  expect(await frame()).not.toContain("feat/a")
+  expect(await frame()).not.toContain("alpha")
 
   mockInput.pressEscape()
   await new Promise((r) => setTimeout(r, SETTLE))
   const text = await frame()
-  expect(text).toContain("feat/a")
-  expect(text).not.toContain("/bravo")
+  expect(text).toContain("alpha")
+  expect(text).toContain("bravo")
 })
 
 // ─── Move mode is scope-aware: the cursor row's LEVEL moves ───
@@ -184,35 +184,6 @@ test("move mode on a MAIN row drags the whole project", async () => {
   mockInput.typeText("j")
   await new Promise((r) => setTimeout(r, SETTLE))
   expect(moves).toEqual([["m", 1]])
-})
-
-test("move mode on a TAB row moves the tab within its task", async () => {
-  seedTabs("a", ["tab-1", "tab-2"])
-  const tabMoves: Array<[string, string, number]> = []
-  const taskMoves: string[] = []
-  const { mockInput } = await renderComponent(
-    tree({
-      selectedTabId: "tab-2",
-      moveMode: true,
-      onMoveRequest: (id) => taskMoves.push(id),
-      onMoveTabRequest: (taskId, tabId, delta) => tabMoves.push([taskId, tabId, delta]),
-    }),
-    { width: 28, height: 20 },
-  )
-  await new Promise((r) => setTimeout(r, SETTLE))
-
-  // The active row is a's tab-2 — the cursor anchors there, so j/k move the
-  // TAB, and the task/project callbacks stay silent.
-  mockInput.typeText("k")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.typeText("j")
-  await new Promise((r) => setTimeout(r, SETTLE))
-
-  expect(tabMoves).toEqual([
-    ["a", "tab-2", -1],
-    ["a", "tab-2", 1],
-  ])
-  expect(taskMoves).toEqual([])
 })
 
 test("escape leaves move mode", async () => {

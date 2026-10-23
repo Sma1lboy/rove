@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 72 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 73 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -90,22 +90,23 @@ retired vocabulary for Terminal Tab. A user saying "in this workspace" means
 the worktree they are looking at — answer the intent, keep writing the real
 term.
 
-They nest — **Task ⊃ Terminal Tab ⊃ Split** — and isolation drops at every
-level down:
+A Task is ONE engine conversation. Another conversation is a **child task**
+shown under it. Isolation drops at every level down:
 
 ```text
-new Task   → own worktree + own branch     (parallel work can't collide)
-new Tab    → own engine session, SAME files (a helper in the same checkout)
-new Split  → same session's screen, one tab divided (a monitor beside the work)
+new Task            → own worktree + own branch     (parallel work can't collide)
+child, own worktree → `spawn`: worktree cut from the parent's branch tip
+child, shared dir   → `send --tab new`: own engine session, SAME files (a helper in the same checkout)
+new Split           → same session's screen, one tab divided (a monitor beside the work)
 ```
 
-The distinction that decides every routing call: **a new tab shares the
-worktree and branch; only a new task gets its own.** Two tabs in one task
-edit the same files, so they can collide — that is a feature when the user
-wants a helper in the same checkout, and a bug when they wanted parallel
-attempts. A split isolates nothing at all: it is a layout, for watching
-something (logs, `btop`, a test loop) next to the work — never the answer to
-"do this work".
+The distinction that decides every routing call: **a shared child uses the
+parent's worktree and branch; only a new task (or `spawn`) gets its own.**
+Two conversations in one directory edit the same files, so they can collide —
+that is a feature when the user wants a helper in the same checkout, and a
+bug when they wanted parallel attempts. A split isolates nothing at all: it
+is a layout, for watching something (logs, `btop`, a test loop) next to the
+work — never the answer to "do this work".
 
 One boundary the isolation model does NOT cover: **never `git stash` in a
 managed worktree.** The stash stack lives in the repo's common dir
@@ -125,8 +126,8 @@ the first row that fits:
 | "try it N ways", "compare approaches" | N new tasks | `rove api add --repo "$PWD" --count N --prompt "…"` |
 | "split", "side by side", "keep an eye on X while…" | a new region in the CURRENT tab | `rove api pane-open --command "…"` |
 | names a tab: "tell the agent in tab 3" | that exact tab | `rove api send --task-id <id> --tab tab-3 --prompt "…"` |
-| a LOCATION word: "in this workspace/worktree/checkout", "on this branch", "here", "same task" | THIS task, a NEW Terminal Tab | `rove api send --task-id "$ROVE_TASK_ID" --tab new --prompt "…"` |
-| names an ENGINE for the same files: "let codex take over here", "try this one with claude instead" | THIS task, a new tab pinned to that engine | `rove api send --task-id "$ROVE_TASK_ID" --tab new --command codex --prompt "…"` |
+| a LOCATION word: "in this workspace/worktree/checkout", "on this branch", "here", "same task" | a shared CHILD of THIS task (same directory) | `rove api send --task-id "$ROVE_TASK_ID" --tab new --prompt "…"` |
+| names an ENGINE for the same files: "let codex take over here", "try this one with claude instead" | a shared child of THIS task on that engine | `rove api send --task-id "$ROVE_TASK_ID" --tab new --command codex --prompt "…"` |
 | **anything else — no row above matched** | a NEW task — new worktree + branch | `rove api add --repo "$PWD" --prompt "…"` |
 
 Order is the tiebreak: a count ("3 ways in this workspace") beats a location
@@ -324,6 +325,10 @@ rove api add --repo "$PWD" --title "focused title" --command claude \
 # Parallel attempts of the same prompt (hard cap 10; prefer 3-4).
 rove api add --repo "$PWD" --count 3 --prompt "<prompt>"
 rove api add --repo "$PWD" --agents claude:2,codex:1 --prompt "<prompt>"
+# A child of THIS task (a second conversation, shown under its parent): its own
+# worktree from the parent's current tip by default; --no-worktree shares the directory.
+rove api spawn --prompt "<prompt>"
+rove api spawn --no-worktree --command codex --prompt "<prompt>"
 
 # Follow up. Use an explicit id for unattended work; the active task can drift.
 # From inside a Rove task this auto-prefixes [ROVE PEER] provenance
@@ -347,10 +352,10 @@ rove api send --prompt "succeeded: <one line> (branch <final branch>)"
 # task's snapshot plus daemon activity and live pty sessions.
 rove api inspect --task-id <id>
 rove api send --task-id <id> --tab tab-3 --prompt "<turn>"  # exact alive tab
-rove api send --task-id <id> --tab new --prompt "<turn>"    # fresh engine tab
-# Same worktree, DIFFERENT agent — the API twin of the TUI's ctrl+e pick. The
-# engine is pinned to that tab (survives restarts, unaffected by a later
-# update --command) and the task's own engine is left alone. --tab new only.
+rove api send --task-id <id> --tab new --prompt "<turn>"    # shared child: reply adds childTaskId
+# Same directory, DIFFERENT agent — the API twin of the TUI's ctrl+e pick. The
+# engine is stored on the new child task (survives restarts) and the target's own
+# engine is left alone. --tab new only.
 rove api send --task-id <id> --tab new --command codex --prompt "<turn>"
 
 rove api get-task --task-id <id>
@@ -384,7 +389,7 @@ has NO live session at all does `send`
 auto-start the canonical engine in the task's worktree (`started: true` in
 the result marks that fresh session). If live tabs exist but none resolves
 as an engine, it refuses with `NO_ENGINE_TAB` — address one with `--tab
-tab-N` or spawn one with `--tab new`; it never silently spawns a duplicate
+tab-N` or start another conversation with `--tab new`; it never silently spawns a duplicate
 engine. Its `hint` names `pty-list` — the live-PTY read (key, alive, pid,
 command); use it when `.tabs[]` and reality disagree.
 

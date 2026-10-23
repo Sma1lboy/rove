@@ -2,7 +2,6 @@ import { COLORBLIND_MODES, type ColorblindMode } from "../../../state/colorblind
 import { GLYPH_SET_NAMES, type GlyphSetName } from "../../../state/glyph-set"
 import { RUNNING_TITLES, type RunningTitle } from "../../../state/running-title"
 import { SPLIT_STYLES, type SplitStyle } from "../../../state/split-style"
-import type { TabRowHeight } from "../../../state/tab-row-height"
 import { TASK_COLORS, type TaskColors } from "../../../state/task-colors"
 import { WORKING_BORDERS, type WorkingBorder } from "../../../state/working-border"
 import type { CollapsedRailStyle } from "../../../tui-react/panes/sidebar/collapsed-rail"
@@ -15,7 +14,6 @@ export const APPEARANCE_SETTINGS = [
   "focusAccent",
   "splitStyle",
   "railFold",
-  "tabRowHeight",
   "workingBorder",
   "taskColors",
   "glyphSet",
@@ -31,7 +29,6 @@ export type AppearanceSnapshot = {
   focusAccent: FocusAccentSlot
   splitStyle: SplitStyle
   railFoldStyle: CollapsedRailStyle
-  tabRowHeight: TabRowHeight
   workingBorder: WorkingBorder
   taskColors: TaskColors
   glyphSet: GlyphSetName
@@ -45,7 +42,6 @@ export type AppearanceChoice =
   | { kind: "focusAccent"; value: FocusAccentSlot }
   | { kind: "splitStyle"; value: SplitStyle }
   | { kind: "railFold"; value: CollapsedRailStyle }
-  | { kind: "tabRowHeight"; value: TabRowHeight }
   | { kind: "workingBorder"; value: WorkingBorder }
   | { kind: "taskColors"; value: TaskColors }
   | { kind: "glyphSet"; value: GlyphSetName }
@@ -66,8 +62,6 @@ export function appearanceChoices(setting: AppearanceSetting, themes: readonly s
       return SPLIT_STYLES.map((value) => ({ kind: setting, value }))
     case "railFold":
       return (["glyphs", "initials", "hairline"] as const).map((value) => ({ kind: setting, value }))
-    case "tabRowHeight":
-      return ([1, 2] as const).map((value) => ({ kind: setting, value }))
     case "workingBorder":
       return WORKING_BORDERS.map((value) => ({ kind: setting, value }))
     case "taskColors":
@@ -95,8 +89,6 @@ export function applyAppearanceChoice(current: AppearanceSnapshot, choice: Appea
       return { ...current, splitStyle: choice.value }
     case "railFold":
       return { ...current, railFoldStyle: choice.value }
-    case "tabRowHeight":
-      return { ...current, tabRowHeight: choice.value }
     case "workingBorder":
       return { ...current, workingBorder: choice.value }
     case "taskColors":
@@ -124,8 +116,6 @@ export function currentAppearanceChoice(current: AppearanceSnapshot, setting: Ap
       return { kind: setting, value: current.splitStyle }
     case "railFold":
       return { kind: setting, value: current.railFoldStyle }
-    case "tabRowHeight":
-      return { kind: setting, value: current.tabRowHeight }
     case "workingBorder":
       return { kind: setting, value: current.workingBorder }
     case "taskColors":

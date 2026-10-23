@@ -53,7 +53,6 @@ function MockScene() {
           width={SIDEBAR_WIDTH}
           tasks={tasks}
           selectedId={selectedId}
-          selectedTabId={null}
           onSelect={setSelectedId}
           focused={focus.focused === "sidebar"}
           headerStatus={{ label: "v0.0.0-mock", emphasize: false }}

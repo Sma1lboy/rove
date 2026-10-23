@@ -111,17 +111,45 @@ describe("send handler", () => {
     )
   })
 
-  it("a new tab can run a DIFFERENT engine than the task (two agents, one worktree)", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc", vendor: "claude" }) }) })
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--tab", "new", "--command", "codex"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
+  it("--tab new starts a shared child instead of a second tab, running the pinned engine", async () => {
+    const child = taskFixture({
+      id: "kid",
+      vendor: "codex",
+      command: "codex",
+      parentTaskId: "abc",
+      sharesWorkspaceOf: "abc",
     })
-    // The delivery runs codex and the tab records it (command + its resolved
-    // protocol), while the TASK's own engine is untouched — a second agent in
-    // the worktree is not a switch.
-    expect(calls[0].target).toMatchObject({ tabCommand: "codex", tabVendor: "codex" })
+    const client = new FakeClient({
+      "task.get": () => ({ task: taskFixture({ id: "abc", vendor: "claude" }) }),
+      "task.spawn": () => ({ taskId: "kid", task: child, parentDirty: false, sharedLinks: [] }),
+      "task.setPrompt": () => ({}),
+    })
+    const { calls, deliver } = recordingDelivery()
+    const result = await invokeVerb(
+      "send",
+      ["--task-id", "abc", "--prompt", "hi", "--tab", "new", "--command", "codex"],
+      {
+        client,
+        runtime: stubRuntime({ deliverPrompt: deliver }),
+      },
+    )
+    expect(client.requests.find((r) => r.name === "task.spawn")?.payload).toEqual({
+      parentTaskId: "abc",
+      worktree: false,
+      command: "codex",
+      vendor: "codex",
+    })
+    // The prompt goes to the child's canonical engine; the parent's conversation is untouched.
+    expect(calls).toHaveLength(1)
+    expect(calls[0].target).toMatchObject({ id: "kid", command: "codex" })
+    expect(calls[0].target.tab).toBeUndefined()
+    expect(result).toMatchObject({
+      ok: true,
+      taskId: "abc",
+      childTaskId: "kid",
+      session: "kid::tab-1",
+      delivered: true,
+    })
     expect(client.requests.some((r) => r.name === "task.setCommand")).toBe(false)
   })
 

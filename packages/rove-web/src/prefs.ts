@@ -18,7 +18,6 @@ export interface Prefs {
   readonly focusAccent: "primary" | "success" | "info"
   readonly splitStyle: string
   readonly railFold: "glyphs" | "initials" | "hairline"
-  readonly tabRowHeight: 1 | 2
   readonly workingBorder: "flow" | "still"
   readonly taskColors: "on" | "off"
   readonly glyphSet: "braille" | "starburst" | "ascii"
@@ -99,7 +98,6 @@ const DEFAULTS: Prefs = {
   focusAccent: "primary",
   splitStyle: "line",
   railFold: "glyphs",
-  tabRowHeight: 1,
   workingBorder: "flow",
   taskColors: "on",
   glyphSet: "braille",

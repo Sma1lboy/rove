@@ -1,22 +1,21 @@
 /** @jsxImportSource @opentui/react */
 /**
- * A freeze-restored tab row must not read as a quiet one.
+ * A freeze-restored conversation must not read as a quiet one.
  *
  * The pty host thaws a dead session with its scrollback intact and marks it
  * `restored`; opening such a tab silently re-runs the recorded launch
  * command. The row used to wear `○` — the one glyph that means "nothing to
- * do here". The daemon now folds the host's session list into the tab's row
- * status (`attention`, reason `restored`), so the row draws what it is told.
+ * do here". The daemon now folds the host's session list into the row
+ * status (`attention`, reason `restored`), so the task row draws what it is told.
  */
 
 import { afterEach, expect, test } from "bun:test"
 import type { BoxRenderable } from "@opentui/core"
 import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { TreeRowShared } from "../../src/tui-react/panes/sidebar/tree-row-shell"
-import { TabTreeRow } from "../../src/tui-react/panes/sidebar/tree-rows"
+import { WorktreeTreeRow } from "../../src/tui-react/panes/sidebar/tree-rows"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
-import type { TreeTab } from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent, settle } from "./harness"
@@ -47,12 +46,10 @@ function shared(): TreeRowShared {
   }
 }
 
-const TAB: TreeTab = { id: "tab-1", label: "build", engine: true }
-
 async function glyphOf(status: TabStatus): Promise<string> {
   resetRowStatusForTests({ alpha: { task: status, tabs: { "tab-1": status } } })
   const { frame } = await renderComponent(
-    <TabTreeRow rowId="alpha::tab-1" flatIndex={0} task={TASK} tab={TAB} shared={shared()} />,
+    <WorktreeTreeRow rowId="alpha" flatIndex={0} task={TASK} shared={shared()} />,
     { width: 30, height: 4 },
   )
   await settle(90)

@@ -1,7 +1,12 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { findAdoptableWorktree, matchTaskByCwd, matchTaskByWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
+import {
+  findAdoptableWorktree,
+  matchTaskByCwd,
+  resolvePtyOwner,
+  tasksAtWorktreePath,
+} from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
@@ -106,19 +111,56 @@ describe("matchTaskByCwd across a repository boundary", () => {
   })
 })
 
-describe("matchTaskByWorktreePath", () => {
+describe("tasksAtWorktreePath", () => {
   const tasks = [
     { id: "main", repo: "/repo", worktreePath: "/repo" },
     { id: "sub", repo: "/repo", worktreePath: "/repo/.claude/worktrees/snipe" },
   ]
 
   it("matches a task whose worktree IS exactly the path", () => {
-    expect(matchTaskByWorktreePath(tasks, "/repo/.claude/worktrees/snipe")).toBe("sub")
+    expect(tasksAtWorktreePath(tasks, "/repo/.claude/worktrees/snipe")).toEqual(["sub"])
   })
 
   it("does NOT match a parent on a path prefix (unlike matchTaskByCwd)", () => {
     // Removing an untracked worktree under /repo must not affect the main task.
-    expect(matchTaskByWorktreePath(tasks, "/repo/.claude/worktrees/unknown")).toBeUndefined()
+    expect(tasksAtWorktreePath(tasks, "/repo/.claude/worktrees/unknown")).toEqual([])
+  })
+
+  it("lists the owner before the children sharing its directory, whatever the row order", () => {
+    const shared = [
+      { id: "b-child", repo: "/repo", worktreePath: "/repo/wt", sharesWorkspaceOf: "z-owner" },
+      { id: "a-child", repo: "/repo", worktreePath: "/repo/wt", sharesWorkspaceOf: "z-owner" },
+      { id: "z-owner", repo: "/repo", worktreePath: "/repo/wt" },
+    ]
+    expect(tasksAtWorktreePath(shared, "/repo/wt")).toEqual(["z-owner", "a-child", "b-child"])
+  })
+})
+
+describe("hooks in a directory shared by a parent and its children", () => {
+  const shared = [
+    { id: "child", repo: "/repo", worktreePath: "/repo/wt", sharesWorkspaceOf: "owner" },
+    { id: "owner", repo: "/repo", worktreePath: "/repo/wt" },
+  ]
+
+  it("attributes a cwd-only report to the owner, never to whichever row is listed first", () => {
+    expect(matchTaskByCwd(shared, "/repo/wt")).toBe("owner")
+    expect(matchTaskByCwd([...shared].reverse(), "/repo/wt")).toBe("owner")
+  })
+
+  it("resolves a report from a migrated child's parent-keyed PTY to the child", () => {
+    const tasks = [
+      { id: "parent", repo: "/repo", worktreePath: "/repo/wt" },
+      {
+        id: "migrated",
+        repo: "/repo",
+        worktreePath: "/repo/wt",
+        sharesWorkspaceOf: "parent",
+        ptyAlias: { taskId: "parent", tabId: "tab-2" },
+      },
+    ]
+    expect(resolvePtyOwner(tasks, "parent", "tab-2")).toBe("migrated")
+    expect(resolvePtyOwner(tasks, "parent", "tab-1")).toBe("parent")
+    expect(resolvePtyOwner(tasks, "parent", undefined)).toBe("parent")
   })
 })
 

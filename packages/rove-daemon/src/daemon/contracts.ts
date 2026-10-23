@@ -2,6 +2,7 @@
 
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
 import type { TaskRoutineLink } from "./automation-contracts.ts"
+import type { MigratedChildInput, SpawnChildInput, SpawnChildResult, TaskDeleteOptions } from "./child-contracts.ts"
 
 // Re-exported so importers keep naming them through `contracts.ts`.
 export type {
@@ -144,6 +145,13 @@ export interface TaskDispatcher {
   readonly tabId: string
 }
 
+/** A migrated child whose conversation is still the live hosted PTY keyed
+ *  `<taskId>::<tabId>` under its parent (mirrors rove/types/task.ts). */
+export interface TaskPtyAlias {
+  readonly taskId: string
+  readonly tabId: string
+}
+
 /** Pointer back to the external issue a task was started from. Snapshot for
  *  display; `url` is the durable way to the live item. Never synced. */
 export interface TaskLinkedWorkItem {
@@ -187,6 +195,14 @@ export interface DaemonTask {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /** Tree lineage: the task this one was spawned from. Distinct from `dispatcher` (report routing). */
+  readonly parentTaskId?: string
+  /** Set on a child running in another task's directory (that task = the workspace owner). */
+  readonly sharesWorkspaceOf?: string
+  /** Engine cwd relative to `worktreePath` (a child spawned from a git subdirectory). */
+  readonly cwdSubpath?: string
+  /** Present only on a migrated child whose live hosted PTY is still keyed under its parent. */
+  readonly ptyAlias?: TaskPtyAlias
   /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
   readonly requireReport?: boolean
   /** The `add --prompt` brief as delivered, verbatim, never truncated; outlives
@@ -327,8 +343,15 @@ export interface DaemonOrchestrator {
   setQuotaResume(id: string, state: TaskQuotaResumeState | null): Promise<void>
   /** Record the task brief (the delivered `add --prompt` text) on the task. */
   setPrompt(id: string, prompt: string): Promise<void>
-  deleteTask(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<void>
-  prepareTaskDeletion(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<boolean>
+  deleteTask(id: string, options?: TaskDeleteOptions): Promise<void>
+  /** Persist the deletion request(s) after the dirty-worktree gate; `cascade` queues the whole subtree. */
+  prepareTaskDeletion(id: string, options?: TaskDeleteOptions): Promise<boolean>
+  /** Spawn a child task of `input.parentTaskId` (see {@link SpawnChildInput}). */
+  spawnChildTask(input: SpawnChildInput): Promise<SpawnChildResult>
+  /** Add a shared child for a migrated engine tab; never materialises a worktree. */
+  createMigratedChild(input: MigratedChildInput): Promise<DaemonTask>
+  /** Set the PTY alias of a migrated child, or clear it (`null`) once that PTY is gone. */
+  setPtyAlias(id: string, alias: TaskPtyAlias | null): Promise<void>
   beginTaskDeletion(id: string): Promise<boolean>
   finishTaskDeletion(id: string): Promise<void>
   /** Read-only land probe — no writes; see {@link LandPreflightResult}. */

@@ -6,14 +6,17 @@
  */
 
 import type { RoveOrchestrator } from "@/client/remote-orchestrator"
+import type { TaskDeleteReply } from "@/client/remote-orchestrator-writes"
 import { availableEngineIds } from "@/engine/account-detect"
 import { hostedTaskKeys, killHostedSessions, listHostedSessions, openHostedSessionHost } from "@/engine/hosted-session"
 import { engineDisplayName } from "@/engine/interactive-command"
 import { errorMessage } from "@/lib/error-message"
 import { dirtyRefusalReason } from "@/orchestrator/errors"
+import { childrenOf } from "@/orchestrator/task-tree"
 import { t } from "@/tui/i18n"
 import { DEFAULT_TASK_VENDOR, type Task, type TaskStatus, type VendorId } from "@/types/task"
 import { nextVendorWithin } from "@/types/vendor"
+import { type TeardownScope, teardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 
 export interface TaskActionLogger {
   error(message?: unknown, ...optionalParams: unknown[]): void
@@ -27,6 +30,15 @@ export interface ConfirmPrompt {
   readonly confirmLabel: string
   /** Dialog starts focused on Cancel with an error-colored confirm, so a stray Enter can't commit. */
   readonly danger?: boolean
+}
+
+/** The one dialog behind deleting a task with children (it replaces the plain confirm). */
+export interface ChildrenPrompt {
+  readonly title: string
+  readonly body: string
+  readonly promoteLabel: string
+  readonly cascadeLabel: string
+  readonly cancelLabel: string
 }
 
 /** Optional labels for {@link TaskActionContext.promptText} (RenameTaskDialog reuses). */
@@ -83,17 +95,31 @@ export interface TaskActionContext {
   readonly onTaskDeleted?: (taskId: string, nextTask: Task | undefined) => void
   /** `worktree.deleteBranch` opt-in; absent → a deleted task's branch always stays. */
   readonly deleteBranchOnDelete?: () => boolean
+  /**
+   * Replaces the delete confirm when the task has children: `promote` keeps
+   * them (the default, focused), `cascade` deletes the subtree, `undefined`
+   * aborts. Absent → the plain confirm, and the children are promoted.
+   */
+  readonly pickChildren?: (prompt: ChildrenPrompt) => Promise<"promote" | "cascade" | undefined>
 }
 
 export function nextActiveTask(tasks: readonly Task[], excludeId: string): Task | undefined {
   return tasks.find((t) => t.id !== excludeId)
 }
 
-async function stopHostedTask(taskId: string, logger: TaskActionLogger, logPrefix: string): Promise<void> {
+async function stopHostedTask(
+  taskId: string,
+  tasks: readonly Task[],
+  logger: TaskActionLogger,
+  logPrefix: string,
+  daemonScope?: TeardownScope,
+): Promise<void> {
   const host = await openHostedSessionHost()
   if (!host) return
   try {
-    await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId))
+    // A surviving child's conversation may live in this task's PTY key space; the task's own aliased one dies with it.
+    const scope = daemonScope ?? teardownScope(tasks, taskId, new Set([taskId]))
+    await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId, scope))
   } catch (err) {
     logger.error(`${logPrefix} kill hosted session failed:`, err)
   } finally {
@@ -111,6 +137,8 @@ function removedTaskIsActive(orch: RoveOrchestrator, taskId: string): boolean {
   return read.call(orch)() === taskId
 }
 
+const NO_SCOPE_CHANGE: TeardownScope = { spare: [], also: [] }
+
 export async function finishDeletedTaskFlow(opts: {
   readonly orch?: RoveOrchestrator
   readonly tasks: readonly Task[]
@@ -118,12 +146,14 @@ export async function finishDeletedTaskFlow(opts: {
   readonly logger: TaskActionLogger
   readonly logPrefix: string
   readonly updateActiveTask?: boolean
+  /** The daemon's scope for this task; absent → worked out from `tasks` as if only this task left. */
+  readonly scope?: TeardownScope
 }): Promise<{ nextTask?: Task }> {
   const nextTask = nextActiveTask(opts.tasks, opts.taskId)
   if (opts.updateActiveTask && opts.orch && removedTaskIsActive(opts.orch, opts.taskId)) {
     await opts.orch.setActiveTask(nextTask?.id ?? null).catch(() => {})
   }
-  await stopHostedTask(opts.taskId, opts.logger, opts.logPrefix)
+  await stopHostedTask(opts.taskId, opts.tasks, opts.logger, opts.logPrefix, opts.scope)
   return { nextTask }
 }
 
@@ -160,24 +190,45 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
   // `-d` only: the forced retry below never deletes the branch, so an
   // unmerged branch can't vanish behind a dirty-worktree confirm.
   const deleteBranch = task.kind !== "dir" && ctx.deleteBranchOnDelete?.() === true
-  const ok = await ctx.confirm({
-    title: t("tasks.confirm.deleteTitle", { title: task.title }),
-    // A `dir` task pins the user's own directory; only the entry is dropped.
-    body: t(
-      task.kind === "dir"
-        ? "tasks.confirm.deleteBodyDir"
-        : deleteBranch
-          ? "tasks.confirm.deleteBodyTaskBranch"
-          : "tasks.confirm.deleteBodyTask",
-    ),
-    cancelLabel: t("tasks.confirm.cancel"),
-    confirmLabel: t("tasks.confirm.deleteConfirm"),
-    danger: true,
-  })
-  if (!ok) return
+  const children = childrenOf(ctx.tasks(), taskId)
+  let cascade = false
+  if (children.length > 0 && ctx.pickChildren) {
+    // One dialog: the plain confirm would hide that children are involved.
+    const choice = await ctx.pickChildren({
+      title: t("tasks.confirm.childrenTitle", { title: task.title, count: String(children.length) }),
+      body: t("tasks.confirm.childrenBody"),
+      promoteLabel: t("tasks.confirm.childrenPromote"),
+      cascadeLabel: t("tasks.confirm.childrenCascade"),
+      cancelLabel: t("tasks.confirm.cancel"),
+    })
+    if (choice === undefined) return
+    cascade = choice === "cascade"
+  } else {
+    const ok = await ctx.confirm({
+      title: t("tasks.confirm.deleteTitle", { title: task.title }),
+      // A `dir` task pins the user's own directory; only the entry is dropped.
+      body: t(
+        task.kind === "dir"
+          ? "tasks.confirm.deleteBodyDir"
+          : deleteBranch
+            ? "tasks.confirm.deleteBodyTaskBranch"
+            : "tasks.confirm.deleteBodyTask",
+      ),
+      cancelLabel: t("tasks.confirm.cancel"),
+      confirmLabel: t("tasks.confirm.deleteConfirm"),
+      danger: true,
+    })
+    if (!ok) return
+  }
+  // Promote is the daemon's default, so only a cascade needs saying.
+  const cascadeOpt = cascade ? { cascade: true } : {}
+  let reply: TaskDeleteReply | undefined
   let deleted = false
   try {
-    await (deleteBranch ? ctx.orch.deleteTask(taskId, { deleteBranch: true }) : ctx.orch.deleteTask(taskId))
+    // The in-process orchestrator answers with nothing; only the daemon client carries a reply.
+    reply = (await (deleteBranch || cascade
+      ? ctx.orch.deleteTask(taskId, { ...(deleteBranch ? { deleteBranch: true } : {}), ...cascadeOpt })
+      : ctx.orch.deleteTask(taskId))) as TaskDeleteReply | undefined
     deleted = true
   } catch (err) {
     const reason = dirtyRefusalReason(err)
@@ -194,7 +245,7 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
       })
       if (forceOk) {
         try {
-          await ctx.orch.deleteTask(taskId, { force: true })
+          reply = (await ctx.orch.deleteTask(taskId, { force: true, ...cascadeOpt })) as TaskDeleteReply | undefined
           deleted = true
         } catch (forceErr) {
           ctx.logger.error(`${ctx.logPrefix} force delete failed:`, forceErr)
@@ -207,16 +258,27 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
     }
   }
   if (!deleted) return
-  const { nextTask } = await finishDeletedTaskFlow({
-    orch: ctx.orch,
-    tasks: ctx.tasks(),
-    taskId,
-    logger: ctx.logger,
-    logPrefix: ctx.logPrefix,
-    updateActiveTask: ctx.updateActiveTask,
-  })
+  // Tear down what the daemon says it removed: an older one ignores `cascade` and deletes only the
+  // named task, and its children's PTYs must live on.
+  const removed = reply?.deleted ?? [taskId]
+  const gone = new Set(removed)
+  const remaining = ctx.tasks().filter((candidate) => !gone.has(candidate.id))
+  let nextTask: Task | undefined
+  for (const id of removed) {
+    const finished = await finishDeletedTaskFlow({
+      orch: ctx.orch,
+      tasks: remaining,
+      taskId: id,
+      logger: ctx.logger,
+      logPrefix: ctx.logPrefix,
+      updateActiveTask: ctx.updateActiveTask,
+      // A reply that lists the removed set also speaks for tasks it leaves out of `teardown`: nothing differs.
+      scope: reply?.teardown?.[id] ?? (reply?.deleted ? NO_SCOPE_CHANGE : undefined),
+    })
+    if (id === taskId) nextTask = finished.nextTask
+  }
   await ctx.reload?.()
-  ctx.onTaskDeleted?.(taskId, nextTask)
+  for (const id of removed) ctx.onTaskDeleted?.(id, nextTask)
 }
 
 /**

@@ -35,18 +35,19 @@ test("a drop lands right above or below the row it was let go on", () => {
   expect(dropSteps(tasks, a3, a1, "below")).toBe(-1)
 })
 
-test("the preview moves a row with everything nested under it", () => {
-  const row = (id: string, kind: NavRow["kind"]) => ({ id, kind }) as NavRow
+test("the preview moves a row with every child task nested under it", () => {
+  const row = (id: string, kind: NavRow["kind"], depth = 1) => ({ id, kind, depth }) as NavRow
   const rows = [
-    row("A", "project"),
+    row("A", "project", 0),
     row("a1", "task"),
-    row("a1::tab-1", "tab"),
+    row("a1-kid", "task", 2),
+    row("a1-grandkid", "task", 3),
     row("a2", "task"),
-    row("B", "project"),
+    row("B", "project", 0),
     row("b1", "task"),
   ]
   const ids = (out: readonly NavRow[]) => out.map((r) => r.id)
-  expect(ids(previewDrop(rows, "a1", "a2", "below"))).toEqual(["A", "a2", "a1", "a1::tab-1", "B", "b1"])
-  expect(ids(previewDrop(rows, "B", "A", "above"))).toEqual(["B", "b1", "A", "a1", "a1::tab-1", "a2"])
-  expect(ids(previewDrop(rows, "A", "B", "below"))).toEqual(["B", "b1", "A", "a1", "a1::tab-1", "a2"])
+  expect(ids(previewDrop(rows, "a1", "a2", "below"))).toEqual(["A", "a2", "a1", "a1-kid", "a1-grandkid", "B", "b1"])
+  expect(ids(previewDrop(rows, "B", "A", "above"))).toEqual(["B", "b1", "A", "a1", "a1-kid", "a1-grandkid", "a2"])
+  expect(ids(previewDrop(rows, "A", "B", "below"))).toEqual(["B", "b1", "A", "a1", "a1-kid", "a1-grandkid", "a2"])
 })

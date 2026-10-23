@@ -4,7 +4,7 @@
  */
 
 import type { ProjectIntent } from "../state/project-eligibility.ts"
-import type { TaskDispatcher, TaskRoutineLink, VendorId } from "../types/task.ts"
+import type { TaskDispatcher, TaskId, TaskRoutineLink, VendorId } from "../types/task.ts"
 
 /** Input to {@link Orchestrator.createTask}. */
 export interface CreateTaskInput {
@@ -36,6 +36,10 @@ export interface CreateTaskInput {
   readonly groupId?: string
   /** The rove session (task + tab) dispatching this create, when one is. */
   readonly dispatcher?: TaskDispatcher
+  /** Tree lineage: the task this one is spawned from (`Task.parentTaskId`). */
+  readonly parentTaskId?: TaskId
+  /** Engine cwd below the worktree root (`Task.cwdSubpath`). */
+  readonly cwdSubpath?: string
   /** Marks this the standing session task of a routine: the
    *  sidebar folds it behind a count row instead of a loose task row. */
   readonly routine?: TaskRoutineLink

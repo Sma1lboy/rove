@@ -118,6 +118,10 @@ export interface TaskRow {
   readonly machine?: MachineTag
   /** The repo across machines (`host/owner/name`, else `root:<sha>`), from the serving daemon; absent outside a repo. Clients group projects by it, else by `repo`. */
   readonly repoId?: string
+  /** The task this one was spawned from (`rove api spawn`); clients nest a child under it. */
+  readonly parentTaskId?: string
+  /** A child running in that task's directory; absent on a child = it has its own worktree. */
+  readonly sharesWorkspaceOf?: string
   /** No worktree on disk yet (a task created without a first message); selecting it materializes one with `task.ensureWorktree`, as the TUI does. */
   readonly noWorktree?: true
 }
@@ -179,8 +183,6 @@ export interface TabRow {
   readonly kind: string
   readonly title: string | null
   readonly engineName: string | null
-  /** The engine actually running in the tab (the pty's foreground process), or null when unknown: the TUI's two-row caption. */
-  readonly liveEngine?: string | null
   readonly alive: boolean | null
   readonly engineAlive: boolean | null
   /** Present while the tab is split: the pane layout (`rove api get-task` `.tabs[].split`). Absent = one pane. */

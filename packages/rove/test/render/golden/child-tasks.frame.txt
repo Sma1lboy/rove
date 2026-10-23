@@ -1,0 +1,26 @@
+# sidebar frame: child-tasks
+# children nest under their parent with a shared (⑂) or own-worktree (⎇) marker; the indent stops at three levels and deeper rows wear their level
+# 30x22, spinner glyphs masked as ~
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
+|                              |
+| ROVE                         |
+| New task                + n  |
+| Kanban                       |
+| Routines                     |
+| Issues                       |
+|                              |
+| rove ─────────────────────── |
+|▌▎○ alpha                   ▾ |
+|  ▎? check types        22m ⑂ |
+|  ▎~ port tree build… 22m ⎇ ▾ |
+|   ▎○ wire fold glyph     ⎇ ▾ |
+|   ▎○ cover depth cap   4 ⎇ ▾ |
+|   ▎○ fifth generation    5 ⎇ |
+| ▎○ bravo                     |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |

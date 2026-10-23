@@ -17,6 +17,7 @@ import type {
   TaskDispatcher,
   TaskLinkedWorkItem,
   TaskPRStatus,
+  TaskPtyAlias,
   TaskQuotaResumeState,
   TaskStatus,
   TaskWorkerReport,
@@ -29,6 +30,7 @@ export type {
   TaskDispatcher,
   TaskLinkedWorkItem,
   TaskPRStatus,
+  TaskPtyAlias,
   TaskQuotaResumeState,
   TaskStatus,
   TaskWorkerReport,
@@ -159,6 +161,37 @@ export interface Task {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /**
+   * Tree lineage: the task this one was spawned from. Distinct from
+   * {@link dispatcher}, which only routes reports back.
+   */
+  readonly parentTaskId?: TaskId
+  /**
+   * Set on a child running in another task's directory (that task = the
+   * workspace owner, never itself a sharer). A shared child of a `main`/`dir`
+   * parent is `kind: "dir"`; of a managed `task` parent it is `kind: "task"`
+   * carrying the owner's `worktreePath` + `branch`. It never owns the
+   * directory: not promoted to main, not a project of its own, and deleting it
+   * never removes the directory.
+   */
+  readonly sharesWorkspaceOf?: TaskId
+  /**
+   * Engine cwd relative to {@link worktreePath} (a worktree child spawned from
+   * a git subdirectory). `worktreePath` stays the worktree ROOT; join the two
+   * with `taskCwd`.
+   */
+  readonly cwdSubpath?: string
+  /**
+   * Only on a migrated child whose live hosted PTY is still keyed under its
+   * parent (`<taskId>::<tabId>`): that PTY session IS this task's
+   * conversation, so attach/send/activity/hooks all resolve there.
+   */
+  readonly ptyAlias?: TaskPtyAlias
+  /**
+   * A row that shared this directory was deleted with `deleteBranch` while this
+   * one still held the branch; the request waits here for the last row.
+   */
+  readonly deleteBranchPending?: boolean
   /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
   readonly requireReport?: boolean
   /**

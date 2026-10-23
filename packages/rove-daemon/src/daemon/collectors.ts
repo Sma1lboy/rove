@@ -18,6 +18,7 @@ import type { ChannelName } from "./channels.ts"
 import { DEFAULT_CONTEXT_USAGE_TICK_MS, startContextUsageCollector } from "./context-usage-collector.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { resolvePtyOwner } from "./cwd-task.ts"
 import { type DeliveryDeps, sweepStalledDeliveries } from "./delivery-ops.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import {
@@ -26,6 +27,7 @@ import {
   startKeybindingsWatcher,
 } from "./keybindings-watcher.ts"
 import { DEFAULT_PR_STATUS_POLL_MS, startPrStatusPoller } from "./pr-status-collector.ts"
+import type { PtyOwnerResolver } from "./pty-exit-watch.ts"
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
 import { type QuotaUsageCache, startQuotaUsagePoller } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
@@ -56,6 +58,8 @@ export interface DaemonCollectorOptions {
   readonly quotaResumeTickMs?: number
   readonly quotaUsageTickMs?: number
   readonly automationTickMs?: number
+  /** Whose a hosted PTY is (default: the child aliased to it, else the key's task); the server adds released aliases. */
+  readonly ownerOf?: PtyOwnerResolver
 }
 
 /** What the automation sweep needs; omitted in tests that don't exercise it. */
@@ -186,8 +190,12 @@ export function startDaemonCollectors(
   activity?: DaemonActivityRegistry,
   inbox?: Pick<import("./attention-inbox").AttentionInboxStore, "record" | "deleteEpisode">,
 ): () => Promise<void> {
+  // A migrated child owns the PTY keyed under its parent: its observed activity, program status and
+  // death records are the child's, as its hook events already are.
+  const ownerOf: PtyOwnerResolver =
+    options.ownerOf ?? ((taskId, tabId) => resolvePtyOwner(orch.listTasks(), taskId, tabId))
   const receiveStatus = activity
-    ? programStatusActivity(activity, (id) => !!orch.getTask(id), inbox, automations?.deliveryDeps)
+    ? programStatusActivity(activity, (id) => !!orch.getTask(id), inbox, automations?.deliveryDeps, ownerOf)
     : undefined
   const stopStatusWatch = receiveStatus
     ? watchProgramStatus(receiveStatus, { homeDir: options.homeDir })
@@ -197,11 +205,12 @@ export function startDaemonCollectors(
     ? startActivityObserver(
         activity,
         {
-          ...createActivityObserverIo(options.homeDir, runtime, activity),
+          ...createActivityObserverIo(options.homeDir, runtime, activity, ownerOf),
           onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
           onProgramStatusEvent: receiveStatus,
         },
         () => hasSubscribersFor("engine-state"),
+        { ownerOf },
       )
     : () => {}
   const checkUpdate = options.checkUpdate ?? runtime.checkLatestVersion

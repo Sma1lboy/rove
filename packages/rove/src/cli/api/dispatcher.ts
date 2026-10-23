@@ -6,10 +6,12 @@
  * routing.
  */
 
+import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
+import { ptyScopeOf } from "./pty-scope.ts"
 import { ApiError, type ApiRuntime } from "./types.ts"
 
 /** The dispatcher pair as recorded on a task. */
@@ -131,15 +133,33 @@ export function takeIdentityWarning(): string | null {
 }
 
 /**
+ * The caller's verified session as the TASK it speaks for. A migrated child's
+ * conversation is a PTY keyed under its parent, so that PTY's env names the
+ * parent: stamping or replying to the raw pair would address the wrong
+ * conversation. The task list is advisory — unreadable, the raw pair stands.
+ */
+export async function ownSession(
+  daemon: DaemonRpc,
+  env: NodeJS.ProcessEnv = process.env,
+  probe?: SelfSessionProbe,
+): Promise<Dispatcher | null> {
+  const self = await verifiedSelfSession(env, probe)
+  if (!self) return null
+  const listed = await daemon.request<{ tasks: SerializedTask[] }>("task.list", {}).catch(() => ({ tasks: [] }))
+  return { ...self, taskId: resolvePtyOwner(listed.tasks, self.taskId, self.tabId) }
+}
+
+/**
  * `task.create` payload fields naming the caller as the dispatcher — empty
  * from a plain shell, and equally empty when the env fails
  * {@link verifiedSelfSession}.
  */
 export async function dispatcherEnvPayload(
+  daemon: DaemonRpc,
   env: NodeJS.ProcessEnv = process.env,
   probe?: SelfSessionProbe,
 ): Promise<Record<string, string>> {
-  const self = await verifiedSelfSession(env, probe)
+  const self = await ownSession(daemon, env, probe)
   if (!self) return {}
   return { dispatcherTaskId: self.taskId, dispatcherTabId: self.tabId }
 }
@@ -151,7 +171,7 @@ export async function dispatcherEnvPayload(
  * predates the field / was created outside a rove session.
  */
 export async function readOwnDispatcher(daemon: DaemonRpc): Promise<Dispatcher | null> {
-  const self = await verifiedSelfSession()
+  const self = await ownSession(daemon)
   if (!self) return null
   try {
     const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId: self.taskId })
@@ -167,8 +187,21 @@ export async function readOwnDispatcher(daemon: DaemonRpc): Promise<Dispatcher |
  * spawn — with nothing alive it throws a typed error. `undefined` means "the
  * canonical tab" in the delivery layer's spelling.
  */
-export async function resolveDispatcherTab(runtime: ApiRuntime, dispatcher: Dispatcher): Promise<string | undefined> {
-  const { tabs, running } = await runtime.taskTabs(dispatcher.taskId)
+export async function resolveDispatcherTab(
+  runtime: ApiRuntime,
+  daemon: DaemonRpc,
+  dispatcher: Dispatcher,
+): Promise<string | undefined> {
+  // A migrated child's tabs are read from the PTY its alias names, not from keys under its own id.
+  const task = await daemon
+    .request<{ task: SerializedTask }>("task.get", { taskId: dispatcher.taskId })
+    .then((res) => res.task)
+    .catch(() => null)
+  const { tabs, running } = await runtime.taskTabs(
+    dispatcher.taskId,
+    undefined,
+    task ? await ptyScopeOf(daemon, task) : undefined,
+  )
   // Only when ALIVE: the tab join also lists live sessions the snapshot never
   // registered, and a tab merely gone from the snapshot gets the canonical
   // fallback instead of a TAB_NOT_FOUND at delivery.
@@ -200,9 +233,9 @@ export async function resolveDispatcherTab(runtime: ApiRuntime, dispatcher: Disp
  * from a plain shell, an unverified process, or to yourself stays untouched.
  */
 export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string, prompt: string): Promise<string> {
-  const self = await verifiedSelfSession()
+  const self = await ownSession(daemon)
   const senderId = self?.taskId
-  if (!senderId || senderId === targetTaskId) return prompt
+  if (!self || !senderId || senderId === targetTaskId) return prompt
   let label = senderId
   try {
     const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId: senderId })

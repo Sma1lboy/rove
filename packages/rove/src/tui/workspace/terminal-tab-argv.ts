@@ -86,7 +86,7 @@ export function engineTabSpawnFor(
         ? ({ kind: "repo-init" } as const)
         : ({ kind: "none" } as const)
   // A viewport tab (EngineTab.ptyTask) launches AS the referenced task's
-  // first tab, so activity, hooks and resume belong to that task.
+  // engine tab, so activity, hooks and resume belong to that task.
   const ref = tab.ptyTask
   // A hosted session can't answer a trust dialog; pre-trust. Tab vendor wins.
   trustEngineWorktree(tab.vendor ?? opts.task.vendor, ref?.worktree ?? opts.worktreePath)
@@ -103,7 +103,7 @@ export function engineTabSpawnFor(
     // and the hosted backend pastes it post-spawn (`pastePromptWhenEngineUp`).
     // tabId is exported into the launch env so `rove hook` attributes
     // activity to THIS tab; cwd can't (tabs share the worktree).
-    tabId: ref ? "tab-1" : tab.id,
+    tabId: ref ? (ref.tabId ?? "tab-1") : tab.id,
   })
   return {
     command: launch.command,

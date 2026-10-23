@@ -98,9 +98,27 @@ function deleteRemoteBranch(repo: string, branch: string): NonNullable<BranchDel
 export function reportBranchDeletion(
   repo: string,
   branch: string,
-  opts: { readonly deleteBranch: boolean; readonly force: boolean; readonly deleteRemote: boolean },
+  opts: {
+    readonly deleteBranch: boolean
+    readonly force: boolean
+    readonly deleteRemote: boolean
+    /** Title of a surviving task that still holds the branch or its directory: nothing is deleted, local or remote. */
+    readonly heldBy?: string
+  },
 ): BranchDeletionReport | undefined {
   if (!branch || (!opts.deleteBranch && !opts.deleteRemote)) return undefined
+
+  if (opts.heldBy !== undefined) {
+    const keptReason = `task "${opts.heldBy}" still uses this branch`
+    return {
+      branch,
+      deleted: false,
+      keptReason,
+      ...(opts.deleteRemote
+        ? { remote: { name: remoteFor(repo, branch), deleted: false, error: `skipped: ${keptReason}` } }
+        : {}),
+    }
+  }
 
   let deleted = true
   let keptReason: string | undefined

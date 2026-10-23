@@ -9,6 +9,7 @@ import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient } from "@sma1lboy/rove-daemon/client/client-log"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
+import type { TaskDeleteOptions } from "@sma1lboy/rove-daemon/daemon/child-contracts"
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import {
   type CellPixelSize,
@@ -25,11 +26,12 @@ import {
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import { type ExternalStore, type ReadableState, createStateCell, mapReadableState } from "../lib/external-store.ts"
 import type { Orchestrator, Unsubscribe } from "../orchestrator/core.ts"
+import type { SpawnChildInput, SpawnChildResult } from "../orchestrator/spawn-child.ts"
 import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
 import { CURRENT_VERSION, type UpdateInfo } from "../version.ts"
-import { performInit, runReconnectLoop } from "./remote-orchestrator-connect.ts"
+import { performInit, singleFlightReconnect } from "./remote-orchestrator-connect.ts"
 import { handleOrchestratorEvent, writeGraphicsToStdout } from "./remote-orchestrator-events.ts"
 import {
   type ActiveGate,
@@ -123,9 +125,8 @@ export class RemoteOrchestrator {
   /** Machine connection: the far daemon's own home is expected to differ. */
   private readonly expectForeignHome: boolean
   private readonly onPeerIdentity: RemoteOrchestratorOptions["onPeerIdentity"]
-  /** One shared retry task: repeated close events and an explicit reconnect
-   *  join the same loop instead of racing two hello/subscribe handshakes. */
-  private reconnectTask: Promise<void> | null = null
+  /** Start or join the reconnect loop; subscribe replay rehydrates every signal. */
+  private readonly reconnectLoop: (spawnDaemon: boolean) => Promise<void>
   private readonly signals: OrchestratorSignals
 
   constructor(
@@ -139,6 +140,13 @@ export class RemoteOrchestrator {
     this.subscribesTasks = !options.channels || options.channels.includes("task.snapshot")
     this.expectForeignHome = options.expectForeignHome === true
     this.onPeerIdentity = options.onPeerIdentity
+    this.reconnectLoop = singleFlightReconnect({
+      isDisposed: () => client.isDisposed,
+      ensureReachable: this.ensureReachable,
+      init: () => this.init(),
+      shouldLogAttempt: shouldLogReconnectAttempt,
+      onFatal: (err) => this.staleInstallAcc.set(err instanceof Error ? err.message : String(err)),
+    })
     this.tabs = new TabsChannel(client)
     this.rowStatus = new RowStatusChannel(client)
     this.signals = {
@@ -204,25 +212,6 @@ export class RemoteOrchestrator {
       )
       void this.reconnectLoop(spawnDaemon)
     })
-  }
-
-  /** Start or join the reconnect loop; subscribe replay rehydrates every signal. */
-  private reconnectLoop(spawnDaemon: boolean): Promise<void> {
-    if (this.reconnectTask) return this.reconnectTask
-    const task = runReconnectLoop({
-      isDisposed: () => this.client.isDisposed,
-      spawnDaemon,
-      ensureReachable: this.ensureReachable,
-      init: () => this.init(),
-      shouldLogAttempt: shouldLogReconnectAttempt,
-      onFatal: (err) => this.staleInstallAcc.set(err instanceof Error ? err.message : String(err)),
-    })
-    this.reconnectTask = task
-    const clear = (): void => {
-      if (this.reconnectTask === task) this.reconnectTask = null
-    }
-    task.then(clear, clear)
-    return task
   }
 
   /** Write graphics bytes to this GUI's terminal through the same sink `graphics.write` events use. */
@@ -421,8 +410,9 @@ export class RemoteOrchestrator {
   moveTaskToTop = (id: TaskId | string): Promise<void> => writes.moveTaskToTopOp(this.client, id)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => writes.setStatusOp(this.client, id, status)
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => writes.setPromptOp(this.client, id, prompt)
-  deleteTask = (id: TaskId | string, opts?: { force?: boolean; deleteBranch?: boolean }): Promise<void> =>
+  deleteTask = (id: TaskId | string, opts?: TaskDeleteOptions): Promise<writes.TaskDeleteReply> =>
     writes.deleteTaskOp(this.client, id, opts)
+  spawnChildTask = (input: SpawnChildInput): Promise<SpawnChildResult> => writes.spawnChildTaskOp(this.client, input)
   dismissAttention = (
     taskId: TaskId | string,
     tabId: string | null,

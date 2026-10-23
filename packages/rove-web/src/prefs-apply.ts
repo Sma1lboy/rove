@@ -13,7 +13,7 @@ import { loadPrefs, prefsStore, setPref, usePrefs } from "./prefs.ts"
 import { useMode, useTaskColorFeed } from "./task-colors.ts"
 import { zen } from "./ui.ts"
 
-const ATTRS = ["workingBorder", "runningTitle", "taskColors", "tabRowHeight", "glyphSet", "colorblind"] as const
+const ATTRS = ["workingBorder", "runningTitle", "taskColors", "glyphSet", "colorblind"] as const
 
 export function usePrefsApply(model: AppModel): void {
   const { client } = model

@@ -289,3 +289,88 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
     })
   })
 })
+
+describe("daemon handler registry — child tasks", () => {
+  it("task.spawn shares the directory only when asked, and rebuilds the dispatcher from its two ids", async () => {
+    const calls: unknown[] = []
+    const { ctx } = fakeCtx({
+      spawnChildTask: async (input: unknown) => {
+        calls.push(input)
+        return { task: TASK, parentDirty: true, sharedLinks: ["linked"] }
+      },
+    })
+
+    const result = await dispatch(
+      "task.spawn",
+      { parentTaskId: "p1", worktree: false, dispatcherTaskId: "d1", dispatcherTabId: "tab-2" },
+      ctx,
+    )
+
+    expect(result).toEqual({ taskId: "t1", task: SERIALIZED_TASK, parentDirty: true, sharedLinks: ["linked"] })
+    expect(calls).toEqual([
+      expect.objectContaining({ parentTaskId: "p1", worktree: false, dispatcher: { taskId: "d1", tabId: "tab-2" } }),
+    ])
+  })
+
+  it("task.spawn gives the child its own worktree by default", async () => {
+    const calls: Array<{ worktree: boolean }> = []
+    const { ctx } = fakeCtx({
+      spawnChildTask: async (input: { worktree: boolean }) => {
+        calls.push(input)
+        return { task: TASK, parentDirty: false, sharedLinks: [] }
+      },
+    })
+
+    await dispatch("task.spawn", { parentTaskId: "p1" }, ctx)
+
+    expect(calls.map((c) => c.worktree)).toEqual([true])
+  })
+
+  it("task.delete with cascade releases and enqueues every descendant, deepest first", async () => {
+    const tree = [
+      { ...TASK, id: "top" },
+      { ...TASK, id: "mid", parentTaskId: "top" },
+      { ...TASK, id: "leaf", parentTaskId: "mid" },
+      { ...TASK, id: "other" },
+    ]
+    const prepared: unknown[] = []
+    const { ctx, rec } = fakeCtx({
+      listTasks: () => tree,
+      getTask: (id: string) => tree.find((t) => t.id === id),
+      prepareTaskDeletion: async (id: string, opts: unknown) => {
+        prepared.push([id, opts])
+        return true
+      },
+    })
+
+    const result = await dispatch("task.delete", { taskId: "top", cascade: true }, ctx)
+
+    expect(result).toEqual({ taskId: "top", queued: true, deleted: ["leaf", "mid", "top"] })
+    expect(prepared).toEqual([["top", { cascade: true }]])
+    expect(rec.deletions).toEqual(["leaf", "mid", "top"])
+    expect(rec.inboxTaskDeleted).toEqual(["leaf", "mid", "top"])
+  })
+
+  it("task.delete tells the caller which PTYs to spare for a surviving aliased child, and which to add", async () => {
+    const tree = [
+      { ...TASK, id: "p" },
+      { ...TASK, id: "keeps", parentTaskId: "p", ptyAlias: { taskId: "p", tabId: "tab-2" } },
+      { ...TASK, id: "goes", parentTaskId: "p", ptyAlias: { taskId: "p", tabId: "tab-3" } },
+    ]
+    const { ctx } = fakeCtx({
+      listTasks: () => tree,
+      getTask: (id: string) => tree.find((t) => t.id === id),
+      prepareTaskDeletion: async () => true,
+    })
+
+    const parent = await dispatch("task.delete", { taskId: "p" }, ctx)
+    expect(parent).toEqual({
+      taskId: "p",
+      queued: true,
+      teardown: { p: { spare: ["p::tab-2", "p::tab-3"], also: [] } },
+    })
+
+    const child = await dispatch("task.delete", { taskId: "goes" }, ctx)
+    expect(child).toEqual({ taskId: "goes", queued: true, teardown: { goes: { spare: [], also: ["p::tab-3"] } } })
+  })
+})

@@ -9,15 +9,18 @@
 import { userFacingErrorMessage } from "@/lib/error-message"
 import { useState } from "react"
 import { engineDisplayName } from "../../engine/interactive-command"
+import type { SpawnChildInput } from "../../orchestrator/spawn-child"
 import { addSavedRepo } from "../../state/repos"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "../../state/vendor-prefs"
 import { t } from "../../tui/i18n"
 import { appendAttachmentRefs } from "../../tui/lib/attachments"
 import { DEFAULT_BASE_REF, getCurrentBranch } from "../../tui/lib/git-snapshot"
 import { repoBasename } from "../../tui/panes/sidebar/groups"
+import type { TabsState } from "../../tui/workspace/terminal-tabs-core"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task"
 import type { QuickTaskComposerOptions, QuickTaskResult } from "../component/quick-task-composer"
 import { type RoundOrchestrator, runQuickForkRound } from "./quick-fork-round"
+import { setTaskTabs } from "./terminal-tabs-shared"
 
 /**
  * `branchFrom` is the SOURCE TASK'S WORKTREE, not the main checkout: the child
@@ -50,6 +53,7 @@ export interface QuickForkOrchestrator extends RoundOrchestrator {
   createTask(input: { repo: string; baseRef: string; vendor: VendorId }): Promise<Task>
   /** Record the brief on the created task — "Run again" only (see {@link runAgainTask}). */
   setPrompt(id: string, prompt: string): Promise<void>
+  spawnChildTask(input: SpawnChildInput): Promise<{ readonly task: Task }>
 }
 
 /** Create, plus `createTaskFlow`'s side effects: vendor becomes the repo default, repo auto-saved. */
@@ -115,14 +119,54 @@ export async function runAgainTask(
   return taskId
 }
 
+/** Spawn a shared child, then select + enter it (quick-fork's order). Errors go to `notifyError`, never thrown. */
+export async function runSpawnChild(
+  orch: Pick<QuickForkOrchestrator, "spawnChildTask">,
+  request: ChildSpawnRequest,
+  hooks: {
+    selectTask: (id: string) => void
+    enterTask: (id: string) => Promise<void>
+    notifyError: (message: string) => void
+  },
+): Promise<string | undefined> {
+  try {
+    const { task } = await orch.spawnChildTask({
+      parentTaskId: request.parentTaskId,
+      worktree: false,
+      vendor: request.vendor,
+    })
+    // Before the child is shown: its first mount reads these.
+    if (request.tabs) setTaskTabs(task.id, request.tabs)
+    hooks.selectTask(task.id)
+    await hooks.enterTask(task.id)
+    return task.id
+  } catch (err) {
+    console.error("[rove workspace] spawn child task failed:", err)
+    hooks.notifyError(t("tasks.toast.childFailed", { error: userFacingErrorMessage(err) }))
+    return undefined
+  }
+}
+
 interface PendingInitialPrompt {
   readonly taskId: string
   readonly prompt: string
 }
 
+/** A second conversation next to `parentTaskId`'s own: a child sharing its directory. */
+export interface ChildSpawnRequest {
+  readonly parentTaskId: string
+  readonly vendor: VendorId
+  /** The child's first prompt, held in the same slot as a quick-fork's. */
+  readonly prompt?: string
+  /** The child's first tab, written before it is shown (a native fork of the parent's session). */
+  readonly tabs?: TabsState
+}
+
 export interface UseQuickForkResult {
   /** Pass to `ShowWorkspace`'s `onQuickFork` prop. */
   readonly onQuickFork: (repo: string, result: QuickTaskResult) => void
+  /** ctrl+t, the picker's tab destination and the sidebar's "New conversation". */
+  readonly onSpawnChild: (request: ChildSpawnRequest) => void
   /** Pass to `initialPrompt`; undefined except for the task just forked. */
   readonly initialPromptFor: (taskId: string | undefined) => string | undefined
   /** Row menu "Run again", via the same pending slot. */
@@ -180,8 +224,20 @@ export function useQuickFork(
     return taskId && pending?.taskId === taskId ? pending.prompt : undefined
   }
 
+  /** Sharing the parent's directory needs no repo or branch choice, so the picker's pick is the whole input. */
+  async function onSpawnChild(request: ChildSpawnRequest): Promise<void> {
+    await runSpawnChild(orch, request, {
+      ...hooks,
+      selectTask: (taskId) => {
+        if (request.prompt !== undefined) setPending({ taskId, prompt: request.prompt })
+        hooks.selectTask(taskId)
+      },
+    })
+  }
+
   return {
     onQuickFork: (repo, result) => void onQuickFork(repo, result),
+    onSpawnChild: (request) => void onSpawnChild(request),
     initialPromptFor,
     runAgain: (task) => void onRunAgain(task),
   }

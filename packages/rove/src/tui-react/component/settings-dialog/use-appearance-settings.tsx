@@ -19,7 +19,6 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
     focusAccent: theme.focusAccent,
     splitStyle: prefs.splitStyle(),
     railFoldStyle: prefs.railFoldStyle(),
-    tabRowHeight: prefs.tabRowHeight(),
     workingBorder: prefs.workingBorder(),
     taskColors: prefs.taskColors(),
     glyphSet: prefs.glyphSet(),
@@ -48,9 +47,6 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
         break
       case "railFold":
         prefs.selectRailFoldStyle(choice.value)
-        break
-      case "tabRowHeight":
-        prefs.selectTabRowHeight(choice.value)
         break
       case "workingBorder":
         prefs.selectWorkingBorder(choice.value)

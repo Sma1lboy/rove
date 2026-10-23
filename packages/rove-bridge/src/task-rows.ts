@@ -204,6 +204,8 @@ export function taskRows(
         updatedAt: task.updatedAt,
         ...machineOf(task),
         ...(task.repoId ? { repoId: task.repoId } : {}),
+        ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),
+        ...(task.sharesWorkspaceOf ? { sharesWorkspaceOf: task.sharesWorkspaceOf } : {}),
         ...(changes ? { changes } : {}),
         ...(tokens.length > 0 ? { rowTokens: tokens } : {}),
         prChip: chip,

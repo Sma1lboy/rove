@@ -81,6 +81,8 @@ export type DaemonRequestName =
   | "task.list"
   | "task.get"
   | "task.create"
+  // A child of an existing task: shares its directory, or gets its own worktree.
+  | "task.spawn"
   | "task.rename"
   | "task.setBranch"
   | "task.observeLanguage"
@@ -302,6 +304,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "pr.rerunFailedChecks",
   // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
   "task.ensureWorktree",
+  // Cuts a worktree for the child; same minute-scale cost as ensureWorktree.
+  "task.spawn",
   "task.ensureMain",
   "worktree.discoverAdoptable",
   "worktree.adopt",
@@ -393,6 +397,14 @@ export interface SerializedTask {
   readonly linkedWorkItem?: DaemonTask["linkedWorkItem"]
   /** The rove session (task + tab) that dispatched this task's creation. */
   readonly dispatcher?: DaemonTask["dispatcher"]
+  /** Tree lineage: the task this one was spawned from. */
+  readonly parentTaskId?: DaemonTask["parentTaskId"]
+  /** The workspace-owner task whose directory this one runs in. */
+  readonly sharesWorkspaceOf?: DaemonTask["sharesWorkspaceOf"]
+  /** Engine cwd relative to `worktreePath`. */
+  readonly cwdSubpath?: DaemonTask["cwdSubpath"]
+  /** Parent-keyed live PTY that IS this task's conversation (migrated children). */
+  readonly ptyAlias?: DaemonTask["ptyAlias"]
   /** Every prompt sent to this task must end in `rove api report`. */
   readonly requireReport?: DaemonTask["requireReport"]
   /** The task brief: the full delivered `add --prompt` text (never truncated). */
@@ -450,6 +462,10 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     quotaResume: task.quotaResume,
     linkedWorkItem: task.linkedWorkItem,
     dispatcher: task.dispatcher,
+    ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),
+    ...(task.sharesWorkspaceOf ? { sharesWorkspaceOf: task.sharesWorkspaceOf } : {}),
+    ...(task.cwdSubpath ? { cwdSubpath: task.cwdSubpath } : {}),
+    ...(task.ptyAlias ? { ptyAlias: task.ptyAlias } : {}),
     requireReport: task.requireReport,
     prompt: task.prompt,
     baseRef: task.baseRef,

@@ -41,7 +41,6 @@ async function render(
     <SidebarTree
       tasks={tasks}
       selectedId={tasks[0]?.id ?? null}
-      selectedTabId={null}
       onSelect={() => {}}
       focused={true}
       width={34}

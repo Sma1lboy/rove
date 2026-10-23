@@ -47,6 +47,7 @@ const props = () =>
     onEngineSendReady: () => {},
     onEnginePasteReady: () => {},
     onDiffTabReady: () => {},
+    onSpawnChild: () => {},
     onQuickFork: () => {},
   }) as const
 

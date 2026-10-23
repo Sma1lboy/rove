@@ -75,7 +75,7 @@ test("every materializing sibling shows a spinner, with no tab row anywhere", as
   tabsByTask.clear()
   jobs(["s1", "s2", "s3"])
   const { frame } = await renderComponent(
-    <SidebarTree tasks={SIBLINGS} selectedId="s1" selectedTabId={null} onSelect={() => {}} focused={true} width={30} />,
+    <SidebarTree tasks={SIBLINGS} selectedId="s1" onSelect={() => {}} focused={true} width={30} />,
     { width: 30, height: 20 },
   )
   await new Promise((r) => setTimeout(r, SETTLE))
@@ -95,7 +95,7 @@ test("only the tasks WITH a job spin — a sibling that finished stops", async (
   tabsByTask.clear()
   jobs(["s2"])
   const { frame } = await renderComponent(
-    <SidebarTree tasks={SIBLINGS} selectedId="s1" selectedTabId={null} onSelect={() => {}} focused={true} width={30} />,
+    <SidebarTree tasks={SIBLINGS} selectedId="s1" onSelect={() => {}} focused={true} width={30} />,
     { width: 30, height: 20 },
   )
   await new Promise((r) => setTimeout(r, SETTLE))
@@ -111,7 +111,6 @@ test("the client's own engine activity lights nothing: only the daemon's row sta
     <SidebarTree
       tasks={SIBLINGS}
       selectedId="s1"
-      selectedTabId={null}
       onSelect={() => {}}
       focused={true}
       width={30}
@@ -130,7 +129,6 @@ test("a materializing row shows how far its checkout got, beside the spinner", a
     <SidebarTree
       tasks={SIBLINGS}
       selectedId="s1"
-      selectedTabId={null}
       onSelect={() => {}}
       focused={true}
       width={30}

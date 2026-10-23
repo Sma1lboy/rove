@@ -127,7 +127,7 @@ function observeWalk(steps: readonly (string | null)[]): Promise<WalkFires> {
 describe("observer engine-death edge", () => {
   it("fires once on vendor → no-engine, and not again while it stays gone", async () => {
     const { exits } = await observeWalk(["kimi", "kimi", null, null, null])
-    expect(exits).toEqual([{ taskId: "t1", tabId: "tab-1", vendor: "kimi", pid: 9001 }])
+    expect(exits).toEqual([{ taskId: "t1", tabId: "tab-1", key: "t1::tab-1", vendor: "kimi", pid: 9001 }])
   })
 
   it("fires again when an engine is restarted and dies a second time", async () => {
@@ -146,7 +146,7 @@ describe("observer engine-death edge", () => {
 describe("observer boot reconciliation", () => {
   it("reports a live, engine-free session on the first walk", async () => {
     const { absent, exits } = await observeWalk([null, null, null])
-    expect(absent).toEqual([{ taskId: "t1", tabId: "tab-1" }])
+    expect(absent).toEqual([{ taskId: "t1", tabId: "tab-1", key: "t1::tab-1" }])
     // It is NOT an observed death — nothing was watched dying.
     expect(exits).toEqual([])
   })

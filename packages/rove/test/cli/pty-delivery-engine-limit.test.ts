@@ -113,17 +113,4 @@ describe("deliverHostedPrompt engine.maxLiveSessions", () => {
     })
     expect(calls).toContain("pty.openChecked")
   })
-
-  it("preserves new-tab isolation in a refused retry", async () => {
-    const { rpc } = fleetRpc()
-    await expect(
-      deliverHostedPrompt(rpc, { id: "t1" }, "/wt/t1", "go", launch, {
-        snapshot: psWith("claude"),
-        maxLiveEngines: 1,
-        forceNew: true,
-      }),
-    ).rejects.toMatchObject({
-      data: { nextCommandArgs: ["api", "send", "--task-id", "t1", "--tab", "new", "--plain", "--prompt", "go"] },
-    })
-  })
 })

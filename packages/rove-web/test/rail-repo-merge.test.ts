@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { TabRow, TaskRow } from "rove-bridge/protocol"
+import type { TaskRow } from "rove-bridge/protocol"
 import { railRows } from "../src/rail.ts"
 
 const task = (id: string, repo: string, extra: Partial<TaskRow> = {}): TaskRow =>
@@ -13,9 +13,6 @@ const onMac = on("mac")
 
 const base = {
   sort: "default" as const,
-  tabsOf: (id: string): readonly TabRow[] =>
-    (id === "mine" ? [{ id: "tab-1", kind: "engine", title: null }] : []) as never,
-  tabLabel: () => "tab",
   query: "",
   routines: new Set<string>(),
 }
@@ -38,7 +35,6 @@ describe("one project per repo across machines", () => {
       ["project:github.com/me/rove", "project", undefined],
       ["main", "task", undefined],
       ["mine", "task", undefined],
-      ["mine::tab-1", "tab", undefined],
       ["far", "task", "narwhal"],
     ])
     // Project actions use this machine's checkout; the header names no machine (the remote row's cloud does).

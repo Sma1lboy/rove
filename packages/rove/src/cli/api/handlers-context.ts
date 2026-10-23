@@ -74,7 +74,7 @@ export async function loadContext(
     tryRead(() => daemon.request<{ items: AttentionInboxItem[] }>("attention.list")),
     tryRead(() => daemon.request<{ gates: Gate[] }>("gate.list")),
     filter ? tryRead(() => daemon.request<{ notes: ContextNote[] }>("note.list", { repo: filter.target })) : null,
-    tryRead(() => runtime.liveTaskIds()),
+    tryRead(() => runtime.liveTaskIds(allTasks)),
   ])
 
   const payload = buildContext({

@@ -5,7 +5,6 @@ import {
   rowLiveBranchPath,
   worktreeRowLabel,
 } from "../../src/tui/panes/sidebar/tree-core"
-import type { TreeTab } from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 
@@ -30,8 +29,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
     ...over,
   }
 }
-
-const tab = (id: string, label = id): TreeTab => ({ id, label })
 
 function rows(over: Partial<Parameters<typeof buildTreeRows>[0]> = {}) {
   return buildTreeRows({
@@ -79,21 +76,22 @@ describe("colliding project basenames (a 5-repo rail)", () => {
 })
 
 describe("filterTreeRows", () => {
-  // One fixture for the whole block: two projects, a tab under each of the
-  // rove worktrees, so every ancestor/descendant direction has something to
-  // prove.
+  // One fixture for the whole block: two projects, a child task under one of
+  // the rove worktrees, so every ancestor/descendant direction has something
+  // to prove.
   const tree = () =>
     rows({
       tasks: [
         task("m", { kind: "main", repo: "/repos/rove", branch: "main", worktreePath: "/repos/rove" }),
         task("wt", { repo: "/repos/rove", branch: "feat/tree", title: "worktree tree" }),
+        task("kid", {
+          repo: "/repos/rove",
+          branch: "feat/kid",
+          title: "port the codex adapter",
+          parentTaskId: toTaskId("wt"),
+        }),
         task("fx", { repo: "/repos/foxychat", branch: "feat/chat", title: "chat rewrite" }),
       ],
-      tabsByTask: new Map([
-        ["m", [tab("tab-1", "shell")]],
-        ["wt", [tab("tab-2", "running codex on the landing page")]],
-        ["fx", [tab("tab-3", "vitest watch")]],
-      ]),
     })
 
   const ids = (query: string) => filterTreeRows(tree(), query).map((r) => r.id)
@@ -102,19 +100,17 @@ describe("filterTreeRows", () => {
     expect(filterTreeRows(tree(), "   ")).toEqual(tree())
   })
 
-  test("a tab hit keeps its worktree and project", () => {
-    // The tree's whole increment over the flat sidebar: the query matches
-    // nothing but a live tab TITLE, and the ancestors come along so the hit
-    // is placed rather than floating.
-    expect(ids("codex")).toEqual(["/repos/rove", "wt", "wt::tab-2"])
+  test("a child hit keeps its parent and project", () => {
+    // The ancestors come along so the hit is placed rather than floating.
+    expect(ids("codex")).toEqual(["/repos/rove", "wt", "kid"])
   })
 
-  test("a worktree hit keeps its tabs", () => {
-    expect(ids("feat/tree")).toEqual(["/repos/rove", "wt", "wt::tab-2"])
+  test("a parent hit keeps its children", () => {
+    expect(ids("feat/tree")).toEqual(["/repos/rove", "wt", "kid"])
   })
 
   test("a project hit keeps the whole subtree", () => {
-    expect(ids("foxychat")).toEqual(["/repos/foxychat", "fx", "fx::tab-3"])
+    expect(ids("foxychat")).toEqual(["/repos/foxychat", "fx"])
   })
 
   test("no matches yields no rows — not a bare project header", () => {
@@ -159,6 +155,14 @@ describe("search finds exactly what the row displays (main + dir rows)", () => {
     // Precondition: that branch name really IS the row's rendered label.
     expect(worktreeRowLabel(MAIN, { liveBranch: "release/2026-09" })).toBe("release/2026-09")
     expect(filterTreeRows(built(), "release/2026-09", liveBranch).map((r) => r.id)).toEqual(["/Users/me/work/api", "m"])
+  })
+
+  test("a titled row is findable by its conversation title and still by its branch", () => {
+    const named = task("n", { branch: "feat/named-row", title: "Fix the login bug" })
+    const all = rows({ tasks: [named], tabsByTask: new Map(), conversationTitles: new Map([["n", "Wire up OAuth"]]) })
+    expect(filterTreeRows(all, "oauth").map((r) => r.id)).toContain("n")
+    expect(filterTreeRows(all, "named-row").map((r) => r.id)).toContain("n")
+    expect(filterTreeRows(all, "login").map((r) => r.id)).toContain("n")
   })
 
   test("a dir row is findable by the path it displays", () => {

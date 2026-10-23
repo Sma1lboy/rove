@@ -24,7 +24,7 @@ export type TreeRowShared = {
   readonly width?: number
   /** Cursor position in the tree's flat id list. */
   readonly cursorIndex: number
-  /** The row id the right pane is showing (`taskId::tabId` when a tab). */
+  /** The row id the right pane is showing: its task's. */
   readonly activeRowId: string | null
   /** The unread-lamp digest keys on THIS, not `activeRowId`: that id needs
    *  the live tab map, which is cold right after a restart. */
@@ -37,6 +37,8 @@ export type TreeRowShared = {
   readonly onPress: (flatIndex: number, rowId: string) => void
   /** Right-click. Absent = right-click falls through to a plain activate. */
   readonly onContextMenu?: (flatIndex: number, rowId: string, x: number, y: number) => void
+  /** Fold or unfold a task's children (a click on its fold glyph). */
+  readonly onToggleFold?: (taskId: string) => void
   /** Bumps when a git poll lands a changed value; rows re-render to read it. */
   readonly branchTick: number
   /** Task rollup activity; only the closed routines fold reads it, for rows it hides. */

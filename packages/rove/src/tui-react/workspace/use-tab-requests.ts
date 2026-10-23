@@ -43,12 +43,12 @@ export interface TabRequestIO {
   readonly tabCloseRef: { readonly current: { closeById: (id: string) => void } }
   /** Active leaf geometry for the split-size gate; null when no PTY yet. */
   readonly activeLeafSizeRef: { readonly current: () => { cols: number; rows: number } | null }
-  /** The ctrl+e picker opener (`useTabDialogs`): what the tree's "New conversation" presses. */
-  readonly requestNewChatRef: { readonly current: () => void }
+  /** ctrl+t's opener (`TerminalTabs`): what the tree's "New conversation" presses. */
+  readonly openNewConversationRef: { readonly current: () => void }
 }
 
 export function useTabRequests(io: TabRequestIO): void {
-  const { stateRef, propsRef, updateRef, tabCloseRef, activeLeafSizeRef, requestNewChatRef } = io
+  const { stateRef, propsRef, updateRef, tabCloseRef, activeLeafSizeRef, openNewConversationRef } = io
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once by design — every read goes through a latest-render ref.
   useEffect(() => {
     const consume = (): void => {
@@ -80,11 +80,11 @@ export function useTabRequests(io: TabRequestIO): void {
         }
         for (const id of closedTabIds) tabCloseRef.current.closeById(id)
       }
-      // "New conversation" = the ctrl+e picker; "New shell" = its shell pick
+      // "New conversation" = ctrl+t's new conversation; "New shell" = its shell pick
       // directly. The sidebar activated this task first, so a cold task's
       // request is claimed by its first mount.
       const newTab = takeNewTab(taskId)
-      if (newTab === "chat") requestNewChatRef.current()
+      if (newTab === "chat") openNewConversationRef.current()
       else if (newTab === "shell") updateRef.current(openCommandTab(stateRef.current, [defaultShell()], null))
       // A live session this state doesn't list becomes a real tab.
       const adopt = takeTabAdopt(taskId)
