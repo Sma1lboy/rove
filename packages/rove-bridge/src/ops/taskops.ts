@@ -151,9 +151,12 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
       destructive: false,
       wraps: "rpc task.syncBase (merge base into the worktree)",
       async run(a, { api }) {
-        const res = await api.rpc<{ result: { baseRef: string; alreadyCurrent: boolean } }>("task.syncBase", {
-          taskId: taskId(a),
-        })
+        const res = await api.rpc<{
+          result: { baseRef: string; alreadyCurrent: boolean; repos?: readonly { ok: boolean; error?: string }[] }
+        }>("task.syncBase", { taskId: taskId(a) })
+        // A multi-repo task syncs every repo; surface the first failure like a one-repo conflict.
+        const failed = res.result.repos?.find((r) => !r.ok)
+        if (failed) throw new Error(failed.error ?? "sync failed")
         return { baseRef: res.result.baseRef, alreadyCurrent: res.result.alreadyCurrent === true }
       },
     },

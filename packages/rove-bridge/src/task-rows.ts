@@ -8,6 +8,7 @@
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type TaskStatus, tabStatus, taskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
+import { rollupPr } from "@sma1lboy/rove-daemon/task-tree"
 import { type ActivityEntry, buildContext } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import {
   type RowTokenMap,
@@ -167,7 +168,7 @@ export function taskRows(
   return context.tasks.flatMap((row): TaskRow[] => {
     const task = byId.get(row.taskId)
     if (!task) return []
-    const pr = task.prStatus
+    const pr = rollupPr(task)
     const changes = rowChanges(extras?.changes ?? null, task.worktreePath)
     const tokens = rowTokenChips(extras?.tokens, task.id, now)
     const chip = prChipKind(task)

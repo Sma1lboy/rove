@@ -245,7 +245,8 @@ update   --task-id(REQ) --title --tab --branch --command --model --effort --pinn
          --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
          --report-pr --report-summary
 land     --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
-         --remove-worktree(true)
+         --remove-worktree(true) --repo
+sync     --task-id(REQ) --repo
 delete   --task-id --group --cascade --force --delete-branch --delete-remote --wait
 ```
 <!-- generated:end -->

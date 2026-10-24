@@ -2,6 +2,8 @@
 export {
   childrenOf,
   isSharedChild,
+  pickRepos,
+  rollupPr,
   subtreeIds,
   taskCwd,
   taskRepos,

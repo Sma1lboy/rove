@@ -261,6 +261,7 @@ export async function landTaskOp(
     removeWorktree: opts?.removeWorktree,
     callerCwd: opts?.callerCwd,
   })
+  // A stopped multi-repo land arrives as the thrown `LandStoppedError` (its `repos` ride as `data`).
   return res.result
 }
 
@@ -315,9 +316,14 @@ export async function syncBaseOp(
   client: RoveDaemonClient,
   taskId: string,
 ): Promise<{ baseRef: string; alreadyCurrent: boolean }> {
-  const res = await client.request<{ result: { baseRef: string; alreadyCurrent: boolean } }>("task.syncBase", {
+  const res = await client.request<{
+    result: { baseRef: string; alreadyCurrent: boolean; repos?: readonly { ok: boolean; error?: string }[] }
+  }>("task.syncBase", {
     taskId,
   })
+  // Several repos: each synced against its own base; the first failure is raised after all ran.
+  const failed = res.result.repos?.find((r) => !r.ok)
+  if (failed) throw new Error(failed.error ?? "sync failed")
   return res.result
 }
 

@@ -363,6 +363,8 @@ export function parseDaemonStopReason(value: unknown): DaemonStopReason | undefi
 export interface DaemonError {
   readonly message: string
   readonly name?: string
+  /** Structured context a thrown error carried (`Error.data`), e.g. a stopped multi-repo land's `repos`. */
+  readonly data?: unknown
 }
 
 /** Wire error name of a PTY host declining `daemon.stop` while it holds live sessions and the caller did not say `force`. */

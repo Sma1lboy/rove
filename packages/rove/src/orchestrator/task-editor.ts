@@ -258,11 +258,22 @@ export class TaskEditor {
    * PR doesn't write every tick), but the chip renders it, and without this
    * check it could never be set or cleared.
    */
-  async setPRStatus(id: TaskId | string, prStatus: TaskPRStatus | null): Promise<void> {
+  async setPRStatus(id: TaskId | string, prStatus: TaskPRStatus | null, repoName?: string): Promise<void> {
     const task = this.requireTask(id)
-    const sameError = (task.prStatus?.lastError ?? null) === (prStatus?.lastError ?? null)
-    if (sameError && samePrStatus(task.prStatus, prStatus ?? undefined)) return
-    await this.store.update(task.id, { prStatus: prStatus ?? undefined })
+    const extra = repoName ? task.extraRepos?.find((x) => x.name === repoName) : undefined
+    if (repoName && !extra) return
+    const current = extra ? extra.prStatus : task.prStatus
+    const sameError = (current?.lastError ?? null) === (prStatus?.lastError ?? null)
+    if (sameError && samePrStatus(current, prStatus ?? undefined)) return
+    if (!extra) {
+      await this.store.update(task.id, { prStatus: prStatus ?? undefined })
+      return
+    }
+    // A repo's own PR rides its entry; re-read the list so a concurrent worktree write isn't clobbered.
+    const latest = this.store.get(task.id)?.extraRepos ?? []
+    await this.store.update(task.id, {
+      extraRepos: latest.map((x) => (x.name === repoName ? { ...x, prStatus: prStatus ?? undefined } : x)),
+    })
   }
 
   /** Rate-limit auto-resume schedule; `null` clears. No-op when unchanged: the

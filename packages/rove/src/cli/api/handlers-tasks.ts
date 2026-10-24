@@ -458,8 +458,13 @@ export async function list(ctx: VerbContext): Promise<unknown> {
   const { mergeTaskList } = await import("../../machines/api-merge.ts")
   const merged = ctx.caller.cli ? await mergeTaskList(local) : local
   const filters = listFilters(ctx)
-  if (!filters) return merged
-  return { ...merged, ...(await filterTaskList(ctx, daemon, merged.tasks ?? [], filters)) }
+  const result = filters ? { ...merged, ...(await filterTaskList(ctx, daemon, merged.tasks ?? [], filters)) } : merged
+  if (!result.tasks) return result
+  // `.repoCount` (primary included) marks a multi-repo task; one-repo rows stay as they were.
+  return {
+    ...result,
+    tasks: result.tasks.map((t) => (t.extraRepos?.length ? { ...t, repoCount: t.extraRepos.length + 1 } : t)),
+  }
 }
 
 export async function setActive(ctx: VerbContext): Promise<unknown> {

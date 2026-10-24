@@ -102,6 +102,28 @@ describe("buildContext", () => {
     expect(payload.tasks[0]).toMatchObject({ checkState: "failing", pr: 921, group: "ready-for-review" })
     expect(payload.tasks[0]?.report?.summary).toBe("done")
   })
+
+  it("a failing PR in an extra repo dominates the row's CI state and PR number", () => {
+    const payload = base({
+      tasks: [
+        serialized({
+          id: "t1",
+          prStatus: { provider: "github", lifecycle: "open", checkState: "passing", number: 10 },
+          extraRepos: [
+            {
+              name: "api",
+              repo: "/api",
+              branch: "b",
+              worktreePath: "/wt/api",
+              prStatus: { provider: "github", lifecycle: "open", checkState: "failing", number: 77 },
+            },
+          ],
+        }),
+      ],
+      activity: { t1: { state: "idle", at: NOW } },
+    })
+    expect(payload.tasks[0]).toMatchObject({ checkState: "failing", pr: 77 })
+  })
 })
 
 describe("context handler", () => {

@@ -14,12 +14,13 @@
  * Font, Menlo, Monaco): U+2260, U+2713, U+2717 are one cell in all of them.
  */
 
+import { rollupPr } from "@/orchestrator/task-tree"
 import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
 import type { Task } from "@/types/task"
 import type { SidebarTone } from "./row-view.ts"
 
 export function prChip(task: Task, glyphs: GlyphSet = DEFAULT_GLYPHS): { glyph: string; tone: SidebarTone } | null {
-  const pr = task.prStatus
+  const pr = rollupPr(task)
   if (!pr) return null
   const stale = pr.lastError !== undefined
   if ((pr.mergeable ?? "").toUpperCase() === "CONFLICTING")

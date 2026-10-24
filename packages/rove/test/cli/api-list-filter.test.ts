@@ -94,3 +94,25 @@ describe("list filters", () => {
     )
   })
 })
+
+describe("list repoCount", () => {
+  it("counts every repo (primary included) on a multi-repo task and leaves one-repo rows alone", async () => {
+    const extra = { name: "api", repo: "/api", branch: "b", worktreePath: "/wt/api" }
+    const client = new FakeClient({
+      "task.list": () => ({
+        tasks: [
+          taskFixture({ id: "multi", extraRepos: [extra, { ...extra, name: "web" }] }),
+          taskFixture({ id: "one" }),
+        ],
+      }),
+    })
+    const result = (await invokeVerb("list", [], { client, runtime: stubRuntime() })) as {
+      tasks: Array<{ id: string; repoCount?: number }>
+    }
+    expect(result.tasks.map((t) => [t.id, t.repoCount])).toEqual([
+      ["multi", 3],
+      ["one", undefined],
+    ])
+    expect(result.tasks[1]).not.toHaveProperty("repoCount")
+  })
+})

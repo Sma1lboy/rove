@@ -15,6 +15,7 @@
  * Labels are i18n KEYS; the renderer runs them through `t()`.
  */
 
+import { rollupPr } from "@/orchestrator/task-tree"
 import type { Task } from "@/types/task"
 import type { TreeRow } from "./tree-core"
 
@@ -111,7 +112,8 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   verbs.push({ action: "changeEngine", labelKey: "tasks.menu.changeEngine", bindingId: "tasks.cycleEngine" })
   // Feed the failing CI log to the engine; only `failing` has a log. Chord
   // `ctrl+a k` is proposed, not signed off (docs/design/keybinding-decisions.md).
-  if (task.prStatus?.checkState === "failing") {
+  // The rolled-up PR (any repo failing). The verbs act on the primary's PR number.
+  if (rollupPr(task)?.checkState === "failing") {
     verbs.push({ action: "fixChecks", labelKey: "tasks.menu.fixChecks", bindingId: "files.fixChecks" })
     // Menu-only: for a red the user reads as flaky, not caused by the change.
     verbs.push({ action: "rerunChecks", labelKey: "tasks.menu.rerunChecks" })
