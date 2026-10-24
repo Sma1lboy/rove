@@ -360,16 +360,38 @@ describe("activity observer", () => {
       ])
       const w = world({ scan })
       w.state.sessions = [session()]
+      await waitFor(() => asked.length >= 1)
+      w.state.sessions = [session({ totalBytes: 180 })]
+      await waitFor(() => asked.length >= 2)
+      w.state.sessions = [session({ totalBytes: 400 })]
       await waitFor(() => asked.length >= 3)
+      w.state.sessions = [session({ totalBytes: 500 })]
       await wait(80)
       expect(asked).toEqual([0, 0, 180])
     })
 
-    it("is not scanned when it was already running at the daemon's boot, which the boot reconciler owns", async () => {
-      const { asked, scan } = scanner([() => ({ offset: 0, died: false })])
-      world({ scan, sessions: [session()] })
+    // A stub or custom command can run for hours before it dies: no time limit, only new output.
+    it("a quiet launch is not rescanned, and is scanned again whenever it prints", async () => {
+      const { asked, scan } = scanner([() => ({ offset: 100, died: false }), () => ({ offset: 260, died: true })])
+      const w = world({ scan })
+      w.state.sessions = [session({ totalBytes: 100 })]
+      await waitFor(() => asked.length >= 1)
+      await wait(120)
+      expect(asked).toEqual([0])
+      w.state.sessions = [session({ totalBytes: 260 })]
+      await waitFor(() => asked.length >= 2)
+      expect(asked).toEqual([0, 100])
+    })
+
+    // Its past output belongs to the boot reconciler; a death after the first list is the watch's.
+    it("a launch already running at the first list is scanned only for what it prints afterwards", async () => {
+      const { asked, scan } = scanner([() => ({ offset: 300, died: true })])
+      const w = world({ scan, sessions: [session({ totalBytes: 200 })] })
       await wait(120)
       expect(asked).toEqual([])
+      w.state.sessions = [session({ totalBytes: 300 })]
+      await waitFor(() => asked.length >= 1)
+      expect(asked).toEqual([200])
     })
 
     it("a shell tab or an unwrapped command is never scanned", async () => {
