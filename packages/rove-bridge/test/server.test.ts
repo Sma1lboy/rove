@@ -351,6 +351,23 @@ describe("terminal forwarding", () => {
     expect(h.pty.calls.some(([n]) => n === "pty.open")).toBe(false)
   })
 
+  test("revive with restartExited asks for a relaunch of a session whose engine is gone", async () => {
+    const asked: Array<boolean | undefined> = []
+    const ops = {
+      ...fakeOps(),
+      reviveTab: async (_taskId: string, _tabId: string, restartExited?: boolean) => {
+        asked.push(restartExited)
+        return { revived: true, resumed: false }
+      },
+    }
+    const c = await connect(start({ ops }).url, AUTH)
+
+    await c.call("term.revive", { taskId: "T1", tabId: "tab-1", restartExited: true })
+    await c.call("term.revive", { taskId: "T1", tabId: "tab-1" })
+
+    expect(asked).toEqual([true, false])
+  })
+
   test("attach never spawns: an unknown tab is refused and a restored corpse is only peeked", async () => {
     const h = start()
     const c = await connect(h.url, AUTH)

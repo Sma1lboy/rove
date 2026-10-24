@@ -290,9 +290,12 @@ process, including a reboot.
   freeze-restored tab, or one the PTY host lost entirely (a host restart that
   dropped its freeze records). An engine tab with a recorded conversation
   resumes it; one with none starts fresh, never with the original prompt. A
-  shell tab reruns its login shell in the worktree. The
-  web client offers the same as **Reopen session** on a tab that shows "no
-  running session" or a restored screen; nothing reopens on view.
+  shell tab reruns its login shell in the worktree. The web client offers the
+  same as **Reopen session** on a tab that shows "no running session" or a
+  restored screen, and as **Retry** when the engine exited into its fallback
+  shell (`Engine exited (code N)`; `--restart-exited`). That notice also offers
+  **Settings → Engines** and **New conversation with…** for another engine;
+  nothing reopens on view.
 
 ## Not supported
 

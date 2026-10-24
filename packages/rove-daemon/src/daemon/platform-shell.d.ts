@@ -10,4 +10,6 @@ export interface ResolveLoginShellOptions {
 
 export declare function resolveLoginShell(options?: ResolveLoginShellOptions): string
 
+export declare function resolveSessionShell(options?: Omit<ResolveLoginShellOptions, "fallback">): string
+
 export declare function toPosixPath(filePath: string, platform?: NodeJS.Platform): string

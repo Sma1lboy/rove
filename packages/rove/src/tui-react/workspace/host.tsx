@@ -337,7 +337,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   return (
     <WorkspaceFrame
       orchestrator={orch}
-      onOpenSettings={pages.openSettings}
+      onOpenSettings={() => pages.openSettings()}
       banner={banner.element}
       activeTaskId={selectedId}
       activeTabId={selectedTabId}
@@ -447,6 +447,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
                   onScratchExit={scratch.onScratchExit}
                   onOpenScratch={scratch.openScratchShell}
                   onEngineChosen={taskActions.setVendor}
+                  onOpenSettings={pages.openSettings}
                 />
               </RenderProfiler>
             )}

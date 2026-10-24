@@ -82,7 +82,14 @@ export function EmptyWorkspacePane(props: {
 
   return (
     <box flexGrow={1} alignItems="center" justifyContent="center">
-      <text fg={theme.textMuted}>{t("workspace.empty.noSessions")}</text>
+      <text
+        fg={theme.info}
+        onMouseUp={(event) => {
+          if (event.button === 0) reopen()
+        }}
+      >
+        {t("workspace.empty.noSessions")}
+      </text>
     </box>
   )
 }

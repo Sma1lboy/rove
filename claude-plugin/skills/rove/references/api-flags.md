@@ -143,7 +143,7 @@ tab-new            --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ)
                    --latest --file --line --pane --tab --view-task
 tab-split          --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
                    --direction{right|down}(right) --leaf --title --cols --rows
-tab-revive         --task-id(REQ) --tab(REQ)
+tab-revive         --task-id(REQ) --tab(REQ) --restart-exited
 notify             --title(REQ) --body --kind(done) --task-id --source
 prompt             --title(REQ) --placeholder --initial --timeout
 engine-report      --task-id
@@ -219,6 +219,9 @@ freeze-restored tab, or one the PTY host lost. Engine tabs resume the
 recorded conversation (`resumed: true`) or start fresh without a first
 message; shell tabs rerun their login shell. It never replays the task's
 original prompt, and a running tab answers `revived: false, alive: true`.
+`--restart-exited` also closes and relaunches an engine tab whose session is
+up but whose engine is gone (`engineAlive: false`, the fallback shell's
+`Engine exited (code N)` banner); a running engine is still left alone.
 Split leaves are `BAD_FLAG` (use `tab-split --action reset`); previews and
 viewport tabs are `TAB_NOT_REVIVABLE`.
 

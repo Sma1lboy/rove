@@ -343,8 +343,14 @@ export interface ApiRuntime {
   launchTab(client: DaemonRpc, spec: LaunchSpec): Promise<Launched>
   /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */
   splitTab(client: DaemonRpc, taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
-  /** Reopen a tab's own session when no PTY runs in it (`tab-revive`); a live one is left alone. */
-  reviveTab(client: DaemonRpc, target: PromptTarget, tabId: string, worktree: string): Promise<RevivedTab>
+  /** Reopen a tab's own session when no PTY runs in it (`tab-revive`); a live one is left alone unless `replaceExited` (its engine is gone: only the fallback shell runs). */
+  reviveTab(
+    client: DaemonRpc,
+    target: PromptTarget,
+    tabId: string,
+    worktree: string,
+    opts?: { readonly replaceExited?: boolean },
+  ): Promise<RevivedTab>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
   /** Can a worktree be cut from this repo? On the seam so handler tests need no

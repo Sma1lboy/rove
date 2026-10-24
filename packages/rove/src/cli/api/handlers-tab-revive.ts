@@ -7,13 +7,14 @@ import type { VendorId } from "../../types/vendor.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
+import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbSpec } from "./types.ts"
 
 export const TAB_REVIVE_VERB: VerbSpec = {
   name: "tab-revive",
   group: "drive",
   summary:
-    "Reopen one Terminal Tab's own session when no PTY runs in it: a dead or freeze-restored tab, or one whose key the PTY host lost (a host restart that dropped its freeze records). A running tab is left alone (`revived: false, alive: true`). An engine tab resumes its persisted conversation (`resumed: true`) or, with none recorded, starts a fresh one with no first message — the task's original prompt is never replayed; it respects engine.maxLiveSessions. A shell or command tab runs its recorded command in the task's worktree. Refused: a tab id the task does not hold (TAB_NOT_FOUND), a split leaf (`tab-split --action reset` is its reopen), and viewport or preview tabs (TAB_NOT_REVIVABLE). A task on another registered machine runs there, like every verb. Returns { taskId, tabId, revived, resumed, sessionId? }.",
+    "Reopen one Terminal Tab's own session when no PTY runs in it: a dead or freeze-restored tab, or one whose key the PTY host lost (a host restart that dropped its freeze records). A running tab is left alone (`revived: false, alive: true`). With --restart-exited, an engine tab whose session is alive but whose engine has exited (get-task .tabs[].engineAlive false: only the fallback shell is left) is closed and relaunched like a dead one; an engine still running, or a shell tab, is still left alone. An engine tab resumes its persisted conversation (`resumed: true`) or, with none recorded, starts a fresh one with no first message — the task's original prompt is never replayed; it respects engine.maxLiveSessions. A shell or command tab runs its recorded command in the task's worktree. Refused: a tab id the task does not hold (TAB_NOT_FOUND), a split leaf (`tab-split --action reset` is its reopen), and viewport or preview tabs (TAB_NOT_REVIVABLE). A task on another registered machine runs there, like every verb. Returns { taskId, tabId, revived, resumed, sessionId? }.",
   flags: [
     F.taskId(true),
     {
@@ -22,6 +23,13 @@ export const TAB_REVIVE_VERB: VerbSpec = {
       required: true,
       placeholder: "TAB",
       description: "Exact Terminal Tab id from get-task .tabs[].id (for example tab-2).",
+    },
+    {
+      name: "restart-exited",
+      type: "bool",
+      placeholder: "BOOL",
+      description:
+        "Also relaunch a tab whose engine exited inside a still-running session (keepAlive's fallback shell); without it that tab counts as running.",
     },
   ],
   handler: async (ctx) => {
@@ -68,6 +76,12 @@ export const TAB_REVIVE_VERB: VerbSpec = {
     }
     const worktree = taskCwd(task)
     if (!worktree) throw new ApiError(`task ${taskId} has no worktree yet`, "NO_WORKTREE")
+    // Positive evidence only: the session is up and a process walk finds no engine in it.
+    const exited =
+      ctx.args.bool("restart-exited") === true &&
+      (await ctx.runtime.taskTabs(taskId, taskEngineArgv(task), scope)).tabs.some(
+        (t) => t.id === tabId && t.kind === "engine" && t.alive === true && t.engineAlive === false,
+      )
     const revived = await ctx.runtime.reviveTab(
       daemon,
       {
@@ -82,6 +96,7 @@ export const TAB_REVIVE_VERB: VerbSpec = {
       },
       tabId,
       worktree,
+      { replaceExited: exited },
     )
     return { ok: true, taskId, tabId, ...revived }
   },

@@ -7,6 +7,13 @@
 export const en = {
   noTask: "(no task — press n to create)",
   exited: "process exited — F5 restarts it",
+  engineExit: {
+    title: "Engine exited",
+    titleCode: "Engine exited (code {code})",
+    retry: "Retry",
+    settings: "Settings → Engines",
+    another: "Another engine",
+  },
   restoring: "restoring session…",
   recovery: {
     live: "Live process reattached",
@@ -64,7 +71,7 @@ export const en = {
     unavailable: "this app owns its own scrollback — nothing local to search (esc)",
   },
   unavailable: {
-    // The PTY host resolves its shell from `$SHELL` alone (`resolveLoginShell`
+    // The PTY host resolves its shell from `$SHELL` alone (`resolveSessionShell`
     // in rove-daemon) — there is no Settings row for it, so `$SHELL` is the
     // only place a user can act.
     shellMissing:
@@ -90,6 +97,13 @@ export const zh: typeof en = {
   },
   noTask: "（无任务 —— 按 n 创建）",
   exited: "进程已退出 —— 按 F5 重启",
+  engineExit: {
+    title: "引擎已退出",
+    titleCode: "引擎已退出（退出码 {code}）",
+    retry: "重试",
+    settings: "设置 → 引擎",
+    another: "换个引擎",
+  },
   restoring: "正在恢复会话…",
   tab: {
     groupTitle: "group {n}",

@@ -9,6 +9,7 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { remoteKeyForRepo } from "../../exec/resolve.ts"
 import { taskCwd, taskRepos } from "../../orchestrator/task-tree.ts"
+import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useOptionalKV } from "../context/kv"
@@ -47,6 +48,8 @@ export function ShowWorkspace(props: {
   onOpenScratch?: (vendor: VendorId | undefined) => void
   /** The ctrl+e picker landed on an engine — persist it and toast the result. */
   onEngineChosen?: (taskId: string, vendor: VendorId) => Promise<void>
+  /** Open the Settings page on `section` (a dead engine's "Settings → Engines"). */
+  onOpenSettings?: (section: SectionId) => void
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
@@ -172,6 +175,7 @@ export function ShowWorkspace(props: {
       onEnginePasteReady={props.onEnginePasteReady}
       onDiffTabReady={props.onDiffTabReady}
       onSpawnChild={props.onSpawnChild}
+      onOpenSettings={props.onOpenSettings}
       onQuickFork={props.onQuickFork}
       initialPrompt={props.initialPrompt}
       // Hook-driven per-tab engine state: the sub-second chip/notification

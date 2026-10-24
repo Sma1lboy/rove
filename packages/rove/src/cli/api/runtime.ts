@@ -5,7 +5,7 @@
  */
 
 import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
 import {
   type AliasRef,
@@ -96,12 +96,7 @@ async function deliverHosted(
         ...(target.respawn
           ? {
               respawn: () =>
-                restoredTabLaunch(
-                  { ...target, repos: respawnRepos },
-                  tabId,
-                  worktree,
-                  resolveLoginShell({ fallback: "/bin/zsh" }),
-                ),
+                restoredTabLaunch({ ...target, repos: respawnRepos }, tabId, worktree, resolveSessionShell()),
             }
           : {}),
       })
@@ -125,7 +120,7 @@ async function deliverHosted(
     const launch = buildEngineSessionLaunch({
       task: { id: target.id, kind: target.kind, vendor: target.vendor, repo: target.repo, repos },
       worktreePath: worktree,
-      shell: resolveLoginShell({ fallback: "/bin/zsh" }),
+      shell: resolveSessionShell(),
       argv,
       promptIntent: target.newTask ? { kind: "new-task", prompt } : { kind: "explicit", prompt },
     })

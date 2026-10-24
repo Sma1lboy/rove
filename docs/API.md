@@ -1261,11 +1261,15 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `{ok, taskId, tabId, leaf, changed, split, clients}`; `split` is
   `{activeLeafId, root}` (null once back to one pane) and `get-task .tabs[].split`
   carries the same.
-- `tab-revive --task-id ID --tab TAB`: reopen one Terminal Tab's own session when
+- `tab-revive --task-id ID --tab TAB [--restart-exited]`: reopen one Terminal Tab's own session when
   no PTY runs in it: a dead or freeze-restored tab, or one whose key the PTY
   host lost (a host restart that dropped its freeze records). A running tab is
   left alone (`revived: false, alive: true`; an engine that exited into its
-  keep-alive shell still counts as running). An engine tab resumes its
+  keep-alive shell still counts as running) unless `--restart-exited` is set
+  and a process walk finds no engine in the session (`get-task
+  .tabs[].engineAlive` false): that session is then closed and relaunched like
+  a dead one. A shell tab, an unwalked tab and a tab with a running engine are
+  never replaced. An engine tab resumes its
   persisted conversation (`resumed: true`, the `sessionId` it reopened) or, with
   none recorded, starts a fresh one with no first message and records the id
   the engine pinned; it respects `engine.maxLiveSessions`. The task's original

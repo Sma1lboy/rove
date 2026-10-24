@@ -326,6 +326,8 @@ export function joinTaskTabs(
   // Unlisted live sessions still get a row. kind "engine": headless paths
   // only ever start engines (same assumption as the sidebar orphan backstop).
   for (const tabId of unregisteredTabIds(snapshot, taskId, rows0)) {
+    const key = `${taskId}::${tabId}`
+    const engineIsAlive = engineAliveOf(key, true, engineAlive)
     rows.push({
       id: tabId,
       kind: "engine",
@@ -335,8 +337,8 @@ export function joinTaskTabs(
       lastTitle: null,
       autoTitle: null,
       alive: true,
-      engineAlive: engineAliveOf(`${taskId}::${tabId}`, true, engineAlive),
-      exit: null,
+      engineAlive: engineIsAlive,
+      exit: engineIsAlive === false ? engineExit(key) : null,
       unregistered: true,
     })
   }

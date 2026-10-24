@@ -20,6 +20,9 @@ export const zh: typeof en = {
     reopen: "重新打开会话",
     reopening: "正在重新打开…",
     reopenFailed: "重新打开失败：{message}",
+    engineExited: "引擎已退出 · 退出码 {code}",
+    retry: "重试",
+    engineSettings: "设置 → 引擎",
   },
   tab: {
     shell: "终端",
