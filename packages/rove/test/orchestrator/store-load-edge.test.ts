@@ -27,6 +27,8 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  // Recovery warnings must finish writing before their log directory is removed.
+  await flushClientLog()
   await rm(home, { recursive: true, force: true })
 })
 
