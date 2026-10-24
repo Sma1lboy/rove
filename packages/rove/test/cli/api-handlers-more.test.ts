@@ -60,6 +60,7 @@ function stubRuntime(): ApiRuntime {
     readWorktreeChanges: async () => ({ added: 0, deleted: 0 }),
     readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
     tearDownSession: async () => {},
+    listeningPorts: async () => [],
   }
 }
 
@@ -155,6 +156,7 @@ describe("schema drill-ins", () => {
       "inspect",
       "read-output",
       "watch",
+      "ports",
       "worktree-files",
       "worktree-diff",
       "worktree-diff-file",

@@ -13,6 +13,7 @@ import {
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
+import type { ListeningSocket } from "./listening-ports.ts"
 import type { LaunchSpec, Launched } from "./tab-launch.ts"
 import type { NewTabKind, OpenedTab } from "./tab-new.ts"
 import type { RestoredTabRef } from "./tab-respawn.ts"
@@ -382,4 +383,6 @@ export interface ApiRuntime {
    * the aliased PTYs of surviving children and adds the task's own.
    */
   tearDownSession(taskId: string, scope?: TeardownScope): Promise<void>
+  /** TCP listeners on this machine with each owner's cwd (`ports`); `null` = could not scan. */
+  listeningPorts(): Promise<readonly ListeningSocket[] | null>
 }

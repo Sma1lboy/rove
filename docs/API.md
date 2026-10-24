@@ -660,6 +660,15 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   entry). Non-spawning: a missing daemon
   or PTY host degrades that section to `null`. **Run and paste this first**
   when reporting a badge, label, engine-identity, or engine-crash bug.
+- `ports (--task-id ID | --all)`: the TCP ports a task's processes listen on,
+  on this machine — the dev server, preview or debugger an agent started,
+  without scanning by hand. A listener belongs to the task whose checkout
+  (primary or extra repo) holds its process's cwd; when checkouts nest, the
+  deepest wins. Returns `{ taskId, ports }`, each row `{ port, host, url,
+  pid, command, cwd }`; `url` is `http://localhost:<port>` for a wildcard or
+  loopback bind. `--all` lists every listener, each with its owning `taskId`
+  (`null` = no task). `ports: null` means the scan could not run (Linux reads
+  `/proc`, macOS runs `lsof`), never that nothing is listening.
 
 - `deliveries --task-id ID [--limit N]`: the task's armed deliveries, newest
   first; the daemon keeps the newest 50 per task. A delivery is one prompt
