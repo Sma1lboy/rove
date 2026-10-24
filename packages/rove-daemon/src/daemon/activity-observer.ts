@@ -55,8 +55,6 @@ export const DEFAULT_UNSUBSCRIBED_EVERY_TICKS = 6
  * fresh turn must not be idled by a stale observation.
  */
 export const DEFAULT_CORRECT_AFTER_MS = 20_000
-/** How long after birth a wrapped launch with no engine is scanned for the exit banner (init script + slow start). */
-export const ENGINE_BANNER_WATCH_MS = 5 * 60_000
 /** The banner's text inside a `keepAlive` launch script (`engine/session-launch.ts`). */
 const WRAPPED_LAUNCH_MARK = "Engine exited (code"
 
@@ -165,8 +163,9 @@ interface SessionTrack {
   /** The host's incarnation token for this session; a different one under the same key is a new child. */
   generation?: string
   /** A launch wrapped by `keepAlive` that has shown no engine since it was born here: where the next
-   *  banner scan resumes and when scanning stops. Absent once an engine shows or the death is recorded. */
-  bannerWatch?: { offset: number; until: number }
+   *  banner scan resumes, and the byte count the last scan saw (the banner is output, so a quiet ring
+   *  needs no rescan). Absent once an engine shows or the death is recorded. */
+  bannerWatch?: { offset: number; scannedBytes: number }
 }
 
 /**
@@ -282,9 +281,13 @@ export function startActivityObserver(
           }
           tracks.set(s.key, track)
           newborn.add(s.key)
-          // Born under this daemon, so its whole output (since the corpse it respawned, if any) is the new child's.
-          if (listedBefore && s.command?.some((arg) => arg.includes(WRAPPED_LAUNCH_MARK))) {
-            track.bannerWatch = { offset: corpseEnd.get(s.key) ?? 0, until: now + ENGINE_BANNER_WATCH_MS }
+          if (s.command?.some((arg) => arg.includes(WRAPPED_LAUNCH_MARK))) {
+            // Born under this daemon: its whole output (since the corpse it respawned, if any) is the new child's.
+            // Listed first now (an earlier daemon's, or born while the host was still coming up): what it already
+            // printed is the boot reconciler's, so only later output is scanned.
+            track.bannerWatch = listedBefore
+              ? { offset: corpseEnd.get(s.key) ?? 0, scannedBytes: -1 }
+              : { offset: s.totalBytes, scannedBytes: s.totalBytes }
           }
           corpseEnd.delete(s.key)
         } else if (s.totalBytes !== track.lastTotalBytes || s.title !== track.lastTitle) {
@@ -354,11 +357,8 @@ export function startActivityObserver(
       // A wrapped launch that never showed an engine leaves one trace: the wrapper's own banner.
       for (const track of live) {
         const watch = track.bannerWatch
-        if (!watch) continue
-        if (now >= watch.until) {
-          track.bannerWatch = undefined
-          continue
-        }
+        if (!watch || watch.scannedBytes === track.lastTotalBytes) continue
+        watch.scannedBytes = track.lastTotalBytes
         const scan = io.scanEngineExitBanner?.({
           taskId: track.taskId,
           tabId: track.tabId,
@@ -368,7 +368,10 @@ export function startActivityObserver(
         if (!scan) continue
         effects.push(
           scan.then((result) => {
-            if (!result) return
+            if (!result) {
+              watch.scannedBytes = -1
+              return
+            }
             if (result.died) track.bannerWatch = undefined
             else watch.offset = result.offset
           }),

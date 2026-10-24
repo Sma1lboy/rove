@@ -18,6 +18,7 @@ import {
   readPtyExitRecords,
   recordEngineExit,
   recordPtyExit,
+  wrapperBannerCodeFromTail,
 } from "@sma1lboy/rove-daemon/daemon/pty-exit-store"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
@@ -41,6 +42,12 @@ describe("engine exit code scrape", () => {
   it("reads the wrapper banner's code and null when absent", () => {
     expect(engineExitCodeFromTail(["  Engine exited (code 143). Check Settings"])).toBe(143)
     expect(engineExitCodeFromTail(["all quiet", "$ "])).toBeNull()
+  })
+
+  it("the live scan takes only the wrapper's own row, not a shell echo of the text", () => {
+    expect(wrapperBannerCodeFromTail(["", "  ⚠ Engine exited (code 137). Check Settings → Engines and"])).toBe(137)
+    expect(wrapperBannerCodeFromTail(["% printf '⚠ Engine exited (code 1). Check Settings'"])).toBeNull()
+    expect(wrapperBannerCodeFromTail(["Engine exited (code 1)", "% "])).toBeNull()
   })
 })
 

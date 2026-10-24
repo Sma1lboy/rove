@@ -12,7 +12,13 @@ import type { ActivityObserverIo } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 import { defaultPtyExitsPath, defaultPtyHostSocketPath } from "./paths.ts"
-import { engineExitCodeFromTail, plainTail, readPtyExitRecords, recordEngineExit } from "./pty-exit-store.ts"
+import {
+  engineExitCodeFromTail,
+  plainTail,
+  readPtyExitRecords,
+  recordEngineExit,
+  wrapperBannerCodeFromTail,
+} from "./pty-exit-store.ts"
 import { type PtyOwnerResolver, engineDeathOf } from "./pty-exit-watch.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
@@ -102,7 +108,7 @@ export function createActivityObserverIo(
         const result = await client.request<{ data?: string; offset?: number }>("pty.peek", { key, sinceOffset })
         const raw = Buffer.from(result.data ?? "", "base64").toString("utf8")
         const offset = typeof result.offset === "number" ? result.offset : sinceOffset
-        if (engineExitCodeFromTail(plainTail(raw)) === null) {
+        if (wrapperBannerCodeFromTail(plainTail(raw)) === null) {
           // The banner may straddle two peeks: take the next one from a few lines back.
           return { offset: Math.max(sinceOffset, offset - BANNER_OVERLAP_BYTES), died: false }
         }
