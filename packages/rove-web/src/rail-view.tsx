@@ -354,6 +354,11 @@ function RailRow(props: {
       <span className="row-title">{rowTitle(task, props.tabs)}</span>
       <span className="chips">
         {row.level !== undefined && <span className="chip muted">{row.level}</span>}
+        {(task.extraRepoCount ?? 0) > 0 && (
+          <span className="chip muted" title={t("rail.extraRepos", { count: task.extraRepoCount ?? 0 })}>
+            +{task.extraRepoCount}
+          </span>
+        )}
         {marker && (
           <span className={`chip child-mark ${marker === "shared" ? "tone-accent" : "muted"}`} aria-hidden="true">
             {marker === "shared" ? "⑂" : "⎇"}

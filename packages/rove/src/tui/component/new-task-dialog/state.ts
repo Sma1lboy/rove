@@ -46,6 +46,8 @@ export type NewTaskInput =
       tier?: string
       /** The task's first message, when one was typed: the task is born by it. */
       prompt?: string
+      /** More repos the task spans, in pick order (the first picked is after `repo`, the primary). */
+      extraRepos?: readonly string[]
       /**
        * Set when submitted from the New Repo tab: the clone already finished and
        * `repo` is its path. Caller persists `lastClonedRepoParent` and saves `repo`.
@@ -121,6 +123,8 @@ export type Field =
   | "effort"
   | "model"
   | "repo"
+  /** The Existing tab's extra repos list; reachable only while it renders (see `nextField`). */
+  | "extras"
   /** The Existing tab's task-vs-project selector. Reachable only
    *  while it renders — see `nextField`. */
   | "intent"
@@ -216,7 +220,7 @@ export function isBlankText(v: string): boolean {
 
 /**
  * Tab order, in visual order:
- *   existing:   tabs → [tier] → engine → [model] → [effort] → repo → [intent] → baseRef → prompt → confirm → tabs
+ *   existing:   tabs → [tier] → engine → [model] → [effort] → repo → [extras] → [intent] → baseRef → prompt → confirm → tabs
  *   clone:      tabs → [tier] → engine → [model] → [effort] → cloneUrl → cloneParent → cloneFolder → cloneBaseRef → confirm → tabs
  *   adopt:      tabs → [tier] → engine → [model] → [effort] → adoptFilter → confirm → tabs
  *
@@ -227,7 +231,13 @@ export function isBlankText(v: string): boolean {
 export function nextField(
   field: Field,
   tab: DialogTab = "existing",
-  opts: { intentVisible?: boolean; effortVisible?: boolean; modelVisible?: boolean; tierVisible?: boolean } = {},
+  opts: {
+    intentVisible?: boolean
+    extrasVisible?: boolean
+    effortVisible?: boolean
+    modelVisible?: boolean
+    tierVisible?: boolean
+  } = {},
 ): Field {
   // Shared trailer — the selectors + Create button common to every tab.
   if (field === "confirm") return "tabs"
@@ -249,7 +259,8 @@ export function nextField(
   }
   // `intent` renders only for a repo with a project checkout (same
   // unrendered-stop rule as above).
-  if (field === "repo") return opts.intentVisible ? "intent" : "baseRef"
+  if (field === "repo") return opts.extrasVisible ? "extras" : opts.intentVisible ? "intent" : "baseRef"
+  if (field === "extras") return opts.intentVisible ? "intent" : "baseRef"
   if (field === "intent") return "baseRef"
   if (field === "baseRef") return "prompt"
   if (field === "prompt") return "confirm"

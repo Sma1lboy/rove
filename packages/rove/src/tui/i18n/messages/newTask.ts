@@ -30,6 +30,8 @@ export const en = {
     repo: "REPO",
     fromBranch: "FROM BRANCH",
     prompt: "FIRST MESSAGE",
+    /** Existing tab: more repos the task spans, besides the primary above. */
+    extras: "ALSO INCLUDE",
     gitUrl: "GIT URL",
     parentDir: "PARENT DIR",
     folderName: "FOLDER NAME",
@@ -59,6 +61,8 @@ export const en = {
     noBranchesFound: "(no local branches found — typed text will be used as ref)",
     noMatchBranch: "(no match — typed text will be used as ref)",
     scanningWorktrees: "scanning worktrees…",
+    extrasNone: "(none — enter picks a repo; the first is the primary)",
+    extrasPicked: "{count} more repo(s) in this task",
   },
 
   picker: {
@@ -138,6 +142,7 @@ export const zh: typeof en = {
     repo: "仓库",
     fromBranch: "基准分支",
     prompt: "第一条消息",
+    extras: "同时包含",
     gitUrl: "git 地址",
     parentDir: "父目录",
     folderName: "文件夹名",
@@ -167,6 +172,8 @@ export const zh: typeof en = {
     noBranchesFound: "（未找到本地分支 — 将直接使用输入文本作为 ref）",
     noMatchBranch: "（无匹配 — 将直接使用输入文本作为 ref）",
     scanningWorktrees: "正在扫描 worktree…",
+    extrasNone: "（未选 — 回车选一个仓库，第一个是主仓库）",
+    extrasPicked: "任务里另含 {count} 个仓库",
   },
 
   picker: {

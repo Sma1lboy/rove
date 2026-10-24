@@ -33,12 +33,24 @@ export function modelChipLabel(models: readonly Choice[], model: string, effort:
   return effort ? `${name} ${effort}` : name
 }
 
-/** The primary repo's name, then `+N` for the others (multi-repo is a later milestone; the chip is ready for it). */
+/** A task spans at most this many repos (the daemon's `MULTI_REPO_CAP`). */
+export const REPO_CAP = 8
+
+/** The primary repo's name, then `+N` for the others; hover lists them all. */
 export function repoChipLabel(repos: readonly string[]): string {
   const [primary, ...rest] = repos
   if (!primary) return ""
   const name = splitRepoRow(primary).base
   return rest.length > 0 ? `${name} +${rest.length}` : name
+}
+
+/**
+ * Pick or un-pick `path`: a new pick goes last (the first picked stays primary, up to {@link REPO_CAP}),
+ * and removing the primary promotes the next pick. Never empties the list below zero picks.
+ */
+export function toggleRepo(repos: readonly string[], path: string): readonly string[] {
+  if (repos.includes(path)) return repos.filter((r) => r !== path)
+  return repos.length >= REPO_CAP ? repos : [...repos, path]
 }
 
 /** The menu row a digit key picks: "1" is the first of `count`; 0, non-digits and out-of-range pick nothing. */
@@ -48,24 +60,40 @@ export function digitRow(key: string, count: number): number | null {
   return index < count ? index : null
 }
 
+/** One picked repo as Start sends it: its checkout root and the ref its worktree branches from ("" = the repo's current branch). */
+export interface StartRepo {
+  readonly repo: string
+  readonly baseRef: string
+}
+
 export interface StartInput {
-  readonly repos: readonly string[]
+  /** In pick order: the first is the primary. */
+  readonly repos: readonly StartRepo[]
+  /** The branch name every repo's worktree gets; "" = derived. */
+  readonly branch: string
   readonly engine: string
-  readonly baseBranch: string
   readonly prompt: string
   readonly model: string
   readonly effort: string
 }
 
-/** The `task.spawn` args for Start: the session is born by this prompt, on the primary repo; no prompt creates the task without starting its engine. */
-export function spawnArgs(input: StartInput): Record<string, string> {
-  const [repo] = input.repos
-  if (!repo) throw new Error("no repo")
+/**
+ * The `task.spawn` args for Start: the session is born by this prompt, on the primary repo, with the other
+ * picks as `extraRepos` in pick order; no prompt creates the task without starting its engine.
+ */
+export function spawnArgs(input: StartInput): Record<string, unknown> {
+  const [primary, ...extras] = input.repos
+  if (!primary) throw new Error("no repo")
   return {
-    repo,
+    repo: primary.repo,
+    ...(primary.baseRef ? { baseBranch: primary.baseRef } : {}),
+    ...(extras.length > 0
+      ? { extraRepos: extras.map((e) => ({ repo: e.repo, ...(e.baseRef ? { baseRef: e.baseRef } : {}) })) }
+      : {}),
+    // The shared name is set in the Branches menu, which a lone repo does not have, so a stale one never rides along.
+    ...(extras.length > 0 && input.branch ? { branch: input.branch } : {}),
     ...(input.prompt ? { prompt: input.prompt } : {}),
     ...(input.engine ? { engine: input.engine } : {}),
-    ...(input.baseBranch ? { baseBranch: input.baseBranch } : {}),
     ...(input.model ? { model: input.model } : {}),
     ...(input.effort ? { effort: input.effort } : {}),
   }

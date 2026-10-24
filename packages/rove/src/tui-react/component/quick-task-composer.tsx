@@ -53,6 +53,8 @@ export interface QuickTaskResult {
   readonly modelEffort?: string
   readonly model?: string
   readonly tier?: string
+  /** More repos the task spans, in pick order (the new-task dialog's "also include"). */
+  readonly extraRepos?: readonly string[]
 }
 
 /** The choices the ATTEMPTS row offers. See the file header for why it stops at 5. */

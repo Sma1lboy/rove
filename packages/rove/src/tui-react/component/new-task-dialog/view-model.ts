@@ -35,6 +35,7 @@ import { resolveInitialVendor, resolveVendorSet } from "./pure"
 import { useAdoptState } from "./use-adopt-state"
 import { useBranchField } from "./use-branch-field"
 import { useCloneState } from "./use-clone-state"
+import { useExtraRepos } from "./use-extra-repos"
 import { useRepoField } from "./use-repo-field"
 
 /** Prop surface of the dialog view. */
@@ -141,6 +142,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     onPicked: () => setField("prompt"),
   })
 
+  const extras = useExtraRepos({ savedRepos: props.savedRepos, primary: expandedRepo, pickerRows })
+
   const clone = useCloneState({
     defaultCloneParent: props.defaultCloneParent,
     vendor,
@@ -207,6 +210,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       ...(modelVisible && modelField.value.trim() ? { model: modelField.value.trim() } : {}),
       ...(tier !== "manual" ? { tier } : {}),
       ...(firstMessage ? { prompt: firstMessage } : {}),
+      ...(extras.extraPicked.length > 0 ? { extraRepos: extras.extraPicked } : {}),
     })
     dialog.clear()
   }
@@ -261,6 +265,9 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   function focusStopsFor(forTab: DialogTab) {
     return {
       intentVisible: forTab === "existing" && canOpenProject,
+      // Opening the project has no extras either: it enters the repo's own checkout.
+      extrasVisible:
+        forTab === "existing" && extras.extraCandidates.length > 0 && !(intent === "project" && canOpenProject),
       effortVisible: effortChoices.length > 0,
       modelVisible,
       tierVisible: false,
@@ -318,6 +325,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       modelField.moveCursor(delta)
       return
     }
+    if (tab === "existing" && field === "extras") {
+      extras.moveExtraCursor(delta)
+      return
+    }
     if (tab === "existing" && field === "repo") {
       repoField.moveRepoCursor(delta)
       return
@@ -373,6 +384,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       // Ctrl+A select-all exists ONLY on the Adopt tab; elsewhere it must
       // fall through to the focused input as line-home.
       ...(tab === "adopt" ? [{ key: "ctrl+a", cmd: adopt.adoptSelectAll }] : []),
+      // Enter on the extras list toggles the row under the cursor; Tab walks on.
+      ...(field === "extras" ? [{ key: "return", cmd: extras.toggleExtraCursor }] : []),
     ],
   }))
 
@@ -387,6 +400,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     ...clone,
     ...adopt,
     ...branch,
+    ...extras,
     ...repoField,
     defaultRepo: props.defaultRepo,
     tab,

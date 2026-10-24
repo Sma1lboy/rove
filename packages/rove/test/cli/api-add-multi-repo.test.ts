@@ -24,6 +24,17 @@ describe("add --repo (repeatable)", () => {
     })
   })
 
+  it("keys --base-for on a path by git root, so a symlinked spelling of the repo still matches", async () => {
+    const client = createClient()
+    const canonical = (p: string) => p.replace(/^\/link\//, "/real/")
+    await invokeVerb("add", ["--repo", "/link/web", "--repo", "/link/api", "--base-for", "/link/api=dev"], {
+      client,
+      runtime: stubRuntime({ resolveRepoRoot: async (p) => canonical(p) }),
+    })
+    const [create] = client.requests.filter((r) => r.name === "task.create")
+    expect(create?.payload).toMatchObject({ extraRepos: [{ repo: "/real/api", baseRef: "dev" }] })
+  })
+
   it("keys --base-for on the repo name and keeps --base-branch as the primary's base", async () => {
     const client = createClient()
     await invokeVerb(

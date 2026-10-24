@@ -30,6 +30,8 @@ export async function createTaskOp(
     branch?: string
     baseRef?: string
     worktreeName?: string
+    /** More repos the task spans, in pick order; `repo` is the primary. */
+    extraRepos?: readonly { repo: string; baseRef?: string }[]
     vendor?: VendorId
     modelEffort?: string
     /** Wire key and field are both `model` — no remap, unlike effort. */
