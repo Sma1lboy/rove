@@ -36,13 +36,17 @@ A client for `rove-bridge`, a small server a person starts on their own Mac. The
 
 ## Data safety form
 
-- **Data collected:** none. The app sends nothing to the developer or to any third party.
-- **Data shared:** none.
-- **What stays on the device:** the pairing link, token and Cloudflare Access headers, encrypted with an Android Keystore AES-GCM key. Android backups are off, so it never leaves the device.
-- **What goes to the user's own Mac:** what the user types, attachments they pick, and task actions. This is the user's own server, not the developer's, so Play does not count it as collection. It travels over the transport the user chose (Cloudflare `wss`, or Tailscale/LAN).
-- **Encryption in transit:** answer "yes" only if Play asks about the Cloudflare path; direct pairing relies on the user's network.
-- **Deletion:** settings → bridge → **forget pairing** removes everything, as does uninstalling.
-- **Analytics, ads, crash reporting:** none.
+The release owner must review the actual flows below before submitting the form. Internal-only apps are exempt from the form; an internal-test upload does not validate these declarations. See [Google Play's Data safety guidance](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en-EN).
+
+- **Collection:** declare off-device input, attachments and task actions for app functionality. User ownership of the destination is not an exemption.
+- **Data types:** replies are other in-app messages; task titles, descriptions and commands are other user-generated content; task actions are app interactions. Supported attachments are images and PDFs, corresponding to photos and files/documents. Review authentication identifiers against the form's categories before submission.
+- **Handling:** attachments are optional. Sending input and actions is needed for remote control. Data can persist on the Mac in files or agent history, so do not claim all processing is ephemeral.
+- **Sharing:** assess routing separately from collection. Transfers explicitly requested by the user may qualify for the user-initiated sharing exception. Confirm any intermediary's role and processing before declaring no sharing.
+- **Exemptions:** local-only processing is exempt. End-to-end encryption qualifies only when intermediaries cannot read the data. Cloudflare TLS alone does not establish that. The external-storage example requires the app never to access the data; Rove reads input and attachments.
+- **Encryption in transit:** answer "no" for the current app, which permits plain `ws://` on a LAN. This declaration covers the whole app. Cloudflare uses `wss://`; Tailscale encrypts its network traffic, but neither protects every supported connection.
+- **Pairing credentials:** saved locally with an Android Keystore AES-GCM key and excluded from Android backup. The token and any Cloudflare Access headers are also sent to authenticate the connection.
+- **Deletion:** settings → bridge → **forget pairing** removes saved pairing credentials. Uninstalling removes Android app-local data. Neither action deletes files or history on the Mac or downstream services.
+- **Analytics, ads, crash reporting:** none in the app.
 
 ## Privacy policy
 
