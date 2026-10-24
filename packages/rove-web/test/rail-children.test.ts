@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
 import { mostUrgentStatus } from "../src/rail-glyphs.ts"
-import { childMarkerOf, groupByProject, navRows } from "../src/rail.ts"
+import { AUTO_FOLD_CHILDREN, childMarkerOf, groupByProject, navRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
   ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
@@ -68,8 +68,8 @@ describe("child tasks in the rail", () => {
   test("a folded parent hides its whole subtree and counts every descendant, not just direct children", () => {
     const family = [task("p"), task("c", { parentTaskId: "p" }), task("g", { parentTaskId: "c" }), task("other")]
     const view = (folded: string[], query = "") =>
-      navRows(groupByProject(family), query, new Set(), new Set(folded)).flatMap((row) =>
-        row.kind === "task" ? [[row.id, row.fold?.collapsed, row.fold?.count]] : [],
+      navRows(groupByProject(family), query, new Set(), { folded: new Set(folded), opened: new Set() }).flatMap(
+        (row) => (row.kind === "task" ? [[row.id, row.fold?.collapsed, row.fold?.count]] : []),
       )
     expect(view([])).toEqual([
       ["p", false, 2],
@@ -97,5 +97,49 @@ describe("child tasks in the rail", () => {
     const running = (id: string, since: number) => task(id, { rowStatus: status("running", since) })
     expect(mostUrgentStatus([running("a", 1), running("b", 9)])?.since).toBe(9)
     expect(mostUrgentStatus([task("a")])).toBeUndefined()
+  })
+  describe("a crowded parent folds on its own", () => {
+    const family = (kids: number) => [
+      task("p"),
+      ...Array.from({ length: kids }, (_, i) => task(`k${i}`, { parentTaskId: "p" })),
+      task("other"),
+    ]
+    const view = (tasks: TaskRow[], fold: { folded?: string[]; opened?: string[]; selectedId?: string } = {}) =>
+      navRows(groupByProject(tasks), "", new Set(), {
+        folded: new Set(fold.folded),
+        opened: new Set(fold.opened),
+        selectedId: fold.selectedId,
+      }).flatMap((row) => (row.kind === "task" ? [row.id] : []))
+
+    test("more than the threshold folds, at the threshold stays open, and the badge counts the children", () => {
+      expect(view(family(AUTO_FOLD_CHILDREN))).toHaveLength(AUTO_FOLD_CHILDREN + 2)
+      expect(view(family(AUTO_FOLD_CHILDREN + 1))).toEqual(["p", "other"])
+      const fold = navRows(groupByProject(family(8)), "", new Set()).find((row) => row.id === "p")
+      expect(fold?.kind === "task" && fold.fold).toMatchObject({ collapsed: true, count: 8 })
+    })
+
+    test("a parent the user opened stays open; one the user folded stays folded below the threshold", () => {
+      expect(view(family(8), { opened: ["p"] })).toHaveLength(10)
+      expect(view(family(2), { folded: ["p"] })).toEqual(["p", "other"])
+    })
+
+    test("the selected child keeps its crowded parent open, but never overrides a fold made by hand", () => {
+      expect(view(family(8), { selectedId: "k3" })).toHaveLength(10)
+      expect(view(family(8), { selectedId: "other" })).toEqual(["p", "other"])
+      expect(view(family(8), { selectedId: "k3", folded: ["p"] })).toEqual(["p", "other"])
+    })
+  })
+})
+
+describe("the recent sort", () => {
+  test("orders newest-created first and ignores updatedAt, so bookkeeping never moves a row under a click", () => {
+    const [project] = groupByProject(
+      [
+        task("old", { createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-03-01T00:00:00.000Z" }),
+        task("new", { createdAt: "2026-01-02T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" }),
+      ],
+      "recent",
+    )
+    expect(project?.tasks.map((row) => row.id)).toEqual(["new", "old"])
   })
 })

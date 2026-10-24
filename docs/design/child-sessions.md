@@ -174,8 +174,11 @@ rove
   fix flaky test
 ```
 
-- Children indent under their parent and collapse. The fold persists across a
-  TUI restart (`sidebar.collapsedTasks` in the TUI's KV store).
+- Children indent under their parent and collapse. A parent with more than
+  five children starts collapsed; folding or opening one by hand persists
+  across a TUI restart (`sidebar.collapsedTasks` / `sidebar.openedTasks` in the
+  TUI's KV store), the selected child keeps its parent open, and search shows
+  every row.
   - A collapsed parent shows the child count and the most urgent child state.
   - Indentation stops growing at 3 levels.
 - Each child shows a marker: shared directory (`⑂`) or own worktree (`⎇`).

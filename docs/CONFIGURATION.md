@@ -423,13 +423,22 @@ silently deletable.
 
 The current tree sidebar follows persisted project/task order and supports
 manual project reordering with `shift+m`. The `t` key cycles the task sort
-through four orders — the persisted one, most-recently-touched, `attention`
+through four orders — `default` (shown as "manual": the persisted order, the
+one drag and move mode edit), `recent` (shown as "newest": newest created first; renaming, status
+or pin changes and selecting a task never reorder it), `attention`
 (tasks blocked on you first, then ones whose turn landed unread,
-most-recently-touched inside each group), and `name` (A→Z by title, ignoring
+most recently changed inside each group), and `name` (A→Z by title, ignoring
 case, with numbers in numeric order so `task 2` comes before `task 10`).
 Projects keep their own order in every mode. The choice is saved as
-`activeSortMode` and read back on startup; a value this build does not
-recognise reads as the persisted order. Older state files may contain
+`activeSortMode` and read back on startup; with none saved, or a value this
+build does not recognise, the sidebar starts on `recent`. The active order is
+named on the line above the task list (`sort: newest`). Reorder (`shift+m`,
+the row menu) edits the manual order, so it switches any other sort to manual
+first and says so. A parent with more
+than five children starts folded behind its count; fold or open it by hand
+and that choice sticks (`sidebar.collapsedTasks` / `sidebar.openedTasks`). The
+selected child keeps its parent open, and search shows everything. Older state
+files may contain
 `tasksPane.projectFilter`; the daemon still mirrors that compatibility value
 for background consumers, but the current PureTUI tree does not consume it.
 

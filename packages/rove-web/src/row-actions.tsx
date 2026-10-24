@@ -11,7 +11,7 @@ import { ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { moveMode } from "./move-mode.ts"
+import { moveMode, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { startNewTask } from "./new-session-view.tsx"
 import { newChatHere, openTab } from "./task-dialogs.tsx"
@@ -105,7 +105,7 @@ export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): M
 
 /** Shift+M / "Reorder": j/k then move the cursor row at its level; the rail owns the keys, so hand it focus. */
 function enterMoveMode(): void {
-  moveMode.set(!moveMode.get())
+  setMoveMode(!moveMode.get())
   document.querySelector<HTMLElement>(".rail")?.focus()
 }
 

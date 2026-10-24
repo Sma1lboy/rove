@@ -65,10 +65,32 @@ export type NavRow =
       readonly expanded: boolean
     })
 
-const taskTime = (task: TaskRow): number => {
-  const parsed = Date.parse(task.updatedAt ?? task.createdAt ?? "")
+/** A parent with more children than this starts folded (the TUI's `AUTO_FOLD_CHILDREN`). */
+export const AUTO_FOLD_CHILDREN = 5
+
+/** Which parents are folded: the user's choices over the automatic rule. */
+export interface FoldState {
+  /** Folded by hand. */
+  readonly folded: ReadonlySet<string>
+  /** Opened by hand: stays open however many children it has. */
+  readonly opened: ReadonlySet<string>
+  /** The selected task: an automatic fold never hides it. */
+  readonly selectedId?: string
+}
+
+const NO_FOLDS: FoldState = { folded: new Set(), opened: new Set() }
+
+const stamp = (iso: string | undefined): number => {
+  const parsed = Date.parse(iso ?? "")
   return Number.isFinite(parsed) ? parsed : 0
 }
+const taskTime = (task: TaskRow): number => stamp(task.updatedAt ?? task.createdAt)
+/**
+ * The `recent` sort: newest-created first. Not `updatedAt`, which also moves on bookkeeping
+ * (a first open, a PR poll) and would reorder rows under a click.
+ */
+const createdTime = (task: TaskRow): number => stamp(task.createdAt)
+const compareNewest = (a: TaskRow, b: TaskRow): number => createdTime(b) - createdTime(a) || b.id.localeCompare(a.id)
 // `groups.ts` compareRecent / compareName (not importable here: `@/` paths).
 const compareRecent = (a: TaskRow, b: TaskRow): number => taskTime(b) - taskTime(a) || b.id.localeCompare(a.id)
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
@@ -79,7 +101,7 @@ const compareAttention = (a: TaskRow, b: TaskRow): number => a.rank - b.rank || 
 
 const COMPARE: Record<SortMode, ((a: TaskRow, b: TaskRow) => number) | null> = {
   default: null,
-  recent: compareRecent,
+  recent: compareNewest,
   attention: compareAttention,
   name: compareName,
 }
@@ -193,16 +215,23 @@ function descendantIds(children: ReadonlyMap<string, readonly TaskRow[]>, id: st
   return out
 }
 
+/** The user's choice wins; otherwise a crowded parent folds, unless the selected task sits under it. */
+function isFolded(id: string, childCount: number, descendants: readonly string[], fold: FoldState): boolean {
+  if (fold.folded.has(id)) return true
+  if (fold.opened.has(id) || childCount <= AUTO_FOLD_CHILDREN) return false
+  return fold.selectedId === undefined || !descendants.includes(fold.selectedId)
+}
+
 /**
  * Flatten to navigable rows, pruned to `query` like `filterTreeRows`: each field
  * matched on its own; a project hit keeps its whole subtree, a task hit its
- * children, a child hit its parents and project. A task in `collapsedTasks` hides its children.
+ * children, a child hit its parents and project. A folded task (`fold`) hides its children.
  */
 export function navRows(
   groups: readonly ProjectGroup[],
   query = "",
   expandedRoutines: ReadonlySet<string> = new Set(),
-  collapsedTasks: ReadonlySet<string> = new Set(),
+  fold: FoldState = NO_FOLDS,
 ): NavRow[] {
   const q = query.trim()
   const hit = (...fields: string[]) => fields.some((f) => f !== "" && fuzzyMatch(q, f))
@@ -222,7 +251,7 @@ export function navRows(
       const kids = children.get(task.id)
       const ids = kids ? descendantIds(children, task.id) : []
       // A search shows everything, so a folded parent stays open under it (the TUI's rule).
-      const folded = kids !== undefined && q === "" && collapsedTasks.has(task.id)
+      const folded = kids !== undefined && q === "" && isFolded(task.id, kids.length, ids, fold)
       out.push({
         id: task.id,
         kind: "task",
@@ -286,11 +315,11 @@ export interface RailInput {
   readonly sort: SortMode
   readonly query: string
   readonly routines: ReadonlySet<string>
-  /** Task ids whose children are folded away; absent = all open. */
-  readonly folded?: ReadonlySet<string>
+  /** Parents the user folded or opened over the automatic rule; absent = automatic only. */
+  readonly fold?: FoldState
 }
 
-const newest = (group: ProjectGroup): number => Math.max(0, ...group.tasks.map(taskTime))
+const newest = (group: ProjectGroup): number => Math.max(0, ...group.tasks.map(createdTime))
 
 /** One machine's checkout of a project: a per-path group plus the machine it lives on (absent = this one). */
 interface Part {
@@ -378,7 +407,7 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   const labelled = projects.map((project) => ({ ...project, label: labels.get(project) ?? project.label }))
   if (input.sort === "recent") labelled.sort((a, b) => newest(b) - newest(a))
   if (input.sort === "name") labelled.sort((a, b) => collator.compare(a.label, b.label))
-  const rows = navRows(labelled, input.query, input.routines, input.folded)
+  const rows = navRows(labelled, input.query, input.routines, input.fold)
   const groups = parts
     .filter((part) => part.machine === undefined)
     .map((part) => {

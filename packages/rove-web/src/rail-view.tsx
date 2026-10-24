@@ -75,7 +75,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       sort: filters.sort,
       query,
       routines: filters.routines,
-      folded: filters.foldedTasks,
+      fold: { ...filters.hand, selectedId: selectedId ?? undefined },
     })
   const built = build(filters.search.active ? filters.search.query : "")
   const { groups } = built
@@ -156,6 +156,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         </div>
       )}
       <PageNav model={model} />
+      <button type="button" className="rail-sort mono" title={tc("tasks", "sort.hint")} onClick={filters.cycleSort}>
+        {tc("tasks", "sort.label", { mode: tc("tasks", `sort.modes.${filters.sort}`) })}
+      </button>
       <div className={`rail-body ${drag.dragging ? "is-sorting" : ""}`} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && (
           <div className="empty">
@@ -191,7 +194,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 ? mostUrgentStatus(row.fold.descendantIds.flatMap((id) => byId.get(id) ?? []))
                 : undefined
             }
-            onToggleFold={() => filters.toggleTaskFold(row.id)}
+            onToggleFold={() => row.kind === "task" && filters.toggleTaskFold(row.id, row.fold?.collapsed === true)}
             onClick={() => {
               keys.setCursor(row.id)
               if (row.kind === "routines") filters.toggleRoutines(row.key)
@@ -215,7 +218,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               keys.setCursor(row.id)
               openMenu(
                 e,
-                withFoldEntry(taskMenu(model, row.task, null), row.fold, () => filters.toggleTaskFold(row.id)),
+                withFoldEntry(taskMenu(model, row.task, null), row.fold, () =>
+                  filters.toggleTaskFold(row.id, row.fold?.collapsed === true),
+                ),
               )
             }}
           />
@@ -388,7 +393,12 @@ function FoldToggle(props: {
   const label = tc("tasks", fold.collapsed ? "menu.expandChildren" : "menu.collapseChildren")
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: a button cannot nest in the row's button; the row's menu entry is the keyboard path
+    // biome-ignore lint/a11y/useSemanticElements: same reason: the row is itself a button
     <span
+      role="button"
+      tabIndex={-1}
+      aria-label={label}
+      aria-expanded={!fold.collapsed}
       className="chip fold-toggle muted"
       title={label}
       onClick={(e) => {

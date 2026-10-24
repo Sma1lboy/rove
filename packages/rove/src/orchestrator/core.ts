@@ -155,14 +155,9 @@ export class Orchestrator {
     if (next && this.store.get(next)?.deletion) throw new TaskDeletingError(next)
     this.activeTaskAcc.set(next)
     if (next && this.store.get(next)) {
-      // Global last-writer-wins, persisted eagerly so a restart reopens on it
-      // regardless of the lazy recency flush below.
+      // Global last-writer-wins, persisted eagerly so a restart reopens on it.
+      // Focus never touches `updatedAt`: the `recent` sort must not move a row under a click.
       writeLastActiveTaskId(next)
-      // Not `store.update(next, {})`: an empty patch still does a full fsync'd
-      // read-merge-write on every focus switch (the most frequent action).
-      // `touchRecency` bumps `updatedAt` in-cache and notifies (so the `recent`
-      // sort reorders live), flushing on the next real mutation.
-      this.store.touchRecency(next)
     }
   }
 
