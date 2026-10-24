@@ -470,8 +470,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.setActive",
     async handle(payload, ctx) {
-      // Also touches updatedAt so "recent" sorting reflects use. The bus caches
-      // the last value, so late-subscribing panes get the current focus.
+      // The bus caches the last value, so late-subscribing panes get the current focus.
       const taskId = optionalString(payload, "taskId") ?? null
       await ctx.orch.setActiveTask(taskId)
       ctx.bus.publish("active-task", { taskId })

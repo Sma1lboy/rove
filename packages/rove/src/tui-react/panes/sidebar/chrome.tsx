@@ -3,6 +3,7 @@
 
 import { MouseButton, TextAttributes } from "@opentui/core"
 import { legendCap } from "../../../tui/lib/help-groups"
+import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
@@ -99,6 +100,25 @@ export function SidebarSearchInput(props: { query: string; matchCount: number; t
           {props.matchCount}/{props.totalCount}
         </text>
       )}
+    </box>
+  )
+}
+
+/** The active task order, so a different order is never a mystery (`t` cycles it). */
+export function SidebarSortLine(props: { mode: TaskSortMode }) {
+  const { theme } = useTheme()
+  const t = useT()
+  const mode = {
+    default: t("tasks.sort.modes.default"),
+    recent: t("tasks.sort.modes.recent"),
+    attention: t("tasks.sort.modes.attention"),
+    name: t("tasks.sort.modes.name"),
+  }[props.mode]
+  return (
+    <box flexShrink={0} paddingLeft={1}>
+      <text fg={theme.textMuted} wrapMode="none">
+        {t("tasks.sort.label", { mode })}
+      </text>
     </box>
   )
 }

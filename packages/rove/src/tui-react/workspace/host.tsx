@@ -131,6 +131,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     kv,
     tasks,
     focusSidebar: () => focus.setFocused("sidebar"),
+    notify: notifyInfo,
   })
 
   const inbox = useInboxHost({

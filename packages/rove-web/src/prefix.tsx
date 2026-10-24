@@ -17,7 +17,7 @@ import { daemonHealth, refreshRove } from "./daemon-health.tsx"
 import { t } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import type { AppModel } from "./model.ts"
-import { moveMode } from "./move-mode.ts"
+import { moveMode, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { startNewTask } from "./new-session-view.tsx"
 import { openPalette } from "./palette-view.tsx"
@@ -121,7 +121,7 @@ export const ACTIONS: readonly PrefixAction[] = [
     id: "task.moveMode",
     live: (m) => !!aimedTask(m),
     run: () => {
-      moveMode.set(!moveMode.get())
+      setMoveMode(!moveMode.get())
       document.querySelector<HTMLElement>(".rail")?.focus()
     },
   },

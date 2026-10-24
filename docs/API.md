@@ -543,7 +543,7 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   for an agent that would rather read it than parse it. It replaces the
   structured rows; ask for one or the other, not both.
 - `digest --repo PATH [--since-days N]`: the repo's recent agent work,
-  tasks touched in the window plus routine outcomes by status. Default
+  tasks touched in the window (a visit that only focuses a task no longer counts) plus routine outcomes by status. Default
   window 7 days. Repo resolution follows `collect`: an unresolvable `--repo`
   is a `REPO_UNRESOLVABLE` error, and unresolvable task repos come back in
   `unresolvableRepos` rather than being counted as absent. Task outcomes are deliberately absent: completion travels

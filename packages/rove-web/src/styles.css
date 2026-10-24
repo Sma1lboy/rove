@@ -268,6 +268,19 @@ button:focus-visible,
   font-size: 12px;
 }
 
+.rail-sort {
+  align-self: flex-start;
+  padding: 0 14px 6px;
+  background: none;
+  border: 0;
+  font-size: 11px;
+  color: var(--subtle);
+  cursor: pointer;
+}
+.rail-sort:hover {
+  color: var(--accent);
+}
+
 .rail-search .caret {
   color: var(--accent);
   animation: blink 1s steps(1) infinite;
@@ -403,11 +416,22 @@ button:focus-visible,
   font-family: var(--mono);
 }
 
+/* The whole chip column of the row is the target, not just the glyph. */
 .fold-toggle {
   display: inline-flex;
+  align-items: center;
+  align-self: stretch;
   gap: 4px;
+  min-width: 24px;
+  justify-content: center;
+  padding: 0 8px;
+  margin: 0 -4px;
+  border-radius: 4px;
   font-family: var(--mono);
   cursor: pointer;
+}
+.fold-toggle:hover {
+  background: rgba(127, 127, 127, 0.18);
 }
 
 .glyph {

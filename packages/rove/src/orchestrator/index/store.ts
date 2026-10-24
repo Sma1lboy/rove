@@ -268,24 +268,6 @@ export class TaskIndexStore {
     return next
   }
 
-  /**
-   * Focus-switch hot path: bump `updatedAt` in memory and notify (so `recent`
-   * reorders live), mark dirty, and let the NEXT real save flush it — no
-   * fsync'd {@link doSave} per switch. The last-focused id is persisted
-   * eagerly by `state/last-active.ts`; only `recent` ordering across a hard
-   * restart rides the lazy flush (best-effort). No-op on an unknown id.
-   */
-  touchRecency(id: TaskId | string): void {
-    this.assertLoaded()
-    const idx = this.cache.tasks.findIndex((t) => t.id === id)
-    if (idx < 0) return
-    const existing = this.cache.tasks[idx]
-    if (!existing) return
-    this.cache.tasks[idx] = { ...existing, updatedAt: new Date().toISOString() }
-    this.dirtyIds.add(String(id))
-    this.notifyListeners()
-  }
-
   /** Move within `withinIds` so UI partitions (pinned vs regular) stay intact. */
   async move(id: TaskId | string, delta: -1 | 1, withinIds?: readonly string[]): Promise<Task> {
     this.assertLoaded()
