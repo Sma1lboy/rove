@@ -4,7 +4,7 @@ Native Kotlin and Jetpack Compose client for the existing Rove bridge. Android 8
 
 ## Build and check
 
-Install JDK 17, Android SDK platform 35 and build-tools 35.0.0. Set `JAVA_HOME` and `ANDROID_HOME`, then run:
+Install JDK 17, Android SDK platform 36 and build-tools 35.0.0. Set `JAVA_HOME` and `ANDROID_HOME`, then run:
 
 ```sh
 ./scripts/verify.sh

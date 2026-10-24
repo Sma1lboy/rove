@@ -6,7 +6,7 @@ This draft implements pairing by paste, QR scan or deep link, task attention ord
 
 ## Build
 
-Requirements: JDK 17, Node/npm, Android SDK platform 35, build-tools 35.0.0. Use the committed Gradle wrapper.
+Requirements: JDK 17, Node/npm, Android SDK platform 36, build-tools 35.0.0. Use the committed Gradle wrapper.
 
 ```sh
 cd packages/rove-android
@@ -20,6 +20,8 @@ On macOS, `/usr/libexec/java_home -v 17` locates an installed JDK. On allen, use
 The build reads the iOS demo fixture from the sibling package and bundles the npm-locked terminal assets. Output: `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Release build
+
+Play requires `targetSdk` 36 or higher for new apps and updates; the build targets 36.
 
 The version lives in `packages/rove-android/gradle.properties` as `rove.versionName` and `rove.versionCode`. Pass `-Prove.versionCode=<n>` to override the code; Play rejects a bundle whose code is not higher than the last upload.
 

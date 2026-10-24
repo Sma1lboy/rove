@@ -39,7 +39,8 @@ defaults:
 jobs:
   verify:
     if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
-    # The hosted Ubuntu image ships the Android SDK (platform 35, build-tools 35.0.0) with ANDROID_HOME set.
+    # The hosted Ubuntu image ships the Android SDK with ANDROID_HOME set and its licenses accepted, so Gradle
+    # installs platform 36 itself if the image lacks it.
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:

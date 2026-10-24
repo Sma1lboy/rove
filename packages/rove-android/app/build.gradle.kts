@@ -12,11 +12,11 @@ val releaseKeystore = signingValue("ROVE_ANDROID_KEYSTORE")
 
 android {
     namespace = "run.rove.mobile"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = "run.rove.mobile"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = property("rove.versionCode").toString().toInt()
         versionName = property("rove.versionName").toString()
     }
