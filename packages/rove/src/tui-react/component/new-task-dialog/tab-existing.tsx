@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/react */
-/** Existing tab: repo input with saved/browse dropdown + base-branch picker.
+/** Existing tab: repo input with saved/browse dropdown, base-branch picker, first message.
  *  JSX only; behavior lives in the view-model. */
 
 import { type ExistingIntent, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
@@ -148,6 +148,25 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
           paddingBottom={1}
         />
       ) : null}
+      {/* The task's first message; Enter creates. The project intent opens an existing checkout, so it has none. */}
+      {vm.intent === "project" && vm.canOpenProject ? null : (
+        <DialogSection
+          label={t("newTask.field.prompt")}
+          focused={vm.field === "prompt"}
+          onPress={() => vm.setField("prompt")}
+        >
+          <DialogField focused={vm.field === "prompt"}>
+            <input
+              value={vm.prompt}
+              placeholder={t("newTask.placeholder.prompt")}
+              focused={vm.field === "prompt"}
+              onMouseUp={() => vm.setField("prompt")}
+              onInput={(v: string) => vm.setPrompt(v)}
+              onSubmit={() => vm.commitExisting()}
+            />
+          </DialogField>
+        </DialogSection>
+      )}
     </>
   )
 }

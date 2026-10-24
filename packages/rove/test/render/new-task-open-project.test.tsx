@@ -90,8 +90,8 @@ function stopsTo(target: Field, opts: { intentVisible?: boolean } = {}): number 
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, "existing", {
       intentVisible: opts.intentVisible ?? false,
-      effortVisible: false,
-      modelVisible: false,
+      effortVisible: true,
+      modelVisible: true,
       tierVisible: false,
     })
     if (field === target) return i
@@ -108,16 +108,17 @@ function stopsFromTo(
   const step = (f: Field): Field =>
     nextField(f, "existing", {
       intentVisible: opts.intentVisible ?? false,
-      effortVisible: false,
-      modelVisible: false,
+      effortVisible: true,
+      modelVisible: true,
       tierVisible: false,
     })
   let field: Field = from
   for (let i = 1; i <= 24; i++) {
     field = step(field)
-    // `advanceField` skips the branch field under the project intent, because
-    // it is not on screen there; mirror that or the count runs one long.
-    if (opts.skipBaseRef && field === "baseRef") field = step(field)
+    // `advanceField` skips the branch and first-message fields under the
+    // project intent, because neither is on screen there; mirror that or the
+    // count runs long.
+    if (opts.skipBaseRef) while (field === "baseRef" || field === "prompt") field = step(field)
     if (field === target) return i
   }
   throw new Error(`the focus chain never reaches ${target} from ${from}`)

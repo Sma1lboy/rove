@@ -29,6 +29,7 @@ export const en = {
     effort: "EFFORT",
     repo: "REPO",
     fromBranch: "FROM BRANCH",
+    prompt: "FIRST MESSAGE",
     gitUrl: "GIT URL",
     parentDir: "PARENT DIR",
     folderName: "FOLDER NAME",
@@ -47,6 +48,7 @@ export const en = {
   placeholder: {
     folderName: "auto from url",
     adoptFilter: "* — type e.g. feature-* to narrow",
+    prompt: "Describe a task or ask a question (optional)",
   },
 
   hint: {
@@ -135,6 +137,7 @@ export const zh: typeof en = {
     effort: "推理强度",
     repo: "仓库",
     fromBranch: "基准分支",
+    prompt: "第一条消息",
     gitUrl: "git 地址",
     parentDir: "父目录",
     folderName: "文件夹名",
@@ -153,6 +156,7 @@ export const zh: typeof en = {
   placeholder: {
     folderName: "自动从地址推导",
     adoptFilter: "* — 输入如 feature-* 来缩小范围",
+    prompt: "描述一个任务，或提个问题（可选）",
   },
 
   hint: {

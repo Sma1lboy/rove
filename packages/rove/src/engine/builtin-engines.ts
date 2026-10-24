@@ -80,6 +80,9 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     listModels: async () => CLAUDE_MODELS,
     modelArgv: (base, model) => [...base, "--model", model],
     addDirArgv: (base, dirs) => [...base, ...dirs.map((dir) => `--add-dir=${dir}`)],
+    // `--effort <level>` (`claude --help`).
+    effortLevels: ["low", "medium", "high", "xhigh", "max"],
+    effortArgv: (base, level) => [...base, "--effort", level],
     foreignModel: isOpenAiFamilyModel,
     history: claudeHistoryReader,
     detectAccount: (deps) => detectClaudeAccount(deps),

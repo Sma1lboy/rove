@@ -13,7 +13,7 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
-import { NewTaskDialog } from "./new-task-dialog.tsx"
+import { startNewTask } from "./new-session-view.tsx"
 import { newChatHere, openTab } from "./task-dialogs.tsx"
 import {
   deleteTaskDialog,
@@ -66,9 +66,7 @@ export interface ProjectInfo {
 }
 
 export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): MenuItem[] {
-  const items: MenuItem[] = [
-    { label: t("menu.newTask"), section: "open", run: () => dialog.set(<NewTaskDialog model={model} repo={repo} />) },
-  ]
+  const items: MenuItem[] = [{ label: t("menu.newTask"), section: "open", run: () => startNewTask(model, repo) }]
   const main = info.mainTaskId
   if (main) {
     if (!info.first) {

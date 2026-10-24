@@ -103,6 +103,10 @@ describe("gate verbs", () => {
     function sendClient(take: () => unknown) {
       return new FakeClient({
         "task.get": () => ({ task: taskFixture({ kind: "task" }) }),
+        "tabs.get": () => ({
+          state: { tabs: [{ kind: "engine", id: "tab-1", spawned: true }], activeId: "tab-1" },
+          rev: 1,
+        }),
         "task.spawn": () => ({ taskId: "kid", task: taskFixture({ id: "kid", kind: "task" }) }),
         "task.setPrompt": () => ({}),
         "gate.takeUndelivered": take,

@@ -26,7 +26,7 @@ describe("routine engine pins", () => {
 
   it("judges a create without --vendor against the repo's default engine", async () => {
     const client = new FakeClient({ "automation.create": created })
-    const runtime = stubRuntime({ defaultVendor: async () => "claude" })
+    const runtime = stubRuntime({ defaultVendor: async () => "kimi" })
     await expect(invokeVerb("routine-create", createArgs("--effort", "high"), { client, runtime })).rejects.toThrow(
       /declares no reasoning effort/,
     )
@@ -47,10 +47,10 @@ describe("routine engine pins", () => {
   })
 
   it.each([
-    { flags: ["--vendor", "claude"], code: "BAD_EFFORT" },
+    { flags: ["--vendor", "kimi"], code: "BAD_EFFORT" },
     { flags: ["--vendor", ""], code: "BAD_EFFORT" },
-    { flags: ["--vendor", "claude", "--model", "sonnet"], code: "BAD_EFFORT" },
-    { flags: ["--vendor", "claude", "--model", ""], code: "BAD_EFFORT" },
+    { flags: ["--vendor", "kimi", "--model", "sonnet"], code: "BAD_EFFORT" },
+    { flags: ["--vendor", "kimi", "--model", ""], code: "BAD_EFFORT" },
     { flags: ["--vendor", "bob", "--effort", ""], code: "BAD_MODEL" },
     { flags: ["--vendor", "bob", "--effort", "high"], code: "BAD_MODEL" },
   ])("rejects incompatible retained pins for $flags", async ({ flags, code }) => {
@@ -63,7 +63,7 @@ describe("routine engine pins", () => {
     await expect(
       invokeVerb("routine-update", ["--id", "r1", ...flags], {
         client,
-        runtime: stubRuntime({ defaultVendor: async () => "claude" }),
+        runtime: stubRuntime({ defaultVendor: async () => "kimi" }),
       }),
     ).rejects.toMatchObject({ code })
     expect(client.requests.some((r) => r.name === "automation.update")).toBe(false)

@@ -121,6 +121,10 @@ describe("send handler", () => {
     })
     const client = new FakeClient({
       "task.get": () => ({ task: taskFixture({ id: "abc", vendor: "claude" }) }),
+      "tabs.get": () => ({
+        state: { tabs: [{ kind: "engine", id: "tab-1", spawned: true }], activeId: "tab-1" },
+        rev: 1,
+      }),
       "task.spawn": () => ({ taskId: "kid", task: child, parentDirty: false, sharedLinks: [] }),
       "task.setPrompt": () => ({}),
     })
@@ -136,6 +140,7 @@ describe("send handler", () => {
     expect(client.requests.find((r) => r.name === "task.spawn")?.payload).toEqual({
       parentTaskId: "abc",
       worktree: false,
+      title: "hi",
       command: "codex",
       vendor: "codex",
     })
@@ -151,6 +156,65 @@ describe("send handler", () => {
       delivered: true,
     })
     expect(client.requests.some((r) => r.name === "task.setCommand")).toBe(false)
+  })
+
+  it("--tab new on a task with no conversation delivers to the task itself and names it from the prompt", async () => {
+    const client = new FakeClient({
+      "task.get": () => ({ task: taskFixture({ id: "abc", title: "(new task)" }) }),
+      "tabs.get": () => ({ state: null, rev: 0 }),
+      "task.rename": () => ({}),
+      "task.setPrompt": () => ({}),
+    })
+    const { calls, deliver } = recordingDelivery()
+    const result = await invokeVerb(
+      "send",
+      ["--task-id", "abc", "--prompt", "Fix the login redirect", "--tab", "new"],
+      {
+        client,
+        runtime: stubRuntime({ deliverPrompt: deliver }),
+      },
+    )
+    expect(client.requestNames).not.toContain("task.spawn")
+    expect(client.requests.find((r) => r.name === "task.rename")?.payload).toEqual({
+      taskId: "abc",
+      title: "Fix the login redirect",
+    })
+    expect(calls[0].target).toMatchObject({ id: "abc", firstConversation: true })
+    expect(calls[0].target.tab).toBeUndefined()
+    expect(result).toMatchObject({ ok: true, taskId: "abc", delivered: true })
+    expect(result).not.toHaveProperty("childTaskId")
+  })
+
+  it("two concurrent --tab new on an unstarted task: the first takes tab-1, the second becomes a child and keeps its prompt", async () => {
+    let started = false
+    const child = taskFixture({ id: "kid", parentTaskId: "abc", sharesWorkspaceOf: "abc" })
+    const client = new FakeClient({
+      "task.get": () => ({ task: taskFixture({ id: "abc", title: "(new task)" }) }),
+      "tabs.get": () => ({
+        state: { tabs: [{ kind: "engine", id: "tab-1", spawned: started }], activeId: "tab-1" },
+        rev: 1,
+      }),
+      "task.list": () => ({ tasks: [] }),
+      "task.rename": () => ({}),
+      "task.setPrompt": () => ({}),
+      "task.spawn": () => ({ taskId: "kid", task: child, parentDirty: false, sharedLinks: [] }),
+    })
+    const { calls, deliver } = recordingDelivery()
+    const slowDeliver: typeof deliver = async (c, target, prompt) => {
+      await new Promise((resolve) => setTimeout(resolve, 30))
+      const out = await deliver(c, target, prompt)
+      started = true
+      return out
+    }
+    const run = (prompt: string) =>
+      invokeVerb("send", ["--task-id", "abc", "--prompt", prompt, "--tab", "new", "--plain"], {
+        client,
+        runtime: stubRuntime({ deliverPrompt: slowDeliver }),
+      })
+    const results = await Promise.all([run("first"), run("second")])
+    expect(calls.map((c) => c.prompt).sort()).toEqual(["first", "second"])
+    expect(calls.map((c) => c.target.id).sort()).toEqual(["abc", "kid"])
+    expect(results.filter((r) => (r as { childTaskId?: string }).childTaskId)).toHaveLength(1)
   })
 
   it("refuses --command without --tab new instead of silently running the task's engine", async () => {

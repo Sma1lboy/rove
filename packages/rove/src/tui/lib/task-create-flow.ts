@@ -11,6 +11,16 @@ import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@/types/task"
 import type { NewTaskDialogOptions, NewTaskInput } from "../component/new-task-dialog/state"
 import type { TaskActionContext } from "./task-actions"
 
+/** What the dialog hands the host when a new task starts from a first message. */
+export interface FirstPromptStart {
+  readonly prompt: string
+  readonly vendor: VendorId
+  readonly baseRef: string
+  readonly modelEffort?: string
+  readonly model?: string
+  readonly tier?: string
+}
+
 /** Hosts build ONE of these and pass it to every flow. */
 export interface CreateTaskContext extends TaskActionContext {
   /** New-task dialog adapter — host implements with `NewTaskDialog.show(dialog, …)`. */
@@ -41,6 +51,11 @@ export interface CreateTaskContext extends TaskActionContext {
    * pane ready to type. Absent → cursor-only. The chattab surface jumps itself.
    */
   readonly enterTask?: (id: string) => void | Promise<void>
+  /**
+   * Create the task with its first message and run its engine on it. Absent → the message is
+   * dropped and the task is created empty.
+   */
+  readonly startWithPrompt?: (repo: string, start: FirstPromptStart) => void
 }
 
 /** Repo roots with a `main` task, trailing slashes trimmed as the sidebar groups them. */
@@ -100,6 +115,19 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
       ctx.logger.error(`${ctx.logPrefix} ensureMainTask failed:`, err)
       ctx.notifyError?.(t("newTask.open.failed", { error: errorMessage(err) }))
     }
+    return
+  }
+  // A task with a first message is born by it: the host's quick-start path creates it and
+  // delivers the message to its engine, which the bare `createTask` below cannot.
+  if (result.mode !== "adopt" && result.prompt && ctx.startWithPrompt) {
+    ctx.startWithPrompt(repo, {
+      prompt: result.prompt,
+      vendor: result.vendor,
+      baseRef: result.baseRef,
+      ...(result.modelEffort ? { modelEffort: result.modelEffort } : {}),
+      ...(result.model ? { model: result.model } : {}),
+      ...(result.tier ? { tier: result.tier } : {}),
+    })
     return
   }
   // The git-worktree op has no other feedback once the dialog vanishes.

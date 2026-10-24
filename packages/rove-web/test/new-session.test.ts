@@ -1,0 +1,80 @@
+import { describe, expect, test } from "bun:test"
+import { digitRow, effortChoices, modelChipLabel, modelChoices, repoChipLabel, spawnArgs } from "../src/new-session.ts"
+
+const engine = {
+  id: "alpha",
+  models: [{ id: "m-big", label: "Big" }, { id: "m-small" }],
+  effortLevels: ["low", "high"],
+}
+
+describe("New session composer", () => {
+  test("the menu offers the engine's default first, then exactly the registry's models and levels", () => {
+    expect(modelChoices(engine, "Default")).toEqual([
+      { id: "", label: "Default" },
+      { id: "m-big", label: "Big" },
+      { id: "m-small", label: "m-small" },
+    ])
+    expect(effortChoices(engine, "Default").map((c) => c.id)).toEqual(["", "low", "high"])
+  })
+
+  test("an engine with no model flag or no effort levels offers nothing to pick", () => {
+    expect(modelChoices({ id: "x", acceptsModel: false, models: [{ id: "m" }] }, "Default")).toEqual([])
+    expect(effortChoices({ id: "x", effortLevels: [] }, "Default")).toEqual([])
+    expect(modelChoices(undefined, "Default")).toEqual([])
+  })
+
+  test("an engine with unknown models still offers its default", () => {
+    expect(modelChoices({ id: "x", models: null }, "Default")).toEqual([{ id: "", label: "Default" }])
+  })
+
+  test("the chip reads `<model> <effort>`, and the engine's name when nothing is pinned", () => {
+    const models = modelChoices(engine, "Default")
+    expect(modelChipLabel(models, "m-big", "high", "Alpha")).toBe("Big high")
+    expect(modelChipLabel(models, "m-big", "", "Alpha")).toBe("Big")
+    expect(modelChipLabel(models, "", "", "Alpha")).toBe("Alpha")
+  })
+
+  test("digits 1-9 pick that row of the open list; 0, letters and rows past the end pick nothing", () => {
+    expect(digitRow("1", 3)).toBe(0)
+    expect(digitRow("3", 3)).toBe(2)
+    expect(digitRow("4", 3)).toBeNull()
+    expect(digitRow("0", 3)).toBeNull()
+    expect(digitRow("a", 3)).toBeNull()
+    expect(digitRow("12", 20)).toBeNull()
+  })
+
+  test("the repo chip names the primary and counts the rest", () => {
+    expect(repoChipLabel(["/w/app"])).toBe("app")
+    expect(repoChipLabel(["/w/app", "/w/lib", "/w/docs"])).toBe("app +2")
+    expect(repoChipLabel([])).toBe("")
+  })
+
+  test("Create without starting sends no prompt, so no engine runs", () => {
+    expect(
+      spawnArgs({ repos: ["/w/app"], engine: "alpha", baseBranch: "", prompt: "", model: "m-big", effort: "" }),
+    ).toEqual({ repo: "/w/app", engine: "alpha", model: "m-big" })
+  })
+
+  test("Start spawns on the primary repo with the prompt, and pins only what was picked", () => {
+    expect(
+      spawnArgs({
+        repos: ["/w/app", "/w/lib"],
+        engine: "alpha",
+        baseBranch: "",
+        prompt: "fix it",
+        model: "",
+        effort: "",
+      }),
+    ).toEqual({ repo: "/w/app", prompt: "fix it", engine: "alpha" })
+    expect(
+      spawnArgs({
+        repos: ["/w/app"],
+        engine: "alpha",
+        baseBranch: "dev",
+        prompt: "fix it",
+        model: "m-big",
+        effort: "high",
+      }),
+    ).toEqual({ repo: "/w/app", prompt: "fix it", engine: "alpha", baseBranch: "dev", model: "m-big", effort: "high" })
+  })
+})

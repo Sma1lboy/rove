@@ -32,7 +32,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         required: false,
         placeholder: "TAB",
         description:
-          'Tab addressing: "new" starts a second conversation as a shared child task of the target (same directory) and sends the prompt to it — the reply adds `childTaskId`, and `session` is the child\'s; "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab.',
+          'Tab addressing: "new" sends the prompt to a new conversation: `tab-1` of the target itself while it has none yet, else a shared child task of the target (same directory) — the reply then adds `childTaskId`, and `session` is the child\'s; "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab.',
       },
       {
         ...F.command(),
