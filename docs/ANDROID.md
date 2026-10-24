@@ -19,6 +19,25 @@ On macOS, `/usr/libexec/java_home -v 17` locates an installed JDK. On allen, use
 
 The build reads the iOS demo fixture from the sibling package and bundles the npm-locked terminal assets. Output: `app/build/outputs/apk/debug/app-debug.apk`.
 
+## Release build
+
+The version lives in `packages/rove-android/gradle.properties` as `rove.versionName` and `rove.versionCode`. Pass `-Prove.versionCode=<n>` to override the code; Play rejects a bundle whose code is not higher than the last upload.
+
+Release signing reads four environment variables, or Gradle properties of the same name:
+
+| Variable | Value |
+| --- | --- |
+| `ROVE_ANDROID_KEYSTORE` | Path to the upload keystore (`.jks`) |
+| `ROVE_ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ROVE_ANDROID_KEY_ALIAS` | Key alias |
+| `ROVE_ANDROID_KEY_PASSWORD` | Key password |
+
+With all four set, `./gradlew :app:bundleRelease` writes a signed `app/build/outputs/bundle/release/app-release.aab`. Without them it writes the same bundle unsigned, which is enough to check that the release build compiles. Keep the keystore outside the checkout. With Play App Signing, this key is only the upload key, and Google holds the key that signs what users install.
+
+In CI, dispatch the Android workflow by hand. With the repository secrets `ANDROID_KEYSTORE_BASE64` (the `.jks` file, base64-encoded), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` set, it signs the bundle, uses the run number as the version code, and uploads the `.aab` as a workflow artifact. Upload that file to Play Console yourself. The workflow never publishes.
+
+Play Console answers (app access, permissions, Data safety, cleartext traffic) are drafted in `packages/rove-android/docs/PLAY_NOTES.md`.
+
 ## Run on allen
 
 Hermes prepares allen's emulator and access to a development Mac bridge. No emulator name or host address is assumed.
@@ -60,7 +79,7 @@ The demo resolver consumes the iOS fixture directly. Reconnects never replay use
 
 `./scripts/verify.sh` builds the APK and runs Android Lint, domain/protocol tests, MockWebServer integration tests, and Paparazzi Compose screenshot comparisons. The socket tests perform real localhost upgrades, check bearer authentication, close sockets during requests, observe reconnects, and test authorization failure and explicit disconnect.
 
-The repository's CI does not build Android yet; run `verify.sh` locally or on allen before trusting a change.
+CI runs the same script in `.github/workflows/android.yml` on pushes to `main` and others' PRs that touch the package, then builds an unsigned release bundle. Running the script locally or on allen is still the check before pushing.
 
 Screenshot baselines live under `packages/rove-android/app/src/test/snapshots/images/`. Regenerate with `./gradlew :app:recordPaparazziDebug`; inspect the resulting images before accepting them. These are Compose render tests, not emulator or real bridge evidence.
 

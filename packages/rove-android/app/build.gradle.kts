@@ -5,6 +5,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     id("app.cash.paparazzi")
 }
+// Release signing comes from the environment or Gradle properties, never from the checkout (docs/ANDROID.md).
+fun signingValue(name: String): String? =
+    (findProperty(name) as String?)?.takeIf { it.isNotBlank() } ?: System.getenv(name)?.takeIf { it.isNotBlank() }
+val releaseKeystore = signingValue("ROVE_ANDROID_KEYSTORE")
+
 android {
     namespace = "run.rove.mobile"
     compileSdk = 35
@@ -12,8 +17,21 @@ android {
         applicationId = "run.rove.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = property("rove.versionCode").toString().toInt()
+        versionName = property("rove.versionName").toString()
+    }
+    signingConfigs {
+        if (releaseKeystore != null) create("release") {
+            storeFile = file(releaseKeystore)
+            storePassword = signingValue("ROVE_ANDROID_KEYSTORE_PASSWORD")
+            keyAlias = signingValue("ROVE_ANDROID_KEY_ALIAS")
+            keyPassword = signingValue("ROVE_ANDROID_KEY_PASSWORD")
+        }
+    }
+    buildTypes {
+        release {
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("release")
+        }
     }
     buildFeatures { compose = true }
     compileOptions {

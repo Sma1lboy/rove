@@ -10,7 +10,7 @@ Install JDK 17, Android SDK platform 35 and build-tools 35.0.0. Set `JAVA_HOME` 
 ./scripts/verify.sh
 ```
 
-The script installs the pinned terminal assets, builds the debug APK, runs protocol and real WebSocket tests, checks Android Lint, and compares Compose screenshots. The APK is `app/build/outputs/apk/debug/app-debug.apk`. No release signing configuration is included.
+The script installs the pinned terminal assets, builds the debug APK, runs protocol and real WebSocket tests, checks Android Lint, and compares Compose screenshots. The APK is `app/build/outputs/apk/debug/app-debug.apk`. `./gradlew :app:bundleRelease` builds the Play bundle. It is signed when the `ROVE_ANDROID_KEYSTORE*` variables are set, and no key is stored in the repository; see [Release build](../../docs/ANDROID.md#release-build).
 
 For an intentional visual update, run `./gradlew :app:recordPaparazziDebug`, inspect `app/src/test/snapshots/images`, and then run the verification script. Reports are in `app/build/reports/`.
 
