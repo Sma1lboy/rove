@@ -4,8 +4,9 @@
  * no connection, so a machine added or removed from any shell shows up here
  * without a restart.
  *
- * With no machine registered the merged signal carries the local task array
- * itself (same identity), so a zero-machine install renders as without it.
+ * With no machine registered the merged signal is the local task array itself
+ * (same identity, same notification), so a zero-machine install renders and
+ * notifies as without it.
  */
 
 import type { RemoteOrchestrator } from "../client/remote-orchestrator.ts"
@@ -22,8 +23,6 @@ interface Remote {
   readonly live: RemoteLive
 }
 
-const NONE: Remote = { machines: [], tasks: [], live: NO_LIVE }
-
 /** The daemon's `machines` payload, or null for one this build can't read. */
 export function decodeMachines(payload: unknown): Remote | null {
   const p = payload as { machines?: unknown; tasks?: unknown; live?: Record<string, unknown> } | null
@@ -38,24 +37,25 @@ export function decodeMachines(payload: unknown): Remote | null {
 }
 
 export class MachineFeed {
-  private remote: Remote = NONE
   private readonly machinesAcc = createStateCell<readonly MachineStatus[]>([], "machines.status")
-  private readonly tasksAcc: ReturnType<typeof createStateCell<Task[]>>
+  /** The other machines' tasks, or null while none is registered. */
+  private readonly remoteTasksAcc = createStateCell<readonly Task[] | null>(null, "machines.remoteTasks")
+  private readonly tasksAcc: ReadableState<Task[]>
+  private merged: { local: Task[]; remote: readonly Task[]; value: Task[] } | null = null
   private readonly liveAcc = createStateCell<RemoteLive>(NO_LIVE, "machines.live")
   private readonly stops: Array<() => void>
 
   constructor(private readonly local: RemoteOrchestrator) {
-    this.tasksAcc = createStateCell<Task[]>(local.tasksSignal().get(), "machines.tasks")
+    this.tasksAcc = this.mergedTasks()
     const raw = local.rawChannelSignal("machines")
     const take = (): void => {
       const next = decodeMachines(raw.get())
       if (!next) return
-      this.remote = next
       this.machinesAcc.set(next.machines)
       this.liveAcc.set(next.live)
-      this.merge()
+      this.remoteTasksAcc.set(next.machines.length === 0 ? null : next.tasks)
     }
-    this.stops = [raw.subscribe(take), local.tasksSignal().subscribe(() => this.merge())]
+    this.stops = [raw.subscribe(take)]
     take()
   }
 
@@ -74,14 +74,31 @@ export class MachineFeed {
     return this.liveAcc
   }
 
-  private merge(): void {
-    const local = this.local.tasksSignal().get()
-    if (this.remote.machines.length === 0) {
-      this.tasksAcc.set(local)
-      return
+  // Derived rather than forwarded: a local change wakes subscribers straight from the local cell.
+  private mergedTasks(): ReadableState<Task[]> {
+    const localTasks = this.local.tasksSignal()
+    const get = (): Task[] => {
+      const local = localTasks.get()
+      const remote = this.remoteTasksAcc.get()
+      if (remote === null) return local
+      if (this.merged?.local !== local || this.merged.remote !== remote) {
+        // Local ones are stamped too, so no consumer reads an absent `origin` as "local".
+        const value = [...local.map((task) => stampOrigin(task, "local", "local")), ...remote]
+        this.merged = { local, remote, value }
+      }
+      return this.merged.value
     }
-    // Local ones are stamped too, so no consumer reads an absent `origin` as "local".
-    this.tasksAcc.set([...local.map((task) => stampOrigin(task, "local", "local")), ...this.remote.tasks])
+    const state = get as ReadableState<Task[]>
+    state.get = get
+    state.subscribe = (listener) => {
+      const stopLocal = localTasks.subscribe(listener)
+      const stopRemote = this.remoteTasksAcc.subscribe(listener)
+      return () => {
+        stopLocal()
+        stopRemote()
+      }
+    }
+    return state
   }
 
   dispose(): void {

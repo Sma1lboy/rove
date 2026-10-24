@@ -54,4 +54,28 @@ describe("MachineFeed", () => {
     expect(feed.tasksSignal().get()).toBe(tasks.get())
     expect(feed.machinesSignal().get()).toEqual([])
   })
+
+  it("wakes subscribers on a local change and on a machine push", () => {
+    const { orch, tasks, machines } = fakeLocal()
+    const feed = new MachineFeed(orch)
+    const seen: string[][] = []
+    feed.tasksSignal().subscribe(() =>
+      seen.push(
+        feed
+          .tasksSignal()
+          .get()
+          .map((t) => t.id),
+      ),
+    )
+
+    tasks.set([task("local-1"), task("local-2")])
+    machines.set(push(["box"], [task("box-1")]))
+    tasks.set([task("local-2")])
+    expect(seen).toEqual([
+      ["local-1", "local-2"],
+      ["local-1", "local-2", "box-1"],
+      ["local-2", "box-1"],
+    ])
+    expect(feed.tasksSignal().get()).toBe(feed.tasksSignal().get())
+  })
 })
