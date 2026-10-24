@@ -1,6 +1,6 @@
 /**
  * `ports` — which TCP listeners belong to a task. Pins attribution by the
- * listener's cwd (extra repos included, the deepest checkout wins on --all),
+ * listener's cwd (extra repos included, the deepest checkout wins),
  * the "couldn't scan" null, and that the real scan sees a live listener.
  */
 
@@ -65,6 +65,46 @@ describe("ports", () => {
       [9229, "t10", "http://localhost:9229"],
       [6379, null, "http://localhost:6379"],
     ])
+  })
+
+  it.each(["primary", "extra"])("task filtering respects a nested %s checkout's ownership", async (kind) => {
+    const parent = taskFixture({ id: "parent", worktreePath: "/repo" })
+    const child = taskFixture({
+      id: "child",
+      worktreePath: kind === "primary" ? "/repo/nested" : "/elsewhere",
+      extraRepos:
+        kind === "extra" ? [{ name: "nested", repo: "/source", branch: "child", worktreePath: "/repo/nested" }] : [],
+    })
+    const socket = { port: 3000, host: "127.0.0.1", pid: 123, command: "node", cwd: "/repo/nested" }
+    const c = new FakeClient({
+      "task.get": (payload) => ({
+        task:
+          typeof payload === "object" && payload !== null && "taskId" in payload && payload.taskId === "parent"
+            ? parent
+            : child,
+      }),
+      "task.list": () => ({ tasks: [parent, child] }),
+    })
+    const deps = { client: c, runtime: stubRuntime({ listeningPorts: async () => [socket] }) }
+    const row = { ...socket, url: "http://localhost:3000" }
+    expect(await invokeVerb("ports", ["--all"], deps)).toEqual({ ports: [{ ...row, taskId: "child" }] })
+    expect(await invokeVerb("ports", ["--task-id", "parent"], deps)).toEqual({ taskId: "parent", ports: [] })
+    expect(await invokeVerb("ports", ["--task-id", "child"], deps)).toEqual({ taskId: "child", ports: [row] })
+  })
+
+  it("rejects a missing task even when no listeners exist", async () => {
+    const c = new FakeClient({
+      "task.get": () => {
+        throw new Error("Task not found: missing")
+      },
+      "task.list": () => ({ tasks: [] }),
+    })
+    await expect(
+      invokeVerb("ports", ["--task-id", "missing"], {
+        client: c,
+        runtime: stubRuntime({ listeningPorts: async () => [] }),
+      }),
+    ).rejects.toThrow("Task not found: missing")
   })
 
   it("a failed scan answers null, never an empty list", async () => {

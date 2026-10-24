@@ -58,9 +58,8 @@ async function handlePorts(ctx: VerbContext): Promise<unknown> {
     throw new ApiError("pass --task-id or --all, not both", "BAD_FLAG", helpStep("ports"))
   }
   if (!all && taskId === undefined) throw new ApiError("--task-id is required (or pass --all)", "MISSING_FLAG")
-  const tasks = all
-    ? ((await daemon.request<{ tasks?: SerializedTask[] }>("task.list")).tasks ?? [])
-    : [(await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task]
+  if (!all) await daemon.request("task.get", { taskId })
+  const tasks = (await daemon.request<{ tasks?: SerializedTask[] }>("task.list")).tasks ?? []
   const sockets = await ctx.runtime.listeningPorts()
   // Null = the scan itself failed: "couldn't look", never "nothing listening".
   if (!sockets) return all ? { ports: null } : { taskId, ports: null }
