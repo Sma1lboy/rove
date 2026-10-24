@@ -33,6 +33,8 @@ export const OPS = [
   "term.input",
   "term.resize",
   "term.detach",
+  // Reopen a tab's session when no PTY runs in it (`tab-revive`); the client re-attaches after.
+  "term.revive",
   "diff.files",
   "diff.file",
   "attention.dismiss",

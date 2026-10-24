@@ -64,6 +64,7 @@ export function TerminalView(props: TerminalViewProps) {
   const [handle, setHandle] = useState<TermHandle | null>(null)
   const [scrolled, setScrolled] = useState(0)
   const [searching, setSearching] = useState(false)
+  const [revive, setRevive] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null })
   // Callbacks change every render; the mount (which runs once per session) reads the latest.
   const latest = useRef(props)
   latest.current = props
@@ -166,6 +167,28 @@ export function TerminalView(props: TerminalViewProps) {
     if (props.focused && handle && document.activeElement !== handle.term.textarea) handle.term.focus()
   }, [props.focused, handle])
 
+  // Only the tab's own session reopens: a split pane has no row of its own to relaunch from.
+  const canRevive =
+    (notice.kind === "notLive" || notice.kind === "restored" || notice.kind === "exited") &&
+    (!leafId || leafId === "leaf-1")
+  const reopening = useRef(false)
+  const reopen = async (mounted: TermHandle): Promise<void> => {
+    // A second click before the first settles would run two reattaches over one stream.
+    if (reopening.current) return
+    reopening.current = true
+    setRevive({ busy: true, error: null })
+    try {
+      await client.request("term.revive", { taskId, tabId })
+      await mounted.reattach()
+      mounted.term.focus()
+      setRevive({ busy: false, error: null })
+    } catch (err) {
+      setRevive({ busy: false, error: err instanceof Error ? err.message : String(err) })
+    } finally {
+      reopening.current = false
+    }
+  }
+
   return (
     <div
       className="term-pane"
@@ -186,7 +209,14 @@ export function TerminalView(props: TerminalViewProps) {
     >
       <div className="term-host" ref={host} />
       {notice.kind !== "none" && (
-        <div className={`term-notice ${notice.kind === "failed" ? "is-error" : ""}`}>{noticeText(notice)}</div>
+        <div className={`term-notice ${notice.kind === "failed" || revive.error ? "is-error" : ""}`}>
+          <span>{revive.error ? t("workspace.reopenFailed", { message: revive.error }) : noticeText(notice)}</span>
+          {canRevive && handle && (
+            <button type="button" className="link tone-info" disabled={revive.busy} onClick={() => void reopen(handle)}>
+              {revive.busy ? t("workspace.reopening") : t("workspace.reopen")}
+            </button>
+          )}
+        </div>
       )}
       {scrolled > 0 && !searching && handle && (
         <div className="term-scrolled mono">

@@ -228,6 +228,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `TAB_NOT_SPLITTABLE` | `tab-split` on a content tab; only terminal tabs split. |
 | `LAST_LEAF` | `tab-split --action close` on the only pane; close the tab instead. |
 | `RESET_ENGINE` | `tab-split --action reset` on a pane that runs an engine; only shell panes reset. |
+| `TAB_NOT_REVIVABLE` | `tab-revive` on a tab with no session of its own: a preview, a viewport onto another task, or a conversation hosted under another task. |
 | `RUN_NOT_FOUND` | `routine-respond --run` names no routine run (unknown, or pruned from the last 100). |
 | `RESPONSE_TOO_LARGE` | A `routine-respond` response or a `report --summary` over the 32,000-character cap. |
 | `DELIVERY_NOT_FOUND` | `report --delivery` names no delivery (unknown, or pruned past the newest 50 for its task). |
@@ -1212,6 +1213,20 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `{ok, taskId, tabId, leaf, changed, split, clients}`; `split` is
   `{activeLeafId, root}` (null once back to one pane) and `get-task .tabs[].split`
   carries the same.
+- `tab-revive --task-id ID --tab TAB`: reopen one Terminal Tab's own session when
+  no PTY runs in it: a dead or freeze-restored tab, or one whose key the PTY
+  host lost (a host restart that dropped its freeze records). A running tab is
+  left alone (`revived: false, alive: true`; an engine that exited into its
+  keep-alive shell still counts as running). An engine tab resumes its
+  persisted conversation (`resumed: true`, the `sessionId` it reopened) or, with
+  none recorded, starts a fresh one with no first message and records the id
+  the engine pinned; it respects `engine.maxLiveSessions`. The task's original
+  prompt is never replayed. A shell or command tab runs its recorded command
+  in the task's worktree. A tab id the task holds no row for is `TAB_NOT_FOUND`;
+  a split leaf (`tab-1::leaf-2`) is `BAD_FLAG` (`tab-split --action reset`
+  reopens it); a preview or viewport tab is `TAB_NOT_REVIVABLE`. A task on
+  another registered machine runs there, like every verb. Returns
+  `{ok, taskId, tabId, revived, alive?, resumed, sessionId?}`.
 - `notify --title TEXT [--body TEXT] [--kind KIND] [--task-id ID]
   [--source TAG]`: show a toast in every attached Rove UI. `--body` adds a
   second, muted line under the title — context, not a second message.

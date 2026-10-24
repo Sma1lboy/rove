@@ -39,6 +39,7 @@ import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { launchTab } from "./tab-launch.ts"
 import { openNewTab } from "./tab-new.ts"
 import { restoredTabLaunch } from "./tab-respawn.ts"
+import { reviveTab } from "./tab-revive.ts"
 import {
   type TaskSessionRow,
   closeTabsSnapshot,
@@ -358,6 +359,7 @@ export const defaultApiRuntime: ApiRuntime = {
       }),
     ),
   splitTab,
+  reviveTab,
   resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
   isUsableRepo: async (absPath) => {
     const { isGitRepo, isRemoteRepoKey } = await import("../../state/repos.ts")

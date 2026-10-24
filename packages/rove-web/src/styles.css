@@ -564,6 +564,10 @@ button:focus-visible,
   position: absolute;
   right: 10px;
   bottom: 10px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 5px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -574,6 +578,11 @@ button:focus-visible,
 
 .term-notice.is-error {
   color: var(--error);
+}
+
+.term-notice .link:disabled {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 /* Footer */

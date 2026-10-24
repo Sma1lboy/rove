@@ -365,6 +365,9 @@ export interface DaemonError {
   readonly name?: string
 }
 
+/** Wire error name of a PTY host declining `daemon.stop` while it holds live sessions and the caller did not say `force`. */
+export const PTY_STOP_REFUSED = "PtyStopRefused"
+
 export interface SerializedTask {
   readonly id: string
   readonly title: string

@@ -60,6 +60,21 @@ export interface RespawnTaskContext {
 }
 
 /**
+ * The tab's own engine argv before any pin/resume flag: its pinned command or
+ * protocol, else the task's.
+ */
+export function tabEngineBase(task: RespawnTaskContext, tab: EngineTab): readonly string[] {
+  return engineLaunchArgv({
+    command: tab.engineCommand ?? (tab.vendor ? undefined : task.command),
+    vendor: tab.vendor ?? task.vendor,
+    effort: task.modelEffort,
+    // A tab pinned to its own engine never inherits the task's model (a claude
+    // alias kills a codex launch); same rule as `send --tab new --command`.
+    model: tab.engineCommand || tab.vendor ? undefined : task.model,
+  })
+}
+
+/**
  * Via the same {@link engineTabArgv} as a TUI dead-reattach, so a pinned
  * conversation resumes (`--resume <id>` / `-S <id>` / `resume <id>`) instead
  * of replaying the first prompt. `null` = no such engine tab in the snapshot;
@@ -75,20 +90,12 @@ export function restoredTabLaunch(
     | EngineTab
     | undefined
   if (!tab) return null
-  const base = engineLaunchArgv({
-    command: tab.engineCommand ?? (tab.vendor ? undefined : task.command),
-    vendor: tab.vendor ?? task.vendor,
-    effort: task.modelEffort,
-    // A tab pinned to its own engine never inherits the task's model (a claude
-    // alias kills a codex launch); same rule as `send --tab new --command`.
-    model: tab.engineCommand || tab.vendor ? undefined : task.model,
-  })
   return buildEngineSessionLaunch({
     task: { id: task.id, kind: (task.kind as "task") ?? "task", vendor: tab.vendor ?? task.vendor, repo: task.repo },
     worktreePath,
     shell,
     // `live: false` makes this a RESUME rather than a fresh pin.
-    argv: engineTabArgv(tab, base, false, task.vendor),
+    argv: engineTabArgv(tab, tabEngineBase(task, tab), false, task.vendor),
     // The send's prompt is pasted later; an argv prompt would replay the first one.
     promptIntent: { kind: "none" },
     tabId,

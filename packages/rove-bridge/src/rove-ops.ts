@@ -66,6 +66,8 @@ export interface RoveOps {
   tabs(taskId: string): Promise<readonly TabRow[]>
   newTab(taskId: string, tab: NewTabRequest): Promise<{ tabId: string; taskId?: string }>
   closeTab(taskId: string, tabId: string): Promise<void>
+  /** `tab-revive`: reopen the tab's own session when no PTY runs in it. */
+  reviveTab(taskId: string, tabId: string): Promise<{ revived: boolean; resumed: boolean }>
   worktreeOf(taskId: string): Promise<string>
   /** A viewport tab shows another task's first engine session: where to attach instead; null for any other tab. */
   viewedSession(taskId: string, tabId: string): { taskId: string; tabId: string; cwd: string } | null
@@ -297,6 +299,14 @@ export function createRoveOps(
 
     async closeTab(taskId, tabId) {
       await api.verb<unknown>("tab-close", [flag("task-id", taskId), flag("tab", tabId)])
+    },
+
+    async reviveTab(taskId, tabId) {
+      const res = await api.verb<{ revived: boolean; resumed: boolean }>("tab-revive", [
+        flag("task-id", taskId),
+        flag("tab", tabId),
+      ])
+      return { revived: res.revived, resumed: res.resumed }
     },
 
     worktreeOf,

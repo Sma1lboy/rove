@@ -365,8 +365,8 @@ under `~/.rove/` (or the selected Rove home):
 - `pty-sessions/` freezes each hosted session's launch metadata and bounded
   scrollback ring so a PTY-host crash, restart, or machine reboot can restore
   the old screen and respawn the launch command. An explicit tab close or task
-  delete drops that session's frozen record; a reset asks the running host to
-  start fresh.
+  delete drops that session's frozen record; a reset clears the whole directory
+  once the host is gone.
 
 These files can contain text that was visible in the embedded terminal. Treat
 the Rove home with the same permissions and backup policy as shell history and
