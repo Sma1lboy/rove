@@ -5,7 +5,7 @@
  */
 
 import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
-import type { TaskRow } from "rove-bridge/protocol"
+import type { TabRow, TaskRow } from "rove-bridge/protocol"
 
 export type SortMode = "default" | "recent" | "attention" | "name"
 /** `t` cycles in this order, like `use-sidebar-host-state.ts`. */
@@ -438,4 +438,13 @@ export function previewDrop(rows: readonly NavRow[], fromId: string, toId: strin
   if (to < 0) return rows
   const at = side === "above" ? to : blockEnd(rest, to)
   return [...rest.slice(0, at), ...block, ...rest.slice(at)]
+}
+
+/**
+ * A task row names its conversation like the TUI's (`conversationTitleOf`): the first engine tab the
+ * engine has named, else the task's own title. A bare product name is no name, so it falls through.
+ */
+export function rowTitle(task: TaskRow, tabs: readonly TabRow[] | undefined): string {
+  if (task.kind !== "task") return task.title
+  return tabs?.find((tab) => tab.kind === "engine" && tab.conversation)?.conversation ?? task.title
 }

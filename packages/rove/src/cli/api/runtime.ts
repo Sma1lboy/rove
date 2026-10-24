@@ -132,7 +132,12 @@ async function deliverHosted(
     const result = await deliverHostedPrompt(
       host.rpc,
       // Another task's alias may claim a PTY under this task's key: never fall back to it.
-      { id: target.id, engineBin: argv[0], scope: await ptyScopeOf(client, { id: target.id }) },
+      {
+        id: target.id,
+        engineBin: argv[0],
+        scope: await ptyScopeOf(client, { id: target.id }),
+        ...(target.firstConversation ? { firstConversation: true } : {}),
+      },
       worktree,
       prompt,
       launch,

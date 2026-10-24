@@ -10,6 +10,7 @@ import { userFacingErrorMessage } from "@/lib/error-message"
 import { useState } from "react"
 import { engineDisplayName } from "../../engine/interactive-command"
 import type { SpawnChildInput } from "../../orchestrator/spawn-child"
+import { deriveTitleFromPrompt } from "../../orchestrator/title"
 import { addSavedRepo } from "../../state/repos"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "../../state/vendor-prefs"
 import { t } from "../../tui/i18n"
@@ -49,8 +50,17 @@ export function quickForkDefaultVendor(repo: string, detected: readonly VendorId
   return detected[0] ?? pref
 }
 
+/** The engine fields a new task can be created with beyond its vendor. */
+interface EngineFields {
+  readonly modelEffort?: string
+  readonly model?: string
+  readonly tier?: string
+  /** The sidebar name: the first prompt, so the row is not left as the placeholder. */
+  readonly title?: string
+}
+
 export interface QuickForkOrchestrator extends RoundOrchestrator {
-  createTask(input: { repo: string; baseRef: string; vendor: VendorId }): Promise<Task>
+  createTask(input: { repo: string; baseRef: string; vendor: VendorId } & EngineFields): Promise<Task>
   /** Record the brief on the created task — "Run again" only (see {@link runAgainTask}). */
   setPrompt(id: string, prompt: string): Promise<void>
   spawnChildTask(input: SpawnChildInput): Promise<{ readonly task: Task }>
@@ -62,10 +72,19 @@ async function createQuickForkTask(
   repo: string,
   baseRef: string,
   vendor: VendorId,
+  fields: EngineFields = {},
 ): Promise<Task> {
   setRepoLastActiveVendor(repo, vendor)
   addSavedRepo(repo)
-  return orch.createTask({ repo, baseRef, vendor })
+  return orch.createTask({
+    repo,
+    baseRef,
+    vendor,
+    ...(fields.modelEffort ? { modelEffort: fields.modelEffort } : {}),
+    ...(fields.model ? { model: fields.model } : {}),
+    ...(fields.tier ? { tier: fields.tier } : {}),
+    ...(fields.title ? { title: fields.title } : {}),
+  })
 }
 
 /** Create, then select + enter (`createTaskFlow`'s order). Errors go to
@@ -73,7 +92,7 @@ async function createQuickForkTask(
 async function runQuickFork(
   orch: QuickForkOrchestrator,
   repo: string,
-  result: { baseRef: string; vendor: VendorId },
+  result: { baseRef: string; vendor: VendorId } & EngineFields,
   hooks: {
     selectTask: (id: string) => void
     enterTask: (id: string) => Promise<void>
@@ -81,7 +100,7 @@ async function runQuickFork(
   },
 ): Promise<string | undefined> {
   try {
-    const task = await createQuickForkTask(orch, repo, result.baseRef, result.vendor)
+    const task = await createQuickForkTask(orch, repo, result.baseRef, result.vendor, result)
     hooks.selectTask(task.id)
     await hooks.enterTask(task.id)
     return task.id
@@ -205,14 +224,21 @@ export function useQuickFork(
       hooks.notify(hooks.t("quickTask.startedRound", { count: outcome.started.length }))
       return
     }
-    await runQuickFork(orch, repo, result, {
-      ...hooks,
-      selectTask: (taskId) => {
-        // Selection can mount the engine immediately; its first spawn owns the prompt.
-        setPending({ taskId, prompt })
-        hooks.selectTask(taskId)
+    const taskId = await runQuickFork(
+      orch,
+      repo,
+      { ...result, title: deriveTitleFromPrompt(prompt) },
+      {
+        ...hooks,
+        selectTask: (id) => {
+          // Selection can mount the engine immediately; its first spawn owns the prompt.
+          setPending({ taskId: id, prompt })
+          hooks.selectTask(id)
+        },
       },
-    })
+    )
+    // The brief makes the task re-runnable ("Run again"); best-effort, the prompt is already on its way.
+    if (taskId) await orch.setPrompt(taskId, prompt).catch(() => undefined)
   }
 
   async function onRunAgain(task: Task): Promise<void> {

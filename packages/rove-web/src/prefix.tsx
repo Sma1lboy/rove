@@ -19,7 +19,7 @@ import { InboxDialog } from "./inbox-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
-import { NewTaskDialog } from "./new-task-dialog.tsx"
+import { startNewTask } from "./new-session-view.tsx"
 import { openPalette } from "./palette-view.tsx"
 import { focusPane } from "./pane-focus.ts"
 import { hud, hudPush } from "./prefix-state.ts"
@@ -61,7 +61,7 @@ export const ACTIONS: readonly PrefixAction[] = [
   {
     id: "task.new.global",
     live: () => true,
-    run: (model) => dialog.set(<NewTaskDialog model={model} repo={selectedTask(model)?.repo} />),
+    run: (model) => startNewTask(model, selectedTask(model)?.repo),
   },
   {
     id: "chat.tab.fork",

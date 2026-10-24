@@ -177,6 +177,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     selectedTask: () => selectedTask,
     activateTask,
     forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
+    // `quickFork` is declared below; the dialog only calls this after the first render.
+    startWithPrompt: (repo, start) => quickFork.onQuickFork(repo, { ...start, attachments: [], attempts: 1 }),
   })
 
   // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.

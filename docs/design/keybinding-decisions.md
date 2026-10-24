@@ -8,6 +8,17 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## PROPOSED: digits `1`-`9` pick a model in the web composer's open model menu
+
+**2026-10-24 — PROPOSED, owner sign-off pending.** In the web New session
+composer, while the model/effort menu is open and focused, `1`-`9` pick that
+row of the model list (the claude.ai/code convention the owner asked to match).
+
+**Scope.** Menu-local only: the keys do nothing anywhere else, no global chord
+is added, and nothing is moved. Arrows move the highlight, Enter picks, Esc
+closes. The prompt box keeps every digit as an ordinary character.
+
+
 ## `h` / `l` mirror `←` / `→` wherever they navigate
 
 **2026-10-02 — plain `h` / `l` are added as alternatives to `←` / `→` in every

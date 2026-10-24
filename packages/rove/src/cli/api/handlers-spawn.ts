@@ -7,14 +7,18 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { withDeliveryLock } from "../../engine/delivery-lock.ts"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
+import { PLACEHOLDER_TASK_TITLE, deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { launchedEngine } from "./add-engine-fields.ts"
 import { dispatcherEnvPayload, ownSession, withPeerProvenance } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
-import { ApiError, type VerbContext, helpStep } from "./types.ts"
+import { ptyScopeOf } from "./pty-scope.ts"
+import { readDaemonTabs, taskEngineArgv } from "./tab-snapshot.ts"
+import { ApiError, type ApiRuntime, type VerbContext, helpStep } from "./types.ts"
 
 /**
  * `--parent`, else the caller's own verified session. A migrated child's PTY
@@ -36,7 +40,7 @@ async function resolveParent(ctx: VerbContext, daemon: DaemonRpc): Promise<strin
 }
 
 /**
- * The shared child that stands in for a second engine tab on `parentTaskId`
+ * The shared child that stands in for a later engine conversation on `parentTaskId`
  * (`send --tab new`, `tab-new --kind engine`): same directory, the pinned
  * `command` or else the parent's engine. No dispatcher: these verbs never set one.
  */
@@ -44,15 +48,77 @@ export async function spawnSharedChild(
   daemon: DaemonRpc,
   parentTaskId: string,
   command: string | undefined,
+  title?: string,
 ): Promise<SerializedTask> {
   const vendor = command ? resolveCommandProtocol(command) : undefined
   const res = await daemon.request<{ task: SerializedTask }>("task.spawn", {
     parentTaskId,
     worktree: false,
+    ...(title ? { title } : {}),
     ...(command ? { command } : {}),
     ...(vendor ? { vendor } : {}),
   })
   return res.task
+}
+
+/** How long a second new conversation waits on the first's claim of the task's own tab-1 (engine boot included). */
+const FIRST_CONVERSATION_LOCK_MS = 120_000
+
+/**
+ * Serializes new-conversation calls on one task: two concurrent ones on an unstarted task would both
+ * claim its tab-1. The second runs after the first, sees the engine started, and becomes a shared child.
+ */
+export function withFirstConversationLock<T>(taskId: string, fn: () => Promise<T>): Promise<T> {
+  return withDeliveryLock(`${taskId}::new-conversation`, fn, { timeoutMs: FIRST_CONVERSATION_LOCK_MS })
+}
+
+/** Where a new engine conversation starts: the task's own `tab-1`, or a shared child. */
+export interface ConversationHome {
+  readonly task: SerializedTask
+  readonly child: boolean
+}
+
+/**
+ * Whether the task's own conversation ran: an engine tab that spawned, or its first engine tab
+ * holding a live session (the TUI's `engineStarted`). A seeded, never-launched tab-1 — beside a
+ * shell, or from merely viewing the task — is no conversation.
+ */
+async function engineStarted(daemon: DaemonRpc, runtime: ApiRuntime, task: SerializedTask): Promise<boolean> {
+  if (task.ptyAlias) return true
+  const tabs = (await readDaemonTabs(daemon, task.id))?.tabs ?? []
+  const engines = tabs.filter((tab) => tab.kind === "engine")
+  if (engines.length === 0) return false
+  if (engines.some((tab) => tab.spawned)) return true
+  const { tabs: rows } = await runtime.taskTabs(task.id, taskEngineArgv(task), await ptyScopeOf(daemon, task))
+  return rows.find((row) => row.id === engines[0]?.id)?.alive === true
+}
+
+/**
+ * A task whose engine never started has had no conversation, and its first one lives in the
+ * task itself (`tab-1`); only a later one is a shared child. A differing `command` re-points the
+ * unstarted task's engine first; a first `prompt` replaces a placeholder title.
+ */
+export async function conversationHome(
+  daemon: DaemonRpc,
+  runtime: ApiRuntime,
+  task: SerializedTask,
+  command: string | undefined,
+  prompt?: string,
+): Promise<ConversationHome> {
+  const title = prompt ? deriveTitleFromPrompt(prompt) : ""
+  if (await engineStarted(daemon, runtime, task)) {
+    return { task: await spawnSharedChild(daemon, task.id, command, title), child: true }
+  }
+  if (command && command !== task.command) {
+    const vendor = resolveCommandProtocol(command)
+    await daemon.request("task.setCommand", { taskId: task.id, command, ...(vendor ? { vendor } : {}) })
+  }
+  // The first prompt names the task; a rename failure must not stop the conversation.
+  if (title && task.title === PLACEHOLDER_TASK_TITLE) {
+    await daemon.request("task.rename", { taskId: task.id, title }).catch(() => undefined)
+  }
+  const fresh = await daemon.request<{ task: SerializedTask }>("task.get", { taskId: task.id })
+  return { task: fresh.task, child: false }
 }
 
 /** Refusals before any session started: nothing ran, so the caller may retry from scratch. */

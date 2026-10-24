@@ -23,6 +23,7 @@ import {
   offersProjectIntent,
   pickerVisibleRows,
   prevDialogTab,
+  stripNewlines,
 } from "../../../tui/component/new-task-dialog/state"
 import { t } from "../../../tui/i18n"
 import { DEFAULT_BASE_REF, validateRepoPath } from "../../../tui/lib/git-snapshot"
@@ -94,6 +95,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   // Validation error shown inline on submit; cleared on any input edit.
   const [submitError, setSubmitError] = useState<string | null>(null)
+  // The task's first message (Existing tab): a task is born by it.
+  const [prompt, setPrompt] = useState("")
 
   /* ── Field clusters (each owns one question the dialog asks) ── */
 
@@ -134,8 +137,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     expandedRepo,
     pickerRows,
     defaultRepo: props.defaultRepo,
-    commit: () => commitExisting(),
-    onPicked: () => setField("confirm"),
+    onResolved: () => setField("prompt"),
+    onPicked: () => setField("prompt"),
   })
 
   const clone = useCloneState({
@@ -195,6 +198,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       return
     }
     const b = branch.baseRef.trim() || DEFAULT_BASE_REF
+    const firstMessage = prompt.trim()
     props.onSubmit({
       repo: r,
       baseRef: b,
@@ -202,6 +206,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       ...(effort ? { modelEffort: effort } : {}),
       ...(modelVisible && modelField.value.trim() ? { model: modelField.value.trim() } : {}),
       ...(tier !== "manual" ? { tier } : {}),
+      ...(firstMessage ? { prompt: firstMessage } : {}),
     })
     dialog.clear()
   }
@@ -248,26 +253,24 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   /**
    * Which stops the Tab cycle offers. A stop on an unrendered field parks
-   * focus on an invisible input and swallows every keystroke, so depth,
-   * model and effort (auto-routing's; a pinned model is a per-task exception;
-   * change-engine still shows them) are off. Shared by `advanceField` and
-   * `advanceFieldFor` so tests walk the dialog's real cycle.
+   * focus on an invisible input and swallows every keystroke, so each is on
+   * only while its row renders: effort for engines that declare levels, model
+   * for engines with a model flag. Depth (auto-routing's) stays off. Shared by
+   * `advanceField` and `advanceFieldFor` so tests walk the dialog's real cycle.
    */
   function focusStopsFor(forTab: DialogTab) {
     return {
       intentVisible: forTab === "existing" && canOpenProject,
-      effortVisible: false,
-      modelVisible: false,
+      effortVisible: effortChoices.length > 0,
+      modelVisible,
       tierVisible: false,
     }
   }
 
   function advanceField(from: Field): Field {
     const next = nextField(from, tab, focusStopsFor(tab))
-    // The "project" intent hides the branch field (`tab-existing.tsx`); skip it.
-    if (next === "baseRef" && tab === "existing" && intent === "project" && canOpenProject) {
-      return nextField(next, tab)
-    }
+    // The "project" intent hides the branch and first-message fields (`tab-existing.tsx`); Create is next.
+    if (next === "baseRef" && tab === "existing" && intent === "project" && canOpenProject) return "confirm"
     return next
   }
 
@@ -393,6 +396,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     effort,
     effortChoices,
     setEffort: setEffortPick,
+    prompt,
+    setPrompt: (v: string) => setPrompt(stripNewlines(v)),
     modelVisible,
     modelField,
     /** The tier row renders only while auto routing is configured. */

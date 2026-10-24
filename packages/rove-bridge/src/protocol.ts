@@ -185,6 +185,8 @@ export interface TabRow {
   readonly kind: string
   readonly title: string | null
   readonly engineName: string | null
+  /** The engine's own name for the conversation (the TUI's `conversationTitle`): a rename, else the engine's title unless it is its bare product name. */
+  readonly conversation: string | null
   readonly alive: boolean | null
   readonly engineAlive: boolean | null
   /** Present while the tab is split: the pane layout (`rove api get-task` `.tabs[].split`). Absent = one pane. */

@@ -4,11 +4,11 @@ import { useEffect, useState } from "react"
 import { ChipRow } from "./chip-row.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import type { ComposerEngine } from "./new-session.ts"
 import { toast } from "./ui.ts"
 
-/** `engines.list` row; the bridge's `EngineRow`, trimmed to what the page reads. */
-export interface EngineRow {
-  readonly id: string
+/** `engines.list` row; the bridge's `EngineRow`, trimmed to what the pages read (models and effort levels are the registry's). */
+export interface EngineRow extends ComposerEngine {
   readonly name: string
   readonly ready?: boolean
 }

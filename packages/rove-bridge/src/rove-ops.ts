@@ -20,7 +20,9 @@ import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
 import { loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
 import { resolveBase } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
+import { conversationTitle } from "@sma1lboy/rove/src/tui/workspace/terminal-tab-split.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
+import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove/src/types/task.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { type WorktreeDiff, worktreeDiff } from "@sma1lboy/rove/src/worktree/review-read.ts"
 import { gateRows } from "./gates.ts"
@@ -38,7 +40,7 @@ export interface EngineRow {
   readonly protocol: string
   readonly builtin: boolean
   /** engine-list `models`: suggestions in the engine's own spelling; `null` = unknown. */
-  readonly models?: ReadonlyArray<{ readonly id: string; readonly name?: string }> | null
+  readonly models?: ReadonlyArray<{ readonly id: string; readonly label?: string }> | null
   /** Reasoning levels the engine declares; `[]` = takes none. */
   readonly effortLevels?: readonly string[]
   /** The engine has a model flag, so a model can be pinned for it (`modelArgv` in the engine registry). */
@@ -78,7 +80,7 @@ export interface RoveOps {
   dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
 }
 
-/** What `tab.new` asks for: no `prompt` opens the tab empty (a shell, or an engine awaiting its first message). An engine is a new child task sharing the task's directory; the reply's `taskId` names it. */
+/** What `tab.new` asks for: no `prompt` opens the tab empty (a shell, or an engine awaiting its first message). An engine starts in the task's own `tab-1` while the task has no conversation, else in a new child task sharing its directory; only then does the reply's `taskId` name the child. */
 export interface NewTabRequest {
   readonly kind: "shell" | "engine"
   readonly prompt?: string
@@ -116,6 +118,18 @@ export function tabRows(rows: readonly TaskTabRow[], statuses?: RowStatuses[stri
     kind: t.kind,
     title: t.title ?? t.lastTitle ?? t.autoTitle,
     engineName: t.kind === "engine" ? nameOf(t.liveVendor ?? t.vendor) : null,
+    conversation:
+      t.kind === "engine"
+        ? conversationTitle(
+            {
+              ...t,
+              kind: "engine",
+              vendor: (t.vendor ?? undefined) as VendorId | undefined,
+              liveVendor: (t.liveVendor ?? undefined) as VendorId | undefined,
+            } as unknown as TerminalTab,
+            (t.liveVendor ?? t.vendor ?? DEFAULT_TASK_VENDOR) as VendorId,
+          )
+        : null,
     alive: t.alive,
     engineAlive: t.engineAlive,
     ...(t.split ? { split: t.split } : {}),

@@ -99,7 +99,7 @@ describe("update --effort", () => {
   })
 
   it("names every effort-capable engine in the hint, not just codex", async () => {
-    const client = new FakeClient(taskOf({ vendor: "claude" }))
+    const client = new FakeClient(taskOf({ vendor: "gemini" }))
     try {
       await invokeVerb("update", ["--task-id", "t1", "--effort", "high"], { client, runtime: stubRuntime() })
       expect.unreachable("should have thrown")

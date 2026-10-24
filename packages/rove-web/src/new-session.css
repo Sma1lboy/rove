@@ -1,0 +1,192 @@
+/* New session: an empty hero above, the composer pinned to the bottom of the workspace pane. */
+
+.new-session {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  font: 12px / 1.5 var(--mono);
+}
+
+.new-session-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.new-session-hero p {
+  margin: 0;
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 104ch;
+  margin: 0 auto;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.composer:focus-within {
+  border-color: var(--line-active);
+}
+
+.composer-input {
+  width: 100%;
+  min-height: 4.5em;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+
+.composer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.composer-grow {
+  flex: 1;
+}
+
+.composer-chip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.composer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 28ch;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.composer-chip:hover,
+.composer-chip[aria-expanded="true"] {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.composer-caret {
+  color: var(--subtle);
+  font-size: 10px;
+}
+
+.composer-pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 34ch;
+  max-width: 52ch;
+  max-height: min(50vh, 420px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line-active);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+}
+
+.composer-bar > .composer-chip-wrap:last-of-type .composer-pop {
+  left: auto;
+  right: 0;
+}
+
+.composer-list,
+.composer-menu {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 6px;
+  gap: 4px;
+  outline: 0;
+  overflow-y: auto;
+}
+
+.composer-rows {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.composer-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 6px 6px 2px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.composer-back {
+  cursor: pointer;
+}
+
+.composer-submenu {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+.composer-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+.composer-row.is-cursor {
+  background: var(--hover);
+}
+
+.composer-check {
+  flex: 0 0 1.5ch;
+  color: var(--accent);
+}
+
+.composer-dim {
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.composer-empty {
+  margin: 4px 8px;
+}
+
+.composer-more {
+  align-self: flex-start;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+}

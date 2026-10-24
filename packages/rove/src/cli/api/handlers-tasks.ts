@@ -20,7 +20,7 @@ import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
 import { readRunnability } from "./handlers-runnability.ts"
-import { failSharedChild, spawnSharedChild } from "./handlers-spawn.ts"
+import { conversationHome, failSharedChild, withFirstConversationLock } from "./handlers-spawn.ts"
 import { filterTaskList, listFilters } from "./list-filter.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
@@ -130,6 +130,12 @@ export function requirePromptText(ctx: VerbContext, verb: string): string {
 }
 
 export async function send(ctx: VerbContext): Promise<unknown> {
+  const taskId = ctx.args.str("task-id")
+  if (ctx.args.str("tab") !== "new" || !taskId) return sendNow(ctx)
+  return withFirstConversationLock(taskId, () => sendNow(ctx))
+}
+
+async function sendNow(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const prompt = requirePromptText(ctx, "send")
   let tab = ctx.args.str("tab")
@@ -181,13 +187,18 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)
   const requestedTaskId = taskId
-  // `--tab new` is a second conversation, so it becomes a shared child and the
-  // prompt goes to that child's own engine.
+  // `--tab new` is a new conversation: the task's own engine while it has none yet,
+  // else a shared child whose own engine gets the prompt.
   let childTaskId: string | undefined
+  let freshConversation = false
   if (tab === "new") {
-    res = { task: await spawnSharedChild(daemon, taskId, tabCommand) }
-    childTaskId = res.task.id
-    taskId = childTaskId
+    const home = await conversationHome(daemon, ctx.runtime, res.task, tabCommand, prompt)
+    res = { task: home.task }
+    freshConversation = true
+    if (home.child) {
+      childTaskId = home.task.id
+      taskId = childTaskId
+    }
     tab = undefined
   }
   // A migrated child's conversation is a hosted PTY keyed under its parent: its default tab IS that one,
@@ -268,6 +279,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
         ...(res.task.extraRepos?.length || res.task.sharesWorkspaceOf ? { multiRepo: true } : {}),
         tab,
         respawn,
+        ...(freshConversation && !childTaskId ? { firstConversation: true } : {}),
       },
       text,
     )
@@ -302,7 +314,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   await settle(true, delivered.session)
   // The answers rode this paste; only now are they the engine's.
   if (owed) await markGateAnswersDelivered(daemon, owed.gateIds)
-  if (childTaskId) {
+  if (freshConversation) {
     // `.task.prompt` means "the engine was given exactly this text": recorded only once delivery confirmed.
     await daemon.request("task.setPrompt", { taskId, prompt }).catch((err: unknown) => {
       console.error(`[rove api send] task.setPrompt failed for ${taskId}:`, err)

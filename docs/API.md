@@ -903,7 +903,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
   The TUI's and the web's "new conversation" gestures do the same with
   `--no-worktree`: `ctrl+t`, `ctrl+e` with the tab destination, `send --tab
-  new` and `tab-new --kind engine` each create a shared child, never a second
+  new` and `tab-new --kind engine` start a task's first conversation in its own
+  `tab-1` and, once it holds one, each create a shared child, never a second
   engine tab. Deleting the parent promotes its children; see `delete --cascade`.
 
 ## drive
@@ -927,8 +928,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   carry `--plain` so replaying them does not stack a second prefix. `delivered: true` says the bytes landed and
   nothing more: when the target was already in `error` or `dead`, the
   result carries `targetState` (and `targetDetail`), so a prompt sent into a
-  failed session is visible as such. `--tab new` starts a second conversation: a shared child task of the target
-  (same directory, as `spawn --no-worktree`) that receives the prompt, and the reply adds `childTaskId`
+  failed session is visible as such. `--tab new` starts a new conversation: the target's own canonical engine while it has no tabs yet (a
+  placeholder title becomes the prompt's), else a shared child task of the target
+  (same directory, as `spawn --no-worktree`) that receives the prompt, titled from it, and the reply adds `childTaskId`
   (`session`, `delivered` and the other delivery facts describe the child; `taskId` stays the target), while
   `--tab tab-N` targets that exact tab (`TAB_NOT_FOUND` if it is dead or
   absent). A tab a **pty-host restart froze** is neither: it is listed by
@@ -1192,7 +1194,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   Terminal Tab with no first message — the TUI's sidebar "New shell" and its
   picker's Enter on an empty message. `shell` runs the login shell
   (`$SHELL`) in the task's worktree and types the `ROVE_TASK_ID` /
-  `ROVE_TAB_ID` export into it. `engine` starts a new conversation: a shared
+  `ROVE_TAB_ID` export into it. `engine` starts a new conversation. A task with no
+  conversation yet (no tabs) starts it in its own `tab-1`, on `--command`'s engine
+  when given (the task is re-pointed to it first). A task that already holds one gets a shared
   child task of `--task-id` (same directory, see `spawn --no-worktree`) whose
   engine, the task's own or `--command`'s as `send --tab new --command` pins it,
   starts idle in the child's own `tab-1`, ready for a first message. A task
@@ -1205,7 +1209,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `docs/design/daemon-owned-tabs.md`), so it never collides with a tab another
   client opens at the same moment, then the session spawns; every attached
   client sees the row through `tabs.changed`. A shell returns `{ok, taskId, tabId, session, kind, clients}`
-  (`clients` = attached connections told; `0` = none); an engine returns
+  (`clients` = attached connections told; `0` = none); an engine on a task with no conversation returns
+  `{ok, taskId, tabId, session, kind, clients}` with `tabId` `tab-1` of the task;
+  an engine on a task that holds one returns
   `{ok, taskId, childTaskId, tabId, session, kind}` with `tabId` `tab-1` of the
   child and no `clients`. The tab then lists in
   `get-task .tabs[]`. A session already running under the allocated id fails
