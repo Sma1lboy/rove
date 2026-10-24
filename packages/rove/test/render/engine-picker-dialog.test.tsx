@@ -72,7 +72,7 @@ describe("EnginePickerDialogView", () => {
     await frame()
     expect(p.picked).toEqual([
       { vendor: "kimi", model: "" },
-      { vendor: "claude", model: "" },
+      { vendor: "claude", effort: "", model: "" },
     ])
   })
 
@@ -118,7 +118,7 @@ describe("EnginePickerDialogView", () => {
     await settle()
     act(() => mockInput.pressEnter())
     await settle()
-    expect(p.picked).toEqual([{ vendor: "claude", model: "opus" }])
+    expect(p.picked).toEqual([{ vendor: "claude", effort: "", model: "opus" }])
   })
 
   test("a pinned model never follows the cursor to another engine", async () => {
