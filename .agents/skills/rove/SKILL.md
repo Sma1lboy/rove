@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 78 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 79 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -351,6 +351,10 @@ rove api send --prompt "succeeded: <one line> (branch <final branch>)"
 # usual read before addressing one); `inspect` is the wider diagnostic — every
 # task's snapshot plus daemon activity and live pty sessions.
 rove api inspect --task-id <id>
+
+# Where is a task's dev server? Ports its processes listen on, with a url.
+# `--all` tags every listener on this machine with its owning task.
+rove api ports --task-id <id>
 rove api send --task-id <id> --tab tab-3 --prompt "<turn>"  # exact alive tab
 rove api send --task-id <id> --tab new --prompt "<turn>"    # shared child: reply adds childTaskId
 # Same directory, DIFFERENT agent — the API twin of the TUI's ctrl+e pick. The

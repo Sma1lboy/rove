@@ -397,4 +397,5 @@ export const defaultApiRuntime: ApiRuntime = {
       }
     }
   },
+  listeningPorts: async () => (await import("./listening-ports.ts")).scanListeningPorts(),
 }

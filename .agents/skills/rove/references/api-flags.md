@@ -81,6 +81,7 @@ agent-turns         --task-id --repo --since-days(7) --limit(200)
 inspect             --task-id
 read-output         --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
 watch               --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
+ports               --task-id --all
 worktree-files      --task-id(REQ)
 worktree-diff       --task-id(REQ)
 worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working}(REQ)
