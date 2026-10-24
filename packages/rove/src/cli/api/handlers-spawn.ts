@@ -135,6 +135,7 @@ export async function spawn(ctx: VerbContext): Promise<unknown> {
       modelEffort: task.modelEffort,
       model: task.model,
       repo: task.repo,
+      ...(task.extraRepos?.length || task.sharesWorkspaceOf ? { multiRepo: true } : {}),
       newTask: true,
     },
     brief,

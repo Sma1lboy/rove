@@ -139,6 +139,23 @@ export interface TaskPRStatus {
   readonly lastError?: string
 }
 
+/**
+ * A secondary repo of a multi-repo task: its own worktree on the task's shared
+ * branch name (mirrors rove/types/task.ts). The primary lives in the task's
+ * own `repo`/`branch`/`worktreePath`.
+ */
+export interface TaskExtraRepo {
+  /** Handle unique within the task; `get-task` lists it and `--base-for` keys on it. */
+  readonly name: string
+  /** Absolute git root. */
+  readonly repo: string
+  /** Actual branch in this repo: the task's branch unless it collided here. "" until materialised. */
+  readonly branch: string
+  /** "" until materialised. */
+  readonly worktreePath: string
+  readonly baseRef?: string
+}
+
 /** Session (task + tab) that dispatched a task: where a sub-task's bare
  *  `send` routes back (mirrors rove/types/task.ts). */
 export interface TaskDispatcher {
@@ -214,6 +231,8 @@ export interface DaemonTask {
   readonly baseRef?: string
   /** `add --worktree-name`; absent = drawn from the animal pool. */
   readonly worktreeName?: string
+  /** Secondary repos of a multi-repo task, in pick order (the primary is `repo`). */
+  readonly extraRepos?: readonly TaskExtraRepo[]
   /** The WORKER's own account of what it delivered (`update --report-*`).
    *  A claim, unlike `prStatus`, which the daemon observed from the forge. */
   readonly report?: TaskWorkerReport
@@ -310,6 +329,8 @@ export interface DaemonOrchestrator {
     dispatcher?: TaskDispatcher
     /** Mark this the standing session task of a routine. */
     routine?: TaskRoutineLink
+    /** Secondary repos in pick order; `baseRef` is that repo's own fork point. */
+    extraRepos?: readonly { readonly repo: string; readonly baseRef?: string }[]
   }): Promise<DaemonTask>
   ensureMainTask(repo: string): Promise<DaemonTask>
   /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`).

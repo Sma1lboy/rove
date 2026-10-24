@@ -24,6 +24,8 @@ export interface CwdMatchTask {
   readonly repo?: string | null
   /** Set on a child running in another task's directory; the directory's owner wins path ties. */
   readonly sharesWorkspaceOf?: string | null
+  /** A multi-repo task's other worktrees; a cwd inside one belongs to this task. */
+  readonly extraRepos?: ReadonlyArray<{ readonly worktreePath: string }> | null
   /** The parent-keyed hosted PTY that IS this task's conversation (migrated children). */
   readonly ptyAlias?: { readonly taskId: string; readonly tabId: string } | null
 }
@@ -61,6 +63,11 @@ function crossesRepoBoundary(wt: string, cwd: string): boolean {
   return false
 }
 
+/** A task's primary worktree and its extras', so a shell inside an extra still attributes to the task. */
+function worktreesOf(t: CwdMatchTask): string[] {
+  return [t.worktreePath, ...(t.extraRepos ?? []).map((x) => x.worktreePath)].filter((p): p is string => !!p)
+}
+
 /**
  * Longest worktree containing `cwd`, or undefined. Only the winner is
  * boundary-checked: a boundary below it is below every shorter candidate too.
@@ -70,13 +77,14 @@ export function matchTaskByCwd(tasks: ReadonlyArray<CwdMatchTask>, cwd: string):
   let best: CwdMatchTask | undefined
   let bestWt = ""
   for (const t of tasks) {
-    if (!t.worktreePath) continue
-    const wt = normalize(t.worktreePath)
-    if (pathWithin(wt, target) === null) continue
-    // Longest worktree wins; on a tie (an owner and its sharers) the owner.
-    if (!best || wt.length > bestWt.length || (wt.length === bestWt.length && ownerFirst(t, best) < 0)) {
-      best = t
-      bestWt = wt
+    for (const worktree of worktreesOf(t)) {
+      const wt = normalize(worktree)
+      if (pathWithin(wt, target) === null) continue
+      // Longest worktree wins; on a tie (an owner and its sharers) the owner.
+      if (!best || wt.length > bestWt.length || (wt.length === bestWt.length && ownerFirst(t, best) < 0)) {
+        best = t
+        bestWt = wt
+      }
     }
   }
   if (best && crossesRepoBoundary(bestWt, target)) return undefined
@@ -91,7 +99,7 @@ export function matchTaskByCwd(tasks: ReadonlyArray<CwdMatchTask>, cwd: string):
 export function tasksAtWorktreePath(tasks: ReadonlyArray<CwdMatchTask>, worktreePath: string): string[] {
   const target = normalize(worktreePath)
   return tasks
-    .filter((t) => t.worktreePath && normalize(t.worktreePath) === target)
+    .filter((t) => worktreesOf(t).some((wt) => normalize(wt) === target))
     .sort(ownerFirst)
     .map((t) => t.id)
 }
@@ -115,7 +123,7 @@ export function findAdoptableWorktree(
     // `managedWorktreeRootsFor` throws on it — one remote project must not
     // reject the whole handler.
     if (t.repo && path.isAbsolute(t.repo)) repos.add(normalize(t.repo))
-    if (t.worktreePath) known.add(normalize(t.worktreePath))
+    for (const wt of worktreesOf(t)) known.add(normalize(wt))
   }
   for (const repo of repos) {
     // Per repo: `$project_dir` in the override expands against THIS repo.

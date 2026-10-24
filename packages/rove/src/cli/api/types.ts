@@ -186,6 +186,11 @@ export interface PromptTarget {
   readonly model?: string
   readonly repo?: string
   /**
+   * The task has extra repos (`Task.extraRepos`): a launch reads their paths
+   * from the daemon and exposes them. Unset costs a one-repo task no RPC.
+   */
+  readonly multiRepo?: boolean
+  /**
    * `send --tab tab-N`: targets that exact alive tab (TAB_NOT_FOUND
    * otherwise). Undefined = canonical tab.
    */

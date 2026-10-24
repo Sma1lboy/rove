@@ -56,8 +56,13 @@ export function shellSpawn(argv: readonly string[], shell: string, env?: Readonl
  * flashes before the clear; upgrade path = an `env` field on PtySpawnSpec with
  * a skip-spare rule if cosmetics matter.
  */
-export function shellIdentityInput(taskId: string, tabId: string): string {
+export function shellIdentityInput(
+  taskId: string,
+  tabId: string,
+  extraEnv: readonly (readonly [name: string, value: string])[] = [],
+): string {
   const task = shellCommandLine([taskId])
   const tab = shellCommandLine([tabId])
-  return ` export ROVE_TASK_ID=${task} ROVE_TAB_ID=${tab} && clear\r`
+  const extra = extraEnv.map(([name, value]) => ` ${name}=${shellCommandLine([value])}`).join("")
+  return ` export ROVE_TASK_ID=${task} ROVE_TAB_ID=${tab}${extra} && clear\r`
 }

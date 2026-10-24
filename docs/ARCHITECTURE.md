@@ -27,6 +27,12 @@ The persisted `Task` type also supports `kind: "main"` for a saved repository's
 existing checkout and `kind: "dir"` for a user-owned directory. Those variants
 reuse their directory and do not own a Rove-created worktree or branch.
 
+A managed Task may span several repos: the primary stays in `repo` / `branch` /
+`worktreePath`, and optional `extraRepos[]` holds the others, each with its own
+worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
+`task-tree.ts`) is the derived view of all of them; every consumer that needs
+"all repos" or "all worktree directories" (`taskWorktreePaths`) goes through it.
+
 ## 2. Package map
 
 - `packages/rove/` — CLI and PureTUI, published as `@sma1lboy/rove`. (The directory keeps its old name; the `@sma1lboy/rove` package was published in lockstep until 0.9.64 and is now frozen.)

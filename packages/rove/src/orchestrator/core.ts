@@ -45,6 +45,8 @@ export interface OrchestratorDeps {
   readonly onSalvage?: (
     taskId: TaskId,
     salvage: { readonly ref: string; readonly commit: string; readonly uncaptured: readonly string[] },
+    /** The repo whose `refs/rove/salvage` holds the ref: an extra's, for a multi-repo task. */
+    repo: string,
   ) => void
   /** Called when a deletion's `git worktree remove` deregistered the worktree
    *  but could not delete its directory. The deletion still completes; this is
@@ -260,7 +262,10 @@ export class Orchestrator {
       return path
     }
     if (task.worktreePath) {
-      if (await this.worktrees.pathExists(task.worktreePath)) return task.worktreePath
+      if (await this.worktrees.pathExists(task.worktreePath)) {
+        // A multi-repo task re-materialises only the extras whose directory vanished.
+        return task.extraRepos?.length ? this.worktreeCoordinator.ensure(task, opts?.onProgress) : task.worktreePath
+      }
       // Prune first, else `worktree add` on the same path errors.
       await this.worktrees.pruneWorktrees(task.repo)
       await this.store.update(task.id, { worktreePath: "" })

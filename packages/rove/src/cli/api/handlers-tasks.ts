@@ -265,6 +265,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
         modelEffort: res.task.modelEffort,
         model: res.task.model,
         repo: res.task.repo,
+        ...(res.task.extraRepos?.length || res.task.sharesWorkspaceOf ? { multiRepo: true } : {}),
         tab,
         respawn,
       },

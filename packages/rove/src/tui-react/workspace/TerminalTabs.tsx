@@ -22,7 +22,9 @@ import { getCapabilities } from "@/engine/registry"
 import { resolveMainRepoRoot } from "@/state/repos"
 import { resolvePreferredVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
+import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { type ReactNode, useEffect, useRef, useState } from "react"
+import { repoEnv } from "../../engine/multi-repo-launch"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
 import { buildDiffReview } from "../../tui/ops/diff-comments"
@@ -79,6 +81,8 @@ export interface TerminalTabsProps {
   taskId: string
   worktree: string
   repo?: string
+  /** Every repo of a multi-repo task (`taskRepos`), exposed to its engine and shell tabs. */
+  repos?: readonly TaskRepoView[]
   taskKind?: "main" | "task" | "dir"
   /** Scratch task: tab-1 is a BARE SHELL unless it was opened onto an engine
    *  (`engineScratchTasks`), and the last tab exiting deletes the task via
@@ -219,6 +223,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
         kind: props.taskKind,
         vendor: tab.vendor ?? props.vendor,
         repo: props.repo,
+        repos: props.repos,
       },
       worktreePath: props.worktree,
       inlineImages: terminalDrawsKitty(),
@@ -282,7 +287,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           // user-typed engine's hooks report tab-precise events. Editor and
           // one-off command tabs skip it.
           ...(active.purpose !== "editor" && active.command.length === 1 && active.command[0] === defaultShell()
-            ? { initialInput: shellIdentityInput(props.taskId, active.id) }
+            ? { initialInput: shellIdentityInput(props.taskId, active.id, props.repos && repoEnv(props.repos)) }
             : {}),
         }
       : active.kind === "content"

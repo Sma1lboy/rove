@@ -47,7 +47,7 @@ discovery of an unclaimed conversation in that directory before relaunch.
 | `rove daemon restart` | ✓ | ✓ | ✓ | ✓ |
 | Reboot, or the PTY host dies | — command relaunched on attach | ✓ restored, newest first, up to 64MB of scrollback | ✓ | ✓ |
 | Close a tab | — that tab only | — that tab's ring is dropped | ✓ | ✓ |
-| Delete a managed/directory Task | — all of that Task's tabs | — those rings are dropped | task record removed; worktree removed unless it's a directory Task (branch stays; a force-delete salvages uncommitted work under `refs/rove/salvage/`) | ✓ |
+| Delete a managed/directory Task | — all of that Task's tabs | — those rings are dropped | task record removed; worktree removed unless it's a directory Task (branch stays; a force-delete salvages uncommitted work under `refs/rove/salvage/`); a multi-repo Task removes the worktree in every repo (one dirty check over all of them; salvage ref in the repo it came from) | ✓ |
 | Press F5 | — active terminal is replaced | — old ring is dropped | ✓ | ✓ |
 | `rove reset` | — all hosted sessions | — all frozen rings are dropped | worktrees ✓; task index and settings file kept unless `--hard` | ✓ |
 

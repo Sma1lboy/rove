@@ -237,6 +237,10 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_OPTION` | `gate-answer --option` is not one of the gate's option keys (or the gate is free-text only). |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
 | `NOT_A_REPO` | `--repo` does not point at a git repository. |
+| `NOT_A_GIT_REPO` | One of several `--repo` values is not a git repository (the message names it). |
+| `REPO_DUPLICATE` | `add` names the same repo root twice; a subdirectory counts as its root. |
+| `TOO_MANY_REPOS` | `add` names more than 8 repos for one task. |
+| `REMOTE_EXTRA_UNSUPPORTED` | A multi-repo `add` includes a remote project; every repo must be local. |
 | `INVALID_BRANCH` | `--branch` is a name git will not accept (`git check-ref-format --branch`). |
 | `REPO_UNRESOLVABLE` | `--repo` resolved, but the repository is gone or unreadable. |
 | `NO_WORKTREE` | The task has no materialized worktree yet. |
@@ -702,7 +706,8 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
 
 ## create
 
-- `add --repo PATH|REPO [--clone] [--allow-fork] [--title T] [--branch B] [--base-branch B]
+- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--title T] [--branch B] [--base-branch B]
+  [--base-for REPO=REF …]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
   [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
@@ -763,6 +768,32 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   delivered `--prompt` text is persisted too (`.task.prompt`) — the durable
   copy of the task brief; it survives a dead engine or lost context, where
   the engine's own transcript does not.
+
+  **Multi-repo tasks.** Repeat `--repo` (at most 8, all local) to make one task
+  span several repos: the FIRST is the primary — the engine's cwd, the sidebar
+  project, `.task.repo` / `.branch` / `.worktreePath` — and each further one
+  becomes an entry of `.task.extraRepos[]`
+  (`{name, repo, branch, worktreePath, baseRef?}`; `name` is the repo's
+  directory name, `-2`-suffixed on a clash; the paths are empty until the
+  worktrees exist). Extras never create a project row. Every repo gets its own
+  worktree on the SAME branch name, created together on first enter and
+  all-or-nothing: if any repo fails, the worktrees and fresh branches already
+  cut are removed and the task stays unmaterialised. A repo where that branch
+  name is already taken gets a `-2` suffix there only (`extraRepos[].branch`
+  records the real name); a branch named with `--branch` is reused as-is.
+  `--base-branch` stays the primary's base; `--base-for REPO=REF` (repeatable;
+  `REPO` is a name from `extraRepos[].name` or a path) sets another repo's.
+  `--count` / `--agents` give every sibling the same repo set. The engine runs
+  in the primary and sees the extras through its own add-dir flag where the
+  engine declares one (claude, codex), `$ROVE_TASK_REPOS` (JSON
+  `[{name,path,branch,primary}]`) plus `$ROVE_REPO_<NAME>` in its and its shell
+  tabs' environment, and one line on the first prompt. `delete` covers every
+  repo: one dirty gate over all worktrees (the refusal names each dirty repo),
+  salvage refs written in the repo they came from, `--delete-branch` applied
+  to each repo's branch. `land`, `sync`, PR polling and the changes view still
+  act on the primary only. Refusals: `TOO_MANY_REPOS`, `REPO_DUPLICATE` (the
+  same repo root twice, subdirectories resolve to their root),
+  `NOT_A_GIT_REPO` (names the repo), `REMOTE_EXTRA_UNSUPPORTED`.
 
   **Parallel attempts** live here too: `--count N` spawns N sibling tasks of
   the SAME prompt, each with its own worktree and branch, sharing one

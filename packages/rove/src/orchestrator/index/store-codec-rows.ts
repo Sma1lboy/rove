@@ -8,10 +8,13 @@
  * {@link coerceTask} writes fine and vanishes on the next daemon restart.
  */
 
+import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { MULTI_REPO_CAP, REPO_NAME_RE } from "@sma1lboy/rove-daemon/task-tree"
 import type {
   Task,
   TaskDeletionState,
   TaskDispatcher,
+  TaskExtraRepo,
   TaskLinkedWorkItem,
   TaskPRStatus,
   TaskQuotaResumeState,
@@ -58,6 +61,7 @@ export function coerceTask(value: unknown): Task | null {
   const dispatcher = coerceDispatcher(v.dispatcher)
   const lineage = coerceLineage(v, kind)
   const routine = coerceRoutine(v.routine)
+  const extraRepos = coerceExtraRepos(v.extraRepos, v.repo)
 
   const report = coerceWorkerReport(v.report)
   return {
@@ -98,6 +102,8 @@ export function coerceTask(value: unknown): Task | null {
     // Caller-chosen worktree dir; allocation is lazy, so losing it would hand
     // out a random name after the caller was told the path.
     ...(typeof v.worktreeName === "string" && v.worktreeName.trim().length > 0 ? { worktreeName: v.worktreeName } : {}),
+    // A secondary repo's worktree is only findable through this list: lost, it is an orphan nobody deletes.
+    ...(extraRepos ? { extraRepos } : {}),
     // Worker's outcome claim, read by `collect` long after the fact.
     ...(report ? { report } : {}),
     // Every send to this task owes a `rove api report`; lost, a loop quietly stops being held to it.
@@ -105,6 +111,33 @@ export function coerceTask(value: unknown): Task | null {
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   }
+}
+
+/**
+ * Secondary repos of a multi-repo task. A bad entry (unnamed, relative path,
+ * duplicate name or root, the primary again, past the cap) is dropped, never
+ * the row; none left → undefined.
+ */
+function coerceExtraRepos(value: unknown, primary: string): TaskExtraRepo[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const out: TaskExtraRepo[] = []
+  for (const entry of value) {
+    if (out.length >= MULTI_REPO_CAP - 1) break
+    if (!entry || typeof entry !== "object") continue
+    const e = entry as Record<string, unknown>
+    if (typeof e.name !== "string" || !REPO_NAME_RE.test(e.name)) continue
+    if (typeof e.repo !== "string" || !pathSyntax(e.repo).isAbsolute(e.repo)) continue
+    const repo = e.repo
+    if (samePath(repo, primary) || out.some((o) => o.name === e.name || samePath(o.repo, repo))) continue
+    out.push({
+      name: e.name,
+      repo,
+      branch: typeof e.branch === "string" ? e.branch : "",
+      worktreePath: typeof e.worktreePath === "string" ? e.worktreePath : "",
+      ...(typeof e.baseRef === "string" && e.baseRef.trim().length > 0 ? { baseRef: e.baseRef } : {}),
+    })
+  }
+  return out.length > 0 ? out : undefined
 }
 
 /** A `update --report-*` claim; only its timestamp is required, so none → malformed. */

@@ -22,9 +22,10 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
         name: "repo",
         type: "string",
         required: true,
+        repeatable: true,
         placeholder: "PATH|REPO",
         description:
-          "Repo root (git toplevel; relative paths resolve against $PWD), or a repo id: `owner/name` (GitHub), `host/owner/name`, or a remote URL. An id resolves to this machine's checkout of it (the primary one, else a clean one) — or, with --machine, to that machine's.",
+          "Repo root (git toplevel; relative paths resolve against $PWD), or a repo id: `owner/name` (GitHub), `host/owner/name`, or a remote URL. An id resolves to this machine's checkout of it (the primary one, else a clean one) — or, with --machine, to that machine's. REPEAT it for a multi-repo task (max 8, all local): the FIRST is the primary — the engine's cwd, the sidebar project, `.task.repo/.branch/.worktreePath` — and each further one gets its own worktree on the SAME branch name (suffixed `-2` only in a repo where the name is taken), listed in `.task.extraRepos[]` ({ name, repo, branch, worktreePath, baseRef }; paths fill in once the worktrees exist). The engine sees the extras through its add-dir flag where it has one, `$ROVE_TASK_REPOS` / `$ROVE_REPO_<NAME>` env, and a note on the first prompt. `--count` gives every sibling the same repo set. Errors: TOO_MANY_REPOS, REPO_DUPLICATE, NOT_A_GIT_REPO (names the repo), REMOTE_EXTRA_UNSUPPORTED.",
       },
       {
         name: "clone",
@@ -46,6 +47,14 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
         description: "Explicit branch name (else derived from the title in the repo's own style). Single task only.",
       },
       { name: "base-branch", type: "string", placeholder: "B", description: "Base ref the worktree branches from." },
+      {
+        name: "base-for",
+        type: "string",
+        repeatable: true,
+        placeholder: "REPO=REF",
+        description:
+          "Per-repo base for a multi-repo task: REPO is the repo's name (its directory name, `-2`-suffixed on a clash; `.task.extraRepos[].name`) or its path, REF the ref its worktree branches from. Repeatable. --base-branch stays the primary's base; naming the primary here too is an error unless they agree.",
+      },
       {
         name: "worktree-name",
         type: "string",

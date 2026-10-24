@@ -295,6 +295,8 @@ export const TAB_NEW_VERB: VerbSpec = {
             vendor: child.vendor as VendorId | undefined,
             command: child.command,
             repo: child.repo,
+            // The child shares the parent's workspace, extra repos included.
+            ...(task.extraRepos?.length ? { multiRepo: true } : {}),
           },
           kind,
         )
@@ -320,6 +322,7 @@ export const TAB_NEW_VERB: VerbSpec = {
         vendor: task.vendor as VendorId | undefined,
         command: task.command,
         repo: task.repo,
+        ...(task.extraRepos?.length ? { multiRepo: true } : {}),
       },
       kind,
     )
