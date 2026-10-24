@@ -46,7 +46,7 @@ A client for `rove-bridge`, a small server a person starts on their own Mac. The
 
 ## Privacy policy
 
-Play requires a public privacy policy URL even when no data is collected. It does not exist yet. It must say what the Data safety section says above. A page on rove.run (for example `rove.run/privacy`) is the natural home.
+Play requires a public privacy policy URL even when no data is collected. The policy is `docs/PRIVACY.md`, entered in Play Console as <https://github.com/Sma1lboy/rove/blob/main/docs/PRIVACY.md>. That URL works once this file is on `main`. Keep it in line with the Data safety answers above.
 
 ## Third-party code
 
