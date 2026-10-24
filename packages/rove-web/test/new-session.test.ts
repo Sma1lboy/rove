@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test"
-import { digitRow, effortChoices, modelChipLabel, modelChoices, repoChipLabel, spawnArgs } from "../src/new-session.ts"
+import {
+  REPO_CAP,
+  digitRow,
+  effortChoices,
+  modelChipLabel,
+  modelChoices,
+  repoChipLabel,
+  spawnArgs,
+  toggleRepo,
+} from "../src/new-session.ts"
 
 const engine = {
   id: "alpha",
@@ -49,32 +58,80 @@ describe("New session composer", () => {
     expect(repoChipLabel([])).toBe("")
   })
 
+  test("Start spawns on the primary repo with the prompt, and pins only what was picked", () => {
+    const one = {
+      repos: [{ repo: "/w/app", baseRef: "" }],
+      branch: "",
+      engine: "alpha",
+      prompt: "fix it",
+      model: "",
+      effort: "",
+    }
+    expect(spawnArgs(one)).toEqual({ repo: "/w/app", prompt: "fix it", engine: "alpha" })
+    expect(spawnArgs({ ...one, repos: [{ repo: "/w/app", baseRef: "dev" }], model: "m-big", effort: "high" })).toEqual({
+      repo: "/w/app",
+      prompt: "fix it",
+      engine: "alpha",
+      baseBranch: "dev",
+      model: "m-big",
+      effort: "high",
+    })
+  })
+
   test("Create without starting sends no prompt, so no engine runs", () => {
     expect(
-      spawnArgs({ repos: ["/w/app"], engine: "alpha", baseBranch: "", prompt: "", model: "m-big", effort: "" }),
+      spawnArgs({
+        repos: [{ repo: "/w/app", baseRef: "" }],
+        branch: "",
+        engine: "alpha",
+        prompt: "",
+        model: "m-big",
+        effort: "",
+      }),
     ).toEqual({ repo: "/w/app", engine: "alpha", model: "m-big" })
   })
 
-  test("Start spawns on the primary repo with the prompt, and pins only what was picked", () => {
+  test("further picks become extraRepos in pick order, each with its own base; the branch name is shared", () => {
     expect(
       spawnArgs({
-        repos: ["/w/app", "/w/lib"],
-        engine: "alpha",
-        baseBranch: "",
-        prompt: "fix it",
+        repos: [
+          { repo: "/w/web", baseRef: "main" },
+          { repo: "/w/api", baseRef: "dev" },
+          { repo: "/w/docs", baseRef: "" },
+        ],
+        branch: "feat/x",
+        engine: "",
+        prompt: "go",
         model: "",
         effort: "",
       }),
-    ).toEqual({ repo: "/w/app", prompt: "fix it", engine: "alpha" })
+    ).toEqual({
+      repo: "/w/web",
+      baseBranch: "main",
+      extraRepos: [{ repo: "/w/api", baseRef: "dev" }, { repo: "/w/docs" }],
+      branch: "feat/x",
+      prompt: "go",
+    })
+  })
+
+  test("a branch name left over from a dropped second repo is not sent for a single repo", () => {
     expect(
       spawnArgs({
-        repos: ["/w/app"],
-        engine: "alpha",
-        baseBranch: "dev",
-        prompt: "fix it",
-        model: "m-big",
-        effort: "high",
+        repos: [{ repo: "/w/web", baseRef: "" }],
+        branch: "feat/x",
+        engine: "",
+        prompt: "go",
+        model: "",
+        effort: "",
       }),
-    ).toEqual({ repo: "/w/app", prompt: "fix it", engine: "alpha", baseBranch: "dev", model: "m-big", effort: "high" })
+    ).toEqual({ repo: "/w/web", prompt: "go" })
+  })
+
+  test("picking appends, un-picking removes, the primary's removal promotes the next pick, the cap holds", () => {
+    expect(toggleRepo(["/a"], "/b")).toEqual(["/a", "/b"])
+    expect(toggleRepo(["/a", "/b", "/c"], "/a")).toEqual(["/b", "/c"])
+    expect(toggleRepo(["/a", "/b"], "/b")).toEqual(["/a"])
+    const full = Array.from({ length: REPO_CAP }, (_, i) => `/r${i}`)
+    expect(toggleRepo(full, "/extra")).toEqual(full)
   })
 })

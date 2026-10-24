@@ -139,6 +139,8 @@ test("saved mode: Tab finishes the name, the NEXT Tab leaves the field", async (
   // advanced instead of completing, focus would sit on Create with `zeph` in
   // the repo box and this would fail validation rather than submit.
   await pressTab(h)
+  // The other saved repo is offered as an extra: a stop between the repo and the branch.
+  await pressTab(h)
   await commit(h)
   expect(h.submitted).toHaveLength(1)
   expect(h.submitted[0]?.repo).toBe(zephyr)

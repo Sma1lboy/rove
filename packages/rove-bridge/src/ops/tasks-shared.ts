@@ -4,7 +4,8 @@
  * reach a `rove api` argv, a daemon RPC or a git process.
  */
 
-import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
+import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
+import { setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
 import {
   cloneRepo,
   deriveFolderName,
@@ -14,6 +15,7 @@ import {
   validateGitUrl,
 } from "@sma1lboy/rove/src/tui/component/new-task-dialog/clone.ts"
 import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@sma1lboy/rove/src/tui/lib/git-snapshot.ts"
+import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
 import { absPath } from "./args.ts"
 import type { Args, OpContext } from "./types.ts"
@@ -24,6 +26,15 @@ import type { Args, OpContext } from "./types.ts"
  */
 export const taskOpDeps = {
   savedRepos: (): readonly string[] => getSavedRepos(),
+  /** The engine a project was last started on, as the TUI's picks record it: "New conversation" there follows it. */
+  rememberEngine: (repo: string, engine: string): void => {
+    // Keyed by the main checkout, as the TUI's picks are; a path git cannot read keeps its given spelling.
+    let root = repo
+    try {
+      root = resolveMainRepoRoot(repo)
+    } catch {}
+    setRepoLastActiveVendor(root, engine as VendorId)
+  },
   listLocalBranches,
   getCurrentBranch,
   validateRepoPath,

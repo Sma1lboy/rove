@@ -205,6 +205,7 @@ export function taskRows(
         updatedAt: task.updatedAt,
         ...machineOf(task),
         ...(task.repoId ? { repoId: task.repoId } : {}),
+        ...(task.extraRepos?.length ? { extraRepoCount: task.extraRepos.length } : {}),
         ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),
         ...(task.sharesWorkspaceOf ? { sharesWorkspaceOf: task.sharesWorkspaceOf } : {}),
         ...(changes ? { changes } : {}),

@@ -57,10 +57,16 @@ interface EngineFields {
   readonly tier?: string
   /** The sidebar name: the first prompt, so the row is not left as the placeholder. */
   readonly title?: string
+  /** More repos the task spans, in pick order (the repo it is created on is the primary). */
+  readonly extraRepos?: readonly string[]
 }
 
 export interface QuickForkOrchestrator extends RoundOrchestrator {
-  createTask(input: { repo: string; baseRef: string; vendor: VendorId } & EngineFields): Promise<Task>
+  createTask(
+    input: { repo: string; baseRef: string; vendor: VendorId } & Omit<EngineFields, "extraRepos"> & {
+        extraRepos?: readonly { repo: string; baseRef?: string }[]
+      },
+  ): Promise<Task>
   /** Record the brief on the created task — "Run again" only (see {@link runAgainTask}). */
   setPrompt(id: string, prompt: string): Promise<void>
   spawnChildTask(input: SpawnChildInput): Promise<{ readonly task: Task }>
@@ -84,6 +90,7 @@ async function createQuickForkTask(
     ...(fields.model ? { model: fields.model } : {}),
     ...(fields.tier ? { tier: fields.tier } : {}),
     ...(fields.title ? { title: fields.title } : {}),
+    ...(fields.extraRepos?.length ? { extraRepos: fields.extraRepos.map((repo) => ({ repo })) } : {}),
   })
 }
 

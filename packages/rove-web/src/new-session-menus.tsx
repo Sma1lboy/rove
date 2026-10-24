@@ -331,3 +331,69 @@ export function ModelMenu(props: {
     </div>
   )
 }
+
+/** One picked repo's row in the Branches menu: the refs its worktree can branch from. */
+export interface BranchRepo {
+  readonly path: string
+  readonly name: string
+  readonly primary: boolean
+  readonly branches: readonly string[]
+  /** The repo's current branch: what "" (no pick) means. */
+  readonly current: string
+  /** The ref picked for it ("" = its current branch). */
+  readonly base: string
+}
+
+/**
+ * The composer's Branches menu, for a task over several repos: the one branch name every repo's worktree gets
+ * (blank = derived), and for each repo the ref it branches from.
+ */
+export function BranchesMenu(props: {
+  repos: readonly BranchRepo[]
+  branch: string
+  onBranch: (value: string) => void
+  onBase: (path: string, ref: string) => void
+}) {
+  return (
+    <div className="composer-menu composer-branches">
+      <p className="composer-heading kicker">{t("newSession.branches")}</p>
+      <label className="composer-field">
+        <span className="muted">{t("newSession.branchName")}</span>
+        <input
+          className="input"
+          // biome-ignore lint/a11y/noAutofocus: the menu's first field
+          autoFocus
+          spellCheck={false}
+          placeholder={t("newSession.branchNamePlaceholder")}
+          value={props.branch}
+          onChange={(e) => props.onBranch(e.target.value)}
+        />
+      </label>
+      {props.repos.map((repo) => (
+        <label key={repo.path} className="composer-field">
+          <span>
+            {repo.name}
+            {repo.primary && <span className="muted"> · {t("newSession.primary")}</span>}
+          </span>
+          <select
+            className="input"
+            aria-label={repo.name}
+            value={repo.base || repo.current}
+            onChange={(e) => props.onBase(repo.path, e.target.value)}
+          >
+            {(repo.branches.includes(repo.base || repo.current)
+              ? repo.branches
+              : [repo.base || repo.current, ...repo.branches]
+            )
+              .filter((name) => name !== "")
+              .map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+          </select>
+        </label>
+      ))}
+    </div>
+  )
+}

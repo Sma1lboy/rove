@@ -7,8 +7,8 @@
 import { useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { ChipPopover, ChoiceMenu, ModelMenu, SearchList } from "./new-session-menus.tsx"
-import { effortChoices, modelChipLabel, modelChoices, repoChipLabel, spawnArgs } from "./new-session.ts"
+import { BranchesMenu, ChipPopover, ChoiceMenu, ModelMenu, SearchList } from "./new-session-menus.tsx"
+import { effortChoices, modelChipLabel, modelChoices, repoChipLabel, spawnArgs, toggleRepo } from "./new-session.ts"
 import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
 import { expandTilde, filterText, isPathInput, splitRepoRow, stripTrailingSlash } from "./new-task-paths.ts"
 import { useStore } from "./store.ts"
@@ -31,8 +31,11 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [saved, setSaved] = useState<readonly string[]>([])
   const [home, setHome] = useState("")
   const [repos, setRepos] = useState<readonly string[]>([])
-  const [probe, setProbe] = useState<ProbeResult | null>(null)
-  const [baseBranch, setBaseBranch] = useState("")
+  // Each picked repo's branches, probed once it is picked.
+  const [probes, setProbes] = useState<Readonly<Record<string, ProbeResult>>>({})
+  // The ref each repo's worktree branches from ("" = its current branch), and the one branch name they share.
+  const [bases, setBases] = useState<Readonly<Record<string, string>>>({})
+  const [branchName, setBranchName] = useState("")
   const [repoQuery, setRepoQuery] = useState("")
   const [branchQuery, setBranchQuery] = useState("")
   const [prompt, setPrompt] = useState("")
@@ -41,8 +44,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const area = useRef<HTMLTextAreaElement>(null)
-  // The branch the opener chose applies to the project it chose, once.
-  const seededBranch = useRef(seed.baseBranch)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the starting project is read once
   useEffect(() => {
@@ -53,26 +54,26 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       .then(([list, fs]) => {
         setSaved(list.repos)
         setHome(fs.home)
-        setRepos((now) => (now.length > 0 ? now : [initialRepo ?? fallback ?? list.repos[0]].filter((r) => !!r)))
+        const start = initialRepo ?? fallback ?? list.repos[0]
+        setRepos((now) => (now.length > 0 || !start ? now : [start]))
+        // The branch the opener chose applies to the project it chose.
+        if (start && seed.baseBranch) setBases((now) => ({ ...now, [start]: seed.baseBranch ?? "" }))
       })
       .catch(() => {})
   }, [model, initialRepo])
 
   const primary = repos[0] ?? ""
+  const probe = probes[primary] ?? null
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a repo is probed once, when first picked
   useEffect(() => {
-    setProbe(null)
-    setBaseBranch(seededBranch.current ?? "")
-    if (!primary) return
-    seededBranch.current = undefined
-    let stale = false
-    void model.client
-      .request<ProbeResult>("repo.probe", { path: primary })
-      .then((res) => !stale && setProbe(res))
-      .catch(() => {})
-    return () => {
-      stale = true
+    for (const path of repos) {
+      if (path in probes) continue
+      void model.client
+        .request<ProbeResult>("repo.probe", { path })
+        .then((res) => setProbes((now) => ({ ...now, [path]: res })))
+        .catch(() => {})
     }
-  }, [model, primary])
+  }, [model, repos])
 
   useEffect(() => area.current?.focus(), [])
 
@@ -90,14 +91,16 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     if (begin && !prompt.trim()) return setError(t("newSession.needPrompt"))
     setBusy(true)
     try {
-      const fresh = await model.client.request<ProbeResult>("repo.probe", { path: primary })
-      if (!fresh.ok) throw new Error(fresh.reason ?? primary)
+      // Every pick is re-probed: a typed path may not be a repo, and the daemon wants canonical roots.
+      const fresh = await Promise.all(repos.map((path) => model.client.request<ProbeResult>("repo.probe", { path })))
+      const bad = fresh.find((res) => !res.ok)
+      if (bad) throw new Error(bad.reason ?? bad.repo)
       const res = await model.client.request<{ taskIds: string[] }>(
         "task.spawn",
         spawnArgs({
-          repos: [fresh.repo],
+          repos: repos.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" })),
+          branch: branchName.trim(),
           engine: choice.engine,
-          baseBranch,
           prompt: begin ? prompt.trim() : "",
           model: modelValue,
           effort: effortValue,
@@ -116,15 +119,28 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const typed = repoQuery.trim()
   const repoRows = filterText(saved, repoQuery).map((path) => {
     const { base, dir } = splitRepoRow(path)
-    return { key: path, text: base, dim: dir, checked: path === primary }
+    return {
+      key: path,
+      text: base,
+      dim: path === primary && repos.length > 1 ? `${t("newSession.primary")} · ${dir}` : dir,
+      checked: repos.includes(path),
+    }
   })
   const typedPath = isPathInput(typed) && !saved.includes(typed) ? stripTrailingSlash(expandTilde(typed, home)) : ""
   const branchRows = filterText(probe?.branches ?? [], branchQuery).map((name) => ({
     key: name,
     text: name,
-    checked: name === (baseBranch || probe?.current),
+    checked: name === (bases[primary] || probe?.current),
   }))
-  const branchLabel = baseBranch || probe?.current || ""
+  const branchLabel = bases[primary] || probe?.current || ""
+  const branchRepos = repos.map((path) => ({
+    path,
+    name: splitRepoRow(path).base,
+    primary: path === primary,
+    branches: probes[path]?.branches ?? [],
+    current: probes[path]?.current ?? "",
+    base: bases[path] ?? "",
+  }))
 
   return (
     <div className="new-session">
@@ -155,40 +171,55 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           }}
         />
         <div className="composer-bar">
-          <ChipPopover field="repo" title={t("newSession.repo")} label={repoChipLabel(repos) || t("newSession.repo")}>
-            {(close) => (
+          <ChipPopover
+            field="repo"
+            title={repos.length > 1 ? t("newSession.repoCount", { count: repos.length }) : t("newSession.repo")}
+            label={repoChipLabel(repos) || t("newSession.repo")}
+          >
+            {() => (
+              // A check-list: a pick toggles and the list stays open, so several repos go in one visit.
               <SearchList
                 placeholder={t("newSession.repoSearch")}
                 empty={t("newSession.repoEmpty")}
                 rows={repoRows}
                 query={repoQuery}
                 onQuery={setRepoQuery}
-                extra={typedPath ? { key: typedPath, text: typedPath } : null}
-                onPick={(path) => {
-                  setRepos([path])
-                  setRepoQuery("")
-                  close()
-                }}
+                extra={typedPath ? { key: typedPath, text: typedPath, checked: repos.includes(typedPath) } : null}
+                onPick={(path) => setRepos((now) => toggleRepo(now, path))}
               />
             )}
           </ChipPopover>
-          {probe?.ok && branchLabel && (
-            <ChipPopover field="branch" title={t("newSession.branch")} label={branchLabel}>
-              {(close) => (
-                <SearchList
-                  placeholder={t("newSession.branchSearch")}
-                  empty={t("newSession.branchEmpty")}
-                  rows={branchRows}
-                  query={branchQuery}
-                  onQuery={setBranchQuery}
-                  onPick={(name) => {
-                    setBaseBranch(name)
-                    setBranchQuery("")
-                    close()
-                  }}
+          {repos.length > 1 ? (
+            <ChipPopover field="branch" title={t("newSession.branches")} label={t("newSession.branches")}>
+              {() => (
+                <BranchesMenu
+                  repos={branchRepos}
+                  branch={branchName}
+                  onBranch={setBranchName}
+                  onBase={(path, ref) => setBases((now) => ({ ...now, [path]: ref }))}
                 />
               )}
             </ChipPopover>
+          ) : (
+            probe?.ok &&
+            branchLabel && (
+              <ChipPopover field="branch" title={t("newSession.branch")} label={branchLabel}>
+                {(close) => (
+                  <SearchList
+                    placeholder={t("newSession.branchSearch")}
+                    empty={t("newSession.branchEmpty")}
+                    rows={branchRows}
+                    query={branchQuery}
+                    onQuery={setBranchQuery}
+                    onPick={(name) => {
+                      setBases((now) => ({ ...now, [primary]: name }))
+                      setBranchQuery("")
+                      close()
+                    }}
+                  />
+                )}
+              </ChipPopover>
+            )
           )}
           <span className="composer-grow" />
           {choice.engines.length > 1 && (

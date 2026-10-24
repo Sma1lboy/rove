@@ -190,3 +190,19 @@
   font: inherit;
   text-decoration: underline;
 }
+
+.composer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 6px;
+}
+
+.composer-branches {
+  min-width: 36ch;
+}
+
+.composer-branches select,
+.composer-branches input {
+  width: 100%;
+}

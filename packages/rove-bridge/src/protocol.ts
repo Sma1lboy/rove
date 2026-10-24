@@ -120,6 +120,8 @@ export interface TaskRow {
   readonly machine?: MachineTag
   /** The repo across machines (`host/owner/name`, else `root:<sha>`), from the serving daemon; absent outside a repo. Clients group projects by it, else by `repo`. */
   readonly repoId?: string
+  /** How many repos beyond the primary this task spans (`task.extraRepos`); absent = one repo. */
+  readonly extraRepoCount?: number
   /** The task this one was spawned from (`rove api spawn`); clients nest a child under it. */
   readonly parentTaskId?: string
   /** A child running in that task's directory; absent on a child = it has its own worktree. */

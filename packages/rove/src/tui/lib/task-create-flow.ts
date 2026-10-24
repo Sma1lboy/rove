@@ -5,7 +5,7 @@
 
 import { availableEngineIds } from "@/engine/account-detect"
 import { errorMessage } from "@/lib/error-message"
-import { addSavedRepo, getSavedRepos } from "@/state/repos"
+import { addSavedRepo, getSavedRepos, resolveMainRepoRoot } from "@/state/repos"
 import { t } from "@/tui/i18n"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@/types/task"
 import type { NewTaskDialogOptions, NewTaskInput } from "../component/new-task-dialog/state"
@@ -19,6 +19,8 @@ export interface FirstPromptStart {
   readonly modelEffort?: string
   readonly model?: string
   readonly tier?: string
+  /** More repos the task spans, in pick order; `repo` stays the primary. */
+  readonly extraRepos?: readonly string[]
 }
 
 /** Hosts build ONE of these and pass it to every flow. */
@@ -69,6 +71,15 @@ function mainRepoSet(tasks: readonly Task[]): ReadonlySet<string> {
   return out
 }
 
+/** A repo path as its main checkout; a path git cannot read stays as given, for the daemon to refuse by name. */
+function mainRoot(repo: string): string {
+  try {
+    return resolveMainRepoRoot(repo)
+  } catch {
+    return repo
+  }
+}
+
 /** Default repo → dialog → persist vendor + repo → create / adopt / open → select and enter. */
 export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
   const repos = getSavedRepos()
@@ -94,6 +105,8 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
   // Auto-save keeps `add` optional. Use the returned git toplevel so a
   // subdirectory entry is keyed under the same root the task record gets.
   const repo = addSavedRepo(result.repo).path
+  // The extras are keyed by their main checkout like the primary, so a subdirectory or a linked worktree names its repo.
+  const extraRepos = result.mode === "adopt" || result.mode === "open" ? [] : (result.extraRepos ?? []).map(mainRoot)
   ctx.rememberVendor(repo, result.vendor)
   ctx.onRepoSaved?.()
   if (!orch) {
@@ -127,6 +140,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
       ...(result.modelEffort ? { modelEffort: result.modelEffort } : {}),
       ...(result.model ? { model: result.model } : {}),
       ...(result.tier ? { tier: result.tier } : {}),
+      ...(extraRepos.length > 0 ? { extraRepos } : {}),
     })
     return
   }
@@ -169,6 +183,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
         ...(result.modelEffort ? { modelEffort: result.modelEffort } : {}),
         ...(result.model ? { model: result.model } : {}),
         ...(result.tier ? { tier: result.tier } : {}),
+        ...(extraRepos.length > 0 ? { extraRepos: extraRepos.map((repo) => ({ repo })) } : {}),
       })
       createdId = task.id
     } catch (err) {

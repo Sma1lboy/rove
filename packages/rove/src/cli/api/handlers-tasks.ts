@@ -129,9 +129,33 @@ export function requirePromptText(ctx: VerbContext, verb: string): string {
   return text
 }
 
+/**
+ * The task a send goes to: `--task-id`, else — inside a sub-task — its DISPATCHER (task + tab), else the
+ * global active task. An explicit `--tab` stays exact (on the dispatcher task); the dispatcher's own tab
+ * is only the default.
+ */
+async function resolveSendTask(
+  ctx: VerbContext,
+  daemon: DaemonRpc,
+  tab: string | undefined,
+): Promise<{ taskId: string; tab: string | undefined }> {
+  const explicit = ctx.args.str("task-id")
+  if (explicit) return { taskId: explicit, tab }
+  const dispatcher = await readOwnDispatcher(daemon)
+  if (dispatcher) {
+    return { taskId: dispatcher.taskId, tab: tab ?? (await resolveDispatcherTab(ctx.runtime, daemon, dispatcher)) }
+  }
+  const active = await resolveActiveTaskId(daemon)
+  if (!active) {
+    throw new ApiError("no --task-id given and no active task — open a task first or pass --task-id", "MISSING_TARGET")
+  }
+  return { taskId: active, tab }
+}
+
 export async function send(ctx: VerbContext): Promise<unknown> {
-  const taskId = ctx.args.str("task-id")
-  if (ctx.args.str("tab") !== "new" || !taskId) return sendNow(ctx)
+  if (ctx.args.str("tab") !== "new") return sendNow(ctx)
+  // Whichever way the task is found, two new conversations on it are serialized.
+  const { taskId } = await resolveSendTask(ctx, daemonOf(ctx), "new")
   return withFirstConversationLock(taskId, () => sendNow(ctx))
 }
 
@@ -162,26 +186,9 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
       helpStep("send"),
     )
   }
-  let taskId = ctx.args.str("task-id")
-  if (!taskId) {
-    // Inside a sub-task a bare `send` replies to its DISPATCHER (task + tab),
-    // not the global active task. An explicit --tab stays exact (on the
-    // dispatcher task); the fallback chain only runs for the tab default.
-    const dispatcher = await readOwnDispatcher(daemon)
-    if (dispatcher) {
-      taskId = dispatcher.taskId
-      if (tab === undefined) tab = await resolveDispatcherTab(ctx.runtime, daemon, dispatcher)
-    } else {
-      const active = await resolveActiveTaskId(daemon)
-      if (!active) {
-        throw new ApiError(
-          "no --task-id given and no active task — open a task first or pass --task-id",
-          "MISSING_TARGET",
-        )
-      }
-      taskId = active
-    }
-  }
+  const sendTo = await resolveSendTask(ctx, daemon, tab)
+  let taskId = sendTo.taskId
+  tab = sendTo.tab
   let res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
   // Before ANY delivery path (--plain included: a verbatim false claim is the
   // same false claim) — a refused report must never reach the coordinator.

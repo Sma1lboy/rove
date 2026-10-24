@@ -233,6 +233,8 @@ export function WorktreeTreeRow(props: {
   const remoteLive = remote ? remoteMarkLive(remote) : true
   const caption = remote && shared.cursorIndex === props.flatIndex ? remoteRowCaption(remote, t) : null
   const marker = childMarkerOf(task)
+  // A task over several repos is listed once, under its primary, with how many more it spans.
+  const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
   const fold = props.fold
   const reserved =
     // The state-glyph column, and the indent past the first level `treeLabelBudget` assumes.
@@ -245,6 +247,7 @@ export function WorktreeTreeRow(props: {
     (age ? clusterCells(age) : 0) +
     (props.level !== undefined ? clusterCells(String(props.level)) : 0) +
     (marker ? clusterCells(SHARED_MARK) : 0) +
+    (extraRepoText ? clusterCells(extraRepoText) : 0) +
     (fold
       ? clusterCells(fold.collapsed ? FOLD_CLOSED : FOLD_OPEN) +
         (fold.collapsed ? clusterCells(String(fold.count)) + clusterCells(glyphs.idle) : 0)
@@ -331,6 +334,11 @@ export function WorktreeTreeRow(props: {
         {props.level !== undefined ? (
           <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
             {String(props.level)}
+          </text>
+        ) : null}
+        {extraRepoText ? (
+          <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+            {extraRepoText}
           </text>
         ) : null}
         {marker ? (

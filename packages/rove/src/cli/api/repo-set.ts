@@ -120,9 +120,15 @@ export async function resolveRepoSet(
     const ref = spec.slice(eq + 1)
     if (eq <= 0 || !ref)
       throw new ApiError(`--base-for ${JSON.stringify(spec)} must be REPO=REF`, "BAD_FLAG", helpStep("add"))
-    const target = repos.find(
-      (r) => r.name === key || (key.includes("/") && samePath(r.repo, args.repoPath("base-for", key))),
-    )
+    // A path key is compared by git root: `/tmp/x` and the `/private/tmp/x` the repo is stored under are one repo.
+    const keyRoot = key.includes("/") ? await runtime.resolveRepoRoot(args.repoPath("base-for", key)) : undefined
+    let target: (typeof repos)[number] | undefined
+    for (const r of repos) {
+      if (r.name === key || (keyRoot !== undefined && samePath(await runtime.resolveRepoRoot(r.repo), keyRoot))) {
+        target = r
+        break
+      }
+    }
     if (!target) {
       throw new ApiError(
         `--base-for ${key}: no such repo in this task (repos: ${repos.map((r) => r.name).join(", ")})`,
