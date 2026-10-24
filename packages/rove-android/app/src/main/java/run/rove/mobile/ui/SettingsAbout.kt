@@ -26,14 +26,21 @@ private val Licenses = listOf(
     License(R.string.settings_license_addon_fit, "terminal/licenses/addon-fit.txt"),
 )
 
-/** Versions, the host, and the licenses of what the app ships. */
+/** `docs/PRIVACY.md`, copied in at build time: the policy Play Console links to, readable without a bridge. */
+private const val PrivacyAsset = "docs/PRIVACY.md"
+
+/** Versions, the host, the privacy policy, and the licenses of what the app ships. */
 @Composable fun AboutSettings(model: AppModel, back: () -> Unit) {
     val context = LocalContext.current
     var license by rememberSaveable { mutableStateOf<String?>(null) }
     BackHandler(license != null) { license = null }
     license?.let { asset ->
-        val entry = Licenses.first { it.asset == asset }
-        LicensePage(stringResource(entry.name), asset) { license = null }
+        if (asset == PrivacyAsset) {
+            LicensePage(stringResource(R.string.settings_privacy), asset, PolicyText::plain) { license = null }
+        } else {
+            val entry = Licenses.first { it.asset == asset }
+            LicensePage(stringResource(entry.name), asset) { license = null }
+        }
         return
     }
 
@@ -72,25 +79,32 @@ private val Licenses = listOf(
         (daemon as? SettingsLoad.Failed)?.let { ErrorLine(it.message) }
         Hint(stringResource(R.string.settings_about_language))
         Hint(stringResource(R.string.settings_about_mac_side))
+        Column(Modifier.fillMaxWidth().tile()) {
+            DocumentRow(stringResource(R.string.settings_privacy)) { license = PrivacyAsset }
+        }
         if (shipped.isNotEmpty()) FormSection(stringResource(R.string.settings_licenses)) {
             Column(Modifier.fillMaxWidth().tile()) {
                 shipped.forEachIndexed { index, entry ->
                     if (index > 0) SettingsDivider()
-                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).pressable { license = entry.asset }.padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(entry.name), Modifier.weight(1f), color = Rove.c.ink, style = Rove.mono(14, FontWeight.Medium))
-                        Text("›", color = Rove.c.muted, style = Rove.mono(14))
-                    }
+                    DocumentRow(stringResource(entry.name)) { license = entry.asset }
                 }
             }
         }
     }
 }
 
-@Composable private fun LicensePage(title: String, asset: String, back: () -> Unit) {
+@Composable private fun DocumentRow(label: String, open: () -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).pressable(onClick = open).padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f), color = Rove.c.ink, style = Rove.mono(14, FontWeight.Medium))
+        Text("›", color = Rove.c.muted, style = Rove.mono(14))
+    }
+}
+
+@Composable private fun LicensePage(title: String, asset: String, format: (String) -> String = { it }, back: () -> Unit) {
     val context = LocalContext.current
     val text = remember(asset) {
-        runCatching { context.assets.open(asset).bufferedReader().use { it.readText() } }.getOrDefault("")
+        runCatching { context.assets.open(asset).bufferedReader().use { format(it.readText()) } }.getOrDefault("")
     }
     SettingsPage(title, back) {
         SelectionContainer { Text(text.trim(), color = Rove.c.ink, style = Rove.mono(11)) }

@@ -52,6 +52,8 @@ The release owner must review the actual flows below before submitting the form.
 
 Play requires a public privacy policy URL even when no data is collected. The policy is `docs/PRIVACY.md`, entered in Play Console as <https://github.com/Sma1lboy/rove/blob/main/docs/PRIVACY.md>. That URL works once this file is on `main`. Keep it in line with the Data safety answers above.
 
+Play's User Data policy also requires the policy inside the app. Settings → about → **privacy policy** shows the same file: Gradle copies `docs/PRIVACY.md` into the APK, so it reads without a paired bridge, offline and in demo mode. `PolicyTextTest` checks that the bundled file reads as plain text.
+
 ## Third-party code
 
 xterm.js and addon-fit (MIT), OkHttp (Apache-2.0), ZXing Android Embedded (Apache-2.0). Fonts: Maple Mono NF and JetBrains Mono (SIL OFL 1.1), credited under settings → about.

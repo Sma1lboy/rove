@@ -48,6 +48,13 @@ val copyDemo by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("generated/demo"))
 }
 tasks.named("preBuild") { dependsOn(copyDemo) }
+// Settings → about shows the same policy Play Console links to; bundled so it reads offline and in demo mode.
+val copyPrivacy by tasks.registering(Copy::class) {
+    from("../../../docs/PRIVACY.md")
+    into(layout.buildDirectory.dir("generated/privacy/docs"))
+}
+android.sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/privacy"))
+tasks.named("preBuild") { dependsOn(copyPrivacy) }
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.04.01"))
     implementation("androidx.activity:activity-compose:1.10.1")
