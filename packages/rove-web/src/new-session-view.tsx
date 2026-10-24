@@ -22,6 +22,9 @@ export function startNewTask(model: AppModel, repo?: string, machine?: string): 
   else dialog.set(<NewTaskDialog model={model} repo={repo} machine={machine} />)
 }
 
+// The unsent prompt outlives the view: picking a task unmounts the composer, as switching chats does on claude.ai.
+let promptDraft = ""
+
 export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSessionStart }) {
   const initialRepo = seed.repo
   useLocale()
@@ -38,7 +41,11 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [branchName, setBranchName] = useState("")
   const [repoQuery, setRepoQuery] = useState("")
   const [branchQuery, setBranchQuery] = useState("")
-  const [prompt, setPrompt] = useState("")
+  const [prompt, setPromptState] = useState(promptDraft)
+  const setPrompt = (text: string): void => {
+    promptDraft = text
+    setPromptState(text)
+  }
   const [pickedModel, setPickedModel] = useState("")
   const [pickedEffort, setPickedEffort] = useState("")
   const [busy, setBusy] = useState(false)
@@ -106,6 +113,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           effort: effortValue,
         }),
       )
+      promptDraft = ""
       newSession.set(null)
       const created = res.taskIds[0]
       if (created) model.selectWhenListed(created)
