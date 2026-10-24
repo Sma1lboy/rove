@@ -13,9 +13,12 @@ export const en = {
     pickTask: "pick a task on the left",
     noTabs: "no open sessions in this task",
     tabNotLive: "this tab has no running session",
-    restored: "restored session · read-only until the TUI reopens it",
+    restored: "restored session · read-only until reopened",
     exited: "session ended · exit {code}",
     attachFailed: "could not open this session: {message}",
+    reopen: "Reopen session",
+    reopening: "Reopening…",
+    reopenFailed: "could not reopen this session: {message}",
   },
   tab: {
     shell: "shell",

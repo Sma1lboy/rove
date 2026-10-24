@@ -209,13 +209,16 @@ export function mountTerminal(o: MountOpts): TermHandle {
     held = []
     stream = null
     try {
-      const res = await client.request<{ stream: string; alive: boolean; replay: string }>("term.attach", {
-        taskId,
-        tabId,
-        ...(o.leafId && o.leafId !== "leaf-1" ? { leafId: o.leafId } : {}),
-        cols: term.cols,
-        rows: term.rows,
-      })
+      const res = await client.request<{ stream: string; alive: boolean; restored?: boolean; replay: string }>(
+        "term.attach",
+        {
+          taskId,
+          tabId,
+          ...(o.leafId && o.leafId !== "leaf-1" ? { leafId: o.leafId } : {}),
+          cols: term.cols,
+          rows: term.rows,
+        },
+      )
       const current = owned.get(expected)
       if (current) current.attached = true
       else detach()
@@ -242,7 +245,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
           .catch(() => {})
       }
       if (res.alive && document.activeElement === term.textarea) activeStream.set(res.stream)
-      o.setNotice(res.alive ? { kind: "none" } : { kind: "restored" })
+      o.setNotice(res.alive ? { kind: "none" } : res.restored ? { kind: "restored" } : { kind: "exited", code: null })
     } catch (err) {
       if (disposed) return
       if (err instanceof BridgeRequestError && err.code === "TAB_NOT_LIVE") o.setNotice({ kind: "notLive" })

@@ -143,6 +143,7 @@ tab-new            --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ)
                    --latest --file --line --pane --tab --view-task
 tab-split          --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
                    --direction{right|down}(right) --leaf --title --cols --rows
+tab-revive         --task-id(REQ) --tab(REQ)
 notify             --title(REQ) --body --kind(done) --task-id --source
 prompt             --title(REQ) --placeholder --initial --timeout
 engine-report      --task-id
@@ -212,6 +213,14 @@ your rc's PATH work.
 and ends that tab's hosted PTYs. It accepts engine, shell/command, and content
 tabs; closing the last tab leaves the task open with no session. A missing or
 already-closed id returns `TAB_NOT_FOUND` and points back to `get-task`.
+
+`tab-revive` reopens one tab's own session when no PTY runs in it — a dead or
+freeze-restored tab, or one the PTY host lost. Engine tabs resume the
+recorded conversation (`resumed: true`) or start fresh without a first
+message; shell tabs rerun their login shell. It never replays the task's
+original prompt, and a running tab answers `revived: false, alive: true`.
+Split leaves are `BAD_FLAG` (use `tab-split --action reset`); previews and
+viewport tabs are `TAB_NOT_REVIVABLE`.
 
 `engine-report` is the engine adapter's own channel for reporting a session
 event (`--kind`) back to the daemon — not a verb you reach for by hand.

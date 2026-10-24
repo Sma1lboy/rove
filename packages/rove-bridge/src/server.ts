@@ -241,6 +241,13 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         await forwarder?.detach(stream)
       }
       return {}
+    case "term.revive": {
+      const taskId = str(a, "taskId")
+      const tabId = str(a, "tabId")
+      // The session `term.attach` would open: a viewport tab revives the one it shows.
+      const shown = ops.machineOf?.(taskId) !== undefined ? null : ops.viewedSession(taskId, tabId)
+      return ops.reviveTab(shown?.taskId ?? taskId, shown?.tabId ?? tabId)
+    }
     case "diff.files":
       return ops.diffFiles(str(a, "taskId"))
     case "diff.file": {

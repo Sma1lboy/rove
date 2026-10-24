@@ -14,9 +14,12 @@ export const zh: typeof en = {
     pickTask: "从左边选一个任务",
     noTabs: "这个任务没有打开的会话",
     tabNotLive: "这个标签没有在运行的会话",
-    restored: "已恢复的会话 · TUI 重新打开前只读",
+    restored: "已恢复的会话 · 重新打开前只读",
     exited: "会话已结束 · 退出码 {code}",
     attachFailed: "打不开这个会话：{message}",
+    reopen: "重新打开会话",
+    reopening: "正在重新打开…",
+    reopenFailed: "重新打开失败：{message}",
   },
   tab: {
     shell: "终端",

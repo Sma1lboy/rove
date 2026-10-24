@@ -16,6 +16,7 @@ import type { VerbArgs } from "./flags.ts"
 import type { LaunchSpec, Launched } from "./tab-launch.ts"
 import type { NewTabKind, OpenedTab } from "./tab-new.ts"
 import type { RestoredTabRef } from "./tab-respawn.ts"
+import type { RevivedTab } from "./tab-revive.ts"
 import type { TaskTabRow } from "./tab-snapshot.ts"
 import type { SplitEdit, SplitOutcome } from "./tab-split.ts"
 
@@ -332,6 +333,8 @@ export interface ApiRuntime {
   launchTab(client: DaemonRpc, spec: LaunchSpec): Promise<Launched>
   /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */
   splitTab(client: DaemonRpc, taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
+  /** Reopen a tab's own session when no PTY runs in it (`tab-revive`); a live one is left alone. */
+  reviveTab(client: DaemonRpc, target: PromptTarget, tabId: string, worktree: string): Promise<RevivedTab>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
   /** Can a worktree be cut from this repo? On the seam so handler tests need no

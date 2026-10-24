@@ -77,6 +77,11 @@ export interface DaemonRuntimeAdapter {
    */
   titleTurnHint(vendor: VendorId, title: string): "working" | "rest" | null
   /**
+   * The engine whose session ids/argv `vendor` speaks (a wrapped preset
+   * resolves to its base). Two vendors share session ids iff these match.
+   */
+  sessionProtocol(vendor: VendorId | undefined): VendorId
+  /**
    * From live engine-tab evidence (walk vendor + OSC title), the `setCommand`
    * payload upgrading a generic record to a named protocol, or null. Engine-
    * owned; the daemon only relays evidence. Absent = never upgrades.

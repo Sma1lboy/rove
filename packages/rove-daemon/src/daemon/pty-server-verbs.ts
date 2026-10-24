@@ -9,7 +9,7 @@ import { spawnDetachedDaemon } from "../client/detached-spawn.ts"
 import type { ClientWriter } from "./client-writer.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { objectPayload, optionalBoolean, requireString } from "./handler-validators.ts"
-import { DAEMON_PROTOCOL_VERSION, type DaemonFrame, type PtyCheckedOpenResult } from "./protocol.ts"
+import { DAEMON_PROTOCOL_VERSION, type DaemonFrame, PTY_STOP_REFUSED, type PtyCheckedOpenResult } from "./protocol.ts"
 import type { PtyHost } from "./pty-host.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 import { withoutPtyJob } from "./win-pty-job.ts"
@@ -28,7 +28,7 @@ export interface PtyVerbDeps {
   readonly ptys: PtyHost
   /** Frame a reply or a PTY event to one client — `pty.open`'s output sink. */
   readonly writeFrame: (client: Pick<PtyClientState, "writer">, frame: DaemonFrame) => void
-  /** `daemon.stop`: end gracefully; the next boot starts fresh, not restored. */
+  /** `daemon.stop`: end gracefully. Sessions are frozen first; the freeze store is never wiped here. */
   readonly requestStop: () => void
   /** The Rove build this host runs, echoed by `pty.list` when known. */
   readonly version?: string
@@ -169,10 +169,18 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
       )
       return {}
     }
-    case "daemon.stop":
-      // Shared with the daemon so `stopDaemonProcess` works here unchanged.
+    case "daemon.stop": {
+      // Shared with the daemon so `stopDaemonProcess` works here unchanged. Live sessions end with
+      // the host, so only an explicit `force` (rove reset) may stop one that holds any.
+      const live = ptys.liveCount()
+      if (live > 0 && optionalBoolean(objectPayload(req.payload), "force") !== true) {
+        throw Object.assign(new Error(`pty host holds ${live} live session(s); daemon.stop needs force to end them`), {
+          name: PTY_STOP_REFUSED,
+        })
+      }
       deps.requestStop()
       return {}
+    }
     default:
       throw new Error(`unknown pty-host request: ${req.name}`)
   }

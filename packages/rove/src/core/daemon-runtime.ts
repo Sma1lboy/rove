@@ -139,6 +139,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // state-free `registry.ts` can't resolve presets. The raw id finds an empty
   // custom entry, so working→rest would never be seen on a wrapped tab.
   titleTurnHint: (vendor, title) => engineTitleTurnHint(sessionProtocol(vendor), title),
+  sessionProtocol,
   resolveProtocolUpgrade: resolveProtocolUpgradeAndLearnPreset,
   // An engine without a turn reader reports none.
   readEngineTurns: async (vendor, transcriptPath) => (await protocolEntry(vendor).readTurns?.(transcriptPath)) ?? [],

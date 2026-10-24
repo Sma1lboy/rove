@@ -85,7 +85,7 @@ const env = sandboxChildEnv(home, process.env)
 async function stopSandbox(): Promise<void> {
   const paths = sandboxRuntimePaths(home)
   await stopDaemonProcess(paths.daemonSocket, paths.daemonPidPath)
-  await stopDaemonProcess(paths.ptySocket, paths.ptyPidPath)
+  await stopDaemonProcess(paths.ptySocket, paths.ptyPidPath, { force: true })
 }
 
 if (mode === "reset") {

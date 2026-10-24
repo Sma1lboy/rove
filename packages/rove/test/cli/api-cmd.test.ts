@@ -176,6 +176,7 @@ describe("API surface (full CRUD)", () => {
       "tab-close",
       "tab-new",
       "tab-split",
+      "tab-revive",
       "notify",
       "prompt",
       "engine-report",
