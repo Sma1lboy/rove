@@ -11,6 +11,7 @@
  */
 
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
+import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { type EngineSessionLaunch, buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { type EngineTab, engineTabArgv } from "../../tui/workspace/terminal-tabs-core.ts"
@@ -57,6 +58,8 @@ export interface RespawnTaskContext {
   readonly command?: string
   readonly modelEffort?: string
   readonly model?: string
+  /** A multi-repo task's repos, so the resumed engine regains its extra worktrees. */
+  readonly repos?: readonly TaskRepoView[]
 }
 
 /**
@@ -91,7 +94,13 @@ export function restoredTabLaunch(
     | undefined
   if (!tab) return null
   return buildEngineSessionLaunch({
-    task: { id: task.id, kind: (task.kind as "task") ?? "task", vendor: tab.vendor ?? task.vendor, repo: task.repo },
+    task: {
+      id: task.id,
+      kind: (task.kind as "task") ?? "task",
+      vendor: tab.vendor ?? task.vendor,
+      repo: task.repo,
+      repos: task.repos,
+    },
     worktreePath,
     shell,
     // `live: false` makes this a RESUME rather than a fresh pin.

@@ -98,6 +98,15 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
   prompt: "the full task brief — never truncated on the way to the wire",
   baseRef: "release/2.x",
   worktreeName: "probe-1",
+  extraRepos: [
+    {
+      name: "api",
+      repo: "/other/api",
+      branch: "fix/wire",
+      worktreePath: "/other/.worktrees/api-1",
+      baseRef: "release/1.x",
+    },
+  ],
   report: {
     branch: "fix/wire",
     pr: 921,

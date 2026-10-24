@@ -8,7 +8,14 @@ import { isBuiltinModInstalled } from "../plugins/builtin-mods.ts"
 import { subtreeIds } from "../task-tree.ts"
 import type { DaemonTask } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
-import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
+import {
+  objectPayload,
+  optionalBoolean,
+  optionalNumber,
+  optionalString,
+  optionalVendor,
+  requireString,
+} from "./handler-validators.ts"
 import { publishIssueSnapshot } from "./handlers-issues.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
@@ -60,6 +67,20 @@ function optionalWorkerReport(
   }
 }
 
+/** `task.create`'s `extraRepos`: `[{ repo, baseRef? }]` in pick order, or undefined when absent. */
+function optionalExtraRepos(payload: Record<string, unknown>): { repo: string; baseRef?: string }[] | undefined {
+  const raw = payload.extraRepos
+  if (raw === undefined || raw === null) return undefined
+  if (!Array.isArray(raw)) throw new Error("extraRepos must be an array")
+  return raw.map((entry, i) => {
+    const item = objectPayload(entry)
+    const repo = optionalString(item, "repo")
+    if (!repo) throw new Error(`extraRepos[${i}].repo is required`)
+    const baseRef = optionalString(item, "baseRef")
+    return { repo, ...(baseRef ? { baseRef } : {}) }
+  })
+}
+
 export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.list",
@@ -98,6 +119,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         branch: optionalString(payload, "branch"),
         baseRef: optionalString(payload, "baseRef"),
         worktreeName: optionalString(payload, "worktreeName"),
+        extraRepos: optionalExtraRepos(payload),
         vendor: optionalVendor(payload, "vendor"),
         command: optionalString(payload, "command"),
         modelEffort: optionalString(payload, "effort"),

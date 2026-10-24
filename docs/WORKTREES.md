@@ -147,6 +147,19 @@ worktree pointer. It does not delete the Task, its branch, or engine history.
 Opening the Task later may materialize a fresh worktree from the retained
 branch.
 
+A Task that spans several repos (`add --repo A --repo B`) deletes as a unit:
+the dirty / gitignored check covers every repo's worktree before anything is
+queued (the refusal lists each repo that has work), a forced delete takes its
+salvage snapshot in each repo, and a removal that fails in one repo leaves the
+Task in `deletion.phase = "error"` naming that repo; already-removed repos are
+skipped on retry. When a Task that owns extra worktrees is deleted while a
+shared child survives, the child inherits them.
+
+Downgrading is unsupported for such Tasks: a build from before multi-repo
+drops `extraRepos` the next time it writes the task index, after which the
+extra worktrees are unowned. Rove never deletes them; they stay visible in
+`git worktree list` of their repo, and `git worktree remove` there clears them.
+
 `rove api remove-worktree --task-id ID [--force]` is the same operation from a
 shell, for scripting a reclaim of idle checkouts. It runs this path — session
 teardown first, dirty refused without `--force`, salvage snapshot on every

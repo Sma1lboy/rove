@@ -112,6 +112,15 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   prompt: "the full task brief — never truncated on the way to disk",
   baseRef: "release/2.x",
   worktreeName: "probe-1",
+  extraRepos: [
+    {
+      name: "api",
+      repo: "/other/api",
+      branch: "fix/round-trip",
+      worktreePath: "/other/.worktrees/api-1",
+      baseRef: "release/1.x",
+    },
+  ],
   report: {
     branch: "fix/round-trip",
     pr: 921,

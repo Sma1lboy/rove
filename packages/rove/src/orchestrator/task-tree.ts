@@ -4,5 +4,7 @@ export {
   isSharedChild,
   subtreeIds,
   taskCwd,
+  taskRepos,
+  taskWorktreePaths,
   workspaceOwnerId,
 } from "@sma1lboy/rove-daemon/task-tree"

@@ -374,7 +374,11 @@ export class VerbArgs {
    * `resolve()` would mangle the key into `$PWD/ssh:/me@host`.
    */
   requireRepo(name: string): string {
-    const raw = this.require(name)
+    return this.repoPath(name, this.require(name))
+  }
+
+  /** {@link requireRepo} for one value of a repeatable repo flag. */
+  repoPath(name: string, raw: string): string {
     return isRemoteRepoKey(raw) ? raw : this.resolvePath(name, raw)
   }
 }

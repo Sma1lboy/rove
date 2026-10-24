@@ -418,6 +418,8 @@ export interface SerializedTask {
   readonly baseRef?: DaemonTask["baseRef"]
   /** Caller-chosen worktree directory name (`add --worktree-name`). */
   readonly worktreeName?: DaemonTask["worktreeName"]
+  /** Secondary repos of a multi-repo task; omitted for a one-repo task. */
+  readonly extraRepos?: DaemonTask["extraRepos"]
   /** The worker's own outcome claim (`update --report-*`) — a CLAIM,
    *  where `prStatus` is the daemon's own observation of the forge. */
   readonly report?: DaemonTask["report"]
@@ -471,6 +473,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     ...(task.sharesWorkspaceOf ? { sharesWorkspaceOf: task.sharesWorkspaceOf } : {}),
     ...(task.cwdSubpath ? { cwdSubpath: task.cwdSubpath } : {}),
     ...(task.ptyAlias ? { ptyAlias: task.ptyAlias } : {}),
+    ...(task.extraRepos?.length ? { extraRepos: task.extraRepos } : {}),
     requireReport: task.requireReport,
     prompt: task.prompt,
     baseRef: task.baseRef,

@@ -11,6 +11,7 @@ import { canonPath, normalizeMainRepo, randomDirTaskSuffix, titleFromRepo } from
 import type { CreateTaskInput } from "./create-task-input.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import type { MainTaskCoordinator } from "./main-task.ts"
+import { planExtraRepos } from "./multi-repo.ts"
 import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "./title.ts"
 
 /** The store alone — all a directory/scratch row needs. */
@@ -45,6 +46,8 @@ export interface OpenDirectoryTaskInput {
  */
 export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): Promise<Task> {
   if (!input.repo) throw new Error("createTask: repo is required")
+  // Refused before the project row is minted: a rejected multi-repo create leaves nothing behind.
+  const extraRepos = planExtraRepos(normalizeMainRepo(input.repo).repo, input.extraRepos ?? [])
   // Ensure the project row only if the repo may BE a project
   // (state/project-eligibility.ts). An ineligible one (`/tmp` fixture,
   // `.dev-sandbox`) still gets its task; `buildTreeRows` renders it under a
@@ -83,6 +86,7 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
     // Persisted ON the task: `ensureWorktree` may run in a later daemon
     // process, and `collect` compares against this recorded fork point.
     ...(input.baseRef?.trim() ? { baseRef: input.baseRef.trim() } : {}),
+    ...(extraRepos.length > 0 ? { extraRepos } : {}),
     // Same: allocated lazily, and the caller was already told the path.
     ...(worktreeName ? { worktreeName } : {}),
   })

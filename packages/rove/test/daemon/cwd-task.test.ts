@@ -55,6 +55,13 @@ describe("matchTaskByCwd", () => {
   it("does not treat a sibling-prefix dir as a match (/repo vs /repo-other)", () => {
     expect(matchTaskByCwd([main], "/repo-other/src")).toBeUndefined()
   })
+
+  it("attributes a cwd inside an extra worktree of a multi-repo task, and the owner wins over the main row", () => {
+    const multi = { id: "multi", worktreePath: "/wt/web-1", extraRepos: [{ worktreePath: "/other/.wt/api-1" }] }
+    const apiMain = { id: "api-main", worktreePath: "/other" }
+    expect(matchTaskByCwd([main, apiMain, multi], "/other/.wt/api-1/src")).toBe("multi")
+    expect(tasksAtWorktreePath([multi], "/other/.wt/api-1")).toEqual(["multi"])
+  })
 })
 
 // The engine hooks are global, so a cwd under a tracked worktree can belong to

@@ -14,12 +14,9 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { homeDir } from "../../env.ts"
-import { errorMessage } from "../../lib/error-message.ts"
-import { cloneDirFor, cloneRepo, parseRepoRef } from "../../machines/repo-ref.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
-import { addSavedRepo } from "../../state/repos.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
@@ -38,6 +35,7 @@ import {
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
+import { type RepoSetFields, resolveRepoFlag, resolveRepoSet } from "./repo-set.ts"
 import {
   ApiError,
   type DeliveredPrompt,
@@ -46,7 +44,6 @@ import {
   helpStep,
   promptMayHaveLanded,
 } from "./types.ts"
-import { resolveLocalRepo } from "./verbs-repo-match.ts"
 
 /**
  * `--status` / `--pin` aren't create-time RPC fields — apply them as
@@ -104,7 +101,8 @@ async function deliverArmed(
 
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
-  const requestedRepo = await repoFlag(ctx)
+  const refs = args.list("repo")
+  const requestedRepo = await resolveRepoFlag(ctx, refs[0] ?? "")
   const repo = await runtime.resolveRepoRoot(requestedRepo)
   // Without this a non-git `--repo` SUCCEEDS: `resolveRepoRoot` falls back to
   // the path verbatim and the row persists with an empty branch and
@@ -136,33 +134,9 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   // Gated on ANCESTRY, not `!==`: git reports the realpath (macOS `/tmp/x` ->
   // `/private/tmp/x`), and a symlink rewrite is never a prefix of its input.
   const resolvedFrom = pathWithin(repo, requestedRepo) ? { repoResolvedFrom: requestedRepo } : undefined
-  const result = parallel ? await addParallel(ctx, repo, count, agentsSpec) : await addOne(ctx, repo)
+  const repoSet = await resolveRepoSet(ctx, repo, refs.slice(1))
+  const result = parallel ? await addParallel(ctx, repo, repoSet, count, agentsSpec) : await addOne(ctx, repo, repoSet)
   return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
-}
-
-/**
- * `--repo` as a checkout path: a path as given, a repo id (`owner/name`, a URL) as this
- * machine's checkout of it — cloned first with `--clone`, else a NO_LOCAL_CHECKOUT naming the fix.
- */
-async function repoFlag(ctx: VerbContext): Promise<string> {
-  const ref = parseRepoRef(ctx.args.require("repo"), ctx.caller.cwd ?? process.cwd())
-  if (ref.kind === "path") return ctx.args.requireRepo("repo")
-  const found = await resolveLocalRepo(ctx, { origin: ref.id })
-  if (found.repo) return found.repo
-  if (ctx.args.bool("clone") !== true) {
-    throw new ApiError(`no checkout of ${ref.id} on this machine`, "NO_LOCAL_CHECKOUT", {
-      hint: `pass --clone to clone it into ${cloneDirFor(ref.id)}, or --repo with a checkout's path`,
-    })
-  }
-  try {
-    const dir = cloneRepo(ref)
-    addSavedRepo(dir)
-    return dir
-  } catch (err) {
-    throw new ApiError(`could not clone ${ref.cloneUrl}: ${errorMessage(err)}`, "CLONE_FAILED", {
-      hint: "check this machine can fetch it (`git ls-remote <url>`), or clone it yourself and pass its path",
-    })
-  }
 }
 
 /** The typed-out engine fields: `--command` / `--effort` / `--model`, each gated. */
@@ -172,7 +146,7 @@ async function typedEngineFields(ctx: VerbContext, repo: string): Promise<Engine
   return { choice, effort: effortFor(ctx, engines), model: modelFor(ctx, engines) }
 }
 
-async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
+async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args } = ctx
   // Read (and validate) the prompt BEFORE `task.create`: its throws would
@@ -186,7 +160,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const tierNote: Record<string, string> = picked.note ? { tierAuto: picked.note } : {}
   const warnings = foreignModelWarnings([fields.choice.vendor ?? DEFAULT_VENDOR], fields.model)
   const warned = warnings.length > 0 ? { warnings } : {}
-  const payload: Record<string, string> = {
+  const payload: Record<string, unknown> = {
     repo,
     ...(await dispatcherEnvPayload(daemon)),
     ...enginePayload(fields.choice, fields.effort, fields.model, fields.tier),
@@ -195,8 +169,9 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   if (title) payload.title = title
   const branch = args.str("branch")
   if (branch) payload.branch = branch
-  const baseRef = args.str("base-branch")
+  const baseRef = args.str("base-branch") ?? repoSet.primaryBaseRef
   if (baseRef) payload.baseRef = baseRef
+  if (repoSet.extraRepos.length > 0) payload.extraRepos = repoSet.extraRepos
   const worktreeName = args.str("worktree-name")
   if (worktreeName) payload.worktreeName = worktreeName
 
@@ -238,6 +213,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
         modelEffort: task.modelEffort,
         model: task.model,
         repo: task.repo,
+        ...(task.extraRepos?.length ? { multiRepo: true } : {}),
         newTask: true,
       },
       brief,
@@ -309,6 +285,7 @@ async function persistPrompt(daemon: DaemonRpc, taskId: string, prompt: string):
 async function addParallel(
   ctx: VerbContext,
   repo: string,
+  repoSet: RepoSetFields,
   count: number | undefined,
   agentsSpec: string | undefined,
 ): Promise<unknown> {
@@ -357,7 +334,7 @@ async function addParallel(
   // auto-title pass only renames placeholders, so this is final — fine, it
   // derives from the same first message that pass would read.
   const title = args.str("title") || deriveTitleFromPrompt(prompt)
-  const baseRef = args.str("base-branch")
+  const baseRef = args.str("base-branch") ?? repoSet.primaryBaseRef
 
   // `--count` repeats ONE engine — `--command`'s (full command line) or a
   // tier's; the plan carries only its protocol.
@@ -388,7 +365,7 @@ async function addParallel(
   for (const [i, vendor] of plan.entries()) {
     // `--agents` picks engines BY ID (command = id); `--count` reuses `--command` verbatim.
     const engine: EngineChoice = agentsSpec ? { command: vendor, vendor } : { ...choice, vendor }
-    const payload: Record<string, string> = {
+    const payload: Record<string, unknown> = {
       repo,
       groupId,
       ...dispatcher,
@@ -396,6 +373,7 @@ async function addParallel(
     }
     if (title) payload.title = plan.length > 1 ? `${title} #${i + 1}/${plan.length}` : title
     if (baseRef) payload.baseRef = baseRef
+    if (repoSet.extraRepos.length > 0) payload.extraRepos = repoSet.extraRepos
     try {
       const res = await daemon.request<{ taskId: string; task: SerializedTask }>("task.create", payload)
       created.push({ taskId: res.taskId, vendor, task: res.task })
@@ -425,6 +403,7 @@ async function addParallel(
           modelEffort: task.modelEffort,
           model: task.model,
           repo: task.repo,
+          ...(task.extraRepos?.length ? { multiRepo: true } : {}),
           newTask: true,
         },
         prompt,
