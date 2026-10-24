@@ -127,6 +127,16 @@ still there. Deleting the
 task and deleting the source branch remain separate lifecycle decisions;
 from the CLI, `rove api land --remove-worktree=false` keeps the worktree.
 
+A Task that spans several repos (`add --repo A --repo B`) lands from the CLI
+(`rove api land`) as a unit with no atomicity: every repo is checked first and
+nothing is merged if one refuses; then the repos merge in the order they were
+picked, primary first, and the run stops at the first conflict. Earlier repos
+stay landed, the conflicted one is aborted and clean, and running `land` again
+resumes with the repos still unlanded (a repo already merged counts as having
+nothing ahead). The worktrees are removed only after the last repo lands,
+because the primary is the engine's working directory and the conflict is
+resolved from it. `rove api sync` merges each repo's own base into its worktree.
+
 ## Remove a clean worktree
 
 1. Select the worktree and press `d`.

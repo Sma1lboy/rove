@@ -199,9 +199,11 @@ export function blockingRpcNames(
  * — shaping it here would add `"name":"SyntaxError"` bytes to the wire.
  */
 export function shapeDaemonError(err: unknown): DaemonError {
+  const data = err instanceof Error ? (err as { data?: unknown }).data : undefined
   return {
     message: err instanceof Error ? err.message : String(err),
     name: err instanceof Error ? err.name : undefined,
+    ...(data !== undefined ? { data } : {}),
   }
 }
 

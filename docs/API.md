@@ -344,6 +344,12 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   `pane-open`, `pane-close`, `read-output` without `--task-id`) default to;
   `null` means no active task. Reading it back is the audit trail for any
   delivery that omitted `--task-id`.
+  A multi-repo task also carries `.repoCount` (all repos, primary included);
+  one-repo tasks omit it. `.prStatus` is the primary's PR; each extra's is on
+  `get-task`'s `.task.extraRepos[].prStatus` (Rove polls every repo against its
+  own worktree, branch and remote), and the sidebar chip, `context` and
+  `collect` show one rolled-up status — any failing check wins, then pending,
+  then open, then merged.
   - `--repo PATH`, `--status S1,S2` and `--activity A1,A2` narrow the list.
     Flags combine with AND; a comma list matches any of its values.
     `rove api list --activity permission_needed,error` is every task waiting
@@ -405,6 +411,10 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   Select the tasks by fan-out round (`--group`, the `groupId` that
   `add --count` returns), by repo, or by explicit ids.
   Each task also carries `runnability` (the `should-run` verdict).
+  For a task with extra repos each entry also carries `repos[]` —
+  `{ name, branch, worktreePath, changes, base }` per repo, primary first; the
+  top-level `changes` and `base` stay the primary's, and one-repo tasks have no
+  `repos` key.
 
   With `--repo`, a repo path that no longer resolves to a readable git
   repository is reported, never filtered away: the target failing to resolve
@@ -790,8 +800,9 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   tabs' environment, and one line on the first prompt. `delete` covers every
   repo: one dirty gate over all worktrees (the refusal names each dirty repo),
   salvage refs written in the repo they came from, `--delete-branch` applied
-  to each repo's branch. `land`, `sync`, PR polling and the changes view still
-  act on the primary only. Refusals: `TOO_MANY_REPOS`, `REPO_DUPLICATE` (the
+  to each repo's branch. `land` and `sync` act on every repo (below, under
+  [lifecycle](#lifecycle)), and PR status is polled per repo. Refusals:
+  `TOO_MANY_REPOS`, `REPO_DUPLICATE` (the
   same repo root twice, subdirectories resolve to their root),
   `NOT_A_GIT_REPO` (names the repo), `REMOTE_EXTRA_UNSUPPORTED`.
 
@@ -1501,7 +1512,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 
 ## lifecycle
 
-- `land --task-id ID [--dry-run] [--strategy merge|squash] [--delete-branch]
+- `land --task-id ID [--dry-run] [--repo NAME] [--strategy merge|squash] [--delete-branch]
   [--remove-worktree=false]`: merge a task's branch back into its
   base repo's current branch (`--no-ff` merge, or one squash commit). Refuses
   a dirty base checkout, a branch that no longer resolves in the base repo
@@ -1537,6 +1548,40 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   `--remove-worktree=false` — or with a removal that got refused (dirty tree,
   base checkout, the caller's own worktree) — keeps the branch. The result
   says so in `branchKept` (`{ reason }`) and writes no `branchAnchor`.
+
+  **A multi-repo task lands every repo, in picked order (primary first).**
+  Every repo is probed first; if any refuses (dirty base, missing ref, …)
+  nothing is merged and the error names it. Then each repo is merged into its
+  own base, and the run **stops at the first conflict** (that repo's merge is
+  aborted, earlier repos stay landed). The error carries `.repos[]` — one row
+  per repo, `{ name, status, landedOn, ahead, commit, error?, code? }` with
+  `status` one of `landed`, `skipped` (no commits ahead: already landed, or
+  untouched), `conflict`, `refused`, `failed`, `pending` — and `.failedRepo`.
+  **Re-running `land` resumes**: repos already merged read as `skipped`, the
+  rest carry on. A fully landed run returns the first landed repo's
+  `{ landedOn, commit }` plus the same `.repos[]`. Worktrees (and, with
+  `--delete-branch`, branches) are removed only once every selected repo has
+  landed — the primary is the engine's cwd, and a conflict in a later repo is
+  resolved from it. So `--repo <primary>` while other repos still have
+  worktrees merges but keeps the primary's worktree and branch (reported as
+  `worktree.removed: false` with the reason); an extra named with `--repo` is
+  cleaned right away. A repo whose branch Rove already landed and deleted
+  (`--repo X --delete-branch`) reads as `skipped`, not `MISSING_REF`, on the
+  next full `land`. `--repo NAME` (a name from `.task.extraRepos[].name`; the
+  primary's is its directory name) lands, or with `--dry-run` probes, just that
+  repo; an unknown name is `UNKNOWN_REPO`. `--dry-run` returns the head repo's
+  fields at the top level (the first refusal, else the first repo with commits
+  to land) and `.repos[]` with each repo's own probe and a `status` of
+  `ready`, `skipped` or `refused`.
+- `sync --task-id ID [--repo NAME]`: merge the base branch INTO the task's
+  worktree (the inverse of `land`; the `↓N` drift chip's action). A dirty
+  worktree is refused (`SYNC_WORKTREE_DIRTY`, commit first), and a conflict is
+  left in place in the worktree for you to resolve (`SYNC_CONFLICT` lists the
+  files). Returns `{ baseRef, alreadyCurrent }`. A multi-repo task syncs every
+  repo against its own base and adds `.repos[]`
+  (`{ name, ok, baseRef?, alreadyCurrent?, error?, code? }`); one repo's
+  conflict does not stop the others, and the first failure is raised as the
+  error once all have run, with `.repos[]` and `.failedRepo`.
 - `delete (--task-id ID | --group GROUPID) [--force] [--delete-branch]
   [--delete-remote] [--cascade] [--wait]`: remove a task
   and its worktree. **The git branch stays** unless `--delete-branch` is

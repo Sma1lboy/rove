@@ -8,6 +8,7 @@
 
 import { TASK_ACTIVITY_STATES, type TaskActivityState } from "@/engine/hook-events"
 import { type TaskActivitySignal, type TaskGroup, taskGroupOf } from "@/lib/task-group"
+import { rollupPr } from "@/orchestrator/task-tree"
 import type { AttentionInboxItem, Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 
@@ -95,6 +96,7 @@ export function buildContext(input: ContextInput): ContextPayload {
       tabAlive: input.liveTaskIds ? input.liveTaskIds.has(task.id) : null,
       now: input.now,
     })
+    const pr = rollupPr(task)
     rows.push({
       taskId: task.id,
       title: task.title,
@@ -102,8 +104,8 @@ export function buildContext(input: ContextInput): ContextPayload {
       group,
       rank,
       activity: activity ? { state: activity.state, forMs: Math.max(0, input.now - activity.at) } : null,
-      ...(task.prStatus ? { checkState: task.prStatus.checkState } : {}),
-      ...(task.prStatus?.number !== undefined ? { pr: task.prStatus.number } : {}),
+      ...(pr ? { checkState: pr.checkState } : {}),
+      ...(pr?.number !== undefined ? { pr: pr.number } : {}),
       ...(task.report ? { report: task.report } : {}),
       at: activity?.at ?? 0,
     })

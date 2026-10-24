@@ -135,6 +135,7 @@ function coerceExtraRepos(value: unknown, primary: string): TaskExtraRepo[] | un
       branch: typeof e.branch === "string" ? e.branch : "",
       worktreePath: typeof e.worktreePath === "string" ? e.worktreePath : "",
       ...(typeof e.baseRef === "string" && e.baseRef.trim().length > 0 ? { baseRef: e.baseRef } : {}),
+      ...(coercePRStatus(e.prStatus) ? { prStatus: coercePRStatus(e.prStatus) } : {}),
     })
   }
   return out.length > 0 ? out : undefined

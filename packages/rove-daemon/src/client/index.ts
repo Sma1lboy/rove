@@ -359,8 +359,9 @@ export class RoveDaemonClient implements DaemonRpcClient {
     if (pending.timer) clearTimeout(pending.timer)
     if (frame.error) {
       // Keep the wire error NAME so callers can branch on e.g. IllegalTransitionError.
-      const err = new Error(frame.error.message)
+      const err: Error & { data?: unknown } = new Error(frame.error.message)
       if (frame.error.name) err.name = frame.error.name
+      if (frame.error.data !== undefined) err.data = frame.error.data
       pending.reject(err)
     } else pending.resolve(frame.payload)
   }

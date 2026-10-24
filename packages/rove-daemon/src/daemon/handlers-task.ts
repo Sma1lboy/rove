@@ -5,7 +5,7 @@
  */
 
 import { isBuiltinModInstalled } from "../plugins/builtin-mods.ts"
-import { subtreeIds } from "../task-tree.ts"
+import { pickRepos, subtreeIds } from "../task-tree.ts"
 import type { DaemonTask } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import {
@@ -20,6 +20,7 @@ import { publishIssueSnapshot } from "./handlers-issues.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
 import { teardownScope } from "./pty-alias.ts"
+import { syncRepos } from "./sync-repos.ts"
 import { auditDeletionRequested } from "./task-deletion-audit.ts"
 
 /**
@@ -281,7 +282,9 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     // deadline; the land confirm awaits it inline.
     name: "task.landPreflight",
     async handle(payload, ctx) {
-      return { result: await ctx.orch.landPreflight(requireString(payload, "taskId")) }
+      return {
+        result: await ctx.orch.landPreflight(requireString(payload, "taskId"), optionalString(payload, "repo")),
+      }
     },
   },
   {
@@ -296,8 +299,17 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         // Absent → orchestrator default (remove); only explicit `false` keeps it.
         removeWorktree: optionalBoolean(payload, "removeWorktree"),
         callerCwd: optionalString(payload, "callerCwd"),
+        repo: optionalString(payload, "repo"),
       })
-      // landTask throws on refusal/conflict, so reaching here means it landed.
+      // A multi-repo run that stopped (conflict, refusal) throws, like a one-repo land does, so
+      // every client fails loudly; the per-repo statuses ride along as the error's data.
+      if (result.stopped) {
+        const { code, message } = result.stopped
+        throw Object.assign(new Error(message.startsWith(`${code}: `) ? message : `${code}: ${message}`), {
+          name: "LandStoppedError",
+          data: { stopped: result.stopped, repos: result.repos },
+        })
+      }
       ctx.plugins?.handleUiReport({
         kind: "task.landed",
         taskId,
@@ -311,7 +323,12 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const task = ctx.orch.getTask(taskId)
-      if (!task?.worktreePath) throw new Error("task has no worktree to sync")
+      if (!task) throw new Error(`task not found: ${taskId}`)
+      const only = optionalString(payload, "repo")
+      pickRepos(task, only)
+      // Several repos: each against its own base, a conflict in one not stopping the rest.
+      if (task.extraRepos?.length) return { result: await syncRepos(ctx.runtime, task, only) }
+      if (!task.worktreePath) throw new Error("task has no worktree to sync")
       // Throws `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY`; callers match
       // the marker as for `LAND_CONFLICT`.
       return { result: await ctx.runtime.syncWorktreeWithBase(task.worktreePath, task.baseRef) }

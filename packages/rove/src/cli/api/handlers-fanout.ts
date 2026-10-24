@@ -5,6 +5,7 @@
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { submitFeedback } from "../../lib/feedback.ts"
+import { taskRepos } from "../../orchestrator/task-tree.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { daemonOf, repoFilter } from "./handler-helpers.ts"
 import { readRunnability } from "./handlers-runnability.ts"
@@ -63,10 +64,17 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     // vs merge-base). An attempt that commits reads +0/−0 in `changes`.
     // `null` when there's no worktree or the read failed — never `{0,0}`,
     // since callers treat non-zero as "cannot land" and act on a zero.
-    const changes = task.worktreePath ? await runtime.readWorktreeChanges(task.worktreePath) : null
-    const base = task.worktreePath
-      ? await runtime.readBranchSignals(task.worktreePath, task.baseRef)
-      : { baseRef: null, ahead: null, behind: null, diff: null }
+    // The top-level pair is the primary repo's; a multi-repo task adds one per repo below.
+    const repos = taskRepos(task)
+    const signals = await Promise.all(
+      repos.map(async (r) => ({
+        changes: r.worktreePath ? await runtime.readWorktreeChanges(r.worktreePath) : null,
+        base: r.worktreePath
+          ? await runtime.readBranchSignals(r.worktreePath, r.baseRef)
+          : { baseRef: null, ahead: null, behind: null, diff: null },
+      })),
+    )
+    const { changes, base } = signals[0] ?? { changes: null, base: null }
     const activity = await activityView(registry, task)
     const runnability = await readRunnability(daemon, task.id)
     out.push({
@@ -87,6 +95,17 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       tabs,
       changes,
       base,
+      ...(task.extraRepos?.length
+        ? {
+            repos: repos.map((r, i) => ({
+              name: r.name,
+              branch: r.branch,
+              worktreePath: r.worktreePath,
+              changes: signals[i]?.changes ?? null,
+              base: signals[i]?.base ?? null,
+            })),
+          }
+        : {}),
     })
   }
   return { tasks: out, ...(unresolvableRepos.length > 0 ? { unresolvableRepos } : {}) }

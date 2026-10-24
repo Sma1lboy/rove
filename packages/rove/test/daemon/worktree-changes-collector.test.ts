@@ -110,6 +110,24 @@ describe("trackedWorktreePaths", () => {
     expect(tracked.has("/wt/none")).toBe(true)
     expect(tracked.get("/wt/none")).toBeUndefined()
   })
+
+  test("a multi-repo task tracks every repo's worktree with that repo's own base ref", () => {
+    const tasks = [
+      task({
+        id: "multi",
+        baseRef: "origin/main",
+        extraRepos: [
+          { name: "api", repo: "/api", branch: "multi", worktreePath: "/wt/multi-api", baseRef: "origin/develop" },
+          { name: "web", repo: "/web", branch: "multi", worktreePath: "", baseRef: "origin/main" },
+          { name: "far", repo: "ssh://box/far", branch: "multi", worktreePath: "/remote/far" },
+        ],
+      }),
+    ]
+    const tracked = trackedWorktreePaths(tasks)
+    expect([...tracked.keys()].sort()).toEqual(["/wt/multi", "/wt/multi-api"])
+    expect(tracked.get("/wt/multi")).toBe("origin/main")
+    expect(tracked.get("/wt/multi-api")).toBe("origin/develop")
+  })
 })
 
 describe("WorktreeChangesCollector", () => {

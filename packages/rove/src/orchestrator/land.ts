@@ -33,6 +33,8 @@ export interface LandTaskOpts {
   readonly removeWorktree?: boolean
   /** A caller inside the worktree it asks to remove is refused. */
   readonly callerCwd?: string
+  /** Only this repo of a multi-repo task (its name from `extraRepos[].name`). */
+  readonly repo?: string
 }
 
 export interface LandDeps {
@@ -57,14 +59,24 @@ interface LandWorktreeCleanup {
 }
 
 /**
- * {@link landTask}, then cleanup: remove the worktree (default on), delete the
- * branch (opt-in). The merge has committed by then, so cleanup failures are
- * reported in the result, never thrown.
+ * {@link landTask}, then {@link finishLanded}'s cleanup: remove the worktree
+ * (default on), delete the branch (opt-in). The merge has committed by then,
+ * so cleanup failures are reported in the result, never thrown.
  */
 export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: LandDeps): Promise<LandResult> {
   if (task.kind === "main") throw new Error("landTask: a main task has no branch to land")
   if (task.kind === "dir") throw new Error("landTask: a directory task has no Rove-managed branch to land")
   const result = await landTask(task, { strategy: opts.strategy })
+  return finishLanded(task, result, opts, deps)
+}
+
+/** The post-merge half of {@link landTaskWithCleanup}, for a branch already merged into its base. */
+export async function finishLanded(
+  task: Task,
+  result: LandResult,
+  opts: LandTaskOpts,
+  deps: LandDeps,
+): Promise<LandResult> {
   // Worktree removal BEFORE branch deletion: git won't delete a branch checked
   // out in a live worktree. The branch itself survives removal — git is the
   // durable record, the directory is not.

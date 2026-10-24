@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 76 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 77 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -449,7 +449,8 @@ A question only the owner can answer goes through a gate, not a MEMO line or the
 | `update --task-id ID [--title T] [--branch B] [--command CMD] [--model M] [--effort L] [--pinned true\|false] [--status S] [--report-branch B --report-pr N --report-summary TEXT]` | Change any combination of fields in one call: validated first, applied branch → command → model/effort → title → pinned → status; not atomic (a mid-way failure reports `applied`). `--command` takes effect on the next launch; `--tab tab-N` with `--title` renames that tab. `--status` sets the lifecycle LABEL (`backlog`/`in_progress`/`in_review`/`done`/`canceled`/`error`) — cosmetic: the row, its Worktree, its branch and its engine all stay, and `canceled` does NOT close or clean up anything. `--report-*` (need `--status`) record what you delivered: `update --task-id "$ROVE_TASK_ID" --status in_review --report-pr N` |
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
-| `land --task-id ID [--strategy merge\|squash] [--delete-branch] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field |
+| `land --task-id ID [--repo NAME] [--strategy merge\|squash] [--delete-branch] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field. A task that spans several repos (`add --repo A --repo B`) lands every repo in picked order, merges nothing if any refuses, stops at the first conflict (earlier repos stay landed; error carries `.repos[]`), and resumes when you run `land` again; Worktrees go only after the last repo lands |
+| `sync --task-id ID [--repo NAME]` | Merge the base branch INTO the task's Worktree (a multi-repo task: each repo against its own base, `.repos[]`) |
 | `delete --task-id ID [--force] [--delete-branch]` | Remove task + Worktree; the git branch stays unless `--delete-branch` (and `--force` never implies it) |
 | `discover-adoptable --repo PATH` | Find untracked Worktrees |
 | `adopt --repo PATH --worktree PATH` | Import a Worktree |

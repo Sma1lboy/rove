@@ -204,6 +204,7 @@ describe("API surface (full CRUD)", () => {
       "workitem-start",
       "update",
       "land",
+      "sync",
       "delete",
       "ensure-worktree",
       "remove-worktree",

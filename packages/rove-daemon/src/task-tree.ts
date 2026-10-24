@@ -4,7 +4,7 @@
  * same rules.
  */
 
-import type { TaskExtraRepo } from "./daemon/contracts.ts"
+import type { TaskExtraRepo, TaskPRStatus } from "./daemon/contracts.ts"
 import { pathSyntax } from "./path-identity.ts"
 
 /** The slice of a task row these helpers read. */
@@ -79,6 +79,7 @@ export interface RepoTask extends TreeTask {
   readonly repo: string
   readonly branch: string
   readonly baseRef?: string
+  readonly prStatus?: TaskPRStatus
   readonly extraRepos?: readonly TaskExtraRepo[]
 }
 
@@ -89,6 +90,7 @@ export interface TaskRepoView {
   readonly branch: string
   readonly worktreePath: string
   readonly baseRef?: string
+  readonly prStatus?: TaskPRStatus
   readonly primary: boolean
 }
 
@@ -122,6 +124,7 @@ export function taskRepos(task: RepoTask, tasks?: readonly RepoTask[]): TaskRepo
       branch: task.branch,
       worktreePath: task.worktreePath ?? "",
       ...(task.baseRef ? { baseRef: task.baseRef } : {}),
+      ...(task.prStatus ? { prStatus: task.prStatus } : {}),
       primary: true,
     },
     ...extras.map((e) => ({
@@ -130,6 +133,7 @@ export function taskRepos(task: RepoTask, tasks?: readonly RepoTask[]): TaskRepo
       branch: e.branch,
       worktreePath: e.worktreePath,
       ...(e.baseRef ? { baseRef: e.baseRef } : {}),
+      ...(e.prStatus ? { prStatus: e.prStatus } : {}),
       primary: false,
     })),
   ]
@@ -140,4 +144,42 @@ export function taskWorktreePaths(task: RepoTask, tasks?: readonly RepoTask[]): 
   return taskRepos(task, tasks)
     .map((r) => r.worktreePath)
     .filter((p) => p.length > 0)
+}
+
+/** Lower is worse: the order the rolled-up chip reports. */
+function prRank(pr: TaskPRStatus): number {
+  if (pr.checkState === "failing") return 0
+  if (pr.checkState === "pending") return 1
+  return pr.lifecycle === "merged" ? 3 : 2
+}
+
+/**
+ * The one PR status standing for the whole task: any failing, else any pending,
+ * else any not-yet-merged, else merged. Returns that repo's own status, so its
+ * number and url ride along. A repo with no PR is ignored; a one-repo task
+ * returns its own `prStatus` untouched.
+ */
+export function rollupPr(task: {
+  readonly prStatus?: TaskPRStatus
+  readonly extraRepos?: readonly Pick<TaskExtraRepo, "prStatus">[]
+}): TaskPRStatus | undefined {
+  let worst: TaskPRStatus | undefined
+  for (const pr of [task.prStatus, ...(task.extraRepos ?? []).map((e) => e.prStatus)]) {
+    if (pr && (!worst || prRank(pr) < prRank(worst))) worst = pr
+  }
+  return worst
+}
+
+/**
+ * The repos a per-repo verb acts on: all of them, or the one named `only`.
+ * An unknown name throws `UNKNOWN_REPO: …` (the wire code travels in the message).
+ */
+export function pickRepos(task: RepoTask, only?: string): TaskRepoView[] {
+  const all = taskRepos(task)
+  if (!only) return all
+  const picked = all.filter((r) => r.name === only)
+  if (picked.length === 0) {
+    throw new Error(`UNKNOWN_REPO: no repo named '${only}' in this task (repos: ${all.map((r) => r.name).join(", ")})`)
+  }
+  return picked
 }
