@@ -112,7 +112,10 @@ const MODULES = [
       },
       {
         title: "Help",
-        pages: [["TROUBLESHOOTING.md", "rove/troubleshooting"]],
+        pages: [
+          ["TROUBLESHOOTING.md", "rove/troubleshooting"],
+          ["PRIVACY.md", "rove/privacy"],
+        ],
       },
     ],
   },

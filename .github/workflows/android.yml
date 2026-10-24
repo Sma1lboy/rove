@@ -1,0 +1,92 @@
+# Rove for Android (packages/rove-android): build, unit and socket tests, Lint, Compose screenshots.
+#
+# Own file for the `paths` filter, like ios.yml. The iOS demo fixture is in it because Gradle bundles
+# that file into the APK and the tests read it.
+#
+# workflow_dispatch also builds a signed release bundle when the signing secrets are set:
+# ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
+# The bundle is uploaded as a workflow artifact; nothing is sent to Play.
+
+name: Android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/rove-android/**"
+      - "packages/rove-ios/Sources/RoveMobile/Demo/demo-fixture.json"
+      - ".github/workflows/android.yml"
+  # Others' PRs; the owner's are covered by the push to main.
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/rove-android/**"
+      - "packages/rove-ios/Sources/RoveMobile/Demo/demo-fixture.json"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: packages/rove-android
+
+jobs:
+  verify:
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
+    # The hosted Ubuntu image ships the Android SDK with ANDROID_HOME set and its licenses accepted, so Gradle
+    # installs platform 36 itself if the image lacks it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            packages/rove-android/**/*.gradle.kts
+            packages/rove-android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Verify
+        run: ./scripts/verify.sh
+
+      - name: Release bundle (unsigned unless dispatched with secrets)
+        env:
+          KEYSTORE_BASE64: ${{ github.event_name == 'workflow_dispatch' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
+          ROVE_ANDROID_KEYSTORE_PASSWORD: ${{ github.event_name == 'workflow_dispatch' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+          ROVE_ANDROID_KEY_ALIAS: ${{ github.event_name == 'workflow_dispatch' && secrets.ANDROID_KEY_ALIAS || '' }}
+          ROVE_ANDROID_KEY_PASSWORD: ${{ github.event_name == 'workflow_dispatch' && secrets.ANDROID_KEY_PASSWORD || '' }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            export ROVE_ANDROID_KEYSTORE="$RUNNER_TEMP/release.jks"
+          fi
+          # run_number only grows, which is what Play needs from versionCode.
+          ./gradlew :app:bundleRelease -Prove.versionCode=${{ github.run_number }}
+
+      - name: Upload release bundle
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rove-android-release-${{ github.run_number }}
+          path: packages/rove-android/app/build/outputs/bundle/release/*.aab
+
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-reports
+          path: |
+            packages/rove-android/app/build/reports/
+            packages/rove-android/app/build/paparazzi/failures/
+          if-no-files-found: ignore

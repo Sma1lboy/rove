@@ -84,5 +84,6 @@
     <string name="settings_tasks">任务</string>
     <string name="settings_about_language">语言跟随 Android 设置</string>
     <string name="settings_about_mac_side">重启 daemon、重置 UI 状态和安装插件都在 Mac 端操作——手机通过 bridge 与 daemon 通信，daemon 一旦停止，手机无法恢复它</string>
+    <string name="settings_privacy">隐私政策</string>
     <string name="settings_licenses">许可证</string>
 </resources>
