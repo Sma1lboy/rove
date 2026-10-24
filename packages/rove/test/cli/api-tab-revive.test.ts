@@ -99,6 +99,22 @@ it("an engine tab with no recorded conversation starts fresh and records the id 
   expect(daemon.tabs("t")?.tabs[0]).toMatchObject({ sessionId: out.sessionId, spawned: true })
 })
 
+it("without $SHELL the relaunch runs in the shell a TUI reattach uses, where a shell-function preset lives", async () => {
+  vi.stubEnv("SHELL", "")
+  // Dynamic on purpose: the shell resolver caches per module instance, so the
+  // unset $SHELL only takes effect on modules evaluated after the stub.
+  vi.resetModules()
+  const { defaultApiRuntime: fresh } = await import("../../src/cli/api/runtime.ts")
+  const { defaultShell } = await import("../../src/tui/panes/terminal/pty-types.ts")
+  const daemon = tabsDaemon({ seed: { t: state(engineRow()) } })
+
+  await fresh.reviveTab(daemon.client, target(), "tab-1", home)
+
+  const [shell, flags] = opened()?.payload.command as string[]
+  expect(shell).toBe(defaultShell())
+  expect(flags).toBe("-ilc")
+})
+
 it("a shell tab reopens its login shell and exports its ids again", async () => {
   const shell = { kind: "command", id: "tab-2", title: null, ordinal: 2, command: ["/bin/sh"] }
   const daemon = tabsDaemon({ seed: { t: state(engineRow(), shell) } })
@@ -132,6 +148,30 @@ it("a dead non-restored shell corpse is cleared, then reopened", async () => {
   expect(out).toEqual({ revived: true, resumed: false })
   expect(host.calls.some((c) => c.name === "pty.kill")).toBe(true)
   expect(opened()?.payload).toMatchObject({ key: "t::tab-2" })
+})
+
+it("with replaceExited a running session whose engine is gone is closed, then relaunched", async () => {
+  host.sessions = [{ key: "t::tab-1", pid: 123, alive: true, command: ["/bin/zsh", "-ilc", "claude"], title: "" }]
+  const daemon = tabsDaemon({ seed: { t: state(engineRow({ sessionId: "abc-123", spawned: true })) } })
+
+  const out = await defaultApiRuntime.reviveTab(daemon.client, target(), "tab-1", home, { replaceExited: true })
+
+  expect(out).toMatchObject({ revived: true, resumed: true })
+  const names = host.calls.map((c) => c.name)
+  expect(host.calls.find((c) => c.name === "pty.kill")?.payload).toMatchObject({ key: "t::tab-1", wait: true })
+  expect(names.indexOf("pty.kill")).toBeLessThan(names.findIndex((n) => n === "pty.open" || n === "pty.openChecked"))
+  expect(launchLine()).toContain("--resume abc-123")
+})
+
+it("a session whose first start failed before its tab was recorded relaunches as the task's own tab-1", async () => {
+  host.sessions = [{ key: "t::tab-1", pid: 123, alive: true, command: ["/bin/zsh", "-ilc", "claude"], title: "" }]
+  const daemon = tabsDaemon({ seed: {} })
+
+  const out = await defaultApiRuntime.reviveTab(daemon.client, target(), "tab-1", home, { replaceExited: true })
+
+  expect(out).toMatchObject({ revived: true, resumed: false })
+  expect(daemon.tabs("t")?.tabs[0]).toMatchObject({ id: "tab-1", kind: "engine" })
+  expect(opened()?.payload).toMatchObject({ key: "t::tab-1" })
 })
 
 it("a freeze-restored corpse is respawned in place, never killed", async () => {

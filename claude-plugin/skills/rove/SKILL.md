@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 77 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 78 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -416,7 +416,8 @@ rove api tab-close --task-id <id> --tab tab-3
 
 # Reopen a tab whose session is gone (dead, restored, or lost with a PTY
 # host restart): resumes its recorded conversation, never replays a prompt.
-# A running tab is left alone.
+# A running tab is left alone; add --restart-exited to also relaunch one whose
+# engine exited into its fallback shell (`get-task .tabs[].engineAlive` false).
 rove api tab-revive --task-id <id> --tab tab-3
 
 # Toast a one-liner in every attached Rove UI — surface "done / needs input /

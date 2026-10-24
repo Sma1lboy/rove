@@ -1,6 +1,6 @@
 /** Request-traffic tests for the `pane-open` verb. */
 
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
@@ -22,7 +22,7 @@ describe("pane-open handler", () => {
     expect(client.requestNames).toEqual(["tab.open"])
     expect(client.requests[0].payload).toEqual({
       taskId: "env-task",
-      argv: [resolveLoginShell({ fallback: "/bin/sh" }), "-ilc", "btop --utf-force"],
+      argv: [resolveSessionShell(), "-ilc", "btop --utf-force"],
       title: "btop",
       placement: "split",
       direction: "right",
@@ -44,7 +44,7 @@ describe("pane-open handler", () => {
     )) as { title: string }
     const payload = client.requests[0].payload as { taskId: string; argv: string[]; title: string }
     expect(payload.taskId).toBe("t9")
-    expect(payload.argv).toEqual([resolveLoginShell({ fallback: "/bin/sh" }), "-il"])
+    expect(payload.argv).toEqual([resolveSessionShell(), "-il"])
     expect(payload.title).toBe("logs")
     expect(client.requests[0].payload).toMatchObject({ placement: "tab", direction: "down" })
     // An explicit --title is echoed back verbatim.

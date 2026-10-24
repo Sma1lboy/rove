@@ -15,6 +15,7 @@ import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
+import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
 import { activeStream } from "./ui.ts"
 
@@ -189,6 +190,9 @@ export function mountTerminal(o: MountOpts): TermHandle {
   let alive = false
   let held: Uint8Array[] | null = null
   let disposed = false
+  const replies = createReplyGate((data) => {
+    if (stream && alive) void client.request("term.input", { stream, data }).catch(() => {})
+  })
 
   const offData = client.on("term.data", (raw) => {
     const p = streamPayload(raw)
@@ -224,7 +228,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       else detach()
       if (disposed) return
       term.reset()
-      term.write(decode(res.replay))
+      replies.replay((parsed) => term.write(decode(res.replay), parsed))
       for (const bytes of held) term.write(bytes)
       stream = res.stream
       alive = res.alive
@@ -258,9 +262,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   }
   const offOpen = client.onOpen(() => void attach())
 
-  const input = term.onData((data) => {
-    if (stream && alive) void client.request("term.input", { stream, data }).catch(() => {})
-  })
+  const input = term.onData(replies.forward)
   let resizeTimer: number | null = null
   const resize = term.onResize(({ cols, rows }) => {
     if (resizeTimer !== null) window.clearTimeout(resizeTimer)

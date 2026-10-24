@@ -6,7 +6,7 @@
  * first message.
  */
 
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { engineResumeArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
@@ -21,7 +21,7 @@ import { openAdmittedEngine } from "./engine-admission.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { createdFresh } from "./tab-new.ts"
 import { tabEngineBase } from "./tab-respawn.ts"
-import { type TabsRpc, markCliTabSession, readDaemonTabs } from "./tab-snapshot.ts"
+import { type TabsRpc, markCliTabSession, readDaemonTabs, seedCanonicalTab } from "./tab-snapshot.ts"
 import { ApiError, type PromptTarget } from "./types.ts"
 
 export interface RevivedTab {
@@ -50,7 +50,7 @@ function engineRelaunch(target: PromptTarget, row: EngineTab, worktree: string) 
   const launch = buildEngineSessionLaunch({
     task: { id: target.id, kind: target.kind, vendor, repo: target.repo },
     worktreePath: worktree,
-    shell: resolveLoginShell({ fallback: "/bin/zsh" }),
+    shell: resolveSessionShell(),
     argv: resumeArgv ?? pinned?.argv ?? base,
     promptIntent: { kind: "none" },
     tabId: row.id,
@@ -125,6 +125,8 @@ export async function reviveTab(
   target: PromptTarget,
   tabId: string,
   worktree: string,
+  /** `replaceExited`: the caller saw the engine gone from a running session (keepAlive's fallback shell); close it and relaunch. */
+  opts: { readonly replaceExited?: boolean } = {},
 ): Promise<RevivedTab> {
   const host = await ensureHostFor(
     target.id,
@@ -134,8 +136,10 @@ export async function reviveTab(
   try {
     const { sessions = [] } = await host.rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
     const listed = sessions.find((s) => s.key === key)
-    if (listed?.alive) return NO_OP
-    const row = (await readDaemonTabs(client, target.id))?.tabs.find((t) => t.id === tabId)
+    if (listed?.alive && !opts.replaceExited) return NO_OP
+    let row = (await readDaemonTabs(client, target.id))?.tabs.find((t) => t.id === tabId)
+    // A session the daemon never listed (its first start failed before the tab was recorded) is the task's own tab-1.
+    if (!row && listed && tabId === "tab-1") row = await seedCanonicalTab(client, target.id)
     if (!row) {
       throw new ApiError(`tab ${tabId} is not a tab of task ${target.id}`, "TAB_NOT_FOUND", {
         taskId: target.id,

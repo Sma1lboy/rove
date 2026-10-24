@@ -62,6 +62,8 @@ export type SettingsDialogProps = {
   kv: KVContext
   /** Enables daemon-only Settings actions when present. */
   orchestrator?: RoveOrchestrator
+  /** Section to open on; absent = the first. */
+  initialSection?: SectionId
   onClose: () => void
 }
 
@@ -76,8 +78,13 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const t = useT()
   const padX = useDialogPaddingX()
   const [level, setLevel] = useState<NavLevel>("sidebar")
-  const [section, setSection] = useState<SectionId>("general")
-  const [cursor, setCursor] = useState(0)
+  const [section, setSection] = useState<SectionId>(props.initialSection ?? "general")
+  const [cursor, setCursor] = useState(() =>
+    Math.max(
+      0,
+      SECTIONS.findIndex((s) => s.id === section),
+    ),
+  )
   const [bodyRow, setBodyRow] = useState(0)
   const [feedbackTitle, setFeedbackTitle] = useState("")
   const [feedbackBody, setFeedbackBody] = useState("")

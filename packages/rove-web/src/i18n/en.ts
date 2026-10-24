@@ -19,6 +19,9 @@ export const en = {
     reopen: "Reopen session",
     reopening: "Reopening…",
     reopenFailed: "could not reopen this session: {message}",
+    engineExited: "engine exited · exit {code}",
+    retry: "Retry",
+    engineSettings: "Settings → Engines",
   },
   tab: {
     shell: "shell",

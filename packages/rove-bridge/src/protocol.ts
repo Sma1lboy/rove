@@ -189,6 +189,8 @@ export interface TabRow {
   readonly conversation: string | null
   readonly alive: boolean | null
   readonly engineAlive: boolean | null
+  /** How the tab's engine or session ended (`rove api get-task` `.tabs[].exit`); absent while healthy or unknown. */
+  readonly exit?: { readonly code: number | null; readonly signal: string | null }
   /** Present while the tab is split: the pane layout (`rove api get-task` `.tabs[].split`). Absent = one pane. */
   readonly split?: SplitView
   /** A viewport tab: the task whose session it shows (`rove api get-task` `.tabs[].viewOf`). Absent = its own session. */

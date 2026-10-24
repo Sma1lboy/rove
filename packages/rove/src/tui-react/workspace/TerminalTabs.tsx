@@ -25,6 +25,7 @@ import type { VendorId } from "@/types/vendor"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { repoEnv } from "../../engine/multi-repo-launch"
+import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
 import { buildDiffReview } from "../../tui/ops/diff-comments"
@@ -70,6 +71,7 @@ import { TabStrip } from "./tab-strip"
 import { ensureTabReservation, releaseTabReservation, tabsLoaded, taskTabsView } from "./tabs-sync"
 import { terminalTabsKey } from "./terminal-tabs-persist"
 import { engineScratchTasks, reportTabsDelta, setTaskTabs, tabsByTask, tabsRevision } from "./terminal-tabs-shared"
+import { useEngineExit } from "./use-engine-exit"
 import { useTabClose } from "./use-tab-close"
 import { useTabDialogs } from "./use-tab-dialogs"
 import { useTabHandoffs } from "./use-tab-handoffs"
@@ -92,6 +94,8 @@ export interface TerminalTabsProps {
   onScratchExit?: () => void
   /** ctrl+e's "scratch" destination; the only entry point, no chord. */
   onOpenScratch?: (vendor: VendorId | undefined) => void
+  /** Open Settings on a section: a dead engine's "Settings → Engines". Absent = the action is not offered. */
+  onOpenSettings?: (section: SectionId) => void
   command: readonly string[]
   /** Task's engine; builds a per-tab command when a tab pins its own vendor. */
   vendor: VendorId
@@ -336,6 +340,15 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     notifyError: (title) => notif.notify({ kind: "error", taskId: props.taskId, tabId: active.id, title }),
   })
 
+  const engineExit = useEngineExit({
+    taskId: props.taskId,
+    tab: active,
+    hook: props.hookTabStates?.get(active.id),
+    retry: tabClose.retryActive,
+    anotherEngine: () => requestNewChat(),
+    onOpenSettings: props.onOpenSettings,
+  })
+
   /** What ctrl+t and the sidebar's "New conversation" run. Always CONCRETE: an
    *  "inherit" mode would let a later task-vendor switch re-target every earlier conversation. */
   const openNewConversation = (): boolean => {
@@ -448,6 +461,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           }
           onUserInput={active.kind === "engine" ? (data) => noteAnswerInput(data, props.taskId, active.id) : undefined}
           splitTree={active.splitTree ?? null}
+          engineExit={engineExit}
           onSplitChange={(next) => update(setTabSplit(state, active.id, next))}
           onExit={tabClose.handleActiveExit}
           resetToken={resetToken}

@@ -312,6 +312,18 @@ describe("joinTaskTabs", () => {
       })
       expect(rows[0]?.exit).toEqual({ ...ptyRecord, layer: "pty" })
     })
+
+    it("a live session the snapshot never recorded carries the same engine death", () => {
+      const rows = joinTaskTabs(
+        undefined,
+        "t1",
+        alive,
+        { "t1::tab-1#engine": engineRecord },
+        undefined,
+        new Map([["t1::tab-1", false]]),
+      )
+      expect(rows[0]).toMatchObject({ id: "tab-1", unregistered: true, engineAlive: false, exit: engineRecord })
+    })
   })
 })
 

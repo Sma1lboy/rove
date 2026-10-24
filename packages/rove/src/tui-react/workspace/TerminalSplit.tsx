@@ -43,6 +43,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { Terminal } from "../panes/terminal/Terminal"
+import type { EngineExit } from "../panes/terminal/engine-exit-banner"
 import { useDialog } from "../ui/dialog"
 import { useTitleSubscriptions } from "./title-subscriptions"
 
@@ -91,6 +92,8 @@ export function TerminalSplit(props: {
   engineTitle?: string | null
   /** Vendor presentation applies to leaf-1 only; split-created shells stay native. */
   terminalPresentation?: EngineTerminalPresentation
+  /** The engine leaf's exit strip (leaf-1 / unsplit only); absent while the engine lives. */
+  engineExit?: EngineExit
 }): ReactNode {
   const { theme, transparentBackground } = useTheme()
   const inactiveBorder = transparentBackground ? theme.border : theme.borderSubtle
@@ -216,6 +219,7 @@ export function TerminalSplit(props: {
           firstMessage={leaf.content === null ? props.firstMessage : undefined}
           engineBin={leaf.content === null ? props.engineBin : undefined}
           terminalPresentation={leaf.content === null ? props.terminalPresentation : undefined}
+          engineExit={leaf.content === null ? props.engineExit : undefined}
           onUserInput={leaf.content === null ? props.onUserInput : undefined}
           onExit={() => onLeafExit(leaf.id)}
           resetToken={leaf.id === "leaf-1" ? props.resetToken : undefined}
@@ -313,6 +317,7 @@ export function TerminalSplit(props: {
       firstMessage={props.firstMessage}
       engineBin={props.engineBin}
       terminalPresentation={props.terminalPresentation}
+      engineExit={props.engineExit}
       onUserInput={props.onUserInput}
       onExit={props.onExit}
       resetToken={props.resetToken}

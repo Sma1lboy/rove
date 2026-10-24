@@ -14,7 +14,7 @@ export interface PtySpawnSpec {
   readonly cwd: string
   /** Explicit argv (engine sessions). Falls back to `shell`. */
   readonly command?: readonly string[]
-  /** Shell override; defaults to `resolveLoginShell()`. */
+  /** Shell override; defaults to `resolveSessionShell()`. */
   readonly shell?: string
   /** Absent = size-agnostic open: fresh spawn gets 80×24, reattach NEVER
    *  resizes. Only size-carrying opens (the TUI) take last-attach-wins. */

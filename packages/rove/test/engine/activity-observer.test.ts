@@ -30,9 +30,20 @@ interface FakeSession {
   pid: number | null
   title: string
   totalBytes: number
+  restored?: boolean
+  command?: string[]
+  generation?: string
 }
 
-function world(opts: { silenceMs?: number; correctAfterMs?: number; walk?: (pid: number) => string | null } = {}) {
+function world(
+  opts: {
+    silenceMs?: number
+    correctAfterMs?: number
+    walk?: (pid: number) => string | null
+    sessions?: FakeSession[]
+    scan?: (info: { key: string; sinceOffset: number }) => { offset: number; died: boolean } | null
+  } = {},
+) {
   const bus = new DaemonEventBus()
   const registry = new DaemonActivityRegistry(bus)
   const engineState = createStateCell<ReadonlyMap<string, TaskEngineState>>(new Map())
@@ -52,7 +63,7 @@ function world(opts: { silenceMs?: number; correctAfterMs?: number; walk?: (pid:
 
   // Mutable fake pty-host + walk table the tests steer.
   const state = {
-    sessions: [] as FakeSession[] | null,
+    sessions: (opts.sessions ?? []) as FakeSession[] | null,
     engines: new Map<number, string | null>(),
   }
   const stop = startActivityObserver(
@@ -68,6 +79,7 @@ function world(opts: { silenceMs?: number; correctAfterMs?: number; walk?: (pid:
         return Promise.resolve(out)
       },
       titleTurnHint: engineTitleTurnHint,
+      scanEngineExitBanner: opts.scan ? (info) => Promise.resolve(opts.scan?.(info) ?? null) : undefined,
     },
     () => true,
     {
@@ -316,5 +328,128 @@ describe("activity observer", () => {
     w.state.engines.set(42, "claude")
     await waitFor(() => w.row("tab-1")?.state === "idle")
     expect(w.taskRollup()?.state).toBe("running")
+  })
+
+  describe("a wrapped launch that never shows an engine", () => {
+    const WRAPPED = ["/bin/zsh", "-ilc", "claudecpa; printf '⚠ Engine exited (code %s).' $?"]
+    type Scan = (info: { key: string; sinceOffset: number }) => { offset: number; died: boolean } | null
+    const scanner = (script: Scan[]) => {
+      const asked: number[] = []
+      const scan: Scan = (info) => {
+        asked.push(info.sinceOffset)
+        return script[Math.min(asked.length - 1, script.length - 1)]?.(info) ?? null
+      }
+      return { asked, scan }
+    }
+    const session = (extra: Partial<FakeSession> = {}): FakeSession => ({
+      key: KEY,
+      alive: true,
+      pid: 42,
+      title: "",
+      totalBytes: 0,
+      command: WRAPPED,
+      ...extra,
+    })
+
+    // The world's first list is empty, so a session set afterwards was born under the daemon.
+    it("is scanned for the wrapper banner until it reports the death, then left alone", async () => {
+      const { asked, scan } = scanner([
+        () => ({ offset: 0, died: false }),
+        () => ({ offset: 180, died: false }),
+        () => ({ offset: 400, died: true }),
+      ])
+      const w = world({ scan })
+      w.state.sessions = [session()]
+      await waitFor(() => asked.length >= 3)
+      await wait(80)
+      expect(asked).toEqual([0, 0, 180])
+    })
+
+    it("is not scanned when it was already running at the daemon's boot, which the boot reconciler owns", async () => {
+      const { asked, scan } = scanner([() => ({ offset: 0, died: false })])
+      world({ scan, sessions: [session()] })
+      await wait(120)
+      expect(asked).toEqual([])
+    })
+
+    it("a shell tab or an unwrapped command is never scanned", async () => {
+      const { asked, scan } = scanner([() => ({ offset: 0, died: false })])
+      const w = world({ scan })
+      w.state.sessions = [session({ command: ["/bin/zsh"] })]
+      await wait(120)
+      expect(asked).toEqual([])
+    })
+
+    it("stops once an engine shows in the session", async () => {
+      const { asked, scan } = scanner([() => ({ offset: 0, died: false })])
+      const w = world({ scan })
+      w.state.engines.set(42, "claude")
+      w.state.sessions = [session()]
+      await wait(120)
+      expect(asked).toEqual([])
+    })
+
+    it("a respawned freeze-restored session scans from where its corpse ended", async () => {
+      const { asked, scan } = scanner([() => ({ offset: 5000, died: false })])
+      const w = world({ scan })
+      w.state.sessions = [session({ alive: false, restored: true, totalBytes: 4096 })]
+      await wait(40)
+      w.state.sessions = [session({ totalBytes: 4200 })]
+      await waitFor(() => asked.length > 0)
+      expect(asked[0]).toBe(4096)
+    })
+
+    it("a launch reopened under the same key (Retry) is scanned again from the start of its fresh ring", async () => {
+      const { asked, scan } = scanner([() => ({ offset: 400, died: true }), () => ({ offset: 90, died: false })])
+      const w = world({ scan })
+      w.state.sessions = [session({ generation: "g1" })]
+      await waitFor(() => asked.length === 1)
+      await wait(60)
+      // The death was recorded: the watch is off until the host starts a new child under the key.
+      expect(asked).toEqual([0])
+      w.state.sessions = [session({ generation: "g2", totalBytes: 0 })]
+      await waitFor(() => asked.length === 2)
+      expect(asked).toEqual([0, 0])
+    })
+  })
+
+  describe("a recorded engine death on a tab whose engine writes no hook event", () => {
+    const live = (generation: string): FakeSession => ({
+      key: KEY,
+      alive: true,
+      pid: 42,
+      title: "",
+      totalBytes: 10,
+      generation,
+    })
+    const die = async (w: ReturnType<typeof world>) => {
+      await wait(60)
+      w.registry.recordEngineDeath(TASK, "tab-1", { code: 127 }, Date.now())
+      expect(w.row("tab-1")?.state).toBe("dead")
+    }
+
+    it("is retired when the host reopens the session under a new generation (Retry)", async () => {
+      const w = world()
+      w.state.sessions = [live("g1")]
+      await die(w)
+      w.state.sessions = [live("g2")]
+      await waitFor(() => w.row("tab-1")?.state !== "dead")
+    })
+
+    it("is retired once a walk finds an engine in the session", async () => {
+      const w = world()
+      w.state.sessions = [live("g1")]
+      await die(w)
+      w.state.engines.set(42, "claude")
+      await waitFor(() => w.row("tab-1")?.state !== "dead")
+    })
+
+    it("stands while the session is the same child with no engine", async () => {
+      const w = world()
+      w.state.sessions = [live("g1")]
+      await die(w)
+      await wait(150)
+      expect(w.row("tab-1")?.state).toBe("dead")
+    })
   })
 })

@@ -1,5 +1,5 @@
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type PtyScope, type TeardownScope, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
@@ -162,7 +162,7 @@ function taskEngineLaunch(
       repos,
     },
     worktreePath,
-    shell: resolveLoginShell({ fallback: "/bin/zsh" }),
+    shell: resolveSessionShell(),
     argv: engineLaunchArgv({
       command: task.command,
       vendor: task.vendor,

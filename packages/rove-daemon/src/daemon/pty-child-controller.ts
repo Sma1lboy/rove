@@ -7,7 +7,7 @@
 import { clearTransientStatuses, createOscSignals, scanOscSignals } from "./osc-signals"
 
 import { randomUUID } from "node:crypto"
-import { resolveLoginShell } from "./platform-shell.js"
+import { resolveSessionShell } from "./platform-shell.js"
 import type { PtySessionExit } from "./protocol.ts"
 import { type PtyDriver, type PtyExit, bunTerminalDriver } from "./pty-driver.ts"
 import { embeddedTerminalEnv } from "./pty-env.js"
@@ -38,7 +38,7 @@ export class PtyChildController {
 
   /** `spare=true` skips `onSessionStart` so a warm shell doesn't pin the host open until adopted. */
   spawn(key: string, spec: PtySpawnSpec, spare = false): PtySessionState {
-    const argv = spec.command && spec.command.length > 0 ? [...spec.command] : [spec.shell ?? resolveLoginShell()]
+    const argv = spec.command && spec.command.length > 0 ? [...spec.command] : [spec.shell ?? resolveSessionShell()]
     const session = freshSessionState(key, spec, argv)
     this.startChild(session)
     if (session.alive) {
@@ -68,6 +68,9 @@ export class PtyChildController {
           LINES: String(session.rows),
           BASH_SILENCE_DEPRECATION_WARNING: "1",
           ROVE_TERMINAL_PTY: "1",
+          // `keepAlive` execs `${SHELL:-/bin/sh}` after an engine exits: without $SHELL that is a bare
+          // sh, where a shell-function engine preset is undefined.
+          ...(process.env.SHELL?.trim() ? {} : { SHELL: resolveSessionShell() }),
         }),
         cols: session.cols,
         rows: session.rows,

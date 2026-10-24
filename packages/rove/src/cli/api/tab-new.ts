@@ -8,7 +8,7 @@
  * row back.
  */
 
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
 import type { HostedSessionRpc } from "../../engine/hosted-session.ts"
@@ -48,7 +48,7 @@ export function collision(taskId: string, key: string, retryArgs: readonly strin
 export const createdFresh = (open: PtyOpenResult): boolean => open.created ?? open.replay.length === 0
 
 async function openShell(client: TabsRpc, rpc: HostedSessionRpc, taskId: string, cwd: string, multiRepo: boolean) {
-  const shell = resolveLoginShell({ fallback: "/bin/zsh" })
+  const shell = resolveSessionShell()
   const tab = await allocateTab(client, taskId, { kind: "command", title: null, command: [shell] })
   const key = `${taskId}::${tab.id}`
   try {
@@ -99,7 +99,7 @@ async function openEngine(client: TabsRpc, rpc: HostedSessionRpc, target: Prompt
     const launch = buildEngineSessionLaunch({
       task: { id: taskId, kind: target.kind, vendor: target.vendor, repo: target.repo, repos },
       worktreePath: cwd,
-      shell: resolveLoginShell({ fallback: "/bin/zsh" }),
+      shell: resolveSessionShell(),
       argv: pinned.argv,
       promptIntent: { kind: "none" },
       tabId: tab.id,

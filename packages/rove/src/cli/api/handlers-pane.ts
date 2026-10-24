@@ -4,7 +4,7 @@
  * attached TUI performs the split/tab; the daemon only validates + broadcasts.
  */
 
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { resolvePreferredVendor } from "../../state/vendor-prefs.ts"
@@ -74,7 +74,7 @@ export const PANE_VERB: VerbSpec = {
     const command = ctx.args.str("command")
     // Interactive login shell, as the engine tab (session-launch.ts), so the
     // pane sees the same PATH/exports.
-    const shell = resolveLoginShell({ fallback: "/bin/sh" })
+    const shell = resolveSessionShell()
     const argv = command ? [shell, "-ilc", command] : [shell, "-il"]
     const title = ctx.args.str("title") ?? (command ? (command.trim().split(/\s+/)[0] ?? "shell") : "shell")
     const tabId = ctx.args.str("tab")
