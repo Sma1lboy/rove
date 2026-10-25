@@ -27,6 +27,8 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  // load() logs fire-and-forget into <home>/.rove/client.log; an append landing mid-rm leaves ENOTEMPTY.
+  await flushClientLog()
   await rm(home, { recursive: true, force: true })
 })
 
