@@ -669,6 +669,18 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   loopback bind. `--all` lists every listener, each with its owning `taskId`
   (`null` = no task). `ports: null` means the scan could not run (Linux reads
   `/proc`, macOS runs `lsof`), never that nothing is listening.
+- `worktree-files --task-id ID`: the task's worktree files, tracked plus
+  untracked-not-ignored, worktree-relative. Returns `{ files }`. Runs where the
+  worktree lives, so it reads a task on another registered machine too.
+- `worktree-diff --task-id ID`: the task's changed files, committed on its
+  branch against the base (`scope: branch`, the PR base first) and then
+  uncommitted (`scope: working`). Returns `{ base, files[{ path, status,
+  added, deleted, scope }] }`; `base` is `null` when none resolves.
+- `worktree-diff-file --task-id ID --path PATH --scope branch|working`: one
+  changed file's preview, the Files pane's data (diff hunks, or the file for a
+  code or binary view). `working` is the uncommitted diff, `branch` is
+  everything since the base. `PATH` is worktree-relative; absolute or `..`
+  paths are refused.
 
 - `deliveries --task-id ID [--limit N]`: the task's armed deliveries, newest
   first; the daemon keeps the newest 50 per task. A delivery is one prompt
