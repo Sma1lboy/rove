@@ -155,6 +155,7 @@ describe("API surface (full CRUD)", () => {
       "read-output",
       "watch",
       "ports",
+      "review-comments",
       "worktree-files",
       "worktree-diff",
       "worktree-diff-file",

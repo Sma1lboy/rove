@@ -681,6 +681,17 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   code or binary view). `working` is the uncommitted diff, `branch` is
   everything since the base. `PATH` is worktree-relative; absolute or `..`
   paths are refused.
+- `review-comments --task-id ID`: the unresolved review threads on the task's
+  PR, so an agent can address review feedback by file and line. Returns
+  `{ taskId, prNumber, threads, totalUnresolved }`; each thread is
+  `{ path, line, outdated, comments: [{ author, body, url }] }`, in GitHub's
+  order, at most 50 (`totalUnresolved` counts them all) with each comment cut
+  at 4000 characters. `line` is the line in the current diff, the original
+  line once the code has changed (`outdated: true`), or `null` for a
+  file-level comment. `prNumber: null` means the task has no PR yet. The
+  daemon asks GitHub through `gh` in the task's primary worktree;
+  `unavailable: { reason, detail }` means it could not (gh missing or signed
+  out), never that no thread is open.
 
 - `deliveries --task-id ID [--limit N]`: the task's armed deliveries, newest
   first; the daemon keeps the newest 50 per task. A delivery is one prompt

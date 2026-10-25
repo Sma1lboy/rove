@@ -200,6 +200,8 @@ export type DaemonRequestName =
   | "pr.failingChecks"
   // Restart a PR's failed Actions jobs, once per human click.
   | "pr.rerunFailedChecks"
+  // A PR's unresolved review threads, on demand (`rove api review-comments`).
+  | "pr.reviewComments"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
   // Turn store read side; written only by hook ingest on `turn-complete`.
