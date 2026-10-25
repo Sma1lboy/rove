@@ -17,6 +17,7 @@ import { resolveActiveTaskId } from "./runtime.ts"
 import { wireSplit } from "./split-wire.ts"
 import type { LaunchSpec } from "./tab-launch.ts"
 import type { NewTabKind } from "./tab-new.ts"
+import { reviveTerminalTab } from "./tab-revive.ts"
 import type { SplitEdit } from "./tab-split.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
 
@@ -152,6 +153,44 @@ export const TAB_CLOSE_VERB: VerbSpec = {
     if (reply.handled) return { ok: true, taskId, tabId, handledBy: "tui" }
     const result = await ctx.runtime.closeTerminalTab(daemon, taskId, tabId)
     return { ok: true, taskId, tabId, handledBy: "headless", ...result }
+  },
+}
+
+export const TAB_REVIVE_VERB: VerbSpec = {
+  name: "tab-revive",
+  group: "drive",
+  summary:
+    "Bring back one Terminal Tab whose session is gone (pty-host restart, reboot, an exited engine), under its own id — what a TUI attach does: an engine tab resumes its pinned conversation (`--resume <id>` / `resume <id>`; a tab with no pinned id starts its engine fresh), a command tab reruns its command. Starts nothing new: the tab must already be in get-task .tabs[], and a live session is left alone (`revived: false`). Respects engine.maxLiveSessions. Returns { session, revived, alive }.",
+  flags: [
+    F.taskId(true),
+    {
+      name: "tab",
+      type: "string",
+      required: true,
+      placeholder: "TAB",
+      description: "Exact Terminal Tab id from get-task .tabs[].id (for example tab-2).",
+    },
+  ],
+  handler: async (ctx) => {
+    const taskId = ctx.args.require("task-id")
+    const tabId = ctx.args.require("tab")
+    const { task } = await daemonOf(ctx).request<{ task: SerializedTask }>("task.get", { taskId })
+    const cwd = taskCwd(task)
+    if (!cwd) throw new ApiError(`task ${taskId} has no worktree yet`, "NO_WORKTREE")
+    const revived = await reviveTerminalTab(
+      {
+        id: task.id,
+        kind: task.kind,
+        repo: task.repo,
+        vendor: task.vendor as VendorId | undefined,
+        command: task.command,
+        modelEffort: task.modelEffort,
+        model: task.model,
+      },
+      tabId,
+      cwd,
+    )
+    return { ok: true, taskId, tabId, ...revived }
   },
 }
 

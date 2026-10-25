@@ -7,7 +7,17 @@ import type { OpTable } from "../src/ops/types.ts"
 import type { TasksPayload } from "../src/protocol.ts"
 import type { RoveOps } from "../src/rove-ops.ts"
 import { TabFeed } from "../src/tab-feed.ts"
-import { AUTH, ROWS, TOKEN, connect, fakeOps, start, stopServers, upgradeStatus } from "./server-harness.ts"
+import {
+  AUTH,
+  type FakePty,
+  ROWS,
+  TOKEN,
+  connect,
+  fakeOps,
+  start,
+  stopServers,
+  upgradeStatus,
+} from "./server-harness.ts"
 
 afterEach(stopServers)
 describe("auth", () => {
@@ -324,13 +334,41 @@ describe("terminal forwarding", () => {
     expect(h.pty.calls.find(([n]) => n === "pty.open")?.[1]).toMatchObject({ key: "T1::tab-1", cwd: "/wt/shown" })
   })
 
-  test("attach never spawns: an unknown tab is refused and a restored corpse is only peeked", async () => {
+  test("without tab-revive, attach never spawns: an unknown tab is refused and a restored corpse is only peeked", async () => {
     const h = start()
     const c = await connect(h.url, AUTH)
     expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-9" })).error?.code).toBe("TAB_NOT_LIVE")
     const frozen = await c.call("term.attach", { taskId: "T1", tabId: "tab-2" })
     expect(frozen.result).toMatchObject({ alive: false, replay: Buffer.from("frozen").toString("base64") })
     expect(h.pty.calls.some(([n]) => n === "pty.open")).toBe(false)
+  })
+
+  test("with tab-revive served, a gone or frozen tab is revived, then attached live", async () => {
+    const revived: string[] = []
+    const host: { pty?: FakePty } = {}
+    const ops = {
+      ...fakeOps(),
+      reviveTab: async (taskId: string, tabId: string) => {
+        const key = `${taskId}::${tabId}`
+        revived.push(key)
+        const pty = host.pty as FakePty
+        pty.sessions = [...pty.sessions.filter((s) => s.key !== key), { key, alive: true }]
+      },
+    }
+    const h = start({ ops })
+    host.pty = h.pty
+    const c = await connect(h.url, AUTH)
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-9" })).result).toMatchObject({
+      stream: "T1::tab-9",
+      alive: true,
+    })
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-2" })).result).toMatchObject({ alive: true })
+    // A live tab is never revived; a split pane attaches as it is.
+    await c.call("term.attach", { taskId: "T1", tabId: "tab-1" })
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-7", leafId: "leaf-2" })).error?.code).toBe(
+      "TAB_NOT_LIVE",
+    )
+    expect(revived).toEqual(["T1::tab-9", "T1::tab-2"])
   })
 
   test("fit-to-phone attach carries the phone's size; closing the socket releases the PTY connection", async () => {

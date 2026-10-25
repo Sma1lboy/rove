@@ -66,6 +66,8 @@ export interface RoveOps {
   tabs(taskId: string): Promise<readonly TabRow[]>
   newTab(taskId: string, tab: NewTabRequest): Promise<{ tabId: string; taskId?: string }>
   closeTab(taskId: string, tabId: string): Promise<void>
+  /** Bring back a persisted tab whose session is gone (`tab-revive`): an engine tab resumes its conversation. */
+  reviveTab?(taskId: string, tabId: string): Promise<void>
   worktreeOf(taskId: string): Promise<string>
   /** A viewport tab shows another task's first engine session: where to attach instead; null for any other tab. */
   viewedSession(taskId: string, tabId: string): { taskId: string; tabId: string; cwd: string } | null
@@ -297,6 +299,10 @@ export function createRoveOps(
 
     async closeTab(taskId, tabId) {
       await api.verb<unknown>("tab-close", [flag("task-id", taskId), flag("tab", tabId)])
+    },
+
+    async reviveTab(taskId, tabId) {
+      await api.verb<unknown>("tab-revive", [flag("task-id", taskId), flag("tab", tabId)])
     },
 
     worktreeOf,

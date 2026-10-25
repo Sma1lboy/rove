@@ -13,16 +13,16 @@ export const AUTH = { Authorization: `Bearer ${TOKEN}` }
 export class FakePty implements PtyHostClient {
   readonly calls: Array<[string, unknown]> = []
   readonly closed = Promise.withResolvers<void>()
+  /** What `pty.list` answers; a test swaps in a live session to play a revive. */
+  sessions: Array<{ key: string; alive: boolean; restored?: boolean }> = [
+    { key: "T1::tab-1", alive: true },
+    { key: "T1::tab-2", alive: false, restored: true },
+  ]
   private readonly handlers = new Map<string, (frame: { payload: unknown }) => void>()
   async request<T>(name: string, payload?: unknown): Promise<T> {
     this.calls.push([name, payload])
     const reply: Record<string, unknown> = {
-      "pty.list": {
-        sessions: [
-          { key: "T1::tab-1", alive: true },
-          { key: "T1::tab-2", alive: false, restored: true },
-        ],
-      },
+      "pty.list": { sessions: this.sessions },
       "pty.open": { replay: Buffer.from("hello").toString("base64"), alive: true },
       "pty.peek": { data: Buffer.from("frozen").toString("base64") },
     }

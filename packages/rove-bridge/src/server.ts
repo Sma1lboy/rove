@@ -38,7 +38,7 @@ import { routineHook } from "./routine-hook.ts"
 import type { RoveOps } from "./rove-ops.ts"
 import type { RowStatusFeed } from "./row-status.ts"
 import type { TabFeed } from "./tab-feed.ts"
-import { type PtyHostClient, TerminalForwarder } from "./terminal.ts"
+import { type AttachResult, type PtyHostClient, TerminalForwarder } from "./terminal.ts"
 import type { WebLogin } from "./web-login.ts"
 import { type WebRoot, serveWebFile } from "./web-static.ts"
 
@@ -209,13 +209,27 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const target = shown?.taskId ?? taskId
       const forwarder = await terminalFor(target)
       const cwd = shown?.cwd ?? (await ops.worktreeOf(taskId))
-      const attached = await forwarder.attach(
-        target,
-        shown?.tabId ?? tabId,
-        cwd,
-        cols !== undefined && rows !== undefined ? { cols, rows } : undefined,
-        leafId,
-      )
+      const shownTab = shown?.tabId ?? tabId
+      const size = cols !== undefined && rows !== undefined ? { cols, rows } : undefined
+      const attach = () => forwarder.attach(target, shownTab, cwd, size, leafId)
+      // A tab whose session is gone comes back the way a TUI attach brings it back
+      // (`tab-revive`: an engine resumes its conversation). Split panes and another
+      // machine's tabs attach as they are.
+      const revive = !remote && leafId === undefined ? ops.reviveTab?.bind(ops) : undefined
+      let attached: AttachResult
+      try {
+        attached = await attach()
+      } catch (err) {
+        if (!revive || !(err instanceof BridgeError && err.code === "TAB_NOT_LIVE")) throw err
+        await revive(target, shownTab)
+        attached = await attach()
+      }
+      if (!attached.alive && revive) {
+        // Let go of the corpse first, so its exit never reaches the page as this tab's.
+        await forwarder.detach(attached.stream)
+        await revive(target, shownTab)
+        attached = await attach()
+      }
       conn.streamOwner.set(attached.stream, forwarder)
       return attached
     }

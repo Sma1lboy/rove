@@ -1156,6 +1156,15 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   open with no session, matching ctrl+w. A tab that still exists in the
   snapshot may be closed after its process dies; an absent or already-closed
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
+- `tab-revive --task-id ID --tab TAB`: bring back one Terminal Tab whose
+  session is gone (a pty-host restart, a reboot, an engine that exited) under
+  its own id, the way a TUI attach does. An engine tab resumes its pinned
+  conversation (a tab with no pinned id starts its engine fresh); a command
+  tab reruns its command. Nothing new is created: the tab must already be in
+  `get-task` `.tabs[]` (else `TAB_NOT_FOUND`), content tabs are `UNSUPPORTED`,
+  and a live session is left alone (`revived: false`). The web and phone run
+  it before attaching a tab, so opening a task whose session died shows the
+  conversation again. Returns `{ session, revived, alive }`.
 - `tab-new --task-id ID --kind shell|engine [--command CMD | --latest]`: open a new
   Terminal Tab with no first message — the TUI's sidebar "New shell" and its
   picker's Enter on an empty message. `shell` runs the login shell

@@ -5,7 +5,9 @@
  * dropped phone detaches everything it attached in one step.
  *
  * Never spawns: a key the host does not list is refused, because `pty.open`
- * on a missing key would start a bare shell nobody asked for.
+ * on a missing key would start a bare shell nobody asked for. Bringing a dead
+ * tab back with its real launch is the server's call (`tab-revive`), before it
+ * attaches again.
  */
 
 import type {
