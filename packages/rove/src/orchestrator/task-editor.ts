@@ -191,6 +191,14 @@ export class TaskEditor {
     await this.store.update(task.id, { pinned: next })
   }
 
+  /** A project's `main` checkout is the project itself: never archived. */
+  async setArchived(id: TaskId | string, archived: boolean): Promise<void> {
+    const task = this.requireTask(id)
+    if (task.kind === "main") throw new Error("a project's main checkout cannot be archived")
+    if ((task.archived ?? false) === archived) return
+    await this.store.update(task.id, { archived: archived || undefined })
+  }
+
   /** Hold every later send to this task to a `rove api report` (`false` clears). */
   async setRequireReport(id: TaskId | string, required: boolean): Promise<void> {
     const task = this.requireTask(id)

@@ -9,7 +9,7 @@
  */
 
 import { F } from "./flags.ts"
-import { deleteTask, land } from "./handlers-lifecycle.ts"
+import { archiveTask, deleteTask, land, unarchiveTask } from "./handlers-lifecycle.ts"
 import { sync } from "./handlers-sync.ts"
 import type { VerbSpec } from "./types.ts"
 
@@ -118,5 +118,28 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
       },
     ],
     handler: deleteTask,
+  },
+  {
+    name: "archive",
+    group: "lifecycle",
+    summary:
+      "Hide a task from the sidebar and the default `list`, without touching anything else: the worktree, branch, transcript and any running session stay exactly as they are, and `send`, `read-output`, `get-task` and `delete` keep working on it by id. Applies to the task and every descendant (its `spawn` children, recursively) together. Refused with TASK_BUSY while an engine in the subtree is running or waiting on you — pass --force to hide it anyway; archive never stops a session. A project's `main` checkout cannot be archived. Undo with `unarchive`; `list --archived` finds archived tasks. Returns { taskId, archived, ids } — `ids` is every task hidden.",
+    flags: [
+      F.taskId(),
+      {
+        name: "force",
+        type: "bool",
+        description: "Archive even though an engine in the subtree is running or waiting on you. Nothing is stopped.",
+      },
+    ],
+    handler: archiveTask,
+  },
+  {
+    name: "unarchive",
+    group: "lifecycle",
+    summary:
+      "Bring an archived task back into the sidebar and `list`, together with its archived descendants. A child unarchived on its own while its parent is still archived shows as a top-level row until the parent returns. Returns { taskId, archived: false, ids }.",
+    flags: [F.taskId()],
+    handler: unarchiveTask,
   },
 ]

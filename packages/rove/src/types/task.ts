@@ -114,6 +114,12 @@ export interface Task {
   /** Floats to the top of the sidebar's task list. Defaults to `false` on load. */
   readonly pinned?: boolean
   /**
+   * Hidden from the sidebar and the default `rove api list` while the worktree,
+   * branch and sessions stay as they were. Set on a task and its descendants
+   * together; undone the same way.
+   */
+  readonly archived?: boolean
+  /**
    * Engine protocol: which history reader parses this task's transcript.
    * Absent normalizes to {@link DEFAULT_TASK_VENDOR}. Derived from
    * {@link command}'s argv[0] (`engine/engine-presets.ts`); an unnameable

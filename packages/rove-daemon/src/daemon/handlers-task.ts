@@ -23,6 +23,9 @@ import { teardownScope } from "./pty-alias.ts"
 import { syncRepos } from "./sync-repos.ts"
 import { auditDeletionRequested } from "./task-deletion-audit.ts"
 
+/** Engine states that mean someone is mid-work: archiving would hide a row that still needs eyes. */
+const ENGINE_BUSY: ReadonlySet<string> = new Set(["running", "permission_needed"])
+
 /**
  * Everything outside the index that hangs off a task being deleted: activity,
  * Inbox episodes, gates, and the issue link.
@@ -340,6 +343,26 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setPinned(taskId, optionalBoolean(payload, "pinned"))
       return {}
+    },
+  },
+  {
+    name: "task.archive",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      if (typeof payload.archived !== "boolean") throw new Error("archived must be a boolean")
+      const { archived } = payload
+      // The task and every descendant move together: a hidden parent must not leave a visible orphan.
+      const ids = subtreeIds(ctx.orch.listTasks(), taskId)
+      if (archived && optionalBoolean(payload, "force") !== true) {
+        const busy = ids.filter((id) => ENGINE_BUSY.has(ctx.activity.stateOf(id, null) ?? "idle"))
+        if (busy.length > 0) {
+          throw new Error(
+            `TASK_BUSY: ${busy.length === 1 ? "an engine is" : `${busy.length} engines are`} still working or waiting on you in ${busy.join(", ")}; archive hides it without stopping it. Pass force to archive anyway.`,
+          )
+        }
+      }
+      for (const id of ids) await ctx.orch.setArchived(id, archived)
+      return { archived: ids }
     },
   },
   {

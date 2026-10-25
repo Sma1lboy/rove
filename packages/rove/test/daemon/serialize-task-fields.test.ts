@@ -51,6 +51,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
   routine: { automationId: "auto-1" },
   status: "in_review",
   pinned: true,
+  archived: true,
   vendor: "claude",
   command: "claude --continue",
   observedLanguage: "zh",
