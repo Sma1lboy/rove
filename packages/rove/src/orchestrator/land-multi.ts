@@ -21,7 +21,7 @@ import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { errorMessage } from "../lib/error-message.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { LandConflictError } from "./errors.ts"
-import { landPreflight, landRefusalError } from "./land-preflight.ts"
+import { baseRepoCtx, landGit, landPreflight, landRefusalError } from "./land-preflight.ts"
 import { type LandDeps, type LandTaskOpts, finishLanded, landTask } from "./land.ts"
 import { pickRepos } from "./task-tree.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
@@ -55,6 +55,21 @@ function codeOf(message: string): string | undefined {
   return /^([A-Z][A-Z0-9_]{2,}): /.exec(message)?.[1]
 }
 
+/**
+ * True when merging `branch` would leave `landedOn`'s tree unchanged: its work is
+ * already there. A squash land writes a new commit, so the branch still counts
+ * commits ahead after it landed. False when git can't tell (a conflict, or a git
+ * without `merge-tree --write-tree`), so the merge itself decides.
+ */
+async function contentLanded(view: Task, landedOn: string, branch: string, deps: WorktreeExecDeps): Promise<boolean> {
+  const { exec, dir } = baseRepoCtx(view.repo, deps)
+  const merged = await landGit(exec, dir, ["merge-tree", "--write-tree", landedOn, branch], { readOnly: true })
+  if (merged.exitCode !== 0) return false
+  const base = await landGit(exec, dir, ["rev-parse", `${landedOn}^{tree}`], { readOnly: true })
+  const tree = merged.stdout.split("\n")[0]?.trim()
+  return base.exitCode === 0 && !!tree && tree === base.stdout.trim()
+}
+
 async function probeOne(task: Task, repo: TaskRepoView, deps: WorktreeExecDeps): Promise<Probed> {
   const view = viewOf(task, repo)
   if (!repo.branch.trim()) {
@@ -76,6 +91,16 @@ async function probeOne(task: Task, repo: TaskRepoView, deps: WorktreeExecDeps):
       name: repo.name,
       status: "skipped",
       message: `branch '${pf.branch}' is gone and the worktree was already removed — landed earlier`,
+    }
+    return { repo, view, row }
+  }
+  if (!pf.refusal && pf.ahead !== 0 && (await contentLanded(view, pf.landedOn, pf.branch, deps))) {
+    const row: LandRepoPreflight = {
+      ...pf,
+      name: repo.name,
+      status: "skipped",
+      refusal: "EMPTY_BRANCH",
+      message: `its changes are already on ${pf.landedOn} — landed earlier`,
     }
     return { repo, view, row }
   }
@@ -113,7 +138,9 @@ function pendingRow(p: Probed): LandRepoResult {
   if (row.status === "skipped") {
     // Not the one-repo "worker delivered nothing" copy: on a resume this repo is usually already landed.
     const reason =
-      row.refusal === "EMPTY_BRANCH" ? `nothing ahead of ${row.landedOn} — already landed or untouched` : row.message
+      row.refusal === "EMPTY_BRANCH" && row.ahead === 0
+        ? `nothing ahead of ${row.landedOn} — already landed or untouched`
+        : row.message
     return {
       name: row.name,
       status: "skipped",
