@@ -686,7 +686,8 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   `{ taskId, prNumber, threads, totalUnresolved }`; each thread is
   `{ path, line, outdated, comments: [{ author, body, url }] }`, in GitHub's
   order, at most 50 (`totalUnresolved` counts them all) with each comment cut
-  at 4000 characters. `line` is the line in the current diff, the original
+  at 4000 characters. All thread pages are counted, and every comment in the
+  returned threads is included in conversation order. `line` is the line in the current diff, the original
   line once the code has changed (`outdated: true`), or `null` for a
   file-level comment. `prNumber: null` means the task has no PR yet. The
   daemon asks GitHub through `gh` in the task's primary worktree;

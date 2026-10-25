@@ -21,8 +21,14 @@ function thread(over: Record<string, unknown> = {}) {
   }
 }
 
-function graphql(threads: unknown[]) {
-  return { data: { repository: { pullRequest: { reviewThreads: { nodes: threads } } } } }
+function graphql(threads: unknown[], endCursor: string | null = null) {
+  return {
+    data: {
+      repository: {
+        pullRequest: { reviewThreads: { nodes: threads, pageInfo: { hasNextPage: endCursor !== null, endCursor } } },
+      },
+    },
+  }
 }
 
 describe("readReviewComments", () => {
@@ -37,6 +43,19 @@ describe("readReviewComments", () => {
   function answer(payload: unknown) {
     writeFileSync(join(binDir, "answer.json"), JSON.stringify(payload))
     fakeGh(`printf '%s\\n' "$@" > "${join(binDir, "argv")}"\ncat "${join(binDir, "answer.json")}"`)
+  }
+
+  function pages(first: unknown, next: unknown, cursor: string, fail = false) {
+    writeFileSync(join(binDir, "first.json"), JSON.stringify(first))
+    writeFileSync(join(binDir, "next.json"), JSON.stringify(next))
+    fakeGh(`
+for arg in "$@"; do
+  if [ "$arg" = "cursor=${cursor}" ]; then
+    ${fail ? 'echo "page unavailable" >&2; exit 1' : `cat "${join(binDir, "next.json")}"; exit 0`}
+  fi
+done
+cat "${join(binDir, "first.json")}"
+`)
   }
 
   beforeEach(() => {
@@ -98,6 +117,71 @@ describe("readReviewComments", () => {
     const res = await readReviewComments({ worktreePath: cwd, prNumber: 1 })
     expect(res.threads).toHaveLength(MAX_THREADS)
     expect(res.totalUnresolved).toBe(MAX_THREADS + 5)
+  })
+
+  it("finds unresolved feedback after 100 resolved threads", async () => {
+    pages(
+      graphql(
+        Array.from({ length: 100 }, () => thread({ isResolved: true })),
+        "threads-100",
+      ),
+      graphql([thread()]),
+      "threads-100",
+    )
+    const res = await readReviewComments({ worktreePath: cwd, prNumber: 1 })
+    expect(res.totalUnresolved).toBe(1)
+    expect(res.threads).toHaveLength(1)
+    expect(res.unavailable).toBeUndefined()
+  })
+
+  it("counts unresolved threads across pages while retaining only the first 50", async () => {
+    pages(
+      graphql(
+        Array.from({ length: 100 }, (_, i) => thread({ line: i + 1 })),
+        "threads-100",
+      ),
+      graphql([thread({ line: 101 })]),
+      "threads-100",
+    )
+    const res = await readReviewComments({ worktreePath: cwd, prNumber: 1 })
+    expect(res.totalUnresolved).toBe(101)
+    expect(res.threads.map((t) => t.line)).toEqual(Array.from({ length: 50 }, (_, i) => i + 1))
+  })
+
+  it("includes the final reply after the first 20 comments", async () => {
+    const comments = Array.from({ length: 20 }, (_, i) => ({ body: `comment ${i + 1}` }))
+    pages(
+      graphql([
+        thread({
+          id: "thread-1",
+          comments: { nodes: comments, pageInfo: { hasNextPage: true, endCursor: "comments-20" } },
+        }),
+      ]),
+      {
+        data: {
+          node: {
+            comments: { nodes: [{ body: "final instructions" }], pageInfo: { hasNextPage: false, endCursor: null } },
+          },
+        },
+      },
+      "comments-20",
+    )
+    const res = await readReviewComments({ worktreePath: cwd, prNumber: 1 })
+    expect(res.unavailable).toBeUndefined()
+    expect(res.threads[0]?.comments.map((c) => c.body)).toEqual([...comments.map((c) => c.body), "final instructions"])
+  })
+
+  it.each(["threads", "comments"])("reports unavailable when a later %s page fails", async (kind) => {
+    const first =
+      kind === "threads"
+        ? graphql([thread()], "next")
+        : graphql([
+            thread({ id: "thread-1", comments: { nodes: [], pageInfo: { hasNextPage: true, endCursor: "next" } } }),
+          ])
+    pages(first, {}, "next", true)
+    const res = await readReviewComments({ worktreePath: cwd, prNumber: 1 })
+    expect(res.threads).toEqual([])
+    expect(res.unavailable).toEqual({ reason: "gh_failed", detail: expect.stringContaining("page unavailable") })
   })
 
   it("says gh failed, and quotes it, instead of reading as no open threads", async () => {
