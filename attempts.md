@@ -249,3 +249,15 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Sandbox:** harness Playwright asks for headless shell rev 1228 at `chrome-headless-shell-linux64/`. The sandbox now ships `chromium_headless_shell-1243` in that layout, so dir symlinks (1228, 1194 → 1243) were enough. `BUN_OPTIONS=--smol` was unset for every run.
 
 **Update 2026-10-24:** #1410 merged. Tomorrow's main should read switch.perOp.stateNotify ~5 / stateListener ~6.
+
+## 2026-10-25 — notes (main 9dea966)
+
+**No regression.** Both main runs exited 1 on timings only: run 1 boot.firstFrame.ms 1328.6 (cold first run; run 2 read 580), golden.cli-startup-ms 76.5/69.8, golden.vt-1mb-parse-ms 196.1 (run 1 only), switch.shown 524/543, typing.echo 159/171. That is the usual band of the last nights. Counts held or improved: root 8/8, workspace 7/7, sidebar 2, frame 4, spawns 0.5, idle 0. #1410 landed and went past the expected numbers: stateNotify 7 → 3 and stateListener 8 → 2 (✓ against the 3.6 / 5.8 baseline). No open `perf:` issues. Baseline not moved because of the ✗ timings. Tonight's history line is main run 2.
+
+**Per-switch notify anatomy (temporary trace: `createStateCell.set` ticked a counter keyed by debug label, listener count and a 3-frame stack).** 3 per switch in the TUI: `orchestrator.active-task` (1 listener) and the raw `state` cell twice, once on UiPrefsSync's connection (1 listener, `kv.follow`) and once on the main gui orchestrator with **0 listeners**. The daemon's own `setActiveTask` cell notifies with 0 listeners too, but that is the daemon process, not counted per switch.
+
+**Landed tonight as PR #1422 (`perf/nightly-2026-10-25`):** `startWorkspaceHost` subscribes the main gui orchestrator to `CHANNEL_NAMES` minus `state`. Only UiPrefsSync's connection reads `state`. switch.perOp.stateNotify 3 → 2/2.1 (2 of 2 runs). Commits, frames and timings unchanged (switch.shown 475/471, typing.echo 162/169). This also drops one shared-state push (the whole state.json) per switch on the main socket. What is left is floor: active-task plus the one followed `state` push per quiet visit-log flush.
+
+**Still open:** #1325 (the Linux `/proc` live-engine walk, 10-21) is unmerged, so switch.perOp.spawns is still 0.5 (17 `ps -A` per run, all `engine.foregroundWalk` every 2 s). Don't redo it; it is waiting on the owner.
+
+**Sandbox:** harness Playwright asks for headless shell rev 1228 at `chrome-headless-shell-linux64/`. The sandbox ships 1243 in that layout, so a dir of symlinks plus 1228/1194 → 1243 dir symlinks were enough. `BUN_OPTIONS=--smol` was exported again and unset for every run.
