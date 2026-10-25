@@ -4,10 +4,13 @@
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { MAX_THREADS, readReviewComments } from "@sma1lboy/rove-daemon/daemon/pr-review-comments"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { frameToLine } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 function thread(over: Record<string, unknown> = {}) {
   return {
@@ -70,6 +73,79 @@ cat "${join(binDir, "first.json")}"
     rmSync(binDir, { recursive: true, force: true })
     rmSync(cwd, { recursive: true, force: true })
   })
+
+  it("delivers paginated feedback beyond the default deadline without disconnecting", async () => {
+    vi.stubEnv("ROVE_RPC_TIMEOUT_MS", undefined)
+    for (const [name, cursor] of [
+      ["first", "second"],
+      ["second", "third"],
+      ["third", null],
+    ] as const) {
+      writeFileSync(join(binDir, `${name}.json`), JSON.stringify(graphql([thread({ path: name })], cursor)))
+    }
+    fakeGh(`
+sleep 7
+for arg in "$@"; do
+  case "$arg" in
+    cursor=second) cat "${join(binDir, "second.json")}"; exit 0;;
+    cursor=third) cat "${join(binDir, "third.json")}"; exit 0;;
+  esac
+done
+cat "${join(binDir, "first.json")}"
+`)
+    const socketPath = join(cwd, "daemon.sock")
+    let completed: Promise<void> = Promise.resolve()
+    let connections = 0
+    const server = createServer((socket) => {
+      connections++
+      let buffer = ""
+      socket.on("data", (data) => {
+        buffer += data.toString()
+        const newline = buffer.indexOf("\n")
+        if (newline < 0) return
+        const request = JSON.parse(buffer.slice(0, newline))
+        buffer = buffer.slice(newline + 1)
+        completed = (async () => {
+          const result = await readReviewComments({ worktreePath: cwd, prNumber: 42 })
+          if (socket.destroyed) return
+          socket.write(frameToLine({ type: "event", name: "active-task", payload: { taskId: "t1" } }))
+          socket.write(frameToLine({ type: "response", id: request.id, payload: result }))
+        })()
+      })
+    })
+    const client = new RoveDaemonClient(socketPath)
+    let closes = 0
+    let activeTask: unknown
+    client.onLifecycle("close", () => closes++)
+    client.on("active-task", (frame) => {
+      activeTask = frame.payload
+    })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject)
+        server.listen(socketPath, resolve)
+      })
+      const started = Date.now()
+      await expect(client.request("pr.reviewComments", { taskId: "t1" })).resolves.toEqual({
+        threads: ["first", "second", "third"].map((path) => ({
+          path,
+          line: 12,
+          outdated: false,
+          comments: [{ author: "reviewer", body: "rename this", url: "https://example.test/c1" }],
+        })),
+        totalUnresolved: 3,
+      })
+      expect(Date.now() - started).toBeGreaterThan(20_000)
+      expect(closes).toBe(0)
+      expect(connections).toBe(1)
+      expect(activeTask).toEqual({ taskId: "t1" })
+    } finally {
+      client.close()
+      await completed
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+      vi.unstubAllEnvs()
+    }
+  }, 30_000)
 
   it("asks GitHub for the PR's review threads in the worktree's repo", async () => {
     answer(graphql([]))

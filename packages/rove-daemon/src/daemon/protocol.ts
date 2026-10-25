@@ -306,6 +306,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "automation.runNow",
   // Rollup lookup followed by serial gh reruns, each with its own subprocess budget.
   "pr.rerunFailedChecks",
+  // Serial thread/comment pages each have their own gh subprocess budget.
+  "pr.reviewComments",
   // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
   "task.ensureWorktree",
   // Cuts a worktree for the child; same minute-scale cost as ensureWorktree.

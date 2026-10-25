@@ -692,7 +692,8 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   file-level comment. `prNumber: null` means the task has no PR yet. The
   daemon asks GitHub through `gh` in the task's primary worktree;
   `unavailable: { reason, detail }` means it could not (gh missing or signed
-  out), never that no thread is open.
+  out), never that no thread is open. Each GitHub subprocess has a 10-second
+  budget; pagination is exempt from the client's 20-second RPC deadline.
 
 - `deliveries --task-id ID [--limit N]`: the task's armed deliveries, newest
   first; the daemon keeps the newest 50 per task. A delivery is one prompt
