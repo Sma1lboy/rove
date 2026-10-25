@@ -8,10 +8,11 @@
  * row back.
  */
 
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
 import type { HostedSessionRpc } from "../../engine/hosted-session.ts"
+import { launchReposOf, repoEnv, trustExtraRepos } from "../../engine/multi-repo-launch.ts"
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
@@ -46,8 +47,8 @@ export function collision(taskId: string, key: string, retryArgs: readonly strin
 
 export const createdFresh = (open: PtyOpenResult): boolean => open.created ?? open.replay.length === 0
 
-async function openShell(client: TabsRpc, rpc: HostedSessionRpc, taskId: string, cwd: string) {
-  const shell = resolveLoginShell({ fallback: "/bin/zsh" })
+async function openShell(client: TabsRpc, rpc: HostedSessionRpc, taskId: string, cwd: string, multiRepo: boolean) {
+  const shell = resolveSessionShell()
   const tab = await allocateTab(client, taskId, { kind: "command", title: null, command: [shell] })
   const key = `${taskId}::${tab.id}`
   try {
@@ -65,7 +66,8 @@ async function openShell(client: TabsRpc, rpc: HostedSessionRpc, taskId: string,
     }
     if (!createdFresh(open)) throw collision(taskId, key, ["api", "tab-new", "--task-id", taskId, "--kind", "shell"])
     // The TUI types this once, on the spawn it creates; a mounted tab attaching later sees `created: false`.
-    await rpc.request("pty.write", { key, data: shellIdentityInput(taskId, tab.id) })
+    const repos = multiRepo ? await launchReposOf(client, taskId) : undefined
+    await rpc.request("pty.write", { key, data: shellIdentityInput(taskId, tab.id, repos && repoEnv(repos)) })
   } finally {
     await rpc.request("pty.detach", { key }).catch(() => {})
   }
@@ -92,10 +94,12 @@ async function openEngine(client: TabsRpc, rpc: HostedSessionRpc, target: Prompt
     )
     // A hosted session can't answer a trust dialog; no-op for generic protocols.
     trustEngineWorktree(target.vendor, cwd)
+    const repos = target.multiRepo ? await launchReposOf(client, taskId) : undefined
+    trustExtraRepos(target.vendor, repos)
     const launch = buildEngineSessionLaunch({
-      task: { id: taskId, kind: target.kind, vendor: target.vendor, repo: target.repo },
+      task: { id: taskId, kind: target.kind, vendor: target.vendor, repo: target.repo, repos },
       worktreePath: cwd,
-      shell: resolveLoginShell({ fallback: "/bin/zsh" }),
+      shell: resolveSessionShell(),
       argv: pinned.argv,
       promptIntent: { kind: "none" },
       tabId: tab.id,
@@ -137,7 +141,7 @@ export async function openNewTab(
   try {
     const opened =
       kind === "shell"
-        ? await openShell(client, host.rpc, target.id, worktree)
+        ? await openShell(client, host.rpc, target.id, worktree, target.multiRepo === true)
         : await openEngine(client, host.rpc, target, worktree)
     return { tab: opened.tab, session: opened.key }
   } catch (error) {

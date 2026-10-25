@@ -5,6 +5,7 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
+import type { LandResult } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { pathWithin, samePath } from "@sma1lboy/rove-daemon/path-identity"
@@ -176,17 +177,19 @@ async function awaitDeletion(
 export async function land(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskId = ctx.args.require("task-id")
+  // Only one repo of a multi-repo task; absent = every repo.
+  const repo = ctx.args.str("repo")
   // `--dry-run`: the land's own preflight, writing nothing — destination
   // branch (the base checkout's current one), commit count, base dirtiness,
   // and the refusal if any.
   if (ctx.args.bool("dry-run") === true) {
-    const res = await daemon.request<{ result: unknown }>("task.landPreflight", { taskId })
+    const res = await daemon.request<{ result: unknown }>("task.landPreflight", { taskId, ...(repo ? { repo } : {}) })
     return res.result
   }
   const strategy = ctx.args.str("strategy") === "squash" ? "squash" : "merge"
-  let res: { result: unknown }
+  let res: { result: LandResult }
   try {
-    res = await daemon.request<{ result: unknown }>("task.land", {
+    res = await daemon.request<{ result: LandResult }>("task.land", {
       taskId,
       strategy,
       deleteBranch: ctx.args.bool("delete-branch") ?? false,
@@ -196,11 +199,39 @@ export async function land(ctx: VerbContext): Promise<unknown> {
       // Sent on EVERY land with a cwd: the daemon refuses to remove the
       // caller's own worktree, else an agent landing its own task deletes its cwd.
       ...(ctx.caller.cwd !== undefined ? { callerCwd: ctx.caller.cwd } : {}),
+      ...(repo ? { repo } : {}),
     })
   } catch (err) {
-    throw landRecoveryError(err, taskId)
+    throw landStoppedError(err, taskId) ?? landRecoveryError(err, taskId)
   }
-  return { ok: true, taskId, ...(res.result as object) }
+  return { ok: true, taskId, ...res.result }
+}
+
+/** What the daemon attaches to the error of a multi-repo land that stopped partway (`LandStoppedError`). */
+interface LandStoppedData {
+  readonly stopped?: { readonly repo: string; readonly code: string }
+  readonly repos?: LandResult["repos"]
+}
+
+/**
+ * A multi-repo land that stopped partway (a conflict, a refusal): the same
+ * error a one-repo land raises, plus `repos` — what landed already, what is
+ * still pending — and the way to resume. `null` for any other failure.
+ */
+function landStoppedError(err: unknown, taskId: string): ApiError | null {
+  const data =
+    err instanceof Error && err.name === "LandStoppedError" ? (err as { data?: LandStoppedData }).data : undefined
+  if (!data?.stopped) return null
+  const head = landRecoveryError(err, taskId)
+  const recovery = head instanceof ApiError ? head.data : undefined
+  const message = errorMessage(err)
+  return new ApiError(splitDaemonCode(message)?.rest ?? message, data.stopped.code, {
+    taskId,
+    failedRepo: data.stopped.repo,
+    repos: data.repos,
+    hint: `repos that already landed stay landed — fix ${data.stopped.repo}, then run \`land\` again: it resumes with the repos still pending`,
+    ...recovery,
+  })
 }
 
 /**

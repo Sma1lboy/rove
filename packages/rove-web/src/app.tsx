@@ -10,6 +10,7 @@ import { clampRailWidth, foldedPx, narrowPane, railFolded, railWidth, surfaceFor
 import { RemoteNotice } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
+import { NewSessionView } from "./new-session-view.tsx"
 import { Overlays } from "./overlays.tsx"
 import { PagesHost } from "./pages-host.tsx"
 import { usePluginChords } from "./plugin-keys.ts"
@@ -26,7 +27,7 @@ import { useStore } from "./store.ts"
 import { useTaskColor } from "./task-colors.ts"
 import { newChatHere } from "./task-dialogs.tsx"
 import { tokenFromInput } from "./token-input.ts"
-import { dialog, page, preview, zen } from "./ui.ts"
+import { dialog, newSession, page, preview, zen } from "./ui.ts"
 import { UpdateView, checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { UsageChips } from "./usage-view.tsx"
 import { useUserKeys } from "./user-keys.ts"
@@ -113,6 +114,9 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const { prefs } = usePrefs()
   const taskInk = useTaskColor(task?.id)
   const working = task?.rowStatus?.kind === "running"
+  const composing = useStore(newSession)
+  // Picking a task or tab leaves the composer, as it leaves a page.
+  useEffect(() => model.selection.subscribe(() => newSession.set(null)), [model])
   if (pageOn === "update") {
     return (
       <main className="workspace">
@@ -134,6 +138,16 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
       <main className="workspace">
         {narrow && <NarrowBackBar />}
         <PagesHost model={model} page={pageOn} />
+      </main>
+    )
+  }
+  if (composing) {
+    return (
+      <main className="workspace">
+        {narrow && <NarrowBackBar />}
+        <div className="pane">
+          <NewSessionView model={model} seed={composing} />
+        </div>
       </main>
     )
   }

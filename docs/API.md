@@ -228,6 +228,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `TAB_NOT_SPLITTABLE` | `tab-split` on a content tab; only terminal tabs split. |
 | `LAST_LEAF` | `tab-split --action close` on the only pane; close the tab instead. |
 | `RESET_ENGINE` | `tab-split --action reset` on a pane that runs an engine; only shell panes reset. |
+| `TAB_NOT_REVIVABLE` | `tab-revive` on a tab with no session of its own: a preview, a viewport onto another task, or a conversation hosted under another task. |
 | `RUN_NOT_FOUND` | `routine-respond --run` names no routine run (unknown, or pruned from the last 100). |
 | `RESPONSE_TOO_LARGE` | A `routine-respond` response or a `report --summary` over the 32,000-character cap. |
 | `DELIVERY_NOT_FOUND` | `report --delivery` names no delivery (unknown, or pruned past the newest 50 for its task). |
@@ -236,6 +237,10 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_OPTION` | `gate-answer --option` is not one of the gate's option keys (or the gate is free-text only). |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
 | `NOT_A_REPO` | `--repo` does not point at a git repository. |
+| `NOT_A_GIT_REPO` | One of several `--repo` values is not a git repository (the message names it). |
+| `REPO_DUPLICATE` | `add` names the same repo root twice; a subdirectory counts as its root. |
+| `TOO_MANY_REPOS` | `add` names more than 8 repos for one task. |
+| `REMOTE_EXTRA_UNSUPPORTED` | A multi-repo `add` includes a remote project; every repo must be local. |
 | `INVALID_BRANCH` | `--branch` is a name git will not accept (`git check-ref-format --branch`). |
 | `REPO_UNRESOLVABLE` | `--repo` resolved, but the repository is gone or unreadable. |
 | `NO_WORKTREE` | The task has no materialized worktree yet. |
@@ -339,6 +344,12 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   `pane-open`, `pane-close`, `read-output` without `--task-id`) default to;
   `null` means no active task. Reading it back is the audit trail for any
   delivery that omitted `--task-id`.
+  A multi-repo task also carries `.repoCount` (all repos, primary included);
+  one-repo tasks omit it. `.prStatus` is the primary's PR; each extra's is on
+  `get-task`'s `.task.extraRepos[].prStatus` (Rove polls every repo against its
+  own worktree, branch and remote), and the sidebar chip, `context` and
+  `collect` show one rolled-up status — any failing check wins, then pending,
+  then open, then merged.
   - `--repo PATH`, `--status S1,S2` and `--activity A1,A2` narrow the list.
     Flags combine with AND; a comma list matches any of its values.
     `rove api list --activity permission_needed,error` is every task waiting
@@ -400,6 +411,10 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   Select the tasks by fan-out round (`--group`, the `groupId` that
   `add --count` returns), by repo, or by explicit ids.
   Each task also carries `runnability` (the `should-run` verdict).
+  For a task with extra repos each entry also carries `repos[]` —
+  `{ name, branch, worktreePath, changes, base }` per repo, primary first; the
+  top-level `changes` and `base` stay the primary's, and one-repo tasks have no
+  `repos` key.
 
   With `--repo`, a repo path that no longer resolves to a readable git
   repository is reported, never filtered away: the target failing to resolve
@@ -528,7 +543,7 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   for an agent that would rather read it than parse it. It replaces the
   structured rows; ask for one or the other, not both.
 - `digest --repo PATH [--since-days N]`: the repo's recent agent work,
-  tasks touched in the window plus routine outcomes by status. Default
+  tasks touched in the window (a visit that only focuses a task no longer counts) plus routine outcomes by status. Default
   window 7 days. Repo resolution follows `collect`: an unresolvable `--repo`
   is a `REPO_UNRESOLVABLE` error, and unresolvable task repos come back in
   `unresolvableRepos` rather than being counted as absent. Task outcomes are deliberately absent: completion travels
@@ -645,6 +660,40 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   entry). Non-spawning: a missing daemon
   or PTY host degrades that section to `null`. **Run and paste this first**
   when reporting a badge, label, engine-identity, or engine-crash bug.
+- `ports (--task-id ID | --all)`: the TCP ports a task's processes listen on,
+  on this machine — the dev server, preview or debugger an agent started,
+  without scanning by hand. A listener belongs to the task whose checkout
+  (primary or extra repo) holds its process's cwd; when checkouts nest, the
+  deepest wins. Returns `{ taskId, ports }`, each row `{ port, host, url,
+  pid, command, cwd }`; `url` is `http://localhost:<port>` for a wildcard or
+  loopback bind. `--all` lists every listener, each with its owning `taskId`
+  (`null` = no task). `ports: null` means the scan could not run (Linux reads
+  `/proc`, macOS runs `lsof`), never that nothing is listening.
+- `worktree-files --task-id ID`: the task's worktree files, tracked plus
+  untracked-not-ignored, worktree-relative. Returns `{ files }`. Runs where the
+  worktree lives, so it reads a task on another registered machine too.
+- `worktree-diff --task-id ID`: the task's changed files, committed on its
+  branch against the base (`scope: branch`, the PR base first) and then
+  uncommitted (`scope: working`). Returns `{ base, files[{ path, status,
+  added, deleted, scope }] }`; `base` is `null` when none resolves.
+- `worktree-diff-file --task-id ID --path PATH --scope branch|working`: one
+  changed file's preview, the Files pane's data (diff hunks, or the file for a
+  code or binary view). `working` is the uncommitted diff, `branch` is
+  everything since the base. `PATH` is worktree-relative; absolute or `..`
+  paths are refused.
+- `review-comments --task-id ID`: the unresolved review threads on the task's
+  PR, so an agent can address review feedback by file and line. Returns
+  `{ taskId, prNumber, threads, totalUnresolved }`; each thread is
+  `{ path, line, outdated, comments: [{ author, body, url }] }`, in GitHub's
+  order, at most 50 (`totalUnresolved` counts them all) with each comment cut
+  at 4000 characters. All thread pages are counted, and every comment in the
+  returned threads is included in conversation order. `line` is the line in the current diff, the original
+  line once the code has changed (`outdated: true`), or `null` for a
+  file-level comment. `prNumber: null` means the task has no PR yet. The
+  daemon asks GitHub through `gh` in the task's primary worktree;
+  `unavailable: { reason, detail }` means it could not (gh missing or signed
+  out), never that no thread is open. Each GitHub subprocess has a 10-second
+  budget; pagination is exempt from the client's 20-second RPC deadline.
 
 - `deliveries --task-id ID [--limit N]`: the task's armed deliveries, newest
   first; the daemon keeps the newest 50 per task. A delivery is one prompt
@@ -701,7 +750,8 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
 
 ## create
 
-- `add --repo PATH|REPO [--clone] [--allow-fork] [--title T] [--branch B] [--base-branch B]
+- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--title T] [--branch B] [--base-branch B]
+  [--base-for REPO=REF …]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
   [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
@@ -762,6 +812,33 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
   delivered `--prompt` text is persisted too (`.task.prompt`) — the durable
   copy of the task brief; it survives a dead engine or lost context, where
   the engine's own transcript does not.
+
+  **Multi-repo tasks.** Repeat `--repo` (at most 8, all local) to make one task
+  span several repos: the FIRST is the primary — the engine's cwd, the sidebar
+  project, `.task.repo` / `.branch` / `.worktreePath` — and each further one
+  becomes an entry of `.task.extraRepos[]`
+  (`{name, repo, branch, worktreePath, baseRef?}`; `name` is the repo's
+  directory name, `-2`-suffixed on a clash; the paths are empty until the
+  worktrees exist). Extras never create a project row. Every repo gets its own
+  worktree on the SAME branch name, created together on first enter and
+  all-or-nothing: if any repo fails, the worktrees and fresh branches already
+  cut are removed and the task stays unmaterialised. A repo where that branch
+  name is already taken gets a `-2` suffix there only (`extraRepos[].branch`
+  records the real name); a branch named with `--branch` is reused as-is.
+  `--base-branch` stays the primary's base; `--base-for REPO=REF` (repeatable;
+  `REPO` is a name from `extraRepos[].name` or a path) sets another repo's.
+  `--count` / `--agents` give every sibling the same repo set. The engine runs
+  in the primary and sees the extras through its own add-dir flag where the
+  engine declares one (claude, codex), `$ROVE_TASK_REPOS` (JSON
+  `[{name,path,branch,primary}]`) plus `$ROVE_REPO_<NAME>` in its and its shell
+  tabs' environment, and one line on the first prompt. `delete` covers every
+  repo: one dirty gate over all worktrees (the refusal names each dirty repo),
+  salvage refs written in the repo they came from, `--delete-branch` applied
+  to each repo's branch. `land` and `sync` act on every repo (below, under
+  [lifecycle](#lifecycle)), and PR status is polled per repo. Refusals:
+  `TOO_MANY_REPOS`, `REPO_DUPLICATE` (the
+  same repo root twice, subdirectories resolve to their root),
+  `NOT_A_GIT_REPO` (names the repo), `REMOTE_EXTRA_UNSUPPORTED`.
 
   **Parallel attempts** live here too: `--count N` spawns N sibling tasks of
   the SAME prompt, each with its own worktree and branch, sharing one
@@ -871,7 +948,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
   The TUI's and the web's "new conversation" gestures do the same with
   `--no-worktree`: `ctrl+t`, `ctrl+e` with the tab destination, `send --tab
-  new` and `tab-new --kind engine` each create a shared child, never a second
+  new` and `tab-new --kind engine` start a task's first conversation in its own
+  `tab-1` and, once it holds one, each create a shared child, never a second
   engine tab. Deleting the parent promotes its children; see `delete --cascade`.
 
 ## drive
@@ -895,8 +973,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   carry `--plain` so replaying them does not stack a second prefix. `delivered: true` says the bytes landed and
   nothing more: when the target was already in `error` or `dead`, the
   result carries `targetState` (and `targetDetail`), so a prompt sent into a
-  failed session is visible as such. `--tab new` starts a second conversation: a shared child task of the target
-  (same directory, as `spawn --no-worktree`) that receives the prompt, and the reply adds `childTaskId`
+  failed session is visible as such. `--tab new` starts a new conversation: the target's own canonical engine while it has no tabs yet (a
+  placeholder title becomes the prompt's), else a shared child task of the target
+  (same directory, as `spawn --no-worktree`) that receives the prompt, titled from it, and the reply adds `childTaskId`
   (`session`, `delivered` and the other delivery facts describe the child; `taskId` stays the target), while
   `--tab tab-N` targets that exact tab (`TAB_NOT_FOUND` if it is dead or
   absent). A tab a **pty-host restart froze** is neither: it is listed by
@@ -1156,20 +1235,13 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   open with no session, matching ctrl+w. A tab that still exists in the
   snapshot may be closed after its process dies; an absent or already-closed
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
-- `tab-revive --task-id ID --tab TAB`: bring back one Terminal Tab whose
-  session is gone (a pty-host restart, a reboot, an engine that exited) under
-  its own id, the way a TUI attach does. An engine tab resumes its pinned
-  conversation (a tab with no pinned id starts its engine fresh); a command
-  tab reruns its command. Nothing new is created: the tab must already be in
-  `get-task` `.tabs[]` (else `TAB_NOT_FOUND`), content tabs are `UNSUPPORTED`,
-  and a live session is left alone (`revived: false`). The web and phone run
-  it before attaching a tab, so opening a task whose session died shows the
-  conversation again. Returns `{ session, revived, alive }`.
 - `tab-new --task-id ID --kind shell|engine [--command CMD | --latest]`: open a new
   Terminal Tab with no first message — the TUI's sidebar "New shell" and its
   picker's Enter on an empty message. `shell` runs the login shell
   (`$SHELL`) in the task's worktree and types the `ROVE_TASK_ID` /
-  `ROVE_TAB_ID` export into it. `engine` starts a new conversation: a shared
+  `ROVE_TAB_ID` export into it. `engine` starts a new conversation. A task with no
+  conversation yet (no tabs) starts it in its own `tab-1`, on `--command`'s engine
+  when given (the task is re-pointed to it first). A task that already holds one gets a shared
   child task of `--task-id` (same directory, see `spawn --no-worktree`) whose
   engine, the task's own or `--command`'s as `send --tab new --command` pins it,
   starts idle in the child's own `tab-1`, ready for a first message. A task
@@ -1182,7 +1254,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `docs/design/daemon-owned-tabs.md`), so it never collides with a tab another
   client opens at the same moment, then the session spawns; every attached
   client sees the row through `tabs.changed`. A shell returns `{ok, taskId, tabId, session, kind, clients}`
-  (`clients` = attached connections told; `0` = none); an engine returns
+  (`clients` = attached connections told; `0` = none); an engine on a task with no conversation returns
+  `{ok, taskId, tabId, session, kind, clients}` with `tabId` `tab-1` of the task;
+  an engine on a task that holds one returns
   `{ok, taskId, childTaskId, tabId, session, kind}` with `tabId` `tab-1` of the
   child and no `clients`. The tab then lists in
   `get-task .tabs[]`. A session already running under the allocated id fails
@@ -1221,6 +1295,24 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `{ok, taskId, tabId, leaf, changed, split, clients}`; `split` is
   `{activeLeafId, root}` (null once back to one pane) and `get-task .tabs[].split`
   carries the same.
+- `tab-revive --task-id ID --tab TAB [--restart-exited]`: reopen one Terminal Tab's own session when
+  no PTY runs in it: a dead or freeze-restored tab, or one whose key the PTY
+  host lost (a host restart that dropped its freeze records). A running tab is
+  left alone (`revived: false, alive: true`; an engine that exited into its
+  keep-alive shell still counts as running) unless `--restart-exited` is set
+  and a process walk finds no engine in the session (`get-task
+  .tabs[].engineAlive` false): that session is then closed and relaunched like
+  a dead one. A shell tab, an unwalked tab and a tab with a running engine are
+  never replaced. An engine tab resumes its
+  persisted conversation (`resumed: true`, the `sessionId` it reopened) or, with
+  none recorded, starts a fresh one with no first message and records the id
+  the engine pinned; it respects `engine.maxLiveSessions`. The task's original
+  prompt is never replayed. A shell or command tab runs its recorded command
+  in the task's worktree. A tab id the task holds no row for is `TAB_NOT_FOUND`;
+  a split leaf (`tab-1::leaf-2`) is `BAD_FLAG` (`tab-split --action reset`
+  reopens it); a preview or viewport tab is `TAB_NOT_REVIVABLE`. A task on
+  another registered machine runs there, like every verb. Returns
+  `{ok, taskId, tabId, revived, alive?, resumed, sessionId?}`.
 - `notify --title TEXT [--body TEXT] [--kind KIND] [--task-id ID]
   [--source TAG]`: show a toast in every attached Rove UI. `--body` adds a
   second, muted line under the title — context, not a second message.
@@ -1458,7 +1550,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 
 ## lifecycle
 
-- `land --task-id ID [--dry-run] [--strategy merge|squash] [--delete-branch]
+- `land --task-id ID [--dry-run] [--repo NAME] [--strategy merge|squash] [--delete-branch]
   [--remove-worktree=false]`: merge a task's branch back into its
   base repo's current branch (`--no-ff` merge, or one squash commit). Refuses
   a dirty base checkout, a branch that no longer resolves in the base repo
@@ -1494,6 +1586,40 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   `--remove-worktree=false` — or with a removal that got refused (dirty tree,
   base checkout, the caller's own worktree) — keeps the branch. The result
   says so in `branchKept` (`{ reason }`) and writes no `branchAnchor`.
+
+  **A multi-repo task lands every repo, in picked order (primary first).**
+  Every repo is probed first; if any refuses (dirty base, missing ref, …)
+  nothing is merged and the error names it. Then each repo is merged into its
+  own base, and the run **stops at the first conflict** (that repo's merge is
+  aborted, earlier repos stay landed). The error carries `.repos[]` — one row
+  per repo, `{ name, status, landedOn, ahead, commit, error?, code? }` with
+  `status` one of `landed`, `skipped` (no commits ahead: already landed, or
+  untouched), `conflict`, `refused`, `failed`, `pending` — and `.failedRepo`.
+  **Re-running `land` resumes**: repos already merged read as `skipped`, the
+  rest carry on. A fully landed run returns the first landed repo's
+  `{ landedOn, commit }` plus the same `.repos[]`. Worktrees (and, with
+  `--delete-branch`, branches) are removed only once every selected repo has
+  landed — the primary is the engine's cwd, and a conflict in a later repo is
+  resolved from it. So `--repo <primary>` while other repos still have
+  worktrees merges but keeps the primary's worktree and branch (reported as
+  `worktree.removed: false` with the reason); an extra named with `--repo` is
+  cleaned right away. A repo whose branch Rove already landed and deleted
+  (`--repo X --delete-branch`) reads as `skipped`, not `MISSING_REF`, on the
+  next full `land`. `--repo NAME` (a name from `.task.extraRepos[].name`; the
+  primary's is its directory name) lands, or with `--dry-run` probes, just that
+  repo; an unknown name is `UNKNOWN_REPO`. `--dry-run` returns the head repo's
+  fields at the top level (the first refusal, else the first repo with commits
+  to land) and `.repos[]` with each repo's own probe and a `status` of
+  `ready`, `skipped` or `refused`.
+- `sync --task-id ID [--repo NAME]`: merge the base branch INTO the task's
+  worktree (the inverse of `land`; the `↓N` drift chip's action). A dirty
+  worktree is refused (`SYNC_WORKTREE_DIRTY`, commit first), and a conflict is
+  left in place in the worktree for you to resolve (`SYNC_CONFLICT` lists the
+  files). Returns `{ baseRef, alreadyCurrent }`. A multi-repo task syncs every
+  repo against its own base and adds `.repos[]`
+  (`{ name, ok, baseRef?, alreadyCurrent?, error?, code? }`); one repo's
+  conflict does not stop the others, and the first failure is raised as the
+  error once all have run, with `.repos[]` and `.failedRepo`.
 - `delete (--task-id ID | --group GROUPID) [--force] [--delete-branch]
   [--delete-remote] [--cascade] [--wait]`: remove a task
   and its worktree. **The git branch stays** unless `--delete-branch` is

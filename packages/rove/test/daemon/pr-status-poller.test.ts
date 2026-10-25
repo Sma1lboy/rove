@@ -373,3 +373,98 @@ describe("stale marker (prStatus.lastError)", () => {
     expect(orch.getTask(id)?.prStatus?.checkState).toBe("passing")
   })
 })
+
+describe("a multi-repo task", () => {
+  /** A task with one extra repo named `api` on its own worktree/branch. */
+  async function makeTwoRepoTask(): Promise<string> {
+    const id = await makeTask({ worktree: "/wt/primary" })
+    await store.update(id, {
+      extraRepos: [{ name: "api", repo: "/api", branch: "rove/api-branch", worktreePath: "/wt/api" }],
+    })
+    return id
+  }
+
+  /** Answers per worktree path; records which worktree/branch pairs were polled. */
+  function perRepoRunner(byPath: Record<string, PrViewRunner>, polled: Array<[string, string]> = []): PrViewRunner {
+    return async (worktreePath, branch) => {
+      polled.push([worktreePath, branch])
+      const run = byPath[worktreePath]
+      return run ? run(worktreePath, branch) : { kind: "empty" }
+    }
+  }
+
+  test("writes the primary and the extra independently, each polled in its own worktree on its own branch", async () => {
+    const id = await makeTwoRepoTask()
+    const polled: Array<[string, string]> = []
+    const changed = await runPrStatusPass(orch, {
+      run: perRepoRunner(
+        { "/wt/primary": prRunner("OPEN", "SUCCESS"), "/wt/api": prRunner("OPEN", "FAILURE") },
+        polled,
+      ),
+      now: 0,
+      at: "t1",
+      schedule: new Map(),
+      rand: noJitter,
+    })
+    expect(changed).toEqual([id])
+    expect(polled.sort()).toEqual([
+      ["/wt/api", "rove/api-branch"],
+      ["/wt/primary", `rove/test-${id}`],
+    ])
+    const task = orch.getTask(id)
+    expect(task?.prStatus?.checkState).toBe("passing")
+    expect(task?.extraRepos?.[0]?.prStatus?.checkState).toBe("failing")
+  })
+
+  test("each repo keeps its own backoff: a settled extra stays quiet while the primary is re-polled", async () => {
+    const id = await makeTwoRepoTask()
+    const schedule: PrPollSchedule = new Map()
+    const polled: Array<[string, string]> = []
+    const run = perRepoRunner(
+      { "/wt/primary": prRunner("OPEN", "PENDING"), "/wt/api": prRunner("MERGED", "SUCCESS") },
+      polled,
+    )
+    const pass = (now: number) => runPrStatusPass(orch, { run, now, at: "t", schedule, tickMs: 30_000, rand: noJitter })
+    await pass(0)
+    expect(schedule.get(id)?.nextAllowedAt).toBe(30_000)
+    expect(schedule.get(`${id}::api`)?.nextAllowedAt).toBe(SETTLED_BACKOFF_MS)
+    polled.length = 0
+    await pass(40_000)
+    expect(polled.map(([p]) => p)).toEqual(["/wt/primary"])
+  })
+
+  test("a failing gh on the extra marks only the extra's own status stale", async () => {
+    const id = await makeTwoRepoTask()
+    const ok = prRunner("OPEN", "SUCCESS")
+    await runPrStatusPass(orch, {
+      run: perRepoRunner({ "/wt/primary": ok, "/wt/api": ok }),
+      now: 0,
+      at: "t0",
+      schedule: new Map(),
+      rand: noJitter,
+    })
+    await runPrStatusPass(orch, {
+      run: perRepoRunner({ "/wt/primary": ok, "/wt/api": async () => ({ kind: "error", error: "network" }) }),
+      now: 1,
+      at: "t1",
+      schedule: new Map(),
+      rand: noJitter,
+    })
+    const task = orch.getTask(id)
+    expect(task?.extraRepos?.[0]?.prStatus?.lastError).toBe("network")
+    expect(task?.extraRepos?.[0]?.prStatus?.checkState).toBe("passing")
+    expect(task?.prStatus?.lastError).toBeUndefined()
+  })
+
+  test("drops the schedule entry of a removed extra and of a deleted task", async () => {
+    const id = await makeTwoRepoTask()
+    const schedule: PrPollSchedule = new Map([
+      [id, { nextAllowedAt: 0, failures: 0 }],
+      [`${id}::api`, { nextAllowedAt: 0, failures: 0 }],
+      ["gone::api", { nextAllowedAt: 0, failures: 0 }],
+    ])
+    await store.update(id, { extraRepos: [] })
+    await runPrStatusPass(orch, { run: emptyRunner, now: 1, at: "t", schedule, rand: noJitter })
+    expect([...schedule.keys()].sort()).toEqual([id])
+  })
+})

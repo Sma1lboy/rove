@@ -212,24 +212,29 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const shownTab = shown?.tabId ?? tabId
       const size = cols !== undefined && rows !== undefined ? { cols, rows } : undefined
       const attach = () => forwarder.attach(target, shownTab, cwd, size, leafId)
-      // A tab whose session is gone comes back the way a TUI attach brings it back
-      // (`tab-revive`: an engine resumes its conversation). Split panes and another
-      // machine's tabs attach as they are.
-      const revive = !remote && leafId === undefined ? ops.reviveTab?.bind(ops) : undefined
-      let attached: AttachResult
+      // A tab with no running session reopens as it is opened, the way a TUI attach
+      // resumes it (`tab-revive`). When that fails the page still gets the dead tab and
+      // its Reopen button. Split panes and another machine's tabs attach as they are.
+      const autoRevive = !remote && leafId === undefined
+      let attached: AttachResult | null = null
+      let gone: unknown = null
       try {
         attached = await attach()
       } catch (err) {
-        if (!revive || !(err instanceof BridgeError && err.code === "TAB_NOT_LIVE")) throw err
-        await revive(target, shownTab)
-        attached = await attach()
+        if (!autoRevive || !(err instanceof BridgeError && err.code === "TAB_NOT_LIVE")) throw err
+        gone = err
       }
-      if (!attached.alive && revive) {
+      if (autoRevive && (gone !== null || attached?.alive === false)) {
         // Let go of the corpse first, so its exit never reaches the page as this tab's.
-        await forwarder.detach(attached.stream)
-        await revive(target, shownTab)
+        if (attached) await forwarder.detach(attached.stream)
+        const revived = await ops.reviveTab(target, shownTab).then(
+          () => true,
+          () => false,
+        )
+        if (!revived && gone !== null) throw gone
         attached = await attach()
       }
+      if (!attached) throw gone
       conn.streamOwner.set(attached.stream, forwarder)
       return attached
     }
@@ -255,6 +260,13 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         await forwarder?.detach(stream)
       }
       return {}
+    case "term.revive": {
+      const taskId = str(a, "taskId")
+      const tabId = str(a, "tabId")
+      // The session `term.attach` would open: a viewport tab revives the one it shows.
+      const shown = ops.machineOf?.(taskId) !== undefined ? null : ops.viewedSession(taskId, tabId)
+      return ops.reviveTab(shown?.taskId ?? taskId, shown?.tabId ?? tabId, optBool(a, "restartExited"))
+    }
     case "diff.files":
       return ops.diffFiles(str(a, "taskId"))
     case "diff.file": {

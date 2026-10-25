@@ -79,6 +79,10 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // documented aliases (`model-lists.ts`).
     listModels: async () => CLAUDE_MODELS,
     modelArgv: (base, model) => [...base, "--model", model],
+    addDirArgv: (base, dirs) => [...base, ...dirs.map((dir) => `--add-dir=${dir}`)],
+    // `--effort <level>` (`claude --help`).
+    effortLevels: ["low", "medium", "high", "xhigh", "max"],
+    effortArgv: (base, level) => [...base, "--effort", level],
     foreignModel: isOpenAiFamilyModel,
     history: claudeHistoryReader,
     detectAccount: (deps) => detectClaudeAccount(deps),
@@ -124,6 +128,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // `-m, --model <MODEL>`; no list verb (`model-lists.ts` for the slugs).
     listModels: async () => CODEX_MODELS,
     modelArgv: (base, model) => [...base, "--model", model],
+    addDirArgv: (base, dirs) => [...base, ...dirs.map((dir) => `--add-dir=${dir}`)],
     foreignModel: isClaudeFamilyModel,
     // codex-tui `new_error_event`: every turn error is one red `■ <message>` row.
     errorLine: /^\s*■\s+\S/,

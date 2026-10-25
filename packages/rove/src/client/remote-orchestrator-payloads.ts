@@ -318,6 +318,7 @@ export function deserializeTask(s: SerializedTask): Task {
     ...(s.sharesWorkspaceOf ? { sharesWorkspaceOf: toTaskId(s.sharesWorkspaceOf) } : {}),
     ...(s.cwdSubpath ? { cwdSubpath: s.cwdSubpath } : {}),
     ...(s.ptyAlias ? { ptyAlias: s.ptyAlias } : {}),
+    ...(s.extraRepos?.length ? { extraRepos: s.extraRepos } : {}),
     requireReport: s.requireReport,
     prompt: s.prompt,
     baseRef: s.baseRef,

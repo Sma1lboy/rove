@@ -36,3 +36,12 @@ export function toggleSelectAll(prev: ReadonlySet<string>, paths: readonly strin
   const allSelected = paths.every((p) => prev.has(p))
   return allSelected ? new Set<string>() : new Set(paths)
 }
+
+/**
+ * Pick or un-pick an extra repo: a new pick goes last (pick order is the order sent), and a pick past
+ * `cap` is ignored. The picked repos are the task's other repos; the dialog's repo field is the primary.
+ */
+export function toggleExtraRepo(picked: readonly string[], path: string, cap: number): readonly string[] {
+  if (picked.includes(path)) return picked.filter((p) => p !== path)
+  return picked.length >= cap ? picked : [...picked, path]
+}

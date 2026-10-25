@@ -114,6 +114,9 @@ export function withRecentRow(rows: readonly TreeRow[], recent: Task | null): Tr
 /** Indent stops growing here; a deeper row keeps this depth and wears its real level. */
 export const MAX_TREE_DEPTH = 3
 
+/** A parent with more children than this starts folded; the fold only applies where `collapsedTasks` is passed (the full tree, not search or the icon rail). */
+export const AUTO_FOLD_CHILDREN = 5
+
 /** What a task row says about its children. */
 export interface TreeFold {
   /** Every descendant, not just direct children: what a closed fold hides. */
@@ -135,8 +138,12 @@ export function childMarkerOf(task: Task): ChildMarker | null {
 export interface TreeInput extends SidebarGroupInput {
   /** Project keys whose routine row is open; absent = all closed. */
   readonly expandedRoutines?: ReadonlySet<string>
-  /** Task ids whose children are folded away; absent = all open. */
+  /** Task ids whose children are folded away; absent = no folding at all (search, the icon rail). */
   readonly collapsedTasks?: ReadonlySet<string>
+  /** Task ids the user opened: they stay open past {@link AUTO_FOLD_CHILDREN}. */
+  readonly openedTasks?: ReadonlySet<string>
+  /** The selected task: an automatic fold never hides it. */
+  readonly selectedTaskId?: string
   /** taskId → its conversation's name (`conversationTitleOf`); absent = unnamed. */
   readonly conversationTitles?: ReadonlyMap<string, string>
 }
@@ -146,6 +153,10 @@ export interface TreeRowsInput {
   readonly groups: readonly SidebarGroup[]
   readonly expandedRoutines?: ReadonlySet<string>
   readonly collapsedTasks?: ReadonlySet<string>
+  /** Task ids the user opened: they stay open past {@link AUTO_FOLD_CHILDREN}. */
+  readonly openedTasks?: ReadonlySet<string>
+  /** The selected task: an automatic fold never hides it. */
+  readonly selectedTaskId?: string
   /** taskId → its conversation's name (`conversationTitleOf`); absent = unnamed. */
   readonly conversationTitles?: ReadonlyMap<string, string>
 }
@@ -196,16 +207,25 @@ function descendantIds(children: ChildIndex["children"], id: string, out: string
 
 interface PushContext extends ChildIndex {
   readonly collapsed: ReadonlySet<string> | undefined
+  readonly opened: ReadonlySet<string> | undefined
+  readonly selectedId: string | undefined
   readonly titles: ReadonlyMap<string, string> | undefined
+}
+
+/** The user's fold wins; else a parent with more than {@link AUTO_FOLD_CHILDREN} children folds, unless the selected task is under it. */
+function isFolded(id: string, childCount: number, descendants: readonly string[], ctx: PushContext): boolean {
+  if (ctx.collapsed?.has(id)) return true
+  if (ctx.opened?.has(id) || childCount <= AUTO_FOLD_CHILDREN) return false
+  return ctx.selectedId === undefined || !descendants.includes(ctx.selectedId)
 }
 
 /** A task's row, then its children's (unless folded), one indent level deeper each. */
 function pushTask(rows: TreeRow[], task: Task, generation: number, ctx: PushContext): void {
   const kids = ctx.children.get(task.id)
-  const collapsed = kids !== undefined && ctx.collapsed?.has(task.id) === true
+  const ids = kids ? descendantIds(ctx.children, task.id) : []
+  const collapsed = kids !== undefined && ctx.collapsed !== undefined && isFolded(task.id, kids.length, ids, ctx)
   const level = generation + 1
   const title = ctx.titles?.get(task.id)
-  const ids = kids ? descendantIds(ctx.children, task.id) : []
   rows.push({
     kind: "worktree",
     id: task.id,
@@ -230,6 +250,8 @@ export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
   const ctx: PushContext = {
     ...indexChildren(input.groups),
     collapsed: input.collapsedTasks,
+    opened: input.openedTasks,
+    selectedId: input.selectedTaskId,
     titles: input.conversationTitles,
   }
   const rows: TreeRow[] = []
@@ -274,6 +296,8 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
     groups: buildSidebarGroups(input),
     expandedRoutines: input.expandedRoutines,
     collapsedTasks: input.collapsedTasks,
+    openedTasks: input.openedTasks,
+    selectedTaskId: input.selectedTaskId,
     conversationTitles: input.conversationTitles,
   })
 }

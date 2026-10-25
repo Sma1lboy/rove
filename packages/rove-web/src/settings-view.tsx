@@ -32,10 +32,10 @@ const BODY: Record<Section, (props: { client: BridgeClient; model: AppModel }) =
   dev: (p) => <DevSection client={p.client} />,
 }
 
-export function SettingsDialog({ model }: { model: AppModel }) {
+export function SettingsDialog({ model, section: opening = "general" }: { model: AppModel; section?: Section }) {
   const client = model.client
   useLocale()
-  const [section, setSection] = useState<Section>("general")
+  const [section, setSection] = useState<Section>(opening)
   return (
     <DialogShell title={t("settings.title")} wide>
       <div className="settings">

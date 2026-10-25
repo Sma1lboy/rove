@@ -415,6 +415,31 @@ export class DaemonActivityRegistry {
     this.publishRollup(taskId)
   }
 
+  /**
+   * The engine the tab was marked `dead` for runs again: the host reopened the session
+   * or a walk found an engine in it. A hookless engine writes no event that would
+   * displace the sticky claim, so the observer retires it. A death recorded after `before`
+   * is a newer one and stays.
+   */
+  retireEngineDeath(taskId: string, tabId: string, before: number): void {
+    const entry = this.tabActivity.get(taskId)?.get(tabId)
+    if (entry?.hook?.state !== "dead" || entry.hook.at > before) return
+    const tabs = this.tabActivity.get(taskId)
+    if (!tabs) return
+    const effective = recomputeTabActivity(
+      { ...(entry.observed ? { observed: entry.observed } : {}), ...(entry.screen ? { screen: entry.screen } : {}) },
+      before,
+    )
+    if (effective) {
+      tabs.set(tabId, { ...(entry.observed ? { observed: entry.observed } : {}), screen: entry.screen, effective })
+      this.bus.publish("engine-state", this.payload(taskId, effective, tabId))
+    } else {
+      tabs.delete(tabId)
+      this.bus.publish("engine-state", { taskId, tabId, state: "idle", at: this.now() })
+    }
+    this.publishRollup(taskId)
+  }
+
   clearTask(taskId: string): void {
     const gone = this.activity.get(taskId)
     if (gone?.lapse) clearTimeout(gone.lapse)

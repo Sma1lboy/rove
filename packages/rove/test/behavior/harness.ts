@@ -120,7 +120,7 @@ export async function makeBehaviorEnv(): Promise<BehaviorEnv> {
         const isolationError = teardownIsolationError(env, home)
         if (isolationError) throw new Error(`behavior harness refusing destructive teardown: ${isolationError}`)
         await stopDaemonProcess(defaultDaemonSocketPath(home), defaultDaemonPidPath(home))
-        await stopDaemonProcess(defaultPtyHostSocketPath(home), defaultPtyHostPidPath(home))
+        await stopDaemonProcess(defaultPtyHostSocketPath(home), defaultPtyHostPidPath(home), { force: true })
       } finally {
         await rm(home, { recursive: true, force: true })
       }

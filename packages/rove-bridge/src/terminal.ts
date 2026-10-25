@@ -5,9 +5,7 @@
  * dropped phone detaches everything it attached in one step.
  *
  * Never spawns: a key the host does not list is refused, because `pty.open`
- * on a missing key would start a bare shell nobody asked for. Bringing a dead
- * tab back with its real launch is the server's call (`tab-revive`), before it
- * attaches again.
+ * on a missing key would start a bare shell nobody asked for.
  */
 
 import type {
@@ -34,6 +32,8 @@ export interface AttachResult {
   readonly alive: boolean
   /** base64 raw VT bytes, as the host ring holds them. */
   readonly replay: string
+  /** Dead, and only peeked: a pty-host restart froze it (a plain exited session is `alive: false` without this). */
+  readonly restored?: true
 }
 
 export class TerminalForwarder {
@@ -66,13 +66,20 @@ export class TerminalForwarder {
     leafId?: string,
   ): Promise<AttachResult> {
     const stream = leafId ? `${taskId}::${tabId}::${leafId}` : `${taskId}::${tabId}`
-    const { sessions } = await this.pty.request<{ sessions: readonly PtySessionInfo[] }>("pty.list")
+    // No PTY host process holds no sessions: the tab is not live, and reviving it starts the host.
+    const { sessions } = await this.pty
+      .request<{ sessions: readonly PtySessionInfo[] }>("pty.list")
+      .catch((err: unknown) => {
+        const code = err instanceof Error && "code" in err ? String(err.code) : ""
+        if (code === "ENOENT" || code === "ECONNREFUSED") return { sessions: [] }
+        throw err
+      })
     const session = sessions.find((s) => s.key === stream)
     if (!session) throw new BridgeError("TAB_NOT_LIVE", `tab ${tabId} has no hosted session`)
     if (!session.alive && session.restored) {
       // `pty.open` would RESPAWN a freeze-restored tab; the phone only looks.
       const peek = await this.pty.request<PtyPeekResult>("pty.peek", { key: stream })
-      return { stream, alive: false, replay: peek.data }
+      return { stream, alive: false, restored: true, replay: peek.data }
     }
     // The sink is registered before the replay is cut (synchronously, host
     // side), so live `pty.data` after this response never overlaps the replay.

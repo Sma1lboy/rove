@@ -18,7 +18,8 @@
  */
 
 import type { TaskActivityState } from "@/engine/hook-events"
-import type { TaskPRStatus, TaskStatus, TaskWorkerReport } from "@/types/task"
+import { rollupPr } from "@/orchestrator/task-tree"
+import type { TaskExtraRepo, TaskPRStatus, TaskStatus, TaskWorkerReport } from "@/types/task"
 
 /** In RANK order (most-needs-you first); array order IS {@link taskGroupRank}. */
 export const TASK_GROUPS = [
@@ -74,6 +75,7 @@ interface TaskGroupTask {
   readonly status: TaskStatus
   readonly report?: TaskWorkerReport
   readonly prStatus?: TaskPRStatus
+  readonly extraRepos?: readonly TaskExtraRepo[]
   readonly deletion?: { readonly phase: "queued" | "running" | "error" }
   readonly quotaResume?: { readonly resumeAt: string }
 }
@@ -91,7 +93,7 @@ export interface TaskGroupInput {
 /** Has somebody already acted on what this task handed back? */
 function actedOn(task: TaskGroupTask): boolean {
   if (task.status === "done" || task.status === "canceled") return true
-  const lifecycle = task.prStatus?.lifecycle
+  const lifecycle = rollupPr(task)?.lifecycle
   return lifecycle === "merged" || lifecycle === "closed"
 }
 
@@ -130,7 +132,7 @@ export function deriveTaskGroup(input: TaskGroupInput): TaskGroup {
   if (state === "rate_limited") return "working" // auto-resume is scheduled
 
   // 3. Approved and open — the merge is the person's move.
-  const pr = task.prStatus
+  const pr = rollupPr(task)
   if (
     (pr?.lifecycle === "open" || pr?.lifecycle === "ready_to_merge") &&
     (pr.reviewDecision ?? "").toUpperCase() === "APPROVED"

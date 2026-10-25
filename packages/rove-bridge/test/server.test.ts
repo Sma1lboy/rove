@@ -334,16 +334,51 @@ describe("terminal forwarding", () => {
     expect(h.pty.calls.find(([n]) => n === "pty.open")?.[1]).toMatchObject({ key: "T1::tab-1", cwd: "/wt/shown" })
   })
 
-  test("without tab-revive, attach never spawns: an unknown tab is refused and a restored corpse is only peeked", async () => {
-    const h = start()
+  test("revive reopens the tab's own session, or the one a viewport tab shows, and never spawns through the PTY connection", async () => {
+    const revived: Array<[string, string]> = []
+    const ops = {
+      ...fakeOps(),
+      viewedSession: (taskId: string, tabId: string) =>
+        taskId === "MAIN" && tabId === "tab-2" ? { taskId: "T1", tabId: "tab-1", cwd: "/wt/shown" } : null,
+      reviveTab: async (taskId: string, tabId: string) => {
+        revived.push([taskId, tabId])
+        return { revived: true, resumed: true }
+      },
+    }
+    const h = start({ ops })
     const c = await connect(h.url, AUTH)
-    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-9" })).error?.code).toBe("TAB_NOT_LIVE")
-    const frozen = await c.call("term.attach", { taskId: "T1", tabId: "tab-2" })
-    expect(frozen.result).toMatchObject({ alive: false, replay: Buffer.from("frozen").toString("base64") })
+
+    expect((await c.call("term.revive", { taskId: "T1", tabId: "tab-3" })).result).toEqual({
+      revived: true,
+      resumed: true,
+    })
+    await c.call("term.revive", { taskId: "MAIN", tabId: "tab-2" })
+
+    expect(revived).toEqual([
+      ["T1", "tab-3"],
+      ["T1", "tab-1"],
+    ])
     expect(h.pty.calls.some(([n]) => n === "pty.open")).toBe(false)
   })
 
-  test("with tab-revive served, a gone or frozen tab is revived, then attached live", async () => {
+  test("revive with restartExited asks for a relaunch of a session whose engine is gone", async () => {
+    const asked: Array<boolean | undefined> = []
+    const ops = {
+      ...fakeOps(),
+      reviveTab: async (_taskId: string, _tabId: string, restartExited?: boolean) => {
+        asked.push(restartExited)
+        return { revived: true, resumed: false }
+      },
+    }
+    const c = await connect(start({ ops }).url, AUTH)
+
+    await c.call("term.revive", { taskId: "T1", tabId: "tab-1", restartExited: true })
+    await c.call("term.revive", { taskId: "T1", tabId: "tab-1" })
+
+    expect(asked).toEqual([true, false])
+  })
+
+  test("attach reopens a gone or frozen tab before attaching it live, as a TUI attach does", async () => {
     const revived: string[] = []
     const host: { pty?: FakePty } = {}
     const ops = {
@@ -353,6 +388,7 @@ describe("terminal forwarding", () => {
         revived.push(key)
         const pty = host.pty as FakePty
         pty.sessions = [...pty.sessions.filter((s) => s.key !== key), { key, alive: true }]
+        return { revived: true, resumed: true }
       },
     }
     const h = start({ ops })
@@ -369,6 +405,26 @@ describe("terminal forwarding", () => {
       "TAB_NOT_LIVE",
     )
     expect(revived).toEqual(["T1::tab-9", "T1::tab-2"])
+  })
+
+  test("when the reopen fails, attach falls back: an unknown tab is refused and a restored corpse is only peeked", async () => {
+    const h = start()
+    const c = await connect(h.url, AUTH)
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-9" })).error?.code).toBe("TAB_NOT_LIVE")
+    const frozen = await c.call("term.attach", { taskId: "T1", tabId: "tab-2" })
+    expect(frozen.result).toMatchObject({
+      alive: false,
+      restored: true,
+      replay: Buffer.from("frozen").toString("base64"),
+    })
+    expect(h.pty.calls.some(([n]) => n === "pty.open")).toBe(false)
+  })
+
+  test("with no PTY host process every tab is not live, so a client can offer to reopen it", async () => {
+    const h = start()
+    h.pty.hostDown = true
+    const c = await connect(h.url, AUTH)
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-1" })).error?.code).toBe("TAB_NOT_LIVE")
   })
 
   test("fit-to-phone attach carries the phone's size; closing the socket releases the PTY connection", async () => {

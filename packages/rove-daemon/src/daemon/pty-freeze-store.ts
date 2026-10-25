@@ -345,8 +345,8 @@ export function fileFreezeSink(dir = defaultPtyFreezeDir()): PtyFreezeSink {
 }
 
 /**
- * Wipe every frozen session — `rove reset`'s graceful pty-host stop only, so
- * the next host comes up empty.
+ * Wipe every frozen session. Only `rove reset` calls this, after the host is
+ * gone; the host itself never wipes, whatever stops it.
  */
 export function clearFrozenSessions(dir = defaultPtyFreezeDir()): void {
   try {

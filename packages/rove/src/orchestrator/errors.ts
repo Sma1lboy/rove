@@ -89,10 +89,25 @@ export class DirtyWorktreeError extends Error {
     public readonly ignored: readonly string[] | "unknown" = [],
     /** Porcelain-dirty paths; empty when only gitignored work refused. */
     public readonly dirty: readonly string[] = [],
+    /** Which repo of a multi-repo task this finding is in; absent for a one-repo task. */
+    public readonly repo?: string,
+    /** The other repos the same gate found dirty. */
+    public readonly also: readonly DirtyFinding[] = [],
   ) {
-    super(`${DIRTY_WORKTREE_CODE}: task ${taskId} worktree has ${describeDirtyWorktreeWork(ignored, dirty)}`)
+    const where = repo ? ` (${repo})` : ""
+    const rest = also.map((f) => `; also ${f.repo}: ${describeDirtyWorktreeWork(f.ignored, f.dirty)}`).join("")
+    super(
+      `${DIRTY_WORKTREE_CODE}: task ${taskId} worktree${where} has ${describeDirtyWorktreeWork(ignored, dirty)}${rest}`,
+    )
     this.name = "DirtyWorktreeError"
   }
+}
+
+/** One repo's share of a {@link DirtyWorktreeError}. */
+export interface DirtyFinding {
+  readonly repo: string
+  readonly ignored: readonly string[] | "unknown"
+  readonly dirty: readonly string[]
 }
 
 /** `git worktree remove` failed (locked, permission, corrupt git-dir); the index
@@ -299,5 +314,48 @@ export class RemoteParentUnsupportedError extends Error {
       `${REMOTE_PARENT_UNSUPPORTED_CODE}: task ${taskId} lives on a remote project — spawn from that machine's rove`,
     )
     this.name = "RemoteParentUnsupportedError"
+  }
+}
+
+/** Wire sentinel — same reason as {@link DIRTY_WORKTREE_CODE}. */
+export const TOO_MANY_REPOS_CODE = "TOO_MANY_REPOS"
+
+/** A task may span at most {@link MULTI_REPO_CAP} repos, primary included. */
+export class TooManyReposError extends Error {
+  constructor(count: number, cap: number) {
+    super(`${TOO_MANY_REPOS_CODE}: ${count} repos exceed the cap of ${cap} per task (the first is the primary)`)
+    this.name = "TooManyReposError"
+  }
+}
+
+export const REPO_DUPLICATE_CODE = "REPO_DUPLICATE"
+
+/** The same git root named twice, or an extra equal to the primary. */
+export class RepoDuplicateError extends Error {
+  constructor(public readonly repo: string) {
+    super(`${REPO_DUPLICATE_CODE}: ${repo} is listed more than once (a subdirectory resolves to its repo root)`)
+    this.name = "RepoDuplicateError"
+  }
+}
+
+export const REMOTE_EXTRA_UNSUPPORTED_CODE = "REMOTE_EXTRA_UNSUPPORTED"
+
+/** A multi-repo task is local-only: the primary and every extra must be on this machine. */
+export class RemoteExtraUnsupportedError extends Error {
+  constructor(public readonly repo: string) {
+    super(
+      `${REMOTE_EXTRA_UNSUPPORTED_CODE}: ${repo} is a remote project — a task spanning several repos must keep all of them local`,
+    )
+    this.name = "RemoteExtraUnsupportedError"
+  }
+}
+
+/** An extra repo that is not a git checkout; names which one (the primary has its own `NOT_A_REPO`). */
+export class ExtraRepoNotGitError extends Error {
+  constructor(public readonly repo: string) {
+    super(
+      `${NOT_A_GIT_REPO_CODE}: ${repo} is not a git repository — every repo of a task needs one to cut its worktree and branch from`,
+    )
+    this.name = "ExtraRepoNotGitError"
   }
 }

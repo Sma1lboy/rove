@@ -112,6 +112,13 @@ export interface EngineRegistryEntry {
   readonly listModels?: () => Promise<readonly EngineModel[]>
   /** Argv that pins `model`. Absent = a pinned model is refused at the gate (`BAD_MODEL`), not lost at spawn. */
   readonly modelArgv?: (base: readonly string[], model: string) => readonly string[]
+  /**
+   * Argv that opens extra directories to the engine beside its cwd (a
+   * multi-repo task's other worktrees). Absent = the engine gets them through
+   * env and the first prompt only. Pass each as `--flag=<dir>`: claude's flag is
+   * variadic, so a spaced `--add-dir <dir>` would swallow the positional prompt.
+   */
+  readonly addDirArgv?: (base: readonly string[], dirs: readonly string[]) => readonly string[]
   /** Transcript store reader. Empty (not claude's!) for custom engines. */
   readonly history: EngineHistoryReader
   /**

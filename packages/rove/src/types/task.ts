@@ -15,6 +15,7 @@ export type { VendorId } from "./vendor.ts"
 import type {
   TaskDeletionState,
   TaskDispatcher,
+  TaskExtraRepo,
   TaskLinkedWorkItem,
   TaskPRStatus,
   TaskPtyAlias,
@@ -34,6 +35,7 @@ export type {
   TaskQuotaResumeState,
   TaskStatus,
   TaskWorkerReport,
+  TaskExtraRepo,
 }
 
 /** Engine vendor for a task that records none. */
@@ -213,6 +215,12 @@ export interface Task {
    * daemon process). Absent = generated name.
    */
   readonly worktreeName?: string
+  /**
+   * Secondary repos of a multi-repo task, in pick order. The primary stays in
+   * `repo`/`branch`/`worktreePath`/`baseRef`; `taskRepos` is the derived view
+   * of all of them. Only on a `kind: "task"` row that owns its worktree.
+   */
+  readonly extraRepos?: readonly TaskExtraRepo[]
   /**
    * What the worker claims it delivered (`update --report-*`). Separate
    * from {@link prStatus}, which the daemon polls from the forge: a worker can

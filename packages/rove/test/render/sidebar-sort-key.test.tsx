@@ -19,13 +19,13 @@ import type { TaskEngineState } from "../../src/client/remote-orchestrator"
 import { useFocus } from "../../src/tui-react/context/focus"
 import { useKV } from "../../src/tui-react/context/kv"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
-import { useSidebarHostState } from "../../src/tui-react/panes/sidebar/use-sidebar-host-state"
+import { type SidebarHostState, useSidebarHostState } from "../../src/tui-react/panes/sidebar/use-sidebar-host-state"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { renderComponent } from "./harness"
+import { act, renderComponent } from "./harness"
 
 const SETTLE = 80
 
@@ -104,16 +104,22 @@ function closedPages(): HostPagesState {
   }
 }
 
+let hostState: SidebarHostState | null = null
+const notices: string[] = []
+
 /** The real binding hook and the real sort-mode state, minus the app. */
 function SortHost() {
   const focus = useFocus()
   const dialog = useDialog()
   const kv = useKV()
-  const { sortMode, toggleSortMode } = useSidebarHostState({
+  const host = useSidebarHostState({
     kv,
     tasks: [MAIN, OLDER, NEWER],
     focusSidebar: () => {},
+    notify: (message) => notices.push(message),
   })
+  hostState = host
+  const { sortMode, toggleSortMode } = host
   useWorkspaceKeybindings({
     focus,
     dialog,
@@ -153,7 +159,7 @@ function orderOf(frame: string): number {
   return frame.indexOf("Zebra") - frame.indexOf("Apple")
 }
 
-test("t cycles the sidebar through default → recent → attention → name", async () => {
+test("t cycles the sidebar through recent → attention → name → default", async () => {
   const { frame, mockInput } = await renderComponent(<SortHost />, {
     width: 28,
     height: 20,
@@ -166,16 +172,36 @@ test("t cycles the sidebar through default → recent → attention → name", a
     return orderOf(await frame())
   }
 
-  // Default sort keeps the stored order: aaa before zzz.
-  expect(orderOf(await frame())).toBeLessThan(0)
-  // Recency: zzz (touched later) jumps above aaa.
-  expect(await press()).toBeGreaterThan(0)
+  // A fresh host starts on recency: zzz (touched later) sits above aaa.
+  expect(orderOf(await frame())).toBeGreaterThan(0)
   // Attention: aaa is the blocked one, so it returns to the top despite being older.
   expect(await press()).toBeLessThan(0)
   // Name: "Apple" (zzz) sorts above "Zebra" (aaa).
   expect(await press()).toBeGreaterThan(0)
-  // Wraps home rather than latching on the last mode…
+  // Default keeps the stored order: aaa before zzz.
   expect(await press()).toBeLessThan(0)
-  // …and the next press is `recent` again, so the wrap landed on `default`.
+  // Wraps home to recency rather than latching on the last mode.
   expect(await press()).toBeGreaterThan(0)
+  // The active order is named above the list.
+  expect(await frame()).toContain("sort: newest")
+})
+
+// Reorder edits the stored order, so under any other sort entering it must flip to manual first.
+test("entering move mode under recency switches to manual order and says so", async () => {
+  notices.length = 0
+  const { frame } = await renderComponent(<SortHost />, {
+    width: 28,
+    height: 20,
+    providers: { focus: true, dialog: true, kv: true },
+  })
+  await new Promise((r) => setTimeout(r, SETTLE))
+  expect(orderOf(await frame())).toBeGreaterThan(0)
+
+  await act(async () => {
+    hostState?.setMoveMode(true)
+  })
+  await new Promise((r) => setTimeout(r, SETTLE))
+  expect(orderOf(await frame())).toBeLessThan(0)
+  expect(await frame()).toContain("sort: manual")
+  expect(notices).toHaveLength(1)
 })

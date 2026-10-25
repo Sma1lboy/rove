@@ -11,7 +11,7 @@ import { enterWorkspace, railFolded } from "./layout.ts"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
-import { NewTaskDialog } from "./new-task-dialog.tsx"
+import { startNewTask } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
@@ -19,7 +19,7 @@ import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel } from "./rail.ts"
+import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
@@ -75,7 +75,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       sort: filters.sort,
       query,
       routines: filters.routines,
-      folded: filters.foldedTasks,
+      fold: { ...filters.hand, selectedId: selectedId ?? undefined },
     })
   const built = build(filters.search.active ? filters.search.query : "")
   const { groups } = built
@@ -96,7 +96,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const place = drag.places(rows)
   const keys = useRailKeys(model, rows, filters, {
     selectedId,
-    onNewTask: (repo, machine) => dialog.set(<NewTaskDialog model={model} repo={repo} machine={machine} />),
+    onNewTask: (repo, machine) => startNewTask(model, repo, machine),
     onSettings: () => dialog.set(<SettingsDialog model={model} />),
   })
   const total = stops(build("").rows).length
@@ -156,6 +156,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         </div>
       )}
       <PageNav model={model} />
+      <button type="button" className="rail-sort mono" title={tc("tasks", "sort.hint")} onClick={filters.cycleSort}>
+        {tc("tasks", "sort.label", { mode: tc("tasks", `sort.modes.${filters.sort}`) })}
+      </button>
       <div className={`rail-body ${drag.dragging ? "is-sorting" : ""}`} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && (
           <div className="empty">
@@ -169,6 +172,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             key={row.id}
             row={row}
             cloud={rowCloud(row, machines, words)}
+            tabs={row.kind === "task" ? tabs[row.task.id] : undefined}
             frame={frame}
             selected={row.id === selectedId}
             cursor={row.id === keys.cursor}
@@ -177,11 +181,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             drag={drag.props(row)}
             dragging={drag.dragging === row.id}
             place={place(row)}
-            onNewTask={
-              row.kind === "project"
-                ? () => dialog.set(<NewTaskDialog model={model} repo={row.repo} machine={row.machine} />)
-                : undefined
-            }
+            onNewTask={row.kind === "project" ? () => startNewTask(model, row.repo, row.machine) : undefined}
             moving={
               moving &&
               row.machine === undefined &&
@@ -194,7 +194,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 ? mostUrgentStatus(row.fold.descendantIds.flatMap((id) => byId.get(id) ?? []))
                 : undefined
             }
-            onToggleFold={() => filters.toggleTaskFold(row.id)}
+            onToggleFold={() => row.kind === "task" && filters.toggleTaskFold(row.id, row.fold?.collapsed === true)}
             onClick={() => {
               keys.setCursor(row.id)
               if (row.kind === "routines") filters.toggleRoutines(row.key)
@@ -218,7 +218,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               keys.setCursor(row.id)
               openMenu(
                 e,
-                withFoldEntry(taskMenu(model, row.task, null), row.fold, () => filters.toggleTaskFold(row.id)),
+                withFoldEntry(taskMenu(model, row.task, null), row.fold, () =>
+                  filters.toggleTaskFold(row.id, row.fold?.collapsed === true),
+                ),
               )
             }}
           />
@@ -226,7 +228,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       </div>
       <PaneKeyHint pane="sidebar" />
       <div className="badge-host">
-        <button type="button" className="row new-task" onClick={() => dialog.set(<NewTaskDialog model={model} />)}>
+        <button type="button" className="row new-task" onClick={() => startNewTask(model)}>
           <span className="glyph tone-accent">+</span>
           <span className="row-title">{t("rail.newTask")}</span>
         </button>
@@ -242,6 +244,8 @@ function RailRow(props: {
   row: NavRow
   /** A task on another machine: its cloud mark's text (`on mac · offline`); null for this machine's rows. */
   cloud: string | null
+  /** A task row's tabs: the engine's own name for its conversation shows in place of the task title. */
+  tabs?: readonly TabRow[]
   frame: number
   selected: boolean
   cursor: boolean
@@ -347,9 +351,14 @@ function RailRow(props: {
     >
       {markDot}
       {row.depth > 1 && <span className="child-indent" style={{ width: (row.depth - 1) * 12 }} aria-hidden="true" />}
-      <span className="row-title">{task.title}</span>
+      <span className="row-title">{rowTitle(task, props.tabs)}</span>
       <span className="chips">
         {row.level !== undefined && <span className="chip muted">{row.level}</span>}
+        {(task.extraRepoCount ?? 0) > 0 && (
+          <span className="chip muted" title={t("rail.extraRepos", { count: task.extraRepoCount ?? 0 })}>
+            +{task.extraRepoCount}
+          </span>
+        )}
         {marker && (
           <span className={`chip child-mark ${marker === "shared" ? "tone-accent" : "muted"}`} aria-hidden="true">
             {marker === "shared" ? "⑂" : "⎇"}
@@ -389,7 +398,12 @@ function FoldToggle(props: {
   const label = tc("tasks", fold.collapsed ? "menu.expandChildren" : "menu.collapseChildren")
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: a button cannot nest in the row's button; the row's menu entry is the keyboard path
+    // biome-ignore lint/a11y/useSemanticElements: same reason: the row is itself a button
     <span
+      role="button"
+      tabIndex={-1}
+      aria-label={label}
+      aria-expanded={!fold.collapsed}
       className="chip fold-toggle muted"
       title={label}
       onClick={(e) => {

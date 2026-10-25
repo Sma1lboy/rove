@@ -5,7 +5,7 @@
  */
 
 import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
-import type { TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { LandPreflightResult, TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
@@ -17,7 +17,8 @@ import { canonPath, repoWorkingDir } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
-import { type LandPreflight, landPreflight } from "./land-preflight.ts"
+import { landPreflightAll, landTaskAll } from "./land-multi.ts"
+import { landPreflight } from "./land-preflight.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
 import { MainTaskCoordinator } from "./main-task.ts"
 import { createMigratedChildRow, setPtyAliasRow } from "./migrated-child.ts"
@@ -25,6 +26,7 @@ import { promotableDirTasks } from "./promote-dir-tasks.ts"
 import { type SpawnChildInput, type SpawnChildResult, spawnChildTaskRow } from "./spawn-child.ts"
 import { TaskDeletionCoordinator, type TaskDeletionOpts } from "./task-deletion.ts"
 import { TaskEditor } from "./task-editor.ts"
+import { pickRepos } from "./task-tree.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import { WorktreeCoordinator } from "./worktree-coordinator.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
@@ -45,6 +47,8 @@ export interface OrchestratorDeps {
   readonly onSalvage?: (
     taskId: TaskId,
     salvage: { readonly ref: string; readonly commit: string; readonly uncaptured: readonly string[] },
+    /** The repo whose `refs/rove/salvage` holds the ref: an extra's, for a multi-repo task. */
+    repo: string,
   ) => void
   /** Called when a deletion's `git worktree remove` deregistered the worktree
    *  but could not delete its directory. The deletion still completes; this is
@@ -151,14 +155,9 @@ export class Orchestrator {
     if (next && this.store.get(next)?.deletion) throw new TaskDeletingError(next)
     this.activeTaskAcc.set(next)
     if (next && this.store.get(next)) {
-      // Global last-writer-wins, persisted eagerly so a restart reopens on it
-      // regardless of the lazy recency flush below.
+      // Global last-writer-wins, persisted eagerly so a restart reopens on it.
+      // Focus never touches `updatedAt`: the `recent` sort must not move a row under a click.
       writeLastActiveTaskId(next)
-      // Not `store.update(next, {})`: an empty patch still does a full fsync'd
-      // read-merge-write on every focus switch (the most frequent action).
-      // `touchRecency` bumps `updatedAt` in-cache and notifies (so the `recent`
-      // sort reorders live), flushing on the next real mutation.
-      this.store.touchRecency(next)
     }
   }
 
@@ -260,7 +259,10 @@ export class Orchestrator {
       return path
     }
     if (task.worktreePath) {
-      if (await this.worktrees.pathExists(task.worktreePath)) return task.worktreePath
+      if (await this.worktrees.pathExists(task.worktreePath)) {
+        // A multi-repo task re-materialises only the extras whose directory vanished.
+        return task.extraRepos?.length ? this.worktreeCoordinator.ensure(task, opts?.onProgress) : task.worktreePath
+      }
       // Prune first, else `worktree add` on the same path errors.
       await this.worktrees.pruneWorktrees(task.repo)
       await this.store.update(task.id, { worktreePath: "" })
@@ -311,8 +313,8 @@ export class Orchestrator {
    *  {@link TaskEditor.setWorkerReport}. */
   setWorkerReport = (id: TaskId | string, report: Omit<TaskWorkerReport, "at">): Promise<void> =>
     this.editor.setWorkerReport(id, report)
-  setPRStatus = (id: TaskId | string, prStatus: TaskPRStatus | null): Promise<void> =>
-    this.editor.setPRStatus(id, prStatus)
+  setPRStatus = (id: TaskId | string, prStatus: TaskPRStatus | null, repoName?: string): Promise<void> =>
+    this.editor.setPRStatus(id, prStatus, repoName)
   setLinkedWorkItem = (id: TaskId | string, item: NonNullable<Task["linkedWorkItem"]> | null): Promise<void> =>
     this.editor.setLinkedWorkItem(id, item)
   setQuotaResume = (id: TaskId | string, state: NonNullable<Task["quotaResume"]> | null): Promise<void> =>
@@ -349,31 +351,62 @@ export class Orchestrator {
     return this.deletions.finish(id)
   }
 
-  /** Read-only "may this land, and into what": `landTask`'s pre-merge probes, nothing written. */
-  async landPreflight(id: TaskId | string): Promise<LandPreflight> {
+  /**
+   * Read-only "may this land, and into what": `landTask`'s pre-merge probes,
+   * nothing written. A multi-repo task answers per repo (`repos`), or for just
+   * the one named by `repo`.
+   */
+  async landPreflight(id: TaskId | string, repo?: string): Promise<LandPreflightResult> {
     const task = this.requireTask(id)
     if (task.kind === "main") throw new Error("landTask: a main task has no branch to land")
     if (task.kind === "dir") throw new Error("landTask: a directory task has no Rove-managed branch to land")
     if (task.deletion) throw new TaskDeletingError(String(task.id))
-    return landPreflight(task)
+    pickRepos(task, repo)
+    return task.extraRepos?.length ? landPreflightAll(task, repo) : landPreflight(task)
   }
 
-  /** Land a task's branch back into its base repo — executor + cleanup in `land.ts`. */
+  /** Land a task's branch back into its base repo — executor + cleanup in `land.ts`, several repos in `land-multi.ts`. */
   async landTask(id: TaskId | string, opts?: LandTaskOpts): Promise<LandResult> {
     const task = this.requireTask(id)
     // Without it a land races the deletion runner.
     if (task.deletion) throw new TaskDeletingError(String(task.id))
+    pickRepos(task, opts?.repo)
+    // Sharers keep running in the directory a land would unlink.
+    const sharing = (landed: Task, path: string): boolean =>
+      this.store
+        .list()
+        .some(
+          (t) =>
+            t.id !== landed.id &&
+            ((t.worktreePath && canonPath(t.worktreePath) === canonPath(path)) || t.sharesWorkspaceOf === landed.id),
+        )
+    if (task.extraRepos?.length) {
+      return landTaskAll(
+        task,
+        opts ?? {},
+        {
+          worktrees: this.worktrees,
+          tearDownSession: this.tearDownSession,
+          clearRepoWorktreePath: (tid, name) => this.clearRepoWorktreePath(tid, name),
+          sharesRepoWorktree: (landed, repo) => sharing(landed, repo.worktreePath),
+        },
+        opts?.repo,
+      )
+    }
     return landTaskWithCleanup(task, opts ?? {}, {
       worktrees: this.worktrees,
       clearWorktreePath: (tid) => this.clearWorktreePath(tid),
       tearDownSession: this.tearDownSession,
-      // Sharers keep running in the directory a land would unlink.
-      sharesWorktree: (landed) =>
-        this.store
-          .list()
-          .some(
-            (t) => t.id !== landed.id && t.worktreePath && canonPath(t.worktreePath) === canonPath(landed.worktreePath),
-          ),
+      sharesWorktree: (landed) => sharing(landed, landed.worktreePath),
+    })
+  }
+
+  /** {@link clearWorktreePath} for one repo of a multi-repo task (its name from `extraRepos[].name`; else the primary). */
+  async clearRepoWorktreePath(id: TaskId | string, repoName: string): Promise<void> {
+    const task = this.store.get(id)
+    if (!task?.extraRepos?.some((x) => x.name === repoName)) return this.clearWorktreePath(id)
+    await this.store.update(task.id, {
+      extraRepos: task.extraRepos.map((x) => (x.name === repoName ? { ...x, worktreePath: "" } : x)),
     })
   }
 

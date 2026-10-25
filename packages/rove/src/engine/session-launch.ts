@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs"
 import { toPosixPath } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { worktreeInitMarkerPath } from "../env.ts"
 import { remoteKeyForRepo } from "../exec/resolve.ts"
 import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
@@ -7,6 +8,7 @@ import { readFieldNotes } from "../state/field-notes.ts"
 import { type PromptDeliveryIntent, resolveEngineLaunchInit } from "../state/repo-init.ts"
 import type { VendorId } from "../types/vendor.ts"
 import { protocolEntry } from "./engine-presets.ts"
+import { exposedRepos, multiRepoNote, repoEnv } from "./multi-repo-launch.ts"
 import { withDispatcherProtocol, withWorktreeProtocol } from "./worktree-protocol.ts"
 
 export const SIGINT_GUARD = "trap ':' INT; "
@@ -184,6 +186,11 @@ export interface EngineSessionLaunchTask {
   readonly kind?: "main" | "task" | "dir"
   readonly vendor?: VendorId
   readonly repo?: string
+  /**
+   * Every repo of a multi-repo task, primary first (`taskRepos`), with the
+   * paths already materialised. Absent or a single repo = nothing is exposed.
+   */
+  readonly repos?: readonly TaskRepoView[]
 }
 
 export interface EngineSessionProtocolGates {
@@ -283,11 +290,21 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
     dispatcherTaskId,
     gates?.dispatcher,
   )
+  // Extra worktrees through the engine's own flag; engines without one rely on the env and note below.
+  const repos = exposedRepos(input.task.repos)
+  if (repos) {
+    const extraDirs = repos.filter((r) => !r.primary).map((r) => r.worktreePath)
+    argv = protocolEntry(input.task.vendor).addDirArgv?.(argv, extraDirs) ?? argv
+  }
   // Paste-delivery vendors (kimi) read the positional slot as a subcommand, so
   // the first message stays out of argv; the spawner pastes it instead.
   const delivery = input.firstMessageDelivery ?? protocolEntry(input.task.vendor).firstMessageDelivery ?? "argv"
-  const pasteFirstMessage = delivery === "paste" ? launchInit.firstMessage?.text : undefined
-  if (launchInit.firstMessage && !pasteFirstMessage) argv = [...argv, launchInit.firstMessage.text]
+  const firstText =
+    launchInit.firstMessage && repos
+      ? `${multiRepoNote(repos)}\n\n${launchInit.firstMessage.text}`
+      : launchInit.firstMessage?.text
+  const pasteFirstMessage = delivery === "paste" ? firstText : undefined
+  if (firstText && !pasteFirstMessage) argv = [...argv, firstText]
   const markerPath = launchInit.initScript ? worktreeInitMarkerPath(input.worktreePath) : undefined
   const initTimeoutMs = resolveRepoInitTimeoutSeconds(input.initTimeoutSeconds) * 1000
   const script = engineLaunchLine(quoteShellArgv(argv, { bareSafe: true }), {
@@ -301,7 +318,8 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   const tabId = quoteShellArg(input.tabId ?? "tab-1")
   const imageEnv = input.inlineImages ? protocolEntry(input.task.vendor).capabilities?.inlineImageEnv : undefined
   const imageExports = Object.entries(imageEnv ?? {}).map(([name, value]) => ` ${name}=${quoteShellArg(value)}`)
-  const identity = `export ROVE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId}${imageExports.join("")}\n`
+  const repoExports = (repos ? repoEnv(repos) : []).map(([name, value]) => ` ${name}=${quoteShellArg(value)}`)
+  const identity = `export ROVE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId}${imageExports.join("")}${repoExports.join("")}\n`
   return {
     key: engineSessionKey(input.task.id, input.tabId),
     command: [input.shell, "-ilc", identity + script],

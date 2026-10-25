@@ -58,13 +58,29 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     // From the hook payload; an old hook omits it.
     const sessionId = optionalString(payload, "sessionId")
     const transcriptPath = optionalString(payload, "transcriptPath")
+    // The hook's `--engine` tag: the liveness probe must ask the engine that
+    // reported (a custom wrapper id as task.vendor has no transcript store).
+    const vendor = optionalString(payload, "engine")
+    // An engine tab only learns its session id from the hook when no TUI mounted
+    // it (headless, CLI-opened); `spawned` rides along so a revive can resume it.
+    // Only the tab's own engine may name it: a nested engine of another vendor
+    // inherits ROVE_TAB_ID, and its id would make a revive resume the wrong CLI.
+    if (explicitId && tabId && sessionId && vendor) {
+      const row = ctx.tabs?.get(taskId).state?.tabs.find((t) => t.id === tabId)
+      if (row?.kind === "engine" && (row.sessionId !== sessionId || row.spawned !== true)) {
+        const owner = row.vendor ?? ctx.orch.getTask(taskId)?.vendor
+        if (
+          ctx.runtime.sessionProtocol(vendor) ===
+          ctx.runtime.sessionProtocol(typeof owner === "string" ? owner : undefined)
+        ) {
+          ctx.tabs?.apply(taskId, [{ op: "patch", id: tabId, set: { sessionId, spawned: true } }])
+        }
+      }
+    }
     const session = sessionId ? { id: sessionId, transcriptPath } : undefined
     // Lifecycle-only kinds (tool/compact/subagent) skip badge + inbox, or every
     // tool call would broadcast to every client. They still reach plugins.
     const isStateKind = ctx.runtime.affectsActivityState(kind)
-    // The hook's `--engine` tag: the liveness probe must ask the engine that
-    // reported (a custom wrapper id as task.vendor has no transcript store).
-    const vendor = optionalString(payload, "engine")
     if (isStateKind) {
       ctx.activity.report(taskId, kind, detail, tabId, session, vendor)
       // No tab id still records at TASK level (bare-shell engines). Only an

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.270
+
+### Patch Changes
+
+- [#1408](https://github.com/Sma1lboy/rove/pull/1408) [`5c70266`](https://github.com/Sma1lboy/rove/commit/5c7026602cd1f7de4ba506d222f8e836cf05ea4e) The task-colour bar at the left of each sidebar row stays in one column for child tasks instead of moving right with their indent. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.269
+
+### Patch Changes
+
+- [#1406](https://github.com/Sma1lboy/rove/pull/1406) [`30b99c9`](https://github.com/Sma1lboy/rove/commit/30b99c9f3faea8d013690ef00d8240d41a522afe) Routines can fire from a webhook. `rove api routine-update --id <id> --webhook` generates a secret. A POST to the web server's `/hooks/routines/<id>` signed with it (GitHub's `X-Hub-Signature-256`) then runs the routine right away instead of waiting for its schedule. The precheck still runs, with `ROVE_WEBHOOK_EVENT` and `ROVE_WEBHOOK_ACTION` set so it can filter, for example to opened issues only. The prompt starts with what fired it. With `--persistent-session`, every event lands in the same conversation. See the Routines docs for the GitHub setup. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.268
 
 ### Patch Changes

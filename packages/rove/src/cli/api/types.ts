@@ -13,9 +13,11 @@ import {
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
+import type { ListeningSocket } from "./listening-ports.ts"
 import type { LaunchSpec, Launched } from "./tab-launch.ts"
 import type { NewTabKind, OpenedTab } from "./tab-new.ts"
 import type { RestoredTabRef } from "./tab-respawn.ts"
+import type { RevivedTab } from "./tab-revive.ts"
 import type { TaskTabRow } from "./tab-snapshot.ts"
 import type { SplitEdit, SplitOutcome } from "./tab-split.ts"
 
@@ -185,6 +187,11 @@ export interface PromptTarget {
   readonly model?: string
   readonly repo?: string
   /**
+   * The task has extra repos (`Task.extraRepos`): a launch reads their paths
+   * from the daemon and exposes them. Unset costs a one-repo task no RPC.
+   */
+  readonly multiRepo?: boolean
+  /**
    * `send --tab tab-N`: targets that exact alive tab (TAB_NOT_FOUND
    * otherwise). Undefined = canonical tab.
    */
@@ -202,6 +209,11 @@ export interface PromptTarget {
    * first prompt — so it is never inferred.
    */
   readonly respawn?: boolean
+  /**
+   * `send --tab new` on a task whose engine never started: this prompt IS its first conversation, so
+   * live shell tabs beside the unstarted engine tab do not make the canonical spawn ambiguous.
+   */
+  readonly firstConversation?: boolean
 }
 
 export interface DeliveredPrompt {
@@ -332,6 +344,14 @@ export interface ApiRuntime {
   launchTab(client: DaemonRpc, spec: LaunchSpec): Promise<Launched>
   /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */
   splitTab(client: DaemonRpc, taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
+  /** Reopen a tab's own session when no PTY runs in it (`tab-revive`); a live one is left alone unless `replaceExited` (its engine is gone: only the fallback shell runs). */
+  reviveTab(
+    client: DaemonRpc,
+    target: PromptTarget,
+    tabId: string,
+    worktree: string,
+    opts?: { readonly replaceExited?: boolean },
+  ): Promise<RevivedTab>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
   /** Can a worktree be cut from this repo? On the seam so handler tests need no
@@ -363,4 +383,6 @@ export interface ApiRuntime {
    * the aliased PTYs of surviving children and adds the task's own.
    */
   tearDownSession(taskId: string, scope?: TeardownScope): Promise<void>
+  /** TCP listeners on this machine with each owner's cwd (`ports`); `null` = could not scan. */
+  listeningPorts(): Promise<readonly ListeningSocket[] | null>
 }

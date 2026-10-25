@@ -1,4 +1,4 @@
-import { resolveLoginShell, toPosixPath } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveLoginShell, resolveSessionShell, toPosixPath } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import { describe, expect, test } from "vitest"
 
 const GIT_BASH = "C:\\Program Files\\Git\\bin\\bash.exe"
@@ -23,6 +23,14 @@ describe("resolveLoginShell", () => {
     const posix = diskWith("/bin/zsh", "/bin/bash", "/bin/sh")
     expect(resolveLoginShell({ platform: "darwin", env: {}, fallback: "/bin/zsh", exists: posix })).toBe("/bin/zsh")
     expect(resolveLoginShell({ platform: "linux", env: {}, exists: posix })).toBe("/bin/bash")
+  })
+
+  test("a hosted session without $SHELL lands in zsh when installed, else bash, from any process", () => {
+    const posix = diskWith("/bin/zsh", "/bin/bash", "/bin/sh")
+    expect(resolveSessionShell({ platform: "linux", env: {}, exists: posix })).toBe("/bin/zsh")
+    expect(resolveSessionShell({ platform: "linux", env: {}, exists: diskWith("/bin/bash", "/bin/sh") })).toBe(
+      "/bin/bash",
+    )
   })
 
   test("POSIX without $SHELL skips a fallback that is not installed", () => {

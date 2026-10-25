@@ -33,6 +33,8 @@ export const OPS = [
   "term.input",
   "term.resize",
   "term.detach",
+  // Reopen a tab's session when no PTY runs in it (`tab-revive`); the client re-attaches after.
+  "term.revive",
   "diff.files",
   "diff.file",
   "attention.dismiss",
@@ -118,6 +120,8 @@ export interface TaskRow {
   readonly machine?: MachineTag
   /** The repo across machines (`host/owner/name`, else `root:<sha>`), from the serving daemon; absent outside a repo. Clients group projects by it, else by `repo`. */
   readonly repoId?: string
+  /** How many repos beyond the primary this task spans (`task.extraRepos`); absent = one repo. */
+  readonly extraRepoCount?: number
   /** The task this one was spawned from (`rove api spawn`); clients nest a child under it. */
   readonly parentTaskId?: string
   /** A child running in that task's directory; absent on a child = it has its own worktree. */
@@ -183,8 +187,12 @@ export interface TabRow {
   readonly kind: string
   readonly title: string | null
   readonly engineName: string | null
+  /** The engine's own name for the conversation (the TUI's `conversationTitle`): a rename, else the engine's title unless it is its bare product name. */
+  readonly conversation: string | null
   readonly alive: boolean | null
   readonly engineAlive: boolean | null
+  /** How the tab's engine or session ended (`rove api get-task` `.tabs[].exit`); absent while healthy or unknown. */
+  readonly exit?: { readonly code: number | null; readonly signal: string | null }
   /** Present while the tab is split: the pane layout (`rove api get-task` `.tabs[].split`). Absent = one pane. */
   readonly split?: SplitView
   /** A viewport tab: the task whose session it shows (`rove api get-task` `.tabs[].viewOf`). Absent = its own session. */

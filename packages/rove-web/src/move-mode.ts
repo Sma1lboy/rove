@@ -5,12 +5,22 @@
  */
 
 import type { AppModel } from "./model.ts"
+import { railSort, setRailSort } from "./rail-sort.ts"
 import type { NavRow } from "./rail.ts"
 import { createStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
 
 export const moveMode = createStore(false)
+
+/** Reorder edits the stored manual order, so any other sort switches to manual first (with a toast). */
+export function setMoveMode(on: boolean): void {
+  if (on && railSort.get() !== "default") {
+    setRailSort("default")
+    toast(tc("tasks", "sort.reorderSwitched"))
+  }
+  moveMode.set(on)
+}
 
 type Movable = Exclude<NavRow, { kind: "project" | "routines" }>
 

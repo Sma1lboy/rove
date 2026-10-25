@@ -84,6 +84,21 @@ export const routineFocus = createStore<string | null>(null)
 export const activeStream = createStore<string | null>(null)
 /** Zen hides the Files pane (TUI prefix z). `prefs-apply.ts` keeps it in step with the TUI's `zen.active`. */
 export const zen = createStore<boolean>(false)
+/** What the New session composer starts from: a project and the branch to cut the task from. */
+export interface NewSessionStart {
+  readonly repo?: string
+  readonly baseBranch?: string
+}
+
+/** The prompt-first New session composer in the workspace pane; null = closed. */
+export const newSession = createStore<NewSessionStart | null>(null)
+
+export function openNewSession(repo?: string, baseBranch?: string): void {
+  page.set(null)
+  preview.set(null)
+  dialog.set(null)
+  newSession.set({ ...(repo ? { repo } : {}), ...(baseBranch ? { baseBranch } : {}) })
+}
 
 let nextToast = 1
 const TOAST_MS = 4000

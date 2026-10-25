@@ -172,21 +172,22 @@ describe("runResetSubcommand", () => {
     expect(output()).toContain("onboarding")
   })
 
-  it("drops frozen sessions when the host had to be signalled, not stopped gracefully", async () => {
-    // Only the `daemon.stop` RPC sets the host's own wipe flag. A wedged host
-    // — the case TROUBLESHOOTING points at reset for — never runs it, so every
-    // frozen archive used to survive and restore the whole scene next boot.
+  it("drops frozen sessions itself, and forces the host stop that would otherwise be refused", async () => {
+    // The host never wipes its own freeze store, whichever way it stops, so a graceful stop
+    // must not leave the scene behind. It also refuses a bare stop while it holds live
+    // sessions: reset is the one caller that has to say `force`.
     const freezeDir = join(home, ".rove", "pty-sessions")
     mkdirSync(freezeDir, { recursive: true })
     writeFileSync(join(freezeDir, "task--tab-1.json"), "{}")
     mocks.stopDaemonProcess
       .mockResolvedValueOnce({ pid: 1, method: "graceful" }) // the daemon
-      .mockResolvedValueOnce({ pid: 2, method: "sigkill" }) // the pty host
+      .mockResolvedValueOnce({ pid: 2, method: "graceful" }) // the pty host
 
     await runResetSubcommand(["--yes"])
 
     expect(existsSync(freezeDir)).toBe(false)
     expect(output()).toContain("frozen sessions: cleared")
+    expect(mocks.stopDaemonProcess).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), { force: true })
   })
 
   it("--hard without --yes on a non-TTY refuses: nothing stopped, nothing wiped", async () => {

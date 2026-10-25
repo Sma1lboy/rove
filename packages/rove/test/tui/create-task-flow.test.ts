@@ -17,7 +17,9 @@ import { describe, expect, test, vi } from "vitest"
 vi.mock("../../src/state/repos", () => ({
   getSavedRepos: () => ["/repo"],
   addSavedRepo: (p: string) => mockAddSavedRepo(p),
+  resolveMainRepoRoot: (p: string) => mockMainRoot(p),
 }))
+const mockMainRoot = vi.fn((path: string) => path)
 // addSavedRepo normalizes to the git toplevel and returns it. Default: the
 // identity case; the subdirectory test below makes it actually normalize.
 const mockAddSavedRepo = vi.fn((path: string) => ({ added: false, path, total: 1 }))
@@ -187,6 +189,69 @@ describe("createTaskFlow — create mode + guards", () => {
     expect(reload).toHaveBeenCalledTimes(1)
     expect(selectTask).toHaveBeenCalledWith("new-id")
     expect(enterTask).toHaveBeenCalledWith("new-id")
+  })
+
+  test("extra repos reach task.create in pick order, the dialog's repo staying the primary", async () => {
+    const promptNewTask = vi.fn(async () => ({
+      mode: "create" as const,
+      repo: "/repo",
+      baseRef: "main",
+      vendor: "claude",
+      extraRepos: ["/other/api", "/other/docs"],
+    }))
+    const { ctx, createTask } = makeCreateCtx({ createTask: async () => ({ id: "new-id" }), promptNewTask })
+
+    await createTaskFlow(ctx)
+
+    expect(createTask).toHaveBeenCalledWith({
+      repo: "/repo",
+      baseRef: "main",
+      vendor: "claude",
+      extraRepos: [{ repo: "/other/api" }, { repo: "/other/docs" }],
+    })
+  })
+
+  test("a first message hands the host the extra repos too, and creates nothing itself", async () => {
+    const promptNewTask = vi.fn(async () => ({
+      mode: "create" as const,
+      repo: "/repo",
+      baseRef: "main",
+      vendor: "claude",
+      prompt: "go",
+      extraRepos: ["/other/api"],
+    }))
+    const { ctx, createTask } = makeCreateCtx({ promptNewTask })
+    const startWithPrompt = vi.fn()
+
+    await createTaskFlow({ ...ctx, startWithPrompt })
+
+    expect(startWithPrompt).toHaveBeenCalledWith(
+      "/repo",
+      expect.objectContaining({ prompt: "go", baseRef: "main", extraRepos: ["/other/api"] }),
+    )
+    expect(createTask).not.toHaveBeenCalled()
+  })
+
+  test("extra repos are keyed by their main checkout, like the primary", async () => {
+    mockMainRoot.mockImplementation((p) => (p === "/wt/api-task" ? "/other/api" : p))
+    try {
+      const promptNewTask = vi.fn(async () => ({
+        mode: "create" as const,
+        repo: "/repo",
+        baseRef: "main",
+        vendor: "claude",
+        prompt: "go",
+        extraRepos: ["/wt/api-task"],
+      }))
+      const { ctx } = makeCreateCtx({ promptNewTask })
+      const startWithPrompt = vi.fn()
+
+      await createTaskFlow({ ...ctx, startWithPrompt })
+
+      expect(startWithPrompt).toHaveBeenCalledWith("/repo", expect.objectContaining({ extraRepos: ["/other/api"] }))
+    } finally {
+      mockMainRoot.mockImplementation((p) => p)
+    }
   })
 
   test("create mode failure surfaces a toast and skips reload/selection", async () => {

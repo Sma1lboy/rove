@@ -22,7 +22,7 @@ const writes = {
 
 describe("update", () => {
   it("applies several fields in one call, branch first, and reports them in write order", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: { id: "t1", vendor: "claude" } }), ...writes })
+    const client = new FakeClient({ "task.get": () => ({ task: { id: "t1", vendor: "gemini" } }), ...writes })
     const out = await invokeVerb(
       "update",
       [
@@ -60,7 +60,7 @@ describe("update", () => {
   })
 
   it("writes nothing when any field is invalid", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: { id: "t1", vendor: "claude" } }), ...writes })
+    const client = new FakeClient({ "task.get": () => ({ task: { id: "t1", vendor: "gemini" } }), ...writes })
     await expectApiError(
       () =>
         invokeVerb("update", ["--task-id", "t1", "--branch", "feat/x", "--effort", "high"], {

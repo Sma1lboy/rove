@@ -93,10 +93,29 @@ export class TaskEditor {
       throw new Error("setBranch: a directory task tracks its own checkout; rename branches with git directly")
     }
     if (task.branch === trimmed) return
-    if (task.worktreePath) {
-      await this.worktrees.renameBranch(task.worktreePath, task.branch, trimmed)
+    // Every repo of a multi-repo task still on the shared name renames with it, or none does.
+    const extras = (task.extraRepos ?? []).filter((x) => x.worktreePath && x.branch === task.branch)
+    const renamed: { path: string; from: string }[] = []
+    try {
+      if (task.worktreePath) {
+        await this.worktrees.renameBranch(task.worktreePath, task.branch, trimmed)
+        renamed.push({ path: task.worktreePath, from: task.branch })
+      }
+      for (const extra of extras) {
+        await this.worktrees.renameBranch(extra.worktreePath, extra.branch, trimmed)
+        renamed.push({ path: extra.worktreePath, from: extra.branch })
+      }
+    } catch (err) {
+      for (const done of renamed.reverse())
+        await this.worktrees.renameBranch(done.path, trimmed, done.from).catch(() => {})
+      throw err
     }
-    await this.store.update(task.id, { branch: trimmed })
+    await this.store.update(task.id, {
+      branch: trimmed,
+      ...(task.extraRepos
+        ? { extraRepos: task.extraRepos.map((x) => (extras.includes(x) ? { ...x, branch: trimmed } : x)) }
+        : {}),
+    })
     // Sharers copy the owner's branch string; the rename moved it for every row in the directory.
     if (!task.worktreePath) return
     for (const holder of this.store.list()) {
@@ -239,11 +258,22 @@ export class TaskEditor {
    * PR doesn't write every tick), but the chip renders it, and without this
    * check it could never be set or cleared.
    */
-  async setPRStatus(id: TaskId | string, prStatus: TaskPRStatus | null): Promise<void> {
+  async setPRStatus(id: TaskId | string, prStatus: TaskPRStatus | null, repoName?: string): Promise<void> {
     const task = this.requireTask(id)
-    const sameError = (task.prStatus?.lastError ?? null) === (prStatus?.lastError ?? null)
-    if (sameError && samePrStatus(task.prStatus, prStatus ?? undefined)) return
-    await this.store.update(task.id, { prStatus: prStatus ?? undefined })
+    const extra = repoName ? task.extraRepos?.find((x) => x.name === repoName) : undefined
+    if (repoName && !extra) return
+    const current = extra ? extra.prStatus : task.prStatus
+    const sameError = (current?.lastError ?? null) === (prStatus?.lastError ?? null)
+    if (sameError && samePrStatus(current, prStatus ?? undefined)) return
+    if (!extra) {
+      await this.store.update(task.id, { prStatus: prStatus ?? undefined })
+      return
+    }
+    // A repo's own PR rides its entry; re-read the list so a concurrent worktree write isn't clobbered.
+    const latest = this.store.get(task.id)?.extraRepos ?? []
+    await this.store.update(task.id, {
+      extraRepos: latest.map((x) => (x.name === repoName ? { ...x, prStatus: prStatus ?? undefined } : x)),
+    })
   }
 
   /** Rate-limit auto-resume schedule; `null` clears. No-op when unchanged: the

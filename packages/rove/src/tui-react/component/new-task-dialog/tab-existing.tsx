@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/react */
-/** Existing tab: repo input with saved/browse dropdown + base-branch picker.
+/** Existing tab: repo input with saved/browse dropdown, base-branch picker, first message.
  *  JSX only; behavior lives in the view-model. */
 
 import { type ExistingIntent, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
@@ -89,6 +89,44 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
       {vm.field === "repo" && vm.activeList.length > 0 && !vm.repoPicked ? (
         <PickerList window={vm.activeWindow} cursor={vm.repoCursor} rows={repoRows} onPick={vm.selectRepoAt} />
       ) : null}
+      {/* More repos the task spans: the repo above is the primary, these follow in pick order. Not for
+          "open the project", which enters one existing checkout. */}
+      {vm.extraCandidates.length > 0 && !(vm.intent === "project" && vm.canOpenProject) ? (
+        <>
+          <DialogSection
+            label={t("newTask.field.extras")}
+            focused={vm.field === "extras"}
+            hint="enter"
+            onPress={() => vm.setField("extras")}
+          >
+            <box paddingLeft={2}>
+              <text fg={vm.extraPicked.length > 0 ? theme.accent : theme.textMuted} wrapMode="none">
+                {vm.extraPicked.length > 0
+                  ? vm.extraPicked.map((repo) => splitRepoRow(repo).base).join(", ")
+                  : t("newTask.hint.extrasNone")}
+              </text>
+            </box>
+          </DialogSection>
+          {vm.field === "extras" ? (
+            <PickerList
+              window={vm.extraWindow}
+              cursor={vm.extraCursor}
+              rows={vm.extraWindow.items.map((repo, i) => {
+                const { base, dir } = splitRepoRow(repo)
+                const order = vm.extraPicked.indexOf(repo)
+                return {
+                  key: `${vm.extraWindow.start + i}:${repo}`,
+                  body: `${order >= 0 ? "[x] " : "[ ] "}${base}`,
+                  dim: dir,
+                  accent: order >= 0,
+                }
+              })}
+              onPick={vm.pickExtraAt}
+              paddingBottom={1}
+            />
+          ) : null}
+        </>
+      ) : null}
       {/* Only for a repo that HAS a project checkout. Everywhere
           else this row would be a control whose second option does nothing,
           so it stays absent rather than disabled. */}
@@ -148,6 +186,25 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
           paddingBottom={1}
         />
       ) : null}
+      {/* The task's first message; Enter creates. The project intent opens an existing checkout, so it has none. */}
+      {vm.intent === "project" && vm.canOpenProject ? null : (
+        <DialogSection
+          label={t("newTask.field.prompt")}
+          focused={vm.field === "prompt"}
+          onPress={() => vm.setField("prompt")}
+        >
+          <DialogField focused={vm.field === "prompt"}>
+            <input
+              value={vm.prompt}
+              placeholder={t("newTask.placeholder.prompt")}
+              focused={vm.field === "prompt"}
+              onMouseUp={() => vm.setField("prompt")}
+              onInput={(v: string) => vm.setPrompt(v)}
+              onSubmit={() => vm.commitExisting()}
+            />
+          </DialogField>
+        </DialogSection>
+      )}
     </>
   )
 }

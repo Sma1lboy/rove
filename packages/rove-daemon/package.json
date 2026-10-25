@@ -70,6 +70,7 @@
     "./daemon/poll-scheduling": "./src/daemon/poll-scheduling.ts",
     "./daemon/product-paths": "./src/daemon/product-paths.ts",
     "./daemon/pr-failing-checks": "./src/daemon/pr-failing-checks.ts",
+    "./daemon/pr-review-comments": "./src/daemon/pr-review-comments.ts",
     "./daemon/pr-rerun-checks": "./src/daemon/pr-rerun-checks.ts",
     "./daemon/pr-status-collector": "./src/daemon/pr-status-collector.ts",
     "./daemon/process-tree": "./src/daemon/process-tree.ts",

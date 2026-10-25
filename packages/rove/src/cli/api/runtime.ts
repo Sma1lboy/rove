@@ -5,7 +5,7 @@
  */
 
 import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
 import {
   type AliasRef,
@@ -16,6 +16,7 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
 
+import { launchReposOf, trustExtraRepos } from "../../engine/multi-repo-launch.ts"
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
@@ -39,6 +40,7 @@ import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { launchTab } from "./tab-launch.ts"
 import { openNewTab } from "./tab-new.ts"
 import { restoredTabLaunch } from "./tab-respawn.ts"
+import { reviveTab } from "./tab-revive.ts"
 import {
   type TaskSessionRow,
   closeTabsSnapshot,
@@ -84,6 +86,8 @@ async function deliverHosted(
         model: target.model,
       })[0]
       const tabId = target.tab
+      // Only a consented respawn rebuilds a launch, so only it needs the repos.
+      const respawnRepos = target.respawn && target.multiRepo ? await launchReposOf(client, target.id) : undefined
       return await deliverToExactTab(host.rpc, target.id, tabId, worktree, prompt, {
         engineBin,
         maxLiveEngines: persistedMaxLiveEngines(),
@@ -91,7 +95,8 @@ async function deliverHosted(
         // only when reviving a tab a pty-host restart froze.
         ...(target.respawn
           ? {
-              respawn: () => restoredTabLaunch(target, tabId, worktree, resolveLoginShell({ fallback: "/bin/zsh" })),
+              respawn: () =>
+                restoredTabLaunch({ ...target, repos: respawnRepos }, tabId, worktree, resolveSessionShell()),
             }
           : {}),
       })
@@ -110,17 +115,24 @@ async function deliverHosted(
     )
     // A hosted session can't answer a trust dialog; no-op for generic protocols.
     trustEngineWorktree(target.vendor, worktree)
+    const repos = target.multiRepo ? await launchReposOf(client, target.id) : undefined
+    trustExtraRepos(target.vendor, repos)
     const launch = buildEngineSessionLaunch({
-      task: { id: target.id, kind: target.kind, vendor: target.vendor, repo: target.repo },
+      task: { id: target.id, kind: target.kind, vendor: target.vendor, repo: target.repo, repos },
       worktreePath: worktree,
-      shell: resolveLoginShell({ fallback: "/bin/zsh" }),
+      shell: resolveSessionShell(),
       argv,
       promptIntent: target.newTask ? { kind: "new-task", prompt } : { kind: "explicit", prompt },
     })
     const result = await deliverHostedPrompt(
       host.rpc,
       // Another task's alias may claim a PTY under this task's key: never fall back to it.
-      { id: target.id, engineBin: argv[0], scope: await ptyScopeOf(client, { id: target.id }) },
+      {
+        id: target.id,
+        engineBin: argv[0],
+        scope: await ptyScopeOf(client, { id: target.id }),
+        ...(target.firstConversation ? { firstConversation: true } : {}),
+      },
       worktree,
       prompt,
       launch,
@@ -358,6 +370,7 @@ export const defaultApiRuntime: ApiRuntime = {
       }),
     ),
   splitTab,
+  reviveTab,
   resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
   isUsableRepo: async (absPath) => {
     const { isGitRepo, isRemoteRepoKey } = await import("../../state/repos.ts")
@@ -384,4 +397,5 @@ export const defaultApiRuntime: ApiRuntime = {
       }
     }
   },
+  listeningPorts: async () => (await import("./listening-ports.ts")).scanListeningPorts(),
 }

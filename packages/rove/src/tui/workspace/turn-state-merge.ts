@@ -9,13 +9,14 @@
  * watchdog (~10 min) or the next event; the poll's `done` is ignored meanwhile.
  */
 
-import type { TaskActivityState } from "../../engine/hook-events.ts"
+import type { EngineActivityDetail, TaskActivityState } from "../../engine/hook-events.ts"
 import type { ChatTabTurnState } from "../../engine/turn-detector.ts"
 
 /** The slice of the client's `TaskEngineState` this merge consumes. */
 export interface HookTabState {
   readonly state: TaskActivityState
   readonly sessionId?: string
+  readonly detail?: EngineActivityDetail
   readonly transcriptPath?: string
   /** Key for the durable completion-seen mark; absent on the poll-only path. */
   readonly at?: number

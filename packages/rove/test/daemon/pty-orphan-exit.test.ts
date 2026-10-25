@@ -22,7 +22,8 @@ import { type Socket, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
+import { isProcessAlive, stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
+import { PTY_STOP_REFUSED } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtyChild, PtyDriver, PtyExit } from "@sma1lboy/rove-daemon/daemon/pty-driver"
 import { type PtyHostServer, startPtyHostServer } from "@sma1lboy/rove-daemon/daemon/pty-server"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -208,5 +209,39 @@ describe("stopDaemonProcess never erases a live host's address", () => {
     writeFileSync(pidPath, "999999\n", "utf8")
     await stopDaemonProcess(join(dir, "absent.sock"), pidPath)
     expect(existsSync(pidPath)).toBe(false)
+  })
+
+  it("leaves a host that refuses the stop alone: no signal, address kept", async () => {
+    // A PTY host holding live sessions declines a stop that is not forced. The primitive's usual
+    // escalation (SIGTERM, then SIGKILL) would end those sessions anyway, so a refusal is final.
+    const hostSocket = join(dir, "refusing.sock")
+    const accepted: Socket[] = []
+    const refusing = createServer((socket) => {
+      accepted.push(socket)
+      socket.on("data", (chunk) => {
+        for (const line of chunk.toString().split("\n").filter(Boolean)) {
+          const frame = JSON.parse(line) as { id: string }
+          const error = { message: "pty host holds 2 live session(s)", name: PTY_STOP_REFUSED }
+          socket.write(`${JSON.stringify({ type: "response", id: frame.id, name: "daemon.stop", error })}\n`)
+        }
+      })
+    })
+    const { promise: listening, resolve: onListening } = Promise.withResolvers<void>()
+    refusing.listen(hostSocket, () => onListening())
+    await listening
+    const host = spawn("sleep", ["30"], { stdio: "ignore" })
+    writeFileSync(pidPath, `${host.pid}\n`, "utf8")
+    try {
+      const result = await stopDaemonProcess(hostSocket, pidPath)
+
+      expect(result).toEqual({ pid: host.pid, method: "refused" })
+      expect(isProcessAlive(host.pid as number)).toBe(true)
+      expect(existsSync(pidPath)).toBe(true)
+      expect(existsSync(hostSocket)).toBe(true)
+    } finally {
+      host.kill("SIGKILL")
+      for (const socket of accepted) socket.destroy()
+      await new Promise<void>((resolve) => refusing.close(() => resolve()))
+    }
   })
 })
