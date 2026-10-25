@@ -200,6 +200,8 @@ export type DaemonRequestName =
   | "pr.failingChecks"
   // Restart a PR's failed Actions jobs, once per human click.
   | "pr.rerunFailedChecks"
+  // A PR's unresolved review threads, on demand (`rove api review-comments`).
+  | "pr.reviewComments"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
   // Turn store read side; written only by hook ingest on `turn-complete`.
@@ -304,6 +306,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "automation.runNow",
   // Rollup lookup followed by serial gh reruns, each with its own subprocess budget.
   "pr.rerunFailedChecks",
+  // Serial thread/comment pages each have their own gh subprocess budget.
+  "pr.reviewComments",
   // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
   "task.ensureWorktree",
   // Cuts a worktree for the child; same minute-scale cost as ensureWorktree.
