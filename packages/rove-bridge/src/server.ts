@@ -38,7 +38,7 @@ import { routineHook } from "./routine-hook.ts"
 import type { RoveOps } from "./rove-ops.ts"
 import type { RowStatusFeed } from "./row-status.ts"
 import type { TabFeed } from "./tab-feed.ts"
-import { type PtyHostClient, TerminalForwarder } from "./terminal.ts"
+import { type AttachResult, type PtyHostClient, TerminalForwarder } from "./terminal.ts"
 import type { WebLogin } from "./web-login.ts"
 import { type WebRoot, serveWebFile } from "./web-static.ts"
 
@@ -209,13 +209,32 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const target = shown?.taskId ?? taskId
       const forwarder = await terminalFor(target)
       const cwd = shown?.cwd ?? (await ops.worktreeOf(taskId))
-      const attached = await forwarder.attach(
-        target,
-        shown?.tabId ?? tabId,
-        cwd,
-        cols !== undefined && rows !== undefined ? { cols, rows } : undefined,
-        leafId,
-      )
+      const shownTab = shown?.tabId ?? tabId
+      const size = cols !== undefined && rows !== undefined ? { cols, rows } : undefined
+      const attach = () => forwarder.attach(target, shownTab, cwd, size, leafId)
+      // A tab with no running session reopens as it is opened, the way a TUI attach
+      // resumes it (`tab-revive`). When that fails the page still gets the dead tab and
+      // its Reopen button. Split panes and another machine's tabs attach as they are.
+      const autoRevive = !remote && leafId === undefined
+      let attached: AttachResult | null = null
+      let gone: unknown = null
+      try {
+        attached = await attach()
+      } catch (err) {
+        if (!autoRevive || !(err instanceof BridgeError && err.code === "TAB_NOT_LIVE")) throw err
+        gone = err
+      }
+      if (autoRevive && (gone !== null || attached?.alive === false)) {
+        // Let go of the corpse first, so its exit never reaches the page as this tab's.
+        if (attached) await forwarder.detach(attached.stream)
+        const revived = await ops.reviveTab(target, shownTab).then(
+          () => true,
+          () => false,
+        )
+        if (!revived && gone !== null) throw gone
+        attached = await attach()
+      }
+      if (!attached) throw gone
       conn.streamOwner.set(attached.stream, forwarder)
       return attached
     }

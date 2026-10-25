@@ -7,7 +7,17 @@ import type { OpTable } from "../src/ops/types.ts"
 import type { TasksPayload } from "../src/protocol.ts"
 import type { RoveOps } from "../src/rove-ops.ts"
 import { TabFeed } from "../src/tab-feed.ts"
-import { AUTH, ROWS, TOKEN, connect, fakeOps, start, stopServers, upgradeStatus } from "./server-harness.ts"
+import {
+  AUTH,
+  type FakePty,
+  ROWS,
+  TOKEN,
+  connect,
+  fakeOps,
+  start,
+  stopServers,
+  upgradeStatus,
+} from "./server-harness.ts"
 
 afterEach(stopServers)
 describe("auth", () => {
@@ -368,7 +378,36 @@ describe("terminal forwarding", () => {
     expect(asked).toEqual([true, false])
   })
 
-  test("attach never spawns: an unknown tab is refused and a restored corpse is only peeked", async () => {
+  test("attach reopens a gone or frozen tab before attaching it live, as a TUI attach does", async () => {
+    const revived: string[] = []
+    const host: { pty?: FakePty } = {}
+    const ops = {
+      ...fakeOps(),
+      reviveTab: async (taskId: string, tabId: string) => {
+        const key = `${taskId}::${tabId}`
+        revived.push(key)
+        const pty = host.pty as FakePty
+        pty.sessions = [...pty.sessions.filter((s) => s.key !== key), { key, alive: true }]
+        return { revived: true, resumed: true }
+      },
+    }
+    const h = start({ ops })
+    host.pty = h.pty
+    const c = await connect(h.url, AUTH)
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-9" })).result).toMatchObject({
+      stream: "T1::tab-9",
+      alive: true,
+    })
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-2" })).result).toMatchObject({ alive: true })
+    // A live tab is never revived; a split pane attaches as it is.
+    await c.call("term.attach", { taskId: "T1", tabId: "tab-1" })
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-7", leafId: "leaf-2" })).error?.code).toBe(
+      "TAB_NOT_LIVE",
+    )
+    expect(revived).toEqual(["T1::tab-9", "T1::tab-2"])
+  })
+
+  test("when the reopen fails, attach falls back: an unknown tab is refused and a restored corpse is only peeked", async () => {
     const h = start()
     const c = await connect(h.url, AUTH)
     expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-9" })).error?.code).toBe("TAB_NOT_LIVE")
