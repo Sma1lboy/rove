@@ -15,10 +15,18 @@ import { basename } from "node:path"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import type { Task, TaskId, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
-import type { AdoptableWorktree, WorktreeInfo } from "../types/worktree.ts"
+import type { AdoptableWorktree } from "../types/worktree.ts"
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
 import { InvalidWorktreeNameError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
+import {
+  type MaterialisedExtras,
+  extrasToMaterialise,
+  materialiseExtras,
+  rollbackWorktree,
+  scaleProgress,
+} from "./multi-repo.ts"
+import { taskWorktreePaths } from "./task-tree.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import { SlugAllocator } from "./worktree/slug-allocator.ts"
@@ -71,14 +79,16 @@ export class WorktreeCoordinator {
     this.worktrees = worktrees
     this.canonPath = canonPath
     this.ensureProject = ensureProject
+    // A task's extras occupy slugs in THEIR repo's worktree root, not the primary's.
     this.slugs = new SlugAllocator((repo) =>
       this.store
         .list()
-        .filter((t) => samePath(t.repo, repo) && t.kind !== "main")
-        .map((t) => {
-          const slug = t.worktreePath.match(/([^/\\]+)[/\\]*$/)?.[1] ?? ""
-          return slug
-        })
+        .filter((t) => t.kind !== "main")
+        .flatMap((t) => [
+          ...(samePath(t.repo, repo) ? [t.worktreePath] : []),
+          ...(t.extraRepos ?? []).filter((x) => samePath(x.repo, repo)).map((x) => x.worktreePath),
+        ])
+        .map((path) => path.match(/([^/\\]+)[/\\]*$/)?.[1] ?? "")
         .filter((s) => s.length > 0),
     )
   }
@@ -115,10 +125,64 @@ export class WorktreeCoordinator {
    * Slug → worktree → persist, retry-safe: every partial failure rolls back so
    * no orphan (worktree + committed slug + empty `worktreePath`, needing a
    * manual `rm`) is left. The slug commits ONLY after `store.update` succeeds.
+   * A multi-repo task materialises its extras after the primary and persists
+   * once, so any failure removes every checkout this call created. A primary
+   * that already exists is left alone: only missing extras are created.
    * Returns the path directly so a delete right after creation can't turn
    * success into a spurious {@link TaskNotFoundError}.
    */
   private async createWorktree(task: Task, onProgress?: (percent: number) => void): Promise<string> {
+    const extrasMissing = await extrasToMaterialise(this.worktrees, task.extraRepos)
+    if (task.worktreePath && extrasMissing.length === 0) return task.worktreePath
+    const total = (task.worktreePath ? 0 : 1) + extrasMissing.length
+    const primary = task.worktreePath ? undefined : await this.createPrimary(task, scaleProgress(onProgress, 0, total))
+    const branch = primary?.branch ?? task.branch
+    const undoPrimary = async (): Promise<void> => {
+      if (!primary) return
+      await rollbackWorktree(this.worktrees, {
+        path: primary.path,
+        ...(primary.fresh ? { fresh: { repo: task.repo, branch } } : {}),
+      })
+      this.slugs.cancel(task.repo, primary.slug)
+    }
+    let extras: MaterialisedExtras | undefined
+    try {
+      if (extrasMissing.length > 0) {
+        extras = await materialiseExtras({
+          worktrees: this.worktrees,
+          slugs: this.slugs,
+          task,
+          branch,
+          progressFor: (i) => scaleProgress(onProgress, (primary ? 1 : 0) + i, total),
+        })
+      }
+    } catch (err) {
+      await undoPrimary()
+      throw err
+    }
+    // If this write fails (or a concurrent delete saw an empty `worktreePath`
+    // and skipped cleanup), roll back ourselves or it's invisible debris.
+    try {
+      await this.store.update(task.id, {
+        ...(primary ? { worktreePath: primary.path, branch } : {}),
+        ...(extras ? { extraRepos: extras.extraRepos } : {}),
+      })
+    } catch (err) {
+      for (const wt of [...(extras?.created ?? [])].reverse()) await rollbackWorktree(this.worktrees, wt)
+      for (const { repo, slug } of extras?.slugs ?? []) this.slugs.cancel(repo, slug)
+      await undoPrimary()
+      throw err
+    }
+    if (primary) this.slugs.commit(task.repo, primary.slug)
+    for (const { repo, slug } of extras?.slugs ?? []) this.slugs.commit(repo, slug)
+    return primary?.path ?? task.worktreePath
+  }
+
+  /** The primary checkout: slug, branch (derived when the task named none), `worktree add`. Not yet persisted. */
+  private async createPrimary(
+    task: Task,
+    onProgress?: (percent: number) => void,
+  ): Promise<{ path: string; branch: string; slug: string; fresh: boolean }> {
     // Already claimed at create time; re-claiming would refuse its own
     // pending reservation.
     const slug = task.worktreeName || (await this.slugs.allocate(task.repo))
@@ -126,27 +190,17 @@ export class WorktreeCoordinator {
     // `add --base-branch`, persisted at create so it survives a daemon restart
     // before materialise. Absent on older records → git default.
     const baseRef = task.baseRef
-    let info: WorktreeInfo
     try {
-      info = await this.worktrees.createForTask({ repo: task.repo, slug, branch, baseRef, onProgress })
+      // Read before the add: a branch that exists now was not cut by this call, so a rollback must keep it.
+      const fresh = !(await this.worktrees.listBranchNames(task.repo)).includes(branch)
+      const info = await this.worktrees.createForTask({ repo: task.repo, slug, branch, baseRef, onProgress })
+      return { path: info.path, branch, slug, fresh }
     } catch (err) {
       this.slugs.cancel(task.repo, slug)
       throw err
     } finally {
       this.reservedBranches.delete(branch)
     }
-    // If this write fails (or a concurrent delete saw an empty `worktreePath`
-    // and skipped cleanup), roll back ourselves or it's invisible debris.
-    try {
-      await this.store.update(task.id, { worktreePath: info.path, branch })
-    } catch (err) {
-      // A branch we derived is fresh (no commits), so it goes with its checkout.
-      await this.rollbackWorktree(info.path, task.branch ? undefined : { repo: task.repo, branch })
-      this.slugs.cancel(task.repo, slug)
-      throw err
-    }
-    this.slugs.commit(task.repo, slug)
-    return info.path
   }
 
   /**
@@ -163,17 +217,6 @@ export class WorktreeCoordinator {
     return branch
   }
 
-  /** `force`: brand-new checkout, no user work. Logged, not thrown, so the
-   *  caller's real persist error isn't masked. `fresh`: the branch was cut
-   *  for this checkout alone, so it is deleted with it. */
-  private async rollbackWorktree(worktreePath: string, fresh?: { repo: string; branch: string }): Promise<void> {
-    try {
-      await this.worktrees.remove(worktreePath, fresh ? { force: true, deleteBranch: true, ...fresh } : { force: true })
-    } catch (err) {
-      console.error(`[rove] ensureWorktree rollback failed for ${worktreePath}:`, err)
-    }
-  }
-
   /** Worktrees not linked to any task (by canonical path), including ones
    *  outside the convention root (the user's own `git worktree add`). */
   async discoverAdoptable(repo: string): Promise<readonly AdoptableWorktree[]> {
@@ -181,8 +224,8 @@ export class WorktreeCoordinator {
     const linked = new Set(
       this.store
         .list()
-        .filter((t) => t.worktreePath)
-        .map((t) => this.canonPath(t.worktreePath)),
+        .flatMap((t) => taskWorktreePaths(t))
+        .map((p) => this.canonPath(p)),
     )
     return all.filter((wt) => !linked.has(this.canonPath(wt.path)))
   }
@@ -205,7 +248,7 @@ export class WorktreeCoordinator {
 
   private async adoptLocked(input: AdoptWorktreeInput, target: string): Promise<Task> {
     // Sharers sit on the same path: answer with the owner, never a child.
-    const holders = this.store.list().filter((t) => t.worktreePath && this.canonPath(t.worktreePath) === target)
+    const holders = this.store.list().filter((t) => taskWorktreePaths(t).some((p) => this.canonPath(p) === target))
     const existing = holders.find((t) => !t.sharesWorkspaceOf) ?? holders[0]
     if (existing) {
       if (input.ifExists === "return") return existing

@@ -33,13 +33,7 @@ import { type DaemonFrame, frameToLine } from "./protocol.ts"
 import { migrateLegacyPtyHostData } from "./pty-data-migration.ts"
 import type { PtyDriver } from "./pty-driver.ts"
 import { recordPtyExit } from "./pty-exit-store.ts"
-import {
-  FREEZE_RESTORE_MAX_BYTES,
-  FREEZE_TTL_MS,
-  clearFrozenSessions,
-  fileFreezeSink,
-  loadFrozenSessions,
-} from "./pty-freeze-store.ts"
+import { FREEZE_RESTORE_MAX_BYTES, FREEZE_TTL_MS, fileFreezeSink, loadFrozenSessions } from "./pty-freeze-store.ts"
 import { PtyHost } from "./pty-host.ts"
 import { type PtyClientState, type PtyVerbDeps, dispatchPtyRequest } from "./pty-server-verbs.ts"
 import { listenOnUnixSocket } from "./socket-guard.ts"
@@ -114,9 +108,6 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
   const log = options.log ?? (() => {})
   const clients = new Set<PtyClientState>()
   let stopping = false
-  /** Set by `daemon.stop` (rove reset): wipe the freeze store so the next host
-   *  starts EMPTY. Idle-exit, SIGTERM, and crashes keep it. */
-  let wipeFreezeOnStop = false
   let idleTimer: ReturnType<typeof setTimeout> | null = null
 
   const cancelIdle = (): void => {
@@ -263,7 +254,6 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
       clearInterval(orphanTimer)
       // Ending the host ends its sessions; shutdown() freezes them first.
       await ptys.shutdown()
-      if (wipeFreezeOnStop) clearFrozenSessions(freezeDir)
       for (const client of Array.from(clients)) client.socket.destroy()
       await new Promise<void>((resolve) => server.close(() => resolve()))
       // Only a filesystem socket leaves a node behind; a named pipe doesn't.
@@ -281,7 +271,6 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     ptys,
     writeFrame,
     requestStop: () => {
-      wipeFreezeOnStop = true
       setTimeout(() => void stop(), 0).unref()
     },
     ...(options.version ? { version: options.version } : {}),
@@ -307,7 +296,11 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
               type: "response",
               id: req.id,
               name: req.name,
-              error: { message: err instanceof Error ? err.message : String(err) },
+              error: {
+                message: err instanceof Error ? err.message : String(err),
+                // The name is how a caller branches on a specific refusal (see `PTY_STOP_REFUSED`).
+                ...(err instanceof Error && err.name !== "Error" ? { name: err.name } : {}),
+              },
             })
           try {
             const payload = dispatchPtyRequest(req, client, verbDeps)

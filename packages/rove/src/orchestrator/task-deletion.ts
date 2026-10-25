@@ -1,9 +1,14 @@
 import { errorMessage } from "../lib/error-message.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { canonPath } from "./core-helpers.ts"
-import { CannotDeleteMainTaskError, DirtyWorktreeError, WorktreeRemoveFailedError } from "./errors.ts"
+import {
+  CannotDeleteMainTaskError,
+  type DirtyFinding,
+  DirtyWorktreeError,
+  WorktreeRemoveFailedError,
+} from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
-import { subtreeIds } from "./task-tree.ts"
+import { subtreeIds, taskRepos, taskWorktreePaths } from "./task-tree.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import type { IgnoredWorkProbe } from "./worktree/salvage-ignored.ts"
@@ -41,7 +46,7 @@ export class TaskDeletionCoordinator {
     // The three hooks below feed the deletion audit log: `finish()` removes the
     // task row, so the log (indexed by title + time) is the only record left.
     /** A forced removal salvaged uncommitted work; the recovery ref. */
-    private readonly onSalvage?: (taskId: TaskId, record: SalvageRecord) => void,
+    private readonly onSalvage?: (taskId: TaskId, record: SalvageRecord, repo: string) => void,
     /** Deregistered but the directory is still on disk (the deletion succeeds). */
     private readonly onResidue?: (taskId: TaskId, residue: WorktreeResidue) => void,
     /** `deleteBranch` was asked for and git refused; otherwise the log would
@@ -69,7 +74,7 @@ export class TaskDeletionCoordinator {
     // would remove the directory unchecked.
     const keys = this.targets(task.id, opts).flatMap((targetId) => {
       const target = this.store.get(targetId)
-      return target?.worktreePath && target.kind !== "dir" ? [canonPath(target.worktreePath)] : []
+      return target && target.kind !== "dir" ? taskWorktreePaths(target).map(canonPath) : []
     })
     return this.withPathLocks([...new Set(keys)].sort(), () => this.prepareLocked(task.id, opts))
   }
@@ -90,31 +95,30 @@ export class TaskDeletionCoordinator {
     for (const target of doomed) {
       // A `dir` task's directory is user-owned and never touched; only the
       // index entry goes, so no dirty gate. Likewise while a surviving row
-      // still runs in the directory: nothing is removed, nothing is lost.
-      if (!target.worktreePath || force || target.kind === "dir") continue
-      const key = canonPath(target.worktreePath)
-      if (gated.has(key) || survivors.some((s) => s.worktreePath && canonPath(s.worktreePath) === key)) continue
-      gated.add(key)
-      let dirty: readonly string[] = []
-      // Gitignored files aren't porcelain-dirty but don't survive removal
-      // (`HANDOFF.md`, `.scratch/**`, `.env*` here). Porcelain alone let a
-      // notes-only worktree delete with no force, confirm or salvage ref.
-      let ignored: IgnoredWorkProbe = []
-      let probed = true
-      try {
-        dirty = await this.worktrees.dirtyPaths(target.worktreePath)
-      } catch {
-        // Missing/unreadable path: remove() resolves it. Skip the ignored
-        // probe too — it would answer "unknown" for a hand-removed worktree
-        // and block its deletion.
-        probed = false
+      // still runs in the directory: nothing is removed, nothing is lost (the
+      // extras of a multi-repo owner go to that heir, see `transferOwnership`).
+      if (force || target.kind === "dir" || !target.worktreePath) continue
+      const primaryKey = canonPath(target.worktreePath)
+      if (survivors.some((s) => s.worktreePath && canonPath(s.worktreePath) === primaryKey)) continue
+      // Every repo of the task is probed before refusing, so one refusal names all the dirt.
+      const repos = taskRepos(target).filter((r) => r.worktreePath)
+      const found: DirtyFinding[] = []
+      for (const r of repos) {
+        const key = canonPath(r.worktreePath)
+        if (gated.has(key)) continue
+        gated.add(key)
+        const finding = await this.probeDirty(r.worktreePath)
+        if (finding) found.push({ repo: r.name, ...finding })
       }
-      // Outside that catch, so a failed ignored listing stays "unknown" and
-      // never reads as "nothing here".
-      if (probed && dirty.length === 0) ignored = await this.worktrees.ignoredWork(target.worktreePath)
-      if (dirty.length > 0 || ignored === "unknown" || ignored.length > 0) {
-        throw new DirtyWorktreeError(target.id, ignored, dirty)
-      }
+      const [head, ...rest] = found
+      if (head)
+        throw new DirtyWorktreeError(
+          target.id,
+          head.ignored,
+          head.dirty,
+          repos.length > 1 ? head.repo : undefined,
+          rest,
+        )
     }
 
     for (const target of doomed) {
@@ -148,25 +152,44 @@ export class TaskDeletionCoordinator {
   async finish(id: TaskId | string): Promise<void> {
     const task = this.store.get(id)
     if (!task?.deletion || task.deletion.phase !== "running") return
+    const deletion = task.deletion
     // NEVER remove a `dir` task's directory (`rove .`): it's the user's own.
     const ownsDirectory = Boolean(task.worktreePath) && task.kind !== "dir"
-    await this.withPathLock(ownsDirectory ? canonPath(task.worktreePath) : null, async () => {
-      const key = ownsDirectory ? canonPath(task.worktreePath) : null
+    const extras = task.kind === "dir" ? [] : (task.extraRepos ?? []).filter((x) => x.worktreePath)
+    const key = ownsDirectory ? canonPath(task.worktreePath) : null
+    const keys = [...(key ? [key] : []), ...extras.map((x) => canonPath(x.worktreePath))]
+    await this.withPathLocks([...new Set(keys)].sort(), async () => {
       // Only the last row standing on the path removes it.
       const shared =
         key !== null &&
         this.store.list().some((t) => t.id !== task.id && t.worktreePath && canonPath(t.worktreePath) === key)
+      // Names the repo whose removal failed, for a task that has more than one.
+      let removing: string | undefined
       try {
-        if (ownsDirectory && !shared) await this.removeWorktree(task, task.deletion as NonNullable<Task["deletion"]>)
-        else if (ownsDirectory && task.deletion?.deleteBranch) await this.handBranchDeleteOn(task, key)
+        if (ownsDirectory && !shared) {
+          if (extras.length > 0) removing = taskRepos(task)[0]?.name
+          await this.removeWorktree(task, deletion, { path: task.worktreePath, repo: task.repo, branch: task.branch })
+        } else if (ownsDirectory && deletion.deleteBranch) await this.handBranchDeleteOn(task, key)
+        // Each removed extra is cleared on the row, so a retry after a later failure skips it.
+        for (const extra of extras) {
+          removing = extra.name
+          await this.removeWorktree(task, deletion, {
+            path: extra.worktreePath,
+            repo: extra.repo,
+            branch: extra.branch,
+          })
+          const current = this.store.get(task.id)?.extraRepos ?? []
+          await this.store.update(task.id, {
+            extraRepos: current.map((x) => (x.name === extra.name ? { ...x, worktreePath: "" } : x)),
+          })
+        }
       } catch (cause) {
-        const failure = new WorktreeRemoveFailedError(task.id, cause)
+        const failure = new WorktreeRemoveFailedError(
+          task.id,
+          removing ? new Error(`${removing}: ${errorMessage(cause)}`, { cause }) : cause,
+        )
         await this.store.update(task.id, {
-          deletion: {
-            ...(task.deletion as NonNullable<Task["deletion"]>),
-            phase: "error",
-            error: errorMessage(failure),
-          },
+          deletion: { ...deletion, phase: "error", error: errorMessage(failure) },
         })
         throw failure
       }
@@ -190,21 +213,47 @@ export class TaskDeletionCoordinator {
     if (failure) throw failure
   }
 
-  private async removeWorktree(task: Task, deletion: NonNullable<Task["deletion"]>): Promise<void> {
-    await this.worktrees.remove(task.worktreePath, {
+  /** Dirty or ignored work in `path`, or null when it is clean (or gone, which `remove()` resolves). */
+  private async probeDirty(path: string): Promise<Omit<DirtyFinding, "repo"> | null> {
+    let dirty: readonly string[] = []
+    // Gitignored files aren't porcelain-dirty but don't survive removal
+    // (`HANDOFF.md`, `.scratch/**`, `.env*` here). Porcelain alone let a
+    // notes-only worktree delete with no force, confirm or salvage ref.
+    let ignored: IgnoredWorkProbe = []
+    let probed = true
+    try {
+      dirty = await this.worktrees.dirtyPaths(path)
+    } catch {
+      // Missing/unreadable path: remove() resolves it. Skip the ignored
+      // probe too — it would answer "unknown" for a hand-removed worktree
+      // and block its deletion.
+      probed = false
+    }
+    // Outside that catch, so a failed ignored listing stays "unknown" and
+    // never reads as "nothing here".
+    if (probed && dirty.length === 0) ignored = await this.worktrees.ignoredWork(path)
+    return dirty.length > 0 || ignored === "unknown" || ignored.length > 0 ? { ignored, dirty } : null
+  }
+
+  private async removeWorktree(
+    task: Task,
+    deletion: NonNullable<Task["deletion"]>,
+    target: { readonly path: string; readonly repo: string; readonly branch: string },
+  ): Promise<void> {
+    await this.worktrees.remove(target.path, {
       force: deletion.force,
       deleteBranch: deletion.deleteBranch === true,
       // For an already-gone directory: nothing on disk points back at the
       // repo, so its stale admin record can only be pruned via this.
-      repo: task.repo,
+      repo: target.repo,
       // Likewise: normally read from the (now missing) worktree.
-      branch: task.branch,
+      branch: target.branch,
       // `force` was frozen at prepare(); this may run in a later daemon
       // (`resume()` replays after restart) after the tree went dirty.
       // Re-gating would fail a confirmed delete; salvage keeps it
-      // recoverable.
+      // recoverable. The ref lives in `target.repo`, which the audit names.
       onSalvage: (record) => {
-        if (record) this.onSalvage?.(task.id, record)
+        if (record) this.onSalvage?.(task.id, record, target.repo)
       },
       // Half-completed removal (deregistered, directory undeletable) is not
       // an error: git forgot the worktree, so retries would fail forever.
@@ -239,7 +288,10 @@ export class TaskDeletionCoordinator {
         .filter((t) => t.sharesWorkspaceOf === ownerId && !leaving.has(String(t.id)) && !isLeaving(t))
       const [heir, ...rest] = remaining
       if (!heir) continue
-      await this.store.update(heir.id, { sharesWorkspaceOf: undefined })
+      // The extras are the owner's alone: they move with the directory, or the owner's removal would take them.
+      const extraRepos = this.store.get(ownerId)?.extraRepos
+      await this.store.update(heir.id, { sharesWorkspaceOf: undefined, ...(extraRepos ? { extraRepos } : {}) })
+      if (extraRepos) await this.store.update(ownerId, { extraRepos: undefined })
       for (const sharer of rest) await this.store.update(sharer.id, { sharesWorkspaceOf: heir.id })
     }
   }

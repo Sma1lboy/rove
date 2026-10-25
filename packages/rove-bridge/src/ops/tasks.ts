@@ -3,6 +3,8 @@
  * RPC or helper (see `wraps`); nothing forwards a caller-chosen verb or argv.
  */
 
+import type { TaskExtraRepo, TaskPRStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { rollupPr } from "@sma1lboy/rove-daemon/task-tree"
 import { BridgeError } from "../protocol.ts"
 import { flag, taskId } from "./args.ts"
 import { knownRepo, taskOpDeps } from "./tasks-shared.ts"
@@ -35,15 +37,8 @@ interface GetTaskResult {
     readonly groupId?: string
     readonly createdAt: string
     readonly updatedAt: string
-    readonly prStatus?: {
-      readonly number?: number
-      readonly url?: string
-      readonly lifecycle: string
-      readonly checkState: string
-      readonly reviewDecision?: string
-      readonly mergeable?: string
-      readonly baseRef?: string
-    }
+    readonly prStatus?: TaskPRStatus
+    readonly extraRepos?: readonly Pick<TaskExtraRepo, "prStatus">[]
     readonly report?: { readonly summary?: string; readonly at: string }
   }
 }
@@ -51,7 +46,7 @@ interface GetTaskResult {
 async function taskGet(args: Args, ctx: OpContext): Promise<unknown> {
   const res = await ctx.api.verb<GetTaskResult>("get-task", [flag("task-id", taskId(args))])
   const t = res.task
-  const pr = t.prStatus
+  const pr = rollupPr(t)
   return {
     task: {
       id: t.id,

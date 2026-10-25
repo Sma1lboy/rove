@@ -68,7 +68,7 @@ export function buildRows(
   }
   // Projects keep tasks.json (save) order so the list never reshuffles on its
   // own; a sort reorders tasks only. Manual reorder goes through `moveTask`.
-  const compare = sortMode === "recent" ? compareRecent : sortMode === "name" ? compareName : null
+  const compare = sortMode === "recent" ? compareNewest : sortMode === "name" ? compareName : null
   if (compare) {
     pinnedRegular.sort(compare)
     regular.sort(compare)
@@ -88,6 +88,16 @@ export function buildRows(
     flatIndex++
   }
   return rows
+}
+
+/**
+ * Newest-created first: the `recent` sort. Not `updatedAt`, which also moves on bookkeeping
+ * (a first open, a PR poll) and would reorder rows under a click.
+ */
+export function compareNewest(a: Task, b: Task): number {
+  const byTime = Date.parse(b.createdAt) - Date.parse(a.createdAt)
+  if (Number.isFinite(byTime) && byTime !== 0) return byTime
+  return String(b.id).localeCompare(String(a.id))
 }
 
 /** Most-recently-touched first. Shared with the Inbox's RECENT section. */
@@ -347,8 +357,7 @@ export function splitSidebarRows(rows: readonly SidebarRow[]): SidebarRowSection
  * a new rendered field MUST be added here or it renders stale.
  *
  * Excludes `createdAt`/`updatedAt`/`prStatus`: unrendered, and `updatedAt`
- * bumps on every `setActiveTask` touch, which would re-key the row on each
- * switch. `recent` ordering still sees `updatedAt` (in `buildRows`), and an
+ * moves on every real mutation, which would re-key the row each time. An
  * order change breaks reuse via `flatIndex`.
  */
 export function sameSidebarRowTask(a: Task, b: Task): boolean {

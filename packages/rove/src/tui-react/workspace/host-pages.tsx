@@ -9,6 +9,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react
 import type { WelcomeRequest } from "../../cli/welcome.ts"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { TaskEngineState } from "../../client/remote-orchestrator-payloads"
+import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { type SidebarNav, focusPaneForNav } from "../../tui/panes/sidebar/nav-core"
 import type { Task } from "../../types/task"
 import { SettingsDialog } from "../component/settings-dialog"
@@ -45,7 +46,9 @@ export interface HostPagesState extends HostPageState {
   readonly setNav: (next: SidebarNav) => void
   readonly goToNav: (next: SidebarNav) => void
   readonly settingsOpen: boolean
-  readonly openSettings: () => void
+  /** The section the open Settings page lands on; absent = its first. */
+  readonly settingsSection?: SectionId
+  readonly openSettings: (section?: SectionId) => void
   readonly closeSettings: () => void
   readonly openWorktrees: () => void
   readonly closeWorktrees: () => void
@@ -76,6 +79,7 @@ export function useHostPagesState(
   const [welcome, setWelcome] = useState<WelcomeRequest | null>(opts.welcome ?? null)
   const closeWelcome = useCallback(() => setWelcome(null), [])
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsSection, setSettingsSection] = useState<SectionId | undefined>(undefined)
   const [worktreesOpen, setWorktreesOpen] = useState(false)
   const [updateOpen, setUpdateOpen] = useState(false)
   const [nav, setNav] = useState<SidebarNav>("terminal")
@@ -88,7 +92,11 @@ export function useHostPagesState(
     setNav,
     goToNav,
     settingsOpen,
-    openSettings: () => setSettingsOpen(true),
+    settingsSection,
+    openSettings: (section) => {
+      setSettingsSection(section)
+      setSettingsOpen(true)
+    },
     closeSettings: () => setSettingsOpen(false),
     worktreesOpen,
     openWorktrees: () => setWorktreesOpen(true),
@@ -225,7 +233,12 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
 
   const settingsPage = pages.settingsOpen ? (
     <box flexGrow={1} backgroundColor="transparent" paddingTop={1}>
-      <SettingsDialog kv={kv} orchestrator={orchestrator} onClose={pages.closeSettings} />
+      <SettingsDialog
+        kv={kv}
+        orchestrator={orchestrator}
+        initialSection={pages.settingsSection}
+        onClose={pages.closeSettings}
+      />
     </box>
   ) : null
 

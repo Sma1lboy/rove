@@ -93,6 +93,18 @@ export function engineExitCodeFromTail(tail: readonly string[]): number | null {
   return null
 }
 
+/** keepAlive's banner as it prints, from the start of a row: the live scan's stricter test, since it reads a shell the user types into. */
+const WRAPPER_BANNER_ROW = /^\s*(?:⚠\s*)?Engine exited \(code (\d+)\)\. Check Settings/
+
+/** Like {@link engineExitCodeFromTail}, but only for the wrapper's own row; an echoed command or a grep hit is not a death. */
+export function wrapperBannerCodeFromTail(tail: readonly string[]): number | null {
+  for (let i = tail.length - 1; i >= 0; i--) {
+    const m = WRAPPER_BANNER_ROW.exec(tail[i] ?? "")
+    if (m?.[1]) return Number.parseInt(m[1], 10)
+  }
+  return null
+}
+
 /**
  * The keepAlive wrapper's own banner, as a matcher — the twin of rove's
  * `session-launch.ts` `ENGINE_EXIT_BANNER` (this package cannot import that

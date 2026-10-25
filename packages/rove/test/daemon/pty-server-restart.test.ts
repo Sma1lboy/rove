@@ -3,9 +3,10 @@
  * host A serves a session, the host process ends (close(), the idle-exit /
  * SIGTERM shape), host B boots against the same freeze dir and must list
  * the session as a restored corpse with its scrollback, and the first
- * `pty.open` must respawn it in place. The second pin is `daemon.stop`
- * (rove reset's graceful path): it must WIPE the store so the next host
- * comes up empty — "starts fresh" is reset's contract.
+ * `pty.open` must respawn it in place. The other pins are `daemon.stop`: the
+ * host refuses it while sessions are live unless forced, and even a forced
+ * stop (rove reset) leaves the freeze store alone. Only the reset CLI wipes
+ * it, so no stray stop can cost anyone their scene.
  *
  * A fake driver keeps this deterministic under vitest (no real PTY); the
  * socket, protocol, freeze-store files, and server lifecycle are all real.
@@ -17,7 +18,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import type { PtyOpenResult, PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { PTY_STOP_REFUSED, type PtyOpenResult, type PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtyChild, PtyDriver, PtyExit } from "@sma1lboy/rove-daemon/daemon/pty-driver"
 import { type PtyHostServer, startPtyHostServer } from "@sma1lboy/rove-daemon/daemon/pty-server"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -67,8 +68,15 @@ class FakeChild {
 
 const fakeDriver: PtyDriver = (request) => new FakeChild(request.onData) as unknown as PtyChild
 
-async function bootHost(): Promise<PtyHostServer> {
-  const server = await startPtyHostServer({ socketPath, pidPath, freezeDir, driver: fakeDriver, idleExitMs: 60_000 })
+async function bootHost(onStop?: () => void): Promise<PtyHostServer> {
+  const server = await startPtyHostServer({
+    socketPath,
+    pidPath,
+    freezeDir,
+    driver: fakeDriver,
+    idleExitMs: 60_000,
+    ...(onStop ? { onStop } : {}),
+  })
   servers.push(server)
   return server
 }
@@ -161,29 +169,33 @@ describe("pty-host server freeze/restore across a restart", () => {
     })
   })
 
-  it("daemon.stop (rove reset) WIPES the freeze store — the next host comes up empty", async () => {
+  it("refuses daemon.stop while a session is live, so a stray stop cannot end the host", async () => {
     await bootHost()
     const a = await connect()
     await a.request("pty.open", { key: "t1::tab-1", cwd: "/wt/t1", command: ["/bin/cat"] })
-    await a.request("pty.write", { key: "t1::tab-1", data: "x" })
-    await a.request("daemon.stop", {})
-    // The stop is scheduled on a macrotask; wait for the socket to go away.
-    const deadline = Date.now() + 3000
-    for (;;) {
-      await new Promise((r) => setTimeout(r, 25))
-      const probe = new RoveDaemonClient(socketPath)
-      const up = await probe.connect().then(
-        () => true,
-        () => false,
-      )
-      probe.close()
-      if (!up) break
-      if (Date.now() > deadline) throw new Error("host did not stop")
-    }
+
+    // The name is the contract: `stopDaemonProcess` branches on it to leave the host alone.
+    await expect(a.request("daemon.stop", {})).rejects.toMatchObject({
+      name: PTY_STOP_REFUSED,
+      message: expect.stringMatching(/1 live session/),
+    })
+
+    const listed = await a.request<{ sessions: ListRow[] }>("pty.list", {})
+    expect(listed.sessions).toMatchObject([{ key: "t1::tab-1", alive: true }])
+  })
+
+  it("a forced daemon.stop (rove reset) ends the host but keeps the freeze store", async () => {
+    const { promise: stopped, resolve: onStop } = Promise.withResolvers<void>()
+    await bootHost(onStop)
+    const a = await connect()
+    await a.request("pty.open", { key: "t1::tab-1", cwd: "/wt/t1", command: ["/bin/cat"] })
+    await a.request("pty.write", { key: "t1::tab-1", data: "scene-of-the-work\n" })
+    await a.request("daemon.stop", { force: true })
+    await stopped
 
     await bootHost()
     const b = await connect()
     const listed = await b.request<{ sessions: ListRow[] }>("pty.list", {})
-    expect(listed.sessions).toEqual([])
+    expect(listed.sessions).toMatchObject([{ key: "t1::tab-1", alive: false, restored: true }])
   })
 })

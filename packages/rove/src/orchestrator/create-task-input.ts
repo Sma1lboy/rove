@@ -5,6 +5,7 @@
 
 import type { ProjectIntent } from "../state/project-eligibility.ts"
 import type { TaskDispatcher, TaskId, TaskRoutineLink, VendorId } from "../types/task.ts"
+import type { ExtraRepoInput } from "./multi-repo.ts"
 
 /** Input to {@link Orchestrator.createTask}. */
 export interface CreateTaskInput {
@@ -15,6 +16,12 @@ export interface CreateTaskInput {
   readonly branch?: string
   /** Optional base ref for the new lazy worktree branch. */
   readonly baseRef?: string
+  /**
+   * More repos the task spans, in pick order (the first is {@link repo}, the
+   * primary). Each gets its own worktree on the shared branch name; `baseRef`
+   * is that repo's own fork point. At most 7 (see `MULTI_REPO_CAP`), all local.
+   */
+  readonly extraRepos?: readonly ExtraRepoInput[]
   /**
    * Directory name for the lazy worktree instead of the animal pool. Refused
    * (not suffixed) when already in use in this repo, since the caller means to

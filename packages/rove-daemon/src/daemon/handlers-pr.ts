@@ -2,7 +2,8 @@
  * `pr.*` daemon RPC handlers.
  *
  * The on-demand failing-check reads behind the sidebar's "Fix failing checks"
- * and "Re-run failed checks". Its own module for the same reason as
+ * and "Re-run failed checks", and the review-thread read behind
+ * `rove api review-comments`. Its own module for the same reason as
  * `handlers-worktree.ts` — the registry is grouped by RPC-name prefix — and
  * because the work itself (`gh` spawns) lives in `pr-failing-checks.ts` and
  * `pr-rerun-checks.ts`, leaving only the task lookup here.
@@ -12,6 +13,7 @@ import { requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { readFailingChecks } from "./pr-failing-checks.ts"
 import { rerunFailedChecks } from "./pr-rerun-checks.ts"
+import { readReviewComments } from "./pr-review-comments.ts"
 
 export const PR_HANDLERS: readonly DaemonRequestHandler[] = [
   {
@@ -25,6 +27,18 @@ export const PR_HANDLERS: readonly DaemonRequestHandler[] = [
       const prNumber = task?.prStatus?.number
       if (!task?.worktreePath || typeof prNumber !== "number") return { checks: [], totalFailing: 0 }
       return await readFailingChecks({ worktreePath: task.worktreePath, prNumber })
+    },
+  },
+  {
+    name: "pr.reviewComments",
+    blocking: true,
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const task = ctx.orch?.getTask(taskId)
+      const prNumber = task?.prStatus?.number
+      if (!task?.worktreePath || typeof prNumber !== "number")
+        return { prNumber: null, threads: [], totalUnresolved: 0 }
+      return { prNumber, ...(await readReviewComments({ worktreePath: task.worktreePath, prNumber })) }
     },
   },
   {

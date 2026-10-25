@@ -26,9 +26,9 @@ export type BranchFieldOpts = {
   pickerRows: number
   /** Seeds the ref before any repo is resolved (the caller's cwd). */
   defaultRepo: string
-  /** Enter on this field is the tab's last stop: resolve, then create. */
-  commit: () => void
-  /** Focus lands on Create once a branch is clicked out of the picker. */
+  /** Enter on this field: the ref is resolved, move on. */
+  onResolved: () => void
+  /** Focus moves on once a branch is clicked out of the picker. */
   onPicked: () => void
 }
 
@@ -68,12 +68,11 @@ export function useBranchField(opts: BranchFieldOpts) {
     opts.onPicked()
   }
 
-  // Last field on the existing tab — Enter resolves the highlighted branch
-  // and creates straight away.
+  // Enter resolves the highlighted branch and walks on to the first message.
   function onBaseRefSubmit(): void {
     setBaseRef(resolveBaseRef(baseRef, branchFiltered, branchCursor))
     setBaseRefTouched(true)
-    opts.commit()
+    opts.onResolved()
   }
 
   function moveBranchCursor(delta: 1 | -1): void {

@@ -131,6 +131,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     kv,
     tasks,
     focusSidebar: () => focus.setFocused("sidebar"),
+    notify: notifyInfo,
   })
 
   const inbox = useInboxHost({
@@ -177,6 +178,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     selectedTask: () => selectedTask,
     activateTask,
     forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
+    // `quickFork` is declared below; the dialog only calls this after the first render.
+    startWithPrompt: (repo, start) => quickFork.onQuickFork(repo, { ...start, attachments: [], attempts: 1 }),
   })
 
   // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.
@@ -334,7 +337,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   return (
     <WorkspaceFrame
       orchestrator={orch}
-      onOpenSettings={pages.openSettings}
+      onOpenSettings={() => pages.openSettings()}
       banner={banner.element}
       activeTaskId={selectedId}
       activeTabId={selectedTabId}
@@ -444,6 +447,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
                   onScratchExit={scratch.onScratchExit}
                   onOpenScratch={scratch.openScratchShell}
                   onEngineChosen={taskActions.setVendor}
+                  onOpenSettings={pages.openSettings}
                 />
               </RenderProfiler>
             )}

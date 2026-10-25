@@ -21,6 +21,18 @@ export const en = {
   search: {
     placeholder: "fuzzy filter",
   },
+  /** Sort mode line; `{mode}` is one of `sort.modes`. The web rail reads the same copy. */
+  sort: {
+    label: "sort: {mode}",
+    hint: "Change the order (manual → newest → attention → name)",
+    reorderSwitched: "Reorder needs manual order — switched",
+    modes: {
+      default: "manual",
+      recent: "newest",
+      attention: "attention",
+      name: "name",
+    },
+  },
   /** Tree sidebar right-click menu. Each entry mirrors a chord the row
    *  already answers to, so the menu is a second route rather than a second
    *  set of rules. */
@@ -286,6 +298,17 @@ export const zh: typeof en = {
   },
   search: {
     placeholder: "模糊搜索",
+  },
+  sort: {
+    label: "排序：{mode}",
+    hint: "切换排序（手动 → 最新 → 关注 → 名称）",
+    reorderSwitched: "调整顺序需手动排序，已切换",
+    modes: {
+      default: "手动",
+      recent: "最新",
+      attention: "关注",
+      name: "名称",
+    },
   },
   menu: {
     open: "打开",

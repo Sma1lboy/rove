@@ -15,6 +15,7 @@ import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
+import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
 import { activeStream } from "./ui.ts"
 
@@ -189,6 +190,9 @@ export function mountTerminal(o: MountOpts): TermHandle {
   let alive = false
   let held: Uint8Array[] | null = null
   let disposed = false
+  const replies = createReplyGate((data) => {
+    if (stream && alive) void client.request("term.input", { stream, data }).catch(() => {})
+  })
 
   const offData = client.on("term.data", (raw) => {
     const p = streamPayload(raw)
@@ -209,19 +213,22 @@ export function mountTerminal(o: MountOpts): TermHandle {
     held = []
     stream = null
     try {
-      const res = await client.request<{ stream: string; alive: boolean; replay: string }>("term.attach", {
-        taskId,
-        tabId,
-        ...(o.leafId && o.leafId !== "leaf-1" ? { leafId: o.leafId } : {}),
-        cols: term.cols,
-        rows: term.rows,
-      })
+      const res = await client.request<{ stream: string; alive: boolean; restored?: boolean; replay: string }>(
+        "term.attach",
+        {
+          taskId,
+          tabId,
+          ...(o.leafId && o.leafId !== "leaf-1" ? { leafId: o.leafId } : {}),
+          cols: term.cols,
+          rows: term.rows,
+        },
+      )
       const current = owned.get(expected)
       if (current) current.attached = true
       else detach()
       if (disposed) return
       term.reset()
-      term.write(decode(res.replay))
+      replies.replay((parsed) => term.write(decode(res.replay), parsed))
       for (const bytes of held) term.write(bytes)
       stream = res.stream
       alive = res.alive
@@ -242,7 +249,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
           .catch(() => {})
       }
       if (res.alive && document.activeElement === term.textarea) activeStream.set(res.stream)
-      o.setNotice(res.alive ? { kind: "none" } : { kind: "restored" })
+      o.setNotice(res.alive ? { kind: "none" } : res.restored ? { kind: "restored" } : { kind: "exited", code: null })
     } catch (err) {
       if (disposed) return
       if (err instanceof BridgeRequestError && err.code === "TAB_NOT_LIVE") o.setNotice({ kind: "notLive" })
@@ -255,9 +262,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   }
   const offOpen = client.onOpen(() => void attach())
 
-  const input = term.onData((data) => {
-    if (stream && alive) void client.request("term.input", { stream, data }).catch(() => {})
-  })
+  const input = term.onData(replies.forward)
   let resizeTimer: number | null = null
   const resize = term.onResize(({ cols, rows }) => {
     if (resizeTimer !== null) window.clearTimeout(resizeTimer)

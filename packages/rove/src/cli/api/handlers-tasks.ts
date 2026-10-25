@@ -20,7 +20,7 @@ import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
 import { readRunnability } from "./handlers-runnability.ts"
-import { failSharedChild, spawnSharedChild } from "./handlers-spawn.ts"
+import { conversationHome, failSharedChild, withFirstConversationLock } from "./handlers-spawn.ts"
 import { filterTaskList, listFilters } from "./list-filter.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
@@ -129,7 +129,37 @@ export function requirePromptText(ctx: VerbContext, verb: string): string {
   return text
 }
 
+/**
+ * The task a send goes to: `--task-id`, else — inside a sub-task — its DISPATCHER (task + tab), else the
+ * global active task. An explicit `--tab` stays exact (on the dispatcher task); the dispatcher's own tab
+ * is only the default.
+ */
+async function resolveSendTask(
+  ctx: VerbContext,
+  daemon: DaemonRpc,
+  tab: string | undefined,
+): Promise<{ taskId: string; tab: string | undefined }> {
+  const explicit = ctx.args.str("task-id")
+  if (explicit) return { taskId: explicit, tab }
+  const dispatcher = await readOwnDispatcher(daemon)
+  if (dispatcher) {
+    return { taskId: dispatcher.taskId, tab: tab ?? (await resolveDispatcherTab(ctx.runtime, daemon, dispatcher)) }
+  }
+  const active = await resolveActiveTaskId(daemon)
+  if (!active) {
+    throw new ApiError("no --task-id given and no active task — open a task first or pass --task-id", "MISSING_TARGET")
+  }
+  return { taskId: active, tab }
+}
+
 export async function send(ctx: VerbContext): Promise<unknown> {
+  if (ctx.args.str("tab") !== "new") return sendNow(ctx)
+  // Whichever way the task is found, two new conversations on it are serialized.
+  const { taskId } = await resolveSendTask(ctx, daemonOf(ctx), "new")
+  return withFirstConversationLock(taskId, () => sendNow(ctx))
+}
+
+async function sendNow(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const prompt = requirePromptText(ctx, "send")
   let tab = ctx.args.str("tab")
@@ -156,38 +186,26 @@ export async function send(ctx: VerbContext): Promise<unknown> {
       helpStep("send"),
     )
   }
-  let taskId = ctx.args.str("task-id")
-  if (!taskId) {
-    // Inside a sub-task a bare `send` replies to its DISPATCHER (task + tab),
-    // not the global active task. An explicit --tab stays exact (on the
-    // dispatcher task); the fallback chain only runs for the tab default.
-    const dispatcher = await readOwnDispatcher(daemon)
-    if (dispatcher) {
-      taskId = dispatcher.taskId
-      if (tab === undefined) tab = await resolveDispatcherTab(ctx.runtime, daemon, dispatcher)
-    } else {
-      const active = await resolveActiveTaskId(daemon)
-      if (!active) {
-        throw new ApiError(
-          "no --task-id given and no active task — open a task first or pass --task-id",
-          "MISSING_TARGET",
-        )
-      }
-      taskId = active
-    }
-  }
+  const sendTo = await resolveSendTask(ctx, daemon, tab)
+  let taskId = sendTo.taskId
+  tab = sendTo.tab
   let res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
   // Before ANY delivery path (--plain included: a verbatim false claim is the
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)
   const requestedTaskId = taskId
-  // `--tab new` is a second conversation, so it becomes a shared child and the
-  // prompt goes to that child's own engine.
+  // `--tab new` is a new conversation: the task's own engine while it has none yet,
+  // else a shared child whose own engine gets the prompt.
   let childTaskId: string | undefined
+  let freshConversation = false
   if (tab === "new") {
-    res = { task: await spawnSharedChild(daemon, taskId, tabCommand) }
-    childTaskId = res.task.id
-    taskId = childTaskId
+    const home = await conversationHome(daemon, ctx.runtime, res.task, tabCommand, prompt)
+    res = { task: home.task }
+    freshConversation = true
+    if (home.child) {
+      childTaskId = home.task.id
+      taskId = childTaskId
+    }
     tab = undefined
   }
   // A migrated child's conversation is a hosted PTY keyed under its parent: its default tab IS that one,
@@ -265,8 +283,10 @@ export async function send(ctx: VerbContext): Promise<unknown> {
         modelEffort: res.task.modelEffort,
         model: res.task.model,
         repo: res.task.repo,
+        ...(res.task.extraRepos?.length || res.task.sharesWorkspaceOf ? { multiRepo: true } : {}),
         tab,
         respawn,
+        ...(freshConversation && !childTaskId ? { firstConversation: true } : {}),
       },
       text,
     )
@@ -301,7 +321,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   await settle(true, delivered.session)
   // The answers rode this paste; only now are they the engine's.
   if (owed) await markGateAnswersDelivered(daemon, owed.gateIds)
-  if (childTaskId) {
+  if (freshConversation) {
     // `.task.prompt` means "the engine was given exactly this text": recorded only once delivery confirmed.
     await daemon.request("task.setPrompt", { taskId, prompt }).catch((err: unknown) => {
       console.error(`[rove api send] task.setPrompt failed for ${taskId}:`, err)
@@ -445,8 +465,13 @@ export async function list(ctx: VerbContext): Promise<unknown> {
   const { mergeTaskList } = await import("../../machines/api-merge.ts")
   const merged = ctx.caller.cli ? await mergeTaskList(local) : local
   const filters = listFilters(ctx)
-  if (!filters) return merged
-  return { ...merged, ...(await filterTaskList(ctx, daemon, merged.tasks ?? [], filters)) }
+  const result = filters ? { ...merged, ...(await filterTaskList(ctx, daemon, merged.tasks ?? [], filters)) } : merged
+  if (!result.tasks) return result
+  // `.repoCount` (primary included) marks a multi-repo task; one-repo rows stay as they were.
+  return {
+    ...result,
+    tasks: result.tasks.map((t) => (t.extraRepos?.length ? { ...t, repoCount: t.extraRepos.length + 1 } : t)),
+  }
 }
 
 export async function setActive(ctx: VerbContext): Promise<unknown> {

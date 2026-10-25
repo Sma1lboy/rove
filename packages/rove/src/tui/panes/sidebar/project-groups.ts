@@ -16,7 +16,7 @@ import {
   type ProjectKeyOf,
   type TaskSortMode,
   compareName,
-  compareRecent,
+  compareNewest,
   sidebarProjectKeyOfTask,
   sidebarProjectKeyResolver,
   sidebarRepoLabel,
@@ -137,7 +137,7 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   // `default` keeps orchestrator order and sorts nothing.
   const compare =
     sortMode === "recent"
-      ? compareRecent
+      ? compareNewest
       : sortMode === "attention"
         ? compareTaskGroup(input.activityOf ?? (() => undefined))
         : sortMode === "name"

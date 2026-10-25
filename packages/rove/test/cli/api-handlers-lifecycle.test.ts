@@ -50,6 +50,54 @@ describe("collect handler", () => {
     expect(result.tasks[0].changes).toEqual({ added: 2, deleted: 1 })
   })
 
+  it("lists each repo of a multi-repo task in picked order; a one-repo task has no `repos`", async () => {
+    const client = new FakeClient({
+      "task.get": (payload) => {
+        const taskId = payload && typeof payload === "object" && "taskId" in payload ? String(payload.taskId) : ""
+        return {
+          task: taskFixture({
+            id: taskId,
+            worktreePath: "/wt/primary",
+            baseRef: "origin/main",
+            ...(taskId === "multi"
+              ? {
+                  extraRepos: [
+                    { name: "api", repo: "/api", branch: "b-api", worktreePath: "/wt/api", baseRef: "origin/dev" },
+                    { name: "web", repo: "/web", branch: "b-web", worktreePath: "" },
+                  ],
+                }
+              : {}),
+          }),
+        }
+      },
+    })
+    const result = (await invokeVerb("collect", ["--task-ids", "multi,single"], {
+      client,
+      runtime: stubRuntime({
+        readWorktreeChanges: async (wt) => ({ added: wt === "/wt/api" ? 9 : 1, deleted: 0 }),
+        readBranchSignals: async (_wt, baseRef) => ({ baseRef: baseRef ?? null, ahead: 1, behind: 0, diff: null }),
+      }),
+    })) as {
+      tasks: Array<{
+        changes: unknown
+        base: { baseRef: string | null }
+        repos?: Array<{ name: string; branch: string; worktreePath: string; changes: unknown; base: unknown }>
+      }>
+    }
+    const [multi, single] = result.tasks
+    // The top-level pair stays the primary's.
+    expect(multi?.changes).toEqual({ added: 1, deleted: 0 })
+    expect(multi?.base.baseRef).toBe("origin/main")
+    expect(multi?.repos?.map((r) => [r.name, r.worktreePath, r.changes])).toEqual([
+      [expect.any(String), "/wt/primary", { added: 1, deleted: 0 }],
+      ["api", "/wt/api", { added: 9, deleted: 0 }],
+      ["web", "", null],
+    ])
+    expect(multi?.repos?.[1]).toMatchObject({ branch: "b-api", base: { baseRef: "origin/dev" } })
+    expect(multi?.repos?.[2]?.base).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
+    expect(single).not.toHaveProperty("repos")
+  })
+
   it("reports changes as unknown, not clean, for a task without a worktree", async () => {
     const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ worktreePath: "" }) }) })
     const result = (await invokeVerb("collect", ["--task-ids", "a"], {

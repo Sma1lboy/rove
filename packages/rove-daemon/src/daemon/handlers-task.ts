@@ -5,14 +5,22 @@
  */
 
 import { isBuiltinModInstalled } from "../plugins/builtin-mods.ts"
-import { subtreeIds } from "../task-tree.ts"
+import { pickRepos, subtreeIds } from "../task-tree.ts"
 import type { DaemonTask } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
-import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
+import {
+  objectPayload,
+  optionalBoolean,
+  optionalNumber,
+  optionalString,
+  optionalVendor,
+  requireString,
+} from "./handler-validators.ts"
 import { publishIssueSnapshot } from "./handlers-issues.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
 import { teardownScope } from "./pty-alias.ts"
+import { syncRepos } from "./sync-repos.ts"
 import { auditDeletionRequested } from "./task-deletion-audit.ts"
 
 /**
@@ -60,6 +68,20 @@ function optionalWorkerReport(
   }
 }
 
+/** `task.create`'s `extraRepos`: `[{ repo, baseRef? }]` in pick order, or undefined when absent. */
+function optionalExtraRepos(payload: Record<string, unknown>): { repo: string; baseRef?: string }[] | undefined {
+  const raw = payload.extraRepos
+  if (raw === undefined || raw === null) return undefined
+  if (!Array.isArray(raw)) throw new Error("extraRepos must be an array")
+  return raw.map((entry, i) => {
+    const item = objectPayload(entry)
+    const repo = optionalString(item, "repo")
+    if (!repo) throw new Error(`extraRepos[${i}].repo is required`)
+    const baseRef = optionalString(item, "baseRef")
+    return { repo, ...(baseRef ? { baseRef } : {}) }
+  })
+}
+
 export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.list",
@@ -98,6 +120,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         branch: optionalString(payload, "branch"),
         baseRef: optionalString(payload, "baseRef"),
         worktreeName: optionalString(payload, "worktreeName"),
+        extraRepos: optionalExtraRepos(payload),
         vendor: optionalVendor(payload, "vendor"),
         command: optionalString(payload, "command"),
         modelEffort: optionalString(payload, "effort"),
@@ -259,7 +282,9 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     // deadline; the land confirm awaits it inline.
     name: "task.landPreflight",
     async handle(payload, ctx) {
-      return { result: await ctx.orch.landPreflight(requireString(payload, "taskId")) }
+      return {
+        result: await ctx.orch.landPreflight(requireString(payload, "taskId"), optionalString(payload, "repo")),
+      }
     },
   },
   {
@@ -274,8 +299,17 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         // Absent → orchestrator default (remove); only explicit `false` keeps it.
         removeWorktree: optionalBoolean(payload, "removeWorktree"),
         callerCwd: optionalString(payload, "callerCwd"),
+        repo: optionalString(payload, "repo"),
       })
-      // landTask throws on refusal/conflict, so reaching here means it landed.
+      // A multi-repo run that stopped (conflict, refusal) throws, like a one-repo land does, so
+      // every client fails loudly; the per-repo statuses ride along as the error's data.
+      if (result.stopped) {
+        const { code, message } = result.stopped
+        throw Object.assign(new Error(message.startsWith(`${code}: `) ? message : `${code}: ${message}`), {
+          name: "LandStoppedError",
+          data: { stopped: result.stopped, repos: result.repos },
+        })
+      }
       ctx.plugins?.handleUiReport({
         kind: "task.landed",
         taskId,
@@ -289,7 +323,12 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const task = ctx.orch.getTask(taskId)
-      if (!task?.worktreePath) throw new Error("task has no worktree to sync")
+      if (!task) throw new Error(`task not found: ${taskId}`)
+      const only = optionalString(payload, "repo")
+      pickRepos(task, only)
+      // Several repos: each against its own base, a conflict in one not stopping the rest.
+      if (task.extraRepos?.length) return { result: await syncRepos(ctx.runtime, task, only) }
+      if (!task.worktreePath) throw new Error("task has no worktree to sync")
       // Throws `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY`; callers match
       // the marker as for `LAND_CONFLICT`.
       return { result: await ctx.runtime.syncWorktreeWithBase(task.worktreePath, task.baseRef) }
@@ -431,8 +470,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.setActive",
     async handle(payload, ctx) {
-      // Also touches updatedAt so "recent" sorting reflects use. The bus caches
-      // the last value, so late-subscribing panes get the current focus.
+      // The bus caches the last value, so late-subscribing panes get the current focus.
       const taskId = optionalString(payload, "taskId") ?? null
       await ctx.orch.setActiveTask(taskId)
       ctx.bus.publish("active-task", { taskId })

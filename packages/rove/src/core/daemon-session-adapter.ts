@@ -1,7 +1,8 @@
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type PtyScope, type TeardownScope, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { engineLaunchArgv } from "../engine/engine-presets.ts"
 import {
   awaitEngineProcess,
@@ -16,6 +17,7 @@ import {
   openHostedSessionHost,
   pastePromptWhenEngineUp,
 } from "../engine/hosted-session.ts"
+import { launchReposOf, trustExtraRepos } from "../engine/multi-repo-launch.ts"
 import { enginePresence } from "../engine/session-engine-presence.ts"
 import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
@@ -31,19 +33,31 @@ async function getTask(link: DaemonRpcClient, taskId: string): Promise<Serialize
   return task
 }
 
-/** `worktreePath` is where the engine runs: the worktree root plus the task's `cwdSubpath`. */
+/**
+ * `worktreePath` is where the engine runs: the worktree root plus the task's `cwdSubpath`.
+ * `repos` is set only for a multi-repo task (or a sharer of one), once all its worktrees exist.
+ */
 async function ensureTaskWorktree(link: DaemonRpcClient, taskId: string) {
   const task = await getTask(link, taskId)
   if (task.deletion) throw new TaskDeletingError(taskId)
-  if (task.worktreePath) return { task, worktreePath: taskCwd(task) }
+  const hasExtras = Boolean(task.extraRepos?.length)
+  if (task.worktreePath && !hasExtras) {
+    // A sharer follows its owner's worktrees, extras included.
+    const repos = task.sharesWorkspaceOf ? await launchReposOf(link, taskId) : undefined
+    return { task, worktreePath: taskCwd(task), repos }
+  }
   const { worktreePath } = await link.request<{ worktreePath: string | null }>("task.ensureWorktree", { taskId })
   if (!worktreePath) throw new Error(`task ${taskId} has no worktree`)
-  return { task, worktreePath: taskCwd({ worktreePath, cwdSubpath: task.cwdSubpath }) }
+  return {
+    task,
+    worktreePath: taskCwd({ worktreePath, cwdSubpath: task.cwdSubpath }),
+    repos: hasExtras || task.sharesWorkspaceOf ? await launchReposOf(link, taskId) : undefined,
+  }
 }
 
 export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: string) {
-  const { task, worktreePath } = await ensureTaskWorktree(link, taskId)
-  const launch = taskEngineLaunch(task, worktreePath, { kind: "repo-init" })
+  const { task, worktreePath, repos } = await ensureTaskWorktree(link, taskId)
+  const launch = taskEngineLaunch(task, worktreePath, { kind: "repo-init" }, repos)
   const host = await ensureHostedSessionHost()
   try {
     const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
@@ -83,16 +97,21 @@ export async function startTaskSessionWithPromptAdapter(
   taskId: string,
   prompt: string,
 ): Promise<{ started: boolean; error?: string }> {
-  const { task, worktreePath } = await ensureTaskWorktree(link, taskId)
+  const { task, worktreePath, repos } = await ensureTaskWorktree(link, taskId)
   // So later Rove-injected text (e.g. timer-fired quota resume) matches the
   // user's language. Best-effort: must never block the session.
   await link.request("task.observeLanguage", { taskId, text: prompt }).catch(() => {})
   // "new-task", not "explicit": callers just created the task, so the prompt
   // gets the branch-rename coda like other new-worktree entry points.
-  const launch = taskEngineLaunch(task, worktreePath, {
-    kind: "new-task",
-    prompt,
-  })
+  const launch = taskEngineLaunch(
+    task,
+    worktreePath,
+    {
+      kind: "new-task",
+      prompt,
+    },
+    repos,
+  )
   const host = await ensureHostedSessionHost()
   try {
     const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
@@ -125,18 +144,25 @@ async function startFailureReason(rpc: Parameters<typeof hostedSessionFailureLin
   return tail ? `${base}; last session output: ${tail}` : base
 }
 
-function taskEngineLaunch(task: SerializedTask, worktreePath: string, promptIntent: PromptDeliveryIntent) {
+function taskEngineLaunch(
+  task: SerializedTask,
+  worktreePath: string,
+  promptIntent: PromptDeliveryIntent,
+  repos: readonly TaskRepoView[] | undefined,
+) {
   // Pre-trust the worktree in the vendor's first-run store.
   trustEngineWorktree(task.vendor, worktreePath)
+  trustExtraRepos(task.vendor, repos)
   return buildEngineSessionLaunch({
     task: {
       id: task.id,
       kind: task.kind,
       vendor: task.vendor,
       repo: task.repo,
+      repos,
     },
     worktreePath,
-    shell: resolveLoginShell({ fallback: "/bin/zsh" }),
+    shell: resolveSessionShell(),
     argv: engineLaunchArgv({
       command: task.command,
       vendor: task.vendor,

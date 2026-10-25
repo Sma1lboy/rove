@@ -19,7 +19,14 @@ import { useTheme } from "../../context/theme"
 import { useLatest } from "../../lib/use-latest"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 import { ContextMenu } from "../../ui/context-menu"
-import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchInput, SidebarZenChip } from "./chrome"
+import {
+  SidebarBrandHeader,
+  SidebarCreateAction,
+  SidebarNavRail,
+  SidebarSearchInput,
+  SidebarSortLine,
+  SidebarZenChip,
+} from "./chrome"
 import { CollapseButton } from "./collapse-button"
 import { SidebarTreeBody } from "./tree-panel"
 import type { TreeRowShared } from "./tree-row-shell"
@@ -309,6 +316,7 @@ export function SidebarTree(props: SidebarTreeProps) {
       {/* Rail below the search row (owner 2026-08-02) — Kanban/Routines live
           within the workspace you're in, so they read as children of it. */}
       <SidebarNavRail nav={props.nav ?? "terminal"} setNav={(next) => props.onNavChange?.(next)} />
+      {props.sortMode ? <SidebarSortLine mode={props.sortMode} /> : null}
       <SidebarTreeBody
         rows={tree.rows}
         flatIndexOf={flatIndexOf}

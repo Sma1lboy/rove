@@ -157,12 +157,12 @@ describe("vendorsWithTurnReader", () => {
 describe("vendorsWithEffortLevels", () => {
   it("lists every engine that declares reasoning levels, so the effort error can name them", () => {
     const vendors = vendorsWithEffortLevels()
-    expect([...vendors].sort()).toEqual(["codex", "omp", "pi"])
+    expect([...vendors].sort()).toEqual(["claude", "codex", "omp", "pi"])
     for (const vendor of vendors) expect((engineEntry(vendor).effortLevels?.length ?? 0) > 0).toBe(true)
   })
 
   it("omits engines that declare none rather than implying they take a level", () => {
-    expect(vendorsWithEffortLevels()).not.toContain("claude")
+    expect(vendorsWithEffortLevels()).not.toContain("gemini")
   })
 })
 

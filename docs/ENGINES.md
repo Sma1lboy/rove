@@ -230,7 +230,15 @@ your override already pins the conversation (`--session-id`, `--resume`,
 `--continue`, `--from-pr`), Rove leaves it alone.
 
 If an engine exits non-zero, the terminal stays open with a banner pointing
-at Settings → Engines, and drops you into a shell.
+at Settings → Engines, and drops you into a shell. The web and the TUI add
+actions beside it: **Retry** (relaunch the engine in this tab, resuming its
+conversation when it recorded one), **Settings → Engines**, and a new
+conversation with another engine.
+
+The launch command runs through your interactive login shell (`-ilc`), so a
+command that is a shell function or alias, such as `claudecpa`, works the
+same on the first launch and on every relaunch. When `$SHELL` is unset, every
+Rove process falls back to the same shell (zsh when installed, else bash).
 
 ## Activity badges
 

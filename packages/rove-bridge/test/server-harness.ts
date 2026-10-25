@@ -12,10 +12,13 @@ export const AUTH = { Authorization: `Bearer ${TOKEN}` }
 /** A PTY Host double: one live session, one freeze-restored corpse. */
 export class FakePty implements PtyHostClient {
   readonly calls: Array<[string, unknown]> = []
+  /** No PTY host process: every request fails the way a connect to a missing socket does. */
+  hostDown = false
   readonly closed = Promise.withResolvers<void>()
   private readonly handlers = new Map<string, (frame: { payload: unknown }) => void>()
   async request<T>(name: string, payload?: unknown): Promise<T> {
     this.calls.push([name, payload])
+    if (this.hostDown) throw Object.assign(new Error("connect ENOENT /tmp/pty.sock"), { code: "ENOENT" })
     const reply: Record<string, unknown> = {
       "pty.list": {
         sessions: [
@@ -56,6 +59,7 @@ export function fakeOps(): RoveOps {
     tabs: async () => [],
     newTab: reject,
     closeTab: reject,
+    reviveTab: reject,
     worktreeOf: async () => "/tmp/wt",
     viewedSession: () => null,
     diffFiles: reject,

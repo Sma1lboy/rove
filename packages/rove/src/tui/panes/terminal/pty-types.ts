@@ -1,6 +1,6 @@
 import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
 import { parse } from "@ansi-tools/parser"
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { TerminalDefaultColors } from "@sma1lboy/rove-daemon/daemon/terminal-colors"
 import type { MouseTransition, TerminalInputModes } from "./keys-pure"
 import type { SessionRecovery } from "./session-recovery"
@@ -237,7 +237,7 @@ export const DEFAULT_ROWS = 24
 export const PIPE_SCROLLBACK_LIMIT = 200_000
 
 export function defaultShell(): string {
-  return resolveLoginShell()
+  return resolveSessionShell()
 }
 
 /**

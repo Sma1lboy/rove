@@ -24,6 +24,7 @@ import {
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useDialog } from "../../ui/dialog"
+import { type EngineExit, EngineExitBanner } from "./engine-exit-banner"
 import { useTerminalBindings } from "./keys"
 import { TerminalSearchBar } from "./search-bar"
 import { useTerminalGeometry } from "./use-terminal-geometry"
@@ -84,6 +85,8 @@ export type TerminalProps = {
   registry?: PtyRegistry
   /** Vendor-owned full-screen presentation policy for the original engine leaf. */
   terminalPresentation?: EngineTerminalPresentation
+  /** Positive evidence the engine died inside the live shell: draws the exit strip, and F5 becomes its Retry. */
+  engineExit?: EngineExit
 }
 
 /* --------------------------------------------------------------------- */
@@ -273,7 +276,8 @@ function TerminalSession(props: TerminalProps) {
       pty.paste(text)
     },
     scroll: scrollBy,
-    reset: requestReset,
+    // With the engine gone the shell holds nothing worth a confirm: F5 is Retry.
+    reset: props.engineExit?.onRetry ?? requestReset,
     searchActive: search.active,
     openSearch: search.open,
     stepSearch: search.step,
@@ -359,9 +363,18 @@ function TerminalSession(props: TerminalProps) {
           </text>
         </box>
       ) : null}
-      {exited ? (
+      {props.engineExit ? (
+        <EngineExitBanner {...props.engineExit} onRequestFocus={props.onRequestFocus} />
+      ) : exited ? (
         <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1}>
-          <text fg={theme.error} wrapMode="none">
+          <text
+            fg={theme.error}
+            wrapMode="none"
+            onMouseUp={(event) => {
+              event.stopPropagation()
+              if (event.button === 0) requestReset()
+            }}
+          >
             {t("terminal.exited")}
           </text>
         </box>
@@ -451,7 +464,16 @@ function TerminalSession(props: TerminalProps) {
                 <text fg={theme.textMuted} wrapMode="word">
                   {acquireError}
                 </text>
-                <text fg={theme.textMuted}>{t("terminal.unavailable.retry")}</text>
+                <text
+                  fg={theme.info}
+                  wrapMode="none"
+                  onMouseUp={(event) => {
+                    event.stopPropagation()
+                    if (event.button === 0) requestReset()
+                  }}
+                >
+                  {t("terminal.unavailable.retry")}
+                </text>
               </>
             ) : (
               <text fg={theme.textMuted}>{t("terminal.noTask")}</text>

@@ -81,6 +81,8 @@ agent-turns         --task-id --repo --since-days(7) --limit(200)
 inspect             --task-id
 read-output         --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
 watch               --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
+ports               --task-id --all
+review-comments     --task-id(REQ)
 worktree-files      --task-id(REQ)
 worktree-diff       --task-id(REQ)
 worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working}(REQ)
@@ -143,6 +145,7 @@ tab-new            --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ)
                    --latest --file --line --pane --tab --view-task
 tab-split          --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
                    --direction{right|down}(right) --leaf --title --cols --rows
+tab-revive         --task-id(REQ) --tab(REQ) --restart-exited
 notify             --title(REQ) --body --kind(done) --task-id --source
 prompt             --title(REQ) --placeholder --initial --timeout
 engine-report      --task-id
@@ -213,6 +216,17 @@ and ends that tab's hosted PTYs. It accepts engine, shell/command, and content
 tabs; closing the last tab leaves the task open with no session. A missing or
 already-closed id returns `TAB_NOT_FOUND` and points back to `get-task`.
 
+`tab-revive` reopens one tab's own session when no PTY runs in it — a dead or
+freeze-restored tab, or one the PTY host lost. Engine tabs resume the
+recorded conversation (`resumed: true`) or start fresh without a first
+message; shell tabs rerun their login shell. It never replays the task's
+original prompt, and a running tab answers `revived: false, alive: true`.
+`--restart-exited` also closes and relaunches an engine tab whose session is
+up but whose engine is gone (`engineAlive: false`, the fallback shell's
+`Engine exited (code N)` banner); a running engine is still left alone.
+Split leaves are `BAD_FLAG` (use `tab-split --action reset`); previews and
+viewport tabs are `TAB_NOT_REVIVABLE`.
+
 `engine-report` is the engine adapter's own channel for reporting a session
 event (`--kind`) back to the daemon — not a verb you reach for by hand.
 
@@ -224,9 +238,9 @@ clear the shared active task.
 <!-- generated:begin create,edit,lifecycle -->
 ```text
 publish  --task-id(REQ) --remote
-add      --repo(REQ) --clone --allow-fork --title --branch --base-branch --worktree-name
-         --command --effort --tier{swift|standard|deep|auto} --model --count
-         --agents <claude:2,codex:1>
+add      --repo(REQ) --clone --allow-fork --title --branch --base-branch --base-for
+         --worktree-name --command --effort --tier{swift|standard|deep|auto} --model
+         --count --agents <claude:2,codex:1>
          --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
          --require-report --expect-report --activate(false) --prompt|--prompt-file
 spawn    --parent --worktree(true) --no-worktree --base-branch --isolate-in --title
@@ -236,7 +250,8 @@ update   --task-id(REQ) --title --tab --branch --command --model --effort --pinn
          --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
          --report-pr --report-summary
 land     --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
-         --remove-worktree(true)
+         --remove-worktree(true) --repo
+sync     --task-id(REQ) --repo
 delete   --task-id --group --cascade --force --delete-branch --delete-remote --wait
 ```
 <!-- generated:end -->

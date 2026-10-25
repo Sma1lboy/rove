@@ -8,15 +8,16 @@
 
 import { unlink } from "node:fs/promises"
 import { RoveDaemonClient } from "../client/index.ts"
-import type { DaemonStopReason } from "./protocol.ts"
+import { type DaemonStopReason, PTY_STOP_REFUSED } from "./protocol.ts"
 import { isProcessAlive, readPidFile } from "./socket-guard.ts"
 
 /**
  * The strongest signal {@link stopDaemonProcess} needed. `"absent"`: no live
  * daemon (no pidfile, or a stale one), only stale files cleared. `"graceful"`:
- * the RPC sufficed.
+ * the RPC sufficed. `"refused"`: a PTY host holding live sessions declined the
+ * stop (no `force`); nothing was signalled or unlinked and the host is still up.
  */
-export type DaemonStopMethod = "absent" | "graceful" | "sigterm" | "sigkill"
+export type DaemonStopMethod = "absent" | "graceful" | "sigterm" | "sigkill" | "refused"
 
 export interface StopDaemonResult {
   /** The pid read from the pidfile, or `null` if there was no pidfile. */
@@ -33,12 +34,14 @@ export { isProcessAlive }
  * Stop the daemon on `socketPath`, wait until its process is gone, then remove
  * socket + pidfile. Idempotent; never respawns. `reason` rides
  * `daemon.stopping` to attached clients (`"restart"` tells a TUI its code is
- * being replaced); only the graceful RPC carries it.
+ * being replaced); only the graceful RPC carries it. `force` tells a PTY host
+ * that holds live sessions to stop anyway (`rove reset`); without it the host
+ * refuses, and a refusal is final: the process is left alone.
  */
 export async function stopDaemonProcess(
   socketPath: string,
   pidPath: string,
-  opts: { readonly reason?: DaemonStopReason } = {},
+  opts: { readonly reason?: DaemonStopReason; readonly force?: boolean } = {},
 ): Promise<StopDaemonResult> {
   const oldPid = await readPidFile(pidPath)
   // Decide before the RPC, so a stale pidfile reports "absent", not "graceful".
@@ -48,10 +51,17 @@ export async function stopDaemonProcess(
 
   // 2s for the RPC, then signals. Nothing listening → connect fails fast.
   const client = new RoveDaemonClient(socketPath)
-  const stopRequest = client.request("daemon.stop", { reason: opts.reason ?? "stop" }).catch(() => undefined)
-  const stopTimeout = new Promise<void>((resolve) => setTimeout(resolve, 2000))
-  await Promise.race([stopRequest, stopTimeout])
+  const refusal = client
+    .request("daemon.stop", { reason: opts.reason ?? "stop", ...(opts.force ? { force: true } : {}) })
+    .then(
+      () => false,
+      (err: unknown) => err instanceof Error && err.name === PTY_STOP_REFUSED,
+    )
+  const { promise: stopTimeout, resolve: timedOut } = Promise.withResolvers<boolean>()
+  setTimeout(() => timedOut(false), 2000)
+  const refused = await Promise.race([refusal, stopTimeout])
   client.close()
+  if (refused) return { pid: oldPid, method: "refused" }
 
   // `kill -0` throws ESRCH once the process exits.
   if (wasAlive && targetPid !== null) {

@@ -47,7 +47,7 @@ discovery of an unclaimed conversation in that directory before relaunch.
 | `rove daemon restart` | ✓ | ✓ | ✓ | ✓ |
 | Reboot, or the PTY host dies | — command relaunched on attach | ✓ restored, newest first, up to 64MB of scrollback | ✓ | ✓ |
 | Close a tab | — that tab only | — that tab's ring is dropped | ✓ | ✓ |
-| Delete a managed/directory Task | — all of that Task's tabs | — those rings are dropped | task record removed; worktree removed unless it's a directory Task (branch stays; a force-delete salvages uncommitted work under `refs/rove/salvage/`) | ✓ |
+| Delete a managed/directory Task | — all of that Task's tabs | — those rings are dropped | task record removed; worktree removed unless it's a directory Task (branch stays; a force-delete salvages uncommitted work under `refs/rove/salvage/`); a multi-repo Task removes the worktree in every repo (one dirty check over all of them; salvage ref in the repo it came from) | ✓ |
 | Press F5 | — active terminal is replaced | — old ring is dropped | ✓ | ✓ |
 | `rove reset` | — all hosted sessions | — all frozen rings are dropped | worktrees ✓; task index and settings file kept unless `--hard` | ✓ |
 
@@ -67,9 +67,15 @@ thaws a dead **restored** session, then the first attach replays its old screen
 and respawns the command in place. Your conversation files survive separately
 because the engine owns them.
 
-`rove reset` stops the daemon and PTY host and wipes the frozen-session store —
-including when the host had to be signalled rather than stopped gracefully,
-which is exactly the wedged case reset exists for. The normal form keeps the
+`rove reset` stops the daemon and PTY host, then wipes the frozen-session store
+itself, however the host stopped — including when it had to be signalled, which
+is exactly the wedged case reset exists for. Nothing else wipes it: a daemon
+restart, an upgrade, or a stray stop sent to the host leaves every frozen record
+in place. The host also refuses a stop while it holds live sessions unless the
+caller says `force` (only reset does), and a refusal is final: nothing signals
+the process afterwards. A client never restarts a host that merely stopped
+answering either; it waits, then fails with an error naming `rove reset`. The
+normal form keeps the
 task index, your settings, worktrees, and engine history. `rove reset --hard`
 also deletes `tasks.json` **and the whole settings file**
 (`~/.config/rove/state.json`): saved projects, registered custom engines,
@@ -279,6 +285,17 @@ process, including a reboot.
   frozen launch command, first prompt and all. A `send` that starts a fresh session while
   such tabs exist lists them in `frozenTabs`, so an automation is told the
   message did not reach the conversation it thought it did.
+- To reopen a tab without sending anything, `rove api tab-revive --task-id <id>
+  --tab tab-N` brings its session back when no PTY runs in it: a dead or
+  freeze-restored tab, or one the PTY host lost entirely (a host restart that
+  dropped its freeze records). An engine tab with a recorded conversation
+  resumes it; one with none starts fresh, never with the original prompt. A
+  shell tab reruns its login shell in the worktree. The web client offers the
+  same as **Reopen session** on a tab that shows "no running session" or a
+  restored screen, and as **Retry** when the engine exited into its fallback
+  shell (`Engine exited (code N)`; `--restart-exited`). That notice also offers
+  **Settings → Engines** and **New conversation with…** for another engine;
+  nothing reopens on view.
 
 ## Not supported
 

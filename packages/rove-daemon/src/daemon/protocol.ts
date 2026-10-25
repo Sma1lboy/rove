@@ -200,6 +200,8 @@ export type DaemonRequestName =
   | "pr.failingChecks"
   // Restart a PR's failed Actions jobs, once per human click.
   | "pr.rerunFailedChecks"
+  // A PR's unresolved review threads, on demand (`rove api review-comments`).
+  | "pr.reviewComments"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
   // Turn store read side; written only by hook ingest on `turn-complete`.
@@ -304,6 +306,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "automation.runNow",
   // Rollup lookup followed by serial gh reruns, each with its own subprocess budget.
   "pr.rerunFailedChecks",
+  // Serial thread/comment pages each have their own gh subprocess budget.
+  "pr.reviewComments",
   // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
   "task.ensureWorktree",
   // Cuts a worktree for the child; same minute-scale cost as ensureWorktree.
@@ -363,7 +367,12 @@ export function parseDaemonStopReason(value: unknown): DaemonStopReason | undefi
 export interface DaemonError {
   readonly message: string
   readonly name?: string
+  /** Structured context a thrown error carried (`Error.data`), e.g. a stopped multi-repo land's `repos`. */
+  readonly data?: unknown
 }
+
+/** Wire error name of a PTY host declining `daemon.stop` while it holds live sessions and the caller did not say `force`. */
+export const PTY_STOP_REFUSED = "PtyStopRefused"
 
 export interface SerializedTask {
   readonly id: string
@@ -415,6 +424,8 @@ export interface SerializedTask {
   readonly baseRef?: DaemonTask["baseRef"]
   /** Caller-chosen worktree directory name (`add --worktree-name`). */
   readonly worktreeName?: DaemonTask["worktreeName"]
+  /** Secondary repos of a multi-repo task; omitted for a one-repo task. */
+  readonly extraRepos?: DaemonTask["extraRepos"]
   /** The worker's own outcome claim (`update --report-*`) — a CLAIM,
    *  where `prStatus` is the daemon's own observation of the forge. */
   readonly report?: DaemonTask["report"]
@@ -468,6 +479,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     ...(task.sharesWorkspaceOf ? { sharesWorkspaceOf: task.sharesWorkspaceOf } : {}),
     ...(task.cwdSubpath ? { cwdSubpath: task.cwdSubpath } : {}),
     ...(task.ptyAlias ? { ptyAlias: task.ptyAlias } : {}),
+    ...(task.extraRepos?.length ? { extraRepos: task.extraRepos } : {}),
     requireReport: task.requireReport,
     prompt: task.prompt,
     baseRef: task.baseRef,

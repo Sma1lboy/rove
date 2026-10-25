@@ -5,6 +5,7 @@
  * never remounts (and replays) when a sibling is added around it.
  */
 
+import { useEffect } from "react"
 import type { SplitView, TabRow } from "rove-bridge/protocol"
 import { registerCommands } from "./commands.ts"
 import { TextDialog } from "./dialogs.tsx"
@@ -17,6 +18,7 @@ import { type LeafBox, cycleLeaf, isSplit, layoutSplit, leafNames, leafSignature
 import { createStore, useStore } from "./store.ts"
 import { termFor } from "./term-control.ts"
 import { streamKey } from "./term-mount.ts"
+import type { EngineExit } from "./term-notice.tsx"
 import { TerminalView } from "./terminal-view.tsx"
 import { dialog, toast } from "./ui.ts"
 
@@ -157,6 +159,16 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
   const names = split ? leafNames(split, tabLabel(tab)) : new Map<string, string>()
   const several = isSplit(split)
   const { prefs } = usePrefs()
+  // The daemon marks an engine tab dead when its engine ended and only the fallback shell is left.
+  // Read from the task's live `tabStatus` push: the tab row's own `status` is a snapshot of the last tab fetch.
+  const liveStatus = useStore(model.tasks)?.tasks.find((row) => row.id === taskId)?.tabStatus?.[tab.id] ?? tab.status
+  const deadSince = tab.kind === "engine" && liveStatus?.reason === "dead" ? liveStatus.since : null
+  // The exit code rides the tab fetch, which may predate the death.
+  useEffect(() => {
+    if (deadSince !== null) void model.refreshTabsNow()
+  }, [deadSince, model])
+  const engineExit: EngineExit | null =
+    deadSince !== null && tab.alive !== false ? { code: tab.exit?.code ?? null, since: deadSince } : null
   return (
     <div className={`split ${several ? `is-${prefs.splitStyle}` : ""}`}>
       {(split ? layoutSplit(split.root) : WHOLE).map((box) => (
@@ -172,6 +184,8 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
         >
           <TerminalView
             client={model.client}
+            model={model}
+            engineExit={box.id === "leaf-1" ? engineExit : null}
             taskId={taskId}
             tabId={tab.id}
             leafId={box.id}

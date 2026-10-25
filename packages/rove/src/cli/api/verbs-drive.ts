@@ -11,6 +11,7 @@ import { PANE_GRAPHICS_VERB } from "./handlers-graphics.ts"
 import { INTERRUPT_VERB } from "./handlers-interrupt.ts"
 import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB, TAB_NEW_VERB, TAB_SPLIT_VERB } from "./handlers-pane.ts"
 import { ROW_TOKEN_VERB } from "./handlers-row-token.ts"
+import { TAB_REVIVE_VERB } from "./handlers-tab-revive.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
 import { ApiError, helpStep } from "./types.ts"
 import type { VerbSpec } from "./types.ts"
@@ -31,7 +32,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         required: false,
         placeholder: "TAB",
         description:
-          'Tab addressing: "new" starts a second conversation as a shared child task of the target (same directory) and sends the prompt to it — the reply adds `childTaskId`, and `session` is the child\'s; "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab.',
+          'Tab addressing: "new" sends the prompt to a new conversation: `tab-1` of the target itself while it has none yet, else a shared child task of the target (same directory) — the reply then adds `childTaskId`, and `session` is the child\'s; "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab.',
       },
       {
         ...F.command(),
@@ -119,6 +120,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   TAB_CLOSE_VERB,
   TAB_NEW_VERB,
   TAB_SPLIT_VERB,
+  TAB_REVIVE_VERB,
   {
     name: "notify",
     group: "drive",

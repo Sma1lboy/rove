@@ -12,18 +12,23 @@ import { ConfirmDialog } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { attachableFiles, putAttachment } from "./kanban-attach.ts"
 import { terminalText } from "./keymap-text.ts"
+import type { AppModel } from "./model.ts"
 import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
 import { focusedTerm, registerTerm, termFor } from "./term-control.ts"
 import { type Notice, SCROLL_PAGE_LINES, type TermHandle, mountTerminal, streamKey } from "./term-mount.ts"
+import { type EngineExit, TermNotice } from "./term-notice.tsx"
 import { TermSearchBar } from "./term-search.tsx"
 import { dialog, toast } from "./ui.ts"
 
 export interface TerminalViewProps {
   readonly client: BridgeClient
+  readonly model: AppModel
   readonly taskId: string
   readonly tabId: string
   /** A split pane (`leaf-N`); omitted = the tab's own session. */
   readonly leafId?: string
+  /** The tab's engine ended inside a still-running shell: the strip offers the way forward. */
+  readonly engineExit?: EngineExit | null
   /** Take keyboard focus now (a new split, F3); the first mount of a tab takes it too. */
   readonly focused?: boolean
   /** The terminal took focus: the owner of the split marks this pane active. */
@@ -64,6 +69,7 @@ export function TerminalView(props: TerminalViewProps) {
   const [handle, setHandle] = useState<TermHandle | null>(null)
   const [scrolled, setScrolled] = useState(0)
   const [searching, setSearching] = useState(false)
+  const [revive, setRevive] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null })
   // Callbacks change every render; the mount (which runs once per session) reads the latest.
   const latest = useRef(props)
   latest.current = props
@@ -166,6 +172,30 @@ export function TerminalView(props: TerminalViewProps) {
     if (props.focused && handle && document.activeElement !== handle.term.textarea) handle.term.focus()
   }, [props.focused, handle])
 
+  // Only the tab's own session reopens: a split pane has no row of its own to relaunch from.
+  const ownSession = !leafId || leafId === "leaf-1"
+  // The exit a successful retry answered stays hidden until the daemon marks a new one.
+  const [answered, setAnswered] = useState<number | null>(null)
+  const answeredExit = props.engineExit?.since === answered
+  const reopening = useRef(false)
+  const reopen = async (mounted: TermHandle, restartExited: boolean): Promise<void> => {
+    // A second click before the first settles would run two reattaches over one stream.
+    if (reopening.current) return
+    reopening.current = true
+    setRevive({ busy: true, error: null })
+    try {
+      await client.request("term.revive", { taskId, tabId, ...(restartExited ? { restartExited } : {}) })
+      await mounted.reattach()
+      mounted.term.focus()
+      setAnswered(props.engineExit?.since ?? null)
+      setRevive({ busy: false, error: null })
+    } catch (err) {
+      setRevive({ busy: false, error: err instanceof Error ? err.message : String(err) })
+    } finally {
+      reopening.current = false
+    }
+  }
+
   return (
     <div
       className="term-pane"
@@ -185,9 +215,15 @@ export function TerminalView(props: TerminalViewProps) {
       }}
     >
       <div className="term-host" ref={host} />
-      {notice.kind !== "none" && (
-        <div className={`term-notice ${notice.kind === "failed" ? "is-error" : ""}`}>{noticeText(notice)}</div>
-      )}
+      <TermNotice
+        notice={notice}
+        engineExit={answeredExit ? null : (props.engineExit ?? null)}
+        model={props.model}
+        taskId={taskId}
+        revive={revive}
+        onReopen={ownSession && handle ? (restartExited) => void reopen(handle, restartExited) : undefined}
+        onRetryAttach={handle ? () => void handle.reattach() : undefined}
+      />
       {scrolled > 0 && !searching && handle && (
         <div className="term-scrolled mono">
           <span className="tone-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>
@@ -210,19 +246,4 @@ export function TerminalView(props: TerminalViewProps) {
       )}
     </div>
   )
-}
-
-function noticeText(notice: Notice): string {
-  switch (notice.kind) {
-    case "restored":
-      return t("workspace.restored")
-    case "notLive":
-      return t("workspace.tabNotLive")
-    case "exited":
-      return t("workspace.exited", { code: notice.code ?? "?" })
-    case "failed":
-      return t("workspace.attachFailed", { message: notice.message })
-    case "none":
-      return ""
-  }
 }

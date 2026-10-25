@@ -24,6 +24,7 @@ import { AdoptTab, CloneTab } from "./new-task-tabs.tsx"
 import { SuggestField, type Suggestion, focusField } from "./suggest-field.tsx"
 import { EnginePicker, useEngineChoice } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
+import { openNewSession } from "./ui.ts"
 
 const TABS = ["existing", "clone", "adopt"] as const
 export type NewTaskTab = (typeof TABS)[number]
@@ -237,14 +238,8 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
         model.selectWhenListed(res.taskId)
         return
       }
-      const base = (ref ?? baseRef).trim()
-      const res = await model.client.request<{ taskIds: string[] }>("task.spawn", {
-        repo: fresh.repo,
-        ...(props.engine ? { engine: props.engine } : {}),
-        ...(base ? { baseBranch: base } : {}),
-      })
-      const created = res.taskIds[0]
-      if (created) model.selectWhenListed(created)
+      // A task is born by its first prompt: the composer takes the project and branch from here.
+      openNewSession(fresh.repo, (ref ?? baseRef).trim())
     })
 
   const enterBranch = (index: number) => {

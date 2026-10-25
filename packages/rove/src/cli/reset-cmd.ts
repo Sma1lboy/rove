@@ -166,20 +166,17 @@ export async function runResetSubcommand(argv: readonly string[]): Promise<void>
       : `  daemon: stopped via ${daemon.method}${daemon.pid ? ` (pid ${daemon.pid})` : ""}`,
   )
 
-  const ptyHost = await stopDaemonProcess(defaultPtyHostSocketPath(), defaultPtyHostPidPath())
+  const ptyHost = await stopDaemonProcess(defaultPtyHostSocketPath(), defaultPtyHostPidPath(), { force: true })
   console.log(
     ptyHost.method === "absent"
       ? "  pty host: was not running (cleared any stale socket/pidfile)"
       : `  pty host: stopped via ${ptyHost.method}${ptyHost.pid ? ` (pid ${ptyHost.pid})` : ""}`,
   )
 
-  // The host wipes frozen rings only on the graceful `daemon.stop` path
-  // (`wipeFreezeOnStop`). A SIGTERM/SIGKILL'd or already-dead host leaves
-  // them, and the next boot would restore the scene reset was meant to end.
-  if (ptyHost.method !== "graceful") {
-    clearFrozenSessions(defaultPtyFreezeDir())
-    console.log(`  frozen sessions: cleared (${ptyHost.method} stop skips the host's own wipe)`)
-  }
+  // Reset is the only thing that wipes frozen rings, and it does so here, once the host is gone:
+  // the host itself keeps them on every stop so a stray `daemon.stop` cannot cost anyone a scene.
+  clearFrozenSessions(defaultPtyFreezeDir())
+  console.log("  frozen sessions: cleared")
 
   const legacyTmux = await stopLegacyTmux()
   if (legacyTmux.status === "failed") {

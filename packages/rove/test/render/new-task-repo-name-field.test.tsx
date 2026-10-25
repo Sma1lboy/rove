@@ -94,18 +94,26 @@ async function pressTab(handle: { mockInput: { pressTab: () => void } }, times: 
  * does not submit, and six tests failed complaining about repo names. Deriving
  * them keeps this file honest the next time a field comes or goes.
  */
-function stopsTo(target: Field): number {
+function stopsTo(target: Field, extrasVisible = false): number {
   let field: Field = "tabs"
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, "existing", {
       intentVisible: false,
-      effortVisible: false,
-      modelVisible: false,
+      extrasVisible,
+      effortVisible: true,
+      modelVisible: true,
       tierVisible: false,
     })
     if (field === target) return i
   }
   throw new Error(`the focus chain never reaches ${target}`)
+}
+/** Enter on the branch field moves to the first-message field; Enter there creates. */
+async function commit(h: { mockInput: { pressEnter: () => void } }) {
+  for (let i = 0; i < 2; i++) {
+    act(() => h.mockInput.pressEnter())
+    await settle()
+  }
 }
 const TO_REPO = stopsTo("repo")
 const TO_BASE_REF = stopsTo("baseRef")
@@ -126,8 +134,7 @@ test("a resolved repo shows its NAME, not its path, and still submits the path",
   // …and the value that leaves the dialog is the whole path. Enter on the
   // branch field is the commit.
   await pressTab(h, TO_BASE_REF)
-  act(() => h.mockInput.pressEnter())
-  await settle()
+  await commit(h)
   expect(h.submitted).toHaveLength(1)
   expect(h.submitted[0]?.repo).toBe(dir)
   act(() => h.destroy())
@@ -145,9 +152,9 @@ test("a basename shared by two saved repos keeps the PATH — it identifies noth
   expect(await h.frame()).toContain(a.slice(0, 40))
 
   // And it still submits the repo it was opened on, not the other `app`.
-  await pressTab(h, TO_BASE_REF)
-  act(() => h.mockInput.pressEnter())
-  await settle()
+  // The other `app` is offered as an extra, a stop before the branch field.
+  await pressTab(h, stopsTo("baseRef", true))
+  await commit(h)
   expect(h.submitted[0]?.repo).toBe(a)
   expect(h.submitted[0]?.repo).not.toBe(b)
   act(() => h.destroy())
@@ -176,8 +183,7 @@ test("typing an ambiguous name refuses to guess, and says so", async () => {
   const label = locate(await h.frame(), "FROM BRANCH")
   await h.mockMouse.click(label.x + 1, label.y)
   await settle()
-  act(() => h.mockInput.pressEnter())
-  await settle()
+  await commit(h)
 
   expect(h.submitted).toHaveLength(0)
   expect(await h.frame()).toContain("more than one saved repo is named app")
@@ -211,8 +217,7 @@ test("a path being typed renders VERBATIM — the field does not rewrite mid-key
   await act(async () => h.mockInput.typeText("ped"))
   await settle()
   await pressTab(h, 2)
-  act(() => h.mockInput.pressEnter())
-  await settle()
+  await commit(h)
   expect(h.submitted[0]?.repo).toBe(dir)
   act(() => h.destroy())
 })

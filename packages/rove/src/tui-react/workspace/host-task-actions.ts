@@ -49,6 +49,8 @@ export type WorkspaceTaskActionDeps = {
   activateTask: (id: string) => Promise<void>
   /** Reclaim a deleted task's terminal-tab snapshot. */
   forgetTaskTabs: (taskId: string) => void
+  /** New-task dialog with a first message: create the task and run its engine on it. */
+  startWithPrompt?: CreateTaskContext["startWithPrompt"]
 }
 
 export type WorkspaceTaskActions = {
@@ -102,6 +104,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     // Pickers are adapters so the flows stay opentui-free.
     pickStatus: (current) => StatusPickerDialog.show(dialog, { current }),
     pickEngine: (opts) => EnginePickerDialog.show(dialog, opts),
+    startWithPrompt: deps.startWithPrompt,
     // Local pipe + OSC52 (the half that reaches the user's machine over SSH).
     copyText: (text) => copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload)),
     onTaskDeleted: (() => {

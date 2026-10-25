@@ -15,7 +15,7 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { appendFile, mkdir, readdir, stat, unlink } from "node:fs/promises"
+import { appendFile, mkdir, readdir, realpath, stat, unlink } from "node:fs/promises"
 import path from "node:path"
 import type { EngineUsageSnapshot, Message } from "@/types/engine"
 import { isObject } from "../../lib/is-object.ts"
@@ -87,7 +87,12 @@ export interface WorktreeSessionFile {
  */
 export async function listSessionFilesForWorktree(worktree: string): Promise<WorktreeSessionFile[]> {
   if (!worktree) return []
-  const dir = path.join(vendorConfigHome("claude"), "projects", encodeCwd(worktree))
+  // Claude encodes the cwd it resolved, so a symlinked worktree base (macOS `/tmp`) names the real path's dir.
+  const dir = path.join(
+    vendorConfigHome("claude"),
+    "projects",
+    encodeCwd(await realpath(worktree).catch(() => worktree)),
+  )
   let entries: string[]
   try {
     entries = await readdir(dir)

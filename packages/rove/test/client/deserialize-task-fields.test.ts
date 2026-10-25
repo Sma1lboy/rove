@@ -97,6 +97,28 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
   prompt: "the full task brief — never truncated on the way off the wire",
   baseRef: "release/2.x",
   worktreeName: "probe-1",
+  extraRepos: [
+    {
+      name: "api",
+      repo: "/other/api",
+      branch: "fix/wire",
+      worktreePath: "/other/.worktrees/api-1",
+      baseRef: "release/1.x",
+      prStatus: {
+        provider: "github",
+        lifecycle: "open",
+        checkState: "failing",
+        number: 43,
+        url: "https://github.com/o/api/pull/43",
+        title: "fix: api side",
+        baseRef: "release/1.x",
+        reviewDecision: "APPROVED",
+        mergeable: "MERGEABLE",
+        lastCheckedAt: "2026-08-27T00:00:00.000Z",
+        lastError: "transient fetch error",
+      },
+    },
+  ],
   report: {
     branch: "fix/wire",
     pr: 921,

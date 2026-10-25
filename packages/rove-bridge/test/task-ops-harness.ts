@@ -56,6 +56,7 @@ export function isolateTaskOpDeps(): void {
   const saved = { ...taskOpDeps }
   beforeEach(() => {
     taskOpDeps.savedRepos = () => []
+    taskOpDeps.rememberEngine = () => {}
   })
   afterEach(() => {
     Object.assign(taskOpDeps, saved)

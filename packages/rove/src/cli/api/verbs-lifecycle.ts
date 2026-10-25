@@ -10,6 +10,7 @@
 
 import { F } from "./flags.ts"
 import { deleteTask, land } from "./handlers-lifecycle.ts"
+import { sync } from "./handlers-sync.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
@@ -17,7 +18,7 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
     name: "land",
     group: "lifecycle",
     summary:
-      "Merge a task's branch back into its base repo's current branch. Refuses a dirty base checkout, a branch that no longer resolves in the base repo (MISSING_REF — renamed or deleted outside Rove), and a branch with zero commits ahead of the base (EMPTY_BRANCH; EMPTY_BRANCH_DIRTY_WORKTREE with a send-back recovery path when the worktree still holds the uncommitted work). On conflict, aborts and returns the conflicted files (resolve by hand). Returns { landedOn, commit }.",
+      "Merge a task's branch back into its base repo's current branch. Refuses a dirty base checkout, a branch that no longer resolves in the base repo (MISSING_REF — renamed or deleted outside Rove), and a branch with zero commits ahead of the base (EMPTY_BRANCH; EMPTY_BRANCH_DIRTY_WORKTREE with a send-back recovery path when the worktree still holds the uncommitted work). On conflict, aborts and returns the conflicted files (resolve by hand). Returns { landedOn, commit }. A MULTI-REPO task (`add --repo A --repo B`) lands every repo into its own base, in picked order: every repo is probed first and nothing is merged if any refuses; the run stops at the first conflict, leaving earlier repos landed; re-run `land` to resume (a repo already merged reads as `skipped`). Worktrees are removed only once every repo has landed. Its result adds `.repos[]` ({ name, status: landed|skipped|conflict|refused|failed|pending, landedOn, ahead, commit, error?, code? }); a stop is the usual error (LAND_CONFLICT, MAIN_CHECKOUT_DIRTY, …) carrying `.repos[]` and `.failedRepo`.",
     flags: [
       F.taskId(),
       {
@@ -46,8 +47,31 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
         description:
           "Remove the task's worktree after a successful land (default; the branch always stays). Pass --remove-worktree=false to keep it. Dirty worktrees, the base checkout, and the caller's own worktree are refused — the outcome is reported in the result's `worktree` field, never thrown.",
       },
+      {
+        name: "repo",
+        type: "string",
+        placeholder: "NAME",
+        description:
+          "Multi-repo task: land (or, with --dry-run, probe) only this repo, named as in `.task.extraRepos[].name` (the primary's name is its directory name). UNKNOWN_REPO otherwise.",
+      },
     ],
     handler: land,
+  },
+  {
+    name: "sync",
+    group: "lifecycle",
+    summary:
+      "Merge the base branch INTO a task's worktree (the inverse of `land`; the sidebar's ↓N drift). Refuses a dirty worktree (SYNC_WORKTREE_DIRTY — commit first, never stash); a conflict is left IN PLACE in the worktree for you to resolve (SYNC_CONFLICT lists the files). Returns { baseRef, alreadyCurrent }. A multi-repo task syncs EVERY repo against its own base and carries `.repos[]` ({ name, ok, baseRef?, alreadyCurrent?, error?, code? }); one repo's conflict does not stop the others, and is raised as the error after all ran.",
+    flags: [
+      F.taskId(),
+      {
+        name: "repo",
+        type: "string",
+        placeholder: "NAME",
+        description: "Multi-repo task: sync only this repo (`.task.extraRepos[].name`; UNKNOWN_REPO otherwise).",
+      },
+    ],
+    handler: sync,
   },
   {
     name: "delete",

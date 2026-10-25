@@ -67,6 +67,12 @@ export interface EngineActivityDetail {
   readonly subagent?: { readonly type?: string; readonly id?: string }
   /** Free-form human note (e.g. the raw error type), shown in tooltips. */
   readonly note?: string
+  /** For `dead`: the pty-host's exit record — who ended the engine process. */
+  readonly exit?: {
+    readonly code?: number | null
+    readonly signal?: string | null
+    readonly lastLine?: string
+  }
 }
 
 /**

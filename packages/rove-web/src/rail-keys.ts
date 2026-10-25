@@ -10,23 +10,20 @@ import { chordCandidates } from "./chord.ts"
 import { t } from "./i18n/index.ts"
 import { enterWorkspace } from "./layout.ts"
 import type { AppModel } from "./model.ts"
-import { moveMode, moveRow } from "./move-mode.ts"
+import { moveMode, moveRow, setMoveMode } from "./move-mode.ts"
 import { railCursorTask } from "./rail-aim.ts"
-import { type NavRow, SORT_MODES, type SortMode } from "./rail.ts"
+import { cycleRailSort, railSort } from "./rail-sort.ts"
+import type { NavRow } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
+import { useStore } from "./store.ts"
 import { findBinding, page, toast } from "./ui.ts"
 import { keysOf } from "./user-keys.ts"
 
-const SORT_KEY = "rove.activeSortMode"
 const COLLAPSED_KEY = "rove.collapsedProjects"
 const FOLDED_TASKS_KEY = "rove.foldedTasks"
+const OPENED_TASKS_KEY = "rove.openedTasks"
 /** Second `g` of `gg` must land within this. */
 const GG_MS = 600
-
-function loadSort(): SortMode {
-  const saved = localStorage.getItem(SORT_KEY)
-  return SORT_MODES.find((mode) => mode === saved) ?? "default"
-}
 
 function loadSet(key: string): ReadonlySet<string> {
   try {
@@ -53,7 +50,7 @@ const toggled = (now: ReadonlySet<string>, id: string): ReadonlySet<string> => {
 
 /** Sort + `/` query: owned by the rail, which builds the rows from them before the keys see them. */
 export function useRailFilters() {
-  const [sort, setSort] = useState<SortMode>(loadSort)
+  const sort = useStore(railSort)
   const [search, setSearch] = useState({ active: false, query: "" })
   // Open routine count rows (project repos); session-scoped, as the TUI's `expandedRoutines`.
   const [routines, setRoutines] = useState<ReadonlySet<string>>(new Set())
@@ -66,29 +63,36 @@ export function useRailFilters() {
       saveSet(COLLAPSED_KEY, next)
       return next
     })
-  // Task ids whose children are folded away; per browser too, open until folded.
-  const [foldedTasks, setFoldedTasks] = useState<ReadonlySet<string>>(() => loadSet(FOLDED_TASKS_KEY))
-  const toggleTaskFold = (id: string) =>
-    setFoldedTasks((now) => {
-      const next = toggled(now, id)
-      saveSet(FOLDED_TASKS_KEY, next)
-      return next
+  // Parents folded or opened by hand (ids); per browser too. Past that, a crowded parent folds on its own.
+  const [hand, setHand] = useState(() => ({
+    folded: loadSet(FOLDED_TASKS_KEY),
+    opened: loadSet(OPENED_TASKS_KEY),
+  }))
+  const toggleTaskFold = (id: string, collapsed: boolean) =>
+    setHand((now) => {
+      const folded = new Set(now.folded)
+      const opened = new Set(now.opened)
+      if (collapsed) {
+        folded.delete(id)
+        opened.add(id)
+      } else {
+        opened.delete(id)
+        folded.add(id)
+      }
+      saveSet(FOLDED_TASKS_KEY, folded)
+      saveSet(OPENED_TASKS_KEY, opened)
+      return { folded, opened }
     })
-  const cycleSort = () => {
-    const next = SORT_MODES[(SORT_MODES.indexOf(sort) + 1) % SORT_MODES.length] ?? "default"
-    setSort(next)
-    localStorage.setItem(SORT_KEY, next)
-  }
   return {
     sort,
-    cycleSort,
+    cycleSort: cycleRailSort,
     search,
     setSearch,
     routines,
     toggleRoutines,
     collapsed,
     toggleProject,
-    foldedTasks,
+    hand,
     toggleTaskFold,
   }
 }
@@ -247,7 +251,7 @@ export function useRailKeys(
         void cycleEngine(row)
         break
       case "sidebar.localMerge":
-        if (row?.machine === undefined) moveMode.set(true)
+        if (row?.machine === undefined) setMoveMode(true)
         break
       case "sidebar.sort":
         filters.cycleSort()

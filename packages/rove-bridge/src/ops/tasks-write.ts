@@ -4,6 +4,7 @@
  * checked here and verb values are built only with `flag()`.
  */
 
+import { MULTI_REPO_CAP } from "@sma1lboy/rove-daemon/task-tree"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
 import { absPath, bool, flag, oneOf, optOneOf, optText, taskId, text } from "./args.ts"
 import {
@@ -25,6 +26,21 @@ import type { Args, OpContext, OpSpec, OpTable } from "./types.ts"
 const STATUSES = ["backlog", "in_progress", "in_review", "done", "canceled", "error"] as const
 const DIRECTIONS = ["up", "down", "top"] as const
 const PROMPT_MAX = 100_000
+
+/** `extraRepos`: the task's other repos in pick order (the first `repo` is the primary), each with an optional base ref. */
+function extraRepos(args: Args): Array<{ repo: string; baseRef?: string }> {
+  const raw = args.extraRepos
+  if (raw === undefined || raw === null) return []
+  if (!Array.isArray(raw)) throw new BridgeError("BAD_ARGS", "extraRepos must be an array")
+  if (raw.length + 1 > MULTI_REPO_CAP) throw new BridgeError("BAD_ARGS", `a task spans at most ${MULTI_REPO_CAP} repos`)
+  return raw.map((entry, i) => {
+    const item: Args = typeof entry === "object" && entry !== null ? (entry as Args) : {}
+    const repo = absPath(item, "repo")
+    const baseRef = optGitRef(item, "baseRef")
+    if (!repo) throw new BridgeError("BAD_ARGS", `extraRepos[${i}].repo is required`)
+    return { repo, ...(baseRef ? { baseRef } : {}) }
+  })
+}
 
 function write(wraps: string, run: OpSpec["run"], destructive = false): OpSpec {
   // `async` so a refused argument is always a rejection, never a synchronous throw.
@@ -53,6 +69,9 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const engineGiven = args.engine !== undefined && args.engine !== null && args.engine !== ""
   // Another registered machine: `add` runs in its daemon, against its paths and its engines.
   const machine = optText(args, "machine", 64)
+  const extras = extraRepos(args)
+  if (extras.length > 0 && machine)
+    throw new BridgeError("BAD_ARGS", "a multi-repo task must keep every repo on this machine")
 
   const parallel = count !== undefined || agentsGiven
   if (count !== undefined && agentsGiven) throw new BridgeError("BAD_ARGS", "count and agents are exclusive")
@@ -65,6 +84,9 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const engine = !engineGiven ? undefined : machine ? text(args, "engine", 64) : await engineId(args, "engine", ctx)
 
   const argv = [flag("repo", repo)]
+  // Further `--repo`s are the extras; `--base-for REPO=REF` (REPO as a path) is each one's base.
+  for (const extra of extras) argv.push(flag("repo", extra.repo))
+  for (const extra of extras) if (extra.baseRef) argv.push(flag("base-for", `${extra.repo}=${extra.baseRef}`))
   if (title) argv.push(flag("title", title))
   if (branch) argv.push(flag("branch", branch))
   if (baseBranch) argv.push(flag("base-branch", baseBranch))
@@ -82,6 +104,8 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
     groupId?: string
     tasks?: ReadonlyArray<{ taskId?: string }>
   }>("add", argv, machine)
+  // The project's next "New conversation" follows the engine this one was started on.
+  if (engine && !machine) taskOpDeps.rememberEngine(repo, engine)
   if (Array.isArray(res.tasks)) {
     const taskIds = res.tasks.flatMap((t) => (typeof t.taskId === "string" ? [t.taskId] : []))
     return { taskIds, ...(res.groupId ? { groupId: res.groupId } : {}) }

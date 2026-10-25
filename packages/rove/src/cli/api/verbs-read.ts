@@ -14,6 +14,8 @@ import { CONTEXT_VERB } from "./handlers-context.ts"
 import { DIGEST_VERB } from "./handlers-digest.ts"
 import { collect } from "./handlers-fanout.ts"
 import { INSPECT_VERB } from "./handlers-inspect.ts"
+import { PORTS_VERB } from "./handlers-ports.ts"
+import { REVIEW_COMMENTS_VERB } from "./handlers-review-comments.ts"
 import { getTask, list } from "./handlers-tasks.ts"
 import { WATCH_VERB } from "./handlers-watch.ts"
 import { READ_OUTPUT_VERB } from "./read-output.ts"
@@ -82,4 +84,6 @@ export const READ_VERBS: readonly VerbSpec[] = [
   INSPECT_VERB,
   READ_OUTPUT_VERB,
   WATCH_VERB,
+  PORTS_VERB,
+  REVIEW_COMMENTS_VERB,
 ]

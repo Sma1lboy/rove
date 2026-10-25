@@ -23,6 +23,7 @@ import {
   offersProjectIntent,
   pickerVisibleRows,
   prevDialogTab,
+  stripNewlines,
 } from "../../../tui/component/new-task-dialog/state"
 import { t } from "../../../tui/i18n"
 import { DEFAULT_BASE_REF, validateRepoPath } from "../../../tui/lib/git-snapshot"
@@ -34,6 +35,7 @@ import { resolveInitialVendor, resolveVendorSet } from "./pure"
 import { useAdoptState } from "./use-adopt-state"
 import { useBranchField } from "./use-branch-field"
 import { useCloneState } from "./use-clone-state"
+import { useExtraRepos } from "./use-extra-repos"
 import { useRepoField } from "./use-repo-field"
 
 /** Prop surface of the dialog view. */
@@ -94,6 +96,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   // Validation error shown inline on submit; cleared on any input edit.
   const [submitError, setSubmitError] = useState<string | null>(null)
+  // The task's first message (Existing tab): a task is born by it.
+  const [prompt, setPrompt] = useState("")
 
   /* ── Field clusters (each owns one question the dialog asks) ── */
 
@@ -134,9 +138,11 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     expandedRepo,
     pickerRows,
     defaultRepo: props.defaultRepo,
-    commit: () => commitExisting(),
-    onPicked: () => setField("confirm"),
+    onResolved: () => setField("prompt"),
+    onPicked: () => setField("prompt"),
   })
+
+  const extras = useExtraRepos({ savedRepos: props.savedRepos, primary: expandedRepo, pickerRows })
 
   const clone = useCloneState({
     defaultCloneParent: props.defaultCloneParent,
@@ -195,6 +201,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       return
     }
     const b = branch.baseRef.trim() || DEFAULT_BASE_REF
+    const firstMessage = prompt.trim()
     props.onSubmit({
       repo: r,
       baseRef: b,
@@ -202,6 +209,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       ...(effort ? { modelEffort: effort } : {}),
       ...(modelVisible && modelField.value.trim() ? { model: modelField.value.trim() } : {}),
       ...(tier !== "manual" ? { tier } : {}),
+      ...(firstMessage ? { prompt: firstMessage } : {}),
+      ...(extras.extraPicked.length > 0 ? { extraRepos: extras.extraPicked } : {}),
     })
     dialog.clear()
   }
@@ -248,26 +257,27 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   /**
    * Which stops the Tab cycle offers. A stop on an unrendered field parks
-   * focus on an invisible input and swallows every keystroke, so depth,
-   * model and effort (auto-routing's; a pinned model is a per-task exception;
-   * change-engine still shows them) are off. Shared by `advanceField` and
-   * `advanceFieldFor` so tests walk the dialog's real cycle.
+   * focus on an invisible input and swallows every keystroke, so each is on
+   * only while its row renders: effort for engines that declare levels, model
+   * for engines with a model flag. Depth (auto-routing's) stays off. Shared by
+   * `advanceField` and `advanceFieldFor` so tests walk the dialog's real cycle.
    */
   function focusStopsFor(forTab: DialogTab) {
     return {
       intentVisible: forTab === "existing" && canOpenProject,
-      effortVisible: false,
-      modelVisible: false,
+      // Opening the project has no extras either: it enters the repo's own checkout.
+      extrasVisible:
+        forTab === "existing" && extras.extraCandidates.length > 0 && !(intent === "project" && canOpenProject),
+      effortVisible: effortChoices.length > 0,
+      modelVisible,
       tierVisible: false,
     }
   }
 
   function advanceField(from: Field): Field {
     const next = nextField(from, tab, focusStopsFor(tab))
-    // The "project" intent hides the branch field (`tab-existing.tsx`); skip it.
-    if (next === "baseRef" && tab === "existing" && intent === "project" && canOpenProject) {
-      return nextField(next, tab)
-    }
+    // The "project" intent hides the branch and first-message fields (`tab-existing.tsx`); Create is next.
+    if (next === "baseRef" && tab === "existing" && intent === "project" && canOpenProject) return "confirm"
     return next
   }
 
@@ -313,6 +323,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     if (clone.cloneInFlight) return
     if (field === "model") {
       modelField.moveCursor(delta)
+      return
+    }
+    if (tab === "existing" && field === "extras") {
+      extras.moveExtraCursor(delta)
       return
     }
     if (tab === "existing" && field === "repo") {
@@ -370,6 +384,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       // Ctrl+A select-all exists ONLY on the Adopt tab; elsewhere it must
       // fall through to the focused input as line-home.
       ...(tab === "adopt" ? [{ key: "ctrl+a", cmd: adopt.adoptSelectAll }] : []),
+      // Enter on the extras list toggles the row under the cursor; Tab walks on.
+      ...(field === "extras" ? [{ key: "return", cmd: extras.toggleExtraCursor }] : []),
     ],
   }))
 
@@ -384,6 +400,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     ...clone,
     ...adopt,
     ...branch,
+    ...extras,
     ...repoField,
     defaultRepo: props.defaultRepo,
     tab,
@@ -393,6 +410,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     effort,
     effortChoices,
     setEffort: setEffortPick,
+    prompt,
+    setPrompt: (v: string) => setPrompt(stripNewlines(v)),
     modelVisible,
     modelField,
     /** The tier row renders only while auto routing is configured. */

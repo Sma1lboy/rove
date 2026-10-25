@@ -112,6 +112,7 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `term.input` | `stream`, `data` | `{}` |
 | `term.resize` | `stream`, `cols`, `rows` | `{}` |
 | `term.detach` | `stream` | `{}` |
+| `term.revive` | `taskId`, `tabId` | `{revived, resumed}`: `tab-revive` for the tab `term.attach` would open (a viewport tab revives the session it shows); a running tab answers `revived: false`. Attach again afterwards. |
 | `diff.files` | `taskId` | `{base, files: [{path, status, added, deleted, scope}]}` |
 | `diff.file` | `taskId`, `path`, `scope` | `{kind, text?, message?}` |
 | `files.list` | `taskId` | `{files, truncated}` (tracked + untracked, not ignored) |

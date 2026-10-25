@@ -200,6 +200,29 @@ test("terminal: F5 recovers a failed acquire, and the pane says so", async () =>
   expect(attempt).toBe(2)
 })
 
+test("terminal: clicking the retry hint recovers a failed acquire", async () => {
+  let attempt = 0
+  const registry = new PtyRegistry((opts) => {
+    attempt += 1
+    if (attempt === 1) throw new Error("spawn /bin/nope ENOENT")
+    const pty = new MockTaskPty(opts)
+    pty.feed("recovered-shell-prompt$ ")
+    return pty
+  })
+  const { frame, mockMouse } = await renderComponent(
+    <Terminal taskId="t1" cwd="/repos/rove" focused={true} registry={registry} />,
+    { width: 80, height: 16, providers: { dialog: true, kv: true, notifications: true } },
+  )
+  await settle(200)
+  const rows = (await frame()).split("\n")
+  const y = rows.findIndex((row) => row.includes("F5 tries again"))
+  expect(y).toBeGreaterThanOrEqual(0)
+  await mockMouse.click((rows[y] ?? "").indexOf("F5 tries again") + 1, y)
+  await settle(400)
+  expect(await frame()).toContain("recovered-shell-prompt")
+  expect(attempt).toBe(2)
+})
+
 /**
  * Enter on a task whose worktree can't be materialized must not be a TOTAL
  * no-op. `activateWorkspaceTask` correctly refuses to move the selection and
