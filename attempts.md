@@ -261,3 +261,5 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Still open:** #1325 (the Linux `/proc` live-engine walk, 10-21) is unmerged, so switch.perOp.spawns is still 0.5 (17 `ps -A` per run, all `engine.foregroundWalk` every 2 s). Don't redo it; it is waiting on the owner.
 
 **Sandbox:** harness Playwright asks for headless shell rev 1228 at `chrome-headless-shell-linux64/`. The sandbox ships 1243 in that layout, so a dir of symlinks plus 1228/1194 → 1243 dir symlinks were enough. `BUN_OPTIONS=--smol` was exported again and unset for every run.
+
+**Update 2026-10-25:** #1422 merged. Tomorrow's main should read switch.perOp.stateNotify ~2.
