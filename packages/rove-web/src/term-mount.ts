@@ -113,6 +113,8 @@ export interface MountOpts {
   readonly onExit: (code: number | null) => void
   /** Copy-on-release and the copy chords; true = it reached the clipboard. */
   readonly copyText: (text: string) => Promise<boolean>
+  /** Mac Ctrl+V: attaches the image on the browser's clipboard, or says why it can't. */
+  readonly pasteImage: () => Promise<void>
   readonly focusOnMount: boolean
 }
 
@@ -291,6 +293,14 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   // Copy: ctrl+c with a selection copies and drops it, otherwise it stays the interrupt (TUI `copySelectionIfAny`).
   term.attachCustomKeyEventHandler((e) => {
+    // On a Mac, Ctrl+V would ask the engine to read the rove machine's clipboard, not this browser's.
+    // Elsewhere it is the browser's own paste, which the paste event already covers.
+    const ctrlV =
+      e.type === "keydown" && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "v"
+    if (ctrlV && /Mac|iPhone|iPad/.test(navigator.platform)) {
+      void o.pasteImage()
+      return false
+    }
     const chord = isCopyChord(e)
     if (!chord) return true
     const text = term.getSelection()

@@ -51,6 +51,36 @@ async function dropFiles(client: BridgeClient, handle: TermHandle, files: File[]
   handle.term.focus()
 }
 
+/** The images and PDFs on the browser's clipboard; throws when the page may not read it (plain http, permission refused). */
+async function clipboardFiles(): Promise<File[]> {
+  if (!navigator.clipboard?.read) throw new Error(t("layout.pasteNeedsHttps"))
+  const files: File[] = []
+  for (const item of await navigator.clipboard.read()) {
+    for (const type of item.types) {
+      if (type.startsWith("image/") || type === "application/pdf") {
+        files.push(new File([await item.getType(type)], "clipboard", { type }))
+      }
+    }
+  }
+  return attachableFiles(files)
+}
+
+/**
+ * Never the engine's own clipboard read: it reads the rove machine's clipboard, which is not this browser's
+ * from anywhere else (a tunnel to localhost included), and is the same clipboard on that machine.
+ */
+async function pasteClipboardImage(client: BridgeClient, handle: TermHandle): Promise<void> {
+  let files: File[]
+  try {
+    files = await clipboardFiles()
+  } catch (err) {
+    toast(t("layout.pasteNoAccess", { error: err instanceof Error ? err.message : String(err) }), "error")
+    return
+  }
+  if (files.length === 0) toast(t("layout.pasteNoImage"), "error")
+  else await dropFiles(client, handle, files)
+}
+
 async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text)
@@ -102,6 +132,9 @@ export function TerminalView(props: TerminalViewProps) {
           if (!exitIsReset(streamKey(taskId, tabId, leafId))) latest.current.onExit?.()
         },
         copyText,
+        pasteImage: async () => {
+          if (mounted) await pasteClipboardImage(client, mounted)
+        },
         focusOnMount: latest.current.focused !== false,
       })
       setHandle(mounted)
@@ -207,11 +240,15 @@ export function TerminalView(props: TerminalViewProps) {
         void dropFiles(client, handle, Array.from(e.dataTransfer.files))
       }}
       // A pasted image goes the way of a dropped one; xterm only pastes text, so it never sees it.
+      // An empty text paste would reach the engine as an empty bracketed paste, which makes it read the
+      // rove machine's clipboard: read the browser's instead.
       onPasteCapture={(e) => {
-        if (!handle || attachableFiles(e.clipboardData.files).length === 0) return
+        if (!handle) return
+        const files = attachableFiles(e.clipboardData.files)
+        if (files.length === 0 && e.clipboardData.getData("text/plain") !== "") return
         e.preventDefault()
         e.stopPropagation()
-        void dropFiles(client, handle, attachableFiles(e.clipboardData.files))
+        void (files.length > 0 ? dropFiles(client, handle, files) : pasteClipboardImage(client, handle))
       }}
     >
       <div className="term-host" ref={host} />

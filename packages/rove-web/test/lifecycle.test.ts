@@ -310,6 +310,7 @@ function terminals() {
       onFocusChange() {},
       onExit() {},
       copyText: async () => true,
+      pasteImage: async () => {},
       focusOnMount: false,
     }).dispose
   const resolve = async (index: number) => {
