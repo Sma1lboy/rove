@@ -1,4 +1,4 @@
-/* Dispatch page (dispatch-view.tsx) */
+/* Dispatch page (dispatch-view.tsx): a network map, then the recent history. */
 
 .dp-page {
   display: flex;
@@ -6,37 +6,189 @@
   gap: 18px;
 }
 
+/* The map. Nodes, hub and couriers are absolutely placed from the measured width; wires are
+   one SVG layer underneath. */
+.dp-stage {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius);
+  background-color: var(--surface);
+  background-image: radial-gradient(var(--line) 1px, transparent 1px);
+  background-size: 16px 16px;
+  overflow: hidden;
+}
+
+.dp-wires {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.dp-wire {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.dp-wire.is-live {
+  stroke: var(--accent);
+  stroke-dasharray: 4 5;
+  animation: dp-flow 600ms linear infinite;
+}
+
+.dp-wire.is-failed {
+  stroke: var(--error);
+  stroke-dasharray: 2 4;
+}
+
+@keyframes dp-flow {
+  to {
+    stroke-dashoffset: -9;
+  }
+}
+
+.dp-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  height: 36px;
+  min-width: 0;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  /* The task's colour (Settings → task colours) as the node's left edge, like the rail's mark. */
+  box-shadow: inset 2px 0 0 var(--node-ink, var(--line-active));
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dp-node:hover {
+  background: var(--hover);
+}
+
+.dp-node:disabled {
+  cursor: default;
+}
+
+.dp-node.is-plain {
+  box-shadow: none;
+  border-style: dashed;
+}
+
+.dp-node.is-plain:hover {
+  background: var(--paper);
+}
+
+.dp-node-title,
+.dp-node-sub {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dp-node-title {
+  font-size: 12px;
+}
+
+.dp-node-sub {
+  font-size: 11px;
+  color: var(--subtle);
+}
+
+.dp-hub {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-active);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.dp-stage.is-live .dp-hub {
+  border-color: var(--accent);
+}
+
+.dp-hub-mark {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.dp-hub-mark b {
+  color: var(--accent);
+}
+
+.dp-hub-sub {
+  font-size: 11px;
+  color: var(--subtle);
+}
+
+.dp-courier {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  white-space: pre;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 14px;
+  /* JetBrains Mono joins `<|` and `|>` into arrows; the courier's limbs are separate strokes. */
+  font-variant-ligatures: none;
+  color: var(--accent);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.dp-courier.is-knock,
+.dp-courier.is-ask {
+  color: var(--warning);
+}
+
+.dp-courier.is-done {
+  color: var(--success);
+}
+
+.dp-courier.is-failed {
+  color: var(--error);
+}
+
+.dp-empty {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+}
+
 .dp-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .dp-section .kicker {
   margin: 0 0 4px;
 }
 
-.dp-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 18px 0;
-  text-align: center;
-}
-
-.dp-empty p {
-  margin: 0;
-}
-
-.dp-lane,
 .dp-past {
   display: grid;
+  grid-template-columns: 2ch minmax(0, auto) minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 12px;
   width: 100%;
   min-width: 0;
-  padding: 6px 8px;
+  padding: 3px 8px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -46,37 +198,10 @@
   cursor: pointer;
 }
 
-.dp-lane:hover,
 .dp-past:hover {
   background: var(--hover);
 }
 
-.dp-lane {
-  grid-template-columns: minmax(0, 18ch) minmax(16ch, 1fr) minmax(0, 18ch) 11ch;
-  grid-template-areas:
-    "from track to status"
-    ". prompt prompt prompt";
-  row-gap: 2px;
-}
-
-.dp-lane > .dp-end:first-child {
-  grid-area: from;
-  text-align: right;
-}
-
-.dp-lane > .dp-end:nth-child(3) {
-  grid-area: to;
-}
-
-.dp-lane > .dp-status {
-  grid-area: status;
-}
-
-.dp-lane > .dp-prompt {
-  grid-area: prompt;
-}
-
-.dp-end,
 .dp-route,
 .dp-prompt {
   min-width: 0;
@@ -90,53 +215,11 @@
   font-family: var(--sans);
 }
 
-/* The lane: a path the courier runs along. The rail is the track minus one sprite width,
-   so translateX(100%) of it puts the courier's left edge where its body touches the target. */
-.dp-track {
-  grid-area: track;
-  position: relative;
-  min-width: 0;
-  height: calc(3 * 1.15em);
-  font-size: 12px;
-  background: linear-gradient(var(--line), var(--line)) left 72% / 100% 1px no-repeat;
-}
-
-.dp-rail {
-  position: absolute;
-  inset: 0 4ch 0 0;
-  transition: transform 160ms linear;
-}
-
-.dp-sprite {
-  display: block;
-  white-space: pre;
-  width: 4ch;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.15;
-  /* JetBrains Mono joins `<|` and `|>` into arrows; the courier's limbs are separate strokes. */
-  font-variant-ligatures: none;
-  color: var(--accent);
-  background: var(--paper);
-}
-
-.dp-sprite.is-ask,
-.dp-sprite.is-knock {
-  color: var(--warning);
-}
-
-.dp-sprite.is-failed {
-  color: var(--error);
-}
-
-.dp-empty .dp-sprite {
-  color: var(--subtle);
-  background: transparent;
+.dp-age {
+  font-size: 11px;
 }
 
 .dp-status {
-  font-size: 11px;
-  white-space: nowrap;
   color: var(--muted);
 }
 
@@ -156,33 +239,8 @@
   color: var(--success);
 }
 
-.dp-past {
-  grid-template-columns: 2ch minmax(0, auto) minmax(0, 1fr) auto;
-  padding: 3px 8px;
-}
-
-.dp-age {
-  font-size: 11px;
-}
-
-/* Phone width: the lane stacks its names over the track. */
-@media (max-width: 560px) {
-  .dp-lane {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "from status"
-      "track track"
-      "to to"
-      "prompt prompt";
-  }
-
-  .dp-lane > .dp-end:first-child {
-    text-align: left;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .dp-rail {
-    transition: none;
+  .dp-wire.is-live {
+    animation: none;
   }
 }
