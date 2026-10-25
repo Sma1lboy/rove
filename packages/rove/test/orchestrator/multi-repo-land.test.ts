@@ -144,6 +144,27 @@ describe("landing a multi-repo task", () => {
     expect(fs.existsSync(webWt) || fs.existsSync(apiWt)).toBe(false)
   })
 
+  test("a squash land resumes past the repo it already squashed", async () => {
+    const { task, webWt, apiWt } = await workedTask()
+    commitFile(apiWt, "clash.txt", "from the worker\n", "worker clash")
+    commitFile(api, "clash.txt", "from main\n", "main clash")
+
+    const first = await orch.landTask(task.id, { strategy: "squash" })
+    expect(first.repos?.map((r) => r.status)).toEqual(["landed", "conflict"])
+
+    spawnSync("git", ["merge", "main"], { cwd: apiWt, encoding: "utf8" })
+    fs.writeFileSync(path.join(apiWt, "clash.txt"), "resolved\n")
+    git(apiWt, "add", ".")
+    git(apiWt, "commit", "-qm", "resolve")
+
+    const second = await orch.landTask(task.id, { strategy: "squash" })
+
+    expect(second.stopped).toBeUndefined()
+    expect(second.repos?.map((r) => r.status)).toEqual(["skipped", "landed"])
+    expect(git(api, "show", "HEAD:clash.txt")).toBe("resolved")
+    expect(fs.existsSync(webWt) || fs.existsSync(apiWt)).toBe(false)
+  })
+
   test("--repo lands just that repo and leaves the others alone", async () => {
     const { task, webWt } = await workedTask()
 
