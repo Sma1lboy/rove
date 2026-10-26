@@ -19,7 +19,7 @@ import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
-import { mostUrgentStatus, needsPerson } from "./rail-glyphs.ts"
+import { mostUrgentStatus } from "./rail-glyphs.ts"
 import { dropIdleProjects } from "./rail-idle.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
@@ -67,7 +67,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       machines,
       sort: filters.sort,
       query,
-      routines: filters.routines,
       fold: { ...filters.hand, selectedId: selectedId ?? undefined },
     })
   const built = build(filters.search.active ? filters.search.query : "")
@@ -221,16 +220,16 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               }
               onToggleFold={() => {
                 if (row.kind === "task") filters.toggleTaskFold(row.id, row.fold?.collapsed === true)
-                if (row.kind === "routines") filters.toggleRoutines(row.key)
                 if (row.kind === "archived") filters.toggleArchived()
               }}
               onClick={() => {
                 keys.setCursor(row.id)
-                if (row.kind === "routines") filters.toggleRoutines(row.key)
                 if (row.kind === "archived") filters.toggleArchived()
                 if (row.kind === "project") filters.toggleProject(row.id)
-                if (row.kind === "task") model.select(row.task.id)
-                if (row.kind === "routines" || row.kind === "task") enterWorkspace()
+                if (row.kind === "task") {
+                  model.select(row.task.id)
+                  enterWorkspace()
+                }
               }}
               onMenu={(e) => {
                 // Another machine's project has no checkout here, so its header has no menu; its
@@ -243,7 +242,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                   openMenu(e, projectMenu(model, row.repo, info))
                   return
                 }
-                // The routines and Archived rows name no task, so they have no menu (TUI `use-tree-menu`).
+                // The Archived row names no task, so it has no menu (TUI `use-tree-menu`).
                 if (row.kind !== "task") return
                 keys.setCursor(row.id)
                 openMenu(
@@ -340,30 +339,16 @@ function RailRow(props: {
       </h2>
     )
   }
-  if (row.kind === "routines" || row.kind === "archived") {
-    const routines = row.kind === "routines"
-    const waiting = routines && !row.expanded ? row.tasks.filter(needsPerson).length : 0
-    const words = routines
-      ? row.tasks.length === 1
-        ? tc("tasks", "routinesRowOne")
-        : tc("tasks", "routinesRow", { count: row.tasks.length })
-      : tc("tasks", "archivedRow", { count: row.count })
+  if (row.kind === "archived") {
     return (
       <button
         type="button"
-        className={`row count-row ${routines ? `routines-row ${props.selected ? "is-selected" : ""}` : "archived-row"} ${cursor}`}
+        className={`row count-row archived-row ${cursor}`}
         aria-expanded={row.expanded}
         onClick={props.onClick}
         {...props.place}
       >
-        <span className="row-title muted">{words}</span>
-        <span className="chips">
-          {waiting > 0 && (
-            <span className="chip tone-attention">
-              {tc("tasks", "group.waitingOnYou")}: {waiting}
-            </span>
-          )}
-        </span>
+        <span className="row-title muted">{tc("tasks", "archivedRow", { count: row.count })}</span>
       </button>
     )
   }

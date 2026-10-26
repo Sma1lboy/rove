@@ -70,15 +70,6 @@ export type NavRow =
       readonly label: string
       readonly depth: number
     })
-  /** One row folding a project's routine sessions (`tree-core.ts` `routines`); `key` names the fold in `expandedRoutines`. */
-  | (Remote & {
-      readonly id: string
-      readonly kind: "routines"
-      readonly repo: string
-      readonly key: string
-      readonly tasks: readonly TaskRow[]
-      readonly expanded: boolean
-    })
   /** The fold at the end of the rail holding every archived task (`rail-archived.ts`). */
   | {
       readonly id: typeof ARCHIVED_ROW_ID
@@ -128,8 +119,6 @@ const COMPARE: Record<SortMode, ((a: TaskRow, b: TaskRow) => number) | null> = {
   attention: compareAttention,
   name: compareName,
 }
-
-export const routinesRowId = (key: string): string => `~routines:${key}`
 
 export const repoLabel = (repo: string): string => repo.split("/").filter(Boolean).pop() ?? repo
 
@@ -215,7 +204,7 @@ function loopsBack(task: TaskRow, byId: ReadonlyMap<string, TaskRow>): boolean {
 
 /**
  * Children nest under their parent wherever it sits, another project's included. One whose parent is
- * not on screen (or whose lineage loops) stays top level; routine sessions stay in their fold.
+ * not on screen (or whose lineage loops) stays top level.
  * Children keep list order (`tree-core.ts` `indexChildren`).
  */
 function indexChildren(groups: readonly ProjectGroup[]): {
@@ -228,7 +217,7 @@ function indexChildren(groups: readonly ProjectGroup[]): {
   const nested = new Set<string>()
   for (const task of byId.values()) {
     const parent = task.parentTaskId
-    if (parent === undefined || task.routine || !byId.has(parent) || loopsBack(task, byId)) continue
+    if (parent === undefined || !byId.has(parent) || loopsBack(task, byId)) continue
     nested.add(task.id)
     const siblings = children.get(parent)
     if (siblings) siblings.push(task)
@@ -258,13 +247,7 @@ function isFolded(id: string, childCount: number, descendants: readonly string[]
  * children, a child hit its parents and project. A folded task (`fold`) hides its children.
  * `base` is how many generations the group's top-level tasks already sit under (the Archived fold's).
  */
-export function navRows(
-  groups: readonly ProjectGroup[],
-  query = "",
-  expandedRoutines: ReadonlySet<string> = new Set(),
-  fold: FoldState = NO_FOLDS,
-  base = 0,
-): NavRow[] {
+export function navRows(groups: readonly ProjectGroup[], query = "", fold: FoldState = NO_FOLDS, base = 0): NavRow[] {
   const q = query.trim()
   const hit = (...fields: string[]) => fields.some((f) => f !== "" && fuzzyMatch(q, f))
   const { children, nested } = indexChildren(groups)
@@ -298,30 +281,7 @@ export function navRows(
       for (const child of kids ?? []) if (open || hasHit(child)) push(out, child, generation + 1, open)
     }
     const under: NavRow[] = []
-    const routines: TaskRow[] = []
-    const routineRows: NavRow[] = []
-    for (const task of group.tasks) {
-      if (nested.has(task.id) || !hasHit(task)) continue
-      // Routine sessions are the tail of the group: a count row folds them, and they hang under it as its children.
-      if (task.routine) {
-        routines.push(task)
-        push(routineRows, task, base + 1)
-      } else push(under, task, base)
-    }
-    if (routines.length > 0) {
-      // Search builds fully open, so a folded routine stays findable.
-      const expanded = q !== "" || expandedRoutines.has(key)
-      under.push({
-        id: routinesRowId(key),
-        kind: "routines",
-        repo: group.repo,
-        key,
-        tasks: routines,
-        expanded,
-        ...head,
-      })
-      if (expanded) under.push(...routineRows)
-    }
+    for (const task of group.tasks) if (!nested.has(task.id) && hasHit(task)) push(under, task, base)
     if (under.length === 0 && !projectHit) continue
     rows.push(
       {
@@ -347,7 +307,6 @@ export interface RailInput {
   readonly machines: readonly { readonly alias: string; readonly hostLabel: string }[]
   readonly sort: SortMode
   readonly query: string
-  readonly routines: ReadonlySet<string>
   /** Parents the user folded or opened over the automatic rule; absent = automatic only. */
   readonly fold?: FoldState
 }
@@ -396,11 +355,14 @@ function mergedLabel(project: Project, all: readonly Project[]): string {
  * per-path projects, labelled as their headers.
  */
 export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGroup[] } {
+  // Routine runs live on the Routines page, not in the rail.
+  const tasks = input.tasks.filter((task) => !task.routine)
+  const remote = input.remote.filter((task) => !task.routine)
   const parts: Part[] = [
-    ...groupByProject(input.tasks, input.sort).map((group) => ({ group })),
+    ...groupByProject(tasks, input.sort).map((group) => ({ group })),
     ...input.machines.flatMap((machine) =>
       groupByProject(
-        input.remote.filter((task) => task.machine?.id === machine.alias),
+        remote.filter((task) => task.machine?.id === machine.alias),
         input.sort,
       ).map((group) => ({ group, machine: machine.alias })),
     ),
@@ -449,7 +411,7 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   if (input.sort === "name") labelled.sort((a, b) => collator.compare(a.label, b.label))
   // Ungrouped stays above every project, whatever the sort.
   labelled.sort((a, b) => Number(b.noProject === true) - Number(a.noProject === true))
-  const rows = navRows(labelled, input.query, input.routines, input.fold)
+  const rows = navRows(labelled, input.query, input.fold)
   const groups = parts
     .filter((part) => part.machine === undefined)
     .map((part) => {

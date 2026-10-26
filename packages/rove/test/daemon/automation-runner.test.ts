@@ -81,7 +81,7 @@ describe("runAutomationOnce", () => {
     const status = await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
     expect(status).toBe("dispatched")
-    expect(created).toEqual([{ repo: REPO, title: "audit" }])
+    expect(created).toEqual([{ repo: REPO, title: "audit", routine: { automationId: a.id } }])
     const run = store.runsFor(a.id)[0]
     expect(run).toMatchObject({ status: "dispatched", taskId: "task-1" })
     // The header names THIS run's delivery, and the routine's prompt comes last, unchanged.
@@ -98,7 +98,9 @@ describe("runAutomationOnce", () => {
 
     await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
-    expect(created).toEqual([{ repo: REPO, title: "audit", vendor: "codex", model: "gpt-5.5", modelEffort: "high" }])
+    expect(created).toEqual([
+      { repo: REPO, title: "audit", vendor: "codex", model: "gpt-5.5", modelEffort: "high", routine: { automationId: a.id } },
+    ])
   })
 
   it("skips without creating a task when the precheck fails", async () => {

@@ -15,7 +15,7 @@ const tab = (id: string, children?: SplitNodeView[], title = "claude"): TabRow =
     ...(children ? { split: { root: { kind: "group", orientation: "row", children }, activeLeafId: "leaf-1" } } : {}),
   }) as TabRow
 
-const rowsOf = (tasks: TaskRow[]) => navRows(groupByProject(tasks), "", new Set())
+const rowsOf = (tasks: TaskRow[]) => navRows(groupByProject(tasks))
 const ids = (rows: readonly NavRow[]) => rows.map((r) => r.id)
 
 describe("split panes in the rail", () => {
