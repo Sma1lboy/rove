@@ -130,15 +130,17 @@ export function RoutineComposer(props: {
     refs.current[next]?.focus()
   }
   const segments = splitCron(draft.schedule)
+  const stepCell = (delta: 1 | -1) => {
+    const segment = CRON_SEGMENTS[cell]
+    if (segment)
+      patch({ schedule: setSegment(draft.schedule, cell, stepSegment(segment, segments[cell] ?? "*", delta)) })
+  }
   const scheduleKeys = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return
-    const segment = CRON_SEGMENTS[cell]
     if (e.key === "ArrowLeft" || e.key === "h") setCell(moveSegmentCursor(cell, -1))
     else if (e.key === "ArrowRight" || e.key === "l") setCell(moveSegmentCursor(cell, 1))
-    else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && segment) {
-      const delta = e.key === "ArrowUp" ? 1 : -1
-      patch({ schedule: setSegment(draft.schedule, cell, stepSegment(segment, segments[cell] ?? "*", delta)) })
-    } else return
+    else if (e.key === "ArrowUp" || e.key === "ArrowDown") stepCell(e.key === "ArrowUp" ? 1 : -1)
+    else return
     e.preventDefault()
   }
   const preview = previewScheduleWith(draft.schedule, Date.now(), tr, intl)
@@ -259,6 +261,22 @@ export function RoutineComposer(props: {
                 </button>
               ))}
             </SelectorField>
+            {/* A soft keyboard has no arrows: on touch the picked field steps with these instead. */}
+            <div className="pg-cron-step">
+              {([-1, 1] as const).map((delta) => {
+                const field = auto.cronField[CRON_SEGMENTS[cell] ?? "minute"] ?? ""
+                return (
+                  <button
+                    type="button"
+                    key={delta}
+                    aria-label={t(delta < 0 ? "pages.cronDown" : "pages.cronUp", { field })}
+                    onClick={() => stepCell(delta)}
+                  >
+                    {delta < 0 ? "−" : "+"}
+                  </button>
+                )
+              })}
+            </div>
             {preview.kind === "ok" ? (
               <p className="tone-success mono">
                 {described ? `${described} · ` : ""}

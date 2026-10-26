@@ -229,16 +229,28 @@ export function IssueDrawer(props: {
         onDrop={onDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        {create ? (
-          <h1 className="kicker">{kanban.detail.newStory}</h1>
-        ) : (
-          <h1 className="kicker kb-drawer-head">
-            <span>#{issue.id}</span>
-            <span className={statusTone}>{statusLabel(status)}</span>
-            <span className="muted">{fill(kanban.detail.created, { date: issue.created })}</span>
-            {linkedTaskId && <span className="tone-accent">{kanban.detail.linked}</span>}
-          </h1>
-        )}
+        <div className="dialog-head">
+          {create ? (
+            <h1 className="kicker">{kanban.detail.newStory}</h1>
+          ) : (
+            <h1 className="kicker kb-drawer-head">
+              <span>#{issue.id}</span>
+              <span className={statusTone}>{statusLabel(status)}</span>
+              <span className="muted">{fill(kanban.detail.created, { date: issue.created })}</span>
+              {linkedTaskId && <span className="tone-accent">{kanban.detail.linked}</span>}
+            </h1>
+          )}
+          {/* Esc's twin for a touch screen: saves an open story, drops a new one. */}
+          <button
+            type="button"
+            className="dialog-close"
+            aria-label={t("dialog.close")}
+            title={t("dialog.close")}
+            onClick={() => latest.current.close()}
+          >
+            ×
+          </button>
+        </div>
         <div className="dialog-body">
           <label className="field">
             <span className="kicker">{kanban.detail.titleLabel}</span>
@@ -403,6 +415,17 @@ export function IssueDrawer(props: {
                 </SelectorField>
               </div>
               <p className="muted kb-legend">{create ? kanban.detail.createLegend : kanban.detail.startLegend}</p>
+              {/* The keys' click targets: a phone has no ctrl+s or ctrl+enter. */}
+              <div className="actions">
+                {create && (
+                  <button type="button" className="link" onClick={saveOnly}>
+                    {t("pages.storySave")}
+                  </button>
+                )}
+                <button type="button" className="button" onClick={commit}>
+                  {t(create ? "pages.storySaveStart" : "pages.storyStart")}
+                </button>
+              </div>
             </>
           ) : linkedTaskId ? (
             <>
