@@ -69,7 +69,6 @@ export const en = {
       dead: "engine exited",
       /** A routine whose latest firing needs a human. */
       routineFailed: "routine needs you",
-      routineResponded: "routine responded",
       /** An armed prompt's turn ended without `rove api report`. */
       reportMissing: "report missing",
       /** An open decision gate: a task asked its owner a question. */
@@ -130,7 +129,6 @@ export const zh: typeof en = {
       running: "进行中",
       dead: "引擎已退出",
       routineFailed: "例行任务需要处理",
-      routineResponded: "例行任务已回报",
       reportMissing: "未回报",
       decisionNeeded: "等你决定",
       gateAnswered: "已回答 · 引擎未运行",

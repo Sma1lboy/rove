@@ -245,7 +245,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `routine.runNow` | `id` | `routine-run-now` | — |
 | `routine.runs` | `id` | `routine-runs` | — |
 | `routine.delete` | `id` | `routine-delete` | yes |
-| `attention.dismissRoutine` | `automationId` | RPC `attention.dismissRoutine`: clears a routine episode (`routine_failed`/`routine_responded`), which is keyed on its schedule and has no task for `attention.dismiss` | — |
+| `attention.dismissRoutine` | `automationId` | RPC `attention.dismissRoutine`: clears a routine episode (`routine_failed`), which is keyed on its schedule and has no task for `attention.dismiss` | — |
 | `workitem.list` | `repo`, `state?`, `assignee?` (`@me`), `search?`, `limit?`, `refresh?` | RPC `workitem.list` | — |
 | `workitem.links` | `repo` | RPC `task.list`, folded to tasks started from an issue | — |
 | `workitem.start` | `repo`, `number`, `engine?` (built-in) | `workitem-start` | — |

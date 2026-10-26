@@ -24,7 +24,7 @@ import {
 
 export interface DeliveryDeps {
   readonly deliveries: DeliveriesStore
-  readonly inbox: Pick<AttentionInboxStore, "recordReportMissing" | "deleteDeliveryEpisode" | "recordRoutineResponse">
+  readonly inbox: Pick<AttentionInboxStore, "recordReportMissing" | "deleteDeliveryEpisode">
   readonly orch: Pick<DaemonOrchestrator, "getTask" | "setWorkerReport">
   readonly automations: Pick<AutomationsStore, "get" | "getRun">
   readonly now?: () => number
@@ -105,24 +105,7 @@ export async function reportDelivery(
       .setWorkerReport(delivery.taskId, { summary: cardSummary(report.summary) })
       .catch((err: unknown) => logDaemonError("delivery-report-card", err))
   }
-  await recordRoutineResponse(deps, delivery)
   return delivery
-}
-
-/** A routine run's report is its response: surface it as the Routines episode. */
-async function recordRoutineResponse(deps: DeliveryDeps, delivery: Delivery): Promise<void> {
-  if (delivery.source !== "routine" || !delivery.automationRunId) return
-  const run = deps.automations.getRun(delivery.automationRunId)
-  const automation = run ? deps.automations.get(run.automationId) : undefined
-  if (!run || !automation) return
-  await deps.inbox
-    .recordRoutineResponse(
-      { automationId: automation.id, name: automation.name, status: run.status, runNumber: run.runNumber },
-      run.taskId ?? delivery.taskId,
-      (deps.now ?? Date.now)(),
-    )
-    // The report is already stored; an Inbox write must not fail the verb.
-    .catch((err: unknown) => logDaemonError("delivery-report-routine-inbox", err))
 }
 
 /**

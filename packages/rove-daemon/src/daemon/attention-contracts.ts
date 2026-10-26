@@ -49,8 +49,6 @@ export interface EngineActivityDetail {
     readonly name: string
     readonly status: string
     readonly error?: string
-    /** Set on a `routine_responded` episode: the run the response answers. */
-    readonly runNumber?: number
   }
   /** The delivery behind a `report_missing` episode. */
   readonly delivery?: {
@@ -90,9 +88,6 @@ export const ATTENTION_INBOX_STATES = [
    *  The only episode whose subject isn't a task: a routine on a moved repo
    *  never creates one. */
   "routine_failed",
-  /** An agent answered a routine run (`routine-respond`). Same subject rule as
-   *  `routine_failed`: it opens the Routines page. */
-  "routine_responded",
   /** An armed delivery ended without `rove api report`. Keyed on the delivery
    *  (not the tab), so the tab's next turn-start does not erase it. */
   "report_missing",
@@ -103,7 +98,7 @@ export const ATTENTION_INBOX_STATES = [
 
 /** Episodes whose subject is a routine, not a task. */
 export function isRoutineInboxState(state: unknown): boolean {
-  return state === "routine_failed" || state === "routine_responded"
+  return state === "routine_failed"
 }
 
 export type AttentionInboxState = (typeof ATTENTION_INBOX_STATES)[number]

@@ -45,9 +45,8 @@ narrow to honour it squeezes the rail down to what fits and pays the full
 width back when the window grows again. The fold has no draggable edge — its
 fixed width is the point of folding. Each folded project section starts with
 its first letter and a rule, such as `r──` or `w──`; the Ungrouped group is `u──`. The fold shows the
-same projects the expanded rail shows and hides the same ones — a directory you
-have closed down to nothing is absent from both (a project's main checkout
-never is), and so are the routine
+same projects the expanded rail shows and hides the same ones — a project you
+have closed down to nothing is absent from both, and so are the routine
 sessions the expanded rail folds behind its count row — and a section's letter
 comes from the header the expanded rail prints, so two repos whose folders
 share a name (`work/api`, `oss/api`) fold to `w──` and `o──` rather than to
@@ -194,8 +193,8 @@ row or one of its tab rows:
   whole project. Moves stop at the edges (no wrap-around), and the new order
   persists across restarts.
 - `d` is kind-aware: on a project-main row it ends the conversation (kills the
-  sessions, closes the tabs; the project, repo and worktrees stay listed and on
-  disk), removes only the Rove record for a directory Task, or removes a
+  sessions, closes the tabs; the project stays saved, the repo and worktrees stay
+  on disk, and the project leaves the rail until it has a session again), removes only the Rove record for a directory Task, or removes a
   managed Task and its worktree after the dirty-worktree safety check. A Task
   or project main with child Tasks asks whether to keep the children or delete
   them too. **Remove project** is on the project header's menu.

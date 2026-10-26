@@ -315,13 +315,13 @@ describe("withRecentRow", () => {
 describe("a project closed down to nothing", () => {
   const mainOf = (repo: string, id = "m") => task(id, { kind: "main", repo, title: repo.split("/").pop() ?? repo })
 
-  test("a project's main stays listed once its tabs are closed — the project is remembered", () => {
+  test("hides the project when its only row is main and its tabs are closed", () => {
     const out = rows({
       tasks: [mainOf("/repos/codefox")],
-      // KNOWN and empty — the user closed the last tab, or ended the conversation.
+      // KNOWN and empty — the user closed the last tab.
       tabsByTask: new Map([["m", []]]),
     })
-    expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
+    expect(out).toEqual([])
   })
 
   test("hides a closed-down `dir` row too — the same gesture on the same kind of row", () => {
@@ -369,7 +369,7 @@ describe("a project closed down to nothing", () => {
     expect(out.map((r) => r.kind)).toEqual(["project", "worktree", "worktree"])
   })
 
-  test("closing one project's tabs leaves every project listed", () => {
+  test("hiding one project does not disturb the others", () => {
     const out = rows({
       tasks: [mainOf("/repos/codefox", "m1"), mainOf("/repos/rove", "m2")],
       tabsByTask: new Map([
@@ -377,7 +377,7 @@ describe("a project closed down to nothing", () => {
         ["m2", [tab("t1")]],
       ]),
     })
-    expect(out.flatMap((r) => (r.kind === "project" ? [r.label] : []))).toEqual(["codefox", "rove"])
+    expect(out.filter((r) => r.kind === "project").map((r) => (r as { label: string }).label)).toEqual(["rove"])
   })
 
   test("keeps a project whose ONLY row is a worktree task with no tabs", () => {
@@ -391,9 +391,28 @@ describe("a project closed down to nothing", () => {
     expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
   })
 
-  test("a project whose main has no tabs is still navigable — its main row is the way back", () => {
+  test("a hidden project is not navigable", () => {
+    // The cursor indexes flatIds; leaving a hidden project's row in there
+    // would let j/k land on something the user cannot see.
     const out = rows({ tasks: [mainOf("/repos/codefox")], tabsByTask: new Map([["m", []]]) })
-    expect(treeFlatIds(out).length).toBeGreaterThan(0)
+    expect(treeFlatIds(out)).toEqual([])
+  })
+
+  // The other half of the guard: the tests above pin that the project GOES,
+  // and the way back is `mode: "open"` →
+  // `ensureMainTask` (test/tui/create-task-flow-open-project.test.ts). What
+  // belongs HERE is the tree's side of that round trip.
+  test("the hidden project returns as soon as its main has a tab again", () => {
+    const tasks = [mainOf("/repos/codefox")]
+    const hidden = rows({ tasks, tabsByTask: new Map([["m", []]]) })
+    expect(hidden).toEqual([])
+
+    // What opening the project does: its main row gets a session again.
+    const back = rows({ tasks, tabsByTask: new Map([["m", [tab("t1")]]]) })
+    expect(back.map((r) => r.kind)).toEqual(["project", "worktree"])
+    // And it is reachable — a row you can see but not move the cursor to
+    // would be the same dead end in a different costume.
+    expect(treeFlatIds(back).length).toBeGreaterThan(0)
   })
 
   /**
