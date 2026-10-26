@@ -15,15 +15,9 @@ import { terminalText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
 import { focusedTerm, registerTerm, termFor } from "./term-control.ts"
-import {
-  NERD_SYMBOLS_FAMILY,
-  type Notice,
-  SCROLL_PAGE_LINES,
-  type TermHandle,
-  mountTerminal,
-  streamKey,
-} from "./term-mount.ts"
+import { NERD_SYMBOLS_FAMILY, type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-mount.ts"
 import { type EngineExit, TermNotice } from "./term-notice.tsx"
+import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
 import { TermSearchBar } from "./term-search.tsx"
 import { dialog, toast } from "./ui.ts"
 
@@ -114,7 +108,7 @@ export function TerminalView(props: TerminalViewProps) {
   useEffect(() => {
     const el = host.current
     if (!el) return
-    let mounted: TermHandle | null = null
+    let leased: Leased | null = null
     let cancelled = false
     // The WebGL glyph atlas is cut from whatever font is resolved when the renderer loads;
     // before JetBrains Mono arrives that atlas paints nothing, and before the symbols font an icon is a box.
@@ -124,39 +118,40 @@ export function TerminalView(props: TerminalViewProps) {
       document.fonts.load(`13px "${NERD_SYMBOLS_FAMILY}"`, String.fromCodePoint(0xe0a0)),
       document.fonts.ready,
     ]
-    void Promise.allSettled(fonts).then(() => {
+    const mount = () => {
       if (cancelled) return
-      mounted = mountTerminal({
-        client,
-        el,
-        taskId,
-        tabId,
-        leafId,
-        setNotice,
-        onScrolled: setScrolled,
-        onFocusChange: (focused) => {
-          if (!mounted) return
-          if (focused) {
-            latest.current.onActivate?.()
-            focusedTerm.set(termFor(mounted.stream) ?? null)
-          } else if (focusedTerm.get()?.stream === mounted.stream) focusedTerm.set(null)
+      leased = leaseTerminal(
+        { client, host: el, taskId, tabId, leafId, focusOnMount: latest.current.focused !== false },
+        {
+          setNotice,
+          onScrolled: setScrolled,
+          onFocusChange: (focused) => {
+            if (!leased) return
+            const { stream } = leased.handle
+            if (focused) {
+              latest.current.onActivate?.()
+              focusedTerm.set(termFor(stream) ?? null)
+            } else if (focusedTerm.get()?.stream === stream) focusedTerm.set(null)
+          },
+          onExit: () => {
+            if (!exitIsReset(streamKey(taskId, tabId, leafId))) latest.current.onExit?.()
+          },
+          copyText,
+          pasteImage: async () => {
+            if (leased) await pasteClipboardImage(client, leased.handle)
+          },
         },
-        onExit: () => {
-          if (!exitIsReset(streamKey(taskId, tabId, leafId))) latest.current.onExit?.()
-        },
-        copyText,
-        pasteImage: async () => {
-          if (mounted) await pasteClipboardImage(client, mounted)
-        },
-        focusOnMount: latest.current.focused !== false,
-      })
-      setHandle(mounted)
-    })
+      )
+      setHandle(leased.handle)
+    }
+    // A parked terminal already has its fonts and atlas: show it in this frame.
+    if (hasParked(client, taskId, tabId, leafId)) mount()
+    else void Promise.allSettled(fonts).then(mount)
     return () => {
       cancelled = true
       setHandle(null)
       setSearching(false)
-      mounted?.dispose()
+      leased?.release()
     }
   }, [client, taskId, tabId, leafId])
 
