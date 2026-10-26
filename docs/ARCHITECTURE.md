@@ -23,6 +23,7 @@ flowchart LR
   end
 
   github["GitHub"]
+  cloud["Cloud (planned)<br/>hosted daemon and engines"]
 
   app -->|"Tailscale or<br/>Cloudflare tunnel"| bridge
   browser --> bridge
@@ -35,6 +36,7 @@ flowchart LR
   core --> pty
   core -->|"gh"| github
   core -->|"SSH-forwarded sockets"| rhost
+  core -.->|"planned"| cloud
 
   classDef client fill:#dbeafe,stroke:#2563eb,color:#111
   classDef engine fill:#ffedd5,stroke:#ea580c,color:#111
@@ -42,12 +44,15 @@ flowchart LR
   class app,wxapp,tui,browser client
   class pty,rhost engine
   class routines routine
+  classDef planned fill:#fff,stroke:#6b7280,stroke-dasharray:5 5,color:#374151
+  class cloud planned
 ```
 
 - **Clients** (blue) hold no state. The TUI and `rove api` use the daemon and PTY Host unix sockets; the browser page and phone apps go through `rove-bridge` ([WEB.md](./WEB.md), [IOS.md](./IOS.md), [ANDROID.md](./ANDROID.md)); WeChat is [a bot the daemon polls](./WEIXIN.md).
 - **Daemon** owns tasks, worktrees, the issue store, PR status (via `gh`) and the machine hub. **Routines** fire from its scheduler, each opening an ordinary task ([ROUTINES.md](./ROUTINES.md)).
 - **PTY Host** owns the engine CLIs (orange), each in its task's git worktree, and outlives the TUI and the daemon ([SESSIONS.md](./SESSIONS.md)).
 - **Another machine** runs its own Rove; your daemon reaches it over SSH-forwarded sockets ([MACHINES.md](./MACHINES.md)).
+- **Cloud** (dashed) is planned, not shipped: [ROADMAP.md](./ROADMAP.md).
 
 Section 1 below zooms into the process split that diagram shows as one box each.
 
