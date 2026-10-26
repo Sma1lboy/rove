@@ -319,7 +319,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
       ) : rows.length === 0 ? (
         <div className="pg-list">
           <p className="muted">{auto.empty}</p>
-          <p>{auto.emptyHint}</p>
+          <p className="keys-only">{auto.emptyHint}</p>
         </div>
       ) : (
         <div className="pg-list" ref={list}>

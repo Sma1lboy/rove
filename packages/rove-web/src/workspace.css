@@ -561,9 +561,13 @@
 
 /* A touch screen has no j/k to press, and no esc/tab/arrows on its soft keyboard. */
 @media (hover: none) and (pointer: coarse) {
+  /* Pure key legends; mixed ones drop their key segments in code (key-hints.ts). */
   .pane-hint,
   .inbox-hints,
-  .kb-hint-line {
+  .kb-hint-line,
+  .keys-only,
+  .kb-legend:empty,
+  .pg-hint:empty {
     display: none;
   }
   .term-keys {

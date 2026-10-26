@@ -13,6 +13,7 @@ import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { MAX_ATTACHMENT_BYTES, attachableFiles, putAttachment, withImagePlaceholders } from "./kanban-attach.ts"
 import { PLACEMENTS, type Placement } from "./kanban-start.ts"
+import { deviceHint, isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { fill, useCopy } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
@@ -271,7 +272,7 @@ export function IssueDrawer(props: {
           <label className="field">
             <span className="kicker kb-label">
               {kanban.detail.description}
-              <span className="muted kb-hint">{kanban.detail.attachHint}</span>
+              <span className="muted kb-hint">{isTouch() ? t("pages.attachHintTouch") : kanban.detail.attachHint}</span>
               {uploading && <span className="tone-accent">…</span>}
             </span>
             <textarea
@@ -289,7 +290,7 @@ export function IssueDrawer(props: {
             <div className="field">
               <span className="kicker kb-label">
                 {kanban.detail.statusLabel}
-                <span className="muted kb-hint">←/→</span>
+                <span className="muted kb-hint keys-only">←/→</span>
               </span>
               <SelectorField
                 fieldRef={at("status")}
@@ -321,7 +322,7 @@ export function IssueDrawer(props: {
               <div className="field">
                 <span className="kicker kb-label">
                   {kanban.detail.engine}
-                  <span className="muted kb-hint">←/→</span>
+                  <span className="muted kb-hint keys-only">←/→</span>
                 </span>
                 <SelectorField
                   fieldRef={at("engine")}
@@ -360,7 +361,7 @@ export function IssueDrawer(props: {
               <div className="field">
                 <span className="kicker kb-label">
                   {kanban.detail.workspace}
-                  <span className="muted kb-hint">↑/↓</span>
+                  <span className="muted kb-hint keys-only">↑/↓</span>
                 </span>
                 <SelectorField
                   fieldRef={at("workspace")}
@@ -389,7 +390,7 @@ export function IssueDrawer(props: {
               <div className="field">
                 <span className="kicker kb-label">
                   {kanban.detail.jumpLabel}
-                  <span className="muted kb-hint">←/→</span>
+                  <span className="muted kb-hint keys-only">←/→</span>
                 </span>
                 <SelectorField
                   fieldRef={at("jump")}
@@ -414,7 +415,9 @@ export function IssueDrawer(props: {
                   ))}
                 </SelectorField>
               </div>
-              <p className="muted kb-legend">{create ? kanban.detail.createLegend : kanban.detail.startLegend}</p>
+              <p className="muted kb-legend">
+                {deviceHint(create ? kanban.detail.createLegend : kanban.detail.startLegend)}
+              </p>
               {/* The keys' click targets: a phone has no ctrl+s or ctrl+enter. */}
               <div className="actions">
                 {create && (
@@ -451,10 +454,10 @@ export function IssueDrawer(props: {
                 </div>
               </div>
               <EventsFeed model={props.model} taskId={linkedTaskId} />
-              <p className="muted kb-legend">{kanban.detail.openLegend}</p>
+              <p className="muted kb-legend">{deviceHint(kanban.detail.openLegend)}</p>
             </>
           ) : (
-            <p className="muted kb-legend">{kanban.detail.doneNote}</p>
+            <p className="muted kb-legend">{deviceHint(kanban.detail.doneNote)}</p>
           )}
         </div>
       </dialog>

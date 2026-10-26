@@ -23,6 +23,7 @@ import {
 } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
+import { deviceHint } from "./key-hints.ts"
 import { fill, projectLabel, repoKey, useCopy } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog } from "./ui.ts"
@@ -166,7 +167,7 @@ export function RoutineComposer(props: {
           <div className="field">
             <span className="kicker kb-label">
               {auto.fieldRepo}
-              <span className="muted kb-hint">↑/↓</span>
+              <span className="muted kb-hint keys-only">↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("repo")}
@@ -196,7 +197,7 @@ export function RoutineComposer(props: {
           <div className="field">
             <span className="kicker kb-label">
               {auto.fieldTarget}
-              <span className="muted kb-hint">↑/↓</span>
+              <span className="muted kb-hint keys-only">↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("target")}
@@ -236,7 +237,7 @@ export function RoutineComposer(props: {
           <div className="field">
             <span className="kicker kb-label">
               {auto.fieldSchedule}
-              <span className="muted kb-hint">←/→ ↑/↓</span>
+              <span className="muted kb-hint keys-only">←/→ ↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("schedule")}
@@ -291,7 +292,7 @@ export function RoutineComposer(props: {
             )}
           </div>
           {error && <p className="error">※ {error}</p>}
-          <p className="muted kb-legend">{auto.composerLegend}</p>
+          <p className="muted kb-legend">{deviceHint(auto.composerLegend)}</p>
           <div className="actions">
             <button type="button" className="link" onClick={closeDialog}>
               {common.cancel}
