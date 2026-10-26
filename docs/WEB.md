@@ -43,7 +43,11 @@ already paired with `rove-bridge` keeps working: the two share one token.
   answer from the web or a TUI wins.
 - The side panel holds several tabs per task (Files, a diff per file, a
   Browser per page), optionally in two stacked groups, and its views answer to
-  agents. A page
+  agents. It starts closed: the Files, Diff and Browser buttons at the
+  workspace's top right open it on that view (the shown kind is tinted;
+  pressing it again closes the panel), and its top row has an expand button
+  and a close ×. A phone keeps its Terminal / Files / Diff / Browser switch
+  and shows no buttons. A page
   reports whether it has a panel, whether it is open, and its width, so
   `rove api viewers` tells an agent what you can see (and whether the page is
   on the daemon's machine or behind a tunnel). `rove api panel-show` makes

@@ -42,9 +42,12 @@ canvases in Codex, ChatGPT and claude.ai; the layout is Rove's own.
 
 **What exists.**
 
-- A side panel beside the terminal on a desktop window, and a button at the
-  workspace's top right to show or hide it
-  ([`side-panel.tsx`](../packages/rove-web/src/side-panel.tsx)). It is
+- A side panel beside the terminal on a desktop window, closed until you open
+  it from the Files, Diff and Browser buttons at the workspace's top right (the
+  one on screen is tinted; pressing it again closes the panel)
+  ([`side-panel.tsx`](../packages/rove-web/src/side-panel.tsx)). Its top row
+  ends with an expand button (the panel takes the terminal's column too, and the
+  same button restores it) and a × that closes the panel, not the tabs. It is
   resizable and holds several tabs per task: a quiet row of small tabs along
   its top (Files, a diff per file, a Browser per page), a × on hover,
   middle-click to close, and a `+` that opens a new Files, a whole-worktree

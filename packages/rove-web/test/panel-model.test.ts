@@ -11,6 +11,7 @@ import {
   closeOthers,
   closeTab,
   findTab,
+  launch,
   loadPanels,
   mountedTabs,
   moveTab,
@@ -23,6 +24,7 @@ import {
   showBrowser,
   showDiff,
   showKind,
+  shownKind,
   stepBrowser,
 } from "../src/panel-model.ts"
 
@@ -68,6 +70,30 @@ describe("opening and finding tabs", () => {
     expect(current(showKind(two, "files"))).toBe("t2")
     const diff = showKind(newPanel(), "diff")
     expect(diffs(diff)).toEqual([{ id: "t2", kind: "diff", path: ".", scope: "working" }])
+  })
+
+  test("a launcher button opens the panel on its kind's latest tab, creating one when there is none", () => {
+    const files = launch(newPanel(), false, "files")
+    expect(files).toEqual({ panel: newPanel(), open: true })
+    const browser = launch(files.panel, true, "browser")
+    expect(browser.open).toBe(true)
+    expect(shownKind(browser.panel)).toBe("browser")
+    expect(launch(files.panel, false, "diff").panel.top.tabs.at(-1)).toMatchObject({ kind: "diff", path: "." })
+  })
+
+  test("pressing the button of the kind on screen closes the panel and keeps the tabs; another kind switches", () => {
+    const panel = showKind(showKind(newPanel(), "browser"), "files")
+    expect(launch(panel, true, "files")).toEqual({ panel, open: false })
+    const switched = launch(panel, true, "browser")
+    expect(switched.open).toBe(true)
+    expect(shownKind(switched.panel)).toBe("browser")
+  })
+
+  test("with the panel split, the kind shown last is the one that is on", () => {
+    let panel = moveTab(showKind(newPanel(), "browser"), "t2", "bottom")
+    expect(shownKind(panel)).toBe("browser")
+    panel = activate(panel, "t1")
+    expect(shownKind(panel)).toBe("files")
   })
 
   test("a new diff joins the group that already holds diffs, not the one last touched", () => {

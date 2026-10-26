@@ -153,13 +153,13 @@
   box-shadow: inset -2px 0 0 var(--accent);
 }
 
-.panel-new {
+.panel-tool {
   flex: none;
   width: 22px;
   height: 22px;
 }
 
-.panel-new svg {
+.panel-tool svg {
   width: 14px;
   height: 14px;
 }
@@ -176,8 +176,29 @@
   stroke-linejoin: round;
 }
 
-.panel-toggle {
+/* The top bar's Files / Diff / Browser buttons: quiet like the rail's; the one on screen is tinted. */
+.panel-launch {
+  display: flex;
+  gap: 2px;
   margin-left: auto;
+}
+
+.panel-launch .rail-bar-btn.is-on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Expanded: the panel spans the terminal's column too, which keeps its size underneath so the pty is not resized. */
+.app.is-panel-expanded .workspace {
+  grid-column: 2;
+  visibility: hidden;
+}
+
+.app.is-panel-expanded .side-panel {
+  grid-column: 2 / -1;
+  z-index: 2;
+  padding-left: 8px;
+  background: var(--paper);
 }
 
 /* The line between stacked groups: one hairline, a wider strip to grab. */

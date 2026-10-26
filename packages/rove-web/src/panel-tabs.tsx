@@ -35,7 +35,7 @@ export function Icon({ children }: { children: ReactNode }) {
 
 export const ICONS: Record<PanelKind, ReactNode> = {
   files: <path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />,
-  diff: <path d="M8 3v6M5 6h6M5 12.5h6" />,
+  diff: <path d="M3.5 2.5h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM8 5v4M6 7h4M6 11h4" />,
   browser: <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM2 8h12M8 2c2.2 2 2.2 10 0 12M8 2c-2.2 2-2.2 10 0 12" />,
 }
 
@@ -107,6 +107,7 @@ export function PanelTabRow({
   tabs,
   active,
   narrow,
+  children,
 }: {
   taskId: string
   panel: TaskPanel
@@ -114,6 +115,8 @@ export function PanelTabRow({
   tabs: readonly PanelItem[]
   active: string | null
   narrow: boolean
+  /** Buttons after the +. */
+  children?: ReactNode
 }) {
   useLocale()
   const [over, setOver] = useState<{ id: string; after: boolean } | null>(null)
@@ -226,7 +229,7 @@ export function PanelTabRow({
       {!narrow && (
         <button
           type="button"
-          className="rail-bar-btn panel-new"
+          className="rail-bar-btn panel-tool"
           title={t("panel.new")}
           aria-label={t("panel.new")}
           onClick={openNew}
@@ -236,6 +239,7 @@ export function PanelTabRow({
           </svg>
         </button>
       )}
+      {children}
     </div>
   )
 }

@@ -12,7 +12,7 @@ import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { RemoteNotice } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
-import { type PanelKind, clampPanelWidth, narrowView, panelOpen, panelWidth } from "./panel-layout.ts"
+import { type PanelKind, clampPanelWidth, narrowView, panelExpanded, panelOpen, panelWidth } from "./panel-layout.ts"
 import {
   type PanelItem,
   allTabs,
@@ -28,29 +28,47 @@ import {
 import { closePanelTab, editPanel, useTaskPanel } from "./panel-state.ts"
 import { PanelTabRow } from "./panel-tabs.tsx"
 import { PreviewView } from "./preview-view.tsx"
-import { PaneIcon } from "./rail-chrome.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { zen } from "./ui.ts"
 
-/** The workspace's top-right button: shows or hides the panel. Zen hides it too, so showing it leaves zen. */
-export function PanelToggle() {
+/** The top row's end: stretch the panel over the terminal's column (and back), or close it; its tabs stay. */
+function PanelWindowButtons() {
   useLocale()
-  const open = useStore(panelOpen)
-  const zenOn = useStore(zen)
+  const expanded = useStore(panelExpanded)
+  const label = expanded ? t("panel.restore") : t("panel.expand")
   return (
-    <button
-      type="button"
-      className="rail-bar-btn panel-toggle"
-      title={t("panel.toggle")}
-      aria-label={t("panel.toggle")}
-      onClick={() => {
-        panelOpen.set(zenOn || !open)
-        if (zenOn) zen.set(false)
-      }}
-    >
-      <PaneIcon side="right" />
-    </button>
+    <>
+      <button
+        type="button"
+        className="rail-bar-btn panel-tool"
+        title={label}
+        aria-label={label}
+        aria-pressed={expanded}
+        onClick={() => panelExpanded.set(!expanded)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d={
+              expanded
+                ? "M13.5 6.5h-4v-4M2.5 9.5h4v4M9.5 6.5l4-4M6.5 9.5l-4 4"
+                : "M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5l-4.5 4.5M2.5 13.5 7 9"
+            }
+          />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="rail-bar-btn panel-tool"
+        title={t("panel.hide")}
+        aria-label={t("panel.hide")}
+        onClick={() => panelOpen.set(false)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M4 4l8 8M12 4l-8 8" />
+        </svg>
+      </button>
+    </>
   )
 }
 
@@ -156,6 +174,7 @@ function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; na
   useLocale()
   const panel = useTaskPanel(task.id)
   const narrowKind = useStore(narrowView)
+  const expanded = useStore(panelExpanded)
   const aside = useRef<HTMLElement>(null)
   const body = useRef<HTMLDivElement>(null)
   const kind: PanelKind = narrowKind === "terminal" ? "files" : narrowKind
@@ -186,7 +205,7 @@ function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; na
 
   return (
     <aside className={`side-panel ${narrow ? "is-narrow" : ""}`} ref={aside}>
-      {!narrow && <PanelGrip panel={aside} />}
+      {!narrow && !expanded && <PanelGrip panel={aside} />}
       <div className="side-body" ref={body} style={{ gridTemplateRows: rows }}>
         {narrow
           ? (ofKind.length > 1 || kind === "diff") && (
@@ -208,7 +227,9 @@ function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; na
                 tabs={group.tabs}
                 active={group.active}
                 narrow={false}
-              />
+              >
+                {name === "top" && <PanelWindowButtons />}
+              </PanelTabRow>
             ))}
         {empty && <p className="side-empty">{t("panel.empty")}</p>}
         {split && <PanelDivider taskId={task.id} body={body} />}
@@ -237,7 +258,7 @@ function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; na
 }
 
 /**
- * Desktop: the grid's right column, hidden by zen or the toggle. A task on another machine has no
+ * Desktop: the grid's right column, hidden by zen or by closing it. A task on another machine has no
  * files or page here, so its panel says where it lives. Narrow: the task's chosen view, in the pane.
  */
 export function SidePanel({
