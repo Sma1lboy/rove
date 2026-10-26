@@ -449,10 +449,6 @@ button:focus-visible,
   border-bottom-left-radius: 6px;
 }
 
-.child-mark {
-  font-family: var(--mono);
-}
-
 /* The whole chip column of the row is the target, not just the glyph. */
 .fold-toggle {
   display: inline-flex;

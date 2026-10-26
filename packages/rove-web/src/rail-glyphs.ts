@@ -18,13 +18,6 @@ const LOOK_TONE: Readonly<Record<DotLook, Tone>> = {
 
 /** Nerd Font icons the rail draws (the font ships with the page, `styles.css`). */
 export const NERD = {
-  /** nf-oct-git_branch: a child in its own worktree. */
-  branch: "\u{f418}",
-  /** nf-oct-file_directory: a child sharing its parent's directory. */
-  shared: "\u{f413}",
-  /** nf-oct-chevron_down / nf-oct-chevron_right: a parent's fold. */
-  unfolded: "\u{f47c}",
-  folded: "\u{f460}",
   /** nf-oct-git_pull_request / git_merge / git_pull_request_closed: a task's PR, by where it stands. */
   prOpen: "\u{f407}",
   prMerged: "\u{f419}",

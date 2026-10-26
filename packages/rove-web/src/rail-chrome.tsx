@@ -12,7 +12,7 @@ import { openHelp } from "./help-view.tsx"
 import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
-import { backToTasks, clampRailWidth, enterWorkspace, railFolded, railWidth } from "./layout.ts"
+import { backToTasks, clampRailWidth, enterWorkspace, peekRail, railFolded, railPeek, railWidth } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
 import { ShortcutBadge } from "./prefix-guide.tsx"
@@ -82,7 +82,12 @@ export function RailBar({ model }: { model: AppModel }) {
   const fold = folded ? t("layout.railUnfold") : t("layout.railFold")
   const waiting = folded && (payload?.tasks ?? []).some(needsPerson)
   return (
-    <div className="rail-bar">
+    // The bar sits over a peeking rail's top: crossing it keeps the peek open rather than opening one.
+    <div
+      className="rail-bar"
+      onMouseEnter={() => folded && railPeek.get() && peekRail(true)}
+      onMouseLeave={() => folded && railPeek.get() && peekRail(false)}
+    >
       <button
         type="button"
         className="rail-bar-btn"

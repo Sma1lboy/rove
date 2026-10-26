@@ -6,7 +6,17 @@ import { forgetToken, saveToken } from "./auth.ts"
 import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { RAIL_DEFAULT_PX, clampRailWidth, narrowPane, railFolded, railWidth, surfaceFor, useNarrow } from "./layout.ts"
+import {
+  RAIL_DEFAULT_PX,
+  clampRailWidth,
+  narrowPane,
+  peekRail,
+  railFolded,
+  railPeek,
+  railWidth,
+  surfaceFor,
+  useNarrow,
+} from "./layout.ts"
 import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
 import { RemoteNotice } from "./machines-view.tsx"
@@ -76,6 +86,7 @@ function Shell({ model }: { model: AppModel }) {
   const remote = useStore(model.remote)
   const narrow = useNarrow()
   const folded = useStore(railFolded)
+  const peek = useStore(railPeek)
   const pinned = useStore(railWidth)
   const pane = useStore(narrowPane)
   const pageOn = useStore(page)
@@ -91,10 +102,12 @@ function Shell({ model }: { model: AppModel }) {
     <div className="app-shell">
       <DaemonBanner onRefresh={() => refreshRove(model.client)} />
       <div
-        className={`app ${zenOn || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""}`}
+        className={`app ${zenOn || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""} ${folded && peek && !narrow ? "is-rail-peek" : ""}`}
         style={narrow ? undefined : railVars}
       >
         {!narrow && <RailBar model={model} />}
+        {/* Folded, the page's left edge brings the rail back as a floating panel. */}
+        {folded && !narrow && <div className="rail-peek-edge" onMouseEnter={() => peekRail(true)} />}
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />
         {task && !zenOn && !narrow && <FilesView key={task.id} model={model} task={task} />}

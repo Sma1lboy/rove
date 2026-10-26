@@ -193,14 +193,6 @@ const mainFirst =
 /** Indent stops growing here; a deeper row keeps this depth and shows its real level (TUI `MAX_TREE_DEPTH`). */
 export const MAX_ROW_DEPTH = 3
 
-/** `shared` = runs in its parent's directory, `worktree` = its own checkout; null for a task nobody spawned. */
-export type ChildMarker = "shared" | "worktree"
-
-export function childMarkerOf(task: TaskRow): ChildMarker | null {
-  if (task.parentTaskId === undefined) return null
-  return task.sharesWorkspaceOf === undefined ? "worktree" : "shared"
-}
-
 /** True when `task`'s parent chain comes back to `task`. */
 function loopsBack(task: TaskRow, byId: ReadonlyMap<string, TaskRow>): boolean {
   const seen = new Set<string>([task.id])

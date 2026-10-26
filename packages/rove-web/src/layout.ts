@@ -38,6 +38,18 @@ railWidth.subscribe(() => {
 export const railFolded = createStore<boolean>(localStorage.getItem(FOLD_KEY) === "1")
 railFolded.subscribe(() => localStorage.setItem(FOLD_KEY, railFolded.get() ? "1" : "0"))
 
+/** A folded rail floating over the workspace while the pointer is at the left edge (Claude Desktop's peek). */
+export const railPeek = createStore<boolean>(false)
+let peekTimer: number | null = null
+/** Open at once; close after a grace, so the pointer can cross the edge or the top-left bar without it flickering shut. */
+export function peekRail(open: boolean): void {
+  if (peekTimer !== null) window.clearTimeout(peekTimer)
+  peekTimer = null
+  if (open) railPeek.set(true)
+  else peekTimer = window.setTimeout(() => railPeek.set(false), 250)
+}
+railFolded.subscribe(() => railPeek.set(false))
+
 let movingTimer: number | null = null
 railFolded.subscribe(() => {
   if (movingTimer !== null) window.clearTimeout(movingTimer)
