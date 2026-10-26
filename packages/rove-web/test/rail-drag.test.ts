@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
-import { type NavRow, dragSteps, dropSteps, previewDrop } from "../src/rail.ts"
+import { dragSteps, dropSteps, previewDrop } from "../src/rail-blocks.ts"
+import type { NavRow } from "../src/rail.ts"
 
 const task = (id: string, repo: string, order: number, extra: Partial<TaskRow> = {}): TaskRow =>
   ({ id, title: id, repo, kind: "task", branch: id, rank: 1, order, ...extra }) as TaskRow

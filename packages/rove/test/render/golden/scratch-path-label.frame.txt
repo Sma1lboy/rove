@@ -9,7 +9,7 @@
 | Routines                     |
 | Issues                       |
 |                              |
-| SCRATCH ──────────────────── |
+| No project ───────────────── |
 | ▎○ …deep/nested/project-dir  |
 |                              |
 | rove ─────────────────────── |

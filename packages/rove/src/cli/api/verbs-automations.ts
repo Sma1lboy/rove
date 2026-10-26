@@ -179,9 +179,19 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
     name: "routine-create",
     group: "routine",
     summary:
-      "Schedule a prompt. Each firing creates a fresh task (worktree + engine) and delivers it. Use --target-task and --target-tab for an existing conversation, or --script to run a command with no engine. An enabled routine keeps the daemon alive.",
+      "Schedule a prompt. Each firing creates a fresh task (worktree + engine, or with --no-repo a directory session) and delivers it. Use --target-task and --target-tab for an existing conversation, or --script to run a command with no engine. An enabled routine keeps the daemon alive.",
     flags: [
-      F.repo(),
+      {
+        ...F.repo(false),
+        description:
+          "Repo root (git toplevel) every run works in. Relative paths resolve against $PWD. Required unless --no-repo.",
+      },
+      {
+        name: "no-repo",
+        type: "bool",
+        description:
+          "A routine with no project: each run works in its own directory (<home>/.rove/routines/<id>) and its session sits in the sidebar's No project group. Takes no --base-branch.",
+      },
       { name: "name", type: "string", required: true, placeholder: "N", description: "Routine name." },
       F.prompt(false, "Text delivered to the selected conversation or a new session. Required unless --script."),
       F.promptFile(),
@@ -209,12 +219,17 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       { name: "disabled", type: "bool", description: "Create it paused instead of active." },
     ],
     handler: async (ctx) => {
-      const repo = ctx.args.requireRepo("repo")
+      // Exactly one: a forgotten --repo must not quietly become a projectless routine.
+      const noRepo = ctx.args.bool("no-repo") === true
+      const hasRepo = ctx.args.str("repo") !== undefined
+      if (noRepo && hasRepo) throw new ApiError("--repo and --no-repo conflict — pass one", "CONFLICTING_FLAGS")
+      if (!noRepo && !hasRepo) throw new ApiError("pass exactly one of --repo PATH or --no-repo", "MISSING_FLAG")
+      const repo = noRepo ? undefined : ctx.args.requireRepo("repo")
       const script = scriptPayload(ctx)
       if (script.script && ctx.args.promptText() !== undefined)
         throw new ApiError("pass --prompt or --script, not both", "BAD_FLAG")
       return simpleRpc(ctx, "automation.create", {
-        repo,
+        ...(repo ? { repo } : {}),
         name: ctx.args.require("name"),
         ...(script.script ? script : { prompt: requirePromptText(ctx, "routine-create") }),
         schedule: ctx.args.require("schedule"),

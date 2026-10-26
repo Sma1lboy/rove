@@ -5,7 +5,7 @@
  */
 
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
-import type { Task, TaskId, VendorId } from "../types/task.ts"
+import type { Task, TaskId, TaskRoutineLink, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import { canonPath, normalizeMainRepo, randomDirTaskSuffix, titleFromRepo } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
@@ -37,6 +37,14 @@ export interface OpenDirectoryTaskInput {
   /** Temp shell task for the sidebar's Scratch section: same dir-task shape,
    *  `scratch: true`, shell-exit deletes the row. */
   readonly scratch?: boolean
+  /** Projectless routine session: groups with Scratch, never promoted to a project. */
+  readonly noProject?: boolean
+  /** Explicit title; absent mints `<dir>-<suffix>` (scratch: empty). */
+  readonly title?: string
+  readonly model?: string
+  readonly modelEffort?: string
+  /** Standing session of a routine, folded behind its group's routine row. */
+  readonly routine?: TaskRoutineLink
 }
 
 /**
@@ -101,15 +109,21 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
 export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectoryTaskInput): Promise<Task> {
   if (!input.dir) throw new Error("openDirectoryTask: dir is required")
   const dir = canonPath(input.dir)
+  const explicitTitle = input.title ? sanitizeTaskTitle(input.title) : ""
   // Scratch mints no name (its home is unsettled); displays fall back to path/branch.
+  const title = explicitTitle || (input.scratch ? "" : `${titleFromRepo(dir)}-${randomDirTaskSuffix()}`)
   return deps.store.create({
     repo: dir,
-    title: input.scratch ? "" : `${titleFromRepo(dir)}-${randomDirTaskSuffix()}`,
+    title,
     branch: "",
     worktreePath: dir,
     status: "backlog",
     kind: "dir",
     ...(input.scratch ? { scratch: true } : {}),
+    ...(input.noProject ? { noProject: true } : {}),
+    ...(input.routine ? { routine: input.routine } : {}),
+    ...(input.modelEffort ? { modelEffort: input.modelEffort } : {}),
+    ...(input.model?.trim() ? { model: input.model.trim() } : {}),
     vendor: input.vendor ?? resolvePreferredVendor(),
   })
 }

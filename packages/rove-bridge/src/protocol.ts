@@ -104,6 +104,10 @@ export interface TaskRow {
   readonly archived?: boolean
   /** The standing session of a scheduled routine; clients fold these behind a per-project count row. */
   readonly routine?: boolean
+  /** A temp shell task (sidebar Scratch); groups with `noProject` rows under "No project". */
+  readonly scratch?: boolean
+  /** A dir task a projectless routine made; groups with scratch rows under "No project". */
+  readonly noProject?: boolean
   /** Index in the daemon's own task list: the manual ("default") order. */
   readonly order?: number
   readonly createdAt?: string

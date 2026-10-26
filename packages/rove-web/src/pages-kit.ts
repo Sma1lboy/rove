@@ -13,6 +13,7 @@ import { en as itemsEn, zh as itemsZh } from "@sma1lboy/rove/src/tui/i18n/messag
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { isNoProject } from "./rail.ts"
 import { useStore } from "./store.ts"
 import { dialog, menu } from "./ui.ts"
 
@@ -67,7 +68,7 @@ export function mergeRepos(...lists: readonly (readonly string[])[]): string[] {
 /** Live task repos, newest feed first (the TUI's `listTasks().map(repo)`). */
 export function useTaskRepos(model: AppModel): string[] {
   const payload = useStore(model.tasks)
-  return mergeRepos((payload?.tasks ?? []).map((task) => task.repo))
+  return mergeRepos((payload?.tasks ?? []).filter((task) => !isNoProject(task)).map((task) => task.repo))
 }
 
 /** The repo of the selected task: the project every page opens on. */

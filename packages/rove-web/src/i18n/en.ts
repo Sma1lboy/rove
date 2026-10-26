@@ -5,6 +5,7 @@ export const en = {
     empty: "no tasks yet",
     emptyHint: "start one from a project's +, in the TUI, or with `rove api add`",
     newTask: "New task",
+    noProject: "No project",
     extraRepos: "{count} more repos in this task",
     searchPlaceholder: "fuzzy filter",
     engineSwitched: "Engine → {engine} (applies on reopen)",

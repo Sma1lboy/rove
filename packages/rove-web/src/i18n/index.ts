@@ -25,7 +25,7 @@ function lastKnownLocale(): Locale {
   } catch {
     // No cache: the browser's language.
   }
-  return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en"
+  return globalThis.navigator?.language?.toLowerCase().startsWith("zh") ? "zh" : "en"
 }
 
 export const locale = createStore<Locale>(lastKnownLocale())

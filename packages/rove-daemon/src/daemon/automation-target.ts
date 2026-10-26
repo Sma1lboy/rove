@@ -72,6 +72,8 @@ export async function assertAutomationTargetTask(
   if (!value.target) return
   const task = orch.getTask(value.target.taskId)
   if (!task || task.deletion || !task.worktreePath) throw new Error(`target task unavailable: ${value.target.taskId}`)
+  // A projectless routine has no repo to match; the task existing is the whole check.
+  if (!value.repo) return
   const [repo, taskRepo] = await Promise.all([realpath(value.repo), realpath(task.repo)])
   if (repo !== taskRepo) throw new Error(`routine repo must match target task repo: ${task.repo}`)
 }

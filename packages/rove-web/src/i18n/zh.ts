@@ -6,6 +6,7 @@ export const zh: typeof en = {
     empty: "还没有任务",
     emptyHint: "用项目旁的 +、在 TUI 里或用 `rove api add` 新建一个",
     newTask: "新建任务",
+    noProject: "无项目",
     extraRepos: "这个任务还含 {count} 个仓库",
     searchPlaceholder: "模糊搜索",
     engineSwitched: "引擎 → {engine}（重新打开后生效）",

@@ -23,7 +23,7 @@ export const en = {
   fieldSchedule: "SCHEDULE (FIVE-FIELD CRON)",
   namePlaceholder: "weekday dependency audit",
   promptPlaceholder: "Audit dependencies and summarize risky changes.",
-  needRepo: "Open a project first — a routine runs in one.",
+  noProject: "No project",
   cronInvalid: "not a five-field cron",
   cronField: {
     minute: "min",
@@ -156,7 +156,7 @@ export const zh: typeof en = {
   fieldSchedule: "调度（五段 cron）",
   namePlaceholder: "工作日依赖审计",
   promptPlaceholder: "审计依赖并总结有风险的变更。",
-  needRepo: "先打开一个项目——例行任务要跑在某个项目里。",
+  noProject: "无项目",
   cronInvalid: "不是合法的五段 cron",
   cronField: {
     minute: "分",

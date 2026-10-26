@@ -4,14 +4,14 @@
 > still say `automation` — renaming those buys nothing and would need a
 > migration of `~/.rove/automations.json`.
 
-> Daemon-owned cron. A schedule + a prompt + a repo; every firing creates a
+> Daemon-owned cron. A schedule + a prompt + a repo (or none); every firing creates a
 > fresh task and starts its engine with that prompt — or, with
 > `persistentSession`, re-delivers into one standing task.
 
 ## What it is
 
 ```text
-Automation = cron rule + prompt + repo
+Automation = cron rule + prompt + repo (or no repo)
 Firing     = a new Task (worktree + branch + engine session)
            | a delivery into the ONE standing Task (persistentSession)
 ```
@@ -24,12 +24,35 @@ that produces something you cannot inspect is not worth scheduling.
 Typical use: *"every weekday at 09:00, audit the dependencies of this repo and
 summarize risky changes."*
 
+## Routines with no project
+
+`repo` is optional. A routine without one (`routine-create --no-repo`, RPC
+`automation.create` with `repo` absent) runs in `routineDir(id)` =
+`<product home>/.rove/routines/<automation id>/`, keyed by the id so a rename
+never moves the cwd. The directory is made at save and again before every
+firing that needs it (precheck, script, create, deliver, revive). Its tasks
+are `kind: "dir"` tasks (`openDirectoryTask`, so no worktree or branch, and
+it never hits the project-eligibility gate that refuses Rove's own state
+dirs) with `noProject: true`. They are never `scratch`, so the Scratch
+lifecycle (delete on last-tab exit, adopt, rename) does not apply, and
+startup promotion and `MainTaskCoordinator` skip `noProject` rows even when
+the directory is a git root. A standing session carries the `routine` link,
+so it reuses and revives in the same directory; a fresh run is an ordinary
+row. Both sort into the sidebar's **No project** group with Scratch
+(`kind === "dir" && (scratch || noProject)`).
+
+No `baseRef` (refused at save), and `update` cannot add or drop `repo`; the
+loader keeps repo-less entries. The default engine skips the per-repo layer.
+An existing-tab target only checks that the task exists. Plugin run events
+omit `repo`.
+
 ## Data model
 
 Two records, both in `<ROVE_HOME>/.rove/automations.json` (daemon is the only
 writer). Types in [`contracts.ts`](../../packages/rove-daemon/src/daemon/contracts.ts).
 
-- **`Automation`** — the rule. `schedule` (five-field cron), `prompt`, `repo`,
+- **`Automation`** — the rule. `schedule` (five-field cron), `prompt`, optional `repo`
+  (absent = no project, see [above](#routines-with-no-project)),
   optional `vendor` / `baseRef` / `precheck`, `enabled`, `nextRunAt`,
   `missedRunGraceMinutes`, and the standing-session pair `persistentSession` /
   `sessionTaskId` (issue #91). Types in
@@ -51,7 +74,7 @@ writer). Types in [`contracts.ts`](../../packages/rove-daemon/src/daemon/contrac
 | `skipped_precheck` | The precheck said there was nothing to do — **healthy** |
 | `skipped_blocked` | Should-run declined the tick: the target task is busy, awaiting the owner, rate limited, … (`blocked` carries the verdict; see `long-run-controls.md` § 2) — no alarm, the cause is already in the Inbox. `engine-dead` / `engine-error` have no Inbox row of their own and are recorded `dispatch_failed` instead |
 | `skipped_missed` | The occurrence was older than the grace window |
-| `skipped_unavailable` | The repo/worktree could not be resolved |
+| `skipped_unavailable` | The repo/worktree could not be resolved (or, with no project, the routine directory could not be made) |
 | `dispatch_failed` | Task created but its engine did not start |
 
 The "didn't run" reasons are deliberately distinct. Unattended automation

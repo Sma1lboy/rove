@@ -182,6 +182,11 @@ describe("routine ops", () => {
     ])
   })
 
+  test("create without a repo is a routine with no project: the CLI is told so, not left to guess", async () => {
+    const { calls } = await run("routine.create", { name: "n", prompt: "p", schedule: "0 9 * * *" })
+    expect(calls[0]?.payload).toEqual(["--no-repo", "--name=n", "--prompt=p", "--schedule=0 9 * * *"])
+  })
+
   test("create can target one existing engine tab, by id, both or neither", async () => {
     const base = { repo: REPO, name: "n", prompt: "p", schedule: "0 9 * * *" }
     const { calls } = await run("routine.create", {

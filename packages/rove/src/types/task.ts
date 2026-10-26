@@ -102,6 +102,8 @@ export interface Task {
    * a project (`adoptScratchRepo`).
    */
   readonly scratch?: boolean
+  /** A `dir` task the daemon made for a projectless routine; sorts into the No project group. */
+  readonly noProject?: boolean
   /**
    * The routine (`Automation`, `persistentSession`) this task is the standing
    * session for; every firing re-delivers here. The sidebar folds these behind

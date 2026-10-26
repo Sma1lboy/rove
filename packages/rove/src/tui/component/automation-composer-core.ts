@@ -19,9 +19,19 @@ export const COMPOSER_FIELDS: readonly ComposerField[] = [
   "confirm",
 ]
 
-/** Tab / shift-tab, wrapping — the card is a loop, not a wizard with an end. */
-export function nextComposerField(field: ComposerField, delta: 1 | -1 = 1, bound = false): ComposerField {
-  const fields = bound ? COMPOSER_FIELDS : COMPOSER_FIELDS.filter((f) => f !== "targetTab")
+/**
+ * Tab / shift-tab, wrapping — the card is a loop, not a wizard with an end. The target fields
+ * are skipped without a project (nothing to deliver to) and `targetTab` unless a target is bound.
+ */
+export function nextComposerField(
+  field: ComposerField,
+  delta: 1 | -1 = 1,
+  bound = false,
+  projectless = false,
+): ComposerField {
+  const fields = COMPOSER_FIELDS.filter(
+    (f) => !(f === "targetTab" && !bound) && !(projectless && (f === "target" || f === "targetTab")),
+  )
   const index = fields.indexOf(field)
   if (index < 0) return "name"
   const next = (index + delta + fields.length) % fields.length
@@ -30,7 +40,8 @@ export function nextComposerField(field: ComposerField, delta: 1 | -1 = 1, bound
 
 export interface ComposerDraft {
   readonly name: string
-  readonly repo: string
+  /** `null` = No project: the routine runs in its own scratch directory. `""` = not chosen yet. */
+  readonly repo: string | null
   readonly prompt: string
   readonly schedule: string
   readonly target?: Automation["target"]
@@ -42,7 +53,7 @@ export const EMPTY_DRAFT: ComposerDraft = { name: "", repo: "", prompt: "", sche
 export function canSubmitDraft(draft: ComposerDraft): boolean {
   return (
     draft.name.trim().length > 0 &&
-    draft.repo.trim().length > 0 &&
+    (draft.repo === null || draft.repo.trim().length > 0) &&
     draft.prompt.trim().length > 0 &&
     (!draft.target || (draft.target.taskId.trim().length > 0 && /^tab-[\w-]+$/.test(draft.target.tabId))) &&
     isValidCron(draft.schedule.trim())
@@ -55,7 +66,7 @@ export function canSubmitDraft(draft: ComposerDraft): boolean {
  */
 export function firstIncompleteField(draft: ComposerDraft): Exclude<ComposerField, "confirm"> | null {
   if (draft.name.trim().length === 0) return "name"
-  if (draft.repo.trim().length === 0) return "repo"
+  if (draft.repo !== null && draft.repo.trim().length === 0) return "repo"
   if (draft.target && !draft.target.taskId.trim()) return "target"
   if (draft.target && !/^tab-[\w-]+$/.test(draft.target.tabId)) return "targetTab"
   if (draft.prompt.trim().length === 0) return "prompt"

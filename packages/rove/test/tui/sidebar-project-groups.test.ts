@@ -75,6 +75,29 @@ describe("grouping", () => {
     expect(result[0]?.tasks.map((t) => t.id)).toEqual(["s1"])
   })
 
+  test("a projectless routine's dir task joins the No project bench, not a project of its own", () => {
+    const home = "/home/.rove/routines/a1"
+    const dir = task("d1", { kind: "dir", repo: home, worktreePath: home, noProject: true })
+    const scratch = task("s1", { kind: "dir", repo: "/tmp/s", scratch: true })
+    const result = groups([task("a1", { repo: "/work/api" }), dir, scratch])
+    expect(result.map((g) => g.key)).toEqual([SCRATCH_SECTION_ID, "/work/api"])
+    expect(result[0]?.label).toBe("No project")
+    expect(result[0]?.tasks.map((t) => t.id)).toEqual(["d1", "s1"])
+  })
+
+  test("a standing routine session in No project folds into the group's routine tail", () => {
+    const standing = task("r1", {
+      kind: "dir",
+      repo: "/home/.rove/routines/a1",
+      noProject: true,
+      routine: { automationId: "a1" },
+    })
+    const scratch = task("s1", { kind: "dir", repo: "/tmp/s", scratch: true })
+    const result = groups([standing, scratch])
+    expect(result[0]?.tasks.map((t) => t.id)).toEqual(["s1", "r1"])
+    expect(result[0]?.routineCount).toBe(1)
+  })
+
   test("headers disambiguate against the other VISIBLE projects", () => {
     const result = groups([main("a", "/work/api"), main("b", "/oss/api")])
     expect(result.map((g) => g.label)).toEqual(["work/api", "oss/api"])

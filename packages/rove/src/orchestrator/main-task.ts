@@ -63,7 +63,14 @@ export class MainTaskCoordinator {
       // A shared child on the root is a conversation in this checkout, not the project row.
       const adoptable = this.store
         .list()
-        .find((task) => task.kind === "dir" && task.scratch !== true && !task.sharesWorkspaceOf && onThisRoot(task))
+        .find(
+          (task) =>
+            task.kind === "dir" &&
+            task.scratch !== true &&
+            task.noProject !== true &&
+            !task.sharesWorkspaceOf &&
+            onThisRoot(task),
+        )
       // Retitled (the auto-name named a session); its engine choice survives.
       if (adoptable) return await this.store.update(adoptable.id, this.mainShape(normalizedRepo))
       return await this.store.create({

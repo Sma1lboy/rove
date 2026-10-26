@@ -17,6 +17,7 @@ import {
   type TaskSortMode,
   compareName,
   compareNewest,
+  isNoProjectTask,
   sidebarProjectKeyOfTask,
   sidebarProjectKeyResolver,
   sidebarRepoLabel,
@@ -24,8 +25,8 @@ import {
 import { compareTaskGroup } from "./task-group-view"
 import { SCRATCH_SECTION_ID } from "./tree-ids"
 
-/** The label the scratch section carries; the renderer translates it. */
-const SCRATCH_SECTION_LABEL = "Scratch"
+/** The label the No project section carries; the renderer translates it. */
+const NO_PROJECT_SECTION_LABEL = "No project"
 
 /**
  * One sidebar section: a project, or the single scratch bench. `tasks` is the
@@ -76,11 +77,6 @@ interface ProjectEntry {
 /** True for a task the sidebar sorts to the end of its project. */
 function isRoutineTask(task: Task): boolean {
   return task.routine !== undefined
-}
-
-/** True for a task that belongs to the scratch bench rather than a project. */
-function isScratchTask(task: Task): boolean {
-  return task.kind === "dir" && task.scratch === true
 }
 
 /**
@@ -157,15 +153,15 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
           ? compareName
           : null
 
-  // Scratch tasks never mint a project header — their cwd is temporary, so it
-  // would name a home they don't have. One Scratch section above all projects.
-  const scratchTasks = tasks.filter(isScratchTask)
+  // No-project tasks never mint a project header — their cwd is temporary or
+  // synthetic, so it would name a home they don't have. One section above all projects.
+  const scratchTasks = tasks.filter(isNoProjectTask)
   if (compare) scratchTasks.sort(compare)
 
   const keyOf = sidebarProjectKeyResolver(tasks)
   const byProject = new Map<string, ProjectEntry>()
   for (const task of tasks) {
-    if (isScratchTask(task)) continue
+    if (isNoProjectTask(task)) continue
     const key = keyOf(task)
     const entry = byProject.get(key) ?? {
       repo: task.repo,
@@ -235,14 +231,15 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
 
   const groups: SidebarGroup[] = []
   if (scratchTasks.length > 0) {
+    const own = scratchTasks.filter((task) => !isRoutineTask(task))
+    const routines = scratchTasks.filter(isRoutineTask)
     groups.push({
       key: SCRATCH_SECTION_ID,
       repo: "",
-      label: SCRATCH_SECTION_LABEL,
+      label: NO_PROJECT_SECTION_LABEL,
       machineId: "local",
-      tasks: scratchTasks,
-      // Never a routine: a schedule files output under the repo it ran in.
-      routineCount: 0,
+      tasks: [...own, ...routines],
+      routineCount: routines.length,
     })
   }
   for (const key of visibleKeys) {
@@ -289,7 +286,7 @@ export function projectKeysOf(tasks: readonly Task[]): string[] {
  *  {@link sidebarProjectKeyResolver} — without it a task on another machine
  *  answers its own checkout, not the merged project. */
 export function ownerProjectKey(task: Task, keyOf: ProjectKeyOf = sidebarProjectKeyOfTask): string | null {
-  if (isScratchTask(task)) return SCRATCH_SECTION_ID
+  if (isNoProjectTask(task)) return SCRATCH_SECTION_ID
   return keyOf(task)
 }
 

@@ -1,5 +1,5 @@
 # sidebar frame: scratch-flat
-# a scratch task is one row under SCRATCH, whatever tabs it has (issue #41)
+# a scratch task is one row under No project, whatever tabs it has (issue #41)
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
@@ -9,7 +9,7 @@
 | Routines                     |
 | Issues                       |
 |                              |
-| SCRATCH ──────────────────── |
+| No project ───────────────── |
 | ▎○ /wt/scratchy              |
 |                              |
 | rove ─────────────────────── |

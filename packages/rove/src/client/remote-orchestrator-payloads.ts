@@ -299,6 +299,7 @@ export function deserializeTask(s: SerializedTask): Task {
     worktreePath: s.worktreePath,
     kind: s.kind,
     ...(s.scratch ? { scratch: true } : {}),
+    ...(s.noProject ? { noProject: true } : {}),
     ...(s.routine ? { routine: s.routine } : {}),
     status: s.status,
     pinned: s.pinned,

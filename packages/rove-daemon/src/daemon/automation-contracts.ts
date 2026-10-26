@@ -27,8 +27,9 @@ export interface AutomationPrecheck {
 export interface Automation {
   readonly id: string
   readonly name: string
-  /** Absolute repo root; resolved once at create time. */
-  readonly repo: string
+  /** Absolute repo root; resolved once at create time. Absent = projectless:
+   *  runs execute in `routineDir(id)` and their tasks are `noProject` dir tasks. */
+  readonly repo?: string
   /** Delivered as the engine's launch-time first message. */
   readonly prompt: string
   readonly vendor?: VendorId

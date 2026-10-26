@@ -1,6 +1,6 @@
 # Routines
 
-Work that runs without you. A **Routine** is a cron rule + a prompt + a repo,
+Work that runs without you. A **Routine** is a cron rule + a prompt + a repo (or no repo),
 owned by the daemon. By default every firing creates a fresh [task](CONCEPTS.md)
 with its own worktree, its own branch, and its own engine session, carrying the
 prompt as that session's first message. A routine that needs to remember what it
@@ -85,6 +85,29 @@ fires: a path that is not a git repository, or a base ref that does not resolve
 in it, is refused with a message naming the value. The check is not a guarantee
 — a repo deleted after the routine was saved still fails at 03:00 — it just
 catches the typo while you are still at the keyboard.
+
+### A routine with no project
+
+Not every scheduled prompt belongs to a repo ("summarize my inbox", "check the
+weather"). `--no-repo` (instead of `--repo`) makes a routine with no project:
+
+```bash
+rove api routine-create --no-repo --name "Morning brief" \
+  --schedule "0 9 * * *" --prompt "Summarize what I should look at today."
+```
+
+Exactly one of `--repo` and `--no-repo` is required, so a forgotten `--repo` is
+an error, not a quiet repo-less routine. Every run works in the routine's own
+directory, `<home>/.rove/routines/<id>/` (made when you save it, and again
+before a run if it went missing), and its session is a directory task: no
+worktree, no branch, nothing to land. Those sessions sit in the sidebar's
+**No project** group, next to your Scratch shells; a standing session folds
+behind that group's routines row like a project's. The precheck and `--script`
+run in the same directory. There is no `--base-branch`, there is no
+switching a routine between a repo and no project after it is saved (create
+a replacement), and `--target-task` still works: it only needs the task to
+exist. The default engine skips the per-repo layer: `--vendor`, else the
+built-in default.
 
 `--model` and `--effort` pin what every run's engine launches on, the same
 values `rove api add` takes. They are checked when the routine is saved, so an

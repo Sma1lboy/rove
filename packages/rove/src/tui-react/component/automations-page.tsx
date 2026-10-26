@@ -23,6 +23,7 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
 import { getSavedRepos } from "../../state/repos"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
+import { isNoProjectTask } from "../../tui/panes/sidebar/groups"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -195,12 +196,17 @@ export function AutomationsPage(props: {
     const orch = props.orchestrator
     if (!orch || busyId) return
     // Saved projects UNION task repos — the New-task dialog's set
-    // (`use-repo-field.ts`); task repos alone hide a just-saved project.
-    const repos = [...new Set([...getSavedRepos(), ...orch.listTasks().map((task) => task.repo)])].filter(Boolean)
-    if (repos.length === 0) {
-      setNotice(t("automations.needRepo"))
-      return
-    }
+    // (`use-repo-field.ts`); task repos alone hide a just-saved project. No-project
+    // tasks run in a synthetic dir, so their repo is not a project.
+    const repos = [
+      ...new Set([
+        ...getSavedRepos(),
+        ...orch
+          .listTasks()
+          .filter((task) => !isNoProjectTask(task))
+          .map((task) => task.repo),
+      ]),
+    ].filter(Boolean)
     const draft = await AutomationComposer.show(dialog, {
       repos,
       tasks: orch.listTasks().filter((task) => !task.deletion),
@@ -210,7 +216,8 @@ export function AutomationsPage(props: {
 
     setBusyId("new")
     try {
-      await orch.createAutomation(draft)
+      const { repo, ...rest } = draft
+      await orch.createAutomation(repo === null ? rest : { ...rest, repo })
       refetch()
     } catch (err) {
       // The daemon's cron error names the fix; carry it verbatim.
@@ -349,7 +356,7 @@ export function AutomationsPage(props: {
                   {dividerRule(dims.width)}
                 </text>
                 <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-                  {`${repoLabel(automation.repo)} · ${automation.schedule}`}
+                  {`${automation.repo ? repoLabel(automation.repo) : t("automations.noProject")} · ${automation.schedule}`}
                 </text>
                 {/* Paused reads as a state, not a missing feature. */}
                 {automation.enabled ? null : (
