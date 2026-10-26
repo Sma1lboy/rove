@@ -286,6 +286,8 @@ export const zh: typeof en = {
   layout: {
     splitTooSmall: "这里放不下分屏了",
     railFold: "折叠任务列表",
+    navBack: "后退",
+    navForward: "前进",
     railUnfold: "展开任务列表",
     dropUnsupported: "终端里只能拖入图片和 PDF",
     pasteNoImage: "浏览器剪贴板里没有图片",

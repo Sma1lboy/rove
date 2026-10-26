@@ -292,6 +292,8 @@ export const en = {
   layout: {
     splitTooSmall: "Not enough room to split here",
     railFold: "Fold the task list",
+    navBack: "Back",
+    navForward: "Forward",
     railUnfold: "Unfold the task list",
     dropUnsupported: "Only images and PDFs can be dropped into a terminal",
     pasteNoImage: "No image on this browser's clipboard",

@@ -1,6 +1,6 @@
 /** A rail row's PRs, after Claude's list: one icon (with a count past one) and, on hover, every PR. */
 
-import { useRef, useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { TaskRow } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"
@@ -17,6 +17,8 @@ export function prRepo(url: string | undefined): string | undefined {
   return match?.[1]
 }
 
+const capitalize = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1)
+
 function stateText(mark: PrMark): string {
   return [t(`rail.pr.state.${mark.state}`), ...(mark.checks ? [t(`rail.pr.checks.${mark.checks}`)] : [])].join(" · ")
 }
@@ -27,6 +29,14 @@ export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
   const [closing, setClosing] = useState(false)
   const chip = useRef<HTMLSpanElement>(null)
   const leave = useRef<number | null>(null)
+  const list = useRef<HTMLDivElement>(null)
+  // A row low in the rail opens its list upward far enough to stay on screen.
+  useLayoutEffect(() => {
+    const el = list.current
+    if (!el || !at) return
+    const overflow = el.getBoundingClientRect().bottom - (window.innerHeight - 8)
+    if (overflow > 0) el.style.top = `${Math.max(8, at.top - 6 - overflow)}px`
+  }, [at])
   const entries: Entry[] = tasks.flatMap((task) => {
     const mark = prMark(task)
     return mark ? [{ task, mark }] : []
@@ -56,6 +66,7 @@ export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
         createPortal(
           // Events still bubble through the portal to the row's button; the list keeps them.
           <div
+            ref={list}
             className={`pr-list ${closing ? "is-closing" : ""}`}
             style={{ top: at.top - 6, left: at.right + 8 }}
             onMouseEnter={show}
@@ -77,21 +88,28 @@ export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
                   disabled={!pr?.url}
                   onClick={() => pr?.url && window.open(pr.url, "_blank", "noopener")}
                 >
-                  <span className={`pr-list-glyph ${mark.tone}`}>{mark.glyph}</span>
-                  <span className="pr-list-body">
-                    <span className="pr-list-title">{pr?.title || task.title}</span>
+                  <span className="pr-list-title">{pr?.title || task.title}</span>
+                  <span className="pr-list-line">
+                    <span className={`pr-list-state ${mark.tone}`}>
+                      <span className="pr-list-glyph">{mark.glyph}</span>
+                      {capitalize(t(`rail.pr.state.${mark.state}`))}
+                    </span>
                     <span className="pr-list-meta">
-                      {stateText(mark)}
-                      {repo ? ` · ${repo}` : ""}
-                      {pr?.number !== undefined ? ` #${pr.number}` : ""}
+                      {[
+                        ...(mark.checks ? [t(`rail.pr.checks.${mark.checks}`)] : []),
+                        [repo, pr?.number !== undefined ? `#${pr.number}` : ""].filter(Boolean).join(" "),
+                      ]
+                        .filter(Boolean)
+                        .map((part) => ` · ${part}`)
+                        .join("")}
                     </span>
+                    {stats && (
+                      <span className="pr-list-stats">
+                        <span className="tone-success">+{pr.additions}</span>
+                        <span className="tone-attention">−{pr.deletions}</span>
+                      </span>
+                    )}
                   </span>
-                  {stats && (
-                    <span className="pr-list-stats">
-                      <span className="tone-success">+{pr.additions}</span>
-                      <span className="tone-attention">−{pr.deletions}</span>
-                    </span>
-                  )}
                 </button>
               )
             })}

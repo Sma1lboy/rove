@@ -69,45 +69,54 @@
   transition-delay: 0ms;
 }
 
-.rail-fold-btn {
-  position: absolute;
-  right: 8px;
-  bottom: 4px;
+/* Top left, folded or not (Claude Desktop's title bar): fold, back, forward. */
+.rail-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 8px 0;
+}
+.rail.is-folded .rail-bar {
+  flex-direction: column;
+  padding: 8px 0 6px;
+}
+
+.rail-bar-btn {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--subtle);
   cursor: pointer;
-  z-index: 6;
 }
-
-.rail-fold-btn svg {
+.rail-bar-btn svg {
   width: 16px;
   height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-
-.rail-fold-btn:hover {
+.rail-bar-btn:hover:not(:disabled) {
   color: var(--ink);
   background: var(--hover);
+}
+.rail-bar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.rail.is-folded .rail-bar-btn {
+  width: min(26px, 100%);
 }
 
 .rail.is-folded {
   align-items: center;
   overflow: hidden;
-}
-
-.rail-fold-btn:only-child,
-.rail.is-folded .rail-fold-btn {
-  right: 50%;
-  transform: translateX(50%);
 }
 
 .rail-folded-list {
