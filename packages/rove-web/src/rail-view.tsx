@@ -119,7 +119,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     >
       <header className="rail-head">
         <span className="wordmark">
-          <span className="bracket">[</span> rove <span className="bracket">]</span>
+          <img className="wordmark-mark" src="/favicon.png" alt="" />
+          rove
         </span>
         <span className="badge-host">
           <button
