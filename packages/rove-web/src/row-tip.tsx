@@ -56,12 +56,21 @@ export function useRowTip(
   // biome-ignore lint/correctness/useExhaustiveDependencies: the cursor arriving is the trigger; the helpers only touch refs
   useEffect(() => {
     const el = row.current
-    if (cursor && el && keyed && el.closest(".rail")?.contains(document.activeElement) && truncated(el)) {
-      showSoon(el)
-      return () => {
-        clear()
-        setAt(null)
-      }
+    const rail = el?.closest<HTMLElement>(".rail")
+    if (!cursor || !el || !rail || !keyed || !rail.contains(document.activeElement) || !truncated(el)) return
+    const hide = () => {
+      clear()
+      setAt(null)
+    }
+    // Focus leaving the rail (to the terminal, a dialog) takes the tip with it.
+    const away = (e: FocusEvent) => {
+      if (!(e.relatedTarget instanceof Node && rail.contains(e.relatedTarget))) hide()
+    }
+    showSoon(el)
+    rail.addEventListener("focusout", away)
+    return () => {
+      rail.removeEventListener("focusout", away)
+      hide()
     }
   }, [cursor])
   useEffect(
