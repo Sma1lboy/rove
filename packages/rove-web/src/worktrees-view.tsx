@@ -204,6 +204,18 @@ export function WorktreesView({ model }: { model: AppModel }) {
                         <span>{fill(w.row.created, { age: compactAge(Date.now() - row.createdAtMs) })}</span>
                       )}
                     </div>
+                    {n === at && (
+                      <div className="wt-line wt-actions">
+                        <button type="button" className="link" onClick={() => requestDelete(row)}>
+                          {w.delete.button}
+                        </button>
+                        {row.taskId && (
+                          <button type="button" className="link" onClick={() => requestLand(row)}>
+                            {w.land.button}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -211,7 +223,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
           )
         })
       )}
-      <p className="page-hints mono muted">
+      <p className="page-hints mono muted keys-only">
         j/k · d {w.delete.button} · l {w.land.button} · q/esc
       </p>
     </div>
