@@ -1,6 +1,6 @@
 # Web parity with the TUI
 
-Every user action the TUI offers (204 numbered rows, plus five extra rows marked `—`: three web-only, two for the unmerged long-run controls stack), five touch-only web rows (#206–#210), and whether `packages/rove-web` does it yet.
+Every user action the TUI offers (204 numbered rows, plus five extra rows marked `—`: three web-only, two for the long-run controls Inbox rows), five touch-only web rows (#206–#210), and whether `packages/rove-web` does it yet.
 Legend: ✅ same as TUI · 🟡 partial or different · ❌ missing (unbuilt) · 🚫 cannot exist in a browser. `Bridge` names the op that would carry the action: `missing` = no op exists, `local` = pure UI.
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
@@ -172,8 +172,8 @@ Score: 197 / 214 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table
 | 123 | Jump / cycle pending across projects | F7 | ✅ | `attention.dismiss` | me: F7 (global, fires from the terminal too) opened the oldest pending episode (Audit tab-2), cleared it (`tasks.list` attention −1), F7 again opened the next (Fix retry backoff tab-11), then toasted `no pending attention`. Order is the TUI's `sortAttentionInbox` (blocked first, oldest first; unit-tested); the Inbox lists in the same order. |
 | 124 | Open failed-routine attention target | Enter, click | ✅ | `attention.dismissRoutine` | w2-machines: Failed routine (repo gone -> `skipped_unavailable`) raised a task-less `routine_failed` row. Enter and F7 cleared it and opened Routines with the cursor on that routine (2nd row). Click shares the handler (not separately exercised). Shots pages-w2m-01-inbox, 02-routines. |
 | 125 | Dismiss toast | toast click / timeout | ✅ | local | workspace: Clicking a toast dismisses it at once (timeout kept; newest 3 shown, as TUI). |
-| — | Open a `report_missing` row (long-run controls stack #1247→#1249, unmerged) | Enter, click | ❌ | `attention.dismiss` (`deliveryId`) | Can't yet: these Inbox row kinds come from the unmerged long-run controls stack (#1247→#1246→#1248→#1249). On `main` neither the TUI nor the web has them; the web change is noted in MEMO for when the stack lands. |
-| — | Answer a `decision_needed` row (same stack, unmerged) | Enter | ❌ | `gate.answer` (stack) | Can't yet: these Inbox row kinds come from the unmerged long-run controls stack (#1247→#1246→#1248→#1249). On `main` neither the TUI nor the web has them; the web change is noted in MEMO for when the stack lands. |
+| — | Open a `report_missing` row (long-run controls, #1247→#1249) | Enter, click | ❌ | `attention.dismiss` (`deliveryId`) | Not built on the web yet: the TUI, the bridge and the phone apps draw these Inbox rows, the web Inbox does not. |
+| — | Answer a `decision_needed` row (same controls) | Enter | ❌ | `gate.answer` | Not built on the web yet: the TUI, the bridge and the phone apps draw these Inbox rows, the web Inbox does not. |
 
 ## Kanban and local issue store
 

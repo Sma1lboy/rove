@@ -20,8 +20,9 @@ Two directions turn out to be one change:
    full checkout with no checkpoint, no rewind, and a fork that drops
    uncommitted state.
 2. **Dispatch to machines.** A resident daemon (`rove daemon start --resident`)
-   on a server dispatching Tasks to registered machines. Today machines are
-   read-only (`docs/MACHINES.md`).
+   on a server dispatching Tasks to registered machines. Machines began
+   read-only (`docs/MACHINES.md`); dispatch and writes have since landed, see
+   the status above.
 
 Both need the same thing: a Task must stop *being* a local path.
 
@@ -205,12 +206,12 @@ surface ships first on git.
 | Resident daemon | Exists (`resident.ts`) |
 | Attach pattern on an existing PTY key, never spawning | Exists in the bridge (`rove-bridge/src/terminal.ts`) |
 | Route `rove api` / `api.invoke` (daemon, bridge) by `--machine` or by the machine holding `--task-id` | **Done** (`machines/forward.ts`); forwarded calls never move again |
-| Route TUI writes on a remote row | Missing; the TUI still treats remote rows as read-only |
-| Per-machine PTY client in the TUI | Missing. `getSharedPtyClient()` is a process singleton, and routes are keyed by `taskId::tabId` with no machine |
-| pty.sock forward | Set up but nothing dials it. The tunnel health check doesn't probe it |
-| Hub in the daemon | Missing. `MachineHub` lives in TUI/bridge processes only |
+| Route TUI writes on a remote row | **Done**: the TUI and the web open a remote task's tabs, terminals and Files over the machine's forwarded sockets ([MACHINES.md](../MACHINES.md#working-on-a-remote-task)) |
+| Per-machine PTY client in the TUI | **Done**: the hosted terminal takes a `machine` option (`tui/panes/terminal/pty-hosted.ts`) |
+| pty.sock forward | Dialed by remote terminals in the TUI and web. Whether the tunnel health check probes it is unverified |
+| Hub in the daemon | **Done**: the daemon runs `MachineHub` (`machines/daemon-hub.ts`) and clients read it on the `machines` channel; see [daemon-owned-state.md](./daemon-owned-state.md) |
 | No recursive fan-out | **Done**: `list` over a transport returns the answering daemon's own tasks |
-| Per-caller auth | None. Socket reachability is the whole access control. Fine over SSH; not fine for anything else |
+| Per-caller auth | Per-device bridge tokens and the runner's inbound policy (`rove machine inbound`) exist; see [remote-access-auth.md](./remote-access-auth.md). The daemon socket itself still has none: reachability is the access control |
 
 ## Dispatch: what "the repos are all the same" actually requires
 
