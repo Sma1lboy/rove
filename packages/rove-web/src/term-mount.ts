@@ -10,7 +10,6 @@ import { SearchAddon } from "@xterm/addon-search"
 import { SerializeAddon } from "@xterm/addon-serialize"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
-import { WebglAddon } from "@xterm/addon-webgl"
 import { Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
@@ -20,6 +19,7 @@ import { ctrlChord } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
+import { loadWebgl } from "./term-webgl.ts"
 import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
 import { activeStream, layoutMoving } from "./ui.ts"
 
@@ -115,31 +115,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   term.unicode.activeVersion = "11"
   term.loadAddon(new WebLinksAddon())
   term.open(el)
-  let webgl: WebglAddon | null = null
-  let glCanvas: HTMLCanvasElement | null = null
-  try {
-    const before = new Set(term.element?.querySelectorAll("canvas"))
-    const addon = new WebglAddon()
-    addon.onContextLoss(() => {
-      addon.dispose()
-      webgl = null
-    })
-    term.loadAddon(addon)
-    webgl = addon
-    glCanvas =
-      [...(term.element?.querySelectorAll("canvas") ?? [])].find(
-        (c) => !before.has(c) && !c.classList.contains("xterm-link-layer"),
-      ) ?? null
-  } catch {
-    // The DOM renderer is slower but complete.
-  }
-  // The atlas keeps each glyph as first drawn: redraw once a late font (the symbols face, bold) arrives.
-  const onFontLoaded = () => {
-    if (!webgl) return
-    webgl.clearTextureAtlas()
-    term.refresh(0, term.rows - 1)
-  }
-  document.fonts.addEventListener("loadingdone", onFontLoaded)
+  const webgl = loadWebgl(term)
   fit.fit()
   // A reattach replays a ring that starts mid-repaint, so the screen is blank until the engine redraws.
   let cover: HTMLElement | null = null
@@ -456,7 +432,6 @@ export function mountTerminal(o: MountOpts): TermHandle {
     dispose() {
       disposed = true
       uncover()
-      document.fonts.removeEventListener("loadingdone", onFontLoaded)
       if (coverCap !== null) window.clearTimeout(coverCap)
       observer.disconnect()
       el.removeEventListener("wheel", onWheel, { capture: true })
@@ -491,8 +466,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
         if (ownership.attached) detach()
       }
       term.dispose()
-      // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
-      glCanvas?.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext()
+      webgl.dispose()
     },
   }
 }
