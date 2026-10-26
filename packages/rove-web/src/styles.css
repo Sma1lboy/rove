@@ -515,6 +515,88 @@ button:focus-visible,
 .tone-merged {
   color: var(--merged);
 }
+
+/* A row's PRs: one icon, a count past one, and on hover the list (Claude's PR card). */
+.pr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.pr-chip-count {
+  font-size: 10px;
+  color: var(--muted);
+}
+.pr-list {
+  position: fixed;
+  animation: pr-list-in 140ms ease-out;
+  transition: opacity 120ms ease-in, translate 120ms ease-in;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+}
+.pr-list.is-closing {
+  opacity: 0;
+  translate: -4px 0;
+}
+@keyframes pr-list-in {
+  from {
+    opacity: 0;
+    translate: -4px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pr-list {
+    animation: none;
+    transition: none;
+  }
+}
+.pr-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+.pr-list-item:hover:not(:disabled) {
+  background: var(--hover);
+}
+.pr-list-glyph {
+  font-family: var(--mono);
+  line-height: 1.4;
+}
+.pr-list-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.pr-list-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.pr-list-meta {
+  font-size: 11px;
+  color: var(--subtle);
+}
+.pr-list-stats {
+  display: flex;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
 .tone-ink {
   color: var(--ink);
 }

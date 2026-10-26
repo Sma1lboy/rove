@@ -6,7 +6,8 @@ import { visibleTree } from "../src/file-tree.ts"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
 import { compactAge, inboxBadge, isRoutineState, nextAttention } from "../src/inbox.ts"
-import { needsPerson, prMark, statusMark } from "../src/rail-glyphs.ts"
+import { prRepo } from "../src/pr-chip.tsx"
+import { leadPrMark, needsPerson, prMark, statusMark } from "../src/rail-glyphs.ts"
 import { groupByProject, navRows } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
 
@@ -276,5 +277,20 @@ describe("a task's PR mark", () => {
   test("no PR, or one still being created, draws nothing", () => {
     expect(prMark({ pr: null } as unknown as TaskRow)).toBeNull()
     expect(prMark(withPr("creating"))).toBeNull()
+  })
+
+  test("a row with several PRs leads with the one that needs you, then open, merged, closed", () => {
+    const marks = (...rows: TaskRow[]) => rows.flatMap((row) => prMark(row) ?? [])
+    const merged = withPr("merged", null, { prChipStale: true })
+    expect(leadPrMark(marks(withPr("closed"), merged, withPr("open", "passing")))?.state).toBe("open")
+    expect(leadPrMark(marks(withPr("open", "passing"), withPr("open", "conflict")))?.checks).toBe("conflict")
+    expect(leadPrMark(marks(withPr("closed"), merged))?.state).toBe("merged")
+    expect(leadPrMark([])).toBeUndefined()
+  })
+
+  test("the hover list names a PR's repo from its URL", () => {
+    expect(prRepo("https://github.com/Sma1lboy/rove/pull/1431")).toBe("Sma1lboy/rove")
+    expect(prRepo("https://example.com/not/a/pr")).toBeUndefined()
+    expect(prRepo(undefined)).toBeUndefined()
   })
 })

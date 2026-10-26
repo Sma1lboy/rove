@@ -13,12 +13,13 @@ import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
 import { startNewTask } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
+import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
-import { NERD, mostUrgentStatus, needsPerson, prMark } from "./rail-glyphs.ts"
+import { NERD, mostUrgentStatus, needsPerson } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
@@ -179,6 +180,11 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 ? !row.noProject && projectInfo(row.repo).mainTaskId === keys.cursor
                 : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
             }
+            prTasks={
+              row.kind === "task"
+                ? [row.task, ...(row.fold?.descendantIds ?? []).flatMap((id) => byId.get(id) ?? [])]
+                : undefined
+            }
             foldUrgent={
               row.kind === "task" && row.fold?.collapsed
                 ? mostUrgentStatus(row.fold.descendantIds.flatMap((id) => byId.get(id) ?? []))
@@ -253,6 +259,8 @@ function RailRow(props: {
   onNewTask?: () => void
   onClick: () => void
   onMenu: (e: MouseEvent) => void
+  /** A task row's task, then its descendants: their PRs roll up into its PR mark. */
+  prTasks?: readonly TaskRow[]
   /** A folded task's most urgent hidden child. */
   foldUrgent?: RowStatus
   onToggleFold: () => void
@@ -375,7 +383,7 @@ function RailRow(props: {
           />
         )}
         {task.pinned && <span className="chip muted">▴</span>}
-        <PrChip task={task} />
+        <PrChip tasks={props.prTasks ?? [task]} />
         {/* The right edge, as Claude Desktop's list: the row's state, then the cloud of a task elsewhere. */}
         <StatusDots status={task.rowStatus} />
         {props.cloud && <CloudMark label={props.cloud} />}
@@ -427,23 +435,6 @@ function withFoldEntry(items: MenuItem[], fold: RowFold | undefined, toggle: () 
 }
 export function tabLabel(tab: TabRow): string {
   return tab.title ?? tab.engineName ?? (tab.kind === "engine" ? t("tab.engine") : t("tab.shell"))
-}
-
-/** The task's PR: its icon, and on hover its number, where it stands and whether it can land. */
-function PrChip({ task }: { task: TaskRow }) {
-  const mark = prMark(task)
-  if (!mark) return null
-  const number = task.pr?.number
-  const label = [
-    number !== undefined ? `PR #${number}` : "PR",
-    t(`rail.pr.state.${mark.state}`),
-    ...(mark.checks ? [t(`rail.pr.checks.${mark.checks}`)] : []),
-  ].join(" · ")
-  return (
-    <span className={`chip pr-chip ${mark.tone}`} title={label} aria-label={label}>
-      {mark.glyph}
-    </span>
-  )
 }
 
 /** The rows under a collapsed project header drop out until the next header. */
