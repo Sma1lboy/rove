@@ -46,7 +46,6 @@ Four flag names that have actually been guessed wrong here, and what they are:
 
 | Gone | Now |
 |---|---|
-| `archive` | `delete` (task + worktree go; the git branch survives unless `--delete-branch`) |
 | `fan-out` | `add --count N` / `add --agents claude:2,codex:1` |
 | `task-list` | `list` |
 | `send-tab` | `send --tab tab-N` |
@@ -71,7 +70,7 @@ see both.
 
 <!-- generated:begin read -->
 ```text
-list                --repo --status <S1,S2> --activity <A1,A2>
+list                --repo --status <S1,S2> --activity <A1,A2> --archived
 get-task            --task-id(REQ)
 pty-list            (none)
 collect             --task-ids <a,b,c> --group --repo
@@ -237,22 +236,24 @@ clear the shared active task.
 
 <!-- generated:begin create,edit,lifecycle -->
 ```text
-publish  --task-id(REQ) --remote
-add      --repo(REQ) --clone --allow-fork --title --branch --base-branch --base-for
-         --worktree-name --command --effort --tier{swift|standard|deep|auto} --model
-         --count --agents <claude:2,codex:1>
-         --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
-         --require-report --expect-report --activate(false) --prompt|--prompt-file
-spawn    --parent --worktree(true) --no-worktree --base-branch --isolate-in --title
-         --command --prompt|--prompt-file
-update   --task-id(REQ) --title --tab --branch --command --model --effort --pinned
-         --require-report{on|off}
-         --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
-         --report-pr --report-summary
-land     --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
-         --remove-worktree(true) --repo
-sync     --task-id(REQ) --repo
-delete   --task-id --group --cascade --force --delete-branch --delete-remote --wait
+publish    --task-id(REQ) --remote
+add        --repo(REQ) --clone --allow-fork --title --branch --base-branch --base-for
+           --worktree-name --command --effort --tier{swift|standard|deep|auto} --model
+           --count --agents <claude:2,codex:1>
+           --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
+           --require-report --expect-report --activate(false) --prompt|--prompt-file
+spawn      --parent --worktree(true) --no-worktree --base-branch --isolate-in --title
+           --command --prompt|--prompt-file
+update     --task-id(REQ) --title --tab --branch --command --model --effort --pinned
+           --require-report{on|off}
+           --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
+           --report-pr --report-summary
+land       --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
+           --remove-worktree(true) --repo
+sync       --task-id(REQ) --repo
+delete     --task-id --group --cascade --force --delete-branch --delete-remote --wait
+archive    --task-id(REQ) --force
+unarchive  --task-id(REQ)
 ```
 <!-- generated:end -->
 

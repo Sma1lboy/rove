@@ -93,10 +93,6 @@ const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandArgs: re
     hint: "routine-set-enabled was folded into `routine-update`: pass --enabled true|false",
     nextCommandArgs: ["api", "routine-update", "--help"],
   },
-  archive: {
-    hint: "archive was removed: there is no hide-without-delete anymore — use `delete` to remove a finished task and its worktree; the git branch survives (pass --delete-branch explicitly only when the history may go)",
-    nextCommandArgs: ["api", "delete", "--help"],
-  },
 }
 
 const SCHEMA_STEP = {

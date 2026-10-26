@@ -303,6 +303,7 @@ export class Orchestrator {
   setCommand = (id: TaskId | string, command: string, vendor?: VendorId): Promise<void> =>
     this.editor.setCommand(id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)
+  setArchived = (id: TaskId | string, archived: boolean): Promise<void> => this.editor.setArchived(id, archived)
   setRequireReport = (id: TaskId | string, required: boolean): Promise<void> =>
     this.editor.setRequireReport(id, required)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)

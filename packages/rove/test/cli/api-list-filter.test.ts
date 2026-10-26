@@ -116,3 +116,29 @@ describe("list repoCount", () => {
     expect(result.tasks[1]).not.toHaveProperty("repoCount")
   })
 })
+
+describe("list --archived", () => {
+  const client = () =>
+    new FakeClient({
+      "task.list": () => ({
+        tasks: [
+          taskFixture({ id: "live", status: "in_progress" }),
+          taskFixture({ id: "hidden", status: "in_progress", archived: true }),
+          taskFixture({ id: "hidden-done", status: "done", archived: true }),
+        ],
+      }),
+    })
+  const listed = async (argv: string[]) =>
+    (
+      (await invokeVerb("list", argv, { client: client(), runtime: stubRuntime() })) as { tasks: Array<{ id: string }> }
+    ).tasks.map((t) => t.id)
+
+  it("leaves archived tasks out by default and lists only them with --archived", async () => {
+    expect(await listed([])).toEqual(["live"])
+    expect(await listed(["--archived"])).toEqual(["hidden", "hidden-done"])
+  })
+
+  it("ANDs with the other filters", async () => {
+    expect(await listed(["--archived", "--status", "done"])).toEqual(["hidden-done"])
+  })
+})

@@ -101,6 +101,8 @@ export type DaemonRequestName =
   // engine may hold files open.
   | "task.syncBase"
   | "task.pin"
+  // Hide or restore a task and its descendants; nothing is stopped or removed.
+  | "task.archive"
   | "task.move"
   | "task.status"
   // Record the brief only AFTER confirmed delivery; the engine transcript isn't
@@ -387,6 +389,8 @@ export interface SerializedTask {
   readonly routine?: DaemonTask["routine"]
   readonly status: DaemonTask["status"]
   readonly pinned: boolean
+  /** Hidden from the sidebar and the default `list`; worktree, branch and sessions untouched. */
+  readonly archived?: boolean
   readonly vendor?: DaemonTask["vendor"]
   /** Raw engine launch command as given to `add --command` / `update --command`. */
   readonly command?: DaemonTask["command"]
@@ -463,6 +467,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     ...(task.routine ? { routine: task.routine } : {}),
     status: task.status,
     pinned: task.pinned ?? false,
+    ...(task.archived ? { archived: true } : {}),
     vendor: task.vendor,
     command: task.command,
     prStatus: task.prStatus,

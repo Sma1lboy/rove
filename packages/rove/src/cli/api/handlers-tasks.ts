@@ -463,7 +463,10 @@ export async function list(ctx: VerbContext): Promise<unknown> {
   // transport caller gets this daemon's own tasks: a hub that forwarded the
   // call already merges, and fanning out again could loop back to it.
   const { mergeTaskList } = await import("../../machines/api-merge.ts")
-  const merged = ctx.caller.cli ? await mergeTaskList(local) : local
+  const all = ctx.caller.cli ? await mergeTaskList(local) : local
+  // Archived tasks are hidden unless `--archived` asks for exactly them.
+  const wantArchived = ctx.args.bool("archived") ?? false
+  const merged = { ...all, tasks: (all.tasks ?? []).filter((task) => (task.archived === true) === wantArchived) }
   const filters = listFilters(ctx)
   const result = filters ? { ...merged, ...(await filterTaskList(ctx, daemon, merged.tasks ?? [], filters)) } : merged
   if (!result.tasks) return result

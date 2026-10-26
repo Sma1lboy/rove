@@ -175,7 +175,8 @@ rove api land --task-id a              # merge the winning branch
   verbatim) so a caller can self-heal without parsing prose.
   A refusal the daemon raises keeps its own machine code — `DIRTY_WORKTREE`,
   `LAND_CONFLICT`, `MISSING_REF`, `ISSUE_NOT_FOUND`, `TASK_DELETING`,
-  `GIT_COMMAND_FAILED`, `BAD_EVENT_KIND`, the `EMPTY_BRANCH` pair — in
+  `TASK_BUSY`, `MAIN_TASK`, `GIT_COMMAND_FAILED`, `BAD_EVENT_KIND`, the
+  `EMPTY_BRANCH` pair — in
   `code`, not in the prose. `RPC_ERROR` now means what it says: the daemon
   failed without naming a reason. Never match on `message`; it is written for
   a human and it no longer repeats the code.
@@ -295,9 +296,8 @@ an unfamiliar one with `<cmd> --help` before dispatching. See
 [ENGINES.md](./ENGINES.md#engine-presets-and-protocols) for how the protocol
 Rove speaks to a command is derived from it.
 
-Removed verbs have no aliases: `fan-out` → `add --count N`, `archive` →
-`delete` (there is no hide-without-delete any more; the branch survives unless
-you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
+Removed verbs have no aliases: `fan-out` → `add --count N`, the per-field task
+edits (`set-vendor`, `rename`,
 `set-branch`, `set-command`, `set-effort`, `set-model`, `set-status`, `pin`) →
 `update`, `issue-set-status` → `issue-update --status`, and
 `routine-set-enabled` → `routine-update --enabled`. Calling any of them returns
@@ -359,6 +359,8 @@ you pass `--delete-branch`), the per-field task edits (`set-vendor`, `rename`,
     never matches. `--repo` never matches another machine's task, and
     `unresolvableRepos` beside `tasks` names task repos it could not compare.
     An unknown status or state is refused with `BAD_FLAG`.
+  - Archived tasks (`archive`) are left out; `--archived` lists only them,
+    and combines with the other flags the same way.
 - `get-task --task-id <id>`: one task's metadata; `.running` = any of its
   hosted engine tabs is live (not just the first); `.tabs` = the task's
   terminal tabs (`id`/`kind`/`title`/`vendor`/`liveVendor`/`lastTitle`/
@@ -1704,6 +1706,23 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   every removed id as `deleted`. A directory goes only once no remaining task
   points at it, so deleting a shared child never touches its parent's files,
   and every removed worktree still passes the dirty gate.
+- `archive --task-id ID [--force]` / `unarchive --task-id ID`: hide a task
+  from the sidebar, the web rail and the default `list`, or bring it back.
+  Nothing else changes: the worktree, branch, transcript and any running
+  session stay as they are, and every verb that takes `--task-id` (`send`,
+  `read-output`, `get-task`, `context`, `collect`, `digest`, `delete`) keeps
+  working on the task by id. `list --archived` lists only archived tasks.
+  Both verbs act on the task and every descendant (`spawn` children,
+  recursively) together, and return `{ taskId, archived, ids }`, where `ids`
+  is every task they changed. A child unarchived on its own while its parent
+  stays archived shows as a top-level row until the parent comes back.
+  `archive` is refused with `TASK_BUSY` while an engine in the subtree is
+  `running` or `permission_needed`; `--force` archives anyway and still stops
+  nothing. A project's `main` task cannot be archived (`MAIN_TASK`), because
+  it is the project row itself. In the sidebar and the rail, archived tasks
+  sit in one "Archived" fold at the end of the list, whose row menus offer
+  Unarchive. A project whose other tasks are all archived is hidden like any
+  idle project.
 
 ## worktree
 
