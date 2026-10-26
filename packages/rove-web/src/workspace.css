@@ -625,6 +625,20 @@
   .files-scope .link::after {
     inset: -2px -3px;
   }
+  /* Picker rows grow by padding, so baseline-aligned label and key stay aligned. Composer and suggest rows: their own sheets. */
+  .menu-item,
+  .palette-row,
+  .prefix-guide-row {
+    padding-block: 10px;
+  }
+  .dialog-close {
+    position: relative;
+  }
+  .dialog-close::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
+  }
 }
 
 /* Daemon out-of-date banner (TUI VersionSkewBanner) */
