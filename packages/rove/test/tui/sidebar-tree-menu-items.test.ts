@@ -82,6 +82,7 @@ describe("treeMenuItems", () => {
       "changeEngine",
       "syncBase",
       "land",
+      "archive",
       "delete",
     ])
   })
@@ -196,6 +197,7 @@ describe("treeMenuItems", () => {
       "changeEngine",
       "syncBase",
       "land",
+      "archive",
       "delete",
     ])
   })
