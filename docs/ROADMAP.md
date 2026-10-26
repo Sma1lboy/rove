@@ -74,9 +74,19 @@ canvases in Codex, ChatGPT and claude.ai; the layout is Rove's own.
   that the phone apps can use too. Until then the Browser view says such pages
   are not reachable from here.
 - Back and forward only walk the addresses typed in the bar. A cross-origin
-  page's own history cannot be read, so moves inside the frame are not tracked,
-  and a page that refuses to be framed stays blank (the new-tab button is the
-  way out).
+  page's own history cannot be read, so moves inside the frame are not tracked.
+- Sites that refuse framing (`X-Frame-Options: DENY` or CSP `frame-ancestors`,
+  e.g. github.com, Google, X) can't show in the panel: the browser enforces it
+  on any iframe, and the panel only says so beside the new-tab button. Claude
+  desktop and Codex show them because they are native apps with a webview. A
+  way in for later: a headless Chromium on the Rove machine whose screen streams
+  into the panel (CDP screencast) with input sent back. It would also reach the
+  task machine's `localhost` from a phone, but it is a browser process per
+  viewer, so it waits. A header-stripping proxy is ruled out: it breaks logins
+  and turns the bridge into an open proxy.
+- The frame check reads only the first response, so a site that redirects
+  (`https://iana.org`, 301) reads as frameable and can still show the browser's
+  refusal page.
 - Other artifacts a task produces have no view yet.
 
 **See also.** [WEB.md](WEB.md), [web/PARITY.md](web/PARITY.md),
