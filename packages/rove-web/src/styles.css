@@ -803,6 +803,8 @@ button:focus-visible {
   background: var(--surface);
   font: 11px var(--mono);
   color: var(--muted);
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .status .spacer {

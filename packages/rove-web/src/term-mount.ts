@@ -288,7 +288,13 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (!stream) uncover()
     }
   }
-  const offOpen = client.onOpen(() => void attach())
+  // An unlaid-out box (phone workspace still display:none) would attach at xterm's 80×24 default.
+  const sized = () => el.clientWidth > 0 && el.clientHeight > 0
+  let attachWhenSized = false
+  const offOpen = client.onOpen(() => {
+    attachWhenSized = !sized()
+    if (!attachWhenSized) void attach()
+  })
 
   const input = term.onData(replies.forward)
   // Every viewer of a PTY shares one size and the last to send wins; an inline TUI drawn for another
@@ -313,7 +319,12 @@ export function mountTerminal(o: MountOpts): TermHandle {
   // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY. While the rail
   // slides, a refit per frame blanks the canvas and SIGWINCHes the engine a dozen times: fit once at the end.
   const refit = () => {
-    if (!railMoving.get() && el.clientWidth > 0 && el.clientHeight > 0) fit.fit()
+    if (railMoving.get() || !sized()) return
+    fit.fit()
+    if (attachWhenSized) {
+      attachWhenSized = false
+      void attach()
+    }
   }
   const observer = new ResizeObserver(refit)
   observer.observe(el)
