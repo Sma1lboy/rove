@@ -10,7 +10,7 @@
 import "./dispatch.css"
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { type CSSProperties, useEffect, useRef, useState } from "react"
-import type { DispatchRow, TaskRow } from "rove-bridge/protocol"
+import type { DispatchRow, TabRow, TaskRow } from "rove-bridge/protocol"
 import {
   COLUMN,
   type GraphNode,
@@ -28,8 +28,8 @@ import { compactAge } from "./inbox.ts"
 import { machineLabel, remoteLabel, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { usePageFocus, usePageKeys } from "./pages-kit.ts"
+import { tabLabel } from "./rail-view.tsx"
 import { useStore } from "./store.ts"
-import { useTaskColor } from "./task-colors.ts"
 import { page } from "./ui.ts"
 
 const STATUS_GLYPH: Record<DispatchRow["status"], string> = {
@@ -108,6 +108,9 @@ export function DispatchView({ model }: { model: AppModel }) {
   const [stageRef, width, stageH] = useSize()
   const tasks = new Map([...(payload?.tasks ?? []), ...remote].map((task) => [task.id, task]))
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
+  const allTabs = useStore(model.tabs)
+  const tabOf = (node: GraphNode) =>
+    node.taskId ? allTabs[node.taskId]?.find((tab) => tab.id === (node.tabId ?? "tab-1")) : undefined
 
   usePageKeys((e) => {
     if (e.key === "Escape" || e.key === "q" || (e.ctrlKey && e.key === "c")) {
@@ -184,6 +187,7 @@ export function DispatchView({ model }: { model: AppModel }) {
                 key={node.key}
                 node={node}
                 task={node.taskId ? tasks.get(node.taskId) : undefined}
+                tab={tabOf(node)}
                 style={{ left: edge, top: (senderY.get(node.key) ?? 0) - NODE_H / 2, width: nodeW }}
                 onOpen={open}
               />
@@ -211,7 +215,6 @@ export function DispatchView({ model }: { model: AppModel }) {
                   style={{ right: edge, top: columnTop + frame.top, width: nodeW, height: frame.height }}
                 >
                   <span className="dp-machine-head mono" title={remoteLabel(frame.machine, row, words)}>
-                    <span className="dp-machine-dot" aria-hidden="true" />
                     {label}
                   </span>
                 </div>
@@ -222,6 +225,7 @@ export function DispatchView({ model }: { model: AppModel }) {
                 key={node.key}
                 node={node}
                 task={node.taskId ? tasks.get(node.taskId) : undefined}
+                tab={tabOf(node)}
                 status={lastTo.get(node.key)?.status}
                 style={{
                   right: edge + targetInset(node.key),
@@ -301,24 +305,26 @@ function endName(node: GraphNode, tasks: ReadonlyMap<string, TaskRow>): string {
 function NodeBox({
   node,
   task,
+  tab,
   status,
   style,
   onOpen,
 }: {
   node: GraphNode
   task: TaskRow | undefined
+  tab?: TabRow
   status?: DispatchRow["status"]
   style: CSSProperties
   onOpen: (node: GraphNode) => void
 }) {
-  const ink = useTaskColor(node.taskId)
   const title = node.routine ? node.routine : node.taskId ? task?.title || node.taskId : t("dispatch.you")
-  const sub = node.routine ? t("dispatch.routine") : node.taskId ? (node.tabId ?? "tab-1") : t("dispatch.owner")
+  // A session reads as the rail names its tab; the owner and a routine need no second line.
+  const sub = node.taskId ? (tab ? tabLabel(tab) : (node.tabId ?? "tab-1")) : null
   return (
     <button
       type="button"
       className={`dp-node ${node.taskId ? "" : "is-plain"} ${task?.machine?.stale ? "is-stale" : ""}`}
-      style={{ ...style, ...(ink ? ({ "--node-ink": ink } as CSSProperties) : {}) }}
+      style={style}
       onClick={() => onOpen(node)}
       disabled={!node.taskId}
       title={title}
@@ -327,10 +333,12 @@ function NodeBox({
         {node.routine ? "⟳ " : ""}
         {title}
       </span>
-      <span className="dp-node-sub mono">
-        {sub}
-        {status ? <span className={`dp-status is-${status}`}> {STATUS_GLYPH[status]}</span> : null}
-      </span>
+      {sub !== null || status ? (
+        <span className="dp-node-sub">
+          {sub}
+          {status ? <span className={`dp-status mono is-${status}`}> {STATUS_GLYPH[status]}</span> : null}
+        </span>
+      ) : null}
     </button>
   )
 }

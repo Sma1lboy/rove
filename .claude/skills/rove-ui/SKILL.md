@@ -220,6 +220,13 @@ only last.
 - **Near-duplicate scales and token drift.** Three or more one-off values in one component (a
   15px font, a 7px radius, an off-palette grey) mean it was built without opening `styles.css`.
 - **Eyebrow and kicker overuse:** more than one uppercase tracked label in a region.
+- **Side stripes.** No coloured 2–4px bar down one edge of a card, row or node (`border-left`,
+  `box-shadow: inset 2px 0 0 …`), least of all on a rounded box where the bar bends round the
+  corner. The owner rejected it as AI slop. Selection is a `--inset` or `--accent-soft` wash;
+  identity is the title. Check: `rg -n 'inset [0-9]px 0 0|border-left: [2-9]px' packages/rove-web/src/*.css`.
+- **Dashed outlines and cards inside cards.** A box is a solid 1px `--line`/`--line-subtle`
+  border or none. A dashed border reads as a placeholder; a bordered panel inside the bordered
+  `.page` is one frame too many.
 - **Insertion lines for drag and drop.** A drag that reorders shows the rows already in the order
   the drop would leave them: the others slide aside and the dragged row keeps a quiet
   `--accent-soft` wash. Don't use a 1–2px accent line above or below a row, a dashed drop zone or

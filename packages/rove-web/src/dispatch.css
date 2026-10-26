@@ -6,15 +6,13 @@
   gap: 18px;
 }
 
-/* The map, taking whatever height the history leaves. Nodes, hub and couriers are absolutely
-   placed from the measured size; wires are one SVG layer underneath. */
+/* The map, taking whatever height the history leaves; it sits on the page itself, not in a card
+   of its own. Nodes, hub and couriers are absolutely placed from the measured size; wires are one
+   SVG layer underneath. */
 .dp-stage {
   position: relative;
   flex: 1 0 auto;
   min-width: 0;
-  border: 1px solid var(--line-subtle);
-  border-radius: var(--radius);
-  background: var(--surface);
   overflow: hidden;
 }
 
@@ -55,11 +53,9 @@
   gap: 1px;
   height: 42px;
   min-width: 0;
-  padding: 0 10px 0 12px;
+  padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  /* The task's colour (Settings → task colours) as the node's left edge, like the rail's mark. */
-  box-shadow: inset 2px 0 0 var(--node-ink, var(--line-active));
   background: var(--paper);
   color: var(--ink);
   font: inherit;
@@ -73,11 +69,6 @@
 
 .dp-node:disabled {
   cursor: default;
-}
-
-.dp-node.is-plain {
-  box-shadow: none;
-  border-style: dashed;
 }
 
 .dp-node.is-plain:hover {
@@ -117,7 +108,7 @@
 }
 
 .dp-hub-mark {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--ink);
 }
@@ -143,38 +134,25 @@
 /* Another registered machine: a frame around its sessions, its name and state on top. */
 .dp-machine {
   position: absolute;
-  border: 1px dashed var(--line-active);
+  border: 1px solid var(--line-subtle);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--paper) 50%, transparent);
 }
 
 .dp-machine-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
+  height: 30px;
   padding: 0 10px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
+  line-height: 30px;
+  color: var(--muted);
+}
+
+/* An unreachable machine and its sessions read as the rail's stale rows: the last known state, greyed. */
+.dp-machine.is-stale .dp-machine-head,
+.dp-node.is-stale .dp-node-title {
   color: var(--subtle);
-}
-
-.dp-machine-dot {
-  flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--success);
-}
-
-.dp-machine.is-stale .dp-machine-dot {
-  background: var(--muted);
-}
-
-.dp-node.is-stale {
-  opacity: 0.55;
 }
 
 .dp-courier {

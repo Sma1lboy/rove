@@ -150,8 +150,6 @@ export const en = {
     recent: "recent",
     emptyHint: "rove api send, add and dispatch from an agent, and routine firings, run across this map",
     you: "you",
-    owner: "owner",
-    routine: "routine",
     idle: "idle",
     inFlightCount: "{count} in flight",
   },
