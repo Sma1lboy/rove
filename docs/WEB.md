@@ -136,6 +136,19 @@ phone pairing and device tokens keep working as before. Cloudflare Access
 reaches the page at all without passing Access first. With no password set,
 none of this exists: there is no login route and the page asks for the link.
 
+## Install to the home screen
+
+The page carries a web app manifest, so a browser can install it: Safari's
+Share → Add to Home Screen on iOS, Install on desktop and Android Chrome. It
+opens in its own window without browser chrome and starts at the page root of
+whatever host and port serve it.
+
+On iOS an installed app keeps its own storage, apart from the Safari tab it
+was added from, so it does not inherit the token. The first launch shows the
+connect screen (paste the `#token=` link) or, with a password set, the
+password field. Do that once; the app keeps the token after that. Chrome's
+install shares the browser profile, so it is already paired.
+
 ## Limits
 
 - The standalone `rove` binary does not include the page; `rove --web`
