@@ -45,6 +45,8 @@ export interface Toast {
   readonly id: number
   readonly text: string
   readonly tone: "info" | "error"
+  /** Fading out; gone after {@link LEAVE_MS}. */
+  readonly leaving?: boolean
 }
 
 export const menu = createStore<MenuState | null>(null)
@@ -111,9 +113,24 @@ export function toast(text: string, tone: Toast["tone"] = "info"): void {
   window.setTimeout(() => dismissToast(id), TOAST_MS)
 }
 
-/** A click on the card, or its timer. */
+/** How long a disappearing overlay fades. */
+export const LEAVE_MS = 140
+
+export function reducedMotion(): boolean {
+  return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
+}
+
+/** A click on the card, or its timer: it fades, then goes. */
 export function dismissToast(id: number): void {
-  toasts.set(toasts.get().filter((t) => t.id !== id))
+  // The timer still fires after a click already took it.
+  if (!toasts.get().some((t) => t.id === id && !t.leaving)) return
+  const drop = () => toasts.set(toasts.get().filter((t) => t.id !== id))
+  if (reducedMotion()) {
+    drop()
+    return
+  }
+  toasts.set(toasts.get().map((t) => (t.id === id ? { ...t, leaving: true } : t)))
+  window.setTimeout(drop, LEAVE_MS)
 }
 
 export function closeDialog(): void {

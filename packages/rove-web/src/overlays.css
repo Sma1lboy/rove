@@ -30,6 +30,62 @@
   width: min(620px, calc(100vw - 32px));
 }
 
+/* Motion: what appears fades in with a 4px rise; what goes is a DOM copy (leave.ts) that sinks back out. */
+.overlay {
+  animation: fade-in 140ms ease-out;
+}
+.dialog,
+.toast,
+.prefix-guide {
+  animation: rise-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.prefix-hud-head {
+  animation: rise-in 140ms ease-out, sink-out 140ms ease-in var(--hud-out, 3860ms) forwards;
+}
+.is-leaving {
+  pointer-events: none;
+}
+.overlay.is-leaving {
+  animation: fade-out 140ms ease-in forwards;
+}
+.overlay.is-leaving .dialog,
+.menu.is-leaving,
+.toast.is-leaving,
+.prefix-guide.is-leaving {
+  animation: sink-out 140ms ease-in forwards;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+@keyframes sink-out {
+  to {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .dialog,
+  .toast,
+  .prefix-guide,
+  .prefix-hud-head {
+    animation: none;
+  }
+}
+
 /* Title row: every dialog closes by pointer too, not only Esc. */
 .dialog-head {
   display: flex;
