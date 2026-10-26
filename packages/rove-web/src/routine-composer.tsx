@@ -269,8 +269,12 @@ export function RoutineComposer(props: {
                   <button
                     type="button"
                     key={delta}
+                    tabIndex={-1}
                     aria-label={t(delta < 0 ? "pages.cronDown" : "pages.cronUp", { field })}
-                    onClick={() => stepCell(delta)}
+                    onClick={() => {
+                      stepCell(delta)
+                      refs.current.schedule?.focus()
+                    }}
                   >
                     {delta < 0 ? "−" : "+"}
                   </button>
