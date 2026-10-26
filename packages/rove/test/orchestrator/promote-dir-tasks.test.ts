@@ -48,7 +48,7 @@ describe("promotableDirTasks", () => {
 
   it("leaves a projectless routine's directory alone even when it is a repo root", () => {
     // A routine's dir lives under the Rove home; if that is ever a git root, promoting
-    // would turn the routine's session into a project row and pull it out of "No project".
+    // would turn the routine's session into a project row and pull it out of "Ungrouped".
     const t = task("routine", { repo: "/home/.rove/routines/r1", noProject: true })
     expect(promotableDirTasks({ tasks: [t], isRepoRoot: anyRepo })).toEqual([])
   })

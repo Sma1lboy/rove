@@ -18,9 +18,10 @@ import type { AppModel } from "./model.ts"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { armPrefix } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
-import { statusGlyph } from "./rail-glyphs.ts"
+import { statusMark } from "./rail-glyphs.ts"
 import { type NavRow, childMarkerOf, groupByProject, navRows } from "./rail.ts"
 import { SettingsDialog } from "./settings-view.tsx"
+import { StatusDots } from "./status-dots.tsx"
 import { useStore } from "./store.ts"
 import { dialog } from "./ui.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
@@ -102,15 +103,10 @@ function railInitials(title: string): string {
 
 type TaskNavRow = Extract<NavRow, { kind: "task" }>
 
-export function FoldedRail({
-  model,
-  frame,
-  selectedTaskId,
-}: { model: AppModel; frame: number; selectedTaskId: string | null }) {
+export function FoldedRail({ model, selectedTaskId }: { model: AppModel; selectedTaskId: string | null }) {
   const payload = useStore(model.tasks)
   const allTabs = useStore(model.tabs)
-  const { prefs, glyphSets } = usePrefs()
-  const glyphs = glyphSets[prefs.glyphSet]
+  const { prefs } = usePrefs()
   const style = prefs.railFold
   const open = (taskId: string) => {
     model.select(taskId)
@@ -134,7 +130,7 @@ export function FoldedRail({
             {section.tasks.map((row) => {
               // Folded, a task's one cell is its rollup; a child steps in per generation and wears its marker.
               const { task } = row
-              const { glyph, tone } = statusGlyph(task.rowStatus, frame, glyphs)
+              const { tone } = statusMark(task.rowStatus)
               const marker = childMarkerOf(task)
               return (
                 <button
@@ -145,7 +141,7 @@ export function FoldedRail({
                   style={row.depth > 1 && style !== "hairline" ? { paddingLeft: (row.depth - 1) * 6 } : undefined}
                   onClick={() => open(task.id)}
                 >
-                  {style === "hairline" ? "▌" : glyph}
+                  {style === "hairline" ? "▌" : <StatusDots status={task.rowStatus} />}
                   {marker && style !== "hairline" && (marker === "shared" ? "⑂" : "⎇")}
                   {style === "initials" && <span className="rail-folded-initials">{railInitials(task.title)}</span>}
                 </button>

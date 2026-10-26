@@ -385,7 +385,7 @@ export interface SerializedTask {
   readonly kind: "main" | "task" | "dir"
   /** Scratch shell task — Scratch-section row, cleared on adopt/rename. */
   readonly scratch?: boolean
-  /** Projectless routine session — sorts into the No project group. */
+  /** Projectless routine session — sorts into the Ungrouped group. */
   readonly noProject?: boolean
   /** A routine's standing session — folded behind the sidebar's routine count row. */
   readonly routine?: DaemonTask["routine"]

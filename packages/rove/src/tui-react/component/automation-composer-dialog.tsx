@@ -59,7 +59,7 @@ function AutomationComposerView(props: {
   const initialRepo = props.defaultRepo ?? props.repos[0] ?? null
   const [draft, setDraft] = useState<ComposerDraft>(() => ({ ...EMPTY_DRAFT, repo: initialRepo }))
   const [field, setField] = useState<ComposerField>("name")
-  // Picker rows: "No project" first, then the saved repos.
+  // Picker rows: "Ungrouped" first, then the saved repos.
   const [repoCursor, setRepoCursor] = useState(() => {
     const at = props.repos.findIndex((repo) => samePath(repo, initialRepo ?? undefined))
     return at >= 0 ? at + 1 : 0
@@ -111,7 +111,7 @@ function AutomationComposerView(props: {
   }
 
   const preview = previewSchedule(draft.schedule, Date.now())
-  // "" stands for No project: saved repos are never empty (the page filters them).
+  // "" stands for Ungrouped: saved repos are never empty (the page filters them).
   const repoWindow = windowAround(["", ...props.repos], repoCursor)
   const repoRows = repoWindow.items.map((repo, index) => ({
     key: repo || "~no-project",

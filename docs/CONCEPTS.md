@@ -28,9 +28,9 @@ already own.
 the `ctrl+e` new-conversation dialog until the destination reads "new scratch
 task", pick an engine (or `shell` for a bare shell), and `enter` opens one in
 `$HOME` with that engine already running. It
-lives in the sidebar's **No project** group above every project, and follows a
+lives in the sidebar's **Ungrouped** group above every project, and follows a
 zero-ceremony lifecycle: its last tab exiting removes the row (no archive, no
-confirm; nothing on disk is touched). Routines created with **No project**
+confirm; nothing on disk is touched). Routines created with **Ungrouped**
 run in their own directory under `.rove/routines/` and their sessions land in
 the same group, in its routines row; they are not scratch shells and are never
 auto-removed. A scratch row earns a permanent place

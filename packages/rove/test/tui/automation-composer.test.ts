@@ -53,7 +53,7 @@ describe("validation", () => {
     expect(firstIncompleteField(FULL)).toBeNull()
   })
 
-  test("No project (null repo) is a valid choice, and tab skips the target fields", () => {
+  test("Ungrouped (null repo) is a valid choice, and tab skips the target fields", () => {
     const draft = { ...FULL, repo: null }
     expect(canSubmitDraft(draft)).toBe(true)
     expect(firstIncompleteField(draft)).toBeNull()

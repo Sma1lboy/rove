@@ -101,7 +101,7 @@ an error, not a quiet repo-less routine. Every run works in the routine's own
 directory, `<home>/.rove/routines/<id>/` (made when you save it, and again
 before a run if it went missing), and its session is a directory task: no
 worktree, no branch, nothing to land. Those sessions sit in the sidebar's
-**No project** group, next to your Scratch shells; a standing session folds
+**Ungrouped** group, next to your Scratch shells; a standing session folds
 behind that group's routines row like a project's. The precheck and `--script`
 run in the same directory. There is no `--base-branch`, there is no
 switching a routine between a repo and no project after it is saved (create

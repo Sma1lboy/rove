@@ -2,7 +2,7 @@
 
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import type { MouseEvent } from "react"
-import { useEffect, useRef, useState } from "react"
+import { useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
@@ -19,19 +19,18 @@ import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
-import { NERD, anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
+import { NERD, mostUrgentStatus, needsPerson } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
+import { StatusDots } from "./status-dots.tsx"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu } from "./ui.ts"
 import "./taskops.css"
 import { UpdateChip } from "./update-view.tsx"
 
-/** Frames a spinner counts to before it wraps: a multiple of every preset's frame count (10, 8, 4). */
-const SPINNER_CYCLE = 120
 /** The braille preset's PR marks, for the first frames before the bridge sends the glyph sets. */
 const BRAILLE_MARKS = { conflict: "≠", checksFailing: "✗", checksPassing: "✓" }
 
@@ -42,17 +41,6 @@ export function openMenu(e: MouseEvent, items: readonly MenuItem[]): void {
   menu.set({ x: e.clientX, y: e.clientY, items, target: e.currentTarget as Element, fromKeyboard: e.button !== 2 })
 }
 
-/** One shared spinner clock, only ticking while some row runs. */
-function useSpinnerFrame(running: boolean): number {
-  const [frame, setFrame] = useState(0)
-  useEffect(() => {
-    if (!running) return
-    const timer = window.setInterval(() => setFrame((f) => (f + 1) % SPINNER_CYCLE), 90)
-    return () => window.clearInterval(timer)
-  }, [running])
-  return frame
-}
-
 export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const locale = useLocale()
   const payload: TasksPayload | null = useStore(model.tasks)
@@ -61,7 +49,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const tabs = useStore(model.tabs)
   const selection = useStore(model.selection)
   const tasks = payload?.tasks ?? []
-  const frame = useSpinnerFrame(anySpinning(tasks) || anySpinning(remoteTasks))
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
   const selectedId = selection.taskId
   const byId = new Map([...tasks, ...remoteTasks].map((task) => [task.id, task]))
@@ -113,7 +100,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   if (folded) {
     return (
       <nav className="rail is-folded" ref={rail}>
-        <FoldedRail model={model} frame={frame} selectedTaskId={selection.taskId} />
+        <FoldedRail model={model} selectedTaskId={selection.taskId} />
         <FoldButton folded />
       </nav>
     )
@@ -178,7 +165,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             guides={row.kind === "task" && row.depth > 1 ? treeGuides(rows, i) : undefined}
             cloud={rowCloud(row, machines, words)}
             tabs={row.kind === "task" ? tabs[row.task.id] : undefined}
-            frame={frame}
             selected={row.id === selectedId}
             cursor={row.id === keys.cursor}
             stale={row.machine !== undefined && offline.has(row.machine)}
@@ -249,7 +235,6 @@ function RailRow(props: {
   cloud: string | null
   /** A task row's tabs: the engine's own name for its conversation shows in place of the task title. */
   tabs?: readonly TabRow[]
-  frame: number
   selected: boolean
   cursor: boolean
   moving: boolean
@@ -356,7 +341,6 @@ function RailRow(props: {
   }
 
   const task = row.task
-  const glyph = taskRowGlyph(task, props.frame, glyphs)
   const marker = childMarkerOf(task)
   const running = task.rowStatus?.kind === "running"
   return (
@@ -390,21 +374,13 @@ function RailRow(props: {
             {marker === "shared" ? NERD.shared : NERD.branch}
           </span>
         )}
-        {row.fold && (
-          <FoldToggle
-            fold={row.fold}
-            urgent={props.foldUrgent}
-            frame={props.frame}
-            glyphs={glyphs}
-            onToggle={props.onToggleFold}
-          />
-        )}
+        {row.fold && <FoldToggle fold={row.fold} urgent={props.foldUrgent} onToggle={props.onToggleFold} />}
         {task.pinned && <span className="chip muted">▴</span>}
         {task.prChip && (
           <span className={`chip ${prTone(task.prChip, task.prChipStale)}`}>{prGlyph(task.prChip, glyphs)}</span>
         )}
         {/* The right edge, as Claude Desktop's list: the row's state, then the cloud of a task elsewhere. */}
-        <span className={`glyph tone-${glyph.tone}`}>{glyph.glyph}</span>
+        <StatusDots status={task.rowStatus} />
         {props.cloud && <CloudMark label={props.cloud} />}
       </span>
     </button>
@@ -415,12 +391,9 @@ function RailRow(props: {
 function FoldToggle(props: {
   fold: RowFold
   urgent: RowStatus | undefined
-  frame: number
-  glyphs: GlyphSet | undefined
   onToggle: () => void
 }) {
   const { fold } = props
-  const mark = statusGlyph(props.urgent, props.frame, props.glyphs)
   const label = tc("tasks", fold.collapsed ? "menu.expandChildren" : "menu.collapseChildren")
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: a button cannot nest in the row's button; the row's menu entry is the keyboard path
@@ -439,7 +412,7 @@ function FoldToggle(props: {
     >
       {fold.collapsed ? NERD.folded : NERD.unfolded}
       {fold.collapsed && ` ${fold.count}`}
-      {fold.collapsed && props.urgent && <span className={`glyph tone-${mark.tone}`}>{mark.glyph}</span>}
+      {fold.collapsed && props.urgent && <StatusDots status={props.urgent} />}
     </span>
   )
 }

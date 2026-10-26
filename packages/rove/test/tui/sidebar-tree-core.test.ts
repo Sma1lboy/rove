@@ -124,7 +124,7 @@ describe("buildTreeRows", () => {
     ])
   })
 
-  test("a projectless routine's standing session folds into the No project routines row", () => {
+  test("a projectless routine's standing session folds into the Ungrouped routines row", () => {
     const result = rows({
       tasks: [
         task("s1", { kind: "dir", scratch: true, repo: "/Users/me" }),

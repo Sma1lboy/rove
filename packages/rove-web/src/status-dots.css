@@ -1,0 +1,92 @@
+/* A row's 3×3 status dots (`status-dots.tsx`). Colour comes from the tone class on the mark. */
+
+.dots {
+  flex: none;
+  display: inline-grid;
+  grid-template-columns: repeat(3, 3px);
+  grid-auto-rows: 3px;
+  gap: 1.5px;
+  align-self: center;
+}
+
+.dots i {
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.12;
+}
+
+/* Working: one ripple every 1.2s, the centre first, then the edges, then the corners. */
+.dots.is-working i {
+  opacity: 1;
+  animation: dots-ripple 1.2s ease-in-out infinite;
+  animation-delay: calc(var(--sync) + 420ms);
+}
+.dots.is-working i:nth-child(5) {
+  animation-delay: var(--sync);
+}
+.dots.is-working i:nth-child(2n) {
+  animation-delay: calc(var(--sync) + 300ms);
+}
+
+/* Waiting on you: lit, with two quick dips every 1.6s. */
+.dots.is-waiting i {
+  opacity: 1;
+  animation: dots-dip 1.6s linear infinite;
+  animation-delay: var(--sync);
+}
+
+/* Settled: the shape lights dot by dot, then holds. */
+.dots.is-error i.on,
+.dots.is-done i.on {
+  opacity: 1;
+  animation: dots-light 160ms ease-out both;
+  animation-delay: calc(var(--rank) * 80ms);
+}
+
+.dots.is-idle i.on {
+  opacity: 0.6;
+}
+
+@keyframes dots-ripple {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes dots-dip {
+  0%,
+  9.99% {
+    opacity: 0.25;
+  }
+  10%,
+  19.99% {
+    opacity: 1;
+  }
+  20%,
+  29.99% {
+    opacity: 0.25;
+  }
+  30%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes dots-light {
+  from {
+    opacity: 0.12;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dots i {
+    animation: none !important;
+  }
+}

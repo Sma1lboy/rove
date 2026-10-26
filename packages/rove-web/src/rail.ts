@@ -24,7 +24,7 @@ export interface ProjectGroup {
   readonly key?: string
   /** The machine `repo` lives on; absent = this one. */
   readonly machine?: string
-  /** The "No project" group: Scratch shells and projectless routine runs, never a repo. */
+  /** The "Ungrouped" group: Scratch shells and projectless routine runs, never a repo. */
   readonly noProject?: true
 }
 
@@ -148,7 +148,7 @@ export function projectLabel(repo: string, repos: readonly LabelledRepo[], host 
   return host ? `${host}:${base}` : base
 }
 
-/** The one "No project" group's key and row id suffix: the TUI's `~scratch`, stable across clients. */
+/** The one "Ungrouped" group's key and row id suffix: the TUI's `~scratch`, stable across clients. */
 export const NO_PROJECT_KEY = "~scratch"
 
 /** A directory task with no project of its own: a Scratch shell or a projectless routine's run. */
@@ -180,7 +180,7 @@ export function groupByProject(tasks: readonly TaskRow[], sort: SortMode = "defa
       ...(repoId ? { repoId } : {}),
     }
   })
-  // No project sits above every project.
+  // Ungrouped sits above every project.
   return [...built.filter((group) => group.noProject), ...built.filter((group) => !group.noProject)]
 }
 
@@ -443,7 +443,7 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   const labelled = projects.map((project) => ({ ...project, label: labels.get(project) ?? project.label }))
   if (input.sort === "recent") labelled.sort((a, b) => newest(b) - newest(a))
   if (input.sort === "name") labelled.sort((a, b) => collator.compare(a.label, b.label))
-  // No project stays above every project, whatever the sort.
+  // Ungrouped stays above every project, whatever the sort.
   labelled.sort((a, b) => Number(b.noProject === true) - Number(a.noProject === true))
   const rows = navRows(labelled, input.query, input.routines, input.fold)
   const groups = parts

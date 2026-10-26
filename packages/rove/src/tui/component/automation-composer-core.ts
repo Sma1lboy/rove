@@ -40,7 +40,7 @@ export function nextComposerField(
 
 export interface ComposerDraft {
   readonly name: string
-  /** `null` = No project: the routine runs in its own scratch directory. `""` = not chosen yet. */
+  /** `null` = Ungrouped: the routine runs in its own scratch directory. `""` = not chosen yet. */
   readonly repo: string | null
   readonly prompt: string
   readonly schedule: string
