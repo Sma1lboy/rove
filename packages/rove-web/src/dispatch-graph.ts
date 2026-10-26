@@ -73,7 +73,7 @@ export interface TargetColumn {
   readonly height: number
 }
 
-export const COLUMN = { row: 52, head: 28, pad: 8, gap: 12 } as const
+export const COLUMN = { row: 60, head: 30, pad: 8, gap: 14 } as const
 
 /**
  * This machine's targets first, unframed (the hub is this machine); then one frame per registered

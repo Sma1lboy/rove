@@ -6,16 +6,15 @@
   gap: 18px;
 }
 
-/* The map. Nodes, hub and couriers are absolutely placed from the measured width; wires are
-   one SVG layer underneath. */
+/* The map, taking whatever height the history leaves. Nodes, hub and couriers are absolutely
+   placed from the measured size; wires are one SVG layer underneath. */
 .dp-stage {
   position: relative;
+  flex: 1 0 auto;
   min-width: 0;
   border: 1px solid var(--line-subtle);
   border-radius: var(--radius);
-  background-color: var(--surface);
-  background-image: radial-gradient(var(--line) 1px, transparent 1px);
-  background-size: 16px 16px;
+  background: var(--surface);
   overflow: hidden;
 }
 
@@ -54,7 +53,7 @@
   flex-direction: column;
   justify-content: center;
   gap: 1px;
-  height: 36px;
+  height: 42px;
   min-width: 0;
   padding: 0 10px 0 12px;
   border: 1px solid var(--line);
@@ -94,7 +93,7 @@
 }
 
 .dp-node-title {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .dp-node-sub {
@@ -118,7 +117,7 @@
 }
 
 .dp-hub-mark {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--ink);
 }
@@ -137,7 +136,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
