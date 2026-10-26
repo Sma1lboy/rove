@@ -2,6 +2,7 @@
 
 import { CELL_PX, MIN_WORKSPACE_WIDTH } from "./layout.ts"
 import { createStore } from "./store.ts"
+import { slideLayout } from "./ui.ts"
 
 /** The side panel's kinds of view; a tab is one instance of a kind. */
 export const PANEL_KINDS = ["files", "diff", "browser"] as const
@@ -27,6 +28,7 @@ panelWidth.subscribe(() => {
   if (width === null) localStorage.removeItem(PANEL_WIDTH_KEY)
   else localStorage.setItem(PANEL_WIDTH_KEY, String(Math.round(width)))
 })
+panelWidth.subscribe(slideLayout)
 
 /** The panel beside the terminal (zen still hides it); the Files / Diff / Browser buttons at the workspace's top right open and close it. Closed until a task first opens it. */
 export const panelOpen = createStore<boolean>(localStorage.getItem(PANEL_OPEN_KEY) === "1")

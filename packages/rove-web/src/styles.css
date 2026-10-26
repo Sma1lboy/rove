@@ -473,15 +473,31 @@ button:focus-visible {
   color: var(--error);
 }
 
+/* A usage window's fill beside its percent, in the percent's tone; the track is the same tone, faint. */
+.usage-bar {
+  display: inline-block;
+  position: relative;
+  width: 28px;
+  height: 4px;
+  margin: 0 5px 1px;
+  border-radius: 2px;
+  vertical-align: middle;
+  overflow: hidden;
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+.usage-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--fill);
+  background: currentColor;
+}
+
 .dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--subtle);
-}
-
-.dot.state-open {
-  background: var(--success);
 }
 
 .dot.state-retrying {

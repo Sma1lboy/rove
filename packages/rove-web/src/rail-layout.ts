@@ -5,7 +5,7 @@
 
 import { CELL_PX, MIN_WORKSPACE_WIDTH } from "./layout.ts"
 import { createStore } from "./store.ts"
-import { railMoving } from "./ui.ts"
+import { slideLayout } from "./ui.ts"
 
 const SIDEBAR_WIDTH = 24
 
@@ -28,6 +28,7 @@ railWidth.subscribe(() => {
   if (width === null) localStorage.removeItem(WIDTH_KEY)
   else localStorage.setItem(WIDTH_KEY, String(Math.round(width)))
 })
+railWidth.subscribe(slideLayout)
 
 export const railFolded = createStore<boolean>(localStorage.getItem(FOLD_KEY) === "1")
 railFolded.subscribe(() => localStorage.setItem(FOLD_KEY, railFolded.get() ? "1" : "0"))
@@ -44,12 +45,7 @@ export function peekRail(open: boolean): void {
 }
 railFolded.subscribe(() => railPeek.set(false))
 
-let movingTimer: number | null = null
-railFolded.subscribe(() => {
-  if (movingTimer !== null) window.clearTimeout(movingTimer)
-  railMoving.set(true)
-  movingTimer = window.setTimeout(() => railMoving.set(false), 240)
-})
+railFolded.subscribe(slideLayout)
 
 /** The pin, clamped on every read like `resolveSidebarWidth`: a pin survives a narrow window and returns when it widens. */
 export function clampRailWidth(px: number, viewport = window.innerWidth): number {

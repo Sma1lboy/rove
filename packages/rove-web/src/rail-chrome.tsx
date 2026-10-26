@@ -24,7 +24,7 @@ import { needsPerson } from "./rail-glyphs.ts"
 import { clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
-import { dialog } from "./ui.ts"
+import { dialog, dragLayout } from "./ui.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 /** Two releases closer together than this are one double-click. */
@@ -38,6 +38,7 @@ export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }
   const down = (e: PointerEvent<HTMLDivElement>) => {
     drag.current = { x: e.clientX, width: rail.current?.getBoundingClientRect().width ?? 0, moved: false }
     e.currentTarget.setPointerCapture(e.pointerId)
+    dragLayout(true)
   }
   const move = (e: PointerEvent<HTMLDivElement>) => {
     const from = drag.current
@@ -67,6 +68,7 @@ export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }
       onPointerDown={down}
       onPointerMove={move}
       onPointerUp={up}
+      onLostPointerCapture={() => dragLayout(false)}
     />
   )
 }

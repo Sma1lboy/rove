@@ -5,28 +5,28 @@
  * only owns what it draws (notice, scroll chips, search row).
  */
 
-import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon } from "@xterm/addon-search"
 import { SerializeAddon } from "@xterm/addon-serialize"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
-import { WebglAddon } from "@xterm/addon-webgl"
 import { Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
+import { OverlayFitAddon } from "./term-fit.ts"
 import { ctrlChord } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
+import { loadWebgl } from "./term-webgl.ts"
 import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
-import { activeStream, railMoving } from "./ui.ts"
+import { activeStream, layoutMoving } from "./ui.ts"
 
 /** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
 export const SCROLL_PAGE_LINES = 10
 
-/** Width of xterm's overlay scrollbar lane (its default is 14); the fit addon reserves the same. */
+/** Width of xterm's overlay scrollbar (its default is 14); it floats over the last column (`term-fit.ts`). */
 const SCROLLBAR_WIDTH = 8
 
 export type Notice =
@@ -105,7 +105,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     // xterm would also jump to the bottom on mouse reports sent to the app; typing is handled below.
     scrollOnUserInput: false,
   })
-  const fit = new FitAddon()
+  const fit = new OverlayFitAddon(term)
   const search = new SearchAddon()
   term.loadAddon(fit)
   term.loadAddon(search)
@@ -115,31 +115,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   term.unicode.activeVersion = "11"
   term.loadAddon(new WebLinksAddon())
   term.open(el)
-  let webgl: WebglAddon | null = null
-  let glCanvas: HTMLCanvasElement | null = null
-  try {
-    const before = new Set(term.element?.querySelectorAll("canvas"))
-    const addon = new WebglAddon()
-    addon.onContextLoss(() => {
-      addon.dispose()
-      webgl = null
-    })
-    term.loadAddon(addon)
-    webgl = addon
-    glCanvas =
-      [...(term.element?.querySelectorAll("canvas") ?? [])].find(
-        (c) => !before.has(c) && !c.classList.contains("xterm-link-layer"),
-      ) ?? null
-  } catch {
-    // The DOM renderer is slower but complete.
-  }
-  // The atlas keeps each glyph as first drawn: redraw once a late font (the symbols face, bold) arrives.
-  const onFontLoaded = () => {
-    if (!webgl) return
-    webgl.clearTextureAtlas()
-    term.refresh(0, term.rows - 1)
-  }
-  document.fonts.addEventListener("loadingdone", onFontLoaded)
+  const webgl = loadWebgl(term)
   fit.fit()
   // A reattach replays a ring that starts mid-repaint, so the screen is blank until the engine redraws.
   let cover: HTMLElement | null = null
@@ -310,10 +286,10 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (stream && alive) void client.request("term.resize", { stream, cols, rows }).catch(() => {})
     }, 80)
   })
-  // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY. While the rail
-  // slides, a refit per frame blanks the canvas and SIGWINCHes the engine a dozen times: fit once at the end.
+  // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY. While a column slides
+  // or is dragged the canvas keeps its size: fit once it settles.
   const refit = () => {
-    if (railMoving.get() || !sized()) return
+    if (layoutMoving.get() !== null || !sized()) return
     fit.fit()
     if (attachWhenSized) {
       attachWhenSized = false
@@ -322,7 +298,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   }
   const observer = new ResizeObserver(refit)
   observer.observe(el)
-  const offMoving = railMoving.subscribe(refit)
+  const offMoving = layoutMoving.subscribe(refit)
   // The theme and the scrollback depth follow Settings: a terminal restored before the page's first prefs reply catches up.
   const offScroll = prefsStore.subscribe(() => {
     term.options.scrollback = prefsStore.get().prefs.scrollbackRows
@@ -456,7 +432,6 @@ export function mountTerminal(o: MountOpts): TermHandle {
     dispose() {
       disposed = true
       uncover()
-      document.fonts.removeEventListener("loadingdone", onFontLoaded)
       if (coverCap !== null) window.clearTimeout(coverCap)
       observer.disconnect()
       el.removeEventListener("wheel", onWheel, { capture: true })
@@ -491,8 +466,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
         if (ownership.attached) detach()
       }
       term.dispose()
-      // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
-      glCanvas?.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext()
+      webgl.dispose()
     },
   }
 }
