@@ -11,6 +11,7 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App, ConnectScreen } from "./app.tsx"
 import { BridgeClient, bridgeUrl } from "./bridge.ts"
+import { trapDialogFocus } from "./focus-trap.ts"
 import { watchLeaving } from "./leave.ts"
 import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
@@ -24,6 +25,7 @@ const root = createRoot(document.getElementById("root") as HTMLElement)
 followVisualViewport()
 longPressOpensMenus()
 watchLeaving()
+trapDialogFocus()
 const token = storedToken()
 if (!token) {
   // With a password set on the host, a page without a token signs in instead of asking for the link.
