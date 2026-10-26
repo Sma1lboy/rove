@@ -6,7 +6,7 @@ import { visibleTree } from "../src/file-tree.ts"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
 import { compactAge, inboxBadge, isRoutineState, nextAttention } from "../src/inbox.ts"
-import { needsPerson, statusMark } from "../src/rail-glyphs.ts"
+import { needsPerson, prMark, statusMark } from "../src/rail-glyphs.ts"
 import { groupByProject, navRows } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
 
@@ -253,5 +253,28 @@ describe("F7 next attention", () => {
     expect(next?.automationId).toBe("r-1")
     expect(isRoutineState("routine_failed")).toBe(true)
     expect(isRoutineState("error") || isRoutineState("turn_complete")).toBe(false)
+  })
+})
+
+describe("a task's PR mark", () => {
+  const withPr = (lifecycle: string, prChip: TaskRow["prChip"] = null, extra: Partial<TaskRow> = {}) =>
+    ({ pr: { number: 7, lifecycle, checkState: "none" }, prChip, ...extra }) as unknown as TaskRow
+
+  test("merged and closed PRs keep their own icon instead of disappearing", () => {
+    expect(prMark(withPr("merged"))).toMatchObject({ state: "merged", tone: "tone-merged" })
+    expect(prMark(withPr("closed"))).toMatchObject({ state: "closed", tone: "muted" })
+    expect(prMark(withPr("merged"))?.glyph).not.toBe(prMark(withPr("open"))?.glyph)
+  })
+
+  test("an open PR is red while it can't land, green when checks pass, grey when the forge was unreachable", () => {
+    expect(prMark(withPr("open", "conflict"))).toMatchObject({ tone: "tone-attention", checks: "conflict" })
+    expect(prMark(withPr("ready_to_merge", "failing"))).toMatchObject({ tone: "tone-attention", checks: "failing" })
+    expect(prMark(withPr("open", "passing"))).toMatchObject({ tone: "tone-success", checks: "passing" })
+    expect(prMark(withPr("open", "passing", { prChipStale: true }))?.tone).toBe("muted")
+  })
+
+  test("no PR, or one still being created, draws nothing", () => {
+    expect(prMark({ pr: null } as unknown as TaskRow)).toBeNull()
+    expect(prMark(withPr("creating"))).toBeNull()
   })
 })

@@ -10,6 +10,10 @@ export const zh: typeof en = {
     extraRepos: "这个任务还含 {count} 个仓库",
     childShared: "和父任务共用同一个文件夹：没有自己的 worktree，改动直接落在父任务的目录里",
     childWorktree: "有自己的 worktree 和分支，从父任务的分支切出",
+    pr: {
+      state: { open: "进行中", merged: "已合并", closed: "已关闭" },
+      checks: { conflict: "与基础分支冲突", failing: "检查未通过", passing: "检查已通过", pending: "检查进行中" },
+    },
     searchPlaceholder: "模糊搜索",
     engineSwitched: "引擎 → {engine}（重新打开后生效）",
     engineSwitchFailed: "切换引擎失败：{error}",

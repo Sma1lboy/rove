@@ -14,12 +14,11 @@ import { moveMode } from "./move-mode.ts"
 import { startNewTask } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
-import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
-import { NERD, mostUrgentStatus, needsPerson } from "./rail-glyphs.ts"
+import { NERD, mostUrgentStatus, needsPerson, prMark } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
@@ -30,9 +29,6 @@ import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu } from "./ui.ts"
 import "./taskops.css"
 import { UpdateChip } from "./update-view.tsx"
-
-/** The braille preset's PR marks, for the first frames before the bridge sends the glyph sets. */
-const BRAILLE_MARKS = { conflict: "≠", checksFailing: "✗", checksPassing: "✓" }
 
 /** Right click opens the row's menu where the pointer is (TUI tree menu). */
 export function openMenu(e: MouseEvent, items: readonly MenuItem[]): void {
@@ -262,8 +258,6 @@ function RailRow(props: {
   onToggleFold: () => void
 }) {
   const { row } = props
-  const { prefs, glyphSets } = usePrefs()
-  const glyphs: GlyphSet | undefined = glyphSets[prefs.glyphSet]
   const drop = props.dragging ? "is-dragging" : ""
   const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""} ${drop}`
   if (row.kind === "project") {
@@ -381,9 +375,7 @@ function RailRow(props: {
           />
         )}
         {task.pinned && <span className="chip muted">▴</span>}
-        {task.prChip && (
-          <span className={`chip ${prTone(task.prChip, task.prChipStale)}`}>{prGlyph(task.prChip, glyphs)}</span>
-        )}
+        <PrChip task={task} />
         {/* The right edge, as Claude Desktop's list: the row's state, then the cloud of a task elsewhere. */}
         <StatusDots status={task.rowStatus} />
         {props.cloud && <CloudMark label={props.cloud} />}
@@ -437,14 +429,21 @@ export function tabLabel(tab: TabRow): string {
   return tab.title ?? tab.engineName ?? (tab.kind === "engine" ? t("tab.engine") : t("tab.shell"))
 }
 
-function prGlyph(kind: NonNullable<TaskRow["prChip"]>, glyphs: GlyphSet | undefined): string {
-  const set = glyphs ?? BRAILLE_MARKS
-  return kind === "conflict" ? set.conflict : kind === "failing" ? set.checksFailing : set.checksPassing
-}
-
-function prTone(kind: NonNullable<TaskRow["prChip"]>, stale: boolean | undefined): string {
-  if (stale) return "muted"
-  return kind === "passing" ? "tone-success" : "tone-attention"
+/** The task's PR: its icon, and on hover its number, where it stands and whether it can land. */
+function PrChip({ task }: { task: TaskRow }) {
+  const mark = prMark(task)
+  if (!mark) return null
+  const number = task.pr?.number
+  const label = [
+    number !== undefined ? `PR #${number}` : "PR",
+    t(`rail.pr.state.${mark.state}`),
+    ...(mark.checks ? [t(`rail.pr.checks.${mark.checks}`)] : []),
+  ].join(" · ")
+  return (
+    <span className={`chip pr-chip ${mark.tone}`} title={label} aria-label={label}>
+      {mark.glyph}
+    </span>
+  )
 }
 
 /** The rows under a collapsed project header drop out until the next header. */

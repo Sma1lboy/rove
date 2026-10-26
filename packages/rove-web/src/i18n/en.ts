@@ -9,6 +9,15 @@ export const en = {
     extraRepos: "{count} more repos in this task",
     childShared: "Shares the parent task's folder: no worktree of its own, edits land in the parent's checkout",
     childWorktree: "Own worktree and branch, cut from the parent's branch",
+    pr: {
+      state: { open: "open", merged: "merged", closed: "closed" },
+      checks: {
+        conflict: "conflicts with its base",
+        failing: "checks failing",
+        passing: "checks passing",
+        pending: "checks running",
+      },
+    },
     searchPlaceholder: "fuzzy filter",
     engineSwitched: "Engine → {engine} (applies on reopen)",
     engineSwitchFailed: "could not switch engine: {error}",
