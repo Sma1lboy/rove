@@ -80,11 +80,11 @@
 .hero h1{max-width:none;font-size:clamp(2.4rem,5.1vw,4.4rem)}
 .hero .lede{margin-bottom:26px}
 .hero .engines{margin-top:14px;font-size:13.5px;color:var(--ink-2)}
-.hero .platform{margin-top:8px;font-size:11px;color:var(--ink-3)}
+.hero .platform{margin-top:8px;font-size:12px;color:var(--ink-3)}
 .demo{margin:0;border:1px solid var(--ink);background:var(--paper-2)}
 .demo .cap{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--rule);padding:7px 12px}
 .demo .rec{color:var(--accent-text)}
-.demo video{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:#0b0d10}
+.demo video{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:var(--ink)}
 @media (max-width:1080px){.hero{grid-template-columns:minmax(0,1fr)}}
 
 /* long prose URLs must not push the sheet past a 390px viewport */
@@ -343,7 +343,7 @@
       <!-- Demo slot. To swap the recording, change the one src below. -->
       <figure class="demo" data-measure="1 SESSION, RECORDED">
         <div class="cap micro"><span data-i18n="hero.demoCap">Fig. 0 — Rove, running</span><span class="rec" aria-hidden="true">● REC</span></div>
-        <video src="/assets/hero-multirepo.mp4" autoplay muted loop playsinline preload="metadata"
+        <video src="/assets/hero-multirepo.mp4" poster="/assets/hero-multirepo-poster.webp" autoplay muted loop playsinline preload="metadata"
                aria-label="Screen recording of Rove: a task started in each of three repos, running Claude Code and Codex at once; the terminal is closed and reopened with all three still running, then one task's diff"></video>
       </figure>
     </div>
