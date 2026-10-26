@@ -1,0 +1,38 @@
+import { tabStripVisible } from "@sma1lboy/rove/src/state/tab-strip.ts"
+import type { TabRow, TaskRow } from "rove-bridge/protocol"
+import type { AppModel } from "./model.ts"
+import { usePrefs } from "./prefs.ts"
+import { openMenu, tabLabel } from "./rail-view.tsx"
+import { taskMenu } from "./row-actions.tsx"
+import { PanelToggle } from "./side-panel.tsx"
+import { useStore } from "./store.ts"
+
+/** The open task's tabs as a tablist; on a wide screen the side panel's toggle sits at its end. */
+export function TabStrip({
+  model,
+  task,
+  tabs,
+  narrow,
+}: { model: AppModel; task: TaskRow; tabs: readonly TabRow[]; narrow: boolean }) {
+  const selection = useStore(model.selection)
+  const { prefs } = usePrefs()
+  return (
+    <div className={`tab-strip ${tabStripVisible(prefs.tabStrip, tabs.length) ? "" : "is-tabs-hidden"}`} role="tablist">
+      {tabs.map((tab, i) => (
+        <button
+          type="button"
+          role="tab"
+          key={tab.id}
+          aria-selected={tab.id === selection.tabId}
+          className={`tab ${tab.id === selection.tabId ? "is-active" : ""}`}
+          onClick={() => model.select(task.id, tab.id)}
+          onContextMenu={(e) => openMenu(e, taskMenu(model, task, tab))}
+        >
+          <span className="tab-index">{i + 1}</span>
+          {tabLabel(tab)}
+        </button>
+      ))}
+      {!narrow && <PanelToggle />}
+    </div>
+  )
+}
