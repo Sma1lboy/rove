@@ -10,9 +10,13 @@
 // The replies the host sends for the same queries: DA1, DECRQM, OSC 10/11.
 // biome-ignore lint/suspicious/noControlCharactersInRegex: matching raw terminal replies is the point
 const HOST_ANSWERED = /\x1b\[\?[0-9;]*c|\x1b\[\??[0-9;]*\$y|\x1b\](?:10|11);[^\x07\x1b]*(?:\x07|\x1b\\)/g
+// Every report xterm sends on its own: DA, CPR, DSR, DECRPM, window reports, OSC and DCS replies.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching raw terminal replies is the point
+const XTERM_REPORTS = /\x1b\[[?>=]?[0-9;]*(?:[cnRt]|\$y)|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1bP[^\x1b]*\x1b\\/g
 
 export interface ReplyGate {
-  /** xterm's `onData`: keys and live replies go to the app, replies to replayed history do not. */
+  /** xterm's `onData`: keys and live replies go to the app, replies to replayed history do not. Keys
+   *  typed while a replay parses still go (Ctrl+C during a flood's repaint). */
   readonly forward: (data: string) => void
   /** Hand history to xterm through `write`, which must pass its parsed-callback to `term.write`. */
   readonly replay: (write: (parsed: () => void) => void) => void
@@ -22,8 +26,7 @@ export function createReplyGate(send: (data: string) => void): ReplyGate {
   let replaying = 0
   return {
     forward(data) {
-      if (replaying > 0) return
-      const live = data.replace(HOST_ANSWERED, "")
+      const live = (replaying > 0 ? data.replace(XTERM_REPORTS, "") : data).replace(HOST_ANSWERED, "")
       if (live) send(live)
     },
     replay(write) {

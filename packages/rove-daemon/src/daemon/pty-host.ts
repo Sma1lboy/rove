@@ -92,7 +92,7 @@ export class PtyHost {
         const frame: DaemonFrame = {
           type: "event",
           name: "pty.data",
-          payload: { key: session.key, data: data.toString("base64") },
+          payload: { key: session.key, data: data.toString("base64"), offset: session.totalBytes },
         }
         for (const sink of session.sinks.values()) sink(frame)
         this.maybeFreeze(session)
@@ -346,9 +346,17 @@ export class PtyHost {
     return Array.from(this.sessions.values(), (s) => sessionInfo(s))
   }
 
-  /** Read-only ring peek (`pty.peek`) — no attach, no spawn, no resize. */
-  peek(key: string, sinceOffset?: number): PtyPeekResult {
-    return peekRing(this.sessions.get(key), sinceOffset)
+  /**
+   * Read-only ring peek (`pty.peek`) — no attach, no spawn, no resize. `preamble`: a full peek
+   * starts with the mode-setting bytes the trimmed ring lost, like `pty.open`'s replay, so a
+   * page can repaint from it.
+   */
+  peek(key: string, sinceOffset?: number, preamble = false): PtyPeekResult {
+    const session = this.sessions.get(key)
+    const peek = peekRing(session, sinceOffset)
+    if (!preamble || !session || sinceOffset !== undefined) return peek
+    const modes = Buffer.from(terminalModePreamble(session.ringModes.modes), "latin1")
+    return { ...peek, data: Buffer.concat([modes, Buffer.from(peek.data, "base64")]).toString("base64") }
   }
 
   /** Retention facts for diagnostics; no terminal bytes leave the host. */

@@ -211,7 +211,8 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const cwd = shown?.cwd ?? (await ops.worktreeOf(taskId))
       const shownTab = shown?.tabId ?? tabId
       const size = cols !== undefined && rows !== undefined ? { cols, rows } : undefined
-      const attach = () => forwarder.attach(target, shownTab, cwd, size, leafId)
+      const acks = optBool(a, "acks")
+      const attach = () => forwarder.attach(target, shownTab, cwd, size, leafId, acks)
       // A tab with no running session reopens as it is opened, the way a TUI attach
       // resumes it (`tab-revive`). When that fails the page still gets the dead tab and
       // its Reopen button. Split panes and another machine's tabs attach as they are.
@@ -251,6 +252,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         optInt(a, "cols", 10, 1000) ?? 80,
         optInt(a, "rows", 4, 500) ?? 24,
       )
+      return {}
+    case "term.ack":
+      conn.streamOwner.get(str(a, "stream"))?.ack(str(a, "stream"), optInt(a, "chars", 0, 1e9) ?? 0)
       return {}
     case "term.detach":
       {

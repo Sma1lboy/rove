@@ -70,6 +70,7 @@ Push: `{"event":"tasks","data":{...}}`.
 | `term.attach` | Receive stream ID and base64 replay; only attach existing sessions. An optional `leafId` attaches a split pane of the tab (clients that never split can ignore `task.tabs`' `split`) |
 | `term.data`, `term.exit` pushes | Decode bytes in xterm; stop input after exit |
 | `term.input`, `term.resize`, `term.detach` | Send text, resize within bridge bounds, detach on screen exit |
+| `term.ack`, `term.reset` push (optional) | Attach with `acks: true`, then send `term.ack {stream, chars}` for the base64 chars xterm has parsed. Past ~1 MB unacked the bridge stops sending output; once everything is acked it pushes `term.reset {stream, replay}`: reset xterm and write the replay. Keeps Ctrl+C on a flood instant. Clients that never send `acks` get output as before |
 | `diff.files`, `diff.file` | Preserve the bridge's `branch` or `working` scope |
 | `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete |
 

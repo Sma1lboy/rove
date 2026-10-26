@@ -33,6 +33,8 @@ export const OPS = [
   "term.input",
   "term.resize",
   "term.detach",
+  // Output the page has parsed, for a stream attached with `acks: true` (terminal-flow.ts).
+  "term.ack",
   // Reopen a tab's session when no PTY runs in it (`tab-revive`); the client re-attaches after.
   "term.revive",
   "diff.files",
