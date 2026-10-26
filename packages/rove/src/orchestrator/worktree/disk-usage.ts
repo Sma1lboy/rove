@@ -58,7 +58,7 @@ async function totalBytes(exec: ExecHost, worktreePath: string): Promise<number 
 async function ignoredBytes(exec: ExecHost, worktreePath: string): Promise<number | null> {
   try {
     // Lock-free, so it never competes with an engine's commit for the index lock.
-    const status = await exec.run(["git", "status", "--porcelain", "-z", "--ignored"], {
+    const status = await exec.run(["git", "status", "--porcelain", "-z", "--ignored", "--untracked-files=normal"], {
       cwd: worktreePath,
       env: READ_ONLY_GIT_ENV,
     })

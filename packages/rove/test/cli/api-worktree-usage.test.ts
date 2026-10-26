@@ -89,9 +89,10 @@ describe("measureCheckout", () => {
     dir = undefined
   })
 
-  it("reports the gitignored part of a real worktree separately", async () => {
+  it.each(["normal", "no", "all"])("measures ignored content with status.showUntrackedFiles=%s", async (mode) => {
     dir = mkdtempSync(join(tmpdir(), "rove-usage-"))
     execFileSync("git", ["init", "-q"], { cwd: dir })
+    execFileSync("git", ["config", "status.showUntrackedFiles", mode], { cwd: dir })
     writeFileSync(join(dir, ".gitignore"), "node_modules/\n")
     writeFileSync(join(dir, "index.ts"), "export {}\n")
     mkdirSync(join(dir, "node_modules", "dep"), { recursive: true })
