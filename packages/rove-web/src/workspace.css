@@ -643,6 +643,10 @@
   .prefix-guide-row {
     padding-block: 10px;
   }
+  /* Repo / placement pickers (routine composer, Kanban drawer) stack 2px apart: no room for ::after. */
+  .kb-place {
+    padding-block: 6px;
+  }
   .dialog-close,
   .narrow-back,
   .narrow-switch button,
