@@ -1,5 +1,6 @@
 /** Pure rules of the New session composer: what the model chip offers and what Start sends. Names come from the engine registry. */
 
+import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { splitRepoRow } from "./new-task-paths.ts"
 
 /** The slice of an `engines.list` row the composer reads. */
@@ -73,17 +74,21 @@ export interface StartInput {
   readonly branch: string
   readonly engine: string
   readonly prompt: string
+  /** false: create the task without running its engine. */
+  readonly begin: boolean
   readonly model: string
   readonly effort: string
 }
 
 /**
  * The `task.spawn` args for Start: the session is born by this prompt, on the primary repo, with the other
- * picks as `extraRepos` in pick order; no prompt creates the task without starting its engine.
+ * picks as `extraRepos` in pick order. Without `begin` the engine stays off and the typed prompt names the
+ * task instead of being lost.
  */
 export function spawnArgs(input: StartInput): Record<string, unknown> {
   const [primary, ...extras] = input.repos
   if (!primary) throw new Error("no repo")
+  const title = input.begin ? "" : deriveTitleFromPrompt(input.prompt)
   return {
     repo: primary.repo,
     ...(primary.baseRef ? { baseBranch: primary.baseRef } : {}),
@@ -92,7 +97,8 @@ export function spawnArgs(input: StartInput): Record<string, unknown> {
       : {}),
     // The shared name is set in the Branches menu, which a lone repo does not have, so a stale one never rides along.
     ...(extras.length > 0 && input.branch ? { branch: input.branch } : {}),
-    ...(input.prompt ? { prompt: input.prompt } : {}),
+    ...(input.begin && input.prompt ? { prompt: input.prompt } : {}),
+    ...(title ? { title } : {}),
     ...(input.engine ? { engine: input.engine } : {}),
     ...(input.model ? { model: input.model } : {}),
     ...(input.effort ? { effort: input.effort } : {}),

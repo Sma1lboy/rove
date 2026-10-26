@@ -94,8 +94,8 @@
   bottom: calc(100% + 6px);
   left: 0;
   z-index: 20;
-  min-width: 34ch;
-  max-width: 52ch;
+  min-width: min(34ch, calc(100vw - 16px));
+  max-width: min(52ch, calc(100vw - 16px));
   max-height: min(50vh, 420px);
   display: flex;
   flex-direction: column;
