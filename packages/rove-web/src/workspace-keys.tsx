@@ -21,7 +21,7 @@ import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { focusPane } from "./pane-focus.ts"
 import { tabLabel } from "./rail-view.tsx"
 import { isSplit } from "./split-model.ts"
-import { dialog, page, preview, toast } from "./ui.ts"
+import { dialog, page, toast } from "./ui.ts"
 
 export function typingInField(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
@@ -47,7 +47,6 @@ function go(model: AppModel, index: number): void {
   const { taskId, tabs } = current(model)
   const tab = tabs[index]
   if (!taskId || !tab) return
-  preview.set(null)
   model.select(taskId, tab.id)
 }
 

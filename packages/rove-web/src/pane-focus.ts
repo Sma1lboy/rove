@@ -5,8 +5,8 @@ import { type CyclePaneId, nextFocusedPane } from "@sma1lboy/rove/src/tui-react/
 /** pane → [its element, what takes focus in it]. */
 const PANES: Record<CyclePaneId, readonly [string, string]> = {
   sidebar: [".rail", ".rail"],
-  workspace: [".workspace", ".preview, .term-slot:not(.is-hidden) .split-leaf.is-active textarea"],
-  files: [".files", ".files"],
+  workspace: [".workspace", ".term-slot:not(.is-hidden) .split-leaf.is-active textarea"],
+  files: [".side-panel", ".side-view:not([hidden]) :is([tabindex='0'], input)"],
 }
 
 export function focusPane(delta: 1 | -1): void {

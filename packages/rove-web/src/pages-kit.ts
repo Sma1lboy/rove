@@ -105,7 +105,7 @@ export function usePageKeys(onKey: (e: KeyboardEvent) => boolean): void {
     const handle = (e: KeyboardEvent) => {
       if (e.defaultPrevented || dialog.get() || menu.get()) return
       const target = e.target instanceof HTMLElement ? e.target : null
-      if (typingInField(target) || target?.closest(".rail, .files, .xterm")) return
+      if (typingInField(target) || target?.closest(".rail, .side-panel, .xterm")) return
       if (e.metaKey || e.altKey) return
       // Ctrl+C closes a page only when nothing is selected; a text selection keeps the browser's copy.
       if (e.ctrlKey && e.key.toLowerCase() === "c" && window.getSelection()?.toString()) return

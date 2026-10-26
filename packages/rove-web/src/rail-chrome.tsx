@@ -13,10 +13,11 @@ import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
 import {
+  PANEL_TABS,
   backToTasks,
   clampRailWidth,
   enterWorkspace,
-  narrowFiles,
+  narrowView,
   peekRail,
   railFolded,
   railPeek,
@@ -24,13 +25,14 @@ import {
 } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
+import { showPanel } from "./panel-state.ts"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { armPrefix } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
 import { needsPerson } from "./rail-glyphs.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
-import { dialog, preview } from "./ui.ts"
+import { dialog } from "./ui.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 /** Two releases closer together than this are one double-click. */
@@ -77,6 +79,16 @@ export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }
   )
 }
 
+/** The rail's and the side panel's toggle icon: a window with the pane's side divided off. */
+export function PaneIcon({ side }: { side: "left" | "right" }) {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="2.5" />
+      <path d={side === "left" ? "M6 2.5v11" : "M10 2.5v11"} />
+    </svg>
+  )
+}
+
 /**
  * Top left of the page, folded or not, as Claude Desktop's title bar: fold the rail, then back and
  * forward. It never moves, so the rail slides away from under it; folded, a dot on the fold says a
@@ -104,10 +116,7 @@ export function RailBar({ model }: { model: AppModel }) {
         aria-label={fold}
         onClick={() => railFolded.set(!folded)}
       >
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <rect x="1.5" y="2.5" width="13" height="11" rx="2.5" />
-          <path d="M6 2.5v11" />
-        </svg>
+        <PaneIcon side="left" />
         {waiting && <span className="rail-bar-dot" />}
       </button>
       <button
@@ -138,15 +147,20 @@ export function RailBar({ model }: { model: AppModel }) {
   )
 }
 
+const NARROW_LABEL = {
+  terminal: "layout.narrowTerminal",
+  files: "layout.narrowFiles",
+  diff: "layout.narrowDiff",
+  browser: "layout.narrowBrowser",
+} as const
+
 /**
  * Narrow layout, content panel: the way back to the list the viewport has no room to show beside it.
- * In a task it also switches between the terminal and the file list, the desktop's Files column.
+ * In a task it also switches between the terminal and the side panel's views, the desktop's right column.
  */
 export function NarrowBackBar({ taskId }: { taskId?: string }) {
   useLocale()
-  const files = useStore(narrowFiles)
-  // A preview left open on another task is not what this panel shows.
-  const shown = useStore(preview)?.taskId === taskId
+  const view = useStore(narrowView)
   return (
     <div className="narrow-bar">
       <button type="button" className="narrow-back mono" onClick={backToTasks}>
@@ -154,28 +168,17 @@ export function NarrowBackBar({ taskId }: { taskId?: string }) {
       </button>
       {taskId && (
         <span className="narrow-switch mono" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!files && !shown}
-            onClick={() => {
-              preview.set(null)
-              narrowFiles.set(false)
-            }}
-          >
-            {t("layout.narrowTerminal")}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={files || shown}
-            onClick={() => {
-              preview.set(null)
-              narrowFiles.set(true)
-            }}
-          >
-            {t("layout.narrowFiles")}
-          </button>
+          {(["terminal", ...PANEL_TABS] as const).map((id) => (
+            <button
+              type="button"
+              role="tab"
+              key={id}
+              aria-selected={view === id}
+              onClick={() => (id === "terminal" ? narrowView.set(id) : showPanel(taskId, id))}
+            >
+              {t(NARROW_LABEL[id])}
+            </button>
+          ))}
         </span>
       )}
     </div>

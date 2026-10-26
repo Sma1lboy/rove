@@ -14,9 +14,10 @@ import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
+import { openDiff } from "./panel-state.ts"
 import { PaneKeyHint } from "./rail-chrome.tsx"
 import { useStore } from "./store.ts"
-import { activeStream, preview, toast, zen } from "./ui.ts"
+import { activeStream, toast, zen } from "./ui.ts"
 
 type Tab = "all" | "changes"
 
@@ -110,7 +111,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       else next.delete(path)
       return next
     })
-  const open = (path: string) => preview.set({ taskId: task.id, path, scope: branchScope ? "branch" : "working" })
+  const open = (path: string) => openDiff({ taskId: task.id, path, scope: branchScope ? "branch" : "working" })
   /** The Mac's configured editor in the task's editor tab; a file the branch deleted has nothing to edit, so it shows its diff. */
   const edit = (r: Row) => {
     // A file on another machine has no editor here: its diff is what this machine can show.
@@ -122,7 +123,6 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       .request<{ tabId: string }>("file.openInEditor", { taskId: task.id, path: r.path })
       .then(async ({ tabId }) => {
         await model.refreshTabsNow()
-        preview.set(null)
         model.select(task.id, tabId)
       })
       .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
@@ -169,7 +169,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   }
 
   return (
-    <aside
+    <div
       className={`files ${narrow ? "is-narrow" : ""}`}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the pane takes focus so its keys stay scoped to it, as in the TUI
       tabIndex={0}
@@ -254,6 +254,6 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
         ))}
       </div>
       <PaneKeyHint pane="files" />
-    </aside>
+    </div>
   )
 }

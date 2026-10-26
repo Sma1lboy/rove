@@ -1,8 +1,8 @@
 /* Workspace chrome: rail width/fold, narrow layout, split panes, key guide, palette, help, search. Tokens from styles.css. */
 
-/* The Files column gives way below 1250px wide (a tablet), so the terminal keeps the most room. */
+/* The side panel is the third column: its pinned width (`--panel-w`) or an automatic one. */
 .app {
-  grid-template-columns: var(--rail-w, minmax(220px, 280px)) 1fr clamp(200px, 24vw, 300px);
+  grid-template-columns: var(--rail-w, minmax(220px, 280px)) 1fr var(--panel-w, clamp(300px, 28vw, 440px));
 }
 
 .app.is-zen {
@@ -161,7 +161,7 @@
 .app.is-rail-folded .workspace {
   grid-column: 2;
 }
-.app.is-rail-folded .files {
+.app.is-rail-folded .side-panel {
   grid-column: 3;
 }
 .app.is-rail-peek .rail {
