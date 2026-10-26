@@ -1,6 +1,6 @@
 /**
- * Each task's own hue (the TUI's `useTaskColor`): a mark on its rail rows and the colour of the
- * working border. The hue maths is the TUI's `taskColor`, run by the bridge (`theme.taskColors`)
+ * Each task's own hue (the TUI's `useTaskColor`): the colour of its working border and its Dispatch
+ * node (the rail draws no mark). The hue maths is the TUI's `taskColor`, run by the bridge (`theme.taskColors`)
  * under the theme and mode in use, so the page never restates it.
  */
 
@@ -47,7 +47,7 @@ export function useTaskColorFeed(model: AppModel): void {
     const fetchMissing = () => {
       const have = colors.get()
       const payload = model.tasks.get()
-      // Archived rows keep their mark in the Archived fold, as in the TUI.
+      // An archived task opened from the Archived fold keeps its working border's hue.
       const rows = [...(payload?.tasks ?? []), ...(payload?.archived ?? [])]
       const ids = rows.map((task) => task.id).filter((id) => !(id in have))
       if (ids.length === 0) return

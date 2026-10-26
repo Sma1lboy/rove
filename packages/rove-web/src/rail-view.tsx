@@ -4,7 +4,6 @@ import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messag
 import type { MouseEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
-import { errorText } from "./dialogs.tsx"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
@@ -19,15 +18,23 @@ import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { withArchived } from "./rail-archived.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
-import { anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
+import { NERD, anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel, rowTitle } from "./rail.ts"
+import {
+  type NavRow,
+  type RowFold,
+  type TreeGuide,
+  childMarkerOf,
+  railRows,
+  repoLabel,
+  rowTitle,
+  treeGuides,
+} from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
-import { useTaskColor } from "./task-colors.ts"
 import { tc } from "./tui-copy.ts"
-import { type MenuItem, dialog, menu, toast } from "./ui.ts"
+import { type MenuItem, dialog, menu } from "./ui.ts"
 import "./taskops.css"
 import { UpdateChip } from "./update-view.tsx"
 
@@ -52,17 +59,6 @@ function useSpinnerFrame(running: boolean): number {
     return () => window.clearInterval(timer)
   }, [running])
   return frame
-}
-
-/** The header's `+`: a Scratch conversation in $HOME on the default engine, one click (the picker stays in New conversation with…). */
-async function newScratch(model: AppModel): Promise<void> {
-  try {
-    const made = await model.client.request<{ taskId: string }>("task.openScratch", {})
-    model.selectWhenListed(made.taskId)
-    enterWorkspace()
-  } catch (err) {
-    toast(t("rail.newScratchFailed", { error: errorText(err) }), "error")
-  }
 }
 
 export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }) {
@@ -157,15 +153,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           <ShortcutBadge model={model} bindingId="inbox.show" />
         </span>
         <UpdateChip />
-        <button
-          type="button"
-          className="rail-add"
-          title={t("rail.newScratch")}
-          aria-label={t("rail.newScratch")}
-          onClick={() => void newScratch(model)}
-        >
-          +
-        </button>
       </header>
       {moving && (
         <div className="rail-search mono">
@@ -184,9 +171,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         </div>
       )}
       <PageNav model={model} />
-      <button type="button" className="rail-sort mono" title={tc("tasks", "sort.hint")} onClick={filters.cycleSort}>
-        {tc("tasks", "sort.label", { mode: tc("tasks", `sort.modes.${filters.sort}`) })}
-      </button>
       <div className={`rail-body ${drag.dragging ? "is-sorting" : ""}`} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && (
           <div className="empty">
@@ -195,10 +179,11 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           </div>
         )}
         {recent && <RecentRow title={recent.title} />}
-        {rows.map((row) => (
+        {rows.map((row, i) => (
           <RailRow
             key={row.id}
             row={row}
+            guides={row.kind === "task" && row.depth > 1 ? treeGuides(rows, i) : undefined}
             cloud={rowCloud(row, machines, words)}
             tabs={row.kind === "task" ? tabs[row.task.id] : undefined}
             frame={frame}
@@ -256,13 +241,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         ))}
       </div>
       <PaneKeyHint pane="sidebar" />
-      <div className="badge-host">
-        <button type="button" className="row new-task" onClick={() => startNewTask(model)}>
-          <span className="glyph tone-accent">+</span>
-          <span className="row-title">{t("rail.newTask")}</span>
-        </button>
-        <ShortcutBadge model={model} bindingId="task.new.global" />
-      </div>
       {!narrow && <FoldButton folded={false} />}
       {!narrow && <RailGrip rail={rail} />}
     </nav>
@@ -271,6 +249,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 
 function RailRow(props: {
   row: NavRow
+  /** A child task's indent columns, outermost first. */
+  guides?: readonly TreeGuide[]
   /** A task on another machine: its cloud mark's text (`on mac · offline`); null for this machine's rows. */
   cloud: string | null
   /** A task row's tabs: the engine's own name for its conversation shows in place of the task title. */
@@ -300,7 +280,6 @@ function RailRow(props: {
   const { row } = props
   const { prefs, glyphSets } = usePrefs()
   const glyphs: GlyphSet | undefined = glyphSets[prefs.glyphSet]
-  const mark = useTaskColor(row.kind === "task" ? row.task.id : null)
   const drop = props.dragging ? "is-dragging" : ""
   const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""} ${drop}`
   if (row.kind === "project") {
@@ -342,7 +321,6 @@ function RailRow(props: {
       </h2>
     )
   }
-  const markDot = mark ? <span className="task-mark" style={{ background: mark }} aria-hidden="true" /> : null
   if (row.kind === "routines") {
     const waiting = row.expanded ? 0 : row.tasks.filter(needsPerson).length
     return (
@@ -393,8 +371,14 @@ function RailRow(props: {
       {...props.place}
       {...props.drag}
     >
-      {markDot}
-      {row.depth > 1 && <span className="child-indent" style={{ width: (row.depth - 1) * 12 }} aria-hidden="true" />}
+      {props.guides && (
+        <span className="child-indent" aria-hidden="true">
+          {props.guides.map((guide, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: a column's place is its identity
+            <span key={i} className={`guide is-${guide}`} />
+          ))}
+        </span>
+      )}
       <span className="row-title">{rowTitle(task, props.tabs)}</span>
       <span className="chips">
         {row.level !== undefined && <span className="chip muted">{row.level}</span>}
@@ -405,7 +389,7 @@ function RailRow(props: {
         )}
         {marker && (
           <span className={`chip child-mark ${marker === "shared" ? "tone-accent" : "muted"}`} aria-hidden="true">
-            {marker === "shared" ? "⑂" : "⎇"}
+            {marker === "shared" ? NERD.shared : NERD.branch}
           </span>
         )}
         {row.fold && (
@@ -455,7 +439,7 @@ function FoldToggle(props: {
         props.onToggle()
       }}
     >
-      {fold.collapsed ? "▸" : "▾"}
+      {fold.collapsed ? NERD.folded : NERD.unfolded}
       {fold.collapsed && ` ${fold.count}`}
       {fold.collapsed && props.urgent && <span className={`glyph tone-${mark.tone}`}>{mark.glyph}</span>}
     </span>

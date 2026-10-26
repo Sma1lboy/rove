@@ -45,26 +45,14 @@ const XTERM_THEME = {
 }
 
 /**
- * The bundled JetBrains Mono first; then any Nerd Font installed on the viewer's machine, so the
- * icons engines draw (Claude Code's status line, prompt themes) render instead of boxes. Nerd Fonts
- * v3 family names; the browser falls back per glyph, so only the icon code points come from these.
+ * The bundled JetBrains Mono, then the bundled Nerd Font symbols (`styles.css`), so the icons
+ * engines draw (Claude Code's status line, prompt themes) render on a machine with no Nerd Font
+ * installed. The browser falls back per glyph, so only the icon code points come from the second.
  */
-const NERD_FALLBACKS = [
-  "Symbols Nerd Font Mono",
-  "JetBrainsMono Nerd Font Mono",
-  "JetBrainsMonoNL Nerd Font Mono",
-  "FiraCode Nerd Font Mono",
-  "Hack Nerd Font Mono",
-  "MesloLGS Nerd Font Mono",
-  "CaskaydiaCove Nerd Font Mono",
-  "Symbols Nerd Font",
-  "JetBrainsMono Nerd Font",
-  "FiraCode Nerd Font",
-  "MesloLGS NF",
-]
+export const NERD_SYMBOLS_FAMILY = "Rove Nerd Symbols"
 const FONT_FAMILY = [
   '"JetBrains Mono"',
-  ...NERD_FALLBACKS.map((f) => `"${f}"`),
+  `"${NERD_SYMBOLS_FAMILY}"`,
   '"SF Mono"',
   "ui-monospace",
   "Menlo",

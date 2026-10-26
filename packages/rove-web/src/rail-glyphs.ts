@@ -26,6 +26,17 @@ const TONE: Readonly<Record<RowTone, Tone>> = {
   muted: "muted",
 }
 
+/** Nerd Font icons the rail draws (the font ships with the page, `styles.css`). */
+export const NERD = {
+  /** nf-oct-git_branch: a child in its own worktree. */
+  branch: "\u{f418}",
+  /** nf-oct-file_directory: a child sharing its parent's directory. */
+  shared: "\u{f413}",
+  /** nf-oct-chevron_down / nf-oct-chevron_right: a parent's fold. */
+  unfolded: "\u{f47c}",
+  folded: "\u{f460}",
+} as const
+
 export interface StatusMark {
   readonly glyph: string
   readonly tone: Tone

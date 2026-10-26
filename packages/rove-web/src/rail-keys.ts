@@ -16,6 +16,7 @@ import { cycleRailSort, railSort } from "./rail-sort.ts"
 import type { NavRow } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
 import { useStore } from "./store.ts"
+import { tc } from "./tui-copy.ts"
 import { findBinding, page, toast } from "./ui.ts"
 import { keysOf } from "./user-keys.ts"
 
@@ -261,6 +262,8 @@ export function useRailKeys(
         break
       case "sidebar.sort":
         filters.cycleSort()
+        // The rail shows no sort label: the key says where it landed.
+        toast(tc("tasks", "sort.label", { mode: tc("tasks", `sort.modes.${railSort.get()}`) }))
         break
       case "sidebar.search.enter":
         setSearch({ active: true, query: "" })

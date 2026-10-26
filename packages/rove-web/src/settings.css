@@ -418,15 +418,6 @@
   color: var(--diff-removed);
 }
 
-/* Task colours: a bar of the task's own hue before its rows. */
-.task-mark {
-  flex: none;
-  width: 3px;
-  align-self: stretch;
-  margin: 2px 0;
-  border-radius: 2px;
-}
-
 /* Running title: a light band sweeps the label of a running row, then rests. */
 html[data-running-title="shimmer"] .task-row.is-running .row-title {
   background: linear-gradient(90deg, var(--ink) 0%, var(--ink) 35%, var(--accent) 50%, var(--ink) 65%, var(--ink) 100%)

@@ -4,10 +4,8 @@ export const zh: typeof en = {
   rail: {
     inbox: "收件箱 {count}",
     empty: "还没有任务",
-    emptyHint: "在下面、TUI 里或用 `rove api add` 新建一个",
+    emptyHint: "用项目旁的 +、在 TUI 里或用 `rove api add` 新建一个",
     newTask: "新建任务",
-    newScratch: "新建临时对话（在主目录里，用默认引擎）",
-    newScratchFailed: "临时对话没能启动：{error}",
     extraRepos: "这个任务还含 {count} 个仓库",
     searchPlaceholder: "模糊搜索",
     engineSwitched: "引擎 → {engine}（重新打开后生效）",
@@ -167,7 +165,6 @@ export const zh: typeof en = {
   },
   files: {
     zen: "Zen",
-    show: "文件",
     createPR: "让代理创建 PR",
     prRequested: "已让代理去创建 PR",
     remoteNoExternal: "这个文件在 {host} 上，请到那台机器上打开",

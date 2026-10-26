@@ -465,6 +465,23 @@ export function blockEnd(rows: readonly NavRow[], i: number): number {
   return end
 }
 
+/** One indent column of a child row: a line passing by, nothing, a line on to the next sibling, or the last sibling's hook. */
+export type TreeGuide = "pipe" | "blank" | "tee" | "elbow"
+
+/** The indent columns of the child row at `i`, outermost first (empty for a top-level row), as Claude's session tree draws them. */
+export function treeGuides(rows: readonly NavRow[], i: number): TreeGuide[] {
+  const depth = depthOf(rows[i])
+  const guides: TreeGuide[] = []
+  for (let d = 2; d <= depth; d++) {
+    // The row at level `d` on this row's path has a later sibling: the first row after it at or above `d` sits at `d`.
+    let j = i + 1
+    while (j < rows.length && depthOf(rows[j]) > d) j++
+    const more = j < rows.length && depthOf(rows[j]) === d
+    guides.push(d === depth ? (more ? "tee" : "elbow") : more ? "pipe" : "blank")
+  }
+  return guides
+}
+
 /** `rows` with the dragged row's block moved right above or below the target's block, as it would land. */
 export function previewDrop(rows: readonly NavRow[], fromId: string, toId: string, side: DropSide): readonly NavRow[] {
   const from = rows.findIndex((row) => row.id === fromId)

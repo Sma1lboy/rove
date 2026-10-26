@@ -3,10 +3,8 @@ export const en = {
   rail: {
     inbox: "inbox {count}",
     empty: "no tasks yet",
-    emptyHint: "start one below, in the TUI, or with `rove api add`",
+    emptyHint: "start one from a project's +, in the TUI, or with `rove api add`",
     newTask: "New task",
-    newScratch: "New scratch conversation (in your home folder, on your default engine)",
-    newScratchFailed: "could not start a scratch conversation: {error}",
     extraRepos: "{count} more repos in this task",
     searchPlaceholder: "fuzzy filter",
     engineSwitched: "Engine → {engine} (applies on reopen)",
@@ -166,7 +164,6 @@ export const en = {
   },
   files: {
     zen: "Zen",
-    show: "Files",
     createPR: "Ask agent to create PR",
     prRequested: "asked the agent to create the PR",
     remoteNoExternal: "this file is on {host}; open it there",
