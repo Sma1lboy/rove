@@ -1,5 +1,7 @@
 # Provider-runtime harness exploration
 
+> **Historical: exploration note.** The no-tmux architecture it anticipates has shipped ([ARCHITECTURE.md](../ARCHITECTURE.md)); Rove still embeds the real engine CLIs rather than a provider harness ([DESIGN.md](../DESIGN.md), principle 1).
+
 > Status: exploration note, not a decision. 2026-07-03.
 > Audience: future rove direction work, especially if rove revisits a no-tmux
 > architecture after the v0.6 tmux-handover reshape.

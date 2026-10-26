@@ -1,5 +1,7 @@
 # PureTUI prefix key design
 
+> **Historical: frozen design record** (July 2026), written before the work it describes. Current behavior lives in `docs/` and the code; see the [plans README](../plans/README.md).
+
 ## Goal
 
 Give the Workspace Host Binding Stack a configurable, tmux-like two-stroke

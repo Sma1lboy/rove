@@ -117,6 +117,10 @@ const MODULES = [
           ["PRIVACY.md", "rove/privacy"],
         ],
       },
+      {
+        title: "Project",
+        pages: [["ROADMAP.md", "rove/roadmap"]],
+      },
     ],
   },
   {

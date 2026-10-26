@@ -1,5 +1,7 @@
 # PureTUI-only tmux Removal Implementation Plan
 
+> **Historical: frozen plan** (July 2026), kept as written. File paths and steps are not current; see [README](./README.md).
+
 > **Execution contract:** Implement this plan inline with `superpowers:executing-plans`, one checked task at a time. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Delete tmux as a runtime and product surface, make the PTY Host the only session backend, and preserve unattended `send/add/fan-out` automation.

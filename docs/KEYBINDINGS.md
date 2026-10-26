@@ -115,7 +115,7 @@ This guide needs a terminal that reports modifier press and release events
 through the kitty keyboard protocol. Unsupported terminals ignore Rove's
 request, so the guide stays unavailable and existing typing and shortcuts keep
 their old behavior. See
-[Troubleshooting](./TROUBLESHOOTING.md#holding-ctrl-does-not-open-the-one-press-shortcut-guide)
+[Troubleshooting](./TROUBLESHOOTING.md#holding-ctrl-does-not-open-the-direct-shortcut-guide)
 for terminal support.
 
 ## One-press keys

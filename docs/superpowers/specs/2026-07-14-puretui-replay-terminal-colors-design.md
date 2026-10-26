@@ -1,5 +1,7 @@
 # PureTUI replay terminal-color fidelity design
 
+> **Historical: frozen design record** (July 2026), written before the work it describes. Current behavior lives in `docs/` and the code; see the [plans README](../plans/README.md).
+
 ## Goal
 
 Make the native PureTUI replay capture behave like a real bidirectional
