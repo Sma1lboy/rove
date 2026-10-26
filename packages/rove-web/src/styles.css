@@ -344,29 +344,11 @@ button:focus-visible,
   opacity: 1;
 }
 
-/* Centered on the task rows' cloud column (12px wide, at the same right edge). Always shown,
-   quiet at rest: creating is a real action, and a hover-only + went unfound. */
+/* Centered on the task rows' status dot, shown only while the header is hovered. Both end 8px in
+   from the rail body's edge; the dot is ~6.6px wide (1ch of 11px mono), so the 20px + overhangs by ~6.7px. */
 .project-add {
   margin-left: auto;
-  margin-right: -4px;
-  width: 20px;
-  height: 20px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--subtle);
-  font: 400 15px / 1 var(--sans);
-  cursor: pointer;
-}
-
-.project-head:hover .project-add {
-  color: var(--muted);
-}
-
-/* The header's + (a Scratch conversation): the same button as a project's, on the header's right edge. */
-.rail-add {
-  flex: none;
-  margin-right: -4px;
+  margin-right: -6.7px;
   width: 20px;
   height: 20px;
   border: 0;
@@ -375,10 +357,15 @@ button:focus-visible,
   color: var(--muted);
   font: 400 15px / 1 var(--sans);
   cursor: pointer;
+  opacity: 0;
 }
 
-.project-add:hover,
-.rail-add:hover {
+.project-head:hover .project-add,
+.project-add:focus-visible {
+  opacity: 1;
+}
+
+.project-add:hover {
   color: var(--ink);
   background: var(--hover);
 }

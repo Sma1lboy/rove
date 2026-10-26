@@ -53,15 +53,31 @@
 .rail-fold-btn {
   position: absolute;
   right: 8px;
-  bottom: 2px;
-  padding: 0 4px;
-  color: var(--muted);
-  font-weight: 700;
+  bottom: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--subtle);
+  cursor: pointer;
   z-index: 6;
 }
 
+.rail-fold-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+}
+
 .rail-fold-btn:hover {
-  color: var(--accent);
+  color: var(--ink);
+  background: var(--hover);
 }
 
 .rail.is-folded {

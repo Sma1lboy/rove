@@ -69,18 +69,21 @@ export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }
   )
 }
 
-/** `‹‹` folds the rail, `››` unfolds it: mouse only, as the TUI's (a chord is the owner's call). */
+/** The sidebar icon folds and unfolds the rail, as Claude's: mouse only, as the TUI's (a chord is the owner's call). */
 export function FoldButton({ folded }: { folded: boolean }) {
   useLocale()
   return (
     <button
       type="button"
-      className="rail-fold-btn mono"
+      className="rail-fold-btn"
       title={folded ? t("layout.railUnfold") : t("layout.railFold")}
       aria-label={folded ? t("layout.railUnfold") : t("layout.railFold")}
       onClick={() => railFolded.set(!folded)}
     >
-      {folded ? "››" : "‹‹"}
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <rect x="1.5" y="2.5" width="13" height="11" rx="2.5" />
+        <path d="M6 2.5v11" />
+      </svg>
     </button>
   )
 }
