@@ -541,9 +541,8 @@
 }
 
 .term-keys button {
-  /* Equal shares of the row: nine keys fit a 390-wide phone without scrolling. */
+  /* Equal shares on a phone; a narrower column keeps each label whole, then scrolls the row. */
   flex: 1 1 0;
-  /* A key never clips its label; a column too narrow for all nine scrolls the row instead. */
   min-width: max-content;
   height: 32px;
   padding: 0 2px;
