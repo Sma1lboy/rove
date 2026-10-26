@@ -30,8 +30,6 @@ export const en = {
     noteSubmit: "add note",
     sent: "sent {count} notes to the engine",
     notSent: "notes not sent: {reason}",
-    hints: "j/k move · v range · c note · x drop · s send · r reload · q close",
-    notes: "{here} notes here · {unsent} unsent",
   },
   panel: {
     toggle: "Show or hide the side panel",
@@ -100,8 +98,6 @@ export const zh: typeof en = {
     noteSubmit: "添加批注",
     sent: "已把 {count} 条批注发给引擎",
     notSent: "批注没有发出：{reason}",
-    hints: "j/k 移动 · v 选范围 · c 批注 · x 删除 · s 发送 · r 重新加载 · q 关闭",
-    notes: "本文件 {here} 条批注 · {unsent} 条未发送",
   },
   panel: {
     toggle: "显示或隐藏侧边栏",

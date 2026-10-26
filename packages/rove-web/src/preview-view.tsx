@@ -154,8 +154,6 @@ export function PreviewView({
     e.preventDefault()
   }
 
-  const unsent = notes.filter((n) => n.sentAt === undefined).length
-  const here = notes.filter((n) => view.path === "." || n.filePath === view.path).length
   const lo = anchor === null ? cursor : Math.min(anchor, cursor)
   const hi = anchor === null ? cursor : Math.max(anchor, cursor)
 
@@ -183,11 +181,6 @@ export function PreviewView({
           )
         })}
       </div>
-      <footer className="preview-footer">
-        <span className="preview-keys">{t("preview.hints")}</span>
-        <span className="spacer" />
-        <span>{t("preview.notes", { here, unsent })}</span>
-      </footer>
     </div>
   )
 }

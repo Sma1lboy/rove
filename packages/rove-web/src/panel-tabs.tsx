@@ -51,6 +51,23 @@ function tooltip(tab: PanelItem): string {
   return tab.kind === "browser" ? browserUrl(tab) || label(tab) : label(tab)
 }
 
+/** The row's font is 12px mono: one column per ASCII character, two for wide ones (CJK). */
+const COLUMN_PX = 7.3
+/** Padding, icon, gap and the × slot around a tab's label; and the cap from `.ptab`'s max-width. */
+const TAB_CHROME_PX = 51
+const TAB_MAX_PX = 160
+
+/** Whether every tab fits at its full label; past that, the row goes compact (only the shown tab keeps its name). */
+export function tabsFit(labels: readonly string[], width: number): boolean {
+  let total = 0
+  for (const text of labels) {
+    let columns = 0
+    for (const ch of text) columns += (ch.codePointAt(0) ?? 0) > 0x2e7f ? 2 : 1
+    total += Math.min(TAB_MAX_PX, TAB_CHROME_PX + columns * COLUMN_PX) + 2
+  }
+  return total <= width
+}
+
 /** The tab being dragged; a drag carries nothing the page can read while it is over a target. */
 let dragging: { taskId: string; id: string } | null = null
 
@@ -119,12 +136,22 @@ export function PanelTabRow({
     setOver({ id, after: e.clientX > box.left + box.width / 2 })
   }
 
-  // The shown tab stays in view when the row scrolls.
   const strip = useRef<HTMLDivElement>(null)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `active` and the tab count are what move the shown tab
+  // The row fills the head, so its width is the room the panel gives it, whatever the tabs take.
+  const [room, setRoom] = useState(0)
+  useEffect(() => {
+    const el = strip.current
+    if (!el) return
+    const watch = new ResizeObserver(([entry]) => setRoom(entry?.contentRect.width ?? 0))
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [])
+  const compact = room > 0 && !tabsFit(tabs.map(label), room)
+  // The shown tab stays in view when the row scrolls.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `active`, the tab count and compaction are what move the shown tab
   useEffect(() => {
     strip.current?.querySelector(".is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" })
-  }, [active, tabs.length])
+  }, [active, tabs.length, compact])
 
   return (
     <div
@@ -140,7 +167,7 @@ export function PanelTabRow({
         drop()
       }}
     >
-      <div className="ptabs" role="tablist" aria-label={t("panel.tabs")} ref={strip}>
+      <div className={`ptabs ${compact ? "is-compact" : ""}`} role="tablist" aria-label={t("panel.tabs")} ref={strip}>
         {tabs.map((tab, i) => (
           <div
             key={tab.id}

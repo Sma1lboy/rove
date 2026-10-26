@@ -48,10 +48,25 @@
 
 .ptabs {
   display: flex;
+  flex: 1;
   gap: 2px;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+/* Too many tabs for their names: the shown one keeps its name, the rest are icons (named on hover). */
+.ptabs.is-compact .ptab:not(.is-active) {
+  flex: none;
+  min-width: 0;
+}
+
+.ptabs.is-compact .ptab:not(.is-active) .ptab-main {
+  padding: 4px 7px;
+}
+
+.ptabs.is-compact .ptab:not(.is-active) :is(.ptab-label, .ptab-close) {
+  display: none;
 }
 
 .ptabs::-webkit-scrollbar {
@@ -62,11 +77,13 @@
   padding: 0 8px 6px;
 }
 
+/* Tabs shrink as a browser's do, labels ellipsized; the row scrolls only once every tab is at its floor. */
 .ptab {
   position: relative;
   display: flex;
   align-items: center;
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 72px;
   max-width: 160px;
   color: var(--muted);
 }
