@@ -116,8 +116,11 @@ function Shell({ model }: { model: AppModel }) {
         style={narrow ? undefined : railVars}
       >
         {!narrow && <RailBar model={model} />}
-        {/* Folded, the page's left edge brings the rail back as a floating panel. */}
-        {folded && !narrow && <div className="rail-peek-edge" onMouseEnter={() => peekRail(true)} />}
+        {/* Folded, the page's left edge brings the rail back as a floating panel; leaving the edge without
+            reaching the rail (out of the window, a quick flick) closes it again. */}
+        {folded && !narrow && (
+          <div className="rail-peek-edge" onMouseEnter={() => peekRail(true)} onMouseLeave={() => peekRail(false)} />
+        )}
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />
         {task && !zenOn && !narrow && <FilesView key={task.id} model={model} task={task} />}

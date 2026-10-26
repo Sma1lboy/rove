@@ -6,7 +6,7 @@ import { visibleTree } from "../src/file-tree.ts"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
 import { compactAge, inboxBadge, isRoutineState, nextAttention } from "../src/inbox.ts"
-import { prRepo } from "../src/pr-chip.tsx"
+import { prEntries, prRepo } from "../src/pr-chip.tsx"
 import { leadPrMark, needsPerson, prMark, statusMark } from "../src/rail-glyphs.ts"
 import { groupByProject, navRows } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
@@ -292,5 +292,18 @@ describe("a task's PR mark", () => {
     expect(prRepo("https://github.com/Sma1lboy/rove/pull/1431")).toBe("Sma1lboy/rove")
     expect(prRepo("https://example.com/not/a/pr")).toBeUndefined()
     expect(prRepo(undefined)).toBeUndefined()
+  })
+
+  test("a child on its parent's branch adds no second copy of the same PR", () => {
+    const pr = (number: number) => ({
+      number,
+      lifecycle: "merged",
+      checkState: "none",
+      url: `https://github.com/o/r/pull/${number}`,
+    })
+    const parent = { id: "p", repo: "/r", pr: pr(1437) } as unknown as TaskRow
+    const shared = { id: "s", repo: "/r", pr: pr(1437) } as unknown as TaskRow
+    const own = { id: "c", repo: "/r", pr: pr(1436) } as unknown as TaskRow
+    expect(prEntries([parent, shared, own]).map((entry) => entry.task.id)).toEqual(["p", "c"])
   })
 })
