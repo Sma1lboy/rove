@@ -60,6 +60,16 @@ export type NavRow =
       /** Set on a task with children: how many descendants, and whether they are folded away. */
       readonly fold?: RowFold
     })
+  /** One pane of a split tab, a quiet row one level under its task (`rail-panes.ts`). */
+  | (Remote & {
+      readonly id: string
+      readonly kind: "pane"
+      readonly task: TaskRow
+      readonly tab: TabRow
+      readonly leaf: string
+      readonly label: string
+      readonly depth: number
+    })
   /** One row folding a project's routine sessions (`tree-core.ts` `routines`); `key` names the fold in `expandedRoutines`. */
   | (Remote & {
       readonly id: string
@@ -457,4 +467,21 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
 export function rowTitle(task: TaskRow, tabs: readonly TabRow[] | undefined): string {
   if (task.kind === "dir") return task.title
   return tabs?.find((tab) => tab.kind === "engine" && tab.conversation)?.conversation ?? task.title
+}
+
+export function tabLabel(tab: TabRow): string {
+  return tab.title ?? tab.engineName ?? (tab.kind === "engine" ? t("tab.engine") : t("tab.shell"))
+}
+
+/** The rows under a collapsed project header drop out until the next header. */
+export function foldProjects(rows: readonly NavRow[], collapsed: ReadonlySet<string>): readonly NavRow[] {
+  if (collapsed.size === 0) return rows
+  let hiding = false
+  return rows.filter((row) => {
+    if (row.kind === "project") {
+      hiding = collapsed.has(row.id)
+      return true
+    }
+    return !hiding
+  })
 }

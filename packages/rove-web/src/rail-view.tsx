@@ -23,10 +23,13 @@ import { mostUrgentStatus, needsPerson } from "./rail-glyphs.ts"
 import { dropIdleProjects } from "./rail-idle.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
-import { type NavRow, type RowFold, railRows, repoLabel, rowTitle } from "./rail.ts"
+import { PaneRowView, openPane } from "./rail-pane-row.tsx"
+import { withPanes } from "./rail-panes.ts"
+import { type NavRow, type RowFold, foldProjects, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
+import { paneEdits } from "./split-actions.tsx"
 import { StatusDots } from "./status-dots.tsx"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
@@ -74,7 +77,10 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const rows = filters.search.active
     ? built.rows
     : withArchived(
-        foldProjects(dropIdleProjects(built.rows, tabs, selection.taskId, tabsSettled), filters.collapsed),
+        foldProjects(
+          withPanes(dropIdleProjects(built.rows, tabs, selection.taskId, tabsSettled), tabs),
+          filters.collapsed,
+        ),
         payload?.archived ?? [],
         filters.archivedOpen,
         { ...filters.hand, selectedId: selectedId ?? undefined },
@@ -160,76 +166,96 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           </div>
         )}
         {recent && <RecentRow title={recent.title} />}
-        {rows.map((row, i) => (
-          <RailRow
-            key={row.id}
-            row={row}
-            guides={row.kind === "task" && row.depth > 1 ? treeGuides(rows, i) : undefined}
-            cloud={rowCloud(row, machines, words)}
-            tabs={row.kind === "task" ? tabs[row.task.id] : undefined}
-            selected={row.id === selectedId}
-            cursor={row.id === keys.cursor}
-            stale={row.machine !== undefined && offline.has(row.machine)}
-            collapsed={row.kind === "project" && filters.collapsed.has(row.id)}
-            drag={drag.props(row)}
-            dragging={drag.dragging === row.id}
-            place={place(row)}
-            onNewTask={
-              row.kind === "project" && !row.noProject ? () => startNewTask(model, row.repo, row.machine) : undefined
-            }
-            moving={
-              moving &&
-              row.machine === undefined &&
-              (row.kind === "project"
-                ? !row.noProject && projectInfo(row.repo).mainTaskId === keys.cursor
-                : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
-            }
-            prTasks={
-              row.kind === "task"
-                ? [row.task, ...(row.fold?.descendantIds ?? []).flatMap((id) => byId.get(id) ?? [])]
-                : undefined
-            }
-            foldUrgent={
-              row.kind === "task" && row.fold?.collapsed
-                ? mostUrgentStatus(row.fold.descendantIds.flatMap((id) => byId.get(id) ?? []))
-                : undefined
-            }
-            onToggleFold={() => {
-              if (row.kind === "task") filters.toggleTaskFold(row.id, row.fold?.collapsed === true)
-              if (row.kind === "routines") filters.toggleRoutines(row.key)
-              if (row.kind === "archived") filters.toggleArchived()
-            }}
-            onClick={() => {
-              keys.setCursor(row.id)
-              if (row.kind === "routines") filters.toggleRoutines(row.key)
-              if (row.kind === "archived") filters.toggleArchived()
-              if (row.kind === "project") filters.toggleProject(row.id)
-              if (row.kind === "task") model.select(row.task.id)
-              if (row.kind === "routines" || row.kind === "task") enterWorkspace()
-            }}
-            onMenu={(e) => {
-              // Another machine's project has no checkout here, so its header has no menu; its
-              // tasks do (their verbs run on that machine, `taskMenu` drops the local-only ones).
-              if (row.kind === "project" && (row.machine !== undefined || row.noProject)) return
-              // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
-              if (row.kind === "project") {
-                const info = projectInfo(row.repo)
-                if (info.mainTaskId) keys.setCursor(info.mainTaskId)
-                openMenu(e, projectMenu(model, row.repo, info))
-                return
+        {rows.map((row, i) =>
+          row.kind === "pane" ? (
+            <PaneRowView
+              key={row.id}
+              model={model}
+              row={row}
+              guides={treeGuides(rows, i)}
+              cursor={row.id === keys.cursor}
+              place={place(row)}
+              onClick={() => {
+                keys.setCursor(row.id)
+                openPane(model, row)
+                enterWorkspace()
+              }}
+              onMenu={(e) => {
+                keys.setCursor(row.id)
+                openMenu(e, paneEdits(model, row.task.id, row.tab, row.leaf))
+              }}
+            />
+          ) : (
+            <RailRow
+              key={row.id}
+              row={row}
+              guides={row.kind === "task" && row.depth > 1 ? treeGuides(rows, i) : undefined}
+              cloud={rowCloud(row, machines, words)}
+              tabs={row.kind === "task" ? tabs[row.task.id] : undefined}
+              selected={row.id === selectedId}
+              cursor={row.id === keys.cursor}
+              stale={row.machine !== undefined && offline.has(row.machine)}
+              collapsed={row.kind === "project" && filters.collapsed.has(row.id)}
+              drag={drag.props(row)}
+              dragging={drag.dragging === row.id}
+              place={place(row)}
+              onNewTask={
+                row.kind === "project" && !row.noProject ? () => startNewTask(model, row.repo, row.machine) : undefined
               }
-              // The routines and Archived rows name no task, so they have no menu (TUI `use-tree-menu`).
-              if (row.kind !== "task") return
-              keys.setCursor(row.id)
-              openMenu(
-                e,
-                withFoldEntry(taskMenu(model, row.task, null), row.fold, () =>
-                  filters.toggleTaskFold(row.id, row.fold?.collapsed === true),
-                ),
-              )
-            }}
-          />
-        ))}
+              moving={
+                moving &&
+                row.machine === undefined &&
+                (row.kind === "project"
+                  ? !row.noProject && projectInfo(row.repo).mainTaskId === keys.cursor
+                  : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
+              }
+              prTasks={
+                row.kind === "task"
+                  ? [row.task, ...(row.fold?.descendantIds ?? []).flatMap((id) => byId.get(id) ?? [])]
+                  : undefined
+              }
+              foldUrgent={
+                row.kind === "task" && row.fold?.collapsed
+                  ? mostUrgentStatus(row.fold.descendantIds.flatMap((id) => byId.get(id) ?? []))
+                  : undefined
+              }
+              onToggleFold={() => {
+                if (row.kind === "task") filters.toggleTaskFold(row.id, row.fold?.collapsed === true)
+                if (row.kind === "routines") filters.toggleRoutines(row.key)
+                if (row.kind === "archived") filters.toggleArchived()
+              }}
+              onClick={() => {
+                keys.setCursor(row.id)
+                if (row.kind === "routines") filters.toggleRoutines(row.key)
+                if (row.kind === "archived") filters.toggleArchived()
+                if (row.kind === "project") filters.toggleProject(row.id)
+                if (row.kind === "task") model.select(row.task.id)
+                if (row.kind === "routines" || row.kind === "task") enterWorkspace()
+              }}
+              onMenu={(e) => {
+                // Another machine's project has no checkout here, so its header has no menu; its
+                // tasks do (their verbs run on that machine, `taskMenu` drops the local-only ones).
+                if (row.kind === "project" && (row.machine !== undefined || row.noProject)) return
+                // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
+                if (row.kind === "project") {
+                  const info = projectInfo(row.repo)
+                  if (info.mainTaskId) keys.setCursor(info.mainTaskId)
+                  openMenu(e, projectMenu(model, row.repo, info))
+                  return
+                }
+                // The routines and Archived rows name no task, so they have no menu (TUI `use-tree-menu`).
+                if (row.kind !== "task") return
+                keys.setCursor(row.id)
+                openMenu(
+                  e,
+                  withFoldEntry(taskMenu(model, row.task, null), row.fold, () =>
+                    filters.toggleTaskFold(row.id, row.fold?.collapsed === true),
+                  ),
+                )
+              }}
+            />
+          ),
+        )}
       </div>
       <PaneKeyHint pane="sidebar" />
       {!narrow && !folded && <RailGrip rail={rail} />}
@@ -238,7 +264,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 }
 
 function RailRow(props: {
-  row: NavRow
+  row: Exclude<NavRow, { kind: "pane" }>
   /** A child task's indent columns, outermost first. */
   guides?: readonly TreeGuide[]
   /** A task on another machine: its cloud mark's text (`on mac · offline`); null for this machine's rows. */
@@ -417,20 +443,4 @@ function withFoldEntry(items: MenuItem[], fold: RowFold | undefined, toggle: () 
   }
   const at = items.map((item) => item.section).lastIndexOf("open")
   return [...items.slice(0, at + 1), entry, ...items.slice(at + 1)]
-}
-export function tabLabel(tab: TabRow): string {
-  return tab.title ?? tab.engineName ?? (tab.kind === "engine" ? t("tab.engine") : t("tab.shell"))
-}
-
-/** The rows under a collapsed project header drop out until the next header. */
-function foldProjects(rows: readonly NavRow[], collapsed: ReadonlySet<string>): readonly NavRow[] {
-  if (collapsed.size === 0) return rows
-  let hiding = false
-  return rows.filter((row) => {
-    if (row.kind === "project") {
-      hiding = collapsed.has(row.id)
-      return true
-    }
-    return !hiding
-  })
 }

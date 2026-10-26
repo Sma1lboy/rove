@@ -334,7 +334,7 @@
   background: var(--paper);
   color: var(--subtle);
   font: 10px var(--mono);
-  pointer-events: none;
+  /* The label takes the pointer so a right click on it opens the pane's menu; the terminal under the rest of the pane keeps its own. */
   z-index: 3;
 }
 

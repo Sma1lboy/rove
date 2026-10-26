@@ -30,9 +30,9 @@ export function dropSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow,
   return steps
 }
 
-/** A row's nesting level: a project 0, its tasks and routine count 1, a child task one deeper per generation. */
+/** A row's nesting level: a project 0, its tasks and routine count 1, a child task or a pane one deeper than its parent. */
 const depthOf = (row: NavRow | undefined): number =>
-  row === undefined || row.kind === "project" ? 0 : row.kind === "task" ? row.depth : 1
+  row === undefined || row.kind === "project" ? 0 : row.kind === "task" || row.kind === "pane" ? row.depth : 1
 
 /** Where the block starting at `i` (the row and every row nested under it) ends. */
 export function blockEnd(rows: readonly NavRow[], i: number): number {
