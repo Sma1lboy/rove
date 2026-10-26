@@ -95,10 +95,16 @@ select {
   cursor: pointer;
 }
 
-button:focus-visible,
-.input:focus-visible {
+button:focus-visible {
   outline: 1px solid var(--focus);
   outline-offset: 1px;
+}
+
+/* A field marks focus on its own border, as the composer does: an outside ring is clipped to a
+   lone underline by any scrolling parent (a dialog body). */
+.input:focus-visible {
+  outline: none;
+  border-color: var(--line-active);
 }
 
 /*

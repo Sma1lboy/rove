@@ -78,7 +78,6 @@
 .row.is-moving,
 .project-head.is-moving {
   background: var(--accent-soft);
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .project-head.is-moving::after {
