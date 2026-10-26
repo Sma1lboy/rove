@@ -14,7 +14,6 @@ const onMac = on("mac")
 const base = {
   sort: "default" as const,
   query: "",
-  routines: new Set<string>(),
 }
 const machines = [
   { alias: "narwhal", hostLabel: "narwhal" },
@@ -61,22 +60,6 @@ describe("one project per repo across machines", () => {
     expect(rows.slice(1).map((row) => [row.id, row.machine])).toEqual([
       ["a", "narwhal"],
       ["b", "mac"],
-    ])
-  })
-
-  test("a merged project's routine fold is keyed by the repo id and holds every machine's sessions", () => {
-    const { rows } = railRows({
-      ...base,
-      tasks: [task("l", "/w/rove", { ...rove, routine: true })],
-      remote: [onNarwhal("r", "/srv/rove", { ...rove, routine: true })],
-      machines,
-      routines: new Set(["github.com/me/rove"]),
-    })
-    expect(rows.map((row) => [row.id, row.machine])).toEqual([
-      ["project:github.com/me/rove", undefined],
-      ["~routines:github.com/me/rove", undefined],
-      ["l", undefined],
-      ["r", "narwhal"],
     ])
   })
 

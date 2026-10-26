@@ -386,6 +386,17 @@
 .pg-run {
   font-size: 12px;
 }
+.pg-run-open {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pg-run-open:hover {
+  text-decoration: underline;
+}
 
 .pg-response {
   white-space: pre-wrap;

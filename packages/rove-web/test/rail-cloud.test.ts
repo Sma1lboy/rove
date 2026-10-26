@@ -41,7 +41,6 @@ const rail = (machines: readonly MachineRow[]) =>
     machines,
     sort: "default",
     query: "",
-    routines: new Set<string>(),
   }).rows
 
 describe("the rail names no machine; a remote task carries a cloud", () => {

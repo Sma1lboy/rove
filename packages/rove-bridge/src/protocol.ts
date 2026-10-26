@@ -136,7 +136,7 @@ export interface TaskRow {
   readonly pinned?: boolean
   /** Archived (`rove api archive`): only ever in `TasksPayload.archived`, never in `tasks`. */
   readonly archived?: boolean
-  /** The standing session of a scheduled routine; clients fold these behind a per-project count row. */
+  /** A task a scheduled routine's firing made (its standing session or one fresh run); kept out of the task list. */
   readonly routine?: boolean
   /** A temp shell task (sidebar Scratch); groups with `noProject` rows under "Ungrouped". */
   readonly scratch?: boolean

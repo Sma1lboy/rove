@@ -119,8 +119,8 @@ lost its worktree resolves to null, and the firing rebuilds and relinks. Without
 that, one deleted task would wedge the routine forever — and a wedged schedule
 looks exactly like a quiet one.
 
-**In the sidebar.** A standing task carries `Task.routine`, which folds it behind
-a per-project `N routine sessions` count row
+**In the sidebar.** Every task a firing makes, standing or fresh, carries `Task.routine`, which folds it behind
+a per-project `N routine sessions` count row (the web rail lists none; its Routines page opens them)
 ([`tree-core.ts`](../../packages/rove/src/tui/panes/sidebar/tree-core.ts)). This
 is the one fold in a tree that otherwise has none (owner call 2026-08-01, round
 5), scoped so the rule it bends still holds: it hides only what a SCHEDULE
