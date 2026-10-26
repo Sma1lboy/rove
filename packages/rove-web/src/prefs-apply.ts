@@ -44,6 +44,14 @@ export function usePrefsApply(model: AppModel): void {
     root.style.colorScheme = mode
     for (const key of ATTRS) root.dataset[key] = String(state.prefs[key])
     terminalTheme.set(palette ? xtermTheme(palette) : null)
+    // The phone browser's toolbar takes the page colour (Android reads theme-color).
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    if (!meta) {
+      meta = document.createElement("meta")
+      meta.name = "theme-color"
+      document.head.append(meta)
+    }
+    meta.content = getComputedStyle(document.body).backgroundColor
   }, [state, mode])
 
   // Zen is the TUI's `zen.active`: it opens in the stored state and toggling it writes it back.
