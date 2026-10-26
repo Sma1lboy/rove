@@ -23,7 +23,7 @@ import type { ScrollBoxRenderable } from "@opentui/core"
 import { useEffect, useRef, useState } from "react"
 import { CURRENT_VERSION, type ReleaseNotesRangeItem, fetchReleaseNotesRange, releasePageUrl } from "../../version.ts"
 import { useTheme } from "../context/theme"
-import { useT } from "../i18n"
+import { currentLang, useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { ReleaseNotesBody } from "./release-notes"
@@ -44,7 +44,7 @@ export function WhatsNewDialogView(props: {
     let live = true
     // Total by contract: offline, rate-limited and 500 all answer [].
     const load = props.fetchNotes ?? fetchReleaseNotesRange
-    void load({ current: props.from, latest: CURRENT_VERSION }).then((fetched) => {
+    void load({ current: props.from, latest: CURRENT_VERSION, locale: currentLang() }).then((fetched) => {
       if (!live) return
       setNotes(fetched)
       setLoading(false)
