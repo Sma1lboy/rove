@@ -265,7 +265,7 @@ function RailRow(props: {
   onToggleFold: () => void
 }) {
   const { row } = props
-  const tip = useRowTip(row.kind === "task" ? rowTitle(row.task, props.tabs) : "")
+  const tip = useRowTip(row.kind === "task" ? rowTitle(row.task, props.tabs) : "", props.cursor && row.kind === "task")
   const drop = props.dragging ? "is-dragging" : ""
   const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""} ${drop}`
   if (row.kind === "project") {
@@ -340,6 +340,7 @@ function RailRow(props: {
   return (
     <button
       type="button"
+      ref={tip.ref}
       className={`row task-row ${props.selected ? "is-selected" : ""} ${cursor} ${running ? "is-running" : ""}`}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
