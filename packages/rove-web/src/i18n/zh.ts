@@ -8,8 +8,6 @@ export const zh: typeof en = {
     newTask: "新建任务",
     noProject: "未分组",
     extraRepos: "这个任务还含 {count} 个仓库",
-    childShared: "和父任务共用同一个文件夹：没有自己的 worktree，改动直接落在父任务的目录里",
-    childWorktree: "有自己的 worktree 和分支，从父任务的分支切出",
     pr: {
       state: { open: "进行中", merged: "已合并", closed: "已关闭" },
       many: "这个任务及子任务共 {count} 个 PR",

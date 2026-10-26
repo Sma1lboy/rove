@@ -7,7 +7,7 @@ import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/proto
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
-import { enterWorkspace, railFolded } from "./layout.ts"
+import { enterWorkspace, peekRail, railFolded, railPeek } from "./layout.ts"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
@@ -19,9 +19,9 @@ import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
-import { NERD, mostUrgentStatus, needsPerson } from "./rail-glyphs.ts"
+import { mostUrgentStatus, needsPerson } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel, rowTitle } from "./rail.ts"
+import { type NavRow, type RowFold, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { StatusDots } from "./status-dots.tsx"
@@ -93,17 +93,20 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   })
   const total = stops(build("").rows).length
   const rail = useRef<HTMLElement>(null)
-  // Folded, the rail stays mounted and slides out of its column (the grid animates the width); inert so
-  // nothing in it takes focus or clicks meanwhile.
+  // Folded, the rail stays mounted and slides off to the left; inert so nothing in it takes focus or clicks,
+  // until a hover at the page's left edge floats it back over the workspace.
   const folded = useStore(railFolded) && !narrow
+  const peek = useStore(railPeek) && folded
   const recent = narrow ? (tasks.find((task) => task.id === selection.taskId && !task.deleting) ?? null) : null
 
   return (
     <nav
       className={`rail ${folded ? "is-folded" : ""}`}
       ref={rail}
-      inert={folded}
-      aria-hidden={folded}
+      inert={folded && !peek}
+      aria-hidden={folded && !peek}
+      onMouseEnter={folded ? () => peekRail(true) : undefined}
+      onMouseLeave={folded ? () => peekRail(false) : undefined}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the rail takes the TUI sidebar's keys while focused
       tabIndex={0}
       onKeyDown={(e) => {
@@ -325,14 +328,12 @@ function RailRow(props: {
               {tc("tasks", "group.waitingOnYou")}: {waiting}
             </span>
           )}
-          <FoldToggle collapsed={!row.expanded} onToggle={props.onToggleFold} />
         </span>
       </button>
     )
   }
 
   const task = row.task
-  const marker = childMarkerOf(task)
   const running = task.rowStatus?.kind === "running"
   return (
     <button
@@ -360,22 +361,8 @@ function RailRow(props: {
             +{task.extraRepoCount}
           </span>
         )}
-        {marker && (
-          <span
-            className={`chip child-mark ${marker === "shared" ? "tone-accent" : "muted"}`}
-            title={t(marker === "shared" ? "rail.childShared" : "rail.childWorktree")}
-            aria-label={t(marker === "shared" ? "rail.childShared" : "rail.childWorktree")}
-          >
-            {marker === "shared" ? NERD.shared : NERD.branch}
-          </span>
-        )}
-        {row.fold && (
-          <FoldToggle
-            collapsed={row.fold.collapsed}
-            count={row.fold.count}
-            urgent={props.foldUrgent}
-            onToggle={props.onToggleFold}
-          />
+        {row.fold?.collapsed && (
+          <FoldCount count={row.fold.count} urgent={props.foldUrgent} onUnfold={props.onToggleFold} />
         )}
         {task.pinned && <span className="chip muted">▴</span>}
         <PrChip tasks={props.prTasks ?? [task]} />
@@ -387,14 +374,9 @@ function RailRow(props: {
   )
 }
 
-/** `▸ 3 ●` on a folded task: the fold, how many descendants it hides, and the most urgent of them (a click on a row's fold; the menu and the keyboard use its entry). A fold row's own words say the count, so it passes none. */
-function FoldToggle(props: {
-  collapsed: boolean
-  count?: number
-  urgent?: RowStatus | undefined
-  onToggle: () => void
-}) {
-  const label = tc("tasks", props.collapsed ? "menu.expandChildren" : "menu.collapseChildren")
+/** `3 ●` on a folded task: how many descendants it hides and the most urgent of them; a click unfolds. No glyph: an open parent shows nothing, and the menu and the keyboard fold it. */
+function FoldCount(props: { count: number; urgent?: RowStatus | undefined; onUnfold: () => void }) {
+  const label = tc("tasks", "menu.expandChildren")
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: a button cannot nest in the row's button; the row's menu entry is the keyboard path
     // biome-ignore lint/a11y/useSemanticElements: same reason: the row is itself a button
@@ -402,17 +384,16 @@ function FoldToggle(props: {
       role="button"
       tabIndex={-1}
       aria-label={label}
-      aria-expanded={!props.collapsed}
+      aria-expanded={false}
       className="chip fold-toggle muted"
       title={label}
       onClick={(e) => {
         e.stopPropagation()
-        props.onToggle()
+        props.onUnfold()
       }}
     >
-      {props.collapsed ? NERD.folded : NERD.unfolded}
-      {props.collapsed && props.count !== undefined && ` ${props.count}`}
-      {props.collapsed && props.urgent && <StatusDots status={props.urgent} />}
+      {props.count}
+      {props.urgent && <StatusDots status={props.urgent} />}
     </span>
   )
 }
