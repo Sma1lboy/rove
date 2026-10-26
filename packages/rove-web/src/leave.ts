@@ -33,13 +33,27 @@ function dropGhosts(selector: string): void {
   for (const el of document.querySelectorAll(`${selector}.is-leaving`)) el.remove()
 }
 
+function finishScrimFade(): void {
+  for (const el of document.querySelectorAll<HTMLElement>(".overlay:not(.is-leaving)")) {
+    for (const a of el.getAnimations()) if (a instanceof CSSAnimation && a.animationName === "fade-in") a.finish()
+  }
+}
+
 /** Subscribed before React's own listeners (module order), so the old DOM is still there to copy. */
 export function watchLeaving(): void {
   let lastDialog = dialog.get()
+  let closedAt = Number.NEGATIVE_INFINITY
   dialog.subscribe(() => {
     const next = dialog.get()
-    if (next === null && lastDialog !== null) leaveCopies(".overlay")
-    else if (next !== null) dropGhosts(".overlay")
+    if (next === null && lastDialog !== null) {
+      closedAt = performance.now()
+      leaveCopies(".overlay")
+    } else if (next !== null) {
+      // A dialog replacing another (directly, or the palette closing then running one) keeps the scrim.
+      const swap = lastDialog !== null || performance.now() - closedAt < LEAVE_MS
+      dropGhosts(".overlay")
+      if (swap) requestAnimationFrame(finishScrimFade)
+    }
     lastDialog = next
   })
   let lastMenu = menu.get()

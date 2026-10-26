@@ -13,7 +13,7 @@ import {
   directGuideOptions,
   shortcutCaption,
 } from "@sma1lboy/rove/src/tui/lib/shortcut-reveal.ts"
-import { type CSSProperties, useEffect, useState } from "react"
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react"
 import { strokeText } from "./chord.ts"
 import { allCommands, appliesOn, currentSurface, reachability, specificity } from "./commands.ts"
 import { useLocale } from "./i18n/index.ts"
@@ -137,15 +137,10 @@ export function PrefixHud({ model }: { model: AppModel }) {
   return (
     <output className="prefix-hud mono keys-only">
       {fresh.map((entry) => (
-        // Fades out as it expires; the render drops it at HUD_TTL_MS.
-        <div
-          key={entry.id}
-          className="prefix-hud-head"
-          style={{ "--hud-out": `${HUD_TTL_MS - LEAVE_MS}ms` } as CSSProperties}
-        >
+        <HudLine key={entry.id} at={entry.at}>
           <span className="tone-accent">{prefixKey()}</span> + {entry.stroke} →{" "}
           {entry.action ? labelOf(entry.action) : <span className="muted">∅</span>}
-        </div>
+        </HudLine>
       ))}
       {armedAt !== null && (
         <div className="prefix-hud-head">
@@ -153,6 +148,19 @@ export function PrefixHud({ model }: { model: AppModel }) {
         </div>
       )}
     </output>
+  )
+}
+
+/** Fades out as it expires, timed from the stroke, not the mount: the guide unmounts lines and brings them back late. */
+function HudLine({ at, children }: { at: number; children: ReactNode }) {
+  const [mountedAt] = useState(Date.now)
+  const late = mountedAt - at > LEAVE_MS
+  // Negative once inside the last LEAVE_MS: the fade starts part-way and still ends at HUD_TTL_MS.
+  const out = { "--hud-out": `${at + HUD_TTL_MS - LEAVE_MS - mountedAt}ms` } as CSSProperties
+  return (
+    <div className={`prefix-hud-head ${late ? "is-back" : ""}`} style={out}>
+      {children}
+    </div>
   )
 }
 
