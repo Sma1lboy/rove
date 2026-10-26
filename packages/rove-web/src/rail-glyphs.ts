@@ -123,3 +123,10 @@ export function prMark(task: Pick<TaskRow, "pr" | "prChip" | "prChipStale">): Pr
         : "muted"
   return { glyph: NERD.prOpen, tone, state: "open", ...(checks ? { checks } : {}) }
 }
+
+/** The mark a row with several PRs leads with: an open one that can't land, any other open one, merged, closed. */
+export function leadPrMark(marks: readonly PrMark[]): PrMark | undefined {
+  const rank = (mark: PrMark) =>
+    mark.state === "open" ? (mark.tone === "tone-attention" ? 0 : 1) : mark.state === "merged" ? 2 : 3
+  return [...marks].sort((a, b) => rank(a) - rank(b))[0]
+}

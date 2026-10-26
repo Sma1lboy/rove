@@ -12,6 +12,7 @@ export const zh: typeof en = {
     childWorktree: "有自己的 worktree 和分支，从父任务的分支切出",
     pr: {
       state: { open: "进行中", merged: "已合并", closed: "已关闭" },
+      many: "这个任务及子任务共 {count} 个 PR",
       checks: { conflict: "与基础分支冲突", failing: "检查未通过", passing: "检查已通过", pending: "检查进行中" },
     },
     searchPlaceholder: "模糊搜索",

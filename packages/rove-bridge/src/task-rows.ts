@@ -190,6 +190,9 @@ export function taskRows(
           ? {
               ...(pr.number !== undefined ? { number: pr.number } : {}),
               ...(pr.url ? { url: pr.url } : {}),
+              ...(pr.title ? { title: pr.title } : {}),
+              ...(pr.additions !== undefined ? { additions: pr.additions } : {}),
+              ...(pr.deletions !== undefined ? { deletions: pr.deletions } : {}),
               lifecycle: pr.lifecycle,
               checkState: pr.checkState,
               ...(pr.reviewDecision ? { reviewDecision: pr.reviewDecision } : {}),

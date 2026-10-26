@@ -90,6 +90,9 @@ export interface TaskRow {
   readonly pr: {
     readonly number?: number
     readonly url?: string
+    readonly title?: string
+    readonly additions?: number
+    readonly deletions?: number
     readonly lifecycle: string
     readonly checkState: string
     readonly reviewDecision?: string

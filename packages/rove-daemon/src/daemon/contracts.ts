@@ -143,6 +143,9 @@ export interface TaskPRStatus {
   readonly number?: number
   readonly url?: string
   readonly title?: string
+  /** Lines the PR adds and removes, as the forge counts them. */
+  readonly additions?: number
+  readonly deletions?: number
   readonly baseRef?: string
   readonly reviewDecision?: string
   readonly mergeable?: string
