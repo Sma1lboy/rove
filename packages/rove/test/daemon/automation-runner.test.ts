@@ -99,7 +99,14 @@ describe("runAutomationOnce", () => {
     await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
     expect(created).toEqual([
-      { repo: REPO, title: "audit", vendor: "codex", model: "gpt-5.5", modelEffort: "high", routine: { automationId: a.id } },
+      {
+        repo: REPO,
+        title: "audit",
+        vendor: "codex",
+        model: "gpt-5.5",
+        modelEffort: "high",
+        routine: { automationId: a.id },
+      },
     ])
   })
 

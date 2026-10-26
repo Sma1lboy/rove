@@ -5,7 +5,6 @@
  * only owns what it draws (notice, scroll chips, search row).
  */
 
-import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon } from "@xterm/addon-search"
 import { SerializeAddon } from "@xterm/addon-serialize"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
@@ -15,6 +14,7 @@ import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
+import { OverlayFitAddon } from "./term-fit.ts"
 import { ctrlChord } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { createReplyGate } from "./term-replies.ts"
@@ -26,7 +26,7 @@ import { activeStream, layoutMoving } from "./ui.ts"
 /** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
 export const SCROLL_PAGE_LINES = 10
 
-/** Width of xterm's overlay scrollbar lane (its default is 14); the fit addon reserves the same. */
+/** Width of xterm's overlay scrollbar (its default is 14); it floats over the last column (`term-fit.ts`). */
 const SCROLLBAR_WIDTH = 8
 
 export type Notice =
@@ -105,7 +105,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     // xterm would also jump to the bottom on mouse reports sent to the app; typing is handled below.
     scrollOnUserInput: false,
   })
-  const fit = new FitAddon()
+  const fit = new OverlayFitAddon(term)
   const search = new SearchAddon()
   term.loadAddon(fit)
   term.loadAddon(search)
