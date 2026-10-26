@@ -80,22 +80,18 @@ function isRoutineTask(task: Task): boolean {
 }
 
 /**
- * A project closed down to nothing: its only row is the main checkout (or an
- * opened `dir`) and that row's tabs are KNOWN and empty. Hidden, not deleted —
- * the main task and `savedRepos` entry stay (unlike Forget, which un-saves).
+ * A directory project closed down to nothing: its only row is an opened `dir` and that row's tabs are KNOWN
+ * and empty. Hidden, not deleted. A project's main checkout never closes down: the project stays listed
+ * after its last tab closes (or "Delete conversation" ends it), and the main row is the way back to it.
+ * A `dir` row comes back via `rove .`.
  *
- * Way back: new-task dialog → Existing → "the project itself" (`mode: "open"`
- * → `ensureMainTask`), offered exactly for repos with a main row. Every other
- * submit path goes through `createTask`, which mints a worktree and would
- * leave no project row. A `dir` row comes back via `rove .`.
- *
- * Narrow on purpose: any worktree task under the project keeps it visible
+ * Narrow on purpose: any worktree task under the directory keeps it visible
  * (those rows are the way back to that work), and an absent tabs entry never
  * hides — else the sidebar would boot empty.
  */
 function isClosedDownProject(tasks: readonly Task[], tabsByTask: SidebarGroupInput["tabsByTask"]): boolean {
   const only = tasks.length === 1 ? tasks[0] : undefined
-  if (!only || (only.kind !== "main" && only.kind !== "dir")) return false
+  if (!only || only.kind !== "dir") return false
   return tabsByTask.get(only.id)?.length === 0
 }
 

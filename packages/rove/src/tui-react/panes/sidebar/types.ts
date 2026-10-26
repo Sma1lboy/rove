@@ -23,6 +23,8 @@ export type SidebarTaskCallbacks = {
   onMoveModeExit?: () => void
   /** Project row menu only: move the project (via its main) above every other. */
   onMoveToTopRequest?: (taskId: string) => void
+  /** Project header menu only: remove the project (via its main) from the projects list; the repo stays on disk. */
+  onForgetProjectRequest?: (taskId: string) => void
   onRenameRequest?: (taskId: string) => void
   /** Shift+P only; a bare `p` binds nothing, so a mistype can't churn the pin flag. */
   onPinRequest?: (taskId: string) => void

@@ -15,6 +15,7 @@ import {
   copyTaskFieldFlow,
   cycleVendorFlow,
   deleteTaskFlow,
+  forgetProjectFlow,
   pickVendorFlow,
   renameTaskFlow,
   setStatusFlow,
@@ -50,6 +51,8 @@ export type WorkspaceTaskActionDeps = {
   activateTask: (id: string) => Promise<void>
   /** Reclaim a deleted task's terminal-tab snapshot. */
   forgetTaskTabs: (taskId: string) => void
+  /** Close every tab of a task whose row stays (a project main's ended conversation). */
+  closeTaskTabs?: (taskId: string) => void
   /** New-task dialog with a first message: create the task and run its engine on it. */
   startWithPrompt?: CreateTaskContext["startWithPrompt"]
 }
@@ -57,6 +60,8 @@ export type WorkspaceTaskActionDeps = {
 export type WorkspaceTaskActions = {
   createTask: () => Promise<void>
   deleteTask: (id: string) => Promise<void>
+  /** Project-header menu "Remove project": un-save the repo; the main row's own delete ends its conversation instead. */
+  forgetProject: (id: string) => Promise<void>
   renameTask: (id: string) => Promise<void>
   renameBranch: (id: string) => Promise<void>
   cycleVendor: (id: string) => Promise<void>
@@ -122,6 +127,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
         moveSelection(taskId, nextTask)
       }
     })(),
+    onConversationEnded: (taskId) => deps.closeTaskTabs?.(taskId),
   }
 
   async function togglePin(id: string): Promise<void> {
@@ -231,6 +237,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     rerunChecks,
     createTask: () => createTaskFlow(taskActions),
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
+    forgetProject: (id) => forgetProjectFlow(taskActions, id),
     renameTask: (id) => renameTaskFlow(taskActions, id),
     renameBranch,
     cycleVendor: (id) => cycleVendorFlow(taskActions, id),

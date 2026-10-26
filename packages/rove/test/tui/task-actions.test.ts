@@ -16,7 +16,7 @@
  * plain mocks. Hosted session operations are module-mocked.
  */
 
-import { beforeEach, describe, expect, test, vi } from "vitest"
+import { type Mock, beforeEach, describe, expect, test, vi } from "vitest"
 import { hostedTaskKeys, killHostedSessions, openHostedSessionHost } from "../../src/engine/hosted-session"
 import { DIRTY_WORKTREE_CODE } from "../../src/orchestrator/errors"
 
@@ -30,7 +30,12 @@ vi.mock("../../src/engine/hosted-session", () => ({
 // to stay under the ~500-line cap).
 
 import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
-import { type TaskActionContext, deleteTaskFlow, nextActiveTask } from "../../src/tui/lib/task-actions"
+import {
+  type TaskActionContext,
+  deleteTaskFlow,
+  forgetProjectFlow,
+  nextActiveTask,
+} from "../../src/tui/lib/task-actions"
 import type { Task } from "../../src/types/task"
 
 function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
@@ -83,6 +88,7 @@ function makeCtx(opts: {
   notifyError: ReturnType<typeof vi.fn>
   notifyInfo: ReturnType<typeof vi.fn>
   onTaskDeleted: ReturnType<typeof vi.fn>
+  onConversationEnded: Mock
   reload: ReturnType<typeof vi.fn>
   pickChildren: ReturnType<typeof vi.fn>
 } {
@@ -92,6 +98,7 @@ function makeCtx(opts: {
   const notifyError = vi.fn()
   const notifyInfo = vi.fn()
   const onTaskDeleted = vi.fn()
+  const onConversationEnded = vi.fn()
   const reload = vi.fn(async () => {})
   const pickChildren = vi.fn(async () => (opts.childChoice === "dismiss" ? undefined : opts.childChoice))
   const ctx: TaskActionContext = {
@@ -106,12 +113,13 @@ function makeCtx(opts: {
     reload,
     updateActiveTask: opts.updateActiveTask,
     onTaskDeleted,
+    onConversationEnded,
     ...(opts.childChoice === undefined ? {} : { pickChildren }),
     ...(opts.deleteBranchOnDelete === undefined
       ? {}
       : { deleteBranchOnDelete: () => opts.deleteBranchOnDelete === true }),
   }
-  return { ctx, confirm, promptText, notifyError, notifyInfo, onTaskDeleted, reload, pickChildren }
+  return { ctx, confirm, promptText, notifyError, notifyInfo, onTaskDeleted, onConversationEnded, reload, pickChildren }
 }
 
 beforeEach(() => {
@@ -331,50 +339,136 @@ describe("deleteTaskFlow — child tasks", () => {
   })
 })
 
-describe("deleteTaskFlow — project (main) row", () => {
-  test("forgets the project instead of deleting, no worktree teardown", async () => {
-    const tasks = [
-      makeTask({ id: "m1", kind: "main", repo: "/repos/alpha", title: "alpha", worktreePath: "/repos/alpha" }),
-    ]
-    const orch = makeOrch()
-    const { ctx, confirm, reload } = makeCtx({ tasks, orch, confirms: [true] })
+describe("forgetProjectFlow", () => {
+  const main = () =>
+    makeTask({ id: "m1", kind: "main", repo: "/repos/alpha", title: "alpha", worktreePath: "/repos/alpha" })
 
-    await deleteTaskFlow(ctx, "m1")
+  test("forgets the project, no worktree teardown", async () => {
+    const orch = makeOrch()
+    const { ctx, confirm, reload } = makeCtx({ tasks: [main()], orch, confirms: [true] })
+
+    await forgetProjectFlow(ctx, "m1")
 
     // Project-specific copy (the "remove" verb, not "delete").
     expect(confirm.mock.calls[0]?.[0]).toMatchObject({ title: `Remove project "alpha"?`, confirmLabel: "remove" })
     expect(orch.forgetProject).toHaveBeenCalledWith("/repos/alpha")
-    // Never routes to deleteTask (which refuses main rows) or kills a session.
     expect(orch.deleteTask).not.toHaveBeenCalled()
     expect(killHostedSessions).not.toHaveBeenCalled()
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
-  test("declined confirm leaves the project in place", async () => {
-    const tasks = [makeTask({ id: "m1", kind: "main", repo: "/repos/alpha" })]
-    const orch = makeOrch()
-    const { ctx } = makeCtx({ tasks, orch, confirms: [false] })
+  test("the dialog names the repo even when the main row was renamed", async () => {
+    const renamed = { ...main(), title: "Plan the release" }
+    const { ctx, confirm } = makeCtx({ tasks: [renamed], orch: makeOrch(), confirms: [false] })
 
-    await deleteTaskFlow(ctx, "m1")
+    await forgetProjectFlow(ctx, "m1")
+
+    expect(confirm.mock.calls[0]?.[0]).toMatchObject({ title: `Remove project "alpha"?` })
+  })
+
+  test("declined confirm leaves the project in place", async () => {
+    const orch = makeOrch()
+    const { ctx } = makeCtx({ tasks: [main()], orch, confirms: [false] })
+
+    await forgetProjectFlow(ctx, "m1")
 
     expect(orch.forgetProject).not.toHaveBeenCalled()
   })
 
   test("forget failure surfaces a toast and skips reload", async () => {
-    const tasks = [makeTask({ id: "m1", kind: "main", repo: "/repos/alpha" })]
     const orch = makeOrch({
       forgetProject: vi.fn(async () => {
         throw new Error("daemon exploded")
       }),
     })
-    const { ctx, notifyError, reload } = makeCtx({ tasks, orch, confirms: [true] })
+    const { ctx, notifyError, reload } = makeCtx({ tasks: [main()], orch, confirms: [true] })
 
-    await deleteTaskFlow(ctx, "m1")
+    await forgetProjectFlow(ctx, "m1")
 
     expect(notifyError).toHaveBeenCalledWith(
       "Couldn't remove the project — it stays in the projects list: daemon exploded",
     )
     expect(reload).not.toHaveBeenCalled()
+  })
+})
+
+describe("deleteTaskFlow — project (main) row", () => {
+  const main = () =>
+    makeTask({ id: "m1", kind: "main", repo: "/repos/alpha", title: "alpha", worktreePath: "/repos/alpha" })
+  const child = (id: string) => makeTask({ id, parentTaskId: "m1" as Task["parentTaskId"], repo: "/repos/alpha" })
+
+  test("ends the conversation and keeps the project: sessions killed, tabs dropped, nothing deleted", async () => {
+    const orch = makeOrch()
+    const { ctx, confirm, reload, onConversationEnded } = makeCtx({ tasks: [main()], orch, confirms: [true] })
+
+    await deleteTaskFlow(ctx, "m1")
+
+    expect(confirm.mock.calls[0]?.[0]).toMatchObject({ title: `Delete conversation "alpha"?`, danger: true })
+    expect(orch.deleteTask).not.toHaveBeenCalled()
+    expect(orch.forgetProject).not.toHaveBeenCalled()
+    expect(killHostedSessions).toHaveBeenCalledWith(expect.anything(), ["m1::tab-1"])
+    expect(onConversationEnded).toHaveBeenCalledWith("m1")
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  test("a declined confirm ends nothing", async () => {
+    const { ctx, onConversationEnded } = makeCtx({ tasks: [main()], orch: makeOrch(), confirms: [false] })
+
+    await deleteTaskFlow(ctx, "m1")
+
+    expect(killHostedSessions).not.toHaveBeenCalled()
+    expect(onConversationEnded).not.toHaveBeenCalled()
+  })
+
+  test("with children, ending alone leaves them standing", async () => {
+    const orch = makeOrch()
+    const { ctx, pickChildren } = makeCtx({
+      tasks: [main(), child("c1")],
+      orch,
+      childChoice: "promote",
+    })
+
+    await deleteTaskFlow(ctx, "m1")
+
+    expect(pickChildren.mock.calls[0]?.[0]).toMatchObject({ title: `"alpha" has 1 child tasks` })
+    expect(orch.deleteTask).not.toHaveBeenCalled()
+    expect(killHostedSessions).toHaveBeenCalledTimes(1)
+  })
+
+  test("with children, the second choice deletes each child's subtree before ending the conversation", async () => {
+    const orch = makeOrch()
+    const { ctx, onConversationEnded } = makeCtx({
+      tasks: [main(), child("c1"), child("c2")],
+      orch,
+      childChoice: "cascade",
+    })
+
+    await deleteTaskFlow(ctx, "m1")
+
+    expect(orch.deleteTask.mock.calls).toEqual([
+      ["c1", { cascade: true }],
+      ["c2", { cascade: true }],
+    ])
+    expect(onConversationEnded).toHaveBeenCalledWith("m1")
+  })
+
+  test("a child whose delete is declined stops the round: the conversation is not ended", async () => {
+    const orch = makeOrch({
+      deleteTask: vi.fn(async () => {
+        throw new Error(`${DIRTY_WORKTREE_CODE}: task c1 worktree has uncommitted changes: a.ts`)
+      }),
+    })
+    const { ctx, onConversationEnded } = makeCtx({
+      tasks: [main(), child("c1")],
+      orch,
+      confirms: [false],
+      childChoice: "cascade",
+    })
+
+    await deleteTaskFlow(ctx, "m1")
+
+    expect(killHostedSessions).not.toHaveBeenCalled()
+    expect(onConversationEnded).not.toHaveBeenCalled()
   })
 })
 

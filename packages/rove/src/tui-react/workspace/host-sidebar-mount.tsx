@@ -107,6 +107,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       // Task lifecycle: the Sidebar's d/r/p/m keys fire these.
       onAddTask={() => void actions.createTask()}
       onDeleteRequest={(id) => void actions.deleteTask(id)}
+      onForgetProjectRequest={(id) => void actions.forgetProject(id)}
       onLandRequest={(id) => void actions.landTask(id)}
       onArchiveRequest={(id) => void actions.archiveTask(id)}
       onSyncBaseRequest={(id) => void actions.syncBase(id)}

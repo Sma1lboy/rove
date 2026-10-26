@@ -171,7 +171,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         title: optStr(a, "title"),
       })
     case "task.delete":
-      return ops.deleteTask(str(a, "taskId"), optBool(a, "force"))
+      return ops.deleteTask(str(a, "taskId"), optBool(a, "force"), optBool(a, "cascade"))
     case "task.land": {
       const strategy = optStr(a, "strategy") ?? "merge"
       if (strategy !== "merge" && strategy !== "squash") throw new BridgeError("BAD_ARGS", "strategy is merge|squash")

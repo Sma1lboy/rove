@@ -99,7 +99,6 @@ export const zh: typeof en = {
     delete: "删除",
     deleteTask: "删除任务",
     deleteConversation: "删除对话",
-    removeProject: "移除项目",
     copied: "已复制 {text}",
     copyFailed: "浏览器拒绝了剪贴板访问",
     nothingToCopy: "这个任务还没有{what}",

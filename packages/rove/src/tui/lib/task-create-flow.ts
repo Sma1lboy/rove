@@ -116,7 +116,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
     return
   }
   // "Open the project": the repo's OWN checkout. `ensureMainTask` is idempotent,
-  // so it both revives a sidebar-hidden project and creates a missing row.
+  // so it both resolves an existing project row and creates a missing one.
   // Ahead of the "Creating task…" toast: this is navigation, nothing is created.
   if (result.mode === "open") {
     try {
