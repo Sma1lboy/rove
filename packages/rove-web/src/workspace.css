@@ -625,6 +625,18 @@
   .files-scope .link::after {
     inset: -2px -3px;
   }
+  /* Kanban header: 新建/删除 and the project name sit 8px apart (`.kb-page` gap); each takes half. */
+  .kb-top .pg-actions .link::after {
+    inset: -6px -3px -4px;
+  }
+  .kb-project-name {
+    position: relative;
+  }
+  .kb-project-name::after {
+    content: "";
+    position: absolute;
+    inset: -4px -8px;
+  }
   /* Picker rows grow by padding, so baseline-aligned label and key stay aligned. Composer and suggest rows: their own sheets. */
   .menu-item,
   .palette-row,
