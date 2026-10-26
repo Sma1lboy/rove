@@ -144,15 +144,15 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const working = task?.rowStatus?.kind === "running"
   const composing = useStore(newSession)
   const filesOn = useStore(narrowFiles) && narrow && !!task
-  // Picking a task or tab leaves the composer, as it leaves a page; only another task leaves the narrow
-  // file list (a tab sweep rewrites the selection of the same task).
+  // Picking a task or tab leaves the composer and the narrow file list, as it leaves a page; a tab sweep
+  // that rewrites the same selection does not.
   useEffect(() => {
-    let taskId = model.selection.get().taskId
+    let last = model.selection.get()
     return model.selection.subscribe(() => {
       newSession.set(null)
-      const next = model.selection.get().taskId
-      if (next !== taskId) narrowFiles.set(false)
-      taskId = next
+      const next = model.selection.get()
+      if (next.taskId !== last.taskId || next.tabId !== last.tabId) narrowFiles.set(false)
+      last = next
     })
   }, [model])
   useEffect(() => trackNav(model), [model])
