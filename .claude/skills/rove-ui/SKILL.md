@@ -223,7 +223,11 @@ only last.
 - **Side stripes.** No coloured 2–4px bar down one edge of a card, row or node (`border-left`,
   `box-shadow: inset 2px 0 0 …`), least of all on a rounded box where the bar bends round the
   corner. The owner rejected it as AI slop. Selection is a `--inset` or `--accent-soft` wash;
-  identity is the title. Check: `rg -n 'inset [0-9]px 0 0|border-left: [2-9]px' packages/rove-web/src/*.css`.
+  identity is the title. Check: `rg -n 'inset [0-9]px 0 0|border-left(-color)?: ' packages/rove-web/src/*.css`
+  (a pane divider is not a stripe).
+- **Focus rings inside a scroll box.** An `outline` outside a field is clipped by any
+  `overflow: auto` parent (a dialog body) down to a lone coloured underline. A field marks focus on
+  its own border (`.input:focus-visible`); a scroller that holds buttons pads 2px for their ring.
 - **Dashed outlines and cards inside cards.** A box is a solid 1px `--line`/`--line-subtle`
   border or none. A dashed border reads as a placeholder; a bordered panel inside the bordered
   `.page` is one frame too many.

@@ -453,13 +453,11 @@
   gap: 2px;
   padding: 6px 10px;
   border-radius: var(--radius-sm);
-  border-left: 2px solid transparent;
   cursor: pointer;
 }
 
 .pg-issue.is-cursor {
   background: var(--inset);
-  border-left-color: var(--accent);
 }
 
 /* Mods: the DOM half of the mod element vocabulary (the TUI half is mods-page.tsx). */
