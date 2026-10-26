@@ -398,4 +398,9 @@ export const defaultApiRuntime: ApiRuntime = {
     }
   },
   listeningPorts: async () => (await import("./listening-ports.ts")).scanListeningPorts(),
+  measureCheckout: async (path) => {
+    const { measureCheckout } = await import("../../orchestrator/worktree/disk-usage.ts")
+    const { execHostForWorktreePath } = await import("../../exec/resolve.ts")
+    return measureCheckout(execHostForWorktreePath(path), path)
+  },
 }
