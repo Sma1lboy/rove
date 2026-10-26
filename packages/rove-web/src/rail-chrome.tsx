@@ -108,6 +108,7 @@ export function FoldedRail({
   selectedTaskId,
 }: { model: AppModel; frame: number; selectedTaskId: string | null }) {
   const payload = useStore(model.tasks)
+  const allTabs = useStore(model.tabs)
   const { prefs, glyphSets } = usePrefs()
   const glyphs = glyphSets[prefs.glyphSet]
   const style = prefs.railFold
@@ -115,39 +116,43 @@ export function FoldedRail({
     model.select(taskId)
     enterWorkspace()
   }
-  // The tree's own rows, so a child nests under its parent here too. Routine sessions take no cell.
+  // The tree's own rows, so a child nests under its parent here too. Only a task with a tab open (or the
+  // one on screen) takes a cell, and a project with none takes no divider; routine sessions take no cell.
   const sections: { id: string; label: string; tasks: TaskNavRow[] }[] = []
   for (const row of navRows(groupByProject(payload?.tasks ?? [], "default"))) {
     if (row.kind === "project") sections.push({ id: row.id, label: row.label, tasks: [] })
-    else if (row.kind === "task" && !row.task.routine) sections.at(-1)?.tasks.push(row)
+    else if (row.kind !== "task" || row.task.routine) continue
+    else if ((allTabs[row.task.id]?.length ?? 0) > 0 || row.task.id === selectedTaskId) sections.at(-1)?.tasks.push(row)
   }
   return (
     <div className={`rail-folded-list is-${style}`}>
-      {sections.map((section) => (
-        <div key={section.id} className="rail-folded-group">
-          <div className="rail-folded-rule" title={section.label} />
-          {section.tasks.map((row) => {
-            // Folded, a task's one cell is its rollup; a child steps in per generation and wears its marker.
-            const { task } = row
-            const { glyph, tone } = statusGlyph(task.rowStatus, frame, glyphs)
-            const marker = childMarkerOf(task)
-            return (
-              <button
-                type="button"
-                key={task.id}
-                title={task.title}
-                className={`rail-folded-cell tone-${tone} ${task.id === selectedTaskId ? "is-selected" : ""}`}
-                style={row.depth > 1 && style !== "hairline" ? { paddingLeft: (row.depth - 1) * 6 } : undefined}
-                onClick={() => open(task.id)}
-              >
-                {style === "hairline" ? "▌" : glyph}
-                {marker && style !== "hairline" && (marker === "shared" ? "⑂" : "⎇")}
-                {style === "initials" && <span className="rail-folded-initials">{railInitials(task.title)}</span>}
-              </button>
-            )
-          })}
-        </div>
-      ))}
+      {sections
+        .filter((section) => section.tasks.length > 0)
+        .map((section) => (
+          <div key={section.id} className="rail-folded-group">
+            <div className="rail-folded-rule" title={section.label} />
+            {section.tasks.map((row) => {
+              // Folded, a task's one cell is its rollup; a child steps in per generation and wears its marker.
+              const { task } = row
+              const { glyph, tone } = statusGlyph(task.rowStatus, frame, glyphs)
+              const marker = childMarkerOf(task)
+              return (
+                <button
+                  type="button"
+                  key={task.id}
+                  title={task.title}
+                  className={`rail-folded-cell tone-${tone} ${task.id === selectedTaskId ? "is-selected" : ""}`}
+                  style={row.depth > 1 && style !== "hairline" ? { paddingLeft: (row.depth - 1) * 6 } : undefined}
+                  onClick={() => open(task.id)}
+                >
+                  {style === "hairline" ? "▌" : glyph}
+                  {marker && style !== "hairline" && (marker === "shared" ? "⑂" : "⎇")}
+                  {style === "initials" && <span className="rail-folded-initials">{railInitials(task.title)}</span>}
+                </button>
+              )
+            })}
+          </div>
+        ))}
     </div>
   )
 }
