@@ -542,6 +542,36 @@ button:focus-visible,
   opacity: 0;
   translate: -4px 0;
 }
+/* A rail row's cut-off title in full, beside the row (Claude's sidebar tooltip). */
+.row-tip {
+  position: fixed;
+  z-index: 35;
+  max-width: 320px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  translate: 0 -50%;
+  animation: row-tip-in 140ms ease-out;
+}
+@keyframes row-tip-in {
+  from {
+    opacity: 0;
+    translate: -4px -50%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-tip {
+    animation: none;
+  }
+}
 @keyframes pr-list-in {
   from {
     opacity: 0;

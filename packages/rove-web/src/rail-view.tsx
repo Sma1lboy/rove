@@ -23,6 +23,7 @@ import { mostUrgentStatus, needsPerson } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, type RowFold, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
+import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { StatusDots } from "./status-dots.tsx"
 import { useStore } from "./store.ts"
@@ -264,6 +265,7 @@ function RailRow(props: {
   onToggleFold: () => void
 }) {
   const { row } = props
+  const tip = useRowTip(row.kind === "task" ? rowTitle(row.task, props.tabs) : "")
   const drop = props.dragging ? "is-dragging" : ""
   const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""} ${drop}`
   if (row.kind === "project") {
@@ -339,12 +341,14 @@ function RailRow(props: {
     <button
       type="button"
       className={`row task-row ${props.selected ? "is-selected" : ""} ${cursor} ${running ? "is-running" : ""}`}
-      title={task.branch || task.title}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
+      onPointerEnter={tip.onPointerEnter}
+      onPointerLeave={tip.onPointerLeave}
       {...props.place}
       {...props.drag}
     >
+      {tip.tip}
       {props.guides && (
         <span className="child-indent" aria-hidden="true">
           {props.guides.map((guide, i) => (
