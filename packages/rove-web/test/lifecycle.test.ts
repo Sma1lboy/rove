@@ -289,7 +289,8 @@ test("the page reports what it shows to the daemon, and nothing once hidden", as
 })
 
 function terminals(size = { clientWidth: 600, clientHeight: 400 }) {
-  install("document", { addEventListener() {}, removeEventListener() {}, activeElement: null })
+  const events = { addEventListener() {}, removeEventListener() {} }
+  install("document", { ...events, fonts: events, activeElement: null })
   const observed: (() => void)[] = []
   install(
     "ResizeObserver",

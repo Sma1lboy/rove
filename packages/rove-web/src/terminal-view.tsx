@@ -112,14 +112,11 @@ export function TerminalView(props: TerminalViewProps) {
     if (!el) return
     let leased: Leased | null = null
     let cancelled = false
-    // The WebGL glyph atlas is cut from whatever font is resolved when the renderer loads;
-    // before JetBrains Mono arrives that atlas paints nothing, and before the symbols font an icon is a box.
-    const fonts = [
-      document.fonts.load('13px "JetBrains Mono"'),
-      // A unicode-range face loads only for text in its range: a powerline glyph, not the default space.
-      document.fonts.load(`13px "${NERD_SYMBOLS_FAMILY}"`, String.fromCodePoint(0xe0a0)),
-      document.fonts.ready,
-    ]
+    // The WebGL glyph atlas is cut from the font resolved when the renderer loads: before JetBrains
+    // Mono arrives it paints nothing. The 1.2 MB symbols face is not awaited; term-mount redraws when it lands.
+    const fonts = [document.fonts.load('13px "JetBrains Mono"'), document.fonts.load('bold 13px "JetBrains Mono"')]
+    // Canvas text never asks for a unicode-range face, so start it here: a powerline glyph, not a space.
+    void document.fonts.load(`13px "${NERD_SYMBOLS_FAMILY}"`, String.fromCodePoint(0xe0a0)).catch(() => {})
     const mount = () => {
       if (cancelled) return
       leased = leaseTerminal(
