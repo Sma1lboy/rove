@@ -1,6 +1,6 @@
 /**
  * Mounts the Settings knobs onto the page: reads the TUI's prefs when the bridge connects (and
- * again when the window regains focus, so a change made in the TUI shows up), paints the theme
+ * again when the window regains focus or comes back into view, so a change made in the TUI shows up), paints the theme
  * into the `:root` tokens, mirrors the flags the stylesheet reacts to as `data-*` attributes,
  * and keeps zen in step with the TUI's `zen.active`.
  */
@@ -24,11 +24,15 @@ export function usePrefsApply(model: AppModel): void {
 
   useEffect(() => {
     const load = () => void loadPrefs(client).catch(() => undefined)
+    // A phone back on the tab fires visibilitychange, not always focus; the TUI may have changed a pref.
+    const shown = () => document.visibilityState === "visible" && load()
     const stop = client.onOpen(load)
     window.addEventListener("focus", load)
+    document.addEventListener("visibilitychange", shown)
     return () => {
       stop()
       window.removeEventListener("focus", load)
+      document.removeEventListener("visibilitychange", shown)
     }
   }, [client])
 
