@@ -1,68 +1,85 @@
 /**
- * The panel beside the task terminal: a row of buttons along its top (Files, Diff, Browser) and the
- * chosen view below. The views stay mounted once opened, so switching away and back keeps the page's
- * place and the diff's scroll. In narrow mode the bar's Terminal/Files/Diff/Browser switch picks the
- * view and this renders just the content.
+ * The panel beside the task terminal: the task's tabs (Files, a diff, a Browser) in one group, or in
+ * two stacked groups with a divider. Every view opened stays mounted while another is up, so the
+ * page keeps its place and the diff its scroll. In narrow mode the bar's Terminal/Files/Diff/Browser
+ * switch picks the kind and this renders its latest tab.
  */
 
-import { type PointerEvent, type ReactNode, useRef } from "react"
+import { type PointerEvent, type RefObject, useEffect, useRef } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
 import { BrowserView } from "./browser-view.tsx"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { RemoteNotice } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
-import { PANEL_TABS, type PanelTab, clampPanelWidth, panelOpen, panelWidth } from "./panel-layout.ts"
-import { closeDiff, openDiff, showPanel, usePanelTab } from "./panel-state.ts"
+import { type PanelKind, clampPanelWidth, narrowView, panelExpanded, panelOpen, panelWidth } from "./panel-layout.ts"
+import {
+  type PanelItem,
+  allTabs,
+  findTab,
+  groupsOf,
+  latestOfKind,
+  mountedTabs,
+  navigate,
+  setRatio,
+  showKind,
+  stepBrowser,
+} from "./panel-model.ts"
+import { closePanelTab, editPanel, useTaskPanel } from "./panel-state.ts"
+import { PanelTabRow } from "./panel-tabs.tsx"
 import { PreviewView } from "./preview-view.tsx"
-import { PaneIcon } from "./rail-chrome.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
-import { preview, zen } from "./ui.ts"
+import { zen } from "./ui.ts"
 
-const LABEL = { files: "panel.files", diff: "panel.diff", browser: "panel.browser" } as const
-
-function Icon({ children }: { children: ReactNode }) {
-  return (
-    <svg className="panel-icon" viewBox="0 0 16 16" aria-hidden="true">
-      {children}
-    </svg>
-  )
-}
-
-const ICONS: Record<PanelTab, ReactNode> = {
-  files: <path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />,
-  diff: <path d="M8 3v6M5 6h6M5 12.5h6" />,
-  browser: <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM2 8h12M8 2c2.2 2 2.2 10 0 12M8 2c-2.2 2-2.2 10 0 12" />,
-}
-
-/** The workspace's top-right button: shows or hides the panel. Zen hides it too, so showing it leaves zen. */
-export function PanelToggle() {
+/** The top row's end: stretch the panel over the terminal's column (and back), or close it; its tabs stay. */
+function PanelWindowButtons() {
   useLocale()
-  const open = useStore(panelOpen)
-  const zenOn = useStore(zen)
+  const expanded = useStore(panelExpanded)
+  const label = expanded ? t("panel.restore") : t("panel.expand")
   return (
-    <button
-      type="button"
-      className="rail-bar-btn panel-toggle"
-      title={t("panel.toggle")}
-      aria-label={t("panel.toggle")}
-      onClick={() => {
-        panelOpen.set(zenOn || !open)
-        if (zenOn) zen.set(false)
-      }}
-    >
-      <PaneIcon side="right" />
-    </button>
+    <>
+      <button
+        type="button"
+        className="rail-bar-btn panel-tool"
+        title={label}
+        aria-label={label}
+        aria-pressed={expanded}
+        onClick={() => panelExpanded.set(!expanded)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d={
+              expanded
+                ? "M13.5 6.5h-4v-4M2.5 9.5h4v4M9.5 6.5l4-4M6.5 9.5l-4 4"
+                : "M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5l-4.5 4.5M2.5 13.5 7 9"
+            }
+          />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="rail-bar-btn panel-tool"
+        title={t("panel.hide")}
+        aria-label={t("panel.hide")}
+        onClick={() => panelOpen.set(false)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M4 4l8 8M12 4l-8 8" />
+        </svg>
+      </button>
+    </>
   )
 }
 
 /** The panel's left edge: drag to pin a width, double-click to go back to the automatic one. */
-function PanelGrip({ panel }: { panel: React.RefObject<HTMLElement | null> }) {
+function PanelGrip({ panel }: { panel: RefObject<HTMLElement | null> }) {
   useLocale()
   const drag = useRef<{ x: number; width: number } | null>(null)
   const down = (e: PointerEvent<HTMLDivElement>) => {
     drag.current = { x: e.clientX, width: panel.current?.getBoundingClientRect().width ?? 0 }
+    // A frame under the pointer would swallow the drag.
+    panel.current?.classList.add("is-resizing")
     e.currentTarget.setPointerCapture(e.pointerId)
   }
   const move = (e: PointerEvent<HTMLDivElement>) => {
@@ -77,94 +94,171 @@ function PanelGrip({ panel }: { panel: React.RefObject<HTMLElement | null> }) {
       title={t("panel.resize")}
       onPointerDown={down}
       onPointerMove={move}
-      onPointerUp={() => {
+      onLostPointerCapture={() => {
         drag.current = null
+        panel.current?.classList.remove("is-resizing")
       }}
       onDoubleClick={() => panelWidth.set(null)}
     />
   )
 }
 
-function DiffView({ model, task }: { model: AppModel; task: TaskRow }) {
-  const view = useStore(preview)
-  const shown = view && view.taskId === task.id ? view : null
-  if (!shown) {
+/** The line between the stacked groups: drag to give one more height, double-click to halve. */
+function PanelDivider({ taskId, body }: { taskId: string; body: RefObject<HTMLElement | null> }) {
+  useLocale()
+  const dragging = useRef(false)
+  const move = (e: PointerEvent<HTMLDivElement>) => {
+    const box = body.current?.getBoundingClientRect()
+    const heads = body.current?.querySelectorAll(".side-head")
+    if (!dragging.current || !box || heads?.length !== 2) return
+    const first = heads[0]?.getBoundingClientRect()
+    const second = heads[1]?.getBoundingClientRect()
+    if (!first || !second) return
+    const line = e.currentTarget.getBoundingClientRect().height
+    // The views share the height left by the two tab rows and the line.
+    const room = box.bottom - first.bottom - second.height - line
+    if (room > 0) editPanel(taskId, (p) => setRatio(p, (e.clientY - first.bottom - line / 2) / room))
+  }
+  return (
+    <div
+      className="side-divider"
+      title={t("panel.resizeSplit")}
+      onPointerDown={(e) => {
+        dragging.current = true
+        // A frame under the pointer would swallow the drag.
+        body.current?.classList.add("is-resizing")
+        e.currentTarget.setPointerCapture(e.pointerId)
+      }}
+      onPointerMove={move}
+      onLostPointerCapture={() => {
+        dragging.current = false
+        body.current?.classList.remove("is-resizing")
+      }}
+      onDoubleClick={() => editPanel(taskId, (p) => setRatio(p, 0.5))}
+    />
+  )
+}
+
+function TabView({
+  model,
+  task,
+  tab,
+  narrow,
+  active,
+  restored,
+}: { model: AppModel; task: TaskRow; tab: PanelItem; narrow: boolean; active: boolean; restored: boolean }) {
+  if (tab.kind === "files") return <FilesView model={model} task={task} narrow={narrow} />
+  if (tab.kind === "diff") {
     return (
-      <div className="side-empty">
-        <p>{t("panel.diffEmpty")}</p>
-        <button
-          type="button"
-          className="button"
-          onClick={() => openDiff({ taskId: task.id, path: ".", scope: "working" })}
-        >
-          {t("files.diffAllTouch")}
-        </button>
-      </div>
+      <PreviewView
+        key={`${tab.path}:${tab.scope}`}
+        model={model}
+        view={{ taskId: task.id, path: tab.path, scope: tab.scope }}
+        active={active}
+        restored={restored}
+        onClose={() => closePanelTab(task.id, tab.id)}
+      />
     )
   }
   return (
-    <>
-      <div className="side-diff-head">
-        <span className="side-diff-path" title={shown.path}>
-          {shown.path === "." ? t("preview.whole") : shown.path}
-        </span>
-        <button type="button" className="tab-close" aria-label={t("preview.close")} onClick={() => closeDiff(task.id)}>
-          ×
-        </button>
-      </div>
-      <PreviewView key={`${shown.taskId}:${shown.path}:${shown.scope}`} model={model} view={shown} />
-    </>
+    <BrowserView
+      model={model}
+      tab={tab}
+      onNavigate={(url) => editPanel(task.id, (p) => navigate(p, tab.id, url))}
+      onStep={(at) => editPanel(task.id, (p) => stepBrowser(p, tab.id, at))}
+    />
   )
 }
 
 function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; narrow: boolean }) {
   useLocale()
-  const tab = usePanelTab(task.id, narrow)
-  const panel = useRef<HTMLElement>(null)
+  const panel = useTaskPanel(task.id)
+  const narrowKind = useStore(narrowView)
+  const expanded = useStore(panelExpanded)
+  const aside = useRef<HTMLElement>(null)
+  const body = useRef<HTMLDivElement>(null)
+  const kind: PanelKind = narrowKind === "terminal" ? "files" : narrowKind
+  const tabs = allTabs(panel)
+  const latest = narrow ? latestOfKind(panel, kind) : null
+  // The phone's panel shows one tab: the latest of the chosen kind, opening one when there is none.
+  useEffect(() => {
+    if (narrow && !latest) editPanel(task.id, (p) => showKind(p, kind))
+  }, [narrow, latest, kind, task.id])
+
+  const visible = narrow
+    ? latest
+      ? [latest.id]
+      : []
+    : groupsOf(panel).flatMap(([, group]) => (group.active ? [group.active] : []))
   // A view mounts when first shown and then stays, hidden, so it keeps its state.
-  const seen = useRef(new Set<PanelTab>(["files"]))
-  seen.current.add(tab)
+  const mounted = useRef<string[]>([])
+  mounted.current = mountedTabs(mounted.current, visible, tabs)
+  // Tabs on screen when the panel first drew were restored, not opened: they leave the keyboard alone.
+  const restored = useRef(new Set(visible))
+
+  const split = !narrow && panel.bottom !== null
+  const rows = split
+    ? `auto minmax(0, ${panel.ratio * 100}fr) var(--divider) auto minmax(0, ${(1 - panel.ratio) * 100}fr)`
+    : "auto minmax(0, 1fr)"
+  const ofKind = tabs.filter((tab) => tab.kind === kind)
+  const empty = !narrow && panel.top.tabs.length === 0
+
   return (
-    <aside className={`side-panel ${narrow ? "is-narrow" : ""}`} ref={panel}>
-      {!narrow && <PanelGrip panel={panel} />}
-      {!narrow && (
-        <div className="side-head" role="tablist" aria-label={t("panel.tabs")}>
-          {PANEL_TABS.map((id) => (
-            <button
-              type="button"
-              role="tab"
-              key={id}
-              aria-selected={tab === id}
-              className={`tab ${tab === id ? "is-active" : ""}`}
-              onClick={() => showPanel(task.id, id)}
+    <aside className={`side-panel ${narrow ? "is-narrow" : ""}`} ref={aside}>
+      {!narrow && !expanded && <PanelGrip panel={aside} />}
+      <div className="side-body" ref={body} style={{ gridTemplateRows: rows }}>
+        {narrow
+          ? (ofKind.length > 1 || kind === "diff") && (
+              <PanelTabRow
+                taskId={task.id}
+                panel={panel}
+                group="top"
+                tabs={ofKind}
+                active={latest?.id ?? null}
+                narrow
+              />
+            )
+          : groupsOf(panel).map(([name, group]) => (
+              <PanelTabRow
+                key={name}
+                taskId={task.id}
+                panel={panel}
+                group={name}
+                tabs={group.tabs}
+                active={group.active}
+                narrow={false}
+              >
+                {name === "top" && <PanelWindowButtons />}
+              </PanelTabRow>
+            ))}
+        {empty && <p className="side-empty">{t("panel.empty")}</p>}
+        {split && <PanelDivider taskId={task.id} body={body} />}
+        {tabs
+          .filter((tab) => mounted.current.includes(tab.id))
+          .map((tab) => (
+            <div
+              key={tab.id}
+              className="side-view"
+              hidden={!visible.includes(tab.id)}
+              style={{ gridRow: findTab(panel, tab.id)?.name === "bottom" && !narrow ? 5 : 2 }}
             >
-              <Icon>{ICONS[id]}</Icon>
-              {t(LABEL[id])}
-            </button>
+              <TabView
+                model={model}
+                task={task}
+                tab={tab}
+                narrow={narrow}
+                active={visible.includes(tab.id)}
+                restored={restored.current.has(tab.id)}
+              />
+            </div>
           ))}
-        </div>
-      )}
-      <div className="side-body">
-        <div className="side-view" hidden={tab !== "files"}>
-          <FilesView model={model} task={task} narrow={narrow} />
-        </div>
-        {seen.current.has("diff") && (
-          <div className="side-view" hidden={tab !== "diff"}>
-            <DiffView model={model} task={task} />
-          </div>
-        )}
-        {seen.current.has("browser") && (
-          <div className="side-view" hidden={tab !== "browser"}>
-            <BrowserView model={model} taskId={task.id} />
-          </div>
-        )}
       </div>
     </aside>
   )
 }
 
 /**
- * Desktop: the grid's right column, hidden by zen or the toggle. A task on another machine has no
+ * Desktop: the grid's right column, hidden by zen or by closing it. A task on another machine has no
  * files or page here, so its panel says where it lives. Narrow: the task's chosen view, in the pane.
  */
 export function SidePanel({

@@ -1,11 +1,10 @@
-/* The side panel beside the terminal: quiet buttons along its top, then Files, Diff or Browser. Tokens from styles.css. */
+/* The side panel beside the terminal: a quiet row of tabs per group, then the views. Tokens from styles.css. */
 
 .side-panel {
   grid-row: 1;
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
   min-width: 0;
   min-height: 0;
   padding: 8px 10px 8px 0;
@@ -23,31 +22,153 @@
   left: -3px;
 }
 
-/* Muted words; the one in view is ink. No pill, no box. */
+/* Tab rows, the divider and the views are cells of one grid: moving a tab changes its cell, so a frame is never re-parented. */
+.side-body {
+  --divider: 5px;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.side-body > * {
+  grid-column: 1;
+}
+
+/* Muted words; the one in view is ink. No pill, no box. Many tabs scroll sideways; the + stays beside them. */
 .side-head {
   display: flex;
+  align-items: center;
   gap: 2px;
   min-height: 26px;
+  padding-bottom: 6px;
+  min-width: 0;
   font: 12px var(--mono);
+}
+
+.ptabs {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+/* Too many tabs for their names: the shown one keeps its name, the rest are icons (named on hover). */
+.ptabs.is-compact .ptab:not(.is-active) {
+  flex: none;
   min-width: 0;
 }
 
-.side-head .tab,
-.side-head .tab:hover,
-.side-head .tab.is-active {
+.ptabs.is-compact .ptab:not(.is-active) .ptab-main {
+  padding: 4px 7px;
+}
+
+.ptabs.is-compact .ptab:not(.is-active) :is(.ptab-label, .ptab-close) {
+  display: none;
+}
+
+.ptabs::-webkit-scrollbar {
+  display: none;
+}
+
+.is-narrow .side-head {
+  padding: 0 8px 6px;
+}
+
+/* Tabs shrink as a browser's do, labels ellipsized; the row scrolls only once every tab is at its floor. */
+.ptab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 72px;
+  max-width: 160px;
+  color: var(--muted);
+}
+
+.ptab:hover,
+.ptab.is-active {
+  color: var(--ink);
+}
+
+.ptab-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 2px 4px 8px;
+  border: 0;
   background: none;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
 }
 
-.side-head .tab:hover,
-.side-head .tab.is-active {
+.ptab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Hidden until the tab is hovered or focused; the slot stays so the label never shifts. */
+.ptab-close {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--subtle);
+  font: 14px / 1 var(--mono);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.ptab:hover .ptab-close,
+.ptab-close:focus-visible {
+  opacity: 1;
+}
+
+.ptab-close:hover {
   color: var(--ink);
+  background: var(--hover);
+}
+
+@media (hover: none) {
+  .ptab-close {
+    opacity: 1;
+  }
+}
+
+/* Where a dragged tab will land. */
+.ptab[data-drop="before"] {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.ptab[data-drop="after"] {
+  box-shadow: inset -2px 0 0 var(--accent);
+}
+
+.panel-tool {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+
+.panel-tool svg {
+  width: 14px;
+  height: 14px;
 }
 
 .panel-icon,
 .browser-bar svg {
   width: 14px;
   height: 14px;
+  flex: none;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.25;
@@ -55,19 +176,63 @@
   stroke-linejoin: round;
 }
 
-.panel-toggle {
+/* The top bar's Files / Diff / Browser buttons: quiet like the rail's; the one on screen is tinted. */
+.panel-launch {
+  display: flex;
+  gap: 2px;
   margin-left: auto;
 }
 
-.side-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
+.panel-launch .rail-bar-btn.is-on {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
-/* A view stays mounted while another is up; `hidden` must beat the flex display. */
+/* Expanded: the panel spans the terminal's column too, which keeps its size underneath so the pty is not resized. */
+.app.is-panel-expanded .workspace {
+  grid-column: 2;
+  visibility: hidden;
+}
+
+.app.is-panel-expanded .side-panel {
+  grid-column: 2 / -1;
+  z-index: 2;
+  padding-left: 8px;
+  background: var(--paper);
+}
+
+/* The line between stacked groups: one hairline, a wider strip to grab. */
+.side-divider {
+  grid-row: 3;
+  position: relative;
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.side-divider::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--divider) / 2) 0 auto;
+  height: 1px;
+  background: var(--line);
+}
+
+.side-divider:hover::before {
+  background: var(--line-active);
+}
+
+.is-resizing iframe {
+  pointer-events: none;
+}
+
+.side-divider::after {
+  content: "";
+  position: absolute;
+  inset: -3px 0;
+}
+
+/* Views share the cell of their group's area; the ones not shown are `hidden`, which must beat the flex display. */
 .side-view {
-  flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -79,6 +244,7 @@
 }
 
 .side-empty {
+  grid-row: 2;
   margin: auto;
   padding: 16px;
   display: flex;
@@ -93,23 +259,6 @@
 
 .side-empty p {
   margin: 0;
-}
-
-.side-diff-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 10px 4px 8px;
-  font: 12px var(--mono);
-  color: var(--muted);
-}
-
-.side-diff-path {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .browser {

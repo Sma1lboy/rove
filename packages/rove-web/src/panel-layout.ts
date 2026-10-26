@@ -3,11 +3,11 @@
 import { CELL_PX, MIN_WORKSPACE_WIDTH } from "./layout.ts"
 import { createStore } from "./store.ts"
 
-/** The side panel's views, left to right in its button row. */
-export const PANEL_TABS = ["files", "diff", "browser"] as const
-export type PanelTab = (typeof PANEL_TABS)[number]
-/** Narrow mode, a task's content panel: the terminal, or one of the side panel's views (the desktop's right column). */
-export type NarrowView = "terminal" | PanelTab
+/** The side panel's kinds of view; a tab is one instance of a kind. */
+export const PANEL_KINDS = ["files", "diff", "browser"] as const
+export type PanelKind = (typeof PANEL_KINDS)[number]
+/** Narrow mode, a task's content panel: the terminal, or one of the side panel's kinds (the desktop's right column). */
+export type NarrowView = "terminal" | PanelKind
 export const narrowView = createStore<NarrowView>("terminal")
 
 /** The side panel's own minimum; the terminal keeps `MIN_WORKSPACE_WIDTH` of what is left. */
@@ -28,9 +28,15 @@ panelWidth.subscribe(() => {
   else localStorage.setItem(PANEL_WIDTH_KEY, String(Math.round(width)))
 })
 
-/** The panel beside the terminal (zen still hides it); the button at the workspace's top right flips it. */
-export const panelOpen = createStore<boolean>(localStorage.getItem(PANEL_OPEN_KEY) !== "0")
+/** The panel beside the terminal (zen still hides it); the Files / Diff / Browser buttons at the workspace's top right open and close it. Closed until a task first opens it. */
+export const panelOpen = createStore<boolean>(localStorage.getItem(PANEL_OPEN_KEY) === "1")
 panelOpen.subscribe(() => localStorage.setItem(PANEL_OPEN_KEY, panelOpen.get() ? "1" : "0"))
+
+/** The panel covers the terminal's column too. Per page load, and undone whenever the panel closes. */
+export const panelExpanded = createStore<boolean>(false)
+panelOpen.subscribe(() => {
+  if (!panelOpen.get()) panelExpanded.set(false)
+})
 
 /** The pin, clamped on every read like the rail's: it survives a narrow window and returns when it widens. */
 export function clampPanelWidth(px: number, railPx: number, viewport = window.innerWidth): number {

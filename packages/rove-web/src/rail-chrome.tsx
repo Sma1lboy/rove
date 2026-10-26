@@ -15,7 +15,7 @@ import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
 import { backToTasks, enterWorkspace } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
-import { PANEL_TABS, narrowView } from "./panel-layout.ts"
+import { PANEL_KINDS, narrowView } from "./panel-layout.ts"
 import { showPanel } from "./panel-state.ts"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { armPrefix } from "./prefix.tsx"
@@ -160,7 +160,7 @@ export function NarrowBackBar({ taskId }: { taskId?: string }) {
       </button>
       {taskId && (
         <span className="narrow-switch mono" role="tablist">
-          {(["terminal", ...PANEL_TABS] as const).map((id) => (
+          {(["terminal", ...PANEL_KINDS] as const).map((id) => (
             <button
               type="button"
               role="tab"

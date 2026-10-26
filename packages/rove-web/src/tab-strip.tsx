@@ -1,14 +1,14 @@
 import { tabStripVisible } from "@sma1lboy/rove/src/state/tab-strip.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import type { AppModel } from "./model.ts"
+import { PanelLauncher } from "./panel-launcher.tsx"
 import { usePrefs } from "./prefs.ts"
 import { openMenu } from "./rail-view.tsx"
 import { tabLabel } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
-import { PanelToggle } from "./side-panel.tsx"
 import { useStore } from "./store.ts"
 
-/** The open task's tabs as a tablist; on a wide screen the side panel's toggle sits at its end. */
+/** The open task's tabs as a tablist; on a wide screen the buttons that open the side panel sit at its end. */
 export function TabStrip({
   model,
   task,
@@ -33,7 +33,7 @@ export function TabStrip({
           {tabLabel(tab)}
         </button>
       ))}
-      {!narrow && <PanelToggle />}
+      {!narrow && <PanelLauncher taskId={task.id} />}
     </div>
   )
 }

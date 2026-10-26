@@ -84,17 +84,6 @@
   color: var(--subtle);
 }
 
-/* The diff's close button */
-
-.tab-close {
-  color: var(--subtle);
-  padding: 0 2px;
-}
-
-.tab-close:hover {
-  color: var(--accent);
-}
-
 .term-slot {
   flex: 1;
   min-width: 0;
@@ -194,23 +183,4 @@
 
 .diff-row.is-cursor {
   background: var(--inset);
-}
-
-.preview-footer {
-  display: flex;
-  gap: 10px;
-  padding: 5px 12px;
-  border-top: 1px solid var(--line);
-  font: 11px var(--mono);
-  color: var(--muted);
-}
-
-.preview-footer .spacer {
-  flex: 1;
-}
-
-@media (hover: none) and (pointer: coarse) {
-  .preview-footer .preview-keys {
-    display: none;
-  }
 }

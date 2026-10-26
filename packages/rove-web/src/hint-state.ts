@@ -2,13 +2,12 @@
 
 import { createStore } from "./store.ts"
 
-export type HintPane = "sidebar" | "files"
+export type HintPane = "sidebar"
 
 const key = (pane: HintPane): string => `rove.web.hintUsed.${pane}`
 
 export const hintsUsed = createStore<Readonly<Record<HintPane, boolean>>>({
   sidebar: localStorage.getItem(key("sidebar")) === "1",
-  files: localStorage.getItem(key("files")) === "1",
 })
 
 /** Safe per keypress: it writes once. */

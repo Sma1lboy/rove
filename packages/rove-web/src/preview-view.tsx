@@ -10,7 +10,6 @@ import { TextDialog } from "./dialogs.tsx"
 import { type DiffRow, codeRows, displayLine, noteRange, parseUnifiedDiff } from "./diff.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { closeDiff } from "./panel-state.ts"
 import { type Preview, dialog, toast } from "./ui.ts"
 
 interface Note {
@@ -51,7 +50,13 @@ function covers(note: Note, row: DiffRow): boolean {
   return line !== null && note.filePath === row.path && line >= (note.startLine ?? note.line) && line <= note.line
 }
 
-export function PreviewView({ model, view }: { model: AppModel; view: Preview }) {
+export function PreviewView({
+  model,
+  view,
+  active,
+  restored,
+  onClose,
+}: { model: AppModel; view: Preview; active: boolean; restored: boolean; onClose: () => void }) {
   useLocale()
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [notes, setNotes] = useState<readonly Note[]>([])
@@ -78,7 +83,12 @@ export function PreviewView({ model, view }: { model: AppModel; view: Preview })
     void c.request<{ notes: Note[] }>("review.list", { taskId: view.taskId }).then((r) => setNotes(r.notes))
   // biome-ignore lint/correctness/useExhaustiveDependencies: reload with the view.
   useEffect(refreshNotes, [c, view.taskId, nonce])
-  useEffect(() => host.current?.focus(), [])
+  // A tab brought to the front takes the keys; one restored when the page loaded leaves them where they were.
+  const mounted = useRef(false)
+  useEffect(() => {
+    if (active && (mounted.current || !restored)) host.current?.focus()
+    mounted.current = true
+  }, [active, restored])
 
   const rows = loaded?.kind === "rows" ? loaded.rows : []
   // Row order is fixed per load (the view remounts per file), so position is identity.
@@ -137,16 +147,13 @@ export function PreviewView({ model, view }: { model: AppModel; view: Preview })
     else if (k === "x") dropNote()
     else if (k === "s") send()
     else if (k === "r") setNonce((n) => n + 1)
-    else if (k === "q" || k === "Escape") closeDiff(view.taskId)
+    else if (k === "q" || k === "Escape") onClose()
     // Ctrl+C closes it as the TUI's preview does; a text selection keeps the browser's own copy.
-    else if (e.ctrlKey && !e.metaKey && k.toLowerCase() === "c" && !window.getSelection()?.toString())
-      closeDiff(view.taskId)
+    else if (e.ctrlKey && !e.metaKey && k.toLowerCase() === "c" && !window.getSelection()?.toString()) onClose()
     else return
     e.preventDefault()
   }
 
-  const unsent = notes.filter((n) => n.sentAt === undefined).length
-  const here = notes.filter((n) => view.path === "." || n.filePath === view.path).length
   const lo = anchor === null ? cursor : Math.min(anchor, cursor)
   const hi = anchor === null ? cursor : Math.max(anchor, cursor)
 
@@ -174,11 +181,6 @@ export function PreviewView({ model, view }: { model: AppModel; view: Preview })
           )
         })}
       </div>
-      <footer className="preview-footer">
-        <span className="preview-keys">{t("preview.hints")}</span>
-        <span className="spacer" />
-        <span>{t("preview.notes", { here, unsent })}</span>
-      </footer>
     </div>
   )
 }
