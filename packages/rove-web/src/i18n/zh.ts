@@ -146,8 +146,6 @@ export const zh: typeof en = {
     recent: "最近",
     emptyHint: "agent 用 rove api send、add、dispatch 派活，或 routine 触发时，会从这张图上跑过",
     you: "你",
-    owner: "你本人",
-    routine: "例行任务",
     idle: "空闲",
     inFlightCount: "{count} 条在路上",
   },

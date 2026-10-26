@@ -1,6 +1,6 @@
 /**
- * Each task's own hue (the TUI's `useTaskColor`): the colour of its working border and its Dispatch
- * node (the rail draws no mark). The hue maths is the TUI's `taskColor`, run by the bridge (`theme.taskColors`)
+ * Each task's own hue (the TUI's `useTaskColor`): the colour of its working border (the rail draws
+ * no mark). The hue maths is the TUI's `taskColor`, run by the bridge (`theme.taskColors`)
  * under the theme and mode in use, so the page never restates it.
  */
 
