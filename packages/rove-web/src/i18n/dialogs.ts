@@ -49,6 +49,8 @@ export const en = {
   confirm: {
     closeTabTitle: 'Close "{tab}"?',
     closeTabBody: "Stops the session in this tab. The task and its worktree stay.",
+    closePaneTitle: 'Close "{pane}"?',
+    closePaneBody: "The engine session in this pane ends. The tab's other panes stay.",
     delete: "delete",
     forceDelete: "force delete",
   },
@@ -183,6 +185,8 @@ export const zh: typeof en = {
   confirm: {
     closeTabTitle: "关闭「{tab}」？",
     closeTabBody: "停止这个标签里的会话。任务和它的 worktree 会保留。",
+    closePaneTitle: "关闭「{pane}」？",
+    closePaneBody: "这个分屏里的引擎会话会结束。标签里的其他分屏会保留。",
     delete: "删除",
     forceDelete: "强制删除",
   },

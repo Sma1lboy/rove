@@ -5,12 +5,12 @@
 
 import { legendCap } from "@sma1lboy/rove/src/tui/lib/help-groups.ts"
 import type { SplitView, TabRow } from "rove-bridge/protocol"
-import { TextDialog } from "./dialogs.tsx"
+import { ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { terminalText } from "./keymap-text.ts"
-import type { AppModel } from "./model.ts"
+import { type AppModel, preferredTab } from "./model.ts"
 import { tabLabel } from "./rail.ts"
-import { isSplit, leafNames, leafSignature, leavesOf } from "./split-model.ts"
+import { hasLivePane, hostsEngine, isSplit, leafNames, leafSignature, leavesOf } from "./split-model.ts"
 import { createStore } from "./store.ts"
 import { termFor } from "./term-control.ts"
 import { streamKey } from "./term-mount.ts"
@@ -83,15 +83,29 @@ export function splitLeaf(
   })
 }
 
-/** Close one pane; the focus stays where it was unless that was the pane that went. */
+/** Close one pane; the focus stays where it was unless that was the pane that went. Ending the tab's engine asks first. */
 export function closeLeaf(model: AppModel, taskId: string, tab: TabRow, leaf: string): void {
-  const before = tab.split ? activeLeafOf(taskId, tab, tab.split) : leaf
-  void editSplit(model, { taskId, tabId: tab.id, action: "close", leafId: leaf }, (reply) => {
-    const split = reply.split
-    if (!split) return
-    const keep = before !== leaf && leavesOf(split.root).some((l) => l.id === before)
-    setActiveLeaf(taskId, tab.id, split, keep ? before : split.activeLeafId)
-  })
+  const split = tab.split
+  const before = split ? activeLeafOf(taskId, tab, split) : leaf
+  const close = () =>
+    editSplit(model, { taskId, tabId: tab.id, action: "close", leafId: leaf }, (reply) => {
+      const next = reply.split
+      if (!next) return
+      const keep = before !== leaf && leavesOf(next.root).some((l) => l.id === before)
+      setActiveLeaf(taskId, tab.id, next, keep ? before : next.activeLeafId)
+    })
+  if (!split || !hostsEngine(tab, split, leaf)) {
+    void close()
+    return
+  }
+  dialog.set(
+    <ConfirmDialog
+      title={t("confirm.closePaneTitle", { pane: leafNames(split, tabLabel(tab)).get(leaf) ?? leaf })}
+      body={t("confirm.closePaneBody")}
+      confirmLabel={t("menu.closePane")}
+      onConfirm={close}
+    />,
+  )
 }
 
 export function renameLeaf(model: AppModel, taskId: string, tab: TabRow, leaf: string): void {
@@ -127,10 +141,8 @@ export function paneEdits(model: AppModel, taskId: string, tab: TabRow, leaf: st
   ]
 }
 
-/** The pane menu: split it, and once split rename or close it. `leaf` defaults to the tab's active pane. */
-export function splitMenu(model: AppModel, taskId: string, tab: TabRow, leaf?: string): MenuItem[] {
-  const split = tab.split
-  const target = leaf ?? (split ? activeLeafOf(taskId, tab, split) : "leaf-1")
+/** Split right and down for `target`. */
+function splitItems(model: AppModel, taskId: string, tab: TabRow, target: string): MenuItem[] {
   return [
     {
       label: t("menu.splitRight"),
@@ -144,6 +156,21 @@ export function splitMenu(model: AppModel, taskId: string, tab: TabRow, leaf?: s
       key: legendCap("workspace.split.down") ?? undefined,
       run: () => splitLeaf(model, taskId, tab, "down", target),
     },
-    ...(isSplit(split) ? paneEdits(model, taskId, tab, target) : []),
   ]
+}
+
+/** The pane menu: split it, and once split rename or close it. `leaf` defaults to the tab's active pane. */
+export function splitMenu(model: AppModel, taskId: string, tab: TabRow, leaf?: string): MenuItem[] {
+  const split = tab.split
+  const target = leaf ?? (split ? activeLeafOf(taskId, tab, split) : "leaf-1")
+  return [...splitItems(model, taskId, tab, target), ...(isSplit(split) ? paneEdits(model, taskId, tab, target) : [])]
+}
+
+/** A task row's split entries, for the tab a click on the row shows; none while that tab has no live session. */
+export function taskSplitItems(model: AppModel, taskId: string): MenuItem[] {
+  const tabs = model.tabs.get()[taskId] ?? []
+  const shown = model.selection.get()
+  const tab = (shown.taskId === taskId ? tabs.find((row) => row.id === shown.tabId) : undefined) ?? preferredTab(tabs)
+  if (!tab || !hasLivePane(tab)) return []
+  return splitItems(model, taskId, tab, tab.split ? activeLeafOf(taskId, tab, tab.split) : "leaf-1")
 }
