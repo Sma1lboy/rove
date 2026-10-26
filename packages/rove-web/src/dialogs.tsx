@@ -89,6 +89,7 @@ export function TextDialog(props: {
       >
         <input
           className="input"
+          aria-label={props.title}
           // biome-ignore lint/a11y/noAutofocus: a dialog's only field
           autoFocus
           spellCheck={false}

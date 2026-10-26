@@ -5,6 +5,15 @@ import { t, useLocale } from "./i18n/index.ts"
 import { TERM_KEYS } from "./term-keys.ts"
 import type { TermHandle } from "./term-mount.ts"
 
+/** Keys whose cap is a symbol a screen reader can't say. */
+const KEY_NAMES: Readonly<Record<string, string>> = {
+  up: "layout.termKeyUp",
+  down: "layout.termKeyDown",
+  left: "layout.termKeyLeft",
+  right: "layout.termKeyRight",
+  interrupt: "layout.termKeyInterrupt",
+}
+
 export function TermKeyRow({ handle }: { handle: TermHandle }) {
   useLocale()
   const [ctrl, setCtrl] = useState(false)
@@ -28,6 +37,7 @@ export function TermKeyRow({ handle }: { handle: TermHandle }) {
         <button
           key={key.id}
           type="button"
+          aria-label={KEY_NAMES[key.id] ? t(KEY_NAMES[key.id]) : undefined}
           onClick={() => {
             setCtrl(false)
             term.input(key.bytes(term.modes.applicationCursorKeysMode), true)
