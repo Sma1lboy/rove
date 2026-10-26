@@ -635,6 +635,7 @@
   .narrow-back,
   .narrow-switch button,
   .files-tab,
+  .tab-close,
   .kb-strip button {
     position: relative;
   }
@@ -659,6 +660,12 @@
     content: "";
     position: absolute;
     inset: -8px -2px -6px;
+  }
+  /* The preview tab's ×: its tab's 10px right padding, the tab row's height, and the gaps above/below. */
+  .tab-close::after {
+    content: "";
+    position: absolute;
+    inset: -7px -10px -10px -6px;
   }
   /* Lanes sit 16px apart, the project name 8px above: grow down, barely up. */
   .kb-strip button::after {
