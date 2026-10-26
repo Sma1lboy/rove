@@ -20,6 +20,7 @@ import { ctrlChord } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
+import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
 import { activeStream, railMoving } from "./ui.ts"
 
 /** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
@@ -34,19 +35,6 @@ export type Notice =
   | { readonly kind: "notLive" }
   | { readonly kind: "exited"; readonly code: number | null }
   | { readonly kind: "failed"; readonly message: string }
-
-function decode(base64: string): Uint8Array {
-  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
-}
-
-function streamPayload(data: unknown): { stream: string; data?: string; code?: number | null } | null {
-  if (!data || typeof data !== "object" || !("stream" in data) || typeof data.stream !== "string") return null
-  return {
-    stream: data.stream,
-    ...("data" in data && typeof data.data === "string" ? { data: data.data } : {}),
-    ...("code" in data && (typeof data.code === "number" || data.code === null) ? { code: data.code } : {}),
-  }
-}
 
 export interface MountOpts {
   readonly client: BridgeClient
@@ -196,18 +184,33 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const detach = () => void client.request("term.detach", { stream: expected }).catch(() => {})
   let stream: string | null = null
   let alive = false
-  let held: Uint8Array[] | null = null
+  let held: Array<{ bytes: Uint8Array; chars: number }> | null = null
   let disposed = false
   const replies = createReplyGate((data) => {
     if (stream && alive) void client.request("term.input", { stream, data }).catch(() => {})
   })
+  const acks = createAcks((chars) => {
+    if (stream) void client.request("term.ack", { stream, chars }).catch(() => {})
+  })
+  const writeAcked = (bytes: Uint8Array, chars: number, parsed?: () => void) =>
+    term.write(bytes, () => {
+      parsed?.()
+      acks.parsed(chars)
+    })
 
   const offData = client.on("term.data", (raw) => {
     const p = streamPayload(raw)
     if (!p?.data || p.stream !== expected) return
     const bytes = decode(p.data)
-    if (held) held.push(bytes)
-    else if (stream) term.write(bytes)
+    if (held) held.push({ bytes, chars: p.data.length })
+    else if (stream) writeAcked(bytes, p.data.length)
+  })
+  // RIS goes through xterm's write queue, so output still queued ahead of it is drawn first, then wiped.
+  const offReset = client.on("term.reset", (raw) => {
+    const p = resetPayload(raw)
+    if (!p || p.stream !== expected || !stream || held) return
+    term.write("\x1bc")
+    replies.replay((parsed) => writeAcked(decode(p.replay), p.replay.length, parsed))
   })
   const offExit = client.on("term.exit", (raw) => {
     const p = streamPayload(raw)
@@ -229,6 +232,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
           ...(o.leafId && o.leafId !== "leaf-1" ? { leafId: o.leafId } : {}),
           cols: term.cols,
           rows: term.rows,
+          acks: true,
         },
       )
       const current = owned.get(expected)
@@ -237,7 +241,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (disposed) return
       term.reset()
       replies.replay((parsed) => term.write(decode(res.replay), parsed))
-      for (const bytes of held) term.write(bytes)
+      for (const h of held) writeAcked(h.bytes, h.chars)
       stream = res.stream
       alive = res.alive
       // The ring replay of a long session starts mid-repaint, so a reattach at an unchanged size
@@ -478,6 +482,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
       offOpen()
       offData()
       offExit()
+      offReset()
+      acks.dispose()
       if (stream && activeStream.get() === stream) activeStream.set(null)
       ownership.owners--
       if (ownership.owners === 0) {

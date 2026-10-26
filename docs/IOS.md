@@ -108,10 +108,11 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `task.tabs` | `taskId` | `{tabs: [{id, kind, title, engineName, liveEngine?, alive, engineAlive, split?}]}; `liveEngine` = the engine running in the tab right now (null when the probe has no answer; `engineName` falls back to the configured one)`; `split` = `{activeLeafId, root}` while the tab is split (`root` is a tree of `{kind: "leaf", id, title, own}` and `{kind: "group", orientation: "row" \| "column", children}`), absent otherwise |
 | `tab.new` | `taskId`, `kind?` (`engine` default / `shell`), `prompt?`, `engine?` | `{tabId}`; with a `prompt` it starts the engine on it (`send --tab new`), without one it opens the tab empty (`tab-new`); a `shell` tab takes no `prompt` or `engine` (`BAD_ARGS`) |
 | `tab.close` | `taskId`, `tabId` | `{}` |
-| `term.attach` | `taskId`, `tabId`, `leafId?` (a split pane `leaf-N` beyond `leaf-1`; its stream is `taskId::tabId::leaf-N`), `cols?`+`rows?` | `{stream, alive, replay}` (base64 bytes) |
+| `term.attach` | `taskId`, `tabId`, `leafId?` (a split pane `leaf-N` beyond `leaf-1`; its stream is `taskId::tabId::leaf-N`), `cols?`+`rows?`, `acks?` (see `term.ack`) | `{stream, alive, replay}` (base64 bytes) |
 | `term.input` | `stream`, `data` | `{}` |
 | `term.resize` | `stream`, `cols`, `rows` | `{}` |
 | `term.detach` | `stream` | `{}` |
+| `term.ack` | `stream`, `chars` | `{}`: for a stream attached with `acks: true`, the base64 chars of `term.data` / `term.reset` the client has parsed. Past ~1 MB unacked the bridge stops sending that stream's output; once all of it is acked it pushes `term.reset {stream, replay}` (reset the terminal, write the replay). Keeps Ctrl+C on a flood instant; without `acks` output flows as before. |
 | `term.revive` | `taskId`, `tabId` | `{revived, resumed}`: `tab-revive` for the tab `term.attach` would open (a viewport tab revives the session it shows); a running tab answers `revived: false`. Attach again afterwards. |
 | `diff.files` | `taskId` | `{base, files: [{path, status, added, deleted, scope}]}` |
 | `diff.file` | `taskId`, `path`, `scope` | `{kind, text?, message?}` |
