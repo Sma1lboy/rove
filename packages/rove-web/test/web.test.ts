@@ -251,7 +251,7 @@ describe("F7 next attention", () => {
     const routine = { taskId: null, tabId: null, state: "routine_failed", unread: true, at: 3, automationId: "r-1" }
     const next = nextAttention([routine], order, { taskId: null, tabId: null })
     expect(next?.automationId).toBe("r-1")
-    expect(isRoutineState("routine_failed") && isRoutineState("routine_responded")).toBe(true)
+    expect(isRoutineState("routine_failed")).toBe(true)
     expect(isRoutineState("error") || isRoutineState("turn_complete")).toBe(false)
   })
 })

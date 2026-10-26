@@ -1726,8 +1726,8 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   nothing. A project's `main` task cannot be archived (`MAIN_TASK`), because
   it is the project row itself. In the sidebar and the rail, archived tasks
   sit in one "Archived" fold at the end of the list, whose row menus offer
-  Unarchive. A project whose other tasks are all archived keeps its `main`
-  row in the list.
+  Unarchive. A project whose other tasks are all archived is hidden like any
+  idle project.
 
 ## worktree
 

@@ -26,8 +26,6 @@ export function inboxBadge(state: string): InboxBadge {
       return { glyph: "†", tone: "attention", stateKey: "inbox.state.dead" }
     case "routine_failed":
       return { glyph: "↻", tone: "attention", stateKey: "inbox.state.routineFailed" }
-    case "routine_responded":
-      return { glyph: "✓", tone: "success", stateKey: "inbox.state.routineResponded" }
     default:
       return { glyph: "!", tone: "attention", stateKey: "inbox.state.error" }
   }
@@ -45,7 +43,7 @@ export function compactAge(ms: number): string {
 }
 
 /** TUI `isRoutineInboxState`: the episode's subject is a schedule, not a task. */
-export const isRoutineState = (state: string): boolean => state === "routine_failed" || state === "routine_responded"
+export const isRoutineState = (state: string): boolean => state === "routine_failed"
 
 const keyOf = (row: Pick<AttentionRow, "taskId" | "tabId">) => `${row.taskId ?? ""}:${row.tabId ?? ""}`
 

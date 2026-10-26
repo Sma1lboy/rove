@@ -160,7 +160,6 @@ export const en = {
       rateLimited: "rate limited",
       dead: "engine exited",
       routineFailed: "routine needs you",
-      routineResponded: "routine responded",
     },
   },
   files: {

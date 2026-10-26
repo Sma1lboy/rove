@@ -161,7 +161,6 @@ export const zh: typeof en = {
       rateLimited: "限流",
       dead: "引擎已退出",
       routineFailed: "例行任务需要处理",
-      routineResponded: "例行任务已回报",
     },
   },
   files: {

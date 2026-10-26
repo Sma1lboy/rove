@@ -108,9 +108,9 @@ describe("a project closed down to nothing", () => {
   const dead = main("dead", "/work/dead")
   const live = task("live", { repo: "/work/api" })
 
-  test("a main stays listed once its last tab closes — the project is remembered", () => {
+  test("drops out once its main's last tab closes", () => {
     const result = groups([dead, live], tabs({ dead: 0, live: 1 }))
-    expect(result.map((g) => g.key)).toEqual(["/work/dead", "/work/api"])
+    expect(result.map((g) => g.key)).toEqual(["/work/api"])
   })
 
   test("stays while its tabs are merely UNKNOWN — a fresh TUI must not boot empty", () => {
@@ -118,23 +118,25 @@ describe("a project closed down to nothing", () => {
     expect(result.map((g) => g.key)).toEqual(["/work/dead", "/work/api"])
   })
 
+  test("returns as soon as its main has a tab again", () => {
+    expect(groups([dead], tabs({ dead: 1 })).map((g) => g.key)).toEqual(["/work/dead"])
+  })
+
   test("a project with real work under it always renders, every tab closed", () => {
     const result = groups([dead, task("wt", { repo: "/work/dead" })], tabs({ dead: 0, wt: 0 }))
     expect(result.map((g) => g.key)).toEqual(["/work/dead"])
   })
 
-  test("a `dir` row folds away once its last tab closes, and returns with a tab", () => {
-    const dir = task("d", { kind: "dir", repo: "/some/dir", worktreePath: "/some/dir", branch: "" })
-    expect(groups([dir], tabs({ d: 0 }))).toEqual([])
-    expect(groups([dir], tabs({ d: 1 })).map((g) => g.key)).toEqual(["/some/dir"])
+  test("a hidden project does not disambiguate the visible ones", () => {
+    // `/oss/api` is hidden, so `/work/api` is the only `api` left and should
+    // render as the bare basename rather than defending against a ghost.
+    const result = groups([main("w", "/work/api"), main("o", "/oss/api")], tabs({ o: 0 }))
+    expect(result.map((g) => g.label)).toEqual(["api"])
   })
 
-  test("a hidden `dir` does not disambiguate the visible projects", () => {
-    // `/oss/api` is a closed-down dir, so `/work/api` is the only `api` left and
-    // should render as the bare basename rather than defending against a ghost.
-    const dir = task("o", { kind: "dir", repo: "/oss/api", worktreePath: "/oss/api", branch: "" })
-    const result = groups([main("w", "/work/api"), dir], tabs({ o: 0 }))
-    expect(result.map((g) => g.label)).toEqual(["api"])
+  test("a `dir` row folds the same way a checkout does", () => {
+    const dir = task("d", { kind: "dir", repo: "/some/dir", worktreePath: "/some/dir", branch: "" })
+    expect(groups([dir], tabs({ d: 0 }))).toEqual([])
   })
 })
 
