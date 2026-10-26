@@ -263,3 +263,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Sandbox:** harness Playwright asks for headless shell rev 1228 at `chrome-headless-shell-linux64/`. The sandbox ships 1243 in that layout, so a dir of symlinks plus 1228/1194 → 1243 dir symlinks were enough. `BUN_OPTIONS=--smol` was exported again and unset for every run.
 
 **Update 2026-10-25:** #1422 merged. Tomorrow's main should read switch.perOp.stateNotify ~2.
+
+## 2026-10-26 — notes (main 1281c8d)
+
+**No regression.** Both main runs exited 1 on timings only: golden.cli-startup-ms 72.5/73.5, typing.echo 177/172, plus run 1's cold boot.firstFrame.ms 1313 and switch.shown 487. Same band as the last nights. #1422 landed: switch.perOp.stateNotify 3 → 2 (stateListener 2). Counts otherwise held: root 8.4/8.1, workspace 7.4/7.1, sidebar 2, frame 4.1, spawns 0.5, idle 0. No open `perf:` issues. Baseline not moved because of the ✗ timings. Tonight's history line is main run 2.
+
+**Per-switch overlay anatomy (temporary trace logging which `useTerminalPaint` deps changed).** 5 overlay passes per switch: mount (rows 0), then `visibleRows` changed three times while still empty (one with `cols` 80 → real), then the primed snapshot plus cursor. The three empty ones were only `snapshot.slice` returning a fresh `[]` as `bodyRows`/snapshot identity settled.
+
+**Landed tonight as a PR from `perf/nightly-2026-10-26`:** `Terminal.tsx` returns a shared `NO_ROWS` when the viewport slice is empty. switch.perOp.overlay 5 → 3 (2 of 2 runs). Commits, frames, paintRow and timings unchanged (switch.shown 469/466, typing.echo 152/172). The remaining 3 are mount, the `cols` change and the first data; the `cols` one could fold only if the remount knew its geometry up front (see the 10-15/10-16 geometry notes).
+
+**Sandbox:** Playwright asked for headless shell rev 1243 at `chrome-headless-shell-linux64/`; a dir of symlinks plus 1228/1194 → 1243 dir symlinks worked. `BUN_OPTIONS` unset for every run. pre-pr passed 10/10 here.
