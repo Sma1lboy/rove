@@ -14,6 +14,7 @@ import type { AppModel } from "./model.ts"
 import { moveMode, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { startNewTask } from "./new-session-view.tsx"
+import { splitMenu } from "./split-actions.tsx"
 import { newChatHere, openTab } from "./task-dialogs.tsx"
 import {
   archiveFlow,
@@ -130,6 +131,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
           />,
         ),
     })
+    items.push(...splitMenu(model, task.id, tab))
   }
 
   // Open: what starts work in this task.

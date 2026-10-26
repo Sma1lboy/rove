@@ -19,7 +19,7 @@ import { isRoutineState, nextAttention } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { focusPane } from "./pane-focus.ts"
-import { tabLabel } from "./rail-view.tsx"
+import { tabLabel } from "./rail.ts"
 import { isSplit } from "./split-model.ts"
 import { dialog, page, toast } from "./ui.ts"
 

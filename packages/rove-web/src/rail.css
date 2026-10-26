@@ -317,3 +317,14 @@
   align-items: center;
   color: var(--subtle);
 }
+/* A split tab's panes under their task: quiet, with the open tab's active pane in full ink. */
+.pane-row {
+  min-height: 22px;
+}
+.pane-row > .row-title {
+  font-size: 12px;
+  color: var(--muted);
+}
+.pane-row.is-active-pane > .row-title {
+  color: var(--ink);
+}
