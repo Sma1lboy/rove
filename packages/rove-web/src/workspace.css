@@ -1,7 +1,8 @@
 /* Workspace chrome: rail width/fold, narrow layout, split panes, key guide, palette, help, search. Tokens from styles.css. */
 
+/* The Files column gives way below 1250px wide (a tablet), so the terminal keeps the most room. */
 .app {
-  grid-template-columns: var(--rail-w, minmax(220px, 280px)) 1fr minmax(240px, 300px);
+  grid-template-columns: var(--rail-w, minmax(220px, 280px)) 1fr clamp(200px, 24vw, 300px);
 }
 
 .app.is-zen {
@@ -540,9 +541,9 @@
 }
 
 .term-keys button {
-  /* Equal shares of the row: nine keys fit a 390-wide phone without scrolling. */
+  /* Equal shares on a phone; a narrower column keeps each label whole, then scrolls the row. */
   flex: 1 1 0;
-  min-width: 0;
+  min-width: max-content;
   height: 32px;
   padding: 0 2px;
   border: 1px solid var(--line);

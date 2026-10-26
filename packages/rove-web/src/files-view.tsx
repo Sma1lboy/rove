@@ -3,7 +3,7 @@
  * changed files with their status letter, scoped to the working tree or the
  * branch vs its base. Keys are the TUI pane's own, live only while the pane
  * has focus: j/k move, h/l fold, [ ] switch tab, b scope, r refresh,
- * Enter (or click) opens the file in the Mac's editor tab, d previews its diff, Shift+D the whole
+ * Enter (or a mouse click) opens the file in the Mac's editor tab, d (or a tap) previews its diff, Shift+D the whole
  * diff, a mention `@path`, o opens media in the Mac's app.
  */
 
@@ -37,8 +37,12 @@ interface Listing {
   readonly base: string | null
 }
 
-/** `narrow`: the phone's full-panel list; a tap previews the file here, as the Mac's editor is out of reach. */
+/**
+ * `narrow`: the phone's full-panel list. On a phone or any touch screen a tap previews the file
+ * here: a terminal editor needs keys a soft keyboard doesn't have.
+ */
 export function FilesView({ model, task, narrow = false }: { model: AppModel; task: TaskRow; narrow?: boolean }) {
+  const touch = window.matchMedia("(hover: none) and (pointer: coarse)").matches
   useLocale()
   const [tab, setTab] = useState<Tab>("changes")
   const [scope, setScope] = useState<"working" | "branch">("working")
@@ -233,7 +237,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
               setCursor(i)
               pane.current?.focus()
               if (r.dir) toggle(r.path)
-              else if (narrow) open(r.path)
+              else if (narrow || touch) open(r.path)
               else edit(r)
             }}
           >
