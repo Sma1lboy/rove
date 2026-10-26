@@ -5,30 +5,18 @@ import { ConnectScreen } from "./connect-view.tsx"
 import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
 import { DocumentTitle } from "./document-title.tsx"
 import { useLocale } from "./i18n/index.ts"
-import {
-  RAIL_DEFAULT_PX,
-  clampPanelWidth,
-  clampRailWidth,
-  enterWorkspace,
-  narrowPane,
-  panelOpen,
-  panelWidth,
-  peekRail,
-  railFolded,
-  railPeek,
-  railWidth,
-  surfaceFor,
-  useNarrow,
-} from "./layout.ts"
+import { enterWorkspace, narrowPane, surfaceFor, useNarrow } from "./layout.ts"
 import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
 import { type AppModel, selectedRow } from "./model.ts"
 import { Overlays } from "./overlays.tsx"
+import { clampPanelWidth, panelOpen, panelWidth } from "./panel-layout.ts"
 import { usePluginChords } from "./plugin-keys.ts"
 import { PrefixHud } from "./prefix-guide.tsx"
 import { usePrefixLayer } from "./prefix.tsx"
 import { usePrefsApply } from "./prefs-apply.ts"
 import { RailBar } from "./rail-chrome.tsx"
+import { RAIL_DEFAULT_PX, clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
 import { RailView } from "./rail-view.tsx"
 import { SidePanel } from "./side-panel.tsx"
 import { StatusBar } from "./status-bar.tsx"
