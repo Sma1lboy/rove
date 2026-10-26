@@ -14,5 +14,7 @@ export function followVisualViewport(): void {
   }
   vv.addEventListener("resize", sync)
   vv.addEventListener("scroll", sync)
+  // A layout-viewport scroll after the keyboard settles fires no visualViewport event.
+  window.addEventListener("scroll", sync, { passive: true })
   sync()
 }
