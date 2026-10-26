@@ -187,19 +187,13 @@ button:focus-visible,
 }
 
 .wordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
   font: 700 14px var(--mono);
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
-/* The [r] app icon, as on the landing page and the phone apps. */
-.wordmark-mark {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
+.bracket {
+  color: var(--accent);
 }
 
 .kicker {

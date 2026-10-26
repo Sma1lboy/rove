@@ -45,8 +45,7 @@ export function LoginScreen() {
         }}
       >
         <span className="wordmark">
-          <img className="wordmark-mark" src="/favicon.png" alt="" />
-          rove
+          <span className="bracket">[</span> rove <span className="bracket">]</span>
         </span>
         <h1 className="kicker">{t("login.title")}</h1>
         <p className="muted">{t("login.body")}</p>

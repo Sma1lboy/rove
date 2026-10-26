@@ -312,8 +312,7 @@ export function ConnectScreen({ failing = false }: { failing?: boolean }) {
         }}
       >
         <span className="wordmark">
-          <img className="wordmark-mark" src="/favicon.png" alt="" />
-          rove
+          <span className="bracket">[</span> rove <span className="bracket">]</span>
         </span>
         <h1 className="kicker">{t("connect.title")}</h1>
         <p className={failing ? "error" : "muted"}>{failing ? t("connect.failing") : t("connect.body")}</p>
