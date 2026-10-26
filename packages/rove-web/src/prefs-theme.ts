@@ -40,6 +40,7 @@ export function cssVars(palette: Palette, prefs: Pick<Prefs, "focusAccent" | "co
     "--success": palette.success,
     "--warning": palette.warning,
     "--info": palette.info,
+    "--merged": palette.syntaxType,
     "--focus": palette[prefs.focusAccent] ?? palette.primary,
     "--diff-added": (cb ? palette.diffAddedColorblind : palette.diffAdded) ?? palette.diffAdded,
     "--diff-removed": palette.diffRemoved,
