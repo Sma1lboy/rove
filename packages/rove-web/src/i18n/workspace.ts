@@ -20,10 +20,8 @@ export const en = {
   },
   status: {
     connecting: "connecting",
-    open: "connected",
     retrying: "reconnecting · attempt {count}",
     retry: "retry now",
-    host: "{host} · rove {version}",
     backlog: "Backlog",
     inProgress: "In progress",
     inReview: "In review",
@@ -97,10 +95,8 @@ export const zh: typeof en = {
   },
   status: {
     connecting: "连接中",
-    open: "已连接",
     retrying: "重连中 · 第 {count} 次",
     retry: "立即重试",
-    host: "{host} · rove {version}",
     backlog: "待办",
     inProgress: "进行中",
     inReview: "待评审",
