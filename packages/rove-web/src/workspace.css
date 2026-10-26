@@ -634,6 +634,7 @@
   .dialog-close,
   .narrow-back,
   .narrow-switch button,
+  .files-tab,
   .kb-strip button {
     position: relative;
   }
@@ -652,6 +653,12 @@
     content: "";
     position: absolute;
     inset: -8px -1px -6px;
+  }
+  /* 全部/变更: 4px apart, `.files-actions`' 8px padding above, `.files-tabs`' 6px padding below. */
+  .files-tab::after {
+    content: "";
+    position: absolute;
+    inset: -8px -2px -6px;
   }
   /* Lanes sit 16px apart, the project name 8px above: grow down, barely up. */
   .kb-strip button::after {
