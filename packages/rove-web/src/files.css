@@ -1,13 +1,5 @@
 /* Files pane and the read-only preview. Tokens from styles.css. */
 
-.app {
-  grid-template-columns: minmax(220px, 280px) 1fr minmax(240px, 300px);
-}
-
-.app.is-zen {
-  grid-template-columns: minmax(220px, 280px) 1fr;
-}
-
 .files {
   grid-row: 1;
   display: flex;
