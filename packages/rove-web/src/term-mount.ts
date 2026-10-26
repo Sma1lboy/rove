@@ -127,13 +127,25 @@ export function mountTerminal(o: MountOpts): TermHandle {
   term.unicode.activeVersion = "11"
   term.loadAddon(new WebLinksAddon())
   term.open(el)
+  let webgl: WebglAddon | null = null
   try {
-    const webgl = new WebglAddon()
-    webgl.onContextLoss(() => webgl.dispose())
-    term.loadAddon(webgl)
+    const addon = new WebglAddon()
+    addon.onContextLoss(() => {
+      addon.dispose()
+      webgl = null
+    })
+    term.loadAddon(addon)
+    webgl = addon
   } catch {
     // The DOM renderer is slower but complete.
   }
+  // The atlas keeps each glyph as first drawn: redraw once a late font (the symbols face, bold) arrives.
+  const onFontLoaded = () => {
+    if (!webgl) return
+    webgl.clearTextureAtlas()
+    term.refresh(0, term.rows - 1)
+  }
+  document.fonts.addEventListener("loadingdone", onFontLoaded)
   fit.fit()
   // A reattach replays a ring that starts mid-repaint, so the screen is blank until the engine redraws.
   let cover: HTMLElement | null = null
@@ -434,6 +446,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     dispose() {
       disposed = true
       uncover()
+      document.fonts.removeEventListener("loadingdone", onFontLoaded)
       if (coverCap !== null) window.clearTimeout(coverCap)
       observer.disconnect()
       el.removeEventListener("wheel", onWheel, { capture: true })
