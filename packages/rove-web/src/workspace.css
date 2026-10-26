@@ -598,6 +598,33 @@
   .eng-make-default {
     opacity: 1;
   }
+  /* A fingertip is ~40px: list rows grow to it; small controls keep their look and get an invisible larger hit area. */
+  .row,
+  .rail-nav-row {
+    min-height: 40px;
+  }
+  .link,
+  .project-add,
+  .project-toggle,
+  .rail-head .kicker {
+    position: relative;
+  }
+  .link::after,
+  .project-add::after,
+  .project-toggle::after,
+  .rail-head .kicker::after {
+    content: "";
+    position: absolute;
+    inset: -12px -6px;
+  }
+  /* The footer sits under the terminal key row: grow down only. Wrapping link groups keep neighbours apart. */
+  .hint-bar .link::after {
+    inset: -2px -6px -12px;
+  }
+  .pg-actions .link::after,
+  .files-scope .link::after {
+    inset: -2px -3px;
+  }
 }
 
 /* Daemon out-of-date banner (TUI VersionSkewBanner) */
