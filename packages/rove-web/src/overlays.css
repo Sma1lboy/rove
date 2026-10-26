@@ -166,8 +166,10 @@ select.input {
   }
 }
 
+/* Label and key share a baseline: two font sizes left to the default stretch sit top-aligned and read off by a few pixels. */
 .menu-item {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 24px;
   padding: 5px 10px;
