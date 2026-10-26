@@ -225,6 +225,13 @@
   background: var(--hover);
 }
 
+/* A fingertip needs ~40px (the rest of the touch sizing is in workspace.css). */
+@media (hover: none) and (pointer: coarse) {
+  .dp-past {
+    padding-block: 10px;
+  }
+}
+
 .dp-route,
 .dp-prompt {
   min-width: 0;

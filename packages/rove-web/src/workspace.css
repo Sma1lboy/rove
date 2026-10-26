@@ -631,13 +631,30 @@
   .prefix-guide-row {
     padding-block: 10px;
   }
-  .dialog-close {
+  .dialog-close,
+  .narrow-back,
+  .kb-strip button {
     position: relative;
   }
-  .dialog-close::after {
+  .dialog-close::after,
+  .narrow-back::after {
     content: "";
     position: absolute;
     inset: -10px;
+  }
+  /* The tab strip sits 6px under the back button: stop at the gap. */
+  .narrow-back::after {
+    bottom: -4px;
+  }
+  /* Lanes sit 16px apart, the project name 8px above: grow down, barely up. */
+  .kb-strip button::after {
+    content: "";
+    position: absolute;
+    inset: -4px -6px -12px;
+  }
+  .pref-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
   }
 }
 
