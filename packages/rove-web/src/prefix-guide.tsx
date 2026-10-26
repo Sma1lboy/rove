@@ -108,7 +108,7 @@ export function PrefixHud({ model }: { model: AppModel }) {
           <span className="tone-accent">
             {direct ? helpText("directLayer") : helpText("commandLayer", { prefix: prefixKey() ?? "" })}
           </span>
-          <span className="muted">{direct ? helpText("releaseCtrl") : helpText("escCancel")}</span>
+          <span className="muted keys-only">{direct ? helpText("releaseCtrl") : helpText("escCancel")}</span>
         </div>
         <div className="prefix-guide-body">
           {groupOptions(options).map((group) => (
@@ -134,7 +134,7 @@ export function PrefixHud({ model }: { model: AppModel }) {
   }
 
   return (
-    <output className="prefix-hud mono">
+    <output className="prefix-hud mono keys-only">
       {fresh.map((entry) => (
         <div key={entry.id} className="prefix-hud-head">
           <span className="tone-accent">{prefixKey()}</span> + {entry.stroke} →{" "}
