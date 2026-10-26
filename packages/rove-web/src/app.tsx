@@ -36,6 +36,7 @@ import { usePrefs } from "./prefs.ts"
 import { PreviewView } from "./preview-view.tsx"
 import { NarrowBackBar, RailBar, StatusHints } from "./rail-chrome.tsx"
 import { RailView, openMenu, tabLabel } from "./rail-view.tsx"
+import { rowTitle } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
 import { SplitPane } from "./split-view.tsx"
 import { useStore } from "./store.ts"
@@ -138,9 +139,25 @@ function Shell({ model }: { model: AppModel }) {
         <StatusBar model={model} narrow={narrow} />
         <Overlays />
         <PrefixHud model={model} />
+        <DocumentTitle model={model} />
       </div>
     </div>
   )
+}
+
+/** The browser tab says which task is open and how much waits in the Inbox, like claude.ai's conversation titles. */
+function DocumentTitle({ model }: { model: AppModel }) {
+  const selection = useStore(model.selection)
+  const payload = useStore(model.tasks)
+  const allTabs = useStore(model.tabs)
+  const remote = useStore(model.remote)
+  const task = selectedRow(payload, selection.taskId) ?? remote.find((row) => row.id === selection.taskId)
+  const unread = payload?.attention.filter((row) => row.unread).length ?? 0
+  const title = `${unread > 0 ? `(${unread}) ` : ""}${task ? `${rowTitle(task, allTabs[task.id])} · ` : ""}rove`
+  useEffect(() => {
+    document.title = title
+  }, [title])
+  return null
 }
 
 function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
