@@ -1,19 +1,19 @@
 /** Status marks a rail row draws: the dot look, the tone palette, and the rollups over a folded group. */
 
-import { type RowTone, rowStatusTone } from "@sma1lboy/rove/src/lib/row-status-glyph.ts"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
 
-export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "ink"
+export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "info" | "ink"
 
 /** What a row's 3×3 dot mark draws (`status-dots.tsx`, after ELYTerminal's orb). */
 export type DotLook = "working" | "waiting" | "error" | "done" | "idle"
 
-/** The web palette for a status tone: a wait you can clear is amber, what stays broken is red. */
-const TONE: Readonly<Record<RowTone, Tone>> = {
-  accent: "accent",
-  warning: "warning",
+/** The colour of each look, as ELYTerminal's session row picks it (`src/sessions.rs`). */
+const LOOK_TONE: Readonly<Record<DotLook, Tone>> = {
+  working: "info",
+  waiting: "warning",
   error: "attention",
-  muted: "muted",
+  done: "success",
+  idle: "muted",
 }
 
 /** Nerd Font icons the rail draws (the font ships with the page, `styles.css`). */
@@ -34,19 +34,23 @@ export interface StatusMark {
 
 /** A daemon status as a rail draws it; no status (no reading yet) is a quiet row. A rate limit clears itself, so it waits rather than fails. */
 export function statusMark(status: RowStatus | undefined): StatusMark {
-  const tone = TONE[rowStatusTone(status)]
+  const look = dotLook(status)
+  return { look, tone: LOOK_TONE[look] }
+}
+
+function dotLook(status: RowStatus | undefined): DotLook {
   switch (status?.kind) {
     case "busy":
     case "running":
-      return { look: "working", tone }
+      return "working"
     case "needs-input":
-      return { look: "waiting", tone }
+      return "waiting"
     case "attention":
-      return { look: status.reason === "rate_limited" ? "waiting" : "error", tone }
+      return status.reason === "rate_limited" ? "waiting" : "error"
     case "unseen":
-      return { look: "done", tone }
+      return "done"
     default:
-      return { look: "idle", tone }
+      return "idle"
   }
 }
 
