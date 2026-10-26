@@ -4,12 +4,13 @@
  * on live in `panel-state.ts` and `panel-report.ts`.
  */
 
-import type { PanelTab } from "./panel-layout.ts"
+import type { PanelKind } from "./panel-layout.ts"
+import { type TaskPanel, showBrowser, showDiff, showKind } from "./panel-model.ts"
 
 /** The `panel` push the bridge sends for `rove api panel-show`. */
 export interface PanelPush {
   readonly taskId: string
-  readonly view: PanelTab
+  readonly view: PanelKind
   /** Browser view: an absolute http(s) address. */
   readonly url?: string
   /** Files and Diff views: a file relative to the task's worktree. */
@@ -18,7 +19,7 @@ export interface PanelPush {
   readonly at: number
 }
 
-const VIEWS: readonly unknown[] = ["files", "diff", "browser"] satisfies readonly PanelTab[]
+const VIEWS: readonly unknown[] = ["files", "diff", "browser"] satisfies readonly PanelKind[]
 
 export function isPanelPush(data: unknown): data is PanelPush {
   if (!data || typeof data !== "object") return false
@@ -45,8 +46,8 @@ export function panelFields(layout: { narrow: boolean; panelOpen: boolean; zen: 
 
 /** What to do with a `panel` push on this page. */
 export interface PanelPlan {
-  /** The view this task's panel will show (a file's diff is the Diff view: the web has no file viewer). */
-  readonly tab: PanelTab
+  /** The kind of view this task's panel will show (a file's diff is a Diff tab: the web has no file viewer). */
+  readonly tab: PanelKind
   /** The Browser's address for the task. */
   readonly url?: string
   /** The file whose diff the Diff view opens. */
@@ -60,11 +61,18 @@ export interface PanelPlan {
  * opens it, and it never moves to another task or takes focus.
  */
 export function planPanelPush(push: PanelPush, here: { taskId: string | null; narrow: boolean }): PanelPlan {
-  const tab: PanelTab = push.path ? "diff" : push.view
+  const tab: PanelKind = push.path ? "diff" : push.view
   return {
     tab,
     ...(push.view === "browser" && push.url ? { url: push.url } : {}),
     ...(push.view !== "browser" && push.path ? { diff: push.path } : {}),
     show: here.taskId === push.taskId && !here.narrow,
   }
+}
+
+/** The panel after a push: an address or a file's diff finds or opens its tab, a kind alone shows the latest of it. */
+export function applyPlan(panel: TaskPanel, plan: PanelPlan): TaskPanel {
+  if (plan.url) return showBrowser(panel, plan.url)
+  if (plan.diff) return showDiff(panel, plan.diff, "working")
+  return showKind(panel, plan.tab)
 }

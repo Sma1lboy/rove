@@ -84,17 +84,6 @@
   color: var(--subtle);
 }
 
-/* The diff's close button */
-
-.tab-close {
-  color: var(--subtle);
-  padding: 0 2px;
-}
-
-.tab-close:hover {
-  color: var(--accent);
-}
-
 .term-slot {
   flex: 1;
   min-width: 0;

@@ -9,7 +9,7 @@ import { useEffect, useState } from "react"
 import { canFrame, frameNote, isLoopbackHost, normalizeUrl } from "./browser-url.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { panelUrls, rememberUrl } from "./panel-state.ts"
+import { type PanelItem, browserUrl } from "./panel-model.ts"
 import { useStore } from "./store.ts"
 import { useFrameProbe } from "./use-frame-probe.ts"
 
@@ -23,50 +23,39 @@ function Glyph({ d }: { d: string }) {
 
 const OPEN_TAB = "M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5l-5 5"
 
-export function BrowserView({ model, taskId }: { model: AppModel; taskId: string }) {
+export function BrowserView({
+  model,
+  tab,
+  onNavigate,
+  onStep,
+}: {
+  model: AppModel
+  tab: Extract<PanelItem, { kind: "browser" }>
+  onNavigate: (url: string) => void
+  onStep: (at: number) => void
+}) {
   useLocale()
-  const [nav, setNav] = useState(() => {
-    const last = panelUrls.get()[taskId]
-    return { urls: last ? [last] : [], at: last ? 0 : -1 }
-  })
-  const url = nav.urls[nav.at] ?? ""
+  const url = browserUrl(tab)
   const [draft, setDraft] = useState(url)
   const [invalid, setInvalid] = useState(false)
   const [reloads, setReloads] = useState(0)
   const peerLocal = useStore(model.client.conn).hello?.peer?.local
   const verdict = url ? canFrame(url, window.location, peerLocal) : null
 
-  // An address set from outside (`rove api panel-show`) loads like a typed one.
-  const remembered = useStore(panelUrls)[taskId]
+  // An address set from outside (`rove api panel-show`, back / forward) loads like a typed one.
   useEffect(() => {
-    if (!remembered) return
-    setNav((now) =>
-      now.urls[now.at] === remembered ? now : { urls: [...now.urls.slice(0, now.at + 1), remembered], at: now.at + 1 },
-    )
-    setDraft(remembered)
+    setDraft(url)
     setInvalid(false)
-  }, [remembered])
+  }, [url])
 
-  const move = (at: number) => {
-    const to = nav.urls[at]
-    if (to === undefined) return
-    setNav({ ...nav, at })
-    setDraft(to)
-    setInvalid(false)
-    rememberUrl(taskId, to)
-  }
   const load = (input: string) => {
     const next = normalizeUrl(input)
     // An empty field is nothing to load, not a mistake.
     setInvalid(next === null && input.trim() !== "")
     if (next === null) return
     setDraft(next)
-    if (next === url) {
-      setReloads(reloads + 1)
-      return
-    }
-    setNav({ urls: [...nav.urls.slice(0, nav.at + 1), next], at: nav.at + 1 })
-    rememberUrl(taskId, next)
+    if (next === url) setReloads(reloads + 1)
+    else onNavigate(next)
   }
 
   // An https page is asked first (`browser.probe`): a site that forbids framing never gets an iframe.
@@ -95,20 +84,20 @@ export function BrowserView({ model, taskId }: { model: AppModel; taskId: string
         <button
           type="button"
           className="rail-bar-btn"
-          disabled={nav.at <= 0}
+          disabled={tab.at <= 0}
           title={t("browser.back")}
           aria-label={t("browser.back")}
-          onClick={() => move(nav.at - 1)}
+          onClick={() => onStep(tab.at - 1)}
         >
           <Glyph d="M10 3.5 5.5 8l4.5 4.5" />
         </button>
         <button
           type="button"
           className="rail-bar-btn"
-          disabled={nav.at >= nav.urls.length - 1}
+          disabled={tab.at >= tab.urls.length - 1}
           title={t("browser.forward")}
           aria-label={t("browser.forward")}
-          onClick={() => move(nav.at + 1)}
+          onClick={() => onStep(tab.at + 1)}
         >
           <Glyph d="M6 3.5 10.5 8 6 12.5" />
         </button>

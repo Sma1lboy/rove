@@ -648,7 +648,7 @@
   .narrow-back,
   .narrow-switch button,
   .files-tab,
-  .tab-close,
+  .ptab-close,
   .kb-strip button {
     position: relative;
   }
@@ -683,11 +683,11 @@
     position: absolute;
     inset: -8px -2px -6px;
   }
-  /* The preview tab's ×: its tab's 10px right padding, the tab row's height, and the gaps above/below. */
-  .tab-close::after {
+  /* The tab's ×: the tab row is 26px tall, the label sits 4px to its left. */
+  .ptab-close::after {
     content: "";
     position: absolute;
-    inset: -7px -10px -10px -6px;
+    inset: -6px -6px -6px -4px;
   }
   /* Lanes sit 16px apart, the project name 8px above: grow down, barely up. */
   .kb-strip button::after {
