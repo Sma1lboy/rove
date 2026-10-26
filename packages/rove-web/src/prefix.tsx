@@ -191,8 +191,12 @@ function disarm(): void {
   if (state.guide?.kind === "prefix") hud.set({ ...state, guide: null })
 }
 
-/** The mouse path in (the footer's hint, a keycap badge): arm without a key, like `armPrefixFromCurrentStack`. */
+/** The mouse path in (the footer's hint, a keycap badge): arm without a key, like `armPrefixFromCurrentStack`; again disarms. */
 export function armPrefix(): void {
+  if (armedAt !== null) {
+    disarm()
+    return
+  }
   if (dialog.get() || prefixKey() === null) return
   armedAt = Date.now()
   hud.set({ ...hud.get(), guide: { kind: "prefix", armedAt } })
@@ -254,12 +258,20 @@ export function usePrefixLayer(model: AppModel): void {
       }
     }
     const onKeyUp = (e: KeyboardEvent) => e.key === "Control" && cancelHold()
+    // A touch screen has no esc: a press outside the guide (and its keycap badges) dismisses it.
+    const onPointer = (e: PointerEvent) => {
+      if (armedAt === null) return
+      if (e.target instanceof Element && e.target.closest(".prefix-guide, .shortcut-badge, [data-prefix-arm]")) return
+      disarm()
+    }
     window.addEventListener("keydown", onKey, { capture: true })
     window.addEventListener("keyup", onKeyUp, { capture: true })
+    window.addEventListener("pointerdown", onPointer, { capture: true })
     window.addEventListener("blur", cancelHold)
     return () => {
       window.removeEventListener("keydown", onKey, { capture: true })
       window.removeEventListener("keyup", onKeyUp, { capture: true })
+      window.removeEventListener("pointerdown", onPointer, { capture: true })
       window.removeEventListener("blur", cancelHold)
       cancelHold()
       disarm()

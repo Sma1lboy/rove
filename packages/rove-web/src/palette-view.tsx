@@ -128,7 +128,7 @@ function PaletteDialog({
             </button>
           ))}
         </div>
-        <p className="muted">{helpText("run")}</p>
+        <p className="muted keys-only">{helpText("run")}</p>
       </div>
     </DialogShell>
   )

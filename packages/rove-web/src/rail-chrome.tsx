@@ -241,7 +241,13 @@ export function StatusHints({ model, narrow }: { model: AppModel; narrow: boolea
       {items.map((item, i) => (
         <span key={item.text}>
           {i > 0 && <span className="hint-sep subtle">·</span>}
-          <button type="button" className="link" disabled={modal} onClick={item.onPress}>
+          <button
+            type="button"
+            className="link"
+            disabled={modal}
+            data-prefix-arm={item.onPress === armPrefix ? "" : undefined}
+            onClick={item.onPress}
+          >
             {item.text}
           </button>
           {item.bindingId && <ShortcutBadge model={model} bindingId={item.bindingId} />}

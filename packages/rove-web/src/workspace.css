@@ -573,7 +573,8 @@
   .update-key,
   .kb-legend:empty,
   .pg-hint:empty {
-    display: none;
+    /* Sheets imported after this one (welcome.css, pages.css) set their own display at equal specificity. */
+    display: none !important;
   }
   .term-keys {
     display: flex;
