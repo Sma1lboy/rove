@@ -52,9 +52,11 @@ export const en = {
     openTab: "Open in a new tab",
     invalid: "That is not a web address; only http and https pages open here.",
     empty: "Enter a web address, or a local dev server.",
-    noFrame:
-      "This page can't be shown here. Only https pages, and a local dev server when Rove is open on the same machine, can be framed; pages from the Rove machine aren't reachable from here yet. Use ↗ to open it in a new tab.",
+    noFrame: "Only https pages open here; this address uses plain http. Use ↗ to open it in a new tab.",
     self: "That address is Rove itself, which can't be framed. Use ↗ to open it in a new tab.",
+    refuses: "{host} doesn't allow being shown inside another page.",
+    unreachable: "{host} can't be reached from here.",
+    remote: "{host} runs on the Rove machine, not on this one.",
   },
 }
 
@@ -111,8 +113,10 @@ export const zh: typeof en = {
     openTab: "在新标签页打开",
     invalid: "这不是网页地址；这里只能打开 http 和 https 页面。",
     empty: "输入网页地址，或本地开发服务器的地址。",
-    noFrame:
-      "这个页面无法在这里显示。只有 https 页面，以及 Rove 开在同一台机器上时的本地开发服务器可以嵌入；运行 Rove 的那台机器上的页面暂时还访问不到。点 ↗ 在新标签页打开。",
+    noFrame: "这里只能打开 https 页面；这个地址用的是 http。点 ↗ 在新标签页打开。",
     self: "这个地址就是 Rove 本身，不能嵌入。点 ↗ 在新标签页打开。",
+    refuses: "{host} 不允许嵌入其他页面。",
+    unreachable: "从这里访问不到 {host}。",
+    remote: "{host} 运行在 Rove 所在的机器上，不在这台设备上。",
   },
 }

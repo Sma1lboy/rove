@@ -5,10 +5,13 @@
  * frame are the frame's own (a cross-origin page's history cannot be read).
  */
 
-import { useState } from "react"
-import { canFrame, normalizeUrl } from "./browser-url.ts"
+import { useEffect, useState } from "react"
+import { canFrame, frameNote, isLoopbackHost, normalizeUrl } from "./browser-url.ts"
 import { t, useLocale } from "./i18n/index.ts"
+import type { AppModel } from "./model.ts"
 import { panelUrls, rememberUrl } from "./panel-state.ts"
+import { useStore } from "./store.ts"
+import { useFrameProbe } from "./use-frame-probe.ts"
 
 function Glyph({ d }: { d: string }) {
   return (
@@ -20,7 +23,7 @@ function Glyph({ d }: { d: string }) {
 
 const OPEN_TAB = "M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5l-5 5"
 
-export function BrowserView({ taskId }: { taskId: string }) {
+export function BrowserView({ model, taskId }: { model: AppModel; taskId: string }) {
   useLocale()
   const [nav, setNav] = useState(() => {
     const last = panelUrls.get()[taskId]
@@ -30,7 +33,19 @@ export function BrowserView({ taskId }: { taskId: string }) {
   const [draft, setDraft] = useState(url)
   const [invalid, setInvalid] = useState(false)
   const [reloads, setReloads] = useState(0)
-  const verdict = url ? canFrame(url, window.location) : null
+  const peerLocal = useStore(model.client.conn).hello?.peer?.local
+  const verdict = url ? canFrame(url, window.location, peerLocal) : null
+
+  // An address set from outside (`rove api panel-show`) loads like a typed one.
+  const remembered = useStore(panelUrls)[taskId]
+  useEffect(() => {
+    if (!remembered) return
+    setNav((now) =>
+      now.urls[now.at] === remembered ? now : { urls: [...now.urls.slice(0, now.at + 1), remembered], at: now.at + 1 },
+    )
+    setDraft(remembered)
+    setInvalid(false)
+  }, [remembered])
 
   const move = (at: number) => {
     const to = nav.urls[at]
@@ -54,16 +69,19 @@ export function BrowserView({ taskId }: { taskId: string }) {
     rememberUrl(taskId, next)
   }
 
-  const message =
-    verdict === null
+  // An https page is asked first (`browser.probe`): a site that forbids framing never gets an iframe.
+  const host = url ? new URL(url).hostname : ""
+  const needsProbe = verdict === "yes" && url.startsWith("https:") && !isLoopbackHost(host)
+  const { pending, probe } = useFrameProbe(model.client, url, needsProbe)
+  const note = url && verdict ? frameNote(url, verdict, probe) : null
+  const framed = verdict === "yes" && !note && !pending
+  const message = note
+    ? t(`browser.${note.key}`, { host: note.host })
+    : verdict === null
       ? invalid
         ? t("browser.invalid")
         : t("browser.empty")
-      : verdict === "self"
-        ? t("browser.self")
-        : verdict === "unreachable"
-          ? t("browser.noFrame")
-          : null
+      : null
 
   return (
     <div className="browser">
@@ -97,7 +115,7 @@ export function BrowserView({ taskId }: { taskId: string }) {
         <button
           type="button"
           className="rail-bar-btn"
-          disabled={verdict !== "yes"}
+          disabled={!framed}
           title={t("browser.reload")}
           aria-label={t("browser.reload")}
           onClick={() => setReloads(reloads + 1)}
@@ -134,7 +152,7 @@ export function BrowserView({ taskId }: { taskId: string }) {
           </button>
         )}
       </form>
-      {verdict === "yes" ? (
+      {framed ? (
         <iframe
           key={`${url}#${reloads}`}
           className="browser-frame"
@@ -143,9 +161,9 @@ export function BrowserView({ taskId }: { taskId: string }) {
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           referrerPolicy="no-referrer"
         />
-      ) : (
+      ) : message ? (
         <p className="side-empty">{message}</p>
-      )}
+      ) : null}
     </div>
   )
 }

@@ -94,6 +94,8 @@ export class AppModel {
   /** What this socket last reported as shown (`ui.viewing`); a fresh socket has reported nothing. */
   private viewingSent = NOTHING_SHOWN
   private taskShown = true
+  /** The page's side-panel layout, sent beside the task in every report (`panel-report.ts` fills it in). */
+  viewingExtras: () => Readonly<Record<string, boolean>> = () => ({})
 
   constructor(readonly client: BridgeClient) {
     client.onOpen(() => {
@@ -177,12 +179,14 @@ export class AppModel {
 
   /**
    * Tell the daemon what this page shows (`ui.viewing`): the selected task and tab while the page
-   * is visible, nothing once it is hidden or leaving. A tab being looked at never shows unseen.
+   * is visible, nothing once it is hidden or leaving, plus how its side panel is laid out
+   * (`viewingExtras`). A tab being looked at never shows unseen. A change of the layout alone reports again.
    */
-  private reportViewing(leaving = false): void {
+  reportViewing(leaving = false): void {
     const { taskId, tabId } = this.selection.get()
     const hidden = leaving || (typeof document !== "undefined" && document.visibilityState === "hidden")
-    const shown = hidden || !taskId || !this.taskShown ? null : { taskId, ...(tabId ? { tabId } : {}) }
+    const shown =
+      hidden || !taskId || !this.taskShown ? null : { taskId, ...(tabId ? { tabId } : {}), ...this.viewingExtras() }
     const key = JSON.stringify(shown)
     if (key === this.viewingSent) return
     this.viewingSent = key
