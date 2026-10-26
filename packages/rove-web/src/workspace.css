@@ -98,6 +98,8 @@
 }
 .app.is-rail-folded .tab-strip {
   padding-left: 92px;
+  /* With the tabs hidden the strip is empty; keep the bar's row so it never sits on the pane's border. */
+  min-height: 26px;
 }
 @media (prefers-reduced-motion: reduce) {
   .app,

@@ -668,16 +668,6 @@ button:focus-visible,
   color: var(--accent);
 }
 
-.tab-strip-title {
-  margin-left: auto;
-  padding-left: 12px;
-  color: var(--subtle);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--sans);
-}
-
 .pane {
   flex: 1;
   min-height: 0;
