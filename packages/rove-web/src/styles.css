@@ -600,6 +600,32 @@ button:focus-visible,
   padding: 6px 4px 4px 8px;
 }
 
+/* The terminal's own box, which moves between the pane and the parking lot (`term-pool.ts`). */
+.term-box {
+  position: relative;
+  height: 100%;
+}
+
+/* The last screen of a reattaching terminal, same grid metrics as the xterm under it. */
+.term-snapshot {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 6px 4px 4px 8px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.term-snapshot pre {
+  margin: 0;
+}
+
+.term-snapshot pre > div > div {
+  height: var(--row-h, 1.15em);
+  line-height: var(--row-h, 1.15em);
+  overflow: hidden;
+}
+
 .term-notice {
   position: absolute;
   right: 10px;
