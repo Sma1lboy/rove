@@ -384,7 +384,7 @@ div.placeholder p {
   overflow-y: auto;
 }
 
-/* Narrow mode (`NARROW_QUERY`): a phone has no room for the list beside the section; the list becomes a row above it. */
+/* Narrow mode (`NARROW_QUERY`, 70 cells × 8px − 1): a phone has no room for the list beside the section; the list becomes a row above it. */
 @media (max-width: 559px) {
   .settings {
     grid-template-columns: minmax(0, 1fr);
