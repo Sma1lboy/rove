@@ -48,7 +48,7 @@ export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
   const leave = useRef<number | null>(null)
   const list = useRef<HTMLDivElement>(null)
   // A touch screen has no hover: a tap toggles the list and a tap anywhere else closes it.
-  const coarse = window.matchMedia("(pointer: coarse)").matches
+  const coarse = window.matchMedia("(hover: none) and (pointer: coarse)").matches
   // A row low in the rail opens its list upward far enough to stay on screen; one at the right
   // edge (a phone's full-width rail) drops below the chip, inside the screen.
   useLayoutEffect(() => {
