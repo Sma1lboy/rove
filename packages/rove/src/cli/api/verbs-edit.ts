@@ -177,7 +177,7 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         type: "string",
         placeholder: "LEVEL",
         description:
-          "Reasoning effort level the task's engine declares (codex: none/low/medium/high/xhigh/max; pi, omp: off/minimal/low/medium/high/xhigh/max; claude: none). BAD_EFFORT names the accepted levels.",
+          "Reasoning effort level the task's engine declares (codex: none/low/medium/high/xhigh/max; pi, omp: off/minimal/low/medium/high/xhigh/max; claude: low/medium/high/xhigh/max). BAD_EFFORT names the accepted levels.",
       },
       {
         name: "pinned",
