@@ -751,12 +751,14 @@ button:focus-visible,
    status cell; status lives on tab rows), and its right edge carries the chips, then a job spinner,
    then a small cloud for a task on another machine (greyed while that machine is unreachable, TUI
    `task.origin.stale`), as Claude Desktop's session list does. */
-.task-row > .row-title {
+.task-row > .row-title,
+.count-row > .row-title {
   flex: 1 1 auto;
   min-width: 0;
   font-size: 14px;
 }
-.task-row > .chips {
+.task-row > .chips,
+.count-row > .chips {
   margin-left: auto;
   align-items: center;
 }
