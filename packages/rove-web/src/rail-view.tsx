@@ -326,7 +326,11 @@ function RailRow(props: {
         {...props.place}
       >
         <span className="glyph tone-muted">{row.expanded ? "▾" : "▸"}</span>
-        <span className="row-title muted">{tc("tasks", "routinesRow", { count: row.tasks.length })}</span>
+        <span className="row-title muted">
+          {row.tasks.length === 1
+            ? tc("tasks", "routinesRowOne")
+            : tc("tasks", "routinesRow", { count: row.tasks.length })}
+        </span>
         {waiting > 0 && (
           <span className="chip tone-attention">
             {tc("tasks", "group.waitingOnYou")}: {waiting}

@@ -40,7 +40,7 @@ export function RoutinesTreeRow(props: {
   const chip = waiting > 0 ? ` · ${t("tasks.group.waitingOnYou")}: ${waiting}` : ""
   // The count yields to the chip: the chip is the part that asks you to act.
   const label = truncateEndCells(
-    t("tasks.routinesRow", { count: String(props.count) }),
+    props.count === 1 ? t("tasks.routinesRowOne") : t("tasks.routinesRow", { count: String(props.count) }),
     treeLabelBudget(props.shared, 2 + displayWidth(chip)),
     charWidth,
   )

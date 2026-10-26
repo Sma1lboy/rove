@@ -232,6 +232,7 @@ export const en = {
   recentJump: "Recent: {title}",
   /** The fold row standing in for a project's routine sessions */
   routinesRow: "{count} routine sessions",
+  routinesRowOne: "1 routine session",
   /** The fold row at the end of the sidebar holding archived tasks */
   archivedRow: "Archived · {count}",
   /** Machine section headers — another computer running its own Rove daemon */
@@ -471,6 +472,7 @@ export const zh: typeof en = {
   moveChip: " 移动",
   recentJump: "最近:{title}",
   routinesRow: "{count} 个 routine 会话",
+  routinesRowOne: "1 个 routine 会话",
   archivedRow: "已归档 · {count}",
   machine: {
     connecting: "连接中…",
