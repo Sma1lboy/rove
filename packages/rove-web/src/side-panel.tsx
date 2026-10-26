@@ -10,22 +10,13 @@ import type { TaskRow } from "rove-bridge/protocol"
 import { BrowserView } from "./browser-view.tsx"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import {
-  PANEL_TABS,
-  type PanelTab,
-  RAIL_DEFAULT_PX,
-  clampPanelWidth,
-  clampRailWidth,
-  panelOpen,
-  panelWidth,
-  railFolded,
-  railWidth,
-} from "./layout.ts"
 import { RemoteNotice } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
+import { PANEL_TABS, type PanelTab, clampPanelWidth, panelOpen, panelWidth } from "./panel-layout.ts"
 import { closeDiff, openDiff, showPanel, usePanelTab } from "./panel-state.ts"
 import { PreviewView } from "./preview-view.tsx"
 import { PaneIcon } from "./rail-chrome.tsx"
+import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { preview, zen } from "./ui.ts"
 

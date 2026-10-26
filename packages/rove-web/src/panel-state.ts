@@ -3,7 +3,8 @@
  * (per browser, in localStorage, for the newest `REMEMBERED_TASKS` tasks), and the ways to bring a view up.
  */
 
-import { PANEL_TABS, type PanelTab, isNarrow, narrowView, panelOpen } from "./layout.ts"
+import { isNarrow } from "./layout.ts"
+import { PANEL_TABS, type PanelTab, narrowView, panelOpen } from "./panel-layout.ts"
 import { createStore, useStore } from "./store.ts"
 import { type Preview, preview } from "./ui.ts"
 

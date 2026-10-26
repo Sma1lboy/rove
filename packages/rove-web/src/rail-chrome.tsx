@@ -12,24 +12,16 @@ import { openHelp } from "./help-view.tsx"
 import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
-import {
-  PANEL_TABS,
-  backToTasks,
-  clampRailWidth,
-  enterWorkspace,
-  narrowView,
-  peekRail,
-  railFolded,
-  railPeek,
-  railWidth,
-} from "./layout.ts"
+import { backToTasks, enterWorkspace } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
+import { PANEL_TABS, narrowView } from "./panel-layout.ts"
 import { showPanel } from "./panel-state.ts"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { armPrefix } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
 import { needsPerson } from "./rail-glyphs.ts"
+import { clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { dialog } from "./ui.ts"
