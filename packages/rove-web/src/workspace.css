@@ -495,10 +495,49 @@
   text-overflow: ellipsis;
 }
 
-/* A touch screen has no j/k to press. */
+/* What a soft keyboard lacks; shown on touch screens only (below). */
+.term-keys {
+  display: none;
+  gap: 4px;
+  padding: 4px 6px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.term-keys button {
+  /* Equal shares of the row: nine keys fit a 390-wide phone without scrolling. */
+  flex: 1 1 0;
+  min-width: 0;
+  height: 32px;
+  padding: 0 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--inset);
+  color: var(--ink);
+  font: 12px var(--mono);
+  touch-action: manipulation;
+}
+
+.term-keys button.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* A touch screen has no j/k to press, and no esc/tab/arrows on its soft keyboard. */
 @media (hover: none) and (pointer: coarse) {
   .pane-hint {
     display: none;
+  }
+  .term-keys {
+    display: flex;
+  }
+  /* The overlays sit on the grid, above the key row. */
+  .term-pane > .term-scrolled,
+  .term-pane > .term-notice,
+  .term-pane > .term-search {
+    bottom: 48px;
   }
 }
 

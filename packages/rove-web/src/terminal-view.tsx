@@ -15,7 +15,9 @@ import { terminalText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
 import { focusedTerm, registerTerm, termFor } from "./term-control.ts"
-import { NERD_SYMBOLS_FAMILY, type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-mount.ts"
+import { TermKeyRow } from "./term-key-row.tsx"
+import { NERD_SYMBOLS_FAMILY } from "./term-look.ts"
+import { type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-mount.ts"
 import { type EngineExit, TermNotice } from "./term-notice.tsx"
 import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
 import { TermSearchBar } from "./term-search.tsx"
@@ -289,6 +291,7 @@ export function TerminalView(props: TerminalViewProps) {
           }}
         />
       )}
+      {handle && <TermKeyRow handle={handle} />}
     </div>
   )
 }

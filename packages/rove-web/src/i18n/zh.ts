@@ -291,6 +291,7 @@ export const zh: typeof en = {
     pasteNeedsHttps: "页面要走 https 或 localhost",
     refreshTimeout: "守护进程没能及时以新版本重新上线，请检查 `rove daemon status`",
     railResize: "拖动调整任务列表宽度，双击还原",
+    termKeys: "终端按键",
   },
   newSession: {
     title: "新会话",
