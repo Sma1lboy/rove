@@ -291,6 +291,18 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const offOpen = client.onOpen(() => void attach())
 
   const input = term.onData(replies.forward)
+  // Every viewer of a PTY shares one size and the last to send wins; an inline TUI drawn for another
+  // viewer's width leaves ghost frames here. The viewer the person is using claims it back: on focus,
+  // and on a keystroke (throttled; the host ignores a size it already has).
+  let claimedAt = 0
+  const claimSize = () => {
+    if (!stream || !alive) return
+    claimedAt = Date.now()
+    void client.request("term.resize", { stream, cols: term.cols, rows: term.rows }).catch(() => {})
+  }
+  const keyed = term.onKey(() => {
+    if (Date.now() - claimedAt > 1000) claimSize()
+  })
   let resizeTimer: number | null = null
   const resize = term.onResize(({ cols, rows }) => {
     if (resizeTimer !== null) window.clearTimeout(resizeTimer)
@@ -414,6 +426,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   const focused = () => {
     activeStream.set(stream)
+    claimSize()
     o.onFocusChange(true)
   }
   const blurred = () => o.onFocusChange(false)
@@ -451,6 +464,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       scroll.dispose()
       written.dispose()
       input.dispose()
+      keyed.dispose()
       resize.dispose()
       offOpen()
       offData()
