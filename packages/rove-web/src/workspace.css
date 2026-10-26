@@ -495,6 +495,13 @@
   text-overflow: ellipsis;
 }
 
+/* A touch screen has no j/k to press. */
+@media (hover: none) and (pointer: coarse) {
+  .pane-hint {
+    display: none;
+  }
+}
+
 /* Daemon out-of-date banner (TUI VersionSkewBanner) */
 .app-shell {
   display: flex;

@@ -286,7 +286,7 @@ function StatusBar({ model, narrow }: { model: AppModel; narrow: boolean }) {
           {t("status.retry")}
         </button>
       )}
-      {conn.hello && (
+      {conn.hello && !narrow && (
         <span className="muted">{t("status.host", { host: conn.hello.host, version: conn.hello.roveVersion })}</span>
       )}
       <StatusHints model={model} narrow={narrow} />

@@ -288,17 +288,21 @@ test("the page reports what it shows to the daemon, and nothing once hidden", as
   expect(viewing()).toEqual([{ taskId: "A", tabId: "tab-1" }, { taskId: null }, { taskId: "A", tabId: "tab-1" }])
 })
 
-function terminals() {
+function terminals(size = { clientWidth: 600, clientHeight: 400 }) {
   install("document", { addEventListener() {}, removeEventListener() {}, activeElement: null })
+  const observed: (() => void)[] = []
   install(
     "ResizeObserver",
     class {
+      constructor(fn: () => void) {
+        observed.push(fn)
+      }
       observe() {}
       disconnect() {}
     },
   )
   const { client, calls } = protocol()
-  const el = { addEventListener() {}, removeEventListener() {}, style: {} } as unknown as HTMLElement
+  const el = { addEventListener() {}, removeEventListener() {}, style: {}, ...size } as unknown as HTMLElement
   const mount = (tab: string) =>
     mountTerminal({
       client,
@@ -319,8 +323,23 @@ function terminals() {
     await flush()
   }
   const detached = () => calls.filter((call) => call.op === "term.detach").map((call) => call.args.stream)
-  return { mount, resolve, detached }
+  const attaches = () => calls.filter((call) => call.op === "term.attach").length
+  const laidOut = () => {
+    Object.assign(el, { clientWidth: 600, clientHeight: 400 })
+    for (const fn of observed) fn()
+  }
+  return { mount, resolve, detached, attaches, laidOut }
 }
+
+test("a terminal mounted in a box not laid out yet attaches only once the box has a size", async () => {
+  const t = terminals({ clientWidth: 0, clientHeight: 0 })
+  t.mount("A")
+  await flush()
+  expect(t.attaches()).toBe(0)
+  t.laidOut()
+  await flush()
+  expect(t.attaches()).toBe(1)
+})
 
 test("switching tabs releases an attachment that succeeds after unmount", async () => {
   const t = terminals()
