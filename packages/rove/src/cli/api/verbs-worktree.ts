@@ -10,6 +10,7 @@
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { adopt, removeTaskWorktree } from "./handlers-lifecycle.ts"
+import { WORKTREE_USAGE_VERB } from "./handlers-worktree-usage.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const WORKTREE_VERBS: readonly VerbSpec[] = [
@@ -36,6 +37,7 @@ export const WORKTREE_VERBS: readonly VerbSpec[] = [
     ],
     handler: removeTaskWorktree,
   },
+  WORKTREE_USAGE_VERB,
   {
     name: "discover-adoptable",
     group: "worktree",

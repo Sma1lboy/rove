@@ -92,6 +92,7 @@ export function stubRuntime(overrides: Partial<ApiRuntime> = {}): ApiRuntime {
     readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
     tearDownSession: async () => {},
     listeningPorts: async () => [],
+    measureCheckout: async () => ({ exists: false, bytes: null, ignoredBytes: null }),
     ...overrides,
   }
 }

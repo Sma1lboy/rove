@@ -1749,6 +1749,20 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   when the task never materialized one. `residue` means git deregistered the
   worktree but could not delete the directory — the removal is as complete as
   git can make it, and this is the only time that leftover path is named.
+- `worktree-usage [--task-id ID]`: the disk each task's own worktrees take,
+  largest first, archived tasks included — which ones `remove-worktree` would
+  free most. Read-only. Only checkouts a task owns count (its worktree and each
+  extra repo's): a project's own checkout, a directory task and a shared child
+  are never listed, and a task whose worktree is not on disk is left out.
+  Returns `{ tasks, bytes, ignoredBytes }`, each row `{ taskId, title, branch,
+  archived, status, updatedAt, bytes, ignoredBytes, checkouts: [{ path,
+  exists, bytes, ignoredBytes }] }`; `--task-id` returns that one row, or
+  `NO_WORKTREE` for a task that owns none. `ignoredBytes` is the gitignored
+  part (dependencies, build output) — what a fresh checkout rebuilds rather
+  than work. A `null` size means it could not be measured, never zero; such a
+  row sorts last. Sizes come from `du`, so on macOS a dependency folder Rove
+  cloned into the worktree counts in full even while it still shares blocks
+  with the main checkout's copy.
 - `discover-adoptable --repo PATH`: list existing git worktrees not yet
   tracked as Rove tasks. Returns `{ worktrees, unreadable }`. The
   repository's own primary checkout is never offered — not even when `PATH`

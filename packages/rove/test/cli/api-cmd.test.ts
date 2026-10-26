@@ -212,6 +212,7 @@ describe("API surface (full CRUD)", () => {
       "unarchive",
       "ensure-worktree",
       "remove-worktree",
+      "worktree-usage",
       "discover-adoptable",
       "adopt",
     ])

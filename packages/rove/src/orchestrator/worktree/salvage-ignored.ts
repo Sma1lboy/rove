@@ -47,7 +47,11 @@ export function parseDuKb(stdout: string): Map<string, number> {
  *   - newline in a name: `du` output is line-oriented, so those are measured
  *     one at a time, reading only the leading number.
  */
-async function duKb(exec: ExecHost, worktreePath: string, paths: readonly string[]): Promise<Map<string, number>> {
+export async function duKb(
+  exec: ExecHost,
+  worktreePath: string,
+  paths: readonly string[],
+): Promise<Map<string, number>> {
   const sizes = new Map<string, number>()
   const batch: string[] = []
   let bytes = 0

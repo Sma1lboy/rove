@@ -10,6 +10,7 @@ import {
   builtinModMissingMessage,
   isBuiltinModInstalled,
 } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
+import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
@@ -385,4 +386,6 @@ export interface ApiRuntime {
   tearDownSession(taskId: string, scope?: TeardownScope): Promise<void>
   /** TCP listeners on this machine with each owner's cwd (`ports`); `null` = could not scan. */
   listeningPorts(): Promise<readonly ListeningSocket[] | null>
+  /** Disk a checkout takes, local or remote (`worktree-usage`). */
+  measureCheckout(path: string): Promise<CheckoutUsage>
 }
