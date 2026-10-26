@@ -18,7 +18,7 @@ export function longPressOpensMenus(): void {
     if (press) window.clearTimeout(press.timer)
     press = null
   }
-  // Until the next press, the release's mouse events (and Android's late native menu) are dropped.
+  // Until the next press or key, the release's mouse events (and Android's late native menu) are dropped.
   const swallowRelease = () => {
     const swallow = (e: Event) => {
       e.preventDefault()
@@ -27,9 +27,11 @@ export function longPressOpensMenus(): void {
     const forget = () => {
       for (const type of RELEASE) document.removeEventListener(type, swallow, true)
       document.removeEventListener("pointerdown", forget, true)
+      document.removeEventListener("keydown", forget, true)
     }
     for (const type of RELEASE) document.addEventListener(type, swallow, true)
     document.addEventListener("pointerdown", forget, true)
+    document.addEventListener("keydown", forget, true)
   }
   document.addEventListener(
     "pointerdown",
