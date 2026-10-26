@@ -30,7 +30,7 @@ import { PanelTabRow } from "./panel-tabs.tsx"
 import { PreviewView } from "./preview-view.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
-import { zen } from "./ui.ts"
+import { dragLayout, zen } from "./ui.ts"
 
 /** The top row's end: stretch the panel over the terminal's column (and back), or close it; its tabs stay. */
 function PanelWindowButtons() {
@@ -81,6 +81,7 @@ function PanelGrip({ panel }: { panel: RefObject<HTMLElement | null> }) {
     // A frame under the pointer would swallow the drag.
     panel.current?.classList.add("is-resizing")
     e.currentTarget.setPointerCapture(e.pointerId)
+    dragLayout(true)
   }
   const move = (e: PointerEvent<HTMLDivElement>) => {
     const from = drag.current
@@ -97,6 +98,7 @@ function PanelGrip({ panel }: { panel: RefObject<HTMLElement | null> }) {
       onLostPointerCapture={() => {
         drag.current = null
         panel.current?.classList.remove("is-resizing")
+        dragLayout(false)
       }}
       onDoubleClick={() => panelWidth.set(null)}
     />

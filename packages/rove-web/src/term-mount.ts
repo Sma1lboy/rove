@@ -21,7 +21,7 @@ import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
 import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
-import { activeStream, railMoving } from "./ui.ts"
+import { activeStream, layoutMoving } from "./ui.ts"
 
 /** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
 export const SCROLL_PAGE_LINES = 10
@@ -310,10 +310,10 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (stream && alive) void client.request("term.resize", { stream, cols, rows }).catch(() => {})
     }, 80)
   })
-  // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY. While the rail
-  // slides, a refit per frame blanks the canvas and SIGWINCHes the engine a dozen times: fit once at the end.
+  // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY. While a column slides
+  // or is dragged the canvas keeps its size: fit once it settles.
   const refit = () => {
-    if (railMoving.get() || !sized()) return
+    if (layoutMoving.get() !== null || !sized()) return
     fit.fit()
     if (attachWhenSized) {
       attachWhenSized = false
@@ -322,7 +322,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   }
   const observer = new ResizeObserver(refit)
   observer.observe(el)
-  const offMoving = railMoving.subscribe(refit)
+  const offMoving = layoutMoving.subscribe(refit)
   // The theme and the scrollback depth follow Settings: a terminal restored before the page's first prefs reply catches up.
   const offScroll = prefsStore.subscribe(() => {
     term.options.scrollback = prefsStore.get().prefs.scrollbackRows

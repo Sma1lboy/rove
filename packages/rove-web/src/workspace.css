@@ -109,6 +109,10 @@
   position: relative;
   transition: grid-template-columns 220ms cubic-bezier(0.2, 0, 0, 1);
 }
+/* A dragged column follows the pointer, not a 220ms tween behind it. */
+.app.is-dragging {
+  transition: none;
+}
 .rail-bar {
   position: absolute;
   top: 8px;
