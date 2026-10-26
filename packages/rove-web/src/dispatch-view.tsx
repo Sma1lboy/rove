@@ -1,18 +1,31 @@
 /**
  * The Dispatch page: the daemon's dispatch ledger drawn as a network. Senders (you, routines,
- * agent sessions) on the left, the daemon hub in the middle, target sessions on the right; one
+ * agent sessions) on the left, this machine's daemon hub in the middle, target sessions on the right,
+ * another registered machine's inside its own frame (shown even with nothing dispatched to it); one
  * wire per pair, lit while a prompt is on it. Each prompt is a courier that runs its wire, then
  * knocks, works, asks or falls at the target as that engine reports. Settled prompts leave a
  * one-line history under the map. Click a node or a row to open that session.
  */
 
 import "./dispatch.css"
+import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { type CSSProperties, useEffect, useRef, useState } from "react"
 import type { DispatchRow, TaskRow } from "rove-bridge/protocol"
-import { type GraphNode, type Wire, graphOf, pointOn, senderOf, targetOf, wirePath } from "./dispatch-graph.ts"
+import {
+  COLUMN,
+  type GraphNode,
+  type Wire,
+  graphOf,
+  pointOn,
+  senderOf,
+  targetColumn,
+  targetOf,
+  wirePath,
+} from "./dispatch-graph.ts"
 import { FRAME_MS, moving, onMap, recent, runnerOf, settled } from "./dispatch.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
+import { machineLabel, remoteLabel, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { usePageFocus, usePageKeys } from "./pages-kit.ts"
 import { useStore } from "./store.ts"
@@ -29,10 +42,10 @@ const STATUS_GLYPH: Record<DispatchRow["status"], string> = {
 
 /** Settled rows that still draw their wire, so the map keeps who talks to whom. */
 const MAP_SETTLED = 16
-const ROW_H = 52
+const ROW_H = COLUMN.row
 const PAD = 18
-const HUB_W = 104
-const HUB_H = 44
+const HUB_W = 212
+const HUB_H = 60
 /** The courier sprite box (3 cols × 3 rows of 12px mono) and how far it stands off a node. */
 const SPRITE_W = 24
 const SPRITE_H = 42
@@ -77,14 +90,18 @@ function useWidth(): [React.RefObject<HTMLDivElement | null>, number] {
 }
 
 export function DispatchView({ model }: { model: AppModel }) {
-  useLocale()
+  const locale = useLocale()
   const root = usePageFocus()
   const snapshot = useStore(model.dispatches)
   const payload = useStore(model.tasks)
+  const remote = useStore(model.remote)
+  const machines = useMachines(model)
+  const conn = useStore(model.client.conn)
   const rows = snapshot?.rows ?? []
   const now = useClock(rows)
   const [stageRef, width] = useWidth()
-  const tasks = new Map((payload?.tasks ?? []).map((task) => [task.id, task]))
+  const tasks = new Map([...(payload?.tasks ?? []), ...remote].map((task) => [task.id, task]))
+  const words = (locale === "zh" ? tasksZh : tasksEn).machine
 
   usePageKeys((e) => {
     if (e.key === "Escape" || e.key === "q" || (e.ctrlKey && e.key === "c")) {
@@ -100,18 +117,24 @@ export function DispatchView({ model }: { model: AppModel }) {
   const inFlight = rows.filter((row) => !settled(row)).length
 
   const nodeW = Math.round(Math.min(220, Math.max(112, width * 0.26)))
-  const tall = Math.max(3, graph.senders.length, graph.targets.length)
-  const height = tall * ROW_H + PAD * 2
+  const column = targetColumn(
+    graph.targets,
+    (node) => (node.taskId ? tasks.get(node.taskId)?.machine?.id : undefined),
+    machines.map((m) => m.alias),
+  )
+  const height = Math.max(3 * ROW_H, graph.senders.length * ROW_H, column.height, HUB_H) + PAD * 2
   const centerY = (count: number, i: number) => (height - count * ROW_H) / 2 + i * ROW_H + ROW_H / 2
   const senderY = new Map(graph.senders.map((n, i) => [n.key, centerY(graph.senders.length, i)]))
-  const targetY = new Map(graph.targets.map((n, i) => [n.key, centerY(graph.targets.length, i)]))
+  const columnTop = (height - column.height) / 2
+  const targetY = (key: string) => columnTop + (column.y.get(key) ?? column.height / 2)
+  const targetInset = (key: string) => (column.framed.has(key) ? COLUMN.pad : 0)
   const hubX = width / 2
   const hubY = height / 2
   const wireOf = (row: DispatchRow): Wire => ({
     from: { x: nodeW, y: senderY.get(senderOf(row).key) ?? hubY },
     hubIn: { x: hubX - HUB_W / 2, y: hubY },
     hubOut: { x: hubX + HUB_W / 2, y: hubY },
-    to: { x: width - nodeW, y: targetY.get(targetOf(row).key) ?? hubY },
+    to: { x: width - nodeW + targetInset(targetOf(row).key), y: targetY(targetOf(row).key) },
   })
 
   // One wire per sender→target pair; its tone is its liveliest prompt.
@@ -158,21 +181,43 @@ export function DispatchView({ model }: { model: AppModel }) {
             <div
               className="dp-hub mono"
               style={{ left: hubX - HUB_W / 2, top: hubY - HUB_H / 2, width: HUB_W, height: HUB_H }}
+              title={conn.hello ? `${conn.hello.host} · v${conn.hello.roveVersion}` : undefined}
             >
               <span className="dp-hub-mark">
                 <b>[</b> rove <b>]</b>
               </span>
+              {conn.hello ? <span className="dp-hub-host">{conn.hello.host}</span> : null}
               <span className="dp-hub-sub">
                 {inFlight ? t("dispatch.inFlightCount", { count: inFlight }) : t("dispatch.idle")}
               </span>
             </div>
+            {column.frames.map((frame) => {
+              const row = machines.find((m) => m.alias === frame.machine)
+              const label = row ? machineLabel(row, words) : frame.machine
+              return (
+                <div
+                  key={frame.machine}
+                  className={`dp-machine ${row?.state === "online" ? "" : "is-stale"}`}
+                  style={{ right: 0, top: columnTop + frame.top, width: nodeW, height: frame.height }}
+                >
+                  <span className="dp-machine-head mono" title={remoteLabel(frame.machine, row, words)}>
+                    <span className="dp-machine-dot" aria-hidden="true" />
+                    {label}
+                  </span>
+                </div>
+              )
+            })}
             {graph.targets.map((node) => (
               <NodeBox
                 key={node.key}
                 node={node}
                 task={node.taskId ? tasks.get(node.taskId) : undefined}
                 status={lastTo.get(node.key)?.status}
-                style={{ right: 0, top: (targetY.get(node.key) ?? 0) - 18, width: nodeW }}
+                style={{
+                  right: targetInset(node.key),
+                  top: targetY(node.key) - 18,
+                  width: nodeW - targetInset(node.key) * 2,
+                }}
                 onOpen={open}
               />
             ))}
@@ -262,7 +307,7 @@ function NodeBox({
   return (
     <button
       type="button"
-      className={`dp-node ${node.taskId ? "" : "is-plain"}`}
+      className={`dp-node ${node.taskId ? "" : "is-plain"} ${task?.machine?.stale ? "is-stale" : ""}`}
       style={{ ...style, ...(ink ? ({ "--node-ink": ink } as CSSProperties) : {}) }}
       onClick={() => onOpen(node)}
       disabled={!node.taskId}

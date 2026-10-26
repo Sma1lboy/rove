@@ -132,6 +132,52 @@
   color: var(--subtle);
 }
 
+.dp-hub-host {
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Another registered machine: a frame around its sessions, its name and state on top. */
+.dp-machine {
+  position: absolute;
+  border: 1px dashed var(--line-active);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--paper) 50%, transparent);
+}
+
+.dp-machine-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--subtle);
+}
+
+.dp-machine-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.dp-machine.is-stale .dp-machine-dot {
+  background: var(--muted);
+}
+
+.dp-node.is-stale {
+  opacity: 0.55;
+}
+
 .dp-courier {
   position: absolute;
   top: 0;
