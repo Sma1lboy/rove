@@ -64,6 +64,7 @@ describe("New session composer", () => {
       branch: "",
       engine: "alpha",
       prompt: "fix it",
+      begin: true,
       model: "",
       effort: "",
     }
@@ -78,17 +79,23 @@ describe("New session composer", () => {
     })
   })
 
-  test("Create without starting sends no prompt, so no engine runs", () => {
-    expect(
-      spawnArgs({
-        repos: [{ repo: "/w/app", baseRef: "" }],
-        branch: "",
-        engine: "alpha",
-        prompt: "",
-        model: "m-big",
-        effort: "",
-      }),
-    ).toEqual({ repo: "/w/app", engine: "alpha", model: "m-big" })
+  test("Create without starting runs no engine, and the typed prompt names the task instead of being lost", () => {
+    const draft = {
+      repos: [{ repo: "/w/app", baseRef: "" }],
+      branch: "",
+      engine: "alpha",
+      prompt: "check the composer\nend to end",
+      begin: false,
+      model: "m-big",
+      effort: "",
+    }
+    expect(spawnArgs(draft)).toEqual({
+      repo: "/w/app",
+      engine: "alpha",
+      model: "m-big",
+      title: "check the composer end to end",
+    })
+    expect(spawnArgs({ ...draft, prompt: "" })).toEqual({ repo: "/w/app", engine: "alpha", model: "m-big" })
   })
 
   test("further picks become extraRepos in pick order, each with its own base; the branch name is shared", () => {
@@ -102,6 +109,7 @@ describe("New session composer", () => {
         branch: "feat/x",
         engine: "",
         prompt: "go",
+        begin: true,
         model: "",
         effort: "",
       }),
@@ -121,6 +129,7 @@ describe("New session composer", () => {
         branch: "feat/x",
         engine: "",
         prompt: "go",
+        begin: true,
         model: "",
         effort: "",
       }),

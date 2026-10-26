@@ -14,6 +14,7 @@ import {
 } from "@sma1lboy/rove/src/state/issue-board.ts"
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
+import { t } from "./i18n/index.ts"
 import { ISSUE_STATUSES, type Issue, IssueDrawer, type IssueStatus, type Outcome } from "./kanban-drawer.tsx"
 import { type Placement, startStory } from "./kanban-start.ts"
 import type { AppModel } from "./model.ts"
@@ -369,6 +370,20 @@ export function KanbanView({ model }: { model: AppModel }) {
       <div className="kb-top">
         <h1 className="page-title">{kanban.title}</h1>
         <span className="muted mono kb-hint-line">{kanban.hint}</span>
+        {/* A phone has no n/d: the same verbs as buttons. Delete acts on the selected card. */}
+        <span className="pg-actions mono">
+          <button type="button" className="link" disabled={!board} onClick={openIntake}>
+            {t("pages.new")}
+          </button>
+          <button
+            type="button"
+            className="link"
+            disabled={!board?.issues.some((entry) => entry.id === selectedId)}
+            onClick={requestDelete}
+          >
+            {t("pages.delete")}
+          </button>
+        </span>
       </div>
       {boards === null ? (
         <p className="muted">{kanban.loading}</p>

@@ -94,8 +94,8 @@
   bottom: calc(100% + 6px);
   left: 0;
   z-index: 20;
-  min-width: 34ch;
-  max-width: 52ch;
+  min-width: min(34ch, calc(100vw - 16px));
+  max-width: min(52ch, calc(100vw - 16px));
   max-height: min(50vh, 420px);
   display: flex;
   flex-direction: column;
@@ -165,6 +165,17 @@
   background: var(--hover);
 }
 
+/* A fingertip needs ~40px (the rest of the touch sizing is in workspace.css). */
+@media (hover: none) and (pointer: coarse) {
+  .composer-row {
+    padding-block: 10px;
+  }
+  /* `overflow: hidden` (for the ellipsis) would clip an ::after hit area, so the pills grow instead. */
+  .composer-chip {
+    padding-block: 7px;
+  }
+}
+
 .composer-check {
   flex: 0 0 1.5ch;
   color: var(--accent);
@@ -193,6 +204,14 @@
 .composer-more:hover,
 .composer-more:focus-visible {
   color: var(--ink);
+}
+
+/* Same text position, taller tap target. */
+@media (hover: none) and (pointer: coarse) {
+  .composer-more {
+    margin-top: 2px;
+    padding-block: 8px;
+  }
 }
 
 .composer-field {

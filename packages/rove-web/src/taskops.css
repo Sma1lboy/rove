@@ -150,6 +150,13 @@
   color: var(--accent);
 }
 
+/* A fingertip needs ~40px (the rest of the touch sizing is in workspace.css). */
+@media (hover: none) and (pointer: coarse) {
+  .suggest-row {
+    padding-block: 10px;
+  }
+}
+
 .newtask-legend {
   margin: 8px 0 0;
   font: 11px var(--mono);

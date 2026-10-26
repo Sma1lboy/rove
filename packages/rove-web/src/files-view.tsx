@@ -3,7 +3,7 @@
  * changed files with their status letter, scoped to the working tree or the
  * branch vs its base. Keys are the TUI pane's own, live only while the pane
  * has focus: j/k move, h/l fold, [ ] switch tab, b scope, r refresh,
- * Enter (or click) opens the file in the Mac's editor tab, d previews its diff, Shift+D the whole
+ * Enter (or a mouse click) opens the file in the Mac's editor tab, d (or a tap) previews its diff, Shift+D the whole
  * diff, a mention `@path`, o opens media in the Mac's app.
  */
 
@@ -12,6 +12,7 @@ import type { DiffFileRow, TaskRow } from "rove-bridge/protocol"
 import { visibleTree } from "./file-tree.ts"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { PaneKeyHint } from "./rail-chrome.tsx"
 import { useStore } from "./store.ts"
@@ -37,7 +38,12 @@ interface Listing {
   readonly base: string | null
 }
 
-export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
+/**
+ * `narrow`: the phone's full-panel list. On a phone or any touch screen a tap previews the file
+ * here: a terminal editor needs keys a soft keyboard doesn't have.
+ */
+export function FilesView({ model, task, narrow = false }: { model: AppModel; task: TaskRow; narrow?: boolean }) {
+  const touch = isTouch()
   useLocale()
   const [tab, setTab] = useState<Tab>("changes")
   const [scope, setScope] = useState<"working" | "branch">("working")
@@ -164,7 +170,7 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
 
   return (
     <aside
-      className="files"
+      className={`files ${narrow ? "is-narrow" : ""}`}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the pane takes focus so its keys stay scoped to it, as in the TUI
       tabIndex={0}
       ref={pane}
@@ -174,9 +180,11 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
       }}
     >
       <div className="files-actions">
-        <button type="button" className="link" onClick={() => zen.set(true)}>
-          {t("files.zen")}
-        </button>
+        {!narrow && (
+          <button type="button" className="link" onClick={() => zen.set(true)}>
+            {t("files.zen")}
+          </button>
+        )}
         <button type="button" className="link" onClick={requestPR}>
           {t("files.createPR")}
         </button>
@@ -203,14 +211,14 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
           <span>{branchScope ? t("files.scopeBranch", { base: current?.base ?? "" }) : t("files.scopeWorking")}</span>
           {current?.base != null ? (
             <button type="button" className="link" onClick={() => setScope(scope === "working" ? "branch" : "working")}>
-              {t("files.toggleScope")}
+              {t(touch ? "files.toggleScopeTouch" : "files.toggleScope")}
             </button>
           ) : (
             current && <span>{t("files.noBase")}</span>
           )}
           <span>{t("files.legend")}</span>
           <button type="button" className="link" onClick={() => open(".")}>
-            {t("files.diffAll")}
+            {t(touch ? "files.diffAllTouch" : "files.diffAll")}
           </button>
         </div>
       )}
@@ -230,6 +238,7 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
               setCursor(i)
               pane.current?.focus()
               if (r.dir) toggle(r.path)
+              else if (narrow || touch) open(r.path)
               else edit(r)
             }}
           >

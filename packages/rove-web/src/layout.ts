@@ -10,7 +10,7 @@ const SIDEBAR_WIDTH = 24
 const MIN_WORKSPACE_WIDTH = 40
 import { useSyncExternalStore } from "react"
 import { createStore } from "./store.ts"
-import { railMoving } from "./ui.ts"
+import { type PageId, page, railMoving } from "./ui.ts"
 
 /** The page's 12px monospace cell, roughly; the TUI's cell budgets are scaled by it. */
 export const CELL_PX = 8
@@ -68,6 +68,13 @@ export const narrowPane = createStore<"sidebar" | "workspace">("sidebar")
 
 export const enterWorkspace = (): void => narrowPane.set("workspace")
 export const backToTasks = (): void => narrowPane.set("sidebar")
+/** Open a page and, in narrow mode, show it: a page left open behind the list sets to the same value and fires nothing. */
+export function openPage(id: PageId): void {
+  page.set(id)
+  enterWorkspace()
+}
+/** Narrow mode, a task's content panel: its file list instead of the terminal (the desktop's Files column). */
+export const narrowFiles = createStore(false)
 
 const narrowQuery = window.matchMedia(NARROW_QUERY)
 

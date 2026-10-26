@@ -4,8 +4,9 @@
  */
 
 import type { AttentionRow } from "rove-bridge/protocol"
+import { openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
-import { closeDialog, page, routineFocus, toast } from "./ui.ts"
+import { closeDialog, routineFocus, toast } from "./ui.ts"
 
 export function dismissRoutineEpisode(model: AppModel, row: AttentionRow): void {
   if (!row.automationId) return
@@ -18,5 +19,5 @@ export function openRoutineEpisode(model: AppModel, row: AttentionRow): void {
   dismissRoutineEpisode(model, row)
   closeDialog()
   routineFocus.set(row.automationId ?? null)
-  page.set("routines")
+  openPage("routines")
 }

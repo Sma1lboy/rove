@@ -139,6 +139,7 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
       return ptys.peek(
         requireString(payload, "key"),
         typeof payload.sinceOffset === "number" ? payload.sinceOffset : undefined,
+        payload.preamble === true,
       )
     }
     case "pty.warm": {

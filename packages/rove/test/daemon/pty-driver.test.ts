@@ -55,12 +55,37 @@ describe("PtyHost driver seam", () => {
     host.open("t::tab-1", { cwd: "/wt", command: ["bash"], cols: 80, rows: 24 }, {}, (frame) => frames.push(frame))
 
     rec.requests[0]?.onData("hello")
+    rec.requests[0]?.onData("!!")
 
+    // `offset` is the running byte total, the same number `pty.peek` reports as its cut.
     expect(frames).toContainEqual({
       type: "event",
       name: "pty.data",
-      payload: { key: "t::tab-1", data: Buffer.from("hello").toString("base64") },
+      payload: { key: "t::tab-1", data: Buffer.from("hello").toString("base64"), offset: 5 },
     })
+    expect(frames).toContainEqual({
+      type: "event",
+      name: "pty.data",
+      payload: { key: "t::tab-1", data: Buffer.from("!!").toString("base64"), offset: 7 },
+    })
+  })
+
+  test("a full peek with `preamble` re-sets the modes the trimmed ring lost", () => {
+    const rec = recordingDriver()
+    const host = new PtyHost({ driver: rec.driver, scrollbackCap: 8 })
+    host.open("t::tab-1", { cwd: "/wt", command: ["bash"], cols: 80, rows: 24 }, {}, () => {})
+
+    // Bracketed paste on, then enough output that the ring no longer holds the DECSET.
+    rec.requests[0]?.onData("\x1b[?2004h")
+    rec.requests[0]?.onData("0123456789")
+
+    const text = (data: string) => Buffer.from(data, "base64").toString("latin1")
+    const raw = host.peek("t::tab-1")
+    const repaint = host.peek("t::tab-1", undefined, true)
+    expect(text(raw.data)).toBe("0123456789")
+    expect(text(repaint.data)).toContain("\x1b[?2004h")
+    expect(text(repaint.data).endsWith("0123456789")).toBe(true)
+    expect(repaint.offset).toBe(raw.offset)
   })
 
   test("a child that exits on its own releases the pty handle and tells every sink", async () => {

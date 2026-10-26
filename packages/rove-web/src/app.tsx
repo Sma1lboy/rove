@@ -9,6 +9,8 @@ import { t, useLocale } from "./i18n/index.ts"
 import {
   RAIL_DEFAULT_PX,
   clampRailWidth,
+  enterWorkspace,
+  narrowFiles,
   narrowPane,
   peekRail,
   railFolded,
@@ -34,6 +36,7 @@ import { usePrefs } from "./prefs.ts"
 import { PreviewView } from "./preview-view.tsx"
 import { NarrowBackBar, RailBar, StatusHints } from "./rail-chrome.tsx"
 import { RailView, openMenu, tabLabel } from "./rail-view.tsx"
+import { rowTitle } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
 import { SplitPane } from "./split-view.tsx"
 import { useStore } from "./store.ts"
@@ -80,6 +83,14 @@ function Shell({ model }: { model: AppModel }) {
   useUserKeys(model.client)
   usePrefsApply(model)
   useDaemonHealth(model.client)
+  // Narrow mode shows one panel: opening the composer or picking a task (rail, Inbox, a page, a menu)
+  // brings it up; a page does so through `openPage`.
+  useEffect(() => {
+    model.onSelect = enterWorkspace
+    return newSession.subscribe(() => {
+      if (newSession.get() !== null) enterWorkspace()
+    })
+  }, [model])
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
@@ -90,11 +101,17 @@ function Shell({ model }: { model: AppModel }) {
   const pinned = useStore(railWidth)
   const pane = useStore(narrowPane)
   const pageOn = useStore(page)
+  const composing = useStore(newSession) !== null
   // A task on a machine that answers opens like a local one; an unreachable one says where it lives.
   const reachable = remote.find((row) => row.id === selection.taskId && !row.machine?.stale)
   const task = selectedRow(payload, selection.taskId) ?? reachable ?? null
   const remoteTask = reachable ? undefined : remote.find((row) => row.id === selection.taskId)
-  const surface = narrow ? surfaceFor(pane, !!task || !!remoteTask, pageOn !== null) : null
+  const surface = narrow ? surfaceFor(pane, !!task || !!remoteTask, pageOn !== null || composing) : null
+  // A phone on its list, a page or the composer shows no task: its waiting engine stays in the Inbox.
+  useEffect(
+    () => model.setTaskShown(surface === null || (surface === "content" && pageOn === null && !composing)),
+    [model, surface, pageOn, composing],
+  )
   const openPx = clampRailWidth(pinned ?? RAIL_DEFAULT_PX)
   // The open width rides along while folded, so the rail's contents keep it as the column slides shut.
   const railVars = { "--rail-w": `${folded ? 0 : openPx}px`, "--rail-open-w": `${openPx}px` } as CSSProperties
@@ -106,8 +123,11 @@ function Shell({ model }: { model: AppModel }) {
         style={narrow ? undefined : railVars}
       >
         {!narrow && <RailBar model={model} />}
-        {/* Folded, the page's left edge brings the rail back as a floating panel. */}
-        {folded && !narrow && <div className="rail-peek-edge" onMouseEnter={() => peekRail(true)} />}
+        {/* Folded, the page's left edge brings the rail back as a floating panel; leaving the edge without
+            reaching the rail (out of the window, a quick flick) closes it again. */}
+        {folded && !narrow && (
+          <div className="rail-peek-edge" onMouseEnter={() => peekRail(true)} onMouseLeave={() => peekRail(false)} />
+        )}
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />
         {task && !zenOn && !narrow && <FilesView key={task.id} model={model} task={task} />}
@@ -119,9 +139,25 @@ function Shell({ model }: { model: AppModel }) {
         <StatusBar model={model} narrow={narrow} />
         <Overlays />
         <PrefixHud model={model} />
+        <DocumentTitle model={model} />
       </div>
     </div>
   )
+}
+
+/** The browser tab says which task is open and how much waits in the Inbox, like claude.ai's conversation titles. */
+function DocumentTitle({ model }: { model: AppModel }) {
+  const selection = useStore(model.selection)
+  const payload = useStore(model.tasks)
+  const allTabs = useStore(model.tabs)
+  const remote = useStore(model.remote)
+  const task = selectedRow(payload, selection.taskId) ?? remote.find((row) => row.id === selection.taskId)
+  const unread = payload?.attention.filter((row) => row.unread).length ?? 0
+  const title = `${unread > 0 ? `(${unread}) ` : ""}${task ? `${rowTitle(task, allTabs[task.id])} · ` : ""}rove`
+  useEffect(() => {
+    document.title = title
+  }, [title])
+  return null
 }
 
 function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
@@ -142,8 +178,18 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const taskInk = useTaskColor(task?.id)
   const working = task?.rowStatus?.kind === "running"
   const composing = useStore(newSession)
-  // Picking a task or tab leaves the composer, as it leaves a page.
-  useEffect(() => model.selection.subscribe(() => newSession.set(null)), [model])
+  const filesOn = useStore(narrowFiles) && narrow && !!task
+  // Picking a task or tab leaves the composer and the narrow file list, as it leaves a page; a tab sweep
+  // that rewrites the same selection does not.
+  useEffect(() => {
+    let last = model.selection.get()
+    return model.selection.subscribe(() => {
+      newSession.set(null)
+      const next = model.selection.get()
+      if (next.taskId !== last.taskId || next.tabId !== last.tabId) narrowFiles.set(false)
+      last = next
+    })
+  }, [model])
   useEffect(() => trackNav(model), [model])
   if (pageOn === "update") {
     return (
@@ -181,7 +227,7 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   }
   return (
     <main className="workspace">
-      {narrow && <NarrowBackBar />}
+      {narrow && <NarrowBackBar taskId={task?.id} />}
       {task && (
         <div
           className={`tab-strip ${tabStripVisible(prefs.tabStrip, tabs.length) ? "" : "is-tabs-hidden"}`}
@@ -224,7 +270,9 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
         className={`pane ${working ? "is-working" : ""}`}
         style={taskInk ? ({ "--task-ink": taskInk } as CSSProperties) : undefined}
       >
-        {!task && !remoteTask && payload && payload.tasks.length + remote.length === 0 && <WelcomePane model={model} />}
+        {!narrow && !task && !remoteTask && payload && payload.tasks.length + remote.length === 0 && (
+          <WelcomePane model={model} />
+        )}
         {!task && !remoteTask && payload && payload.tasks.length + remote.length > 0 && (
           <p className="placeholder">{t("workspace.pickTask")}</p>
         )}
@@ -233,7 +281,7 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
             <RemoteNotice host={remoteTask.machine.label} />
           </div>
         )}
-        {task && tabsKnown && tabs.length === 0 && !shown && (
+        {task && tabsKnown && tabs.length === 0 && !shown && !filesOn && (
           <div className="placeholder">
             <p>{t("workspace.noTabs")}</p>
             <button type="button" className="button" onClick={() => void newChatHere(model, task.id)}>
@@ -249,8 +297,9 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
           </div>
         )}
         {shown && <PreviewView key={`${shown.taskId}:${shown.path}:${shown.scope}`} model={model} view={shown} />}
+        {task && filesOn && !shown && <FilesView key={task.id} model={model} task={task} narrow />}
         {task && selection.tabId && tabs.some((tab) => tab.id === selection.tabId) && (
-          <div className={`term-slot ${shown ? "is-hidden" : ""}`}>
+          <div className={`term-slot ${shown || filesOn ? "is-hidden" : ""}`}>
             <SplitPane
               key={`${task.id}::${selection.tabId}`}
               model={model}
@@ -272,7 +321,6 @@ function StatusBar({ model, narrow }: { model: AppModel; narrow: boolean }) {
   return (
     <footer className="status">
       <UsageChips client={client} taskId={selection.taskId} tabId={selection.tabId} />
-      <span className="spacer" />
       <span className={`dot state-${conn.state}`} />
       <span>
         {conn.state === "open"
@@ -286,7 +334,7 @@ function StatusBar({ model, narrow }: { model: AppModel; narrow: boolean }) {
           {t("status.retry")}
         </button>
       )}
-      {conn.hello && (
+      {conn.hello && !narrow && (
         <span className="muted">{t("status.host", { host: conn.hello.host, version: conn.hello.roveVersion })}</span>
       )}
       <StatusHints model={model} narrow={narrow} />

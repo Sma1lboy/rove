@@ -269,7 +269,9 @@
 .kb-place {
   font: 12px var(--mono);
   color: var(--muted);
-  white-space: pre;
+  /* Keeps the `▸ ` gutter; a phone-width drawer wraps the rest instead of cutting it off. */
+  white-space: pre-wrap;
+  text-align: left;
 }
 
 .kb-place.is-active {
@@ -417,6 +419,29 @@
 
 .pg-cron:focus {
   outline: none;
+}
+
+.pg-cron-step {
+  display: none;
+  gap: 8px;
+  padding: 2px 4px 6px;
+}
+
+.pg-cron-step button {
+  width: 44px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+  color: var(--ink);
+  font: 16px var(--mono);
+  touch-action: manipulation;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .pg-cron-step {
+    display: flex;
+  }
 }
 
 .pg-issue-line {

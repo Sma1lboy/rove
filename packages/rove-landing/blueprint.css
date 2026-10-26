@@ -10,7 +10,7 @@
   --paper-2:#DCDFE1;
   --ink:#15181B;
   --ink-2:#464C52;
-  --ink-3:#8A9198;
+  --ink-3:#5F666D;
   --rule:#BCC1C4;
   --hatch:#97A0A8;
   --accent:#CC785C;
@@ -37,7 +37,7 @@
     --paper-2:#0E2C4E;
     --ink:#E7EDF5;
     --ink-2:#A9BDD4;
-    --ink-3:#6E8AAA;
+    --ink-3:#7F9BBB;
     --rule:#274766;
     --hatch:#3E5C7E;
     --accent:#E08B66;
@@ -48,13 +48,13 @@
 }
 :root[data-theme="dark"]{
   --paper:#0A2340; --paper-2:#0E2C4E; --ink:#E7EDF5; --ink-2:#A9BDD4;
-  --ink-3:#6E8AAA; --rule:#274766; --hatch:#3E5C7E;
+  --ink-3:#7F9BBB; --rule:#274766; --hatch:#3E5C7E;
   --accent:#E08B66; --accent-line:#E08B66; --accent-text:#F1AC8C;
   color-scheme:dark;
 }
 
 *{box-sizing:border-box}
-html{overflow-x:clip}
+html,body{overflow-x:clip}
 body{
   margin:0;
   background:var(--paper);
@@ -69,7 +69,7 @@ img,svg{max-width:100%}
 
 /* lettering ------------------------------------------------------------- */
 .lt{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-weight:600;line-height:1.2}
-.micro{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.2em;font-weight:600;font-size:10.5px;color:var(--ink-2)}
+.micro{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.2em;font-weight:600;font-size:11px;color:var(--ink-2)}
 .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 
 a{color:inherit;text-decoration:none;border-bottom:1px solid var(--ink-3)}
@@ -113,7 +113,7 @@ section[data-zone]::before{
 .head nav{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
 .head nav a{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.16em;font-size:11.5px;font-weight:600;border-bottom:1px solid transparent;padding-bottom:2px}
 .head nav a:hover{border-bottom-color:var(--accent-line)}
-.stamp{font-family:var(--font-tech);font-size:10.5px;letter-spacing:.18em;color:var(--ink-2);text-transform:uppercase;border:1px solid var(--rule);padding:4px 8px}
+.stamp{font-family:var(--font-tech);font-size:11px;letter-spacing:.18em;color:var(--ink-2);text-transform:uppercase;border:1px solid var(--rule);padding:4px 8px}
 
 /* hero ------------------------------------------------------------------ */
 .hero{display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,.68fr);gap:0;border-bottom:1px solid var(--rule)}
@@ -136,19 +136,20 @@ h1 .thin{font-weight:400;color:var(--ink-2)}
   font:inherit;text-align:left;cursor:pointer;padding:0;
 }
 .copy .tag{
-  font-family:var(--font-tech);font-size:10px;letter-spacing:.18em;font-weight:600;
+  font-family:var(--font-tech);font-size:11px;letter-spacing:.18em;font-weight:600;
   writing-mode:vertical-rl;text-orientation:mixed;
-  border-right:1px solid var(--rule);padding:8px 3px;color:var(--ink-2);
+  border-right:1px solid var(--rule);padding:8px;color:var(--ink-2);
   display:flex;align-items:center;justify-content:center;
 }
 .copy .cmd{font-family:var(--font-mono);font-size:clamp(12px,1.15vw,15px);padding:14px 12px;flex:1 1 auto;overflow:auto;white-space:nowrap;scrollbar-width:none}
 .copy .cmd::-webkit-scrollbar{display:none}
 .copy .hint{
-  font-family:var(--font-tech);font-size:10px;letter-spacing:.16em;font-weight:600;color:var(--ink-2);
+  font-family:var(--font-tech);font-size:11px;letter-spacing:.16em;font-weight:600;color:var(--ink-2);
   border-left:1px solid var(--rule);padding:0 10px;display:flex;align-items:center;white-space:nowrap;
 }
 .copy:hover{border-color:var(--accent-line)}
 .copy.is-copied .hint{color:var(--accent-text)}
+.copy:active,.alt:active{transform:translateY(1px)}
 .rev-cloud{position:absolute;max-width:none;top:-11px;left:-11px;width:calc(100% + 22px);height:calc(100% + 22px);pointer-events:none;opacity:0;transition:opacity .2s ease}
 .rev-cloud path{fill:none;stroke:var(--accent-line);stroke-width:1.4;vector-effect:non-scaling-stroke}
 .install-wrap.is-copied .rev-cloud{opacity:1}
@@ -210,16 +211,16 @@ h1 .thin{font-weight:400;color:var(--ink-2)}
 .note.wide .txt-col>*{max-width:60ch}
 figure{margin:0;min-width:0}
 figure svg{display:block;width:100%;height:auto}
-figcaption{margin-top:12px;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-size:10.5px;color:var(--ink-2);border-top:1px solid var(--rule);padding-top:7px}
+figcaption{margin-top:12px;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--ink-2);border-top:1px solid var(--rule);padding-top:7px}
 .fig-1{max-width:470px}
 .fig-wide{max-width:600px}
 
 /* tables ---------------------------------------------------------------- */
 table{width:100%;border-collapse:collapse;font-size:13px}
-caption{caption-side:top;text-align:left;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;font-size:10.5px;color:var(--ink-2);padding-bottom:7px}
+caption{caption-side:top;text-align:left;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;font-size:11px;color:var(--ink-2);padding-bottom:7px}
 th,td{text-align:left;padding:7px 8px 7px 0;border-bottom:1px solid var(--rule);vertical-align:top}
 thead th{
-  font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.08em;font-size:10px;
+  font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.08em;font-size:11px;
   font-weight:600;color:var(--ink-2);border-bottom:1.6px solid var(--ink);
 }
 tbody th{font-weight:500}
@@ -230,9 +231,9 @@ tbody th{font-weight:500}
 .t-c[data-v="1"]::before{content:"●";color:var(--ink)}
 .t-c[data-v="0"]::before{content:"○";color:var(--ink-3)}
 .nb{white-space:nowrap}
-.t-class{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.1em;font-size:10.5px;color:var(--ink-2);white-space:nowrap}
+.t-class{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:var(--ink-2);white-space:nowrap}
 .t-scroll{overflow-x:auto}
-.t-note{margin-top:10px;font-size:11.5px;color:var(--ink-2);line-height:1.55}
+.t-note{margin-top:10px;font-size:12px;color:var(--ink-2);line-height:1.55}
 .gnotes{margin:22px 0 0;padding:12px 14px 12px 30px;border:1px solid var(--rule);border-left:2px solid var(--ink);list-style:decimal;font-size:12.5px;color:var(--ink-2);line-height:1.6}
 .gnotes li{margin:0 0 6px;padding-left:4px}
 .gnotes li:last-child{margin-bottom:0}
@@ -268,7 +269,7 @@ tbody th{font-weight:500}
 .tblock{padding:0;border-left:0}
 .tb-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1.6px solid var(--ink);border-bottom:0;border-right:0;margin-top:16px}
 .tb{border-right:1.6px solid var(--ink);border-bottom:1.6px solid var(--ink);padding:8px 10px;min-width:0}
-.tb .k{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;font-size:9px;color:var(--ink-2);display:block;margin-bottom:3px}
+.tb .k{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;font-size:11px;color:var(--ink-2);display:block;margin-bottom:3px}
 .tb .v{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.07em;font-size:13px;font-weight:600;overflow-wrap:anywhere}
 .tb.span2{grid-column:span 2}
 .tb.span3{grid-column:span 3}
@@ -277,7 +278,7 @@ tbody th{font-weight:500}
 
 footer{border-top:1px solid var(--rule);margin-top:0;padding:18px 0 22px;display:flex;flex-wrap:wrap;gap:10px 26px;align-items:baseline}
 footer a{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-size:11.5px;font-weight:600;border-bottom:1px solid var(--rule)}
-footer .c{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-size:10.5px;color:var(--ink-2)}
+footer .c{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--ink-2)}
 footer .sp{flex:1 1 auto}
 
 /* svg ink weights ------------------------------------------------------- */
@@ -442,6 +443,6 @@ svg .dot{fill:var(--ink);stroke:none}
 
 /* Platform choice owns the command and prerequisite text together. */
 .install-platform{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;font-family:var(--font-mono);font-size:13px}
-.install-platform select{max-width:100%;padding:8px;color:var(--ink);background:var(--paper);border:1px solid var(--rule);font:inherit}
-.install-platform select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.install-platform select{max-width:100%;padding:8px;color:var(--ink);background:var(--paper);border:1px solid var(--ink-3);font:inherit}
+.install-platform select:focus-visible{outline:2px solid var(--accent-line);outline-offset:3px}
 .install-help{max-width:600px;font-size:14px;line-height:1.5;margin:0 0 12px;color:var(--ink-2)}

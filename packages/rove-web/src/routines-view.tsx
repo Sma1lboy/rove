@@ -307,6 +307,10 @@ export function RoutinesView({ model }: { model: AppModel }) {
           <span className={reply?.keepsDaemonAlive ? "tone-success" : "muted"}>
             {reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}
           </span>
+          {/* Every page key has a click target too: a phone has no n/e/d. */}
+          <button type="button" className="link" onClick={() => void createRoutine()}>
+            {t("pages.new")}
+          </button>
         </span>
       </div>
 
@@ -315,7 +319,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
       ) : rows.length === 0 ? (
         <div className="pg-list">
           <p className="muted">{auto.empty}</p>
-          <p>{auto.emptyHint}</p>
+          <p className="keys-only">{auto.emptyHint}</p>
         </div>
       ) : (
         <div className="pg-list" ref={list}>
@@ -359,6 +363,17 @@ export function RoutinesView({ model }: { model: AppModel }) {
                 <span className="pg-prompt pg-grow">{selected.prompt}</span>
                 <button type="button" className="link" disabled={busy === selected.id} onClick={() => void runNow()}>
                   {auto.runNow}
+                </button>
+                <button
+                  type="button"
+                  className="link"
+                  disabled={busy === selected.id}
+                  onClick={() => void toggleEnabled()}
+                >
+                  {t(selected.enabled ? "pages.routinePause" : "pages.routineEnable")}
+                </button>
+                <button type="button" className="link" disabled={busy === selected.id} onClick={requestDelete}>
+                  {t("pages.delete")}
                 </button>
               </div>
               <p className="muted">

@@ -25,6 +25,7 @@ import {
 import { FRAME_MS, moving, onMap, recent, runnerOf, settled } from "./dispatch.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
+import { deviceHint } from "./key-hints.ts"
 import { machineLabel, remoteLabel, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { usePageFocus, usePageKeys } from "./pages-kit.ts"
@@ -45,6 +46,9 @@ const MAP_SETTLED = 16
 const ROW_H = COLUMN.row
 const PAD = 24
 const HUB_W = 232
+const HUB_MIN_W = 96
+/** Room for a wire between a column and the hub. */
+const HUB_GAP = 16
 const HUB_H = 72
 /** Matches `.dp-node`'s height in dispatch.css. */
 const NODE_H = 42
@@ -128,7 +132,9 @@ export function DispatchView({ model }: { model: AppModel }) {
   // The graph keeps to a centred band, so a wide window doesn't strand the columns at its edges.
   const band = Math.min(width, BAND_MAX)
   const edge = (width - band) / 2
-  const nodeW = Math.round(Math.min(260, Math.max(128, band * 0.26)))
+  // A phone's band can't hold two 128px columns beside a 232px hub: the three share it, the hub shrinking first.
+  const nodeW = Math.round(Math.min(260, Math.max(128, band * 0.26), (band - HUB_MIN_W - 2 * HUB_GAP) / 2))
+  const hubW = Math.max(HUB_MIN_W, Math.min(HUB_W, band - 2 * nodeW - 2 * HUB_GAP))
   const column = targetColumn(
     graph.targets,
     (node) => (node.taskId ? tasks.get(node.taskId)?.machine?.id : undefined),
@@ -145,8 +151,8 @@ export function DispatchView({ model }: { model: AppModel }) {
   const hubY = height / 2
   const wireOf = (row: DispatchRow): Wire => ({
     from: { x: edge + nodeW, y: senderY.get(senderOf(row).key) ?? hubY },
-    hubIn: { x: hubX - HUB_W / 2, y: hubY },
-    hubOut: { x: hubX + HUB_W / 2, y: hubY },
+    hubIn: { x: hubX - hubW / 2, y: hubY },
+    hubOut: { x: hubX + hubW / 2, y: hubY },
     to: { x: width - edge - nodeW + targetInset(targetOf(row).key), y: targetY(targetOf(row).key) },
   })
 
@@ -172,7 +178,7 @@ export function DispatchView({ model }: { model: AppModel }) {
     <div className="page dp-page" tabIndex={0} ref={root}>
       <div className="pg-top">
         <h1 className="page-title">{t("dispatch.title")}</h1>
-        <span className="muted mono pg-hint">{t("dispatch.hint")}</span>
+        <span className="muted mono pg-hint">{deviceHint(t("dispatch.hint"))}</span>
       </div>
       <div className={`dp-stage ${inFlight ? "is-live" : ""}`} ref={stageRef} style={{ minHeight: needed }}>
         {width > 0 && snapshot !== null ? (
@@ -194,7 +200,7 @@ export function DispatchView({ model }: { model: AppModel }) {
             ))}
             <div
               className="dp-hub mono"
-              style={{ left: hubX - HUB_W / 2, top: hubY - HUB_H / 2, width: HUB_W, height: HUB_H }}
+              style={{ left: hubX - hubW / 2, top: hubY - HUB_H / 2, width: hubW, height: HUB_H }}
               title={conn.hello ? `${conn.hello.host} · v${conn.hello.roveVersion}` : undefined}
             >
               <span className="dp-hub-mark">

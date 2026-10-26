@@ -30,6 +30,67 @@
   width: min(620px, calc(100vw - 32px));
 }
 
+/* Motion: what appears fades in with a 4px rise; what goes is a DOM copy (leave.ts) that sinks back out. */
+.overlay {
+  animation: fade-in 140ms ease-out;
+}
+.dialog,
+.toast,
+.prefix-guide {
+  animation: rise-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.prefix-hud-head {
+  animation: rise-in 140ms ease-out, sink-out 140ms ease-in var(--hud-out, 3860ms) forwards;
+}
+/* Back after the guide hid it: already seen, so no rise; it still fades on time. */
+.prefix-hud-head.is-back {
+  animation: sink-out 140ms ease-in var(--hud-out, 3860ms) forwards;
+}
+.is-leaving {
+  pointer-events: none;
+}
+.overlay.is-leaving {
+  animation: fade-out 140ms ease-in forwards;
+}
+.overlay.is-leaving .dialog,
+.menu.is-leaving,
+.toast.is-leaving,
+.prefix-guide.is-leaving {
+  animation: sink-out 140ms ease-in forwards;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+@keyframes sink-out {
+  to {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .dialog,
+  .toast,
+  .prefix-guide,
+  .prefix-hud-head,
+  .prefix-hud-head.is-back {
+    animation: none;
+  }
+}
+
 /* Title row: every dialog closes by pointer too, not only Esc. */
 .dialog-head {
   display: flex;
@@ -75,6 +136,24 @@
   margin: -2px;
   padding: 2px;
   overflow-y: auto;
+}
+
+/* A long form scrolls under its buttons instead of carrying them out of view. */
+.dialog-body > .actions {
+  position: sticky;
+  bottom: -2px;
+  background: var(--surface);
+}
+
+/* A short screen (a phone on its side) lends a dialog nearly all of its height. */
+@media (max-height: 500px) {
+  .overlay {
+    padding-top: 12px;
+  }
+  .dialog {
+    max-height: calc(100dvh - 24px);
+    padding: 12px 16px;
+  }
 }
 
 .dialog-body p {
@@ -382,6 +461,29 @@ div.placeholder p {
   gap: 18px;
   max-height: 60vh;
   overflow-y: auto;
+}
+
+/* Narrow mode (`NARROW_QUERY`, 70 cells × 8px − 1): a phone has no room for the list beside the section; the list becomes a row above it. */
+@media (max-width: 559px) {
+  .settings {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    padding: 0 0 8px;
+  }
+
+  .settings-tab {
+    flex: none;
+    white-space: nowrap;
+  }
 }
 
 .settings-group {

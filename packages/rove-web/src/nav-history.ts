@@ -3,6 +3,7 @@
  * Claude Desktop's arrows. In memory only; the browser's own history is left alone (the token lives in it).
  */
 
+import { openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { createStore } from "./store.ts"
 import { type NewSessionStart, type PageId, newSession, page } from "./ui.ts"
@@ -105,7 +106,7 @@ export function go(model: AppModel, dir: -1 | 1): void {
     model.select(place.taskId, place.tabId)
   } else if (place.kind === "page") {
     newSession.set(null)
-    page.set(place.id)
+    openPage(place.id)
   } else {
     page.set(null)
     newSession.set(place.start)

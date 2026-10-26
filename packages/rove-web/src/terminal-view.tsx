@@ -15,7 +15,9 @@ import { terminalText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
 import { focusedTerm, registerTerm, termFor } from "./term-control.ts"
-import { NERD_SYMBOLS_FAMILY, type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-mount.ts"
+import { TermKeyRow } from "./term-key-row.tsx"
+import { NERD_SYMBOLS_FAMILY } from "./term-look.ts"
+import { type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-mount.ts"
 import { type EngineExit, TermNotice } from "./term-notice.tsx"
 import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
 import { TermSearchBar } from "./term-search.tsx"
@@ -110,14 +112,11 @@ export function TerminalView(props: TerminalViewProps) {
     if (!el) return
     let leased: Leased | null = null
     let cancelled = false
-    // The WebGL glyph atlas is cut from whatever font is resolved when the renderer loads;
-    // before JetBrains Mono arrives that atlas paints nothing, and before the symbols font an icon is a box.
-    const fonts = [
-      document.fonts.load('13px "JetBrains Mono"'),
-      // A unicode-range face loads only for text in its range: a powerline glyph, not the default space.
-      document.fonts.load(`13px "${NERD_SYMBOLS_FAMILY}"`, String.fromCodePoint(0xe0a0)),
-      document.fonts.ready,
-    ]
+    // The WebGL glyph atlas is cut from the font resolved when the renderer loads: before JetBrains
+    // Mono arrives it paints nothing. The 1.2 MB symbols face is not awaited; term-mount redraws when it lands.
+    const fonts = [document.fonts.load('13px "JetBrains Mono"'), document.fonts.load('bold 13px "JetBrains Mono"')]
+    // Canvas text never asks for a unicode-range face, so start it here: a powerline glyph, not a space.
+    void document.fonts.load(`13px "${NERD_SYMBOLS_FAMILY}"`, String.fromCodePoint(0xe0a0)).catch(() => {})
     const mount = () => {
       if (cancelled) return
       leased = leaseTerminal(
@@ -289,6 +288,7 @@ export function TerminalView(props: TerminalViewProps) {
           }}
         />
       )}
+      {handle && <TermKeyRow handle={handle} />}
     </div>
   )
 }

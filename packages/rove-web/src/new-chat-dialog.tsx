@@ -10,6 +10,7 @@ import { AttachmentChips, useAttachments, withRefs } from "./attachments.tsx"
 import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { ATTEMPTS } from "./quick-start-dialog.tsx"
 import { cycleStop } from "./tab-stops.ts"
@@ -174,7 +175,9 @@ export function NewChatDialog(props: {
           />
         </div>
         <div className="field">
-          <span className="kicker">{tc("terminal", "tab.newChat.ctxLabel")} · ctrl+f</span>
+          <span className="kicker">
+            {tc("terminal", "tab.newChat.ctxLabel")} <span className="keys-only">· ctrl+f</span>
+          </span>
           <ChipRow
             label={tc("terminal", "tab.newChat.ctxLabel")}
             field="context"
@@ -235,7 +238,11 @@ export function NewChatDialog(props: {
           </label>
         )}
         <AttachmentChips attachments={attachments} onRemove={remove} />
-        <p className="muted newtask-legend">{tc("quickTask", "legend")}</p>
+        {isTouch() ? (
+          <p className="muted">{t("pages.attachHintTouch")}</p>
+        ) : (
+          <p className="muted newtask-legend">{tc("quickTask", "legend")}</p>
+        )}
         {error && <p className="error">{error}</p>}
         <DialogActions busy={busy} submitLabel={t("newChat.start")} />
       </form>

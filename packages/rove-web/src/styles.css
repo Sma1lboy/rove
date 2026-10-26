@@ -21,7 +21,8 @@
   --line-active: #5c5853;
   --ink: #eae7df;
   --muted: #a9a39a;
-  --subtle: #6b665f;
+  /* claude dark's `--subtle` after `legibleSubtle` (prefs-theme.ts): AA on first paint, before a palette arrives. */
+  --subtle: #9d9a95;
   --accent: #cc785c;
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
   /* Pointer hover and a menu's highlight are a neutral ink wash, as claude.ai's; the accent stays for selection and focus. */
@@ -54,10 +55,13 @@
 }
 
 html,
-body,
-#root {
+body {
   height: 100%;
   margin: 0;
+}
+
+#root {
+  height: var(--vvh, 100%);
 }
 
 body {
@@ -721,6 +725,7 @@ button:focus-visible {
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-direction: column;
 }
 
 /*
@@ -803,14 +808,15 @@ button:focus-visible {
   background: var(--surface);
   font: 11px var(--mono);
   color: var(--muted);
+  white-space: nowrap;
+  min-width: 0;
 }
 
-.status .spacer {
-  flex: 1;
-}
-
-/* Footer usage: the TUI's chips, gap 2 cells between chips, tone only on the percent. */
+/* Footer usage: the TUI's chips, gap 2 cells between chips, tone only on the percent. It takes the
+   footer's spare width, which usage-view.tsx measures to pick the full or compact form. */
 .usage {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   gap: 16px;
   white-space: nowrap;

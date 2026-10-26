@@ -16,49 +16,12 @@ import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
+import { ctrlChord } from "./term-keys.ts"
+import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
+import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
 import { activeStream, railMoving } from "./ui.ts"
-
-/** The TUI's default `claude` theme, dark (`tui/context/theme/claude.json`). */
-const XTERM_THEME = {
-  background: "#141413",
-  foreground: "#eae7df",
-  cursor: "#cc785c",
-  cursorAccent: "#141413",
-  selectionBackground: "#33312e",
-  black: "#141413",
-  red: "#d47563",
-  green: "#9aca86",
-  yellow: "#e8c96b",
-  blue: "#61aaf2",
-  magenta: "#9b87f5",
-  cyan: "#d4967e",
-  white: "#a9a39a",
-  brightBlack: "#6b665f",
-  brightRed: "#d47563",
-  brightGreen: "#9aca86",
-  brightYellow: "#e8c96b",
-  brightBlue: "#61aaf2",
-  brightMagenta: "#9b87f5",
-  brightCyan: "#e0ab96",
-  brightWhite: "#eae7df",
-}
-
-/**
- * The bundled JetBrains Mono, then the bundled Nerd Font symbols (`styles.css`), so the icons
- * engines draw (Claude Code's status line, prompt themes) render on a machine with no Nerd Font
- * installed. The browser falls back per glyph, so only the icon code points come from the second.
- */
-export const NERD_SYMBOLS_FAMILY = "Rove Nerd Symbols"
-const FONT_FAMILY = [
-  '"JetBrains Mono"',
-  `"${NERD_SYMBOLS_FAMILY}"`,
-  '"SF Mono"',
-  "ui-monospace",
-  "Menlo",
-  "monospace",
-].join(", ")
 
 /** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
 export const SCROLL_PAGE_LINES = 10
@@ -72,19 +35,6 @@ export type Notice =
   | { readonly kind: "notLive" }
   | { readonly kind: "exited"; readonly code: number | null }
   | { readonly kind: "failed"; readonly message: string }
-
-function decode(base64: string): Uint8Array {
-  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
-}
-
-function streamPayload(data: unknown): { stream: string; data?: string; code?: number | null } | null {
-  if (!data || typeof data !== "object" || !("stream" in data) || typeof data.stream !== "string") return null
-  return {
-    stream: data.stream,
-    ...("data" in data && typeof data.data === "string" ? { data: data.data } : {}),
-    ...("code" in data && (typeof data.code === "number" || data.code === null) ? { code: data.code } : {}),
-  }
-}
 
 export interface MountOpts {
   readonly client: BridgeClient
@@ -117,6 +67,8 @@ export interface TermHandle {
   scrollLines(lines: number): void
   scrollToTop(): void
   scrollToBottom(): void
+  /** The next single key typed reaches the engine as its Ctrl chord; `onUsed` fires when it does. `null` disarms. */
+  armCtrl(onUsed: (() => void) | null): void
   /** Attach again (a reset respawned the session under the same key). */
   reattach(): Promise<void>
   /** The visible screen as HTML, for a later mount of the same stream to show while it reattaches. */
@@ -163,13 +115,31 @@ export function mountTerminal(o: MountOpts): TermHandle {
   term.unicode.activeVersion = "11"
   term.loadAddon(new WebLinksAddon())
   term.open(el)
+  let webgl: WebglAddon | null = null
+  let glCanvas: HTMLCanvasElement | null = null
   try {
-    const webgl = new WebglAddon()
-    webgl.onContextLoss(() => webgl.dispose())
-    term.loadAddon(webgl)
+    const before = new Set(term.element?.querySelectorAll("canvas"))
+    const addon = new WebglAddon()
+    addon.onContextLoss(() => {
+      addon.dispose()
+      webgl = null
+    })
+    term.loadAddon(addon)
+    webgl = addon
+    glCanvas =
+      [...(term.element?.querySelectorAll("canvas") ?? [])].find(
+        (c) => !before.has(c) && !c.classList.contains("xterm-link-layer"),
+      ) ?? null
   } catch {
     // The DOM renderer is slower but complete.
   }
+  // The atlas keeps each glyph as first drawn: redraw once a late font (the symbols face, bold) arrives.
+  const onFontLoaded = () => {
+    if (!webgl) return
+    webgl.clearTextureAtlas()
+    term.refresh(0, term.rows - 1)
+  }
+  document.fonts.addEventListener("loadingdone", onFontLoaded)
   fit.fit()
   // A reattach replays a ring that starts mid-repaint, so the screen is blank until the engine redraws.
   let cover: HTMLElement | null = null
@@ -214,18 +184,33 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const detach = () => void client.request("term.detach", { stream: expected }).catch(() => {})
   let stream: string | null = null
   let alive = false
-  let held: Uint8Array[] | null = null
+  let held: Array<{ bytes: Uint8Array; chars: number }> | null = null
   let disposed = false
   const replies = createReplyGate((data) => {
     if (stream && alive) void client.request("term.input", { stream, data }).catch(() => {})
   })
+  const acks = createAcks((chars) => {
+    if (stream) void client.request("term.ack", { stream, chars }).catch(() => {})
+  })
+  const writeAcked = (bytes: Uint8Array, chars: number, parsed?: () => void) =>
+    term.write(bytes, () => {
+      parsed?.()
+      acks.parsed(chars)
+    })
 
   const offData = client.on("term.data", (raw) => {
     const p = streamPayload(raw)
     if (!p?.data || p.stream !== expected) return
     const bytes = decode(p.data)
-    if (held) held.push(bytes)
-    else if (stream) term.write(bytes)
+    if (held) held.push({ bytes, chars: p.data.length })
+    else if (stream) writeAcked(bytes, p.data.length)
+  })
+  // RIS goes through xterm's write queue, so output still queued ahead of it is drawn first, then wiped.
+  const offReset = client.on("term.reset", (raw) => {
+    const p = resetPayload(raw)
+    if (!p || p.stream !== expected || !stream || held) return
+    term.write("\x1bc")
+    replies.replay((parsed) => writeAcked(decode(p.replay), p.replay.length, parsed))
   })
   const offExit = client.on("term.exit", (raw) => {
     const p = streamPayload(raw)
@@ -247,6 +232,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
           ...(o.leafId && o.leafId !== "leaf-1" ? { leafId: o.leafId } : {}),
           cols: term.cols,
           rows: term.rows,
+          acks: true,
         },
       )
       const current = owned.get(expected)
@@ -255,7 +241,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (disposed) return
       term.reset()
       replies.replay((parsed) => term.write(decode(res.replay), parsed))
-      for (const bytes of held) term.write(bytes)
+      for (const h of held) writeAcked(h.bytes, h.chars)
       stream = res.stream
       alive = res.alive
       // The ring replay of a long session starts mid-repaint, so a reattach at an unchanged size
@@ -288,9 +274,23 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (!stream) uncover()
     }
   }
-  const offOpen = client.onOpen(() => void attach())
+  // An unlaid-out box (phone workspace still display:none) would attach at xterm's 80×24 default.
+  const sized = () => el.clientWidth > 0 && el.clientHeight > 0
+  let attachWhenSized = false
+  const offOpen = client.onOpen(() => {
+    attachWhenSized = !sized()
+    if (!attachWhenSized) void attach()
+  })
 
-  const input = term.onData(replies.forward)
+  let ctrlNext: (() => void) | null = null
+  const input = term.onData((data) => {
+    if (ctrlNext && data.length === 1) {
+      const used = ctrlNext
+      ctrlNext = null
+      used()
+      replies.forward(ctrlChord(data))
+    } else replies.forward(data)
+  })
   // Every viewer of a PTY shares one size and the last to send wins; an inline TUI drawn for another
   // viewer's width leaves ghost frames here. The viewer the person is using claims it back: on focus,
   // and on a keystroke (throttled; the host ignores a size it already has).
@@ -313,7 +313,12 @@ export function mountTerminal(o: MountOpts): TermHandle {
   // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY. While the rail
   // slides, a refit per frame blanks the canvas and SIGWINCHes the engine a dozen times: fit once at the end.
   const refit = () => {
-    if (!railMoving.get() && el.clientWidth > 0 && el.clientHeight > 0) fit.fit()
+    if (railMoving.get() || !sized()) return
+    fit.fit()
+    if (attachWhenSized) {
+      attachWhenSized = false
+      void attach()
+    }
   }
   const observer = new ResizeObserver(refit)
   observer.observe(el)
@@ -443,11 +448,15 @@ export function mountTerminal(o: MountOpts): TermHandle {
     scrollLines: (lines) => userScroll(() => term.scrollLines(lines)),
     scrollToTop: () => userScroll(() => term.scrollToTop()),
     scrollToBottom: () => userScroll(() => term.scrollToBottom()),
+    armCtrl: (onUsed) => {
+      ctrlNext = onUsed
+    },
     reattach: attach,
     snapshot: () => serialize.serializeAsHTML({ scrollback: 0, includeGlobalBackground: true }),
     dispose() {
       disposed = true
       uncover()
+      document.fonts.removeEventListener("loadingdone", onFontLoaded)
       if (coverCap !== null) window.clearTimeout(coverCap)
       observer.disconnect()
       el.removeEventListener("wheel", onWheel, { capture: true })
@@ -473,6 +482,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
       offOpen()
       offData()
       offExit()
+      offReset()
+      acks.dispose()
       if (stream && activeStream.get() === stream) activeStream.set(null)
       ownership.owners--
       if (ownership.owners === 0) {
@@ -480,6 +491,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
         if (ownership.attached) detach()
       }
       term.dispose()
+      // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
+      glCanvas?.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext()
     },
   }
 }

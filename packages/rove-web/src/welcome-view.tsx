@@ -6,7 +6,8 @@
 
 import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
 import { useEffect, useState } from "react"
-import { useLocale } from "./i18n/index.ts"
+import { t, useLocale } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { type EngineChip, type QuickStart, QuickStartDialog } from "./quick-start-dialog.tsx"
 import { useStore } from "./store.ts"
@@ -76,7 +77,7 @@ export function WelcomePane({ model }: { model: AppModel }) {
     <div className="welcome" data-field="welcome">
       <h1 className="welcome-title">{tc("workspace", "welcome.title")}</h1>
       <p className="muted">{tc("workspace", "welcome.tagline")}</p>
-      <dl className="welcome-steps">
+      <dl className="welcome-steps keys-only">
         {steps.map((step) => (
           <div key={step.msg} className="welcome-step">
             <dt className="welcome-cap mono">{step.cap}</dt>
@@ -111,7 +112,11 @@ export function WelcomePane({ model }: { model: AppModel }) {
           >
             {tc("onboarding", "quickStart")}
           </button>
-          <p className="muted">{tc("onboarding", "quickIntent", { key: prefixHint("task.new.global") })}</p>
+          <p className="muted">
+            {isTouch()
+              ? t("pages.quickIntentTouch")
+              : tc("onboarding", "quickIntent", { key: prefixHint("task.new.global") })}
+          </p>
         </div>
       )}
       <p className="muted welcome-docs">{tc("workspace", "welcome.docsHint")}</p>

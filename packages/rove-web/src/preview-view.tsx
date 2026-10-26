@@ -173,7 +173,7 @@ export function PreviewView({ model, view }: { model: AppModel; view: Preview })
         })}
       </div>
       <footer className="preview-footer">
-        <span>{t("preview.hints")}</span>
+        <span className="preview-keys">{t("preview.hints")}</span>
         <span className="spacer" />
         <span>{t("preview.notes", { here, unsent })}</span>
       </footer>

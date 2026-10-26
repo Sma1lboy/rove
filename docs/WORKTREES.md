@@ -177,6 +177,10 @@ force — and adds two refusals a clicking human cannot trigger: it will not
 remove the project's own checkout (`BASE_CHECKOUT`) or the worktree the
 command is running from (`CALLER_WORKTREE`).
 
+`rove api worktree-usage` says which checkouts are worth reclaiming: every task's own
+worktrees ranked by size, with the gitignored part (dependencies, build
+output) broken out.
+
 ### When git removes the worktree but not its directory
 
 `git worktree remove` does two things — deregister the worktree's metadata and

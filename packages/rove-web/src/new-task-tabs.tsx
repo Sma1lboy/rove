@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
 import { DialogActions } from "./dialogs.tsx"
+import { deviceHint } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import type { AdoptableRow, ProbeResult, RepoField } from "./new-task-dialog.tsx"
 import { deriveFolderName, expandTilde, filterByGlob, joinPicked } from "./new-task-paths.ts"
@@ -302,7 +303,7 @@ export function AdoptTab({
         {list !== null && shown.length === 0 && (
           <span className="muted">{tc("newTask", list.length === 0 ? "adopt.noUnlinked" : "adopt.noMatch")}</span>
         )}
-        {shown.length > 0 && <span className="muted">{hint}</span>}
+        {shown.length > 0 && <span className="muted">{deviceHint(hint)}</span>}
       </div>
       {error && <p className="error">※ {error}</p>}
       <DialogActions busy={busy} submitLabel={tc("newTask", "button.create")} />

@@ -20,6 +20,8 @@ export interface PtyDataEventPayload {
   readonly key: string
   /** Raw child output bytes, base64-encoded (JSON-lines wire). */
   readonly data: string
+  /** The session's total output bytes once this chunk is included; matches `pty.peek`'s `offset`. */
+  readonly offset?: number
 }
 
 /** Targeted `pty.exit` event payload — the session's child ended. */

@@ -16,6 +16,7 @@ import { type WebCommand, allCommands, appliesOn, currentSurface, registerComman
 import { daemonHealth, refreshRove } from "./daemon-health.tsx"
 import { t } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
+import { openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
@@ -27,7 +28,7 @@ import { aimedTask } from "./rail-aim.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { isSplit } from "./split-model.ts"
 import { fixChecksFlow, openEditorFlow, syncBaseFlow } from "./task-flows.tsx"
-import { dialog, page, toast, zen } from "./ui.ts"
+import { dialog, toast, zen } from "./ui.ts"
 import { defaultPrefixKeys, prefixKey, userKeys } from "./user-keys.ts"
 
 interface PrefixAction {
@@ -114,9 +115,9 @@ export const ACTIONS: readonly PrefixAction[] = [
     },
   },
   // Rail pages in the rail's top-to-bottom order; they swap only the workspace, so 1 → 2 → 3 hops directly.
-  { id: "kanban.open", live: (m) => m.installedMods.get().has("kanban"), run: () => page.set("kanban") },
-  { id: "automations.open", live: () => true, run: () => page.set("routines") },
-  { id: "workItems.open", live: (m) => m.installedMods.get().has("issues"), run: () => page.set("issues") },
+  { id: "kanban.open", live: (m) => m.installedMods.get().has("kanban"), run: () => openPage("kanban") },
+  { id: "automations.open", live: () => true, run: () => openPage("routines") },
+  { id: "workItems.open", live: (m) => m.installedMods.get().has("issues"), run: () => openPage("issues") },
   {
     id: "task.moveMode",
     live: (m) => !!aimedTask(m),
@@ -190,8 +191,12 @@ function disarm(): void {
   if (state.guide?.kind === "prefix") hud.set({ ...state, guide: null })
 }
 
-/** The mouse path in (the footer's hint, a keycap badge): arm without a key, like `armPrefixFromCurrentStack`. */
+/** The mouse path in (the footer's hint, a keycap badge): arm without a key, like `armPrefixFromCurrentStack`; again disarms. */
 export function armPrefix(): void {
+  if (armedAt !== null) {
+    disarm()
+    return
+  }
   if (dialog.get() || prefixKey() === null) return
   armedAt = Date.now()
   hud.set({ ...hud.get(), guide: { kind: "prefix", armedAt } })
@@ -253,12 +258,20 @@ export function usePrefixLayer(model: AppModel): void {
       }
     }
     const onKeyUp = (e: KeyboardEvent) => e.key === "Control" && cancelHold()
+    // A touch screen has no esc: a press outside the guide (and its keycap badges) dismisses it.
+    const onPointer = (e: PointerEvent) => {
+      if (armedAt === null) return
+      if (e.target instanceof Element && e.target.closest(".prefix-guide, .shortcut-badge, [data-prefix-arm]")) return
+      disarm()
+    }
     window.addEventListener("keydown", onKey, { capture: true })
     window.addEventListener("keyup", onKeyUp, { capture: true })
+    window.addEventListener("pointerdown", onPointer, { capture: true })
     window.addEventListener("blur", cancelHold)
     return () => {
       window.removeEventListener("keydown", onKey, { capture: true })
       window.removeEventListener("keyup", onKeyUp, { capture: true })
+      window.removeEventListener("pointerdown", onPointer, { capture: true })
       window.removeEventListener("blur", cancelHold)
       cancelHold()
       disarm()

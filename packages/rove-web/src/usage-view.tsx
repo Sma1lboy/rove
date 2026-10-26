@@ -9,12 +9,36 @@ import {
   contextChip,
   tokenTotalChip,
 } from "@sma1lboy/rove/src/tui-react/component/settings-dialog/usage-core.ts"
-import { useEffect, useState } from "react"
+import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { useStore } from "./store.ts"
 
 /** The daemon publishes as engines report; the TUI reads a pushed signal, the page polls. */
 const POLL_MS = 10_000
+
+/** JetBrains Mono advances 0.6em per glyph; the footer's width in TUI cells is its width over that. */
+const CELL_EM = 0.6
+/** CSS gap between chips (16px) in cells, rounded up: the TUI budgets 2. */
+const GAP_CELLS = 3
+
+/** The footer width left for usage, in cells; Infinity until measured. */
+function useCells(): [RefObject<HTMLSpanElement | null>, number] {
+  const box = useRef<HTMLSpanElement>(null)
+  const [cells, setCells] = useState(Number.POSITIVE_INFINITY)
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el) return
+    const measure = () => {
+      const cell = Number.parseFloat(getComputedStyle(el).fontSize) * CELL_EM
+      setCells(Math.floor(el.clientWidth / cell))
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    measure()
+    return () => observer.disconnect()
+  }, [])
+  return [box, cells]
+}
 
 interface UsageRow {
   readonly vendor: string
@@ -43,6 +67,7 @@ export function UsageChips({
 }: { client: BridgeClient; taskId: string | null; tabId: string | null }) {
   const conn = useStore(client.conn)
   const [reply, setReply] = useState<UsageReply | null>(null)
+  const [box, cells] = useCells()
   useEffect(() => {
     if (conn.state !== "open") return
     let live = true
@@ -64,16 +89,20 @@ export function UsageChips({
   const ctx = contextChip(reply?.context)
   const tok = tokenTotalChip(reply?.context)
   const names = new Map((reply?.usage ?? []).map((row) => [row.vendor, row.name]))
+  const lead =
+    (ctx ? `${ctx.label} ${ctx.percentText}`.length + GAP_CELLS : 0) +
+    (tok ? `${tok.label} ${tok.text}`.length + GAP_CELLS : 0)
   const quota = reply?.usage?.length
     ? buildFooterChips({
         usage: new Map(reply.usage.map((row) => [row.vendor, { capturedAt: row.capturedAt, windows: row.windows }])),
-        budget: Number.POSITIVE_INFINITY,
+        // Each vendor gap is wider in CSS than the TUI's 2 cells; one cell per vendor covers it.
+        budget: cells - lead - reply.usage.length,
         nowMs: Date.now(),
         vendorLabel: (vendor) => names.get(vendor) ?? vendor,
       })
     : null
   return (
-    <span className="usage">
+    <span className="usage" ref={box}>
       {ctx && (
         <span className="usage-chip">
           <span>{ctx.label}</span> <span className={`tone-${ctx.tone}`}>{ctx.percentText}</span>
@@ -96,6 +125,12 @@ export function UsageChips({
                 {chip.resetText ? ` ${chip.resetText}` : ""}
               </span>
             ))}
+          </span>
+        ))}
+      {quota?.form === "compact" &&
+        quota.vendors.map((vendor) => (
+          <span key={vendor.vendor} className="usage-chip">
+            {vendor.vendor} <span className={`tone-${vendor.tone}`}>{vendor.percentText}</span>
           </span>
         ))}
     </span>

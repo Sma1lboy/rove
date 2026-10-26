@@ -182,7 +182,7 @@ export function ModsView({ model }: { model: AppModel }) {
     <div className="page mods-page" tabIndex={0} ref={root}>
       <div className="pg-top">
         <h1 className="page-title">{copy.title}</h1>
-        <span className="pg-hint muted">{copy.keys}</span>
+        <span className="pg-hint muted keys-only">{copy.keys}</span>
       </div>
       {panes.length === 0 ? (
         <div className="mods-empty">

@@ -21,6 +21,48 @@ export function paletteFor(themes: readonly ThemeEntry[], name: string, mode: Mo
   return entry ? entry[mode] : null
 }
 
+const channelsOf = (hex: string): number[] => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16))
+
+function luminance(hex: string): number {
+  const [r = 0, g = 0, b = 0] = channelsOf(hex).map((c) => {
+    const s = c / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+export function contrast(a: string, b: string): number {
+  const [hi = 0, lo = 0] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+/** WCAG AA for small text. */
+const MIN_TEXT_CONTRAST = 4.5
+
+/**
+ * `--subtle` is the TUI's line-number grey, tuned for a terminal; on the page it is small text on every
+ * surface. A grey that already reads is kept; otherwise it is mixed toward white (dark pages) or black
+ * (light pages) just far enough to hold AA on all of them, checked on the rounded hex that gets painted.
+ * The pole is not the theme's `text`: some themes ink in a hue that is itself under AA on their surfaces.
+ */
+function legibleSubtle(subtle: string, surfaces: readonly [string, ...string[]]): string {
+  const reads = (c: string) => surfaces.every((s) => contrast(c, s) >= MIN_TEXT_CONTRAST)
+  if (reads(subtle)) return subtle
+  const from = channelsOf(subtle)
+  const pole = luminance(surfaces[0]) < 0.18 ? 255 : 0
+  for (let t = 0.02; t < 1; t += 0.02) {
+    const mixed = from
+      .map((c) =>
+        Math.round(c + (pole - c) * t)
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("")
+    if (reads(`#${mixed}`)) return `#${mixed}`
+  }
+  return pole ? "#ffffff" : "#000000"
+}
+
 /** Custom properties for `:root`. Empty before the first reply, so the stylesheet's own dark tokens stand. */
 export function cssVars(palette: Palette, prefs: Pick<Prefs, "focusAccent" | "colorblind">): Record<string, string> {
   const cb = prefs.colorblind === "on"
@@ -34,7 +76,12 @@ export function cssVars(palette: Palette, prefs: Pick<Prefs, "focusAccent" | "co
     "--line-subtle": palette.borderSubtle,
     "--ink": palette.text,
     "--muted": palette.textMuted,
-    "--subtle": palette.diffLineNumber,
+    "--subtle": legibleSubtle(palette.diffLineNumber, [
+      palette.background,
+      palette.backgroundPanel,
+      palette.backgroundElement,
+      palette.backgroundMenu,
+    ]),
     "--accent": palette.primary,
     "--error": palette.error,
     "--success": palette.success,

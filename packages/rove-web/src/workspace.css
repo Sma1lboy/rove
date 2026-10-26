@@ -1,7 +1,8 @@
 /* Workspace chrome: rail width/fold, narrow layout, split panes, key guide, palette, help, search. Tokens from styles.css. */
 
+/* The Files column gives way below 1250px wide (a tablet), so the terminal keeps the most room. */
 .app {
-  grid-template-columns: var(--rail-w, minmax(220px, 280px)) 1fr minmax(240px, 300px);
+  grid-template-columns: var(--rail-w, minmax(220px, 280px)) 1fr clamp(200px, 24vw, 300px);
 }
 
 .app.is-zen {
@@ -18,11 +19,44 @@
   display: none;
 }
 
+.narrow-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .narrow-back {
-  align-self: flex-start;
   padding: 2px 6px;
   font-size: 12px;
   font-weight: 700;
+}
+
+.narrow-switch {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.narrow-switch button {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font: 600 12px var(--mono);
+  color: var(--muted);
+}
+
+.narrow-switch button[aria-selected="true"] {
+  color: var(--ink);
+  background: var(--inset);
+}
+
+/* The phone's file list fills the panel; rows sized for a finger. */
+.files.is-narrow {
+  flex: 1;
+  padding: 10px 6px 8px;
+}
+
+.files.is-narrow .file-row {
+  min-height: 36px;
 }
 
 .recent-row .glyph {
@@ -493,6 +527,203 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* What a soft keyboard lacks; shown on touch screens only (below). */
+.term-keys {
+  display: none;
+  gap: 4px;
+  padding: 4px 6px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.term-keys button {
+  /* Equal shares on a phone; a narrower column keeps each label whole, then scrolls the row. */
+  flex: 1 1 0;
+  min-width: max-content;
+  height: 32px;
+  padding: 0 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--inset);
+  color: var(--ink);
+  font: 12px var(--mono);
+  touch-action: manipulation;
+}
+
+.term-keys button.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* A touch screen has no j/k to press, and no esc/tab/arrows on its soft keyboard. */
+@media (hover: none) and (pointer: coarse) {
+  /* Pure key legends; mixed ones drop their key segments in code (key-hints.ts). */
+  .pane-hint,
+  .inbox-hints,
+  .kb-hint-line,
+  .keys-only,
+  .newtask-legend,
+  .menu-key,
+  .palette-chord,
+  .whats-new-keys,
+  .update-key,
+  .kb-legend:empty,
+  .pg-hint:empty {
+    /* Sheets imported after this one (welcome.css, pages.css) set their own display at equal specificity. */
+    display: none !important;
+  }
+  .term-keys {
+    display: flex;
+  }
+  /* The overlays sit on the grid, above the key row. */
+  .term-pane > .term-scrolled,
+  .term-pane > .term-notice,
+  .term-pane > .term-search {
+    bottom: 48px;
+  }
+  /* A long-press opens the row's menu (long-press.ts), not iOS's text selection and callout. */
+  .rail,
+  .tab {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  /* Controls the desktop reveals on hover stay visible: a finger would hit them unseen. */
+  .project-chevron,
+  .project-add,
+  .eng-make-default {
+    opacity: 1;
+  }
+  /* A fingertip is ~40px: list rows grow to it; small controls keep their look and get an invisible larger hit area. */
+  .row,
+  .rail-nav-row {
+    min-height: 40px;
+  }
+  .link,
+  .project-add,
+  .project-toggle,
+  .rail-head .kicker {
+    position: relative;
+  }
+  .link::after,
+  .project-add::after,
+  .project-toggle::after,
+  .rail-head .kicker::after {
+    content: "";
+    position: absolute;
+    inset: -12px -6px;
+  }
+  /* The footer sits under the terminal key row: grow down only, and no further than the footer's 4px bottom
+     padding; past the window edge the page itself grows and scrolls. Wrapping link groups keep neighbours apart. */
+  .status .link::after {
+    inset: -2px -6px -4px;
+  }
+  .pg-actions .link::after,
+  .files-scope .link::after {
+    inset: -2px -3px;
+  }
+  /* Kanban header: 新建/删除 and the project name sit 8px apart (`.kb-page` gap); each takes half. */
+  .kb-top .pg-actions .link::after {
+    inset: -6px -3px -4px;
+  }
+  /* Routines header: most of `.page`'s 14px padding above, half of the list's 10px margin below. */
+  .pg-top > .pg-actions .link::after {
+    inset: -10px -3px -5px;
+  }
+  .kb-project-name {
+    position: relative;
+  }
+  .kb-project-name::after {
+    content: "";
+    position: absolute;
+    inset: -4px -8px;
+  }
+  /* Picker rows grow by padding, so baseline-aligned label and key stay aligned. Composer and suggest rows: their own sheets. */
+  .menu-item,
+  .palette-row,
+  .prefix-guide-row {
+    padding-block: 10px;
+  }
+  /* Repo / placement pickers (routine composer, Kanban drawer) stack 2px apart: no room for ::after. */
+  .kb-place {
+    padding-block: 6px;
+  }
+  .dialog-close,
+  .narrow-back,
+  .narrow-switch button,
+  .files-tab,
+  .tab-close,
+  .kb-strip button {
+    position: relative;
+  }
+  .dialog-close::after,
+  .narrow-back::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
+  }
+  /* Fold/back/forward: 8px from the window corner, 2px apart, the rail head or tab strip ~6px below. */
+  .rail-bar-btn::after {
+    content: "";
+    position: absolute;
+    inset: -8px -1px -5px;
+  }
+  .rail-bar-btn:first-child::after {
+    left: -8px;
+  }
+  /* The tab strip sits 6px under the back button: stop at the gap. */
+  .narrow-back::after {
+    bottom: -4px;
+  }
+  /* Terminal/Files sit 2px apart under the screen edge; -6px is `.workspace`'s gap to the tab strip. */
+  .narrow-switch button::after {
+    content: "";
+    position: absolute;
+    inset: -8px -1px -6px;
+  }
+  /* 全部/变更: 4px apart, `.files-actions`' 8px padding above, `.files-tabs`' 6px padding below. */
+  .files-tab::after {
+    content: "";
+    position: absolute;
+    inset: -8px -2px -6px;
+  }
+  /* The preview tab's ×: its tab's 10px right padding, the tab row's height, and the gaps above/below. */
+  .tab-close::after {
+    content: "";
+    position: absolute;
+    inset: -7px -10px -10px -6px;
+  }
+  /* Lanes sit 16px apart, the project name 8px above: grow down, barely up. */
+  .kb-strip button::after {
+    content: "";
+    position: absolute;
+    inset: -4px -6px -12px;
+  }
+  .pref-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+  /* iOS Safari zooms the page into any focused field under 16px (xterm's hidden textarea too). Field
+     styles sit in several later-loaded sheets, hence !important. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  /* The search row's `/` and count match its 16px field. */
+  .term-search {
+    font-size: 16px;
+  }
+  /* Primary buttons (connect, sign out, start session) and the engine rows' secondary actions are
+     ~24-28px tall at desktop padding. */
+  .button,
+  .eng-action {
+    min-height: 40px;
+  }
 }
 
 /* Daemon out-of-date banner (TUI VersionSkewBanner) */

@@ -121,6 +121,27 @@ describe("static client", () => {
     expect((await fetch(`${h.http}/assets/missing.js`)).status).toBe(404)
   })
 
+  test("text goes out gzipped to a browser that accepts it; fonts and a rebuilt shell are served as they are", async () => {
+    const root = webRoot()
+    writeFileSync(join(root, "assets", "font-abc.woff2"), "wOF2-bytes")
+    const h = start({ web: { root } })
+    const raw = (path: string, enc: string) =>
+      fetch(`${h.http}${path}`, { headers: { "Accept-Encoding": enc }, decompress: false })
+    const js = await raw("/assets/app-abc.js", "gzip, deflate, br")
+    expect(js.headers.get("content-encoding")).toBe("gzip")
+    expect(js.headers.get("vary")).toBe("Accept-Encoding")
+    expect(js.headers.get("cache-control")).toContain("immutable")
+    expect(new TextDecoder().decode(Bun.gunzipSync(new Uint8Array(await js.arrayBuffer())))).toBe("console.log(1)")
+    const plain = await raw("/assets/app-abc.js", "identity")
+    expect(plain.headers.get("content-encoding")).toBeNull()
+    expect(await plain.text()).toBe("console.log(1)")
+    expect((await raw("/assets/font-abc.woff2", "gzip")).headers.get("content-encoding")).toBeNull()
+    expect((await raw("/assets/app-abc.js", "gzip;q=0, identity")).headers.get("content-encoding")).toBeNull()
+    expect(await (await fetch(`${h.http}/`)).text()).toContain("<title>shell")
+    writeFileSync(join(root, "index.html"), "<!doctype html><title>rebuilt shell</title>")
+    expect(await (await fetch(`${h.http}/`)).text()).toContain("rebuilt shell")
+  })
+
   test("a traversal path never leaves the root", async () => {
     const h = start({ web: { root: webRoot() } })
     const res = await fetch(`${h.http}/%2e%2e/rove-web-secret.txt`)

@@ -23,6 +23,7 @@ import {
 } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
+import { deviceHint } from "./key-hints.ts"
 import { fill, projectLabel, repoKey, useCopy } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog } from "./ui.ts"
@@ -130,15 +131,17 @@ export function RoutineComposer(props: {
     refs.current[next]?.focus()
   }
   const segments = splitCron(draft.schedule)
+  const stepCell = (delta: 1 | -1) => {
+    const segment = CRON_SEGMENTS[cell]
+    if (segment)
+      patch({ schedule: setSegment(draft.schedule, cell, stepSegment(segment, segments[cell] ?? "*", delta)) })
+  }
   const scheduleKeys = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return
-    const segment = CRON_SEGMENTS[cell]
     if (e.key === "ArrowLeft" || e.key === "h") setCell(moveSegmentCursor(cell, -1))
     else if (e.key === "ArrowRight" || e.key === "l") setCell(moveSegmentCursor(cell, 1))
-    else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && segment) {
-      const delta = e.key === "ArrowUp" ? 1 : -1
-      patch({ schedule: setSegment(draft.schedule, cell, stepSegment(segment, segments[cell] ?? "*", delta)) })
-    } else return
+    else if (e.key === "ArrowUp" || e.key === "ArrowDown") stepCell(e.key === "ArrowUp" ? 1 : -1)
+    else return
     e.preventDefault()
   }
   const preview = previewScheduleWith(draft.schedule, Date.now(), tr, intl)
@@ -164,7 +167,7 @@ export function RoutineComposer(props: {
           <div className="field">
             <span className="kicker kb-label">
               {auto.fieldRepo}
-              <span className="muted kb-hint">↑/↓</span>
+              <span className="muted kb-hint keys-only">↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("repo")}
@@ -194,7 +197,7 @@ export function RoutineComposer(props: {
           <div className="field">
             <span className="kicker kb-label">
               {auto.fieldTarget}
-              <span className="muted kb-hint">↑/↓</span>
+              <span className="muted kb-hint keys-only">↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("target")}
@@ -234,7 +237,7 @@ export function RoutineComposer(props: {
           <div className="field">
             <span className="kicker kb-label">
               {auto.fieldSchedule}
-              <span className="muted kb-hint">←/→ ↑/↓</span>
+              <span className="muted kb-hint keys-only">←/→ ↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("schedule")}
@@ -259,6 +262,26 @@ export function RoutineComposer(props: {
                 </button>
               ))}
             </SelectorField>
+            {/* A soft keyboard has no arrows: on touch the picked field steps with these instead. */}
+            <div className="pg-cron-step">
+              {([-1, 1] as const).map((delta) => {
+                const field = auto.cronField[CRON_SEGMENTS[cell] ?? "minute"] ?? ""
+                return (
+                  <button
+                    type="button"
+                    key={delta}
+                    tabIndex={-1}
+                    aria-label={t(delta < 0 ? "pages.cronDown" : "pages.cronUp", { field })}
+                    onClick={() => {
+                      stepCell(delta)
+                      refs.current.schedule?.focus()
+                    }}
+                  >
+                    {delta < 0 ? "−" : "+"}
+                  </button>
+                )
+              })}
+            </div>
             {preview.kind === "ok" ? (
               <p className="tone-success mono">
                 {described ? `${described} · ` : ""}
@@ -269,7 +292,7 @@ export function RoutineComposer(props: {
             )}
           </div>
           {error && <p className="error">※ {error}</p>}
-          <p className="muted kb-legend">{auto.composerLegend}</p>
+          <p className="muted kb-legend">{deviceHint(auto.composerLegend)}</p>
           <div className="actions">
             <button type="button" className="link" onClick={closeDialog}>
               {common.cancel}

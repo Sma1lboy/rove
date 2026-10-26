@@ -1,13 +1,5 @@
 /* Files pane and the read-only preview. Tokens from styles.css. */
 
-.app {
-  grid-template-columns: minmax(220px, 280px) 1fr minmax(240px, 300px);
-}
-
-.app.is-zen {
-  grid-template-columns: minmax(220px, 280px) 1fr;
-}
-
 .files {
   grid-row: 1;
   display: flex;
@@ -151,6 +143,18 @@
   min-width: 0;
 }
 
+/* A phone has no room to scroll sideways through a line: wrap it under its own column. */
+.app.is-narrow .diff-row {
+  grid-template-columns: 3ch 3ch 1ch 1fr;
+  gap: 0 4px;
+  padding: 0 6px;
+}
+
+.app.is-narrow .diff-row .code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .diff-row.kind-add {
   background: var(--diff-added-bg);
 }
@@ -207,4 +211,10 @@
 
 .preview-footer .spacer {
   flex: 1;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .preview-footer .preview-keys {
+    display: none;
+  }
 }
