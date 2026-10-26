@@ -32,6 +32,7 @@ import { TaskFeed } from "./feed.ts"
 import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { machineStore } from "./ops/machines.ts"
+import { PanelFeed } from "./panels.ts"
 import { runPasswordAction } from "./password-cmd.ts"
 import { PromptFeed } from "./prompts.ts"
 import { BridgeError } from "./protocol.ts"
@@ -176,10 +177,13 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   const rowStatus = new RowStatusFeed(statusClient)
   // Same socket: like row status, it is a whole snapshot to resync after the daemon comes back.
   const dispatches = new DispatchFeed(statusClient)
+  // `rove api panel-show`: an event, not a snapshot, so a replay after a reconnect is dropped by age.
+  const panels = new PanelFeed()
+  statusClient.onChannel("panel.show", (panel) => panels.push(panel))
   let statusRetryMs = STATUS_RECONNECT_MS
   const syncStatus = async (): Promise<void> => {
     try {
-      await statusClient.subscribe({ channels: ["row.status", "dispatch.snapshot"], role: "pane" })
+      await statusClient.subscribe({ channels: ["row.status", "dispatch.snapshot", "panel.show"], role: "pane" })
       await rowStatus.resync()
       await dispatches.resync()
       statusRetryMs = STATUS_RECONNECT_MS
@@ -272,6 +276,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     feed,
     notices,
     prompts,
+    panels,
     mods,
     tabs,
     rowStatus,

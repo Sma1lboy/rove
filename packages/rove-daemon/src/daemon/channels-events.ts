@@ -5,6 +5,18 @@
  * Re-exported through `protocol.ts`.
  */
 
+/** The `panel.show` channel payload — one "bring up the side panel on this view". */
+export interface PanelShowPayload {
+  readonly taskId: string
+  readonly view: "browser" | "files" | "diff"
+  /** Browser view: the http(s) URL to load (absolute, as the daemon normalised it). */
+  readonly url?: string
+  /** Files and Diff views: the file, relative to the task's worktree, never `..`. */
+  readonly path?: string
+  /** Publish time (ms epoch) — the consumer-side dedupe key. */
+  readonly at: number
+}
+
 /** The `notice.event` channel payload — one toast for every attached UI. */
 export interface NoticeEventPayload {
   readonly title: string

@@ -134,6 +134,7 @@ export const DAEMON_CHANNELS = [
   "tab.add",
   "engine.lifecycle",
   "notice.event",
+  "panel.show",
   "usage.snapshot",
   "usage.context",
   "ui.prompt",

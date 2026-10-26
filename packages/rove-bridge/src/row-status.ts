@@ -8,6 +8,7 @@
 
 import type { TaskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
+import type { ViewingFields } from "./protocol.ts"
 
 /** The slice of `RoveDaemonClient` this feed uses (faked in tests). */
 export interface StatusClient {
@@ -33,7 +34,7 @@ export class RowStatusFeed {
   private statuses: RowStatuses | null = null
   private rev = -1
   /** viewer → what that browser shows, re-sent after a reconnect (the daemon forgets a closed connection's). */
-  private readonly viewing = new Map<string, { taskId: string; tabId: string | null }>()
+  private readonly viewing = new Map<string, { taskId: string; tabId: string | null; fields: ViewingFields }>()
   private readonly listeners = new Set<() => void>()
 
   constructor(private readonly client: StatusClient) {
@@ -51,7 +52,7 @@ export class RowStatusFeed {
    */
   async resync(): Promise<void> {
     this.accept(await this.client.request("status.list"), true)
-    for (const [viewer, view] of this.viewing) this.sendViewing(viewer, view.taskId, view.tabId)
+    for (const [viewer, view] of this.viewing) this.sendViewing(viewer, view.taskId, view.tabId, view.fields)
   }
 
   subscribe(listener: () => void): () => void {
@@ -59,16 +60,20 @@ export class RowStatusFeed {
     return () => this.listeners.delete(listener)
   }
 
-  /** `viewer` (one browser connection) now shows this task/tab; `taskId` null = nothing, or it left. */
-  setViewing(viewer: string, taskId: string | null, tabId: string | null): void {
+  /**
+   * `viewer` (one browser connection) now shows this task/tab; `taskId` null = nothing, or it left.
+   * `fields` says what kind of screen it is (`rove api viewers`); a change of it alone is re-sent.
+   */
+  setViewing(viewer: string, taskId: string | null, tabId: string | null, fields: ViewingFields = {}): void {
     const known = this.viewing.get(viewer)
     if (taskId === null) {
       if (!this.viewing.delete(viewer)) return
     } else {
-      if (known?.taskId === taskId && known.tabId === tabId) return
-      this.viewing.set(viewer, { taskId, tabId })
+      if (known?.taskId === taskId && known.tabId === tabId && JSON.stringify(known.fields) === JSON.stringify(fields))
+        return
+      this.viewing.set(viewer, { taskId, tabId, fields })
     }
-    this.sendViewing(viewer, taskId, tabId)
+    this.sendViewing(viewer, taskId, tabId, fields)
   }
 
   /**
@@ -85,8 +90,9 @@ export class RowStatusFeed {
     })
   }
 
-  private sendViewing(viewer: string, taskId: string | null, tabId: string | null): void {
-    this.client.request("ui.viewing", { viewer, taskId, ...(taskId !== null && tabId ? { tabId } : {}) }).catch(() => {
+  private sendViewing(viewer: string, taskId: string | null, tabId: string | null, fields: ViewingFields): void {
+    const extra = taskId !== null ? { ...(tabId ? { tabId } : {}), ...fields } : {}
+    this.client.request("ui.viewing", { viewer, taskId, ...extra }).catch(() => {
       // Lost with the connection; `resync` sends it again.
     })
   }

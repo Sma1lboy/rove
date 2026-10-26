@@ -10,6 +10,7 @@ import { launchOps } from "./launch.ts"
 import { machineOps } from "./machines.ts"
 import { modsOps } from "./mods.ts"
 import { pagesOps } from "./pages.ts"
+import { panelOps } from "./panel.ts"
 import { prefsOps } from "./prefs.ts"
 import { promptOps } from "./prompts.ts"
 import { routingOps } from "./routing.ts"
@@ -56,4 +57,5 @@ export const AREA_OPS: OpTable = mergeOpTables(
   launchOps,
   modsOps,
   promptOps,
+  panelOps,
 )

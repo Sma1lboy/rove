@@ -41,6 +41,14 @@ already paired with `rove-bridge` keeps working: the two share one token.
   here updates both ([PLUGIN-AUTHORING.md](PLUGIN-AUTHORING.md#mods)).
 - A plugin's input dialog (`rove api prompt`) opens here too; the first
   answer from the web or a TUI wins.
+- The side panel's Files, Diff and Browser views answer to agents. A page
+  reports whether it has a panel, whether it is open, and its width, so
+  `rove api viewers` tells an agent what you can see (and whether the page is
+  on the daemon's machine or behind a tunnel). `rove api panel-show` makes
+  every page remember a view for a task, and opens it on a page that is on
+  that task with a panel, without taking focus or switching task. The Browser
+  asks the bridge (`browser.probe`) whether a page forbids framing before it
+  loads it.
 - Dispatch (rail): every prompt one session hands another — `rove api send`,
   `api dispatch`, `api add` from an agent, a routine firing — while it is in
   flight and for a while after. A small ASCII courier runs from sender to

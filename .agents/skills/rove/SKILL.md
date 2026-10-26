@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 85 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 86 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -441,6 +441,40 @@ grid; screen size bounds splitting — a split that would shrink any pane
 below the minimum usable size (20×6 cells) falls back to a tab.
 Panes land in the USER'S live workspace — open them when asked (monitors,
 logs, dashboards), don't scatter panes for work `add` should own.
+
+## What the human sees, and the web side panel
+
+Before you show something, ask where the human is. `viewers` lists every UI
+attached and showing a task; `panel-show` puts a file, a diff or a web page
+in the web side panel:
+
+```bash
+rove api viewers --task-id <id>
+# {"viewers":[{"viewer":"bridge-1","surface":"web","taskId":"…","panel":true,
+#   "panelOpen":false,"narrow":false,"local":true}]}
+
+rove api panel-show --view files --path src/server.ts
+rove api panel-show --view diff
+rove api panel-show --view browser --url http://localhost:5173
+```
+
+- `surface` is `tui`, `web` or `phone`; `panel: true` only on a web page with
+  a side panel (desktop width). `panel-show` reaches only those. A TUI or a
+  phone has no panel; `shown: 0` means nobody saw it, so say it in your
+  report instead of assuming it was shown.
+- `local: false` means the page is behind a tunnel: its `localhost` is NOT
+  your machine, so a `localhost` URL comes back `url.reachable: false`. Give
+  such a viewer a public URL, or tell them the port.
+- `url.frameable: false` means the site forbids framing (GitHub does, for
+  example) or was refused; it will not load in the panel. Tell the human the
+  link instead. The check is one `HEAD` to a public HTTPS address; private
+  addresses are refused and redirects are not followed.
+- `--path` is relative to the task's worktree with no `..`; `--url` is
+  `http(s)` only, and only `localhost` is framed over plain `http`.
+- The task defaults to your own (`$ROVE_TASK_ID`, then the active task). The
+  panel opens on the page that is looking at that task, without taking focus
+  or switching task; every other page remembers the view for later. Open it
+  when it helps what the human is doing, not for every file you touch.
 
 ## Asking the owner (decision gates)
 
