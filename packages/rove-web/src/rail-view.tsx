@@ -47,6 +47,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const remoteTasks = useStore(model.remote)
   const machines = useMachines(model)
   const tabs = useStore(model.tabs)
+  const tabsSettled = useStore(model.tabsSettled)
   const selection = useStore(model.selection)
   const tasks = payload?.tasks ?? []
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
@@ -72,7 +73,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const rows = filters.search.active
     ? built.rows
     : withArchived(
-        foldProjects(dropIdleProjects(built.rows, tabs, selection.taskId), filters.collapsed),
+        foldProjects(dropIdleProjects(built.rows, tabs, selection.taskId, tabsSettled), filters.collapsed),
         payload?.archived ?? [],
         filters.archivedOpen,
         { ...filters.hand, selectedId: selectedId ?? undefined },
@@ -467,6 +468,7 @@ function dropIdleProjects(
   rows: readonly NavRow[],
   tabs: Readonly<Record<string, readonly unknown[]>>,
   selectedTaskId: string | null,
+  tabsSettled: boolean,
 ): readonly NavRow[] {
   const out: NavRow[] = []
   for (let i = 0; i < rows.length; i++) {
@@ -483,8 +485,9 @@ function dropIdleProjects(
         row.kind === "task" &&
         row.task.kind === "main" &&
         row.task.id !== selectedTaskId &&
-        // Only a tab list that arrived and is empty: unknown (not loaded, or the read failed) keeps the project.
-        tabs[row.task.id]?.length === 0,
+        // Before the first tab sweep lands, unknown hides too, so a project never shows and then vanishes;
+        // after it, unknown (the read failed) keeps the project.
+        (tabsSettled ? tabs[row.task.id]?.length === 0 : (tabs[row.task.id]?.length ?? 0) === 0),
     )
     if (!idle) out.push(head, ...under)
     i = end - 1

@@ -46,9 +46,9 @@ export function PageNav({ model }: { model: AppModel }) {
   const items = hasMods ? [...shown, MODS_NAV] : shown
   return (
     <div className="rail-nav">
-      {/* The one way to start a task from the rail, at the top as in Claude's sidebar. */}
-      <button type="button" className="rail-nav-row rail-new-task" onClick={() => startNewTask(model)}>
-        <span className="tone-accent">+</span> {t("rail.newTask")}
+      {/* Starting a task is the first destination, drawn like the pages under it. */}
+      <button type="button" className="rail-nav-row" onClick={() => startNewTask(model)}>
+        {t("rail.newTask")}
       </button>
       {items.map((item) => (
         <button

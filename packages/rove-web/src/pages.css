@@ -565,8 +565,3 @@
   width: 100%;
   font-family: var(--mono);
 }
-
-/* Flex drops the space between the + and the label. */
-.rail-new-task {
-  gap: 6px;
-}
