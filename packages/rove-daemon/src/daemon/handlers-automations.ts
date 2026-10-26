@@ -272,19 +272,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       }
       // Predates deliveries: the response lives on the run itself.
       const run = await ctx.automations.setRunResponse(runId, text)
-      if (!run) return { run: null }
-      const automation = ctx.automations.get(run.automationId)
-      if (automation) {
-        await ctx.inbox
-          .recordRoutineResponse(
-            { automationId: automation.id, name: automation.name, status: run.status, runNumber: run.runNumber },
-            run.taskId ?? null,
-            Date.now(),
-          )
-          // The response is already stored; an Inbox write must not fail the verb.
-          .catch((err: unknown) => logDaemonError("automation-respond-inbox", err))
-      }
-      return { run }
+      return { run: run ?? null }
     },
   },
   {

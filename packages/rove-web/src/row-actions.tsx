@@ -18,6 +18,7 @@ import { newChatHere, openTab } from "./task-dialogs.tsx"
 import {
   archiveFlow,
   deleteTaskDialog,
+  endMainConversationDialog,
   fixChecksFlow,
   forgetProjectDialog,
   landFlow,
@@ -97,7 +98,6 @@ export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): M
       label: tc("tasks", "menu.forgetProject"),
       section: "danger",
       danger: true,
-      ...bound("sidebar.delete"),
       run: () => dialog.set(forgetProjectDialog(model, repo, info.label)),
     })
   }
@@ -283,18 +283,14 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     })
   }
   items.push({
-    // Say what goes: a conversation in a folder, a task with its worktree, or the project's list entry.
-    label: t(
-      task.kind === "main" ? "menu.removeProject" : task.kind === "dir" ? "menu.deleteConversation" : "menu.deleteTask",
-    ),
+    // Say what goes: a conversation (in a folder, or a project's main) or a task with its worktree.
+    label: t("menu.removeSession"),
     section: "danger",
     ...bound("sidebar.delete"),
     danger: true,
     run: () =>
-      // A project's main checkout has no worktree to delete: Delete forgets the project (TUI `deleteTaskFlow`).
-      task.kind === "main"
-        ? dialog.set(forgetProjectDialog(model, task.repo, task.title))
-        : dialog.set(deleteTaskDialog(model, task)),
+      // A project's main checkout is never deleted: Delete ends its conversation, Remove project is on the header.
+      dialog.set(task.kind === "main" ? endMainConversationDialog(model, task) : deleteTaskDialog(model, task)),
   })
   return items
 }

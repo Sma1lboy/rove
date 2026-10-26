@@ -13,6 +13,7 @@ import { IssuesView } from "./issues-view.tsx"
 import { KanbanView } from "./kanban-view.tsx"
 import type { AppModel } from "./model.ts"
 import { ModsView } from "./mods-view.tsx"
+import { startNewTask } from "./new-session-view.tsx"
 import { useCopy } from "./pages-kit.ts"
 import { RoutinesView } from "./routines-view.tsx"
 import { useStore } from "./store.ts"
@@ -45,6 +46,10 @@ export function PageNav({ model }: { model: AppModel }) {
   const items = hasMods ? [...shown, MODS_NAV] : shown
   return (
     <div className="rail-nav">
+      {/* Starting a task is the first destination, drawn like the pages under it. */}
+      <button type="button" className="rail-nav-row" onClick={() => startNewTask(model)}>
+        {t("rail.newTask")}
+      </button>
       {items.map((item) => (
         <button
           type="button"

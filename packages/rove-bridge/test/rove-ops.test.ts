@@ -348,6 +348,28 @@ describe("phone text that starts with --", () => {
   })
 })
 
+describe("task.delete children", () => {
+  test("`cascade` rides the delete verb; without it the daemon promotes the children", async () => {
+    const calls: { name: string; argv: readonly string[] }[] = []
+    const api: BridgeApi = {
+      async verb<T>(name: string, argv: readonly string[]) {
+        calls.push({ name, argv })
+        return { queued: true } as T
+      },
+      rpc: () => Promise.reject(new Error("unused")),
+    }
+    const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
+    await ops.deleteTask("T1", true, true)
+    await ops.deleteTask("T1", false)
+    expect(argvToParams(calls[0].name, calls[0].argv)).toMatchObject({
+      "task-id": "T1",
+      force: "true",
+      cascade: "true",
+    })
+    expect(argvToParams(calls[1].name, calls[1].argv)).not.toHaveProperty("cascade")
+  })
+})
+
 describe("pairing token", () => {
   test("persists owner-only across restarts and rotation replaces it", () => {
     const path = join(mkdtempSync(join(tmpdir(), "rove-bridge-")), "bridge", "token")

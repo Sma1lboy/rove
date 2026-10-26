@@ -96,9 +96,7 @@ export const en = {
     changeEngine: "Change engine",
     land: "Land into base branch",
     delete: "Delete",
-    deleteTask: "Delete task",
-    deleteConversation: "Delete conversation",
-    removeProject: "Remove project",
+    removeSession: "Remove session",
     copied: "copied {text}",
     copyFailed: "the browser refused the clipboard",
     nothingToCopy: "this task has no {what} yet",
@@ -162,7 +160,6 @@ export const en = {
       rateLimited: "rate limited",
       dead: "engine exited",
       routineFailed: "routine needs you",
-      routineResponded: "routine responded",
     },
   },
   files: {

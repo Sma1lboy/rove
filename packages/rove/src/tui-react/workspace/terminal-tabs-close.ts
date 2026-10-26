@@ -120,3 +120,14 @@ export function closeOtherTaskTabs(kv: TabsSnapshotKv, taskId: string, keepId: s
   }
   return closed
 }
+
+/** Close every tab of `taskId`, one {@link closeTaskTab} each; the row stays and re-entering revives a tab. */
+export function closeAllTaskTabs(kv: TabsSnapshotKv, taskId: string): number {
+  const state = knownTabsState(kv, taskId)
+  if (!state) return 0
+  let closed = 0
+  for (const tab of state.tabs) {
+    if (closeTaskTab(kv, taskId, tab.id)) closed++
+  }
+  return closed
+}

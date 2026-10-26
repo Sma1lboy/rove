@@ -70,6 +70,8 @@ export class AppModel {
   /** Other registered machines' rows (`machine` set): listed under their header, read-only, as the TUI. */
   readonly remote: Store<readonly TaskRow[]> = createStore<readonly TaskRow[]>([])
   readonly tabs: Store<Readonly<Record<string, readonly TabRow[]>>> = createStore({})
+  /** The first tab sweep has answered (or failed) for every task: an absent entry now means a failed read, not one still on its way. */
+  readonly tabsSettled: Store<boolean> = createStore(false)
   /** Every open mod pane, re-validated from the `mods` push (the bridge sends it on connect). */
   readonly mods: Store<readonly ModPaneView[]> = createStore<readonly ModPaneView[]>([])
   /** The daemon's dispatch ledger, as the bridge last pushed it; null until it does (or the daemon has none). */
@@ -271,6 +273,7 @@ export class AppModel {
       }),
     )
     if (sweep !== this.tabSweep) return
+    if (!this.tabsSettled.get()) this.tabsSettled.set(true)
     const kept = new Set(live.map((task) => task.id))
     this.tabs.set(Object.fromEntries(Object.entries(this.tabs.get()).filter(([id]) => kept.has(id))))
   }

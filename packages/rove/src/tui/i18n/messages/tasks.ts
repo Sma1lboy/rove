@@ -1,3 +1,4 @@
+import { en as confirmEn, zh as confirmZh } from "./tasks-confirm"
 import { en as toastEn, zh as toastZh } from "./tasks-toast"
 
 /**
@@ -82,8 +83,7 @@ export const en = {
     /** Hide the task and its children from the sidebar; nothing is stopped or removed. Menu-only. */
     archive: "Archive",
     unarchive: "Unarchive",
-    delete: "Delete task",
-    deleteConversation: "Delete conversation",
+    delete: "Remove session",
   },
   /** The six `TaskStatus` values, for the set-status picker and its row chip.
    *  A LABEL on the board — nothing here stops a session or removes a
@@ -195,32 +195,7 @@ export const en = {
   /** The destructive confirms on a task row (`d` on the tasks pane). Every
    *  body says what SURVIVES, because that is the fact that decides whether
    *  a user should press enter. */
-  confirm: {
-    cancel: "cancel",
-    /** A project row is a saved repo, not a worktree — `d` un-saves it. */
-    forgetProjectTitle: 'Remove project "{title}"?',
-    forgetProjectBody:
-      "Forgets it from the projects list. The repo, its branches, worktrees, and any tasks under it stay on disk — re-add it with `rove add`.",
-    forgetProjectConfirm: "remove",
-    deleteTitle: 'Delete task "{title}"?',
-    /** A `dir` task is one conversation in a folder the user owns: name it so, not "task". */
-    deleteTitleDir: 'Delete conversation "{title}"?',
-    /** A `dir` task pins the user's own directory; deletion never touches it. */
-    deleteBodyDir:
-      "Ends this conversation and closes all its tabs. Nothing on disk changes: the folder and its files stay.",
-    deleteBodyTask: "Ends this task, closes all its tabs and removes its worktree folder. The git branch stays.",
-    deleteBodyTaskBranch:
-      "Ends this task, closes all its tabs and removes its worktree folder, and its git branch if it is merged. An unmerged branch stays.",
-    deleteConfirm: "delete",
-    /** The delete dialog when the task has child tasks (it replaces the plain confirm); the default keeps them. */
-    childrenTitle: '"{title}" has {count} child tasks',
-    childrenBody:
-      "Promote moves them up one level and keeps their worktrees and sessions. Delete with children removes them too.",
-    childrenPromote: "promote children",
-    childrenCascade: "delete with children",
-    forceDeleteTitle: '"{title}" has uncommitted changes',
-    forceDeleteConfirm: "force delete",
-  },
+  confirm: confirmEn,
   /** Bare text prompt behind `b` on hosts without the branch picker. */
   renameBranch: {
     title: "Rename branch",
@@ -360,8 +335,7 @@ export const zh: typeof en = {
     land: "合入基础分支",
     archive: "归档",
     unarchive: "取消归档",
-    delete: "删除任务",
-    deleteConversation: "删除对话",
+    delete: "移除会话",
   },
   status: {
     backlog: "待办",
@@ -434,26 +408,7 @@ export const zh: typeof en = {
     confirm: "重新运行",
     footer: "\u2191\u2193 滚动 \u00B7 \u2190\u2192 选择 \u00B7 enter 运行 \u00B7 esc 取消",
   },
-  confirm: {
-    cancel: "取消",
-    forgetProjectTitle: "从列表中移除项目「{title}」？",
-    forgetProjectBody:
-      "只是把它从项目列表里忘掉。仓库、分支、worktree 以及它下面的任务都会留在磁盘上——之后可以用 `rove add` 重新加回来。",
-    forgetProjectConfirm: "移除",
-    deleteTitle: "删除任务「{title}」？",
-    deleteTitleDir: "删除对话「{title}」？",
-    deleteBodyDir: "结束这个对话，关闭它的所有标签页。磁盘上什么都不动：文件夹和里面的文件都会保留。",
-    deleteBodyTask: "结束这个任务，关闭它的所有标签页，并删除它的 worktree 文件夹。git 分支会保留。",
-    deleteBodyTaskBranch:
-      "结束这个任务，关闭它的所有标签页，删除它的 worktree 文件夹，以及已合并的 git 分支。未合并的分支会保留。",
-    deleteConfirm: "删除",
-    childrenTitle: "「{title}」有 {count} 个子任务",
-    childrenBody: "提升会把它们上移一级，并保留它们的 worktree 和会话。连同子任务删除会把它们一并删除。",
-    childrenPromote: "提升子任务",
-    childrenCascade: "连同子任务删除",
-    forceDeleteTitle: "「{title}」有未提交的改动",
-    forceDeleteConfirm: "强制删除",
-  },
+  confirm: confirmZh,
   renameBranch: {
     title: "重命名分支",
     fieldLabel: "分支",

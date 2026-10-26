@@ -192,9 +192,12 @@ row or one of its tab rows:
   Task, a Task moves within its repo group, and a project-main row moves the
   whole project. Moves stop at the edges (no wrap-around), and the new order
   persists across restarts.
-- `d` is kind-aware: it forgets a project-main row, removes only the Rove
-  record for a directory Task, or removes a managed Task and its worktree after
-  the dirty-worktree safety check.
+- `d` is kind-aware: on a project-main row it ends the conversation (kills the
+  sessions, closes the tabs; the project stays saved, the repo and worktrees stay
+  on disk, and the project leaves the rail until it has a session again), removes only the Rove record for a directory Task, or removes a
+  managed Task and its worktree after the dirty-worktree safety check. A Task
+  or project main with child Tasks asks whether to keep the children or delete
+  them too. **Remove project** is on the project header's menu.
 
 Right-clicking a row opens the same verbs as a menu, plus **Run again** on any
 Task that still has its brief. Rove stores the prompt a Task was created with,

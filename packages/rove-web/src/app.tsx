@@ -201,18 +201,6 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
               </button>
             </span>
           )}
-          <button
-            type="button"
-            className="tab tab-new"
-            title={t("menu.newChatHint")}
-            onClick={() => void newChatHere(model, task.id)}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              dialog.set(<NewChatDialog model={model} taskId={task.id} />)
-            }}
-          >
-            +
-          </button>
           <span className="tab-strip-title" title={task.branch}>
             {task.title}
           </span>

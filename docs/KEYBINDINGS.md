@@ -196,7 +196,7 @@ is active.
 | `l` / `space` | Open the row under the cursor | | `v` | Change engine |
 | `o` | Open Task directory in your editor | | `s` | Settings |
 | `u` | Update page — version check + release notes | | `/` | Search |
-| `d` | Delete Task / forget project | | `x` | Worktrees page |
+| `d` | Delete Task / end a project's conversation | | `x` | Worktrees page |
 | `gg` / `shift+g` | Top / bottom | | | |
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
 | `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Cycle task sort (default → recent → attention → name) |

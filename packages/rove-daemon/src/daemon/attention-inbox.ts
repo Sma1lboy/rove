@@ -273,23 +273,6 @@ export class AttentionInboxStore {
     })
   }
 
-  /** Record (or refresh) a routine's `routine_responded` episode, one per
-   *  routine: the newest response replaces the previous episode. */
-  async recordRoutineResponse(
-    routine: { automationId: string; name: string; status: string; runNumber: number },
-    taskId: string | null,
-    at: number,
-  ): Promise<void> {
-    await this.enqueue(async () => {
-      const detail: EngineActivityDetail = { routine }
-      const key = attentionInboxItemKey({ taskId, tabId: null, state: "routine_responded", detail })
-      const next = new Map(this.items)
-      next.delete(key)
-      next.set(key, { taskId, tabId: null, state: "routine_responded", detail, unread: true, at })
-      await this.commit(next)
-    })
-  }
-
   /** Drop a routine's episodes (only `state`'s, when given). A deleted
    *  routine's episodes: nothing else would ever clear them. */
   async deleteRoutineEpisode(automationId: string, state?: AttentionInboxState): Promise<void> {

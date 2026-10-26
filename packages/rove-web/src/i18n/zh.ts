@@ -97,9 +97,7 @@ export const zh: typeof en = {
     changeEngine: "切换引擎",
     land: "合入基础分支",
     delete: "删除",
-    deleteTask: "删除任务",
-    deleteConversation: "删除对话",
-    removeProject: "移除项目",
+    removeSession: "移除会话",
     copied: "已复制 {text}",
     copyFailed: "浏览器拒绝了剪贴板访问",
     nothingToCopy: "这个任务还没有{what}",
@@ -163,7 +161,6 @@ export const zh: typeof en = {
       rateLimited: "限流",
       dead: "引擎已退出",
       routineFailed: "例行任务需要处理",
-      routineResponded: "例行任务已回报",
     },
   },
   files: {

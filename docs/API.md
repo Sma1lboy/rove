@@ -1365,7 +1365,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
 ## edit
 
-- `update --task-id ID [--title T] [--branch B] [--command CMD] [--model M]
+- `update [--task-id ID] [--title T] [--branch B] [--command CMD] [--model M]
   [--effort LEVEL] [--pinned true|false] [--require-report on|off] [--status S] [--report-branch B]
   [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
   fields in one call. Every field is validated before anything is written,
@@ -1373,7 +1373,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   pinned → status. The call is not atomic: if a step fails midway, the error
   reports the fields already `applied`. The result is `{ ok, taskId, updated,
   command?, protocol?, generic?, engine? }`, where `updated` lists the fields
-  written, in order.
+  written, in order. Without `--task-id` it targets the caller's own task (the
+  verified `$ROVE_TASK_ID` session), so an agent can retitle the task it runs
+  in; outside a verified session that is `MISSING_TARGET`.
   - `--title T`: the task's title. With `--tab TAB` it names one Terminal Tab
     instead (the API twin of the TUI's f2) and `--title` is the only other flag
     allowed. `TAB_NOT_FOUND` when the task's snapshot names no such tab —

@@ -467,8 +467,8 @@ html[data-working-border="flow"] .pane.is-working {
   }
 }
 
-/* Tab strip: `chat.tabStrip.mode` hides the session tabs (the rail tree lists them); preview and + stay. */
-.tab-strip.is-tabs-hidden .tab:not(.tab-new):not(.tab-preview) {
+/* Tab strip: `chat.tabStrip.mode` hides the session tabs (the rail tree lists them); the preview stays. */
+.tab-strip.is-tabs-hidden .tab:not(.tab-preview) {
   display: none;
 }
 

@@ -9,12 +9,13 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { GENERIC_PROTOCOL, resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { ownSession } from "./dispatcher.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { assertEngineAcceptsEffort, assertEngineAcceptsModel, taskEngine, vendorToRecord } from "./handlers-engines.ts"
 import { renameTabsSnapshot } from "./tab-snapshot.ts"
 import { TASK_STATUSES } from "./task-statuses.ts"
-import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
 
 const TASK_FIELDS = ["title", "branch", "command", "model", "effort", "pinned", "require-report", "status"] as const
 const REPORT_FLAGS = ["report-branch", "report-pr", "report-summary"] as const
@@ -44,14 +45,30 @@ async function renameTab(ctx: VerbContext, taskId: string, tabId: string): Promi
   return { ok: true, taskId, tabId, title, renamed: true, clients: reply.clients ?? 0 }
 }
 
+/** `--task-id`, else the caller's own verified session (so an agent can retitle the task it runs in). */
+async function resolveTarget(ctx: VerbContext): Promise<string> {
+  const explicit = ctx.args.str("task-id")
+  if (explicit) return explicit
+  const self = await ownSession(daemonOf(ctx))
+  if (!self) {
+    throw new ApiError(
+      "no --task-id given and the caller is not a verified rove session — pass --task-id ID",
+      "MISSING_TARGET",
+      helpStep("update"),
+    )
+  }
+  return self.taskId
+}
+
 /**
  * Validate every field, then apply them one RPC at a time: the git-side
  * branch rename (the step most likely to refuse) first, then the engine, then
  * plain metadata. Not atomic — a refusal mid-way names what already applied.
  */
 async function updateTask(ctx: VerbContext): Promise<unknown> {
-  const taskId = ctx.args.require("task-id")
   const tabId = ctx.args.str("tab")
+  // A tab lives in the snapshot of the task that owns its PTY, which a migrated child's own id does not name.
+  const taskId = tabId !== undefined ? ctx.args.require("task-id") : await resolveTarget(ctx)
   if (tabId !== undefined) return renameTab(ctx, taskId, tabId)
 
   const title = ctx.args.str("title")
@@ -144,7 +161,11 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
     summary:
       "Change a task's metadata — any combination of title, branch (git branch -m if materialized, else recorded), engine --command / --model / --effort (take effect on the next session rebuild), pin, and status + worker report — in one call. Every field is validated before anything is written; then they apply in order branch → engine → title/pin/status, and a refusal mid-way names what already applied (`applied`). With --tab, renames that Terminal Tab instead (the API twin of the TUI's f2) and takes only --title. The status is a cosmetic LABEL: `--status canceled` closes, stops and cleans up nothing — `delete` ends a task. The --report-* fields record what the WORKER CLAIMS it delivered (`.report` on `get-task` / `collect`), deliberately apart from `.prStatus`, which the daemon polled from the forge; they merge onto any previous report and need --status. Returns { updated } — the fields written, in order.",
     flags: [
-      F.taskId(),
+      {
+        ...F.taskId(false),
+        description:
+          "Target task id (from `list` / `add`). Default: the calling session's own task, from the verified $ROVE_TASK_ID (an unverifiable env is MISSING_TARGET, never a guess).",
+      },
       {
         name: "title",
         type: "string",
@@ -156,7 +177,7 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         type: "string",
         placeholder: "TAB",
         description:
-          "Rename this Terminal Tab (id from `get-task` .tabs[].id, e.g. tab-2) instead of the task; only --title may accompany it. TAB_NOT_FOUND when the task's snapshot names no such tab.",
+          "Rename this Terminal Tab (id from `get-task` .tabs[].id, e.g. tab-2) instead of the task; needs --task-id, and only --title may accompany it. TAB_NOT_FOUND when the task's snapshot names no such tab.",
       },
       { name: "branch", type: "string", placeholder: "B", description: "New branch name." },
       {
