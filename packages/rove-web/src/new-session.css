@@ -170,6 +170,10 @@
   .composer-row {
     padding-block: 10px;
   }
+  /* `overflow: hidden` (for the ellipsis) would clip an ::after hit area, so the pills grow instead. */
+  .composer-chip {
+    padding-block: 7px;
+  }
 }
 
 .composer-check {
@@ -200,6 +204,14 @@
 .composer-more:hover,
 .composer-more:focus-visible {
   color: var(--ink);
+}
+
+/* Same text position, taller tap target. */
+@media (hover: none) and (pointer: coarse) {
+  .composer-more {
+    margin-top: 2px;
+    padding-block: 8px;
+  }
 }
 
 .composer-field {
