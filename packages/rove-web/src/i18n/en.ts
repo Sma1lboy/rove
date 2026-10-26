@@ -3,7 +3,7 @@ export const en = {
   rail: {
     inbox: "inbox {count}",
     empty: "no tasks yet",
-    emptyHint: "start one from a project's +, in the TUI, or with `rove api add`",
+    emptyHint: "start one with New task above, in the TUI, or with `rove api add`",
     newTask: "New task",
     noProject: "Ungrouped",
     extraRepos: "{count} more repos in this task",
@@ -281,6 +281,7 @@ export const en = {
     storySaveStart: "save & start",
     storyStart: "start",
     attachHintTouch: "paste a path / a screenshot → inserts an image placeholder",
+    quickIntentTouch: "Creates an isolated worktree and branch.",
   },
   taskops: {
     publishTitle: "publish to the remote",

@@ -31,6 +31,7 @@ import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu } from "./ui.ts"
 import "./taskops.css"
 import { UpdateChip } from "./update-view.tsx"
+import { WelcomePane } from "./welcome-view.tsx"
 
 /** Right click opens the row's menu where the pointer is (TUI tree menu). */
 export function openMenu(e: MouseEvent, items: readonly MenuItem[]): void {
@@ -149,7 +150,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       )}
       <PageNav model={model} />
       <div className={`rail-body ${drag.dragging ? "is-sorting" : ""}`} {...drag.body}>
-        {payload && tasks.length === 0 && remoteTasks.length === 0 && (
+        {payload && tasks.length === 0 && remoteTasks.length === 0 && narrow && <WelcomePane model={model} />}
+        {payload && tasks.length === 0 && remoteTasks.length === 0 && !narrow && (
           <div className="empty">
             <p>{t("rail.empty")}</p>
             <p className="muted">{t("rail.emptyHint")}</p>
