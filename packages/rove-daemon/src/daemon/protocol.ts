@@ -129,6 +129,8 @@ export type DaemonRequestName =
   | "tabs.release"
   | "status.list"
   | "ui.viewing"
+  | "ui.viewers"
+  | "panel.show"
   | "activity.answered"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"

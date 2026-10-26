@@ -10,6 +10,7 @@ import { simpleRpc } from "./handler-helpers.ts"
 import { PANE_GRAPHICS_VERB } from "./handlers-graphics.ts"
 import { INTERRUPT_VERB } from "./handlers-interrupt.ts"
 import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB, TAB_NEW_VERB, TAB_SPLIT_VERB } from "./handlers-pane.ts"
+import { PANEL_SHOW_VERB } from "./handlers-panel.ts"
 import { ROW_TOKEN_VERB } from "./handlers-row-token.ts"
 import { TAB_REVIVE_VERB } from "./handlers-tab-revive.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
@@ -121,6 +122,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   TAB_NEW_VERB,
   TAB_SPLIT_VERB,
   TAB_REVIVE_VERB,
+  PANEL_SHOW_VERB,
   {
     name: "notify",
     group: "drive",

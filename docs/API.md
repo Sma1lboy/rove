@@ -671,6 +671,16 @@ edits (`set-vendor`, `rename`,
   loopback bind. `--all` lists every listener, each with its owning `taskId`
   (`null` = no task). `ports: null` means the scan could not run (Linux reads
   `/proc`, macOS runs `lsof`), never that nothing is listening.
+- `viewers [--task-id ID]`: every UI attached and showing a task right now,
+  so an agent knows what the human can see before it drives anything.
+  Returns `{ viewers: [{ viewer, surface, taskId, tabId?, panel, panelOpen?,
+  narrow?, local }] }`. `surface` is `tui`, `web` (a browser page) or `phone`;
+  `panel` is true only for a web page with a side panel (desktop width);
+  `panelOpen` and `narrow` are what the page reported; `local` is true when
+  the screen is on the daemon's machine (a TUI always; a page the bridge saw
+  arrive over a tunnel is not). An empty list means nobody is looking.
+  `--task-id` keeps one task's viewers. A screen that shows no task, or has
+  disconnected, is not listed.
 - `worktree-files --task-id ID`: the task's worktree files, tracked plus
   untracked-not-ignored, worktree-relative. Returns `{ files }`. Runs where the
   worktree lives, so it reads a task on another registered machine too.
@@ -1315,6 +1325,28 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   reopens it); a preview or viewport tab is `TAB_NOT_REVIVABLE`. A task on
   another registered machine runs there, like every verb. Returns
   `{ok, taskId, tabId, revived, alive?, resumed, sessionId?}`.
+- `panel-show --view browser|files|diff [--url URL] [--path FILE]
+  [--task-id ID]`: bring up the web side panel (Files / Diff / Browser) on a
+  task. `--url` (browser view; `http`/`https` only) loads a page; `--path`
+  (files and diff views) is a file relative to the task's worktree, with no
+  `..`. Broadcast over the daemon's `panel.show` channel and pushed to every
+  browser: each web page remembers the view for that task, and one currently
+  on the task with a side panel opens it, without stealing focus or switching
+  task. A TUI has no panel. Task defaults to `$ROVE_TASK_ID`, then the active
+  task, as `pane-open` does. Returns `{ shown, remembered, viewers, url? }`:
+  `shown` is the web pages on the task with a panel (the ones that open it
+  now), `remembered` every web page attached and viewing a task (they keep
+  the view for later), `viewers` the task's `viewers` rows. For `--url`,
+  `url` is `{ reachable, frameable, reason? }`. `reachable: false` is a
+  localhost URL while a viewing page is remote (behind a tunnel, so its
+  `localhost` is not yours), or a host the probe could not reach.
+  `frameable: false` means the page cannot sit in the panel: it sends
+  `X-Frame-Options: DENY`/`SAMEORIGIN` or a CSP `frame-ancestors` that does
+  not allow `*`, or plain `http` outside localhost, or the probe refused it. Tell
+  the human the link instead. The probe is one `HEAD` over HTTPS to a
+  public address (a private, loopback, link-local or unique-local address is
+  refused, after resolving the name), follows no redirect, and gives up after
+  3 seconds. `localhost` URLs are not probed.
 - `notify --title TEXT [--body TEXT] [--kind KIND] [--task-id ID]
   [--source TAG]`: show a toast in every attached Rove UI. `--body` adds a
   second, muted line under the title — context, not a second message.

@@ -81,6 +81,7 @@ inspect             --task-id
 read-output         --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
 watch               --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
 ports               --task-id --all
+viewers             --task-id
 review-comments     --task-id(REQ)
 worktree-files      --task-id(REQ)
 worktree-diff       --task-id(REQ)
@@ -145,6 +146,7 @@ tab-new            --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ)
 tab-split          --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
                    --direction{right|down}(right) --leaf --title --cols --rows
 tab-revive         --task-id(REQ) --tab(REQ) --restart-exited
+panel-show         --task-id --view{browser|files|diff}(REQ) --url --path
 notify             --title(REQ) --body --kind(done) --task-id --source
 prompt             --title(REQ) --placeholder --initial --timeout
 engine-report      --task-id

@@ -18,6 +18,8 @@ import { dismissHitsOnlyGates } from "./gates.ts"
 import type { NoticeFeed } from "./notices.ts"
 import { AREA_OPS } from "./ops/index.ts"
 import type { BridgeApi, OpTable } from "./ops/types.ts"
+import type { PanelFeed } from "./panels.ts"
+import { type Peer, peerOf, viewingFields } from "./peer.ts"
 import type { PromptFeed } from "./prompts.ts"
 import {
   BRIDGE_PROTOCOL_VERSION,
@@ -52,6 +54,8 @@ export interface BridgeDeps {
   readonly notices?: Pick<NoticeFeed, "subscribe">
   /** Plugin input dialogs (`rove api prompt`), pushed to every connected client as a `prompt` event. */
   readonly prompts?: Pick<PromptFeed, "subscribe">
+  /** `rove api panel-show` requests, pushed to every connected browser as a `panel` event. */
+  readonly panels?: Pick<PanelFeed, "subscribe">
   /** Open mod panes (`mod.ui`), pushed as a `mods` event on connect and on every change. */
   readonly mods?: {
     current(): readonly ModPaneView[]
@@ -88,6 +92,8 @@ export interface BridgeDeps {
 }
 
 interface Conn {
+  /** What opened it: browser or phone, on the bridge's own machine or not (decided at upgrade). */
+  readonly peer: Peer
   /** This connection's screen as the daemon's row status knows it (`ui.viewing`'s `viewer`). */
   readonly viewer: string
   terminal: TerminalForwarder | null
@@ -101,6 +107,7 @@ interface Conn {
   unsubscribeMods: (() => void) | null
   unsubscribePrompts: (() => void) | null
   unsubscribeDispatches: (() => void) | null
+  unsubscribePanels: (() => void) | null
 }
 
 async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request): Promise<unknown> {
@@ -136,6 +143,8 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         apiVersion: ROVE_API_VERSION,
         roveVersion: deps.roveVersion,
         host: osHostname(),
+        // Where this page is, as the bridge saw the upgrade: a remote page cannot load the agent's localhost.
+        peer: conn.peer,
       }
     case "api.invoke": {
       if (!deps.invoke) throw new BridgeError("UNKNOWN_OP", "this bridge does not serve verbs")
@@ -296,7 +305,8 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     case "ui.viewing": {
       // `taskId: null` = this screen shows no task (the page went hidden).
       const taskId = a.taskId === null ? null : str(a, "taskId")
-      deps.rowStatus?.setViewing(conn.viewer, taskId, taskId === null ? null : (optStr(a, "tabId") ?? null))
+      const tabId = taskId === null ? null : (optStr(a, "tabId") ?? null)
+      deps.rowStatus?.setViewing(conn.viewer, taskId, tabId, viewingFields(a, conn.peer))
       return {}
     }
     default: {
@@ -411,6 +421,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
       }
       if (device) log(`[rove-bridge] device ${device} connected from ${from}`)
       const data: Conn = {
+        peer: peerOf(req, server.requestIP(req)?.address, deps),
         viewer: `bridge-${++nextViewer}`,
         terminal: null,
         machineTerminals: new Map(),
@@ -421,6 +432,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         unsubscribeMods: null,
         unsubscribePrompts: null,
         unsubscribeDispatches: null,
+        unsubscribePanels: null,
       }
       // A browser drops a socket whose server did not pick one of its offered protocols.
       const headers = offersWebSubprotocol(req) ? { "Sec-WebSocket-Protocol": WEB_SUBPROTOCOL } : undefined
@@ -431,6 +443,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
       open(ws) {
         ws.data.unsubscribeNotices = deps.notices?.subscribe((n) => ws.send(pushEvent("notice", n))) ?? null
         ws.data.unsubscribePrompts = deps.prompts?.subscribe((p) => ws.send(pushEvent("prompt", p))) ?? null
+        ws.data.unsubscribePanels = deps.panels?.subscribe((p) => ws.send(pushEvent("panel", p))) ?? null
         if (deps.mods) {
           ws.send(pushEvent("mods", { panes: deps.mods.current() }))
           ws.data.unsubscribeMods = deps.mods.subscribe((panes) => ws.send(pushEvent("mods", { panes })))
@@ -457,6 +470,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         ws.data.unsubscribeMods?.()
         ws.data.unsubscribePrompts?.()
         ws.data.unsubscribeDispatches?.()
+        ws.data.unsubscribePanels?.()
         ws.data.terminal?.dispose()
         for (const pending of ws.data.machineTerminals.values()) {
           pending.then(

@@ -38,6 +38,7 @@ import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
 import { GATE_HANDLERS } from "./handlers-gates.ts"
 import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
+import { PANEL_HANDLERS } from "./handlers-panel.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
 import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
 import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
@@ -321,6 +322,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...ISSUE_HANDLERS,
     ...TAB_HANDLERS,
     ...ROW_STATUS_HANDLERS,
+    ...PANEL_HANDLERS,
     ...PR_HANDLERS,
     {
       // `rove api inspect`: raw transient state, read-only. Wire payloads hide
