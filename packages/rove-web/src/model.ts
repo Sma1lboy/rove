@@ -304,6 +304,6 @@ export class AppModel {
 }
 
 /** The tab a bare task click opens: the first live one, else the first. */
-function preferredTab(tabs: readonly TabRow[]): TabRow | undefined {
+export function preferredTab(tabs: readonly TabRow[]): TabRow | undefined {
   return tabs.find((tab) => tab.alive !== false) ?? tabs[0]
 }

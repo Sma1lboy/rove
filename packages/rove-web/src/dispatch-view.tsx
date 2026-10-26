@@ -29,7 +29,7 @@ import { deviceHint } from "./key-hints.ts"
 import { machineLabel, remoteLabel, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { usePageFocus, usePageKeys } from "./pages-kit.ts"
-import { tabLabel } from "./rail-view.tsx"
+import { tabLabel } from "./rail.ts"
 import { useStore } from "./store.ts"
 import { page } from "./ui.ts"
 

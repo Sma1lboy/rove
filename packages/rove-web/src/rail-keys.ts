@@ -12,6 +12,7 @@ import { enterWorkspace, openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, moveRow, setMoveMode } from "./move-mode.ts"
 import { railCursorTask } from "./rail-aim.ts"
+import { openPane } from "./rail-pane-row.tsx"
 import { cycleRailSort, railSort } from "./rail-sort.ts"
 import type { NavRow } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
@@ -161,7 +162,8 @@ export function useRailKeys(
       setCursor(opts.selectedId && rows.some((r) => r.id === opts.selectedId) ? opts.selectedId : (rows[0]?.id ?? null))
   }, [at, rows, opts.selectedId])
   const cursorRow = rows[at]
-  const cursorTaskId = cursorRow?.kind === "task" ? cursorRow.task.id : null
+  // A pane row aims its prefix verbs at its task.
+  const cursorTaskId = cursorRow?.kind === "task" || cursorRow?.kind === "pane" ? cursorRow.task.id : null
   useEffect(() => railCursorTask.set(cursorTaskId), [cursorTaskId])
   // Top match on every search keystroke, as the TUI.
   const firstId = rows[0]?.id ?? null
@@ -178,6 +180,7 @@ export function useRailKeys(
     if (row?.kind === "routines") filters.toggleRoutines(row.key)
     if (row?.kind === "archived") filters.toggleArchived()
     if (row?.kind === "task") model.select(row.task.id)
+    if (row?.kind === "pane") openPane(model, row)
     if (row && row.kind !== "archived") enterWorkspace()
   }
   const verb = (row: Stop | undefined, id: RailId) => {
@@ -271,7 +274,11 @@ export function useRailKeys(
       case "task.new":
         // On another machine's row the dialog opens on that machine, with that row's repo.
         opts.onNewTask(
-          row?.kind === "routines" ? row.repo : row?.kind === "task" ? row.task.repo : undefined,
+          row?.kind === "routines"
+            ? row.repo
+            : row?.kind === "task" || row?.kind === "pane"
+              ? row.task.repo
+              : undefined,
           row?.machine,
         )
         break
