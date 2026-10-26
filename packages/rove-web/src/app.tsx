@@ -205,9 +205,6 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
               </button>
             </span>
           )}
-          <span className="tab-strip-title" title={task.branch}>
-            {task.title}
-          </span>
         </div>
       )}
       <div
