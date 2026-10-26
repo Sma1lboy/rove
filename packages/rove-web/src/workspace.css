@@ -663,6 +663,10 @@
   select {
     font-size: 16px !important;
   }
+  /* The search row's `/` and count match its 16px field. */
+  .term-search {
+    font-size: 16px;
+  }
 }
 
 /* Daemon out-of-date banner (TUI VersionSkewBanner) */
