@@ -16,8 +16,10 @@ import { passwordLoginOn } from "./login.ts"
 import { AppModel } from "./model.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
 import { watchBridgeVersion } from "./version-reload.ts"
+import { followVisualViewport } from "./viewport.ts"
 
 const root = createRoot(document.getElementById("root") as HTMLElement)
+followVisualViewport()
 const token = storedToken()
 if (!token) {
   // With a password set on the host, a page without a token signs in instead of asking for the link.

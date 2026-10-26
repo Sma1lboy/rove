@@ -16,49 +16,11 @@ import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
+import { ctrlChord } from "./term-keys.ts"
+import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
 import { activeStream, railMoving } from "./ui.ts"
-
-/** The TUI's default `claude` theme, dark (`tui/context/theme/claude.json`). */
-const XTERM_THEME = {
-  background: "#141413",
-  foreground: "#eae7df",
-  cursor: "#cc785c",
-  cursorAccent: "#141413",
-  selectionBackground: "#33312e",
-  black: "#141413",
-  red: "#d47563",
-  green: "#9aca86",
-  yellow: "#e8c96b",
-  blue: "#61aaf2",
-  magenta: "#9b87f5",
-  cyan: "#d4967e",
-  white: "#a9a39a",
-  brightBlack: "#6b665f",
-  brightRed: "#d47563",
-  brightGreen: "#9aca86",
-  brightYellow: "#e8c96b",
-  brightBlue: "#61aaf2",
-  brightMagenta: "#9b87f5",
-  brightCyan: "#e0ab96",
-  brightWhite: "#eae7df",
-}
-
-/**
- * The bundled JetBrains Mono, then the bundled Nerd Font symbols (`styles.css`), so the icons
- * engines draw (Claude Code's status line, prompt themes) render on a machine with no Nerd Font
- * installed. The browser falls back per glyph, so only the icon code points come from the second.
- */
-export const NERD_SYMBOLS_FAMILY = "Rove Nerd Symbols"
-const FONT_FAMILY = [
-  '"JetBrains Mono"',
-  `"${NERD_SYMBOLS_FAMILY}"`,
-  '"SF Mono"',
-  "ui-monospace",
-  "Menlo",
-  "monospace",
-].join(", ")
 
 /** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
 export const SCROLL_PAGE_LINES = 10
@@ -117,6 +79,8 @@ export interface TermHandle {
   scrollLines(lines: number): void
   scrollToTop(): void
   scrollToBottom(): void
+  /** The next single key typed reaches the engine as its Ctrl chord; `onUsed` fires when it does. `null` disarms. */
+  armCtrl(onUsed: (() => void) | null): void
   /** Attach again (a reset respawned the session under the same key). */
   reattach(): Promise<void>
   /** The visible screen as HTML, for a later mount of the same stream to show while it reattaches. */
@@ -296,7 +260,15 @@ export function mountTerminal(o: MountOpts): TermHandle {
     if (!attachWhenSized) void attach()
   })
 
-  const input = term.onData(replies.forward)
+  let ctrlNext: (() => void) | null = null
+  const input = term.onData((data) => {
+    if (ctrlNext && data.length === 1) {
+      const used = ctrlNext
+      ctrlNext = null
+      used()
+      replies.forward(ctrlChord(data))
+    } else replies.forward(data)
+  })
   // Every viewer of a PTY shares one size and the last to send wins; an inline TUI drawn for another
   // viewer's width leaves ghost frames here. The viewer the person is using claims it back: on focus,
   // and on a keystroke (throttled; the host ignores a size it already has).
@@ -454,6 +426,9 @@ export function mountTerminal(o: MountOpts): TermHandle {
     scrollLines: (lines) => userScroll(() => term.scrollLines(lines)),
     scrollToTop: () => userScroll(() => term.scrollToTop()),
     scrollToBottom: () => userScroll(() => term.scrollToBottom()),
+    armCtrl: (onUsed) => {
+      ctrlNext = onUsed
+    },
     reattach: attach,
     snapshot: () => serialize.serializeAsHTML({ scrollback: 0, includeGlobalBackground: true }),
     dispose() {
