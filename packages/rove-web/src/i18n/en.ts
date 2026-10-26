@@ -11,6 +11,7 @@ export const en = {
     childWorktree: "Own worktree and branch, cut from the parent's branch",
     pr: {
       state: { open: "open", merged: "merged", closed: "closed" },
+      many: "{count} PRs in this task and its children",
       checks: {
         conflict: "conflicts with its base",
         failing: "checks failing",

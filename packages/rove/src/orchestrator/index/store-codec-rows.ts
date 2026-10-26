@@ -260,6 +260,8 @@ function coercePRStatus(value: unknown): TaskPRStatus | undefined {
     ...(typeof v.number === "number" && Number.isFinite(v.number) ? { number: v.number } : {}),
     ...(typeof v.url === "string" ? { url: v.url } : {}),
     ...(typeof v.title === "string" ? { title: v.title } : {}),
+    ...(typeof v.additions === "number" && Number.isFinite(v.additions) ? { additions: v.additions } : {}),
+    ...(typeof v.deletions === "number" && Number.isFinite(v.deletions) ? { deletions: v.deletions } : {}),
     ...(typeof v.baseRef === "string" ? { baseRef: v.baseRef } : {}),
     ...(typeof v.reviewDecision === "string" ? { reviewDecision: v.reviewDecision } : {}),
     ...(typeof v.mergeable === "string" ? { mergeable: v.mergeable } : {}),

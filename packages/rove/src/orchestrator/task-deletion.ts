@@ -296,10 +296,13 @@ export class TaskDeletionCoordinator {
     }
   }
 
-  /** Children of a deleted task keep running as children of its own parent (or top level). */
+  /** Children of a deleted task keep running as children of its own parent (or top level). A child of
+   *  an Ungrouped (scratch / no-project) parent stays Ungrouped instead of surfacing as a project. */
   private async promoteChildren(deleted: Task): Promise<void> {
+    const ungrouped = deleted.kind === "dir" && (deleted.scratch === true || deleted.noProject === true)
     for (const child of this.store.list().filter((t) => t.parentTaskId === deleted.id)) {
-      await this.store.update(child.id, { parentTaskId: deleted.parentTaskId })
+      const keep = ungrouped && child.kind === "dir" ? { noProject: true } : {}
+      await this.store.update(child.id, { parentTaskId: deleted.parentTaskId, ...keep })
     }
   }
 

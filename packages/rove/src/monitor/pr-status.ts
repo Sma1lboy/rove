@@ -17,7 +17,8 @@ import type { PrViewErrorKind } from "@sma1lboy/rove-daemon/daemon/pr-status-col
 export type { PrViewErrorKind }
 
 /** The `--json` field set the collector requests from `gh pr list`. */
-export const GH_PR_VIEW_FIELDS = "number,url,title,state,baseRefName,reviewDecision,mergeable,statusCheckRollup"
+export const GH_PR_VIEW_FIELDS =
+  "number,url,title,state,baseRefName,reviewDecision,mergeable,statusCheckRollup,additions,deletions"
 
 /**
  * One entry of `gh`'s `statusCheckRollup`. GitHub returns a heterogeneous
@@ -45,6 +46,8 @@ export interface GhPrView {
   readonly reviewDecision?: string
   readonly mergeable?: string
   readonly statusCheckRollup?: readonly GhCheckEntry[]
+  readonly additions?: number
+  readonly deletions?: number
 }
 
 /** Map `gh`'s PR `state` (+ review decision) to a neutral lifecycle. */
@@ -119,6 +122,8 @@ export function mapGhPrView(view: GhPrView | null | undefined, at: string): Task
     number: view.number,
     url: view.url,
     title: view.title,
+    ...(typeof view.additions === "number" ? { additions: view.additions } : {}),
+    ...(typeof view.deletions === "number" ? { deletions: view.deletions } : {}),
     baseRef: view.baseRefName,
     reviewDecision: view.reviewDecision || undefined,
     mergeable: view.mergeable || undefined,
@@ -141,6 +146,8 @@ export function samePrStatus(a: TaskPRStatus | undefined, b: TaskPRStatus | unde
     a.number === b.number &&
     a.url === b.url &&
     a.title === b.title &&
+    a.additions === b.additions &&
+    a.deletions === b.deletions &&
     a.baseRef === b.baseRef &&
     a.reviewDecision === b.reviewDecision &&
     a.mergeable === b.mergeable
