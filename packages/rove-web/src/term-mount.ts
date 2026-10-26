@@ -7,6 +7,7 @@
 
 import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon } from "@xterm/addon-search"
+import { SerializeAddon } from "@xterm/addon-serialize"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { WebglAddon } from "@xterm/addon-webgl"
@@ -104,6 +105,8 @@ export interface MountOpts {
   /** Mac Ctrl+V: attaches the image on the browser's clipboard, or says why it can't. */
   readonly pasteImage: () => Promise<void>
   readonly focusOnMount: boolean
+  /** The screen as it last looked (`TermHandle.snapshot`), shown over the terminal until the reattach repaints it. */
+  readonly snapshot?: string
 }
 
 export interface TermHandle {
@@ -116,6 +119,8 @@ export interface TermHandle {
   scrollToBottom(): void
   /** Attach again (a reset respawned the session under the same key). */
   reattach(): Promise<void>
+  /** The visible screen as HTML, for a later mount of the same stream to show while it reattaches. */
+  snapshot(): string
   dispose(): void
 }
 
@@ -152,6 +157,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const search = new SearchAddon()
   term.loadAddon(fit)
   term.loadAddon(search)
+  const serialize = new SerializeAddon()
+  term.loadAddon(serialize)
   term.loadAddon(new Unicode11Addon())
   term.unicode.activeVersion = "11"
   term.loadAddon(new WebLinksAddon())
@@ -164,6 +171,35 @@ export function mountTerminal(o: MountOpts): TermHandle {
     // The DOM renderer is slower but complete.
   }
   fit.fit()
+  // A reattach replays a ring that starts mid-repaint, so the screen is blank until the engine redraws.
+  let cover: HTMLElement | null = null
+  // xterm sizes its cells from measured glyphs and settles them after the first render, so the
+  // snapshot's rows and columns follow every resize instead of a value read at mount.
+  const fitCover = () => {
+    const screen = term.element?.querySelector<HTMLElement>(".xterm-screen")
+    if (!cover || !screen || term.rows <= 0 || term.cols <= 0) return
+    const ctx = document.createElement("canvas").getContext("2d")
+    if (ctx) ctx.font = `${term.options.fontSize ?? 13}px ${FONT_FAMILY}`
+    const glyph = ctx?.measureText("W").width ?? 0
+    cover.style.setProperty("--row-h", `${screen.clientHeight / term.rows}px`)
+    if (glyph > 0) cover.style.letterSpacing = `${screen.clientWidth / term.cols - glyph}px`
+  }
+  if (o.snapshot) {
+    cover = document.createElement("div")
+    cover.className = "term-snapshot"
+    cover.innerHTML = o.snapshot
+    cover.style.backgroundColor = (terminalTheme.get() ?? XTERM_THEME).background ?? ""
+    el.append(cover)
+    fitCover()
+    requestAnimationFrame(fitCover)
+  }
+  const coverResize = term.onResize(fitCover)
+  const uncover = () => {
+    cover?.remove()
+    cover = null
+    coverResize.dispose()
+  }
+  const coverCap = cover ? window.setTimeout(uncover, 1500) : null
   if (o.focusOnMount) term.focus()
 
   const expected = streamKey(taskId, tabId, o.leafId)
@@ -236,8 +272,9 @@ export function mountTerminal(o: MountOpts): TermHandle {
               ? client.request("term.resize", { stream: owner, cols: term.cols, rows: term.rows })
               : undefined,
           )
-          .catch(() => {})
-      }
+          .then(() => window.setTimeout(uncover, 250))
+          .catch(uncover)
+      } else uncover()
       if (res.alive && document.activeElement === term.textarea) activeStream.set(res.stream)
       o.setNotice(res.alive ? { kind: "none" } : res.restored ? { kind: "restored" } : { kind: "exited", code: null })
     } catch (err) {
@@ -248,6 +285,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       }
     } finally {
       held = null
+      if (!stream) uncover()
     }
   }
   const offOpen = client.onOpen(() => void attach())
@@ -390,8 +428,11 @@ export function mountTerminal(o: MountOpts): TermHandle {
     scrollToTop: () => userScroll(() => term.scrollToTop()),
     scrollToBottom: () => userScroll(() => term.scrollToBottom()),
     reattach: attach,
+    snapshot: () => serialize.serializeAsHTML({ scrollback: 0, includeGlobalBackground: true }),
     dispose() {
       disposed = true
+      uncover()
+      if (coverCap !== null) window.clearTimeout(coverCap)
       observer.disconnect()
       el.removeEventListener("wheel", onWheel, { capture: true })
       el.removeEventListener("mousedown", onScrollbarDown, { capture: true })
