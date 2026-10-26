@@ -19,6 +19,16 @@
   background: var(--inset);
 }
 
+/* New task's own +, in the column of the projects' hover +; always shown, in the accent. */
+.rail-nav-plus {
+  margin-left: auto;
+  margin-right: -6.7px;
+  width: 20px;
+  text-align: center;
+  color: var(--accent);
+  font: 400 15px / 1 var(--sans);
+}
+
 .rail-nav-row.is-active {
   color: var(--ink);
   font-weight: 700;
