@@ -142,16 +142,17 @@ export function RailBar({ model }: { model: AppModel }) {
  * Narrow layout, content panel: the way back to the list the viewport has no room to show beside it.
  * In a task it also switches between the terminal and the file list, the desktop's Files column.
  */
-export function NarrowBackBar({ task = false }: { task?: boolean }) {
+export function NarrowBackBar({ taskId }: { taskId?: string }) {
   useLocale()
   const files = useStore(narrowFiles)
-  const shown = useStore(preview)
+  // A preview left open on another task is not what this panel shows.
+  const shown = useStore(preview)?.taskId === taskId
   return (
     <div className="narrow-bar">
       <button type="button" className="narrow-back mono" onClick={backToTasks}>
         <span className="tone-accent">{`‹ ${workspaceText("narrowBack")}`}</span>
       </button>
-      {task && (
+      {taskId && (
         <span className="narrow-switch mono" role="tablist">
           <button
             type="button"
@@ -167,7 +168,7 @@ export function NarrowBackBar({ task = false }: { task?: boolean }) {
           <button
             type="button"
             role="tab"
-            aria-selected={files || !!shown}
+            aria-selected={files || shown}
             onClick={() => {
               preview.set(null)
               narrowFiles.set(true)

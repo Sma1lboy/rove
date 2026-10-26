@@ -144,15 +144,17 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const working = task?.rowStatus?.kind === "running"
   const composing = useStore(newSession)
   const filesOn = useStore(narrowFiles) && narrow && !!task
-  // Picking a task or tab leaves the composer and the narrow file list, as it leaves a page.
-  useEffect(
-    () =>
-      model.selection.subscribe(() => {
-        newSession.set(null)
-        narrowFiles.set(false)
-      }),
-    [model],
-  )
+  // Picking a task or tab leaves the composer, as it leaves a page; only another task leaves the narrow
+  // file list (a tab sweep rewrites the selection of the same task).
+  useEffect(() => {
+    let taskId = model.selection.get().taskId
+    return model.selection.subscribe(() => {
+      newSession.set(null)
+      const next = model.selection.get().taskId
+      if (next !== taskId) narrowFiles.set(false)
+      taskId = next
+    })
+  }, [model])
   useEffect(() => trackNav(model), [model])
   if (pageOn === "update") {
     return (
@@ -190,7 +192,7 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   }
   return (
     <main className="workspace">
-      {narrow && <NarrowBackBar task={!!task} />}
+      {narrow && <NarrowBackBar taskId={task?.id} />}
       {task && (
         <div
           className={`tab-strip ${tabStripVisible(prefs.tabStrip, tabs.length) ? "" : "is-tabs-hidden"}`}
