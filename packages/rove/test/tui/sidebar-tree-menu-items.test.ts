@@ -129,7 +129,7 @@ describe("treeMenuItems", () => {
 
   test("a project's main row says what its Delete does: ends the conversation, the project stays", () => {
     const label = (row: TreeRow) => treeMenuItems(row).find((item) => item.action === "delete")?.labelKey
-    expect(label(worktreeRow({ kind: "main", branch: "" }))).toBe("tasks.menu.deleteConversation")
+    expect(label(worktreeRow({ kind: "main", branch: "" }))).toBe("tasks.menu.delete")
     expect(label(worktreeRow({ branch: "feat/a" }))).toBe("tasks.menu.delete")
   })
 

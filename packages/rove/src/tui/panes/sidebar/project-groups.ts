@@ -82,7 +82,7 @@ function isRoutineTask(task: Task): boolean {
 /**
  * A directory project closed down to nothing: its only row is an opened `dir` and that row's tabs are KNOWN
  * and empty. Hidden, not deleted. A project's main checkout never closes down: the project stays listed
- * after its last tab closes (or "Delete conversation" ends it), and the main row is the way back to it.
+ * after its last tab closes (or "Remove session" ends it), and the main row is the way back to it.
  * A `dir` row comes back via `rove .`.
  *
  * Narrow on purpose: any worktree task under the directory keeps it visible

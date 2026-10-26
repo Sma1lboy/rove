@@ -335,10 +335,6 @@ select.input {
   color: var(--accent);
 }
 
-.tab-new {
-  color: var(--subtle);
-}
-
 div.placeholder {
   display: flex;
   flex-direction: column;

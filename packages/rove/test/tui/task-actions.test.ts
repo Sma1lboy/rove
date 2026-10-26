@@ -155,7 +155,7 @@ describe("deleteTaskFlow — dirty-worktree branch", () => {
     expect(confirm).toHaveBeenCalledTimes(2)
     expect(confirm.mock.calls[1]?.[0]).toMatchObject({
       title: `"dirty" has uncommitted changes`,
-      confirmLabel: "force delete",
+      confirmLabel: "force remove",
     })
     // The refusal's file list reaches the dialog — it's what the user weighs.
     expect(confirm.mock.calls[1]?.[0].body).toContain("Refused because: worktree has uncommitted changes: src/a.ts")
@@ -403,7 +403,7 @@ describe("deleteTaskFlow — project (main) row", () => {
 
     await deleteTaskFlow(ctx, "m1")
 
-    expect(confirm.mock.calls[0]?.[0]).toMatchObject({ title: `Delete conversation "alpha"?`, danger: true })
+    expect(confirm.mock.calls[0]?.[0]).toMatchObject({ title: `Remove session "alpha"?`, danger: true })
     expect(orch.deleteTask).not.toHaveBeenCalled()
     expect(orch.forgetProject).not.toHaveBeenCalled()
     expect(killHostedSessions).toHaveBeenCalledWith(expect.anything(), ["m1::tab-1"])
