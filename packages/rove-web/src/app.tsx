@@ -7,6 +7,8 @@ import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { clampRailWidth, foldedPx, narrowPane, railFolded, railWidth, surfaceFor, useNarrow } from "./layout.ts"
+import { LoginScreen } from "./login-view.tsx"
+import { passwordLoginOn } from "./login.ts"
 import { RemoteNotice } from "./machines-view.tsx"
 import { type AppModel, selectedRow } from "./model.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
@@ -39,8 +41,18 @@ export function App({ model }: { model: AppModel }) {
   useLocale()
   const conn = useStore(model.client.conn)
   // Never connected and failing: most likely a stale or wrong link, so offer to replace it.
-  if (conn.hello === null && conn.failures >= 2) return <ConnectScreen failing />
+  if (conn.hello === null && conn.failures >= 2) return <RejectedScreen />
   return <Shell model={model} />
+}
+
+/** A stored token the bridge refuses: sign in again where the host has a password, else ask for the link. */
+function RejectedScreen() {
+  const [password, setPassword] = useState<boolean | null>(null)
+  useEffect(() => {
+    void passwordLoginOn().then(setPassword)
+  }, [])
+  if (password === null) return null
+  return password ? <LoginScreen /> : <ConnectScreen failing />
 }
 
 function Shell({ model }: { model: AppModel }) {
