@@ -566,6 +566,10 @@
   .inbox-hints,
   .kb-hint-line,
   .keys-only,
+  .menu-key,
+  .palette-chord,
+  .whats-new-keys,
+  .update-key,
   .kb-legend:empty,
   .pg-hint:empty {
     display: none;

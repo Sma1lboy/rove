@@ -133,7 +133,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
             className={`update-action ${selected === a.id ? "is-cursor" : ""}`}
             onClick={() => activate(a.id)}
           >
-            <span className="tone-accent mono">[{a.key}]</span>
+            <span className="tone-accent mono update-key">[{a.key}]</span>
             <span className="update-label">{a.label}</span>
             <span className="muted">{a.detail}</span>
           </button>

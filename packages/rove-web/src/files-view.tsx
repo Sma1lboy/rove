@@ -211,14 +211,14 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
           <span>{branchScope ? t("files.scopeBranch", { base: current?.base ?? "" }) : t("files.scopeWorking")}</span>
           {current?.base != null ? (
             <button type="button" className="link" onClick={() => setScope(scope === "working" ? "branch" : "working")}>
-              {t("files.toggleScope")}
+              {t(touch ? "files.toggleScopeTouch" : "files.toggleScope")}
             </button>
           ) : (
             current && <span>{t("files.noBase")}</span>
           )}
           <span>{t("files.legend")}</span>
           <button type="button" className="link" onClick={() => open(".")}>
-            {t("files.diffAll")}
+            {t(touch ? "files.diffAllTouch" : "files.diffAll")}
           </button>
         </div>
       )}

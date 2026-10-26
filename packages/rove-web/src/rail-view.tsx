@@ -134,7 +134,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       {moving && (
         <div className="rail-search mono">
           <span className="tone-accent">{tc("tasks", "moveChip").trim()}</span>
-          <span className="muted">{t("taskops.moveHint")}</span>
+          <span className="muted keys-only">{t("taskops.moveHint")}</span>
         </div>
       )}
       {filters.search.active && (
