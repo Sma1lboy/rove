@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   CURRENT_VERSION,
   PACKAGE_NAME,
+  ZH_NOTES_ASSET,
   breakingVersionsCrossed,
   channelOf,
   checkLatestVersion,
@@ -326,5 +327,28 @@ describe("fetchReleaseNotesRange", () => {
       { version: "0.7.12", url: "https://github.com/Sma1lboy/rove/releases/tag/v0.7.12", body: "latest" },
       { version: "0.7.11", url: "https://github.com/Sma1lboy/rove/releases/tag/v0.7.11", body: "middle" },
     ])
+  })
+
+  it("reads the Chinese asset in zh, and the English body where a release has none or it fails", async () => {
+    const asset = (url: string) => [{ name: ZH_NOTES_ASSET, browser_download_url: url }]
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "https://dl/ok.md") return new Response("中文说明", { status: 200 })
+        if (url === "https://dl/gone.md") return new Response("nope", { status: 404 })
+        return new Response(
+          JSON.stringify([
+            { tag_name: "v0.7.13", html_url: "u13", body: "thirteen", assets: asset("https://dl/gone.md") },
+            { tag_name: "v0.7.12", html_url: "u12", body: "twelve", assets: asset("https://dl/ok.md") },
+            { tag_name: "v0.7.11", html_url: "u11", body: "eleven", assets: [] },
+          ]),
+          { status: 200 },
+        )
+      }),
+    )
+    const bodies = async (locale: "en" | "zh") =>
+      (await fetchReleaseNotesRange({ current: "0.7.10", latest: "0.7.13", locale })).map((n) => n.body)
+    await expect(bodies("zh")).resolves.toEqual(["thirteen", "中文说明", "eleven"])
+    await expect(bodies("en")).resolves.toEqual(["thirteen", "twelve", "eleven"])
   })
 })

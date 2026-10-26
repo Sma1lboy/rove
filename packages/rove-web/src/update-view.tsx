@@ -10,7 +10,7 @@ import type { ReleaseNotesRangeItem, UpdateInfo } from "@sma1lboy/rove/src/versi
 import { useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
-import { t, useLocale } from "./i18n/index.ts"
+import { locale, t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import { openPage } from "./layout.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
@@ -34,7 +34,9 @@ export function useCatalog() {
 }
 
 export function checkForUpdate(client: BridgeClient): Promise<void> {
-  return client.request<CheckReply>("update.check", { force: true }).then(updateState.set, () => {})
+  return client
+    .request<CheckReply>("update.check", { force: true, locale: locale.get() })
+    .then(updateState.set, () => {})
 }
 
 /** Rail head chip, as the TUI brand row's `↑ v`: only when the registry says newer. */
@@ -170,7 +172,10 @@ export function maybeShowWhatsNew(client: BridgeClient, version: string): void {
   localStorage.setItem(SEEN_KEY, version)
   if (!seen || !newer(version, seen)) return
   void client
-    .request<{ notes: ReleaseNotesRangeItem | null }>("release.notes", { version: version.replace(/-.*$/, "") })
+    .request<{ notes: ReleaseNotesRangeItem | null }>("release.notes", {
+      version: version.replace(/-.*$/, ""),
+      locale: locale.get(),
+    })
     .then(
       (r) => dialog.set(<WhatsNewDialog from={seen} to={version} notes={r.notes} />),
       () => dialog.set(<WhatsNewDialog from={seen} to={version} notes={null} />),

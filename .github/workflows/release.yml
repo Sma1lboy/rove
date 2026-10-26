@@ -225,6 +225,7 @@ jobs:
             echo "$NOTES"
             echo 'CHANGELOG_EOF'
           } >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$NOTES" > "$RUNNER_TEMP/release-notes.md"
 
       - name: Configure npm auth
         run: |
@@ -267,6 +268,17 @@ jobs:
             npm publish --access public --provenance --tag "${{ steps.channel.outputs.dist_tag }}"
           fi
 
+      - name: Translate release notes into Chinese
+        # Clients in Chinese show the `release-notes.zh.md` asset and fall back to the
+        # English body, so a failed or rejected translation never blocks a release.
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          node scripts/translate-release-notes.mjs "$RUNNER_TEMP/release-notes.md" "$RUNNER_TEMP/release-notes.zh.md"
+
       - name: Create GitHub release
         # The release IS the changelog notes — npm carries the artifact
         # (binaries dropped 2026-08-02, see the header).
@@ -277,5 +289,7 @@ jobs:
           body: ${{ steps.changelog.outputs.notes }}
           draft: false
           prerelease: ${{ steps.channel.outputs.prerelease }}
+          # Absent when the translation step failed; an unmatched glob is only a warning.
+          files: ${{ runner.temp }}/release-notes.zh.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
