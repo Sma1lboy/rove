@@ -1,17 +1,16 @@
 /** Layout: Tasks rail | workspace (tab strip + terminal) | Files, over a one-line status footer, like the TUI. */
 
-import { tabStripVisible } from "@sma1lboy/rove/src/state/tab-strip.ts"
 import { type CSSProperties, useEffect, useState } from "react"
-import { forgetToken, saveToken } from "./auth.ts"
+import { ConnectScreen } from "./connect-view.tsx"
 import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
-import { t, useLocale } from "./i18n/index.ts"
+import { DocumentTitle } from "./document-title.tsx"
+import { useLocale } from "./i18n/index.ts"
 import {
   RAIL_DEFAULT_PX,
   clampPanelWidth,
   clampRailWidth,
   enterWorkspace,
   narrowPane,
-  narrowView,
   panelOpen,
   panelWidth,
   peekRail,
@@ -23,35 +22,22 @@ import {
 } from "./layout.ts"
 import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
-import { RemoteNotice } from "./machines-view.tsx"
 import { type AppModel, selectedRow } from "./model.ts"
-import { trackNav } from "./nav-history.ts"
-import { NewChatDialog } from "./new-chat-dialog.tsx"
-import { NewSessionView } from "./new-session-view.tsx"
 import { Overlays } from "./overlays.tsx"
-import { PagesHost } from "./pages-host.tsx"
 import { usePluginChords } from "./plugin-keys.ts"
 import { PrefixHud } from "./prefix-guide.tsx"
 import { usePrefixLayer } from "./prefix.tsx"
 import { usePrefsApply } from "./prefs-apply.ts"
-import { usePrefs } from "./prefs.ts"
-import { NarrowBackBar, RailBar, StatusHints } from "./rail-chrome.tsx"
-import { RailView, openMenu, tabLabel } from "./rail-view.tsx"
-import { rowTitle } from "./rail.ts"
-import { taskMenu } from "./row-actions.tsx"
-import { PanelToggle, SidePanel } from "./side-panel.tsx"
-import { SplitPane } from "./split-view.tsx"
+import { RailBar } from "./rail-chrome.tsx"
+import { RailView } from "./rail-view.tsx"
+import { SidePanel } from "./side-panel.tsx"
+import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
-import { useTaskColor } from "./task-colors.ts"
-import { newChatHere } from "./task-dialogs.tsx"
-import { tokenFromInput } from "./token-input.ts"
-import { dialog, newSession, page, zen } from "./ui.ts"
-import { UpdateView, checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
-import { UsageChips } from "./usage-view.tsx"
+import { newSession, page, zen } from "./ui.ts"
+import { checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { useUserKeys } from "./user-keys.ts"
-import { WelcomePane } from "./welcome-view.tsx"
 import { useWorkspaceKeys } from "./workspace-keys.tsx"
-import { WorktreesView } from "./worktrees-view.tsx"
+import { Workspace } from "./workspace-view.tsx"
 
 export function App({ model }: { model: AppModel }) {
   useLocale()
@@ -144,244 +130,6 @@ function Shell({ model }: { model: AppModel }) {
         <PrefixHud model={model} />
         <DocumentTitle model={model} />
       </div>
-    </div>
-  )
-}
-
-/** The browser tab says which task is open and how much waits in the Inbox, like claude.ai's conversation titles. */
-function DocumentTitle({ model }: { model: AppModel }) {
-  const selection = useStore(model.selection)
-  const payload = useStore(model.tasks)
-  const allTabs = useStore(model.tabs)
-  const remote = useStore(model.remote)
-  const task = selectedRow(payload, selection.taskId) ?? remote.find((row) => row.id === selection.taskId)
-  const unread = payload?.attention.filter((row) => row.unread).length ?? 0
-  const title = `${unread > 0 ? `(${unread}) ` : ""}${task ? `${rowTitle(task, allTabs[task.id])} · ` : ""}rove`
-  useEffect(() => {
-    document.title = title
-  }, [title])
-  return null
-}
-
-function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
-  const selection = useStore(model.selection)
-  const allTabs = useStore(model.tabs)
-  const payload = useStore(model.tasks)
-  const remote = useStore(model.remote)
-  const reachable = remote.find((row) => row.id === selection.taskId && !row.machine?.stale)
-  const task = selectedRow(payload, selection.taskId) ?? reachable ?? null
-  const remoteTask = reachable ? undefined : remote.find((row) => row.id === selection.taskId)
-  const tabs = task ? (allTabs[task.id] ?? []) : []
-  // Before the first `task.tabs` reply the task's tabs are unknown, not empty: no "no sessions" flash.
-  const tabsKnown = task ? task.id in allTabs : false
-  const pageOn = useStore(page)
-  const { prefs } = usePrefs()
-  const taskInk = useTaskColor(task?.id)
-  const working = task?.rowStatus?.kind === "running"
-  const composing = useStore(newSession)
-  const panelOn = useStore(narrowView) !== "terminal" && narrow && !!task
-  // Picking a task or tab leaves the composer and the narrow panel view, as it leaves a page; a tab sweep
-  // that rewrites the same selection does not.
-  useEffect(() => {
-    let last = model.selection.get()
-    return model.selection.subscribe(() => {
-      newSession.set(null)
-      const next = model.selection.get()
-      if (next.taskId !== last.taskId || next.tabId !== last.tabId) narrowView.set("terminal")
-      last = next
-    })
-  }, [model])
-  useEffect(() => trackNav(model), [model])
-  if (pageOn === "update") {
-    return (
-      <main className="workspace">
-        {narrow && <NarrowBackBar />}
-        <UpdateView client={model.client} />
-      </main>
-    )
-  }
-  if (pageOn === "worktrees") {
-    return (
-      <main className="workspace">
-        {narrow && <NarrowBackBar />}
-        <WorktreesView model={model} />
-      </main>
-    )
-  }
-  if (pageOn) {
-    return (
-      <main className="workspace">
-        {narrow && <NarrowBackBar />}
-        <PagesHost model={model} page={pageOn} />
-      </main>
-    )
-  }
-  if (composing) {
-    return (
-      <main className="workspace">
-        {narrow && <NarrowBackBar />}
-        <div className="pane">
-          {/* A different project's + remounts the composer so its project chip follows; the prompt draft survives. */}
-          <NewSessionView key={composing.repo ?? ""} model={model} seed={composing} />
-        </div>
-      </main>
-    )
-  }
-  return (
-    <main className="workspace">
-      {narrow && <NarrowBackBar taskId={task?.id} />}
-      {task && (
-        <div
-          className={`tab-strip ${tabStripVisible(prefs.tabStrip, tabs.length) ? "" : "is-tabs-hidden"}`}
-          role="tablist"
-        >
-          {tabs.map((tab, i) => (
-            <button
-              type="button"
-              role="tab"
-              key={tab.id}
-              aria-selected={tab.id === selection.tabId}
-              className={`tab ${tab.id === selection.tabId ? "is-active" : ""}`}
-              onClick={() => model.select(task.id, tab.id)}
-              onContextMenu={(e) => openMenu(e, taskMenu(model, task, tab))}
-            >
-              <span className="tab-index">{i + 1}</span>
-              {tabLabel(tab)}
-            </button>
-          ))}
-          {!narrow && <PanelToggle />}
-        </div>
-      )}
-      <div
-        className={`pane ${working ? "is-working" : ""}`}
-        style={taskInk ? ({ "--task-ink": taskInk } as CSSProperties) : undefined}
-      >
-        {!narrow && !task && !remoteTask && payload && payload.tasks.length + remote.length === 0 && (
-          <WelcomePane model={model} />
-        )}
-        {!task && !remoteTask && payload && payload.tasks.length + remote.length > 0 && (
-          <p className="placeholder">{t("workspace.pickTask")}</p>
-        )}
-        {remoteTask?.machine && (
-          <div className="placeholder">
-            <RemoteNotice host={remoteTask.machine.label} />
-          </div>
-        )}
-        {task && tabsKnown && tabs.length === 0 && !panelOn && (
-          <div className="placeholder">
-            <p>{t("workspace.noTabs")}</p>
-            <button type="button" className="button" onClick={() => void newChatHere(model, task.id)}>
-              {t("menu.newChat")}
-            </button>{" "}
-            <button
-              type="button"
-              className="button"
-              onClick={() => dialog.set(<NewChatDialog model={model} taskId={task.id} />)}
-            >
-              {t("menu.newChatPick")}
-            </button>
-          </div>
-        )}
-        {task && panelOn && <SidePanel model={model} task={task} narrow />}
-        {task && selection.tabId && tabs.some((tab) => tab.id === selection.tabId) && (
-          <div className={`term-slot ${panelOn ? "is-hidden" : ""}`}>
-            <SplitPane
-              key={`${task.id}::${selection.tabId}`}
-              model={model}
-              taskId={task.id}
-              tab={tabs.find((tab) => tab.id === selection.tabId) ?? tabs[0]}
-            />
-          </div>
-        )}
-      </div>
-    </main>
-  )
-}
-
-/** TUI order: usage on the left; the right holds what the TUI has no need for (link state, host). */
-function StatusBar({ model, narrow }: { model: AppModel; narrow: boolean }) {
-  const client = model.client
-  const conn = useStore(client.conn)
-  const selection = useStore(model.selection)
-  return (
-    <footer className="status">
-      <UsageChips client={client} taskId={selection.taskId} tabId={selection.tabId} />
-      <span className={`dot state-${conn.state}`} />
-      <span>
-        {conn.state === "open"
-          ? t("status.open")
-          : conn.state === "retrying"
-            ? t("status.retrying", { count: conn.failures })
-            : t("status.connecting")}
-      </span>
-      {conn.state === "retrying" && (
-        <button type="button" className="link" onClick={() => client.retryNow()}>
-          {t("status.retry")}
-        </button>
-      )}
-      {conn.hello && !narrow && (
-        <span className="muted">{t("status.host", { host: conn.hello.host, version: conn.hello.roveVersion })}</span>
-      )}
-      <StatusHints model={model} narrow={narrow} />
-    </footer>
-  )
-}
-
-export function ConnectScreen({ failing = false }: { failing?: boolean }) {
-  useLocale()
-  const [value, setValue] = useState("")
-  const [invalid, setInvalid] = useState(false)
-  return (
-    <div className="connect">
-      <form
-        className="connect-card"
-        onSubmit={(e) => {
-          e.preventDefault()
-          const token = tokenFromInput(value)
-          if (!token) {
-            setInvalid(true)
-            return
-          }
-          saveToken(token)
-          window.location.reload()
-        }}
-      >
-        <span className="wordmark">
-          <span className="bracket">[</span> rove <span className="bracket">]</span>
-        </span>
-        <h1 className="kicker">{t("connect.title")}</h1>
-        <p className={failing ? "error" : "muted"}>{failing ? t("connect.failing") : t("connect.body")}</p>
-        <input
-          className="input"
-          // biome-ignore lint/a11y/noAutofocus: the only control on the page
-          autoFocus
-          spellCheck={false}
-          placeholder={t("connect.placeholder")}
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value)
-            setInvalid(false)
-          }}
-        />
-        {invalid && <p className="error">{t("connect.invalid")}</p>}
-        <div className="actions">
-          {failing && (
-            <button
-              type="button"
-              className="link"
-              onClick={() => {
-                forgetToken()
-                window.location.reload()
-              }}
-            >
-              {t("connect.forget")}
-            </button>
-          )}
-          <button type="submit" className="button">
-            {t("connect.submit")}
-          </button>
-        </div>
-      </form>
     </div>
   )
 }
