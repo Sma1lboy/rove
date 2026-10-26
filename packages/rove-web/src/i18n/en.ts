@@ -269,10 +269,15 @@ export const en = {
   },
   pages: {
     attachTooLarge: "{name} is larger than 5 MB",
-    routineNew: "[ new ]",
+    new: "[ new ]",
     routinePause: "[ pause ]",
     routineEnable: "[ enable ]",
-    routineDelete: "[ delete ]",
+    delete: "[ delete ]",
+    cronDown: "Decrease {field}",
+    cronUp: "Increase {field}",
+    storySave: "save",
+    storySaveStart: "save & start",
+    storyStart: "start",
   },
   taskops: {
     publishTitle: "publish to the remote",

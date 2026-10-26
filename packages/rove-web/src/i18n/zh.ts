@@ -263,10 +263,15 @@ export const zh: typeof en = {
   },
   pages: {
     attachTooLarge: "{name} 超过 5 MB",
-    routineNew: "[ 新建 ]",
+    new: "[ 新建 ]",
     routinePause: "[ 暂停 ]",
     routineEnable: "[ 启用 ]",
-    routineDelete: "[ 删除 ]",
+    delete: "[ 删除 ]",
+    cronDown: "减小{field}",
+    cronUp: "增大{field}",
+    storySave: "保存",
+    storySaveStart: "保存并启动",
+    storyStart: "启动",
   },
   taskops: {
     publishTitle: "推送到远端",

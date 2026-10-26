@@ -309,7 +309,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
           </span>
           {/* Every page key has a click target too: a phone has no n/e/d. */}
           <button type="button" className="link" onClick={() => void createRoutine()}>
-            {t("pages.routineNew")}
+            {t("pages.new")}
           </button>
         </span>
       </div>
@@ -373,7 +373,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   {t(selected.enabled ? "pages.routinePause" : "pages.routineEnable")}
                 </button>
                 <button type="button" className="link" disabled={busy === selected.id} onClick={requestDelete}>
-                  {t("pages.routineDelete")}
+                  {t("pages.delete")}
                 </button>
               </div>
               <p className="muted">
