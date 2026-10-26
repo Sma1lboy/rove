@@ -288,14 +288,12 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (!stream) uncover()
     }
   }
-  // A box not laid out yet (the phone's workspace is still display:none on the tap that selects the
-  // task) leaves xterm at its 80×24 default; attaching then draws the engine for 80 columns, and the
-  // later resize only redraws its live region. So attach once the box has a size.
+  // An unlaid-out box (phone workspace still display:none) would attach at xterm's 80×24 default.
   const sized = () => el.clientWidth > 0 && el.clientHeight > 0
   let attachWhenSized = false
   const offOpen = client.onOpen(() => {
-    if (sized()) void attach()
-    else attachWhenSized = true
+    attachWhenSized = !sized()
+    if (!attachWhenSized) void attach()
   })
 
   const input = term.onData(replies.forward)
