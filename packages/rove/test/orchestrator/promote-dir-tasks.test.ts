@@ -46,6 +46,13 @@ describe("promotableDirTasks", () => {
     expect(promotableDirTasks({ tasks: [t], isRepoRoot: () => false })).toEqual([])
   })
 
+  it("leaves a projectless routine's directory alone even when it is a repo root", () => {
+    // A routine's dir lives under the Rove home; if that is ever a git root, promoting
+    // would turn the routine's session into a project row and pull it out of "No project".
+    const t = task("routine", { repo: "/home/.rove/routines/r1", noProject: true })
+    expect(promotableDirTasks({ tasks: [t], isRepoRoot: anyRepo })).toEqual([])
+  })
+
   it("leaves a scratch shell alone even when it started inside a repo", () => {
     // Issue #33: a scratch shell's cwd is unsettled by definition. Promoting
     // it would turn a throwaway terminal into a permanent project row.

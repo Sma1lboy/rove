@@ -15,6 +15,7 @@ import {
 } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog } from "./dialogs.tsx"
+import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import {
   errorMessage,
@@ -188,10 +189,6 @@ export function RoutinesView({ model }: { model: AppModel }) {
       .then((res) => res.repos)
       .catch((): string[] => [])
     const repos = mergeRepos(saved, taskRepos)
-    if (repos.length === 0) {
-      setNotice(auto.needRepo)
-      return
-    }
     dialog.set(
       <RoutineComposer
         repos={repos}
@@ -204,7 +201,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
             setBusy("new")
             try {
               await c.request("routine.create", {
-                repo: draft.repo,
+                ...(draft.repo === null ? {} : { repo: draft.repo }),
                 name: draft.name,
                 prompt: draft.prompt,
                 schedule: draft.schedule,
@@ -334,10 +331,14 @@ export function RoutinesView({ model }: { model: AppModel }) {
                 onClick={() => setCursor(index)}
               >
                 <span className="pg-name">{routine.name}</span>
-                <span className="pg-grow muted mono">{`${projectLabel(
-                  routine.repo,
-                  rows.map((r) => r.repo),
-                )} · ${routine.schedule}`}</span>
+                <span className="pg-grow muted mono">{`${
+                  routine.repo === undefined
+                    ? t("rail.noProject")
+                    : projectLabel(
+                        routine.repo,
+                        rows.flatMap((r) => r.repo ?? []),
+                      )
+                } · ${routine.schedule}`}</span>
                 {!routine.enabled && <span className="tone-warning mono">{auto.paused} ·</span>}
                 <span className="muted mono">{when(routine.nextRunAt)}</span>
                 <span className={`mono ${tone ? TONE_CLASS[tone] : "muted"}`} style={{ width: "1ch" }}>

@@ -324,7 +324,7 @@ link back to the issue. Note it takes `--vendor` (an engine enum), not
 
 ## routines (scheduled prompts)
 
-A cron rule + a prompt + a repo, owned by the daemon. By default each firing
+A cron rule + a prompt + a repo (or none, `--no-repo`), owned by the daemon. By default each firing
 creates a FRESH task — worktree, engine, delivered prompt. With
 `--persistent-session` every firing lands in ONE standing task as the next
 turn of the same conversation (a Claude Code-style routine: one window, one
@@ -334,7 +334,7 @@ it fires with no TUI attached.
 <!-- generated:begin routine -->
 ```text
 routine-list     (none)
-routine-create   --repo(REQ) --name(REQ) --prompt|--prompt-file --schedule(REQ)
+routine-create   --repo --no-repo --name(REQ) --prompt|--prompt-file --schedule(REQ)
                  --vendor{claude|codex|copilot|kimi|pi|omp|bob} --model --effort
                  --base-branch --precheck --precheck-timeout(120) --script
                  --script-timeout(120) --notify --webhook --grace(60) --persistent-session
@@ -356,6 +356,14 @@ the engine starts — non-zero exit skips the run without spawning an agent,
 which is the cheap way to not burn a turn on "nothing to do". `--grace` is how
 late a missed occurrence may still run after the daemon was down; only the
 most recent missed occurrence ever runs.
+
+`routine-create` takes exactly one of `--repo PATH` or `--no-repo` (neither is
+an error, so a forgotten `--repo` never silently becomes a repo-less routine).
+`--no-repo` is for a prompt that belongs to no project: each run works in its
+own directory, `<home>/.rove/routines/<id>/`, as a plain directory session (no
+worktree, no branch) that shows in the sidebar's "No project" group. It takes
+no `--base-branch`, and a routine can't switch between a repo and no project
+after it is saved.
 
 Pick the mode by what the prompt DOES. A routine that EDITS code wants the
 default: each run is its own branch you can review and land; a week of runs

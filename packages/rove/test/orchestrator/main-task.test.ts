@@ -98,6 +98,13 @@ describe("ensureMainTask", () => {
     expect(orch.listTasks().filter((t) => t.kind === "dir")).toHaveLength(0)
   })
 
+  test("never adopts a no-project routine dir as the project row", async () => {
+    const routineDir = await orch.openDirectoryTask({ dir: repo, noProject: true, title: "nightly" })
+    await orch.createTask({ repo, title: "t" })
+    expect(orch.getTask(routineDir.id)).toMatchObject({ kind: "dir", noProject: true, title: "nightly" })
+    expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(1)
+  })
+
   test("never promotes a scratch row — it belongs to the Scratch bench", async () => {
     const scratch = await orch.openDirectoryTask({ dir: repo, scratch: true })
     await orch.createTask({ repo, title: "t" })

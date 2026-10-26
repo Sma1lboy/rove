@@ -58,6 +58,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   worktreePath: "/repo/.worktrees/round-trip",
   kind: "dir",
   scratch: true,
+  noProject: true,
   routine: { automationId: "auto-1" },
   status: "in_review",
   pinned: true,

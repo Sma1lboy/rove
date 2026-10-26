@@ -6,6 +6,7 @@
 
 import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
+import { t } from "./i18n/index.ts"
 import type { ARCHIVED_ROW_ID } from "./rail-archived.ts"
 
 export type SortMode = "default" | "recent" | "attention" | "name"
@@ -23,6 +24,8 @@ export interface ProjectGroup {
   readonly key?: string
   /** The machine `repo` lives on; absent = this one. */
   readonly machine?: string
+  /** The "No project" group: Scratch shells and projectless routine runs, never a repo. */
+  readonly noProject?: true
 }
 
 /** A row from another machine carries its alias, so its menu and keys run there. */
@@ -44,6 +47,7 @@ export type NavRow =
       readonly kind: "project"
       readonly repo: string
       readonly label: string
+      readonly noProject?: true
     })
   | (Remote & {
       readonly id: string
@@ -144,25 +148,40 @@ export function projectLabel(repo: string, repos: readonly LabelledRepo[], host 
   return host ? `${host}:${base}` : base
 }
 
+/** The one "No project" group's key and row id suffix: the TUI's `~scratch`, stable across clients. */
+export const NO_PROJECT_KEY = "~scratch"
+
+/** A directory task with no project of its own: a Scratch shell or a projectless routine's run. */
+export const isNoProject = (task: TaskRow): boolean =>
+  task.kind === "dir" && (task.scratch === true || task.noProject === true)
+
 export function groupByProject(tasks: readonly TaskRow[], sort: SortMode = "default"): ProjectGroup[] {
   const ordered = [...tasks].sort((a, b) => (a.order ?? a.rank) - (b.order ?? b.rank))
   const groups = new Map<string, TaskRow[]>()
   for (const task of ordered) {
-    const list = groups.get(task.repo)
+    // Never keyed by directory: every no-project task is one group.
+    const bucket = isNoProject(task) ? NO_PROJECT_KEY : task.repo
+    const list = groups.get(bucket)
     // The project's main checkout heads its group, whatever the sort.
     if (list) task.kind === "main" ? list.unshift(task) : list.push(task)
-    else groups.set(task.repo, [task])
+    else groups.set(bucket, [task])
   }
   const compare = COMPARE[sort]
-  return [...groups].map(([repo, rows]) => {
+  const built = [...groups].map(([bucket, rows]): ProjectGroup => {
+    const sorted = compare ? rows.sort(mainFirst(compare)) : rows
+    if (bucket === NO_PROJECT_KEY && rows.every(isNoProject)) {
+      return { repo: "", label: t("rail.noProject"), tasks: sorted, key: NO_PROJECT_KEY, noProject: true }
+    }
     const repoId = rows.find((task) => task.repoId)?.repoId
     return {
-      repo,
-      label: repoLabel(repo),
-      tasks: compare ? rows.sort(mainFirst(compare)) : rows,
+      repo: bucket,
+      label: repoLabel(bucket),
+      tasks: sorted,
       ...(repoId ? { repoId } : {}),
     }
   })
+  // No project sits above every project.
+  return [...built.filter((group) => group.noProject), ...built.filter((group) => !group.noProject)]
 }
 
 /** The project's main checkouts head its group, whatever the sort. */
@@ -306,6 +325,7 @@ export function navRows(
         kind: "project",
         repo: group.repo,
         label: group.label,
+        ...(group.noProject ? { noProject: true as const } : {}),
         ...head,
       },
       ...under,
@@ -384,7 +404,9 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   const buckets = new Map<string, Part[]>()
   for (const part of parts) {
     const { repoId, repo } = part.group
-    const key = repoId ?? (part.machine === undefined ? repo : `${part.machine}\0${repo}`)
+    const key = part.group.noProject
+      ? NO_PROJECT_KEY
+      : (repoId ?? (part.machine === undefined ? repo : `${part.machine}\0${repo}`))
     const bucket = buckets.get(key)
     if (bucket) bucket.push(part)
     else buckets.set(key, [part])
@@ -396,9 +418,10 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
     const head = bucket[0]
     if (!head) continue
     const all = bucket.flatMap((part) => part.group.tasks)
+    const noProject = head.group.noProject === true
     const project: Project = {
       repo: head.group.repo,
-      label: "",
+      label: noProject ? head.group.label : "",
       key,
       tasks:
         bucket.length === 1
@@ -407,15 +430,21 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
             ? all.sort(mainFirst(compare))
             : [...all.filter((task) => task.kind === "main"), ...all.filter((task) => task.kind !== "main")],
       ...(head.group.repoId ? { repoId: head.group.repoId } : {}),
-      ...(head.machine === undefined ? {} : { machine: head.machine }),
+      // The group acts on no machine: its header has no menu or +.
+      ...(head.machine === undefined || noProject ? {} : { machine: head.machine }),
+      ...(noProject ? { noProject: true as const } : {}),
     }
     projects.push(project)
     for (const part of bucket) projectOf.set(part, project)
   }
-  const labels = new Map(projects.map((project) => [project, mergedLabel(project, projects)]))
+  const labels = new Map(
+    projects.map((project) => [project, project.noProject ? project.label : mergedLabel(project, projects)]),
+  )
   const labelled = projects.map((project) => ({ ...project, label: labels.get(project) ?? project.label }))
   if (input.sort === "recent") labelled.sort((a, b) => newest(b) - newest(a))
   if (input.sort === "name") labelled.sort((a, b) => collator.compare(a.label, b.label))
+  // No project stays above every project, whatever the sort.
+  labelled.sort((a, b) => Number(b.noProject === true) - Number(a.noProject === true))
   const rows = navRows(labelled, input.query, input.routines, input.fold)
   const groups = parts
     .filter((part) => part.machine === undefined)
@@ -424,75 +453,6 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
       return { ...part.group, label: (project && labels.get(project)) ?? part.group.label }
     })
   return { rows, groups }
-}
-
-/**
- * How many `task.move` steps take `from` to `to`'s place, in the daemon's move partition
- * (`movePartition`): all mains (projects), or one repo's tasks with the same pin. Null across partitions.
- */
-export function dragSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow): number | null {
-  const main = from.kind === "main"
-  const same = (task: TaskRow) =>
-    main ? task.kind === "main" : task.kind !== "main" && task.repo === from.repo && !task.pinned === !from.pinned
-  if (from.id === to.id || !same(to)) return null
-  const ids = tasks
-    .filter(same)
-    .sort((a, b) => (a.order ?? a.rank) - (b.order ?? b.rank))
-    .map((task) => task.id)
-  return ids.indexOf(to.id) - ids.indexOf(from.id)
-}
-
-export type DropSide = "above" | "below"
-
-/** {@link dragSteps} for a drop that lands right above or right below `to`. */
-export function dropSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow, side: DropSide): number | null {
-  const steps = dragSteps(tasks, from, to)
-  if (steps === null) return null
-  if (side === "above" && steps > 0) return steps - 1
-  if (side === "below" && steps < 0) return steps + 1
-  return steps
-}
-
-/** A row's nesting level: a project 0, its tasks and routine count 1, a child task one deeper per generation. */
-const depthOf = (row: NavRow | undefined): number =>
-  row === undefined || row.kind === "project" ? 0 : row.kind === "task" ? row.depth : 1
-
-/** Where the block starting at `i` (the row and every row nested under it) ends. */
-export function blockEnd(rows: readonly NavRow[], i: number): number {
-  const depth = depthOf(rows[i])
-  let end = i + 1
-  while (end < rows.length && depthOf(rows[end]) > depth) end++
-  return end
-}
-
-/** One indent column of a child row: a line passing by, nothing, a line on to the next sibling, or the last sibling's hook. */
-export type TreeGuide = "pipe" | "blank" | "tee" | "elbow"
-
-/** The indent columns of the child row at `i`, outermost first (empty for a top-level row), as Claude's session tree draws them. */
-export function treeGuides(rows: readonly NavRow[], i: number): TreeGuide[] {
-  const depth = depthOf(rows[i])
-  const guides: TreeGuide[] = []
-  for (let d = 2; d <= depth; d++) {
-    // The row at level `d` on this row's path has a later sibling: the first row after it at or above `d` sits at `d`.
-    let j = i + 1
-    while (j < rows.length && depthOf(rows[j]) > d) j++
-    const more = j < rows.length && depthOf(rows[j]) === d
-    guides.push(d === depth ? (more ? "tee" : "elbow") : more ? "pipe" : "blank")
-  }
-  return guides
-}
-
-/** `rows` with the dragged row's block moved right above or below the target's block, as it would land. */
-export function previewDrop(rows: readonly NavRow[], fromId: string, toId: string, side: DropSide): readonly NavRow[] {
-  const from = rows.findIndex((row) => row.id === fromId)
-  if (from < 0 || fromId === toId) return rows
-  const end = blockEnd(rows, from)
-  const block = rows.slice(from, end)
-  const rest = [...rows.slice(0, from), ...rows.slice(end)]
-  const to = rest.findIndex((row) => row.id === toId)
-  if (to < 0) return rows
-  const at = side === "above" ? to : blockEnd(rest, to)
-  return [...rest.slice(0, at), ...block, ...rest.slice(at)]
 }
 
 /**

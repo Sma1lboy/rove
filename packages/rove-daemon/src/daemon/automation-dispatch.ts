@@ -24,11 +24,12 @@ import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } 
 import { logDaemonInfo } from "./crash-log.ts"
 import { type GateLedger, carryOwedGateAnswers } from "./gate-handoff.ts"
 import { ptyScopeFor } from "./pty-alias.ts"
+import { ensureRoutineCwd, routineDir } from "./routine-dir.ts"
 import type { RunnabilityVerdict, SkipReason, SkipVerdict } from "./runnability-contracts.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** The orchestrator slice a firing needs. */
-export type DispatchOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask"> &
+export type DispatchOrchestrator = Pick<DaemonOrchestrator, "createTask" | "openDirectoryTask" | "getTask"> &
   Partial<Pick<DaemonOrchestrator, "listTasks">>
 
 export type DispatchRuntime = Pick<
@@ -107,8 +108,26 @@ function blockedOutcome(
   return { status, ...where, blocked: verdict, error }
 }
 
-/** Create the task a firing runs in, marked as the routine's when standing. */
+/**
+ * Create the task a firing runs in, marked as the routine's when standing. A
+ * projectless routine runs in a `noProject` directory task at its routine dir;
+ * a repo routine gets a (lazy) worktree task.
+ */
 async function createRunTask(deps: DispatchDeps, automation: Automation): Promise<DaemonTask> {
+  // Folds the task behind the sidebar's routine row. Standing only: fresh
+  // runs are work the user must land.
+  const routine = automation.persistentSession ? { routine: { automationId: automation.id } } : {}
+  if (!automation.repo) {
+    return await deps.orch.openDirectoryTask({
+      dir: routineDir(automation.id),
+      title: automation.name,
+      noProject: true,
+      ...(automation.vendor ? { vendor: automation.vendor } : {}),
+      ...(automation.model ? { model: automation.model } : {}),
+      ...(automation.modelEffort ? { modelEffort: automation.modelEffort } : {}),
+      ...routine,
+    })
+  }
   return await deps.orch.createTask({
     repo: automation.repo,
     title: automation.name,
@@ -116,9 +135,7 @@ async function createRunTask(deps: DispatchDeps, automation: Automation): Promis
     ...(automation.model ? { model: automation.model } : {}),
     ...(automation.modelEffort ? { modelEffort: automation.modelEffort } : {}),
     ...(automation.baseRef ? { baseRef: automation.baseRef } : {}),
-    // Folds the task behind the sidebar's routine row. Standing only: fresh
-    // runs are work the user must land.
-    ...(automation.persistentSession ? { routine: { automationId: automation.id } } : {}),
+    ...routine,
   })
 }
 
@@ -197,6 +214,8 @@ export async function dispatchAutomation(
     if (result.outcome === "delivered") await owed.commit()
     return await liveDeliveryOutcome(deps, automation, task.id, result)
   }
+  // Removed between firings? Every remaining shape (create, deliver, revive) runs in it.
+  if (!automation.repo) await ensureRoutineCwd(automation)
   if (target.kind === "fresh") {
     const quota = blockedOutcome(deps.runnability?.freshQuota(automation.vendor), {})
     if (quota) return quota

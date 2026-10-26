@@ -16,20 +16,12 @@ import { PageNav } from "./pages-host.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { withArchived } from "./rail-archived.ts"
+import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { NERD, anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import {
-  type NavRow,
-  type RowFold,
-  type TreeGuide,
-  childMarkerOf,
-  railRows,
-  repoLabel,
-  rowTitle,
-  treeGuides,
-} from "./rail.ts"
+import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
@@ -194,12 +186,14 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             drag={drag.props(row)}
             dragging={drag.dragging === row.id}
             place={place(row)}
-            onNewTask={row.kind === "project" ? () => startNewTask(model, row.repo, row.machine) : undefined}
+            onNewTask={
+              row.kind === "project" && !row.noProject ? () => startNewTask(model, row.repo, row.machine) : undefined
+            }
             moving={
               moving &&
               row.machine === undefined &&
               (row.kind === "project"
-                ? projectInfo(row.repo).mainTaskId === keys.cursor
+                ? !row.noProject && projectInfo(row.repo).mainTaskId === keys.cursor
                 : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
             }
             foldUrgent={
@@ -219,7 +213,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             onMenu={(e) => {
               // Another machine's project has no checkout here, so its header has no menu; its
               // tasks do (their verbs run on that machine, `taskMenu` drops the local-only ones).
-              if (row.machine !== undefined && row.kind === "project") return
+              if (row.kind === "project" && (row.machine !== undefined || row.noProject)) return
               // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
               if (row.kind === "project") {
                 const info = projectInfo(row.repo)
@@ -293,7 +287,7 @@ function RailRow(props: {
         <button
           type="button"
           className="project-toggle"
-          title={row.repo}
+          title={row.noProject ? undefined : row.repo}
           aria-expanded={!props.collapsed}
           onClick={props.onClick}
         >

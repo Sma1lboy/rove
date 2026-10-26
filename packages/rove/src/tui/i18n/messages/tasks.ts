@@ -15,7 +15,7 @@ export const en = {
   },
   /** Section headers */
   header: {
-    scratch: "SCRATCH",
+    scratch: "No project",
   },
   /** Search bar */
   search: {
@@ -313,7 +313,7 @@ export const zh: typeof en = {
     mods: "Mods",
   },
   header: {
-    scratch: "临时",
+    scratch: "无项目",
   },
   search: {
     placeholder: "模糊搜索",

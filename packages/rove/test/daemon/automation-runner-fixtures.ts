@@ -83,6 +83,8 @@ export function fakeDeps(args: {
   deliverTab?: DispatchRuntime["deliverPromptToLiveEngineTabDetailed"]
 }) {
   const created: unknown[] = []
+  /** Inputs of `openDirectoryTask` — the projectless path. */
+  const openedDirs: unknown[] = []
   const deliveries = fakeDeliveries()
   const prompts: string[] = []
   const delivered: string[] = []
@@ -103,6 +105,7 @@ export function fakeDeps(args: {
   }
   return {
     created,
+    openedDirs,
     prompts,
     delivered,
     episodes,
@@ -119,6 +122,10 @@ export function fakeDeps(args: {
             created.push(input)
             return { id: "task-1" } as DaemonTask
           }),
+        openDirectoryTask: async (input: unknown) => {
+          openedDirs.push(input)
+          return { id: "task-dir-1" } as DaemonTask
+        },
         getTask: (id: string) => args.tasks?.[id],
       },
       runtime: {

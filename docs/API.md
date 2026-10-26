@@ -1469,7 +1469,7 @@ missing (`gh-missing` / `auth` / `no-remote`) rather than a generic error.
 
 ## routine
 
-Scheduled agent tasks (Routines): a cron rule + a prompt + a repo. By default
+Scheduled agent tasks (Routines): a cron rule + a prompt + a repo (or no repo). By default
 every firing creates a **fresh task** (worktree + branch + engine session) with
 the prompt as its first message; `--persistent-session` instead re-delivers into
 ONE standing task. `--target-task ID --target-tab tab-N` instead binds an existing
@@ -1479,9 +1479,12 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 [design/automations.md](./design/automations.md).
 
 - `routine-list`: every routine with its next run time.
-- `routine-create --repo PATH --name N (--prompt TEXT | --prompt-file PATH) --schedule CRON
+- `routine-create (--repo PATH | --no-repo) --name N (--prompt TEXT | --prompt-file PATH) --schedule CRON
   [--vendor V] [--model M] [--effort LEVEL] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
-  [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]`: schedule a prompt. `--schedule` is five-field
+  [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]`: schedule a prompt. Pass exactly one
+  of `--repo` and `--no-repo` (neither is `MISSING_FLAG`, both is `CONFLICTING_FLAGS`). `--no-repo` makes a
+  routine with no project: every run works in `<home>/.rove/routines/<id>/` as a directory session, and it takes
+  no `--base-branch`. `--schedule` is five-field
   cron in the daemon host's local time (`"0 9 * * MON-FRI"`). `--model` / `--effort`
   pin every run's engine, validated at save time with the same `BAD_MODEL` /
   `BAD_EFFORT` as `add` against `--vendor`, else the repo's default engine, else

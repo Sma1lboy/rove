@@ -115,6 +115,28 @@ describe("scratch tasks", () => {
     expect(kept?.title).toBe("my bench")
   })
 
+  it("a routine's no-project session keeps its title, pins, routine link and flag across a reload", async () => {
+    const task = await orch.openDirectoryTask({
+      dir,
+      noProject: true,
+      title: "nightly audit",
+      model: "opus",
+      modelEffort: "high",
+      routine: { automationId: "auto-1" },
+    })
+    expect(task.scratch).toBeUndefined()
+    const reloaded = new TaskIndexStore({ homeDir: home })
+    await reloaded.load()
+    expect(reloaded.get(task.id)).toMatchObject({
+      kind: "dir",
+      noProject: true,
+      title: "nightly audit",
+      model: "opus",
+      modelEffort: "high",
+      routine: { automationId: "auto-1" },
+    })
+  })
+
   it("the scratch flag survives a store reload (codec round-trip)", async () => {
     const scratch = await orch.openDirectoryTask({ dir, scratch: true })
     const reloaded = new TaskIndexStore({ homeDir: home })

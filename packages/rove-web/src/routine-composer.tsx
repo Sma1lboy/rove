@@ -22,7 +22,7 @@ import {
   stepSegment,
 } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
-import { useLocale } from "./i18n/index.ts"
+import { t, useLocale } from "./i18n/index.ts"
 import { fill, projectLabel, repoKey, useCopy } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog } from "./ui.ts"
@@ -59,7 +59,7 @@ export function RoutineComposer(props: {
     repo:
       props.repos.find((repo) => props.defaultRepo && repoKey(repo) === repoKey(props.defaultRepo)) ??
       props.repos[0] ??
-      "",
+      null,
   }))
   const [cell, setCell] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -90,7 +90,7 @@ export function RoutineComposer(props: {
       closeDialog()
       props.onSubmit({
         name: draft.name.trim(),
-        repo: draft.repo.trim(),
+        repo: draft.repo === null ? null : draft.repo.trim(),
         prompt: draft.prompt.trim(),
         schedule: draft.schedule.trim(),
         ...(draft.target ? { target: draft.target } : {}),
@@ -105,17 +105,19 @@ export function RoutineComposer(props: {
     }
   }
 
-  const targets = props.tasks.filter((task) => repoKey(task.repo) === repoKey(draft.repo))
+  const targets =
+    draft.repo === null ? [] : props.tasks.filter((task) => repoKey(task.repo) === repoKey(draft.repo ?? ""))
   const targetIndex = draft.target ? targets.findIndex((task) => task.id === draft.target?.taskId) + 1 : 0
   const pickTarget = (delta: number) => {
     const index = (targetIndex + delta + targets.length + 1) % (targets.length + 1)
     const task = targets[index - 1]
     patch({ target: task ? { kind: "existing-tab", taskId: task.id, tabId: "tab-1" } : undefined })
   }
+  const places: readonly (string | null)[] = [null, ...props.repos]
   const pickRepo = (delta: number) => {
-    const index = Math.min(Math.max(props.repos.indexOf(draft.repo) + delta, 0), props.repos.length - 1)
-    const repo = props.repos[index]
-    if (repo) patch({ repo, target: undefined })
+    const index = Math.min(Math.max(places.indexOf(draft.repo) + delta, 0), places.length - 1)
+    const next = places[index]
+    if (next !== undefined) patch({ repo: next, target: undefined })
   }
   const lists = (step: (delta: number) => void) => (e: KeyboardEvent) => {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return
@@ -162,36 +164,32 @@ export function RoutineComposer(props: {
           <div className="field">
             <span className="kicker kb-label">
               {auto.fieldRepo}
-              {props.repos.length > 0 && <span className="muted kb-hint">↑/↓</span>}
+              <span className="muted kb-hint">↑/↓</span>
             </span>
-            {props.repos.length === 0 ? (
-              <p className="muted">{auto.needRepo}</p>
-            ) : (
-              <SelectorField
-                fieldRef={at("repo")}
-                kind="list"
-                label={auto.fieldRepo}
-                className="kb-places"
-                onKeyDown={lists(pickRepo)}
-              >
-                {props.repos.map((repo) => (
-                  <button
-                    type="button"
-                    key={repo}
-                    tabIndex={-1}
-                    aria-selected={repo === draft.repo}
-                    className={`kb-place ${repo === draft.repo ? "is-active" : ""}`}
-                    onClick={() => {
-                      patch({ repo, target: undefined })
-                      refs.current.repo?.focus()
-                    }}
-                  >
-                    {repo === draft.repo ? "▸ " : "  "}
-                    {projectLabel(repo, props.repos)}
-                  </button>
-                ))}
-              </SelectorField>
-            )}
+            <SelectorField
+              fieldRef={at("repo")}
+              kind="list"
+              label={auto.fieldRepo}
+              className="kb-places"
+              onKeyDown={lists(pickRepo)}
+            >
+              {places.map((repo) => (
+                <button
+                  type="button"
+                  key={repo ?? ""}
+                  tabIndex={-1}
+                  aria-selected={repo === draft.repo}
+                  className={`kb-place ${repo === draft.repo ? "is-active" : ""}`}
+                  onClick={() => {
+                    patch({ repo, target: undefined })
+                    refs.current.repo?.focus()
+                  }}
+                >
+                  {repo === draft.repo ? "▸ " : "  "}
+                  {repo === null ? t("rail.noProject") : projectLabel(repo, props.repos)}
+                </button>
+              ))}
+            </SelectorField>
           </div>
           <div className="field">
             <span className="kicker kb-label">

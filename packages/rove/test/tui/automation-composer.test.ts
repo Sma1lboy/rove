@@ -53,6 +53,14 @@ describe("validation", () => {
     expect(firstIncompleteField(FULL)).toBeNull()
   })
 
+  test("No project (null repo) is a valid choice, and tab skips the target fields", () => {
+    const draft = { ...FULL, repo: null }
+    expect(canSubmitDraft(draft)).toBe(true)
+    expect(firstIncompleteField(draft)).toBeNull()
+    expect(nextComposerField("repo", 1, false, true)).toBe("prompt")
+    expect(nextComposerField("prompt", -1, false, true)).toBe("repo")
+  })
+
   test.each([
     ["name", { ...FULL, name: "  " }],
     ["repo", { ...FULL, repo: "" }],

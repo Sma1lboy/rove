@@ -56,14 +56,13 @@ function AutomationComposerView(props: {
   const t = useT()
   const padX = useDialogPaddingX()
 
-  const [draft, setDraft] = useState<ComposerDraft>(() => ({
-    ...EMPTY_DRAFT,
-    repo: props.defaultRepo ?? props.repos[0] ?? "",
-  }))
+  const initialRepo = props.defaultRepo ?? props.repos[0] ?? null
+  const [draft, setDraft] = useState<ComposerDraft>(() => ({ ...EMPTY_DRAFT, repo: initialRepo }))
   const [field, setField] = useState<ComposerField>("name")
+  // Picker rows: "No project" first, then the saved repos.
   const [repoCursor, setRepoCursor] = useState(() => {
-    const at = props.repos.findIndex((repo) => samePath(repo, props.defaultRepo))
-    return at >= 0 ? at : 0
+    const at = props.repos.findIndex((repo) => samePath(repo, initialRepo ?? undefined))
+    return at >= 0 ? at + 1 : 0
   })
   const [error, setError] = useState<string | null>(null)
   const [segmentCursor, setSegmentCursor] = useState(0)
@@ -86,17 +85,16 @@ function AutomationComposerView(props: {
   }
 
   const pickRepoAt = (index: number): void => {
-    const repo = props.repos[clampCursor(index, props.repos.length)]
-    if (!repo) return
-    setRepoCursor(clampCursor(index, props.repos.length))
-    patch({ repo, target: undefined })
+    const at = clampCursor(index, props.repos.length + 1)
+    setRepoCursor(at)
+    patch({ repo: at === 0 ? null : (props.repos[at - 1] ?? null), target: undefined })
   }
 
   function commit(): void {
     if (canSubmitDraft(draft)) {
       props.onSubmit({
         name: draft.name.trim(),
-        repo: draft.repo.trim(),
+        repo: draft.repo === null ? null : draft.repo.trim(),
         prompt: draft.prompt.trim(),
         schedule: draft.schedule.trim(),
         ...(draft.target ? { target: draft.target } : {}),
@@ -113,14 +111,16 @@ function AutomationComposerView(props: {
   }
 
   const preview = previewSchedule(draft.schedule, Date.now())
-  const repoWindow = windowAround(props.repos as string[], repoCursor)
+  // "" stands for No project: saved repos are never empty (the page filters them).
+  const repoWindow = windowAround(["", ...props.repos], repoCursor)
   const repoRows = repoWindow.items.map((repo, index) => ({
-    key: repo,
-    body: sidebarProjectLabel(repo, props.repos),
+    key: repo || "~no-project",
+    body: repo === "" ? t("automations.noProject") : sidebarProjectLabel(repo, props.repos),
     accent: repoWindow.start + index === repoCursor,
   }))
 
-  const targets = props.tasks.filter((task) => samePath(task.repo, draft.repo))
+  const projectless = draft.repo === null
+  const targets = draft.repo === null ? [] : props.tasks.filter((task) => samePath(task.repo, draft.repo ?? undefined))
   const targetCursor = draft.target ? targets.findIndex((task) => task.id === draft.target?.taskId) + 1 : 0
   function pickTarget(delta: number): void {
     const index = (targetCursor + delta + targets.length + 1) % (targets.length + 1)
@@ -135,8 +135,8 @@ function AutomationComposerView(props: {
     bindings: [
       // No escape binding: ModalBarrier's esc both resolves the promise and
       // pops the card; a binding here would outrank it and only resolve.
-      { key: "tab", cmd: () => setField((f) => nextComposerField(f, 1, Boolean(draft.target))) },
-      { key: "shift+tab", cmd: () => setField((f) => nextComposerField(f, -1, Boolean(draft.target))) },
+      { key: "tab", cmd: () => setField((f) => nextComposerField(f, 1, Boolean(draft.target), projectless)) },
+      { key: "shift+tab", cmd: () => setField((f) => nextComposerField(f, -1, Boolean(draft.target), projectless)) },
       // Target and repo are lists: up/down drives them while focused. Input
       // fields' arrows belong to opentui.
       ...(field === "target"
@@ -212,36 +212,34 @@ function AutomationComposerView(props: {
       <DialogSection
         label={t("automations.fieldRepo")}
         focused={field === "repo"}
-        hint={props.repos.length === 0 ? undefined : "↑/↓"}
+        hint="↑/↓"
         onPress={() => setField("repo")}
       >
-        {props.repos.length === 0 ? (
-          <text fg={theme.textMuted}>{t("automations.needRepo")}</text>
-        ) : (
-          <DialogField focused={field === "repo"}>
-            <PickerList window={repoWindow} cursor={repoCursor} rows={repoRows} onPick={pickRepoAt} />
-          </DialogField>
-        )}
-      </DialogSection>
-
-      <DialogSection
-        label={t("automations.fieldTarget")}
-        focused={field === "target"}
-        hint="↑/↓"
-        onPress={() => setField("target")}
-      >
-        <DialogField focused={field === "target"}>
-          <text
-            fg={theme.text}
-            onMouseUp={() => {
-              setField("target")
-              pickTarget(1)
-            }}
-          >
-            {targetLabel}
-          </text>
+        <DialogField focused={field === "repo"}>
+          <PickerList window={repoWindow} cursor={repoCursor} rows={repoRows} onPick={pickRepoAt} />
         </DialogField>
       </DialogSection>
+
+      {projectless ? null : (
+        <DialogSection
+          label={t("automations.fieldTarget")}
+          focused={field === "target"}
+          hint="↑/↓"
+          onPress={() => setField("target")}
+        >
+          <DialogField focused={field === "target"}>
+            <text
+              fg={theme.text}
+              onMouseUp={() => {
+                setField("target")
+                pickTarget(1)
+              }}
+            >
+              {targetLabel}
+            </text>
+          </DialogField>
+        </DialogSection>
+      )}
       {draft.target ? (
         <DialogSection
           label={t("automations.fieldTargetTab")}

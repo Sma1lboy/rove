@@ -10,7 +10,8 @@ import { useEffect, useRef, useState } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
 import type { AppModel } from "./model.ts"
 import { moveTaskBy } from "./move-mode.ts"
-import { type DropSide, type NavRow, blockEnd, dragSteps, dropSteps, previewDrop } from "./rail.ts"
+import { type DropSide, blockEnd, dragSteps, dropSteps, previewDrop } from "./rail-blocks.ts"
+import type { NavRow } from "./rail.ts"
 
 export type DragProps = Pick<HTMLAttributes<HTMLElement>, "draggable" | "onDragStart" | "onDragEnd">
 

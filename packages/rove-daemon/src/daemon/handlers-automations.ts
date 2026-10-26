@@ -21,6 +21,7 @@ import { reportDelivery, withDeliveryReport } from "./delivery-ops.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import { deliveryDepsOf } from "./handlers-deliveries.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
+import { ensureRoutineCwd } from "./routine-dir.ts"
 
 function runnerDepsOf(ctx: DaemonHandlerContext): RunnerDeps {
   return {
@@ -94,6 +95,8 @@ function readGraceMinutes(payload: Record<string, unknown>): number | undefined 
   return value
 }
 
+const NO_PROJECT_BASE_REF = "a routine with no project has no base branch; drop baseRef or give it a repo"
+
 export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "automation.list",
@@ -118,12 +121,14 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.create",
     async handle(payload, ctx) {
       const precheck = readPrecheck(payload)
-      const repo = requireString(payload, "repo")
+      // Absent repo = projectless: runs happen in the routine's own directory.
+      const repo = optionalString(payload, "repo")
       const baseRef = optionalString(payload, "baseRef")
       const target = "target" in payload ? readAutomationTarget(payload.target) : undefined
+      if (!repo && baseRef) throw new Error(NO_PROJECT_BASE_REF)
       // Validate before persisting, not at the first unattended failure.
-      if (!target) await assertRoutineRepo(repo)
-      if (baseRef) await assertRoutineBaseRef(repo, baseRef)
+      if (repo && !target) await assertRoutineRepo(repo)
+      if (repo && baseRef) await assertRoutineBaseRef(repo, baseRef)
       const model = optionalString(payload, "model")
       const modelEffort = optionalString(payload, "effort")
       const targetOptions = {
@@ -141,7 +146,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       await assertAutomationTargetTask({ repo, target: target ?? undefined }, ctx.orch)
       const automation = await ctx.automations.create({
         name: requireString(payload, "name"),
-        repo,
+        ...(repo ? { repo } : {}),
         ...(target ? { target } : {}),
         prompt: script ? "" : prompt,
         ...(script ? { script } : {}),
@@ -157,6 +162,13 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(optionalBoolean(payload, "persistentSession") === true ? { persistentSession: true } : {}),
         ...(optionalBoolean(payload, "enabled") !== undefined ? { enabled: optionalBoolean(payload, "enabled") } : {}),
       })
+      // A projectless routine's cwd must exist before its first firing; a save that can't make it is no save.
+      if (!repo) {
+        await ensureRoutineCwd(automation).catch(async (error) => {
+          await ctx.automations.delete(automation.id)
+          throw error
+        })
+      }
       // A new enabled schedule may be the daemon's only reason to stay up.
       ctx.daemon.reevaluateIdle()
       return { automation }
@@ -167,9 +179,11 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
       // Validate a new base ref (a clear has nothing to check). The repo isn't
-      // patchable, so it's validated only at create.
+      // patchable (a routine never converts between a repo and no project), so
+      // it's validated only at create.
       const nextBaseRef = "baseRef" in payload ? optionalString(payload, "baseRef") : undefined
       const currentRepo = ctx.automations.get(id)?.repo
+      if (nextBaseRef && ctx.automations.get(id) && !currentRepo) throw new Error(NO_PROJECT_BASE_REF)
       if (nextBaseRef && currentRepo) await assertRoutineBaseRef(currentRepo, nextBaseRef)
       let patch: AutomationPatch = {
         ...(optionalString(payload, "name") !== undefined ? { name: optionalString(payload, "name") } : {}),

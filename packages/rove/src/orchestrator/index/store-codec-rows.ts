@@ -53,6 +53,7 @@ export function coerceTask(value: unknown): Task | null {
   // Scratch only means anything on a dir task — a corrupt flag elsewhere is
   // dropped rather than inventing a Scratch worktree row.
   const scratch = kind === "dir" && v.scratch === true
+  const noProject = kind === "dir" && v.noProject === true
   const healedStatus: TaskStatus =
     kind === "main" && (v.status === "in_progress" || v.status === "done") ? "backlog" : v.status
   const deletion = coerceDeletion(v.deletion)
@@ -74,6 +75,7 @@ export function coerceTask(value: unknown): Task | null {
     pinned: typeof v.pinned === "boolean" ? v.pinned : false,
     kind,
     ...(scratch ? { scratch: true } : {}),
+    ...(noProject ? { noProject: true } : {}),
     ...(routine ? { routine } : {}),
     vendor: coerceVendorId(typeof v.vendor === "string" ? v.vendor : undefined),
     // Raw launch command; lost, the task falls back to its protocol's preset.

@@ -47,6 +47,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
   worktreePath: "/repo/.worktrees/decode",
   kind: "task",
   scratch: true,
+  noProject: true,
   routine: { automationId: "auto-1" },
   status: "in_review",
   pinned: true,

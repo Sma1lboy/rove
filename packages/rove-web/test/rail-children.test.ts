@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
+import { treeGuides } from "../src/rail-blocks.ts"
 import { mostUrgentStatus } from "../src/rail-glyphs.ts"
-import { AUTO_FOLD_CHILDREN, childMarkerOf, groupByProject, navRows, treeGuides } from "../src/rail.ts"
+import { AUTO_FOLD_CHILDREN, childMarkerOf, groupByProject, navRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
   ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow

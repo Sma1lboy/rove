@@ -24,7 +24,8 @@ export interface PromotableDeps {
  * The repo roots that a `dir` task occupies and no `main` row claims yet.
  *
  * Excludes:
- *   - **scratch** rows — a scratch shell started inside a repo is still scratch;
+ *   - **scratch** and **no-project** rows — a scratch shell started inside a repo is still scratch,
+ *     and a projectless routine's directory never becomes a project;
  *   - roots that ALREADY have a main row — that would mint a duplicate;
  *   - a `dir` task pinned to a SUBDIRECTORY (`my-monorepo/packages/app` is a
  *     deliberate choice; promoting would re-target the whole monorepo);
@@ -35,7 +36,7 @@ export function promotableDirTasks(deps: PromotableDeps): readonly Task[] {
   const seen = new Set<string>()
   const out: Task[] = []
   for (const task of deps.tasks) {
-    if (task.kind !== "dir" || task.scratch === true || task.sharesWorkspaceOf) continue
+    if (task.kind !== "dir" || task.scratch === true || task.noProject === true || task.sharesWorkspaceOf) continue
     // A dir task's `repo` IS its pinned directory: "is it a repo root", not "inside one".
     const path = task.repo
     const key = pathIdentity(path)

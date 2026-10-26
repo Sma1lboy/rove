@@ -124,6 +124,25 @@ describe("buildTreeRows", () => {
     ])
   })
 
+  test("a projectless routine's standing session folds into the No project routines row", () => {
+    const result = rows({
+      tasks: [
+        task("s1", { kind: "dir", scratch: true, repo: "/Users/me" }),
+        task("r1", {
+          kind: "dir",
+          noProject: true,
+          repo: "/home/.rove/routines/a1",
+          routine: { automationId: "a1" },
+        }),
+      ],
+    })
+    expect(result.map((r) => [r.kind, r.id])).toEqual([
+      ["project", SCRATCH_SECTION_ID],
+      ["worktree", "s1"],
+      ["routines", `~routines:${SCRATCH_SECTION_ID}`],
+    ])
+  })
+
   test("a scratch task is one reachable row, whether or not it has tabs", () => {
     const result = rows({
       tasks: [

@@ -152,6 +152,11 @@ function isLocalTask(task: Pick<Task, "origin">): boolean {
   return (task.origin?.machineId ?? "local") === "local"
 }
 
+/** A task that sits in the "No project" group: a scratch shell or a projectless routine's dir. */
+export function isNoProjectTask(task: Task): boolean {
+  return task.kind === "dir" && (task.scratch === true || task.noProject === true)
+}
+
 /**
  * One project per REPO across machines, the way the web rail merges by
  * `repoId`: every checkout (machine + path) whose tasks name the same
@@ -170,7 +175,7 @@ export function sidebarProjectKeyResolver(tasks: readonly Task[]): ProjectKeyOf 
   const counted = tasks.filter((task) => {
     const phase = task.deletion?.phase
     if (phase === "queued" || phase === "running") return false
-    return !(task.kind === "dir" && task.scratch === true)
+    return !isNoProjectTask(task)
   })
   // A checkout's repoId: the first of its tasks that carries one (the web's `groupByProject`).
   const repoIdOf = new Map<string, string>()
