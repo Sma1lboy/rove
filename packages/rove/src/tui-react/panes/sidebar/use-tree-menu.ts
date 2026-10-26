@@ -151,8 +151,8 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         if (action === "fieldNotes") actions.onFieldNotesRequest?.(row.repo)
         const mainId = deps.tree.mainTaskIdOfProject(row.id)
         if (!mainId) return
-        // Same flow as `d` on the project's main checkout row.
-        if (action === "forgetProject") actions.onDeleteRequest?.(mainId)
+        // Not `d`'s flow: that is the main row's delete, which ends its conversation and keeps the project.
+        if (action === "forgetProject") actions.onForgetProjectRequest?.(mainId)
         if (action === "moveToTop") actions.onMoveToTopRequest?.(mainId)
         // Already moving: the cursor is on this main now, so j/k drag it — a
         // toggle would leave move mode instead.

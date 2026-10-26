@@ -1,6 +1,6 @@
 /**
- * Archived tasks in the sidebar: gone from every project (so a project left
- * with only its main folds like any idle one), back in ONE fold at the end of
+ * Archived tasks in the sidebar: gone from every project (a project left
+ * with only its main stays listed), back in ONE fold at the end of
  * the tree, and the row menu that hides or restores them.
  */
 
@@ -40,10 +40,9 @@ describe("archived tasks leave the projects", () => {
     expect(result.map((g) => g.tasks.map((t) => t.id))).toEqual([["m", "live"]])
   })
 
-  test("a project whose only other rows are archived folds like an idle project", () => {
+  test("a project left with only its main stays listed, tabs closed or unknown", () => {
     const tasks = [main("m", "/repos/api"), task("gone", { repo: "/repos/api", archived: true })]
-    expect(buildSidebarGroups({ tasks, tabsByTask: tabs({ m: 0 }) })).toEqual([])
-    // Unknown tabs never hide, archived or not.
+    expect(buildSidebarGroups({ tasks, tabsByTask: tabs({ m: 0 }) })).toHaveLength(1)
     expect(buildSidebarGroups({ tasks, tabsByTask: new Map() })).toHaveLength(1)
   })
 

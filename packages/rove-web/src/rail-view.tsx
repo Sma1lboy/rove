@@ -71,12 +71,10 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   // Archived tasks are only in the closing fold, which a search leaves out (as the TUI).
   const rows = filters.search.active
     ? built.rows
-    : withArchived(
-        foldProjects(dropIdleProjects(built.rows, tabs, selection.taskId), filters.collapsed),
-        payload?.archived ?? [],
-        filters.archivedOpen,
-        { ...filters.hand, selectedId: selectedId ?? undefined },
-      )
+    : withArchived(foldProjects(built.rows, filters.collapsed), payload?.archived ?? [], filters.archivedOpen, {
+        ...filters.hand,
+        selectedId: selectedId ?? undefined,
+      })
   const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project")
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
   const offline = new Set(machines.filter((m) => m.state !== "online").map((m) => m.alias))
@@ -457,37 +455,4 @@ function foldProjects(rows: readonly NavRow[], collapsed: ReadonlySet<string>): 
     }
     return !hiding
   })
-}
-
-/**
- * A project with nothing going on (only its repo row, no tab open, not selected) is not listed,
- * as Claude's sidebar lists only projects with sessions; New task still reaches it.
- */
-function dropIdleProjects(
-  rows: readonly NavRow[],
-  tabs: Readonly<Record<string, readonly unknown[]>>,
-  selectedTaskId: string | null,
-): readonly NavRow[] {
-  const out: NavRow[] = []
-  for (let i = 0; i < rows.length; i++) {
-    const head = rows[i]
-    if (head?.kind !== "project") {
-      if (head) out.push(head)
-      continue
-    }
-    let end = i + 1
-    while (end < rows.length && rows[end]?.kind !== "project") end++
-    const under = rows.slice(i + 1, end)
-    const idle = under.every(
-      (row) =>
-        row.kind === "task" &&
-        row.task.kind === "main" &&
-        row.task.id !== selectedTaskId &&
-        // Only a tab list that arrived and is empty: unknown (not loaded, or the read failed) keeps the project.
-        tabs[row.task.id]?.length === 0,
-    )
-    if (!idle) out.push(head, ...under)
-    i = end - 1
-  }
-  return out
 }

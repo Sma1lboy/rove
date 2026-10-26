@@ -135,10 +135,11 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   if (task.kind !== "main") {
     verbs.push({ action: "archive", labelKey: task.archived === true ? "tasks.menu.unarchive" : "tasks.menu.archive" })
   }
-  // Say what goes: a `dir` task is a conversation in a folder the user owns.
+  // Say what goes: a `dir` task is a conversation in a folder the user owns; a project's main row ends its
+  // conversation and stays listed (Remove project lives on the project header).
   verbs.push({
     action: "delete",
-    labelKey: task.kind === "dir" ? "tasks.menu.deleteConversation" : "tasks.menu.delete",
+    labelKey: task.kind === "dir" || task.kind === "main" ? "tasks.menu.deleteConversation" : "tasks.menu.delete",
     danger: true,
     bindingId: "sidebar.delete",
   })
@@ -147,8 +148,8 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
 
 export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenuItem[] {
   if (row.kind === "project") {
-    // `d` already forgets a project (behind a confirm). Field notes are
-    // menu-only; agents file them with `rove api note`.
+    // Remove project is menu-only (`d` on the main row ends its conversation instead). Field notes are
+    // menu-only too; agents file them with `rove api note`.
     const items: TreeMenuItem[] = [{ action: "newTask", labelKey: "tasks.menu.newTask", bindingId: "task.new" }]
     if (ctx.projectMovable) {
       if (!ctx.projectFirst) items.push({ action: "moveToTop", labelKey: "tasks.menu.moveToTop" })
@@ -157,7 +158,7 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
     }
     items.push(
       { action: "fieldNotes", labelKey: "tasks.menu.fieldNotes" },
-      { action: "forgetProject", labelKey: "tasks.menu.forgetProject", danger: true, bindingId: "sidebar.delete" },
+      { action: "forgetProject", labelKey: "tasks.menu.forgetProject", danger: true },
     )
     return items
   }

@@ -98,7 +98,6 @@ export const en = {
     delete: "Delete",
     deleteTask: "Delete task",
     deleteConversation: "Delete conversation",
-    removeProject: "Remove project",
     copied: "copied {text}",
     copyFailed: "the browser refused the clipboard",
     nothingToCopy: "this task has no {what} yet",

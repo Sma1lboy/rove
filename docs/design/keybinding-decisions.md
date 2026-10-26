@@ -908,3 +908,12 @@ these opens a shared child task under the current one instead of a second
 engine tab (see [`child-sessions.md`](./child-sessions.md)). Keys stay put so
 muscle memory survives the model change. The child-task fold has no chord: it
 is reached through the row menu, like other row actions.
+
+## `d` on a project's main row ends its conversation (2026-10-25, owner directive)
+
+`d` keeps its key and its "destructive action on this row" meaning, but on a
+project's main row it no longer removes the project from the list. It ends the
+row's conversation and closes its tabs; the project, repo, branches and
+worktrees stay. A main with child tasks asks whether to keep or delete them
+too, like any task. Remove project is menu-only, on the project header
+(`forgetProject` carries no chord).

@@ -89,8 +89,7 @@ test("right-click on a project header offers the project's own actions", async (
 
   const after = await frame()
   expect(after).toContain("New task")
-  // Forget mirrors `d` on the project's row (task-actions.ts sends a main row
-  // to `forgetProject` behind a confirm).
+  // Menu-only: `d` on the project's main row ends its conversation instead of forgetting the project.
   expect(after).toContain("Remove project")
   // This entry is the only in-product reader of the repo's durable notes.
   expect(after).toContain("Field notes")

@@ -5,8 +5,9 @@
  * already applied instead of looking like nothing happened.
  */
 
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
+import { type SelfSessionProbe, resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { ApiError } from "../../src/cli/api/types.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
 
@@ -122,6 +123,66 @@ describe("update", () => {
       /--tab only renames a tab/,
     )
     expect(client.requests).toEqual([])
+  })
+})
+
+describe("update without --task-id", () => {
+  const saved = { task: process.env.ROVE_TASK_ID, tab: process.env.ROVE_TAB_ID }
+  const restore = (name: string, value: string | undefined) => {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
+  const probe = (insideTab: boolean): SelfSessionProbe => ({
+    sessions: async () => [{ key: "worker-1::tab-1", pid: 100, alive: true }],
+    ps: async () => `  100     1 /bin/zsh -il\n  500   ${insideTab ? 100 : 1} bun rove api update`,
+    pid: 500,
+  })
+  const asSession = (insideTab: boolean) =>
+    verifiedSelfSession({ ROVE_TASK_ID: "worker-1", ROVE_TAB_ID: "tab-1" }, probe(insideTab))
+
+  beforeEach(() => {
+    resetVerifiedSelfSession()
+    process.env.ROVE_TASK_ID = "worker-1"
+    process.env.ROVE_TAB_ID = "tab-1"
+  })
+  afterEach(() => {
+    resetVerifiedSelfSession()
+    restore("ROVE_TASK_ID", saved.task)
+    restore("ROVE_TAB_ID", saved.tab)
+  })
+
+  it("renames the caller's own task", async () => {
+    await asSession(true)
+    const client = new FakeClient(writes)
+    await invokeVerb("update", ["--title", "Fix login redirect"], { client, runtime: stubRuntime() })
+    expect(client.requests.at(-1)).toEqual({
+      name: "task.rename",
+      payload: { taskId: "worker-1", title: "Fix login redirect" },
+    })
+  })
+
+  it("an inherited env that does not verify is MISSING_TARGET, never a guess", async () => {
+    await asSession(false)
+    const client = new FakeClient(writes)
+    await expectApiError(
+      () => invokeVerb("update", ["--title", "x"], { client, runtime: stubRuntime() }),
+      "MISSING_TARGET",
+      /--task-id/,
+    )
+    expect(client.requests.filter((r) => r.name === "task.rename")).toEqual([])
+  })
+
+  it("--tab still needs an explicit task", async () => {
+    await asSession(true)
+    await expectApiError(
+      () =>
+        invokeVerb("update", ["--tab", "tab-2", "--title", "x"], {
+          client: new FakeClient(writes),
+          runtime: stubRuntime(),
+        }),
+      "MISSING_FLAG",
+      /--task-id/,
+    )
   })
 })
 

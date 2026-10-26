@@ -8,6 +8,7 @@ import { homedir } from "node:os"
 import type { Task } from "@/types/task"
 import { tildify } from "../../../lib/path-home"
 import { truncateStart } from "../../lib/truncate"
+import { repoBasename } from "./groups"
 
 /** Widest path label a worktree row renders before tail-truncation — the
  *  default rail width minus row chrome. The row's flex still end-clips on
@@ -45,11 +46,12 @@ export function conversationTitleOf(
 /**
  * A row is a conversation, so it is named like one: the engine session's own
  * title (`liveTitle`, from {@link conversationTitleOf}), else the task's
- * title, else its branch. The task title only names `task` rows and children:
- * a `main` row reads its live HEAD, and a `dir` row its tail-truncated
- * directory (stored dir titles are auto-generated noise like `jacksonc-xxxx`,
- * and this needs no data migration). Then the path; then "scratch", never
- * blank. The branch stays searchable (`tree-search.ts`).
+ * title, else its branch. The task title names `task` rows and children; a
+ * `main` row only when it was renamed (it starts as the repo name, which would
+ * hide the live HEAD), else it reads its live HEAD, and a `dir` row its
+ * tail-truncated directory (stored dir titles are auto-generated noise like
+ * `jacksonc-xxxx`, and this needs no data migration). Then the path; then
+ * "scratch", never blank. The branch stays searchable (`tree-search.ts`).
  *
  * `liveBranch` is the caller-resolved HEAD for branchless rows
  * ({@link rowLiveBranchPath}, `git-head.ts`); `home` is injectable for tests.
@@ -61,7 +63,8 @@ export function worktreeRowLabel(
   const live = opts.liveTitle?.trim()
   if (live) return live
   const title = task.title.trim()
-  if (title && (task.parentTaskId !== undefined || task.kind === "task")) return title
+  const renamedMain = task.kind === "main" && title !== "" && title !== repoBasename(task.repo)
+  if (title && (task.parentTaskId !== undefined || task.kind === "task" || renamedMain)) return title
   const branch = (opts.liveBranch ?? task.branch) || task.branch
   if (branch) return branch
   if (task.kind !== "dir" && task.title) return task.title

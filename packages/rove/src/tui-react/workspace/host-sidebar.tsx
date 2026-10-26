@@ -2,7 +2,7 @@
 /**
  * The host's left rail: which sidebar renders, and its wiring. A new sidebar
  * concern lands here, not on the host. Task-lifecycle callbacks come from
- * {@link SidebarTaskCallbacks}, all REQUIRED except `onLandRequest`.
+ * {@link SidebarTaskCallbacks}, all REQUIRED except `onLandRequest` and `onForgetProjectRequest`.
  */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
@@ -21,8 +21,8 @@ import { useSidebarGroups } from "../panes/sidebar/use-sidebar-groups"
 import { requestNewTab } from "./terminal-tabs-shared"
 
 export interface HostSidebarProps
-  extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest">>>,
-    Readonly<Pick<SidebarTaskCallbacks, "onLandRequest">> {
+  extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest" | "onForgetProjectRequest">>>,
+    Readonly<Pick<SidebarTaskCallbacks, "onLandRequest" | "onForgetProjectRequest">> {
   readonly width: number
   readonly collapsed?: boolean
   /** Fold / unfold. Absent = the rail renders without the control. */
