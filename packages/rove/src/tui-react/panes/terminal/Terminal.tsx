@@ -10,6 +10,7 @@ import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable } from "@opentui/core"
 import { useEffect, useMemo, useState } from "react"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
+import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
 import type { SessionRecovery } from "../../../tui/panes/terminal/session-recovery"
 import { isShellMissing } from "../../../tui/panes/terminal/terminal-render"
@@ -39,6 +40,8 @@ import { useTerminalSelection } from "./use-terminal-selection"
 /* --------------------------------------------------------------------- */
 /*  Public surface                                                        */
 /* --------------------------------------------------------------------- */
+
+const NO_ROWS: readonly TerminalRow[] = []
 
 export type TerminalProps = {
   /** Working dir for the shell. Null disables the pane (no task). */
@@ -161,7 +164,11 @@ function TerminalSession(props: TerminalProps) {
     () => computeViewport(snapshot.length, bodyRows, scrollOffset),
     [snapshot.length, bodyRows, scrollOffset],
   )
-  const visibleRows = useMemo(() => snapshot.slice(visibleRange.start, visibleRange.end), [snapshot, visibleRange])
+  const visibleRows = useMemo(() => {
+    const rows = snapshot.slice(visibleRange.start, visibleRange.end)
+    // A remount re-slices an empty snapshot as geometry settles; a shared empty skips those overlay passes.
+    return rows.length === 0 ? NO_ROWS : rows
+  }, [snapshot, visibleRange])
   // Cursor is only meaningful when following the bottom of the buffer;
   // once scrolled back, the live (x,y) refers to the LIVE viewport.
   const visibleCursor = useMemo(
