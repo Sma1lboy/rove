@@ -27,8 +27,9 @@ export function useRowTip(text: string): {
     onPointerEnter: (e) => {
       const row = e.currentTarget
       const title = row.querySelector<HTMLElement>(".row-title")
-      // Only a title the row truncates; a whole one says nothing new.
-      if (!title || title.scrollWidth <= title.clientWidth) return
+      // Only a title the row truncates; a whole one says nothing new. A finger's hold is the row's
+      // menu (long-press.ts), and the open task shows its title in full.
+      if (e.pointerType === "touch" || !title || title.scrollWidth <= title.clientWidth) return
       clear()
       timer.current = window.setTimeout(() => setAt(row.getBoundingClientRect()), SHOW_AFTER_MS)
     },

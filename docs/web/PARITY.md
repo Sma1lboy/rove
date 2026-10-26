@@ -1,11 +1,11 @@
 # Web parity with the TUI
 
-Every user action the TUI offers (204 numbered rows, plus five extra rows marked `—`: three web-only, two for the unmerged long-run controls stack), and whether `packages/rove-web` does it yet.
+Every user action the TUI offers (204 numbered rows, plus five extra rows marked `—`: three web-only, two for the unmerged long-run controls stack), five touch-only web rows (#206–#210), and whether `packages/rove-web` does it yet.
 Legend: ✅ same as TUI · 🟡 partial or different · ❌ missing (unbuilt) · 🚫 cannot exist in a browser. `Bridge` names the op that would carry the action: `missing` = no op exists, `local` = pure UI.
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
 
-Score: 192 / 209 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
+Score: 197 / 214 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
 
 ## Navigation, help, command layer and global chrome
 
@@ -82,6 +82,9 @@ Score: 192 / 209 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table
 | 205 | Expand/collapse the Archived fold | Enter/click fold row | ✅ | local | archive: archived tasks (and their children, nested) sit only in one `Archived · N` row after every project; click toggles ▸/▾; no menu on the fold row; search leaves it out (as the TUI). Archived rows keep their colour mark (titles at x=25 like live rows, measured). Bridge: `TasksPayload.archived` (additive). TUI tree-core `archived` row. Shot after-web-archived. |
 | 59 | Sync base branch into task | prefix u, row menu | ✅ | `task.syncBase` | taskops: g: real merge: commit on base after branching, menu Sync base -> toast "Merged main into this worktree", base commit and file present in the worktree (git log, ls). Conflict: toast "Merge conflict — resolve then commit: README.md"; as in the TUI the conflict is left in the worktree (`UU README.md`, HEAD unchanged). Dirty worktree: "Commit the worktree's changes first…" and HEAD unchanged. Shot taskops-g-02. |
 | 60 | Ask agent to fix failing checks | prefix k, row menu on failing PR | ✅ | `task.fixChecks` | taskops: a: `ctrl+a k` and the menu entry (only while the PR checks are red) send the CI fix prompt; with no red PR they toast the TUI's copy. Shot taskops-a-10. The failing-PR send path was not run against a real PR. |
+| 206 | Open a task, project or tab menu on a touch screen | (touch only; TUI has no touch) | ✅ | local | night r7 (#1454): iOS fires no `contextmenu` on a hold, so `long-press.ts` sends one after 500ms (10px slop); the lift's mousedown/mouseup/click are dropped until the next press or key, so the menu stays open wherever it flipped to. At 390x844 touch emulation: hold → menu at the pressed row; lift outside the menu → still open; next tap on Rename → dialog; 40px drag → no menu; short tap → opens the task. Text fields and the terminal keep native long-press. Not run on a real iPhone. Shots r07-longpress-menu-390, r07-longpress-rename-390. |
+| 207 | See a row's PRs on a touch screen | (touch only) | ✅ | local | night r7 (#1454): on `(hover: none) and (pointer: coarse)` a tap on the PR chip toggles its list without opening the row; the list is placed inside the screen ([16,382] at 390) and a tap elsewhere closes it with the fade. Desktop hover unchanged. Shot r07-pr-tap-390. |
+| 208 | Reach hover-only row controls on a touch screen | (touch only) | ✅ | local | night r9: a project's fold arrow and `+`, and an engine's Make default, show at full opacity on touch (opacity 1 at 390/768, 0 on desktop); a held row no longer shows its title tip over the menu. Shots r09-project-head-390-after, r09-settings-engines-768-after, r09-longpress-768-after. |
 
 ## Task creation and picker
 
@@ -131,6 +134,7 @@ Score: 192 / 209 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table
 | 97 | Reset active terminal | F5 + confirm | ✅ | `tab.split` (`reset`) | workspace: F5 -> confirm dialog -> shell respawned (exported var gone, checked via file written from the new shell); via `tab.split action=reset`. Engine panes refuse, as the TUI. |
 | 98 | Open scrollback search | prefix `/` in terminal | ✅ | local | workspace: Ctrl+A `/` in the terminal opens the scrollback search row (xterm search addon) (shot 08). |
 | 99 | Search and navigate hits / close | type, Enter/↑, ↓, Esc | ✅ | local | workspace: Typing searches and shows `n / m`; Enter walks to the older hit, `v` back; Esc closes and refocuses the terminal. Up/Down aliases not separately exercised. |
+| 209 | Send Esc / Tab / Ctrl / arrows from a phone | on-screen key row (touch only) | ✅ | local | night r2 (#1447) + r8 (#1455): touch screens get a key row under the terminal (sticky ctrl, esc, tab, ⇧tab, ^C, ↑↓←→; arrows follow DECCKM); esc/↑/ctrl+c sent `\x1b`, `\x1b[A`, `\x03`. Row fits 390 with no scroll (370/370); at 768 labels stay whole (0 clipped). Shots r08-terminal-390/768, r08-keyrow-390-after. |
 
 ## Files, previews and diff review
 
@@ -154,6 +158,7 @@ Score: 192 / 209 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table
 | 115 | Add per-file review note | c | ✅ | `review.add` | r3: the note lands in `state.json` `diffComments.<taskId>` (read back via `review.list`); the row gets the note marker (shot r3-04). |
 | 116 | Drop note under cursor | x | ✅ | `review.remove` | r3: `x` removes it; `review.list` shrinks by one. |
 | 117 | Send all unsent review notes | s | ✅ | `review.send` | r4c: `s` sent the notes to the live Codex tab (it answered `NOTED`), toast "sent 4 notes to the engine", every note got `sentAt` (`review.list`). Exited engine: refused, notes stay unsent (r3b). |
+| 210 | Preview a file or diff on a phone or tablet | tap a Files row (touch only) | ✅ | `diff.file` | night r3 (#1448) + r8 (#1455): narrow mode has a Terminal / Files switch; on any touch screen a file tap opens the diff preview (not the Mac's editor, which needs keys). Diff lines wrap on narrow screens (no sideways scroll at 390). Shots r08-files-390, r08-diff-390, r08-diff-768-after. |
 
 ## Inbox, alerts and attention
 
@@ -307,6 +312,6 @@ Waves after round 8 (parallel slices, each in its own worktree, sandbox and port
 - Wave 3: open in editor, starter keybindings file, the user's `keybindings.yaml` (overrides, prefix key, plugin chords with the TUI's precedence).
 - A full cross-slice browser regression on the integrated top found one regression (F5 reset closing its tab), fixed with a test.
 
-Now: 192 ✅ / 13 ❌ / 3 🚫 / 1 🟡 of 209 (the Score line above). Every ❌ and 🚫 says why in its row: browser-reserved chords (#10, #72), what a page cannot do (#11, #13, #159), the bridge security boundary (#173, #174 authoring parts, #178, #182, #186, #188, #189), installing a release from a browser (#152, #154, owner decision), and the unmerged long-run controls stack (two `—` rows). #24: quota and `Σ` are seen in a browser and match the TUI; `ctx %` waits on a suspected Codex session-id pin bug (see the row).
+Now: 197 ✅ / 13 ❌ / 3 🚫 / 1 🟡 of 214 (the Score line above). Rows #206–#210 are touch-only paths the TUI has no counterpart for (long-press menu, tap PR list, hover-only controls, terminal key row, touch file preview). Every ❌ and 🚫 says why in its row: browser-reserved chords (#10, #72), what a page cannot do (#11, #13, #159), the bridge security boundary (#173, #174 authoring parts, #178, #182, #186, #188, #189), installing a release from a browser (#152, #154, owner decision), and the unmerged long-run controls stack (two `—` rows). #24: quota and `Σ` are seen in a browser and match the TUI; `ctx %` waits on a suspected Codex session-id pin bug (see the row).
 
 Screenshots are local only. Headless Chromium paints the WebGL terminal blank, so shots are taken headed (see MEMO).

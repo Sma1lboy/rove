@@ -582,6 +582,12 @@
     user-select: none;
     -webkit-touch-callout: none;
   }
+  /* Controls the desktop reveals on hover stay visible: a finger would hit them unseen. */
+  .project-chevron,
+  .project-add,
+  .eng-make-default {
+    opacity: 1;
+  }
 }
 
 /* Daemon out-of-date banner (TUI VersionSkewBanner) */
