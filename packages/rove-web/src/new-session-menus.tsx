@@ -1,6 +1,6 @@
 /** The New session composer's popovers: a chip that opens a searchable list (project, branch) and the model/effort/engine menu. */
 
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { t } from "./i18n/index.ts"
 import { type Choice, digitRow } from "./new-session.ts"
 
@@ -15,6 +15,16 @@ export function ChipPopover(props: {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLSpanElement>(null)
   const button = useRef<HTMLButtonElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
+  // Anchored to its chip's edge, a popover from a chip mid-row on a phone runs off the screen; slide it back in.
+  useLayoutEffect(() => {
+    const el = pop.current
+    if (!open || !el) return
+    const box = el.getBoundingClientRect()
+    const shift =
+      box.right > window.innerWidth - 8 ? window.innerWidth - 8 - box.right : box.left < 8 ? 8 - box.left : 0
+    if (shift) el.style.transform = `translateX(${Math.round(shift)}px)`
+  }, [open])
   const close = () => {
     setOpen(false)
     button.current?.focus()
@@ -52,7 +62,11 @@ export function ChipPopover(props: {
       >
         {props.label}
       </button>
-      {open && <div className="composer-pop">{props.children(close)}</div>}
+      {open && (
+        <div ref={pop} className="composer-pop">
+          {props.children(close)}
+        </div>
+      )}
     </span>
   )
 }
